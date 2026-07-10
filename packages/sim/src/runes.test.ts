@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { CombatResult } from '@game/core';
-import { CARD_INDEX, QUEST_INDEX, RUNES, RUNE_INDEX, validateRunes } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNES, RUNE_INDEX, validateRunes } from '@game/content';
 import { createRun, type RunState } from './state';
-import { reduce } from './reducer';
+import { openEpicRuneforge, reduce } from './reducer';
 
 /** A Runesmith run parked at wave-5 combat, ready for `resolveCombat` → the turn-6 Runeforge. */
 const atWave5Combat = (over: Partial<RunState> = {}): RunState => ({
@@ -188,5 +188,77 @@ describe('New heroes — Coran (Pathfinder) + Jenkins (Dynamite Dig)', () => {
     s = reduce(s, { type: 'heroPower' });
     expect(s.embers).toBe(8); // second use costs 2
     expect(s.heroPowerUses).toBe(2);
+  });
+});
+
+describe('Epic Runeforge', () => {
+  /** Open the Epic forge with a chosen Epic rune first, then buy it — returns the post-buy run. */
+  const buyEpic = (runeId: string, embers = 10, heroId = 'baggerben', over: Partial<RunState> = {}): RunState => {
+    const s: RunState = { ...createRun(1, heroId), wave: 6, phase: 'recruit', embers, runeforgeOffer: [runeId], runeforgeEpic: true, ...over };
+    return reduce(s, { type: 'buyRune', index: 0 });
+  };
+
+  it('every Epic rune validates, is `rune_`-prefixed, marked epic, and resolvable via RUNE_INDEX', () => {
+    validateRunes(); // validates BOTH sets by default
+    expect(EPIC_RUNES.length).toBeGreaterThanOrEqual(6); // enough that a re-roll always yields a fresh 3
+    for (const r of EPIC_RUNES) {
+      expect(r.id.startsWith('rune_')).toBe(true);
+      expect(r.epic).toBe(true);
+      expect(RUNE_INDEX[r.id]).toBeDefined(); // shared id space with the normal set
+    }
+    expect(EPIC_RUNES.some((r) => r.id === 'rune_empowerment')).toBe(true); // re-added as an Epic rune
+  });
+
+  it('openEpicRuneforge presents a random 3 distinct Epic runes + flags the forge Epic', () => {
+    const s: RunState = { ...createRun(1, 'baggerben'), wave: 6, phase: 'recruit', runeforgeRerolled: true };
+    openEpicRuneforge(s);
+    expect(s.runeforgeEpic).toBe(true);
+    expect(s.runeforgeRerolled).toBeUndefined(); // a fresh visit re-arms the single re-roll
+    expect(s.runeforgeOffer!.length).toBe(3);
+    expect(new Set(s.runeforgeOffer).size).toBe(3);
+    for (const id of s.runeforgeOffer!) expect(EPIC_RUNES.some((r) => r.id === id)).toBe(true);
+  });
+
+  it('Rune of Empowerment is gated to heroes whose power gets value from a double trigger', () => {
+    const offersFor = (heroId: string) => Array.from({ length: 40 }, (_, i) => {
+      const s: RunState = { ...createRun(i + 1, heroId), wave: 6, phase: 'recruit' };
+      openEpicRuneforge(s);
+      return s.runeforgeOffer!;
+    });
+    // Bagger Ben's Bag It (scalingGold) doubles → eligible: Empowerment shows up across seeds.
+    expect(offersFor('baggerben').some((o) => o.includes('rune_empowerment'))).toBe(true);
+    // Indy's Gild (targeted, can't double) → NEVER offered Empowerment.
+    expect(offersFor('indy').every((o) => !o.includes('rune_empowerment'))).toBe(true);
+  });
+
+  it('buying an Epic rune applies its reward, records it, and does NOT spend a hero-power charge', () => {
+    const s = buyEpic('rune_epic_opulence', 10); // cost 5, +2 max Gold
+    expect(s.embers).toBe(7); // 10 − 5, then +2 from the reward reflected into this turn
+    expect(s.maxGoldBonus).toBe(2);
+    expect(s.ownedRunes).toEqual(['rune_epic_opulence']);
+    expect(s.runeforgeOffer).toBeUndefined();
+    expect(s.runeforgeEpic).toBeUndefined();
+    expect(s.heroPowerSpent).toBeFalsy(); // the Epic forge is quest-opened, not the hero power
+  });
+
+  it('Rune of Empowerment arms the double-trigger flag', () => {
+    expect(buyEpic('rune_empowerment', 10).runeEmpowerment).toBe(true);
+  });
+
+  it('Empowerment doubles a value hero power (Bagger Ben gains twice the Gold)', () => {
+    const bag = (over: Partial<RunState> = {}): RunState => ({ ...createRun(1, 'baggerben'), wave: 3, phase: 'recruit', embers: 5, heroReady: true, ...over });
+    expect(reduce(bag(), { type: 'heroPower' }).embers).toBe(5 + (1 + 3)); // base: +4
+    expect(reduce(bag({ runeEmpowerment: true }), { type: 'heroPower' }).embers).toBe(5 + 2 * (1 + 3)); // doubled: +8
+  });
+
+  it('re-rolling the Epic forge spends 2 Gold once and redraws 3 Epic runes', () => {
+    const s: RunState = { ...createRun(1, 'baggerben'), wave: 6, phase: 'recruit', embers: 10 };
+    openEpicRuneforge(s);
+    const r = reduce(s, { type: 'rerollRuneforge' });
+    expect(r.embers).toBe(8);
+    expect(r.runeforgeRerolled).toBe(true);
+    expect(r.runeforgeOffer!.length).toBe(3);
+    for (const id of r.runeforgeOffer!) expect(EPIC_RUNES.some((rn) => rn.id === id)).toBe(true);
+    expect(reduce(r, { type: 'rerollRuneforge' })).toBe(r); // once per visit
   });
 });

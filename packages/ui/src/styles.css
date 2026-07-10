@@ -992,6 +992,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .runecard-txt { font-weight: 700; font-size: 13px; line-height: 1.26; color: #f1ece3; overflow-wrap: anywhere; text-align: left; }
 .runecard-txt b { color: #b7e4f0; font-weight: 800; }
 .runecard-lock { position: relative; z-index: 6; margin: 0 12px 11px; font-weight: 800; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: #f0a0a0; }
+/* Epic runes — everything keys off `--c`, so a single violet override recolours the frame, emblem, kicker + glow. */
+.runecard-epic { --c: #b078e6; background: radial-gradient(125% 85% at 50% 18%, #2e2540, #16121f); }
+.runecard-epic .runecard-txt b { color: #e0c2ff; }
+.forge-ov.forge-epic .forge-banner .disp { color: #efe0ff; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.18), 0 -1px 1px rgba(0, 0, 0, 0.6), 0 0 22px rgba(176, 120, 230, 0.6); }
+.forge-ov.forge-epic .forge-banner svg { color: #cda6f2; }
 
 /* Rune run-buff badge (in the quest-badge row above the hero) — a stone-toned circle. */
 .questbadge.runebadge { border-color: #6a707c; background: linear-gradient(180deg, #3a3e46, #2a2d33); }

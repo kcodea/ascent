@@ -1,5 +1,5 @@
 import { makeRng, simulate, type BoardMinion, type CardDef, type CombatResult, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
-import { BUYABLE_CARDS, CARD_INDEX, QUEST_INDEX, RUNE_INDEX, RUNES, SPELL_CARDS } from '@game/content';
+import { BUYABLE_CARDS, CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, SPELL_CARDS } from '@game/content';
 import { CONFIG } from './config';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
@@ -742,8 +742,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Reuse the quest-reward engine — it reads only `reward` + `name` off the def.
       applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true);
       (s.ownedRunes ??= []).push(rune.id);
-      s.runeforgeOffer = undefined;
-      s.heroPowerSpent = true; // the forge is a once-per-game event
+      // The Runesmith's forge is a once-per-game HERO POWER; the quest-opened Epic forge is not — leave the
+      // hero-power charge alone for it.
+      if (!s.runeforgeEpic) s.heroPowerSpent = true;
+      closeRuneforge(s);
       checkTriples(s);
       return s;
     }
@@ -751,22 +753,18 @@ function reduceCore(state: RunState, action: Action): RunState {
     case 'skipRuneforge': {
       // Leave the Runeforge without buying (e.g. you can't afford any) — closes it for the run.
       if (!s.runeforgeOffer) return state;
-      s.runeforgeOffer = undefined;
-      s.heroPowerSpent = true;
+      if (!s.runeforgeEpic) s.heroPowerSpent = true;
+      closeRuneforge(s);
       return s;
     }
 
     case 'rerollRuneforge': {
-      // Re-roll the offered runes ONCE, for 2 Gold — a fresh 3 drawn from the runes NOT currently shown (so it's
-      // always a different set). Seeded off a salted stream so it's deterministic + distinct from the first roll.
+      // Re-roll the offered runes ONCE, for 2 Gold — a fresh set drawn (preferring runes NOT currently shown) from
+      // whichever runeset this forge is (normal or Epic). Seeded off a salted stream so it's deterministic.
       if (!s.runeforgeOffer || s.runeforgeRerolled || s.embers < 2) return state;
       spendGold(s, 2);
-      const current = new Set(s.runeforgeOffer);
-      const pool = RUNES.map((rn) => rn.id).filter((id) => !current.has(id));
       const rng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 1));
-      const picks: string[] = [];
-      while (picks.length < 3 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
-      s.runeforgeOffer = picks;
+      s.runeforgeOffer = drawRunes(runeforgePool(s), 3, rng, new Set(s.runeforgeOffer));
       s.runeforgeRerolled = true;
       return s;
     }
@@ -818,6 +816,11 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Powers with a Mana cost (Nadja's Mana Font) also need the Mana on hand.
       if (power.cost && s.embers < power.cost) return state;
       const card = s.board.find((c) => c.uid === action.uid);
+      // Rune of Empowerment (Epic): the hero power's effect triggers twice. Threaded into the value/generate
+      // powers below (scalingGold / gainMaxMana / fortify / dynamiteDig — the DOUBLEABLE_POWERS the rune is
+      // gated to). A targeted single-application power (Gild / Ward) can't meaningfully double, so `reps` is
+      // only read by those four branches.
+      const reps = s.runeEmpowerment ? 2 : 1;
 
       if (power.kind === 'gild') {
         // Indy: make a friendly board minion Golden — doubles its BASE stats (recorded as a "Gild" buff so the
@@ -849,7 +852,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else if (power.kind === 'scalingGold') {
         // Bagger Ben's Bag It: gain Gold now, the payout climbing +1 each turn (turn 1 → 2, turn 2 → 3, …).
         // Untargeted; the once-per-turn charge is spent by the shared block below.
-        s.embers += 1 + s.wave;
+        s.embers += (1 + s.wave) * reps;
       } else if (power.kind === 'dynamiteDig') {
         // Jenkins: Discover a minion of your CURRENT tier for a Gold cost that climbs 1 each use (1, 2, 3, …).
         // Untargeted; the escalating cost + the whole-game use count are handled here (not the shared block).
@@ -857,7 +860,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.embers < digCost) return state; // can't afford this use → no charge spent
         spendGold(s, digCost);
         s.heroPowerUses = heroUses + 1; // escalate the next use's cost
-        openDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
+        for (let r = 0; r < reps; r++) { // Empowerment: two Discovers (the 2nd queues behind the 1st)
+          if (r === 0) openDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
+          else queueDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
+        }
       } else if (power.kind === 'adjacentConsume') {
         // Herald's Proclaim: the two minions on either side of the targeted friendly minion each Consume a
         // created Fodder. No-op (no charge spent) on a missing target or one with no neighbours to feed.
@@ -895,7 +901,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else if (power.kind === 'gainMaxMana') {
         // Nadja: +1 max Mana permanently, UNCAPPED (may exceed the normal cap). Untargeted — ignores
         // action.uid. Doesn't return, so the shared spend logic below charges the once-per-turn charge.
-        s.maxEmbers += 1;
+        s.maxEmbers += reps;
       } else if (power.kind === 'goldenGild') {
         // Gildmaster: if you have 2 copies of a minion (a "double"), combine them into one golden copy in
         // your hand — a discounted triple (you then play the golden for the triple reward). Untargeted: it
@@ -914,7 +920,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
         // warband minion directly, or a tavern offer (the buff bakes in when it's bought).
-        const amt = s.tier;
+        const amt = s.tier * reps;
         if (card) addBuff(card, 'Fortify', amt, amt); // raises Attack → the reduce() boundary fires Hunter's onGainAttack
         else {
           const offer = s.shop.find((c) => c.uid === action.uid);
@@ -1572,15 +1578,13 @@ function advanceCombat(s: RunState): void {
   const coranTier = hp === 'pathfinder' ? (s.wave === 6 ? 'greater' : s.wave === 10 ? 'capstone' : null) : undefined;
   const questTier = fiExtra ? 'lesser' : coranTier !== undefined ? coranTier : questTierForWave(s.wave);
   const questOffer = questTier ? generateQuestOffer(s, questTier) : [];
-  // Runesmith: the Runeforge opens exactly once, on turn 6 — offer a random 5 of the runes for the player to buy
+  // Runesmith: the Runeforge opens exactly once, on turn 6 — offer a random 3 of the runes for the player to buy
   // ONE. Like the quest shop, the tavern is rolled behind the overlay so the shop is ready once the forge closes.
   const forge = getHero(s.heroId).power.kind === 'runeforge' && s.wave === 6 && !s.heroPowerSpent;
   if (forge) {
-    const pool = RUNES.map((rn) => rn.id);
-    const rng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST));
-    const picks: string[] = [];
-    while (picks.length < 3 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
-    s.runeforgeOffer = picks;
+    s.runeforgeOffer = drawRunes(RUNES.map((rn) => rn.id), 3, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST)));
+    s.runeforgeEpic = undefined;
+    s.runeforgeRerolled = undefined;
   }
   if (questOffer.length > 0) {
     s.questOffer = questOffer;
@@ -1774,6 +1778,47 @@ function grantRandomFilterMinion(s: RunState, filter: 'shout' | 'endOfTurn' | 'e
  *                  the whole reward to repeat `repeatInTurns` turns later.
  *  - shoutDouble → bank charges so the next N played Shouts each trigger twice (spent in `playedShoutRepeats`).
  */
+/** Hero-power kinds that get value from a double trigger — the gate for Rune of Empowerment. Keep in sync with
+ *  the `reps`-reading branches in the `heroPower` case (scalingGold / gainMaxMana / fortify / dynamiteDig). */
+const DOUBLEABLE_POWERS = new Set(['scalingGold', 'gainMaxMana', 'fortify', 'dynamiteDig']);
+
+/** The eligible rune-id pool for whichever forge is open: the normal set, or the Epic set filtered by the
+ *  current hero's power (Empowerment is dropped for a hero that can't double). */
+function runeforgePool(s: RunState): string[] {
+  if (!s.runeforgeEpic) return RUNES.map((rn) => rn.id);
+  const canDouble = DOUBLEABLE_POWERS.has(getHero(s.heroId).power.kind);
+  return EPIC_RUNES.filter((rn) => !rn.requiresDoublePower || canDouble).map((rn) => rn.id);
+}
+
+/** Draw `n` distinct rune ids from `ids`, preferring ones not in `avoid` (a re-roll's current offer) but falling
+ *  back to the avoided set if there aren't enough fresh ones — so a small Epic pool still yields a full offer. */
+function drawRunes(ids: string[], n: number, rng: ReturnType<typeof makeRng>, avoid: Set<string> = new Set()): string[] {
+  const fresh = ids.filter((id) => !avoid.has(id));
+  const rest = ids.filter((id) => avoid.has(id));
+  const picks: string[] = [];
+  const take = (arr: string[]) => { while (picks.length < n && arr.length > 0) picks.push(arr.splice(rng.int(arr.length), 1)[0]!); };
+  take(fresh);
+  take(rest);
+  return picks;
+}
+
+/** Open the EPIC Runeforge (a quest reward): present a random 3 of the eligible Epic runeset. Reuses the same
+ *  offer/buy/skip/reroll machinery as the Runesmith's forge, flagged `runeforgeEpic` so the reroll draws from the
+ *  Epic pool, the UI labels it "Epic", and closing it doesn't spend a hero-power charge. Salted distinct from the
+ *  normal forge's stream. */
+export function openEpicRuneforge(s: RunState): void {
+  s.runeforgeEpic = true;
+  s.runeforgeRerolled = undefined;
+  s.runeforgeOffer = drawRunes(runeforgePool(s), 3, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 2)));
+}
+
+/** Close any open forge — clears the offer + its per-visit flags. */
+function closeRuneforge(s: RunState): void {
+  s.runeforgeOffer = undefined;
+  s.runeforgeEpic = undefined;
+  s.runeforgeRerolled = undefined;
+}
+
 function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): void {
   const r = def.reward;
   switch (r.kind) {
@@ -1927,6 +1972,12 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'runeSummoning':
       s.runeSummoning = true; // Rune of Summoning: each spell cast improves your Imps +1/+1
+      break;
+    case 'runeEmpowerment':
+      s.runeEmpowerment = true; // Rune of Empowerment (Epic): your hero power triggers twice
+      break;
+    case 'openEpicRuneforge':
+      openEpicRuneforge(s); // present the Epic runeset (buy ONE, re-roll once) — reached only by a quest for now
       break;
     case 'multi':
       // The Hoard Wakes: several rewards at once — apply each sub-reward through this same path.

@@ -2,7 +2,7 @@ import type { RuneDef } from '@game/core';
 import { RuneDefSchema } from './schema';
 
 /**
- * Runes — the Runesmith's Runeforge stock. On turn 6 the forge offers a random 5 of these; the player buys ONE
+ * Runes — the Runesmith's Runeforge stock. On turn 6 the forge offers a random 3 of these; the player buys ONE
  * for its Gold `cost` and its `reward` applies for the rest of the run (no objective — it just takes effect).
  * Each rune reuses the quest `QuestReward` application engine (see `applyQuestReward`), so a rune's effect is a
  * reward: some reuse existing kinds (combatFlag / recurringEndOfTurn / grant), some use rune-only kinds.
@@ -82,11 +82,83 @@ export const RUNES: RuneDef[] = [
   },
 ];
 
+/**
+ * Epic Runes — the **Epic Runeforge's** stock. A second, higher-power forge that functions identically to the
+ * normal Runeforge (offer a random few, buy ONE for Gold, re-roll once for 2 Gold) but draws from THIS set and is
+ * NOT tied to a hero power — for now it's reached only by a quest reward (`openEpicRuneforge`). The runes below are
+ * placeholders (functional, but provisional flavour/values) EXCEPT Rune of Empowerment, which is a real Epic rune.
+ *
+ * `requiresDoublePower`: a rune only offered to heroes whose hero power gets value from a double trigger (the sim's
+ * DOUBLEABLE_POWERS set) — Empowerment is meaningless on a targeted / passive power, so it's filtered out for them.
+ */
+export const EPIC_RUNES: RuneDef[] = [
+  {
+    id: 'rune_empowerment',
+    name: 'Rune of Empowerment',
+    cost: 4,
+    epic: true,
+    requiresDoublePower: true,
+    text: 'Your **hero power** triggers twice.',
+    reward: { kind: 'runeEmpowerment' },
+  },
+  // ── Placeholders (provisional — swapped for designed Epic runes later; each reuses a validated reward kind) ──
+  {
+    id: 'rune_epic_opulence',
+    name: 'Rune of Opulence',
+    cost: 5,
+    epic: true,
+    text: 'Gain **+2 max Gold**.',
+    reward: { kind: 'gainMaxGold', amount: 2 },
+  },
+  {
+    id: 'rune_epic_ascendance',
+    name: 'Rune of Ascendance',
+    cost: 6,
+    epic: true,
+    text: 'Give your board **+4/+4**.',
+    reward: { kind: 'buffBoard', attack: 4, health: 4 },
+  },
+  {
+    id: 'rune_epic_sorcery',
+    name: 'Rune of Sorcery',
+    cost: 6,
+    epic: true,
+    text: 'Your **first spell** each turn casts twice.',
+    reward: { kind: 'spellRepeat', scope: 'firstEachTurn' },
+  },
+  {
+    id: 'rune_epic_fortune',
+    name: 'Rune of Fortune',
+    cost: 5,
+    epic: true,
+    text: 'The **first minion** you buy each turn is duplicated to your hand.',
+    reward: { kind: 'dupeFirstBuy' },
+  },
+  {
+    id: 'rune_epic_plunder',
+    name: 'Rune of Plunder',
+    cost: 4,
+    epic: true,
+    text: 'Your **Gold Pouches** are worth **3 Gold** for the rest of the run.',
+    reward: { kind: 'goldPouchValue', value: 3 },
+  },
+  {
+    id: 'rune_epic_insight',
+    name: 'Rune of Insight',
+    cost: 3,
+    epic: true,
+    text: '**Discover** a minion of your Tavern Tier.',
+    reward: { kind: 'discover' },
+  },
+];
+
+/** Lookup across BOTH runesets — the normal forge stock and the Epic forge stock share one id space so the
+ *  owned-rune badges / card lookups resolve any rune the run has picked up. */
 export const RUNE_INDEX: Record<string, RuneDef> = Object.fromEntries(
-  RUNES.map((r) => [r.id, r]),
+  [...RUNES, ...EPIC_RUNES].map((r) => [r.id, r]),
 );
 
-/** Zod-validate every rune (shape + reward palette). Throws on a malformed rune. */
-export function validateRunes(runes: RuneDef[] = RUNES): void {
+/** Zod-validate every rune in BOTH sets (shape + reward palette). Throws on a malformed rune. */
+export function validateRunes(runes: RuneDef[] = [...RUNES, ...EPIC_RUNES]): void {
   for (const r of runes) RuneDefSchema.parse(r);
 }

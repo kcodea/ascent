@@ -3027,8 +3027,9 @@ export function Recruit() {
         </div>
       )}
 
-      {/* Runeforge (Runesmith, turn 6): a stone/engraved shop. Buy ONE of the 5 offered runes (or Skip), then it
-          closes and the shop begins. A minimize toggle lets you inspect the board behind it. */}
+      {/* Runeforge: a stone/engraved shop. Buy ONE of the offered runes (or Skip), then it closes and the shop
+          begins. A minimize toggle lets you inspect the board behind it. The Runesmith's turn-6 forge draws the
+          normal runeset; a quest can open the higher-power EPIC forge (`runeforgeEpic`) — same UI, Epic label. */}
       {run.runeforgeOffer && (
         <button
           className="disc-toggle forge-toggle"
@@ -3036,14 +3037,14 @@ export function Recruit() {
           title={forgeMin ? 'Return to the Runeforge' : 'Inspect the board, then return to the forge'}
         >
           {forgeMin
-            ? <><Icon name="up" /> Return to the Runeforge · {run.runeforgeOffer.length} runes</>
+            ? <><Icon name="up" /> Return to the {run.runeforgeEpic ? 'Epic Runeforge' : 'Runeforge'} · {run.runeforgeOffer.length} runes</>
             : <><Icon name="eye" /> Inspect the board</>}
         </button>
       )}
       {run.runeforgeOffer && !forgeMin && (
-        <div className="discover-ov forge-ov" role="dialog" aria-label="The Runeforge">
+        <div className={`discover-ov forge-ov${run.runeforgeEpic ? ' forge-epic' : ''}`} role="dialog" aria-label={run.runeforgeEpic ? 'The Epic Runeforge' : 'The Runeforge'}>
           <div className="disc-panel forge-panel">
-            <div className="disc-banner forge-banner"><Icon name="anvil" /><span className="disp">Runeforge</span></div>
+            <div className="disc-banner forge-banner"><Icon name="anvil" /><span className="disp">{run.runeforgeEpic ? 'Epic Runeforge' : 'Runeforge'}</span></div>
             <div className="disc-cards forge-cards">
               {run.runeforgeOffer.map((id, i) => {
                 const rune = RUNE_INDEX[id];

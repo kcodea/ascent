@@ -459,6 +459,12 @@ export type QuestReward =
   | { kind: 'goldPouchValue'; value: number }
   // Rune of Summoning: each spell you cast permanently improves your Imps +1/+1 wherever they are.
   | { kind: 'runeSummoning' }
+  // Rune of Empowerment (Epic): your hero power's effect triggers twice (only offered to heroes whose power
+  // benefits — see the sim's DOUBLEABLE_POWERS gate).
+  | { kind: 'runeEmpowerment' }
+  // Open the EPIC Runeforge — a quest reward that presents the Epic runeset (a random few of `EPIC_RUNES`) to
+  // buy ONE, exactly like the Runesmith's forge but reachable by any hero via a quest.
+  | { kind: 'openEpicRuneforge' }
   // Undead: `gainGold` grants Gold immediately on completion (Bone Ledger's "Get 10 Gold").
   | { kind: 'gainGold'; amount: number }
   // Undead Echo rewards: `always` grants a permanent extra Echo (Deathrattle) trigger (Funeral Engine, stacks
@@ -591,6 +597,11 @@ export interface RuneDef {
   /** Effect text (markdown) shown on the rune card + its run-buff badge. */
   text: string;
   reward: QuestReward;
+  /** Part of the Epic Runeforge set (higher-power, quest-reached). Drives the forge's Epic styling/label. */
+  epic?: boolean;
+  /** Only offer this rune to heroes whose power gets value from a double trigger (the sim's DOUBLEABLE_POWERS
+   *  set). Rune of Empowerment uses this so it never appears for a targeted/passive-power hero. */
+  requiresDoublePower?: boolean;
 }
 
 /** One source's per-instance stat-buff contribution, surfaced in the inspect-panel breakdown

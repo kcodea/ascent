@@ -15,6 +15,11 @@ it through the reducer's discover-on-play path. Also pointed the (currently unus
 exact tier to match its own comment. New test: at tier 4 with a tier-spanning pool, the offer is all tier-4.
 `typecheck` + `lint` + `test` (783) + `build:web` green; verified live (T4 → offered guel/monk/arenaheckler, T1 pool
 cards excluded).
+### chore(art): refresh Attachment Mechanic art
+
+Re-wired the updated master `Minions/AttachmentMechanic.png` → `art/minions/scrapherald.webp` (the card's display
+name is "Attachment Mechanic"; its id is `scrapherald`). One-file art swap; verified the card renders the new
+512×512 art in the compendium. `build:web` green.
 
 ### feat(ui): Skip combat gets the crossfade — everything pauses, mutes, and fades out together
 

@@ -13,7 +13,7 @@ import {
 export interface LiveTextParams {
   tier: number;
   golden: boolean;
-  spellBonus: number; spellBonusH: number; frontToBackBonus: number;
+  spellBonus: number; spellBonusH: number; frontToBackBonus: number; frontToBackBonusH?: number;
   spellsThisTurn: number; spellsCast: number; deathrattlesTriggered: number;
   clingEnchant?: { attack: number; health: number };
   fodderConsumed?: { attack: number; health: number };
@@ -40,7 +40,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, p.tier + 1)}** minion.`
       : c.spell
-        ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0)
+        ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus)
         : transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             taragosaText(c.id, p.golden, p.spellBonus, p.spellBonusH) ??
@@ -96,13 +96,13 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; frontToBackBonusH?: number },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
   // The full live rule text (+ golden variant) — shared with the shop / Discover via liveCardText.
   const { text, goldenText } = liveCardText(inst.cardId, {
-    tier, golden: !!inst.golden, spellBonus, spellBonusH, frontToBackBonus, spellsThisTurn, spellsCast,
+    tier, golden: !!inst.golden, spellBonus, spellBonusH, frontToBackBonus, frontToBackBonusH: live?.frontToBackBonusH ?? frontToBackBonus, spellsThisTurn, spellsCast,
     deathrattlesTriggered, clingEnchant, fodderConsumed,
     undeadBuyAtk: live?.undeadBuyAtk ?? 0, soulsmanGold: live?.soulsmanGold ?? 0, cardBuffs: live?.cardBuffs,
     goldSpent: live?.goldSpent ?? 0,

@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, referencedCardIds } from '@game/content';
-import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, type ShopCard } from '@game/sim';
+import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { QuestCard } from './QuestCard';
 import { combatGains } from './combatGains';
@@ -148,6 +148,7 @@ interface ShopViewOpts {
   spellBonus?: number;
   spellBonusH?: number;
   frontToBackBonus?: number;
+  frontToBackBonusH?: number;
   undeadAtk?: number;
   undeadHp?: number;
   /** Deathswarmer / Forsaken Weaver / Karthus run-wide "+Attack to your Undead" — baked into the stats
@@ -199,7 +200,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     // it'll actually grant right now.
     return {
       name: c.name, cardId: c.id, tribe: c.tribe, attack: 0, health: 0,
-      keywords: c.keywords, text: spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0, opts.goldSpent ?? 0),
+      keywords: c.keywords, text: spellDisplayText(c.id, opts.spellBonus ?? 0, opts.frontToBackBonus ?? 0, opts.spellBonusH ?? opts.spellBonus ?? 0, opts.goldSpent ?? 0, opts.frontToBackBonusH ?? opts.frontToBackBonus ?? 0),
       cost: Math.max(0, (c.cost ?? 0) - (opts.spellCostMod ?? 0)), spell: true,
       target: c.target, tier: c.tier, castMult: opts.castMult,
     };
@@ -1119,11 +1120,11 @@ export function Recruit() {
   const shopViews = useMemo(
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
-    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: run.spellCostMod, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, goldSpent: run.goldSpentThisTurn, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, castMult: CARD_INDEX[o.cardId]?.spell ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const)),
+    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: run.spellCostMod, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, castMult: CARD_INDEX[o.cardId]?.spell ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const)),
     [run.shop, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellMult, run.goldSpentThisTurn, run.playedThisTurn, run.squirlScoutBuff],
   );
   const spellView = useMemo(
-    () => (run.spell ? shopView(run.spell, { spellCostMod: run.spellCostMod, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, goldSpent: run.goldSpentThisTurn, castMult: CARD_INDEX[run.spell.cardId]?.spell ? spellCastCount(run, CARD_INDEX[run.spell.cardId]!) : undefined }) : null),
+    () => (run.spell ? shopView(run.spell, { spellCostMod: run.spellCostMod, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, castMult: CARD_INDEX[run.spell.cardId]?.spell ? spellCastCount(run, CARD_INDEX[run.spell.cardId]!) : undefined }) : null),
     [run.spell, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellMult, run.goldSpentThisTurn],
   );
   // Per-card referenced-card popups (uid → the cards it references). Stable across a drag (only
@@ -1147,8 +1148,8 @@ export function Recruit() {
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(
-    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: run.cardBuffs, goldSpent: run.goldSpentThisTurn ?? 0, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined }),
-    [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId],
+    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: run.cardBuffs, goldSpent: run.goldSpentThisTurn ?? 0, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, frontToBackBonusH: run.frontToBackBonusH }),
+    [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.frontToBackBonusH],
   );
   const boardViews = useMemo(
     () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, live)] as const)),
@@ -1186,6 +1187,16 @@ export function Recruit() {
       if (!uid) return;
       const zone = el.closest('[data-zone]')?.getAttribute('data-zone');
       const source: DragSource = zone === 'warband' ? 'board' : zone === 'hand' ? 'hand' : 'shop';
+      // Disco Dan: a Setlist card is locked in hand until you reach its shop tier — it can't be dragged out
+      // or played (the reducer also refuses the play). Read the LIVE run from the store (not this callback's
+      // closed-over `run`, which is only refreshed on [timeUp, inCombat]): so an upgrade unlocks the card the
+      // SAME turn, and a stale run left over from a previous hero can't false-lock a uid-colliding card
+      // (both runs start uidSeq at 0, so a fresh buy can share a locked Setlist card's uid).
+      if (source === 'hand') {
+        const liveRun = useGame.getState().run;
+        const hc = liveRun.hand.find((c) => c.uid === uid);
+        if (hc?.lockedUntilTier && liveRun.tier < hc.lockedUntilTier) return;
+      }
       // When the timer's up you can still REORDER your board, but not play / buy / sell — so allow a board
       // drag through, block hand + shop drags.
       if (timeUp && source !== 'board') return;
@@ -2420,15 +2431,16 @@ export function Recruit() {
         {/* Action tray — the turn's actions grouped into one control bar (Upgrade Tavern · Reroll · Freeze ·
             End Turn), framed by shopbutton.webp. */}
         <div className="shoprow actiontray">
-          {/* Tavern Up — cost = upgradeCost; disabled at max tier / can't afford / time up. */}
+          {/* Tavern Up — cost = upgradeCostOf(run) (includes Hermit Hank's +2 surcharge); disabled at max tier /
+              can't afford / time up. Uses the same helper the reducer charges with, so the shown cost is accurate. */}
           <button
             className="shopbtn"
-            disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost || timeUp || eotAnimating || !!run.questOffer}
+            disabled={run.tier >= CONFIG.maxTier || run.embers < upgradeCostOf(run) || timeUp || eotAnimating || !!run.questOffer}
             onClick={() => dispatch({ type: 'upgrade' })}
           >
             <span className="sb-l">Upgrade Tavern</span>
             <span className="sb-ic"><Icon name="star" /></span>
-            <span className="sb-v">{run.tier < CONFIG.maxTier ? run.upgradeCost : '★'}</span>
+            <span className="sb-v">{run.tier < CONFIG.maxTier ? upgradeCostOf(run) : '★'}</span>
             <span className="sbtip">{run.tier >= CONFIG.maxTier ? 'Tavern at max tier' : `Upgrade Tavern — to tier ${run.tier + 1}`}</span>
           </button>
           {/* Reroll — free rolls show 0. */}
@@ -2639,6 +2651,8 @@ export function Recruit() {
             // `--fan-rot` var (see `.row.hand .card` in styles.css); it stays fanned through drags.
             const n = run.hand.length;
             const fanRot = n <= 1 ? 0 : Math.max(-7, Math.min(7, (i - (n - 1) / 2) * 1.8));
+            // Disco Dan's Setlist: a card locked until its shop tier is greyed + shows a padlock (and can't be played).
+            const locked = !!m.lockedUntilTier && run.tier < m.lockedUntilTier;
             return (
               <Card
                 key={m.uid}
@@ -2653,6 +2667,8 @@ export function Recruit() {
                 handSlidePx={handSlide(i) * handSlotWRef.current}
                 fanRot={fanRot}
                 onPointerDown={onCardPointerDown}
+                locked={locked}
+                lockLabel={locked ? `Tier ${m.lockedUntilTier}` : undefined}
                 forceFull
               />
             );
@@ -2956,7 +2972,7 @@ export function Recruit() {
                 // A Discover option shows its CURRENT value too (Grim's +32/+32, Guel's live grant, …) — the
                 // same live-text chain the shop + board use.
                 const lt = liveCardText(c.id, {
-                  tier: run.tier, golden: false, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus,
+                  tier: run.tier, golden: false, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH,
                   spellsThisTurn: run.spellsThisTurn, spellsCast: run.spellsCast, deathrattlesTriggered: run.deathrattlesTriggered,
                   clingEnchant: run.cardBuffs?.cling, fodderConsumed: run.fodderConsumedThisTurn,
                   undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: run.cardBuffs,

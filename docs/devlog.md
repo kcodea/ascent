@@ -59,6 +59,140 @@ the whole hold, all three FX canvases + the unit rows sample at opacity `0` (was
 (no dust/aura remnants), and the resolved board fades back in correctly. typecheck + lint + 774 tests + `build:web`
 green. Timing dials (`FADE 260 / HOLD 900 / IN 300` ms) are **for live eyeball**. Replacement Skip sound: pending owner.
 
+### balance(heroes): armor tuning + Herald cost + renames (Yirin / Tradesman) + Bagger Ben live worth
+
+Owner hero-tuning pass:
+
+- **Armor dials:** Warden 8→12, Darah 15→12, Soren 15→8, Cassen 15→8, Herald 15→10, Tradesman (Hermit Hank) 15→8.
+- **Herald's Proclaim** now costs **2 Gold** (was free) — the reducer already handles `power.cost` generically
+  (affordability gate + spend), so only the def changed. Test updated to assert the 2-Gold spend + a too-poor no-op.
+- **Renames (display-name only, ids kept stable so saves/references/art keys don't break):** Rohan → **Yirin** (new
+  art wired: `Yirin.png` → `heroes/rohan.webp`), Hermit Hank → **Tradesman**.
+- **Bagger Ben's Bag It** now shows its live worth: the power line reads `Bag It · +N Gold` and the hover tooltip
+  "Click to gain N Gold. The payout grows +1 each turn." (N = 1 + wave, matching the reducer). Added a `scalingGold`
+  case to the StatusBar power line + note.
+- **Yirin's Attunement** now shows a progress counter toward its next improvement: the power line reads
+  `Attunement · +N/+N · M/5` and the tooltip "M/5 spells cast toward the next +1/+1" (M = `spellsCast % 5`), so the
+  player can see how close the next +1/+1 step is.
+
+The armor test was rewritten to assert the new per-hero spread. Verified live: every armor value, Yirin's name + art,
+Tradesman's name, Herald's 2-Gold cost badge, and Bagger Ben's worth scaling with the wave (+2 at w1, +4 at w3).
+`lint` + `test` (782) + `build:web` green.
+### fix(ui): quest-badge tooltip no longer clips off-screen · practice hero grid fits without scrolling
+
+Two UI fixes:
+
+- **Completed-quest badge tooltip ran off the left edge.** The badges sit flush-left (bottom-left, above the hero
+  panel), but `.questbadge-tip` was centered over the badge (`left: 50%; translateX(-50%)`), so its left half went
+  off-screen and the quest text was clipped ("Start"→"of Combat", "random"→"dom"). Re-anchored it to open up-and-right
+  (`left: 0`, no transform) with a `max-width: calc(100vw - 24px)` safety, so the full text always shows. Verified: the
+  Blood Trail tooltip now reads in full, its box fully within the viewport (left 33 / right 253 at 1280px).
+- **Practice hero-select scrolled.** Practice offers EVERY hero (now 20), which overflowed at the full 333px card size.
+  Added a `dense` grid variant (`HeroSelect` tags `.hsrow` when >6 heroes): compact 156px cards, smaller art/type,
+  power text clamped to 3 lines, the "Choose" pill dropped (the whole card is a button), and a trimmed header via
+  `:has()`. All 20 now fit in 3 rows (7+7+6) with no scroll at 1280×800. Ascent (3 heroes) keeps the big cards.
+
+`lint` + `test` (782) + `build:web` green; both verified live.
+### fix(ui): Hermit Hank's Upgrade Tavern button shows the real (surcharged) cost
+
+The reducer charges `upgradeCostOf(s)` for a tavern-up (Hermit Hank pays +2 over the base), but the Upgrade Tavern
+button rendered the raw `run.upgradeCost` — so a Hank player saw the base price (e.g. 5) yet was charged 7, and the
+button's affordability gate used the base too. Pointed both the shown value and the `disabled` check at
+`upgradeCostOf(run)` — the same helper the reducer uses — so the display, the enable/disable, and the charge all
+agree. Non-Hank heroes are unchanged (the surcharge is 0). Verified live: Hank shows **7** (base 5 + 2), Warden shows
+**5**, and upgrading charges 7. (Related, not fixed here: Hank's shop *minions* cost 2 but show no cost badge — a
+separate per-offer display gap.) `lint` + `test` (782) + `build:web` green.
+### fix(ui): Disco Dan locked cards — unlock on the same-turn tavern-up + no cross-run carry-over
+
+Two owner-reported Disco Dan bugs, both a **stale closure** in `Recruit`'s `onCardPointerDown` (its deps are
+`[timeUp, inCombat]`, so it captures a `run` that only refreshes on those — not on tavern-up or a hero swap):
+
+- **Locked card stayed locked for one extra turn after upgrading.** The reducer's play guard already used the live
+  `s.tier`, but the UI's drag guard read the stale closed-over `run.tier`, so the card wasn't draggable until the
+  callback happened to recreate (next combat). Fix: the guard now reads `useGame.getState().run` (live), matching how
+  the same callback already reads `endTurnAnimating`. Verified live: at turn 2 / tier 1, upgrading to tier 2 makes the
+  tier-2 Setlist card play the **same turn**.
+- **Picking Disco Dan, then a different hero, left cards unplayable on turn 1.** `Recruit` is deliberately kept mounted
+  across phases (combat plays out in place), so on a hero swap it kept the *previous* run's closures. Disco Dan's
+  locked hand cards (uids `b4/b5/b6`) then collided with the new hero's freshly-bought card uids (both runs start
+  `uidSeq` at 0), so a normal card got false-locked by the stale guard. Fix: `Game` now keys `<Recruit>` on the run
+  identity (`seed:heroId` — stable within a run, so combat-in-place is untouched; changes only when the run itself
+  changes), giving a clean mount on every new run. The live-`getState` guard fixes it independently too; the key is
+  the broader defense against cross-run closure carry-over. Verified live: disco dan → warden → a uid-colliding bought
+  card plays normally.
+
+Verified: `lint` + `test` (782) + `build:web` green; both scenarios driven end-to-end in the live preview (real
+pointer-drag, card lands on the board).
+
+### chore(art): rewire art from the updated masters (minions / heroes / quests / rewards)
+
+Owner refreshed a batch of art masters. Re-ran the WebP pipeline over the four master folders
+(`Minions`, `Quests`, `Quests/Quest Reward Related Things`, `Heroes` + `Heroes/Hero Powers`) → 247 files
+resolved to `packages/ui/src/art/{minions,heroes,powers,quests}/<id>.webp`; **97 changed** (81 new, 16 updated),
+the rest byte-identical. Matched by card **name** with a card-**id** fallback (art is keyed by id), plus a small
+verified alias set for unambiguous filename drift (Pup1/Pup2 variants, `Supporterr`→supporter, `JenkinsAndFi`→jenkins,
+`SkyboundActivist`→skybound, quest typos/`The`-prefix: Trophy Den / The Bone Throne / Impossible Shop / Taragosa's
+Inheritance). New-hero portraits (Bagger Ben, Disco Dan, Fi, Herald, Hermit Hank, Chronos) + the new Tauntbreaker
+minion art landed ahead of their merges, so they light up when those PRs land.
+
+**Not wired (reported to owner):** `SharedCircuit.png` is a **corrupt PNG** (libpng read error — needs re-export);
+8 UUID-named quest files are un-attributed; and ~16 masters name a card/quest that doesn't exist under that name on
+`main` — either concept-renames I won't guess at (`Alleycat`, `Fodder`, `TrainingDummy`, `ChaosMagnetic`,
+`TaurusTheAncient`, `ChorusMachine`, …) or art ahead of the content (`FirstTracks`, `GraveToll`, `ToothAndTempo`, …).
+Per the name-match rule I left these unwired rather than mis-attribute them.
+### feat: hero batch — 4 reworks + 6 new heroes
+
+Owner batch (2026-07-09). Data-driven throughout (new `HeroPowerKind`s + reducer branches); no bespoke classes.
+
+**Reworks:**
+- **Djinn → Cadence** now triggers EVERY friendly minion's End of Turn (untargeted `replayAllEndOfTurn`), not one.
+- **Rohan → Attunement** now scales by **spells cast** (`spellAmplifyBonus(spellsCast)` = 1 + ⌊casts/5⌋), not by wave.
+  Rewired both call sites (`spellStatBonus`, `StatusBar`).
+- **Nadja** starts with **19 Armor** (keeps Gold Font).
+- **Warden → Aegis** — spend **4 Gold** to give a friendly minion a **permanent Ward** (`grantWard`), replacing Fortify.
+  (Fortify's orphaned tests were repointed to Warden's Aegis / a Growth spell; the Hunter-onGainAttack boundary
+  stays covered by the Growth-spell test.)
+
+**New heroes:**
+- **Disco Dan** (15 armor) — **Setlist**: turn 1 is three sequential Discovers **T6 → T4 → T2**, each pick locked in
+  hand until you reach that shop tier. New per-`BoardCard` `lockedUntilTier` (gates the `play` action + a UI padlock),
+  a `DiscoverSpec.lockTier` threaded through `openDiscover`→the `discover` case via transient `discoverLockTier`, the
+  run-start Setlist in `createRun`, and a turn-1 shop-action lock in `reduce` (only Discover / reorder / faceOmen).
+- **Bagger Ben** (15) — **Bag It**: gain `1 + wave` Gold (turn 1 → 2), climbing +1 each turn; once per turn.
+- **Hermit Hank** (15) — passive: shop minions cost **2 Gold** (`minionCostOf`), tavern-ups cost **2 more** (`upgradeCostOf`).
+- **Fi** (8) — passive: an **extra, lower-tier quest shop on turn 3** (`generateQuestOffer(s, 'lesser')` on the wave-3 advance).
+- **Herald** (15) — **Proclaim**: target a friendly minion — its two neighbours each Consume a created Fodder
+  (new `adjacentConsume`, sharing the extracted `adjacentConsumeFodder` helper with Abyssal Feeder).
+- **Chronos** (hero id `chronoshero`, 8) — **Encore** quest: buy **4 End-of-Turn minions** → get a Chronos (clone of
+  Drakko's quest; `eotMinionBuys`).
+
+Verified: `typecheck` + `lint` + `test` (780 pass, incl. 16 new hero tests) + `build:web` + `harness` all green; live
+smoke via a throwaway `newRun` — Disco Dan's Setlist opens T6→T4→T2, the 3 picks land locked (roll + play both refused
+on turn 1), Nadja shows 19 armor, Hermit Hank buys at 2 Gold.
+### feat: Front to Back scales Attack/Health independently · Tauntbreaker (T4 Neutral, strips Taunt + Rise on hit)
+
+Two owner items, one PR:
+
+- **Front to Back — independent Attack/Health scaling.** Previously the escalation was a single number applied to
+  both stats, so a `+0/+2` build (asymmetric spell power) scaled symmetrically. Now a second run-state field
+  `frontToBackBonusH` tracks the Health escalation separately from `frontToBackBonus` (Attack). `spellBuffTargetEscalating`
+  grows each independently (base step + that stat's spell power). So with `+0/+2` spell power the grant goes
+  **+2/+4** on the first cast, and the escalation itself steps **+2/+4** per cast — Attack and Health diverge as
+  intended. `spellDisplayText` gained an `escalationH` parameter (defaults to `escalation` so symmetric builds are
+  unchanged) and greens each stat independently; threaded through `instView`/`liveCardText` (shop/board/hand/Discover)
+  and `Recruit.tsx` (the `live` inputs) so every surface prints the true split value. New asymmetric test in `run.test.ts`;
+  the existing symmetric-spell-power tests are unchanged (same output when both stats scale equally).
+- **Tauntbreaker** — new **T4 Neutral 6/4, Ward + Flurry**. On attack it strips **Taunt** and **Rise** off the enemy
+  it hits: the target loses Taunt (your board can pick past it next swing) and Rise (a lethal blow this same swing
+  keeps it dead — the strip fires before the damage exchange, so `rebornAvailable` is cleared in time). New combat
+  factory `onAttackStripKeywords` (core) reads the enemy target now carried on the `onAttack` bus payload; a new
+  `keywordLost` combat event drops the stripped pill in the replay (UI `useCombatReplay` + harness + narration).
+  Flurry means it disarms two enemies a turn; Ward walls one hit. Note: the strip is on Tauntbreaker's own *attack*
+  — an enemy that dies to Ward retaliation still gets its Rise (it wasn't a target of Tauntbreaker's swing).
+  Combat test in `simulate.test.ts` (enemy loses T+R, does not reborn, player wins).
+
+Verified: `typecheck` + `lint` + `test` (775 pass) + `build:web` green; `harness` determinism ✓.
+
 ### chore(ui): skull-burst sfx quieter still (0.4 → 0.04)
 
 Follow-up to the earlier `4 → 0.4`: still too loud, so `sampleVol.skullburst` → `0.04` — a normal quiet

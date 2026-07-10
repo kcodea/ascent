@@ -8,13 +8,21 @@
  */
 
 export type HeroPowerKind =
-  | 'fortify' // Warden: give a minion +Tier/+Tier (scales with Tavern Tier)
+  | 'fortify' // (unused by default) give a minion +Tier/+Tier (scales with Tavern Tier)
   | 'gild' // Indy: make a friendly minion Golden
   | 'replayBattlecry' // Myra: re-trigger a friendly minion's Battlecry
-  | 'replayEndOfTurn' // Djinn: proc a friendly minion's End of Turn now
+  | 'replayEndOfTurn' // (legacy) proc a single friendly minion's End of Turn now
+  | 'replayAllEndOfTurn' // Djinn: trigger EVERY friendly minion's End of Turn effect now (untargeted)
   | 'resummon' // Soren: at start of combat, destroy a marked minion (procs its Deathrattle) + resummon a copy
-  | 'spellAmplify' // Rohan (passive): stat-granting spells give +X/+X more, X scaling every 3 waves
+  | 'spellAmplify' // Rohan (passive): stat-granting spells give +X/+X more, X scaling every 5 spells cast
   | 'gainMaxMana' // Nadja: gain +1 max Gold permanently (id stays `gainMaxMana`)
+  | 'grantWard' // Warden: spend Gold — give a friendly minion a permanent Ward (Divine Shield) (active, targeted)
+  | 'scalingGold' // Bagger Ben: gain Gold now, the payout climbing +1 each turn (active, untargeted, once/turn)
+  | 'adjacentConsume' // Herald: target a minion — its two neighbours each Consume a created Fodder (active, targeted)
+  | 'cheapMinions' // Hermit Hank (passive): shop minions cost 2 Gold, but tavern-ups cost 2 more
+  | 'discoLock' // Disco Dan (passive): turn-1 sequential Discover T6→T4→T2, each locked in hand until that shop tier
+  | 'questChronos' // Chronos (passive): buy 4 End-of-Turn minions → get a Chronos (resolved in the buy case)
+  | 'lesserQuest' // Fi (passive): an extra, lower-tier quest shop on turn 3
   | 'collision' // Cassen (passive): after killing 5 enemy minions, get a minion of your most common type (carry-back)
   | 'quest' // Drakko (passive): buy 5 Battlecry minions → get Drakko the Drummer (resolved in the buy case)
   | 'chaos' // Chaos (passive): starts with a 1/1 all-type Magnetic token; gets another at the start of every 5th turn
@@ -51,8 +59,8 @@ export interface HeroDef {
   /** Starting + max Resolve (the hero's HP). All 30 today; will diverge per hero over time. */
   resolve: number;
   /** Starting Armor — extra effective HP that sits ON TOP of Resolve. Functionally identical to health: loss
-   *  damage chips Armor first, then Resolve; it just doesn't regenerate (no max/heal). Most heroes start with
-   *  15; Warden, Robin, Chaos, and Drakko start with 8. */
+   *  damage chips Armor first, then Resolve; it just doesn't regenerate (no max/heal). Varies per hero (8–19
+   *  today) as a balance dial — a strong power tends to carry less armor. */
   armor: number;
   power: HeroPower;
 }
@@ -61,13 +69,14 @@ export const HEROES: HeroDef[] = [
   {
     id: 'warden',
     name: 'Warden',
-    blurb: 'Steady, scaling muscle — every wave a minion grows with you.',
+    blurb: 'A shield for the one who needs it — bought and paid for in Gold.',
     resolve: 30,
-    armor: 8,
+    armor: 12,
     power: {
-      name: 'Fortify',
-      kind: 'fortify',
-      text: 'Give a minion +1/+1. Improve this when you tavern up.',
+      name: 'Aegis',
+      kind: 'grantWard',
+      cost: 4,
+      text: 'Spend 4 Gold: give a friendly minion a **Ward** (permanent). (Once per turn)',
     },
   },
   {
@@ -101,7 +110,7 @@ export const HEROES: HeroDef[] = [
     name: 'Soren',
     blurb: 'Death is a doorway — send a minion through it and it blooms back.',
     resolve: 30,
-    armor: 15,
+    armor: 8,
     power: {
       name: 'Reclaim',
       kind: 'resummon',
@@ -109,28 +118,29 @@ export const HEROES: HeroDef[] = [
     },
   },
   {
-    id: 'rohan',
-    name: 'Rohan',
-    blurb: 'Words sharpen in skilled hands — and sharpen further as the climb wears on.',
+    id: 'rohan', // id kept stable (saves / references); display name is Yirin
+    name: 'Yirin',
+    blurb: 'Words sharpen in skilled hands — and sharpen further the more you speak them.',
     resolve: 30,
     armor: 15,
     power: {
       name: 'Attunement',
       kind: 'spellAmplify',
       passive: true,
-      text: 'Attunement: Spells gain +1/+1. Improve this every 3 turns.',
+      text: 'Attunement: Spells gain +1/+1. Improve this every 5 spells cast.',
     },
   },
   {
     id: 'djinn',
     name: 'Djinn',
-    blurb: 'Calls the day to its close early — once a turn, on your terms.',
+    blurb: 'Calls the whole board to its close early — once a turn, on your terms.',
     resolve: 30,
     armor: 15,
     power: {
       name: 'Cadence',
-      kind: 'replayEndOfTurn',
-      text: "Cadence: Trigger a friendly minion's End of Turn effect. (Once per turn)",
+      kind: 'replayAllEndOfTurn',
+      untargeted: true,
+      text: 'Cadence: Trigger EVERY friendly minion\'s End of Turn effect. (Once per turn)',
     },
   },
   {
@@ -138,7 +148,7 @@ export const HEROES: HeroDef[] = [
     name: 'Nadja',
     blurb: 'The well runs deeper each turn — more Gold, more room to scheme.',
     resolve: 30,
-    armor: 15,
+    armor: 19,
     power: {
       name: 'Gold Font',
       kind: 'gainMaxMana',
@@ -152,7 +162,7 @@ export const HEROES: HeroDef[] = [
     name: 'Cassen',
     blurb: 'Every clash leaves a mark — break enough of them and the spoils find you.',
     resolve: 30,
-    armor: 15,
+    armor: 8,
     power: {
       name: 'Collision',
       kind: 'collision',
@@ -205,7 +215,7 @@ export const HEROES: HeroDef[] = [
     name: 'Darah',
     blurb: 'A sleight of fate — trade a piece on your board for a stranger from the tavern.',
     resolve: 30,
-    armor: 15,
+    armor: 12,
     power: {
       name: 'Displace',
       kind: 'displace',
@@ -239,12 +249,91 @@ export const HEROES: HeroDef[] = [
       text: 'Golden Gild: Spend 3 Gold — if you have 2 copies of a minion, combine them into one golden copy in your hand. (Twice per game, once per turn)',
     },
   },
+  {
+    id: 'discodan',
+    name: 'Disco Dan',
+    blurb: 'All the hits, none of them ready yet — a hand of tomorrows.',
+    resolve: 30,
+    armor: 15,
+    power: {
+      name: 'Setlist',
+      kind: 'discoLock',
+      passive: true, // resolved at run start (the three locked Discovers) + the play-gate on locked cards
+      text: 'Turn 1: Discover a Tier 6, then Tier 4, then Tier 2 minion. Each is locked in your hand until you reach that shop tier.',
+    },
+  },
+  {
+    id: 'baggerben',
+    name: 'Bagger Ben',
+    blurb: 'The tip jar only ever grows — a little more set aside each turn.',
+    resolve: 30,
+    armor: 15,
+    power: {
+      name: 'Bag It',
+      kind: 'scalingGold',
+      untargeted: true,
+      text: 'Bag It: Gain 2 Gold. The payout grows +1 every turn. (Once per turn)',
+    },
+  },
+  {
+    id: 'hermithank', // id kept stable (saves / art file); display name is Tradesman
+    name: 'Tradesman',
+    blurb: 'Cheap to shop, dear to climb — the trader hoards his tiers.',
+    resolve: 30,
+    armor: 8,
+    power: {
+      name: 'Frugal',
+      kind: 'cheapMinions',
+      passive: true,
+      text: 'Shop minions cost 2 Gold. Tavern upgrades cost 2 more.',
+    },
+  },
+  {
+    id: 'fi',
+    name: 'Fi',
+    blurb: 'An early errand for an early edge — a small quest, ahead of schedule.',
+    resolve: 30,
+    armor: 8,
+    power: {
+      name: 'Errand',
+      kind: 'lesserQuest',
+      passive: true, // resolved on the turn-3 advance (an extra, lower-tier quest offer)
+      text: 'Turn 3: choose from an extra, lower-tier quest.',
+    },
+  },
+  {
+    id: 'herald',
+    name: 'Herald',
+    blurb: 'Points to the chosen — and those beside them feast.',
+    resolve: 30,
+    armor: 10,
+    power: {
+      name: 'Proclaim',
+      kind: 'adjacentConsume',
+      cost: 2,
+      text: 'Proclaim: Spend 2 Gold — the minions on either side of a friendly minion each Consume a Fodder. (Once per turn)',
+    },
+  },
+  {
+    id: 'chronoshero',
+    name: 'Chronos',
+    blurb: 'Buy enough endings and time itself enlists.',
+    resolve: 30,
+    armor: 8,
+    power: {
+      name: 'Encore',
+      kind: 'questChronos',
+      passive: true, // a quest — resolved in the buy case (buy 4 End-of-Turn minions)
+      oncePerGame: true,
+      text: 'Encore: Buy 4 End-of-Turn minions to get a Chronos. (Once per game)',
+    },
+  },
 ];
 
-/** The Spellbinder's spell bonus: +1/+1 to stat-granting spells, rising by 1 every 3 turns
- *  (+1 on turns 1–3, +2 on 4–6, +3 on 7–9, …). A starting dial. */
-export function spellAmplifyBonus(wave: number): number {
-  return 1 + Math.floor((wave - 1) / 3);
+/** Rohan's Attunement bonus: +1/+1 to stat-granting spells, rising by 1 every 5 spells CAST this run
+ *  (+1 for casts 0–4, +2 for 5–9, +3 for 10–14, …). Keyed off `RunState.spellsCast`. A starting dial. */
+export function spellAmplifyBonus(spellsCast: number): number {
+  return 1 + Math.floor(spellsCast / 5);
 }
 
 export const HERO_INDEX: Record<string, HeroDef> = Object.fromEntries(

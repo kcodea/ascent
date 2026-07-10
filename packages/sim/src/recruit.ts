@@ -775,29 +775,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  gaining its enchanted stats × the eater's fodder multiplier and firing the normal onConsume pipeline.
    *  Golden → each neighbor Consumes 2. Mirrors The Godfodder's consume, applied to both neighbors. */
   endOfTurnAdjacentConsumeFodder: (ctx, self) => {
-    const idx = ctx.state.board.indexOf(self);
-    if (idx < 0) return;
-    const neighbors = [ctx.state.board[idx - 1], ctx.state.board[idx + 1]].filter((m): m is BoardCard => !!m);
-    const fodder = CARD_INDEX.fred;
-    if (!fodder || neighbors.length === 0) return;
-    const cb = cardBuff(ctx.state, fodder.id);
-    const fa = fodder.attack + cb.attack;
-    const fh = fodder.health + cb.health;
-    const count = gold(self); // golden → each neighbor Consumes 2
-    const eaten: { eaterUid: string; fodderId: string; attack: number; health: number; gainA: number; gainH: number }[] = [];
-    for (const target of neighbors) {
-      const mult = fodderMultiplier(target);
-      for (let i = 0; i < count; i++) {
-        addBuff(target, 'Consume', fa * mult, fh * mult);
-        fire(ctx, 'onConsume', { minion: target });
-        eaten.push({ eaterUid: target.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
-        noteFodderConsumed(ctx.state, fa, fh);
-      }
-    }
-    if (eaten.length > 0) {
-      ctx.state.fodderEaten = [...(ctx.state.fodderEaten ?? []), ...eaten];
-      ctx.state.fodderEatenSeq += 1;
-    }
+    adjacentConsumeFodder(ctx.state, self, gold(self)); // golden → each neighbor Consumes 2
   },
 
   /** Herald of the Apocalypse — Battlecry: EVERY friendly Demon Consumes a created Fodder (Fred) — each gains its
@@ -1403,13 +1381,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  then the escalation climbs by a FLAT `step` (+2/+2) — the per-cast improvement is always +2/+2. Spell
    *  power is a flat add to every grant (not part of the improvement). `self` is the chosen target. */
   spellBuffTargetEscalating: (ctx, self, params) => {
-    const base = num(params.attack, 2) + ctx.state.frontToBackBonus;
-    const a = base + spellAttackBonus(ctx.state);
-    const h = base + spellHealthBonus(ctx.state);
+    // Attack and Health escalate INDEPENDENTLY (owner 2026-07-09): each stat's grant = its step + that stat's
+    // accumulated escalation + that stat's spell power, and the escalation step itself compounds that stat's spell
+    // power. So with +0/+2 spell power the improvement is +2/+4 per cast, not a symmetric +2/+2.
+    const a = num(params.attack, 2) + ctx.state.frontToBackBonus + spellAttackBonus(ctx.state);
+    const h = num(params.health, 2) + ctx.state.frontToBackBonusH + spellHealthBonus(ctx.state);
     addBuff(self, str(params._source) || 'Front to Back', a, h);
-    // The SCALING now compounds spell power too (owner 2026-07-09): each cast improves by the base step PLUS the
-    // run's Attack spell power, so a spell-power build's Front to Back escalates faster.
     ctx.state.frontToBackBonus += num(params.attack, 2) + spellAttackBonus(ctx.state);
+    ctx.state.frontToBackBonusH += num(params.health, 2) + spellHealthBonus(ctx.state);
   },
 
   /** Eyes of Aresmar — cast: make the targeted minion Golden (like Oner's Gild), but only if its
@@ -2041,6 +2020,10 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
       filter: spec.filter ? discoverFilter(spec.filter) : undefined,
       topTierFirst: spec.topTierFirst,
     });
+    // Disco Dan's Setlist: carry the lock tier onto the open offer so the resolved pick becomes a
+    // locked hand card (only set if the offer actually opened).
+    if (state.discover) state.discoverLockTier = spec.lockTier;
+    else state.discoverLockTier = undefined;
   }
 }
 
@@ -2071,7 +2054,7 @@ export function queueDiscover(state: RunState, spec: DiscoverSpec): void {
  */
 export function spellStatBonus(state: RunState): number {
   let bonus = 0;
-  if (getHero(state.heroId).power.kind === 'spellAmplify') bonus += spellAmplifyBonus(state.wave);
+  if (getHero(state.heroId).power.kind === 'spellAmplify') bonus += spellAmplifyBonus(state.spellsCast);
   // Spell-power auras: +1/+1 per `def.spellAura` point on a board card (golden ×2 — no card in the current
   // set carries it), PLUS any aura welded onto a host Mech (`spellAuraBonus`, set by `applyWeld`). Generic
   // over `def.spellAura` so future aura cards fold in automatically.
@@ -2107,13 +2090,13 @@ export function spellHealthBonus(state: RunState): number {
  * base text for non-stat spells or a zero bonus. Convention: a stat spell's text shows "+A/+B" matching
  * its `spellBuffTarget` params, so it can be substituted.
  */
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
-  // Front to Back (escalating): the printed text carries TWO "+B/+B" groups — the GRANT (slot 0) and the
-  // per-cast IMPROVEMENT (slot 1). The grant = base + accumulated escalation + spell power. The improvement now
-  // COMPOUNDS spell power too (owner 2026-07-09): each cast improves by the base step PLUS the run's Attack spell
-  // power. Slot 0 greens the current grant; slot 1 greens the current improvement step.
+  // Front to Back (escalating): the printed text carries TWO "+A/+H" groups — the GRANT (slot 0) and the per-cast
+  // IMPROVEMENT (slot 1). Attack and Health scale INDEPENDENTLY (owner 2026-07-09): each stat's grant = its step +
+  // its accumulated escalation (`escalation` / `escalationH`) + its spell power; each stat's improvement step = its
+  // printed base + its spell power. So +0/+2 spell power greens the improvement to +2/+4.
   const esc = def.effects.find((e) => e.do === 'spellBuffTargetEscalating');
   if (esc) {
     let slot = 0;
@@ -2122,13 +2105,13 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
       const nh = Number(h);
       if (slot++ === 0) {
         const va = na + escalation + bonusA;
-        const vh = nh + escalation + bonusH;
-        return escalation + bonusA > 0 || escalation + bonusH > 0 ? `{{+${va}/+${vh}}}` : m;
+        const vh = nh + escalationH + bonusH;
+        return escalation + bonusA > 0 || escalationH + bonusH > 0 ? `{{+${va}/+${vh}}}` : m;
       }
-      // The improvement step = printed base + Attack spell power (the scalar `frontToBackBonus` grows by this).
+      // The improvement step per stat = printed base + that stat's spell power.
       const ia = na + bonusA;
-      const ih = nh + bonusA;
-      return bonusA > 0 ? `{{+${ia}/+${ih}}}` : m;
+      const ih = nh + bonusH;
+      return bonusA > 0 || bonusH > 0 ? `{{+${ia}/+${ih}}}` : m;
     });
   }
   // Patch Job: the per-step "+a/+h" greens for spell power (it grows per step); and once Gold's been spent this
@@ -2564,6 +2547,38 @@ export function offerBuyStats(state: RunState, offer: ShopCard): { attack: numbe
   let health = def.health + cb.health + (offer.hp ?? 0) + staffH + buyHealthAura(state, def);
   if (offer.golden) { attack += def.attack; health += def.health; } // Golden Touch: doubles BASE only (run/offer buffs single), like a gild
   return { attack, health };
+}
+
+/**
+ * Both board-adjacent neighbours of `center` each Consume `count` created Fodder (Fred) — gaining its
+ * enchanted stats × the eater's fodder multiplier and firing the normal onConsume pipeline. Shared by
+ * Abyssal Feeder's End-of-Turn (`center` = the Feeder) and Herald's hero power (`center` = the targeted
+ * minion). `center` itself does NOT consume — only the minions on either side.
+ */
+export function adjacentConsumeFodder(state: RunState, center: BoardCard, count: number): void {
+  const idx = state.board.indexOf(center);
+  if (idx < 0 || count <= 0) return;
+  const neighbors = [state.board[idx - 1], state.board[idx + 1]].filter((m): m is BoardCard => !!m);
+  const fodder = CARD_INDEX.fred;
+  if (!fodder || neighbors.length === 0) return;
+  const ctx = makeContext(state);
+  const cb = cardBuff(state, fodder.id);
+  const fa = fodder.attack + cb.attack;
+  const fh = fodder.health + cb.health;
+  const eaten: { eaterUid: string; fodderId: string; attack: number; health: number; gainA: number; gainH: number }[] = [];
+  for (const target of neighbors) {
+    const mult = fodderMultiplier(target);
+    for (let i = 0; i < count; i++) {
+      addBuff(target, 'Consume', fa * mult, fh * mult);
+      fire(ctx, 'onConsume', { minion: target });
+      eaten.push({ eaterUid: target.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
+      noteFodderConsumed(state, fa, fh);
+    }
+  }
+  if (eaten.length > 0) {
+    state.fodderEaten = [...(state.fodderEaten ?? []), ...eaten];
+    state.fodderEatenSeq += 1;
+  }
 }
 
 /**

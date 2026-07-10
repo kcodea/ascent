@@ -27,6 +27,16 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 
 - **Skip combat fades out gracefully.** Skipping the replay no longer hard-cuts: everything freezes and mutes for a
   beat, all units + FX fade out together, then the resolved board fades back in — the same crossfade as End Combat.
+- **Hero batch — 4 reworks + 6 new heroes.** Djinn's Cadence now fires *every* friendly End of Turn; Rohan scales
+  by spells cast; Nadja has 19 Armor; Warden's Aegis buys a minion a permanent Ward for 4 Gold. New: **Disco Dan**
+  (turn-1 Setlist — Discover T6/T4/T2, each locked until that shop tier), **Bagger Ben** (scaling Gold), **Hermit
+  Hank** (2-Gold minions, +2 tavern-ups), **Fi** (an early quest on turn 3), **Herald** (neighbours Consume a Fodder),
+  **Chronos** (buy 4 End-of-Turn minions → a Chronos).
+- **Front to Back scales Attack/Health independently.** A `+0/+2` (asymmetric spell-power) build now escalates
+  **+2/+4** per cast instead of symmetrically — the two stats diverge as intended, and every surface prints the
+  true split value.
+- **New minion — Tauntbreaker** (T4 Neutral 6/4, Ward + Flurry). Its attacks strip **Taunt** and **Rise** off the
+  enemy it hits — break past a Taunt wall and deny the Rise on the same lethal swing. Flurry disarms two a turn.
 - **Rally attack reads louder.** The wind-up pause when a Rally fires holds longer, and its yellow trigger pulse is
   much brighter (a wide triple-layer gold halo) — the Rally is worth noticing.
 - **End-Combat is one synchronized crossfade.** Leaving the arena no longer snaps: the **End Combat** button now

@@ -49,7 +49,7 @@ export function StatusBar() {
   // The big line under the hero name: what tapping the power does *right now*.
   const powerLine = isPassive
     ? power.kind === 'spellAmplify'
-      ? `${power.name} · +${spellAmplifyBonus(run.spellsCast)}/+${spellAmplifyBonus(run.spellsCast)} spells`
+      ? `${power.name} · +${spellAmplifyBonus(run.spellsCast)}/+${spellAmplifyBonus(run.spellsCast)} · ${run.spellsCast % 5}/5`
       : power.kind === 'quest'
         ? `${power.name} · ${run.heroPowerSpent ? 'complete' : `${run.drakkoBuys}/5`}`
         : power.kind === 'questChronos'
@@ -73,7 +73,9 @@ export function StatusBar() {
                   ? `${power.name} · ${!run.heroReady ? 'used' : `+${1 + run.wave} Gold`}`
                   : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
   const powerNote = isPassive
-    ? ' Passive — always on.'
+    ? power.kind === 'spellAmplify'
+      ? ` Passive — your spells gain +${spellAmplifyBonus(run.spellsCast)}/+${spellAmplifyBonus(run.spellsCast)}. ${run.spellsCast % 5}/5 spells cast toward the next +1/+1.`
+      : ' Passive — always on.'
     : !unlocked
       ? ` Unlocks on turn ${unlockWave}.`
       : power.kind === 'goldenGild'

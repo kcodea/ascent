@@ -17,6 +17,9 @@ Owner hero-tuning pass:
 - **Bagger Ben's Bag It** now shows its live worth: the power line reads `Bag It · +N Gold` and the hover tooltip
   "Click to gain N Gold. The payout grows +1 each turn." (N = 1 + wave, matching the reducer). Added a `scalingGold`
   case to the StatusBar power line + note.
+- **Yirin's Attunement** now shows a progress counter toward its next improvement: the power line reads
+  `Attunement · +N/+N · M/5` and the tooltip "M/5 spells cast toward the next +1/+1" (M = `spellsCast % 5`), so the
+  player can see how close the next +1/+1 step is.
 
 The armor test was rewritten to assert the new per-hero spread. Verified live: every armor value, Yirin's name + art,
 Tradesman's name, Herald's 2-Gold cost badge, and Bagger Ben's worth scaling with the wave (+2 at w1, +4 at w3).

@@ -433,6 +433,7 @@ class FxController {
   private readonly shields = new Map<string, ShieldBubble>();
   private readonly live: Particle[] = [];
   private readonly pool: Sprite[] = [];
+  private fadeRaf = 0; // in-flight setVisible fade (rAF) — cancelled if a new fade starts
 
   /** Mount the overlay canvas into `parent` (a fixed, full-viewport, pointer-events:none div).
    *  Lazily creates the PixiJS Application on first call and reuses it thereafter. */
@@ -1109,19 +1110,29 @@ class FxController {
     else this.app.ticker.start();
   }
 
-  /** Show/hide the WHOLE FX layer (both canvases) INSTANTLY — used by the Skip fade. The canvases are mounted
-   *  app-wide at BODY level (outside `.app`), so a CSS `.app.combatout` selector can't reach them; this sets the
-   *  canvas opacity directly, killing every particle + persistent aura bubble at once. NB it's a hard cut, not a
-   *  CSS fade: a CSS transition never progresses on the live WebGL canvas (the render loop defeats it), whereas an
-   *  instant opacity set holds — so on Skip the auras/dust vanish the moment everything freezes. */
-  setVisible(visible: boolean): void {
-    const set = (c: HTMLCanvasElement | undefined): void => {
-      if (!c) return;
-      c.style.transition = 'none';
-      c.style.opacity = visible ? '1' : '0';
+  /** Fade the WHOLE FX layer (both canvases) in/out over `ms` — used by the Skip transition so every particle +
+   *  persistent aura bubble fades WITH the board. The canvases are mounted app-wide at BODY level (outside
+   *  `.app`), so a CSS `.app.combatout` selector can't reach them; and a CSS *transition* never progresses on a
+   *  live WebGL canvas (the render loop defeats it — an inline `opacity:0` stays computed `1` under a transition,
+   *  but holds under `transition:none`). So we step the opacity ourselves each frame via rAF (which keeps running
+   *  even while the Pixi/GSAP tickers are paused for the freeze). `ms = 0` = an instant set. */
+  setVisible(visible: boolean, ms = 260): void {
+    const canvases = [this.app?.canvas, this.shieldApp?.canvas].filter(Boolean) as HTMLCanvasElement[];
+    if (!canvases.length) return;
+    for (const c of canvases) c.style.transition = 'none'; // the fade is rAF-driven, not CSS
+    cancelAnimationFrame(this.fadeRaf);
+    const to = visible ? 1 : 0;
+    if (ms <= 0) { for (const c of canvases) c.style.opacity = String(to); return; }
+    const from = Number.parseFloat(canvases[0].style.opacity || '1');
+    let start = 0;
+    const step = (now: number): void => {
+      if (!start) start = now;
+      const k = Math.min(1, (now - start) / ms);
+      const o = String(from + (to - from) * k);
+      for (const c of canvases) c.style.opacity = o;
+      if (k < 1) this.fadeRaf = requestAnimationFrame(step);
     };
-    set(this.app?.canvas);
-    set(this.shieldApp?.canvas);
+    this.fadeRaf = requestAnimationFrame(step);
   }
 
   /** Instantly clear every TRANSIENT effect (dust, sparks, trails, skull pops) — recycled to the pool — so

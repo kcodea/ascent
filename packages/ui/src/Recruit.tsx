@@ -716,7 +716,7 @@ export function Recruit() {
   // A Skip mutes ALL audio (stopAllAudio) and leaves it muted through the resolved-combat screen; un-mute once
   // the fight is left (back to the shop) so the next fight — and the shop — has sound again.
   useEffect(() => {
-    if (!inCombat) { resumeAudio(); pixiFx.setVisible(true); tauntFx.setVisible(true); } // restore after a Skip
+    if (!inCombat) { resumeAudio(); pixiFx.setVisible(true, 0); tauntFx.setVisible(true, 0); } // instant-restore after a Skip
   }, [inCombat]);
 
   // Once the combat replay finishes, settle the outcome (damage + carry-backs) right here in the combat
@@ -758,7 +758,7 @@ export function Recruit() {
       gsap.globalTimeline.pause();
       pixiFx.setPaused(true); tauntFx.setPaused(true);
       pixiFx.clearParticles(); tauntFx.clearParticles();
-      pixiFx.setVisible(false); tauntFx.setVisible(false); // hard-cut the app-wide FX canvases (auras/dust) — instantly gone
+      pixiFx.setVisible(false, FADE); tauntFx.setVisible(false, FADE); // fade the app-wide FX canvases (auras/dust) out with the board
       // 2) Once faded out, settle the simulation's END STATE under cover of opacity 0 (resume the tickers so the
       //    surviving board + its auras render live), wipe any transient the settle re-fired, then hold ~1s…
       window.setTimeout(() => {
@@ -770,7 +770,7 @@ export function Recruit() {
       // 3) …then fade the clean end state back in together (End Combat / Summary buttons come with it).
       window.setTimeout(() => {
         pixiFx.clearParticles(); tauntFx.clearParticles(); // final wipe so only the settled board's auras remain
-        pixiFx.setVisible(true); tauntFx.setVisible(true); // restore the canvases so the end-state auras show as it fades in
+        pixiFx.setVisible(true, IN); tauntFx.setVisible(true, IN); // fade the end-state auras in WITH the board
         setSkipFade('in');
       }, FADE + HOLD);
       window.setTimeout(() => setSkipFade(null), FADE + HOLD + IN);

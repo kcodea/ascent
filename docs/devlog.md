@@ -28,13 +28,15 @@ replacement one-shot will play in the Skip's place later (owner).
 
 - `sfx.ts`: a master **mute bus** (`GainNode`, limiter → bus → destination) + `stopAllAudio()` / `resumeAudio()`;
   `tone`/`playSample` also early-out while suspended so nothing schedules during the fade.
-- `pixiFx.ts`: `setPaused()` freezes the ticker; `clearParticles()` wipes transient FX; **`setVisible()`** hides the
-  whole FX layer. **Root-cause fix (found via live Chrome debugging):** the FX canvases (`.pixifx` particles/dust +
-  `.pixifx-under` shield/reborn bubbles) are mounted **app-wide at BODY level, outside `.app`**, so the
-  `.app.combatout` CSS could never fade them — the dust, Divine-Shield, reborn, and taunt auras leaked through the
-  Skip. `setVisible()` sets the canvas opacity directly. It's an **instant** hide, not a CSS fade, because a CSS
-  transition never progresses on the live WebGL canvas (the render loop defeats it — verified in-browser: inline
-  `opacity:0` stayed computed `1` under a transition, but held at `0` with `transition:none`).
+- `pixiFx.ts`: `setPaused()` freezes the ticker; `clearParticles()` wipes transient FX; **`setVisible(visible, ms)`**
+  fades the whole FX layer in/out. **Root-cause fix (found via live Chrome debugging):** the FX canvases (`.pixifx`
+  particles/dust + `.pixifx-under` shield/reborn bubbles) are mounted **app-wide at BODY level, outside `.app`**, so
+  the `.app.combatout` CSS could never fade them — the dust, Divine-Shield, reborn, and taunt auras leaked through
+  the Skip. `setVisible()` sets the canvas opacity directly, stepping it each frame via **rAF** (a CSS transition is
+  unreliable on a live WebGL canvas; rAF also keeps running while the Pixi/GSAP tickers are paused for the freeze),
+  so the auras/dust fade *with* the board. (Debugging caveat: the claude-in-chrome automation tab is `hidden`, which
+  throttles rAF + transitions to zero — only instant DOM changes verify there; the fade is confirmed by DOM/opacity
+  probes + reasoned from the standard rAF behaviour, and needs a foreground-tab eyeball.)
 - `Recruit.tsx`: `skipCombat` (freeze + hide FX + fade cards → resume + `replay.skip()` under cover → ~0.9 s hold →
   restore + fade in); `.combatfrozen` pauses stray CSS animations; `.combatout`/`.combatin` fade the rows + control
   bar; an effect un-mutes audio + restores the FX layer whenever combat is left.

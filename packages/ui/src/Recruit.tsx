@@ -1134,10 +1134,14 @@ export function Recruit() {
       const zone = el.closest('[data-zone]')?.getAttribute('data-zone');
       const source: DragSource = zone === 'warband' ? 'board' : zone === 'hand' ? 'hand' : 'shop';
       // Disco Dan: a Setlist card is locked in hand until you reach its shop tier — it can't be dragged out
-      // or played (the reducer also refuses the play). Grabbing it does nothing until it unlocks.
+      // or played (the reducer also refuses the play). Read the LIVE run from the store (not this callback's
+      // closed-over `run`, which is only refreshed on [timeUp, inCombat]): so an upgrade unlocks the card the
+      // SAME turn, and a stale run left over from a previous hero can't false-lock a uid-colliding card
+      // (both runs start uidSeq at 0, so a fresh buy can share a locked Setlist card's uid).
       if (source === 'hand') {
-        const hc = run.hand.find((c) => c.uid === uid);
-        if (hc?.lockedUntilTier && run.tier < hc.lockedUntilTier) return;
+        const liveRun = useGame.getState().run;
+        const hc = liveRun.hand.find((c) => c.uid === uid);
+        if (hc?.lockedUntilTier && liveRun.tier < hc.lockedUntilTier) return;
       }
       // When the timer's up you can still REORDER your board, but not play / buy / sell — so allow a board
       // drag through, block hand + shop drags.

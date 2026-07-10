@@ -3,6 +3,48 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-10 (session 30)
+
+### fix(core): Violet Whelp immediate-attack ordering — summon + strike defer past the clash cascade
+
+**Problem.** An `attackOnSummon` token (`whelpling`, summoned by Violet Whelp `twilightwhelp` / Violet
+Whelpmother `broodmother` Deathrattles) had its `summon` event emitted *mid-death-cascade* — in
+`performAttack`'s phase-2 loop, right when the parent's Deathrattle fired — so in the combat replay the Whelp
+popped in *between* the other units' deaths in the same clash. Its immediate strike already flushed after the
+cascade, but the summon interleaved. The owner wanted **all deaths + their Deathrattle effects in a clash to
+resolve first, then the Whelp summons AND attacks as one discrete beat.**
+
+Why it had to be an engine fix (not a presentation-only reorder like `deferClashBuffs`): the Whelp's strike
+deals damage / causes deaths (non-commutative — unsafe to reorder in the replay), and deferring only the
+*visual* summon would desync `computeFrame` if another same-clash Deathrattle buffed the fresh Whelp (a `buff`
+event before its `summon` event).
+
+**Fix (owner-endorsed "option 2"), all in `packages/core/src/combat/simulate.ts`.** An `attackOnSummon` /
+`attackNow` token now DEFERS its whole summon: `summonMinion` instantiates the body but, instead of placing +
+announcing it, pushes it onto the immediate-attack queue (`pendingAttackOnSummon`, now a union of `{ summon }`
+and `{ minion }` items). The placement body was extracted into a new `placeSummon` helper. `flushImmediateAttacks`
+— which runs *after* each attack's death cascade settles (and at Start-of-Combat) — pops a deferred summon,
+lands it via `placeSummon` (emitting the `summon` event as its own step), then takes its immediate strike inline
+as the next step. Doing the strike inline (not as a separate queue item) keeps a multi-token Deathrattle
+sequential, so the board-cap "room after the first has attacked" logic (golden Whelp on a near-full board) still
+holds. The `deathrattleSummon` factory's inline `flushImmediateAttacks` call (`factories.ts`) was removed — the
+post-cascade flush now handles the sequencing — and `IMMEDIATE_ATTACK_GUARD` was bumped 64 → 128 since the queue
+now holds a summon + a strike item per token.
+
+**Rules shift (accepted by the owner).** The Whelp is now OFF the board for the rest of the clash cascade, so a
+same-clash Deathrattle can no longer buff it before it exists. And a **Rise** Violet Whelp now returns *before*
+its own deferred Whelp summons (the Whelp lands to the right of the returned body and strikes as its own beat),
+where previously the Rise re-slotted to the right of a Whelp summoned mid-rattle. Non-`attackOnSummon`
+Deathrattle summons (e.g. Whelpmother → Violet Whelps with Taunt) are unchanged — only the immediate-attack
+tokens defer.
+
+**Verified.** Reproduced the old interleaving and confirmed the new ordering with scratch event-log dumps (a
+cleave clash killing two Violet Whelps: both `death`s now resolve, *then* each Whelp `summon` → `attack` in
+turn; and the Rise case above). Re-baselined the one combat golden that pinned the old Rise+Whelp order
+(`simulate.test.ts` "Rise dies THEN rattles THEN returns"). `npm run typecheck && npm run lint && npm test`
+(791 passing) `&& npm run build:web` all green. Remaining: a live eyeball of the Violet Whelp replay in a real
+run (the event-log ordering — the replay's source of truth — is confirmed; UI combat-beat tests pass).
+
 ## 2026-07-10 (session 29)
 
 ### fix(ui): board fight-tracking recorded nothing — drop the self-fight skip

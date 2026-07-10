@@ -76,6 +76,13 @@ const QUEST_ART = indexArt(
 );
 export const questArt = (questId: string): string | undefined => QUEST_ART[questId];
 
+/** Rune art — drop a PNG/WEBP into `packages/ui/src/art/runes/<runeId>.png` (e.g. `rune_warding.png`), keyed by
+ *  the rune id. Shown on the Runeforge rune card + its run-buff badge; absent = the sigil-glyph fallback. */
+const RUNE_ART = indexArt(
+  import.meta.glob('./art/runes/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,
+);
+export const runeArt = (runeId: string): string | undefined => RUNE_ART[runeId];
+
 /** Avatar picker: every bundled art the player can choose as their profile avatar, namespaced by pool
  *  (`hero:<id>` / `minion:<cardId>` / `power:<heroId>`) so ids never collide across pools. `key` is the raw
  *  glob key (cardId / heroId), used to resolve a display name from CARD_INDEX / HEROES in the picker. */

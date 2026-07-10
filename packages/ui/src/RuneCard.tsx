@@ -5,6 +5,7 @@ import type { QuestReward, RuneDef } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { Card, mdBold, type CardView } from './Card';
 import { Icon } from './Icon';
+import { runeArt } from './art';
 
 /** The card ids a rune's reward GRANTS (Pillaging → the Pillager) — for the hover preview. */
 function rewardCardIds(r: QuestReward): string[] {
@@ -60,14 +61,16 @@ export function RuneCard({ rune, affordable, onBuy }: { rune: RuneDef; affordabl
 
   return (
     <button
-      className={`runecard${affordable ? '' : ' cantafford'}`}
+      className={`runecard${affordable ? '' : ' cantafford'}${runeArt(rune.id) ? ' has-art' : ''}`}
       onClick={affordable ? onBuy : undefined}
       disabled={!affordable}
       onMouseEnter={hasPreview ? (e) => show(e.currentTarget) : undefined}
       onMouseLeave={hasPreview ? hide : undefined}
       aria-label={`${rune.name} — buy for ${rune.cost} Gold`}
     >
-      <span className="runecard-sigil" aria-hidden><Icon name="sc" /></span>
+      {runeArt(rune.id)
+        ? <img className="runecard-art" src={runeArt(rune.id)} alt="" aria-hidden />
+        : <span className="runecard-sigil" aria-hidden><Icon name="sc" /></span>}
       <div className="runecard-head">
         <div className="runecard-name">{rune.name}</div>
         <div className="runecard-cost" title={`Costs ${rune.cost} Gold`}><Icon name="ember" />{rune.cost}</div>

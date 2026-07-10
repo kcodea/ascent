@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### feat(ui): art for Runesmith + all 8 runes
+
+Wired the hero portrait + rune art (owner-supplied). Converted the ~2 MB source PNGs to **512×512 webp** (~28–45 KB
+each, matching the existing art) with `sharp`: `Runesmith.png` → `art/heroes/runesmith.webp`, and each rune's art →
+`art/runes/rune_<id>.webp` (name-matched, incl. `SpellOfPillaging.png` → Pillaging; the un-attributed/extra source
+files were left alone). New `runeArt(id)` glob helper alongside `heroArt`/`questArt`. The `RuneCard` is now
+art-forward (full-bleed illustration behind a legibility scrim, name + Gold cost floating at the top, effect text in
+a dark panel at the bottom — sigil-glyph fallback kept), and the run-buff badge shows the rune art too. No hero-power
+art exists for Runesmith, so its power button keeps the glyph. typecheck / lint / build green. (Live view pending —
+a NEW art folder needs one dev-server restart before the glob sees it; the production build already includes them.)
+
 ### fix(core): Violet Whelp immediate-attack ordering — summon + strike defer past the clash cascade
 
 **Problem.** An `attackOnSummon` token (`whelpling`, summoned by Violet Whelp `twilightwhelp` / Violet

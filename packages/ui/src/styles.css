@@ -975,6 +975,15 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .runecard-txt { font-weight: 600; font-size: calc(13 * var(--u)); line-height: 1.34; color: #d6d2c7; }
 .runecard-txt b { color: #b7e4f0; font-weight: 800; }
 .runecard-lock { margin-top: calc(8 * var(--u)); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.04em; text-transform: uppercase; color: #d98a8a; }
+/* Art-forward rune tablet: the full illustration fills the slab; name + cost float at the top over a scrim, and
+   the effect text sits in a dark panel pinned to the bottom. */
+.runecard.has-art { overflow: hidden; min-height: calc(var(--cw) * 1.5); padding: calc(11 * var(--u)) calc(12 * var(--u)) calc(12 * var(--u)); }
+.runecard-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
+.runecard.has-art::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(180deg, rgba(8, 9, 12, 0.72) 0%, rgba(8, 9, 12, 0.05) 24%, rgba(8, 9, 12, 0.12) 50%, rgba(8, 9, 12, 0.8) 82%, rgba(8, 9, 12, 0.94) 100%); }
+.runecard.has-art .runecard-head, .runecard.has-art .runecard-body, .runecard.has-art .runecard-lock { position: relative; z-index: 2; }
+.runecard.has-art .runecard-head { margin-bottom: 0; }
+.runecard.has-art .runecard-body { margin-top: auto; flex: none; background: rgba(12, 14, 18, 0.62); border: 2px solid rgba(255, 255, 255, 0.1); border-radius: calc(10 * var(--u)); padding: calc(8 * var(--u)) calc(10 * var(--u)); }
+.runecard.has-art .runecard-name { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 0, 0, 0.7); }
 
 /* Rune run-buff badge (in the quest-badge row above the hero) — a stone-toned circle. */
 .questbadge.runebadge { border-color: #6a707c; background: linear-gradient(180deg, #3a3e46, #2a2d33); }

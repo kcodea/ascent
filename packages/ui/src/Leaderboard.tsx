@@ -6,7 +6,7 @@ import { heroArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
-import { fetchVictories, remoteEnabled, type VictoryRow } from './remoteBoards';
+import { fetchBoardStats, fetchVictories, remoteEnabled, type BoardWinStats, type VictoryRow } from './remoteBoards';
 
 /** A read-only card view from a stored snapshot minion (the rest comes from the card def) — mirrors the
  *  end screen's final-warband render so the cards read identically (incl. full-text-on-hover). */
@@ -31,22 +31,57 @@ function cardViewOf(m: BoardMinion): CardView {
  * hero · author · wave · date) and their final winning warband inline, rendered with the same `Card` as the
  * end screen (so cards size correctly + show full text on hover, on top). Read-only + best-effort.
  */
+/** The round-17 win record for a leaderboard slot — "78 wins · 96%" + the full fight tally on hover. */
+function WinRecord({ stats }: { stats?: BoardWinStats }) {
+  if (!stats || stats.fights === 0) {
+    return <div className="lbrecord none" title="No round-17 fights logged against this board yet">No fights yet</div>;
+  }
+  return (
+    <div
+      className="lbrecord"
+      title={`${stats.fights} fights on round 17 · ${stats.wins} wins · ${stats.ties} ties · ${stats.losses} losses`}
+    >
+      <Icon name="crown" />
+      <b>{stats.wins}</b> {stats.wins === 1 ? 'win' : 'wins'}
+      <span className="lbwr">{stats.winRate}%</span>
+    </div>
+  );
+}
+
 export function Leaderboard() {
   const show = useGame((s) => s.showLeaderboard);
   const close = useGame((s) => s.closeLeaderboard);
   const [rows, setRows] = useState<VictoryRow[] | null>(null);
+  // Round-17 fight record per leaderboard slot (keyed by the board's ledger id).
+  const [stats, setStats] = useState<Map<string, BoardWinStats>>(new Map());
+  const [sort, setSort] = useState<'recent' | 'wins'>('recent');
 
   useEffect(() => {
     if (!show) return;
     setRows(null); // reset to the loading state each time it opens
+    setStats(new Map());
     let alive = true;
-    void fetchVictories(20).then((r) => { if (alive) setRows(r); });
+    void fetchVictories(20).then(async (r) => {
+      if (!alive) return;
+      setRows(r);
+      // Then pull each slot's round-17 win record from the fight ledger (best-effort; leaves the record empty on failure).
+      const ids = r.map((v) => v.boardId).filter((id): id is string => !!id);
+      if (ids.length > 0) {
+        const s = await fetchBoardStats(ids, 17);
+        if (alive) setStats(s);
+      }
+    });
     return () => { alive = false; };
   }, [show]);
 
   if (!show) return null;
 
   const back = (): void => { sfx.pulse(); close(); };
+
+  // 'recent' keeps the fetch order (created_at desc). 'wins' ranks by the round-17 win count (0 for untracked).
+  const winsOf = (r: VictoryRow): number => (r.boardId ? stats.get(r.boardId)?.wins ?? 0 : 0);
+  const ordered = rows === null ? null
+    : sort === 'wins' ? [...rows].sort((a, b) => winsOf(b) - winsOf(a)) : rows;
 
   return (
     <div className="lbpage">
@@ -59,21 +94,26 @@ export function Leaderboard() {
             <div className="lbsub">The latest 20 victory runs</div>
           </div>
         </div>
+        {/* Sort toggle — Most recent (default) vs Most round-17 wins. */}
+        <div className="lbsort" role="group" aria-label="Sort leaderboard">
+          <button className={`lbsortbtn${sort === 'recent' ? ' on' : ''}`} onClick={() => { sfx.pulse(); setSort('recent'); }}>Most recent</button>
+          <button className={`lbsortbtn${sort === 'wins' ? ' on' : ''}`} onClick={() => { sfx.pulse(); setSort('wins'); }}>Most wins</button>
+        </div>
       </div>
 
       <div className="lbscroll">
         {!remoteEnabled() ? (
           <div className="lbempty">Leaderboard unavailable — no backend configured.</div>
-        ) : rows === null ? (
+        ) : ordered === null ? (
           <div className="lbempty">Loading…</div>
-        ) : rows.length === 0 ? (
+        ) : ordered.length === 0 ? (
           <div className="lbempty">No champions yet — be the first to summit.</div>
         ) : (
-          rows.map((r, i) => {
+          ordered.map((r, i) => {
             const hero = getHero(r.heroId);
             const art = heroArt(r.heroId);
             return (
-              <div className="lbentry" key={i}>
+              <div className="lbentry" key={r.boardId ?? i}>
                 <div className="lbentry-head">
                   <div className="lbrank">{i + 1}</div>
                   <div className="lbportrait">
@@ -100,6 +140,8 @@ export function Leaderboard() {
                       </div>
                     )}
                   </div>
+                  {/* Round-17 win record — how often this board has beaten others as their final opponent. */}
+                  <WinRecord stats={r.boardId ? stats.get(r.boardId) : undefined} />
                 </div>
                 {r.board && r.board.minions.length > 0 && (
                   <div className="lbwarband">

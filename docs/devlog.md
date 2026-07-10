@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 29)
 
+### feat(ui): board fight-tracking — leaderboard win records (wins + win-rate + sort)
+
+First half of the board win-tracking feature (the leaderboard side; the Career per-round log is the follow-up).
+When you fight a **served opponent board**, the client now logs the outcome **from that board's perspective**
+(you lose to it → it gets a win) to a new isolated Supabase table, `board_results`. The Hall of Champions shows
+each slot's **round-17** record and can sort by it.
+
+- **Board identity:** every captured board is stamped with a stable UUID (`BoardSnapshot.id`, crypto.randomUUID in
+  the UI capture layer). It travels inside the existing `boards`/`runs` jsonb — **no new columns**, so uploads stay
+  compatible with an un-migrated backend. A run's final (leaderboard) board reuses its wave-17 pool board's id, so
+  the leaderboard slot and the served round-17 opponent share one identity.
+- **Recording:** the store, on each `faceOmen` combat (non-practice), recomputes the served board deterministically
+  (`nextOpponent` on the pre-faceOmen state — the exact input the reducer used) and fire-and-forget POSTs
+  `{board_id, round, outcome}`; skips untracked (id-less committed/synthetic) boards and your own boards.
+- **Leaderboard UI:** `fetchBoardStats(ids, 17)` aggregates the ledger per slot → a "N wins · X%" record chip (full
+  W/T/L tally on hover), plus a **Most recent / Most wins** sort toggle in the top bar.
+- **Backend:** `schema.sql` gains only the `board_results` table + RLS (re-run it once). Client-reported/trust-based
+  at friend scale; only boards captured from this release forward carry an id, so tracking starts fresh.
+
+Verified: typecheck / lint / 792 tests / build green; the leaderboard renders live with the sort toggle and "No
+fights yet" records (the table isn't migrated yet) and no console errors; id-stamping uses the available
+`crypto.randomUUID`. End-to-end (record → aggregate → display) activates once the owner re-runs `schema.sql`.
+
 ### feat(ui): leaderboard + Career show the END-STATE board with live end-of-run card values
 
 The Hall of Champions (and the Career history board) showed the **pre-combat** highest-wave replay snapshot with

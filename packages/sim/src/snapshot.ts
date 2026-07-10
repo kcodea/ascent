@@ -25,6 +25,12 @@ export type BoardOrigin = 'self' | 'friend' | 'house' | 'synthetic';
 export interface BoardSnapshot {
   /** Schema version — bump on a breaking shape change so stored snapshots can be migrated or dropped. */
   v: 1;
+  /** Stable client-stamped identity (a UUID), set by the UI capture layer when a finished run's boards are
+   *  saved/uploaded — the key the fight-result ledger (`board_results`) attributes wins/losses to. Travels in
+   *  the snapshot jsonb, so a board served as an opponent carries the id its owner stamped; the run's final board
+   *  reuses its wave's id so the leaderboard slot and the served round-17 opponent share one identity. Absent on
+   *  committed/synthetic boards + legacy captures (those are simply untracked). Never read by combat/matchmaking. */
+  id?: string;
   wave: number;
   /** Combats WON before this board fought — the matchmaking key. You face a board with the same win count
    *  (the same point in its owner's climb), not the same wave. Optional for back-compat (missing → wave). */

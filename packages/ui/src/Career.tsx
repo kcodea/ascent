@@ -3,6 +3,7 @@ import { CARD_INDEX } from '@game/content';
 import { getHero, metLine, TAG_INFO, type BoardMinion, type LineStatus, type Tribe } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { avatarSrc, heroArt } from './art';
+import { BoardLog } from './BoardLog';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
@@ -88,6 +89,8 @@ export function Career() {
       </div>
 
       <div className="lbscroll">
+        {/* Per-round "winningest board" log — remote (your boards' fight records), shown independent of local history. */}
+        <BoardLog />
         {entries.length === 0 ? (
           <div className="lbempty">
             <div className="carempty-rating">Rating {profile.rating} · Line {profile.currentLine}</div>

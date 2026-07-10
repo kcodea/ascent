@@ -205,6 +205,44 @@ export async function recordFightResult(r: { boardId: string; round: number; out
   }
 }
 
+/** One of your boards at a given round, with its fight record — a row in the Career per-round board log. */
+export interface RoundBoard {
+  round: number;
+  board: BoardSnapshot;
+  stats: BoardWinStats;
+}
+
+/** Fetch YOUR uploaded boards (by author) grouped by round, each with its fight record — the data behind the
+ *  Career per-round "winningest board" log. Within each round, sorted best-record first (win-rate, then volume).
+ *  Best-effort + time-boxed; an empty map on any failure / no backend / no author. */
+export async function fetchPlayerRoundBoards(author: string): Promise<Map<number, RoundBoard[]>> {
+  const out = new Map<number, RoundBoard[]>();
+  const c = client();
+  if (!c || !author) return out;
+  try {
+    const request = Promise.resolve(c.from(TABLE).select('snapshot').eq('author', author).limit(FETCH_LIMIT));
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([request, timeout]);
+    if (!result || result.error || !result.data) return out;
+    const boards = (result.data as Array<{ snapshot: BoardSnapshot }>)
+      .map((r) => r.snapshot)
+      .filter((s): s is BoardSnapshot & { id: string } => !!s && !!s.id && Array.isArray(s.minions) && s.minions.length > 0);
+    if (boards.length === 0) return out;
+    const stats = await fetchBoardStats(boards.map((b) => b.id)); // all rounds
+    for (const b of boards) {
+      const arr = out.get(b.wave) ?? [];
+      arr.push({ round: b.wave, board: b, stats: stats.get(b.id) ?? emptyStats() });
+      out.set(b.wave, arr);
+    }
+    for (const arr of out.values()) {
+      arr.sort((a, z) => z.stats.winRate - a.stats.winRate || z.stats.fights - a.stats.fights);
+    }
+    return out;
+  } catch {
+    return out;
+  }
+}
+
 /** Aggregate the fight ledger for a set of board ids (optionally at a single round). Best-effort + time-boxed;
  *  an empty map on any failure / no backend. Client-side aggregation over a bounded fetch (friend-scale). */
 export async function fetchBoardStats(boardIds: string[], round?: number): Promise<Map<string, BoardWinStats>> {

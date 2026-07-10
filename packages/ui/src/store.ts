@@ -350,13 +350,14 @@ export const useGame = create<GameStore>((set, get) => ({
       // Fight-result ledger: on each combat (faceOmen resolves it), attribute the outcome to the SERVED opponent
       // board, so leaderboard slots + the Career per-round log can show how a board fares when others face it.
       // The served board is recomputed deterministically from the pre-faceOmen state — the exact input faceOmen
-      // used (nextOpponent is seeded by seed+wave+power). Record only a TRACKED (id'd) remote board that isn't
-      // your own, from the BOARD's perspective (you lose → it wins). Practice never counts. Fire-and-forget.
+      // used (nextOpponent is seeded by seed+wave+power). Record any TRACKED (id'd) board, from the BOARD's
+      // perspective (you lose → it wins). We do NOT skip your own boards: this is a single-player game whose pool
+      // is mostly (early: entirely) your own uploads, so skipping them left the ledger empty — a served board is
+      // always a PAST run's board, never your live one, so counting it is a real datapoint. Practice never counts.
       if (action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode !== 'practice') {
         const served = nextOpponent(s.run);
-        const result = next.lastCombat.result;
-        const isSelf = !!served?.author && served.author === s.playerName;
-        if (served?.id && !isSelf) {
+        if (served?.id) {
+          const result = next.lastCombat.result;
           const outcome = result === 'lose' ? 'win' : result === 'win' ? 'loss' : 'tie'; // the board's perspective
           void recordFightResult({ boardId: served.id, round: s.run.wave, outcome, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` });
         }

@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { getHero } from '@game/sim';
 import { heroArt } from './art';
 import { Icon } from './Icon';
@@ -17,6 +18,14 @@ export function HeroSelect() {
   const profile = useGame((s) => s.profile);
   if (!choices) return null;
 
+  // The "dense" grid (Practice — every hero) balances the roster into as few rows as read well, then sizes each
+  // card as a fraction of the container so EXACTLY `cols` fit per row (the short last row auto-centers). This
+  // beats flex-wrap's greedy packing, which stranded a sparse trailing row (e.g. 19 + 4) and wasted the space.
+  const dense = choices.length > 6;
+  const rows = choices.length > 24 ? 3 : 2;
+  const cols = Math.ceil(choices.length / rows);
+  const rowStyle = dense ? ({ '--hs-cols': cols } as CSSProperties) : undefined;
+
   return (
     <div className="heroselect">
       <button className="hsback" onClick={() => { sfx.pulse(); openTitle(); }}>← Back</button>
@@ -35,7 +44,7 @@ export function HeroSelect() {
         {/* Naming yourself now lives on the home screen (the account chip). Practice shows EVERY hero (20+), which
             overflows at the full card size — the `dense` grid shrinks the cards so they all fit without scrolling.
             Ascent only offers 3, so it keeps the big cards. */}
-        <div className={`hsrow${choices.length > 6 ? ' dense' : ''}`}>
+        <div className={`hsrow${dense ? ' dense' : ''}`} style={rowStyle}>
           {choices.map((id) => {
             const hero = getHero(id);
             const power = hero.power;

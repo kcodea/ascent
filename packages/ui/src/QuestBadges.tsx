@@ -3,7 +3,7 @@ import type { Tribe } from '@game/core';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
-import { questArt } from './art';
+import { questArt, runeArt } from './art';
 import { questRewardText } from './questText';
 import { useGame } from './store';
 
@@ -26,9 +26,12 @@ export function QuestBadges() {
       {/* Runes bought in the Runeforge — a stone-toned badge sitting alongside completed quests. */}
       {runes.map((id) => {
         const rune = RUNE_INDEX[id]!;
+        const art = runeArt(rune.id);
         return (
           <div className="questbadge runebadge" key={id}>
-            <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>
+            {art
+              ? <img className="questbadge-art" src={art} alt="" aria-hidden />
+              : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
             <div className="questbadge-tip" role="tooltip">
               <b>{rune.name}</b>
               <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />

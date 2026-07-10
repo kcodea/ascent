@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Buff tendrils.** When a unit buffs another unit in combat, an energy tendril shoots to each buffed ally,
+  strikes, flashes, and the target's stat badge holds then flashes-and-ticks to its new value on the hit. A
+  reusable, preset-driven effect system — the owner tuned a distinct tendril for each tribe (green Beast, gold
+  Mech, red Dragon, purple Demon, icy Undead), tuned live on a preset-aware preview rig. Presentation-only.
 - **Deathrattle summons read cleaner.** A Deathrattle's tokens now wait for the skull to pop and *burst*
   (and an attacker to settle home) before they appear, instead of popping in over the FX. The taunt death-burst
   effect + sound are removed for now.

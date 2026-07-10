@@ -5,6 +5,55 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 29)
 
+### fx: combat buff-cast energy tendrils (preset-driven, per-tribe)
+
+When a unit buffs **another** unit in combat, an energy **tendril** now shoots from the buffer to each buffed
+ally, strikes, flashes, and the target's changed stat badge(s) flash and tick to their new value **on the
+strike**. Built as a reusable, preset-driven system so a tuned look is data, not code. **Presentation-only** —
+the sim event log, resolution order, and outcomes are untouched (same guarantee as the Echo poof).
+Spec: [`docs/superpowers/specs/2026-07-10-buff-tendril-design.md`](superpowers/specs/2026-07-10-buff-tendril-design.md);
+plan: [`docs/superpowers/plans/2026-07-10-buff-tendril.md`](superpowers/plans/2026-07-10-buff-tendril.md).
+
+- **How buffs flow.** Every combat buff goes through `ctx.buff(target, atk, hp, source)` → a `buff` event
+  carrying both the buffer (`source`) and the recipient (`target`). A new pure `groupBuffCasts` (`choreo/
+  channels/buffCast.ts`) collects a moment's buff events into per-(source,target) casts, **excluding self-buffs**
+  (`source === target` — those keep their `+N/+N` float; there's no other unit to shoot from). Combat buffs are
+  otherwise tribe-wide, so the effect is inherently **one source → many targets, simultaneously**.
+- **The renderer** (`pixiFx.buffTendril(from, to, cfg)`). A caster pulse at the source, then a curved, wavy,
+  **tapered ribbon** (a quadratic path + sine wobble enveloped to 0 at both ends) revealed along a travelling
+  head, then on arrival a strike flash + a burst of motes, then a quick retract. Config-driven: every dial
+  (curve, wobble, widths, colours, durations, blend, …) is a field, so the renderer draws whatever a preset
+  says. The ribbon is a per-frame `Graphics` (bounded ~24 samples, `transform`/geometry only — 60fps-safe);
+  the pulse/flash/motes reuse the pooled `glowTex` particle system.
+- **Presets + resolver** (`buffPresets.ts`). A named registry of dial-bags (`BuffPresetCfg`) and a
+  most-specific-wins resolver (`buffPreset`: per-card → per-tribe → `default`). Duplicating a preset and
+  nudging dials yields a look that shares nothing with the original. **The owner tuned a distinct tendril for
+  each of five tribes** — beast (green), mech (pale gold), dragon (thick straight red), demon (`imp-tribe`,
+  wide purple), undead (thin-base/wide-tip icy blue); neutral + any unmapped buffer falls to `default`. The
+  chosen preset keys off the **buffer's** tribe. Preset values were generated straight from the tuner's bake
+  JSON to avoid transcription drift.
+- **The cue channel** (`choreo/score.ts` + `useCombatReplay.ts`). A new `buffCast` channel on the `buffWave`
+  moment kind groups the casts and fires a tendril per target from the buffer's screen rect to each target's.
+- **Held stat + badge flash.** The `+N/+N` float is **suppressed for buff-others** (`float.ts`); instead the
+  target's Attack/Health is **held at its pre-buff value while the tendril flies**, then released + flashed on
+  the strike (a compositor-only `.statflash` pop, `transform`/`opacity` only). Pre-buff = the current frame
+  value − the summed delta (the frame already reflects the buff at cue time); the hold reads the frame via a
+  `frameRef` and releases at `travelMs / combatSpeed`. Only the stats that changed flash. Self-buffs keep their
+  float + at-moment stat update.
+- **Blend mode — the fidelity fix.** The layers were first all additive, which pops on a dark background but
+  **washes out on the light cream combat board**. Added a per-preset `blend` field (`add`/`normal`/`screen`,
+  default `normal`) applied to the ribbon + pulse + flash + motes, and fixed the preview rig to render on the
+  real cream board (not the old near-black) with a `blend` dropdown — so what's tuned is what ships. The tuner
+  is preset-aware (pick / duplicate / export the whole registry as JSON).
+
+Verified: `npm run typecheck`, `npm run lint`, `npm test` (801 pass, 34 files), `npm run build:web` all green;
+owner live-tuned on the rig, then confirmed the per-tribe looks in real fights.
+
+**Follow-ups (see roadmap):** buffs absorbed into an attack's windup (on-attack ally-buffers like Crypt Drake)
+classify as `attackExchange`, which carries no `buffCast` cue — so they don't throw tendrils yet (iteration 1
+targets Start-of-Combat / standalone buff waves). The `style` field is ready for `lightning`/`beam` renderers;
+neutral has no dedicated preset yet.
+
 ### fix(ui): board fight-tracking recorded nothing — drop the self-fight skip
 
 The `board_results` ledger stayed empty in real play. Cause: the recording hook skipped fights where the served

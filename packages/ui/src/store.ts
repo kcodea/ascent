@@ -40,7 +40,7 @@ const HERO_SELECT_COUNT = 3;
 /** A fresh shuffle of hero ids for the picker. UI-level randomness — the hero *choice* is a
  *  meta decision, not part of the seeded run, so Math.random is fine here (and not in the sim). */
 function rollHeroChoices(): string[] {
-  const ids = HEROES.map((h) => h.id);
+  const ids = HEROES.filter((h) => !h.wip).map((h) => h.id); // WIP heroes (Runesmith pre-UI) stay out of the picker
   for (let i = ids.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [ids[i], ids[j]] = [ids[j]!, ids[i]!];

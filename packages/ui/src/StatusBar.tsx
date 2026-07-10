@@ -38,6 +38,8 @@ export function StatusBar() {
       }
       return [...counts.values()].some((n) => n >= 2);
     })();
+  // Jenkins's Dynamite Dig has an ESCALATING cost (1 Gold + 1 per prior use), not a fixed `power.cost`.
+  const digCost = power.kind === 'dynamiteDig' ? 1 + (run.heroPowerUses ?? 0) : undefined;
   const canHero =
     !isPassive &&
     unlocked &&
@@ -45,7 +47,8 @@ export function StatusBar() {
     withinUses &&
     doubleAvailable &&
     (power.oncePerGame ? !run.heroPowerSpent : run.heroReady) &&
-    (!power.cost || run.embers >= power.cost);
+    (!power.cost || run.embers >= power.cost) &&
+    (digCost === undefined || run.embers >= digCost);
   // The big line under the hero name: what tapping the power does *right now*.
   const powerLine = isPassive
     ? power.kind === 'spellAmplify'
@@ -56,7 +59,9 @@ export function StatusBar() {
           ? `${power.name} · ${run.heroPowerSpent ? 'complete' : `${run.eotMinionBuys ?? 0}/4`}`
           : power.kind === 'collision'
             ? `${power.name} · ${Math.min(5, run.cassenKills + combatEnemyDeaths)}/5`
-            : `${power.name} · passive`
+            : power.kind === 'pathfinder'
+              ? `${power.name} · quests turns 6 & 10`
+              : `${power.name} · passive`
     : heroArmed
       ? 'Pick a minion…'
       : !unlocked
@@ -71,7 +76,9 @@ export function StatusBar() {
                 ? `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`
                 : power.kind === 'scalingGold'
                   ? `${power.name} · ${!run.heroReady ? 'used' : `+${1 + run.wave} Gold`}`
-                  : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
+                  : power.kind === 'dynamiteDig'
+                    ? `${power.name} · ${!run.heroReady ? 'used' : run.embers >= digCost! ? `${digCost} Gold` : `need ${digCost} Gold`}`
+                    : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
   const powerNote = isPassive
     ? power.kind === 'spellAmplify'
       ? ` Passive — your spells gain +${spellAmplifyBonus(run.spellsCast)}/+${spellAmplifyBonus(run.spellsCast)}. ${run.spellsCast % 5}/5 spells cast toward the next +1/+1.`
@@ -173,7 +180,7 @@ export function StatusBar() {
             >
               {heroPowerArt(hero.id) ? <img src={heroPowerArt(hero.id)} alt="" draggable={false} /> : <Icon name="sc" />}
             </button>
-            {power.cost ? <span className="hpcost"><Icon name="mana" />{power.cost}</span> : null}
+            {(digCost ?? power.cost) ? <span className="hpcost"><span className="costn">{digCost ?? power.cost}</span></span> : null}
           </div>
           <div className="hplabel">{isPassive ? 'Passive' : power.name}</div>
           <div className="herotip" role="tooltip">

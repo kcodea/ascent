@@ -29,6 +29,10 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   strikes, flashes, and the target's stat badge holds then flashes-and-ticks to its new value on the hit. A
   reusable, preset-driven effect system — the owner tuned a distinct tendril for each tribe (green Beast, gold
   Mech, red Dragon, purple Demon, icy Undead), tuned live on a preset-aware preview rig. Presentation-only.
+- **Violet Whelp resolves as one beat.** An attack-on-summon Whelp (Violet Whelp / Whelpmother Deathrattles)
+  no longer pops in *between* the other units' deaths in a clash. All deaths + their Deathrattle effects now
+  resolve first; then the Whelp summons **and** strikes as a single discrete beat. Engine fix in `simulate.ts`
+  (the token's summon + strike defer together to the post-cascade flush); re-baselined one combat golden.
 - **Deathrattle summons read cleaner.** A Deathrattle's tokens now wait for the skull to pop and *burst*
   (and an attacker to settle home) before they appear, instead of popping in over the FX. The taunt death-burst
   effect + sound are removed for now.

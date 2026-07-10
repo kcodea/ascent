@@ -445,7 +445,26 @@ export type QuestReward =
   | { kind: 'endOfTurnRepeat' }
   // A run-wide recurring End-of-Turn EFFECT granted by a quest: re-fire your leftmost Shout (Echoing Roar), or
   // conjure a random Shout minion to hand (The Hoard Wakes). Applied every End of Turn for the rest of the run.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' }
+  // `runeSpending` (Rune of Spending): End of Turn — +1 max Gold, and buff your leftmost minion +N/+N where N =
+  // the Gold you spent this turn.
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' }
+  // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
+  // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
+  | { kind: 'runeSpellDrip'; per: number }
+  // Rune of Structure: each Attachment (Magnetic) you PLAY from hand also gives you a random spell.
+  | { kind: 'runeStructure' }
+  // Rune of Consumption: every Fodder you Consume permanently bumps your run-wide Fodder aura +attack/+health.
+  | { kind: 'runeConsume'; attack: number; health: number }
+  // Rune of Pillaging half: your Gold Pouches are worth `value` Gold for the rest of the run.
+  | { kind: 'goldPouchValue'; value: number }
+  // Rune of Summoning: each spell you cast permanently improves your Imps +1/+1 wherever they are.
+  | { kind: 'runeSummoning' }
+  // Rune of Empowerment (Epic): your hero power's effect triggers twice (only offered to heroes whose power
+  // benefits — see the sim's DOUBLEABLE_POWERS gate).
+  | { kind: 'runeEmpowerment' }
+  // Open the EPIC Runeforge — a quest reward that presents the Epic runeset (a random few of `EPIC_RUNES`) to
+  // buy ONE, exactly like the Runesmith's forge but reachable by any hero via a quest.
+  | { kind: 'openEpicRuneforge' }
   // Undead: `gainGold` grants Gold immediately on completion (Bone Ledger's "Get 10 Gold").
   | { kind: 'gainGold'; amount: number }
   // Undead Echo rewards: `always` grants a permanent extra Echo (Deathrattle) trigger (Funeral Engine, stacks
@@ -489,7 +508,12 @@ export type QuestReward =
 export type QuestRewardKind = QuestReward['kind'];
 /** A run-wide combat modifier a completed quest arms; `simulate()` reads them via `QuestCombatMods`. */
 export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'oldHunt' | 'sharedCircuit'
-  | 'deepHunger' | 'contractRewrite' | 'pitWithoutEnd' | 'doubleLeftmostAttack' | 'feedingLine' | 'umbralEnergy' | 'emptyGraves';
+  | 'deepHunger' | 'contractRewrite' | 'pitWithoutEnd' | 'doubleLeftmostAttack' | 'feedingLine' | 'umbralEnergy' | 'emptyGraves'
+  // Runes (Runesmith): runeWarding = Start of Combat give your leftmost minion Ward; runeFury = your Avenges
+  // trigger twice; runeSlaying = every Slaughter this combat banks +2 Gold for next turn (read at settle).
+  | 'runeWarding' | 'runeFury' | 'runeSlaying'
+  // Rune of Forthcoming: you always attack first in combat.
+  | 'runeForthcoming';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -542,6 +566,10 @@ export interface QuestCombatMods {
   /** Empty Graves (Undead capstone): the FIRST friendly death each combat summons a 1/1 Gravebody (which copies
    *  your leftmost Echo on summon). Once per fight. */
   emptyGraves?: boolean;
+  /** Rune of Warding: at Start of Combat, give your leftmost living minion a Ward (Divine Shield). */
+  runeWarding?: boolean;
+  /** Rune of Fury: every Avenge you trigger fires one extra time (its effect runs twice). */
+  runeFury?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the
@@ -556,6 +584,24 @@ export interface QuestDef {
   /** Undead (Ossuary Rite): a repeatable quest re-arms on completion (progress resets, reward can fire again)
    *  instead of staying done. */
   repeatable?: boolean;
+}
+
+/** Immutable Rune definition (data). Runes are sold in the Runesmith's turn-6 Runeforge — a random 5 are
+ *  offered, you buy ONE for its `cost` in Gold, and its `reward` applies for the rest of the run (no objective,
+ *  it just takes effect). Reuses the quest `QuestReward` application engine. */
+export interface RuneDef {
+  id: string;
+  name: string;
+  /** Gold to buy it in the Runeforge. */
+  cost: number;
+  /** Effect text (markdown) shown on the rune card + its run-buff badge. */
+  text: string;
+  reward: QuestReward;
+  /** Part of the Epic Runeforge set (higher-power, quest-reached). Drives the forge's Epic styling/label. */
+  epic?: boolean;
+  /** Only offer this rune to heroes whose power gets value from a double trigger (the sim's DOUBLEABLE_POWERS
+   *  set). Rune of Empowerment uses this so it never appears for a targeted/passive-power hero. */
+  requiresDoublePower?: boolean;
 }
 
 /** One source's per-instance stat-buff contribution, surfaced in the inspect-panel breakdown

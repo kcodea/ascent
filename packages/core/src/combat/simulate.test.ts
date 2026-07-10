@@ -936,11 +936,12 @@ describe('simulate (handoff A.3)', () => {
     expect(whelps.length).toBe(2);
   });
 
-  it('Rise dies THEN rattles THEN returns to the RIGHT of what it summoned', () => {
-    // Owner ruling 2026-07-06: a Rise minion's death reads as a real removal FIRST. A Violet Whelp (Deathrattle:
-    // summon a 3/3 Whelp) granted Rise must (1) emit its own death — flagged `rise` (shown, not counted) —
-    // BEFORE the Whelp is summoned, (2) summon the Whelp, then (3) Rise, re-slotting to the RIGHT of that Whelp
-    // (the `reborn` event's `after` anchors to the Whelp's uid).
+  it('Rise dies THEN rattles THEN returns — its attack-on-summon Whelp defers past the Rise', () => {
+    // Owner ruling 2026-07-06 (a Rise reads as a real removal FIRST) + 2026-07-10 (attack-on-summon tokens
+    // defer their whole summon past the clash cascade). A Violet Whelp (Deathrattle: summon a 3/3 Whelp)
+    // granted Rise must (1) emit its own death — flagged `rise` (shown, not counted), (2) Rise back, and only
+    // THEN (3) its deferred 3/3 Whelp summons — to the RIGHT of the returned body (source = the Whelp's uid) —
+    // and strikes as its own discrete beat, no longer interleaved with the Rise itself.
     const a = run(
       [{ cardId: 'twilightwhelp', attack: 2, health: 2, keywords: ['R'] }],
       [{ cardId: 'omen', attack: 3, health: 40 }],
@@ -948,14 +949,16 @@ describe('simulate (handoff A.3)', () => {
     );
     const whelpUid = a.initial.player[0]!.uid;
     const riseDeath = a.events.findIndex((e) => e.type === 'death' && e.target === whelpUid && e.rise === true);
-    const summonIdx = a.events.findIndex((e) => e.type === 'summon' && e.minion.cardId === 'whelpling');
     const rebornIdx = a.events.findIndex((e) => e.type === 'reborn' && e.target === whelpUid);
+    const summonIdx = a.events.findIndex((e) => e.type === 'summon' && e.minion.cardId === 'whelpling');
     expect(riseDeath).toBeGreaterThanOrEqual(0); // the Whelp emits a rise-flagged death…
-    expect(riseDeath).toBeLessThan(summonIdx); // …BEFORE its Deathrattle summons the 3/3 Whelp…
-    expect(summonIdx).toBeLessThan(rebornIdx); // …and the Rise resolves AFTER that summon
-    const tokenUid = a.events.flatMap((e) => (e.type === 'summon' && e.minion.cardId === 'whelpling' ? [e.minion.uid] : []))[0];
-    const reborn = a.events[rebornIdx];
-    expect(reborn && reborn.type === 'reborn' && reborn.after).toBe(tokenUid); // returns to the RIGHT of the Whelp
+    expect(riseDeath).toBeLessThan(rebornIdx); // …then Rises back…
+    expect(rebornIdx).toBeLessThan(summonIdx); // …and only AFTER the Rise does its deferred 3/3 Whelp summon
+    const summon = a.events[summonIdx];
+    expect(summon && summon.type === 'summon' && summon.source).toBe(whelpUid); // summoned to the RIGHT of the returned body
+    const tokenUid = summon && summon.type === 'summon' ? summon.minion.uid : '';
+    // …and the Whelp then takes its immediate strike (its summon + swing land as one beat, past the Rise).
+    expect(a.events.slice(summonIdx + 1).some((e) => e.type === 'attack' && e.attacker === tokenUid)).toBe(true);
   });
 
   it('Reborn carries the Eternal-Knight enchant — a fresh Reborn Knight returns at base attack + 1 Health + its own +3/+2', () => {
@@ -2753,5 +2756,24 @@ describe('Rulebreaker quests — double-leftmost-attack, Chimerus, Taurus engrav
     const p: BoardMinion[] = [{ cardId: 'taurustruth', attack: 12, health: 12, keywords: ['SC'] as Keyword[] }, { cardId: 'sandbag', attack: 2, health: 5 }];
     const r = simMods(p, [{ cardId: 'omen', attack: 0, health: 200 }], 1, {});
     expect(r.events.some((ev) => ev.type === 'sc' && /engraves the truth/.test(ev.text ?? ''))).toBe(true);
+  });
+
+  it('Rune of Warding gives the leftmost minion a Ward at Start of Combat', () => {
+    const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 30 }, { cardId: 'sandbag', attack: 3, health: 30 }];
+    const r = simMods(p, [{ cardId: 'omen', attack: 0, health: 200 }], 1, { runeWarding: true });
+    const shields = r.events.filter((ev) => ev.type === 'shieldUp');
+    expect(shields.length).toBe(1); // exactly the LEFTMOST gets warded
+  });
+
+  it('Rune of Fury makes an Avenge trigger twice', () => {
+    // Weaver's Avenge (2) grants a Spirit Fire; two friends die → it fires. With Fury it fires TWICE → 2 grants.
+    const p: BoardMinion[] = [
+      { cardId: 'weaver', attack: 0, health: 30 },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] as Keyword[] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] as Keyword[] },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 5 }];
+    expect(simMods(p, e, 5, {}).playerHandGrants).toEqual(['spiritfire']); // baseline: once
+    expect(simMods(p, e, 5, { runeFury: true }).playerHandGrants).toEqual(['spiritfire', 'spiritfire']); // Fury: twice
   });
 });

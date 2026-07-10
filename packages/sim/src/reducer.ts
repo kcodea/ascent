@@ -1,5 +1,5 @@
 import { makeRng, simulate, type BoardMinion, type CardDef, type CombatResult, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
-import { BUYABLE_CARDS, CARD_INDEX, QUEST_INDEX, SPELL_CARDS } from '@game/content';
+import { BUYABLE_CARDS, CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, SPELL_CARDS } from '@game/content';
 import { CONFIG } from './config';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
@@ -26,6 +26,14 @@ function spendGold(s: RunState, amount: number): void {
       s.foodForGoldTick -= s.foodForGold.per;
       (s.pendingTavern ??= []).push('fred');
       buffFodderRunWide(s, s.foodForGold.attack, s.foodForGold.health, 'Food for Gold');
+    }
+  }
+  // Rune of Spellslinging: every `spellDripPer` Gold spent, conjure a random spell (tavern-tier bound) to hand.
+  if (s.spellDripPer) {
+    s.spellDripTick = (s.spellDripTick ?? 0) + amount;
+    while (s.spellDripTick >= s.spellDripPer) {
+      s.spellDripTick -= s.spellDripPer;
+      conjureToHand(s, SPELL_CARDS.filter((c) => c.tier <= s.tier), 1);
     }
   }
 }
@@ -246,7 +254,11 @@ export function reduce(state: RunState, action: Action): RunState {
       const pdef = played ? CARD_INDEX[played.cardId] : undefined;
       // Play an Attachment (a Magnetic minion — whether it welds onto a Mech or stands alone): "Play N
       // Attachments" (Perfect Machine / Blueprint Cache / Shared Circuit).
-      if (pdef?.keywords.includes('M')) advanceQuests(next, (o) => o.event === 'playAttachment');
+      if (pdef?.keywords.includes('M')) {
+        advanceQuests(next, (o) => o.event === 'playAttachment');
+        // Rune of Structure: each Attachment you play from hand also conjures a random spell.
+        if (next.runeStructure) conjureToHand(next, SPELL_CARDS.filter((c) => c.tier <= next.tier), 1);
+      }
       // Trail Forager: each Beast you play raises every OTHER Trail Forager's sell value (+1, ×2 golden).
       if (pdef && (pdef.tribe === 'beast' || pdef.tribe2 === 'beast')) {
         for (const c of next.board) {
@@ -281,7 +293,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // Modal recruit states — a pending Discover / Choose One / targeted Battlecry — block every other board
   // action until they resolve. The player can still inspect (a UI-only concern), so a Discover can be
   // minimized to read the board without any action invalidating the pending pick.
-  if ((state.discover || state.chooseOne || state.pendingTarget || state.questOffer) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest') {
+  if ((state.discover || state.chooseOne || state.pendingTarget || state.questOffer || state.runeforgeOffer) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge') {
     return state;
   }
 
@@ -717,6 +729,46 @@ function reduceCore(state: RunState, action: Action): RunState {
       return s;
     }
 
+    case 'buyRune': {
+      // Runeforge (turn 6): buy ONE offered rune for its Gold cost. Its reward applies for the run (via the
+      // shared quest-reward engine), it joins `ownedRunes` (shown as a run-buff badge), and the forge closes.
+      const offer = s.runeforgeOffer;
+      if (!offer) return state;
+      const runeId = offer[action.index];
+      const rune = runeId != null ? RUNE_INDEX[runeId] : undefined;
+      if (!rune) return state; // invalid pick
+      if (s.embers < rune.cost) return state; // can't afford — no-op (the UI greys it out)
+      spendGold(s, rune.cost);
+      // Reuse the quest-reward engine — it reads only `reward` + `name` off the def.
+      applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true);
+      (s.ownedRunes ??= []).push(rune.id);
+      // The Runesmith's forge is a once-per-game HERO POWER; the quest-opened Epic forge is not — leave the
+      // hero-power charge alone for it.
+      if (!s.runeforgeEpic) s.heroPowerSpent = true;
+      closeRuneforge(s);
+      checkTriples(s);
+      return s;
+    }
+
+    case 'skipRuneforge': {
+      // Leave the Runeforge without buying (e.g. you can't afford any) — closes it for the run.
+      if (!s.runeforgeOffer) return state;
+      if (!s.runeforgeEpic) s.heroPowerSpent = true;
+      closeRuneforge(s);
+      return s;
+    }
+
+    case 'rerollRuneforge': {
+      // Re-roll the offered runes ONCE, for 2 Gold — a fresh set drawn (preferring runes NOT currently shown) from
+      // whichever runeset this forge is (normal or Epic). Seeded off a salted stream so it's deterministic.
+      if (!s.runeforgeOffer || s.runeforgeRerolled || s.embers < 2) return state;
+      spendGold(s, 2);
+      const rng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 1));
+      s.runeforgeOffer = drawRunes(runeforgePool(s), 3, rng, new Set(s.runeforgeOffer));
+      s.runeforgeRerolled = true;
+      return s;
+    }
+
     case 'reposition': {
       const i = s.board.findIndex((c) => c.uid === action.uid);
       if (i < 0) return state;
@@ -764,6 +816,11 @@ function reduceCore(state: RunState, action: Action): RunState {
       // Powers with a Mana cost (Nadja's Mana Font) also need the Mana on hand.
       if (power.cost && s.embers < power.cost) return state;
       const card = s.board.find((c) => c.uid === action.uid);
+      // Rune of Empowerment (Epic): the hero power's effect triggers twice. Threaded into the value/generate
+      // powers below (scalingGold / gainMaxMana / fortify / dynamiteDig — the DOUBLEABLE_POWERS the rune is
+      // gated to). A targeted single-application power (Gild / Ward) can't meaningfully double, so `reps` is
+      // only read by those four branches.
+      const reps = s.runeEmpowerment ? 2 : 1;
 
       if (power.kind === 'gild') {
         // Indy: make a friendly board minion Golden — doubles its BASE stats (recorded as a "Gild" buff so the
@@ -795,7 +852,18 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else if (power.kind === 'scalingGold') {
         // Bagger Ben's Bag It: gain Gold now, the payout climbing +1 each turn (turn 1 → 2, turn 2 → 3, …).
         // Untargeted; the once-per-turn charge is spent by the shared block below.
-        s.embers += 1 + s.wave;
+        s.embers += (1 + s.wave) * reps;
+      } else if (power.kind === 'dynamiteDig') {
+        // Jenkins: Discover a minion of your CURRENT tier for a Gold cost that climbs 1 each use (1, 2, 3, …).
+        // Untargeted; the escalating cost + the whole-game use count are handled here (not the shared block).
+        const digCost = 1 + heroUses;
+        if (s.embers < digCost) return state; // can't afford this use → no charge spent
+        spendGold(s, digCost);
+        s.heroPowerUses = heroUses + 1; // escalate the next use's cost
+        for (let r = 0; r < reps; r++) { // Empowerment: two Discovers (the 2nd queues behind the 1st)
+          if (r === 0) openDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
+          else queueDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
+        }
       } else if (power.kind === 'adjacentConsume') {
         // Herald's Proclaim: the two minions on either side of the targeted friendly minion each Consume a
         // created Fodder. No-op (no charge spent) on a missing target or one with no neighbours to feed.
@@ -824,7 +892,8 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else if (
         power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision' || power.kind === 'sellGold'
         || power.kind === 'chaos' || power.kind === 'cheapMinions' || power.kind === 'discoLock'
-        || power.kind === 'questChronos' || power.kind === 'lesserQuest'
+        || power.kind === 'questChronos' || power.kind === 'lesserQuest' || power.kind === 'runeforge'
+        || power.kind === 'pathfinder'
       ) {
         // Passive powers have no activation — the work happens elsewhere (spell math, the buy/sell case,
         // settleCombat, the turn-advance quest/discover hooks). Nothing to do on a power click.
@@ -832,7 +901,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else if (power.kind === 'gainMaxMana') {
         // Nadja: +1 max Mana permanently, UNCAPPED (may exceed the normal cap). Untargeted — ignores
         // action.uid. Doesn't return, so the shared spend logic below charges the once-per-turn charge.
-        s.maxEmbers += 1;
+        s.maxEmbers += reps;
       } else if (power.kind === 'goldenGild') {
         // Gildmaster: if you have 2 copies of a minion (a "double"), combine them into one golden copy in
         // your hand — a discounted triple (you then play the golden for the triple reward). Untargeted: it
@@ -851,7 +920,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
         // warband minion directly, or a tavern offer (the buff bakes in when it's bought).
-        const amt = s.tier;
+        const amt = s.tier * reps;
         if (card) addBuff(card, 'Fortify', amt, amt); // raises Attack → the reduce() boundary fires Hunter's onGainAttack
         else {
           const offer = s.shop.find((c) => c.uid === action.uid);
@@ -976,13 +1045,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast');
       }).length;
       const resolveCombatVs = (enemy: BoardMinion[], enemyTier: number): CombatResult => {
-        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0, questCombatMods(s));
+        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, (s.attackFirstNext ?? false) || !!s.questFlags?.runeForthcoming, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0, questCombatMods(s));
         combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
         let win = 0, draw = 0, lose = 0, lossDamageTotal = 0;
         const cap = lossDamageCap(s.wave);
         const ODDS_SIMS = 1000;
         for (let i = 0; i < ODDS_SIMS; i++) {
-          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, s.attackFirstNext ?? false, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0, questCombatMods(s));
+          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, (s.attackFirstNext ?? false) || !!s.questFlags?.runeForthcoming, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0, questCombatMods(s));
           if (r.result === 'win') win++;
           else if (r.result === 'draw') draw++;
           else { lose++; lossDamageTotal += Math.min(r.playerDamage, cap); } // round-capped, as a real loss would be
@@ -1272,7 +1341,11 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerPermaBuffs) {
     for (const { sourceUid, attack, health, engraved } of result.playerPermaBuffs) {
       const card = s.board.find((c) => c.uid === sourceUid);
-      if (card) addBuff(card, engraved ? 'Engraved' : 'Flowing Monk', attack, health);
+      if (!card) continue;
+      // Taragosa's Heir amplifies stat gains from ALL sources — combat included. It's Engraved, so its combat
+      // gains reach here; multiply its carry-back ×2 (golden ×3) so combat matches its recruit-phase amplifier.
+      const mult = card.cardId === 'taragosaheir' ? (card.golden ? 3 : 2) : 1;
+      addBuff(card, engraved ? 'Engraved' : 'Flowing Monk', attack * mult, health * mult);
     }
   }
   // Cards a combat effect added to the hand land in the hand for the next recruit, win or lose — capped by
@@ -1389,6 +1462,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
   advanceCombatQuests(s, result);
   // A combat-completed quest may have granted a card to hand — if so, check for a triple (your 3rd copy → golden).
   if (s.hand.length > handBeforeQuests) checkTriples(s);
+  // Rune of Slaying: every Slaughter (enemy felled) this combat banks +2 Gold for next turn's shop.
+  if (s.questFlags?.runeSlaying && result.playerQuestTally?.slaughter) {
+    s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + 2 * result.playerQuestTally.slaughter;
+  }
   // The Old Hunt: the Beast Attack aura pumped this combat is permanent — fold it into the run + apply to
   // current run-board/hand Beasts (so they keep the gain without re-buying).
   if (result.playerBeastBuyAtkGain) grantTribeAura(s, 'beast', result.playerBeastBuyAtkGain, 0, 'The Old Hunt');
@@ -1494,10 +1571,21 @@ function advanceCombat(s: RunState): void {
   // "questOffer is set" (no new phase enum); the modal guard locks every action but buyQuest until it resolves.
   // Fi's Errand: an EXTRA, lower-tier quest shop on turn 3 (an off-wave, drawn from the 'lesser' pool). On the
   // normal quest waves (4/8/12) she gets those as usual; this is a bonus offer, once, ahead of schedule.
-  const fiExtra = getHero(s.heroId).power.kind === 'lesserQuest' && s.wave === 3;
-  const questOffer = fiExtra
-    ? generateQuestOffer(s, 'lesser')
-    : questTierForWave(s.wave) ? generateQuestOffer(s) : [];
+  const hp = getHero(s.heroId).power.kind;
+  const fiExtra = hp === 'lesserQuest' && s.wave === 3;
+  // Coran (Pathfinder): his OWN quest schedule replaces the normal 4/8/12 — no Lesser, Greater on turn 6, Capstone
+  // on turn 10. Returns `null` off his quest turns so the normal schedule is skipped entirely for him.
+  const coranTier = hp === 'pathfinder' ? (s.wave === 6 ? 'greater' : s.wave === 10 ? 'capstone' : null) : undefined;
+  const questTier = fiExtra ? 'lesser' : coranTier !== undefined ? coranTier : questTierForWave(s.wave);
+  const questOffer = questTier ? generateQuestOffer(s, questTier) : [];
+  // Runesmith: the Runeforge opens exactly once, on turn 6 — offer a random 3 of the runes for the player to buy
+  // ONE. Like the quest shop, the tavern is rolled behind the overlay so the shop is ready once the forge closes.
+  const forge = getHero(s.heroId).power.kind === 'runeforge' && s.wave === 6 && !s.heroPowerSpent;
+  if (forge) {
+    s.runeforgeOffer = drawRunes(RUNES.map((rn) => rn.id), 3, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST)));
+    s.runeforgeEpic = undefined;
+    s.runeforgeRerolled = undefined;
+  }
   if (questOffer.length > 0) {
     s.questOffer = questOffer;
   } else if (s.frozen) {
@@ -1690,6 +1778,47 @@ function grantRandomFilterMinion(s: RunState, filter: 'shout' | 'endOfTurn' | 'e
  *                  the whole reward to repeat `repeatInTurns` turns later.
  *  - shoutDouble → bank charges so the next N played Shouts each trigger twice (spent in `playedShoutRepeats`).
  */
+/** Hero-power kinds that get value from a double trigger — the gate for Rune of Empowerment. Keep in sync with
+ *  the `reps`-reading branches in the `heroPower` case (scalingGold / gainMaxMana / fortify / dynamiteDig). */
+const DOUBLEABLE_POWERS = new Set(['scalingGold', 'gainMaxMana', 'fortify', 'dynamiteDig']);
+
+/** The eligible rune-id pool for whichever forge is open: the normal set, or the Epic set filtered by the
+ *  current hero's power (Empowerment is dropped for a hero that can't double). */
+function runeforgePool(s: RunState): string[] {
+  if (!s.runeforgeEpic) return RUNES.map((rn) => rn.id);
+  const canDouble = DOUBLEABLE_POWERS.has(getHero(s.heroId).power.kind);
+  return EPIC_RUNES.filter((rn) => !rn.requiresDoublePower || canDouble).map((rn) => rn.id);
+}
+
+/** Draw `n` distinct rune ids from `ids`, preferring ones not in `avoid` (a re-roll's current offer) but falling
+ *  back to the avoided set if there aren't enough fresh ones — so a small Epic pool still yields a full offer. */
+function drawRunes(ids: string[], n: number, rng: ReturnType<typeof makeRng>, avoid: Set<string> = new Set()): string[] {
+  const fresh = ids.filter((id) => !avoid.has(id));
+  const rest = ids.filter((id) => avoid.has(id));
+  const picks: string[] = [];
+  const take = (arr: string[]) => { while (picks.length < n && arr.length > 0) picks.push(arr.splice(rng.int(arr.length), 1)[0]!); };
+  take(fresh);
+  take(rest);
+  return picks;
+}
+
+/** Open the EPIC Runeforge (a quest reward): present a random 3 of the eligible Epic runeset. Reuses the same
+ *  offer/buy/skip/reroll machinery as the Runesmith's forge, flagged `runeforgeEpic` so the reroll draws from the
+ *  Epic pool, the UI labels it "Epic", and closing it doesn't spend a hero-power charge. Salted distinct from the
+ *  normal forge's stream. */
+export function openEpicRuneforge(s: RunState): void {
+  s.runeforgeEpic = true;
+  s.runeforgeRerolled = undefined;
+  s.runeforgeOffer = drawRunes(runeforgePool(s), 3, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 2)));
+}
+
+/** Close any open forge — clears the offer + its per-visit flags. */
+function closeRuneforge(s: RunState): void {
+  s.runeforgeOffer = undefined;
+  s.runeforgeEpic = undefined;
+  s.runeforgeRerolled = undefined;
+}
+
 function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): void {
   const r = def.reward;
   switch (r.kind) {
@@ -1827,6 +1956,29 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.foodForGold = { per: r.per, attack: r.attack, health: r.health };
       s.foodForGoldTick = 0;
       break;
+    // ── Runeforge rune rewards ──
+    case 'runeSpellDrip':
+      s.spellDripPer = r.per; // Rune of Spellslinging: every `per` Gold spent → a random spell (spendGold ticks it)
+      s.spellDripTick = 0;
+      break;
+    case 'runeStructure':
+      s.runeStructure = true; // Rune of Structure: playing an Attachment also gives a random spell
+      break;
+    case 'runeConsume':
+      s.runeConsume = { attack: r.attack, health: r.health }; // Rune of Consumption: each Consume bumps the Fodder aura
+      break;
+    case 'goldPouchValue':
+      s.goldPouchValue = r.value; // Rune of Pillaging: your Gold Pouches are worth this much
+      break;
+    case 'runeSummoning':
+      s.runeSummoning = true; // Rune of Summoning: each spell cast improves your Imps +1/+1
+      break;
+    case 'runeEmpowerment':
+      s.runeEmpowerment = true; // Rune of Empowerment (Epic): your hero power triggers twice
+      break;
+    case 'openEpicRuneforge':
+      openEpicRuneforge(s); // present the Epic runeset (buy ONE, re-roll once) — reached only by a quest for now
+      break;
     case 'multi':
       // The Hoard Wakes: several rewards at once — apply each sub-reward through this same path.
       for (const sub of r.rewards) applyQuestReward(s, { ...def, reward: sub }, allowRepeat);
@@ -1923,6 +2075,8 @@ function questCombatMods(s: RunState): QuestCombatMods {
     feedingLine: f?.feedingLine,
     umbralEnergy: f?.umbralEnergy,
     emptyGraves: f?.emptyGraves,
+    runeWarding: f?.runeWarding, // Rune of Warding: SoC give leftmost minion Ward
+    runeFury: f?.runeFury, // Rune of Fury: Avenges trigger twice
   };
 }
 

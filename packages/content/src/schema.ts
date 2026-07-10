@@ -298,7 +298,7 @@ export const QuestObjectiveEventSchema = z.enum([
   'winRound', 'castSpell', 'authorsHand',
   'compound',
 ]);
-export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves']);
+export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves', 'runeWarding', 'runeFury', 'runeSlaying', 'runeForthcoming']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -330,7 +330,7 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('combatFlag'), flag: QuestCombatFlagSchema, amount: z.number().int().nonnegative().optional() }).strict(),
   z.object({ kind: z.literal('shoutRepeat'), scope: z.enum(['always', 'firstEachRound']) }).strict(),
   z.object({ kind: z.literal('endOfTurnRepeat') }).strict(),
-  z.object({ kind: z.literal('recurringEndOfTurn'), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments']) }).strict(),
+  z.object({ kind: z.literal('recurringEndOfTurn'), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments', 'runeSpending']) }).strict(),
   z.object({ kind: z.literal('gainGold'), amount: z.number().int().positive() }).strict(),
   z.object({ kind: z.literal('echoRepeat'), scope: z.enum(['always', 'firstEachCombat']) }).strict(),
   z.object({ kind: z.literal('boneThrone'), every: z.number().int().positive() }).strict(),
@@ -347,8 +347,28 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('attachmentDeal'), cost: z.number().int().nonnegative() }).strict(),
   z.object({ kind: z.literal('friedCircuits'), step: z.number().int().positive() }).strict(),
   z.object({ kind: z.literal('undeadSpellAura'), attack: z.number().int().positive() }).strict(),
+  // Runeforge rune rewards.
+  z.object({ kind: z.literal('runeSpellDrip'), per: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('runeStructure') }).strict(),
+  z.object({ kind: z.literal('runeConsume'), attack: z.number().int(), health: z.number().int() }).strict(),
+  z.object({ kind: z.literal('goldPouchValue'), value: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('runeSummoning') }).strict(),
+  z.object({ kind: z.literal('runeEmpowerment') }).strict(),
+  z.object({ kind: z.literal('openEpicRuneforge') }).strict(),
   z.object({ kind: z.literal('multi'), rewards: z.array(QuestRewardSchema).min(1) }).strict(),
 ]));
+
+/** Rune definition schema — same reward palette as quests, plus a Gold cost + display text. `epic` /
+ *  `requiresDoublePower` mark Epic-forge runes and their hero-power eligibility gate. */
+export const RuneDefSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  cost: z.number().int().positive(),
+  text: z.string().min(1),
+  reward: QuestRewardSchema,
+  epic: z.boolean().optional(),
+  requiresDoublePower: z.boolean().optional(),
+}).strict();
 
 export const QuestDefSchema = z.object({
   id: z.string().min(1),

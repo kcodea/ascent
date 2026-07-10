@@ -3,6 +3,157 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-10 (session 30)
+
+### feat: Epic Runeforge — a second, quest-reached runeset (+ re-added Rune of Empowerment)
+
+Plumbed a second forge, the **Epic Runeforge**, that functions identically to the Runesmith's (offer a random 3,
+buy ONE for Gold, re-roll once for 2 Gold) but draws from its own **`EPIC_RUNES`** set and is reached only by a
+quest — a new `openEpicRuneforge` **QuestReward** kind presents it to any hero. Shared machinery, one new state
+flag: the open offer carries `runeforgeEpic`, which selects the reroll pool, drives the "Epic" UI label, and skips
+consuming a hero-power charge on buy/skip (the Runesmith's forge still spends his once-per-game charge). Refactored
+the offer/reroll draw into a shared `drawRunes` helper (prefers fresh runes on a reroll, falls back so a small Epic
+pool still yields a full 3) + `runeforgePool` / `openEpicRuneforge` / `closeRuneforge`.
+
+**Content.** `EPIC_RUNES` = **Rune of Empowerment** (re-added) + 6 functional placeholders (Opulence / Ascendance /
+Sorcery / Fortune / Plunder / Insight, each reusing a validated reward kind — provisional until designed). Empowerment
+("your hero power triggers twice") is re-wired via the `reps` multiplier on the value/generate powers (scalingGold /
+gainMaxMana / fortify / dynamiteDig) and **gated** by a new `requiresDoublePower` flag → only offered to heroes whose
+power is in the sim's `DOUBLEABLE_POWERS` set (never a targeted/passive-power hero). `RUNE_INDEX` + `validateRunes`
+now span both sets; new reward kinds (`runeEmpowerment`, `openEpicRuneforge`) + `RuneDef.epic`/`requiresDoublePower`
+are zod-validated.
+
+**UI.** The forge overlay reuses its components with an Epic skin — `forge-epic` overlay, violet "Epic Runeforge"
+banner, and Epic rune cards recoloured via a single `--c` violet override (kicker reads "Epic Rune").
+
+Verified: 7 new tests (Epic set validates; open presents 3 distinct Epic runes + arms the re-roll; Empowerment
+gated to doubleable heroes; Epic buy applies reward + records rune + spends no hero-power charge; Empowerment arms
+the flag; Empowerment doubles Bagger Ben's Gold; Epic re-roll). Live: injected an Epic offer on a throwaway run —
+overlay renders the violet Epic forge with 3 Epic cards, buying Empowerment closes it, badges it, arms the flag,
+leaves `heroPowerSpent` false, no console errors. typecheck / lint / 825 tests / build green.
+
+### fix(ui): Practice hero-select — balanced, space-filling grid
+
+The Practice picker (every hero — 23 today) used a `flex-wrap` grid of fixed-156px cards, so on a wide screen it
+greedily packed most heroes into row 1 and stranded a sparse trailing row (e.g. 19 + 4), leaving a band of small
+cards marooned in the middle with huge empty margins above/below. Reworked the `dense` grid: HeroSelect now computes
+a balanced column count (`cols = ceil(count / rows)`, 2 rows up to 24 heroes, else 3) and passes it as an inline
+`--hs-cols`. Each card is sized `calc((100% - cols*gap) / cols)`, so **exactly** `cols` fit per row and flex-wrap
+lands a centered, balanced last row; the container width is `min(96vw, 2160px)`. Card metrics (art, name, HP, power
+text) now scale with viewport via `clamp()`/percentages so the cards FILL the space instead of clustering small.
+Verified live at 1280×720 (12+11 rows, cards 90px, no scroll) and 2000×900 (12+11, cards 142px, art scaled up, no
+scroll). typecheck / lint / 818 tests / build green.
+
+### feat(ui): Runeforge offers 3 (re-roll once for 2 Gold) + hero-power cost as a gold coin
+
+**Runeforge — 3, not 5, with a re-roll.** The turn-6 forge now offers a random **3** runes instead of 5 (both the
+initial roll in `advanceCombat` and the reroll draw pick 3). New **`rerollRuneforge`** action: for **2 Gold**, once
+per visit, it swaps in a fresh trio drawn from the runes **not** currently shown (guaranteed-different set), off a
+salted deterministic stream `mixSeed(seed, wave, TAG.QUEST, 1)`. Gated on `runeforgeRerolled` (new `RunState` flag)
++ affordability; added to the forge modal's action allow-list so it isn't blocked while the forge is open. UI: a
+gold **Re-roll · 2 Gold** button sits beside "Leave without a Rune" in a new `.forge-actions` row, hidden after use
+and disabled when you can't afford it. 3 new tests (spends 2 + non-overlapping trio + once-per-visit; can't-afford
+no-op; the open-forge offer is now length 3). Runesmith's power text updated to "a random 3 Runes (re-roll once for
+2 Gold)".
+
+**Hero-power cost → gold coin.** The cost badge under the power button was a teal mana pill; it's now a **gold coin
+eclipsing the top-left corner** of the power button, styled identically to a Rune's cost coin (`.runecard-cost`) —
+gold is the run economy, so the coin reads the same everywhere. It also now shows Jenkins's **escalating**
+`dynamiteDig` cost (`digCost ?? power.cost`), which the old fixed-`power.cost` badge omitted.
+
+**Removed Rune of Empowerment.** "Your hero power triggers twice" had no real use — the only forge hero
+(Runesmith) has a passive power, so it was dormant. Pulled the rune, the `runeEmpowerment` reward kind
+(types + schema + reducer case), the `RunState` flag, its art, and the `reps` multiplier threading in the
+`heroPower` case (reverted scalingGold / gainMaxMana / fortify / dynamiteDig to single application). Rune pool
+is now **10**.
+
+**Fixed a phantom "−X" on hero select.** `<StatusBar>` (unlike `<Recruit>`) wasn't keyed on run identity, so it
+persisted across a new-run pick. Its `prevHp` ref held the PREVIOUS run's effective HP; picking a hero whose
+starting Resolve+Armor was lower than the last run's ending HP made the resolve-hit `useEffect` see `now < prev`
+and float a bogus "−X" in the bottom-left HP box. Fixed by keying the StatusBar on `sb:${seed}:${heroId}` (distinct
+from Recruit's `${seed}:${heroId}` so the two siblings don't collide) — it now remounts per run, re-initialising
+`prevHp`, so the float only fires *within* a run.
+
+**Hero art audit** (deliverable): cross-checked all **23** hero ids in `heroes.ts` against `art/heroes/*` — every
+hero has art wired; nothing missing. typecheck / lint / tests / build green.
+
+### feat: 3 more runes + 2 heroes (Coran, Jenkins)
+
+**Runes** (added to the Runeforge pool — it now offers a random 5 of **11**, each with art):
+- **Rune of Summoning** (5): each spell cast permanently improves your Imps +1/+1 (run-wide via `buffImpsRunWide`,
+  hooked in `castSpell`).
+- **Rune of Forthcoming** (3): always attack first — a combat flag folded into the `attackFirst` sim argument (both
+  the real + odds sims), no core change.
+- **Rune of Empowerment** (4): your hero power triggers twice — a `runeEmpowerment` flag threaded as a `reps`
+  multiplier into the value/generate hero powers (scalingGold / gainMaxMana / fortify / dynamiteDig). **Dormant for
+  Runesmith** (his power is the passive Runeforge); forward-wired for a future forge-hero with an active power.
+
+**Heroes** (both 30 HP / 10 armor, with art):
+- **Coran — Pathfinder** (passive): skips the Lesser quest, and the Greater + Capstone quest shops arrive early, on
+  turns **6 & 10** (vs 8 & 12). His schedule replaces the normal 4/8/12 in `advanceCombat`.
+- **Jenkins — Dynamite Dig** (active, untargeted): spend **1 Gold** to Discover a minion of your tier, the cost
+  climbing **+1 each use** (1, 2, 3, …) via `heroPowerUses`. StatusBar shows the live escalating cost + gates
+  affordability on it.
+
+New reward kinds (`runeSummoning` / `runeEmpowerment`) + combat flag (`runeForthcoming`) + power kinds
+(`pathfinder` / `dynamiteDig`) are zod-validated. 6 new tests (each new rune's flag, Summoning in play, Coran's
+turn-4/6/10 schedule, Jenkins's escalating-cost Discover). typecheck / lint / 816 tests / build green.
+
+### feat(ui): art for Runesmith + all 8 runes, and a Runeforge card polish
+
+Wired the hero portrait + rune art (owner-supplied). Converted the ~2 MB source PNGs to **512×512 webp** (~28–45 KB
+each, matching the existing art) with `sharp`: `Runesmith.png` → `art/heroes/runesmith.webp`, and each rune's art →
+`art/runes/rune_<id>.webp` (name-matched, incl. `SpellOfPillaging.png` → Pillaging; the un-attributed/extra source
+files were left alone). New `runeArt(id)` glob helper alongside `heroArt`/`questArt`. No hero-power art exists for
+Runesmith, so its power button keeps the glyph.
+
+Reworked the `RuneCard` to mirror the art-forward **QuestCard** — full-bleed illustration, a sigil emblem
+overhanging the top, the name over the art, the effect in a dark bottom panel — but framed in a neutral **dark
+slate grey** (`--c`) instead of a tribe hue. The cost is now a **gold coin** (Gold is the economy resource, not the
+ember/flame) overhanging the **top-left** corner, mirroring a spell's cost coin. Dropped the "Forge one Rune…"
+subtitle. The run-buff badge shows the rune art too. typecheck / lint / build green. (Live view pending — a NEW art
+folder needs one dev-server restart before the glob sees it; the production build already includes them.)
+
+### fix(core): Violet Whelp immediate-attack ordering — summon + strike defer past the clash cascade
+
+**Problem.** An `attackOnSummon` token (`whelpling`, summoned by Violet Whelp `twilightwhelp` / Violet
+Whelpmother `broodmother` Deathrattles) had its `summon` event emitted *mid-death-cascade* — in
+`performAttack`'s phase-2 loop, right when the parent's Deathrattle fired — so in the combat replay the Whelp
+popped in *between* the other units' deaths in the same clash. Its immediate strike already flushed after the
+cascade, but the summon interleaved. The owner wanted **all deaths + their Deathrattle effects in a clash to
+resolve first, then the Whelp summons AND attacks as one discrete beat.**
+
+Why it had to be an engine fix (not a presentation-only reorder like `deferClashBuffs`): the Whelp's strike
+deals damage / causes deaths (non-commutative — unsafe to reorder in the replay), and deferring only the
+*visual* summon would desync `computeFrame` if another same-clash Deathrattle buffed the fresh Whelp (a `buff`
+event before its `summon` event).
+
+**Fix (owner-endorsed "option 2"), all in `packages/core/src/combat/simulate.ts`.** An `attackOnSummon` /
+`attackNow` token now DEFERS its whole summon: `summonMinion` instantiates the body but, instead of placing +
+announcing it, pushes it onto the immediate-attack queue (`pendingAttackOnSummon`, now a union of `{ summon }`
+and `{ minion }` items). The placement body was extracted into a new `placeSummon` helper. `flushImmediateAttacks`
+— which runs *after* each attack's death cascade settles (and at Start-of-Combat) — pops a deferred summon,
+lands it via `placeSummon` (emitting the `summon` event as its own step), then takes its immediate strike inline
+as the next step. Doing the strike inline (not as a separate queue item) keeps a multi-token Deathrattle
+sequential, so the board-cap "room after the first has attacked" logic (golden Whelp on a near-full board) still
+holds. The `deathrattleSummon` factory's inline `flushImmediateAttacks` call (`factories.ts`) was removed — the
+post-cascade flush now handles the sequencing — and `IMMEDIATE_ATTACK_GUARD` was bumped 64 → 128 since the queue
+now holds a summon + a strike item per token.
+
+**Rules shift (accepted by the owner).** The Whelp is now OFF the board for the rest of the clash cascade, so a
+same-clash Deathrattle can no longer buff it before it exists. And a **Rise** Violet Whelp now returns *before*
+its own deferred Whelp summons (the Whelp lands to the right of the returned body and strikes as its own beat),
+where previously the Rise re-slotted to the right of a Whelp summoned mid-rattle. Non-`attackOnSummon`
+Deathrattle summons (e.g. Whelpmother → Violet Whelps with Taunt) are unchanged — only the immediate-attack
+tokens defer.
+
+**Verified.** Reproduced the old interleaving and confirmed the new ordering with scratch event-log dumps (a
+cleave clash killing two Violet Whelps: both `death`s now resolve, *then* each Whelp `summon` → `attack` in
+turn; and the Rise case above). Re-baselined the one combat golden that pinned the old Rise+Whelp order
+(`simulate.test.ts` "Rise dies THEN rattles THEN returns"). `npm run typecheck && npm run lint && npm test`
+(791 passing) `&& npm run build:web` all green. Remaining: a live eyeball of the Violet Whelp replay in a real
+run (the event-log ordering — the replay's source of truth — is confirmed; UI combat-beat tests pass).
+
 ## 2026-07-10 (session 29)
 
 ### fx: combat buff-cast energy tendrils (preset-driven, per-tribe)
@@ -53,6 +204,63 @@ owner live-tuned on the rig, then confirmed the per-tribe looks in real fights.
 classify as `attackExchange`, which carries no `buffCast` cue — so they don't throw tendrils yet (iteration 1
 targets Start-of-Combat / standalone buff waves). The `style` field is ready for `lightning`/`beam` renderers;
 neutral has no dedicated preset yet.
+
+### feat(ui): the Runeforge — stone/engraved rune shop + rune badges (Runesmith is live)
+
+The presentation half (on the engine PR). A new **Runeforge overlay** (`Recruit.tsx`) opens on turn 6 for Runesmith
+— a **stone/engraved** variant of the Discover/Quest panel (cold slate backdrop, a chiseled stone banner with
+engraved uppercase title + anvil sigil, deliberately unlike the warm gold Quest shop). It shows the 5 offered runes
+as **`RuneCard`** tablets (carved slab, a rune sigil, name, a Gold cost badge, the effect text; greyed + "Not
+enough Gold" when unaffordable), a **"Leave the forge without a Rune"** skip, and a minimize toggle to inspect the
+board. Buying dispatches `buyRune`; skip dispatches `skipRuneforge`. The bought rune then shows as a **stone-toned
+run-buff badge** alongside completed quests above the hero panel (`QuestBadges`), hover revealing its effect. Wired
+`runeforgeOffer` into the modal-cover / timer-pause / shop-button-disable gates (same treatment as `questOffer`),
+and **removed `HeroDef.wip`** so Runesmith now appears in the hero picker. typecheck / lint / build green. (Live
+screenshot pending — the browser tooling was disconnected this session; the panel reuses the proven quest-offer
+render path, so the risk is purely visual polish.)
+
+### feat(sim): Runesmith hero + the Runeforge — engine + 8 runes (UI is a follow-up)
+
+The engine half of a new hero. **Runesmith** (30 HP / 8 Armor, `runeforge` power): on turn 6 the **Runeforge**
+opens once — a random **5 of 8 runes** offered, buy exactly **one** for its Gold cost, it applies for the rest of
+the run and the forge closes. Built generically (own turn-6 offer + `buyRune`/`skipRuneforge` actions + modal
+guard, mirroring the quest shop) so future heroes can reuse the forge mechanic.
+
+Runes are a new `RuneDef` content type that **reuses the quest-reward application engine** (`applyQuestReward`),
+so a rune's effect is a `QuestReward` — some reuse existing kinds, some use rune-only kinds/flags. The 8:
+Spellslinging (every 5 Gold → a spell, via the `spendGold` drip), Warding (SoC give leftmost minion Ward — new
+combat flag), Structure (Attachment played → a spell), Slaying (each Slaughter → +2 Gold next turn, settle
+carry-back), Spending (EoT +1 max Gold + buff leftmost per Gold spent, recurring EoT), Consumption (each Fodder
+Consumed → +2/+1 Fodder aura), Pillaging (grant a Pillager + Gold Pouches worth 2), Fury (Avenges trigger twice —
+a new combat flag that re-runs a player avenge effect). New reward kinds/flags are zod-validated; a `validateRunes`
+guards the data.
+
+**Kept out of the picker** for now (`HeroDef.wip` → filtered from `rollHeroChoices`): the forge sets a blocking
+offer with no UI to resolve yet, which would soft-lock a run — the UI PR removes the flag. typecheck / lint / 809
+tests (18 new: forge open/buy/skip, each rune's applied state, Spellslinging drip / Pillaging pouch / Slaying
+carry-back in play, and Warding + Fury in combat) / build all green.
+### fix(content): Taragosa's Heir now counts stat gains from COMBAT too
+
+The Heir's "gains 2× stats from all sources (golden 3×)" amplifier only ran in the reducer's recruit-phase
+stat-gain diff — combat gains were ignored and, being non-Engraved, discarded after the fight. Made it **Engraved**
+(`EG`) so its combat gains carry back to the run board via the existing `permaGain` channel, and the settle
+carry-back now multiplies the Heir's entry **×2 (golden ×3)** — so combat genuinely counts, matching the recruit
+amplifier. Card text notes the Engraved. New test: a +10/+10 combat gain carries back as +20/+20 (golden +30/+30).
+(Also confirmed, no change needed: Umbral Energy already scales permanently off combat spell casts — combat casts
+bump the run-wide `spellsCast` at settle, which its Start-of-Combat Dragon buff reads each fight; same holds for
+`deathrattlesTriggered` and everything keyed off these run-wide counters — only in-combat *stat* gains are
+temporary unless Engraved.) typecheck / lint / 792 tests / build green.
+### docs: combat event-ordering reference (`docs/combat-ordering.md`)
+
+Vendored a full reference of the exact order `simulate()` emits combat events — pulled from
+`packages/core/src/combat/simulate.ts` (`performAttack`, `killOrReborn`, `applyDamage`,
+`flushImmediateAttacks`, `summonMinion`). Covers the event vocabulary (20 types), the once-per-fight
+macro spine (Reclaimer → Start of Combat player-then-enemy L→R → rotation → outcome), the two-phase
+attack exchange (Phase 1 applies all damage, Phase 2 resolves deaths in damage order, then on-kill,
+then the three flushes), a per-mechanic "where it lands" table, and the load-bearing rules. Accurate
+to `main` including the Violet Whelp fix (#302) — the `attackOnSummon` row + §3.10 document the
+deferred whole-summon+strike behavior. Docs-only. A companion interactive version was shared with the
+owner as an Artifact.
 
 ### fix(ui): board fight-tracking recorded nothing — drop the self-fight skip
 

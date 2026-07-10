@@ -26,6 +26,12 @@ import { useGame } from './store';
 export function Game() {
   const phase = useGame((s) => s.run.phase);
   const showBook = useGame((s) => s.showBook);
+  // Recruit stays mounted across phases (combat plays out in place), so its closures/refs live for the whole
+  // run. Starting a NEW run (pickHero / newRun → a fresh seed+hero) must give it a clean slate — otherwise a
+  // callback captured under the previous run lingers (e.g. Disco Dan's locked-hand check false-locking a
+  // uid-colliding card in the next hero's run). Key it on the run identity — stable within a run (seed +
+  // heroId never change mid-run), so it only remounts when the run itself changes.
+  const runKey = useGame((s) => `${s.run.seed}:${s.run.heroId}`);
   const [menuOpen, setMenuOpen] = useState(false);
   const [res, setRes] = useState<string>(() => {
     try { return localStorage.getItem('ascent-res') || 'fit'; } catch { return 'fit'; }
@@ -89,7 +95,7 @@ export function Game() {
 
   return (
     <ErrorBoundary>
-      <Recruit />
+      <Recruit key={runKey} />
       {/* WebGL effects overlay (particle impacts, flashes) — a transparent full-viewport Pixi
           canvas drawn over the board; the combat replay fires effects into it at contact points. */}
       <PixiFxLayer />

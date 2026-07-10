@@ -14,6 +14,27 @@ button's affordability gate used the base too. Pointed both the shown value and 
 agree. Non-Hank heroes are unchanged (the surcharge is 0). Verified live: Hank shows **7** (base 5 + 2), Warden shows
 **5**, and upgrading charges 7. (Related, not fixed here: Hank's shop *minions* cost 2 but show no cost badge — a
 separate per-offer display gap.) `lint` + `test` (782) + `build:web` green.
+### fix(ui): Disco Dan locked cards — unlock on the same-turn tavern-up + no cross-run carry-over
+
+Two owner-reported Disco Dan bugs, both a **stale closure** in `Recruit`'s `onCardPointerDown` (its deps are
+`[timeUp, inCombat]`, so it captures a `run` that only refreshes on those — not on tavern-up or a hero swap):
+
+- **Locked card stayed locked for one extra turn after upgrading.** The reducer's play guard already used the live
+  `s.tier`, but the UI's drag guard read the stale closed-over `run.tier`, so the card wasn't draggable until the
+  callback happened to recreate (next combat). Fix: the guard now reads `useGame.getState().run` (live), matching how
+  the same callback already reads `endTurnAnimating`. Verified live: at turn 2 / tier 1, upgrading to tier 2 makes the
+  tier-2 Setlist card play the **same turn**.
+- **Picking Disco Dan, then a different hero, left cards unplayable on turn 1.** `Recruit` is deliberately kept mounted
+  across phases (combat plays out in place), so on a hero swap it kept the *previous* run's closures. Disco Dan's
+  locked hand cards (uids `b4/b5/b6`) then collided with the new hero's freshly-bought card uids (both runs start
+  `uidSeq` at 0), so a normal card got false-locked by the stale guard. Fix: `Game` now keys `<Recruit>` on the run
+  identity (`seed:heroId` — stable within a run, so combat-in-place is untouched; changes only when the run itself
+  changes), giving a clean mount on every new run. The live-`getState` guard fixes it independently too; the key is
+  the broader defense against cross-run closure carry-over. Verified live: disco dan → warden → a uid-colliding bought
+  card plays normally.
+
+Verified: `lint` + `test` (782) + `build:web` green; both scenarios driven end-to-end in the live preview (real
+pointer-drag, card lands on the board).
 
 ### chore(art): rewire art from the updated masters (minions / heroes / quests / rewards)
 

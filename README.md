@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Combat "vanishing lunge" fixed.** Occasionally a swing would resolve instantly (its impact fired but the
+  lunge never showed). Cause was a main-thread frame hitch letting GSAP jump the lunge timeline past its own
+  motion — fixed with a `lagSmoothing` clamp so a spike can't skip the visible swing. Not an ordering/sim
+  issue. (The underlying frame hitches are a separate perf item, queued.)
 - **Buff tendrils.** When a unit buffs another unit in combat, an energy tendril shoots to each buffed ally,
   strikes, flashes, and the target's stat badge holds then flashes-and-ticks to its new value on the hit. A
   reusable, preset-driven effect system — the owner tuned a distinct tendril for each tribe (green Beast, gold

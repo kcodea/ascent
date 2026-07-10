@@ -467,6 +467,13 @@ correctness half — these remain):**
   and `discpulse` (Discover overlay). Convert to the approved static-shadow `::before` + opacity pattern
   (`kwglow`/`tripready`). Also: autosave is O(n²) (serializes the whole action log every dispatch — debounce);
   `venomdrip`/`aimdash`/`.cardref` minor paint loops; Pixi tickers never idle-stop.
+- **Combat replay frame freezes (from the "vanishing lunge" dive, session 30 — `lagSmoothing` shipped as the
+  band-aid).** The remaining defect: **55–86ms synchronous-React-render freezes** on some summon/death beats
+  (a probe ruled out FX/Pixi/GPU-draw/layout-reads/GC — all ~0, so it's the per-beat render/reconciliation of
+  the combat view). Profile with the DevTools flame chart (Bottom-Up, self-time) to name the offender
+  (`computeFrame` + the per-beat event-log scans that grow with combat length are prime suspects), then
+  memoize/short-circuit it. Cheap adjacent win: `syncShields` calls `getBoundingClientRect` **per aura bubble
+  every frame** (~100k calls in one combat) — cache the rects / only re-measure on layout change.
 - **UI dead-code purge** — Card still renders removed Reborn-tears DOM; **FontLab ships un-gated in prod**
   (wants `import.meta.env.DEV`); a confirmed dead-CSS list (the OMEN block, `.chip`, `.toast`, `.legend`,
   `.tavernbox`, `.zt/.zh/.hint`, `.disc-gem`).

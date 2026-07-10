@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### fix(ui): combat "vanishing lunge" — GSAP lag-smoothing so a frame hitch can't jump the swing
+
+Players reported combat moments occasionally "resolving instantly" — a lunge doesn't visibly play but its
+effect (impact FX + the advance to the next beat) still fires. Diagnosed via a temporary in-tab probe (frame-
+spike + jumped-lunge detectors, since removed): it is **not** an ordering or server issue. The attack lunge is
+one GSAP timeline whose contact-anchored callbacks (beat advance + impact) fire when the playhead crosses
+them. On a **main-thread frame hitch** (measured 52–86ms spikes), GSAP applies the whole missed delta on its
+next tick and JUMPS the timeline past its motion — the swing snaps home unseen while the callbacks still fire.
+GSAP's default `lagSmoothing` only clamps stalls > 500ms, so ours sailed through.
+
+- **Fix (`apps/web/src/main.tsx`):** `gsap.ticker.lagSmoothing(50, 33)` — clamp any frame gap over ~3 frames to
+  one frame's worth, so a spike can't skip the visible lunge; the advance stays welded to the contact the
+  player actually sees. Presentation-only; touches neither the beat clock (real-time `setTimeout`) nor the
+  deterministic log. **Verified live:** across a full combat, **0 jumped lunges over 43 lunges** with 14 frame
+  spikes present (previously every such spike could jump a lunge).
+- **Follow-ups surfaced (not this PR):** the underlying 55–86ms frames are *synchronous React render* on
+  summon/death beats (probe ruled out FX/Pixi/layout-reads/GC — all ~0) — a real perf item to chase with the
+  DevTools flame chart. And `syncShields` fires ~100k `getBoundingClientRect` calls per combat (every aura
+  bubble, every frame) — cheap per call but trimmable. Both queued in roadmap.
+
 ### feat: Epic Runeforge — a second, quest-reached runeset (+ re-added Rune of Empowerment)
 
 Plumbed a second forge, the **Epic Runeforge**, that functions identically to the Runesmith's (offer a random 3,

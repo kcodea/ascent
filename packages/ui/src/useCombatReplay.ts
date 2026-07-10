@@ -551,12 +551,37 @@ export function useCombatReplay(
     // size stays byte-identical while its timing rides the cue offset.
     const rebornRects = new Map<string, { cx: number; cy: number; w: number; h: number } | null>();
     for (let i = beat.start; i < beat.end; i++) { const e = events[i]; if (e?.type === 'reborn') rebornRects.set(e.target, rectOf(e.target)); }
+    // Whether this is an ATTACK's impact — its consequences are the swing's AFTERMATH: the death/deathrattle/
+    // shield effects are HELD until the attacker settles, then played in phases (shield-break → deathrattle,
+    // left→right, briefly staggered). The impact ATTACKER dying mid-lunge is handled at `landed` in the layout
+    // effect. A non-attack impact (Start-of-Combat cast damage) fires these immediately, as before.
+    const impactAtk = attackerOfImpact(beats, beatIdx - 1);
+    const aftermath = impactAtk !== null;
+    const aHold = getChoreoConfig().aftermathHold / combatSpeedRef.current;
+    const aStag = getChoreoConfig().aftermathStagger / combatSpeedRef.current;
+    // Pre-measure the death/shield effects NOW (at the hit — the units are still on screen mid-collapse), so a
+    // delayed aftermath burst uses a stable rect and its aura bubble is still live (the clock keeps a dying unit
+    // rendered through aftermathHold). Sorted left→right (viewport x) within each phase.
+    const shieldFx: { uid: string; cx: number }[] = [];
+    const deathFx: { uid: string; rect: { cx: number; cy: number; w: number; h: number } | null; cx: number; hasDR: boolean; isRise: boolean }[] = [];
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (e?.type === 'shield') { const r = rectOf(e.target); shieldFx.push({ uid: e.target, cx: r?.cx ?? 0 }); }
+      else if (e?.type === 'death' && e.target !== impactAtk) {
+        const rect = rectOf(e.target);
+        const hasDR = !!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some((f) => f.on === 'onDeath');
+        deathFx.push({ uid: e.target, rect, cx: rect?.cx ?? 0, hasDR, isRise: e.rise === true });
+      }
+    }
+    shieldFx.sort((a, b) => a.cx - b.cx);
+    deathFx.sort((a, b) => a.cx - b.cx);
+
     const stop = runMomentCues(beat, {
       events,
       combatSpeed: combatSpeedRef.current,
       onShake: () => setShake((n) => n + 1),
       findEl,
-      attackerUid: attackerOfImpact(beats, beatIdx - 1),
+      attackerUid: impactAtk,
       onFloats: (spawned) => {
         setFloats((arr) => [...arr, ...spawned.filter((s) => !arr.some((x) => x.id === s.id))]);
         const ids = new Set(spawned.map((s) => s.id));
@@ -567,29 +592,34 @@ export function useCombatReplay(
         const ids = new Set(deaths.map((s) => s.id));
         timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().deathFloatMs / combatSpeedRef.current));
       },
-      onAuraBurst: (uid) => burstDeathAuras(uid, rectOf(uid)),
-      onShieldBreak: (uid) => breakShieldAura(uid),
+      // In an attack aftermath the death aura burst + shield shatter are HELD for the post-settle phases below;
+      // fire them immediately only for a non-attack impact. (The runner skips Rise deaths either way.)
+      onAuraBurst: aftermath ? () => {} : (uid) => burstDeathAuras(uid, rectOf(uid)),
+      onShieldBreak: aftermath ? () => {} : (uid) => breakShieldAura(uid),
       onReborn: (uid) => reformReborn(rebornRects.get(uid) ?? rectOf(uid)),
     });
 
-    // A Rise DEFENDER (dying but NOT the impact attacker being pulled home) explodes in place immediately —
-    // the runner skips rise deaths, and the engine's runRiseReturn only handles the pulled-home ATTACKER.
-    const impactAtk = attackerOfImpact(beats, beatIdx - 1);
-    for (let i = beat.start; i < beat.end; i++) {
-      const e = events[i];
-      if (e?.type === 'death' && e.rise && e.target !== impactAtk) burstDeathAuras(e.target, rectOf(e.target));
-    }
-    // Deathrattle skull-shatter: any dying unit whose card has an onDeath effect (a Deathrattle) fires the
-    // painted bone skull — INCLUDING a Rise death. A unit with both Rise + a Deathrattle procs its rattle as it
-    // dies (owner ruling), so the skull pops even though the body will re-form; a pure-Rise unit (no onDeath)
-    // still gets nothing. EXCEPTION: the impact ATTACKER (it died mid-lunge) is pulled back to its slot first,
-    // and fires its skull at `landed` from the layout effect below — so we skip it here (no mid-lunge skull).
-    for (let i = beat.start; i < beat.end; i++) {
-      const e = events[i];
-      if (e?.type !== 'death' || e.target === impactAtk) continue;
-      if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some((f) => f.on === 'onDeath')) continue;
-      const r = rectOf(e.target);
-      if (r) pixiFx.deathrattle(r.cx, r.cy, r.w);
+    if (aftermath) {
+      // The swing's aftermath, after the settle. PHASE 1: shield-breaks (gold shatter), L→R. PHASE 2:
+      // deathrattle skull + death aura bursts (taunt/rise/ward), L→R. Each effect staggered by aStag. The dying
+      // units already collapsed on the hit — this is only their effects, in order.
+      let t = aHold;
+      for (const s of shieldFx) { const at = t; timers.push(window.setTimeout(() => breakShieldAura(s.uid), at)); t += aStag; }
+      for (const d of deathFx) {
+        const at = t;
+        timers.push(window.setTimeout(() => {
+          burstDeathAuras(d.uid, d.rect);                                            // taunt/rise/ward explosion (self-gates on live auras)
+          if (d.hasDR && d.rect) pixiFx.deathrattle(d.rect.cx, d.rect.cy, d.rect.w); // bone-skull shatter
+        }, at));
+        t += aStag;
+      }
+    } else {
+      // Non-attack impact: fire immediately (a Rise DEFENDER bursts in place — the runner skips Rise; a
+      // deathrattle skull pops for any dying unit with an onDeath effect).
+      for (const d of deathFx) {
+        if (d.isRise) burstDeathAuras(d.uid, d.rect);
+        if (d.hasDR && d.rect) pixiFx.deathrattle(d.rect.cx, d.rect.cy, d.rect.w);
+      }
     }
     return () => { timers.forEach((id) => window.clearTimeout(id)); stop(); };
   }, [active, beatIdx, beats, events, findEl, cardIds]);

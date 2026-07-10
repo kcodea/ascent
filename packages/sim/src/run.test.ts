@@ -5181,12 +5181,14 @@ describe('Undead quests — combat-objective completion + reward application', (
     expect(s.questFlags?.emptyGraves).toBe(true);
   });
 
-  it('a repeatable quest (Ossuary Rite) re-arms and grants once per threshold crossed', () => {
-    // 25 Echo triggers vs a count-8 repeatable → grants 3 times, leaves 1 progress, stays active (not completed).
+  it('Ossuary Rite quest completes ONCE and arms a recurring End-of-Turn grant (no echo loop) (owner 2026-07-10)', () => {
+    // 25 Echo triggers vs a count-8 quest: it completes exactly ONCE (no longer repeatable) and arms a recurring
+    // grant, so the Ossuary Rites it hands out can't re-complete it into an infinite loop.
     const s = settleWith({ ...createRun(1), tier: 6, hand: [], activeQuests: [{ questId: 'q_ossuary_rite', progress: 0, completed: false }] }, { playerDeathrattles: 25 });
-    expect(s.activeQuests![0]!.completed).toBe(false); // re-armed
-    expect(s.activeQuests![0]!.progress).toBe(1); // 25 - 3×8
-    expect(s.hand.filter((c) => c.cardId === 'ossuaryrite').length).toBe(3);
+    expect(s.activeQuests![0]!.completed).toBe(true); // done once — never re-arms on further Echoes
+    expect(s.questRecurringGrants).toContain('ossuaryrite'); // recurring "End of Turn: get an Ossuary Rite"
+    // Bounded: at most one Ossuary Rite per turn from the recurring grant — not the old runaway pile.
+    expect(s.hand.filter((c) => c.cardId === 'ossuaryrite').length).toBeLessThanOrEqual(1);
   });
 
   it('Grave Robber (sell 5) grants Crypt Broker — a reward-only token, never in the shop', () => {

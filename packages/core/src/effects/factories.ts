@@ -149,13 +149,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     // `goldenTokens`: a golden summoner upgrades the TOKENS to gilded (doubled stats) instead of the count
     // (Manasaber: two 0/2 cubs → two 0/4 gilded cubs). Pair with `fixed` so the count stays put.
     const golden = !!params.goldenTokens && self.golden;
-    for (let i = 0; i < total; i++) {
-      ctx.summon(self.side, card, self.uid, grantKws, golden);
-      // Sequential spawning for attack-on-summon tokens (Twilight Whelp → Whelp): each Whelp attacks
-      // immediately after spawning. Only spawn the next one if there's room after the first has attacked
-      // (if the first dies, it frees a slot; if it lives and the board was full, the next overflows).
-      if (card.attackOnSummon) ctx.flushImmediateAttacks?.();
-    }
+    // Attack-on-summon tokens (Twilight Whelp → Whelp) DON'T spawn inline here: ctx.summon defers each one onto
+    // the immediate-attack queue so its placement + strike land at the next flushImmediateAttacks — AFTER this
+    // clash's whole death cascade resolves. The queue then spawns them sequentially (summon → strike → next),
+    // so the board-cap "room after the first has attacked" logic still holds; no inline flush needed.
+    for (let i = 0; i < total; i++) ctx.summon(self.side, card, self.uid, grantKws, golden);
   },
 
   /** Nanon — Deathrattle: summon `count` tokens; every one that can't fit the full board (a `summonOverflow`)

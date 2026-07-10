@@ -1,6 +1,7 @@
 import { Application, Container, Graphics, Mesh, MeshGeometry, Rectangle, Shader, Sprite, Texture, type BLEND_MODES, type Ticker } from 'pixi.js';
 import { getTauntConfig } from './tauntConfig';
 import { getSmokeConfig } from './smokeConfig';
+import { getStrikeFxConfig } from './strikeFxConfig';
 import { getTrailConfig } from './trailConfig';
 import { sfx } from './sfx';
 
@@ -572,6 +573,7 @@ class FxController {
    */
   impact(x: number, y: number, dx: number, dy: number, power = 1): void {
     if (!this.ready) return;
+    const s = getStrikeFxConfig(); // live-tunable (DEV Lunge Strike Effects tuner)
     // Blow direction (unit vector); fall back to "up" if attacker/defender coincide.
     const len = Math.hypot(dx, dy) || 1;
     const ux = dx / len;
@@ -583,37 +585,38 @@ class FxController {
 
     // Hot core flash — additive, brief, for the white-hot glint at the moment of contact.
     this.spawn(this.glowTex!, {
-      x, y, vx: 0, vy: 0, drag: 1, life: 220, fromScale: 0.5, toScale: 2.6 * power, spin: 0,
+      x, y, vx: 0, vy: 0, drag: 1, life: 220, fromScale: 0.5, toScale: s.flashSize * power, spin: 0,
       tint: 0xffe6b0, blend: 'add',
     });
     // Coloured shockwave — normal blend, a saturated orange flash that actually paints over cream.
     this.spawn(this.glowTex!, {
-      x, y, vx: 0, vy: 0, drag: 1, life: 300, fromScale: 0.3, toScale: 2.1 * power, spin: 0,
+      x, y, vx: 0, vy: 0, drag: 1, life: 300, fromScale: 0.3, toScale: s.shockwaveSize * power, spin: 0,
       tint: 0xff6a1e, blend: 'normal',
     });
     // Heavy hits (power ≳ 1.15) ripple a crisp expanding RING out of the contact — the "that one hurt"
     // punctuation a soft glow can't give. Ring size/opacity track the overage so it ramps, not toggles.
-    if (power >= 1.15) {
+    if (power >= 1.15 && s.ringScale > 0) {
       const over = Math.min(1, (power - 1.15) / 0.85); // 0 at threshold → 1 at max power
       this.spawn(this.rimTex!, {
         x, y, vx: 0, vy: 0, drag: 1, life: 340 + over * 140,
-        fromScale: 0.25, toScale: 1.6 + over * 1.6, spin: 0,
+        fromScale: 0.25, toScale: (1.6 + over * 1.6) * s.ringScale, spin: 0,
         tint: 0xffb054, blend: 'add', peakAlpha: 0.55 + over * 0.4,
       });
     }
 
-    // Sparks — jagged saturated shards (rectangles + triangles, not soft dots), fanning out within
-    // ±63° of the blow direction and oriented ALONG their travel so they read as flung debris. Normal
-    // blend + hot colours so they contrast the bright background. Size carries a +20% visibility boost.
-    const VIS = 1.2; // +20% spark visibility (size)
-    const count = Math.round(16 * (0.7 + 0.3 * power)); // more shrapnel on heavier hits
+    // Sparks — jagged saturated shards (rectangles + triangles, not soft dots), fanning out within the
+    // configured cone of the blow direction and oriented ALONG their travel so they read as flung debris.
+    // Normal blend + hot colours so they contrast the bright background.
+    const VIS = s.sparkSize; // spark visibility (size)
+    const count = Math.round(s.sparkCount * (0.7 + 0.3 * power)); // more shrapnel on heavier hits
+    const cone = (s.sparkSpread * Math.PI) / 180;
     for (let i = 0; i < count; i++) {
-      const spread = (Math.random() - 0.5) * (Math.PI * 0.7);
+      const spread = (Math.random() - 0.5) * cone;
       const cos = Math.cos(spread);
       const sin = Math.sin(spread);
       const dirX = ux * cos - uy * sin;
       const dirY = ux * sin + uy * cos;
-      const speed = (320 + Math.random() * 620) * (0.85 + 0.15 * power); // px/sec — flung harder when heavy
+      const speed = (320 + Math.random() * 620) * (0.85 + 0.15 * power) * s.sparkSpeed; // px/sec — flung harder when heavy
       const warm = Math.random();
       const tint = warm < 0.45 ? 0xff5a14 : warm < 0.8 ? 0xff9d20 : 0xffd24a;
       // alternate shard shapes; orient along velocity with a little jitter so the burst looks ragged

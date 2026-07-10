@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import gsap from 'gsap';
 import { playLunge } from './lunge';
+import { getLungeConfig } from '../../lungeConfig';
 
 const fakeEl = (): Element => ({
   getBoundingClientRect: () => ({ left: 0, top: 0, width: 80, height: 100 }),
@@ -40,8 +41,8 @@ describe('playLunge', () => {
   it('drives the attacker to the surface strike offset (not overshooting center) at contact', () => {
     const el = fakeEl();
     const tl = playLunge({ ...base(), attacker: el });
-    // seek to the end of the strike (wind-up 0.37 + strike 0.16 = 0.53 of the timeline)
-    tl.time(0.53);
+    // seek to the end of the strike (the config wind-up + this call's strikeDur), robust to a retuned default
+    tl.time(getLungeConfig().windupDur + 0.16);
     expect(Number(gsap.getProperty(el, 'y'))).toBeCloseTo(-206, 0);
     expect(Number(gsap.getProperty(el, 'rotation'))).toBeCloseTo(7, 0); // leads with the corner tilt
   });

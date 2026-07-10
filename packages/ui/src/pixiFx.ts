@@ -1001,7 +1001,7 @@ class FxController {
    * `mini` = the card is being dragged → shrink to a small trailing sparkle; when a `mini` bubble is next
    * set with `mini=false` (the card is placed), it coalesces/pops back to full size.
    */
-  setShield(uid: string, cx: number, cy: number, w: number, h: number, mini = false, kind: AuraKind = 'shield', track: ShieldBubble['track'] = null): void {
+  setShield(uid: string, cx: number, cy: number, w: number, h: number, mini = false, kind: AuraKind = 'shield', track: ShieldBubble['track'] = null, instant = false): void {
     if (!this.ready || !this.shieldLayer) return;
     const key = auraKey(kind, uid);
     let b = this.shields.get(key);
@@ -1033,14 +1033,17 @@ class FxController {
       });
       const mesh = new Mesh({ geometry: this.shieldGeo!, shader });
       container.addChild(mesh);
-      container.alpha = 0;
+      // `instant` (a bubble re-created across a combat↔recruit transition, not a genuine recruit play) → born
+      // fully-formed at full alpha, so it doesn't replay its deploy snap-in as the board swaps.
+      container.alpha = instant ? 1 : 0;
       this.shieldLayer.addChild(container);
-      b = { kind, container, mesh, shader, cx, cy, w, h, age: 0, formIn: 0, fadeOut: -1,
+      b = { kind, container, mesh, shader, cx, cy, w, h, age: 0, formIn: instant ? 1e6 : 0, fadeOut: -1,
             mini, pop: -1, scaleMul: mini ? MINI_SCALE : 1, rot: 0, track };
       this.shields.set(key, b);
     } else {
       b.cx = cx; b.cy = cy; b.w = w; b.h = h; b.track = track;
       b.fadeOut = -1; // re-targeted while fading (re-gained) → cancel the fade
+      if (instant) b.formIn = 1e6; // combat↔recruit swap: force fully-formed even if the bubble already exists (churn)
       // Dragged (mini) → placed (full): coalesce/pop the bubble back into existence (inverse of the break).
       if (b.mini && !mini) { b.pop = 0; this.shieldPop(cx, cy, w, h, kind); }
       b.mini = mini;

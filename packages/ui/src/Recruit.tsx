@@ -507,6 +507,13 @@ export function Recruit() {
   const inCombatRef = useRef(inCombat); inCombatRef.current = inCombat;
   const fightingRef = useRef(fighting); fightingRef.current = fighting;
   const settleUntilRef = useRef(0);     // post-drop window where the bubble keeps tracking the Flip
+  // A brief window after a combat↔recruit swap where a taunt bulwark that re-registers appears fully-formed
+  // (no deploy snap-in + no dust). Combat re-uids the board, so surviving taunts are "new" keys on return and
+  // would otherwise replay their deploy as the shop fades in. A genuine recruit play falls outside this window.
+  // Set in the RENDER BODY (not an effect) so it's live before syncShields' layout effect reads it this render.
+  const deployGraceRef = useRef(0);
+  const prevInCombatRef = useRef(inCombat);
+  if (prevInCombatRef.current !== inCombat) { deployGraceRef.current = performance.now() + 1600; prevInCombatRef.current = inCombat; }
   const prevDragActiveRef = useRef(false);
   // (`dragRef` is declared lower down for spell-targeting and already mirrors `drag`; syncShields reads it.)
   const syncShields = useCallback((): void => {
@@ -527,7 +534,7 @@ export function Recruit() {
     const set = (
       uid: string, cx: number, cy: number, w: number, h: number, mini: boolean, kind: AuraK,
       track?: (() => { cx: number; cy: number; w: number; h: number; rot: number } | null),
-    ): void => auraFx(kind).setShield(uid, cx - ax(kind), cy - ay(kind), w, h, mini, kind, track);
+    ): void => auraFx(kind).setShield(uid, cx - ax(kind), cy - ay(kind), w, h, mini, kind, track, performance.now() < deployGraceRef.current);
     // A live position source for a COMBAT front-aura (shield/reborn): re-measures the card's art square each FX
     // frame so the bubble rides the lunge/recoil transform EXACTLY (no cross-rAF trailing). Combat-only, where
     // ax/ay/auraDy are all 0 — so it mirrors the `set` measurement below. null when the card isn't measurable
@@ -579,7 +586,8 @@ export function Recruit() {
         seen.add(key);
         // A taunt bulwark deploying (not shielded last sync) → a light placement-style smoke plume that
         // disperses outward, fired on the FRONT layer (viewport coords) so it reads around the card.
-        if (cfg.kind === 'taunt' && !shieldUidsRef.current.has(key)) {
+        const deployGrace = performance.now() < deployGraceRef.current; // just swapped combat↔recruit — no deploy
+        if (cfg.kind === 'taunt' && !shieldUidsRef.current.has(key) && !deployGrace) {
           pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1.25); // +25% plume on deploy
         }
         // In combat, hand the FRONT auras (shield/reborn) a live tracker so they ride the lunge/recoil exactly;

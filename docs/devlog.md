@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### fix(ui): taunt bulwark no longer re-deploys on the combat↔recruit swap
+
+The remaining "taunt bulwark spawns in briefly" was **not** the skip fade — instrumentation (wrapping
+`__tauntFx.setShield` + `pixiFx.dust` in a real Chrome tab) showed the fresh taunt creations fire in phase
+`recruit`, on the RETURN from combat. Combat re-uids the board (recruit `t1` → combat `m0`), so on return the
+surviving taunts are "new" keys and replay their deploy (the rigid snap-in + a dust plume) as the shop crossfades
+in. The End-Combat crossfade (#266) made this pre-existing deploy visible. Fix: a `deployGraceRef` window opened
+in the RENDER body (not an effect — it must be live before `syncShields`' layout effect reads it) on every
+`inCombat` change; while it's open, `syncShields` registers taunts **fully-formed** (`setShield(..., instant)` —
+now honored on the UPDATE path too, since a churned bubble already exists) and **skips the deploy dust**. A
+genuine recruit play (outside the grace) still deploys normally. Verified in Chrome: across the whole return the
+board taunts hold `formIn ≈ 1e6` with `dust = 0` (was a `formIn: 0` snap), and the steady board shows the taunts
+on their units with zero floaters (the floaters in the bug screenshot were a paused-ticker debug artifact — a
+stopped ticker can't finish `clearShield`'s fade, so bubbles pile up; they self-clear in normal play).
+
 ### fix(ui): Skip fade — stop fighting the aura system (no orphaned bulwarks, no pop)
 
 Follow-up to #274. The Skip fade grew a pile of aura-management machinery (`skipPhaseRef` suppress/settle,

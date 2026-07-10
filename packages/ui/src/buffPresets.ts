@@ -27,11 +27,11 @@ export interface BuffPresetCfg {
  *  iteration-1 slice, so `default` is not yet exercised live. */
 const BASE: BuffPresetCfg = {
   style: 'tendril', blend: 'normal',
-  curve: 0.83, wobbleAmp: 11, wobbleFreq: 3.5, travelMs: 430, retractMs: 170,
-  baseWidth: 19, tipWidth: 5, coreAlpha: 1, glowWidth: 70, glowAlpha: 0.04,
-  flashSize: 69, flashMs: 230, moteCount: 31, moteSpeed: 590, moteLife: 700,
-  pulseSize: 85, pulseAlpha: 0.4, pulseMs: 300,
-  colorCore: '#32fb18', colorGlow: '#6ef500', colorFlash: '#adff5c', colorMote: '#3ebd0f',
+  curve: 1, wobbleAmp: 29.5, wobbleFreq: 1.4, travelMs: 570, retractMs: 150,
+  baseWidth: 8, tipWidth: 1.5, coreAlpha: 0.3, glowWidth: 26, glowAlpha: 0.44,
+  flashSize: 99, flashMs: 430, moteCount: 34, moteSpeed: 590, moteLife: 700,
+  pulseSize: 98, pulseAlpha: 0.68, pulseMs: 630,
+  colorCore: '#ffffff', colorGlow: '#17c200', colorFlash: '#71fe34', colorMote: '#3ebd0f',
 };
 
 export const BUFF_PRESETS: Record<string, BuffPresetCfg> = {

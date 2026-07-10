@@ -62,7 +62,7 @@ export function RuneCard({ rune, affordable, onBuy }: { rune: RuneDef; affordabl
   const art = runeArt(rune.id);
   return (
     <button
-      className={`runecard${art ? ' has-art' : ''}${affordable ? '' : ' cantafford'}`}
+      className={`runecard${rune.epic ? ' runecard-epic' : ''}${art ? ' has-art' : ''}${affordable ? '' : ' cantafford'}`}
       onClick={affordable ? onBuy : undefined}
       disabled={!affordable}
       onMouseEnter={hasPreview ? (e) => show(e.currentTarget) : undefined}
@@ -74,7 +74,7 @@ export function RuneCard({ rune, affordable, onBuy }: { rune: RuneDef; affordabl
       <span className="runecard-cost" title={`Costs ${rune.cost} Gold`}><span className="costn">{rune.cost}</span></span>
       <span className="runecard-emblem" aria-hidden><Icon name="sc" /></span>
       <div className="runecard-head">
-        <div className="runecard-kicker">Rune</div>
+        <div className="runecard-kicker">{rune.epic ? 'Epic Rune' : 'Rune'}</div>
         <div className="runecard-name">{rune.name}</div>
       </div>
       <div className="runecard-body">

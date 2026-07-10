@@ -353,16 +353,21 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('runeConsume'), attack: z.number().int(), health: z.number().int() }).strict(),
   z.object({ kind: z.literal('goldPouchValue'), value: z.number().int().positive() }).strict(),
   z.object({ kind: z.literal('runeSummoning') }).strict(),
+  z.object({ kind: z.literal('runeEmpowerment') }).strict(),
+  z.object({ kind: z.literal('openEpicRuneforge') }).strict(),
   z.object({ kind: z.literal('multi'), rewards: z.array(QuestRewardSchema).min(1) }).strict(),
 ]));
 
-/** Rune definition schema — same reward palette as quests, plus a Gold cost + display text. */
+/** Rune definition schema — same reward palette as quests, plus a Gold cost + display text. `epic` /
+ *  `requiresDoublePower` mark Epic-forge runes and their hero-power eligibility gate. */
 export const RuneDefSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   cost: z.number().int().positive(),
   text: z.string().min(1),
   reward: QuestRewardSchema,
+  epic: z.boolean().optional(),
+  requiresDoublePower: z.boolean().optional(),
 }).strict();
 
 export const QuestDefSchema = z.object({

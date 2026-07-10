@@ -5,6 +5,33 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### feat: Epic Runeforge — a second, quest-reached runeset (+ re-added Rune of Empowerment)
+
+Plumbed a second forge, the **Epic Runeforge**, that functions identically to the Runesmith's (offer a random 3,
+buy ONE for Gold, re-roll once for 2 Gold) but draws from its own **`EPIC_RUNES`** set and is reached only by a
+quest — a new `openEpicRuneforge` **QuestReward** kind presents it to any hero. Shared machinery, one new state
+flag: the open offer carries `runeforgeEpic`, which selects the reroll pool, drives the "Epic" UI label, and skips
+consuming a hero-power charge on buy/skip (the Runesmith's forge still spends his once-per-game charge). Refactored
+the offer/reroll draw into a shared `drawRunes` helper (prefers fresh runes on a reroll, falls back so a small Epic
+pool still yields a full 3) + `runeforgePool` / `openEpicRuneforge` / `closeRuneforge`.
+
+**Content.** `EPIC_RUNES` = **Rune of Empowerment** (re-added) + 6 functional placeholders (Opulence / Ascendance /
+Sorcery / Fortune / Plunder / Insight, each reusing a validated reward kind — provisional until designed). Empowerment
+("your hero power triggers twice") is re-wired via the `reps` multiplier on the value/generate powers (scalingGold /
+gainMaxMana / fortify / dynamiteDig) and **gated** by a new `requiresDoublePower` flag → only offered to heroes whose
+power is in the sim's `DOUBLEABLE_POWERS` set (never a targeted/passive-power hero). `RUNE_INDEX` + `validateRunes`
+now span both sets; new reward kinds (`runeEmpowerment`, `openEpicRuneforge`) + `RuneDef.epic`/`requiresDoublePower`
+are zod-validated.
+
+**UI.** The forge overlay reuses its components with an Epic skin — `forge-epic` overlay, violet "Epic Runeforge"
+banner, and Epic rune cards recoloured via a single `--c` violet override (kicker reads "Epic Rune").
+
+Verified: 7 new tests (Epic set validates; open presents 3 distinct Epic runes + arms the re-roll; Empowerment
+gated to doubleable heroes; Epic buy applies reward + records rune + spends no hero-power charge; Empowerment arms
+the flag; Empowerment doubles Bagger Ben's Gold; Epic re-roll). Live: injected an Epic offer on a throwaway run —
+overlay renders the violet Epic forge with 3 Epic cards, buying Empowerment closes it, badges it, arms the flag,
+leaves `heroPowerSpent` false, no console errors. typecheck / lint / 825 tests / build green.
+
 ### fix(ui): Practice hero-select — balanced, space-filling grid
 
 The Practice picker (every hero — 23 today) used a `flex-wrap` grid of fixed-156px cards, so on a wide screen it

@@ -410,6 +410,9 @@ export interface RunState {
   runeforgeOffer?: string[];
   /** The Runeforge's single re-roll (2 Gold) has been used this visit — the offer can't be re-rolled again. */
   runeforgeRerolled?: boolean;
+  /** The open forge is the EPIC Runeforge (drawn from `EPIC_RUNES`, opened by a quest — not the Runesmith's
+   *  hero-power forge). Drives the reroll pool, the "Epic" UI label, and skips consuming the hero-power charge. */
+  runeforgeEpic?: boolean;
   /** Rune ids bought this run — shown as permanent run-buff badges (above the hero panel). */
   ownedRunes?: string[];
   /** Rune of Spellslinging: every `spellDripPer` Gold spent, get a random spell. `spellDripTick` carries the
@@ -424,6 +427,9 @@ export interface RunState {
   goldPouchValue?: number;
   /** Rune of Summoning: each spell cast improves your Imps +1/+1 (run-wide, via the Imp enchant). */
   runeSummoning?: boolean;
+  /** Rune of Empowerment (Epic): your hero power's effect triggers twice. Threaded as a `reps` multiplier into
+   *  the value/generate powers (scalingGold / gainMaxMana / fortify / dynamiteDig). */
+  runeEmpowerment?: boolean;
   /** Food for Gold (Demon greater): armed reward — every `per` Gold spent adds a Fodder to the next shop and
    *  bumps the run-wide Fodder aura by +attack/+health. `foodForGoldTick` carries the sub-`per` Gold remainder. */
   foodForGold?: { per: number; attack: number; health: number };

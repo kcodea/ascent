@@ -62,6 +62,83 @@ owner previewed the tuned rig, then the live fight on the worktree dev server.
 
 Spec: [`docs/superpowers/specs/2026-07-10-purple-skull-poof-design.md`](superpowers/specs/2026-07-10-purple-skull-poof-design.md).
 
+### feat(ui): board fight-tracking — leaderboard win records (wins + win-rate + sort)
+
+First half of the board win-tracking feature (the leaderboard side; the Career per-round log is the follow-up).
+When you fight a **served opponent board**, the client now logs the outcome **from that board's perspective**
+(you lose to it → it gets a win) to a new isolated Supabase table, `board_results`. The Hall of Champions shows
+each slot's **round-17** record and can sort by it.
+
+- **Board identity:** every captured board is stamped with a stable UUID (`BoardSnapshot.id`, crypto.randomUUID in
+  the UI capture layer). It travels inside the existing `boards`/`runs` jsonb — **no new columns**, so uploads stay
+  compatible with an un-migrated backend. A run's final (leaderboard) board reuses its wave-17 pool board's id, so
+  the leaderboard slot and the served round-17 opponent share one identity.
+- **Recording:** the store, on each `faceOmen` combat (non-practice), recomputes the served board deterministically
+  (`nextOpponent` on the pre-faceOmen state — the exact input the reducer used) and fire-and-forget POSTs
+  `{board_id, round, outcome}`; skips untracked (id-less committed/synthetic) boards and your own boards.
+- **Leaderboard UI:** `fetchBoardStats(ids, 17)` aggregates the ledger per slot → a "N wins · X%" record chip (full
+  W/T/L tally on hover), plus a **Most recent / Most wins** sort toggle in the top bar.
+- **Backend:** `schema.sql` gains only the `board_results` table + RLS (re-run it once). Client-reported/trust-based
+  at friend scale; only boards captured from this release forward carry an id, so tracking starts fresh.
+
+Verified: typecheck / lint / 792 tests / build green; the leaderboard renders live with the sort toggle and "No
+fights yet" records (the table isn't migrated yet) and no console errors; id-stamping uses the available
+`crypto.randomUUID`. End-to-end (record → aggregate → display) activates once the owner re-runs `schema.sql`.
+
+### feat(ui): leaderboard + Career show the END-STATE board with live end-of-run card values
+
+The Hall of Champions (and the Career history board) showed the **pre-combat** highest-wave replay snapshot with
+**printed** rule text — so a champion's board read as its pre-fight recruit board, and a maxed-out Sergeant showed
+its base "+4 Health" instead of the "+102" it actually ended on. Now both render the **end-state board** the way
+the end screen does.
+
+- Extracted the end screen's `boardView` into a shared **`liveBoardView(m, run)`** (in `instView.ts`) — the
+  composer that folds run-wide auras (Lantern on Undead) into the shown stats and resolves each card's **live
+  scaling text** (Sergeant's climbing grant, Guel, Taragosa, …). The end screen now imports it (no behavior
+  change there).
+- On run end, the leaderboard/Career board is now built by a new `endStateBoard(run)` in `store.ts`: it snapshots
+  the **post-combat** `run.board` (combat carry-backs baked in) and enriches each minion with `liveBoardView` —
+  final Attack/Health (incl. auras) + the live rule text — replacing the old pre-combat, printed-text snapshot.
+  This board flows into both `uploadVictory` (leaderboard) and the Career history entry.
+- `BoardMinion` gained display-only `text?` / `goldenText?` fields (baked only into the final board; pool/combat
+  snapshots omit them and matchmaking/combat never read them). `cardViewOf` on the leaderboard **and** Career now
+  prefer the baked live text, falling back to the printed card text for older snapshots.
+
+Verified live: forced a run to game-over with a Sergeant carrying an accrued grant — the saved end-state board's
+Sergeant stored `text: "…{{+102 Health}}…"` (green live value) + its golden variant, and the end screen rendered
+"Give your minions +102 Health". typecheck / lint / 792 tests / build:web green.
+### feat(ui): hero power in its own box, right of the hero frame, glowing when usable
+
+Moved the hero-power button out of the hero frame's 2×2 grid into a **standalone `.heropanel` card** — a
+`.statusrow` flex sibling to the right of the hero, stretched to the hero's height. It's sized up (button 54u →
+82u) with the power name as a label beneath, so an active power reads as an obvious press-me button. The **whole
+box glows** (tangerine border + soft gold halo) via the existing `canHero` predicate whenever the power is usable
+this turn — a standing reminder to press it — and firms up while aiming (`.armed`); a passive hero's box shows the
+art dimmed with a "Passive" label and no glow. With the button gone from the hero grid, the Resolve box now spans
+both columns and centres under the portrait + name. The button keeps its `.heropowerbtn` class so Recruit's aim
+line still anchors to it (verified the `.statusbar .heropowerbtn` selector still resolves), and the power tooltip
+moved onto the new panel. typecheck / lint / build:web green; verified live (ready glow on Bagger Ben's Bag It,
+dimmed "Passive" on Fi).
+### fix(ui): Layout Lab — Hand "Card size" actually resizes cards + new Shop X/Y offsets
+
+Two Layout Lab (dev tuner) fixes:
+
+- **Hand "Card size" now scales the hand cards** (was: it only slid the hand up/down). Root cause: `--cw`/`--ccw`
+  (the compact-card width vars) are declared only on `:root`, computed from the root `--ch` — a custom property
+  inherits its already-substituted value, so the hand zone's `--ch` override never recomputed card width. The lever
+  only inflated `--ch` → `--hand-tuck` (a translateY), sliding the hand. Fix: the hand zone now (a) keeps `--ch`
+  FIXED at the shipped 1.18× basis (row height / resting tuck / hover-pop floor unchanged) and (b) drives `--cw`/
+  `--ccw` off the ROOT basis (`--ch-base * --card-scale`) × the lever, so at the default **1** a hand card is
+  pixel-identical to a shop/warband card and dragging the lever genuinely resizes it. Verified live: hand card =
+  233px at 1 (== shop), 327px at 1.4. (The lever `def` moved 1.18 → 1 to match.)
+- **New Shop row "X offset" / "Y offset" levers** (`--z-shop-x` / `--z-shop-y`) applied as `top`/`left` on the
+  tavern zone (combat-safe layout offset, mirroring the Warband pattern — a transform would fight the combat units'
+  GSAP lunges). Because the shop cards AND the enemy warband render in the *same* tavern zone, these move both
+  together (shop cards ⇄ opponent board stay aligned by construction), while the shop buttons — a separate
+  `.shopbar` — never move. Verified live: shop cards shift +120/+40, buttons stay at 0/0.
+
+typecheck / lint / build:web green.
+
 ### balance: quest-reward card retune (8 cards) + Tradesman rerolls cost 2
 
 A pass over eight quest-reward tokens plus a Tradesman economy tweak (owner spec 2026-07-10).

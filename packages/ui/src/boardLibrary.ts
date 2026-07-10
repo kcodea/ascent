@@ -58,7 +58,10 @@ export function saveRunBoards(replay: Replay, author?: string): BoardSnapshot[] 
     const patch = `${__APP_VERSION__}+${__BUILD_SHA__}`; // the build these boards were captured under (for pruning old patches)
     const fresh = snapshots
       .filter((s) => s.minions.length > 0)
-      .map((s) => ({ ...s, origin: 'self' as const, ...(author ? { author } : {}), capturedAt, patch }));
+      // Stamp a stable id per captured board — the key the fight-result ledger attributes wins/losses to once
+      // this board is served as someone's opponent. crypto.randomUUID is fine here (UI layer, not the
+      // Math.random-banned sim). Each wave's board is its own trackable entity.
+      .map((s) => ({ ...s, id: crypto.randomUUID(), origin: 'self' as const, ...(author ? { author } : {}), capturedAt, patch }));
     if (fresh.length === 0) return [];
     // localStorage write is its own best-effort step, so a quota/availability failure still returns the fresh
     // boards (the remote upload in store.ts must run even when local persistence is unavailable).

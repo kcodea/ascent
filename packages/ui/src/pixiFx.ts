@@ -1082,6 +1082,14 @@ class FxController {
     if (b && b.fadeOut < 0) b.fadeOut = 0;
   }
 
+  /** Instantly destroy EVERY persistent aura bubble (no graceful fade) — used by the Skip transition to wipe the
+   *  board's auras up front, so none can flash at a stale/wrong position while the resolved board re-registers
+   *  them fresh. */
+  clearAllShields(): void {
+    for (const b of this.shields.values()) { b.shader.destroy(); b.container.destroy({ children: true }); }
+    this.shields.clear();
+  }
+
   /** True if a persistent aura bubble of this kind is currently registered for `uid` (the choreographer's
    *  aura channel consults this to decide which of a dying unit's auras to burst — pixiFx's registry is the
    *  source of truth for which auras a unit carries; the Score decides when). */

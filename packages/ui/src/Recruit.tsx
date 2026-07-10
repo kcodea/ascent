@@ -505,14 +505,16 @@ export function Recruit() {
   const pendingClearRef = useRef<Map<string, number>>(new Map()); // uid → time (ms) to fade a vanished bubble
   const inCombatRef = useRef(inCombat); inCombatRef.current = inCombat;
   const fightingRef = useRef(fighting); fightingRef.current = fighting;
-  // True across a Skip transition: the resolved board's auras re-register (grow-in + a taunt deploy dust) under
-  // cover of the hidden FX layer, so we force them born fully-formed + mute the deploy dust — no aura re-bloom
-  // as the board fades back in. Any effect type (shield / reborn / taunt).
-  const skippingRef = useRef(false);
+  // Skip-transition aura control. 'suppress' (freeze + hold): syncShields does NOTHING — every bubble is wiped
+  // up front and none re-register, so nothing can churn/flash at a stale position while the board is mid-fade.
+  // 'settle' (fade-in): the RESOLVED board's auras register ONCE, at their settled slots, born fully-formed +
+  // without the taunt deploy dust — so they fade in cleanly with the board. Any effect type (shield/reborn/taunt).
+  const skipPhaseRef = useRef<null | 'suppress' | 'settle'>(null);
   const settleUntilRef = useRef(0);     // post-drop window where the bubble keeps tracking the Flip
   const prevDragActiveRef = useRef(false);
   // (`dragRef` is declared lower down for spell-targeting and already mirrors `drag`; syncShields reads it.)
   const syncShields = useCallback((): void => {
+    if (skipPhaseRef.current === 'suppress') return; // Skip freeze/hold: no aura reconcile at all (all bubbles wiped)
     const seen = new Set<string>(); // composite keys `${kind} ${uid}` (a unit can carry both auras)
     const now = performance.now();
     // Mid-animation (combat / a live drag / post-drop settle)? Only THEN is a vanished aura possibly
@@ -530,7 +532,7 @@ export function Recruit() {
     const set = (
       uid: string, cx: number, cy: number, w: number, h: number, mini: boolean, kind: AuraK,
       track?: (() => { cx: number; cy: number; w: number; h: number; rot: number } | null),
-    ): void => auraFx(kind).setShield(uid, cx - ax(kind), cy - ay(kind), w, h, mini, kind, track, skippingRef.current);
+    ): void => auraFx(kind).setShield(uid, cx - ax(kind), cy - ay(kind), w, h, mini, kind, track, skipPhaseRef.current === 'settle');
     // A live position source for a COMBAT front-aura (shield/reborn): re-measures the card's art square each FX
     // frame so the bubble rides the lunge/recoil transform EXACTLY (no cross-rAF trailing). Combat-only, where
     // ax/ay/auraDy are all 0 — so it mirrors the `set` measurement below. null when the card isn't measurable
@@ -582,7 +584,7 @@ export function Recruit() {
         seen.add(key);
         // A taunt bulwark deploying (not shielded last sync) → a light placement-style smoke plume that
         // disperses outward, fired on the FRONT layer (viewport coords) so it reads around the card.
-        if (cfg.kind === 'taunt' && !shieldUidsRef.current.has(key) && !skippingRef.current) {
+        if (cfg.kind === 'taunt' && !shieldUidsRef.current.has(key) && skipPhaseRef.current !== 'settle') {
           pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1.25); // +25% plume on deploy
         }
         // In combat, hand the FRONT auras (shield/reborn) a live tracker so they ride the lunge/recoil exactly;
@@ -720,7 +722,7 @@ export function Recruit() {
   // A Skip mutes ALL audio (stopAllAudio) and leaves it muted through the resolved-combat screen; un-mute once
   // the fight is left (back to the shop) so the next fight — and the shop — has sound again.
   useEffect(() => {
-    if (!inCombat) { resumeAudio(); pixiFx.setVisible(true, 0); tauntFx.setVisible(true, 0); } // instant-restore after a Skip
+    if (!inCombat) { skipPhaseRef.current = null; resumeAudio(); pixiFx.setVisible(true, 0); tauntFx.setVisible(true, 0); } // instant-restore after a Skip
   }, [inCombat]);
 
   // Once the combat replay finishes, settle the outcome (damage + carry-backs) right here in the combat
@@ -758,11 +760,12 @@ export function Recruit() {
       //    (particles + shield/reborn/taunt bubbles) stop; `.combatfrozen` pauses every remaining CSS animation;
       //    `.combatout` fades every combat visual to 0; and clearParticles wipes any live dust/spark/trail so
       //    nothing can linger on the canvas as it goes. Kill all audio too (a replacement one-shot goes here later).
-      skippingRef.current = true; // the resolved board's auras re-register born-formed + without deploy dust
+      skipPhaseRef.current = 'suppress'; // wipe all auras + stop syncShields churning them at stale positions
       stopAllAudio();
       gsap.globalTimeline.pause();
       pixiFx.setPaused(true); tauntFx.setPaused(true);
       pixiFx.clearParticles(); tauntFx.clearParticles();
+      pixiFx.clearAllShields(); tauntFx.clearAllShields();
       pixiFx.setVisible(false, FADE); tauntFx.setVisible(false, FADE); // fade the app-wide FX canvases (auras/dust) out with the board
       // 2) Once faded out, settle the simulation's END STATE under cover of opacity 0 (resume the tickers so the
       //    surviving board + its auras render live), wipe any transient the settle re-fired, then hold ~1s…
@@ -772,13 +775,15 @@ export function Recruit() {
         replay.skip();
         pixiFx.clearParticles(); tauntFx.clearParticles();
       }, FADE);
-      // 3) …then fade the clean end state back in together (End Combat / Summary buttons come with it).
+      // 3) …then fade the clean end state back in. Flip to 'settle' FIRST so the very next syncShields registers
+      //    the resolved board's auras at their settled slots (born formed, no deploy dust) — they fade in WITH it.
       window.setTimeout(() => {
         pixiFx.clearParticles(); tauntFx.clearParticles(); // final wipe so only the settled board's auras remain
+        skipPhaseRef.current = 'settle';
         pixiFx.setVisible(true, IN); tauntFx.setVisible(true, IN); // fade the end-state auras in WITH the board
         setSkipFade('in');
       }, FADE + HOLD);
-      window.setTimeout(() => { skippingRef.current = false; setSkipFade(null); }, FADE + HOLD + IN);
+      window.setTimeout(() => { skipPhaseRef.current = null; setSkipFade(null); }, FADE + HOLD + IN);
       return 'out';
     });
   }, [replay]);

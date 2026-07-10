@@ -40,12 +40,15 @@ replacement one-shot will play in the Skip's place later (owner).
 - `Recruit.tsx`: `skipCombat` (freeze + hide FX + fade cards → resume + `replay.skip()` under cover → ~0.9 s hold →
   restore + fade in); `.combatfrozen` pauses stray CSS animations; `.combatout`/`.combatin` fade the rows + control
   bar; an effect un-mutes audio + restores the FX layer whenever combat is left.
-- **Aura re-bloom fix (all effect types).** When the resolved board settles, its **shield / reborn / taunt** bubbles
-  re-register — instrumenting `__pixiFx.shields` in a real skip showed each was destroyed + recreated (`formIn` reset
-  to ~0 → a grow-in) and each taunt fired a **deploy dust**, so the auras visibly re-bloomed as the board faded in. A
-  `skippingRef` (true across the whole Skip transition) now (a) creates any bubble **born fully-formed**
-  (`setShield(..., instant)` → `formIn` maxed, no grow-in) and (b) **mutes the taunt deploy dust**. Confirmed in
-  Chrome: across the skip the recreated bubbles read `formIn ≈ 1e6 / alpha 1` and live-particle count stays `0`.
+- **Aura re-bloom / stray-position fix (all effect types).** Instrumenting `__pixiFx.shields` in a real skip showed
+  the resolved board's **shield / reborn / taunt** bubbles were destroyed + recreated (`formIn` reset → a grow-in),
+  each taunt fired a **deploy dust**, and — worse — a recreated bubble could be measured mid-fade and flash at a
+  **stale/corner position** before snapping to its slot. Fix: a two-phase `skipPhaseRef`. **`'suppress'`** (freeze +
+  hold): `clearAllShields()` wipes every bubble up front and `syncShields` early-returns, so **nothing exists** to
+  churn or flash while the board is mid-transition. **`'settle'`** (fade-in): `syncShields` registers the resolved
+  board's auras **once**, at their settled slots, **born fully-formed** (`setShield(..., instant)` → no grow-in) and
+  **without the deploy dust**. Verified in Chrome: `n = 0` bubbles through the whole freeze/hold, then at fade-in all
+  three types register `OK` (correct slots) with live-particle count `0`.
 
 Verified **in a real focused Chrome tab** (via the claude-in-chrome integration, driving `window.useGame`): through
 the whole hold, all three FX canvases + the unit rows sample at opacity `0` (was `1` — the leak), the board is clean

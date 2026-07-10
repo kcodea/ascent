@@ -648,7 +648,8 @@ export function useCombatReplay(
         // then at the strike release the hold + flash the changed badge(s).
         for (const [target, { atk: sumAtk, hp: sumHp, travelMs }] of perTarget) {
           const tgt = unitOf(target);
-          const held = { atk: (tgt?.attack ?? 0) - sumAtk, hp: (tgt?.health ?? 0) - sumHp };
+          if (!tgt) continue; // no frame entry (unreachable if it has a DOM node) → fall back to normal display, not a negative held value
+          const held = { atk: tgt.attack - sumAtk, hp: tgt.health - sumHp };
           setStatHold((m) => new Map(m).set(target, held));
           const strikeMs = travelMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
           timers.push(window.setTimeout(() => {

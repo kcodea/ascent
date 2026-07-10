@@ -32,8 +32,10 @@ export function HeroSelect() {
             <span className="hsline-note">Cover {profile.currentLine} wins · Strong {profile.currentLine + 2}+</span>
           </div>
         )}
-        {/* Naming yourself now lives on the home screen (the account chip). */}
-        <div className="hsrow">
+        {/* Naming yourself now lives on the home screen (the account chip). Practice shows EVERY hero (20+), which
+            overflows at the full card size — the `dense` grid shrinks the cards so they all fit without scrolling.
+            Ascent only offers 3, so it keeps the big cards. */}
+        <div className={`hsrow${choices.length > 6 ? ' dense' : ''}`}>
           {choices.map((id) => {
             const hero = getHero(id);
             const power = hero.power;

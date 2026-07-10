@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, referencedCardIds } from '@game/content';
-import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, type ShopCard } from '@game/sim';
+import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { QuestCard } from './QuestCard';
 import { combatGains } from './combatGains';
@@ -2371,15 +2371,16 @@ export function Recruit() {
         {/* Action tray — the turn's actions grouped into one control bar (Upgrade Tavern · Reroll · Freeze ·
             End Turn), framed by shopbutton.webp. */}
         <div className="shoprow actiontray">
-          {/* Tavern Up — cost = upgradeCost; disabled at max tier / can't afford / time up. */}
+          {/* Tavern Up — cost = upgradeCostOf(run) (includes Hermit Hank's +2 surcharge); disabled at max tier /
+              can't afford / time up. Uses the same helper the reducer charges with, so the shown cost is accurate. */}
           <button
             className="shopbtn"
-            disabled={run.tier >= CONFIG.maxTier || run.embers < run.upgradeCost || timeUp || eotAnimating || !!run.questOffer}
+            disabled={run.tier >= CONFIG.maxTier || run.embers < upgradeCostOf(run) || timeUp || eotAnimating || !!run.questOffer}
             onClick={() => dispatch({ type: 'upgrade' })}
           >
             <span className="sb-l">Upgrade Tavern</span>
             <span className="sb-ic"><Icon name="star" /></span>
-            <span className="sb-v">{run.tier < CONFIG.maxTier ? run.upgradeCost : '★'}</span>
+            <span className="sb-v">{run.tier < CONFIG.maxTier ? upgradeCostOf(run) : '★'}</span>
             <span className="sbtip">{run.tier >= CONFIG.maxTier ? 'Tavern at max tier' : `Upgrade Tavern — to tier ${run.tier + 1}`}</span>
           </button>
           {/* Reroll — free rolls show 0. */}

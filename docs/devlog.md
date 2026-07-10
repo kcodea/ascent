@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### fix(ui): Hermit Hank's Upgrade Tavern button shows the real (surcharged) cost
+
+The reducer charges `upgradeCostOf(s)` for a tavern-up (Hermit Hank pays +2 over the base), but the Upgrade Tavern
+button rendered the raw `run.upgradeCost` — so a Hank player saw the base price (e.g. 5) yet was charged 7, and the
+button's affordability gate used the base too. Pointed both the shown value and the `disabled` check at
+`upgradeCostOf(run)` — the same helper the reducer uses — so the display, the enable/disable, and the charge all
+agree. Non-Hank heroes are unchanged (the surcharge is 0). Verified live: Hank shows **7** (base 5 + 2), Warden shows
+**5**, and upgrading charges 7. (Related, not fixed here: Hank's shop *minions* cost 2 but show no cost badge — a
+separate per-offer display gap.) `lint` + `test` (782) + `build:web` green.
+
 ### chore(art): rewire art from the updated masters (minions / heroes / quests / rewards)
 
 Owner refreshed a batch of art masters. Re-ran the WebP pipeline over the four master folders

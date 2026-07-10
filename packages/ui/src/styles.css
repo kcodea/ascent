@@ -97,7 +97,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half
    grows to fill its space and centres its cards. Warband gets extra bottom padding so it
    rides a little higher, opening a gap above the hand. */
-.zone[data-zone='tavern'] { flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 1) * var(--z-shop-s, 1)); }
+.zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 1) * var(--z-shop-s, 1)); top: var(--z-shop-y, 0px); left: var(--z-shop-x, 0px); }
 .zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 1) * var(--z-wb-s, 1)); top: var(--z-wb-y, 0px); left: var(--z-wb-x, 0px); }
 /* Nudge the whole Warband DOWN a touch so it sits clearly UNDER the board's centre line instead of hugging
    it. Done with `position: relative; top` (the zone is ALREADY position:relative) — NOT a `transform`: a
@@ -179,7 +179,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
    for why scaling never uses a transform). The hand carries no combat units, so it can use the standalone
    `translate` property (it composes with the zone's own `transform: translateX(-50%)` centering). Every var
    falls back to a no-op, so this is inert until the dev Layout Lab tuner sets one, and absent in production. */
-.zone[data-zone='hand'] { --ch: calc(var(--ch-base) * var(--card-scale, 1) * var(--z-hand-s, 1.18)); translate: var(--z-hand-x, 0px) var(--z-hand-y, 0px); }
+/* The hand's vertical basis (--ch) is FIXED at the shipped 1.18× (drives row height, the resting tuck, and the
+   hover-pop floor — see .row.hand below). The "Card size" lever (--z-hand-s) is decoupled onto the card WIDTH
+   vars (--cw/--ccw) so it actually resizes the hand cards, instead of only inflating --ch → --hand-tuck (which
+   just slid the hand up/down — the reported bug). The width is built from the ROOT basis (--ch-base * --card-scale,
+   NOT the 1.18-inflated --ch) × the lever, so at the default 1 the hand card is exactly a shop/warband card. */
+.zone[data-zone='hand'] { --ch: calc(var(--ch-base) * var(--card-scale, 1) * 1.18); --cw: calc(var(--ch-base) * var(--card-scale, 1) * 0.752 * var(--z-hand-s, 1)); --ccw: calc(var(--cw) * 0.85); translate: var(--z-hand-x, 0px) var(--z-hand-y, 0px); }
 
 /* HUD */
 .bar { display: flex; align-items: center; gap: calc(12 * var(--u)); flex: none; position: relative; --u: calc(var(--u-base) * var(--ui-scale, 1) * var(--z-hud-s, 1)); top: var(--z-hud-y, 0px); left: var(--z-hud-x, 0px); }

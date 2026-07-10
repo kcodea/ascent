@@ -759,6 +759,11 @@ export function Recruit() {
     setSkipFade((s) => {
       if (s) return s; // already skipping
       const FADE = 260, HOLD = 900, IN = 300;
+      // Open the taunt deploy-grace for the WHOLE skip: the replay jumps to the end, so any reborn / summoned
+      // taunt on the resolved board appears at once and would replay its deploy snap as the board resolves (the
+      // "spawn as the End Combat button pops up"). While the grace is open, syncShields registers those taunts
+      // fully-formed + without the deploy dust (see deployGraceRef).
+      deployGraceRef.current = performance.now() + FADE + HOLD + IN + 600;
       // Just fade the FX canvas out, jump to the resolved board under cover of opacity 0, then fade the canvas
       // back in. We DON'T touch the aura bubbles: `syncShields` reconciles them on its own throughout — a dead
       // unit's bulwark clears on its normal grace (which expires DURING the hold, so no orphan lingers to the

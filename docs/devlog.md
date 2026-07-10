@@ -15,10 +15,14 @@ in. The End-Combat crossfade (#266) made this pre-existing deploy visible. Fix: 
 in the RENDER body (not an effect — it must be live before `syncShields`' layout effect reads it) on every
 `inCombat` change; while it's open, `syncShields` registers taunts **fully-formed** (`setShield(..., instant)` —
 now honored on the UPDATE path too, since a churned bubble already exists) and **skips the deploy dust**. A
-genuine recruit play (outside the grace) still deploys normally. Verified in Chrome: across the whole return the
-board taunts hold `formIn ≈ 1e6` with `dust = 0` (was a `formIn: 0` snap), and the steady board shows the taunts
-on their units with zero floaters (the floaters in the bug screenshot were a paused-ticker debug artifact — a
-stopped ticker can't finish `clearShield`'s fade, so bubbles pile up; they self-clear in normal play).
+genuine recruit play (outside the grace) still deploys normally. **A second source, found by stress-testing:** on
+a SKIP the replay jumps to the end, so any **reborn / summoned** taunt on the resolved board appears at once and
+deploys "as the End Combat button pops up" — `inCombat` never changed, so that grace didn't cover it. `skipCombat`
+now also opens the grace for the whole skip window (`FADE+HOLD+IN+600`). Verified with a scripted stress harness in
+a real Chrome tab (re-fight loop, randomized taunt/reborn/DS boards, opponent waves 3–15): **65 skips → 1 446 taunt
+bulwark creations, every one instant (`formIn ≥ 1000`), zero snap-deploys**. The steady board shows the taunts on
+their units with zero floaters (the floaters in the bug screenshot were a paused-ticker debug artifact — a stopped
+ticker can't finish `clearShield`'s fade, so bubbles pile up; they self-clear in normal play).
 
 ### fix(ui): Skip fade — stop fighting the aura system (no orphaned bulwarks, no pop)
 

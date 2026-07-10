@@ -3,6 +3,58 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-10 (session 29)
+
+### tweak(ui): Target Dummy's +N no longer splits the clash + a snappier buff cadence
+
+Two presentation-only combat-replay tweaks so an `onDamaged` stat gain (Target Dummy taking a hit, an
+Enrage-like) reads cleanly. No core/sim/outcome changes.
+
+- **Buff beat cadence cut to 1/3 (`choreo/choreoConfig.ts`).** The `buff` beat hold dropped `420 → 140`
+  (× the 1.5 `speed` baseline = **210ms**, down from 630) so combat stops stalling on a stat float. The
+  **float lifetime is untouched** (`floatMs` 1500) — the `+N` still floats up at the same speed; only the
+  beat advance is faster. Global to every in-combat buff beat (the choreographer keys by event type, not
+  source card), which just makes all combat stat gains snappier while staying just as readable.
+- **onDamaged buffs slide to the tail of their clash (`choreo/clashOrder.ts`, new).** The sim emits an
+  onDamaged gain INLINE — `dmg(defender) · buff(defender) · dmg(attacker-retaliation)` — so the `+N` popped
+  BETWEEN the two damage numbers, misreading as if the attacker took the buffed damage. `deferClashBuffs`
+  reorders the replay's copy of the event log so all `buff` events move to the end of their contiguous
+  result run: the whole clash lands first (retaliation at its real pre-buff value, folded into the impact
+  like every other trade — only the struck unit shows a number), the units settle, THEN the `+N` floats.
+  Wired at `useCombatReplay`'s `events` memo so BOTH `compileMoments` and `computeFrame` fold the reordered
+  array. Safe because a buff commutes with the surrounding damage/shield/death events (adds Attack/Health vs.
+  changes Health/keywords on other units) — the folded frame at the run's end is byte-identical; only the
+  intermediate beat split moves. Returns the same array reference when nothing moved (memo stability). The
+  sim event log itself is never mutated, so determinism / goldens are unaffected.
+- **Verified.** typecheck + lint + `npm test` (**789**, incl. 6 new `clashOrder.test.ts`) + `build:web`
+  green; dialed live by the owner (dummy taking hits: damage settles → `+1`).
+
+### feat(ui): Lunge Strike Effects tuner + strike-point control (corner ↔ centre)
+
+A dedicated DEV tuner for the whole combat strike-impact package, plus a control for where the attacker's
+corner lands. Presentation-only — no core/sim/outcome changes. Built in an isolated git worktree off `main`
+so it never touched a concurrent branch in the shared folder.
+
+- **Strike-point geometry (`choreo/engine.ts`).** The attacker always leads with its tilted corner
+  (magnitude = `lungeConfig.leadTilt`); the new `strikeFxConfig.strikePoint` sets how DEEP that corner
+  drives — from the defender's near SURFACE (0) to the defender's TRUE CENTRE (1, both axes). The engine
+  translates the attacker so its *leading corner* (not its card centre) lands on that target and fires the
+  impact FX there (`cornerLocal = geo.contact − geo.strike`; `strike = target − cornerLocal`). Owner settled
+  on **0** (the shallow surface clack) after previewing the deep-centre version.
+- **`strikeFxConfig.ts` + the "💥 Lunge Strike Effects" tuner (`StrikeFxTuner.tsx`, in the Dev Tuning Menu).**
+  Pulled the flash / shockwave / heavy-ring / spark values out of `pixiFx.impact()`'s hardcodes into a
+  tunable config, and surfaced the impact smoke + dust billow + energy pulse (from `smokeConfig`) in the same
+  panel — the whole strike package now dials in one place and can't silently vanish. `playContactImpact` now
+  takes the engine-computed `spinDeg` (defender counter-spin) instead of `leadTilt`.
+- **Baked owner-tuned defaults (2026-07-10).** Lunge: windupDur 0.47 / windupScale 1.28 / bite 16 /
+  leadTilt 7.5 / targetSpeed 1100 / minStrikeDur 0.13 / maxStrikeDur 0.44 / settleDur 0.34 / attackGap 0.34.
+  Strike FX: strikePoint 0 / flash 4.5 / shockwave 4.4 / ring 2.5 / sparks 40×1.55, spread 230°, size 1.3.
+  Impact smoke/dust/pulse: smoke 3 / rise 0 / life 400 / grow 6 / alpha 0.15; dust 22 @ 450 / life 720;
+  pulse radius 150 / time 480 / 2 rings.
+- **Verified.** typecheck + lint + `npm test` (782) + `build:web` green; dialed live by the owner on the
+  worktree's dev server. A `lunge.test.ts` seek that hardcoded the old wind-up time was made robust (reads
+  `getLungeConfig().windupDur`).
+
 ## 2026-07-09 (session 28)
 
 ### fix(content): Ossuary Rite quest — recurring End-of-Turn grant instead of a self-feeding loop
@@ -14,6 +66,55 @@ Per the owner: keep the objective ("trigger 8 Echoes") but change the reward to 
 Ossuary Rite** (the existing `recurringGrant` kind, as Feed the Alpha uses) and drop `repeatable`. Now the quest
 completes exactly once and hands out one Ossuary Rite per turn — bounded, no loop. Test rewritten (25 Echoes → completes
 once, arms `questRecurringGrants`, ≤1 Ossuary Rite from the settle). `typecheck` + `lint` + `test` (782) + `build:web` green.
+### fix(ui): taunt bulwark no longer re-deploys on the combat↔recruit swap
+
+The remaining "taunt bulwark spawns in briefly" was **not** the skip fade — instrumentation (wrapping
+`__tauntFx.setShield` + `pixiFx.dust` in a real Chrome tab) showed the fresh taunt creations fire in phase
+`recruit`, on the RETURN from combat. Combat re-uids the board (recruit `t1` → combat `m0`), so on return the
+surviving taunts are "new" keys and replay their deploy (the rigid snap-in + a dust plume) as the shop crossfades
+in. The End-Combat crossfade (#266) made this pre-existing deploy visible. Fix: a `deployGraceRef` window opened
+in the RENDER body (not an effect — it must be live before `syncShields`' layout effect reads it) on every
+`inCombat` change; while it's open, `syncShields` registers taunts **fully-formed** (`setShield(..., instant)` —
+now honored on the UPDATE path too, since a churned bubble already exists) and **skips the deploy dust**. A
+genuine recruit play (outside the grace) still deploys normally. **A second source, found by stress-testing:** on
+a SKIP the replay jumps to the end, so any **reborn / summoned** taunt on the resolved board appears at once and
+deploys "as the End Combat button pops up" — `inCombat` never changed, so that grace didn't cover it. `skipCombat`
+now also opens the grace for the whole skip window (`FADE+HOLD+IN+600`). Verified with a scripted stress harness in
+a real Chrome tab (re-fight loop, randomized taunt/reborn/DS boards, opponent waves 3–15): **65 skips → 1 446 taunt
+bulwark creations, every one instant (`formIn ≥ 1000`), zero snap-deploys**. The steady board shows the taunts on
+their units with zero floaters (the floaters in the bug screenshot were a paused-ticker debug artifact — a stopped
+ticker can't finish `clearShield`'s fade, so bubbles pile up; they self-clear in normal play).
+
+### fix(ui): Skip fade — stop fighting the aura system (no orphaned bulwarks, no pop)
+
+Follow-up to #274. The Skip fade grew a pile of aura-management machinery (`skipPhaseRef` suppress/settle,
+`clearAllShields`, a `setShield(instant)` flag, ticker pausing, a synchronous re-register) trying to stop the
+resolved board's auras re-blooming — and it kept producing new artifacts: a taunt bulwark popping in, then
+**orphaned taunt bulwarks floating with no unit** (a dead unit's aura left at a stale slot; compounded by paused
+tickers never letting `clearShield`'s fade finish). The fix is to **delete all of it** and let `syncShields`
+(the continuous aura reconcile) do its job: a dead unit's bubble clears on its normal grace — which expires
+*during* the 900 ms hold, so no orphan survives to the fade-in — and survivors' auras simply persist. Skip now
+only: kills audio, freezes the units (GSAP), fades the FX **canvas** out (an rAF opacity fade, since CSS
+transitions don't take on a live WebGL canvas), jumps to the resolved board under cover, wipes transient dust,
+then fades the canvas back in. Net −22 lines. Verified in a real Chrome tab across win/loss: every aura bubble
+maps to a live unit at every sample (no `*ORPHAN*`), and a frozen fade-in frame shows the survivors' auras on
+their units with **zero** floaters (vs the ~5 in the bug report). typecheck + lint + 782 tests + `build:web` green.
+
+### fix(content): Key Findings Discovers from your CURRENT tier only
+
+Owner ruling: Key Findings should Discover a minion of your **exact** current tavern tier, not from every tier up
+to it. The `keyfindings` card's `discoverOnPlay: {}` fell to the default `tier: s.tier` — which offers all minions
+of tier ≤ current, evenly weighted — so a T4 player could be shown T1–T4 minions. Added a `discoverOnPlay.exactCurrentTier`
+flag (resolved to the live tier at play time, unlike the fixed-number `exactTier`), set it on `keyfindings`, and wired
+it through the reducer's discover-on-play path. Also pointed the (currently unused) reward-kind `discover` case at the
+exact tier to match its own comment. New test: at tier 4 with a tier-spanning pool, the offer is all tier-4.
+`typecheck` + `lint` + `test` (783) + `build:web` green; verified live (T4 → offered guel/monk/arenaheckler, T1 pool
+cards excluded).
+### chore(art): refresh Attachment Mechanic art
+
+Re-wired the updated master `Minions/AttachmentMechanic.png` → `art/minions/scrapherald.webp` (the card's display
+name is "Attachment Mechanic"; its id is `scrapherald`). One-file art swap; verified the card renders the new
+512×512 art in the compendium. `build:web` green.
 
 ### feat(ui): Skip combat gets the crossfade — everything pauses, mutes, and fades out together
 

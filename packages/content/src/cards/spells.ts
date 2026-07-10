@@ -680,7 +680,7 @@ export const SPELLS: CardDef[] = [
   },
   {
     // Key Findings reward (owner spec: "Get 2 Key Findings"). Reward-only spell (token: true). On play it opens a
-    // Discover for a minion of your current tavern tier (discoverOnPlay with no tier override = current tier).
+    // Discover for a minion of your CURRENT tavern tier ONLY (`exactCurrentTier` — not the up-to-tier default).
     id: 'keyfindings',
     name: 'Key Findings',
     tribe: 'neutral',
@@ -691,7 +691,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 2,
     effects: [],
-    discoverOnPlay: {},
+    discoverOnPlay: { exactCurrentTier: true },
     text: 'Discover a minion from your tier.',
     token: true,
   },

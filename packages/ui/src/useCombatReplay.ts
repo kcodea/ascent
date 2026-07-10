@@ -8,6 +8,7 @@ import { getChoreoConfig } from './choreo/choreoConfig';
 import { attackerOfImpact } from './combatBeats';
 import { holdMs } from './choreo/clock';
 import { compileMoments } from './choreo/compile';
+import { deferClashBuffs } from './choreo/clashOrder';
 import { runMomentCues } from './choreo/score';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
 import { burstDeathAuras, breakShieldAura, reformReborn } from './choreo/channels/aura';
@@ -387,7 +388,10 @@ export function useCombatReplay(
   // User-controlled replay speed (in-combat slider). 1 = the tuned default; >1 faster, <1 slower. Every
   // beat delay / float lifetime / final hold is divided by it, and each lunge is timeScaled to match.
   const combatSpeed = opts.combatSpeed && opts.combatSpeed > 0 ? opts.combatSpeed : 1;
-  const events = useMemo(() => combat?.events ?? [], [combat]);
+  // Slide onDamaged buffs (Target Dummy et al.) to the tail of their clash so a +N stat gain never splits the
+  // impact — the whole exchange lands at its real values, then the buff floats. Presentation-only; the sim
+  // event log is untouched (see deferClashBuffs). Both compileMoments AND computeFrame fold THIS array.
+  const events = useMemo(() => deferClashBuffs(combat?.events ?? []), [combat]);
   // Moments are Beat-shaped (choreographer phase 1): identical grouping to the old buildBeats (equivalence-
   // tested), now carrying stepGroups for later phases. buildBeats itself remains only as the test oracle.
   const beats = useMemo(() => compileMoments(events), [events]);

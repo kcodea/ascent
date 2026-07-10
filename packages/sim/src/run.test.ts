@@ -2355,6 +2355,21 @@ describe('run loop (@game/sim)', () => {
     }
   });
 
+  it('Key Findings Discovers from your CURRENT tier ONLY, not up-to-tier (owner 2026-07-09)', () => {
+    let s: RunState = {
+      ...createRun(1), tier: 4, embers: 5, shop: [], board: [],
+      tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'],
+      // Pool spans tiers: tier-1 (alley, frontdrake) + tier-4 (guel, monk, blaster, arenaheckler).
+      pool: { alley: 5, frontdrake: 5, guel: 5, monk: 5, blaster: 5, arenaheckler: 5 },
+      hand: [{ uid: 'k', cardId: 'keyfindings', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'k' });
+    expect(s.discover?.length).toBeGreaterThan(0);
+    for (const id of s.discover!) {
+      expect(CARD_INDEX[id]!.tier).toBe(4); // exactly your tier — never a lower-tier minion
+    }
+  });
+
   it('a pending Discover blocks other board actions until resolved (B2 minimize safety)', () => {
     const base: RunState = {
       ...createRun(1), embers: 5, discover: ['alley', 'raptor', 'pack'],

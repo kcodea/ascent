@@ -344,11 +344,14 @@ export interface CardDef {
 }
 
 /** Declarative spec for {@link CardDef.discoverOnPlay}. The offer tier is `exactTier` if set, otherwise the
- *  current tavern tier plus `tierOffset` (default 0). All fields optional → a bare `{}` Discovers from the
- *  current tier with no filter. */
+ *  current tavern tier plus `tierOffset` (default 0). A bare `{}` Discovers from EVERY tier up to the current
+ *  one (the standard Discover pool). Set `exactCurrentTier` to restrict the pool to your current tier ONLY. */
 export interface DiscoverOnPlay {
   /** Fixed offer tier, ignoring the tavern tier (Sprout = always Tier 1). */
   exactTier?: number;
+  /** Restrict the pool to your CURRENT tavern tier only (Key Findings: "a minion from your tier"), resolved at
+   *  play time. Distinct from `exactTier` (a fixed number) — this tracks the live tier. */
+  exactCurrentTier?: boolean;
   /** Added to the current tavern tier to choose the offer tier, engine-capped (Triple Reward = +1). */
   tierOffset?: number;
   /** Narrow the pool to minions with this trigger. */

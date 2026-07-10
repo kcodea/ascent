@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Mesh, MeshGeometry, Rectangle, Shader, Sprite, Texture, type BLEND_MODES, type Ticker } from 'pixi.js';
+import { Application, Container, Graphics, Mesh, MeshGeometry, Shader, Sprite, Texture, type BLEND_MODES, type Ticker } from 'pixi.js';
 import { getTauntConfig } from './tauntConfig';
 import { getSmokeConfig } from './smokeConfig';
 import { getStrikeFxConfig } from './strikeFxConfig';
@@ -340,18 +340,62 @@ interface Particle {
   stretchX: number;  // X-axis scale multiplier (1 = uniform) — elongates streak wisps along their heading
 }
 
-/** A live Deathrattle skull "pop" — the whole bone skull-and-crossbones scaling in with an elastic
- *  overshoot; when its pop+hold elapses it BURSTS into fragment/splinter/smoke particles (see `burstSkull`). */
-interface SkullPop { sprite: Sprite; x: number; y: number; scale: number; age: number; }
+/** A live Echo (Deathrattle) skull "pop" — the purple glowing ☠ scaling in with an elastic overshoot over an
+ *  additive glow sprite; when its pop+hold elapses it POOFS into smoke + embers (see `burstSkull`). */
+interface SkullPop { sprite: Sprite; glow: Sprite; x: number; y: number; scale: number; age: number; }
 
-// Deathrattle skull-shatter feel — baked from the DEV preview (apps/web/public/fx/skull-shatter-preview.html);
-// tune these constants directly (no live tuner, by design).
-const DR_SKULL_SCALE = 0.375; // skull display width ÷ the dying unit's card width
-const DR_POP = 0.45;        // pop bounce + duration
-const DR_SPREAD = 1.85;     // how far fragments + splinters fly
-const DR_SPLINTERS = 0.45;  // bone-splinter count multiplier (owner: less debris)
-const DR_SMOKE = 0.75;      // smoke plume amount
-const DR_GRID = 6;          // shatter fragment grid (cells per axis) — fewer, chunkier pieces (owner: less debris)
+// ── Echo (Deathrattle) skull-poof feel ──────────────────────────────────────────────────────────────
+// Baked from the DEV preview (apps/web/public/fx/purple-skull-preview.html); tune there, paste here.
+// No live tuner, by design.
+const DR_SKULL_SCALE = 0.54;  // skull display width ÷ the dying unit's card width
+const DR_POP_MS = 320;        // elastic pop-in duration
+const DR_HOLD_MS = 130;       // jiggle hold before the poof
+const DR_RISE = 12;           // px the skull drifts up during the pop
+const DR_GLOW_ALPHA = 0.36;   // the additive glow sprite behind the skull
+const DR_GLOW_SIZE = 1.7;     // glow diameter ÷ skull display long edge
+const DR_DISSOLVE_MS = 150;   // the skull's own scale-up + fade — the "poof" the eye reads
+const DR_DISSOLVE_GROW = 3;   // how much it scales up as it goes
+const DR_FLASH_MS = 220;
+const DR_FLASH_SIZE = 4;
+const DR_SPREAD = 3.25;       // velocity multiplier for smoke + embers
+const DR_SMOKE = 2.25;        // smoke count multiplier (base 28)
+const DR_SMOKE_OUT = 1;       // 0 = rises like a campfire, 1 = blasts purely outward
+const DR_SMOKE_LIFE = 300;
+const DR_EMBERS = 3;          // ember count multiplier (base 14)
+const DR_EMBER_LIFE = 470;
+
+// Palette — the skull glyph + its glow are lifted from `.float.rally.sym` in styles.css, so the Pixi FX and
+// the CSS Rally float read as one family.
+const DR_FILL = '#cfa9fe';    // the ☠ glyph itself (baked into the texture, so the sprite draws untinted)
+const DR_GLOW = 0xb478f0;     // the baked text-shadow, the glow sprite, and the flash
+// Smoke reads on 'normal' blend (the one layer that can darken the board), so these are true mid-violets, not
+// the near-black originals — the plume looks like PURPLE smoke, never a black cloud.
+const DR_SMOKE_A = 0x7a5fa6;
+const DR_SMOKE_B = 0x9d84c4;
+const DR_EMBER_A = 0xcba6f0;
+const DR_EMBER_B = 0xe0c4ff;
+
+/** The skull silhouette — two filled paths, one colour, no strokes (from `apps/web/public/fx/skull-crossbones.svg`).
+ *  Inlined so the texture builds with no runtime fetch. Fill + glow are applied in `buildSkullTex`, exactly as a
+ *  glyph would be — the shape being vector art rather than a font character changes nothing downstream. */
+const DR_SVG_W = 864, DR_SVG_H = 1048;
+const DR_SVG_PATHS = [
+  'M415.161 0.62099C465.652 -2.94079 532.087 9.12835 578.218 28.8911C698.628 80.4778 759.338 192.8 736.431 321.604C733.664 337.186 730.033 349.137 725.263 364.297C720.371 379.838 712.209 391.802 712.735 408.145C713.427 429.633 725.838 441.299 733.688 459.485C739.37 472.661 738.342 488.19 732.519 501.252C721.246 526.532 699.852 541.821 672.623 545.905C656.758 548.286 638.456 548.825 623.675 554.722C598.246 564.868 599.575 581.026 599.667 603.296L599.808 635.822C599.875 653.995 598.038 670.68 577.618 677.838C568.403 681.065 550.058 685.363 541.033 681.028C525.621 673.631 535.951 645.006 531.487 632.974C530.342 629.937 528.003 627.5 525.021 626.227C520.827 624.384 514.832 624.653 511.495 627.794C498.729 639.808 517.6 685.228 494.222 689.882C422.882 704.1 453.706 660.448 443.891 632.074C440.664 627.66 436.09 623.973 430.475 624.972C407.082 629.147 428.136 672.627 413.615 686.147C408.829 690.598 404.375 692 397.967 692.154C387.133 691.664 371.222 693.795 363.182 685.884C353.245 674.819 358.345 654.754 357.494 640.757C356.963 632.038 352.828 623.514 342.905 625.137C321.314 628.682 339.202 665.31 327.619 677.648C324.314 681.175 320.062 682.889 315.157 682.951C301.969 682.087 285.378 680.152 275.181 670.968C262.754 659.775 264.843 645.453 264.541 630.672C264.245 616.185 265.27 600.345 264.471 585.955C262.201 545.06 209.934 551.079 181.813 543.792C157.883 537.822 138.484 520.532 130.048 497.349C122.631 476.964 128 460.433 139.287 443.042C147.171 430.894 153.014 415.265 151.069 400.763C149.52 389.22 143.166 376.676 139.305 365.358C108.474 274.988 120.64 170.599 186.707 98.673C245.172 33.9628 328.774 5.05836 415.161 0.62099ZM301.744 455.699C354.876 440.193 396.86 401.535 379.763 341.433C375.37 325.991 365.064 313.638 350.968 306.432C335.181 297.954 300.554 293.502 282.796 295.735C273.3 296.735 265.839 297.749 256.56 300.242C214.222 311.617 201.905 352.145 206.665 391.693C213.922 451.989 244.332 469.738 301.744 455.699ZM582.48 459.516C600.389 461.127 618.881 460.768 633.08 448.395C650.801 432.953 656.17 408.05 658.111 386.38C662.936 332.62 634.005 297.15 579.51 295.686C573.173 295.516 566.339 295.102 559.794 295.748C537.494 297.585 511.446 301.282 496.163 319.522C483.494 334.645 479.582 355.218 481.082 374.493C485.007 425.101 536.771 453.825 582.48 459.516ZM433.23 531.809L433.867 532.336C441.454 538.71 448.63 549.413 459.615 547.925C477.733 545.47 476.465 516.34 473.912 503.517C469.895 483.383 460.882 459.888 444.754 446.488C440.756 443.398 436.457 442.102 431.498 441.983C424.817 443.069 419.772 445.119 415.047 450.333C396.741 470.548 386.177 502.836 389.687 529.868C391.084 540.62 398.249 549.327 409.362 547.723C419.374 546.762 425.717 532.207 433.23 531.809Z',
+  'M89.4462 570.013C98.2128 568.537 110.914 571.648 118.832 575.102C135.433 582.162 147.388 596.265 150.956 613.001C152.652 620.613 152.807 627.208 155.704 634.691C164.38 657.098 187.177 664.9 208.42 674.012L257.807 695.01L432.273 768.69C488.209 744.404 544.903 721.189 601.114 697.404L651.919 675.653C662.585 671.06 674.331 666.314 684.389 660.956C695.696 654.936 706.572 642.511 709.654 630.558C712.526 619.443 712.081 610.197 718.115 599.492C725.705 586.045 736.66 577.251 752.279 572.505C766.63 568.029 782.308 569.198 795.723 575.745C824.214 589.37 836.3 621.752 821.296 648.464C838.957 653.767 853.314 664.734 860.132 681.293C871.761 709.529 856.187 741.22 825.758 751.44C809.19 757.006 790.593 755.102 775.307 747.025C769.646 744.036 764.568 739.223 758.45 736.847C749.223 733.259 736.758 732.42 727.027 734.986C710.367 739.37 693.275 747.851 677.413 754.465L588.988 792.052C572.616 799.07 553.881 807.558 537.319 813.73C579.663 831.036 622.138 848.078 664.731 864.839L698.431 878.133C704.811 880.644 713.953 884.698 720.457 886.229C753.601 894.049 755.316 872.659 777.931 861.471C791.914 854.533 808.28 853.118 823.376 857.552C838.388 862.193 850.808 872.236 857.894 885.463C867.599 903.32 865.596 926.688 852.875 942.787C845.599 951.991 838.1 956.946 827.309 961.961C832.04 969.762 835.168 976.137 836.503 985.115C838.787 999.793 834.547 1014.71 824.764 1026.39C814.516 1038.76 800.853 1045.24 784.474 1047.23C774.057 1048.48 762.573 1046.77 752.986 1042.82C739.205 1037.2 728.428 1026.62 723.068 1013.48C717.604 999.86 716.682 988.44 702.286 979.162C693.085 973.241 683.178 969.162 673.218 964.514C656.388 956.652 639.473 948.936 622.485 941.379C559.339 913.467 495.924 886.113 432.234 859.309C421.79 863.241 408.053 869.523 397.607 873.945L324.821 905.096C283.931 922.5 243.29 940.412 202.91 958.832C190.068 964.753 169.394 973.228 158.71 981.361C145.38 991.502 145.144 1006.21 138.292 1019.18C131.707 1031.65 118.406 1041.1 104.111 1045.19C88.4699 1049.6 71.6003 1048.01 57.2159 1040.76C43.698 1033.77 33.6645 1022.08 29.2874 1008.21C23.7567 990.516 28.001 977.288 36.9128 961.906C4.87425 947.98 -9.08868 915.984 6.22421 885.684C12.9282 872.714 24.8646 862.757 39.4079 858.017C59.7045 851.446 82.2161 855.812 98.0472 869.395C104.483 874.967 109.092 881.575 117.25 885.004C128.293 889.695 139.06 888.28 149.863 884.116C161.74 879.542 173.602 874.961 185.46 870.368C215.641 858.605 245.738 846.658 275.752 834.52C291.977 827.943 310.896 819.689 327.072 813.798C303.43 804.777 275.034 791.807 251.548 781.734L181.081 751.918C156.334 741.507 124.998 723.724 99.0399 740.356C92.256 744.704 86.8202 748.586 78.9586 751.262C64.2229 756.382 47.9173 755.812 33.6318 749.676C19.572 743.559 8.71016 732.432 3.46409 718.776C-1.75451 704.741 -0.683303 689.327 6.43427 676.045C14.1434 661.452 26.6739 653.663 42.6294 648.537C25.0903 612.162 46.9966 574.942 89.4462 570.013Z',
+];
+
+/** The DEV preview integrates drag PER FRAME (`v *= drag^(dt·60)`); this engine integrates it PER SECOND
+ *  (`v *= drag^dt`, see `update`). Raising the preview's dial to the 60th power makes the two identical at
+ *  60fps — and unlike the preview, frame-rate independent. Keep preview dials here, converted, so the numbers
+ *  the owner tuned are the numbers that ship. */
+const perFrameDrag = (d: number): number => Math.pow(d, 60);
+const DR_DRAG_DISSOLVE = perFrameDrag(0.86);
+const DR_DRAG_SMOKE = perFrameDrag(0.6);
+const DR_DRAG_EMBER = perFrameDrag(0.82);
+
+/** `glowTex` is a radius-40 disc → 80px wide at scale 1, but the preview's stand-in glow sprite is 128px.
+ *  Every glow-particle scale tuned in the preview is multiplied by this to land at the same on-screen size. */
+const DR_GLOW_K = 128 / 80;
 
 /**
  * A persistent divine-shield bubble bound to one unit (by uid). Unlike particles (fire-and-forget),
@@ -421,10 +465,9 @@ class FxController {
   private pulseTex: Texture | null = null;      // thin bright ring — the combat impact energy pulse
   private veinTex: Texture | null = null;       // thin streak — shield energy vein
   private wispTex: Texture | null = null;
-  private skullTex: Texture | null = null;         // the alpha-keyed bone skull-and-crossbones (Deathrattle FX)
+  private skullTex: Texture | null = null;         // the purple glowing ☠, glow baked in (Echo/Deathrattle FX)
   private skullSrcW = 1;
   private skullSrcH = 1;
-  private skullFrags: { tex: Texture; dx: number; dy: number }[] = []; // grid sub-textures + px offset from center
   private readonly skullPops: SkullPop[] = [];
   private shieldLayer: Container | null = null; // holds the persistent bubbles, beneath the particle layer
   private shieldApp: Application | null = null;  // OPTIONAL 2nd canvas for the persistent bubbles, mounted at a
@@ -518,7 +561,7 @@ class FxController {
     this.pulseTex = this.makePulseRingTexture(app);
     this.veinTex = this.makeVeinTexture(app);
     this.wispTex = this.makeWispTexture(app);
-    void this.loadSkull(); // async: the Deathrattle bone skull, alpha-keyed + grid-sliced for the shatter
+    this.buildSkullTex(); // the Echo skull: ☠ rendered purple with its glow baked into the texture
     app.ticker.add(this.update);
     this.ready = true;
   }
@@ -529,10 +572,8 @@ class FxController {
     for (const p of this.live) p.sprite.destroy();
     this.live.length = 0;
     this.pool.length = 0;
-    for (const s of this.skullPops) s.sprite.destroy();
+    for (const s of this.skullPops) { s.sprite.destroy(); s.glow.destroy(); }
     this.skullPops.length = 0;
-    for (const f of this.skullFrags) f.tex.destroy();
-    this.skullFrags.length = 0;
     this.skullTex?.destroy(true);
     this.skullTex = null;
     for (const b of this.shields.values()) { b.shader.destroy(); b.container.destroy({ children: true }); }
@@ -1147,7 +1188,9 @@ class FxController {
   clearParticles(): void {
     for (const p of this.live) { p.sprite.visible = false; this.layer?.removeChild(p.sprite); this.pool.push(p.sprite); }
     this.live.length = 0;
-    for (const sp of this.skullPops) { sp.sprite.visible = false; this.layer?.removeChild(sp.sprite); this.pool.push(sp.sprite); }
+    for (const sp of this.skullPops) {
+      for (const s of [sp.sprite, sp.glow]) { s.visible = false; this.layer?.removeChild(s); this.pool.push(s); }
+    }
     this.skullPops.length = 0;
   }
 
@@ -1397,114 +1440,127 @@ class FxController {
   }
 
   /** Pull a sprite from the pool (or make one), configure it as a live particle. */
-  /** Load + alpha-key the painted skull-and-crossbones (`/fx/skull-crossbones.png`, drawn on black) into a
-   *  tight texture + a grid of fragment sub-textures for the Deathrattle shatter. Fire-and-forget from init;
-   *  a `deathrattle()` before it resolves simply no-ops. */
-  private async loadSkull(): Promise<void> {
+  /** Build the Echo skull texture: the vendored ☠ silhouette drawn purple with the `.float.rally.sym`
+   *  `text-shadow` glow stack BAKED IN, so the glow travels with the sprite through the pop and the dissolve.
+   *  Synchronous (no asset fetch) — a `deathrattle()` before it exists simply no-ops. The canvas keeps its glow
+   *  padding, and `skullSrcW`/`skullSrcH` are the full padded box; the Pixi sprite scales uniformly, so the
+   *  tall silhouette's aspect is preserved and display sizing tracks its width (see `deathrattle`). */
+  private buildSkullTex(): void {
     if (typeof document === 'undefined') return;
     try {
-      const img = new Image();
-      img.src = '/fx/skull-crossbones.png';
-      await new Promise<void>((resolve, reject) => {
-        if (img.complete && img.naturalWidth) return resolve();
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error('skull image failed to load'));
-      });
-      const S = 512, c = document.createElement('canvas'); c.width = c.height = S;
+      const box = 256, pad = Math.round(box * 0.42); // long edge, plus room for the blur to fall off
+      const aspect = DR_SVG_W / DR_SVG_H;
+      const cw = aspect < 1 ? box * aspect : box;
+      const ch = aspect < 1 ? box : box / aspect;
+      const c = document.createElement('canvas');
+      c.width = Math.round(cw + pad * 2);
+      c.height = Math.round(ch + pad * 2);
       const g = c.getContext('2d'); if (!g) return;
-      g.drawImage(img, 0, 0, S, S);
-      const d = g.getImageData(0, 0, S, S), p = d.data;
-      let minX = S, minY = S, maxX = 0, maxY = 0;
-      for (let i = 0; i < S * S; i++) {
-        const r = p[i * 4]!, gg = p[i * 4 + 1]!, b = p[i * 4 + 2]!, m = Math.max(r, gg, b);
-        let a = Math.max(0, Math.min(1, (m - 14) / 46));   // key the black background → alpha
-        if (b > r && m < 80) a *= 0.3;                      // suppress the faint purple rim glow
-        p[i * 4 + 3] = a * 255;
-        if (a > 0.5) { const px = i % S, py = (i / S) | 0; if (px < minX) minX = px; if (px > maxX) maxX = px; if (py < minY) minY = py; if (py > maxY) maxY = py; }
+      g.fillStyle = DR_FILL;
+      const paths = DR_SVG_PATHS.map((d) => new Path2D(d));
+      const draw = (): void => {
+        g.save();
+        g.translate(pad, pad);
+        g.scale(cw / DR_SVG_W, ch / DR_SVG_H);
+        for (const p of paths) g.fill(p);
+        g.restore();
+      };
+      const glow = `#${DR_GLOW.toString(16).padStart(6, '0')}`;
+      // Three shadowed passes ≈ the text-shadow stack on `.float.rally.sym`, then a crisp core.
+      const passes: [string, number, number][] = [[glow, box * 0.31, 0.95], [glow, box * 0.17, 0.9], [DR_FILL, box * 0.06, 1]];
+      for (const [col, blur, a] of passes) {
+        g.globalAlpha = a; g.shadowColor = col; g.shadowBlur = blur;
+        draw();
       }
-      g.putImageData(d, 0, 0);
-      // crop to the content bounding box (small pad) → a tight skull, so display sizing tracks the visible art
-      const pad = 6, bx = Math.max(0, minX - pad), by = Math.max(0, minY - pad);
-      const bw = Math.min(S, maxX + pad) - bx, bh = Math.min(S, maxY + pad) - by;
-      if (bw <= 0 || bh <= 0) return;
-      const tight = document.createElement('canvas'); tight.width = bw; tight.height = bh;
-      const tg = tight.getContext('2d'); if (!tg) return;
-      tg.drawImage(c, bx, by, bw, bh, 0, 0, bw, bh);
-      const base = Texture.from(tight);
-      this.skullTex = base; this.skullSrcW = bw; this.skullSrcH = bh;
-      // grid-slice into fragment sub-textures (only cells that carry ink), each with its offset from center
-      const G = DR_GRID, cw = bw / G, ch = bh / G, td = tg.getImageData(0, 0, bw, bh).data;
-      this.skullFrags = [];
-      for (let cy = 0; cy < G; cy++) for (let cx = 0; cx < G; cx++) {
-        let ink = 0;
-        for (let y = cy * ch | 0; y < (cy + 1) * ch && y < bh; y += 3) for (let x = cx * cw | 0; x < (cx + 1) * cw && x < bw; x += 3) if (td[((y * bw) + x) * 4 + 3]! > 60) ink++;
-        if (ink < 3) continue;
-        const fx = cx * cw, fy = cy * ch, fw = Math.min(cw, bw - fx), fh = Math.min(ch, bh - fy);
-        const tex = new Texture({ source: base.source, frame: new Rectangle(fx, fy, fw, fh) });
-        this.skullFrags.push({ tex, dx: fx + fw / 2 - bw / 2, dy: fy + fh / 2 - bh / 2 });
-      }
+      g.globalAlpha = 1; g.shadowBlur = 0;
+      draw();
+      this.skullTex = Texture.from(c);
+      this.skullSrcW = c.width;
+      this.skullSrcH = c.height;
     } catch (e) {
-      console.error('[pixiFx] skull load failed — Deathrattle FX disabled:', e);
+      console.error('[pixiFx] skull texture build failed — Echo FX disabled:', e);
     }
   }
 
-  /** Deathrattle death FX: a painted bone skull-and-crossbones pops up over the dying unit, then EXPLODES —
-   *  the skull image shatters into bone fragments (gravity + spin), splinters scatter, and smoke blooms.
-   *  `(x, y)` = the unit's viewport center; `size` ≈ its card width. No-op until the skull texture loads. */
+  /** Echo (Deathrattle) death FX: a purple glowing ☠ pops up over the dying unit, holds, then POOFS — the
+   *  skull dissolves outward as a purple flash pulses, a smoke plume blasts out, and glowing embers scatter.
+   *  `(x, y)` = the unit's viewport center; `size` ≈ its card width. No-op if the skull texture never built. */
   deathrattle(x: number, y: number, size: number): void {
-    if (!this.ready || !this.skullTex || !this.layer) return;
-    const scale = (size * DR_SKULL_SCALE) / this.skullSrcW; // maps the tight skull texture → display px
+    if (!this.ready || !this.skullTex || !this.glowTex || !this.layer) return;
+    const scale = (size * DR_SKULL_SCALE) / this.skullSrcW; // maps the padded skull texture → display px
     const sprite = this.pool.pop() ?? new Sprite();
     sprite.texture = this.skullTex;
     sprite.anchor.set(0.5);
     sprite.rotation = 0; // ALWAYS upright — reset the pooled sprite's stale rotation from its prior particle life
     sprite.blendMode = 'normal';
-    sprite.tint = 0xffffff;
+    sprite.tint = 0xffffff; // the purple is baked into the texture
     sprite.alpha = 1;
     sprite.x = x; sprite.y = y;
     sprite.scale.set(0.001);
     sprite.visible = true;
-    this.layer.addChild(sprite);
-    this.skullPops.push({ sprite, x, y, scale, age: 0 });
+    // an additive bloom behind it, so the skull glows against the dark board rather than sitting flat on it
+    const glow = this.pool.pop() ?? new Sprite();
+    glow.texture = this.glowTex;
+    glow.anchor.set(0.5);
+    glow.rotation = 0;
+    glow.blendMode = 'add';
+    glow.tint = DR_GLOW;
+    glow.alpha = 0;
+    glow.x = x; glow.y = y;
+    glow.scale.set(0.001);
+    glow.visible = true;
+    this.layer.addChild(glow); // behind…
+    this.layer.addChild(sprite); // …the skull
+    this.skullPops.push({ sprite, glow, x, y, scale, age: 0 });
   }
 
-  /** Fire the shatter at the end of a skull's pop: grid fragments flung with gravity/spin, bone splinters,
-   *  a smoke bloom, and a hot flash — all on the fire-and-forget particle system. */
+  /** Fire the poof at the end of a skull's pop: the skull dissolves (scale-up + fade), a purple flash pulses,
+   *  a purple smoke plume blasts outward, and glowing embers scatter — all fire-and-forget particles. No
+   *  fragments, no splinters, no gravity: this is a magical poof, not a shatter. */
   private burstSkull(s: SkullPop): void {
     const { x, y, scale } = s, disp = scale * this.skullSrcW;
-    sfx.skullBurst(); // the magical bone-shatter, fired exactly as the skull explodes
-    // hot flash at the moment of the burst
-    this.spawn(this.glowTex!, { x, y, vx: 0, vy: 0, drag: 1, life: 180, fromScale: disp * 0.006, toScale: disp * 0.014, spin: 0, tint: 0xffe6b0, blend: 'add', peakAlpha: 0.7 });
-    // the skull image breaking into chunks
-    for (const f of this.skullFrags) {
-      const wx = x + f.dx * scale, wy = y + f.dy * scale, ddx = wx - x, ddy = wy - y, dl = Math.hypot(ddx, ddy) || 1;
-      const sp = (150 + Math.random() * 180) * DR_SPREAD;
-      this.spawn(f.tex, {
-        x: wx, y: wy, vx: ddx / dl * sp + (Math.random() - 0.5) * 80, vy: ddy / dl * sp - (90 + Math.random() * 100),
-        drag: 0.9, gravity: 1000, life: 820 + Math.random() * 560, fromScale: scale, toScale: scale,
-        spin: (Math.random() - 0.5) * 10, tint: 0xffffff, blend: 'normal', peakAlpha: 1,
+    const g = this.glowTex!;
+    sfx.skullBurst(); // fired exactly as the skull goes
+
+    // 1) the skull itself dissolves — scales up and fades. Without this it would simply vanish; THIS is the poof.
+    this.spawn(this.skullTex!, {
+      x, y, vx: 0, vy: -14, drag: DR_DRAG_DISSOLVE, life: DR_DISSOLVE_MS,
+      fromScale: scale, toScale: scale * DR_DISSOLVE_GROW, spin: 0, tint: 0xffffff, blend: 'normal', peakAlpha: 1,
+    });
+
+    // 2) the flash at the moment it goes
+    if (DR_FLASH_MS > 0) {
+      this.spawn(g, {
+        x, y, vx: 0, vy: 0, drag: 1, life: DR_FLASH_MS,
+        fromScale: disp * 0.006 * DR_FLASH_SIZE * DR_GLOW_K, toScale: disp * 0.016 * DR_FLASH_SIZE * DR_GLOW_K,
+        spin: 0, tint: DR_GLOW, blend: 'add', peakAlpha: 0.75,
       });
     }
-    // sharp bone splinters
-    const nspl = Math.round(15 * DR_SPLINTERS);
-    for (let i = 0; i < nspl; i++) {
-      const a = Math.random() * 6.28, sp = (280 + Math.random() * 280) * DR_SPREAD;
-      this.spawn(this.shardRectTex!, {
-        x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 70, drag: 0.85, gravity: 1100, life: 620 + Math.random() * 540,
-        fromScale: 0.9 + Math.random() * 0.9, toScale: 0.1, spin: (Math.random() - 0.5) * 16, rotation: a,
-        tint: 0xece0c4, blend: 'normal', peakAlpha: 1,
-      });
-    }
-    // smoke bloom rising through it
-    const nsm = Math.round(28 * DR_SMOKE);
+
+    // 3) the purple smoke plume — `DR_SMOKE_OUT` blends between rising (0) and blasting outward (1)
+    const nsm = Math.round(28 * DR_SMOKE), out = DR_SMOKE_OUT;
     for (let i = 0; i < nsm; i++) {
-      const a = Math.random() * 6.28;
-      this.spawn(this.glowTex!, {
+      const a = Math.random() * 6.28, sp = (55 + Math.random() * 95) * DR_SPREAD;
+      this.spawn(g, {
         x: x + (Math.random() - 0.5) * disp * 0.5, y: y + (Math.random() - 0.5) * disp * 0.4,
-        vx: Math.cos(a) * 40 * Math.random(), vy: -(45 + Math.random() * 85), drag: 0.6, gravity: 0,
-        life: 840 + Math.random() * 660, fromScale: disp * 0.004 * (0.7 + Math.random() * 0.5),
-        toScale: disp * 0.011 * (0.7 + Math.random() * 0.6), spin: (Math.random() - 0.5) * 1.2,
-        tint: Math.random() < 0.5 ? 0x514741 : 0x6b6058, blend: 'normal', peakAlpha: 0.34 * (0.8 + Math.random() * 0.4),
+        vx: Math.cos(a) * sp * out, vy: Math.sin(a) * sp * out - (1 - out) * (45 + Math.random() * 85),
+        drag: DR_DRAG_SMOKE, gravity: 0, life: DR_SMOKE_LIFE * (0.75 + Math.random() * 0.5),
+        fromScale: disp * 0.004 * (0.7 + Math.random() * 0.5) * DR_GLOW_K,
+        toScale: disp * 0.012 * (0.7 + Math.random() * 0.6) * DR_GLOW_K,
+        spin: (Math.random() - 0.5) * 1.2, tint: Math.random() < 0.5 ? DR_SMOKE_A : DR_SMOKE_B,
+        blend: 'normal', peakAlpha: 0.34 * (0.8 + Math.random() * 0.4),
+      });
+    }
+
+    // 4) glowing purple embers — radial, heavily dragged, shrinking to nothing (these carry the explosion)
+    const nem = Math.round(14 * DR_EMBERS);
+    for (let i = 0; i < nem; i++) {
+      const a = Math.random() * 6.28, sp = (240 + Math.random() * 300) * DR_SPREAD;
+      this.spawn(g, {
+        x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        drag: DR_DRAG_EMBER, gravity: 0, life: DR_EMBER_LIFE * (0.7 + Math.random() * 0.6),
+        fromScale: disp * 0.0045 * (0.6 + Math.random() * 0.8) * DR_GLOW_K, toScale: 0.001,
+        spin: 0, tint: Math.random() < 0.5 ? DR_EMBER_A : DR_EMBER_B, blend: 'add', peakAlpha: 1,
       });
     }
   }
@@ -1569,22 +1625,26 @@ class FxController {
       s.alpha = p.peakAlpha * (1 - t * t); // ease-out fade from its peak (lingers, then drops)
     }
 
-    // Deathrattle skulls: elastic pop-in (+ a tiny wind-up jiggle), then BURST into the shatter particles.
+    // Echo skulls: elastic pop-in (+ a tiny wind-up jiggle) over an additive glow, then POOF into smoke/embers.
     for (let i = this.skullPops.length - 1; i >= 0; i--) {
       const sp = this.skullPops[i]!;
       sp.age += dtMs;
-      const POP = 320 * (0.6 + 0.4 * DR_POP), HOLD = 130;
-      if (sp.age < POP + HOLD) {
-        const k = Math.min(1, sp.age / POP);
+      if (sp.age < DR_POP_MS + DR_HOLD_MS) {
+        const k = Math.min(1, sp.age / DR_POP_MS);
         const e = k >= 1 ? 1 : Math.pow(2, -10 * k) * Math.sin((k - 0.075) * (2 * Math.PI / 0.32)) + 1; // elastic-out
-        const jig = sp.age > POP ? 1 + Math.sin((sp.age - POP) / HOLD * Math.PI) * 0.03 : 1;
-        sp.sprite.scale.set(sp.scale * (0.2 + 0.8 * e) * jig);
-        sp.sprite.y = sp.y - Math.min(1, sp.age / POP) * 12; // pops upward a touch
+        const jig = sp.age > DR_POP_MS ? 1 + Math.sin((sp.age - DR_POP_MS) / DR_HOLD_MS * Math.PI) * 0.03 : 1;
+        const sc = sp.scale * (0.2 + 0.8 * e) * jig;
+        const y = sp.y - k * DR_RISE; // pops upward a touch
+        sp.sprite.scale.set(sc);
+        sp.sprite.y = y;
+        // the glow tracks the skull's display LONG edge (glowTex is 80px wide at scale 1), so a tall
+        // silhouette still blooms evenly rather than being sized off its narrow width
+        sp.glow.scale.set((Math.max(this.skullSrcW, this.skullSrcH) * sc * DR_GLOW_SIZE) / 80);
+        sp.glow.y = y;
+        sp.glow.alpha = DR_GLOW_ALPHA * Math.min(1, k * 1.5);
       } else {
-        this.burstSkull(sp);
-        sp.sprite.visible = false;
-        this.layer?.removeChild(sp.sprite);
-        this.pool.push(sp.sprite);
+        this.burstSkull({ ...sp, y: sp.y - DR_RISE }); // poof where the skull actually ended up
+        for (const s of [sp.sprite, sp.glow]) { s.visible = false; this.layer?.removeChild(s); this.pool.push(s); }
         this.skullPops.splice(i, 1);
       }
     }

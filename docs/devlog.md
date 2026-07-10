@@ -19,6 +19,62 @@ Verified: typecheck / lint / 792 tests / build green; live, the panel renders th
 state ("No board recorded yet") with no console errors — correct, since existing boards predate id-stamping and are
 filtered out. The populated view (records + board) lights up once id-stamped boards accumulate and the owner has
 re-run `schema.sql` (the isolated `board_results` table).
+### fx: the Echo skull is now a purple glowing ☠ that poofs into smoke
+
+The Deathrattle (now called **Echo**) death FX was a painted **bone** skull-and-crossbones that popped up over
+the dying unit and **shattered** — a 6×6 grid of image fragments flung with gravity and spin, plus bone
+splinters and a grey smoke bloom. It never matched the rest of the combat language: the purple `☠` Rally float
+(`.float.rally.sym`) already reads as "an Echo fired," and the bone shatter read as debris.
+
+Rebuilt it as a **purple glowing skull-and-crossbones that pops up and poofs**. Presentation-only —
+`pixiFx.deathrattle(x, y, size)` keeps its exact signature and call sites, the sim event log is untouched, and
+no fight outcome or timing changed.
+
+- **Texture** (`loadSkull()` → `buildSkullTex()`, `pixiFx.ts`). The `/fx/skull-crossbones.png` fetch,
+  alpha-key, bbox-crop, and grid-slice are all gone (~40 lines, plus the `Rectangle` import and the
+  `skullFrags` field). The art is now the **vendored `skull-crossbones.svg`** — a two-path, single-fill,
+  white-on-transparent silhouette, its paths **inlined into `pixiFx.ts`** (no runtime fetch). It's rendered
+  to an offscreen canvas via `Path2D`, filled `#cfa9fe`, through three `shadowColor`/`shadowBlur` passes that
+  **bake the CSS `text-shadow` stack from `.float.rally.sym` into the texture** — so the glow travels with the
+  sprite through the pop *and* the dissolve, which is what sells "glowing" rather than "flat purple."
+  Synchronous, so there's no longer an async window where an early `deathrattle()` no-ops. The silhouette is
+  **tall** (864×1048); the Pixi sprite scales uniformly, so its aspect is preserved and `DR_SKULL_SCALE` sizes
+  it by width against the card (the crossbones hang below the skull). The dead PNG is deleted. (An intermediate
+  build used the `☠` Unicode glyph; the owner A/B'd it against the SVG in the preview and picked the SVG. Emoji
+  like `💀` stays off the table — Windows renders it as a full-colour bitmap that ignores the fill colour.)
+- **Pop** (unchanged beat, new material). The elastic pop-in, upward drift, and hold jiggle are as they were,
+  but the skull now sits over an **additive glow sprite** sized off its display **long edge**, so the tall
+  silhouette blooms evenly against the dark board instead of sitting flat on it.
+- **Poof** (`burstSkull()` rewritten). No fragments, no splinters, no gravity. The skull **dissolves** (scales
+  up ×3 and fades over 150ms — without this it would simply vanish, and *this* is the poof the eye actually
+  reads); a **purple flash** pulses; a **purple smoke plume** blasts radially outward (`DR_SMOKE_OUT = 1`);
+  and ~42 **glowing purple embers** scatter with heavy drag and shrink to nothing. `sfx.skullBurst()` fires at
+  the same instant as before. The smoke is the only `'normal'`-blend layer (the flash + embers are additive, so
+  they can only brighten); its tints were first the tuned-but-near-black `0x4a3a5e`/`0x6b5580`, which read as a
+  **black cloud** on the dark board, so they were lifted to true mid-violets (`0x7a5fa6`/`0x9d84c4`) — the plume
+  now looks like purple smoke, not soot. (Same fix mirrored in the preview defaults.)
+- **Drag conversion — the subtle one.** The DEV preview integrates drag *per frame* (`v *= drag^(dt·60)`);
+  the engine integrates it *per second* (`v *= drag^dt`). Pasting the tuned dials straight across would have
+  made every particle drift far further than previewed. `perFrameDrag(d) = d ** 60` converts them, so the
+  numbers the owner tuned are the numbers that ship — and unlike the preview, frame-rate independent. Same
+  story for scale: `glowTex` is 80px wide at scale 1 where the preview's stand-in was 128px, so glow-particle
+  scales carry a `DR_GLOW_K = 128/80` factor.
+- **Preview-first** (`apps/web/public/fx/purple-skull-preview.html`, new). Per the project's FX rule — agree
+  the look on a cheap preview *before* wiring the feature — a standalone `file://`-openable canvas rig running
+  the same particle math, with sliders for every `DR_*` dial and a JSON bake box. Owner tuned it, pasted the
+  values back, and only then was `pixiFx.ts` touched. The rig gained a **shape switcher** (SVG silhouette vs a
+  live glyph text field) so the two could be A/B'd in place. It hardens against a silent blank page:
+  `localStorage` throws on some `file://` origins and was killing the script on line 1; uncaught errors now
+  paint an on-page banner; and a diagnostic line reports canvas size / live pops / live particles / a
+  glyph-coverage check (in glyph mode).
+- **Particle budget.** ~107 sprites per Echo (1 dissolve + 1 flash + 63 smoke + 42 embers) vs ~64 before
+  (36 fragments + 7 splinters + 21 smoke). All pooled, all `transform`/`alpha`-only, no paint properties
+  animated. Worth watching if several Echoes land in one clash.
+
+Verified: `npm run typecheck`, `npm run lint`, `npm test` (792 pass, 32 files), `npm run build:web` all green;
+owner previewed the tuned rig, then the live fight on the worktree dev server.
+
+Spec: [`docs/superpowers/specs/2026-07-10-purple-skull-poof-design.md`](superpowers/specs/2026-07-10-purple-skull-poof-design.md).
 
 ### feat(ui): board fight-tracking — leaderboard win records (wins + win-rate + sort)
 

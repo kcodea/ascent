@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 29)
 
+### feat(sim): Runesmith hero + the Runeforge — engine + 8 runes (UI is a follow-up)
+
+The engine half of a new hero. **Runesmith** (30 HP / 8 Armor, `runeforge` power): on turn 6 the **Runeforge**
+opens once — a random **5 of 8 runes** offered, buy exactly **one** for its Gold cost, it applies for the rest of
+the run and the forge closes. Built generically (own turn-6 offer + `buyRune`/`skipRuneforge` actions + modal
+guard, mirroring the quest shop) so future heroes can reuse the forge mechanic.
+
+Runes are a new `RuneDef` content type that **reuses the quest-reward application engine** (`applyQuestReward`),
+so a rune's effect is a `QuestReward` — some reuse existing kinds, some use rune-only kinds/flags. The 8:
+Spellslinging (every 5 Gold → a spell, via the `spendGold` drip), Warding (SoC give leftmost minion Ward — new
+combat flag), Structure (Attachment played → a spell), Slaying (each Slaughter → +2 Gold next turn, settle
+carry-back), Spending (EoT +1 max Gold + buff leftmost per Gold spent, recurring EoT), Consumption (each Fodder
+Consumed → +2/+1 Fodder aura), Pillaging (grant a Pillager + Gold Pouches worth 2), Fury (Avenges trigger twice —
+a new combat flag that re-runs a player avenge effect). New reward kinds/flags are zod-validated; a `validateRunes`
+guards the data.
+
+**Kept out of the picker** for now (`HeroDef.wip` → filtered from `rollHeroChoices`): the forge sets a blocking
+offer with no UI to resolve yet, which would soft-lock a run — the UI PR removes the flag. typecheck / lint / 809
+tests (18 new: forge open/buy/skip, each rune's applied state, Spellslinging drip / Pillaging pouch / Slaying
+carry-back in play, and Warding + Fury in combat) / build all green.
+
 ### fix(ui): board fight-tracking recorded nothing — drop the self-fight skip
 
 The `board_results` ledger stayed empty in real play. Cause: the recording hook skipped fights where the served

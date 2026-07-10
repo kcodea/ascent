@@ -2754,4 +2754,23 @@ describe('Rulebreaker quests — double-leftmost-attack, Chimerus, Taurus engrav
     const r = simMods(p, [{ cardId: 'omen', attack: 0, health: 200 }], 1, {});
     expect(r.events.some((ev) => ev.type === 'sc' && /engraves the truth/.test(ev.text ?? ''))).toBe(true);
   });
+
+  it('Rune of Warding gives the leftmost minion a Ward at Start of Combat', () => {
+    const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 30 }, { cardId: 'sandbag', attack: 3, health: 30 }];
+    const r = simMods(p, [{ cardId: 'omen', attack: 0, health: 200 }], 1, { runeWarding: true });
+    const shields = r.events.filter((ev) => ev.type === 'shieldUp');
+    expect(shields.length).toBe(1); // exactly the LEFTMOST gets warded
+  });
+
+  it('Rune of Fury makes an Avenge trigger twice', () => {
+    // Weaver's Avenge (2) grants a Spirit Fire; two friends die → it fires. With Fury it fires TWICE → 2 grants.
+    const p: BoardMinion[] = [
+      { cardId: 'weaver', attack: 0, health: 30 },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] as Keyword[] },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] as Keyword[] },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 5 }];
+    expect(simMods(p, e, 5, {}).playerHandGrants).toEqual(['spiritfire']); // baseline: once
+    expect(simMods(p, e, 5, { runeFury: true }).playerHandGrants).toEqual(['spiritfire', 'spiritfire']); // Fury: twice
+  });
 });

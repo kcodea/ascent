@@ -1,0 +1,124 @@
+import { describe, it, expect } from 'vitest';
+import type { CombatResult } from '@game/core';
+import { CARD_INDEX, RUNES, RUNE_INDEX, validateRunes } from '@game/content';
+import { createRun, type RunState } from './state';
+import { reduce } from './reducer';
+
+/** A Runesmith run parked at wave-5 combat, ready for `resolveCombat` → the turn-6 Runeforge. */
+const atWave5Combat = (over: Partial<RunState> = {}): RunState => ({
+  ...createRun(1, 'runesmith'), wave: 5, phase: 'combat', embers: 10,
+  lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
+  ...over,
+});
+
+/** Open the Runeforge with a chosen rune first in the offer, then buy it — returns the post-buy run. */
+const buyRune = (runeId: string, embers = 10, over: Partial<RunState> = {}): RunState => {
+  const s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers, runeforgeOffer: [runeId], ...over };
+  return reduce(s, { type: 'buyRune', index: 0 });
+};
+
+describe('Runeforge — framework', () => {
+  it('every rune validates + is Runeforge-only (never a card/quest id)', () => {
+    validateRunes();
+    expect(RUNES.length).toBe(8);
+    for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
+  });
+
+  it('opens on turn 6 for Runesmith with a random 5 distinct runes', () => {
+    const s = reduce(atWave5Combat(), { type: 'resolveCombat' });
+    expect(s.wave).toBe(6);
+    expect(s.runeforgeOffer).toBeDefined();
+    expect(s.runeforgeOffer!.length).toBe(5);
+    expect(new Set(s.runeforgeOffer).size).toBe(5); // no duplicates
+    for (const id of s.runeforgeOffer!) expect(RUNE_INDEX[id]).toBeDefined();
+  });
+
+  it('does NOT open for a non-Runesmith hero', () => {
+    const s = reduce({ ...atWave5Combat(), heroId: 'warden' }, { type: 'resolveCombat' });
+    expect(s.runeforgeOffer).toBeUndefined();
+  });
+
+  it('while the forge is open, non-forge actions are blocked', () => {
+    const s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 10, runeforgeOffer: ['rune_warding'] };
+    expect(reduce(s, { type: 'roll' })).toBe(s); // blocked (same ref)
+    expect(reduce(s, { type: 'faceOmen' })).toBe(s);
+  });
+
+  it('buyRune spends the cost, applies the reward, records the rune, and closes the forge (once per game)', () => {
+    const s = buyRune('rune_warding', 10); // cost 4
+    expect(s.embers).toBe(6);
+    expect(s.questFlags?.runeWarding).toBe(true);
+    expect(s.ownedRunes).toEqual(['rune_warding']);
+    expect(s.runeforgeOffer).toBeUndefined();
+    expect(s.heroPowerSpent).toBe(true);
+  });
+
+  it("buyRune you can't afford is a no-op (forge stays open)", () => {
+    const s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 2, runeforgeOffer: ['rune_pillaging'] }; // cost 8
+    const after = reduce(s, { type: 'buyRune', index: 0 });
+    expect(after).toBe(s); // unchanged ref
+  });
+
+  it('skipRuneforge closes the forge without buying (spends the once-per-game charge)', () => {
+    const s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 10, runeforgeOffer: ['rune_warding'] };
+    const after = reduce(s, { type: 'skipRuneforge' });
+    expect(after.runeforgeOffer).toBeUndefined();
+    expect(after.ownedRunes).toBeUndefined();
+    expect(after.heroPowerSpent).toBe(true);
+  });
+});
+
+describe('Runeforge — each rune applies its effect on purchase', () => {
+  it('Spellslinging arms the per-5-Gold spell drip', () => {
+    expect(buyRune('rune_spellslinging').spellDripPer).toBe(5);
+  });
+  it('Warding / Slaying / Fury arm their combat flags', () => {
+    expect(buyRune('rune_warding').questFlags?.runeWarding).toBe(true);
+    expect(buyRune('rune_slaying').questFlags?.runeSlaying).toBe(true);
+    expect(buyRune('rune_fury').questFlags?.runeFury).toBe(true);
+  });
+  it('Structure arms the attachment-spell flag', () => {
+    expect(buyRune('rune_structure').runeStructure).toBe(true);
+  });
+  it('Spending arms the recurring End-of-Turn effect', () => {
+    expect(buyRune('rune_spending').questRecurringEndOfTurn).toContain('runeSpending');
+  });
+  it('Consumption arms the +2/+1 Fodder-on-Consume bump', () => {
+    expect(buyRune('rune_consumption').runeConsume).toEqual({ attack: 2, health: 1 });
+  });
+  it('Pillaging grants a Pillager to hand AND makes Gold Pouches worth 2', () => {
+    const s = buyRune('rune_pillaging'); // cost 8
+    expect(s.hand.some((c) => c.cardId === 'pillager')).toBe(true);
+    expect(s.goldPouchValue).toBe(2);
+  });
+});
+
+describe('Runeforge — rune effects fire in play', () => {
+  it('Spellslinging: spending 5 Gold conjures a spell to hand', () => {
+    // Buy a shop minion for 3, roll twice (1 each) → 5 Gold spent → one spell drip.
+    let s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 20, spellDripPer: 5, spellDripTick: 0, hand: [] };
+    const handBefore = s.hand.length;
+    s = reduce(s, { type: 'roll' }); s = reduce(s, { type: 'roll' }); s = reduce(s, { type: 'roll' });
+    s = reduce(s, { type: 'roll' }); s = reduce(s, { type: 'roll' }); // 5 rolls × 1 Gold = 5 spent
+    expect(s.hand.length).toBe(handBefore + 1);
+    expect(CARD_INDEX[s.hand[0]!.cardId]?.spell).toBe(true); // it's a spell
+  });
+
+  it('Pillaging: a Gold Pouch cast is worth 2 Gold with the rune', () => {
+    let s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 0, goldPouchValue: 2,
+      hand: [{ uid: 'gp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'gp' });
+    expect(s.embers).toBe(2); // worth 2, not 1
+  });
+
+  it('Slaying: each Slaughter this combat banks +2 Gold for next turn', () => {
+    const s = reduce({
+      ...createRun(1, 'runesmith'), phase: 'combat', questFlags: { runeSlaying: true },
+      lastCombat: {
+        events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 3, initial: { player: [], enemy: [] },
+        playerQuestTally: { attack: 0, summonCombat: 0, slaughter: 3, slaughterKeyword: 0, attackByTribe: {}, summonCombatByTribe: {}, slaughterByTribe: {} },
+      } as CombatResult,
+    }, { type: 'settleCombat' }); // settle WITHOUT advancing, so bonusEmbersNextTurn isn't yet spent into next turn
+    expect(s.bonusEmbersNextTurn).toBe(6); // 3 slaughters × 2
+  });
+});

@@ -1,5 +1,5 @@
 import { makeRng, simulate, type BoardMinion, type CardDef, type CombatResult, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
-import { BUYABLE_CARDS, CARD_INDEX, QUEST_INDEX, SPELL_CARDS } from '@game/content';
+import { BUYABLE_CARDS, CARD_INDEX, QUEST_INDEX, RUNE_INDEX, RUNES, SPELL_CARDS } from '@game/content';
 import { CONFIG } from './config';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
@@ -26,6 +26,14 @@ function spendGold(s: RunState, amount: number): void {
       s.foodForGoldTick -= s.foodForGold.per;
       (s.pendingTavern ??= []).push('fred');
       buffFodderRunWide(s, s.foodForGold.attack, s.foodForGold.health, 'Food for Gold');
+    }
+  }
+  // Rune of Spellslinging: every `spellDripPer` Gold spent, conjure a random spell (tavern-tier bound) to hand.
+  if (s.spellDripPer) {
+    s.spellDripTick = (s.spellDripTick ?? 0) + amount;
+    while (s.spellDripTick >= s.spellDripPer) {
+      s.spellDripTick -= s.spellDripPer;
+      conjureToHand(s, SPELL_CARDS.filter((c) => c.tier <= s.tier), 1);
     }
   }
 }
@@ -246,7 +254,11 @@ export function reduce(state: RunState, action: Action): RunState {
       const pdef = played ? CARD_INDEX[played.cardId] : undefined;
       // Play an Attachment (a Magnetic minion — whether it welds onto a Mech or stands alone): "Play N
       // Attachments" (Perfect Machine / Blueprint Cache / Shared Circuit).
-      if (pdef?.keywords.includes('M')) advanceQuests(next, (o) => o.event === 'playAttachment');
+      if (pdef?.keywords.includes('M')) {
+        advanceQuests(next, (o) => o.event === 'playAttachment');
+        // Rune of Structure: each Attachment you play from hand also conjures a random spell.
+        if (next.runeStructure) conjureToHand(next, SPELL_CARDS.filter((c) => c.tier <= next.tier), 1);
+      }
       // Trail Forager: each Beast you play raises every OTHER Trail Forager's sell value (+1, ×2 golden).
       if (pdef && (pdef.tribe === 'beast' || pdef.tribe2 === 'beast')) {
         for (const c of next.board) {
@@ -281,7 +293,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // Modal recruit states — a pending Discover / Choose One / targeted Battlecry — block every other board
   // action until they resolve. The player can still inspect (a UI-only concern), so a Discover can be
   // minimized to read the board without any action invalidating the pending pick.
-  if ((state.discover || state.chooseOne || state.pendingTarget || state.questOffer) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest') {
+  if ((state.discover || state.chooseOne || state.pendingTarget || state.questOffer || state.runeforgeOffer) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'buyRune' && action.type !== 'skipRuneforge') {
     return state;
   }
 
@@ -717,6 +729,33 @@ function reduceCore(state: RunState, action: Action): RunState {
       return s;
     }
 
+    case 'buyRune': {
+      // Runeforge (turn 6): buy ONE offered rune for its Gold cost. Its reward applies for the run (via the
+      // shared quest-reward engine), it joins `ownedRunes` (shown as a run-buff badge), and the forge closes.
+      const offer = s.runeforgeOffer;
+      if (!offer) return state;
+      const runeId = offer[action.index];
+      const rune = runeId != null ? RUNE_INDEX[runeId] : undefined;
+      if (!rune) return state; // invalid pick
+      if (s.embers < rune.cost) return state; // can't afford — no-op (the UI greys it out)
+      spendGold(s, rune.cost);
+      // Reuse the quest-reward engine — it reads only `reward` + `name` off the def.
+      applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true);
+      (s.ownedRunes ??= []).push(rune.id);
+      s.runeforgeOffer = undefined;
+      s.heroPowerSpent = true; // the forge is a once-per-game event
+      checkTriples(s);
+      return s;
+    }
+
+    case 'skipRuneforge': {
+      // Leave the Runeforge without buying (e.g. you can't afford any) — closes it for the run.
+      if (!s.runeforgeOffer) return state;
+      s.runeforgeOffer = undefined;
+      s.heroPowerSpent = true;
+      return s;
+    }
+
     case 'reposition': {
       const i = s.board.findIndex((c) => c.uid === action.uid);
       if (i < 0) return state;
@@ -824,7 +863,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       } else if (
         power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision' || power.kind === 'sellGold'
         || power.kind === 'chaos' || power.kind === 'cheapMinions' || power.kind === 'discoLock'
-        || power.kind === 'questChronos' || power.kind === 'lesserQuest'
+        || power.kind === 'questChronos' || power.kind === 'lesserQuest' || power.kind === 'runeforge'
       ) {
         // Passive powers have no activation — the work happens elsewhere (spell math, the buy/sell case,
         // settleCombat, the turn-advance quest/discover hooks). Nothing to do on a power click.
@@ -1389,6 +1428,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
   advanceCombatQuests(s, result);
   // A combat-completed quest may have granted a card to hand — if so, check for a triple (your 3rd copy → golden).
   if (s.hand.length > handBeforeQuests) checkTriples(s);
+  // Rune of Slaying: every Slaughter (enemy felled) this combat banks +2 Gold for next turn's shop.
+  if (s.questFlags?.runeSlaying && result.playerQuestTally?.slaughter) {
+    s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + 2 * result.playerQuestTally.slaughter;
+  }
   // The Old Hunt: the Beast Attack aura pumped this combat is permanent — fold it into the run + apply to
   // current run-board/hand Beasts (so they keep the gain without re-buying).
   if (result.playerBeastBuyAtkGain) grantTribeAura(s, 'beast', result.playerBeastBuyAtkGain, 0, 'The Old Hunt');
@@ -1498,6 +1541,16 @@ function advanceCombat(s: RunState): void {
   const questOffer = fiExtra
     ? generateQuestOffer(s, 'lesser')
     : questTierForWave(s.wave) ? generateQuestOffer(s) : [];
+  // Runesmith: the Runeforge opens exactly once, on turn 6 — offer a random 5 of the runes for the player to buy
+  // ONE. Like the quest shop, the tavern is rolled behind the overlay so the shop is ready once the forge closes.
+  const forge = getHero(s.heroId).power.kind === 'runeforge' && s.wave === 6 && !s.heroPowerSpent;
+  if (forge) {
+    const pool = RUNES.map((rn) => rn.id);
+    const rng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST));
+    const picks: string[] = [];
+    while (picks.length < 5 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
+    s.runeforgeOffer = picks;
+  }
   if (questOffer.length > 0) {
     s.questOffer = questOffer;
   } else if (s.frozen) {
@@ -1827,6 +1880,20 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.foodForGold = { per: r.per, attack: r.attack, health: r.health };
       s.foodForGoldTick = 0;
       break;
+    // ── Runeforge rune rewards ──
+    case 'runeSpellDrip':
+      s.spellDripPer = r.per; // Rune of Spellslinging: every `per` Gold spent → a random spell (spendGold ticks it)
+      s.spellDripTick = 0;
+      break;
+    case 'runeStructure':
+      s.runeStructure = true; // Rune of Structure: playing an Attachment also gives a random spell
+      break;
+    case 'runeConsume':
+      s.runeConsume = { attack: r.attack, health: r.health }; // Rune of Consumption: each Consume bumps the Fodder aura
+      break;
+    case 'goldPouchValue':
+      s.goldPouchValue = r.value; // Rune of Pillaging: your Gold Pouches are worth this much
+      break;
     case 'multi':
       // The Hoard Wakes: several rewards at once — apply each sub-reward through this same path.
       for (const sub of r.rewards) applyQuestReward(s, { ...def, reward: sub }, allowRepeat);
@@ -1923,6 +1990,8 @@ function questCombatMods(s: RunState): QuestCombatMods {
     feedingLine: f?.feedingLine,
     umbralEnergy: f?.umbralEnergy,
     emptyGraves: f?.emptyGraves,
+    runeWarding: f?.runeWarding, // Rune of Warding: SoC give leftmost minion Ward
+    runeFury: f?.runeFury, // Rune of Fury: Avenges trigger twice
   };
 }
 

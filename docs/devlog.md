@@ -27,6 +27,37 @@ the end screen does.
 Verified live: forced a run to game-over with a Sergeant carrying an accrued grant — the saved end-state board's
 Sergeant stored `text: "…{{+102 Health}}…"` (green live value) + its golden variant, and the end screen rendered
 "Give your minions +102 Health". typecheck / lint / 792 tests / build:web green.
+### feat(ui): hero power in its own box, right of the hero frame, glowing when usable
+
+Moved the hero-power button out of the hero frame's 2×2 grid into a **standalone `.heropanel` card** — a
+`.statusrow` flex sibling to the right of the hero, stretched to the hero's height. It's sized up (button 54u →
+82u) with the power name as a label beneath, so an active power reads as an obvious press-me button. The **whole
+box glows** (tangerine border + soft gold halo) via the existing `canHero` predicate whenever the power is usable
+this turn — a standing reminder to press it — and firms up while aiming (`.armed`); a passive hero's box shows the
+art dimmed with a "Passive" label and no glow. With the button gone from the hero grid, the Resolve box now spans
+both columns and centres under the portrait + name. The button keeps its `.heropowerbtn` class so Recruit's aim
+line still anchors to it (verified the `.statusbar .heropowerbtn` selector still resolves), and the power tooltip
+moved onto the new panel. typecheck / lint / build:web green; verified live (ready glow on Bagger Ben's Bag It,
+dimmed "Passive" on Fi).
+### fix(ui): Layout Lab — Hand "Card size" actually resizes cards + new Shop X/Y offsets
+
+Two Layout Lab (dev tuner) fixes:
+
+- **Hand "Card size" now scales the hand cards** (was: it only slid the hand up/down). Root cause: `--cw`/`--ccw`
+  (the compact-card width vars) are declared only on `:root`, computed from the root `--ch` — a custom property
+  inherits its already-substituted value, so the hand zone's `--ch` override never recomputed card width. The lever
+  only inflated `--ch` → `--hand-tuck` (a translateY), sliding the hand. Fix: the hand zone now (a) keeps `--ch`
+  FIXED at the shipped 1.18× basis (row height / resting tuck / hover-pop floor unchanged) and (b) drives `--cw`/
+  `--ccw` off the ROOT basis (`--ch-base * --card-scale`) × the lever, so at the default **1** a hand card is
+  pixel-identical to a shop/warband card and dragging the lever genuinely resizes it. Verified live: hand card =
+  233px at 1 (== shop), 327px at 1.4. (The lever `def` moved 1.18 → 1 to match.)
+- **New Shop row "X offset" / "Y offset" levers** (`--z-shop-x` / `--z-shop-y`) applied as `top`/`left` on the
+  tavern zone (combat-safe layout offset, mirroring the Warband pattern — a transform would fight the combat units'
+  GSAP lunges). Because the shop cards AND the enemy warband render in the *same* tavern zone, these move both
+  together (shop cards ⇄ opponent board stay aligned by construction), while the shop buttons — a separate
+  `.shopbar` — never move. Verified live: shop cards shift +120/+40, buttons stay at 0/0.
+
+typecheck / lint / build:web green.
 
 ### balance: quest-reward card retune (8 cards) + Tradesman rerolls cost 2
 

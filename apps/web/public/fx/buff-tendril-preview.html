@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Buff Tendril — Empowerment FX preview</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #14170f; color: #e6ecdc; font: 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace; display: flex; height: 100vh; overflow: hidden; }
+  #stage { flex: 1; position: relative; display: grid; place-items: center; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  /* a fake "card" behind the target so the tendril is sized against a real unit */
+  #card { width: 132px; height: 184px; border-radius: 10px; background: linear-gradient(160deg,#2f3322,#1e2116); border: 2px solid #444d2f; box-shadow: 0 8px 30px rgba(0,0,0,.5); position: relative; z-index: 0; }
+  #card::after { content: "target unit"; position: absolute; inset: auto 0 8px; text-align: center; color: #6b7550; font-size: 11px; letter-spacing: .12em; }
+  #panel { width: 306px; padding: 14px 16px; overflow-y: auto; background: #0e100a; border-left: 1px solid #2b3020; }
+  h1 { font-size: 13px; margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; color: #c8e070; }
+  .sub { color: #7a8556; font-size: 11px; margin-bottom: 12px; }
+  h2 { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #7a8556; margin: 16px 0 6px; border-top: 1px solid #2b3020; padding-top: 10px; }
+  .row { display: grid; grid-template-columns: 1fr 54px; gap: 8px; align-items: center; margin-bottom: 7px; }
+  label { color: #b7c194; font-size: 11.5px; }
+  input[type=range] { width: 100%; accent-color: #c8e070; }
+  input[type=color] { width: 100%; height: 24px; border: 1px solid #444d2f; background: none; border-radius: 4px; padding: 0; cursor: pointer; }
+  select { background: #232a16; color: #e6ecdc; border: 1px solid #444d2f; border-radius: 4px; padding: 4px; font: inherit; }
+  select:disabled { opacity: 0.5; cursor: not-allowed; }
+  .val { text-align: right; color: #c8e070; font-size: 11px; }
+  button { width: 100%; padding: 9px; margin-top: 12px; border: 0; border-radius: 6px; background: #6f9a2f; color: #fff; font: inherit; font-weight: 700; letter-spacing: .06em; cursor: pointer; }
+  button:hover { background: #86b83e; }
+  button.ghost { background: #1f2415; color: #b7c194; }
+  button.ghost:hover { background: #2a3120; }
+  .presetbar { display: grid; grid-template-columns: 1fr; gap: 6px; margin-bottom: 8px; }
+  .presetbar select { width: 100%; }
+  .presetbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .presetbtns button { margin-top: 0; padding: 7px; font-size: 11px; }
+  textarea { width: 100%; height: 130px; margin-top: 10px; background: #080a05; color: #c8e070; border: 1px solid #2b3020; border-radius: 6px; padding: 8px; font: 10.5px/1.45 ui-monospace, monospace; resize: vertical; }
+  .hint { color: #5a6440; font-size: 10.5px; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div id="stage"><div id="card"></div><canvas id="cv"></canvas></div>
+  <div id="panel">
+    <h1>Buff Tendril</h1>
+    <div class="sub">Empowerment FX — a unit shoots an energy tendril to the unit it buffs, strikes, flashes.<br />Drag the source/target dots · click the stage to re-fire.</div>
+
+    <h2>Preset</h2>
+    <div class="presetbar">
+      <select id="presetSel"></select>
+      <div class="presetbtns">
+        <button class="ghost" id="dupBtn">Duplicate as new</button>
+        <button class="ghost" id="delBtn">Delete preset</button>
+      </div>
+    </div>
+
+    <div id="controls"></div>
+    <button id="fire">FIRE ⚡ (space)</button>
+    <button id="loop" class="ghost">Auto-loop: off</button>
+    <button id="reset" class="ghost">Reset preset to defaults</button>
+
+    <h2>Baked registry (all presets)</h2>
+    <textarea id="out" readonly></textarea>
+    <div class="hint">Tune, then paste this back to Claude to bake into the Pixi renderer.</div>
+    <div class="hint" id="diag">booting…</div>
+  </div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Standalone preview of the proposed Buff-Tendril FX. A unit that buffs ANOTHER
+// unit shoots an energy "tendril" (quadratic curve + eased sine wobble, drawn as
+// a tapered ribbon) that travels to the target, fires a strike flash + motes on
+// arrival, then retracts. Mirrors the math the real Pixi renderer will use, but
+// on a plain 2D canvas so it runs with zero build. Every dial name here maps 1:1
+// onto the constants later engine tasks will bake.
+//
+// This rig is PRESET-AWARE: the whole registry of presets lives in one
+// localStorage key as { presetName: {...dials} }; the bake box shows all of it.
+// ---------------------------------------------------------------------------
+
+// --- dial schema ------------------------------------------------------------
+const DEFAULTS = {
+  style: 'tendril',   // fixed for now; 'lightning'/'beam' are future variants (disabled dropdown)
+
+  // Path
+  curve:      0.28,   // 0..1 — perpendicular bow of the control point, as a fraction of source→target distance
+  wobbleAmp:  10,     // px — sine wobble amplitude along the path (eased to 0 at both ends)
+  wobbleFreq: 2.2,    // cycles of wobble along the path
+  travelMs:   260,    // head advances 0→1 over this (ease-out)
+  retractMs:  180,    // after arrival, the ribbon retracts/dissolves over this
+
+  // Ribbon
+  baseWidth:  14,     // px width at the source
+  tipWidth:   3,      // px width at the head/tip
+  coreAlpha:  0.95,   // bright core alpha
+  glowWidth:  26,     // px width of the soft-glow underlay
+  glowAlpha:  0.4,    // soft-glow underlay alpha
+
+  // Strike (on arrival)
+  flashSize:  46,     // px radius of the strike bloom at the target
+  flashMs:    260,    // strike bloom fade duration
+  moteCount:  14,     // little particles flung outward on strike
+  moteSpeed:  260,    // px/s initial mote speed
+  moteLife:   420,    // mote lifetime ms
+
+  // Caster pulse (at the source, on launch)
+  pulseSize:  38,     // px radius of the caster pulse glow
+  pulseAlpha: 0.55,   // caster pulse alpha
+  pulseMs:    300,    // caster pulse fade duration
+
+  // Colours (warm empowerment gold-green)
+  colorCore:  '#eaffb0',
+  colorGlow:  '#c8e070',
+  colorFlash: '#dfffa0',
+  colorMote:  '#c8e070',
+};
+
+const RANGES = {
+  curve:      [0, 1, 0.01],
+  wobbleAmp:  [0, 40, 0.5],
+  wobbleFreq: [0, 6, 0.1],
+  travelMs:   [80, 900, 10],
+  retractMs:  [0, 700, 10],
+  baseWidth:  [1, 40, 0.5],
+  tipWidth:   [0, 20, 0.5],
+  coreAlpha:  [0, 1, 0.02],
+  glowWidth:  [1, 70, 1],
+  glowAlpha:  [0, 1, 0.02],
+  flashSize:  [0, 120, 1],
+  flashMs:    [0, 700, 10],
+  moteCount:  [0, 40, 1],
+  moteSpeed:  [0, 600, 10],
+  moteLife:   [100, 1200, 10],
+  pulseSize:  [0, 120, 1],
+  pulseAlpha: [0, 1, 0.02],
+  pulseMs:    [0, 700, 10],
+};
+
+const GROUPS = [
+  ['Shape',   ['style']],
+  ['Path',    ['curve','wobbleAmp','wobbleFreq','travelMs','retractMs']],
+  ['Ribbon',  ['baseWidth','tipWidth','coreAlpha','glowWidth','glowAlpha']],
+  ['Strike',  ['flashSize','flashMs','moteCount','moteSpeed','moteLife']],
+  ['Caster',  ['pulseSize','pulseAlpha','pulseMs']],
+  ['Colours', ['colorCore','colorGlow','colorFlash','colorMote']],
+];
+
+// Any uncaught error would otherwise leave a silent blank page — surface it loudly instead.
+addEventListener('error', (e) => {
+  const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;inset:0 auto auto 0;z-index:99;background:#b0203a;color:#fff;padding:10px 14px;font:12px ui-monospace,monospace;white-space:pre-wrap;max-width:100%';
+  b.textContent = 'SCRIPT ERROR: ' + (e.message || e.error) + '\n' + (e.filename || '') + ':' + (e.lineno || '?');
+  document.body.appendChild(b);
+});
+
+// --- preset registry (persisted as ONE key) ---------------------------------
+const KEY = 'ascent.buffTendrilPreview';
+// localStorage throws on some file:// origins — never let persistence kill the preview.
+const store = {
+  get() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { return null; } },
+  set(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch { /* no persistence, fine */ } },
+};
+
+// Registry shape: { active: 'default', presets: { default:{...}, kennelmaster:{...} } }
+function seedRegistry() {
+  return { active: 'default', presets: { default: { ...DEFAULTS }, kennelmaster: { ...DEFAULTS } } };
+}
+let REG = store.get();
+if (!REG || !REG.presets || typeof REG.presets !== 'object' || !Object.keys(REG.presets).length) {
+  REG = seedRegistry();
+}
+if (!REG.presets[REG.active]) REG.active = Object.keys(REG.presets)[0];
+
+// C is the live, editable copy of the active preset (missing keys fall back to DEFAULTS).
+let C = { ...DEFAULTS, ...REG.presets[REG.active] };
+
+const diag = document.getElementById('diag');
+
+// --- radial glow sprite (stands in for the Pixi glow texture) ---------------
+const glowTex = (() => {
+  const s = 128, c = document.createElement('canvas'); c.width = c.height = s;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
+  grd.addColorStop(0, 'rgba(255,255,255,1)');
+  grd.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+  grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, s, s);
+  return c;
+})();
+
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+function resize() {
+  const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  cv.width = r.width * dpr; cv.height = r.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener('resize', resize);
+
+// --- anchors (draggable) ----------------------------------------------------
+// Positions are in CSS px relative to the canvas (the same space we draw in).
+const source = { x: 180, y: 300 };
+const target = { x: 560, y: 300 };
+let targetCount = 1;           // 1 / 3 / 5 — fan of targets around `target`
+let dragging = null;           // 'source' | 'target' | null
+
+// Build the fan of target points around the primary target, spread perpendicular
+// to the source→target axis so they read as "one caster → many targets".
+function targetPoints() {
+  const pts = [target];
+  if (targetCount === 1) return pts;
+  let dx = target.x - source.x, dy = target.y - source.y;
+  const len = Math.hypot(dx, dy) || 1;
+  // perpendicular unit vector
+  const px = -dy / len, py = dx / len;
+  const spread = 150; // total fan width in px
+  const n = targetCount;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const f = n === 1 ? 0 : (i / (n - 1) - 0.5); // -0.5..0.5
+    out.push({ x: target.x + px * spread * f, y: target.y + py * spread * f });
+  }
+  return out;
+}
+
+// --- tendril math -----------------------------------------------------------
+// Quadratic point: control point is the midpoint pushed perpendicular by `curve`.
+function tendrilPoint(s, e, t, ctl) {
+  const mt = 1 - t;
+  return {
+    x: mt * mt * s.x + 2 * mt * t * ctl.x + t * t * e.x,
+    y: mt * mt * s.y + 2 * mt * t * ctl.y + t * t * e.y,
+  };
+}
+function controlPoint(s, e) {
+  const mx = (s.x + e.x) / 2, my = (s.y + e.y) / 2;
+  let dx = e.x - s.x, dy = e.y - s.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const px = -dy / len, py = dx / len;      // perpendicular unit
+  const off = len * C.curve * 0.5;          // bow scales with distance
+  return { x: mx + px * off, y: my + py * off };
+}
+
+// Sample the wobbly path from s→e, up to head fraction `head` (0..1). Returns a
+// list of {x,y,t}. Wobble eases to 0 at both ends via sin(pi*t) so endpoints pin.
+function samplePath(s, e, head) {
+  const ctl = controlPoint(s, e);
+  const N = 24;
+  const pts = [];
+  const upto = Math.max(0.0001, head);
+  // perpendicular direction of the base line for applying wobble offset
+  let dx = e.x - s.x, dy = e.y - s.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const px = -dy / len, py = dx / len;
+  for (let i = 0; i <= N; i++) {
+    const t = (i / N) * upto;
+    const base = tendrilPoint(s, e, t, ctl);
+    const envelope = Math.sin(Math.PI * t);                  // 0 at both ends
+    const w = Math.sin(t * C.wobbleFreq * Math.PI * 2) * C.wobbleAmp * envelope;
+    pts.push({ x: base.x + px * w, y: base.y + py * w, t });
+  }
+  return pts;
+}
+
+// Draw a tapered ribbon along `pts` with the given max width + style.
+function drawRibbon(pts, maxWidth, color, alpha, blend) {
+  if (pts.length < 2 || alpha <= 0 || maxWidth <= 0) return;
+  ctx.globalCompositeOperation = blend;
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = color;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  // Taper: width goes baseWidth (source) → tipWidth (tip) scaled to maxWidth.
+  // We approximate the taper by drawing successive segments with lerped width.
+  const wA = maxWidth, wB = maxWidth * (C.tipWidth / Math.max(0.0001, C.baseWidth));
+  for (let i = 0; i < pts.length - 1; i++) {
+    const f = i / (pts.length - 1);
+    ctx.lineWidth = wA + (wB - wA) * f;
+    ctx.beginPath();
+    ctx.moveTo(pts[i].x, pts[i].y);
+    ctx.lineTo(pts[i + 1].x, pts[i + 1].y);
+    ctx.stroke();
+  }
+}
+
+// --- fire-and-forget particle system ---------------------------------------
+const parts = [];   // pulses, flashes, motes
+function spawn(p) { parts.push({ age: 0, drag: 1, blend: 'lighter', ...p }); }
+
+// --- live tendrils ----------------------------------------------------------
+const bolts = [];   // one per source→target pair, per fire
+function fire() {
+  const targets = targetPoints();
+  const s = { x: source.x, y: source.y };
+  for (const tp of targets) {
+    bolts.push({ s, e: { x: tp.x, y: tp.y }, age: 0, struck: false });
+  }
+  // caster pulse at the source, once per launch
+  if (C.pulseMs > 0) {
+    spawn({ kind: 'glow', x: s.x, y: s.y, size: C.pulseSize, life: C.pulseMs,
+            peak: C.pulseAlpha, color: C.colorGlow });
+  }
+}
+
+function strike(e) {
+  // radial bloom at the target
+  if (C.flashMs > 0) {
+    spawn({ kind: 'glow', x: e.x, y: e.y, size: C.flashSize, life: C.flashMs,
+            peak: 1, color: C.colorFlash, grow: 1.4 });
+  }
+  // motes flung outward, shrinking to nothing
+  const n = Math.round(C.moteCount);
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = C.moteSpeed * (0.5 + Math.random() * 0.7);
+    spawn({ kind: 'mote', x: e.x, y: e.y,
+            vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+            drag: 0.86, life: C.moteLife * (0.7 + Math.random() * 0.6),
+            from: 7 * (0.6 + Math.random() * 0.8), to: 0.001,
+            peak: 1, color: C.colorMote });
+  }
+}
+
+// ease-out cubic for the travelling head
+const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+
+let last = performance.now();
+function tick(now) {
+  const dtMs = Math.min(50, now - last); last = now;
+  const dt = dtMs / 1000;
+  ctx.clearRect(0, 0, cv.width, cv.height);
+
+  // tendrils
+  for (let i = bolts.length - 1; i >= 0; i--) {
+    const b = bolts[i]; b.age += dtMs;
+    const travel = Math.max(1, C.travelMs);
+    const tHead = Math.min(1, b.age / travel);
+    const head = easeOut(tHead);
+
+    // fire the strike ONCE when the head first reaches the target
+    if (!b.struck && b.age >= travel) { b.struck = true; strike(b.e); }
+
+    // retract/dissolve: once arrived, the tail eats forward and alpha fades
+    let tail = 0, fade = 1;
+    if (b.struck) {
+      const rt = Math.min(1, (b.age - travel) / Math.max(1, C.retractMs));
+      tail = rt;              // start point slides toward the target
+      fade = 1 - rt;         // whole ribbon fades out
+    }
+    if (b.struck && b.age >= travel + C.retractMs) { bolts.splice(i, 1); continue; }
+
+    let pts = samplePath(b.s, b.e, head);
+    // apply retract: drop points behind the tail fraction
+    if (tail > 0) pts = pts.filter((p) => p.t >= tail * head);
+    if (pts.length >= 2) {
+      // soft-glow underlay
+      drawRibbon(pts, C.glowWidth, C.colorGlow, C.glowAlpha * fade, 'lighter');
+      // bright core
+      drawRibbon(pts, C.baseWidth, C.colorCore, C.coreAlpha * fade, 'lighter');
+    }
+  }
+
+  // particles (pulses, flashes, motes)
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i]; p.age += dtMs;
+    const t = p.age / p.life;
+    if (t >= 1) { parts.splice(i, 1); continue; }
+    ctx.globalCompositeOperation = p.blend;
+    if (p.kind === 'mote') {
+      const dk = Math.pow(p.drag, dt * 60); p.vx *= dk; p.vy *= dk;
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      const sz = p.from + (p.to - p.from) * t;
+      ctx.globalAlpha = Math.max(0, p.peak * (1 - t * t));
+      drawTinted(glowTex, p.x, p.y, sz * 2, sz * 2, p.color);
+    } else { // radial glow (caster pulse / strike flash)
+      const grow = p.grow || 1;
+      const sz = p.size * (1 + (grow - 1) * t);
+      ctx.globalAlpha = Math.max(0, p.peak * (1 - t) * (1 - t));
+      drawTinted(glowTex, p.x, p.y, sz * 2, sz * 2, p.color);
+    }
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+
+  drawAnchors();
+
+  diag.textContent = `canvas ${Math.round(cv.width)}×${Math.round(cv.height)} · bolts ${bolts.length} · parts ${parts.length} · targets ${targetCount} · preset "${REG.active}"`;
+  requestAnimationFrame(tick);
+}
+
+// tint a white sprite by multiplying — cheap stand-in for the Pixi sprite.tint
+const tintCache = new Map();
+function drawTinted(tex, x, y, w, h, color) {
+  let t = tintCache.get(color);
+  if (!t) {
+    t = document.createElement('canvas'); t.width = tex.width; t.height = tex.height;
+    const g = t.getContext('2d');
+    g.drawImage(tex, 0, 0);
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = color; g.fillRect(0, 0, t.width, t.height);
+    tintCache.set(color, t);
+  }
+  ctx.drawImage(t, x - w / 2, y - h / 2, w, h);
+}
+
+// draw the draggable source/target dots (and the fanned-out target clones)
+function drawAnchors() {
+  ctx.globalCompositeOperation = 'source-over';
+  const dot = (x, y, r, fill, stroke) => {
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = fill; ctx.globalAlpha = 1; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = stroke; ctx.stroke();
+  };
+  // fanned target clones (faint)
+  const tps = targetPoints();
+  for (const tp of tps) {
+    if (tp === target) continue;
+    dot(tp.x, tp.y, 7, 'rgba(200,224,112,0.25)', 'rgba(200,224,112,0.5)');
+  }
+  dot(source.x, source.y, 9, '#eaffb0', '#6f9a2f');
+  dot(target.x, target.y, 9, '#dfffa0', '#b0842f');
+  ctx.fillStyle = '#0e100a'; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('S', source.x, source.y);
+  ctx.fillText('T', target.x, target.y);
+}
+
+// --- UI: sliders / colours --------------------------------------------------
+const controls = document.getElementById('controls'), out = document.getElementById('out');
+function label(k) { return k.replace(/([A-Z])/g, ' $1').toLowerCase(); }
+function build() {
+  controls.innerHTML = '';
+  for (const [title, keys] of GROUPS) {
+    const h = document.createElement('h2'); h.textContent = title; controls.appendChild(h);
+    for (const k of keys) {
+      const row = document.createElement('div'); row.className = 'row';
+      const l = document.createElement('label'); l.textContent = label(k);
+      row.appendChild(l);
+      if (k === 'style') {
+        const sel = document.createElement('select');
+        sel.style.gridColumn = '1 / -1';
+        sel.disabled = true; // fixed to 'tendril' for now
+        for (const opt of ['tendril', 'lightning', 'beam']) {
+          const o = document.createElement('option'); o.value = o.textContent = opt; sel.appendChild(o);
+        }
+        sel.value = C.style || 'tendril';
+        row.appendChild(sel);
+      } else if (k.startsWith('color') && typeof C[k] === 'string') {
+        const inp = document.createElement('input'); inp.type = 'color'; inp.value = C[k];
+        inp.style.gridColumn = '1 / -1';
+        inp.oninput = () => { C[k] = inp.value; tintCache.clear(); save(); };
+        row.appendChild(inp);
+      } else {
+        const [mn, mx, st] = RANGES[k];
+        const inp = document.createElement('input'); inp.type = 'range';
+        inp.min = mn; inp.max = mx; inp.step = st; inp.value = C[k];
+        const v = document.createElement('span'); v.className = 'val'; v.textContent = C[k];
+        inp.oninput = () => { C[k] = parseFloat(inp.value); v.textContent = C[k]; save(); };
+        l.style.gridColumn = '1 / -1';
+        row.style.gridTemplateColumns = '1fr 54px';
+        row.appendChild(inp); row.appendChild(v);
+      }
+      controls.appendChild(row);
+    }
+  }
+
+  // targets 1/3/5 control (lives at the top of Shape, appended as its own row)
+  const trow = document.createElement('div'); trow.className = 'row';
+  const tl = document.createElement('label'); tl.textContent = 'targets'; tl.style.gridColumn = '1 / -1';
+  const tsel = document.createElement('select'); tsel.style.gridColumn = '1 / -1';
+  for (const n of [1, 3, 5]) { const o = document.createElement('option'); o.value = o.textContent = String(n); tsel.appendChild(o); }
+  tsel.value = String(targetCount);
+  tsel.onchange = () => { targetCount = parseInt(tsel.value, 10); };
+  trow.appendChild(tl); trow.appendChild(tsel);
+  // insert right after the "Shape" heading (first child is the Shape h2, then style row)
+  controls.insertBefore(trow, controls.children[2] || null);
+}
+
+// --- persistence: write the live preset back into the registry --------------
+function save() {
+  REG.presets[REG.active] = { ...C };
+  store.set(REG);
+  out.value = JSON.stringify(REG.presets, null, 2);
+}
+
+// --- preset management ------------------------------------------------------
+const presetSel = document.getElementById('presetSel');
+function refreshPresetSel() {
+  presetSel.innerHTML = '';
+  for (const name of Object.keys(REG.presets)) {
+    const o = document.createElement('option'); o.value = o.textContent = name; presetSel.appendChild(o);
+  }
+  presetSel.value = REG.active;
+}
+presetSel.onchange = () => {
+  REG.active = presetSel.value;
+  C = { ...DEFAULTS, ...REG.presets[REG.active] };
+  tintCache.clear();
+  build(); save();
+};
+document.getElementById('dupBtn').onclick = () => {
+  const name = prompt('New preset name:', REG.active + '-copy');
+  if (!name) return;
+  if (REG.presets[name]) { alert('A preset named "' + name + '" already exists.'); return; }
+  REG.presets[name] = { ...C };
+  REG.active = name;
+  refreshPresetSel(); build(); save();
+};
+document.getElementById('delBtn').onclick = () => {
+  const names = Object.keys(REG.presets);
+  if (names.length <= 1) { alert('Cannot delete the last remaining preset.'); return; }
+  if (!confirm('Delete preset "' + REG.active + '"?')) return;
+  delete REG.presets[REG.active];
+  REG.active = Object.keys(REG.presets)[0];
+  C = { ...DEFAULTS, ...REG.presets[REG.active] };
+  tintCache.clear();
+  refreshPresetSel(); build(); save();
+};
+
+// --- fire controls ----------------------------------------------------------
+document.getElementById('fire').onclick = () => fire();
+addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); fire(); } });
+let loopId = null;
+document.getElementById('loop').onclick = (e) => {
+  if (loopId) { clearInterval(loopId); loopId = null; e.target.textContent = 'Auto-loop: off'; }
+  else { loopId = setInterval(() => fire(), 1600); e.target.textContent = 'Auto-loop: ON'; }
+};
+document.getElementById('reset').onclick = () => {
+  C = { ...DEFAULTS };
+  tintCache.clear(); build(); save();
+};
+
+// --- pointer: drag anchors, click empty stage to fire -----------------------
+function canvasPos(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+cv.addEventListener('pointerdown', (e) => {
+  const p = canvasPos(e);
+  const near = (a) => Math.hypot(a.x - p.x, a.y - p.y) <= 16;
+  if (near(source)) dragging = 'source';
+  else if (near(target)) dragging = 'target';
+  else { fire(); return; }
+  cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  const p = canvasPos(e);
+  const a = dragging === 'source' ? source : target;
+  a.x = p.x; a.y = p.y;
+});
+cv.addEventListener('pointerup', (e) => { dragging = null; try { cv.releasePointerCapture(e.pointerId); } catch {} });
+
+// --- boot -------------------------------------------------------------------
+refreshPresetSel();
+build();
+save();
+resize();
+requestAnimationFrame((t) => { last = t; tick(t); });
+setTimeout(() => fire(), 300);
+</script>
+</body>
+</html>

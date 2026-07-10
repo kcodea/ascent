@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### fix(ui): quest-badge tooltip no longer clips off-screen · practice hero grid fits without scrolling
+
+Two UI fixes:
+
+- **Completed-quest badge tooltip ran off the left edge.** The badges sit flush-left (bottom-left, above the hero
+  panel), but `.questbadge-tip` was centered over the badge (`left: 50%; translateX(-50%)`), so its left half went
+  off-screen and the quest text was clipped ("Start"→"of Combat", "random"→"dom"). Re-anchored it to open up-and-right
+  (`left: 0`, no transform) with a `max-width: calc(100vw - 24px)` safety, so the full text always shows. Verified: the
+  Blood Trail tooltip now reads in full, its box fully within the viewport (left 33 / right 253 at 1280px).
+- **Practice hero-select scrolled.** Practice offers EVERY hero (now 20), which overflowed at the full 333px card size.
+  Added a `dense` grid variant (`HeroSelect` tags `.hsrow` when >6 heroes): compact 156px cards, smaller art/type,
+  power text clamped to 3 lines, the "Choose" pill dropped (the whole card is a button), and a trimmed header via
+  `:has()`. All 20 now fit in 3 rows (7+7+6) with no scroll at 1280×800. Ascent (3 heroes) keeps the big cards.
+
+`lint` + `test` (782) + `build:web` green; both verified live.
 ### fix(ui): Hermit Hank's Upgrade Tavern button shows the real (surcharged) cost
 
 The reducer charges `upgradeCostOf(s)` for a tavern-up (Hermit Hank pays +2 over the base), but the Upgrade Tavern

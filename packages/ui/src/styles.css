@@ -1298,7 +1298,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .questbadge-emblem { display: flex; color: var(--c); }
 .questbadge-emblem svg { width: calc(22 * var(--u)); height: calc(22 * var(--u)); }
 .questbadge-chip { position: absolute; bottom: calc(-4 * var(--u)); right: calc(-6 * var(--u)); background: var(--ink); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: calc(9 * var(--u)); line-height: 1; padding: calc(2 * var(--u)) calc(5 * var(--u)); border-radius: calc(8 * var(--u)); font-variant-numeric: tabular-nums; white-space: nowrap; box-shadow: 0 calc(2 * var(--u)) calc(5 * var(--u)) -2px var(--shadow); }
-.questbadge-tip { position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%); width: 220px; display: flex; flex-direction: column; gap: 4px; background: var(--ink); color: #fff; border-radius: 12px; padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-align: center; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
+/* Anchored to the badge's LEFT (opening up-and-right), NOT centered — the badges sit flush against the left
+   screen edge (bottom-left), so a centered tooltip ran its left half off-screen (clipping the quest text). */
+.questbadge-tip { position: absolute; bottom: calc(100% + 10px); left: 0; width: 220px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 4px; background: var(--ink); color: #fff; border-radius: 12px; padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-align: center; overflow-wrap: break-word; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
 .questbadge-tip b { color: var(--acc); font-weight: 800; }
 .questbadge-tip .questbadge-tip-reward { color: #f4f0e6; }
 .questbadge-tip .questbadge-tip-state { color: var(--gold); font-weight: 800; }
@@ -1805,6 +1807,24 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .hclock { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 16%, transparent); border: 1.5px solid color-mix(in srgb, var(--acc) 45%, transparent); padding: 4px 13px; border-radius: 8px; }
 .hcblurb { font-size: 13px; font-style: italic; color: var(--ink3); line-height: 1.4; margin-top: auto; padding-top: 6px; }
 .hcpick { margin-top: 16px; font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.12em; text-transform: uppercase; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); box-shadow: 0 4px 0 var(--acc-dk); padding: 10px 29px; border-radius: 12px; }
+/* Dense grid — Practice mode offers EVERY hero (20+), so shrink the cards to fit without scrolling. The whole
+   card is a button, so the "Choose" pill is dropped (hover-lift + accent border carry the affordance) and the
+   power text is clamped to 3 lines. Ascent (3 heroes) keeps the big cards. */
+.hsrow.dense { gap: 10px; max-width: 97vw; }
+.hsrow.dense .herocard { width: 156px; gap: 5px; padding: 11px 9px 11px; border-radius: 15px; border-width: 2px; }
+.hsrow.dense .herocard:hover { transform: translateY(-4px); }
+.hsrow.dense .hcart { width: 66px; height: 66px; border-radius: 11px; }
+.hsrow.dense .hcart svg { width: 32px; height: 32px; }
+.hsrow.dense .hcname { font-size: 17px; }
+.hsrow.dense .hchp { font-size: 13.5px; margin: 0; gap: 4px; }
+.hsrow.dense .hchp svg { width: 14px; height: 14px; }
+.hsrow.dense .hcarmor { font-size: 11px; padding: 0 6px; }
+.hsrow.dense .hcpw { font-size: 11px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.hsrow.dense .hclock { font-size: 10px; padding: 2px 8px; }
+.hsrow.dense .hcpick { display: none; }
+/* Trim the picker header when the dense grid is up, reclaiming vertical space for the extra hero rows. */
+.hsbox:has(.hsrow.dense) .hstitle { font-size: clamp(34px, 6vw, 54px); margin: 2px 0 6px; }
+.hsbox:has(.hsrow.dense) .eyebrow { font-size: 14px; }
 .herocard:hover .hcpick { background: var(--acc-dk); }
 
 /* End-of-run screen — reuses the hero-picker overlay (.heroselect/.hsbox); shows the round

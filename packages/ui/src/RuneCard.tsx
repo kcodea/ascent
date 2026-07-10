@@ -59,24 +59,28 @@ export function RuneCard({ rune, affordable, onBuy }: { rune: RuneDef; affordabl
   };
   useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
 
+  const art = runeArt(rune.id);
   return (
     <button
-      className={`runecard${affordable ? '' : ' cantafford'}${runeArt(rune.id) ? ' has-art' : ''}`}
+      className={`runecard${art ? ' has-art' : ''}${affordable ? '' : ' cantafford'}`}
       onClick={affordable ? onBuy : undefined}
       disabled={!affordable}
       onMouseEnter={hasPreview ? (e) => show(e.currentTarget) : undefined}
       onMouseLeave={hasPreview ? hide : undefined}
       aria-label={`${rune.name} — buy for ${rune.cost} Gold`}
     >
-      {runeArt(rune.id)
-        ? <img className="runecard-art" src={runeArt(rune.id)} alt="" aria-hidden />
-        : <span className="runecard-sigil" aria-hidden><Icon name="sc" /></span>}
+      {art && <img className="runecard-art" src={art} alt="" aria-hidden />}
+      {/* Gold coin cost, overhanging the top-left corner (like a spell's cost). */}
+      <span className="runecard-cost" title={`Costs ${rune.cost} Gold`}><span className="costn">{rune.cost}</span></span>
+      <span className="runecard-emblem" aria-hidden><Icon name="sc" /></span>
       <div className="runecard-head">
+        <div className="runecard-kicker">Rune</div>
         <div className="runecard-name">{rune.name}</div>
-        <div className="runecard-cost" title={`Costs ${rune.cost} Gold`}><Icon name="ember" />{rune.cost}</div>
       </div>
       <div className="runecard-body">
-        <div className="runecard-txt" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
+        <div className="runecard-sect">
+          <div className="runecard-txt" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
+        </div>
       </div>
       {!affordable && <div className="runecard-lock">Not enough Gold</div>}
       {tip && hasPreview && createPortal(

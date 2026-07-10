@@ -955,35 +955,34 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .forge-skip:hover { color: #e6e2d7; border-color: rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.09); }
 
 /* Rune tablet — a carved stone slab: engraved border, a rune sigil, the name, a Gold cost, and its effect. */
+/* Rune tablet — mirrors the art-forward QuestCard (full-bleed art, top emblem, bottom text panel) but framed in a
+   dark slate GREY instead of a tribe colour, with a GOLD-coin cost overhanging the top-left like a spell. */
 .runecard {
-  position: relative; flex: 0 0 auto; width: var(--cw); min-height: calc(var(--cw) * 1.18);
-  display: flex; flex-direction: column; text-align: left; padding: calc(14 * var(--u)) calc(15 * var(--u)) calc(16 * var(--u));
-  border: none; border-radius: calc(13 * var(--u)); overflow: visible; font-family: var(--font-ui);
-  background: linear-gradient(180deg, #3b3f47 0%, #2c2f36 60%, #24272d 100%);
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.14), inset 0 0 0 2px rgba(0, 0, 0, 0.5), 0 0 0 2px #5a606c, 0 14px 28px -12px rgba(0, 0, 0, 0.8);
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease;
+  --c: #7c8493; /* the frame/accent colour — a neutral dark slate, not a tribe hue */
+  position: relative; flex: 0 0 auto; width: var(--cw); min-height: calc(var(--cw) * 1.62);
+  display: flex; flex-direction: column; text-align: center; padding: 0; border: none; border-radius: 15px; overflow: visible;
+  background: radial-gradient(125% 85% at 50% 18%, #2a2d34, #14161a); font-family: var(--font-ui);
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.14s ease, filter 0.14s ease, box-shadow 0.14s ease;
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 0 3px var(--c), 0 0 0 5px rgba(0, 0, 0, 0.5), 0 12px 26px -10px rgba(0, 0, 0, 0.75), 0 0 20px -6px color-mix(in srgb, var(--c) 55%, transparent);
 }
-.runecard:hover:not(:disabled) { transform: translateY(-6px); box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.16), inset 0 0 0 2px rgba(0, 0, 0, 0.5), 0 0 0 2px #8fb7c2, 0 18px 34px -12px rgba(0, 0, 0, 0.8), 0 0 34px -8px rgba(120, 190, 210, 0.6); }
-.runecard.cantafford { cursor: not-allowed; filter: grayscale(0.5) brightness(0.72); }
-.runecard-sigil { align-self: center; display: grid; place-items: center; width: calc(46 * var(--u)); height: calc(46 * var(--u)); border-radius: 50%; margin-bottom: calc(8 * var(--u)); background: radial-gradient(circle at 38% 30%, #565b66, #2a2d33); box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.5), inset 0 2px 3px rgba(255, 255, 255, 0.18), 0 0 14px -4px rgba(140, 200, 220, 0.5); }
-.runecard-sigil svg { width: calc(24 * var(--u)); height: calc(24 * var(--u)); color: #cfe4ea; }
-.runecard-head { display: flex; align-items: center; gap: calc(8 * var(--u)); margin-bottom: calc(8 * var(--u)); }
-.runecard-name { flex: 1; font-weight: 900; font-size: calc(15 * var(--u)); line-height: 1.12; color: #ece9df; letter-spacing: 0.02em; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55); }
-.runecard-cost { flex: none; display: inline-flex; align-items: center; gap: calc(3 * var(--u)); font-weight: 900; font-size: calc(16 * var(--u)); color: #f4d98a; background: rgba(0, 0, 0, 0.32); border: 2px solid rgba(244, 217, 138, 0.4); border-radius: calc(9 * var(--u)); padding: calc(2 * var(--u)) calc(8 * var(--u)); }
-.runecard-cost svg { width: calc(14 * var(--u)); height: calc(14 * var(--u)); color: #f4d98a; }
-.runecard-body { flex: 1; }
-.runecard-txt { font-weight: 600; font-size: calc(13 * var(--u)); line-height: 1.34; color: #d6d2c7; }
+.runecard:hover:not(:disabled) { transform: translateY(-8px); filter: brightness(1.05); box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.55), 0 0 0 3px var(--c), 0 0 0 6px rgba(0, 0, 0, 0.45), 0 18px 32px -10px rgba(0, 0, 0, 0.75), 0 0 42px -4px color-mix(in srgb, var(--c) 88%, transparent); }
+.runecard.cantafford { cursor: not-allowed; filter: grayscale(0.5) brightness(0.68); }
+.runecard-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 32%; border-radius: 13px; z-index: 0; }
+.runecard::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 48%; border-radius: 13px 13px 0 0; background: linear-gradient(180deg, rgba(6, 7, 10, 0.8) 0%, rgba(6, 7, 10, 0.32) 46%, transparent 100%); z-index: 1; pointer-events: none; }
+/* Gold coin cost — a round gold coin overhanging the top-left corner (mirrors the spell cost coin's placement). */
+.runecard-cost { position: absolute; top: -16px; left: -14px; width: 52px; height: 52px; z-index: 6; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 38% 30%, #ffe293, #eab63f 58%, #b9821f); border: 3px solid #1b1d22; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.55), inset 0 -3px 4px rgba(120, 80, 10, 0.4); }
+.runecard-cost .costn { font-family: var(--font-ui); font-weight: 900; font-size: 25px; color: #4a3208; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); }
+/* Rune sigil emblem (top, grey-framed) — mirrors QuestCard's tribe emblem. */
+.runecard-emblem { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); width: 50px; height: 50px; z-index: 5; display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 50% 34%, #3a3e46, #14161a); border: 3px solid var(--c); box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.5), 0 3px 9px rgba(0, 0, 0, 0.6), 0 0 16px -4px color-mix(in srgb, var(--c) 75%, transparent); }
+.runecard-emblem svg { width: 52%; height: 52%; color: #d3e6ec; }
+.runecard-head { position: relative; z-index: 2; padding: 34px 14px 0; text-align: center; }
+.runecard-kicker { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 55%, #fff); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
+.runecard-name { font-family: var(--font-title); font-weight: 800; font-size: 22px; line-height: 1.05; color: #fff; text-shadow: 0 2px 7px rgba(0, 0, 0, 0.85); margin-top: 3px; }
+.runecard-body { position: relative; z-index: 2; margin-top: auto; padding: 12px; display: flex; flex-direction: column; }
+.runecard-sect { background: rgba(9, 10, 13, 0.84); border: 1px solid color-mix(in srgb, var(--c) 34%, rgba(0, 0, 0, 0.4)); border-radius: 10px; padding: 8px 11px; }
+.runecard-txt { font-weight: 700; font-size: 13px; line-height: 1.26; color: #f1ece3; overflow-wrap: anywhere; text-align: left; }
 .runecard-txt b { color: #b7e4f0; font-weight: 800; }
-.runecard-lock { margin-top: calc(8 * var(--u)); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.04em; text-transform: uppercase; color: #d98a8a; }
-/* Art-forward rune tablet: the full illustration fills the slab; name + cost float at the top over a scrim, and
-   the effect text sits in a dark panel pinned to the bottom. */
-.runecard.has-art { overflow: hidden; min-height: calc(var(--cw) * 1.5); padding: calc(11 * var(--u)) calc(12 * var(--u)) calc(12 * var(--u)); }
-.runecard-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
-.runecard.has-art::before { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(180deg, rgba(8, 9, 12, 0.72) 0%, rgba(8, 9, 12, 0.05) 24%, rgba(8, 9, 12, 0.12) 50%, rgba(8, 9, 12, 0.8) 82%, rgba(8, 9, 12, 0.94) 100%); }
-.runecard.has-art .runecard-head, .runecard.has-art .runecard-body, .runecard.has-art .runecard-lock { position: relative; z-index: 2; }
-.runecard.has-art .runecard-head { margin-bottom: 0; }
-.runecard.has-art .runecard-body { margin-top: auto; flex: none; background: rgba(12, 14, 18, 0.62); border: 2px solid rgba(255, 255, 255, 0.1); border-radius: calc(10 * var(--u)); padding: calc(8 * var(--u)) calc(10 * var(--u)); }
-.runecard.has-art .runecard-name { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 6px rgba(0, 0, 0, 0.7); }
+.runecard-lock { position: relative; z-index: 6; margin: 0 12px 11px; font-weight: 800; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: #f0a0a0; }
 
 /* Rune run-buff badge (in the quest-badge row above the hero) — a stone-toned circle. */
 .questbadge.runebadge { border-color: #6a707c; background: linear-gradient(180deg, #3a3e46, #2a2d33); }

@@ -3044,7 +3044,6 @@ export function Recruit() {
         <div className="discover-ov forge-ov" role="dialog" aria-label="The Runeforge">
           <div className="disc-panel forge-panel">
             <div className="disc-banner forge-banner"><Icon name="anvil" /><span className="disp">Runeforge</span></div>
-            <div className="disc-sub forge-sub">Forge one Rune into your run — it lasts the whole climb</div>
             <div className="disc-cards forge-cards">
               {run.runeforgeOffer.map((id, i) => {
                 const rune = RUNE_INDEX[id];

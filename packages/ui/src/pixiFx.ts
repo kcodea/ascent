@@ -1036,16 +1036,17 @@ class FxController {
       });
       const mesh = new Mesh({ geometry: this.shieldGeo!, shader });
       container.addChild(mesh);
-      container.alpha = 0;
+      // `instant` (a bubble re-created across a combat↔recruit transition, not a genuine recruit play) → born
+      // fully-formed at full alpha, so it doesn't replay its deploy snap-in as the board swaps.
+      container.alpha = instant ? 1 : 0;
       this.shieldLayer.addChild(container);
-      // `instant` (a Skip settling the resolved board) → born fully-formed: skip the grow-in so the aura
-      // doesn't visibly re-bloom as the board fades back in.
       b = { kind, container, mesh, shader, cx, cy, w, h, age: 0, formIn: instant ? 1e6 : 0, fadeOut: -1,
             mini, pop: -1, scaleMul: mini ? MINI_SCALE : 1, rot: 0, track };
       this.shields.set(key, b);
     } else {
       b.cx = cx; b.cy = cy; b.w = w; b.h = h; b.track = track;
       b.fadeOut = -1; // re-targeted while fading (re-gained) → cancel the fade
+      if (instant) b.formIn = 1e6; // combat↔recruit swap: force fully-formed even if the bubble already exists (churn)
       // Dragged (mini) → placed (full): coalesce/pop the bubble back into existence (inverse of the break).
       if (b.mini && !mini) { b.pop = 0; this.shieldPop(cx, cy, w, h, kind); }
       b.mini = mini;
@@ -1083,14 +1084,6 @@ class FxController {
   clearShield(uid: string, kind: AuraKind = 'shield'): void {
     const b = this.shields.get(auraKey(kind, uid));
     if (b && b.fadeOut < 0) b.fadeOut = 0;
-  }
-
-  /** Instantly destroy EVERY persistent aura bubble (no graceful fade) — used by the Skip transition to wipe the
-   *  board's auras up front, so none can flash at a stale/wrong position while the resolved board re-registers
-   *  them fresh. */
-  clearAllShields(): void {
-    for (const b of this.shields.values()) { b.shader.destroy(); b.container.destroy({ children: true }); }
-    this.shields.clear();
   }
 
   /** True if a persistent aura bubble of this kind is currently registered for `uid` (the choreographer's

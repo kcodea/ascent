@@ -33,6 +33,40 @@ so it never touched a concurrent branch in the shared folder.
 
 ## 2026-07-09 (session 28)
 
+### fix(ui): taunt bulwark no longer re-deploys on the combat↔recruit swap
+
+The remaining "taunt bulwark spawns in briefly" was **not** the skip fade — instrumentation (wrapping
+`__tauntFx.setShield` + `pixiFx.dust` in a real Chrome tab) showed the fresh taunt creations fire in phase
+`recruit`, on the RETURN from combat. Combat re-uids the board (recruit `t1` → combat `m0`), so on return the
+surviving taunts are "new" keys and replay their deploy (the rigid snap-in + a dust plume) as the shop crossfades
+in. The End-Combat crossfade (#266) made this pre-existing deploy visible. Fix: a `deployGraceRef` window opened
+in the RENDER body (not an effect — it must be live before `syncShields`' layout effect reads it) on every
+`inCombat` change; while it's open, `syncShields` registers taunts **fully-formed** (`setShield(..., instant)` —
+now honored on the UPDATE path too, since a churned bubble already exists) and **skips the deploy dust**. A
+genuine recruit play (outside the grace) still deploys normally. **A second source, found by stress-testing:** on
+a SKIP the replay jumps to the end, so any **reborn / summoned** taunt on the resolved board appears at once and
+deploys "as the End Combat button pops up" — `inCombat` never changed, so that grace didn't cover it. `skipCombat`
+now also opens the grace for the whole skip window (`FADE+HOLD+IN+600`). Verified with a scripted stress harness in
+a real Chrome tab (re-fight loop, randomized taunt/reborn/DS boards, opponent waves 3–15): **65 skips → 1 446 taunt
+bulwark creations, every one instant (`formIn ≥ 1000`), zero snap-deploys**. The steady board shows the taunts on
+their units with zero floaters (the floaters in the bug screenshot were a paused-ticker debug artifact — a stopped
+ticker can't finish `clearShield`'s fade, so bubbles pile up; they self-clear in normal play).
+
+### fix(ui): Skip fade — stop fighting the aura system (no orphaned bulwarks, no pop)
+
+Follow-up to #274. The Skip fade grew a pile of aura-management machinery (`skipPhaseRef` suppress/settle,
+`clearAllShields`, a `setShield(instant)` flag, ticker pausing, a synchronous re-register) trying to stop the
+resolved board's auras re-blooming — and it kept producing new artifacts: a taunt bulwark popping in, then
+**orphaned taunt bulwarks floating with no unit** (a dead unit's aura left at a stale slot; compounded by paused
+tickers never letting `clearShield`'s fade finish). The fix is to **delete all of it** and let `syncShields`
+(the continuous aura reconcile) do its job: a dead unit's bubble clears on its normal grace — which expires
+*during* the 900 ms hold, so no orphan survives to the fade-in — and survivors' auras simply persist. Skip now
+only: kills audio, freezes the units (GSAP), fades the FX **canvas** out (an rAF opacity fade, since CSS
+transitions don't take on a live WebGL canvas), jumps to the resolved board under cover, wipes transient dust,
+then fades the canvas back in. Net −22 lines. Verified in a real Chrome tab across win/loss: every aura bubble
+maps to a live unit at every sample (no `*ORPHAN*`), and a frozen fade-in frame shows the survivors' auras on
+their units with **zero** floaters (vs the ~5 in the bug report). typecheck + lint + 782 tests + `build:web` green.
+
 ### fix(content): Key Findings Discovers from your CURRENT tier only
 
 Owner ruling: Key Findings should Discover a minion of your **exact** current tavern tier, not from every tier up

@@ -18,14 +18,17 @@ export interface BuffPresetCfg {
   colorCore: string; colorGlow: string; colorFlash: string; colorMote: string;
 }
 
-/** Starter dials — replaced by the owner's tuned values (Phase 2). Complete + typed so logic/tests are honest. */
+/** Owner-tuned on the preview rig (2026-07-10, the "newdefault" preset). `flashSize`/`pulseSize` are PX RADII
+ *  (1:1 with the preview — the engine divides by the glow basis). Widths/alphas/durations transfer directly.
+ *  `default` shares these values until it gets its own tuned look; only the Kennelmaster card fires in the
+ *  iteration-1 slice, so `default` is not yet exercised live. */
 const BASE: BuffPresetCfg = {
   style: 'tendril',
-  curve: 0.3, wobbleAmp: 10, wobbleFreq: 2.5, travelMs: 200, retractMs: 140,
-  baseWidth: 10, tipWidth: 1.5, coreAlpha: 1, glowWidth: 22, glowAlpha: 0.5,
-  flashSize: 46, flashMs: 200, moteCount: 12, moteSpeed: 260, moteLife: 420,
-  pulseSize: 38, pulseAlpha: 0.5, pulseMs: 180,
-  colorCore: '#eaffb0', colorGlow: '#c8e070', colorFlash: '#dfffa0', colorMote: '#c8e070',
+  curve: 0.83, wobbleAmp: 11, wobbleFreq: 3.5, travelMs: 430, retractMs: 170,
+  baseWidth: 19, tipWidth: 5, coreAlpha: 1, glowWidth: 70, glowAlpha: 0.04,
+  flashSize: 69, flashMs: 230, moteCount: 31, moteSpeed: 590, moteLife: 700,
+  pulseSize: 85, pulseAlpha: 0.4, pulseMs: 300,
+  colorCore: '#32fb18', colorGlow: '#6ef500', colorFlash: '#adff5c', colorMote: '#3ebd0f',
 };
 
 export const BUFF_PRESETS: Record<string, BuffPresetCfg> = {

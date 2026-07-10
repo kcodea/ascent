@@ -15,7 +15,9 @@ function cardViewOf(m: BoardMinion): CardView {
   return {
     name: def?.name ?? m.cardId, cardId: m.cardId, tribe: def?.tribe ?? 'neutral', tribe2: def?.tribe2,
     attack: m.attack, health: m.health, keywords: m.keywords ?? [],
-    text: def?.text ?? '', goldenText: def?.goldenText, golden: m.golden,
+    // Prefer the LIVE end-of-run text baked into the snapshot (a maxed Sergeant's real grant, etc.); older
+    // snapshots without it fall back to the printed card text.
+    text: m.text ?? def?.text ?? '', goldenText: m.goldenText ?? def?.goldenText, golden: m.golden,
     tier: def?.tier ?? 1, baseAttack: def?.attack ?? m.attack, baseHealth: def?.health ?? m.health,
     // Per-source buff breakdown (captured in the snapshot) → shown in the right-click inspect panel. Older
     // snapshots (captured before this shipped) carry none, so the panel just doesn't appear for them.

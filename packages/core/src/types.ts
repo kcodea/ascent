@@ -618,6 +618,13 @@ export interface BoardMinion {
   /** Per-source recruit-phase buff breakdown carried from the run board, so the combat inspect panel can
    *  itemize where this minion's stats came from (Spirit Fire, triples, Battlecries…) — same as the shop. */
   buffs?: MinionBuff[];
+  /** DISPLAY-ONLY: the minion's LIVE, end-of-run rule text (scaling values folded in — Sergeant's climbing
+   *  grant, Guel, Taragosa, …), baked in when the *final* board is captured for the leaderboard / Career so
+   *  those static views read the end-of-run magnitude, not the printed base. Absent on pool/combat snapshots
+   *  (they fall back to the printed card text). Combat + matchmaking never read this. */
+  text?: string;
+  /** DISPLAY-ONLY: the golden variant of `text`, baked alongside it (see `text`). */
+  goldenText?: string;
 }
 
 /** A live combat instance. Mutable for the duration of one `simulate()` call. */

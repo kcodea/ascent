@@ -84,6 +84,12 @@ export function upgradeCostOf(s: RunState): number {
   return s.upgradeCost + (getHero(s.heroId).power.kind === 'cheapMinions' ? 2 : 0);
 }
 
+/** The Gold a tavern refresh (reroll) costs right now: the config default, but Tradesman (cheapMinions) pays 2
+ *  — cheap to shop, dear to churn. The single source of truth for the reducer's roll charge + the UI button. */
+export function refreshCostOf(s: RunState): number {
+  return getHero(s.heroId).power.kind === 'cheapMinions' ? 2 : CONFIG.refreshCost;
+}
+
 /**
  * The board the *next* combat will serve: a wave-matched real opponent from the pool (same development stage),
  * or null when the pool is empty (→ the procedural threat). Pure + deterministic — the opponent frame previews
@@ -183,19 +189,19 @@ export function reduce(state: RunState, action: Action): RunState {
     // (bakes +N into every current Undead + `undeadBuyAtk` so future buys inherit it), so the quest reward feels
     // identical to the minion instead of a separate Lantern-style aura.
     if (spellCastDelta > 0 && next.forsakenWillAttack) buffUndeadAttackEverywhere(next, next.forsakenWillAttack * spellCastDelta, 'Forsaken Will');
-    // Taragosa's Heir: every THIRD stat-gain your STRONGEST Dragon receives is mirrored onto the Heir permanently
-    // (recruit phase; combat-gain copy is a follow-up). Counts an action where the current strongest Dragon (not
-    // the Heir) gained stats as one gain; every 3rd such gain, the Heir gains the same +Attack/+Health.
+    // Taragosa's Heir: a stat-gain amplifier — every stat gain THIS minion receives from any recruit-phase source
+    // is multiplied (×2, golden ×3). We read the Heir's OWN +Attack/+Health this action and top it up by the extra
+    // (mult−1)× so the net gain is mult×. The Heir's natural gain already counted toward the Dragon `tribeStats`
+    // quest above; the amplified extra deliberately does not (added after that sum). Combat-phase gains aren't
+    // amplified (this diff is recruit-only), matching the old reward's scope.
     const heir = next.board.find((c) => c.cardId === 'taragosaheir');
     if (heir) {
-      const strongest = next.board.filter((c) => c !== heir && isTribe(c, 'dragon'))
-        .reduce<BoardCard | undefined>((a, b) => (!a || b.attack + b.health > a.attack + a.health ? b : a), undefined);
-      const prev = strongest ? statBefore.get(strongest.uid) : undefined;
-      const dA = strongest && prev ? Math.max(0, strongest.attack - prev.attack) : 0;
-      const dH = strongest && prev ? Math.max(0, strongest.health - prev.health) : 0;
+      const prev = statBefore.get(heir.uid);
+      const dA = prev ? Math.max(0, heir.attack - prev.attack) : 0;
+      const dH = prev ? Math.max(0, heir.health - prev.health) : 0;
       if (dA > 0 || dH > 0) {
-        heir.heirGainCount = (heir.heirGainCount ?? 0) + 1;
-        if (heir.heirGainCount % 3 === 0) addBuff(heir, "Taragosa's Inheritance", dA, dH);
+        const extra = (heir.golden ? 3 : 2) - 1; // ×2 → +1× extra; ×3 → +2× extra
+        addBuff(heir, "Taragosa's Inheritance", dA * extra, dH * extra);
       }
     }
     // Quest objectives (a successful recruit action already means `next !== state`):
@@ -675,8 +681,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (s.freeRolls > 0) {
         s.freeRolls -= 1;
       } else {
-        if (s.embers < CONFIG.refreshCost) return state;
-        spendGold(s, CONFIG.refreshCost); // gold spent → Acid / Banksly meter
+        const rc = refreshCostOf(s); // Tradesman pays 2
+        if (s.embers < rc) return state;
+        spendGold(s, rc); // gold spent → Acid / Banksly meter
       }
       s.frozen = false;
       refreshTavern(s);

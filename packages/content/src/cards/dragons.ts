@@ -285,22 +285,23 @@ export const DRAGONS: CardDef[] = [
     goldenText: '**Sell:** get **12 Gold**.',
   },
   {
-    // Skybound Pact reward — End of Turn, drags your weakest Dragon up toward your strongest.
+    // Skybound Pact reward — End of Turn, drags your weakest Dragon up toward your strongest. T4 so Eyes of
+    // Aresmar (≤T4) can gild it; golden hands over the strongest's FULL stats.
     id: 'skybound',
     name: 'Skybound Archivist',
     tribe: 'dragon',
-    tier: 5,
+    tier: 4,
     attack: 5,
     health: 4,
     keywords: [],
     token: true,
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffWeakestDragon', params: { pct: 20 } }],
-    text: "**End of Turn:** your weakest Dragon gains stats equal to **20%** of your strongest Dragon's stats.",
-    goldenText: "**End of Turn:** your weakest Dragon gains stats equal to **40%** of your strongest Dragon's stats.",
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffWeakestDragon', params: { pct: 50 } }],
+    text: "**End of Turn:** your weakest Dragon gains stats equal to **50%** of your strongest Dragon's stats.",
+    goldenText: "**End of Turn:** your weakest Dragon gains stats equal to **100%** of your strongest Dragon's stats.",
   },
   {
-    // Taragosa's Inheritance reward — mirrors your strongest Dragon's growth. Effect is handled in the reducer's
-    // stat-gain diff (recruit phase; combat-gain copy is a follow-up), so no effect factory here.
+    // Taragosa's Inheritance reward — a stat-gain amplifier: every stat gain THIS minion receives from any source
+    // is multiplied (×2, golden ×3). Handled in the reducer's stat-gain diff (recruit phase), so no effect factory.
     id: 'taragosaheir',
     name: "Taragosa's Heir",
     tribe: 'dragon',
@@ -310,11 +311,12 @@ export const DRAGONS: CardDef[] = [
     keywords: [],
     token: true,
     effects: [],
-    text: 'Every **third** stat gain your **strongest Dragon** receives is copied onto this, permanently.',
+    text: 'Gains **2× stats** from all sources.',
+    goldenText: 'Gains **3× stats** from all sources.',
   },
   {
     // Chimerus quest reward (Dragon capstone). Rally: each attack hands its own Health to 2 friendly Dragons —
-    // a tanky body that turns its bulk into board-wide Dragon Health. Golden gives 2× its Health.
+    // a tanky body that turns its bulk into board-wide Dragon Health. Golden runs the whole hand-out TWICE.
     id: 'chimerus',
     name: 'Chimerus',
     tribe: 'dragon',
@@ -324,6 +326,7 @@ export const DRAGONS: CardDef[] = [
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallyGiveHealthToDragons' }],
     text: "**Rally:** give this minion's Health to 2 friendly Dragons.",
+    goldenText: "**Rally:** give this minion's Health to 2 friendly Dragons, **twice**.",
     token: true,
   },
 ];

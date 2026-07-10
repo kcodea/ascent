@@ -198,7 +198,7 @@ export type EffectFactoryId =
   | 'endOfTurnBonusGold' // Scrap Vendor: End of Turn — bank Gold into your next shop (recruit)
   | 'battlecryAllDemonsConsume' // Herald of the Apocalypse: Battlecry — every friendly Demon Consumes a Fodder (recruit)
   | 'spellBuffImpsPerDemon' // Implosion: cast — buff your Imps +atk/+hp, recast once per Demon you control (recruit)
-  | 'onSellGetEchoAndTrigger' // Crypt Broker: Sell — get a random Echo minion + trigger its Deathrattle (recruit)
+  | 'getEchoAndTrigger' // Crypt Broker: Battlecry — get a random Echo minion + trigger its Echo (recruit)
   // --- recruit factories (new content batch) ---
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
   | 'battlecryBuffBeastAttack' // (legacy) give your Beasts +Attack wherever they are; stacks into future buys

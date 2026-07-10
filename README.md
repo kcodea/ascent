@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Lunge Strike Effects tuner + strike-point control.** A new 💥 Dev-menu panel controls the whole combat
+  strike-impact package in one place — flash, shockwave, heavy ring, sparks, smoke, dust billow, and energy
+  pulse (previously hardcoded), plus a `corner depth` dial for where the attacker's leading corner lands
+  (defender surface ↔ true centre). Owner-tuned defaults baked. Presentation-only.
 - **Skip combat fades out gracefully.** Skipping the replay no longer hard-cuts: everything freezes and mutes for a
   beat, all units + FX fade out together, then the resolved board fades back in — the same crossfade as End Combat.
 - **Hero batch — 4 reworks + 6 new heroes.** Djinn's Cadence now fires *every* friendly End of Turn; Rohan scales

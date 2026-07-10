@@ -44,20 +44,20 @@ export interface LungeConfig {
 }
 
 const DEFAULTS: LungeConfig = {
-  windupDur: 0.37,   // longer, weightier wind-up (tuned by eye in the DEV Lunge tuner)
+  windupDur: 0.47,   // tuned by eye in the DEV Lunge tuner (2026-07-10)
   windupDepth: 0.1,
-  windupScale: 1.2,  // swell +20% during the wind-up, then return to 1 on the strike
-  strikeDur: 0.16,   // fallback only (used when elements are unresolved); live strikes derive from distance
-  bite: 24,          // corner-clack dials below tuned by eye in the strike previewer (2026-07-08)
-  leadTilt: 20,
+  windupScale: 1.28, // swell during the wind-up, then return to 1 on the strike
+  strikeDur: 0.17,   // fallback only (used when elements are unresolved); live strikes derive from distance
+  bite: 16,
+  leadTilt: 7.5,
   defenderSpin: 15,
   attackerRebound: 2.5,
-  targetSpeed: 1850,
-  minStrikeDur: 0.2,
-  maxStrikeDur: 0.4,
+  targetSpeed: 1100,
+  minStrikeDur: 0.13,
+  maxStrikeDur: 0.44,
   smackLead: 0.005,  // smack ~5ms before the strike lands (near-on-contact)
-  settleDur: 1.06,   // a slower, springier elastic return to rest
-  attackGap: 0.22,   // shorter breather between swings (the inter-attack pause)
+  settleDur: 0.34,   // a snappier elastic return to rest
+  attackGap: 0.34,   // breather between swings (the inter-attack pause)
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

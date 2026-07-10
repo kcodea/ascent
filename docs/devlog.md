@@ -3,6 +3,34 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-10 (session 29)
+
+### feat(ui): Lunge Strike Effects tuner + strike-point control (corner ↔ centre)
+
+A dedicated DEV tuner for the whole combat strike-impact package, plus a control for where the attacker's
+corner lands. Presentation-only — no core/sim/outcome changes. Built in an isolated git worktree off `main`
+so it never touched a concurrent branch in the shared folder.
+
+- **Strike-point geometry (`choreo/engine.ts`).** The attacker always leads with its tilted corner
+  (magnitude = `lungeConfig.leadTilt`); the new `strikeFxConfig.strikePoint` sets how DEEP that corner
+  drives — from the defender's near SURFACE (0) to the defender's TRUE CENTRE (1, both axes). The engine
+  translates the attacker so its *leading corner* (not its card centre) lands on that target and fires the
+  impact FX there (`cornerLocal = geo.contact − geo.strike`; `strike = target − cornerLocal`). Owner settled
+  on **0** (the shallow surface clack) after previewing the deep-centre version.
+- **`strikeFxConfig.ts` + the "💥 Lunge Strike Effects" tuner (`StrikeFxTuner.tsx`, in the Dev Tuning Menu).**
+  Pulled the flash / shockwave / heavy-ring / spark values out of `pixiFx.impact()`'s hardcodes into a
+  tunable config, and surfaced the impact smoke + dust billow + energy pulse (from `smokeConfig`) in the same
+  panel — the whole strike package now dials in one place and can't silently vanish. `playContactImpact` now
+  takes the engine-computed `spinDeg` (defender counter-spin) instead of `leadTilt`.
+- **Baked owner-tuned defaults (2026-07-10).** Lunge: windupDur 0.47 / windupScale 1.28 / bite 16 /
+  leadTilt 7.5 / targetSpeed 1100 / minStrikeDur 0.13 / maxStrikeDur 0.44 / settleDur 0.34 / attackGap 0.34.
+  Strike FX: strikePoint 0 / flash 4.5 / shockwave 4.4 / ring 2.5 / sparks 40×1.55, spread 230°, size 1.3.
+  Impact smoke/dust/pulse: smoke 3 / rise 0 / life 400 / grow 6 / alpha 0.15; dust 22 @ 450 / life 720;
+  pulse radius 150 / time 480 / 2 rings.
+- **Verified.** typecheck + lint + `npm test` (782) + `build:web` green; dialed live by the owner on the
+  worktree's dev server. A `lunge.test.ts` seek that hardcoded the old wind-up time was made robust (reads
+  `getLungeConfig().windupDur`).
+
 ## 2026-07-09 (session 28)
 
 ### fix(ui): taunt bulwark no longer re-deploys on the combat↔recruit swap
@@ -38,6 +66,22 @@ transitions don't take on a live WebGL canvas), jumps to the resolved board unde
 then fades the canvas back in. Net −22 lines. Verified in a real Chrome tab across win/loss: every aura bubble
 maps to a live unit at every sample (no `*ORPHAN*`), and a frozen fade-in frame shows the survivors' auras on
 their units with **zero** floaters (vs the ~5 in the bug report). typecheck + lint + 782 tests + `build:web` green.
+
+### fix(content): Key Findings Discovers from your CURRENT tier only
+
+Owner ruling: Key Findings should Discover a minion of your **exact** current tavern tier, not from every tier up
+to it. The `keyfindings` card's `discoverOnPlay: {}` fell to the default `tier: s.tier` — which offers all minions
+of tier ≤ current, evenly weighted — so a T4 player could be shown T1–T4 minions. Added a `discoverOnPlay.exactCurrentTier`
+flag (resolved to the live tier at play time, unlike the fixed-number `exactTier`), set it on `keyfindings`, and wired
+it through the reducer's discover-on-play path. Also pointed the (currently unused) reward-kind `discover` case at the
+exact tier to match its own comment. New test: at tier 4 with a tier-spanning pool, the offer is all tier-4.
+`typecheck` + `lint` + `test` (783) + `build:web` green; verified live (T4 → offered guel/monk/arenaheckler, T1 pool
+cards excluded).
+### chore(art): refresh Attachment Mechanic art
+
+Re-wired the updated master `Minions/AttachmentMechanic.png` → `art/minions/scrapherald.webp` (the card's display
+name is "Attachment Mechanic"; its id is `scrapherald`). One-file art swap; verified the card renders the new
+512×512 art in the compendium. `build:web` green.
 
 ### feat(ui): Skip combat gets the crossfade — everything pauses, mutes, and fades out together
 

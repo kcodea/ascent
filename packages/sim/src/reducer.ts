@@ -423,12 +423,15 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (def?.discoverOnPlay) {
         const dop = def.discoverOnPlay;
         s.hand.splice(i, 1);
-        const tier = dop.exactTier ?? s.tier + (dop.tierOffset ?? 0);
+        // `exactCurrentTier` (Key Findings) locks the pool to the live tavern tier; `exactTier` is a fixed tier
+        // (Sprout); otherwise the offer tier is current + `tierOffset`.
+        const exactTier = dop.exactCurrentTier ? s.tier : dop.exactTier;
+        const tier = exactTier ?? s.tier + (dop.tierOffset ?? 0);
         const tribe = dop.tribe === 'dominant' ? (dominantBoardTribe(s) ?? undefined) : dop.tribe;
         const spec = {
           kind: 'minion' as const,
           tier,
-          ...(dop.exactTier !== undefined ? { exactTier: dop.exactTier } : {}),
+          ...(exactTier !== undefined ? { exactTier } : {}),
           ...(dop.filter ? { filter: dop.filter } : {}),
           ...(tribe ? { tribe } : {}),
           ...(dop.topTierFirst ? { topTierFirst: true } : {}),
@@ -1755,8 +1758,9 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.embers += r.amount; // reflect the raised max in THIS turn's spendable Gold too
       break;
     case 'discover':
-      // Key Findings: open a minion Discover of your current tier.
-      openDiscover(s, { kind: 'minion', tier: s.tier });
+      // Reward-kind 'discover' — open a minion Discover of your CURRENT tier only. (No quest uses this today;
+      // Key Findings runs through the `keyfindings` card's discoverOnPlay. Kept exact-tier to match that intent.)
+      openDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
       break;
     case 'dupeFirstBuy':
       s.dupeFirstBuyEachTurn = true; // Dupes: the first minion bought each turn is copied to hand

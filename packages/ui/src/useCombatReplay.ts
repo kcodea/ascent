@@ -14,6 +14,7 @@ import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
 import { burstDeathAuras, breakShieldAura, reformReborn } from './choreo/channels/aura';
 import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
 import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
+import { buffPreset, BUFF_PRESETS } from './buffPresets';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
@@ -604,6 +605,23 @@ export function useCombatReplay(
       onAuraBurst: (uid) => burstDeathAuras(uid, rectOf(uid)),
       onShieldBreak: (uid) => breakShieldAura(uid),
       onReborn: (uid) => reformReborn(rebornRects.get(uid) ?? rectOf(uid)),
+      onBuffCasts: (casts) => {
+        for (const c of casts) {
+          const sEl = findEl(c.source); const tEl = findEl(c.target);
+          if (!sEl || !tEl) continue;
+          const sr = sEl.getBoundingClientRect(); const tr = tEl.getBoundingClientRect();
+          // source cardId/tribe from the fight-wide uid→cardId map (already an effect dep) + CARD_INDEX —
+          // avoids referencing `frame` here, keeping the effect's deps array unchanged.
+          const cardId = cardIds.get(c.source) ?? '';
+          const preset = BUFF_PRESETS[buffPreset(cardId, (CARD_INDEX[cardId]?.tribe ?? 'neutral') as Tribe)];
+          pixiFx.buffTendril(
+            { x: sr.left + sr.width / 2, y: sr.top + sr.height / 2 },
+            { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 },
+            preset,
+          );
+          // Task 4 adds: schedule held-value release + badge flash at (preset.travelMs / combatSpeed).
+        }
+      },
     });
 
     // A Rise DEFENDER (dying but NOT the impact attacker being pulled home) explodes in place immediately —

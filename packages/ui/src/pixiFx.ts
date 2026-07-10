@@ -1001,7 +1001,7 @@ class FxController {
    * `mini` = the card is being dragged → shrink to a small trailing sparkle; when a `mini` bubble is next
    * set with `mini=false` (the card is placed), it coalesces/pops back to full size.
    */
-  setShield(uid: string, cx: number, cy: number, w: number, h: number, mini = false, kind: AuraKind = 'shield', track: ShieldBubble['track'] = null): void {
+  setShield(uid: string, cx: number, cy: number, w: number, h: number, mini = false, kind: AuraKind = 'shield', track: ShieldBubble['track'] = null, instant = false): void {
     if (!this.ready || !this.shieldLayer) return;
     const key = auraKey(kind, uid);
     let b = this.shields.get(key);
@@ -1035,7 +1035,9 @@ class FxController {
       container.addChild(mesh);
       container.alpha = 0;
       this.shieldLayer.addChild(container);
-      b = { kind, container, mesh, shader, cx, cy, w, h, age: 0, formIn: 0, fadeOut: -1,
+      // `instant` (a Skip settling the resolved board) → born fully-formed: skip the grow-in so the aura
+      // doesn't visibly re-bloom as the board fades back in.
+      b = { kind, container, mesh, shader, cx, cy, w, h, age: 0, formIn: instant ? 1e6 : 0, fadeOut: -1,
             mini, pop: -1, scaleMul: mini ? MINI_SCALE : 1, rot: 0, track };
       this.shields.set(key, b);
     } else {

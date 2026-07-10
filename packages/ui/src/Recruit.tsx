@@ -505,6 +505,10 @@ export function Recruit() {
   const pendingClearRef = useRef<Map<string, number>>(new Map()); // uid → time (ms) to fade a vanished bubble
   const inCombatRef = useRef(inCombat); inCombatRef.current = inCombat;
   const fightingRef = useRef(fighting); fightingRef.current = fighting;
+  // True across a Skip transition: the resolved board's auras re-register (grow-in + a taunt deploy dust) under
+  // cover of the hidden FX layer, so we force them born fully-formed + mute the deploy dust — no aura re-bloom
+  // as the board fades back in. Any effect type (shield / reborn / taunt).
+  const skippingRef = useRef(false);
   const settleUntilRef = useRef(0);     // post-drop window where the bubble keeps tracking the Flip
   const prevDragActiveRef = useRef(false);
   // (`dragRef` is declared lower down for spell-targeting and already mirrors `drag`; syncShields reads it.)
@@ -526,7 +530,7 @@ export function Recruit() {
     const set = (
       uid: string, cx: number, cy: number, w: number, h: number, mini: boolean, kind: AuraK,
       track?: (() => { cx: number; cy: number; w: number; h: number; rot: number } | null),
-    ): void => auraFx(kind).setShield(uid, cx - ax(kind), cy - ay(kind), w, h, mini, kind, track);
+    ): void => auraFx(kind).setShield(uid, cx - ax(kind), cy - ay(kind), w, h, mini, kind, track, skippingRef.current);
     // A live position source for a COMBAT front-aura (shield/reborn): re-measures the card's art square each FX
     // frame so the bubble rides the lunge/recoil transform EXACTLY (no cross-rAF trailing). Combat-only, where
     // ax/ay/auraDy are all 0 — so it mirrors the `set` measurement below. null when the card isn't measurable
@@ -578,7 +582,7 @@ export function Recruit() {
         seen.add(key);
         // A taunt bulwark deploying (not shielded last sync) → a light placement-style smoke plume that
         // disperses outward, fired on the FRONT layer (viewport coords) so it reads around the card.
-        if (cfg.kind === 'taunt' && !shieldUidsRef.current.has(key)) {
+        if (cfg.kind === 'taunt' && !shieldUidsRef.current.has(key) && !skippingRef.current) {
           pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1.25); // +25% plume on deploy
         }
         // In combat, hand the FRONT auras (shield/reborn) a live tracker so they ride the lunge/recoil exactly;
@@ -754,6 +758,7 @@ export function Recruit() {
       //    (particles + shield/reborn/taunt bubbles) stop; `.combatfrozen` pauses every remaining CSS animation;
       //    `.combatout` fades every combat visual to 0; and clearParticles wipes any live dust/spark/trail so
       //    nothing can linger on the canvas as it goes. Kill all audio too (a replacement one-shot goes here later).
+      skippingRef.current = true; // the resolved board's auras re-register born-formed + without deploy dust
       stopAllAudio();
       gsap.globalTimeline.pause();
       pixiFx.setPaused(true); tauntFx.setPaused(true);
@@ -773,7 +778,7 @@ export function Recruit() {
         pixiFx.setVisible(true, IN); tauntFx.setVisible(true, IN); // fade the end-state auras in WITH the board
         setSkipFade('in');
       }, FADE + HOLD);
-      window.setTimeout(() => setSkipFade(null), FADE + HOLD + IN);
+      window.setTimeout(() => { skippingRef.current = false; setSkipFade(null); }, FADE + HOLD + IN);
       return 'out';
     });
   }, [replay]);

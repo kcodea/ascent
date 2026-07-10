@@ -275,6 +275,7 @@ export const CardDefSchema = z.object({
   discoverOnPlay: z
     .object({
       exactTier: z.number().int().positive().optional(),
+      exactCurrentTier: z.boolean().optional(),
       tierOffset: z.number().int().optional(),
       filter: z.enum(['battlecry', 'deathrattle']).optional(),
       tribe: z.union([TribeSchema, z.literal('dominant')]).optional(),

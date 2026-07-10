@@ -47,6 +47,17 @@ run (the event-log ordering — the replay's source of truth — is confirmed; U
 
 ## 2026-07-10 (session 29)
 
+### fix(content): Taragosa's Heir now counts stat gains from COMBAT too
+
+The Heir's "gains 2× stats from all sources (golden 3×)" amplifier only ran in the reducer's recruit-phase
+stat-gain diff — combat gains were ignored and, being non-Engraved, discarded after the fight. Made it **Engraved**
+(`EG`) so its combat gains carry back to the run board via the existing `permaGain` channel, and the settle
+carry-back now multiplies the Heir's entry **×2 (golden ×3)** — so combat genuinely counts, matching the recruit
+amplifier. Card text notes the Engraved. New test: a +10/+10 combat gain carries back as +20/+20 (golden +30/+30).
+(Also confirmed, no change needed: Umbral Energy already scales permanently off combat spell casts — combat casts
+bump the run-wide `spellsCast` at settle, which its Start-of-Combat Dragon buff reads each fight; same holds for
+`deathrattlesTriggered` and everything keyed off these run-wide counters — only in-combat *stat* gains are
+temporary unless Engraved.) typecheck / lint / 792 tests / build green.
 ### docs: combat event-ordering reference (`docs/combat-ordering.md`)
 
 Vendored a full reference of the exact order `simulate()` emits combat events — pulled from

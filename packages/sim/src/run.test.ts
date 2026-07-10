@@ -4984,6 +4984,20 @@ describe('Dragon quests + reward minions', () => {
     heir = g.board.find((c) => c.uid === 'heir')!;
     expect([heir.attack, heir.health]).toEqual([7 + 9, 6 + 12]);
   });
+
+  it("Taragosa's Heir also amplifies its COMBAT stat gains (Engraved carry-back ×2, golden ×3)", () => {
+    // The Heir is Engraved, so a +10/+10 gain it takes in combat carries back at settle — and its amplifier
+    // doubles that carry-back (golden triples), so combat counts toward its growth like recruit gains do.
+    const settle = (golden: boolean): RunState => reduce({
+      ...createRun(1), phase: 'combat',
+      board: [{ uid: 'h', cardId: 'taragosaheir', tribe: 'dragon', attack: 7, health: 6, keywords: ['EG'] as Keyword[], golden }],
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerPermaBuffs: [{ sourceUid: 'h', attack: 10, health: 10, engraved: true }] },
+    }, { type: 'resolveCombat' });
+    const h2 = settle(false).board.find((c) => c.uid === 'h')!;
+    expect([h2.attack, h2.health]).toEqual([7 + 20, 6 + 20]); // +10 combat gain ×2
+    const h3 = settle(true).board.find((c) => c.uid === 'h')!;
+    expect([h3.attack, h3.health]).toEqual([7 + 30, 6 + 30]); // golden ×3
+  });
 });
 
 describe('Beast quests (combat objectives + rewards)', () => {

@@ -408,6 +408,8 @@ export interface RunState {
    *  while set the reducer blocks every non-`buyRune`/`skipRuneforge` action and the UI pauses the timer; buying
    *  (or skipping) clears it. Opens exactly once (the hero power is `oncePerGame`). */
   runeforgeOffer?: string[];
+  /** The Runeforge's single re-roll (2 Gold) has been used this visit — the offer can't be re-rolled again. */
+  runeforgeRerolled?: boolean;
   /** Rune ids bought this run — shown as permanent run-buff badges (above the hero panel). */
   ownedRunes?: string[];
   /** Rune of Spellslinging: every `spellDripPer` Gold spent, get a random spell. `spellDripTick` carries the
@@ -536,6 +538,7 @@ export type Action =
   | { type: 'buyQuest'; index: number } // quest shop (waves 4/8/12): "buy" the offered quest at `index` for 0 Gold
   | { type: 'buyRune'; index: number } // Runeforge (turn 6): buy the offered rune at `index` for its Gold cost
   | { type: 'skipRuneforge' } // Runeforge: leave without buying (closes the forge)
+  | { type: 'rerollRuneforge' } // Runeforge: re-roll the offered runes once, for 2 Gold
   | { type: 'chooseOne'; index: number }
   | { type: 'battlecryTarget'; targetUid: string }
   | { type: 'faceOmen' }

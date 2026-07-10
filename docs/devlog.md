@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### feat(ui): Runeforge offers 3 (re-roll once for 2 Gold) + hero-power cost as a gold coin
+
+**Runeforge — 3, not 5, with a re-roll.** The turn-6 forge now offers a random **3** runes instead of 5 (both the
+initial roll in `advanceCombat` and the reroll draw pick 3). New **`rerollRuneforge`** action: for **2 Gold**, once
+per visit, it swaps in a fresh trio drawn from the runes **not** currently shown (guaranteed-different set), off a
+salted deterministic stream `mixSeed(seed, wave, TAG.QUEST, 1)`. Gated on `runeforgeRerolled` (new `RunState` flag)
++ affordability; added to the forge modal's action allow-list so it isn't blocked while the forge is open. UI: a
+gold **Re-roll · 2 Gold** button sits beside "Leave without a Rune" in a new `.forge-actions` row, hidden after use
+and disabled when you can't afford it. 3 new tests (spends 2 + non-overlapping trio + once-per-visit; can't-afford
+no-op; the open-forge offer is now length 3). Runesmith's power text updated to "a random 3 Runes (re-roll once for
+2 Gold)".
+
+**Hero-power cost → gold coin.** The cost badge under the power button was a teal mana pill; it's now a **gold coin
+eclipsing the top-left corner** of the power button, styled identically to a Rune's cost coin (`.runecard-cost`) —
+gold is the run economy, so the coin reads the same everywhere. It also now shows Jenkins's **escalating**
+`dynamiteDig` cost (`digCost ?? power.cost`), which the old fixed-`power.cost` badge omitted.
+
+**Hero art audit** (deliverable): cross-checked all **23** hero ids in `heroes.ts` against `art/heroes/*` — every
+hero has art wired; nothing missing. typecheck / lint / 818 tests / build green.
+
 ### feat: 3 more runes + 2 heroes (Coran, Jenkins)
 
 **Runes** (added to the Runeforge pool — it now offers a random 5 of **11**, each with art):

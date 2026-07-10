@@ -293,7 +293,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // Modal recruit states — a pending Discover / Choose One / targeted Battlecry — block every other board
   // action until they resolve. The player can still inspect (a UI-only concern), so a Discover can be
   // minimized to read the board without any action invalidating the pending pick.
-  if ((state.discover || state.chooseOne || state.pendingTarget || state.questOffer || state.runeforgeOffer) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'buyRune' && action.type !== 'skipRuneforge') {
+  if ((state.discover || state.chooseOne || state.pendingTarget || state.questOffer || state.runeforgeOffer) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge') {
     return state;
   }
 
@@ -753,6 +753,21 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (!s.runeforgeOffer) return state;
       s.runeforgeOffer = undefined;
       s.heroPowerSpent = true;
+      return s;
+    }
+
+    case 'rerollRuneforge': {
+      // Re-roll the offered runes ONCE, for 2 Gold — a fresh 3 drawn from the runes NOT currently shown (so it's
+      // always a different set). Seeded off a salted stream so it's deterministic + distinct from the first roll.
+      if (!s.runeforgeOffer || s.runeforgeRerolled || s.embers < 2) return state;
+      spendGold(s, 2);
+      const current = new Set(s.runeforgeOffer);
+      const pool = RUNES.map((rn) => rn.id).filter((id) => !current.has(id));
+      const rng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 1));
+      const picks: string[] = [];
+      while (picks.length < 3 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
+      s.runeforgeOffer = picks;
+      s.runeforgeRerolled = true;
       return s;
     }
 
@@ -1571,7 +1586,7 @@ function advanceCombat(s: RunState): void {
     const pool = RUNES.map((rn) => rn.id);
     const rng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST));
     const picks: string[] = [];
-    while (picks.length < 5 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
+    while (picks.length < 3 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
     s.runeforgeOffer = picks;
   }
   if (questOffer.length > 0) {

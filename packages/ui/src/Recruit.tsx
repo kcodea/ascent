@@ -3052,7 +3052,19 @@ export function Recruit() {
                 ) : null;
               })}
             </div>
-            <button className="forge-skip" onClick={() => dispatch({ type: 'skipRuneforge' })}>Leave the forge without a Rune</button>
+            <div className="forge-actions">
+              {!run.runeforgeRerolled && (
+                <button
+                  className="forge-reroll"
+                  disabled={run.embers < 2}
+                  onClick={() => dispatch({ type: 'rerollRuneforge' })}
+                  title={run.embers < 2 ? 'Need 2 Gold to re-roll' : 'Re-roll all three Runes (once)'}
+                >
+                  <Icon name="refresh" /> Re-roll · <b className="forge-reroll-cost">2 Gold</b>
+                </button>
+              )}
+              <button className="forge-skip" onClick={() => dispatch({ type: 'skipRuneforge' })}>Leave without a Rune</button>
+            </div>
           </div>
         </div>
       )}

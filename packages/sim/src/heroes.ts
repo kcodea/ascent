@@ -30,7 +30,7 @@ export type HeroPowerKind =
   | 'displace' // Darah: swap a friendly minion with a random tavern minion (active, targeted)
   | 'grantReborn' // Lord of the Risen: give a friendly minion Rise for the next combat (active, targeted)
   | 'goldenGild' // Gildmaster: if you have 2 copies of a minion, combine them into a golden copy in hand
-  | 'runeforge' // Runesmith (passive): on turn 6 the Runeforge opens — buy ONE of a random 5 runes (a run-long buff)
+  | 'runeforge' // Runesmith (passive): on turn 6 the Runeforge opens — buy ONE of a random 3 runes (a run-long buff)
   | 'pathfinder' // Coran (passive): no lesser quest; the Greater + Capstone quest shops arrive on turns 6 + 10
   | 'dynamiteDig'; // Jenkins: 1 Gold Discover a minion of your tier — costs 1 more Gold each use (active, untargeted)
 
@@ -345,7 +345,7 @@ export const HEROES: HeroDef[] = [
       kind: 'runeforge',
       passive: true, // fires on the turn-6 advance (opens the Runeforge offer); resolved by `buyRune` / `skipRuneforge`
       oncePerGame: true, // the forge opens exactly once, on turn 6
-      text: 'Runeforge: On turn 6, buy one of a random 5 Runes — a permanent buff for the run.',
+      text: 'Runeforge: On turn 6, buy one of a random 3 Runes (re-roll once for 2 Gold) — a permanent buff for the run.',
     },
   },
   {

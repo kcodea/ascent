@@ -464,8 +464,10 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
    .hero arm/fire handler. Placeholder glyph for now; dedicated hero-power artwork to come. */
 /* Wrapper so the gold-cost badge can overhang below the circle without being clipped by overflow:hidden. */
 .hpwrap { flex: none; margin-left: auto; position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(3 * var(--u)); }
-.hpcost { display: flex; align-items: center; gap: calc(2 * var(--u)); background: var(--mana); color: var(--mana-dk); border-radius: calc(10 * var(--u)); padding: calc(1 * var(--u)) calc(6 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); line-height: 1.4; border: 2px solid var(--card); pointer-events: none; white-space: nowrap; }
-.hpcost svg { width: calc(10 * var(--u)); height: calc(10 * var(--u)); color: var(--mana-dk); }
+/* Hero-power cost — a GOLD coin eclipsing the top-left corner of the power button, identical in style to a
+   Rune's cost coin (.runecard-cost). Gold is the run economy, so the coin reads the same everywhere. */
+.hpcost { position: absolute; top: -14px; left: -12px; width: 44px; height: 44px; z-index: 6; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 38% 30%, #ffe293, #eab63f 58%, #b9821f); border: 3px solid #1b1d22; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.55), inset 0 -3px 4px rgba(120, 80, 10, 0.4); pointer-events: none; }
+.hpcost .costn { font-family: var(--font-ui); font-weight: 900; font-size: 22px; color: #4a3208; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); line-height: 1; }
 .heropowerbtn {
   width: calc(75 * var(--u)); height: calc(75 * var(--u)); border-radius: 50%; padding: 0; overflow: hidden;
   border: 3px solid var(--acc-dk); display: grid; place-items: center;
@@ -950,9 +952,16 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .forge-sub { color: #c9c5ba; letter-spacing: 0.04em; }
 .forge-toggle { top: 75%; color: #e3e0d6; background: linear-gradient(180deg, #5b606b, #3f434c); border-color: #23262d; box-shadow: 0 calc(6 * var(--u)) calc(16 * var(--u)) -6px rgba(0, 0, 0, 0.6), inset 0 2px 0 rgba(255, 255, 255, 0.2), inset 0 -3px 6px rgba(0, 0, 0, 0.45); text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5); }
 .forge-cards { display: flex; gap: calc(18 * var(--u)); justify-content: center; margin-top: calc(16 * var(--u)); align-items: stretch; }
-/* "Leave without a rune" — a quiet chiseled button under the tablets. */
-.forge-skip { display: block; margin: calc(18 * var(--u)) auto 0; font-family: var(--font-ui); font-weight: 700; font-size: calc(13 * var(--u)); letter-spacing: 0.03em; color: #b9b5ab; background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(255, 255, 255, 0.16); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: calc(11 * var(--u)); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+/* Re-roll + leave — a chiseled button row under the rune tablets. */
+.forge-actions { display: flex; align-items: center; justify-content: center; gap: calc(14 * var(--u)); margin-top: calc(18 * var(--u)); }
+.forge-skip { display: inline-flex; align-items: center; font-family: var(--font-ui); font-weight: 700; font-size: calc(13 * var(--u)); letter-spacing: 0.03em; color: #b9b5ab; background: rgba(255, 255, 255, 0.05); border: 2px solid rgba(255, 255, 255, 0.16); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: calc(11 * var(--u)); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 .forge-skip:hover { color: #e6e2d7; border-color: rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.09); }
+/* Re-roll — the once-per-visit gold-spend, warmer than the leave button so it reads as the active option. */
+.forge-reroll { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.03em; color: #4a3208; background: linear-gradient(#ffe293, #eab63f 62%, #d79b2c); border: 2px solid #8a6414; padding: calc(8 * var(--u)) calc(18 * var(--u)); border-radius: calc(11 * var(--u)); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 4px rgba(0, 0, 0, 0.35); }
+.forge-reroll:hover:not(:disabled) { filter: brightness(1.06); }
+.forge-reroll:disabled { opacity: 0.45; filter: saturate(0.7); cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.forge-reroll svg { width: calc(15 * var(--u)); height: calc(15 * var(--u)); color: #4a3208; }
+.forge-reroll .forge-reroll-cost { color: #3a2706; }
 
 /* Rune tablet — a carved stone slab: engraved border, a rune sigil, the name, a Gold cost, and its effect. */
 /* Rune tablet — mirrors the art-forward QuestCard (full-bleed art, top emblem, bottom text panel) but framed in a

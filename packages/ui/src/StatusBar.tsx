@@ -180,7 +180,7 @@ export function StatusBar() {
             >
               {heroPowerArt(hero.id) ? <img src={heroPowerArt(hero.id)} alt="" draggable={false} /> : <Icon name="sc" />}
             </button>
-            {power.cost ? <span className="hpcost"><Icon name="mana" />{power.cost}</span> : null}
+            {(digCost ?? power.cost) ? <span className="hpcost"><span className="costn">{digCost ?? power.cost}</span></span> : null}
           </div>
           <div className="hplabel">{isPassive ? 'Passive' : power.name}</div>
           <div className="herotip" role="tooltip">

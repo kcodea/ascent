@@ -1254,6 +1254,32 @@ describe('run loop (@game/sim)', () => {
     expect(s.board[0]!.rallyMechAtk).toBe(10); // +5 each → +10
   });
 
+  it("Perfect Core's welded Rally grants a spell in combat (rallySpellWeld survives board→combat) (owner 2026-07-10)", () => {
+    // Weld Perfect Core onto a big host; it must actually grant a spell when it attacks in combat — the combat
+    // board prep used to drop `rallySpellWeld`, so the welded Rally silently did nothing.
+    let s: RunState = {
+      ...createRun(1), tier: 6, phase: 'recruit',
+      board: [{ uid: 'h', cardId: 'drone', tribe: 'mech', attack: 40, health: 40, keywords: [], golden: false }],
+      hand: [{ uid: 'pc', cardId: 'perfectcore', tribe: 'neutral', attack: 10, health: 10, keywords: ['DS', 'RL', 'M'], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'pc', toIndex: 0 }); // weld onto the host
+    expect(s.board[0]!.rallySpellWeld).toBe(1);
+    const handBefore = s.hand.length;
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    const granted = s.hand.slice(handBefore);
+    expect(granted.length).toBeGreaterThan(0); // the Rally added a card…
+    expect(granted.every((c) => CARD_INDEX[c.cardId]?.spell)).toBe(true); // …and it's a spell
+  });
+
+  it("tripling a welded host keeps Perfect Core's Rally (rallySpellWeld carries through the combine)", () => {
+    const w = (uid: string): BoardCard => ({ uid, cardId: 'drone', tribe: 'mech', attack: 2, health: 2, keywords: ['RL'], golden: false, rallySpellWeld: 1 });
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', board: [w('a'), w('b')], hand: [w('c')] };
+    s = reduce(s, { type: 'play', uid: 'c', toIndex: 2 }); // 3rd copy → combine into a golden
+    const golden = s.hand.find((x) => x.golden) ?? s.board.find((x) => x.golden);
+    expect(golden?.rallySpellWeld).toBe(3); // summed across the three copies, not dropped
+  });
+
   it('Speedy is Magnetic — it welds its keyword onto a host Mech', () => {
     // Speedy welds Windfury.
     let sp: RunState = {
@@ -5036,17 +5062,20 @@ describe('Beast quests (combat objectives + rewards)', () => {
     expect(s.activeQuests![0]!.completed).toBe(false); // slaughter part still empty
   });
 
-  it('Forsaken Will (compound): completes across spells + combat summons; then spells grow the Undead aura', () => {
+  it('Forsaken Will (compound): completes across spells + combat summons; then spells buff Undead like the Weaver', () => {
     const s = settle('q_forsaken_will', { playerQuestTally: { ...zeroTally(), summonCombat: 6 } }, {
       activeQuests: [{ questId: 'q_forsaken_will', progress: 14, completed: false, partProgress: [14, 0] }],
     });
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.forsakenWillAttack).toBe(6);
-    // Casting a spell now grows the Undead Attack aura by +6.
-    let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 20, undeadAttackBonus: 0, forsakenWillAttack: 6,
+    // Casting a spell now behaves EXACTLY like the Forsaken Weaver: +6 baked into every current Undead AND
+    // stacked into undeadBuyAtk so future undead buys inherit it.
+    let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 20, forsakenWillAttack: 6,
+      board: [{ uid: 'u', cardId: 'soulsman', tribe: 'undead', attack: 3, health: 3, keywords: [], golden: false }],
       hand: [{ uid: 'sp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     t = reduce(t, { type: 'play', uid: 'sp' });
-    expect(t.undeadAttackBonus).toBe(6);
+    expect(t.board.find((c) => c.uid === 'u')!.attack).toBe(9); // +6 baked into the Undead's stats
+    expect(t.undeadBuyAtk).toBe(6); // and future Undead buys inherit it
   });
 
   it('The Red Trail (slaughterKeyword) completes at 5 and schedules the recurring Bloodlust grant', () => {

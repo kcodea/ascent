@@ -8,7 +8,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, adjacentConsumeFodder, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, adjacentConsumeFodder, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -178,9 +178,10 @@ export function reduce(state: RunState, action: Action): RunState {
     // Spell Thesis: "Cast N spells" advances by the run-wide spellsCast delta this action.
     const spellCastDelta = (next.spellsCast ?? 0) - (state.spellsCast ?? 0);
     if (spellCastDelta > 0) advanceQuestsBy(next, (o) => o.event === 'castSpell', spellCastDelta);
-    // Forsaken Will: each spell cast permanently grows your Undead Attack aura (folds into `undeadAttackBonus`,
-    // which applies in the shop AND is threaded into combat).
-    if (spellCastDelta > 0 && next.forsakenWillAttack) next.undeadAttackBonus += next.forsakenWillAttack * spellCastDelta;
+    // Forsaken Will: each spell cast permanently buffs your Undead's Attack — exactly like the Forsaken Weaver
+    // (bakes +N into every current Undead + `undeadBuyAtk` so future buys inherit it), so the quest reward feels
+    // identical to the minion instead of a separate Lantern-style aura.
+    if (spellCastDelta > 0 && next.forsakenWillAttack) buffUndeadAttackEverywhere(next, next.forsakenWillAttack * spellCastDelta, 'Forsaken Will');
     // Taragosa's Heir: every THIRD stat-gain your STRONGEST Dragon receives is mirrored onto the Heir permanently
     // (recruit phase; combat-gain copy is a follow-up). Counts an action where the current strongest Dragon (not
     // the Heir) gained stats as one gain; every 3rd such gain, the Heir gains the same +Attack/+Health.
@@ -924,6 +925,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         spellProgress: b.spellProgress, // Guel: seed his on-board spell tally so the live combat text scales (not stuck at base)
         sourceUid: b.uid, // so combat can carry Avenge improvements back to this card
         rallyMechAtk: b.rallyMechAtk, // Better Bot's accrued Rally (own base added at instantiate)
+        rallySpellWeld: b.rallySpellWeld, // Perfect Core's welded Rally (grant a spell on attack) — was dropped
         resummon: b.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
         buffs: b.buffs, // recruit-phase buff breakdown → carried into combat so the inspect panel itemizes it
       }));
@@ -1154,6 +1156,7 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   // spell aura (`spellAuraBonus`) — sum them across the copies so a magnetized host keeps its attachments
   // through a triple (the golden's own def handles a standalone Better Bot's Rally at instantiate time).
   const absorbedRally = combined.reduce((sum, c) => sum + (c.rallyMechAtk ?? 0), 0);
+  const absorbedRallySpell = combined.reduce((sum, c) => sum + (c.rallySpellWeld ?? 0), 0); // Perfect Core's welded Rally
   const absorbedSpellAura = combined.reduce((sum, c) => sum + (c.spellAuraBonus ?? 0), 0);
   const absorbedFodderAura = combined.reduce(
     (sum, c) => ({ attack: sum.attack + (c.fodderAuraBonus?.attack ?? 0), health: sum.health + (c.fodderAuraBonus?.health ?? 0) }),
@@ -1184,6 +1187,7 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
     hpGrantBonus,
     manaBonus: absorbedMana > 0 ? absorbedMana : undefined,
     rallyMechAtk: absorbedRally > 0 ? absorbedRally : undefined,
+    rallySpellWeld: absorbedRallySpell > 0 ? absorbedRallySpell : undefined,
     spellAuraBonus: absorbedSpellAura > 0 ? absorbedSpellAura : undefined,
     fodderAuraBonus: absorbedFodderAura.attack > 0 || absorbedFodderAura.health > 0 ? absorbedFodderAura : undefined,
     buffs: goldenBuffs.length > 0 ? goldenBuffs : undefined,

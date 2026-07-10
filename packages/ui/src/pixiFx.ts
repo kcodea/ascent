@@ -427,6 +427,9 @@ const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3);
 /** The strike motes decelerate hard: the preview's per-frame `v *= 0.86` → per-second (see `perFrameDrag`). */
 const TENDRIL_MOTE_DRAG = perFrameDrag(0.86);
 
+/** glowTex natural radius (px) at scale 1 — px dials ÷ this = sprite scale — so preview px radii transfer 1:1. */
+const TENDRIL_GLOW_R = 40;
+
 /** One live buff tendril: a per-frame-rebuilt tapered ribbon `Graphics` travelling from `from`→`to` along a
  *  quadratic curve (`ctl` control point, `perp` = the from→to normal for the wobble), plus its `cfg`, an `age`
  *  (ms), and a `struck` latch so the strike flash + motes fire exactly once on arrival. Not pooled — the ribbon
@@ -1623,18 +1626,19 @@ class FxController {
    * `cfg`), so any preset drives the look. Ports the preview's path/ribbon/strike math (see the block-comment
    * on `TendrilCfg`). No-op until the overlay is ready.
    *
-   * NB (units): `flashSize`/`pulseSize` are used directly as glowTex SCALE multipliers here (like `impact`'s
-   * `flashSize`), matching the starter preset values. The preview rig expresses them as px radii — task 2.2's
-   * bake converts (glowTex natural radius ≈ 40px) so the owner's tuned numbers land at the same on-screen size.
+   * NB (units): `flashSize`/`pulseSize` are PX RADII, 1:1 with the preview rig — a value ÷ `TENDRIL_GLOW_R`
+   * (glowTex natural radius) is the sprite scale, so the owner's pasted preview JSON needs NO bake conversion.
    */
   buffTendril(from: { x: number; y: number }, to: { x: number; y: number }, cfg: TendrilCfg): void {
     if (!this.ready || !this.glowTex || !this.layer) return;
 
     // Caster pulse at the source, once per launch — an additive glow that blooms and fades (preview `pulse`).
+    // `pulseSize` is a px radius → ÷ TENDRIL_GLOW_R gives the sprite scale.
     if (cfg.pulseMs > 0) {
+      const pulseScale = cfg.pulseSize / TENDRIL_GLOW_R;
       this.spawn(this.glowTex, {
         x: from.x, y: from.y, vx: 0, vy: 0, drag: 1, life: cfg.pulseMs,
-        fromScale: cfg.pulseSize, toScale: cfg.pulseSize, spin: 0,
+        fromScale: pulseScale, toScale: pulseScale, spin: 0,
         tint: hexNum(cfg.colorGlow), blend: 'add', peakAlpha: cfg.pulseAlpha,
       });
     }
@@ -1724,9 +1728,11 @@ class FxController {
   private tendrilStrike(td: Tendril): void {
     const { to, cfg } = td;
     if (cfg.flashMs > 0) {
+      // `flashSize` is a px radius → ÷ TENDRIL_GLOW_R gives the sprite scale; grows ×1.4 as it fades.
+      const flashScale = cfg.flashSize / TENDRIL_GLOW_R;
       this.spawn(this.glowTex!, {
         x: to.x, y: to.y, vx: 0, vy: 0, drag: 1, life: cfg.flashMs,
-        fromScale: cfg.flashSize, toScale: cfg.flashSize * 1.4, spin: 0, // grows a touch as it fades (preview grow 1.4)
+        fromScale: flashScale, toScale: flashScale * 1.4, spin: 0, // grows a touch as it fades (preview grow 1.4)
         tint: hexNum(cfg.colorFlash), blend: 'add', peakAlpha: 1,
       });
     }
@@ -1737,8 +1743,8 @@ class FxController {
       this.spawn(this.glowTex!, {
         x: to.x, y: to.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
         drag: TENDRIL_MOTE_DRAG, life: cfg.moteLife * (0.7 + Math.random() * 0.6),
-        // ~7px-radius motes on the radius-40 glowTex (preview mote base size 7), shrinking to nothing.
-        fromScale: (7 / 40) * (0.6 + Math.random() * 0.8), toScale: 0.02, spin: 0,
+        // ~7px-radius motes on the glowTex (preview mote base size 7), shrinking to nothing.
+        fromScale: (7 / TENDRIL_GLOW_R) * (0.6 + Math.random() * 0.8), toScale: 0.02, spin: 0,
         tint: hexNum(cfg.colorMote), blend: 'add', peakAlpha: 1,
       });
     }

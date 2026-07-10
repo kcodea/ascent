@@ -10,9 +10,9 @@ export interface BuffPresetCfg {
   curve: number; wobbleAmp: number; wobbleFreq: number; travelMs: number; retractMs: number;
   // ribbon
   baseWidth: number; tipWidth: number; coreAlpha: number; glowWidth: number; glowAlpha: number;
-  // strike
+  // strike (flashSize is a px radius — 1:1 with the preview rig, no bake conversion)
   flashSize: number; flashMs: number; moteCount: number; moteSpeed: number; moteLife: number;
-  // caster
+  // caster (pulseSize is a px radius — 1:1 with the preview rig, no bake conversion)
   pulseSize: number; pulseAlpha: number; pulseMs: number;
   // colors
   colorCore: string; colorGlow: string; colorFlash: string; colorMote: string;
@@ -23,8 +23,8 @@ const BASE: BuffPresetCfg = {
   style: 'tendril',
   curve: 0.3, wobbleAmp: 10, wobbleFreq: 2.5, travelMs: 200, retractMs: 140,
   baseWidth: 10, tipWidth: 1.5, coreAlpha: 1, glowWidth: 22, glowAlpha: 0.5,
-  flashSize: 1.6, flashMs: 200, moteCount: 12, moteSpeed: 260, moteLife: 420,
-  pulseSize: 1.4, pulseAlpha: 0.5, pulseMs: 180,
+  flashSize: 46, flashMs: 200, moteCount: 12, moteSpeed: 260, moteLife: 420,
+  pulseSize: 38, pulseAlpha: 0.5, pulseMs: 180,
   colorCore: '#eaffb0', colorGlow: '#c8e070', colorFlash: '#dfffa0', colorMote: '#c8e070',
 };
 

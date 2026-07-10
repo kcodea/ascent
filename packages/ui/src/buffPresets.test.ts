@@ -20,6 +20,7 @@ describe('buffPreset resolver — most-specific wins', () => {
       expect(cfg.style).toBe('tendril');
       expect(typeof cfg.colorCore).toBe('string');
       expect(typeof cfg.travelMs).toBe('number');
+      expect(['add', 'normal', 'screen']).toContain(cfg.blend);
     }
   });
 });

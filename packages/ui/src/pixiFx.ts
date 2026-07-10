@@ -406,6 +406,7 @@ const DR_GLOW_K = 128 / 80;
 
 /** Renderer-facing tendril config (structural match of BuffPresetCfg — pixiFx stays import-light). */
 export interface TendrilCfg {
+  blend: 'add' | 'normal' | 'screen';
   curve: number; wobbleAmp: number; wobbleFreq: number; travelMs: number; retractMs: number;
   baseWidth: number; tipWidth: number; coreAlpha: number; glowWidth: number; glowAlpha: number;
   flashSize: number; flashMs: number; moteCount: number; moteSpeed: number; moteLife: number;
@@ -1639,7 +1640,7 @@ class FxController {
       this.spawn(this.glowTex, {
         x: from.x, y: from.y, vx: 0, vy: 0, drag: 1, life: cfg.pulseMs,
         fromScale: pulseScale, toScale: pulseScale, spin: 0,
-        tint: hexNum(cfg.colorGlow), blend: 'add', peakAlpha: cfg.pulseAlpha,
+        tint: hexNum(cfg.colorGlow), blend: cfg.blend, peakAlpha: cfg.pulseAlpha,
       });
     }
 
@@ -1657,7 +1658,7 @@ class FxController {
     // The ribbon is a Graphics rebuilt each frame in `update` (additive, matching the preview's 'lighter'). It
     // is NOT drawn to full length now — `update` reveals it up to the travelling head.
     const g = new Graphics();
-    g.blendMode = 'add';
+    g.blendMode = cfg.blend;
     this.layer.addChild(g);
     this.tendrils.push({
       g, from: { x: from.x, y: from.y }, to: { x: to.x, y: to.y }, ctl, perp, cfg, age: 0, struck: false,
@@ -1733,7 +1734,7 @@ class FxController {
       this.spawn(this.glowTex!, {
         x: to.x, y: to.y, vx: 0, vy: 0, drag: 1, life: cfg.flashMs,
         fromScale: flashScale, toScale: flashScale * 1.4, spin: 0, // grows a touch as it fades (preview grow 1.4)
-        tint: hexNum(cfg.colorFlash), blend: 'add', peakAlpha: 1,
+        tint: hexNum(cfg.colorFlash), blend: cfg.blend, peakAlpha: 1,
       });
     }
     const n = Math.round(cfg.moteCount);
@@ -1745,7 +1746,7 @@ class FxController {
         drag: TENDRIL_MOTE_DRAG, life: cfg.moteLife * (0.7 + Math.random() * 0.6),
         // ~7px-radius motes on the glowTex (preview mote base size 7), shrinking to nothing.
         fromScale: (7 / TENDRIL_GLOW_R) * (0.6 + Math.random() * 0.8), toScale: 0.02, spin: 0,
-        tint: hexNum(cfg.colorMote), blend: 'add', peakAlpha: 1,
+        tint: hexNum(cfg.colorMote), blend: cfg.blend, peakAlpha: 1,
       });
     }
   }

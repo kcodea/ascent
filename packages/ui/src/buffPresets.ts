@@ -6,6 +6,9 @@ import type { Tribe } from '@game/core';
  *  'beam' are reserved). Colors are hex strings; the renderer converts to Pixi tints. */
 export interface BuffPresetCfg {
   style: 'tendril' | 'lightning' | 'beam';
+  /** How the tendril + glow/flash/mote layers composite. 'add' = additive bloom (pops on dark bg, washes on the
+   *  light board); 'normal' = paints the actual color (reads on cream); 'screen' = lighten. */
+  blend: 'add' | 'normal' | 'screen';
   // path
   curve: number; wobbleAmp: number; wobbleFreq: number; travelMs: number; retractMs: number;
   // ribbon
@@ -23,7 +26,7 @@ export interface BuffPresetCfg {
  *  `default` shares these values until it gets its own tuned look; only the Kennelmaster card fires in the
  *  iteration-1 slice, so `default` is not yet exercised live. */
 const BASE: BuffPresetCfg = {
-  style: 'tendril',
+  style: 'tendril', blend: 'normal',
   curve: 0.83, wobbleAmp: 11, wobbleFreq: 3.5, travelMs: 430, retractMs: 170,
   baseWidth: 19, tipWidth: 5, coreAlpha: 1, glowWidth: 70, glowAlpha: 0.04,
   flashSize: 69, flashMs: 230, moteCount: 31, moteSpeed: 590, moteLife: 700,

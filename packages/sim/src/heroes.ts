@@ -338,7 +338,6 @@ export const HEROES: HeroDef[] = [
     blurb: 'The forge fires once — spend well, for its rune lasts the whole climb.',
     resolve: 30,
     armor: 8,
-    wip: true, // engine-only until the Runeforge UI ships — withheld from the picker so a run can't soft-lock on turn 6
     power: {
       name: 'Runeforge',
       kind: 'runeforge',

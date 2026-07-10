@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 29)
 
+### feat(ui): hero power in its own box, right of the hero frame, glowing when usable
+
+Moved the hero-power button out of the hero frame's 2×2 grid into a **standalone `.heropanel` card** — a
+`.statusrow` flex sibling to the right of the hero, stretched to the hero's height. It's sized up (button 54u →
+82u) with the power name as a label beneath, so an active power reads as an obvious press-me button. The **whole
+box glows** (tangerine border + soft gold halo) via the existing `canHero` predicate whenever the power is usable
+this turn — a standing reminder to press it — and firms up while aiming (`.armed`); a passive hero's box shows the
+art dimmed with a "Passive" label and no glow. With the button gone from the hero grid, the Resolve box now spans
+both columns and centres under the portrait + name. The button keeps its `.heropowerbtn` class so Recruit's aim
+line still anchors to it (verified the `.statusbar .heropowerbtn` selector still resolves), and the power tooltip
+moved onto the new panel. typecheck / lint / build:web green; verified live (ready glow on Bagger Ben's Bag It,
+dimmed "Passive" on Fi).
+
 ### balance: quest-reward card retune (8 cards) + Tradesman rerolls cost 2
 
 A pass over eight quest-reward tokens plus a Tradesman economy tweak (owner spec 2026-07-10).

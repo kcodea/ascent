@@ -135,10 +135,25 @@ export function StatusBar() {
             <div className="nm">{hero.name}</div>
             <div className="pw">{powerLine}</div>
           </div>
-          {/* Hero-power button — the ONLY trigger for an active power (clicking the frame does nothing). A PASSIVE
-              hero still gets the button (so every hero shows its power art) but it doesn't glow + isn't clickable.
-              Placeholder glyph for now; an untargeted power fires on click, a targeted one arms (then aim).
-              Wrapped in .hpwrap so the gold-cost badge can sit below the circle without being clipped. */}
+          {/* Health as a compact white box under the hero — the number is Resolve (+Armor). Keeps the hit-shake
+              + −X float when a wave breaks through. */}
+          <div
+            className={`hpbox${hit ? ' hit' : ''}`}
+            title={`Resolve: ${run.resolve} of ${run.maxResolve}${run.maxArmor ? ` · Armor ${run.armor} of ${run.maxArmor}` : ''}`}
+          >
+            <Icon name="heart" />
+            <span className="hpval">{run.resolve}{run.armor > 0 && <b className="armval" title="Armor — extra effective HP">+{run.armor}</b>}</span>
+            {hit && <span className="resfx" key={hit.key}>−{hit.amt}</span>}
+          </div>
+        </div>
+        {/* Hero power — its OWN box to the right of the hero frame, sized up so an ACTIVE power reads as an
+            obvious press-me button. The whole box glows (`.ready`) when the power is usable this turn, so it's a
+            standing reminder to press it; it firms up (`.armed`) while aiming. A PASSIVE hero's box shows the art
+            (dimmed, no glow, not clickable). The button keeps the `.heropowerbtn` class so Recruit's aim line
+            still anchors to it. Clicking the frame does nothing — this button is the ONLY trigger. */}
+        <div
+          className={`heropanel${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}`}
+        >
           <div className="hpwrap">
             <button
               type="button"
@@ -160,16 +175,7 @@ export function StatusBar() {
             </button>
             {power.cost ? <span className="hpcost"><Icon name="mana" />{power.cost}</span> : null}
           </div>
-          {/* Health as a compact white box beside the hero power — the number is Resolve (+Armor). Replaces the
-              old HP bar; keeps the hit-shake + −X float when a wave breaks through. */}
-          <div
-            className={`hpbox${hit ? ' hit' : ''}`}
-            title={`Resolve: ${run.resolve} of ${run.maxResolve}${run.maxArmor ? ` · Armor ${run.armor} of ${run.maxArmor}` : ''}`}
-          >
-            <Icon name="heart" />
-            <span className="hpval">{run.resolve}{run.armor > 0 && <b className="armval" title="Armor — extra effective HP">+{run.armor}</b>}</span>
-            {hit && <span className="resfx" key={hit.key}>−{hit.amt}</span>}
-          </div>
+          <div className="hplabel">{isPassive ? 'Passive' : power.name}</div>
           <div className="herotip" role="tooltip">
             <b>{power.name}</b> — {power.text}
             {powerNote}

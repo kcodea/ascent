@@ -60,7 +60,7 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_umbral_energy', name: 'Umbral Energy', tribe: 'dragon', tier: 'greater', objective: { event: 'slaughter', count: 13, tribe: 'dragon' }, reward: { kind: 'combatFlag', flag: 'umbralEnergy' } },
   { id: 'q_forsaken_will', name: 'Forsaken Will', tribe: 'undead', tier: 'greater', objective: { event: 'compound', count: 2, parts: [{ event: 'castSpell', count: 14 }, { event: 'summonCombat', count: 6 }] }, reward: { kind: 'undeadSpellAura', attack: 6 } },
   { id: 'q_kingdom_of_bones', name: 'Kingdom of Bones', tribe: 'undead', tier: 'greater', objective: { event: 'friendlyDeath', count: 11 }, reward: { kind: 'grant', cards: ['bonetaxer'] } },
-  { id: 'q_ossuary_rite', name: 'Ossuary Rite', tribe: 'undead', tier: 'greater', objective: { event: 'deathrattle', count: 8 }, reward: { kind: 'grant', cards: ['ossuaryrite'] }, repeatable: true },
+  { id: 'q_ossuary_rite', name: 'Ossuary Rite', tribe: 'undead', tier: 'greater', objective: { event: 'deathrattle', count: 8 }, reward: { kind: 'recurringGrant', cards: ['ossuaryrite'] } },
   { id: 'q_perfect_machine', name: 'Perfect Machine', tribe: 'mech', tier: 'greater', objective: { event: 'playAttachment', count: 5 }, reward: { kind: 'grant', cards: ['perfectcore'] } },
   { id: 'q_blueprint_cache', name: 'Blueprint Cache', tribe: 'mech', tier: 'greater', objective: { event: 'playAttachment', count: 4 }, reward: { kind: 'recurringEndOfTurn', effect: 'grantRandomAttachments' } },
   { id: 'q_deep_hunger', name: 'Deep Hunger', tribe: 'demon', tier: 'greater', objective: { event: 'consumeFodder', count: 8 }, reward: { kind: 'combatFlag', flag: 'deepHunger' } },

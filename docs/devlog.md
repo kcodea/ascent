@@ -57,6 +57,15 @@ so it never touched a concurrent branch in the shared folder.
 
 ## 2026-07-09 (session 28)
 
+### fix(content): Ossuary Rite quest — recurring End-of-Turn grant instead of a self-feeding loop
+
+Owner-reported: the Ossuary Rite quest (`q_ossuary_rite`, "trigger 8 Echoes") granted an Ossuary Rite and was
+`repeatable: true` — but casting Ossuary Rite triggers an Echo (a deathrattle), which feeds the same objective, so a
+board with enough Echo minions re-completed the quest every action and the hand filled with Ossuary Rites forever.
+Per the owner: keep the objective ("trigger 8 Echoes") but change the reward to a recurring **End of Turn: get an
+Ossuary Rite** (the existing `recurringGrant` kind, as Feed the Alpha uses) and drop `repeatable`. Now the quest
+completes exactly once and hands out one Ossuary Rite per turn — bounded, no loop. Test rewritten (25 Echoes → completes
+once, arms `questRecurringGrants`, ≤1 Ossuary Rite from the settle). `typecheck` + `lint` + `test` (782) + `build:web` green.
 ### fix(ui): taunt bulwark no longer re-deploys on the combat↔recruit swap
 
 The remaining "taunt bulwark spawns in briefly" was **not** the skip fade — instrumentation (wrapping

@@ -424,9 +424,6 @@ export interface RunState {
   goldPouchValue?: number;
   /** Rune of Summoning: each spell cast improves your Imps +1/+1 (run-wide, via the Imp enchant). */
   runeSummoning?: boolean;
-  /** Rune of Empowerment: your hero power's effect triggers twice. (Dormant for Runesmith, whose power is the
-   *  passive Runeforge — activates for a future forge-hero with an ACTIVE power.) */
-  runeEmpowerment?: boolean;
   /** Food for Gold (Demon greater): armed reward — every `per` Gold spent adds a Fodder to the next shop and
    *  bumps the run-wide Fodder aura by +attack/+health. `foodForGoldTick` carries the sub-`per` Gold remainder. */
   foodForGold?: { per: number; attack: number; health: number };

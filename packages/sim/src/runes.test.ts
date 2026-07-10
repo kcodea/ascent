@@ -20,7 +20,7 @@ const buyRune = (runeId: string, embers = 10, over: Partial<RunState> = {}): Run
 describe('Runeforge — framework', () => {
   it('every rune validates + is Runeforge-only (never a card/quest id)', () => {
     validateRunes();
-    expect(RUNES.length).toBe(11);
+    expect(RUNES.length).toBe(10);
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
@@ -110,10 +110,9 @@ describe('Runeforge — each rune applies its effect on purchase', () => {
     expect(s.hand.some((c) => c.cardId === 'pillager')).toBe(true);
     expect(s.goldPouchValue).toBe(2);
   });
-  it('Summoning / Forthcoming / Empowerment arm their flags', () => {
+  it('Summoning / Forthcoming arm their flags', () => {
     expect(buyRune('rune_summoning').runeSummoning).toBe(true);
     expect(buyRune('rune_forthcoming').questFlags?.runeForthcoming).toBe(true);
-    expect(buyRune('rune_empowerment').runeEmpowerment).toBe(true);
   });
 });
 

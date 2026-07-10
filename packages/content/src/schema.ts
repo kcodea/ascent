@@ -353,7 +353,6 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('runeConsume'), attack: z.number().int(), health: z.number().int() }).strict(),
   z.object({ kind: z.literal('goldPouchValue'), value: z.number().int().positive() }).strict(),
   z.object({ kind: z.literal('runeSummoning') }).strict(),
-  z.object({ kind: z.literal('runeEmpowerment') }).strict(),
   z.object({ kind: z.literal('multi'), rewards: z.array(QuestRewardSchema).min(1) }).strict(),
 ]));
 

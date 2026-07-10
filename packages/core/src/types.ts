@@ -459,8 +459,6 @@ export type QuestReward =
   | { kind: 'goldPouchValue'; value: number }
   // Rune of Summoning: each spell you cast permanently improves your Imps +1/+1 wherever they are.
   | { kind: 'runeSummoning' }
-  // Rune of Empowerment: your hero power's effect triggers twice.
-  | { kind: 'runeEmpowerment' }
   // Undead: `gainGold` grants Gold immediately on completion (Bone Ledger's "Get 10 Gold").
   | { kind: 'gainGold'; amount: number }
   // Undead Echo rewards: `always` grants a permanent extra Echo (Deathrattle) trigger (Funeral Engine, stacks

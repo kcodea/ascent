@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### fix(ui): Practice hero-select — balanced, space-filling grid
+
+The Practice picker (every hero — 23 today) used a `flex-wrap` grid of fixed-156px cards, so on a wide screen it
+greedily packed most heroes into row 1 and stranded a sparse trailing row (e.g. 19 + 4), leaving a band of small
+cards marooned in the middle with huge empty margins above/below. Reworked the `dense` grid: HeroSelect now computes
+a balanced column count (`cols = ceil(count / rows)`, 2 rows up to 24 heroes, else 3) and passes it as an inline
+`--hs-cols`. Each card is sized `calc((100% - cols*gap) / cols)`, so **exactly** `cols` fit per row and flex-wrap
+lands a centered, balanced last row; the container width is `min(96vw, 2160px)`. Card metrics (art, name, HP, power
+text) now scale with viewport via `clamp()`/percentages so the cards FILL the space instead of clustering small.
+Verified live at 1280×720 (12+11 rows, cards 90px, no scroll) and 2000×900 (12+11, cards 142px, art scaled up, no
+scroll). typecheck / lint / 818 tests / build green.
+
 ### feat(ui): Runeforge offers 3 (re-roll once for 2 Gold) + hero-power cost as a gold coin
 
 **Runeforge — 3, not 5, with a re-roll.** The turn-6 forge now offers a random **3** runes instead of 5 (both the

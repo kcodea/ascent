@@ -95,9 +95,10 @@ export function nextOpponent(s: RunState): BoardSnapshot | null {
   return pickOpponent(s.wave, s.turnStartPower, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)));
 }
 
-/** Loss-damage cap by round (early-game protection): 5 through wave 3, 10 through wave 6, 15 from wave 7. */
+/** Loss-damage cap by round — the most Resolve a single loss can cost, ramping up as the course escalates:
+ *  10 through round 8, 15 through round 12, 20 through round 15, then UNCAPPED (full damage) for the finale. */
 export function lossDamageCap(wave: number): number {
-  return wave <= 3 ? 5 : wave <= 6 ? 10 : 15;
+  return wave <= 8 ? 10 : wave <= 12 ? 15 : wave <= 15 ? 20 : Infinity;
 }
 
 /** Merge a flat list of buffs by source (summing ±atk/±hp + count) — used to carry the inspect

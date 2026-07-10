@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 29)
 
+### feat(ui): Career "Board Log" — click through rounds 1–17 for your winningest board
+
+Second half of board win-tracking (Mike's idea), built on the fight ledger from the leaderboard PR. A new **Board
+Log** panel atop the Career page: a round 1–17 selector, and for the picked round your **winningest board** — best
+win-rate with a small min-fights threshold — plus its full record (`82 Fights · 78 Wins · 2 Ties · 2 Losses · 96%`)
+and the board itself. `fetchPlayerRoundBoards(author)` pulls your uploaded boards (which carry ids from the
+tracking PR), joins the `board_results` ledger, groups by round, and sorts each round best-record-first; the panel
+opens on your best-fought round. Lit dots mark rounds you have a board for. Client-side aggregation, best-effort,
+independent of local match history.
+
+Verified: typecheck / lint / 792 tests / build green; live, the panel renders the header + 1–17 selector + empty
+state ("No board recorded yet") with no console errors — correct, since existing boards predate id-stamping and are
+filtered out. The populated view (records + board) lights up once id-stamped boards accumulate and the owner has
+re-run `schema.sql` (the isolated `board_results` table).
 ### fx: the Echo skull is now a purple glowing ☠ that poofs into smoke
 
 The Deathrattle (now called **Echo**) death FX was a painted **bone** skull-and-crossbones that popped up over

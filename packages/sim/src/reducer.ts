@@ -1311,7 +1311,11 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerPermaBuffs) {
     for (const { sourceUid, attack, health, engraved } of result.playerPermaBuffs) {
       const card = s.board.find((c) => c.uid === sourceUid);
-      if (card) addBuff(card, engraved ? 'Engraved' : 'Flowing Monk', attack, health);
+      if (!card) continue;
+      // Taragosa's Heir amplifies stat gains from ALL sources — combat included. It's Engraved, so its combat
+      // gains reach here; multiply its carry-back ×2 (golden ×3) so combat matches its recruit-phase amplifier.
+      const mult = card.cardId === 'taragosaheir' ? (card.golden ? 3 : 2) : 1;
+      addBuff(card, engraved ? 'Engraved' : 'Flowing Monk', attack * mult, health * mult);
     }
   }
   // Cards a combat effect added to the hand land in the hand for the next recruit, win or lose — capped by

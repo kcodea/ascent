@@ -301,18 +301,20 @@ export const DRAGONS: CardDef[] = [
   },
   {
     // Taragosa's Inheritance reward — a stat-gain amplifier: every stat gain THIS minion receives from any source
-    // is multiplied (×2, golden ×3). Handled in the reducer's stat-gain diff (recruit phase), so no effect factory.
+    // is multiplied (×2, golden ×3). RECRUIT gains: the reducer's stat-gain diff. COMBAT gains: it's Engraved
+    // (EG) so its combat gains carry back to the run board, and the settle carry-back multiplies the Heir's
+    // entry ×2/×3 — so "all sources" genuinely includes combat, matching the recruit amplifier.
     id: 'taragosaheir',
     name: "Taragosa's Heir",
     tribe: 'dragon',
     tier: 6,
     attack: 7,
     health: 6,
-    keywords: [],
+    keywords: ['EG'],
     token: true,
     effects: [],
-    text: 'Gains **2× stats** from all sources.',
-    goldenText: 'Gains **3× stats** from all sources.',
+    text: 'Gains **2× stats** from all sources. **Engraved** — keeps its combat gains.',
+    goldenText: 'Gains **3× stats** from all sources. **Engraved** — keeps its combat gains.',
   },
   {
     // Chimerus quest reward (Dragon capstone). Rally: each attack hands its own Health to 2 friendly Dragons —

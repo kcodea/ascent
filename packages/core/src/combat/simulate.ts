@@ -21,7 +21,7 @@ import { instantiate, type CardIndex } from './minion';
 const OTHER: Record<Side, Side> = { player: 'enemy', enemy: 'player' };
 const ITERATION_GUARD = 300;
 const REATTACK_GUARD = 50;
-const IMMEDIATE_ATTACK_GUARD = 64; // bounds a chain of attack-on-summon Whelps (each kill can spawn another)
+const IMMEDIATE_ATTACK_GUARD = 64; // bounds a chain of attack-on-summon Whelps (each kill can spawn another); one queue item per token — a deferred summon strikes inline in the same drain step
 
 /**
  * Resolve a combat deterministically (handoff A.3) and return an event log the
@@ -554,6 +554,27 @@ export function simulate(
       if (copyStats.divineShield) minion.divineShield = true;
       if (copyStats.rebornAvailable) minion.rebornAvailable = true;
     }
+    // Attack-on-summon tokens (Whelp; Steadfast Champion's Spear Warden via `attackNow`) DEFER their whole
+    // summon: rather than land + announce here, they queue onto the immediate-attack queue and are placed at
+    // the next flushImmediateAttacks — i.e. AFTER the current clash's death cascade fully resolves. So the
+    // token's `summon` event and its out-of-turn strike land together, as one discrete beat, never interleaved
+    // with the other units' deaths/Deathrattles in the same clash (owner ruling 2026-07-10). Consequence: the
+    // token is OFF the board for the rest of the cascade, so a same-clash Deathrattle can no longer buff it
+    // before it exists — which also keeps the buff/summon event order consistent for the UI's computeFrame.
+    if (card.attackOnSummon || attackNow) {
+      pendingAttackOnSummon.push({ summon: { minion, side, card, nearUid, grantKeywords, golden, copyStats, doubled } });
+      return minion;
+    }
+    return placeSummon(minion, side, card, nearUid, grantKeywords, golden, false, copyStats, doubled);
+  }
+
+  /**
+   * Land an already-instantiated summon on the board: board-cap check, splice, auras, granted keywords,
+   * effect registration, the `summon` event, quest tallies, onSummon + tribe auras, the attack-on-summon
+   * strike-queue push, and Echo Warden doubling. Split out of summonMinion so attack-on-summon tokens can
+   * DEFER to flushImmediateAttacks (which calls this at flush time) while plain summons run it inline.
+   */
+  function placeSummon(minion: Minion, side: Side, card: CardDef, nearUid: string | undefined, grantKeywords: Keyword[] | undefined, golden: boolean, attackNow: boolean, copyStats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean } | undefined, doubled: boolean): Minion {
     // Board cap of 7 (handoff A.2): a full board can't receive summons — but Flowing Monk pays off
     // on the wasted body (the combat half of its recruit overflow buff).
     if (living(side).length >= 7) {
@@ -585,10 +606,10 @@ export function simulate(
     }
     bus.emit('onSummon', { minion, side });
     applyTribeAuras(minion); // persistent tribe auras (Kennelmaster / Grim / Solaris) catch later summons
-    // Attack-on-summon (Whelp): queue this body to strike immediately, out of turn order. Overflowed summons
-    // already returned above, so only minions actually placed on the board reach here.
-    // `attackNow` is the per-summon override (Steadfast Champion's Spear Warden) — same queue as the card flag.
-    if ((card.attackOnSummon || attackNow) && !minion.dead && minion.health > 0) pendingAttackOnSummon.push({ minion });
+    // Attack-on-summon (Whelp) / `attackNow` (Spear Warden): the immediate strike is NOT queued here. We only
+    // reach placeSummon for these tokens from flushImmediateAttacks (they defer in summonMinion), which strikes
+    // the placed body inline right after this returns — so the token summons, then swings, before the next
+    // deferred token lands (preserving the sequential board-cap "room after the first has attacked" logic).
     // Echo Warden: while it's on your board, "your summons trigger one more time" — each successful summon spawns
     // an extra copy (the copy carries `doubled=true`, so it never re-triggers). Golden Echo Warden adds two; each
     // Echo Warden stacks. Player-side only (it's a player reward). A full board short-circuits above (no room).
@@ -668,9 +689,17 @@ export function simulate(
 
   // Running death tally per side — drives Avenge (X) (A.4).
   const deaths: Record<Side, number> = { player: 0, enemy: 0 };
-  // Minions summoned mid-combat that strike immediately, out of turn order (Twilight Whelp's 3/3 Whelp) —
-  // filled in summonMinion, drained by flushImmediateAttacks after each attack's death cascade settles.
-  const pendingAttackOnSummon: { minion: Minion; shieldFirst?: boolean }[] = [];
+  // The immediate-attack queue, drained by flushImmediateAttacks after each attack's death cascade settles.
+  // Two item kinds, processed in FIFO order so a token's summon and its strike stay adjacent:
+  //   • `{ summon }` — a DEFERRED attack-on-summon token (Twilight Whelp's 3/3 Whelp, Spear Warden): its whole
+  //     summon (placement + `summon` event) was held back from mid-cascade; placeSummon lands it at flush time,
+  //     which then pushes its own `{ minion }` strike as the next item.
+  //   • `{ minion, shieldFirst }` — an already-on-board minion taking an out-of-turn strike (a placed token's
+  //     own swing, or Solaris Fang / Feeding Line / Bloodlust granting an existing body a bonus attack).
+  const pendingAttackOnSummon: (
+    | { summon: { minion: Minion; side: Side; card: CardDef; nearUid: string | undefined; grantKeywords: Keyword[] | undefined; golden: boolean; copyStats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean } | undefined; doubled: boolean }; minion?: undefined }
+    | { minion: Minion; shieldFirst?: boolean; summon?: undefined }
+  )[] = [];
 
   // Fire a minion's OWN Deathrattle / on-death effects directly (no global onDeath broadcast / Avenge / death
   // event) — used by Reborn so a reborn death procs the unit's own Deathrattle without re-triggering other
@@ -1124,17 +1153,36 @@ export function simulate(
     }
   }
 
-  // Drain the attack-on-summon queue (Twilight Whelp's 3/3 Whelps): each strikes once, out of turn order,
-  // right after the attack that spawned it settles. A Whelp's hit can spawn the enemy's Whelps (a chain),
-  // bounded by IMMEDIATE_ATTACK_GUARD. A Whelp with no living foe is skipped (combat may be ending).
+  // Drain the immediate-attack queue AFTER the current clash's death cascade has fully settled: deferred
+  // attack-on-summon tokens (Twilight Whelp's 3/3 Whelps) are placed + announced here and then strike, so the
+  // whole summon lands as one discrete beat past the cascade. A placed token queues its own strike as the next
+  // item; a Whelp's hit can spawn the enemy's Whelps (a chain), bounded by IMMEDIATE_ATTACK_GUARD. A Whelp with
+  // no living foe is skipped (combat may be ending).
   function flushImmediateAttacks(): void {
     let guard = 0;
     while (pendingAttackOnSummon.length > 0 && guard++ < IMMEDIATE_ATTACK_GUARD) {
+      const item = pendingAttackOnSummon.shift()!;
+      // A deferred summon: land the token NOW (a fresh beat), then take its immediate strike as its own beat
+      // right after — so it summons and swings as one discrete unit, past the cascade that queued it. Doing the
+      // strike inline (not as a separate queue item) keeps a multi-token Deathrattle sequential: each token
+      // summons + strikes before the next lands, so the board-cap "room after the first has attacked" logic
+      // (golden Whelp on a near-full board) still holds.
+      if (item.summon) {
+        const s = item.summon;
+        nextStep();
+        const m = placeSummon(s.minion, s.side, s.card, s.nearUid, s.grantKeywords, s.golden, true, s.copyStats, s.doubled);
+        // Only a body that actually landed strikes — an overflowed summon (full board) returns unplaced.
+        if (boards[m.side].includes(m) && !m.dead && m.health > 0 && m.attack > 0 && countLiving(OTHER[m.side]) > 0) {
+          nextStep();
+          performAttack(m, OTHER[m.side], 0);
+        }
+        continue;
+      }
       // Each out-of-turn strike opens a fresh moment: a Solaris shield grant lands here, then performAttack's
       // own entry bump gives the swing itself the next step (grant → strike, two beats, never merged into the
       // death resolution that queued them).
       nextStep();
-      const { minion: m, shieldFirst } = pendingAttackOnSummon.shift()!;
+      const { minion: m, shieldFirst } = item;
       // Grant a fresh Ward immediately before this strike (Solaris Fang's Avenge). Paired with the strike so a
       // golden Solaris — which queues two — goes in shielded on EACH. Idempotent (no double shield).
       if (shieldFirst && !m.dead && m.health > 0 && !m.divineShield) {

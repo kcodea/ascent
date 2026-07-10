@@ -14,7 +14,8 @@ function cardViewOf(m: BoardMinion): CardView {
   return {
     name: def?.name ?? m.cardId, cardId: m.cardId, tribe: def?.tribe ?? 'neutral', tribe2: def?.tribe2,
     attack: m.attack, health: m.health, keywords: m.keywords ?? [],
-    text: def?.text ?? '', goldenText: def?.goldenText, golden: m.golden,
+    // Prefer the live end-of-run text baked into the final-board snapshot; older entries fall back to printed.
+    text: m.text ?? def?.text ?? '', goldenText: m.goldenText ?? def?.goldenText, golden: m.golden,
     tier: def?.tier ?? 1, baseAttack: def?.attack ?? m.attack, baseHealth: def?.health ?? m.health, buffs: m.buffs,
   };
 }

@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 29)
 
+### feat(ui): leaderboard + Career show the END-STATE board with live end-of-run card values
+
+The Hall of Champions (and the Career history board) showed the **pre-combat** highest-wave replay snapshot with
+**printed** rule text — so a champion's board read as its pre-fight recruit board, and a maxed-out Sergeant showed
+its base "+4 Health" instead of the "+102" it actually ended on. Now both render the **end-state board** the way
+the end screen does.
+
+- Extracted the end screen's `boardView` into a shared **`liveBoardView(m, run)`** (in `instView.ts`) — the
+  composer that folds run-wide auras (Lantern on Undead) into the shown stats and resolves each card's **live
+  scaling text** (Sergeant's climbing grant, Guel, Taragosa, …). The end screen now imports it (no behavior
+  change there).
+- On run end, the leaderboard/Career board is now built by a new `endStateBoard(run)` in `store.ts`: it snapshots
+  the **post-combat** `run.board` (combat carry-backs baked in) and enriches each minion with `liveBoardView` —
+  final Attack/Health (incl. auras) + the live rule text — replacing the old pre-combat, printed-text snapshot.
+  This board flows into both `uploadVictory` (leaderboard) and the Career history entry.
+- `BoardMinion` gained display-only `text?` / `goldenText?` fields (baked only into the final board; pool/combat
+  snapshots omit them and matchmaking/combat never read them). `cardViewOf` on the leaderboard **and** Career now
+  prefer the baked live text, falling back to the printed card text for older snapshots.
+
+Verified live: forced a run to game-over with a Sergeant carrying an accrued grant — the saved end-state board's
+Sergeant stored `text: "…{{+102 Health}}…"` (green live value) + its golden variant, and the end screen rendered
+"Give your minions +102 Health". typecheck / lint / 792 tests / build:web green.
 ### feat(ui): hero power in its own box, right of the hero frame, glowing when usable
 
 Moved the hero-power button out of the hero frame's 2×2 grid into a **standalone `.heropanel` card** — a

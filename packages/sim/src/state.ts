@@ -486,8 +486,10 @@ export interface RunState {
   discoverQueue?: DiscoverSpec[];
   /** A pending Choose One — a played card waiting for the player to pick an option. The options live on the
    *  card def (`CARD_INDEX[cardId].chooseOne`). `spell` marks a SPELL choose-one (its own thing, not a
-   *  battlecry): the card is still in HAND and its chosen effect is cast (then consumed) on pick. */
-  chooseOne?: { uid: string; cardId: string; spell?: boolean };
+   *  battlecry): the card is still in HAND and its chosen effect is cast (then consumed) on pick. `targetUid`
+   *  is set for a *targeted* spell Choose One (Anomaly Reactor): the drag already picked the target minion, so
+   *  the chosen option's effect is cast ON that target rather than untargeted. */
+  chooseOne?: { uid: string; cardId: string; spell?: boolean; targetUid?: string };
   /** A played minion with a *targeted* Battlecry (`CardDef.target === 'friendly'`, e.g. Toxin Tender),
    *  on the board and waiting for the player to pick the friendly minion its Battlecry hits. Resolved
    *  by `battlecryTarget`; auto-resolves on the carry if the turn ends first. `optionIndex` marks a deferred

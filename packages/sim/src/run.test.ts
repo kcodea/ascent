@@ -4998,7 +4998,7 @@ describe('Beast quests (combat objectives + rewards)', () => {
     reduce({ ...createRun(1), phase: 'combat', combatSettled: false, lastCombat: combatWith(over), activeQuests: [{ questId: quest, progress: 0, completed: false }], ...extra }, { type: 'resolveCombat' });
 
   it('Blood Trail (slaughter, any tribe) advances by the tally and arms the combat flag', () => {
-    const s = settle('q_blood_trail', { enemyDeaths: 2, playerQuestTally: { ...zeroTally(), slaughter: 2, slaughterByTribe: { beast: 2 } } });
+    const s = settle('q_blood_trail', { enemyDeaths: 6, playerQuestTally: { ...zeroTally(), slaughter: 6, slaughterByTribe: { beast: 6 } } });
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.questFlags?.bloodTrail).toBe(true);
   });
@@ -5013,11 +5013,19 @@ describe('Beast quests (combat objectives + rewards)', () => {
     }
   });
 
-  it('Anomaly Reactor gives a minion a Mech type (isTribe + magnetize eligibility)', () => {
+  it('Anomaly Reactor: target a minion, then Choose One picks the added type (isTribe + magnetize)', () => {
     const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
     const spell: BoardCard = { uid: 'sp', cardId: 'anomalyreactor', tribe: 'mech', attack: 0, health: 1, keywords: [], golden: false };
     let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 10, board: [beast], hand: [spell] };
+    // The drag picks the target (targetUid) → opens a Choose One over the 5 types, spell stays in hand.
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'b' });
+    expect(s.chooseOne).toMatchObject({ cardId: 'anomalyreactor', spell: true, targetUid: 'b' });
+    expect(s.hand.some((c) => c.uid === 'sp')).toBe(true); // not consumed until the pick
+    expect(s.board.find((c) => c.uid === 'b')!.addedTribes ?? []).not.toContain('mech'); // nothing applied yet
+    // Pick "Add Mech" (option index 3: beast/dragon/undead/mech/demon) → the type lands on the target, spell consumed.
+    s = reduce(s, { type: 'chooseOne', index: 3 });
+    expect(s.chooseOne).toBeUndefined();
+    expect(s.hand.some((c) => c.uid === 'sp')).toBe(false);
     const target = s.board.find((c) => c.uid === 'b')!;
     expect(target.addedTribes).toContain('mech');
     expect(isTribe(target, 'mech')).toBe(true);
@@ -5025,6 +5033,18 @@ describe('Beast quests (combat objectives + rewards)', () => {
     // A Cling Drone (Mech Magnetic) can now weld onto it (couldn't before the added type).
     expect(magnetizesTo('cling', 'alley', target.addedTribes)).toBe(true);
     expect(magnetizesTo('cling', 'alley')).toBe(false);
+  });
+
+  it('Anomaly Reactor: the Choose One can add ANY of the five types, not just Mech', () => {
+    const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
+    const spell: BoardCard = { uid: 'sp', cardId: 'anomalyreactor', tribe: 'mech', attack: 0, health: 1, keywords: [], golden: false };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 10, board: [beast], hand: [spell] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'b' });
+    s = reduce(s, { type: 'chooseOne', index: 1 }); // Add Dragon
+    const target = s.board.find((c) => c.uid === 'b')!;
+    expect(target.addedTribes).toContain('dragon');
+    expect(isTribe(target, 'dragon')).toBe(true);
+    expect(isTribe(target, 'mech')).toBe(false); // only the chosen type was added
   });
 
   it('Attachment Issues arms a permanent 2-Gold Attachment in every shop', () => {

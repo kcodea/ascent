@@ -461,6 +461,14 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Spell Choose One (Apples): a SPELL choice — its own thing, NOT a Battlecry. Pause for the pick,
         // keeping the spell in hand; the chosen effect is cast (and the spell consumed) in `chooseOne`.
         if (def.chooseOne?.length) {
+          // A *targeted* Choose One spell (Anomaly Reactor): the drag already aimed at a friendly minion — capture
+          // it now so the chosen type lands on THAT minion. No valid target → fizzle (spell kept in hand).
+          if (def.target === 'friendly') {
+            const boardTarget = s.board.find((c) => c.uid === action.targetUid);
+            if (!boardTarget) return state;
+            s.chooseOne = { uid: card.uid, cardId: def.id, spell: true, targetUid: boardTarget.uid };
+            return s;
+          }
           s.chooseOne = { uid: card.uid, cardId: def.id, spell: true };
           return s;
         }
@@ -586,8 +594,12 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (co.spell) {
         const hi = s.hand.findIndex((c) => c.uid === co.uid);
         if (hi < 0) { s.chooseOne = undefined; return s; }
+        // A *targeted* spell Choose One (Anomaly Reactor) casts on the target the drag picked; the target may have
+        // been removed (sold) since — fizzle the cast but still consume the spell. Untargeted (Apples) → no target.
+        const target = co.targetUid ? s.board.find((c) => c.uid === co.targetUid) : undefined;
+        if (co.targetUid && !target) { s.hand.splice(hi, 1); s.chooseOne = undefined; return s; }
         const casts = spellCasts(s, def);
-        for (let n = 0; n < casts; n++) castSpell(s, { ...def, effects: option.effects }, undefined);
+        for (let n = 0; n < casts; n++) castSpell(s, { ...def, effects: option.effects }, target);
         if (!def.singleCast) s.nextSpellMult = undefined; // Nimbus charge spent (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         s.hand.splice(hi, 1);

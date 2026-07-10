@@ -28,15 +28,21 @@ replacement one-shot will play in the Skip's place later (owner).
 
 - `sfx.ts`: a master **mute bus** (`GainNode`, limiter → bus → destination) + `stopAllAudio()` / `resumeAudio()`;
   `tone`/`playSample` also early-out while suspended so nothing schedules during the fade.
-- `pixiFx.ts`: `setPaused()` — stops/starts the ticker so live particles + bubbles + the taunt bulwark freeze in
-  place (the canvas opacity is faded separately by CSS, which doesn't need the ticker).
-- `Recruit.tsx`: `skipCombat` (freeze → fade-out → resume + `replay.skip()` under cover → ~1 s hold → fade-in);
-  `.combatfrozen` (freeze phases) + a broadened `.combatout`/`.combatin` covering every combat visual + the
-  control bar; an effect un-mutes audio whenever combat is left.
+- `pixiFx.ts`: `setPaused()` freezes the ticker; `clearParticles()` wipes transient FX; **`setVisible()`** hides the
+  whole FX layer. **Root-cause fix (found via live Chrome debugging):** the FX canvases (`.pixifx` particles/dust +
+  `.pixifx-under` shield/reborn bubbles) are mounted **app-wide at BODY level, outside `.app`**, so the
+  `.app.combatout` CSS could never fade them — the dust, Divine-Shield, reborn, and taunt auras leaked through the
+  Skip. `setVisible()` sets the canvas opacity directly. It's an **instant** hide, not a CSS fade, because a CSS
+  transition never progresses on the live WebGL canvas (the render loop defeats it — verified in-browser: inline
+  `opacity:0` stayed computed `1` under a transition, but held at `0` with `transition:none`).
+- `Recruit.tsx`: `skipCombat` (freeze + hide FX + fade cards → resume + `replay.skip()` under cover → ~0.9 s hold →
+  restore + fade in); `.combatfrozen` pauses stray CSS animations; `.combatout`/`.combatin` fade the rows + control
+  bar; an effect un-mutes audio + restores the FX layer whenever combat is left.
 
-Verified: typecheck + lint + 774 tests + `build:web` green; a live computed-style probe confirms every combat
-layer (rows, canvases, bolts, floats, control bar) resolves to opacity 0 under the fade; zero console errors. The
-exact pause/hold/fade timing is **for live eyeball**. Replacement Skip sound: pending owner.
+Verified **in a real focused Chrome tab** (via the claude-in-chrome integration, driving `window.useGame`): through
+the whole hold, all three FX canvases + the unit rows sample at opacity `0` (was `1` — the leak), the board is clean
+(no dust/aura remnants), and the resolved board fades back in correctly. typecheck + lint + 774 tests + `build:web`
+green. Timing dials (`FADE 260 / HOLD 900 / IN 300` ms) are **for live eyeball**. Replacement Skip sound: pending owner.
 
 ### chore(ui): skull-burst sfx quieter still (0.4 → 0.04)
 

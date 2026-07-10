@@ -1109,6 +1109,21 @@ class FxController {
     else this.app.ticker.start();
   }
 
+  /** Show/hide the WHOLE FX layer (both canvases) INSTANTLY — used by the Skip fade. The canvases are mounted
+   *  app-wide at BODY level (outside `.app`), so a CSS `.app.combatout` selector can't reach them; this sets the
+   *  canvas opacity directly, killing every particle + persistent aura bubble at once. NB it's a hard cut, not a
+   *  CSS fade: a CSS transition never progresses on the live WebGL canvas (the render loop defeats it), whereas an
+   *  instant opacity set holds — so on Skip the auras/dust vanish the moment everything freezes. */
+  setVisible(visible: boolean): void {
+    const set = (c: HTMLCanvasElement | undefined): void => {
+      if (!c) return;
+      c.style.transition = 'none';
+      c.style.opacity = visible ? '1' : '0';
+    };
+    set(this.app?.canvas);
+    set(this.shieldApp?.canvas);
+  }
+
   /** Instantly clear every TRANSIENT effect (dust, sparks, trails, skull pops) — recycled to the pool — so
    *  nothing lingers on the canvas mid-transition. Used by the Skip fade. Persistent aura bubbles are untouched
    *  (they fade with the canvas opacity, then re-resolve with the settled board). */

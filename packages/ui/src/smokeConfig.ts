@@ -45,26 +45,27 @@ export interface SmokeConfig {
 }
 
 const DEFAULTS: SmokeConfig = {
-  smokeCount: 7,
-  smokeRise: 150,
+  // Combat impact smoke — owner-tuned in the Lunge Strike Effects tuner (2026-07-10).
+  smokeCount: 3,
+  smokeRise: 0,
   smokeDrift: 170,
-  smokeLife: 1720,
-  smokeGrow: 4.5,
-  smokeAlpha: 0.09,
+  smokeLife: 400,
+  smokeGrow: 6,
+  smokeAlpha: 0.15,
+  // Card-drop dust (a placed minion's footprint billow) — unchanged.
   dustCount: 22,
   dustSpeed: 195,
   dustLife: 1180,
   dustGrow: 1.2,
   dustAlpha: 0.32,
-  // Combat impact dust + energy pulse (fired from the corner clack point). Seeded from the strike-FX
-  // previewer (2026-07-08); dial live in the DEV Smoke tuner and re-bake.
-  impDustCount: 18,
-  impDustSpeed: 300,
-  impDustLife: 550,
+  // Combat impact dust + energy pulse (fired from the strike point) — owner-tuned (2026-07-10).
+  impDustCount: 22,
+  impDustSpeed: 450,
+  impDustLife: 720,
   impDustSize: 30,
   impPulseRadius: 150,
-  impPulseDur: 280,
-  impPulseRings: 1,
+  impPulseDur: 480,
+  impPulseRings: 2,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

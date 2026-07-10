@@ -4,16 +4,16 @@
  * `lungeConfig.ts` / `smokeConfig.ts`: one mutable, localStorage-persisted config dialed by eye via the DEV
  * "Lunge Strike Effects" tuner (`StrikeFxTuner.tsx`); `getStrikeFxConfig()` is read at spawn/engine time, so
  * changes apply to the next strike. The DEFAULTS reproduce the previously-hardcoded flash/shockwave/spark
- * look, EXCEPT `strikePoint`, which now defaults to 0 = the defender's CENTER (the corner-clack point is the
- * `strikePoint: 1` end).
+ * look. The attacker always leads with its tilted corner (magnitude = `lungeConfig.leadTilt`); `strikePoint`
+ * sets how DEEP that corner drives.
  *
  * The smoke / dust billow / energy pulse of a strike live in `smokeConfig.ts` (shared with the card-drop
  * dust); the Lunge Strike Effects tuner surfaces those keys too so the whole package is dialed in one panel.
  */
 export interface StrikeFxConfig {
-  /** Where the strike's impact originates + how hard the attacker leads with a corner: 0 = the defender's
-   *  CENTER (attacker strikes flat), 1 = the attacker's leading CORNER (the full corner-clack). Blends the FX
-   *  origin and scales the attacker lead-tilt / rebound and the defender counter-spin. */
+  /** How deep the attacker's leading corner drives: 0 = it meets the defender's NEAR SURFACE (a shallow
+   *  corner-clack), 1 = it lands on the defender's TRUE CENTRE (both axes). The impact FX originate wherever
+   *  that corner lands. Default 1 (centre). */
   strikePoint: number;
   /** Hot-core flash size (the additive white-hot glint) — base `toScale`, ×the hit's power. */
   flashSize: number;
@@ -32,14 +32,14 @@ export interface StrikeFxConfig {
 }
 
 const DEFAULTS: StrikeFxConfig = {
-  strikePoint: 0,   // CENTER by default (owner call); 1 = the corner-clack point
-  flashSize: 2.6,
-  shockwaveSize: 2.1,
-  ringScale: 1,
-  sparkCount: 16,
-  sparkSpeed: 1,
-  sparkSpread: 126, // ≈ the old Math.PI*0.7 cone
-  sparkSize: 1.2,
+  strikePoint: 0,   // owner-tuned (2026-07-10): corner meets the defender's near surface (the shallow clack)
+  flashSize: 4.5,
+  shockwaveSize: 4.4,
+  ringScale: 2.5,
+  sparkCount: 40,
+  sparkSpeed: 1.55,
+  sparkSpread: 230,
+  sparkSize: 1.3,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

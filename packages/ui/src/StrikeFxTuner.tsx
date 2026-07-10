@@ -13,7 +13,7 @@ import { useDraggablePanel } from './useDraggablePanel';
  * only: opened from the Dev Tuning Menu; dev-only, so it's stripped from production.
  */
 const STRIKE_LABELS: Record<keyof StrikeFxConfig, string> = {
-  strikePoint: 'strike point',
+  strikePoint: 'corner depth',
   flashSize: 'flash size',
   shockwaveSize: 'shockwave size',
   ringScale: 'heavy ring',

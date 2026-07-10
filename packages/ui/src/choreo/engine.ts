@@ -45,20 +45,24 @@ export function runAttackExchangeCues(
   // contact + the impact cue's offset — negative fires it BEFORE contact (the smack-lead), positive after.
   // playLunge places it on its own timeline, so it stays killed/seekable with the lunge and scales with speed.
   const cfg = getLungeConfig();
-  const sp = getStrikeFxConfig().strikePoint; // 0 = defender centre (flat strike), 1 = leading-corner clack
+  const sp = getStrikeFxConfig().strikePoint; // 0 = corner meets defender surface, 1 = corner drives to defender CENTRE
   const atkRect = attacker.getBoundingClientRect();
   const defRect = defender?.getBoundingClientRect();
   const geo = contactGeometry(dx, dy, atkRect, defRect ?? { width: 0, height: 0 }, cfg);
-  // The impact origin blends from the defender's CENTRE (strikePoint 0) to the attacker's leading CORNER
-  // (strikePoint 1). The lead-tilt, rebound and defender counter-spin scale with the same dial, so a centre
-  // strike lands flat (no corner lead / no spin) and a corner strike is the full clack.
-  const cornerPt = { x: atkRect.left + atkRect.width / 2 + geo.contact.x, y: atkRect.top + atkRect.height / 2 + geo.contact.y };
-  const centerPt = defRect ? { x: defRect.left + defRect.width / 2, y: defRect.top + defRect.height / 2 } : cornerPt;
-  const impactAt = { x: centerPt.x + (cornerPt.x - centerPt.x) * sp, y: centerPt.y + (cornerPt.y - centerPt.y) * sp };
-  const spinDeg = -Math.sign(geo.leadTilt || 1) * cfg.defenderSpin * sp; // defender counter-spin, scaled to strikePoint
+  // The attacker always leads with its tilted corner; `strikePoint` sets how DEEP that corner drives — from
+  // the defender's near SURFACE (geo.contact, 0) to the defender's TRUE CENTRE (the full attacker→defender
+  // vector dx/dy, 1). We translate the attacker so its leading corner lands on that target, and fire the
+  // impact FX there. `cornerLocal` is the tilted corner's offset from the attacker's own centre, so
+  // `strike = target − cornerLocal` puts the corner (not the card centre) on the target.
+  const atkC = { x: atkRect.left + atkRect.width / 2, y: atkRect.top + atkRect.height / 2 };
+  const cornerLocal = { x: geo.contact.x - geo.strike.x, y: geo.contact.y - geo.strike.y };
+  const targetOffset = { x: geo.contact.x + (dx - geo.contact.x) * sp, y: geo.contact.y + (dy - geo.contact.y) * sp };
+  const strikeOffset = { x: targetOffset.x - cornerLocal.x, y: targetOffset.y - cornerLocal.y };
+  const impactAt = { x: atkC.x + targetOffset.x, y: atkC.y + targetOffset.y };
+  const spinDeg = -Math.sign(geo.leadTilt || 1) * cfg.defenderSpin;
   return playLunge({
     attacker, dx, dy, speed: ctx.combatSpeed,
-    strike: geo.strike, strikeDur: geo.strikeDur, leadTilt: geo.leadTilt * sp, attackerRebound: cfg.attackerRebound * sp,
+    strike: strikeOffset, strikeDur: geo.strikeDur, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
     onContact: () => ctx.advance(),
     onImpact: impact ? () => playContactImpact(defender, dx, dy, power, ctx.combatSpeed, impactAt, spinDeg) : undefined,
     impactOffsetMs: impact?.offset ?? 0,

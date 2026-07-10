@@ -25,27 +25,16 @@ describe('burstDeathAuras', () => {
     expect(brk).not.toHaveBeenCalled();
   });
 
-  it('a taunt carrier bursts in FRONT at the passed VIEWPORT rect (not the back-layer bubble coords)', () => {
+  it('a dying taunt carrier drops the back-canvas bulwark, but no longer bursts or sounds (burst disabled for now)', () => {
     vi.spyOn(pixiFx, 'hasAura').mockReturnValue(false); // no front-layer auras
     vi.spyOn(tauntFx, 'hasAura').mockImplementation((_uid, kind) => kind === 'taunt');
     const clear = vi.spyOn(tauntFx, 'clearShield').mockImplementation(() => {});
     const burst = vi.spyOn(pixiFx, 'tauntBurst').mockImplementation(() => {});
     const s = vi.spyOn(sfx, 'shieldBreak').mockImplementation(() => {});
     burstDeathAuras('t1', { cx: 100, cy: 200, w: 40, h: 60 });
-    expect(clear).toHaveBeenCalledWith('t1', 'taunt'); // back-canvas bulwark dropped…
-    expect(burst).toHaveBeenCalledWith(100, 200, 40, 60); // …burst at the passed viewport coords
-    expect(s).toHaveBeenCalledTimes(1);
-  });
-
-  it('a taunt carrier with no rect drops the bulwark + sounds but draws no misplaced burst', () => {
-    vi.spyOn(pixiFx, 'hasAura').mockReturnValue(false);
-    vi.spyOn(tauntFx, 'hasAura').mockImplementation((_uid, kind) => kind === 'taunt');
-    vi.spyOn(tauntFx, 'clearShield').mockImplementation(() => {});
-    const burst = vi.spyOn(pixiFx, 'tauntBurst').mockImplementation(() => {});
-    const s = vi.spyOn(sfx, 'shieldBreak').mockImplementation(() => {});
-    burstDeathAuras('t2', null);
-    expect(burst).not.toHaveBeenCalled();
-    expect(s).toHaveBeenCalledTimes(1);
+    expect(clear).toHaveBeenCalledWith('t1', 'taunt'); // bulwark still dropped so the aura never orphans…
+    expect(burst).not.toHaveBeenCalled();                // …but no burst FX…
+    expect(s).not.toHaveBeenCalled();                    // …and no break sound
   });
 });
 

@@ -142,6 +142,18 @@ export function undeadBuyBonus(state: RunState, def: CardDef): number {
   return bonus;
 }
 
+/** "+N Attack to your Undead per spell cast" — bake +`amount` Attack into every current Undead (board + hand,
+ *  itemized under `source`) AND stack it into `undeadBuyAtk` so future buys / reborns inherit it. Shared by
+ *  Forsaken Weaver's spell-cast trigger (the minion) and Forsaken Will's quest reward, so the quest behaves
+ *  exactly like the weaver. */
+export function buffUndeadAttackEverywhere(state: RunState, amount: number, source: string): void {
+  if (amount <= 0) return;
+  for (const card of [...state.board, ...state.hand]) {
+    if (isTribe(card, 'undead')) addBuff(card, source, amount, 0);
+  }
+  state.undeadBuyAtk = (state.undeadBuyAtk ?? 0) + amount;
+}
+
 /** Run-wide HEALTH aura baked at creation — Magnetic minions (Scrap Herald) + Beasts (Pack Mentality quest).
  *  Added to a minion's `health` at every creation site, alongside the attack aura from `undeadBuyBonus`. */
 export function buyHealthAura(state: RunState, def: CardDef): number {
@@ -1868,11 +1880,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Forsaken Weaver (recruit half) — when a spell is cast, give your Undead +N Attack wherever they are
    *  (board + hand), and stack the bonus into undeadBuyAtk for future undead buys. Golden doubles N. */
   spellCastBuffUndeadAttack: (ctx, self, params) => {
-    const amount = num(params.attack, 2) * gold(self);
-    for (const card of [...ctx.state.board, ...ctx.state.hand]) {
-      if (isTribe(card, 'undead')) addBuff(card, nameOf(self), amount, 0);
-    }
-    ctx.state.undeadBuyAtk = (ctx.state.undeadBuyAtk ?? 0) + amount;
+    buffUndeadAttackEverywhere(ctx.state, num(params.attack, 2) * gold(self), nameOf(self));
   },
 };
 

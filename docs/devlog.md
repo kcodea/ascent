@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 29)
 
+### fix: Perfect Core's welded Rally now works (combat + triples) · Forsaken Will behaves like the Weaver
+
+Two owner-reported bugs:
+
+- **Perfect Core's welded Rally silently did nothing.** Welding Perfect Core onto a host (or a Beatbot mimic) set
+  `rallySpellWeld` on the recruit board card correctly, but TWO copy paths dropped it: the **combat board prep**
+  (`s.board → BoardMinion`) carried `rallyMechAtk` but not `rallySpellWeld`, so the welded Rally never granted a spell
+  in combat; and the **triple combine** summed `rallyMechAtk`/`spellAuraBonus`/`fodderAuraBonus` but not
+  `rallySpellWeld`, so a tripled welded host kept its Ward + Rally *pills* but lost the actual spell-grant (matching
+  "gains ward etc., just the rally doesn't transfer"). Added `rallySpellWeld` to both. New tests: a welded Perfect
+  Core grants a spell when it attacks in combat; a tripled welded host keeps `rallySpellWeld` (summed).
+- **Forsaken Will now behaves exactly like the Forsaken Weaver.** Its reward previously bumped the Lantern-style
+  `undeadAttackBonus` aura; per the owner it should work like the weaver — extracted a shared
+  `buffUndeadAttackEverywhere(state, amount, source)` (bake +N into every current Undead + stack `undeadBuyAtk` so
+  future buys inherit it), used by both the weaver's `spellCastBuffUndeadAttack` factory and Forsaken Will's per-spell
+  reward. Test updated to assert the baked +6 + `undeadBuyAtk`.
+
+`typecheck` + `lint` + `test` (791) + `build:web` green.
+
 ### tweak(ui): Target Dummy's +N no longer splits the clash + a snappier buff cadence
 
 Two presentation-only combat-replay tweaks so an `onDamaged` stat gain (Target Dummy taking a hit, an

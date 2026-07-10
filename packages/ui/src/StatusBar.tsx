@@ -69,7 +69,9 @@ export function StatusBar() {
               ? `${power.name} · ${!withinUses ? 'spent' : !run.heroReady ? 'used' : !doubleAvailable ? 'no pair' : run.embers >= (power.cost ?? 0) ? `${power.cost} Gold` : `need ${power.cost} Gold`}`
               : power.kind === 'gild'
                 ? `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`
-                : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
+                : power.kind === 'scalingGold'
+                  ? `${power.name} · ${!run.heroReady ? 'used' : `+${1 + run.wave} Gold`}`
+                  : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
   const powerNote = isPassive
     ? ' Passive — always on.'
     : !unlocked
@@ -82,6 +84,10 @@ export function StatusBar() {
             : !doubleAvailable
               ? ' Need two copies of a minion to gild.'
               : ` Click to combine a pair into a Gilded copy.${power.cost ? ` Costs ${power.cost} Gold.` : ''}`
+        : power.kind === 'scalingGold'
+          ? run.heroReady
+            ? ` Click to gain ${1 + run.wave} Gold. The payout grows +1 each turn.`
+            : ' Used this turn. The payout grows +1 each turn.'
         : power.oncePerGame
           ? run.heroPowerSpent
             ? ' Already used this game.'

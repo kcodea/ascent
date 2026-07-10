@@ -59,8 +59,8 @@ export interface HeroDef {
   /** Starting + max Resolve (the hero's HP). All 30 today; will diverge per hero over time. */
   resolve: number;
   /** Starting Armor — extra effective HP that sits ON TOP of Resolve. Functionally identical to health: loss
-   *  damage chips Armor first, then Resolve; it just doesn't regenerate (no max/heal). Most heroes start with
-   *  15; Warden, Robin, Chaos, and Drakko start with 8. */
+   *  damage chips Armor first, then Resolve; it just doesn't regenerate (no max/heal). Varies per hero (8–19
+   *  today) as a balance dial — a strong power tends to carry less armor. */
   armor: number;
   power: HeroPower;
 }
@@ -71,7 +71,7 @@ export const HEROES: HeroDef[] = [
     name: 'Warden',
     blurb: 'A shield for the one who needs it — bought and paid for in Gold.',
     resolve: 30,
-    armor: 8,
+    armor: 12,
     power: {
       name: 'Aegis',
       kind: 'grantWard',
@@ -110,7 +110,7 @@ export const HEROES: HeroDef[] = [
     name: 'Soren',
     blurb: 'Death is a doorway — send a minion through it and it blooms back.',
     resolve: 30,
-    armor: 15,
+    armor: 8,
     power: {
       name: 'Reclaim',
       kind: 'resummon',
@@ -118,8 +118,8 @@ export const HEROES: HeroDef[] = [
     },
   },
   {
-    id: 'rohan',
-    name: 'Rohan',
+    id: 'rohan', // id kept stable (saves / references); display name is Yirin
+    name: 'Yirin',
     blurb: 'Words sharpen in skilled hands — and sharpen further the more you speak them.',
     resolve: 30,
     armor: 15,
@@ -162,7 +162,7 @@ export const HEROES: HeroDef[] = [
     name: 'Cassen',
     blurb: 'Every clash leaves a mark — break enough of them and the spoils find you.',
     resolve: 30,
-    armor: 15,
+    armor: 8,
     power: {
       name: 'Collision',
       kind: 'collision',
@@ -215,7 +215,7 @@ export const HEROES: HeroDef[] = [
     name: 'Darah',
     blurb: 'A sleight of fate — trade a piece on your board for a stranger from the tavern.',
     resolve: 30,
-    armor: 15,
+    armor: 12,
     power: {
       name: 'Displace',
       kind: 'displace',
@@ -276,11 +276,11 @@ export const HEROES: HeroDef[] = [
     },
   },
   {
-    id: 'hermithank',
-    name: 'Hermit Hank',
-    blurb: 'Cheap to shop, dear to climb — the recluse hoards his tiers.',
+    id: 'hermithank', // id kept stable (saves / art file); display name is Tradesman
+    name: 'Tradesman',
+    blurb: 'Cheap to shop, dear to climb — the trader hoards his tiers.',
     resolve: 30,
-    armor: 15,
+    armor: 8,
     power: {
       name: 'Frugal',
       kind: 'cheapMinions',
@@ -306,11 +306,12 @@ export const HEROES: HeroDef[] = [
     name: 'Herald',
     blurb: 'Points to the chosen — and those beside them feast.',
     resolve: 30,
-    armor: 15,
+    armor: 10,
     power: {
       name: 'Proclaim',
       kind: 'adjacentConsume',
-      text: 'Proclaim: Target a friendly minion — the minions on either side each Consume a Fodder. (Once per turn)',
+      cost: 2,
+      text: 'Proclaim: Spend 2 Gold — the minions on either side of a friendly minion each Consume a Fodder. (Once per turn)',
     },
   },
   {

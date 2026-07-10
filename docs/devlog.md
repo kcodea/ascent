@@ -47,6 +47,40 @@ run (the event-log ordering — the replay's source of truth — is confirmed; U
 
 ## 2026-07-10 (session 29)
 
+### feat(ui): the Runeforge — stone/engraved rune shop + rune badges (Runesmith is live)
+
+The presentation half (on the engine PR). A new **Runeforge overlay** (`Recruit.tsx`) opens on turn 6 for Runesmith
+— a **stone/engraved** variant of the Discover/Quest panel (cold slate backdrop, a chiseled stone banner with
+engraved uppercase title + anvil sigil, deliberately unlike the warm gold Quest shop). It shows the 5 offered runes
+as **`RuneCard`** tablets (carved slab, a rune sigil, name, a Gold cost badge, the effect text; greyed + "Not
+enough Gold" when unaffordable), a **"Leave the forge without a Rune"** skip, and a minimize toggle to inspect the
+board. Buying dispatches `buyRune`; skip dispatches `skipRuneforge`. The bought rune then shows as a **stone-toned
+run-buff badge** alongside completed quests above the hero panel (`QuestBadges`), hover revealing its effect. Wired
+`runeforgeOffer` into the modal-cover / timer-pause / shop-button-disable gates (same treatment as `questOffer`),
+and **removed `HeroDef.wip`** so Runesmith now appears in the hero picker. typecheck / lint / build green. (Live
+screenshot pending — the browser tooling was disconnected this session; the panel reuses the proven quest-offer
+render path, so the risk is purely visual polish.)
+
+### feat(sim): Runesmith hero + the Runeforge — engine + 8 runes (UI is a follow-up)
+
+The engine half of a new hero. **Runesmith** (30 HP / 8 Armor, `runeforge` power): on turn 6 the **Runeforge**
+opens once — a random **5 of 8 runes** offered, buy exactly **one** for its Gold cost, it applies for the rest of
+the run and the forge closes. Built generically (own turn-6 offer + `buyRune`/`skipRuneforge` actions + modal
+guard, mirroring the quest shop) so future heroes can reuse the forge mechanic.
+
+Runes are a new `RuneDef` content type that **reuses the quest-reward application engine** (`applyQuestReward`),
+so a rune's effect is a `QuestReward` — some reuse existing kinds, some use rune-only kinds/flags. The 8:
+Spellslinging (every 5 Gold → a spell, via the `spendGold` drip), Warding (SoC give leftmost minion Ward — new
+combat flag), Structure (Attachment played → a spell), Slaying (each Slaughter → +2 Gold next turn, settle
+carry-back), Spending (EoT +1 max Gold + buff leftmost per Gold spent, recurring EoT), Consumption (each Fodder
+Consumed → +2/+1 Fodder aura), Pillaging (grant a Pillager + Gold Pouches worth 2), Fury (Avenges trigger twice —
+a new combat flag that re-runs a player avenge effect). New reward kinds/flags are zod-validated; a `validateRunes`
+guards the data.
+
+**Kept out of the picker** for now (`HeroDef.wip` → filtered from `rollHeroChoices`): the forge sets a blocking
+offer with no UI to resolve yet, which would soft-lock a run — the UI PR removes the flag. typecheck / lint / 809
+tests (18 new: forge open/buy/skip, each rune's applied state, Spellslinging drip / Pillaging pouch / Slaying
+carry-back in play, and Warding + Fury in combat) / build all green.
 ### fix(content): Taragosa's Heir now counts stat gains from COMBAT too
 
 The Heir's "gains 2× stats from all sources (golden 3×)" amplifier only ran in the reducer's recruit-phase

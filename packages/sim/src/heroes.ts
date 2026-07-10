@@ -29,7 +29,8 @@ export type HeroPowerKind =
   | 'sellGold' // Robin (passive): each minion you sell banks +1 Gold for the START of next turn
   | 'displace' // Darah: swap a friendly minion with a random tavern minion (active, targeted)
   | 'grantReborn' // Lord of the Risen: give a friendly minion Rise for the next combat (active, targeted)
-  | 'goldenGild'; // Gildmaster: if you have 2 copies of a minion, combine them into a golden copy in hand
+  | 'goldenGild' // Gildmaster: if you have 2 copies of a minion, combine them into a golden copy in hand
+  | 'runeforge'; // Runesmith (passive): on turn 6 the Runeforge opens — buy ONE of a random 5 runes (a run-long buff)
 
 export interface HeroPower {
   name: string;
@@ -63,6 +64,9 @@ export interface HeroDef {
    *  today) as a balance dial — a strong power tends to carry less armor. */
   armor: number;
   power: HeroPower;
+  /** Work-in-progress: kept in the registry (so the engine + saves resolve it) but withheld from the hero
+   *  picker until it's fully wired. Cleared once the hero ships (Runesmith → when the Runeforge UI lands). */
+  wip?: boolean;
 }
 
 export const HEROES: HeroDef[] = [
@@ -326,6 +330,20 @@ export const HEROES: HeroDef[] = [
       passive: true, // a quest — resolved in the buy case (buy 4 End-of-Turn minions)
       oncePerGame: true,
       text: 'Encore: Buy 4 End-of-Turn minions to get a Chronos. (Once per game)',
+    },
+  },
+  {
+    id: 'runesmith',
+    name: 'Runesmith',
+    blurb: 'The forge fires once — spend well, for its rune lasts the whole climb.',
+    resolve: 30,
+    armor: 8,
+    power: {
+      name: 'Runeforge',
+      kind: 'runeforge',
+      passive: true, // fires on the turn-6 advance (opens the Runeforge offer); resolved by `buyRune` / `skipRuneforge`
+      oncePerGame: true, // the forge opens exactly once, on turn 6
+      text: 'Runeforge: On turn 6, buy one of a random 5 Runes — a permanent buff for the run.',
     },
   },
 ];

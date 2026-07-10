@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { Tribe } from '@game/core';
-import { QUEST_INDEX } from '@game/content';
+import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
+import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { questArt } from './art';
 import { questRewardText } from './questText';
@@ -18,9 +19,24 @@ const TRIBE_ICON: Record<Tribe, string> = { beast: 'paw', dragon: 'flame', mech:
 export function QuestBadges() {
   const run = useGame((s) => s.run);
   const done = (run.activeQuests ?? []).filter((aq) => aq.completed && QUEST_INDEX[aq.questId]);
-  if (done.length === 0) return null;
+  const runes = (run.ownedRunes ?? []).filter((id) => RUNE_INDEX[id]);
+  if (done.length === 0 && runes.length === 0) return null;
   return (
     <div className="questbadges">
+      {/* Runes bought in the Runeforge — a stone-toned badge sitting alongside completed quests. */}
+      {runes.map((id) => {
+        const rune = RUNE_INDEX[id]!;
+        return (
+          <div className="questbadge runebadge" key={id}>
+            <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>
+            <div className="questbadge-tip" role="tooltip">
+              <b>{rune.name}</b>
+              <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
+              <span className="questbadge-tip-state">Rune · active</span>
+            </div>
+          </div>
+        );
+      })}
       {done.map((aq) => {
         const def = QUEST_INDEX[aq.questId]!;
         const r = def.reward;

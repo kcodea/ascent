@@ -631,6 +631,11 @@ export function simulate(
       // A dead minion fires nothing except its own Deathrattle.
       if (minion.dead && effect.on !== 'onDeath') return;
       fn(ctx, minion, effect.params ?? {}, payload);
+      // Rune of Fury: your Avenges trigger twice — re-run a player-side avenge effect once more (it fires its
+      // payoff again on the beat it would normally fire once; a non-matching count is a harmless no-op twice).
+      if (questMods.runeFury && minion.side === 'player' && effect.on === 'avenge') {
+        fn(ctx, minion, effect.params ?? {}, payload);
+      }
     });
   }
   function registerEffects(minion: Minion): void {
@@ -1296,6 +1301,16 @@ export function simulate(
       if (!m.keywords.includes('DS')) m.keywords.push('DS');
       emit({ type: 'shieldUp', target: m.uid });
       left--;
+    }
+  }
+  // Rune of Warding: at Start of Combat, give your leftmost living minion a Ward (Divine Shield).
+  if (questMods.runeWarding) {
+    const lead = boards.player.find((m) => !m.dead && m.health > 0 && !m.divineShield);
+    if (lead) {
+      nextStep();
+      lead.divineShield = true;
+      if (!lead.keywords.includes('DS')) lead.keywords.push('DS');
+      emit({ type: 'shieldUp', target: lead.uid });
     }
   }
   // Echoing Coop: trigger every one of your minions' Echoes (Deathrattles) once at Start of Combat — without

@@ -402,7 +402,24 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean };
+  // ── Runeforge (Runesmith) ──
+  /** The Runeforge is open (turn 6): a pending offer of rune ids to buy for their Gold cost. Like `questOffer`,
+   *  while set the reducer blocks every non-`buyRune`/`skipRuneforge` action and the UI pauses the timer; buying
+   *  (or skipping) clears it. Opens exactly once (the hero power is `oncePerGame`). */
+  runeforgeOffer?: string[];
+  /** Rune ids bought this run — shown as permanent run-buff badges (above the hero panel). */
+  ownedRunes?: string[];
+  /** Rune of Spellslinging: every `spellDripPer` Gold spent, get a random spell. `spellDripTick` carries the
+   *  sub-`per` Gold remainder. Absent = not owned. */
+  spellDripPer?: number;
+  spellDripTick?: number;
+  /** Rune of Structure: each Attachment (Magnetic) you PLAY from hand also gives a random spell. */
+  runeStructure?: boolean;
+  /** Rune of Consumption: every Fodder Consumed bumps the run-wide Fodder aura by this much. Absent = not owned. */
+  runeConsume?: { attack: number; health: number };
+  /** Rune of Pillaging: your Gold Pouches (the Gold Pouch spell) are worth this many Gold. Absent = default 1. */
+  goldPouchValue?: number;
   /** Food for Gold (Demon greater): armed reward — every `per` Gold spent adds a Fodder to the next shop and
    *  bumps the run-wide Fodder aura by +attack/+health. `foodForGoldTick` carries the sub-`per` Gold remainder. */
   foodForGold?: { per: number; attack: number; health: number };
@@ -472,7 +489,7 @@ export interface RunState {
   lastSurvivorCardIds?: string[];
   /** Recurring End-of-Turn effects granted by quests (Echoing Roar → re-fire leftmost Shout; The Hoard Wakes →
    *  conjure a random Shout minion). Fired every End of Turn for the rest of the run. Absent = none. */
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending')[];
   /** A pending Discover offer (3 card ids) — pick one to hand. */
   discover?: string[];
   /** Disco Dan's Setlist: the shop tier the CURRENTLY-open Discover's pick will be locked until (its
@@ -512,6 +529,8 @@ export type Action =
   | { type: 'heroPower'; uid?: string } // uid omitted for untargeted powers (Nadja's Mana Font)
   | { type: 'discover'; index: number }
   | { type: 'buyQuest'; index: number } // quest shop (waves 4/8/12): "buy" the offered quest at `index` for 0 Gold
+  | { type: 'buyRune'; index: number } // Runeforge (turn 6): buy the offered rune at `index` for its Gold cost
+  | { type: 'skipRuneforge' } // Runeforge: leave without buying (closes the forge)
   | { type: 'chooseOne'; index: number }
   | { type: 'battlecryTarget'; targetUid: string }
   | { type: 'faceOmen' }

@@ -5,6 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-09 (session 28)
 
+### chore(art): refresh Attachment Mechanic art
+
+Re-wired the updated master `Minions/AttachmentMechanic.png` → `art/minions/scrapherald.webp` (the card's display
+name is "Attachment Mechanic"; its id is `scrapherald`). One-file art swap; verified the card renders the new
+512×512 art in the compendium. `build:web` green.
+
 ### feat(ui): Skip combat gets the crossfade — everything pauses, mutes, and fades out together
 
 Skip used to hard-cut the replay to the resolved board (an instant jump + a burst of the remaining beats' audio).

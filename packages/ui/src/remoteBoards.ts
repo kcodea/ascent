@@ -49,7 +49,7 @@ const toRow = (b: BoardSnapshot) => ({
   tribes: b.tribes ?? [],
   captured_at: b.capturedAt ?? null,
   seed: b.seed ?? null,
-  snapshot: b,
+  snapshot: b, // the board's fight-ledger id travels inside here (b.id) — no separate column needed
 });
 
 /** Upload a finished run's boards. Fire-and-forget — never throws, never blocks the game (offline → skipped). */
@@ -105,6 +105,38 @@ export interface VictoryRow {
   /** Per-round result spread — one char per round: 'W' | 'L' | 'D' (e.g. "LLWLWWW…"). The leaderboard renders
    *  it as the round-by-round W/L badges. Undefined for rows logged before the `history` column existed. */
   history?: string;
+  /** ISO timestamp the row was created — the "most recent" sort key. */
+  createdAt?: string;
+  /** The final board's fight-ledger id (`board_id`) — the leaderboard looks up this slot's round-17 win record
+   *  by it. Undefined for rows logged before win-tracking shipped (they just show no record). */
+  boardId?: string;
+}
+
+/** A board's aggregated fight record from the ledger — wins/losses/ties from the BOARD's perspective. */
+export interface BoardWinStats {
+  wins: number;
+  losses: number;
+  ties: number;
+  fights: number; // wins + losses + ties
+  /** Win rate as a whole percent (wins / fights). 0 when it's never been fought. */
+  winRate: number;
+}
+
+const emptyStats = (): BoardWinStats => ({ wins: 0, losses: 0, ties: 0, fights: 0, winRate: 0 });
+function tallyStats(rows: Array<{ board_id: string; outcome: string }>): Map<string, BoardWinStats> {
+  const map = new Map<string, BoardWinStats>();
+  for (const r of rows) {
+    const s = map.get(r.board_id) ?? emptyStats();
+    if (r.outcome === 'win') s.wins++;
+    else if (r.outcome === 'loss') s.losses++;
+    else s.ties++;
+    map.set(r.board_id, s);
+  }
+  for (const s of map.values()) {
+    s.fights = s.wins + s.losses + s.ties;
+    s.winRate = s.fights > 0 ? Math.round((s.wins / s.fights) * 100) : 0;
+  }
+  return map;
 }
 
 /** Log a completed victory run for the leaderboard. Fire-and-forget; never throws / blocks. */
@@ -119,6 +151,8 @@ export async function uploadVictory(v: {
       patch: v.patch, hero_id: v.heroId, author: v.author ?? null, wave: v.wave,
       wins: v.wins, result: 'victory', seed: v.seed, board: v.board, captured_at: v.capturedAt,
       history: v.history ?? null,
+      // The leaderboard slot's fight-ledger id lives inside board.id (the jsonb) — no separate column, so this
+      // insert stays compatible with a pre-migration `runs` table (only the new board_results table is required).
     }]);
   } catch {
     /* best-effort — leaderboard logging must never disrupt the end screen */
@@ -148,8 +182,81 @@ export async function fetchVictories(limit = 20): Promise<VictoryRow[]> {
         date: (r.captured_at ?? r.created_at ?? '').slice(0, 10),
         board: r.board ?? null,
         history: r.history ?? undefined,
+        createdAt: r.created_at ?? undefined,
+        boardId: r.board?.id ?? undefined, // the fight-ledger id lives inside the board jsonb
       }));
   } catch {
     return [];
+  }
+}
+
+// ── Fight-result ledger (win-tracking) ─────────────────────────────────────────────────────────────────────
+// One row per combat fought against a served board; the leaderboard + Career per-round log aggregate it. Same
+// fire-and-forget / no-op-when-unconfigured / never-throws contract as the rest of this seam.
+
+/** Record one fight against a served board, from the BOARD's perspective (you lose to it → 'win'). */
+export async function recordFightResult(r: { boardId: string; round: number; outcome: 'win' | 'loss' | 'tie'; patch: string }): Promise<void> {
+  const c = client();
+  if (!c || !r.boardId) return;
+  try {
+    await c.from('board_results').insert([{ board_id: r.boardId, round: r.round, outcome: r.outcome, patch: r.patch }]);
+  } catch {
+    /* best-effort — win-tracking must never disrupt play */
+  }
+}
+
+/** One of your boards at a given round, with its fight record — a row in the Career per-round board log. */
+export interface RoundBoard {
+  round: number;
+  board: BoardSnapshot;
+  stats: BoardWinStats;
+}
+
+/** Fetch YOUR uploaded boards (by author) grouped by round, each with its fight record — the data behind the
+ *  Career per-round "winningest board" log. Within each round, sorted best-record first (win-rate, then volume).
+ *  Best-effort + time-boxed; an empty map on any failure / no backend / no author. */
+export async function fetchPlayerRoundBoards(author: string): Promise<Map<number, RoundBoard[]>> {
+  const out = new Map<number, RoundBoard[]>();
+  const c = client();
+  if (!c || !author) return out;
+  try {
+    const request = Promise.resolve(c.from(TABLE).select('snapshot').eq('author', author).limit(FETCH_LIMIT));
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([request, timeout]);
+    if (!result || result.error || !result.data) return out;
+    const boards = (result.data as Array<{ snapshot: BoardSnapshot }>)
+      .map((r) => r.snapshot)
+      .filter((s): s is BoardSnapshot & { id: string } => !!s && !!s.id && Array.isArray(s.minions) && s.minions.length > 0);
+    if (boards.length === 0) return out;
+    const stats = await fetchBoardStats(boards.map((b) => b.id)); // all rounds
+    for (const b of boards) {
+      const arr = out.get(b.wave) ?? [];
+      arr.push({ round: b.wave, board: b, stats: stats.get(b.id) ?? emptyStats() });
+      out.set(b.wave, arr);
+    }
+    for (const arr of out.values()) {
+      arr.sort((a, z) => z.stats.winRate - a.stats.winRate || z.stats.fights - a.stats.fights);
+    }
+    return out;
+  } catch {
+    return out;
+  }
+}
+
+/** Aggregate the fight ledger for a set of board ids (optionally at a single round). Best-effort + time-boxed;
+ *  an empty map on any failure / no backend. Client-side aggregation over a bounded fetch (friend-scale). */
+export async function fetchBoardStats(boardIds: string[], round?: number): Promise<Map<string, BoardWinStats>> {
+  const c = client();
+  if (!c || boardIds.length === 0) return new Map();
+  try {
+    let query = c.from('board_results').select('board_id, outcome').in('board_id', boardIds);
+    if (round !== undefined) query = query.eq('round', round);
+    const request = Promise.resolve(query.limit(FETCH_LIMIT * 5));
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([request, timeout]);
+    if (!result || result.error || !result.data) return new Map();
+    return tallyStats(result.data as Array<{ board_id: string; outcome: string }>);
+  } catch {
+    return new Map();
   }
 }

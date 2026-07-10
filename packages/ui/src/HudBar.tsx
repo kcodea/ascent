@@ -23,7 +23,7 @@ export function HudBar() {
               Practice, where Resolve is unlimited and losses deal no damage. */}
           {!practice && (
             <span className="maxdmg" title="Most Resolve you can lose if you lose this combat">
-              <Icon name="heart" />Max −{lossDamageCap(run.wave)}
+              <Icon name="heart" />{Number.isFinite(lossDamageCap(run.wave)) ? `Max −${lossDamageCap(run.wave)}` : 'No cap'}
             </span>
           )}
         </span>

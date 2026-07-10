@@ -132,6 +132,18 @@ look because the engine already produces the data.
 
 ## Phase B — UX polish (parallelizable; slot any time)
 
+### B0. FX follow-ups (from the Echo skull poof, session 29)
+- **Watch the Echo particle budget.** ~107 pooled sprites per Echo (was ~64). Fine solo; profile a clash where
+  several Echoes fire at once before adding more.
+- **Extract an FX preview kit — only after a *second* effect exists.** `purple-skull-preview.html` is ~70%
+  reusable (the particle sim mirroring `pixiFx`'s `spawn` contract, the slider/color tuner generated from
+  `DEFAULTS`+`RANGES`+`GROUPS`, localStorage, the JSON bake box, the diag line, the error banner). What is
+  *not* reusable is the driver: the skull is a **one-shot point burst**, whereas smoke trails need a
+  **rate-based emitter following a moving anchor** and wisps need a **steered field**. Copy the file for the
+  next effect, let it diverge, then extract the seam that actually repeated. Don't abstract from one example.
+- **Glyph text-input in the preview rig.** Paste a character and audition it live (would have surfaced the
+  missing-glyph/tofu case instantly). Also worth supporting an SVG `d=` path via `Path2D` for custom silhouettes.
+
 ### B1. Hero-power dragging — ✅ **shipped 2026-06-30** (→ devlog)
 - Targeted hero powers use the press-drag-release card-drag language (arm on the button's pointerdown, drag
   the aim line onto a minion, release to fire; off-target cancels). A quick tap still arms for the

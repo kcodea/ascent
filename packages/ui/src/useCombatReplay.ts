@@ -372,10 +372,10 @@ export interface CombatReplay {
   skip: () => void;
 }
 
-/** Deathrattle read-lead (ms, at 1× speed): a Deathrattle's bone-skull pops + BURSTS — and an ATTACKER that
- *  died mid-lunge is first pulled home — before the dead body clears (the `.dying.dr` / `.dying.dr.returning`
- *  animation-delays in styles.css, matched by pixiFx's skull POP+HOLD ≈ 380ms; the attacker adds the ~0.34s
- *  pull-home ≈ 720ms). Without this, a Deathrattle SUMMON rides the generic `overlapMs` measured from the
+/** Deathrattle read-lead (ms, at 1× speed): a Deathrattle's skull pops + poofs — and an ATTACKER that died
+ *  mid-lunge is first pulled home — before the dead body clears. Anchored to the `.dying.dr` /
+ *  `.dying.dr.returning` animation-delays in styles.css (380ms; the attacker adds the ~0.34s pull-home → 720ms)
+ *  — the moment the body is gone. Without this, a Deathrattle SUMMON rides the generic `overlapMs` measured from the
  *  IMPACT's start, so the tokens pop in ON TOP of the skull. This holds the summon until the proc has read,
  *  THEN `overlapMs` lands as a real post-proc gap. Returns 0 for any non-Deathrattle-summon transition. */
 const DR_SUMMON_LEAD = { defender: 380, attacker: 720 };

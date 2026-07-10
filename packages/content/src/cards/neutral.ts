@@ -360,6 +360,7 @@ export const NEUTRAL: CardDef[] = [
     keywords: [],
     effects: [],
     text: 'While on your board, **shop spells cost 1 less**.',
+    goldenText: 'While on your board, **shop spells cost 2 less**.',
     token: true,
   },
   {

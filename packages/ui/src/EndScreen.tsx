@@ -1,22 +1,15 @@
 import { useMemo, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
-import { buildTags, CONFIG, getHero, isCalibrationRound, isPlayerAction, lineResult, metLine, replayRun, runMvp, runRecord, spellAttackBonus, spellHealthBonus, TAG_INFO, topMechanic, type BoardCard, type BoardMinion, type LineStatus, type RunState } from '@game/sim';
+import { buildTags, CONFIG, getHero, isCalibrationRound, isPlayerAction, lineResult, metLine, replayRun, runMvp, runRecord, TAG_INFO, topMechanic, type BoardMinion, type LineStatus } from '@game/sim';
 import { Card, type CardView } from './Card';
-import { instView } from './instView';
+import { liveBoardView } from './instView';
 import { heroArt } from './art';
 import { Icon } from './Icon';
 import { useGame } from './store';
 
-/** A live `CardView` for a final-warband minion — same composer as the recruit board, so scaling cards
- *  (Guel, Sergeant, Taragosa, …) show their *accumulated* magnitude at run's end, not the printed base. */
-function boardView(m: BoardCard, run: RunState): CardView {
-  return instView(
-    m, run.tier, undefined, spellAttackBonus(run), spellHealthBonus(run), run.spellsThisTurn,
-    run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus,
-    run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn,
-    { undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: run.cardBuffs },
-  );
-}
+/** A live `CardView` for a final-warband minion — shared with the final-board capture (see `liveBoardView`),
+ *  so scaling cards show their *accumulated* magnitude at run's end, not the printed base. */
+const boardView = liveBoardView;
 
 /** A read-only view of a captured snapshot minion (a past round's board) — its stats ARE the real
  *  recruit-buffed values it fought with that wave; rule text falls back to the printed card text. */

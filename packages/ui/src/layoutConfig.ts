@@ -36,13 +36,17 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
 
   { key: 'shopS', cssVar: '--z-shop-s', label: 'Card size', group: 'Shop row', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   { key: 'shopGap', cssVar: '--z-shop-gap', label: 'Card gap', group: 'Shop row', min: 0, max: 80, step: 1, def: 22, fmt: 'px' },
+  // Offsets the shop CARDS only (the tavern zone) — not the shop buttons (a separate `.shopbar`). The enemy
+  // warband renders in this same tavern zone during combat, so these also place the opponent's board.
+  { key: 'shopX', cssVar: '--z-shop-x', label: 'X offset', group: 'Shop row', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
+  { key: 'shopY', cssVar: '--z-shop-y', label: 'Y offset', group: 'Shop row', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
 
   { key: 'wbS', cssVar: '--z-wb-s', label: 'Card size', group: 'Warband', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   { key: 'wbGap', cssVar: '--z-wb-gap', label: 'Card gap', group: 'Warband', min: 0, max: 80, step: 1, def: 22, fmt: 'px' },
   { key: 'wbX', cssVar: '--z-wb-x', label: 'X offset', group: 'Warband', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
   { key: 'wbY', cssVar: '--z-wb-y', label: 'Y offset', group: 'Warband', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
 
-  { key: 'handS', cssVar: '--z-hand-s', label: 'Card size', group: 'Hand', min: 0.5, max: 1.6, step: 0.01, def: 1.18, fmt: 'mul' },
+  { key: 'handS', cssVar: '--z-hand-s', label: 'Card size', group: 'Hand', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   // Hand cards fan + overlap via a NEGATIVE margin that's a fraction of the (compact) card width, so it stays
   // proportional to card size — hence 'mul' (of --ccw), not px: -0.44 = the shipped overlap, 0 = edges touch,
   // >0 = a real gap between fanned cards.

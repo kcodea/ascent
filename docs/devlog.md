@@ -13,8 +13,8 @@ of the taunt-death burst FX/sfx. No core/sim/outcome changes.
 - **Consequence-overlap gap `140 → 240ms` (`choreo/choreoConfig.ts`).** The generic gap before a
   summon/reborn/improve rides in after its trigger's FX.
 - **Deathrattle summon read-lead (`useCombatReplay.ts`).** The `overlapMs` gap is measured from the IMPACT's
-  start, but a Deathrattle's bone-skull doesn't BURST until ~380ms (defender) / ~720ms (attacker, after the
-  ~0.34s pull-home) — matching the `.dying.dr` / `.dying.dr.returning` CSS delays + pixiFx's skull POP+HOLD.
+  start, but the dead body doesn't clear until ~380ms (defender) / ~720ms (attacker, after the ~0.34s
+  pull-home) — the `.dying.dr` / `.dying.dr.returning` CSS animation-delays, over which the skull pops + poofs.
   So at 240ms the tokens popped ON TOP of the skull. `deathrattleSummonLead` holds a summon beat that follows
   a Deathrattle death until the proc has read, THEN the `overlapMs` gap lands as a real post-proc pause:
   **defender ≈ 620ms, attacker ≈ 960ms** to the summon. Scoped to Deathrattle→summon transitions (keyed off
@@ -29,6 +29,238 @@ of the taunt-death burst FX/sfx. No core/sim/outcome changes.
   re-baselines combat goldens and shifts a same-clash-buff rules edge — deliberately NOT done here. See
   roadmap.
 - **Verified.** typecheck + lint + `npm test` (788) + `build:web` green; dialed live by the owner.
+
+### feat(ui): Career "Board Log" — click through rounds 1–17 for your winningest board
+
+Second half of board win-tracking (Mike's idea), built on the fight ledger from the leaderboard PR. A new **Board
+Log** panel atop the Career page: a round 1–17 selector, and for the picked round your **winningest board** — best
+win-rate with a small min-fights threshold — plus its full record (`82 Fights · 78 Wins · 2 Ties · 2 Losses · 96%`)
+and the board itself. `fetchPlayerRoundBoards(author)` pulls your uploaded boards (which carry ids from the
+tracking PR), joins the `board_results` ledger, groups by round, and sorts each round best-record-first; the panel
+opens on your best-fought round. Lit dots mark rounds you have a board for. Client-side aggregation, best-effort,
+independent of local match history.
+
+Verified: typecheck / lint / 792 tests / build green; live, the panel renders the header + 1–17 selector + empty
+state ("No board recorded yet") with no console errors — correct, since existing boards predate id-stamping and are
+filtered out. The populated view (records + board) lights up once id-stamped boards accumulate and the owner has
+re-run `schema.sql` (the isolated `board_results` table).
+### fx: the Echo skull is now a purple glowing ☠ that poofs into smoke
+
+The Deathrattle (now called **Echo**) death FX was a painted **bone** skull-and-crossbones that popped up over
+the dying unit and **shattered** — a 6×6 grid of image fragments flung with gravity and spin, plus bone
+splinters and a grey smoke bloom. It never matched the rest of the combat language: the purple `☠` Rally float
+(`.float.rally.sym`) already reads as "an Echo fired," and the bone shatter read as debris.
+
+Rebuilt it as a **purple glowing skull-and-crossbones that pops up and poofs**. Presentation-only —
+`pixiFx.deathrattle(x, y, size)` keeps its exact signature and call sites, the sim event log is untouched, and
+no fight outcome or timing changed.
+
+- **Texture** (`loadSkull()` → `buildSkullTex()`, `pixiFx.ts`). The `/fx/skull-crossbones.png` fetch,
+  alpha-key, bbox-crop, and grid-slice are all gone (~40 lines, plus the `Rectangle` import and the
+  `skullFrags` field). The art is now the **vendored `skull-crossbones.svg`** — a two-path, single-fill,
+  white-on-transparent silhouette, its paths **inlined into `pixiFx.ts`** (no runtime fetch). It's rendered
+  to an offscreen canvas via `Path2D`, filled `#cfa9fe`, through three `shadowColor`/`shadowBlur` passes that
+  **bake the CSS `text-shadow` stack from `.float.rally.sym` into the texture** — so the glow travels with the
+  sprite through the pop *and* the dissolve, which is what sells "glowing" rather than "flat purple."
+  Synchronous, so there's no longer an async window where an early `deathrattle()` no-ops. The silhouette is
+  **tall** (864×1048); the Pixi sprite scales uniformly, so its aspect is preserved and `DR_SKULL_SCALE` sizes
+  it by width against the card (the crossbones hang below the skull). The dead PNG is deleted. (An intermediate
+  build used the `☠` Unicode glyph; the owner A/B'd it against the SVG in the preview and picked the SVG. Emoji
+  like `💀` stays off the table — Windows renders it as a full-colour bitmap that ignores the fill colour.)
+- **Pop** (unchanged beat, new material). The elastic pop-in, upward drift, and hold jiggle are as they were,
+  but the skull now sits over an **additive glow sprite** sized off its display **long edge**, so the tall
+  silhouette blooms evenly against the dark board instead of sitting flat on it.
+- **Poof** (`burstSkull()` rewritten). No fragments, no splinters, no gravity. The skull **dissolves** (scales
+  up ×3 and fades over 150ms — without this it would simply vanish, and *this* is the poof the eye actually
+  reads); a **purple flash** pulses; a **purple smoke plume** blasts radially outward (`DR_SMOKE_OUT = 1`);
+  and ~42 **glowing purple embers** scatter with heavy drag and shrink to nothing. `sfx.skullBurst()` fires at
+  the same instant as before. The smoke is the only `'normal'`-blend layer (the flash + embers are additive, so
+  they can only brighten); its tints were first the tuned-but-near-black `0x4a3a5e`/`0x6b5580`, which read as a
+  **black cloud** on the dark board, so they were lifted to true mid-violets (`0x7a5fa6`/`0x9d84c4`) — the plume
+  now looks like purple smoke, not soot. (Same fix mirrored in the preview defaults.)
+- **Drag conversion — the subtle one.** The DEV preview integrates drag *per frame* (`v *= drag^(dt·60)`);
+  the engine integrates it *per second* (`v *= drag^dt`). Pasting the tuned dials straight across would have
+  made every particle drift far further than previewed. `perFrameDrag(d) = d ** 60` converts them, so the
+  numbers the owner tuned are the numbers that ship — and unlike the preview, frame-rate independent. Same
+  story for scale: `glowTex` is 80px wide at scale 1 where the preview's stand-in was 128px, so glow-particle
+  scales carry a `DR_GLOW_K = 128/80` factor.
+- **Preview-first** (`apps/web/public/fx/purple-skull-preview.html`, new). Per the project's FX rule — agree
+  the look on a cheap preview *before* wiring the feature — a standalone `file://`-openable canvas rig running
+  the same particle math, with sliders for every `DR_*` dial and a JSON bake box. Owner tuned it, pasted the
+  values back, and only then was `pixiFx.ts` touched. The rig gained a **shape switcher** (SVG silhouette vs a
+  live glyph text field) so the two could be A/B'd in place. It hardens against a silent blank page:
+  `localStorage` throws on some `file://` origins and was killing the script on line 1; uncaught errors now
+  paint an on-page banner; and a diagnostic line reports canvas size / live pops / live particles / a
+  glyph-coverage check (in glyph mode).
+- **Particle budget.** ~107 sprites per Echo (1 dissolve + 1 flash + 63 smoke + 42 embers) vs ~64 before
+  (36 fragments + 7 splinters + 21 smoke). All pooled, all `transform`/`alpha`-only, no paint properties
+  animated. Worth watching if several Echoes land in one clash.
+
+Verified: `npm run typecheck`, `npm run lint`, `npm test` (792 pass, 32 files), `npm run build:web` all green;
+owner previewed the tuned rig, then the live fight on the worktree dev server.
+
+Spec: [`docs/superpowers/specs/2026-07-10-purple-skull-poof-design.md`](superpowers/specs/2026-07-10-purple-skull-poof-design.md).
+
+### feat(ui): board fight-tracking — leaderboard win records (wins + win-rate + sort)
+
+First half of the board win-tracking feature (the leaderboard side; the Career per-round log is the follow-up).
+When you fight a **served opponent board**, the client now logs the outcome **from that board's perspective**
+(you lose to it → it gets a win) to a new isolated Supabase table, `board_results`. The Hall of Champions shows
+each slot's **round-17** record and can sort by it.
+
+- **Board identity:** every captured board is stamped with a stable UUID (`BoardSnapshot.id`, crypto.randomUUID in
+  the UI capture layer). It travels inside the existing `boards`/`runs` jsonb — **no new columns**, so uploads stay
+  compatible with an un-migrated backend. A run's final (leaderboard) board reuses its wave-17 pool board's id, so
+  the leaderboard slot and the served round-17 opponent share one identity.
+- **Recording:** the store, on each `faceOmen` combat (non-practice), recomputes the served board deterministically
+  (`nextOpponent` on the pre-faceOmen state — the exact input the reducer used) and fire-and-forget POSTs
+  `{board_id, round, outcome}`; skips untracked (id-less committed/synthetic) boards and your own boards.
+- **Leaderboard UI:** `fetchBoardStats(ids, 17)` aggregates the ledger per slot → a "N wins · X%" record chip (full
+  W/T/L tally on hover), plus a **Most recent / Most wins** sort toggle in the top bar.
+- **Backend:** `schema.sql` gains only the `board_results` table + RLS (re-run it once). Client-reported/trust-based
+  at friend scale; only boards captured from this release forward carry an id, so tracking starts fresh.
+
+Verified: typecheck / lint / 792 tests / build green; the leaderboard renders live with the sort toggle and "No
+fights yet" records (the table isn't migrated yet) and no console errors; id-stamping uses the available
+`crypto.randomUUID`. End-to-end (record → aggregate → display) activates once the owner re-runs `schema.sql`.
+
+### feat(ui): leaderboard + Career show the END-STATE board with live end-of-run card values
+
+The Hall of Champions (and the Career history board) showed the **pre-combat** highest-wave replay snapshot with
+**printed** rule text — so a champion's board read as its pre-fight recruit board, and a maxed-out Sergeant showed
+its base "+4 Health" instead of the "+102" it actually ended on. Now both render the **end-state board** the way
+the end screen does.
+
+- Extracted the end screen's `boardView` into a shared **`liveBoardView(m, run)`** (in `instView.ts`) — the
+  composer that folds run-wide auras (Lantern on Undead) into the shown stats and resolves each card's **live
+  scaling text** (Sergeant's climbing grant, Guel, Taragosa, …). The end screen now imports it (no behavior
+  change there).
+- On run end, the leaderboard/Career board is now built by a new `endStateBoard(run)` in `store.ts`: it snapshots
+  the **post-combat** `run.board` (combat carry-backs baked in) and enriches each minion with `liveBoardView` —
+  final Attack/Health (incl. auras) + the live rule text — replacing the old pre-combat, printed-text snapshot.
+  This board flows into both `uploadVictory` (leaderboard) and the Career history entry.
+- `BoardMinion` gained display-only `text?` / `goldenText?` fields (baked only into the final board; pool/combat
+  snapshots omit them and matchmaking/combat never read them). `cardViewOf` on the leaderboard **and** Career now
+  prefer the baked live text, falling back to the printed card text for older snapshots.
+
+Verified live: forced a run to game-over with a Sergeant carrying an accrued grant — the saved end-state board's
+Sergeant stored `text: "…{{+102 Health}}…"` (green live value) + its golden variant, and the end screen rendered
+"Give your minions +102 Health". typecheck / lint / 792 tests / build:web green.
+### feat(ui): hero power in its own box, right of the hero frame, glowing when usable
+
+Moved the hero-power button out of the hero frame's 2×2 grid into a **standalone `.heropanel` card** — a
+`.statusrow` flex sibling to the right of the hero, stretched to the hero's height. It's sized up (button 54u →
+82u) with the power name as a label beneath, so an active power reads as an obvious press-me button. The **whole
+box glows** (tangerine border + soft gold halo) via the existing `canHero` predicate whenever the power is usable
+this turn — a standing reminder to press it — and firms up while aiming (`.armed`); a passive hero's box shows the
+art dimmed with a "Passive" label and no glow. With the button gone from the hero grid, the Resolve box now spans
+both columns and centres under the portrait + name. The button keeps its `.heropowerbtn` class so Recruit's aim
+line still anchors to it (verified the `.statusbar .heropowerbtn` selector still resolves), and the power tooltip
+moved onto the new panel. typecheck / lint / build:web green; verified live (ready glow on Bagger Ben's Bag It,
+dimmed "Passive" on Fi).
+### fix(ui): Layout Lab — Hand "Card size" actually resizes cards + new Shop X/Y offsets
+
+Two Layout Lab (dev tuner) fixes:
+
+- **Hand "Card size" now scales the hand cards** (was: it only slid the hand up/down). Root cause: `--cw`/`--ccw`
+  (the compact-card width vars) are declared only on `:root`, computed from the root `--ch` — a custom property
+  inherits its already-substituted value, so the hand zone's `--ch` override never recomputed card width. The lever
+  only inflated `--ch` → `--hand-tuck` (a translateY), sliding the hand. Fix: the hand zone now (a) keeps `--ch`
+  FIXED at the shipped 1.18× basis (row height / resting tuck / hover-pop floor unchanged) and (b) drives `--cw`/
+  `--ccw` off the ROOT basis (`--ch-base * --card-scale`) × the lever, so at the default **1** a hand card is
+  pixel-identical to a shop/warband card and dragging the lever genuinely resizes it. Verified live: hand card =
+  233px at 1 (== shop), 327px at 1.4. (The lever `def` moved 1.18 → 1 to match.)
+- **New Shop row "X offset" / "Y offset" levers** (`--z-shop-x` / `--z-shop-y`) applied as `top`/`left` on the
+  tavern zone (combat-safe layout offset, mirroring the Warband pattern — a transform would fight the combat units'
+  GSAP lunges). Because the shop cards AND the enemy warband render in the *same* tavern zone, these move both
+  together (shop cards ⇄ opponent board stay aligned by construction), while the shop buttons — a separate
+  `.shopbar` — never move. Verified live: shop cards shift +120/+40, buttons stay at 0/0.
+
+typecheck / lint / build:web green.
+
+### balance: quest-reward card retune (8 cards) + Tradesman rerolls cost 2
+
+A pass over eight quest-reward tokens plus a Tradesman economy tweak (owner spec 2026-07-10).
+
+- **Scrap Vendor** — body 2/5 → **4/7** (a sturdier economy Mech).
+- **Crypt Broker** — was a 1/1 **Sell** token; now a **3/3 Battlecry**: "get a random Echo minion and trigger its
+  Echo." Same underlying effect, moved `onSell` → `onPlay` (it fires on the play path's Battlecry loop just as it
+  did on sell); renamed the factory `onSellGetEchoAndTrigger` → `getEchoAndTrigger` (+ the schema/type entries).
+- **Skybound Archivist** — weakest Dragon now gains **50%** of the strongest's stats (was 20%; golden **100%**, was
+  40%), and dropped to **T4** so Eyes of Aresmar (≤T4) can gild it.
+- **Chimerus** — added a gilded line: golden runs the whole hand-out **twice** (re-picks each round; the factory now
+  loops `mul(self)` times giving its Health each round, instead of giving 2× Health once).
+- **Taragosa's Heir** — reworked from "every third gain of your strongest Dragon is copied onto this" to a
+  self-amplifier: **"Gains 2× stats from all sources"** (golden **3×**). The reducer's stat-gain diff now reads the
+  Heir's OWN +Atk/+Hp each recruit action and tops it up by the extra (mult−1)× so the net is mult×. (Recruit-phase
+  gains, matching the old reward's scope; the natural gain still counts toward Dragon `tribeStats` quests, the
+  amplified extra doesn't.) Removed the now-unused `heirGainCount` field.
+- **Chorus Engine** — reworked to a Rally-only payoff: **"Rally: improve your Attachments by +4/+4 and get 2
+  Attachments"** (golden **+8/+8 / 4**). Dropped the Slaughter/on-kill grant + the `SL` keyword; the "get N
+  attachments" now rides the existing `rallyGrantMagnetic` factory (count 2, golden-doubled) on attack.
+- **Run Maw** — Demons gain **50%** of the consumed minion's stats (was 25%; golden **100%**, was 50%).
+- **Lazarus** — added the gilded line: golden reduces shop-spell cost by **2** (the reducer's `spellCostReduction`
+  already granted golden 2 — the card just never printed it).
+- **Tradesman** — rerolls now cost **2 Gold** on top of his existing rules (cheap minions, dearer tavern-ups). New
+  `refreshCostOf(s)` helper is the single source of truth for the reducer's roll charge + the UI Reroll button, which
+  now reads 2 for Tradesman. Verified live: the button shows 2 and a roll spends 2 Gold.
+
+Full gauntlet green (typecheck / lint / 791 tests / build:web); combat + run tests re-baselined for the new
+percentages and the Crypt Broker Battlecry / Taragosa amplifier.
+### balance + content: quest-count retune (20 quests) · Anomaly Reactor now lets you CHOOSE the added type
+
+Two owner asks in one PR.
+
+**Quest retune** — a pass over 20 quest objectives/rewards to shorten the long tail flagged by the turns-to-complete
+estimate (most were sitting a few turns over their phase budget of ~13 / ~9 / ~5 for lesser / greater / capstone):
+Blood Trail slaughter 2→6, Shop License spend 10→15, Odd Jobs reward 12→10 gold, Contract Rewrite spend 20→25,
+Skybound Pact 40→25 Dragon stats, Food for Gold consume 18→16, Dupes win 4→3, Ancient Runes spend 55→50, Echoing
+Coop Echo 7→10, Machine Chorus rally 10→6, The Author's Hand 6→5 each, Law of Teeth slaughter 12→8, The Old Hunt
+25→20 attacks, Empty Graves 25→20 deaths, Pit Without End 20→17 imps, The Hoard Wakes 13→10 shouts, Attachment
+Issues 20→14, Twin Sun Oath 16→15, and **Impossible Shop → renamed "Taurus Ascension"** with its spend cut 60→40.
+Umbral Energy (13) and Feeding Line (18) were already at the requested values (no change). Content-only edit; two
+tests re-baselined (Blood Trail's tally, and the assertions whose fixtures now sit above the lower thresholds still
+pass unchanged).
+
+**Anomaly Reactor rework** — the spell was "give a friendly minion a **Mech** type"; now it's **"Target a minion,
+then choose an extra type to give it"** — the player picks *which* of the five tribes (Beast / Dragon / Undead / Mech
+/ Demon) to bolt on, on top of what the minion already is. Implemented by keeping the spell **targeted** (the native
+drag picks the minion) and adding a 5-option `chooseOne`: on play, a targeted Choose-One spell captures its
+`targetUid` and opens the picker (spell stays in hand); the chosen option's `spellAddTribe` then casts on that stored
+target and consumes the spell. New plumbing: `chooseOne.targetUid` on `RunState`, the targeted-spell branch in the
+`play` reducer (fizzles with no valid target), and the target-aware cast in the `chooseOne` reducer (fizzles-but-
+consumes if the target was sold mid-pick). The `spellAddTribe` factory already read `params.tribe`, so no factory
+change. Verified live on a throwaway run: drag → 5-option modal renders, pick Mech → target gains `addedTribes:
+['mech']`, spell consumed; unit tests cover Mech and a non-Mech (Dragon) pick plus the mid-flow "still in hand, not
+yet applied" state. Full gauntlet green (typecheck / lint / 792 tests / build).
+
+### balance: loss-damage cap ramps 5 → 10 → 15 → 20 → uncapped
+
+Reworked `lossDamageCap(wave)` (the most Resolve a single loss can cost) from the old flat-by-3 curve to an
+escalating one per the owner: **5** (rounds 1–3), **10** (4–7), **15** (8–11), **20** (12–15), then **uncapped**
+(full damage) for the finale (rounds 16–17). `Infinity` flows through the existing
+`Math.min(playerDamage, cap)` cleanly; the HudBar shows "No cap" instead of "Max −∞" for the uncapped rounds, and
+the loss-tally's "Max Damage" label self-suppresses when uncapped (`rawTotal > Infinity` is false). Tests updated;
+verified live that the HUD reads Max −10 / −15 / −20 / No cap across the bands.
+
+### fix: Perfect Core's welded Rally now works (combat + triples) · Forsaken Will behaves like the Weaver
+
+Two owner-reported bugs:
+
+- **Perfect Core's welded Rally silently did nothing.** Welding Perfect Core onto a host (or a Beatbot mimic) set
+  `rallySpellWeld` on the recruit board card correctly, but TWO copy paths dropped it: the **combat board prep**
+  (`s.board → BoardMinion`) carried `rallyMechAtk` but not `rallySpellWeld`, so the welded Rally never granted a spell
+  in combat; and the **triple combine** summed `rallyMechAtk`/`spellAuraBonus`/`fodderAuraBonus` but not
+  `rallySpellWeld`, so a tripled welded host kept its Ward + Rally *pills* but lost the actual spell-grant (matching
+  "gains ward etc., just the rally doesn't transfer"). Added `rallySpellWeld` to both. New tests: a welded Perfect
+  Core grants a spell when it attacks in combat; a tripled welded host keeps `rallySpellWeld` (summed).
+- **Forsaken Will now behaves exactly like the Forsaken Weaver.** Its reward previously bumped the Lantern-style
+  `undeadAttackBonus` aura; per the owner it should work like the weaver — extracted a shared
+  `buffUndeadAttackEverywhere(state, amount, source)` (bake +N into every current Undead + stack `undeadBuyAtk` so
+  future buys inherit it), used by both the weaver's `spellCastBuffUndeadAttack` factory and Forsaken Will's per-spell
+  reward. Test updated to assert the baked +6 + `undeadBuyAtk`.
+
+`typecheck` + `lint` + `test` (791) + `build:web` green.
 
 ### tweak(ui): Target Dummy's +N no longer splits the clash + a snappier buff cadence
 
@@ -82,6 +314,15 @@ so it never touched a concurrent branch in the shared folder.
 
 ## 2026-07-09 (session 28)
 
+### fix(content): Ossuary Rite quest — recurring End-of-Turn grant instead of a self-feeding loop
+
+Owner-reported: the Ossuary Rite quest (`q_ossuary_rite`, "trigger 8 Echoes") granted an Ossuary Rite and was
+`repeatable: true` — but casting Ossuary Rite triggers an Echo (a deathrattle), which feeds the same objective, so a
+board with enough Echo minions re-completed the quest every action and the hand filled with Ossuary Rites forever.
+Per the owner: keep the objective ("trigger 8 Echoes") but change the reward to a recurring **End of Turn: get an
+Ossuary Rite** (the existing `recurringGrant` kind, as Feed the Alpha uses) and drop `repeatable`. Now the quest
+completes exactly once and hands out one Ossuary Rite per turn — bounded, no loop. Test rewritten (25 Echoes → completes
+once, arms `questRecurringGrants`, ≤1 Ossuary Rite from the settle). `typecheck` + `lint` + `test` (782) + `build:web` green.
 ### fix(ui): taunt bulwark no longer re-deploys on the combat↔recruit swap
 
 The remaining "taunt bulwark spawns in briefly" was **not** the skip fade — instrumentation (wrapping

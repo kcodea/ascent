@@ -337,19 +337,19 @@ export const UNDEAD: CardDef[] = [
     token: true,
   },
   {
-    // Grave Robber reward. Sell payoff: get a random Echo (Deathrattle) minion to hand AND trigger its Echo out
-    // of combat right away (summons/buffs bake in, Sylus-doubled + tallied). Golden gets + triggers two. A 1/1
-    // body you cash in for Echo value. Reward-only (token).
+    // Grave Robber reward. Battlecry payoff: get a random Echo (Deathrattle) minion to hand AND trigger its Echo
+    // out of combat right away (summons/buffs bake in, Sylus-doubled + tallied). Golden gets + triggers two. A
+    // 3/3 body you play for Echo value. Reward-only (token).
     id: 'cryptbroker',
     name: 'Crypt Broker',
     tribe: 'undead',
     tier: 3,
-    attack: 1,
-    health: 1,
+    attack: 3,
+    health: 3,
     keywords: [],
-    effects: [{ on: 'onSell', do: 'onSellGetEchoAndTrigger' }],
-    text: '**Sell:** get a random **Echo** minion and trigger its Deathrattle.',
-    goldenText: '**Sell:** get **2** random **Echo** minions and trigger their Deathrattles.',
+    effects: [{ on: 'onPlay', do: 'getEchoAndTrigger' }],
+    text: '**Battlecry:** get a random **Echo** minion and trigger its Echo.',
+    goldenText: '**Battlecry:** get **2** random **Echo** minions and trigger their Echoes.',
     token: true,
   },
   {

@@ -1,5 +1,5 @@
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, spellDisplayText, type BoardCard } from '@game/sim';
+import { CONFIG, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText,
@@ -130,4 +130,17 @@ export function instView(
     baseHealth: inst.golden ? c.health * 2 : c.health,
     buffs: inst.buffs,
   };
+}
+
+/** A live `CardView` for a final-warband minion — wires the run-wide inputs into `instView` so scaling cards
+ *  (Guel, Sergeant, Taragosa, …) show their *accumulated* magnitude at run's end, not the printed base, and
+ *  run-wide auras (Lantern of Souls on Undead) fold into the shown stats. Shared by the end screen and the
+ *  final-board capture (leaderboard / Career), so all three read identically. */
+export function liveBoardView(m: BoardCard, run: RunState): CardView {
+  return instView(
+    m, run.tier, undefined, spellAttackBonus(run), spellHealthBonus(run), run.spellsThisTurn,
+    run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus,
+    run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn,
+    { undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: run.cardBuffs },
+  );
 }

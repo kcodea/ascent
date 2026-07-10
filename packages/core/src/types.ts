@@ -198,7 +198,7 @@ export type EffectFactoryId =
   | 'endOfTurnBonusGold' // Scrap Vendor: End of Turn — bank Gold into your next shop (recruit)
   | 'battlecryAllDemonsConsume' // Herald of the Apocalypse: Battlecry — every friendly Demon Consumes a Fodder (recruit)
   | 'spellBuffImpsPerDemon' // Implosion: cast — buff your Imps +atk/+hp, recast once per Demon you control (recruit)
-  | 'onSellGetEchoAndTrigger' // Crypt Broker: Sell — get a random Echo minion + trigger its Deathrattle (recruit)
+  | 'getEchoAndTrigger' // Crypt Broker: Battlecry — get a random Echo minion + trigger its Echo (recruit)
   // --- recruit factories (new content batch) ---
   | 'battlecryBuffUndeadAttack' // Deathswarmer: Battlecry — give your Undead +Attack wherever they are; stacks into future buys
   | 'battlecryBuffBeastAttack' // (legacy) give your Beasts +Attack wherever they are; stacks into future buys
@@ -618,6 +618,13 @@ export interface BoardMinion {
   /** Per-source recruit-phase buff breakdown carried from the run board, so the combat inspect panel can
    *  itemize where this minion's stats came from (Spirit Fire, triples, Battlecries…) — same as the shop. */
   buffs?: MinionBuff[];
+  /** DISPLAY-ONLY: the minion's LIVE, end-of-run rule text (scaling values folded in — Sergeant's climbing
+   *  grant, Guel, Taragosa, …), baked in when the *final* board is captured for the leaderboard / Career so
+   *  those static views read the end-of-run magnitude, not the printed base. Absent on pool/combat snapshots
+   *  (they fall back to the printed card text). Combat + matchmaking never read this. */
+  text?: string;
+  /** DISPLAY-ONLY: the golden variant of `text`, baked alongside it (see `text`). */
+  goldenText?: string;
 }
 
 /** A live combat instance. Mutable for the duration of one `simulate()` call. */

@@ -286,8 +286,8 @@ export const MECHS: CardDef[] = [
     name: 'Scrap Vendor',
     tribe: 'mech',
     tier: 2,
-    attack: 2,
-    health: 5,
+    attack: 4,
+    health: 7,
     keywords: [],
     effects: [
       { on: 'endOfTurn', do: 'endOfTurnBonusGold', params: { amount: 1 } },
@@ -298,21 +298,21 @@ export const MECHS: CardDef[] = [
     token: true,
   },
   {
-    // Machine Chorus reward. A Rally payoff for an Attachment build: each attack pumps your unwelded Attachments
-    // and each kill conjures a fresh Magnetic minion to hand.
+    // Machine Chorus reward. A Rally payoff for an Attachment build: each attack both pumps your unwelded
+    // Attachments AND conjures fresh ones to hand.
     id: 'chorusengine',
     name: 'Chorus Engine',
     tribe: 'mech',
     tier: 6,
     attack: 8,
     health: 6,
-    keywords: ['RL', 'SL'],
+    keywords: ['RL'],
     effects: [
-      { on: 'onAttack', do: 'rallyBuffAttachments', params: { attack: 2, health: 2 } },
-      { on: 'onKill', do: 'onKillGrantMagnetic' },
+      { on: 'onAttack', do: 'rallyBuffAttachments', params: { attack: 4, health: 4 } },
+      { on: 'onAttack', do: 'rallyGrantMagnetic', params: { count: 2 } },
     ],
-    text: '**Rally:** improve your **Attachments** by **+2/+2**. **Slaughter:** get an **Attachment**.',
-    goldenText: '**Rally:** improve your **Attachments** by **+4/+4**. **Slaughter:** get **2 Attachments**.',
+    text: '**Rally:** improve your **Attachments** by **+4/+4** and get **2 Attachments**.',
+    goldenText: '**Rally:** improve your **Attachments** by **+8/+8** and get **4 Attachments**.',
     token: true,
   },
 ];

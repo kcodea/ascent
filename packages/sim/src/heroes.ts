@@ -285,7 +285,7 @@ export const HEROES: HeroDef[] = [
       name: 'Frugal',
       kind: 'cheapMinions',
       passive: true,
-      text: 'Shop minions cost 2 Gold. Tavern upgrades cost 2 more.',
+      text: 'Shop minions cost 2 Gold. Tavern upgrades cost 2 more. Rerolls cost 2.',
     },
   },
   {

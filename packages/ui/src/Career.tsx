@@ -3,6 +3,7 @@ import { CARD_INDEX } from '@game/content';
 import { getHero, metLine, TAG_INFO, type BoardMinion, type LineStatus, type Tribe } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { avatarSrc, heroArt } from './art';
+import { BoardLog } from './BoardLog';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
@@ -14,7 +15,8 @@ function cardViewOf(m: BoardMinion): CardView {
   return {
     name: def?.name ?? m.cardId, cardId: m.cardId, tribe: def?.tribe ?? 'neutral', tribe2: def?.tribe2,
     attack: m.attack, health: m.health, keywords: m.keywords ?? [],
-    text: def?.text ?? '', goldenText: def?.goldenText, golden: m.golden,
+    // Prefer the live end-of-run text baked into the final-board snapshot; older entries fall back to printed.
+    text: m.text ?? def?.text ?? '', goldenText: m.goldenText ?? def?.goldenText, golden: m.golden,
     tier: def?.tier ?? 1, baseAttack: def?.attack ?? m.attack, baseHealth: def?.health ?? m.health, buffs: m.buffs,
   };
 }
@@ -87,6 +89,8 @@ export function Career() {
       </div>
 
       <div className="lbscroll">
+        {/* Per-round "winningest board" log — remote (your boards' fight records), shown independent of local history. */}
+        <BoardLog />
         {entries.length === 0 ? (
           <div className="lbempty">
             <div className="carempty-rating">Rating {profile.rating} · Line {profile.currentLine}</div>

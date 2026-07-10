@@ -97,7 +97,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half
    grows to fill its space and centres its cards. Warband gets extra bottom padding so it
    rides a little higher, opening a gap above the hand. */
-.zone[data-zone='tavern'] { flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 1) * var(--z-shop-s, 1)); }
+.zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 1) * var(--z-shop-s, 1)); top: var(--z-shop-y, 0px); left: var(--z-shop-x, 0px); }
 .zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 1) * var(--z-wb-s, 1)); top: var(--z-wb-y, 0px); left: var(--z-wb-x, 0px); }
 /* Nudge the whole Warband DOWN a touch so it sits clearly UNDER the board's centre line instead of hugging
    it. Done with `position: relative; top` (the zone is ALREADY position:relative) — NOT a `transform`: a
@@ -179,7 +179,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
    for why scaling never uses a transform). The hand carries no combat units, so it can use the standalone
    `translate` property (it composes with the zone's own `transform: translateX(-50%)` centering). Every var
    falls back to a no-op, so this is inert until the dev Layout Lab tuner sets one, and absent in production. */
-.zone[data-zone='hand'] { --ch: calc(var(--ch-base) * var(--card-scale, 1) * var(--z-hand-s, 1.18)); translate: var(--z-hand-x, 0px) var(--z-hand-y, 0px); }
+/* The hand's vertical basis (--ch) is FIXED at the shipped 1.18× (drives row height, the resting tuck, and the
+   hover-pop floor — see .row.hand below). The "Card size" lever (--z-hand-s) is decoupled onto the card WIDTH
+   vars (--cw/--ccw) so it actually resizes the hand cards, instead of only inflating --ch → --hand-tuck (which
+   just slid the hand up/down — the reported bug). The width is built from the ROOT basis (--ch-base * --card-scale,
+   NOT the 1.18-inflated --ch) × the lever, so at the default 1 the hand card is exactly a shop/warband card. */
+.zone[data-zone='hand'] { --ch: calc(var(--ch-base) * var(--card-scale, 1) * 1.18); --cw: calc(var(--ch-base) * var(--card-scale, 1) * 0.752 * var(--z-hand-s, 1)); --ccw: calc(var(--cw) * 0.85); translate: var(--z-hand-x, 0px) var(--z-hand-y, 0px); }
 
 /* HUD */
 .bar { display: flex; align-items: center; gap: calc(12 * var(--u)); flex: none; position: relative; --u: calc(var(--u-base) * var(--ui-scale, 1) * var(--z-hud-s, 1)); top: var(--z-hud-y, 0px); left: var(--z-hud-x, 0px); }
@@ -699,7 +704,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* hero-power tooltip — same dark pill as the keyword tip, popping above the corner tray */
 .herotip { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); width: 248px; background: var(--ink); color: #fff; border-radius: 12px; padding: 11px 14px; font-size: 12px; line-height: 1.45; font-weight: 600; text-align: center; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
 .herotip b { color: var(--acc); }
-.hero:hover .herotip { opacity: 1; transition-delay: 0.35s; }
+.heropanel:hover .herotip { opacity: 1; transition-delay: 0.35s; }
 /* embers projection — hover the Embers chip to see the next two waves' starting Embers */
 .emberproj { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); min-width: 158px; background: var(--ink); color: #fff; border-radius: 12px; padding: 9px 12px; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
 .emberproj .ept { font-family: var(--font-ui); font-weight: 700; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink3); margin-bottom: 6px; text-align: center; }
@@ -1339,15 +1344,31 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 .statusbar .hero .htxt { min-width: 0; }
 .statusbar .hero .nm { font-size: calc(20 * var(--u)); line-height: 1.1; }
 .statusbar .hero .pw { font-size: calc(13 * var(--u)); white-space: normal; line-height: 1.26; }
-/* power button + Resolve are the bottom row — left-align them in their cells (override the single-row
-   margin-left:auto) and shrink to suit the compact frame */
-.statusbar .hero .hpwrap { margin-left: 0; justify-self: start; }
-.statusbar .heropowerbtn { width: calc(54 * var(--u)); height: calc(54 * var(--u)); }
-.statusbar .heropowerbtn svg { width: calc(28 * var(--u)); height: calc(28 * var(--u)); }
-.statusbar .hero .hpbox { justify-self: stretch; align-self: center; padding: calc(6 * var(--u)) calc(12 * var(--u)); }
+/* Resolve is the bottom row — it now spans BOTH columns (the hero power moved out to its own `.heropanel`), so
+   it centres under the portrait + name. */
+.statusbar .hero .hpbox { grid-column: 1 / -1; justify-self: center; align-self: center; padding: calc(6 * var(--u)) calc(14 * var(--u)); }
 .statusbar .hero .hpbox svg { width: calc(23 * var(--u)); height: calc(23 * var(--u)); }
 .statusbar .hero .hpbox .hpval { font-size: calc(23 * var(--u)); }
 .statusbar .hero .hpbox .armval { font-size: calc(16 * var(--u)); }
+/* Hero-power box — a standalone card to the RIGHT of the hero frame (a `.statusrow` flex sibling), stretched to
+   the hero's height. Sized up so an active power is an obvious button; the whole box glows when usable. */
+.statusbar .heropanel {
+  position: relative; align-self: stretch; pointer-events: auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u));
+  background: var(--card); border: 2px solid var(--line); border-radius: calc(18 * var(--u));
+  padding: calc(9 * var(--u)) calc(15 * var(--u));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 6px rgba(0, 0, 0, 0.14);
+}
+body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-reaching hand drop through */
+.statusbar .heropanel.ready { border-color: var(--acc); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 0 2px color-mix(in srgb, var(--acc) 55%, transparent), 0 0 22px -4px var(--acc); }
+.statusbar .heropanel.armed { border-color: var(--acc-dk); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 0 3px var(--acc), 0 0 24px 0 var(--acc); }
+.statusbar .heropanel.passive { opacity: 0.9; }
+.statusbar .heropanel .hpwrap { margin-left: 0; }
+.statusbar .heropanel .heropowerbtn { width: calc(82 * var(--u)); height: calc(82 * var(--u)); }
+.statusbar .heropanel .heropowerbtn svg { width: calc(40 * var(--u)); height: calc(40 * var(--u)); }
+/* The power name under the button — dims for a passive, brightens to the accent when the power is usable. */
+.statusbar .hplabel { font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.02em; color: var(--ink2); text-align: center; max-width: calc(104 * var(--u)); line-height: 1.15; }
+.statusbar .heropanel.ready .hplabel { color: var(--acc-dk); }
 /* Embers chip scaled to fill the (hero-tall) chip */
 .statusbar .chip { padding: calc(11 * var(--u)) calc(16 * var(--u)); border-radius: calc(18 * var(--u)); gap: calc(11 * var(--u)); }
 .statusbar .chip .ic { width: calc(64 * var(--u)); height: calc(64 * var(--u)); border-radius: calc(16 * var(--u)); }
@@ -2179,6 +2200,17 @@ svg { width: 18px; height: 18px; }
 .lbinfo { display: flex; flex-direction: column; }
 .lbname { font-family: var(--font-ui); font-weight: 800; font-size: 18px; color: #fff; }
 .lbmeta { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.6); }
+/* Round-17 win record — pushed to the right edge of the entry head. */
+.lbrecord { margin-left: auto; flex: none; display: inline-flex; align-items: baseline; gap: 6px; font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: rgba(255, 255, 255, 0.85); background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 12px; padding: 7px 13px; white-space: nowrap; }
+.lbrecord svg { width: 16px; height: 16px; color: var(--acc); align-self: center; }
+.lbrecord b { color: #fff; font-weight: 900; font-size: 18px; }
+.lbrecord .lbwr { color: var(--acc); font-weight: 800; font-size: 13px; }
+.lbrecord.none { color: rgba(255, 255, 255, 0.5); font-weight: 600; font-size: 13px; }
+/* Sort toggle in the top bar (Most recent / Most wins). */
+.lbsort { margin-left: auto; display: inline-flex; gap: 6px; flex: none; }
+.lbsortbtn { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.72); background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.16); padding: 8px 14px; border-radius: 10px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.lbsortbtn:hover { border-color: var(--acc); color: var(--acc); }
+.lbsortbtn.on { background: var(--acc); border-color: var(--acc); color: #fff; }
 /* Per-round W/L spread — a compact version of the end-screen pips (.endpip). Calibration rounds (1–2) dimmed. */
 .lbpips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
 .lbpip { flex: none; width: 19px; height: 19px; border-radius: 5px; font-family: var(--font-ui); font-weight: 800; font-size: 11px; color: #fff; display: grid; place-items: center; }
@@ -2216,6 +2248,27 @@ svg { width: 18px; height: 18px; }
 .carcols { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 16px; align-items: start; margin-top: 10px; }
 .carcard { background: rgba(20, 30, 50, 0.5); border: 1.5px solid rgba(196, 160, 92, 0.35); border-radius: 16px; padding: 6px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
 .carcard .carsec { margin: 8px 0 2px; }
+
+/* Board Log — the per-round "winningest board" panel (a full-width carcard above the columns). */
+.boardlog { margin-bottom: 4px; }
+.bl-rounds { display: flex; flex-wrap: wrap; gap: 6px; }
+.bl-round { position: relative; width: 38px; height: 38px; border-radius: 10px; font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: rgba(255, 255, 255, 0.7); background: rgba(0, 0, 0, 0.28); border: 2px solid rgba(255, 255, 255, 0.14); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.bl-round:hover { border-color: var(--acc); color: var(--acc); }
+.bl-round.has { color: #fff; border-color: rgba(196, 160, 92, 0.6); }
+.bl-round.has::after { content: ''; position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--acc); }
+.bl-round.on { background: var(--acc); border-color: var(--acc); color: #fff; }
+.bl-round.on::after { background: #fff; }
+.bl-detail { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
+.bl-record { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; font-family: var(--font-ui); font-weight: 600; font-size: 15px; color: rgba(255, 255, 255, 0.82); }
+.bl-record .bl-stat b { font-weight: 900; font-size: 20px; color: #fff; margin-right: 4px; }
+.bl-record .bl-stat.w b { color: #7ee0a0; }
+.bl-record .bl-stat.t b { color: #e9d58a; }
+.bl-record .bl-stat.l b { color: #f08a8a; }
+.bl-record .bl-wr { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-weight: 900; font-size: 17px; color: var(--acc); }
+.bl-record .bl-wr svg { width: 17px; height: 17px; color: var(--acc); }
+.bl-warband { display: flex; flex-wrap: wrap; gap: 10px; }
+.bl-note { font-family: var(--font-ui); font-weight: 600; font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+.bl-empty { padding: 14px 2px; color: rgba(255, 255, 255, 0.6); font-family: var(--font-ui); font-weight: 700; font-size: 15px; }
 
 /* Left — Profile + Insights + hero record (one panel). Header block centered; the lists below full-width. */
 .carprofilecard { align-items: center; text-align: center; }

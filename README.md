@@ -25,9 +25,13 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
-- **Deathrattle summons read cleaner.** A Deathrattle's tokens now wait for the bone-skull to pop and *burst*
+- **Deathrattle summons read cleaner.** A Deathrattle's tokens now wait for the skull to pop and *burst*
   (and an attacker to settle home) before they appear, instead of popping in over the FX. The taunt death-burst
   effect + sound are removed for now.
+- **The Echo skull poofs.** The Deathrattle death FX is no longer a bone skull-and-crossbones shattering into
+  fragments — it's a **purple glowing skull-and-crossbones** (a vendored SVG silhouette) that pops up and poofs
+  into a smoke plume and glowing embers, matching the purple Rally float so an Echo reads the same everywhere.
+  Tuned on a new standalone preview rig (`apps/web/public/fx/purple-skull-preview.html`). Presentation-only.
 - **Snappier combat stat gains.** An `onDamaged` buff (Target Dummy taking a hit) no longer splits the clash —
   the whole exchange lands first (both hits, at their real pre-buff values), the units settle, then the `+N`
   floats on a cadence cut to a third. Presentation-only; the numbers still float at the same speed.

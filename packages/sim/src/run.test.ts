@@ -1254,6 +1254,32 @@ describe('run loop (@game/sim)', () => {
     expect(s.board[0]!.rallyMechAtk).toBe(10); // +5 each → +10
   });
 
+  it("Perfect Core's welded Rally grants a spell in combat (rallySpellWeld survives board→combat) (owner 2026-07-10)", () => {
+    // Weld Perfect Core onto a big host; it must actually grant a spell when it attacks in combat — the combat
+    // board prep used to drop `rallySpellWeld`, so the welded Rally silently did nothing.
+    let s: RunState = {
+      ...createRun(1), tier: 6, phase: 'recruit',
+      board: [{ uid: 'h', cardId: 'drone', tribe: 'mech', attack: 40, health: 40, keywords: [], golden: false }],
+      hand: [{ uid: 'pc', cardId: 'perfectcore', tribe: 'neutral', attack: 10, health: 10, keywords: ['DS', 'RL', 'M'], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'pc', toIndex: 0 }); // weld onto the host
+    expect(s.board[0]!.rallySpellWeld).toBe(1);
+    const handBefore = s.hand.length;
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    const granted = s.hand.slice(handBefore);
+    expect(granted.length).toBeGreaterThan(0); // the Rally added a card…
+    expect(granted.every((c) => CARD_INDEX[c.cardId]?.spell)).toBe(true); // …and it's a spell
+  });
+
+  it("tripling a welded host keeps Perfect Core's Rally (rallySpellWeld carries through the combine)", () => {
+    const w = (uid: string): BoardCard => ({ uid, cardId: 'drone', tribe: 'mech', attack: 2, health: 2, keywords: ['RL'], golden: false, rallySpellWeld: 1 });
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', board: [w('a'), w('b')], hand: [w('c')] };
+    s = reduce(s, { type: 'play', uid: 'c', toIndex: 2 }); // 3rd copy → combine into a golden
+    const golden = s.hand.find((x) => x.golden) ?? s.board.find((x) => x.golden);
+    expect(golden?.rallySpellWeld).toBe(3); // summed across the three copies, not dropped
+  });
+
   it('Speedy is Magnetic — it welds its keyword onto a host Mech', () => {
     // Speedy welds Windfury.
     let sp: RunState = {
@@ -4238,10 +4264,12 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     }
   });
 
-  it('lossDamageCap rises by round: 5 (≤3), 10 (4–6), 15 (7+)', () => {
+  it('lossDamageCap ramps by round: 5 (1–3), 10 (4–7), 15 (8–11), 20 (12–15), uncapped (16+)', () => {
     expect([1, 2, 3].map(lossDamageCap)).toEqual([5, 5, 5]);
-    expect([4, 5, 6].map(lossDamageCap)).toEqual([10, 10, 10]);
-    expect([7, 12, 30].map(lossDamageCap)).toEqual([15, 15, 15]);
+    expect([4, 6, 7].map(lossDamageCap)).toEqual([10, 10, 10]);
+    expect([8, 10, 11].map(lossDamageCap)).toEqual([15, 15, 15]);
+    expect([12, 14, 15].map(lossDamageCap)).toEqual([20, 20, 20]);
+    expect([16, 17, 30].map(lossDamageCap)).toEqual([Infinity, Infinity, Infinity]);
   });
 
   it('Practice mode: a loss costs no Resolve (unlimited health), and the run keeps going through the course', () => {
@@ -4921,7 +4949,7 @@ describe('Dragon quests + reward minions', () => {
     expect(s.board.filter((c) => c.cardId === 'stray').length).toBe(2);
   });
 
-  it('Skybound Archivist — End of Turn: weakest Dragon gains 20% of the strongest Dragon\'s stats', () => {
+  it('Skybound Archivist — End of Turn: weakest Dragon gains 50% of the strongest Dragon\'s stats', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit',
       board: [
@@ -4932,28 +4960,29 @@ describe('Dragon quests + reward minions', () => {
     };
     s = reduce(s, { type: 'faceOmen' }); // End of Turn fires
     const weak = s.board.find((c) => c.uid === 'weak')!;
-    expect([weak.attack, weak.health]).toEqual([1 + 2, 1 + 2]); // +20% of 10/10 = +2/+2
+    expect([weak.attack, weak.health]).toEqual([1 + 5, 1 + 5]); // +50% of 10/10 = +5/+5
   });
 
-  it("Taragosa's Heir copies every THIRD stat-gain of the strongest Dragon", () => {
+  it("Taragosa's Heir amplifies its OWN stat gains (×2, golden ×3) from any source", () => {
     const buff = { uid: 'gr', cardId: 'growth', tribe: 'neutral' as const, attack: 0, health: 1, keywords: [], golden: false };
+    // ×2: Growth buffs the board Dragon +3/+4; the Heir doubles its own gain → +6/+8.
     let s: RunState = {
       ...createRun(1), tier: 6, phase: 'recruit', embers: 30,
-      board: [
-        { uid: 'heir', cardId: 'taragosaheir', tribe: 'dragon', attack: 7, health: 6, keywords: [], golden: false },
-        { uid: 'strong', cardId: 'cleric', tribe: 'dragon', attack: 20, health: 20, keywords: [], golden: false },
-      ],
-      hand: [{ ...buff, uid: 'g1' }, { ...buff, uid: 'g2' }, { ...buff, uid: 'g3' }],
+      board: [{ uid: 'heir', cardId: 'taragosaheir', tribe: 'dragon', attack: 7, health: 6, keywords: [], golden: false }],
+      hand: [{ ...buff, uid: 'g1' }],
     };
-    // Growth buffs both Dragons +3/+4 each cast. The strongest is 'strong'. 3rd gain → mirror +3/+4 onto the Heir.
     s = reduce(s, { type: 'play', uid: 'g1' });
-    s = reduce(s, { type: 'play', uid: 'g2' });
     let heir = s.board.find((c) => c.uid === 'heir')!;
-    expect([heir.attack, heir.health]).toEqual([7 + 6, 6 + 8]); // only Growth's own board buffs so far (no mirror yet)
-    s = reduce(s, { type: 'play', uid: 'g3' });
-    heir = s.board.find((c) => c.uid === 'heir')!;
-    // 3rd gain mirrors the strongest's +3/+4 on top of the Heir's own Growth buffs (3 × +3/+4 = +9/+12) → + mirror +3/+4.
-    expect([heir.attack, heir.health]).toEqual([7 + 9 + 3, 6 + 12 + 4]);
+    expect([heir.attack, heir.health]).toEqual([7 + 6, 6 + 8]); // +3/+4 natural, doubled
+    // ×3: a golden Heir triples the same +3/+4 → +9/+12.
+    let g: RunState = {
+      ...createRun(1), tier: 6, phase: 'recruit', embers: 30,
+      board: [{ uid: 'heir', cardId: 'taragosaheir', tribe: 'dragon', attack: 7, health: 6, keywords: [], golden: true }],
+      hand: [{ ...buff, uid: 'g1' }],
+    };
+    g = reduce(g, { type: 'play', uid: 'g1' });
+    heir = g.board.find((c) => c.uid === 'heir')!;
+    expect([heir.attack, heir.health]).toEqual([7 + 9, 6 + 12]);
   });
 });
 
@@ -4969,7 +4998,7 @@ describe('Beast quests (combat objectives + rewards)', () => {
     reduce({ ...createRun(1), phase: 'combat', combatSettled: false, lastCombat: combatWith(over), activeQuests: [{ questId: quest, progress: 0, completed: false }], ...extra }, { type: 'resolveCombat' });
 
   it('Blood Trail (slaughter, any tribe) advances by the tally and arms the combat flag', () => {
-    const s = settle('q_blood_trail', { enemyDeaths: 2, playerQuestTally: { ...zeroTally(), slaughter: 2, slaughterByTribe: { beast: 2 } } });
+    const s = settle('q_blood_trail', { enemyDeaths: 6, playerQuestTally: { ...zeroTally(), slaughter: 6, slaughterByTribe: { beast: 6 } } });
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.questFlags?.bloodTrail).toBe(true);
   });
@@ -4984,11 +5013,19 @@ describe('Beast quests (combat objectives + rewards)', () => {
     }
   });
 
-  it('Anomaly Reactor gives a minion a Mech type (isTribe + magnetize eligibility)', () => {
+  it('Anomaly Reactor: target a minion, then Choose One picks the added type (isTribe + magnetize)', () => {
     const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
     const spell: BoardCard = { uid: 'sp', cardId: 'anomalyreactor', tribe: 'mech', attack: 0, health: 1, keywords: [], golden: false };
     let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 10, board: [beast], hand: [spell] };
+    // The drag picks the target (targetUid) → opens a Choose One over the 5 types, spell stays in hand.
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'b' });
+    expect(s.chooseOne).toMatchObject({ cardId: 'anomalyreactor', spell: true, targetUid: 'b' });
+    expect(s.hand.some((c) => c.uid === 'sp')).toBe(true); // not consumed until the pick
+    expect(s.board.find((c) => c.uid === 'b')!.addedTribes ?? []).not.toContain('mech'); // nothing applied yet
+    // Pick "Add Mech" (option index 3: beast/dragon/undead/mech/demon) → the type lands on the target, spell consumed.
+    s = reduce(s, { type: 'chooseOne', index: 3 });
+    expect(s.chooseOne).toBeUndefined();
+    expect(s.hand.some((c) => c.uid === 'sp')).toBe(false);
     const target = s.board.find((c) => c.uid === 'b')!;
     expect(target.addedTribes).toContain('mech');
     expect(isTribe(target, 'mech')).toBe(true);
@@ -4996,6 +5033,18 @@ describe('Beast quests (combat objectives + rewards)', () => {
     // A Cling Drone (Mech Magnetic) can now weld onto it (couldn't before the added type).
     expect(magnetizesTo('cling', 'alley', target.addedTribes)).toBe(true);
     expect(magnetizesTo('cling', 'alley')).toBe(false);
+  });
+
+  it('Anomaly Reactor: the Choose One can add ANY of the five types, not just Mech', () => {
+    const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
+    const spell: BoardCard = { uid: 'sp', cardId: 'anomalyreactor', tribe: 'mech', attack: 0, health: 1, keywords: [], golden: false };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 10, board: [beast], hand: [spell] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'b' });
+    s = reduce(s, { type: 'chooseOne', index: 1 }); // Add Dragon
+    const target = s.board.find((c) => c.uid === 'b')!;
+    expect(target.addedTribes).toContain('dragon');
+    expect(isTribe(target, 'dragon')).toBe(true);
+    expect(isTribe(target, 'mech')).toBe(false); // only the chosen type was added
   });
 
   it('Attachment Issues arms a permanent 2-Gold Attachment in every shop', () => {
@@ -5036,17 +5085,20 @@ describe('Beast quests (combat objectives + rewards)', () => {
     expect(s.activeQuests![0]!.completed).toBe(false); // slaughter part still empty
   });
 
-  it('Forsaken Will (compound): completes across spells + combat summons; then spells grow the Undead aura', () => {
+  it('Forsaken Will (compound): completes across spells + combat summons; then spells buff Undead like the Weaver', () => {
     const s = settle('q_forsaken_will', { playerQuestTally: { ...zeroTally(), summonCombat: 6 } }, {
       activeQuests: [{ questId: 'q_forsaken_will', progress: 14, completed: false, partProgress: [14, 0] }],
     });
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.forsakenWillAttack).toBe(6);
-    // Casting a spell now grows the Undead Attack aura by +6.
-    let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 20, undeadAttackBonus: 0, forsakenWillAttack: 6,
+    // Casting a spell now behaves EXACTLY like the Forsaken Weaver: +6 baked into every current Undead AND
+    // stacked into undeadBuyAtk so future undead buys inherit it.
+    let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 20, forsakenWillAttack: 6,
+      board: [{ uid: 'u', cardId: 'soulsman', tribe: 'undead', attack: 3, health: 3, keywords: [], golden: false }],
       hand: [{ uid: 'sp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     t = reduce(t, { type: 'play', uid: 'sp' });
-    expect(t.undeadAttackBonus).toBe(6);
+    expect(t.board.find((c) => c.uid === 'u')!.attack).toBe(9); // +6 baked into the Undead's stats
+    expect(t.undeadBuyAtk).toBe(6); // and future Undead buys inherit it
   });
 
   it('The Red Trail (slaughterKeyword) completes at 5 and schedules the recurring Bloodlust grant', () => {
@@ -5152,12 +5204,14 @@ describe('Undead quests — combat-objective completion + reward application', (
     expect(s.questFlags?.emptyGraves).toBe(true);
   });
 
-  it('a repeatable quest (Ossuary Rite) re-arms and grants once per threshold crossed', () => {
-    // 25 Echo triggers vs a count-8 repeatable → grants 3 times, leaves 1 progress, stays active (not completed).
+  it('Ossuary Rite quest completes ONCE and arms a recurring End-of-Turn grant (no echo loop) (owner 2026-07-10)', () => {
+    // 25 Echo triggers vs a count-8 quest: it completes exactly ONCE (no longer repeatable) and arms a recurring
+    // grant, so the Ossuary Rites it hands out can't re-complete it into an infinite loop.
     const s = settleWith({ ...createRun(1), tier: 6, hand: [], activeQuests: [{ questId: 'q_ossuary_rite', progress: 0, completed: false }] }, { playerDeathrattles: 25 });
-    expect(s.activeQuests![0]!.completed).toBe(false); // re-armed
-    expect(s.activeQuests![0]!.progress).toBe(1); // 25 - 3×8
-    expect(s.hand.filter((c) => c.cardId === 'ossuaryrite').length).toBe(3);
+    expect(s.activeQuests![0]!.completed).toBe(true); // done once — never re-arms on further Echoes
+    expect(s.questRecurringGrants).toContain('ossuaryrite'); // recurring "End of Turn: get an Ossuary Rite"
+    // Bounded: at most one Ossuary Rite per turn from the recurring grant — not the old runaway pile.
+    expect(s.hand.filter((c) => c.cardId === 'ossuaryrite').length).toBeLessThanOrEqual(1);
   });
 
   it('Grave Robber (sell 5) grants Crypt Broker — a reward-only token, never in the shop', () => {
@@ -5172,12 +5226,13 @@ describe('Undead quests — combat-objective completion + reward application', (
     }
   });
 
-  it('Crypt Broker Sell: conjures a random Echo minion to hand and triggers its Deathrattle now', () => {
-    // Selling Crypt Broker gets a random Echo minion (a Deathrattle body) into hand and fires its Echo out of
+  it('Crypt Broker Battlecry: conjures a random Echo minion to hand and triggers its Echo now', () => {
+    // Playing Crypt Broker gets a random Echo minion (a Deathrattle body) into hand and fires its Echo out of
     // combat — so the run Deathrattle tally rises even though nothing was in combat.
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', board: [{ uid: 'cb', cardId: 'cryptbroker', tribe: 'undead', attack: 1, health: 1, keywords: [], golden: false }], hand: [] };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', board: [], hand: [{ uid: 'cb', cardId: 'cryptbroker', tribe: 'undead', attack: 3, health: 3, keywords: [], golden: false }] };
     const drBefore = s.deathrattlesTriggered;
-    s = reduce(s, { type: 'sell', uid: 'cb' });
+    s = reduce(s, { type: 'play', uid: 'cb' });
+    expect(s.board.some((c) => c.cardId === 'cryptbroker')).toBe(true); // Crypt Broker itself is now on the board
     expect(s.hand.length).toBe(1); // the conjured Echo minion
     expect(CARD_INDEX[s.hand[0]!.cardId]!.effects.some((e) => e.on === 'onDeath')).toBe(true); // it IS an Echo minion
     expect(s.deathrattlesTriggered).toBe(drBefore + 1); // its Echo fired (tallied) out of combat

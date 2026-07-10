@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX } from '@game/content';
-import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, reduce, resolveRunRating, runRecord, serialize, snapshotBoard, type Action, type BoardMinion, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunState } from '@game/sim';
+import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, nextOpponent, reduce, resolveRunRating, runRecord, serialize, snapshotBoard, type Action, type BoardMinion, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunState } from '@game/sim';
 import type { Tribe } from '@game/core';
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
@@ -16,7 +16,7 @@ export interface CombatQuestDelta {
 import { sfx } from './sfx';
 import { liveBoardView } from './instView';
 import { loadStoredBoards, saveRunBoards } from './boardLibrary';
-import { fetchAndRegisterPool, uploadBoards, uploadVictory } from './remoteBoards';
+import { fetchAndRegisterPool, recordFightResult, uploadBoards, uploadVictory } from './remoteBoards';
 import { buildRunHistoryEntry, clearRunHistory, saveRunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
@@ -347,6 +347,20 @@ export const useGame = create<GameStore>((set, get) => ({
     set((s) => {
       const next = reduce(s.run, action);
       actionSfx(action, s.run, next);
+      // Fight-result ledger: on each combat (faceOmen resolves it), attribute the outcome to the SERVED opponent
+      // board, so leaderboard slots + the Career per-round log can show how a board fares when others face it.
+      // The served board is recomputed deterministically from the pre-faceOmen state — the exact input faceOmen
+      // used (nextOpponent is seeded by seed+wave+power). Record only a TRACKED (id'd) remote board that isn't
+      // your own, from the BOARD's perspective (you lose → it wins). Practice never counts. Fire-and-forget.
+      if (action.type === 'faceOmen' && next !== s.run && next.lastCombat && next.mode !== 'practice') {
+        const served = nextOpponent(s.run);
+        const result = next.lastCombat.result;
+        const isSelf = !!served?.author && served.author === s.playerName;
+        if (served?.id && !isSelf) {
+          const outcome = result === 'lose' ? 'win' : result === 'win' ? 'loss' : 'tie'; // the board's perspective
+          void recordFightResult({ boardId: served.id, round: s.run.wave, outcome, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` });
+        }
+      }
       // A run just ended → capture its boards into the library (loaded into the opponent pool next
       // startup, so you face boards you actually built). Deferred so it never hitches the end screen.
       // PRACTICE runs are read-only against the snapshot DB: they fight real captured boards but never
@@ -372,7 +386,12 @@ export const useGame = create<GameStore>((set, get) => ({
           // stats incl. run-wide auras + live scaling text (a maxed-out Sergeant reads its real grant, not the
           // printed base). This replaces the old pre-combat, printed-text replay snapshot. Falls back to that
           // snapshot only if the end-state board is empty (shouldn't happen for a real finish).
-          const finalBoard = endStateBoard(next) ?? fresh.reduce<BoardSnapshot | null>((best, b) => (!best || b.wave > best.wave ? b : best), null);
+          const highestFresh = fresh.reduce<BoardSnapshot | null>((best, b) => (!best || b.wave > best.wave ? b : best), null);
+          const finalBoard = endStateBoard(next) ?? highestFresh;
+          // Link the leaderboard/Career final board to the SAME id as the highest-wave pool board (the one served
+          // as the round-17 opponent), so a fight-result recorded against that served board also counts for this
+          // leaderboard slot.
+          if (finalBoard && highestFresh?.id) finalBoard.id = highestFresh.id;
           const date = new Date().toISOString().slice(0, 10);
           // A7: append this run to the local match history (win or loss) for the Career screen. APT + cards
           // played come from the action log (the replay), which the run state itself doesn't track.

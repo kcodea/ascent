@@ -42,6 +42,22 @@ RUN ENDS  ──uploadBoards(saveRunBoards(...))────►  INSERT this run
 - **Per balance patch:** bump `package.json` `version` (the served patch prefix changes), then clear the old
   version's rows when you want them gone.
 
+## Win-tracking (leaderboard records + the Career per-round log)
+
+Each served board carries a stable id (`BoardSnapshot.id`, a UUID stamped at capture). When you fight a served
+board, the client logs the outcome **from that board's perspective** (you lose to it → it gets a win) to a new
+**`board_results`** table (`board_id`, `round`, `outcome`). The leaderboard reads each slot's **round-17** record
+(wins + win-rate, sortable by Most wins / Most recent); the Career per-round log reads your own boards' records at
+every round.
+
+- **One-time migration:** re-run [`schema.sql`](../schema.sql) (idempotent) — it adds only the isolated
+  `board_results` table + its RLS policies. **No change to `boards` / `runs`** (the id lives inside their existing
+  jsonb), so board/victory uploads keep working whether or not you've run it. Until you do, records just read
+  "No fights yet".
+- **Only newly-captured boards** (post-this-release) carry an id, so tracking starts fresh from here.
+- **Client-reported** (trust-based, like the uploads) — fine at friend scale; the same server-side replay
+  validation on the roadmap hardens it later.
+
 ## Limits + the hardening path
 
 - **No anti-cheat yet (by design).** At friend scale, anyone with the publishable key + RLS insert policy can

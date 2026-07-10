@@ -2200,6 +2200,17 @@ svg { width: 18px; height: 18px; }
 .lbinfo { display: flex; flex-direction: column; }
 .lbname { font-family: var(--font-ui); font-weight: 800; font-size: 18px; color: #fff; }
 .lbmeta { font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(255, 255, 255, 0.6); }
+/* Round-17 win record — pushed to the right edge of the entry head. */
+.lbrecord { margin-left: auto; flex: none; display: inline-flex; align-items: baseline; gap: 6px; font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: rgba(255, 255, 255, 0.85); background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.14); border-radius: 12px; padding: 7px 13px; white-space: nowrap; }
+.lbrecord svg { width: 16px; height: 16px; color: var(--acc); align-self: center; }
+.lbrecord b { color: #fff; font-weight: 900; font-size: 18px; }
+.lbrecord .lbwr { color: var(--acc); font-weight: 800; font-size: 13px; }
+.lbrecord.none { color: rgba(255, 255, 255, 0.5); font-weight: 600; font-size: 13px; }
+/* Sort toggle in the top bar (Most recent / Most wins). */
+.lbsort { margin-left: auto; display: inline-flex; gap: 6px; flex: none; }
+.lbsortbtn { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.72); background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.16); padding: 8px 14px; border-radius: 10px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.lbsortbtn:hover { border-color: var(--acc); color: var(--acc); }
+.lbsortbtn.on { background: var(--acc); border-color: var(--acc); color: #fff; }
 /* Per-round W/L spread — a compact version of the end-screen pips (.endpip). Calibration rounds (1–2) dimmed. */
 .lbpips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
 .lbpip { flex: none; width: 19px; height: 19px; border-radius: 5px; font-family: var(--font-ui); font-weight: 800; font-size: 11px; color: #fff; display: grid; place-items: center; }

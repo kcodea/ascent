@@ -57,6 +57,31 @@ drop policy if exists "anon insert runs"  on public.runs;
 create policy "anon read runs"   on public.runs for select to anon using (true);
 create policy "anon insert runs"  on public.runs for insert to anon with check (true);
 
+-- ── board_results — per-board fight ledger (win-tracking) ──────────────────────────────────────────────────
+-- One row per combat fought AGAINST a served board, reported by the player who fought it (single reporter per
+-- fight, since the opponent is a static snapshot). `outcome` is from the SERVED board's perspective — you lose
+-- to it → 'win'. `board_id` is the client-stamped `BoardSnapshot.id` (also denormalized onto boards/runs below),
+-- so the leaderboard (round-17 slots) and the Career per-round log both aggregate the same ledger. Friend-scale:
+-- low write, aggregate-on-read over a bounded fetch. Hardening later = the same server-side replay validation.
+-- This is the ONLY object win-tracking needs — a new, isolated table. The board's id travels inside the existing
+-- boards/runs `snapshot`/`board` jsonb (BoardSnapshot.id), so NO changes to those tables are required and existing
+-- uploads keep working unchanged whether or not you've run this yet.
+create table if not exists public.board_results (
+  id          bigint generated always as identity primary key,
+  board_id    text not null,             -- the served BoardSnapshot.id this result is for
+  round       int  not null,             -- the wave the fight happened at (1..17); leaderboard filters to 17
+  outcome     text not null,             -- 'win' | 'loss' | 'tie', from the SERVED board's perspective
+  patch       text,                      -- build the fight ran under (prune old patches like boards/runs)
+  created_at  timestamptz default now()
+);
+create index if not exists board_results_board_round on public.board_results (board_id, round);
+
+alter table public.board_results enable row level security;
+drop policy if exists "anon read board_results"   on public.board_results;
+drop policy if exists "anon insert board_results"  on public.board_results;
+create policy "anon read board_results"   on public.board_results for select to anon using (true);
+create policy "anon insert board_results"  on public.board_results for insert to anon with check (true);
+
 -- ── Maintenance (run by hand in the SQL Editor when needed) ────────────────────────────────────────────────
 -- Clear everything EXCEPT the current patch (the "regenerate per balance patch" op):
 --   delete from public.boards where patch not like '0.1.0+%';

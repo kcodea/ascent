@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 29)
 
+### docs: combat event-ordering reference (`docs/combat-ordering.md`)
+
+Vendored a full reference of the exact order `simulate()` emits combat events — pulled from
+`packages/core/src/combat/simulate.ts` (`performAttack`, `killOrReborn`, `applyDamage`,
+`flushImmediateAttacks`, `summonMinion`). Covers the event vocabulary (20 types), the once-per-fight
+macro spine (Reclaimer → Start of Combat player-then-enemy L→R → rotation → outcome), the two-phase
+attack exchange (Phase 1 applies all damage, Phase 2 resolves deaths in damage order, then on-kill,
+then the three flushes), a per-mechanic "where it lands" table, and the load-bearing rules. Accurate
+to current `main`; the `attackOnSummon` (Violet Whelp) row carries a 🚧 forward-note that the in-flight
+engine task defers the whole summon+strike to the flush — update that section when the Whelp PR merges.
+Docs-only. A companion interactive version was shared with the owner as an Artifact.
+
 ### fix(ui): board fight-tracking recorded nothing — drop the self-fight skip
 
 The `board_results` ledger stayed empty in real play. Cause: the recording hook skipped fights where the served

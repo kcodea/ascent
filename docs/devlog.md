@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 29)
 
+### tweak(ui): Target Dummy's +N no longer splits the clash + a snappier buff cadence
+
+Two presentation-only combat-replay tweaks so an `onDamaged` stat gain (Target Dummy taking a hit, an
+Enrage-like) reads cleanly. No core/sim/outcome changes.
+
+- **Buff beat cadence cut to 1/3 (`choreo/choreoConfig.ts`).** The `buff` beat hold dropped `420 → 140`
+  (× the 1.5 `speed` baseline = **210ms**, down from 630) so combat stops stalling on a stat float. The
+  **float lifetime is untouched** (`floatMs` 1500) — the `+N` still floats up at the same speed; only the
+  beat advance is faster. Global to every in-combat buff beat (the choreographer keys by event type, not
+  source card), which just makes all combat stat gains snappier while staying just as readable.
+- **onDamaged buffs slide to the tail of their clash (`choreo/clashOrder.ts`, new).** The sim emits an
+  onDamaged gain INLINE — `dmg(defender) · buff(defender) · dmg(attacker-retaliation)` — so the `+N` popped
+  BETWEEN the two damage numbers, misreading as if the attacker took the buffed damage. `deferClashBuffs`
+  reorders the replay's copy of the event log so all `buff` events move to the end of their contiguous
+  result run: the whole clash lands first (retaliation at its real pre-buff value, folded into the impact
+  like every other trade — only the struck unit shows a number), the units settle, THEN the `+N` floats.
+  Wired at `useCombatReplay`'s `events` memo so BOTH `compileMoments` and `computeFrame` fold the reordered
+  array. Safe because a buff commutes with the surrounding damage/shield/death events (adds Attack/Health vs.
+  changes Health/keywords on other units) — the folded frame at the run's end is byte-identical; only the
+  intermediate beat split moves. Returns the same array reference when nothing moved (memo stability). The
+  sim event log itself is never mutated, so determinism / goldens are unaffected.
+- **Verified.** typecheck + lint + `npm test` (**789**, incl. 6 new `clashOrder.test.ts`) + `build:web`
+  green; dialed live by the owner (dummy taking hits: damage settles → `+1`).
+
 ### feat(ui): Lunge Strike Effects tuner + strike-point control (corner ↔ centre)
 
 A dedicated DEV tuner for the whole combat strike-impact package, plus a control for where the attacker's

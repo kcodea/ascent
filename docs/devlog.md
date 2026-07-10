@@ -5,6 +5,36 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 29)
 
+### balance: quest-reward card retune (8 cards) + Tradesman rerolls cost 2
+
+A pass over eight quest-reward tokens plus a Tradesman economy tweak (owner spec 2026-07-10).
+
+- **Scrap Vendor** — body 2/5 → **4/7** (a sturdier economy Mech).
+- **Crypt Broker** — was a 1/1 **Sell** token; now a **3/3 Battlecry**: "get a random Echo minion and trigger its
+  Echo." Same underlying effect, moved `onSell` → `onPlay` (it fires on the play path's Battlecry loop just as it
+  did on sell); renamed the factory `onSellGetEchoAndTrigger` → `getEchoAndTrigger` (+ the schema/type entries).
+- **Skybound Archivist** — weakest Dragon now gains **50%** of the strongest's stats (was 20%; golden **100%**, was
+  40%), and dropped to **T4** so Eyes of Aresmar (≤T4) can gild it.
+- **Chimerus** — added a gilded line: golden runs the whole hand-out **twice** (re-picks each round; the factory now
+  loops `mul(self)` times giving its Health each round, instead of giving 2× Health once).
+- **Taragosa's Heir** — reworked from "every third gain of your strongest Dragon is copied onto this" to a
+  self-amplifier: **"Gains 2× stats from all sources"** (golden **3×**). The reducer's stat-gain diff now reads the
+  Heir's OWN +Atk/+Hp each recruit action and tops it up by the extra (mult−1)× so the net is mult×. (Recruit-phase
+  gains, matching the old reward's scope; the natural gain still counts toward Dragon `tribeStats` quests, the
+  amplified extra doesn't.) Removed the now-unused `heirGainCount` field.
+- **Chorus Engine** — reworked to a Rally-only payoff: **"Rally: improve your Attachments by +4/+4 and get 2
+  Attachments"** (golden **+8/+8 / 4**). Dropped the Slaughter/on-kill grant + the `SL` keyword; the "get N
+  attachments" now rides the existing `rallyGrantMagnetic` factory (count 2, golden-doubled) on attack.
+- **Run Maw** — Demons gain **50%** of the consumed minion's stats (was 25%; golden **100%**, was 50%).
+- **Lazarus** — added the gilded line: golden reduces shop-spell cost by **2** (the reducer's `spellCostReduction`
+  already granted golden 2 — the card just never printed it).
+- **Tradesman** — rerolls now cost **2 Gold** on top of his existing rules (cheap minions, dearer tavern-ups). New
+  `refreshCostOf(s)` helper is the single source of truth for the reducer's roll charge + the UI Reroll button, which
+  now reads 2 for Tradesman. Verified live: the button shows 2 and a roll spends 2 Gold.
+
+Full gauntlet green (typecheck / lint / 791 tests / build:web); combat + run tests re-baselined for the new
+percentages and the Crypt Broker Battlecry / Taragosa amplifier.
+
 ### balance: loss-damage cap ramps 5 → 10 → 15 → 20 → uncapped
 
 Reworked `lossDamageCap(wave)` (the most Resolve a single loss can cost) from the old flat-by-3 curve to an

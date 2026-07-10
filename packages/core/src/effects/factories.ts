@@ -651,17 +651,20 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (const m of friends) ctx.buff(m, attack, health, self.uid);
   },
 
-  /** Rally (Chimerus): when THIS minion attacks, give up to 2 friendly Dragons +Health equal to its own Health
-   *  (golden gives 2× its Health). A random pick when more than 2 Dragons are eligible. */
+  /** Rally (Chimerus): when THIS minion attacks, give up to 2 friendly Dragons +Health equal to its own Health.
+   *  A random pick when more than 2 Dragons are eligible. Golden runs the whole hand-out TWICE (re-picks each
+   *  round, so with ≥4 Dragons it can spread to more of them; with exactly 2 they get it twice). */
   rallyGiveHealthToDragons: (ctx, self, _params, payload) => {
     if (self.dead || (payload as MinionPayload).minion !== self) return;
-    const amt = self.health * mul(self);
+    const amt = self.health;
     if (amt <= 0) return;
-    const pickable = ctx.living(self.side).filter((m) => m !== self && (m.tribe === 'dragon' || m.tribe2 === 'dragon' || ctx.getCard(m.cardId)?.universalTribe));
-    for (let i = 0; i < 2 && pickable.length > 0; i++) {
-      const m = ctx.rng.pick(pickable);
-      pickable.splice(pickable.indexOf(m), 1);
-      ctx.buff(m, 0, amt, self.uid);
+    for (let round = 0; round < mul(self); round++) {
+      const pickable = ctx.living(self.side).filter((m) => m !== self && (m.tribe === 'dragon' || m.tribe2 === 'dragon' || ctx.getCard(m.cardId)?.universalTribe));
+      for (let i = 0; i < 2 && pickable.length > 0; i++) {
+        const m = ctx.rng.pick(pickable);
+        pickable.splice(pickable.indexOf(m), 1);
+        ctx.buff(m, 0, amt, self.uid);
+      }
     }
   },
 

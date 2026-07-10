@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, referencedCardIds } from '@game/content';
-import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, type ShopCard } from '@game/sim';
+import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { QuestCard } from './QuestCard';
 import { combatGains } from './combatGains';
@@ -2447,12 +2447,12 @@ export function Recruit() {
           {/* Reroll — free rolls show 0. */}
           <button
             className="shopbtn"
-            disabled={(run.freeRolls <= 0 && run.embers < CONFIG.refreshCost) || timeUp || eotAnimating || !!run.questOffer}
+            disabled={(run.freeRolls <= 0 && run.embers < refreshCostOf(run)) || timeUp || eotAnimating || !!run.questOffer}
             onClick={() => dispatch({ type: 'roll' })}
           >
             <span className="sb-l">Reroll</span>
             <span className="sb-ic"><Icon name="refresh" /></span>
-            <span className="sb-v">{run.freeRolls > 0 ? 0 : CONFIG.refreshCost}</span>
+            <span className="sb-v">{run.freeRolls > 0 ? 0 : refreshCostOf(run)}</span>
             <span className="sbtip">{run.freeRolls > 0 ? `Refresh — free (${run.freeRolls} left)` : 'Refresh the tavern'}</span>
           </button>
           {/* Freeze — toggle; tinted blue, filling solid blue while the tavern is frozen. */}

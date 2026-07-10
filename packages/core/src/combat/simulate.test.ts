@@ -2718,15 +2718,15 @@ describe('Demon quests — imp summons + Deep Hunger / Contract Rewrite / Pit Wi
     expect(r.playerImpsSummoned).toBeGreaterThanOrEqual(2);
   });
 
-  it('Run Maw consumes your weakest minion at Start of Combat and hands Demons 25% of its stats', () => {
+  it('Run Maw consumes your weakest minion at Start of Combat and hands Demons 50% of its stats', () => {
     const p: BoardMinion[] = [
       { cardId: 'runmaw', attack: 10, health: 8 },
       { cardId: 'acid', attack: 8, health: 8 }, // Korok — a Demon
       { cardId: 'sandbag', attack: 4, health: 4 }, // the weakest → consumed
     ];
     const r = simMods(p, [{ cardId: 'omen', attack: 0, health: 200 }], 1, {});
-    // 25% of the 4/4 sandbag = +1/+1 to each Demon (Run Maw + Korok).
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true);
+    // 50% of the 4/4 sandbag = +2/+2 to each Demon (Run Maw + Korok).
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 2)).toBe(true);
   });
 });
 

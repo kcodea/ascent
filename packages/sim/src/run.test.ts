@@ -4949,7 +4949,7 @@ describe('Dragon quests + reward minions', () => {
     expect(s.board.filter((c) => c.cardId === 'stray').length).toBe(2);
   });
 
-  it('Skybound Archivist — End of Turn: weakest Dragon gains 20% of the strongest Dragon\'s stats', () => {
+  it('Skybound Archivist — End of Turn: weakest Dragon gains 50% of the strongest Dragon\'s stats', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit',
       board: [
@@ -4960,28 +4960,29 @@ describe('Dragon quests + reward minions', () => {
     };
     s = reduce(s, { type: 'faceOmen' }); // End of Turn fires
     const weak = s.board.find((c) => c.uid === 'weak')!;
-    expect([weak.attack, weak.health]).toEqual([1 + 2, 1 + 2]); // +20% of 10/10 = +2/+2
+    expect([weak.attack, weak.health]).toEqual([1 + 5, 1 + 5]); // +50% of 10/10 = +5/+5
   });
 
-  it("Taragosa's Heir copies every THIRD stat-gain of the strongest Dragon", () => {
+  it("Taragosa's Heir amplifies its OWN stat gains (×2, golden ×3) from any source", () => {
     const buff = { uid: 'gr', cardId: 'growth', tribe: 'neutral' as const, attack: 0, health: 1, keywords: [], golden: false };
+    // ×2: Growth buffs the board Dragon +3/+4; the Heir doubles its own gain → +6/+8.
     let s: RunState = {
       ...createRun(1), tier: 6, phase: 'recruit', embers: 30,
-      board: [
-        { uid: 'heir', cardId: 'taragosaheir', tribe: 'dragon', attack: 7, health: 6, keywords: [], golden: false },
-        { uid: 'strong', cardId: 'cleric', tribe: 'dragon', attack: 20, health: 20, keywords: [], golden: false },
-      ],
-      hand: [{ ...buff, uid: 'g1' }, { ...buff, uid: 'g2' }, { ...buff, uid: 'g3' }],
+      board: [{ uid: 'heir', cardId: 'taragosaheir', tribe: 'dragon', attack: 7, health: 6, keywords: [], golden: false }],
+      hand: [{ ...buff, uid: 'g1' }],
     };
-    // Growth buffs both Dragons +3/+4 each cast. The strongest is 'strong'. 3rd gain → mirror +3/+4 onto the Heir.
     s = reduce(s, { type: 'play', uid: 'g1' });
-    s = reduce(s, { type: 'play', uid: 'g2' });
     let heir = s.board.find((c) => c.uid === 'heir')!;
-    expect([heir.attack, heir.health]).toEqual([7 + 6, 6 + 8]); // only Growth's own board buffs so far (no mirror yet)
-    s = reduce(s, { type: 'play', uid: 'g3' });
-    heir = s.board.find((c) => c.uid === 'heir')!;
-    // 3rd gain mirrors the strongest's +3/+4 on top of the Heir's own Growth buffs (3 × +3/+4 = +9/+12) → + mirror +3/+4.
-    expect([heir.attack, heir.health]).toEqual([7 + 9 + 3, 6 + 12 + 4]);
+    expect([heir.attack, heir.health]).toEqual([7 + 6, 6 + 8]); // +3/+4 natural, doubled
+    // ×3: a golden Heir triples the same +3/+4 → +9/+12.
+    let g: RunState = {
+      ...createRun(1), tier: 6, phase: 'recruit', embers: 30,
+      board: [{ uid: 'heir', cardId: 'taragosaheir', tribe: 'dragon', attack: 7, health: 6, keywords: [], golden: true }],
+      hand: [{ ...buff, uid: 'g1' }],
+    };
+    g = reduce(g, { type: 'play', uid: 'g1' });
+    heir = g.board.find((c) => c.uid === 'heir')!;
+    expect([heir.attack, heir.health]).toEqual([7 + 9, 6 + 12]);
   });
 });
 
@@ -5205,12 +5206,13 @@ describe('Undead quests — combat-objective completion + reward application', (
     }
   });
 
-  it('Crypt Broker Sell: conjures a random Echo minion to hand and triggers its Deathrattle now', () => {
-    // Selling Crypt Broker gets a random Echo minion (a Deathrattle body) into hand and fires its Echo out of
+  it('Crypt Broker Battlecry: conjures a random Echo minion to hand and triggers its Echo now', () => {
+    // Playing Crypt Broker gets a random Echo minion (a Deathrattle body) into hand and fires its Echo out of
     // combat — so the run Deathrattle tally rises even though nothing was in combat.
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', board: [{ uid: 'cb', cardId: 'cryptbroker', tribe: 'undead', attack: 1, health: 1, keywords: [], golden: false }], hand: [] };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', board: [], hand: [{ uid: 'cb', cardId: 'cryptbroker', tribe: 'undead', attack: 3, health: 3, keywords: [], golden: false }] };
     const drBefore = s.deathrattlesTriggered;
-    s = reduce(s, { type: 'sell', uid: 'cb' });
+    s = reduce(s, { type: 'play', uid: 'cb' });
+    expect(s.board.some((c) => c.cardId === 'cryptbroker')).toBe(true); // Crypt Broker itself is now on the board
     expect(s.hand.length).toBe(1); // the conjured Echo minion
     expect(CARD_INDEX[s.hand[0]!.cardId]!.effects.some((e) => e.on === 'onDeath')).toBe(true); // it IS an Echo minion
     expect(s.deathrattlesTriggered).toBe(drBefore + 1); // its Echo fired (tallied) out of combat

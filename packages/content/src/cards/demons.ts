@@ -303,8 +303,8 @@ export const DEMONS: CardDef[] = [
     token: true,
   },
   {
-    // Maw of the Run reward. Start of Combat: sacrifice your weakest minion and hand 25% of its stats to every
-    // Demon (golden 50%). A payoff that turns a spare body into a board-wide Demon buff.
+    // Maw of the Run reward. Start of Combat: sacrifice your weakest minion and hand 50% of its stats to every
+    // Demon (golden 100%). A payoff that turns a spare body into a board-wide Demon buff.
     id: 'runmaw',
     name: 'Run Maw',
     tribe: 'demon',
@@ -312,9 +312,9 @@ export const DEMONS: CardDef[] = [
     attack: 10,
     health: 8,
     keywords: ['SC'],
-    effects: [{ on: 'startOfCombat', do: 'scConsumeWeakestBuffDemons', params: { pct: 25 } }],
-    text: '**Start of Combat:** consume your weakest minion, then your Demons gain **25%** of its stats.',
-    goldenText: '**Start of Combat:** consume your weakest minion, then your Demons gain **50%** of its stats.',
+    effects: [{ on: 'startOfCombat', do: 'scConsumeWeakestBuffDemons', params: { pct: 50 } }],
+    text: '**Start of Combat:** consume your weakest minion, then your Demons gain **50%** of its stats.',
+    goldenText: '**Start of Combat:** consume your weakest minion, then your Demons gain **100%** of its stats.',
     token: true,
   },
 ];

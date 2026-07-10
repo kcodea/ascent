@@ -143,8 +143,6 @@ export interface BoardCard {
   /** Trail Forager: extra sell value accrued (+1 Gold per Beast played while it's on the board, ×2 golden).
    *  Read by `sellValueOf`; per-instance, persists across turns for the rest of the run. Absent = 0. */
   sellBonus?: number;
-  /** Taragosa's Heir: count of stat-gains seen on your strongest Dragon (every 3rd is mirrored onto the Heir). */
-  heirGainCount?: number;
   /** Gold-spend meter for `goldSpent` effects (Acid, Banksly): accrues the Gold spent while this card is on
    *  the board, firing its payoff each time it crosses the threshold. Continuous across turns (carries the
    *  remainder), per-instance; absent = 0. */

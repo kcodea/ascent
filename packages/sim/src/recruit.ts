@@ -1206,10 +1206,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     self.copiedEchoName = def?.name;
   },
 
-  /** Crypt Broker (Sell) — conjure a random Echo (Deathrattle) minion of ≤ current tier to hand and immediately
-   *  trigger its Echo out of combat (fireRecruitDeathrattles: summons/buffs bake in, Sylus-doubled + tallied).
-   *  Golden gets + triggers two. Fired by the reducer's sell case via `fireOnSell`. */
-  onSellGetEchoAndTrigger: (ctx, self) => {
+  /** Crypt Broker (Battlecry) — conjure a random Echo (Deathrattle) minion of ≤ current tier to hand and
+   *  immediately trigger its Echo out of combat (fireRecruitDeathrattles: summons/buffs bake in, Sylus-doubled +
+   *  tallied). Golden gets + triggers two. Fired by the play path's onPlay Battlecry loop. */
+  getEchoAndTrigger: (ctx, self) => {
     const pool = BUYABLE_CARDS.filter((c) => c.tier <= ctx.state.tier && c.effects.some((e) => e.on === 'onDeath'));
     if (pool.length === 0) return;
     for (let i = 0; i < gold(self); i++) {

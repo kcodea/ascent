@@ -78,6 +78,9 @@ export interface CardView {
    *  Left undefined outside combat — the shop colours against the printed base alone. */
   floorAttack?: number;
   floorHealth?: number;
+  /** Transient per-stat flash (a buff just landed on this unit this frame). Set by the combat replay. */
+  flashAtk?: boolean;
+  flashHp?: boolean;
   /** Per-source recruit buffs (for the inspect-panel breakdown). */
   buffs?: { source: string; attack: number; health: number; count: number }[];
 }
@@ -370,8 +373,8 @@ export const Card = memo(function Card({
           <span className="ctype spell">✦ Spell</span>
         ) : (
           <>
-            <span className={`atk${statCls(card.attack, card.baseAttack, card.floorAttack)}`}>{card.attack}</span>
-            <span className={`hp${statCls(card.health, card.baseHealth, card.floorHealth)}`}>{card.health}</span>
+            <span className={`atk${statCls(card.attack, card.baseAttack, card.floorAttack)}${card.flashAtk ? ' statflash' : ''}`}>{card.attack}</span>
+            <span className={`hp${statCls(card.health, card.baseHealth, card.floorHealth)}${card.flashHp ? ' statflash' : ''}`}>{card.health}</span>
             {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre */}
             <span className={`cgem${pulseRally ? ' pulsing rally' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true"><Icon name={mechIcon} /></span>
           </>

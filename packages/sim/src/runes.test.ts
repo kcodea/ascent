@@ -262,3 +262,43 @@ describe('Epic Runeforge', () => {
     expect(reduce(r, { type: 'rerollRuneforge' })).toBe(r); // once per visit
   });
 });
+
+describe('Epic Commission — the greater quest that opens the Epic Runeforge next turn', () => {
+  const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
+
+  it('is a neutral greater quest whose reward opens the Epic Runeforge', () => {
+    const q = QUEST_INDEX['q_epic_commission']!;
+    expect(q).toBeDefined();
+    expect(q.tribe).toBe('neutral');
+    expect(q.tier).toBe('greater');
+    expect(q.reward).toEqual({ kind: 'openEpicRuneforge' });
+  });
+
+  it('completing it ARMS the forge for next turn — it does not open on the completing turn', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 7, phase: 'recruit', embers: 10, freeRolls: 0,
+      activeQuests: [{ questId: 'q_epic_commission', progress: 24, completed: false }] };
+    s = reduce(s, { type: 'roll' }); // spend ≥1 Gold → objective hits 25 → completes
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.pendingEpicRuneforge).toBe(true); // armed…
+    expect(s.runeforgeOffer).toBeUndefined(); // …but NOT opened this turn
+  });
+
+  it('the armed forge opens at the start of the next (non-quest) turn, then disarms', () => {
+    const s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'combat', pendingEpicRuneforge: true, lastCombat: win };
+    const next = reduce(s, { type: 'resolveCombat' }); // → turn 7 (not a quest turn)
+    expect(next.wave).toBe(7);
+    expect(next.runeforgeOffer!.length).toBe(3);
+    expect(next.runeforgeEpic).toBe(true);
+    for (const id of next.runeforgeOffer!) expect(EPIC_RUNES.some((rn) => rn.id === id)).toBe(true);
+    expect(next.pendingEpicRuneforge).toBe(false); // disarmed once opened
+  });
+
+  it('holds back a turn rather than stacking on a quest-offer turn', () => {
+    const s: RunState = { ...createRun(1, 'warden'), wave: 7, phase: 'combat', pendingEpicRuneforge: true, lastCombat: win };
+    const next = reduce(s, { type: 'resolveCombat' }); // → turn 8, a greater-quest turn
+    expect(next.wave).toBe(8);
+    expect(next.questOffer?.length).toBeGreaterThan(0); // the quest shop takes the turn…
+    expect(next.runeforgeOffer).toBeUndefined(); // …the forge waits…
+    expect(next.pendingEpicRuneforge).toBe(true); // …still armed for the next clear turn
+  });
+});

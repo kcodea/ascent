@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### feat: Epic Commission — a greater quest that opens the Epic Runeforge next turn
+
+Wired the first access path to the Epic Runeforge: **Epic Commission**, a **neutral greater quest** (wave 8,
+objective "Spend 25 Gold", reward `openEpicRuneforge`) — the first neutral quest at the greater tier, so it fills
+the previously-empty build-agnostic slot and is offered to any hero. Its reward is **deferred**: completing it arms
+a new `pendingEpicRuneforge` flag rather than opening the forge mid-turn; `advanceCombat` then opens the Epic forge
+at the **start of the next turn** (reusing the same offer/buy/skip/reroll machinery + Epic UI). A guard holds the
+forge back a turn if that next turn is already showing a quest offer or the Runesmith forge, so two blocking shops
+never stack (the flag stays armed until a clear turn). Added the reward's display text ("Visit the Epic Runeforge at
+the start of next turn").
+
+Verified: 4 new tests (quest shape; completing it arms-but-doesn't-open; the armed forge opens next turn + disarms;
+holds back on a quest-offer turn). Live: on a throwaway run, arming the flag and resolving combat opens the violet
+Epic forge on the next turn with its 3 Epic runes, flag disarmed, no console errors. typecheck / lint / 839 tests /
+build green.
+
 ### fix(ui): combat "vanishing lunge" — GSAP lag-smoothing so a frame hitch can't jump the swing
 
 Players reported combat moments occasionally "resolving instantly" — a lunge doesn't visibly play but its

@@ -1593,6 +1593,13 @@ function advanceCombat(s: RunState): void {
     injectPendingTavern(s);
     s.frozen = false;
   } else refreshTavern(s);
+  // Epic Commission (greater quest): the Epic Runeforge it armed opens at the START of this turn. Hold it back a
+  // turn if a quest offer OR the Runesmith forge is already showing (never stack two blocking shops); the flag
+  // stays set so it opens the next clear turn. The tavern is already rolled behind it (like the Runesmith forge).
+  if (s.pendingEpicRuneforge && !s.questOffer && !s.runeforgeOffer) {
+    openEpicRuneforge(s);
+    s.pendingEpicRuneforge = false;
+  }
   s.phase = 'recruit';
   // Gravetwin: if it survived the last combat, fire its copied Echo now (start of the shop). Then clear the
   // survivor list so it fires exactly once per fight.
@@ -1977,7 +1984,9 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.runeEmpowerment = true; // Rune of Empowerment (Epic): your hero power triggers twice
       break;
     case 'openEpicRuneforge':
-      openEpicRuneforge(s); // present the Epic runeset (buy ONE, re-roll once) — reached only by a quest for now
+      // Deferred: arm it now, open at the START of next turn (advanceCombat) so the forge doesn't interrupt the
+      // turn the quest completed on. Reached only by a quest (Epic Commission) for now.
+      s.pendingEpicRuneforge = true;
       break;
     case 'multi':
       // The Hoard Wakes: several rewards at once — apply each sub-reward through this same path.

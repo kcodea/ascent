@@ -413,6 +413,9 @@ export interface RunState {
   /** The open forge is the EPIC Runeforge (drawn from `EPIC_RUNES`, opened by a quest — not the Runesmith's
    *  hero-power forge). Drives the reroll pool, the "Epic" UI label, and skips consuming the hero-power charge. */
   runeforgeEpic?: boolean;
+  /** A completed quest (Epic Commission) has armed the Epic Runeforge — it opens at the START of the next turn
+   *  (`advanceCombat`), not immediately, so the forge modal doesn't interrupt the turn it completed on. */
+  pendingEpicRuneforge?: boolean;
   /** Rune ids bought this run — shown as permanent run-buff badges (above the hero panel). */
   ownedRunes?: string[];
   /** Rune of Spellslinging: every `spellDripPer` Gold spent, get a random spell. `spellDripTick` carries the

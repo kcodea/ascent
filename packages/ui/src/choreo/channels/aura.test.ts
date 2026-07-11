@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { pixiFx, tauntFx } from '../../pixiFx';
+import { pixiFx } from '../../pixiFx';
 import { sfx } from '../../sfx';
 import { burstDeathAuras, breakShieldAura, reformReborn } from './aura';
 
@@ -14,27 +14,14 @@ describe('burstDeathAuras', () => {
     burstDeathAuras('u1');
     expect(brk).toHaveBeenCalledWith('u1', 'reborn');
     expect(shatter).toHaveBeenCalledTimes(1);
-    expect(shieldSfx).not.toHaveBeenCalled(); // no shield/taunt aura → no gold-break sound
+    expect(shieldSfx).not.toHaveBeenCalled(); // no shield aura → no gold-break sound
   });
 
   it('a unit carrying no aura bursts nothing', () => {
     vi.spyOn(pixiFx, 'hasAura').mockReturnValue(false);
-    vi.spyOn(tauntFx, 'hasAura').mockReturnValue(false);
     const brk = vi.spyOn(pixiFx, 'breakShield').mockImplementation(() => {});
     burstDeathAuras('u2');
     expect(brk).not.toHaveBeenCalled();
-  });
-
-  it('a dying taunt carrier drops the back-canvas bulwark, but no longer bursts or sounds (burst disabled for now)', () => {
-    vi.spyOn(pixiFx, 'hasAura').mockReturnValue(false); // no front-layer auras
-    vi.spyOn(tauntFx, 'hasAura').mockImplementation((_uid, kind) => kind === 'taunt');
-    const clear = vi.spyOn(tauntFx, 'clearShield').mockImplementation(() => {});
-    const burst = vi.spyOn(pixiFx, 'tauntBurst').mockImplementation(() => {});
-    const s = vi.spyOn(sfx, 'shieldBreak').mockImplementation(() => {});
-    burstDeathAuras('t1', { cx: 100, cy: 200, w: 40, h: 60 });
-    expect(clear).toHaveBeenCalledWith('t1', 'taunt'); // bulwark still dropped so the aura never orphans…
-    expect(burst).not.toHaveBeenCalled();                // …but no burst FX…
-    expect(s).not.toHaveBeenCalled();                    // …and no break sound
   });
 });
 

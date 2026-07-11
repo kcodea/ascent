@@ -11,6 +11,7 @@ import type { Anchor, Channel } from './choreo/score';
 export const CH_COLOR: Record<Channel, string> = {
   sfx: '#7aa2ff', float: '#8affc0', lunge: '#ffb35c', impact: '#ff6a6a',
   auraBurst: '#c88bff', auraBreak: '#ffd24a', auraReform: '#6ab0ff',
+  buffCast: '#ff8ad0', buffSelf: '#ffa35c',
 };
 
 /** What each effect CHANNEL is. */
@@ -19,9 +20,11 @@ export const CH_DESC: Record<Channel, string> = {
   float: 'Floating combat text — damage numbers, +atk/+hp buff pops, and keyword pills that rise off the unit.',
   lunge: "The attacker's motion — wind-up, strike toward the defender, then an elastic settle. Attack moments only.",
   impact: "The melee smack — hit sound + WebGL spark burst + the defender's knock-back, fired at the moment of contact.",
-  auraBurst: "A dying unit's aura explodes in place — the Divine Shield / Reborn spirit / Taunt bulwark shatter on death.",
+  auraBurst: "A dying unit's aura explodes in place — the Divine Shield / Reborn spirit shatter on death.",
   auraBreak: 'A Divine Shield shatters when it soaks a hit — held briefly so the read is hit → settle → break.',
   auraReform: 'The Reborn re-form glow — the wispy blue shimmer as a returning unit knits back together.',
+  buffCast: 'A buff-OTHER cast — a tendril flies from the source to each buffed ally, releasing the +atk/+hp on the strike.',
+  buffSelf: 'A self-buff — a unit empowering ITSELF pulses in place, then flashes its badge to the new value.',
 };
 
 /** What each ANCHOR means + how offsets behave relative to it. */

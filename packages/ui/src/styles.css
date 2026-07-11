@@ -596,6 +596,18 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; z-index: 3;
   box-shadow: inset 0 0 0 2px rgba(196, 245, 130, 0.9), inset 0 0 18px 4px rgba(140, 210, 40, 0.92);
 }
+/* Taunt — a thick GREY "bulwark" border surrounding the card (the T keyword: enemies must attack it first).
+   Replaces the old Pixi silver-bulwark aura; the `.card.taunt` marker is already on every Taunt card in the
+   shop / hand / warband / combat. A STATIC box-shadow ring (compositor-cheap, no per-frame repaint) hugging
+   the archbox silhouette, so it wraps the existing tribe frame without shifting layout the way a wider CSS
+   border would. Grey band + a thin dark edge so it reads crisp against the cream board. */
+.card.compact.taunt .archbox::after {
+  content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); border-bottom-left-radius: 0; border-bottom-right-radius: 0; pointer-events: none; z-index: 4;
+  /* grey band + thin dark edge, then an ALWAYS-ON red glow pooling UNDER the band (mirrors the warm hover glow,
+     but red + bottom-weighted). Listed last so it paints behind the grey ring and reads as glowing from beneath. */
+  box-shadow: 0 0 0 9px #6f757e, 0 0 0 11px rgba(28, 22, 16, 0.5),
+    0 9px 26px 11.5px rgba(224, 45, 45, 1);
+}
 /* One shared opacity-only pulse for every keyword/triple glow ::before layer (compositor-only — no repaint). */
 @keyframes kwglow { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
 
@@ -1717,13 +1729,11 @@ body.choreo-open .pixifx-under { z-index: 204; }
 .app.combatout .zone .row,
 .app.combatout .pixifx,
 .app.combatout .pixifx-under,
-.app.combatout .taunt-back,
 .app.combatout .combathud,
 .app.combatout .combatctl { opacity: 0; transition: opacity 0.2s ease; }
 .app.combatin .zone .row,
 .app.combatin .pixifx,
 .app.combatin .pixifx-under,
-.app.combatin .taunt-back,
 .app.combatin .combatctl { animation: boardfadein 0.26s ease both; }
 @keyframes boardfadein { from { opacity: 0; } to { opacity: 1; } }
 /* Skip-combat freeze: while the replay is frozen (GSAP + both Pixi tickers are paused in JS), also stop every
@@ -1744,10 +1754,6 @@ body.choreo-open .pixifx-under { z-index: 204; }
    "arrives" where the tavern was. The warband, hero frame, HUD (ASCENT/wave/tribes/mute)
    never move — `Recruit` stays mounted the whole time, only its top-half content swaps. */
 .app { position: relative; }
-/* The behind-cards taunt FX layer — first child of .app, so its Pixi canvas paints above the board
-   surface but below the card rows. pointer-events:none; z auto + first-in-DOM keeps it behind every card. */
-.taunt-back { position: absolute; inset: 0; pointer-events: none; }
-.taunt-back canvas { pointer-events: none; }
 
 /* the shop closing: the control bar + the tavern offers fold up and fade out */
 .app.combat:not(.fighting) .zone[data-zone='tavern'] .row { animation: shopclose 0.45s ease forwards; }
@@ -2177,9 +2183,6 @@ svg { width: 18px; height: 18px; }
 .sfxmix.lunge .sfxmix-val { flex-basis: 42px; }
 .lunge-btns { display: flex; gap: 8px; }
 .lunge-btns .sfxmix-copy { flex: 1; }
-.sfxmix.taunt .sfxmix-name { flex-basis: 86px; }
-.taunt-swatch { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--line); margin-left: auto; align-self: center; }
-.sfxmix.taunt .sfxmix-h { display: flex; align-items: center; gap: 6px; }
 .sfxmix.dragfeel .sfxmix-name { flex-basis: 120px; }
 .sfxmix.dragfeel .sfxmix-val { flex-basis: 46px; }
 .sfxmix.flip .sfxmix-name { flex-basis: 100px; }

@@ -3,6 +3,68 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-11 (session 32)
+
+### tweak(ui): thicker, darker Taunt border — squared bottom + always-on red under-glow
+
+A polish pass on the #334 grey Taunt border (`.card.compact.taunt .archbox::after` in `styles.css`):
+- **Band 5px → 9px** grey (11px total with the thin dark edge) — the bulwark reads chunkier.
+- **Grey darkened ~20%** (`#8b929e → #6f757e`) for more contrast against the cream board.
+- **Bottom corners squared** — the ring keeps the card's arched top (`--arch-radius`) but zeroes ONLY the two
+  bottom corners via `border-bottom-left/right-radius: 0`. (`--arch-radius` is a compound elliptical value
+  `48% 48% 20% 20% / 35% 35% 14% 14%`, so a `var(--arch-radius) … 0 0` shorthand expands to a malformed 16-value
+  radius and mangled the top — the longhand overrides are the clean fix.)
+- **Always-on red under-glow** — a bottom-weighted red box-shadow layer (`0 9px 26px 11.5px rgba(224,45,45,1)`)
+  pooling beneath the band, mirroring the warm hover-glow feel but red + permanent, so a Taunt unit reads as
+  "guarded" at a glance. Listed last in the `box-shadow` so it paints behind the grey ring (glows out from under).
+
+All compositor-cheap (static box-shadow, no per-frame repaint — the perf rule). Verified live (owner eyeballed
+on the dev server across several dial iterations). Gate green: typecheck + lint + test + build:web.
+
+### feat: buff pulse — a preset-driven point-blast for combat self-buffs
+
+**What & why.** The sibling of the buff **tendril**. Where a tendril is a source→target *beam* (a unit buffing
+**other** allies), a **pulse** is an in-place *blast* on a unit buffing **itself** in combat (`source === target`)
+— an expanding ring + core flash + sparks that fires ON the unit and **replaces the `+N/+N` float**, then flashes
+the unit's badge to its new value. Together tendrils (buff-others) + pulses (buff-self) now cover **100%** of
+combat `buff` events, so no combat buff shows a float anymore — every buff is a directed FX that flashes the badge.
+
+**Architecture (a faithful mirror of the tendril system):**
+- **`pulsePresets.ts`** — `PulsePresetCfg` dial-bag (style/blend, ring count/size/width/speed/ms/stagger, core
+  flash size/ms, spark count/speed/life/size, `holdMs`, colors), a `PULSE_PRESETS` registry, and a
+  `pulsePreset(cardId, tribe)` resolver (per-card → per-tribe → `default`, most-specific wins). Ships an
+  **owner-tuned `default`** (single fast white shockwave + a big warm-gold core flash + a wide golden spark
+  burst, additive), applied to EVERY eligible self-buff (`PULSE_ASSIGN` empty → all resolve to `default`);
+  per-tribe looks are a follow-up. The tuned look was **verified live** on the real cream board via the Pixi
+  renderer (drove `window.__pixiFx.pulse` on the recruit board — the blast draws + reads), and the trigger path
+  was proven by a deterministic Target Dummy combat test.
+- **`pixiFx.pulse(x, y, cfg)`** — a procedural point-blast on the existing pooled particle contract. Core flash +
+  sparks fire immediately; the rings are staggered, so a tiny `pulses` state array (mirror of `tendrils`) emits
+  ring `i` from the `update` ticker as its `ringStaggerMs` elapses. Sizes are px radii (÷ texture radius = sprite
+  scale, 1:1 with the rig); a `blend` field handles the light cream board. Compositor-only (transform/opacity),
+  cleaned up in `clearParticles`/`detach` — respects the perf north star.
+- **`choreo/channels/buffSelf.ts`** — pure `groupSelfBuffs(moment, events)` collecting self-buffs per uid
+  (mirror of `groupBuffCasts` with the opposite predicate).
+- **`score.ts`** — a `buffSelf` cue on the `buffWave` moment → `CueContext.onSelfBuffs`.
+- **`useCombatReplay.ts`** — the `onSelfBuffs` handler fires the pulse at the unit's rect center and reuses the
+  tendril's `statHold`/`statFlash` badge machinery: hold the pre-buff value (frame already reflects the buff, so
+  pre = current − delta), then after `holdMs` release + flash the changed badge(s).
+- **`float.ts`** — the buff branch now suppresses **all** buff floats (self→pulse, other→tendril).
+- **`buff-pulse-preview.html`** — a self-contained tuning rig (cream board, blend dropdown, every dial as a
+  slider, draggable anchor, Fire + auto-repeat, live JSON export) — the owner tunes looks here and the JSON bakes
+  into `pulsePresets.ts`, exactly like the tendril rig.
+
+**Verified.** New unit tests: `pulsePresets.test.ts` (resolver + field-completeness), `buffSelf.test.ts`
+(grouping/summing/window), `float.test.ts` (self-buff AND buff-other emit no float), `score.test.ts` (a self-buff
+routes to `onSelfBuffs`; a buff-other does not). Full gate green: `npm run typecheck && npm run lint && npm test`
+(**895**) `&& npm run build:web`. **Note:** the in-game *look* was not eyeballed live (the headless preview can't
+watch rAF animations) — the wiring is test-proven up to the handler and the handler is a line-for-line analog of
+the shipped tendril handler, but a focused-tab visual check is a recommended follow-up before tuning.
+
+**Follow-ups it created:** per-tribe pulse presets (tune on the rig + add tribe mappings); `shard`/`nova` pulse
+styles (the `style` seam is ready); recruit-phase hero-power/spell pulses (a different, shop-phase code path);
+a dedicated neutral preset.
+
 ## 2026-07-11 (session 31)
 
 ### fix: combat state accuracy — served enemies keep their accruals; Runescale/Hoardbreaker live text
@@ -34,6 +96,105 @@ the *opponent's* value at capture time needs those run-level values snapshotted 
 
 **Verified:** `typecheck + lint + test` (888) & `build:web` green. New tests: `opponentBoard` round-trips all six
 accruals (cloned, not shared); `combatCastGrantText` scales Hoardbreaker's Growth by spell power (golden ×2).
+### feat: sourced "spell cast" SFX when a spell is played from hand
+
+**What:** replaced the synth-only `sfx.castSpell` placeholder with a real sourced clip (owner-provided
+`spellcast final.mp3` → `packages/ui/src/audio/castspell.mp3`). `castSpell` now plays the decoded sample and
+keeps the old triangle-slide tone as the fallback until it decodes / if the file is absent — the exact pattern
+every other sourced clip uses (`playSample('castspell', sampleVol.castspell)` first, synth after). Added a
+`castspell: 0.68` default gain to `SAMPLE_VOL_DEFAULTS` and a preview entry so it appears in the DEV SFX mixer
+for by-ear level tuning.
+
+**Mix pass (rode along):** the owner ear-tuned the whole bank around the new (loud) spell-cast clip via the DEV
+mixer's "Copy values" and pasted them back as shipped defaults. Beyond `castspell`, 6 levels moved: `cardlanding`
+0.4→0.56, `smack` 0.08→0.06, `divineshieldbreak` 0.26→0.21, `rebornshatter` 0.5→0.42, `rebornsummon` 0.5→0.49,
+`skullburst` 0.04→0.06. **Note:** `skullburst` / bank-wide mix defaults are also being tuned on other in-flight
+branches — reconcile at merge.
+
+**Where it fires:** unchanged trigger — `store.ts`'s `play` case already split minion-landing vs spell-cast
+(`CARD_INDEX[cardId].spell → sfx.castSpell()`, else `sfx.play()`), so this sounds on any spell cast from hand
+and never on a minion. The card's own `cardVoice` still layers over it as before.
+
+**Verified:** `npm run typecheck && npm run lint && npm run build:web` all green; confirmed the mp3 bundles as
+a hashed asset (`castspell-*.mp3`). Audible playback not auto-checked — the headless preview gates sound when
+backgrounded (`isHidden()`); left for an in-tab ear check.
+
+### refactor: replace the Pixi Taunt bulwark with a static grey card border (keep the sound)
+
+**What:** removed the entire Pixi Taunt-bulwark aura system — the silver-metal heater shield that rendered
+BEHIND each Taunt minion on its own back FX layer — and replaced the signifier with a **static grey border**
+around the card. The Taunt **sound effect is untouched** (`sfx.taunt()` still fires from `store.ts` when a
+minion gains Taunt).
+
+**Why:** the owner wanted a simpler, cheaper, more legible Taunt read — a thick grey "bulwark" border in place
+of the procedural shader aura.
+
+**Removed (everything tied to the Pixi Taunt FX):**
+- Deleted `packages/ui/src/tauntConfig.ts` (live-tunable shader config) and `TauntTuner.tsx` (its DEV tuner);
+  dropped the tuner entry + import from `DevMenu.tsx`.
+- `pixiFx.ts`: deleted the `TAUNT_FRAG` shader, the `TAUNT_SILVER_RGB` tint, the whole `tauntFx` back-layer
+  `FxController` instance + its `__tauntFx`/`__tauntDemo` DEV hooks, the `tauntBurst()` particle burst (already
+  disabled), and every `'taunt'` branch in the `AuraKind` type / `AURA` map / `auraMargin` / `setShield` uniforms
+  / the per-frame update loop. `AuraKind` is now just `'shield' | 'reborn'`.
+- `Recruit.tsx`: dropped the `taunt` entry from `AURA_CFGS`, the `auraFx()` layer router (all auras are the one
+  front `pixiFx` layer now), the `tauntBack` mount div + ref + attach effect, the back-layer coordinate shift
+  (`ax`/`ay`), the taunt deploy-dust, and every `tauntFx.*` visibility/fade/clear call. `AuraK` = `'shield' |
+  'reborn'`. (`deployGraceRef` stays — it still suppresses shield/reborn form-in replays across combat swaps.)
+- `choreo/channels/aura.ts`: `burstDeathAuras` no longer clears a taunt bulwark (nothing to clear); trimmed its
+  tests and the `pixiFx.aura.test.ts` `'taunt'` probe.
+- `styles.css`: removed the `.taunt-back` layer rules (incl. the combat-in/out fade selectors) and the dead
+  `.sfxmix.taunt` / `.taunt-swatch` tuner styles.
+
+**Added:** `.card.compact.taunt .archbox::after` — a **static** two-layer `box-shadow` ring (5px grey `#8b929e`
++ a 2px dark edge) hugging the arched card silhouette. The `.card.taunt` marker was already on every Taunt card
+in shop / hand / warband / combat, so the border appears everywhere the bulwark used to. Static box-shadow →
+compositor-cheap, zero per-frame repaint (per the perf rules), and it doesn't shift layout the way a wider CSS
+border would.
+
+**Verified:** `npm run typecheck && npm run lint && npm test && npm run build:web` all green (885 tests). Live
+DOM probe on the dev server confirmed the rule loads and `getComputedStyle('.archbox', '::after').boxShadow`
+resolves to the grey+dark ring on a `.card.taunt`; no console errors. The headless preview can't screenshot
+(degenerate viewport) — the exact grey shade / thickness is a one-line tweak for an in-tab eyeball.
+
+### tweak(ui): longer pause after an Echo (Deathrattle) / Rise before its consequence
+
+Follow-up dial on [#326](https://github.com/kcodea/ascent/pull/326): the owner still read the Echo→summon gap
+as rushed (they were also, at the time, testing a branch that predated #326 — but the intent stands: a longer,
+more deliberate beat). Bumped both death read-leads in `useCombatReplay.ts`: `DR_SUMMON_LEAD` and `REBORN_LEAD`
+560→**800** (defender) / 900→**1150** (attacker). Net death→consequence gap (incl. the 240ms `overlapMs`) now
+~800→**1040ms** defender / ~1140→**1390ms** attacker at 1× — a clear empty-slot beat after the skull poofs /
+body fades before the token or returned body appears. Pure timing-constant tweak; log + beat clock untouched,
+scales with `combatSpeed`. Dial-by-eye — the two named constants are the knob.
+
+### fix(ui): the gold Rally pulse now fires for ALL rally units, and replays on repeat rallies
+
+The yellow Rally wind-up pulse (the medallion flash + gold ring, timed to the lunge's wind-up pause;
+shipped #265/#271) was effectively invisible: it only ever fired on **Deathsayer**, and even then only on
+the *first* Rally of a combat. Two bugs, found by the owner playtesting:
+
+1. **Only Deathsayer got it.** The trigger gate keyed off a `rally` CombatEvent, which ONLY
+   `rallyProcDeathrattle` (Deathsayer's Rally→Echo) emits — every other rally effect (`rallyBuff`,
+   `rallyGrantSpell`, `rallyCastTribeAttack`/Watcher, Better Bot's mech-buff, …) emits plain
+   `buff`/`summon`/`dmg` events with no marker. **Fix:** fire the pulse for any attacker that rallies on
+   its own swing — i.e. has the `RL` keyword. Read the attacker's LIVE keywords from the frame mirror
+   (`frameRef`) first (covers a Rally granted mid-combat), then its printed keyword off `CARD_INDEX`, then
+   the `rally` event as a final fallback. Now all rally units (Watcher, Supporter, Better Bot, Trophy
+   Stalker, …) pulse.
+
+2. **Only the first Rally per combat showed.** A second Rally pinged the *sound* but not the *visual*.
+   The pulse rides the shared `.cgem.pulsing::after` CSS animation, and a rally unit's own Rally also lights
+   the normal trigger glow — so `.pulsing` never leaves the medallion between swings, and re-adding a class
+   doesn't restart a CSS animation that was never removed. **Fix:** key the pulse off a monotonic **nonce**
+   (uid → nonce, bumped per fire) instead of a boolean, threaded through `Unit`/`Card` as a number and used
+   as the medallion's React `key` so the element remounts each fire and the animation restarts cleanly. The
+   1150 ms auto-clear is guarded so an earlier fire's timeout can't cancel a later fire's pulse (back-to-back
+   rallies, e.g. Windfury).
+
+Touches `useCombatReplay.ts` (gate + nonce state), `Recruit.tsx` (pass the nonce), `Unit.tsx` + `Card.tsx`
+(`rallyPulse`/`pulseRally` become a number + the medallion `key`). Verified: typecheck + lint green, and
+live in a real fight — every rally unit flashes gold on the wind-up, on every swing. The wind-up hold stays
+the tuned 440 ms (`RALLY_PAUSE_MS`); revisit whether it should explicitly wait on the rally's downstream
+effects if the beat ever feels rushed.
 
 ### fix: Rune of Action counts every card played, not just board minions
 
@@ -56,6 +217,35 @@ every play/buy/roll, so this bug never touched them.
 
 **Verified:** added a regression test (playing the untargeted spell `growth` now lands in `playedThisTurn`);
 `npm run typecheck && npm run lint && npm test` (883) && `npm run build:web` all green.
+
+### docs + fix(ui): combat timing audit, and more read-lead before death consequences
+
+Resumed the combat-simulation feel work with a **timing audit** ([combat-timing-audit.md](combat-timing-audit.md)):
+lined up, for every replay moment, its **beat-hold** (`choreoConfig` × `speed` ÷ `combatSpeed`, or the flat
+`overlapMs` for the three overlap kinds) against its **actual animation length** (CSS `styles.css` + Pixi
+`pixiFx.ts` + the GSAP lunge) against the **ordering** (`combat-ordering.md`). Where an animation outlasts the
+hold that follows it, the next beat starts mid-animation → the "rushed / cut-off" feel. Findings, ranked:
+standalone **buff waves** (210ms hold vs a 600ms pulse + a 350–780ms tendril whose stat-reveal lands outside
+the beat); **deathrattle/avenge consequences that aren't summons** get no read-lead; a **systemic amplifier**
+— CSS animations are fixed seconds and ignore the `combatSpeed` slider while holds ÷ and Pixi/GSAP × it, so
+every margin worsens ~2× at 2× speed; plus overlap-tail bleed and a 50ms poison-mist clip. Remaining items
+queued in [roadmap.md](roadmap.md).
+
+**Fixed this PR — more breath before a death's on-screen consequence.** Players still felt the Deathrattle
+death→summon (and especially the Rise death→reborn) as rushed: the token/returned body landed the instant the
+body cleared, with no empty-slot beat. Generalized `deathrattleSummonLead` → **`deathConsequenceLead`** in
+`useCombatReplay.ts`, now covering **both** a Deathrattle's summon **and** a Rise's reborn (the latter
+previously had *no* lead — it just rode the flat 240ms `overlapMs`, which is why it felt fastest). Bumped the
+leads so the consequence lands after the death has fully read: `DR_SUMMON_LEAD` 380→**560** (defender) /
+720→**900** (attacker), and a new `REBORN_LEAD` at the same 560/900 (anchored past the `.dying.rising` body
+fade; the higher attacker figure covers the mid-lunge pull-home). Net death→consequence gap (incl. the 240ms
+overlap) goes ~620→**800ms** defender / ~960→**1140ms** attacker — a clear beat of empty slot after the skull
+poofs / body fades before the token or returned body appears. Presentation-only: the deterministic log and the
+beat clock are untouched; the lead is layered on top of `overlapMs` and scales with `combatSpeed`.
+
+- **Verified:** `typecheck` + `lint` + **835 tests** + `build:web` all green. The feel itself is the user's to
+  confirm live (a timing-constant bump on the choreo scheduler — the degenerate preview can't render combat, so
+  the read is dialed by eye in a focused tab); the leads are a single named knob, easy to re-tune.
 
 ## 2026-07-10 (session 30)
 

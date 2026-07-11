@@ -25,10 +25,31 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Spell-cast sound.** Playing a spell from hand now fires a sourced "spell cast" clip (distinct from a minion
+  landing), with the old synth blip kept as the decode/absent fallback and a level in the DEV SFX mixer.
+- **Taunt border, dialed in.** The grey Taunt border got thicker + darker, its bottom corners squared off (arched
+  top kept), and an always-on **red under-glow** pooling beneath the band — a Taunt unit now reads as "guarded"
+  at a glance. All static box-shadow (compositor-cheap).
+- **Taunt is now a grey border.** Retired the Pixi silver-bulwark aura that drew behind Taunt minions; a Taunt
+  card now wears a thick static grey border instead (the sound cue is unchanged). Simpler, cheaper, and reads
+  at a glance in every row.
+- **Rally units flash gold on the wind-up.** The yellow Rally trigger pulse (wind-up pause + gold medallion
+  ring) now fires for **every** rally unit — previously it only ever showed on Deathsayer — and it replays on
+  every swing, not just the first Rally of a combat. Fixed the trigger gate (any `RL` attacker) and a
+  CSS-animation-restart bug (keyed the pulse off a per-fire nonce so the medallion remounts each time).
+- **Combat timing audit + more breath before death consequences.** Audited every replay moment's beat-hold
+  vs its actual animation length ([docs/combat-timing-audit.md](docs/combat-timing-audit.md)) to find where an
+  effect outruns its beat. First fix: a Deathrattle's summon and a Rise's return now wait longer after the unit
+  dies — the skull poofs / the body fades and there's a beat of empty slot before the token or returned body
+  appears, instead of it landing the instant the body clears.
 - **Combat "vanishing lunge" fixed.** Occasionally a swing would resolve instantly (its impact fired but the
   lunge never showed). Cause was a main-thread frame hitch letting GSAP jump the lunge timeline past its own
   motion — fixed with a `lagSmoothing` clamp so a spike can't skip the visible swing. Not an ordering/sim
   issue. (The underlying frame hitches are a separate perf item, queued.)
+- **Buff pulse.** The sibling of the tendril: when a unit buffs **itself** in combat, an in-place point-blast
+  (expanding ring + core flash + sparks) fires on the unit, replacing the `+N/+N` float and flashing its badge to
+  the new value. Same preset-driven system + live tuning rig as the tendril; ships one gold `default` look for now
+  (per-tribe pulses are a follow-up). Presentation-only — every combat buff is now a directed FX, no more floats.
 - **Buff tendrils.** When a unit buffs another unit in combat, an energy tendril shoots to each buffed ally,
   strikes, flashes, and the target's stat badge holds then flashes-and-ticks to its new value on the hit. A
   reusable, preset-driven effect system — the owner tuned a distinct tendril for each tribe (green Beast, gold

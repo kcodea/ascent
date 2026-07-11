@@ -19,8 +19,9 @@ interface UnitProps {
   /** Pulse the trigger medallion this beat — this unit's effect just fired in combat. */
   triggered?: boolean;
   /** Pulse the trigger medallion YELLOW — a Rally fired as this unit attacks (fired mid-lunge, at the
-   *  wind-up pause, so it's timed to the strike rather than the beat start). Takes precedence over `triggered`. */
-  rallyPulse?: boolean;
+   *  wind-up pause, so it's timed to the strike rather than the beat start). Takes precedence over `triggered`.
+   *  A per-fire nonce (not a bool) so a repeat Rally in the same combat restarts the pulse (used as a `key`). */
+  rallyPulse?: number;
   /** While a buff tendril flies to this unit, hold its displayed stats at the PRE-buff value (released on strike). */
   statHold?: { atk: number; hp: number };
   /** On the strike, which badge(s) changed → flash them via the `.statflash` class. */

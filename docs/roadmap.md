@@ -133,6 +133,17 @@ look because the engine already produces the data.
 ## Phase B — UX polish (parallelizable; slot any time)
 
 ### B0. FX follow-ups (from the Echo skull poof + buff tendrils, session 29)
+- **Buff pulse — per-tribe looks.** The pulse system (self-buff point-blast) shipped `default`-only (session 32).
+  Tune a look per tribe on `buff-pulse-preview.html`, paste the JSON, and bake into `PULSE_PRESETS` +
+  `PULSE_ASSIGN.byTribe` — exactly like the tendril tribe presets. Until then every tribe's self-buff uses the one
+  gold `default` blast.
+- **Buff pulse — live look check.** The in-game pulse was never eyeballed live (headless preview can't watch rAF).
+  Drive a focused Chrome tab through a combat with a self-buffing unit (e.g. a Start-of-Combat self-pump) and
+  confirm the blast + badge flash read well on the cream board before per-tribe tuning.
+- **Buff pulse — other styles + recruit-phase casts.** The `style` field is ready for `shard`/`nova` variants
+  (only `ring` is built), and there's no dedicated `neutral` preset (falls to `default`). Separately, hero-power /
+  spell buffs resolve in the **recruit/shop phase** (a different code path from the combat replay) and get only a
+  sound + CSS glow today — wiring them to `pixiFx.pulse` is a future pass.
 - **Buff tendrils — on-attack buffers.** Buffs absorbed into an attack's windup (on-attack ally-buffers like
   Crypt Drake, Growth-on-attack) classify as an `attackExchange` moment, which carries no `buffCast` cue — so
   they don't throw a tendril yet. Iteration 1 targets Start-of-Combat / standalone buff waves. To extend: add a
@@ -458,10 +469,11 @@ win-rate-when-present, per-hero/tribe rollups. Pairs naturally with A7's run-his
 (`pixiFx.deathrattle`; a painted skull pops + explodes into bone fragments/splinters/smoke, card fades in
 place; session 27 → devlog). Same playbook for the rest: pick a mechanic, agree the look on a cheap preview,
 bake it as a `pixiFx` effect + wire the UI-side detection. Candidates: shield-break, poison/toxin kill,
-summon, big buff, Rally/Echo. (Divine Shield, Reborn, Taunt auras already done.)
+summon, big buff, Rally/Echo. (Divine Shield + Reborn auras already done. Taunt is a static grey card border,
+not a Pixi aura — the old silver-bulwark shader was removed, session 31.)
 
 **FX / juice (M4, ongoing):** PixiJS WebGL effects layer is live (hit-impact, gold sprinkle, dust, trigger
-pulse, Discover burst, loss-damage blast, Taunt bulwark, Deathrattle skull-shatter). Next candidates: Pixi SoC/Blaster
+pulse, Discover burst, loss-damage blast, Deathrattle skull-shatter). Next candidates: Pixi SoC/Blaster
 projectiles (replace SVG bolts), Ward-break shimmer; mid-combat **ascension UI** (engine emits `ascend`
 already — fold into `useCombatReplay` + a level-up burst + SFX); Spirit Pup→Worgen mid-combat ascension;
 live Buffs window for the remaining run-buffs (Undead-attack/Fodder-Imp/Mama Bear/Guel tick only at settle).
@@ -503,6 +515,15 @@ correctness half — these remain):**
   (`computeFrame` + the per-beat event-log scans that grow with combat length are prime suspects), then
   memoize/short-circuit it. Cheap adjacent win: `syncShields` calls `getBoundingClientRect` **per aura bubble
   every frame** (~100k calls in one combat) — cache the rects / only re-measure on layout change.
+- **Combat timing clashes (from [combat-timing-audit.md](combat-timing-audit.md), session 31).** The audit
+  lined up each moment's beat-hold vs its actual animation length vs the ordering doc. **Fixed so far:** the
+  death→summon and Rise→reborn read-leads were bumped + generalized (`deathConsequenceLead`) so the
+  consequence doesn't land on top of the skull/fade. **Remaining clashes:** (1) **standalone buff waves** —
+  210ms hold vs a 600ms pulse + a tendril that travels 350–780ms before its stat-reveal, so the +N lands
+  outside its beat; fold the tendril travel into the hold (or shorten it). (2) **Systemic amplifier** — CSS
+  combat animations are fixed seconds and ignore the `combatSpeed` slider, while holds ÷ and Pixi/GSAP × it,
+  so every margin worsens ~2× at 2× speed; drive combat CSS durations off a `--combat-speed` var. (3) overlap
+  tails (`risepop 700`, re-form glow @+460) bleed past their 240ms ride; (4) poison mist clipped 50ms.
 - **UI dead-code purge** — Card still renders removed Reborn-tears DOM; **FontLab ships un-gated in prod**
   (wants `import.meta.env.DEV`); a confirmed dead-CSS list (the OMEN block, `.chip`, `.toast`, `.legend`,
   `.tavernbox`, `.zt/.zh/.hint`, `.disc-gem`).

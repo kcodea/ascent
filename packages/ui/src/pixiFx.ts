@@ -1,5 +1,4 @@
 import { Application, Container, Graphics, Mesh, MeshGeometry, Shader, Sprite, Texture, type BLEND_MODES, type Ticker } from 'pixi.js';
-import { getTauntConfig } from './tauntConfig';
 import { getSmokeConfig } from './smokeConfig';
 import { getStrikeFxConfig } from './strikeFxConfig';
 import { getTrailConfig } from './trailConfig';
@@ -218,96 +217,6 @@ void main(){
 `;
 
 /**
- * The Taunt bulwark fragment shader — a silver-metallic heater/kite shield drawn BEHIND the card (so its
- * rim + central gem peek out around the frame). Procedural: a heater silhouette SDF gives a beveled chrome
- * rim (faux-3D normal from the SDF gradient + a sweeping specular glint), a brushed-steel inner field, and
- * a faceted silver gem core. `uColor` is the silver tint (lets the look be retinted live in DEV). No
- * see-through center — it's solid metal — but it sits behind the card so only the border shows.
- */
-const TAUNT_FRAG = /* glsl */ `#version 300 es
-precision highp float;
-in vec2 vUV;
-out vec4 finalColor;
-uniform float uTime;
-uniform float uAspect;   // card w/h (kept for parity)
-uniform vec3  uColor;    // silver tint (live-tunable in DEV)
-uniform float uSeed;     // per-bubble phase offset
-uniform float uTopY;     // heater silhouette: top edge
-uniform float uBotY;     // heater silhouette: bottom point
-uniform float uHalfW;    // heater silhouette: shoulder half-width
-uniform float uWidthPow; // width taper exponent toward the bottom point
-uniform float uRimW;     // bevel/rim band width
-uniform float uGemSize;  // central gem size (0 = none)
-uniform float uGlintSpeed; // glint sweep speed
-
-float hash(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
-float vnoise(vec2 p){
-  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-  float a = hash(i), b = hash(i + vec2(1.0,0.0)), c = hash(i + vec2(0.0,1.0)), d = hash(i + vec2(1.0,1.0));
-  return mix(mix(a,b,f.x), mix(c,d,f.x), f.y);
-}
-// Heater/kite shield silhouette. q: x in [-1,1], y UP (+1 top, -1 bottom). <0 inside. Shape from uniforms.
-float shieldSDF(vec2 q){
-  float topY = uTopY, botY = uBotY;
-  float t = clamp((q.y - botY) / (topY - botY), 0.0, 1.0);   // 0 bottom → 1 top
-  float hw = uHalfW * pow(t, uWidthPow);                      // 0 at the bottom point → wide shoulders
-  hw *= 1.0 - 0.16 * smoothstep(0.72, 1.0, t);               // slight inward at the very top (rounded shoulders)
-  float notch = (1.0 - smoothstep(0.0, 0.16, abs(q.x))) * 0.07; // central V dip in the top edge
-  float top = topY - notch;
-  float dx = abs(q.x) - hw;
-  float dy = max(q.y - top, botY - q.y);
-  return length(max(vec2(dx, dy), 0.0)) + min(max(dx, dy), 0.0);
-}
-void main(){
-  vec2 p = (vUV - 0.5) * 2.0;
-  vec2 q = vec2(p.x, -p.y);                 // y up
-  float d = shieldSDF(q);
-  if (d > 0.02) { finalColor = vec4(0.0); return; }
-
-  // bevel: rim band from the outer edge inward; faux-3D normal from the SDF gradient
-  float e = 0.004;
-  vec2 grad = vec2(shieldSDF(q + vec2(e,0.0)) - shieldSDF(q - vec2(e,0.0)),
-                   shieldSDF(q + vec2(0.0,e)) - shieldSDF(q - vec2(0.0,e)));
-  float rimW = uRimW;
-  float rim = smoothstep(0.0, rimW, -d);    // 0 at edge → 1 past the rim
-  float bevel = 1.0 - rim;                   // 1 at the very edge
-  vec3 n = normalize(vec3(grad * bevel * 2.4, 1.0));
-  vec3 L = normalize(vec3(-0.5, 0.62, 0.6));
-  float diff = clamp(dot(n, L), 0.0, 1.0);
-  vec3 H = normalize(L + vec3(0.0,0.0,1.0));
-  float spec = pow(max(dot(n, H), 0.0), 40.0);
-  // a bright glint sweeping across the metal
-  float sweep = smoothstep(0.07, 0.0, abs(fract(uTime * uGlintSpeed + uSeed) - (q.x * 0.5 + 0.5)));
-  spec += sweep * bevel * 0.7;
-
-  // brushed-steel inner field
-  float brush = vnoise(vec2(q.x * 3.0, q.y * 42.0)) * 0.1;
-  float field = 0.6 + brush;
-
-  // faceted silver gem (a diamond in the centre)
-  vec2 g = q * vec2(1.0, 1.3);
-  float gemD = abs(g.x) + abs(g.y - 0.04) - uGemSize;
-  float gem = smoothstep(0.02, -0.02, gemD);
-  float ang = atan(g.y - 0.04, g.x);
-  float facet = 0.5 + 0.5 * cos(floor(ang / 1.0472) * 1.0472);   // 6 facets
-  float gemShade = mix(0.55, 1.1, facet);
-  float gemGlint = pow(max(0.0, sin(ang * 3.0 + uTime * 0.6 + uSeed)), 8.0);
-
-  vec3 silver = uColor;
-  vec3 col = silver * (field * (0.5 + diff * 0.7));        // lit brushed field
-  col += silver * bevel * (0.5 + diff * 0.9);              // chrome rim highlight
-  col += vec3(1.0) * spec * 1.3;                           // white-hot glint
-  col = mix(col, silver * gemShade + vec3(1.0) * gemGlint * 0.55, gem * 0.92); // gem core
-  // dark groove between rim and field
-  float groove = smoothstep(rimW * 0.9, rimW * 1.04, -d) - smoothstep(rimW * 1.04, rimW * 1.45, -d);
-  col *= 1.0 - groove * 0.4;
-
-  float alpha = smoothstep(0.02, -0.012, d);              // solid shield, AA edge
-  finalColor = vec4(col * alpha, alpha);                  // premultiplied
-}
-`;
-
-/**
  * The WebGL effects layer — a single transparent PixiJS overlay stretched over the whole
  * viewport, drawing the *juice* that DOM/CSS does poorly (particle bursts, impact flashes)
  * on the GPU compositor. It does NOT render the board, cards, or layout — React/DOM still
@@ -414,6 +323,17 @@ export interface TendrilCfg {
   colorCore: string; colorGlow: string; colorFlash: string; colorMote: string;
 }
 
+/** Renderer-facing pulse config (structural match of PulsePresetCfg — pixiFx stays import-light). */
+export interface PulseCfg {
+  style: 'ring' | 'shard' | 'nova';
+  blend: 'add' | 'normal' | 'screen';
+  ringCount: number; ringSize: number; ringWidth: number; ringSpeed: number; ringMs: number; ringStaggerMs: number;
+  coreFlashSize: number; coreFlashMs: number;
+  sparkCount: number; sparkSpeed: number; sparkLife: number; sparkSize: number;
+  holdMs: number;
+  colorRing: string; colorCore: string; colorSpark: string;
+}
+
 /** '#rrggbb' (or '#rgb') → 0xRRGGBB for the Pixi `tint` number. Defaults to white on a malformed string. */
 const hexNum = (hex: string): number => {
   const h = hex.replace('#', '');
@@ -446,14 +366,24 @@ interface Tendril {
   struck: boolean;
 }
 
+/** One live pulse blast at a point. Rings are staggered, so a tiny state entry emits ring `i` when its stagger
+ *  time elapses (the pooled particles then animate on their own); the core flash + sparks fire at birth. Removed
+ *  once every ring has been emitted and its life has elapsed. */
+interface PulseFx {
+  x: number; y: number;
+  cfg: PulseCfg;
+  age: number;          // ms lived
+  ringsSpawned: number; // how many rings have been emitted so far
+}
+
 /**
  * A persistent divine-shield bubble bound to one unit (by uid). Unlike particles (fire-and-forget),
  * it lives until the shield breaks or is cleared, breathing on the ticker and tracking the unit's
  * on-screen rect. The React layers measure the rect and push it via `setShield`; this stays DOM-agnostic.
  */
-/** Which flavour of persistent aura — gold glassy Divine Shield, blue wispy Reborn spirit, or the silver
- *  metal Taunt bulwark (the only one drawn BEHIND the card). */
-type AuraKind = 'shield' | 'reborn' | 'taunt';
+/** Which flavour of persistent aura — gold glassy Divine Shield or blue wispy Reborn spirit. (Taunt no
+ *  longer has a Pixi aura — it signifies via a static grey card border; see `.card.taunt` in styles.css.) */
+type AuraKind = 'shield' | 'reborn';
 
 interface ShieldBubble {
   kind: AuraKind;        // picks the shader + break/pop colour
@@ -486,18 +416,14 @@ const MINI_SCALE = 0.3;        // bubble size while dragging (a small trailing s
 const POP_MS = 320;            // coalesce/pop-in duration when a dragged card is placed
 const SHIELD_GOLD_RGB = [1.0, 0.89, 0.36]; // Divine-Shield shader tint, tuned in the shape editor
 const REBORN_BLUE_RGB = [0.32, 0.59, 1.0]; // Reborn wisp tint (spectral blue), tuned in the shape editor
-const TAUNT_SILVER_RGB = [0.80, 0.84, 0.90]; // Taunt bulwark — bright brushed silver/steel
 /** Per-kind aura config: the fragment shader, base colour, and footprint margin (shield sits INSIDE the
- *  card frame; reborn rides slightly PROUD of it; taunt is BIGGER + drawn behind, so its heater silhouette
- *  peeks out around the card edges). `behind: true` routes the aura to the back FX layer. */
-const AURA: Record<AuraKind, { frag: string; rgb: number[]; tint: number; rimTint: number; margin: number; behind?: boolean }> = {
+ *  card frame; reborn rides slightly PROUD of it). */
+const AURA: Record<AuraKind, { frag: string; rgb: number[]; tint: number; rimTint: number; margin: number }> = {
   shield: { frag: SHIELD_FRAG, rgb: SHIELD_GOLD_RGB, tint: 0xffd24a, rimTint: 0xffe9a8, margin: 1.16 },
   reborn: { frag: REBORN_FRAG, rgb: REBORN_BLUE_RGB, tint: 0x6ab0ff, rimTint: 0xbfe2ff, margin: 1.16 },
-  taunt: { frag: TAUNT_FRAG, rgb: TAUNT_SILVER_RGB, tint: 0xcfd6e2, rimTint: 0xeef2f8, margin: 1.28, behind: true },
 };
 const auraKey = (kind: AuraKind, uid: string): string => `${kind}|${uid}`;
-/** Footprint margin for an aura — taunt's is live-tunable (DEV taunt tuner), the rest are static. */
-const auraMargin = (kind: AuraKind): number => (kind === 'taunt' ? getTauntConfig().margin : AURA[kind].margin);
+const auraMargin = (kind: AuraKind): number => AURA[kind].margin;
 
 class FxController {
   private app: Application | null = null;
@@ -519,6 +445,7 @@ class FxController {
   private skullSrcH = 1;
   private readonly skullPops: SkullPop[] = [];
   private readonly tendrils: Tendril[] = []; // live buff tendrils — tapered ribbons advanced in `update`
+  private readonly pulses: PulseFx[] = [];
   private shieldLayer: Container | null = null; // holds the persistent bubbles, beneath the particle layer
   private shieldApp: Application | null = null;  // OPTIONAL 2nd canvas for the persistent bubbles, mounted at a
   private underParent: HTMLElement | null = null; // low z (below the card badges) so the chrome reads on top; the
@@ -588,7 +515,7 @@ class FxController {
       sApp.stage.addChild(shieldLayer);
       this.shieldApp = sApp;
     } else {
-      // Single-canvas mode (e.g. the taunt back layer): bubbles beneath the particle layer on the same canvas.
+      // Single-canvas mode: bubbles beneath the particle layer on the same canvas.
       app.stage.addChildAt(shieldLayer, 0);
     }
 
@@ -626,6 +553,7 @@ class FxController {
     this.skullPops.length = 0;
     for (const td of this.tendrils) { td.g.destroy(); }
     this.tendrils.length = 0;
+    this.pulses.length = 0;
     this.skullTex?.destroy(true);
     this.skullTex = null;
     for (const b of this.shields.values()) { b.shader.destroy(); b.container.destroy({ children: true }); }
@@ -813,6 +741,56 @@ class FxController {
   }
 
   /**
+   * A procedural point-blast at (x, y) — the self-buff FX (owner-tuned per tribe on buff-pulse-preview.html).
+   * `ringCount` expanding rings (staggered by `ringStaggerMs`, emitted from `update`), a core flash, and
+   * `sparkCount` outward sparks. Sizes are px radii → ÷ the texture radius gives the sprite scale (1:1 with the
+   * rig). Every dial lives in `cfg` (a structural mirror of PulsePresetCfg) so any preset drives it.
+   */
+  pulse(x: number, y: number, cfg: PulseCfg): void {
+    if (!this.ready || !this.glowTex || !this.pulseTex || !this.layer) return;
+
+    // Core flash — a soft glow disc that pops and fades.
+    if (cfg.coreFlashMs > 0 && cfg.coreFlashSize > 0) {
+      const s = cfg.coreFlashSize / TENDRIL_GLOW_R;
+      this.spawn(this.glowTex, {
+        x, y, vx: 0, vy: 0, drag: 1, life: cfg.coreFlashMs,
+        fromScale: s * 0.3, toScale: s, spin: 0,
+        tint: hexNum(cfg.colorCore), blend: cfg.blend, peakAlpha: 1,
+      });
+    }
+
+    // Sparks — radial motes decelerating outward (glowTex, small).
+    if (cfg.sparkCount > 0 && cfg.sparkSpeed > 0) {
+      const sparkScale = cfg.sparkSize / TENDRIL_GLOW_R;
+      for (let i = 0; i < cfg.sparkCount; i++) {
+        const ang = (i / cfg.sparkCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+        const speed = cfg.sparkSpeed * (0.6 + Math.random() * 0.6);
+        this.spawn(this.glowTex, {
+          x, y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, drag: TENDRIL_MOTE_DRAG,
+          life: cfg.sparkLife, fromScale: sparkScale, toScale: sparkScale * 0.2, spin: 0,
+          tint: hexNum(cfg.colorSpark), blend: cfg.blend, peakAlpha: 0.9,
+        });
+      }
+    }
+
+    // Register the blast so `update` emits the staggered rings (ring 0 fires next frame at age ~0).
+    this.pulses.push({ x, y, cfg, age: 0, ringsSpawned: 0 });
+  }
+
+  /** Emit ring index `i` of a pulse — a thin expanding ring (pulseTex) from ~0 out to `ringSize`. */
+  private spawnPulseRing(p: PulseFx, i: number): void {
+    if (!this.pulseTex) return;
+    const cfg = p.cfg;
+    const toScale = (cfg.ringSize / PULSE_TEX_R) * (1 - i * 0.12); // inner rings slightly smaller → concentric
+    this.spawn(this.pulseTex, {
+      x: p.x, y: p.y, vx: 0, vy: 0, drag: 1,
+      life: cfg.ringMs / (cfg.ringSpeed > 0 ? cfg.ringSpeed : 1),
+      fromScale: 0.15, toScale, spin: 0,
+      tint: hexNum(cfg.colorRing), blend: cfg.blend, peakAlpha: 0.85,
+    });
+  }
+
+  /**
    * A sprinkle of gold coins bursting up out of point (x, y) and arcing back down under gravity —
    * the income flourish when a minion is sold (fired from the Gold counter's screen position).
    */
@@ -847,7 +825,7 @@ class FxController {
    * ground (vertical motion damped, gentle gravity) and fading fast — dusty tan on normal blend, low
    * alpha so it stays subtle. The caller raises the landed card above the FX layer for the duration,
    * so the dust reads as escaping out from *under* the card on every side. `scale` (default 1) inflates the
-   * whole plume — both the ring spread and the puff sizes — for a bigger billow (taunt deploy passes >1).
+   * whole plume — both the ring spread and the puff sizes — for a bigger billow (callers may pass >1).
    * `density` (default 1) multiplies the puff COUNT for a thicker cloud without changing its size.
    */
   dust(cx: number, cy: number, w: number, h: number, scale = 1, density = 1): void {
@@ -1105,24 +1083,12 @@ class FxController {
       const container = new Container();
       // A quad mesh the aura shader draws onto. The geometry's UVs are a clean 0..1, so the fragment maps the
       // sphere/wisp exactly. The container scales it to the card footprint; the shader is chosen per kind.
-      const tc = getTauntConfig();
-      const isTaunt = kind === 'taunt';
       const uniforms: Record<string, { value: number | Float32Array; type: string }> = {
         uTime: { value: 0, type: 'f32' },
         uAspect: { value: w / Math.max(1, h), type: 'f32' },
-        uColor: { value: new Float32Array(isTaunt ? [tc.colorR, tc.colorG, tc.colorB] : AURA[kind].rgb), type: 'vec3<f32>' },
+        uColor: { value: new Float32Array(AURA[kind].rgb), type: 'vec3<f32>' },
         uSeed: { value: (this.shields.size % 7) * 1.3, type: 'f32' }, // de-sync neighbours' pulses
       };
-      if (isTaunt) {
-        // Shape/look uniforms — driven LIVE from the taunt config each frame (DEV tuner edits show instantly).
-        uniforms.uTopY = { value: tc.topY, type: 'f32' };
-        uniforms.uBotY = { value: tc.botY, type: 'f32' };
-        uniforms.uHalfW = { value: tc.halfW, type: 'f32' };
-        uniforms.uWidthPow = { value: tc.widthPow, type: 'f32' };
-        uniforms.uRimW = { value: tc.rimW, type: 'f32' };
-        uniforms.uGemSize = { value: tc.gemSize, type: 'f32' };
-        uniforms.uGlintSpeed = { value: tc.glintSpeed, type: 'f32' };
-      }
       const shader = Shader.from({
         gl: { vertex: SHIELD_VERT, fragment: AURA[kind].frag },
         resources: { shieldUniforms: uniforms },
@@ -1186,9 +1152,8 @@ class FxController {
     return this.shields.has(auraKey(kind, uid));
   }
 
-  /** The tracked center + footprint of `uid`'s aura bubble, or null if none — used by the aura channel to
-   *  position the taunt burst (which draws on the FRONT layer and needs explicit coords, unlike breakShield
-   *  which reads the bubble's own stored coords). */
+  /** The tracked center + footprint of `uid`'s aura bubble, or null if none — for a caller needing explicit
+   *  coords rather than the bubble's own stored ones (breakShield reads the latter directly). */
   auraRect(uid: string, kind: AuraKind = 'shield'): { cx: number; cy: number; w: number; h: number } | null {
     const b = this.shields.get(auraKey(kind, uid));
     return b ? { cx: b.cx, cy: b.cy, w: b.w, h: b.h } : null;
@@ -1247,6 +1212,7 @@ class FxController {
     // Tendril ribbons are Graphics (not pooled) — destroy them outright.
     for (const td of this.tendrils) { this.layer?.removeChild(td.g); td.g.destroy(); }
     this.tendrils.length = 0;
+    this.pulses.length = 0;
   }
 
   /**
@@ -1370,63 +1336,6 @@ class FxController {
         vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.35,
         life: 500 + Math.random() * 400, fromScale: 0.8 + Math.random() * 0.6, toScale: 0.05,
         spin: 0, tint: 0xdfeeff, blend: 'add', peakAlpha: 0.9,
-      });
-    }
-  }
-
-  /**
-   * The TAUNT bulwark SHATTERS — fired when a taunt minion DIES in combat (a sold/removed taunt still just
-   * fades). The metal heater breaks like metal, not glass: a white-hot crack flash, a silver shockwave ring,
-   * steel shards flung radially (chunky, slower than the ward's glass), white glints, and a puff of grey
-   * smoke. Fired on the FRONT (viewport) canvas so the debris flies OVER the cards, mirroring the ward break
-   * (whose bubble also lives on another canvas); `cx/cy/w/h` is the dying card's measured rect.
-   */
-  tauntBurst(cx: number, cy: number, w: number, h: number): void {
-    if (!this.ready) return;
-    const rad = Math.max(w, h) * 0.5 * getTauntConfig().margin;
-    // CRACK — white-hot flash at the break point.
-    this.spawn(this.glowTex!, {
-      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 180, fromScale: 0.5, toScale: (rad / 40) * 2.2,
-      spin: 0, tint: 0xf4f7fc, blend: 'add', peakAlpha: 0.95,
-    });
-    // SHOCKWAVE — a silver ring ripping outward.
-    this.spawn(this.rimTex!, {
-      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 420, fromScale: (rad / BUBBLE_TEX_R) * 0.7,
-      toScale: (rad / BUBBLE_TEX_R) * 2.1, spin: 0, tint: 0xdfe6f0, blend: 'add', peakAlpha: 0.85,
-    });
-    // STEEL SHARDS — chunky fragments flung radially; a touch slower/heavier than the ward's glass.
-    const shards = 18;
-    for (let i = 0; i < shards; i++) {
-      const a = (i / shards) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
-      const speed = 260 + Math.random() * 520;
-      const tex = Math.random() < 0.5 ? this.shardRectTex! : this.shardTriTex!;
-      const cold = Math.random();
-      const tint = cold < 0.5 ? 0xcfd6e2 : cold < 0.85 ? 0xeef2f8 : 0x9aa4b4; // silvers + a dark steel
-      this.spawn(tex, {
-        x: cx + Math.cos(a) * rad * 0.6, y: cy + Math.sin(a) * rad * 0.6,
-        vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.14,
-        life: 420 + Math.random() * 360, fromScale: 1.0 + Math.random() * 0.7, toScale: 0.05,
-        spin: (Math.random() - 0.5) * 9, rotation: a, tint, blend: 'normal', // normal → reads solid on cream
-      });
-    }
-    // GLINTS — white-hot sparks off the breaking metal.
-    for (let i = 0; i < 8; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const speed = 140 + Math.random() * 260;
-      this.spawn(this.sparkTex!, {
-        x: cx, y: cy, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.4,
-        life: 420 + Math.random() * 320, fromScale: 0.8 + Math.random() * 0.7, toScale: 0.05,
-        spin: 0, tint: 0xffffff, blend: 'add', peakAlpha: 0.95,
-      });
-    }
-    // grey smoke — the dust of a felled bulwark.
-    for (let i = 0; i < 4; i++) {
-      this.spawn(this.glowTex!, {
-        x: cx + (Math.random() - 0.5) * 24, y: cy + (Math.random() - 0.5) * 24,
-        vx: (Math.random() - 0.5) * 70, vy: -30 - Math.random() * 50,
-        drag: 0.5, life: 600 + Math.random() * 400, fromScale: 0.4 + Math.random() * 0.3,
-        toScale: 1.6 + Math.random() * 0.7, spin: (Math.random() - 0.5) * 1.4,
-        tint: Math.random() < 0.5 ? 0x9aa4b4 : 0x848e9c, blend: 'normal', peakAlpha: 0.3,
       });
     }
   }
@@ -1865,36 +1774,41 @@ class FxController {
       this.rebuildRibbon(td.g, pts, td.cfg, fade);
     }
 
+    // Pulse blasts: emit each ring as its stagger time elapses; retire once all rings emitted + last life done.
+    for (let i = this.pulses.length - 1; i >= 0; i--) {
+      const p = this.pulses[i]!;
+      p.age += dtMs;
+      while (p.ringsSpawned < p.cfg.ringCount && p.age >= p.ringsSpawned * p.cfg.ringStaggerMs) {
+        this.spawnPulseRing(p, p.ringsSpawned);
+        p.ringsSpawned++;
+      }
+      const lastRingBorn = (p.cfg.ringCount - 1) * p.cfg.ringStaggerMs;
+      const ringLife = p.cfg.ringMs / (p.cfg.ringSpeed > 0 ? p.cfg.ringSpeed : 1);
+      if (p.ringsSpawned >= p.cfg.ringCount && p.age >= lastRingBorn + ringLife) {
+        this.pulses.splice(i, 1); // the spawned ring particles finish on their own in the pool
+      }
+    }
+
     // Persistent shield bubbles: advance the slow breathe + grow-in/fade, and sit on each unit's rect.
     for (const [uid, b] of this.shields) {
       b.age += dtMs;
       // Live-track the card in THIS frame (after GSAP's lunge/recoil transform) so the aura never trails it.
       if (b.track) { const r = b.track(); if (r) { b.cx = r.cx; b.cy = r.cy; b.w = r.w; b.h = r.h; b.rot = r.rot; } }
       else b.rot = 0;
-      // grow-in (gain) and optional fade-out (graceful clear). Taunt "deploys" RIGID — it grows out to full
-      // width and LOCKS (it's metal: no overshoot, no bob); shield/reborn fade in + settle gently.
-      const tcfg = b.kind === 'taunt' ? getTauntConfig() : null;
-      const formT = Math.min(1, b.formIn / (tcfg ? tcfg.deployMs : FORM_MS));
+      // grow-in (gain) and optional fade-out (graceful clear): shield/reborn fade in + settle gently.
+      const formT = Math.min(1, b.formIn / FORM_MS);
       b.formIn += dtMs;
-      let life: number;
-      let extraScale: number;
-      if (b.kind === 'taunt') {
-        const inv = 1 - formT;
-        extraScale = 1 - inv * inv * inv * inv;                 // ease-out-quart: 0 → 1, fast then locks at max (no overshoot)
-        life = Math.min(1, formT * 3.5);                        // snap into view fast (deploy from nothing)
-      } else {
-        const formEase = 1 - (1 - formT) * (1 - formT);
-        life = formEase;                                        // overall opacity envelope
-        extraScale = 1 + (1 - formEase) * 0.16;                 // start a touch large, settle
-      }
+      const formEase = 1 - (1 - formT) * (1 - formT);
+      let life = formEase;                                      // overall opacity envelope
+      const extraScale = 1 + (1 - formEase) * 0.16;             // start a touch large, settle
       if (b.fadeOut >= 0) {
         const fT = Math.min(1, b.fadeOut / FADE_MS);
         b.fadeOut += dtMs;
         life *= 1 - fT;
         if (fT >= 1) { b.shader.destroy(); b.container.destroy({ children: true }); this.shields.delete(uid); continue; }
       }
-      // a subtle container size-breathe — REBORN only. The divine shield and the taunt bulwark hold a steady
-      // size (the shield's colour/energy pulse, owned by the shader, still breathes); only the wispy reborn bobs.
+      // a subtle container size-breathe — REBORN only. The divine shield holds a steady size (its colour/energy
+      // pulse, owned by the shader, still breathes); only the wispy reborn bobs.
       const breatheScale = b.kind === 'reborn' ? 1 + Math.sin((b.age / BREATHE_MS) * Math.PI * 2) * 0.04 : 1;
       // drag-mini / placement-pop size: the pop drives an ease-out-back overshoot from mini → full; otherwise
       // the size eases toward its target (full=1, dragging=MINI_SCALE) so pickup/drop shrink+grow smoothly.
@@ -1910,12 +1824,12 @@ class FxController {
         b.scaleMul += (target - b.scaleMul) * Math.min(1, dt * 14);
       }
       // fit the BUBBLE_TEX_R quad to the unit footprint (non-uniform → ellipse), per-kind margin
-      const margin = tcfg ? tcfg.margin : AURA[b.kind].margin;
+      const margin = AURA[b.kind].margin;
       const sx = (b.w * 0.5 * margin) / BUBBLE_TEX_R;
       const sy = (b.h * 0.5 * margin) / BUBBLE_TEX_R;
       const grow = breatheScale * extraScale * b.scaleMul;
-      b.container.x = b.cx + (tcfg ? tcfg.offsetX : 0); // taunt: live nudge from the DEV tuner
-      b.container.y = b.cy + (tcfg ? tcfg.offsetY : 0);
+      b.container.x = b.cx;
+      b.container.y = b.cy;
       b.container.scale.set(sx * grow, sy * grow);
       b.container.rotation = b.rot; // ride the card's lunge tilt (0 for non-tracked / recruit auras)
       b.container.alpha = life; // form-in / fade / mini envelope; the shader owns its internal opacity
@@ -1923,18 +1837,6 @@ class FxController {
       const u = (b.shader.resources.shieldUniforms as { uniforms: Record<string, number | Float32Array> }).uniforms;
       u.uTime = b.age / 1000;
       u.uAspect = b.w / Math.max(1, b.h);
-      // Taunt: push the live config into the shape/look uniforms each frame, so DEV tuner edits show instantly.
-      if (tcfg) {
-        const col = u.uColor as Float32Array;
-        col[0] = tcfg.colorR; col[1] = tcfg.colorG; col[2] = tcfg.colorB;
-        u.uTopY = tcfg.topY;
-        u.uBotY = tcfg.botY;
-        u.uHalfW = tcfg.halfW;
-        u.uWidthPow = tcfg.widthPow;
-        u.uRimW = tcfg.rimW;
-        u.uGemSize = tcfg.gemSize;
-        u.uGlintSpeed = tcfg.glintSpeed;
-      }
     }
   };
 
@@ -2053,25 +1955,12 @@ export const pixiFx = new FxController();
  *  canvas; attached when Discover opens, its canvas re-appended on each subsequent open. */
 export const discoverFx = new FxController();
 
-/** The Taunt bulwark layer — a third independent FX instance whose canvas mounts INSIDE the board, behind
- *  the card rows, so the silver heater shield renders BEHIND the cards (unlike the front-layer divine
- *  shield / reborn auras, which sit over them). Taunt auras route here via `setShield(uid, …, 'taunt')`. */
-export const tauntFx = new FxController();
-
 // DEV: expose for live effect tuning + manual firing from the console (mirrors the LungeTuner /
 // SfxMixer dev affordances). Stripped from production by the static env check.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
-  const w = window as unknown as { __pixiFx: FxController; __discoverFx: FxController; __tauntFx: FxController; __shieldDemo: (loops?: number) => void; __tauntDemo: () => void };
+  const w = window as unknown as { __pixiFx: FxController; __discoverFx: FxController; __shieldDemo: (loops?: number) => void };
   w.__pixiFx = pixiFx;
   w.__discoverFx = discoverFx;
-  w.__tauntFx = tauntFx;
-  // DEV: deploy a Taunt bulwark behind a card-sized footprint at screen center (on the back layer), so the
-  // silver shield + deploy thwap can be eyeballed/tuned. Clears after a few seconds.
-  w.__tauntDemo = (): void => {
-    const cx = window.innerWidth / 2, cy = window.innerHeight / 2, cw = 150, ch = 190;
-    tauntFx.setShield('__taunt', cx, cy, cw, ch, false, 'taunt');
-    window.setTimeout(() => tauntFx.clearShield('__taunt', 'taunt'), 4000);
-  };
   // DEV: drop a shield bubble at screen center (card-sized), hold it, then break it — repeats `loops`
   // times so the bubble look + the crack/explosion can be eyeballed and tuned without a real combat.
   w.__shieldDemo = (loops = 3): void => {

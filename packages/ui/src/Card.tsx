@@ -178,8 +178,10 @@ export const Card = memo(function Card({
    *  *officially* fires (a Deathrattle, a Battlecry, a cadence card paying off, …). */
   pulse?: boolean;
   /** Pulse the trigger medallion YELLOW — a Rally fired as this unit attacks. Same ring as `pulse`, forced
-   *  yellow; takes precedence over `pulse`. */
-  pulseRally?: boolean;
+   *  yellow; takes precedence over `pulse`. A per-fire NONCE (truthy = pulsing): it's used as the medallion's
+   *  `key` so the element remounts each Rally and the CSS pulse restarts, even when `.pulsing` is already on
+   *  from the unit's own trigger glow (a plain class re-add wouldn't replay the animation). */
+  pulseRally?: number;
   /** Glow the trigger medallion only (no ring) — a multi-turn mechanic made *progress* this turn but
    *  hasn't officially fired yet (e.g. Frontdrake ticking toward its every-3-turns grant). */
   glow?: boolean;
@@ -342,8 +344,8 @@ export const Card = memo(function Card({
       {card.castMult !== undefined && card.castMult > 1 && (
         <span className="castmult" aria-hidden="true">×{card.castMult}</span>
       )}
-      {/* Divine Shield, Reborn, and Taunt all signify via their Pixi AURA (driven from `.card.dscard` /
-          `.card.reborncard` / `.card.taunt` in Recruit) — no badge/glow here. */}
+      {/* Divine Shield and Reborn signify via their Pixi AURA (driven from `.card.dscard` / `.card.reborncard`
+          in Recruit); Taunt signifies via the static grey `.card.taunt` border (styles.css) — no badge/glow here. */}
       {card.keywords.includes('V') && (
         <span className="kwward venom" aria-hidden="true"><Icon name="poison" /></span>
       )}
@@ -376,7 +378,7 @@ export const Card = memo(function Card({
             <span className={`atk${statCls(card.attack, card.baseAttack, card.floorAttack)}${card.flashAtk ? ' statflash' : ''}`}>{card.attack}</span>
             <span className={`hp${statCls(card.health, card.baseHealth, card.floorHealth)}${card.flashHp ? ' statflash' : ''}`}>{card.health}</span>
             {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre */}
-            <span className={`cgem${pulseRally ? ' pulsing rally' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true"><Icon name={mechIcon} /></span>
+            <span key={`cgem-${pulseRally ?? 0}`} className={`cgem${pulseRally ? ' pulsing rally' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true"><Icon name={mechIcon} /></span>
           </>
         )}
       </div>

@@ -4,6 +4,7 @@ import type { MomentKind } from './kinds';
 import { playMomentSfx } from './channels/sfx';
 import { spawnFloats, type Float, type DeathFloat } from './channels/float';
 import { groupBuffCasts } from './channels/buffCast';
+import { groupSelfBuffs } from './channels/buffSelf';
 
 /**
  * The Score (choreographer phase 3) — per moment KIND, the ordered cues (channels + when they fire) that a
@@ -15,7 +16,7 @@ import { groupBuffCasts } from './channels/buffCast';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -58,7 +59,7 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   ],
   damage: [...BASE], shieldPop: [...BASE], poisonTick: [...BASE],
   death: [...BASE], riseDeath: [...BASE], scCast: [...BASE],
-  summon: [...BASE], buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }], reborn: withReform(), ascend: [...BASE],
+  summon: [...BASE], buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }], reborn: withReform(), ascend: [...BASE],
   rally: [...BASE], toHand: [...BASE], maxGold: [...BASE], improve: [...BASE],
   keyword: [...BASE], hpGrant: [...BASE], reveal: [...BASE],
 };
@@ -131,6 +132,9 @@ export interface CueContext {
   /** This moment's buff-OTHER casts (source !== target), grouped per (source,target). The replay fires a
    *  tendril per cast (Task 4 adds the held-value release / badge flash at the strike). */
   onBuffCasts: (casts: import('./channels/buffCast').BuffCast[]) => void;
+  /** This moment's SELF-buffs (source === target), grouped per uid. The replay fires a pulse per unit and holds
+   *  then flashes its badge to the new value (Task 6). */
+  onSelfBuffs: (selfBuffs: import('./channels/buffSelf').SelfBuff[]) => void;
 }
 
 /** Run one moment's plain-effect cues (sfx + float + the three aura sub-channels). Each cue fires at
@@ -170,6 +174,10 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     else if (cue.ch === 'buffCast') at(cue, () => {
       const casts = groupBuffCasts(moment, ctx.events);
       if (casts.length) ctx.onBuffCasts(casts);
+    });
+    else if (cue.ch === 'buffSelf') at(cue, () => {
+      const selfBuffs = groupSelfBuffs(moment, ctx.events);
+      if (selfBuffs.length) ctx.onSelfBuffs(selfBuffs);
     });
     // lunge/impact are engine-driven (runAttackExchangeCues) — no-op here, by design.
   }

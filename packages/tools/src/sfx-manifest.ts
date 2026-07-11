@@ -21,8 +21,8 @@ const AUDIO = resolve(ROOT, 'packages/ui/src/audio');
 const cards = [...NEUTRAL, ...BEASTS, ...DRAGONS, ...UNDEAD, ...MECHS, ...DEMONS, ...TOKENS, ...SPELLS] as unknown as ManifestCard[];
 
 // System/UI clips = top-level audio/*.mp3 (the per-card clips live in audio/cards/, a subdir readdir skips).
-// Exclude the spellcast bed — deriveRows emits its own row for it under Spells.
-const systemFiles = readdirSync(AUDIO).filter((f) => f.endsWith('.mp3') && f !== 'spellcast.mp3').sort();
+// Exclude the spell default bed (castspell.mp3) — deriveRows emits its own row for it under Spells.
+const systemFiles = readdirSync(AUDIO).filter((f) => f.endsWith('.mp3') && f !== 'castspell.mp3').sort();
 
 const fresh = deriveRows(cards, HEROES as unknown as ManifestHero[], systemFiles);
 const existingDoc = existsSync(DOC) ? readFileSync(DOC, 'utf8') : '';

@@ -36,7 +36,7 @@ describe('deriveRows', () => {
   it('gives a hero select + power rows, and a spell default bed + system rows', () => {
     expect(byFile('heroes/warden.mp3').trigger).toMatch(/selected/);
     expect(byFile('heroes/warden.power.mp3').trigger).toMatch(/Aegis/);
-    expect(byFile('spellcast.mp3').section).toBe('Spells');
+    expect(byFile('castspell.mp3').section).toBe('Spells');
     expect(byFile('buy1.mp3').section).toBe('System / UI');
     expect(byFile('buy1.mp3').status).toBe('✅');
   });

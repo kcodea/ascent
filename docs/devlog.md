@@ -391,6 +391,8 @@ The naming convention doubles as the wiring contract: minion play/spell cast alr
   main working dir got switched to a concurrent session's branch mid-task; the worktree needed its own
   `npm install` so `@game/*` resolves to its **own** package copies (otherwise cross-package typecheck reads
   the main dir's live, mid-refactor sources through the shared `node_modules`).
+- **Follow-up:** realigned the spell **default bed** filename from `spellcast.mp3` → **`castspell.mp3`** to
+  match the clip `feat/spellcast-sfx` already ships (generator row + prose naming table + regenerated manifest).
 
 ## 2026-07-10 (session 30)
 

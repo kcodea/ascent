@@ -23,7 +23,7 @@ never an error. So this manifest can be filled in gradually, one sound at a time
 | Minion **death** | `audio/cards/<id>.death.mp3` | that minion dies in combat | ⚠️ needs hook |
 | Card **effect** | `audio/cards/<id>.effect.mp3` | signature effect procs (Battlecry in shop, or Deathrattle / Start-of-Combat / trigger in combat) | ⚠️ needs hook |
 | Spell **unique cast** | `audio/cards/<id>.mp3` | spell cast (over default bed) | ✅ yes (spells use `cardVoice`) |
-| Spell **default bed** | `audio/spellcast.mp3` | any spell cast | ⚠️ replace synth `castSpell()` |
+| Spell **default bed** | `audio/castspell.mp3` | any spell cast | ✅ wired on `feat/spellcast-sfx` |
 | Hero **select** | `audio/heroes/<id>.mp3` | hero picked in Hero Select | ⚠️ needs hook |
 | Hero **power** | `audio/heroes/<id>.power.mp3` | that hero's power activates | ⚠️ needs hook |
 
@@ -189,7 +189,7 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/tribeportal.mp3` | Spell cast — unique clip over the default bed | Tribe Portal — spell cast cue (~0.4s). | ⬜ |
 | `cards/tribeschoice.mp3` | Spell cast — unique clip over the default bed | Tribes Choice — spell cast cue (~0.4s). | ⬜ |
 | `cards/undeadarmy.mp3` | Spell cast — unique clip over the default bed | Undead Army — spell cast cue (~0.4s). | ⬜ |
-| `spellcast.mp3` | Default bed under every spell cast | Generic spell whoosh (~0.3s). | ⬜ |
+| `castspell.mp3` | Default bed under every spell cast | Generic spell whoosh (~0.3s). | ⬜ |
 
 ### Neutral (69)
 

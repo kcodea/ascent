@@ -106,7 +106,7 @@ export function deriveRows(cards: ManifestCard[], heroes: ManifestHero[], system
   for (const f of systemFiles) {
     rows.push({ section: 'System / UI', filename: f, trigger: 'Existing UI / system cue', brief: '(shipped)', status: '✅' });
   }
-  rows.push({ section: 'Spells', filename: 'spellcast.mp3', trigger: 'Default bed under every spell cast',
+  rows.push({ section: 'Spells', filename: 'castspell.mp3', trigger: 'Default bed under every spell cast',
     brief: 'Generic spell whoosh (~0.3s).', status: '⬜' });
   for (const h of heroes) rows.push(...heroRows(h));
   for (const c of cards) rows.push(...cardRows(c));

@@ -88,7 +88,7 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `triggerpulse.mp3` | Existing UI / system cue | (shipped) | ✅ |
 | `unfreezetavern.mp3` | Existing UI / system cue | (shipped) | ✅ |
 
-### Heroes (46)
+### Heroes (48)
 
 | Filename | Trigger | Creative brief | Status |
 |---|---|---|---|
@@ -132,6 +132,8 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `heroes/robin.power.mp3` | Robin's power "Spoils" activates | Spoils — hero power cue. | ⬜ |
 | `heroes/rohan.mp3` | Yirin selected in Hero Select | Yirin — hero select cue. | ⬜ |
 | `heroes/rohan.power.mp3` | Yirin's power "Attunement" activates | Attunement — hero power cue. | ⬜ |
+| `heroes/runeguard.mp3` | Runeguard selected in Hero Select | Runeguard — hero select cue. | ⬜ |
+| `heroes/runeguard.power.mp3` | Runeguard's power "Defend the Forge" activates | Defend the Forge — hero power cue. | ⬜ |
 | `heroes/runesmith.mp3` | Runesmith selected in Hero Select | Runesmith — hero select cue. | ⬜ |
 | `heroes/runesmith.power.mp3` | Runesmith's power "Runeforge" activates | Runeforge — hero power cue. | ⬜ |
 | `heroes/soren.mp3` | Soren selected in Hero Select | Soren — hero select cue. | ⬜ |
@@ -573,7 +575,7 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/trickster.effect.mp3` | Deathrattle procs (shop or combat) | Trickster — Deathrattle proc cue (~0.4s). | ⬜ |
 | `cards/trickster.mp3` | Played to the board (over the landing bed) | Trickster — play cue (~0.4s). | ⬜ |
 
-### Tokens (96)
+### Tokens (102)
 
 | Filename | Trigger | Creative brief | Status |
 |---|---|---|---|
@@ -601,6 +603,9 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/echowarden.death.mp3` | Dies in combat (over the death bed) | Echo Warden — death cue (~0.4s). | ⬜ |
 | `cards/echowarden.effect.mp3` | Vanilla — no effect to proc | (vanilla — no clip needed) | ➖ |
 | `cards/echowarden.mp3` | Played to the board (over the landing bed) | Echo Warden — play cue (~0.4s). | ⬜ |
+| `cards/feastingbogrot.death.mp3` | Dies in combat (over the death bed) | Feasting Bogrot — death cue (~0.4s). | ⬜ |
+| `cards/feastingbogrot.effect.mp3` | endOfTurn procs (shop or combat) | Feasting Bogrot — endOfTurn proc cue (~0.4s). | ⬜ |
+| `cards/feastingbogrot.mp3` | Played to the board (over the landing bed) | Feasting Bogrot — play cue (~0.4s). | ⬜ |
 | `cards/footman.death.mp3` | Dies in combat (over the death bed) | Footman — death cue (~0.4s). | ⬜ |
 | `cards/footman.effect.mp3` | Vanilla — no effect to proc | (vanilla — no clip needed) | ➖ |
 | `cards/footman.mp3` | Played to the board (over the landing bed) | Footman — play cue (~0.4s). | ⬜ |
@@ -634,6 +639,9 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/pup.death.mp3` | Dies in combat (over the death bed) | Pup — death cue (~0.4s). | ⬜ |
 | `cards/pup.effect.mp3` | Vanilla — no effect to proc | (vanilla — no clip needed) | ➖ |
 | `cards/pup.mp3` | Played to the board (over the landing bed) | Pup — play cue (~0.4s). | ⬜ |
+| `cards/reconfiguredcombinator.death.mp3` | Dies in combat (over the death bed) | Reconfigured Combinator — death cue (~0.4s). | ⬜ |
+| `cards/reconfiguredcombinator.effect.mp3` | battlecryTriggered procs (shop or combat) | Reconfigured Combinator — battlecryTriggered proc cue (~0.4s). | ⬜ |
+| `cards/reconfiguredcombinator.mp3` | Played to the board (over the landing bed) | Reconfigured Combinator — play cue (~0.4s). | ⬜ |
 | `cards/runmaw.death.mp3` | Dies in combat (over the death bed) | Run Maw — death cue (~0.4s). | ⬜ |
 | `cards/runmaw.effect.mp3` | Start-of-Combat procs (shop or combat) | Run Maw — Start-of-Combat proc cue (~0.4s). | ⬜ |
 | `cards/runmaw.mp3` | Played to the board (over the landing bed) | Run Maw — play cue (~0.4s). | ⬜ |

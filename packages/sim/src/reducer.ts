@@ -1,4 +1,4 @@
-import { makeRng, simulate, type BoardMinion, type CardDef, type CombatResult, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { makeRng, simulate, type BoardMinion, type CardDef, type CombatResult, type EnemyScalers, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, SPELL_CARDS } from '@game/content';
 import { CONFIG } from './config';
 import { accumulateContribution, tallyCombat } from './contribution';
@@ -1071,14 +1071,14 @@ function reduceCore(state: RunState, action: Action): RunState {
         const d = CARD_INDEX[id];
         return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast');
       }).length;
-      const resolveCombatVs = (enemy: BoardMinion[], enemyTier: number): CombatResult => {
-        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, (s.attackFirstNext ?? false) || !!s.questFlags?.runeForthcoming, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0, questCombatMods(s));
+      const resolveCombatVs = (enemy: BoardMinion[], enemyTier: number, enemyScalers: EnemyScalers = {}): CombatResult => {
+        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, (s.attackFirstNext ?? false) || !!s.questFlags?.runeForthcoming, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0, questCombatMods(s), enemyScalers);
         combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
         let win = 0, draw = 0, lose = 0, lossDamageTotal = 0;
         const cap = lossDamageCap(s.wave);
         const ODDS_SIMS = 1000;
         for (let i = 0; i < ODDS_SIMS; i++) {
-          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, (s.attackFirstNext ?? false) || !!s.questFlags?.runeForthcoming, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0, questCombatMods(s));
+          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, (s.attackFirstNext ?? false) || !!s.questFlags?.runeForthcoming, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0, questCombatMods(s), enemyScalers);
           if (r.result === 'win') win++;
           else if (r.result === 'draw') draw++;
           else { lose++; lossDamageTotal += Math.min(r.playerDamage, cap); } // round-capped, as a real loss would be
@@ -1090,9 +1090,21 @@ function reduceCore(state: RunState, action: Action): RunState {
       // slips through, serving it must NEVER hard-lock End Turn (the old "froze on End of Turn" bug — the
       // throw escaped into the UI's end-of-turn timer and the phase never flipped to combat). So fall back to
       // the procedural threat on any serve-time failure: combat ALWAYS resolves.
+      // The served board's run-level scalers (spell power / Deathrattle tally / spells / Beasts played this turn)
+      // — so its Grim / Taragosa / Pack Leader / Runescale fights + reads at the OPPONENT's value, not ours.
+      // The procedural threat has none (a synthetic foe with no run economy → the printed base is correct).
+      const servedScalers: EnemyScalers = served
+        ? {
+            spellPowerAtk: served.spellPower?.attack ?? 0,
+            spellPowerHp: served.spellPower?.health ?? 0,
+            spellsThisTurn: served.spellsThisTurn ?? 0,
+            beastsPlayed: served.beastsPlayed ?? 0,
+            deathrattles: served.deathrattles ?? 0,
+          }
+        : {};
       try {
         const e = served ? { enemy: opponentBoard(served), tier: served.tier ?? s.tier } : proceduralEnemy();
-        s.lastCombat = resolveCombatVs(e.enemy, e.tier);
+        s.lastCombat = resolveCombatVs(e.enemy, e.tier, served ? servedScalers : {});
       } catch {
         const e = proceduralEnemy();
         s.lastCombat = resolveCombatVs(e.enemy, e.tier);

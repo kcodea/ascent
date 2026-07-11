@@ -58,6 +58,23 @@ describe('board snapshot + replay', () => {
     expect(snap.minions.find((m) => m.cardId === 'tara')?.ascendProgress).toBe(15);
   });
 
+  it('snapshotBoard captures the run-LEVEL scalers (spell power / Deathrattles / spells / Beasts played)', () => {
+    // So a served opponent's Grim / Taragosa / Pack Leader / Runescale fights + reads at the value THIS run had.
+    const s: RunState = {
+      ...createRun(1), spellBonus: { attack: 2, health: 1 }, deathrattlesTriggered: 4, spellsThisTurn: 3,
+      playedThisTurn: ['alley'], // a Beast → beastsPlayed 1
+      board: [{ uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    const snap = snapshotBoard(s);
+    expect(snap.spellPower).toEqual({ attack: 2, health: 1 });
+    expect(snap.deathrattles).toBe(4);
+    expect(snap.spellsThisTurn).toBe(3);
+    expect(snap.beastsPlayed).toBe(1);
+    const plain = snapshotBoard({ ...createRun(1), board: [{ uid: 'p', cardId: 'pack', tribe: 'beast', attack: 3, health: 4, keywords: [], golden: false }] });
+    expect(plain.spellPower).toBeUndefined(); // a plain run omits them all (absent → 0 downstream)
+    expect(plain.deathrattles).toBeUndefined();
+  });
+
   it('snapshotBoard captures the per-source buff breakdown (for the inspect panel), cloned from the board', () => {
     const buffs = [{ source: 'Spirit Fire', attack: 6, health: 6, count: 2 }];
     const s: RunState = {

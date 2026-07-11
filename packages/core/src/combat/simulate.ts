@@ -5,6 +5,7 @@ import type {
   CombatEvent,
   CombatOutcome,
   CombatResult,
+  EnemyScalers,
   EffectDef,
   Keyword,
   Minion,
@@ -56,6 +57,10 @@ export function simulate(
   magneticBuyAtk = 0,
   magneticBuyHp = 0,
   questMods: QuestCombatMods = {},
+  /** The ENEMY board's run-level scalers, captured in its board snapshot — so an enemy Grim / Taragosa /
+   *  Pack Leader / Runescale scales with the OPPONENT's values, not the current player's. All default 0
+   *  (procedural threat / legacy boards), which is also correct for a synthetic foe with no run economy. */
+  enemyScalers: EnemyScalers = {},
 ): CombatResult {
   // Beast Attack aura, mutable so The Old Hunt (questMods.oldHuntStep) can pump it live as Beasts attack —
   // later from-base Beast bodies (summons / Reborn) then inherit the grown value. Its Health sibling
@@ -328,6 +333,13 @@ export function simulate(
   // bump it IN PLACE via grantSpellPower — so Taragosa's Growth and any spell cast later this fight read the
   // gain in real time, not just at settle. `spellPowerGain` is the separate carry-back delta.
   const spellPower = { attack: spellPowerAtk, health: spellPowerHp };
+  // The enemy board's run-level scalers (from its snapshot) — static: enemies have no run economy and never
+  // gain spell power mid-fight. Effects on the enemy side read these via the per-side accessors below, so an
+  // enemy Taragosa/Grim/Pack Leader/Runescale scales with the OPPONENT's values, not the current player's.
+  const enemySpellPower = { attack: enemyScalers.spellPowerAtk ?? 0, health: enemyScalers.spellPowerHp ?? 0 };
+  const enemySpellsThisTurn = enemyScalers.spellsThisTurn ?? 0;
+  const enemyBeastsPlayed = enemyScalers.beastsPlayed ?? 0;
+  const enemyDeathrattles = enemyScalers.deathrattles ?? 0;
 
   const ctx: CombatContext = {
     rng,
@@ -337,9 +349,13 @@ export function simulate(
     spellsThisTurn,
     beastsPlayedThisTurn,
     spellPower,
+    enemySpellPower,
+    spellPowerFor: (side) => (side === 'player' ? spellPower : enemySpellPower),
+    spellsThisTurnFor: (side) => (side === 'player' ? spellsThisTurn : enemySpellsThisTurn),
+    beastsPlayedFor: (side) => (side === 'player' ? beastsPlayedThisTurn : enemyBeastsPlayed),
     fodderConsumedAtk,
     fodderConsumedHp,
-    deathrattleTally: () => deathrattlesBase + playerDeathrattles,
+    deathrattleTally: (side) => (side === 'player' ? deathrattlesBase + playerDeathrattles : enemyDeathrattles),
     log: (event) => {
       emit(event);
     },
@@ -1613,5 +1629,11 @@ export function simulate(
     playerUndeadAuraGain: undeadAuraGain.attack > 0 || undeadAuraGain.health > 0 ? undeadAuraGain : undefined,
     playerImpBuffGain: impBuffGain.attack > 0 || impBuffGain.health > 0 ? impBuffGain : undefined,
     playerFodderBuffGain: fodderBuffGain.attack > 0 || fodderBuffGain.health > 0 ? fodderBuffGain : undefined,
+    // Enemy run-level scalers so the UI can render an enemy Grim/Taragosa/Pack Leader/Runescale at the
+    // OPPONENT's value. Present only when the enemy actually had a nonzero scaler (else the card's base text
+    // is already accurate → the UI's player-side fallback is fine).
+    enemyScalers: (enemySpellPower.attack || enemySpellPower.health || enemySpellsThisTurn || enemyBeastsPlayed || enemyDeathrattles)
+      ? { spellPower: { ...enemySpellPower }, spellsThisTurn: enemySpellsThisTurn, beastsPlayed: enemyBeastsPlayed, deathrattles: enemyDeathrattles }
+      : undefined,
   };
 }

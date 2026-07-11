@@ -15,6 +15,7 @@ import { CARD_INDEX } from '@game/content';
 import { HEROES } from './heroes';
 import { createRun, type Action, type RunState, type ShopCard } from './state';
 import { reduce } from './reducer';
+import { spellAttackBonus, spellHealthBonus } from './recruit';
 import type { ThreatId } from './threats';
 
 /** Where a pool board came from. 'self' = your own captured run; 'friend' = a friend's imported board;
@@ -79,6 +80,14 @@ export interface BoardSnapshot {
    *  board), unlike `power`. Baked by `npm run pool`; the basis for pool curation / pruning weak boards.
    *  Optional (legacy/runtime boards may lack it). */
   rating?: number;
+  /** The owner's run-LEVEL combat scalers at capture — so when this board is served as an opponent, its
+   *  Grim / Taragosa / Watcher / Hoardbreaker / Pack Leader / Runescale scale with the value THIS run had, not
+   *  the current player's (threaded per-side into `simulate` as `enemyScalers`). All optional / omitted when 0;
+   *  legacy + procedural boards lack them → treated as 0 (the card's printed base, which is then accurate). */
+  spellPower?: { attack: number; health: number }; // hero amplify + card spell bonus (Taragosa/Watcher/Hoardbreaker)
+  deathrattles?: number; // Deathrattles triggered this game so far (Grim)
+  spellsThisTurn?: number; // spells cast this recruit turn (Runescale Drake)
+  beastsPlayed?: number; // Beasts played this recruit turn (Pack Leader)
 }
 
 /**
@@ -162,6 +171,16 @@ function cleanBoard(s: RunState): BoardMinion[] {
  */
 export function snapshotBoard(s: RunState): BoardSnapshot {
   const minions = cleanBoard(s);
+  // Run-LEVEL combat scalers at capture, so a served opponent's Grim / Taragosa / Pack Leader / Runescale
+  // scales with the value THIS run had (threaded per-side into simulate as `enemyScalers`). Beasts-played
+  // mirrors the reducer's own combat derivation (playedThisTurn, filtered to Beasts). Each field is omitted
+  // when 0 so plain boards stay lean and legacy captures (no field → 0) read the card's accurate printed base.
+  const spellPowerAtk = spellAttackBonus(s);
+  const spellPowerHp = spellHealthBonus(s);
+  const beastsPlayed = (s.playedThisTurn ?? []).filter((id) => {
+    const d = CARD_INDEX[id];
+    return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast');
+  }).length;
   return {
     v: 1,
     wave: s.wave,
@@ -177,6 +196,10 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     power: sumPower(minions),
     minions,
     seed: s.seed,
+    ...(spellPowerAtk || spellPowerHp ? { spellPower: { attack: spellPowerAtk, health: spellPowerHp } } : {}),
+    ...(s.deathrattlesTriggered ? { deathrattles: s.deathrattlesTriggered } : {}),
+    ...(s.spellsThisTurn ? { spellsThisTurn: s.spellsThisTurn } : {}),
+    ...(beastsPlayed ? { beastsPlayed } : {}),
   };
 }
 

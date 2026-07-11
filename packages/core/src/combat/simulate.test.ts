@@ -2915,3 +2915,38 @@ describe('Rune of the Warden (Start of Combat: summon a Spear Warden if there is
     expect(r.events.some((ev) => ev.type === 'summon' && ev.minion?.cardId === 'knit')).toBe(false);
   });
 });
+
+describe('enemy run-level scalers (per-side)', () => {
+  // Full positional call so we can pass the PLAYER scalers (spellsThisTurn / beastsPlayedThisTurn) AND the
+  // ENEMY's captured scalers (last arg) independently — proving an enemy scaling card reads its OWN value.
+  const runVs = (
+    p: BoardMinion[], e: BoardMinion[],
+    enemyScalers: { spellsThisTurn?: number; beastsPlayed?: number; deathrattles?: number; spellPowerAtk?: number; spellPowerHp?: number },
+    player: { spellsThisTurn?: number; beastsPlayed?: number } = {},
+  ) =>
+    simulate(p, e, makeRng(1), CARD_INDEX,
+      player.spellsThisTurn ?? 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false,
+      player.beastsPlayed ?? 0, 0, 0, 0, {}, enemyScalers);
+  // Only the enemy scaling card buffs in these setups (the player is a vanilla wall), so the biggest buff
+  // Attack across the log IS that card's grant.
+  const maxBuffAtk = (evs: CombatEvent[]): number =>
+    evs.reduce((mx, ev) => (ev.type === 'buff' && ev.attack > mx ? ev.attack : mx), 0);
+  const wall: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 40, keywords: [] }];
+
+  it('enemy Pack Leader scales with the OPPONENT’s Beasts-played, and never leeches the current player’s', () => {
+    const enemy: BoardMinion[] = [{ cardId: 'packleader', attack: 6, health: 6, keywords: [] }];
+    const g = (enemyBeasts: number, playerBeasts: number) =>
+      maxBuffAtk(runVs(wall, enemy, { beastsPlayed: enemyBeasts }, { beastsPlayed: playerBeasts }).events);
+    expect(g(3, 0)).toBe(2 + 2 * 3); // base 2 + perPlayed 2 × its own 3 = +8/+8 (buffs itself, a Beast)
+    expect(g(3, 0)).toBeGreaterThan(g(1, 0)); // scales with ITS beasts-played
+    expect(g(0, 5)).toBe(g(0, 0)); // and does NOT leech the player's 5 (would be +12 if it did)
+  });
+
+  it('enemy Runescale Drake scales with the OPPONENT’s spells-this-turn, not the current player’s', () => {
+    const enemy: BoardMinion[] = [{ cardId: 'runescale', attack: 6, health: 6, keywords: [] }];
+    const g = (enemySpells: number, playerSpells: number) =>
+      maxBuffAtk(runVs(wall, enemy, { spellsThisTurn: enemySpells }, { spellsThisTurn: playerSpells }).events);
+    expect(g(3, 0)).toBe(2 + 1 * 3); // base 2 + perSpell 1 × its own 3 = +5/+5
+    expect(g(0, 5)).toBe(g(0, 0)); // does NOT leech the player's spells-this-turn
+  });
+});

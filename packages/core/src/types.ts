@@ -871,9 +871,25 @@ export type CombatEvent = (
 
 export type CombatOutcome = 'win' | 'lose' | 'draw';
 
+/** The ENEMY board's run-level combat scalers, captured in its board snapshot and threaded into `simulate`
+ *  so an enemy Grim / Taragosa / Watcher / Hoardbreaker / Pack Leader / Runescale scales with the OPPONENT's
+ *  values, not the current player's. All optional (default 0 — procedural threat / legacy boards). */
+export interface EnemyScalers {
+  spellPowerAtk?: number;
+  spellPowerHp?: number;
+  spellsThisTurn?: number;
+  beastsPlayed?: number;
+  deathrattles?: number;
+}
+
 export interface CombatResult {
   events: CombatEvent[];
   result: CombatOutcome;
+  /** The enemy board's run-level scalers at combat start (from its snapshot) — so the UI can render an ENEMY
+   *  Grim / Taragosa / Pack Leader / Runescale card at the OPPONENT's value, not the current player's. Absent
+   *  for the procedural threat / when nothing scaled. Mirrors the values threaded into `simulate` as
+   *  `enemyScalers` and used per-side by the combat effects. */
+  enemyScalers?: { spellPower: { attack: number; health: number }; spellsThisTurn: number; beastsPlayed: number; deathrattles: number };
   /** Resolve the player loses on defeat (handoff A.3 step 9). 0 otherwise. */
   playerDamage: number;
   /** Player-side Deathrattles that fired this combat — the run loop accumulates these into the run-wide
@@ -992,16 +1008,29 @@ export interface CombatContext {
   readonly bus: CombatBus;
   readonly boards: Record<Side, Minion[]>;
   readonly events: CombatEvent[];
-  /** Spells cast this turn (recruit), frozen at combat start — scales Runescale Drake's Start-of-Combat buff. */
+  /** Spells cast this turn (recruit) for the PLAYER, frozen at combat start. Prefer `spellsThisTurnFor(side)`
+   *  so an ENEMY Runescale Drake scales with the OPPONENT's spells (captured in its board snapshot), not yours. */
   readonly spellsThisTurn: number;
-  /** Beasts you PLAYED this turn (recruit), frozen at combat start — scales Pack Leader's Start-of-Combat buff. */
+  /** Beasts the PLAYER played this turn (recruit), frozen at combat start. Prefer `beastsPlayedFor(side)` so an
+   *  ENEMY Pack Leader scales with the OPPONENT's Beasts-played. */
   readonly beastsPlayedThisTurn: number;
-  /** The run's spell power at combat start ({attack, health} — hero amplify + card spell bonus). Taragosa's
-   *  Growth is a real spell cast, so it inherits this just like a shop-cast Growth does. */
+  /** The PLAYER's live spell power ({attack, health}) — grows in place via `grantSpellPower`. Prefer
+   *  `spellPowerFor(side)` for effects on either board; an ENEMY Taragosa/Watcher/Hoardbreaker must scale with
+   *  the OPPONENT's captured spell power (`enemySpellPower`), not the current player's. */
   readonly spellPower: { attack: number; health: number };
-  /** Deathrattles triggered this game so far: the run-wide base (passed in) + this combat's player
-   *  Deathrattles. Grim scales its buff by this. */
-  deathrattleTally(): number;
+  /** The enemy board's spell power at combat start ({attack, health}), from its board snapshot — static
+   *  (enemies never gain spell power mid-fight). 0 for the procedural threat / legacy boards. */
+  readonly enemySpellPower: { attack: number; health: number };
+  /** Per-side spell power: the player's live value, or the enemy's captured value. Use this in any combat
+   *  effect that casts a spell / folds spell power, keyed on the acting minion's `side`. */
+  spellPowerFor(side: Side): { attack: number; health: number };
+  /** Per-side "spells cast this turn" — player's, or the opponent's captured value. */
+  spellsThisTurnFor(side: Side): number;
+  /** Per-side "Beasts played this turn" — player's, or the opponent's captured value. */
+  beastsPlayedFor(side: Side): number;
+  /** Deathrattles triggered this game so far, for `side`: for the PLAYER the run-wide base + this combat's
+   *  player Deathrattles; for the ENEMY the opponent's captured tally. Grim scales its buff by this. */
+  deathrattleTally(side: Side): number;
   log(event: CombatEvent): void;
   living(side: Side): Minion[];
   getCard(id: string): CardDef;

@@ -228,37 +228,6 @@ the shipped tendril handler, but a focused-tab visual check is a recommended fol
 styles (the `style` seam is ready); recruit-phase hero-power/spell pulses (a different, shop-phase code path);
 a dedicated neutral preset.
 
-## 2026-07-11 (session 31)
-
-### fix: combat state accuracy — served enemies keep their accruals; Runescale/Hoardbreaker live text
-
-Combat-state pass (part 1). Two gaps made combat cards show stale/base numbers instead of their real live values.
-
-**1. Served opponents dropped their per-minion accruals (the visible bug).** `opponentBoard` (opponents.ts)
-reconstructed a served enemy board copying only `cardId/attack/health/keywords/golden/summonBonus` — it silently
-dropped `hpGrantBonus`, `ascendProgress`, `spellProgress`, `overflowBonus`, `rallyMechAtk`, `rallySpellWeld`, and the
-`buffs` inspect breakdown, even though `cleanBoard` *persists* them into the snapshot and `instantiate` (minion.ts)
-*reads* them. So a served **Sergeant** that had grown its Deathrattle HP-grant during its owner's run showed the
-printed base **+2 Health** and fought weaker than the real board; same for Tara (ascend), Guel (spell tally), Flowing
-Monk (triple bonus), and welded Better Bot / Perfect Core Rally. Fixed by restoring **every** accrual in
-`opponentBoard`, symmetric with `cleanBoard`. Also taught `cleanBoard` to persist `spellProgress` + `overflowBonus`
-(it already saved the others) so Guel/Monk are captured too. Net: a served enemy is now as strong AND reads as
-accurately as the board it was captured from — the card shows the value it had in its owner's game.
-
-**2. Two scaling cards weren't wired into the combat live-text chain.** **Runescale Drake** (`scTribeBuffPerSpellText`,
-Start-of-Combat Dragon buff per spell cast) had a helper used in the shop but was never called in `Unit.tsx`, so it
-showed base +2/+2 mid-fight. **Hoardbreaker Drake** (`onKillCastSpell` → Growth + spell power) had *no* helper — its
-+3/+4 went stale whenever spell power > 0, on every surface. Added a generic `combatCastGrantText` (mirrors the sim's
-`(base + spellPower) × golden`) and wired both cards into the combat chain (`Unit.tsx`) and the shop chain
-(`instView.ts`).
-
-**Known follow-up (part 2):** run-LEVEL scalers still read the *current player's* run state for both boards — spell
-power (Taragosa/Watcher/Hoardbreaker), Deathrattle tally (Grim), per-turn tallies (Pack Leader). Making an enemy show
-the *opponent's* value at capture time needs those run-level values snapshotted + threaded per-side through the sim
-(determinism-locked math + a pool regen). Scoped as its own PR.
-
-**Verified:** `typecheck + lint + test` (888) & `build:web` green. New tests: `opponentBoard` round-trips all six
-accruals (cloned, not shared); `combatCastGrantText` scales Hoardbreaker's Growth by spell power (golden ×2).
 ### feat: sourced "spell cast" SFX when a spell is played from hand
 
 **What:** replaced the synth-only `sfx.castSpell` placeholder with a real sourced clip (owner-provided
@@ -358,6 +327,56 @@ Touches `useCombatReplay.ts` (gate + nonce state), `Recruit.tsx` (pass the nonce
 live in a real fight — every rally unit flashes gold on the wind-up, on every swing. The wind-up hold stays
 the tuned 440 ms (`RALLY_PAUSE_MS`); revisit whether it should explicitly wait on the rally's downstream
 effects if the beat ever feels rushed.
+
+
+## 2026-07-11 (session 31)
+
+### fix: combat state accuracy — enemy + player cards read their REAL live values (both boards)
+
+Combat-state pass. Combat cards showed stale/base numbers instead of their real live values — worst on the ENEMY
+board, where a served Sergeant read "+2 Health" no matter how far its owner had grown it. Three fixes, both boards.
+
+**1. Served opponents dropped their per-minion accruals (the visible bug).** `opponentBoard` (opponents.ts)
+reconstructed a served enemy board copying only `cardId/attack/health/keywords/golden/summonBonus` — it silently
+dropped `hpGrantBonus`, `ascendProgress`, `spellProgress`, `overflowBonus`, `rallyMechAtk`, `rallySpellWeld`, and the
+`buffs` inspect breakdown, even though `cleanBoard` *persists* them into the snapshot and `instantiate` (minion.ts)
+*reads* them. So a served **Sergeant** that had grown its Deathrattle HP-grant during its owner's run showed the
+printed base **+2 Health** and fought weaker than the real board; same for Tara (ascend), Guel (spell tally), Flowing
+Monk (triple bonus), and welded Better Bot / Perfect Core Rally. Fixed by restoring **every** accrual in
+`opponentBoard`, symmetric with `cleanBoard`. Also taught `cleanBoard` to persist `spellProgress` + `overflowBonus`
+(it already saved the others) so Guel/Monk are captured too. Net: a served enemy is now as strong AND reads as
+accurately as the board it was captured from — the card shows the value it had in its owner's game.
+
+**2. Two scaling cards weren't wired into the combat live-text chain.** **Runescale Drake** (`scTribeBuffPerSpellText`,
+Start-of-Combat Dragon buff per spell cast) had a helper used in the shop but was never called in `Unit.tsx`, so it
+showed base +2/+2 mid-fight. **Hoardbreaker Drake** (`onKillCastSpell` → Growth + spell power) had *no* helper — its
++3/+4 went stale whenever spell power > 0, on every surface. Added a generic `combatCastGrantText` (mirrors the sim's
+`(base + spellPower) × golden`) and wired both cards into the combat chain (`Unit.tsx`) and the shop chain
+(`instView.ts`).
+
+**3. Run-LEVEL scalers were single-sided — enemy cards read the CURRENT player's run state (part 2).** Spell power
+(Taragosa/Watcher/Hoardbreaker), the Deathrattle tally (Grim), spells-this-turn (Runescale) and Beasts-played (Pack
+Leader) were threaded into `simulate` as player values and used for BOTH boards — so an enemy Grim/Taragosa *leeched
+your* numbers in the combat math AND the card text. Now per-side, end to end:
+- `snapshotBoard` captures the owner's `spellPower / deathrattles / spellsThisTurn / beastsPlayed` (omitted when 0).
+- `simulate` takes an `enemyScalers` object; `CombatContext` gains `spellPowerFor(side)` / `spellsThisTurnFor(side)` /
+  `beastsPlayedFor(side)` and `deathrattleTally(side)`. The eight combat factories that fold these now key on the acting
+  minion's `side`, so an enemy scaling card uses the OPPONENT's captured value (0 for the procedural threat / legacy
+  boards — correct for a synthetic foe with no run economy).
+- `CombatResult.enemyScalers` carries those values to the UI; `Unit.tsx` renders an enemy card at the opponent's value
+  (player minions keep reading the live run). `scTribeBuffPerPlayedText` now also accepts a pre-counted number (the
+  enemy's `beastsPlayed`, since the played card-ids aren't carried in the snapshot).
+
+Determinism: player-side math is byte-identical (player scalers unchanged); only enemy scaling cards shift — from
+leeching your values to using their own (0 for existing pool/synthetic boards). The committed synthetic pool has no run
+economy, so no regen was needed (it can never carry scalers); real captured/imported boards pick the fields up when
+baked under this build.
+
+**Verified:** `typecheck + lint + test` (892) & `build:web` green. New tests: `opponentBoard` round-trips all six
+accruals (cloned, not shared); `combatCastGrantText` scales Hoardbreaker's Growth by spell power (golden ×2); a per-side
+`simulate` proof that an enemy Pack Leader / Runescale scales with the OPPONENT's Beasts-played / spells and never
+leeches the current player's; `snapshotBoard` captures the run-level scalers; `scTribeBuffPerPlayedText` accepts the
+enemy's pre-counted number.
 
 ### fix: Rune of Action counts every card played, not just board minions
 

@@ -118,15 +118,16 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
 /** Pick a random stat-granting Tavern spell (spellBuffTarget / spellBuffAll) and return its buff with combat
  *  spell power folded in and scaled by `scale` (golden). Returns null if the pool is empty or the picked spell
  *  grants nothing. Used by the combat spell-cast cards (Spell Drummer, Spark Capacitor). */
-function randomStatSpellBuff(ctx: CombatContext, scale: number): { spellId: string; attack: number; health: number } | null {
+function randomStatSpellBuff(ctx: CombatContext, scale: number, side: Side): { spellId: string; attack: number; health: number } | null {
   const pool = ctx
     .allCards()
     .filter((c) => c.spell && !c.singleCast && c.effects.some((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll'));
   if (pool.length === 0) return null;
   const spell = ctx.rng.pick(pool);
   const eff = spell.effects.find((e) => e.do === 'spellBuffTarget' || e.do === 'spellBuffAll')!;
-  const attack = (num(eff.params?.attack, 0) + ctx.spellPower.attack) * scale;
-  const health = (num(eff.params?.health, 0) + ctx.spellPower.health) * scale;
+  const sp = ctx.spellPowerFor(side); // per-side: an enemy caster folds the OPPONENT's spell power
+  const attack = (num(eff.params?.attack, 0) + sp.attack) * scale;
+  const health = (num(eff.params?.health, 0) + sp.health) * scale;
   return attack > 0 || health > 0 ? { spellId: spell.id, attack, health } : null;
 }
 
@@ -222,8 +223,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.dead || side !== self.side || minion === self) return;
     const tribes = Array.isArray(params.tribes) ? (params.tribes as Tribe[]) : [];
     if (!tribes.includes(minion.tribe) && !(minion.tribe2 && tribes.includes(minion.tribe2)) && !ctx.getCard(minion.cardId)?.universalTribe) return;
-    const x = (num(params.attack, 1) + ctx.spellsThisTurn) * mul(self);
-    const y = (num(params.health, 1) + ctx.spellsThisTurn) * mul(self);
+    const spells = ctx.spellsThisTurnFor(self.side);
+    const x = (num(params.attack, 1) + spells) * mul(self);
+    const y = (num(params.health, 1) + spells) * mul(self);
     ctx.buff(self, x, y, self.name);
   },
 
@@ -248,7 +250,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleBuffTribeByTally: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const tribe = str(params.tribe) as Tribe | 'any';
-    const amount = ctx.deathrattleTally() * num(params.per, 1) * mul(self);
+    const amount = ctx.deathrattleTally(self.side) * num(params.per, 1) * mul(self); // per-side: enemy Grim uses the OPPONENT's tally
     ctx.addTribeAura(self.side, tribe, amount, amount, self.uid);
     for (const m of ctx.living(self.side)) {
       if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, amount, amount, self.uid);
@@ -301,8 +303,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const spell = ctx.getCard(str(params.spellId));
     const eff = spell?.effects.find((e) => e.do === 'spellBuffAll' || e.do === 'spellBuffTarget');
     if (!eff) return;
-    const a = (num(eff.params?.attack, 0) + ctx.spellPower.attack) * mul(self);
-    const h = (num(eff.params?.health, 0) + ctx.spellPower.health) * mul(self);
+    const sp = ctx.spellPowerFor(self.side); // per-side: enemy Hoardbreaker scales with the OPPONENT's spell power
+    const a = (num(eff.params?.attack, 0) + sp.attack) * mul(self);
+    const h = (num(eff.params?.health, 0) + sp.health) * mul(self);
     if (a <= 0 && h <= 0) return;
     const targets = eff.do === 'spellBuffAll' ? ctx.living(self.side) : ctx.living(self.side).filter((m) => m !== self);
     for (const t of targets) ctx.buff(t, a, h, self.uid);
@@ -316,7 +319,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if ((payload as { minion?: Minion }).minion !== self) return;
     const friends = ctx.living(self.side);
     if (friends.length === 0) return;
-    const pick = randomStatSpellBuff(ctx, mul(self));
+    const pick = randomStatSpellBuff(ctx, mul(self), self.side);
     if (!pick) return;
     ctx.buff(ctx.rng.pick(friends), pick.attack, pick.health, self.uid); // cast the stat spell on a random friend
     ctx.castSpell(self.side); // proc in-combat spell reactions (Guel, Forsaken Weaver, Spirit Pup…) + count it
@@ -335,7 +338,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       .filter((m) => m.tribe === 'mech' || m.tribe2 === 'mech' || ctx.getCard(m.cardId)?.universalTribe);
     if (mechs.length === 0) return;
     const target = mechs.reduce((a, b) => (b.health < a.health ? b : a)); // lowest Health
-    const pick = randomStatSpellBuff(ctx, mul(self));
+    const pick = randomStatSpellBuff(ctx, mul(self), self.side);
     if (!pick) return;
     ctx.buff(target, pick.attack, pick.health, self.uid);
     ctx.castSpell(self.side); // a real spell cast — proc in-combat spell reactions + count it
@@ -770,8 +773,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   onAllyAttackCastGrowth: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion.side !== self.side) return; // any ally's attack
-    const a = num(params.attack, 3) + ctx.spellPower.attack;
-    const h = num(params.health, 4) + ctx.spellPower.health;
+    const sp = ctx.spellPowerFor(self.side); // per-side: an enemy Taragosa scales with the OPPONENT's spell power
+    const a = num(params.attack, 3) + sp.attack;
+    const h = num(params.health, 4) + sp.health;
     for (let r = 0; r < mul(self); r++) {
       ctx.castSpell(self.side); // Growth is a REAL spell cast — fires Guel + counts toward his (permanent) improvement
       for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);
@@ -1098,8 +1102,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   scTribeBuffPerSpell: (ctx, self, params) => {
     const tribe = (str(params.tribe) || 'dragon') as Tribe;
     const per = num(params.perSpell, 1);
-    const a = (num(params.attack, 2) + per * ctx.spellsThisTurn) * mul(self);
-    const h = (num(params.health, 2) + per * ctx.spellsThisTurn) * mul(self);
+    const spells = ctx.spellsThisTurnFor(self.side); // per-side: enemy Runescale uses the OPPONENT's spells this turn
+    const a = (num(params.attack, 2) + per * spells) * mul(self);
+    const h = (num(params.health, 2) + per * spells) * mul(self);
     if (a <= 0 && h <= 0) return;
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} channels the runes` });
     for (const m of ctx.living(self.side)) {
@@ -1113,8 +1118,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   scTribeBuffPerPlayed: (ctx, self, params) => {
     const tribe = (str(params.tribe) || 'beast') as Tribe;
     const per = num(params.perPlayed, 1);
-    const a = (num(params.attack, 1) + per * ctx.beastsPlayedThisTurn) * mul(self);
-    const h = (num(params.health, 2) + per * ctx.beastsPlayedThisTurn) * mul(self);
+    const played = ctx.beastsPlayedFor(self.side); // per-side: enemy Pack Leader uses the OPPONENT's Beasts played
+    const a = (num(params.attack, 1) + per * played) * mul(self);
+    const h = (num(params.health, 2) + per * played) * mul(self);
     if (a <= 0 && h <= 0) return;
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} rallies the pack` });
     for (const m of ctx.living(self.side)) {
@@ -1515,10 +1521,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return; // rally: this minion's own attack only
     const undead = str(params.tribe) === 'undead';
-    // Lantern of Souls grants +amount Attack and folds the run's spell power into BOTH stats (+3/+0 base,
-    // +5/+2 with +2/+2 spell power) — matching a shop-cast Lantern.
-    const a = num(params.amount, 3) + ctx.spellPower.attack;
-    const h = ctx.spellPower.health;
+    // Lantern of Souls grants +amount Attack and folds spell power into BOTH stats (+3/+0 base, +5/+2 with
+    // +2/+2 spell power) — matching a shop-cast Lantern. Per-side: an enemy Watcher uses the OPPONENT's power.
+    const sp = ctx.spellPowerFor(self.side);
+    const a = num(params.amount, 3) + sp.attack;
+    const h = sp.health;
     for (let i = 0; i < mul(self); i++) { // golden casts it twice
       ctx.castSpell(self.side); // counts as a real spell cast (Spirit Pup, Guel, Forsaken Weaver all see it)
       if (undead && (a > 0 || h > 0)) {

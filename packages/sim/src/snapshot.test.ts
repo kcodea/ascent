@@ -137,4 +137,26 @@ describe('opponentBoard — enemy Soren Reclaim mark', () => {
     expect(opponentBoard(mkSnap('warden', [{ cardId: 'pack', attack: 3, health: 2 }])).some((m) => m.resummon)).toBe(false);
     expect(opponentBoard(mkSnap('soren', [{ cardId: 'sandbag', attack: 9, health: 9 }])).some((m) => m.resummon)).toBe(false);
   });
+
+  it('restores EVERY per-minion accrual the snapshot persisted (served enemy = as strong + as accurate as captured)', () => {
+    // Regression: opponentBoard used to copy only stats + summonBonus, so a served Sergeant/Tara lost its
+    // accrual → showed the printed base (+2 Health) and fought weaker. It must round-trip all of them.
+    const snap = mkSnap('warden', [
+      { cardId: 'sergeant', attack: 8, health: 8, keywords: [], hpGrantBonus: 6 },
+      { cardId: 'tara', attack: 9, health: 9, keywords: ['EG'], ascendProgress: 15 },
+      { cardId: 'guel', attack: 4, health: 5, keywords: [], spellProgress: 8 },
+      { cardId: 'monk', attack: 4, health: 5, keywords: [], overflowBonus: 4 },
+      { cardId: 'betterbot', attack: 5, health: 5, keywords: [], rallyMechAtk: 5 },
+      { cardId: 'pack', attack: 3, health: 4, keywords: [], buffs: [{ source: 'Spirit Fire', attack: 2, health: 2, count: 1 }] },
+    ]);
+    const board = opponentBoard(snap);
+    const by = (id: string): BoardMinion => board.find((m) => m.cardId === id)!;
+    expect(by('sergeant').hpGrantBonus).toBe(6);
+    expect(by('tara').ascendProgress).toBe(15);
+    expect(by('guel').spellProgress).toBe(8);
+    expect(by('monk').overflowBonus).toBe(4);
+    expect(by('betterbot').rallyMechAtk).toBe(5);
+    expect(by('pack').buffs).toEqual([{ source: 'Spirit Fire', attack: 2, health: 2, count: 1 }]);
+    expect(by('pack').buffs).not.toBe(snap.minions.find((m) => m.cardId === 'pack')!.buffs); // cloned, not shared
+  });
 });

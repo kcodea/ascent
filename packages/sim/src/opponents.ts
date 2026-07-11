@@ -69,6 +69,18 @@ export function opponentBoard(snap: BoardSnapshot): BoardMinion[] {
     keywords: [...(m.keywords ?? [])],
     ...(m.golden ? { golden: true } : {}),
     ...(m.summonBonus ? { summonBonus: m.summonBonus } : {}),
+    // Per-minion accruals the snapshot persisted (see `cleanBoard`): carry them ALL so a served board is as
+    // strong AND reads as accurately as the board it was captured from. `instantiate` seeds each into the
+    // combat Minion, and the combat snapshot re-emits them, so the enemy card shows the OPPONENT's real value
+    // (a served Sergeant's improved HP-grant, Tara's ascend progress) — not the printed base. Dropping these
+    // (the old bug) made every served enemy read its base rule text + fight weaker than the real board.
+    ...(m.hpGrantBonus ? { hpGrantBonus: m.hpGrantBonus } : {}), // Sergeant: improved Deathrattle HP grant
+    ...(m.ascendProgress ? { ascendProgress: m.ascendProgress } : {}), // Tara: ascend progress toward Taragosa
+    ...(m.spellProgress ? { spellProgress: m.spellProgress } : {}), // Archmagus Guel: on-board spell tally
+    ...(m.overflowBonus ? { overflowBonus: m.overflowBonus } : {}), // Flowing Monk: flat triple-combine grant bonus
+    ...(m.rallyMechAtk ? { rallyMechAtk: m.rallyMechAtk } : {}), // Better Bot Rally welded onto a host Mech
+    ...(m.rallySpellWeld ? { rallySpellWeld: m.rallySpellWeld } : {}), // Perfect Core Rally welded onto a host
+    ...(m.buffs && m.buffs.length ? { buffs: m.buffs.map((b) => ({ ...b })) } : {}), // recruit-buff breakdown for inspect
   }));
   // Enemy hero power — Soren's Reclaim: a board captured from a Soren run arms it, so ONE enemy minion is
   // destroyed at Start of Combat (its Deathrattle fires) and an exact copy is resummoned when there's room. The

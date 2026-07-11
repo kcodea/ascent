@@ -758,11 +758,15 @@ export function useCombatReplay(
       const d = center(cur.primary.defender);
       if (atkEl && a && d) {
         setAttackUid(cur.primary.attacker);
-        // A Rally that fires as THIS unit attacks (source = attacker) → the lunge pauses at the top of the
-        // wind-up and flashes the attacker's YELLOW trigger pulse before the strike (signals the Rally).
+        // A Rally firing as THIS unit attacks → the lunge pauses at the top of the wind-up and flashes the
+        // attacker's YELLOW trigger pulse before the strike (so the Rally + its effects read as one beat).
+        // ANY attacker with the RL keyword rallies on its own swing — check the unit's LIVE keywords first (the
+        // frame mirror covers a Rally granted mid-combat too), then its printed keyword off the card index, then
+        // the `rally` event (Deathsayer's Rally→Echo — a subset kept as a final fallback).
         const atkUid = cur.primary.attacker;
-        let rallies = false;
-        for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'rally' && e.source === atkUid) { rallies = true; break; } }
+        const atkUnit = frameRef.current?.player.find((u) => u.uid === atkUid) ?? frameRef.current?.enemy.find((u) => u.uid === atkUid);
+        let rallies = !!atkUnit?.keywords.includes('RL') || !!CARD_INDEX[cardIds.get(atkUid) ?? '']?.keywords?.includes('RL');
+        if (!rallies) for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'rally' && e.source === atkUid) { rallies = true; break; } }
         const tl = runAttackExchangeCues(cur, atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, {
           combatSpeed, advance: () => setBeatIdx((k) => k + 1),
           onRallyPulse: rallies ? () => {

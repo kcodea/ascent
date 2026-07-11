@@ -179,6 +179,21 @@ look because the engine already produces the data.
 - **Glyph text-input in the preview rig.** Paste a character and audition it live (would have surfaced the
   missing-glyph/tofu case instantly). Also worth supporting an SVG `d=` path via `Path2D` for custom silhouettes.
 
+### B0b. Audio — SFX authoring (manifest shipped session 31; wiring + assets next)
+- **Manifest + generator — ✅ shipped (session 31, → devlog).** `docs/audio/sfx-manifest.md` enumerates all
+  ~569 sounds; `npm run sfx:manifest` regenerates it from card/hero/spell data, preserving the human brief +
+  status columns. Recording can now proceed against a stable checklist.
+- **Wiring PR (next).** Build the four hooks the manifest documents but the engine doesn't have yet, each
+  guarded by "clip present?" so it's silent until an asset exists: per-card **death** (`cards/<id>.death.mp3`
+  in `choreo/channels/sfx.ts`, via the replay `cardIds` uid→cardId map), per-card **effect**
+  (`cards/<id>.effect.mp3` at the combat `triggerPulse` sites + the shop Battlecry path in `store.ts`), **hero
+  select/power** (`heroes/<id>[.power].mp3` in `HeroSelect.tsx` / `StatusBar.tsx`), and the **spell default
+  bed** (`spellcast.mp3` routed from `sfx.castSpell()`). Plus the `audio/heroes/*.mp3` loader glob + `sampleVol`
+  defaults. (Note: a concurrent branch `feat/spellcast-sfx` was already building the spell-cast bed — reconcile
+  before/at that PR.)
+- **Assets.** Record clips into `packages/ui/src/audio/{cards,heroes}/` per the manifest; each recorded row's
+  status auto-flips `⬜→🎙️` on the next `npm run sfx:manifest`.
+
 ### B1. Hero-power dragging — ✅ **shipped 2026-06-30** (→ devlog)
 - Targeted hero powers use the press-drag-release card-drag language (arm on the button's pointerdown, drag
   the aim line onto a minion, release to fire; off-target cancels). A quick tap still arms for the

@@ -358,6 +358,39 @@ beat clock are untouched; the lead is layered on top of `overlapMs` and scales w
 - **Verified:** `typecheck` + `lint` + **835 tests** + `build:web` all green. The feel itself is the user's to
   confirm live (a timing-constant bump on the choreo scheduler — the degenerate preview can't render combat, so
   the read is dialed by eye in a focused tab); the leads are a single named knob, easy to re-tune.
+### docs/tools: SFX manifest + data-driven generator (`npm run sfx:manifest`)
+
+Groundwork for authoring the game's audio: a single source-of-truth manifest of **every** sound the game
+needs, so recording can proceed hyper-organized instead of ad hoc. `docs/audio/sfx-manifest.md` lists ~569
+sounds — per-card **play / death / effect**, per-hero **select / power**, per-spell **unique cast** + a
+default spell bed, and the existing system/UI cues — each row carrying an exact filename (matching the
+loader's naming convention), a trigger, a creative brief, and a record-status.
+
+The manifest is **generated, not hand-maintained**, so it can never silently drift from the real card/hero/
+spell set:
+
+- **`packages/tools/src/sfx-manifest.lib.ts`** — pure, unit-tested logic (no fs / no `@game/*` imports, so
+  the tests run on fixtures): `deriveRows` (filename + trigger + seeded brief per card/hero/spell, sectioned
+  by tribe/kind), `parseExistingTables` + `mergeRows` (carry the human-owned **brief + status** columns
+  across regenerations, keyed by filename), and `renderGeneratedZone` (one table per section, pipe-escaped).
+- **`packages/tools/src/sfx-manifest.ts`** — the runner (`npm run sfx:manifest`): reads `ALL_CARDS`/`HEROES`,
+  scans `packages/ui/src/audio/` for existing clips, flips a row's status `⬜→🎙️` when its mp3 exists, and
+  rewrites **only** the zone below the `<!-- GENERATED BELOW -->` marker — the hand-authored prose (overview,
+  naming conventions, wiring plan) above it is left byte-for-byte untouched.
+
+The naming convention doubles as the wiring contract: minion play/spell cast already fire today via
+`sfx.cardVoice` (`cards/<id>.mp3`); the doc's prose zone documents the follow-up hooks needed for per-card
+**death** (`cards/<id>.death.mp3`), per-card **effect** (`cards/<id>.effect.mp3`), **hero select/power**
+(`heroes/<id>[.power].mp3`), and the **spell default bed** (`spellcast.mp3`) — to be built in a separate PR.
+
+- **Verified:** 6 new lib tests (section routing, 3-row-minion / 1-row-spell split, vanilla `➖` marking,
+  render→parse→merge round-trip preserving a hand-edited brief + `✅`); regeneration is **idempotent**
+  (rerun → no diff) and **preservation-safe** (a hand-edited brief/status survives a rerun — checked live).
+  Full gate green: typecheck 0, lint 0, 841 tests, `build:web` ✓.
+- **Process note:** built in an isolated git **worktree** (`.claude/worktrees/sfx-manifest`) after the shared
+  main working dir got switched to a concurrent session's branch mid-task; the worktree needed its own
+  `npm install` so `@game/*` resolves to its **own** package copies (otherwise cross-package typecheck reads
+  the main dir's live, mid-refactor sources through the shared `node_modules`).
 
 ## 2026-07-10 (session 30)
 

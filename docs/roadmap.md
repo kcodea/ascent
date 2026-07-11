@@ -133,6 +133,17 @@ look because the engine already produces the data.
 ## Phase B — UX polish (parallelizable; slot any time)
 
 ### B0. FX follow-ups (from the Echo skull poof + buff tendrils, session 29)
+- **Buff pulse — per-tribe looks.** The pulse system (self-buff point-blast) shipped `default`-only (session 32).
+  Tune a look per tribe on `buff-pulse-preview.html`, paste the JSON, and bake into `PULSE_PRESETS` +
+  `PULSE_ASSIGN.byTribe` — exactly like the tendril tribe presets. Until then every tribe's self-buff uses the one
+  gold `default` blast.
+- **Buff pulse — live look check.** The in-game pulse was never eyeballed live (headless preview can't watch rAF).
+  Drive a focused Chrome tab through a combat with a self-buffing unit (e.g. a Start-of-Combat self-pump) and
+  confirm the blast + badge flash read well on the cream board before per-tribe tuning.
+- **Buff pulse — other styles + recruit-phase casts.** The `style` field is ready for `shard`/`nova` variants
+  (only `ring` is built), and there's no dedicated `neutral` preset (falls to `default`). Separately, hero-power /
+  spell buffs resolve in the **recruit/shop phase** (a different code path from the combat replay) and get only a
+  sound + CSS glow today — wiring them to `pixiFx.pulse` is a future pass.
 - **Buff tendrils — on-attack buffers.** Buffs absorbed into an attack's windup (on-attack ally-buffers like
   Crypt Drake, Growth-on-attack) classify as an `attackExchange` moment, which carries no `buffCast` cue — so
   they don't throw a tendril yet. Iteration 1 targets Start-of-Combat / standalone buff waves. To extend: add a

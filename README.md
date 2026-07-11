@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Rally units flash gold on the wind-up.** The yellow Rally trigger pulse (wind-up pause + gold medallion
+  ring) now fires for **every** rally unit — previously it only ever showed on Deathsayer — and it replays on
+  every swing, not just the first Rally of a combat. Fixed the trigger gate (any `RL` attacker) and a
+  CSS-animation-restart bug (keyed the pulse off a per-fire nonce so the medallion remounts each time).
 - **Combat timing audit + more breath before death consequences.** Audited every replay moment's beat-hold
   vs its actual animation length ([docs/combat-timing-audit.md](docs/combat-timing-audit.md)) to find where an
   effect outruns its beat. First fix: a Deathrattle's summon and a Rise's return now wait longer after the unit

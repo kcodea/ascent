@@ -5,6 +5,36 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-11 (session 31)
 
+### fix(ui): the gold Rally pulse now fires for ALL rally units, and replays on repeat rallies
+
+The yellow Rally wind-up pulse (the medallion flash + gold ring, timed to the lunge's wind-up pause;
+shipped #265/#271) was effectively invisible: it only ever fired on **Deathsayer**, and even then only on
+the *first* Rally of a combat. Two bugs, found by the owner playtesting:
+
+1. **Only Deathsayer got it.** The trigger gate keyed off a `rally` CombatEvent, which ONLY
+   `rallyProcDeathrattle` (Deathsayer's Rally→Echo) emits — every other rally effect (`rallyBuff`,
+   `rallyGrantSpell`, `rallyCastTribeAttack`/Watcher, Better Bot's mech-buff, …) emits plain
+   `buff`/`summon`/`dmg` events with no marker. **Fix:** fire the pulse for any attacker that rallies on
+   its own swing — i.e. has the `RL` keyword. Read the attacker's LIVE keywords from the frame mirror
+   (`frameRef`) first (covers a Rally granted mid-combat), then its printed keyword off `CARD_INDEX`, then
+   the `rally` event as a final fallback. Now all rally units (Watcher, Supporter, Better Bot, Trophy
+   Stalker, …) pulse.
+
+2. **Only the first Rally per combat showed.** A second Rally pinged the *sound* but not the *visual*.
+   The pulse rides the shared `.cgem.pulsing::after` CSS animation, and a rally unit's own Rally also lights
+   the normal trigger glow — so `.pulsing` never leaves the medallion between swings, and re-adding a class
+   doesn't restart a CSS animation that was never removed. **Fix:** key the pulse off a monotonic **nonce**
+   (uid → nonce, bumped per fire) instead of a boolean, threaded through `Unit`/`Card` as a number and used
+   as the medallion's React `key` so the element remounts each fire and the animation restarts cleanly. The
+   1150 ms auto-clear is guarded so an earlier fire's timeout can't cancel a later fire's pulse (back-to-back
+   rallies, e.g. Windfury).
+
+Touches `useCombatReplay.ts` (gate + nonce state), `Recruit.tsx` (pass the nonce), `Unit.tsx` + `Card.tsx`
+(`rallyPulse`/`pulseRally` become a number + the medallion `key`). Verified: typecheck + lint green, and
+live in a real fight — every rally unit flashes gold on the wind-up, on every swing. The wind-up hold stays
+the tuned 440 ms (`RALLY_PAUSE_MS`); revisit whether it should explicitly wait on the rally's downstream
+effects if the beat ever feels rushed.
+
 ### fix: Rune of Action counts every card played, not just board minions
 
 **Bug (owner-reported):** Rune of Action (*End of Turn: give your three left-most minions +1/+1 for each card you

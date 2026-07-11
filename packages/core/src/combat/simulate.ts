@@ -1288,6 +1288,11 @@ export function simulate(
       }
     }
   }
+  // Rune of the Warden: at Start of Combat, if your board has room (< 7), summon a Spear Warden.
+  if (questMods.runeWarden && boards.player.length < 7) {
+    const knit = cards['knit'];
+    if (knit) { nextStep(); summonMinion('player', knit, undefined); }
+  }
   // Rune of Twilight: your Start-of-Combat effects trigger an ADDITIONAL time — the "End of Turn" echo. These
   // effects run in the combat context (summons, auras, engraves), so the extra trigger fires here (a second
   // Start-of-Combat pass for YOUR board) rather than during the recruit End of Turn.

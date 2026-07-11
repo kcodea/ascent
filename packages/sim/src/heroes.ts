@@ -279,7 +279,8 @@ export const HEROES: HeroDef[] = [
       name: 'Bag It',
       kind: 'scalingGold',
       untargeted: true,
-      text: 'Bag It: Gain 2 Gold. The payout grows +1 every turn. (Once per turn)',
+      oncePerGame: true,
+      text: 'Bag It: Gain Gold now — the payout grows +1 every turn you wait. (Once per game)',
     },
   },
   {

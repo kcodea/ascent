@@ -75,7 +75,7 @@ export function StatusBar() {
               : power.kind === 'gild'
                 ? `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`
                 : power.kind === 'scalingGold'
-                  ? `${power.name} · ${!run.heroReady ? 'used' : `+${1 + run.wave} Gold`}`
+                  ? `${power.name} · ${run.heroPowerSpent ? 'spent' : `+${1 + run.wave} Gold`}`
                   : power.kind === 'dynamiteDig'
                     ? `${power.name} · ${!run.heroReady ? 'used' : run.embers >= digCost! ? `${digCost} Gold` : `need ${digCost} Gold`}`
                     : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
@@ -94,9 +94,9 @@ export function StatusBar() {
               ? ' Need two copies of a minion to gild.'
               : ` Click to combine a pair into a Gilded copy.${power.cost ? ` Costs ${power.cost} Gold.` : ''}`
         : power.kind === 'scalingGold'
-          ? run.heroReady
-            ? ` Click to gain ${1 + run.wave} Gold. The payout grows +1 each turn.`
-            : ' Used this turn. The payout grows +1 each turn.'
+          ? run.heroPowerSpent
+            ? ' Already used this game.'
+            : ` Click to gain ${1 + run.wave} Gold — the payout grows +1 each turn you wait. One use per game.`
         : power.oncePerGame
           ? run.heroPowerSpent
             ? ' Already used this game.'

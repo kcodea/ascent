@@ -495,6 +495,20 @@ tribes" test into a shared `NON_TRIBE_CATS` set so the new category doesn't leak
 clicking **Rune Rewards** flips the sub-header to "11 rune rewards in the game" and renders exactly those 11 cards
 (Feasting Bogrot + Reconfigured Combinator present).
 
+### fix: Bagger Ben's Bag It is once per game
+
+**Bag It** (`scalingGold`) was a once-*per-turn* power: gain `1 + wave` Gold, recharging every turn — a compounding
+economy engine every round. Retuned to **once per game** (`oncePerGame: true` on the power). The payout still climbs
+`+1` each turn, so it's now a **timing decision**: cash the tip jar early for a small bump, or hold it for one bigger
+lump later. The reducer's shared once-per-game handling (gates on `heroPowerSpent`, no per-turn recharge) already
+supported the flag — just the two `scalingGold`-specific StatusBar branches (power line + note) were rewritten from
+"used this turn / once per turn" to "spent / one use per game", and the hero-power text now reads *"Gain Gold now —
+the payout grows +1 every turn you wait. (Once per game)"*.
+
+**Verified:** `typecheck + lint + test` (886) green; updated the Bagger Ben unit test (asserts `heroPowerSpent`, a
+second activation is a no-op, later cash-out pays more). Live DOM check as Bagger Ben: "Bag It · +2 Gold" → fire →
+embers +2, line flips to "Bag It · spent", button disabled (no recharge next turn).
+
 ### fix: Rune of Action counts every card played, not just board minions
 
 **Bug (owner-reported):** Rune of Action (*End of Turn: give your three left-most minions +1/+1 for each card you

@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-11 (session 31)
 
+### tweak(ui): longer pause after an Echo (Deathrattle) / Rise before its consequence
+
+Follow-up dial on [#326](https://github.com/kcodea/ascent/pull/326): the owner still read the Echo→summon gap
+as rushed (they were also, at the time, testing a branch that predated #326 — but the intent stands: a longer,
+more deliberate beat). Bumped both death read-leads in `useCombatReplay.ts`: `DR_SUMMON_LEAD` and `REBORN_LEAD`
+560→**800** (defender) / 900→**1150** (attacker). Net death→consequence gap (incl. the 240ms `overlapMs`) now
+~800→**1040ms** defender / ~1140→**1390ms** attacker at 1× — a clear empty-slot beat after the skull poofs /
+body fades before the token or returned body appears. Pure timing-constant tweak; log + beat clock untouched,
+scales with `combatSpeed`. Dial-by-eye — the two named constants are the knob.
+
 ### fix(ui): the gold Rally pulse now fires for ALL rally units, and replays on repeat rallies
 
 The yellow Rally wind-up pulse (the medallion flash + gold ring, timed to the lunge's wind-up pause;

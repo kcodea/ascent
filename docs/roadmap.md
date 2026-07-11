@@ -503,6 +503,15 @@ correctness half — these remain):**
   (`computeFrame` + the per-beat event-log scans that grow with combat length are prime suspects), then
   memoize/short-circuit it. Cheap adjacent win: `syncShields` calls `getBoundingClientRect` **per aura bubble
   every frame** (~100k calls in one combat) — cache the rects / only re-measure on layout change.
+- **Combat timing clashes (from [combat-timing-audit.md](combat-timing-audit.md), session 31).** The audit
+  lined up each moment's beat-hold vs its actual animation length vs the ordering doc. **Fixed so far:** the
+  death→summon and Rise→reborn read-leads were bumped + generalized (`deathConsequenceLead`) so the
+  consequence doesn't land on top of the skull/fade. **Remaining clashes:** (1) **standalone buff waves** —
+  210ms hold vs a 600ms pulse + a tendril that travels 350–780ms before its stat-reveal, so the +N lands
+  outside its beat; fold the tendril travel into the hold (or shorten it). (2) **Systemic amplifier** — CSS
+  combat animations are fixed seconds and ignore the `combatSpeed` slider, while holds ÷ and Pixi/GSAP × it,
+  so every margin worsens ~2× at 2× speed; drive combat CSS durations off a `--combat-speed` var. (3) overlap
+  tails (`risepop 700`, re-form glow @+460) bleed past their 240ms ride; (4) poison mist clipped 50ms.
 - **UI dead-code purge** — Card still renders removed Reborn-tears DOM; **FontLab ships un-gated in prod**
   (wants `import.meta.env.DEV`); a confirmed dead-CSS list (the OMEN block, `.chip`, `.toast`, `.legend`,
   `.tavernbox`, `.zt/.zh/.hint`, `.disc-gem`).

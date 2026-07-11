@@ -1,4 +1,4 @@
-import { pixiFx, tauntFx } from '../../pixiFx';
+import { pixiFx } from '../../pixiFx';
 import { sfx } from '../../sfx';
 
 /**
@@ -9,19 +9,13 @@ import { sfx } from '../../sfx';
  * the old `deathBurstRef` once-only guard and the `.dying`/`data-rising` DOM sniffing.
  */
 
-/** A unit DIES while still carrying auras → each explodes in place (ward shatter / spirit release / bulwark
- *  burst). Reads pixiFx's registry for which kinds are live. Shield/reborn bursts read their bubble's OWN
- *  stored coords (they render on the same viewport-fixed front layer they're stored on). The taunt burst,
- *  however, draws on the FRONT (viewport) layer while its persistent bulwark lives on the back `tauntFx`
- *  canvas (whose bubble coords are `.app`-relative). The taunt burst is disabled for now, so its viewport rect
- *  (`_tauntRect`) is unused — the param stays so callers + the signature are ready when the burst returns. */
-export function burstDeathAuras(uid: string, _tauntRect: { cx: number; cy: number; w: number; h: number } | null = null): void {
+/** A unit DIES while still carrying auras → each explodes in place (ward shatter / spirit release). Reads
+ *  pixiFx's registry for which kinds are live. Both bursts read their bubble's OWN stored coords (they render
+ *  on the same viewport-fixed front layer they're stored on). (Taunt has no Pixi aura — it's a static grey
+ *  card border — so there is nothing to burst; the `_rect` param is vestigial, kept for call-site parity.) */
+export function burstDeathAuras(uid: string, _rect: { cx: number; cy: number; w: number; h: number } | null = null): void {
   if (pixiFx.hasAura(uid, 'shield')) { pixiFx.breakShield(uid, 'shield'); sfx.shieldBreak(); }
   if (pixiFx.hasAura(uid, 'reborn')) { pixiFx.breakShield(uid, 'reborn'); sfx.rebornShatter(); }
-  if (tauntFx.hasAura(uid, 'taunt')) {
-    tauntFx.clearShield(uid, 'taunt'); // drop the back-canvas bulwark. Burst FX + sfx removed for now (per owner);
-    // the bulwark still needs clearing here so a dead taunt's aura never orphans (see syncShields reconcile).
-  }
 }
 
 /** A Divine Shield was consumed → shatter it now (gold shards) + sound. The DELAY is now the auraBreak cue's

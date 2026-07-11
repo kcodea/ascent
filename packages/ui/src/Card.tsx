@@ -344,8 +344,8 @@ export const Card = memo(function Card({
       {card.castMult !== undefined && card.castMult > 1 && (
         <span className="castmult" aria-hidden="true">×{card.castMult}</span>
       )}
-      {/* Divine Shield, Reborn, and Taunt all signify via their Pixi AURA (driven from `.card.dscard` /
-          `.card.reborncard` / `.card.taunt` in Recruit) — no badge/glow here. */}
+      {/* Divine Shield and Reborn signify via their Pixi AURA (driven from `.card.dscard` / `.card.reborncard`
+          in Recruit); Taunt signifies via the static grey `.card.taunt` border (styles.css) — no badge/glow here. */}
       {card.keywords.includes('V') && (
         <span className="kwward venom" aria-hidden="true"><Icon name="poison" /></span>
       )}

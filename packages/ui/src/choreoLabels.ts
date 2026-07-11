@@ -19,7 +19,7 @@ export const CH_DESC: Record<Channel, string> = {
   float: 'Floating combat text — damage numbers, +atk/+hp buff pops, and keyword pills that rise off the unit.',
   lunge: "The attacker's motion — wind-up, strike toward the defender, then an elastic settle. Attack moments only.",
   impact: "The melee smack — hit sound + WebGL spark burst + the defender's knock-back, fired at the moment of contact.",
-  auraBurst: "A dying unit's aura explodes in place — the Divine Shield / Reborn spirit / Taunt bulwark shatter on death.",
+  auraBurst: "A dying unit's aura explodes in place — the Divine Shield / Reborn spirit shatter on death.",
   auraBreak: 'A Divine Shield shatters when it soaks a hit — held briefly so the read is hit → settle → break.',
   auraReform: 'The Reborn re-form glow — the wispy blue shimmer as a returning unit knits back together.',
 };

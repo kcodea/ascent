@@ -178,8 +178,10 @@ export const Card = memo(function Card({
    *  *officially* fires (a Deathrattle, a Battlecry, a cadence card paying off, …). */
   pulse?: boolean;
   /** Pulse the trigger medallion YELLOW — a Rally fired as this unit attacks. Same ring as `pulse`, forced
-   *  yellow; takes precedence over `pulse`. */
-  pulseRally?: boolean;
+   *  yellow; takes precedence over `pulse`. A per-fire NONCE (truthy = pulsing): it's used as the medallion's
+   *  `key` so the element remounts each Rally and the CSS pulse restarts, even when `.pulsing` is already on
+   *  from the unit's own trigger glow (a plain class re-add wouldn't replay the animation). */
+  pulseRally?: number;
   /** Glow the trigger medallion only (no ring) — a multi-turn mechanic made *progress* this turn but
    *  hasn't officially fired yet (e.g. Frontdrake ticking toward its every-3-turns grant). */
   glow?: boolean;
@@ -376,7 +378,7 @@ export const Card = memo(function Card({
             <span className={`atk${statCls(card.attack, card.baseAttack, card.floorAttack)}${card.flashAtk ? ' statflash' : ''}`}>{card.attack}</span>
             <span className={`hp${statCls(card.health, card.baseHealth, card.floorHealth)}${card.flashHp ? ' statflash' : ''}`}>{card.health}</span>
             {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre */}
-            <span className={`cgem${pulseRally ? ' pulsing rally' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true"><Icon name={mechIcon} /></span>
+            <span key={`cgem-${pulseRally ?? 0}`} className={`cgem${pulseRally ? ' pulsing rally' : pulse ? ' pulsing' : glow ? ' glowing' : ''}`} aria-hidden="true"><Icon name={mechIcon} /></span>
           </>
         )}
       </div>

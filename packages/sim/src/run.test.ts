@@ -2424,9 +2424,9 @@ describe('run loop (@game/sim)', () => {
   });
 
   it('card-driven Discover weighs every tier evenly; only the golden reward (topTierFirst) peeks the top tier', () => {
-    // Tier-2 beasts (kennel/pack/shaper) give a 3-card top tier; alley (T1) is the low control. The OLD
-    // floor-walk showed ONLY the top tier; now a card Discover weighs every tier ≤ target evenly.
-    const pool = { kennel: 9, pack: 9, shaper: 9, alley: 9 };
+    // Three Tier-2 cards (pack/shaper beasts + hoarder neutral) give a 3-card top tier; alley (T1) is the low
+    // control. The OLD floor-walk showed ONLY the top tier; now a card Discover weighs every tier ≤ target evenly.
+    const pool = { pack: 9, shaper: 9, hoarder: 9, alley: 9 };
     const base: RunState = {
       ...createRun(1), embers: 0, shop: [], board: [],
       tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'], pool,
@@ -5015,6 +5015,13 @@ describe('Beast quests (combat objectives + rewards)', () => {
     const s = settle('q_blood_trail', { enemyDeaths: 6, playerQuestTally: { ...zeroTally(), slaughter: 6, slaughterByTribe: { beast: 6 } } });
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.questFlags?.bloodTrail).toBe(true);
+  });
+
+  it('Forest Grove (a `summon` objective) counts COMBAT Beast summons, not just recruit ones', () => {
+    // Combat-summoned Beasts (tokens, Reborn, etc.) tick the "Summon 5 Beasts" objective via the combat tally —
+    // previously only recruit summons counted.
+    const s = settle('q_forest_grove', { playerQuestTally: { ...zeroTally(), summonCombat: 5, summonCombatByTribe: { beast: 5 } } });
+    expect(s.activeQuests![0]!.completed).toBe(true);
   });
 
   it('unique quest-reward cards are token-flagged out of the shop + spell pools', () => {

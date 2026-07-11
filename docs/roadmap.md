@@ -400,9 +400,13 @@ pending: **Epic rune art** (the Epic runes fall back to the sigil glyph) + **mor
     mirror Rune of Summoning.
   - Rune of the Epic Forge (schedule the Epic forge on turn 9 — reuse `pendingEpicRuneforge` + a scheduled wave).
   - Rune of the Gilded Spark done. Grants of existing cards: Stormcalling (Gilded Karwind + random Shout),
-    Frontline Glory (Gilded Yazzus + Front to Back), Assembly (Beatbot + 2 Attachments), Reconfiguration
-    (Reconfigured Combinator), Den Mother (+ self-buff modifier), Soul Taxes (Souls Man + Av4 economy), Feast
-    (a Demon — **confirm the card exists / design it**). These need a **"grant a Gilded/golden card"** option.
+    Frontline Glory (Gilded Yazzus + Front to Back), Assembly (Beatbot + 2 Attachments), Den Mother (+ self-buff
+    modifier), Soul Taxes (Souls Man + Av4 economy). These need a **"grant a Gilded/golden card"** option.
+  - **New cards to build** (owner-confirmed specs, 2026-07-10):
+    - **Feasting Bogrot** (Rune of the Feast) — T5 Demon, **6/4**: *End of Turn: consume a Fodder and also give its
+      stats to adjacent minions.*
+    - **Reconfigured Combinator** (Rune of Reconfiguration) — a NEW unit with **unique art**; triggers whenever you
+      play Shout minions.
 - **Medium — new combat effects:**
   - Avenge: Broodpit (Av6 → 2 Taunt Imps), Appraisal (Av4 → spells +1/+1), Spearline (Av4 → summon Spear Warden
     that attacks now), Soul Taxes (Av4 → +1 max Gold).

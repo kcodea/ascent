@@ -38,7 +38,7 @@ export const BEASTS: CardDef[] = [
     id: 'kennel',
     name: 'Kennelmaster',
     tribe: 'beast',
-    tier: 2,
+    tier: 3,
     attack: 1,
     health: 4,
     keywords: ['SC'],

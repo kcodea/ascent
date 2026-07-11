@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### fix: sequential start-of-turn modals, Forest Grove combat summons, Kennelmaster T3, quest rename
+
+Batch of owner fixes:
+- **Sequential start-of-turn modals.** A turn that lines up several start-of-turn events (a Quest offer, the Epic
+  Runeforge, queued Discovers) now resolves them **one at a time in priority order — Quest > Runeforge >
+  Discover/other** — instead of deferring the lower-priority ones to a later turn. New `openNextStartOfTurnModal`
+  helper drains the queue; it's called from `advanceCombat` and every modal-close path (buyQuest / forge close /
+  Discover resolve). So (e.g.) the Epic Runeforge that lands on a quest turn now waits behind the quest and opens
+  the **same turn** the moment the quest is bought. Replaces the old "hold it back a whole turn" guard.
+- **Forest Grove** now counts **combat** Beast summons, not just recruit ones: `combatEventCount` treats a `summon`
+  objective like `summonCombat` (combat-summoned Beasts — tokens, Reborn — tick the "Summon 5 Beasts" bar).
+- **Kennelmaster** moved **T2 → T3**.
+- **Quest rename:** "Epic Commission" → **"The Epic Runeforge"** (id/art unchanged).
+
+Updated the affected tests (Epic-forge sequencing now buys-the-quest-then-opens-same-turn; a card-Discover
+tier-weight test that had leaned on Kennelmaster being T2 now uses pack/shaper/hoarder) + added a Forest-Grove
+combat-summon test. Live: verified the Quest→Runeforge sequence on a quest turn, the quest's new name, no console
+errors. typecheck / lint / 851 tests / build green.
+
+Owner-confirmed for the next rune batch (captured in the roadmap): **Feasting Bogrot** (Rune of the Feast — T5 Demon
+6/4, EoT consume a Fodder + give its stats to adjacent minions) and **Reconfigured Combinator** (Rune of
+Reconfiguration — new unit + unique art). Build order confirmed: easy → combat effects → deep-engine.
+
 ### feat: runes batch 1 — forges offer 4, remove Empowerment, add grant/discover/economy runes
 
 Per the owner's revised rune list: **both Runeforges now offer 4 options** (was 3 — `RUNEFORGE_OFFER = 4` threaded

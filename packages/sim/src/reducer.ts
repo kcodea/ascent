@@ -738,6 +738,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (questId == null || !QUEST_INDEX[questId]) return state; // invalid pick
       (s.activeQuests ??= []).push({ questId, progress: 0, completed: false });
       s.questOffer = undefined;
+      openNextStartOfTurnModal(s); // a quest turn can line up the Epic Runeforge / Discovers behind it — open next
       return s;
     }
 
@@ -758,7 +759,8 @@ function reduceCore(state: RunState, action: Action): RunState {
       // hero-power charge alone for it.
       if (!s.runeforgeEpic) s.heroPowerSpent = true;
       closeRuneforge(s);
-      checkTriples(s);
+      checkTriples(s); // a rune-granted copy might complete a triple (opens its own Discover)
+      openNextStartOfTurnModal(s); // forge closed — open the next queued start-of-turn modal (unless a Discover just opened)
       return s;
     }
 
@@ -767,6 +769,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (!s.runeforgeOffer) return state;
       if (!s.runeforgeEpic) s.heroPowerSpent = true;
       closeRuneforge(s);
+      openNextStartOfTurnModal(s); // forge closed — open the next queued start-of-turn modal
       return s;
     }
 
@@ -981,6 +984,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         openDiscover(s, s.discoverQueue.shift()!);
       }
       checkTriples(s); // the discovered copy might itself complete a triple
+      openNextStartOfTurnModal(s); // if this Discover was the last thing blocking a queued start-of-turn modal, open it
       return s;
     }
 
@@ -1605,14 +1609,11 @@ function advanceCombat(s: RunState): void {
     injectPendingTavern(s);
     s.frozen = false;
   } else refreshTavern(s);
-  // Epic Commission (greater quest): the Epic Runeforge it armed opens at the START of this turn. Hold it back a
-  // turn if a quest offer OR the Runesmith forge is already showing (never stack two blocking shops); the flag
-  // stays set so it opens the next clear turn. The tavern is already rolled behind it (like the Runesmith forge).
-  if (s.pendingEpicRuneforge && !s.questOffer && !s.runeforgeOffer) {
-    openEpicRuneforge(s);
-    s.pendingEpicRuneforge = false;
-  }
+  // Start-of-turn modals resolve ONE AT A TIME, in priority order (Quest > Runeforge > Discover/other). A quest
+  // offer or the Runesmith forge (set above) shows first; the Epic Runeforge + any queued Discovers wait their
+  // turn and open as each higher modal closes (see openNextStartOfTurnModal, called from every modal-close path).
   s.phase = 'recruit';
+  openNextStartOfTurnModal(s);
   // Gravetwin: if it survived the last combat, fire its copied Echo now (start of the shop). Then clear the
   // survivor list so it fires exactly once per fight.
   fireGravetwinEchoes(s);
@@ -1851,6 +1852,17 @@ function closeRuneforge(s: RunState): void {
   s.runeforgeRerolled = undefined;
 }
 
+/** Open the next start-of-turn modal in priority order — **Quest > Runeforge > Discover / other** — but only if
+ *  none is currently open. This lets a turn that lines up several start-of-turn events (a quest offer, the Epic
+ *  Runeforge, queued Discovers) resolve them SEQUENTIALLY instead of dropping or deferring the lower-priority ones.
+ *  Quest offers + the Runesmith forge are opened directly by `advanceCombat` (top priority); this drains what waits
+ *  behind them, and is called from every modal-close path (buyQuest / forge close / discover resolve). */
+function openNextStartOfTurnModal(s: RunState): void {
+  if (s.questOffer || s.runeforgeOffer || s.discover || s.chooseOne || s.pendingTarget) return; // one modal at a time
+  if (s.pendingEpicRuneforge) { openEpicRuneforge(s); s.pendingEpicRuneforge = false; return; } // Runeforge before Discovers
+  if (s.discoverQueue?.length) openDiscover(s, s.discoverQueue.shift()!); // then any queued start-of-turn Discovers
+}
+
 function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): void {
   const r = def.reward;
   switch (r.kind) {
@@ -2056,7 +2068,9 @@ function combatEventCount(result: CombatResult, o: { event: QuestObjectiveEvent;
   const t = result.playerQuestTally;
   if (!t) return 0;
   if (o.event === 'attack') return o.tribe ? (t.attackByTribe[o.tribe] ?? 0) : t.attack;
-  if (o.event === 'summonCombat') return o.tribe ? (t.summonCombatByTribe[o.tribe] ?? 0) : t.summonCombat;
+  // A `summon` objective (Forest Grove's "Summon 5 Beasts") counts summons in BOTH phases — recruit summons tick
+  // via the reducer's `advanceQuests`, and combat summons add here (they read the same combat summon tally).
+  if (o.event === 'summonCombat' || o.event === 'summon') return o.tribe ? (t.summonCombatByTribe[o.tribe] ?? 0) : t.summonCombat;
   if (o.event === 'slaughter') return o.tribe ? (t.slaughterByTribe[o.tribe] ?? 0) : t.slaughter;
   if (o.event === 'slaughterKeyword') return t.slaughterKeyword; // The Red Trail — tribe-agnostic
   return 0;

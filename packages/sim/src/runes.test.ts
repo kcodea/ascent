@@ -329,12 +329,13 @@ describe('Runes batch 1 — grants / discovers / economy', () => {
   });
 });
 
-describe('Epic Commission — the greater quest that opens the Epic Runeforge next turn', () => {
+describe('The Epic Runeforge — the greater quest that opens the Epic Runeforge next turn', () => {
   const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
 
-  it('is a neutral greater quest whose reward opens the Epic Runeforge', () => {
+  it('is a neutral greater quest named "The Epic Runeforge" whose reward opens the Epic Runeforge', () => {
     const q = QUEST_INDEX['q_epic_commission']!;
     expect(q).toBeDefined();
+    expect(q.name).toBe('The Epic Runeforge');
     expect(q.tribe).toBe('neutral');
     expect(q.tier).toBe('greater');
     expect(q.reward).toEqual({ kind: 'openEpicRuneforge' });
@@ -359,12 +360,18 @@ describe('Epic Commission — the greater quest that opens the Epic Runeforge ne
     expect(next.pendingEpicRuneforge).toBe(false); // disarmed once opened
   });
 
-  it('holds back a turn rather than stacking on a quest-offer turn', () => {
+  it('sequences behind a quest-offer turn: the Quest shows first, then buying it opens the Epic forge SAME turn', () => {
     const s: RunState = { ...createRun(1, 'warden'), wave: 7, phase: 'combat', pendingEpicRuneforge: true, lastCombat: win };
-    const next = reduce(s, { type: 'resolveCombat' }); // → turn 8, a greater-quest turn
-    expect(next.wave).toBe(8);
-    expect(next.questOffer?.length).toBeGreaterThan(0); // the quest shop takes the turn…
-    expect(next.runeforgeOffer).toBeUndefined(); // …the forge waits…
-    expect(next.pendingEpicRuneforge).toBe(true); // …still armed for the next clear turn
+    const atQuest = reduce(s, { type: 'resolveCombat' }); // → turn 8, a greater-quest turn
+    expect(atQuest.wave).toBe(8);
+    expect(atQuest.questOffer?.length).toBeGreaterThan(0); // the quest shop takes priority…
+    expect(atQuest.runeforgeOffer).toBeUndefined(); // …the forge waits behind it…
+    expect(atQuest.pendingEpicRuneforge).toBe(true); // …still armed
+    // Buying the quest drains the queue → the Epic forge opens on the SAME turn (Quest > Runeforge).
+    const afterBuy = reduce(atQuest, { type: 'buyQuest', index: 0 });
+    expect(afterBuy.questOffer).toBeUndefined();
+    expect(afterBuy.runeforgeEpic).toBe(true);
+    expect(afterBuy.runeforgeOffer!.length).toBe(Math.min(4, EPIC_RUNES.length));
+    expect(afterBuy.pendingEpicRuneforge).toBe(false); // now disarmed
   });
 });

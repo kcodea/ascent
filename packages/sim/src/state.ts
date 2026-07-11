@@ -171,7 +171,9 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  */
 export type DiscoverSpec =
   | { kind: 'spell' }
-  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number };
+  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number }
+  // A Discover from an EXPLICIT card-id pool (Rune of the Second Path's Greater-Quest reward minions).
+  | { kind: 'pool'; ids: string[] };
 
 /** A quest the player has bought — its live objective progress + completion flag. Persists for the run
  *  (shown in the quest panel); up to 3 accumulate over a run (waves 4/8/12). */
@@ -402,7 +404,7 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean };
   // ── Runeforge (Runesmith) ──
   /** The Runeforge is open (turn 6): a pending offer of rune ids to buy for their Gold cost. Like `questOffer`,
    *  while set the reducer blocks every non-`buyRune`/`skipRuneforge` action and the UI pauses the timer; buying
@@ -413,9 +415,25 @@ export interface RunState {
   /** The open forge is the EPIC Runeforge (drawn from `EPIC_RUNES`, opened by a quest — not the Runesmith's
    *  hero-power forge). Drives the reroll pool, the "Epic" UI label, and skips consuming the hero-power charge. */
   runeforgeEpic?: boolean;
-  /** A completed quest (Epic Commission) has armed the Epic Runeforge — it opens at the START of the next turn
+  /** A completed quest (The Epic Runeforge) has armed the Epic Runeforge — it opens at the START of the next turn
    *  (`advanceCombat`), not immediately, so the forge modal doesn't interrupt the turn it completed on. */
   pendingEpicRuneforge?: boolean;
+  /** The Runeforge quest armed a BASIC Runeforge visit for next turn (any hero), granting `gold` that turn. */
+  pendingBasicForge?: { gold?: number };
+  /** Rune of the Epic Forge: open the Epic Runeforge when the run reaches this wave (turn 9). */
+  epicForgeWave?: number;
+  /** The open forge is quest-/rune-scheduled (not the Runesmith hero power) — buying/skipping spends no charge. */
+  runeforgeNoCharge?: boolean;
+  /** Rune of Kindling: each spell you cast gives your leftmost minion +3/+3. */
+  runeKindling?: boolean;
+  /** Rune of Scales: each spell you cast gives your Dragons +1/+1 (board + hand). */
+  runeScales?: boolean;
+  /** Rune of Bartering: your Shout (Battlecry) minions sell for 2 Gold. */
+  runeBartering?: boolean;
+  /** Rune of Twin Gilding: you only need 2 copies of a card to Gild (triple) it. */
+  runeTwinGilding?: boolean;
+  /** Rune of the Den Mother: your Den Mother also buffs herself when she buffs another Beast. */
+  runeDenMother?: boolean;
   /** Rune ids bought this run — shown as permanent run-buff badges (above the hero panel). */
   ownedRunes?: string[];
   /** Rune of Spellslinging: every `spellDripPer` Gold spent, get a random spell. `spellDripTick` carries the
@@ -506,7 +524,7 @@ export interface RunState {
   lastSurvivorCardIds?: string[];
   /** Recurring End-of-Turn effects granted by quests (Echoing Roar → re-fire leftmost Shout; The Hoard Wakes →
    *  conjure a random Shout minion). Fired every End of Turn for the rest of the run. Absent = none. */
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs')[];
   /** A pending Discover offer (3 card ids) — pick one to hand. */
   discover?: string[];
   /** Disco Dan's Setlist: the shop tier the CURRENTLY-open Discover's pick will be locked until (its
@@ -672,6 +690,9 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     karwindFlashSeq: 0,
   };
   rollShop(state);
+  // Runeguard (Defend the Forge): schedule the Epic Runeforge for turn 10 — advanceCombat's start-of-turn
+  // sequencing opens it (behind any quest offer). Cleared once it fires.
+  if (hero.power.kind === 'epicRuneforge') state.epicForgeWave = 10;
   if (heroId === 'chaos') {
     const def = CARD_INDEX['symbioticattachment'];
     if (def && state.hand.length < CONFIG.handMax) {

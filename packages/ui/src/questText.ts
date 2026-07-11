@@ -234,6 +234,10 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Casting a spell gives your Undead +${r.attack} Attack (in the shop and combat)`;
     case 'openEpicRuneforge':
       return 'Visit the Epic Runeforge at the start of next turn';
+    case 'scheduleRuneforge':
+      return r.onWave
+        ? `Visit the ${r.forge === 'epic' ? 'Epic ' : ''}Runeforge on turn ${r.onWave}`
+        : `Start of next turn, visit the ${r.forge === 'epic' ? 'Epic ' : ''}Runeforge${r.gold ? ` and gain ${r.gold} Gold that turn` : ''}`;
     case 'multi':
       return r.rewards.map((sub) => questRewardText(sub)).join('. ');
     default:

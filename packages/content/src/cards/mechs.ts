@@ -108,6 +108,22 @@ export const MECHS: CardDef[] = [
     goldenText: '**End of Turn:** magnetize a random **Magnetic** Mech onto **2** friendly Mechs.',
   },
   {
+    // Rune of Reconfiguration's signature Mech — grant-only (token). A Combinator re-tuned to fire on Shout plays
+    // instead of End of Turn: whenever a Battlecry triggers, magnetize a random Magnetic Mech onto 2 friendly Mechs
+    // (reuses the Combinator's `endOfTurnMagnetizeMechs` factory on the `battlecryTriggered` trigger).
+    id: 'reconfiguredcombinator',
+    name: 'Reconfigured Combinator',
+    tribe: 'mech',
+    tier: 5,
+    attack: 8,
+    health: 8,
+    keywords: [],
+    token: true,
+    effects: [{ on: 'battlecryTriggered', do: 'endOfTurnMagnetizeMechs', params: { targets: 2 } }],
+    text: 'Whenever you trigger a **Shout**, attach an Attachment to **2 friendly Mechs**.',
+    goldenText: 'Whenever you trigger a **Shout**, attach an Attachment to **4 friendly Mechs**.',
+  },
+  {
     // End-of-Turn spell-power ramp: each turn it survives, your spells permanently give +1/+1 more —
     // the run-wide spellBonus channel (same as Cinderwing Matron's Battlecry, on a cadence). Golden +2/+2.
     id: 'aeonguard',

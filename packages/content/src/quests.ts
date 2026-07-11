@@ -48,6 +48,7 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_gilded_chance', name: 'Gilded Chance', tribe: 'neutral', tier: 'lesser', objective: { event: 'buy', count: 9 }, reward: { kind: 'grant', cards: ['goldcrafter'] } },
   { id: 'q_key_findings', name: 'Key Findings', tribe: 'neutral', tier: 'lesser', objective: { event: 'attack', count: 7 }, reward: { kind: 'grant', cards: ['keyfindings', 'keyfindings'] } },
   { id: 'q_odd_jobs', name: 'Odd Jobs', tribe: 'neutral', tier: 'lesser', objective: { event: 'buy', count: 6 }, reward: { kind: 'gainGold', amount: 10 } },
+  { id: 'q_the_runeforge', name: 'The Runeforge', tribe: 'neutral', tier: 'lesser', objective: { event: 'buy', count: 7 }, reward: { kind: 'scheduleRuneforge', forge: 'basic', gold: 4 } },
 
   // ── Greater (wave 8) ──
   // NEUTRAL greater slot — build-agnostic: spend Gold to earn a trip to the Epic Runeforge (opens next turn).

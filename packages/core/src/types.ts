@@ -240,6 +240,7 @@ export type EffectFactoryId =
   | 'endOfTurnCastSpellEscalating' // Vineweaver Drake: EoT casts a spell once per End of Turn seen (recruit)
   | 'battlecryGrantSpell' // Field Mechanic: Battlecry adds a specific spell (Patch Job) to your hand (recruit)
   | 'endOfTurnAdjacentConsumeFodder' // Abyssal Feeder: EoT — both board-adjacent minions Consume a Fodder (recruit)
+  | 'endOfTurnFeastConsume' // Feasting Bogrot: EoT — self Consumes a Fodder + shares its stats to adjacent (recruit)
   | 'endOfTurnBuffPerTribePlayed' // Spirit Worgen: EoT — gain per Beast/Dragon played this turn, +per spell cast (recruit)
   | 'endOfTurnBuffWeakestDragon' // Skybound Archivist: EoT — weakest Dragon gains N% of strongest Dragon's stats (recruit)
   | 'onSellGainGold' // Hoard Whelp: Sell — gain Gold (recruit)
@@ -425,7 +426,11 @@ export type QuestReward =
   // `randomFilter` conjures a random buyable MINION matching a keyword/effect class (a Shout=Battlecry, an
   // End-of-Turn, an Echo=Deathrattle, a Rally, or an Attachment=Magnetic) — ≤ current tier, or EXACTLY current
   // tier when `randomFilterExactTier` (fallback ≤ tier if none). Powers the Mech/neutral "get a random X minion".
-  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterCount?: number; randomFilterExactTier?: boolean; cards?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
+  // `randomTier` grants `randomCount` random minions of EXACTLY that Tier (any of your tribes / neutral) — Rune of
+  // the Pair ("2 random Tier 4 minions").
+  // `grantGolden` conjures each id as a GILDED (golden) copy — Rune of Stormcalling's "Gilded Karwind", Frontline
+  // Glory's "Gilded Yazzus".
+  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterCount?: number; randomFilterExactTier?: boolean; randomTier?: number; cards?: string[]; grantGolden?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
   | { kind: 'shoutDouble'; count: number }
   // A persistent "your <tribe> have +A/+H wherever they are" run aura (Den Marker) — folds into the tribe's
   // buy-time aura channel so current AND future minions of the tribe carry it (like Squirl Scout's board buff).
@@ -448,7 +453,9 @@ export type QuestReward =
   // `runeSpending` (Rune of Spending): End of Turn — +1 max Gold, and buff your leftmost minion +N/+N where N =
   // the Gold you spent this turn.
   // `runeAction` (Rune of Action): End of Turn — give your leftmost minion +1/+1 for every card you played this turn.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' }
+  // `triggerLeftmostEcho` (Rune of the Reliquary): End of Turn — fire your leftmost minion's Echo (Deathrattle).
+  // `weldMoneyBotsEdgeMechs` (Rune of Banking): End of Turn — weld a Money Bot onto your leftmost + rightmost Mech.
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -460,6 +467,16 @@ export type QuestReward =
   | { kind: 'goldPouchValue'; value: number }
   // Rune of Summoning: each spell you cast permanently improves your Imps +1/+1 wherever they are.
   | { kind: 'runeSummoning' }
+  // Rune of Kindling: each spell you cast gives your leftmost minion +3/+3.
+  | { kind: 'runeKindling' }
+  // Rune of Scales: each spell you cast gives your Dragons +1/+1 (board + hand).
+  | { kind: 'runeScales' }
+  // Rune of Bartering: your Shout (Battlecry) minions sell for 2 Gold.
+  | { kind: 'runeBartering' }
+  // Rune of Twin Gilding: you only need 2 copies of a card to Gild (triple) it.
+  | { kind: 'runeTwinGilding' }
+  // Rune of the Den Mother: your Den Mother also buffs herself when she buffs another Beast.
+  | { kind: 'runeDenMother' }
   // Rune of Scale (Epic): every time you spend Gold, give `count` random board minions +attack/+health.
   | { kind: 'runeScale'; count: number; attack: number; health: number }
   // Rune of Copies (Epic): copy a random board minion to your hand now, and again at the start of every turn.
@@ -470,6 +487,10 @@ export type QuestReward =
   // Open the EPIC Runeforge — a quest reward that presents the Epic runeset (a random few of `EPIC_RUNES`) to
   // buy ONE, exactly like the Runesmith's forge but reachable by any hero via a quest.
   | { kind: 'openEpicRuneforge' }
+  // Schedule a Runeforge visit at the start of a future turn (any hero). `forge` picks the runeset; `onWave` opens
+  // it on that absolute wave (Rune of the Epic Forge → turn 9), else it opens NEXT turn (The Runeforge quest);
+  // `gold` is granted that turn. Buying/skipping this forge never spends a hero-power charge.
+  | { kind: 'scheduleRuneforge'; forge: 'basic' | 'epic'; onWave?: number; gold?: number }
   // Undead: `gainGold` grants Gold immediately on completion (Bone Ledger's "Get 10 Gold").
   | { kind: 'gainGold'; amount: number }
   // Undead Echo rewards: `always` grants a permanent extra Echo (Deathrattle) trigger (Funeral Engine, stacks
@@ -492,6 +513,8 @@ export type QuestReward =
   // `discover` opens a minion Discover — at your current tavern tier, or at `tier` when given (Rune of the Scout →
   // Tier 5, Rune of the Champion → Tier 6).
   | { kind: 'discover'; tier?: number }
+  // Rune of the Second Path: Discover one of the minions that Greater Quests grant as rewards (a fixed pool).
+  | { kind: 'discoverGreaterQuest' }
   | { kind: 'dupeFirstBuy' }
   | { kind: 'spellRepeat'; scope: 'always' | 'firstEachTurn' }
   | { kind: 'minionCost'; cost: number }
@@ -522,7 +545,16 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Rune of Forthcoming: you always attack first in combat.
   | 'runeForthcoming'
   // Rune of Rallying: at Start of Combat, trigger each of your minions' Rally (on-attack) effects once.
-  | 'runeRallying';
+  | 'runeRallying'
+  // Epic combat runes (run-wide, no minion source): Rising Graves = Start of Combat give 2 Undead Rise;
+  // Broodpit = Avenge 6 summon 2 Taunt Imps; Spearline = Avenge 4 summon a Spear Warden that attacks now;
+  // Appraisal = Avenge 4 improve your spells +1/+1.
+  | 'runeRisingGraves' | 'runeBroodpit' | 'runeSpearline' | 'runeAppraisal'
+  // Rune of Soul Taxes: every 4 friendly deaths, gain +1 max Gold (carried back).
+  | 'runeSoulTaxes'
+  // First Claws (SoC: leftmost+rightmost Beasts attack now); Packcraft (on combat summon → Beasts +1 Atk);
+  // Inheritance (leftmost dies → rightmost gains its stats); Salvage (friendly Mech loses Ward → Attachment to hand).
+  | 'runeFirstClaws' | 'runePackcraft' | 'runeInheritance' | 'runeSalvage';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -581,6 +613,24 @@ export interface QuestCombatMods {
   runeFury?: boolean;
   /** Rune of Rallying: at Start of Combat, trigger each of your minions' Rally (on-attack) effects once. */
   runeRallying?: boolean;
+  /** Rune of Rising Graves: at Start of Combat, give two friendly Undead Rise (Reborn). */
+  runeRisingGraves?: boolean;
+  /** Rune of the Broodpit: every 6 friendly deaths, summon 2 Imps with Taunt. */
+  runeBroodpit?: boolean;
+  /** Rune of the Spearline: every 4 friendly deaths, summon a Spear Warden that attacks immediately. */
+  runeSpearline?: boolean;
+  /** Rune of Appraisal: every 4 friendly deaths, improve your spells +1/+1 (carried back as spell power). */
+  runeAppraisal?: boolean;
+  /** Rune of Soul Taxes: every 4 friendly deaths, gain +1 max Gold (carried back). */
+  runeSoulTaxes?: boolean;
+  /** Rune of First Claws: at Start of Combat, your leftmost + rightmost Beasts attack immediately. */
+  runeFirstClaws?: boolean;
+  /** Rune of Packcraft: whenever you summon a minion in combat, your Beasts gain +1 Attack (aura, carried back). */
+  runePackcraft?: boolean;
+  /** Rune of Inheritance: when your leftmost minion dies, your rightmost living minion gains its stats. */
+  runeInheritance?: boolean;
+  /** Rune of Salvage: whenever a friendly Mech loses its Ward, a random Attachment lands in your hand next shop. */
+  runeSalvage?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the

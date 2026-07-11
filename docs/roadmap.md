@@ -405,8 +405,8 @@ pending: **Epic rune art** (the Epic runes fall back to the sigil glyph) + **mor
   - **New cards to build** (owner-confirmed specs, 2026-07-10):
     - **Feasting Bogrot** (Rune of the Feast) — T5 Demon, **6/4**: *End of Turn: consume a Fodder and also give its
       stats to adjacent minions.*
-    - **Reconfigured Combinator** (Rune of Reconfiguration) — a NEW unit with **unique art**; triggers whenever you
-      play Shout minions.
+    - **Reconfigured Combinator** (Rune of Reconfiguration) — a NEW unit, **T5 Mech 8/8**, with **unique art**;
+      triggers whenever you play Shout minions.
 - **Medium — new combat effects:**
   - Avenge: Broodpit (Av6 → 2 Taunt Imps), Appraisal (Av4 → spells +1/+1), Spearline (Av4 → summon Spear Warden
     that attacks now), Soul Taxes (Av4 → +1 max Gold).

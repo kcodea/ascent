@@ -2848,3 +2848,39 @@ describe('Epic combat runes (Rising Graves / Broodpit / Spearline / Appraisal)',
     expect(r.playerMaxGoldGain).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('Combat runes batch 6 (First Claws / Packcraft / Inheritance / Salvage)', () => {
+  const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, mods);
+
+  it('First Claws: the Start-of-Combat immediate attacks change the fight (they fire)', () => {
+    const p: BoardMinion[] = [{ cardId: 'gnash', attack: 8, health: 8 }, { cardId: 'alley', attack: 3, health: 4 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 2, health: 30 }];
+    const withFC = simMods(p, e, 1, { runeFirstClaws: true });
+    const without = simMods(p, e, 1, {});
+    expect(withFC.events).not.toEqual(without.events); // the SoC pre-strikes altered the fight
+    expect(withFC.events.some((ev) => ev.type === 'attack')).toBe(true);
+  });
+
+  it('Packcraft: a combat summon buffs your Beasts (+1 Attack) — via a Spearline summon', () => {
+    // 4 sandbags die → Spearline summons a Spear Warden → Packcraft fires → the Gnash (Beast) gets +1 Attack.
+    const p: BoardMinion[] = [{ cardId: 'gnash', attack: 8, health: 40 }, ...Array.from({ length: 4 }, () => ({ cardId: 'sandbag', attack: 1, health: 1 }))];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 60 }];
+    const r = simMods(p, e, 1, { runeSpearline: true, runePackcraft: true });
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.source === 'Rune of Packcraft')).toBe(true);
+  });
+
+  it('Inheritance: when the leftmost minion dies, the rightmost gains its stats', () => {
+    const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 1 }, { cardId: 'gnash', attack: 5, health: 20 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 4, health: 40 }];
+    const r = simMods(p, e, 1, { runeInheritance: true });
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.source === 'Rune of Inheritance')).toBe(true);
+  });
+
+  it('Salvage: a friendly Mech losing its Ward puts a random Attachment in your hand', () => {
+    const p: BoardMinion[] = [{ cardId: 'drone', attack: 4, health: 6, keywords: ['DS'] as Keyword[] }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 4, health: 20 }];
+    const r = simMods(p, e, 1, { runeSalvage: true });
+    expect((r.playerHandGrants ?? []).length).toBeGreaterThan(0); // an Attachment carried to hand
+  });
+});

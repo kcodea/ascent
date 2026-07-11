@@ -1392,6 +1392,50 @@ export function simulate(
   if (questMods.runeAppraisal) runeAvenge(4, () => ctx.grantSpellPower(1, 1, 'player', undefined)); // spells +1/+1
   if (questMods.runeSoulTaxes) runeAvenge(4, () => ctx.grantMaxGold(1, 'player')); // +1 max Gold
 
+  // Rune of Packcraft: whenever you summon a minion in combat, your Beasts gain +1 Attack (aura — current Beasts
+  // now + carried back so future bought Beasts inherit it, like The Old Hunt).
+  if (questMods.runePackcraft) {
+    bus.on('onSummon', (payload) => {
+      const { side } = payload as { minion: Minion; side: Side };
+      if (side !== 'player') return;
+      beastAtkAura += 1;
+      beastBuyAtkGain += 1;
+      for (const m of boards.player) if (!m.dead && m.health > 0 && isBeast(m)) ctx.buff(m, 1, 0, 'Rune of Packcraft');
+    });
+  }
+  // Rune of Inheritance: when your LEFT-MOST living minion dies, your right-most living minion gains its stats.
+  if (questMods.runeInheritance) {
+    bus.on('onDeath', (payload) => {
+      const { minion, side } = payload as { minion: Minion; side: Side };
+      if (side !== 'player') return;
+      const idx = boards.player.indexOf(minion);
+      if (idx < 0 || boards.player.slice(0, idx).some((m) => !m.dead && m.health > 0)) return; // not the leftmost
+      const right = [...boards.player].reverse().find((m) => !m.dead && m.health > 0 && m !== minion);
+      if (right) ctx.buff(right, minion.attack, minion.maxHealth, 'Rune of Inheritance');
+    });
+  }
+  // Rune of Salvage: whenever a friendly Mech loses its Ward, a random Attachment lands in your hand next shop.
+  if (questMods.runeSalvage) {
+    const magnetics = Object.values(cards).filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech') && c.keywords.includes('M') && !c.token && !c.spell);
+    if (magnetics.length > 0) {
+      bus.on('onLoseDivineShield', (payload) => {
+        const { minion, side } = payload as { minion: Minion; side: Side };
+        if (side !== 'player' || !(minion.tribe === 'mech' || minion.tribe2 === 'mech')) return;
+        ctx.grantToHand(magnetics[rng.int(magnetics.length)]!.id, 'player', minion.uid);
+      });
+    }
+  }
+  // Rune of First Claws: at Start of Combat, your left-most + right-most Beasts attack immediately.
+  if (questMods.runeFirstClaws) {
+    const beasts = boards.player.filter((m) => !m.dead && m.health > 0 && m.attack > 0 && isBeast(m));
+    const targets = beasts.length <= 2 ? beasts : [beasts[0]!, beasts[beasts.length - 1]!];
+    if (targets.length > 0) {
+      nextStep();
+      for (const m of targets) ctx.attackNow?.(m, false);
+      flushImmediateAttacks();
+    }
+  }
+
   // --- First attacker: more living minions goes first; tie → seeded (A.3 step 2).
   //     Pre-emptive Assault overrides the whole rule: the player strikes first, period (one fight —
   //     the run loop clears the flag at settle). No tie roll is consumed on the override. ---

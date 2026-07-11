@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### feat: runes batch 6 — combat runes + Second Path (the rune roster is complete bar Twilight)
+
+The last of the rune roster (combat-engine + a pool Discover):
+- **Rune of First Claws** (Epic 8): *Start of Combat — your left-most + right-most Beasts attack immediately*
+  (SoC block via `ctx.attackNow` + `flushImmediateAttacks`).
+- **Rune of Packcraft** (Basic 5): *whenever you summon a minion in combat, your Beasts gain +1 Attack wherever they
+  are* (an `onSummon` bus handler pumping the Beast attack aura, carried back like The Old Hunt).
+- **Rune of Inheritance** (Epic 8): *when your left-most minion dies, your right-most gains its stats* (`onDeath`
+  bus handler — fires only when the dead was the left-most living).
+- **Rune of Salvage** (Basic 5): *whenever a friendly Mech loses its Ward, a random Attachment lands in your hand
+  next shop* (an `onLoseDivineShield` bus handler → `grantToHand`).
+- **Rune of the Second Path** (Epic 6): *Discover a Greater-Quest reward minion* — a new **pool Discover**
+  (`DiscoverSpec { kind: 'pool', ids }`) drawn from the ids Greater quests grant (`greaterQuestRewardMinions`).
+
+New combat flags + reward kind (`discoverGreaterQuest`) + the pool DiscoverSpec are zod-validated. 5 new tests (each
+combat rune's trigger via a scripted fight; Second Path offers only greater-quest reward minions). Live: all render
+with correct cost/text; no console errors. typecheck / lint / 881 tests / build green.
+
+**Only Rune of Twilight remains** — deferred pending a design call: "your Start-of-Combat effects also trigger at
+End of Turn" isn't well-defined, since SoC effects run in the combat context (summons, auras) with no clean recruit
+End-of-Turn equivalent. Options: (a) fire SoC effects an extra time at start of combat, or (b) a specced subset.
+
 ### feat: runes batch 5 — recruit-phase (Scales / Bartering / Twin Gilding / Den Mother / Banking) + card art
 
 Wired the **card art** for Feasting Bogrot + Reconfigured Combinator (`Special Rune Rewards/*.png` → 512² webp in

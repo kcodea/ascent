@@ -24,7 +24,7 @@ const buyRune = (runeId: string, embers = 10, over: Partial<RunState> = {}): Run
 describe('Runeforge — framework', () => {
   it('every rune validates + is Runeforge-only (never a card/quest id)', () => {
     validateRunes();
-    expect(RUNES.length).toBe(22); // 13 base + batch1 (4) + batch2 (Epic Forge / Kindling / Pair / Menagerie) + Bartering
+    expect(RUNES.length).toBe(24); // 13 base + batch1 (4) + batch2 (4) + Bartering + Packcraft + Salvage
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
@@ -478,6 +478,18 @@ describe('Runes batch 5 — recruit-phase (Scales / Bartering / Twin Gilding / D
     applyEndOfTurn(s);
     expect(s.board[0]!.attack + s.board[0]!.health).toBeGreaterThan(leftBefore); // leftmost Mech welded
     expect(s.board[2]!.attack + s.board[2]!.health).toBeGreaterThan(2 + 1); // rightmost Mech welded
+  });
+
+  it('Rune of the Second Path: Discovers from the Greater-Quest reward minion pool', () => {
+    const s: RunState = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, runeforgeOffer: ['rune_second_path'], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
+    expect(s.discover?.length).toBeGreaterThan(0);
+    const pool = new Set<string>();
+    const collect = (r: { kind: string; cards?: string[]; rewards?: { kind: string; cards?: string[] }[] }): void => {
+      if ((r.kind === 'grant' || r.kind === 'recurringGrant') && r.cards) r.cards.forEach((id) => pool.add(id));
+      if (r.kind === 'multi') r.rewards?.forEach(collect);
+    };
+    for (const q of Object.values(QUEST_INDEX)) if (q.tier === 'greater') collect(q.reward as never);
+    for (const id of s.discover!) expect(pool.has(id)).toBe(true); // every option is a greater-quest reward minion
   });
 });
 

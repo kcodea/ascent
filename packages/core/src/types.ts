@@ -513,6 +513,8 @@ export type QuestReward =
   // `discover` opens a minion Discover — at your current tavern tier, or at `tier` when given (Rune of the Scout →
   // Tier 5, Rune of the Champion → Tier 6).
   | { kind: 'discover'; tier?: number }
+  // Rune of the Second Path: Discover one of the minions that Greater Quests grant as rewards (a fixed pool).
+  | { kind: 'discoverGreaterQuest' }
   | { kind: 'dupeFirstBuy' }
   | { kind: 'spellRepeat'; scope: 'always' | 'firstEachTurn' }
   | { kind: 'minionCost'; cost: number }
@@ -549,7 +551,10 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Appraisal = Avenge 4 improve your spells +1/+1.
   | 'runeRisingGraves' | 'runeBroodpit' | 'runeSpearline' | 'runeAppraisal'
   // Rune of Soul Taxes: every 4 friendly deaths, gain +1 max Gold (carried back).
-  | 'runeSoulTaxes';
+  | 'runeSoulTaxes'
+  // First Claws (SoC: leftmost+rightmost Beasts attack now); Packcraft (on combat summon → Beasts +1 Atk);
+  // Inheritance (leftmost dies → rightmost gains its stats); Salvage (friendly Mech loses Ward → Attachment to hand).
+  | 'runeFirstClaws' | 'runePackcraft' | 'runeInheritance' | 'runeSalvage';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -618,6 +623,14 @@ export interface QuestCombatMods {
   runeAppraisal?: boolean;
   /** Rune of Soul Taxes: every 4 friendly deaths, gain +1 max Gold (carried back). */
   runeSoulTaxes?: boolean;
+  /** Rune of First Claws: at Start of Combat, your leftmost + rightmost Beasts attack immediately. */
+  runeFirstClaws?: boolean;
+  /** Rune of Packcraft: whenever you summon a minion in combat, your Beasts gain +1 Attack (aura, carried back). */
+  runePackcraft?: boolean;
+  /** Rune of Inheritance: when your leftmost minion dies, your rightmost living minion gains its stats. */
+  runeInheritance?: boolean;
+  /** Rune of Salvage: whenever a friendly Mech loses its Ward, a random Attachment lands in your hand next shop. */
+  runeSalvage?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the

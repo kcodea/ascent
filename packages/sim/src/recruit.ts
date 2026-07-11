@@ -2029,6 +2029,17 @@ export function offerDiscover(
 export function openDiscover(state: RunState, spec: DiscoverSpec): void {
   if (spec.kind === 'spell') {
     offerSpellDiscover(state);
+  } else if (spec.kind === 'pool') {
+    // Discover from an explicit card-id pool (Second Path). Offer up to 3 distinct, real minions.
+    const pool = spec.ids.filter((id) => CARD_INDEX[id] && !CARD_INDEX[id]!.spell);
+    if (pool.length === 0) return;
+    const rng = makeRng(state.rngCursor);
+    const avail = [...pool];
+    const picks: string[] = [];
+    for (let i = 0; i < 3 && avail.length > 0; i++) picks.push(avail.splice(rng.int(avail.length), 1)[0]!);
+    state.rngCursor = rng.state();
+    state.discover = picks;
+    state.discoverLockTier = undefined;
   } else {
     offerDiscover(state, spec.tier, {
       tier: spec.exactTier,

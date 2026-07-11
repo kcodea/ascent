@@ -1864,6 +1864,19 @@ function openScheduledBasicRuneforge(s: RunState, gold = 0): void {
   if (gold > 0) s.embers += gold;
 }
 
+/** The distinct minion ids that GREATER-tier quests grant as rewards (grant/recurringGrant/multi cards) — the pool
+ *  Rune of the Second Path Discovers from. Excludes spells. */
+function greaterQuestRewardMinions(): string[] {
+  const ids = new Set<string>();
+  const collect = (r: QuestDef['reward']): void => {
+    if (r.kind === 'grant') for (const id of r.cards ?? []) ids.add(id);
+    else if (r.kind === 'recurringGrant') for (const id of r.cards) ids.add(id);
+    else if (r.kind === 'multi') for (const sub of r.rewards) collect(sub);
+  };
+  for (const q of Object.values(QUEST_INDEX)) if (q.tier === 'greater') collect(q.reward);
+  return [...ids].filter((id) => CARD_INDEX[id] && !CARD_INDEX[id]!.spell);
+}
+
 /** Rune of Copies: conjure a fresh copy of a RANDOM board minion into the hand (base card + run auras, like the
  *  Dupes copy). No-op on an empty board or a full hand. */
 function copyRandomBoardMinion(s: RunState): void {
@@ -1995,6 +2008,10 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       openDiscover(s, { kind: 'minion', tier: t, exactTier: t });
       break;
     }
+    case 'discoverGreaterQuest':
+      // Rune of the Second Path: Discover one of the minions Greater Quests grant as rewards.
+      openDiscover(s, { kind: 'pool', ids: greaterQuestRewardMinions() });
+      break;
     case 'dupeFirstBuy':
       s.dupeFirstBuyEachTurn = true; // Dupes: the first minion bought each turn is copied to hand
       break;
@@ -2196,6 +2213,10 @@ function questCombatMods(s: RunState): QuestCombatMods {
     runeSpearline: f?.runeSpearline, // Rune of the Spearline: Avenge 4 → Spear Warden attacks now
     runeAppraisal: f?.runeAppraisal, // Rune of Appraisal: Avenge 4 → spells +1/+1
     runeSoulTaxes: f?.runeSoulTaxes, // Rune of Soul Taxes: Avenge 4 → +1 max Gold
+    runeFirstClaws: f?.runeFirstClaws, // Rune of First Claws: SoC leftmost+rightmost Beasts attack now
+    runePackcraft: f?.runePackcraft, // Rune of Packcraft: combat summon → Beasts +1 Atk
+    runeInheritance: f?.runeInheritance, // Rune of Inheritance: leftmost dies → rightmost gains its stats
+    runeSalvage: f?.runeSalvage, // Rune of Salvage: friendly Mech loses Ward → Attachment to hand
   };
 }
 

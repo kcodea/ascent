@@ -172,6 +172,20 @@ export const RUNES: RuneDef[] = [
     text: '**Shout** minions sell for **2 Gold**.',
     reward: { kind: 'runeBartering' },
   },
+  {
+    id: 'rune_packcraft',
+    name: 'Rune of Packcraft',
+    cost: 5,
+    text: 'Whenever you summon a minion in combat, give your **Beasts +1 Attack** wherever they are.',
+    reward: { kind: 'combatFlag', flag: 'runePackcraft' },
+  },
+  {
+    id: 'rune_salvage',
+    name: 'Rune of Salvage',
+    cost: 5,
+    text: 'Whenever a friendly **Mech loses Ward**, get a random **Attachment** next shop.',
+    reward: { kind: 'combatFlag', flag: 'runeSalvage' },
+  },
 ];
 
 /**
@@ -300,6 +314,31 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: '**End of Turn:** attach **Money Bots** to your left-most and right-most Mechs.',
     reward: { kind: 'recurringEndOfTurn', effect: 'weldMoneyBotsEdgeMechs' },
+  },
+  // ── Batch 6: combat runes + Second Path ──
+  {
+    id: 'rune_first_claws',
+    name: 'Rune of First Claws',
+    cost: 8,
+    epic: true,
+    text: '**Start of Combat:** your left-most and right-most **Beasts** attack immediately.',
+    reward: { kind: 'combatFlag', flag: 'runeFirstClaws' },
+  },
+  {
+    id: 'rune_inheritance',
+    name: 'Rune of Inheritance',
+    cost: 8,
+    epic: true,
+    text: 'When your **left-most minion dies**, your **right-most minion** gains its stats.',
+    reward: { kind: 'combatFlag', flag: 'runeInheritance' },
+  },
+  {
+    id: 'rune_second_path',
+    name: 'Rune of the Second Path',
+    cost: 6,
+    epic: true,
+    text: '**Discover** a **Greater Quest** reward minion.',
+    reward: { kind: 'discoverGreaterQuest' },
   },
   // ── Batch 4b: the two new signature cards ──
   {

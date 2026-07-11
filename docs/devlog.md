@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### feat: rune + quest art wired, Compendium Runes tab, Rune of the Warden, Runeguard art re-cut
+
+- **Rune of the Warden** (Basic 5): *Get a Spear Warden. When you have room in combat, summon a Spear Warden.* —
+  the last unimplemented rune. Grants `knit` + a `runeWarden` combat flag → a Start-of-Combat summon of a Spear
+  Warden when the player board has room (< 7). 3 tests. The roster is now **48 runes** (25 Basic + 23 Epic).
+- **Rune + quest art wired** from `Ascent Art/Runes` + `Ascent Art/Quests` (PascalCase sources → `<id>.webp`,
+  512², via a name-normalizing match script). **46/48 runes** now have art; **every quest** has art. The 2 without
+  art — **Rune of Rising Graves** + **Rune of Stormcalling** — have only generic (un-attributed) sigil sources in
+  the folder, so per the name-match rule they keep the sigil-glyph fallback until dedicated art lands.
+- **Compendium — Runes tab.** A new `runes` category in the Compendium lists every rune (Basic then Epic) as
+  read-only RuneCards, alongside Minions / Spells / Quest Rewards / Quests.
+- **Runeguard** hero art re-cut from `Ascent Art/Heroes/Runeguard.png`.
+
+typecheck / lint / 885 tests / build green. Live: the Compendium Runes tab shows 48 runes (46 art images loaded);
+Runeguard art serves; no console errors.
+
 ### feat: Rune of Twilight — the rune roster is now complete
 
 **Rune of Twilight** (Epic 8): *Your Start-of-Combat effects also trigger at End of Turn.* Implemented as a

@@ -389,8 +389,8 @@ export interface CombatReplay {
  *  skull/fade starts later — hence the higher `attacker` figure. The lead is layered ON TOP of the generic
  *  `overlapMs` (which alone measured the consequence from the IMPACT's start, landing it on top of the FX).
  *  Returns 0 for any transition that isn't a Deathrattle summon or a Rise return. */
-const DR_SUMMON_LEAD = { defender: 560, attacker: 900 }; // Deathrattle death → its summoned tokens
-const REBORN_LEAD = { defender: 560, attacker: 900 };    // Rise death → the body returning
+const DR_SUMMON_LEAD = { defender: 800, attacker: 1150 }; // Deathrattle death → its summoned tokens
+const REBORN_LEAD = { defender: 800, attacker: 1150 };    // Rise death → the body returning
 function deathConsequenceLead(
   shown: Moment | undefined,
   next: Moment,

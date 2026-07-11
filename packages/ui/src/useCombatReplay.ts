@@ -683,6 +683,9 @@ export function useCombatReplay(
           }, strikeMs));
         }
       },
+      // TEMP (Task 5): no-op to satisfy the now-required CueContext.onSelfBuffs. Task 6 replaces this with the
+      // real self-buff pulse + badge-flash handler.
+      onSelfBuffs: () => {},
     });
 
     // A Rise DEFENDER (dying but NOT the impact attacker being pulled home) explodes in place immediately —

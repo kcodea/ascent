@@ -455,6 +455,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (def?.discoverOnPlay) {
         const dop = def.discoverOnPlay;
         s.hand.splice(i, 1);
+        s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // counts as a card played (Rune of Action)
         // `exactCurrentTier` (Key Findings) locks the pool to the live tavern tier; `exactTier` is a fixed tier
         // (Sprout); otherwise the offer tier is current + `tierOffset`.
         const exactTier = dop.exactCurrentTier ? s.tier : dop.exactTier;
@@ -523,6 +524,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!def.singleCast) s.nextSpellMult = undefined; // Nimbus charge spent on this cast (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         s.hand.splice(i, 1);
+        s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // one card played, even if it multi-cast (Rune of Action)
         // A spell that conjures minions (Undead Army, Summon Stone) can hand you a 3rd copy — combine it.
         checkTriples(s);
         return s;
@@ -536,6 +538,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const target = s.board[action.toIndex];
         if (target && magnetizesTo(card.cardId, target.cardId, target.addedTribes)) {
           s.hand.splice(i, 1);
+          s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // a welded Magnetic is still a card played (Rune of Action)
           // Playing a Magnetic minion IS a summon — fire summon-buffs on it BEFORE welding, so the absorbed
           // body carries any tribe summon-buff into the host (Chaos Attachment counts as a Beast → Mama
           // Bear's +X/+X lands on it, then welds onto the host). Mutates card.attack/health, read below.
@@ -575,7 +578,10 @@ function reduceCore(state: RunState, action: Action): RunState {
 
       if (s.board.length >= CONFIG.boardMax) return state;
       s.hand.splice(i, 1);
-      // Track minions played this turn (by cardId) for Pack Leader / Spirit Worgen ("Beasts/Dragons you played").
+      // Track every card played this turn (by cardId). Rune of Action reads its raw length ("each card you
+      // played"); Pack Leader / Spirit Worgen filter it by tribe ("Beasts/Dragons you played"). Spells,
+      // Discover-on-play cards and welded Magnetics also push into it below (they return before this line),
+      // so the count is every hand card that resolved — tribe-filtered readers ignore the non-tribe ones.
       s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
       const to =
         action.toIndex === undefined
@@ -627,6 +633,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!def.singleCast) s.nextSpellMult = undefined; // Nimbus charge spent (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         s.hand.splice(hi, 1);
+        s.playedThisTurn = [...(s.playedThisTurn ?? []), co.cardId]; // Choose One spell counts as a card played (Rune of Action)
         s.chooseOne = undefined;
         checkTriples(s);
         return s;

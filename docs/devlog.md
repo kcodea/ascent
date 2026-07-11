@@ -3,6 +3,30 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-11 (session 31)
+
+### fix: Rune of Action counts every card played, not just board minions
+
+**Bug (owner-reported):** Rune of Action (*End of Turn: give your three left-most minions +1/+1 for each card you
+played this turn*) was undercounting. It reads `s.playedThisTurn`, but that tracker was only appended for a **normal
+minion that takes a board slot** — the append lives at the tail of the `play` case in `reducer.ts`, and every other
+kind of play returns *before* it: **spells** (cast → `return s`), **Discover-on-play** cards (Sprout / Help Wanted /
+Tribe Portal / Corpse Board → `return s`), **welded Magnetics** (attachment merges onto a host → `return s`), and
+**Choose-One spells** (resolved in the `chooseOne` case). So a turn spent on two spells and a magnetic weld read as
+*0 cards played* to the rune.
+
+**Fix:** push the played card's `cardId` into `s.playedThisTurn` at each of those consumption paths too (a
+multi-cast spell counts once — it's one card played). This is safe for the tracker's other readers: **Pack Leader /
+Spirit Worgen** filter `playedThisTurn` by tribe ("Beasts/Dragons you played"), and spells/attachments are
+neutral/off-tribe, so they're excluded there exactly as before — only Rune of Action reads the raw length.
+
+**Not related to the Career "actions per round" (APT) / "cards played" stats** — those are computed independently in
+`store.ts` from the replay action log (`actions.filter(isPlayerAction)` / `a.type === 'play'`), which already counts
+every play/buy/roll, so this bug never touched them.
+
+**Verified:** added a regression test (playing the untargeted spell `growth` now lands in `playedThisTurn`);
+`npm run typecheck && npm run lint && npm test` (883) && `npm run build:web` all green.
+
 ## 2026-07-10 (session 30)
 
 ### feat: rune + quest art wired, Compendium Runes tab, Rune of the Warden, Runeguard art re-cut

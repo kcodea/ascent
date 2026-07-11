@@ -24,7 +24,7 @@ const buyRune = (runeId: string, embers = 10, over: Partial<RunState> = {}): Run
 describe('Runeforge — framework', () => {
   it('every rune validates + is Runeforge-only (never a card/quest id)', () => {
     validateRunes();
-    expect(RUNES.length).toBe(21); // 13 base + batch1 (4) + batch2 (Epic Forge / Kindling / Pair / Menagerie)
+    expect(RUNES.length).toBe(22); // 13 base + batch1 (4) + batch2 (Epic Forge / Kindling / Pair / Menagerie) + Bartering
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
@@ -425,6 +425,59 @@ describe('Runes batch 4 — grant runes (existing cards + Gilded-grant)', () => 
     const s = buyEpic('rune_soul_taxes');
     expect(s.hand.some((c) => c.cardId === 'soulsman')).toBe(true);
     expect(s.questFlags?.runeSoulTaxes).toBe(true);
+  });
+});
+
+describe('Runes batch 5 — recruit-phase (Scales / Bartering / Twin Gilding / Den Mother / Banking)', () => {
+  const mk = (uid: string, cardId: string): RunState['board'][number] => {
+    const d = CARD_INDEX[cardId]!;
+    return { uid, cardId, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false };
+  };
+  const spell = (uid = 'gp'): RunState['hand'][number] => ({ uid, cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false });
+
+  it('Rune of Scales: each spell cast gives your Dragons +1/+1 (board + hand)', () => {
+    // A Dragon on board + a non-Dragon; cast a spell → only the Dragon grows.
+    let s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 5, runeScales: true,
+      board: [mk('d', 'karwind'), mkAlley('b')], hand: [spell()] };
+    const dragonBefore = s.board[0]!.attack;
+    s = reduce(s, { type: 'play', uid: 'gp' });
+    expect(s.board[0]!.attack).toBe(dragonBefore + 1); // Dragon +1
+    expect(s.board[1]!.attack).toBe(1); // non-Dragon unchanged
+  });
+
+  it('Rune of Bartering: a Shout minion sells for 2 Gold (a non-Shout for the base 1)', () => {
+    const shout = mk('s', 'fieldmechanic'); // a Battlecry mech
+    const shoutSale = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 0, runeBartering: true, board: [shout] }, { type: 'sell', uid: 's' });
+    expect(shoutSale.embers).toBe(2);
+    const vanillaSale = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 0, runeBartering: true, board: [mk('v', 'drone')] }, { type: 'sell', uid: 'v' });
+    expect(vanillaSale.embers).toBe(1); // Drone has no Battlecry → base sell
+  });
+
+  it('Rune of Twin Gilding: 2 copies of a card Gild into a golden', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, runeTwinGilding: true,
+      board: [mk('a', 'drone')], hand: [mk('b', 'drone')] };
+    s = reduce(s, { type: 'play', uid: 'b' }); // 2nd Drone hits the board → Gild
+    const drones = [...s.board, ...s.hand].filter((c) => c.cardId === 'drone');
+    expect(drones.some((c) => c.golden)).toBe(true); // gilded at 2 copies
+  });
+
+  it('Rune of the Den Mother: playing a Beast buffs it AND Den Mother herself', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, runeDenMother: true,
+      board: [mk('m', 'mamabear')], hand: [mkAlley('beast')] };
+    const momBefore = s.board[0]!.attack;
+    s = reduce(s, { type: 'play', uid: 'beast' });
+    expect(s.board[0]!.attack).toBeGreaterThan(momBefore); // Den Mother buffed herself too
+    const beast = s.board.find((c) => c.uid === 'beast')!;
+    expect(beast.attack).toBeGreaterThan(1); // the played Beast got the buff
+  });
+
+  it('Rune of Banking: End of Turn welds a Money Bot onto the leftmost + rightmost Mech', () => {
+    const s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', questRecurringEndOfTurn: ['weldMoneyBotsEdgeMechs'],
+      board: [mk('l', 'drone'), mkAlley('mid'), mk('r', 'drone')] };
+    const leftBefore = s.board[0]!.attack + s.board[0]!.health;
+    applyEndOfTurn(s);
+    expect(s.board[0]!.attack + s.board[0]!.health).toBeGreaterThan(leftBefore); // leftmost Mech welded
+    expect(s.board[2]!.attack + s.board[2]!.health).toBeGreaterThan(2 + 1); // rightmost Mech welded
   });
 });
 

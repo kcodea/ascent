@@ -165,6 +165,13 @@ export const RUNES: RuneDef[] = [
     text: 'Get **4 random Attachments**.',
     reward: { kind: 'grant', randomFilter: 'attachment', randomFilterCount: 4 },
   },
+  {
+    id: 'rune_bartering',
+    name: 'Rune of Bartering',
+    cost: 5,
+    text: '**Shout** minions sell for **2 Gold**.',
+    reward: { kind: 'runeBartering' },
+  },
 ];
 
 /**
@@ -260,6 +267,39 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: '**Avenge (4):** gain **+1 max Gold**. Get **Souls Man**.',
     reward: { kind: 'multi', rewards: [{ kind: 'combatFlag', flag: 'runeSoulTaxes' }, { kind: 'grant', cards: ['soulsman'] }] },
+  },
+  // ── Batch 5: recruit-phase runes ──
+  {
+    id: 'rune_scales',
+    name: 'Rune of Scales',
+    cost: 6,
+    epic: true,
+    text: 'Whenever you cast a spell, give your **Dragons +1/+1**.',
+    reward: { kind: 'runeScales' },
+  },
+  {
+    id: 'rune_twin_gilding',
+    name: 'Rune of Twin Gilding',
+    cost: 8,
+    epic: true,
+    text: 'You only need **2 copies** of cards to **Gild** them.',
+    reward: { kind: 'runeTwinGilding' },
+  },
+  {
+    id: 'rune_den_mother',
+    name: 'Rune of the Den Mother',
+    cost: 7,
+    epic: true,
+    text: 'Get **Den Mother**. Your Den Mother also **buffs herself** when she buffs other Beasts.',
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['mamabear'] }, { kind: 'runeDenMother' }] },
+  },
+  {
+    id: 'rune_banking',
+    name: 'Rune of Banking',
+    cost: 8,
+    epic: true,
+    text: '**End of Turn:** attach **Money Bots** to your left-most and right-most Mechs.',
+    reward: { kind: 'recurringEndOfTurn', effect: 'weldMoneyBotsEdgeMechs' },
   },
   // ── Batch 4b: the two new signature cards ──
   {

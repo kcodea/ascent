@@ -454,7 +454,8 @@ export type QuestReward =
   // the Gold you spent this turn.
   // `runeAction` (Rune of Action): End of Turn — give your leftmost minion +1/+1 for every card you played this turn.
   // `triggerLeftmostEcho` (Rune of the Reliquary): End of Turn — fire your leftmost minion's Echo (Deathrattle).
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' }
+  // `weldMoneyBotsEdgeMechs` (Rune of Banking): End of Turn — weld a Money Bot onto your leftmost + rightmost Mech.
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -468,6 +469,14 @@ export type QuestReward =
   | { kind: 'runeSummoning' }
   // Rune of Kindling: each spell you cast gives your leftmost minion +3/+3.
   | { kind: 'runeKindling' }
+  // Rune of Scales: each spell you cast gives your Dragons +1/+1 (board + hand).
+  | { kind: 'runeScales' }
+  // Rune of Bartering: your Shout (Battlecry) minions sell for 2 Gold.
+  | { kind: 'runeBartering' }
+  // Rune of Twin Gilding: you only need 2 copies of a card to Gild (triple) it.
+  | { kind: 'runeTwinGilding' }
+  // Rune of the Den Mother: your Den Mother also buffs herself when she buffs another Beast.
+  | { kind: 'runeDenMother' }
   // Rune of Scale (Epic): every time you spend Gold, give `count` random board minions +attack/+health.
   | { kind: 'runeScale'; count: number; attack: number; health: number }
   // Rune of Copies (Epic): copy a random board minion to your hand now, and again at the start of every turn.

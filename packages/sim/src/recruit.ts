@@ -588,13 +588,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  accrued `summonBonus`) × golden, then summonBonus climbs by `base`. The improve persists across combat
    *  via the summonBonus carry-back (the combat half mirrors this). A triple resets the accrual (the
    *  summonBonus-combine in checkTriples is keyed to buffOnSummon, not this factory). */
-  summonBuffTribeImprove: (_ctx, self, params, { minion }) => {
+  summonBuffTribeImprove: (ctx, self, params, { minion }) => {
     if (minion === self) return;
     const tribe = str(params.tribe);
     if (tribe && !isTribe(minion, tribe as Tribe)) return;
     const base = num(params.attack, 3);
     const mag = (base + (self.summonBonus ?? 0)) * gold(self);
     addBuff(minion, nameOf(self), mag, mag);
+    // Rune of the Den Mother: she also buffs HERSELF by the same amount when she buffs another Beast.
+    if (ctx.state.runeDenMother) addBuff(self, nameOf(self), mag, mag);
     self.summonBonus = (self.summonBonus ?? 0) + base;
   },
 
@@ -2688,6 +2690,8 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   if (state.runeSummoning) buffImpsRunWide(state, 1, 1, 'Rune of Summoning');
   // Rune of Kindling: each spell cast gives your leftmost board minion +3/+3 (baked onto that minion).
   if (state.runeKindling && state.board[0]) addBuff(state.board[0], 'Rune of Kindling', 3, 3);
+  // Rune of Scales: each spell cast gives your Dragons +1/+1 (board + hand).
+  if (state.runeScales) for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dragon')) addBuff(c, 'Rune of Scales', 1, 1);
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;
@@ -2751,7 +2755,7 @@ export function applyEndOfTurn(state: RunState): void {
 /** One quest-granted recurring End-of-Turn effect. `triggerLeftmostShout`: re-fire your leftmost Battlecry
  *  minion's Battlecry (Echoing Roar). `grantRandomShout`: conjure a random Battlecry minion (≤ tavern tier) to
  *  hand (The Hoard Wakes). `grantRandomAttachments`: conjure 2 random Magnetic minions to hand (Blueprint Cache). */
-function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho'): void {
+function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs'): void {
   if (effect === 'triggerLeftmostShout') {
     const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
     if (leftmost) replayBattlecry(state, leftmost);
@@ -2771,6 +2775,26 @@ function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' |
     // Rune of the Reliquary: fire your leftmost minion's Echo (Deathrattle) out of combat.
     const leftmost = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
     if (leftmost) fireRecruitDeathrattles(makeContext(state), leftmost);
+  } else if (effect === 'weldMoneyBotsEdgeMechs') {
+    // Rune of Banking: weld a Money Bot onto your left-most and right-most Mech (deduped if only one Mech).
+    const money = CARD_INDEX['moneybot'];
+    const mechs = state.board.filter((c) => isTribe(c, 'mech'));
+    if (money && mechs.length > 0) {
+      const targets = mechs.length === 1 ? [mechs[0]!] : [mechs[0]!, mechs[mechs.length - 1]!];
+      const buff = cardBuff(state, money.id);
+      for (const m of targets) {
+        weldMagnetic(state, m, {
+          source: money.name,
+          attack: money.attack + buff.attack,
+          health: money.health + buff.health,
+          keywords: [...money.keywords],
+          mana: money.manaPerTurn ?? 0,
+          rallyMechAtk: money.rallyMechAtk,
+          spellAura: money.spellAura,
+          fodderAura: money.fodderAura,
+        }, 0);
+      }
+    }
   } else {
     conjureToHand(state, BUYABLE_CARDS.filter((c) => c.tier <= state.tier && hasBattlecry(c)), 1);
   }

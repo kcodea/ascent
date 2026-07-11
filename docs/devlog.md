@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### feat: runes batch 5 — recruit-phase (Scales / Bartering / Twin Gilding / Den Mother / Banking) + card art
+
+Wired the **card art** for Feasting Bogrot + Reconfigured Combinator (`Special Rune Rewards/*.png` → 512² webp in
+`art/minions/`), and shipped the recruit-phase remainder of the rune roster:
+- **Rune of Scales** (Epic, 6): each spell cast gives your **Dragons +1/+1** (board + hand). *(Note: applies to
+  Dragons present when the spell is cast — there's no Dragon buy-aura channel, so a Dragon bought later doesn't
+  retro-inherit; enhance if we add a Dragon aura.)*
+- **Rune of Bartering** (Basic, 5): your **Shout** minions sell for **2 Gold** (a sell-value override in the sell action).
+- **Rune of Twin Gilding** (Epic, 8): **Gild at 2 copies** instead of 3 (`checkTriples` threshold flag).
+- **Rune of the Den Mother** (Epic, 7): grant Den Mother + a modifier — she **also buffs herself** when she buffs
+  another Beast (`summonBuffTribeImprove` reads the `runeDenMother` flag).
+- **Rune of Banking** (Epic, 8): **End of Turn — weld a Money Bot onto your left-most + right-most Mech** (new
+  `weldMoneyBotsEdgeMechs` recurring-EoT effect via `weldMagnetic`).
+
+New reward kinds + recurring effect are zod-validated. 5 new tests (each rune's effect). typecheck / lint / 876
+tests / build green. Live: both card arts serve; no console errors.
+
+**Remaining runes** (next PR — combat-engine): First Claws (SoC leftmost+rightmost Beasts attack now), Packcraft
+(on combat-summon → Beasts +1 Atk), Salvage (Mech loses Ward → Attachment next shop), Inheritance (leftmost dies →
+rightmost gains its stats), Second Path (Discover a Greater-Quest reward minion — needs a Discover-from-fixed-pool).
+**Rune of Twilight** (SoC effects also at End of Turn) is deferred pending a design call — SoC effects run in the
+combat context, so "fire them at recruit End of Turn" isn't well-defined without a spec.
+
 ### feat: Runeguard hero + runes batch 4b (Feasting Bogrot, Reconfigured Combinator)
 
 **Runeguard** — a new hero: **30 Resolve / 14 Armor**, passive power **Defend the Forge** (`epicRuneforge` kind) —

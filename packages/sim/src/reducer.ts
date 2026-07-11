@@ -689,7 +689,11 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.hand.splice(hi, 1);
       }
       // Hoarder sells for a flat 2 Gold (golden 4); everything else for the base sell value (shared helper).
-      if (sold) s.embers += sellValueOf(sold);
+      // Rune of Bartering: a Shout (Battlecry) minion sells for 2 Gold instead.
+      if (sold) {
+        const soldDef = CARD_INDEX[sold.cardId];
+        s.embers += (s.runeBartering && soldDef && hasBattlecry(soldDef)) ? 2 : sellValueOf(sold);
+      }
       // On-sell effects (Hoard Whelp → get 6 Gold), fired after the card leaves the board/hand.
       if (sold) fireOnSell(s, sold);
       // Robin's Spoils: each minion you sell banks +1 Gold for the START of next turn — stacks all turn, lands
@@ -1149,15 +1153,16 @@ function checkTriples(s: RunState): void {
       // Spells are never minions — they don't triple (they're cast for their effect).
       if (!c.golden && !CARD_INDEX[c.cardId]?.spell) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
     }
+    const need = s.runeTwinGilding ? 2 : 3; // Rune of Twin Gilding: Gild at 2 copies
     let tripleId: string | undefined;
     for (const [id, n] of counts) {
-      if (n >= 3) {
+      if (n >= need) {
         tripleId = id;
         break;
       }
     }
     if (!tripleId) return;
-    combineIntoGolden(s, tripleId, pullCopies(s, tripleId, 3));
+    combineIntoGolden(s, tripleId, pullCopies(s, tripleId, need));
   }
 }
 
@@ -2050,6 +2055,18 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'runeKindling':
       s.runeKindling = true; // Rune of Kindling: each spell cast gives your leftmost minion +3/+3
+      break;
+    case 'runeScales':
+      s.runeScales = true; // Rune of Scales: each spell cast gives your Dragons +1/+1
+      break;
+    case 'runeBartering':
+      s.runeBartering = true; // Rune of Bartering: Shout minions sell for 2 Gold
+      break;
+    case 'runeTwinGilding':
+      s.runeTwinGilding = true; // Rune of Twin Gilding: Gild at 2 copies instead of 3
+      break;
+    case 'runeDenMother':
+      s.runeDenMother = true; // Rune of the Den Mother: Den Mother buffs herself too
       break;
     case 'runeScale':
       s.runeScale = { count: r.count, attack: r.attack, health: r.health }; // each Gold-spend buffs random allies

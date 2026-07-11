@@ -424,6 +424,14 @@ export interface RunState {
   runeforgeNoCharge?: boolean;
   /** Rune of Kindling: each spell you cast gives your leftmost minion +3/+3. */
   runeKindling?: boolean;
+  /** Rune of Scales: each spell you cast gives your Dragons +1/+1 (board + hand). */
+  runeScales?: boolean;
+  /** Rune of Bartering: your Shout (Battlecry) minions sell for 2 Gold. */
+  runeBartering?: boolean;
+  /** Rune of Twin Gilding: you only need 2 copies of a card to Gild (triple) it. */
+  runeTwinGilding?: boolean;
+  /** Rune of the Den Mother: your Den Mother also buffs herself when she buffs another Beast. */
+  runeDenMother?: boolean;
   /** Rune ids bought this run — shown as permanent run-buff badges (above the hero panel). */
   ownedRunes?: string[];
   /** Rune of Spellslinging: every `spellDripPer` Gold spent, get a random spell. `spellDripTick` carries the
@@ -514,7 +522,7 @@ export interface RunState {
   lastSurvivorCardIds?: string[];
   /** Recurring End-of-Turn effects granted by quests (Echoing Roar → re-fire leftmost Shout; The Hoard Wakes →
    *  conjure a random Shout minion). Fired every End of Turn for the rest of the run. Absent = none. */
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs')[];
   /** A pending Discover offer (3 card ids) — pick one to hand. */
   discover?: string[];
   /** Disco Dan's Setlist: the shop tier the CURRENTLY-open Discover's pick will be locked until (its

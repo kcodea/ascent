@@ -15,6 +15,7 @@ import { burstDeathAuras, breakShieldAura, reformReborn } from './choreo/channel
 import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
 import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
 import { buffPreset, BUFF_PRESETS } from './buffPresets';
+import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
@@ -683,9 +684,32 @@ export function useCombatReplay(
           }, strikeMs));
         }
       },
-      // TEMP (Task 5): no-op to satisfy the now-required CueContext.onSelfBuffs. Task 6 replaces this with the
-      // real self-buff pulse + badge-flash handler.
-      onSelfBuffs: () => {},
+      onSelfBuffs: (selfBuffs) => {
+        // Fire one in-place pulse per self-buffing unit, then HOLD its pre-buff badge value and, after holdMs,
+        // release the hold + flash the changed badge(s) to the new value — the blast "causes" the tick.
+        const unitOf = (uid: string) =>
+          frameRef.current?.player.find((u) => u.uid === uid) ?? frameRef.current?.enemy.find((u) => u.uid === uid);
+        for (const s of selfBuffs) {
+          const el = findEl(s.uid);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          const cardId = cardIds.get(s.uid) ?? '';
+          const cfg = PULSE_PRESETS[pulsePreset(cardId, (CARD_INDEX[cardId]?.tribe ?? 'neutral') as Tribe)];
+          pixiFx.pulse(r.left + r.width / 2, r.top + r.height / 2, cfg);
+
+          const tgt = unitOf(s.uid);
+          if (!tgt) continue; // no frame entry → fall back to normal display (no negative held value)
+          const held = { atk: tgt.attack - s.attack, hp: tgt.health - s.health };
+          setStatHold((m) => new Map(m).set(s.uid, held));
+          const holdMs = cfg.holdMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
+          timers.push(window.setTimeout(() => {
+            setStatHold((m) => { const n = new Map(m); n.delete(s.uid); return n; });
+            setStatFlash((m) => new Map(m).set(s.uid, { atk: s.attack !== 0, hp: s.health !== 0 }));
+            timers.push(window.setTimeout(() =>
+              setStatFlash((m) => { const n = new Map(m); n.delete(s.uid); return n; }), 360));
+          }, holdMs));
+        }
+      },
     });
 
     // A Rise DEFENDER (dying but NOT the impact attacker being pulled home) explodes in place immediately —

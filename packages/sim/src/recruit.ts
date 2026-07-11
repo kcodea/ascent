@@ -2728,10 +2728,9 @@ function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' |
     const leftmost = state.board[0];
     if (leftmost && n > 0) addBuff(leftmost, 'Rune of Spending', n, n);
   } else if (effect === 'runeAction') {
-    // Rune of Action: give your leftmost minion +1/+1 for every card you played this turn.
+    // Rune of Action: give your THREE leftmost minions +1/+1 for every card you played this turn.
     const n = (state.playedThisTurn ?? []).length;
-    const leftmost = state.board[0];
-    if (leftmost && n > 0) addBuff(leftmost, 'Rune of Action', n, n);
+    if (n > 0) for (const c of state.board.slice(0, 3)) addBuff(c, 'Rune of Action', n, n);
   } else {
     conjureToHand(state, BUYABLE_CARDS.filter((c) => c.tier <= state.tier && hasBattlecry(c)), 1);
   }

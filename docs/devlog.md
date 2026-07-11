@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### feat: re-batch the runes — Basic forge is now the 14-rune canonical set
+
+Re-batched the runesets per the owner's canonical list. The **Basic Runeforge** is now the full **14 runes**:
+Spellslinging, Warding, Structure, Slaying, Spending, Consumption, Pillaging, Fury, Summoning, Forthcoming, plus
+**Empowerment / Rallying / Scale / Action moved down from Epic**. Tweaks: Forthcoming **cost 3 → 6**; Scale now buffs
+**3** random allies (was 2); Action now buffs the **three** left-most minions (was one); text aligned to the owner's
+wording. The `requiresDoublePower` gate (Empowerment) now applies to **both** forge pools via `runeforgePool`, so
+Empowerment is filtered out of the Runesmith forge (his passive power can't double) — see the open question below.
+
+Rune of **Copies** moved to the **Epic** set (cost 5 → 9, start-of-shop-only — no more immediate copy on buy). The
+Epic forge is otherwise **thin for now** (just Copies): the full designed Epic roster (Stormcalling / Twin Gilding /
+Broodpit / Feast / Frontline Glory / Assembly / Banking / Appraisal / Den Mother / Twilight / Spearline / Scales /
+First Claws / Reconfiguration / Soul Taxes / Rising Graves) is a multi-batch build-out — most need new card grants +
+combat/recruit mechanics — tracked in the roadmap.
+
+Tests updated for the new counts (Basic 14, Empowerment-gated-out-of-Runesmith-forge, Scale ×3, Action ×3-leftmost,
+Copies start-of-shop-only) + Epic tests made pool-size-aware. Live: the basic forge renders the moved/tweaked runes
+with correct cost/text. typecheck / lint / 844 tests / build green.
+
+**Open question for the owner:** Empowerment ("hero power triggers twice") is in the Basic list, but the Basic forge
+is Runesmith's and his power is the *passive* Runeforge — with the double-trigger gate it never actually appears for
+him. Kept the gate (don't offer a dead rune); flagged for a call on whether to ungate it or plan other basic-forge
+heroes.
+
 ### feat: 4 designed Epic runes (Rallying / Scale / Copies / Action) + Epic Commission quest art
 
 Replaced the 6 Epic-forge placeholders with **4 designed runes** (Empowerment stays), and wired the **Epic

@@ -1594,9 +1594,9 @@ function advanceCombat(s: RunState): void {
   // ONE. Like the quest shop, the tavern is rolled behind the overlay so the shop is ready once the forge closes.
   const forge = getHero(s.heroId).power.kind === 'runeforge' && s.wave === 6 && !s.heroPowerSpent;
   if (forge) {
-    s.runeforgeOffer = drawRunes(RUNES.map((rn) => rn.id), 3, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST)));
-    s.runeforgeEpic = undefined;
+    s.runeforgeEpic = undefined; // basic forge — set before runeforgePool so it reads the normal set
     s.runeforgeRerolled = undefined;
+    s.runeforgeOffer = drawRunes(runeforgePool(s), 3, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST)));
   }
   if (questOffer.length > 0) {
     s.questOffer = questOffer;
@@ -1803,12 +1803,12 @@ function grantRandomFilterMinion(s: RunState, filter: 'shout' | 'endOfTurn' | 'e
  *  the `reps`-reading branches in the `heroPower` case (scalingGold / gainMaxMana / fortify / dynamiteDig). */
 const DOUBLEABLE_POWERS = new Set(['scalingGold', 'gainMaxMana', 'fortify', 'dynamiteDig']);
 
-/** The eligible rune-id pool for whichever forge is open: the normal set, or the Epic set filtered by the
- *  current hero's power (Empowerment is dropped for a hero that can't double). */
+/** The eligible rune-id pool for whichever forge is open (normal or Epic), filtered by the current hero's power:
+ *  a `requiresDoublePower` rune (Empowerment) is dropped for a hero whose power can't double. */
 function runeforgePool(s: RunState): string[] {
-  if (!s.runeforgeEpic) return RUNES.map((rn) => rn.id);
+  const set = s.runeforgeEpic ? EPIC_RUNES : RUNES;
   const canDouble = DOUBLEABLE_POWERS.has(getHero(s.heroId).power.kind);
-  return EPIC_RUNES.filter((rn) => !rn.requiresDoublePower || canDouble).map((rn) => rn.id);
+  return set.filter((rn) => !rn.requiresDoublePower || canDouble).map((rn) => rn.id);
 }
 
 /** Draw `n` distinct rune ids from `ids`, preferring ones not in `avoid` (a re-roll's current offer) but falling
@@ -2005,9 +2005,8 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.runeScale = { count: r.count, attack: r.attack, health: r.health }; // each Gold-spend buffs random allies
       break;
     case 'runeCopies':
-      // Rune of Copies: arm the per-turn copy AND grant one now — a copy of a random board minion to hand.
+      // Rune of Copies: arm the per-turn copy — at the start of each shop, copy a random board minion to hand.
       s.runeCopies = true;
-      copyRandomBoardMinion(s);
       break;
     case 'runeEmpowerment':
       s.runeEmpowerment = true; // Rune of Empowerment (Epic): your hero power triggers twice

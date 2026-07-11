@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Combat timing audit + more breath before death consequences.** Audited every replay moment's beat-hold
+  vs its actual animation length ([docs/combat-timing-audit.md](docs/combat-timing-audit.md)) to find where an
+  effect outruns its beat. First fix: a Deathrattle's summon and a Rise's return now wait longer after the unit
+  dies — the skull poofs / the body fades and there's a beat of empty slot before the token or returned body
+  appears, instead of it landing the instant the body clears.
 - **Combat "vanishing lunge" fixed.** Occasionally a swing would resolve instantly (its impact fired but the
   lunge never showed). Cause was a main-thread frame hitch letting GSAP jump the lunge timeline past its own
   motion — fixed with a `lagSmoothing` clamp so a spike can't skip the visible swing. Not an ordering/sim

@@ -27,6 +27,35 @@ every play/buy/roll, so this bug never touched them.
 **Verified:** added a regression test (playing the untargeted spell `growth` now lands in `playedThisTurn`);
 `npm run typecheck && npm run lint && npm test` (883) && `npm run build:web` all green.
 
+### docs + fix(ui): combat timing audit, and more read-lead before death consequences
+
+Resumed the combat-simulation feel work with a **timing audit** ([combat-timing-audit.md](combat-timing-audit.md)):
+lined up, for every replay moment, its **beat-hold** (`choreoConfig` × `speed` ÷ `combatSpeed`, or the flat
+`overlapMs` for the three overlap kinds) against its **actual animation length** (CSS `styles.css` + Pixi
+`pixiFx.ts` + the GSAP lunge) against the **ordering** (`combat-ordering.md`). Where an animation outlasts the
+hold that follows it, the next beat starts mid-animation → the "rushed / cut-off" feel. Findings, ranked:
+standalone **buff waves** (210ms hold vs a 600ms pulse + a 350–780ms tendril whose stat-reveal lands outside
+the beat); **deathrattle/avenge consequences that aren't summons** get no read-lead; a **systemic amplifier**
+— CSS animations are fixed seconds and ignore the `combatSpeed` slider while holds ÷ and Pixi/GSAP × it, so
+every margin worsens ~2× at 2× speed; plus overlap-tail bleed and a 50ms poison-mist clip. Remaining items
+queued in [roadmap.md](roadmap.md).
+
+**Fixed this PR — more breath before a death's on-screen consequence.** Players still felt the Deathrattle
+death→summon (and especially the Rise death→reborn) as rushed: the token/returned body landed the instant the
+body cleared, with no empty-slot beat. Generalized `deathrattleSummonLead` → **`deathConsequenceLead`** in
+`useCombatReplay.ts`, now covering **both** a Deathrattle's summon **and** a Rise's reborn (the latter
+previously had *no* lead — it just rode the flat 240ms `overlapMs`, which is why it felt fastest). Bumped the
+leads so the consequence lands after the death has fully read: `DR_SUMMON_LEAD` 380→**560** (defender) /
+720→**900** (attacker), and a new `REBORN_LEAD` at the same 560/900 (anchored past the `.dying.rising` body
+fade; the higher attacker figure covers the mid-lunge pull-home). Net death→consequence gap (incl. the 240ms
+overlap) goes ~620→**800ms** defender / ~960→**1140ms** attacker — a clear beat of empty slot after the skull
+poofs / body fades before the token or returned body appears. Presentation-only: the deterministic log and the
+beat clock are untouched; the lead is layered on top of `overlapMs` and scales with `combatSpeed`.
+
+- **Verified:** `typecheck` + `lint` + **835 tests** + `build:web` all green. The feel itself is the user's to
+  confirm live (a timing-constant bump on the choreo scheduler — the degenerate preview can't render combat, so
+  the read is dialed by eye in a focused tab); the leads are a single named knob, easy to re-tune.
+
 ## 2026-07-10 (session 30)
 
 ### feat: rune + quest art wired, Compendium Runes tab, Rune of the Warden, Runeguard art re-cut

@@ -205,6 +205,7 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   sell: 0.3,
   smack: 0.08,
   cardlanding: 0.4,
+  castspell: 0.4,
   discover: 0.36,
   taunt: 0.31,
   reorder: 0.225,
@@ -288,8 +289,12 @@ export const sfx = {
     if (playSample('cardlanding', sampleVol.cardlanding)) return;
     tone({ freq: 260, dur: 0.13, type: 'triangle', vol: 0.2, slideTo: 150 });
   },
-  // A SPELL is cast — kept distinct from a minion landing (spells get per-spell sounds later). Synth for now.
-  castSpell: () => tone({ freq: 300, dur: 0.13, type: 'triangle', vol: 0.18, slideTo: 170 }),
+  // A SPELL is cast from hand — kept distinct from a minion landing. The sourced "castspell" clip; synth
+  // slide fallback until it decodes / if absent.
+  castSpell: () => {
+    if (playSample('castspell', sampleVol.castspell)) return;
+    tone({ freq: 300, dur: 0.13, type: 'triangle', vol: 0.18, slideTo: 170 });
+  },
   sell: () => {
     // One of the 4 sourced sell clips at random (sell1–sell4); synth blip until they finish decoding.
     if (playSample(`sell${1 + Math.floor(Math.random() * 4)}`, sampleVol.sell)) return;
@@ -450,7 +455,7 @@ export const sfx = {
 
 /** Play a sourced clip by its mixer key (for the dev SFX mixer's preview button). */
 const SFX_PREVIEW: Record<string, () => void> = {
-  buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, cardlanding: sfx.play,
+  buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, cardlanding: sfx.play, castspell: sfx.castSpell,
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
   unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, skullburst: sfx.skullBurst, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   combatStart: sfx.combatStart,

@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Spell-cast sound.** Playing a spell from hand now fires a sourced "spell cast" clip (distinct from a minion
+  landing), with the old synth blip kept as the decode/absent fallback and a level in the DEV SFX mixer.
 - **Combat "vanishing lunge" fixed.** Occasionally a swing would resolve instantly (its impact fired but the
   lunge never showed). Cause was a main-thread frame hitch letting GSAP jump the lunge timeline past its own
   motion — fixed with a `lagSmoothing` clamp so a spike can't skip the visible swing. Not an ordering/sim

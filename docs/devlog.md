@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-11 (session 31)
 
+### feat: sourced "spell cast" SFX when a spell is played from hand
+
+**What:** replaced the synth-only `sfx.castSpell` placeholder with a real sourced clip (owner-provided
+`spellcast final.mp3` → `packages/ui/src/audio/castspell.mp3`). `castSpell` now plays the decoded sample and
+keeps the old triangle-slide tone as the fallback until it decodes / if the file is absent — the exact pattern
+every other sourced clip uses (`playSample('castspell', sampleVol.castspell)` first, synth after). Added a
+`castspell: 0.4` default gain to `SAMPLE_VOL_DEFAULTS` and a preview entry so it appears in the DEV SFX mixer
+for by-ear level tuning.
+
+**Where it fires:** unchanged trigger — `store.ts`'s `play` case already split minion-landing vs spell-cast
+(`CARD_INDEX[cardId].spell → sfx.castSpell()`, else `sfx.play()`), so this sounds on any spell cast from hand
+and never on a minion. The card's own `cardVoice` still layers over it as before.
+
+**Verified:** `npm run typecheck && npm run lint && npm run build:web` all green; confirmed the mp3 bundles as
+a hashed asset (`castspell-*.mp3`). Audible playback not auto-checked — the headless preview gates sound when
+backgrounded (`isHidden()`); left for an in-tab ear check.
+
 ### fix: Rune of Action counts every card played, not just board minions
 
 **Bug (owner-reported):** Rune of Action (*End of Turn: give your three left-most minions +1/+1 for each card you

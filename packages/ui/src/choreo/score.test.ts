@@ -8,7 +8,7 @@ const moment = (kind: Moment['kind'], events: CombatEvent[]): Moment => ({ start
 const baseCtx = (events: CombatEvent[], overrides: Partial<Parameters<typeof runMomentCues>[1]> = {}) => ({
   events, combatSpeed: 1, onShake: vi.fn(), findEl: () => null, attackerUid: null,
   onFloats: vi.fn(), onDeathFloats: vi.fn(),
-  onAuraBurst: vi.fn(), onShieldBreak: vi.fn(), onReborn: vi.fn(), ...overrides,
+  onAuraBurst: vi.fn(), onShieldBreak: vi.fn(), onReborn: vi.fn(), onBuffCasts: vi.fn(), onSelfBuffs: vi.fn(), ...overrides,
 });
 const ctx = baseCtx;
 
@@ -130,5 +130,17 @@ describe('score', () => {
     const json = JSON.parse(scoreJson());
     expect(json.death.find((c: { ch: string; offset: number }) => c.ch === 'auraBurst').offset).toBe(50);
     resetScore();
+  });
+
+  it('runMomentCues routes a self-buff (source === target) → onSelfBuffs', () => {
+    const c = ctx([{ type: 'buff', target: 'a', source: 'a', attack: 2, health: 1 }]);
+    runMomentCues(moment('buffWave', c.events), c);
+    expect(c.onSelfBuffs).toHaveBeenCalledWith([{ uid: 'a', attack: 2, health: 1 }]);
+  });
+
+  it('does NOT call onSelfBuffs for a buff-other (source !== target)', () => {
+    const c = ctx([{ type: 'buff', target: 'a', source: 'b', attack: 2, health: 1 }]);
+    runMomentCues(moment('buffWave', c.events), c);
+    expect(c.onSelfBuffs).not.toHaveBeenCalled();
   });
 });

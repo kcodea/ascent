@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Buff Pulse — Self-empowerment FX preview</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  /* The STAGE matches the REAL combat board: a light warm cream (#e4dccf) — identical to the
+     buff-tendril rig, so the pulse's additive/screen glow reads honestly against the same
+     surface the real board uses, not against a flattering near-black. */
+  body { margin: 0; background: #e4dccf; color: #e6ecdc; font: 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace; display: flex; height: 100vh; overflow: hidden; }
+  #stage { flex: 1; position: relative; display: grid; place-items: center; background: #e4dccf; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  /* Fake reference cards: the real game cards are near-white (#fffdf8) with dark ART. We show
+     BOTH surfaces the pulse composites over — a bright card AND a darker art swatch — so the
+     owner can judge how the blast reads on each. The DRAGGABLE unit marker is the pulse origin;
+     these two are just static reference surfaces (like the tendril rig). */
+  #cards { display: flex; gap: 22px; align-items: center; z-index: 0; }
+  #card { width: 132px; height: 184px; border-radius: 10px; background: #fffdf8; border: 1px solid #e7dcc7; box-shadow: 0 6px 22px rgba(60,45,20,.18); position: relative; }
+  #card::after { content: "bright card"; position: absolute; inset: auto 0 8px; text-align: center; color: #b3a687; font-size: 11px; letter-spacing: .12em; }
+  #cardArt { width: 132px; height: 184px; border-radius: 10px; background: linear-gradient(160deg,#3a3326,#211d14); border: 1px solid #e7dcc7; box-shadow: 0 6px 22px rgba(60,45,20,.18); position: relative; }
+  #cardArt::after { content: "card art"; position: absolute; inset: auto 0 8px; text-align: center; color: #8a7f63; font-size: 11px; letter-spacing: .12em; }
+  #panel { width: 306px; padding: 14px 16px; overflow-y: auto; background: #0e100a; border-left: 1px solid #2b3020; }
+  h1 { font-size: 13px; margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; color: #c8e070; }
+  .sub { color: #7a8556; font-size: 11px; margin-bottom: 12px; }
+  h2 { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #7a8556; margin: 16px 0 6px; border-top: 1px solid #2b3020; padding-top: 10px; }
+  .row { display: grid; grid-template-columns: 1fr 54px; gap: 8px; align-items: center; margin-bottom: 7px; }
+  label { color: #b7c194; font-size: 11.5px; }
+  input[type=range] { width: 100%; accent-color: #c8e070; }
+  input[type=color] { width: 100%; height: 24px; border: 1px solid #444d2f; background: none; border-radius: 4px; padding: 0; cursor: pointer; }
+  select { background: #232a16; color: #e6ecdc; border: 1px solid #444d2f; border-radius: 4px; padding: 4px; font: inherit; }
+  select:disabled { opacity: 0.5; cursor: not-allowed; }
+  .val { text-align: right; color: #c8e070; font-size: 11px; }
+  button { width: 100%; padding: 9px; margin-top: 12px; border: 0; border-radius: 6px; background: #6f9a2f; color: #fff; font: inherit; font-weight: 700; letter-spacing: .06em; cursor: pointer; }
+  button:hover { background: #86b83e; }
+  button.ghost { background: #1f2415; color: #b7c194; }
+  button.ghost:hover { background: #2a3120; }
+  .checkrow { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: #b7c194; font-size: 12px; }
+  .checkrow input { accent-color: #c8e070; width: 15px; height: 15px; }
+  textarea { width: 100%; height: 180px; margin-top: 10px; background: #080a05; color: #c8e070; border: 1px solid #2b3020; border-radius: 6px; padding: 8px; font: 10.5px/1.45 ui-monospace, monospace; resize: vertical; }
+  .hint { color: #5a6440; font-size: 10.5px; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div id="stage"><div id="cards"><div id="card"></div><div id="cardArt"></div></div><canvas id="cv"></canvas></div>
+  <div id="panel">
+    <h1>Buff Pulse</h1>
+    <div class="sub">Self-empowerment FX — a unit that buffs ITSELF fires an in-place point-blast: expanding rings + a core flash + sparks.<br />Drag the unit marker · click the stage to re-fire · space to fire.</div>
+
+    <div id="controls"></div>
+    <button id="fire">FIRE ⚡ (space)</button>
+    <label class="checkrow"><input type="checkbox" id="loop" /> Auto-repeat (~1.2s)</label>
+
+    <h2>PulsePresetCfg (live export)</h2>
+    <textarea id="out" readonly></textarea>
+    <div class="hint">Tune, then paste this back to Claude to bake into the Pixi pulse renderer.</div>
+    <button id="reset" class="ghost">Reset to defaults</button>
+    <div class="hint" id="diag">booting…</div>
+  </div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Standalone preview of the proposed Buff-PULSE FX — the sibling of buff-tendril.
+// When a unit buffs ITSELF (no other target), it fires a procedural in-place
+// POINT-BLAST at its own position: `ringCount` expanding stroked rings, a filled
+// radial-gradient core flash, and a burst of radiating sparks. Mirrors the math
+// the real Pixi renderer will use, but on a plain 2D canvas so it runs with zero
+// build. Every dial name here maps 1:1 onto the PulsePresetCfg the engine bakes.
+//
+// Sizes are in PIXEL RADII — the rig is the source of truth in px; the engine
+// divides by its texture radius later.
+// ---------------------------------------------------------------------------
+
+// --- dial schema ------------------------------------------------------------
+const DEFAULTS = {
+  style: 'ring',      // fixed for now; the point-blast variant. Exported literally.
+  blend: 'screen',    // 'add' | 'normal' | 'screen' — compositing mode. Maps to canvas
+                      // globalCompositeOperation (lighter/source-over/screen) and to the
+                      // engine's PulsePresetCfg.blend. 'add' washes out on the cream board;
+                      // 'screen'/'normal' read better — that's why this dial exists.
+
+  // Rings (expanding stroked circles)
+  ringCount:     2,   // how many concentric rings fire (1..3)
+  ringSize:      90,  // px — max radius each ring expands to (0 → ringSize)
+  ringWidth:     6,   // px — stroke line width
+  ringSpeed:     1,   // multiplier — higher = faster/shorter ring (duration = ringMs / ringSpeed)
+  ringMs:        500, // base ms for a ring to expand+fade (before ringSpeed scaling)
+  ringStaggerMs: 80,  // ms delay between successive rings
+
+  // Core flash (filled radial gradient at the origin)
+  coreFlashSize: 60,  // px — radius the core flash grows to
+  coreFlashMs:   300, // ms — core flash fade duration
+
+  // Sparks (dots flung outward)
+  sparkCount:    18,  // how many spark dots
+  sparkSpeed:    320, // px/s — initial outward speed
+  sparkLife:     500, // ms — spark lifetime
+  sparkSize:     8,   // px — drawn spark size
+
+  // Timing
+  holdMs:        60,  // ms — the blast holds at peak before its timed fades begin
+
+  // Colours (warm empowerment gold-green)
+  colorRing:  '#c8e070',
+  colorCore:  '#eaffb0',
+  colorSpark: '#dfffa0',
+};
+
+const RANGES = {
+  ringCount:     [1, 3, 1],
+  ringSize:      [10, 200, 1],
+  ringWidth:     [1, 24, 1],
+  ringSpeed:     [0.2, 3, 0.05],
+  ringMs:        [100, 1200, 10],
+  ringStaggerMs: [0, 200, 5],
+  coreFlashSize: [10, 200, 1],
+  coreFlashMs:   [100, 1000, 10],
+  sparkCount:    [0, 60, 1],
+  sparkSpeed:    [0, 900, 10],
+  sparkLife:     [200, 1400, 10],
+  sparkSize:     [2, 40, 1],
+  holdMs:        [0, 400, 5],
+};
+
+const GROUPS = [
+  ['Blast',  ['style', 'blend']],
+  ['Rings',  ['ringCount', 'ringSize', 'ringWidth', 'ringSpeed', 'ringMs', 'ringStaggerMs']],
+  ['Core',   ['coreFlashSize', 'coreFlashMs']],
+  ['Sparks', ['sparkCount', 'sparkSpeed', 'sparkLife', 'sparkSize']],
+  ['Timing', ['holdMs']],
+  ['Colours', ['colorRing', 'colorCore', 'colorSpark']],
+];
+
+// The exact key order the exported PulsePresetCfg literal uses (matches the spec's field list).
+const EXPORT_ORDER = [
+  'style',
+  'ringCount', 'ringSize', 'ringWidth', 'ringSpeed', 'ringMs', 'ringStaggerMs',
+  'coreFlashSize', 'coreFlashMs',
+  'sparkCount', 'sparkSpeed', 'sparkLife', 'sparkSize',
+  'holdMs', 'blend', 'colorRing', 'colorCore', 'colorSpark',
+];
+
+// Any uncaught error would otherwise leave a silent blank page — surface it loudly instead.
+addEventListener('error', (e) => {
+  const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;inset:0 auto auto 0;z-index:99;background:#b0203a;color:#fff;padding:10px 14px;font:12px ui-monospace,monospace;white-space:pre-wrap;max-width:100%';
+  b.textContent = 'SCRIPT ERROR: ' + (e.message || e.error) + '\n' + (e.filename || '') + ':' + (e.lineno || '?');
+  document.body.appendChild(b);
+});
+
+// C is the live, editable config (missing keys fall back to DEFAULTS).
+let C = { ...DEFAULTS };
+
+const diag = document.getElementById('diag');
+
+// --- radial glow sprite (stands in for the Pixi glow texture) ---------------
+const glowTex = (() => {
+  const s = 128, c = document.createElement('canvas'); c.width = c.height = s;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
+  grd.addColorStop(0, 'rgba(255,255,255,1)');
+  grd.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+  grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, s, s);
+  return c;
+})();
+
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+function resize() {
+  const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  cv.width = r.width * dpr; cv.height = r.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener('resize', resize);
+
+// --- unit marker (draggable) ------------------------------------------------
+// The card-sized rounded rect the pulse fires ON. Position is the CENTRE of the
+// marker, in CSS px relative to the canvas (the same space we draw in). Defaults
+// near the centre of the stage.
+const unit = { x: 430, y: 300 };
+const MARK_W = 108, MARK_H = 150;
+let dragging = false;
+
+// --- blend map --------------------------------------------------------------
+// Map the preset `blend` enum onto a canvas globalCompositeOperation. Mirrors what the engine
+// does with PulsePresetCfg.blend when compositing the rings, core flash + sparks.
+function blendOp() {
+  switch (C.blend) {
+    case 'add':    return 'lighter';
+    case 'screen': return 'screen';
+    case 'normal':
+    default:       return 'source-over';
+  }
+}
+
+// --- fire-and-forget pulse system -------------------------------------------
+// Each fire snapshots the current dials so mid-animation edits don't corrupt an
+// in-flight blast; the pulse then plays entirely off that snapshot.
+const pulses = [];
+function fire() {
+  const cfg = { ...C };
+  const sparks = [];
+  const n = Math.round(cfg.sparkCount);
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = cfg.sparkSpeed * (0.55 + Math.random() * 0.7);
+    sparks.push({
+      x: 0, y: 0,                       // relative to origin
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      life: cfg.sparkLife * (0.7 + Math.random() * 0.6),
+    });
+  }
+  pulses.push({ x: unit.x, y: unit.y, age: 0, cfg, blend: blendOp(), sparks });
+}
+
+// tint a white sprite by multiplying — cheap stand-in for the Pixi sprite.tint
+const tintCache = new Map();
+function drawTinted(tex, x, y, w, h, color) {
+  let t = tintCache.get(color);
+  if (!t) {
+    t = document.createElement('canvas'); t.width = tex.width; t.height = tex.height;
+    const g = t.getContext('2d');
+    g.drawImage(tex, 0, 0);
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = color; g.fillRect(0, 0, t.width, t.height);
+    tintCache.set(color, t);
+  }
+  ctx.drawImage(t, x - w / 2, y - h / 2, w, h);
+}
+
+// --- render one pulse -------------------------------------------------------
+// Returns true while the pulse still has life; false once fully dead.
+function drawPulse(p, dt) {
+  const cfg = p.cfg;
+  ctx.globalCompositeOperation = p.blend;
+
+  // hold at peak, then run the timed fades from (age - holdMs).
+  const held = Math.max(0, p.age - cfg.holdMs);
+
+  // --- rings: 0 → ringSize, staggered, fading over ringMs (scaled by ringSpeed) ---
+  const ringDur = Math.max(1, cfg.ringMs / Math.max(0.0001, cfg.ringSpeed));
+  const nRings = Math.round(cfg.ringCount);
+  let ringsAlive = false;
+  ctx.strokeStyle = cfg.colorRing;
+  ctx.lineWidth = cfg.ringWidth;
+  for (let i = 0; i < nRings; i++) {
+    const la = held - i * cfg.ringStaggerMs;    // this ring's local age
+    if (la < 0) { ringsAlive = true; continue; }  // not started yet
+    const t = la / ringDur;
+    if (t >= 1) continue;                          // this ring done
+    ringsAlive = true;
+    const radius = t * cfg.ringSize;
+    if (radius <= 0) continue;
+    ctx.globalAlpha = Math.max(0, 1 - t);          // fade out as it expands
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // --- core flash: filled radial gradient, grows to coreFlashSize, fades over coreFlashMs ---
+  let coreAlive = false;
+  {
+    const t = held / Math.max(1, cfg.coreFlashMs);
+    if (t < 1) {
+      coreAlive = true;
+      // grow quickly to full radius, then hold size while alpha fades (reads as a bloom)
+      const grow = Math.min(1, held / Math.max(1, cfg.coreFlashMs * 0.35));
+      const sz = cfg.coreFlashSize * (0.35 + 0.65 * grow);
+      ctx.globalAlpha = Math.max(0, (1 - t) * (1 - t));
+      drawTinted(glowTex, p.x, p.y, sz * 2, sz * 2, cfg.colorCore);
+    }
+  }
+
+  // --- sparks: radiate outward, decelerating, shrinking + fading over their life ---
+  let sparksAlive = false;
+  const dtS = dt / 1000;
+  for (const s of p.sparks) {
+    const t = p.age / s.life;               // sparks start immediately with the blast
+    if (t >= 1) continue;
+    sparksAlive = true;
+    const dk = Math.pow(0.96, dt / (1000 / 60));  // slight deceleration
+    s.vx *= dk; s.vy *= dk;
+    s.x += s.vx * dtS; s.y += s.vy * dtS;
+    const sz = cfg.sparkSize * (1 - t);          // shrink to nothing
+    ctx.globalAlpha = Math.max(0, 1 - t * t);
+    drawTinted(glowTex, p.x + s.x, p.y + s.y, sz * 2, sz * 2, cfg.colorSpark);
+  }
+
+  return ringsAlive || coreAlive || sparksAlive;
+}
+
+// --- unit marker + origin dot -----------------------------------------------
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function drawMarker() {
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  const x = unit.x - MARK_W / 2, y = unit.y - MARK_H / 2;
+  roundRect(x, y, MARK_W, MARK_H, 10);
+  ctx.fillStyle = '#fffdf8';
+  ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = '#b0842f'; ctx.stroke();
+  ctx.fillStyle = '#b3a687'; ctx.font = '10px ui-monospace, monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText('self-buff unit', unit.x, y + MARK_H - 8);
+  // origin dot
+  ctx.beginPath(); ctx.arc(unit.x, unit.y, 7, 0, Math.PI * 2);
+  ctx.fillStyle = '#eaffb0'; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = '#6f9a2f'; ctx.stroke();
+}
+
+// --- main loop --------------------------------------------------------------
+let last = performance.now();
+function tick(now) {
+  const dtMs = Math.min(50, now - last); last = now;
+  ctx.clearRect(0, 0, cv.width, cv.height);
+
+  for (let i = pulses.length - 1; i >= 0; i--) {
+    const p = pulses[i]; p.age += dtMs;
+    const alive = drawPulse(p, dtMs);
+    if (!alive) pulses.splice(i, 1);
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+
+  drawMarker();
+
+  diag.textContent = `canvas ${Math.round(cv.width)}×${Math.round(cv.height)} · pulses ${pulses.length} · blend ${C.blend}`;
+  requestAnimationFrame(tick);
+}
+
+// --- UI: sliders / colours --------------------------------------------------
+const controls = document.getElementById('controls'), out = document.getElementById('out');
+function label(k) { return k.replace(/([A-Z])/g, ' $1').toLowerCase(); }
+function build() {
+  controls.innerHTML = '';
+  for (const [title, keys] of GROUPS) {
+    const h = document.createElement('h2'); h.textContent = title; controls.appendChild(h);
+    for (const k of keys) {
+      const row = document.createElement('div'); row.className = 'row';
+      const l = document.createElement('label'); l.textContent = label(k);
+      row.appendChild(l);
+      if (k === 'style') {
+        const sel = document.createElement('select');
+        sel.style.gridColumn = '1 / -1';
+        sel.disabled = true; // fixed to 'ring' for now
+        const o = document.createElement('option'); o.value = o.textContent = 'ring'; sel.appendChild(o);
+        sel.value = C.style || 'ring';
+        row.appendChild(sel);
+      } else if (k === 'blend') {
+        // ENABLED enum dropdown — picks the compositing mode. Maps to canvas
+        // globalCompositeOperation in the renderer and to PulsePresetCfg.blend in the engine.
+        const sel = document.createElement('select');
+        sel.style.gridColumn = '1 / -1';
+        for (const opt of ['add', 'normal', 'screen']) {
+          const o = document.createElement('option'); o.value = o.textContent = opt; sel.appendChild(o);
+        }
+        sel.value = C.blend || 'normal';
+        sel.onchange = () => { C.blend = sel.value; save(); };
+        row.appendChild(sel);
+      } else if (k.startsWith('color') && typeof C[k] === 'string') {
+        const inp = document.createElement('input'); inp.type = 'color'; inp.value = C[k];
+        inp.style.gridColumn = '1 / -1';
+        inp.oninput = () => { C[k] = inp.value; tintCache.clear(); save(); };
+        row.appendChild(inp);
+      } else {
+        const [mn, mx, st] = RANGES[k];
+        const inp = document.createElement('input'); inp.type = 'range';
+        inp.min = mn; inp.max = mx; inp.step = st; inp.value = C[k];
+        const v = document.createElement('span'); v.className = 'val'; v.textContent = C[k];
+        inp.oninput = () => { C[k] = parseFloat(inp.value); v.textContent = C[k]; save(); };
+        l.style.gridColumn = '1 / -1';
+        row.style.gridTemplateColumns = '1fr 54px';
+        row.appendChild(inp); row.appendChild(v);
+      }
+      controls.appendChild(row);
+    }
+  }
+}
+
+// --- live export: reflect the current dials as a PulsePresetCfg literal ------
+function save() {
+  const ordered = {};
+  for (const k of EXPORT_ORDER) ordered[k] = C[k];
+  out.value = JSON.stringify(ordered, null, 2);
+}
+
+// --- fire controls ----------------------------------------------------------
+document.getElementById('fire').onclick = () => fire();
+addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); fire(); } });
+let loopId = null;
+document.getElementById('loop').onchange = (e) => {
+  if (e.target.checked) { loopId = setInterval(() => fire(), 1200); fire(); }
+  else if (loopId) { clearInterval(loopId); loopId = null; }
+};
+document.getElementById('reset').onclick = () => {
+  C = { ...DEFAULTS };
+  tintCache.clear(); build(); save();
+};
+
+// --- pointer: drag the unit marker, click empty stage to fire ---------------
+function canvasPos(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+cv.addEventListener('pointerdown', (e) => {
+  const p = canvasPos(e);
+  const inMarker = Math.abs(p.x - unit.x) <= MARK_W / 2 && Math.abs(p.y - unit.y) <= MARK_H / 2;
+  if (inMarker) { dragging = true; cv.setPointerCapture(e.pointerId); }
+  else { fire(); }
+});
+cv.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  const p = canvasPos(e);
+  unit.x = p.x; unit.y = p.y;
+});
+cv.addEventListener('pointerup', (e) => { dragging = false; try { cv.releasePointerCapture(e.pointerId); } catch {} });
+
+// --- boot -------------------------------------------------------------------
+build();
+save();
+resize();
+requestAnimationFrame((t) => { last = t; tick(t); });
+setTimeout(() => fire(), 300);
+</script>
+</body>
+</html>

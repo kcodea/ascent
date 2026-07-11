@@ -41,6 +41,10 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   lunge never showed). Cause was a main-thread frame hitch letting GSAP jump the lunge timeline past its own
   motion — fixed with a `lagSmoothing` clamp so a spike can't skip the visible swing. Not an ordering/sim
   issue. (The underlying frame hitches are a separate perf item, queued.)
+- **Buff pulse.** The sibling of the tendril: when a unit buffs **itself** in combat, an in-place point-blast
+  (expanding ring + core flash + sparks) fires on the unit, replacing the `+N/+N` float and flashing its badge to
+  the new value. Same preset-driven system + live tuning rig as the tendril; ships one gold `default` look for now
+  (per-tribe pulses are a follow-up). Presentation-only — every combat buff is now a directed FX, no more floats.
 - **Buff tendrils.** When a unit buffs another unit in combat, an energy tendril shoots to each buffed ally,
   strikes, flashes, and the target's stat badge holds then flashes-and-ticks to its new value on the hit. A
   reusable, preset-driven effect system — the owner tuned a distinct tendril for each tribe (green Beast, gold

@@ -62,17 +62,11 @@ export function spawnFloats(
   for (let i = moment.start; i < moment.end; i++) { const e = events[i]; if (e?.type === 'death') dying.add(e.target); }
   const spawned: Float[] = [];
   const deaths: DeathFloat[] = [];
-  const buffByTarget = new Map<string, { a: number; h: number; id: number }>();
   for (let i = moment.start; i < moment.end; i++) {
     const e = events[i];
-    if (e?.type === 'buff') {
-      if (e.source !== e.target) continue; // buff-OTHER: rendered as a tendril + badge flash, not a float
-      const cur = buffByTarget.get(e.target) ?? { a: 0, h: 0, id: i };
-      cur.a += e.attack;
-      cur.h += e.health;
-      buffByTarget.set(e.target, cur);
-      continue;
-    }
+    // Every combat buff is now a directed FX, not a float: buff-OTHER (source !== target) → tendril,
+    // self-buff (source === target) → pulse. Both flash the badge to the new value. So suppress ALL buff floats.
+    if (e?.type === 'buff') continue;
     const f = floatFor(e);
     if (!f) continue;
     if (f.kind === 'dmg' && f.uid === attackerUid) continue;
@@ -81,9 +75,6 @@ export function spawnFloats(
       if (r) { deaths.push({ id: i, x: r.left + r.width / 2, y: r.top + r.height * 0.5, text: f.text, kind: f.kind }); continue; }
     }
     spawned.push({ id: i, ...f });
-  }
-  for (const [uid, { a, h, id }] of buffByTarget) {
-    spawned.push({ id, uid, text: `+${a}/+${h}`, kind: 'buff' });
   }
   return { floats: spawned, deathFloats: deaths };
 }

@@ -3,6 +3,52 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-11 (session 32)
+
+### feat: buff pulse — a preset-driven point-blast for combat self-buffs
+
+**What & why.** The sibling of the buff **tendril**. Where a tendril is a source→target *beam* (a unit buffing
+**other** allies), a **pulse** is an in-place *blast* on a unit buffing **itself** in combat (`source === target`)
+— an expanding ring + core flash + sparks that fires ON the unit and **replaces the `+N/+N` float**, then flashes
+the unit's badge to its new value. Together tendrils (buff-others) + pulses (buff-self) now cover **100%** of
+combat `buff` events, so no combat buff shows a float anymore — every buff is a directed FX that flashes the badge.
+
+**Architecture (a faithful mirror of the tendril system):**
+- **`pulsePresets.ts`** — `PulsePresetCfg` dial-bag (style/blend, ring count/size/width/speed/ms/stagger, core
+  flash size/ms, spark count/speed/life/size, `holdMs`, colors), a `PULSE_PRESETS` registry, and a
+  `pulsePreset(cardId, tribe)` resolver (per-card → per-tribe → `default`, most-specific wins). Ships an
+  **owner-tuned `default`** (single fast white shockwave + a big warm-gold core flash + a wide golden spark
+  burst, additive), applied to EVERY eligible self-buff (`PULSE_ASSIGN` empty → all resolve to `default`);
+  per-tribe looks are a follow-up. The tuned look was **verified live** on the real cream board via the Pixi
+  renderer (drove `window.__pixiFx.pulse` on the recruit board — the blast draws + reads), and the trigger path
+  was proven by a deterministic Target Dummy combat test.
+- **`pixiFx.pulse(x, y, cfg)`** — a procedural point-blast on the existing pooled particle contract. Core flash +
+  sparks fire immediately; the rings are staggered, so a tiny `pulses` state array (mirror of `tendrils`) emits
+  ring `i` from the `update` ticker as its `ringStaggerMs` elapses. Sizes are px radii (÷ texture radius = sprite
+  scale, 1:1 with the rig); a `blend` field handles the light cream board. Compositor-only (transform/opacity),
+  cleaned up in `clearParticles`/`detach` — respects the perf north star.
+- **`choreo/channels/buffSelf.ts`** — pure `groupSelfBuffs(moment, events)` collecting self-buffs per uid
+  (mirror of `groupBuffCasts` with the opposite predicate).
+- **`score.ts`** — a `buffSelf` cue on the `buffWave` moment → `CueContext.onSelfBuffs`.
+- **`useCombatReplay.ts`** — the `onSelfBuffs` handler fires the pulse at the unit's rect center and reuses the
+  tendril's `statHold`/`statFlash` badge machinery: hold the pre-buff value (frame already reflects the buff, so
+  pre = current − delta), then after `holdMs` release + flash the changed badge(s).
+- **`float.ts`** — the buff branch now suppresses **all** buff floats (self→pulse, other→tendril).
+- **`buff-pulse-preview.html`** — a self-contained tuning rig (cream board, blend dropdown, every dial as a
+  slider, draggable anchor, Fire + auto-repeat, live JSON export) — the owner tunes looks here and the JSON bakes
+  into `pulsePresets.ts`, exactly like the tendril rig.
+
+**Verified.** New unit tests: `pulsePresets.test.ts` (resolver + field-completeness), `buffSelf.test.ts`
+(grouping/summing/window), `float.test.ts` (self-buff AND buff-other emit no float), `score.test.ts` (a self-buff
+routes to `onSelfBuffs`; a buff-other does not). Full gate green: `npm run typecheck && npm run lint && npm test`
+(**895**) `&& npm run build:web`. **Note:** the in-game *look* was not eyeballed live (the headless preview can't
+watch rAF animations) — the wiring is test-proven up to the handler and the handler is a line-for-line analog of
+the shipped tendril handler, but a focused-tab visual check is a recommended follow-up before tuning.
+
+**Follow-ups it created:** per-tribe pulse presets (tune on the rig + add tribe mappings); `shard`/`nova` pulse
+styles (the `style` seam is ready); recruit-phase hero-power/spell pulses (a different, shop-phase code path);
+a dedicated neutral preset.
+
 ## 2026-07-11 (session 31)
 
 ### refactor: replace the Pixi Taunt bulwark with a static grey card border (keep the sound)

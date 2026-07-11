@@ -268,6 +268,21 @@ export const DEMONS: CardDef[] = [
     text: '**End of Turn:** adjacent minions each **Consume** a Fodder.',
     goldenText: '**End of Turn:** adjacent minions each **Consume** 2 Fodder.',
   },
+  {
+    // Rune of the Feast's signature Demon — grant-only (token, never rolls in the shop). It feeds ITSELF a Fodder
+    // each turn and shares the meal with both neighbours.
+    id: 'feastingbogrot',
+    name: 'Feasting Bogrot',
+    tribe: 'demon',
+    tier: 5,
+    attack: 6,
+    health: 4,
+    keywords: [],
+    token: true,
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnFeastConsume' }],
+    text: '**End of Turn:** **Consume** a Fodder and also give its stats to adjacent minions.',
+    goldenText: '**End of Turn:** **Consume** 2 Fodder and also give their stats to adjacent minions.',
+  },
 
   // --- Demon quest rewards (2026-07-08). token: true → reward-only, never rolled in the tavern. ---
   {

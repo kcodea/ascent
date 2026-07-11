@@ -5,6 +5,143 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### feat: runes batch 6 — combat runes + Second Path (the rune roster is complete bar Twilight)
+
+The last of the rune roster (combat-engine + a pool Discover):
+- **Rune of First Claws** (Epic 8): *Start of Combat — your left-most + right-most Beasts attack immediately*
+  (SoC block via `ctx.attackNow` + `flushImmediateAttacks`).
+- **Rune of Packcraft** (Basic 5): *whenever you summon a minion in combat, your Beasts gain +1 Attack wherever they
+  are* (an `onSummon` bus handler pumping the Beast attack aura, carried back like The Old Hunt).
+- **Rune of Inheritance** (Epic 8): *when your left-most minion dies, your right-most gains its stats* (`onDeath`
+  bus handler — fires only when the dead was the left-most living).
+- **Rune of Salvage** (Basic 5): *whenever a friendly Mech loses its Ward, a random Attachment lands in your hand
+  next shop* (an `onLoseDivineShield` bus handler → `grantToHand`).
+- **Rune of the Second Path** (Epic 6): *Discover a Greater-Quest reward minion* — a new **pool Discover**
+  (`DiscoverSpec { kind: 'pool', ids }`) drawn from the ids Greater quests grant (`greaterQuestRewardMinions`).
+
+New combat flags + reward kind (`discoverGreaterQuest`) + the pool DiscoverSpec are zod-validated. 5 new tests (each
+combat rune's trigger via a scripted fight; Second Path offers only greater-quest reward minions). Live: all render
+with correct cost/text; no console errors. typecheck / lint / 881 tests / build green.
+
+**Only Rune of Twilight remains** — deferred pending a design call: "your Start-of-Combat effects also trigger at
+End of Turn" isn't well-defined, since SoC effects run in the combat context (summons, auras) with no clean recruit
+End-of-Turn equivalent. Options: (a) fire SoC effects an extra time at start of combat, or (b) a specced subset.
+
+### feat: runes batch 5 — recruit-phase (Scales / Bartering / Twin Gilding / Den Mother / Banking) + card art
+
+Wired the **card art** for Feasting Bogrot + Reconfigured Combinator (`Special Rune Rewards/*.png` → 512² webp in
+`art/minions/`), and shipped the recruit-phase remainder of the rune roster:
+- **Rune of Scales** (Epic, 6): each spell cast gives your **Dragons +1/+1** (board + hand). *(Note: applies to
+  Dragons present when the spell is cast — there's no Dragon buy-aura channel, so a Dragon bought later doesn't
+  retro-inherit; enhance if we add a Dragon aura.)*
+- **Rune of Bartering** (Basic, 5): your **Shout** minions sell for **2 Gold** (a sell-value override in the sell action).
+- **Rune of Twin Gilding** (Epic, 8): **Gild at 2 copies** instead of 3 (`checkTriples` threshold flag).
+- **Rune of the Den Mother** (Epic, 7): grant Den Mother + a modifier — she **also buffs herself** when she buffs
+  another Beast (`summonBuffTribeImprove` reads the `runeDenMother` flag).
+- **Rune of Banking** (Epic, 8): **End of Turn — weld a Money Bot onto your left-most + right-most Mech** (new
+  `weldMoneyBotsEdgeMechs` recurring-EoT effect via `weldMagnetic`).
+
+New reward kinds + recurring effect are zod-validated. 5 new tests (each rune's effect). typecheck / lint / 876
+tests / build green. Live: both card arts serve; no console errors.
+
+**Remaining runes** (next PR — combat-engine): First Claws (SoC leftmost+rightmost Beasts attack now), Packcraft
+(on combat-summon → Beasts +1 Atk), Salvage (Mech loses Ward → Attachment next shop), Inheritance (leftmost dies →
+rightmost gains its stats), Second Path (Discover a Greater-Quest reward minion — needs a Discover-from-fixed-pool).
+**Rune of Twilight** (SoC effects also at End of Turn) is deferred pending a design call — SoC effects run in the
+combat context, so "fire them at recruit End of Turn" isn't well-defined without a spec.
+
+### feat: Runeguard hero + runes batch 4b (Feasting Bogrot, Reconfigured Combinator)
+
+**Runeguard** — a new hero: **30 Resolve / 14 Armor**, passive power **Defend the Forge** (`epicRuneforge` kind) —
+the **Epic Runeforge opens on turn 10**. Scheduled at run start (`createRun` sets `epicForgeWave = 10`) and opened
+by `advanceCombat`'s start-of-turn sequencing (behind any quest offer), so buying its rune spends no charge. Art
+wired (`Runeguard.png` → `runeguard.webp`).
+
+**Batch 4b — the two signature cards** (both grant-only `token`s):
+- **Feasting Bogrot** (Rune of the Feast, 6) — **T5 Demon 6/4**: *End of Turn: Consume a Fodder and also give its
+  stats to adjacent minions.* New `endOfTurnFeastConsume` factory + `feastConsume` helper (Bogrot eats a Fred ×its
+  multiplier + fires the onConsume pipeline, then shares Fred's stats to both neighbours; golden ×2).
+- **Reconfigured Combinator** (Rune of Reconfiguration, 8) — **T5 Mech 8/8**: *Whenever you trigger a Shout, attach
+  an Attachment to 2 friendly Mechs.* A Combinator re-tuned to the **`battlecryTriggered`** hook — reuses the base
+  Combinator's `endOfTurnMagnetizeMechs` factory (targets 2; golden 4).
+
+New factory + power kind are zod-validated. 5 new tests (Runeguard schedules the forge for turn 10 + 14 armor; both
+runes grant their card; Bogrot's EoT consume+share exact stats; the Combinator welds onto a friendly Mech on a
+Shout). Live: Runeguard renders in the picker (30+14, art loaded); no console errors. typecheck / lint / 871 tests /
+build green.
+
+**Art follow-up:** Feasting Bogrot + Reconfigured Combinator have **no card art yet** (fallback sprite) — the
+owner said the Combinator gets "unique art as well" but none was provided; wire both when the art lands.
+
+### feat: runes batch 4a — grant runes (Assembly / Stormcalling / Frontline Glory / Soul Taxes) + Gilded-grant
+
+Grant-based Epic runes built on existing cards, plus a reusable **Gilded-grant** option:
+- New grant field **`grantGolden`** — conjures each id as a **Gilded** (golden) copy (conjure + `gildMinion`).
+- **Rune of Assembly** (6): Get a **Beatbot** + **2 Attachments**.
+- **Rune of Stormcalling** (6): Get a **Gilded Karwind** + a random **Shout** minion.
+- **Rune of Frontline Glory** (8): Get a **Gilded Yazzus** + **Front to Back** (the spell).
+- **Rune of Soul Taxes** (8): **Avenge (4): +1 max Gold** (a `runeSoulTaxes` run-wide Avenge via `grantMaxGold`,
+  reusing batch 3's `runeAvenge` helper) **+ Get Souls Man**.
+
+New grant field + combat flag are zod-validated. 5 new tests (each rune's grant; Gilded copies flagged `golden`;
+Soul Taxes' Avenge max-Gold carried back). Live: all four render correctly; buying Stormcalling grants a **golden**
+Karwind + a Shout minion. typecheck / lint / 867 tests / build green.
+
+**Deferred to batch 4b** (the two new cards): **Feasting Bogrot** (T5 Demon 6/4 — needs a custom "self-consume a
+Fodder + share its stats to adjacent" EoT factory) and **Reconfigured Combinator** (T5 Mech 8/8 — its trigger
+payoff on Shout-plays needs confirming; the base Combinator is an EoT-magnetize Mech). **Rune of the Den Mother**
+also pending (its "buffs herself too" modifier). Everything else (First Claws / Second Path / Scales / Bartering /
+Packcraft / Salvage / Inheritance / Twilight / Banking / Twin Gilding) still queued in the roadmap.
+
+### feat: runes batch 3 — Epic combat runes (Rising Graves / Broodpit / Spearline / Appraisal)
+
+Third rune slice — the combat-effect tier (Start of Combat + run-wide Avenge), all new `QuestCombatFlag`s threaded
+into `simulate()`:
+- **Rune of Rising Graves** (5): *Start of Combat — give your two left-most Undead Rise.* A SoC block mirroring
+  Rune of Warding's keyword grant (sets `rebornAvailable` + the 'R' pill on 2 Undead).
+- **Rune of the Broodpit** (7): *Avenge (6) — summon 2 Imps with Taunt.*
+- **Rune of the Spearline** (7): *Avenge (4) — summon a Spear Warden that attacks immediately* (mirrors Steadfast
+  Champion's `avengeSummonAttack`).
+- **Rune of Appraisal** (6): *Avenge (4) — improve your spells +1/+1* (via `grantSpellPower`, carried back).
+
+New shared mechanic: **run-wide Avenge** — a `runeAvenge(everyN, fire)` helper registers a `bus.on('avenge')`
+handler (no minion source) that fires every N friendly deaths; **Rune of Fury doubles them**, matching how a
+minion's Avenge doubles. 4 new combat tests (each rune's trigger via a scripted death sequence). Live: all four
+render with correct cost/text in the Epic forge; no console errors. typecheck / lint / 862 tests / build green.
+
+**Still deferred** (roadmap): First Claws (SoC immediate-attack timing), Second Path (Discover-from-pool), Scales
+(Dragon combat aura), Bartering (sell override), Packcraft / Salvage / Inheritance / Twilight / Banking / Twin
+Gilding, and the new-card grants (Feasting Bogrot / Reconfigured Combinator / Stormcalling / Frontline Glory /
+Assembly / Den Mother / Soul Taxes — need a "grant Gilded card" option).
+
+### feat: runes batch 2 — Kindling / Pair / Menagerie / Reliquary + forge-scheduling (quest + Epic Forge rune)
+
+Second slice of the rune build-out (the recruit-phase tier), plus cost syncs and a new quest:
+- **Cost syncs:** Rune of Pillaging 8 → 6, Rune of Action 8 → 6.
+- **Rune of Kindling** (basic 4): each spell cast gives your left-most minion **+3/+3** (a `castSpell` hook, `runeKindling`).
+- **Rune of the Pair** (basic 2): **2 random Tier-4 minions** — new grant option `randomTier` + `grantRandomTierMinion`.
+- **Rune of the Menagerie** (basic 5): one random **Beast/Demon/Dragon/Mech/Undead** — a `multi` of per-tribe grants.
+- **Rune of the Reliquary** (epic 7): **End of Turn — trigger your left-most Echo** (new `triggerLeftmostEcho`
+  recurring-EoT effect, fires the leftmost Deathrattle out of combat).
+- **Forge scheduling** (new `scheduleRuneforge` reward + `openNextStartOfTurnModal` integration):
+  - **"The Runeforge"** quest (lesser neutral, "Buy 7 minions") → *Start of next turn, visit the (basic) Runeforge
+    and gain 4 Gold that turn.*
+  - **Rune of the Epic Forge** (basic 3) → *Visit the Epic Forge on turn 9* (`epicForgeWave`).
+  - A scheduled forge is flagged **`runeforgeNoCharge`** so buying/skipping it never spends a hero-power charge —
+    critical for a non-Runesmith hero (e.g. Indy's once-per-game Gild stays intact).
+
+New reward kinds (`runeKindling`, `scheduleRuneforge`) + grant `randomTier` + EoT `triggerLeftmostEcho` are
+zod-validated. 8 new tests (each rune's effect; the scheduled basic forge opens next turn + grants Gold + spends no
+charge; the Epic Forge rune opens on turn 9). Live: all four new basic runes render with correct cost/text; buying
+the Epic Forge rune then reaching turn 9 opens the Epic forge; The Runeforge quest shows its reward text. typecheck /
+lint / 858 tests / build green.
+
+**Deferred to later batches** (roadmap): Rune of the Second Path (needs a Discover-from-a-fixed-pool mechanism), all
+combat-effect runes (Avenge / Start-of-Combat: Broodpit / Appraisal / Spearline / First Claws / Rising Graves /
+Inheritance / Packcraft / Salvage / Warden / Banking / Twilight / Twin Gilding), the on-spell **Scales** (needs a
+Dragon combat-aura channel), **Bartering** (sell-value override), and the new-card grants (Feasting Bogrot / the
+Combinator / Stormcalling / Frontline Glory / Assembly / Den Mother / Soul Taxes — need a "grant Gilded card" option).
+
 ### fix: sequential start-of-turn modals, Forest Grove combat summons, Kennelmaster T3, quest rename
 
 Batch of owner fixes:

@@ -1356,6 +1356,85 @@ export function simulate(
       }
     }
   }
+  // Rune of Rising Graves: at Start of Combat, give your two left-most Undead Rise (Reborn). Mirrors runeWarding's
+  // SoC keyword grant — sets `rebornAvailable` + the 'R' pill on each.
+  if (questMods.runeRisingGraves) {
+    let given = 0;
+    for (const m of boards.player) {
+      if (given >= 2) break;
+      if (m.dead || m.health <= 0 || m.rebornAvailable || !isUndeadMinion(m)) continue;
+      nextStep();
+      m.rebornAvailable = true;
+      if (!m.keywords.includes('R')) m.keywords.push('R');
+      emit({ type: 'sc', source: m.uid, text: 'Rise' });
+      given++;
+    }
+  }
+  // Rune-granted run-wide AVENGE effects (no minion source): a bus handler fires every N friendly deaths. Rune of
+  // Fury doubles them, matching how a minion's Avenge doubles (see registerEffect). Registered before the attack
+  // loop so they catch every death.
+  const runeAvenge = (everyN: number, fire: () => void): void => {
+    bus.on('avenge', (payload) => {
+      const { side, count } = payload as { side: Side; count: number };
+      if (side !== 'player' || count % everyN !== 0) return;
+      fire();
+      if (questMods.runeFury) fire(); // "your Avenge effects trigger twice"
+    });
+  };
+  if (questMods.runeBroodpit) runeAvenge(6, () => { // summon 2 Imps with Taunt
+    const imp = cards['impscrap'];
+    if (imp) { nextStep(); for (let i = 0; i < 2; i++) summonMinion('player', imp, undefined, ['T']); }
+  });
+  if (questMods.runeSpearline) runeAvenge(4, () => { // summon a Spear Warden that attacks immediately
+    const knit = cards['knit'];
+    if (knit) { nextStep(); summonMinion('player', knit, undefined, undefined, false, true); }
+  });
+  if (questMods.runeAppraisal) runeAvenge(4, () => ctx.grantSpellPower(1, 1, 'player', undefined)); // spells +1/+1
+  if (questMods.runeSoulTaxes) runeAvenge(4, () => ctx.grantMaxGold(1, 'player')); // +1 max Gold
+
+  // Rune of Packcraft: whenever you summon a minion in combat, your Beasts gain +1 Attack (aura — current Beasts
+  // now + carried back so future bought Beasts inherit it, like The Old Hunt).
+  if (questMods.runePackcraft) {
+    bus.on('onSummon', (payload) => {
+      const { side } = payload as { minion: Minion; side: Side };
+      if (side !== 'player') return;
+      beastAtkAura += 1;
+      beastBuyAtkGain += 1;
+      for (const m of boards.player) if (!m.dead && m.health > 0 && isBeast(m)) ctx.buff(m, 1, 0, 'Rune of Packcraft');
+    });
+  }
+  // Rune of Inheritance: when your LEFT-MOST living minion dies, your right-most living minion gains its stats.
+  if (questMods.runeInheritance) {
+    bus.on('onDeath', (payload) => {
+      const { minion, side } = payload as { minion: Minion; side: Side };
+      if (side !== 'player') return;
+      const idx = boards.player.indexOf(minion);
+      if (idx < 0 || boards.player.slice(0, idx).some((m) => !m.dead && m.health > 0)) return; // not the leftmost
+      const right = [...boards.player].reverse().find((m) => !m.dead && m.health > 0 && m !== minion);
+      if (right) ctx.buff(right, minion.attack, minion.maxHealth, 'Rune of Inheritance');
+    });
+  }
+  // Rune of Salvage: whenever a friendly Mech loses its Ward, a random Attachment lands in your hand next shop.
+  if (questMods.runeSalvage) {
+    const magnetics = Object.values(cards).filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech') && c.keywords.includes('M') && !c.token && !c.spell);
+    if (magnetics.length > 0) {
+      bus.on('onLoseDivineShield', (payload) => {
+        const { minion, side } = payload as { minion: Minion; side: Side };
+        if (side !== 'player' || !(minion.tribe === 'mech' || minion.tribe2 === 'mech')) return;
+        ctx.grantToHand(magnetics[rng.int(magnetics.length)]!.id, 'player', minion.uid);
+      });
+    }
+  }
+  // Rune of First Claws: at Start of Combat, your left-most + right-most Beasts attack immediately.
+  if (questMods.runeFirstClaws) {
+    const beasts = boards.player.filter((m) => !m.dead && m.health > 0 && m.attack > 0 && isBeast(m));
+    const targets = beasts.length <= 2 ? beasts : [beasts[0]!, beasts[beasts.length - 1]!];
+    if (targets.length > 0) {
+      nextStep();
+      for (const m of targets) ctx.attackNow?.(m, false);
+      flushImmediateAttacks();
+    }
+  }
 
   // --- First attacker: more living minions goes first; tie → seeded (A.3 step 2).
   //     Pre-emptive Assault overrides the whole rule: the player strikes first, period (one fight —

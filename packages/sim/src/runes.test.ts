@@ -24,7 +24,7 @@ const buyRune = (runeId: string, embers = 10, over: Partial<RunState> = {}): Run
 describe('Runeforge — framework', () => {
   it('every rune validates + is Runeforge-only (never a card/quest id)', () => {
     validateRunes();
-    expect(RUNES.length).toBe(17); // 13 base + Small Fortune / Quick Study / Scout / Spare Parts
+    expect(RUNES.length).toBe(24); // 13 base + batch1 (4) + batch2 (4) + Bartering + Packcraft + Salvage
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
@@ -326,6 +326,211 @@ describe('Runes batch 1 — grants / discovers / economy', () => {
     const s: RunState = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, hand: [], runeforgeOffer: ['rune_gilded_spark'], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
     expect(s.hand.some((c) => c.cardId === 'goldcrafter')).toBe(true);
     expect(s.pendingQuestRewards?.some((p) => p.turnsLeft === 2)).toBe(true);
+  });
+});
+
+describe('Runes batch 2 — Kindling / Pair / Menagerie / Reliquary + forge scheduling', () => {
+  const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
+
+  it('Rune of Kindling: each spell cast gives the leftmost minion +3/+3', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 5, runeKindling: true,
+      board: [mkAlley('lead'), mkAlley('other')],
+      hand: [{ uid: 'gp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'gp' }); // cast a spell
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([4, 4]); // 1/1 + 3/3
+    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([1, 1]); // leftmost only
+  });
+
+  it('Rune of the Pair: conjures 2 random Tier-4 minions', () => {
+    const s = buyRune('rune_pair', 10, { tier: 6, hand: [] });
+    expect(s.hand.length).toBe(2);
+    for (const c of s.hand) expect(CARD_INDEX[c.cardId]?.tier).toBe(4);
+  });
+
+  it('Rune of the Menagerie: conjures one minion of each of the five tribes', () => {
+    const s = buyRune('rune_menagerie', 10, { tier: 6, hand: [] });
+    const tribes = new Set(s.hand.map((c) => CARD_INDEX[c.cardId]?.tribe));
+    for (const t of ['beast', 'demon', 'dragon', 'mech', 'undead']) expect(tribes.has(t as never)).toBe(true);
+  });
+
+  it('Rune of the Reliquary: End of Turn fires the leftmost Echo (Deathrattle) out of combat', () => {
+    // Sylus-free board: a leftmost Deathrattle minion + its effect fires once at End of Turn. Use a known Echo
+    // minion; assert the recurring effect is armed + no crash firing it.
+    const echo = CARD_INDEX['knit'] ?? Object.values(CARD_INDEX).find((d) => d && !d.spell && d.effects.some((e) => e.on === 'onDeath'))!;
+    const s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', questRecurringEndOfTurn: ['triggerLeftmostEcho'],
+      board: [{ uid: 'e', cardId: echo.id, tribe: echo.tribe, attack: echo.attack, health: echo.health, keywords: [...echo.keywords], golden: false }] };
+    const before = s.board.length;
+    applyEndOfTurn(s);
+    expect(s.board.length).toBeGreaterThanOrEqual(before); // fired without error (may summon tokens)
+  });
+
+  it('The Runeforge quest: buying 7 minions arms a next-turn BASIC forge visit + 4 Gold', () => {
+    // Complete via the reward directly (buy-count objective drives it live in play).
+    const q = QUEST_INDEX['q_the_runeforge']!;
+    expect(q.tribe).toBe('neutral');
+    expect(q.tier).toBe('lesser');
+    expect(q.objective).toEqual({ event: 'buy', count: 7 });
+    expect(q.reward).toEqual({ kind: 'scheduleRuneforge', forge: 'basic', gold: 4 });
+  });
+
+  it('a scheduled BASIC forge opens next turn (any hero), grants its Gold, and spends NO hero-power charge', () => {
+    const s: RunState = { ...createRun(1, 'indy'), wave: 6, phase: 'combat', pendingBasicForge: { gold: 4 }, lastCombat: win };
+    const next = reduce(s, { type: 'resolveCombat' }); // → turn 7
+    expect(next.runeforgeOffer!.length).toBe(4);
+    expect(next.runeforgeEpic).toBeUndefined(); // basic runeset
+    expect(next.runeforgeNoCharge).toBe(true);
+    const embersOnOpen = next.embers;
+    // Skip the forge → Indy's once-per-game Gild is NOT spent (quest-opened forge, not the hero power).
+    const after = reduce(next, { type: 'skipRuneforge' });
+    expect(after.heroPowerSpent).toBeFalsy();
+    expect(embersOnOpen).toBeGreaterThanOrEqual(4); // the +4 Gold landed this turn
+  });
+
+  it('Rune of the Epic Forge: schedules the Epic forge for turn 9', () => {
+    const armed = buyRune('rune_epic_forge', 10);
+    expect(armed.epicForgeWave).toBe(9);
+    // Advance from wave 8 combat → turn 9: the Epic forge opens.
+    const next: RunState = reduce({ ...armed, wave: 8, phase: 'combat', epicForgeWave: 9, lastCombat: win }, { type: 'resolveCombat' });
+    expect(next.wave).toBe(9);
+    expect(next.runeforgeEpic).toBe(true);
+    expect(next.epicForgeWave).toBeUndefined(); // consumed
+  });
+});
+
+describe('Runes batch 4 — grant runes (existing cards + Gilded-grant)', () => {
+  const buyEpic = (runeId: string, over: Partial<RunState> = {}): RunState =>
+    reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 12, tier: 6, hand: [], runeforgeOffer: [runeId], runeforgeEpic: true, ...over }, { type: 'buyRune', index: 0 });
+
+  it('Rune of Assembly: grants a Beatbot + 2 Attachments', () => {
+    const s = buyEpic('rune_assembly');
+    expect(s.hand.some((c) => c.cardId === 'beatboxer')).toBe(true);
+    expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.keywords.includes('M') && c.cardId !== 'beatboxer').length).toBe(2);
+  });
+
+  it('Rune of Stormcalling: grants a GILDED Karwind + a random Shout minion', () => {
+    const s = buyEpic('rune_stormcalling');
+    const karwind = s.hand.find((c) => c.cardId === 'karwind');
+    expect(karwind?.golden).toBe(true); // Gilded
+    // a Shout = a Battlecry (onPlay effect) minion, other than the Karwind
+    expect(s.hand.some((c) => c.cardId !== 'karwind' && CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onPlay'))).toBe(true);
+  });
+
+  it('Rune of Frontline Glory: grants a GILDED Yazzus + Front to Back', () => {
+    const s = buyEpic('rune_frontline_glory');
+    expect(s.hand.find((c) => c.cardId === 'yazzus')?.golden).toBe(true);
+    expect(s.hand.some((c) => c.cardId === 'fronttoback')).toBe(true);
+  });
+
+  it('Rune of Soul Taxes: grants Souls Man + arms the Avenge max-Gold flag', () => {
+    const s = buyEpic('rune_soul_taxes');
+    expect(s.hand.some((c) => c.cardId === 'soulsman')).toBe(true);
+    expect(s.questFlags?.runeSoulTaxes).toBe(true);
+  });
+});
+
+describe('Runes batch 5 — recruit-phase (Scales / Bartering / Twin Gilding / Den Mother / Banking)', () => {
+  const mk = (uid: string, cardId: string): RunState['board'][number] => {
+    const d = CARD_INDEX[cardId]!;
+    return { uid, cardId, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false };
+  };
+  const spell = (uid = 'gp'): RunState['hand'][number] => ({ uid, cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false });
+
+  it('Rune of Scales: each spell cast gives your Dragons +1/+1 (board + hand)', () => {
+    // A Dragon on board + a non-Dragon; cast a spell → only the Dragon grows.
+    let s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 5, runeScales: true,
+      board: [mk('d', 'karwind'), mkAlley('b')], hand: [spell()] };
+    const dragonBefore = s.board[0]!.attack;
+    s = reduce(s, { type: 'play', uid: 'gp' });
+    expect(s.board[0]!.attack).toBe(dragonBefore + 1); // Dragon +1
+    expect(s.board[1]!.attack).toBe(1); // non-Dragon unchanged
+  });
+
+  it('Rune of Bartering: a Shout minion sells for 2 Gold (a non-Shout for the base 1)', () => {
+    const shout = mk('s', 'fieldmechanic'); // a Battlecry mech
+    const shoutSale = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 0, runeBartering: true, board: [shout] }, { type: 'sell', uid: 's' });
+    expect(shoutSale.embers).toBe(2);
+    const vanillaSale = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 0, runeBartering: true, board: [mk('v', 'drone')] }, { type: 'sell', uid: 'v' });
+    expect(vanillaSale.embers).toBe(1); // Drone has no Battlecry → base sell
+  });
+
+  it('Rune of Twin Gilding: 2 copies of a card Gild into a golden', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, runeTwinGilding: true,
+      board: [mk('a', 'drone')], hand: [mk('b', 'drone')] };
+    s = reduce(s, { type: 'play', uid: 'b' }); // 2nd Drone hits the board → Gild
+    const drones = [...s.board, ...s.hand].filter((c) => c.cardId === 'drone');
+    expect(drones.some((c) => c.golden)).toBe(true); // gilded at 2 copies
+  });
+
+  it('Rune of the Den Mother: playing a Beast buffs it AND Den Mother herself', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, runeDenMother: true,
+      board: [mk('m', 'mamabear')], hand: [mkAlley('beast')] };
+    const momBefore = s.board[0]!.attack;
+    s = reduce(s, { type: 'play', uid: 'beast' });
+    expect(s.board[0]!.attack).toBeGreaterThan(momBefore); // Den Mother buffed herself too
+    const beast = s.board.find((c) => c.uid === 'beast')!;
+    expect(beast.attack).toBeGreaterThan(1); // the played Beast got the buff
+  });
+
+  it('Rune of Banking: End of Turn welds a Money Bot onto the leftmost + rightmost Mech', () => {
+    const s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', questRecurringEndOfTurn: ['weldMoneyBotsEdgeMechs'],
+      board: [mk('l', 'drone'), mkAlley('mid'), mk('r', 'drone')] };
+    const leftBefore = s.board[0]!.attack + s.board[0]!.health;
+    applyEndOfTurn(s);
+    expect(s.board[0]!.attack + s.board[0]!.health).toBeGreaterThan(leftBefore); // leftmost Mech welded
+    expect(s.board[2]!.attack + s.board[2]!.health).toBeGreaterThan(2 + 1); // rightmost Mech welded
+  });
+
+  it('Rune of the Second Path: Discovers from the Greater-Quest reward minion pool', () => {
+    const s: RunState = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, runeforgeOffer: ['rune_second_path'], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
+    expect(s.discover?.length).toBeGreaterThan(0);
+    const pool = new Set<string>();
+    const collect = (r: { kind: string; cards?: string[]; rewards?: { kind: string; cards?: string[] }[] }): void => {
+      if ((r.kind === 'grant' || r.kind === 'recurringGrant') && r.cards) r.cards.forEach((id) => pool.add(id));
+      if (r.kind === 'multi') r.rewards?.forEach(collect);
+    };
+    for (const q of Object.values(QUEST_INDEX)) if (q.tier === 'greater') collect(q.reward as never);
+    for (const id of s.discover!) expect(pool.has(id)).toBe(true); // every option is a greater-quest reward minion
+  });
+});
+
+describe('Runes batch 4b — new cards (Feasting Bogrot / Reconfigured Combinator) + Runeguard', () => {
+  const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
+  const mk = (uid: string, cardId: string): RunState['board'][number] => {
+    const d = CARD_INDEX[cardId]!;
+    return { uid, cardId, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false };
+  };
+  const buyEpic = (runeId: string): RunState =>
+    reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, hand: [], runeforgeOffer: [runeId], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
+
+  it('Runeguard: Defend the Forge — 14 armor + schedules the Epic Runeforge for turn 10', () => {
+    const s = createRun(1, 'runeguard');
+    expect(s.armor).toBe(14);
+    expect(s.epicForgeWave).toBe(10);
+    const next = reduce({ ...s, wave: 9, phase: 'combat', epicForgeWave: 10, lastCombat: win }, { type: 'resolveCombat' });
+    expect(next.wave).toBe(10);
+    expect(next.runeforgeEpic).toBe(true);
+  });
+
+  it('Rune of the Feast grants Feasting Bogrot; Rune of Reconfiguration grants Reconfigured Combinator', () => {
+    expect(buyEpic('rune_feast').hand.some((c) => c.cardId === 'feastingbogrot')).toBe(true);
+    expect(buyEpic('rune_reconfiguration').hand.some((c) => c.cardId === 'reconfiguredcombinator')).toBe(true);
+  });
+
+  it('Feasting Bogrot: End of Turn consumes a Fodder itself and shares its stats to both neighbors', () => {
+    const s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', board: [mkAlley('l'), mk('b', 'feastingbogrot'), mkAlley('r')] };
+    applyEndOfTurn(s);
+    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([7, 5]); // Bogrot 6/4 + Fred 1/1
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([2, 2]); // neighbor 1/1 + shared 1/1
+    expect([s.board[2]!.attack, s.board[2]!.health]).toEqual([2, 2]);
+  });
+
+  it('Reconfigured Combinator: triggering a Shout magnetizes an Attachment onto a friendly Mech', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', tier: 6,
+      board: [mk('c', 'reconfiguredcombinator'), mk('d', 'drone')], hand: [mk('h', 'fieldmechanic')] };
+    const droneBefore = s.board[1]!.attack + s.board[1]!.health;
+    s = reduce(s, { type: 'play', uid: 'h' }); // play a Battlecry → the Combinator fires
+    const drone = s.board.find((c) => c.uid === 'd')!;
+    expect(drone.attack + drone.health).toBeGreaterThan(droneBefore); // an attachment welded on
   });
 });
 

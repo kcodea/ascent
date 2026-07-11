@@ -31,6 +31,7 @@ export type HeroPowerKind =
   | 'grantReborn' // Lord of the Risen: give a friendly minion Rise for the next combat (active, targeted)
   | 'goldenGild' // Gildmaster: if you have 2 copies of a minion, combine them into a golden copy in hand
   | 'runeforge' // Runesmith (passive): on turn 6 the Runeforge opens — buy ONE of a random 3 runes (a run-long buff)
+  | 'epicRuneforge' // Runeguard (passive): the EPIC Runeforge opens on turn 10 (scheduled via `epicForgeWave` at run start)
   | 'pathfinder' // Coran (passive): no lesser quest; the Greater + Capstone quest shops arrive on turns 6 + 10
   | 'dynamiteDig'; // Jenkins: 1 Gold Discover a minion of your tier — costs 1 more Gold each use (active, untargeted)
 
@@ -346,6 +347,19 @@ export const HEROES: HeroDef[] = [
       passive: true, // fires on the turn-6 advance (opens the Runeforge offer); resolved by `buyRune` / `skipRuneforge`
       oncePerGame: true, // the forge opens exactly once, on turn 6
       text: 'Runeforge: On turn 6, buy one of a random 3 Runes (re-roll once for 2 Gold) — a permanent buff for the run.',
+    },
+  },
+  {
+    id: 'runeguard',
+    name: 'Runeguard',
+    blurb: 'Sworn to the forge — its greater runes answer only to those who hold the line.',
+    resolve: 30,
+    armor: 14,
+    power: {
+      name: 'Defend the Forge',
+      kind: 'epicRuneforge',
+      passive: true, // scheduled at run start (createRun sets `epicForgeWave = 10`); opens via advanceCombat sequencing
+      text: 'Defend the Forge: Visit the Epic Runeforge on turn 10 — buy one Epic Rune (a permanent buff for the run).',
     },
   },
   {

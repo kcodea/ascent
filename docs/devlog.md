@@ -5,6 +5,31 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### feat: 4 designed Epic runes (Rallying / Scale / Copies / Action) + Epic Commission quest art
+
+Replaced the 6 Epic-forge placeholders with **4 designed runes** (Empowerment stays), and wired the **Epic
+Commission** quest art (`q_epic_commission.webp`, converted 1254² PNG → 512² webp). The Epic set is now Empowerment,
+Rallying, Scale, Copies, Action:
+
+- **Rune of Rallying** (6): *Start of Combat — trigger your Rally effects.* New `runeRallying` combat flag → a
+  Start-of-Combat block in `simulate()` fires each player minion's `onAttack` (Rally) effects once (card effects +
+  welded Better Bot / Perfect Core rallies), like a free rally without an attack; not counted toward the `rally`
+  quest tally. Threaded through `questCombatMods`.
+- **Rune of Scale** (5): *Spending Gold gives 2 random allies +2/+2.* New `runeScale` reward + run flag, hooked into
+  the `spendGold` chokepoint — once per Gold-spend transaction (a buy / roll / tier-up / hero power), it buffs
+  `count` random board minions, seeded off the run RNG cursor.
+- **Rune of Copies** (5): *Get a copy of a minion on your board. Get another every turn.* New `runeCopies` reward +
+  flag: grants an immediate copy of a random board minion on purchase, then one more at each turn's shop open
+  (`advanceCombat`), via a fresh-copy `copyRandomBoardMinion` (base card + run auras, like the Dupes copy).
+- **Rune of Action** (8): *End of Turn — give your left-most minion +1/+1 per card played this turn.* New
+  `runeAction` recurring-End-of-Turn effect reading `playedThisTurn`.
+
+New reward kinds (`runeScale`, `runeCopies`) + combat flag (`runeRallying`) + recurring effect (`runeAction`) are
+zod-validated. **6 new tests** (Scale buffs on spend; Rallying flag armed + the SoC rally fires before the attack
+loop and no-ops without a Rally minion; Copies grants on buy + each turn; Action scales with cards played). Live:
+all 5 Epic runes render with correct cost/text; the Epic Commission quest card shows its new art. typecheck / lint /
+845 tests / build green. Follow-up: Epic **rune** art (the runes fall back to the sigil glyph for now).
+
 ### feat: Epic Commission — a greater quest that opens the Epic Runeforge next turn
 
 Wired the first access path to the Epic Runeforge: **Epic Commission**, a **neutral greater quest** (wave 8,

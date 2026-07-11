@@ -387,12 +387,12 @@ hold so we don't regress it.
 ## Standing backlog (carried over — unscheduled, behind the spine)
 
 **Epic Runeforge follow-ups:** the Epic Runeforge is plumbed (own `EPIC_RUNES` set, `openEpicRuneforge` quest
-reward, shared buy/skip/reroll + Epic UI skin — session 30 devlog) and now reachable via the **Epic Commission**
-greater quest (neutral, wave 8, "Spend 25 Gold" → the forge opens the start of next turn). Still to do:
-(1) **design the real Epic runes** — it currently holds Rune of Empowerment + 6 functional *placeholders*
-(Opulence/Ascendance/Sorcery/Fortune/Plunder/Insight); (2) **rune art** for the Epic set (folded into the pending
-art pass); (3) maybe more Epic-forge access paths beyond the one greater quest. Empowerment is gated to heroes with
-a doubleable power (`DOUBLEABLE_POWERS`) — extend that set if new value/generate powers land.
+reward, shared buy/skip/reroll + Epic UI skin), reachable via the **Epic Commission** greater quest (neutral,
+wave 8, "Spend 25 Gold" → opens the start of next turn), and now stocked with **5 designed runes** — Empowerment,
+Rallying, Scale, Copies, Action (placeholders removed). Still to do: (1) **Epic rune art** (only the *quest* art is
+wired; the runes fall back to the sigil glyph — folded into the pending art pass); (2) more Epic runes (5 makes the
+re-roll repeat — `drawRunes` falls back to non-fresh when the eligible pool < 6); (3) maybe more access paths beyond
+the one greater quest. Empowerment is gated to heroes with a doubleable power (`DOUBLEABLE_POWERS`).
 
 **Layout Lab extensions:** the dev Layout Lab (DevMenu → Scale & Layout) covers global + per-row card scale, UI
 scale, and warband/hand/HUD position. Not yet: (1) a **shop-row position** offset — the tavern zone is

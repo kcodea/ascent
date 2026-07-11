@@ -447,7 +447,8 @@ export type QuestReward =
   // conjure a random Shout minion to hand (The Hoard Wakes). Applied every End of Turn for the rest of the run.
   // `runeSpending` (Rune of Spending): End of Turn — +1 max Gold, and buff your leftmost minion +N/+N where N =
   // the Gold you spent this turn.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' }
+  // `runeAction` (Rune of Action): End of Turn — give your leftmost minion +1/+1 for every card you played this turn.
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -459,6 +460,10 @@ export type QuestReward =
   | { kind: 'goldPouchValue'; value: number }
   // Rune of Summoning: each spell you cast permanently improves your Imps +1/+1 wherever they are.
   | { kind: 'runeSummoning' }
+  // Rune of Scale (Epic): every time you spend Gold, give `count` random board minions +attack/+health.
+  | { kind: 'runeScale'; count: number; attack: number; health: number }
+  // Rune of Copies (Epic): copy a random board minion to your hand now, and again at the start of every turn.
+  | { kind: 'runeCopies' }
   // Rune of Empowerment (Epic): your hero power's effect triggers twice (only offered to heroes whose power
   // benefits — see the sim's DOUBLEABLE_POWERS gate).
   | { kind: 'runeEmpowerment' }
@@ -513,7 +518,9 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // trigger twice; runeSlaying = every Slaughter this combat banks +2 Gold for next turn (read at settle).
   | 'runeWarding' | 'runeFury' | 'runeSlaying'
   // Rune of Forthcoming: you always attack first in combat.
-  | 'runeForthcoming';
+  | 'runeForthcoming'
+  // Rune of Rallying: at Start of Combat, trigger each of your minions' Rally (on-attack) effects once.
+  | 'runeRallying';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -570,6 +577,8 @@ export interface QuestCombatMods {
   runeWarding?: boolean;
   /** Rune of Fury: every Avenge you trigger fires one extra time (its effect runs twice). */
   runeFury?: boolean;
+  /** Rune of Rallying: at Start of Combat, trigger each of your minions' Rally (on-attack) effects once. */
+  runeRallying?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the

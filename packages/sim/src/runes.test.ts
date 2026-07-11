@@ -3,6 +3,10 @@ import type { CombatResult } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNES, RUNE_INDEX, validateRunes } from '@game/content';
 import { createRun, type RunState } from './state';
 import { openEpicRuneforge, reduce } from './reducer';
+import { applyEndOfTurn } from './recruit';
+
+/** A 1/1 Beast board card (id 'alley') for board-setup tests. */
+const mkAlley = (uid: string): RunState['board'][number] => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
 
 /** A Runesmith run parked at wave-5 combat, ready for `resolveCombat` → the turn-6 Runeforge. */
 const atWave5Combat = (over: Partial<RunState> = {}): RunState => ({
@@ -200,7 +204,7 @@ describe('Epic Runeforge', () => {
 
   it('every Epic rune validates, is `rune_`-prefixed, marked epic, and resolvable via RUNE_INDEX', () => {
     validateRunes(); // validates BOTH sets by default
-    expect(EPIC_RUNES.length).toBeGreaterThanOrEqual(6); // enough that a re-roll always yields a fresh 3
+    expect(EPIC_RUNES.length).toBeGreaterThanOrEqual(5);
     for (const r of EPIC_RUNES) {
       expect(r.id.startsWith('rune_')).toBe(true);
       expect(r.epic).toBe(true);
@@ -232,10 +236,10 @@ describe('Epic Runeforge', () => {
   });
 
   it('buying an Epic rune applies its reward, records it, and does NOT spend a hero-power charge', () => {
-    const s = buyEpic('rune_epic_opulence', 10); // cost 5, +2 max Gold
-    expect(s.embers).toBe(7); // 10 − 5, then +2 from the reward reflected into this turn
-    expect(s.maxGoldBonus).toBe(2);
-    expect(s.ownedRunes).toEqual(['rune_epic_opulence']);
+    const s = buyEpic('rune_scale', 10); // cost 5
+    expect(s.embers).toBe(5); // 10 − 5
+    expect(s.runeScale).toEqual({ count: 2, attack: 2, health: 2 });
+    expect(s.ownedRunes).toEqual(['rune_scale']);
     expect(s.runeforgeOffer).toBeUndefined();
     expect(s.runeforgeEpic).toBeUndefined();
     expect(s.heroPowerSpent).toBeFalsy(); // the Epic forge is quest-opened, not the hero power
@@ -260,6 +264,40 @@ describe('Epic Runeforge', () => {
     expect(r.runeforgeOffer!.length).toBe(3);
     for (const id of r.runeforgeOffer!) expect(EPIC_RUNES.some((rn) => rn.id === id)).toBe(true);
     expect(reduce(r, { type: 'rerollRuneforge' })).toBe(r); // once per visit
+  });
+});
+
+describe('Epic runes — effects', () => {
+  const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
+
+  it('Rune of Scale: each Gold-spend buffs `count` random board minions', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10, freeRolls: 0,
+      runeScale: { count: 2, attack: 2, health: 2 }, board: [mkAlley('a'), mkAlley('b')] };
+    s = reduce(s, { type: 'roll' }); // one Gold-spend → count(2) = board(2), both get +2/+2
+    expect(s.board.map((c) => [c.attack, c.health])).toEqual([[3, 3], [3, 3]]);
+  });
+
+  it('Rune of Rallying: buying arms the Start-of-Combat rally flag', () => {
+    const s: RunState = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, runeforgeOffer: ['rune_rallying'], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
+    expect(s.questFlags?.runeRallying).toBe(true);
+  });
+
+  it('Rune of Copies: grants a copy on buy and another at the start of each turn', () => {
+    // Immediate copy on purchase.
+    const bought: RunState = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, runeforgeOffer: ['rune_copies'], runeforgeEpic: true, board: [mkAlley('a')], hand: [] }, { type: 'buyRune', index: 0 });
+    expect(bought.runeCopies).toBe(true);
+    expect(bought.hand.some((c) => c.cardId === 'alley')).toBe(true);
+    // Recurring copy at the next turn's shop open.
+    const next: RunState = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'combat', runeCopies: true, board: [mkAlley('a')], hand: [], lastCombat: win }, { type: 'resolveCombat' });
+    expect(next.hand.some((c) => c.cardId === 'alley')).toBe(true);
+  });
+
+  it('Rune of Action: End of Turn gives the leftmost minion +1/+1 per card played this turn', () => {
+    const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', questRecurringEndOfTurn: ['runeAction'],
+      playedThisTurn: ['x', 'y', 'z'], board: [mkAlley('lead'), mkAlley('other')] };
+    applyEndOfTurn(s);
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([4, 4]); // 1/1 + 3 cards
+    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([1, 1]); // leftmost only
   });
 });
 

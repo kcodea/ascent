@@ -36,6 +36,18 @@ function spendGold(s: RunState, amount: number): void {
       conjureToHand(s, SPELL_CARDS.filter((c) => c.tier <= s.tier), 1);
     }
   }
+  // Rune of Scale (Epic): each Gold-spend gives `count` random board minions +atk/+hp. Once per spend transaction
+  // (a buy / roll / tier-up / hero power), not per Gold. Seeded off the run's RNG cursor.
+  if (s.runeScale && amount > 0 && s.board.length > 0) {
+    const { count, attack, health } = s.runeScale;
+    const rng = makeRng(s.rngCursor);
+    const pool = [...s.board];
+    for (let i = 0; i < count && pool.length > 0; i++) {
+      const pick = pool.splice(rng.int(pool.length), 1)[0]!;
+      addBuff(pick, 'Rune of Scale', attack, health);
+    }
+    s.rngCursor = rng.state();
+  }
 }
 
 /** Drakko's quest: buy 5 Battlecry minions → get Drakko the Drummer (once per game). Progresses on every
@@ -1650,6 +1662,8 @@ function advanceCombat(s: RunState): void {
   if (s.questRecurringGrants?.length) {
     for (const id of s.questRecurringGrants) conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
   }
+  // Rune of Copies (Epic): each turn setup, copy a random board minion to hand (the immediate copy fired on buy).
+  if (s.runeCopies) copyRandomBoardMinion(s);
   // Triples can be completed by a combat carry-back that lands a 3rd copy in the hand (e.g. a
   // Deathrattle-granted minion) AFTER the last recruit action that would have checked. Every other
   // path checks on the mutation; this is the one entry the player never triggers, so check once here
@@ -1819,6 +1833,13 @@ export function openEpicRuneforge(s: RunState): void {
   s.runeforgeOffer = drawRunes(runeforgePool(s), 3, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 2)));
 }
 
+/** Rune of Copies: conjure a fresh copy of a RANDOM board minion into the hand (base card + run auras, like the
+ *  Dupes copy). No-op on an empty board or a full hand. */
+function copyRandomBoardMinion(s: RunState): void {
+  const pool = s.board.map((c) => CARD_INDEX[c.cardId]).filter((d): d is CardDef => !!d);
+  conjureToHand(s, pool, 1);
+}
+
 /** Close any open forge — clears the offer + its per-visit flags. */
 function closeRuneforge(s: RunState): void {
   s.runeforgeOffer = undefined;
@@ -1980,6 +2001,14 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'runeSummoning':
       s.runeSummoning = true; // Rune of Summoning: each spell cast improves your Imps +1/+1
       break;
+    case 'runeScale':
+      s.runeScale = { count: r.count, attack: r.attack, health: r.health }; // each Gold-spend buffs random allies
+      break;
+    case 'runeCopies':
+      // Rune of Copies: arm the per-turn copy AND grant one now — a copy of a random board minion to hand.
+      s.runeCopies = true;
+      copyRandomBoardMinion(s);
+      break;
     case 'runeEmpowerment':
       s.runeEmpowerment = true; // Rune of Empowerment (Epic): your hero power triggers twice
       break;
@@ -2086,6 +2115,7 @@ function questCombatMods(s: RunState): QuestCombatMods {
     emptyGraves: f?.emptyGraves,
     runeWarding: f?.runeWarding, // Rune of Warding: SoC give leftmost minion Ward
     runeFury: f?.runeFury, // Rune of Fury: Avenges trigger twice
+    runeRallying: f?.runeRallying, // Rune of Rallying: SoC trigger your Rally (on-attack) effects
   };
 }
 

@@ -85,8 +85,7 @@ export const RUNES: RuneDef[] = [
 /**
  * Epic Runes — the **Epic Runeforge's** stock. A second, higher-power forge that functions identically to the
  * normal Runeforge (offer a random few, buy ONE for Gold, re-roll once for 2 Gold) but draws from THIS set and is
- * NOT tied to a hero power — for now it's reached only by a quest reward (`openEpicRuneforge`). The runes below are
- * placeholders (functional, but provisional flavour/values) EXCEPT Rune of Empowerment, which is a real Epic rune.
+ * NOT tied to a hero power — reached by a quest reward (`openEpicRuneforge`, the Epic Commission quest).
  *
  * `requiresDoublePower`: a rune only offered to heroes whose hero power gets value from a double trigger (the sim's
  * DOUBLEABLE_POWERS set) — Empowerment is meaningless on a targeted / passive power, so it's filtered out for them.
@@ -101,54 +100,37 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Your **hero power** triggers twice.',
     reward: { kind: 'runeEmpowerment' },
   },
-  // ── Placeholders (provisional — swapped for designed Epic runes later; each reuses a validated reward kind) ──
   {
-    id: 'rune_epic_opulence',
-    name: 'Rune of Opulence',
-    cost: 5,
-    epic: true,
-    text: 'Gain **+2 max Gold**.',
-    reward: { kind: 'gainMaxGold', amount: 2 },
-  },
-  {
-    id: 'rune_epic_ascendance',
-    name: 'Rune of Ascendance',
+    id: 'rune_rallying',
+    name: 'Rune of Rallying',
     cost: 6,
     epic: true,
-    text: 'Give your board **+4/+4**.',
-    reward: { kind: 'buffBoard', attack: 4, health: 4 },
+    text: '**Start of Combat:** trigger your **Rally** effects.',
+    reward: { kind: 'combatFlag', flag: 'runeRallying' },
   },
   {
-    id: 'rune_epic_sorcery',
-    name: 'Rune of Sorcery',
-    cost: 6,
-    epic: true,
-    text: 'Your **first spell** each turn casts twice.',
-    reward: { kind: 'spellRepeat', scope: 'firstEachTurn' },
-  },
-  {
-    id: 'rune_epic_fortune',
-    name: 'Rune of Fortune',
+    id: 'rune_scale',
+    name: 'Rune of Scale',
     cost: 5,
     epic: true,
-    text: 'The **first minion** you buy each turn is duplicated to your hand.',
-    reward: { kind: 'dupeFirstBuy' },
+    text: 'Spending Gold gives **2 random allies +2/+2**.',
+    reward: { kind: 'runeScale', count: 2, attack: 2, health: 2 },
   },
   {
-    id: 'rune_epic_plunder',
-    name: 'Rune of Plunder',
-    cost: 4,
+    id: 'rune_copies',
+    name: 'Rune of Copies',
+    cost: 5,
     epic: true,
-    text: 'Your **Gold Pouches** are worth **3 Gold** for the rest of the run.',
-    reward: { kind: 'goldPouchValue', value: 3 },
+    text: 'Get a **copy** of a minion on your board. Get another every turn.',
+    reward: { kind: 'runeCopies' },
   },
   {
-    id: 'rune_epic_insight',
-    name: 'Rune of Insight',
-    cost: 3,
+    id: 'rune_action',
+    name: 'Rune of Action',
+    cost: 8,
     epic: true,
-    text: '**Discover** a minion of your Tavern Tier.',
-    reward: { kind: 'discover' },
+    text: '**End of Turn:** give your left-most minion **+1/+1** for every card you played this turn.',
+    reward: { kind: 'recurringEndOfTurn', effect: 'runeAction' },
   },
 ];
 

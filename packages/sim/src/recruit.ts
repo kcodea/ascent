@@ -2715,7 +2715,7 @@ export function applyEndOfTurn(state: RunState): void {
 /** One quest-granted recurring End-of-Turn effect. `triggerLeftmostShout`: re-fire your leftmost Battlecry
  *  minion's Battlecry (Echoing Roar). `grantRandomShout`: conjure a random Battlecry minion (≤ tavern tier) to
  *  hand (The Hoard Wakes). `grantRandomAttachments`: conjure 2 random Magnetic minions to hand (Blueprint Cache). */
-function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending'): void {
+function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction'): void {
   if (effect === 'triggerLeftmostShout') {
     const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
     if (leftmost) replayBattlecry(state, leftmost);
@@ -2727,6 +2727,11 @@ function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' |
     const n = state.goldSpentThisTurn ?? 0;
     const leftmost = state.board[0];
     if (leftmost && n > 0) addBuff(leftmost, 'Rune of Spending', n, n);
+  } else if (effect === 'runeAction') {
+    // Rune of Action: give your leftmost minion +1/+1 for every card you played this turn.
+    const n = (state.playedThisTurn ?? []).length;
+    const leftmost = state.board[0];
+    if (leftmost && n > 0) addBuff(leftmost, 'Rune of Action', n, n);
   } else {
     conjureToHand(state, BUYABLE_CARDS.filter((c) => c.tier <= state.tier && hasBattlecry(c)), 1);
   }

@@ -647,6 +647,14 @@ export function useCombatReplay(
     }
     if (trig.size === 0) return;
     sfx.triggerPulse(); // once per beat regardless of how many units pulse (the dedupe is built in too)
+    // Each triggering unit also plays its OWN effect voiceline (cards/<id>.effect.mp3) — the combat half of the
+    // per-card effect sound (the shop half fires from store.ts on a Battlecry). Deduped by cardId so a beat with
+    // several copies of one card firing plays that clip once. Silent until the clip is recorded.
+    const firedEffect = new Set<string>();
+    for (const uid of trig) {
+      const cid = cardIds.get(uid);
+      if (cid && !firedEffect.has(cid)) { firedEffect.add(cid); sfx.cardEffect(cid); }
+    }
     setTriggers((prev) => new Set([...prev, ...trig]));
     const t = window.setTimeout(() => setTriggers((prev) => {
       const next = new Set(prev);
@@ -679,6 +687,7 @@ export function useCombatReplay(
     for (let i = beat.start; i < beat.end; i++) { const e = events[i]; if (e?.type === 'reborn') rebornRects.set(e.target, rectOf(e.target)); }
     const stop = runMomentCues(beat, {
       events,
+      cardIds, // lets the sfx channel play a dying unit's own death voiceline (cards/<id>.death.mp3)
       combatSpeed: combatSpeedRef.current,
       onShake: () => setShake((n) => n + 1),
       findEl,

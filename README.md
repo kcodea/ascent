@@ -25,10 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
-- **Audio hooks: per-card effect + per-hero select/power.** Wired the shop/menu-side SFX hooks from the sound
-  manifest — a minion's Battlecry, picking a hero, and firing a hero power now each play their own clip
-  (`cards/<id>.effect.mp3`, `heroes/<id>.mp3`, `heroes/<id>.power.mp3`) layered over the generic cue. Silent
-  until the clips are recorded; the combat-side death/effect hooks come in a follow-up.
+- **Audio hooks: per-card sounds now cover combat too.** Building on the shop/menu hooks, a minion's own
+  **death** clip (`cards/<id>.death.mp3`) plays when it dies, and its **effect** clip (`cards/<id>.effect.mp3`)
+  plays when its Deathrattle/Start-of-Combat/etc. procs — via the replay's uid→cardId map, deduped per card.
+  Combined with the shop-side hooks (Battlecry effect, hero select, hero power), every manifest hook is now
+  wired. All silent until the clips are recorded.
 - **Sound-effects manifest + generator.** `docs/audio/sfx-manifest.md` now enumerates every sound the game
   needs (~577: per-card play/death/effect, per-hero select/power, per-spell cast, system cues), and
   `npm run sfx:manifest` regenerates it from the card/hero/spell data while preserving the hand-written brief +

@@ -115,6 +115,30 @@ green: typecheck + lint + test + build:web. (Trigger path is test-proven; the li
 **Follow-ups:** per-tribe descend presets (owner will tune); a sim-level trigger annotation on buff events would
 retire the `DEATHRATTLE_BUFF_FACTORIES` maintenance list; the living-source on-attack-buffer tendril gap remains.
 
+### feat(audio): combat-side per-card death + effect SFX hooks (silent until assets)
+
+The second wiring slice (stacked on the shop/menu hooks below) — the **combat** half of the per-card sounds.
+Additive and **silent until a clip exists** (`playSample` no-ops on a missing buffer); no existing combat
+logic is modified, so combat feel/animation is unchanged today. Threads the replay's uid→cardId map to the
+two combat proc sites:
+
+- **Death** — `CueContext` gains an optional `cardIds` map (`choreo/score.ts`), passed from `useCombatReplay`'s
+  `runMomentCues` call and forwarded into `playMomentSfx` (`choreo/channels/sfx.ts`). On a **non-Rise** death
+  the channel now also plays the dying unit's own `cards/<id>.death.mp3`, layered over the generic death bed,
+  **deduped per cardId** (two of the same minion dying on one beat → one clip). A Rise's first death never
+  fires it (the body returns).
+- **Effect (combat)** — at the trigger-medallion site in `useCombatReplay` (the `trig` set that already fires
+  `sfx.triggerPulse()` when Battlecry/Deathrattle/Avenge/summon/buff effects proc), each triggering unit also
+  plays its own `cards/<id>.effect.mp3`, deduped by cardId. This is the combat counterpart to the shop-side
+  Battlecry effect hook (store.ts) — one manifest "effect" clip now covers both venues.
+
+New `sfx.cardDeath(cardId)` cue (+ `sampleVol` default + dev-mixer preview) mirrors `cardEffect`/`cardVoice`.
+
+- **Verified:** 2 new channel tests (a dying unit's death voiceline fires via `cardIds`, deduped per cardId,
+  never for a Rise; and back-compat — no `cardIds` map → no per-card death sound). Full gate: typecheck 0,
+  lint clean, 897 tests, `build:web` ✓. End-to-end audio + combat-feel verification lands with the first
+  recorded clips (drive the focused Chrome tab, per the degenerate-preview note).
+
 ### feat(audio): wire per-card effect + per-hero select/power SFX hooks (silent until assets)
 
 The first slice of playback wiring for the SFX manifest (docs/audio/sfx-manifest.md, PR #335). Adds the

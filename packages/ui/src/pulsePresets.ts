@@ -16,15 +16,16 @@ export interface PulsePresetCfg {
   colorRing: string; colorCore: string; colorSpark: string;
 }
 
-/** A neutral starter look (owner tunes the real values on the rig; per-tribe presets are added AFTER tuning,
- *  same as the tendril tribe presets — do NOT invent tuned numbers here). */
+/** The owner-tuned default self-buff pulse (2026-07-11, tuned live on buff-pulse-preview.html) — a single fast
+ *  white shockwave ring + a big warm-gold core flash + a wide golden spark burst, additive. Applied to EVERY
+ *  eligible self-buff (PULSE_ASSIGN is empty, so all resolve here). Values baked straight from the rig's JSON. */
 const DEFAULT: PulsePresetCfg = {
-  style: 'ring', blend: 'normal',
-  ringCount: 2, ringSize: 90, ringWidth: 6, ringSpeed: 1, ringMs: 460, ringStaggerMs: 70,
-  coreFlashSize: 70, coreFlashMs: 320,
-  sparkCount: 14, sparkSpeed: 420, sparkLife: 620, sparkSize: 10,
-  holdMs: 100,
-  colorRing: '#ffd24a', colorCore: '#fff0d0', colorSpark: '#ffb054',
+  style: 'ring', blend: 'add',
+  ringCount: 1, ringSize: 173, ringWidth: 16, ringSpeed: 2.45, ringMs: 280, ringStaggerMs: 200,
+  coreFlashSize: 200, coreFlashMs: 950,
+  sparkCount: 60, sparkSpeed: 390, sparkLife: 1400, sparkSize: 7,
+  holdMs: 60,
+  colorRing: '#ffffff', colorCore: '#fff694', colorSpark: '#fef962',
 };
 
 export const PULSE_PRESETS: Record<string, PulsePresetCfg> = {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, escalatingCastText, guelProgressText, monkProgressText, scTribeBuffPerSpellText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText, watcherText } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, combatCastGrantText, escalatingCastText, guelProgressText, monkProgressText, scTribeBuffPerSpellText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText, watcherText } from './cardText';
 
 describe('cardText helpers', () => {
   it('scTribeBuffPerSpellText shows Runescale Drake’s live Dragon grant (base + per-spell, golden-aware)', () => {
@@ -96,6 +96,14 @@ describe('cardText helpers', () => {
     expect(summonScalingText('spiritworgen', 3)).toContain('{{+5/+5}}'); // base 2 + 3 spells this turn
     expect(summonScalingText('spiritworgen', 0)).toBeNull(); // no spells this turn → printed +2/+2
     expect(summonScalingText('grim', 3)).toBeNull(); // not a spells-this-turn scaler
+  });
+
+  it('combatCastGrantText scales Hoardbreaker’s Slaughter Growth with spell power (golden doubles)', () => {
+    expect(combatCastGrantText('hoardbreaker', false, 0, 0)).toBeNull(); // no spell power → printed +3/+4
+    expect(combatCastGrantText('hoardbreaker', false, 2, 2)).toContain('{{+5/+6}}'); // base 3/4 + spell power 2/2
+    expect(combatCastGrantText('hoardbreaker', true, 2, 2)).toContain('{{+10/+12}}'); // ×2 golden, matching onKillCastSpell
+    expect(combatCastGrantText('taragosa', false, 2, 2)).toBeNull(); // Taragosa uses its own helper (no spellId param)
+    expect(combatCastGrantText('sandbag', false, 2, 2)).toBeNull(); // not a spell-caster
   });
 
   it('taragosaText scales Growth with spell power (golden casts twice)', () => {

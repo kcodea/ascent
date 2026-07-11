@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { Card, type CardView } from './Card';
-import { ascendProgressText, cryptDrakeText, engraveTallyText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, sergeantText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, watcherText } from './cardText';
+import { ascendProgressText, combatCastGrantText, cryptDrakeText, engraveTallyText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText, sergeantText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, watcherText } from './cardText';
 import { useGame } from './store';
 import type { UnitFrame } from './useCombatReplay';
 
@@ -50,6 +50,7 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
     ?? summonImproveText(u.cardId, u.summonBonus, u.golden) // Mama Bear: live "+M/+M per summon" (climbs via improve events)
     ?? summonScalingText(u.cardId, spellsThisTurn, playedThisTurn) // Spirit Worgen: per-summon gain + live proc count
     ?? scTribeBuffPerPlayedText(u.cardId, u.golden, playedThisTurn) // Pack Leader: live grant from Beasts played this turn
+    ?? scTribeBuffPerSpellText(u.cardId, u.golden, spellsThisTurn) // Runescale Drake: live Start-of-Combat Dragon buff per spell cast this turn
     ?? cryptDrakeText(u.cardId, u.golden, u.attackSeen ?? 0)
     ?? ascendProgressText(u.cardId, u.ascendProgress ?? 0)
     ?? sergeantText(u.cardId, u.golden, u.hpGrantBonus ?? 0)
@@ -57,6 +58,7 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
     ?? guelProgressText(u.cardId, u.golden, u.spellProgress ?? 0) // Guel: live grant + countdown from HIS on-board tally (per-instance, seeded by the snapshot)
     ?? monkProgressText(u.cardId, u.golden, u.summonBonus, u.overflowBonus ?? 0) // Flowing Monk: live grant + overflow countdown (climbs via improve events)
     ?? taragosaText(u.cardId, u.golden, spA, spH)
+    ?? combatCastGrantText(u.cardId, u.golden, spA, spH) // Hoardbreaker Drake: live Growth grant (base + spell power) on Slaughter
     ?? watcherText(u.cardId, u.golden, spA, spH) // Watcher: live Lantern buff +x/+y (base + spell power, both stats)
     ?? engraveTallyText(u.cardId, u.permaGain)
     ?? def?.text ?? '';

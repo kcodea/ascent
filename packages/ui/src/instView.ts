@@ -2,7 +2,7 @@ import { CARD_INDEX } from '@game/content';
 import { CONFIG, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import {
-  abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText,
+  abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText, combatCastGrantText,
   escalatingCastText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText,
   sergeantText, soulsmanText, squirlScoutText, stewardText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
   taragosaText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
@@ -44,6 +44,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
         : transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             taragosaText(c.id, p.golden, p.spellBonus, p.spellBonusH) ??
+            combatCastGrantText(c.id, p.golden, p.spellBonus, p.spellBonusH) ?? // Hoardbreaker Drake: live Growth grant (base + spell power)
             watcherText(c.id, p.golden, p.spellBonus, p.spellBonusH) ?? // Watcher: live Lantern buff +x/+y (base + spell power, both stats)
             abhorrentHorrorText(c.id, p.fodderConsumed, p.golden) ??
             summonScalingText(c.id, p.spellsThisTurn, p.playedThisTurn) ??

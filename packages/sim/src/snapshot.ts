@@ -140,11 +140,15 @@ function cleanBoard(s: RunState): BoardMinion[] {
     ...(c.summonBonus ? { summonBonus: c.summonBonus } : {}),
     ...(c.rallyMechAtk ? { rallyMechAtk: c.rallyMechAtk } : {}),
     ...(c.rallySpellWeld ? { rallySpellWeld: c.rallySpellWeld } : {}),
-    // Per-minion accruals, so a board served as an opponent is as strong as the board it was captured from
-    // (combat seeds both from the BoardMinion — see minion.ts): Sergeant's improved Deathrattle HP-grant and
-    // Tara's ascend progress. Without these a served Sergeant/Tara fought weaker than the real board did.
+    // Per-minion accruals, so a board served as an opponent is as strong AND reads as accurately as the board
+    // it was captured from (combat seeds each from the BoardMinion — see minion.ts; `opponentBoard` restores
+    // them symmetrically): Sergeant's improved Deathrattle HP-grant, Tara's ascend progress, Guel's on-board
+    // spell tally, Flowing Monk's triple-combine bonus. Without these a served minion showed its printed base
+    // rule text and fought weaker than the real board did.
     ...(c.hpGrantBonus ? { hpGrantBonus: c.hpGrantBonus } : {}),
     ...(c.ascendProgress ? { ascendProgress: c.ascendProgress } : {}),
+    ...(c.spellProgress ? { spellProgress: c.spellProgress } : {}), // Archmagus Guel: on-board spell tally
+    ...(c.overflowBonus ? { overflowBonus: c.overflowBonus } : {}), // Flowing Monk: flat triple-combine grant bonus
     // Per-source recruit-buff breakdown ("Spirit Fire ×2: +6/+6") — carried so a captured board can show
     // HOW its minions were buffed in the right-click inspect (leaderboard / served opponent). Cloned so the
     // snapshot never shares the run board's arrays.

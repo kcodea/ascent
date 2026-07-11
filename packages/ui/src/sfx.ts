@@ -203,9 +203,9 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   // defaults. cardVoice = shared gain for per-card voicelines; summon = the general summon cue.
   buy: 0.44,
   sell: 0.3,
-  smack: 0.08,
-  cardlanding: 0.4,
-  castspell: 0.4,
+  smack: 0.06,
+  cardlanding: 0.56,
+  castspell: 0.68,
   discover: 0.36,
   taunt: 0.31,
   reorder: 0.225,
@@ -217,10 +217,10 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   triggerglow: 0.34,
   clickthock: 0.44,
   cardtouch: 0.5,
-  divineshieldbreak: 0.26,
-  rebornshatter: 0.5,
-  rebornsummon: 0.5,
-  skullburst: 0.04, // owner-tuned (dialed well down — the shatter reads without dominating)
+  divineshieldbreak: 0.21,
+  rebornshatter: 0.42,
+  rebornsummon: 0.49,
+  skullburst: 0.06, // owner-tuned (dialed well down — the shatter reads without dominating)
   inspect: 0.5,
   upgrade: 0.39,
   roll: 0.69,

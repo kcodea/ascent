@@ -11,8 +11,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 `spellcast final.mp3` → `packages/ui/src/audio/castspell.mp3`). `castSpell` now plays the decoded sample and
 keeps the old triangle-slide tone as the fallback until it decodes / if the file is absent — the exact pattern
 every other sourced clip uses (`playSample('castspell', sampleVol.castspell)` first, synth after). Added a
-`castspell: 0.4` default gain to `SAMPLE_VOL_DEFAULTS` and a preview entry so it appears in the DEV SFX mixer
+`castspell: 0.68` default gain to `SAMPLE_VOL_DEFAULTS` and a preview entry so it appears in the DEV SFX mixer
 for by-ear level tuning.
+
+**Mix pass (rode along):** the owner ear-tuned the whole bank around the new (loud) spell-cast clip via the DEV
+mixer's "Copy values" and pasted them back as shipped defaults. Beyond `castspell`, 6 levels moved: `cardlanding`
+0.4→0.56, `smack` 0.08→0.06, `divineshieldbreak` 0.26→0.21, `rebornshatter` 0.5→0.42, `rebornsummon` 0.5→0.49,
+`skullburst` 0.04→0.06. **Note:** `skullburst` / bank-wide mix defaults are also being tuned on other in-flight
+branches — reconcile at merge.
 
 **Where it fires:** unchanged trigger — `store.ts`'s `play` case already split minion-landing vs spell-cast
 (`CARD_INDEX[cardId].spell → sfx.castSpell()`, else `sfx.play()`), so this sounds on any spell cast from hand

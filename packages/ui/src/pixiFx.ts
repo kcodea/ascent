@@ -323,6 +323,17 @@ export interface TendrilCfg {
   colorCore: string; colorGlow: string; colorFlash: string; colorMote: string;
 }
 
+/** Renderer-facing pulse config (structural match of PulsePresetCfg — pixiFx stays import-light). */
+export interface PulseCfg {
+  style: 'ring' | 'shard' | 'nova';
+  blend: 'add' | 'normal' | 'screen';
+  ringCount: number; ringSize: number; ringWidth: number; ringSpeed: number; ringMs: number; ringStaggerMs: number;
+  coreFlashSize: number; coreFlashMs: number;
+  sparkCount: number; sparkSpeed: number; sparkLife: number; sparkSize: number;
+  holdMs: number;
+  colorRing: string; colorCore: string; colorSpark: string;
+}
+
 /** '#rrggbb' (or '#rgb') → 0xRRGGBB for the Pixi `tint` number. Defaults to white on a malformed string. */
 const hexNum = (hex: string): number => {
   const h = hex.replace('#', '');
@@ -353,6 +364,16 @@ interface Tendril {
   cfg: TendrilCfg;
   age: number;
   struck: boolean;
+}
+
+/** One live pulse blast at a point. Rings are staggered, so a tiny state entry emits ring `i` when its stagger
+ *  time elapses (the pooled particles then animate on their own); the core flash + sparks fire at birth. Removed
+ *  once every ring has been emitted and its life has elapsed. */
+interface PulseFx {
+  x: number; y: number;
+  cfg: PulseCfg;
+  age: number;          // ms lived
+  ringsSpawned: number; // how many rings have been emitted so far
 }
 
 /**
@@ -424,6 +445,7 @@ class FxController {
   private skullSrcH = 1;
   private readonly skullPops: SkullPop[] = [];
   private readonly tendrils: Tendril[] = []; // live buff tendrils — tapered ribbons advanced in `update`
+  private readonly pulses: PulseFx[] = [];
   private shieldLayer: Container | null = null; // holds the persistent bubbles, beneath the particle layer
   private shieldApp: Application | null = null;  // OPTIONAL 2nd canvas for the persistent bubbles, mounted at a
   private underParent: HTMLElement | null = null; // low z (below the card badges) so the chrome reads on top; the
@@ -531,6 +553,7 @@ class FxController {
     this.skullPops.length = 0;
     for (const td of this.tendrils) { td.g.destroy(); }
     this.tendrils.length = 0;
+    this.pulses.length = 0;
     this.skullTex?.destroy(true);
     this.skullTex = null;
     for (const b of this.shields.values()) { b.shader.destroy(); b.container.destroy({ children: true }); }
@@ -715,6 +738,56 @@ class FxController {
         tint: 0xffd24a, blend: 'add', peakAlpha: 0.6,
       });
     }
+  }
+
+  /**
+   * A procedural point-blast at (x, y) — the self-buff FX (owner-tuned per tribe on buff-pulse-preview.html).
+   * `ringCount` expanding rings (staggered by `ringStaggerMs`, emitted from `update`), a core flash, and
+   * `sparkCount` outward sparks. Sizes are px radii → ÷ the texture radius gives the sprite scale (1:1 with the
+   * rig). Every dial lives in `cfg` (a structural mirror of PulsePresetCfg) so any preset drives it.
+   */
+  pulse(x: number, y: number, cfg: PulseCfg): void {
+    if (!this.ready || !this.glowTex || !this.pulseTex || !this.layer) return;
+
+    // Core flash — a soft glow disc that pops and fades.
+    if (cfg.coreFlashMs > 0 && cfg.coreFlashSize > 0) {
+      const s = cfg.coreFlashSize / TENDRIL_GLOW_R;
+      this.spawn(this.glowTex, {
+        x, y, vx: 0, vy: 0, drag: 1, life: cfg.coreFlashMs,
+        fromScale: s * 0.3, toScale: s, spin: 0,
+        tint: hexNum(cfg.colorCore), blend: cfg.blend, peakAlpha: 1,
+      });
+    }
+
+    // Sparks — radial motes decelerating outward (glowTex, small).
+    if (cfg.sparkCount > 0 && cfg.sparkSpeed > 0) {
+      const sparkScale = cfg.sparkSize / TENDRIL_GLOW_R;
+      for (let i = 0; i < cfg.sparkCount; i++) {
+        const ang = (i / cfg.sparkCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+        const speed = cfg.sparkSpeed * (0.6 + Math.random() * 0.6);
+        this.spawn(this.glowTex, {
+          x, y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, drag: TENDRIL_MOTE_DRAG,
+          life: cfg.sparkLife, fromScale: sparkScale, toScale: sparkScale * 0.2, spin: 0,
+          tint: hexNum(cfg.colorSpark), blend: cfg.blend, peakAlpha: 0.9,
+        });
+      }
+    }
+
+    // Register the blast so `update` emits the staggered rings (ring 0 fires next frame at age ~0).
+    this.pulses.push({ x, y, cfg, age: 0, ringsSpawned: 0 });
+  }
+
+  /** Emit ring index `i` of a pulse — a thin expanding ring (pulseTex) from ~0 out to `ringSize`. */
+  private spawnPulseRing(p: PulseFx, i: number): void {
+    if (!this.pulseTex) return;
+    const cfg = p.cfg;
+    const toScale = (cfg.ringSize / PULSE_TEX_R) * (1 - i * 0.12); // inner rings slightly smaller → concentric
+    this.spawn(this.pulseTex, {
+      x: p.x, y: p.y, vx: 0, vy: 0, drag: 1,
+      life: cfg.ringMs / (cfg.ringSpeed > 0 ? cfg.ringSpeed : 1),
+      fromScale: 0.15, toScale, spin: 0,
+      tint: hexNum(cfg.colorRing), blend: cfg.blend, peakAlpha: 0.85,
+    });
   }
 
   /**
@@ -1139,6 +1212,7 @@ class FxController {
     // Tendril ribbons are Graphics (not pooled) — destroy them outright.
     for (const td of this.tendrils) { this.layer?.removeChild(td.g); td.g.destroy(); }
     this.tendrils.length = 0;
+    this.pulses.length = 0;
   }
 
   /**
@@ -1698,6 +1772,21 @@ class FxController {
       let pts = this.sampleTendril(td, head);
       if (tail > 0) pts = pts.filter((p) => p.t >= tail * head); // drop points behind the retracting tail
       this.rebuildRibbon(td.g, pts, td.cfg, fade);
+    }
+
+    // Pulse blasts: emit each ring as its stagger time elapses; retire once all rings emitted + last life done.
+    for (let i = this.pulses.length - 1; i >= 0; i--) {
+      const p = this.pulses[i]!;
+      p.age += dtMs;
+      while (p.ringsSpawned < p.cfg.ringCount && p.age >= p.ringsSpawned * p.cfg.ringStaggerMs) {
+        this.spawnPulseRing(p, p.ringsSpawned);
+        p.ringsSpawned++;
+      }
+      const lastRingBorn = (p.cfg.ringCount - 1) * p.cfg.ringStaggerMs;
+      const ringLife = p.cfg.ringMs / (p.cfg.ringSpeed > 0 ? p.cfg.ringSpeed : 1);
+      if (p.ringsSpawned >= p.cfg.ringCount && p.age >= lastRingBorn + ringLife) {
+        this.pulses.splice(i, 1); // the spawned ring particles finish on their own in the pool
+      }
     }
 
     // Persistent shield bubbles: advance the slow breathe + grow-in/fade, and sit on each unit's rect.

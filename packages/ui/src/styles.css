@@ -602,8 +602,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    the archbox silhouette, so it wraps the existing tribe frame without shifting layout the way a wider CSS
    border would. Grey band + a thin dark edge so it reads crisp against the cream board. */
 .card.compact.taunt .archbox::after {
-  content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; z-index: 4;
-  box-shadow: 0 0 0 5px #8b929e, 0 0 0 7px rgba(28, 22, 16, 0.5);
+  content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); border-bottom-left-radius: 0; border-bottom-right-radius: 0; pointer-events: none; z-index: 4;
+  /* grey band + thin dark edge, then an ALWAYS-ON red glow pooling UNDER the band (mirrors the warm hover glow,
+     but red + bottom-weighted). Listed last so it paints behind the grey ring and reads as glowing from beneath. */
+  box-shadow: 0 0 0 9px #6f757e, 0 0 0 11px rgba(28, 22, 16, 0.5),
+    0 9px 26px 11.5px rgba(224, 45, 45, 1);
 }
 /* One shared opacity-only pulse for every keyword/triple glow ::before layer (compositor-only — no repaint). */
 @keyframes kwglow { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }

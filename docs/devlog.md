@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-11 (session 32)
 
+### tweak(ui): thicker, darker Taunt border — squared bottom + always-on red under-glow
+
+A polish pass on the #334 grey Taunt border (`.card.compact.taunt .archbox::after` in `styles.css`):
+- **Band 5px → 9px** grey (11px total with the thin dark edge) — the bulwark reads chunkier.
+- **Grey darkened ~20%** (`#8b929e → #6f757e`) for more contrast against the cream board.
+- **Bottom corners squared** — the ring keeps the card's arched top (`--arch-radius`) but zeroes ONLY the two
+  bottom corners via `border-bottom-left/right-radius: 0`. (`--arch-radius` is a compound elliptical value
+  `48% 48% 20% 20% / 35% 35% 14% 14%`, so a `var(--arch-radius) … 0 0` shorthand expands to a malformed 16-value
+  radius and mangled the top — the longhand overrides are the clean fix.)
+- **Always-on red under-glow** — a bottom-weighted red box-shadow layer (`0 9px 26px 11.5px rgba(224,45,45,1)`)
+  pooling beneath the band, mirroring the warm hover-glow feel but red + permanent, so a Taunt unit reads as
+  "guarded" at a glance. Listed last in the `box-shadow` so it paints behind the grey ring (glows out from under).
+
+All compositor-cheap (static box-shadow, no per-frame repaint — the perf rule). Verified live (owner eyeballed
+on the dev server across several dial iterations). Gate green: typecheck + lint + test + build:web.
+
 ### feat: buff pulse — a preset-driven point-blast for combat self-buffs
 
 **What & why.** The sibling of the buff **tendril**. Where a tendril is a source→target *beam* (a unit buffing

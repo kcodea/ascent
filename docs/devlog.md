@@ -16,8 +16,12 @@ combat `buff` events, so no combat buff shows a float anymore — every buff is 
 **Architecture (a faithful mirror of the tendril system):**
 - **`pulsePresets.ts`** — `PulsePresetCfg` dial-bag (style/blend, ring count/size/width/speed/ms/stagger, core
   flash size/ms, spark count/speed/life/size, `holdMs`, colors), a `PULSE_PRESETS` registry, and a
-  `pulsePreset(cardId, tribe)` resolver (per-card → per-tribe → `default`, most-specific wins). **Ships
-  `default`-only** — per-tribe looks are a follow-up (owner ruling: tune later).
+  `pulsePreset(cardId, tribe)` resolver (per-card → per-tribe → `default`, most-specific wins). Ships an
+  **owner-tuned `default`** (single fast white shockwave + a big warm-gold core flash + a wide golden spark
+  burst, additive), applied to EVERY eligible self-buff (`PULSE_ASSIGN` empty → all resolve to `default`);
+  per-tribe looks are a follow-up. The tuned look was **verified live** on the real cream board via the Pixi
+  renderer (drove `window.__pixiFx.pulse` on the recruit board — the blast draws + reads), and the trigger path
+  was proven by a deterministic Target Dummy combat test.
 - **`pixiFx.pulse(x, y, cfg)`** — a procedural point-blast on the existing pooled particle contract. Core flash +
   sparks fire immediately; the rings are staggered, so a tiny `pulses` state array (mirror of `tendrils`) emits
   ring `i` from the `update` ticker as its `ringStaggerMs` elapses. Sizes are px radii (÷ texture radius = sprite

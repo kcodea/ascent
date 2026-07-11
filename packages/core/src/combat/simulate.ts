@@ -1356,6 +1356,40 @@ export function simulate(
       }
     }
   }
+  // Rune of Rising Graves: at Start of Combat, give your two left-most Undead Rise (Reborn). Mirrors runeWarding's
+  // SoC keyword grant — sets `rebornAvailable` + the 'R' pill on each.
+  if (questMods.runeRisingGraves) {
+    let given = 0;
+    for (const m of boards.player) {
+      if (given >= 2) break;
+      if (m.dead || m.health <= 0 || m.rebornAvailable || !isUndeadMinion(m)) continue;
+      nextStep();
+      m.rebornAvailable = true;
+      if (!m.keywords.includes('R')) m.keywords.push('R');
+      emit({ type: 'sc', source: m.uid, text: 'Rise' });
+      given++;
+    }
+  }
+  // Rune-granted run-wide AVENGE effects (no minion source): a bus handler fires every N friendly deaths. Rune of
+  // Fury doubles them, matching how a minion's Avenge doubles (see registerEffect). Registered before the attack
+  // loop so they catch every death.
+  const runeAvenge = (everyN: number, fire: () => void): void => {
+    bus.on('avenge', (payload) => {
+      const { side, count } = payload as { side: Side; count: number };
+      if (side !== 'player' || count % everyN !== 0) return;
+      fire();
+      if (questMods.runeFury) fire(); // "your Avenge effects trigger twice"
+    });
+  };
+  if (questMods.runeBroodpit) runeAvenge(6, () => { // summon 2 Imps with Taunt
+    const imp = cards['impscrap'];
+    if (imp) { nextStep(); for (let i = 0; i < 2; i++) summonMinion('player', imp, undefined, ['T']); }
+  });
+  if (questMods.runeSpearline) runeAvenge(4, () => { // summon a Spear Warden that attacks immediately
+    const knit = cards['knit'];
+    if (knit) { nextStep(); summonMinion('player', knit, undefined, undefined, false, true); }
+  });
+  if (questMods.runeAppraisal) runeAvenge(4, () => ctx.grantSpellPower(1, 1, 'player', undefined)); // spells +1/+1
 
   // --- First attacker: more living minions goes first; tie → seeded (A.3 step 2).
   //     Pre-emptive Assault overrides the whole rule: the player strikes first, period (one fight —

@@ -2804,3 +2804,40 @@ describe('Rune of Rallying (Start of Combat: trigger your rallies)', () => {
     expect(simMods(p, e, 1, { runeRallying: true }).events.some((ev) => ev.type === 'sc' && ev.text === 'Rally')).toBe(false);
   });
 });
+
+describe('Epic combat runes (Rising Graves / Broodpit / Spearline / Appraisal)', () => {
+  const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, mods);
+
+  it('Rising Graves: Start of Combat gives exactly two friendly Undead Rise', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'knit', attack: 3, health: 2 }, { cardId: 'knit', attack: 3, health: 2 }, { cardId: 'knit', attack: 3, health: 2 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }];
+    const r = simMods(p, e, 1, { runeRisingGraves: true });
+    expect(r.events.filter((ev) => ev.type === 'sc' && ev.text === 'Rise').length).toBe(2);
+  });
+
+  it('Broodpit: 6 friendly deaths summon 2 Taunt Imps', () => {
+    const p: BoardMinion[] = Array.from({ length: 6 }, () => ({ cardId: 'sandbag', attack: 1, health: 1 }));
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 40 }];
+    const r = simMods(p, e, 1, { runeBroodpit: true });
+    const imps = r.events.filter((ev) => ev.type === 'summon' && ev.minion?.cardId === 'impscrap').length;
+    expect(imps).toBeGreaterThanOrEqual(2);
+  });
+
+  it('Spearline: 4 friendly deaths summon a Spear Warden', () => {
+    const p: BoardMinion[] = Array.from({ length: 4 }, () => ({ cardId: 'sandbag', attack: 1, health: 1 }));
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 40 }];
+    const r = simMods(p, e, 1, { runeSpearline: true });
+    expect(r.events.some((ev) => ev.type === 'summon' && ev.minion?.cardId === 'knit')).toBe(true);
+  });
+
+  it('Appraisal: 4 friendly deaths improve your spells +1/+1 (carried back)', () => {
+    const p: BoardMinion[] = Array.from({ length: 4 }, () => ({ cardId: 'sandbag', attack: 1, health: 1 }));
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 40 }];
+    const r = simMods(p, e, 1, { runeAppraisal: true });
+    expect(r.playerSpellPower?.attack).toBeGreaterThanOrEqual(1);
+    expect(r.playerSpellPower?.health).toBeGreaterThanOrEqual(1);
+  });
+});

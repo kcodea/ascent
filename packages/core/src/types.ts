@@ -531,7 +531,11 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Rune of Forthcoming: you always attack first in combat.
   | 'runeForthcoming'
   // Rune of Rallying: at Start of Combat, trigger each of your minions' Rally (on-attack) effects once.
-  | 'runeRallying';
+  | 'runeRallying'
+  // Epic combat runes (run-wide, no minion source): Rising Graves = Start of Combat give 2 Undead Rise;
+  // Broodpit = Avenge 6 summon 2 Taunt Imps; Spearline = Avenge 4 summon a Spear Warden that attacks now;
+  // Appraisal = Avenge 4 improve your spells +1/+1.
+  | 'runeRisingGraves' | 'runeBroodpit' | 'runeSpearline' | 'runeAppraisal';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -590,6 +594,14 @@ export interface QuestCombatMods {
   runeFury?: boolean;
   /** Rune of Rallying: at Start of Combat, trigger each of your minions' Rally (on-attack) effects once. */
   runeRallying?: boolean;
+  /** Rune of Rising Graves: at Start of Combat, give two friendly Undead Rise (Reborn). */
+  runeRisingGraves?: boolean;
+  /** Rune of the Broodpit: every 6 friendly deaths, summon 2 Imps with Taunt. */
+  runeBroodpit?: boolean;
+  /** Rune of the Spearline: every 4 friendly deaths, summon a Spear Warden that attacks immediately. */
+  runeSpearline?: boolean;
+  /** Rune of Appraisal: every 4 friendly deaths, improve your spells +1/+1 (carried back as spell power). */
+  runeAppraisal?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the

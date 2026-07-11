@@ -195,6 +195,39 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**End of Turn:** trigger your left-most **Echo**.',
     reward: { kind: 'recurringEndOfTurn', effect: 'triggerLeftmostEcho' },
   },
+  // ── Batch 3: combat runes (Start of Combat + Avenge) ──
+  {
+    id: 'rune_rising_graves',
+    name: 'Rune of Rising Graves',
+    cost: 5,
+    epic: true,
+    text: '**Start of Combat:** give two friendly **Undead Rise**.',
+    reward: { kind: 'combatFlag', flag: 'runeRisingGraves' },
+  },
+  {
+    id: 'rune_broodpit',
+    name: 'Rune of the Broodpit',
+    cost: 7,
+    epic: true,
+    text: '**Avenge (6):** summon **2 Imps with Taunt**.',
+    reward: { kind: 'combatFlag', flag: 'runeBroodpit' },
+  },
+  {
+    id: 'rune_spearline',
+    name: 'Rune of the Spearline',
+    cost: 7,
+    epic: true,
+    text: '**Avenge (4):** summon a **Spear Warden**. It attacks immediately.',
+    reward: { kind: 'combatFlag', flag: 'runeSpearline' },
+  },
+  {
+    id: 'rune_appraisal',
+    name: 'Rune of Appraisal',
+    cost: 6,
+    epic: true,
+    text: '**Avenge (4):** improve your spells by **+1/+1**.',
+    reward: { kind: 'combatFlag', flag: 'runeAppraisal' },
+  },
   // ── Batch 1 additions (grants / discovers — no new combat mechanics) ──
   {
     id: 'rune_champion',

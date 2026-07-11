@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### feat: runes batch 3 — Epic combat runes (Rising Graves / Broodpit / Spearline / Appraisal)
+
+Third rune slice — the combat-effect tier (Start of Combat + run-wide Avenge), all new `QuestCombatFlag`s threaded
+into `simulate()`:
+- **Rune of Rising Graves** (5): *Start of Combat — give your two left-most Undead Rise.* A SoC block mirroring
+  Rune of Warding's keyword grant (sets `rebornAvailable` + the 'R' pill on 2 Undead).
+- **Rune of the Broodpit** (7): *Avenge (6) — summon 2 Imps with Taunt.*
+- **Rune of the Spearline** (7): *Avenge (4) — summon a Spear Warden that attacks immediately* (mirrors Steadfast
+  Champion's `avengeSummonAttack`).
+- **Rune of Appraisal** (6): *Avenge (4) — improve your spells +1/+1* (via `grantSpellPower`, carried back).
+
+New shared mechanic: **run-wide Avenge** — a `runeAvenge(everyN, fire)` helper registers a `bus.on('avenge')`
+handler (no minion source) that fires every N friendly deaths; **Rune of Fury doubles them**, matching how a
+minion's Avenge doubles. 4 new combat tests (each rune's trigger via a scripted death sequence). Live: all four
+render with correct cost/text in the Epic forge; no console errors. typecheck / lint / 862 tests / build green.
+
+**Still deferred** (roadmap): First Claws (SoC immediate-attack timing), Second Path (Discover-from-pool), Scales
+(Dragon combat aura), Bartering (sell override), Packcraft / Salvage / Inheritance / Twilight / Banking / Twin
+Gilding, and the new-card grants (Feasting Bogrot / Reconfigured Combinator / Stormcalling / Frontline Glory /
+Assembly / Den Mother / Soul Taxes — need a "grant Gilded card" option).
+
 ### feat: runes batch 2 — Kindling / Pair / Menagerie / Reliquary + forge-scheduling (quest + Epic Forge rune)
 
 Second slice of the rune build-out (the recruit-phase tier), plus cost syncs and a new quest:

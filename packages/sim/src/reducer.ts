@@ -2169,6 +2169,10 @@ function questCombatMods(s: RunState): QuestCombatMods {
     runeWarding: f?.runeWarding, // Rune of Warding: SoC give leftmost minion Ward
     runeFury: f?.runeFury, // Rune of Fury: Avenges trigger twice
     runeRallying: f?.runeRallying, // Rune of Rallying: SoC trigger your Rally (on-attack) effects
+    runeRisingGraves: f?.runeRisingGraves, // Rune of Rising Graves: SoC give 2 Undead Rise
+    runeBroodpit: f?.runeBroodpit, // Rune of the Broodpit: Avenge 6 → 2 Taunt Imps
+    runeSpearline: f?.runeSpearline, // Rune of the Spearline: Avenge 4 → Spear Warden attacks now
+    runeAppraisal: f?.runeAppraisal, // Rune of Appraisal: Avenge 4 → spells +1/+1
   };
 }
 

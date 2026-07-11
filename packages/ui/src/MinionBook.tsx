@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CardDef, Keyword, QuestReward, Tribe } from '@game/core';
-import { BUYABLE_CARDS, CARD_INDEX, QUEST_DEFS, SPELL_CARDS } from '@game/content';
+import { BUYABLE_CARDS, CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, SPELL_CARDS } from '@game/content';
 import { Card, type CardView } from './Card';
 import { QuestCard } from './QuestCard';
+import { RuneCard } from './RuneCard';
 import { Icon } from './Icon';
 import { useGame } from './store';
 
@@ -49,7 +50,7 @@ const SPELL_POOL_IDS = new Set(SPELL_CARDS.map((c) => c.id));
 
 /** Left-rail category: a real tribe, the tribe-less "spells" bucket, the "rewards" (quest-reward cards) bucket,
  *  or the "quests" bucket (the quest DEFINITIONS themselves — objective + art, rendered as QuestCards). */
-type Category = Tribe | 'spells' | 'rewards' | 'quests';
+type Category = Tribe | 'spells' | 'rewards' | 'quests' | 'runes';
 
 const CAT_META: Record<Category, { label: string; icon: string }> = {
   beast: { label: 'Beasts', icon: 'paw' },
@@ -61,6 +62,7 @@ const CAT_META: Record<Category, { label: string; icon: string }> = {
   spells: { label: 'Spells', icon: 'sc' },
   rewards: { label: 'Quest Rewards', icon: 'gift' },
   quests: { label: 'Quests', icon: 'target' },
+  runes: { label: 'Runes', icon: 'anvil' },
 };
 
 const TIERS = [1, 2, 3, 4, 5, 6] as const;
@@ -195,7 +197,12 @@ export function MinionBook() {
 
   // Left-rail categories: the active (or all) tribes, then Neutral (always findable), then Spells, Quest Rewards,
   // and Quests (the quest definitions themselves).
-  const categories: Category[] = useMemo(() => [...tribes, 'neutral', 'spells', 'rewards', 'quests'], [tribes]);
+  const categories: Category[] = useMemo(() => [...tribes, 'neutral', 'spells', 'rewards', 'quests', 'runes'], [tribes]);
+
+  // Every rune (both forges) for the Runes tab — Basic set first, then Epic, each alphabetical. Not run-scoped
+  // (runes aren't tribe-bound); shown as read-only RuneCards.
+  const runesToShow = useMemo(() =>
+    [...[...RUNES].sort((a, b) => a.name.localeCompare(b.name)), ...[...EPIC_RUNES].sort((a, b) => a.name.localeCompare(b.name))], []);
 
   // The quest DEFINITIONS to show in the Quests tab — scoped like the cards: every quest whose tribe is neutral
   // or in `tribes`, narrowed further by any selected tribe chips. Sorted lesser → greater → capstone, then name.
@@ -232,7 +239,7 @@ export function MinionBook() {
     // (or both pools, if both are on) and hides the minion gallery entirely. With neither selected, the gallery
     // is minions-only — spells and quest rewards never leak into a tribe search unless the player toggles them on.
     // Membership is by pool set (not the `spell` flag), so a minion that's also a reward shows correctly in both.
-    if (cats.has('quests')) return []; // the Quests tab renders quest DEFINITIONS (below), not cards
+    if (cats.has('quests') || cats.has('runes')) return []; // the Quests / Runes tabs render their own galleries below
     const showSpells = cats.has('spells');
     const showRewards = cats.has('rewards');
     const special = showSpells || showRewards;
@@ -282,7 +289,9 @@ export function MinionBook() {
           <div className="book-sub">
             {glossary
               ? 'Keywords & abilities — click one to see its minions'
-              : cats.has('quests')
+              : cats.has('runes')
+                ? `${runesToShow.length} runes — the Basic + Epic Runeforge stock`
+                : cats.has('quests')
                 ? `${questsToShow.length} quests ${showTitle ? 'in the game' : 'available this run'}`
                 : `${filtered.length} ${
                     cats.has('spells') && cats.has('rewards')
@@ -346,8 +355,8 @@ export function MinionBook() {
         ) : (
           <>
         {/* Tier filters across the top (multi-select); the active keyword filter rides at the far right. Hidden in
-            the Quests tab — quests use lesser/greater/capstone pools, not the 1–6 card tiers. */}
-        {!cats.has('quests') && (
+            the Quests + Runes tabs — those pools aren't organized by the 1–6 card tiers. */}
+        {!cats.has('quests') && !cats.has('runes') && (
         <div className="book-tiers">
           <span className="book-axislabel">Tier</span>
           {TIERS.map((t) => (
@@ -375,7 +384,7 @@ export function MinionBook() {
               <button
                 key={c}
                 className={`book-cat${cats.has(c) ? ' on' : ''}`}
-                style={{ '--c': c === 'spells' ? 'var(--acc)' : c === 'rewards' ? 'var(--gold)' : c === 'quests' ? 'var(--acc-dk)' : `var(--t-${c})` } as CSSProperties}
+                style={{ '--c': c === 'spells' ? 'var(--acc)' : c === 'rewards' ? 'var(--gold)' : c === 'quests' ? 'var(--acc-dk)' : c === 'runes' ? '#b078e6' : `var(--t-${c})` } as CSSProperties}
                 onClick={() => toggleCat(c)}
                 aria-pressed={cats.has(c)}
                 title={CAT_META[c].label}
@@ -386,8 +395,16 @@ export function MinionBook() {
             ))}
           </div>
 
-          {/* The scrolling gallery — cards, or (in the Quests tab) the quest DEFINITIONS as read-only QuestCards. */}
-          {cats.has('quests') ? (
+          {/* The scrolling gallery — cards, the quest DEFINITIONS (Quests tab), or the runes (Runes tab). */}
+          {cats.has('runes') ? (
+            <div className="book-grid">
+              {runesToShow.map((r) => (
+                <div className="book-cell" key={r.id}>
+                  <RuneCard rune={r} affordable onBuy={() => {}} />
+                </div>
+              ))}
+            </div>
+          ) : cats.has('quests') ? (
             questsToShow.length > 0 ? (
               <div className="book-grid">
                 {questsToShow.map((q) => (

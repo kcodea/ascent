@@ -24,7 +24,7 @@ const buyRune = (runeId: string, embers = 10, over: Partial<RunState> = {}): Run
 describe('Runeforge — framework', () => {
   it('every rune validates + is Runeforge-only (never a card/quest id)', () => {
     validateRunes();
-    expect(RUNES.length).toBe(24); // 13 base + batch1 (4) + batch2 (4) + Bartering + Packcraft + Salvage
+    expect(RUNES.length).toBe(25); // + Rune of the Warden
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
@@ -499,6 +499,12 @@ describe('Runes batch 5 — recruit-phase (Scales / Bartering / Twin Gilding / D
     };
     for (const q of Object.values(QUEST_INDEX)) if (q.tier === 'greater') collect(q.reward as never);
     for (const id of s.discover!) expect(pool.has(id)).toBe(true); // every option is a greater-quest reward minion
+  });
+
+  it('Rune of the Warden: grants a Spear Warden and arms the Start-of-Combat summon flag', () => {
+    const s: RunState = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, hand: [], runeforgeOffer: ['rune_warden'] }, { type: 'buyRune', index: 0 });
+    expect(s.hand.some((c) => c.cardId === 'knit')).toBe(true);
+    expect(s.questFlags?.runeWarden).toBe(true);
   });
 });
 

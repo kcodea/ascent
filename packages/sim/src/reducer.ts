@@ -2225,6 +2225,7 @@ function questCombatMods(s: RunState): QuestCombatMods {
     runeInheritance: f?.runeInheritance, // Rune of Inheritance: leftmost dies → rightmost gains its stats
     runeSalvage: f?.runeSalvage, // Rune of Salvage: friendly Mech loses Ward → Attachment to hand
     runeTwilight: f?.runeTwilight, // Rune of Twilight: your Start-of-Combat effects trigger an extra time
+    runeWarden: f?.runeWarden, // Rune of the Warden: SoC summon a Spear Warden if there's room
   };
 }
 

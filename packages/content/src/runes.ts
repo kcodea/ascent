@@ -186,6 +186,13 @@ export const RUNES: RuneDef[] = [
     text: 'Whenever a friendly **Mech loses Ward**, get a random **Attachment** next shop.',
     reward: { kind: 'combatFlag', flag: 'runeSalvage' },
   },
+  {
+    id: 'rune_warden',
+    name: 'Rune of the Warden',
+    cost: 5,
+    text: 'Get a **Spear Warden**. When you have room in combat, summon a **Spear Warden**.',
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['knit'] }, { kind: 'combatFlag', flag: 'runeWarden' }] },
+  },
 ];
 
 /**

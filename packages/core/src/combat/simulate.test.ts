@@ -2896,3 +2896,22 @@ describe('Rune of Twilight (Start-of-Combat effects trigger an extra time)', () 
     expect(buffs(simMods(p, e, 1, { runeTwilight: true }))).toBeGreaterThan(buffs(simMods(p, e, 1, {})));
   });
 });
+
+describe('Rune of the Warden (Start of Combat: summon a Spear Warden if there is room)', () => {
+  const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, mods);
+
+  it('summons a Spear Warden at Start of Combat when the board has room', () => {
+    const p: BoardMinion[] = [{ cardId: 'gnash', attack: 5, health: 8 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 10 }];
+    const r = simMods(p, e, 1, { runeWarden: true });
+    expect(r.events.some((ev) => ev.type === 'summon' && ev.minion?.cardId === 'knit')).toBe(true);
+  });
+
+  it('does not summon when the board is full (7)', () => {
+    const p: BoardMinion[] = Array.from({ length: 7 }, () => ({ cardId: 'gnash', attack: 5, health: 8 }));
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 10 }];
+    const r = simMods(p, e, 1, { runeWarden: true });
+    expect(r.events.some((ev) => ev.type === 'summon' && ev.minion?.cardId === 'knit')).toBe(false);
+  });
+});

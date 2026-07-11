@@ -8,7 +8,6 @@ describe('pixiFx aura registry queries', () => {
   it('hasAura reports false for an unknown uid/kind and never throws', () => {
     expect(pixiFx.hasAura('nobody', 'shield')).toBe(false);
     expect(pixiFx.hasAura('nobody', 'reborn')).toBe(false);
-    expect(pixiFx.hasAura('nobody', 'taunt')).toBe(false);
   });
   it('auraRect returns null for an unknown uid/kind and never throws', () => {
     expect(pixiFx.auraRect('nobody', 'shield')).toBeNull();

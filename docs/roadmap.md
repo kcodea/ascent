@@ -458,10 +458,11 @@ win-rate-when-present, per-hero/tribe rollups. Pairs naturally with A7's run-his
 (`pixiFx.deathrattle`; a painted skull pops + explodes into bone fragments/splinters/smoke, card fades in
 place; session 27 → devlog). Same playbook for the rest: pick a mechanic, agree the look on a cheap preview,
 bake it as a `pixiFx` effect + wire the UI-side detection. Candidates: shield-break, poison/toxin kill,
-summon, big buff, Rally/Echo. (Divine Shield, Reborn, Taunt auras already done.)
+summon, big buff, Rally/Echo. (Divine Shield + Reborn auras already done. Taunt is a static grey card border,
+not a Pixi aura — the old silver-bulwark shader was removed, session 31.)
 
 **FX / juice (M4, ongoing):** PixiJS WebGL effects layer is live (hit-impact, gold sprinkle, dust, trigger
-pulse, Discover burst, loss-damage blast, Taunt bulwark, Deathrattle skull-shatter). Next candidates: Pixi SoC/Blaster
+pulse, Discover burst, loss-damage blast, Deathrattle skull-shatter). Next candidates: Pixi SoC/Blaster
 projectiles (replace SVG bolts), Ward-break shimmer; mid-combat **ascension UI** (engine emits `ascend`
 already — fold into `useCombatReplay` + a level-up burst + SFX); Spirit Pup→Worgen mid-combat ascension;
 live Buffs window for the remaining run-buffs (Undead-attack/Fodder-Imp/Mama Bear/Guel tick only at settle).
@@ -503,6 +504,15 @@ correctness half — these remain):**
   (`computeFrame` + the per-beat event-log scans that grow with combat length are prime suspects), then
   memoize/short-circuit it. Cheap adjacent win: `syncShields` calls `getBoundingClientRect` **per aura bubble
   every frame** (~100k calls in one combat) — cache the rects / only re-measure on layout change.
+- **Combat timing clashes (from [combat-timing-audit.md](combat-timing-audit.md), session 31).** The audit
+  lined up each moment's beat-hold vs its actual animation length vs the ordering doc. **Fixed so far:** the
+  death→summon and Rise→reborn read-leads were bumped + generalized (`deathConsequenceLead`) so the
+  consequence doesn't land on top of the skull/fade. **Remaining clashes:** (1) **standalone buff waves** —
+  210ms hold vs a 600ms pulse + a tendril that travels 350–780ms before its stat-reveal, so the +N lands
+  outside its beat; fold the tendril travel into the hold (or shorten it). (2) **Systemic amplifier** — CSS
+  combat animations are fixed seconds and ignore the `combatSpeed` slider, while holds ÷ and Pixi/GSAP × it,
+  so every margin worsens ~2× at 2× speed; drive combat CSS durations off a `--combat-speed` var. (3) overlap
+  tails (`risepop 700`, re-form glow @+460) bleed past their 240ms ride; (4) poison mist clipped 50ms.
 - **UI dead-code purge** — Card still renders removed Reborn-tears DOM; **FontLab ships un-gated in prod**
   (wants `import.meta.env.DEV`); a confirmed dead-CSS list (the OMEN block, `.chip`, `.toast`, `.legend`,
   `.tavernbox`, `.zt/.zh/.hint`, `.disc-gem`).

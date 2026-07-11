@@ -28,6 +28,83 @@ and never on a minion. The card's own `cardVoice` still layers over it as before
 a hashed asset (`castspell-*.mp3`). Audible playback not auto-checked — the headless preview gates sound when
 backgrounded (`isHidden()`); left for an in-tab ear check.
 
+### refactor: replace the Pixi Taunt bulwark with a static grey card border (keep the sound)
+
+**What:** removed the entire Pixi Taunt-bulwark aura system — the silver-metal heater shield that rendered
+BEHIND each Taunt minion on its own back FX layer — and replaced the signifier with a **static grey border**
+around the card. The Taunt **sound effect is untouched** (`sfx.taunt()` still fires from `store.ts` when a
+minion gains Taunt).
+
+**Why:** the owner wanted a simpler, cheaper, more legible Taunt read — a thick grey "bulwark" border in place
+of the procedural shader aura.
+
+**Removed (everything tied to the Pixi Taunt FX):**
+- Deleted `packages/ui/src/tauntConfig.ts` (live-tunable shader config) and `TauntTuner.tsx` (its DEV tuner);
+  dropped the tuner entry + import from `DevMenu.tsx`.
+- `pixiFx.ts`: deleted the `TAUNT_FRAG` shader, the `TAUNT_SILVER_RGB` tint, the whole `tauntFx` back-layer
+  `FxController` instance + its `__tauntFx`/`__tauntDemo` DEV hooks, the `tauntBurst()` particle burst (already
+  disabled), and every `'taunt'` branch in the `AuraKind` type / `AURA` map / `auraMargin` / `setShield` uniforms
+  / the per-frame update loop. `AuraKind` is now just `'shield' | 'reborn'`.
+- `Recruit.tsx`: dropped the `taunt` entry from `AURA_CFGS`, the `auraFx()` layer router (all auras are the one
+  front `pixiFx` layer now), the `tauntBack` mount div + ref + attach effect, the back-layer coordinate shift
+  (`ax`/`ay`), the taunt deploy-dust, and every `tauntFx.*` visibility/fade/clear call. `AuraK` = `'shield' |
+  'reborn'`. (`deployGraceRef` stays — it still suppresses shield/reborn form-in replays across combat swaps.)
+- `choreo/channels/aura.ts`: `burstDeathAuras` no longer clears a taunt bulwark (nothing to clear); trimmed its
+  tests and the `pixiFx.aura.test.ts` `'taunt'` probe.
+- `styles.css`: removed the `.taunt-back` layer rules (incl. the combat-in/out fade selectors) and the dead
+  `.sfxmix.taunt` / `.taunt-swatch` tuner styles.
+
+**Added:** `.card.compact.taunt .archbox::after` — a **static** two-layer `box-shadow` ring (5px grey `#8b929e`
++ a 2px dark edge) hugging the arched card silhouette. The `.card.taunt` marker was already on every Taunt card
+in shop / hand / warband / combat, so the border appears everywhere the bulwark used to. Static box-shadow →
+compositor-cheap, zero per-frame repaint (per the perf rules), and it doesn't shift layout the way a wider CSS
+border would.
+
+**Verified:** `npm run typecheck && npm run lint && npm test && npm run build:web` all green (885 tests). Live
+DOM probe on the dev server confirmed the rule loads and `getComputedStyle('.archbox', '::after').boxShadow`
+resolves to the grey+dark ring on a `.card.taunt`; no console errors. The headless preview can't screenshot
+(degenerate viewport) — the exact grey shade / thickness is a one-line tweak for an in-tab eyeball.
+
+### tweak(ui): longer pause after an Echo (Deathrattle) / Rise before its consequence
+
+Follow-up dial on [#326](https://github.com/kcodea/ascent/pull/326): the owner still read the Echo→summon gap
+as rushed (they were also, at the time, testing a branch that predated #326 — but the intent stands: a longer,
+more deliberate beat). Bumped both death read-leads in `useCombatReplay.ts`: `DR_SUMMON_LEAD` and `REBORN_LEAD`
+560→**800** (defender) / 900→**1150** (attacker). Net death→consequence gap (incl. the 240ms `overlapMs`) now
+~800→**1040ms** defender / ~1140→**1390ms** attacker at 1× — a clear empty-slot beat after the skull poofs /
+body fades before the token or returned body appears. Pure timing-constant tweak; log + beat clock untouched,
+scales with `combatSpeed`. Dial-by-eye — the two named constants are the knob.
+
+### fix(ui): the gold Rally pulse now fires for ALL rally units, and replays on repeat rallies
+
+The yellow Rally wind-up pulse (the medallion flash + gold ring, timed to the lunge's wind-up pause;
+shipped #265/#271) was effectively invisible: it only ever fired on **Deathsayer**, and even then only on
+the *first* Rally of a combat. Two bugs, found by the owner playtesting:
+
+1. **Only Deathsayer got it.** The trigger gate keyed off a `rally` CombatEvent, which ONLY
+   `rallyProcDeathrattle` (Deathsayer's Rally→Echo) emits — every other rally effect (`rallyBuff`,
+   `rallyGrantSpell`, `rallyCastTribeAttack`/Watcher, Better Bot's mech-buff, …) emits plain
+   `buff`/`summon`/`dmg` events with no marker. **Fix:** fire the pulse for any attacker that rallies on
+   its own swing — i.e. has the `RL` keyword. Read the attacker's LIVE keywords from the frame mirror
+   (`frameRef`) first (covers a Rally granted mid-combat), then its printed keyword off `CARD_INDEX`, then
+   the `rally` event as a final fallback. Now all rally units (Watcher, Supporter, Better Bot, Trophy
+   Stalker, …) pulse.
+
+2. **Only the first Rally per combat showed.** A second Rally pinged the *sound* but not the *visual*.
+   The pulse rides the shared `.cgem.pulsing::after` CSS animation, and a rally unit's own Rally also lights
+   the normal trigger glow — so `.pulsing` never leaves the medallion between swings, and re-adding a class
+   doesn't restart a CSS animation that was never removed. **Fix:** key the pulse off a monotonic **nonce**
+   (uid → nonce, bumped per fire) instead of a boolean, threaded through `Unit`/`Card` as a number and used
+   as the medallion's React `key` so the element remounts each fire and the animation restarts cleanly. The
+   1150 ms auto-clear is guarded so an earlier fire's timeout can't cancel a later fire's pulse (back-to-back
+   rallies, e.g. Windfury).
+
+Touches `useCombatReplay.ts` (gate + nonce state), `Recruit.tsx` (pass the nonce), `Unit.tsx` + `Card.tsx`
+(`rallyPulse`/`pulseRally` become a number + the medallion `key`). Verified: typecheck + lint green, and
+live in a real fight — every rally unit flashes gold on the wind-up, on every swing. The wind-up hold stays
+the tuned 440 ms (`RALLY_PAUSE_MS`); revisit whether it should explicitly wait on the rally's downstream
+effects if the beat ever feels rushed.
+
 ### fix: Rune of Action counts every card played, not just board minions
 
 **Bug (owner-reported):** Rune of Action (*End of Turn: give your three left-most minions +1/+1 for each card you
@@ -49,6 +126,35 @@ every play/buy/roll, so this bug never touched them.
 
 **Verified:** added a regression test (playing the untargeted spell `growth` now lands in `playedThisTurn`);
 `npm run typecheck && npm run lint && npm test` (883) && `npm run build:web` all green.
+
+### docs + fix(ui): combat timing audit, and more read-lead before death consequences
+
+Resumed the combat-simulation feel work with a **timing audit** ([combat-timing-audit.md](combat-timing-audit.md)):
+lined up, for every replay moment, its **beat-hold** (`choreoConfig` × `speed` ÷ `combatSpeed`, or the flat
+`overlapMs` for the three overlap kinds) against its **actual animation length** (CSS `styles.css` + Pixi
+`pixiFx.ts` + the GSAP lunge) against the **ordering** (`combat-ordering.md`). Where an animation outlasts the
+hold that follows it, the next beat starts mid-animation → the "rushed / cut-off" feel. Findings, ranked:
+standalone **buff waves** (210ms hold vs a 600ms pulse + a 350–780ms tendril whose stat-reveal lands outside
+the beat); **deathrattle/avenge consequences that aren't summons** get no read-lead; a **systemic amplifier**
+— CSS animations are fixed seconds and ignore the `combatSpeed` slider while holds ÷ and Pixi/GSAP × it, so
+every margin worsens ~2× at 2× speed; plus overlap-tail bleed and a 50ms poison-mist clip. Remaining items
+queued in [roadmap.md](roadmap.md).
+
+**Fixed this PR — more breath before a death's on-screen consequence.** Players still felt the Deathrattle
+death→summon (and especially the Rise death→reborn) as rushed: the token/returned body landed the instant the
+body cleared, with no empty-slot beat. Generalized `deathrattleSummonLead` → **`deathConsequenceLead`** in
+`useCombatReplay.ts`, now covering **both** a Deathrattle's summon **and** a Rise's reborn (the latter
+previously had *no* lead — it just rode the flat 240ms `overlapMs`, which is why it felt fastest). Bumped the
+leads so the consequence lands after the death has fully read: `DR_SUMMON_LEAD` 380→**560** (defender) /
+720→**900** (attacker), and a new `REBORN_LEAD` at the same 560/900 (anchored past the `.dying.rising` body
+fade; the higher attacker figure covers the mid-lunge pull-home). Net death→consequence gap (incl. the 240ms
+overlap) goes ~620→**800ms** defender / ~960→**1140ms** attacker — a clear beat of empty slot after the skull
+poofs / body fades before the token or returned body appears. Presentation-only: the deterministic log and the
+beat clock are untouched; the lead is layered on top of `overlapMs` and scales with `combatSpeed`.
+
+- **Verified:** `typecheck` + `lint` + **835 tests** + `build:web` all green. The feel itself is the user's to
+  confirm live (a timing-constant bump on the choreo scheduler — the degenerate preview can't render combat, so
+  the read is dialed by eye in a focused tab); the leads are a single named knob, easy to re-tune.
 
 ## 2026-07-10 (session 30)
 

@@ -340,6 +340,14 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**Discover** a **Greater Quest** reward minion.',
     reward: { kind: 'discoverGreaterQuest' },
   },
+  {
+    id: 'rune_twilight',
+    name: 'Rune of Twilight',
+    cost: 8,
+    epic: true,
+    text: 'Your **Start-of-Combat** effects also trigger at **End of Turn**.',
+    reward: { kind: 'combatFlag', flag: 'runeTwilight' },
+  },
   // ── Batch 4b: the two new signature cards ──
   {
     id: 'rune_feast',

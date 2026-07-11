@@ -2217,6 +2217,7 @@ function questCombatMods(s: RunState): QuestCombatMods {
     runePackcraft: f?.runePackcraft, // Rune of Packcraft: combat summon → Beasts +1 Atk
     runeInheritance: f?.runeInheritance, // Rune of Inheritance: leftmost dies → rightmost gains its stats
     runeSalvage: f?.runeSalvage, // Rune of Salvage: friendly Mech loses Ward → Attachment to hand
+    runeTwilight: f?.runeTwilight, // Rune of Twilight: your Start-of-Combat effects trigger an extra time
   };
 }
 

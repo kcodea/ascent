@@ -554,7 +554,10 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   | 'runeSoulTaxes'
   // First Claws (SoC: leftmost+rightmost Beasts attack now); Packcraft (on combat summon → Beasts +1 Atk);
   // Inheritance (leftmost dies → rightmost gains its stats); Salvage (friendly Mech loses Ward → Attachment to hand).
-  | 'runeFirstClaws' | 'runePackcraft' | 'runeInheritance' | 'runeSalvage';
+  | 'runeFirstClaws' | 'runePackcraft' | 'runeInheritance' | 'runeSalvage'
+  // Rune of Twilight: your Start-of-Combat effects trigger an ADDITIONAL time each fight (the "End of Turn" echo —
+  // SoC effects run in the combat context, so they re-fire here rather than during the recruit End of Turn).
+  | 'runeTwilight';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -631,6 +634,8 @@ export interface QuestCombatMods {
   runeInheritance?: boolean;
   /** Rune of Salvage: whenever a friendly Mech loses its Ward, a random Attachment lands in your hand next shop. */
   runeSalvage?: boolean;
+  /** Rune of Twilight: your Start-of-Combat effects trigger an additional time each fight. */
+  runeTwilight?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the

@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### feat: Rune of Twilight — the rune roster is now complete
+
+**Rune of Twilight** (Epic 8): *Your Start-of-Combat effects also trigger at End of Turn.* Implemented as a
+`runeTwilight` combat flag that re-fires each of your minions' `startOfCombat` effects **a second time at Start of
+Combat**. SoC effects run in the combat context (they summon, apply combat auras, engrave, grant Ward/Rise, even
+grant the ENEMY Taunt or consume your weakest minion) — none have recruit-phase factories, and several are
+nonsensical or destructive outside combat — so the "End of Turn" trigger is realized as an extra Start-of-Combat
+pass rather than firing in the shop. Net effect: your SoC effects happen twice each fight.
+
+1 new test (Kennelmaster's SoC Beast aura lands twice with Twilight). typecheck / lint / 882 tests / build green.
+With this, **every rune in both forge lists is implemented.**
+
 ### feat: runes batch 6 — combat runes + Second Path (the rune roster is complete bar Twilight)
 
 The last of the rune roster (combat-engine + a pool Discover):

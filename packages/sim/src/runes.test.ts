@@ -24,28 +24,28 @@ const buyRune = (runeId: string, embers = 10, over: Partial<RunState> = {}): Run
 describe('Runeforge — framework', () => {
   it('every rune validates + is Runeforge-only (never a card/quest id)', () => {
     validateRunes();
-    expect(RUNES.length).toBe(14);
+    expect(RUNES.length).toBe(17); // 13 base + Small Fortune / Quick Study / Scout / Spare Parts
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
-  it('opens on turn 6 for Runesmith with a random 3 distinct runes', () => {
+  it('opens on turn 6 for Runesmith with a random 4 distinct runes', () => {
     const s = reduce(atWave5Combat(), { type: 'resolveCombat' });
     expect(s.wave).toBe(6);
     expect(s.runeforgeOffer).toBeDefined();
-    expect(s.runeforgeOffer!.length).toBe(3);
-    expect(new Set(s.runeforgeOffer).size).toBe(3); // no duplicates
+    expect(s.runeforgeOffer!.length).toBe(4);
+    expect(new Set(s.runeforgeOffer).size).toBe(4); // no duplicates
     for (const id of s.runeforgeOffer!) expect(RUNE_INDEX[id]).toBeDefined();
   });
 
-  it('rerollRuneforge spends 2 Gold once and swaps in a fresh, non-overlapping trio', () => {
+  it('rerollRuneforge spends 2 Gold once and swaps in a fresh, non-overlapping set of 4', () => {
     const s = reduce(atWave5Combat(), { type: 'resolveCombat' });
     const before = s.runeforgeOffer!;
     const r = reduce(s, { type: 'rerollRuneforge' });
     expect(r.embers).toBe(s.embers - 2);
     expect(r.runeforgeRerolled).toBe(true);
-    expect(r.runeforgeOffer!.length).toBe(3);
-    expect(new Set(r.runeforgeOffer).size).toBe(3);
-    // the fresh trio shares no rune with the original offer (drawn from the leftovers)
+    expect(r.runeforgeOffer!.length).toBe(4);
+    expect(new Set(r.runeforgeOffer).size).toBe(4);
+    // the fresh set shares no rune with the original offer (drawn from the leftovers — 17 runes, so 4 fresh exist)
     for (const id of r.runeforgeOffer!) expect(before).not.toContain(id);
     // a second re-roll is a no-op (once per visit)
     expect(reduce(r, { type: 'rerollRuneforge' })).toBe(r);
@@ -218,15 +218,15 @@ describe('Epic Runeforge', () => {
     openEpicRuneforge(s);
     expect(s.runeforgeEpic).toBe(true);
     expect(s.runeforgeRerolled).toBeUndefined(); // a fresh visit re-arms the single re-roll
-    const n = Math.min(3, EPIC_RUNES.length);
+    const n = Math.min(4, EPIC_RUNES.length);
     expect(s.runeforgeOffer!.length).toBe(n);
     expect(new Set(s.runeforgeOffer).size).toBe(n);
     for (const id of s.runeforgeOffer!) expect(EPIC_RUNES.some((r) => r.id === id)).toBe(true);
   });
 
   it('buying an Epic rune applies its reward, records it, and does NOT spend a hero-power charge', () => {
-    const s = buyEpic('rune_copies', 10); // cost 9
-    expect(s.embers).toBe(1); // 10 − 9
+    const s = buyEpic('rune_copies', 10); // cost 6
+    expect(s.embers).toBe(4); // 10 − 6
     expect(s.runeCopies).toBe(true);
     expect(s.ownedRunes).toEqual(['rune_copies']);
     expect(s.runeforgeOffer).toBeUndefined();
@@ -240,31 +240,17 @@ describe('Epic Runeforge', () => {
     const r = reduce(s, { type: 'rerollRuneforge' });
     expect(r.embers).toBe(8);
     expect(r.runeforgeRerolled).toBe(true);
-    expect(r.runeforgeOffer!.length).toBe(Math.min(3, EPIC_RUNES.length));
+    expect(r.runeforgeOffer!.length).toBe(Math.min(4, EPIC_RUNES.length));
     for (const id of r.runeforgeOffer!) expect(EPIC_RUNES.some((rn) => rn.id === id)).toBe(true);
     expect(reduce(r, { type: 'rerollRuneforge' })).toBe(r); // once per visit
   });
 });
 
-describe('Basic runes — moved-in effects (Empowerment / Rallying / Scale / Action)', () => {
+describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
   const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
 
-  it('Empowerment arms the double-trigger flag AND doubles a value hero power (Bagger Ben)', () => {
-    expect(buyRune('rune_empowerment', 10).runeEmpowerment).toBe(true);
-    const bag = (over: Partial<RunState> = {}): RunState => ({ ...createRun(1, 'baggerben'), wave: 3, phase: 'recruit', embers: 5, heroReady: true, ...over });
-    expect(reduce(bag(), { type: 'heroPower' }).embers).toBe(5 + (1 + 3)); // base: +4
-    expect(reduce(bag({ runeEmpowerment: true }), { type: 'heroPower' }).embers).toBe(5 + 2 * (1 + 3)); // doubled: +8
-  });
-
-  it('Empowerment is gated OUT of the Runesmith forge (his passive power cannot double)', () => {
-    // Across seeds the turn-6 Runesmith forge never offers Empowerment — the double-trigger gate filters it for
-    // his passive `runeforge` power. (It would be eligible for a doubleable-power hero, if one could open it.)
-    const offered = Array.from({ length: 40 }, (_, i) => {
-      const base: RunState = { ...createRun(i + 1, 'runesmith'), wave: 5, phase: 'combat', embers: 10,
-        lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } } };
-      return reduce(base, { type: 'resolveCombat' }).runeforgeOffer ?? [];
-    });
-    expect(offered.every((o) => !o.includes('rune_empowerment'))).toBe(true);
+  it('Rune of Empowerment is removed from the pool (its dormant plumbing survives)', () => {
+    expect(RUNE_INDEX['rune_empowerment']).toBeUndefined();
   });
 
   it('Rune of Scale: each Gold-spend buffs 3 random board minions +2/+2', () => {
@@ -298,6 +284,51 @@ describe('Basic runes — moved-in effects (Empowerment / Rallying / Scale / Act
   });
 });
 
+describe('Runes batch 1 — grants / discovers / economy', () => {
+  it('Rune of Small Fortune: banks 6 Gold into the next shop (the standard "Get N Gold" channel)', () => {
+    const s = buyRune('rune_small_fortune', 10); // cost 1
+    expect(s.embers).toBe(9); // 10 − 1 spent now
+    expect(s.bonusEmbersNextTurn).toBe(6); // +6 lands next shop
+  });
+
+  it('Rune of Quick Study: conjures 3 random spells to hand', () => {
+    const s = buyRune('rune_quick_study', 10, { tier: 3, hand: [] });
+    const spells = s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell);
+    expect(spells.length).toBe(3);
+  });
+
+  it('Rune of Spare Parts: conjures 4 random Attachments to hand', () => {
+    const s = buyRune('rune_spare_parts', 10, { tier: 4, hand: [] });
+    const attachments = s.hand.filter((c) => CARD_INDEX[c.cardId]?.keywords.includes('M'));
+    expect(attachments.length).toBe(4);
+  });
+
+  it('Rune of the Scout: opens a Discover of Tier-5 minions', () => {
+    const s = buyRune('rune_scout', 10, { tier: 3 });
+    expect(s.discover?.length).toBeGreaterThan(0);
+    for (const id of s.discover!) expect(CARD_INDEX[id]?.tier).toBe(5); // pinned tier, not the run's tier
+  });
+
+  it('Rune of the Champion (Epic): opens a Discover of Tier-6 minions', () => {
+    const s: RunState = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, tier: 3, runeforgeOffer: ['rune_champion'], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
+    expect(s.discover?.length).toBeGreaterThan(0);
+    for (const id of s.discover!) expect(CARD_INDEX[id]?.tier).toBe(6);
+  });
+
+  it('Rune of the Armory (Epic): conjures 10 random Attachments (hand-cap-safe)', () => {
+    const s: RunState = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, tier: 5, hand: [], runeforgeOffer: ['rune_armory'], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
+    const attachments = s.hand.filter((c) => CARD_INDEX[c.cardId]?.keywords.includes('M'));
+    expect(attachments.length).toBe(Math.min(10, s.hand.length)); // capped by hand size
+    expect(s.hand.length).toBeGreaterThan(0);
+  });
+
+  it('Rune of the Gilded Spark (Epic): grants a Goldcrafter now and schedules another in 2 turns', () => {
+    const s: RunState = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, hand: [], runeforgeOffer: ['rune_gilded_spark'], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
+    expect(s.hand.some((c) => c.cardId === 'goldcrafter')).toBe(true);
+    expect(s.pendingQuestRewards?.some((p) => p.turnsLeft === 2)).toBe(true);
+  });
+});
+
 describe('Epic Commission — the greater quest that opens the Epic Runeforge next turn', () => {
   const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
 
@@ -322,7 +353,7 @@ describe('Epic Commission — the greater quest that opens the Epic Runeforge ne
     const s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'combat', pendingEpicRuneforge: true, lastCombat: win };
     const next = reduce(s, { type: 'resolveCombat' }); // → turn 7 (not a quest turn)
     expect(next.wave).toBe(7);
-    expect(next.runeforgeOffer!.length).toBe(Math.min(3, EPIC_RUNES.length));
+    expect(next.runeforgeOffer!.length).toBe(Math.min(4, EPIC_RUNES.length));
     expect(next.runeforgeEpic).toBe(true);
     for (const id of next.runeforgeOffer!) expect(EPIC_RUNES.some((rn) => rn.id === id)).toBe(true);
     expect(next.pendingEpicRuneforge).toBe(false); // disarmed once opened

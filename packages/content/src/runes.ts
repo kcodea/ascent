@@ -82,14 +82,6 @@ export const RUNES: RuneDef[] = [
   },
   // ── Moved into the Basic forge (2026-07-10 re-batch) ──
   {
-    id: 'rune_empowerment',
-    name: 'Rune of Empowerment',
-    cost: 4,
-    requiresDoublePower: true, // only offered to heroes whose power gets value from a double trigger
-    text: 'Your **hero power** triggers twice.',
-    reward: { kind: 'runeEmpowerment' },
-  },
-  {
     id: 'rune_rallying',
     name: 'Rune of Rallying',
     cost: 6,
@@ -110,6 +102,35 @@ export const RUNES: RuneDef[] = [
     text: '**End of Turn:** give your **three left-most minions +1/+1** for each card you played this turn.',
     reward: { kind: 'recurringEndOfTurn', effect: 'runeAction' },
   },
+  // ── Batch 1 additions (grants / discovers / economy — no new combat mechanics) ──
+  {
+    id: 'rune_small_fortune',
+    name: 'Rune of Small Fortune',
+    cost: 1,
+    text: 'Get **6 Gold**.',
+    reward: { kind: 'gainGold', amount: 6 },
+  },
+  {
+    id: 'rune_quick_study',
+    name: 'Rune of Quick Study',
+    cost: 1,
+    text: 'Get **3 random spells**.',
+    reward: { kind: 'grant', randomSpell: 3 },
+  },
+  {
+    id: 'rune_scout',
+    name: 'Rune of the Scout',
+    cost: 3,
+    text: '**Discover** a **Tier 5** minion.',
+    reward: { kind: 'discover', tier: 5 },
+  },
+  {
+    id: 'rune_spare_parts',
+    name: 'Rune of Spare Parts',
+    cost: 1,
+    text: 'Get **4 random Attachments**.',
+    reward: { kind: 'grant', randomFilter: 'attachment', randomFilterCount: 4 },
+  },
 ];
 
 /**
@@ -127,10 +148,35 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_copies',
     name: 'Rune of Copies',
-    cost: 9,
+    cost: 6,
     epic: true,
     text: '**Start of shop:** get a copy of a random minion on your board.',
     reward: { kind: 'runeCopies' },
+  },
+  // ── Batch 1 additions (grants / discovers — no new combat mechanics) ──
+  {
+    id: 'rune_champion',
+    name: 'Rune of the Champion',
+    cost: 4,
+    epic: true,
+    text: '**Discover** a **Tier 6** minion.',
+    reward: { kind: 'discover', tier: 6 },
+  },
+  {
+    id: 'rune_armory',
+    name: 'Rune of the Armory',
+    cost: 3,
+    epic: true,
+    text: 'Get **10 random Attachments**.',
+    reward: { kind: 'grant', randomFilter: 'attachment', randomFilterCount: 10 },
+  },
+  {
+    id: 'rune_gilded_spark',
+    name: 'Rune of the Gilded Spark',
+    cost: 3,
+    epic: true,
+    text: 'Get a **Goldcrafter**. Get another in **2 turns**.',
+    reward: { kind: 'grant', cards: ['goldcrafter'], repeatInTurns: 2 },
   },
 ];
 

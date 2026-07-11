@@ -5,6 +5,31 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### feat: runes batch 1 — forges offer 4, remove Empowerment, add grant/discover/economy runes
+
+Per the owner's revised rune list: **both Runeforges now offer 4 options** (was 3 — `RUNEFORGE_OFFER = 4` threaded
+through the basic offer, the Epic offer, and the re-roll). **Rune of Empowerment removed** from the pool (its
+`runeEmpowerment`/`reps` plumbing stays dormant, ready if it returns). **Rune of Copies** re-priced 9 → 6.
+
+Added the low-risk, no-new-combat-mechanic runes from the list (the first slice of a multi-batch build-out):
+- **Basic:** Small Fortune (6 Gold — banks to next shop via the standard "Get N Gold" channel), Quick Study (3
+  random spells), Rune of the Scout (Discover a **Tier 5** minion), Spare Parts (4 random Attachments).
+- **Epic:** Rune of the Champion (Discover a **Tier 6** minion), Rune of the Armory (10 random Attachments,
+  hand-cap-safe), Rune of the Gilded Spark (a Goldcrafter now + another in 2 turns).
+
+Two tiny, safe reward-kind extensions powered these: `discover` gained an optional **`tier`** (pins the Discover
+tier, clamped to maxTier), and `grant` gained **`randomFilterCount`** (grant N random filtered minions, not just 1).
+Also fixed the deferred-reward processor to resolve **rune** ids (not just quest ids) so Gilded Spark's "in 2 turns"
+re-grant actually fires. New reward fields are zod-validated.
+
+7 new tests + updated the forge-size assertions (3 → 4) and removed the Empowerment tests. Live: the basic forge
+renders **4** slots with the new runes' correct cost/text, no overflow, no console errors. typecheck / lint / 850
+tests / build green.
+
+The **remaining ~30 runes** from the owner's list (combat Avenge/SoC effects, on-spell/on-summon hooks, card grants,
+and the deep-engine ones — Twin Gilding / Twilight / Inheritance / Reconfiguration / Banking) are sequenced in the
+roadmap for follow-up batches.
+
 ### feat: re-batch the runes — Basic forge is now the 14-rune canonical set
 
 Re-batched the runesets per the owner's canonical list. The **Basic Runeforge** is now the full **14 runes**:

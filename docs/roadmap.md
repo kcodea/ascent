@@ -386,25 +386,37 @@ hold so we don't regress it.
 
 ## Standing backlog (carried over — unscheduled, behind the spine)
 
-**Epic Runeforge build-out (the big one):** the 2026-07-10 re-batch moved Empowerment/Rallying/Scale/Action down to
-the Basic forge, so the **Epic forge is currently just Rune of Copies**. The owner's designed **16-rune Epic roster**
-still needs building — grouped by effort:
-- **Pure grants of existing cards** (easiest — need a "grant Gilded/golden" option + confirm each card's behavior):
-  Stormcalling (Gilded Karwind + random Shout), Frontline Glory (Gilded Yazzus + Front to Back), Assembly (Beatbot +
-  2 Attachments), Reconfiguration (Reconfigured Combinator), Den Mother (Den Mother + a self-buff modifier),
-  Feast (a Demon — confirm the card exists / design it), Soul Taxes (Souls Man + an Avenge economy effect).
-- **New Avenge combat effects** (combat-engine work): Broodpit (Av6 summon 2 Taunt Imps), Appraisal (Av4 spells
-  +1/+1), Spearline (Av4 summon a Spear Warden that attacks now), Soul Taxes (Av4 +1 max Gold).
-- **New Start-of-Combat effects**: First Claws (leftmost+rightmost Beasts attack now), Rising Graves (give 2 Undead
-  Rise). (Rune of Rallying already established the SoC-trigger pattern.)
-- **Deep engine mechanics** (hardest): Twin Gilding (Gild at 2 copies — changes the triple threshold), Twilight
-  (Start-of-Combat effects ALSO fire at End of Turn), Banking (End of Turn weld Money Bots to edge Mechs),
-  Scales (spell cast → Dragons +1/+1 run-wide, mirrors Summoning — actually easy).
-- Plus **Epic rune art** for the whole set. Sequence with the owner; several need card designs/stats confirmed first.
+**Rune build-out (the big content queue).** Batch 1 shipped the forge-size change (4 options), removed Empowerment,
+and added the low-risk grant/discover/economy runes (Small Fortune, Quick Study, Scout, Spare Parts, Champion,
+Armory, Gilded Spark) + re-priced Copies. The rest of the owner's list is queued below, grouped by effort. Also
+pending: **Epic rune art** (the Epic runes fall back to the sigil glyph) + **more art** for the new basic runes.
 
-**Open design call — Rune of Empowerment in the Basic forge:** it's in the Basic list but the Basic forge is
-Runesmith's (passive power) and the double-trigger gate filters it out for him, so it never appears today. Decide:
-ungate it, or add other basic-forge heroes.
+- **Easy — grants / discovers / simple hooks (next batch):**
+  - Rune of the Pair (2 random T4 minions — needs a "grant N random minions of exact tier N" option),
+  - Rune of the Menagerie (one random Beast/Demon/Dragon/Mech/Undead — a per-tribe grant set),
+  - Rune of Quick Study/Armory already done; **Second Path** (Discover a Greater-Quest reward minion — needs a
+    greater-quest-reward pool), **Champion/Scout** done.
+  - Rune of Kindling (cast spell → leftmost +3/+3) + Rune of Scales (cast spell → Dragons +1/+1): on-spell hooks,
+    mirror Rune of Summoning.
+  - Rune of the Epic Forge (schedule the Epic forge on turn 9 — reuse `pendingEpicRuneforge` + a scheduled wave).
+  - Rune of the Gilded Spark done. Grants of existing cards: Stormcalling (Gilded Karwind + random Shout),
+    Frontline Glory (Gilded Yazzus + Front to Back), Assembly (Beatbot + 2 Attachments), Reconfiguration
+    (Reconfigured Combinator), Den Mother (+ self-buff modifier), Soul Taxes (Souls Man + Av4 economy), Feast
+    (a Demon — **confirm the card exists / design it**). These need a **"grant a Gilded/golden card"** option.
+- **Medium — new combat effects:**
+  - Avenge: Broodpit (Av6 → 2 Taunt Imps), Appraisal (Av4 → spells +1/+1), Spearline (Av4 → summon Spear Warden
+    that attacks now), Soul Taxes (Av4 → +1 max Gold).
+  - Start-of-Combat: First Claws (leftmost+rightmost Beasts attack now), Rising Graves (give 2 Undead Rise).
+    (Rune of Rallying already established the SoC-trigger pattern.)
+  - Rune of the Reliquary (End of Turn → trigger your leftmost Echo — an EoT recurring effect).
+  - Rune of Bartering (Shout minions sell for 2 Gold — a sell-value override by filter),
+    Rune of Packcraft (summon in combat → Beasts +1 Atk run-wide), Rune of Salvage (Mech loses Ward → attachment
+    next shop), Rune of the Warden (grant Spear Warden + a combat auto-summon).
+- **Hard — deep engine mechanics:** Twin Gilding (Gild at 2 copies — changes the triple threshold), Twilight
+  (Start-of-Combat effects ALSO fire at End of Turn), Rune of Inheritance (leftmost dies → rightmost gains its
+  stats, a combat on-death transfer), Banking (End of Turn weld Money Bots to edge Mechs).
+
+Sequence with the owner batch-by-batch; several grants need card designs/stats confirmed first.
 
 **Layout Lab extensions:** the dev Layout Lab (DevMenu → Scale & Layout) covers global + per-row card scale, UI
 scale, and warband/hand/HUD position. Not yet: (1) a **shop-row position** offset — the tavern zone is

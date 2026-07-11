@@ -213,7 +213,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'gainMaxGold':
       return `Gain +${r.amount} max Gold`;
     case 'discover':
-      return 'Discover a card from your tier';
+      return r.tier ? `Discover a Tier ${r.tier} minion` : 'Discover a card from your tier';
     case 'dupeFirstBuy':
       return 'Get a second copy of the first minion you buy each turn';
     case 'spellRepeat':

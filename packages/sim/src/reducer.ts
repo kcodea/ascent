@@ -776,7 +776,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (!s.runeforgeOffer || s.runeforgeRerolled || s.embers < 2) return state;
       spendGold(s, 2);
       const rng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 1));
-      s.runeforgeOffer = drawRunes(runeforgePool(s), 3, rng, new Set(s.runeforgeOffer));
+      s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, rng, new Set(s.runeforgeOffer));
       s.runeforgeRerolled = true;
       return s;
     }
@@ -1596,7 +1596,7 @@ function advanceCombat(s: RunState): void {
   if (forge) {
     s.runeforgeEpic = undefined; // basic forge — set before runeforgePool so it reads the normal set
     s.runeforgeRerolled = undefined;
-    s.runeforgeOffer = drawRunes(runeforgePool(s), 3, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST)));
+    s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST)));
   }
   if (questOffer.length > 0) {
     s.questOffer = questOffer;
@@ -1649,7 +1649,8 @@ function advanceCombat(s: RunState): void {
     const remaining: { questId: string; turnsLeft: number }[] = [];
     for (const p of s.pendingQuestRewards) {
       if (p.turnsLeft - 1 <= 0) {
-        const d = QUEST_INDEX[p.questId];
+        // Resolve the scheduling def — a quest OR a rune (Rune of the Gilded Spark's "get another in 2 turns").
+        const d = QUEST_INDEX[p.questId] ?? (RUNE_INDEX[p.questId] as unknown as QuestDef | undefined);
         if (d) applyQuestReward(s, d, false);
       } else {
         remaining.push({ questId: p.questId, turnsLeft: p.turnsLeft - 1 });
@@ -1799,8 +1800,11 @@ function grantRandomFilterMinion(s: RunState, filter: 'shout' | 'endOfTurn' | 'e
  *                  the whole reward to repeat `repeatInTurns` turns later.
  *  - shoutDouble → bank charges so the next N played Shouts each trigger twice (spent in `playedShoutRepeats`).
  */
-/** Hero-power kinds that get value from a double trigger — the gate for Rune of Empowerment. Keep in sync with
- *  the `reps`-reading branches in the `heroPower` case (scalingGold / gainMaxMana / fortify / dynamiteDig). */
+/** How many runes each Runeforge visit offers (basic + Epic). */
+const RUNEFORGE_OFFER = 4;
+
+/** Hero-power kinds that get value from a double trigger — the (dormant) gate for Rune of Empowerment. Keep in
+ *  sync with the `reps`-reading branches in the `heroPower` case (scalingGold / gainMaxMana / fortify / dynamiteDig). */
 const DOUBLEABLE_POWERS = new Set(['scalingGold', 'gainMaxMana', 'fortify', 'dynamiteDig']);
 
 /** The eligible rune-id pool for whichever forge is open (normal or Epic), filtered by the current hero's power:
@@ -1830,7 +1834,7 @@ function drawRunes(ids: string[], n: number, rng: ReturnType<typeof makeRng>, av
 export function openEpicRuneforge(s: RunState): void {
   s.runeforgeEpic = true;
   s.runeforgeRerolled = undefined;
-  s.runeforgeOffer = drawRunes(runeforgePool(s), 3, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 2)));
+  s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 2)));
 }
 
 /** Rune of Copies: conjure a fresh copy of a RANDOM board minion into the hand (base card + run auras, like the
@@ -1856,7 +1860,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'grant':
       if (r.randomTribe && (r.randomCount ?? 0) > 0) grantRandomTribeMinion(s, r.randomTribe, r.randomCount!);
       if ((r.randomSpell ?? 0) > 0) conjureToHand(s, SPELL_CARDS.filter((c) => c.tier <= s.tier), r.randomSpell!); // Hoard Spark's random spell
-      if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, 1, r.randomFilterExactTier); // "a random Shout/Echo/Rally/… minion"
+      if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, r.randomFilterCount ?? 1, r.randomFilterExactTier); // "N random Shout/Echo/Rally/Attachment minions"
       for (const id of r.cards ?? []) {
         const before = s.hand.length;
         conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
@@ -1938,11 +1942,13 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.maxGoldBonus = (s.maxGoldBonus ?? 0) + r.amount; // Shop License: permanent +max Gold, above the cap
       s.embers += r.amount; // reflect the raised max in THIS turn's spendable Gold too
       break;
-    case 'discover':
-      // Reward-kind 'discover' — open a minion Discover of your CURRENT tier only. (No quest uses this today;
-      // Key Findings runs through the `keyfindings` card's discoverOnPlay. Kept exact-tier to match that intent.)
-      openDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
+    case 'discover': {
+      // Reward-kind 'discover' — open a minion Discover at your CURRENT tier, or at `r.tier` when the reward pins
+      // one (Rune of the Scout → Tier 5, Rune of the Champion → Tier 6). Clamped to the engine's max tier.
+      const t = Math.min(r.tier ?? s.tier, CONFIG.maxTier);
+      openDiscover(s, { kind: 'minion', tier: t, exactTier: t });
       break;
+    }
     case 'dupeFirstBuy':
       s.dupeFirstBuyEachTurn = true; // Dupes: the first minion bought each turn is copied to hand
       break;

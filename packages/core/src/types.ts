@@ -425,7 +425,7 @@ export type QuestReward =
   // `randomFilter` conjures a random buyable MINION matching a keyword/effect class (a Shout=Battlecry, an
   // End-of-Turn, an Echo=Deathrattle, a Rally, or an Attachment=Magnetic) — ≤ current tier, or EXACTLY current
   // tier when `randomFilterExactTier` (fallback ≤ tier if none). Powers the Mech/neutral "get a random X minion".
-  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterExactTier?: boolean; cards?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
+  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterCount?: number; randomFilterExactTier?: boolean; cards?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
   | { kind: 'shoutDouble'; count: number }
   // A persistent "your <tribe> have +A/+H wherever they are" run aura (Den Marker) — folds into the tribe's
   // buy-time aura channel so current AND future minions of the tribe carry it (like Squirl Scout's board buff).
@@ -489,7 +489,9 @@ export type QuestReward =
   // twice (`always` = Ancient Runes; `firstEachTurn` = Spell Thesis). `minionCost` overrides shop minion cost.
   // `slaughterRepeat` = your first Slaughter each combat fires an extra time (Author's Hand).
   | { kind: 'gainMaxGold'; amount: number }
-  | { kind: 'discover' }
+  // `discover` opens a minion Discover — at your current tavern tier, or at `tier` when given (Rune of the Scout →
+  // Tier 5, Rune of the Champion → Tier 6).
+  | { kind: 'discover'; tier?: number }
   | { kind: 'dupeFirstBuy' }
   | { kind: 'spellRepeat'; scope: 'always' | 'firstEachTurn' }
   | { kind: 'minionCost'; cost: number }

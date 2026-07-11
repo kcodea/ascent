@@ -16,6 +16,8 @@ import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
 import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
 import { buffPreset, BUFF_PRESETS } from './buffPresets';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
+import { DESCEND_PRESETS, descendPreset } from './descendPresets';
+import { isDeathrattleBufferCard } from './deathrattleBuffers';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
@@ -644,44 +646,51 @@ export function useCombatReplay(
       onShieldBreak: (uid) => breakShieldAura(uid),
       onReborn: (uid) => reformReborn(rebornRects.get(uid) ?? rectOf(uid)),
       onBuffCasts: (casts) => {
-        // Per-TARGET aggregate: sum the buff deltas across every cast landing on it (two different sources →
-        // same target must sum), and remember the (first) firing preset's travelMs to time the strike.
-        const perTarget = new Map<string, { atk: number; hp: number; travelMs: number }>();
-        // Fire one tendril per cast (unchanged), and accumulate the per-target aggregate.
+        // Per-target aggregate: sum deltas across casts on the same target + remember when the badge should flash
+        // (the strike/landing time of the FIRST cast on that target).
+        const perTarget = new Map<string, { atk: number; hp: number; strikeMs: number }>();
         for (const c of casts) {
-          const sEl = findEl(c.source); const tEl = findEl(c.target);
-          if (!sEl || !tEl) continue;
-          const sr = sEl.getBoundingClientRect(); const tr = tEl.getBoundingClientRect();
-          // source cardId/tribe from the fight-wide uid→cardId map (already an effect dep) + CARD_INDEX —
-          // avoids referencing `frame` here, keeping the effect's deps array unchanged.
+          const tEl = findEl(c.target);
+          if (!tEl) continue; // target not on screen → nothing to land on
+          const tr = tEl.getBoundingClientRect();
+          const tc = { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 };
           const cardId = cardIds.get(c.source) ?? '';
-          const preset = BUFF_PRESETS[buffPreset(cardId, (CARD_INDEX[cardId]?.tribe ?? 'neutral') as Tribe)];
-          pixiFx.buffTendril(
-            { x: sr.left + sr.width / 2, y: sr.top + sr.height / 2 },
-            { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 },
-            preset,
-          );
+          const tribe = (CARD_INDEX[cardId]?.tribe ?? 'neutral') as Tribe;
+          let strikeMs: number;
+          if (isDeathrattleBufferCard(cardId)) {
+            // Deathrattle buff-other → rain-down descend onto the target (no source needed).
+            const dcfg = DESCEND_PRESETS[descendPreset(cardId, tribe)];
+            pixiFx.descend(tc.x, tc.y, dcfg);
+            strikeMs = dcfg.dropMs;
+          } else {
+            // Living-source buff-other → source→target tendril (unchanged; needs a measurable source).
+            const sEl = findEl(c.source);
+            if (!sEl) continue;
+            const sr = sEl.getBoundingClientRect();
+            const preset = BUFF_PRESETS[buffPreset(cardId, tribe)];
+            pixiFx.buffTendril({ x: sr.left + sr.width / 2, y: sr.top + sr.height / 2 }, tc, preset);
+            strikeMs = preset.travelMs;
+          }
           const agg = perTarget.get(c.target);
           if (agg) { agg.atk += c.attack; agg.hp += c.health; }
-          else perTarget.set(c.target, { atk: c.attack, hp: c.health, travelMs: preset.travelMs });
+          else perTarget.set(c.target, { atk: c.attack, hp: c.health, strikeMs });
         }
-        // Find a target's live stats without referencing `frame` directly (via frameRef mirror).
+        // Hold each target's pre-buff badge value now (frame already reflects the buff: pre = post − delta),
+        // then release + flash the changed badge(s) at the strike/landing.
         const unitOf = (uid: string) =>
           frameRef.current?.player.find((u) => u.uid === uid) ?? frameRef.current?.enemy.find((u) => u.uid === uid);
-        // Per target: HOLD its pre-buff value now (frame already reflects the buff, so pre = post − delta),
-        // then at the strike release the hold + flash the changed badge(s).
-        for (const [target, { atk: sumAtk, hp: sumHp, travelMs }] of perTarget) {
+        for (const [target, { atk: sumAtk, hp: sumHp, strikeMs }] of perTarget) {
           const tgt = unitOf(target);
-          if (!tgt) continue; // no frame entry (unreachable if it has a DOM node) → fall back to normal display, not a negative held value
+          if (!tgt) continue;
           const held = { atk: tgt.attack - sumAtk, hp: tgt.health - sumHp };
           setStatHold((m) => new Map(m).set(target, held));
-          const strikeMs = travelMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
+          const ms = strikeMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
           timers.push(window.setTimeout(() => {
             setStatHold((m) => { const n = new Map(m); n.delete(target); return n; });
             setStatFlash((m) => new Map(m).set(target, { atk: sumAtk !== 0, hp: sumHp !== 0 }));
             timers.push(window.setTimeout(() =>
               setStatFlash((m) => { const n = new Map(m); n.delete(target); return n; }), 360));
-          }, strikeMs));
+          }, ms));
         }
       },
       onSelfBuffs: (selfBuffs) => {

@@ -213,7 +213,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'gainMaxGold':
       return `Gain +${r.amount} max Gold`;
     case 'discover':
-      return 'Discover a card from your tier';
+      return r.tier ? `Discover a Tier ${r.tier} minion` : 'Discover a card from your tier';
     case 'dupeFirstBuy':
       return 'Get a second copy of the first minion you buy each turn';
     case 'spellRepeat':
@@ -232,6 +232,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Each minion you buy buffs shop Mechs +${r.step}/+${r.step}, improving by +${r.step}/+${r.step} each purchase`;
     case 'undeadSpellAura':
       return `Casting a spell gives your Undead +${r.attack} Attack (in the shop and combat)`;
+    case 'openEpicRuneforge':
+      return 'Visit the Epic Runeforge at the start of next turn';
     case 'multi':
       return r.rewards.map((sub) => questRewardText(sub)).join('. ');
     default:

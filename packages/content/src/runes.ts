@@ -28,28 +28,28 @@ export const RUNES: RuneDef[] = [
     id: 'rune_structure',
     name: 'Rune of Structure',
     cost: 3,
-    text: 'Attachments played from your hand also give a random spell.',
+    text: 'After you play an **Attachment** from hand, get a random spell.',
     reward: { kind: 'runeStructure' },
   },
   {
     id: 'rune_slaying',
     name: 'Rune of Slaying',
     cost: 3,
-    text: 'Every time you **Slaughter**, gain **+2 Gold** next turn.',
+    text: 'Whenever you trigger **Slaughter**, gain **+2 Gold** next shop.',
     reward: { kind: 'combatFlag', flag: 'runeSlaying', amount: 2 },
   },
   {
     id: 'rune_spending',
     name: 'Rune of Spending',
     cost: 6,
-    text: '**End of Turn:** gain **+1 max Gold** and grant **+1/+1 per Gold spent** to your left-most minion.',
+    text: '**End of Turn:** gain **+1 max Gold** and give your left-most minion **+1/+1** for each Gold spent this turn.',
     reward: { kind: 'recurringEndOfTurn', effect: 'runeSpending' },
   },
   {
     id: 'rune_consumption',
     name: 'Rune of Consumption',
     cost: 4,
-    text: 'Every time you **Consume** Fodder, increase Fodder stats by **+2/+1**.',
+    text: 'Whenever you **Consume** Fodder, improve future Fodder by **+2/+1**.',
     reward: { kind: 'runeConsume', attack: 2, health: 1 },
   },
   {
@@ -63,92 +63,120 @@ export const RUNES: RuneDef[] = [
     id: 'rune_fury',
     name: 'Rune of Fury',
     cost: 5,
-    text: 'Your **Avenges** trigger twice.',
+    text: 'Your **Avenge** effects trigger twice.',
     reward: { kind: 'combatFlag', flag: 'runeFury' },
   },
   {
     id: 'rune_summoning',
     name: 'Rune of Summoning',
     cost: 5,
-    text: 'Casting spells improve your **Imps** by **+1/+1** wherever they are.',
+    text: 'Whenever you cast a spell, improve your **Imps** by **+1/+1** wherever they are.',
     reward: { kind: 'runeSummoning' },
   },
   {
     id: 'rune_forthcoming',
     name: 'Rune of Forthcoming',
-    cost: 3,
-    text: '**Always attack first.**',
+    cost: 6,
+    text: 'You **always attack first**.',
     reward: { kind: 'combatFlag', flag: 'runeForthcoming' },
+  },
+  // ── Moved into the Basic forge (2026-07-10 re-batch) ──
+  {
+    id: 'rune_rallying',
+    name: 'Rune of Rallying',
+    cost: 6,
+    text: '**Start of Combat:** trigger your **Rally** effects.',
+    reward: { kind: 'combatFlag', flag: 'runeRallying' },
+  },
+  {
+    id: 'rune_scale',
+    name: 'Rune of Scale',
+    cost: 5,
+    text: 'Whenever you spend Gold, give **3 random allies +2/+2**.',
+    reward: { kind: 'runeScale', count: 3, attack: 2, health: 2 },
+  },
+  {
+    id: 'rune_action',
+    name: 'Rune of Action',
+    cost: 8,
+    text: '**End of Turn:** give your **three left-most minions +1/+1** for each card you played this turn.',
+    reward: { kind: 'recurringEndOfTurn', effect: 'runeAction' },
+  },
+  // ── Batch 1 additions (grants / discovers / economy — no new combat mechanics) ──
+  {
+    id: 'rune_small_fortune',
+    name: 'Rune of Small Fortune',
+    cost: 1,
+    text: 'Get **6 Gold**.',
+    reward: { kind: 'gainGold', amount: 6 },
+  },
+  {
+    id: 'rune_quick_study',
+    name: 'Rune of Quick Study',
+    cost: 1,
+    text: 'Get **3 random spells**.',
+    reward: { kind: 'grant', randomSpell: 3 },
+  },
+  {
+    id: 'rune_scout',
+    name: 'Rune of the Scout',
+    cost: 3,
+    text: '**Discover** a **Tier 5** minion.',
+    reward: { kind: 'discover', tier: 5 },
+  },
+  {
+    id: 'rune_spare_parts',
+    name: 'Rune of Spare Parts',
+    cost: 1,
+    text: 'Get **4 random Attachments**.',
+    reward: { kind: 'grant', randomFilter: 'attachment', randomFilterCount: 4 },
   },
 ];
 
 /**
  * Epic Runes — the **Epic Runeforge's** stock. A second, higher-power forge that functions identically to the
  * normal Runeforge (offer a random few, buy ONE for Gold, re-roll once for 2 Gold) but draws from THIS set and is
- * NOT tied to a hero power — for now it's reached only by a quest reward (`openEpicRuneforge`). The runes below are
- * placeholders (functional, but provisional flavour/values) EXCEPT Rune of Empowerment, which is a real Epic rune.
+ * NOT tied to a hero power — reached by a quest reward (`openEpicRuneforge`, the Epic Commission quest).
  *
- * `requiresDoublePower`: a rune only offered to heroes whose hero power gets value from a double trigger (the sim's
- * DOUBLEABLE_POWERS set) — Empowerment is meaningless on a targeted / passive power, so it's filtered out for them.
+ * NOTE (2026-07-10 re-batch): the designed Epic roster (Stormcalling / Twin Gilding / Broodpit / Feast / Frontline
+ * Glory / Assembly / Banking / Appraisal / Den Mother / Twilight / Spearline / Scales / First Claws /
+ * Reconfiguration / Soul Taxes / Rising Graves / Copies) is being built out in follow-up batches — most need new
+ * card grants + combat/recruit mechanics. Only **Rune of Copies** is wired so far, so the Epic forge is thin until
+ * the rest land.
  */
 export const EPIC_RUNES: RuneDef[] = [
   {
-    id: 'rune_empowerment',
-    name: 'Rune of Empowerment',
-    cost: 4,
-    epic: true,
-    requiresDoublePower: true,
-    text: 'Your **hero power** triggers twice.',
-    reward: { kind: 'runeEmpowerment' },
-  },
-  // ── Placeholders (provisional — swapped for designed Epic runes later; each reuses a validated reward kind) ──
-  {
-    id: 'rune_epic_opulence',
-    name: 'Rune of Opulence',
-    cost: 5,
-    epic: true,
-    text: 'Gain **+2 max Gold**.',
-    reward: { kind: 'gainMaxGold', amount: 2 },
-  },
-  {
-    id: 'rune_epic_ascendance',
-    name: 'Rune of Ascendance',
+    id: 'rune_copies',
+    name: 'Rune of Copies',
     cost: 6,
     epic: true,
-    text: 'Give your board **+4/+4**.',
-    reward: { kind: 'buffBoard', attack: 4, health: 4 },
+    text: '**Start of shop:** get a copy of a random minion on your board.',
+    reward: { kind: 'runeCopies' },
   },
+  // ── Batch 1 additions (grants / discovers — no new combat mechanics) ──
   {
-    id: 'rune_epic_sorcery',
-    name: 'Rune of Sorcery',
-    cost: 6,
-    epic: true,
-    text: 'Your **first spell** each turn casts twice.',
-    reward: { kind: 'spellRepeat', scope: 'firstEachTurn' },
-  },
-  {
-    id: 'rune_epic_fortune',
-    name: 'Rune of Fortune',
-    cost: 5,
-    epic: true,
-    text: 'The **first minion** you buy each turn is duplicated to your hand.',
-    reward: { kind: 'dupeFirstBuy' },
-  },
-  {
-    id: 'rune_epic_plunder',
-    name: 'Rune of Plunder',
+    id: 'rune_champion',
+    name: 'Rune of the Champion',
     cost: 4,
     epic: true,
-    text: 'Your **Gold Pouches** are worth **3 Gold** for the rest of the run.',
-    reward: { kind: 'goldPouchValue', value: 3 },
+    text: '**Discover** a **Tier 6** minion.',
+    reward: { kind: 'discover', tier: 6 },
   },
   {
-    id: 'rune_epic_insight',
-    name: 'Rune of Insight',
+    id: 'rune_armory',
+    name: 'Rune of the Armory',
     cost: 3,
     epic: true,
-    text: '**Discover** a minion of your Tavern Tier.',
-    reward: { kind: 'discover' },
+    text: 'Get **10 random Attachments**.',
+    reward: { kind: 'grant', randomFilter: 'attachment', randomFilterCount: 10 },
+  },
+  {
+    id: 'rune_gilded_spark',
+    name: 'Rune of the Gilded Spark',
+    cost: 3,
+    epic: true,
+    text: 'Get a **Goldcrafter**. Get another in **2 turns**.',
+    reward: { kind: 'grant', cards: ['goldcrafter'], repeatInTurns: 2 },
   },
 ];
 

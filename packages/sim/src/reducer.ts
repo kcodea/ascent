@@ -36,6 +36,18 @@ function spendGold(s: RunState, amount: number): void {
       conjureToHand(s, SPELL_CARDS.filter((c) => c.tier <= s.tier), 1);
     }
   }
+  // Rune of Scale (Epic): each Gold-spend gives `count` random board minions +atk/+hp. Once per spend transaction
+  // (a buy / roll / tier-up / hero power), not per Gold. Seeded off the run's RNG cursor.
+  if (s.runeScale && amount > 0 && s.board.length > 0) {
+    const { count, attack, health } = s.runeScale;
+    const rng = makeRng(s.rngCursor);
+    const pool = [...s.board];
+    for (let i = 0; i < count && pool.length > 0; i++) {
+      const pick = pool.splice(rng.int(pool.length), 1)[0]!;
+      addBuff(pick, 'Rune of Scale', attack, health);
+    }
+    s.rngCursor = rng.state();
+  }
 }
 
 /** Drakko's quest: buy 5 Battlecry minions → get Drakko the Drummer (once per game). Progresses on every
@@ -726,6 +738,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (questId == null || !QUEST_INDEX[questId]) return state; // invalid pick
       (s.activeQuests ??= []).push({ questId, progress: 0, completed: false });
       s.questOffer = undefined;
+      openNextStartOfTurnModal(s); // a quest turn can line up the Epic Runeforge / Discovers behind it — open next
       return s;
     }
 
@@ -746,7 +759,8 @@ function reduceCore(state: RunState, action: Action): RunState {
       // hero-power charge alone for it.
       if (!s.runeforgeEpic) s.heroPowerSpent = true;
       closeRuneforge(s);
-      checkTriples(s);
+      checkTriples(s); // a rune-granted copy might complete a triple (opens its own Discover)
+      openNextStartOfTurnModal(s); // forge closed — open the next queued start-of-turn modal (unless a Discover just opened)
       return s;
     }
 
@@ -755,6 +769,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (!s.runeforgeOffer) return state;
       if (!s.runeforgeEpic) s.heroPowerSpent = true;
       closeRuneforge(s);
+      openNextStartOfTurnModal(s); // forge closed — open the next queued start-of-turn modal
       return s;
     }
 
@@ -764,7 +779,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (!s.runeforgeOffer || s.runeforgeRerolled || s.embers < 2) return state;
       spendGold(s, 2);
       const rng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 1));
-      s.runeforgeOffer = drawRunes(runeforgePool(s), 3, rng, new Set(s.runeforgeOffer));
+      s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, rng, new Set(s.runeforgeOffer));
       s.runeforgeRerolled = true;
       return s;
     }
@@ -969,6 +984,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         openDiscover(s, s.discoverQueue.shift()!);
       }
       checkTriples(s); // the discovered copy might itself complete a triple
+      openNextStartOfTurnModal(s); // if this Discover was the last thing blocking a queued start-of-turn modal, open it
       return s;
     }
 
@@ -1582,9 +1598,9 @@ function advanceCombat(s: RunState): void {
   // ONE. Like the quest shop, the tavern is rolled behind the overlay so the shop is ready once the forge closes.
   const forge = getHero(s.heroId).power.kind === 'runeforge' && s.wave === 6 && !s.heroPowerSpent;
   if (forge) {
-    s.runeforgeOffer = drawRunes(RUNES.map((rn) => rn.id), 3, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST)));
-    s.runeforgeEpic = undefined;
+    s.runeforgeEpic = undefined; // basic forge — set before runeforgePool so it reads the normal set
     s.runeforgeRerolled = undefined;
+    s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST)));
   }
   if (questOffer.length > 0) {
     s.questOffer = questOffer;
@@ -1593,7 +1609,11 @@ function advanceCombat(s: RunState): void {
     injectPendingTavern(s);
     s.frozen = false;
   } else refreshTavern(s);
+  // Start-of-turn modals resolve ONE AT A TIME, in priority order (Quest > Runeforge > Discover/other). A quest
+  // offer or the Runesmith forge (set above) shows first; the Epic Runeforge + any queued Discovers wait their
+  // turn and open as each higher modal closes (see openNextStartOfTurnModal, called from every modal-close path).
   s.phase = 'recruit';
+  openNextStartOfTurnModal(s);
   // Gravetwin: if it survived the last combat, fire its copied Echo now (start of the shop). Then clear the
   // survivor list so it fires exactly once per fight.
   fireGravetwinEchoes(s);
@@ -1630,7 +1650,8 @@ function advanceCombat(s: RunState): void {
     const remaining: { questId: string; turnsLeft: number }[] = [];
     for (const p of s.pendingQuestRewards) {
       if (p.turnsLeft - 1 <= 0) {
-        const d = QUEST_INDEX[p.questId];
+        // Resolve the scheduling def — a quest OR a rune (Rune of the Gilded Spark's "get another in 2 turns").
+        const d = QUEST_INDEX[p.questId] ?? (RUNE_INDEX[p.questId] as unknown as QuestDef | undefined);
         if (d) applyQuestReward(s, d, false);
       } else {
         remaining.push({ questId: p.questId, turnsLeft: p.turnsLeft - 1 });
@@ -1643,6 +1664,8 @@ function advanceCombat(s: RunState): void {
   if (s.questRecurringGrants?.length) {
     for (const id of s.questRecurringGrants) conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
   }
+  // Rune of Copies (Epic): each turn setup, copy a random board minion to hand (the immediate copy fired on buy).
+  if (s.runeCopies) copyRandomBoardMinion(s);
   // Triples can be completed by a combat carry-back that lands a 3rd copy in the hand (e.g. a
   // Deathrattle-granted minion) AFTER the last recruit action that would have checked. Every other
   // path checks on the mutation; this is the one entry the player never triggers, so check once here
@@ -1778,16 +1801,19 @@ function grantRandomFilterMinion(s: RunState, filter: 'shout' | 'endOfTurn' | 'e
  *                  the whole reward to repeat `repeatInTurns` turns later.
  *  - shoutDouble → bank charges so the next N played Shouts each trigger twice (spent in `playedShoutRepeats`).
  */
-/** Hero-power kinds that get value from a double trigger — the gate for Rune of Empowerment. Keep in sync with
- *  the `reps`-reading branches in the `heroPower` case (scalingGold / gainMaxMana / fortify / dynamiteDig). */
+/** How many runes each Runeforge visit offers (basic + Epic). */
+const RUNEFORGE_OFFER = 4;
+
+/** Hero-power kinds that get value from a double trigger — the (dormant) gate for Rune of Empowerment. Keep in
+ *  sync with the `reps`-reading branches in the `heroPower` case (scalingGold / gainMaxMana / fortify / dynamiteDig). */
 const DOUBLEABLE_POWERS = new Set(['scalingGold', 'gainMaxMana', 'fortify', 'dynamiteDig']);
 
-/** The eligible rune-id pool for whichever forge is open: the normal set, or the Epic set filtered by the
- *  current hero's power (Empowerment is dropped for a hero that can't double). */
+/** The eligible rune-id pool for whichever forge is open (normal or Epic), filtered by the current hero's power:
+ *  a `requiresDoublePower` rune (Empowerment) is dropped for a hero whose power can't double. */
 function runeforgePool(s: RunState): string[] {
-  if (!s.runeforgeEpic) return RUNES.map((rn) => rn.id);
+  const set = s.runeforgeEpic ? EPIC_RUNES : RUNES;
   const canDouble = DOUBLEABLE_POWERS.has(getHero(s.heroId).power.kind);
-  return EPIC_RUNES.filter((rn) => !rn.requiresDoublePower || canDouble).map((rn) => rn.id);
+  return set.filter((rn) => !rn.requiresDoublePower || canDouble).map((rn) => rn.id);
 }
 
 /** Draw `n` distinct rune ids from `ids`, preferring ones not in `avoid` (a re-roll's current offer) but falling
@@ -1809,7 +1835,14 @@ function drawRunes(ids: string[], n: number, rng: ReturnType<typeof makeRng>, av
 export function openEpicRuneforge(s: RunState): void {
   s.runeforgeEpic = true;
   s.runeforgeRerolled = undefined;
-  s.runeforgeOffer = drawRunes(runeforgePool(s), 3, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 2)));
+  s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 2)));
+}
+
+/** Rune of Copies: conjure a fresh copy of a RANDOM board minion into the hand (base card + run auras, like the
+ *  Dupes copy). No-op on an empty board or a full hand. */
+function copyRandomBoardMinion(s: RunState): void {
+  const pool = s.board.map((c) => CARD_INDEX[c.cardId]).filter((d): d is CardDef => !!d);
+  conjureToHand(s, pool, 1);
 }
 
 /** Close any open forge — clears the offer + its per-visit flags. */
@@ -1817,6 +1850,17 @@ function closeRuneforge(s: RunState): void {
   s.runeforgeOffer = undefined;
   s.runeforgeEpic = undefined;
   s.runeforgeRerolled = undefined;
+}
+
+/** Open the next start-of-turn modal in priority order — **Quest > Runeforge > Discover / other** — but only if
+ *  none is currently open. This lets a turn that lines up several start-of-turn events (a quest offer, the Epic
+ *  Runeforge, queued Discovers) resolve them SEQUENTIALLY instead of dropping or deferring the lower-priority ones.
+ *  Quest offers + the Runesmith forge are opened directly by `advanceCombat` (top priority); this drains what waits
+ *  behind them, and is called from every modal-close path (buyQuest / forge close / discover resolve). */
+function openNextStartOfTurnModal(s: RunState): void {
+  if (s.questOffer || s.runeforgeOffer || s.discover || s.chooseOne || s.pendingTarget) return; // one modal at a time
+  if (s.pendingEpicRuneforge) { openEpicRuneforge(s); s.pendingEpicRuneforge = false; return; } // Runeforge before Discovers
+  if (s.discoverQueue?.length) openDiscover(s, s.discoverQueue.shift()!); // then any queued start-of-turn Discovers
 }
 
 function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): void {
@@ -1828,7 +1872,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'grant':
       if (r.randomTribe && (r.randomCount ?? 0) > 0) grantRandomTribeMinion(s, r.randomTribe, r.randomCount!);
       if ((r.randomSpell ?? 0) > 0) conjureToHand(s, SPELL_CARDS.filter((c) => c.tier <= s.tier), r.randomSpell!); // Hoard Spark's random spell
-      if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, 1, r.randomFilterExactTier); // "a random Shout/Echo/Rally/… minion"
+      if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, r.randomFilterCount ?? 1, r.randomFilterExactTier); // "N random Shout/Echo/Rally/Attachment minions"
       for (const id of r.cards ?? []) {
         const before = s.hand.length;
         conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
@@ -1910,11 +1954,13 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.maxGoldBonus = (s.maxGoldBonus ?? 0) + r.amount; // Shop License: permanent +max Gold, above the cap
       s.embers += r.amount; // reflect the raised max in THIS turn's spendable Gold too
       break;
-    case 'discover':
-      // Reward-kind 'discover' — open a minion Discover of your CURRENT tier only. (No quest uses this today;
-      // Key Findings runs through the `keyfindings` card's discoverOnPlay. Kept exact-tier to match that intent.)
-      openDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
+    case 'discover': {
+      // Reward-kind 'discover' — open a minion Discover at your CURRENT tier, or at `r.tier` when the reward pins
+      // one (Rune of the Scout → Tier 5, Rune of the Champion → Tier 6). Clamped to the engine's max tier.
+      const t = Math.min(r.tier ?? s.tier, CONFIG.maxTier);
+      openDiscover(s, { kind: 'minion', tier: t, exactTier: t });
       break;
+    }
     case 'dupeFirstBuy':
       s.dupeFirstBuyEachTurn = true; // Dupes: the first minion bought each turn is copied to hand
       break;
@@ -1973,11 +2019,20 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'runeSummoning':
       s.runeSummoning = true; // Rune of Summoning: each spell cast improves your Imps +1/+1
       break;
+    case 'runeScale':
+      s.runeScale = { count: r.count, attack: r.attack, health: r.health }; // each Gold-spend buffs random allies
+      break;
+    case 'runeCopies':
+      // Rune of Copies: arm the per-turn copy — at the start of each shop, copy a random board minion to hand.
+      s.runeCopies = true;
+      break;
     case 'runeEmpowerment':
       s.runeEmpowerment = true; // Rune of Empowerment (Epic): your hero power triggers twice
       break;
     case 'openEpicRuneforge':
-      openEpicRuneforge(s); // present the Epic runeset (buy ONE, re-roll once) — reached only by a quest for now
+      // Deferred: arm it now, open at the START of next turn (advanceCombat) so the forge doesn't interrupt the
+      // turn the quest completed on. Reached only by a quest (Epic Commission) for now.
+      s.pendingEpicRuneforge = true;
       break;
     case 'multi':
       // The Hoard Wakes: several rewards at once — apply each sub-reward through this same path.
@@ -2013,7 +2068,9 @@ function combatEventCount(result: CombatResult, o: { event: QuestObjectiveEvent;
   const t = result.playerQuestTally;
   if (!t) return 0;
   if (o.event === 'attack') return o.tribe ? (t.attackByTribe[o.tribe] ?? 0) : t.attack;
-  if (o.event === 'summonCombat') return o.tribe ? (t.summonCombatByTribe[o.tribe] ?? 0) : t.summonCombat;
+  // A `summon` objective (Forest Grove's "Summon 5 Beasts") counts summons in BOTH phases — recruit summons tick
+  // via the reducer's `advanceQuests`, and combat summons add here (they read the same combat summon tally).
+  if (o.event === 'summonCombat' || o.event === 'summon') return o.tribe ? (t.summonCombatByTribe[o.tribe] ?? 0) : t.summonCombat;
   if (o.event === 'slaughter') return o.tribe ? (t.slaughterByTribe[o.tribe] ?? 0) : t.slaughter;
   if (o.event === 'slaughterKeyword') return t.slaughterKeyword; // The Red Trail — tribe-agnostic
   return 0;
@@ -2077,6 +2134,7 @@ function questCombatMods(s: RunState): QuestCombatMods {
     emptyGraves: f?.emptyGraves,
     runeWarding: f?.runeWarding, // Rune of Warding: SoC give leftmost minion Ward
     runeFury: f?.runeFury, // Rune of Fury: Avenges trigger twice
+    runeRallying: f?.runeRallying, // Rune of Rallying: SoC trigger your Rally (on-attack) effects
   };
 }
 

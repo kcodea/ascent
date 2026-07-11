@@ -2777,3 +2777,30 @@ describe('Rulebreaker quests — double-leftmost-attack, Chimerus, Taurus engrav
     expect(simMods(p, e, 5, { runeFury: true }).playerHandGrants).toEqual(['spiritfire', 'spiritfire']); // Fury: twice
   });
 });
+
+describe('Rune of Rallying (Start of Combat: trigger your rallies)', () => {
+  const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, mods);
+
+  it("fires each Rally minion's on-attack effect once at Start of Combat, before the attack loop", () => {
+    // Philippe (RL) — Rally: deal its Attack (4) to a random enemy, no retaliation. The 3-hp Omen dies at SoC.
+    const p: BoardMinion[] = [{ cardId: 'philippe', attack: 4, health: 7 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 3 }];
+    const withRally = simMods(p, e, 1, { runeRallying: true });
+    const without = simMods(p, e, 1, {});
+    // A Rally SC pip fires only with the rune.
+    expect(withRally.events.some((ev) => ev.type === 'sc' && ev.text === 'Rally')).toBe(true);
+    expect(without.events.some((ev) => ev.type === 'sc' && ev.text === 'Rally')).toBe(false);
+    // The SoC splash kills the Omen before anyone attacks.
+    const firstDeath = withRally.events.findIndex((ev) => ev.type === 'death');
+    const firstAttack = withRally.events.findIndex((ev) => ev.type === 'attack');
+    expect(firstDeath).toBeGreaterThanOrEqual(0);
+    expect(firstAttack === -1 || firstDeath < firstAttack).toBe(true);
+  });
+
+  it('does nothing for a board with no Rally minions', () => {
+    const p: BoardMinion[] = [{ cardId: 'alley', attack: 2, health: 2 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 1 }];
+    expect(simMods(p, e, 1, { runeRallying: true }).events.some((ev) => ev.type === 'sc' && ev.text === 'Rally')).toBe(false);
+  });
+});

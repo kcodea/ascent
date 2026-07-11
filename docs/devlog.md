@@ -5,6 +5,119 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### fix: sequential start-of-turn modals, Forest Grove combat summons, Kennelmaster T3, quest rename
+
+Batch of owner fixes:
+- **Sequential start-of-turn modals.** A turn that lines up several start-of-turn events (a Quest offer, the Epic
+  Runeforge, queued Discovers) now resolves them **one at a time in priority order — Quest > Runeforge >
+  Discover/other** — instead of deferring the lower-priority ones to a later turn. New `openNextStartOfTurnModal`
+  helper drains the queue; it's called from `advanceCombat` and every modal-close path (buyQuest / forge close /
+  Discover resolve). So (e.g.) the Epic Runeforge that lands on a quest turn now waits behind the quest and opens
+  the **same turn** the moment the quest is bought. Replaces the old "hold it back a whole turn" guard.
+- **Forest Grove** now counts **combat** Beast summons, not just recruit ones: `combatEventCount` treats a `summon`
+  objective like `summonCombat` (combat-summoned Beasts — tokens, Reborn — tick the "Summon 5 Beasts" bar).
+- **Kennelmaster** moved **T2 → T3**.
+- **Quest rename:** "Epic Commission" → **"The Epic Runeforge"** (id/art unchanged).
+
+Updated the affected tests (Epic-forge sequencing now buys-the-quest-then-opens-same-turn; a card-Discover
+tier-weight test that had leaned on Kennelmaster being T2 now uses pack/shaper/hoarder) + added a Forest-Grove
+combat-summon test. Live: verified the Quest→Runeforge sequence on a quest turn, the quest's new name, no console
+errors. typecheck / lint / 851 tests / build green.
+
+Owner-confirmed for the next rune batch (captured in the roadmap): **Feasting Bogrot** (Rune of the Feast — T5 Demon
+6/4, EoT consume a Fodder + give its stats to adjacent minions) and **Reconfigured Combinator** (Rune of
+Reconfiguration — new unit + unique art). Build order confirmed: easy → combat effects → deep-engine.
+
+### feat: runes batch 1 — forges offer 4, remove Empowerment, add grant/discover/economy runes
+
+Per the owner's revised rune list: **both Runeforges now offer 4 options** (was 3 — `RUNEFORGE_OFFER = 4` threaded
+through the basic offer, the Epic offer, and the re-roll). **Rune of Empowerment removed** from the pool (its
+`runeEmpowerment`/`reps` plumbing stays dormant, ready if it returns). **Rune of Copies** re-priced 9 → 6.
+
+Added the low-risk, no-new-combat-mechanic runes from the list (the first slice of a multi-batch build-out):
+- **Basic:** Small Fortune (6 Gold — banks to next shop via the standard "Get N Gold" channel), Quick Study (3
+  random spells), Rune of the Scout (Discover a **Tier 5** minion), Spare Parts (4 random Attachments).
+- **Epic:** Rune of the Champion (Discover a **Tier 6** minion), Rune of the Armory (10 random Attachments,
+  hand-cap-safe), Rune of the Gilded Spark (a Goldcrafter now + another in 2 turns).
+
+Two tiny, safe reward-kind extensions powered these: `discover` gained an optional **`tier`** (pins the Discover
+tier, clamped to maxTier), and `grant` gained **`randomFilterCount`** (grant N random filtered minions, not just 1).
+Also fixed the deferred-reward processor to resolve **rune** ids (not just quest ids) so Gilded Spark's "in 2 turns"
+re-grant actually fires. New reward fields are zod-validated.
+
+7 new tests + updated the forge-size assertions (3 → 4) and removed the Empowerment tests. Live: the basic forge
+renders **4** slots with the new runes' correct cost/text, no overflow, no console errors. typecheck / lint / 850
+tests / build green.
+
+The **remaining ~30 runes** from the owner's list (combat Avenge/SoC effects, on-spell/on-summon hooks, card grants,
+and the deep-engine ones — Twin Gilding / Twilight / Inheritance / Reconfiguration / Banking) are sequenced in the
+roadmap for follow-up batches.
+
+### feat: re-batch the runes — Basic forge is now the 14-rune canonical set
+
+Re-batched the runesets per the owner's canonical list. The **Basic Runeforge** is now the full **14 runes**:
+Spellslinging, Warding, Structure, Slaying, Spending, Consumption, Pillaging, Fury, Summoning, Forthcoming, plus
+**Empowerment / Rallying / Scale / Action moved down from Epic**. Tweaks: Forthcoming **cost 3 → 6**; Scale now buffs
+**3** random allies (was 2); Action now buffs the **three** left-most minions (was one); text aligned to the owner's
+wording. The `requiresDoublePower` gate (Empowerment) now applies to **both** forge pools via `runeforgePool`, so
+Empowerment is filtered out of the Runesmith forge (his passive power can't double) — see the open question below.
+
+Rune of **Copies** moved to the **Epic** set (cost 5 → 9, start-of-shop-only — no more immediate copy on buy). The
+Epic forge is otherwise **thin for now** (just Copies): the full designed Epic roster (Stormcalling / Twin Gilding /
+Broodpit / Feast / Frontline Glory / Assembly / Banking / Appraisal / Den Mother / Twilight / Spearline / Scales /
+First Claws / Reconfiguration / Soul Taxes / Rising Graves) is a multi-batch build-out — most need new card grants +
+combat/recruit mechanics — tracked in the roadmap.
+
+Tests updated for the new counts (Basic 14, Empowerment-gated-out-of-Runesmith-forge, Scale ×3, Action ×3-leftmost,
+Copies start-of-shop-only) + Epic tests made pool-size-aware. Live: the basic forge renders the moved/tweaked runes
+with correct cost/text. typecheck / lint / 844 tests / build green.
+
+**Open question for the owner:** Empowerment ("hero power triggers twice") is in the Basic list, but the Basic forge
+is Runesmith's and his power is the *passive* Runeforge — with the double-trigger gate it never actually appears for
+him. Kept the gate (don't offer a dead rune); flagged for a call on whether to ungate it or plan other basic-forge
+heroes.
+
+### feat: 4 designed Epic runes (Rallying / Scale / Copies / Action) + Epic Commission quest art
+
+Replaced the 6 Epic-forge placeholders with **4 designed runes** (Empowerment stays), and wired the **Epic
+Commission** quest art (`q_epic_commission.webp`, converted 1254² PNG → 512² webp). The Epic set is now Empowerment,
+Rallying, Scale, Copies, Action:
+
+- **Rune of Rallying** (6): *Start of Combat — trigger your Rally effects.* New `runeRallying` combat flag → a
+  Start-of-Combat block in `simulate()` fires each player minion's `onAttack` (Rally) effects once (card effects +
+  welded Better Bot / Perfect Core rallies), like a free rally without an attack; not counted toward the `rally`
+  quest tally. Threaded through `questCombatMods`.
+- **Rune of Scale** (5): *Spending Gold gives 2 random allies +2/+2.* New `runeScale` reward + run flag, hooked into
+  the `spendGold` chokepoint — once per Gold-spend transaction (a buy / roll / tier-up / hero power), it buffs
+  `count` random board minions, seeded off the run RNG cursor.
+- **Rune of Copies** (5): *Get a copy of a minion on your board. Get another every turn.* New `runeCopies` reward +
+  flag: grants an immediate copy of a random board minion on purchase, then one more at each turn's shop open
+  (`advanceCombat`), via a fresh-copy `copyRandomBoardMinion` (base card + run auras, like the Dupes copy).
+- **Rune of Action** (8): *End of Turn — give your left-most minion +1/+1 per card played this turn.* New
+  `runeAction` recurring-End-of-Turn effect reading `playedThisTurn`.
+
+New reward kinds (`runeScale`, `runeCopies`) + combat flag (`runeRallying`) + recurring effect (`runeAction`) are
+zod-validated. **6 new tests** (Scale buffs on spend; Rallying flag armed + the SoC rally fires before the attack
+loop and no-ops without a Rally minion; Copies grants on buy + each turn; Action scales with cards played). Live:
+all 5 Epic runes render with correct cost/text; the Epic Commission quest card shows its new art. typecheck / lint /
+845 tests / build green. Follow-up: Epic **rune** art (the runes fall back to the sigil glyph for now).
+
+### feat: Epic Commission — a greater quest that opens the Epic Runeforge next turn
+
+Wired the first access path to the Epic Runeforge: **Epic Commission**, a **neutral greater quest** (wave 8,
+objective "Spend 25 Gold", reward `openEpicRuneforge`) — the first neutral quest at the greater tier, so it fills
+the previously-empty build-agnostic slot and is offered to any hero. Its reward is **deferred**: completing it arms
+a new `pendingEpicRuneforge` flag rather than opening the forge mid-turn; `advanceCombat` then opens the Epic forge
+at the **start of the next turn** (reusing the same offer/buy/skip/reroll machinery + Epic UI). A guard holds the
+forge back a turn if that next turn is already showing a quest offer or the Runesmith forge, so two blocking shops
+never stack (the flag stays armed until a clear turn). Added the reward's display text ("Visit the Epic Runeforge at
+the start of next turn").
+
+Verified: 4 new tests (quest shape; completing it arms-but-doesn't-open; the armed forge opens next turn + disarms;
+holds back on a quest-offer turn). Live: on a throwaway run, arming the flag and resolving combat opens the violet
+Epic forge on the next turn with its 3 Epic runes, flag disarmed, no console errors. typecheck / lint / 839 tests /
+build green.
+
 ### fix(ui): combat "vanishing lunge" — GSAP lag-smoothing so a frame hitch can't jump the swing
 
 Players reported combat moments occasionally "resolving instantly" — a lunge doesn't visibly play but its

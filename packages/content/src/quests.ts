@@ -50,6 +50,8 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_odd_jobs', name: 'Odd Jobs', tribe: 'neutral', tier: 'lesser', objective: { event: 'buy', count: 6 }, reward: { kind: 'gainGold', amount: 10 } },
 
   // ── Greater (wave 8) ──
+  // NEUTRAL greater slot — build-agnostic: spend Gold to earn a trip to the Epic Runeforge (opens next turn).
+  { id: 'q_epic_commission', name: 'The Epic Runeforge', tribe: 'neutral', tier: 'greater', objective: { event: 'spendGold', count: 25 }, reward: { kind: 'openEpicRuneforge' } },
   { id: 'q_apex_hunt', name: 'Apex Hunt', tribe: 'beast', tier: 'greater', objective: { event: 'slaughter', count: 4, tribe: 'beast' }, reward: { kind: 'grant', cards: ['badgington'], grantKeywords: ['W', 'DS'] } },
   { id: 'q_pack_mentality', name: 'Pack Mentality', tribe: 'beast', tier: 'greater', objective: { event: 'summonCombat', count: 7, tribe: 'beast' }, reward: { kind: 'scalingTribeAura', tribe: 'beast', attack: 3, health: 1, per: 5, event: 'summonCombat', stepAttack: 3, stepHealth: 1 } },
   { id: 'q_trophy_den', name: 'Trophy Den', tribe: 'beast', tier: 'greater', objective: { event: 'attack', count: 13, tribe: 'beast' }, reward: { kind: 'grant', cards: ['trophystalker'] } },

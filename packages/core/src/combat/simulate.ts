@@ -1326,6 +1326,36 @@ export function simulate(
       fireOwnDeathrattles(minion); // fires once + once per Sylus (golden ×2)
     }
   }
+  // Rune of Rallying: at Start of Combat, trigger each of your minions' Rally (on-attack) effects once — a free
+  // rally without an attack. Covers card `onAttack` effects on Rally (RL) minions PLUS welded Better Bot
+  // (`rallyMechAtk`) / Perfect Core (`rallySpellWeld`) rallies. Fires after the normal SC casts so it sees the
+  // settled board. Not counted toward the `rally` quest tally (it's an effect trigger, not an attack).
+  if (questMods.runeRallying) {
+    for (const minion of [...boards.player]) {
+      if (minion.dead || minion.health <= 0) continue;
+      const cardRally = minion.keywords.includes('RL') && minion.effects.some((e) => e.on === 'onAttack');
+      const mechRally = (minion.rallyMechAtk ?? 0) > 0;
+      const spellRally = (minion.rallySpellWeld ?? 0) > 0;
+      if (!cardRally && !mechRally && !spellRally) continue;
+      nextStep();
+      emit({ type: 'sc', source: minion.uid, text: 'Rally' });
+      if (cardRally) {
+        for (const effect of minion.effects) {
+          if (effect.on !== 'onAttack') continue;
+          FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
+        }
+      }
+      if (mechRally) {
+        for (const m of boards.player) {
+          if (!m.dead && m.health > 0 && m !== minion && (m.tribe === 'mech' || m.tribe2 === 'mech')) ctx.buff(m, minion.rallyMechAtk!, 0, 'Better Bot');
+        }
+      }
+      if (spellRally) {
+        const pool = ctx.allCards().filter((c) => c.spell && !c.token);
+        if (pool.length > 0) for (let i = 0; i < minion.rallySpellWeld!; i++) ctx.grantToHand(ctx.rng.pick(pool).id, minion.side, minion.uid);
+      }
+    }
+  }
 
   // --- First attacker: more living minions goes first; tie → seeded (A.3 step 2).
   //     Pre-emptive Assault overrides the whole rule: the player strikes first, period (one fight —

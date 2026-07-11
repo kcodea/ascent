@@ -1288,6 +1288,19 @@ export function simulate(
       }
     }
   }
+  // Rune of Twilight: your Start-of-Combat effects trigger an ADDITIONAL time — the "End of Turn" echo. These
+  // effects run in the combat context (summons, auras, engraves), so the extra trigger fires here (a second
+  // Start-of-Combat pass for YOUR board) rather than during the recruit End of Turn.
+  if (questMods.runeTwilight) {
+    for (const minion of [...boards.player]) {
+      if (minion.dead || minion.health <= 0) continue;
+      for (const effect of minion.effects) {
+        if (effect.on !== 'startOfCombat') continue;
+        const fn = FACTORIES[effect.do];
+        if (fn) { nextStep(); fn(ctx, minion, effect.params ?? {}, {}); }
+      }
+    }
+  }
   // Shared Circuit: at Start of Combat, give up to N friendly Mechs (leftmost first, skipping any already
   // shielded) a Divine Shield (Ward). Mirrors the shield-grant used elsewhere (divineShield + DS + shieldUp).
   if ((questMods.sharedCircuitWard ?? 0) > 0) {

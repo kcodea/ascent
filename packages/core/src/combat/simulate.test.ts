@@ -2884,3 +2884,15 @@ describe('Combat runes batch 6 (First Claws / Packcraft / Inheritance / Salvage)
     expect((r.playerHandGrants ?? []).length).toBeGreaterThan(0); // an Attachment carried to hand
   });
 });
+
+describe('Rune of Twilight (Start-of-Combat effects trigger an extra time)', () => {
+  const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, mods);
+
+  it("re-fires your minions' Start-of-Combat effects (Kennelmaster's Beast aura lands twice)", () => {
+    const p: BoardMinion[] = [{ cardId: 'kennel', attack: 1, health: 4 }, { cardId: 'gnash', attack: 5, health: 8 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 30 }];
+    const buffs = (r: ReturnType<typeof simMods>) => r.events.filter((ev) => ev.type === 'buff').length;
+    expect(buffs(simMods(p, e, 1, { runeTwilight: true }))).toBeGreaterThan(buffs(simMods(p, e, 1, {})));
+  });
+});

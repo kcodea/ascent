@@ -51,6 +51,29 @@ a dedicated neutral preset.
 
 ## 2026-07-11 (session 31)
 
+### feat: sourced "spell cast" SFX when a spell is played from hand
+
+**What:** replaced the synth-only `sfx.castSpell` placeholder with a real sourced clip (owner-provided
+`spellcast final.mp3` → `packages/ui/src/audio/castspell.mp3`). `castSpell` now plays the decoded sample and
+keeps the old triangle-slide tone as the fallback until it decodes / if the file is absent — the exact pattern
+every other sourced clip uses (`playSample('castspell', sampleVol.castspell)` first, synth after). Added a
+`castspell: 0.68` default gain to `SAMPLE_VOL_DEFAULTS` and a preview entry so it appears in the DEV SFX mixer
+for by-ear level tuning.
+
+**Mix pass (rode along):** the owner ear-tuned the whole bank around the new (loud) spell-cast clip via the DEV
+mixer's "Copy values" and pasted them back as shipped defaults. Beyond `castspell`, 6 levels moved: `cardlanding`
+0.4→0.56, `smack` 0.08→0.06, `divineshieldbreak` 0.26→0.21, `rebornshatter` 0.5→0.42, `rebornsummon` 0.5→0.49,
+`skullburst` 0.04→0.06. **Note:** `skullburst` / bank-wide mix defaults are also being tuned on other in-flight
+branches — reconcile at merge.
+
+**Where it fires:** unchanged trigger — `store.ts`'s `play` case already split minion-landing vs spell-cast
+(`CARD_INDEX[cardId].spell → sfx.castSpell()`, else `sfx.play()`), so this sounds on any spell cast from hand
+and never on a minion. The card's own `cardVoice` still layers over it as before.
+
+**Verified:** `npm run typecheck && npm run lint && npm run build:web` all green; confirmed the mp3 bundles as
+a hashed asset (`castspell-*.mp3`). Audible playback not auto-checked — the headless preview gates sound when
+backgrounded (`isHidden()`); left for an in-tab ear check.
+
 ### refactor: replace the Pixi Taunt bulwark with a static grey card border (keep the sound)
 
 **What:** removed the entire Pixi Taunt-bulwark aura system — the silver-metal heater shield that rendered
@@ -87,6 +110,7 @@ border would.
 DOM probe on the dev server confirmed the rule loads and `getComputedStyle('.archbox', '::after').boxShadow`
 resolves to the grey+dark ring on a `.card.taunt`; no console errors. The headless preview can't screenshot
 (degenerate viewport) — the exact grey shade / thickness is a one-line tweak for an in-tab eyeball.
+
 ### tweak(ui): longer pause after an Echo (Deathrattle) / Rise before its consequence
 
 Follow-up dial on [#326](https://github.com/kcodea/ascent/pull/326): the owner still read the Echo→summon gap

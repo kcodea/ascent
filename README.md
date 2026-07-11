@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Spell-cast sound.** Playing a spell from hand now fires a sourced "spell cast" clip (distinct from a minion
+  landing), with the old synth blip kept as the decode/absent fallback and a level in the DEV SFX mixer.
 - **Taunt is now a grey border.** Retired the Pixi silver-bulwark aura that drew behind Taunt minions; a Taunt
   card now wears a thick static grey border instead (the sound cue is unchanged). Simpler, cheaper, and reads
   at a glance in every row.

@@ -425,7 +425,9 @@ export type QuestReward =
   // `randomFilter` conjures a random buyable MINION matching a keyword/effect class (a Shout=Battlecry, an
   // End-of-Turn, an Echo=Deathrattle, a Rally, or an Attachment=Magnetic) — ≤ current tier, or EXACTLY current
   // tier when `randomFilterExactTier` (fallback ≤ tier if none). Powers the Mech/neutral "get a random X minion".
-  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterCount?: number; randomFilterExactTier?: boolean; cards?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
+  // `randomTier` grants `randomCount` random minions of EXACTLY that Tier (any of your tribes / neutral) — Rune of
+  // the Pair ("2 random Tier 4 minions").
+  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterCount?: number; randomFilterExactTier?: boolean; randomTier?: number; cards?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
   | { kind: 'shoutDouble'; count: number }
   // A persistent "your <tribe> have +A/+H wherever they are" run aura (Den Marker) — folds into the tribe's
   // buy-time aura channel so current AND future minions of the tribe carry it (like Squirl Scout's board buff).
@@ -448,7 +450,8 @@ export type QuestReward =
   // `runeSpending` (Rune of Spending): End of Turn — +1 max Gold, and buff your leftmost minion +N/+N where N =
   // the Gold you spent this turn.
   // `runeAction` (Rune of Action): End of Turn — give your leftmost minion +1/+1 for every card you played this turn.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' }
+  // `triggerLeftmostEcho` (Rune of the Reliquary): End of Turn — fire your leftmost minion's Echo (Deathrattle).
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -460,6 +463,8 @@ export type QuestReward =
   | { kind: 'goldPouchValue'; value: number }
   // Rune of Summoning: each spell you cast permanently improves your Imps +1/+1 wherever they are.
   | { kind: 'runeSummoning' }
+  // Rune of Kindling: each spell you cast gives your leftmost minion +3/+3.
+  | { kind: 'runeKindling' }
   // Rune of Scale (Epic): every time you spend Gold, give `count` random board minions +attack/+health.
   | { kind: 'runeScale'; count: number; attack: number; health: number }
   // Rune of Copies (Epic): copy a random board minion to your hand now, and again at the start of every turn.
@@ -470,6 +475,10 @@ export type QuestReward =
   // Open the EPIC Runeforge — a quest reward that presents the Epic runeset (a random few of `EPIC_RUNES`) to
   // buy ONE, exactly like the Runesmith's forge but reachable by any hero via a quest.
   | { kind: 'openEpicRuneforge' }
+  // Schedule a Runeforge visit at the start of a future turn (any hero). `forge` picks the runeset; `onWave` opens
+  // it on that absolute wave (Rune of the Epic Forge → turn 9), else it opens NEXT turn (The Runeforge quest);
+  // `gold` is granted that turn. Buying/skipping this forge never spends a hero-power charge.
+  | { kind: 'scheduleRuneforge'; forge: 'basic' | 'epic'; onWave?: number; gold?: number }
   // Undead: `gainGold` grants Gold immediately on completion (Bone Ledger's "Get 10 Gold").
   | { kind: 'gainGold'; amount: number }
   // Undead Echo rewards: `always` grants a permanent extra Echo (Deathrattle) trigger (Funeral Engine, stacks

@@ -55,7 +55,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_pillaging',
     name: 'Rune of Pillaging',
-    cost: 8,
+    cost: 6,
     text: 'Get a **Pillager**. Your **Gold Pouches** are worth **2 Gold** for the rest of the run.',
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['pillager'] }, { kind: 'goldPouchValue', value: 2 }] },
   },
@@ -98,9 +98,43 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_action',
     name: 'Rune of Action',
-    cost: 8,
+    cost: 6,
     text: '**End of Turn:** give your **three left-most minions +1/+1** for each card you played this turn.',
     reward: { kind: 'recurringEndOfTurn', effect: 'runeAction' },
+  },
+  {
+    id: 'rune_epic_forge',
+    name: 'Rune of the Epic Forge',
+    cost: 3,
+    text: 'Visit the **Epic Forge** on turn 9.',
+    reward: { kind: 'scheduleRuneforge', forge: 'epic', onWave: 9 },
+  },
+  {
+    id: 'rune_kindling',
+    name: 'Rune of Kindling',
+    cost: 4,
+    text: 'Whenever you cast a spell, give your **left-most minion +3/+3**.',
+    reward: { kind: 'runeKindling' },
+  },
+  {
+    id: 'rune_pair',
+    name: 'Rune of the Pair',
+    cost: 2,
+    text: 'Get **2 random Tier 4 minions**.',
+    reward: { kind: 'grant', randomTier: 4, randomCount: 2 },
+  },
+  {
+    id: 'rune_menagerie',
+    name: 'Rune of the Menagerie',
+    cost: 5,
+    text: 'Get a random **Beast, Demon, Dragon, Mech, and Undead**.',
+    reward: { kind: 'multi', rewards: [
+      { kind: 'grant', randomTribe: 'beast', randomCount: 1 },
+      { kind: 'grant', randomTribe: 'demon', randomCount: 1 },
+      { kind: 'grant', randomTribe: 'dragon', randomCount: 1 },
+      { kind: 'grant', randomTribe: 'mech', randomCount: 1 },
+      { kind: 'grant', randomTribe: 'undead', randomCount: 1 },
+    ] },
   },
   // ── Batch 1 additions (grants / discovers / economy — no new combat mechanics) ──
   {
@@ -152,6 +186,14 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: '**Start of shop:** get a copy of a random minion on your board.',
     reward: { kind: 'runeCopies' },
+  },
+  {
+    id: 'rune_reliquary',
+    name: 'Rune of the Reliquary',
+    cost: 7,
+    epic: true,
+    text: '**End of Turn:** trigger your left-most **Echo**.',
+    reward: { kind: 'recurringEndOfTurn', effect: 'triggerLeftmostEcho' },
   },
   // ── Batch 1 additions (grants / discovers — no new combat mechanics) ──
   {

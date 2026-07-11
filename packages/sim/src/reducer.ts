@@ -757,7 +757,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       (s.ownedRunes ??= []).push(rune.id);
       // The Runesmith's forge is a once-per-game HERO POWER; the quest-opened Epic forge is not — leave the
       // hero-power charge alone for it.
-      if (!s.runeforgeEpic) s.heroPowerSpent = true;
+      if (!s.runeforgeEpic && !s.runeforgeNoCharge) s.heroPowerSpent = true;
       closeRuneforge(s);
       checkTriples(s); // a rune-granted copy might complete a triple (opens its own Discover)
       openNextStartOfTurnModal(s); // forge closed — open the next queued start-of-turn modal (unless a Discover just opened)
@@ -767,7 +767,7 @@ function reduceCore(state: RunState, action: Action): RunState {
     case 'skipRuneforge': {
       // Leave the Runeforge without buying (e.g. you can't afford any) — closes it for the run.
       if (!s.runeforgeOffer) return state;
-      if (!s.runeforgeEpic) s.heroPowerSpent = true;
+      if (!s.runeforgeEpic && !s.runeforgeNoCharge) s.heroPowerSpent = true;
       closeRuneforge(s);
       openNextStartOfTurnModal(s); // forge closed — open the next queued start-of-turn modal
       return s;
@@ -1613,6 +1613,9 @@ function advanceCombat(s: RunState): void {
   // offer or the Runesmith forge (set above) shows first; the Epic Runeforge + any queued Discovers wait their
   // turn and open as each higher modal closes (see openNextStartOfTurnModal, called from every modal-close path).
   s.phase = 'recruit';
+  // Rune of the Epic Forge: it armed the Epic Runeforge for THIS wave — turn it into a pending open, which the
+  // start-of-turn sequencing below presents (behind any quest offer / Runesmith forge).
+  if (s.epicForgeWave != null && s.wave >= s.epicForgeWave) { s.pendingEpicRuneforge = true; s.epicForgeWave = undefined; }
   openNextStartOfTurnModal(s);
   // Gravetwin: if it survived the last combat, fire its copied Echo now (start of the shop). Then clear the
   // survivor list so it fires exactly once per fight.
@@ -1771,6 +1774,13 @@ function grantRandomTribeMinion(s: RunState, tribe: Tribe, reps: number): void {
   conjureToHand(s, pool, reps);
 }
 
+/** Conjure `reps` random buyable minions of EXACTLY `tier` (in your tribes / neutral) — Rune of the Pair's
+ *  "2 random Tier 4 minions". */
+function grantRandomTierMinion(s: RunState, tier: number, reps: number): void {
+  const pool = BUYABLE_CARDS.filter((c) => c.tier === tier && (c.tribe === 'neutral' || s.tribes.includes(c.tribe)));
+  conjureToHand(s, pool, reps);
+}
+
 /** Whether a card matches a reward's minion "class" filter (a Shout=Battlecry, an End-of-Turn, an Echo=Deathrattle,
  *  a Rally=RL keyword, or an Attachment=Magnetic). Shared by the filtered grant + the recurring-attachment EoT. */
 function matchesFilter(c: (typeof BUYABLE_CARDS)[number], filter: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'): boolean {
@@ -1834,8 +1844,19 @@ function drawRunes(ids: string[], n: number, rng: ReturnType<typeof makeRng>, av
  *  normal forge's stream. */
 export function openEpicRuneforge(s: RunState): void {
   s.runeforgeEpic = true;
+  s.runeforgeNoCharge = true; // reached by a quest/rune, not the hero power
   s.runeforgeRerolled = undefined;
   s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 2)));
+}
+
+/** Open the BASIC Runeforge from a quest/rune (The Runeforge quest), granting `gold` this turn. Uses the normal
+ *  runeset but is flagged `runeforgeNoCharge` (it's not the Runesmith hero power, so buying spends no charge). */
+function openScheduledBasicRuneforge(s: RunState, gold = 0): void {
+  s.runeforgeEpic = undefined;
+  s.runeforgeNoCharge = true;
+  s.runeforgeRerolled = undefined;
+  s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST, 3)));
+  if (gold > 0) s.embers += gold;
 }
 
 /** Rune of Copies: conjure a fresh copy of a RANDOM board minion into the hand (base card + run auras, like the
@@ -1849,6 +1870,7 @@ function copyRandomBoardMinion(s: RunState): void {
 function closeRuneforge(s: RunState): void {
   s.runeforgeOffer = undefined;
   s.runeforgeEpic = undefined;
+  s.runeforgeNoCharge = undefined;
   s.runeforgeRerolled = undefined;
 }
 
@@ -1860,6 +1882,7 @@ function closeRuneforge(s: RunState): void {
 function openNextStartOfTurnModal(s: RunState): void {
   if (s.questOffer || s.runeforgeOffer || s.discover || s.chooseOne || s.pendingTarget) return; // one modal at a time
   if (s.pendingEpicRuneforge) { openEpicRuneforge(s); s.pendingEpicRuneforge = false; return; } // Runeforge before Discovers
+  if (s.pendingBasicForge) { const g = s.pendingBasicForge.gold ?? 0; s.pendingBasicForge = undefined; openScheduledBasicRuneforge(s, g); return; }
   if (s.discoverQueue?.length) openDiscover(s, s.discoverQueue.shift()!); // then any queued start-of-turn Discovers
 }
 
@@ -1873,6 +1896,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       if (r.randomTribe && (r.randomCount ?? 0) > 0) grantRandomTribeMinion(s, r.randomTribe, r.randomCount!);
       if ((r.randomSpell ?? 0) > 0) conjureToHand(s, SPELL_CARDS.filter((c) => c.tier <= s.tier), r.randomSpell!); // Hoard Spark's random spell
       if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, r.randomFilterCount ?? 1, r.randomFilterExactTier); // "N random Shout/Echo/Rally/Attachment minions"
+      if (r.randomTier) grantRandomTierMinion(s, r.randomTier, r.randomCount ?? 1); // Rune of the Pair — N random Tier-K minions
       for (const id of r.cards ?? []) {
         const before = s.hand.length;
         conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
@@ -2019,6 +2043,9 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'runeSummoning':
       s.runeSummoning = true; // Rune of Summoning: each spell cast improves your Imps +1/+1
       break;
+    case 'runeKindling':
+      s.runeKindling = true; // Rune of Kindling: each spell cast gives your leftmost minion +3/+3
+      break;
     case 'runeScale':
       s.runeScale = { count: r.count, attack: r.attack, health: r.health }; // each Gold-spend buffs random allies
       break;
@@ -2031,8 +2058,15 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'openEpicRuneforge':
       // Deferred: arm it now, open at the START of next turn (advanceCombat) so the forge doesn't interrupt the
-      // turn the quest completed on. Reached only by a quest (Epic Commission) for now.
+      // turn the quest completed on. Reached by The Epic Runeforge quest.
       s.pendingEpicRuneforge = true;
+      break;
+    case 'scheduleRuneforge':
+      // Arm a Runeforge visit for a future turn's start (opened by advanceCombat's start-of-turn sequencing).
+      // `onWave` pins the Epic forge to an absolute wave (Rune of the Epic Forge → 9); otherwise it's next turn.
+      if (r.onWave != null) s.epicForgeWave = r.onWave;
+      else if (r.forge === 'epic') s.pendingEpicRuneforge = true;
+      else s.pendingBasicForge = { gold: r.gold };
       break;
     case 'multi':
       // The Hoard Wakes: several rewards at once — apply each sub-reward through this same path.

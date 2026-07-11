@@ -413,9 +413,17 @@ export interface RunState {
   /** The open forge is the EPIC Runeforge (drawn from `EPIC_RUNES`, opened by a quest — not the Runesmith's
    *  hero-power forge). Drives the reroll pool, the "Epic" UI label, and skips consuming the hero-power charge. */
   runeforgeEpic?: boolean;
-  /** A completed quest (Epic Commission) has armed the Epic Runeforge — it opens at the START of the next turn
+  /** A completed quest (The Epic Runeforge) has armed the Epic Runeforge — it opens at the START of the next turn
    *  (`advanceCombat`), not immediately, so the forge modal doesn't interrupt the turn it completed on. */
   pendingEpicRuneforge?: boolean;
+  /** The Runeforge quest armed a BASIC Runeforge visit for next turn (any hero), granting `gold` that turn. */
+  pendingBasicForge?: { gold?: number };
+  /** Rune of the Epic Forge: open the Epic Runeforge when the run reaches this wave (turn 9). */
+  epicForgeWave?: number;
+  /** The open forge is quest-/rune-scheduled (not the Runesmith hero power) — buying/skipping spends no charge. */
+  runeforgeNoCharge?: boolean;
+  /** Rune of Kindling: each spell you cast gives your leftmost minion +3/+3. */
+  runeKindling?: boolean;
   /** Rune ids bought this run — shown as permanent run-buff badges (above the hero panel). */
   ownedRunes?: string[];
   /** Rune of Spellslinging: every `spellDripPer` Gold spent, get a random spell. `spellDripTick` carries the
@@ -506,7 +514,7 @@ export interface RunState {
   lastSurvivorCardIds?: string[];
   /** Recurring End-of-Turn effects granted by quests (Echoing Roar → re-fire leftmost Shout; The Hoard Wakes →
    *  conjure a random Shout minion). Fired every End of Turn for the rest of the run. Absent = none. */
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho')[];
   /** A pending Discover offer (3 card ids) — pick one to hand. */
   discover?: string[];
   /** Disco Dan's Setlist: the shop tier the CURRENTLY-open Discover's pick will be locked until (its

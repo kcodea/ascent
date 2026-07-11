@@ -2652,6 +2652,8 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   state.lastSpellCastId = spellDef.id; // Steward of Spells copies the most recent spell cast
   // Rune of Summoning: each spell cast permanently improves your Imps +1/+1 (run-wide, via the Imp enchant).
   if (state.runeSummoning) buffImpsRunWide(state, 1, 1, 'Rune of Summoning');
+  // Rune of Kindling: each spell cast gives your leftmost board minion +3/+3 (baked onto that minion).
+  if (state.runeKindling && state.board[0]) addBuff(state.board[0], 'Rune of Kindling', 3, 3);
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;
@@ -2715,7 +2717,7 @@ export function applyEndOfTurn(state: RunState): void {
 /** One quest-granted recurring End-of-Turn effect. `triggerLeftmostShout`: re-fire your leftmost Battlecry
  *  minion's Battlecry (Echoing Roar). `grantRandomShout`: conjure a random Battlecry minion (≤ tavern tier) to
  *  hand (The Hoard Wakes). `grantRandomAttachments`: conjure 2 random Magnetic minions to hand (Blueprint Cache). */
-function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction'): void {
+function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho'): void {
   if (effect === 'triggerLeftmostShout') {
     const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
     if (leftmost) replayBattlecry(state, leftmost);
@@ -2731,6 +2733,10 @@ function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' |
     // Rune of Action: give your THREE leftmost minions +1/+1 for every card you played this turn.
     const n = (state.playedThisTurn ?? []).length;
     if (n > 0) for (const c of state.board.slice(0, 3)) addBuff(c, 'Rune of Action', n, n);
+  } else if (effect === 'triggerLeftmostEcho') {
+    // Rune of the Reliquary: fire your leftmost minion's Echo (Deathrattle) out of combat.
+    const leftmost = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
+    if (leftmost) fireRecruitDeathrattles(makeContext(state), leftmost);
   } else {
     conjureToHand(state, BUYABLE_CARDS.filter((c) => c.tier <= state.tier && hasBattlecry(c)), 1);
   }

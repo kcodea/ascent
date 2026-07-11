@@ -5,6 +5,34 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### feat: runes batch 2 — Kindling / Pair / Menagerie / Reliquary + forge-scheduling (quest + Epic Forge rune)
+
+Second slice of the rune build-out (the recruit-phase tier), plus cost syncs and a new quest:
+- **Cost syncs:** Rune of Pillaging 8 → 6, Rune of Action 8 → 6.
+- **Rune of Kindling** (basic 4): each spell cast gives your left-most minion **+3/+3** (a `castSpell` hook, `runeKindling`).
+- **Rune of the Pair** (basic 2): **2 random Tier-4 minions** — new grant option `randomTier` + `grantRandomTierMinion`.
+- **Rune of the Menagerie** (basic 5): one random **Beast/Demon/Dragon/Mech/Undead** — a `multi` of per-tribe grants.
+- **Rune of the Reliquary** (epic 7): **End of Turn — trigger your left-most Echo** (new `triggerLeftmostEcho`
+  recurring-EoT effect, fires the leftmost Deathrattle out of combat).
+- **Forge scheduling** (new `scheduleRuneforge` reward + `openNextStartOfTurnModal` integration):
+  - **"The Runeforge"** quest (lesser neutral, "Buy 7 minions") → *Start of next turn, visit the (basic) Runeforge
+    and gain 4 Gold that turn.*
+  - **Rune of the Epic Forge** (basic 3) → *Visit the Epic Forge on turn 9* (`epicForgeWave`).
+  - A scheduled forge is flagged **`runeforgeNoCharge`** so buying/skipping it never spends a hero-power charge —
+    critical for a non-Runesmith hero (e.g. Indy's once-per-game Gild stays intact).
+
+New reward kinds (`runeKindling`, `scheduleRuneforge`) + grant `randomTier` + EoT `triggerLeftmostEcho` are
+zod-validated. 8 new tests (each rune's effect; the scheduled basic forge opens next turn + grants Gold + spends no
+charge; the Epic Forge rune opens on turn 9). Live: all four new basic runes render with correct cost/text; buying
+the Epic Forge rune then reaching turn 9 opens the Epic forge; The Runeforge quest shows its reward text. typecheck /
+lint / 858 tests / build green.
+
+**Deferred to later batches** (roadmap): Rune of the Second Path (needs a Discover-from-a-fixed-pool mechanism), all
+combat-effect runes (Avenge / Start-of-Combat: Broodpit / Appraisal / Spearline / First Claws / Rising Graves /
+Inheritance / Packcraft / Salvage / Warden / Banking / Twilight / Twin Gilding), the on-spell **Scales** (needs a
+Dragon combat-aura channel), **Bartering** (sell-value override), and the new-card grants (Feasting Bogrot / the
+Combinator / Stormcalling / Frontline Glory / Assembly / Den Mother / Soul Taxes — need a "grant Gilded card" option).
+
 ### fix: sequential start-of-turn modals, Forest Grove combat summons, Kennelmaster T3, quest rename
 
 Batch of owner fixes:

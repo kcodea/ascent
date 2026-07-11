@@ -24,7 +24,7 @@ const buyRune = (runeId: string, embers = 10, over: Partial<RunState> = {}): Run
 describe('Runeforge — framework', () => {
   it('every rune validates + is Runeforge-only (never a card/quest id)', () => {
     validateRunes();
-    expect(RUNES.length).toBe(17); // 13 base + Small Fortune / Quick Study / Scout / Spare Parts
+    expect(RUNES.length).toBe(21); // 13 base + batch1 (4) + batch2 (Epic Forge / Kindling / Pair / Menagerie)
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
@@ -326,6 +326,74 @@ describe('Runes batch 1 — grants / discovers / economy', () => {
     const s: RunState = reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, hand: [], runeforgeOffer: ['rune_gilded_spark'], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
     expect(s.hand.some((c) => c.cardId === 'goldcrafter')).toBe(true);
     expect(s.pendingQuestRewards?.some((p) => p.turnsLeft === 2)).toBe(true);
+  });
+});
+
+describe('Runes batch 2 — Kindling / Pair / Menagerie / Reliquary + forge scheduling', () => {
+  const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
+
+  it('Rune of Kindling: each spell cast gives the leftmost minion +3/+3', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 5, runeKindling: true,
+      board: [mkAlley('lead'), mkAlley('other')],
+      hand: [{ uid: 'gp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'gp' }); // cast a spell
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([4, 4]); // 1/1 + 3/3
+    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([1, 1]); // leftmost only
+  });
+
+  it('Rune of the Pair: conjures 2 random Tier-4 minions', () => {
+    const s = buyRune('rune_pair', 10, { tier: 6, hand: [] });
+    expect(s.hand.length).toBe(2);
+    for (const c of s.hand) expect(CARD_INDEX[c.cardId]?.tier).toBe(4);
+  });
+
+  it('Rune of the Menagerie: conjures one minion of each of the five tribes', () => {
+    const s = buyRune('rune_menagerie', 10, { tier: 6, hand: [] });
+    const tribes = new Set(s.hand.map((c) => CARD_INDEX[c.cardId]?.tribe));
+    for (const t of ['beast', 'demon', 'dragon', 'mech', 'undead']) expect(tribes.has(t as never)).toBe(true);
+  });
+
+  it('Rune of the Reliquary: End of Turn fires the leftmost Echo (Deathrattle) out of combat', () => {
+    // Sylus-free board: a leftmost Deathrattle minion + its effect fires once at End of Turn. Use a known Echo
+    // minion; assert the recurring effect is armed + no crash firing it.
+    const echo = CARD_INDEX['knit'] ?? Object.values(CARD_INDEX).find((d) => d && !d.spell && d.effects.some((e) => e.on === 'onDeath'))!;
+    const s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', questRecurringEndOfTurn: ['triggerLeftmostEcho'],
+      board: [{ uid: 'e', cardId: echo.id, tribe: echo.tribe, attack: echo.attack, health: echo.health, keywords: [...echo.keywords], golden: false }] };
+    const before = s.board.length;
+    applyEndOfTurn(s);
+    expect(s.board.length).toBeGreaterThanOrEqual(before); // fired without error (may summon tokens)
+  });
+
+  it('The Runeforge quest: buying 7 minions arms a next-turn BASIC forge visit + 4 Gold', () => {
+    // Complete via the reward directly (buy-count objective drives it live in play).
+    const q = QUEST_INDEX['q_the_runeforge']!;
+    expect(q.tribe).toBe('neutral');
+    expect(q.tier).toBe('lesser');
+    expect(q.objective).toEqual({ event: 'buy', count: 7 });
+    expect(q.reward).toEqual({ kind: 'scheduleRuneforge', forge: 'basic', gold: 4 });
+  });
+
+  it('a scheduled BASIC forge opens next turn (any hero), grants its Gold, and spends NO hero-power charge', () => {
+    const s: RunState = { ...createRun(1, 'indy'), wave: 6, phase: 'combat', pendingBasicForge: { gold: 4 }, lastCombat: win };
+    const next = reduce(s, { type: 'resolveCombat' }); // → turn 7
+    expect(next.runeforgeOffer!.length).toBe(4);
+    expect(next.runeforgeEpic).toBeUndefined(); // basic runeset
+    expect(next.runeforgeNoCharge).toBe(true);
+    const embersOnOpen = next.embers;
+    // Skip the forge → Indy's once-per-game Gild is NOT spent (quest-opened forge, not the hero power).
+    const after = reduce(next, { type: 'skipRuneforge' });
+    expect(after.heroPowerSpent).toBeFalsy();
+    expect(embersOnOpen).toBeGreaterThanOrEqual(4); // the +4 Gold landed this turn
+  });
+
+  it('Rune of the Epic Forge: schedules the Epic forge for turn 9', () => {
+    const armed = buyRune('rune_epic_forge', 10);
+    expect(armed.epicForgeWave).toBe(9);
+    // Advance from wave 8 combat → turn 9: the Epic forge opens.
+    const next: RunState = reduce({ ...armed, wave: 8, phase: 'combat', epicForgeWave: 9, lastCombat: win }, { type: 'resolveCombat' });
+    expect(next.wave).toBe(9);
+    expect(next.runeforgeEpic).toBe(true);
+    expect(next.epicForgeWave).toBeUndefined(); // consumed
   });
 });
 

@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Taunt is now a grey border.** Retired the Pixi silver-bulwark aura that drew behind Taunt minions; a Taunt
+  card now wears a thick static grey border instead (the sound cue is unchanged). Simpler, cheaper, and reads
+  at a glance in every row.
 - **Rally units flash gold on the wind-up.** The yellow Rally trigger pulse (wind-up pause + gold medallion
   ring) now fires for **every** rally unit — previously it only ever showed on Deathsayer — and it replays on
   every swing, not just the first Rally of a combat. Fixed the trigger gate (any `RL` attacker) and a

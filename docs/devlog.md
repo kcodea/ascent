@@ -5,6 +5,42 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-11 (session 31)
 
+### refactor: replace the Pixi Taunt bulwark with a static grey card border (keep the sound)
+
+**What:** removed the entire Pixi Taunt-bulwark aura system — the silver-metal heater shield that rendered
+BEHIND each Taunt minion on its own back FX layer — and replaced the signifier with a **static grey border**
+around the card. The Taunt **sound effect is untouched** (`sfx.taunt()` still fires from `store.ts` when a
+minion gains Taunt).
+
+**Why:** the owner wanted a simpler, cheaper, more legible Taunt read — a thick grey "bulwark" border in place
+of the procedural shader aura.
+
+**Removed (everything tied to the Pixi Taunt FX):**
+- Deleted `packages/ui/src/tauntConfig.ts` (live-tunable shader config) and `TauntTuner.tsx` (its DEV tuner);
+  dropped the tuner entry + import from `DevMenu.tsx`.
+- `pixiFx.ts`: deleted the `TAUNT_FRAG` shader, the `TAUNT_SILVER_RGB` tint, the whole `tauntFx` back-layer
+  `FxController` instance + its `__tauntFx`/`__tauntDemo` DEV hooks, the `tauntBurst()` particle burst (already
+  disabled), and every `'taunt'` branch in the `AuraKind` type / `AURA` map / `auraMargin` / `setShield` uniforms
+  / the per-frame update loop. `AuraKind` is now just `'shield' | 'reborn'`.
+- `Recruit.tsx`: dropped the `taunt` entry from `AURA_CFGS`, the `auraFx()` layer router (all auras are the one
+  front `pixiFx` layer now), the `tauntBack` mount div + ref + attach effect, the back-layer coordinate shift
+  (`ax`/`ay`), the taunt deploy-dust, and every `tauntFx.*` visibility/fade/clear call. `AuraK` = `'shield' |
+  'reborn'`. (`deployGraceRef` stays — it still suppresses shield/reborn form-in replays across combat swaps.)
+- `choreo/channels/aura.ts`: `burstDeathAuras` no longer clears a taunt bulwark (nothing to clear); trimmed its
+  tests and the `pixiFx.aura.test.ts` `'taunt'` probe.
+- `styles.css`: removed the `.taunt-back` layer rules (incl. the combat-in/out fade selectors) and the dead
+  `.sfxmix.taunt` / `.taunt-swatch` tuner styles.
+
+**Added:** `.card.compact.taunt .archbox::after` — a **static** two-layer `box-shadow` ring (5px grey `#8b929e`
++ a 2px dark edge) hugging the arched card silhouette. The `.card.taunt` marker was already on every Taunt card
+in shop / hand / warband / combat, so the border appears everywhere the bulwark used to. Static box-shadow →
+compositor-cheap, zero per-frame repaint (per the perf rules), and it doesn't shift layout the way a wider CSS
+border would.
+
+**Verified:** `npm run typecheck && npm run lint && npm test && npm run build:web` all green (885 tests). Live
+DOM probe on the dev server confirmed the rule loads and `getComputedStyle('.archbox', '::after').boxShadow`
+resolves to the grey+dark ring on a `.card.taunt`; no console errors. The headless preview can't screenshot
+(degenerate viewport) — the exact grey shade / thickness is a one-line tweak for an in-tab eyeball.
 ### tweak(ui): longer pause after an Echo (Deathrattle) / Rise before its consequence
 
 Follow-up dial on [#326](https://github.com/kcodea/ascent/pull/326): the owner still read the Echo→summon gap

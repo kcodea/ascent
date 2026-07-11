@@ -9,7 +9,7 @@ import { instView, liveCardText, type LiveTextParams } from './instView';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio } from './sfx';
-import { pixiFx, discoverFx, tauntFx } from './pixiFx';
+import { pixiFx, discoverFx } from './pixiFx';
 import { getDragFeel } from './dragFeel';
 import { getFlipConfig } from './flipConfig';
 import { getShieldConfig } from './shieldConfig';
@@ -35,23 +35,18 @@ const SHIELD_CLEAR_GRACE = 420;
 // The persistent auras the tracker POSITIONS (bubbles that ride each card), each marked by a CSS class on the
 // card and a keyword on the drag view. Combat bursts/breaks/re-forms are the choreographer's (channels/aura.ts,
 // fired off the event log) — the tracker here only keeps each aura riding its card and clears it when the card
-// leaves. Divine Shield (gold), Reborn (blue wisp), Taunt (silver bulwark).
-type AuraK = 'shield' | 'reborn' | 'taunt';
+// leaves. Divine Shield (gold), Reborn (blue wisp). (Taunt is signified by a static grey card border, not a
+// Pixi aura — see `.card.taunt` in styles.css — so it's not tracked here.)
+type AuraK = 'shield' | 'reborn';
 const AURA_CFGS = [
   { kind: 'shield', marker: 'dscard', dragKw: 'DS' },
   { kind: 'reborn', marker: 'reborncard', dragKw: 'R' },
-  // Taunt: a silver bulwark BEHIND the card (its own back FX layer). Reuses the `.card.taunt` marker
-  // already set for the keyword; it never "breaks" — it just deploys on gain and fades when removed.
-  { kind: 'taunt', marker: 'taunt', dragKw: 'T' },
 ] as const;
 const ckey = (kind: string, uid: string): string => `${kind}|${uid}`;
 const unkey = (k: string): { kind: AuraK; uid: string } => {
   const i = k.indexOf('|');
   return { kind: k.slice(0, i) as AuraK, uid: k.slice(i + 1) };
 };
-/** Which FX layer renders a given aura: taunt is the BEHIND-cards silver bulwark; shield/reborn are the
- *  front-layer auras over the card. */
-const auraFx = (kind: AuraK): typeof pixiFx => (kind === 'taunt' ? tauntFx : pixiFx);
 
 type DragSource = 'shop' | 'hand' | 'board';
 type Zone = 'tavern' | 'warband' | 'hand';
@@ -426,7 +421,6 @@ export function Recruit() {
   // these pulse the medallion (ring); progress-only ticks (in eotProcUids but not here) just glow.
   const [eotPulseUids, setEotPulseUids] = useState<Set<string>>(new Set());
   const discoverBurstRef = useRef<HTMLDivElement>(null); // mount point for the discover burst FX layer
-  const tauntBackRef = useRef<HTMLDivElement>(null);     // mount point for the BEHIND-cards taunt FX layer
   // Tokens summoned by a battlecry this play — their card mount-pop is held ~0.2s so the trigger pulse
   // reads first, THEN the token appears (e.g. Alleycat's pulse → Stray pops in just after).
   const [summonDelayUids, setSummonDelayUids] = useState<Set<string>>(new Set());
@@ -509,9 +503,9 @@ export function Recruit() {
   const inCombatRef = useRef(inCombat); inCombatRef.current = inCombat;
   const fightingRef = useRef(fighting); fightingRef.current = fighting;
   const settleUntilRef = useRef(0);     // post-drop window where the bubble keeps tracking the Flip
-  // A brief window after a combat↔recruit swap where a taunt bulwark that re-registers appears fully-formed
-  // (no deploy snap-in + no dust). Combat re-uids the board, so surviving taunts are "new" keys on return and
-  // would otherwise replay their deploy as the shop fades in. A genuine recruit play falls outside this window.
+  // A brief window after a combat↔recruit swap where an aura (shield/reborn) that re-registers appears fully-
+  // formed (no form-in snap). Combat re-uids the board, so surviving auras are "new" keys on return and would
+  // otherwise replay their grow-in as the shop fades in. A genuine recruit gain falls outside this window.
   // Set in the RENDER BODY (not an effect) so it's live before syncShields' layout effect reads it this render.
   const deployGraceRef = useRef(0);
   const prevInCombatRef = useRef(inCombat);
@@ -527,19 +521,14 @@ export function Recruit() {
       fightingRef.current || (dragRef.current?.active ?? false) || performance.now() < settleUntilRef.current;
     const d = dragRef.current;
     const dragUid = d?.uid;
-    // The taunt bulwark renders on the BACK layer (a canvas inside `.app`), whose stage origin is the
-    // board's top-left, not the viewport. So taunt coords are shifted by the back layer's offset; shield/
-    // reborn (front canvas, fixed to the viewport) take raw viewport coords. `set` routes + shifts per kind.
-    const back = tauntBackRef.current?.getBoundingClientRect();
-    const ax = (kind: AuraK): number => (kind === 'taunt' && back ? back.left : 0);
-    const ay = (kind: AuraK): number => (kind === 'taunt' && back ? back.top : 0);
+    // Shield/reborn auras render on the front canvas, fixed to the viewport, so they take raw viewport coords.
     const set = (
       uid: string, cx: number, cy: number, w: number, h: number, mini: boolean, kind: AuraK,
       track?: (() => { cx: number; cy: number; w: number; h: number; rot: number } | null),
-    ): void => auraFx(kind).setShield(uid, cx - ax(kind), cy - ay(kind), w, h, mini, kind, track, performance.now() < deployGraceRef.current);
+    ): void => pixiFx.setShield(uid, cx, cy, w, h, mini, kind, track, performance.now() < deployGraceRef.current);
     // A live position source for a COMBAT front-aura (shield/reborn): re-measures the card's art square each FX
     // frame so the bubble rides the lunge/recoil transform EXACTLY (no cross-rAF trailing). Combat-only, where
-    // ax/ay/auraDy are all 0 — so it mirrors the `set` measurement below. null when the card isn't measurable
+    // auraDy is 0 — so it mirrors the `set` measurement below. null when the card isn't measurable
     // (dying → the burst owns it; mid-remount → keep the last spot).
     const makeTrack = (uid: string, marker: string) =>
       (): { cx: number; cy: number; w: number; h: number; rot: number } | null => {
@@ -559,9 +548,9 @@ export function Recruit() {
       };
     // Recruit cards hang their stat badges BELOW the square art tile, so an aura centred on the art alone reads
     // a touch high vs the full card silhouette. Nudge shield/reborn (recruit only; combat units are a clean
-    // square, and taunt carries its own tuner offset) — the amount is live-tunable via the DEV Shield tuner.
-    const auraDy = (h: number, kind: AuraK): number =>
-      inCombatRef.current || kind === 'taunt' ? 0 : h * getShieldConfig().recruitDy;
+    // square) — the amount is live-tunable via the DEV Shield tuner.
+    const auraDy = (h: number): number =>
+      inCombatRef.current ? 0 : h * getShieldConfig().recruitDy;
     // PASS 1 — for each aura kind, register + position every marked card; the dragged card follows from drag
     // state (works from ANY source — its CardView keywords say if it has the aura). DURING COMBAT only combat
     // UNITS (`.unit`) get auras, so a frozen shop/hand card can't float its aura over the arena.
@@ -586,20 +575,14 @@ export function Recruit() {
         if (inCombatRef.current && card.closest<HTMLElement>('.unit')?.classList.contains('dying')) continue;
         const key = ckey(cfg.kind, uid);
         seen.add(key);
-        // A taunt bulwark deploying (not shielded last sync) → a light placement-style smoke plume that
-        // disperses outward, fired on the FRONT layer (viewport coords) so it reads around the card.
-        const deployGrace = performance.now() < deployGraceRef.current; // just swapped combat↔recruit — no deploy
-        if (cfg.kind === 'taunt' && !shieldUidsRef.current.has(key) && !deployGrace) {
-          pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1.25); // +25% plume on deploy
-        }
         // In combat, hand the FRONT auras (shield/reborn) a live tracker so they ride the lunge/recoil exactly;
-        // recruit + taunt keep the per-render push (no fast transforms to chase there).
-        const track = inCombatRef.current && cfg.kind !== 'taunt' ? makeTrack(uid, cfg.marker) : undefined;
-        set(uid, r.left + r.width / 2, r.top + r.height / 2 + auraDy(r.height, cfg.kind), r.width, r.height, false, cfg.kind, track);
+        // recruit keeps the per-render push (no fast transforms to chase there).
+        const track = inCombatRef.current ? makeTrack(uid, cfg.marker) : undefined;
+        set(uid, r.left + r.width / 2, r.top + r.height / 2 + auraDy(r.height), r.width, r.height, false, cfg.kind, track);
       }
       if (d?.active && dragUid && draggedHas) {
         seen.add(ckey(cfg.kind, dragUid));
-        set(dragUid, d.x - d.ox + d.w / 2, d.y - d.oy + d.h / 2 + auraDy(d.h, cfg.kind), d.w, d.h, /* mini */ true, cfg.kind);
+        set(dragUid, d.x - d.ox + d.w / 2, d.y - d.oy + d.h / 2 + auraDy(d.h), d.w, d.h, /* mini */ true, cfg.kind);
       }
     }
     // PASS 2 — an aura that vanished from `seen` fades out. Combat BURSTS/BREAKS are the choreographer's now
@@ -609,13 +592,13 @@ export function Recruit() {
       if (seen.has(key) || pendingClearRef.current.has(key)) continue;
       const { kind, uid } = unkey(key);
       if (animating()) pendingClearRef.current.set(key, now + SHIELD_CLEAR_GRACE); // might remount → brief grace
-      else auraFx(kind).clearShield(uid, kind);
+      else pixiFx.clearShield(uid, kind);
     }
     // PASS 4 — pending clears: resume if the card came back; else hold during the grace, FLUSH when animation ends.
     for (const [key, deadline] of pendingClearRef.current) {
       const { kind, uid } = unkey(key);
       if (seen.has(key)) { pendingClearRef.current.delete(key); continue; }
-      if (now >= deadline || !animating()) { auraFx(kind).clearShield(uid, kind); pendingClearRef.current.delete(key); }
+      if (now >= deadline || !animating()) { pixiFx.clearShield(uid, kind); pendingClearRef.current.delete(key); }
       else seen.add(key);
     }
     shieldUidsRef.current = seen;
@@ -659,7 +642,7 @@ export function Recruit() {
     window.addEventListener('resize', onResize);
     return () => {
       window.removeEventListener('resize', onResize);
-      for (const key of shieldUidsRef.current) { const { kind, uid } = unkey(key); auraFx(kind).clearShield(uid, kind); }
+      for (const key of shieldUidsRef.current) { const { kind, uid } = unkey(key); pixiFx.clearShield(uid, kind); }
       shieldUidsRef.current = new Set();
     };
   }, [syncShields]);
@@ -670,18 +653,12 @@ export function Recruit() {
     // A minimized Discover / Quest overlay leaves the board visible, so keep the behind-card shields showing then.
     const modalCovering = (run.discover && !discoverMin) || (run.questOffer && !questMin) || (run.runeforgeOffer && !forgeMin) || run.chooseOne;
     pixiFx.setShieldsVisible(!modalCovering);
-    tauntFx.setShieldsVisible(!modalCovering);
   }, [run.discover, run.chooseOne, discoverMin, run.questOffer, questMin, run.runeforgeOffer, forgeMin]);
   // B2: each Discover opens expanded — reset the minimized flag whenever the pending Discover changes.
   useEffect(() => { setDiscoverMin(false); }, [run.discover]);
   // Each quest offer opens expanded too — reset the minimized flag when the offer changes.
   useEffect(() => { setQuestMin(false); }, [run.questOffer]);
   useEffect(() => { setForgeMin(false); }, [run.runeforgeOffer]);
-  // Mount the BEHIND-cards taunt FX layer into its div inside `.app` (once). Its canvas paints above the
-  // board surface but below the card rows, so the silver bulwark sits behind each taunt minion.
-  useEffect(() => {
-    if (tauntBackRef.current) void tauntFx.attach(tauntBackRef.current);
-  }, []);
   // Bridge the live enemy-death count to the store so the StatusBar's Cassen counter ticks up during the
   // replay. Zero it once the combat is SETTLED (not just when we leave combat): at replay's end settleCombat
   // banks the kills into run.cassenKills, so continuing to add the live count too would double-show them
@@ -728,7 +705,7 @@ export function Recruit() {
   // A Skip mutes ALL audio (stopAllAudio) and leaves it muted through the resolved-combat screen; un-mute once
   // the fight is left (back to the shop) so the next fight — and the shop — has sound again.
   useEffect(() => {
-    if (!inCombat) { resumeAudio(); pixiFx.setVisible(true, 0); tauntFx.setVisible(true, 0); } // restore the FX layer after a Skip
+    if (!inCombat) { resumeAudio(); pixiFx.setVisible(true, 0); } // restore the FX layer after a Skip
   }, [inCombat]);
 
   // Once the combat replay finishes, settle the outcome (damage + carry-backs) right here in the combat
@@ -762,28 +739,27 @@ export function Recruit() {
     setSkipFade((s) => {
       if (s) return s; // already skipping
       const FADE = 260, HOLD = 900, IN = 300;
-      // Open the taunt deploy-grace for the WHOLE skip: the replay jumps to the end, so any reborn / summoned
-      // taunt on the resolved board appears at once and would replay its deploy snap as the board resolves (the
-      // "spawn as the End Combat button pops up"). While the grace is open, syncShields registers those taunts
-      // fully-formed + without the deploy dust (see deployGraceRef).
+      // Open the aura deploy-grace for the WHOLE skip: the replay jumps to the end, so any reborn / summoned
+      // aura on the resolved board appears at once and would replay its form-in snap as the board resolves.
+      // While the grace is open, syncShields registers those auras fully-formed (see deployGraceRef → `instant`).
       deployGraceRef.current = performance.now() + FADE + HOLD + IN + 600;
       // Just fade the FX canvas out, jump to the resolved board under cover of opacity 0, then fade the canvas
       // back in. We DON'T touch the aura bubbles: `syncShields` reconciles them on its own throughout — a dead
-      // unit's bulwark clears on its normal grace (which expires DURING the hold, so no orphan lingers to the
+      // unit's aura clears on its normal grace (which expires DURING the hold, so no orphan lingers to the
       // fade-in), and survivors' auras stay put (no re-register, no re-bloom). Tickers stay live (a paused ticker
       // stalls a bubble's alpha → a pop). GSAP freezes the unit lunges; audio is killed (replacement one-shot TBD).
       stopAllAudio();
       gsap.globalTimeline.pause();
-      pixiFx.clearParticles(); tauntFx.clearParticles();
-      pixiFx.setVisible(false, FADE); tauntFx.setVisible(false, FADE); // fade the FX canvases out with the board
+      pixiFx.clearParticles();
+      pixiFx.setVisible(false, FADE); // fade the FX canvas out with the board
       window.setTimeout(() => {
         gsap.globalTimeline.resume();
         replay.skip(); // resolved board; its auras reconcile (dead clear, survivors persist) invisibly during the hold
-        pixiFx.clearParticles(); tauntFx.clearParticles();
+        pixiFx.clearParticles();
       }, FADE);
       window.setTimeout(() => {
-        pixiFx.clearParticles(); tauntFx.clearParticles(); // wipe any deploy dust before revealing
-        pixiFx.setVisible(true, IN); tauntFx.setVisible(true, IN); // fade the settled board's auras back in with it
+        pixiFx.clearParticles();
+        pixiFx.setVisible(true, IN); // fade the settled board's auras back in with it
         setSkipFade('in');
       }, FADE + HOLD);
       window.setTimeout(() => setSkipFade(null), FADE + HOLD + IN);
@@ -2399,9 +2375,6 @@ export function Recruit() {
       }`}
       onPointerDown={onBoardPointerDown}
     >
-      {/* The BEHIND-cards taunt FX layer — first child so its canvas paints above the board surface but
-          below the card rows; the silver bulwark renders behind each taunt minion. */}
-      <div className="taunt-back" ref={tauntBackRef} aria-hidden="true" />
       <HudBar />
 
       {!fighting ? (

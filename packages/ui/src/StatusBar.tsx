@@ -174,6 +174,7 @@ export function StatusBar() {
                 e.stopPropagation();
                 if (isPassive || !canHero || heroArmed) return;
                 sfx.pulse(); // the hero-power "pulse" cue, on pressing the button (fire or arm)
+                sfx.heroPower(hero.id); // + this hero's own power SFX (heroes/<id>.power.mp3), layered; silent if absent
                 if (power.untargeted) dispatch({ type: 'heroPower' });
                 else armHero();
               }}

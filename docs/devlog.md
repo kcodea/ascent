@@ -115,6 +115,33 @@ green: typecheck + lint + test + build:web. (Trigger path is test-proven; the li
 **Follow-ups:** per-tribe descend presets (owner will tune); a sim-level trigger annotation on buff events would
 retire the `DEATHRATTLE_BUFF_FACTORIES` maintenance list; the living-source on-attack-buffer tendril gap remains.
 
+### feat(audio): wire per-card effect + per-hero select/power SFX hooks (silent until assets)
+
+The first slice of playback wiring for the SFX manifest (docs/audio/sfx-manifest.md, PR #335). Adds the
+**low-risk, shop/menu-side** hooks; the combat-side per-card death + combat-effect hooks (which thread a
+uid→cardId map through the choreographer) are deferred to a separate, coordinated PR since they touch the
+hot combat-replay code. Every hook is additive and **silent until its clip exists** (`playSample` no-ops on a
+missing buffer), so this ships zero audible/behavioral change today — it just lets the clips play once dropped
+into `packages/ui/src/audio/{cards,heroes}/`.
+
+- **`sfx.ts`:** new loader glob `./audio/heroes/*.mp3`; three new cues mirroring `cardVoice` —
+  `cardEffect(cardId)` → `cards/<id>.effect.mp3`, `heroSelect(heroId)` → `heroes/<id>.mp3`,
+  `heroPower(heroId)` → `heroes/<id>.power.mp3`; matching `sampleVol` defaults + dev-mixer preview entries
+  (each previews the first recorded clip of its category, or nothing).
+- **`store.ts` (`play`):** a played **minion** whose Battlecry (an `onPlay` effect) fires now also plays its
+  `cardEffect` cue, layered over the landing. Spells keep their own cast sound (unchanged).
+- **`HeroSelect.tsx`:** picking a hero layers `heroSelect(id)` over the generic pulse.
+- **`StatusBar.tsx`:** pressing the hero-power button layers `heroPower(hero.id)` over the generic pulse.
+
+**Not in scope (deferred):** per-card **death** + per-card **combat-effect** sounds (need the choreographer
+uid→cardId plumbing). **Coordination:** the **spell default bed** (manifest hook #1) is owned by the
+concurrent `feat/spellcast-sfx` branch, which ships it as `castspell.mp3` — excluded here to avoid a
+collision; the manifest's `spellcast.mp3` row will be realigned to that name on the #335 branch.
+
+- **Verified:** typecheck 0, lint clean, 895 tests, `build:web` ✓. No runtime/audible change expected until
+  clips are recorded (the hooks are type-checked calls with valid ids in scope; `playSample` guards on a
+  missing buffer). End-to-end audio verification lands with the first recorded assets.
+
 ## 2026-07-11 (session 32)
 
 ### tweak(ui): thicker, darker Taunt border — squared bottom + always-on red under-glow

@@ -361,7 +361,8 @@ export interface CombatReplay {
   handGrantsShown: string[];
   /** uids whose effect fired in the current window — their trigger medallion pulses. */
   triggerUids: Set<string>;
-  rallyPulseUids: Set<string>;
+  /** uid → a per-fire nonce for units mid-Rally (used as the medallion `key` so each pulse restarts). */
+  rallyPulseUids: Map<string, number>;
   /** While a buff tendril is in flight to this unit, its PRE-buff displayed stats (held until the strike). */
   statHoldFor: (uid: string) => { atk: number; hp: number } | undefined;
   /** On the strike, which badge(s) just changed → flash them. Cleared shortly after. */
@@ -445,7 +446,12 @@ export function useCombatReplay(
   const [floats, setFloats] = useState<Float[]>([]);
   const [deathFloats, setDeathFloats] = useState<DeathFloat[]>([]); // damage on dying units (board overlay)
   const [triggers, setTriggers] = useState<Set<string>>(new Set()); // uids whose effect just fired → medallion pulse
-  const [rallyPulse, setRallyPulse] = useState<Set<string>>(new Set()); // uids mid-attack whose Rally fired → YELLOW medallion pulse (fired from the lunge's wind-up pause)
+  // uid → a monotonic nonce, bumped on EACH Rally fire. The nonce is used as a React `key` on the medallion
+  // (see Card) so it REMOUNTS every fire and the gold pulse animation restarts — a rally unit's own Rally also
+  // sets the normal trigger pulse, so `.pulsing` never leaves the element between swings and a plain class
+  // re-add wouldn't replay the CSS animation (that's why the 2nd Rally in a combat pinged sound but no visual).
+  const [rallyPulse, setRallyPulse] = useState<Map<string, number>>(new Map());
+  const rallyNonceRef = useRef(0);
   // Buff-tendril hold/flash: while a buff tendril flies to a target, HOLD its displayed Attack/Health at the
   // PRE-buff value; on strike, release (delete → real value shows) and flash the changed badge(s). Keyed by uid.
   const [statHold, setStatHold] = useState<Map<string, { atk: number; hp: number }>>(new Map());
@@ -488,7 +494,7 @@ export function useCombatReplay(
     setFloats([]);
     setDeathFloats([]);
     setTriggers(new Set());
-    setRallyPulse(new Set());
+    setRallyPulse(new Map());
     setFinished(false);
     setAttackUid(null);
     gsap.killTweensOf('[data-zone] .unit'); // stop any lunge left mid-flight by the previous fight
@@ -771,8 +777,9 @@ export function useCombatReplay(
           combatSpeed, advance: () => setBeatIdx((k) => k + 1),
           onRallyPulse: rallies ? () => {
             sfx.triggerPulse();
-            setRallyPulse((prev) => new Set(prev).add(atkUid));
-            window.setTimeout(() => setRallyPulse((prev) => { const n = new Set(prev); n.delete(atkUid); return n; }), 1150);
+            const n = ++rallyNonceRef.current; // a fresh nonce per fire → new medallion key → the pulse restarts
+            setRallyPulse((prev) => new Map(prev).set(atkUid, n));
+            window.setTimeout(() => setRallyPulse((prev) => { const m = new Map(prev); if (m.get(atkUid) === n) m.delete(atkUid); return m; }), 1150);
           } : undefined,
         });
         engineAdvancingRef.current = tl !== null; // engine owns the advance; if it couldn't build, the scheduler falls back

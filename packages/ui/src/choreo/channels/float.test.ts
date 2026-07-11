@@ -38,14 +38,14 @@ describe('spawnFloats', () => {
     expect(deathFloats).toEqual([{ id: 0, x: 30, y: 50, text: '9', kind: 'dmg' }]);
   });
 
-  it('buff events sum per target into one float, not one per source event', () => {
-    // self-buffs (source === target) keep their float; buff-others get a tendril instead (see suppression suite).
+  it('buff events (self or other) no longer produce a float — every buff is a directed FX', () => {
+    // self-buff → pulse, buff-other → tendril; both flash the badge instead of floating a +N (see suppression suite).
     const evs: CombatEvent[] = [
       { type: 'buff', target: 'b', attack: 1, health: 1, source: 'b' },
       { type: 'buff', target: 'b', attack: 2, health: 0, source: 'b' },
     ];
     const { floats } = spawnFloats(moment(evs), evs, noEl, null);
-    expect(floats).toEqual([{ id: 0, uid: 'b', text: '+3/+1', kind: 'buff' }]);
+    expect(floats).toEqual([]);
   });
 
   it('a moment with no floatable events spawns nothing', () => {
@@ -59,16 +59,16 @@ describe('spawnFloats', () => {
 const M = (start: number, end: number): Moment =>
   ({ start, end, primary: { type: 'buff' } as CombatEvent, stepGroups: [[start]], kind: 'buffWave' });
 
-describe('spawnFloats — buff float suppression', () => {
-  it('does NOT emit a +N float for a buff-other (source !== target)', () => {
-    const events = [{ type: 'buff', source: 'A', target: 'x', attack: 1, health: 1 }] as CombatEvent[];
+describe('spawnFloats — buff suppression', () => {
+  it('emits NO float for a self-buff (source === target) — the pulse handles it', () => {
+    const events = [{ type: 'buff', source: 'S', target: 'S', attack: 2, health: 2 }] as CombatEvent[];
     const { floats } = spawnFloats(M(0, 1), events, noEl, null);
     expect(floats.filter((f) => f.kind === 'buff')).toEqual([]);
   });
-  it('STILL emits a +N float for a self-buff (source === target)', () => {
-    const events = [{ type: 'buff', source: 'S', target: 'S', attack: 3, health: 3 }] as CombatEvent[];
+
+  it('emits NO float for a buff-other (source !== target) — the tendril handles it', () => {
+    const events = [{ type: 'buff', source: 'b', target: 'a', attack: 2, health: 2 }] as CombatEvent[];
     const { floats } = spawnFloats(M(0, 1), events, noEl, null);
-    expect(floats.filter((f) => f.kind === 'buff')).toHaveLength(1);
-    expect(floats.find((f) => f.kind === 'buff')?.text).toBe('+3/+3');
+    expect(floats.filter((f) => f.kind === 'buff')).toEqual([]);
   });
 });

@@ -282,6 +282,15 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
     expect(s.board.slice(0, 3).map((c) => [c.attack, c.health])).toEqual([[4, 4], [4, 4], [4, 4]]); // +3/+3 each
     expect([s.board[3]!.attack, s.board[3]!.health]).toEqual([1, 1]); // 4th untouched
   });
+
+  it('Rune of Action: a spell played counts as a card played (playedThisTurn)', () => {
+    // Regression (owner 2026-07-11): "each card you played" must include spells / Discover-on-play /
+    // welded Magnetics, not just minions that take a board slot — those returned before the tracker.
+    const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
+      hand: [{ uid: 'g1', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    const next = reduce(s, { type: 'play', uid: 'g1' });
+    expect(next.playedThisTurn).toContain('growth'); // the spell counted, even though it took no board slot
+  });
 });
 
 describe('Runes batch 1 — grants / discovers / economy', () => {

@@ -428,6 +428,47 @@ describe('Runes batch 4 — grant runes (existing cards + Gilded-grant)', () => 
   });
 });
 
+describe('Runes batch 4b — new cards (Feasting Bogrot / Reconfigured Combinator) + Runeguard', () => {
+  const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
+  const mk = (uid: string, cardId: string): RunState['board'][number] => {
+    const d = CARD_INDEX[cardId]!;
+    return { uid, cardId, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false };
+  };
+  const buyEpic = (runeId: string): RunState =>
+    reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, hand: [], runeforgeOffer: [runeId], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
+
+  it('Runeguard: Defend the Forge — 14 armor + schedules the Epic Runeforge for turn 10', () => {
+    const s = createRun(1, 'runeguard');
+    expect(s.armor).toBe(14);
+    expect(s.epicForgeWave).toBe(10);
+    const next = reduce({ ...s, wave: 9, phase: 'combat', epicForgeWave: 10, lastCombat: win }, { type: 'resolveCombat' });
+    expect(next.wave).toBe(10);
+    expect(next.runeforgeEpic).toBe(true);
+  });
+
+  it('Rune of the Feast grants Feasting Bogrot; Rune of Reconfiguration grants Reconfigured Combinator', () => {
+    expect(buyEpic('rune_feast').hand.some((c) => c.cardId === 'feastingbogrot')).toBe(true);
+    expect(buyEpic('rune_reconfiguration').hand.some((c) => c.cardId === 'reconfiguredcombinator')).toBe(true);
+  });
+
+  it('Feasting Bogrot: End of Turn consumes a Fodder itself and shares its stats to both neighbors', () => {
+    const s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', board: [mkAlley('l'), mk('b', 'feastingbogrot'), mkAlley('r')] };
+    applyEndOfTurn(s);
+    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([7, 5]); // Bogrot 6/4 + Fred 1/1
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([2, 2]); // neighbor 1/1 + shared 1/1
+    expect([s.board[2]!.attack, s.board[2]!.health]).toEqual([2, 2]);
+  });
+
+  it('Reconfigured Combinator: triggering a Shout magnetizes an Attachment onto a friendly Mech', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 6, phase: 'recruit', tier: 6,
+      board: [mk('c', 'reconfiguredcombinator'), mk('d', 'drone')], hand: [mk('h', 'fieldmechanic')] };
+    const droneBefore = s.board[1]!.attack + s.board[1]!.health;
+    s = reduce(s, { type: 'play', uid: 'h' }); // play a Battlecry → the Combinator fires
+    const drone = s.board.find((c) => c.uid === 'd')!;
+    expect(drone.attack + drone.health).toBeGreaterThan(droneBefore); // an attachment welded on
+  });
+});
+
 describe('The Epic Runeforge — the greater quest that opens the Epic Runeforge next turn', () => {
   const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
 

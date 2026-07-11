@@ -196,6 +196,7 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryGrantSpell',
   'endOfTurnCastSpellEscalating',
   'endOfTurnAdjacentConsumeFodder',
+  'endOfTurnFeastConsume',
   'endOfTurnBuffPerTribePlayed',
   'endOfTurnBuffWeakestDragon',
   'onSellGainGold',

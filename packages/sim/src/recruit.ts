@@ -792,6 +792,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     adjacentConsumeFodder(ctx.state, self, gold(self)); // golden → each neighbor Consumes 2
   },
 
+  /** Feasting Bogrot — End of Turn: Bogrot itself Consumes a Fodder (gaining its stats × its multiplier + firing
+   *  the onConsume pipeline), then ALSO gives that Fodder's stats to its two board-adjacent minions. Golden → ×2. */
+  endOfTurnFeastConsume: (ctx, self) => {
+    feastConsume(ctx.state, self, gold(self));
+  },
+
   /** Herald of the Apocalypse — Battlecry: EVERY friendly Demon Consumes a created Fodder (Fred) — each gains its
    *  enchanted stats × its own fodder multiplier and fires the onConsume pipeline. Golden → each Consumes 2. */
   battlecryAllDemonsConsume: (ctx, self) => {
@@ -2584,6 +2590,34 @@ export function adjacentConsumeFodder(state: RunState, center: BoardCard, count:
       eaten.push({ eaterUid: target.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
       noteFodderConsumed(state, fa, fh);
     }
+  }
+  if (eaten.length > 0) {
+    state.fodderEaten = [...(state.fodderEaten ?? []), ...eaten];
+    state.fodderEatenSeq += 1;
+  }
+}
+
+/** Feasting Bogrot's Consume: `center` Consumes a Fodder `count` times (gains Fred's stats × its multiplier +
+ *  fires onConsume), and each time ALSO grants Fred's (unmultiplied) stats to its two board neighbors. */
+export function feastConsume(state: RunState, center: BoardCard, count: number): void {
+  if (count <= 0) return;
+  const fodder = CARD_INDEX.fred;
+  if (!fodder) return;
+  const idx = state.board.indexOf(center);
+  if (idx < 0) return;
+  const neighbors = [state.board[idx - 1], state.board[idx + 1]].filter((m): m is BoardCard => !!m);
+  const ctx = makeContext(state);
+  const cb = cardBuff(state, fodder.id);
+  const fa = fodder.attack + cb.attack;
+  const fh = fodder.health + cb.health;
+  const eaten: { eaterUid: string; fodderId: string; attack: number; health: number; gainA: number; gainH: number }[] = [];
+  const mult = fodderMultiplier(center);
+  for (let i = 0; i < count; i++) {
+    addBuff(center, 'Consume', fa * mult, fh * mult); // Bogrot eats the Fodder
+    fire(ctx, 'onConsume', { minion: center });
+    eaten.push({ eaterUid: center.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
+    noteFodderConsumed(state, fa, fh);
+    for (const n of neighbors) addBuff(n, 'Feasting Bogrot', fa, fh); // …and shares the Fodder's stats to each side
   }
   if (eaten.length > 0) {
     state.fodderEaten = [...(state.fodderEaten ?? []), ...eaten];

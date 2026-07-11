@@ -680,6 +680,9 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     karwindFlashSeq: 0,
   };
   rollShop(state);
+  // Runeguard (Defend the Forge): schedule the Epic Runeforge for turn 10 — advanceCombat's start-of-turn
+  // sequencing opens it (behind any quest offer). Cleared once it fires.
+  if (hero.power.kind === 'epicRuneforge') state.epicForgeWave = 10;
   if (heroId === 'chaos') {
     const def = CARD_INDEX['symbioticattachment'];
     if (def && state.hand.length < CONFIG.handMax) {

@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### feat: Runeguard hero + runes batch 4b (Feasting Bogrot, Reconfigured Combinator)
+
+**Runeguard** — a new hero: **30 Resolve / 14 Armor**, passive power **Defend the Forge** (`epicRuneforge` kind) —
+the **Epic Runeforge opens on turn 10**. Scheduled at run start (`createRun` sets `epicForgeWave = 10`) and opened
+by `advanceCombat`'s start-of-turn sequencing (behind any quest offer), so buying its rune spends no charge. Art
+wired (`Runeguard.png` → `runeguard.webp`).
+
+**Batch 4b — the two signature cards** (both grant-only `token`s):
+- **Feasting Bogrot** (Rune of the Feast, 6) — **T5 Demon 6/4**: *End of Turn: Consume a Fodder and also give its
+  stats to adjacent minions.* New `endOfTurnFeastConsume` factory + `feastConsume` helper (Bogrot eats a Fred ×its
+  multiplier + fires the onConsume pipeline, then shares Fred's stats to both neighbours; golden ×2).
+- **Reconfigured Combinator** (Rune of Reconfiguration, 8) — **T5 Mech 8/8**: *Whenever you trigger a Shout, attach
+  an Attachment to 2 friendly Mechs.* A Combinator re-tuned to the **`battlecryTriggered`** hook — reuses the base
+  Combinator's `endOfTurnMagnetizeMechs` factory (targets 2; golden 4).
+
+New factory + power kind are zod-validated. 5 new tests (Runeguard schedules the forge for turn 10 + 14 armor; both
+runes grant their card; Bogrot's EoT consume+share exact stats; the Combinator welds onto a friendly Mech on a
+Shout). Live: Runeguard renders in the picker (30+14, art loaded); no console errors. typecheck / lint / 871 tests /
+build green.
+
+**Art follow-up:** Feasting Bogrot + Reconfigured Combinator have **no card art yet** (fallback sprite) — the
+owner said the Combinator gets "unique art as well" but none was provided; wire both when the art lands.
+
 ### feat: runes batch 4a — grant runes (Assembly / Stormcalling / Frontline Glory / Soul Taxes) + Gilded-grant
 
 Grant-based Epic runes built on existing cards, plus a reusable **Gilded-grant** option:

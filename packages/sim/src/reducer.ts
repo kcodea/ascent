@@ -908,7 +908,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision' || power.kind === 'sellGold'
         || power.kind === 'chaos' || power.kind === 'cheapMinions' || power.kind === 'discoLock'
         || power.kind === 'questChronos' || power.kind === 'lesserQuest' || power.kind === 'runeforge'
-        || power.kind === 'pathfinder'
+        || power.kind === 'pathfinder' || power.kind === 'epicRuneforge'
       ) {
         // Passive powers have no activation — the work happens elsewhere (spell math, the buy/sell case,
         // settleCombat, the turn-advance quest/discover hooks). Nothing to do on a power click.

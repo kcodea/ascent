@@ -261,6 +261,23 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**Avenge (4):** gain **+1 max Gold**. Get **Souls Man**.',
     reward: { kind: 'multi', rewards: [{ kind: 'combatFlag', flag: 'runeSoulTaxes' }, { kind: 'grant', cards: ['soulsman'] }] },
   },
+  // ── Batch 4b: the two new signature cards ──
+  {
+    id: 'rune_feast',
+    name: 'Rune of the Feast',
+    cost: 6,
+    epic: true,
+    text: 'Get **Feasting Bogrot**.',
+    reward: { kind: 'grant', cards: ['feastingbogrot'] },
+  },
+  {
+    id: 'rune_reconfiguration',
+    name: 'Rune of Reconfiguration',
+    cost: 8,
+    epic: true,
+    text: 'Get **Reconfigured Combinator**.',
+    reward: { kind: 'grant', cards: ['reconfiguredcombinator'] },
+  },
   // ── Batch 1 additions (grants / discovers — no new combat mechanics) ──
   {
     id: 'rune_champion',

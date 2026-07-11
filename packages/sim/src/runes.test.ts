@@ -397,6 +397,37 @@ describe('Runes batch 2 — Kindling / Pair / Menagerie / Reliquary + forge sche
   });
 });
 
+describe('Runes batch 4 — grant runes (existing cards + Gilded-grant)', () => {
+  const buyEpic = (runeId: string, over: Partial<RunState> = {}): RunState =>
+    reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 12, tier: 6, hand: [], runeforgeOffer: [runeId], runeforgeEpic: true, ...over }, { type: 'buyRune', index: 0 });
+
+  it('Rune of Assembly: grants a Beatbot + 2 Attachments', () => {
+    const s = buyEpic('rune_assembly');
+    expect(s.hand.some((c) => c.cardId === 'beatboxer')).toBe(true);
+    expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.keywords.includes('M') && c.cardId !== 'beatboxer').length).toBe(2);
+  });
+
+  it('Rune of Stormcalling: grants a GILDED Karwind + a random Shout minion', () => {
+    const s = buyEpic('rune_stormcalling');
+    const karwind = s.hand.find((c) => c.cardId === 'karwind');
+    expect(karwind?.golden).toBe(true); // Gilded
+    // a Shout = a Battlecry (onPlay effect) minion, other than the Karwind
+    expect(s.hand.some((c) => c.cardId !== 'karwind' && CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onPlay'))).toBe(true);
+  });
+
+  it('Rune of Frontline Glory: grants a GILDED Yazzus + Front to Back', () => {
+    const s = buyEpic('rune_frontline_glory');
+    expect(s.hand.find((c) => c.cardId === 'yazzus')?.golden).toBe(true);
+    expect(s.hand.some((c) => c.cardId === 'fronttoback')).toBe(true);
+  });
+
+  it('Rune of Soul Taxes: grants Souls Man + arms the Avenge max-Gold flag', () => {
+    const s = buyEpic('rune_soul_taxes');
+    expect(s.hand.some((c) => c.cardId === 'soulsman')).toBe(true);
+    expect(s.questFlags?.runeSoulTaxes).toBe(true);
+  });
+});
+
 describe('The Epic Runeforge — the greater quest that opens the Epic Runeforge next turn', () => {
   const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
 

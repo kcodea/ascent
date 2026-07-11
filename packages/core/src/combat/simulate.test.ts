@@ -2840,4 +2840,11 @@ describe('Epic combat runes (Rising Graves / Broodpit / Spearline / Appraisal)',
     expect(r.playerSpellPower?.attack).toBeGreaterThanOrEqual(1);
     expect(r.playerSpellPower?.health).toBeGreaterThanOrEqual(1);
   });
+
+  it('Soul Taxes: 4 friendly deaths grant +1 max Gold (carried back)', () => {
+    const p: BoardMinion[] = Array.from({ length: 4 }, () => ({ cardId: 'sandbag', attack: 1, health: 1 }));
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 40 }];
+    const r = simMods(p, e, 1, { runeSoulTaxes: true });
+    expect(r.playerMaxGoldGain).toBeGreaterThanOrEqual(1);
+  });
 });

@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-10 (session 30)
 
+### feat: runes batch 4a — grant runes (Assembly / Stormcalling / Frontline Glory / Soul Taxes) + Gilded-grant
+
+Grant-based Epic runes built on existing cards, plus a reusable **Gilded-grant** option:
+- New grant field **`grantGolden`** — conjures each id as a **Gilded** (golden) copy (conjure + `gildMinion`).
+- **Rune of Assembly** (6): Get a **Beatbot** + **2 Attachments**.
+- **Rune of Stormcalling** (6): Get a **Gilded Karwind** + a random **Shout** minion.
+- **Rune of Frontline Glory** (8): Get a **Gilded Yazzus** + **Front to Back** (the spell).
+- **Rune of Soul Taxes** (8): **Avenge (4): +1 max Gold** (a `runeSoulTaxes` run-wide Avenge via `grantMaxGold`,
+  reusing batch 3's `runeAvenge` helper) **+ Get Souls Man**.
+
+New grant field + combat flag are zod-validated. 5 new tests (each rune's grant; Gilded copies flagged `golden`;
+Soul Taxes' Avenge max-Gold carried back). Live: all four render correctly; buying Stormcalling grants a **golden**
+Karwind + a Shout minion. typecheck / lint / 867 tests / build green.
+
+**Deferred to batch 4b** (the two new cards): **Feasting Bogrot** (T5 Demon 6/4 — needs a custom "self-consume a
+Fodder + share its stats to adjacent" EoT factory) and **Reconfigured Combinator** (T5 Mech 8/8 — its trigger
+payoff on Shout-plays needs confirming; the base Combinator is an EoT-magnetize Mech). **Rune of the Den Mother**
+also pending (its "buffs herself too" modifier). Everything else (First Claws / Second Path / Scales / Bartering /
+Packcraft / Salvage / Inheritance / Twilight / Banking / Twin Gilding) still queued in the roadmap.
+
 ### feat: runes batch 3 — Epic combat runes (Rising Graves / Broodpit / Spearline / Appraisal)
 
 Third rune slice — the combat-effect tier (Start of Combat + run-wide Avenge), all new `QuestCombatFlag`s threaded

@@ -1390,6 +1390,7 @@ export function simulate(
     if (knit) { nextStep(); summonMinion('player', knit, undefined, undefined, false, true); }
   });
   if (questMods.runeAppraisal) runeAvenge(4, () => ctx.grantSpellPower(1, 1, 'player', undefined)); // spells +1/+1
+  if (questMods.runeSoulTaxes) runeAvenge(4, () => ctx.grantMaxGold(1, 'player')); // +1 max Gold
 
   // --- First attacker: more living minions goes first; tie → seeded (A.3 step 2).
   //     Pre-emptive Assault overrides the whole rule: the player strikes first, period (one fight —

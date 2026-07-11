@@ -1897,6 +1897,11 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       if ((r.randomSpell ?? 0) > 0) conjureToHand(s, SPELL_CARDS.filter((c) => c.tier <= s.tier), r.randomSpell!); // Hoard Spark's random spell
       if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, r.randomFilterCount ?? 1, r.randomFilterExactTier); // "N random Shout/Echo/Rally/Attachment minions"
       if (r.randomTier) grantRandomTierMinion(s, r.randomTier, r.randomCount ?? 1); // Rune of the Pair — N random Tier-K minions
+      for (const id of r.grantGolden ?? []) { // Stormcalling / Frontline Glory — a GILDED copy
+        const before = s.hand.length;
+        conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
+        if (s.hand.length > before) gildMinion(s.hand[s.hand.length - 1]!);
+      }
       for (const id of r.cards ?? []) {
         const before = s.hand.length;
         conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
@@ -2173,6 +2178,7 @@ function questCombatMods(s: RunState): QuestCombatMods {
     runeBroodpit: f?.runeBroodpit, // Rune of the Broodpit: Avenge 6 → 2 Taunt Imps
     runeSpearline: f?.runeSpearline, // Rune of the Spearline: Avenge 4 → Spear Warden attacks now
     runeAppraisal: f?.runeAppraisal, // Rune of Appraisal: Avenge 4 → spells +1/+1
+    runeSoulTaxes: f?.runeSoulTaxes, // Rune of Soul Taxes: Avenge 4 → +1 max Gold
   };
 }
 

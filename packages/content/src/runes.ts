@@ -228,6 +228,39 @@ export const EPIC_RUNES: RuneDef[] = [
     text: '**Avenge (4):** improve your spells by **+1/+1**.',
     reward: { kind: 'combatFlag', flag: 'runeAppraisal' },
   },
+  // ── Batch 4: grant runes (existing cards + a Gilded-grant option) ──
+  {
+    id: 'rune_assembly',
+    name: 'Rune of Assembly',
+    cost: 6,
+    epic: true,
+    text: 'Get a **Beatbot** and **2 Attachments**.',
+    reward: { kind: 'grant', cards: ['beatboxer'], randomFilter: 'attachment', randomFilterCount: 2 },
+  },
+  {
+    id: 'rune_stormcalling',
+    name: 'Rune of Stormcalling',
+    cost: 6,
+    epic: true,
+    text: 'Get a **Gilded Karwind** and a random **Shout** minion.',
+    reward: { kind: 'grant', grantGolden: ['karwind'], randomFilter: 'shout', randomFilterCount: 1 },
+  },
+  {
+    id: 'rune_frontline_glory',
+    name: 'Rune of Frontline Glory',
+    cost: 8,
+    epic: true,
+    text: 'Get a **Gilded Yazzus** and **Front to Back**.',
+    reward: { kind: 'grant', grantGolden: ['yazzus'], cards: ['fronttoback'] },
+  },
+  {
+    id: 'rune_soul_taxes',
+    name: 'Rune of Soul Taxes',
+    cost: 8,
+    epic: true,
+    text: '**Avenge (4):** gain **+1 max Gold**. Get **Souls Man**.',
+    reward: { kind: 'multi', rewards: [{ kind: 'combatFlag', flag: 'runeSoulTaxes' }, { kind: 'grant', cards: ['soulsman'] }] },
+  },
   // ── Batch 1 additions (grants / discovers — no new combat mechanics) ──
   {
     id: 'rune_champion',

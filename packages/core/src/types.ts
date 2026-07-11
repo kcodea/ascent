@@ -427,7 +427,9 @@ export type QuestReward =
   // tier when `randomFilterExactTier` (fallback ≤ tier if none). Powers the Mech/neutral "get a random X minion".
   // `randomTier` grants `randomCount` random minions of EXACTLY that Tier (any of your tribes / neutral) — Rune of
   // the Pair ("2 random Tier 4 minions").
-  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterCount?: number; randomFilterExactTier?: boolean; randomTier?: number; cards?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
+  // `grantGolden` conjures each id as a GILDED (golden) copy — Rune of Stormcalling's "Gilded Karwind", Frontline
+  // Glory's "Gilded Yazzus".
+  | { kind: 'grant'; randomTribe?: Tribe; randomCount?: number; randomSpell?: number; randomFilter?: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'; randomFilterCount?: number; randomFilterExactTier?: boolean; randomTier?: number; cards?: string[]; grantGolden?: string[]; grantKeywords?: Keyword[]; repeatInTurns?: number }
   | { kind: 'shoutDouble'; count: number }
   // A persistent "your <tribe> have +A/+H wherever they are" run aura (Den Marker) — folds into the tribe's
   // buy-time aura channel so current AND future minions of the tribe carry it (like Squirl Scout's board buff).
@@ -535,7 +537,9 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Epic combat runes (run-wide, no minion source): Rising Graves = Start of Combat give 2 Undead Rise;
   // Broodpit = Avenge 6 summon 2 Taunt Imps; Spearline = Avenge 4 summon a Spear Warden that attacks now;
   // Appraisal = Avenge 4 improve your spells +1/+1.
-  | 'runeRisingGraves' | 'runeBroodpit' | 'runeSpearline' | 'runeAppraisal';
+  | 'runeRisingGraves' | 'runeBroodpit' | 'runeSpearline' | 'runeAppraisal'
+  // Rune of Soul Taxes: every 4 friendly deaths, gain +1 max Gold (carried back).
+  | 'runeSoulTaxes';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -602,6 +606,8 @@ export interface QuestCombatMods {
   runeSpearline?: boolean;
   /** Rune of Appraisal: every 4 friendly deaths, improve your spells +1/+1 (carried back as spell power). */
   runeAppraisal?: boolean;
+  /** Rune of Soul Taxes: every 4 friendly deaths, gain +1 max Gold (carried back). */
+  runeSoulTaxes?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the

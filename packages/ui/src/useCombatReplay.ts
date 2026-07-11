@@ -377,27 +377,43 @@ export interface CombatReplay {
   skip: () => void;
 }
 
-/** Deathrattle read-lead (ms, at 1× speed): a Deathrattle's skull pops + poofs — and an ATTACKER that died
- *  mid-lunge is first pulled home — before the dead body clears. Anchored to the `.dying.dr` /
- *  `.dying.dr.returning` animation-delays in styles.css (380ms; the attacker adds the ~0.34s pull-home → 720ms)
- *  — the moment the body is gone. Without this, a Deathrattle SUMMON rides the generic `overlapMs` measured from the
- *  IMPACT's start, so the tokens pop in ON TOP of the skull. This holds the summon until the proc has read,
- *  THEN `overlapMs` lands as a real post-proc gap. Returns 0 for any non-Deathrattle-summon transition. */
-const DR_SUMMON_LEAD = { defender: 380, attacker: 720 };
-function deathrattleSummonLead(
+/** Death read-lead (ms, at 1× speed) held BEFORE a death's on-screen CONSEQUENCE so the death reads FIRST and
+ *  there's a breath of empty slot before the consequence lands — instead of the token/returned body appearing
+ *  the instant the body clears (which reads as rushed). Two consequences get a lead:
+ *   - **Deathrattle → summon** (`DR_SUMMON_LEAD`): the bone-skull pops (`DR_POP_MS` 320) + holds + poofs
+ *     (~600ms; embers ~800ms) before its tokens appear.
+ *   - **Rise → reborn** (`REBORN_LEAD`): the `.dying.rising` body fully fades (dyingfade 0.42s) before it
+ *     re-forms.
+ *  An ATTACKER that died mid-lunge is first pulled home (~0.34s, see runRiseReturn / `.dr.returning`), so its
+ *  skull/fade starts later — hence the higher `attacker` figure. The lead is layered ON TOP of the generic
+ *  `overlapMs` (which alone measured the consequence from the IMPACT's start, landing it on top of the FX).
+ *  Returns 0 for any transition that isn't a Deathrattle summon or a Rise return. */
+const DR_SUMMON_LEAD = { defender: 560, attacker: 900 }; // Deathrattle death → its summoned tokens
+const REBORN_LEAD = { defender: 560, attacker: 900 };    // Rise death → the body returning
+function deathConsequenceLead(
   shown: Moment | undefined,
   next: Moment,
   events: CombatEvent[],
   cardIds: Map<string, string>,
   attackerUid: string | null,
 ): number {
-  if (!shown || next.primary.type !== 'summon') return 0;
+  if (!shown) return 0;
+  const summon = next.primary.type === 'summon';
+  const reborn = next.primary.type === 'reborn';
+  if (!summon && !reborn) return 0;
   let lead = 0;
   for (let i = shown.start; i < shown.end; i++) {
     const e = events[i];
     if (e?.type !== 'death') continue;
-    if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some((f) => f.on === 'onDeath')) continue;
-    lead = Math.max(lead, e.target === attackerUid ? DR_SUMMON_LEAD.attacker : DR_SUMMON_LEAD.defender);
+    if (summon) {
+      // Only a Deathrattle's OWN summon waits on its skull — a plain summon (a SoC token) doesn't.
+      if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some((f) => f.on === 'onDeath')) continue;
+      lead = Math.max(lead, e.target === attackerUid ? DR_SUMMON_LEAD.attacker : DR_SUMMON_LEAD.defender);
+    } else {
+      // A Rise's death (`rise:true`) → hold the body's return until its fade has read.
+      if (!e.rise) continue;
+      lead = Math.max(lead, e.target === attackerUid ? REBORN_LEAD.attacker : REBORN_LEAD.defender);
+    }
   }
   return lead;
 }
@@ -528,9 +544,10 @@ export function useCombatReplay(
     if (shown?.kind === 'attackExchange' && engineAdvancingRef.current) return;
     const next = beats[beatIdx]!;
     let d = holdMs(next, shown, combatSpeed);
-    // A Deathrattle summon waits for the skull to pop+burst (and an attacker to settle home) before the
-    // consequence-overlap gap — so the tokens land AFTER the proc reads, not on top of it.
-    const lead = deathrattleSummonLead(shown, next, events, cardIds, attackerOfImpact(beats, beatIdx - 1));
+    // A Deathrattle summon (skull) or a Rise return (body fade) waits for the death to read — and an attacker
+    // to settle home — before the consequence-overlap gap, so the tokens/returned body land AFTER the proc
+    // reads, not on top of it.
+    const lead = deathConsequenceLead(shown, next, events, cardIds, attackerOfImpact(beats, beatIdx - 1));
     if (lead) d += lead / combatSpeed;
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);

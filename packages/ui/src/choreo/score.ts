@@ -111,6 +111,9 @@ export function scoreJson(): string {
 
 export interface CueContext {
   events: CombatEvent[];
+  /** uid→cardId for the fought board — lets the sfx channel play a dying unit's own death voiceline
+   *  (cards/<id>.death.mp3). Optional: absent in non-combat callers / older tests. */
+  cardIds?: Map<string, string>;
   /** The player's in-combat speed slider — a scaled cue's offset is divided by this before scheduling. */
   combatSpeed: number;
   /** Called when a moment contains a real (non-Rise) death — the caller triggers the board shake. */
@@ -153,7 +156,7 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
   const cues = getScore()[moment.kind];
   for (const cue of cues) {
     if (cue.enabled === false) continue;
-    if (cue.ch === 'sfx') at(cue, () => { const { shake } = playMomentSfx(moment, ctx.events); if (shake) ctx.onShake(); });
+    if (cue.ch === 'sfx') at(cue, () => { const { shake } = playMomentSfx(moment, ctx.events, ctx.cardIds); if (shake) ctx.onShake(); });
     else if (cue.ch === 'float') at(cue, () => {
       const { floats, deathFloats } = spawnFloats(moment, ctx.events, ctx.findEl, ctx.attackerUid);
       if (floats.length) ctx.onFloats(floats);

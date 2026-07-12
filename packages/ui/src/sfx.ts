@@ -228,6 +228,7 @@ const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
   combatStart: 0.48,
   cardVoice: 0.18,
   cardEffect: 0.18, // a card's Battlecry/effect proc voiceline (cards/<id>.effect.mp3), layered over the action
+  cardDeath: 0.18, // a card's own death voiceline (cards/<id>.death.mp3), layered over the general death sound
   heroSelect: 0.5, // a hero picked in Hero Select (heroes/<id>.mp3), layered over the generic pulse
   heroPower: 0.5, // a hero power activating (heroes/<id>.power.mp3), layered over the generic pulse
   summon: 0.37,
@@ -317,6 +318,9 @@ export const sfx = {
   // signature effect fires (its Battlecry landing in the shop today; combat procs later), LAYERED over the
   // action. Silent (no fallback) if the card has no effect clip.
   cardEffect: (cardId: string) => { playSample(`cards/${cardId}.effect`, sampleVol.cardEffect); },
+  // A specific card's DEATH SFX — drop `audio/cards/<cardId>.death.mp3` and it plays when that minion dies in
+  // combat, LAYERED over the general death sound. Silent (no fallback) if the card has no death clip.
+  cardDeath: (cardId: string) => { playSample(`cards/${cardId}.death`, sampleVol.cardDeath); },
   // A hero is CHOSEN in Hero Select — drop `audio/heroes/<heroId>.mp3` and it plays, LAYERED over the generic
   // pulse. Silent (no fallback) if the hero has no clip.
   heroSelect: (heroId: string) => { playSample(`heroes/${heroId}`, sampleVol.heroSelect); },
@@ -475,7 +479,7 @@ const SFX_PREVIEW: Record<string, () => void> = {
   combatStart: sfx.combatStart,
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.
   cardVoice: () => {
-    const first = Object.keys(SAMPLE_URLS).map(sampleName).find((n) => n.startsWith('cards/') && !n.endsWith('.effect'));
+    const first = Object.keys(SAMPLE_URLS).map(sampleName).find((n) => n.startsWith('cards/') && !n.endsWith('.effect') && !n.endsWith('.death'));
     if (first) playSample(first, sampleVol.cardVoice);
   },
   // The per-card / per-hero categories are keyed by id at call time; the mixer preview plays whichever clip of
@@ -483,6 +487,10 @@ const SFX_PREVIEW: Record<string, () => void> = {
   cardEffect: () => {
     const first = Object.keys(SAMPLE_URLS).map(sampleName).find((n) => n.startsWith('cards/') && n.endsWith('.effect'));
     if (first) playSample(first, sampleVol.cardEffect);
+  },
+  cardDeath: () => {
+    const first = Object.keys(SAMPLE_URLS).map(sampleName).find((n) => n.startsWith('cards/') && n.endsWith('.death'));
+    if (first) playSample(first, sampleVol.cardDeath);
   },
   heroSelect: () => {
     const first = Object.keys(SAMPLE_URLS).map(sampleName).find((n) => n.startsWith('heroes/') && !n.endsWith('.power'));

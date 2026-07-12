@@ -147,8 +147,8 @@ const RANGES = {
   wobbleAmp:   [0, 60, 0.5],
   wobbleFreq:  [0, 8, 0.1],
   retractMs:   [0, 400, 10],
-  baseWidth:   [1, 24, 0.5],
-  tipWidth:    [0.5, 16, 0.5],
+  baseWidth:   [1, 100, 0.5],
+  tipWidth:    [0.5, 100, 0.5],
   coreAlpha:   [0, 1, 0.05],
   glowWidth:   [0, 80, 1],
   glowAlpha:   [0, 1, 0.01],
@@ -466,6 +466,10 @@ function tick(now) {
   const dtMs = Math.min(50, now - last); last = now;
   ctx.clearRect(0, 0, cv.width, cv.height);
 
+  // the card marker FIRST, so the descend (drop + landing pulse) composites IN FRONT of the card —
+  // matching the in-game FX layer, which sits over the cards (the drop rains down OVER the card).
+  drawMarker();
+
   // drops (falling ribbons)
   for (let i = drops.length - 1; i >= 0; i--) {
     const b = drops[i]; b.age += dtMs;
@@ -504,8 +508,6 @@ function tick(now) {
     if (!alive) pulses.splice(i, 1);
   }
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-
-  drawMarker();
 
   diag.textContent = `canvas ${Math.round(cv.width)}×${Math.round(cv.height)} · drops ${drops.length} · pulses ${pulses.length} · blend ${D.blend}`;
   requestAnimationFrame(tick);

@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ward CSS — glassy bubble tuner</title>
+<style>
+  * { box-sizing: border-box; }
+  /* The STAGE is the game's cream board (#f6ecd9) so the glassy gold dome reads honestly against the
+     real surface it composites over — not against a flattering near-black. */
+  body { margin: 0; background: #f6ecd9; color: #3a2f1c; font: 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace; display: flex; height: 100vh; overflow: hidden; }
+  #stage { flex: 1; position: relative; display: grid; place-items: center; background: #f6ecd9; }
+
+  /* --- the card mock: the game's real arched card shape ------------------- */
+  .card {
+    --arch-radius: 48% 48% 20% 20% / 35% 35% 14% 14%;
+    position: relative;
+    width: 150px;
+    aspect-ratio: 3 / 4;
+    border-radius: var(--arch-radius);
+    background: #fffdf8;
+    border: 2px solid #e2c78f;
+    box-shadow: 0 8px 26px rgba(90,60,20,.22);
+    /* the ward custom properties live HERE (the .art::after / ::before read them via inheritance) */
+    --ward-base-alpha: 0.28;
+    --ward-highlight-alpha: 0.55;
+    --ward-highlight-y: 24%;
+    --ward-rim-width: 2px;
+    --ward-rim-alpha: 0.85;
+    --ward-inset-glow: 0.5;
+    --ward-outset-glow: 0.45;
+    --ward-breathe-min: 0.55;
+    --ward-breathe-s: 2.6s;
+  }
+  .archbox {
+    position: absolute;
+    inset: 8px;
+    border-radius: var(--arch-radius);
+    overflow: hidden;
+    background: linear-gradient(160deg, #6fb2d8, #2f5f86);
+    display: grid;
+    place-items: center;
+    font-size: 54px;
+  }
+  .archbox .sprite { filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); }
+  /* corner stat badges so it reads like a game card */
+  .badge {
+    position: absolute; width: 30px; height: 30px; border-radius: 50%;
+    display: grid; place-items: center; font: 700 14px/1 ui-monospace, monospace;
+    color: #fff; border: 2px solid #fffdf8; box-shadow: 0 2px 5px rgba(0,0,0,.3); z-index: 3;
+  }
+  .badge.atk { top: 6px; left: 6px; background: #e8a13a; }        /* attack */
+  .badge.hp  { top: 6px; right: 6px; background: #d6425f; }        /* health */
+  .badge.gear{ bottom: 4px; left: 50%; transform: translateX(-50%); width: 24px; height: 24px; background: #6b5d44; font-size: 12px; } /* small gear */
+
+  /* --- the WARD LAYER under test ----------------------------------------- */
+  /* An element inside/over the card carrying the glassy-dome CSS, driven entirely by the custom
+     properties above. It composites OVER the card art (z-index 2, in front of the sprite). */
+  .wardlayer, .wardlayer::before { position: absolute; inset: -6px; border-radius: var(--arch-radius); pointer-events: none; }
+  .wardlayer { z-index: 2; }
+  .wardlayer {
+    background:
+      radial-gradient(120% 80% at 50% var(--ward-highlight-y, 24%),
+        rgba(255,246,205, var(--ward-highlight-alpha, 0.55)) 0%,
+        rgba(255,214,90, var(--ward-base-alpha, 0.28)) 42%,
+        rgba(240,176,32, calc(var(--ward-base-alpha, 0.28) * 0.5)) 70%,
+        rgba(240,176,32, 0) 100%);
+    box-shadow:
+      inset 0 0 0 var(--ward-rim-width, 2px) rgba(255,236,150, var(--ward-rim-alpha, 0.85)),
+      inset 0 0 14px 3px rgba(255,220,110, var(--ward-inset-glow, 0.5)),
+      0 0 12px 3px rgba(240,176,32, var(--ward-outset-glow, 0.45));
+  }
+  .wardlayer::before {
+    content: ''; box-shadow: 0 0 16px 5px rgba(255,220,110,0.6);
+    animation: kwglow var(--ward-breathe-s, 2.6s) ease-in-out infinite; will-change: opacity;
+  }
+  @keyframes kwglow { 0%,100% { opacity: var(--ward-breathe-min, 0.55); } 50% { opacity: 1; } }
+
+  .stagehint { position: absolute; bottom: 14px; left: 0; right: 0; text-align: center; color: #a08a5f; font-size: 11px; letter-spacing: .1em; }
+
+  /* --- control panel (matches the sibling rigs' house style) ------------- */
+  #panel { width: 320px; padding: 14px 16px; overflow-y: auto; background: #0e100a; border-left: 1px solid #2b3020; color: #e6ecdc; }
+  h1 { font-size: 13px; margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; color: #f0b820; }
+  .sub { color: #8a7f56; font-size: 11px; margin-bottom: 12px; }
+  h2 { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #8a7f56; margin: 16px 0 6px; border-top: 1px solid #2b3020; padding-top: 10px; }
+  .row { display: grid; grid-template-columns: 1fr 62px; gap: 8px; align-items: center; margin-bottom: 7px; }
+  .row label { grid-column: 1 / -1; color: #d8c894; font-size: 11.5px; }
+  input[type=range] { width: 100%; accent-color: #f0b820; }
+  .val { text-align: right; color: #f0b820; font-size: 11px; }
+  button { width: 100%; padding: 9px; margin-top: 12px; border: 0; border-radius: 6px; background: #c98a1e; color: #fff; font: inherit; font-weight: 700; letter-spacing: .06em; cursor: pointer; }
+  button:hover { background: #e0a02c; }
+  button.ghost { background: #241f15; color: #d8c894; }
+  button.ghost:hover { background: #302a1c; }
+  textarea { width: 100%; height: 200px; margin-top: 10px; background: #080a05; color: #f0b820; border: 1px solid #2b3020; border-radius: 6px; padding: 8px; font: 10.5px/1.45 ui-monospace, monospace; resize: vertical; }
+  .hint { color: #6a5f40; font-size: 10.5px; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div class="card" id="card">
+      <div class="archbox"><span class="sprite">🤖</span></div>
+      <div class="badge atk">4</div>
+      <div class="badge hp">5</div>
+      <div class="badge gear">⚙</div>
+      <div class="wardlayer"></div>
+    </div>
+    <div class="stagehint">glassy gold Ward dome, composited over the card art</div>
+  </div>
+  <div id="panel">
+    <h1>Ward CSS</h1>
+    <div class="sub">Glassy-bubble tuner — a Divine-Shield-style gold dome rendered purely in CSS custom properties over a game card. Dial the look, then Copy CSS.</div>
+
+    <div id="controls"></div>
+
+    <h2>Resolved CSS (live export)</h2>
+    <button id="copy">Copy CSS 📋</button>
+    <textarea id="out" readonly></textarea>
+    <div class="hint">Targets the real game selectors: <code>.card.compact.dscard</code>, <code>.art::after</code> (dome), <code>::before</code> (breath). Paste the resolved rule to bake the look.</div>
+    <button id="reset" class="ghost">Reset to defaults</button>
+    <div class="hint" id="diag">booting…</div>
+  </div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Standalone CSS look-tuning rig for the WARD (Divine-Shield-style) FX — a glassy
+// gold dome drawn ENTIRELY in CSS custom properties over a game card. Each slider
+// writes its value live onto the card element's inline style via setProperty; the
+// .wardlayer reads them through the gradient/box-shadow above. "Copy CSS" resolves
+// the current values into a ready-to-paste rule targeting the real game selectors.
+//
+// No build, no framework, no external requests — vanilla JS, all inline.
+// ---------------------------------------------------------------------------
+
+// Any uncaught error would otherwise leave a silent blank page — surface it loudly instead.
+addEventListener('error', (e) => {
+  const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;inset:0 auto auto 0;z-index:99;background:#b0203a;color:#fff;padding:10px 14px;font:12px ui-monospace,monospace;white-space:pre-wrap;max-width:100%';
+  b.textContent = 'SCRIPT ERROR: ' + (e.message || e.error) + '\n' + (e.filename || '') + ':' + (e.lineno || '?');
+  document.body.appendChild(b);
+});
+
+// --- dial schema: [property, min, max, step, default, unit] -----------------
+// `prop` is the CSS custom property written onto the card element. `unit` is
+// appended to the numeric value when set (and when resolving the export).
+const DIALS = [
+  { prop: '--ward-base-alpha',      min: 0,  max: 1,  step: 0.01, def: 0.28, unit: '' },
+  { prop: '--ward-highlight-alpha', min: 0,  max: 1,  step: 0.01, def: 0.55, unit: '' },
+  { prop: '--ward-highlight-y',     min: 0,  max: 60, step: 1,    def: 24,   unit: '%' },
+  { prop: '--ward-rim-width',       min: 0,  max: 8,  step: 0.5,  def: 2,    unit: 'px' },
+  { prop: '--ward-rim-alpha',       min: 0,  max: 1,  step: 0.01, def: 0.85, unit: '' },
+  { prop: '--ward-inset-glow',      min: 0,  max: 1,  step: 0.01, def: 0.5,  unit: '' },
+  { prop: '--ward-outset-glow',     min: 0,  max: 1,  step: 0.01, def: 0.45, unit: '' },
+  { prop: '--ward-breathe-min',     min: 0,  max: 1,  step: 0.01, def: 0.55, unit: '' },
+  { prop: '--ward-breathe-s',       min: 1,  max: 5,  step: 0.1,  def: 2.6,  unit: 's' },
+];
+
+const card = document.getElementById('card');
+const controls = document.getElementById('controls');
+const out = document.getElementById('out');
+const diag = document.getElementById('diag');
+
+// C holds the current numeric value of every dial (keyed by property name).
+const C = {};
+
+function label(prop) { return prop.replace('--ward-', '').replace(/-/g, ' '); }
+
+// Write a dial's value (with unit) onto the card element, so .wardlayer picks it up live.
+function apply(d) {
+  card.style.setProperty(d.prop, C[d.prop] + d.unit);
+}
+
+// --- build the slider rows --------------------------------------------------
+const readouts = {};
+function build() {
+  controls.innerHTML = '';
+  const h = document.createElement('h2'); h.textContent = 'Ward dome'; controls.appendChild(h);
+  for (const d of DIALS) {
+    C[d.prop] = d.def;
+    const row = document.createElement('div'); row.className = 'row';
+    const l = document.createElement('label'); l.textContent = label(d.prop);
+    const inp = document.createElement('input'); inp.type = 'range';
+    inp.min = d.min; inp.max = d.max; inp.step = d.step; inp.value = d.def;
+    const v = document.createElement('span'); v.className = 'val';
+    v.textContent = d.def + d.unit;
+    readouts[d.prop] = v;
+    inp.oninput = () => {
+      C[d.prop] = parseFloat(inp.value);
+      v.textContent = C[d.prop] + d.unit;
+      apply(d);
+      save();
+    };
+    row.appendChild(l); row.appendChild(inp); row.appendChild(v);
+    controls.appendChild(row);
+    apply(d); // push the default onto the card immediately
+  }
+}
+
+// --- resolve the current dials into a paste-ready CSS rule ------------------
+// Substitutes the LIVE slider values straight into the gradient/box-shadow (no var()
+// references), targeting the real game selectors. `.art::after` carries the dome;
+// `::before` carries the breathing glow.
+function resolvedCSS() {
+  const g = (p) => C[p];                    // numeric getter
+  const baseAlpha = g('--ward-base-alpha');
+  const hlAlpha   = g('--ward-highlight-alpha');
+  const hlY       = g('--ward-highlight-y');
+  const rimW      = g('--ward-rim-width');
+  const rimAlpha  = g('--ward-rim-alpha');
+  const insetGlow = g('--ward-inset-glow');
+  const outGlow   = g('--ward-outset-glow');
+  const breatheMin= g('--ward-breathe-min');
+  const breatheS  = g('--ward-breathe-s');
+  const halfBase  = +(baseAlpha * 0.5).toFixed(4);
+
+  return `/* Ward — glassy gold dome (resolved from the tuner). */
+.card.compact.dscard .art::after,
+.card.compact.dscard::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: var(--arch-radius);
+  pointer-events: none;
+}
+.card.compact.dscard .art::after {
+  background:
+    radial-gradient(120% 80% at 50% ${hlY}%,
+      rgba(255,246,205, ${hlAlpha}) 0%,
+      rgba(255,214,90, ${baseAlpha}) 42%,
+      rgba(240,176,32, ${halfBase}) 70%,
+      rgba(240,176,32, 0) 100%);
+  box-shadow:
+    inset 0 0 0 ${rimW}px rgba(255,236,150, ${rimAlpha}),
+    inset 0 0 14px 3px rgba(255,220,110, ${insetGlow}),
+    0 0 12px 3px rgba(240,176,32, ${outGlow});
+}
+.card.compact.dscard::before {
+  box-shadow: 0 0 16px 5px rgba(255,220,110, 0.6);
+  animation: kwglow ${breatheS}s ease-in-out infinite;
+  will-change: opacity;
+}
+@keyframes kwglow {
+  0%, 100% { opacity: ${breatheMin}; }
+  50%      { opacity: 1; }
+}`;
+}
+
+function save() {
+  out.value = resolvedCSS();
+  diag.textContent = 'live · ' + DIALS.map((d) => d.prop.replace('--ward-', '') + '=' + C[d.prop] + d.unit).join(' · ');
+}
+
+// --- Copy CSS ---------------------------------------------------------------
+document.getElementById('copy').onclick = async () => {
+  const btn = document.getElementById('copy');
+  try {
+    await navigator.clipboard.writeText(out.value);
+    btn.textContent = 'Copied ✓';
+  } catch {
+    // clipboard API can be blocked (file://, no focus) — fall back to selecting the textarea.
+    out.focus(); out.select();
+    btn.textContent = 'Select+⌘C';
+  }
+  setTimeout(() => { btn.textContent = 'Copy CSS 📋'; }, 1200);
+};
+
+// --- Reset ------------------------------------------------------------------
+document.getElementById('reset').onclick = () => {
+  build();
+  save();
+};
+
+// --- boot -------------------------------------------------------------------
+build();
+save();
+</script>
+</body>
+</html>

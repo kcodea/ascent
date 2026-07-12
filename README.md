@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Sound-effects manifest + generator.** `docs/audio/sfx-manifest.md` now enumerates every sound the game
+  needs (~577: per-card play/death/effect, per-hero select/power, per-spell cast, system cues), and
+  `npm run sfx:manifest` regenerates it from the card/hero/spell data while preserving the hand-written brief +
+  record-status columns. It also emits `docs/audio/sfx-guide.html` — a self-contained, double-click-to-open
+  visual recording worklist — from the same data, so the guide never drifts. Groundwork for authoring audio.
 - **Audio import: `npm run sfx:import`.** Drop recorded `.mp3` clips into `audio-inbox/` named naturally
   (`Pennycat death.mp3`, `warden power.mp3`, `Yirin.mp3`) and the importer resolves each to its exact
   `packages/ui/src/audio/…` target and moves it — display-name↔id aware, fuzzy-tolerant, ambiguous files left

@@ -1,0 +1,508 @@
+<title>ASCENT — Sound Recording Worklist</title>
+<style>
+  :root {
+    --bg:#f6efdf; --surface:#fcf8ee; --surface-2:#f1e8d5; --raised:#fffdf7;
+    --ink:#2b2018; --ink-soft:#6c5d49; --ink-faint:#9b8b73;
+    --line:#e6dabf; --line-soft:#efe6d1;
+    --accent:#e2601b; --accent-ink:#fff; --accent-soft:#fbe7d4;
+    --threat:#c42b5a;
+    --todo-dot:#c9b795;
+    --rec:#2c7ea3; --rec-soft:#dcedf3;
+    --done:#3c8b57; --done-soft:#dfeee3;
+    --na:#b3a488;
+    --shadow:0 1px 2px rgba(60,40,20,.06),0 6px 20px rgba(60,40,20,.06);
+    --radius:14px; --radius-sm:9px;
+    --fdisp:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+    --fbody:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --fmono:ui-monospace,"Cascadia Code","SFMono-Regular",Consolas,Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#201a14; --surface:#292118; --surface-2:#332a1f; --raised:#2f261c;
+      --ink:#f3e9d7; --ink-soft:#c4b39a; --ink-faint:#8c7c64;
+      --line:#3c3125; --line-soft:#342a20;
+      --accent:#ff7d34; --accent-ink:#231a11; --accent-soft:#3b2415;
+      --threat:#f0578a;
+      --todo-dot:#6e5f45;
+      --rec:#5cb2d8; --rec-soft:#1f3944;
+      --done:#63b481; --done-soft:#1f3a2a;
+      --na:#6f6250;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#f6efdf; --surface:#fcf8ee; --surface-2:#f1e8d5; --raised:#fffdf7;
+    --ink:#2b2018; --ink-soft:#6c5d49; --ink-faint:#9b8b73;
+    --line:#e6dabf; --line-soft:#efe6d1;
+    --accent:#e2601b; --accent-ink:#fff; --accent-soft:#fbe7d4; --threat:#c42b5a;
+    --todo-dot:#c9b795; --rec:#2c7ea3; --rec-soft:#dcedf3; --done:#3c8b57; --done-soft:#dfeee3; --na:#b3a488;
+    --shadow:0 1px 2px rgba(60,40,20,.06),0 6px 20px rgba(60,40,20,.06);
+  }
+  :root[data-theme="dark"]{
+    --bg:#201a14; --surface:#292118; --surface-2:#332a1f; --raised:#2f261c;
+    --ink:#f3e9d7; --ink-soft:#c4b39a; --ink-faint:#8c7c64;
+    --line:#3c3125; --line-soft:#342a20;
+    --accent:#ff7d34; --accent-ink:#231a11; --accent-soft:#3b2415; --threat:#f0578a;
+    --todo-dot:#6e5f45; --rec:#5cb2d8; --rec-soft:#1f3944; --done:#63b481; --done-soft:#1f3a2a; --na:#6f6250;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.28);
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0}
+  .wrap{
+    font-family:var(--fbody); color:var(--ink); background:var(--bg);
+    min-height:100vh; line-height:1.5;
+    -webkit-font-smoothing:antialiased; padding-bottom:64px;
+  }
+  .max{max-width:1080px; margin:0 auto; padding:0 20px}
+
+  /* ---- header ---- */
+  header.hero{
+    background:
+      radial-gradient(120% 140% at 88% -10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
+      var(--surface);
+    border-bottom:1px solid var(--line);
+  }
+  .eyebrow{
+    font-family:var(--fmono); font-size:12px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--accent); font-weight:600; margin:0 0 8px;
+  }
+  h1{
+    font-family:var(--fdisp); font-weight:800; letter-spacing:-.02em; text-wrap:balance;
+    font-size:clamp(26px,4.4vw,40px); margin:0 0 6px; line-height:1.05;
+  }
+  h1 .amp{color:var(--accent)}
+  .lede{color:var(--ink-soft); font-size:16px; margin:0; max-width:60ch}
+  .heropad{padding:34px 0 26px}
+
+  /* progress meter */
+  .meter{display:flex; align-items:center; gap:16px; margin-top:22px; flex-wrap:wrap}
+  .bar{
+    flex:1 1 260px; height:12px; border-radius:99px; background:var(--surface-2);
+    border:1px solid var(--line); overflow:hidden; min-width:200px;
+  }
+  .bar > i{
+    display:block; height:100%; width:0%;
+    background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 60%, var(--threat)));
+    border-radius:99px; transition:width .5s cubic-bezier(.2,.7,.2,1);
+  }
+  .meter .count{font-family:var(--fmono); font-variant-numeric:tabular-nums; font-weight:600; font-size:15px; white-space:nowrap}
+  .meter .count b{color:var(--accent); font-size:19px}
+
+  /* how-to */
+  .how{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin:26px 0 4px;
+  }
+  .step{
+    background:var(--raised); border:1px solid var(--line); border-radius:var(--radius);
+    padding:15px 16px; box-shadow:var(--shadow); position:relative;
+  }
+  .step .n{
+    font-family:var(--fmono); font-size:12px; font-weight:700; color:var(--accent-ink);
+    background:var(--accent); width:22px; height:22px; border-radius:6px;
+    display:grid; place-items:center; margin-bottom:9px;
+  }
+  .step h3{margin:0 0 4px; font-size:14px; font-weight:700; letter-spacing:-.01em}
+  .step p{margin:0; font-size:13px; color:var(--ink-soft)}
+  .step code, .naming code{
+    font-family:var(--fmono); font-size:12px; background:var(--surface-2);
+    padding:1px 5px; border-radius:5px; color:var(--ink); border:1px solid var(--line-soft);
+  }
+  .naming{
+    margin-top:14px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px 16px; font-size:13px; color:var(--ink-soft);
+  }
+  .naming b{color:var(--ink)}
+  .naming .grid{display:grid; grid-template-columns:1fr 1fr; gap:6px 26px; margin-top:8px}
+  .naming .row2{display:flex; gap:8px; align-items:baseline}
+  .naming .row2 code{white-space:nowrap}
+
+  /* ---- toolbar (sticky) ---- */
+  .toolbar{
+    position:sticky; top:0; z-index:20; background:color-mix(in srgb,var(--bg) 88%, transparent);
+    backdrop-filter:saturate(1.4) blur(10px); -webkit-backdrop-filter:saturate(1.4) blur(10px);
+    border-bottom:1px solid var(--line); padding:12px 0; margin-top:26px;
+  }
+  .tbrow{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .search{flex:1 1 240px; position:relative; min-width:180px}
+  .search input{
+    width:100%; font-family:var(--fbody); font-size:14px; color:var(--ink);
+    padding:9px 12px 9px 34px; border-radius:10px; border:1px solid var(--line);
+    background:var(--surface); outline:none;
+  }
+  .search input:focus{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)}
+  .search svg{position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--ink-faint)}
+  .seg{display:inline-flex; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:3px; gap:2px}
+  .seg button{
+    font-family:var(--fbody); font-size:13px; font-weight:600; color:var(--ink-soft);
+    border:0; background:transparent; padding:6px 11px; border-radius:7px; cursor:pointer; white-space:nowrap;
+  }
+  .seg button[aria-pressed="true"]{background:var(--raised); color:var(--ink); box-shadow:var(--shadow)}
+  .seg button:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+  .ghost{
+    font-family:var(--fbody); font-size:13px; font-weight:600; color:var(--ink-soft);
+    border:1px solid var(--line); background:var(--surface); padding:8px 12px; border-radius:9px; cursor:pointer;
+  }
+  .ghost:hover{color:var(--ink); border-color:var(--accent)}
+  .ghost:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+
+  .chips{display:flex; gap:7px; flex-wrap:wrap; margin-top:10px}
+  .chip{
+    font-family:var(--fbody); font-size:12.5px; font-weight:600; cursor:pointer;
+    border:1px solid var(--line); background:var(--surface); color:var(--ink-soft);
+    padding:5px 11px; border-radius:99px; display:inline-flex; align-items:center; gap:6px;
+  }
+  .chip .c{font-family:var(--fmono); font-size:11px; color:var(--ink-faint); font-variant-numeric:tabular-nums}
+  .chip[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
+  .chip[aria-pressed="true"] .c{color:var(--accent-ink); opacity:.85}
+  .chip:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+
+  /* ---- sections ---- */
+  main{margin-top:22px}
+  .sec{margin-bottom:14px; border:1px solid var(--line); border-radius:var(--radius); background:var(--surface); overflow:hidden; box-shadow:var(--shadow)}
+  .sec > .sechead{
+    display:flex; align-items:center; gap:12px; width:100%; text-align:left; cursor:pointer;
+    border:0; background:transparent; padding:14px 16px; font-family:var(--fdisp); color:var(--ink);
+  }
+  .sec > .sechead:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+  .sechead .caret{color:var(--ink-faint); transition:transform .2s; flex:none}
+  .sec[data-open="false"] .caret{transform:rotate(-90deg)}
+  .sechead .name{font-size:16px; font-weight:700; letter-spacing:-.01em}
+  .sechead .sub{font-family:var(--fmono); font-size:12px; color:var(--ink-faint); font-variant-numeric:tabular-nums}
+  .sechead .minibar{flex:1 1 auto; max-width:200px; height:7px; border-radius:99px; background:var(--surface-2); border:1px solid var(--line); overflow:hidden; margin-left:auto}
+  .sechead .minibar > i{display:block; height:100%; background:var(--accent); border-radius:99px; transition:width .4s}
+  .sechead .pct{font-family:var(--fmono); font-size:12px; color:var(--ink-soft); font-variant-numeric:tabular-nums; min-width:38px; text-align:right}
+
+  .rows{border-top:1px solid var(--line-soft)}
+  .sec[data-open="false"] .rows{display:none}
+  .r{
+    display:grid; grid-template-columns:26px minmax(0,1fr); gap:0 12px;
+    padding:11px 16px; border-bottom:1px solid var(--line-soft); align-items:start;
+  }
+  .r:last-child{border-bottom:0}
+  .r:hover{background:var(--surface-2)}
+  .r.hide{display:none}
+
+  /* status toggle */
+  .st{
+    grid-row:1/span 2; margin-top:2px; width:22px; height:22px; border-radius:7px; cursor:pointer;
+    border:1.5px solid var(--todo-dot); background:transparent; display:grid; place-items:center; padding:0;
+    color:transparent; transition:.12s;
+  }
+  .st:hover{border-color:var(--accent)}
+  .st:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  .st svg{width:13px; height:13px}
+  .r[data-eff="rec"] .st{background:var(--rec); border-color:var(--rec); color:#fff}
+  .r[data-eff="done"] .st{background:var(--done); border-color:var(--done); color:#fff}
+  .r[data-eff="na"] .st{border-style:dashed; border-color:var(--na); cursor:default}
+  .r[data-eff="na"] .st::after{content:"–"; color:var(--na); font-family:var(--fmono); font-weight:700}
+
+  .rmain{min-width:0}
+  .fnline{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .fn{
+    font-family:var(--fmono); font-size:13.5px; font-weight:600; color:var(--ink);
+    word-break:break-all;
+  }
+  .r[data-eff="na"] .fn{color:var(--ink-faint); font-weight:500}
+  .r[data-eff="rec"] .fn, .r[data-eff="done"] .fn{color:var(--ink-soft)}
+  .copy{
+    font-family:var(--fbody); font-size:11px; font-weight:600; color:var(--ink-faint);
+    border:1px solid var(--line); background:var(--raised); border-radius:6px; padding:2px 7px; cursor:pointer;
+    display:inline-flex; align-items:center; gap:4px; flex:none;
+  }
+  .copy:hover{color:var(--accent); border-color:var(--accent)}
+  .copy:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+  .copy.ok{color:var(--done); border-color:var(--done)}
+  .meta{margin-top:3px; font-size:13px; color:var(--ink-soft); display:flex; gap:8px; flex-wrap:wrap}
+  .meta .trig{color:var(--ink)}
+  .meta .brief{color:var(--ink-faint)}
+  .meta .dot{color:var(--line); }
+  .tag{
+    font-family:var(--fmono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; font-weight:700;
+    padding:1px 6px; border-radius:5px; flex:none; align-self:center;
+  }
+  .tag.play{background:var(--accent-soft); color:var(--accent)}
+  .tag.death{background:color-mix(in srgb,var(--threat) 16%, transparent); color:var(--threat)}
+  .tag.effect{background:var(--surface-2); color:var(--ink-soft); border:1px solid var(--line)}
+
+  .empty{padding:40px 16px; text-align:center; color:var(--ink-faint); font-size:14px}
+  footer{margin-top:30px; color:var(--ink-faint); font-size:12.5px; text-align:center; line-height:1.7}
+  footer code{font-family:var(--fmono); background:var(--surface-2); padding:1px 5px; border-radius:5px}
+
+  @media (max-width:720px){
+    .how{grid-template-columns:1fr}
+    .naming .grid{grid-template-columns:1fr}
+    .sechead .minibar{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="max heropad">
+      <p class="eyebrow">ASCENT · audio production</p>
+      <h1>Sound Recording <span class="amp">Worklist</span></h1>
+      <p class="lede">Every clip the game is waiting for. Record a sound, save it under the exact filename shown, and it plays itself into the game — no code needed. Your progress here is saved in this browser.</p>
+
+      <div class="meter">
+        <div class="bar"><i id="pbar"></i></div>
+        <div class="count"><b id="pdone">0</b> / <span id="ptotal">0</span> clips recorded · <span id="ppct">0%</span></div>
+      </div>
+
+      <div class="how">
+        <div class="step">
+          <div class="n">1</div>
+          <h3>Record &amp; export</h3>
+          <p>Export each sound as an <code>.mp3</code>. Short is good — most cues are ~0.3–0.5s.</p>
+        </div>
+        <div class="step">
+          <div class="n">2</div>
+          <h3>Save at the exact path</h3>
+          <p>Drop it in <code>packages/ui/src/audio/</code> under the filename in each row. The <b>filename is the contract</b> — the game finds it by name.</p>
+        </div>
+        <div class="step">
+          <div class="n">3</div>
+          <h3>Refresh the manifest</h3>
+          <p>Run <code>npm run sfx:manifest</code> — recorded rows flip to 🎙️ automatically. Reload the game to hear them.</p>
+        </div>
+      </div>
+
+      <div class="naming">
+        <b>Where each kind of sound lives</b> — all paths are under <code>packages/ui/src/audio/</code>:
+        <div class="grid">
+          <div class="row2"><code>cards/&lt;id&gt;.mp3</code> <span>minion played / spell cast</span></div>
+          <div class="row2"><code>cards/&lt;id&gt;.death.mp3</code> <span>minion dies in combat</span></div>
+          <div class="row2"><code>cards/&lt;id&gt;.effect.mp3</code> <span>its Battlecry / Deathrattle fires</span></div>
+          <div class="row2"><code>heroes/&lt;id&gt;.mp3</code> <span>hero picked</span></div>
+          <div class="row2"><code>heroes/&lt;id&gt;.power.mp3</code> <span>hero power used</span></div>
+          <div class="row2"><code>castspell.mp3</code> <span>default bed under every spell</span></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <div class="max">
+      <div class="tbrow">
+        <label class="search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input id="q" type="search" placeholder="Search a card, hero, filename, or effect…" autocomplete="off" aria-label="Search sounds">
+        </label>
+        <div class="seg" role="group" aria-label="Filter by status">
+          <button data-f="all" aria-pressed="true">All</button>
+          <button data-f="todo" aria-pressed="false">To record</button>
+          <button data-f="rec" aria-pressed="false">Recorded</button>
+        </div>
+        <button class="ghost" id="expand">Collapse all</button>
+        <button class="ghost" id="reset" title="Clear the recorded check-offs saved in this browser">Reset progress</button>
+      </div>
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+
+  <main class="max" id="list"></main>
+  <div class="max"><div class="empty" id="empty" style="display:none">No sounds match — try a different search or filter.</div></div>
+
+  <footer class="max">
+    Your check-offs live only in this browser (a personal tally). The project's real status column updates when you run <code>npm run sfx:manifest</code> after adding files.<br>
+    System / UI cues already ship and are marked done. Rows shown as “–” are vanilla minions with no effect to voice.
+  </footer>
+</div>
+
+<script>
+const DATA = /*__SFX_ROWS__*/[];
+const PATHROOT = "packages/ui/src/audio/";
+const LS = "ascent-sfx-recorded-v1";
+const SECT_ORDER = ["Heroes","Spells","Neutral","Beasts","Dragons","Undead","Mechs","Demons","Tokens","System / UI"];
+
+let recorded = new Set();
+try { recorded = new Set(JSON.parse(localStorage.getItem(LS) || "[]")); } catch (e) {}
+const save = () => { try { localStorage.setItem(LS, JSON.stringify([...recorded])); } catch(e){} };
+
+// classify each row into an effective state
+function eff(r){
+  if (r.status === "➖") return "na";
+  if (r.status === "✅") return "done";
+  if (r.status === "🎙️" || recorded.has(r.filename)) return "rec";
+  return "todo";
+}
+// which rows count toward "to record" progress
+const recordable = r => r.status !== "➖" && r.status !== "✅";
+// tag by suffix (the three per-card variants; spells read as "cast")
+function kindTag(r){
+  const fn = r.filename;
+  if (fn.endsWith(".death.mp3")) return ["death","death"];
+  if (fn.endsWith(".effect.mp3")) return ["effect","effect"];
+  if (fn.startsWith("cards/")) return r.section === "Spells" ? ["cast","play"] : ["play","play"];
+  return null;
+}
+
+let filter = "all";        // all | todo | rec
+let activeSection = null;  // section chip filter
+let query = "";
+
+const el = s => document.querySelector(s);
+const list = el("#list");
+
+function bySection(){
+  const m = new Map();
+  for (const r of DATA){ if(!m.has(r.section)) m.set(r.section, []); m.get(r.section).push(r); }
+  return SECT_ORDER.filter(s=>m.has(s)).map(s=>[s, m.get(s)]);
+}
+
+const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+const CARET = '<svg class="caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>';
+
+function matches(r){
+  if (activeSection && r.section !== activeSection) return false;
+  const e = eff(r);
+  if (filter === "todo" && e !== "todo") return false;
+  if (filter === "rec"  && e !== "rec")  return false;
+  if (query){
+    const hay = (r.filename + " " + r.trigger + " " + r.brief).toLowerCase();
+    if (!hay.includes(query)) return false;
+  }
+  return true;
+}
+
+function render(){
+  const open = new Map([...list.querySelectorAll(".sec")].map(s=>[s.dataset.section, s.dataset.open]));
+  list.innerHTML = "";
+  let shown = 0;
+  for (const [section, rows] of bySection()){
+    const vis = rows.filter(matches);
+    if (!vis.length) continue;
+    shown += vis.length;
+    const rec = rows.filter(r=>recordable(r) && eff(r)==="rec").length;
+    const tot = rows.filter(recordable).length;
+    const pct = tot ? Math.round(rec/tot*100) : 100;
+
+    const sec = document.createElement("section");
+    sec.className = "sec"; sec.dataset.section = section;
+    const wasOpen = open.has(section) ? open.get(section) : (section === "System / UI" ? "false" : "true");
+    sec.dataset.open = wasOpen;
+    sec.innerHTML =
+      '<button class="sechead" aria-expanded="'+(wasOpen==="true")+'">'+CARET+
+        '<span class="name">'+section+'</span>'+
+        '<span class="sub">'+vis.length+(vis.length!==rows.length?(" / "+rows.length):"")+'</span>'+
+        (tot? '<span class="minibar"><i style="width:'+pct+'%"></i></span><span class="pct">'+rec+'/'+tot+'</span>' : '<span class="pct" style="color:var(--done)">shipped</span>')+
+      '</button><div class="rows"></div>';
+    const body = sec.querySelector(".rows");
+    for (const r of vis){
+      const e = eff(r);
+      const tag = kindTag(r);
+      const row = document.createElement("div");
+      row.className = "r"; row.dataset.eff = e; row.dataset.fn = r.filename;
+      const canToggle = recordable(r);
+      row.innerHTML =
+        '<button class="st" '+(canToggle?'':'tabindex="-1" aria-disabled="true"')+' aria-label="'+(e==="rec"?"Mark not recorded":"Mark recorded")+'">'+(e==="rec"||e==="done"?CHECK:"")+'</button>'+
+        '<div class="rmain">'+
+          '<div class="fnline">'+
+            (tag?'<span class="tag '+tag[1]+'">'+tag[0]+'</span>':'')+
+            '<span class="fn">'+r.filename+'</span>'+
+            '<button class="copy" data-copy="'+PATHROOT+r.filename+'" title="Copy full save path">copy path</button>'+
+          '</div>'+
+          '<div class="meta"><span class="trig">'+r.trigger+'</span>'+
+            (r.brief && r.brief!=="(vanilla — no clip needed)" && r.brief!=="(shipped)"?'<span class="dot">•</span><span class="brief">'+r.brief+'</span>':'')+
+          '</div>'+
+        '</div>';
+      body.appendChild(row);
+    }
+    list.appendChild(sec);
+  }
+  el("#empty").style.display = shown ? "none" : "block";
+  updateMeter();
+}
+
+function updateMeter(){
+  const pool = DATA.filter(recordable);
+  const done = pool.filter(r=>eff(r)==="rec").length;
+  const total = pool.length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  el("#pdone").textContent = done;
+  el("#ptotal").textContent = total;
+  el("#ppct").textContent = pct + "%";
+  el("#pbar").style.width = pct + "%";
+}
+
+function buildChips(){
+  const wrap = el("#chips");
+  wrap.innerHTML = "";
+  for (const [section, rows] of bySection()){
+    const b = document.createElement("button");
+    b.className = "chip"; b.setAttribute("aria-pressed", "false"); b.dataset.section = section;
+    b.innerHTML = section + ' <span class="c">'+rows.length+'</span>';
+    wrap.appendChild(b);
+  }
+}
+
+// events
+list.addEventListener("click", e=>{
+  const head = e.target.closest(".sechead");
+  if (head){ const sec = head.closest(".sec"); const o = sec.dataset.open==="true"; sec.dataset.open = String(!o); head.setAttribute("aria-expanded", String(!o)); return; }
+  const st = e.target.closest(".st");
+  if (st){
+    const row = st.closest(".r"); const fn = row.dataset.fn; const r = DATA.find(x=>x.filename===fn);
+    if (!recordable(r)) return;
+    if (recorded.has(fn)) recorded.delete(fn); else recorded.add(fn);
+    save();
+    const ne = eff(r); row.dataset.eff = ne;
+    st.innerHTML = (ne==="rec"?CHECK:"");
+    st.setAttribute("aria-label", ne==="rec"?"Mark not recorded":"Mark recorded");
+    // refresh section mini-bar + global meter without full rerender
+    refreshSection(row.closest(".sec"));
+    updateMeter();
+    return;
+  }
+  const cp = e.target.closest(".copy");
+  if (cp){
+    const text = cp.dataset.copy;
+    navigator.clipboard?.writeText(text).then(()=>{
+      const old = cp.textContent; cp.textContent = "copied ✓"; cp.classList.add("ok");
+      setTimeout(()=>{ cp.textContent = old; cp.classList.remove("ok"); }, 1100);
+    }).catch(()=>{});
+  }
+});
+
+function refreshSection(sec){
+  if (!sec) return;
+  const section = sec.dataset.section;
+  const rows = DATA.filter(r=>r.section===section);
+  const rec = rows.filter(r=>recordable(r) && eff(r)==="rec").length;
+  const tot = rows.filter(recordable).length;
+  const pct = tot?Math.round(rec/tot*100):100;
+  const bar = sec.querySelector(".minibar > i"); if (bar) bar.style.width = pct+"%";
+  const p = sec.querySelector(".pct"); if (p && tot) p.textContent = rec+"/"+tot;
+}
+
+el("#q").addEventListener("input", e=>{ query = e.target.value.trim().toLowerCase(); render(); });
+document.querySelector(".seg").addEventListener("click", e=>{
+  const b = e.target.closest("button"); if(!b) return;
+  filter = b.dataset.f;
+  document.querySelectorAll(".seg button").forEach(x=>x.setAttribute("aria-pressed", String(x===b)));
+  render();
+});
+el("#chips").addEventListener("click", e=>{
+  const c = e.target.closest(".chip"); if(!c) return;
+  const on = c.getAttribute("aria-pressed")==="true";
+  document.querySelectorAll(".chip").forEach(x=>x.setAttribute("aria-pressed","false"));
+  activeSection = on ? null : c.dataset.section;
+  if (!on) c.setAttribute("aria-pressed","true");
+  render();
+});
+el("#expand").addEventListener("click", ()=>{
+  const secs = [...list.querySelectorAll(".sec")];
+  const anyOpen = secs.some(s=>s.dataset.open==="true");
+  secs.forEach(s=>{ s.dataset.open = String(!anyOpen); const h=s.querySelector(".sechead"); h && h.setAttribute("aria-expanded", String(!anyOpen)); });
+  el("#expand").textContent = anyOpen ? "Expand all" : "Collapse all";
+});
+el("#reset").addEventListener("click", ()=>{
+  if (!recorded.size) return;
+  if (confirm("Clear the "+recorded.size+" recorded check-offs saved in this browser? (Your actual audio files aren't touched.)")){
+    recorded.clear(); save(); render();
+  }
+});
+
+buildChips();
+render();
+</script>

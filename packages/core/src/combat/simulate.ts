@@ -1510,10 +1510,15 @@ export function simulate(
   const canAttack = (side: Side): boolean => boards[side].some((m) => !m.dead && m.health > 0 && m.attack > 0);
   // Bloodlust: each spell-marked minion takes an immediate out-of-turn attack now, immune to retaliation for
   // that swing ("cannot die from that attack"). Queued like a Whelp strike → drained by flushImmediateAttacks.
-  for (const m of boards.player) {
-    if (!m.bloodlust || m.dead || m.health <= 0 || m.attack <= 0) continue;
-    m.attackImmuneLeft = Math.max(m.attackImmuneLeft ?? 0, 1); // no retaliation on the Bloodlust swing
-    pendingAttackOnSummon.push({ minion: m });
+  // BOTH sides: a served opponent board captured with a pending Bloodlust must fire it too (fidelity), and
+  // flushImmediateAttacks strikes `OTHER[m.side]` — so an enemy Bloodlust correctly swings at the player.
+  // Player first (unchanged order → determinism preserved for the common player-only case).
+  for (const side of ['player', 'enemy'] as Side[]) {
+    for (const m of boards[side]) {
+      if (!m.bloodlust || m.dead || m.health <= 0 || m.attack <= 0) continue;
+      m.attackImmuneLeft = Math.max(m.attackImmuneLeft ?? 0, 1); // no retaliation on the Bloodlust swing
+      pendingAttackOnSummon.push({ minion: m });
+    }
   }
   flushImmediateAttacks(); // Whelps summoned during Start-of-Combat / Reclaimer strike before the rotation begins
   flushAscensions(); // a Start-of-Combat buff/cast can already push Tara/Spirit Pup over the line — transform before round 1

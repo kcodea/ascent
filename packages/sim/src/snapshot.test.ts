@@ -51,11 +51,15 @@ describe('board snapshot + replay', () => {
       board: [
         { uid: 'sg', cardId: 'sergeant', tribe: 'undead', attack: 5, health: 5, keywords: [], golden: false, hpGrantBonus: 8 },
         { uid: 'ta', cardId: 'tara', tribe: 'dragon', attack: 9, health: 9, keywords: ['EG'], golden: false, ascendProgress: 15 },
+        { uid: 'mo', cardId: 'moe', tribe: 'demon', attack: 4, health: 4, keywords: [], golden: false, addedTribes: ['mech'], bloodlust: true },
       ],
     };
     const snap = snapshotBoard(s);
     expect(snap.minions.find((m) => m.cardId === 'sergeant')?.hpGrantBonus).toBe(8);
     expect(snap.minions.find((m) => m.cardId === 'tara')?.ascendProgress).toBe(15);
+    // Anomaly Reactor's spell-added tribe + a pending Bloodlust strike are part of the board's real state.
+    expect(snap.minions.find((m) => m.cardId === 'moe')?.addedTribes).toEqual(['mech']);
+    expect(snap.minions.find((m) => m.cardId === 'moe')?.bloodlust).toBe(true);
   });
 
   it('snapshotBoard captures the run-LEVEL scalers (spell power / Deathrattles / spells / Beasts played)', () => {
@@ -165,6 +169,7 @@ describe('opponentBoard — enemy Soren Reclaim mark', () => {
       { cardId: 'monk', attack: 4, health: 5, keywords: [], overflowBonus: 4 },
       { cardId: 'betterbot', attack: 5, health: 5, keywords: [], rallyMechAtk: 5 },
       { cardId: 'pack', attack: 3, health: 4, keywords: [], buffs: [{ source: 'Spirit Fire', attack: 2, health: 2, count: 1 }] },
+      { cardId: 'moe', attack: 4, health: 4, keywords: [], addedTribes: ['mech'], bloodlust: true }, // Anomaly Reactor tribe + Bloodlust
     ]);
     const board = opponentBoard(snap);
     const by = (id: string): BoardMinion => board.find((m) => m.cardId === id)!;
@@ -175,5 +180,7 @@ describe('opponentBoard — enemy Soren Reclaim mark', () => {
     expect(by('betterbot').rallyMechAtk).toBe(5);
     expect(by('pack').buffs).toEqual([{ source: 'Spirit Fire', attack: 2, health: 2, count: 1 }]);
     expect(by('pack').buffs).not.toBe(snap.minions.find((m) => m.cardId === 'pack')!.buffs); // cloned, not shared
+    expect(by('moe').addedTribes).toEqual(['mech']); // spell-added tribe survives → enemy tribe synergies still count
+    expect(by('moe').bloodlust).toBe(true); // Bloodlust opening strike survives
   });
 });

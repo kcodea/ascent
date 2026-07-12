@@ -1034,6 +1034,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         health: b.health,
         keywords: [...b.keywords],
         golden: b.golden,
+        ...(b.addedTribes && b.addedTribes.length ? { addedTribes: [...b.addedTribes] } : {}), // Anomaly Reactor: a spell-added tribe (→ combat tribe2) — was dropped, so the tribe stopped counting in the player's own fights
+        ...(b.bloodlust ? { bloodlust: true } : {}), // Bloodlust: a Start-of-Combat immune out-of-turn strike — was dropped, so it never fired
         summonBonus: b.summonBonus ?? 0,
         overflowBonus: b.overflowBonus, // Flowing Monk: flat grant bonus from the triple combine
         hpGrantBonus: b.hpGrantBonus ?? 0, // Sergeant: seed the Deathrattle HP-grant accrual into combat

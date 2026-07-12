@@ -1660,6 +1660,20 @@ describe('simulate (handoff A.3)', () => {
     expect(pre.some((e) => e.type === 'death' && e.target === blmUid)).toBe(false); // immune — no retaliation death
   });
 
+  it('Bloodlust also fires for the ENEMY side (a served board reproduces its opening strike)', () => {
+    // Fidelity: a captured opponent with a pending Bloodlust must take its Start-of-Combat strike too — the
+    // sim's SoC loop now iterates both boards (flushImmediateAttacks strikes OTHER[side]).
+    const a = simulate(
+      [{ cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] }],
+      [{ cardId: 'alley', attack: 3, health: 2, bloodlust: true }],
+      makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, {},
+    );
+    const enemyBlm = a.initial.enemy[0]!.uid;
+    const firstDmg = a.events.findIndex((e) => e.type === 'dmg');
+    // The very first damage of the fight comes from the enemy Bloodlust's out-of-turn opening swing.
+    expect(a.events.slice(0, firstDmg + 1).some((e) => e.type === 'attack' && e.attacker === enemyBlm)).toBe(true);
+  });
+
   it('Umbral Energy (Dragon greater): Start of Combat gives Dragons +2/+2 per spell cast this game', () => {
     // spellsCast (10th arg) = 3 → +6/+6 on the Dragon at SoC; questMods.umbralEnergy is the last arg.
     const a = simulate(

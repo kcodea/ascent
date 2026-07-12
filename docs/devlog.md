@@ -5,6 +5,38 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-12 (session 34)
 
+### fix: player-snapshot fidelity — re-land per-side scalers + capture addedTribes / Bloodlust
+
+A fidelity pass so a **player-snapshotted board is a faithful image of its run** — every card behaves + reads
+exactly as it did when captured (served as an opponent AND on the leaderboard / Career). An audit surfaced three
+things:
+
+**1. PR #340's squash lost "part 2".** The per-side run-level scalers (spell power / Deathrattle tally / spells /
+Beasts-played threaded per-board so an enemy Grim / Taragosa / Runescale / Pack Leader reads its OWN value, not the
+current player's) were **not** actually on `main` — the squash-merge of #340 captured only part 1. Re-landed the
+whole per-side layer (`ctx.spellPowerFor(side)` / `spellsThisTurnFor` / `beastsPlayedFor` / `deathrattleTally(side)`,
+`simulate`'s `enemyScalers` param, `CombatResult.enemyScalers`, `snapshotBoard` capture, the reducer passing the
+served board's scalers, and `Unit.tsx` per-side display).
+
+**2. `addedTribes` + `bloodlust` were dropped even in the PLAYER's own board→combat mapping** (`reducer.ts`). So an
+Anomaly Reactor spell-added tribe (e.g. a minion made a Mech) stopped counting for tribe synergies in the player's
+*own* fights, and a **Bloodlust** opening strike never fired — a live bug, not just a snapshot gap. Threaded both
+through: the reducer's player mapping, `cleanBoard` (capture), and `opponentBoard` (served restore). Also folded
+`addedTribes` into the leaderboard / Career / BoardLog display (`cardViewOf`) so the spell-added tribe badge shows.
+
+**3. Bloodlust was player-only in the sim.** The Start-of-Combat Bloodlust loop iterated `boards.player` only, so a
+served opponent's Bloodlust wouldn't fire. Made it iterate **both** sides (player first → determinism preserved;
+`flushImmediateAttacks` strikes `OTHER[side]`, so an enemy Bloodlust correctly swings at the player).
+
+The audit also **confirmed no other run-level aura leaks**: the Undead / Beast / Magnetic / Imp auras, `cardBuffs`,
+`spellsCast`, `fodderConsumed`, tier/tribes, attack-first / rally-double, and every `questMods` field are already
+player-side-scoped in `simulate` — spell-power/tally/spells/beasts were the only shared globals.
+
+**Verified:** `typecheck + lint + test` (935) & `build:web` green. New tests: `opponentBoard` + `snapshotBoard`
+round-trip `addedTribes` / `bloodlust`; an ENEMY Bloodlust fires its opening strike; plus the re-landed per-side
+`simulate` proofs (enemy Pack Leader / Runescale use the opponent's values). Follow-up: keep sweeping the snapshot
+for any remaining representativeness gaps.
+
 ### feat(tools): `npm run sfx:import` — smart drop-folder audio importer
 
 Removes the friction of getting recorded clips into the game. A sandboxed claude.ai page can't write into the

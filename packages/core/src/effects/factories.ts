@@ -1456,6 +1456,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       }
     }
     self.summonBonus += step; // "improve whenever it attacks" — the next attack grants more (live text reads this)
+    ctx.log({ type: 'improve', target: self.uid, amount: step }); // fold into the live combat frame so the displayed +M/+M climbs each attack
   },
 
   /** Bloodbinder — Rally (on its own attack): give another friendly Demon Attack equal to THIS minion's current

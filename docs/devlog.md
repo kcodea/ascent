@@ -5,6 +5,33 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-12 (session 34)
 
+### fix: combat live-display completeness — ascend fold, Trophy Stalker, Rising Graves pill
+
+An audit ("are player AND enemy cards showing real-time-accurate values everywhere, true-PvP on both sides?") of
+the `simulate` → event-log → `computeFrame` fold → `Unit.tsx` pipeline. The fold is already fully side-agnostic
+(no `side === 'you'` branch; every per-instance accrual — stats, DS/keywords, Sergeant's HP-grant, Kennelmaster's
+aura, Tara's ascend tally, Engraved permaGain — is seeded for the enemy snapshot too and updated by side-agnostic
+events). The audit found three display mutations that emitted **no foldable event**, so the card froze mid-replay
+(on both sides):
+
+- **`ascend` never folded.** A mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen) mutated
+  cardId/name/tribe/keywords in the sim but `computeFrame` had no `ascend` case, so the card kept its pre-ascension
+  face (old art/name/rule text) for the rest of the fight even as the new form's buffs landed. Added an `ascend`
+  fold that adopts the new form's identity + keywords (mirrors `ascendMinion`).
+- **Trophy Stalker** (`rallyTribeAuraGrowing`) bumped its own `summonBonus` each attack with no `improve` event, so
+  its displayed "+M/+M" grant was frozen. Now emits `improve` so the live text climbs.
+- **Rune of Rising Graves** granted `R` but emitted a display-silent `sc` (not folded into keywords), so the pill
+  never showed — now emits a foldable `keyword` event like `scGrantReborn` / `runeWarding`'s DS grant.
+
+Deliberately **left for a follow-up** (flagged, not guessed): Archmagus Guel's live countdown (its combat grant
+scales off the per-combat spell count while the text reads the run-board tally — needs a design call on whether
+combat casts count toward the on-board tally), and Crypt Drake's "N to go" countdown (approximate between procs —
+driven by the proc, not the raw attack events). The enemy run-level scaler display (spell power / tally / spells /
+beasts) is handled by the per-side `enemyScalers` layer earlier in this PR.
+
+**Verified:** `typecheck + lint + test` (939) & `build:web` green. New tests: `computeFrame` folds an `ascend` on
+BOTH sides (identity swaps live); Trophy Stalker emits `improve` each attack; Rising Graves emits the `keyword` R.
+
 ### fix: player-snapshot fidelity — re-land per-side scalers + capture addedTribes / Bloodlust
 
 A fidelity pass so a **player-snapshotted board is a faithful image of its run** — every card behaves + reads

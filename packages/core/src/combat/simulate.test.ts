@@ -2829,7 +2829,8 @@ describe('Epic combat runes (Rising Graves / Broodpit / Spearline / Appraisal)',
     ];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }];
     const r = simMods(p, e, 1, { runeRisingGraves: true });
-    expect(r.events.filter((ev) => ev.type === 'sc' && ev.text === 'Rise').length).toBe(2);
+    // Emits a foldable `keyword` R grant (so the pill shows in the replay), not a display-silent `sc`.
+    expect(r.events.filter((ev) => ev.type === 'keyword' && ev.keyword === 'R').length).toBe(2);
   });
 
   it('Broodpit: 6 friendly deaths summon 2 Taunt Imps', () => {
@@ -2962,5 +2963,23 @@ describe('enemy run-level scalers (per-side)', () => {
       maxBuffAtk(runVs(wall, enemy, { spellsThisTurn: enemySpells }, { spellsThisTurn: playerSpells }).events);
     expect(g(3, 0)).toBe(2 + 1 * 3); // base 2 + perSpell 1 × its own 3 = +5/+5
     expect(g(0, 5)).toBe(g(0, 0)); // does NOT leech the player's spells-this-turn
+  });
+});
+
+describe('live-display events (combat cards update in real time)', () => {
+  const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, mods);
+
+  it('Trophy Stalker emits an `improve` event each attack so its live grant climbs on the card', () => {
+    // Its "+M/+M" (summonBonus) rises on every attack; without the event the frame fold froze the displayed value.
+    const a = run([{ cardId: 'trophystalker', attack: 3, health: 40 }], [{ cardId: 'sandbag', attack: 0, health: 40 }], 1);
+    const stalker = a.initial.player[0]!.uid;
+    expect(a.events.some((ev) => ev.type === 'improve' && ev.target === stalker)).toBe(true);
+  });
+
+  it('Rune of Rising Graves emits a foldable `keyword` R event (the pill shows), not a display-silent `sc`', () => {
+    const a = simMods([{ cardId: 'knit', attack: 2, health: 5 }], [{ cardId: 'sandbag', attack: 0, health: 10 }], 1, { runeRisingGraves: true });
+    const undead = a.initial.player[0]!.uid;
+    expect(a.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'R' && ev.target === undead)).toBe(true);
   });
 });

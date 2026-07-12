@@ -1400,7 +1400,9 @@ export function simulate(
       nextStep();
       m.rebornAvailable = true;
       if (!m.keywords.includes('R')) m.keywords.push('R');
-      emit({ type: 'sc', source: m.uid, text: 'Rise' });
+      // A foldable `keyword` event (not `sc`) so the granted R pill actually appears on the card in the replay,
+      // mirroring scGrantReborn / runeWarding's DS grant. `sc` was display-silent for keywords.
+      emit({ type: 'keyword', target: m.uid, keyword: 'R', source: m.uid });
       given++;
     }
   }

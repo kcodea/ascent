@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Buff Descend — Rain-down FX preview</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  /* The STAGE matches the REAL combat board: a light warm cream (#e4dccf) — identical to the
+     buff-pulse + buff-tendril rigs, so the descend's additive/screen glow reads honestly against
+     the same surface the real board uses, not against a flattering near-black. */
+  body { margin: 0; background: #e4dccf; color: #e6ecdc; font: 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace; display: flex; height: 100vh; overflow: hidden; }
+  #stage { flex: 1; position: relative; display: grid; place-items: center; background: #e4dccf; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  /* Fake reference cards: the real game cards are near-white (#fffdf8) with dark ART. We show
+     BOTH surfaces the descend composites over — a bright card AND a darker art swatch — so the
+     owner can judge how the drop + landing pulse read on each. The DRAGGABLE unit marker is the
+     descend origin; these two are just static reference surfaces (like the sibling rigs). */
+  #cards { display: flex; gap: 22px; align-items: center; z-index: 0; }
+  #card { width: 132px; height: 184px; border-radius: 10px; background: #fffdf8; border: 1px solid #e7dcc7; box-shadow: 0 6px 22px rgba(60,45,20,.18); position: relative; }
+  #card::after { content: "bright card"; position: absolute; inset: auto 0 8px; text-align: center; color: #b3a687; font-size: 11px; letter-spacing: .12em; }
+  #cardArt { width: 132px; height: 184px; border-radius: 10px; background: linear-gradient(160deg,#3a3326,#211d14); border: 1px solid #e7dcc7; box-shadow: 0 6px 22px rgba(60,45,20,.18); position: relative; }
+  #cardArt::after { content: "card art"; position: absolute; inset: auto 0 8px; text-align: center; color: #8a7f63; font-size: 11px; letter-spacing: .12em; }
+  #panel { width: 306px; padding: 14px 16px; overflow-y: auto; background: #0e100a; border-left: 1px solid #2b3020; }
+  h1 { font-size: 13px; margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; color: #c8e070; }
+  .sub { color: #7a8556; font-size: 11px; margin-bottom: 12px; }
+  h2 { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #7a8556; margin: 16px 0 6px; border-top: 1px solid #2b3020; padding-top: 10px; }
+  .row { display: grid; grid-template-columns: 1fr 54px; gap: 8px; align-items: center; margin-bottom: 7px; }
+  label { color: #b7c194; font-size: 11.5px; }
+  input[type=range] { width: 100%; accent-color: #c8e070; }
+  input[type=color] { width: 100%; height: 24px; border: 1px solid #444d2f; background: none; border-radius: 4px; padding: 0; cursor: pointer; }
+  select { background: #232a16; color: #e6ecdc; border: 1px solid #444d2f; border-radius: 4px; padding: 4px; font: inherit; }
+  select:disabled { opacity: 0.5; cursor: not-allowed; }
+  .val { text-align: right; color: #c8e070; font-size: 11px; }
+  button { width: 100%; padding: 9px; margin-top: 12px; border: 0; border-radius: 6px; background: #6f9a2f; color: #fff; font: inherit; font-weight: 700; letter-spacing: .06em; cursor: pointer; }
+  button:hover { background: #86b83e; }
+  button.ghost { background: #1f2415; color: #b7c194; }
+  button.ghost:hover { background: #2a3120; }
+  .checkrow { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: #b7c194; font-size: 12px; }
+  .checkrow input { accent-color: #c8e070; width: 15px; height: 15px; }
+  textarea { width: 100%; height: 300px; margin-top: 10px; background: #080a05; color: #c8e070; border: 1px solid #2b3020; border-radius: 6px; padding: 8px; font: 10.5px/1.45 ui-monospace, monospace; resize: vertical; }
+  .hint { color: #5a6440; font-size: 10.5px; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div id="stage"><div id="cards"><div id="card"></div><div id="cardArt"></div></div><canvas id="cv"></canvas></div>
+  <div id="panel">
+    <h1>Buff Descend</h1>
+    <div class="sub">Rain-down FX — a Deathrattle buff-others drops an energy tendril from above INTO a card's centre, then fires a pulse on landing.<br />Drag the unit marker · click the stage to re-fire · space to fire.</div>
+
+    <div id="controls"></div>
+    <button id="fire">FIRE ⚡ (space)</button>
+    <label class="checkrow"><input type="checkbox" id="loop" /> Auto-repeat (~1.4s)</label>
+
+    <h2>DescendPresetCfg (live export)</h2>
+    <textarea id="out" readonly></textarea>
+    <div class="hint">Tune, then paste this back to Claude to bake into the Pixi descend renderer.</div>
+    <button id="reset" class="ghost">Reset to defaults</button>
+    <div class="hint" id="diag">booting…</div>
+  </div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Standalone preview of the proposed Buff-DESCEND FX — the rain-down sibling of
+// buff-tendril + buff-pulse. When a unit's Deathrattle buffs OTHERS, each target
+// gets a short energy tendril that DROPS from `startHeight` px above the card
+// centre straight down into the centre (quadratic curve + eased sine wobble,
+// drawn as a tapered ribbon), then briefly retracts/fades — and ON LANDING fires
+// a POINT-BLAST pulse (expanding rings + core flash + sparks) at the centre.
+//
+// The DROP half reuses the buff-tendril ribbon math; the LANDING half reuses the
+// buff-pulse pulse-render code verbatim. Mirrors the math the real Pixi renderer
+// will use, but on a plain 2D canvas so it runs with zero build.
+//
+// Sizes are in PIXEL RADII / px — the rig is the source of truth in px; the
+// engine divides by its texture radius later.
+//
+// EXPORT SHAPE: a DescendPresetCfg — top-level DROP dials + a NESTED `pulse`
+// object holding the full PulsePresetCfg. The drop's colorCore (top level) and
+// the pulse's colorCore (nested) are DIFFERENT fields. `blend` appears both
+// top-level and inside `pulse`, both driven by the one shared blend select.
+// ---------------------------------------------------------------------------
+
+// --- dial schema (top-level DROP dials) -------------------------------------
+const DROP_DEFAULTS = {
+  blend: 'screen',    // 'add' | 'normal' | 'screen' — compositing mode, shared with the pulse.
+                      // Maps to canvas globalCompositeOperation (lighter/source-over/screen). 'add'
+                      // washes out on the cream board; 'screen'/'normal' read better.
+
+  // Drop path (a vertical fall from startHeight above the centre → the centre)
+  startHeight: 120,   // px — how far ABOVE the card centre the drop begins
+  dropMs:      340,   // ms — the head falls 0→1 over this (ease-out)
+  curve:       0.18,  // 0..1 — perpendicular bow of the fall, as a fraction of drop distance
+  wobbleAmp:   12,    // px — sine wobble amplitude along the fall (eased to 0 at both ends)
+  wobbleFreq:  2.4,   // cycles of wobble along the fall
+  retractMs:   150,   // ms — after landing, the ribbon retracts/dissolves over this
+
+  // Ribbon
+  baseWidth:   12,    // px width at the source (top)
+  tipWidth:    3,     // px width at the head/tip (the falling point)
+  coreAlpha:   0.95,  // bright core alpha
+  glowWidth:   28,    // px width of the soft-glow underlay
+  glowAlpha:   0.4,   // soft-glow underlay alpha
+
+  // Colours (warm empowerment gold-green) — the DROP's own core + glow
+  colorCore:   '#eaffb0',
+  colorGlow:   '#c8e070',
+};
+
+// --- dial schema (nested LANDING pulse dials — the full PulsePresetCfg) ------
+const PULSE_DEFAULTS = {
+  style: 'ring',      // fixed for now; the point-blast variant. Exported literally.
+  blend: 'screen',    // mirrors the shared blend select (kept in sync with the top level).
+
+  // Rings (expanding stroked circles)
+  ringCount:     2,   // how many concentric rings fire (1..3)
+  ringSize:      90,  // px — max radius each ring expands to (0 → ringSize)
+  ringWidth:     6,   // px — stroke line width
+  ringSpeed:     1,   // multiplier — higher = faster/shorter ring (duration = ringMs / ringSpeed)
+  ringMs:        500, // base ms for a ring to expand+fade (before ringSpeed scaling)
+  ringStaggerMs: 80,  // ms delay between successive rings
+
+  // Core flash (filled radial gradient at the origin)
+  coreFlashSize: 60,  // px — radius the core flash grows to
+  coreFlashMs:   300, // ms — core flash fade duration
+
+  // Sparks (dots flung outward)
+  sparkCount:    18,  // how many spark dots
+  sparkSpeed:    320, // px/s — initial outward speed
+  sparkLife:     500, // ms — spark lifetime
+  sparkSize:     8,   // px — drawn spark size
+
+  // Timing
+  holdMs:        60,  // ms — the blast holds at peak before its timed fades begin
+
+  // Colours (the PULSE's own ring/core/spark — distinct from the drop's colorCore)
+  colorRing:  '#c8e070',
+  colorCore:  '#eaffb0',
+  colorSpark: '#dfffa0',
+};
+
+const RANGES = {
+  // drop
+  startHeight: [20, 260, 1],
+  dropMs:      [120, 900, 10],
+  curve:       [0, 1, 0.01],
+  wobbleAmp:   [0, 60, 0.5],
+  wobbleFreq:  [0, 8, 0.1],
+  retractMs:   [0, 400, 10],
+  baseWidth:   [1, 100, 0.5],
+  tipWidth:    [0.5, 100, 0.5],
+  coreAlpha:   [0, 1, 0.05],
+  glowWidth:   [0, 80, 1],
+  glowAlpha:   [0, 1, 0.01],
+  // pulse
+  ringCount:     [1, 3, 1],
+  ringSize:      [10, 200, 1],
+  ringWidth:     [1, 24, 1],
+  ringSpeed:     [0.2, 3, 0.05],
+  ringMs:        [100, 1200, 10],
+  ringStaggerMs: [0, 200, 5],
+  coreFlashSize: [10, 200, 1],
+  coreFlashMs:   [100, 1000, 10],
+  sparkCount:    [0, 60, 1],
+  sparkSpeed:    [0, 900, 10],
+  sparkLife:     [200, 1400, 10],
+  sparkSize:     [2, 40, 1],
+  holdMs:        [0, 400, 5],
+};
+
+// Groups: [title, keys, scope]. scope 'drop' reads/writes DROP; 'pulse' reads/writes PULSE.
+// The shared `blend` select lives once at the top (scope 'shared').
+const GROUPS = [
+  ['Blend',        ['blend'],                                                              'shared'],
+  ['Drop path',    ['startHeight', 'dropMs', 'curve', 'wobbleAmp', 'wobbleFreq', 'retractMs'], 'drop'],
+  ['Drop ribbon',  ['baseWidth', 'tipWidth', 'coreAlpha', 'glowWidth', 'glowAlpha'],       'drop'],
+  ['Drop colours', ['colorCore', 'colorGlow'],                                             'drop'],
+  ['Pulse rings',  ['ringCount', 'ringSize', 'ringWidth', 'ringSpeed', 'ringMs', 'ringStaggerMs'], 'pulse'],
+  ['Pulse core',   ['coreFlashSize', 'coreFlashMs'],                                       'pulse'],
+  ['Pulse sparks', ['sparkCount', 'sparkSpeed', 'sparkLife', 'sparkSize'],                 'pulse'],
+  ['Pulse timing', ['holdMs'],                                                             'pulse'],
+  ['Pulse colours',['colorRing', 'colorCore', 'colorSpark'],                               'pulse'],
+];
+
+// The exact key order the exported nested `pulse` object uses (matches the spec's field list).
+const PULSE_EXPORT_ORDER = [
+  'style', 'blend',
+  'ringCount', 'ringSize', 'ringWidth', 'ringSpeed', 'ringMs', 'ringStaggerMs',
+  'coreFlashSize', 'coreFlashMs',
+  'sparkCount', 'sparkSpeed', 'sparkLife', 'sparkSize', 'holdMs',
+  'colorRing', 'colorCore', 'colorSpark',
+];
+
+// The exact top-level key order the exported DescendPresetCfg literal uses.
+const DROP_EXPORT_ORDER = [
+  'blend',
+  'startHeight', 'dropMs', 'curve', 'wobbleAmp', 'wobbleFreq', 'retractMs',
+  'baseWidth', 'tipWidth', 'coreAlpha', 'glowWidth', 'glowAlpha',
+  'colorCore', 'colorGlow',
+];
+
+// Any uncaught error would otherwise leave a silent blank page — surface it loudly instead.
+addEventListener('error', (e) => {
+  const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;inset:0 auto auto 0;z-index:99;background:#b0203a;color:#fff;padding:10px 14px;font:12px ui-monospace,monospace;white-space:pre-wrap;max-width:100%';
+  b.textContent = 'SCRIPT ERROR: ' + (e.message || e.error) + '\n' + (e.filename || '') + ':' + (e.lineno || '?');
+  document.body.appendChild(b);
+});
+
+// D = live drop config; P = live pulse config (missing keys fall back to defaults).
+let D = { ...DROP_DEFAULTS };
+let P = { ...PULSE_DEFAULTS };
+
+const diag = document.getElementById('diag');
+
+// --- radial glow sprite (stands in for the Pixi glow texture) ---------------
+const glowTex = (() => {
+  const s = 128, c = document.createElement('canvas'); c.width = c.height = s;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
+  grd.addColorStop(0, 'rgba(255,255,255,1)');
+  grd.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+  grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, s, s);
+  return c;
+})();
+
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+function resize() {
+  const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  cv.width = r.width * dpr; cv.height = r.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener('resize', resize);
+
+// --- unit marker (draggable) ------------------------------------------------
+// The card-sized rounded rect the descend rains ONTO. Position is the CENTRE of
+// the marker, in CSS px relative to the canvas (the same space we draw in).
+const unit = { x: 430, y: 320 };
+const MARK_W = 108, MARK_H = 150;
+let dragging = false;
+
+// --- blend map --------------------------------------------------------------
+// Map the shared `blend` enum onto a canvas globalCompositeOperation. Mirrors what the engine
+// does with DescendPresetCfg.blend (and pulse.blend) when compositing every layer.
+function blendOp() {
+  switch (D.blend) {
+    case 'add':    return 'lighter';
+    case 'screen': return 'screen';
+    case 'normal':
+    default:       return 'source-over';
+  }
+}
+
+// tint a white sprite by multiplying — cheap stand-in for the Pixi sprite.tint
+const tintCache = new Map();
+function drawTinted(tex, x, y, w, h, color) {
+  let t = tintCache.get(color);
+  if (!t) {
+    t = document.createElement('canvas'); t.width = tex.width; t.height = tex.height;
+    const g = t.getContext('2d');
+    g.drawImage(tex, 0, 0);
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = color; g.fillRect(0, 0, t.width, t.height);
+    tintCache.set(color, t);
+  }
+  ctx.drawImage(t, x - w / 2, y - h / 2, w, h);
+}
+
+// ===========================================================================
+// DROP half — reused from buff-tendril's ribbon math
+// ===========================================================================
+
+// Quadratic point: control point is the midpoint pushed perpendicular by `curve`.
+function tendrilPoint(s, e, t, ctl) {
+  const mt = 1 - t;
+  return {
+    x: mt * mt * s.x + 2 * mt * t * ctl.x + t * t * e.x,
+    y: mt * mt * s.y + 2 * mt * t * ctl.y + t * t * e.y,
+  };
+}
+function controlPoint(s, e, cfg) {
+  const mx = (s.x + e.x) / 2, my = (s.y + e.y) / 2;
+  let dx = e.x - s.x, dy = e.y - s.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const px = -dy / len, py = dx / len;      // perpendicular unit
+  const off = len * cfg.curve * 0.5;        // bow scales with distance
+  return { x: mx + px * off, y: my + py * off };
+}
+
+// Sample the wobbly fall from s→e, up to head fraction `head` (0..1). Returns a
+// list of {x,y,t}. Wobble eases to 0 at both ends via sin(pi*t) so endpoints pin.
+function samplePath(s, e, head, cfg) {
+  const ctl = controlPoint(s, e, cfg);
+  const N = 24;
+  const pts = [];
+  const upto = Math.max(0.0001, head);
+  let dx = e.x - s.x, dy = e.y - s.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const px = -dy / len, py = dx / len;
+  for (let i = 0; i <= N; i++) {
+    const t = (i / N) * upto;
+    const base = tendrilPoint(s, e, t, ctl);
+    const envelope = Math.sin(Math.PI * t);                  // 0 at both ends
+    const w = Math.sin(t * cfg.wobbleFreq * Math.PI * 2) * cfg.wobbleAmp * envelope;
+    pts.push({ x: base.x + px * w, y: base.y + py * w, t });
+  }
+  return pts;
+}
+
+// Draw a tapered ribbon along `pts`: baseWidth (source) → tipWidth (tip), scaled to maxWidth.
+function drawRibbon(pts, maxWidth, color, alpha, blend, cfg) {
+  if (pts.length < 2 || alpha <= 0 || maxWidth <= 0) return;
+  ctx.globalCompositeOperation = blend;
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = color;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  const wA = maxWidth, wB = maxWidth * (cfg.tipWidth / Math.max(0.0001, cfg.baseWidth));
+  for (let i = 0; i < pts.length - 1; i++) {
+    const f = i / (pts.length - 1);
+    ctx.lineWidth = wA + (wB - wA) * f;
+    ctx.beginPath();
+    ctx.moveTo(pts[i].x, pts[i].y);
+    ctx.lineTo(pts[i + 1].x, pts[i + 1].y);
+    ctx.stroke();
+  }
+}
+
+const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+
+// ===========================================================================
+// LANDING pulse half — reused from buff-pulse's pulse-render code
+// ===========================================================================
+
+// Build a pulse at (x,y) off a snapshot pulse cfg. Sparks are pre-seeded so
+// mid-animation edits don't corrupt an in-flight blast.
+function makePulse(x, y, cfg, blend) {
+  const sparks = [];
+  const n = Math.round(cfg.sparkCount);
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = cfg.sparkSpeed * (0.55 + Math.random() * 0.7);
+    sparks.push({
+      x: 0, y: 0,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      life: cfg.sparkLife * (0.7 + Math.random() * 0.6),
+    });
+  }
+  return { x, y, age: 0, cfg, blend, sparks };
+}
+
+// Render one pulse. Returns true while it still has life; false once fully dead.
+function drawPulse(p, dt) {
+  const cfg = p.cfg;
+  ctx.globalCompositeOperation = p.blend;
+
+  const held = Math.max(0, p.age - cfg.holdMs);
+
+  // --- rings: 0 → ringSize, staggered, fading over ringMs (scaled by ringSpeed) ---
+  const ringDur = Math.max(1, cfg.ringMs / Math.max(0.0001, cfg.ringSpeed));
+  const nRings = Math.round(cfg.ringCount);
+  let ringsAlive = false;
+  ctx.strokeStyle = cfg.colorRing;
+  ctx.lineWidth = cfg.ringWidth;
+  for (let i = 0; i < nRings; i++) {
+    const la = held - i * cfg.ringStaggerMs;
+    if (la < 0) { ringsAlive = true; continue; }
+    const t = la / ringDur;
+    if (t >= 1) continue;
+    ringsAlive = true;
+    const radius = t * cfg.ringSize;
+    if (radius <= 0) continue;
+    ctx.globalAlpha = Math.max(0, 1 - t);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // --- core flash: filled radial gradient, grows to coreFlashSize, fades over coreFlashMs ---
+  let coreAlive = false;
+  {
+    const t = held / Math.max(1, cfg.coreFlashMs);
+    if (t < 1) {
+      coreAlive = true;
+      const grow = Math.min(1, held / Math.max(1, cfg.coreFlashMs * 0.35));
+      const sz = cfg.coreFlashSize * (0.35 + 0.65 * grow);
+      ctx.globalAlpha = Math.max(0, (1 - t) * (1 - t));
+      drawTinted(glowTex, p.x, p.y, sz * 2, sz * 2, cfg.colorCore);
+    }
+  }
+
+  // --- sparks: radiate outward, decelerating, shrinking + fading over their life ---
+  let sparksAlive = false;
+  const dtS = dt / 1000;
+  for (const s of p.sparks) {
+    const t = p.age / s.life;
+    if (t >= 1) continue;
+    sparksAlive = true;
+    const dk = Math.pow(0.96, dt / (1000 / 60));
+    s.vx *= dk; s.vy *= dk;
+    s.x += s.vx * dtS; s.y += s.vy * dtS;
+    const sz = cfg.sparkSize * (1 - t);
+    ctx.globalAlpha = Math.max(0, 1 - t * t);
+    drawTinted(glowTex, p.x + s.x, p.y + s.y, sz * 2, sz * 2, cfg.colorSpark);
+  }
+
+  return ringsAlive || coreAlive || sparksAlive;
+}
+
+// ===========================================================================
+// Fire — a drop that lands into a pulse
+// ===========================================================================
+const drops = [];   // falling ribbons
+const pulses = [];  // landing blasts
+function fire() {
+  const dcfg = { ...D };
+  const pcfg = { ...P, blend: D.blend };   // pulse always inherits the shared blend
+  const blend = blendOp();
+  drops.push({
+    from: { x: unit.x, y: unit.y - dcfg.startHeight },
+    to:   { x: unit.x, y: unit.y },
+    age: 0, struck: false, cfg: dcfg, pcfg, blend,
+  });
+}
+
+// --- unit marker + origin dot -----------------------------------------------
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function drawMarker() {
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  const x = unit.x - MARK_W / 2, y = unit.y - MARK_H / 2;
+  roundRect(x, y, MARK_W, MARK_H, 10);
+  ctx.fillStyle = '#fffdf8';
+  ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = '#b0842f'; ctx.stroke();
+  ctx.fillStyle = '#b3a687'; ctx.font = '10px ui-monospace, monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText('buffed unit', unit.x, y + MARK_H - 8);
+  // faint start-height marker above the centre
+  ctx.globalAlpha = 0.5;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(unit.x, unit.y - D.startHeight);
+  ctx.lineTo(unit.x, unit.y);
+  ctx.strokeStyle = '#b0842f'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+  // origin dot (landing centre)
+  ctx.beginPath(); ctx.arc(unit.x, unit.y, 7, 0, Math.PI * 2);
+  ctx.fillStyle = '#eaffb0'; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = '#6f9a2f'; ctx.stroke();
+}
+
+// --- main loop --------------------------------------------------------------
+let last = performance.now();
+function tick(now) {
+  const dtMs = Math.min(50, now - last); last = now;
+  ctx.clearRect(0, 0, cv.width, cv.height);
+
+  // the card marker FIRST, so the descend (drop + landing pulse) composites IN FRONT of the card —
+  // matching the in-game FX layer, which sits over the cards (the drop rains down OVER the card).
+  drawMarker();
+
+  // drops (falling ribbons)
+  for (let i = drops.length - 1; i >= 0; i--) {
+    const b = drops[i]; b.age += dtMs;
+    const cfg = b.cfg;
+    const travel = Math.max(1, cfg.dropMs);
+    const tHead = Math.min(1, b.age / travel);
+    const head = easeOut(tHead);
+
+    // fire the landing pulse ONCE when the head first reaches the centre
+    if (!b.struck && b.age >= travel) {
+      b.struck = true;
+      pulses.push(makePulse(b.to.x, b.to.y, b.pcfg, b.blend));
+    }
+
+    // retract/dissolve: once landed, the tail eats forward and alpha fades
+    let tail = 0, fade = 1;
+    if (b.struck) {
+      const rt = Math.min(1, (b.age - travel) / Math.max(1, cfg.retractMs));
+      tail = rt;
+      fade = 1 - rt;
+    }
+    if (b.struck && b.age >= travel + cfg.retractMs) { drops.splice(i, 1); continue; }
+
+    let pts = samplePath(b.from, b.to, head, cfg);
+    if (tail > 0) pts = pts.filter((p) => p.t >= tail * head);
+    if (pts.length >= 2) {
+      drawRibbon(pts, cfg.glowWidth, cfg.colorGlow, cfg.glowAlpha * fade, b.blend, cfg);
+      drawRibbon(pts, cfg.baseWidth, cfg.colorCore, cfg.coreAlpha * fade, b.blend, cfg);
+    }
+  }
+
+  // landing pulses
+  for (let i = pulses.length - 1; i >= 0; i--) {
+    const p = pulses[i]; p.age += dtMs;
+    const alive = drawPulse(p, dtMs);
+    if (!alive) pulses.splice(i, 1);
+  }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+
+  diag.textContent = `canvas ${Math.round(cv.width)}×${Math.round(cv.height)} · drops ${drops.length} · pulses ${pulses.length} · blend ${D.blend}`;
+  requestAnimationFrame(tick);
+}
+
+// --- UI: sliders / colours --------------------------------------------------
+const controls = document.getElementById('controls'), out = document.getElementById('out');
+function label(k) { return k.replace(/([A-Z])/g, ' $1').toLowerCase(); }
+function cfgFor(scope) { return scope === 'pulse' ? P : D; }
+function build() {
+  controls.innerHTML = '';
+  for (const [title, keys, scope] of GROUPS) {
+    const h = document.createElement('h2'); h.textContent = title; controls.appendChild(h);
+    for (const k of keys) {
+      const C = cfgFor(scope);
+      const row = document.createElement('div'); row.className = 'row';
+      const l = document.createElement('label'); l.textContent = label(k);
+      row.appendChild(l);
+      if (k === 'blend') {
+        // ENABLED shared enum dropdown — the compositing mode for BOTH layers. Writes D.blend
+        // (and the pulse inherits it at fire time + on export).
+        const sel = document.createElement('select');
+        sel.style.gridColumn = '1 / -1';
+        for (const opt of ['add', 'normal', 'screen']) {
+          const o = document.createElement('option'); o.value = o.textContent = opt; sel.appendChild(o);
+        }
+        sel.value = D.blend || 'normal';
+        sel.onchange = () => { D.blend = sel.value; P.blend = sel.value; save(); };
+        row.appendChild(sel);
+      } else if (k.startsWith('color') && typeof C[k] === 'string') {
+        const inp = document.createElement('input'); inp.type = 'color'; inp.value = C[k];
+        inp.style.gridColumn = '1 / -1';
+        inp.oninput = () => { C[k] = inp.value; tintCache.clear(); save(); };
+        row.appendChild(inp);
+      } else {
+        const [mn, mx, st] = RANGES[k];
+        const inp = document.createElement('input'); inp.type = 'range';
+        inp.min = mn; inp.max = mx; inp.step = st; inp.value = C[k];
+        const v = document.createElement('span'); v.className = 'val'; v.textContent = C[k];
+        inp.oninput = () => { C[k] = parseFloat(inp.value); v.textContent = C[k]; save(); };
+        l.style.gridColumn = '1 / -1';
+        row.style.gridTemplateColumns = '1fr 54px';
+        row.appendChild(inp); row.appendChild(v);
+      }
+      controls.appendChild(row);
+    }
+  }
+}
+
+// --- live export: reflect the current dials as a DescendPresetCfg literal ----
+// Top-level DROP fields + a NESTED `pulse` object (the full PulsePresetCfg, style:'ring').
+function save() {
+  const ordered = {};
+  for (const k of DROP_EXPORT_ORDER) ordered[k] = D[k];
+  const pulse = {};
+  P.blend = D.blend; // keep the nested blend in lockstep with the shared select
+  for (const k of PULSE_EXPORT_ORDER) pulse[k] = P[k];
+  ordered.pulse = pulse;
+  out.value = JSON.stringify(ordered, null, 2);
+}
+
+// --- fire controls ----------------------------------------------------------
+document.getElementById('fire').onclick = () => fire();
+addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); fire(); } });
+let loopId = null;
+document.getElementById('loop').onchange = (e) => {
+  if (e.target.checked) { loopId = setInterval(() => fire(), 1400); fire(); }
+  else if (loopId) { clearInterval(loopId); loopId = null; }
+};
+document.getElementById('reset').onclick = () => {
+  D = { ...DROP_DEFAULTS };
+  P = { ...PULSE_DEFAULTS };
+  tintCache.clear(); build(); save();
+};
+
+// --- pointer: drag the unit marker, click empty stage to fire ---------------
+function canvasPos(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+cv.addEventListener('pointerdown', (e) => {
+  const p = canvasPos(e);
+  const inMarker = Math.abs(p.x - unit.x) <= MARK_W / 2 && Math.abs(p.y - unit.y) <= MARK_H / 2;
+  if (inMarker) { dragging = true; cv.setPointerCapture(e.pointerId); }
+  else { fire(); }
+});
+cv.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  const p = canvasPos(e);
+  unit.x = p.x; unit.y = p.y;
+});
+cv.addEventListener('pointerup', (e) => { dragging = false; try { cv.releasePointerCapture(e.pointerId); } catch {} });
+
+// --- boot -------------------------------------------------------------------
+build();
+save();
+resize();
+requestAnimationFrame((t) => { last = t; tick(t); });
+setTimeout(() => fire(), 300);
+</script>
+</body>
+</html>

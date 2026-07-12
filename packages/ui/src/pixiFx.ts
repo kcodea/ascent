@@ -334,6 +334,15 @@ export interface PulseCfg {
   colorRing: string; colorCore: string; colorSpark: string;
 }
 
+/** Renderer-facing descend config (structural mirror of DescendPresetCfg). The landing `pulse` is a PulseCfg. */
+export interface DescendCfg {
+  blend: 'add' | 'normal' | 'screen';
+  startHeight: number; dropMs: number; curve: number; wobbleAmp: number; wobbleFreq: number; retractMs: number;
+  baseWidth: number; tipWidth: number; coreAlpha: number; glowWidth: number; glowAlpha: number;
+  colorCore: string; colorGlow: string;
+  pulse: PulseCfg;
+}
+
 /** '#rrggbb' (or '#rgb') → 0xRRGGBB for the Pixi `tint` number. Defaults to white on a malformed string. */
 const hexNum = (hex: string): number => {
   const h = hex.replace('#', '');
@@ -374,6 +383,20 @@ interface PulseFx {
   cfg: PulseCfg;
   age: number;          // ms lived
   ringsSpawned: number; // how many rings have been emitted so far
+}
+
+/** One live descend: a short ribbon dropping from above a card into its center (same fields as Tendril, so the
+ *  ribbon helpers accept it) that fires a pulse on landing instead of the tendril's own strike. */
+interface DescendFx {
+  g: Graphics;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+  ctl: { x: number; y: number };
+  perp: { x: number; y: number };
+  cfg: TendrilCfg;       // the drop ribbon dials (strike fields unused/zeroed)
+  age: number;
+  struck: boolean;
+  pulse: PulseCfg;       // fired on landing
 }
 
 /**
@@ -446,6 +469,7 @@ class FxController {
   private readonly skullPops: SkullPop[] = [];
   private readonly tendrils: Tendril[] = []; // live buff tendrils — tapered ribbons advanced in `update`
   private readonly pulses: PulseFx[] = [];
+  private readonly descends: DescendFx[] = [];
   private shieldLayer: Container | null = null; // holds the persistent bubbles, beneath the particle layer
   private shieldApp: Application | null = null;  // OPTIONAL 2nd canvas for the persistent bubbles, mounted at a
   private underParent: HTMLElement | null = null; // low z (below the card badges) so the chrome reads on top; the
@@ -554,6 +578,8 @@ class FxController {
     for (const td of this.tendrils) { td.g.destroy(); }
     this.tendrils.length = 0;
     this.pulses.length = 0;
+    for (const d of this.descends) { d.g.destroy(); }
+    this.descends.length = 0;
     this.skullTex?.destroy(true);
     this.skullTex = null;
     for (const b of this.shields.values()) { b.shader.destroy(); b.container.destroy({ children: true }); }
@@ -788,6 +814,36 @@ class FxController {
       fromScale: 0.15, toScale, spin: 0,
       tint: hexNum(cfg.colorRing), blend: cfg.blend, peakAlpha: 0.85,
     });
+  }
+
+  /**
+   * A Deathrattle "rain-down": a short tapered ribbon drops from `startHeight` px above (x, y) down into (x, y),
+   * then fires a pulse on landing. Reuses the tendril ribbon helpers for the drop and `pulse()` for the blast, so
+   * no source unit is needed (the buffing Deathrattle is gone). Every dial lives in `cfg`.
+   */
+  descend(x: number, y: number, cfg: DescendCfg): void {
+    if (!this.ready || !this.glowTex || !this.layer) return;
+    const from = { x, y: y - cfg.startHeight };
+    const to = { x, y };
+    const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2;
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const perp = { x: -dy / len, y: dx / len };
+    const offc = len * cfg.curve * 0.5;
+    const ctl = { x: mx + perp.x * offc, y: my + perp.y * offc };
+    const ribbon: TendrilCfg = {
+      blend: cfg.blend, curve: cfg.curve, wobbleAmp: cfg.wobbleAmp, wobbleFreq: cfg.wobbleFreq,
+      travelMs: cfg.dropMs, retractMs: cfg.retractMs,
+      baseWidth: cfg.baseWidth, tipWidth: cfg.tipWidth, coreAlpha: cfg.coreAlpha,
+      glowWidth: cfg.glowWidth, glowAlpha: cfg.glowAlpha,
+      flashSize: 0, flashMs: 0, moteCount: 0, moteSpeed: 0, moteLife: 0,
+      pulseSize: 0, pulseAlpha: 0, pulseMs: 0,
+      colorCore: cfg.colorCore, colorGlow: cfg.colorGlow, colorFlash: cfg.colorCore, colorMote: cfg.colorCore,
+    };
+    const g = new Graphics();
+    g.blendMode = cfg.blend;
+    this.layer.addChild(g);
+    this.descends.push({ g, from, to, ctl, perp, cfg: ribbon, age: 0, struck: false, pulse: cfg.pulse });
   }
 
   /**
@@ -1213,6 +1269,8 @@ class FxController {
     for (const td of this.tendrils) { this.layer?.removeChild(td.g); td.g.destroy(); }
     this.tendrils.length = 0;
     this.pulses.length = 0;
+    for (const d of this.descends) { this.layer?.removeChild(d.g); d.g.destroy(); }
+    this.descends.length = 0;
   }
 
   /**
@@ -1787,6 +1845,26 @@ class FxController {
       if (p.ringsSpawned >= p.cfg.ringCount && p.age >= lastRingBorn + ringLife) {
         this.pulses.splice(i, 1); // the spawned ring particles finish on their own in the pool
       }
+    }
+
+    // Descends: reveal the drop ribbon up to the travelling head, fire the LANDING PULSE once on arrival, retract.
+    for (let i = this.descends.length - 1; i >= 0; i--) {
+      const d = this.descends[i]!;
+      d.age += dtMs;
+      const travel = Math.max(1, d.cfg.travelMs);
+      const head = easeOutCubic(Math.min(1, d.age / travel));
+      if (!d.struck && d.age >= travel) { d.struck = true; this.pulse(d.to.x, d.to.y, d.pulse); }
+      let tail = 0, fade = 1;
+      if (d.struck) {
+        const rt = Math.min(1, (d.age - travel) / Math.max(1, d.cfg.retractMs));
+        tail = rt; fade = 1 - rt;
+      }
+      if (d.struck && d.age >= travel + d.cfg.retractMs) {
+        this.layer?.removeChild(d.g); d.g.destroy(); this.descends.splice(i, 1); continue;
+      }
+      let pts = this.sampleTendril(d, head);
+      if (tail > 0) pts = pts.filter((p) => p.t >= tail * head);
+      this.rebuildRibbon(d.g, pts, d.cfg, fade);
     }
 
     // Persistent shield bubbles: advance the slow breathe + grow-in/fade, and sit on each unit's rect.

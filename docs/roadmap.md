@@ -133,6 +133,12 @@ look because the engine already produces the data.
 ## Phase B — UX polish (parallelizable; slot any time)
 
 ### B0. FX follow-ups (from the Echo skull poof + buff tendrils, session 29)
+- **Buff descend — per-tribe looks.** The descend system (Deathrattle buff-others rain down; session 33) shipped
+  one owner-tuned `default`. Tune a drop + landing-pulse look per tribe on `buff-descend-preview.html`, bake into
+  `DESCEND_PRESETS` + `DESCEND_ASSIGN.byTribe`. Until then every tribe's Deathrattle buff uses the one amber default.
+- **Buff descend — retire the factory list.** Routing keys off `DEATHRATTLE_BUFF_FACTORIES` (a UI-side set of
+  onDeath buff-other `do` names) — the one maintenance point. A sim-level trigger annotation on buff events (which
+  effect produced them) would remove the list and handle a future card with both a SoC and an onDeath buff-other.
 - **Buff pulse — per-tribe looks.** The pulse system (self-buff point-blast) shipped `default`-only (session 32).
   Tune a look per tribe on `buff-pulse-preview.html`, paste the JSON, and bake into `PULSE_PRESETS` +
   `PULSE_ASSIGN.byTribe` — exactly like the tendril tribe presets. Until then every tribe's self-buff uses the one

@@ -55,4 +55,29 @@ describe('playLunge', () => {
     expect(Number(gsap.getProperty(el, 'y'))).toBeCloseTo(0, 1);
     expect(Number(gsap.getProperty(el, 'rotation'))).toBeCloseTo(0, 1);
   });
+
+  it('fires onWindupBuffs during the wind-up, BEFORE onContact (pulse → tendril → lunge)', () => {
+    const calls: string[] = [];
+    const tl = playLunge({
+      ...base(), rallyPauseMs: 440,
+      onRallyPulse: () => calls.push('pulse'),
+      onWindupBuffs: () => calls.push('buffs'),
+      onContact: () => calls.push('contact'),
+    });
+    tl.progress(1);
+    expect(calls).toEqual(['pulse', 'buffs', 'contact']); // rally pulse, then tendrils, then the strike
+  });
+
+  it('fires onWindupBuffs even without a rally pulse (on-ally-attack watcher case)', () => {
+    const buffs = vi.fn();
+    const tl = playLunge({ ...base(), rallyPauseMs: 440, onWindupBuffs: buffs });
+    tl.progress(1);
+    expect(buffs).toHaveBeenCalledTimes(1);
+  });
+
+  it('inserts the wind-up hold when there are wind-up buffs (longer than a normal swing)', () => {
+    const plain = playLunge({ ...base() });
+    const withBuffs = playLunge({ ...base(), rallyPauseMs: 440, onWindupBuffs: () => {} });
+    expect(withBuffs.duration()).toBeGreaterThan(plain.duration());
+  });
 });

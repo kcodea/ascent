@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import gsap from 'gsap';
 import type { CombatEvent, CombatResult, Keyword, MinionBuff, MinionSnapshot, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
@@ -10,6 +10,7 @@ import { holdMs } from './choreo/clock';
 import { compileMoments, type Moment } from './choreo/compile';
 import { deferClashBuffs } from './choreo/clashOrder';
 import { runMomentCues } from './choreo/score';
+import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
 import { burstDeathAuras, breakShieldAura, reformReborn } from './choreo/channels/aura';
 import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
@@ -518,6 +519,56 @@ export function useCombatReplay(
     return m;
   }, [combat]);
 
+  // Fire a moment's buff-OTHER casts: a source→target tendril per cast (or a rain-down descend when the source is
+  // a Deathrattle buffer), then HOLD each target's pre-buff badge value and flash it to the new value at the
+  // strike/landing. Shared by the `buffWave` path (`onBuffCasts`) and the attack-wind-up path (on-attack / Rally
+  // buffers, launched from the lunge timeline so the beat reads pulse → tendril → lunge). `timers` collects the
+  // flash timeouts so the caller's effect can clear them on teardown.
+  const fireBuffCasts = useCallback((casts: BuffCast[], timers: number[]): void => {
+    const perTarget = new Map<string, { atk: number; hp: number; strikeMs: number }>();
+    for (const c of casts) {
+      const tEl = findEl(c.target);
+      if (!tEl) continue; // target not on screen → nothing to land on
+      const tr = tEl.getBoundingClientRect();
+      const tc = { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 };
+      const cardId = cardIds.get(c.source) ?? '';
+      const tribe = (CARD_INDEX[cardId]?.tribe ?? 'neutral') as Tribe;
+      let strikeMs: number;
+      if (isDeathrattleBufferCard(cardId)) {
+        // Deathrattle buff-other → rain-down descend onto the target (no source needed).
+        const dcfg = DESCEND_PRESETS[descendPreset(cardId, tribe)];
+        pixiFx.descend(tc.x, tc.y, dcfg);
+        strikeMs = dcfg.dropMs;
+      } else {
+        // Living-source buff-other → source→target tendril (needs a measurable source).
+        const sEl = findEl(c.source);
+        if (!sEl) continue;
+        const sr = sEl.getBoundingClientRect();
+        const preset = BUFF_PRESETS[buffPreset(cardId, tribe)];
+        pixiFx.buffTendril({ x: sr.left + sr.width / 2, y: sr.top + sr.height / 2 }, tc, preset);
+        strikeMs = preset.travelMs;
+      }
+      const agg = perTarget.get(c.target);
+      if (agg) { agg.atk += c.attack; agg.hp += c.health; }
+      else perTarget.set(c.target, { atk: c.attack, hp: c.health, strikeMs });
+    }
+    const unitOf = (uid: string) =>
+      frameRef.current?.player.find((u) => u.uid === uid) ?? frameRef.current?.enemy.find((u) => u.uid === uid);
+    for (const [target, { atk: sumAtk, hp: sumHp, strikeMs }] of perTarget) {
+      const tgt = unitOf(target);
+      if (!tgt) continue;
+      const held = { atk: tgt.attack - sumAtk, hp: tgt.health - sumHp };
+      setStatHold((m) => new Map(m).set(target, held));
+      const ms = strikeMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
+      timers.push(window.setTimeout(() => {
+        setStatHold((m) => { const n = new Map(m); n.delete(target); return n; });
+        setStatFlash((m) => new Map(m).set(target, { atk: sumAtk !== 0, hp: sumHp !== 0 }));
+        timers.push(window.setTimeout(() =>
+          setStatFlash((m) => { const n = new Map(m); n.delete(target); return n; }), 360));
+      }, ms));
+    }
+  }, [findEl, cardIds]);
+
   // Track tab visibility (drives the pause-while-hidden gate on the beat clock).
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -645,54 +696,8 @@ export function useCombatReplay(
       onAuraBurst: (uid) => burstDeathAuras(uid, rectOf(uid)),
       onShieldBreak: (uid) => breakShieldAura(uid),
       onReborn: (uid) => reformReborn(rebornRects.get(uid) ?? rectOf(uid)),
-      onBuffCasts: (casts) => {
-        // Per-target aggregate: sum deltas across casts on the same target + remember when the badge should flash
-        // (the strike/landing time of the FIRST cast on that target).
-        const perTarget = new Map<string, { atk: number; hp: number; strikeMs: number }>();
-        for (const c of casts) {
-          const tEl = findEl(c.target);
-          if (!tEl) continue; // target not on screen → nothing to land on
-          const tr = tEl.getBoundingClientRect();
-          const tc = { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 };
-          const cardId = cardIds.get(c.source) ?? '';
-          const tribe = (CARD_INDEX[cardId]?.tribe ?? 'neutral') as Tribe;
-          let strikeMs: number;
-          if (isDeathrattleBufferCard(cardId)) {
-            // Deathrattle buff-other → rain-down descend onto the target (no source needed).
-            const dcfg = DESCEND_PRESETS[descendPreset(cardId, tribe)];
-            pixiFx.descend(tc.x, tc.y, dcfg);
-            strikeMs = dcfg.dropMs;
-          } else {
-            // Living-source buff-other → source→target tendril (unchanged; needs a measurable source).
-            const sEl = findEl(c.source);
-            if (!sEl) continue;
-            const sr = sEl.getBoundingClientRect();
-            const preset = BUFF_PRESETS[buffPreset(cardId, tribe)];
-            pixiFx.buffTendril({ x: sr.left + sr.width / 2, y: sr.top + sr.height / 2 }, tc, preset);
-            strikeMs = preset.travelMs;
-          }
-          const agg = perTarget.get(c.target);
-          if (agg) { agg.atk += c.attack; agg.hp += c.health; }
-          else perTarget.set(c.target, { atk: c.attack, hp: c.health, strikeMs });
-        }
-        // Hold each target's pre-buff badge value now (frame already reflects the buff: pre = post − delta),
-        // then release + flash the changed badge(s) at the strike/landing.
-        const unitOf = (uid: string) =>
-          frameRef.current?.player.find((u) => u.uid === uid) ?? frameRef.current?.enemy.find((u) => u.uid === uid);
-        for (const [target, { atk: sumAtk, hp: sumHp, strikeMs }] of perTarget) {
-          const tgt = unitOf(target);
-          if (!tgt) continue;
-          const held = { atk: tgt.attack - sumAtk, hp: tgt.health - sumHp };
-          setStatHold((m) => new Map(m).set(target, held));
-          const ms = strikeMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
-          timers.push(window.setTimeout(() => {
-            setStatHold((m) => { const n = new Map(m); n.delete(target); return n; });
-            setStatFlash((m) => new Map(m).set(target, { atk: sumAtk !== 0, hp: sumHp !== 0 }));
-            timers.push(window.setTimeout(() =>
-              setStatFlash((m) => { const n = new Map(m); n.delete(target); return n; }), 360));
-          }, ms));
-        }
-      },
+      // buff-OTHER casts (source ≠ target) → tendril/descend + badge flash (shared with the attack-wind-up path).
+      onBuffCasts: (casts) => fireBuffCasts(casts, timers),
       onSelfBuffs: (selfBuffs) => {
         // Fire one in-place pulse per self-buffing unit, then HOLD its pre-buff badge value and, after holdMs,
         // release the hold + flash the changed badge(s) to the new value — the blast "causes" the tick.
@@ -741,7 +746,7 @@ export function useCombatReplay(
       if (r) pixiFx.deathrattle(r.cx, r.cy, r.w);
     }
     return () => { timers.forEach((id) => window.clearTimeout(id)); stop(); };
-  }, [active, beatIdx, beats, events, findEl, cardIds]);
+  }, [active, beatIdx, beats, events, findEl, cardIds, fireBuffCasts]);
 
   // Verdict sting when the replay finishes.
   useEffect(() => {
@@ -753,6 +758,7 @@ export function useCombatReplay(
   // Measure lunge + SC projectiles AFTER the beat commits, so positions reflect the
   // frame on screen (not the previous one). Runs synchronously before paint.
   useLayoutEffect(() => {
+    const windupTimers: number[] = []; // badge-flash timeouts for attack-wind-up tendrils (cleared on teardown)
     const cur = beatIdx > 0 ? beats[beatIdx - 1] : undefined;
     const center = (uid: string): { x: number; y: number } | null => {
       const el = findEl(uid);
@@ -809,6 +815,9 @@ export function useCombatReplay(
         const atkUnit = frameRef.current?.player.find((u) => u.uid === atkUid) ?? frameRef.current?.enemy.find((u) => u.uid === atkUid);
         let rallies = !!atkUnit?.keywords.includes('RL') || !!CARD_INDEX[cardIds.get(atkUid) ?? '']?.keywords?.includes('RL');
         if (!rallies) for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'rally' && e.source === atkUid) { rallies = true; break; } }
+        // Buff-others absorbed into this attack's wind-up (on-attack / Rally buffers) → fire their tendrils at the
+        // top of the wind-up (after the yellow rally pulse), so the beat reads pulse → tendril → lunge.
+        const windupCasts = groupBuffCasts(cur, events);
         const tl = runAttackExchangeCues(cur, atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, {
           combatSpeed, advance: () => setBeatIdx((k) => k + 1),
           onRallyPulse: rallies ? () => {
@@ -817,6 +826,7 @@ export function useCombatReplay(
             setRallyPulse((prev) => new Map(prev).set(atkUid, n));
             window.setTimeout(() => setRallyPulse((prev) => { const m = new Map(prev); if (m.get(atkUid) === n) m.delete(atkUid); return m; }), 1150);
           } : undefined,
+          onWindupBuffs: windupCasts.length ? () => fireBuffCasts(windupCasts, windupTimers) : undefined,
         });
         engineAdvancingRef.current = tl !== null; // engine owns the advance; if it couldn't build, the scheduler falls back
       } else {
@@ -863,7 +873,8 @@ export function useCombatReplay(
       }
     }
     setProjectiles(ps);
-  }, [beatIdx, beats, events, findEl, cardIds]);
+    return () => { windupTimers.forEach((id) => window.clearTimeout(id)); };
+  }, [beatIdx, beats, events, findEl, cardIds, fireBuffCasts]);
 
   const names = useMemo(() => {
     const m = new Map<string, string>();

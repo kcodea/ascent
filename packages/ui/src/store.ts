@@ -73,6 +73,10 @@ function actionSfx(action: Action, prev: RunState, next: RunState): void {
       // Layer the card's own unique voiceline/SFX (if it has one) over the general landing/cast sound.
       if (card) {
         sfx.cardVoice(card.cardId);
+        // A minion whose Battlecry (an onPlay effect) fires as it's played → its effect-proc SFX
+        // (cards/<id>.effect.mp3), layered over the landing. Spells get their own cast sound, not this.
+        const def = CARD_INDEX[card.cardId];
+        if (def && !def.spell && def.effects.some((e) => e.on === 'onPlay')) sfx.cardEffect(card.cardId);
         // A Battlecry that summons a token (e.g. Alleycat → Stray) → play the summon cue (general SFX +
         // the token's own clip). Read the card's onPlay effects for a tokenId.
         for (const eff of CARD_INDEX[card.cardId]?.effects ?? []) {

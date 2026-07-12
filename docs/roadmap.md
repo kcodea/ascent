@@ -132,6 +132,14 @@ look because the engine already produces the data.
 
 ## Phase B — UX polish (parallelizable; slot any time)
 
+### Bx. Audio SFX — authoring pipeline (in flight)
+- **Manifest + generator** (`npm run sfx:manifest`, PR #335), **wiring** (per-card play/death/effect + hero
+  select/power hooks, PRs #336/#337), and the **`npm run sfx:import` drop-folder importer** (session 34, →
+  devlog) are up. The recording loop is now: drop clips in `audio-inbox/` → `npm run sfx:import` → they land at
+  the right path and statuses flip. **Next:** record the actual clips into `packages/ui/src/audio/{cards,heroes}/`;
+  reconcile the spell default bed with `feat/spellcast-sfx` (`castspell.mp3`); a live audio + combat-feel pass
+  in the focused Chrome tab once clips exist. A shared visual recording worklist exists as an Artifact.
+
 ### B0. FX follow-ups (from the Echo skull poof + buff tendrils, session 29)
 - **Buff descend — per-tribe looks.** The descend system (Deathrattle buff-others rain down; session 33) shipped
   one owner-tuned `default`. Tune a drop + landing-pulse look per tribe on `buff-descend-preview.html`, bake into

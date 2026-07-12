@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Audio import: `npm run sfx:import`.** Drop recorded `.mp3` clips into `audio-inbox/` named naturally
+  (`Pennycat death.mp3`, `warden power.mp3`, `Yirin.mp3`) and the importer resolves each to its exact
+  `packages/ui/src/audio/…` target and moves it — display-name↔id aware, fuzzy-tolerant, ambiguous files left
+  with suggestions. Pairs with the sound manifest + generator.
 - **On-attack & Rally buffs read now.** When a unit buffs allies as it attacks (Rally cards like Supporter/Chorus
   Engine) or reacts to a friendly's swing (Raptor, Crypt Drake, Taragosa), a tendril now fires **into the attacker's
   wind-up** — the sequence reads yellow rally pulse → tendril → lunge. Closes the last combat-buff FX gap.

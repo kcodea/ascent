@@ -5,6 +5,33 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-12 (session 33)
 
+### fix: Ward shatter fires AT the lunge contact, not a fixed start+300ms (no leftover disjointed bubble)
+
+**Bug (owner report):** when a warded unit attacks, a leftover Ward effect lingered **disjointed from the unit** —
+the gold bubble read as detached during/after the swing. **Root cause:** the persistent Ward bubble tracks the
+lunge frame-by-frame (`Recruit.tsx` `makeTrack`), but the **shatter/removal** was scheduled by the generic cue
+runner at `{ ch: 'auraBreak', at: 'start', offset: 300, scaled: true }` (`score.ts`) — a fixed start-of-moment
+delay independent of the lunge's real contact. The two clocks drift: the Ward stays on the card past the visual
+hit, then pops mid-recoil wherever the bubble had tracked to → the "leftover" artifact.
+
+**Fix — drive the exchange's Ward break from the lunge's real `contact` anchor (owner's ask: "removed just as the
+impact occurs").** Presentation-only; no sim / event-log / core changes.
+- **`choreo/channels/lunge.ts`** — new `onImpactAuras?` callback, added to the lunge timeline at the **contact
+  position** (`contactAt`, offset 0), so the gold shatter lands with the smack. The bubble tracks the lunge right
+  up to the hit, then pops at contact instead of trailing into the recoil.
+- **`choreo/engine.ts`** — `AttackCueCtx.onImpactAuras` threaded through `runAttackExchangeCues` → `playLunge`.
+- **`choreo/score.ts`** — **removed `auraBreak` from the `attackExchange` cue list** (the engine now owns the Ward
+  break at contact). `auraBurst` (a death's in-place burst) stays at start; the generic `auraBreak` still handles
+  Wards broken **outside** an attack (SC/poison/damage moments, where there's no lunge to anchor to).
+- **`useCombatReplay.ts`** — the attack layout effect collects the exchange's `shield`-event targets and passes
+  `onImpactAuras = () => breakShieldAura(each)`. **Fallbacks preserved:** if the engine can't build the lunge
+  (cue dropped, or elements unresolved), it shatters immediately so a Ward break is never lost.
+
+**Verified:** `npm run typecheck && lint && test && build:web` all green (913 tests). New `lunge.test.ts` coverage
+proves `onImpactAuras` fires **once, at the contact anchor** (co-located with `onContact`, well before the elastic
+settle tail — not the old start-relative delay). Existing `score.test.ts`/`engine.test.ts` unaffected (the
+"auraBreak on every kind" assertion already excluded `attackExchange`).
+
 ### feat: attack-windup tendrils — buff FX for on-attack / Rally buffers (Gap B)
 
 Closes the last class of combat buffs with no FX. A buff emitted right after an `attack` is **absorbed into that

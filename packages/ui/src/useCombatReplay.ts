@@ -804,6 +804,11 @@ export function useCombatReplay(
       const atkEl = findEl(cur.primary.attacker);
       const a = center(cur.primary.attacker);
       const d = center(cur.primary.defender);
+      // Wards this exchange consumed (attacker/defender): shatter them AT the lunge's contact (onImpactAuras),
+      // not on the old fixed start+300ms cue that drifted off the hit — see score.ts (auraBreak removed here).
+      const wardTargets: string[] = [];
+      for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'shield') wardTargets.push(e.target); }
+      const breakWards = wardTargets.length ? () => { for (const t of wardTargets) breakShieldAura(t); } : undefined;
       if (atkEl && a && d) {
         setAttackUid(cur.primary.attacker);
         // A Rally firing as THIS unit attacks → the lunge pauses at the top of the wind-up and flashes the
@@ -827,11 +832,14 @@ export function useCombatReplay(
             window.setTimeout(() => setRallyPulse((prev) => { const m = new Map(prev); if (m.get(atkUid) === n) m.delete(atkUid); return m; }), 1150);
           } : undefined,
           onWindupBuffs: windupCasts.length ? () => fireBuffCasts(windupCasts, windupTimers) : undefined,
+          onImpactAuras: breakWards,
         });
         engineAdvancingRef.current = tl !== null; // engine owns the advance; if it couldn't build, the scheduler falls back
+        if (tl === null) breakWards?.(); // lunge cue dropped → no contact anchor to ride; shatter now so it isn't lost
       } else {
         setAttackUid(null);
         engineAdvancingRef.current = false; // elements unresolved — let the scheduler advance so the replay never stalls
+        breakWards?.(); // no lunge to anchor to → shatter now (the bubble's last-tracked spot) rather than drop it
       }
     } else {
       setAttackUid(null);

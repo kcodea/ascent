@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Ward shatter welded to the hit.** A warded unit's gold bubble used to linger disjointed from the unit after it
+  swung; the shatter now fires **at the lunge's real contact** (not a fixed start-relative delay), so the Ward breaks
+  with the smack and never trails into the recoil.
 - **On-attack & Rally buffs read now.** When a unit buffs allies as it attacks (Rally cards like Supporter/Chorus
   Engine) or reacts to a friendly's swing (Raptor, Crypt Drake, Taragosa), a tendril now fires **into the attacker's
   wind-up** — the sequence reads yellow rally pulse → tendril → lunge. Closes the last combat-buff FX gap.

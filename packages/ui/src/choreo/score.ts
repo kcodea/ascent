@@ -41,8 +41,9 @@ const withReform = (): Cue[] => [...BASE, { ch: 'auraReform', at: 'start', offse
 /** Every kind runs sfx + float + auraBurst + auraBreak at start (all adapters no-op for moments with nothing
  *  to show) EXCEPT `attackExchange`, which ALSO still needs sfx (the wind-up whoosh, `sfx.attack`) + float
  *  (absorbed windup events like Rally/buff can carry a float) at `start`, PLUS `lunge` (the motion) at `start`
- *  and `impact` (the smack/FX/recoil) at the `contact` anchor the lunge defines, plus auraBurst/auraBreak (a
- *  death/shield grouped into an attack's absorbed-windup run must still burst/shatter). The aura sub-channels
+ *  and `impact` (the smack/FX/recoil) at the `contact` anchor the lunge defines, plus auraBurst (a death grouped
+ *  into an attack's absorbed-windup run must still burst in place). A Ward CONSUMED by the exchange has no
+ *  `auraBreak` cue here — the engine shatters it at the lunge's real `contact` (see `onImpactAuras`). The aura sub-channels
  *  are on EVERY kind because `death`/`shield` are RESULT_TYPES that collapse into another kind's moment (e.g.
  *  `[dmg, death]` is a `damage`-kind moment CONTAINING a death) — gating them on death/shieldPop kinds would
  *  miss those grouped effects. `auraReform` (the reborn re-form glow) rides only on the `reborn` kind, since a
@@ -55,7 +56,10 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   attackExchange: [
     { ch: 'sfx', at: 'start' }, { ch: 'float', at: 'start' },
     { ch: 'lunge', at: 'start' }, { ch: 'impact', at: 'contact', offset: 0 },
-    { ch: 'auraBurst', at: 'start', offset: 0 }, { ch: 'auraBreak', at: 'start', offset: 300, scaled: true },
+    // NB: no `auraBreak` here — a Ward consumed by THIS exchange shatters at the lunge's real `contact` position
+    // (engine-driven, `onImpactAuras`), not on a fixed start-relative delay that drifted off the hit and left the
+    // bubble lingering disjointed from the unit. `auraBurst` (a death's in-place burst) stays at start.
+    { ch: 'auraBurst', at: 'start', offset: 0 },
   ],
   damage: [...BASE], shieldPop: [...BASE], poisonTick: [...BASE],
   death: [...BASE], riseDeath: [...BASE], scCast: [...BASE],

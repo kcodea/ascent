@@ -154,6 +154,10 @@ look because the engine already produces the data.
   (Supporter, Chimerus, Chorus Engine, Raptor, Crypt Drake, Taragosa) now fire tendrils woven into the attacker's
   wind-up (pulse → tendril → lunge) via `onWindupBuffs` on the lunge timeline. Landed at the wind-up (not
   contact-timed as originally sketched — the owner wanted the buff to read *before* the swing).
+- ~~**Ward shatter timing.**~~ ✓ **shipped (session 33, → devlog):** a warded unit's shatter now fires at the
+  lunge's real `contact` (`onImpactAuras` on the lunge timeline) instead of a fixed start+300ms cue that drifted
+  off the hit and left the bubble lingering disjointed from the unit. `auraBreak` removed from the `attackExchange`
+  score (engine-owned there); it still handles Wards broken outside an attack.
 - **Spear Warden echo-aura.** `deathrattleBuffCardTypeRunWide` (`knit`) is deliberately excluded from descend
   (asserted false) — the owner wants it reframed as a persistent "echo-aura" (its own effect concept), separate
   from Deathrattle. Design + build when ready.

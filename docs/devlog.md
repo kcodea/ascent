@@ -3,6 +3,17 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-12 (session 34)
+
+### docs: vendor the offline SFX recording guide into the repo
+
+`docs/audio/sfx-guide.html` — the interactive recording worklist (search / filter / per-section progress /
+copy-save-path, statuses + creative briefs for all ~577 sounds), committed as a **single self-contained file**
+(inline CSS/JS/data, zero external requests). Reason: artifact sharing on claude.ai is gated to Team/Enterprise
+plans, so instead of sharing a hosted link, the guide rides in git — both devs double-click it to open locally,
+offline. It's a snapshot of `sfx-manifest.md`; regenerable on demand (and a candidate to emit from
+`npm run sfx:manifest` later). Added `docs/audio/README.md` explaining both files.
+
 ## 2026-07-12 (session 33)
 
 ### feat: attack-windup tendrils — buff FX for on-attack / Rally buffers (Gap B)

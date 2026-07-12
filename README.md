@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Offline sound-recording guide.** `docs/audio/sfx-guide.html` — a self-contained, double-click-to-open
+  checklist of every sound the game needs (filename, trigger, brief, status) with search, filters, and
+  per-section progress. Vendored into the repo so both devs have it locally (no hosting needed).
 - **On-attack & Rally buffs read now.** When a unit buffs allies as it attacks (Rally cards like Supporter/Chorus
   Engine) or reacts to a friendly's swing (Raptor, Crypt Drake, Taragosa), a tendril now fires **into the attacker's
   wind-up** — the sequence reads yellow rally pulse → tendril → lunge. Closes the last combat-buff FX gap.

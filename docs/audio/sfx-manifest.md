@@ -189,7 +189,7 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/tribeportal.mp3` | Spell cast — unique clip over the default bed | Tribe Portal — spell cast cue (~0.4s). | ⬜ |
 | `cards/tribeschoice.mp3` | Spell cast — unique clip over the default bed | Tribes Choice — spell cast cue (~0.4s). | ⬜ |
 | `cards/undeadarmy.mp3` | Spell cast — unique clip over the default bed | Undead Army — spell cast cue (~0.4s). | ⬜ |
-| `castspell.mp3` | Default bed under every spell cast | Generic spell whoosh (~0.3s). | ⬜ |
+| `castspell.mp3` | Default bed under every spell cast | Generic spell whoosh (~0.3s). | 🎙️ |
 
 ### Neutral (69)
 

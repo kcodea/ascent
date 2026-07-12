@@ -31,6 +31,10 @@ export interface LungeCtx {
   rallyPauseMs?: number;
   /** Fired at the wind-up pause (see `rallyPauseMs`) — the caller flashes the attacker's yellow Rally pulse. */
   onRallyPulse?: () => void;
+  /** Fired at the wind-up pause AFTER `onRallyPulse` — the caller launches this attack's absorbed buff-other
+   *  tendrils (on-attack / Rally buffers), so the sequence reads pulse → tendril → lunge. Its presence (like a
+   *  rally) triggers the wind-up hold, so the tendril has time to land before the strike. */
+  onWindupBuffs?: () => void;
 }
 
 /**
@@ -43,7 +47,7 @@ export interface LungeCtx {
  * Returns the built timeline (seekable via `.progress()` in tests, without needing real time to pass).
  */
 export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
-  const { attacker, dx, dy, speed, strike, strikeDur, leadTilt, attackerRebound, onContact, onImpact, impactOffsetMs = 0, onRallyPulse, rallyPauseMs = 0 } = ctx;
+  const { attacker, dx, dy, speed, strike, strikeDur, leadTilt, attackerRebound, onContact, onImpact, impactOffsetMs = 0, onRallyPulse, onWindupBuffs, rallyPauseMs = 0 } = ctx;
   const c = getLungeConfig();
   const rest = attacker.getBoundingClientRect();
   const cx0 = rest.left + rest.width / 2;
@@ -55,10 +59,11 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
     : attacker.classList.contains('reborncard') || attacker.querySelector('.reborncard')
       ? 'blue'
       : 'wind';
-  // A Rally on this attack holds the wound-up pose briefly (the yellow pulse reads), before the strike.
-  const rallyPauseS = onRallyPulse ? rallyPauseMs / 1000 : 0;
+  // A Rally OR absorbed wind-up buffs (on-attack/Rally buff-others) hold the wound-up pose briefly, so the
+  // yellow pulse + the buff tendril read before the strike (sequence: pulse → tendril → lunge).
+  const windupPauseS = (onRallyPulse || onWindupBuffs) ? rallyPauseMs / 1000 : 0;
   let trailLast = { x: cx0, y: cy0 };
-  const trailCutoff = c.windupDur + rallyPauseS + strikeDur;
+  const trailCutoff = c.windupDur + windupPauseS + strikeDur;
   gsap.killTweensOf(attacker); // a re-attacker (Windfury / Gnasher swinging again) restarts clean
   gsap.set(attacker, { zIndex: 12 }); // ride above its neighbours for the duration
   const tl = gsap.timeline({
@@ -76,9 +81,10 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
     },
   });
   tl.to(attacker, { x: -dx * c.windupDepth, y: -dy * c.windupDepth, rotation: leadTilt, scale: c.windupScale, duration: c.windupDur, ease: 'power1.out' }); // wind up, tilt to lead a corner
-  if (rallyPauseS > 0) {
-    tl.call(onRallyPulse!);            // fire the yellow Rally pulse at the top of the wind-up…
-    tl.to({}, { duration: rallyPauseS }); // …then hold the wound-up pose for a beat before striking
+  if (windupPauseS > 0) {
+    if (onRallyPulse) tl.call(onRallyPulse);   // fire the yellow Rally pulse at the top of the wind-up (rally only)…
+    if (onWindupBuffs) tl.call(onWindupBuffs);  // …then launch the buff tendrils (pulse → tendril order)…
+    tl.to({}, { duration: windupPauseS });      // …then hold the wound-up pose so they read before the strike
   }
   tl.to(attacker, { x: strike.x, y: strike.y, rotation: leadTilt, scale: 1, duration: strikeDur, ease: 'power3.in' })                                       // strike to the surface, corner leading
     .add(onContact, `-=${c.smackLead}`)                                                                                                                      // contact — the beat advance, smackLead before the strike completes
@@ -88,7 +94,7 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
   // offset lands EARLIER than contact (the smack-lead), clamped to ≥ 0 (can't precede the timeline). It rides
   // this (speed-timeScaled) timeline, so the smack stays killed/seekable with the lunge and scales with speed.
   if (onImpact) {
-    const contactAt = c.windupDur + rallyPauseS + strikeDur - c.smackLead;
+    const contactAt = c.windupDur + windupPauseS + strikeDur - c.smackLead;
     tl.add(onImpact, Math.max(0, contactAt + impactOffsetMs / 1000));
   }
   tl.timeScale(speed);

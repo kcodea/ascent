@@ -5,6 +5,36 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-12 (session 33)
 
+### feat: attack-windup tendrils — buff FX for on-attack / Rally buffers (Gap B)
+
+Closes the last class of combat buffs with no FX. A buff emitted right after an `attack` is **absorbed into that
+attack's `attackExchange` moment** (`compile.ts` `absorbIntoWindup`), and the tendril `buffCast` cue lived only on
+`buffWave` moments — so **on-attack / Rally buff-others fired no tendril**. Six cards: Rally-keyword (**Supporter**
+`rallyBuff`, **Chimerus** `rallyGiveHealthToDragons`, **Chorus Engine** `rallyBuffAttachments`) and on-ally-attack
+watchers (**Raptor** `onFriendlyAttackBuffTribe`, **Crypt Drake** `onAllyAttackBuffAll`, **Taragosa**
+`onAllyAttackCastGrowth`).
+
+**Fix — weave the tendril into the attack wind-up (owner's ordering: pulse → tendril → lunge).** The engine
+already pauses the wind-up + flashes the yellow Rally pulse via `onRallyPulse`; the tendril slots in right after.
+- **`channels/lunge.ts`** — new `onWindupBuffs?` callback; the wind-up hold now fires whenever there's a rally
+  pulse **or** absorbed wind-up buffs, in order: `onRallyPulse` → `onWindupBuffs` → hold → strike.
+- **`choreo/engine.ts`** — `AttackCueCtx.onWindupBuffs` passed through to `playLunge`.
+- **`useCombatReplay.ts`** — the tendril-fire + badge hold/flash logic is **factored out of `onBuffCasts` into a
+  shared `fireBuffCasts(casts, timers)`** (the `buffWave` path is byte-for-byte preserved). At the attack-exchange
+  call site it computes `groupBuffCasts(moment, events)` and, if any, passes `onWindupBuffs = () =>
+  fireBuffCasts(casts, windupTimers)` (with a small teardown to clear the flash timers). The look auto-resolves by
+  source tribe (Raptor→beast, Crypt Drake/Taragosa/Supporter/Chimerus→dragon, Chorus Engine→mech) — verified, no
+  per-card overrides needed.
+
+Reuses the existing tendril renderer + presets + badge machinery — **no new FX primitive**. Presentation-only.
+
+**Verified.** `lunge.test.ts`: `onWindupBuffs` fires during the wind-up **before** `onContact`, ordered
+`pulse → buffs → contact`; fires without a rally pulse (watcher case); inserts the hold. `windupTendrils.test.ts`:
+a real two-Supporter combat → a Rally buff-other rides inside an `attackExchange` moment (`groupBuffCasts` finds
+it). Existing `score`/`buffCast`/`engine` tests stay green (the refactor changed no behavior on that path). Full
+gate green: typecheck + lint + test + build:web. (The live wind-up visual is un-eyeballed — headless can't watch
+rAF; the timing is test-proven and the renderer is the shipped tendril.)
+
 ### fix: extend descend to two more Deathrattle buff-others (Trickster, Nanon)
 
 A coverage audit of every combat buff factory found two `onDeath` buff-others that were **missing** from

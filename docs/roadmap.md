@@ -150,11 +150,13 @@ look because the engine already produces the data.
   (only `ring` is built), and there's no dedicated `neutral` preset (falls to `default`). Separately, hero-power /
   spell buffs resolve in the **recruit/shop phase** (a different code path from the combat replay) and get only a
   sound + CSS glow today — wiring them to `pixiFx.pulse` is a future pass.
-- **Buff tendrils — on-attack buffers.** Buffs absorbed into an attack's windup (on-attack ally-buffers like
-  Crypt Drake, Growth-on-attack) classify as an `attackExchange` moment, which carries no `buffCast` cue — so
-  they don't throw a tendril yet. Iteration 1 targets Start-of-Combat / standalone buff waves. To extend: add a
-  `buffCast` cue to `attackExchange` **contact-timed** (fire at the strike, not the windup start), so the buff
-  tendril lands with the hit.
+- ~~**Buff tendrils — on-attack buffers.**~~ ✓ **shipped (session 33, → devlog):** on-attack / Rally buff-others
+  (Supporter, Chimerus, Chorus Engine, Raptor, Crypt Drake, Taragosa) now fire tendrils woven into the attacker's
+  wind-up (pulse → tendril → lunge) via `onWindupBuffs` on the lunge timeline. Landed at the wind-up (not
+  contact-timed as originally sketched — the owner wanted the buff to read *before* the swing).
+- **Spear Warden echo-aura.** `deathrattleBuffCardTypeRunWide` (`knit`) is deliberately excluded from descend
+  (asserted false) — the owner wants it reframed as a persistent "echo-aura" (its own effect concept), separate
+  from Deathrattle. Design + build when ready.
 - **Buff tendrils — the other styles.** The `style` field + renderer seam are ready for `lightning` and `beam`
   variants (only `tendril` is built). And `neutral` has no dedicated preset (falls to the beast-green
   `default`) — tune one if neutral buffers should read distinctly.

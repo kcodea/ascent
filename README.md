@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **On-attack & Rally buffs read now.** When a unit buffs allies as it attacks (Rally cards like Supporter/Chorus
+  Engine) or reacts to a friendly's swing (Raptor, Crypt Drake, Taragosa), a tendril now fires **into the attacker's
+  wind-up** — the sequence reads yellow rally pulse → tendril → lunge. Closes the last combat-buff FX gap.
 - **Spell-cast sound.** Playing a spell from hand now fires a sourced "spell cast" clip (distinct from a minion
   landing), with the old synth blip kept as the decode/absent fallback and a level in the DEV SFX mixer.
 - **Taunt border, dialed in.** The grey Taunt border got thicker + darker, its bottom corners squared off (arched

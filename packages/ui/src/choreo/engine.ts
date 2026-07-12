@@ -16,6 +16,10 @@ export interface AttackCueCtx {
   /** Set when a RALLY fires as this unit attacks → the lunge holds a beat at the top of the wind-up and calls
    *  this (flash the attacker's yellow Rally trigger pulse) before the strike. Absent = a normal swing. */
   onRallyPulse?: () => void;
+  /** Set when this attack's moment absorbed buff-other casts (on-attack / Rally buffers) → the lunge holds at the
+   *  top of the wind-up and calls this (launch the buff tendrils) after `onRallyPulse`, before the strike, so the
+   *  beat reads pulse → tendril → lunge. Absent = no absorbed buffs. */
+  onWindupBuffs?: () => void;
 }
 
 /** ms the lunge holds at the top of the wind-up when a Rally fires, so its bright yellow pulse has time to
@@ -67,6 +71,7 @@ export function runAttackExchangeCues(
     onImpact: impact ? () => playContactImpact(defender, dx, dy, power, ctx.combatSpeed, impactAt, spinDeg) : undefined,
     impactOffsetMs: impact?.offset ?? 0,
     onRallyPulse: ctx.onRallyPulse,
+    onWindupBuffs: ctx.onWindupBuffs,
     rallyPauseMs: RALLY_PAUSE_MS,
   });
 }

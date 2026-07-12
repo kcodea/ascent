@@ -46,6 +46,9 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   lunge never showed). Cause was a main-thread frame hitch letting GSAP jump the lunge timeline past its own
   motion — fixed with a `lagSmoothing` clamp so a spike can't skip the visible swing. Not an ordering/sim
   issue. (The underlying frame hitches are a separate perf item, queued.)
+- **Buff descend.** The third buff FX: when a **Deathrattle** buffs your other minions (its caster is gone), the
+  buff **rains down** — a short energy tendril drops from above each buffed ally into its center + a landing pulse +
+  the badge flashes to its new value. Routed by trigger (an `onDeath` buff-other), not liveness. Presentation-only.
 - **Buff pulse.** The sibling of the tendril: when a unit buffs **itself** in combat, an in-place point-blast
   (expanding ring + core flash + sparks) fires on the unit, replacing the `+N/+N` float and flashing its badge to
   the new value. Same preset-driven system + live tuning rig as the tendril; ships one gold `default` look for now

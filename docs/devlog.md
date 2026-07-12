@@ -3,6 +3,46 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-12 (session 33)
+
+### feat: buff descend — a rain-down FX for Deathrattle buff-others
+
+**Problem.** A tendril flies FROM the source unit's card, but a Deathrattle buff-other (Sergeant → `onDeath`
+`deathrattleBuffAllHealth`) fires when its source is dead + already dropped from the board — `findEl(source)` is
+null, the tendril handler's `if (!sEl || !tEl) continue` silently skipped it, so these buffs showed **nothing**. A
+source→target beam is also semantically wrong for a Deathrattle (it can be **proc'd while alive** — undead `spore`
+re-fires its own Deathrattle on a Battlecry). So the third buff FX: a source-less rain-down.
+
+**What.** For each ally buffed by a Deathrattle-that-buffs-others, a short energy tendril **drops from just above
+its card into the center** + a landing **pulse** + the badge flashes to its new value. Owner-tuned default (a fat
+near-transparent amber drop whose read is carried by a double amber shockwave + gold core + spark burst,
+normal-blend for the cream board).
+
+**Architecture (third sibling of tendril + pulse):**
+- **`pixiFx.descend(x, y, cfg)`** — a drop ribbon that reuses the tendril ribbon helpers (`sampleTendril` /
+  `rebuildRibbon`) via a `DescendFx` that is structurally a `Tendril`, and fires `this.pulse()` on landing instead
+  of the tendril strike. Tracked in a `descends` state array advanced in `update`; cleanup in
+  `clearParticles`/`detach`. No changes to `buffTendril`/`pulse`.
+- **`descendPresets.ts`** — `DescendPresetCfg` = drop dials + an embedded full `PulsePresetCfg` for the landing;
+  `descendPreset(cardId, tribe)` resolver (card → tribe → default). Ships one owner-tuned default; per-tribe is a
+  follow-up.
+- **`deathrattleBuffers.ts`** — `isDeathrattleBufferCard(cardId)` = the card has an `onDeath` effect whose `do` is
+  in `DEATHRATTLE_BUFF_FACTORIES` (the **trigger** signal, not liveness — so a proc'd-while-alive Deathrattle
+  descends too). Verified unambiguous for the current card set (no card has both a non-onDeath and an onDeath
+  buff-other).
+- **Routing lives in the existing `onBuffCasts` handler** (no new choreo channel/cue): Deathrattle-buffer source →
+  `descend` on the target (source not needed); else → the unchanged source→target tendril. Badge hold/flash reused,
+  timed to `dropMs` for descend.
+- **`buff-descend-preview.html`** — a tuning rig (drop + landing-pulse dials + live JSON); the FX draws over the
+  card marker so the preview matches the in-game FX layer (which sits over the cards).
+
+**Verified.** Unit: `descendPresets` (resolver + complete embedded pulse), `deathrattleBuffers` (5 verified ids),
+`descendTrigger` (a real Sergeant-dies combat → buff-other casts whose source is a Deathrattle buffer). Full gate
+green: typecheck + lint + test + build:web. (Trigger path is test-proven; the live look was tuned on the rig.)
+
+**Follow-ups:** per-tribe descend presets (owner will tune); a sim-level trigger annotation on buff events would
+retire the `DEATHRATTLE_BUFF_FACTORIES` maintenance list; the living-source on-attack-buffer tendril gap remains.
+
 ## 2026-07-11 (session 32)
 
 ### tweak(ui): thicker, darker Taunt border — squared bottom + always-on red under-glow

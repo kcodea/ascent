@@ -15,22 +15,25 @@ export interface DescendPresetCfg {
   pulse: PulsePresetCfg;
 }
 
-/** The default landing pulse mirrors the shipped self-buff pulse (white shockwave + gold core + spark burst). */
+/** The owner-tuned default descend landing pulse (2026-07-11, tuned live on buff-descend-preview.html) — a
+ *  double amber shockwave + a warm-gold core flash + a wide golden spark burst, normal-blend for the cream board. */
 const DEFAULT_PULSE: PulsePresetCfg = {
-  style: 'ring', blend: 'add',
-  ringCount: 1, ringSize: 173, ringWidth: 16, ringSpeed: 2.45, ringMs: 280, ringStaggerMs: 200,
-  coreFlashSize: 200, coreFlashMs: 950,
-  sparkCount: 60, sparkSpeed: 390, sparkLife: 1400, sparkSize: 7,
-  holdMs: 60,
-  colorRing: '#ffffff', colorCore: '#fff694', colorSpark: '#fef962',
+  style: 'ring', blend: 'normal',
+  ringCount: 2, ringSize: 90, ringWidth: 6, ringSpeed: 1.7, ringMs: 500, ringStaggerMs: 50,
+  coreFlashSize: 115, coreFlashMs: 470,
+  sparkCount: 60, sparkSpeed: 410, sparkLife: 850, sparkSize: 7,
+  holdMs: 140,
+  colorRing: '#ffac38', colorCore: '#ffec1f', colorSpark: '#ffd22e',
 };
 
-/** Starter descend look (owner tunes on the rig; per-tribe presets are a follow-up — do NOT invent tuned dials). */
+/** The owner-tuned default descend (2026-07-11) — a fat, near-transparent amber drop (the read is carried by the
+ *  landing pulse) that rains onto every Deathrattle-buffed ally. Applied to all applicable effects (DESCEND_ASSIGN
+ *  empty → all resolve here); per-tribe looks are a follow-up. Values baked straight from the rig's JSON. */
 const DEFAULT: DescendPresetCfg = {
-  blend: 'add',
-  startHeight: 120, dropMs: 300, curve: 0.1, wobbleAmp: 8, wobbleFreq: 2, retractMs: 120,
-  baseWidth: 9, tipWidth: 2, coreAlpha: 0.9, glowWidth: 34, glowAlpha: 0.25,
-  colorCore: '#ffffff', colorGlow: '#fff694',
+  blend: 'normal',
+  startHeight: 71, dropMs: 340, curve: 0, wobbleAmp: 0, wobbleFreq: 0, retractMs: 180,
+  baseWidth: 81.5, tipWidth: 38.5, coreAlpha: 0.05, glowWidth: 0, glowAlpha: 0,
+  colorCore: '#ffbb00', colorGlow: '#fe9620',
   pulse: { ...DEFAULT_PULSE },
 };
 

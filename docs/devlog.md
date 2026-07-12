@@ -3,6 +3,34 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-12 (session 34)
+
+### feat(tools): `npm run sfx:import` — smart drop-folder audio importer
+
+Removes the friction of getting recorded clips into the game. A sandboxed claude.ai page can't write into the
+repo, so importing is a local CLI: drop `.mp3` files (named naturally by **display name or id + a variant word**
+— `Pennycat death.mp3`, `warden power.mp3`, `alley effect.mp3`, `Yirin.mp3`) into `audio-inbox/`, run
+`npm run sfx:import`, and each is moved to its exact `packages/ui/src/audio/…` target. Confident matches move;
+anything ambiguous stays in the inbox and is reported with suggestions — never a silent wrong move.
+
+- **`packages/tools/src/sfx-import.lib.ts`** — pure, unit-tested matcher (no fs / no `@game/*`): `buildIndex`
+  over `ALL_CARDS`/`HEROES` (knows Pennycat=`alley`, Yirin=`rohan`), `parseName` (trailing variant word +
+  name/id phrase), `resolveId` (exact id → exact display name → conservative Levenshtein fuzzy, must beat the
+  runner-up), `matchFile` (→ `cards/<id>[.death|.effect].mp3` or `heroes/<id>[.power].mp3`; rejects a `.effect`
+  for a vanilla minion and a minion-variant on a hero). 9 tests.
+- **`packages/tools/src/sfx-import.ts`** — the runner: reads `audio-inbox/` (creates it with a README on first
+  run), applies confident matches (move; `--keep` copies), skips collisions (`--force` overwrites) and non-mp3s,
+  prints a grouped moved/skipped/unmatched report, then best-effort runs the manifest regen. Flags: `--dry`,
+  `--keep`, `--force`, `--no-manifest`, `--inbox <dir>`. `.gitignore` += `audio-inbox/`.
+- **Verified:** 9 lib tests (name↔id, variant parse across separators, fuzzy typo, ambiguous→suggestions,
+  per-variant targets, vanilla-effect + hero-variant rejection, exact-basename passthrough), plus a real E2E
+  over placeholder files: `Pennycat death.mp3 → cards/alley.death.mp3`, `warden power.mp3 →
+  heroes/warden.power.mp3`, `zzzz effect.mp3` left with suggestions; real move + idempotent re-run + collision
+  skip; then cleaned up. Full gate: typecheck 0, lint clean, 920 tests, `build:web` ✓.
+- **Note:** the auto-regen uses a `try/catch` dynamic import of `./sfx-manifest.ts` (cast to `string` so tsc
+  doesn't statically resolve a file that only exists on the unmerged manifest branch) — degrades to printing
+  the `npm run sfx:manifest` hint until that branch lands.
+
 ## 2026-07-12 (session 33)
 
 ### feat: attack-windup tendrils — buff FX for on-attack / Rally buffers (Gap B)

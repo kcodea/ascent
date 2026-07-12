@@ -9,12 +9,14 @@ import { dirname, resolve } from 'node:path';
 import { NEUTRAL, BEASTS, DRAGONS, UNDEAD, MECHS, DEMONS, TOKENS, SPELLS } from '@game/content';
 import { HEROES } from '@game/sim';
 import {
-  deriveRows, mergeRows, parseExistingTables, renderGeneratedZone, GEN_MARKER,
+  deriveRows, mergeRows, parseExistingTables, renderGeneratedZone, GEN_MARKER, injectGuideData,
   type ManifestCard, type ManifestHero, type SfxRow,
 } from './sfx-manifest.lib';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const DOC = resolve(ROOT, 'docs/audio/sfx-manifest.md');
+const GUIDE_TPL = resolve(ROOT, 'docs/audio/sfx-guide.template.html');
+const GUIDE_OUT = resolve(ROOT, 'docs/audio/sfx-guide.html');
 const AUDIO = resolve(ROOT, 'packages/ui/src/audio');
 
 // Cards: every tribe + tokens + all spells. Excludes ENEMY filler (not in these arrays).
@@ -40,6 +42,13 @@ if (marker === -1) {
 const prose = existingDoc.slice(0, marker + GEN_MARKER.length);
 writeFileSync(DOC, `${prose}\n\n${renderGeneratedZone(merged)}\n`);
 
+// Emit the offline visual guide too (the interactive worklist) from the SAME rows, so it never drifts from
+// the manifest. It's a template + injected data → a self-contained HTML file both devs open locally.
+if (existsSync(GUIDE_TPL)) {
+  writeFileSync(GUIDE_OUT, injectGuideData(readFileSync(GUIDE_TPL, 'utf8'), merged));
+}
+
 const sections = new Set(merged.map((r) => r.section)).size;
 const todo = merged.filter((r) => r.status === '⬜').length;
 console.log(`sfx-manifest: ${merged.length} rows across ${sections} sections (${todo} still to record) → ${DOC}`);
+if (existsSync(GUIDE_TPL)) console.log(`sfx-guide:    ${merged.length} rows → ${GUIDE_OUT}`);

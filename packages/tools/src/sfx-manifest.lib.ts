@@ -158,3 +158,15 @@ export function renderGeneratedZone(rows: SfxRow[]): string {
   }
   return parts.join('\n').trimEnd();
 }
+
+/** Placeholder in `sfx-guide.template.html` where the row data is injected. */
+export const GUIDE_ROWS_MARKER = '/*__SFX_ROWS__*/[]';
+
+/** Inject the manifest rows into the guide template (replaces the marker with a JSON array literal), so
+ *  `sfx-guide.html` is a generated view of the same data as `sfx-manifest.md`. */
+export function injectGuideData(template: string, rows: SfxRow[]): string {
+  if (!template.includes(GUIDE_ROWS_MARKER)) {
+    throw new Error(`sfx-guide template is missing the ${GUIDE_ROWS_MARKER} marker`);
+  }
+  return template.replace(GUIDE_ROWS_MARKER, JSON.stringify(rows));
+}

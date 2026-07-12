@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   deriveRows, mergeRows, parseExistingTables, renderGeneratedZone, GEN_MARKER,
+  injectGuideData, GUIDE_ROWS_MARKER,
   type ManifestCard, type ManifestHero,
 } from './sfx-manifest.lib';
 
@@ -62,5 +63,18 @@ describe('renderGeneratedZone', () => {
     expect(md).toMatch(/### Beasts \(3\)/);
     expect(md).toMatch(/\| Filename \| Trigger \| Creative brief \| Status \|/);
     expect(md).not.toContain(GEN_MARKER);
+  });
+});
+
+describe('injectGuideData', () => {
+  const rows = deriveRows([{ id: 'alley', name: 'Pennycat', tribe: 'beast', effects: [{ on: 'onPlay' }] }], [], []);
+  it('replaces the template marker with the rows as a JSON array', () => {
+    const out = injectGuideData(`const DATA = ${GUIDE_ROWS_MARKER}; // rest`, rows);
+    expect(out).not.toContain(GUIDE_ROWS_MARKER);
+    expect(out).toContain('const DATA = [');
+    expect(JSON.parse(out.slice(out.indexOf('['), out.lastIndexOf(']') + 1))).toEqual(rows);
+  });
+  it('throws if the template is missing the marker', () => {
+    expect(() => injectGuideData('no marker here', rows)).toThrow(/marker/);
   });
 });

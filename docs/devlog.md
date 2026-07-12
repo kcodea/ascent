@@ -393,6 +393,12 @@ The naming convention doubles as the wiring contract: minion play/spell cast alr
   the main dir's live, mid-refactor sources through the shared `node_modules`).
 - **Follow-up:** realigned the spell **default bed** filename from `spellcast.mp3` → **`castspell.mp3`** to
   match the clip `feat/spellcast-sfx` already ships (generator row + prose naming table + regenerated manifest).
+- **Follow-up:** `npm run sfx:manifest` now **also emits `docs/audio/sfx-guide.html`** — the interactive,
+  offline recording worklist — from the SAME rows, so the visual guide never drifts from the manifest. The
+  layout is a version-controlled template (`sfx-guide.template.html`) with a `/*__SFX_ROWS__*/[]` marker; the
+  runner injects `JSON.stringify(rows)` via the pure `injectGuideData` (2 tests). Supersedes the one-off
+  vendored guide (PR #345). Reason it's a local generated file, not a shared link: artifact sharing on
+  claude.ai is gated to Team/Enterprise plans, so both devs just open the committed HTML locally.
 
 ## 2026-07-10 (session 30)
 

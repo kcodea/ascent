@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-12 (session 33)
 
+### fix: extend descend to two more Deathrattle buff-others (Trickster, Nanon)
+
+A coverage audit of every combat buff factory found two `onDeath` buff-others that were **missing** from
+`DEATHRATTLE_BUFF_FACTORIES`, so they routed to the tendril branch, found no live source (a Deathrattle's caster
+is gone), and showed **nothing**: **Trickster** (`deathrattleGiveHealth`) and **Nanon**
+(`deathrattleSummonOverflowBuff`). Added both factories to the set → they now get the descend rain-down like
+Sergeant. Test extended (`deathrattleBuffers.test.ts`: `trickster`/`nanon` → true).
+
+**Deliberately excluded: Spear Warden** (`knit`, `deathrattleBuffCardTypeRunWide`). The owner wants that card
+reframed as an **"echo-aura"** — its own effect concept, kept separate from Deathrattle (descend) — so it stays
+out of the descend set (asserted `false` in the test) pending that design. The other Gap-B units (on-attack /
+Rally buffers absorbed into `attackExchange`: Raptor, Crypt Drake, Taragosa, Supporter, Chimerus, Chorus Engine)
+are a separate upcoming feature (contact-timed tendril cue on `attackExchange`).
+
 ### feat: buff descend — a rain-down FX for Deathrattle buff-others
 
 **Problem.** A tendril flies FROM the source unit's card, but a Deathrattle buff-other (Sergeant → `onDeath`

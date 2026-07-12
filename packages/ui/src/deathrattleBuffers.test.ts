@@ -6,6 +6,11 @@ describe('isDeathrattleBufferCard', () => {
     expect(isDeathrattleBufferCard('sergeant')).toBe(true);  // onDeath deathrattleBuffAllHealth
     expect(isDeathrattleBufferCard('spore')).toBe(true);     // onDeath deathrattleBuffAll
     expect(isDeathrattleBufferCard('impking')).toBe(true);   // onDeath deathrattleSummon + deathrattleBuffImps
+    expect(isDeathrattleBufferCard('trickster')).toBe(true); // onDeath deathrattleGiveHealth
+    expect(isDeathrattleBufferCard('nanon')).toBe(true);     // onDeath deathrattleSummonOverflowBuff
+  });
+  it('false — Spear Warden (deathrattleBuffCardTypeRunWide) is deliberately excluded (future echo-aura)', () => {
+    expect(isDeathrattleBufferCard('knit')).toBe(false);     // onDeath deathrattleBuffCardTypeRunWide — NOT descend
   });
   it('false — a Start-of-Combat buffer (living-source tendril, not onDeath)', () => {
     expect(isDeathrattleBufferCard('kennel')).toBe(false);   // startOfCombat scBeastAura; no onDeath buff

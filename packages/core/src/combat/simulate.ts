@@ -1401,7 +1401,8 @@ export function simulate(
     }
     // Shared Circuit: give up to N friendly Mechs (leftmost first, skipping already-shielded) a Ward.
     if ((rmods.sharedCircuitWard ?? 0) > 0) {
-      let left = rmods.sharedCircuitWard!;
+      const sideMods = rmods.sharedCircuitWard!;
+      let left = sideMods;
       for (const m of boards[rside]) {
         if (left <= 0) break;
         if (m.dead || m.health <= 0 || m.divineShield) continue;
@@ -1412,6 +1413,22 @@ export function simulate(
         emit({ type: 'shieldUp', target: m.uid });
         left--;
       }
+      // …and when a friendly Mech LOSES its Ward, pass a fresh Ward to another unshielded friendly Mech — up to
+      // N transfers this combat (chains as those break too). `sc` is captured per side so the two boards don't share it.
+      let transfers = sideMods;
+      const tSide = rside;
+      bus.on('onLoseDivineShield', (payload) => {
+        const { minion, side } = payload as { minion: Minion; side: Side };
+        if (side !== tSide || transfers <= 0) return;
+        if (minion.tribe !== 'mech' && minion.tribe2 !== 'mech') return;
+        const next = boards[tSide].find((m) => !m.dead && m.health > 0 && !m.divineShield && (m.tribe === 'mech' || m.tribe2 === 'mech'));
+        if (!next) return;
+        transfers--;
+        nextStep();
+        next.divineShield = true;
+        if (!next.keywords.includes('DS')) next.keywords.push('DS');
+        emit({ type: 'shieldUp', target: next.uid });
+      });
     }
     // Rune of Warding: give the leftmost living minion a Ward.
     if (rmods.runeWarding) {

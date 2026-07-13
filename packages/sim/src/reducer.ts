@@ -391,12 +391,13 @@ function reduceCore(state: RunState, action: Action): RunState {
       spendGold(s, buyCost);
       // Fried Circuits: each minion bought buffs every Mech OFFER remaining in the shop, escalating by step per
       // purchase (buy 1 → +step, buy 2 → +2·step, …). The buff bakes into the offer's atk/hp when it's bought.
-      if (s.friedCircuitsStep) {
+      if (s.friedCircuitsStepAtk || s.friedCircuitsStepHp) {
         s.friedCircuitsBuys = (s.friedCircuitsBuys ?? 0) + 1;
-        const amt = s.friedCircuitsStep * s.friedCircuitsBuys;
+        const aAtk = (s.friedCircuitsStepAtk ?? 0) * s.friedCircuitsBuys;
+        const aHp = (s.friedCircuitsStepHp ?? 0) * s.friedCircuitsBuys;
         for (const o of s.shop) {
           const d = CARD_INDEX[o.cardId];
-          if (d && (d.tribe === 'mech' || d.tribe2 === 'mech')) { o.atk = (o.atk ?? 0) + amt; o.hp = (o.hp ?? 0) + amt; }
+          if (d && (d.tribe === 'mech' || d.tribe2 === 'mech')) { o.atk = (o.atk ?? 0) + aAtk; o.hp = (o.hp ?? 0) + aHp; }
         }
       }
       const cb = cardBuff(s, card.id); // persistent run buff (Ritualist's Fodder enchantment)
@@ -2124,7 +2125,8 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       for (const o of s.shop) if (CARD_INDEX[o.cardId]?.keywords.includes('M')) o.cost = r.cost;
       break;
     case 'friedCircuits':
-      s.friedCircuitsStep = r.step; // Fried Circuits: each buy buffs shop Mechs by step × buys (escalating)
+      s.friedCircuitsStepAtk = r.stepAttack; // Fried Circuits: each buy buffs shop Mechs by step × buys (escalating)
+      s.friedCircuitsStepHp = r.stepHealth;
       s.friedCircuitsBuys = 0;
       break;
     case 'undeadSpellAura':

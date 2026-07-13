@@ -2825,6 +2825,18 @@ describe('Mech/neutral quests — Rally doublers stack additively + Shared Circu
     const shielded = r.events.filter((ev) => ev.type === 'shieldUp');
     expect(shielded.length).toBe(3); // exactly 3 of the 4 Mechs warded
   });
+
+  it('Shared Circuit passes a broken Ward to another Mech, up to N times per combat', () => {
+    // 6 Mechs (3 warded at SC + 3 spare) vs hard hitters → some Wards break → each break passes a Ward onward.
+    const mechs: BoardMinion[] = Array.from({ length: 6 }, () => ({ cardId: 'drone', attack: 2, health: 6, keywords: [] as Keyword[] }));
+    const enemy: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 80 }, { cardId: 'sandbag', attack: 5, health: 80 }];
+    const r = simMods(mechs, enemy, 3, { sharedCircuitWard: 3 });
+    const breaks = r.events.filter((ev) => ev.type === 'shield').length; // a Ward absorbed a hit
+    const shieldUps = r.events.filter((ev) => ev.type === 'shieldUp').length; // 3 at SC + each transfer
+    expect(breaks).toBeGreaterThan(0); // Wards broke in combat
+    expect(shieldUps).toBeGreaterThan(3); // 3 SC Wards + at least one transfer
+    expect(shieldUps).toBeLessThanOrEqual(6); // capped: 3 SC + at most 3 transfers
+  });
 });
 
 describe('Demon quests — imp summons + Deep Hunger / Contract Rewrite / Pit Without End / Run Maw', () => {

@@ -369,7 +369,7 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('shoutEdgeBuff'), attack: z.number().int(), health: z.number().int() }).strict(),
   z.object({ kind: z.literal('goldFodder'), per: z.number().int().positive(), attack: z.number().int(), health: z.number().int() }).strict(),
   z.object({ kind: z.literal('attachmentDeal'), cost: z.number().int().nonnegative() }).strict(),
-  z.object({ kind: z.literal('friedCircuits'), step: z.number().int().positive() }).strict(),
+  z.object({ kind: z.literal('friedCircuits'), stepAttack: z.number().int().positive(), stepHealth: z.number().int().positive() }).strict(),
   z.object({ kind: z.literal('undeadSpellAura'), attack: z.number().int().positive() }).strict(),
   // Runeforge rune rewards.
   z.object({ kind: z.literal('runeSpellDrip'), per: z.number().int().positive() }).strict(),

@@ -545,8 +545,9 @@ export interface RunState {
   attachmentCost?: number;
   alwaysAttachmentShop?: boolean;
   /** Fried Circuits (Mech capstone): armed step + purchase counter — each minion bought buffs every Mech shop
-   *  offer by `friedCircuitsStep × buys` (escalating). */
-  friedCircuitsStep?: number;
+   *  offer by `(stepAtk/stepHp) × buys` (escalating). */
+  friedCircuitsStepAtk?: number;
+  friedCircuitsStepHp?: number;
   friedCircuitsBuys?: number;
   /** Forsaken Will (Undead greater): armed — each spell cast grants your Undead aura +this Attack (folds into
    *  `undeadAttackBonus`, which applies in the shop AND combat). */

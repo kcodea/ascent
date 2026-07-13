@@ -563,7 +563,7 @@ export type QuestReward =
   | { kind: 'attachmentDeal'; cost: number }
   // Fried Circuits (Mech capstone): each minion you buy buffs every Mech OFFER in the shop, escalating by `step`
   // per purchase (buy 1 → +step, buy 2 → +2·step, …).
-  | { kind: 'friedCircuits'; step: number }
+  | { kind: 'friedCircuits'; stepAttack: number; stepHealth: number }
   // Forsaken Will (Undead greater): each spell you cast permanently grants your Undead aura +`attack` Attack
   // (applies in the shop AND combat, like Lantern of Souls).
   | { kind: 'undeadSpellAura'; attack: number }

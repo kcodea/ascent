@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { Card, type CardView } from './Card';
-import { ascendProgressText, combatCastGrantText, cryptDrakeText, engraveTallyText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText, sergeantText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, transformProgressText, watcherText } from './cardText';
+import { ascendProgressText, combatCastGrantText, cryptDrakeText, engraveTallyText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText, sergeantText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, transformProgressText, watcherText } from './cardText';
 import { useGame } from './store';
 import type { UnitFrame } from './useCombatReplay';
 
@@ -92,6 +92,11 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
     baseAttack: (def?.attack ?? 0) * goldMul, baseHealth: (def?.health ?? 0) * goldMul,
     floorAttack: u.baseAttack, floorHealth: u.baseHealth,
     buffs: u.buffs, // per-source breakdown (recruit + combat) for the right-click inspect panel
+    // Live step counter (Guel 1/4, Crypt Drake 1/2, …) — ticks mid-fight from the unit's per-instance accruals.
+    stepProgress: stepProgress(u.cardId, {
+      spellProgress: u.spellProgress, summonBonus: u.summonBonus,
+      ascendProgress: u.ascendProgress, attackSeen: u.attackSeen,
+    }) ?? undefined,
   };
   return (
     <div className={cls} data-uid={u.uid}>

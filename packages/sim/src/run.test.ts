@@ -15,7 +15,8 @@ import {
   registerOpponents,
   buildBootstrapPool,
   generateQuestOffer,
-  questTierForWave,
+  questOfferPlan,
+  questBucketFor,
   lossDamageCap,
   runRecord,
   isCalibrationRound,
@@ -3785,15 +3786,16 @@ describe('hero powers (@game/sim)', () => {
     expect(s.hand.some((c) => c.cardId === 'chronos')).toBe(true);
   });
 
-  it("Fi's Errand opens an extra lower-tier quest shop on turn 3", () => {
-    // Drive a real advance into wave 3 and confirm the quest offer opens (lesser tier).
+  it("Fi's Errand opens an extra LESSER-only quest shop on turn 3", () => {
+    // Drive a real advance into wave 3 and confirm the quest offer opens, restricted to Lesser quests.
     let s: RunState = { ...createRun(1, 'fi'), wave: 2, phase: 'recruit' };
     s = reduce(s, { type: 'faceOmen' }); // → combat for wave 2
     s = reduce(s, { type: 'resolveCombat' }); // → recruit for wave 3, Fi's quest opens
     expect(s.wave).toBe(3);
     expect((s.questOffer?.length ?? 0)).toBeGreaterThan(0);
+    expect(s.questOffer!.every((id) => QUEST_INDEX[id]!.tier === 'lesser')).toBe(true); // Lesser only
     // A non-Fi hero gets no turn-3 quest.
-    let w: RunState = { ...createRun(1, 'warden'), wave: 2, phase: 'recruit' };
+    let w: RunState = { ...createRun(1, 'soren'), wave: 2, phase: 'recruit' };
     w = reduce(w, { type: 'faceOmen' });
     w = reduce(w, { type: 'resolveCombat' });
     expect(w.questOffer).toBeUndefined();
@@ -4746,28 +4748,32 @@ describe('wave-relative board strength rating (@game/sim)', () => {
 });
 
 describe('quests (M3 framework)', () => {
-  it('questTierForWave maps the quest-turns (4/8/12) and nothing else', () => {
-    expect(questTierForWave(4)).toBe('lesser');
-    expect(questTierForWave(8)).toBe('greater');
-    expect(questTierForWave(12)).toBe('capstone');
-    expect(questTierForWave(3)).toBeNull();
-    expect(questTierForWave(5)).toBeNull();
-    expect(questTierForWave(1)).toBeNull();
+  it('questOfferPlan maps the two quest-turns (5 & 11) and nothing else; questBucketFor splits the tiers', () => {
+    expect(questOfferPlan({ ...createRun(1), wave: 5 })).toEqual({ bucket: 5 });
+    expect(questOfferPlan({ ...createRun(1), wave: 11 })).toEqual({ bucket: 11 });
+    expect(questOfferPlan({ ...createRun(1), wave: 4 })).toBeNull();
+    expect(questOfferPlan({ ...createRun(1), wave: 8 })).toBeNull();
+    expect(questOfferPlan({ ...createRun(1), wave: 12 })).toBeNull();
+    // Bucket mapping: Capstone → turn 11; Lesser/Greater → turn 5, except the two promoted neutral Greaters.
+    expect(questBucketFor(QUEST_INDEX['q_forest_grove']!)).toBe(5); // Lesser
+    expect(questBucketFor(QUEST_INDEX['q_apex_hunt']!)).toBe(5); // Greater
+    expect(questBucketFor(QUEST_INDEX['q_law_of_teeth']!)).toBe(11); // Capstone
+    expect(questBucketFor(QUEST_INDEX['q_ancient_runes']!)).toBe(11); // Greater, promoted
+    expect(questBucketFor(QUEST_INDEX['q_last_rites']!)).toBe(11); // Greater, promoted
   });
 
-  it('CONFIG.questsEnabled = false → the whole quest system goes dark (4/8/12 become normal shop turns)', () => {
+  it('CONFIG.questsEnabled = false → the whole quest system goes dark (5 & 11 become normal shop turns)', () => {
     const prev = CONFIG.questsEnabled;
     CONFIG.questsEnabled = false;
     try {
       // The single gate short-circuits, so both the reducer's phase check and the offer generator go quiet.
-      expect(questTierForWave(4)).toBeNull();
-      expect(questTierForWave(8)).toBeNull();
-      expect(generateQuestOffer({ ...createRun(1), wave: 4 })).toEqual([]);
+      expect(questOfferPlan({ ...createRun(1), wave: 5 })).toBeNull();
+      expect(questOfferPlan({ ...createRun(1), wave: 11 })).toBeNull();
       // …and a live advance INTO a quest-wave opens the NORMAL shop — no quest phase, no offer.
-      let s: RunState = { ...createRun(1), wave: 3, phase: 'recruit', resolve: 999, maxResolve: 999, armor: 999, board: [{ uid: 't1', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 50, keywords: ['T'], golden: false }] };
+      let s: RunState = { ...createRun(1), wave: 4, phase: 'recruit', resolve: 999, maxResolve: 999, armor: 999, board: [{ uid: 't1', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 50, keywords: ['T'], golden: false }] };
       s = reduce(s, { type: 'faceOmen' });
       s = reduce(s, { type: 'resolveCombat' });
-      expect(s.wave).toBe(4);
+      expect(s.wave).toBe(5);
       expect(s.questOffer).toBeUndefined();
       expect(s.shop.length).toBeGreaterThan(0);
     } finally {
@@ -4775,40 +4781,39 @@ describe('quests (M3 framework)', () => {
     }
   });
 
-  it('generateQuestOffer: 4 quests of the wave tier — exactly one neutral + 3 distinct tribes', () => {
-    const offer = generateQuestOffer({ ...createRun(1), wave: 4 });
+  it('generateQuestOffer: 4 quests of the bucket — exactly one neutral + 3 distinct tribes', () => {
+    const offer = generateQuestOffer({ ...createRun(1), wave: 5 }, { bucket: 5 });
     expect(offer.length).toBe(4);
     const defs = offer.map((id) => QUEST_INDEX[id]!);
-    expect(defs.every((q) => q.tier === 'lesser')).toBe(true);
+    expect(defs.every((q) => questBucketFor(q) === 5)).toBe(true);
     expect(defs.filter((q) => q.tribe === 'neutral').length).toBe(1); // neutral always, exactly one
     expect(new Set(defs.map((q) => q.tribe)).size).toBe(4); // 1 neutral + 3 distinct non-neutral tribes
     expect(new Set(offer).size).toBe(offer.length); // no duplicate quest within the offer
   });
 
   it('never re-offers a quest you already hold', () => {
-    const first = generateQuestOffer({ ...createRun(1), wave: 4 });
+    const first = generateQuestOffer({ ...createRun(1), wave: 5 }, { bucket: 5 });
     const taken = first.map((id) => ({ questId: id, progress: 0, completed: false }));
-    const second = generateQuestOffer({ ...createRun(1), wave: 4, activeQuests: taken });
+    const second = generateQuestOffer({ ...createRun(1), wave: 5, activeQuests: taken }, { bucket: 5 });
     expect(second.some((id) => first.includes(id))).toBe(false); // every slot is a fresh, un-taken quest
   });
 
-  it('generateQuestOffer is deterministic (seeded off seed + wave) and empty off quest-waves', () => {
-    expect(generateQuestOffer({ ...createRun(7), wave: 8 })).toEqual(generateQuestOffer({ ...createRun(7), wave: 8 }));
-    expect(generateQuestOffer({ ...createRun(1), wave: 5 })).toEqual([]);
+  it('generateQuestOffer is deterministic (seeded off seed + wave)', () => {
+    expect(generateQuestOffer({ ...createRun(7), wave: 11 }, { bucket: 11 })).toEqual(generateQuestOffer({ ...createRun(7), wave: 11 }, { bucket: 11 }));
   });
 
-  it('waves 8 & 12 guarantee your most-played tribe is offered', () => {
+  it('the two main quest turns guarantee your most-played tribe is offered', () => {
     const beastId = BUYABLE_CARDS.find((c) => c.tribe === 'beast')!.id;
     const beast = (uid: string): BoardCard => ({ uid, cardId: beastId, tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false });
-    const offer = generateQuestOffer({ ...createRun(1), wave: 8, board: [beast('b1'), beast('b2'), beast('b3')] });
+    const offer = generateQuestOffer({ ...createRun(1), wave: 11, board: [beast('b1'), beast('b2'), beast('b3')] }, { bucket: 11 });
     expect(offer.map((id) => QUEST_INDEX[id]!.tribe)).toContain('beast');
   });
 
-  it('advancing into wave 4 opens the quest shop with the tavern ALREADY rolled behind it (shop-informed pick)', () => {
-    let s: RunState = { ...createRun(1), wave: 3, phase: 'recruit', resolve: 200 };
+  it('advancing into wave 5 opens the quest shop with the tavern ALREADY rolled behind it (shop-informed pick)', () => {
+    let s: RunState = { ...createRun(1), wave: 4, phase: 'recruit', resolve: 200 };
     s = reduce(s, { type: 'faceOmen' }); // → combat (empty board loses, but survives at 200 Resolve)
-    s = reduce(s, { type: 'resolveCombat' }); // → advance to wave 4
-    expect(s.wave).toBe(4);
+    s = reduce(s, { type: 'resolveCombat' }); // → advance to wave 5
+    expect(s.wave).toBe(5);
     expect(s.questOffer?.length).toBe(4);
     // The shop is rolled UP FRONT now, so it can be inspected (minimized) while choosing the quest.
     expect(s.shop.length).toBeGreaterThan(0);
@@ -4844,7 +4849,7 @@ describe('quests (M3 framework)', () => {
     const end = playToEnd(1);
     expect(['gameover', 'victory']).toContain(end.phase); // terminated, not stuck at the step cap
     // One quest bought per quest-turn REACHED (buys happen in recruit, before that wave's combat).
-    expect(end.activeQuests?.length ?? 0).toBe([4, 8, 12].filter((w) => end.wave >= w).length);
+    expect(end.activeQuests?.length ?? 0).toBe([5, 11].filter((w) => end.wave >= w).length);
   });
 
   it('a summon objective counts tokens, not just the played card (Pennycat = 2 toward the goal)', () => {
@@ -5103,7 +5108,7 @@ describe('Beast quests (combat objectives + rewards)', () => {
     reduce({ ...createRun(1), phase: 'combat', combatSettled: false, lastCombat: combatWith(over), activeQuests: [{ questId: quest, progress: 0, completed: false }], ...extra }, { type: 'resolveCombat' });
 
   it('Blood Trail (slaughter, any tribe) advances by the tally and arms the combat flag', () => {
-    const s = settle('q_blood_trail', { enemyDeaths: 6, playerQuestTally: { ...zeroTally(), slaughter: 6, slaughterByTribe: { beast: 6 } } });
+    const s = settle('q_blood_trail', { enemyDeaths: 9, playerQuestTally: { ...zeroTally(), slaughter: 9, slaughterByTribe: { beast: 9 } } });
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.questFlags?.bloodTrail).toBe(true);
   });
@@ -5183,15 +5188,15 @@ describe('Beast quests (combat objectives + rewards)', () => {
   it('Forsaken Will (summon 6 Undead in combat): completes, then spells buff Undead like the Weaver', () => {
     const s = settle('q_forsaken_will', { playerQuestTally: { ...zeroTally(), summonCombat: 6, summonCombatByTribe: { undead: 6 } } });
     expect(s.activeQuests![0]!.completed).toBe(true);
-    expect(s.forsakenWillAttack).toBe(6);
-    // Casting a spell now behaves EXACTLY like the Forsaken Weaver: +6 baked into every current Undead AND
+    expect(s.forsakenWillAttack).toBe(2);
+    // Casting a spell now behaves EXACTLY like the Forsaken Weaver: +2 baked into every current Undead AND
     // stacked into undeadBuyAtk so future undead buys inherit it.
-    let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 20, forsakenWillAttack: 6,
+    let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 20, forsakenWillAttack: 2,
       board: [{ uid: 'u', cardId: 'soulsman', tribe: 'undead', attack: 3, health: 3, keywords: [], golden: false }],
       hand: [{ uid: 'sp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     t = reduce(t, { type: 'play', uid: 'sp' });
-    expect(t.board.find((c) => c.uid === 'u')!.attack).toBe(9); // +6 baked into the Undead's stats
-    expect(t.undeadBuyAtk).toBe(6); // and future Undead buys inherit it
+    expect(t.board.find((c) => c.uid === 'u')!.attack).toBe(5); // +2 baked into the Undead's stats
+    expect(t.undeadBuyAtk).toBe(2); // and future Undead buys inherit it
   });
 
   it('The Red Trail (slaughterKeyword) completes at 5 and schedules the recurring Bloodlust grant', () => {
@@ -5268,13 +5273,13 @@ describe('Undead quests — combat-objective completion + reward application', (
   const settleWith = (s: RunState, over: Partial<CombatResult>): RunState =>
     reduce({ ...s, phase: 'combat', lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, ...over } as CombatResult }, { type: 'resolveCombat' });
 
-  it('friendlyDeath objective + gainGold reward (Bone Ledger): 12 deaths → +10 Gold next shop', () => {
+  it('friendlyDeath objective + gainGold reward (Bone Ledger): 9 deaths → +12 Gold next shop', () => {
     const base: RunState = { ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_bone_ledger', progress: 0, completed: false }] };
     // Baseline: settle the SAME fight with no quest, to read the next shop's Gold without the reward.
     const control = settleWith({ ...createRun(1), tier: 6 }, { playerDeaths: 12 });
     const s = settleWith(base, { playerDeaths: 12 });
     expect(s.activeQuests![0]!.completed).toBe(true);
-    expect(s.embers).toBe(control.embers + 10); // the 10 Gold is banked into the next shop
+    expect(s.embers).toBe(control.embers + 12); // the 12 Gold is banked into the next shop
   });
 
   it('echoRepeat "always" reward (Funeral Engine) grants a permanent extra Echo trigger', () => {

@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### feat: quest consolidation — two quest turns (5 & 11) + objective/reward reconciliation
+
+Owner reorg: collapse the three quest turns/tiers (4/8/12 → lesser/greater/capstone) into **two quest turns**.
+- **Scheduling** — new `questBucketFor(quest): 5 | 11` (Capstone → 11; Lesser/Greater → 5, except the two Greater
+  neutrals **Ancient Runes** & **Last Rites**, promoted to the turn-11 bucket) + `questOfferPlan(s)` (the master
+  scheduler: turns 5 & 11 for everyone, honoring `CONFIG.questsEnabled`). `generateQuestOffer(s, plan)` now filters
+  by bucket; the quest's `tier` field is **kept** (it still drives Fi's Lesser-only filter + reward pools). The
+  dominant-tribe guarantee now applies to both main quest turns (Fi's bonus turn-3 offer stays free-steering).
+- **Heroes** — **Fi**: her bonus turn-3 quest is now **Lesser-only**. **Coran**: skips the turn-5 quest and gets
+  his turn-11 (late) quest **early, on turn 7** (nothing on 5 or 11). **Runesmith** Runeforge turn 6 → **7**;
+  **Runeguard** Epic Runeforge turn 10 → **12**. Blurbs/text updated.
+- **Reconciliation (partial audit — the unambiguous data changes)** — Blood Trail 6→9, Forager's Trail 3→4, Apex
+  Hunt 6→8, Pack Mentality 5→9, Trophy Den 13→11, Coin Hoard 12→10, Deep Hunger 8→11, Echoing Roar 6→7, Overclocked
+  Core 5→9, Merchant's Mark 40→65, Pivot Door 13→30, Ossuary Rite 8→14, Dark Bargain 3→5, Bone Ledger (7→9 deaths,
+  10→12 Gold), Forsaken Will aura +6→+2, Food for Gold (objective consume-16 → **buy 9 Demons**).
+- **Verified**: `typecheck`/`lint`/`test` (975 — quest scheduling, Fi Lesser-only, Coran turn-7, Runeforge 7/12,
+  and the reconciled objective/reward tests all updated)/`build:web` green; live — quests open on turns 5 & 11 (4
+  offers), nothing on 4/8/12; Coran skips 5, gets his quest on 7; no console errors.
+- **Deferred (follow-ups, flagged to the owner)**: (1) **Den Marker** — its table entry needs a NEW reward mechanic
+  ("Beasts gain +2/+2 when played, improving every 3 played") — left unchanged, its own PR. (2) The **"Repeatable"**
+  annotations in the table (Dark Bargain / Small Offering / Scrap Contract etc.) — some quests already use a
+  *different* repeat mechanism (`repeatInTurns`), so reconciling that flag is a balance call to confirm. (3) A
+  **pool regen** (`npm run pool`) once the quest changes settle (the baked opponent boards predate them).
+
 ### balance: card batch — Trail Forager, Hoard Whelp, Bloodbinder, Runic Beetle
 
 Owner card pass (PR-A of a larger batch; the quest consolidation follows separately):

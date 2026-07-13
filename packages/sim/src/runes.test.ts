@@ -3,21 +3,22 @@ import type { CombatResult } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNES, RUNE_INDEX, validateRunes } from '@game/content';
 import { createRun, type RunState } from './state';
 import { openEpicRuneforge, reduce } from './reducer';
+import { questBucketFor } from './quests';
 import { applyEndOfTurn, projectEndOfTurnSteps, questEndOfTurnBeats } from './recruit';
 
 /** A 1/1 Beast board card (id 'alley') for board-setup tests. */
 const mkAlley = (uid: string): RunState['board'][number] => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
 
-/** A Runesmith run parked at wave-5 combat, ready for `resolveCombat` → the turn-6 Runeforge. */
-const atWave5Combat = (over: Partial<RunState> = {}): RunState => ({
-  ...createRun(1, 'runesmith'), wave: 5, phase: 'combat', embers: 10,
+/** A Runesmith run parked at wave-6 combat, ready for `resolveCombat` → the turn-7 Runeforge. */
+const atForgeCombat = (over: Partial<RunState> = {}): RunState => ({
+  ...createRun(1, 'runesmith'), wave: 6, phase: 'combat', embers: 10,
   lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
   ...over,
 });
 
 /** Open the Runeforge with a chosen rune first in the offer, then buy it — returns the post-buy run. */
 const buyRune = (runeId: string, embers = 10, over: Partial<RunState> = {}): RunState => {
-  const s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers, runeforgeOffer: [runeId], ...over };
+  const s: RunState = { ...createRun(1, 'runesmith'), wave: 7, phase: 'recruit', embers, runeforgeOffer: [runeId], ...over };
   return reduce(s, { type: 'buyRune', index: 0 });
 };
 
@@ -28,9 +29,9 @@ describe('Runeforge — framework', () => {
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
-  it('opens on turn 6 for Runesmith with a random 4 distinct runes', () => {
-    const s = reduce(atWave5Combat(), { type: 'resolveCombat' });
-    expect(s.wave).toBe(6);
+  it('opens on turn 7 for Runesmith with a random 4 distinct runes', () => {
+    const s = reduce(atForgeCombat(), { type: 'resolveCombat' });
+    expect(s.wave).toBe(7);
     expect(s.runeforgeOffer).toBeDefined();
     expect(s.runeforgeOffer!.length).toBe(4);
     expect(new Set(s.runeforgeOffer).size).toBe(4); // no duplicates
@@ -38,7 +39,7 @@ describe('Runeforge — framework', () => {
   });
 
   it('rerollRuneforge spends 2 Gold once and swaps in a fresh, non-overlapping set of 4', () => {
-    const s = reduce(atWave5Combat(), { type: 'resolveCombat' });
+    const s = reduce(atForgeCombat(), { type: 'resolveCombat' });
     const before = s.runeforgeOffer!;
     const r = reduce(s, { type: 'rerollRuneforge' });
     expect(r.embers).toBe(s.embers - 2);
@@ -57,7 +58,7 @@ describe('Runeforge — framework', () => {
   });
 
   it('does NOT open for a non-Runesmith hero', () => {
-    const s = reduce({ ...atWave5Combat(), heroId: 'warden' }, { type: 'resolveCombat' });
+    const s = reduce({ ...atForgeCombat(), heroId: 'warden' }, { type: 'resolveCombat' });
     expect(s.runeforgeOffer).toBeUndefined();
   });
 
@@ -163,21 +164,22 @@ describe('New heroes — Coran (Pathfinder) + Jenkins (Dynamite Dig)', () => {
     lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
   });
 
-  it('Coran: no Lesser quest on turn 4', () => {
-    const s = reduce(atCombat('coran', 3), { type: 'resolveCombat' }); // → turn 4
-    expect(s.wave).toBe(4);
+  it('Coran: skips the turn-5 quest', () => {
+    const s = reduce(atCombat('coran', 4), { type: 'resolveCombat' }); // → turn 5
+    expect(s.wave).toBe(5);
     expect(s.questOffer).toBeUndefined();
   });
-  it('Coran: the Greater quest shop opens on turn 6', () => {
-    const s = reduce(atCombat('coran', 5), { type: 'resolveCombat' }); // → turn 6
-    expect(s.wave).toBe(6);
+  it('Coran: the turn-11 (late) quest shop opens EARLY on turn 7', () => {
+    const s = reduce(atCombat('coran', 6), { type: 'resolveCombat' }); // → turn 7
+    expect(s.wave).toBe(7);
     expect(s.questOffer?.length).toBeGreaterThan(0);
-    expect(QUEST_INDEX[s.questOffer![0]!]?.tier).toBe('greater');
+    // Everything offered is from the turn-11 bucket (Capstone, or a promoted Greater neutral).
+    expect(s.questOffer!.every((id) => questBucketFor(QUEST_INDEX[id]!) === 11)).toBe(true);
   });
-  it('Coran: the Capstone quest shop opens on turn 10', () => {
-    const s = reduce(atCombat('coran', 9), { type: 'resolveCombat' }); // → turn 10
-    expect(s.wave).toBe(10);
-    expect(QUEST_INDEX[s.questOffer![0]!]?.tier).toBe('capstone');
+  it('Coran: no quest on the normal turn 11 (he already got it on 7)', () => {
+    const s = reduce(atCombat('coran', 10), { type: 'resolveCombat' }); // → turn 11
+    expect(s.wave).toBe(11);
+    expect(s.questOffer).toBeUndefined();
   });
 
   it('Jenkins: Dynamite Dig opens a tier Discover, spends 1 Gold, and the cost climbs each use', () => {
@@ -529,12 +531,12 @@ describe('Runes batch 4b — new cards (Feasting Bogrot / Reconfigured Combinato
   const buyEpic = (runeId: string): RunState =>
     reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, hand: [], runeforgeOffer: [runeId], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
 
-  it('Runeguard: Defend the Forge — 8 armor + schedules the Epic Runeforge for turn 10', () => {
+  it('Runeguard: Defend the Forge — 8 armor + schedules the Epic Runeforge for turn 12', () => {
     const s = createRun(1, 'runeguard');
     expect(s.armor).toBe(8);
-    expect(s.epicForgeWave).toBe(10);
-    const next = reduce({ ...s, wave: 9, phase: 'combat', epicForgeWave: 10, lastCombat: win }, { type: 'resolveCombat' });
-    expect(next.wave).toBe(10);
+    expect(s.epicForgeWave).toBe(12);
+    const next = reduce({ ...s, wave: 11, phase: 'combat', epicForgeWave: 12, lastCombat: win }, { type: 'resolveCombat' });
+    expect(next.wave).toBe(12);
     expect(next.runeforgeEpic).toBe(true);
   });
 
@@ -610,9 +612,9 @@ describe('The Epic Runeforge — the greater quest that opens the Epic Runeforge
   });
 
   it('sequences behind a quest-offer turn: the Quest shows first, then buying it opens the Epic forge SAME turn', () => {
-    const s: RunState = { ...createRun(1, 'warden'), wave: 7, phase: 'combat', pendingEpicRuneforge: true, lastCombat: win };
-    const atQuest = reduce(s, { type: 'resolveCombat' }); // → turn 8, a greater-quest turn
-    expect(atQuest.wave).toBe(8);
+    const s: RunState = { ...createRun(1, 'soren'), wave: 10, phase: 'combat', pendingEpicRuneforge: true, lastCombat: win };
+    const atQuest = reduce(s, { type: 'resolveCombat' }); // → turn 11, a quest turn
+    expect(atQuest.wave).toBe(11);
     expect(atQuest.questOffer?.length).toBeGreaterThan(0); // the quest shop takes priority…
     expect(atQuest.runeforgeOffer).toBeUndefined(); // …the forge waits behind it…
     expect(atQuest.pendingEpicRuneforge).toBe(true); // …still armed

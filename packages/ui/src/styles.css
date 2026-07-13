@@ -2471,7 +2471,7 @@ svg { width: 18px; height: 18px; }
 .baltable { background: rgba(0, 0, 0, 0.32); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 14px; padding: 10px 12px; }
 .baltabletitle { font-weight: 800; font-size: 15px; color: var(--acc); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
 .balgrid { display: flex; flex-direction: column; }
-.balrow { display: grid; grid-template-columns: 1fr 3.2em 3.2em 3.2em 2.6em; gap: 6px; align-items: center; padding: 2px 0; font-size: 12.5px; color: #f0e8da; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.balrow { display: grid; grid-template-columns: minmax(0, 1fr) repeat(var(--balcols, 4), minmax(2.6em, 3.8em)); gap: 6px; align-items: center; padding: 2px 0; font-size: 12.5px; color: #f0e8da; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
 .balrow.balhead { font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255, 255, 255, 0.5); border-bottom: 2px solid rgba(255, 255, 255, 0.16); }
 .balname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
 .balnum { text-align: right; font-variant-numeric: tabular-nums; }

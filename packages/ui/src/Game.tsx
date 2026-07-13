@@ -119,7 +119,8 @@ export function Game() {
       {menuOpen && <EscMenu res={res} onRes={setRes} scrim={scrim} onScrim={setScrim} onClose={() => setMenuOpen(false)} />}
       {/* DEV-only tuning menu — one 🛠️ button opening every live tuner (stripped from production). */}
       {import.meta.env.DEV && <DevMenu />}
-      {import.meta.env.DEV && <BalancePanel />}
+      <BalancePanel />
+
       {/* Topmost layers: the pre-run hero picker (self-gates on heroChoices), and above it the title
           screen (self-gates on showTitle) — the front door into Ascent / Practice / Settings. */}
       <HeroSelect />

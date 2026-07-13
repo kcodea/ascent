@@ -14,7 +14,7 @@
  * seeds should still pin to the committed pool only (see docs/board-pool.md).
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { registerOpponents, type BoardSnapshot } from '@game/sim';
+import { registerOpponents, type BoardSnapshot, type RunTelemetry } from '@game/sim';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -185,6 +185,60 @@ export async function fetchVictories(limit = 20): Promise<VictoryRow[]> {
         createdAt: r.created_at ?? undefined,
         boardId: r.board?.id ?? undefined, // the fight-ledger id lives inside the board jsonb
       }));
+  } catch {
+    return [];
+  }
+}
+
+// ── Run telemetry (player balance report) ───────────────────────────────────────────────────────────────────
+// One row per finished Ascent run: what the player was OFFERED + PICKED (heroes, quests, runes, minions) + the
+// outcome, reconstructed from the run's replay at run-end. The in-app Balance Report fetches recent rows and
+// aggregates them client-side into real offer/pick/win/avg tables. Same fire-and-forget / no-op-when-unconfigured
+// / never-throws contract; dormant until the `run_telemetry` table is migrated (see schema.sql).
+
+/** Upload one finished run's telemetry. Fire-and-forget; never throws / blocks. */
+export async function uploadRunTelemetry(t: RunTelemetry, meta: { author?: string; patch: string }): Promise<void> {
+  const c = client();
+  if (!c) return;
+  try {
+    await c.from('run_telemetry').insert([{
+      patch: meta.patch, author: meta.author ?? null,
+      hero_id: t.heroId, hero_offer: t.heroOffer, won: t.won, wins: t.wins,
+      offered_quests: t.offeredQuests, picked_quests: t.pickedQuests, quest_turns: t.questTurns,
+      offered_runes: t.offeredRunes, picked_runes: t.pickedRunes,
+      offered_cards: t.offeredCards, bought_cards: t.boughtCards,
+    }]);
+  } catch {
+    /* best-effort — telemetry must never disrupt the end screen */
+  }
+}
+
+/** Fetch the most recent `limit` run-telemetry rows (newest first) for the player balance report. Best-effort +
+ *  time-boxed; [] on any failure / no backend / un-migrated table. */
+export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetry[]> {
+  const c = client();
+  if (!c) return [];
+  try {
+    const request = Promise.resolve(
+      c.from('run_telemetry').select('hero_id, hero_offer, won, wins, offered_quests, picked_quests, quest_turns, offered_runes, picked_runes, offered_cards, bought_cards')
+        .order('created_at', { ascending: false }).limit(limit),
+    );
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([request, timeout]);
+    if (!result || result.error || !result.data) return [];
+    return (result.data as Array<Record<string, unknown>>).map((r) => ({
+      heroId: (r.hero_id as string) ?? '',
+      heroOffer: (r.hero_offer as string[]) ?? [],
+      won: !!r.won,
+      wins: (r.wins as number) ?? 0,
+      offeredQuests: (r.offered_quests as string[]) ?? [],
+      pickedQuests: (r.picked_quests as string[]) ?? [],
+      questTurns: (r.quest_turns as Record<string, number>) ?? {},
+      offeredRunes: (r.offered_runes as string[]) ?? [],
+      pickedRunes: (r.picked_runes as string[]) ?? [],
+      offeredCards: (r.offered_cards as string[]) ?? [],
+      boughtCards: (r.bought_cards as string[]) ?? [],
+    }));
   } catch {
     return [];
   }

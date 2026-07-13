@@ -42,6 +42,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const startPractice = useGame((s) => s.startPractice);
   const openLeaderboard = useGame((s) => s.openLeaderboard);
   const openRankings = useGame((s) => s.openRankings);
+  const openBalance = useGame((s) => s.openBalance);
   const openCareer = useGame((s) => s.openCareer);
   const toggleBook = useGame((s) => s.toggleBook);
   const playerName = useGame((s) => s.playerName);
@@ -146,6 +147,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           <button onClick={() => { sfx.pulse(); startPractice(); }} title="Practice — any hero, unlimited Resolve">Practice</button>
           <span className="tsdot">·</span>
           <button onClick={() => { sfx.pulse(); toggleBook(); }} title="Compendium — browse every card">Compendium</button>
+          <span className="tsdot">·</span>
+          <button onClick={() => { sfx.pulse(); openBalance(); }} title="Balance Report — real player offer / pick / win rates">Balance Report</button>
         </div>
       </div>
 

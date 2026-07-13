@@ -3,6 +3,24 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-13 (session 36)
+
+### fix(fx): Taunt target/selection glow follows the shield silhouette
+
+A Taunt card is reshaped into a heater **shield** (portrait clipped to `--heater`, the frame PNG laid over an
+otherwise-transparent card box). But every highlight glow is a `box-shadow` on the rectangular `.card` element, so
+on a Taunt unit the glow floated as a **square** detached from the shield — most visibly the raspberry `.unit.aimed`
+danger telegraph (the "target glow"), and equally the `.armed`/`.targeted` hero-power selection ring and the
+`.attacking` flash.
+
+Fix (presentation-only, `packages/ui/src/styles.css`): for `.card.compact.taunt`, suppress the rectangular
+box-shadow in all four glow states and instead glow the shield PNG's own alpha via a `drop-shadow` filter on
+`.tframe` — `drop-shadow` traces the frame's silhouette, so the highlight hugs the heater shape. A `--tglow`
+variable carries the per-state colour into one shared filter (aimed → `--threat`, attacking → `--acc`,
+armed/targeted → tribe `--c`), and the frame's base `0 4px 6px` drop-shadow is preserved in the same filter stack.
+Compositor-friendly (filter on a static PNG; no per-frame repaint loop). Verified: `build:web` clean; shape to be
+eyeballed live in combat (aimed) + hero-power targeting.
+
 ## 2026-07-13 (session 35)
 
 ### tweak: Skip-combat button → top-middle + Front to Back improves every other cast

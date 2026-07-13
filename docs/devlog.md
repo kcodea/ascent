@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### fix(ui): Divine Shield conforms to the shield silhouette on Taunt units
+
+**Bug (owner-reported):** on a **Taunt** unit — which is reshaped into a heater SHIELD (portrait clipped to
+`--heater` + the authored frame) — the Divine Shield read wrong two ways: (1) the gold **outer aura + breathing
+bloom** are a rounded rectangle, so they haloed a *box* around the shield instead of the shield outline; and
+(2) the glassy gold **`.ward` dome**, authored for a SQUARE art, stretched into a vertical egg in the taller
+heater window and sat off-centre. There was no `.card.compact.taunt.dscard` rule, so Taunt+DS just fell through
+to the generic `.dscard` treatment.
+
+**Fix (scoped to `.card.compact.taunt.dscard` — NON-taunt Divine Shield is untouched):**
+- **Outer glow → shield-shaped.** Dropped the rectangular `box-shadow` aura and the arched `::before` bloom;
+  instead glow the frame PNG's own alpha with a **static gold `drop-shadow`** on `.tframe`, so the halo traces
+  the shield silhouette. Static (no filter animation) per the perf rule — never animate drop-shadow in a loop.
+- **Dome → round + centred.** Constrained the `.ward` stack to a **square** (`--wardsq` = shield-window width)
+  seated on the shield's round body, so the dome keeps its round proportions instead of stretching to fill the
+  taller window; `.art`'s `--heater` clip still trims it to the shield edge. Zeroed the arch `border-radius` on
+  the ward children inside the heater clip.
+
+**Verified:** `npm run build:web` green (CSS-only change). The dome size/position (`--wardsq`, the `top` offset)
+are labelled eyeball knobs — pending an in-tab look to nudge; the glow re-shape is deterministic.
+
 ### balance: Fried Circuits +4/+5 (asymmetric) + Shared Circuit ward-transfer
 
 Two Mech-capstone quest-reward tweaks:

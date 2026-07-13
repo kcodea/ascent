@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### tweak: Skip-combat button → top-middle + Front to Back improves every other cast
+
+Two owner tweaks:
+- **Skip-combat button** moved from the top-right combat HUD back to the **top-middle** of the arena (`.combathud`
+  → `left: 50%` / `translateX(-50%)`, centred; the speed slider still stacks beneath it). Verified live: the HUD
+  centres on the viewport (near the top) and clears the top-right opponent frame.
+- **Front to Back** now improves **every OTHER cast** instead of every cast — new `RunState.frontToBackCasts` parity
+  gate on the escalation step (the grant still lands each cast; the +2/+2 improvement only compounds on the 2nd,
+  4th, … cast). Card text updated to "…every other cast"; the live `spellDisplayText` still greens the current
+  grant + improvement values.
+- **Verified**: `typecheck`/`lint`/`test` (980 — the four Front to Back tests reworked for the every-other cadence)/
+  `build:web` green; live — the Skip HUD is top-centered, no console errors.
+
 ### content: new quest — Leader of the Pack (Beast capstone)
 
 First of the six new turn-11 quests: **Leader of the Pack** — Attack **18** times with Beasts → get a **Golden Pack

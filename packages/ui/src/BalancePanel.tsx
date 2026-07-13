@@ -47,7 +47,7 @@ function Table({ title, rows, cols }: { title: string; rows: PlayerReportRow[]; 
         </div>
         {rows.map((r) => (
           <div className="balrow" role="row" key={r.id}>
-            <span role="cell" className="balname" title={r.id}>{r.name}</span>
+            <span role="cell" className="balname" title={`${r.name} (${r.id})`}>{r.name}</span>
             {cols.map((c) => { const cell = cellFor(r, c); return <span key={c} role="cell" className={cell.cls}>{cell.text}</span>; })}
           </div>
         ))}
@@ -102,6 +102,7 @@ export function BalancePanel() {
             <Table title="Quests" rows={report.quests} cols={['offer', 'pick', 'win', 'avgTurns', 'n']} />
             <Table title="Runes" rows={report.runes} cols={['offer', 'pick', 'win', 'n']} />
             <Table title="Minions" rows={report.minions} cols={['offer', 'pick', 'n']} />
+            <Table title="Spells" rows={report.spells} cols={['offer', 'pick', 'n']} />
           </>
         ) : (
           <div className="balempty">

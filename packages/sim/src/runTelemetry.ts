@@ -32,9 +32,10 @@ export interface RunTelemetry {
   questTurns: Record<string, number>;
   offeredRunes: string[];
   pickedRunes: string[];
-  /** Every card seen in the shop this run (deduped). Split into minion vs spell at aggregation time. */
+  /** Every card OFFERED this run (deduped) — shop rows + Discover choices. Split into minion vs spell at
+   *  aggregation time. */
   offeredCards: string[];
-  /** Cards the player bought from the shop (deduped). */
+  /** Cards the player ACQUIRED this run (deduped) — bought from the shop OR taken from a Discover. */
   boughtCards: string[];
 }
 
@@ -65,8 +66,9 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
   recordCompletions(s);
   for (const action of replay.actions) {
     const before = s;
-    // Snapshot offers visible in the state this action is acting on.
+    // Snapshot offers visible in the state this action is acting on — shop rows, Discover choices, quests, runes.
     for (const id of before.shop ?? []) if (id.cardId) offeredCards.add(id.cardId);
+    if (before.discover) for (const id of before.discover) offeredCards.add(id); // Discover = a 3-card offer too
     if (before.questOffer) for (const id of before.questOffer) offeredQuests.add(id);
     if (before.runeforgeOffer) for (const id of before.runeforgeOffer) offeredRunes.add(id);
 
@@ -82,6 +84,9 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
     } else if (action.type === 'buy') {
       const card = before.shop?.find((c) => c.uid === action.uid);
       if (card?.cardId) boughtCards.add(card.cardId);
+    } else if (action.type === 'discover' && before.discover) {
+      const picked = before.discover[action.index]; // the card taken from the Discover → an acquisition
+      if (picked) boughtCards.add(picked);
     }
     recordCompletions(s);
   }
@@ -127,6 +132,7 @@ export interface PlayerReport {
   quests: PlayerReportRow[];
   runes: PlayerReportRow[];
   minions: PlayerReportRow[];
+  spells: PlayerReportRow[];
 }
 
 interface Acc {
@@ -168,6 +174,7 @@ export function aggregatePlayerReport(rows: RunTelemetry[]): PlayerReport {
   const quests = new Map<string, Acc>();
   const runes = new Map<string, Acc>();
   const minions = new Map<string, Acc>();
+  const spells = new Map<string, Acc>();
   const bump = (m: Map<string, Acc>, id: string): Acc => { let a = m.get(id); if (!a) { a = blankAcc(); m.set(id, a); } return a; };
 
   for (const r of rows) {
@@ -191,9 +198,9 @@ export function aggregatePlayerReport(rows: RunTelemetry[]): PlayerReport {
     creditPicked(quests, r.offeredQuests, r.pickedQuests, r.questTurns);
     creditPicked(runes, r.offeredRunes, r.pickedRunes);
 
-    // Minions (non-spell shop cards): offer = seen in shop; pick = bought. No win credit (per spec).
-    for (const id of r.offeredCards) if (!CARD_INDEX[id]?.spell) bump(minions, id).offered++;
-    for (const id of r.boughtCards) if (!CARD_INDEX[id]?.spell) { const a = bump(minions, id); a.picked++; a.games++; }
+    // Cards (shop + Discover): offer = seen, pick = acquired. No win credit (per spec). Split minion vs spell.
+    for (const id of r.offeredCards) { const def = CARD_INDEX[id]; if (def) bump(def.spell ? spells : minions, id).offered++; }
+    for (const id of r.boughtCards) { const def = CARD_INDEX[id]; if (def) { const a = bump(def.spell ? spells : minions, id); a.picked++; a.games++; } }
   }
 
   const total = rows.length;
@@ -204,5 +211,6 @@ export function aggregatePlayerReport(rows: RunTelemetry[]): PlayerReport {
     quests: toRows(quests, total, (id) => QUEST_INDEX[id]?.name ?? id, { wins: true, turns: true }),
     runes: toRows(runes, total, (id) => RUNE_INDEX[id]?.name ?? id, { wins: true }),
     minions: toRows(minions, total, (id) => CARD_INDEX[id]?.name ?? id),
+    spells: toRows(spells, total, (id) => CARD_INDEX[id]?.name ?? id),
   };
 }

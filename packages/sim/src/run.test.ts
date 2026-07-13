@@ -5437,6 +5437,23 @@ describe('Demon quests — consume/imp objectives, fodder reward, flags, cards',
     expect(s.hand.some((c) => c.cardId === 'runmaw')).toBe(true);
   });
 
+  it('Track and Fodder: a START-OF-TURN consume advances the quest immediately (not deferred to a roll)', () => {
+    // A Consume Demon eats the Fodder injected at turn setup; the consumeStats tally must tick right then — not
+    // wait for the player's first refresh (owner bug 2026-07-13). wave 1 → 2 is a normal (non-quest) turn.
+    const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
+    let s: RunState = {
+      ...createRun(1), phase: 'combat',
+      activeQuests: [{ questId: 'q_maw_of_the_run', progress: 0, completed: false }],
+      board: [{ uid: 'd', cardId: 'maw', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }],
+      cardBuffs: { fred: { attack: 2, health: 2 } }, // the injected Fred is a 3/3
+      pendingTavern: ['fred'],
+      lastCombat: win,
+    };
+    s = reduce(s, { type: 'resolveCombat' }); // turn setup injects + the Demon eats the 3/3 Fred
+    expect(s.wave).toBe(2);
+    expect(s.activeQuests![0]!.progress).toBe(6); // 3/3 = 6 stats consumed, counted at turn setup (not on a later roll)
+  });
+
   it('summonImp objective (Imp Census) reads the combat imp tally → grants a random Demon + improves Imps +1/+1', () => {
     const s = settleWith({ ...createRun(1), tier: 6, hand: [], activeQuests: [{ questId: 'q_imp_census', progress: 0, completed: false }] }, { playerImpsSummoned: 6 });
     expect(s.activeQuests![0]!.completed).toBe(false); // repeatable — fires once (6 ≥ 4), leaves progress 2, re-armed

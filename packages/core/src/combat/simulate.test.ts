@@ -768,6 +768,27 @@ describe('simulate (handoff A.3)', () => {
     expect(a.result).toBe('win');
   });
 
+  it('Cleave splashes on EVERY attack across a long fight, not just the first', () => {
+    // A tanky Cleave attacker vs 3 tanky enemies (nothing dies) so it attacks many rounds. Every attack step must
+    // land damage on ≥2 distinct enemies (the target + a neighbour) — cleave is a permanent keyword, not one-shot.
+    const r = run(
+      [{ cardId: 'alley', attack: 3, health: 500, keywords: ['C'] }],
+      [
+        { cardId: 'sandbag', attack: 1, health: 500 },
+        { cardId: 'sandbag', attack: 0, health: 500 },
+        { cardId: 'sandbag', attack: 0, health: 500 },
+      ],
+      3,
+    );
+    const attackSteps = r.events.filter((ev) => ev.type === 'attack').map((ev) => ev.step);
+    expect(attackSteps.length).toBeGreaterThan(5); // a genuinely long fight
+    const cleaved = attackSteps.filter((st) => {
+      const targets = new Set(r.events.filter((ev) => ev.type === 'dmg' && ev.step === st).map((ev) => (ev as { target: string }).target));
+      return targets.size >= 2;
+    });
+    expect(cleaved.length).toBe(attackSteps.length); // EVERY attack cleaved
+  });
+
   it('Twilight Whelp Deathrattle summons a 3/3 Whelp that attacks immediately (out of turn order)', () => {
     // The 1/1 trades into the enemy and dies → its Deathrattle summons a 3/3 Whelp that strikes RIGHT AWAY.
     const a = run([{ cardId: 'twilightwhelp', attack: 1, health: 1 }], [{ cardId: 'omen', attack: 1, health: 12 }], 3);

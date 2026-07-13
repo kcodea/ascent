@@ -234,6 +234,7 @@ export type EffectFactoryId =
   | 'rallyTribeAuraGrowing' // Trophy Stalker: Rally — Beast aura +N/+N (grows +step each attack via summonBonus)
   | 'rallyGiveDemonAttack' // (retired from Bloodbinder) Rally — give another friendly Demon +Attack = this minion's Attack
   | 'rallyBuffFodderHalf' // Bloodbinder: Rally — give your Fodder half this minion's Attack, as Attack/Health alternating each turn
+  | 'rallyBuffFodder' // The Godfodder: Rally — permanently buff your Fodder +atk/+hp (carried back)
   | 'rallyDamageRandomEnemy' // Philippe: Rally — also deal its Attack to a random enemy (golden +2), no retaliation
   | 'avengeShieldAttack' // Solaris Fang: Avenge (X) — gain a Divine Shield and attack immediately
   | 'endOfTurnGrantSpellChoice' // Money Maker: every N turns, add a random card from a list to hand (recruit)
@@ -253,6 +254,7 @@ export type EffectFactoryId =
   | 'spellBloodlust' // Bloodlust: cast — mark a friendly minion to take an immediate immune attack at Start of Combat (recruit)
   | 'copyLeftmostEcho' // Grave Body: Start of Combat / on-summon — copy your leftmost friendly Echo as this minion's combat Deathrattle
   | 'spellAddTribe' // Anomaly Reactor: cast — give the target minion an extra tribe (a Mech type) for the run (recruit)
+  | 'spellAddAllTribes' // Anomaly Reactor: cast — give the target minion ALL types for the run (recruit)
   | 'onAttackStripKeywords'; // Tauntbreaker: on-attack — strip listed keywords (Taunt / Rise) off the enemy it hits (combat)
 
 export interface EffectDef {
@@ -721,6 +723,9 @@ export interface BoardMinion {
   /** Gravetwin: the Deathrattle (onDeath EffectDefs) it copied from a friendly Echo minion — carried into combat
    *  as real Deathrattle effects so it procs when Gravetwin dies mid-fight (not only at the next shop). */
   copiedEcho?: EffectDef[];
+  /** Anomaly Reactor's "All" mode: this minion counts as every tribe (mirrors the CardDef `universalTribe`, but
+   *  per-instance). Combat tribe checks OR it in. */
+  universalTribe?: boolean;
   /** Bloodbinder: which stat its Rally gives Fodder this fight — `'hp'` on even turns, else Attack. Alternates
    *  each turn on the run board; read (not changed) in combat. */
   bloodbinderMode?: 'atk' | 'hp';
@@ -806,6 +811,8 @@ export interface Minion {
   /** Bloodbinder: which stat its Rally gives Fodder this fight (`'hp'` = Health, else Attack). Seeded from the
    *  run board (alternates each turn); read by its Rally factory. */
   bloodbinderMode?: 'atk' | 'hp';
+  /** Anomaly Reactor's "All" mode: counts as every tribe (per-instance mirror of the CardDef `universalTribe`). */
+  universalTribe?: boolean;
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };

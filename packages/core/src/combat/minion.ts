@@ -62,6 +62,7 @@ export function instantiate(
     rallySpellWeld: board.rallySpellWeld && board.rallySpellWeld > 0 ? board.rallySpellWeld : undefined,
     bloodlust: board.bloodlust, // Bloodlust: an immediate immune attack at Start of Combat (one combat)
     bloodbinderMode: board.bloodbinderMode, // Bloodbinder: which stat its Rally gives Fodder this fight (atk/hp)
+    universalTribe: board.universalTribe || card.universalTribe || undefined, // counts as every tribe (Anomaly Reactor "All" OR a universal-tribe CardDef like Chaos Attachment)
     bloodlustRally: board.bloodlustRally, // Bloodlust's welded Rally: give a friendly minion this minion's Attack (one combat)
     resummon: board.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
     buffs: board.buffs, // recruit-phase buff breakdown, carried into the snapshot for the combat inspect

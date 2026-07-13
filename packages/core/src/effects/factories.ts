@@ -608,6 +608,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantFodderBuff(a, h, self.side);
   },
 
+  /** Rally (The Godfodder): on each of its own attacks, permanently buff your Fodder +atk/+hp (golden ×2) —
+   *  the living Fodder now + the run-wide Fodder buff (carried back). */
+  rallyBuffFodder: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only on this minion's own attack
+    const a = num(params.attack, 2) * mul(self);
+    const h = num(params.health, 2) * mul(self);
+    for (const m of ctx.living(self.side)) {
+      if (ctx.getCard(m.cardId)?.keywords.includes('FD')) ctx.buff(m, a, h, self.uid);
+    }
+    ctx.grantFodderBuff(a, h, self.side);
+  },
+
   /** Bloodbinder — Rally (on its own attack): give your Fodder half this minion's Attack, as Attack on odd turns
    *  and Health on even turns (`bloodbinderMode`, alternated each turn on the run board). Buffs living Fodder now
    *  + the run-wide Fodder buff (carried back). Floors the half; no-op below 2 Attack. */
@@ -1201,11 +1214,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Trickster — Deathrattle: give a random friendly minion this minion's current maxHealth.
    *  Golden picks a target twice (independently). */
-  deathrattleGiveHealth: (ctx, self, _params, payload) => {
+  deathrattleGiveHealth: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const hp = self.maxHealth;
     if (hp <= 0) return;
-    for (let i = 0; i < mul(self); i++) {
+    // Give `count` random other friends this minion's Health (golden doubles the number of grants).
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) {
       const targets = ctx.living(self.side).filter((m) => m !== self);
       if (targets.length === 0) break;
       ctx.buff(ctx.rng.pick(targets), 0, hp, self.uid);

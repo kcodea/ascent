@@ -544,15 +544,8 @@ export const SPELLS: CardDef[] = [
     token: true, // reward-exclusive (the Anomalous Reactor quest) — never rolls in the shop / spell Discover / random-spell grants
     cost: 2,
     target: 'friendly',
-    effects: [],
-    chooseOne: [
-      { text: 'Add **Beast**', effects: [{ on: 'cast', do: 'spellAddTribe', params: { tribe: 'beast' } }] },
-      { text: 'Add **Dragon**', effects: [{ on: 'cast', do: 'spellAddTribe', params: { tribe: 'dragon' } }] },
-      { text: 'Add **Undead**', effects: [{ on: 'cast', do: 'spellAddTribe', params: { tribe: 'undead' } }] },
-      { text: 'Add **Mech**', effects: [{ on: 'cast', do: 'spellAddTribe', params: { tribe: 'mech' } }] },
-      { text: 'Add **Demon**', effects: [{ on: 'cast', do: 'spellAddTribe', params: { tribe: 'demon' } }] },
-    ],
-    text: 'Target a minion, then choose an extra **type** to give it — on top of what it already is.',
+    effects: [{ on: 'cast', do: 'spellAddAllTribes' }],
+    text: 'Give a friendly minion **All** types — it counts as every tribe and gets all of their buffs.',
   },
   {
     // Bloodlust: mark a friendly minion — it takes an immediate immune swing at the start of the next combat.

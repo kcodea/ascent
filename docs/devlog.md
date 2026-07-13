@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### balance: Demon card batch 3 + Anomaly Reactor "All type"
+
+Owner card pass (mostly Demon/Fodder). Data + a couple of new mechanics:
+- **Sword and Bored** 3/2 → **2/1**; Slaughter +1/+0 → **+1/+1** (golden +2/+2). **Imp King** Imp buff +2/+3 →
+  **+3/+3**. **Heckbinder** Fodder aura +1/+2 → **+3/+3**. **Commander Impala** gains **Ward** (now Flurry + Ward
+  + Slaughter). **Trickster** now gives its Health to **2** random friends (golden 4) — `deathrattleGiveHealth`
+  gets a `count` param.
+- **Maw of the Pit** — End of Turn now **gives Fodder +1/+1 AND adds a Fodder** (two `endOfTurn` effects).
+- **The Godfodder** — Shout/Echo → **Rally: give your Fodder +2/+2** (new combat `rallyBuffFodder` factory +
+  the RL keyword).
+- **Anomaly Reactor** — Choose One (add one tribe) → **"Give a friendly minion All types"**: a new `allTribes`
+  flag on the board card that `isTribe` short-circuits (all recruit synergies/auras/quests/magnetize), seeded
+  into combat as the per-instance `universalTribe` flag (combat tribe checks now read `m.universalTribe`, unified
+  for the Chaos-Attachment CardDef flag too). `magnetizesTo` honors an all-type host.
+
+Verified: `typecheck + lint + test` (963, incl. updated fixtures + new Trickster / Godfodder-Rally tests) &
+`build:web` green; **live** — all six cards render the new text, and casting Anomaly Reactor sets `allTribes`.
+
 ### fix: Runeforge-timing + Gravetwin-echo bugs + Demon/Fodder card batch
 
 Owner batch (tabled 2026-07-13). Two bugs + rune/hero/card changes.

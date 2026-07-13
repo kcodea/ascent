@@ -5,7 +5,7 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-12 (session 34)
 
-### fix: combat live-display completeness — ascend fold, Trophy Stalker, Rising Graves pill
+### fix: combat live-display completeness — ascend fold, Trophy Stalker, Rising Graves pill, Guel tally
 
 An audit ("are player AND enemy cards showing real-time-accurate values everywhere, true-PvP on both sides?") of
 the `simulate` → event-log → `computeFrame` fold → `Unit.tsx` pipeline. The fold is already fully side-agnostic
@@ -23,14 +23,23 @@ events). The audit found three display mutations that emitted **no foldable even
 - **Rune of Rising Graves** granted `R` but emitted a display-silent `sc` (not folded into keywords), so the pill
   never showed — now emits a foldable `keyword` event like `scGrantReborn` / `runeWarding`'s DS grant.
 
-Deliberately **left for a follow-up** (flagged, not guessed): Archmagus Guel's live countdown (its combat grant
-scales off the per-combat spell count while the text reads the run-board tally — needs a design call on whether
-combat casts count toward the on-board tally), and Crypt Drake's "N to go" countdown (approximate between procs —
-driven by the proc, not the raw attack events). The enemy run-level scaler display (spell power / tally / spells /
-beasts) is handled by the per-side `enemyScalers` layer earlier in this PR.
+**Archmagus Guel — combat casts now count toward his tally (owner ruling 2026-07-12).** His combat half used the
+run-wide `spellsCast` (via `spellTotals`) for the grant while the display read his frozen per-instance
+`spellProgress` — inconsistent, and the countdown never moved. Rewrote the combat `spellCastBuffOthers` to match
+the recruit half: tick THIS Guel's `spellProgress` per combat cast, grant `base + floor(progress/4)`, emit a new
+`spellProgress` combat event (folded by `computeFrame` → live countdown), and carry the tally back at settle
+(`playerSpellProgress`) so combat casts persist permanently. The recruit-half comment already promised "combat
+casts tick it at settle" — this makes that true. Combat-math change (a late-bought Guel now scales per-instance,
+not off the whole run's spell count), covered by determinism + the new test; both boards get it (side-agnostic fold).
 
-**Verified:** `typecheck + lint + test` (939) & `build:web` green. New tests: `computeFrame` folds an `ascend` on
-BOTH sides (identity swaps live); Trophy Stalker emits `improve` each attack; Rising Graves emits the `keyword` R.
+Still **flagged, not fixed** (needs your read): Crypt Drake's "N to go" countdown is approximate between procs —
+the UI reconstructs its attack count from the buff *proc* (once per 2 attacks) rather than the raw `attack` events,
+so the text is off between procs (the flat +2/+2 magnitude is correct). Fixable by counting ally `attack` events in
+`computeFrame`.
+
+**Verified:** `typecheck + lint + test` (940) & `build:web` green. New tests: `computeFrame` folds an `ascend` on
+BOTH sides (identity swaps live); Trophy Stalker emits `improve` each attack; Rising Graves emits the `keyword` R;
+Guel's combat spell casts tick his per-instance tally (live `spellProgress` event + carry-back above the seed).
 
 ### fix: player-snapshot fidelity — re-land per-side scalers + capture addedTribes / Bloodlust
 

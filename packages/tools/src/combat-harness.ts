@@ -76,6 +76,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `   ✋ ${CARD_INDEX[ev.cardId]?.name ?? ev.cardId} added to hand`;
     case 'hpGrant':
       return `   ✦ ${n(ev.target)} HP-grant now +${ev.amount}`;
+    case 'spellProgress':
+      return `   ✦ ${n(ev.target)} spell tally now ${ev.amount}`;
   }
 }
 

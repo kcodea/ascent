@@ -867,6 +867,7 @@ export type CombatEvent = (
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
   | { type: 'toHand'; cardId: string; side: Side; source?: string } // a combat effect adds a card to your hand (Arcane Weaver)
   | { type: 'hpGrant'; target: string; amount: number } // Sergeant: live HP-grant amount after each Attack-gain improvement
+  | { type: 'spellProgress'; target: string; amount: number } // Archmagus Guel: on-board spell tally after a combat cast (live countdown)
 ) & { step?: number };
 
 export type CombatOutcome = 'win' | 'lose' | 'draw';
@@ -941,6 +942,10 @@ export interface CombatResult {
    *  plus any improvements from Attack gained in combat. Persisted to the run board so the improvement is
    *  permanent across fights (only minions whose bonus is > 0). */
   playerHpGrantBonus?: { sourceUid: string; bonus: number }[];
+  /** Archmagus Guel's on-board spell tally after this combat, per board card uid — the seeded value plus this
+   *  combat's spell casts (spells cast WITH him on board count too, matching the recruit half). Persisted to
+   *  the run board so his per-instance improvement is permanent. */
+  playerSpellProgress?: { sourceUid: string; progress: number }[];
   /** Tara's stat-grant tally this combat, per board card uid — accumulated onto `ascendProgress` and, at the
    *  threshold, transformed to its ascend form in settleCombat. */
   playerAscendCount?: { sourceUid: string; count: number }[];

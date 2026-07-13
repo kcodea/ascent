@@ -1581,6 +1581,11 @@ export function simulate(
   const playerHpGrantBonus = boards.player
     .filter((m) => m.sourceUid !== undefined && (m.hpGrantBonus ?? 0) > 0)
     .map((m) => ({ sourceUid: m.sourceUid!, bonus: m.hpGrantBonus! }));
+  // Archmagus Guel: his on-board spell tally (seeded + this combat's casts) carries back so combat casts count
+  // permanently toward his per-instance improvement — keyed to the originating board card.
+  const playerSpellProgress = boards.player
+    .filter((m) => m.sourceUid !== undefined && (m.spellProgress ?? 0) > 0)
+    .map((m) => ({ sourceUid: m.sourceUid!, progress: m.spellProgress! }));
   // Tara's stat-grant tally this combat, per board card (for the ascend-at-settle accumulation).
   const playerAscendCount = boards.player
     .filter((m) => m.sourceUid !== undefined && (buffCounts.get(m.uid) ?? 0) > 0)
@@ -1620,6 +1625,7 @@ export function simulate(
     initial,
     playerSummonBonus,
     playerHpGrantBonus: playerHpGrantBonus.length > 0 ? playerHpGrantBonus : undefined,
+    playerSpellProgress: playerSpellProgress.length > 0 ? playerSpellProgress : undefined,
     playerAscendCount: playerAscendCount.length > 0 ? playerAscendCount : undefined,
     playerPermaBuffs: playerPermaBuffs.length > 0 ? playerPermaBuffs : undefined,
     playerHandGrants: handGrants.length > 0 ? handGrants : undefined,

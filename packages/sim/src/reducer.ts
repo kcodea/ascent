@@ -1362,6 +1362,14 @@ function settleCombat(s: RunState, result: CombatResult): void {
       if (card) card.hpGrantBonus = bonus;
     }
   }
+  // Archmagus Guel: persist his on-board spell tally (seeded + this combat's casts) so combat casts count
+  // permanently toward his per-instance improvement — keyed back to the originating board card.
+  if (result.playerSpellProgress) {
+    for (const { sourceUid, progress } of result.playerSpellProgress) {
+      const card = s.board.find((c) => c.uid === sourceUid);
+      if (card) card.spellProgress = progress;
+    }
+  }
   // Tara → Taragosa: accumulate this combat's stat-grants; at the `ascendAt` threshold, ascend the board card
   // to its `ascendInto` form (keeping its stats / golden / buffs — only the identity changes, like Spirit Pup).
   if (result.playerAscendCount) {

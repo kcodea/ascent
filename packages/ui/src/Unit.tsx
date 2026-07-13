@@ -127,6 +127,7 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.u.attackSeen === b.u.attackSeen &&
   a.u.ascendProgress === b.u.ascendProgress &&
   a.u.hpGrantBonus === b.u.hpGrantBonus &&
+  a.u.spellProgress === b.u.spellProgress &&
   a.u.permaGain?.attack === b.u.permaGain?.attack &&
   a.u.permaGain?.health === b.u.permaGain?.health &&
   a.u.name === b.u.name &&

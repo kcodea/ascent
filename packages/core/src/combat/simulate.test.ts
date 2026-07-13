@@ -2982,4 +2982,16 @@ describe('live-display events (combat cards update in real time)', () => {
     const undead = a.initial.player[0]!.uid;
     expect(a.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'R' && ev.target === undead)).toBe(true);
   });
+
+  it('Archmagus Guel: combat spell casts tick his per-instance tally (live `spellProgress` event + carry-back)', () => {
+    // Taragosa casts Growth on every ally attack → a real combat spell cast → Guel's per-instance tally ticks.
+    const a = run(
+      [{ cardId: 'guel', attack: 2, health: 30, sourceUid: 'G', spellProgress: 3 }, { cardId: 'taragosa', attack: 4, health: 30 }],
+      [{ cardId: 'sandbag', attack: 0, health: 80 }], 1,
+    );
+    const guel = a.initial.player.find((m) => m.cardId === 'guel')!.uid;
+    expect(a.events.some((ev) => ev.type === 'spellProgress' && ev.target === guel)).toBe(true); // live countdown updates
+    const carried = a.playerSpellProgress?.find((x) => x.sourceUid === 'G');
+    expect(carried?.progress).toBeGreaterThan(3); // combat casts persist above the seeded 3
+  });
 });

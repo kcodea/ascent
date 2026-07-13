@@ -788,10 +788,16 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  recruit half). Golden doubles. The grant is a normal combat buff (temporary) — the PERMANENT
    *  improvement comes from the cast being carried back to the run's `spellsCast` (see `ctx.castSpell`). */
   spellCastBuffOthers: (ctx, self, params, payload) => {
-    const { side, count } = payload as { side: Side; count: number };
+    const { side } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const pickable = ctx.living(self.side).filter((m) => m !== self);
-    const step = Math.floor(count / 4);
+    // PER-INSTANCE, matching the recruit half (owner ruling 2026-07-05, + "combat casts count toward Guel's
+    // count" 2026-07-12): tick THIS Guel's on-board tally (the cast counts — tick first), improve +1/+1 per 4,
+    // emit a `spellProgress` event so the live countdown updates, and carry the tally back at settle so it's
+    // permanent. The run-wide `spellsCast` payload count is no longer used here.
+    self.spellProgress = (self.spellProgress ?? 0) + 1;
+    ctx.log({ type: 'spellProgress', target: self.uid, amount: self.spellProgress });
+    const step = Math.floor(self.spellProgress / 4);
     const a = (num(params.attack, 1) + step) * mul(self);
     const h = (num(params.health, 1) + step) * mul(self);
     const targets = num(params.count, 2);

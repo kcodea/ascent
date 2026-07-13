@@ -196,6 +196,9 @@ export function computeFrame(
     } else if (e.type === 'hpGrant') {
       const u = find(e.target);
       if (u) u.hpGrantBonus = e.amount; // Sergeant: absolute cumulative HP-grant bonus → live card text
+    } else if (e.type === 'spellProgress') {
+      const u = find(e.target);
+      if (u) u.spellProgress = e.amount; // Archmagus Guel: on-board spell tally after a combat cast → live countdown
     } else if (e.type === 'improve') {
       const u = find(e.target);
       if (u) u.summonBonus += e.amount; // Kennelmaster's aura climbs mid-fight → live card text

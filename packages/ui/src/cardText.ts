@@ -438,3 +438,36 @@ export function tallyBuffText(cardId: string, deathrattlesTriggered: number): st
   const n = deathrattlesTriggered * per;
   return def.text.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${n}/+${n}}}`);
 }
+
+export interface StepProgress { current: number; total: number; }
+
+/**
+ * Discrete "X/N toward the next step / transform / proc" for the STEP-BASED scalers only — the cards whose
+ * *ProgressText helpers above compute a countdown: Guel (per 4 spells), Flowing Monk (every N overflows),
+ * Crypt Drake (every N attacks), Frontdrake / Money Maker (every N turns), Spirit Pup (transform at N spells),
+ * Tara (ascend at N). Cyclic scalers count 1..N then wrap (matching Guel's "1/4 → 2/4 → 4/4 → 1/4"); the
+ * one-time transform / ascend count up to and clamp at the threshold. Continuous accumulators (Kennelmaster,
+ * Mama Bear, Sergeant, Grim, Squirl Scout, Trail Forager, …) have no threshold → null (no counter). Keys off
+ * effect `do` names so it stays in lock-step with the text helpers and needs no per-id list.
+ */
+export function stepProgress(
+  cardId: string,
+  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number },
+): StepProgress | null {
+  const def = CARD_INDEX[cardId];
+  if (!def) return null;
+  const n = (v: unknown, d: number): number => (typeof v === 'number' ? v : d);
+  const cyc = (v: number, total: number): StepProgress => ({ current: v <= 0 ? 0 : ((v - 1) % total) + 1, total });
+
+  if (def.effects.some((e) => e.do === 'spellCastBuffOthers')) return cyc(p.spellProgress ?? 0, 4); // Guel
+  const monk = def.effects.find((e) => e.do === 'overflowBuffRandom');
+  if (monk) return cyc(p.summonBonus ?? 0, Math.max(1, n((monk.params as { improveEvery?: number })?.improveEvery, 5)));
+  const crypt = def.effects.find((e) => e.do === 'onAllyAttackBuffAll');
+  if (crypt) return cyc(p.attackSeen ?? 0, Math.max(1, n((crypt.params as { every?: number })?.every, 2)));
+  const cadence = def.effects.find((e) => e.on === 'endOfTurn' && (e.params as { every?: number } | undefined)?.every !== undefined);
+  if (cadence) return cyc(p.eotTick ?? 0, Math.max(1, n((cadence.params as { every?: number })?.every, 3)));
+  const pup = def.effects.find((e) => e.do === 'spellCastTransform');
+  if (pup) { const at = Math.max(1, n((pup.params as { at?: number })?.at, 10)); return { current: Math.min(p.spellProgress ?? 0, at), total: at }; }
+  if (def.ascendAt && def.ascendInto) { const at = def.ascendAt; return { current: Math.min(p.ascendProgress ?? 0, at), total: at }; }
+  return null;
+}

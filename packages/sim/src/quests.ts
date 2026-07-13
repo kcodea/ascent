@@ -9,8 +9,7 @@ import { mixSeed, TAG, type RunState } from './state';
  *  neutrals — Ancient Runes & Last Rites — promoted into the late slot per the owner's table). The quest's
  *  `tier` field is retained for other semantics (Fi's Lesser-only filter, reward pools). */
 export function questBucketFor(q: QuestDef): 5 | 11 {
-  if (q.tier === 'capstone') return 11;
-  return q.id === 'q_ancient_runes' || q.id === 'q_last_rites' ? 11 : 5;
+  return q.wave ?? (q.tier === 'capstone' ? 11 : 5);
 }
 
 /** The quest-offer plan for the current turn: which bucket to draw from, and whether it's restricted to Lesser

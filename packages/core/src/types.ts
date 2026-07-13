@@ -683,6 +683,10 @@ export interface QuestDef {
   tier: QuestTier;
   objective: QuestObjective;
   reward: QuestReward;
+  /** Which quest turn this quest is offered on (owner's two-bucket table). Absent = derived from `tier`
+   *  (Capstone → turn 11, else → turn 5); set explicitly only when a quest's bucket differs from that default
+   *  (e.g. a Greater quest promoted into the turn-11 bucket). `questBucketFor` in @game/sim reads it. */
+  wave?: 5 | 11;
   /** Undead (Ossuary Rite): a repeatable quest re-arms on completion (progress resets, reward can fire again)
    *  instead of staying done. */
   repeatable?: boolean;

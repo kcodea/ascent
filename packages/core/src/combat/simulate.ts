@@ -1336,10 +1336,10 @@ export function simulate(
       const lead = boards[scSide].find((m) => !m.dead && m.health > 0);
       if (lead && lead.attack > 0) { nextStep(); ctx.buff(lead, lead.attack, 0, lead.uid); }
     }
-    // Umbral Energy: give every living Dragon +2/+2 for every spell cast this game (lifetime spellsCast, per side).
+    // Umbral Energy: give every living Dragon +3/+3 for every spell cast this game (lifetime spellsCast, per side).
     const scSpells = scSide === 'player' ? spellsCast : (enemyScalers.spellsCast ?? 0);
     if (smods.umbralEnergy && scSpells > 0) {
-      const amt = 2 * scSpells;
+      const amt = 3 * scSpells;
       let stepped = false;
       for (const m of boards[scSide]) {
         if (m.dead || m.health <= 0) continue;

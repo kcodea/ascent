@@ -153,18 +153,18 @@ describe('simulate (handoff A.3)', () => {
     expect(grants(true)).toBe(4); // golden doubles the number of grants
   });
 
-  it("Bloodbinder Bleed: Start of Combat marks 3 enemies; every 4 attacks they take its Attack (fixed targets)", () => {
+  it("Bloodbinder Bleed: Start of Combat marks 1 enemy; every 4 attacks it takes its Attack (fixed target)", () => {
     const p: BoardMinion[] = [
       { cardId: 'bloodbinder', attack: 5, health: 300 },
       { cardId: 'fred', attack: 2, health: 300 },
     ];
-    // FIVE tanky 0-Attack enemies — more than the 3 marks, so we can prove the marked set is fixed, not re-rolled.
-    const e: BoardMinion[] = Array.from({ length: 5 }, () => ({ cardId: 'sandbag', attack: 0, health: 400 }));
+    // FOUR tanky 0-Attack enemies — more than the 1 mark, so we can prove the marked target is fixed, not re-rolled.
+    const e: BoardMinion[] = Array.from({ length: 4 }, () => ({ cardId: 'sandbag', attack: 0, health: 400 }));
     const r = run(p, e, 11);
     const bbUid = r.initial.player.find((u) => u.cardId === 'bloodbinder')!.uid;
-    // Marked 3 enemies at Start of Combat.
-    expect(r.events.some((ev) => ev.type === 'sc' && ev.source === bbUid && /marks 3/i.test(ev.text))).toBe(true);
-    // Bleed procs fire (its own `sc` beat); each hits ONLY the marked set — never spills onto un-marked enemies.
+    // Marked 1 enemy at Start of Combat.
+    expect(r.events.some((ev) => ev.type === 'sc' && ev.source === bbUid && /marks 1 enemy/i.test(ev.text))).toBe(true);
+    // Bleed procs fire (its own `sc` beat); every proc hits ONLY that one marked target — never spills onto others.
     const bleedSteps = new Set(
       r.events.filter((ev) => ev.type === 'sc' && ev.source === bbUid && /bleeds/i.test(ev.text)).map((ev) => ev.step),
     );
@@ -172,25 +172,48 @@ describe('simulate (handoff A.3)', () => {
     const bleedTargets = new Set(
       r.events.flatMap((ev) => (ev.type === 'dmg' && bleedSteps.has(ev.step!) ? [ev.target] : [])),
     );
-    expect(bleedTargets.size).toBeLessThanOrEqual(3); // fixed marks — never more than the 3 chosen at SC
-    // Each bleed hit is Bloodbinder's Attack (5).
+    expect(bleedTargets.size).toBe(1); // the single fixed mark, every proc
+    // Each bleed hit is Bloodbinder's Attack (5) — NOT doubled for anyone.
     expect(r.events.some((ev) => ev.type === 'dmg' && bleedSteps.has(ev.step!) && ev.amount === 5)).toBe(true);
+    expect(r.events.some((ev) => ev.type === 'dmg' && bleedSteps.has(ev.step!) && ev.amount === 10)).toBe(false);
   });
 
-  it("Bloodbinder Bleed: golden deals DOUBLE its Attack to the marked enemies", () => {
+  it("Bloodbinder Bleed: golden marks 2 enemies (not double damage)", () => {
     const p: BoardMinion[] = [
       { cardId: 'bloodbinder', attack: 5, health: 300, golden: true },
       { cardId: 'fred', attack: 2, health: 300 },
     ];
-    const e: BoardMinion[] = Array.from({ length: 3 }, () => ({ cardId: 'sandbag', attack: 0, health: 400 }));
+    // Four enemies — golden marks 2 of them; bleed hits exactly those two, each for the base Attack (5), not 10.
+    const e: BoardMinion[] = Array.from({ length: 4 }, () => ({ cardId: 'sandbag', attack: 0, health: 400 }));
     const r = run(p, e, 11);
     const bbUid = r.initial.player.find((u) => u.cardId === 'bloodbinder')!.uid;
+    expect(r.events.some((ev) => ev.type === 'sc' && ev.source === bbUid && /marks 2 enemies/i.test(ev.text))).toBe(true);
     const bleedSteps = new Set(
       r.events.filter((ev) => ev.type === 'sc' && ev.source === bbUid && /bleeds/i.test(ev.text)).map((ev) => ev.step),
     );
     expect(bleedSteps.size).toBeGreaterThan(0);
-    // Golden bleed hits for 10 (5 × 2), not 5.
-    expect(r.events.some((ev) => ev.type === 'dmg' && bleedSteps.has(ev.step!) && ev.amount === 10)).toBe(true);
+    const bleedTargets = new Set(
+      r.events.flatMap((ev) => (ev.type === 'dmg' && bleedSteps.has(ev.step!) ? [ev.target] : [])),
+    );
+    expect(bleedTargets.size).toBe(2); // golden = 2 fixed marks
+    // Still the base Attack per hit — golden does NOT double the damage.
+    expect(r.events.some((ev) => ev.type === 'dmg' && bleedSteps.has(ev.step!) && ev.amount === 5)).toBe(true);
+    expect(r.events.some((ev) => ev.type === 'dmg' && bleedSteps.has(ev.step!) && ev.amount === 10)).toBe(false);
+  });
+
+  it("Bloodbinder Bleed: stops the moment Bloodbinder dies (no persistence)", () => {
+    // Bloodbinder is fragile (2 HP) facing a hard hitter — it dies early. Its marked target then takes no more bleed.
+    const p: BoardMinion[] = [{ cardId: 'bloodbinder', attack: 5, health: 2 }];
+    const e: BoardMinion[] = [
+      { cardId: 'sandbag', attack: 20, health: 400 },
+      { cardId: 'sandbag', attack: 20, health: 400 },
+    ];
+    const r = run(p, e, 3);
+    const bbUid = r.initial.player.find((u) => u.cardId === 'bloodbinder')!.uid;
+    const death = r.events.findIndex((ev) => ev.type === 'death' && ev.target === bbUid);
+    const lastBleed = r.events.map((ev, i) => ({ ev, i })).filter(({ ev }) => ev.type === 'sc' && ev.source === bbUid && /bleeds/i.test(ev.text)).pop();
+    // Any bleed proc must have happened BEFORE Bloodbinder's death — never after.
+    if (lastBleed && death >= 0) expect(lastBleed.i).toBeLessThan(death);
   });
 
   it("Critical Strike (Commander Impala): a crit swing deals DOUBLE damage, flagged + deterministic", () => {

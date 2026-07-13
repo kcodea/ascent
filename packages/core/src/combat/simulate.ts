@@ -1025,17 +1025,16 @@ export function simulate(
     return rng.pick(taunts.length > 0 ? taunts : live);
   }
 
-  // Bleed proc (Bloodbinder): deal the bleeder's current Attack (golden ×2) to its still-living MARKED enemies —
-  // the fixed set chosen at Start of Combat, never re-rolled. Skips while the bleeder is dead / 0-Attack, or once
-  // every mark is dead. Its own beat, so the replay shows the hit as a discrete event.
+  // Bleed proc (Bloodbinder): deal the bleeder's current Attack to its still-living MARKED enemies — the fixed set
+  // chosen at Start of Combat (1, or 2 for golden), never re-rolled. Ends the moment the bleeder dies (guarded here),
+  // skips while it's 0-Attack or once every mark is dead. Its own beat, so the replay shows a discrete hit.
   function procBleed(b: { minion: Minion; marked: Minion[] }): void {
     if (b.minion.dead || b.minion.health <= 0 || b.minion.attack <= 0) return;
     const targets = b.marked.filter((m) => !m.dead && m.health > 0);
     if (targets.length === 0) return;
-    const amount = b.minion.attack * (b.minion.golden ? 2 : 1);
     nextStep();
     emit({ type: 'sc', source: b.minion.uid, text: `${b.minion.name} bleeds`, cast: true });
-    for (const t of targets) dealDamage(t, amount, false, false, b.minion);
+    for (const t of targets) dealDamage(t, b.minion.attack, false, false, b.minion);
   }
 
   function performAttack(attacker: Minion, defenderSide: Side, depth: number): void {

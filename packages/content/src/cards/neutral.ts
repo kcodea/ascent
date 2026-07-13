@@ -244,8 +244,11 @@ export const NEUTRAL: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryDiscoverSpell' }],
-    text: '**Battlecry:** Discover a spell.',
-    goldenText: '**Battlecry:** Discover **2** spells.',
+    // Combo: ALSO Discover a minion — queued after the spell Discover(s) (the combo effect runs after playCard's
+    // Battlecry, and queueDiscover appends behind the already-open spell Discover). Golden Discovers 2 minions.
+    combo: { effects: [{ on: 'onPlay', do: 'battlecryDiscoverMinion' }] },
+    text: '**Battlecry:** Discover a spell. **Combo:** Discover a minion too.',
+    goldenText: '**Battlecry:** Discover **2** spells. **Combo:** Discover **2** minions too.',
   },
   {
     id: 'jenkins',

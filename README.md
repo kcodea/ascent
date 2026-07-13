@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Shop-phase buff FX.** When a card buffs *other* minions in the shop (Battlecry, on-summon, Guel, spell casts,
+  Deathrattles, Karwind/Bane, Choose One, Hunter), it now shoots the same **tendril** (from a living source) or
+  rains the same **descend** (from a spell / Deathrattle) that combat uses — no longer just a green flash. Captured
+  at the recruit dispatch layer and rendered through the shared combat FX overlay; passive auras stay ambient.
 - **Step-progress counters.** Step-based scaling minions now show a small **"X/N"** pill below the card,
   counting toward their next step/transform/proc — Archmagus Guel `1/4`, `2/4`… per spell; Flowing Monk per
   overflow; Spirit Pup toward transform; Tara toward ascend; Crypt Drake per attack; Frontdrake/Money Maker per

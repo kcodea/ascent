@@ -15,10 +15,9 @@ import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
 import { burstDeathAuras, breakShieldAura, reformReborn } from './choreo/channels/aura';
 import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
 import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
-import { buffPreset, BUFF_PRESETS } from './buffPresets';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
-import { DESCEND_PRESETS, descendPreset } from './descendPresets';
 import { isDeathrattleBufferCard } from './deathrattleBuffers';
+import { fireBuffFx } from './buffFxRender';
 
 /** Card display name from its id (for combat-log lines about generated cards). */
 const cardName = (id: string): string => CARD_INDEX[id]?.name ?? id;
@@ -550,21 +549,16 @@ export function useCombatReplay(
       const tc = { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 };
       const cardId = cardIds.get(c.source) ?? '';
       const tribe = (CARD_INDEX[cardId]?.tribe ?? 'neutral') as Tribe;
-      let strikeMs: number;
-      if (isDeathrattleBufferCard(cardId)) {
-        // Deathrattle buff-other → rain-down descend onto the target (no source needed).
-        const dcfg = DESCEND_PRESETS[descendPreset(cardId, tribe)];
-        pixiFx.descend(tc.x, tc.y, dcfg);
-        strikeMs = dcfg.dropMs;
-      } else {
-        // Living-source buff-other → source→target tendril (needs a measurable source).
-        const sEl = findEl(c.source);
-        if (!sEl) continue;
-        const sr = sEl.getBoundingClientRect();
-        const preset = BUFF_PRESETS[buffPreset(cardId, tribe)];
-        pixiFx.buffTendril({ x: sr.left + sr.width / 2, y: sr.top + sr.height / 2 }, tc, preset);
-        strikeMs = preset.travelMs;
-      }
+      const sourceless = isDeathrattleBufferCard(cardId);
+      const sEl = sourceless ? null : findEl(c.source);
+      if (!sourceless && !sEl) continue; // living-source buff needs a measurable source
+      const sr = sEl?.getBoundingClientRect();
+      const strikeMs = fireBuffFx({
+        source: sr ? { x: sr.left + sr.width / 2, y: sr.top + sr.height / 2 } : undefined,
+        target: tc,
+        cardId, tribe,
+        sourceless,
+      });
       const agg = perTarget.get(c.target);
       if (agg) { agg.atk += c.attack; agg.hp += c.health; }
       else perTarget.set(c.target, { atk: c.attack, hp: c.health, strikeMs });

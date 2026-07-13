@@ -5,6 +5,38 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 36)
 
+### feat: shop-phase buff FX — replay combat's tendril / descend when a card buffs others in the shop (M2)
+
+Milestone 2 of `docs/superpowers/specs/2026-07-13-shop-buff-fx-and-step-counters-design.md`. When a card buffs
+*other* minions during the recruit/shop phase (Battlecry, on-summon, Guel's on-spell-cast, spell casts, recruit
+Deathrattles, Karwind/Bane battlecry reactions, Choose One options, Hunter's on-gain-Attack), it now replays the
+**same source→target tendril / rain-down descend** combat already uses — previously the shop showed only a passive
+green stat-diff burst with no source relationship.
+
+- **Capture (`packages/sim`).** The recruit engine emits no event log, and `addBuff` only gets a source *name*
+  string — so who-buffed-whom is captured at the **dispatch layer**, where the source minion is known. A new
+  transient `RunState.recruitBuffFx: BuffFxEvent[]` (+ `recruitFxSeq`, mirroring the existing `fodderEaten`
+  one-shot-anim pattern) is populated by an exported `captureBuffFx(state, source, kind, run)` helper that diffs
+  board `{attack,health}` around each factory dispatch and attributes every *other* card's gain to the source
+  (`kind:'minion'` → tendril; `spell`/`deathrattle` → descend). Wrapped at every discrete buff-other dispatch
+  (`applyCastEffects`, `fire`, overflow, `fireRecruitDeathrattles`, the spellCast board-scan, all three
+  onPlay/battlecry loops, `fireBattlecryTriggered`, Choose One, and Hunter's `fireOnGainAttack` from `reduce`).
+  Passive always-on auras (Lantern, Imp) are excluded. `reduce` clears the list per action and bumps
+  `recruitFxSeq` once per buffing action. A `fxStart`/`innerTargets` ledger makes a nested (more-specific-source)
+  capture win over an outer one, so Karwind reacting to a played card is sourced from Karwind, not the played card.
+  **Pure display metadata — no RNG, no stat change; determinism / golden sims unaffected** (full sim suite green).
+- **Render (`packages/ui`).** The combat render decision was extracted into a shared `fireBuffFx` helper
+  (`buffFxRender.ts`) that both `useCombatReplay` and a new `Recruit.tsx` effect call. On `recruitFxSeq` bump the
+  shop effect measures source/target DOM rects (via the existing `findEl`) and fires the tendril/descend on the
+  same `pixiFx` overlay. Guarded against mount-refire on a resumed autosave via the file's `useRef`-snapshot idiom
+  (like `fodderEatenSeq`). The passive green burst-ring is suppressed for FX-handled targets (the `+X/+X` float is
+  kept), so there's no double-flash.
+
+Verified: `typecheck` + `lint` + full `test` (1000) + `build:web` all green. Each task spec- and quality-reviewed
+by a separate agent (caught the mount-refire guard + three initially-missed live buff-other sites — Karwind/Bane,
+Choose One, Hunter — now covered). **Live visual eyeball pending** (owner to confirm the tendril/descend read on
+the cream board). Shipped as PR #380 (M1 counters) + this M2 PR.
+
 ### feat(ui): step-progress counters on step-based scaling minions (M1 of the shop-FX/counter spec)
 
 Milestone 1 of `docs/superpowers/specs/2026-07-13-shop-buff-fx-and-step-counters-design.md`. Step-based scaling

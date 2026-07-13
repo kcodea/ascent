@@ -126,6 +126,9 @@ export interface BoardCard {
   /** Bloodlust: a one-combat mark — at the start of the next combat this minion takes an immediate out-of-turn
    *  attack, immune to retaliation for that swing ("cannot die from that attack"). Stripped post-combat. */
   bloodlust?: boolean;
+  /** Bloodlust weld: the Bloodlust spell also grants its target a one-fight Rally — on each of its own attacks,
+   *  give a random friendly minion Attack equal to its own. Carried into combat + stripped post-combat, like `bloodlust`. */
+  bloodlustRally?: boolean;
   /** The Reclaimer's mark: at the start of the next combat this minion is destroyed (its Deathrattle
    *  fires) and an exact copy is resummoned if there's room. Cleared each turn (re-choose). */
   resummon?: boolean;

@@ -1036,6 +1036,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         golden: b.golden,
         ...(b.addedTribes && b.addedTribes.length ? { addedTribes: [...b.addedTribes] } : {}), // Anomaly Reactor: a spell-added tribe (→ combat tribe2) — was dropped, so the tribe stopped counting in the player's own fights
         ...(b.bloodlust ? { bloodlust: true } : {}), // Bloodlust: a Start-of-Combat immune out-of-turn strike — was dropped, so it never fired
+        ...(b.bloodlustRally ? { bloodlustRally: true } : {}), // Bloodlust's welded Rally (give a friendly minion this minion's Attack)
         summonBonus: b.summonBonus ?? 0,
         overflowBonus: b.overflowBonus, // Flowing Monk: flat grant bonus from the triple combine
         hpGrantBonus: b.hpGrantBonus ?? 0, // Sergeant: seed the Deathrattle HP-grant accrual into combat
@@ -1562,8 +1563,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
       c.keywords = c.keywords.filter((k) => k !== 'R');
       c.tempReborn = false;
     }
-    // Bloodlust is a one-combat mark — spent by the fight that just resolved.
+    // Bloodlust is a one-combat mark — spent by the fight that just resolved (both the immune swing and its
+    // welded Rally).
     if (c.bloodlust) c.bloodlust = false;
+    if (c.bloodlustRally) c.bloodlustRally = false;
   }
   // Pre-emptive Assault + Rallying Offensive are spent — each override covers exactly one fight.
   s.attackFirstNext = false;

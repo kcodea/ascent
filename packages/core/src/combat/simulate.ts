@@ -1046,6 +1046,13 @@ export function simulate(
           }
         }
       }
+      // Bloodlust weld (the Bloodlust spell also grants its target a Rally): on each of its own swings, give a
+      // random OTHER friendly living minion Attack equal to this minion's current Attack. Fires per swing, and
+      // is one-fight like Bloodlust itself (stripped at settle).
+      if (attacker.bloodlustRally && attacker.attack > 0) {
+        const pool = boards[attacker.side].filter((m) => !m.dead && m.health > 0 && m !== attacker);
+        if (pool.length > 0) ctx.buff(ctx.rng.pick(pool), attacker.attack, 0, 'Bloodlust');
+      }
       // Perfect Core (welded Rally): each time this host attacks, add N random spells to your hand after combat
       // (N = accrued rallySpellWeld, stacks via magnetize; golden already baked at weld time). Mirrors the
       // standalone `rallyGrantSpell` factory — a standalone Perfect Core grants via its own effect instead, so no

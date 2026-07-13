@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-12 (session 34)
 
+### balance: quest-reward minion tweaks (Contract Imp, Scrap Vendor, Bloodlust, Trophy Stalker, Chorus Engine, Bone Taxer)
+
+Owner balance pass on six quest-reward cards (Part A of a larger quest/minion spec):
+- **Contract Imp** — was a Choose One (Fodder *or* Imps +3/+3); now a **Shout that buffs BOTH** your Fodder and
+  Imps +3/+3 (golden +6/+6). Dropped `chooseOne`, two `onPlay` battlecries instead.
+- **Scrap Vendor** 4/7 → **3/4**. **Chorus Engine** 8/6 → **5/5**. **Bone Taxer** 2/3 → **5/7**.
+- **Trophy Stalker** — Rally aura +3/+3 improving +1/+1 → **+5/+5 improving +5/+5** per attack.
+- **Bloodlust** — in addition to its immediate immune Start-of-Combat swing, the spell now welds a **one-fight
+  Rally onto its target: "give a friendly minion this minion's Attack"** (owner ruling 2026-07-12). New
+  `bloodlustRally` flag on BoardCard/BoardMinion/Minion, carried through `instantiate` + the reducer's combat
+  hand-off, applied inline in the attack loop (mirrors Better Bot's `rallyMechAtk`), and stripped at settle like
+  `bloodlust`. New simulate test covers it.
+
+Verified: `typecheck + lint + test` (950) & `build:web` green.
+
 ### fix: Lazarus's spell discount now shows in the shop (green cost coin)
 
 Owner-reported: with Lazarus on the board, shop spells didn't *look* discounted. The reducer's buy path already

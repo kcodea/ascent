@@ -29,6 +29,16 @@ describe('simulate (handoff A.3)', () => {
     expect(a.playerDamage).toBe(b.playerDamage);
   });
 
+  it('Bloodlust weld: a bloodlustRally attacker gives a friendly minion its Attack on each of its own swings', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'pack', attack: 5, health: 30, bloodlustRally: true }, // the Bloodlust target
+      { cardId: 'alley', attack: 0, health: 30 }, // the friend that should receive its Attack
+    ];
+    const a = run(p, [{ cardId: 'sandbag', attack: 0, health: 200 }], 1);
+    // A `buff` event sourced 'Bloodlust' lands on the friend (Attack only), proving the welded Rally fired.
+    expect(a.events.some((e) => e.type === 'buff' && e.source === 'Bloodlust' && e.attack > 0)).toBe(true);
+  });
+
   it('carries the recruit-phase buff breakdown into the initial snapshot (for the combat inspect)', () => {
     // A board minion enters combat with a recruit-buff breakdown; the snapshot the UI reads must keep it
     // so right-click inspect can itemize recruit buffs in combat (parity with the shop panel).

@@ -118,9 +118,9 @@ export const DEMONS: CardDef[] = [
     attack: 5,
     health: 6,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'buffFodderEverywhere', params: { attack: 2, health: 2 } }],
-    text: '**End of Turn:** give your Imps and Fodder **+2/+2**, wherever they are.',
-    goldenText: '**End of Turn:** give your Imps and Fodder **+4/+4**, wherever they are.',
+    effects: [{ on: 'endOfTurn', do: 'buffFodderImpsImproving', params: { step: 3 } }],
+    text: '**End of Turn:** give your Imps and Fodder **+3/+3**. This improves by **+3/+3** each time it triggers.',
+    goldenText: '**End of Turn:** give your Imps and Fodder **+6/+6**. This improves by **+6/+6** each time it triggers.',
   },
   {
     // Spend-gold payoff: every 7 Gold you spend (a continuous per-instance meter, carried across turns)
@@ -148,10 +148,30 @@ export const DEMONS: CardDef[] = [
     tier: 2,
     attack: 3,
     health: 2,
-    keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyBuffFodder', params: { attack: 2, health: 2 } }],
-    text: '**Rally:** give your **Fodder** **+2/+2**.',
-    goldenText: '**Rally:** give your **Fodder** **+4/+4**.',
+    keywords: [],
+    effects: [],
+    chooseOne: [
+      { text: 'Add **2** Fodder to your next shop.', effects: [{ on: 'onPlay', do: 'addTavernFodder', params: { count: 2 } }] },
+      { text: 'Give your **Fodder** **+3/+3**.', effects: [{ on: 'onPlay', do: 'battlecryBuffFodder', params: { attack: 3, health: 3 } }] },
+    ],
+    combo: { chooseBoth: true },
+    text: '**Choose One:** add **2** Fodder to your next shop, or give your **Fodder** **+3/+3**. **Combo:** do both.',
+    goldenText: '**Choose One:** add **4** Fodder to your next shop, or give your **Fodder** **+6/+6**. **Combo:** do both.',
+  },
+  {
+    // Imp-payoff engine: converts your run-wide Imp Aura into a board-wide buff. On death (Echo) it fires in
+    // combat off the live aura; with a Combo primer it ALSO fires on play (the recruit half reads run `impBuff`).
+    id: 'chefraag',
+    name: 'Chef Raag',
+    tribe: 'demon',
+    tier: 4,
+    attack: 4,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffAllByImpAura' }],
+    combo: { effects: [{ on: 'onPlay', do: 'buffAllByImpAura' }] },
+    text: '**Echo:** give your minions stats equal to your **Imp Aura**. **Combo:** do it on play too.',
+    goldenText: '**Echo:** give your minions **double** your **Imp Aura**. **Combo:** do it on play too.',
   },
   {
     id: 'trickster',

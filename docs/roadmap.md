@@ -287,10 +287,17 @@ look because the engine already produces the data.
   3rd spell casts Growth; shop minions -1/-1). **Size:** L. **Depends:** A1; pairs well with C1's offer UI.
 
 ### C4. New mechanics (depth, later)
-- **Combo** (Primer arms a Finisher → consumed for a bonus; rewards sequencing). **Balance** (average two
-  units' stats — shop puzzle). **Mark / Bind / Curse** (apply Echo-style effects to allies; name by
-  valence). **Rewind** (start narrow: "repeat the last friendly keyword trigger" — avoid true undo until the
-  rules are sturdier). Each is its own spec when reached. **Size:** L each.
+- ~~**Combo** (Primer arms a Finisher → consumed for a bonus; rewards sequencing).~~ **DONE** (session 35):
+  `primer`/`combo` on cards, orange combo-ready glow, chooseBoth + extra-effect shapes. See the devlog.
+- **Balance** (average two units' stats — shop puzzle). **Mark / Bind / Curse** (apply Echo-style effects to
+  allies; name by valence). **Rewind** (start narrow: "repeat the last friendly keyword trigger" — avoid true
+  undo until the rules are sturdier). Each is its own spec when reached. **Size:** L each.
+
+### PR2 (queued) — Bleed + Critical Strike
+- **Bloodbinder** — Start of Combat: **Bleed** — deal this minion's damage to 3 random enemies every 6 attacks
+  in combat (a combat-wide attack counter that fires an AoE every 6 attacks).
+- **Commander Impala** — **50% Critical Strike** (double damage on attack, 50% chance, seeded RNG). Both need a
+  new combat keyword; scoped out of the Combo PR to keep it clean.
 
 ---
 

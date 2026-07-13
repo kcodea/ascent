@@ -131,6 +131,47 @@ describe('run loop (@game/sim)', () => {
     expect(s.hand.map((m) => m.uid)).toEqual(['b', 'c', 'a']);
   });
 
+  describe('Combo / Primer', () => {
+    const mk = (uid: string, cardId: string): BoardCard => ({
+      uid, cardId, tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false,
+    });
+
+    it('a Primer arms the combo; a non-primer card disarms it', () => {
+      // Gold Pouch (emberpouch) is a Primer spell; Sandbag is a plain minion.
+      let s: RunState = { ...createRun(1), hand: [mk('p', 'emberpouch'), mk('x', 'sandbag')] };
+      s = reduce(s, { type: 'play', uid: 'p' });
+      expect(s.comboArmed).toBe(true);
+      s = reduce(s, { type: 'play', uid: 'x' });
+      expect(s.comboArmed).toBe(false);
+    });
+
+    it('a Combo card played right after a Primer fires its combo (Godfodder plays BOTH options, no prompt)', () => {
+      let s: RunState = { ...createRun(1), hand: [mk('p', 'emberpouch'), mk('gf', 'godfodder')] };
+      s = reduce(s, { type: 'play', uid: 'p' }); // arm
+      s = reduce(s, { type: 'play', uid: 'gf' }); // combo → both Choose One options, no chooseOne modal
+      expect(s.chooseOne).toBeUndefined();
+      // Option 1: add 2 Fodder to next shop → pendingTavern; Option 2: Fodder +3/+3 run-wide (Fred is Fodder).
+      expect((s.pendingTavern ?? []).filter((x) => x === 'fred')).toHaveLength(2);
+      expect(s.cardBuffs?.fred).toEqual({ attack: 3, health: 3 });
+    });
+
+    it('a Combo card played WITHOUT a primer resolves normally (Godfodder prompts a Choose One)', () => {
+      let s: RunState = { ...createRun(1), hand: [mk('gf', 'godfodder')] };
+      s = reduce(s, { type: 'play', uid: 'gf' });
+      expect(s.chooseOne?.cardId).toBe('godfodder'); // still a plain Choose One — combo did not fire
+      expect((s.pendingTavern ?? []).length).toBe(0);
+    });
+
+    it('a Primer then a DIFFERENT card disarms the combo — a later Combo card does NOT fire', () => {
+      let s: RunState = { ...createRun(1), hand: [mk('p', 'emberpouch'), mk('x', 'sandbag'), mk('gf', 'godfodder')] };
+      s = reduce(s, { type: 'play', uid: 'p' }); // arm
+      s = reduce(s, { type: 'play', uid: 'x' }); // disarm (sandbag isn't a primer)
+      s = reduce(s, { type: 'play', uid: 'gf' }); // no combo → normal Choose One prompt
+      expect(s.chooseOne?.cardId).toBe('godfodder');
+      expect((s.pendingTavern ?? []).length).toBe(0);
+    });
+  });
+
   it('rejects a buy without enough embers', () => {
     let s = createRun(1);
     s = reduce(s, { type: 'buy', uid: s.shop[0]!.uid }); // embers → 0
@@ -879,7 +920,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.cardId === 'frontdrake')?.attack).toBe(4); // 2 + 2
     const cleric = s.board.find((c) => c.cardId === 'cleric');
     expect(cleric?.attack).toBe(5); // 3 + 2 (Battlecry includes self)
-    expect(cleric?.health).toBe(7); // 4 + 3
+    expect(cleric?.health).toBe(5); // 2 base + 3
   });
 
   it("Ritualist's End of Turn buffs all Fodder — existing copies and the run-level card buff", () => {
@@ -895,11 +936,11 @@ describe('run loop (@game/sim)', () => {
       hand: [{ uid: 'f2', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: ['FD'], golden: false }],
     };
     s = reduce(s, { type: 'faceOmen' }); // End of Turn fires Ritualist before combat
-    expect(s.cardBuffs.fred).toEqual({ attack: 2, health: 2 }); // +2/+2 persists for the run
+    expect(s.cardBuffs.fred).toEqual({ attack: 3, health: 3 }); // first trigger → +3/+3 persists for the run
     const f1 = s.board.find((c) => c.uid === 'f1');
-    expect([f1?.attack, f1?.health]).toEqual([3, 3]); // Fodder on the board buffed now (1/1 + 2/2)
+    expect([f1?.attack, f1?.health]).toEqual([4, 4]); // Fodder on the board buffed now (1/1 + 3/3)
     const f2 = s.hand.find((c) => c.uid === 'f2');
-    expect([f2?.attack, f2?.health]).toEqual([3, 3]); // Fodder in the hand too
+    expect([f2?.attack, f2?.health]).toEqual([4, 4]); // Fodder in the hand too
   });
 
   it('Fodder found after a Ritualist proc carries the run buff — bought from the tavern', () => {
@@ -1342,10 +1383,10 @@ describe('run loop (@game/sim)', () => {
         { uid: 'f', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: ['FD'], golden: false },
       ],
     };
-    s = reduce(s, { type: 'faceOmen' }); // End of Turn fires Ritualist twice (Chronos +1)
-    expect(s.cardBuffs.fred).toEqual({ attack: 4, health: 4 }); // +2/+2 applied twice
+    s = reduce(s, { type: 'faceOmen' }); // End of Turn fires Ritualist twice (Chronos +1); it escalates each fire
+    expect(s.cardBuffs.fred).toEqual({ attack: 9, health: 9 }); // escalating: +3 then +6 = +9/+9 this turn
     const f = s.board.find((c) => c.uid === 'f')!;
-    expect([f.attack, f.health]).toEqual([5, 5]); // the on-board Fred: 1/1 + 4/4
+    expect([f.attack, f.health]).toEqual([10, 10]); // the on-board Fred: 1/1 + 9/9
   });
 
   it('Magnetic merges a Cling Drone onto a friendly Mech (no new slot)', () => {
@@ -1789,8 +1830,8 @@ describe('run loop (@game/sim)', () => {
     expect(s.hand).toHaveLength(0); // no lastSpellCastId → no copy
   });
 
-  it('Tara is Tier 4', () => {
-    expect(CARD_INDEX.tara!.tier).toBe(4);
+  it('Tara is Tier 3', () => {
+    expect(CARD_INDEX.tara!.tier).toBe(3);
   });
 
   it('Consume — a targeted Demon creates and eats a Fodder (its stats feed the Demon, tavern untouched)', () => {
@@ -3490,7 +3531,7 @@ describe('hero powers (@game/sim)', () => {
   });
 
   it("Djinn's Cadence procs a friendly minion's End of Turn now (once per turn)", () => {
-    // Ritualist's End of Turn buffs every Fodder +2/+2; Fred is Fodder.
+    // Ritualist's End of Turn buffs every Fodder (first trigger +3/+3); Fred is Fodder.
     const board = (): BoardCard[] => [
       { uid: 'r', cardId: 'ritualist', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false },
       { uid: 'f', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false },
@@ -3498,8 +3539,8 @@ describe('hero powers (@game/sim)', () => {
     let s: RunState = { ...createRun(1, 'djinn'), board: board() };
     s = reduce(s, { type: 'heroPower', uid: 'r' });
     const fred = s.board.find((c) => c.uid === 'f')!;
-    expect(fred.attack).toBe(3); // 1 + 2
-    expect(fred.health).toBe(3);
+    expect(fred.attack).toBe(4); // 1 + 3
+    expect(fred.health).toBe(4);
     expect(s.heroReady).toBe(false);
     expect(reduce(s, { type: 'heroPower', uid: 'r' })).toBe(s); // once per turn
   });
@@ -3639,7 +3680,7 @@ describe('hero powers (@game/sim)', () => {
   // --- New heroes (owner batch 2026-07-09) ---
 
   it("Djinn's Cadence triggers EVERY friendly minion's End of Turn (untargeted)", () => {
-    // Two Ritualists (EoT: Fodder +2/+2 run-wide). Cadence fires BOTH → the Fred enchant climbs +4/+4.
+    // Two Ritualists (EoT: Fodder +3/+3 run-wide, first trigger each). Cadence fires BOTH → the Fred enchant climbs +6/+6.
     let s: RunState = {
       ...createRun(1, 'djinn'), heroReady: true,
       board: [
@@ -3648,7 +3689,7 @@ describe('hero powers (@game/sim)', () => {
       ],
     };
     s = reduce(s, { type: 'heroPower' });
-    expect(cardBuff(s, 'fred')).toEqual({ attack: 4, health: 4 }); // both Ritualists' EoT fired
+    expect(cardBuff(s, 'fred')).toEqual({ attack: 6, health: 6 }); // both Ritualists' EoT fired (+3 each)
     expect(s.heroReady).toBe(false);
     // A board with no End-of-Turn minion → no-op, charge preserved.
     const none: RunState = { ...createRun(1, 'djinn'), heroReady: true, board: [{ uid: 'a', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: ['T'], golden: false }] };
@@ -3889,7 +3930,7 @@ describe('spell stat bonus + display (@game/sim)', () => {
     expect(spellDisplayText('spiritfire', 1)).toBe('Give a friendly minion **{{+5/+5}}**.');
     expect(spellDisplayText('bulwark', 1)).toBe('Give a friendly minion **{{+1/+2}}** and **Taunt**.');
     // A non-stat spell (Gold Pouch) is untouched even with a bonus.
-    expect(spellDisplayText('emberpouch', 2)).toBe('Gain **1 Gold**.');
+    expect(spellDisplayText('emberpouch', 2)).toBe('Gain **1 Gold**. **Primer.**');
   });
 
   it('a welded spell-power aura (spellAuraBonus) boosts spells while the host is on board', () => {

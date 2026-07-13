@@ -523,6 +523,7 @@ export function simulate(
       // Only the player carries the buff back into run state (the enemy is regenerated each wave).
       if (side === 'player') { impBuffGain.attack += attack; impBuffGain.health += health; }
     },
+    impAura: (side) => ({ ...impAura[side] }), // Chef Raag reads the live Imp Aura to buff your minions by it
     grantFodderBuff: (attack, health, side) => {
       if (side !== 'player') return; // enemies have no run state
       fodderBuffGain.attack += attack;

@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Combo / Primer keyword.** A **Primer** card (Gold Pouch, Graverobber, Combo Kim) arms a combo for the
+  *next* card played; a card with a Combo, played immediately after, fires a bonus payoff — playing anything
+  else in between disarms it. A hand card whose Combo is armed glows **orange**. Ships with a demon-flavoured
+  card batch (Godfodder "do both", escalating Ritualist, new Chef Raag & Combo Kim, Buddy Buddy / Sporebat /
+  Spark Capacitor / Cinderwing combos, Hoard Cleric→T2, Tara→T3).
 - **Taunt units now wear a painterly gold heater shield.** Instead of the flat grey border, a Taunt card is
   reshaped into an ornate shield: an authored frame PNG composited over the unit portrait (clipped to the
   frame's measured window). Establishes the reusable **layered card pipeline** (portrait → frame → tint →

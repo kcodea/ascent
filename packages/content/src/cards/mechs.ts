@@ -274,9 +274,10 @@ export const MECHS: CardDef[] = [
     attack: 4,
     health: 7,
     keywords: [],
-    effects: [{ on: 'avenge', do: 'avengeGrantSpell', params: { count: 4, cardId: 'sparkplug' } }],
-    text: '**Avenge (4):** add a **Spark Plug** to your hand.',
-    goldenText: '**Avenge (4):** add **two Spark Plugs** to your hand.',
+    effects: [{ on: 'avenge', do: 'avengeGrantSpell', params: { count: 3, cardId: 'sparkplug' } }],
+    combo: { effects: [{ on: 'onPlay', do: 'castSpellById', params: { cardId: 'sparkplug' } }] },
+    text: '**Avenge (3):** add a **Spark Plug** to your hand. **Combo:** cast a Spark Plug (on play).',
+    goldenText: '**Avenge (3):** add **two Spark Plugs** to your hand. **Combo:** cast a Spark Plug (on play).',
   },
   {
     // Battlecry: your Magnetic minions ("Attachments") gain +2/+2 wherever they are — baked into every current

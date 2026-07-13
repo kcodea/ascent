@@ -145,6 +145,9 @@ export interface BoardCard {
    *  Setlist Discovers on turn 1). Only THIS card is gated — the rest of the hand plays normally. The play
    *  action no-ops while `state.tier < lockedUntilTier`; the UI shows it locked. Cleared once it unlocks. */
   lockedUntilTier?: number;
+  /** Ritualist: the accrued +A/+H its escalating End-of-Turn buff currently grants (grows by its `step` each
+   *  trigger). Per-instance; drives `buffFodderImpsImproving`. Default/absent = 0. */
+  eotBonus?: number;
   /** Spells cast while this card has been on the board — drives transform cards (Spirit Pup → Worgen
    *  at 10). Per-instance; ticks only while on the board (the spellCast trigger fires for the board). */
   spellProgress?: number;
@@ -247,6 +250,9 @@ export interface RunState {
   /** Minion cardIds PLAYED this recruit turn (normal plays) — Pack Leader (SoC, via a simulate param) and
    *  Spirit Worgen (End of Turn) scale off "Beasts/Dragons you played this turn". Reset each turn. */
   playedThisTurn?: string[];
+  /** Combo: true when the LAST card played was a Primer — the next card played fires its Combo (if it has one).
+   *  Set on every play to `def.primer`; a Combo card checks it, then it re-arms based on the card just played. */
+  comboArmed?: boolean;
   resolve: number;
   maxResolve: number;
   /** Armor — extra effective HP on top of Resolve. Loss damage chips Armor first, then Resolve; it doesn't

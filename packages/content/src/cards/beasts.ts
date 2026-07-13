@@ -229,8 +229,9 @@ export const BEASTS: CardDef[] = [
     health: 3,
     keywords: ['T'],
     effects: [{ on: 'onDeath', do: 'deathrattleGrantRandomSpell', params: { count: 1 } }],
-    text: '**Taunt. Deathrattle:** add a random tavern-tier spell to your hand.',
-    goldenText: '**Taunt. Deathrattle:** add **2** random tavern-tier spells to your hand.',
+    combo: { effects: [{ on: 'onPlay', do: 'deathrattleGrantRandomSpell', params: { count: 1 } }] },
+    text: '**Taunt. Echo:** get a random spell. **Combo:** get a random spell (on play).',
+    goldenText: '**Taunt. Echo:** get **2** random spells. **Combo:** get a random spell (on play).',
   },
   {
     // Economy Taunt: each time it takes damage, bank a free shop reroll — up to 4 hits a combat (the cap

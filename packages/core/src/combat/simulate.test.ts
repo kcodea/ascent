@@ -153,17 +153,6 @@ describe('simulate (handoff A.3)', () => {
     expect(grants(true)).toBe(4); // golden doubles the number of grants
   });
 
-  it('The Godfodder Rally buffs your Fodder +2/+2 when it attacks (carried back)', () => {
-    const r = run(
-      [{ cardId: 'godfodder', attack: 4, health: 20 }, { cardId: 'fred', attack: 0, health: 20 }],
-      [{ cardId: 'sandbag', attack: 0, health: 4 }], // dies to one hit → Godfodder Rallies once
-      3,
-    );
-    const fred = r.initial.player.find((m) => m.cardId === 'fred')!.uid;
-    expect(r.events.some((e) => e.type === 'buff' && e.target === fred && e.attack === 2 && e.health === 2)).toBe(true);
-    expect(r.playerFodderBuffGain).toEqual({ attack: 2, health: 2 }); // permanent Fodder aura carried back
-  });
-
   it("Bloodbinder Rally gives your Fodder half its Attack (Attack by default mode)", () => {
     const p: BoardMinion[] = [
       { cardId: 'bloodbinder', attack: 5, health: 20 },

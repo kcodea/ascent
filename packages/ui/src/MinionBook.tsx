@@ -163,7 +163,7 @@ const GLOSSARY: { title: string; items: GlossItem[] }[] = [
       { icon: 'skull', term: 'Avenge (N)', def: 'Fires after every N of your minions die in a combat.', match: (c) => c.effects.some((e) => e.on === 'avenge') },
       { icon: 'sword', term: 'Rally', def: 'Fires each time this minion attacks.', match: kwMatch('RL') },
       { icon: 'slaughter', term: 'Slaughter', def: 'Fires each time this minion kills an enemy minion.', match: kwMatch('SL') },
-      { icon: 'poison', term: 'Bleed', def: 'Every few attacks in combat, deals this minion\'s Attack to several random enemies.', match: (c) => c.effects.some((e) => e.do === 'scArmBleed') },
+      { icon: 'poison', term: 'Bleed', def: 'Marks enemies at Start of Combat; every few attacks in the fight, they each take this minion\'s Attack.', match: (c) => c.effects.some((e) => e.do === 'scArmBleed') },
       { icon: 'choose1', term: 'Choose One', def: 'Pick one of two effects as you play the minion.', match: (c) => !!c.chooseOne },
     ],
   },

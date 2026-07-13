@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### fix: Bloodbinder Bleed marks fixed enemies (every 4 attacks; golden doubles) + Chef Raag art
+
+Owner tweak to the Bleed mechanic (from the PR2 keyword batch), plus a re-export of Chef Raag's art:
+- **Bloodbinder** — Bleed now MARKS a fixed set of 3 enemies at **Start of Combat** (chosen once, in `armBleed`)
+  instead of hitting fresh random enemies each proc; every **4** attacks (was 6) those same marked, still-living
+  enemies each take its Attack. **Golden deals double** (`attack × 2`). `bleeders` stores the `marked` list; `armBleed`
+  picks + logs the marks ("… marks 3 enemies"); `procBleed` hits the survivors of that list. Card text + goldenText +
+  the Compendium Bleed glossary updated.
+- **Chef Raag** — re-optimized the re-exported master art into `chefraag.webp` (50KB).
+- **Verified**: `typecheck`/`lint`/`test` (970, Bleed tests rewritten: marks 3 → fixed targets never spill onto
+  un-marked enemies + deal its Attack; golden bleeds for double)/`build:web` green; live — Bloodbinder shows the new
+  "mark 3 enemies / every 4 attacks" text, Chef Raag serves the fresh art.
+
 ### feat: Ward is now a CSS glassy hex-sphere dome glued to the card (retires the Pixi bubble)
 
 Reworks the entire Ward (Divine Shield) signifier from a per-frame-tracked Pixi bubble to a **pure-CSS layered

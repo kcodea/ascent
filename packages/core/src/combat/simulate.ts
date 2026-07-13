@@ -136,10 +136,10 @@ export function simulate(
     enemy: { attack: 0, health: 0 },
   };
 
-  // Bleed (Bloodbinder): minions armed at Start of Combat that, every `everyN` attack swings made this fight
-  // (either side), deal their current Attack to `targets` random living enemies. `globalAttacks` counts every
-  // swing across the whole combat; `procBleed` fires the AoE. Registered via `ctx.armBleed`.
-  const bleeders: { minion: Minion; everyN: number; targets: number }[] = [];
+  // Bleed (Bloodbinder): at Start of Combat the bleeder MARKS a fixed set of enemies (chosen once, in `armBleed`);
+  // then every `everyN` attack swings made this fight (either side), it deals its current Attack (golden ×2) to
+  // those SAME marked enemies that are still alive. `globalAttacks` counts every swing; `procBleed` fires the hit.
+  const bleeders: { minion: Minion; everyN: number; marked: Minion[] }[] = [];
   let globalAttacks = 0;
 
   // The Undead Aura is side-scoped for the same reason: an enemy Karthus / Deathswarmer / Watcher grants its
@@ -422,7 +422,18 @@ export function simulate(
     damage: (target, amount, poison = false, bypassShield = false) =>
       dealDamage(target, amount, poison, bypassShield),
     armBleed: (minion, everyN, targets) => {
-      if (everyN > 0 && targets > 0) bleeders.push({ minion, everyN, targets });
+      if (everyN <= 0 || targets <= 0) return;
+      // MARK a fixed set of enemies now (Start of Combat) — up to `targets` distinct random living foes. These
+      // stay marked for the whole fight; the proc later hits whichever of them are still alive (never re-rolled).
+      const foe: Side = minion.side === 'player' ? 'enemy' : 'player';
+      const pool = living(foe);
+      const marked: Minion[] = [];
+      for (let i = 0; i < targets && pool.length > 0; i++) {
+        marked.push(pool.splice(rng.int(pool.length), 1)[0]!);
+      }
+      if (marked.length === 0) return;
+      emit({ type: 'sc', source: minion.uid, text: `${minion.name} marks ${marked.length} ${marked.length === 1 ? 'enemy' : 'enemies'}`, cast: true });
+      bleeders.push({ minion, everyN, marked });
     },
     summon: (side, card, nearUid, grantKeywords, golden, attackNow, copyStats) => summonMinion(side, card, nearUid, grantKeywords, golden, attackNow, copyStats),
     grantDeathrattle: (target, effects) => {
@@ -1014,21 +1025,17 @@ export function simulate(
     return rng.pick(taunts.length > 0 ? taunts : live);
   }
 
-  // Bleed proc (Bloodbinder): deal the bleeder's current Attack to up to `targets` DISTINCT random living enemies.
-  // Skips while the bleeder is dead / 0-Attack. Its own beat, so the replay shows the AoE as a discrete hit.
-  function procBleed(b: { minion: Minion; targets: number }): void {
+  // Bleed proc (Bloodbinder): deal the bleeder's current Attack (golden ×2) to its still-living MARKED enemies —
+  // the fixed set chosen at Start of Combat, never re-rolled. Skips while the bleeder is dead / 0-Attack, or once
+  // every mark is dead. Its own beat, so the replay shows the hit as a discrete event.
+  function procBleed(b: { minion: Minion; marked: Minion[] }): void {
     if (b.minion.dead || b.minion.health <= 0 || b.minion.attack <= 0) return;
-    const foe: Side = b.minion.side === 'player' ? 'enemy' : 'player';
-    const pool = living(foe);
-    if (pool.length === 0) return;
-    const picks = [...pool];
-    const chosen: Minion[] = [];
-    for (let i = 0; i < b.targets && picks.length > 0; i++) {
-      chosen.push(picks.splice(rng.int(picks.length), 1)[0]!);
-    }
+    const targets = b.marked.filter((m) => !m.dead && m.health > 0);
+    if (targets.length === 0) return;
+    const amount = b.minion.attack * (b.minion.golden ? 2 : 1);
     nextStep();
     emit({ type: 'sc', source: b.minion.uid, text: `${b.minion.name} bleeds`, cast: true });
-    for (const t of chosen) dealDamage(t, b.minion.attack, false, false, b.minion);
+    for (const t of targets) dealDamage(t, amount, false, false, b.minion);
   }
 
   function performAttack(attacker: Minion, defenderSide: Side, depth: number): void {

@@ -477,6 +477,24 @@ accruals (cloned, not shared); `combatCastGrantText` scales Hoardbreaker's Growt
 leeches the current player's; `snapshotBoard` captures the run-level scalers; `scTribeBuffPerPlayedText` accepts the
 enemy's pre-counted number.
 
+### feat: Compendium — Rune Rewards category
+
+Added a **Rune Rewards** tab to the Compendium left rail, mirroring the existing **Quest Rewards** category but for
+runes. Built from a new `RUNE_REWARD_CARDS` constant that walks every Basic + Epic rune's `reward` (recursing into
+`multi`) for **named** `cards` / `grantGolden` grants — random-tier / random-tribe / random-filter grants have no
+fixed card to show, so they're skipped. Runes aren't tribe-bound (the Runeforge is hero-reached), so the list is
+flat + un-scoped (shown always, like the Runes tab), not run-scoped the way Quest Rewards are.
+
+Surfaces the **11** cards runes hand you — most importantly the two **rune-exclusive tokens** (Feasting Bogrot,
+Reconfigured Combinator) that previously appeared *nowhere* in the Compendium, plus the buyable minions/spells a
+rune grants (Pillager, Soulsman, Spear Warden, Mama Bear, Karwind, Beatbot, Yazzus, Goldcrafter, Front to Back).
+Treated as an exclusive gallery mode alongside Spells / Quest Rewards; factored the "which selected chips are
+tribes" test into a shared `NON_TRIBE_CATS` set so the new category doesn't leak into tribe filtering.
+
+**Verified:** `npm run typecheck && npm run lint && npm run build:web` green; live DOM check in the running app —
+clicking **Rune Rewards** flips the sub-header to "11 rune rewards in the game" and renders exactly those 11 cards
+(Feasting Bogrot + Reconfigured Combinator present).
+
 ### fix: Rune of Action counts every card played, not just board minions
 
 **Bug (owner-reported):** Rune of Action (*End of Turn: give your three left-most minions +1/+1 for each card you

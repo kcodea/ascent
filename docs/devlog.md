@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### feat: Speed Demon (ex-Run Maw) + Herald of the Apocalypse rework
+
+Two reward-minion reworks (the first slice of the deferred new-mechanic batch):
+- **Run Maw → Speed Demon** — Start of Combat now gives every OTHER friendly minion **50% of its own stats**
+  (golden 100%), instead of consuming your weakest minion for a Demon-only buff. New `scBuffAlliesPctSelf` factory;
+  the old `scConsumeWeakestBuffDemons` is retired (kept in the registry). Quest reward id (`runmaw`) unchanged, so
+  Track and Fodder still grants it.
+- **Herald of the Apocalypse** — keeps its Shout (all Demons Consume a Fodder), gains **Rally: add a copy of this
+  minion to your hand** (golden 2 per attack). New `rallyGrantSelfCopy` combat factory (via `ctx.grantToHand`).
+- **Verified**: `typecheck`/`lint`/`test` (975, incl. Speed Demon "other allies get +5/+4, self untouched" + Herald
+  "Rally hands a self-copy" combat tests)/`build:web` green; live — both card texts render, no console errors.
+
 ### balance: quest table v2 (bucket/tier reshuffle + repeatable) + Hoard Cleric
 
 Owner's second quest pass + a card tweak (the data + existing-mechanic parts; new-mechanic quests/cards deferred).

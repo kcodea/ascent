@@ -326,32 +326,36 @@ export const DEMONS: CardDef[] = [
     token: true,
   },
   {
-    // The True Contract reward. Battlecry: every friendly Demon Consumes a Fodder at once — a board-wide feed.
+    // The True Contract reward. Battlecry: every friendly Demon Consumes a Fodder; Rally: each attack hands you
+    // a fresh copy of the Herald — a snowballing board-wide feed.
     id: 'heraldapoc',
     name: 'Herald of the Apocalypse',
     tribe: 'demon',
     tier: 6,
     attack: 5,
     health: 5,
-    keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryAllDemonsConsume' }],
-    text: '**Battlecry:** all of your Demons **Consume** a Fodder.',
-    goldenText: '**Battlecry:** all of your Demons **Consume** 2 Fodder.',
+    keywords: ['RL'],
+    effects: [
+      { on: 'onPlay', do: 'battlecryAllDemonsConsume' },
+      { on: 'onAttack', do: 'rallyGrantSelfCopy' },
+    ],
+    text: '**Shout:** all of your Demons **Consume** a Fodder. **Rally:** add a copy of this minion to your hand.',
+    goldenText: '**Shout:** all of your Demons **Consume** 2 Fodder. **Rally:** add 2 copies of this minion to your hand.',
     token: true,
   },
   {
-    // Maw of the Run reward. Start of Combat: sacrifice your weakest minion and hand 50% of its stats to every
-    // Demon (golden 100%). A payoff that turns a spare body into a board-wide Demon buff.
+    // Track and Fodder reward. Start of Combat: hand every OTHER friendly minion 50% of Speed Demon's own stats
+    // (golden 100%). A big body that shares itself out across the whole board.
     id: 'runmaw',
-    name: 'Run Maw',
+    name: 'Speed Demon',
     tribe: 'demon',
     tier: 6,
     attack: 10,
     health: 8,
     keywords: ['SC'],
-    effects: [{ on: 'startOfCombat', do: 'scConsumeWeakestBuffDemons', params: { pct: 50 } }],
-    text: '**Start of Combat:** consume your weakest minion, then your Demons gain **50%** of its stats.',
-    goldenText: '**Start of Combat:** consume your weakest minion, then your Demons gain **100%** of its stats.',
+    effects: [{ on: 'startOfCombat', do: 'scBuffAlliesPctSelf', params: { pct: 50 } }],
+    text: "**Start of Combat:** give your other minions **50%** of this minion's stats.",
+    goldenText: "**Start of Combat:** give your other minions **100%** of this minion's stats.",
     token: true,
   },
 ];

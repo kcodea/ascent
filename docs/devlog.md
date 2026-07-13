@@ -70,6 +70,30 @@ proves `onImpactAuras` fires **once, at the contact anchor** (co-located with `o
 settle tail — not the old start-relative delay). Existing `score.test.ts`/`engine.test.ts` unaffected (the
 "auraBreak on every kind" assertion already excluded `attackExchange`).
 
+### feat: combat keywords — Bleed (Bloodbinder) + Critical Strike (Commander Impala)
+
+Two new combat mechanics + the two demon cards that carry them:
+- **Critical Strike** — a new `CR` keyword + `CardDef.critChance` (0–1). Each attack SWING rolls (seeded, per swing);
+  a crit deals **double** the outgoing damage (main hit + cleave splash, not the retaliation). The `attack` combat
+  event gains an optional `crit` flag. **Commander Impala** reworked: `['W','DS','CR']` + `critChance: 0.5` (Flurry,
+  Ward, 50% Critical Strike) — the old Slaughter on-kill Fodder/Imp buff is dropped. RNG is only consumed for a
+  minion that actually has `critChance`, so existing replays are unaffected unless a crit minion is present.
+- **Bleed** — a Start-of-Combat effect (`scArmBleed`) that arms a **combat-wide attack counter**: every N attacks
+  made in the fight (either side), the bleeder deals its **current Attack** to T random living enemies (skips while
+  it's dead / 0-Attack). New `ctx.armBleed(minion, everyN, targets)` + a `bleeders`/`globalAttacks` register in the
+  sim; the proc is its own beat (an `sc` "… bleeds" log + the AoE `dmg` hits). **Bloodbinder** reworked: no keywords,
+  `startOfCombat → scArmBleed { every: 6, targets: 3 }`, text "every 6 attacks in combat, deal this minion's Attack
+  to 3 random enemies." (its old alternating Rally-buff-Fodder is retired; the inert `rallyBuffFodderHalf` /
+  `bloodbinderMode` machinery is left in place, like the earlier retired `rallyGiveDemonAttack`).
+- **UI**: `CR` gets a keyword pill ("Critical Strike", target icon) + a Compendium glossary entry; Bleed gets a
+  glossary entry (matches `scArmBleed`). Types/schema updated (`CR` keyword, `scArmBleed` factory, `critChance` field,
+  `armBleed` on `CombatContext`, `crit?` on the attack event).
+- **Verified**: `typecheck`/`lint`/`test` (965, incl. new Bleed "sc every 6 attacks" + Critical Strike "double
+  damage, flagged, deterministic" combat tests)/`build:web` all green; live — Impala shows the Flurry/Ward/Critical
+  Strike pills, Bloodbinder shows the Bleed text, no console errors.
+- **Follow-up**: a dedicated crit VFX in the combat replay (red flash / "CRIT" flourish) — presentation-layer choreo,
+  deferred; the doubled damage number already reads as the tell.
+
 ### balance: hero reworks — Gildmaster, Indy, Yirin + roster trim
 
 Owner hero pass:

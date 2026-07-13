@@ -136,6 +136,12 @@ export function simulate(
     enemy: { attack: 0, health: 0 },
   };
 
+  // Bleed (Bloodbinder): minions armed at Start of Combat that, every `everyN` attack swings made this fight
+  // (either side), deal their current Attack to `targets` random living enemies. `globalAttacks` counts every
+  // swing across the whole combat; `procBleed` fires the AoE. Registered via `ctx.armBleed`.
+  const bleeders: { minion: Minion; everyN: number; targets: number }[] = [];
+  let globalAttacks = 0;
+
   // The Undead Aura is side-scoped for the same reason: an enemy Karthus / Deathswarmer / Watcher grants its
   // Undead aura IN COMBAT (via grantUndeadBuyAtk / grantUndeadAura), and Undead the enemy summons/Reborns after
   // must inherit it — just like the player's. `buyAtk` is the Attack slice baked at buy time (player) or accrued
@@ -415,6 +421,9 @@ export function simulate(
     },
     damage: (target, amount, poison = false, bypassShield = false) =>
       dealDamage(target, amount, poison, bypassShield),
+    armBleed: (minion, everyN, targets) => {
+      if (everyN > 0 && targets > 0) bleeders.push({ minion, everyN, targets });
+    },
     summon: (side, card, nearUid, grantKeywords, golden, attackNow, copyStats) => summonMinion(side, card, nearUid, grantKeywords, golden, attackNow, copyStats),
     grantDeathrattle: (target, effects) => {
       // Graft copied Echoes onto `target` and register them so they fire on its death (Grave Body). Effects were
@@ -1005,6 +1014,23 @@ export function simulate(
     return rng.pick(taunts.length > 0 ? taunts : live);
   }
 
+  // Bleed proc (Bloodbinder): deal the bleeder's current Attack to up to `targets` DISTINCT random living enemies.
+  // Skips while the bleeder is dead / 0-Attack. Its own beat, so the replay shows the AoE as a discrete hit.
+  function procBleed(b: { minion: Minion; targets: number }): void {
+    if (b.minion.dead || b.minion.health <= 0 || b.minion.attack <= 0) return;
+    const foe: Side = b.minion.side === 'player' ? 'enemy' : 'player';
+    const pool = living(foe);
+    if (pool.length === 0) return;
+    const picks = [...pool];
+    const chosen: Minion[] = [];
+    for (let i = 0; i < b.targets && picks.length > 0; i++) {
+      chosen.push(picks.splice(rng.int(picks.length), 1)[0]!);
+    }
+    nextStep();
+    emit({ type: 'sc', source: b.minion.uid, text: `${b.minion.name} bleeds`, cast: true });
+    for (const t of chosen) dealDamage(t, b.minion.attack, false, false, b.minion);
+  }
+
   function performAttack(attacker: Minion, defenderSide: Side, depth: number): void {
     if (attacker.dead || attacker.health <= 0) return;
     nextStep(); // a new exchange begins (re-attacks and Whelp strikes each get their own step too)
@@ -1019,7 +1045,11 @@ export function simulate(
       const target = chooseTarget(defenderSide);
       if (!target) break;
       if (s > 0) nextStep(); // each Windfury swing is its own exchange
-      emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s });
+      // Critical Strike (Commander Impala): roll per swing — a hit doubles this swing's OUTGOING damage (main
+      // hit + cleave splash), not the retaliation. Only consumes RNG for a minion that actually has critChance.
+      const crit = !!attacker.critChance && attacker.critChance > 0 && rng.next() < attacker.critChance;
+      const critMult = crit ? 2 : 1;
+      emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s, ...(crit ? { crit: true } : {}) });
       bus.emit('onAttack', { minion: attacker, side: attacker.side, target }); // Rally + on-attack effects (target = the enemy being hit this swing)
       // The Old Hunt: each Beast attack pumps that SIDE's run-wide Beast Attack aura by `oldHuntStep` — live
       // (every current Beast gains it; later summons inherit via the grown aura). A served enemy pumps its own
@@ -1096,7 +1126,7 @@ export function simulate(
         );
         for (const n of neighbours) {
           victims.push({ m: n, killer: attacker, couldReborn: n.rebornAvailable });
-          applyDamage(n, attacker.attack, poison, false, attacker);
+          applyDamage(n, attacker.attack * critMult, poison, false, attacker);
         }
       }
 
@@ -1106,7 +1136,7 @@ export function simulate(
       const counterAttack = target.attack;
       const counterVenom = target.keywords.includes('V');
       victims.push({ m: target, killer: attacker, couldReborn: targetCouldReborn });
-      applyDamage(target, attacker.attack, poison, false, attacker); // main hit
+      applyDamage(target, attacker.attack * critMult, poison, false, attacker); // main hit (Critical Strike doubles it)
       // Bounty Bot: "immune while attacking" for its first N swings this combat — take no retaliation, and
       // spend one charge of immunity per swing (so it protects the first N attacks, not the first N combats).
       if ((attacker.attackImmuneLeft ?? 0) > 0) {
@@ -1192,6 +1222,12 @@ export function simulate(
         (target.dead || target.health <= 0 || (targetCouldReborn && !target.rebornAvailable));
       if (killed && attacker.reAttackOnKill && !attacker.dead && attacker.health > 0 && depth < REATTACK_GUARD) {
         performAttack(attacker, defenderSide, depth + 1);
+      }
+      // Bleed (Bloodbinder): this swing is one more combat attack — every `everyN`, the armed bleeder(s) fire.
+      // Counted after the clash (and any reattack) resolves, so the AoE lands between exchanges, not mid-clash.
+      if (bleeders.length > 0) {
+        globalAttacks++;
+        for (const b of bleeders) if (globalAttacks % b.everyN === 0) procBleed(b);
       }
     }
   }

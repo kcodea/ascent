@@ -19,6 +19,7 @@ export type Keyword =
   | 'ST' // Stealth — can't be targeted by attacks; lost on attacking
   | 'RL' // Rally — triggers an effect each time this attacks
   | 'SL' // Slaughter — triggers an effect each time this kills an enemy minion
+  | 'CR' // Critical Strike — a chance (see CardDef.critChance) to deal double damage on attack
   | 'EG'; // Engraved — stat gains during combat carry back to the run board (permanent)
 
 export type Tier = 1 | 2 | 3 | 4 | 5 | 6;
@@ -74,6 +75,7 @@ export type EffectFactoryId =
   | 'scDamage'
   | 'scSplitDamage'
   | 'scAoePerTribe'
+  | 'scArmBleed' // Bloodbinder: Start of Combat — arm Bleed (every N combat attacks, deal this minion's Attack to T random enemies)
   | 'scEngraveNeighbor' // Start of Combat: grant Engraved (EG) to the minion(s) adjacent to self (Taurus)
   | 'deathrattleBuffRandom'
   | 'deathrattleBuffAllRandomStat' // Deathrattle: coin-flip a stat, buff every friend +amount of it (Sporeling)
@@ -330,6 +332,9 @@ export interface CardDef {
   /** Demons: stat multiplier when this minion consumes a Fodder (Voracious Imp = 2; golden = +1).
    *  Default (absent) is 1 — a plain Demon gains the fodder's base stats. */
   fodderMult?: number;
+  /** Commander Impala: Critical Strike — the probability (0–1) that each of this minion's attack swings
+   *  deals DOUBLE damage. Seeded off the combat RNG, rolled per swing. Pairs with the 'CR' keyword pill. */
+  critChance?: number;
   /** Money Bot: while this (or a Mech it magnetized into) is on the board, the player's max mana
    *  per turn is raised by this much (golden doubles). Recruit-only; lost when the card leaves. */
   manaPerTurn?: number;
@@ -799,6 +804,8 @@ export interface Minion {
   golden: boolean;
   /** Derived combat capability (Gnasher): attacks again after a kill. */
   reAttackOnKill: boolean;
+  /** Commander Impala: Critical Strike — per-swing chance (0–1) to deal double damage. From the CardDef. */
+  critChance?: number;
   /** Extra magnitude on this minion's summon-buff (Kennelmaster), grown by Avenge in
    *  combat and carried back to the run board afterwards. */
   summonBonus: number;
@@ -894,7 +901,7 @@ export interface MinionSnapshot {
  *  of inferring it. Optional so synthetic fixtures (tests) can omit it; real sim output always carries it. */
 export type CombatEvent = (
   | { type: 'sc'; source: string; text: string; cast?: true } // `cast` = a genuine Start-of-Combat damage cast (UI plays the zap + bolt + flash); absent = mid-combat narration (spell-power gain, etc.) — log + trigger pulse only
-  | { type: 'attack'; attacker: string; defender: string; swing: number }
+  | { type: 'attack'; attacker: string; defender: string; swing: number; crit?: boolean }
   | { type: 'dmg'; target: string; amount: number; remainingHp: number }
   | { type: 'shield'; target: string }
   | { type: 'shieldUp'; target: string }
@@ -1185,4 +1192,7 @@ export interface CombatContext {
   grantFodderBuff(attack: number, health: number, side: Side): void;
   /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). */
   damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean): void;
+  /** Bloodbinder: arm Bleed for this fight — every `everyN` attacks made in the combat (either side), deal this
+   *  minion's current Attack to `targets` random living enemies (skips while the bleeder is dead). */
+  armBleed(minion: Minion, everyN: number, targets: number): void;
 }

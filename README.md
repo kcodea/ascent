@@ -32,6 +32,10 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 - **Ward shatter welded to the hit.** A warded unit's gold bubble used to linger disjointed from the unit after it
   swung; the shatter now fires **at the lunge's real contact** (not a fixed start-relative delay), so the Ward breaks
   with the smack and never trails into the recoil.
+- **Two combat keywords.** **Critical Strike** (new `CR` keyword) — each attack swing has a chance to deal double
+  damage; **Commander Impala** now packs Flurry + Ward + 50% Critical Strike. **Bleed** (Start of Combat) — every few
+  attacks in the fight, the minion hits several random enemies; **Bloodbinder** bleeds for its Attack to 3 enemies
+  every 6 attacks.
 - **Hero reworks.** **Gildmaster** now passively gets a **Goldcrafter** every 4 turns (was the pair-combining
   Golden Gild). **Indy's** Gild recharges after every **40 Gold spent** (was once per game). **Yirin's** spell-power
   step improves every **10** spells cast (was 5). **Herald** removed; **Warden / Myra / Chaos** temporarily

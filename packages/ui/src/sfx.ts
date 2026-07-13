@@ -19,7 +19,11 @@ import {
   type AudioConfig,
   type BusName,
   type CompConfig,
+  type CategoryConfig,
 } from './audio/config';
+import { SCENES } from './audio/scenes';
+
+export { SCENES };
 
 let ctx: AudioContext | null = null;
 let muted = (() => {
@@ -32,9 +36,12 @@ let muted = (() => {
 
 // --- Audio config (levels + buses + limiter) — the single source of truth, read to build/tune the graph.
 // Loaded from localStorage (with a one-time migration of the old per-key gains + master volume) over defaults.
-let cfg: AudioConfig = mergeConfig(DEFAULT_AUDIO_CONFIG, readSavedConfig());
+const cfg: AudioConfig = mergeConfig(DEFAULT_AUDIO_CONFIG, readSavedConfig());
 const busNodes = new Map<BusName, { input: GainNode; comp: DynamicsCompressorNode | null }>();
 let masterGain: GainNode | null = null;
+// Passive AnalyserNode taps for the desk's meters — keyed 'master' + each bus name. Connecting an analyser
+// doesn't alter the audio path (it's a read-only fork), so these are pure telemetry (see meterLevel).
+const analysers = new Map<string, AnalyserNode>();
 
 /** Read the saved config, migrating the legacy `ascent.sfxvol` (per-category gains) + `ascent.vol` (master) keys
  *  the first time (before `ascent.audiocfg` exists). Returns a partial config to merge over the defaults. */
@@ -158,6 +165,16 @@ function audio(): AudioContext | null {
         }
         busNodes.set(b, { input, comp });
       }
+      // Meter taps: a passive analyser on the master limiter + on each bus input (read-only forks; they
+      // don't touch the audio path). fftSize 256 → a small time-domain buffer, plenty for a peak meter.
+      const tap = (key: string, node: AudioNode): void => {
+        const an = ctx!.createAnalyser();
+        an.fftSize = 256;
+        node.connect(an);
+        analysers.set(key, an);
+      };
+      tap('master', master);
+      for (const b of BUS_NAMES) tap(b, busNodes.get(b)!.input);
       prefetchSamples(); // decode the mp3 SFX once the context exists (first user gesture)
     }
     return ctx;
@@ -210,6 +227,12 @@ function loadSample(name: string): void {
 
 function prefetchSamples(): void {
   for (const path of Object.keys(SAMPLE_URLS)) loadSample(sampleName(path));
+}
+
+/** The first real card voiceline clip present (a `cards/*` sample, excluding `.effect`/`.death` variants), or
+ *  undefined if none has been recorded yet. Used by playScene to fill a scene step's `arg: '__first__'`. */
+function firstCardClip(): string | undefined {
+  return Object.keys(SAMPLE_URLS).map(sampleName).find((n) => n.startsWith('cards/') && !n.endsWith('.effect') && !n.endsWith('.death'));
 }
 
 /** Play a decoded sample (fresh BufferSource → overlaps fine) at its CATEGORY's effective gain, routed into that
@@ -529,6 +552,60 @@ const SFX_PREVIEW: Record<string, () => void> = {
 };
 export function previewSfx(key: string): void {
   SFX_PREVIEW[key]?.();
+}
+
+// --- Mixing-desk API — the full audioConfig surface (buses + master limiter + categories) the rebuilt SfxMixer
+//     drives, plus live meters/gain-reduction telemetry off the analyser taps and the test-scene player. ---
+export function getAudioConfig(): AudioConfig {
+  return cfg;
+}
+/** Set a bus's fader gain — live-ramps the running node + persists. */
+export function setBusGain(b: BusName, v: number): void {
+  cfg.buses[b].gain = v;
+  const a = audio();
+  busNodes.get(b)?.input.gain.setTargetAtTime(v, a?.currentTime ?? 0, 0.01);
+  persistConfig();
+}
+/** Set one master-limiter dial (threshold/knee/ratio/attack/release) — live on the node + persists. */
+export function setMasterComp(k: keyof CompConfig, v: number): void {
+  cfg.master[k] = v;
+  if (master) master[k].value = v; // keyof CompConfig ⊂ the node's AudioParam keys, so master[k] is an AudioParam
+  persistConfig();
+}
+/** Patch a category's routing/gain (creating it with sane defaults if new) — persists. */
+export function setCategory(cat: string, patch: Partial<CategoryConfig>): void {
+  cfg.categories[cat] = { bus: 'ui', gain: 0.6, ...(cfg.categories[cat] ?? {}), ...patch };
+  persistConfig();
+}
+/** Peak level 0..1 for a meter key ('master' | bus name). */
+export function meterLevel(key: string): number {
+  const an = analysers.get(key);
+  if (!an) return 0;
+  const buf = new Uint8Array(an.fftSize);
+  an.getByteTimeDomainData(buf);
+  let peak = 0;
+  for (const v of buf) peak = Math.max(peak, Math.abs(v - 128) / 128);
+  return peak;
+}
+/** Master limiter gain-reduction as a 0..~1 bar value. */
+export function gainReduction(): number {
+  return master ? -master.reduction.value / 20 : 0;
+}
+/** The current config serialized (for the desk's export/copy button). */
+export function exportConfig(): string {
+  return JSON.stringify(cfg, null, 2);
+}
+/** Fire a named test scene's steps on the wall clock, filling `arg: '__first__'` with the first card clip. */
+export function playScene(id: string): void {
+  const scene = SCENES.find((s) => s.id === id);
+  if (!scene) return;
+  const first = firstCardClip();
+  for (const step of scene.steps) {
+    window.setTimeout(() => {
+      const fn = (sfx as unknown as Record<string, (arg?: string) => void>)[step.cue];
+      if (fn) fn(step.arg === '__first__' ? first : step.arg);
+    }, step.delay);
+  }
 }
 
 export function isMuted(): boolean {

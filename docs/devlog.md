@@ -91,6 +91,33 @@ Two Mech-capstone quest-reward tweaks:
   break. Implemented as a per-side `onLoseDivineShield` subscription in `simulate` (mirrors Rune of Salvage).
 - **Verified**: `typecheck`/`lint`/`test` (977, incl. Fried Circuits asymmetric escalation + Shared Circuit
   transfer-on-break capped at N)/`build:web` green.
+### feat(audio): mixing desk — config-driven levels + category buses + a metered, tunable master
+
+As hundreds of clips arrive, per-clip hand-tuning + a hardcoded limiter don't scale. All audio dials now live in
+one typed **`audioConfig`** (`packages/ui/src/audio/config.ts`): master limiter, `masterGain`, four **category
+buses** (`ui / combat / voice / hero`), per-category `{ bus, gain }`, and optional per-clip overrides. Seeded
+from the old values so **day-one audio is unchanged**; live config = defaults ⊕ `localStorage` (`ascent.audiocfg`,
+migrating the old `ascent.sfxvol`/`ascent.vol`).
+
+- **Graph (`sfx.ts`)** — `clip/synth → playGain(effectiveGain) → busInput[bus] → (bus comp, off by default) →
+  master limiter → masterGain → mute bus → speakers`. `playSample`/`tone` now take a **category** and resolve
+  gain + bus from the config (replacing the per-call `sampleVol.X` arg + the per-play `masterVol` multiply, now a
+  node). Synth-only combat cues (death/shield/buff/maxgold) route to the combat bus (routing-only; their level
+  stays the cue's literal synth vol). `stopAllAudio`/`resumeAudio`/mute + every cue's fallback/dedup preserved.
+- **Desk API** — `getAudioConfig`/`setBusGain`/`setMasterComp`/`setCategory`, `meterLevel`/`gainReduction`
+  (AnalyserNode taps on master + each bus; passive), `exportConfig`, `playScene` + `SCENES`.
+- **Console (`SfxMixer.tsx` → mixing desk)** — master limiter dials + **live peak & gain-reduction meters**,
+  per-bus faders + meters, categories grouped under their bus (gain slider + bus-reassign dropdown + ▶ preview),
+  **test-scene** buttons (Combat beat / Shop spam / Hero moment / Torture — realistic *stacks* so you tune
+  against overlap), and **Export config** (paste back into `DEFAULT_AUDIO_CONFIG`). Meters animate `transform`
+  only (rAF); dev-only, stripped from prod.
+- **Deferred (config slots exist):** per-bus compressors shipped-on (Approach 2), sidechain ducking, ingest
+  LUFS-normalization.
+
+**Verified:** config + scene unit tests (7 + 3); full gate green (typecheck 0, lint, 986 tests, build:web ✓).
+Day-one audio unchanged by construction (defaults mirror the old limiter + gains; bus gains unity, comps off).
+The live meters/scenes are eyeballed in `npm run dev` (Dev menu → Mixing Desk) — rAF meters can't be seen in a
+headless tab.
 
 ### feat: Den Marker quest — run-wide Den Mother aura (Beasts +2/+2 on play, scaling)
 

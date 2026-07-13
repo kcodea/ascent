@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### feat(ui): Compendium text search
+
+Added a search box to the Compendium header — free-text over card/quest/rune **name + printed text** (so "Imp"
+surfaces Imp King / Burial Imp / Commander Impala plus anything whose text mentions Imps). The search is GLOBAL:
+it scans every in-scope card across all pools (minions + evolutions + spells + quest/rune rewards), ignoring the
+tribe-chip + Spells/Rewards mode toggles, and is still narrowable by the Tier chips; the Quests and Runes tabs
+filter their own lists by name. Header reads "N results for …" while a query is active. Verified live — typing
+"Imp" returns the expected set with no errors.
+
 ### fix: Runeforge-timing + Gravetwin-echo bugs + Demon/Fodder card batch
 
 Owner batch (tabled 2026-07-13). Two bugs + rune/hero/card changes.

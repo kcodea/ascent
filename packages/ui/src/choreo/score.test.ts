@@ -3,6 +3,7 @@ import type { CombatEvent } from '@game/core';
 import type { Moment } from './compile';
 import { sfx } from '../sfx';
 import { SCORE_DEFAULTS, getScore, getCues, setCue, resetScore, scoreJson, runMomentCues } from './score';
+import { momentKind } from './kinds';
 
 const moment = (kind: Moment['kind'], events: CombatEvent[]): Moment => ({ start: 0, end: events.length, primary: events[0]!, stepGroups: [[0]], kind });
 const baseCtx = (events: CombatEvent[], overrides: Partial<Parameters<typeof runMomentCues>[1]> = {}) => ({
@@ -142,5 +143,35 @@ describe('score', () => {
     const c = ctx([{ type: 'buff', target: 'a', source: 'b', attack: 2, health: 1 }]);
     runMomentCues(moment('buffWave', c.events), c);
     expect(c.onSelfBuffs).not.toHaveBeenCalled();
+  });
+});
+
+describe('momentKind → score coverage (every CombatEvent type maps to an iterable score entry)', () => {
+  // Regression for the "cues is not iterable" crash: an unhandled event type made `momentKind` return
+  // undefined, so `getScore()[undefined]` was not iterable (Tauntbreaker's keywordLost; Guel's spellProgress).
+  const sample: CombatEvent[] = [
+    { type: 'attack', attacker: 'a', defender: 'b', swing: 0 },
+    { type: 'dmg', target: 'b', amount: 1, remainingHp: 0 },
+    { type: 'shield', target: 'b' }, { type: 'shieldUp', target: 'b' },
+    { type: 'poison', target: 'b' }, { type: 'venomLost', target: 'b' },
+    { type: 'death', target: 'b' }, { type: 'death', target: 'b', rise: true },
+    { type: 'sc', source: 'a', text: 'x' }, { type: 'summon', side: 'player', index: 0, minion: { uid: 'z', cardId: 'alley', name: 'Alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false } },
+    { type: 'buff', target: 'b', source: 'a', attack: 1, health: 1 },
+    { type: 'reborn', target: 'b', attack: 1, hp: 1, keywords: [] },
+    { type: 'ascend', target: 'b', into: 'taragosa' }, { type: 'rally', source: 'a', target: 'b' },
+    { type: 'toHand', cardId: 'growth' }, { type: 'maxGold', target: 'b', amount: 1 },
+    { type: 'improve', target: 'b', amount: 1 },
+    { type: 'keyword', target: 'b', keyword: 'DS' }, { type: 'keywordLost', target: 'b', keyword: 'T' },
+    { type: 'hpGrant', target: 'b', amount: 2 }, { type: 'spellProgress', target: 'b', amount: 3 },
+    { type: 'reveal', target: 'b' },
+  ] as CombatEvent[];
+
+  it('every event type yields a defined, iterable score entry (never crashes runMomentCues)', () => {
+    const score = getScore();
+    for (const e of sample) {
+      const kind = momentKind(e);
+      expect(score[kind]).toBeDefined(); // getScore()[kind] must be iterable, not undefined
+      expect(Array.isArray(score[kind])).toBe(true);
+    }
   });
 });

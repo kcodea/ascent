@@ -92,7 +92,7 @@ function recordBuff(buffs: MinionBuff[], source: string, attack: number, health:
  * the current beat is kept one beat (rendered with its death pop, no grey) so the
  * killing blow reads, then it's gone next beat.
  */
-function computeFrame(
+export function computeFrame(
   initial: { player: MinionSnapshot[]; enemy: MinionSnapshot[] },
   events: CombatEvent[],
   upto: number,
@@ -196,12 +196,29 @@ function computeFrame(
     } else if (e.type === 'hpGrant') {
       const u = find(e.target);
       if (u) u.hpGrantBonus = e.amount; // Sergeant: absolute cumulative HP-grant bonus → live card text
+    } else if (e.type === 'spellProgress') {
+      const u = find(e.target);
+      if (u) u.spellProgress = e.amount; // Archmagus Guel: on-board spell tally after a combat cast → live countdown
     } else if (e.type === 'improve') {
       const u = find(e.target);
       if (u) u.summonBonus += e.amount; // Kennelmaster's aura climbs mid-fight → live card text
     } else if (e.type === 'summon') {
       const arr = e.side === 'player' ? player : enemy;
       arr.splice(Math.min(e.index, arr.length), 0, fromSnap(e.minion));
+    } else if (e.type === 'ascend') {
+      // A mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen): adopt the new form's identity so
+      // the card's art / name / tribe / rule text / new-form keyword pills update live, exactly as the sim does
+      // in `ascendMinion` (the stat buffs keep landing on the same uid via `buff` events). Without this the card
+      // kept its pre-ascension face for the rest of the replay.
+      const u = find(e.target);
+      const def = CARD_INDEX[e.into];
+      if (u && def) {
+        u.cardId = e.into;
+        u.name = def.name;
+        u.tribe = def.tribe;
+        for (const k of def.keywords) if (!u.keywords.includes(k)) u.keywords.push(k);
+        if (def.keywords.includes('DS')) u.divineShield = true;
+      }
     }
   }
   return { player: player.filter((u) => !gone.has(u.uid)), enemy: enemy.filter((u) => !gone.has(u.uid)) };
@@ -647,6 +664,14 @@ export function useCombatReplay(
     }
     if (trig.size === 0) return;
     sfx.triggerPulse(); // once per beat regardless of how many units pulse (the dedupe is built in too)
+    // Each triggering unit also plays its OWN effect voiceline (cards/<id>.effect.mp3) — the combat half of the
+    // per-card effect sound (the shop half fires from store.ts on a Battlecry). Deduped by cardId so a beat with
+    // several copies of one card firing plays that clip once. Silent until the clip is recorded.
+    const firedEffect = new Set<string>();
+    for (const uid of trig) {
+      const cid = cardIds.get(uid);
+      if (cid && !firedEffect.has(cid)) { firedEffect.add(cid); sfx.cardEffect(cid); }
+    }
     setTriggers((prev) => new Set([...prev, ...trig]));
     const t = window.setTimeout(() => setTriggers((prev) => {
       const next = new Set(prev);
@@ -679,6 +704,7 @@ export function useCombatReplay(
     for (let i = beat.start; i < beat.end; i++) { const e = events[i]; if (e?.type === 'reborn') rebornRects.set(e.target, rectOf(e.target)); }
     const stop = runMomentCues(beat, {
       events,
+      cardIds, // lets the sfx channel play a dying unit's own death voiceline (cards/<id>.death.mp3)
       combatSpeed: combatSpeedRef.current,
       onShake: () => setShake((n) => n + 1),
       findEl,

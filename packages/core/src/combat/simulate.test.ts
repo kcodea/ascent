@@ -29,6 +29,16 @@ describe('simulate (handoff A.3)', () => {
     expect(a.playerDamage).toBe(b.playerDamage);
   });
 
+  it('Bloodlust weld: a bloodlustRally attacker gives a friendly minion its Attack on each of its own swings', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'pack', attack: 5, health: 30, bloodlustRally: true }, // the Bloodlust target
+      { cardId: 'alley', attack: 0, health: 30 }, // the friend that should receive its Attack
+    ];
+    const a = run(p, [{ cardId: 'sandbag', attack: 0, health: 200 }], 1);
+    // A `buff` event sourced 'Bloodlust' lands on the friend (Attack only), proving the welded Rally fired.
+    expect(a.events.some((e) => e.type === 'buff' && e.source === 'Bloodlust' && e.attack > 0)).toBe(true);
+  });
+
   it('carries the recruit-phase buff breakdown into the initial snapshot (for the combat inspect)', () => {
     // A board minion enters combat with a recruit-buff breakdown; the snapshot the UI reads must keep it
     // so right-click inspect can itemize recruit buffs in combat (parity with the shop panel).
@@ -1660,6 +1670,20 @@ describe('simulate (handoff A.3)', () => {
     expect(pre.some((e) => e.type === 'death' && e.target === blmUid)).toBe(false); // immune — no retaliation death
   });
 
+  it('Bloodlust also fires for the ENEMY side (a served board reproduces its opening strike)', () => {
+    // Fidelity: a captured opponent with a pending Bloodlust must take its Start-of-Combat strike too — the
+    // sim's SoC loop now iterates both boards (flushImmediateAttacks strikes OTHER[side]).
+    const a = simulate(
+      [{ cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] }],
+      [{ cardId: 'alley', attack: 3, health: 2, bloodlust: true }],
+      makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, {},
+    );
+    const enemyBlm = a.initial.enemy[0]!.uid;
+    const firstDmg = a.events.findIndex((e) => e.type === 'dmg');
+    // The very first damage of the fight comes from the enemy Bloodlust's out-of-turn opening swing.
+    expect(a.events.slice(0, firstDmg + 1).some((e) => e.type === 'attack' && e.attacker === enemyBlm)).toBe(true);
+  });
+
   it('Umbral Energy (Dragon greater): Start of Combat gives Dragons +2/+2 per spell cast this game', () => {
     // spellsCast (10th arg) = 3 → +6/+6 on the Dragon at SoC; questMods.umbralEnergy is the last arg.
     const a = simulate(
@@ -2815,7 +2839,8 @@ describe('Epic combat runes (Rising Graves / Broodpit / Spearline / Appraisal)',
     ];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }];
     const r = simMods(p, e, 1, { runeRisingGraves: true });
-    expect(r.events.filter((ev) => ev.type === 'sc' && ev.text === 'Rise').length).toBe(2);
+    // Emits a foldable `keyword` R grant (so the pill shows in the replay), not a display-silent `sc`.
+    expect(r.events.filter((ev) => ev.type === 'keyword' && ev.keyword === 'R').length).toBe(2);
   });
 
   it('Broodpit: 6 friendly deaths summon 2 Taunt Imps', () => {
@@ -2913,5 +2938,118 @@ describe('Rune of the Warden (Start of Combat: summon a Spear Warden if there is
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 10 }];
     const r = simMods(p, e, 1, { runeWarden: true });
     expect(r.events.some((ev) => ev.type === 'summon' && ev.minion?.cardId === 'knit')).toBe(false);
+  });
+});
+
+describe('enemy run-level scalers (per-side)', () => {
+  // Full positional call so we can pass the PLAYER scalers (spellsThisTurn / beastsPlayedThisTurn) AND the
+  // ENEMY's captured scalers (last arg) independently — proving an enemy scaling card reads its OWN value.
+  const runVs = (
+    p: BoardMinion[], e: BoardMinion[],
+    enemyScalers: { spellsThisTurn?: number; beastsPlayed?: number; deathrattles?: number; spellPowerAtk?: number; spellPowerHp?: number },
+    player: { spellsThisTurn?: number; beastsPlayed?: number } = {},
+  ) =>
+    simulate(p, e, makeRng(1), CARD_INDEX,
+      player.spellsThisTurn ?? 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false,
+      player.beastsPlayed ?? 0, 0, 0, 0, {}, enemyScalers);
+  // Only the enemy scaling card buffs in these setups (the player is a vanilla wall), so the biggest buff
+  // Attack across the log IS that card's grant.
+  const maxBuffAtk = (evs: CombatEvent[]): number =>
+    evs.reduce((mx, ev) => (ev.type === 'buff' && ev.attack > mx ? ev.attack : mx), 0);
+  const wall: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 40, keywords: [] }];
+
+  it('enemy Pack Leader scales with the OPPONENT’s Beasts-played, and never leeches the current player’s', () => {
+    const enemy: BoardMinion[] = [{ cardId: 'packleader', attack: 6, health: 6, keywords: [] }];
+    const g = (enemyBeasts: number, playerBeasts: number) =>
+      maxBuffAtk(runVs(wall, enemy, { beastsPlayed: enemyBeasts }, { beastsPlayed: playerBeasts }).events);
+    expect(g(3, 0)).toBe(2 + 2 * 3); // base 2 + perPlayed 2 × its own 3 = +8/+8 (buffs itself, a Beast)
+    expect(g(3, 0)).toBeGreaterThan(g(1, 0)); // scales with ITS beasts-played
+    expect(g(0, 5)).toBe(g(0, 0)); // and does NOT leech the player's 5 (would be +12 if it did)
+  });
+
+  it('enemy Runescale Drake scales with the OPPONENT’s spells-this-turn, not the current player’s', () => {
+    const enemy: BoardMinion[] = [{ cardId: 'runescale', attack: 6, health: 6, keywords: [] }];
+    const g = (enemySpells: number, playerSpells: number) =>
+      maxBuffAtk(runVs(wall, enemy, { spellsThisTurn: enemySpells }, { spellsThisTurn: playerSpells }).events);
+    expect(g(3, 0)).toBe(2 + 1 * 3); // base 2 + perSpell 1 × its own 3 = +5/+5
+    expect(g(0, 5)).toBe(g(0, 0)); // does NOT leech the player's spells-this-turn
+  });
+});
+
+describe('live-display events (combat cards update in real time)', () => {
+  const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, mods);
+
+  it('Trophy Stalker emits an `improve` event each attack so its live grant climbs on the card', () => {
+    // Its "+M/+M" (summonBonus) rises on every attack; without the event the frame fold froze the displayed value.
+    const a = run([{ cardId: 'trophystalker', attack: 3, health: 40 }], [{ cardId: 'sandbag', attack: 0, health: 40 }], 1);
+    const stalker = a.initial.player[0]!.uid;
+    expect(a.events.some((ev) => ev.type === 'improve' && ev.target === stalker)).toBe(true);
+  });
+
+  it('Rune of Rising Graves emits a foldable `keyword` R event (the pill shows), not a display-silent `sc`', () => {
+    const a = simMods([{ cardId: 'knit', attack: 2, health: 5 }], [{ cardId: 'sandbag', attack: 0, health: 10 }], 1, { runeRisingGraves: true });
+    const undead = a.initial.player[0]!.uid;
+    expect(a.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'R' && ev.target === undead)).toBe(true);
+  });
+
+  it('Archmagus Guel: combat spell casts tick his per-instance tally (live `spellProgress` event + carry-back)', () => {
+    // Taragosa casts Growth on every ally attack → a real combat spell cast → Guel's per-instance tally ticks.
+    const a = run(
+      [{ cardId: 'guel', attack: 2, health: 30, sourceUid: 'G', spellProgress: 3 }, { cardId: 'taragosa', attack: 4, health: 30 }],
+      [{ cardId: 'sandbag', attack: 0, health: 80 }], 1,
+    );
+    const guel = a.initial.player.find((m) => m.cardId === 'guel')!.uid;
+    expect(a.events.some((ev) => ev.type === 'spellProgress' && ev.target === guel)).toBe(true); // live countdown updates
+    const carried = a.playerSpellProgress?.find((x) => x.sourceUid === 'G');
+    expect(carried?.progress).toBeGreaterThan(3); // combat casts persist above the seeded 3
+  });
+
+  it('Spirit Pup: combat spell casts count toward its transform (live `spellProgress` event + carry-back)', () => {
+    const a = run(
+      [{ cardId: 'spiritpup', attack: 2, health: 30, sourceUid: 'SP', spellProgress: 5 }, { cardId: 'taragosa', attack: 4, health: 30 }],
+      [{ cardId: 'sandbag', attack: 0, health: 80 }], 1,
+    );
+    const pup = a.initial.player.find((m) => m.cardId === 'spiritpup')!.uid;
+    expect(a.events.some((ev) => ev.type === 'spellProgress' && ev.target === pup)).toBe(true); // live countdown ticks in combat
+    expect(a.playerSpellProgress?.find((x) => x.sourceUid === 'SP')?.progress).toBeGreaterThan(5); // combat casts carry back
+  });
+});
+
+describe('served enemy quest/rune COMBAT effects (per-side questMods)', () => {
+  // enemyQuestMods is the LAST simulate arg (after questMods + enemyScalers) — a served board's captured mods.
+  const simEnemy = (p: BoardMinion[], e: BoardMinion[], seed: number, enemyMods = {}, enemyScalers = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, {}, enemyScalers, enemyMods);
+  const simPlayer = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, mods);
+
+  it('an ENEMY Rune of Warding wards the ENEMY leftmost minion (its own rune, not the player’s)', () => {
+    const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 20, keywords: ['T'] }];
+    const e: BoardMinion[] = [{ cardId: 'gnash', attack: 5, health: 8 }];
+    const warded = (mods: object) => {
+      const r = simEnemy(p, e, 1, mods);
+      const lead = r.initial.enemy[0]!.uid;
+      return r.events.some((ev) => ev.type === 'shieldUp' && ev.target === lead);
+    };
+    expect(warded({ runeWarding: true })).toBe(true); // the served enemy runs its own rune
+    expect(warded({})).toBe(false); // without the captured mod, no ward
+  });
+
+  it('an ENEMY Rune of Rising Graves gives the ENEMY Undead Rise', () => {
+    const r = simEnemy([{ cardId: 'sandbag', attack: 0, health: 20 }], [{ cardId: 'knit', attack: 2, health: 5 }], 1, { runeRisingGraves: true });
+    expect(r.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'R' && ev.target === r.initial.enemy[0]!.uid)).toBe(true);
+  });
+
+  it('an ENEMY Umbral Energy buffs the ENEMY Dragons per its captured lifetime spellsCast', () => {
+    const r = simEnemy([{ cardId: 'sandbag', attack: 0, health: 40 }], [{ cardId: 'bronzewarden', attack: 3, health: 40 }], 1, { umbralEnergy: true }, { spellsCast: 3 });
+    // +2/+2 × 3 spells = +6/+6 on the enemy Dragon at Start of Combat.
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === r.initial.enemy[0]!.uid && ev.attack === 6)).toBe(true);
+  });
+
+  it('the player’s questMods never leak onto the enemy (enemyQuestMods empty → no enemy ward)', () => {
+    const r = simPlayer([{ cardId: 'gnash', attack: 5, health: 8 }], [{ cardId: 'sandbag', attack: 0, health: 20 }], 1, { runeWarding: true });
+    // Player's Warding wards the PLAYER leftmost, not the enemy.
+    expect(r.events.some((ev) => ev.type === 'shieldUp' && ev.target === r.initial.player[0]!.uid)).toBe(true);
+    expect(r.events.some((ev) => ev.type === 'shieldUp' && ev.target === r.initial.enemy[0]!.uid)).toBe(false);
   });
 });

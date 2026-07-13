@@ -10,11 +10,12 @@
  * replay re-runs byte-identically — so every round's board is reconstructable headlessly from a few KB,
  * no need to store each board live. `replayRun` turns a replay into the per-wave snapshots.
  */
-import { makeRng, type BoardMinion, type CombatOutcome, type Rng, type Tribe } from '@game/core';
+import { makeRng, type BoardMinion, type CombatOutcome, type QuestCombatMods, type Rng, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { HEROES } from './heroes';
 import { createRun, type Action, type RunState, type ShopCard } from './state';
-import { reduce } from './reducer';
+import { reduce, questCombatMods } from './reducer';
+import { spellAttackBonus, spellHealthBonus } from './recruit';
 import type { ThreatId } from './threats';
 
 /** Where a pool board came from. 'self' = your own captured run; 'friend' = a friend's imported board;
@@ -79,6 +80,24 @@ export interface BoardSnapshot {
    *  board), unlike `power`. Baked by `npm run pool`; the basis for pool curation / pruning weak boards.
    *  Optional (legacy/runtime boards may lack it). */
   rating?: number;
+  /** The owner's run-LEVEL combat scalers at capture — so when this board is served as an opponent, its
+   *  Grim / Taragosa / Watcher / Hoardbreaker / Pack Leader / Runescale scale with the value THIS run had, not
+   *  the current player's (threaded per-side into `simulate` as `enemyScalers`). All optional / omitted when 0;
+   *  legacy + procedural boards lack them → treated as 0 (the card's printed base, which is then accurate). */
+  spellPower?: { attack: number; health: number }; // hero amplify + card spell bonus (Taragosa/Watcher/Hoardbreaker)
+  deathrattles?: number; // Deathrattles triggered this game so far (Grim)
+  spellsThisTurn?: number; // spells cast this recruit turn (Runescale Drake)
+  beastsPlayed?: number; // Beasts played this recruit turn (Pack Leader)
+  spellsCast?: number; // lifetime spells cast this run (enemy Umbral Energy)
+  beastBuyAtk?: number; // run-wide Beast Attack aura (enemy Beast aura)
+  /** The owner's assembled quest/rune COMBAT modifiers (the `questCombatMods` output) — so a served board
+   *  reproduces its runes/quests at Start of Combat / on avenge / etc. Omitted when empty. */
+  questMods?: QuestCombatMods;
+  /** The owner's ACTIVE reward trophies at capture — completed quest ids + owned rune ids — so the opponent
+   *  frame can show the same badges the player sees above their own frame. Only active rewards (a quest that's
+   *  completed, a rune that's been bought). Omitted when empty; opponent-frame intel only, never read by combat. */
+  quests?: string[]; // completed quest ids (QUEST_INDEX)
+  runes?: string[]; // owned rune ids (RUNE_INDEX)
 }
 
 /**
@@ -137,6 +156,8 @@ function cleanBoard(s: RunState): BoardMinion[] {
     health: c.health,
     keywords: [...c.keywords],
     ...(c.golden ? { golden: true } : {}),
+    ...(c.addedTribes && c.addedTribes.length ? { addedTribes: [...c.addedTribes] } : {}), // Anomaly Reactor: a spell-added tribe (combat folds it into tribe2; the display badge reads it)
+    ...(c.bloodlust ? { bloodlust: true } : {}), // Bloodlust: a pending Start-of-Combat immune out-of-turn strike
     ...(c.summonBonus ? { summonBonus: c.summonBonus } : {}),
     ...(c.rallyMechAtk ? { rallyMechAtk: c.rallyMechAtk } : {}),
     ...(c.rallySpellWeld ? { rallySpellWeld: c.rallySpellWeld } : {}),
@@ -162,6 +183,22 @@ function cleanBoard(s: RunState): BoardMinion[] {
  */
 export function snapshotBoard(s: RunState): BoardSnapshot {
   const minions = cleanBoard(s);
+  // Run-LEVEL combat scalers at capture, so a served opponent's Grim / Taragosa / Pack Leader / Runescale
+  // scales with the value THIS run had (threaded per-side into simulate as `enemyScalers`). Beasts-played
+  // mirrors the reducer's own combat derivation (playedThisTurn, filtered to Beasts). Each field is omitted
+  // when 0 so plain boards stay lean and legacy captures (no field → 0) read the card's accurate printed base.
+  const spellPowerAtk = spellAttackBonus(s);
+  const spellPowerHp = spellHealthBonus(s);
+  const beastsPlayed = (s.playedThisTurn ?? []).filter((id) => {
+    const d = CARD_INDEX[id];
+    return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast');
+  }).length;
+  // Active reward trophies — the same set the player sees in their own badges (completed quests + owned runes).
+  const quests = (s.activeQuests ?? []).filter((q) => q.completed).map((q) => q.questId);
+  const runes = [...(s.ownedRunes ?? [])];
+  // The assembled quest/rune combat modifiers — so a served board reproduces its runes/quests in combat.
+  const qmods = questCombatMods(s);
+  const hasQmods = Object.keys(qmods).length > 0;
   return {
     v: 1,
     wave: s.wave,
@@ -177,6 +214,15 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     power: sumPower(minions),
     minions,
     seed: s.seed,
+    ...(spellPowerAtk || spellPowerHp ? { spellPower: { attack: spellPowerAtk, health: spellPowerHp } } : {}),
+    ...(s.deathrattlesTriggered ? { deathrattles: s.deathrattlesTriggered } : {}),
+    ...(s.spellsThisTurn ? { spellsThisTurn: s.spellsThisTurn } : {}),
+    ...(beastsPlayed ? { beastsPlayed } : {}),
+    ...(s.spellsCast ? { spellsCast: s.spellsCast } : {}),
+    ...(s.beastBuyAtk ? { beastBuyAtk: s.beastBuyAtk } : {}),
+    ...(hasQmods ? { questMods: qmods } : {}),
+    ...(quests.length ? { quests } : {}),
+    ...(runes.length ? { runes } : {}),
   };
 }
 

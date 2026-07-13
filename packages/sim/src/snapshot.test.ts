@@ -51,11 +51,56 @@ describe('board snapshot + replay', () => {
       board: [
         { uid: 'sg', cardId: 'sergeant', tribe: 'undead', attack: 5, health: 5, keywords: [], golden: false, hpGrantBonus: 8 },
         { uid: 'ta', cardId: 'tara', tribe: 'dragon', attack: 9, health: 9, keywords: ['EG'], golden: false, ascendProgress: 15 },
+        { uid: 'mo', cardId: 'moe', tribe: 'demon', attack: 4, health: 4, keywords: [], golden: false, addedTribes: ['mech'], bloodlust: true },
       ],
     };
     const snap = snapshotBoard(s);
     expect(snap.minions.find((m) => m.cardId === 'sergeant')?.hpGrantBonus).toBe(8);
     expect(snap.minions.find((m) => m.cardId === 'tara')?.ascendProgress).toBe(15);
+    // Anomaly Reactor's spell-added tribe + a pending Bloodlust strike are part of the board's real state.
+    expect(snap.minions.find((m) => m.cardId === 'moe')?.addedTribes).toEqual(['mech']);
+    expect(snap.minions.find((m) => m.cardId === 'moe')?.bloodlust).toBe(true);
+  });
+
+  it('snapshotBoard captures the run-LEVEL scalers (spell power / Deathrattles / spells / Beasts played)', () => {
+    // So a served opponent's Grim / Taragosa / Pack Leader / Runescale fights + reads at the value THIS run had.
+    const s: RunState = {
+      ...createRun(1), spellBonus: { attack: 2, health: 1 }, deathrattlesTriggered: 4, spellsThisTurn: 3,
+      playedThisTurn: ['alley'], // a Beast → beastsPlayed 1
+      board: [{ uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    const snap = snapshotBoard(s);
+    expect(snap.spellPower).toEqual({ attack: 2, health: 1 });
+    expect(snap.deathrattles).toBe(4);
+    expect(snap.spellsThisTurn).toBe(3);
+    expect(snap.beastsPlayed).toBe(1);
+    const plain = snapshotBoard({ ...createRun(1), board: [{ uid: 'p', cardId: 'pack', tribe: 'beast', attack: 3, health: 4, keywords: [], golden: false }] });
+    expect(plain.spellPower).toBeUndefined(); // a plain run omits them all (absent → 0 downstream)
+    expect(plain.deathrattles).toBeUndefined();
+  });
+
+  it('snapshotBoard captures the ACTIVE reward trophies (completed quests + owned runes) for the opponent frame', () => {
+    const s: RunState = {
+      ...createRun(1),
+      activeQuests: [
+        { questId: 'q_done', completed: true, progress: 5 },
+        { questId: 'q_wip', completed: false, progress: 2 },
+      ],
+      ownedRunes: ['rune_warding'],
+      board: [{ uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    const snap = snapshotBoard(s);
+    expect(snap.quests).toEqual(['q_done']); // only COMPLETED quests (the active reward), not the in-progress one
+    expect(snap.runes).toEqual(['rune_warding']);
+    // Combat fidelity: the assembled quest/rune combat mods + lifetime spellsCast / Beast aura are captured too.
+    const s2: RunState = { ...createRun(1), questFlags: { runeWarding: true }, spellsCast: 5, beastBuyAtk: 2, board: s.board };
+    const snap2 = snapshotBoard(s2);
+    expect(snap2.questMods?.runeWarding).toBe(true);
+    expect(snap2.spellsCast).toBe(5);
+    expect(snap2.beastBuyAtk).toBe(2);
+    const plain = snapshotBoard({ ...createRun(1), board: [{ uid: 'p', cardId: 'pack', tribe: 'beast', attack: 3, health: 4, keywords: [], golden: false }] });
+    expect(plain.quests).toBeUndefined(); // omitted when none
+    expect(plain.runes).toBeUndefined();
   });
 
   it('snapshotBoard captures the per-source buff breakdown (for the inspect panel), cloned from the board', () => {
@@ -148,6 +193,7 @@ describe('opponentBoard — enemy Soren Reclaim mark', () => {
       { cardId: 'monk', attack: 4, health: 5, keywords: [], overflowBonus: 4 },
       { cardId: 'betterbot', attack: 5, health: 5, keywords: [], rallyMechAtk: 5 },
       { cardId: 'pack', attack: 3, health: 4, keywords: [], buffs: [{ source: 'Spirit Fire', attack: 2, health: 2, count: 1 }] },
+      { cardId: 'moe', attack: 4, health: 4, keywords: [], addedTribes: ['mech'], bloodlust: true }, // Anomaly Reactor tribe + Bloodlust
     ]);
     const board = opponentBoard(snap);
     const by = (id: string): BoardMinion => board.find((m) => m.cardId === id)!;
@@ -158,5 +204,7 @@ describe('opponentBoard — enemy Soren Reclaim mark', () => {
     expect(by('betterbot').rallyMechAtk).toBe(5);
     expect(by('pack').buffs).toEqual([{ source: 'Spirit Fire', attack: 2, health: 2, count: 1 }]);
     expect(by('pack').buffs).not.toBe(snap.minions.find((m) => m.cardId === 'pack')!.buffs); // cloned, not shared
+    expect(by('moe').addedTribes).toEqual(['mech']); // spell-added tribe survives → enemy tribe synergies still count
+    expect(by('moe').bloodlust).toBe(true); // Bloodlust opening strike survives
   });
 });

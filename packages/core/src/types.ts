@@ -710,6 +710,9 @@ export interface BoardMinion {
   /** Bloodlust: at Start of Combat this minion takes an immediate out-of-turn attack, immune to retaliation for
    *  that swing ("cannot die from that attack"). Spell-applied in recruit; consumed by this one combat. */
   bloodlust?: boolean;
+  /** Bloodlust weld: the Bloodlust spell also grants its target a Rally — on each of its own attacks, give a
+   *  random friendly minion Attack equal to this minion's Attack. One-fight, like `bloodlust` (stripped at settle). */
+  bloodlustRally?: boolean;
   /** Extra magnitude added to this minion's summon-buff effect (Kennelmaster's Avenge
    *  improvements, persisted across the run). Default 0. */
   summonBonus?: number;
@@ -780,6 +783,9 @@ export interface Minion {
   rallySpellWeld?: number;
   /** Bloodlust: at Start of Combat, take an immediate out-of-turn attack, immune to retaliation for that swing. */
   bloodlust?: boolean;
+  /** Bloodlust weld: on each of its own attacks, give a random friendly minion Attack equal to this minion's
+   *  Attack (the Rally the Bloodlust spell grants alongside the immune swing). One-fight. */
+  bloodlustRally?: boolean;
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };
@@ -867,13 +873,34 @@ export type CombatEvent = (
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
   | { type: 'toHand'; cardId: string; side: Side; source?: string } // a combat effect adds a card to your hand (Arcane Weaver)
   | { type: 'hpGrant'; target: string; amount: number } // Sergeant: live HP-grant amount after each Attack-gain improvement
+  | { type: 'spellProgress'; target: string; amount: number } // Archmagus Guel: on-board spell tally after a combat cast (live countdown)
 ) & { step?: number };
 
 export type CombatOutcome = 'win' | 'lose' | 'draw';
 
+/** The ENEMY board's run-level combat scalers, captured in its board snapshot and threaded into `simulate`
+ *  so an enemy Grim / Taragosa / Watcher / Hoardbreaker / Pack Leader / Runescale scales with the OPPONENT's
+ *  values, not the current player's. All optional (default 0 — procedural threat / legacy boards). */
+export interface EnemyScalers {
+  spellPowerAtk?: number;
+  spellPowerHp?: number;
+  spellsThisTurn?: number;
+  beastsPlayed?: number;
+  deathrattles?: number;
+  /** Lifetime spells cast this run (Umbral Energy scales Dragons +2/+2 per spell) — for an enemy capstone. */
+  spellsCast?: number;
+  /** The run-wide Beast Attack aura (The Old Hunt / Pack Mentality's Attack half) — for the enemy Beast aura. */
+  beastBuyAtk?: number;
+}
+
 export interface CombatResult {
   events: CombatEvent[];
   result: CombatOutcome;
+  /** The enemy board's run-level scalers at combat start (from its snapshot) — so the UI can render an ENEMY
+   *  Grim / Taragosa / Pack Leader / Runescale card at the OPPONENT's value, not the current player's. Absent
+   *  for the procedural threat / when nothing scaled. Mirrors the values threaded into `simulate` as
+   *  `enemyScalers` and used per-side by the combat effects. */
+  enemyScalers?: { spellPower: { attack: number; health: number }; spellsThisTurn: number; beastsPlayed: number; deathrattles: number };
   /** Resolve the player loses on defeat (handoff A.3 step 9). 0 otherwise. */
   playerDamage: number;
   /** Player-side Deathrattles that fired this combat — the run loop accumulates these into the run-wide
@@ -925,6 +952,10 @@ export interface CombatResult {
    *  plus any improvements from Attack gained in combat. Persisted to the run board so the improvement is
    *  permanent across fights (only minions whose bonus is > 0). */
   playerHpGrantBonus?: { sourceUid: string; bonus: number }[];
+  /** Archmagus Guel's on-board spell tally after this combat, per board card uid — the seeded value plus this
+   *  combat's spell casts (spells cast WITH him on board count too, matching the recruit half). Persisted to
+   *  the run board so his per-instance improvement is permanent. */
+  playerSpellProgress?: { sourceUid: string; progress: number }[];
   /** Tara's stat-grant tally this combat, per board card uid — accumulated onto `ascendProgress` and, at the
    *  threshold, transformed to its ascend form in settleCombat. */
   playerAscendCount?: { sourceUid: string; count: number }[];
@@ -992,16 +1023,29 @@ export interface CombatContext {
   readonly bus: CombatBus;
   readonly boards: Record<Side, Minion[]>;
   readonly events: CombatEvent[];
-  /** Spells cast this turn (recruit), frozen at combat start — scales Runescale Drake's Start-of-Combat buff. */
+  /** Spells cast this turn (recruit) for the PLAYER, frozen at combat start. Prefer `spellsThisTurnFor(side)`
+   *  so an ENEMY Runescale Drake scales with the OPPONENT's spells (captured in its board snapshot), not yours. */
   readonly spellsThisTurn: number;
-  /** Beasts you PLAYED this turn (recruit), frozen at combat start — scales Pack Leader's Start-of-Combat buff. */
+  /** Beasts the PLAYER played this turn (recruit), frozen at combat start. Prefer `beastsPlayedFor(side)` so an
+   *  ENEMY Pack Leader scales with the OPPONENT's Beasts-played. */
   readonly beastsPlayedThisTurn: number;
-  /** The run's spell power at combat start ({attack, health} — hero amplify + card spell bonus). Taragosa's
-   *  Growth is a real spell cast, so it inherits this just like a shop-cast Growth does. */
+  /** The PLAYER's live spell power ({attack, health}) — grows in place via `grantSpellPower`. Prefer
+   *  `spellPowerFor(side)` for effects on either board; an ENEMY Taragosa/Watcher/Hoardbreaker must scale with
+   *  the OPPONENT's captured spell power (`enemySpellPower`), not the current player's. */
   readonly spellPower: { attack: number; health: number };
-  /** Deathrattles triggered this game so far: the run-wide base (passed in) + this combat's player
-   *  Deathrattles. Grim scales its buff by this. */
-  deathrattleTally(): number;
+  /** The enemy board's spell power at combat start ({attack, health}), from its board snapshot — static
+   *  (enemies never gain spell power mid-fight). 0 for the procedural threat / legacy boards. */
+  readonly enemySpellPower: { attack: number; health: number };
+  /** Per-side spell power: the player's live value, or the enemy's captured value. Use this in any combat
+   *  effect that casts a spell / folds spell power, keyed on the acting minion's `side`. */
+  spellPowerFor(side: Side): { attack: number; health: number };
+  /** Per-side "spells cast this turn" — player's, or the opponent's captured value. */
+  spellsThisTurnFor(side: Side): number;
+  /** Per-side "Beasts played this turn" — player's, or the opponent's captured value. */
+  beastsPlayedFor(side: Side): number;
+  /** Deathrattles triggered this game so far, for `side`: for the PLAYER the run-wide base + this combat's
+   *  player Deathrattles; for the ENEMY the opponent's captured tally. Grim scales its buff by this. */
+  deathrattleTally(side: Side): number;
   log(event: CombatEvent): void;
   living(side: Side): Minion[];
   getCard(id: string): CardDef;

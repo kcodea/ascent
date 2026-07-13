@@ -118,12 +118,14 @@ export function summonScalingText(cardId: string, spellsThisTurn: number, played
  * this turn. Surface the current grant (green) — (base + perPlayed × played) × golden — in place of the first
  * printed "+A/+B" (the grant), leaving the "+step/+step" improve rate. Null before any qualifying play.
  */
-export function scTribeBuffPerPlayedText(cardId: string, golden: boolean, playedThisTurn: string[] | undefined): string | null {
+export function scTribeBuffPerPlayedText(cardId: string, golden: boolean, playedThisTurn: string[] | number | undefined): string | null {
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'scTribeBuffPerPlayed');
   if (!def || !eff) return null;
   const tribe = String((eff.params as { tribe?: string })?.tribe ?? 'beast') as Tribe;
-  const played = countPlayed(playedThisTurn, [tribe]);
+  // Player: count the qualifying plays from the card-id array. Enemy (served board): the count is pre-computed
+  // in its snapshot (`beastsPlayed`) — the card ids aren't carried — so a number passes straight through.
+  const played = typeof playedThisTurn === 'number' ? playedThisTurn : countPlayed(playedThisTurn, [tribe]);
   if (played <= 0) return null;
   const base = Number((eff.params as { attack?: number })?.attack ?? 2);
   const per = Number((eff.params as { perPlayed?: number })?.perPlayed ?? 2);

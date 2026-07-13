@@ -214,7 +214,7 @@ export const NEUTRAL: CardDef[] = [
     health: 4,
     keywords: ['DS', 'W'],
     effects: [{ on: 'onAttack', do: 'onAttackStripKeywords', params: { keywords: ['T', 'R'] } }],
-    text: 'After this attacks, the enemy it hits loses **Taunt** and **Rise**.',
+    text: '**Rally:** Remove **Taunt** and **Rise** from the target before striking.',
   },
   {
     // Spell-Discover Battlecry — opens a Discover of three random spells (the normal Discover only offers

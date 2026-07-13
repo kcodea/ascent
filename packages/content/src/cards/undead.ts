@@ -325,8 +325,8 @@ export const UNDEAD: CardDef[] = [
     name: 'Bone Taxer',
     tribe: 'undead',
     tier: 3,
-    attack: 2,
-    health: 3,
+    attack: 5,
+    health: 7,
     keywords: [],
     effects: [
       { on: 'avenge', do: 'avengeBonusGold', params: { count: 4, amount: 2 } },

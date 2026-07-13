@@ -17,7 +17,7 @@ export type HeroPowerKind =
   | 'spellAmplify' // Rohan (passive): stat-granting spells give +X/+X more, X scaling every 5 spells cast
   | 'gainMaxMana' // Nadja: gain +1 max Gold permanently (id stays `gainMaxMana`)
   | 'grantWard' // Warden: spend Gold — give a friendly minion a permanent Ward (Divine Shield) (active, targeted)
-  | 'scalingGold' // Bagger Ben: gain Gold now, the payout climbing +1 each turn (active, untargeted, once/turn)
+  | 'scalingGold' // Bagger Ben: gain Gold now, the payout climbing +1 each turn (active, untargeted, once/game)
   | 'adjacentConsume' // Herald: target a minion — its two neighbours each Consume a created Fodder (active, targeted)
   | 'cheapMinions' // Hermit Hank (passive): shop minions cost 2 Gold, but tavern-ups cost 2 more
   | 'discoLock' // Disco Dan (passive): turn-1 sequential Discover T6→T4→T2, each locked in hand until that shop tier
@@ -279,7 +279,8 @@ export const HEROES: HeroDef[] = [
       name: 'Bag It',
       kind: 'scalingGold',
       untargeted: true,
-      text: 'Bag It: Gain 2 Gold. The payout grows +1 every turn. (Once per turn)',
+      oncePerGame: true,
+      text: 'Bag It: Gain Gold now — the payout grows +1 every turn you wait. (Once per game)',
     },
   },
   {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, combatCastGrantText, escalatingCastText, guelProgressText, monkProgressText, scTribeBuffPerSpellText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText, watcherText } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, combatCastGrantText, escalatingCastText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText, watcherText } from './cardText';
 
 describe('cardText helpers', () => {
   it('scTribeBuffPerSpellText shows Runescale Drake’s live Dragon grant (base + per-spell, golden-aware)', () => {
@@ -10,6 +10,14 @@ describe('cardText helpers', () => {
     // Golden doubles the grant: (2 + 2) × 2 = +8/+8.
     expect(scTribeBuffPerSpellText('runescale', true, 2)).toContain('{{+8/+8}}');
     expect(scTribeBuffPerSpellText('sandbag', false, 3)).toBeNull();
+  });
+  it('scTribeBuffPerPlayedText takes the played array (player) OR a pre-counted number (served enemy)', () => {
+    // Pack Leader: base 2 + perPlayed 2 × count. Player passes card ids (Beasts counted); the enemy passes the
+    // count straight from its snapshot (`beastsPlayed`). Both must yield the same live grant for the same count.
+    expect(scTribeBuffPerPlayedText('packleader', false, ['alley', 'alley'])).toContain('{{+6/+6}}'); // 2 + 2×2
+    expect(scTribeBuffPerPlayedText('packleader', false, 2)).toContain('{{+6/+6}}'); // number path = same
+    expect(scTribeBuffPerPlayedText('packleader', false, 0)).toBeNull(); // none played → printed base
+    expect(scTribeBuffPerPlayedText('packleader', true, 2)).toContain('{{+12/+12}}'); // golden doubles the grant
   });
   it('escalatingCastText shows Vineweaver Drake’s live Growth grant + next-turn cast count', () => {
     expect(escalatingCastText('vineweaver', false, 0, 0, 0)).toContain('+3/+4'); // base grant, 1 cast next End of Turn

@@ -9,6 +9,12 @@ import { Sprite } from './Sprite';
 import { spriteForTribe } from './sprites';
 import { useGame } from './store';
 
+// TAUNT frame — pipeline layer 2 (the authored shield). Prefer an authored raster PNG (painterly, drops into
+// `apps/web/public/frames/`); until it exists the SVG placeholder renders instead. `tauntFrameAvailable` flips
+// false after the first 404 this session so we don't re-request a missing asset on every Taunt card.
+const TAUNT_FRAME_SRC = '/frames/taunt-shield.png';
+let tauntFrameAvailable = true;
+
 const KW_LABEL: Record<Keyword, string> = {
   T: 'Taunt', DS: 'Ward', V: 'Toxin', W: 'Flurry', R: 'Rise', C: 'Cleave', M: 'Attachment', SC: 'Start', CN: 'Consume',
   FD: 'Fodder', IMM: 'Immune', ST: 'Stealth', RL: 'Rally', SL: 'Slaughter', EG: 'Engraved',
@@ -285,6 +291,8 @@ export const Card = memo(function Card({
   useEffect(() => { if (dragging) hideRefTip(); }, [dragging]);
   // Illustrated art (if any). `uid` lets multi-variant cards (Pup) pick a stable per-instance image.
   const artUrl = artFor(card.cardId, uid);
+  // TAUNT frame: render the raster shield if the asset loads; on 404 fall back to the SVG placeholder.
+  const [frameOk, setFrameOk] = useState(tauntFrameAvailable);
   return (
     <div
       className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}`}
@@ -380,6 +388,45 @@ export const Card = memo(function Card({
             </div>
           )}
         </div>
+        {/* TAUNT frame layer (pipeline prototype) — an authored shield laid OVER the portrait, tracing the exact
+            `--heater` silhouette so it aligns with the art's clip. Prefers the raster PNG (painterly); falls back
+            to the SVG placeholder until that asset exists. The real frame drops into this same layer unchanged. */}
+        {card.keywords.includes('T') && frameOk && (
+          <img
+            className="tframe tframe-img"
+            src={TAUNT_FRAME_SRC}
+            alt=""
+            aria-hidden="true"
+            onError={() => {
+              tauntFrameAvailable = false;
+              setFrameOk(false);
+            }}
+          />
+        )}
+        {card.keywords.includes('T') && !frameOk && (
+          <svg className="tframe" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="tf-gold" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#f9e19a" />
+                <stop offset="0.5" stopColor="#c89a3c" />
+                <stop offset="1" stopColor="#7d5a1e" />
+              </linearGradient>
+              <linearGradient id="tf-gem" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#ff7b7b" />
+                <stop offset="1" stopColor="#93101a" />
+              </linearGradient>
+            </defs>
+            {/* gold frame ring — a thick stroke on the heater outline (half over the portrait edge, half proud) */}
+            <path className="tf-ring" fill="none" stroke="url(#tf-gold)" strokeWidth="11" strokeLinejoin="round"
+              d="M8 0 L92 0 L97 5 L100 15 L100 40 L96 60 L86 78 L66 92 L50 100 L34 92 L14 78 L4 60 L0 40 L0 15 L3 5 Z" />
+            {/* tribe-tinted inner band (thin stroke inside the gold — the tint layer, driven by var(--c)) */}
+            <path className="tf-band" fill="none" strokeWidth="4" strokeLinejoin="round"
+              d="M8 0 L92 0 L97 5 L100 15 L100 40 L96 60 L86 78 L66 92 L50 100 L34 92 L14 78 L4 60 L0 40 L0 15 L3 5 Z" />
+            {/* top + bottom gems (static setting) */}
+            <path className="tf-gem" fill="url(#tf-gem)" stroke="#7d5a1e" strokeWidth="1.4" d="M50 -6 L61 5 L50 16 L39 5 Z" />
+            <path className="tf-gem" fill="url(#tf-gem)" stroke="#7d5a1e" strokeWidth="1.4" d="M50 94 L57 101 L50 109 L43 101 Z" />
+          </svg>
+        )}
         {/* Golden (tripled) marker — a gold crown emblem; pairs with the gold arch frame so a tripled
             minion is instantly findable in a row. */}
         {card.golden && <span className="goldcrown" aria-hidden="true"><Icon name="crown" /></span>}

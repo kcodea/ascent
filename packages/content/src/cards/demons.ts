@@ -286,7 +286,7 @@ export const DEMONS: CardDef[] = [
 
   // --- Demon quest rewards (2026-07-08). token: true → reward-only, never rolled in the tavern. ---
   {
-    // Dark Bargain reward. Choose One: pump your Fodder or your Imps by +3/+3 (golden +6/+6).
+    // Dark Bargain reward. Shout: pump BOTH your Fodder and your Imps by +3/+3 (golden +6/+6).
     id: 'contractimp',
     name: 'Contract Imp',
     tribe: 'demon',
@@ -294,13 +294,12 @@ export const DEMONS: CardDef[] = [
     attack: 3,
     health: 4,
     keywords: [],
-    effects: [],
-    chooseOne: [
-      { text: 'Give your **Fodder** **+3/+3**.', effects: [{ on: 'onPlay', do: 'battlecryBuffFodder', params: { attack: 3, health: 3 } }] },
-      { text: 'Give your **Imps** **+3/+3**.', effects: [{ on: 'onPlay', do: 'battlecryBuffImps', params: { attack: 3, health: 3 } }] },
+    effects: [
+      { on: 'onPlay', do: 'battlecryBuffFodder', params: { attack: 3, health: 3 } },
+      { on: 'onPlay', do: 'battlecryBuffImps', params: { attack: 3, health: 3 } },
     ],
-    text: '**Choose One:** give your **Fodder** **+3/+3**, or give your **Imps** **+3/+3**.',
-    goldenText: '**Choose One:** give your **Fodder** **+6/+6**, or give your **Imps** **+6/+6**.',
+    text: '**Shout:** give your **Fodder** and **Imps** **+3/+3**.',
+    goldenText: '**Shout:** give your **Fodder** and **Imps** **+6/+6**.',
     token: true,
   },
   {

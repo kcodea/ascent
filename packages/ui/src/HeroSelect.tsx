@@ -50,7 +50,7 @@ export function HeroSelect() {
             const power = hero.power;
             const art = heroArt(hero.id);
             return (
-              <button key={id} className="herocard" onClick={() => { sfx.pulse(); pickHero(id); }}>
+              <button key={id} className="herocard" onClick={() => { sfx.pulse(); sfx.heroSelect(id); pickHero(id); }}>
                 <div className="hcart">
                   {art ? <img src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
                 </div>

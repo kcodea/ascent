@@ -3676,12 +3676,14 @@ describe('hero powers (@game/sim)', () => {
     expect(reduce(none, { type: 'heroPower' })).toBe(none);
   });
 
-  it("Bagger Ben's Bag It gains 2 Gold on turn 1, climbing +1 each turn", () => {
+  it("Bagger Ben's Bag It gains 2 Gold on turn 1, climbing +1 each turn — once per game", () => {
     let s: RunState = { ...createRun(1, 'baggerben'), wave: 1, embers: 0, heroReady: true };
     s = reduce(s, { type: 'heroPower' });
     expect(s.embers).toBe(2); // turn 1 → +2
-    expect(s.heroReady).toBe(false);
-    // Turn 3 → +4.
+    expect(s.heroPowerSpent).toBe(true); // once per game — spent, not just this-turn used
+    // Spent → a second activation is a no-op (no more Gold).
+    expect(reduce(s, { type: 'heroPower' }).embers).toBe(2);
+    // Cashing later pays more: turn 3 → +4 (the later you wait, the bigger the single payout).
     let s3: RunState = { ...createRun(1, 'baggerben'), wave: 3, embers: 0, heroReady: true };
     s3 = reduce(s3, { type: 'heroPower' });
     expect(s3.embers).toBe(4);
@@ -4180,6 +4182,27 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
       expect(enemy.some((m) => m.cardId !== 'omen')).toBe(true); // a real captured board, not procedural
     } finally {
       OPPONENT_POOL.length = 0; // restore the empty default so the rest of the suite stays procedural
+    }
+  });
+
+  it('a served board reproduces its OWN quest/rune combat effects through faceOmen (Rune of Warding wards the enemy)', () => {
+    const board: BoardSnapshot = {
+      v: 1, wave: 1, heroId: 'warden', resolve: 30, tier: 1, triples: 0, tribes: [], threat: 'glass', power: 13,
+      minions: [{ cardId: 'gnash', attack: 5, health: 8, keywords: [] }], seed: 1, origin: 'self',
+      questMods: { runeWarding: true }, // the served board's captured rune
+    };
+    OPPONENT_POOL.push(board);
+    try {
+      const s: RunState = {
+        ...createRun(1), wave: 1,
+        board: [{ uid: 'a', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 20, keywords: ['T'], golden: false }],
+      };
+      const lc = reduce(s, { type: 'faceOmen' }).lastCombat!;
+      expect(lc.initial.enemy.some((m) => m.cardId === 'gnash')).toBe(true); // our board was served
+      const enemyUids = new Set(lc.initial.enemy.map((m) => m.uid));
+      expect(lc.events.some((e) => e.type === 'shieldUp' && enemyUids.has(e.target))).toBe(true); // its Rune of Warding fired FOR THE ENEMY
+    } finally {
+      OPPONENT_POOL.length = 0;
     }
   });
 

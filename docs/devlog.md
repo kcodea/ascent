@@ -3,7 +3,7 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
-## 2026-07-13 (session 34)
+## 2026-07-13 (session 35)
 
 ### feat: Ward is now a CSS glassy hex-sphere dome glued to the card (retires the Pixi bubble)
 
@@ -69,6 +69,259 @@ impact occurs").** Presentation-only; no sim / event-log / core changes.
 proves `onImpactAuras` fires **once, at the contact anchor** (co-located with `onContact`, well before the elastic
 settle tail — not the old start-relative delay). Existing `score.test.ts`/`engine.test.ts` unaffected (the
 "auraBreak on every kind" assertion already excluded `attackExchange`).
+
+## 2026-07-12 (session 34)
+
+### balance: quest-reward minion tweaks (Contract Imp, Scrap Vendor, Bloodlust, Trophy Stalker, Chorus Engine, Bone Taxer)
+
+Owner balance pass on six quest-reward cards (Part A of a larger quest/minion spec):
+- **Contract Imp** — was a Choose One (Fodder *or* Imps +3/+3); now a **Shout that buffs BOTH** your Fodder and
+  Imps +3/+3 (golden +6/+6). Dropped `chooseOne`, two `onPlay` battlecries instead.
+- **Scrap Vendor** 4/7 → **3/4**. **Chorus Engine** 8/6 → **5/5**. **Bone Taxer** 2/3 → **5/7**.
+- **Trophy Stalker** — Rally aura +3/+3 improving +1/+1 → **+5/+5 improving +5/+5** per attack.
+- **Bloodlust** — in addition to its immediate immune Start-of-Combat swing, the spell now welds a **one-fight
+  Rally onto its target: "give a friendly minion this minion's Attack"** (owner ruling 2026-07-12). New
+  `bloodlustRally` flag on BoardCard/BoardMinion/Minion, carried through `instantiate` + the reducer's combat
+  hand-off, applied inline in the attack loop (mirrors Better Bot's `rallyMechAtk`), and stripped at settle like
+  `bloodlust`. New simulate test covers it.
+
+Verified: `typecheck + lint + test` (950) & `build:web` green.
+
+### fix: Lazarus's spell discount now shows in the shop (green cost coin)
+
+Owner-reported: with Lazarus on the board, shop spells didn't *look* discounted. The reducer's buy path already
+charged the reduced price (`spellCostReduction` = stored `spellCostMod` + 1 per Lazarus / 2 golden), but the
+shop DISPLAY (`shopView` in Recruit.tsx) subtracted only `run.spellCostMod` — it ignored Lazarus entirely — and
+the spell `CardView` never set `costChanged`, so the cost coin never turned green. So a Lazarus spell showed its
+full printed price on a normal coin while actually buying for less.
+
+- `shopView`'s spell branch now computes `cost = base − reduction` and sets `costChanged` when it's genuinely
+  cheaper → the coin renders on the green `.discount` box (same treatment minions already get for Moe's
+  discounted Attachment).
+- Both `shopView` call sites pass `spellCostReduction(run)` (newly exported from `@game/sim`) instead of the
+  bare `run.spellCostMod`, so the displayed price matches the buy price exactly. The memos already depend on
+  `run.board`, so adding/removing Lazarus re-renders.
+
+Verified: `typecheck + lint + test` (948) & `build:web` green; **live** across three board states — no Lazarus:
+Growth costs **2** on a normal coin; Lazarus: **1** on a green coin; golden Lazarus: **0** on a green coin.
+
+### feat(ui): Taunt heater-shield card frame — painterly raster compositing pipeline
+
+Taunt units are now reshaped into a forged gold **heater shield** instead of signalling via the flat
+grey card border. The bigger win is the **layered-composite pipeline** this establishes, which is meant
+to be the default way we do card art/frames/effects going forward:
+
+- **Portrait (raster, masked):** the unit art is clipped to the frame's window silhouette. The window
+  outline (`--heater`) was **measured from the frame PNG's alpha channel** (via a `sharp` script) so the
+  masked art fills the opening exactly. `border`/`border-radius` are zeroed on the Taunt `.art` because
+  the base card's arch rounding was intersecting the clip and rounding the heater into an oval.
+- **Frame (authored asset):** an ornate gold-shield PNG with a transparent window
+  (`apps/web/public/frames/taunt-shield.png`), laid over the portrait. `Card.tsx` prefers the raster and
+  falls back to a built-in **SVG placeholder** if the asset is absent (so nothing breaks pre-asset).
+- **Tint:** per-tribe recolour hook (SVG-fallback band uses `var(--c)`), so one frame serves all tribes.
+- **Data (DOM):** tier badge rides the shield's banner; **atk/hp/tribe medallion stay in the exact
+  standard position** — a hard rule (the frame is sized around the fixed stat cluster, never the reverse).
+- **Size:** the whole composite scales from a single `--sh` knob (frame + portrait + tier, all centred on
+  the archbox, placement constants derived from the measured window centre).
+
+Reactive off the `.taunt` class (`card.keywords.includes('T')`), so granting Taunt mid-combat flips the
+card to the shield the instant the keyword lands. Frame authoring spec (transparent window, empty slots,
+neutral gold) lives in `apps/web/public/frames/README.md`.
+
+**Verified:** typecheck + lint + test + build:web green; live DOM probes at each step (window silhouette
+trace, `calc(var())` resolution, clip/border computed values) to confirm alignment before eyeballing.
+**Follow-ups:** thinner-border frame variant (art reaching closer to the gold); re-add the forge-heat
+pulse as a glow hugging the frame; portrait-aspect art for shield units (fills with zero crop).
+
+### fix: Spirit Pup combat casts COUNT toward its transform + Tauntbreaker Rally text
+
+Follow-up to #349 (which added the combat *countdown display*): the transform itself now advances from
+combat casts, and Tauntbreaker's text matches its mechanic.
+
+- **Spirit Pup — combat casts count (owner ruling 2026-07-12).** `spellCastTransform` only had a recruit
+  factory, so spells cast *during* combat never ticked its transform. Added a combat factory
+  (core/effects/factories.ts) mirroring Guel's per-instance pattern — ticks the instance's `spellProgress` and
+  emits the `spellProgress` event (the live countdown #349 already renders). The form swap happens at settle:
+  the reducer's `playerSpellProgress` carry-back now transforms any `spellCastTransform` card whose carried
+  tally reached `at` (swap `cardId` → `into`, keeping stats/golden/buffs). New simulate test proves a combat
+  cast ticks the tally + carries back.
+- **Tauntbreaker text.** Retext to `**Rally:** Remove **Taunt** and **Rise** from the target before striking.`
+  — the `onAttackStripKeywords` mechanic already fires before the damage exchange (existing test), so a unit it
+  kills that HAD Rise won't rise.
+
+Verified: `typecheck` + full `test` + `build:web` green.
+
+### feat: quest/rune recurring End-of-Turn rewards now telegraph on the End-Turn beat sequence
+
+Trigger-state gap (owner 2026-07-12): quest/rune *recurring End-of-Turn* rewards — Rune of Spending, Rune of
+Action, Echoing Roar, The Hoard Wakes, Blueprint Cache, Rune of the Reliquary, Rune of Banking — fired silently
+inside `applyEndOfTurn`/`faceOmen`, so the player never saw them proc. They already fire in the RIGHT order
+(after the warband's own End-of-Turn effects — verified against `applyEndOfTurn`), so no combat-resolution
+reorder was needed; the fix is purely presentational: hook them into the existing "hold the shop, play each
+End-of-Turn effect one beat at a time" telegraph (`endTurn` in Recruit.tsx).
+
+- **sim**: `projectEndOfTurnSteps` now appends one projected stat snapshot per (recurring-reward × repeat) AFTER
+  the warband steps, mirroring `applyEndOfTurn`'s order — so Rune of Spending / Rune of Action's stat gains climb
+  on their own beats (and conjures grow the hand) on the throwaway clone. New `questEndOfTurnBeats(state)` returns
+  the labeled beat list (one per effect × Chronos/Parliament repeat), aligned 1:1 with those trailing steps.
+- **ui**: `endTurn` appends a beat per `questEndOfTurnBeats` entry after the warband beats. They reuse the exact
+  float/flash the warband effects use — the buffed minions flash via the existing per-beat stat diff (no source
+  card needed), plus the proc pulse sound. No new banner (per owner's "reuse existing float/flash" choice).
+
+Verified: `typecheck` + `lint` + full `test` (947, incl. a new projection/beat-alignment test) + `build:web`
+green; **live** — a Rune of Action board's three leftmost minions visibly climbed 4/1 → 7/4 on the rune's own
+End-Turn beat, then transitioned cleanly to combat.
+
+### fix: combat replay crash ("cues is not iterable") + Spirit Pup combat countdown
+
+**Crash (owner-reported, Tauntbreaker hitting a minion):** `momentKind` (`choreo/kinds.ts`) had no `case` for the
+`keywordLost` event (Tauntbreaker strips Taunt/Rise) or the `spellProgress` event (Archmagus Guel's tally, added
+this session), so it returned `undefined` → `getScore()[undefined]` is not iterable → the whole replay threw and
+the error boundary showed "The game hit a snag." Added both kinds as first-class `MomentKind`s (score + hold-key
+Records updated) **and** a defensive `default` so a future unhandled event type can never crash the replay again.
+Regression test: every `CombatEvent` type now maps to a defined, iterable score entry.
+
+**Spirit Pup countdown not in combat:** `transformProgressText` (its "N to go" spell-transform countdown, seeded
+from the run's on-board `spellProgress`) was wired only into the shop chain, not `Unit.tsx`. Added it to the combat
+live-text chain so a mid-fight Spirit Pup shows the same countdown it does in the shop.
+
+Verified: `typecheck + lint + test` (947) & `build:web` green.
+
+### feat: served enemies carry their owner's quest/rune COMBAT effects + opponent reward badges
+
+The last "true-PvP" fidelity gap. A served enemy board fought WITHOUT its owner's quest/rune combat modifiers —
+all ~26 `questMods` were applied player-only. Now per-side, following the proven `enemyScalers` playbook:
+- **Snapshot** captures the assembled `questCombatMods(s)` object (not raw `questFlags` — that loses the
+  magnitudes held in top-level RunState fields), plus lifetime `spellsCast` (Umbral Energy) and `beastBuyAtk`
+  (Beast aura). `questCombatMods` is now exported from the reducer.
+- **`simulate`** takes a trailing `enemyQuestMods` param + `enemyScalers.spellsCast/beastBuyAtk`; a `modsFor(side)`
+  selector + per-side `beastAtkAuraFor` / `firstEchoDone|firstRallyDone|firstSlaughterDone|pitDone|emptyGravesDone`
+  records. Every player-hardcoded site (~22) now mirrors to both boards: the SoC rune grants (Warden, Twilight,
+  Shared Circuit, Warding, Echoing Coop, Rallying, Rising Graves), the avenge runes (Broodpit, Spearline, Fury
+  doubling), Packcraft, Inheritance, First Claws, Bone Throne, Pit Without End, Empty Graves, Rulebreaker's Crown,
+  Umbral Energy, Contract Rewrite, The Old Hunt, Law of Teeth / echo / rally / slaughter doublers, Feeding Line.
+- **Player-only (correctly):** the economy/hand/gold rune payoffs — Soul Taxes (+max Gold), Salvage & Blood Trail
+  (cards → hand), Deep Hunger (Fodder → shop), Appraisal (spell-power carry-back). A snapshot enemy has no
+  hand/shop/run, so these have no enemy-side meaning. Quest TALLIES + carry-backs stay player-only too.
+- **`reducer`** passes the served board's captured `questMods` + scalers into combat.
+
+Determinism: player-side math is byte-identical (procedural foes pass `{}`; the big restructure preserved player
+order/behavior — full suite green). Balance: a served board that had runes/quests now fights stronger, as intended.
+
+**Opponent reward badges** (companion display feature): `snapshotBoard` also captures the owner's ACTIVE rewards —
+completed quest ids + owned rune ids — and `OpponentFrame` renders them as a row of badges under the frame (art +
+hover tooltip), mirroring the player's own badges above their hero panel. Tooltip opens downward/right-anchored.
+
+**Verified:** `typecheck + lint + test` (946) & `build:web` green. New tests: the enemy runs its OWN Warding /
+Rising Graves / Umbral Energy; the player's mods never leak onto the enemy; the snapshot captures `questMods` +
+`spellsCast` + `beastBuyAtk` + quests/runes; and a reducer-level end-to-end — a served board's Rune of Warding
+fires FOR THE ENEMY through `faceOmen`. Live-verified the opponent badges (injected board → Warding + Forest Grove
+badges show).
+
+### fix: combat live-display completeness — ascend fold, Trophy Stalker, Rising Graves pill, Guel tally
+
+An audit ("are player AND enemy cards showing real-time-accurate values everywhere, true-PvP on both sides?") of
+the `simulate` → event-log → `computeFrame` fold → `Unit.tsx` pipeline. The fold is already fully side-agnostic
+(no `side === 'you'` branch; every per-instance accrual — stats, DS/keywords, Sergeant's HP-grant, Kennelmaster's
+aura, Tara's ascend tally, Engraved permaGain — is seeded for the enemy snapshot too and updated by side-agnostic
+events). The audit found three display mutations that emitted **no foldable event**, so the card froze mid-replay
+(on both sides):
+
+- **`ascend` never folded.** A mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen) mutated
+  cardId/name/tribe/keywords in the sim but `computeFrame` had no `ascend` case, so the card kept its pre-ascension
+  face (old art/name/rule text) for the rest of the fight even as the new form's buffs landed. Added an `ascend`
+  fold that adopts the new form's identity + keywords (mirrors `ascendMinion`).
+- **Trophy Stalker** (`rallyTribeAuraGrowing`) bumped its own `summonBonus` each attack with no `improve` event, so
+  its displayed "+M/+M" grant was frozen. Now emits `improve` so the live text climbs.
+- **Rune of Rising Graves** granted `R` but emitted a display-silent `sc` (not folded into keywords), so the pill
+  never showed — now emits a foldable `keyword` event like `scGrantReborn` / `runeWarding`'s DS grant.
+
+**Archmagus Guel — combat casts now count toward his tally (owner ruling 2026-07-12).** His combat half used the
+run-wide `spellsCast` (via `spellTotals`) for the grant while the display read his frozen per-instance
+`spellProgress` — inconsistent, and the countdown never moved. Rewrote the combat `spellCastBuffOthers` to match
+the recruit half: tick THIS Guel's `spellProgress` per combat cast, grant `base + floor(progress/4)`, emit a new
+`spellProgress` combat event (folded by `computeFrame` → live countdown), and carry the tally back at settle
+(`playerSpellProgress`) so combat casts persist permanently. The recruit-half comment already promised "combat
+casts tick it at settle" — this makes that true. Combat-math change (a late-bought Guel now scales per-instance,
+not off the whole run's spell count), covered by determinism + the new test; both boards get it (side-agnostic fold).
+
+Still **flagged, not fixed** (needs your read): Crypt Drake's "N to go" countdown is approximate between procs —
+the UI reconstructs its attack count from the buff *proc* (once per 2 attacks) rather than the raw `attack` events,
+so the text is off between procs (the flat +2/+2 magnitude is correct). Fixable by counting ally `attack` events in
+`computeFrame`.
+
+**Verified:** `typecheck + lint + test` (940) & `build:web` green. New tests: `computeFrame` folds an `ascend` on
+BOTH sides (identity swaps live); Trophy Stalker emits `improve` each attack; Rising Graves emits the `keyword` R;
+Guel's combat spell casts tick his per-instance tally (live `spellProgress` event + carry-back above the seed).
+
+### fix: player-snapshot fidelity — re-land per-side scalers + capture addedTribes / Bloodlust
+
+A fidelity pass so a **player-snapshotted board is a faithful image of its run** — every card behaves + reads
+exactly as it did when captured (served as an opponent AND on the leaderboard / Career). An audit surfaced three
+things:
+
+**1. PR #340's squash lost "part 2".** The per-side run-level scalers (spell power / Deathrattle tally / spells /
+Beasts-played threaded per-board so an enemy Grim / Taragosa / Runescale / Pack Leader reads its OWN value, not the
+current player's) were **not** actually on `main` — the squash-merge of #340 captured only part 1. Re-landed the
+whole per-side layer (`ctx.spellPowerFor(side)` / `spellsThisTurnFor` / `beastsPlayedFor` / `deathrattleTally(side)`,
+`simulate`'s `enemyScalers` param, `CombatResult.enemyScalers`, `snapshotBoard` capture, the reducer passing the
+served board's scalers, and `Unit.tsx` per-side display).
+
+**2. `addedTribes` + `bloodlust` were dropped even in the PLAYER's own board→combat mapping** (`reducer.ts`). So an
+Anomaly Reactor spell-added tribe (e.g. a minion made a Mech) stopped counting for tribe synergies in the player's
+*own* fights, and a **Bloodlust** opening strike never fired — a live bug, not just a snapshot gap. Threaded both
+through: the reducer's player mapping, `cleanBoard` (capture), and `opponentBoard` (served restore). Also folded
+`addedTribes` into the leaderboard / Career / BoardLog display (`cardViewOf`) so the spell-added tribe badge shows.
+
+**3. Bloodlust was player-only in the sim.** The Start-of-Combat Bloodlust loop iterated `boards.player` only, so a
+served opponent's Bloodlust wouldn't fire. Made it iterate **both** sides (player first → determinism preserved;
+`flushImmediateAttacks` strikes `OTHER[side]`, so an enemy Bloodlust correctly swings at the player).
+
+The audit also **confirmed no other run-level aura leaks**: the Undead / Beast / Magnetic / Imp auras, `cardBuffs`,
+`spellsCast`, `fodderConsumed`, tier/tribes, attack-first / rally-double, and every `questMods` field are already
+player-side-scoped in `simulate` — spell-power/tally/spells/beasts were the only shared globals.
+
+**Verified:** `typecheck + lint + test` (935) & `build:web` green. New tests: `opponentBoard` + `snapshotBoard`
+round-trip `addedTribes` / `bloodlust`; an ENEMY Bloodlust fires its opening strike; plus the re-landed per-side
+`simulate` proofs (enemy Pack Leader / Runescale use the opponent's values). Follow-up: keep sweeping the snapshot
+for any remaining representativeness gaps.
+### docs: audio recording & usage guide (`docs/audio/RECORDING-GUIDE.md`)
+
+With the audio pipeline fully merged to `main` (manifest + generator #335, shop/menu hooks #336, combat hooks
+#337, drop-folder importer #344), a single how-to that ties it together: the record → name → `npm run
+sfx:import` → hear-it loop, the full **what-plays-when** taxonomy (play/death/effect, hero select/power, spell
+cast + `castspell` bed, system cues), the naming reference (display-name/id + variant word, with fuzzy
+matching), the import flag reference, the manifest ↔ visual-guide relationship, **volume & mixing** (per-category
+`SAMPLE_VOL_DEFAULTS` + the dev SFX Mixer + the Esc-menu master volume/mute), how to verify each sound in game,
+the team flow for committing clip batches, and troubleshooting. Linked from `docs/audio/README.md`.
+
+### feat(tools): `npm run sfx:import` — smart drop-folder audio importer
+
+Removes the friction of getting recorded clips into the game. A sandboxed claude.ai page can't write into the
+repo, so importing is a local CLI: drop `.mp3` files (named naturally by **display name or id + a variant word**
+— `Pennycat death.mp3`, `warden power.mp3`, `alley effect.mp3`, `Yirin.mp3`) into `audio-inbox/`, run
+`npm run sfx:import`, and each is moved to its exact `packages/ui/src/audio/…` target. Confident matches move;
+anything ambiguous stays in the inbox and is reported with suggestions — never a silent wrong move.
+
+- **`packages/tools/src/sfx-import.lib.ts`** — pure, unit-tested matcher (no fs / no `@game/*`): `buildIndex`
+  over `ALL_CARDS`/`HEROES` (knows Pennycat=`alley`, Yirin=`rohan`), `parseName` (trailing variant word +
+  name/id phrase), `resolveId` (exact id → exact display name → conservative Levenshtein fuzzy, must beat the
+  runner-up), `matchFile` (→ `cards/<id>[.death|.effect].mp3` or `heroes/<id>[.power].mp3`; rejects a `.effect`
+  for a vanilla minion and a minion-variant on a hero). 9 tests.
+- **`packages/tools/src/sfx-import.ts`** — the runner: reads `audio-inbox/` (creates it with a README on first
+  run), applies confident matches (move; `--keep` copies), skips collisions (`--force` overwrites) and non-mp3s,
+  prints a grouped moved/skipped/unmatched report, then best-effort runs the manifest regen. Flags: `--dry`,
+  `--keep`, `--force`, `--no-manifest`, `--inbox <dir>`. `.gitignore` += `audio-inbox/`.
+- **Verified:** 9 lib tests (name↔id, variant parse across separators, fuzzy typo, ambiguous→suggestions,
+  per-variant targets, vanilla-effect + hero-variant rejection, exact-basename passthrough), plus a real E2E
+  over placeholder files: `Pennycat death.mp3 → cards/alley.death.mp3`, `warden power.mp3 →
+  heroes/warden.power.mp3`, `zzzz effect.mp3` left with suggestions; real move + idempotent re-run + collision
+  skip; then cleaned up. Full gate: typecheck 0, lint clean, 920 tests, `build:web` ✓.
+- **Note:** the auto-regen uses a `try/catch` dynamic import of `./sfx-manifest.ts` (cast to `string` so tsc
+  doesn't statically resolve a file that only exists on the unmerged manifest branch) — degrades to printing
+  the `npm run sfx:manifest` hint until that branch lands.
+
+## 2026-07-12 (session 33)
 
 ### feat: attack-windup tendrils — buff FX for on-attack / Rally buffers (Gap B)
 
@@ -152,6 +405,57 @@ green: typecheck + lint + test + build:web. (Trigger path is test-proven; the li
 **Follow-ups:** per-tribe descend presets (owner will tune); a sim-level trigger annotation on buff events would
 retire the `DEATHRATTLE_BUFF_FACTORIES` maintenance list; the living-source on-attack-buffer tendril gap remains.
 
+### feat(audio): combat-side per-card death + effect SFX hooks (silent until assets)
+
+The second wiring slice (stacked on the shop/menu hooks below) — the **combat** half of the per-card sounds.
+Additive and **silent until a clip exists** (`playSample` no-ops on a missing buffer); no existing combat
+logic is modified, so combat feel/animation is unchanged today. Threads the replay's uid→cardId map to the
+two combat proc sites:
+
+- **Death** — `CueContext` gains an optional `cardIds` map (`choreo/score.ts`), passed from `useCombatReplay`'s
+  `runMomentCues` call and forwarded into `playMomentSfx` (`choreo/channels/sfx.ts`). On a **non-Rise** death
+  the channel now also plays the dying unit's own `cards/<id>.death.mp3`, layered over the generic death bed,
+  **deduped per cardId** (two of the same minion dying on one beat → one clip). A Rise's first death never
+  fires it (the body returns).
+- **Effect (combat)** — at the trigger-medallion site in `useCombatReplay` (the `trig` set that already fires
+  `sfx.triggerPulse()` when Battlecry/Deathrattle/Avenge/summon/buff effects proc), each triggering unit also
+  plays its own `cards/<id>.effect.mp3`, deduped by cardId. This is the combat counterpart to the shop-side
+  Battlecry effect hook (store.ts) — one manifest "effect" clip now covers both venues.
+
+New `sfx.cardDeath(cardId)` cue (+ `sampleVol` default + dev-mixer preview) mirrors `cardEffect`/`cardVoice`.
+
+- **Verified:** 2 new channel tests (a dying unit's death voiceline fires via `cardIds`, deduped per cardId,
+  never for a Rise; and back-compat — no `cardIds` map → no per-card death sound). Full gate: typecheck 0,
+  lint clean, 897 tests, `build:web` ✓. End-to-end audio + combat-feel verification lands with the first
+  recorded clips (drive the focused Chrome tab, per the degenerate-preview note).
+
+### feat(audio): wire per-card effect + per-hero select/power SFX hooks (silent until assets)
+
+The first slice of playback wiring for the SFX manifest (docs/audio/sfx-manifest.md, PR #335). Adds the
+**low-risk, shop/menu-side** hooks; the combat-side per-card death + combat-effect hooks (which thread a
+uid→cardId map through the choreographer) are deferred to a separate, coordinated PR since they touch the
+hot combat-replay code. Every hook is additive and **silent until its clip exists** (`playSample` no-ops on a
+missing buffer), so this ships zero audible/behavioral change today — it just lets the clips play once dropped
+into `packages/ui/src/audio/{cards,heroes}/`.
+
+- **`sfx.ts`:** new loader glob `./audio/heroes/*.mp3`; three new cues mirroring `cardVoice` —
+  `cardEffect(cardId)` → `cards/<id>.effect.mp3`, `heroSelect(heroId)` → `heroes/<id>.mp3`,
+  `heroPower(heroId)` → `heroes/<id>.power.mp3`; matching `sampleVol` defaults + dev-mixer preview entries
+  (each previews the first recorded clip of its category, or nothing).
+- **`store.ts` (`play`):** a played **minion** whose Battlecry (an `onPlay` effect) fires now also plays its
+  `cardEffect` cue, layered over the landing. Spells keep their own cast sound (unchanged).
+- **`HeroSelect.tsx`:** picking a hero layers `heroSelect(id)` over the generic pulse.
+- **`StatusBar.tsx`:** pressing the hero-power button layers `heroPower(hero.id)` over the generic pulse.
+
+**Not in scope (deferred):** per-card **death** + per-card **combat-effect** sounds (need the choreographer
+uid→cardId plumbing). **Coordination:** the **spell default bed** (manifest hook #1) is owned by the
+concurrent `feat/spellcast-sfx` branch, which ships it as `castspell.mp3` — excluded here to avoid a
+collision; the manifest's `spellcast.mp3` row will be realigned to that name on the #335 branch.
+
+- **Verified:** typecheck 0, lint clean, 895 tests, `build:web` ✓. No runtime/audible change expected until
+  clips are recorded (the hooks are type-checked calls with valid ids in scope; `playSample` guards on a
+  missing buffer). End-to-end audio verification lands with the first recorded assets.
+
 ## 2026-07-11 (session 32)
 
 ### tweak(ui): thicker, darker Taunt border — squared bottom + always-on red under-glow
@@ -214,37 +518,6 @@ the shipped tendril handler, but a focused-tab visual check is a recommended fol
 styles (the `style` seam is ready); recruit-phase hero-power/spell pulses (a different, shop-phase code path);
 a dedicated neutral preset.
 
-## 2026-07-11 (session 31)
-
-### fix: combat state accuracy — served enemies keep their accruals; Runescale/Hoardbreaker live text
-
-Combat-state pass (part 1). Two gaps made combat cards show stale/base numbers instead of their real live values.
-
-**1. Served opponents dropped their per-minion accruals (the visible bug).** `opponentBoard` (opponents.ts)
-reconstructed a served enemy board copying only `cardId/attack/health/keywords/golden/summonBonus` — it silently
-dropped `hpGrantBonus`, `ascendProgress`, `spellProgress`, `overflowBonus`, `rallyMechAtk`, `rallySpellWeld`, and the
-`buffs` inspect breakdown, even though `cleanBoard` *persists* them into the snapshot and `instantiate` (minion.ts)
-*reads* them. So a served **Sergeant** that had grown its Deathrattle HP-grant during its owner's run showed the
-printed base **+2 Health** and fought weaker than the real board; same for Tara (ascend), Guel (spell tally), Flowing
-Monk (triple bonus), and welded Better Bot / Perfect Core Rally. Fixed by restoring **every** accrual in
-`opponentBoard`, symmetric with `cleanBoard`. Also taught `cleanBoard` to persist `spellProgress` + `overflowBonus`
-(it already saved the others) so Guel/Monk are captured too. Net: a served enemy is now as strong AND reads as
-accurately as the board it was captured from — the card shows the value it had in its owner's game.
-
-**2. Two scaling cards weren't wired into the combat live-text chain.** **Runescale Drake** (`scTribeBuffPerSpellText`,
-Start-of-Combat Dragon buff per spell cast) had a helper used in the shop but was never called in `Unit.tsx`, so it
-showed base +2/+2 mid-fight. **Hoardbreaker Drake** (`onKillCastSpell` → Growth + spell power) had *no* helper — its
-+3/+4 went stale whenever spell power > 0, on every surface. Added a generic `combatCastGrantText` (mirrors the sim's
-`(base + spellPower) × golden`) and wired both cards into the combat chain (`Unit.tsx`) and the shop chain
-(`instView.ts`).
-
-**Known follow-up (part 2):** run-LEVEL scalers still read the *current player's* run state for both boards — spell
-power (Taragosa/Watcher/Hoardbreaker), Deathrattle tally (Grim), per-turn tallies (Pack Leader). Making an enemy show
-the *opponent's* value at capture time needs those run-level values snapshotted + threaded per-side through the sim
-(determinism-locked math + a pool regen). Scoped as its own PR.
-
-**Verified:** `typecheck + lint + test` (888) & `build:web` green. New tests: `opponentBoard` round-trips all six
-accruals (cloned, not shared); `combatCastGrantText` scales Hoardbreaker's Growth by spell power (golden ×2).
 ### feat: sourced "spell cast" SFX when a spell is played from hand
 
 **What:** replaced the synth-only `sfx.castSpell` placeholder with a real sourced clip (owner-provided
@@ -345,6 +618,88 @@ live in a real fight — every rally unit flashes gold on the wind-up, on every 
 the tuned 440 ms (`RALLY_PAUSE_MS`); revisit whether it should explicitly wait on the rally's downstream
 effects if the beat ever feels rushed.
 
+
+## 2026-07-11 (session 31)
+
+### fix: combat state accuracy — enemy + player cards read their REAL live values (both boards)
+
+Combat-state pass. Combat cards showed stale/base numbers instead of their real live values — worst on the ENEMY
+board, where a served Sergeant read "+2 Health" no matter how far its owner had grown it. Three fixes, both boards.
+
+**1. Served opponents dropped their per-minion accruals (the visible bug).** `opponentBoard` (opponents.ts)
+reconstructed a served enemy board copying only `cardId/attack/health/keywords/golden/summonBonus` — it silently
+dropped `hpGrantBonus`, `ascendProgress`, `spellProgress`, `overflowBonus`, `rallyMechAtk`, `rallySpellWeld`, and the
+`buffs` inspect breakdown, even though `cleanBoard` *persists* them into the snapshot and `instantiate` (minion.ts)
+*reads* them. So a served **Sergeant** that had grown its Deathrattle HP-grant during its owner's run showed the
+printed base **+2 Health** and fought weaker than the real board; same for Tara (ascend), Guel (spell tally), Flowing
+Monk (triple bonus), and welded Better Bot / Perfect Core Rally. Fixed by restoring **every** accrual in
+`opponentBoard`, symmetric with `cleanBoard`. Also taught `cleanBoard` to persist `spellProgress` + `overflowBonus`
+(it already saved the others) so Guel/Monk are captured too. Net: a served enemy is now as strong AND reads as
+accurately as the board it was captured from — the card shows the value it had in its owner's game.
+
+**2. Two scaling cards weren't wired into the combat live-text chain.** **Runescale Drake** (`scTribeBuffPerSpellText`,
+Start-of-Combat Dragon buff per spell cast) had a helper used in the shop but was never called in `Unit.tsx`, so it
+showed base +2/+2 mid-fight. **Hoardbreaker Drake** (`onKillCastSpell` → Growth + spell power) had *no* helper — its
++3/+4 went stale whenever spell power > 0, on every surface. Added a generic `combatCastGrantText` (mirrors the sim's
+`(base + spellPower) × golden`) and wired both cards into the combat chain (`Unit.tsx`) and the shop chain
+(`instView.ts`).
+
+**3. Run-LEVEL scalers were single-sided — enemy cards read the CURRENT player's run state (part 2).** Spell power
+(Taragosa/Watcher/Hoardbreaker), the Deathrattle tally (Grim), spells-this-turn (Runescale) and Beasts-played (Pack
+Leader) were threaded into `simulate` as player values and used for BOTH boards — so an enemy Grim/Taragosa *leeched
+your* numbers in the combat math AND the card text. Now per-side, end to end:
+- `snapshotBoard` captures the owner's `spellPower / deathrattles / spellsThisTurn / beastsPlayed` (omitted when 0).
+- `simulate` takes an `enemyScalers` object; `CombatContext` gains `spellPowerFor(side)` / `spellsThisTurnFor(side)` /
+  `beastsPlayedFor(side)` and `deathrattleTally(side)`. The eight combat factories that fold these now key on the acting
+  minion's `side`, so an enemy scaling card uses the OPPONENT's captured value (0 for the procedural threat / legacy
+  boards — correct for a synthetic foe with no run economy).
+- `CombatResult.enemyScalers` carries those values to the UI; `Unit.tsx` renders an enemy card at the opponent's value
+  (player minions keep reading the live run). `scTribeBuffPerPlayedText` now also accepts a pre-counted number (the
+  enemy's `beastsPlayed`, since the played card-ids aren't carried in the snapshot).
+
+Determinism: player-side math is byte-identical (player scalers unchanged); only enemy scaling cards shift — from
+leeching your values to using their own (0 for existing pool/synthetic boards). The committed synthetic pool has no run
+economy, so no regen was needed (it can never carry scalers); real captured/imported boards pick the fields up when
+baked under this build.
+
+**Verified:** `typecheck + lint + test` (892) & `build:web` green. New tests: `opponentBoard` round-trips all six
+accruals (cloned, not shared); `combatCastGrantText` scales Hoardbreaker's Growth by spell power (golden ×2); a per-side
+`simulate` proof that an enemy Pack Leader / Runescale scales with the OPPONENT's Beasts-played / spells and never
+leeches the current player's; `snapshotBoard` captures the run-level scalers; `scTribeBuffPerPlayedText` accepts the
+enemy's pre-counted number.
+
+### feat: Compendium — Rune Rewards category
+
+Added a **Rune Rewards** tab to the Compendium left rail, mirroring the existing **Quest Rewards** category but for
+runes. Built from a new `RUNE_REWARD_CARDS` constant that walks every Basic + Epic rune's `reward` (recursing into
+`multi`) for **named** `cards` / `grantGolden` grants — random-tier / random-tribe / random-filter grants have no
+fixed card to show, so they're skipped. Runes aren't tribe-bound (the Runeforge is hero-reached), so the list is
+flat + un-scoped (shown always, like the Runes tab), not run-scoped the way Quest Rewards are.
+
+Surfaces the **11** cards runes hand you — most importantly the two **rune-exclusive tokens** (Feasting Bogrot,
+Reconfigured Combinator) that previously appeared *nowhere* in the Compendium, plus the buyable minions/spells a
+rune grants (Pillager, Soulsman, Spear Warden, Mama Bear, Karwind, Beatbot, Yazzus, Goldcrafter, Front to Back).
+Treated as an exclusive gallery mode alongside Spells / Quest Rewards; factored the "which selected chips are
+tribes" test into a shared `NON_TRIBE_CATS` set so the new category doesn't leak into tribe filtering.
+
+**Verified:** `npm run typecheck && npm run lint && npm run build:web` green; live DOM check in the running app —
+clicking **Rune Rewards** flips the sub-header to "11 rune rewards in the game" and renders exactly those 11 cards
+(Feasting Bogrot + Reconfigured Combinator present).
+
+### fix: Bagger Ben's Bag It is once per game
+
+**Bag It** (`scalingGold`) was a once-*per-turn* power: gain `1 + wave` Gold, recharging every turn — a compounding
+economy engine every round. Retuned to **once per game** (`oncePerGame: true` on the power). The payout still climbs
+`+1` each turn, so it's now a **timing decision**: cash the tip jar early for a small bump, or hold it for one bigger
+lump later. The reducer's shared once-per-game handling (gates on `heroPowerSpent`, no per-turn recharge) already
+supported the flag — just the two `scalingGold`-specific StatusBar branches (power line + note) were rewritten from
+"used this turn / once per turn" to "spent / one use per game", and the hero-power text now reads *"Gain Gold now —
+the payout grows +1 every turn you wait. (Once per game)"*.
+
+**Verified:** `typecheck + lint + test` (886) green; updated the Bagger Ben unit test (asserts `heroPowerSpent`, a
+second activation is a no-op, later cash-out pays more). Live DOM check as Bagger Ben: "Bag It · +2 Gold" → fire →
+embers +2, line flips to "Bag It · spent", button disabled (no recharge next turn).
+
 ### fix: Rune of Action counts every card played, not just board minions
 
 **Bug (owner-reported):** Rune of Action (*End of Turn: give your three left-most minions +1/+1 for each card you
@@ -395,6 +750,47 @@ beat clock are untouched; the lead is layered on top of `overlapMs` and scales w
 - **Verified:** `typecheck` + `lint` + **835 tests** + `build:web` all green. The feel itself is the user's to
   confirm live (a timing-constant bump on the choreo scheduler — the degenerate preview can't render combat, so
   the read is dialed by eye in a focused tab); the leads are a single named knob, easy to re-tune.
+### docs/tools: SFX manifest + data-driven generator (`npm run sfx:manifest`)
+
+Groundwork for authoring the game's audio: a single source-of-truth manifest of **every** sound the game
+needs, so recording can proceed hyper-organized instead of ad hoc. `docs/audio/sfx-manifest.md` lists ~569
+sounds — per-card **play / death / effect**, per-hero **select / power**, per-spell **unique cast** + a
+default spell bed, and the existing system/UI cues — each row carrying an exact filename (matching the
+loader's naming convention), a trigger, a creative brief, and a record-status.
+
+The manifest is **generated, not hand-maintained**, so it can never silently drift from the real card/hero/
+spell set:
+
+- **`packages/tools/src/sfx-manifest.lib.ts`** — pure, unit-tested logic (no fs / no `@game/*` imports, so
+  the tests run on fixtures): `deriveRows` (filename + trigger + seeded brief per card/hero/spell, sectioned
+  by tribe/kind), `parseExistingTables` + `mergeRows` (carry the human-owned **brief + status** columns
+  across regenerations, keyed by filename), and `renderGeneratedZone` (one table per section, pipe-escaped).
+- **`packages/tools/src/sfx-manifest.ts`** — the runner (`npm run sfx:manifest`): reads `ALL_CARDS`/`HEROES`,
+  scans `packages/ui/src/audio/` for existing clips, flips a row's status `⬜→🎙️` when its mp3 exists, and
+  rewrites **only** the zone below the `<!-- GENERATED BELOW -->` marker — the hand-authored prose (overview,
+  naming conventions, wiring plan) above it is left byte-for-byte untouched.
+
+The naming convention doubles as the wiring contract: minion play/spell cast already fire today via
+`sfx.cardVoice` (`cards/<id>.mp3`); the doc's prose zone documents the follow-up hooks needed for per-card
+**death** (`cards/<id>.death.mp3`), per-card **effect** (`cards/<id>.effect.mp3`), **hero select/power**
+(`heroes/<id>[.power].mp3`), and the **spell default bed** (`spellcast.mp3`) — to be built in a separate PR.
+
+- **Verified:** 6 new lib tests (section routing, 3-row-minion / 1-row-spell split, vanilla `➖` marking,
+  render→parse→merge round-trip preserving a hand-edited brief + `✅`); regeneration is **idempotent**
+  (rerun → no diff) and **preservation-safe** (a hand-edited brief/status survives a rerun — checked live).
+  Full gate green: typecheck 0, lint 0, 841 tests, `build:web` ✓.
+- **Process note:** built in an isolated git **worktree** (`.claude/worktrees/sfx-manifest`) after the shared
+  main working dir got switched to a concurrent session's branch mid-task; the worktree needed its own
+  `npm install` so `@game/*` resolves to its **own** package copies (otherwise cross-package typecheck reads
+  the main dir's live, mid-refactor sources through the shared `node_modules`).
+- **Follow-up:** realigned the spell **default bed** filename from `spellcast.mp3` → **`castspell.mp3`** to
+  match the clip `feat/spellcast-sfx` already ships (generator row + prose naming table + regenerated manifest).
+- **Follow-up:** `npm run sfx:manifest` now **also emits `docs/audio/sfx-guide.html`** — the interactive,
+  offline recording worklist — from the SAME rows, so the visual guide never drifts from the manifest. The
+  layout is a version-controlled template (`sfx-guide.template.html`) with a `/*__SFX_ROWS__*/[]` marker; the
+  runner injects `JSON.stringify(rows)` via the pure `injectGuideData` (2 tests). Supersedes the one-off
+  vendored guide (PR #345). Reason it's a local generated file, not a shared link: artifact sharing on
+  claude.ai is gated to Team/Enterprise plans, so both devs just open the committed HTML locally.
 
 ## 2026-07-10 (session 30)
 

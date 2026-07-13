@@ -25,6 +25,8 @@
     "perf": "tsx packages/tools/src/perf.ts",
     "pool": "tsx packages/tools/src/build-pool.ts",
     "pool:prune": "tsx packages/tools/src/prune-pool.ts",
+    "sfx:import": "tsx packages/tools/src/sfx-import.ts",
+    "sfx:manifest": "tsx packages/tools/src/sfx-manifest.ts",
     "dump-cards": "tsx packages/tools/src/dump-cards.ts",
     "optimize-art": "node scripts/optimize-art.mjs",
     "dev": "npm run dev -w apps/web",

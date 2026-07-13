@@ -32,6 +32,28 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 - **Ward shatter welded to the hit.** A warded unit's gold bubble used to linger disjointed from the unit after it
   swung; the shatter now fires **at the lunge's real contact** (not a fixed start-relative delay), so the Ward breaks
   with the smack and never trails into the recoil.
+- **Taunt units now wear a painterly gold heater shield.** Instead of the flat grey border, a Taunt card is
+  reshaped into an ornate shield: an authored frame PNG composited over the unit portrait (clipped to the
+  frame's measured window). Establishes the reusable **layered card pipeline** (portrait → frame → tint →
+  fixed stat badges → FX); the whole shield scales from one `--sh` knob and flips on in real time when a unit
+  gains Taunt. Frame spec in `apps/web/public/frames/README.md`.
+- **Audio recording guide.** [`docs/audio/RECORDING-GUIDE.md`](docs/audio/RECORDING-GUIDE.md) documents the
+  whole sound workflow end to end — record → name → `npm run sfx:import` → hear it — plus naming, mixing, and
+  troubleshooting. The audio authoring pipeline (manifest, generator, playback hooks, importer) is now fully on `main`.
+- **Audio hooks: per-card sounds now cover combat too.** Building on the shop/menu hooks, a minion's own
+  **death** clip (`cards/<id>.death.mp3`) plays when it dies, and its **effect** clip (`cards/<id>.effect.mp3`)
+  plays when its Deathrattle/Start-of-Combat/etc. procs — via the replay's uid→cardId map, deduped per card.
+  Combined with the shop-side hooks (Battlecry effect, hero select, hero power), every manifest hook is now
+  wired. All silent until the clips are recorded.
+- **Sound-effects manifest + generator.** `docs/audio/sfx-manifest.md` now enumerates every sound the game
+  needs (~577: per-card play/death/effect, per-hero select/power, per-spell cast, system cues), and
+  `npm run sfx:manifest` regenerates it from the card/hero/spell data while preserving the hand-written brief +
+  record-status columns. It also emits `docs/audio/sfx-guide.html` — a self-contained, double-click-to-open
+  visual recording worklist — from the same data, so the guide never drifts. Groundwork for authoring audio.
+- **Audio import: `npm run sfx:import`.** Drop recorded `.mp3` clips into `audio-inbox/` named naturally
+  (`Pennycat death.mp3`, `warden power.mp3`, `Yirin.mp3`) and the importer resolves each to its exact
+  `packages/ui/src/audio/…` target and moves it — display-name↔id aware, fuzzy-tolerant, ambiguous files left
+  with suggestions. Pairs with the sound manifest + generator.
 - **On-attack & Rally buffs read now.** When a unit buffs allies as it attacks (Rally cards like Supporter/Chorus
   Engine) or reacts to a friendly's swing (Raptor, Crypt Drake, Taragosa), a tendril now fires **into the attacker's
   wind-up** — the sequence reads yellow rally pulse → tendril → lunge. Closes the last combat-buff FX gap.

@@ -2844,8 +2844,34 @@ export function projectEndOfTurnSteps(state: RunState): Array<Record<string, { a
       steps.push(snap());
     }
   }
+  // Quest/rune-granted recurring End-of-Turn rewards fire AFTER the warband's own effects (mirrors
+  // `applyEndOfTurn`) — one projected step per (effect × repeat), in the same order the UI plays them, so
+  // Rune of Spending / Rune of Action's stat gains climb on their own beats (and conjures grow the hand).
+  for (const eff of clone.questRecurringEndOfTurn ?? []) {
+    for (let r = 0; r < repeats; r++) {
+      runRecurringEndOfTurn(clone, eff);
+      steps.push(snap());
+    }
+  }
   return steps;
 }
+
+/** The quest/rune recurring End-of-Turn rewards active on the board, in fire order — one entry per
+ *  (effect × repeat), matching `projectEndOfTurnSteps`'s trailing steps 1:1 so the recruit-screen beat
+ *  sequence can animate each one (see `endTurn` in Recruit.tsx). Empty when none are granted. */
+export function questEndOfTurnBeats(state: RunState): Array<{ effect: string; label: string }> {
+  const repeats = endOfTurnRepeats(state);
+  const out: Array<{ effect: string; label: string }> = [];
+  for (const eff of state.questRecurringEndOfTurn ?? []) {
+    for (let r = 0; r < repeats; r++) out.push({ effect: eff, label: RECURRING_EOT_LABEL[eff] ?? 'End of Turn' });
+  }
+  return out;
+}
+const RECURRING_EOT_LABEL: Record<string, string> = {
+  triggerLeftmostShout: 'Echoing Roar', grantRandomShout: 'The Hoard Wakes', grantRandomAttachments: 'Blueprint Cache',
+  runeSpending: 'Rune of Spending', runeAction: 'Rune of Action', triggerLeftmostEcho: 'Rune of the Reliquary',
+  weldMoneyBotsEdgeMechs: 'Rune of Banking',
+};
 
 /**
  * Resolve a card's play-time effects, mutating the board in place. Call after the

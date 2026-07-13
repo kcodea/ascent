@@ -23,6 +23,27 @@ combat casts, and Tauntbreaker's text matches its mechanic.
 
 Verified: `typecheck` + full `test` + `build:web` green.
 
+### feat: quest/rune recurring End-of-Turn rewards now telegraph on the End-Turn beat sequence
+
+Trigger-state gap (owner 2026-07-12): quest/rune *recurring End-of-Turn* rewards — Rune of Spending, Rune of
+Action, Echoing Roar, The Hoard Wakes, Blueprint Cache, Rune of the Reliquary, Rune of Banking — fired silently
+inside `applyEndOfTurn`/`faceOmen`, so the player never saw them proc. They already fire in the RIGHT order
+(after the warband's own End-of-Turn effects — verified against `applyEndOfTurn`), so no combat-resolution
+reorder was needed; the fix is purely presentational: hook them into the existing "hold the shop, play each
+End-of-Turn effect one beat at a time" telegraph (`endTurn` in Recruit.tsx).
+
+- **sim**: `projectEndOfTurnSteps` now appends one projected stat snapshot per (recurring-reward × repeat) AFTER
+  the warband steps, mirroring `applyEndOfTurn`'s order — so Rune of Spending / Rune of Action's stat gains climb
+  on their own beats (and conjures grow the hand) on the throwaway clone. New `questEndOfTurnBeats(state)` returns
+  the labeled beat list (one per effect × Chronos/Parliament repeat), aligned 1:1 with those trailing steps.
+- **ui**: `endTurn` appends a beat per `questEndOfTurnBeats` entry after the warband beats. They reuse the exact
+  float/flash the warband effects use — the buffed minions flash via the existing per-beat stat diff (no source
+  card needed), plus the proc pulse sound. No new banner (per owner's "reuse existing float/flash" choice).
+
+Verified: `typecheck` + `lint` + full `test` (947, incl. a new projection/beat-alignment test) + `build:web`
+green; **live** — a Rune of Action board's three leftmost minions visibly climbed 4/1 → 7/4 on the rune's own
+End-Turn beat, then transitioned cleanly to combat.
+
 ### fix: combat replay crash ("cues is not iterable") + Spirit Pup combat countdown
 
 **Crash (owner-reported, Tauntbreaker hitting a minion):** `momentKind` (`choreo/kinds.ts`) had no `case` for the

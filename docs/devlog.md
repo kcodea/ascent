@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 36)
 
+### fix(ui): crash screen shows the stack trace (self-diagnosing) + Copy button
+
+When a render crash trips the ErrorBoundary ("The game hit a snag"), the screen only showed the one-line message,
+so a report couldn't say WHERE it broke — and the crash rarely reproduces without the player's exact state. Now the
+boundary stashes the React `componentStack` (from `componentDidCatch`) and the crash screen has a **"Show details (for
+a bug report)"** collapsible with the JS stack (`file:line`) + component stack, plus a **Copy details** button. So a
+player can paste the exact crash location. Verified live: forced a render crash → the details show
+`recruit.ts:1665 → Recruit.tsx:303 → …`. No behavior change to the recovery buttons.
+
 ### tweak: Balance Report — add a Spells table, count Discover offers/picks, readable names
 
 Three owner tweaks to the player Balance Report:

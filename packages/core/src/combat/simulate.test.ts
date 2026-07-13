@@ -898,6 +898,20 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'reborn')).toBe(true);
   });
 
+  it('a Rise (Reborn) counts as a summon for "Summon N in combat" quests (owner repro 2026-07-13)', () => {
+    // A player Grave Knit (Undead) with Rise dies to a big enemy and returns — that return IS a summon, so it must
+    // tick the summonCombat tally (Forsaken Will / Pack Mentality). Before the fix, Rise skipped placeSummon and
+    // the summon was never counted.
+    const r = run(
+      [{ cardId: 'knit', attack: 2, health: 2, keywords: ['R'] }],
+      [{ cardId: 'omen', attack: 5, health: 5, keywords: [] }],
+      3,
+    );
+    expect(r.events.some((e) => e.type === 'reborn')).toBe(true); // it did Rise
+    expect(r.playerQuestTally?.summonCombat ?? 0).toBeGreaterThanOrEqual(1); // …and the Rise counted as a summon
+    expect(r.playerQuestTally?.summonCombatByTribe.undead ?? 0).toBeGreaterThanOrEqual(1); // credited to Undead (Forsaken Will)
+  });
+
   it('Reborn returns at base ATTACK with 1 Health — sheds combat buffs + granted keywords, keeps the carry-through', () => {
     // An Eternal Knight (base 3/2) that entered combat buffed to a 10/3 Divine-Shield body. On death it sheds
     // the combat buff + granted DS, returning at base attack with 1 Health — then its own Deathrattle's +3/+2

@@ -1359,6 +1359,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   max-width: 70vw; overflow-x: auto; padding: 10px 14px; border-radius: 10px; font-size: 12px;
   background: color-mix(in srgb, var(--threat) 12%, var(--card)); border: 2px solid var(--line); color: var(--ink);
 }
+.crashdetails { max-width: 70vw; width: 100%; }
+.crashdetails summary { cursor: pointer; font-family: var(--font-ui), sans-serif; font-weight: 700; font-size: 13px; color: var(--ink3); user-select: none; }
+.crashdetails summary:hover { color: var(--ink); }
+.crashstack { max-height: 34vh; overflow: auto !important; white-space: pre-wrap; word-break: break-word; margin-top: 8px; font-size: 11px !important; }
+.crashcopy { margin-top: 8px; font-family: var(--font-ui), sans-serif; font-weight: 700; font-size: 12px; padding: 6px 14px; border-radius: 9px; border: 2px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.crashcopy:hover { filter: brightness(1.05); }
 .crashbtns { display: flex; gap: 12px; margin-top: 6px; }
 .crashbtns button {
   font-family: var(--font-ui), sans-serif; font-weight: 800; font-size: 15px; padding: 10px 22px;

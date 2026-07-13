@@ -9,19 +9,19 @@ import { sfx } from '../../sfx';
  * the old `deathBurstRef` once-only guard and the `.dying`/`data-rising` DOM sniffing.
  */
 
-/** A unit DIES while still carrying auras → each explodes in place (ward shatter / spirit release). Reads
- *  pixiFx's registry for which kinds are live. Both bursts read their bubble's OWN stored coords (they render
- *  on the same viewport-fixed front layer they're stored on). (Taunt has no Pixi aura — it's a static grey
- *  card border — so there is nothing to burst; the `_rect` param is vestigial, kept for call-site parity.) */
-export function burstDeathAuras(uid: string, _rect: { cx: number; cy: number; w: number; h: number } | null = null): void {
-  if (pixiFx.hasAura(uid, 'shield')) { pixiFx.breakShield(uid, 'shield'); sfx.shieldBreak(); }
+/** A unit DIES while still carrying auras → each explodes in place (ward shatter / spirit release). Reborn keeps
+ *  its persistent Pixi bubble, so it bursts via the registry. The WARD is CSS now (no Pixi bubble), so its shatter
+ *  fires at the passed `rect` if the dying unit still wears the `.dscard` marker. */
+export function burstDeathAuras(uid: string, rect: { cx: number; cy: number; w: number; h: number } | null = null): void {
+  if (rect && typeof document !== 'undefined' && document.querySelector(`.unit[data-uid="${uid}"] .card.dscard`)) { pixiFx.shatterAt(rect.cx, rect.cy, rect.w, rect.h, 'shield'); sfx.shieldBreak(); }
   if (pixiFx.hasAura(uid, 'reborn')) { pixiFx.breakShield(uid, 'reborn'); sfx.rebornShatter(); }
 }
 
-/** A Divine Shield was consumed → shatter it now (gold shards) + sound. The DELAY is now the auraBreak cue's
- *  offset, scheduled by the runner (was this function's internal SHIELD_BREAK_DELAY setTimeout). */
-export function breakShieldAura(uid: string): void {
-  pixiFx.breakShield(uid, 'shield');
+/** A Ward was consumed → shatter it now (gold shards, NO shield-disc flash) + sound, at the unit's `rect` — the
+ *  persistent bubble is CSS now, so there's no Pixi bubble to read coords from. The anchor is the caller's (the
+ *  lunge's `contact` for an attack; the auraBreak cue offset for a non-attack break). */
+export function breakShieldAura(rect: { cx: number; cy: number; w: number; h: number } | null): void {
+  if (rect) pixiFx.shatterAt(rect.cx, rect.cy, rect.w, rect.h, 'shield');
   sfx.shieldBreak();
 }
 

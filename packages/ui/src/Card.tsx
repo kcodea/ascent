@@ -344,8 +344,8 @@ export const Card = memo(function Card({
       {card.castMult !== undefined && card.castMult > 1 && (
         <span className="castmult" aria-hidden="true">×{card.castMult}</span>
       )}
-      {/* Divine Shield and Reborn signify via their Pixi AURA (driven from `.card.dscard` / `.card.reborncard`
-          in Recruit); Taunt signifies via the static grey `.card.taunt` border (styles.css) — no badge/glow here. */}
+      {/* Divine Shield signifies via the CSS `.ward` dome stack inside `.art` (below); Reborn via its Pixi AURA
+          (driven from `.card.reborncard` in Recruit); Taunt via the static grey `.card.taunt` border — no badge here. */}
       {card.keywords.includes('V') && (
         <span className="kwward venom" aria-hidden="true"><Icon name="poison" /></span>
       )}
@@ -366,6 +366,18 @@ export const Card = memo(function Card({
             <img className="artimg" src={artUrl} alt="" draggable={false} decoding="sync" />
           ) : (
             <Sprite name={spriteForTribe(card.tribe)} scale={5} />
+          )}
+          {/* Ward (Divine Shield): the layered glassy gold dome — a CSS stack glued to the card (styles.css
+              `.card.compact.dscard .ward-*`). Living inside `.art` means it rides drag + the combat lunge for
+              free and vanishes exactly when the sim clears the `DS` keyword. Clipped to the arched art. */}
+          {card.keywords.includes('DS') && (
+            <div className="ward" aria-hidden="true">
+              <div className="ward-body" />
+              <div className="ward-hex" />
+              <div className="ward-shadow" />
+              <div className="ward-spot" />
+              <div className="ward-gloss" />
+            </div>
           )}
         </div>
         {/* Golden (tripled) marker — a gold crown emblem; pairs with the gold arch frame so a tripled

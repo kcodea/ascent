@@ -694,7 +694,7 @@ export function useCombatReplay(
         timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().deathFloatMs / combatSpeedRef.current));
       },
       onAuraBurst: (uid) => burstDeathAuras(uid, rectOf(uid)),
-      onShieldBreak: (uid) => breakShieldAura(uid),
+      onShieldBreak: (uid) => breakShieldAura(rectOf(uid)),
       onReborn: (uid) => reformReborn(rebornRects.get(uid) ?? rectOf(uid)),
       // buff-OTHER casts (source ≠ target) → tendril/descend + badge flash (shared with the attack-wind-up path).
       onBuffCasts: (casts) => fireBuffCasts(casts, timers),
@@ -805,10 +805,12 @@ export function useCombatReplay(
       const a = center(cur.primary.attacker);
       const d = center(cur.primary.defender);
       // Wards this exchange consumed (attacker/defender): shatter them AT the lunge's contact (onImpactAuras),
-      // not on the old fixed start+300ms cue that drifted off the hit — see score.ts (auraBreak removed here).
+      // not on the old fixed start+300ms cue that drifted off the hit — see score.ts (auraBreak removed here). The
+      // ward is CSS now, so the shatter fires at the unit's live rect (no Pixi bubble to read coords from).
       const wardTargets: string[] = [];
       for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'shield') wardTargets.push(e.target); }
-      const breakWards = wardTargets.length ? () => { for (const t of wardTargets) breakShieldAura(t); } : undefined;
+      const rectFor = (uid: string) => { const r = findEl(uid)?.getBoundingClientRect(); return r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : null; };
+      const breakWards = wardTargets.length ? () => { for (const t of wardTargets) breakShieldAura(rectFor(t)); } : undefined;
       if (atkEl && a && d) {
         setAttackUid(cur.primary.attacker);
         // A Rally firing as THIS unit attacks → the lunge pauses at the top of the wind-up and flashes the

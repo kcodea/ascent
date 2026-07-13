@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Ward is a glassy hex-sphere dome now.** Divine Shield retired its Pixi bubble for a pure-CSS layered dome glued
+  to the card — a pulsing gold body, hexagons projected onto a sphere (compressed at the rim), vignette, bright spot,
+  and a shiny gloss. It stays put through drag + the combat lunge, and the break is a clean gold shard burst (no more
+  "hex shield" flash on hit). The Ward/Reborn motion trail also got denser + wider.
 - **Ward shatter welded to the hit.** A warded unit's gold bubble used to linger disjointed from the unit after it
   swung; the shatter now fires **at the lunge's real contact** (not a fixed start-relative delay), so the Ward breaks
   with the smack and never trails into the recoil.

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import type { CombatEvent } from '@game/core';
 import type { MomentKind } from './choreo/kinds';
 import { runAttackExchangeCues } from './choreo/engine';
-import { burstDeathAuras, breakShieldAura, reformReborn } from './choreo/channels/aura';
+import { burstDeathAuras, reformReborn } from './choreo/channels/aura';
 import { pixiFx } from './pixiFx';
 
 /**
@@ -43,11 +43,12 @@ function preview(kind: MomentKind): void {
       break;
     }
     case 'shieldPop': {
-      // Register a shield bubble, hold a brief beat, then break it so the shatter is visible.
+      // Register a demo shield bubble, hold a brief beat, then break it (destroys the bubble + fires the shatter).
+      // NB: this DEV preview keeps a Pixi shield bubble to demo the shatter; the live game's Ward is CSS now.
       const d = rect('pv-def');
       if (d) {
         pixiFx.setShield('pv-def', d.cx, d.cy, d.w, d.h, false, 'shield');
-        setTimeout(() => breakShieldAura('pv-def'), 250);
+        setTimeout(() => pixiFx.breakShield('pv-def', 'shield'), 250);
       }
       break;
     }

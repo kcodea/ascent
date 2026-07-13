@@ -17,20 +17,30 @@ describe('burstDeathAuras', () => {
     expect(shieldSfx).not.toHaveBeenCalled(); // no shield aura → no gold-break sound
   });
 
-  it('a unit carrying no aura bursts nothing', () => {
+  it('a unit carrying no aura bursts nothing (no .dscard marker → no ward shatter; no reborn bubble)', () => {
     vi.spyOn(pixiFx, 'hasAura').mockReturnValue(false);
     const brk = vi.spyOn(pixiFx, 'breakShield').mockImplementation(() => {});
-    burstDeathAuras('u2');
+    const shatter = vi.spyOn(pixiFx, 'shatterAt').mockImplementation(() => {});
+    burstDeathAuras('u2', { cx: 1, cy: 2, w: 3, h: 4 });
     expect(brk).not.toHaveBeenCalled();
+    expect(shatter).not.toHaveBeenCalled();
   });
 });
 
 describe('breakShieldAura', () => {
-  it('shatters the consumed shield (gold shards) + sound immediately — the delay now lives in the cue offset', () => {
-    const brk = vi.spyOn(pixiFx, 'breakShield').mockImplementation(() => {});
+  it('shatters the consumed ward at the given rect (gold shards) + sound — no Pixi bubble needed', () => {
+    const shatter = vi.spyOn(pixiFx, 'shatterAt').mockImplementation(() => {});
     const s = vi.spyOn(sfx, 'shieldBreak').mockImplementation(() => {});
-    breakShieldAura('u3');
-    expect(brk).toHaveBeenCalledWith('u3', 'shield');
+    breakShieldAura({ cx: 200, cy: 150, w: 80, h: 100 });
+    expect(shatter).toHaveBeenCalledWith(200, 150, 80, 100, 'shield');
+    expect(s).toHaveBeenCalledTimes(1);
+  });
+
+  it('with no rect (unit not measurable) plays only the sound', () => {
+    const shatter = vi.spyOn(pixiFx, 'shatterAt').mockImplementation(() => {});
+    const s = vi.spyOn(sfx, 'shieldBreak').mockImplementation(() => {});
+    breakShieldAura(null);
+    expect(shatter).not.toHaveBeenCalled();
     expect(s).toHaveBeenCalledTimes(1);
   });
 });

@@ -218,6 +218,15 @@ player-side-scoped in `simulate` — spell-power/tally/spells/beasts were the on
 round-trip `addedTribes` / `bloodlust`; an ENEMY Bloodlust fires its opening strike; plus the re-landed per-side
 `simulate` proofs (enemy Pack Leader / Runescale use the opponent's values). Follow-up: keep sweeping the snapshot
 for any remaining representativeness gaps.
+### docs: audio recording & usage guide (`docs/audio/RECORDING-GUIDE.md`)
+
+With the audio pipeline fully merged to `main` (manifest + generator #335, shop/menu hooks #336, combat hooks
+#337, drop-folder importer #344), a single how-to that ties it together: the record → name → `npm run
+sfx:import` → hear-it loop, the full **what-plays-when** taxonomy (play/death/effect, hero select/power, spell
+cast + `castspell` bed, system cues), the naming reference (display-name/id + variant word, with fuzzy
+matching), the import flag reference, the manifest ↔ visual-guide relationship, **volume & mixing** (per-category
+`SAMPLE_VOL_DEFAULTS` + the dev SFX Mixer + the Esc-menu master volume/mute), how to verify each sound in game,
+the team flow for committing clip batches, and troubleshooting. Linked from `docs/audio/README.md`.
 
 ### feat(tools): `npm run sfx:import` — smart drop-folder audio importer
 

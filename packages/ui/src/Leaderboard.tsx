@@ -32,19 +32,20 @@ function cardViewOf(m: BoardMinion): CardView {
  * hero · author · wave · date) and their final winning warband inline, rendered with the same `Card` as the
  * end screen (so cards size correctly + show full text on hover, on top). Read-only + best-effort.
  */
-/** The round-17 win record for a leaderboard slot — "78 wins · 96%" + the full fight tally on hover. */
+/** The round-17 fight record for a leaderboard slot — the same "N Fights · W Wins · T Ties · L Losses · X% win
+ *  rate" breakdown the Career per-round board log uses (owner request 2026-07-13), reusing its `.bl-record` /
+ *  `.bl-stat` styling so the two read identically. */
 function WinRecord({ stats }: { stats?: BoardWinStats }) {
   if (!stats || stats.fights === 0) {
     return <div className="lbrecord none" title="No round-17 fights logged against this board yet">No fights yet</div>;
   }
   return (
-    <div
-      className="lbrecord"
-      title={`${stats.fights} fights on round 17 · ${stats.wins} wins · ${stats.ties} ties · ${stats.losses} losses`}
-    >
-      <Icon name="crown" />
-      <b>{stats.wins}</b> {stats.wins === 1 ? 'win' : 'wins'}
-      <span className="lbwr">{stats.winRate}%</span>
+    <div className="bl-record lb-record" title="This board's record when served as a round-17 opponent">
+      <span className="bl-stat"><b>{stats.fights}</b> Fights</span>
+      <span className="bl-stat w"><b>{stats.wins}</b> Wins</span>
+      <span className="bl-stat t"><b>{stats.ties}</b> Ties</span>
+      <span className="bl-stat l"><b>{stats.losses}</b> Losses</span>
+      <span className="bl-wr"><Icon name="crown" />{stats.winRate}% win rate</span>
     </div>
   );
 }

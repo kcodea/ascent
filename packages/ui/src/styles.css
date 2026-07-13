@@ -2517,6 +2517,11 @@ svg { width: 18px; height: 18px; }
 .lbrecord b { color: #fff; font-weight: 900; font-size: 18px; }
 .lbrecord .lbwr { color: var(--acc); font-weight: 800; font-size: 13px; }
 .lbrecord.none { color: rgba(255, 255, 255, 0.5); font-weight: 600; font-size: 13px; }
+/* Hall of Champions fight record — the Career/BoardLog .bl-record breakdown, but as a compact inline group at the
+   right of the entry head (no margin-auto push on the win rate; slightly smaller than the full-width Career row). */
+.lb-record { margin-left: auto; flex: none; gap: 13px; font-size: 14px; }
+.lb-record .bl-stat b { font-size: 17px; }
+.lb-record .bl-wr { margin-left: 2px; font-size: 14px; }
 /* Sort toggle in the top bar (Most recent / Most wins). */
 .lbsort { margin-left: auto; display: inline-flex; gap: 6px; flex: none; }
 .lbsortbtn { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.72); background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.16); padding: 8px 14px; border-radius: 10px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }

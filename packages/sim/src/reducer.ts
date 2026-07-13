@@ -8,7 +8,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, adjacentConsumeFodder, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -17,6 +17,11 @@ function spendGold(s: RunState, amount: number): void {
   s.embers -= amount;
   s.goldSpent = (s.goldSpent ?? 0) + amount; // career/post-run stat
   s.goldSpentThisTurn = (s.goldSpentThisTurn ?? 0) + amount; // per-turn (Patch Job); reset each wave
+  // Indy: the (spent) Gild charge recharges after every 40 Gold spent — un-spend it the moment the threshold lands.
+  if (s.heroId === 'indy' && s.heroPowerSpent && s.indyGildRearmAt != null && s.goldSpent >= s.indyGildRearmAt) {
+    s.heroPowerSpent = false;
+    s.indyGildRearmAt = undefined;
+  }
   applyGoldSpent(s, amount);
   advanceQuestsBy(s, (o) => o.event === 'spendGold', amount); // Coin Hoard: "Spend N Gold"
   // Food for Gold: every `per` Gold spent queues a Fodder into the next shop + bumps the run-wide Fodder aura.
@@ -872,6 +877,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         // (and no charge spent) on a missing target or an already-golden minion.
         if (!card || card.golden) return state;
         gildMinion(card);
+        // Indy: arm the recharge — the charge comes back after 40 more Gold is spent (see `spendGold`).
+        s.indyGildRearmAt = (s.goldSpent ?? 0) + 40;
       } else if (power.kind === 'replayBattlecry') {
         // Myra: re-trigger a friendly board minion's Battlecry. Board only; a no-op (no charge
         // spent) on a missing target or a minion with no Battlecry to replay.
@@ -907,13 +914,6 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (r === 0) openDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
           else queueDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
         }
-      } else if (power.kind === 'adjacentConsume') {
-        // Herald's Proclaim: the two minions on either side of the targeted friendly minion each Consume a
-        // created Fodder. No-op (no charge spent) on a missing target or one with no neighbours to feed.
-        if (!card) return state;
-        const before = s.fodderEatenSeq;
-        adjacentConsumeFodder(s, card, 1);
-        if (s.fodderEatenSeq === before) return state; // nothing ate (no neighbours) → don't spend the charge
       } else if (power.kind === 'resummon') {
         // The Reclaimer: mark a friendly board minion to be destroyed + resummoned at start of
         // combat (the combat sim does the work). Mark exactly one (clear any previous mark).
@@ -936,30 +936,15 @@ function reduceCore(state: RunState, action: Action): RunState {
         power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision' || power.kind === 'sellGold'
         || power.kind === 'chaos' || power.kind === 'cheapMinions' || power.kind === 'discoLock'
         || power.kind === 'questChronos' || power.kind === 'lesserQuest' || power.kind === 'runeforge'
-        || power.kind === 'pathfinder' || power.kind === 'epicRuneforge'
+        || power.kind === 'pathfinder' || power.kind === 'epicRuneforge' || power.kind === 'recurringGoldcrafter'
       ) {
         // Passive powers have no activation — the work happens elsewhere (spell math, the buy/sell case,
-        // settleCombat, the turn-advance quest/discover hooks). Nothing to do on a power click.
+        // settleCombat, the turn-advance quest/discover/Goldcrafter hooks). Nothing to do on a power click.
         return state;
       } else if (power.kind === 'gainMaxMana') {
         // Nadja: +1 max Mana permanently, UNCAPPED (may exceed the normal cap). Untargeted — ignores
         // action.uid. Doesn't return, so the shared spend logic below charges the once-per-turn charge.
         s.maxEmbers += reps;
-      } else if (power.kind === 'goldenGild') {
-        // Gildmaster: if you have 2 copies of a minion (a "double"), combine them into one golden copy in
-        // your hand — a discounted triple (you then play the golden for the triple reward). Untargeted: it
-        // finds the doubles itself, picking one at RANDOM when there are several. No double → can't use, and
-        // NO charge is spent (early return, before the shared spend block below).
-        const dbl = new Map<string, number>();
-        for (const c of [...s.board, ...s.hand]) {
-          if (!c.golden && !CARD_INDEX[c.cardId]?.spell) dbl.set(c.cardId, (dbl.get(c.cardId) ?? 0) + 1);
-        }
-        const doubles = [...dbl].filter(([, n]) => n >= 2).map(([id]) => id);
-        if (doubles.length === 0) return state;
-        const chosen = doubles.length === 1
-          ? doubles[0]!
-          : makeRng(mixSeed(s.seed, s.wave, TAG.GILD, heroUses)).pick(doubles);
-        combineIntoGolden(s, chosen, pullCopies(s, chosen, 2));
       } else {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
         // warband minion directly, or a tavern offer (the buff bakes in when it's bought).
@@ -1727,6 +1712,11 @@ function advanceCombat(s: RunState): void {
       s.chaosGrantSeq = (s.chaosGrantSeq ?? 0) + 1;
       s.chaosGrantUid = grantUid;
     }
+  }
+  // Gildmaster: get a Goldcrafter (a spell that makes a friendly minion golden) at the START of every 4th
+  // turn — turns 4, 8, 12, …. Conjured to hand (hand-cap-safe); a granted spell can't complete a triple.
+  if (getHero(s.heroId).power.kind === 'recurringGoldcrafter' && s.wave % 4 === 0) {
+    conjureToHand(s, CARD_INDEX['goldcrafter'] ? [CARD_INDEX['goldcrafter']!] : [], 1);
   }
   // Quest delayed rewards (Trail Rations' "repeat in 2 turns"): tick each pending grant down a turn and
   // re-apply the ones that come due — WITHOUT re-scheduling (allowRepeat=false) — here with the other

@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Hero reworks.** **Gildmaster** now passively gets a **Goldcrafter** every 4 turns (was the pair-combining
+  Golden Gild). **Indy's** Gild recharges after every **40 Gold spent** (was once per game). **Yirin's** spell-power
+  step improves every **10** spells cast (was 5). **Herald** removed; **Warden / Myra / Chaos** temporarily
+  withheld from the picker.
 - **Combo / Primer keyword.** A **Primer** card (Gold Pouch, Graverobber, Combo Kim) arms a combo for the
   *next* card played; a card with a Combo, played immediately after, fires a bonus payoff — playing anything
   else in between disarms it. A hand card whose Combo is armed glows **orange**. Ships with a demon-flavoured

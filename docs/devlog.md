@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### balance: hero reworks — Gildmaster, Indy, Yirin + roster trim
+
+Owner hero pass:
+- **Gildmaster** — reworked from the active "Golden Gild" (spend 3, combine a pair into a golden copy, twice/game)
+  to a **passive**: get a **Goldcrafter** (a spell that makes a friendly minion golden) at the START of every 4th
+  turn (turns 4, 8, 12, …). New `recurringGoldcrafter` power kind, resolved at turn-setup in `advanceCombat`
+  (mirrors the Chaos every-5-turns grant); the old `goldenGild` kind + its reducer branch are removed.
+- **Indy** — the Gild (make a friendly minion golden) now **recharges after every 40 Gold spent** instead of being
+  a hard once-per-game. Keeps the `oncePerGame` gate (the charge locks on use), but `spendGold` un-spends it the
+  moment cumulative `goldSpent` crosses the armed threshold (`indyGildRearmAt = goldSpent + 40`, set on use). New
+  `RunState.indyGildRearmAt`. StatusBar shows the live `N/40 Gold` recharge progress.
+- **Yirin** (Attunement) — the spell-power step now improves **every 10 spells cast** (was every 5): `spellAmplifyBonus`
+  divisor 5→10, text + StatusBar `/10` counters updated.
+- **Roster trim** — **Herald** removed from the game entirely (HeroDef + `adjacentConsume` kind + reducer branch +
+  tests deleted; not baked into the opponent pool, so no regen needed). **Warden**, **Myra**, **Chaos** temporarily
+  withheld from the picker via `wip: true` (kept in the registry so saves/baked boards still resolve them).
+- **Verified**: `typecheck`/`lint`/`test` (964, incl. new Gildmaster turn-4 grant + Indy 40-Gold-refresh regression
+  tests)/`build:web` all green; live checks — Gildmaster gets a Goldcrafter on turn 4; Indy gilds, locks, then
+  recharges exactly at 40 Gold spent and gilds again; the picker never offers the four withheld/removed heroes.
+
 ### feat: Combo / Primer keyword + a demon-flavoured card batch
 
 New **Combo/Primer** mechanic. A card flagged `primer: true` (Gold Pouch, Graverobber, Combo Kim) *arms* a

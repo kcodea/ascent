@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { getHero, spellAmplifyBonus } from '@game/sim';
-import { CARD_INDEX } from '@game/content';
 import { heroArt, heroPowerArt } from './art';
 import { Icon } from './Icon';
 import { QuestBadges } from './QuestBadges';
@@ -24,35 +23,27 @@ export function StatusBar() {
   const unlocked = run.wave >= unlockWave;
   // Passive powers (Spellbinder) are always-on — never armed, never "used".
   const isPassive = !!power.passive;
-  // Once-per-game powers (Gild) gate on heroPowerSpent; the rest recharge each wave. Fortify can
+  // Once-per-game powers (Indy's Gild) gate on heroPowerSpent; the rest recharge each wave. Fortify can
   // target a warband minion OR a tavern offer, so it's usable whenever ready — no friend required.
-  // Gildmaster's Golden Gild also has a whole-game use cap (maxUses) AND needs a "double" (two non-golden
-  // copies of a minion across board + hand) to fire — otherwise it's greyed out.
   const withinUses = power.maxUses ? (run.heroPowerUses ?? 0) < power.maxUses : true;
-  const doubleAvailable =
-    power.kind !== 'goldenGild' ||
-    (() => {
-      const counts = new Map<string, number>();
-      for (const c of [...run.board, ...run.hand]) {
-        if (!c.golden && !CARD_INDEX[c.cardId]?.spell) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
-      }
-      return [...counts.values()].some((n) => n >= 2);
-    })();
   // Jenkins's Dynamite Dig has an ESCALATING cost (1 Gold + 1 per prior use), not a fixed `power.cost`.
   const digCost = power.kind === 'dynamiteDig' ? 1 + (run.heroPowerUses ?? 0) : undefined;
+  // Indy's Gild recharges after 40 Gold spent since the last use — how much of that 40 is banked so far.
+  const gildSpent = power.kind === 'gild' && run.heroPowerSpent && run.indyGildRearmAt != null
+    ? Math.max(0, Math.min(40, (run.goldSpent ?? 0) - (run.indyGildRearmAt - 40)))
+    : 0;
   const canHero =
     !isPassive &&
     unlocked &&
     !eotAnimating &&
     withinUses &&
-    doubleAvailable &&
     (power.oncePerGame ? !run.heroPowerSpent : run.heroReady) &&
     (!power.cost || run.embers >= power.cost) &&
     (digCost === undefined || run.embers >= digCost);
   // The big line under the hero name: what tapping the power does *right now*.
   const powerLine = isPassive
     ? power.kind === 'spellAmplify'
-      ? `${power.name} · +${spellAmplifyBonus(run.spellsCast)}/+${spellAmplifyBonus(run.spellsCast)} · ${run.spellsCast % 5}/5`
+      ? `${power.name} · +${spellAmplifyBonus(run.spellsCast)}/+${spellAmplifyBonus(run.spellsCast)} · ${run.spellsCast % 10}/10`
       : power.kind === 'quest'
         ? `${power.name} · ${run.heroPowerSpent ? 'complete' : `${run.drakkoBuys}/5`}`
         : power.kind === 'questChronos'
@@ -61,7 +52,9 @@ export function StatusBar() {
             ? `${power.name} · ${Math.min(5, run.cassenKills + combatEnemyDeaths)}/5`
             : power.kind === 'pathfinder'
               ? `${power.name} · quests turns 6 & 10`
-              : `${power.name} · passive`
+              : power.kind === 'recurringGoldcrafter'
+                ? `${power.name} · ${run.wave % 4 === 0 ? 'this turn' : `in ${4 - (run.wave % 4)}t`}`
+                : `${power.name} · passive`
     : heroArmed
       ? 'Pick a minion…'
       : !unlocked
@@ -70,29 +63,25 @@ export function StatusBar() {
           ? `${power.name} · +${run.tier}/+${run.tier}`
           : power.kind === 'gainMaxMana'
             ? `${power.name} · ${!run.heroReady ? 'used' : run.embers >= (power.cost ?? 0) ? `${power.cost} Gold` : `need ${power.cost} Gold`}`
-            : power.kind === 'goldenGild'
-              ? `${power.name} · ${!withinUses ? 'spent' : !run.heroReady ? 'used' : !doubleAvailable ? 'no pair' : run.embers >= (power.cost ?? 0) ? `${power.cost} Gold` : `need ${power.cost} Gold`}`
-              : power.kind === 'gild'
-                ? `${power.name} · ${run.heroPowerSpent ? 'spent' : 'once per game'}`
-                : power.kind === 'scalingGold'
+            : power.kind === 'gild'
+              ? `${power.name} · ${run.heroPowerSpent ? `${gildSpent}/40 Gold` : 'ready'}`
+              : power.kind === 'scalingGold'
                   ? `${power.name} · ${run.heroPowerSpent ? 'spent' : `+${1 + run.wave} Gold`}`
                   : power.kind === 'dynamiteDig'
                     ? `${power.name} · ${!run.heroReady ? 'used' : run.embers >= digCost! ? `${digCost} Gold` : `need ${digCost} Gold`}`
                     : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
   const powerNote = isPassive
     ? power.kind === 'spellAmplify'
-      ? ` Passive — your spells gain +${spellAmplifyBonus(run.spellsCast)}/+${spellAmplifyBonus(run.spellsCast)}. ${run.spellsCast % 5}/5 spells cast toward the next +1/+1.`
-      : ' Passive — always on.'
+      ? ` Passive — your spells gain +${spellAmplifyBonus(run.spellsCast)}/+${spellAmplifyBonus(run.spellsCast)}. ${run.spellsCast % 10}/10 spells cast toward the next +1/+1.`
+      : power.kind === 'recurringGoldcrafter'
+        ? ` Passive — a Goldcrafter arrives in your hand every 4 turns${run.wave % 4 === 0 ? ' (one this turn)' : ` (next in ${4 - (run.wave % 4)})`}.`
+        : ' Passive — always on.'
     : !unlocked
       ? ` Unlocks on turn ${unlockWave}.`
-      : power.kind === 'goldenGild'
-        ? !withinUses
-          ? ' Used up — twice per game.'
-          : !run.heroReady
-            ? ' Used this turn.'
-            : !doubleAvailable
-              ? ' Need two copies of a minion to gild.'
-              : ` Click to combine a pair into a Gilded copy.${power.cost ? ` Costs ${power.cost} Gold.` : ''}`
+      : power.kind === 'gild'
+        ? run.heroPowerSpent
+          ? ` Recharging — ${gildSpent}/40 Gold spent since your last Gild.`
+          : ' Drag onto a friendly minion (or click, then click it). Refreshes after you spend 40 Gold.'
         : power.kind === 'scalingGold'
           ? run.heroPowerSpent
             ? ' Already used this game.'

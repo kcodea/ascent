@@ -360,6 +360,9 @@ export interface RunState {
   heroReady: boolean;
   /** Once-per-game hero powers (e.g. Oner's Gild) flip this and never recharge. */
   heroPowerSpent: boolean;
+  /** Indy's Gild: the cumulative `goldSpent` value at which the (spent) Gild charge recharges — set to
+   *  `goldSpent + 40` on each use, cleared when the threshold is reached (see `spendGold`). Absent until first use. */
+  indyGildRearmAt?: number;
   /** Total hero-power activations this game — gates powers with a `maxUses` cap (Gildmaster: 2 total,
    *  still once per turn). Absent = 0. Never reset (a whole-game budget, unlike `heroReady`). */
   heroPowerUses?: number;

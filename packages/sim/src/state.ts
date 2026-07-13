@@ -426,6 +426,9 @@ export interface RunState {
   /** Growing tribe auras from quests (Pack Mentality): +stepAttack/+stepHealth to the tribe's aura each time
    *  `per` of `event` accrues over the run. `progress` carries the leftover between steps. Absent = none. */
   questScalingAuras?: { tribe: Tribe; per: number; event: QuestObjectiveEvent; stepAttack: number; stepHealth: number; progress: number }[];
+  /** Den Marker (quest): a run-wide Den-Mother aura — every Beast you play/summon gains +attack/+health, and that
+   *  magnitude climbs +step/+step every `per` Beasts (`count` carries progress toward the next step). Absent = none. */
+  denMarker?: { attack: number; health: number; step: number; per: number; count: number };
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */

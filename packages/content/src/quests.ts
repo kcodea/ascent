@@ -23,7 +23,7 @@ export const QUEST_DEFS: QuestDef[] = [
   // rewards span the full palette (grant / combat flags / persistent + scaling tribe auras / recurring grants).
   { id: 'q_forest_grove', name: 'Forest Grove', tribe: 'beast', tier: 'lesser', objective: { event: 'summon', count: 8, tribe: 'beast' }, reward: { kind: 'grant', randomTribe: 'beast', randomCount: 1 }, repeatable: true },
   { id: 'q_blood_trail', name: 'Blood Trail', tribe: 'beast', tier: 'lesser', objective: { event: 'slaughter', count: 9 }, reward: { kind: 'combatFlag', flag: 'bloodTrail' } },
-  { id: 'q_den_marker', name: 'Den Marker', tribe: 'beast', tier: 'lesser', objective: { event: 'summonCombat', count: 4 }, reward: { kind: 'tribeAura', tribe: 'beast', attack: 2, health: 2 } },
+  { id: 'q_den_marker', name: 'Den Marker', tribe: 'beast', tier: 'lesser', objective: { event: 'spendGold', count: 30 }, reward: { kind: 'beastPlayBuff', attack: 2, health: 2, step: 2, per: 3 } },
   { id: 'q_foragers_trail', name: "Forager's Trail", tribe: 'beast', tier: 'lesser', objective: { event: 'buy', count: 4, tribe: 'beast' }, reward: { kind: 'grant', cards: ['trailforager'] } },
   // DRAGON — Shout / End-of-Turn / stat-growth engine. The keyword-based (not tribe-based) Dragon quests moved to
   // `neutral` (2026-07-08) — a Shout/EoT reward helps any build, not just Dragons.

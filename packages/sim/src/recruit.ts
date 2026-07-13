@@ -2293,6 +2293,19 @@ function fire(
       if (fn) fn(ctx, card, effect.params ?? {}, payload);
     }
   }
+  // Den Marker (run-wide quest aura): a Beast entering play gains the current buff, which then climbs every `per`.
+  // Runs after the card auras so it stacks on top of a real Den Mother; only on summon (matches Den Mother).
+  if (event === 'onSummon' && ctx.state.denMarker) applyDenMarker(ctx.state, payload.minion);
+}
+
+/** Apply the run-wide Den Marker aura to a Beast entering play: +attack/+health now, then climb the magnitude by
+ *  +step/+step once `per` Beasts have been buffed. No-op for non-Beasts. */
+function applyDenMarker(state: RunState, minion: BoardCard): void {
+  const dm = state.denMarker;
+  if (!dm || !isTribe(minion, 'beast')) return;
+  addBuff(minion, 'Den Marker', dm.attack, dm.health);
+  dm.count += 1;
+  if (dm.count % dm.per === 0) { dm.attack += dm.step; dm.health += dm.step; }
 }
 
 /**

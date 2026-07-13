@@ -349,6 +349,7 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   }).strict(),
   z.object({ kind: z.literal('recurringGrant'), cards: z.array(z.string().min(1)).min(1) }).strict(),
   z.object({ kind: z.literal('impAura'), attack: z.number().int().nonnegative(), health: z.number().int().nonnegative() }).strict(),
+  z.object({ kind: z.literal('beastPlayBuff'), attack: z.number().int().positive(), health: z.number().int().positive(), step: z.number().int().nonnegative(), per: z.number().int().positive() }).strict(),
   z.object({ kind: z.literal('combatFlag'), flag: QuestCombatFlagSchema, amount: z.number().int().nonnegative().optional() }).strict(),
   z.object({ kind: z.literal('shoutRepeat'), scope: z.enum(['always', 'firstEachRound']) }).strict(),
   z.object({ kind: z.literal('endOfTurnRepeat') }).strict(),

@@ -2035,6 +2035,11 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       // Imps). Repeats via the reward's `repeatInTurns` (folded through `multi`).
       buffImpsRunWide(s, r.attack, r.health, `Quest: ${def.name}`);
       break;
+    case 'beastPlayBuff':
+      // Den Marker: arm the run-wide Den-Mother aura — every Beast played/summoned gains +A/+H (climbing every
+      // `per` Beasts). Applied in the recruit onSummon path (see `applyDenMarker`); stacks with a real Den Mother.
+      s.denMarker = { attack: r.attack, health: r.health, step: r.step, per: r.per, count: 0 };
+      break;
     case 'combatFlag':
       // Blood Trail / Echoing Coop / Law of Teeth / The Old Hunt / Shared Circuit: arm the run-wide combat mod.
       s.questFlags ??= {};

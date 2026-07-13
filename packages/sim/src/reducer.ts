@@ -603,6 +603,18 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (comboActive && def?.combo) {
         // A Choose One combo (The Godfodder) plays BOTH options with no prompt — not a Shout, just both effects.
         if (def.combo.chooseBoth && def.chooseOne?.length) {
+          // A TARGETED Choose One (Runic Beetle: grant a keyword to a friendly Beast) defers to ONE target pick,
+          // then applies BOTH options' effects to that target (resolved in `battlecryTarget` via `bothOptions`).
+          if (def.target === 'friendly') {
+            const hasTarget = def.targetTribe
+              ? s.board.some((c) => c.uid !== card.uid && isTribe(c, def.targetTribe!))
+              : s.board.some((c) => c.uid !== card.uid);
+            if (hasTarget) {
+              s.pendingTarget = { uid: card.uid, cardId: card.cardId, bothOptions: true };
+              return s;
+            }
+            // No viable friend → each option auto-grants to self (applyChooseOne's fallback) below.
+          }
           for (const opt of def.chooseOne) applyChooseOne(s, card, opt.effects);
           checkTriples(s);
           if (card.golden) grantGoldenDiscover(s);
@@ -691,11 +703,16 @@ function reduceCore(state: RunState, action: Action): RunState {
       const card = s.board.find((c) => c.uid === pt.uid);
       const target = s.board.find((c) => c.uid === action.targetUid);
       if (!card || !target) return state; // a friendly target is required
-      // A deferred targeted Choose One (Runic Beetle) resolves the CHOSEN option's effects on the target;
-      // a normal targeted Battlecry (Toxin Tender) re-fires the card's own onPlay effects.
-      const opt = pt.optionIndex !== undefined ? CARD_INDEX[pt.cardId]?.chooseOne?.[pt.optionIndex] : undefined;
-      if (opt) applyChooseOneTarget(s, card, opt.effects, target);
-      else applyBattlecryTarget(s, card, target);
+      // A deferred targeted Choose One (Runic Beetle) resolves the CHOSEN option's effects on the target; its
+      // Combo (`bothOptions`) applies EVERY option's effects to the one target; a normal targeted Battlecry
+      // (Toxin Tender) re-fires the card's own onPlay effects.
+      if (pt.bothOptions) {
+        for (const o of CARD_INDEX[pt.cardId]?.chooseOne ?? []) applyChooseOneTarget(s, card, o.effects, target);
+      } else {
+        const opt = pt.optionIndex !== undefined ? CARD_INDEX[pt.cardId]?.chooseOne?.[pt.optionIndex] : undefined;
+        if (opt) applyChooseOneTarget(s, card, opt.effects, target);
+        else applyBattlecryTarget(s, card, target);
+      }
       s.pendingTarget = undefined;
       checkTriples(s);
       if (card.golden) grantGoldenDiscover(s);

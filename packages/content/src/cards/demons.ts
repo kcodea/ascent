@@ -249,8 +249,8 @@ export const DEMONS: CardDef[] = [
     goldenText: '**Battlecry:** Your Imps have **+4/+4** wherever they are. **Echo:** summon 2 Imps.',
   },
   {
-    // Bleed engine: at Start of Combat it MARKS 1 enemy (golden marks 2); every 4 attacks in the fight (either side)
-    // that same marked target takes its Attack. The bleed ends the moment Bloodbinder dies (never persists).
+    // Bleed engine: at Start of Combat it MARKS 2 enemies (golden marks 4); every 4 attacks in the fight (either
+    // side) those same marked targets each take its Attack. The bleed ends the moment Bloodbinder dies (never persists).
     id: 'bloodbinder',
     name: 'Bloodbinder',
     tribe: 'demon',
@@ -258,9 +258,9 @@ export const DEMONS: CardDef[] = [
     attack: 5,
     health: 2,
     keywords: [],
-    effects: [{ on: 'startOfCombat', do: 'scArmBleed', params: { every: 4, targets: 1 } }],
-    text: "**Start of Combat — Bleed:** mark a random enemy. Every 4 attacks in combat, deal this minion's Attack to it.",
-    goldenText: "**Start of Combat — Bleed:** mark **2** random enemies. Every 4 attacks in combat, deal this minion's Attack to them.",
+    effects: [{ on: 'startOfCombat', do: 'scArmBleed', params: { every: 4, targets: 2 } }],
+    text: "**Start of Combat — Bleed:** mark **2** random enemies. Every 4 attacks in combat, deal this minion's Attack to them.",
+    goldenText: "**Start of Combat — Bleed:** mark **4** random enemies. Every 4 attacks in combat, deal this minion's Attack to them.",
   },
   {
     // Avenge (3): every 3 friendly deaths in combat, queue a Fodder into your next shop (golden: 2). Feeds the

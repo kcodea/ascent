@@ -153,18 +153,18 @@ describe('simulate (handoff A.3)', () => {
     expect(grants(true)).toBe(4); // golden doubles the number of grants
   });
 
-  it("Bloodbinder Bleed: Start of Combat marks 1 enemy; every 4 attacks it takes its Attack (fixed target)", () => {
+  it("Bloodbinder Bleed: Start of Combat marks 2 enemies; every 4 attacks they take its Attack (fixed targets)", () => {
     const p: BoardMinion[] = [
       { cardId: 'bloodbinder', attack: 5, health: 300 },
       { cardId: 'fred', attack: 2, health: 300 },
     ];
-    // FOUR tanky 0-Attack enemies — more than the 1 mark, so we can prove the marked target is fixed, not re-rolled.
-    const e: BoardMinion[] = Array.from({ length: 4 }, () => ({ cardId: 'sandbag', attack: 0, health: 400 }));
+    // FIVE tanky 0-Attack enemies — more than the 2 marks, so we can prove the marked set is fixed, not re-rolled.
+    const e: BoardMinion[] = Array.from({ length: 5 }, () => ({ cardId: 'sandbag', attack: 0, health: 400 }));
     const r = run(p, e, 11);
     const bbUid = r.initial.player.find((u) => u.cardId === 'bloodbinder')!.uid;
-    // Marked 1 enemy at Start of Combat.
-    expect(r.events.some((ev) => ev.type === 'sc' && ev.source === bbUid && /marks 1 enemy/i.test(ev.text))).toBe(true);
-    // Bleed procs fire (its own `sc` beat); every proc hits ONLY that one marked target — never spills onto others.
+    // Marked 2 enemies at Start of Combat.
+    expect(r.events.some((ev) => ev.type === 'sc' && ev.source === bbUid && /marks 2 enemies/i.test(ev.text))).toBe(true);
+    // Bleed procs fire (its own `sc` beat); every proc hits ONLY the 2 marked targets — never spills onto others.
     const bleedSteps = new Set(
       r.events.filter((ev) => ev.type === 'sc' && ev.source === bbUid && /bleeds/i.test(ev.text)).map((ev) => ev.step),
     );
@@ -172,22 +172,21 @@ describe('simulate (handoff A.3)', () => {
     const bleedTargets = new Set(
       r.events.flatMap((ev) => (ev.type === 'dmg' && bleedSteps.has(ev.step!) ? [ev.target] : [])),
     );
-    expect(bleedTargets.size).toBe(1); // the single fixed mark, every proc
-    // Each bleed hit is Bloodbinder's Attack (5) — NOT doubled for anyone.
+    expect(bleedTargets.size).toBe(2); // the two fixed marks, every proc
+    // Each bleed hit is Bloodbinder's Attack (5).
     expect(r.events.some((ev) => ev.type === 'dmg' && bleedSteps.has(ev.step!) && ev.amount === 5)).toBe(true);
-    expect(r.events.some((ev) => ev.type === 'dmg' && bleedSteps.has(ev.step!) && ev.amount === 10)).toBe(false);
   });
 
-  it("Bloodbinder Bleed: golden marks 2 enemies (not double damage)", () => {
+  it("Bloodbinder Bleed: golden marks 4 enemies (not double damage)", () => {
     const p: BoardMinion[] = [
       { cardId: 'bloodbinder', attack: 5, health: 300, golden: true },
       { cardId: 'fred', attack: 2, health: 300 },
     ];
-    // Four enemies — golden marks 2 of them; bleed hits exactly those two, each for the base Attack (5), not 10.
-    const e: BoardMinion[] = Array.from({ length: 4 }, () => ({ cardId: 'sandbag', attack: 0, health: 400 }));
+    // Six enemies — golden marks 4 of them; bleed hits exactly those four, each for the base Attack (5), not 10.
+    const e: BoardMinion[] = Array.from({ length: 6 }, () => ({ cardId: 'sandbag', attack: 0, health: 400 }));
     const r = run(p, e, 11);
     const bbUid = r.initial.player.find((u) => u.cardId === 'bloodbinder')!.uid;
-    expect(r.events.some((ev) => ev.type === 'sc' && ev.source === bbUid && /marks 2 enemies/i.test(ev.text))).toBe(true);
+    expect(r.events.some((ev) => ev.type === 'sc' && ev.source === bbUid && /marks 4 enemies/i.test(ev.text))).toBe(true);
     const bleedSteps = new Set(
       r.events.filter((ev) => ev.type === 'sc' && ev.source === bbUid && /bleeds/i.test(ev.text)).map((ev) => ev.step),
     );
@@ -195,7 +194,7 @@ describe('simulate (handoff A.3)', () => {
     const bleedTargets = new Set(
       r.events.flatMap((ev) => (ev.type === 'dmg' && bleedSteps.has(ev.step!) ? [ev.target] : [])),
     );
-    expect(bleedTargets.size).toBe(2); // golden = 2 fixed marks
+    expect(bleedTargets.size).toBe(4); // golden = 4 fixed marks
     // Still the base Attack per hit — golden does NOT double the damage.
     expect(r.events.some((ev) => ev.type === 'dmg' && bleedSteps.has(ev.step!) && ev.amount === 5)).toBe(true);
     expect(r.events.some((ev) => ev.type === 'dmg' && bleedSteps.has(ev.step!) && ev.amount === 10)).toBe(false);

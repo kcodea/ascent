@@ -370,7 +370,7 @@ export function trailForagerText(cardId: string, golden: boolean, sellBonus: num
   if (cardId !== 'trailforager' || sellBonus <= 0) return null;
   const def = CARD_INDEX[cardId];
   if (!def) return null;
-  const value = 2 * (golden ? 2 : 1) + sellBonus;
+  const value = 3 * (golden ? 2 : 1) + sellBonus;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   return src.replace(/\*\*\d+g\*\*/, `{{${value}g}}`);
 }

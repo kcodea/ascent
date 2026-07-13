@@ -142,6 +142,7 @@ export type EffectFactoryId =
   | 'battlecryTriggeredOwnDeathrattle' // Sporeling: every Battlecry you trigger procs this minion's own Deathrattle (counts toward the tally)
   | 'avengeGiveAttack' // Stuntdrake: Avenge (X) hands this minion's Attack to N friends (Dragon)
   | 'endOfTurnGrantTribe' // Frontdrake: every N End-of-Turns, conjure a random minion of a tribe to hand (Dragon)
+  | 'endOfTurnGrantRandomTierCard' // Hoard Whelp: End of Turn — conjure a random Tier-N card (spell OR minion) to hand
   | 'onFriendlyAttackBuffTribe' // Raptor: when another friendly minion of a tribe attacks, buff it (Beast)
   | 'onAllyAttackBuffAll' // Crypt Drake: when any ally attacks, buff your minions — improving every N attacks
   | 'onAllyAttackCastGrowth' // Taragosa: when any ally attacks, cast Growth (+atk/+hp to all friends); golden ×2

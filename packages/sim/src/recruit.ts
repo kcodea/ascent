@@ -169,7 +169,7 @@ export function sellValueOf(card: BoardCard): number {
   if (card.cardId === 'hoarder') return 2 * (card.golden ? 2 : 1);
   // Trail Forager: base 2 Gold (×2 golden) + 1 per Beast played (that per-Beast bump is already golden-doubled
   // as it accrues, in `sellBonus`).
-  if (card.cardId === 'trailforager') return 2 * (card.golden ? 2 : 1) + (card.sellBonus ?? 0);
+  if (card.cardId === 'trailforager') return 3 * (card.golden ? 2 : 1) + (card.sellBonus ?? 0);
   return CONFIG.sellValue;
 }
 
@@ -1369,6 +1369,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const def = CARD_INDEX[str(params.cardId)];
     if (!def) return;
     conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
+  },
+
+  /** Hoard Whelp — End of Turn: conjure a random Tier-`tier` card (a spell OR a minion) to hand; golden grants 2.
+   *  Minions are drawn from your active tribes (+ neutral); spells from any Tier-`tier` spell. One combined pool,
+   *  so the pick is uniform across both. */
+  endOfTurnGrantRandomTierCard: (ctx, self, params) => {
+    const tier = num(params.tier, 1);
+    const spells = SPELL_CARDS.filter((c) => c.tier === tier);
+    const minions = BUYABLE_CARDS.filter(
+      (c) => c.tier === tier && !c.spell && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
+    );
+    conjureToHand(ctx.state, [...spells, ...minions], num(params.count, 1) * gold(self));
   },
 
   /** (recruit half) — add `count` random Tavern spell(s) (≤ tavern tier) to hand; golden doubles. */

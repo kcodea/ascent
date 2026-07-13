@@ -131,6 +131,7 @@ export const EffectFactoryIdSchema = z.enum([
   'conjureTribeArmy',
   'stealTavernMinion',
   'endOfTurnGrantTribe',
+  'endOfTurnGrantRandomTierCard',
   'avengeGiveAttack',
   'onFriendlyAttackBuffTribe',
   'battlecryDiscoverMinion',

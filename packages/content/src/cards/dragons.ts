@@ -272,7 +272,7 @@ export const DRAGONS: CardDef[] = [
   // ── Dragon quest reward minions (owner spec 2026-07-08) — `token: true` = reward-exclusive (never in the shop
   //    or "random Dragon" grants). ────────────────────────────────────────────────────────────────────────────
   {
-    // Coin Hoard reward — a value bank you cash in on sell.
+    // Coin Hoard reward — a value bank you cash in on sell, plus a steady stream of Tier-1 cards each turn.
     id: 'hoardwhelp',
     name: 'Hoard Whelp',
     tribe: 'dragon',
@@ -281,9 +281,12 @@ export const DRAGONS: CardDef[] = [
     health: 2,
     keywords: [],
     token: true,
-    effects: [{ on: 'onSell', do: 'onSellGainGold', params: { amount: 6 } }],
-    text: '**Sell:** get **6 Gold**.',
-    goldenText: '**Sell:** get **12 Gold**.',
+    effects: [
+      { on: 'onSell', do: 'onSellGainGold', params: { amount: 6 } },
+      { on: 'endOfTurn', do: 'endOfTurnGrantRandomTierCard', params: { tier: 1 } },
+    ],
+    text: '**Sell:** get **6 Gold**. **End of Turn:** get a random Tier 1 Spell or Minion.',
+    goldenText: '**Sell:** get **12 Gold**. **End of Turn:** get **2** random Tier 1 Spells or Minions.',
   },
   {
     // Skybound Pact reward — End of Turn, drags your weakest Dragon up toward your strongest. T4 so Eyes of

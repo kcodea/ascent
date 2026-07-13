@@ -175,7 +175,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         case 'oldHunt':
           return `Whenever a Beast attacks, improve your Beast Attack aura by +${r.amount ?? 0}`;
         case 'sharedCircuit':
-          return `Start of Combat: give ${r.amount ?? 0} friendly Mechs Ward`;
+          return `Start of Combat: give ${r.amount ?? 0} friendly Mechs Ward. When a Mech loses its Ward, pass it to another (up to ${r.amount ?? 0}× per combat)`;
         case 'deepHunger':
           return 'Start of Combat: your leftmost Demon gains "Slaughter: add 3 Fodder to your next shop"';
         case 'contractRewrite':
@@ -236,7 +236,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'attachmentDeal':
       return `Attachments cost ${r.cost} Gold, and there's always an Attachment in the shop`;
     case 'friedCircuits':
-      return `Each minion you buy buffs shop Mechs +${r.step}/+${r.step}, improving by +${r.step}/+${r.step} each purchase`;
+      return `Each minion you buy buffs shop Mechs +${r.stepAttack}/+${r.stepHealth}, improving by +${r.stepAttack}/+${r.stepHealth} each purchase`;
     case 'undeadSpellAura':
       return `Casting a spell gives your Undead +${r.attack} Attack (in the shop and combat)`;
     case 'openEpicRuneforge':

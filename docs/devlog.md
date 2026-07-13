@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### balance: Fried Circuits +4/+5 (asymmetric) + Shared Circuit ward-transfer
+
+Two Mech-capstone quest-reward tweaks:
+- **Fried Circuits** — the escalating shop-Mech buff is now **+4/+5** (asymmetric) instead of a symmetric +2/+2.
+  Reward kind `friedCircuits` split `step` → `stepAttack`/`stepHealth`; `RunState.friedCircuitsStepAtk`/`Hp`; the
+  buy-loop application + `questText` updated.
+- **Shared Circuit** — keeps its 3 Start-of-Combat Wards, and now **passes a broken Ward onward**: when a friendly
+  Mech loses its Ward, another unshielded friendly Mech gets one — up to N (3) times per combat, chaining as they
+  break. Implemented as a per-side `onLoseDivineShield` subscription in `simulate` (mirrors Rune of Salvage).
+- **Verified**: `typecheck`/`lint`/`test` (977, incl. Fried Circuits asymmetric escalation + Shared Circuit
+  transfer-on-break capped at N)/`build:web` green.
+
 ### feat: Den Marker quest — run-wide Den Mother aura (Beasts +2/+2 on play, scaling)
 
 The Den Marker quest now grants a **run-wide Den-Mother-style aura** instead of a flat tribe aura (owner: "extend the

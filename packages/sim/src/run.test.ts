@@ -5153,14 +5153,17 @@ describe('Beast quests (combat objectives + rewards)', () => {
       activeQuests: [{ questId: 'q_fried_circuits', progress: 20, completed: false, partProgress: [0, 20] }],
     });
     expect(s.activeQuests![0]!.completed).toBe(true);
-    expect(s.friedCircuitsStep).toBe(2);
-    // Escalating buff: buy 1 → remaining Mech offers +2/+2; buy 2 → +4/+4 (cumulative).
-    let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 50, friedCircuitsStep: 2, friedCircuitsBuys: 0,
+    expect(s.friedCircuitsStepAtk).toBe(4);
+    expect(s.friedCircuitsStepHp).toBe(5);
+    // Escalating buff: buy 1 → remaining Mech offers +4/+5; buy 2 → +8/+10 more (cumulative).
+    let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 50, friedCircuitsStepAtk: 4, friedCircuitsStepHp: 5, friedCircuitsBuys: 0,
       shop: [{ uid: 'm1', cardId: 'drone' }, { uid: 'm2', cardId: 'drone' }, { uid: 'm3', cardId: 'drone' }] };
     t = reduce(t, { type: 'buy', uid: 'm1' });
-    expect(t.shop.find((o) => o.uid === 'm2')!.atk).toBe(2); // +2 after the 1st buy
+    expect(t.shop.find((o) => o.uid === 'm2')!.atk).toBe(4); // +4 after the 1st buy
+    expect(t.shop.find((o) => o.uid === 'm2')!.hp).toBe(5); // …and +5 Health (asymmetric)
     t = reduce(t, { type: 'buy', uid: 'm2' });
-    expect(t.shop.find((o) => o.uid === 'm3')!.atk).toBe(6); // +2 (1st buy) + 4 (2nd buy) = 6
+    expect(t.shop.find((o) => o.uid === 'm3')!.atk).toBe(12); // +4 (1st buy) + 8 (2nd buy) = 12
+    expect(t.shop.find((o) => o.uid === 'm3')!.hp).toBe(15); // +5 + 10 = 15
   });
 
   it('Fried Circuits (compound): the spendGold part alone does NOT complete it', () => {

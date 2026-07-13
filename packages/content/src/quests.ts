@@ -99,7 +99,7 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_shared_circuit', name: 'Shared Circuit', tribe: 'mech', tier: 'capstone', objective: { event: 'playAttachment', count: 12 }, reward: { kind: 'combatFlag', flag: 'sharedCircuit', amount: 3 } },
   { id: 'q_anomalous_reactor', name: 'Anomalous Reactor', tribe: 'mech', tier: 'greater', objective: { event: 'spendGold', count: 15 }, reward: { kind: 'grant', cards: ['anomalyreactor'] } },
   { id: 'q_attachment_issues', name: 'Attachment Issues', tribe: 'mech', tier: 'capstone', objective: { event: 'slaughter', count: 10 }, reward: { kind: 'attachmentDeal', cost: 1 } },
-  { id: 'q_fried_circuits', name: 'Fried Circuits', tribe: 'mech', tier: 'capstone', objective: { event: 'compound', count: 2, parts: [{ event: 'slaughter', count: 10 }, { event: 'spendGold', count: 20 }] }, reward: { kind: 'friedCircuits', step: 2 } },
+  { id: 'q_fried_circuits', name: 'Fried Circuits', tribe: 'mech', tier: 'capstone', objective: { event: 'compound', count: 2, parts: [{ event: 'slaughter', count: 10 }, { event: 'spendGold', count: 20 }] }, reward: { kind: 'friedCircuits', stepAttack: 4, stepHealth: 5 } },
   { id: 'q_true_contract', name: 'The True Contract', tribe: 'demon', tier: 'capstone', objective: { event: 'consumeFodder', count: 18 }, reward: { kind: 'grant', cards: ['heraldapoc'] } },
   { id: 'q_pit_without_end', name: 'Pit Without End', tribe: 'demon', tier: 'capstone', objective: { event: 'summonImp', count: 12 }, reward: { kind: 'combatFlag', flag: 'pitWithoutEnd', amount: 3 } },
   { id: 'q_maw_of_the_run', name: 'Track and Fodder', tribe: 'demon', tier: 'capstone', objective: { event: 'consumeStats', count: 70 }, reward: { kind: 'grant', cards: ['runmaw'] } },

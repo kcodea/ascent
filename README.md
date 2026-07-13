@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Step-progress counters.** Step-based scaling minions now show a small **"X/N"** pill below the card,
+  counting toward their next step/transform/proc — Archmagus Guel `1/4`, `2/4`… per spell; Flowing Monk per
+  overflow; Spirit Pup toward transform; Tara toward ascend; Crypt Drake per attack; Frontdrake/Money Maker per
+  turn. Shown on board minions (and live mid-combat); continuous accumulators get none.
 - **Ward is a glassy hex-sphere dome now.** Divine Shield retired its Pixi bubble for a pure-CSS layered dome glued
   to the card — a pulsing gold body, hexagons projected onto a sphere (compressed at the rim), vignette, bright spot,
   and a shiny gloss. It stays put through drag + the combat lunge, and the break is a clean gold shard burst (no more

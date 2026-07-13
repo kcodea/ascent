@@ -163,6 +163,12 @@ look because the engine already produces the data.
   (only `ring` is built), and there's no dedicated `neutral` preset (falls to `default`). Separately, hero-power /
   spell buffs resolve in the **recruit/shop phase** (a different code path from the combat replay) and get only a
   sound + CSS glow today — wiring them to `pixiFx.pulse` is a future pass.
+- **Shop-phase buff-other FX — tendril / descend (M2, in flight).** When a card buffs *other* minions in the shop
+  (Battlecry, on-summon, Guel's on-spell-cast, spell casts, recruit Deathrattles) it currently shows only the
+  passive green stat-diff burst. M2 of `docs/superpowers/plans/2026-07-13-shop-buff-fx-and-step-counters.md`
+  captures who-buffed-whom at the recruit dispatch layer (`recruitBuffFx` on `RunState`, mirroring `fodderEaten`)
+  and replays each as the same **tendril** (living-minion source) / **descend** (spell / Deathrattle) combat uses.
+  Discrete triggers only — passive auras (Lantern, Imp) stay ambient. **M1 (step counters) shipped session 36.**
 - ~~**Buff tendrils — on-attack buffers.**~~ ✓ **shipped (session 33, → devlog):** on-attack / Rally buff-others
   (Supporter, Chimerus, Chorus Engine, Raptor, Crypt Drake, Taragosa) now fire tendrils woven into the attacker's
   wind-up (pulse → tendril → lunge) via `onWindupBuffs` on the lunge timeline. Landed at the wind-up (not

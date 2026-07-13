@@ -41,6 +41,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const startAscent = useGame((s) => s.startAscent);
   const startPractice = useGame((s) => s.startPractice);
   const openLeaderboard = useGame((s) => s.openLeaderboard);
+  const openRankings = useGame((s) => s.openRankings);
   const openCareer = useGame((s) => s.openCareer);
   const toggleBook = useGame((s) => s.toggleBook);
   const playerName = useGame((s) => s.playerName);
@@ -126,9 +127,13 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <span className="mbicon"><IconHelm /></span>
             <span className="mblabel">Career</span>
           </button>
-          <button className="menubtn" onClick={() => { sfx.pulse(); openLeaderboard(); }}>
+          <button className="menubtn" onClick={() => { sfx.pulse(); openRankings(); }} title="Top players by rating">
             <span className="mbicon"><IconTrophy /></span>
             <span className="mblabel">Leaderboard</span>
+          </button>
+          <button className="menubtn" onClick={() => { sfx.pulse(); openLeaderboard(); }} title="The latest victory runs + their warbands">
+            <span className="mbicon"><Icon name="crown" /></span>
+            <span className="mblabel">Hall of Champions</span>
           </button>
           <button className="menubtn" onClick={onSettings}>
             <span className="mbicon"><Icon name="gear" /></span>

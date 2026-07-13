@@ -16,8 +16,8 @@ export interface CombatQuestDelta {
 import { sfx } from './sfx';
 import { liveBoardView } from './instView';
 import { loadStoredBoards, saveRunBoards } from './boardLibrary';
-import { fetchAndRegisterPool, recordFightResult, uploadBoards, uploadVictory } from './remoteBoards';
-import { buildRunHistoryEntry, clearRunHistory, saveRunHistoryEntry } from './runHistory';
+import { fetchAndRegisterPool, recordFightResult, uploadBoards, uploadPlayerProfile, uploadVictory } from './remoteBoards';
+import { buildRunHistoryEntry, careerStats, clearRunHistory, saveRunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
 
@@ -206,10 +206,14 @@ interface GameStore {
   startPractice: () => void;
   /** Return to the title screen (from the end screen). */
   openTitle: () => void;
-  /** The leaderboard overlay (Hall of Champions — latest victory runs) is open. */
+  /** The Hall of Champions overlay (latest victory runs + their warbands) is open. */
   showLeaderboard: boolean;
   openLeaderboard: () => void;
   closeLeaderboard: () => void;
+  /** The player Leaderboard overlay (top players by rating / "MMR") is open. */
+  showRankings: boolean;
+  openRankings: () => void;
+  closeRankings: () => void;
   /** The Career overlay (your local match history + per-hero stats) is open. */
   showCareer: boolean;
   openCareer: () => void;
@@ -219,6 +223,10 @@ interface GameStore {
   showBook: boolean;
   toggleBook: () => void;
   closeBook: () => void;
+  /** DEV-only balance-report panel (runs greedy-bot games in-browser + shows offer/pick/win tables). */
+  showBalance: boolean;
+  openBalance: () => void;
+  closeBalance: () => void;
 }
 
 const randomSeed = (): number => Math.floor(Math.random() * 0x7fffffff);
@@ -418,7 +426,15 @@ export const useGame = create<GameStore>((set, get) => ({
           });
           saveProfile(change.profile);
           set({ profile: change.profile, lastRating: change });
-          saveRunHistoryEntry(buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change }));
+          const history = saveRunHistoryEntry(buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change }));
+          // Player Leaderboard: upsert this named player's slot — rating (the "MMR") + total games + favorite
+          // hero, both derived from the just-updated local history (games = runs, favorite = most-played hero).
+          // Best-effort + skipped for anonymous players (see uploadPlayerProfile).
+          const career = careerStats(history);
+          void uploadPlayerProfile({
+            author, rating: change.profile.rating, gamesPlayed: career.runs,
+            favoriteHero: career.perHero[0]?.heroId, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
+          });
           if (won) {
             void uploadVictory({
               heroId: next.heroId, author, wave: next.wave,
@@ -477,12 +493,18 @@ export const useGame = create<GameStore>((set, get) => ({
   openTitle: () => set({ showTitle: true, heroChoices: null }),
   openLeaderboard: () => set({ showLeaderboard: true }),
   closeLeaderboard: () => set({ showLeaderboard: false }),
+  showRankings: false,
+  openRankings: () => set({ showRankings: true }),
+  closeRankings: () => set({ showRankings: false }),
   showCareer: false,
   openCareer: () => set({ showCareer: true }),
   closeCareer: () => set({ showCareer: false }),
   showBook: false,
   toggleBook: () => set((s) => ({ showBook: !s.showBook })),
   closeBook: () => set({ showBook: false }),
+  showBalance: false,
+  openBalance: () => set({ showBalance: true }),
+  closeBalance: () => set({ showBalance: false }),
 }));
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the

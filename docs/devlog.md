@@ -29,6 +29,18 @@ mechanic is legible at a glance (Guel `1/4 → 2/4 …` per spell was the drivin
 
 Verified: `typecheck` + `lint` + full `test` (992) + `build:web` all green; rebased on `origin/main`. **Follow-up
 (M2, planned):** shop-phase buff FX — replay the combat tendril/descend when a card buffs others in the shop.
+### fix: a Rise (Reborn) counts as a summon for "Summon N in combat" quests
+
+**Bug (owner-reported):** Forsaken Will (`summonCombat` Undead) wasn't counting Undead that came back via **Rise**
+(Reborn). Rising re-enters a body into play, so it should count as summoning. Root cause: the Rise revival path in
+`killOrReborn` revives the SAME body in place + emits a `reborn` event — it never routes through `placeSummon`, which
+is the single place `bumpQuestTally('summonCombat', …)` fires. So a Rise was invisible to every "Summon N in combat"
+quest (Forsaken Will, Pack Mentality, …). Fix: after a player-side Rise re-slots, bump the summonCombat tally (+ the
+Imp tally if the risen body is an Imp), mirroring `placeSummon`. Deliberately NOT an `onSummon` broadcast — Rise still
+doesn't re-fire onSummon/Battlecry effects; this is the quest count only. Verified: new regression test (a player
+Grave Knit Rises → `summonCombat` + `summonCombatByTribe.undead` ≥ 1); `typecheck`/`lint`/`test` (**991**)/`build:web`
+green.
+
 ### docs: concurrency playbook for many-session work
 
 Wrote [`docs/concurrency.md`](concurrency.md) and linked it from the top of CLAUDE.md's Collaboration section,
@@ -38,6 +50,42 @@ index, so the fix is **one isolated checkout (worktree/clone) per active session
 touching nothing else's** — plus commit/push early (origin is the only durable copy), tiny branches, take
 `main` in often, split by ownership seam, look before you start (`gh pr list`), and per-session dev ports.
 Docs-only; no code touched.
+
+### tooling: in-app dev Balance Report panel (owner request)
+
+The `npm run report` balance tool now has an **in-app, dev-only** twin so the numbers are one click away without
+dropping to a terminal. Refactor: the whole sim + tally moved into `@game/sim` (`balanceReport.ts` —
+`computeBalanceReport` / `createReportAccumulator` / `playAndRecordInto` / `finalizeReport`, all pure, Node-free),
+and the CLI (`packages/tools/src/balance-report.ts`) is now just argv + formatting over it — so the panel and the CLI
+share ONE implementation and produce **identical** numbers. New `BalancePanel.tsx` (mounted only under
+`import.meta.env.DEV`, opened from the 🛠️ Dev menu → "📊 Balance Report") runs the report **hero-by-hero on a
+`setTimeout` yield** so the main thread never locks up and a progress bar ticks; results are the five ranked
+offer/pick/win tables (heroes, quests, runes, minions, spells) with a win-rate heat tint. Games/hero is a 5/10/20/30
+chip. Verified live: opened the panel, ran 5 games/hero (100 runs) — progress bar advanced to 100% with the page
+still responsive, all five tables populated; matches `npm run report -- 5`. `typecheck`/`lint`/`test`/`build:web`
+green.
+
+### feat: player Leaderboard (top players by rating) + rename Leaderboard → Hall of Champions
+
+The old "Leaderboard" menu entry (which was already the victory-runs page titled **Hall of Champions**) is now
+labelled **Hall of Champions**, and a brand-new **Leaderboard** sits above it: the **top 10 players by rating** (the
+"MMR" — the existing `PlayerProfile.rating`), each with their **games played** and **favorite hero** (most-played).
+
+- Backend: a new `profiles` table (schema.sql), UPSERTED on every finished Ascent run (win or loss) with the player's
+  rating + total games + favorite-hero id. Games + favorite hero are derived from the just-saved **local** match
+  history (`careerStats`: `runs` + `perHero[0]`); the upload is skipped for anonymous (un-named) players. New
+  `uploadPlayerProfile` / `fetchTopPlayers` in `remoteBoards.ts`, same best-effort / no-op-when-unconfigured /
+  never-throws contract as the rest of the remote seam. **Dormant until the owner runs the `profiles` migration** in
+  schema.sql (exactly like the `board_results` ledger) — the game + every other upload keep working unchanged
+  meanwhile.
+- UI: new `Rankings.tsx` full-page overlay (reuses the `.lbpage` shell) — a ranked table (rank medals · player ·
+  rating · games · favorite-hero portrait+name), your own row highlighted. New store flags `showRankings` /
+  `openRankings` / `closeRankings`; Title gains the new button (opens Rankings) and the existing one is relabelled +
+  repointed to open the champions page.
+- Verified: `typecheck` / `lint` / `test` (990) / `build:web` green. Live: the Title menu reads
+  PLAY / CAREER / LEADERBOARD / HALL OF CHAMPIONS; the new Leaderboard renders its empty state ("finish a run to claim
+  a slot") with no `profiles` table yet, and a mock top-4 confirmed the row layout (medals, tangerine rating, favorite
+  hero portraits, "—" for a heroless player); Hall of Champions still opens its victory-run list unchanged.
 
 ### fix(fx): Taunt target/selection glow follows the shield silhouette
 
@@ -87,6 +135,16 @@ to the generic `.dscard` treatment.
 **Verified:** `npm run build:web` green (CSS-only change). The dome size/seat were dialled in by eye on the
 ward-css-preview rig (a Taunt+DS card was added to it) and baked in — `--wardsq` = shield-window width × **1.4**,
 vertical seat **−0.08 × --ccw**; the glow re-shape is deterministic.
+
+### fix: Cleave splashes past a dead unit to the living neighbour (real bug this time)
+
+The owner's repro was right — Cleave DID have a bug (my earlier "verified correct" pass used a surviving attacker and
+never hit this path). Dead minions are kept in `boards[side]` (never spliced), and Cleave found its neighbours via
+`arr.indexOf(target)` + index-adjacent slots. So once a unit BETWEEN the target and its living neighbour died, Cleave
+splashed the dead slot and **skipped the still-standing minion beyond it** — the exact "cleave attacked, the unit next
+to the target took no damage" report. Fixed: Cleave now computes neighbours over the **living** array (the visual
+order). New regression test: an unkillable Taunt target with a 1-HP unit between it and a tanky third — the third is
+cleaved every clash after the middle dies. Verified: `typecheck`/`lint`/`test` (981)/`build:web` green.
 
 ### tweak: Skip-combat button → top-middle + Front to Back improves every other cast
 

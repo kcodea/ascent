@@ -29,6 +29,28 @@ chip. Verified live: opened the panel, ran 5 games/hero (100 runs) — progress 
 still responsive, all five tables populated; matches `npm run report -- 5`. `typecheck`/`lint`/`test`/`build:web`
 green.
 
+### feat: player Leaderboard (top players by rating) + rename Leaderboard → Hall of Champions
+
+The old "Leaderboard" menu entry (which was already the victory-runs page titled **Hall of Champions**) is now
+labelled **Hall of Champions**, and a brand-new **Leaderboard** sits above it: the **top 10 players by rating** (the
+"MMR" — the existing `PlayerProfile.rating`), each with their **games played** and **favorite hero** (most-played).
+
+- Backend: a new `profiles` table (schema.sql), UPSERTED on every finished Ascent run (win or loss) with the player's
+  rating + total games + favorite-hero id. Games + favorite hero are derived from the just-saved **local** match
+  history (`careerStats`: `runs` + `perHero[0]`); the upload is skipped for anonymous (un-named) players. New
+  `uploadPlayerProfile` / `fetchTopPlayers` in `remoteBoards.ts`, same best-effort / no-op-when-unconfigured /
+  never-throws contract as the rest of the remote seam. **Dormant until the owner runs the `profiles` migration** in
+  schema.sql (exactly like the `board_results` ledger) — the game + every other upload keep working unchanged
+  meanwhile.
+- UI: new `Rankings.tsx` full-page overlay (reuses the `.lbpage` shell) — a ranked table (rank medals · player ·
+  rating · games · favorite-hero portrait+name), your own row highlighted. New store flags `showRankings` /
+  `openRankings` / `closeRankings`; Title gains the new button (opens Rankings) and the existing one is relabelled +
+  repointed to open the champions page.
+- Verified: `typecheck` / `lint` / `test` (990) / `build:web` green. Live: the Title menu reads
+  PLAY / CAREER / LEADERBOARD / HALL OF CHAMPIONS; the new Leaderboard renders its empty state ("finish a run to claim
+  a slot") with no `profiles` table yet, and a mock top-4 confirmed the row layout (medals, tangerine rating, favorite
+  hero portraits, "—" for a heroless player); Hall of Champions still opens its victory-run list unchanged.
+
 ### fix(fx): Taunt target/selection glow follows the shield silhouette
 
 A Taunt card is reshaped into a heater **shield** (portrait clipped to `--heater`, the frame PNG laid over an

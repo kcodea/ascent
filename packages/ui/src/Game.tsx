@@ -5,6 +5,7 @@ import { EndScreen } from './EndScreen';
 import { HeroSelect } from './HeroSelect';
 import { Title } from './Title';
 import { Leaderboard } from './Leaderboard';
+import { Rankings } from './Rankings';
 import { Career } from './Career';
 import { AvatarPicker } from './AvatarPicker';
 import { FontLab } from './FontLab';
@@ -124,6 +125,7 @@ export function Game() {
       <HeroSelect />
       <Title onSettings={() => setMenuOpen(true)} />
       <Leaderboard />
+      <Rankings />
       <Career />
       <AvatarPicker />
       <FontLab />

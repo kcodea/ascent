@@ -190,6 +190,61 @@ export async function fetchVictories(limit = 20): Promise<VictoryRow[]> {
   }
 }
 
+// ── Player leaderboard (profiles) ───────────────────────────────────────────────────────────────────────────
+// One row per NAMED player, upserted on every finished Ascent run: their skill rating (the "MMR"), total games
+// played, and favorite hero (most-played). Powers the player Leaderboard (top 10 by rating). Same
+// no-op-when-unconfigured / fire-and-forget / never-throws contract, and dormant until the `profiles` table is
+// migrated (see schema.sql) — exactly like the board_results ledger.
+
+/** One ranked player, shaped for the leaderboard UI. */
+export interface PlayerRow {
+  author: string;
+  rating: number;
+  gamesPlayed: number;
+  /** Hero id of the most-played hero (resolved to a name + portrait in the UI). Undefined if none recorded. */
+  favoriteHero?: string;
+}
+
+/** Upsert a player's leaderboard row (keyed by author). Fire-and-forget; never throws / blocks. Skipped for
+ *  anonymous players (no author) — an unnamed run can't own a leaderboard slot. */
+export async function uploadPlayerProfile(p: {
+  author?: string; rating: number; gamesPlayed: number; favoriteHero?: string; patch: string;
+}): Promise<void> {
+  const c = client();
+  if (!c || !p.author) return;
+  try {
+    await c.from('profiles').upsert(
+      {
+        author: p.author, rating: p.rating, games_played: p.gamesPlayed,
+        favorite_hero: p.favoriteHero ?? null, patch: p.patch, updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'author' },
+    );
+  } catch {
+    /* best-effort — profile sync must never disrupt the end screen */
+  }
+}
+
+/** Fetch the top `limit` players by rating (the "MMR"), highest first, games-played as a tiebreak. Best-effort
+ *  + time-boxed; [] on any failure / no backend / un-migrated table. */
+export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
+  const c = client();
+  if (!c) return [];
+  try {
+    const request = Promise.resolve(
+      c.from('profiles').select('author, rating, games_played, favorite_hero')
+        .order('rating', { ascending: false }).order('games_played', { ascending: false }).limit(limit),
+    );
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([request, timeout]);
+    if (!result || result.error || !result.data) return [];
+    return (result.data as Array<{ author: string; rating: number; games_played: number; favorite_hero: string | null }>)
+      .map((r) => ({ author: r.author, rating: r.rating, gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined }));
+  } catch {
+    return [];
+  }
+}
+
 // ── Fight-result ledger (win-tracking) ─────────────────────────────────────────────────────────────────────
 // One row per combat fought against a served board; the leaderboard + Career per-round log aggregate it. Same
 // fire-and-forget / no-op-when-unconfigured / never-throws contract as the rest of this seam.

@@ -96,6 +96,13 @@ means the boundary leaked.
 ## Collaboration (2 devs — Kevin + Mike, both using Claude Code)
 
 > New to the repo? Start with [`ONBOARDING.md`](ONBOARDING.md) (clone → install → verify → the rules).
+>
+> **Running several sessions at once (Kevin, Mike, or multiple Claude agents)? Read
+> [`docs/concurrency.md`](docs/concurrency.md) FIRST.** The one rule that prevents most pain: each active
+> session works in **its own worktree/clone off latest `origin/main`** and touches nothing else's — never
+> another session's worktree, branch, or the shared primary checkout. Commit + push early (origin is the only
+> durable copy), keep branches tiny, take `main` in often, and split by ownership seam so two sessions never
+> edit the same file.
 
 Two people don't go 2× by typing faster (Claude already removed typing as the bottleneck) — the new
 bottleneck is **coordination and integration**. The win comes from parallelizing along clean seams and

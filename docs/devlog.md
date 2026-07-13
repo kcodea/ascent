@@ -23,8 +23,9 @@ to the generic `.dscard` treatment.
   taller window; `.art`'s `--heater` clip still trims it to the shield edge. Zeroed the arch `border-radius` on
   the ward children inside the heater clip.
 
-**Verified:** `npm run build:web` green (CSS-only change). The dome size/position (`--wardsq`, the `top` offset)
-are labelled eyeball knobs — pending an in-tab look to nudge; the glow re-shape is deterministic.
+**Verified:** `npm run build:web` green (CSS-only change). The dome size/seat were dialled in by eye on the
+ward-css-preview rig (a Taunt+DS card was added to it) and baked in — `--wardsq` = shield-window width × **1.4**,
+vertical seat **−0.08 × --ccw**; the glow re-shape is deterministic.
 
 ### balance: Fried Circuits +4/+5 (asymmetric) + Shared Circuit ward-transfer
 

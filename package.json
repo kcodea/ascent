@@ -19,6 +19,7 @@
     "bot": "tsx packages/tools/src/run-harness.ts",
     "replay": "tsx packages/tools/src/replay-harness.ts",
     "balance": "tsx packages/tools/src/balance.ts",
+    "report": "tsx packages/tools/src/balance-report.ts",
     "curve": "tsx packages/tools/src/enemy-curve.ts",
     "player": "tsx packages/tools/src/player-curve.ts",
     "audit": "tsx packages/tools/src/card-audit.ts",

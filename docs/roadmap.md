@@ -299,6 +299,10 @@ look because the engine already produces the data.
 - **Commander Impala** — **50% Critical Strike** (double damage on attack, 50% chance, seeded RNG). Both need a
   new combat keyword; scoped out of the Combo PR to keep it clean.
 
+### Withheld heroes (temporarily pulled — owner 2026-07-13)
+- **Warden**, **Myra**, **Chaos** are `wip: true` (kept in the registry, hidden from the picker) pending a rework
+  or re-evaluation. **Herald** was removed outright. Re-enable by clearing `wip` (or re-adding Herald) when ready.
+
 ---
 
 ## Combat Choreographer (spec: [docs/superpowers/specs/2026-07-06-combat-choreographer-design.md](superpowers/specs/2026-07-06-combat-choreographer-design.md))

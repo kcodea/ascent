@@ -835,46 +835,16 @@ describe('run loop (@game/sim)', () => {
     expect(['emberpouch', 'depositbox']).toContain(s.hand[0]!.cardId);
   });
 
-  it('Gildmaster: Golden Gild combines a pair into a golden copy in hand (costs 3, once per turn)', () => {
-    let s: RunState = {
-      ...createRun(1), heroId: 'gildmaster', embers: 5, heroReady: true, shop: [], hand: [],
-      board: [
-        { uid: 'a1', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
-        { uid: 'a2', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
-      ],
-    };
-    s = reduce(s, { type: 'heroPower', uid: 'x' }); // untargeted — finds the double itself
-    const all = [...s.hand, ...s.board];
-    expect(all.find((c) => c.cardId === 'alley' && c.golden)).toBeDefined(); // one golden Alleycat…
-    expect(all.filter((c) => c.cardId === 'alley' && !c.golden)).toHaveLength(0); // …the pair consumed
-    expect(s.embers).toBe(2); // 5 - 3 cost
-    expect(s.heroPowerUses).toBe(1);
-    expect(s.heroReady).toBe(false); // spent this turn
-  });
-
-  it('Gildmaster: with no double, the power is a no-op and spends nothing', () => {
-    let s: RunState = {
-      ...createRun(1), heroId: 'gildmaster', embers: 5, heroReady: true, shop: [], hand: [],
-      board: [{ uid: 'a1', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
-    };
-    s = reduce(s, { type: 'heroPower', uid: 'x' });
-    expect([...s.hand, ...s.board].some((c) => c.golden)).toBe(false);
-    expect(s.embers).toBe(5); // no charge
-    expect(s.heroPowerUses ?? 0).toBe(0); // not counted
-    expect(s.heroReady).toBe(true); // still available
-  });
-
-  it('Gildmaster: capped at 2 total uses across the game', () => {
-    let s: RunState = {
-      ...createRun(1), heroId: 'gildmaster', embers: 20, heroReady: true, heroPowerUses: 2, shop: [], hand: [],
-      board: [
-        { uid: 'a1', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
-        { uid: 'a2', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
-      ],
-    };
-    s = reduce(s, { type: 'heroPower', uid: 'x' }); // already used twice → blocked
-    expect([...s.hand, ...s.board].some((c) => c.golden)).toBe(false);
-    expect(s.embers).toBe(20);
+  it('Gildmaster: passively conjures a Goldcrafter to hand every 4th turn (turns 4, 8, …)', () => {
+    const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
+    // Win the combat at `fromWave` → advance opens the next turn's shop (running the turn-setup grant).
+    const advanceTo = (heroId: string, fromWave: number): RunState =>
+      reduce({ ...createRun(1, heroId), wave: fromWave, phase: 'combat', hand: [], lastCombat: win }, { type: 'resolveCombat' });
+    const gc = (s: RunState): number => s.hand.filter((c) => c.cardId === 'goldcrafter').length;
+    expect(gc(advanceTo('gildmaster', 3))).toBe(1); // → turn 4: one Goldcrafter
+    expect(gc(advanceTo('gildmaster', 4))).toBe(0); // → turn 5: none
+    expect(gc(advanceTo('gildmaster', 7))).toBe(1); // → turn 8: one
+    expect(gc(advanceTo('soren', 3))).toBe(0); // a non-Gildmaster never gets one
   });
 
   it('Apples: SPELL Choose One — buff this shop +1/+3 OR bank +2/+4 for the next shop', () => {
@@ -3441,7 +3411,7 @@ describe('hero powers (@game/sim)', () => {
     expect(s.heroReady).toBe(true); // no board minion matched → nothing happened
   });
 
-  it("Indy's Gild doubles a minion's BASE stats (not its buffs), turns it golden, once per game", () => {
+  it("Indy's Gild doubles a minion's BASE stats (not its buffs), turns it golden, then locks until 40 Gold spent", () => {
     // Target Dummy (base 0/4) buffed to 5/9 by a +5/+5. Gilding doubles the BASE only → 0/4 → 0/8, plus the
     // +5/+5 buff = 5/13 — NOT 10/18 (the old bug that doubled the whole current stat line).
     const buffed: BoardCard = { uid: 'a', cardId: 'sandbag', tribe: 'neutral', attack: 5, health: 9, keywords: [], golden: false, buffs: [{ source: 'Fortify', attack: 5, health: 5, count: 1 }] };
@@ -3451,9 +3421,31 @@ describe('hero powers (@game/sim)', () => {
     expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([5, 13]); // base 0/4 doubled + the +5/+5 buff kept
     expect(s.board[0]!.buffs).toEqual([{ source: 'Fortify', attack: 5, health: 5, count: 1 }, { source: 'Gild', attack: 0, health: 4, count: 1 }]);
     expect(s.heroPowerSpent).toBe(true);
-    // Once per *game*: recharging the per-wave flag must not re-enable it.
+    expect(s.indyGildRearmAt).toBe(40); // recharges once cumulative goldSpent reaches 40
+    // Still locked after < 40 Gold spent (recharging the per-wave flag must not re-enable it either).
     s = { ...s, heroReady: true };
     expect(reduce(s, { type: 'heroPower', uid: 'b' })).toBe(s);
+  });
+
+  it("Indy's Gild recharges once 40 Gold has been spent, then can gild again", () => {
+    // Turn 1 tavern up (tier 1→2 costs 5) then buys — spend past 40 Gold to re-arm the used Gild.
+    let s: RunState = {
+      ...createRun(1, 'indy'), embers: 100, board: [mk('a', 2, 2), mk('b', 3, 3)],
+    };
+    s = reduce(s, { type: 'heroPower', uid: 'a' }); // gild the first minion
+    expect(s.board[0]!.golden).toBe(true);
+    expect(s.heroPowerSpent).toBe(true);
+    const spentAtUse = s.goldSpent ?? 0;
+    expect(s.indyGildRearmAt).toBe(spentAtUse + 40);
+    // Still locked at 39 spent.
+    s = { ...s, embers: 100, goldSpent: spentAtUse + 39, heroReady: true };
+    expect(reduce(s, { type: 'heroPower', uid: 'b' })).toBe(s);
+    // Cross 40 via a real spend (a tavern reroll, 1 Gold) → the charge comes back and a second gild lands.
+    s = reduce(s, { type: 'roll' }); // goldSpent += 1 → 40 spent since last use → re-armed
+    expect(s.heroPowerSpent).toBe(false);
+    expect(s.indyGildRearmAt).toBeUndefined();
+    s = reduce(s, { type: 'heroPower', uid: 'b' });
+    expect(s.board.find((c) => c.uid === 'b')!.golden).toBe(true);
   });
 
   it("Indy's Gild no-ops (no charge spent) on an already-golden minion", () => {
@@ -3577,7 +3569,7 @@ describe('hero powers (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'f')!.eotTick).toBe(1); // unchanged
   });
 
-  it('Rohan amplifies stat-granting spells (+1 base, +1 per 5 spells cast), hero-gated', () => {
+  it('Rohan amplifies stat-granting spells (+1 base, +1 per 10 spells cast), hero-gated', () => {
     const cast = (heroId: string, spellsCast: number): BoardCard => {
       let s: RunState = {
         ...createRun(1, heroId), spellsCast, board: [mk('t', 2, 2)],
@@ -3586,10 +3578,10 @@ describe('hero powers (@game/sim)', () => {
       s = reduce(s, { type: 'play', uid: 'sf', targetUid: 't' });
       return s.board[0]!;
     };
-    // Spirit Fire = +4/+4. Rohan adds +1 with < 5 casts so far → +5/+5 (2/2 → 7/7).
+    // Spirit Fire = +4/+4. Rohan adds +1 with < 10 casts so far → +5/+5 (2/2 → 7/7).
     expect(cast('rohan', 0).attack).toBe(7);
-    // Scales: +2 once 5 spells have been cast → +6/+6 (→ 8/8).
-    expect(cast('rohan', 5).attack).toBe(8);
+    // Scales: +2 once 10 spells have been cast → +6/+6 (→ 8/8).
+    expect(cast('rohan', 10).attack).toBe(8);
     // Hero-gated: a non-Rohan gets the base +4/+4 (→ 6/6).
     expect(cast('warden', 0).attack).toBe(6);
   });
@@ -3709,29 +3701,6 @@ describe('hero powers (@game/sim)', () => {
     expect(s3.embers).toBe(4);
   });
 
-  it("Herald's Proclaim makes the target's two neighbours each Consume a Fodder", () => {
-    // Distinct cardIds so the three don't form a triple (which would clear the board).
-    let s: RunState = {
-      ...createRun(1, 'herald'), heroReady: true, embers: 5,
-      board: [
-        { uid: 'l', cardId: 'alley', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false },
-        { uid: 'c', cardId: 'sandbag', tribe: 'neutral', attack: 3, health: 3, keywords: [], golden: false },
-        { uid: 'r', cardId: 'pack', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false },
-      ], // Proclaim on the centre → l & r each eat a 1/1 Fred (+1/+1)
-    };
-    s = reduce(s, { type: 'heroPower', uid: 'c' });
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([3, 3]); // left neighbour +1/+1
-    expect([s.board[2]!.attack, s.board[2]!.health]).toEqual([3, 3]); // right neighbour +1/+1
-    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([3, 3]); // the target itself does NOT consume
-    expect(s.heroReady).toBe(false);
-    expect(s.embers).toBe(3); // Proclaim costs 2 Gold (5 − 2)
-    // Too little Gold → no-op, charge preserved.
-    const poor: RunState = { ...createRun(1, 'herald'), heroReady: true, embers: 1, board: [mk('a', 2, 2), mk('b', 3, 3)] };
-    expect(reduce(poor, { type: 'heroPower', uid: 'a' })).toBe(poor);
-    // A target with no neighbours (lone minion) → no-op, charge + Gold preserved.
-    const lone: RunState = { ...createRun(1, 'herald'), heroReady: true, embers: 5, board: [mk('x', 2, 2)] };
-    expect(reduce(lone, { type: 'heroPower', uid: 'x' })).toBe(lone);
-  });
 
   it("Hermit Hank's minions cost 2 Gold and tavern-ups cost 2 more", () => {
     const s: RunState = { ...createRun(1, 'hermithank'), tier: 1, embers: 10 };
@@ -3836,7 +3805,6 @@ describe('PvE course + record (@game/sim)', () => {
     expect(getHero('soren').armor).toBe(8);
     expect(getHero('cassen').armor).toBe(8);
     expect(getHero('darah').armor).toBe(12);
-    expect(getHero('herald').armor).toBe(10);
     expect(getHero('hermithank').armor).toBe(8); // Tradesman
     expect(getHero('nadja').armor).toBe(19);
     expect(getHero('robin').armor).toBe(8);
@@ -3920,7 +3888,7 @@ describe('spell stat bonus + display (@game/sim)', () => {
   it('spellStatBonus aggregates active sources (Rohan scales by spells cast; others = 0)', () => {
     expect(spellStatBonus(createRun(1, 'warden'))).toBe(0);
     expect(spellStatBonus({ ...createRun(1, 'rohan'), spellsCast: 0 })).toBe(1);
-    expect(spellStatBonus({ ...createRun(1, 'rohan'), spellsCast: 5 })).toBe(2);
+    expect(spellStatBonus({ ...createRun(1, 'rohan'), spellsCast: 10 })).toBe(2);
   });
 
   it('spellDisplayText substitutes the effective value (green via {{…}}); base text otherwise', () => {

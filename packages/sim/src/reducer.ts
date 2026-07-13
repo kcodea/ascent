@@ -1371,7 +1371,16 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerSpellProgress) {
     for (const { sourceUid, progress } of result.playerSpellProgress) {
       const card = s.board.find((c) => c.uid === sourceUid);
-      if (card) card.spellProgress = progress;
+      if (!card) continue;
+      card.spellProgress = progress;
+      // Spirit Pup: combat spell casts count toward its transform too — swap the form now if the carried-back
+      // tally reached `at` (the recruit half only swaps on a SHOP cast, so combat progress would otherwise stall
+      // at ≥`at` without transforming). Keeps the instance's stats / golden / buffs — only the identity changes.
+      const t = CARD_INDEX[card.cardId]?.effects.find((e) => e.do === 'spellCastTransform')?.params as { at?: number; into?: string } | undefined;
+      if (t?.into && CARD_INDEX[t.into] && progress >= (t.at ?? 10)) {
+        card.cardId = t.into;
+        card.spellProgress = undefined;
+      }
     }
   }
   // Tara → Taragosa: accumulate this combat's stat-grants; at the `ascendAt` threshold, ascend the board card

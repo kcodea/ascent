@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-12 (session 34)
 
+### fix: Spirit Pup combat casts COUNT toward its transform + Tauntbreaker Rally text
+
+Follow-up to #349 (which added the combat *countdown display*): the transform itself now advances from
+combat casts, and Tauntbreaker's text matches its mechanic.
+
+- **Spirit Pup — combat casts count (owner ruling 2026-07-12).** `spellCastTransform` only had a recruit
+  factory, so spells cast *during* combat never ticked its transform. Added a combat factory
+  (core/effects/factories.ts) mirroring Guel's per-instance pattern — ticks the instance's `spellProgress` and
+  emits the `spellProgress` event (the live countdown #349 already renders). The form swap happens at settle:
+  the reducer's `playerSpellProgress` carry-back now transforms any `spellCastTransform` card whose carried
+  tally reached `at` (swap `cardId` → `into`, keeping stats/golden/buffs). New simulate test proves a combat
+  cast ticks the tally + carries back.
+- **Tauntbreaker text.** Retext to `**Rally:** Remove **Taunt** and **Rise** from the target before striking.`
+  — the `onAttackStripKeywords` mechanic already fires before the damage exchange (existing test), so a unit it
+  kills that HAD Rise won't rise.
+
+Verified: `typecheck` + full `test` + `build:web` green.
+
 ### fix: combat replay crash ("cues is not iterable") + Spirit Pup combat countdown
 
 **Crash (owner-reported, Tauntbreaker hitting a minion):** `momentKind` (`choreo/kinds.ts`) had no `case` for the

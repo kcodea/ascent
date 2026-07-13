@@ -2994,6 +2994,16 @@ describe('live-display events (combat cards update in real time)', () => {
     const carried = a.playerSpellProgress?.find((x) => x.sourceUid === 'G');
     expect(carried?.progress).toBeGreaterThan(3); // combat casts persist above the seeded 3
   });
+
+  it('Spirit Pup: combat spell casts count toward its transform (live `spellProgress` event + carry-back)', () => {
+    const a = run(
+      [{ cardId: 'spiritpup', attack: 2, health: 30, sourceUid: 'SP', spellProgress: 5 }, { cardId: 'taragosa', attack: 4, health: 30 }],
+      [{ cardId: 'sandbag', attack: 0, health: 80 }], 1,
+    );
+    const pup = a.initial.player.find((m) => m.cardId === 'spiritpup')!.uid;
+    expect(a.events.some((ev) => ev.type === 'spellProgress' && ev.target === pup)).toBe(true); // live countdown ticks in combat
+    expect(a.playerSpellProgress?.find((x) => x.sourceUid === 'SP')?.progress).toBeGreaterThan(5); // combat casts carry back
+  });
 });
 
 describe('served enemy quest/rune COMBAT effects (per-side questMods)', () => {

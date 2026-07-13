@@ -808,6 +808,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Spirit Pup (combat half) — a spell cast in combat counts toward its transform, exactly like the shop
+   *  (owner ruling 2026-07-12: "spells cast in combat count"). Ticks THIS instance's on-board `spellProgress`
+   *  and emits the live `spellProgress` event so the "N to go" countdown updates on the card. The actual form
+   *  swap happens at settle (the reducer transforms the run card once the carried-back tally reaches `at`) —
+   *  no mid-combat identity change, matching that the recruit half only swaps in the shop. */
+  spellCastTransform: (ctx, self, params, payload) => {
+    const { side } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    void params;
+    self.spellProgress = (self.spellProgress ?? 0) + 1;
+    ctx.log({ type: 'spellProgress', target: self.uid, amount: self.spellProgress });
+  },
+
   /** Hunter — when THIS minion's Attack rises (onGainAttack), give every living friend +`health` Health.
    *  Health-only, so it never re-triggers onGainAttack (no loop). Golden doubles. */
   onGainAttackBuffAll: (ctx, self, params, payload) => {

@@ -125,7 +125,7 @@ export function simulate(
    * enchants flow automatically from `cardBuffs`.
    */
   const isUndeadMinion = (m: Minion): boolean =>
-    m.tribe === 'undead' || m.tribe2 === 'undead' || !!cards[m.cardId]?.universalTribe;
+    m.tribe === 'undead' || m.tribe2 === 'undead' || !!m.universalTribe;
 
   // The Imp Aura is PER-SIDE (unlike the other aggregate auras, which are the player's run state). The player's
   // seeds from run state (impAtkBonus/impHpBonus); each side's in-combat imp-buffers (Imp King / Brood Matron via
@@ -154,7 +154,7 @@ export function simulate(
       // re-added only to from-base bodies (summoned/Reborn Beasts); starting Beasts already carry it.
       label: 'Beast Aura',
       grant: (m) =>
-        m.tribe === 'beast' || m.tribe2 === 'beast' || cards[m.cardId]?.universalTribe
+        m.tribe === 'beast' || m.tribe2 === 'beast' || m.universalTribe
           ? { attack: 0, health: 0, bakedAtk: beastAtkAuraFor[m.side], bakedHp: beastHpAuraFor[m.side] }
           : { attack: 0, health: 0 },
     },
@@ -267,7 +267,7 @@ export function simulate(
   };
   const ALL_TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
   const tribesFor = (m: Minion): Tribe[] => {
-    if (cards[m.cardId]?.universalTribe) return ALL_TRIBES; // counts as every tribe (like the run-wide auras)
+    if (m.universalTribe) return ALL_TRIBES; // counts as every tribe (like the run-wide auras)
     return [m.tribe, m.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
   };
   const byTribeMap = { attack: questTally.attackByTribe, summonCombat: questTally.summonCombatByTribe, slaughter: questTally.slaughterByTribe };
@@ -302,8 +302,8 @@ export function simulate(
     questTally.slaughterKeyword += 1;
     questEvents.push({ step: stepN, kind: 'slaughterKeyword', tribes: [] });
   };
-  const isBeast = (m: Minion): boolean => m.tribe === 'beast' || m.tribe2 === 'beast' || !!cards[m.cardId]?.universalTribe;
-  const isDemon = (m: Minion): boolean => m.tribe === 'demon' || m.tribe2 === 'demon' || !!cards[m.cardId]?.universalTribe;
+  const isBeast = (m: Minion): boolean => m.tribe === 'beast' || m.tribe2 === 'beast' || !!m.universalTribe;
+  const isDemon = (m: Minion): boolean => m.tribe === 'demon' || m.tribe2 === 'demon' || !!m.universalTribe;
 
   // Blood Trail: the leftmost living player minion, captured at Start of Combat, "gains Slaughter: get a random
   // Beast" for this fight — each enemy it kills conjures a random Beast to hand (via ctx.grantRandomMinion).
@@ -557,7 +557,7 @@ export function simulate(
    */
   function applyTribeAuras(minion: Minion): void {
     for (const aura of tribeAuras) {
-      if (aura.side === minion.side && (aura.tribe === 'any' || minion.tribe === aura.tribe || minion.tribe2 === aura.tribe || (aura.tribe !== 'neutral' && !!cards[minion.cardId]?.universalTribe))) {
+      if (aura.side === minion.side && (aura.tribe === 'any' || minion.tribe === aura.tribe || minion.tribe2 === aura.tribe || (aura.tribe !== 'neutral' && !!minion.universalTribe))) {
         ctx.buff(minion, aura.attack, aura.health, aura.source);
       }
     }
@@ -1300,7 +1300,7 @@ export function simulate(
       let stepped = false;
       for (const m of boards[scSide]) {
         if (m.dead || m.health <= 0) continue;
-        if (m.tribe !== 'dragon' && m.tribe2 !== 'dragon' && !cards[m.cardId]?.universalTribe) continue;
+        if (m.tribe !== 'dragon' && m.tribe2 !== 'dragon' && !m.universalTribe) continue;
         if (!stepped) { nextStep(); stepped = true; }
         ctx.buff(m, amt, amt, m.uid);
       }

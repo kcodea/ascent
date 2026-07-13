@@ -87,7 +87,7 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
  * `c.tribe === t || CARD_INDEX[c.cardId]?.tribe2 === t` check used across the dual-type systems.
  */
 export function isTribe(card: BoardCard, tribe: Tribe): boolean {
-  if (tribe !== 'neutral' && CARD_INDEX[card.cardId]?.universalTribe) return true;
+  if (tribe !== 'neutral' && (CARD_INDEX[card.cardId]?.universalTribe || card.allTribes)) return true; // Anomaly Reactor: "All" types
   if (card.tribe === tribe || CARD_INDEX[card.cardId]?.tribe2 === tribe) return true;
   return (card.addedTribes ?? []).includes(tribe); // Anomaly Reactor: a spell-added tribe (e.g. Mech)
 }
@@ -1083,6 +1083,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const t = str(params.tribe) as Tribe;
     if (!t || self.tribe === t || CARD_INDEX[self.cardId]?.tribe2 === t) return;
     if (!(self.addedTribes ?? []).includes(t)) self.addedTribes = [...(self.addedTribes ?? []), t];
+  },
+
+  /** Anomaly Reactor (cast, targeted): give the target minion ALL types for the rest of the run — it counts as
+   *  every tribe (`isTribe` short-circuits on `allTribes`) and, in combat, is flagged `universalTribe` so tribe
+   *  auras / Rally-of-a-type / SoC tribe buffs all see it. */
+  spellAddAllTribes: (_ctx, self) => {
+    self.allTribes = true;
   },
 
   /** Money Maker — End of Turn: every `every` turns on the board, add `count` random card(s) from the

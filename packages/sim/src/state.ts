@@ -82,6 +82,9 @@ export interface BoardCard {
    *  type). Honored by `isTribe` (recruit synergies / magnetize / auras) and folded into the combat minion's
    *  `tribe2` at `instantiate`. Absent = none. */
   addedTribes?: Tribe[];
+  /** Anomaly Reactor's "All" mode: this instance counts as EVERY tribe for the rest of the run — `isTribe`
+   *  short-circuits true, and combat seeds `universalTribe` from it. */
+  allTribes?: boolean;
   /** Per-source recruit-phase stat buffs applied to this instance (Karwind, Nadir, Spirit Fire,
    *  Fortify, …) — drives the inspect-panel breakdown. Base stats are NOT recorded here. */
   buffs?: CardBuff[];

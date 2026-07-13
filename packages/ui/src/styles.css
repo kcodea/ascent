@@ -2487,6 +2487,11 @@ svg { width: 18px; height: 18px; }
 .book-gloss svg { width: 17px; height: 17px; }
 .book-gloss:hover { transform: translateY(-2px); border-color: var(--acc); }
 .book-gloss.on { background: var(--acc); color: #fff; border-color: var(--acc-dk); box-shadow: 0 3px 0 var(--acc-dk); }
+/* Search box in the compendium header — becomes the right-side pusher; the Glossary/Gilded buttons flow after it. */
+.book-search { margin-left: auto; height: 38px; width: min(240px, 28vw); padding: 0 14px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink); font-family: var(--font-body), sans-serif; font-weight: 600; font-size: 14px; }
+.book-search:focus { outline: none; border-color: var(--acc); }
+.book-search::placeholder { color: var(--ink3); }
+.book-search ~ .book-gloss, .book-search ~ .book-gilded { margin-left: 12px; }
 /* The codex body — exactly three grouped columns that fill the compendium width (was auto-fill/340px,
    which crammed the groups left and left a big empty gutter). Scrolls like the gallery (native bar hidden). */
 .book-gloss-body { flex: 1; overflow-y: auto; padding: 26px 30px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; align-content: start; scrollbar-width: none; -ms-overflow-style: none; }

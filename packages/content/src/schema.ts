@@ -94,6 +94,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleAddFodder',
   'deathrattleBuffFodder',
   'rallyBuffFodderHalf',
+  'rallyBuffFodder',
   'avengeAddFodder',
   'avengeGrantSpellPower',
   'avengeImproveSummon',
@@ -221,6 +222,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellBloodlust',
   'copyLeftmostEcho',
   'spellAddTribe',
+  'spellAddAllTribes',
   'onAttackStripKeywords',
 ]);
 

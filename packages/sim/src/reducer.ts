@@ -446,6 +446,11 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (card.lockedUntilTier && s.tier < card.lockedUntilTier) return state;
 
       const def = CARD_INDEX[card.cardId];
+      // Combo: a Combo fires only if the previous play was a Primer. Capture that BEFORE re-arming, then re-arm
+      // for the NEXT play from THIS card (a primer arms it; anything else disarms it) — set now so it holds
+      // across every successful-play exit below.
+      const comboActive = !!s.comboArmed && !!def?.combo;
+      s.comboArmed = !!def?.primer;
 
       // Discover-on-play (data-driven): playing this card isn't a minion — it opens a Discover (a peek) and
       // is consumed (no board slot). The offer is resolved from the card's `discoverOnPlay` spec against the
@@ -589,6 +594,18 @@ function reduceCore(state: RunState, action: Action): RunState {
           : Math.max(0, Math.min(s.board.length, action.toIndex));
       s.board.splice(to, 0, card);
       playCard(s, card);
+      // Combo payoff (this card was played right after a primer):
+      if (comboActive && def?.combo) {
+        // A Choose One combo (The Godfodder) plays BOTH options with no prompt — not a Shout, just both effects.
+        if (def.combo.chooseBoth && def.chooseOne?.length) {
+          for (const opt of def.chooseOne) applyChooseOne(s, card, opt.effects);
+          checkTriples(s);
+          if (card.golden) grantGoldenDiscover(s);
+          return s;
+        }
+        // Otherwise the combo adds extra on-play effects (Buddy Buddy's spell, Sporebat's spell, …).
+        if (def.combo.effects?.length) applyChooseOne(s, card, def.combo.effects);
+      }
       // Choose One: pause for the player's pick before resolving triples / the golden Discover.
       if (CARD_INDEX[card.cardId]?.chooseOne?.length) {
         s.chooseOne = { uid: card.uid, cardId: card.cardId };
@@ -1619,6 +1636,7 @@ function advanceCombat(s: RunState): void {
   s.turnStartPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
   s.playedThisTurn = []; // Pack Leader / Spirit Worgen: minions-played-this-turn resets each turn
+  s.comboArmed = undefined; // Combo: a primer doesn't carry a combo across the turn boundary
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
   s.shoutFirstUsedThisTurn = false; // Warm Embers' "first Shout each round triggers twice" freebie resets each turn

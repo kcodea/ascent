@@ -56,8 +56,23 @@ export const NEUTRAL: CardDef[] = [
     health: 3,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryGainRandomMinion', params: { tier: 1 } }],
-    text: '**Battlecry:** add a random **Tier 1** minion to your hand.',
-    goldenText: '**Battlecry:** add **two** random **Tier 1** minions to your hand.',
+    combo: { effects: [{ on: 'onPlay', do: 'deathrattleGrantRandomSpell', params: { exactTier: 1 } }] },
+    text: '**Shout:** get a random **Tier 1** minion. **Combo:** also get a random **Tier 1** spell.',
+    goldenText: '**Shout:** get **two** random **Tier 1** minions. **Combo:** also get a random **Tier 1** spell.',
+  },
+  {
+    // A cheap Primer body: playing it arms a Combo for your next card, and at Start of Combat it hands the
+    // minion on its right a Taunt (a defensive nudge for a go-wide board).
+    id: 'combokim',
+    name: 'Combo Kim',
+    tribe: 'neutral',
+    tier: 2,
+    attack: 2,
+    health: 4,
+    keywords: ['SC'],
+    primer: true,
+    effects: [{ on: 'startOfCombat', do: 'scGrantRightTaunt' }],
+    text: '**Primer. Start of Combat:** give the minion to the right of this **Taunt**.',
   },
   {
     // Spell payoff. Each tavern spell you cast pumps three *other* friends (the triple-reward Discover

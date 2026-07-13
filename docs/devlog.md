@@ -5,6 +5,36 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### feat: Combo / Primer keyword + a demon-flavoured card batch
+
+New **Combo/Primer** mechanic. A card flagged `primer: true` (Gold Pouch, Graverobber, Combo Kim) *arms* a
+combo for the **next** card played; a card with a `combo` block, if played **immediately** after a primer, fires
+its combo payoff. Playing anything else between the primer and the combo card **disarms** it.
+
+- **State machine** (`reducer.ts` `case 'play'`): `comboActive = s.comboArmed && def.combo` is captured BEFORE
+  re-arming, then `s.comboArmed = !!def.primer` is set once near the top so it holds across every successful-play
+  exit (minion / spell / discover / magnetic). Reset at turn start. Only PLAY actions touch it (buying/rolling
+  don't). New `RunState.comboArmed?: boolean`.
+- **Two combo shapes**: `combo.chooseBoth` on a Choose One card plays **both** options with no prompt (explicitly
+  *not* a Shout — just both effects, via `applyChooseOne`); `combo.effects` adds extra on-play effects. New
+  `CardDef.primer` / `CardDef.combo` types + zod schema (`combo.effects` / `combo.chooseBoth`, strict).
+- **UI**: a hand card with a Combo glows **orange** while the combo is armed — new `comboReady` prop on `Card`
+  (`.card.comboready`), wired from `run.comboArmed && CARD_INDEX[id].combo` in `Recruit.tsx`. The glow is an
+  opacity-only `::before` over a static tangerine ring (compositor-safe, mirrors `tripready`/`venomcard`).
+- **Cards**: *Godfodder* → Choose One (add 2 Fodder to next shop / Fodder +3/+3) + Combo: do both. *Ritualist* →
+  End of Turn: Imps & Fodder +3/+3, **escalating +3/+3 each trigger** (new per-instance `BoardCard.eotBonus` +
+  `buffFodderImpsImproving` factory). *Chef Raag* (NEW, T4 Demon) → Echo: minions gain stats = your **Imp Aura**;
+  Combo: do it on play too (new `ctx.impAura(side)` combat accessor + `deathrattleBuffAllByImpAura` combat factory
+  and `buffAllByImpAura` recruit factory). *Combo Kim* (NEW, T2 Neutral) → Primer + Start of Combat: give the
+  minion to its right Taunt (`scGrantRightTaunt`). *Buddy Buddy* / *Sporebat* → Combo: also grant a spell. *Spark
+  Capacitor* → Avenge(3) + Combo: cast a Spark Plug (new `castSpellById` factory). *Cinderwing Matron* → Combo:
+  also +1 Attack to spells. *Hoard Cleric* T3→**T2** (3/2). *Tara* T4→**T3** (4/4). *Gold Pouch* / *Graverobber* →
+  Primer. `deathrattleGrantRandomSpell` gains an `exactTier` param.
+- **Verified**: `typecheck`/`lint`/`test` (966, incl. 4 new Combo state-machine tests: primer arms, non-primer
+  disarms, chooseBoth plays both with no modal, primer-then-other cancels)/`build:web` all green; live DOM check —
+  the armed Combo card carries `.comboready`, a non-combo card doesn't.
+- **Follow-up (PR2, deferred)**: Bloodbinder Start-of-Combat Bleed + Commander Impala 50% Critical Strike.
+
 ### feat(ui): quoted (whole-word) Compendium search
 
 Extended the Compendium search: wrapping the query in **double quotes** does a WHOLE-WORD match instead of a

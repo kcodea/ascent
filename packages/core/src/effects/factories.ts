@@ -443,6 +443,17 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Start of Combat (Combo Kim): give the minion immediately to the RIGHT of this one Taunt (mutates the
+   *  per-combat clone). No-op at the right edge / if the neighbor is already gone. */
+  scGrantRightTaunt: (ctx, self) => {
+    const board = ctx.boards[self.side];
+    const i = board.indexOf(self);
+    const right = i >= 0 ? board[i + 1] : undefined;
+    if (!right || right.dead || right.health <= 0) return;
+    if (!right.keywords.includes('T')) right.keywords.push('T');
+    ctx.log({ type: 'keyword', target: right.uid, keyword: 'T' });
+  },
+
   /** Start of Combat (Taurus the Truth Bringer): Engrave EVERY friendly minion (self included) — each keeps its
    *  combat stat-gains (carried back via `playerPermaBuffs`). "Triggers first": it runs in a priority SoC pass
    *  before the others, so later Start-of-Combat buffs are engraved too. */
@@ -606,6 +617,17 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       if (ctx.getCard(m.cardId)?.keywords.includes('FD')) ctx.buff(m, a, h, self.uid);
     }
     ctx.grantFodderBuff(a, h, self.side);
+  },
+
+  /** Deathrattle (Chef Raag): give every living friendly minion +A/+H equal to your live Imp Aura this fight
+   *  (golden doubles). Fires on death; the Combo half fires the recruit `buffAllByImpAura` on play instead. */
+  deathrattleBuffAllByImpAura: (ctx, self, _params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const imp = ctx.impAura(self.side);
+    const a = imp.attack * mul(self);
+    const h = imp.health * mul(self);
+    if (a <= 0 && h <= 0) return;
+    for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);
   },
 
   /** Rally (The Godfodder): on each of its own attacks, permanently buff your Fodder +atk/+hp (golden ×2) —

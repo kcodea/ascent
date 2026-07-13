@@ -31,8 +31,9 @@ export const SPELLS: CardDef[] = [
     keywords: [],
     spell: true,
     cost: 1,
+    primer: true,
     effects: [{ on: 'cast', do: 'gainEmbers', params: { amount: 1 } }],
-    text: 'Gain **1 Gold**.',
+    text: 'Gain **1 Gold**. **Primer.**',
   },
   {
     id: 'bulwark',

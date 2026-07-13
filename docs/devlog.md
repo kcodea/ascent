@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-12 (session 34)
 
+### fix: Lazarus's spell discount now shows in the shop (green cost coin)
+
+Owner-reported: with Lazarus on the board, shop spells didn't *look* discounted. The reducer's buy path already
+charged the reduced price (`spellCostReduction` = stored `spellCostMod` + 1 per Lazarus / 2 golden), but the
+shop DISPLAY (`shopView` in Recruit.tsx) subtracted only `run.spellCostMod` — it ignored Lazarus entirely — and
+the spell `CardView` never set `costChanged`, so the cost coin never turned green. So a Lazarus spell showed its
+full printed price on a normal coin while actually buying for less.
+
+- `shopView`'s spell branch now computes `cost = base − reduction` and sets `costChanged` when it's genuinely
+  cheaper → the coin renders on the green `.discount` box (same treatment minions already get for Moe's
+  discounted Attachment).
+- Both `shopView` call sites pass `spellCostReduction(run)` (newly exported from `@game/sim`) instead of the
+  bare `run.spellCostMod`, so the displayed price matches the buy price exactly. The memos already depend on
+  `run.board`, so adding/removing Lazarus re-renders.
+
+Verified: `typecheck + lint + test` (948) & `build:web` green; **live** across three board states — no Lazarus:
+Growth costs **2** on a normal coin; Lazarus: **1** on a green coin; golden Lazarus: **0** on a green coin.
+
 ### fix: Spirit Pup combat casts COUNT toward its transform + Tauntbreaker Rally text
 
 Follow-up to #349 (which added the combat *countdown display*): the transform itself now advances from

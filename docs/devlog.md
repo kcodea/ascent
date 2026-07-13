@@ -29,6 +29,16 @@ mechanic is legible at a glance (Guel `1/4 → 2/4 …` per spell was the drivin
 
 Verified: `typecheck` + `lint` + full `test` (992) + `build:web` all green; rebased on `origin/main`. **Follow-up
 (M2, planned):** shop-phase buff FX — replay the combat tendril/descend when a card buffs others in the shop.
+### docs: concurrency playbook for many-session work
+
+Wrote [`docs/concurrency.md`](concurrency.md) and linked it from the top of CLAUDE.md's Collaboration section,
+after a session where the shared checkout's branch got switched and a feature worktree was torn down twice by
+other sessions mid-task. The playbook's spine: the root cause is many sessions sharing one working dir + git
+index, so the fix is **one isolated checkout (worktree/clone) per active session, off latest `origin/main`,
+touching nothing else's** — plus commit/push early (origin is the only durable copy), tiny branches, take
+`main` in often, split by ownership seam, look before you start (`gh pr list`), and per-session dev ports.
+Docs-only; no code touched.
+
 ### fix(fx): Taunt target/selection glow follows the shield silhouette
 
 A Taunt card is reshaped into a heater **shield** (portrait clipped to `--heater`, the frame PNG laid over an
@@ -55,6 +65,28 @@ hglow vars). Verified live in Chrome (extension): drove a `sandbag` Taunt onto t
 and confirmed the glow tracks the heater outline (side-by-side vs a normal shop card's arch glow).
 
 ## 2026-07-13 (session 35)
+
+### fix(ui): Divine Shield conforms to the shield silhouette on Taunt units
+
+**Bug (owner-reported):** on a **Taunt** unit — which is reshaped into a heater SHIELD (portrait clipped to
+`--heater` + the authored frame) — the Divine Shield read wrong two ways: (1) the gold **outer aura + breathing
+bloom** are a rounded rectangle, so they haloed a *box* around the shield instead of the shield outline; and
+(2) the glassy gold **`.ward` dome**, authored for a SQUARE art, stretched into a vertical egg in the taller
+heater window and sat off-centre. There was no `.card.compact.taunt.dscard` rule, so Taunt+DS just fell through
+to the generic `.dscard` treatment.
+
+**Fix (scoped to `.card.compact.taunt.dscard` — NON-taunt Divine Shield is untouched):**
+- **Outer glow → shield-shaped.** Dropped the rectangular `box-shadow` aura and the arched `::before` bloom;
+  instead glow the frame PNG's own alpha with a **static gold `drop-shadow`** on `.tframe`, so the halo traces
+  the shield silhouette. Static (no filter animation) per the perf rule — never animate drop-shadow in a loop.
+- **Dome → round + centred.** Constrained the `.ward` stack to a **square** (`--wardsq` = shield-window width)
+  seated on the shield's round body, so the dome keeps its round proportions instead of stretching to fill the
+  taller window; `.art`'s `--heater` clip still trims it to the shield edge. Zeroed the arch `border-radius` on
+  the ward children inside the heater clip.
+
+**Verified:** `npm run build:web` green (CSS-only change). The dome size/seat were dialled in by eye on the
+ward-css-preview rig (a Taunt+DS card was added to it) and baked in — `--wardsq` = shield-window width × **1.4**,
+vertical seat **−0.08 × --ccw**; the glow re-shape is deterministic.
 
 ### tweak: Skip-combat button → top-middle + Front to Back improves every other cast
 

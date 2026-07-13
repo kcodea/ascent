@@ -679,6 +679,32 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* HARD RULE: the stat cluster (atk / hp / tribe medallion) is NEVER repositioned for Taunt — it must sit in the
    IDENTICAL place on every card, always. So there are deliberately NO .atk/.hp/.cgem overrides here; they
    inherit the standard positions. The shield frame is sized/placed around that fixed cluster, never the reverse. */
+/* ── Divine Shield ON A TAUNT UNIT ────────────────────────────────────────────────────────────────────────
+   A Taunt card is reshaped into a heater SHIELD (portrait clipped to `--heater` + the authored frame), so the
+   generic Divine-Shield visuals — the rectangular gold aura, the arched breathing bloom, and a `.ward` dome
+   tuned for a SQUARE art — read as a box around the shield with a stretched egg inside it. Re-shape BOTH to the
+   shield, scoped to `.card.compact.taunt.dscard` so NON-taunt Divine Shield is left exactly as-is.
+   (1) OUTER GLOW: drop the rectangular box-shadow + arched ::before bloom, and glow the frame PNG's own alpha
+       with a static gold drop-shadow so the halo traces the shield silhouette. STATIC (no filter animation) —
+       per the perf rule we never animate drop-shadow/box-shadow in a loop.
+   (2) DOME: constrain the `.ward` stack to a centred SQUARE seated on the shield's round body, so the glassy
+       dome stays round instead of stretching to fill the taller heater window; `.art`'s `--heater` clip still
+       trims it to the shield edge. Size (`--wardsq`) + vertical seat (`top`) were dialled in by eye on the
+       ward-css-preview rig (sq-mul 1.4, ward-top −0.08). */
+.card.compact.taunt.dscard { box-shadow: 0 3px 0 var(--shadow); }   /* kill the rectangular gold aura */
+.card.compact.taunt.dscard::before { display: none; }               /* kill the arched breathing bloom */
+.card.compact.taunt.dscard .tframe {                                 /* gold halo that traces the shield's alpha */
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+          drop-shadow(0 0 5px rgba(245, 188, 48, 0.95))
+          drop-shadow(0 0 13px rgba(240, 176, 32, 0.7));
+}
+.card.compact.taunt.dscard .ward {
+  --wardsq: calc(var(--ccw) * var(--sh) * 1.4);   /* dome size — tuned on the ward preview (sq-mul 1.4) */
+  inset: auto; left: 50%; transform: translateX(-50%);
+  top: calc(var(--ccw) * -0.08);                  /* dome vertical seat — tuned (ward-top −0.08) */
+  width: var(--wardsq); height: var(--wardsq); border-radius: 0;
+}
+.card.compact.taunt.dscard .ward > * { border-radius: 0; }   /* no arch rounding inside the heater clip */
 /* One shared opacity-only pulse for every keyword/triple glow ::before layer (compositor-only — no repaint). */
 @keyframes kwglow { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
 

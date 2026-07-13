@@ -5,6 +5,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### content: new quest — Leader of the Pack (Beast capstone)
+
+First of the six new turn-11 quests: **Leader of the Pack** — Attack **18** times with Beasts → get a **Golden Pack
+Leader** + **10 Gold**. Pure data (existing `grant.grantGolden` + `gainGold` reward kinds), no new mechanic. The other
+five new quests (Passing Spears, Forsaken Speed, Cratering Missive, Bane's Existence, Clinging On) each need a genuinely
+new reward mechanic and are queued as focused follow-ups. Verified: `typecheck`/`lint`/`test` (980)/`build:web` green.
+
 ### tooling: dev balance report (`npm run report`)
 
 New headless tool (`packages/tools/src/balance-report.ts`, `npm run report [-- games]`) — runs many seeded bot games

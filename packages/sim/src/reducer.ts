@@ -142,15 +142,15 @@ function mergeBuffs(buffs: CardBuff[]): CardBuff[] {
 /** Whether a Magnetic minion can weld onto a target minion: they must share a tribe, counting BOTH
  *  cards' tribes. So Cling Drone (Mech) → any Mech *including* Heckbinder (Demon/Mech); Heckbinder
  *  → a Mech or a Demon; and a Mech-magnetic card can attach onto Heckbinder because it's also a Mech. */
-export function magnetizesTo(magneticCardId: string, targetCardId: string, targetAddedTribes?: Tribe[]): boolean {
+export function magnetizesTo(magneticCardId: string, targetCardId: string, targetAddedTribes?: Tribe[], targetAllTribes?: boolean): boolean {
   const m = CARD_INDEX[magneticCardId];
   const t = CARD_INDEX[targetCardId];
   if (!m || !t) return false;
   // universalTribe Magnetic cards (Chaos Attachment) can weld onto any non-neutral target (or another all-type).
-  if (m.universalTribe) return t.tribe !== 'neutral' || !!t.universalTribe;
-  // A universalTribe HOST counts as every tribe (incl. Mech), so it accepts any Magnetic — e.g. a normal Mech
-  // magnetic welding onto a Chaos Attachment (whose printed tribe is 'neutral', so the tribe match below misses).
-  if (t.universalTribe) return true;
+  if (m.universalTribe) return t.tribe !== 'neutral' || !!t.universalTribe || !!targetAllTribes;
+  // A universalTribe HOST (CardDef flag) or an Anomaly-Reactor "All" instance counts as every tribe (incl. Mech),
+  // so it accepts any Magnetic — e.g. a normal Mech magnetic welding onto it.
+  if (t.universalTribe || targetAllTribes) return true;
   const mag: Tribe[] = [m.tribe, m.tribe2].filter((x): x is Tribe => !!x);
   // Anomaly Reactor: a spell-added instance tribe (Mech) makes the host a valid weld target too.
   const tgt: Tribe[] = [t.tribe, t.tribe2, ...(targetAddedTribes ?? [])].filter((x): x is Tribe => !!x);
@@ -536,7 +536,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // → Mech or Demon.)
       if (card.keywords.includes('M') && action.toIndex !== undefined && action.toIndex < s.board.length) {
         const target = s.board[action.toIndex];
-        if (target && magnetizesTo(card.cardId, target.cardId, target.addedTribes)) {
+        if (target && magnetizesTo(card.cardId, target.cardId, target.addedTribes, target.allTribes)) {
           s.hand.splice(i, 1);
           s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // a welded Magnetic is still a card played (Rune of Action)
           // Playing a Magnetic minion IS a summon — fire summon-buffs on it BEFORE welding, so the absorbed
@@ -1048,6 +1048,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         resummon: b.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
         ...(b.copiedEcho?.length ? { copiedEcho: b.copiedEcho } : {}), // Gravetwin: its copied Echo procs on combat death
         ...(b.bloodbinderMode ? { bloodbinderMode: b.bloodbinderMode } : {}), // Bloodbinder: seed this fight's Rally stat (atk/hp)
+        ...(b.allTribes ? { universalTribe: true } : {}), // Anomaly Reactor: "All" types → universal in combat
         buffs: b.buffs, // recruit-phase buff breakdown → carried into combat so the inspect panel itemizes it
       }));
       // Fleeting Vigor — a one-shot Start-of-Combat buff banked last shop: pump the player's COMBAT board

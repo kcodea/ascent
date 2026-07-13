@@ -135,6 +135,35 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true); // copied Echo fired on death
   });
 
+  it('Trickster Deathrattle gives its Health to 2 random friends (golden: 4 grants)', () => {
+    const grants = (golden: boolean): number => {
+      const r = run(
+        [
+          { cardId: 'trickster', attack: 0, health: 6, golden },
+          { cardId: 'alley', attack: 0, health: 40 }, { cardId: 'alley', attack: 0, health: 40 },
+          { cardId: 'alley', attack: 0, health: 40 }, { cardId: 'alley', attack: 0, health: 40 },
+        ],
+        [{ cardId: 'omen', attack: 50, health: 400 }],
+        1,
+      );
+      const tw = r.initial.player.find((m) => m.cardId === 'trickster')!.uid;
+      return r.events.filter((e) => e.type === 'buff' && e.source === tw && e.health === 6).length;
+    };
+    expect(grants(false)).toBe(2); // 2 random friends get its Health
+    expect(grants(true)).toBe(4); // golden doubles the number of grants
+  });
+
+  it('The Godfodder Rally buffs your Fodder +2/+2 when it attacks (carried back)', () => {
+    const r = run(
+      [{ cardId: 'godfodder', attack: 4, health: 20 }, { cardId: 'fred', attack: 0, health: 20 }],
+      [{ cardId: 'sandbag', attack: 0, health: 4 }], // dies to one hit → Godfodder Rallies once
+      3,
+    );
+    const fred = r.initial.player.find((m) => m.cardId === 'fred')!.uid;
+    expect(r.events.some((e) => e.type === 'buff' && e.target === fred && e.attack === 2 && e.health === 2)).toBe(true);
+    expect(r.playerFodderBuffGain).toEqual({ attack: 2, health: 2 }); // permanent Fodder aura carried back
+  });
+
   it("Bloodbinder Rally gives your Fodder half its Attack (Attack by default mode)", () => {
     const p: BoardMinion[] = [
       { cardId: 'bloodbinder', attack: 5, health: 20 },
@@ -1113,15 +1142,15 @@ describe('simulate (handoff A.3)', () => {
     expect(imp?.type === 'summon' ? [imp.minion.attack, imp.minion.health] : null).toEqual([3, 3]);
   });
 
-  it('Imp King Deathrattle summons 2 Imps + a PERMANENT +2/+3 Imp buff (golden: still 2 Imps, +4/+6)', () => {
+  it('Imp King Deathrattle summons 2 Imps + a PERMANENT +3/+3 Imp buff (golden: still 2 Imps, +6/+6)', () => {
     const r = run([{ cardId: 'impking', attack: 6, health: 1 }], [{ cardId: 'omen', attack: 50, health: 400, keywords: [] }], 1);
     expect(r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap').length).toBe(2);
-    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 3)).toBe(true);
-    expect(r.playerImpBuffGain).toEqual({ attack: 2, health: 3 }); // permanent — carried back to the run
-    // Golden: still 2 Imps (not 4), but the buff doubles to +4/+6.
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 3)).toBe(true);
+    expect(r.playerImpBuffGain).toEqual({ attack: 3, health: 3 }); // permanent — carried back to the run
+    // Golden: still 2 Imps (not 4), but the buff doubles to +6/+6.
     const g = run([{ cardId: 'impking', attack: 6, health: 1, golden: true }], [{ cardId: 'omen', attack: 50, health: 400, keywords: [] }], 1);
     expect(g.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap').length).toBe(2);
-    expect(g.playerImpBuffGain).toEqual({ attack: 4, health: 6 });
+    expect(g.playerImpBuffGain).toEqual({ attack: 6, health: 6 });
   });
 
   it('a later-summoned Imp inherits the live Imp Aura (2 Imp Kings — no weaker 2nd pair)', () => {
@@ -2465,7 +2494,7 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerUndeadBuyAtkGain).toBe(9); // 3 kills × +3 (was 3: main target only)
   });
 
-  it('golden Sword and Bored buffs Fodder +1/+1 on Slaughter (a golden override, not the ×2 +2/+0)', () => {
+  it('Sword and Bored buffs Fodder +1/+1 on Slaughter (golden doubles to +2/+2)', () => {
     const fodderBuff = (golden: boolean): [number, number] | null => {
       const p: BoardMinion[] = [
         { cardId: 'swordbored', attack: 5, health: 5, golden }, // attacks first (2 minions v 1) → kills → Slaughter
@@ -2477,8 +2506,8 @@ describe('simulate (handoff A.3)', () => {
       const buff = r.events.find((ev) => ev.type === 'buff' && ev.target === fred);
       return buff && buff.type === 'buff' ? [buff.attack, buff.health] : null;
     };
-    expect(fodderBuff(false)).toEqual([1, 0]); // base +1/+0
-    expect(fodderBuff(true)).toEqual([1, 1]); // golden → +1/+1 (not +2/+0)
+    expect(fodderBuff(false)).toEqual([1, 1]); // base +1/+1
+    expect(fodderBuff(true)).toEqual([2, 2]); // golden → +2/+2
   });
 
   it("Deathsayer's Rally-proc'd Deathrattles tick the tally (parity with Sporeling's Battlecry proc)", () => {

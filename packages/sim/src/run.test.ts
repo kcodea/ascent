@@ -520,17 +520,6 @@ describe('run loop (@game/sim)', () => {
     expect([m.attack, m.health]).toEqual([2 + 10, 3 + 10]); // two +5/+5 casts
   });
 
-  it('The Godfodder Shout buffs your Fodder +2/+2 immediately (no Choose One)', () => {
-    let a: RunState = {
-      ...createRun(1),
-      hand: [{ uid: 'g', cardId: 'godfodder', tribe: 'demon', attack: 3, health: 2, keywords: [], golden: false }],
-    };
-    a = reduce(a, { type: 'play', uid: 'g' });
-    expect(a.chooseOne).toBeUndefined(); // no more Choose One — it's a straight Shout
-    expect(a.pendingTarget).toBeUndefined();
-    expect(a.cardBuffs?.fred?.attack).toBe(2); // Shout: Fodder (Fred) +2/+2
-    expect(a.cardBuffs?.fred?.health).toBe(2);
-  });
 
   it('Safety Deposit Box casts (untargeted) without throwing and banks +2 Gold for next turn', () => {
     // Regression: it reuses Hoarder's `battlecryBonusGoldNextTurn`, whose only self-dependency is the golden
@@ -2549,13 +2538,13 @@ describe('run loop (@game/sim)', () => {
     expect(s.deathrattlesTriggered).toBe(1); // the proc counts as a played Deathrattle (feeds Grim)
   });
 
-  it("Heckbinder's Fodder aura is LIVE: new Fodder reads +1/+2 while it's on the board, back to base once it's gone", () => {
+  it("Heckbinder's Fodder aura is LIVE: new Fodder reads +3/+3 while it's on the board, back to base once it's gone", () => {
     const s: RunState = createRun(1);
     s.board = [{ uid: 'hb', cardId: 'heckbinder', tribe: 'demon', attack: 3, health: 3, keywords: ['M'], golden: false }];
-    expect(cardBuff(s, 'fred')).toEqual({ attack: 1, health: 2 });
+    expect(cardBuff(s, 'fred')).toEqual({ attack: 3, health: 3 });
     // Golden doubles; a welded host (fodderAuraBonus) counts the same way.
-    s.board = [{ uid: 'host', cardId: 'drone', tribe: 'mech', attack: 5, health: 5, keywords: [], golden: false, fodderAuraBonus: { attack: 1, health: 2 } }];
-    expect(cardBuff(s, 'fred')).toEqual({ attack: 1, health: 2 });
+    s.board = [{ uid: 'host', cardId: 'drone', tribe: 'mech', attack: 5, health: 5, keywords: [], golden: false, fodderAuraBonus: { attack: 3, health: 3 } }];
+    expect(cardBuff(s, 'fred')).toEqual({ attack: 3, health: 3 });
     s.board = []; // aura leaves with the body — future Fodder is back to base
     expect(cardBuff(s, 'fred')).toEqual({ attack: 0, health: 0 });
     expect(cardBuff(s, 'alley')).toEqual({ attack: 0, health: 0 }); // non-Fodder never reads the aura
@@ -5047,38 +5036,21 @@ describe('Beast quests (combat objectives + rewards)', () => {
     }
   });
 
-  it('Anomaly Reactor: target a minion, then Choose One picks the added type (isTribe + magnetize)', () => {
+  it('Anomaly Reactor: gives the target ALL types — counts as every tribe + accepts any Magnetic', () => {
     const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
     const spell: BoardCard = { uid: 'sp', cardId: 'anomalyreactor', tribe: 'mech', attack: 0, health: 1, keywords: [], golden: false };
     let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 10, board: [beast], hand: [spell] };
-    // The drag picks the target (targetUid) → opens a Choose One over the 5 types, spell stays in hand.
+    // A single targeted cast (no Choose One) — applies immediately and consumes the spell.
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'b' });
-    expect(s.chooseOne).toMatchObject({ cardId: 'anomalyreactor', spell: true, targetUid: 'b' });
-    expect(s.hand.some((c) => c.uid === 'sp')).toBe(true); // not consumed until the pick
-    expect(s.board.find((c) => c.uid === 'b')!.addedTribes ?? []).not.toContain('mech'); // nothing applied yet
-    // Pick "Add Mech" (option index 3: beast/dragon/undead/mech/demon) → the type lands on the target, spell consumed.
-    s = reduce(s, { type: 'chooseOne', index: 3 });
     expect(s.chooseOne).toBeUndefined();
     expect(s.hand.some((c) => c.uid === 'sp')).toBe(false);
     const target = s.board.find((c) => c.uid === 'b')!;
-    expect(target.addedTribes).toContain('mech');
-    expect(isTribe(target, 'mech')).toBe(true);
-    expect(isTribe(target, 'beast')).toBe(true); // keeps its printed tribe too
-    // A Cling Drone (Mech Magnetic) can now weld onto it (couldn't before the added type).
-    expect(magnetizesTo('cling', 'alley', target.addedTribes)).toBe(true);
+    expect(target.allTribes).toBe(true);
+    for (const t of ['beast', 'dragon', 'undead', 'mech', 'demon'] as const) expect(isTribe(target, t)).toBe(true);
+    expect(isTribe(target, 'neutral')).toBe(false); // 'neutral' is never a tribe match
+    // A Cling Drone (Mech Magnetic) can now weld onto it (it counts as Mech); it couldn't before.
+    expect(magnetizesTo('cling', 'alley', undefined, true)).toBe(true);
     expect(magnetizesTo('cling', 'alley')).toBe(false);
-  });
-
-  it('Anomaly Reactor: the Choose One can add ANY of the five types, not just Mech', () => {
-    const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
-    const spell: BoardCard = { uid: 'sp', cardId: 'anomalyreactor', tribe: 'mech', attack: 0, health: 1, keywords: [], golden: false };
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 10, board: [beast], hand: [spell] };
-    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'b' });
-    s = reduce(s, { type: 'chooseOne', index: 1 }); // Add Dragon
-    const target = s.board.find((c) => c.uid === 'b')!;
-    expect(target.addedTribes).toContain('dragon');
-    expect(isTribe(target, 'dragon')).toBe(true);
-    expect(isTribe(target, 'mech')).toBe(false); // only the chosen type was added
   });
 
   it('Attachment Issues arms a permanent 2-Gold Attachment in every shop', () => {

@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### feat(ui): quoted (whole-word) Compendium search
+
+Extended the Compendium search: wrapping the query in **double quotes** does a WHOLE-WORD match instead of a
+substring. So `"Imp"` serves only cards that say "Imp" as its own word (Imp King, Burial Imp, Contract Imp, Imp
+Overseer, Brood Matron's "summon an Imp") and drops the substring false-positives — **Improve**, **Impala**,
+**Implosion**. Unquoted `Imp` keeps the loose substring behavior. Implemented as a shared `makeSearchMatcher`
+(quoted → `\bterm\b` case-insensitive, regex-escaped; unquoted → `includes`) used by the card gallery + the
+Quests/Runes tabs; the header strips the wrapping quotes ("5 results for \"Imp\""). Verified live: unquoted "Imp"
+= 21 results, quoted "Imp" = 5 (whole-word only).
+
 ### feat(ui): Compendium text search
 
 Added a search box to the Compendium header — free-text over card/quest/rune **name + printed text** (so "Imp"

@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### balance: Bleed down to 1 mark (golden 2, no dmg-double) + Black Belt Brian Combo
+
+Owner tuning:
+- **Bloodbinder** — Bleed now marks **1** random enemy (was 3); **golden marks 2** (via `mul(self)` on the target
+  count) instead of dealing double damage. Base damage is just its Attack for everyone. Confirmed (and unit-tested)
+  that the bleed **ends the moment Bloodbinder dies** — `procBleed` already guards on the bleeder being alive, so it
+  never persists. Card text/goldenText + the `armBleed`/`scArmBleed` docs updated.
+- **Black Belt Brian** — gains **Combo: Discover a minion too**, queued **after** the spell Discover(s). Wired as a
+  `combo.effects` `battlecryDiscoverMinion`; because the combo effect runs after `playCard`'s Battlecry and
+  `queueDiscover` appends behind the already-open spell Discover, the minion peek always comes last. Golden Discovers
+  2 minions (mirrors the golden 2-spells).
+- **Verified**: `typecheck`/`lint`/`test` (972: Bleed rewritten for marks-1 / golden-marks-2 / no-double / stops-on-
+  death; new Brian combo test proves the minion Discover queues behind the spell one)/`build:web` green; live — the
+  primer→Brian chain opens the spell Discover then the minion Discover, both card texts render, no console errors.
+
 ### fix: Bloodbinder Bleed marks fixed enemies (every 4 attacks; golden doubles) + Chef Raag art
 
 Owner tweak to the Bleed mechanic (from the PR2 keyword batch), plus a re-export of Chef Raag's art:

@@ -1193,7 +1193,7 @@ export interface CombatContext {
   /** Deal damage to a combat minion (used by Start-of-Combat and on-break effects). */
   damage(target: Minion, amount: number, poison?: boolean, bypassShield?: boolean): void;
   /** Bloodbinder: arm Bleed for this fight — MARK up to `targets` random enemies now (Start of Combat), then every
-   *  `everyN` attacks made in the combat (either side), deal this minion's Attack (golden ×2) to those SAME marked
-   *  enemies that are still alive (never re-rolled; skips while the bleeder is dead). */
+   *  `everyN` attacks made in the combat (either side), deal this minion's Attack to those SAME marked enemies that
+   *  are still alive (never re-rolled; ends the moment the bleeder dies). `targets` already folds in golden. */
   armBleed(minion: Minion, everyN: number, targets: number): void;
 }

@@ -170,6 +170,34 @@ describe('run loop (@game/sim)', () => {
       expect(s.chooseOne?.cardId).toBe('godfodder');
       expect((s.pendingTavern ?? []).length).toBe(0);
     });
+
+    it("Black Belt Brian Combo Discovers a minion AFTER the spell Discover", () => {
+      let s: RunState = {
+        ...createRun(1), tier: 3, embers: 0, shop: [], board: [],
+        tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'],
+        hand: [mk('p', 'emberpouch'), mk('b', 'blackbelt')],
+      };
+      s = reduce(s, { type: 'play', uid: 'p' }); // Gold Pouch primer → arms the combo
+      s = reduce(s, { type: 'play', uid: 'b' }); // Brian: spell Discover opens; combo queues a minion Discover behind it
+      // The FIRST Discover offered is spells (the Battlecry).
+      expect(s.discover?.length).toBeGreaterThan(0);
+      expect(s.discover!.every((id) => CARD_INDEX[id]!.spell)).toBe(true);
+      // The combo minion Discover is queued behind it (fires after the spell one resolves).
+      expect(s.discoverQueue?.length ?? 0).toBe(1);
+      // Resolve the spell Discover → the queued MINION Discover opens next.
+      s = reduce(s, { type: 'discover', index: 0 });
+      expect(s.discover?.length).toBeGreaterThan(0);
+      expect(s.discover!.every((id) => !CARD_INDEX[id]!.spell)).toBe(true);
+      // Without a primer, Brian just Discovers a spell (no minion queued).
+      let solo: RunState = {
+        ...createRun(1), tier: 3, embers: 0, shop: [], board: [],
+        tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'],
+        hand: [mk('b', 'blackbelt')],
+      };
+      solo = reduce(solo, { type: 'play', uid: 'b' });
+      expect(solo.discover!.every((id) => CARD_INDEX[id]!.spell)).toBe(true);
+      expect(solo.discoverQueue?.length ?? 0).toBe(0); // no combo → no minion Discover
+    });
   });
 
   it('rejects a buy without enough embers', () => {

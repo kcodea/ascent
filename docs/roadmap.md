@@ -163,12 +163,13 @@ look because the engine already produces the data.
   (only `ring` is built), and there's no dedicated `neutral` preset (falls to `default`). Separately, hero-power /
   spell buffs resolve in the **recruit/shop phase** (a different code path from the combat replay) and get only a
   sound + CSS glow today — wiring them to `pixiFx.pulse` is a future pass.
-- **Shop-phase buff-other FX — tendril / descend (M2, in flight).** When a card buffs *other* minions in the shop
-  (Battlecry, on-summon, Guel's on-spell-cast, spell casts, recruit Deathrattles) it currently shows only the
-  passive green stat-diff burst. M2 of `docs/superpowers/plans/2026-07-13-shop-buff-fx-and-step-counters.md`
-  captures who-buffed-whom at the recruit dispatch layer (`recruitBuffFx` on `RunState`, mirroring `fodderEaten`)
-  and replays each as the same **tendril** (living-minion source) / **descend** (spell / Deathrattle) combat uses.
-  Discrete triggers only — passive auras (Lantern, Imp) stay ambient. **M1 (step counters) shipped session 36.**
+- ~~**Shop-phase buff-other FX — tendril / descend (M2).**~~ ✓ **shipped (session 36, → devlog):** a card buffing
+  *other* minions in the shop now replays the same **tendril** (living-minion source) / **descend** (spell /
+  Deathrattle) combat uses. Captured at the recruit dispatch layer (`recruitBuffFx`/`captureBuffFx`, mirroring
+  `fodderEaten`; source→target via a board-stat diff), rendered through a shared `fireBuffFx`. Covers Battlecry,
+  on-summon, Guel, spell casts, recruit Deathrattles, Karwind/Bane, Choose One, and Hunter's on-gain-Attack;
+  passive auras (Lantern, Imp) stay ambient. **M1 (step counters) also shipped session 36.** *Open:* live visual
+  eyeball on the cream board; optional per-tribe descend/tendril tuning (see the follow-ups above).
 - ~~**Buff tendrils — on-attack buffers.**~~ ✓ **shipped (session 33, → devlog):** on-attack / Rally buff-others
   (Supporter, Chimerus, Chorus Engine, Raptor, Crypt Drake, Taragosa) now fire tendrils woven into the attacker's
   wind-up (pulse → tendril → lunge) via `onWindupBuffs` on the lunge timeline. Landed at the wind-up (not

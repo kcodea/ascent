@@ -304,11 +304,10 @@ look because the engine already produces the data.
   allies; name by valence). **Rewind** (start narrow: "repeat the last friendly keyword trigger" — avoid true
   undo until the rules are sturdier). Each is its own spec when reached. **Size:** L each.
 
-### PR2 (queued) — Bleed + Critical Strike
-- **Bloodbinder** — Start of Combat: **Bleed** — deal this minion's damage to 3 random enemies every 6 attacks
-  in combat (a combat-wide attack counter that fires an AoE every 6 attacks).
-- **Commander Impala** — **50% Critical Strike** (double damage on attack, 50% chance, seeded RNG). Both need a
-  new combat keyword; scoped out of the Combo PR to keep it clean.
+### PR2 — Bleed + Critical Strike — ✅ **shipped 2026-07-13** (→ devlog)
+- **Bloodbinder** Start-of-Combat **Bleed** (every 6 attacks → its Attack to 3 random enemies) + **Commander
+  Impala** 50% **Critical Strike** (double damage, seeded per swing). New `CR` keyword + `scArmBleed` effect.
+- **Follow-up:** a dedicated crit VFX in the combat replay (red flash / "CRIT" flourish) — presentation choreo.
 
 ### Withheld heroes (temporarily pulled — owner 2026-07-13)
 - **Warden**, **Myra**, **Chaos** are `wip: true` (kept in the registry, hidden from the picker) pending a rework

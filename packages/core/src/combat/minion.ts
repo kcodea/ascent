@@ -48,6 +48,7 @@ export function instantiate(
     rebornAvailable: keywords.includes('R'),
     golden: board.golden ?? false,
     reAttackOnKill: cardReAttacksOnKill(card),
+    critChance: card.critChance, // Commander Impala: per-swing double-damage chance (constant per CardDef)
     summonBonus: board.summonBonus ?? 0,
     attackImmuneLeft: card.attackImmuneTurns, // Bounty Bot: fresh each combat — immune for its first N swings, spent per attack
 

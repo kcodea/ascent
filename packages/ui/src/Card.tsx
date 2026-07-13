@@ -17,11 +17,11 @@ let tauntFrameAvailable = true;
 
 const KW_LABEL: Record<Keyword, string> = {
   T: 'Taunt', DS: 'Ward', V: 'Toxin', W: 'Flurry', R: 'Rise', C: 'Cleave', M: 'Attachment', SC: 'Start', CN: 'Consume',
-  FD: 'Fodder', IMM: 'Immune', ST: 'Stealth', RL: 'Rally', SL: 'Slaughter', EG: 'Engraved',
+  FD: 'Fodder', IMM: 'Immune', ST: 'Stealth', RL: 'Rally', SL: 'Slaughter', CR: 'Critical Strike', EG: 'Engraved',
 };
 const KW_ICON: Record<Keyword, string> = {
   T: 'taunt', DS: 'shield', V: 'poison', W: 'windfury', R: 'rise', C: 'cleave', M: 'magnetic', SC: 'fist',
-  CN: 'consume', FD: 'fodder', IMM: 'immune', ST: 'eye', RL: 'sword', SL: 'slaughter', EG: 'anvil',
+  CN: 'consume', FD: 'fodder', IMM: 'immune', ST: 'eye', RL: 'sword', SL: 'slaughter', CR: 'target', EG: 'anvil',
 };
 const TRIBE_LABEL: Record<Tribe, string> = {
   beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral',

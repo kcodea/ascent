@@ -153,16 +153,36 @@ describe('simulate (handoff A.3)', () => {
     expect(grants(true)).toBe(4); // golden doubles the number of grants
   });
 
-  it("Bloodbinder Rally gives your Fodder half its Attack (Attack by default mode)", () => {
+  it("Bloodbinder Bleed: every 6 combat attacks it deals its Attack to random enemies", () => {
     const p: BoardMinion[] = [
-      { cardId: 'bloodbinder', attack: 5, health: 20 },
-      { cardId: 'fred', attack: 1, health: 20 }, // a Fodder (FD) → the Rally target
+      { cardId: 'bloodbinder', attack: 5, health: 80 },
+      { cardId: 'fred', attack: 2, health: 80 },
+      { cardId: 'alley', attack: 2, health: 80 },
     ];
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }]; // tanky → Bloodbinder gets to attack
-    const r = run(p, e, 3);
-    const fredUid = r.initial.player.find((u) => u.cardId === 'fred')!.uid;
-    // floor(5/2) = 2, as Attack (default mode is Attack — `bloodbinderMode` unset → not 'hp').
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === fredUid && ev.attack === 2 && ev.health === 0)).toBe(true);
+    // Three tanky, 0-Attack enemies: combat runs long enough to clear 6 attacks, and nothing kills Bloodbinder.
+    const e: BoardMinion[] = [
+      { cardId: 'sandbag', attack: 0, health: 90 },
+      { cardId: 'sandbag', attack: 0, health: 90 },
+      { cardId: 'sandbag', attack: 0, health: 90 },
+    ];
+    const r = run(p, e, 7);
+    const bbUid = r.initial.player.find((u) => u.cardId === 'bloodbinder')!.uid;
+    // A Bleed proc logs an `sc` beat sourced from Bloodbinder ("… bleeds") once per 6 attacks.
+    expect(r.events.some((ev) => ev.type === 'sc' && ev.source === bbUid && /bleed/i.test(ev.text))).toBe(true);
+  });
+
+  it("Critical Strike (Commander Impala): a crit swing deals DOUBLE damage, flagged + deterministic", () => {
+    // Impala (6/6, Flurry + Ward + 50% Critical Strike) vs a tanky dummy — over many swings some crit.
+    const p: BoardMinion[] = [{ cardId: 'impala', attack: 6, health: 6, keywords: ['W', 'DS', 'CR'] }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 200 }];
+    const r = run(p, e, 4);
+    // At least one swing crit (flagged on the attack event) and landed a 12-damage hit (6 × 2).
+    expect(r.events.some((ev) => ev.type === 'attack' && ev.crit === true)).toBe(true);
+    expect(r.events.some((ev) => ev.type === 'dmg' && ev.amount === 12)).toBe(true);
+    // Non-crit swings still exist and deal the base 6.
+    expect(r.events.some((ev) => ev.type === 'dmg' && ev.amount === 6)).toBe(true);
+    // Deterministic: same seed → identical crit rolls.
+    expect(run(p, e, 4).events).toEqual(r.events);
   });
 
   it('Mirrorhide Rhino Start of Combat summons one EXACT copy (current stats + keywords, no chain)', () => {

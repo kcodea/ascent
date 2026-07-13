@@ -218,18 +218,18 @@ export const DEMONS: CardDef[] = [
     goldenText: '**Echo:** give your Fodder **+2/+2** and summon **2 Imps**.',
   },
   {
-    // On-kill engine: each kill permanently buffs your Fodder + Imps (combat → carried back, like Bane).
-    // Golden doubles the grant.
+    // Critical Strike bruiser: Flurry (two swings) + Ward, each swing a 50% chance to deal double damage
+    // (critChance, rolled per swing in the sim). A high-variance finisher rather than an economy engine.
     id: 'impala',
     name: 'Commander Impala',
     tribe: 'demon',
     tier: 5,
     attack: 6,
     health: 6,
-    keywords: ['W', 'DS', 'SL'],
-    effects: [{ on: 'onKill', do: 'onKillBuffFodderImps', params: { attack: 3, health: 3 } }],
-    text: '**Flurry. Ward. Slaughter:** give your Fodder and Imps **+3/+3** permanently.',
-    goldenText: '**Flurry. Ward. Slaughter:** give your Fodder and Imps **+6/+6** permanently.',
+    keywords: ['W', 'DS', 'CR'],
+    critChance: 0.5,
+    effects: [],
+    text: '**Flurry. Ward. Critical Strike (50%).**',
   },
   {
     // Imp payoff Battlecry: a persistent +2/+2 to every Imp you have or make (board / hand / future copies) —
@@ -249,17 +249,17 @@ export const DEMONS: CardDef[] = [
     goldenText: '**Battlecry:** Your Imps have **+4/+4** wherever they are. **Echo:** summon 2 Imps.',
   },
   {
-    // Rally engine: each time it attacks, hand another friendly Demon Attack equal to its OWN (a golden
-    // Bloodbinder has double Attack, so it gives double). Snowballs a Demon carry on a wide board.
+    // Bleed engine: at Start of Combat it arms a combat-wide attack counter — every 6 attacks (either side),
+    // it deals its own Attack to 3 random enemies. A persistent AoE clock as long as it stays alive.
     id: 'bloodbinder',
     name: 'Bloodbinder',
     tribe: 'demon',
     tier: 4,
     attack: 5,
     health: 2,
-    keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyBuffFodderHalf' }],
-    text: "**Rally:** give your Fodder half this minion's Attack. Swaps to Health next turn.",
+    keywords: [],
+    effects: [{ on: 'startOfCombat', do: 'scArmBleed', params: { every: 6, targets: 3 } }],
+    text: "**Start of Combat — Bleed:** every 6 attacks in combat, deal this minion's Attack to 3 random enemies.",
   },
   {
     // Avenge (3): every 3 friendly deaths in combat, queue a Fodder into your next shop (golden: 2). Feeds the

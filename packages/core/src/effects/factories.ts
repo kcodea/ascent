@@ -391,6 +391,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Bloodbinder: Start of Combat — arm Bleed. Every `every` attacks made this combat (either side), deal
+   *  this minion's current Attack to `targets` random living enemies (registered with the sim; see `armBleed`). */
+  scArmBleed: (ctx, self, params) => {
+    ctx.armBleed(self, num(params.every, 6), num(params.targets, 3));
+  },
+
   /** Deal damage equal to self's Attack, as 1-damage hits split across random enemies. */
   scSplitDamage: (ctx, self, params) => {
     const foe: Side = self.side === 'player' ? 'enemy' : 'player';

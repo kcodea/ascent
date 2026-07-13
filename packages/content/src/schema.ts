@@ -7,7 +7,7 @@ import { z } from 'zod';
  */
 export const TribeSchema = z.enum(['beast', 'undead', 'mech', 'dragon', 'demon', 'neutral']);
 
-export const KeywordSchema = z.enum(['T', 'DS', 'V', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL', 'SL', 'EG']);
+export const KeywordSchema = z.enum(['T', 'DS', 'V', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL', 'SL', 'CR', 'EG']);
 
 export const GameEventSchema = z.enum([
   'onPlay',
@@ -51,6 +51,7 @@ export const EffectFactoryIdSchema = z.enum([
   'scDamage',
   'scSplitDamage',
   'scAoePerTribe',
+  'scArmBleed',
   'scEngraveNeighbor',
   'deathrattleBuffRandom',
   'deathrattleBuffAllRandomStat',
@@ -275,6 +276,7 @@ export const CardDefSchema = z.object({
   targetMaxTier: z.number().int().positive().optional(),
   targetNoGolden: z.boolean().optional(),
   fodderMult: z.number().int().positive().optional(),
+  critChance: z.number().min(0).max(1).optional(), // Critical Strike probability per swing (Commander Impala = 0.5)
   manaPerTurn: z.number().int().positive().optional(),
   rallyMechAtk: z.number().int().positive().optional(),
   spellAura: z.number().int().positive().optional(),

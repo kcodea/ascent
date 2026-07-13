@@ -21,6 +21,15 @@ armed/targeted → tribe `--c`), and the frame's base `0 4px 6px` drop-shadow is
 Compositor-friendly (filter on a static PNG; no per-frame repaint loop). Verified: `build:web` clean; shape to be
 eyeballed live in combat (aimed) + hero-power targeting.
 
+**Follow-up (same PR): the yellow hover glow too.** The shop/board hover glow is the last `box-shadow` layer on
+`.card.compact .art` (driven by `--hglow-*`), but Taunt's `.art` is `clip-path: var(--heater)`, and clip-path
+*clips* box-shadow — so a Taunt card in the tavern got **no hover glow at all** (clipped to the silhouette →
+invisible). Re-added it as a `drop-shadow` layer on `.tframe` blurred by `var(--hglow-blur, 0)`: 0 when not
+hovering (invisible, hidden behind the opaque frame), 22px on hover → a yellow glow that hugs the shield. Reuses
+the existing hover state machine, so it's automatically suppressed in-hand and while dragging (those zero the
+hglow vars). Verified live in Chrome (extension): drove a `sandbag` Taunt onto the board, forced the hover vars,
+and confirmed the glow tracks the heater outline (side-by-side vs a normal shop card's arch glow).
+
 ## 2026-07-13 (session 35)
 
 ### tweak: Skip-combat button → top-middle + Front to Back improves every other cast

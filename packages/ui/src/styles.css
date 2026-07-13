@@ -660,7 +660,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    back to the SVG placeholder when the asset is absent. z 3 = above the portrait (z1), below the badges (z6). */
 .card.compact.taunt .tframe {
   position: absolute; z-index: 3; pointer-events: none; overflow: visible;
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
+  /* The shop/board hover glow is a box-shadow on `.art`, but Taunt's `.art` is clip-path'd to the heater, which
+     CLIPS the box-shadow away → a Taunt card gets no hover glow. Re-add it as a drop-shadow on the frame,
+     driven by the same `--hglow-blur` hover var (0 when not hovering → invisible; auto-zeroed in hand/drag), so
+     the yellow glow hugs the shield silhouette exactly like the arch glow hugs a normal card. */
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+          drop-shadow(0 0 var(--hglow-blur, 0) rgba(255, 226, 110, 0.92));
 }
 .card.compact.taunt .tframe-img {
   inset: auto; height: auto;

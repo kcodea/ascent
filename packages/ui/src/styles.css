@@ -660,7 +660,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    back to the SVG placeholder when the asset is absent. z 3 = above the portrait (z1), below the badges (z6). */
 .card.compact.taunt .tframe {
   position: absolute; z-index: 3; pointer-events: none; overflow: visible;
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
+  /* The shop/board hover glow is a box-shadow on `.art`, but Taunt's `.art` is clip-path'd to the heater, which
+     CLIPS the box-shadow away → a Taunt card gets no hover glow. Re-add it as a drop-shadow on the frame,
+     driven by the same `--hglow-blur` hover var (0 when not hovering → invisible; auto-zeroed in hand/drag), so
+     the yellow glow hugs the shield silhouette exactly like the arch glow hugs a normal card. */
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+          drop-shadow(0 0 var(--hglow-blur, 0) rgba(255, 226, 110, 0.92));
 }
 .card.compact.taunt .tframe-img {
   inset: auto; height: auto;
@@ -1570,6 +1575,27 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .unit.struck { z-index: 12; }
 /* Telegraph: the defender about to be hit gets a brief danger glow during the attacker's wind-up. */
 .unit.aimed .card { box-shadow: 0 0 0 3px var(--threat), 0 0 18px 3px color-mix(in srgb, var(--threat) 70%, transparent), 0 3px 0 var(--shadow); }
+/* TAUNT glow shape-fix: a Taunt card is reshaped into a heater SHIELD (portrait clipped to `--heater` + the frame
+   PNG over a transparent card box), so every rectangular box-shadow glow — the aimed danger telegraph, the
+   armed/targeted selection ring, the attacking flash — floats as a SQUARE around the invisible card box. For Taunt
+   cards, drop the box-shadow and glow the shield PNG's own alpha via a drop-shadow filter on `.tframe`, so each
+   highlight hugs the shield silhouette. `--tglow` carries the per-state colour into the shared filter. */
+.card.compact.taunt.armed,
+.card.compact.taunt.targeted,
+.unit.aimed .card.compact.taunt,
+.unit.attacking .card.compact.taunt { box-shadow: 0 3px 0 var(--shadow); }
+.card.compact.taunt.armed { --tglow: var(--c); }
+.card.compact.taunt.targeted { --tglow: var(--c); }
+.unit.attacking .card.compact.taunt { --tglow: var(--acc); }
+.unit.aimed .card.compact.taunt { --tglow: var(--threat); }
+.card.compact.taunt.armed .tframe,
+.card.compact.taunt.targeted .tframe,
+.unit.aimed .card.compact.taunt .tframe,
+.unit.attacking .card.compact.taunt .tframe {
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+          drop-shadow(0 0 4px var(--tglow))
+          drop-shadow(0 0 12px var(--tglow));
+}
 .unit.struck .card { animation: struck 0.34s ease; }
 @keyframes struck { 0%, 100% { transform: none; filter: none; } 45% { transform: translateY(5px) scale(0.94); filter: brightness(1.15) drop-shadow(0 0 8px var(--threat)); } }
 /* a white-hot impact spark at the point of contact */

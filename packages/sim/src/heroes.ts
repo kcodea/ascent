@@ -355,7 +355,7 @@ export const HEROES: HeroDef[] = [
     name: 'Runeguard',
     blurb: 'Sworn to the forge — its greater runes answer only to those who hold the line.',
     resolve: 30,
-    armor: 14,
+    armor: 8,
     power: {
       name: 'Defend the Forge',
       kind: 'epicRuneforge',

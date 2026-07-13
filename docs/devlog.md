@@ -5,6 +5,35 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### fix: Runeforge-timing + Gravetwin-echo bugs + Demon/Fodder card batch
+
+Owner batch (tabled 2026-07-13). Two bugs + rune/hero/card changes.
+
+**Bugs:**
+- **Runeforge quests opened MID-TURN** (should be the START of next turn, after combat) — the player had already
+  spent the Gold they needed for the runes. A forge armed mid-turn (The Runeforge / The Epic Runeforge quests)
+  is now `deferred`; `openNextStartOfTurnModal`'s mid-turn modal-close drains skip a deferred forge, and
+  `advanceCombat` promotes it (clears the flag) at the next turn's start. New `pendingForgeDeferred` +
+  `pendingBasicForge.deferred`.
+- **Gravetwin's copied Echo did nothing** when triggered by Ossuary Rite (and never fired if Gravetwin died in
+  combat). `fireRecruitDeathrattles` now folds in `copiedEcho` (so "trigger this minion's Echo" fires the copied
+  effect, incl. growth like Grim's), and `instantiate` carries `copiedEcho` into combat as a real Deathrattle so
+  it procs on Gravetwin's combat death. Threaded `copiedEcho` through `BoardMinion` + the reducer's combat map.
+
+**Changes:**
+- **Rune of Twilight** text now matches its mechanic ("Start-of-Combat effects trigger an additional time" — it
+  was mislabeled "also trigger at End of Turn"). **Runeguard** armor 14 → **8**.
+- **Sword and Bored** 2/1 → **3/2**. **The Godfodder**: Choose One → **Shout: Fodder +2/+2. Echo: add a Fodder**.
+- **Soulfeeder**: → **Shout: add a Fodder to the next 2 shops**. **Pit Supplier**: → **Avenge (3): 2 Fodder to
+  the next 2 shops**. Both use a new `fodderSchedule` (Fodder queued across several upcoming refreshes) — recruit
+  arms it directly; combat carries it back via `playerFodderSchedule`.
+- **Burial Imp**: → **Echo: Fodder +1/+1 and summon an Imp** (new `deathrattleBuffFodder` combat factory +
+  `deathrattleSummon`). **Bloodbinder**: → **Rally: give your Fodder half this minion's Attack, alternating
+  Attack↔Health each turn** (`bloodbinderMode` flips at each turn's start, seeded into combat).
+
+Verified: `typecheck + lint + test` (963, incl. new regression tests for both bugs + the new mechanics) &
+`build:web` green; **live** — all six changed cards render the new text with no errors.
+
 ### feat(ui): self-buff pulse 50% larger
 
 Owner ruling: the in-combat **self-buff pulse** (the ring shockwave + gold core flash + spark burst that pops

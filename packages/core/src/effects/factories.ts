@@ -596,14 +596,47 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantTavernFodder(num(params.count, 1) * mul(self), self.side);
   },
 
-  /** Pit Supplier — Avenge (N): every N friendly deaths this combat, queue a Fodder into your next shop
-   *  (golden queues two). Reuses the Fodder carry-back (grantTavernFodder → pendingTavern in settleCombat). */
+  /** Deathrattle (Burial Imp): permanently buff your Fodder +atk/+hp (golden ×2) — the living Fodder now + the
+   *  run-wide Fodder buff (carried back), like Sword and Bored's on-kill but fired on death. */
+  deathrattleBuffFodder: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const a = num(params.attack, 1) * mul(self);
+    const h = num(params.health, 1) * mul(self);
+    for (const m of ctx.living(self.side)) {
+      if (ctx.getCard(m.cardId)?.keywords.includes('FD')) ctx.buff(m, a, h, self.uid);
+    }
+    ctx.grantFodderBuff(a, h, self.side);
+  },
+
+  /** Bloodbinder — Rally (on its own attack): give your Fodder half this minion's Attack, as Attack on odd turns
+   *  and Health on even turns (`bloodbinderMode`, alternated each turn on the run board). Buffs living Fodder now
+   *  + the run-wide Fodder buff (carried back). Floors the half; no-op below 2 Attack. */
+  rallyBuffFodderHalf: (ctx, self, _params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only on this minion's own attack
+    const half = Math.floor(self.attack / 2);
+    if (half <= 0) return;
+    const hp = self.bloodbinderMode === 'hp';
+    const a = hp ? 0 : half;
+    const h = hp ? half : 0;
+    for (const m of ctx.living(self.side)) {
+      if (ctx.getCard(m.cardId)?.keywords.includes('FD')) ctx.buff(m, a, h, self.uid);
+    }
+    ctx.grantFodderBuff(a, h, self.side);
+  },
+
+  /** Pit Supplier — Avenge (N): every N friendly deaths this combat, add `fodder` Fodder to each of your next
+   *  `shops` shops (golden doubles the per-shop count). `shops:1` (default) uses the single-shop carry-back;
+   *  `shops>1` schedules Fodder across that many upcoming shops. */
   avengeAddFodder: (ctx, self, params, payload) => {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 3));
     if (count % x !== 0) return;
-    ctx.grantTavernFodder(num(params.fodder, 1) * mul(self), self.side);
+    const perShop = num(params.fodder, 1) * mul(self);
+    const shops = Math.max(1, num(params.shops, 1));
+    if (shops > 1) ctx.scheduleFodder(Array(shops).fill(perShop), self.side);
+    else ctx.grantTavernFodder(perShop, self.side);
   },
 
   /** Spell Appraiser — Avenge (N): every N friendly deaths this combat, permanently raise run-wide spell power

@@ -352,7 +352,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Twilight',
     cost: 8,
     epic: true,
-    text: 'Your **Start-of-Combat** effects also trigger at **End of Turn**.',
+    text: 'Your **Start-of-Combat** effects trigger an **additional time**.',
     reward: { kind: 'combatFlag', flag: 'runeTwilight' },
   },
   // ── Batch 4b: the two new signature cards ──

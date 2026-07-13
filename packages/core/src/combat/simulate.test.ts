@@ -121,15 +121,30 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'T' && ev.target === rightmost)).toBe(true);
   });
 
-  it("Bloodbinder Rally gives another friendly Demon Attack equal to its own", () => {
+  it('Gravetwin: its copied Echo procs when it DIES in combat (owner bug 2026-07-13)', () => {
+    // Gravetwin carries a copied Echo (here "Deathrattle: give your minions +2/+2") into combat as a real
+    // Deathrattle — so it fires when Gravetwin dies mid-fight, not only if it survives to the next shop.
+    const r = run(
+      [
+        { cardId: 'gravetwin', attack: 1, health: 1, copiedEcho: [{ on: 'onDeath', do: 'deathrattleBuffAll', params: { attack: 2, health: 2 } }] },
+        { cardId: 'alley', attack: 1, health: 20 },
+      ],
+      [{ cardId: 'omen', attack: 5, health: 50 }],
+      3,
+    );
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true); // copied Echo fired on death
+  });
+
+  it("Bloodbinder Rally gives your Fodder half its Attack (Attack by default mode)", () => {
     const p: BoardMinion[] = [
       { cardId: 'bloodbinder', attack: 5, health: 20 },
-      { cardId: 'impscrap', attack: 1, health: 20 }, // another Demon (Imp) → the Rally target
+      { cardId: 'fred', attack: 1, health: 20 }, // a Fodder (FD) → the Rally target
     ];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }]; // tanky → Bloodbinder gets to attack
     const r = run(p, e, 3);
-    const impUid = r.initial.player.find((u) => u.cardId === 'impscrap')!.uid;
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === impUid && ev.attack === 5)).toBe(true);
+    const fredUid = r.initial.player.find((u) => u.cardId === 'fred')!.uid;
+    // floor(5/2) = 2, as Attack (default mode is Attack — `bloodbinderMode` unset → not 'hp').
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === fredUid && ev.attack === 2 && ev.health === 0)).toBe(true);
   });
 
   it('Mirrorhide Rhino Start of Combat summons one EXACT copy (current stats + keywords, no chain)', () => {
@@ -158,8 +173,9 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerBonusGold).toBe(2);
   });
 
-  it('Pit Supplier Avenge (3) queues a Fodder into the next shop (carried back)', () => {
-    // Three 1/1 Strays die (attacking into the omen's retaliation) → the 3rd death procs Avenge (3) → 1 Fodder.
+  it('Pit Supplier Avenge (3) schedules 2 Fodder into each of the next 2 shops (carried back)', () => {
+    // Three 1/1 Strays die (attacking into the omen's retaliation) → the 3rd death procs Avenge (3) → 2 Fodder
+    // to each of the next 2 shops.
     const p: BoardMinion[] = [
       { cardId: 'pitsupplier', attack: 4, health: 40 },
       { cardId: 'stray', attack: 1, health: 1 },
@@ -168,7 +184,8 @@ describe('simulate (handoff A.3)', () => {
     ];
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 60 }];
     const r = run(p, e, 3);
-    expect(r.playerFodderGrants).toBe(1);
+    expect(r.playerFodderSchedule).toEqual([2, 2]);
+    expect(r.playerFodderGrants).toBeUndefined();
   });
 
   it('Runescale Drake Start of Combat buffs your Dragons +2/+2 (base, 0 spells)', () => {
@@ -1925,13 +1942,14 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'buff' && e.attack === 0 && e.health === 2)).toBe(true);
   });
 
-  it('Burial Imp: its Deathrattle queues Fodder for the next tavern (carried back)', () => {
+  it('Burial Imp: its Echo buffs your Fodder +1/+1 (carried back) and summons an Imp', () => {
     const a = run(
       [{ cardId: 'burialimp', attack: 3, health: 1 }],
       [{ cardId: 'omen', attack: 5, health: 50 }],
       3,
     );
-    expect(a.playerFodderGrants).toBe(1); // one Burial Imp died → 1 Fodder queued for the next tavern
+    expect(a.playerFodderBuffGain).toEqual({ attack: 1, health: 1 }); // Fodder aura +1/+1 carried back
+    expect(a.events.some((e) => e.type === 'summon' && e.minion.cardId === 'impscrap')).toBe(true); // summoned an Imp
   });
 
   it('Sporebat Deathrattle generates a real tavern-tier spell (toHand + handGrant); golden generates two', () => {

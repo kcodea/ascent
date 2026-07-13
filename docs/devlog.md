@@ -37,6 +37,16 @@ doesn't re-fire onSummon/Battlecry effects; this is the quest count only. Verifi
 Grave Knit Rises → `summonCombat` + `summonCombatByTribe.undead` ≥ 1); `typecheck`/`lint`/`test` (**991**)/`build:web`
 green.
 
+### ui: Hall of Champions shows the full Career fight-record breakdown
+
+Owner request: the Hall of Champions round-17 slot record now uses the **same** "N Fights · W Wins · T Ties · L
+Losses · X% win rate" layout as the Career per-round board log (the `.bl-record` / `.bl-stat` styling), instead of the
+old compact "N wins · X%" pill. Same data (the `BoardWinStats` already fetched per slot), reused markup + colours
+(green Wins / yellow Ties / red Losses / tangerine win rate). A small `.lb-record` modifier makes it a compact inline
+group at the right of the entry head (no margin-auto push). Verified live: entries with a logged fight show
+"1 Fights · 0 Wins · 0 Ties · 1 Losses · 0% win rate"; slots with none still read "No fights yet". `typecheck` /
+`lint` / `build:web` green.
+
 ### docs: concurrency playbook for many-session work
 
 Wrote [`docs/concurrency.md`](concurrency.md) and linked it from the top of CLAUDE.md's Collaboration section,

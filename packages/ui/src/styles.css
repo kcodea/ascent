@@ -2471,7 +2471,7 @@ svg { width: 18px; height: 18px; }
 .baltable { background: rgba(0, 0, 0, 0.32); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 14px; padding: 10px 12px; }
 .baltabletitle { font-weight: 800; font-size: 15px; color: var(--acc); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
 .balgrid { display: flex; flex-direction: column; }
-.balrow { display: grid; grid-template-columns: 1fr 3.2em 3.2em 3.2em 2.6em; gap: 6px; align-items: center; padding: 2px 0; font-size: 12.5px; color: #f0e8da; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+.balrow { display: grid; grid-template-columns: minmax(0, 1fr) repeat(var(--balcols, 4), minmax(2.6em, 3.8em)); gap: 6px; align-items: center; padding: 2px 0; font-size: 12.5px; color: #f0e8da; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
 .balrow.balhead { font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255, 255, 255, 0.5); border-bottom: 2px solid rgba(255, 255, 255, 0.16); }
 .balname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
 .balnum { text-align: right; font-variant-numeric: tabular-nums; }
@@ -2517,6 +2517,11 @@ svg { width: 18px; height: 18px; }
 .lbrecord b { color: #fff; font-weight: 900; font-size: 18px; }
 .lbrecord .lbwr { color: var(--acc); font-weight: 800; font-size: 13px; }
 .lbrecord.none { color: rgba(255, 255, 255, 0.5); font-weight: 600; font-size: 13px; }
+/* Hall of Champions fight record — the Career/BoardLog .bl-record breakdown, but as a compact inline group at the
+   right of the entry head (no margin-auto push on the win rate; slightly smaller than the full-width Career row). */
+.lb-record { margin-left: auto; flex: none; gap: 13px; font-size: 14px; }
+.lb-record .bl-stat b { font-size: 17px; }
+.lb-record .bl-wr { margin-left: 2px; font-size: 14px; }
 /* Sort toggle in the top bar (Most recent / Most wins). */
 .lbsort { margin-left: auto; display: inline-flex; gap: 6px; flex: none; }
 .lbsortbtn { font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.72); background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.16); padding: 8px 14px; border-radius: 10px; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }

@@ -29,6 +29,26 @@ mechanic is legible at a glance (Guel `1/4 → 2/4 …` per spell was the drivin
 
 Verified: `typecheck` + `lint` + full `test` (992) + `build:web` all green; rebased on `origin/main`. **Follow-up
 (M2, planned):** shop-phase buff FX — replay the combat tendril/descend when a card buffs others in the shop.
+### feat: Balance Report now shows REAL player data (offer/pick/win/avg) + moved to the home screen
+
+Owner feedback: the in-app balance report was running greedy-bot SIMULATIONS; they want **real player** data, and it
+on the **home screen** (not the dev tuner). Rework:
+- **Capture (no sim pollution):** a finished run is `(seed, heroId, actions)`, so at run-end we **reconstruct** what
+  the player was offered + picked by replaying the action log through the deterministic reducer (`runTelemetry.ts` —
+  `reconstructRunTelemetry`), the same trick as `replayRun`. It records every quest / rune / shop-card OFFER, the
+  player's PICKS (buyQuest / buyRune / buy), each quest's completion turn, and the outcome. The offered hero trio
+  isn't in the seeded replay (the picker rolls off UI randomness), so it's stashed at pick time (`lastHeroOffer`).
+  One compact `run_telemetry` row uploads per finished run (deferred, best-effort).
+- **Aggregate:** `aggregatePlayerReport` folds recent rows into four tables — **Heroes** (offer/pick/win/avg wins),
+  **Quests** (offer/pick/win/avg turns to complete), **Runes** (offer/pick/win), **Minions** (offer/pick) — matching
+  the owner's spec exactly. Client-side over a bounded fetch (`fetchRunTelemetry`), like the board stats.
+- **UI:** `BalancePanel` reworked to fetch + aggregate + render those columns; opened from a new **Balance Report**
+  link on the **home screen** (Title secondary row) and removed from the 🛠️ Dev menu. The seeded greedy-bot report
+  still lives at `npm run report` (CLI, unchanged).
+- Backend: new `run_telemetry` table (schema.sql) — dormant until migrated, like the other shared tables.
+Verified: `typecheck` / `lint` / `test` (aggregation math + a reconstruction-from-real-playthrough test) / `build:web`
+green.
+
 ### fix: a Rise (Reborn) counts as a summon for "Summon N in combat" quests
 
 **Bug (owner-reported):** Forsaken Will (`summonCombat` Undead) wasn't counting Undead that came back via **Rise**
@@ -40,6 +60,16 @@ Imp tally if the risen body is an Imp), mirroring `placeSummon`. Deliberately NO
 doesn't re-fire onSummon/Battlecry effects; this is the quest count only. Verified: new regression test (a player
 Grave Knit Rises → `summonCombat` + `summonCombatByTribe.undead` ≥ 1); `typecheck`/`lint`/`test` (**991**)/`build:web`
 green.
+
+### ui: Hall of Champions shows the full Career fight-record breakdown
+
+Owner request: the Hall of Champions round-17 slot record now uses the **same** "N Fights · W Wins · T Ties · L
+Losses · X% win rate" layout as the Career per-round board log (the `.bl-record` / `.bl-stat` styling), instead of the
+old compact "N wins · X%" pill. Same data (the `BoardWinStats` already fetched per slot), reused markup + colours
+(green Wins / yellow Ties / red Losses / tangerine win rate). A small `.lb-record` modifier makes it a compact inline
+group at the right of the entry head (no margin-auto push). Verified live: entries with a logged fight show
+"1 Fights · 0 Wins · 0 Ties · 1 Losses · 0% win rate"; slots with none still read "No fights yet". `typecheck` /
+`lint` / `build:web` green.
 
 ### docs: concurrency playbook for many-session work
 
@@ -86,6 +116,31 @@ labelled **Hall of Champions**, and a brand-new **Leaderboard** sits above it: t
   PLAY / CAREER / LEADERBOARD / HALL OF CHAMPIONS; the new Leaderboard renders its empty state ("finish a run to claim
   a slot") with no `profiles` table yet, and a mock top-4 confirmed the row layout (medals, tangerine rating, favorite
   hero portraits, "—" for a heroless player); Hall of Champions still opens its victory-run list unchanged.
+
+### content: the five remaining turn-11 capstone quests (Passing Spears / Forsaken Speed / Cratering Missive / Bane's Existence / Clinging On)
+
+Finishes the six-quest turn-11 batch (Leader of the Pack shipped earlier). Each hangs a **new** payoff off a tribe's
+signature minion; all implemented **recruit-side only** (no combat-sim changes) so `main` stays low-risk. Objective
+counts + reward magnitudes are **starting dials** (flagged for retuning).
+
+- **Passing Spears** (Undead capstone, `friendlyDeath 12`) — grant a Spear Warden + a recurring **End of Turn: each
+  Spear Warden gives another friendly minion +2/+2**.
+- **Forsaken Speed** (Undead capstone, `summonCombat 10`) — recurring **End of Turn: your Undead gain +3 Attack for
+  each card you played this turn** (reads `playedThisTurn`, like Rune of Action).
+- **Cratering Missive** (Undead capstone, `summonCombat 14`) — grant a Cratering Hulk + recurring **End of Turn: your
+  whole board +1/+1 for each Cratering Hulk you have** (spreads the Hulk's stat-hoard to every tribe).
+- **Bane's Existence** (Demon capstone, `shout 12`) — grant a Bane + a **widen**: your Banes' after-Battlecry payoff
+  now also gives all your Demons +2/+2 run-wide (new `baneBuffsDemons` flag, read in `onBattlecryBuffFodder`).
+- **Clinging On** (Mech capstone, `playAttachment 10`) — recurring **End of Turn: weld a Cling Drone onto up to 3 of
+  your Mechs** (reuses `weldMagnetic`; each weld fires the Cling Drone's own "+1/+1 to your Clings").
+
+Plumbing: four new `recurringEndOfTurn` effects (`spearWardenEcho` / `undeadPlayedAtk` / `crateringMissive` /
+`attachClingDrones`) + one new reward kind (`baneDemonAura`), threaded through the full stack — `types.ts`,
+`schema.ts`, `state.ts`, `reducer.ts`, `recruit.ts` (`runRecurringEndOfTurn` + the EoT label map + the Bane factory),
+and `questText.ts`. Because they ride the recurring-EoT rail, the recruit-screen End-of-Turn telegraph animates them
+for free. Verified: `typecheck`/`lint`/`test` (**996** — 6 new quest tests + 5 questText assertions)/`build:web`
+green; dev server boots clean (content validation accepts the new reward kinds). **Follow-up:** balance the dials +
+whether three Undead capstones crowds that slot.
 
 ### fix(fx): Taunt target/selection glow follows the shield silhouette
 

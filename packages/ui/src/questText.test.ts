@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { QuestObjective, QuestReward } from '@game/core';
-import { questObjectiveLines, questObjectiveText, questRewardText } from './questText';
+import { questObjectiveLines, questObjectiveText, questRewardText, questRewardLiveText } from './questText';
 import { stewardText } from './cardText';
 
 describe('questText — objectives', () => {
@@ -67,5 +67,34 @@ describe('questText — rewards', () => {
   it('scalingTribeAura states the base grant, step, and cadence', () => {
     const r: QuestReward = { kind: 'scalingTribeAura', tribe: 'beast', attack: 3, health: 1, per: 5, event: 'summonCombat', stepAttack: 3, stepHealth: 1 };
     expect(questRewardText(r)).toBe('Your Beasts have +3/+1 wherever they are. Improve by +3/+1 every 5 Beasts summoned in combat');
+  });
+
+  it('impAura reads the current improvement magnitude', () => {
+    expect(questRewardText({ kind: 'impAura', attack: 1, health: 1 })).toBe('Improve your Imps by +1/+1');
+  });
+  it('assemblyLine combatFlag reads its Avenge cadence', () => {
+    expect(questRewardText({ kind: 'combatFlag', flag: 'assemblyLine', amount: 4 })).toBe('Avenge (4): add a Money Bot to your hand');
+  });
+  it('buffMechsPerAttachment recurring effect states the per-attachment grant', () => {
+    expect(questRewardText({ kind: 'recurringEndOfTurn', effect: 'buffMechsPerAttachment' })).toBe('End of Turn: give your Mechs +2/+2 for every Attachment they have');
+  });
+});
+
+describe('questText — live reward magnitude (badge tooltip)', () => {
+  it('scalingTribeAura folds the current Beast aura + the countdown to the next step', () => {
+    const r: QuestReward = { kind: 'scalingTribeAura', tribe: 'beast', attack: 4, health: 4, per: 5, event: 'summonCombat', stepAttack: 4, stepHealth: 4 };
+    expect(questRewardLiveText(r, { beastAura: { attack: 12, health: 12 }, scaling: { progress: 7, per: 5 } }))
+      .toBe('Now: Beasts +12/+12 · +4/+4 in 3 more');
+  });
+  it('tribeAura shows the current Beast aura total', () => {
+    expect(questRewardLiveText({ kind: 'tribeAura', tribe: 'beast', attack: 2, health: 2 }, { beastAura: { attack: 6, health: 6 } }))
+      .toBe('Now: Beasts +6/+6');
+  });
+  it('umbralEnergy shows its live per-spell Start-of-Combat grant', () => {
+    expect(questRewardLiveText({ kind: 'combatFlag', flag: 'umbralEnergy' }, { spellsCast: 5 }))
+      .toBe('Now: Dragons +10/+10 at Start of Combat (5 spells cast)');
+  });
+  it('returns null for a reward with no live-varying magnitude', () => {
+    expect(questRewardLiveText({ kind: 'gainGold', amount: 10 }, {})).toBeNull();
   });
 });

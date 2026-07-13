@@ -2872,6 +2872,14 @@ describe('Epic combat runes (Rising Graves / Broodpit / Spearline / Appraisal)',
     const r = simMods(p, e, 1, { runeSoulTaxes: true });
     expect(r.playerMaxGoldGain).toBeGreaterThanOrEqual(1);
   });
+
+  it('Assembly Line: every 4 friendly deaths adds a Money Bot to your hand (Avenge 4)', () => {
+    const p: BoardMinion[] = Array.from({ length: 4 }, () => ({ cardId: 'sandbag', attack: 1, health: 1 }));
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 40 }];
+    const r = simMods(p, e, 1, { assemblyLineStep: 4 });
+    // The 4th friendly death fires the Avenge → a Money Bot flies to hand (a toHand event the replay animates).
+    expect(r.events.some((ev) => ev.type === 'toHand' && ev.cardId === 'moneybot')).toBe(true);
+  });
 });
 
 describe('Combat runes batch 6 (First Claws / Packcraft / Inheritance / Salvage)', () => {

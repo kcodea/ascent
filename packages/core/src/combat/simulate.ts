@@ -884,6 +884,10 @@ export function simulate(
       const lead = boards[side].find((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onDeath'));
       if (lead) { nextStep(); if (side === 'player') bumpDeathrattles(1); fireOwnDeathrattles(lead); }
     }
+    // Assembly Line: every N friendly deaths (Avenge N), add a Money Bot to your hand. Player-only —
+    // `grantToHand` no-ops for a served enemy (no hand). Avenge-paced like The Bone Throne.
+    const asmStep = modsFor(side).assemblyLineStep ?? 0;
+    if (asmStep > 0 && deaths[side] % asmStep === 0) { nextStep(); ctx.grantToHand('moneybot', side, minion.uid); }
     // Pit Without End: the friendly death that empties your board summons N Imps (a last stand, once per fight).
     const pitImps = modsFor(side).pitWithoutEndImps ?? 0;
     if (pitImps > 0 && !pitDone[side] && countLiving(side) === 0) {

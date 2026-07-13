@@ -109,6 +109,9 @@ export interface BoardCard {
   /** Perfect Core: accrued "Rally: get a random spell" welded onto this card (1 per Perfect Core magnetized,
    *  golden ×2). Carried into combat where, when this attacks, you get this-many random spells. */
   rallySpellWeld?: number;
+  /** Count of Attachments (Magnetic minions) welded onto this card, incremented each `weldMagnetic`. Drives
+   *  Blueprint Cache's End-of-Turn "give your Mechs +2/+2 for every Attachment they have". */
+  attachments?: number;
   /** Harry Botter: accrued spell-power aura welded onto this card (1 per Harry Botter magnetized, golden ×2).
    *  Read by `spellStatBonus` alongside the card's own `spellAura`, so a welded host keeps boosting spells. */
   spellAuraBonus?: number;
@@ -407,7 +410,7 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean };
   // ── Runeforge (Runesmith) ──
   /** The Runeforge is open (turn 6): a pending offer of rune ids to buy for their Gold cost. Like `questOffer`,
    *  while set the reducer blocks every non-`buyRune`/`skipRuneforge` action and the UI pauses the timer; buying
@@ -527,7 +530,7 @@ export interface RunState {
   lastSurvivorCardIds?: string[];
   /** Recurring End-of-Turn effects granted by quests (Echoing Roar → re-fire leftmost Shout; The Hoard Wakes →
    *  conjure a random Shout minion). Fired every End of Turn for the rest of the run. Absent = none. */
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs')[];
   /** A pending Discover offer (3 card ids) — pick one to hand. */
   discover?: string[];
   /** Disco Dan's Setlist: the shop tier the CURRENTLY-open Discover's pick will be locked until (its

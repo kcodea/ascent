@@ -21,6 +21,27 @@ values, so the numeric change is safe).
 
 ## 2026-07-12 (session 34)
 
+### feat: quest Part C — 3 new reward mechanics + live badge tooltips
+
+Completes the quest/minion spec pass. The three quests that needed genuinely new mechanics, plus live tooltips.
+
+- **Imp Census** → `multi[grant a random Demon (repeatable), impAura +1/+1]`. New `impAura` reward calls the
+  existing `buffImpsRunWide` (bumps `impBuff`, the run-wide Imp aura `simulate` already applies to every friendly
+  Imp), so Imps improve +1/+1 permanently — and again on each `repeatInTurns` re-grant (folded through `multi`).
+- **Assembly Line** → `combatFlag assemblyLine` (amount 4). New `assemblyLineStep` combat mod: every 4th friendly
+  death in combat, `grantToHand('moneybot')` (player-only — Avenge-paced like The Bone Throne).
+- **Blueprint Cache** → new `recurringEndOfTurn` effect `buffMechsPerAttachment`: each End of Turn, buff every
+  friendly Mech +2/+2 **per Attachment welded onto it**. `weldMagnetic` now increments a per-card `attachments`
+  counter (host + any Beatboxer mirror) to drive it. Objective 4 → **6**.
+- **Live badge tooltips** (owner ask): new `questRewardLiveText` folds the CURRENT magnitude of scaling/stat
+  rewards into the completed-quest tooltip — scalingTribeAura shows "Now: Beasts +X/+Y · +step in N more", tribeAura
+  / The Old Hunt show the live Beast aura total, Umbral Energy shows its live "+2×spells/+2×spells at Start of
+  Combat". `QuestBadges` computes the live context (`beastBuyAtk/Hp`, `spellsCast`, the matching `questScalingAuras`
+  entry) from the run and renders it.
+
+Verified: `typecheck + lint + test` (960, incl. new mechanic + live-text tests) & `build:web` green; **live** — a
+completed Pack Mentality badge's tooltip reads "Now: Beasts +12/+12 · +4/+4 in 3 more".
+
 ### balance: quest-reward minion tweaks (Contract Imp, Scrap Vendor, Bloodlust, Trophy Stalker, Chorus Engine, Bone Taxer)
 
 Owner balance pass on six quest-reward cards (Part A of a larger quest/minion spec):
@@ -35,6 +56,29 @@ Owner balance pass on six quest-reward cards (Part A of a larger quest/minion sp
   `bloodlust`. New simulate test covers it.
 
 Verified: `typecheck + lint + test` (950) & `build:web` green.
+
+### balance: quest table reconciliation — objectives, reward amounts, tiers (Part B)
+
+Reconciled `quests.ts` against the owner's authoritative quest table (Part B of the quest/minion pass — data only,
+no new mechanics). 23 value tweaks + 2 tier moves + 3 reward remaps:
+- **Value tweaks** (objective counts / reward amounts): Den Marker aura +3/+0 → **+2/+2**; Forest Grove 5 → **8**;
+  Small Offering fodder 2/+2/+2 → **1/+1/+1**; Hoard Spark buy 3 → **4** + now repeatable; Grave Contract 4 → **7**;
+  Shop License spend 15/+2 → **20/+4**; Grave Robber 3 → **4**; Apex Hunt slaughter 4 → **6**; Pack Mentality
+  summon 7 → **5**, aura 3/1 step 3/1 → **4/4 step 4/4**; Ancient Runes 50 → **60**; Dupes 3 → **2**; Echo Chamber
+  12 → **9**; Last Rites 6 → **9**; Merchant's Mark 30 → **40**; Maw of the Run 100 → **70**; Pit Without End 17 →
+  **12**; True Contract 20 → **18**; Chimerus 16 → **12**; Taragosa's Inheritance 200 → **250**; Anomalous Reactor
+  25 → **15**; Attachment Issues 14 → **12**.
+- **Objective-EVENT fixes** (higher-risk — they change what the player DOES): Feed the Alpha sell 5 → **Kill 11**;
+  The Pivot Door sell 10 → **Spend 13**; The Epic Runeforge spend 25 → **Buy 9**; Forsaken Will's spurious
+  castSpell compound → plain **Summon 6 Undead in combat**.
+- **Reward remaps**: Dark Bargain → `multi[grant Contract Imp, +1 Fodder]`; Feed the Alpha → `multi[grant Baby
+  Cub, recurring Feed the Alpha]`; The Epic Runeforge → `multi[open Epic Runeforge, +8 Gold]` (the gold banks to
+  the turn the forge opens, matching the basic Runeforge quest).
+- **Tier moves**: Spell Thesis greater → **lesser**; Machine Chorus capstone → **greater**.
+
+Deferred to Part C (need new mechanics): Imp Census ("improve Imps +1/+1"), Assembly Line ("Avenge(4): get a
+Money Bot"), Blueprint Cache ("EoT: +2/+2 per attachment"). Updated 10 quest-fixture tests to the new spec.
+Verified: `typecheck + lint + test` (949) & `build:web` green.
 
 ### fix: Lazarus's spell discount now shows in the shop (green cost coin)
 

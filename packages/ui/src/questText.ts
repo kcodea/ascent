@@ -160,6 +160,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       const names = r.cards.map((id) => CARD_INDEX[id]?.name ?? 'a card');
       return `End of Turn: get ${names.join(' + ')}`;
     }
+    case 'impAura':
+      return `Improve your Imps by ${statPhrase(r.attack, r.health)}`;
     case 'combatFlag':
       switch (r.flag) {
         case 'bloodTrail':
@@ -186,6 +188,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
           return 'Start of Combat: give your Dragons +2/+2 for every spell cast this game';
         case 'emptyGraves':
           return 'Your first friendly death each combat summons a 1/1 Gravebody that copies your leftmost Echo';
+        case 'assemblyLine':
+          return `Avenge (${r.amount ?? 4}): add a Money Bot to your hand`;
       }
       return '';
     case 'shoutRepeat':
@@ -195,6 +199,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'recurringEndOfTurn':
       return r.effect === 'triggerLeftmostShout' ? 'End of Turn: trigger your leftmost Shout'
         : r.effect === 'grantRandomAttachments' ? 'End of Turn: get 2 random Attachments'
+        : r.effect === 'buffMechsPerAttachment' ? 'End of Turn: give your Mechs +2/+2 for every Attachment they have'
         : 'End of Turn: get a random Shout minion';
     case 'gainGold':
       return `Get ${r.amount} Gold`;
@@ -248,4 +253,49 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
 /** Live objective progress: "2 / 3", or "Complete" once met. */
 export function questProgressText(progress: number, o: QuestObjective, completed: boolean): string {
   return completed ? 'Complete' : `${Math.min(progress, o.count)} / ${o.count}`;
+}
+
+/** Live run-state a scaling/stat reward folds into its tooltip (the current magnitude, not the authored one).
+ *  Computed by `QuestBadges` from the RunState; all optional so callers pass only what they have. */
+export interface QuestRewardLive {
+  /** The Beast run aura's current total (`beastBuyAtk`/`beastBuyHp`) — folds tribeAura + scalingTribeAura +
+   *  The Old Hunt + Pack Mentality growth. */
+  beastAura?: { attack: number; health: number };
+  /** Lifetime spells cast this run (Umbral Energy = +2/+2 per). */
+  spellsCast?: number;
+  /** For a scalingTribeAura: how far into the current step (progress) and the step size (per) — drives the
+   *  "+X/+Y in N more" countdown. */
+  scaling?: { progress: number; per: number };
+}
+
+/** The reward's LIVE ongoing magnitude for the badge tooltip — the CURRENT value a scaling/stat reward is
+ *  producing right now (card-text live-accuracy rule, applied to quest rewards). Returns null for rewards with
+ *  no live-varying magnitude (their authored `questRewardText` already reads correctly). */
+export function questRewardLiveText(r: QuestReward, live: QuestRewardLive): string | null {
+  const beast = (): string | null => {
+    const a = live.beastAura;
+    return a && (a.attack > 0 || a.health > 0) ? `Now: Beasts ${statPhrase(a.attack, a.health)}` : null;
+  };
+  switch (r.kind) {
+    case 'tribeAura':
+      return r.tribe === 'beast' ? beast() : null;
+    case 'scalingTribeAura': {
+      if (r.tribe !== 'beast') return null;
+      const base = beast();
+      if (!base) return null;
+      if (!live.scaling || live.scaling.per <= 0) return base;
+      const toNext = live.scaling.per - (live.scaling.progress % live.scaling.per);
+      const step = r.stepHealth > 0 ? `+${r.stepAttack}/+${r.stepHealth}` : `+${r.stepAttack}`;
+      return `${base} · ${step} in ${toNext} more`;
+    }
+    case 'combatFlag':
+      if (r.flag === 'oldHunt') return beast();
+      if (r.flag === 'umbralEnergy') {
+        const n = 2 * (live.spellsCast ?? 0);
+        return `Now: Dragons +${n}/+${n} at Start of Combat (${live.spellsCast ?? 0} spells cast)`;
+      }
+      return null;
+    default:
+      return null;
+  }
 }

@@ -391,12 +391,14 @@ function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
  */
 export function weldMagnetic(state: RunState, host: BoardCard, mag: MagnetPayload, clings = 0): void {
   applyWeld(host, mag, 1);
+  host.attachments = (host.attachments ?? 0) + 1; // one Attachment welded on — drives Blueprint Cache
   bakeAttachmentAura(state, host);
   let totalClings = clings; // Clings welded onto the host
   for (const bb of state.board) {
     if (bb.cardId === 'beatboxer' && bb.uid !== host.uid) {
       const mult = bb.golden ? 2 : 1;
       applyWeld(bb, mag, mult);
+      bb.attachments = (bb.attachments ?? 0) + mult; // Beatboxer mirrors the weld onto itself
       bakeAttachmentAura(state, bb);
       totalClings += clings * mult; // Beatboxer magnetizes Cling copies onto itself — those stack too
     }
@@ -2767,12 +2769,18 @@ export function applyEndOfTurn(state: RunState): void {
 /** One quest-granted recurring End-of-Turn effect. `triggerLeftmostShout`: re-fire your leftmost Battlecry
  *  minion's Battlecry (Echoing Roar). `grantRandomShout`: conjure a random Battlecry minion (≤ tavern tier) to
  *  hand (The Hoard Wakes). `grantRandomAttachments`: conjure 2 random Magnetic minions to hand (Blueprint Cache). */
-function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs'): void {
+function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs'): void {
   if (effect === 'triggerLeftmostShout') {
     const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
     if (leftmost) replayBattlecry(state, leftmost);
   } else if (effect === 'grantRandomAttachments') {
     conjureToHand(state, BUYABLE_CARDS.filter((c) => c.tier <= state.tier && c.keywords.includes('M')), 2);
+  } else if (effect === 'buffMechsPerAttachment') {
+    // Blueprint Cache: give each friendly Mech +2/+2 for every Attachment (Magnetic minion) welded onto it.
+    for (const c of state.board) {
+      const n = c.attachments ?? 0;
+      if (n > 0 && isTribe(c, 'mech')) addBuff(c, 'Blueprint Cache', 2 * n, 2 * n);
+    }
   } else if (effect === 'runeSpending') {
     // Rune of Spending: +1 max Gold, and grant your leftmost minion +N/+N where N = the Gold you spent this turn.
     state.maxGoldBonus = (state.maxGoldBonus ?? 0) + 1;
@@ -2869,7 +2877,8 @@ export function questEndOfTurnBeats(state: RunState): Array<{ effect: string; la
   return out;
 }
 const RECURRING_EOT_LABEL: Record<string, string> = {
-  triggerLeftmostShout: 'Echoing Roar', grantRandomShout: 'The Hoard Wakes', grantRandomAttachments: 'Blueprint Cache',
+  triggerLeftmostShout: 'Echoing Roar', grantRandomShout: 'The Hoard Wakes', grantRandomAttachments: 'Attachments',
+  buffMechsPerAttachment: 'Blueprint Cache',
   runeSpending: 'Rune of Spending', runeAction: 'Rune of Action', triggerLeftmostEcho: 'Rune of the Reliquary',
   weldMoneyBotsEdgeMechs: 'Rune of Banking',
 };

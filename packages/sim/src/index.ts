@@ -13,5 +13,6 @@ export * from './rating';
 export * from './playerRating';
 export * from './synthesize';
 export * from './balanceReport';
+export * from './runTelemetry';
 export * from './opponentPool.data';
 export { addBuff, boardManaBonus, cardBuff, endOfTurnRepeats, isTribe, magnetizeTargets, offerBuyStats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellCasts, spellCostReduction, implosionCasts, spellDisplayText, spellStatBonus, spellAttackBonus, spellHealthBonus, undeadBuyBonus } from './recruit';

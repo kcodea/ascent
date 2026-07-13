@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 36)
 
+### feat: Balance Report now shows REAL player data (offer/pick/win/avg) + moved to the home screen
+
+Owner feedback: the in-app balance report was running greedy-bot SIMULATIONS; they want **real player** data, and it
+on the **home screen** (not the dev tuner). Rework:
+- **Capture (no sim pollution):** a finished run is `(seed, heroId, actions)`, so at run-end we **reconstruct** what
+  the player was offered + picked by replaying the action log through the deterministic reducer (`runTelemetry.ts` —
+  `reconstructRunTelemetry`), the same trick as `replayRun`. It records every quest / rune / shop-card OFFER, the
+  player's PICKS (buyQuest / buyRune / buy), each quest's completion turn, and the outcome. The offered hero trio
+  isn't in the seeded replay (the picker rolls off UI randomness), so it's stashed at pick time (`lastHeroOffer`).
+  One compact `run_telemetry` row uploads per finished run (deferred, best-effort).
+- **Aggregate:** `aggregatePlayerReport` folds recent rows into four tables — **Heroes** (offer/pick/win/avg wins),
+  **Quests** (offer/pick/win/avg turns to complete), **Runes** (offer/pick/win), **Minions** (offer/pick) — matching
+  the owner's spec exactly. Client-side over a bounded fetch (`fetchRunTelemetry`), like the board stats.
+- **UI:** `BalancePanel` reworked to fetch + aggregate + render those columns; opened from a new **Balance Report**
+  link on the **home screen** (Title secondary row) and removed from the 🛠️ Dev menu. The seeded greedy-bot report
+  still lives at `npm run report` (CLI, unchanged).
+- Backend: new `run_telemetry` table (schema.sql) — dormant until migrated, like the other shared tables.
+Verified: `typecheck` / `lint` / `test` (aggregation math + a reconstruction-from-real-playthrough test) / `build:web`
+green.
+
 ### fix: a Rise (Reborn) counts as a summon for "Summon N in combat" quests
 
 **Bug (owner-reported):** Forsaken Will (`summonCombat` Undead) wasn't counting Undead that came back via **Rise**

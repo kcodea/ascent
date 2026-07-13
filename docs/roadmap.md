@@ -139,6 +139,10 @@ look because the engine already produces the data.
   the right path and statuses flip. **Next:** record the actual clips into `packages/ui/src/audio/{cards,heroes}/`;
   reconcile the spell default bed with `feat/spellcast-sfx` (`castspell.mp3`); a live audio + combat-feel pass
   in the focused Chrome tab once clips exist. A shared visual recording worklist exists as an Artifact.
+- **Mixing desk shipped** (session 35, → devlog): all audio dials in one `audioConfig` (master limiter + 4
+  category buses + per-category levels); the dev SFX panel is now a desk with master dials, per-bus faders,
+  live peak/gain-reduction meters, realistic test-scenes, and Export-config. **Next (deferred slots exist):**
+  per-bus compressors shipped-on (Approach 2), sidechain ducking, and ingest LUFS-normalization in `sfx:import`.
 
 ### B0. FX follow-ups (from the Echo skull poof + buff tendrils, session 29)
 - **Taunt shield frame — polish (session 34, → devlog).** The heater-shield frame + raster compositing pipeline

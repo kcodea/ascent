@@ -1478,8 +1478,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const a = num(params.attack, 2) + ctx.state.frontToBackBonus + spellAttackBonus(ctx.state);
     const h = num(params.health, 2) + ctx.state.frontToBackBonusH + spellHealthBonus(ctx.state);
     addBuff(self, str(params._source) || 'Front to Back', a, h);
-    ctx.state.frontToBackBonus += num(params.attack, 2) + spellAttackBonus(ctx.state);
-    ctx.state.frontToBackBonusH += num(params.health, 2) + spellHealthBonus(ctx.state);
+    // Improve only every OTHER cast (owner 2026-07-13): the escalation step lands on the 2nd, 4th, … cast.
+    ctx.state.frontToBackCasts = (ctx.state.frontToBackCasts ?? 0) + 1;
+    if (ctx.state.frontToBackCasts % 2 === 0) {
+      ctx.state.frontToBackBonus += num(params.attack, 2) + spellAttackBonus(ctx.state);
+      ctx.state.frontToBackBonusH += num(params.health, 2) + spellHealthBonus(ctx.state);
+    }
   },
 
   /** Eyes of Aresmar — cast: make the targeted minion Golden (like Oner's Gild), but only if its

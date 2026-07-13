@@ -2492,8 +2492,8 @@ export function Recruit() {
         </div>
       )}
 
-      {/* Top-right combat HUD (during the replay) — a small Skip button by the tribes bar, with the
-          replay-speed slider stacked beneath it. */}
+      {/* Top-middle combat HUD (during the replay) — the Skip button centred near the top of the arena, with
+          the replay-speed slider stacked beneath it. */}
       {inCombat && !replay.done && (
         <div className="combathud">
           <button className="combathud-skip" onClick={skipCombat} title="Skip the combat replay">

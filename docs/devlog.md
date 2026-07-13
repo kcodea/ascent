@@ -29,6 +29,45 @@ mechanic is legible at a glance (Guel `1/4 → 2/4 …` per spell was the drivin
 
 Verified: `typecheck` + `lint` + full `test` (992) + `build:web` all green; rebased on `origin/main`. **Follow-up
 (M2, planned):** shop-phase buff FX — replay the combat tendril/descend when a card buffs others in the shop.
+### fix(fx): Taunt target/selection glow follows the shield silhouette
+
+A Taunt card is reshaped into a heater **shield** (portrait clipped to `--heater`, the frame PNG laid over an
+otherwise-transparent card box). But every highlight glow is a `box-shadow` on the rectangular `.card` element, so
+on a Taunt unit the glow floated as a **square** detached from the shield — most visibly the raspberry `.unit.aimed`
+danger telegraph (the "target glow"), and equally the `.armed`/`.targeted` hero-power selection ring and the
+`.attacking` flash.
+
+Fix (presentation-only, `packages/ui/src/styles.css`): for `.card.compact.taunt`, suppress the rectangular
+box-shadow in all four glow states and instead glow the shield PNG's own alpha via a `drop-shadow` filter on
+`.tframe` — `drop-shadow` traces the frame's silhouette, so the highlight hugs the heater shape. A `--tglow`
+variable carries the per-state colour into one shared filter (aimed → `--threat`, attacking → `--acc`,
+armed/targeted → tribe `--c`), and the frame's base `0 4px 6px` drop-shadow is preserved in the same filter stack.
+Compositor-friendly (filter on a static PNG; no per-frame repaint loop). Verified: `build:web` clean; shape to be
+eyeballed live in combat (aimed) + hero-power targeting.
+
+**Follow-up (same PR): the yellow hover glow too.** The shop/board hover glow is the last `box-shadow` layer on
+`.card.compact .art` (driven by `--hglow-*`), but Taunt's `.art` is `clip-path: var(--heater)`, and clip-path
+*clips* box-shadow — so a Taunt card in the tavern got **no hover glow at all** (clipped to the silhouette →
+invisible). Re-added it as a `drop-shadow` layer on `.tframe` blurred by `var(--hglow-blur, 0)`: 0 when not
+hovering (invisible, hidden behind the opaque frame), 22px on hover → a yellow glow that hugs the shield. Reuses
+the existing hover state machine, so it's automatically suppressed in-hand and while dragging (those zero the
+hglow vars). Verified live in Chrome (extension): drove a `sandbag` Taunt onto the board, forced the hover vars,
+and confirmed the glow tracks the heater outline (side-by-side vs a normal shop card's arch glow).
+
+## 2026-07-13 (session 35)
+
+### tweak: Skip-combat button → top-middle + Front to Back improves every other cast
+
+Two owner tweaks:
+- **Skip-combat button** moved from the top-right combat HUD back to the **top-middle** of the arena (`.combathud`
+  → `left: 50%` / `translateX(-50%)`, centred; the speed slider still stacks beneath it). Verified live: the HUD
+  centres on the viewport (near the top) and clears the top-right opponent frame.
+- **Front to Back** now improves **every OTHER cast** instead of every cast — new `RunState.frontToBackCasts` parity
+  gate on the escalation step (the grant still lands each cast; the +2/+2 improvement only compounds on the 2nd,
+  4th, … cast). Card text updated to "…every other cast"; the live `spellDisplayText` still greens the current
+  grant + improvement values.
+- **Verified**: `typecheck`/`lint`/`test` (980 — the four Front to Back tests reworked for the every-other cadence)/
+  `build:web` green; live — the Skip HUD is top-centered, no console errors.
 
 ### content: new quest — Leader of the Pack (Beast capstone)
 
@@ -76,6 +115,33 @@ Two Mech-capstone quest-reward tweaks:
   break. Implemented as a per-side `onLoseDivineShield` subscription in `simulate` (mirrors Rune of Salvage).
 - **Verified**: `typecheck`/`lint`/`test` (977, incl. Fried Circuits asymmetric escalation + Shared Circuit
   transfer-on-break capped at N)/`build:web` green.
+### feat(audio): mixing desk — config-driven levels + category buses + a metered, tunable master
+
+As hundreds of clips arrive, per-clip hand-tuning + a hardcoded limiter don't scale. All audio dials now live in
+one typed **`audioConfig`** (`packages/ui/src/audio/config.ts`): master limiter, `masterGain`, four **category
+buses** (`ui / combat / voice / hero`), per-category `{ bus, gain }`, and optional per-clip overrides. Seeded
+from the old values so **day-one audio is unchanged**; live config = defaults ⊕ `localStorage` (`ascent.audiocfg`,
+migrating the old `ascent.sfxvol`/`ascent.vol`).
+
+- **Graph (`sfx.ts`)** — `clip/synth → playGain(effectiveGain) → busInput[bus] → (bus comp, off by default) →
+  master limiter → masterGain → mute bus → speakers`. `playSample`/`tone` now take a **category** and resolve
+  gain + bus from the config (replacing the per-call `sampleVol.X` arg + the per-play `masterVol` multiply, now a
+  node). Synth-only combat cues (death/shield/buff/maxgold) route to the combat bus (routing-only; their level
+  stays the cue's literal synth vol). `stopAllAudio`/`resumeAudio`/mute + every cue's fallback/dedup preserved.
+- **Desk API** — `getAudioConfig`/`setBusGain`/`setMasterComp`/`setCategory`, `meterLevel`/`gainReduction`
+  (AnalyserNode taps on master + each bus; passive), `exportConfig`, `playScene` + `SCENES`.
+- **Console (`SfxMixer.tsx` → mixing desk)** — master limiter dials + **live peak & gain-reduction meters**,
+  per-bus faders + meters, categories grouped under their bus (gain slider + bus-reassign dropdown + ▶ preview),
+  **test-scene** buttons (Combat beat / Shop spam / Hero moment / Torture — realistic *stacks* so you tune
+  against overlap), and **Export config** (paste back into `DEFAULT_AUDIO_CONFIG`). Meters animate `transform`
+  only (rAF); dev-only, stripped from prod.
+- **Deferred (config slots exist):** per-bus compressors shipped-on (Approach 2), sidechain ducking, ingest
+  LUFS-normalization.
+
+**Verified:** config + scene unit tests (7 + 3); full gate green (typecheck 0, lint, 986 tests, build:web ✓).
+Day-one audio unchanged by construction (defaults mirror the old limiter + gains; bus gains unity, comps off).
+The live meters/scenes are eyeballed in `npm run dev` (Dev menu → Mixing Desk) — rAF meters can't be seen in a
+headless tab.
 
 ### feat: Den Marker quest — run-wide Den Mother aura (Beasts +2/+2 on play, scaling)
 

@@ -11,6 +11,7 @@ import { ChoreographyPanel } from './ChoreographyPanel';
 import { FloatTuner } from './FloatTuner';
 import { LayoutTuner } from './LayoutTuner';
 import { pixiFx } from './pixiFx';
+import { useGame } from './store';
 
 /**
  * DEV-only Dev Tuning Menu — the single 🛠️ button that replaces the old row of floating tuner buttons.
@@ -56,6 +57,7 @@ export function DevMenu() {
             </button>
           ))}
           <button className="devmenu-item" onClick={() => pixiFx.test()}>✨ Test FX <span>▸</span></button>
+          <button className="devmenu-item" onClick={() => { setOpen(false); useGame.getState().openBalance(); }}>📊 Balance Report <span>▸</span></button>
         </div>
       )}
       {TUNERS.map(({ key, C }) => (shown.has(key) ? <C key={key} /> : null))}

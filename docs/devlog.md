@@ -15,6 +15,20 @@ touching nothing else's** — plus commit/push early (origin is the only durable
 `main` in often, split by ownership seam, look before you start (`gh pr list`), and per-session dev ports.
 Docs-only; no code touched.
 
+### tooling: in-app dev Balance Report panel (owner request)
+
+The `npm run report` balance tool now has an **in-app, dev-only** twin so the numbers are one click away without
+dropping to a terminal. Refactor: the whole sim + tally moved into `@game/sim` (`balanceReport.ts` —
+`computeBalanceReport` / `createReportAccumulator` / `playAndRecordInto` / `finalizeReport`, all pure, Node-free),
+and the CLI (`packages/tools/src/balance-report.ts`) is now just argv + formatting over it — so the panel and the CLI
+share ONE implementation and produce **identical** numbers. New `BalancePanel.tsx` (mounted only under
+`import.meta.env.DEV`, opened from the 🛠️ Dev menu → "📊 Balance Report") runs the report **hero-by-hero on a
+`setTimeout` yield** so the main thread never locks up and a progress bar ticks; results are the five ranked
+offer/pick/win tables (heroes, quests, runes, minions, spells) with a win-rate heat tint. Games/hero is a 5/10/20/30
+chip. Verified live: opened the panel, ran 5 games/hero (100 runs) — progress bar advanced to 100% with the page
+still responsive, all five tables populated; matches `npm run report -- 5`. `typecheck`/`lint`/`test`/`build:web`
+green.
+
 ### fix(fx): Taunt target/selection glow follows the shield silhouette
 
 A Taunt card is reshaped into a heater **shield** (portrait clipped to `--heater`, the frame PNG laid over an

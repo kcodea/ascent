@@ -520,28 +520,16 @@ describe('run loop (@game/sim)', () => {
     expect([m.attack, m.health]).toEqual([2 + 10, 3 + 10]); // two +5/+5 casts
   });
 
-  it('The Godfodder Choose One — option 0 buffs Fodder (no target), option 1 defers to a target', () => {
-    // Option 0: buff Fodder run-wide, resolves immediately (per-option target absent → no prompt).
+  it('The Godfodder Shout buffs your Fodder +2/+2 immediately (no Choose One)', () => {
     let a: RunState = {
       ...createRun(1),
       hand: [{ uid: 'g', cardId: 'godfodder', tribe: 'demon', attack: 3, health: 2, keywords: [], golden: false }],
     };
     a = reduce(a, { type: 'play', uid: 'g' });
-    expect(a.chooseOne).toBeDefined();
-    a = reduce(a, { type: 'chooseOne', index: 0 });
-    expect(a.pendingTarget).toBeUndefined(); // option 0 does NOT prompt for a target
-    expect(a.cardBuffs?.fred?.attack).toBe(1); // the Fodder (Fred) card type enchanted +1/+1
-    // Option 1: consume — defers to a friendly target (per-option target: 'friendly').
-    let b: RunState = {
-      ...createRun(1),
-      board: [{ uid: 'm', cardId: 'drone', tribe: 'mech', attack: 2, health: 3, keywords: [], golden: false }],
-      hand: [{ uid: 'g', cardId: 'godfodder', tribe: 'demon', attack: 3, health: 2, keywords: [], golden: false }],
-    };
-    b = reduce(b, { type: 'play', uid: 'g' });
-    b = reduce(b, { type: 'chooseOne', index: 1 });
-    expect(b.pendingTarget).toBeDefined(); // option 1 prompts for a target
-    b = reduce(b, { type: 'battlecryTarget', targetUid: 'm' });
-    expect(b.board.find((c) => c.uid === 'm')!.attack).toBeGreaterThan(2); // consumed a Fodder → gained stats
+    expect(a.chooseOne).toBeUndefined(); // no more Choose One — it's a straight Shout
+    expect(a.pendingTarget).toBeUndefined();
+    expect(a.cardBuffs?.fred?.attack).toBe(2); // Shout: Fodder (Fred) +2/+2
+    expect(a.cardBuffs?.fred?.health).toBe(2);
   });
 
   it('Safety Deposit Box casts (untargeted) without throwing and banks +2 Gold for next turn', () => {
@@ -1115,13 +1103,13 @@ describe('run loop (@game/sim)', () => {
     };
     const goldBefore = s.bonusEmbersNextTurn ?? 0;
     s = reduce(s, { type: 'settleCombat' }); // settle WITHOUT advancing, so the queued Fodder isn't injected/cleared yet
-    // Soulfeeder queues Fodder into the next tavern: 1 (non-golden) + 2 (golden) = 3 Fred.
-    expect((s.pendingTavern ?? []).filter((id) => id === 'fred').length).toBe(3);
+    // Soulfeeder schedules Fodder for the next 2 shops: 1 (non-golden) + 2 (golden) = 3 per shop.
+    expect(s.fodderSchedule).toEqual([3, 3]);
     // Hoarder grants +1 Gold next turn (its recruit factory ran with full RunState access).
     expect((s.bonusEmbersNextTurn ?? 0) - goldBefore).toBe(1);
   });
 
-  it('Soulfeeder queues Fodder only once — it does not re-proc on later rounds', () => {
+  it('Soulfeeder feeds Fodder to the next 2 shops (not every round after) — a Demon eats one per refresh', () => {
     let s: RunState = {
       ...createRun(1),
       resolve: 999, maxResolve: 999,
@@ -1138,9 +1126,10 @@ describe('run loop (@game/sim)', () => {
       s = reduce(s, { type: 'resolveCombat' });
       seen.push(atk());
     }
-    // ate one Fred on the first refresh (2 → 3), then never again — no per-round re-proc
-    expect(seen).toEqual([3, 3, 3, 3]);
+    // ate a Fred on refresh 1 (2 → 3) and refresh 2 (3 → 4), then no more — the schedule covers exactly 2 shops.
+    expect(seen).toEqual([3, 4, 4, 4]);
     expect(s.pendingTavern).toEqual([]);
+    expect(s.fodderSchedule).toBeUndefined();
   });
 
   it('Buddy Buddy adds a random Tier 1 minion to your hand (golden adds two)', () => {
@@ -1539,7 +1528,7 @@ describe('run loop (@game/sim)', () => {
     expect(BUYABLE_CARDS.some((c) => c.id === 'fred')).toBe(false);
   });
 
-  it('Soulfeeder Battlecry queues Fodder into the next tavern', () => {
+  it('Soulfeeder Shout schedules Fodder for the next 2 shops', () => {
     let s: RunState = {
       ...createRun(1),
       embers: 3,
@@ -1549,8 +1538,9 @@ describe('run loop (@game/sim)', () => {
       pendingTavern: [],
     };
     s = reduce(s, { type: 'buy', uid: 'x' });
-    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid }); // Soulfeeder Battlecry
-    expect(s.pendingTavern).toContain('fred'); // queued for the next refresh, not placed now
+    s = reduce(s, { type: 'play', uid: s.hand[0]!.uid }); // Soulfeeder Shout
+    expect(s.fodderSchedule).toEqual([1, 1]); // 1 Fodder to each of the next 2 shops (not placed now)
+    expect(s.pendingTavern ?? []).toEqual([]); // nothing in the immediate queue yet
     expect(s.board.some((c) => c.cardId === 'fred')).toBe(false);
   });
 
@@ -2976,8 +2966,8 @@ describe('run loop (@game/sim)', () => {
     expect(s.hand.filter((c) => CARD_INDEX[c.cardId]?.spell).length).toBe(4);
   });
 
-  it('a Battlecry minion fires twice with a Drummer — observable via Soulfeeder queuing 2 Fodder', () => {
-    // Soulfeeder's Battlecry queues 1 Fodder; with a Drakko the Drummer out it fires twice → 2 Fodder.
+  it('a Battlecry minion fires twice with a Drummer — observable via Soulfeeder scheduling double Fodder', () => {
+    // Soulfeeder's Shout schedules 1 Fodder per shop; with a Drakko the Drummer out it fires twice → 2 per shop.
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
       board: [{ uid: 'dr', cardId: 'drummer', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: false }],
@@ -2985,7 +2975,7 @@ describe('run loop (@game/sim)', () => {
       pendingTavern: [],
     };
     s = reduce(s, { type: 'play', uid: 'sf' });
-    expect((s.pendingTavern ?? []).filter((id) => id === 'fred')).toHaveLength(2);
+    expect(s.fodderSchedule).toEqual([2, 2]); // fired twice → 1 Fodder ×2 for each of the next 2 shops
   });
 
   it('Yazzus does NOT multiply Help Wanted — Discover spells are untargeted (one Discover, nothing queued)', () => {
@@ -5268,6 +5258,18 @@ describe('Undead quests — combat-objective completion + reward application', (
     for (const id of ['cryptbroker', 'bonetaxer', 'gravetwin', 'ossuaryrite']) {
       expect(BUYABLE_CARDS.some((c) => c.id === id)).toBe(false);
     }
+  });
+
+  it('Gravetwin: Ossuary Rite fires its COPIED Echo, not nothing (owner bug 2026-07-13)', () => {
+    // Gravetwin holds a copied Echo (here "Deathrattle: give your minions +1/+1"). Ossuary Rite triggers
+    // "this minion's Echo" — it must fire the COPIED effect, not the (empty) def Deathrattle.
+    const gt: BoardCard = { uid: 'gt', cardId: 'gravetwin', tribe: 'undead', attack: 6, health: 6, keywords: [], golden: false,
+      copiedEcho: [{ on: 'onDeath', do: 'deathrattleBuffAll', params: { attack: 1, health: 1 } }] };
+    const ally: BoardCard = { uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', board: [gt, ally],
+      hand: [{ uid: 'or', cardId: 'ossuaryrite', tribe: 'undead', attack: 0, health: 1, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'or', targetUid: 'gt' }); // cast Ossuary Rite on Gravetwin
+    expect(s.board.find((c) => c.uid === 'a')!.attack).toBe(2); // copied Echo fired → board +1/+1
   });
 
   it('Crypt Broker Battlecry: conjures a random Echo minion to hand and triggers its Echo now', () => {

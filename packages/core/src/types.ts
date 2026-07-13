@@ -117,8 +117,10 @@ export type EffectFactoryId =
   | 'endOfTurnMagnetizeMechs' // End of Turn: merge a token's stats into N friendly Mechs (Combinator)
   | 'buffFodderEverywhere' // End of Turn: buff the Fodder card type for the whole run (Ritualist)
   // Demons — Consume (recruit-resolved half)
-  | 'addTavernFodder' // Soulfeeder (Battlecry) / Maw of the Pit (End of Turn): queue Fodder into the next tavern
+  | 'addTavernFodder' // Maw of the Pit (End of Turn): queue Fodder into the next tavern
+  | 'addFodderNextShops' // Soulfeeder (Shout): queue Fodder across the next N shops (fodderSchedule)
   | 'deathrattleAddFodder' // Burial Imp: Deathrattle queues Fodder into your next tavern, carried back (Demon)
+  | 'deathrattleBuffFodder' // Burial Imp: Deathrattle permanently buffs your Fodder +atk/+hp, carried back (Demon)
   | 'avengeAddFodder' // Pit Supplier: Avenge (N) queues a Fodder into your next shop, carried back (Demon)
   | 'avengeGrantSpellPower' // Spell Appraiser: Avenge (N) permanently raises run-wide spell power, carried back
   | 'rallyImproveSummonAura' // Baby Cub: Rally bumps a friendly Den Mother's summon aura (summonBonus), carried back
@@ -230,7 +232,8 @@ export type EffectFactoryId =
   | 'scBeastAura' // Kennelmaster: Start of Combat — Beast aura +N/+N (grown by Avenge), catches combat summons
   | 'rallyTribeAura' // Solaris Fang: Rally — Beast aura +N/+N for the rest of combat (catches combat summons)
   | 'rallyTribeAuraGrowing' // Trophy Stalker: Rally — Beast aura +N/+N (grows +step each attack via summonBonus)
-  | 'rallyGiveDemonAttack' // Bloodbinder: Rally — give another friendly Demon +Attack = this minion's Attack
+  | 'rallyGiveDemonAttack' // (retired from Bloodbinder) Rally — give another friendly Demon +Attack = this minion's Attack
+  | 'rallyBuffFodderHalf' // Bloodbinder: Rally — give your Fodder half this minion's Attack, as Attack/Health alternating each turn
   | 'rallyDamageRandomEnemy' // Philippe: Rally — also deal its Attack to a random enemy (golden +2), no retaliation
   | 'avengeShieldAttack' // Solaris Fang: Avenge (X) — gain a Divine Shield and attack immediately
   | 'endOfTurnGrantSpellChoice' // Money Maker: every N turns, add a random card from a list to hand (recruit)
@@ -715,6 +718,12 @@ export interface BoardMinion {
   /** Perfect Core: accrued "Rally: get a random spell" welded onto this minion. Combat reads it to grant
    *  this-many random spells when this attacks (standalone Perfect Core uses its own effect instead). */
   rallySpellWeld?: number;
+  /** Gravetwin: the Deathrattle (onDeath EffectDefs) it copied from a friendly Echo minion — carried into combat
+   *  as real Deathrattle effects so it procs when Gravetwin dies mid-fight (not only at the next shop). */
+  copiedEcho?: EffectDef[];
+  /** Bloodbinder: which stat its Rally gives Fodder this fight — `'hp'` on even turns, else Attack. Alternates
+   *  each turn on the run board; read (not changed) in combat. */
+  bloodbinderMode?: 'atk' | 'hp';
   /** Bloodlust: at Start of Combat this minion takes an immediate out-of-turn attack, immune to retaliation for
    *  that swing ("cannot die from that attack"). Spell-applied in recruit; consumed by this one combat. */
   bloodlust?: boolean;
@@ -794,6 +803,9 @@ export interface Minion {
   /** Bloodlust weld: on each of its own attacks, give a random friendly minion Attack equal to this minion's
    *  Attack (the Rally the Bloodlust spell grants alongside the immune swing). One-fight. */
   bloodlustRally?: boolean;
+  /** Bloodbinder: which stat its Rally gives Fodder this fight (`'hp'` = Health, else Attack). Seeded from the
+   *  run board (alternates each turn); read by its Rally factory. */
+  bloodbinderMode?: 'atk' | 'hp';
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };
@@ -984,6 +996,9 @@ export interface CombatResult {
   /** Fodder to queue into the next tavern from this combat (Burial Imp's Deathrattle). A count of
    *  `fred` tokens; pushed onto `pendingTavern` in settleCombat. Absent if 0. */
   playerFodderGrants?: number;
+  /** Fodder scheduled across the next several shops from this combat (Pit Supplier's Avenge): `[i]` = Fodder for
+   *  the shop `i` from now. Merged into `fodderSchedule` in settleCombat. Absent if none. */
+  playerFodderSchedule?: number[];
   /** Economy Battlecries Ryme re-fired in combat (Soulfeeder's Fodder, Hoarder's Gold, Demonic Anomaly's shop
    *  buff, gain-a-minion) — recorded here (cardId + its golden state) and replayed through the real recruit
    *  factory in settleCombat, where they have full RunState access. Combat-meaningful Battlecries (summon /
@@ -1095,6 +1110,9 @@ export interface CombatContext {
   /** Queue `count` Fodder into the player's next tavern (Burial Imp's Deathrattle). Player-only;
    *  carried back via `CombatResult.playerFodderGrants`, pushed onto pendingTavern in settleCombat. */
   grantTavernFodder(count: number, side: Side): void;
+  /** Queue Fodder across the next several shops (Pit Supplier's Avenge → "2 Fodder to your next 2 shops"):
+   *  `counts[i]` = Fodder for the shop `i` from now. Player-only; carried back via `playerFodderSchedule`. */
+  scheduleFodder(counts: number[], side: Side): void;
   /** Record an economy Battlecry (Ryme re-firing Soulfeeder / Hoarder / Demonic Anomaly / a gain-minion) to be
    *  replayed through its recruit factory at settle. Player-only; carried back via
    *  `CombatResult.playerDeferredBattlecries`. `golden` is the re-fired minion's golden state (so the factory

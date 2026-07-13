@@ -129,6 +129,9 @@ export interface BoardCard {
   /** Bloodlust: a one-combat mark — at the start of the next combat this minion takes an immediate out-of-turn
    *  attack, immune to retaliation for that swing ("cannot die from that attack"). Stripped post-combat. */
   bloodlust?: boolean;
+  /** Bloodbinder: which stat its Rally gives Fodder — alternates `undefined`/`'atk'` ↔ `'hp'` each turn (flipped
+   *  at the start of each recruit turn). Seeded into combat; the Rally reads it. */
+  bloodbinderMode?: 'atk' | 'hp';
   /** Bloodlust weld: the Bloodlust spell also grants its target a one-fight Rally — on each of its own attacks,
    *  give a random friendly minion Attack equal to its own. Carried into combat + stripped post-combat, like `bloodlust`. */
   bloodlustRally?: boolean;
@@ -368,6 +371,10 @@ export interface RunState {
   /** Card ids queued to be injected into the *next* tavern refresh (Soulfeeder adds Fodder).
    *  Consumed (and possibly auto-eaten by your Demons) when the tavern next refreshes. */
   pendingTavern: string[];
+  /** Fodder scheduled across the next SEVERAL tavern refreshes (Soulfeeder / Pit Supplier: "add N Fodder to the
+   *  next 2 shops"). `fodderSchedule[i]` = Fodder due at the refresh `i` from now; each refresh consumes index 0
+   *  (dumping it into `pendingTavern`) and shifts the rest down. */
+  fodderSchedule?: number[];
   /** Persistent per-cardId stat buffs that apply to *every* copy of a card for the rest of the
    *  run, wherever it appears — tavern, hand, board, summoned, discovered (Ritualist buffs all
    *  Fodder this way). Baked in at every instantiation; the tavern display reads it live. */
@@ -424,8 +431,12 @@ export interface RunState {
   /** A completed quest (The Epic Runeforge) has armed the Epic Runeforge — it opens at the START of the next turn
    *  (`advanceCombat`), not immediately, so the forge modal doesn't interrupt the turn it completed on. */
   pendingEpicRuneforge?: boolean;
-  /** The Runeforge quest armed a BASIC Runeforge visit for next turn (any hero), granting `gold` that turn. */
-  pendingBasicForge?: { gold?: number };
+  /** A forge armed MID-TURN (Epic, by a quest) is deferred until the next turn's start — `advanceCombat` clears
+   *  this, and until then `openNextStartOfTurnModal`'s mid-turn drains skip it (owner bug 2026-07-13). */
+  pendingForgeDeferred?: boolean;
+  /** The Runeforge quest armed a BASIC Runeforge visit for next turn (any hero), granting `gold` that turn.
+   *  `deferred` mirrors `pendingForgeDeferred` for the basic forge (armed mid-turn → wait for next turn's start). */
+  pendingBasicForge?: { gold?: number; deferred?: boolean };
   /** Rune of the Epic Forge: open the Epic Runeforge when the run reaches this wave (turn 9). */
   epicForgeWave?: number;
   /** The open forge is quest-/rune-scheduled (not the Runesmith hero power) — buying/skipping spends no charge. */

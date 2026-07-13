@@ -28,8 +28,8 @@ export const DEMONS: CardDef[] = [
     name: 'Sword and Bored',
     tribe: 'demon',
     tier: 1,
-    attack: 2,
-    health: 1,
+    attack: 3,
+    health: 2,
     keywords: ['SL'],
     effects: [{ on: 'onKill', do: 'onKillBuffFodder', params: { attack: 1, health: 0, goldenAttack: 1, goldenHealth: 1 } }],
     text: '**Slaughter:** give your **Fodder** **+1/+0**.',
@@ -59,9 +59,9 @@ export const DEMONS: CardDef[] = [
     attack: 2,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'addTavernFodder' }],
-    text: '**Battlecry:** add Fodder to your next tavern.',
-    goldenText: '**Battlecry:** add **2** Fodder to your next tavern.',
+    effects: [{ on: 'onPlay', do: 'addFodderNextShops', params: { count: 1, shops: 2 } }],
+    text: '**Shout:** add a Fodder to the next **2** shops.',
+    goldenText: '**Shout:** add **2** Fodder to the next **2** shops.',
   },
   {
     id: 'brood',
@@ -146,13 +146,12 @@ export const DEMONS: CardDef[] = [
     attack: 3,
     health: 2,
     keywords: [],
-    effects: [],
-    chooseOne: [
-      { text: 'Give your **Fodder** **+1/+1**.', effects: [{ on: 'onPlay', do: 'battlecryBuffFodder', params: { attack: 1, health: 1 } }] },
-      { text: 'A friendly minion consumes a **Fodder**.', target: 'friendly', effects: [{ on: 'onPlay', do: 'battlecryTargetConsumeFodder', params: {} }] },
+    effects: [
+      { on: 'onPlay', do: 'battlecryBuffFodder', params: { attack: 2, health: 2 } },
+      { on: 'onDeath', do: 'deathrattleAddFodder', params: { count: 1 } },
     ],
-    text: '**Choose One:** give your **Fodder** **+1/+1**, or a friendly minion consumes a **Fodder**.',
-    goldenText: '**Choose One:** give your **Fodder** **+2/+2**, or a friendly minion consumes **2 Fodder**.',
+    text: '**Shout:** give your **Fodder** **+2/+2**. **Echo:** add a Fodder to your next shop.',
+    goldenText: '**Shout:** give your **Fodder** **+4/+4**. **Echo:** add **2** Fodder to your next shop.',
   },
   {
     id: 'trickster',
@@ -191,9 +190,12 @@ export const DEMONS: CardDef[] = [
     attack: 3,
     health: 3,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleAddFodder', params: { count: 1 } }],
-    text: '**Deathrattle:** add a Fodder to your next tavern.',
-    goldenText: '**Deathrattle:** add **2** Fodder to your next tavern.',
+    effects: [
+      { on: 'onDeath', do: 'deathrattleBuffFodder', params: { attack: 1, health: 1 } },
+      { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 1 } },
+    ],
+    text: '**Echo:** give your Fodder **+1/+1** and summon an **Imp**.',
+    goldenText: '**Echo:** give your Fodder **+2/+2** and summon **2 Imps**.',
   },
   {
     // On-kill engine: each kill permanently buffs your Fodder + Imps (combat → carried back, like Bane).
@@ -236,8 +238,8 @@ export const DEMONS: CardDef[] = [
     attack: 5,
     health: 2,
     keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyGiveDemonAttack' }],
-    text: "**Rally:** give another friendly Demon Attack equal to this minion's Attack.",
+    effects: [{ on: 'onAttack', do: 'rallyBuffFodderHalf' }],
+    text: "**Rally:** give your Fodder half this minion's Attack. Swaps to Health next turn.",
   },
   {
     // Avenge (3): every 3 friendly deaths in combat, queue a Fodder into your next shop (golden: 2). Feeds the
@@ -249,9 +251,9 @@ export const DEMONS: CardDef[] = [
     attack: 4,
     health: 2,
     keywords: [],
-    effects: [{ on: 'avenge', do: 'avengeAddFodder', params: { count: 3 } }],
-    text: '**Avenge (3):** add a **Fodder** to your next shop.',
-    goldenText: '**Avenge (3):** add **2 Fodder** to your next shop.',
+    effects: [{ on: 'avenge', do: 'avengeAddFodder', params: { count: 3, fodder: 2, shops: 2 } }],
+    text: '**Avenge (3):** add **2 Fodder** to your next **2** shops.',
+    goldenText: '**Avenge (3):** add **4 Fodder** to your next **2** shops.',
   },
   {
     // End of Turn: both board-adjacent minions Consume a Fodder (gain its enchanted stats + fire the consume

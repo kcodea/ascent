@@ -226,6 +226,14 @@ export function buffFodderRunWide(state: RunState, a: number, h: number, source:
  * at combat start AND on summon, so the bonus follows them. Also buffs any Imp already on the board/hand
  * (rare — imps are normally combat-only). Stacks; `source` labels the inspect breakdown.
  */
+/** Queue `count` Fodder into each of the next `shops` tavern refreshes (Soulfeeder's Shout, Pit Supplier's
+ *  Avenge carry-back). Arms `fodderSchedule` — one entry per future refresh, consumed by `injectPendingTavern`. */
+export function armFodderSchedule(state: RunState, count: number, shops: number): void {
+  if (count <= 0 || shops <= 0) return;
+  state.fodderSchedule ??= [];
+  for (let i = 0; i < shops; i++) state.fodderSchedule[i] = (state.fodderSchedule[i] ?? 0) + count;
+}
+
 export function buffImpsRunWide(state: RunState, a: number, h: number, source: string): void {
   state.impBuff ??= { attack: 0, health: 0 };
   state.impBuff.attack += a;
@@ -469,8 +477,10 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number): v
  * count this death — matching combat, where the death increments the tally before the rattle runs.
  */
 function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effectsOverride?: EffectDef[]): void {
-  const effects = effectsOverride ?? CARD_INDEX[minion.cardId]?.effects;
-  if (!effects) return;
+  // A Gravetwin's Echo lives in `copiedEcho` (not its def) — fold it in so triggering "this minion's Echo"
+  // (Ossuary Rite / Deathsayer / Reliquary) fires the copied effect too, not nothing (owner bug 2026-07-13).
+  const effects = effectsOverride ?? [...(CARD_INDEX[minion.cardId]?.effects ?? []), ...(minion.copiedEcho ?? [])];
+  if (!effects.length) return;
   const hasDR = effects.some((e) => e.on === 'onDeath');
   const fireOnce = (): void => {
     for (const eff of effects) {
@@ -757,6 +767,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const count = num(params.count, 1) * gold(self);
     const id = str(params.tokenId) || 'fred';
     (ctx.state.pendingTavern ??= []).push(...Array(count).fill(id));
+  },
+
+  /** Queue Fodder across the next `shops` tavern refreshes (Soulfeeder: "add a Fodder to the next 2 shops";
+   *  golden doubles the per-shop count). Arms `fodderSchedule`, consumed one refresh at a time. */
+  addFodderNextShops: (ctx, self, params) => {
+    armFodderSchedule(ctx.state, num(params.count, 1) * gold(self), num(params.shops, 2));
   },
 
   /** The Godfodder — Battlecry: CREATE a Fodder (Fred) and feed it to the targeted friendly minion

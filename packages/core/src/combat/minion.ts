@@ -61,11 +61,14 @@ export function instantiate(
     // a standalone Perfect Core grants via its own onAttack `rallyGrantSpell` effect, so no double-count.
     rallySpellWeld: board.rallySpellWeld && board.rallySpellWeld > 0 ? board.rallySpellWeld : undefined,
     bloodlust: board.bloodlust, // Bloodlust: an immediate immune attack at Start of Combat (one combat)
+    bloodbinderMode: board.bloodbinderMode, // Bloodbinder: which stat its Rally gives Fodder this fight (atk/hp)
     bloodlustRally: board.bloodlustRally, // Bloodlust's welded Rally: give a friendly minion this minion's Attack (one combat)
     resummon: board.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
     buffs: board.buffs, // recruit-phase buff breakdown, carried into the snapshot for the combat inspect
     side,
-    effects: card.effects,
+    // Gravetwin carries its copied Echo into combat as a real Deathrattle, so it PROCS when Gravetwin dies in
+    // combat (not only at the next shop if it survives) — including growth effects like Grim's (owner 2026-07-13).
+    effects: board.copiedEcho?.length ? [...card.effects, ...board.copiedEcho] : card.effects,
     dead: false,
   };
 }

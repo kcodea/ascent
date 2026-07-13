@@ -1046,6 +1046,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         rallyMechAtk: b.rallyMechAtk, // Better Bot's accrued Rally (own base added at instantiate)
         rallySpellWeld: b.rallySpellWeld, // Perfect Core's welded Rally (grant a spell on attack) — was dropped
         resummon: b.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
+        ...(b.copiedEcho?.length ? { copiedEcho: b.copiedEcho } : {}), // Gravetwin: its copied Echo procs on combat death
+        ...(b.bloodbinderMode ? { bloodbinderMode: b.bloodbinderMode } : {}), // Bloodbinder: seed this fight's Rally stat (atk/hp)
         buffs: b.buffs, // recruit-phase buff breakdown → carried into combat so the inspect panel itemizes it
       }));
       // Fleeting Vigor — a one-shot Start-of-Combat buff banked last shop: pump the player's COMBAT board
@@ -1454,6 +1456,11 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerFodderGrants) {
     (s.pendingTavern ??= []).push(...Array(result.playerFodderGrants).fill('fred'));
   }
+  // Pit Supplier: Fodder scheduled across the next several shops → merge index-for-index into fodderSchedule.
+  if (result.playerFodderSchedule) {
+    s.fodderSchedule ??= [];
+    result.playerFodderSchedule.forEach((n, i) => { if (n > 0) s.fodderSchedule![i] = (s.fodderSchedule![i] ?? 0) + n; });
+  }
   // Ryme re-firing an ECONOMY battlecry in combat (Soulfeeder's Fodder, Hoarder's Gold, Demonic Anomaly's shop
   // buff, a gain-a-minion) couldn't run in the pure fight — replay each through its recruit factory now, with
   // full RunState access. Recorded once per re-fire in combat, so Drakko's doubling is already baked in.
@@ -1666,6 +1673,12 @@ function advanceCombat(s: RunState): void {
   // Rune of the Epic Forge: it armed the Epic Runeforge for THIS wave — turn it into a pending open, which the
   // start-of-turn sequencing below presents (behind any quest offer / Runesmith forge).
   if (s.epicForgeWave != null && s.wave >= s.epicForgeWave) { s.pendingEpicRuneforge = true; s.epicForgeWave = undefined; }
+  // Promote any forge armed mid-turn (deferred): now that we're at the START of the next turn, it's openable.
+  s.pendingForgeDeferred = false;
+  if (s.pendingBasicForge) s.pendingBasicForge.deferred = false;
+  // Bloodbinder: its Rally alternates the stat it gives Fodder — flip each board Bloodbinder every turn
+  // (undefined/'atk' ↔ 'hp'), so this turn's combat reads the freshly-swapped stat.
+  for (const c of s.board) if (c.cardId === 'bloodbinder') c.bloodbinderMode = c.bloodbinderMode === 'hp' ? 'atk' : 'hp';
   openNextStartOfTurnModal(s);
   // Gravetwin: if it survived the last combat, fire its copied Echo now (start of the shop). Then clear the
   // survivor list so it fires exactly once per fight.
@@ -1944,8 +1957,10 @@ function closeRuneforge(s: RunState): void {
  *  behind them, and is called from every modal-close path (buyQuest / forge close / discover resolve). */
 function openNextStartOfTurnModal(s: RunState): void {
   if (s.questOffer || s.runeforgeOffer || s.discover || s.chooseOne || s.pendingTarget) return; // one modal at a time
-  if (s.pendingEpicRuneforge) { openEpicRuneforge(s); s.pendingEpicRuneforge = false; return; } // Runeforge before Discovers
-  if (s.pendingBasicForge) { const g = s.pendingBasicForge.gold ?? 0; s.pendingBasicForge = undefined; openScheduledBasicRuneforge(s, g); return; }
+  // A forge armed MID-TURN is `deferred` — it must wait for the NEXT turn's start (advanceCombat promotes it by
+  // clearing the flag) so a mid-turn modal-close drain can't open it on the completing turn (owner bug 2026-07-13).
+  if (s.pendingEpicRuneforge && !s.pendingForgeDeferred) { openEpicRuneforge(s); s.pendingEpicRuneforge = false; return; } // Runeforge before Discovers
+  if (s.pendingBasicForge && !s.pendingBasicForge.deferred) { const g = s.pendingBasicForge.gold ?? 0; s.pendingBasicForge = undefined; openScheduledBasicRuneforge(s, g); return; }
   if (s.discoverQueue?.length) openDiscover(s, s.discoverQueue.shift()!); // then any queued start-of-turn Discovers
 }
 
@@ -2147,16 +2162,19 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.runeEmpowerment = true; // Rune of Empowerment (Epic): your hero power triggers twice
       break;
     case 'openEpicRuneforge':
-      // Deferred: arm it now, open at the START of next turn (advanceCombat) so the forge doesn't interrupt the
-      // turn the quest completed on. Reached by The Epic Runeforge quest.
+      // Deferred: arm it now, open at the START of NEXT turn (after this turn's combat). `pendingForgeDeferred`
+      // blocks the mid-turn modal-close drains from opening it early (owner bug 2026-07-13: it opened mid-turn
+      // and the player had already spent the Gold they needed for the runes). Reached by The Epic Runeforge quest.
       s.pendingEpicRuneforge = true;
+      s.pendingForgeDeferred = true;
       break;
     case 'scheduleRuneforge':
       // Arm a Runeforge visit for a future turn's start (opened by advanceCombat's start-of-turn sequencing).
-      // `onWave` pins the Epic forge to an absolute wave (Rune of the Epic Forge → 9); otherwise it's next turn.
+      // `onWave` pins the Epic forge to an absolute wave (Rune of the Epic Forge → 9); otherwise it's next turn —
+      // deferred so a mid-turn modal-close can't open it on the turn the quest completed (owner bug 2026-07-13).
       if (r.onWave != null) s.epicForgeWave = r.onWave;
-      else if (r.forge === 'epic') s.pendingEpicRuneforge = true;
-      else s.pendingBasicForge = { gold: r.gold };
+      else if (r.forge === 'epic') { s.pendingEpicRuneforge = true; s.pendingForgeDeferred = true; }
+      else s.pendingBasicForge = { gold: r.gold, deferred: true };
       break;
     case 'multi':
       // The Hoard Wakes: several rewards at once — apply each sub-reward through this same path.
@@ -2300,6 +2318,13 @@ function refreshTavern(s: RunState): void {
  * arrives (and is consumed) exactly once rather than being stranded in `pendingTavern`.
  */
 function injectPendingTavern(s: RunState): void {
+  // Multi-shop schedule (Soulfeeder / Pit Supplier): pop THIS refresh's due Fodder into the pending queue, then
+  // shift the schedule down so the rest arrive on later refreshes.
+  if (s.fodderSchedule?.length) {
+    const due = s.fodderSchedule.shift() ?? 0;
+    for (let i = 0; i < due; i++) (s.pendingTavern ??= []).push('fred');
+    if (s.fodderSchedule.length === 0) s.fodderSchedule = undefined;
+  }
   const pending = s.pendingTavern ?? [];
   s.pendingTavern = []; // always cleared — Fodder is never stored; with no Demon to eat it, it's wasted
   if (pending.length === 0) return;

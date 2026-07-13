@@ -96,6 +96,7 @@ export function simulate(
   const fodderBuffGain = { attack: 0, health: 0 }; // permanent run-wide Fodder enchant from this combat (Bane via Ryme)
   const cardBuffGains: { cardId: string; attack: number; health: number }[] = []; // run-wide card-type buffs (Grave Knit)
   let fodderGrants = 0; // Fodder queued into the next tavern (Burial Imp's Deathrattle)
+  const fodderSchedule: number[] = []; // Fodder queued across the next several shops (Pit Supplier's Avenge)
   let maxGoldGain = 0; // permanent max-Gold gain (Soulsman's Avenge)
   let bonusGoldGain = 0; // one-time Gold granted into the next shop (Bounty Bot's Slaughter)
   const buffCounts = new Map<string, number>(); // # of stat-grants per minion this combat (Tara → Taragosa ascend)
@@ -464,6 +465,10 @@ export function simulate(
     grantTavernFodder: (count, side) => {
       if (side !== 'player') return; // enemies have no tavern
       fodderGrants += count;
+    },
+    scheduleFodder: (counts, side) => {
+      if (side !== 'player') return; // enemies have no tavern
+      counts.forEach((c, i) => { fodderSchedule[i] = (fodderSchedule[i] ?? 0) + c; }); // Pit Supplier: Fodder over the next N shops
     },
     deferBattlecry: (cardId, golden, side) => {
       if (side !== 'player') return; // enemies have no run state to carry economy battlecries back to
@@ -1659,6 +1664,7 @@ export function simulate(
     playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,
     playerCardBuffs: cardBuffGains.length > 0 ? cardBuffGains : undefined,
     playerFodderGrants: fodderGrants > 0 ? fodderGrants : undefined,
+    playerFodderSchedule: fodderSchedule.some((n) => n > 0) ? fodderSchedule : undefined,
     playerDeferredBattlecries: deferredBattlecries.length > 0 ? deferredBattlecries : undefined,
     playerMaxGoldGain: maxGoldGain > 0 ? maxGoldGain : undefined,
     playerBonusGold: bonusGoldGain > 0 ? bonusGoldGain : undefined,

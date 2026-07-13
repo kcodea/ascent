@@ -10,6 +10,7 @@ import { HudBar } from './HudBar';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
+import { fireBuffFx } from './buffFxRender';
 import { getDragFeel } from './dragFeel';
 import { getFlipConfig } from './flipConfig';
 import { getShieldConfig } from './shieldConfig';
@@ -1684,7 +1685,12 @@ export function Recruit() {
       return;
     }
     if (newly.length === 0) return;
-    setBuffedUids((s) => new Set([...s, ...newly]));
+    // The new source→target FX (tendril/descend) already lands on any target captured in `recruitBuffFx` this
+    // action — skip the green burst-ring for those so it doesn't double up with the FX; the +X/+X float below
+    // still shows on every buffed card regardless.
+    const fxTargets = new Set(run.recruitBuffFx.map((e) => e.targetUid));
+    const burstable = newly.filter((u) => !fxTargets.has(u));
+    if (burstable.length > 0) setBuffedUids((s) => new Set([...s, ...burstable]));
     // Float the +X/+X over the buffed board/hand minions (like combat). Keyed so a repeat buff remounts.
     if (gained.length > 0) {
       const keyed = gained.map((g) => ({ ...g, key: ++statFloatKey.current }));
@@ -1712,7 +1718,27 @@ export function Recruit() {
         return n;
       });
     }, 700);
-  }, [run.board, run.hand, run.shop, inCombat]);
+  }, [run.board, run.hand, run.shop, inCombat, run.recruitBuffFx]);
+
+  // Shop-phase buff FX: when the sim captured buff-others this action (recruitFxSeq bumped), replay each as a
+  // source→target tendril (living minion) or a descend (spell / Deathrattle), using the same renderer as combat.
+  useEffect(() => {
+    if (run.recruitFxSeq === 0 || run.recruitBuffFx.length === 0) return;
+    for (const ev of run.recruitBuffFx) {
+      const tEl = findEl(ev.targetUid);
+      if (!tEl) continue;
+      const tr = tEl.getBoundingClientRect();
+      const target = { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 };
+      const sEl = ev.sourceUid ? findEl(ev.sourceUid) : null;
+      const sr = sEl?.getBoundingClientRect();
+      fireBuffFx({
+        source: sr ? { x: sr.left + sr.width / 2, y: sr.top + sr.height / 2 } : undefined,
+        target,
+        cardId: ev.sourceCardId, tribe: ev.sourceTribe,
+        sourceless: ev.kind !== 'minion' || !sEl,
+      });
+    }
+  }, [run.recruitFxSeq]);
 
   // A freshly-played minion with a Battlecry gets a one-shot flourish beneath it. Diff the
   // board's uids; a new card whose def has an onPlay effect (or Choose One) just fired its

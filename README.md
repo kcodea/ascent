@@ -25,6 +25,15 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Audio mixing desk.** All audio dials now live in one `audioConfig` — a master limiter + four category buses
+  (ui/combat/voice/hero) + per-category levels. The dev SFX panel became a **mixing desk**: master limiter dials,
+  per-bus faders, **live peak + gain-reduction meters**, realistic **test-scenes** (Combat beat / Shop spam /
+  Torture) to tune against overlapping stacks, and Export-config. Day-one audio unchanged; groundwork for tuning
+  the incoming wave of sounds.
+- **Taunt glows hug the shield now.** A Taunt card is a shield-shaped card, but its target/selection glows were
+  square box-shadows floating off the silhouette. The aimed danger telegraph, the hero-power selection ring, the
+  attacking flash, and the yellow shop **hover** glow now all glow the shield's own outline (via a `drop-shadow` on
+  the frame), so the highlight follows the heater shape instead of squaring off or getting clipped away.
 - **Ward is a glassy hex-sphere dome now.** Divine Shield retired its Pixi bubble for a pure-CSS layered dome glued
   to the card — a pulsing gold body, hexagons projected onto a sphere (compressed at the rim), vignette, bright spot,
   and a shiny gloss. It stays put through drag + the combat lunge, and the break is a clean gold shard burst (no more

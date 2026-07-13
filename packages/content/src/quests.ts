@@ -87,6 +87,7 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_ancient_runes', name: 'Ancient Runes', tribe: 'neutral', tier: 'capstone', objective: { event: 'spendGold', count: 60 }, reward: { kind: 'spellRepeat', scope: 'always' } },
 
   // ── Capstone tier — turn-11 bucket ──
+  { id: 'q_leader_of_the_pack', name: 'Leader of the Pack', tribe: 'beast', tier: 'capstone', objective: { event: 'attack', count: 18, tribe: 'beast' }, reward: { kind: 'multi', rewards: [{ kind: 'grant', grantGolden: ['packleader'] }, { kind: 'gainGold', amount: 10 }] } },
   { id: 'q_law_of_teeth', name: 'Law of Teeth', tribe: 'beast', tier: 'capstone', objective: { event: 'slaughter', count: 8, tribe: 'beast' }, reward: { kind: 'combatFlag', flag: 'lawOfTeeth' } },
   { id: 'q_the_old_hunt', name: 'The Old Hunt', tribe: 'beast', tier: 'capstone', objective: { event: 'attack', count: 20, tribe: 'beast' }, reward: { kind: 'combatFlag', flag: 'oldHunt', amount: 10 } },
   { id: 'q_feeding_line', name: 'Feeding Line', tribe: 'beast', tier: 'capstone', objective: { event: 'slaughter', count: 18, tribe: 'beast' }, reward: { kind: 'combatFlag', flag: 'feedingLine' } },

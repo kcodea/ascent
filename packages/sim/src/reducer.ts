@@ -202,11 +202,6 @@ export function reduce(state: RunState, action: Action): RunState {
       dragonStatGain += Math.max(0, c.attack - prev.attack) + Math.max(0, c.health - prev.health);
     }
     if (dragonStatGain > 0) advanceQuestsBy(next, (o) => o.event === 'tribeStats' && o.tribe === 'dragon', dragonStatGain);
-    // Demon "Consume N Fodder" / "Consume N total stats": advance by the run-wide Fodder-Consumed delta this action.
-    const fcBefore = state.runFodderConsumed ?? { count: 0, stats: 0 };
-    const fcAfter = next.runFodderConsumed ?? { count: 0, stats: 0 };
-    if (fcAfter.count > fcBefore.count) advanceQuestsBy(next, (o) => o.event === 'consumeFodder', fcAfter.count - fcBefore.count);
-    if (fcAfter.stats > fcBefore.stats) advanceQuestsBy(next, (o) => o.event === 'consumeStats', fcAfter.stats - fcBefore.stats);
     // Spell Thesis: "Cast N spells" advances by the run-wide spellsCast delta this action.
     const spellCastDelta = (next.spellsCast ?? 0) - (state.spellsCast ?? 0);
     if (spellCastDelta > 0) advanceQuestsBy(next, (o) => o.event === 'castSpell', spellCastDelta);
@@ -294,6 +289,16 @@ export function reduce(state: RunState, action: Action): RunState {
     // reward that's your 3rd copy combines into a golden). Guarded on a hand grant so it never re-triples the
     // action's own board state (the buy/play cases already handle their triples).
     if (next.hand.length > handBefore) checkTriples(next);
+  }
+  // Demon "Consume N Fodder" / "Consume N total stats" (Track and Fodder): advance by the run-wide Fodder-Consumed
+  // delta this action — OUTSIDE the recruit-phase guard so a START-OF-TURN consume (fodder injected + eaten during
+  // `advanceCombat`, part of the `resolveCombat` action while still in the combat phase) ALSO ticks the quest,
+  // not just consumes from later recruit rolls (owner bug 2026-07-13).
+  if (next !== state) {
+    const fcBefore = state.runFodderConsumed ?? { count: 0, stats: 0 };
+    const fcAfter = next.runFodderConsumed ?? { count: 0, stats: 0 };
+    if (fcAfter.count > fcBefore.count) advanceQuestsBy(next, (o) => o.event === 'consumeFodder', fcAfter.count - fcBefore.count);
+    if (fcAfter.stats > fcBefore.stats) advanceQuestsBy(next, (o) => o.event === 'consumeStats', fcAfter.stats - fcBefore.stats);
   }
   return next;
 }
@@ -1680,9 +1685,9 @@ function advanceCombat(s: RunState): void {
     s.questOffer = questOffer;
   } else if (s.frozen) {
     topUpTavern(s);
-    injectPendingTavern(s);
+    injectPendingTavern(s, true); // defer the eat — a Runeforge / queued modal may be about to open (see holdFodderConsume)
     s.frozen = false;
-  } else refreshTavern(s);
+  } else refreshTavern(s, true);
   // Start-of-turn modals resolve ONE AT A TIME, in priority order (Quest > Runeforge > Discover/other). A quest
   // offer or the Runesmith forge (set above) shows first; the Epic Runeforge + any queued Discovers wait their
   // turn and open as each higher modal closes (see openNextStartOfTurnModal, called from every modal-close path).
@@ -1768,10 +1773,10 @@ function advanceCombat(s: RunState): void {
   if (s.questOffer) {
     if (s.frozen) {
       topUpTavern(s);
-      injectPendingTavern(s);
+      injectPendingTavern(s, true); // defer the eat until the quest offer closes (openNextStartOfTurnModal)
       s.frozen = false;
     } else {
-      refreshTavern(s);
+      refreshTavern(s, true);
     }
   }
 }
@@ -1983,7 +1988,10 @@ function openNextStartOfTurnModal(s: RunState): void {
   // clearing the flag) so a mid-turn modal-close drain can't open it on the completing turn (owner bug 2026-07-13).
   if (s.pendingEpicRuneforge && !s.pendingForgeDeferred) { openEpicRuneforge(s); s.pendingEpicRuneforge = false; return; } // Runeforge before Discovers
   if (s.pendingBasicForge && !s.pendingBasicForge.deferred) { const g = s.pendingBasicForge.gold ?? 0; s.pendingBasicForge = undefined; openScheduledBasicRuneforge(s, g); return; }
-  if (s.discoverQueue?.length) openDiscover(s, s.discoverQueue.shift()!); // then any queued start-of-turn Discovers
+  if (s.discoverQueue?.length) { openDiscover(s, s.discoverQueue.shift()!); return; } // then any queued start-of-turn Discovers
+  // Every start-of-turn modal has cleared — the recruit phase is now interactive, so run any DEFERRED Fodder eat
+  // (held at turn setup so the player saw the Fodder in the shop behind the quest/Runeforge overlay first).
+  if (s.holdFodderConsume) { s.holdFodderConsume = undefined; consumeTavernFodder(s); }
 }
 
 function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): void {
@@ -2326,7 +2334,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
  * Refresh and the post-combat refresh route through here, so anything that interacts
  * with "tavern refresh" hooks in one place.
  */
-function refreshTavern(s: RunState): void {
+function refreshTavern(s: RunState, hold = false): void {
   rollShop(s);
   // Apples (Choose One → "the next shop"): fold the banked buff onto the freshly-rolled offers, then clear it.
   const nb = s.nextShopBuff;
@@ -2337,7 +2345,7 @@ function refreshTavern(s: RunState): void {
     }
     s.nextShopBuff = undefined;
   }
-  injectPendingTavern(s);
+  injectPendingTavern(s, hold);
 }
 
 /**
@@ -2345,7 +2353,7 @@ function refreshTavern(s: RunState): void {
  * just arrived. Runs for both a fresh reroll and a frozen carry-over, so a queued Fred always
  * arrives (and is consumed) exactly once rather than being stranded in `pendingTavern`.
  */
-function injectPendingTavern(s: RunState): void {
+function injectPendingTavern(s: RunState, hold = false): void {
   // Multi-shop schedule (Soulfeeder / Pit Supplier): pop THIS refresh's due Fodder into the pending queue, then
   // shift the schedule down so the rest arrive on later refreshes.
   if (s.fodderSchedule?.length) {
@@ -2362,5 +2370,8 @@ function injectPendingTavern(s: RunState): void {
   for (const id of pending) {
     if (CARD_INDEX[id]) s.shop.push({ uid: `s${s.uidSeq++}`, cardId: id });
   }
-  consumeTavernFodder(s); // the Demons eat the Fodder that just arrived
+  // `hold`: a turn-setup roll behind a start-of-turn modal defers the eat — the Fodder sits in the shop (visible
+  // to the player) and `openNextStartOfTurnModal` runs the consume once the quest/Runeforge overlay clears.
+  if (hold) s.holdFodderConsume = true;
+  else consumeTavernFodder(s); // the Demons eat the Fodder that just arrived
 }

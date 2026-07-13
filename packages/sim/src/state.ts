@@ -299,6 +299,9 @@ export interface RunState {
    *  improves this by (step + that stat's spell power). A missing Health field on an old save heals to 0. */
   frontToBackBonus: number;
   frontToBackBonusH: number;
+  /** Front to Back's lifetime cast count — the escalation improves only every OTHER cast (owner 2026-07-13), so
+   *  this parity gates the improvement step. Absent = 0. */
+  frontToBackCasts?: number;
   /** Fleeting Vigor — a one-shot Start-of-Combat buff banked for the NEXT combat only (your minions enter
    *  that fight at +this; spent in `faceOmen`, win or lose). Absent = none. */
   fleetingVigor?: { attack: number; health: number };
@@ -527,6 +530,10 @@ export interface RunState {
   /** Demon quests. `runFodderConsumed` = run-wide Fodder-Consumed totals (count + Σ stats) feeding `consumeFodder`
    *  / `consumeStats`. `pitWithoutEndImps` = Pit Without End's board-wipe Imp count. */
   runFodderConsumed?: { count: number; stats: number };
+  /** Set when a turn-setup tavern roll injected Fodder but DEFERRED the Demon consume (because a start-of-turn
+   *  modal — quest offer / Runeforge — is open). `openNextStartOfTurnModal` runs the consume once every modal
+   *  clears, so the player sees the Fodder in the shop before their Demons eat it (owner 2026-07-13). */
+  holdFodderConsume?: boolean;
   pitWithoutEndImps?: number;
   /** Rulebreaker (neutral) quest rewards. `dupeFirstBuyEachTurn` = the first minion bought each turn is copied to
    *  hand (`dupeUsedThisTurn` tracks the per-turn spend). `spellDoubleAlways` = every spell casts twice (Ancient

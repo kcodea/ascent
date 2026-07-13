@@ -3,6 +3,33 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-13 (session 36)
+
+### fix(fx): Taunt target/selection glow follows the shield silhouette
+
+A Taunt card is reshaped into a heater **shield** (portrait clipped to `--heater`, the frame PNG laid over an
+otherwise-transparent card box). But every highlight glow is a `box-shadow` on the rectangular `.card` element, so
+on a Taunt unit the glow floated as a **square** detached from the shield — most visibly the raspberry `.unit.aimed`
+danger telegraph (the "target glow"), and equally the `.armed`/`.targeted` hero-power selection ring and the
+`.attacking` flash.
+
+Fix (presentation-only, `packages/ui/src/styles.css`): for `.card.compact.taunt`, suppress the rectangular
+box-shadow in all four glow states and instead glow the shield PNG's own alpha via a `drop-shadow` filter on
+`.tframe` — `drop-shadow` traces the frame's silhouette, so the highlight hugs the heater shape. A `--tglow`
+variable carries the per-state colour into one shared filter (aimed → `--threat`, attacking → `--acc`,
+armed/targeted → tribe `--c`), and the frame's base `0 4px 6px` drop-shadow is preserved in the same filter stack.
+Compositor-friendly (filter on a static PNG; no per-frame repaint loop). Verified: `build:web` clean; shape to be
+eyeballed live in combat (aimed) + hero-power targeting.
+
+**Follow-up (same PR): the yellow hover glow too.** The shop/board hover glow is the last `box-shadow` layer on
+`.card.compact .art` (driven by `--hglow-*`), but Taunt's `.art` is `clip-path: var(--heater)`, and clip-path
+*clips* box-shadow — so a Taunt card in the tavern got **no hover glow at all** (clipped to the silhouette →
+invisible). Re-added it as a `drop-shadow` layer on `.tframe` blurred by `var(--hglow-blur, 0)`: 0 when not
+hovering (invisible, hidden behind the opaque frame), 22px on hover → a yellow glow that hugs the shield. Reuses
+the existing hover state machine, so it's automatically suppressed in-hand and while dragging (those zero the
+hglow vars). Verified live in Chrome (extension): drove a `sandbag` Taunt onto the board, forced the hover vars,
+and confirmed the glow tracks the heater outline (side-by-side vs a normal shop card's arch glow).
+
 ## 2026-07-13 (session 35)
 
 ### fix(ui): Divine Shield conforms to the shield silhouette on Taunt units
@@ -27,6 +54,54 @@ to the generic `.dscard` treatment.
 ward-css-preview rig (a Taunt+DS card was added to it) and baked in — `--wardsq` = shield-window width × **1.4**,
 vertical seat **−0.08 × --ccw**; the glow re-shape is deterministic.
 
+### tweak: Skip-combat button → top-middle + Front to Back improves every other cast
+
+Two owner tweaks:
+- **Skip-combat button** moved from the top-right combat HUD back to the **top-middle** of the arena (`.combathud`
+  → `left: 50%` / `translateX(-50%)`, centred; the speed slider still stacks beneath it). Verified live: the HUD
+  centres on the viewport (near the top) and clears the top-right opponent frame.
+- **Front to Back** now improves **every OTHER cast** instead of every cast — new `RunState.frontToBackCasts` parity
+  gate on the escalation step (the grant still lands each cast; the +2/+2 improvement only compounds on the 2nd,
+  4th, … cast). Card text updated to "…every other cast"; the live `spellDisplayText` still greens the current
+  grant + improvement values.
+- **Verified**: `typecheck`/`lint`/`test` (980 — the four Front to Back tests reworked for the every-other cadence)/
+  `build:web` green; live — the Skip HUD is top-centered, no console errors.
+
+### content: new quest — Leader of the Pack (Beast capstone)
+
+First of the six new turn-11 quests: **Leader of the Pack** — Attack **18** times with Beasts → get a **Golden Pack
+Leader** + **10 Gold**. Pure data (existing `grant.grantGolden` + `gainGold` reward kinds), no new mechanic. The other
+five new quests (Passing Spears, Forsaken Speed, Cratering Missive, Bane's Existence, Clinging On) each need a genuinely
+new reward mechanic and are queued as focused follow-ups. Verified: `typecheck`/`lint`/`test` (980)/`build:web` green.
+
+### tooling: dev balance report (`npm run report`)
+
+New headless tool (`packages/tools/src/balance-report.ts`, `npm run report [-- games]`) — runs many seeded bot games
+across every pickable hero and prints **offer / pick / win** tables for heroes, quests, runes, minions, and spells.
+Built on the same greedy bot as `npm run bot`. Documented caveats: OFFER rate + WIN rate are the meaningful signals;
+PICK rate reflects the naive bot's index-0 policy, not human choice; per-card WIN rate is correlational (a card is one
+of up to 7 on a winning board). Seeded + deterministic. Sorted most-winning first, with sample sizes shown.
+
+### fix: consume-quest real-time tally + defer the Fodder eat behind the quest/Runeforge overlay
+
+Two Fodder-timing bugs + a cleave regression lock:
+- **Track and Fodder didn't update in real time** — the quest-advancement wrapper was gated on `state.phase ===
+  'recruit'`, so a **start-of-turn consume** (Fodder injected + eaten during `advanceCombat`, part of the
+  `resolveCombat` action while still in the combat phase) never advanced the `consumeFodder`/`consumeStats` quests
+  — the tally only started counting on the player's first recruit roll. Moved the consume-delta advancement OUT of
+  the recruit guard so it fires for any state-changing action (incl. `resolveCombat`).
+- **Fodder was eaten while the quest/Runeforge offer was open** — the turn-setup tavern roll (rolled behind the
+  overlay for a shop-informed pick) consumed the injected Fodder immediately. Now the eat is **deferred**: the
+  Fodder sits visible in the shop, and `openNextStartOfTurnModal` runs the consume once every start-of-turn modal
+  (quest / Runeforge / Discover) clears. New `RunState.holdFodderConsume`; `refreshTavern`/`injectPendingTavern`
+  gained a `hold` flag.
+- **Cleave** — investigated the report that it "only works on the first attack": the engine is correct (a long
+  fight cleaves on EVERY attack; only Baby Cub carries Cleave and it's never stripped) and every replay path
+  (`compileMoments`/`computeFrame`/`spawnFloats`/`animFor`) includes the neighbour hit each attack. Added a
+  regression test asserting cleave splashes on every attack across a multi-round fight. If a visual gap remains it's
+  a subtle presentation issue needing a live repro.
+- **Verified**: `typecheck`/`lint`/`test` (979)/`build:web` green.
+
 ### balance: Fried Circuits +4/+5 (asymmetric) + Shared Circuit ward-transfer
 
 Two Mech-capstone quest-reward tweaks:
@@ -38,6 +113,33 @@ Two Mech-capstone quest-reward tweaks:
   break. Implemented as a per-side `onLoseDivineShield` subscription in `simulate` (mirrors Rune of Salvage).
 - **Verified**: `typecheck`/`lint`/`test` (977, incl. Fried Circuits asymmetric escalation + Shared Circuit
   transfer-on-break capped at N)/`build:web` green.
+### feat(audio): mixing desk — config-driven levels + category buses + a metered, tunable master
+
+As hundreds of clips arrive, per-clip hand-tuning + a hardcoded limiter don't scale. All audio dials now live in
+one typed **`audioConfig`** (`packages/ui/src/audio/config.ts`): master limiter, `masterGain`, four **category
+buses** (`ui / combat / voice / hero`), per-category `{ bus, gain }`, and optional per-clip overrides. Seeded
+from the old values so **day-one audio is unchanged**; live config = defaults ⊕ `localStorage` (`ascent.audiocfg`,
+migrating the old `ascent.sfxvol`/`ascent.vol`).
+
+- **Graph (`sfx.ts`)** — `clip/synth → playGain(effectiveGain) → busInput[bus] → (bus comp, off by default) →
+  master limiter → masterGain → mute bus → speakers`. `playSample`/`tone` now take a **category** and resolve
+  gain + bus from the config (replacing the per-call `sampleVol.X` arg + the per-play `masterVol` multiply, now a
+  node). Synth-only combat cues (death/shield/buff/maxgold) route to the combat bus (routing-only; their level
+  stays the cue's literal synth vol). `stopAllAudio`/`resumeAudio`/mute + every cue's fallback/dedup preserved.
+- **Desk API** — `getAudioConfig`/`setBusGain`/`setMasterComp`/`setCategory`, `meterLevel`/`gainReduction`
+  (AnalyserNode taps on master + each bus; passive), `exportConfig`, `playScene` + `SCENES`.
+- **Console (`SfxMixer.tsx` → mixing desk)** — master limiter dials + **live peak & gain-reduction meters**,
+  per-bus faders + meters, categories grouped under their bus (gain slider + bus-reassign dropdown + ▶ preview),
+  **test-scene** buttons (Combat beat / Shop spam / Hero moment / Torture — realistic *stacks* so you tune
+  against overlap), and **Export config** (paste back into `DEFAULT_AUDIO_CONFIG`). Meters animate `transform`
+  only (rAF); dev-only, stripped from prod.
+- **Deferred (config slots exist):** per-bus compressors shipped-on (Approach 2), sidechain ducking, ingest
+  LUFS-normalization.
+
+**Verified:** config + scene unit tests (7 + 3); full gate green (typecheck 0, lint, 986 tests, build:web ✓).
+Day-one audio unchanged by construction (defaults mirror the old limiter + gains; bus gains unity, comps off).
+The live meters/scenes are eyeballed in `npm run dev` (Dev menu → Mixing Desk) — rAF meters can't be seen in a
+headless tab.
 
 ### feat: Den Marker quest — run-wide Den Mother aura (Beasts +2/+2 on play, scaling)
 

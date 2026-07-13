@@ -61,7 +61,7 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   death: [...BASE], riseDeath: [...BASE], scCast: [...BASE],
   summon: [...BASE], buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }], reborn: withReform(), ascend: [...BASE],
   rally: [...BASE], toHand: [...BASE], maxGold: [...BASE], improve: [...BASE],
-  keyword: [...BASE], hpGrant: [...BASE], reveal: [...BASE],
+  keyword: [...BASE], keywordLost: [...BASE], hpGrant: [...BASE], spellProgress: [...BASE], reveal: [...BASE],
 };
 
 const KEY = 'ascent.choreoScore';

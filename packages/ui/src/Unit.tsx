@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { Card, type CardView } from './Card';
-import { ascendProgressText, combatCastGrantText, cryptDrakeText, engraveTallyText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText, sergeantText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, watcherText } from './cardText';
+import { ascendProgressText, combatCastGrantText, cryptDrakeText, engraveTallyText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText, sergeantText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, transformProgressText, watcherText } from './cardText';
 import { useGame } from './store';
 import type { UnitFrame } from './useCombatReplay';
 
@@ -56,7 +56,8 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
   const beastsPlayed: string[] | number | undefined = foe ? (enemyScalers?.beastsPlayed ?? 0) : runPlayedThisTurn;
   // Combat live text — show current values for minions whose effects scale mid-fight (per-minion accruals)
   // or with frozen run-level scalers (Grim/Guel/Worgen, like Taragosa's spell power). Mirrors the shop chain.
-  const liveText = summonBuffText(u.cardId, u.summonBonus)
+  const liveText = transformProgressText(u.cardId, u.spellProgress ?? 0) // Spirit Pup: live "N to go" spell-transform countdown (seeded from the run tally)
+    ?? summonBuffText(u.cardId, u.summonBonus)
     ?? summonImproveText(u.cardId, u.summonBonus, u.golden) // Mama Bear: live "+M/+M per summon" (climbs via improve events)
     ?? summonScalingText(u.cardId, spellsThisTurn, foe ? undefined : runPlayedThisTurn) // Spirit Worgen: per-summon gain + live proc count (recruit-only; enemy shows base)
     ?? scTribeBuffPerPlayedText(u.cardId, u.golden, beastsPlayed) // Pack Leader: live grant from Beasts played this turn (per-side)

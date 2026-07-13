@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-12 (session 34)
 
+### fix: combat replay crash ("cues is not iterable") + Spirit Pup combat countdown
+
+**Crash (owner-reported, Tauntbreaker hitting a minion):** `momentKind` (`choreo/kinds.ts`) had no `case` for the
+`keywordLost` event (Tauntbreaker strips Taunt/Rise) or the `spellProgress` event (Archmagus Guel's tally, added
+this session), so it returned `undefined` → `getScore()[undefined]` is not iterable → the whole replay threw and
+the error boundary showed "The game hit a snag." Added both kinds as first-class `MomentKind`s (score + hold-key
+Records updated) **and** a defensive `default` so a future unhandled event type can never crash the replay again.
+Regression test: every `CombatEvent` type now maps to a defined, iterable score entry.
+
+**Spirit Pup countdown not in combat:** `transformProgressText` (its "N to go" spell-transform countdown, seeded
+from the run's on-board `spellProgress`) was wired only into the shop chain, not `Unit.tsx`. Added it to the combat
+live-text chain so a mid-fight Spirit Pup shows the same countdown it does in the shop.
+
+Verified: `typecheck + lint + test` (947) & `build:web` green.
+
 ### feat: served enemies carry their owner's quest/rune COMBAT effects + opponent reward badges
 
 The last "true-PvP" fidelity gap. A served enemy board fought WITHOUT its owner's quest/rune combat modifiers —

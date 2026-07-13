@@ -147,7 +147,8 @@ const KIND_TO_KEY: Record<MomentKind, keyof ChoreoConfig> = {
   attackExchange: 'attack', damage: 'dmg', shieldPop: 'shield', poisonTick: 'poison',
   death: 'death', riseDeath: 'death', scCast: 'sc',
   summon: 'summon', buffWave: 'buff', reborn: 'reborn', ascend: 'improve', rally: 'rally',
-  toHand: 'toHand', maxGold: 'maxGold', improve: 'improve', keyword: 'buff', hpGrant: 'hpGrant', reveal: 'summon',
+  toHand: 'toHand', maxGold: 'maxGold', improve: 'improve', keyword: 'buff', keywordLost: 'buff',
+  hpGrant: 'hpGrant', spellProgress: 'hpGrant', reveal: 'summon',
 };
 export function holdMsForKind(kind: MomentKind): number {
   return beatDelay(KIND_TO_KEY[kind]);

@@ -13,7 +13,7 @@ export type MomentKind =
   | 'riseDeath'
   | 'scCast'
   | 'summon' | 'buffWave' | 'reborn' | 'ascend' | 'rally' | 'toHand' | 'maxGold' | 'improve'
-  | 'keyword' | 'hpGrant' | 'reveal';
+  | 'keyword' | 'keywordLost' | 'hpGrant' | 'spellProgress' | 'reveal';
 
 export function momentKind(primary: CombatEvent): MomentKind {
   switch (primary.type) {
@@ -32,7 +32,12 @@ export function momentKind(primary: CombatEvent): MomentKind {
     case 'maxGold': return 'maxGold';
     case 'improve': return 'improve';
     case 'keyword': return 'keyword';
+    case 'keywordLost': return 'keywordLost'; // Tauntbreaker strips Taunt/Rise — was unhandled → "cues is not iterable" crash
     case 'hpGrant': return 'hpGrant';
+    case 'spellProgress': return 'spellProgress'; // Archmagus Guel's on-board spell tally tick
     case 'reveal': return 'reveal';
+    // Defensive: any future event type falls back to a quiet damage-style moment instead of crashing the replay
+    // (momentKind must NEVER return undefined — `getScore()[undefined]` is not iterable).
+    default: return 'damage';
   }
 }

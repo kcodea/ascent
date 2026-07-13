@@ -64,6 +64,16 @@ to the generic `.dscard` treatment.
 ward-css-preview rig (a Taunt+DS card was added to it) and baked in — `--wardsq` = shield-window width × **1.4**,
 vertical seat **−0.08 × --ccw**; the glow re-shape is deterministic.
 
+### fix: Cleave splashes past a dead unit to the living neighbour (real bug this time)
+
+The owner's repro was right — Cleave DID have a bug (my earlier "verified correct" pass used a surviving attacker and
+never hit this path). Dead minions are kept in `boards[side]` (never spliced), and Cleave found its neighbours via
+`arr.indexOf(target)` + index-adjacent slots. So once a unit BETWEEN the target and its living neighbour died, Cleave
+splashed the dead slot and **skipped the still-standing minion beyond it** — the exact "cleave attacked, the unit next
+to the target took no damage" report. Fixed: Cleave now computes neighbours over the **living** array (the visual
+order). New regression test: an unkillable Taunt target with a 1-HP unit between it and a tanky third — the third is
+cleaved every clash after the middle dies. Verified: `typecheck`/`lint`/`test` (981)/`build:web` green.
+
 ### tweak: Skip-combat button → top-middle + Front to Back improves every other cast
 
 Two owner tweaks:

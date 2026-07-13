@@ -411,6 +411,7 @@ export function Recruit() {
     } | null
   >(null);
   const prevFodderSeq = useRef(run.fodderEatenSeq);
+  const prevFxSeq = useRef(run.recruitFxSeq); // inits to current so it never fires on mount (a resumed save may carry a bumped seq)
   // A brief "End of Turn" banner when the turn ends (recruit → combat), making it clear that
   // end-of-turn effects (Ritualist & co.) just resolved.
   const [endTurnFlash, setEndTurnFlash] = useState(false);
@@ -1723,7 +1724,9 @@ export function Recruit() {
   // Shop-phase buff FX: when the sim captured buff-others this action (recruitFxSeq bumped), replay each as a
   // source→target tendril (living minion) or a descend (spell / Deathrattle), using the same renderer as combat.
   useEffect(() => {
-    if (run.recruitFxSeq === 0 || run.recruitBuffFx.length === 0) return;
+    if (run.recruitFxSeq === prevFxSeq.current) return;
+    prevFxSeq.current = run.recruitFxSeq;
+    if (run.recruitBuffFx.length === 0) return;
     for (const ev of run.recruitBuffFx) {
       const tEl = findEl(ev.targetUid);
       if (!tEl) continue;

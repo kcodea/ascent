@@ -82,6 +82,9 @@ export interface BoardCard {
    *  type). Honored by `isTribe` (recruit synergies / magnetize / auras) and folded into the combat minion's
    *  `tribe2` at `instantiate`. Absent = none. */
   addedTribes?: Tribe[];
+  /** Anomaly Reactor's "All" mode: this instance counts as EVERY tribe for the rest of the run — `isTribe`
+   *  short-circuits true, and combat seeds `universalTribe` from it. */
+  allTribes?: boolean;
   /** Per-source recruit-phase stat buffs applied to this instance (Karwind, Nadir, Spirit Fire,
    *  Fortify, …) — drives the inspect-panel breakdown. Base stats are NOT recorded here. */
   buffs?: CardBuff[];
@@ -109,6 +112,9 @@ export interface BoardCard {
   /** Perfect Core: accrued "Rally: get a random spell" welded onto this card (1 per Perfect Core magnetized,
    *  golden ×2). Carried into combat where, when this attacks, you get this-many random spells. */
   rallySpellWeld?: number;
+  /** Count of Attachments (Magnetic minions) welded onto this card, incremented each `weldMagnetic`. Drives
+   *  Blueprint Cache's End-of-Turn "give your Mechs +2/+2 for every Attachment they have". */
+  attachments?: number;
   /** Harry Botter: accrued spell-power aura welded onto this card (1 per Harry Botter magnetized, golden ×2).
    *  Read by `spellStatBonus` alongside the card's own `spellAura`, so a welded host keeps boosting spells. */
   spellAuraBonus?: number;
@@ -126,6 +132,9 @@ export interface BoardCard {
   /** Bloodlust: a one-combat mark — at the start of the next combat this minion takes an immediate out-of-turn
    *  attack, immune to retaliation for that swing ("cannot die from that attack"). Stripped post-combat. */
   bloodlust?: boolean;
+  /** Bloodbinder: which stat its Rally gives Fodder — alternates `undefined`/`'atk'` ↔ `'hp'` each turn (flipped
+   *  at the start of each recruit turn). Seeded into combat; the Rally reads it. */
+  bloodbinderMode?: 'atk' | 'hp';
   /** Bloodlust weld: the Bloodlust spell also grants its target a one-fight Rally — on each of its own attacks,
    *  give a random friendly minion Attack equal to its own. Carried into combat + stripped post-combat, like `bloodlust`. */
   bloodlustRally?: boolean;
@@ -136,6 +145,9 @@ export interface BoardCard {
    *  Setlist Discovers on turn 1). Only THIS card is gated — the rest of the hand plays normally. The play
    *  action no-ops while `state.tier < lockedUntilTier`; the UI shows it locked. Cleared once it unlocks. */
   lockedUntilTier?: number;
+  /** Ritualist: the accrued +A/+H its escalating End-of-Turn buff currently grants (grows by its `step` each
+   *  trigger). Per-instance; drives `buffFodderImpsImproving`. Default/absent = 0. */
+  eotBonus?: number;
   /** Spells cast while this card has been on the board — drives transform cards (Spirit Pup → Worgen
    *  at 10). Per-instance; ticks only while on the board (the spellCast trigger fires for the board). */
   spellProgress?: number;
@@ -238,6 +250,9 @@ export interface RunState {
   /** Minion cardIds PLAYED this recruit turn (normal plays) — Pack Leader (SoC, via a simulate param) and
    *  Spirit Worgen (End of Turn) scale off "Beasts/Dragons you played this turn". Reset each turn. */
   playedThisTurn?: string[];
+  /** Combo: true when the LAST card played was a Primer — the next card played fires its Combo (if it has one).
+   *  Set on every play to `def.primer`; a Combo card checks it, then it re-arms based on the card just played. */
+  comboArmed?: boolean;
   resolve: number;
   maxResolve: number;
   /** Armor — extra effective HP on top of Resolve. Loss damage chips Armor first, then Resolve; it doesn't
@@ -345,6 +360,9 @@ export interface RunState {
   heroReady: boolean;
   /** Once-per-game hero powers (e.g. Oner's Gild) flip this and never recharge. */
   heroPowerSpent: boolean;
+  /** Indy's Gild: the cumulative `goldSpent` value at which the (spent) Gild charge recharges — set to
+   *  `goldSpent + 40` on each use, cleared when the threshold is reached (see `spendGold`). Absent until first use. */
+  indyGildRearmAt?: number;
   /** Total hero-power activations this game — gates powers with a `maxUses` cap (Gildmaster: 2 total,
    *  still once per turn). Absent = 0. Never reset (a whole-game budget, unlike `heroReady`). */
   heroPowerUses?: number;
@@ -365,6 +383,10 @@ export interface RunState {
   /** Card ids queued to be injected into the *next* tavern refresh (Soulfeeder adds Fodder).
    *  Consumed (and possibly auto-eaten by your Demons) when the tavern next refreshes. */
   pendingTavern: string[];
+  /** Fodder scheduled across the next SEVERAL tavern refreshes (Soulfeeder / Pit Supplier: "add N Fodder to the
+   *  next 2 shops"). `fodderSchedule[i]` = Fodder due at the refresh `i` from now; each refresh consumes index 0
+   *  (dumping it into `pendingTavern`) and shifts the rest down. */
+  fodderSchedule?: number[];
   /** Persistent per-cardId stat buffs that apply to *every* copy of a card for the rest of the
    *  run, wherever it appears — tavern, hand, board, summoned, discovered (Ritualist buffs all
    *  Fodder this way). Baked in at every instantiation; the tavern display reads it live. */
@@ -407,7 +429,7 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean };
   // ── Runeforge (Runesmith) ──
   /** The Runeforge is open (turn 6): a pending offer of rune ids to buy for their Gold cost. Like `questOffer`,
    *  while set the reducer blocks every non-`buyRune`/`skipRuneforge` action and the UI pauses the timer; buying
@@ -421,8 +443,12 @@ export interface RunState {
   /** A completed quest (The Epic Runeforge) has armed the Epic Runeforge — it opens at the START of the next turn
    *  (`advanceCombat`), not immediately, so the forge modal doesn't interrupt the turn it completed on. */
   pendingEpicRuneforge?: boolean;
-  /** The Runeforge quest armed a BASIC Runeforge visit for next turn (any hero), granting `gold` that turn. */
-  pendingBasicForge?: { gold?: number };
+  /** A forge armed MID-TURN (Epic, by a quest) is deferred until the next turn's start — `advanceCombat` clears
+   *  this, and until then `openNextStartOfTurnModal`'s mid-turn drains skip it (owner bug 2026-07-13). */
+  pendingForgeDeferred?: boolean;
+  /** The Runeforge quest armed a BASIC Runeforge visit for next turn (any hero), granting `gold` that turn.
+   *  `deferred` mirrors `pendingForgeDeferred` for the basic forge (armed mid-turn → wait for next turn's start). */
+  pendingBasicForge?: { gold?: number; deferred?: boolean };
   /** Rune of the Epic Forge: open the Epic Runeforge when the run reaches this wave (turn 9). */
   epicForgeWave?: number;
   /** The open forge is quest-/rune-scheduled (not the Runesmith hero power) — buying/skipping spends no charge. */
@@ -527,7 +553,7 @@ export interface RunState {
   lastSurvivorCardIds?: string[];
   /** Recurring End-of-Turn effects granted by quests (Echoing Roar → re-fire leftmost Shout; The Hoard Wakes →
    *  conjure a random Shout minion). Fired every End of Turn for the rest of the run. Absent = none. */
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs')[];
   /** A pending Discover offer (3 card ids) — pick one to hand. */
   discover?: string[];
   /** Disco Dan's Setlist: the shop tier the CURRENTLY-open Discover's pick will be locked until (its

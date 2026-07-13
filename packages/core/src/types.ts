@@ -117,8 +117,10 @@ export type EffectFactoryId =
   | 'endOfTurnMagnetizeMechs' // End of Turn: merge a token's stats into N friendly Mechs (Combinator)
   | 'buffFodderEverywhere' // End of Turn: buff the Fodder card type for the whole run (Ritualist)
   // Demons — Consume (recruit-resolved half)
-  | 'addTavernFodder' // Soulfeeder (Battlecry) / Maw of the Pit (End of Turn): queue Fodder into the next tavern
+  | 'addTavernFodder' // Maw of the Pit (End of Turn): queue Fodder into the next tavern
+  | 'addFodderNextShops' // Soulfeeder (Shout): queue Fodder across the next N shops (fodderSchedule)
   | 'deathrattleAddFodder' // Burial Imp: Deathrattle queues Fodder into your next tavern, carried back (Demon)
+  | 'deathrattleBuffFodder' // Burial Imp: Deathrattle permanently buffs your Fodder +atk/+hp, carried back (Demon)
   | 'avengeAddFodder' // Pit Supplier: Avenge (N) queues a Fodder into your next shop, carried back (Demon)
   | 'avengeGrantSpellPower' // Spell Appraiser: Avenge (N) permanently raises run-wide spell power, carried back
   | 'rallyImproveSummonAura' // Baby Cub: Rally bumps a friendly Den Mother's summon aura (summonBonus), carried back
@@ -230,7 +232,9 @@ export type EffectFactoryId =
   | 'scBeastAura' // Kennelmaster: Start of Combat — Beast aura +N/+N (grown by Avenge), catches combat summons
   | 'rallyTribeAura' // Solaris Fang: Rally — Beast aura +N/+N for the rest of combat (catches combat summons)
   | 'rallyTribeAuraGrowing' // Trophy Stalker: Rally — Beast aura +N/+N (grows +step each attack via summonBonus)
-  | 'rallyGiveDemonAttack' // Bloodbinder: Rally — give another friendly Demon +Attack = this minion's Attack
+  | 'rallyGiveDemonAttack' // (retired from Bloodbinder) Rally — give another friendly Demon +Attack = this minion's Attack
+  | 'rallyBuffFodderHalf' // Bloodbinder: Rally — give your Fodder half this minion's Attack, as Attack/Health alternating each turn
+  | 'rallyBuffFodder' // The Godfodder: Rally — permanently buff your Fodder +atk/+hp (carried back)
   | 'rallyDamageRandomEnemy' // Philippe: Rally — also deal its Attack to a random enemy (golden +2), no retaliation
   | 'avengeShieldAttack' // Solaris Fang: Avenge (X) — gain a Divine Shield and attack immediately
   | 'endOfTurnGrantSpellChoice' // Money Maker: every N turns, add a random card from a list to hand (recruit)
@@ -249,7 +253,13 @@ export type EffectFactoryId =
   | 'battlecryCopyEcho' // Gravetwin: Battlecry — copy a targeted friendly Echo minion's Deathrattle onto itself (recruit)
   | 'spellBloodlust' // Bloodlust: cast — mark a friendly minion to take an immediate immune attack at Start of Combat (recruit)
   | 'copyLeftmostEcho' // Grave Body: Start of Combat / on-summon — copy your leftmost friendly Echo as this minion's combat Deathrattle
+  | 'scGrantRightTaunt' // Combo Kim: Start of Combat — give the minion to the right of this Taunt (combat)
+  | 'castSpellById' // Spark Capacitor Combo: cast a named spell (Spark Plug) on play (recruit)
+  | 'buffAllByImpAura' // Chef Raag Combo: give all your minions stats equal to your Imp Aura, on play (recruit)
+  | 'deathrattleBuffAllByImpAura' // Chef Raag: Echo — give your minions stats equal to your Imp Aura (combat)
+  | 'buffFodderImpsImproving' // Ritualist: End of Turn — buff Imps + Fodder, escalating each trigger (recruit)
   | 'spellAddTribe' // Anomaly Reactor: cast — give the target minion an extra tribe (a Mech type) for the run (recruit)
+  | 'spellAddAllTribes' // Anomaly Reactor: cast — give the target minion ALL types for the run (recruit)
   | 'onAttackStripKeywords'; // Tauntbreaker: on-attack — strip listed keywords (Taunt / Rise) off the enemy it hits (combat)
 
 export interface EffectDef {
@@ -336,6 +346,14 @@ export interface CardDef {
   /** Choose One: when played, the player picks one of these options; its `effects` then resolve
    *  as the card's Battlecry (in place of `onPlay`). Each option carries its own display text. */
   chooseOne?: { text: string; goldenText?: string; effects: EffectDef[]; target?: 'friendly' | 'any' }[];
+  /** Primer (Combo): playing this card arms a Combo for the NEXT card played. A Combo only fires if the very
+   *  next play follows a primer — playing anything else in between disarms it (see `comboArmed` in the reducer). */
+  primer?: boolean;
+  /** Combo: an extra payoff that fires only when this card is played IMMEDIATELY after a primer. `effects` are
+   *  extra on-play effects (Buddy Buddy's spell, Sporebat's spell, Spark Capacitor's cast). `chooseBoth` (a
+   *  Choose One card, e.g. The Godfodder) instead plays BOTH options with no prompt — it is NOT a Shout, it just
+   *  resolves both option effects. */
+  combo?: { effects?: EffectDef[]; chooseBoth?: boolean };
   /** Discover-on-play: playing this card opens a Discover (a peek) and consumes the card — no board slot,
    *  no `cast` effect, and never multiplied by spell-quantity (Yazzus). Used by the tavern Discover spells
    *  (Sprout, Help Wanted, Tribe Portal, Corpse Board) and the golden Triple Reward token. The tier/tribe
@@ -440,6 +458,9 @@ export type QuestReward =
   | { kind: 'scalingTribeAura'; tribe: Tribe; attack: number; health: number; per: number; event: QuestObjectiveEvent; stepAttack: number; stepHealth: number }
   // Conjure `cards` to hand at the END OF EACH TURN, for the rest of the run (Feed the Alpha's recurring spell).
   | { kind: 'recurringGrant'; cards: string[] }
+  // Imp Census: permanently improve your Imps by +A/+H run-wide (bumps `impBuff`, so every current + future
+  // friendly Imp inherits it). Repeats via the reward's `repeatInTurns` (folded through `multi`).
+  | { kind: 'impAura'; attack: number; health: number }
   // Arm a run-wide combat modifier consumed by `simulate()` (see QuestCombatMods): Blood Trail, Echoing Coop,
   // Law of Teeth, The Old Hunt. `amount` parameterizes the flag where it needs a magnitude (Old Hunt's aura step).
   | { kind: 'combatFlag'; flag: QuestCombatFlag; amount?: number }
@@ -455,7 +476,9 @@ export type QuestReward =
   // `runeAction` (Rune of Action): End of Turn — give your leftmost minion +1/+1 for every card you played this turn.
   // `triggerLeftmostEcho` (Rune of the Reliquary): End of Turn — fire your leftmost minion's Echo (Deathrattle).
   // `weldMoneyBotsEdgeMechs` (Rune of Banking): End of Turn — weld a Money Bot onto your leftmost + rightmost Mech.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' }
+  // `buffMechsPerAttachment` (Blueprint Cache): End of Turn — give each friendly Mech +2/+2 for every Attachment
+  // (Magnetic minion) welded onto it.
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -538,7 +561,7 @@ export type QuestReward =
 export type QuestRewardKind = QuestReward['kind'];
 /** A run-wide combat modifier a completed quest arms; `simulate()` reads them via `QuestCombatMods`. */
 export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'oldHunt' | 'sharedCircuit'
-  | 'deepHunger' | 'contractRewrite' | 'pitWithoutEnd' | 'doubleLeftmostAttack' | 'feedingLine' | 'umbralEnergy' | 'emptyGraves'
+  | 'deepHunger' | 'contractRewrite' | 'pitWithoutEnd' | 'doubleLeftmostAttack' | 'feedingLine' | 'umbralEnergy' | 'emptyGraves' | 'assemblyLine'
   // Runes (Runesmith): runeWarding = Start of Combat give your leftmost minion Ward; runeFury = your Avenges
   // trigger twice; runeSlaying = every Slaughter this combat banks +2 Gold for next turn (read at settle).
   | 'runeWarding' | 'runeFury' | 'runeSlaying'
@@ -583,6 +606,9 @@ export interface QuestCombatMods {
   echoFirstEachCombat?: number;
   /** The Bone Throne: >0 arms it — every this-many friendly deaths in combat, trigger your leftmost Echo. */
   boneThroneStep?: number;
+  /** Assembly Line: >0 arms it — every this-many friendly deaths in combat, add a Money Bot to your hand
+   *  (Avenge N). Player-only (`grantToHand` no-ops for a served enemy). */
+  assemblyLineStep?: number;
   /** Infinite Assembly: every Rally (on-attack) trigger fires this many extra times (stacks with Law of Teeth +
    *  Rallying Offensive + Spark Permit — all additive). */
   rallyExtraAlways?: number;
@@ -707,6 +733,15 @@ export interface BoardMinion {
   /** Perfect Core: accrued "Rally: get a random spell" welded onto this minion. Combat reads it to grant
    *  this-many random spells when this attacks (standalone Perfect Core uses its own effect instead). */
   rallySpellWeld?: number;
+  /** Gravetwin: the Deathrattle (onDeath EffectDefs) it copied from a friendly Echo minion — carried into combat
+   *  as real Deathrattle effects so it procs when Gravetwin dies mid-fight (not only at the next shop). */
+  copiedEcho?: EffectDef[];
+  /** Anomaly Reactor's "All" mode: this minion counts as every tribe (mirrors the CardDef `universalTribe`, but
+   *  per-instance). Combat tribe checks OR it in. */
+  universalTribe?: boolean;
+  /** Bloodbinder: which stat its Rally gives Fodder this fight — `'hp'` on even turns, else Attack. Alternates
+   *  each turn on the run board; read (not changed) in combat. */
+  bloodbinderMode?: 'atk' | 'hp';
   /** Bloodlust: at Start of Combat this minion takes an immediate out-of-turn attack, immune to retaliation for
    *  that swing ("cannot die from that attack"). Spell-applied in recruit; consumed by this one combat. */
   bloodlust?: boolean;
@@ -786,6 +821,11 @@ export interface Minion {
   /** Bloodlust weld: on each of its own attacks, give a random friendly minion Attack equal to this minion's
    *  Attack (the Rally the Bloodlust spell grants alongside the immune swing). One-fight. */
   bloodlustRally?: boolean;
+  /** Bloodbinder: which stat its Rally gives Fodder this fight (`'hp'` = Health, else Attack). Seeded from the
+   *  run board (alternates each turn); read by its Rally factory. */
+  bloodbinderMode?: 'atk' | 'hp';
+  /** Anomaly Reactor's "All" mode: counts as every tribe (per-instance mirror of the CardDef `universalTribe`). */
+  universalTribe?: boolean;
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };
@@ -976,6 +1016,9 @@ export interface CombatResult {
   /** Fodder to queue into the next tavern from this combat (Burial Imp's Deathrattle). A count of
    *  `fred` tokens; pushed onto `pendingTavern` in settleCombat. Absent if 0. */
   playerFodderGrants?: number;
+  /** Fodder scheduled across the next several shops from this combat (Pit Supplier's Avenge): `[i]` = Fodder for
+   *  the shop `i` from now. Merged into `fodderSchedule` in settleCombat. Absent if none. */
+  playerFodderSchedule?: number[];
   /** Economy Battlecries Ryme re-fired in combat (Soulfeeder's Fodder, Hoarder's Gold, Demonic Anomaly's shop
    *  buff, gain-a-minion) — recorded here (cardId + its golden state) and replayed through the real recruit
    *  factory in settleCombat, where they have full RunState access. Combat-meaningful Battlecries (summon /
@@ -1087,6 +1130,9 @@ export interface CombatContext {
   /** Queue `count` Fodder into the player's next tavern (Burial Imp's Deathrattle). Player-only;
    *  carried back via `CombatResult.playerFodderGrants`, pushed onto pendingTavern in settleCombat. */
   grantTavernFodder(count: number, side: Side): void;
+  /** Queue Fodder across the next several shops (Pit Supplier's Avenge → "2 Fodder to your next 2 shops"):
+   *  `counts[i]` = Fodder for the shop `i` from now. Player-only; carried back via `playerFodderSchedule`. */
+  scheduleFodder(counts: number[], side: Side): void;
   /** Record an economy Battlecry (Ryme re-firing Soulfeeder / Hoarder / Demonic Anomaly / a gain-minion) to be
    *  replayed through its recruit factory at settle. Player-only; carried back via
    *  `CombatResult.playerDeferredBattlecries`. `golden` is the re-fired minion's golden state (so the factory
@@ -1131,6 +1177,9 @@ export interface CombatContext {
   /** Imp King / Brood Matron Avenge: permanently raise the run-wide Imp buff by +atk/+hp (player only).
    *  Carried back via CombatResult.playerImpBuffGain → added to RunState.impBuff so future Imps inherit it. */
   grantImpBuff(attack: number, health: number, side: Side): void;
+  /** The side's LIVE Imp Aura this fight (seeded from run state, advanced by in-combat Imp buffs). Chef Raag
+   *  reads it to give your minions stats equal to it. */
+  impAura(side: Side): { attack: number; health: number };
   /** Bane (combat, reacting to Ryme's battlecry replays): permanently enchant the Fodder card type run-wide
    *  by +atk/+hp (player only). Carried back via CombatResult.playerFodderBuffGain → `buffFodderRunWide`. */
   grantFodderBuff(attack: number, health: number, side: Side): void;

@@ -121,15 +121,48 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'T' && ev.target === rightmost)).toBe(true);
   });
 
-  it("Bloodbinder Rally gives another friendly Demon Attack equal to its own", () => {
+  it('Gravetwin: its copied Echo procs when it DIES in combat (owner bug 2026-07-13)', () => {
+    // Gravetwin carries a copied Echo (here "Deathrattle: give your minions +2/+2") into combat as a real
+    // Deathrattle — so it fires when Gravetwin dies mid-fight, not only if it survives to the next shop.
+    const r = run(
+      [
+        { cardId: 'gravetwin', attack: 1, health: 1, copiedEcho: [{ on: 'onDeath', do: 'deathrattleBuffAll', params: { attack: 2, health: 2 } }] },
+        { cardId: 'alley', attack: 1, health: 20 },
+      ],
+      [{ cardId: 'omen', attack: 5, health: 50 }],
+      3,
+    );
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true); // copied Echo fired on death
+  });
+
+  it('Trickster Deathrattle gives its Health to 2 random friends (golden: 4 grants)', () => {
+    const grants = (golden: boolean): number => {
+      const r = run(
+        [
+          { cardId: 'trickster', attack: 0, health: 6, golden },
+          { cardId: 'alley', attack: 0, health: 40 }, { cardId: 'alley', attack: 0, health: 40 },
+          { cardId: 'alley', attack: 0, health: 40 }, { cardId: 'alley', attack: 0, health: 40 },
+        ],
+        [{ cardId: 'omen', attack: 50, health: 400 }],
+        1,
+      );
+      const tw = r.initial.player.find((m) => m.cardId === 'trickster')!.uid;
+      return r.events.filter((e) => e.type === 'buff' && e.source === tw && e.health === 6).length;
+    };
+    expect(grants(false)).toBe(2); // 2 random friends get its Health
+    expect(grants(true)).toBe(4); // golden doubles the number of grants
+  });
+
+  it("Bloodbinder Rally gives your Fodder half its Attack (Attack by default mode)", () => {
     const p: BoardMinion[] = [
       { cardId: 'bloodbinder', attack: 5, health: 20 },
-      { cardId: 'impscrap', attack: 1, health: 20 }, // another Demon (Imp) → the Rally target
+      { cardId: 'fred', attack: 1, health: 20 }, // a Fodder (FD) → the Rally target
     ];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }]; // tanky → Bloodbinder gets to attack
     const r = run(p, e, 3);
-    const impUid = r.initial.player.find((u) => u.cardId === 'impscrap')!.uid;
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === impUid && ev.attack === 5)).toBe(true);
+    const fredUid = r.initial.player.find((u) => u.cardId === 'fred')!.uid;
+    // floor(5/2) = 2, as Attack (default mode is Attack — `bloodbinderMode` unset → not 'hp').
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === fredUid && ev.attack === 2 && ev.health === 0)).toBe(true);
   });
 
   it('Mirrorhide Rhino Start of Combat summons one EXACT copy (current stats + keywords, no chain)', () => {
@@ -158,8 +191,9 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerBonusGold).toBe(2);
   });
 
-  it('Pit Supplier Avenge (3) queues a Fodder into the next shop (carried back)', () => {
-    // Three 1/1 Strays die (attacking into the omen's retaliation) → the 3rd death procs Avenge (3) → 1 Fodder.
+  it('Pit Supplier Avenge (3) schedules 2 Fodder into each of the next 2 shops (carried back)', () => {
+    // Three 1/1 Strays die (attacking into the omen's retaliation) → the 3rd death procs Avenge (3) → 2 Fodder
+    // to each of the next 2 shops.
     const p: BoardMinion[] = [
       { cardId: 'pitsupplier', attack: 4, health: 40 },
       { cardId: 'stray', attack: 1, health: 1 },
@@ -168,7 +202,8 @@ describe('simulate (handoff A.3)', () => {
     ];
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 60 }];
     const r = run(p, e, 3);
-    expect(r.playerFodderGrants).toBe(1);
+    expect(r.playerFodderSchedule).toEqual([2, 2]);
+    expect(r.playerFodderGrants).toBeUndefined();
   });
 
   it('Runescale Drake Start of Combat buffs your Dragons +2/+2 (base, 0 spells)', () => {
@@ -1096,15 +1131,15 @@ describe('simulate (handoff A.3)', () => {
     expect(imp?.type === 'summon' ? [imp.minion.attack, imp.minion.health] : null).toEqual([3, 3]);
   });
 
-  it('Imp King Deathrattle summons 2 Imps + a PERMANENT +2/+3 Imp buff (golden: still 2 Imps, +4/+6)', () => {
+  it('Imp King Deathrattle summons 2 Imps + a PERMANENT +3/+3 Imp buff (golden: still 2 Imps, +6/+6)', () => {
     const r = run([{ cardId: 'impking', attack: 6, health: 1 }], [{ cardId: 'omen', attack: 50, health: 400, keywords: [] }], 1);
     expect(r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap').length).toBe(2);
-    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 3)).toBe(true);
-    expect(r.playerImpBuffGain).toEqual({ attack: 2, health: 3 }); // permanent — carried back to the run
-    // Golden: still 2 Imps (not 4), but the buff doubles to +4/+6.
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 3)).toBe(true);
+    expect(r.playerImpBuffGain).toEqual({ attack: 3, health: 3 }); // permanent — carried back to the run
+    // Golden: still 2 Imps (not 4), but the buff doubles to +6/+6.
     const g = run([{ cardId: 'impking', attack: 6, health: 1, golden: true }], [{ cardId: 'omen', attack: 50, health: 400, keywords: [] }], 1);
     expect(g.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap').length).toBe(2);
-    expect(g.playerImpBuffGain).toEqual({ attack: 4, health: 6 });
+    expect(g.playerImpBuffGain).toEqual({ attack: 6, health: 6 });
   });
 
   it('a later-summoned Imp inherits the live Imp Aura (2 Imp Kings — no weaker 2nd pair)', () => {
@@ -1925,13 +1960,14 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'buff' && e.attack === 0 && e.health === 2)).toBe(true);
   });
 
-  it('Burial Imp: its Deathrattle queues Fodder for the next tavern (carried back)', () => {
+  it('Burial Imp: its Echo buffs your Fodder +1/+1 (carried back) and summons an Imp', () => {
     const a = run(
       [{ cardId: 'burialimp', attack: 3, health: 1 }],
       [{ cardId: 'omen', attack: 5, health: 50 }],
       3,
     );
-    expect(a.playerFodderGrants).toBe(1); // one Burial Imp died → 1 Fodder queued for the next tavern
+    expect(a.playerFodderBuffGain).toEqual({ attack: 1, health: 1 }); // Fodder aura +1/+1 carried back
+    expect(a.events.some((e) => e.type === 'summon' && e.minion.cardId === 'impscrap')).toBe(true); // summoned an Imp
   });
 
   it('Sporebat Deathrattle generates a real tavern-tier spell (toHand + handGrant); golden generates two', () => {
@@ -2447,7 +2483,7 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerUndeadBuyAtkGain).toBe(9); // 3 kills × +3 (was 3: main target only)
   });
 
-  it('golden Sword and Bored buffs Fodder +1/+1 on Slaughter (a golden override, not the ×2 +2/+0)', () => {
+  it('Sword and Bored buffs Fodder +1/+1 on Slaughter (golden doubles to +2/+2)', () => {
     const fodderBuff = (golden: boolean): [number, number] | null => {
       const p: BoardMinion[] = [
         { cardId: 'swordbored', attack: 5, health: 5, golden }, // attacks first (2 minions v 1) → kills → Slaughter
@@ -2459,8 +2495,8 @@ describe('simulate (handoff A.3)', () => {
       const buff = r.events.find((ev) => ev.type === 'buff' && ev.target === fred);
       return buff && buff.type === 'buff' ? [buff.attack, buff.health] : null;
     };
-    expect(fodderBuff(false)).toEqual([1, 0]); // base +1/+0
-    expect(fodderBuff(true)).toEqual([1, 1]); // golden → +1/+1 (not +2/+0)
+    expect(fodderBuff(false)).toEqual([1, 1]); // base +1/+1
+    expect(fodderBuff(true)).toEqual([2, 2]); // golden → +2/+2
   });
 
   it("Deathsayer's Rally-proc'd Deathrattles tick the tally (parity with Sporeling's Battlecry proc)", () => {
@@ -2871,6 +2907,14 @@ describe('Epic combat runes (Rising Graves / Broodpit / Spearline / Appraisal)',
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 40 }];
     const r = simMods(p, e, 1, { runeSoulTaxes: true });
     expect(r.playerMaxGoldGain).toBeGreaterThanOrEqual(1);
+  });
+
+  it('Assembly Line: every 4 friendly deaths adds a Money Bot to your hand (Avenge 4)', () => {
+    const p: BoardMinion[] = Array.from({ length: 4 }, () => ({ cardId: 'sandbag', attack: 1, health: 1 }));
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 40 }];
+    const r = simMods(p, e, 1, { assemblyLineStep: 4 });
+    // The 4th friendly death fires the Avenge → a Money Bot flies to hand (a toHand event the replay animates).
+    expect(r.events.some((ev) => ev.type === 'toHand' && ev.cardId === 'moneybot')).toBe(true);
   });
 });
 

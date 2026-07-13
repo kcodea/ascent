@@ -31,9 +31,9 @@ export const DEMONS: CardDef[] = [
     attack: 2,
     health: 1,
     keywords: ['SL'],
-    effects: [{ on: 'onKill', do: 'onKillBuffFodder', params: { attack: 1, health: 0, goldenAttack: 1, goldenHealth: 1 } }],
-    text: '**Slaughter:** give your **Fodder** **+1/+0**.',
-    goldenText: '**Slaughter:** give your **Fodder** **+1/+1**.',
+    effects: [{ on: 'onKill', do: 'onKillBuffFodder', params: { attack: 1, health: 1 } }],
+    text: '**Slaughter:** give your **Fodder** **+1/+1**.',
+    goldenText: '**Slaughter:** give your **Fodder** **+2/+2**.',
   },
   {
     // Deathrattle (combat): summon 2 Imps, then buff all your Imps (the new ones included) +2/+3. Golden 2×.
@@ -46,10 +46,10 @@ export const DEMONS: CardDef[] = [
     keywords: [],
     effects: [
       { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 2, fixed: true } },
-      { on: 'onDeath', do: 'deathrattleBuffImps', params: { attack: 2, health: 3 } },
+      { on: 'onDeath', do: 'deathrattleBuffImps', params: { attack: 3, health: 3 } },
     ],
-    text: '**Deathrattle:** Summon 2 **Imps** and give your Imps **+2/+3** permanently.',
-    goldenText: '**Deathrattle:** Summon 2 **Imps** and give your Imps **+4/+6** permanently.',
+    text: '**Deathrattle:** Summon 2 **Imps** and give your Imps **+3/+3** permanently.',
+    goldenText: '**Deathrattle:** Summon 2 **Imps** and give your Imps **+6/+6** permanently.',
   },
   {
     id: 'feed',
@@ -59,9 +59,9 @@ export const DEMONS: CardDef[] = [
     attack: 2,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'addTavernFodder' }],
-    text: '**Battlecry:** add Fodder to your next tavern.',
-    goldenText: '**Battlecry:** add **2** Fodder to your next tavern.',
+    effects: [{ on: 'onPlay', do: 'addFodderNextShops', params: { count: 1, shops: 2 } }],
+    text: '**Shout:** add a Fodder to the next **2** shops.',
+    goldenText: '**Shout:** add **2** Fodder to the next **2** shops.',
   },
   {
     id: 'brood',
@@ -90,10 +90,10 @@ export const DEMONS: CardDef[] = [
     attack: 3,
     health: 3,
     keywords: ['M'],
-    fodderAura: { attack: 1, health: 2 },
+    fodderAura: { attack: 3, health: 3 },
     effects: [],
-    text: 'Magnetize onto a friendly **Mech** or **Demon**. While on your board, your **Fodder** gets **+1/+2**.',
-    goldenText: 'Magnetize onto a friendly **Mech** or **Demon**. While on your board, your **Fodder** gets **+2/+4**.',
+    text: 'Magnetize onto a friendly **Mech** or **Demon**. While on your board, your **Fodder** gets **+3/+3**.',
+    goldenText: 'Magnetize onto a friendly **Mech** or **Demon**. While on your board, your **Fodder** gets **+6/+6**.',
   },
   {
     id: 'maw',
@@ -103,9 +103,12 @@ export const DEMONS: CardDef[] = [
     attack: 4,
     health: 5,
     keywords: ['T'],
-    effects: [{ on: 'endOfTurn', do: 'addTavernFodder' }],
-    text: '**End of Turn:** add a **Fodder** to your next tavern.',
-    goldenText: '**End of Turn:** add **2** Fodder to your next tavern.',
+    effects: [
+      { on: 'endOfTurn', do: 'battlecryBuffFodder', params: { attack: 1, health: 1 } },
+      { on: 'endOfTurn', do: 'addTavernFodder' },
+    ],
+    text: '**End of Turn:** give your Fodder **+1/+1** and add a **Fodder** to your next shop.',
+    goldenText: '**End of Turn:** give your Fodder **+2/+2** and add **2** Fodder to your next shop.',
   },
   {
     id: 'ritualist',
@@ -115,9 +118,9 @@ export const DEMONS: CardDef[] = [
     attack: 5,
     health: 6,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'buffFodderEverywhere', params: { attack: 2, health: 2 } }],
-    text: '**End of Turn:** give your Imps and Fodder **+2/+2**, wherever they are.',
-    goldenText: '**End of Turn:** give your Imps and Fodder **+4/+4**, wherever they are.',
+    effects: [{ on: 'endOfTurn', do: 'buffFodderImpsImproving', params: { step: 3 } }],
+    text: '**End of Turn:** give your Imps and Fodder **+3/+3**. This improves by **+3/+3** each time it triggers.',
+    goldenText: '**End of Turn:** give your Imps and Fodder **+6/+6**. This improves by **+6/+6** each time it triggers.',
   },
   {
     // Spend-gold payoff: every 7 Gold you spend (a continuous per-instance meter, carried across turns)
@@ -148,11 +151,27 @@ export const DEMONS: CardDef[] = [
     keywords: [],
     effects: [],
     chooseOne: [
-      { text: 'Give your **Fodder** **+1/+1**.', effects: [{ on: 'onPlay', do: 'battlecryBuffFodder', params: { attack: 1, health: 1 } }] },
-      { text: 'A friendly minion consumes a **Fodder**.', target: 'friendly', effects: [{ on: 'onPlay', do: 'battlecryTargetConsumeFodder', params: {} }] },
+      { text: 'Add **2** Fodder to your next shop.', effects: [{ on: 'onPlay', do: 'addTavernFodder', params: { count: 2 } }] },
+      { text: 'Give your **Fodder** **+3/+3**.', effects: [{ on: 'onPlay', do: 'battlecryBuffFodder', params: { attack: 3, health: 3 } }] },
     ],
-    text: '**Choose One:** give your **Fodder** **+1/+1**, or a friendly minion consumes a **Fodder**.',
-    goldenText: '**Choose One:** give your **Fodder** **+2/+2**, or a friendly minion consumes **2 Fodder**.',
+    combo: { chooseBoth: true },
+    text: '**Choose One:** add **2** Fodder to your next shop, or give your **Fodder** **+3/+3**. **Combo:** do both.',
+    goldenText: '**Choose One:** add **4** Fodder to your next shop, or give your **Fodder** **+6/+6**. **Combo:** do both.',
+  },
+  {
+    // Imp-payoff engine: converts your run-wide Imp Aura into a board-wide buff. On death (Echo) it fires in
+    // combat off the live aura; with a Combo primer it ALSO fires on play (the recruit half reads run `impBuff`).
+    id: 'chefraag',
+    name: 'Chef Raag',
+    tribe: 'demon',
+    tier: 4,
+    attack: 4,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffAllByImpAura' }],
+    combo: { effects: [{ on: 'onPlay', do: 'buffAllByImpAura' }] },
+    text: '**Echo:** give your minions stats equal to your **Imp Aura**. **Combo:** do it on play too.',
+    goldenText: '**Echo:** give your minions **double** your **Imp Aura**. **Combo:** do it on play too.',
   },
   {
     id: 'trickster',
@@ -162,9 +181,9 @@ export const DEMONS: CardDef[] = [
     attack: 2,
     health: 4,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleGiveHealth', params: {} }],
-    text: '**Deathrattle:** Give a random friendly minion this minion\'s Health.',
-    goldenText: '**Deathrattle:** Give a random friendly minion this minion\'s Health **twice**.',
+    effects: [{ on: 'onDeath', do: 'deathrattleGiveHealth', params: { count: 2 } }],
+    text: "**Deathrattle:** give **2** random friendly minions this minion's Health.",
+    goldenText: "**Deathrattle:** give **4** random friendly minions this minion's Health.",
   },
   {
     // Start of Combat: gains the full attack + health of all Fodder consumed this turn (before combat).
@@ -191,9 +210,12 @@ export const DEMONS: CardDef[] = [
     attack: 3,
     health: 3,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleAddFodder', params: { count: 1 } }],
-    text: '**Deathrattle:** add a Fodder to your next tavern.',
-    goldenText: '**Deathrattle:** add **2** Fodder to your next tavern.',
+    effects: [
+      { on: 'onDeath', do: 'deathrattleBuffFodder', params: { attack: 1, health: 1 } },
+      { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 1 } },
+    ],
+    text: '**Echo:** give your Fodder **+1/+1** and summon an **Imp**.',
+    goldenText: '**Echo:** give your Fodder **+2/+2** and summon **2 Imps**.',
   },
   {
     // On-kill engine: each kill permanently buffs your Fodder + Imps (combat → carried back, like Bane).
@@ -204,10 +226,10 @@ export const DEMONS: CardDef[] = [
     tier: 5,
     attack: 6,
     health: 6,
-    keywords: ['W', 'SL'],
+    keywords: ['W', 'DS', 'SL'],
     effects: [{ on: 'onKill', do: 'onKillBuffFodderImps', params: { attack: 3, health: 3 } }],
-    text: '**Windfury. Slaughter:** give your Fodder and Imps **+3/+3** permanently.',
-    goldenText: '**Windfury. Slaughter:** give your Fodder and Imps **+6/+6** permanently.',
+    text: '**Flurry. Ward. Slaughter:** give your Fodder and Imps **+3/+3** permanently.',
+    goldenText: '**Flurry. Ward. Slaughter:** give your Fodder and Imps **+6/+6** permanently.',
   },
   {
     // Imp payoff Battlecry: a persistent +2/+2 to every Imp you have or make (board / hand / future copies) —
@@ -236,8 +258,8 @@ export const DEMONS: CardDef[] = [
     attack: 5,
     health: 2,
     keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyGiveDemonAttack' }],
-    text: "**Rally:** give another friendly Demon Attack equal to this minion's Attack.",
+    effects: [{ on: 'onAttack', do: 'rallyBuffFodderHalf' }],
+    text: "**Rally:** give your Fodder half this minion's Attack. Swaps to Health next turn.",
   },
   {
     // Avenge (3): every 3 friendly deaths in combat, queue a Fodder into your next shop (golden: 2). Feeds the
@@ -249,9 +271,9 @@ export const DEMONS: CardDef[] = [
     attack: 4,
     health: 2,
     keywords: [],
-    effects: [{ on: 'avenge', do: 'avengeAddFodder', params: { count: 3 } }],
-    text: '**Avenge (3):** add a **Fodder** to your next shop.',
-    goldenText: '**Avenge (3):** add **2 Fodder** to your next shop.',
+    effects: [{ on: 'avenge', do: 'avengeAddFodder', params: { count: 3, fodder: 2, shops: 2 } }],
+    text: '**Avenge (3):** add **2 Fodder** to your next **2** shops.',
+    goldenText: '**Avenge (3):** add **4 Fodder** to your next **2** shops.',
   },
   {
     // End of Turn: both board-adjacent minions Consume a Fodder (gain its enchanted stats + fire the consume

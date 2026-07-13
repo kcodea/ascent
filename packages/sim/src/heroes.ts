@@ -9,16 +9,15 @@
 
 export type HeroPowerKind =
   | 'fortify' // (unused by default) give a minion +Tier/+Tier (scales with Tavern Tier)
-  | 'gild' // Indy: make a friendly minion Golden
+  | 'gild' // Indy: make a friendly minion Golden (recharges after every 40 Gold spent)
   | 'replayBattlecry' // Myra: re-trigger a friendly minion's Battlecry
   | 'replayEndOfTurn' // (legacy) proc a single friendly minion's End of Turn now
   | 'replayAllEndOfTurn' // Djinn: trigger EVERY friendly minion's End of Turn effect now (untargeted)
   | 'resummon' // Soren: at start of combat, destroy a marked minion (procs its Deathrattle) + resummon a copy
-  | 'spellAmplify' // Rohan (passive): stat-granting spells give +X/+X more, X scaling every 5 spells cast
+  | 'spellAmplify' // Rohan (passive): stat-granting spells give +X/+X more, X scaling every 10 spells cast
   | 'gainMaxMana' // Nadja: gain +1 max Gold permanently (id stays `gainMaxMana`)
   | 'grantWard' // Warden: spend Gold — give a friendly minion a permanent Ward (Divine Shield) (active, targeted)
   | 'scalingGold' // Bagger Ben: gain Gold now, the payout climbing +1 each turn (active, untargeted, once/game)
-  | 'adjacentConsume' // Herald: target a minion — its two neighbours each Consume a created Fodder (active, targeted)
   | 'cheapMinions' // Hermit Hank (passive): shop minions cost 2 Gold, but tavern-ups cost 2 more
   | 'discoLock' // Disco Dan (passive): turn-1 sequential Discover T6→T4→T2, each locked in hand until that shop tier
   | 'questChronos' // Chronos (passive): buy 4 End-of-Turn minions → get a Chronos (resolved in the buy case)
@@ -29,7 +28,7 @@ export type HeroPowerKind =
   | 'sellGold' // Robin (passive): each minion you sell banks +1 Gold for the START of next turn
   | 'displace' // Darah: swap a friendly minion with a random tavern minion (active, targeted)
   | 'grantReborn' // Lord of the Risen: give a friendly minion Rise for the next combat (active, targeted)
-  | 'goldenGild' // Gildmaster: if you have 2 copies of a minion, combine them into a golden copy in hand
+  | 'recurringGoldcrafter' // Gildmaster (passive): get a Goldcrafter (gild-a-minion spell) every 4 turns
   | 'runeforge' // Runesmith (passive): on turn 6 the Runeforge opens — buy ONE of a random 3 runes (a run-long buff)
   | 'epicRuneforge' // Runeguard (passive): the EPIC Runeforge opens on turn 10 (scheduled via `epicForgeWave` at run start)
   | 'pathfinder' // Coran (passive): no lesser quest; the Greater + Capstone quest shops arrive on turns 6 + 10
@@ -79,6 +78,7 @@ export const HEROES: HeroDef[] = [
     blurb: 'A shield for the one who needs it — bought and paid for in Gold.',
     resolve: 30,
     armor: 12,
+    wip: true, // temporarily withheld from the picker (owner 2026-07-13)
     power: {
       name: 'Aegis',
       kind: 'grantWard',
@@ -95,8 +95,8 @@ export const HEROES: HeroDef[] = [
     power: {
       name: 'Gild',
       kind: 'gild',
-      oncePerGame: true,
-      text: 'Gild: Make a friendly minion golden. (Once per game)',
+      oncePerGame: true, // one charge at a time; the charge recharges after every 40 Gold spent (see reducer)
+      text: 'Gild: Make a friendly minion golden. Refreshes after you spend 40 Gold.',
     },
   },
   {
@@ -105,6 +105,7 @@ export const HEROES: HeroDef[] = [
     blurb: 'A conductor of entrances — call a minion to take its bow again.',
     resolve: 30,
     armor: 15,
+    wip: true, // temporarily withheld from the picker (owner 2026-07-13)
     power: {
       name: 'Pulse',
       kind: 'replayBattlecry',
@@ -134,7 +135,7 @@ export const HEROES: HeroDef[] = [
       name: 'Attunement',
       kind: 'spellAmplify',
       passive: true,
-      text: 'Attunement: Spells gain +1/+1. Improve this every 5 spells cast.',
+      text: 'Attunement: Spells gain +1/+1. Improve this every 10 spells cast.',
     },
   },
   {
@@ -197,6 +198,7 @@ export const HEROES: HeroDef[] = [
     blurb: 'A bond that transcends all tribes — every kind bends to the connection.',
     resolve: 30,
     armor: 8,
+    wip: true, // temporarily withheld from the picker (owner 2026-07-13)
     power: {
       name: 'Chaos Bond',
       kind: 'chaos',
@@ -244,16 +246,14 @@ export const HEROES: HeroDef[] = [
   {
     id: 'gildmaster',
     name: 'Gildmaster',
-    blurb: 'Two of a kind is all it takes — fold a pair into gold and cash the reward.',
+    blurb: 'The gold never stops coming — a fresh crafter arrives like clockwork.',
     resolve: 30,
     armor: 15,
     power: {
-      name: 'Golden Gild',
-      kind: 'goldenGild',
-      untargeted: true,
-      cost: 3,
-      maxUses: 2,
-      text: 'Golden Gild: Spend 3 Gold — if you have 2 copies of a minion, combine them into one golden copy in your hand. (Twice per game, once per turn)',
+      name: 'Goldcrafter',
+      kind: 'recurringGoldcrafter',
+      passive: true, // resolved at each turn setup (turns 4, 8, 12, …) — conjures a Goldcrafter to hand
+      text: 'Get a **Goldcrafter** every 4 turns (a spell that makes a friendly minion golden).',
     },
   },
   {
@@ -310,19 +310,6 @@ export const HEROES: HeroDef[] = [
     },
   },
   {
-    id: 'herald',
-    name: 'Herald',
-    blurb: 'Points to the chosen — and those beside them feast.',
-    resolve: 30,
-    armor: 10,
-    power: {
-      name: 'Proclaim',
-      kind: 'adjacentConsume',
-      cost: 2,
-      text: 'Proclaim: Spend 2 Gold — the minions on either side of a friendly minion each Consume a Fodder. (Once per turn)',
-    },
-  },
-  {
     id: 'chronoshero',
     name: 'Chronos',
     blurb: 'Buy enough endings and time itself enlists.',
@@ -355,7 +342,7 @@ export const HEROES: HeroDef[] = [
     name: 'Runeguard',
     blurb: 'Sworn to the forge — its greater runes answer only to those who hold the line.',
     resolve: 30,
-    armor: 14,
+    armor: 8,
     power: {
       name: 'Defend the Forge',
       kind: 'epicRuneforge',
@@ -391,10 +378,10 @@ export const HEROES: HeroDef[] = [
   },
 ];
 
-/** Rohan's Attunement bonus: +1/+1 to stat-granting spells, rising by 1 every 5 spells CAST this run
- *  (+1 for casts 0–4, +2 for 5–9, +3 for 10–14, …). Keyed off `RunState.spellsCast`. A starting dial. */
+/** Rohan's Attunement bonus: +1/+1 to stat-granting spells, rising by 1 every 10 spells CAST this run
+ *  (+1 for casts 0–9, +2 for 10–19, +3 for 20–29, …). Keyed off `RunState.spellsCast`. A starting dial. */
 export function spellAmplifyBonus(spellsCast: number): number {
-  return 1 + Math.floor(spellsCast / 5);
+  return 1 + Math.floor(spellsCast / 10);
 }
 
 export const HERO_INDEX: Record<string, HeroDef> = Object.fromEntries(

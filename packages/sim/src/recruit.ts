@@ -87,7 +87,7 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
  * `c.tribe === t || CARD_INDEX[c.cardId]?.tribe2 === t` check used across the dual-type systems.
  */
 export function isTribe(card: BoardCard, tribe: Tribe): boolean {
-  if (tribe !== 'neutral' && CARD_INDEX[card.cardId]?.universalTribe) return true;
+  if (tribe !== 'neutral' && (CARD_INDEX[card.cardId]?.universalTribe || card.allTribes)) return true; // Anomaly Reactor: "All" types
   if (card.tribe === tribe || CARD_INDEX[card.cardId]?.tribe2 === tribe) return true;
   return (card.addedTribes ?? []).includes(tribe); // Anomaly Reactor: a spell-added tribe (e.g. Mech)
 }
@@ -226,6 +226,14 @@ export function buffFodderRunWide(state: RunState, a: number, h: number, source:
  * at combat start AND on summon, so the bonus follows them. Also buffs any Imp already on the board/hand
  * (rare — imps are normally combat-only). Stacks; `source` labels the inspect breakdown.
  */
+/** Queue `count` Fodder into each of the next `shops` tavern refreshes (Soulfeeder's Shout, Pit Supplier's
+ *  Avenge carry-back). Arms `fodderSchedule` — one entry per future refresh, consumed by `injectPendingTavern`. */
+export function armFodderSchedule(state: RunState, count: number, shops: number): void {
+  if (count <= 0 || shops <= 0) return;
+  state.fodderSchedule ??= [];
+  for (let i = 0; i < shops; i++) state.fodderSchedule[i] = (state.fodderSchedule[i] ?? 0) + count;
+}
+
 export function buffImpsRunWide(state: RunState, a: number, h: number, source: string): void {
   state.impBuff ??= { attack: 0, health: 0 };
   state.impBuff.attack += a;
@@ -391,12 +399,14 @@ function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
  */
 export function weldMagnetic(state: RunState, host: BoardCard, mag: MagnetPayload, clings = 0): void {
   applyWeld(host, mag, 1);
+  host.attachments = (host.attachments ?? 0) + 1; // one Attachment welded on — drives Blueprint Cache
   bakeAttachmentAura(state, host);
   let totalClings = clings; // Clings welded onto the host
   for (const bb of state.board) {
     if (bb.cardId === 'beatboxer' && bb.uid !== host.uid) {
       const mult = bb.golden ? 2 : 1;
       applyWeld(bb, mag, mult);
+      bb.attachments = (bb.attachments ?? 0) + mult; // Beatboxer mirrors the weld onto itself
       bakeAttachmentAura(state, bb);
       totalClings += clings * mult; // Beatboxer magnetizes Cling copies onto itself — those stack too
     }
@@ -467,8 +477,10 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number): v
  * count this death — matching combat, where the death increments the tally before the rattle runs.
  */
 function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effectsOverride?: EffectDef[]): void {
-  const effects = effectsOverride ?? CARD_INDEX[minion.cardId]?.effects;
-  if (!effects) return;
+  // A Gravetwin's Echo lives in `copiedEcho` (not its def) — fold it in so triggering "this minion's Echo"
+  // (Ossuary Rite / Deathsayer / Reliquary) fires the copied effect too, not nothing (owner bug 2026-07-13).
+  const effects = effectsOverride ?? [...(CARD_INDEX[minion.cardId]?.effects ?? []), ...(minion.copiedEcho ?? [])];
+  if (!effects.length) return;
   const hasDR = effects.some((e) => e.on === 'onDeath');
   const fireOnce = (): void => {
     for (const eff of effects) {
@@ -757,6 +769,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     (ctx.state.pendingTavern ??= []).push(...Array(count).fill(id));
   },
 
+  /** Queue Fodder across the next `shops` tavern refreshes (Soulfeeder: "add a Fodder to the next 2 shops";
+   *  golden doubles the per-shop count). Arms `fodderSchedule`, consumed one refresh at a time. */
+  addFodderNextShops: (ctx, self, params) => {
+    armFodderSchedule(ctx.state, num(params.count, 1) * gold(self), num(params.shops, 2));
+  },
+
   /** The Godfodder — Battlecry: CREATE a Fodder (Fred) and feed it to the targeted friendly minion
    *  (`payload.target`); golden makes 2. Each created Fodder carries the run-wide Fodder enchant
    *  (Ritualist/Bane), grants its stats × the target's fodder multiplier (Voracious Imp ×2), fires the
@@ -1040,6 +1058,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     buffImpsRunWide(ctx.state, a, h, nameOf(self)); // Ritualist now feeds Imps too
   },
 
+  /** Ritualist (End of Turn) — give your Imps and Fodder +A/+H, ESCALATING by `step` each time it triggers (the
+   *  accrued amount rides on `self.eotBonus`). Golden doubles the step. So it grants step, 2·step, 3·step, … */
+  buffFodderImpsImproving: (ctx, self, params) => {
+    const step = num(params.step, 3) * gold(self);
+    self.eotBonus = (self.eotBonus ?? 0) + step;
+    buffFodderRunWide(ctx.state, self.eotBonus, self.eotBonus, nameOf(self));
+    buffImpsRunWide(ctx.state, self.eotBonus, self.eotBonus, nameOf(self));
+  },
+
   /** Hoarder — Battlecry: bank extra Gold for next turn (consumed when next turn's Gold is set). Golden 2×.
    *  Also Safety Deposit Box's cast (spells are never golden, so the multiplier is inert there). */
   battlecryBonusGoldNextTurn: (ctx, self, params) => {
@@ -1065,6 +1092,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const t = str(params.tribe) as Tribe;
     if (!t || self.tribe === t || CARD_INDEX[self.cardId]?.tribe2 === t) return;
     if (!(self.addedTribes ?? []).includes(t)) self.addedTribes = [...(self.addedTribes ?? []), t];
+  },
+
+  /** Anomaly Reactor (cast, targeted): give the target minion ALL types for the rest of the run — it counts as
+   *  every tribe (`isTribe` short-circuits on `allTribes`) and, in combat, is flagged `universalTribe` so tribe
+   *  auras / Rally-of-a-type / SoC tribe buffs all see it. */
+  spellAddAllTribes: (_ctx, self) => {
+    self.allTribes = true;
   },
 
   /** Money Maker — End of Turn: every `every` turns on the board, add `count` random card(s) from the
@@ -1339,7 +1373,29 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** (recruit half) — add `count` random Tavern spell(s) (≤ tavern tier) to hand; golden doubles. */
   deathrattleGrantRandomSpell: (ctx, self, params) => {
-    conjureToHand(ctx.state, SPELL_CARDS.filter((c) => c.tier <= ctx.state.tier), num(params.count, 1) * gold(self));
+    // `exactTier` (Buddy Buddy's Combo: a random Tier-1 spell) pins the tier; else any spell up to the tavern tier.
+    const ok = params.exactTier != null
+      ? (c: CardDef) => c.tier === num(params.exactTier)
+      : (c: CardDef) => c.tier <= ctx.state.tier;
+    conjureToHand(ctx.state, SPELL_CARDS.filter(ok), num(params.count, 1) * gold(self));
+  },
+
+  /** Cast a specific spell by id, on this minion's play (Spark Capacitor's Combo: "cast a Spark Plug"). Runs the
+   *  named spell's `cast` effects on the run — no hand card, no cost. Golden casts it twice. */
+  castSpellById: (ctx, self, params) => {
+    const spell = CARD_INDEX[str(params.cardId)];
+    if (!spell?.spell) return;
+    for (let i = 0; i < gold(self); i++) castSpell(ctx.state, spell);
+  },
+
+  /** Chef Raag — give ALL your minions +A/+H equal to your current Imp Aura (`impBuff`). Golden doubles the
+   *  grant. Fires on Echo (out of combat) and, with a Combo primer, on play too. */
+  buffAllByImpAura: (ctx, self) => {
+    const imp = ctx.state.impBuff ?? { attack: 0, health: 0 };
+    const a = imp.attack * gold(self);
+    const h = imp.health * gold(self);
+    if (a <= 0 && h <= 0) return;
+    for (const c of ctx.state.board) addBuff(c, nameOf(self), a, h);
   },
 
   /** (recruit half) — add a random Magnetic minion to hand; golden adds two. */
@@ -2767,12 +2823,18 @@ export function applyEndOfTurn(state: RunState): void {
 /** One quest-granted recurring End-of-Turn effect. `triggerLeftmostShout`: re-fire your leftmost Battlecry
  *  minion's Battlecry (Echoing Roar). `grantRandomShout`: conjure a random Battlecry minion (≤ tavern tier) to
  *  hand (The Hoard Wakes). `grantRandomAttachments`: conjure 2 random Magnetic minions to hand (Blueprint Cache). */
-function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs'): void {
+function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs'): void {
   if (effect === 'triggerLeftmostShout') {
     const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
     if (leftmost) replayBattlecry(state, leftmost);
   } else if (effect === 'grantRandomAttachments') {
     conjureToHand(state, BUYABLE_CARDS.filter((c) => c.tier <= state.tier && c.keywords.includes('M')), 2);
+  } else if (effect === 'buffMechsPerAttachment') {
+    // Blueprint Cache: give each friendly Mech +2/+2 for every Attachment (Magnetic minion) welded onto it.
+    for (const c of state.board) {
+      const n = c.attachments ?? 0;
+      if (n > 0 && isTribe(c, 'mech')) addBuff(c, 'Blueprint Cache', 2 * n, 2 * n);
+    }
   } else if (effect === 'runeSpending') {
     // Rune of Spending: +1 max Gold, and grant your leftmost minion +N/+N where N = the Gold you spent this turn.
     state.maxGoldBonus = (state.maxGoldBonus ?? 0) + 1;
@@ -2869,7 +2931,8 @@ export function questEndOfTurnBeats(state: RunState): Array<{ effect: string; la
   return out;
 }
 const RECURRING_EOT_LABEL: Record<string, string> = {
-  triggerLeftmostShout: 'Echoing Roar', grantRandomShout: 'The Hoard Wakes', grantRandomAttachments: 'Blueprint Cache',
+  triggerLeftmostShout: 'Echoing Roar', grantRandomShout: 'The Hoard Wakes', grantRandomAttachments: 'Attachments',
+  buffMechsPerAttachment: 'Blueprint Cache',
   runeSpending: 'Rune of Spending', runeAction: 'Rune of Action', triggerLeftmostEcho: 'Rune of the Reliquary',
   weldMoneyBotsEdgeMechs: 'Rune of Banking',
 };

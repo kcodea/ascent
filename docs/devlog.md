@@ -70,7 +70,158 @@ proves `onImpactAuras` fires **once, at the contact anchor** (co-located with `o
 settle tail — not the old start-relative delay). Existing `score.test.ts`/`engine.test.ts` unaffected (the
 "auraBreak on every kind" assertion already excluded `attackExchange`).
 
+### balance: hero reworks — Gildmaster, Indy, Yirin + roster trim
+
+Owner hero pass:
+- **Gildmaster** — reworked from the active "Golden Gild" (spend 3, combine a pair into a golden copy, twice/game)
+  to a **passive**: get a **Goldcrafter** (a spell that makes a friendly minion golden) at the START of every 4th
+  turn (turns 4, 8, 12, …). New `recurringGoldcrafter` power kind, resolved at turn-setup in `advanceCombat`
+  (mirrors the Chaos every-5-turns grant); the old `goldenGild` kind + its reducer branch are removed.
+- **Indy** — the Gild (make a friendly minion golden) now **recharges after every 40 Gold spent** instead of being
+  a hard once-per-game. Keeps the `oncePerGame` gate (the charge locks on use), but `spendGold` un-spends it the
+  moment cumulative `goldSpent` crosses the armed threshold (`indyGildRearmAt = goldSpent + 40`, set on use). New
+  `RunState.indyGildRearmAt`. StatusBar shows the live `N/40 Gold` recharge progress.
+- **Yirin** (Attunement) — the spell-power step now improves **every 10 spells cast** (was every 5): `spellAmplifyBonus`
+  divisor 5→10, text + StatusBar `/10` counters updated.
+- **Roster trim** — **Herald** removed from the game entirely (HeroDef + `adjacentConsume` kind + reducer branch +
+  tests deleted; not baked into the opponent pool, so no regen needed). **Warden**, **Myra**, **Chaos** temporarily
+  withheld from the picker via `wip: true` (kept in the registry so saves/baked boards still resolve them).
+- **Verified**: `typecheck`/`lint`/`test` (964, incl. new Gildmaster turn-4 grant + Indy 40-Gold-refresh regression
+  tests)/`build:web` all green; live checks — Gildmaster gets a Goldcrafter on turn 4; Indy gilds, locks, then
+  recharges exactly at 40 Gold spent and gilds again; the picker never offers the four withheld/removed heroes.
+
+### feat: Combo / Primer keyword + a demon-flavoured card batch
+
+New **Combo/Primer** mechanic. A card flagged `primer: true` (Gold Pouch, Graverobber, Combo Kim) *arms* a
+combo for the **next** card played; a card with a `combo` block, if played **immediately** after a primer, fires
+its combo payoff. Playing anything else between the primer and the combo card **disarms** it.
+
+- **State machine** (`reducer.ts` `case 'play'`): `comboActive = s.comboArmed && def.combo` is captured BEFORE
+  re-arming, then `s.comboArmed = !!def.primer` is set once near the top so it holds across every successful-play
+  exit (minion / spell / discover / magnetic). Reset at turn start. Only PLAY actions touch it (buying/rolling
+  don't). New `RunState.comboArmed?: boolean`.
+- **Two combo shapes**: `combo.chooseBoth` on a Choose One card plays **both** options with no prompt (explicitly
+  *not* a Shout — just both effects, via `applyChooseOne`); `combo.effects` adds extra on-play effects. New
+  `CardDef.primer` / `CardDef.combo` types + zod schema (`combo.effects` / `combo.chooseBoth`, strict).
+- **UI**: a hand card with a Combo glows **orange** while the combo is armed — new `comboReady` prop on `Card`
+  (`.card.comboready`), wired from `run.comboArmed && CARD_INDEX[id].combo` in `Recruit.tsx`. The glow is an
+  opacity-only `::before` over a static tangerine ring (compositor-safe, mirrors `tripready`/`venomcard`).
+- **Cards**: *Godfodder* → Choose One (add 2 Fodder to next shop / Fodder +3/+3) + Combo: do both. *Ritualist* →
+  End of Turn: Imps & Fodder +3/+3, **escalating +3/+3 each trigger** (new per-instance `BoardCard.eotBonus` +
+  `buffFodderImpsImproving` factory). *Chef Raag* (NEW, T4 Demon) → Echo: minions gain stats = your **Imp Aura**;
+  Combo: do it on play too (new `ctx.impAura(side)` combat accessor + `deathrattleBuffAllByImpAura` combat factory
+  and `buffAllByImpAura` recruit factory). *Combo Kim* (NEW, T2 Neutral) → Primer + Start of Combat: give the
+  minion to its right Taunt (`scGrantRightTaunt`). *Buddy Buddy* / *Sporebat* → Combo: also grant a spell. *Spark
+  Capacitor* → Avenge(3) + Combo: cast a Spark Plug (new `castSpellById` factory). *Cinderwing Matron* → Combo:
+  also +1 Attack to spells. *Hoard Cleric* T3→**T2** (3/2). *Tara* T4→**T3** (4/4). *Gold Pouch* / *Graverobber* →
+  Primer. `deathrattleGrantRandomSpell` gains an `exactTier` param.
+- **Verified**: `typecheck`/`lint`/`test` (966, incl. 4 new Combo state-machine tests: primer arms, non-primer
+  disarms, chooseBoth plays both with no modal, primer-then-other cancels)/`build:web` all green; live DOM check —
+  the armed Combo card carries `.comboready`, a non-combo card doesn't.
+- **Follow-up (PR2, deferred)**: Bloodbinder Start-of-Combat Bleed + Commander Impala 50% Critical Strike.
+
+### feat(ui): quoted (whole-word) Compendium search
+
+Extended the Compendium search: wrapping the query in **double quotes** does a WHOLE-WORD match instead of a
+substring. So `"Imp"` serves only cards that say "Imp" as its own word (Imp King, Burial Imp, Contract Imp, Imp
+Overseer, Brood Matron's "summon an Imp") and drops the substring false-positives — **Improve**, **Impala**,
+**Implosion**. Unquoted `Imp` keeps the loose substring behavior. Implemented as a shared `makeSearchMatcher`
+(quoted → `\bterm\b` case-insensitive, regex-escaped; unquoted → `includes`) used by the card gallery + the
+Quests/Runes tabs; the header strips the wrapping quotes ("5 results for \"Imp\""). Verified live: unquoted "Imp"
+= 21 results, quoted "Imp" = 5 (whole-word only).
+
+### feat(ui): Compendium text search
+
+Added a search box to the Compendium header — free-text over card/quest/rune **name + printed text** (so "Imp"
+surfaces Imp King / Burial Imp / Commander Impala plus anything whose text mentions Imps). The search is GLOBAL:
+it scans every in-scope card across all pools (minions + evolutions + spells + quest/rune rewards), ignoring the
+tribe-chip + Spells/Rewards mode toggles, and is still narrowable by the Tier chips; the Quests and Runes tabs
+filter their own lists by name. Header reads "N results for …" while a query is active. Verified live — typing
+"Imp" returns the expected set with no errors.
+
+### balance: Demon card batch 3 + Anomaly Reactor "All type"
+
+Owner card pass (mostly Demon/Fodder). Data + a couple of new mechanics:
+- **Sword and Bored** 3/2 → **2/1**; Slaughter +1/+0 → **+1/+1** (golden +2/+2). **Imp King** Imp buff +2/+3 →
+  **+3/+3**. **Heckbinder** Fodder aura +1/+2 → **+3/+3**. **Commander Impala** gains **Ward** (now Flurry + Ward
+  + Slaughter). **Trickster** now gives its Health to **2** random friends (golden 4) — `deathrattleGiveHealth`
+  gets a `count` param.
+- **Maw of the Pit** — End of Turn now **gives Fodder +1/+1 AND adds a Fodder** (two `endOfTurn` effects).
+- **The Godfodder** — Shout/Echo → **Rally: give your Fodder +2/+2** (new combat `rallyBuffFodder` factory +
+  the RL keyword).
+- **Anomaly Reactor** — Choose One (add one tribe) → **"Give a friendly minion All types"**: a new `allTribes`
+  flag on the board card that `isTribe` short-circuits (all recruit synergies/auras/quests/magnetize), seeded
+  into combat as the per-instance `universalTribe` flag (combat tribe checks now read `m.universalTribe`, unified
+  for the Chaos-Attachment CardDef flag too). `magnetizesTo` honors an all-type host.
+
+Verified: `typecheck + lint + test` (963, incl. updated fixtures + new Trickster / Godfodder-Rally tests) &
+`build:web` green; **live** — all six cards render the new text, and casting Anomaly Reactor sets `allTribes`.
+
+### fix: Runeforge-timing + Gravetwin-echo bugs + Demon/Fodder card batch
+
+Owner batch (tabled 2026-07-13). Two bugs + rune/hero/card changes.
+
+**Bugs:**
+- **Runeforge quests opened MID-TURN** (should be the START of next turn, after combat) — the player had already
+  spent the Gold they needed for the runes. A forge armed mid-turn (The Runeforge / The Epic Runeforge quests)
+  is now `deferred`; `openNextStartOfTurnModal`'s mid-turn modal-close drains skip a deferred forge, and
+  `advanceCombat` promotes it (clears the flag) at the next turn's start. New `pendingForgeDeferred` +
+  `pendingBasicForge.deferred`.
+- **Gravetwin's copied Echo did nothing** when triggered by Ossuary Rite (and never fired if Gravetwin died in
+  combat). `fireRecruitDeathrattles` now folds in `copiedEcho` (so "trigger this minion's Echo" fires the copied
+  effect, incl. growth like Grim's), and `instantiate` carries `copiedEcho` into combat as a real Deathrattle so
+  it procs on Gravetwin's combat death. Threaded `copiedEcho` through `BoardMinion` + the reducer's combat map.
+
+**Changes:**
+- **Rune of Twilight** text now matches its mechanic ("Start-of-Combat effects trigger an additional time" — it
+  was mislabeled "also trigger at End of Turn"). **Runeguard** armor 14 → **8**.
+- **Sword and Bored** 2/1 → **3/2**. **The Godfodder**: Choose One → **Shout: Fodder +2/+2. Echo: add a Fodder**.
+- **Soulfeeder**: → **Shout: add a Fodder to the next 2 shops**. **Pit Supplier**: → **Avenge (3): 2 Fodder to
+  the next 2 shops**. Both use a new `fodderSchedule` (Fodder queued across several upcoming refreshes) — recruit
+  arms it directly; combat carries it back via `playerFodderSchedule`.
+- **Burial Imp**: → **Echo: Fodder +1/+1 and summon an Imp** (new `deathrattleBuffFodder` combat factory +
+  `deathrattleSummon`). **Bloodbinder**: → **Rally: give your Fodder half this minion's Attack, alternating
+  Attack↔Health each turn** (`bloodbinderMode` flips at each turn's start, seeded into combat).
+
+Verified: `typecheck + lint + test` (963, incl. new regression tests for both bugs + the new mechanics) &
+`build:web` green; **live** — all six changed cards render the new text with no errors.
+
+### feat(ui): self-buff pulse 50% larger
+
+Owner ruling: the in-combat **self-buff pulse** (the ring shockwave + gold core flash + spark burst that pops
+in place when a unit empowers ITSELF — Target Dummy gaining Attack on damage, and any other `source === target`
+buff routed through the `buffSelf` channel) reads too small. Scaled `PULSE_PRESETS.default`
+(`packages/ui/src/pulsePresets.ts`) up 50% on its px-radius dials: `ringSize` 173 → 259.5, `coreFlashSize`
+200 → 300, `sparkSize` 7 → 10.5, and `sparkSpeed` 390 → 585 (so the spark burst's *extent* grows with the
+rings rather than landing inside the now-larger ring). Left `ringWidth`, durations, and counts as-is — the
+effect grows in footprint without getting thicker-lined or slower. `PULSE_ASSIGN` is empty, so the change
+applies to **every** unit's self-buff pulse, not just Target Dummy.
+
+Verified: `typecheck + lint + test` & `build:web` green (`pulsePresets.test.ts` asserts field presence, not
+values, so the numeric change is safe).
+
 ## 2026-07-12 (session 34)
+
+### feat: quest Part C — 3 new reward mechanics + live badge tooltips
+
+Completes the quest/minion spec pass. The three quests that needed genuinely new mechanics, plus live tooltips.
+
+- **Imp Census** → `multi[grant a random Demon (repeatable), impAura +1/+1]`. New `impAura` reward calls the
+  existing `buffImpsRunWide` (bumps `impBuff`, the run-wide Imp aura `simulate` already applies to every friendly
+  Imp), so Imps improve +1/+1 permanently — and again on each `repeatInTurns` re-grant (folded through `multi`).
+- **Assembly Line** → `combatFlag assemblyLine` (amount 4). New `assemblyLineStep` combat mod: every 4th friendly
+  death in combat, `grantToHand('moneybot')` (player-only — Avenge-paced like The Bone Throne).
+- **Blueprint Cache** → new `recurringEndOfTurn` effect `buffMechsPerAttachment`: each End of Turn, buff every
+  friendly Mech +2/+2 **per Attachment welded onto it**. `weldMagnetic` now increments a per-card `attachments`
+  counter (host + any Beatboxer mirror) to drive it. Objective 4 → **6**.
+- **Live badge tooltips** (owner ask): new `questRewardLiveText` folds the CURRENT magnitude of scaling/stat
+  rewards into the completed-quest tooltip — scalingTribeAura shows "Now: Beasts +X/+Y · +step in N more", tribeAura
+  / The Old Hunt show the live Beast aura total, Umbral Energy shows its live "+2×spells/+2×spells at Start of
+  Combat". `QuestBadges` computes the live context (`beastBuyAtk/Hp`, `spellsCast`, the matching `questScalingAuras`
+  entry) from the run and renders it.
+
+Verified: `typecheck + lint + test` (960, incl. new mechanic + live-text tests) & `build:web` green; **live** — a
+completed Pack Mentality badge's tooltip reads "Now: Beasts +12/+12 · +4/+4 in 3 more".
 
 ### balance: quest-reward minion tweaks (Contract Imp, Scrap Vendor, Bloodlust, Trophy Stalker, Chorus Engine, Bone Taxer)
 
@@ -86,6 +237,29 @@ Owner balance pass on six quest-reward cards (Part A of a larger quest/minion sp
   `bloodlust`. New simulate test covers it.
 
 Verified: `typecheck + lint + test` (950) & `build:web` green.
+
+### balance: quest table reconciliation — objectives, reward amounts, tiers (Part B)
+
+Reconciled `quests.ts` against the owner's authoritative quest table (Part B of the quest/minion pass — data only,
+no new mechanics). 23 value tweaks + 2 tier moves + 3 reward remaps:
+- **Value tweaks** (objective counts / reward amounts): Den Marker aura +3/+0 → **+2/+2**; Forest Grove 5 → **8**;
+  Small Offering fodder 2/+2/+2 → **1/+1/+1**; Hoard Spark buy 3 → **4** + now repeatable; Grave Contract 4 → **7**;
+  Shop License spend 15/+2 → **20/+4**; Grave Robber 3 → **4**; Apex Hunt slaughter 4 → **6**; Pack Mentality
+  summon 7 → **5**, aura 3/1 step 3/1 → **4/4 step 4/4**; Ancient Runes 50 → **60**; Dupes 3 → **2**; Echo Chamber
+  12 → **9**; Last Rites 6 → **9**; Merchant's Mark 30 → **40**; Maw of the Run 100 → **70**; Pit Without End 17 →
+  **12**; True Contract 20 → **18**; Chimerus 16 → **12**; Taragosa's Inheritance 200 → **250**; Anomalous Reactor
+  25 → **15**; Attachment Issues 14 → **12**.
+- **Objective-EVENT fixes** (higher-risk — they change what the player DOES): Feed the Alpha sell 5 → **Kill 11**;
+  The Pivot Door sell 10 → **Spend 13**; The Epic Runeforge spend 25 → **Buy 9**; Forsaken Will's spurious
+  castSpell compound → plain **Summon 6 Undead in combat**.
+- **Reward remaps**: Dark Bargain → `multi[grant Contract Imp, +1 Fodder]`; Feed the Alpha → `multi[grant Baby
+  Cub, recurring Feed the Alpha]`; The Epic Runeforge → `multi[open Epic Runeforge, +8 Gold]` (the gold banks to
+  the turn the forge opens, matching the basic Runeforge quest).
+- **Tier moves**: Spell Thesis greater → **lesser**; Machine Chorus capstone → **greater**.
+
+Deferred to Part C (need new mechanics): Imp Census ("improve Imps +1/+1"), Assembly Line ("Avenge(4): get a
+Money Bot"), Blueprint Cache ("EoT: +2/+2 per attachment"). Updated 10 quest-fixture tests to the new spec.
+Verified: `typecheck + lint + test` (949) & `build:web` green.
 
 ### fix: Lazarus's spell discount now shows in the shop (green cost coin)
 

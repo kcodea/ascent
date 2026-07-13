@@ -529,9 +529,9 @@ describe('Runes batch 4b — new cards (Feasting Bogrot / Reconfigured Combinato
   const buyEpic = (runeId: string): RunState =>
     reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, hand: [], runeforgeOffer: [runeId], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
 
-  it('Runeguard: Defend the Forge — 14 armor + schedules the Epic Runeforge for turn 10', () => {
+  it('Runeguard: Defend the Forge — 8 armor + schedules the Epic Runeforge for turn 10', () => {
     const s = createRun(1, 'runeguard');
-    expect(s.armor).toBe(14);
+    expect(s.armor).toBe(8);
     expect(s.epicForgeWave).toBe(10);
     const next = reduce({ ...s, wave: 9, phase: 'combat', epicForgeWave: 10, lastCombat: win }, { type: 'resolveCombat' });
     expect(next.wave).toBe(10);
@@ -564,22 +564,24 @@ describe('Runes batch 4b — new cards (Feasting Bogrot / Reconfigured Combinato
 describe('The Epic Runeforge — the greater quest that opens the Epic Runeforge next turn', () => {
   const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
 
-  it('is a neutral greater quest named "The Epic Runeforge" whose reward opens the Epic Runeforge', () => {
+  it('is a neutral greater quest named "The Epic Runeforge" (buy 9) whose reward opens the Epic Runeforge + gives 8 Gold', () => {
     const q = QUEST_INDEX['q_epic_commission']!;
     expect(q).toBeDefined();
     expect(q.name).toBe('The Epic Runeforge');
     expect(q.tribe).toBe('neutral');
     expect(q.tier).toBe('greater');
-    expect(q.reward).toEqual({ kind: 'openEpicRuneforge' });
+    expect(q.objective).toEqual({ event: 'buy', count: 9 });
+    expect(q.reward).toEqual({ kind: 'multi', rewards: [{ kind: 'openEpicRuneforge' }, { kind: 'gainGold', amount: 8 }] });
   });
 
-  it('completing it ARMS the forge for next turn — it does not open on the completing turn', () => {
-    let s: RunState = { ...createRun(1, 'warden'), wave: 7, phase: 'recruit', embers: 10, freeRolls: 0,
-      activeQuests: [{ questId: 'q_epic_commission', progress: 24, completed: false }] };
-    s = reduce(s, { type: 'roll' }); // spend ≥1 Gold → objective hits 25 → completes
+  it('completing it (the 9th buy) ARMS the forge for next turn + grants 8 Gold — it does not open on the completing turn', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 7, phase: 'recruit', tier: 6, embers: 5, freeRolls: 0,
+      activeQuests: [{ questId: 'q_epic_commission', progress: 8, completed: false }] };
+    s = reduce(s, { type: 'buy', uid: s.shop[0]!.uid }); // 9th buy → completes
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.pendingEpicRuneforge).toBe(true); // armed…
     expect(s.runeforgeOffer).toBeUndefined(); // …but NOT opened this turn
+    expect(s.bonusEmbersNextTurn).toBe(8); // +8 Gold banked for the turn the forge opens
   });
 
   it('the armed forge opens at the start of the next (non-quest) turn, then disarms', () => {
@@ -590,6 +592,21 @@ describe('The Epic Runeforge — the greater quest that opens the Epic Runeforge
     expect(next.runeforgeEpic).toBe(true);
     for (const id of next.runeforgeOffer!) expect(EPIC_RUNES.some((rn) => rn.id === id)).toBe(true);
     expect(next.pendingEpicRuneforge).toBe(false); // disarmed once opened
+  });
+
+  it('The Runeforge quest: the basic forge is DEFERRED — opens NEXT turn, not mid-turn (owner bug 2026-07-13)', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 5, phase: 'recruit', tier: 6, embers: 20, freeRolls: 0,
+      resolve: 999, maxResolve: 999, armor: 999,
+      activeQuests: [{ questId: 'q_the_runeforge', progress: 6, completed: false }] };
+    s = reduce(s, { type: 'buy', uid: s.shop[0]!.uid }); // 7th buy → completes The Runeforge
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    expect(s.pendingBasicForge?.deferred).toBe(true); // armed, but deferred…
+    expect(s.runeforgeOffer).toBeUndefined(); // …so it does NOT open on the completing turn
+    // Next turn (after this turn's combat) it opens at the start.
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.runeforgeOffer).toBeDefined(); // opened at the start of next turn
+    expect(s.runeforgeEpic).toBeFalsy(); // the BASIC forge
   });
 
   it('sequences behind a quest-offer turn: the Quest shows first, then buying it opens the Epic forge SAME turn', () => {

@@ -90,7 +90,11 @@ export const EffectFactoryIdSchema = z.enum([
   'endOfTurnBuff',
   'endOfTurnMagnetizeMechs',
   'addTavernFodder',
+  'addFodderNextShops',
   'deathrattleAddFodder',
+  'deathrattleBuffFodder',
+  'rallyBuffFodderHalf',
+  'rallyBuffFodder',
   'avengeAddFodder',
   'avengeGrantSpellPower',
   'avengeImproveSummon',
@@ -218,6 +222,12 @@ export const EffectFactoryIdSchema = z.enum([
   'spellBloodlust',
   'copyLeftmostEcho',
   'spellAddTribe',
+  'spellAddAllTribes',
+  'castSpellById',
+  'buffAllByImpAura',
+  'deathrattleBuffAllByImpAura',
+  'buffFodderImpsImproving',
+  'scGrantRightTaunt',
   'onAttackStripKeywords',
 ]);
 
@@ -273,6 +283,8 @@ export const CardDefSchema = z.object({
     .array(z.object({ text: z.string(), goldenText: z.string().optional(), effects: z.array(EffectDefSchema), target: z.enum(['friendly', 'any']).optional() }).strict())
     .min(2)
     .optional(),
+  primer: z.boolean().optional(),
+  combo: z.object({ effects: z.array(EffectDefSchema).optional(), chooseBoth: z.boolean().optional() }).strict().optional(),
   discoverOnPlay: z
     .object({
       exactTier: z.number().int().positive().optional(),
@@ -299,7 +311,7 @@ export const QuestObjectiveEventSchema = z.enum([
   'winRound', 'castSpell', 'authorsHand',
   'compound',
 ]);
-export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves', 'runeWarding', 'runeFury', 'runeSlaying', 'runeForthcoming', 'runeRallying', 'runeRisingGraves', 'runeBroodpit', 'runeSpearline', 'runeAppraisal', 'runeSoulTaxes', 'runeFirstClaws', 'runePackcraft', 'runeInheritance', 'runeSalvage', 'runeTwilight', 'runeWarden']);
+export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOfTeeth', 'oldHunt', 'sharedCircuit', 'deepHunger', 'contractRewrite', 'pitWithoutEnd', 'doubleLeftmostAttack', 'feedingLine', 'umbralEnergy', 'emptyGraves', 'assemblyLine', 'runeWarding', 'runeFury', 'runeSlaying', 'runeForthcoming', 'runeRallying', 'runeRisingGraves', 'runeBroodpit', 'runeSpearline', 'runeAppraisal', 'runeSoulTaxes', 'runeFirstClaws', 'runePackcraft', 'runeInheritance', 'runeSalvage', 'runeTwilight', 'runeWarden']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -331,10 +343,11 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
     stepHealth: z.number().int().nonnegative(),
   }).strict(),
   z.object({ kind: z.literal('recurringGrant'), cards: z.array(z.string().min(1)).min(1) }).strict(),
+  z.object({ kind: z.literal('impAura'), attack: z.number().int().nonnegative(), health: z.number().int().nonnegative() }).strict(),
   z.object({ kind: z.literal('combatFlag'), flag: QuestCombatFlagSchema, amount: z.number().int().nonnegative().optional() }).strict(),
   z.object({ kind: z.literal('shoutRepeat'), scope: z.enum(['always', 'firstEachRound']) }).strict(),
   z.object({ kind: z.literal('endOfTurnRepeat') }).strict(),
-  z.object({ kind: z.literal('recurringEndOfTurn'), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments', 'runeSpending', 'runeAction', 'triggerLeftmostEcho', 'weldMoneyBotsEdgeMechs']) }).strict(),
+  z.object({ kind: z.literal('recurringEndOfTurn'), effect: z.enum(['triggerLeftmostShout', 'grantRandomShout', 'grantRandomAttachments', 'buffMechsPerAttachment', 'runeSpending', 'runeAction', 'triggerLeftmostEcho', 'weldMoneyBotsEdgeMechs']) }).strict(),
   z.object({ kind: z.literal('gainGold'), amount: z.number().int().positive() }).strict(),
   z.object({ kind: z.literal('echoRepeat'), scope: z.enum(['always', 'firstEachCombat']) }).strict(),
   z.object({ kind: z.literal('boneThrone'), every: z.number().int().positive() }).strict(),

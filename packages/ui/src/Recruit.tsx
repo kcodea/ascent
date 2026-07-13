@@ -1407,7 +1407,7 @@ export function Recruit() {
           ? warbandIndexAt(e.clientX - d.ox + d.w / 2)
           : -1;
       const magMech = magIdx >= 0 ? run.board[magIdx] : undefined;
-      if (magMech && magnetizesTo(d.view.cardId, magMech.cardId, magMech.addedTribes)) {
+      if (magMech && magnetizesTo(d.view.cardId, magMech.cardId, magMech.addedTribes, magMech.allTribes)) {
         const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${magMech.uid}"]`);
         if (el) {
           const r = el.getBoundingClientRect();
@@ -1851,7 +1851,7 @@ export function Recruit() {
     !!drag?.active &&
     !magSlide && // once the slide starts, the warband settles (no more shove preview)
     !!magHoverTarget &&
-    magnetizesTo(drag.view.cardId, magHoverTarget.cardId, magHoverTarget.addedTribes);
+    magnetizesTo(drag.view.cardId, magHoverTarget.cardId, magHoverTarget.addedTribes, magHoverTarget.allTribes);
   // Casting a targeted spell from the hand: highlight the friendly minion under the cursor (it's the target),
   // and don't treat it as a board-insertion drag. `castingSpell` itself is defined above (near the drag rAF).
   // The target under the cursor — a board minion, or (for `any` spells) a tavern offer.
@@ -2647,6 +2647,8 @@ export function Recruit() {
             const fanRot = n <= 1 ? 0 : Math.max(-7, Math.min(7, (i - (n - 1) / 2) * 1.8));
             // Disco Dan's Setlist: a card locked until its shop tier is greyed + shows a padlock (and can't be played).
             const locked = !!m.lockedUntilTier && run.tier < m.lockedUntilTier;
+            // Combo armed by a Primer just played → glow any hand card with a Combo (playing it now triggers it).
+            const comboReady = !!run.comboArmed && !locked && !!CARD_INDEX[m.cardId]?.combo;
             return (
               <Card
                 key={m.uid}
@@ -2663,6 +2665,7 @@ export function Recruit() {
                 onPointerDown={onCardPointerDown}
                 locked={locked}
                 lockLabel={locked ? `Tier ${m.lockedUntilTier}` : undefined}
+                comboReady={comboReady}
                 forceFull
               />
             );

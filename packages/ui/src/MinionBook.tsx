@@ -128,6 +128,25 @@ function grantsKeyword(c: CardDef, code: Keyword): boolean {
  *  surfaces Mumi (which has no Rise itself but hands it out), "Ward" surfaces Selfless Sentinel, etc. */
 const kwMatch = (code: Keyword) => (c: CardDef): boolean => c.keywords.includes(code) || grantsKeyword(c, code);
 
+/** Build a text predicate from the raw search-box value. Two modes:
+ *  - **Quoted** (`"Imp"`) → WHOLE-WORD match, so it hits "Imp" / "Imp King" but NOT "Improve" / "Imps" / "Impala".
+ *  - **Unquoted** (`Imp`) → case-insensitive substring (the loose default).
+ *  Empty / quotes-only → matches everything. Callers OR it across a card's name + text fields. */
+function makeSearchMatcher(raw: string): (text: string) => boolean {
+  const trimmed = raw.trim();
+  if (!trimmed) return () => true;
+  const quoted = trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"');
+  if (quoted) {
+    const term = trimmed.slice(1, -1).trim();
+    if (!term) return () => true;
+    // `\b…\b` around the regex-escaped term: a word boundary on each side excludes substrings inside a larger word.
+    const re = new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    return (text) => re.test(text);
+  }
+  const lower = trimmed.toLowerCase();
+  return (text) => text.toLowerCase().includes(lower);
+}
+
 /** The glossary — every keyword + trigger the cards use, one rule apiece. Grouped by when-it-fires
  *  (Triggers), what-it-does-in-combat (Combat), and shop/build terms. Icons + names mirror the card
  *  pills (KW_LABEL / KW_ICON + triggerPill in Card.tsx) so the codex and the cards speak one language.
@@ -214,6 +233,7 @@ export function MinionBook() {
 
   const [tiers, setTiers] = useState<Set<number>>(() => new Set());
   const [cats, setCats] = useState<Set<Category>>(() => new Set());
+  const [search, setSearch] = useState(''); // free-text search over card/quest/rune name + text ("Imp", "Ward", …)
   const [gilded, setGilded] = useState(false); // show every card's tripled/golden form
   const [glossary, setGlossary] = useState(false); // swap the gallery for the keyword codex
   const [kw, setKw] = useState<{ term: string; icon: string; match: (c: CardDef) => boolean } | null>(null); // active keyword filter (from the glossary)
@@ -228,19 +248,24 @@ export function MinionBook() {
 
   // Every rune (both forges) for the Runes tab — Basic set first, then Epic, each alphabetical. Not run-scoped
   // (runes aren't tribe-bound); shown as read-only RuneCards.
-  const runesToShow = useMemo(() =>
-    [...[...RUNES].sort((a, b) => a.name.localeCompare(b.name)), ...[...EPIC_RUNES].sort((a, b) => a.name.localeCompare(b.name))], []);
+  const runesToShow = useMemo(() => {
+    const m = makeSearchMatcher(search);
+    const match = (r: { name: string; text: string }): boolean => m(r.name) || m(r.text);
+    return [...[...RUNES].sort((a, b) => a.name.localeCompare(b.name)), ...[...EPIC_RUNES].sort((a, b) => a.name.localeCompare(b.name))].filter(match);
+  }, [search]);
 
   // The quest DEFINITIONS to show in the Quests tab — scoped like the cards: every quest whose tribe is neutral
   // or in `tribes`, narrowed further by any selected tribe chips. Sorted lesser → greater → capstone, then name.
   const questTierOrder = { lesser: 0, greater: 1, capstone: 2 } as const;
   const questsToShow = useMemo(() => {
     const tribeSel = [...cats].filter((x): x is Tribe => !NON_TRIBE_CATS.has(x));
+    const m = makeSearchMatcher(search);
     return QUEST_DEFS
-      .filter((q) => q.tribe === 'neutral' || tribes.includes(q.tribe))
-      .filter((q) => tribeSel.length === 0 || tribeSel.includes(q.tribe))
+      .filter((qd) => qd.tribe === 'neutral' || tribes.includes(qd.tribe))
+      .filter((qd) => tribeSel.length === 0 || tribeSel.includes(qd.tribe))
+      .filter((qd) => m(qd.name)) // search matches the quest name
       .sort((a, b) => questTierOrder[a.tier] - questTierOrder[b.tier] || a.name.localeCompare(b.name));
-  }, [tribes, cats]);
+  }, [tribes, cats, search]);
 
   // Every eligible card: minions whose tribe is neutral or in `tribes`, plus every tavern spell and every
   // quest-reward card whose granting quest is in scope. Buyable tokens are dropped by `BUYABLE_CARDS`; the
@@ -262,7 +287,22 @@ export function MinionBook() {
     return out;
   }, [tribes]);
 
+  const query = search.trim().toLowerCase();
+  // Free-text match over a card's name + printed text (and golden text) — powers the search box. Quote the query
+  // ("Imp") for a whole-word match; leave it unquoted (Imp) for a loose substring.
+  const searchMatch = makeSearchMatcher(search);
+  const matchText = (c: CardDef): boolean => searchMatch(c.name) || searchMatch(c.text ?? '') || searchMatch(c.goldenText ?? '');
+
   const filtered = useMemo(() => {
+    // A text search is GLOBAL: it scans every in-scope card (minions + evolutions + spells + quest/rune rewards),
+    // ignoring the tribe chips + Spells/Rewards mode toggles, so typing "Imp" surfaces every match. Tier chips
+    // still narrow it. Overrides the category logic below.
+    if (query) {
+      if (cats.has('quests') || cats.has('runes')) return []; // those tabs filter their own lists by the query
+      return allCards
+        .filter((c) => (tiers.size === 0 || tiers.has(c.tier)) && matchText(c))
+        .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
+    }
     // Spells + Quest Rewards are EXCLUSIVE modes, not additive axes: selecting either shows ONLY that pool
     // (or both pools, if both are on) and hides the minion gallery entirely. With neither selected, the gallery
     // is minions-only — spells and quest rewards never leak into a tribe search unless the player toggles them on.
@@ -285,7 +325,7 @@ export function MinionBook() {
         return tribeSel.length === 0 || tribeSel.includes(c.tribe) || (!!c.tribe2 && tribeSel.includes(c.tribe2));
       })
       .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
-  }, [allCards, tiers, cats, kw]);
+  }, [allCards, tiers, cats, kw, query]);
 
   // A glossary term is a live filter only if at least one in-scope card matches it — otherwise the row
   // renders inert (no dead-end clicks). Scope-aware: a keyword absent from this run's tribes reads inert.
@@ -318,6 +358,10 @@ export function MinionBook() {
           <div className="book-sub">
             {glossary
               ? 'Keywords & abilities — click one to see its minions'
+              : query
+                ? `${(cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : filtered.length)} result${
+                    (cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : filtered.length) === 1 ? '' : 's'
+                  } for "${search.trim().replace(/^"(.*)"$/, '$1')}"`
               : cats.has('runes')
                 ? `${runesToShow.length} runes — the Basic + Epic Runeforge stock`
                 : cats.has('quests')
@@ -328,6 +372,16 @@ export function MinionBook() {
                       .join(' & ') || 'minions'
                   } ${showTitle || cats.has('runeRewards') ? 'in the game' : 'findable this run'}`}
           </div>
+          {!glossary && (
+            <input
+              className="book-search"
+              type="search"
+              placeholder={'Search… (Imp, or "Imp" exact)'}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search cards, quests, and runes by name or text"
+            />
+          )}
           <button
             className={`book-gloss${glossary ? ' on' : ''}`}
             onClick={() => setGlossary((g) => !g)}

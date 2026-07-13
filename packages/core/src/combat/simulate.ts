@@ -96,6 +96,7 @@ export function simulate(
   const fodderBuffGain = { attack: 0, health: 0 }; // permanent run-wide Fodder enchant from this combat (Bane via Ryme)
   const cardBuffGains: { cardId: string; attack: number; health: number }[] = []; // run-wide card-type buffs (Grave Knit)
   let fodderGrants = 0; // Fodder queued into the next tavern (Burial Imp's Deathrattle)
+  const fodderSchedule: number[] = []; // Fodder queued across the next several shops (Pit Supplier's Avenge)
   let maxGoldGain = 0; // permanent max-Gold gain (Soulsman's Avenge)
   let bonusGoldGain = 0; // one-time Gold granted into the next shop (Bounty Bot's Slaughter)
   const buffCounts = new Map<string, number>(); // # of stat-grants per minion this combat (Tara → Taragosa ascend)
@@ -124,7 +125,7 @@ export function simulate(
    * enchants flow automatically from `cardBuffs`.
    */
   const isUndeadMinion = (m: Minion): boolean =>
-    m.tribe === 'undead' || m.tribe2 === 'undead' || !!cards[m.cardId]?.universalTribe;
+    m.tribe === 'undead' || m.tribe2 === 'undead' || !!m.universalTribe;
 
   // The Imp Aura is PER-SIDE (unlike the other aggregate auras, which are the player's run state). The player's
   // seeds from run state (impAtkBonus/impHpBonus); each side's in-combat imp-buffers (Imp King / Brood Matron via
@@ -153,7 +154,7 @@ export function simulate(
       // re-added only to from-base bodies (summoned/Reborn Beasts); starting Beasts already carry it.
       label: 'Beast Aura',
       grant: (m) =>
-        m.tribe === 'beast' || m.tribe2 === 'beast' || cards[m.cardId]?.universalTribe
+        m.tribe === 'beast' || m.tribe2 === 'beast' || m.universalTribe
           ? { attack: 0, health: 0, bakedAtk: beastAtkAuraFor[m.side], bakedHp: beastHpAuraFor[m.side] }
           : { attack: 0, health: 0 },
     },
@@ -266,7 +267,7 @@ export function simulate(
   };
   const ALL_TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
   const tribesFor = (m: Minion): Tribe[] => {
-    if (cards[m.cardId]?.universalTribe) return ALL_TRIBES; // counts as every tribe (like the run-wide auras)
+    if (m.universalTribe) return ALL_TRIBES; // counts as every tribe (like the run-wide auras)
     return [m.tribe, m.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
   };
   const byTribeMap = { attack: questTally.attackByTribe, summonCombat: questTally.summonCombatByTribe, slaughter: questTally.slaughterByTribe };
@@ -301,8 +302,8 @@ export function simulate(
     questTally.slaughterKeyword += 1;
     questEvents.push({ step: stepN, kind: 'slaughterKeyword', tribes: [] });
   };
-  const isBeast = (m: Minion): boolean => m.tribe === 'beast' || m.tribe2 === 'beast' || !!cards[m.cardId]?.universalTribe;
-  const isDemon = (m: Minion): boolean => m.tribe === 'demon' || m.tribe2 === 'demon' || !!cards[m.cardId]?.universalTribe;
+  const isBeast = (m: Minion): boolean => m.tribe === 'beast' || m.tribe2 === 'beast' || !!m.universalTribe;
+  const isDemon = (m: Minion): boolean => m.tribe === 'demon' || m.tribe2 === 'demon' || !!m.universalTribe;
 
   // Blood Trail: the leftmost living player minion, captured at Start of Combat, "gains Slaughter: get a random
   // Beast" for this fight — each enemy it kills conjures a random Beast to hand (via ctx.grantRandomMinion).
@@ -465,6 +466,10 @@ export function simulate(
       if (side !== 'player') return; // enemies have no tavern
       fodderGrants += count;
     },
+    scheduleFodder: (counts, side) => {
+      if (side !== 'player') return; // enemies have no tavern
+      counts.forEach((c, i) => { fodderSchedule[i] = (fodderSchedule[i] ?? 0) + c; }); // Pit Supplier: Fodder over the next N shops
+    },
     deferBattlecry: (cardId, golden, side) => {
       if (side !== 'player') return; // enemies have no run state to carry economy battlecries back to
       deferredBattlecries.push({ cardId, golden });
@@ -518,6 +523,7 @@ export function simulate(
       // Only the player carries the buff back into run state (the enemy is regenerated each wave).
       if (side === 'player') { impBuffGain.attack += attack; impBuffGain.health += health; }
     },
+    impAura: (side) => ({ ...impAura[side] }), // Chef Raag reads the live Imp Aura to buff your minions by it
     grantFodderBuff: (attack, health, side) => {
       if (side !== 'player') return; // enemies have no run state
       fodderBuffGain.attack += attack;
@@ -552,7 +558,7 @@ export function simulate(
    */
   function applyTribeAuras(minion: Minion): void {
     for (const aura of tribeAuras) {
-      if (aura.side === minion.side && (aura.tribe === 'any' || minion.tribe === aura.tribe || minion.tribe2 === aura.tribe || (aura.tribe !== 'neutral' && !!cards[minion.cardId]?.universalTribe))) {
+      if (aura.side === minion.side && (aura.tribe === 'any' || minion.tribe === aura.tribe || minion.tribe2 === aura.tribe || (aura.tribe !== 'neutral' && !!minion.universalTribe))) {
         ctx.buff(minion, aura.attack, aura.health, aura.source);
       }
     }
@@ -884,6 +890,10 @@ export function simulate(
       const lead = boards[side].find((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onDeath'));
       if (lead) { nextStep(); if (side === 'player') bumpDeathrattles(1); fireOwnDeathrattles(lead); }
     }
+    // Assembly Line: every N friendly deaths (Avenge N), add a Money Bot to your hand. Player-only —
+    // `grantToHand` no-ops for a served enemy (no hand). Avenge-paced like The Bone Throne.
+    const asmStep = modsFor(side).assemblyLineStep ?? 0;
+    if (asmStep > 0 && deaths[side] % asmStep === 0) { nextStep(); ctx.grantToHand('moneybot', side, minion.uid); }
     // Pit Without End: the friendly death that empties your board summons N Imps (a last stand, once per fight).
     const pitImps = modsFor(side).pitWithoutEndImps ?? 0;
     if (pitImps > 0 && !pitDone[side] && countLiving(side) === 0) {
@@ -1291,7 +1301,7 @@ export function simulate(
       let stepped = false;
       for (const m of boards[scSide]) {
         if (m.dead || m.health <= 0) continue;
-        if (m.tribe !== 'dragon' && m.tribe2 !== 'dragon' && !cards[m.cardId]?.universalTribe) continue;
+        if (m.tribe !== 'dragon' && m.tribe2 !== 'dragon' && !m.universalTribe) continue;
         if (!stepped) { nextStep(); stepped = true; }
         ctx.buff(m, amt, amt, m.uid);
       }
@@ -1655,6 +1665,7 @@ export function simulate(
     playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,
     playerCardBuffs: cardBuffGains.length > 0 ? cardBuffGains : undefined,
     playerFodderGrants: fodderGrants > 0 ? fodderGrants : undefined,
+    playerFodderSchedule: fodderSchedule.some((n) => n > 0) ? fodderSchedule : undefined,
     playerDeferredBattlecries: deferredBattlecries.length > 0 ? deferredBattlecries : undefined,
     playerMaxGoldGain: maxGoldGain > 0 ? maxGoldGain : undefined,
     playerBonusGold: bonusGoldGain > 0 ? bonusGoldGain : undefined,

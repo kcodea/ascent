@@ -8,7 +8,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, adjacentConsumeFodder, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -17,6 +17,11 @@ function spendGold(s: RunState, amount: number): void {
   s.embers -= amount;
   s.goldSpent = (s.goldSpent ?? 0) + amount; // career/post-run stat
   s.goldSpentThisTurn = (s.goldSpentThisTurn ?? 0) + amount; // per-turn (Patch Job); reset each wave
+  // Indy: the (spent) Gild charge recharges after every 40 Gold spent — un-spend it the moment the threshold lands.
+  if (s.heroId === 'indy' && s.heroPowerSpent && s.indyGildRearmAt != null && s.goldSpent >= s.indyGildRearmAt) {
+    s.heroPowerSpent = false;
+    s.indyGildRearmAt = undefined;
+  }
   applyGoldSpent(s, amount);
   advanceQuestsBy(s, (o) => o.event === 'spendGold', amount); // Coin Hoard: "Spend N Gold"
   // Food for Gold: every `per` Gold spent queues a Fodder into the next shop + bumps the run-wide Fodder aura.
@@ -142,15 +147,15 @@ function mergeBuffs(buffs: CardBuff[]): CardBuff[] {
 /** Whether a Magnetic minion can weld onto a target minion: they must share a tribe, counting BOTH
  *  cards' tribes. So Cling Drone (Mech) → any Mech *including* Heckbinder (Demon/Mech); Heckbinder
  *  → a Mech or a Demon; and a Mech-magnetic card can attach onto Heckbinder because it's also a Mech. */
-export function magnetizesTo(magneticCardId: string, targetCardId: string, targetAddedTribes?: Tribe[]): boolean {
+export function magnetizesTo(magneticCardId: string, targetCardId: string, targetAddedTribes?: Tribe[], targetAllTribes?: boolean): boolean {
   const m = CARD_INDEX[magneticCardId];
   const t = CARD_INDEX[targetCardId];
   if (!m || !t) return false;
   // universalTribe Magnetic cards (Chaos Attachment) can weld onto any non-neutral target (or another all-type).
-  if (m.universalTribe) return t.tribe !== 'neutral' || !!t.universalTribe;
-  // A universalTribe HOST counts as every tribe (incl. Mech), so it accepts any Magnetic — e.g. a normal Mech
-  // magnetic welding onto a Chaos Attachment (whose printed tribe is 'neutral', so the tribe match below misses).
-  if (t.universalTribe) return true;
+  if (m.universalTribe) return t.tribe !== 'neutral' || !!t.universalTribe || !!targetAllTribes;
+  // A universalTribe HOST (CardDef flag) or an Anomaly-Reactor "All" instance counts as every tribe (incl. Mech),
+  // so it accepts any Magnetic — e.g. a normal Mech magnetic welding onto it.
+  if (t.universalTribe || targetAllTribes) return true;
   const mag: Tribe[] = [m.tribe, m.tribe2].filter((x): x is Tribe => !!x);
   // Anomaly Reactor: a spell-added instance tribe (Mech) makes the host a valid weld target too.
   const tgt: Tribe[] = [t.tribe, t.tribe2, ...(targetAddedTribes ?? [])].filter((x): x is Tribe => !!x);
@@ -446,6 +451,11 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (card.lockedUntilTier && s.tier < card.lockedUntilTier) return state;
 
       const def = CARD_INDEX[card.cardId];
+      // Combo: a Combo fires only if the previous play was a Primer. Capture that BEFORE re-arming, then re-arm
+      // for the NEXT play from THIS card (a primer arms it; anything else disarms it) — set now so it holds
+      // across every successful-play exit below.
+      const comboActive = !!s.comboArmed && !!def?.combo;
+      s.comboArmed = !!def?.primer;
 
       // Discover-on-play (data-driven): playing this card isn't a minion — it opens a Discover (a peek) and
       // is consumed (no board slot). The offer is resolved from the card's `discoverOnPlay` spec against the
@@ -536,7 +546,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // → Mech or Demon.)
       if (card.keywords.includes('M') && action.toIndex !== undefined && action.toIndex < s.board.length) {
         const target = s.board[action.toIndex];
-        if (target && magnetizesTo(card.cardId, target.cardId, target.addedTribes)) {
+        if (target && magnetizesTo(card.cardId, target.cardId, target.addedTribes, target.allTribes)) {
           s.hand.splice(i, 1);
           s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // a welded Magnetic is still a card played (Rune of Action)
           // Playing a Magnetic minion IS a summon — fire summon-buffs on it BEFORE welding, so the absorbed
@@ -589,6 +599,18 @@ function reduceCore(state: RunState, action: Action): RunState {
           : Math.max(0, Math.min(s.board.length, action.toIndex));
       s.board.splice(to, 0, card);
       playCard(s, card);
+      // Combo payoff (this card was played right after a primer):
+      if (comboActive && def?.combo) {
+        // A Choose One combo (The Godfodder) plays BOTH options with no prompt — not a Shout, just both effects.
+        if (def.combo.chooseBoth && def.chooseOne?.length) {
+          for (const opt of def.chooseOne) applyChooseOne(s, card, opt.effects);
+          checkTriples(s);
+          if (card.golden) grantGoldenDiscover(s);
+          return s;
+        }
+        // Otherwise the combo adds extra on-play effects (Buddy Buddy's spell, Sporebat's spell, …).
+        if (def.combo.effects?.length) applyChooseOne(s, card, def.combo.effects);
+      }
       // Choose One: pause for the player's pick before resolving triples / the golden Discover.
       if (CARD_INDEX[card.cardId]?.chooseOne?.length) {
         s.chooseOne = { uid: card.uid, cardId: card.cardId };
@@ -855,6 +877,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         // (and no charge spent) on a missing target or an already-golden minion.
         if (!card || card.golden) return state;
         gildMinion(card);
+        // Indy: arm the recharge — the charge comes back after 40 more Gold is spent (see `spendGold`).
+        s.indyGildRearmAt = (s.goldSpent ?? 0) + 40;
       } else if (power.kind === 'replayBattlecry') {
         // Myra: re-trigger a friendly board minion's Battlecry. Board only; a no-op (no charge
         // spent) on a missing target or a minion with no Battlecry to replay.
@@ -890,13 +914,6 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (r === 0) openDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
           else queueDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
         }
-      } else if (power.kind === 'adjacentConsume') {
-        // Herald's Proclaim: the two minions on either side of the targeted friendly minion each Consume a
-        // created Fodder. No-op (no charge spent) on a missing target or one with no neighbours to feed.
-        if (!card) return state;
-        const before = s.fodderEatenSeq;
-        adjacentConsumeFodder(s, card, 1);
-        if (s.fodderEatenSeq === before) return state; // nothing ate (no neighbours) → don't spend the charge
       } else if (power.kind === 'resummon') {
         // The Reclaimer: mark a friendly board minion to be destroyed + resummoned at start of
         // combat (the combat sim does the work). Mark exactly one (clear any previous mark).
@@ -919,30 +936,15 @@ function reduceCore(state: RunState, action: Action): RunState {
         power.kind === 'spellAmplify' || power.kind === 'quest' || power.kind === 'collision' || power.kind === 'sellGold'
         || power.kind === 'chaos' || power.kind === 'cheapMinions' || power.kind === 'discoLock'
         || power.kind === 'questChronos' || power.kind === 'lesserQuest' || power.kind === 'runeforge'
-        || power.kind === 'pathfinder' || power.kind === 'epicRuneforge'
+        || power.kind === 'pathfinder' || power.kind === 'epicRuneforge' || power.kind === 'recurringGoldcrafter'
       ) {
         // Passive powers have no activation — the work happens elsewhere (spell math, the buy/sell case,
-        // settleCombat, the turn-advance quest/discover hooks). Nothing to do on a power click.
+        // settleCombat, the turn-advance quest/discover/Goldcrafter hooks). Nothing to do on a power click.
         return state;
       } else if (power.kind === 'gainMaxMana') {
         // Nadja: +1 max Mana permanently, UNCAPPED (may exceed the normal cap). Untargeted — ignores
         // action.uid. Doesn't return, so the shared spend logic below charges the once-per-turn charge.
         s.maxEmbers += reps;
-      } else if (power.kind === 'goldenGild') {
-        // Gildmaster: if you have 2 copies of a minion (a "double"), combine them into one golden copy in
-        // your hand — a discounted triple (you then play the golden for the triple reward). Untargeted: it
-        // finds the doubles itself, picking one at RANDOM when there are several. No double → can't use, and
-        // NO charge is spent (early return, before the shared spend block below).
-        const dbl = new Map<string, number>();
-        for (const c of [...s.board, ...s.hand]) {
-          if (!c.golden && !CARD_INDEX[c.cardId]?.spell) dbl.set(c.cardId, (dbl.get(c.cardId) ?? 0) + 1);
-        }
-        const doubles = [...dbl].filter(([, n]) => n >= 2).map(([id]) => id);
-        if (doubles.length === 0) return state;
-        const chosen = doubles.length === 1
-          ? doubles[0]!
-          : makeRng(mixSeed(s.seed, s.wave, TAG.GILD, heroUses)).pick(doubles);
-        combineIntoGolden(s, chosen, pullCopies(s, chosen, 2));
       } else {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
         // warband minion directly, or a tavern offer (the buff bakes in when it's bought).
@@ -1046,6 +1048,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         rallyMechAtk: b.rallyMechAtk, // Better Bot's accrued Rally (own base added at instantiate)
         rallySpellWeld: b.rallySpellWeld, // Perfect Core's welded Rally (grant a spell on attack) — was dropped
         resummon: b.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
+        ...(b.copiedEcho?.length ? { copiedEcho: b.copiedEcho } : {}), // Gravetwin: its copied Echo procs on combat death
+        ...(b.bloodbinderMode ? { bloodbinderMode: b.bloodbinderMode } : {}), // Bloodbinder: seed this fight's Rally stat (atk/hp)
+        ...(b.allTribes ? { universalTribe: true } : {}), // Anomaly Reactor: "All" types → universal in combat
         buffs: b.buffs, // recruit-phase buff breakdown → carried into combat so the inspect panel itemizes it
       }));
       // Fleeting Vigor — a one-shot Start-of-Combat buff banked last shop: pump the player's COMBAT board
@@ -1454,6 +1459,11 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerFodderGrants) {
     (s.pendingTavern ??= []).push(...Array(result.playerFodderGrants).fill('fred'));
   }
+  // Pit Supplier: Fodder scheduled across the next several shops → merge index-for-index into fodderSchedule.
+  if (result.playerFodderSchedule) {
+    s.fodderSchedule ??= [];
+    result.playerFodderSchedule.forEach((n, i) => { if (n > 0) s.fodderSchedule![i] = (s.fodderSchedule![i] ?? 0) + n; });
+  }
   // Ryme re-firing an ECONOMY battlecry in combat (Soulfeeder's Fodder, Hoarder's Gold, Demonic Anomaly's shop
   // buff, a gain-a-minion) couldn't run in the pure fight — replay each through its recruit factory now, with
   // full RunState access. Recorded once per re-fire in combat, so Drakko's doubling is already baked in.
@@ -1611,6 +1621,7 @@ function advanceCombat(s: RunState): void {
   s.turnStartPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
   s.playedThisTurn = []; // Pack Leader / Spirit Worgen: minions-played-this-turn resets each turn
+  s.comboArmed = undefined; // Combo: a primer doesn't carry a combo across the turn boundary
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
   s.shoutFirstUsedThisTurn = false; // Warm Embers' "first Shout each round triggers twice" freebie resets each turn
@@ -1666,6 +1677,12 @@ function advanceCombat(s: RunState): void {
   // Rune of the Epic Forge: it armed the Epic Runeforge for THIS wave — turn it into a pending open, which the
   // start-of-turn sequencing below presents (behind any quest offer / Runesmith forge).
   if (s.epicForgeWave != null && s.wave >= s.epicForgeWave) { s.pendingEpicRuneforge = true; s.epicForgeWave = undefined; }
+  // Promote any forge armed mid-turn (deferred): now that we're at the START of the next turn, it's openable.
+  s.pendingForgeDeferred = false;
+  if (s.pendingBasicForge) s.pendingBasicForge.deferred = false;
+  // Bloodbinder: its Rally alternates the stat it gives Fodder — flip each board Bloodbinder every turn
+  // (undefined/'atk' ↔ 'hp'), so this turn's combat reads the freshly-swapped stat.
+  for (const c of s.board) if (c.cardId === 'bloodbinder') c.bloodbinderMode = c.bloodbinderMode === 'hp' ? 'atk' : 'hp';
   openNextStartOfTurnModal(s);
   // Gravetwin: if it survived the last combat, fire its copied Echo now (start of the shop). Then clear the
   // survivor list so it fires exactly once per fight.
@@ -1695,6 +1712,11 @@ function advanceCombat(s: RunState): void {
       s.chaosGrantSeq = (s.chaosGrantSeq ?? 0) + 1;
       s.chaosGrantUid = grantUid;
     }
+  }
+  // Gildmaster: get a Goldcrafter (a spell that makes a friendly minion golden) at the START of every 4th
+  // turn — turns 4, 8, 12, …. Conjured to hand (hand-cap-safe); a granted spell can't complete a triple.
+  if (getHero(s.heroId).power.kind === 'recurringGoldcrafter' && s.wave % 4 === 0) {
+    conjureToHand(s, CARD_INDEX['goldcrafter'] ? [CARD_INDEX['goldcrafter']!] : [], 1);
   }
   // Quest delayed rewards (Trail Rations' "repeat in 2 turns"): tick each pending grant down a turn and
   // re-apply the ones that come due — WITHOUT re-scheduling (allowRepeat=false) — here with the other
@@ -1944,8 +1966,10 @@ function closeRuneforge(s: RunState): void {
  *  behind them, and is called from every modal-close path (buyQuest / forge close / discover resolve). */
 function openNextStartOfTurnModal(s: RunState): void {
   if (s.questOffer || s.runeforgeOffer || s.discover || s.chooseOne || s.pendingTarget) return; // one modal at a time
-  if (s.pendingEpicRuneforge) { openEpicRuneforge(s); s.pendingEpicRuneforge = false; return; } // Runeforge before Discovers
-  if (s.pendingBasicForge) { const g = s.pendingBasicForge.gold ?? 0; s.pendingBasicForge = undefined; openScheduledBasicRuneforge(s, g); return; }
+  // A forge armed MID-TURN is `deferred` — it must wait for the NEXT turn's start (advanceCombat promotes it by
+  // clearing the flag) so a mid-turn modal-close drain can't open it on the completing turn (owner bug 2026-07-13).
+  if (s.pendingEpicRuneforge && !s.pendingForgeDeferred) { openEpicRuneforge(s); s.pendingEpicRuneforge = false; return; } // Runeforge before Discovers
+  if (s.pendingBasicForge && !s.pendingBasicForge.deferred) { const g = s.pendingBasicForge.gold ?? 0; s.pendingBasicForge = undefined; openScheduledBasicRuneforge(s, g); return; }
   if (s.discoverQueue?.length) openDiscover(s, s.discoverQueue.shift()!); // then any queued start-of-turn Discovers
 }
 
@@ -1994,12 +2018,18 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       // Feed the Alpha: conjure these cards to hand at the end of every turn for the rest of the run.
       (s.questRecurringGrants ??= []).push(...r.cards);
       break;
+    case 'impAura':
+      // Imp Census: permanently improve your Imps +A/+H run-wide (bumps `impBuff`; also buffs current board/hand
+      // Imps). Repeats via the reward's `repeatInTurns` (folded through `multi`).
+      buffImpsRunWide(s, r.attack, r.health, `Quest: ${def.name}`);
+      break;
     case 'combatFlag':
       // Blood Trail / Echoing Coop / Law of Teeth / The Old Hunt / Shared Circuit: arm the run-wide combat mod.
       s.questFlags ??= {};
       if (r.flag === 'oldHunt') s.questFlags.oldHunt = r.amount ?? 0;
       else if (r.flag === 'sharedCircuit') s.sharedCircuitWard = r.amount ?? 0; // amount = Mechs warded at SoC
       else if (r.flag === 'pitWithoutEnd') s.pitWithoutEndImps = r.amount ?? 0; // amount = Imps on board wipe
+      else if (r.flag === 'assemblyLine') s.questFlags.assemblyLine = r.amount ?? 4; // Avenge N → a Money Bot to hand
       else s.questFlags[r.flag] = true;
       break;
     case 'shoutRepeat':
@@ -2141,16 +2171,19 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.runeEmpowerment = true; // Rune of Empowerment (Epic): your hero power triggers twice
       break;
     case 'openEpicRuneforge':
-      // Deferred: arm it now, open at the START of next turn (advanceCombat) so the forge doesn't interrupt the
-      // turn the quest completed on. Reached by The Epic Runeforge quest.
+      // Deferred: arm it now, open at the START of NEXT turn (after this turn's combat). `pendingForgeDeferred`
+      // blocks the mid-turn modal-close drains from opening it early (owner bug 2026-07-13: it opened mid-turn
+      // and the player had already spent the Gold they needed for the runes). Reached by The Epic Runeforge quest.
       s.pendingEpicRuneforge = true;
+      s.pendingForgeDeferred = true;
       break;
     case 'scheduleRuneforge':
       // Arm a Runeforge visit for a future turn's start (opened by advanceCombat's start-of-turn sequencing).
-      // `onWave` pins the Epic forge to an absolute wave (Rune of the Epic Forge → 9); otherwise it's next turn.
+      // `onWave` pins the Epic forge to an absolute wave (Rune of the Epic Forge → 9); otherwise it's next turn —
+      // deferred so a mid-turn modal-close can't open it on the turn the quest completed (owner bug 2026-07-13).
       if (r.onWave != null) s.epicForgeWave = r.onWave;
-      else if (r.forge === 'epic') s.pendingEpicRuneforge = true;
-      else s.pendingBasicForge = { gold: r.gold };
+      else if (r.forge === 'epic') { s.pendingEpicRuneforge = true; s.pendingForgeDeferred = true; }
+      else s.pendingBasicForge = { gold: r.gold, deferred: true };
       break;
     case 'multi':
       // The Hoard Wakes: several rewards at once — apply each sub-reward through this same path.
@@ -2239,6 +2272,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     echoExtraAlways: s.echoExtraAlways || undefined,
     echoFirstEachCombat: s.echoFirstEachCombat || undefined,
     boneThroneStep: s.boneThroneStep || undefined,
+    assemblyLineStep: f?.assemblyLine || undefined, // Assembly Line: Avenge N → a Money Bot to hand
     rallyExtraAlways: s.rallyExtraAlways || undefined,
     rallyFirstEachCombat: s.rallyFirstEachCombat || undefined,
     sharedCircuitWard: s.sharedCircuitWard || undefined,
@@ -2293,6 +2327,13 @@ function refreshTavern(s: RunState): void {
  * arrives (and is consumed) exactly once rather than being stranded in `pendingTavern`.
  */
 function injectPendingTavern(s: RunState): void {
+  // Multi-shop schedule (Soulfeeder / Pit Supplier): pop THIS refresh's due Fodder into the pending queue, then
+  // shift the schedule down so the rest arrive on later refreshes.
+  if (s.fodderSchedule?.length) {
+    const due = s.fodderSchedule.shift() ?? 0;
+    for (let i = 0; i < due; i++) (s.pendingTavern ??= []).push('fred');
+    if (s.fodderSchedule.length === 0) s.fodderSchedule = undefined;
+  }
   const pending = s.pendingTavern ?? [];
   s.pendingTavern = []; // always cleared — Fodder is never stored; with no Demon to eat it, it's wasted
   if (pending.length === 0) return;

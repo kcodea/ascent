@@ -683,6 +683,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    opacity-only ::before (was an animated box-shadow → per-frame repaint). */
 .card.tripready { z-index: 5; box-shadow: 0 0 0 4px var(--c), 0 0 20px 4px rgba(255, 178, 40, 0.62), 0 3px 0 var(--shadow); }
 .card.tripready::before { content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; box-shadow: 0 0 40px 12px rgba(255, 198, 80, 1); animation: kwglow 1.15s ease-in-out infinite; will-change: opacity; }
+
+/* Combo-ready: a Primer was just played, so this hand card's Combo will trigger if played NOW — a breathing
+   ORANGE halo (static tangerine ring + opacity-only ::before glow, compositor-safe like tripready/venomcard). */
+.card.comboready { z-index: 5; box-shadow: 0 0 0 4px #ff7a18, 0 0 18px 4px rgba(255, 122, 24, 0.6), 0 3px 0 var(--shadow); }
+.card.comboready::before { content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; box-shadow: 0 0 38px 11px rgba(255, 120, 20, 0.95); animation: kwglow 1.1s ease-in-out infinite; will-change: opacity; }
 .triparrows { position: absolute; inset: 0; pointer-events: none; z-index: 26; overflow: visible; }
 .triparrows .ta { position: absolute; bottom: 7%; width: 0; height: 0; border-left: 9px solid transparent; border-right: 9px solid transparent; border-bottom: 14px solid #ffc23c; filter: drop-shadow(0 0 6px rgba(255, 185, 50, 0.95)); opacity: 0; animation: triparrow 1.3s ease-in-out infinite; }
 .triparrows .ta:nth-child(1) { left: 12%; animation-delay: 0s; }
@@ -2519,6 +2524,11 @@ svg { width: 18px; height: 18px; }
 .book-gloss svg { width: 17px; height: 17px; }
 .book-gloss:hover { transform: translateY(-2px); border-color: var(--acc); }
 .book-gloss.on { background: var(--acc); color: #fff; border-color: var(--acc-dk); box-shadow: 0 3px 0 var(--acc-dk); }
+/* Search box in the compendium header — becomes the right-side pusher; the Glossary/Gilded buttons flow after it. */
+.book-search { margin-left: auto; height: 38px; width: min(240px, 28vw); padding: 0 14px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink); font-family: var(--font-body), sans-serif; font-weight: 600; font-size: 14px; }
+.book-search:focus { outline: none; border-color: var(--acc); }
+.book-search::placeholder { color: var(--ink3); }
+.book-search ~ .book-gloss, .book-search ~ .book-gilded { margin-left: 12px; }
 /* The codex body — exactly three grouped columns that fill the compendium width (was auto-fill/340px,
    which crammed the groups left and left a big empty gutter). Scrolls like the gallery (native bar hidden). */
 .book-gloss-body { flex: 1; overflow-y: auto; padding: 26px 30px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; align-content: start; scrollbar-width: none; -ms-overflow-style: none; }

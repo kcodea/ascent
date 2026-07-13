@@ -443,6 +443,17 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Start of Combat (Combo Kim): give the minion immediately to the RIGHT of this one Taunt (mutates the
+   *  per-combat clone). No-op at the right edge / if the neighbor is already gone. */
+  scGrantRightTaunt: (ctx, self) => {
+    const board = ctx.boards[self.side];
+    const i = board.indexOf(self);
+    const right = i >= 0 ? board[i + 1] : undefined;
+    if (!right || right.dead || right.health <= 0) return;
+    if (!right.keywords.includes('T')) right.keywords.push('T');
+    ctx.log({ type: 'keyword', target: right.uid, keyword: 'T' });
+  },
+
   /** Start of Combat (Taurus the Truth Bringer): Engrave EVERY friendly minion (self included) — each keeps its
    *  combat stat-gains (carried back via `playerPermaBuffs`). "Triggers first": it runs in a priority SoC pass
    *  before the others, so later Start-of-Combat buffs are engraved too. */
@@ -596,14 +607,71 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantTavernFodder(num(params.count, 1) * mul(self), self.side);
   },
 
-  /** Pit Supplier — Avenge (N): every N friendly deaths this combat, queue a Fodder into your next shop
-   *  (golden queues two). Reuses the Fodder carry-back (grantTavernFodder → pendingTavern in settleCombat). */
+  /** Deathrattle (Burial Imp): permanently buff your Fodder +atk/+hp (golden ×2) — the living Fodder now + the
+   *  run-wide Fodder buff (carried back), like Sword and Bored's on-kill but fired on death. */
+  deathrattleBuffFodder: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const a = num(params.attack, 1) * mul(self);
+    const h = num(params.health, 1) * mul(self);
+    for (const m of ctx.living(self.side)) {
+      if (ctx.getCard(m.cardId)?.keywords.includes('FD')) ctx.buff(m, a, h, self.uid);
+    }
+    ctx.grantFodderBuff(a, h, self.side);
+  },
+
+  /** Deathrattle (Chef Raag): give every living friendly minion +A/+H equal to your live Imp Aura this fight
+   *  (golden doubles). Fires on death; the Combo half fires the recruit `buffAllByImpAura` on play instead. */
+  deathrattleBuffAllByImpAura: (ctx, self, _params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const imp = ctx.impAura(self.side);
+    const a = imp.attack * mul(self);
+    const h = imp.health * mul(self);
+    if (a <= 0 && h <= 0) return;
+    for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);
+  },
+
+  /** Rally (The Godfodder): on each of its own attacks, permanently buff your Fodder +atk/+hp (golden ×2) —
+   *  the living Fodder now + the run-wide Fodder buff (carried back). */
+  rallyBuffFodder: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only on this minion's own attack
+    const a = num(params.attack, 2) * mul(self);
+    const h = num(params.health, 2) * mul(self);
+    for (const m of ctx.living(self.side)) {
+      if (ctx.getCard(m.cardId)?.keywords.includes('FD')) ctx.buff(m, a, h, self.uid);
+    }
+    ctx.grantFodderBuff(a, h, self.side);
+  },
+
+  /** Bloodbinder — Rally (on its own attack): give your Fodder half this minion's Attack, as Attack on odd turns
+   *  and Health on even turns (`bloodbinderMode`, alternated each turn on the run board). Buffs living Fodder now
+   *  + the run-wide Fodder buff (carried back). Floors the half; no-op below 2 Attack. */
+  rallyBuffFodderHalf: (ctx, self, _params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only on this minion's own attack
+    const half = Math.floor(self.attack / 2);
+    if (half <= 0) return;
+    const hp = self.bloodbinderMode === 'hp';
+    const a = hp ? 0 : half;
+    const h = hp ? half : 0;
+    for (const m of ctx.living(self.side)) {
+      if (ctx.getCard(m.cardId)?.keywords.includes('FD')) ctx.buff(m, a, h, self.uid);
+    }
+    ctx.grantFodderBuff(a, h, self.side);
+  },
+
+  /** Pit Supplier — Avenge (N): every N friendly deaths this combat, add `fodder` Fodder to each of your next
+   *  `shops` shops (golden doubles the per-shop count). `shops:1` (default) uses the single-shop carry-back;
+   *  `shops>1` schedules Fodder across that many upcoming shops. */
   avengeAddFodder: (ctx, self, params, payload) => {
     const { side, count } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 3));
     if (count % x !== 0) return;
-    ctx.grantTavernFodder(num(params.fodder, 1) * mul(self), self.side);
+    const perShop = num(params.fodder, 1) * mul(self);
+    const shops = Math.max(1, num(params.shops, 1));
+    if (shops > 1) ctx.scheduleFodder(Array(shops).fill(perShop), self.side);
+    else ctx.grantTavernFodder(perShop, self.side);
   },
 
   /** Spell Appraiser — Avenge (N): every N friendly deaths this combat, permanently raise run-wide spell power
@@ -1168,11 +1236,12 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Trickster — Deathrattle: give a random friendly minion this minion's current maxHealth.
    *  Golden picks a target twice (independently). */
-  deathrattleGiveHealth: (ctx, self, _params, payload) => {
+  deathrattleGiveHealth: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const hp = self.maxHealth;
     if (hp <= 0) return;
-    for (let i = 0; i < mul(self); i++) {
+    // Give `count` random other friends this minion's Health (golden doubles the number of grants).
+    for (let i = 0; i < num(params.count, 1) * mul(self); i++) {
       const targets = ctx.living(self.side).filter((m) => m !== self);
       if (targets.length === 0) break;
       ctx.buff(ctx.rng.pick(targets), 0, hp, self.uid);

@@ -5,6 +5,37 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-12 (session 34)
 
+### feat: served enemies carry their owner's quest/rune COMBAT effects + opponent reward badges
+
+The last "true-PvP" fidelity gap. A served enemy board fought WITHOUT its owner's quest/rune combat modifiers —
+all ~26 `questMods` were applied player-only. Now per-side, following the proven `enemyScalers` playbook:
+- **Snapshot** captures the assembled `questCombatMods(s)` object (not raw `questFlags` — that loses the
+  magnitudes held in top-level RunState fields), plus lifetime `spellsCast` (Umbral Energy) and `beastBuyAtk`
+  (Beast aura). `questCombatMods` is now exported from the reducer.
+- **`simulate`** takes a trailing `enemyQuestMods` param + `enemyScalers.spellsCast/beastBuyAtk`; a `modsFor(side)`
+  selector + per-side `beastAtkAuraFor` / `firstEchoDone|firstRallyDone|firstSlaughterDone|pitDone|emptyGravesDone`
+  records. Every player-hardcoded site (~22) now mirrors to both boards: the SoC rune grants (Warden, Twilight,
+  Shared Circuit, Warding, Echoing Coop, Rallying, Rising Graves), the avenge runes (Broodpit, Spearline, Fury
+  doubling), Packcraft, Inheritance, First Claws, Bone Throne, Pit Without End, Empty Graves, Rulebreaker's Crown,
+  Umbral Energy, Contract Rewrite, The Old Hunt, Law of Teeth / echo / rally / slaughter doublers, Feeding Line.
+- **Player-only (correctly):** the economy/hand/gold rune payoffs — Soul Taxes (+max Gold), Salvage & Blood Trail
+  (cards → hand), Deep Hunger (Fodder → shop), Appraisal (spell-power carry-back). A snapshot enemy has no
+  hand/shop/run, so these have no enemy-side meaning. Quest TALLIES + carry-backs stay player-only too.
+- **`reducer`** passes the served board's captured `questMods` + scalers into combat.
+
+Determinism: player-side math is byte-identical (procedural foes pass `{}`; the big restructure preserved player
+order/behavior — full suite green). Balance: a served board that had runes/quests now fights stronger, as intended.
+
+**Opponent reward badges** (companion display feature): `snapshotBoard` also captures the owner's ACTIVE rewards —
+completed quest ids + owned rune ids — and `OpponentFrame` renders them as a row of badges under the frame (art +
+hover tooltip), mirroring the player's own badges above their hero panel. Tooltip opens downward/right-anchored.
+
+**Verified:** `typecheck + lint + test` (946) & `build:web` green. New tests: the enemy runs its OWN Warding /
+Rising Graves / Umbral Energy; the player's mods never leak onto the enemy; the snapshot captures `questMods` +
+`spellsCast` + `beastBuyAtk` + quests/runes; and a reducer-level end-to-end — a served board's Rune of Warding
+fires FOR THE ENEMY through `faceOmen`. Live-verified the opponent badges (injected board → Warding + Forest Grove
+badges show).
+
 ### fix: combat live-display completeness — ascend fold, Trophy Stalker, Rising Graves pill, Guel tally
 
 An audit ("are player AND enemy cards showing real-time-accurate values everywhere, true-PvP on both sides?") of

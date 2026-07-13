@@ -10,11 +10,11 @@
  * replay re-runs byte-identically — so every round's board is reconstructable headlessly from a few KB,
  * no need to store each board live. `replayRun` turns a replay into the per-wave snapshots.
  */
-import { makeRng, type BoardMinion, type CombatOutcome, type Rng, type Tribe } from '@game/core';
+import { makeRng, type BoardMinion, type CombatOutcome, type QuestCombatMods, type Rng, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { HEROES } from './heroes';
 import { createRun, type Action, type RunState, type ShopCard } from './state';
-import { reduce } from './reducer';
+import { reduce, questCombatMods } from './reducer';
 import { spellAttackBonus, spellHealthBonus } from './recruit';
 import type { ThreatId } from './threats';
 
@@ -88,6 +88,11 @@ export interface BoardSnapshot {
   deathrattles?: number; // Deathrattles triggered this game so far (Grim)
   spellsThisTurn?: number; // spells cast this recruit turn (Runescale Drake)
   beastsPlayed?: number; // Beasts played this recruit turn (Pack Leader)
+  spellsCast?: number; // lifetime spells cast this run (enemy Umbral Energy)
+  beastBuyAtk?: number; // run-wide Beast Attack aura (enemy Beast aura)
+  /** The owner's assembled quest/rune COMBAT modifiers (the `questCombatMods` output) — so a served board
+   *  reproduces its runes/quests at Start of Combat / on avenge / etc. Omitted when empty. */
+  questMods?: QuestCombatMods;
   /** The owner's ACTIVE reward trophies at capture — completed quest ids + owned rune ids — so the opponent
    *  frame can show the same badges the player sees above their own frame. Only active rewards (a quest that's
    *  completed, a rune that's been bought). Omitted when empty; opponent-frame intel only, never read by combat. */
@@ -191,6 +196,9 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
   // Active reward trophies — the same set the player sees in their own badges (completed quests + owned runes).
   const quests = (s.activeQuests ?? []).filter((q) => q.completed).map((q) => q.questId);
   const runes = [...(s.ownedRunes ?? [])];
+  // The assembled quest/rune combat modifiers — so a served board reproduces its runes/quests in combat.
+  const qmods = questCombatMods(s);
+  const hasQmods = Object.keys(qmods).length > 0;
   return {
     v: 1,
     wave: s.wave,
@@ -210,6 +218,9 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(s.deathrattlesTriggered ? { deathrattles: s.deathrattlesTriggered } : {}),
     ...(s.spellsThisTurn ? { spellsThisTurn: s.spellsThisTurn } : {}),
     ...(beastsPlayed ? { beastsPlayed } : {}),
+    ...(s.spellsCast ? { spellsCast: s.spellsCast } : {}),
+    ...(s.beastBuyAtk ? { beastBuyAtk: s.beastBuyAtk } : {}),
+    ...(hasQmods ? { questMods: qmods } : {}),
     ...(quests.length ? { quests } : {}),
     ...(runes.length ? { runes } : {}),
   };

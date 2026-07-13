@@ -881,6 +881,10 @@ export interface EnemyScalers {
   spellsThisTurn?: number;
   beastsPlayed?: number;
   deathrattles?: number;
+  /** Lifetime spells cast this run (Umbral Energy scales Dragons +2/+2 per spell) — for an enemy capstone. */
+  spellsCast?: number;
+  /** The run-wide Beast Attack aura (The Old Hunt / Pack Mentality's Attack half) — for the enemy Beast aura. */
+  beastBuyAtk?: number;
 }
 
 export interface CombatResult {

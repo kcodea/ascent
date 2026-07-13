@@ -83,15 +83,21 @@ describe('board snapshot + replay', () => {
     const s: RunState = {
       ...createRun(1),
       activeQuests: [
-        { questId: 'q_done', completed: true, progress: 5, target: 5 },
-        { questId: 'q_wip', completed: false, progress: 2, target: 5 },
-      ] as RunState['activeQuests'],
+        { questId: 'q_done', completed: true, progress: 5 },
+        { questId: 'q_wip', completed: false, progress: 2 },
+      ],
       ownedRunes: ['rune_warding'],
       board: [{ uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
     };
     const snap = snapshotBoard(s);
     expect(snap.quests).toEqual(['q_done']); // only COMPLETED quests (the active reward), not the in-progress one
     expect(snap.runes).toEqual(['rune_warding']);
+    // Combat fidelity: the assembled quest/rune combat mods + lifetime spellsCast / Beast aura are captured too.
+    const s2: RunState = { ...createRun(1), questFlags: { runeWarding: true }, spellsCast: 5, beastBuyAtk: 2, board: s.board };
+    const snap2 = snapshotBoard(s2);
+    expect(snap2.questMods?.runeWarding).toBe(true);
+    expect(snap2.spellsCast).toBe(5);
+    expect(snap2.beastBuyAtk).toBe(2);
     const plain = snapshotBoard({ ...createRun(1), board: [{ uid: 'p', cardId: 'pack', tribe: 'beast', attack: 3, health: 4, keywords: [], golden: false }] });
     expect(plain.quests).toBeUndefined(); // omitted when none
     expect(plain.runes).toBeUndefined();

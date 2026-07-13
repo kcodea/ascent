@@ -1073,14 +1073,14 @@ function reduceCore(state: RunState, action: Action): RunState {
         const d = CARD_INDEX[id];
         return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast');
       }).length;
-      const resolveCombatVs = (enemy: BoardMinion[], enemyTier: number, enemyScalers: EnemyScalers = {}): CombatResult => {
-        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, (s.attackFirstNext ?? false) || !!s.questFlags?.runeForthcoming, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0, questCombatMods(s), enemyScalers);
+      const resolveCombatVs = (enemy: BoardMinion[], enemyTier: number, enemyScalers: EnemyScalers = {}, enemyQuestMods: QuestCombatMods = {}): CombatResult => {
+        const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, (s.attackFirstNext ?? false) || !!s.questFlags?.runeForthcoming, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0, questCombatMods(s), enemyScalers, enemyQuestMods);
         combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
         let win = 0, draw = 0, lose = 0, lossDamageTotal = 0;
         const cap = lossDamageCap(s.wave);
         const ODDS_SIMS = 1000;
         for (let i = 0; i < ODDS_SIMS; i++) {
-          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, (s.attackFirstNext ?? false) || !!s.questFlags?.runeForthcoming, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0, questCombatMods(s), enemyScalers);
+          const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, s.spellsThisTurn, s.deathrattlesTriggered, enemyTier, s.undeadAttackBonus, s.undeadHealthBonus, s.spellsCast, s.undeadBuyAtk ?? 0, s.fodderConsumedThisTurn?.attack ?? 0, s.fodderConsumedThisTurn?.health ?? 0, s.impBuff?.attack ?? 0, s.impBuff?.health ?? 0, spellAttackBonus(s), spellHealthBonus(s), s.tier, s.tribes, s.cardBuffs ?? {}, (s.attackFirstNext ?? false) || !!s.questFlags?.runeForthcoming, s.rallyDoubleNext ?? false, beastsPlayed, s.beastBuyAtk ?? 0, s.magneticBuyAtk ?? 0, s.magneticBuyHp ?? 0, questCombatMods(s), enemyScalers, enemyQuestMods);
           if (r.result === 'win') win++;
           else if (r.result === 'draw') draw++;
           else { lose++; lossDamageTotal += Math.min(r.playerDamage, cap); } // round-capped, as a real loss would be
@@ -1102,11 +1102,15 @@ function reduceCore(state: RunState, action: Action): RunState {
             spellsThisTurn: served.spellsThisTurn ?? 0,
             beastsPlayed: served.beastsPlayed ?? 0,
             deathrattles: served.deathrattles ?? 0,
+            spellsCast: served.spellsCast ?? 0, // enemy Umbral Energy
+            beastBuyAtk: served.beastBuyAtk ?? 0, // enemy Beast aura
           }
         : {};
+      // The served board's quest/rune COMBAT modifiers — so it reproduces its owner's runes/quests in combat.
+      const servedQuestMods: QuestCombatMods = served?.questMods ?? {};
       try {
         const e = served ? { enemy: opponentBoard(served), tier: served.tier ?? s.tier } : proceduralEnemy();
-        s.lastCombat = resolveCombatVs(e.enemy, e.tier, served ? servedScalers : {});
+        s.lastCombat = resolveCombatVs(e.enemy, e.tier, served ? servedScalers : {}, served ? servedQuestMods : {});
       } catch {
         const e = proceduralEnemy();
         s.lastCombat = resolveCombatVs(e.enemy, e.tier);
@@ -2212,7 +2216,7 @@ function growScalingAuras(s: RunState, result: CombatResult): void {
 
 /** Build the run-wide combat modifiers (`QuestCombatMods`) threaded into `simulate()`: the Beast Health aura
  *  plus any armed quest combat flags. */
-function questCombatMods(s: RunState): QuestCombatMods {
+export function questCombatMods(s: RunState): QuestCombatMods {
   const f = s.questFlags;
   return {
     beastAuraHp: s.beastBuyHp || undefined,

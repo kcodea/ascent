@@ -4183,6 +4183,27 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     }
   });
 
+  it('a served board reproduces its OWN quest/rune combat effects through faceOmen (Rune of Warding wards the enemy)', () => {
+    const board: BoardSnapshot = {
+      v: 1, wave: 1, heroId: 'warden', resolve: 30, tier: 1, triples: 0, tribes: [], threat: 'glass', power: 13,
+      minions: [{ cardId: 'gnash', attack: 5, health: 8, keywords: [] }], seed: 1, origin: 'self',
+      questMods: { runeWarding: true }, // the served board's captured rune
+    };
+    OPPONENT_POOL.push(board);
+    try {
+      const s: RunState = {
+        ...createRun(1), wave: 1,
+        board: [{ uid: 'a', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 20, keywords: ['T'], golden: false }],
+      };
+      const lc = reduce(s, { type: 'faceOmen' }).lastCombat!;
+      expect(lc.initial.enemy.some((m) => m.cardId === 'gnash')).toBe(true); // our board was served
+      const enemyUids = new Set(lc.initial.enemy.map((m) => m.uid));
+      expect(lc.events.some((e) => e.type === 'shieldUp' && enemyUids.has(e.target))).toBe(true); // its Rune of Warding fired FOR THE ENEMY
+    } finally {
+      OPPONENT_POOL.length = 0;
+    }
+  });
+
   it('isServableBoard rejects boards referencing a card this build no longer has (stale capture)', () => {
     const known: BoardSnapshot = {
       v: 1, wave: 3, heroId: 'warden', resolve: 25, tier: 2, triples: 0, tribes: [], threat: 'horde', power: 20,

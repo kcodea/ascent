@@ -2995,3 +2995,41 @@ describe('live-display events (combat cards update in real time)', () => {
     expect(carried?.progress).toBeGreaterThan(3); // combat casts persist above the seeded 3
   });
 });
+
+describe('served enemy quest/rune COMBAT effects (per-side questMods)', () => {
+  // enemyQuestMods is the LAST simulate arg (after questMods + enemyScalers) — a served board's captured mods.
+  const simEnemy = (p: BoardMinion[], e: BoardMinion[], seed: number, enemyMods = {}, enemyScalers = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, {}, enemyScalers, enemyMods);
+  const simPlayer = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, mods);
+
+  it('an ENEMY Rune of Warding wards the ENEMY leftmost minion (its own rune, not the player’s)', () => {
+    const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 20, keywords: ['T'] }];
+    const e: BoardMinion[] = [{ cardId: 'gnash', attack: 5, health: 8 }];
+    const warded = (mods: object) => {
+      const r = simEnemy(p, e, 1, mods);
+      const lead = r.initial.enemy[0]!.uid;
+      return r.events.some((ev) => ev.type === 'shieldUp' && ev.target === lead);
+    };
+    expect(warded({ runeWarding: true })).toBe(true); // the served enemy runs its own rune
+    expect(warded({})).toBe(false); // without the captured mod, no ward
+  });
+
+  it('an ENEMY Rune of Rising Graves gives the ENEMY Undead Rise', () => {
+    const r = simEnemy([{ cardId: 'sandbag', attack: 0, health: 20 }], [{ cardId: 'knit', attack: 2, health: 5 }], 1, { runeRisingGraves: true });
+    expect(r.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'R' && ev.target === r.initial.enemy[0]!.uid)).toBe(true);
+  });
+
+  it('an ENEMY Umbral Energy buffs the ENEMY Dragons per its captured lifetime spellsCast', () => {
+    const r = simEnemy([{ cardId: 'sandbag', attack: 0, health: 40 }], [{ cardId: 'bronzewarden', attack: 3, health: 40 }], 1, { umbralEnergy: true }, { spellsCast: 3 });
+    // +2/+2 × 3 spells = +6/+6 on the enemy Dragon at Start of Combat.
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === r.initial.enemy[0]!.uid && ev.attack === 6)).toBe(true);
+  });
+
+  it('the player’s questMods never leak onto the enemy (enemyQuestMods empty → no enemy ward)', () => {
+    const r = simPlayer([{ cardId: 'gnash', attack: 5, health: 8 }], [{ cardId: 'sandbag', attack: 0, health: 20 }], 1, { runeWarding: true });
+    // Player's Warding wards the PLAYER leftmost, not the enemy.
+    expect(r.events.some((ev) => ev.type === 'shieldUp' && ev.target === r.initial.player[0]!.uid)).toBe(true);
+    expect(r.events.some((ev) => ev.type === 'shieldUp' && ev.target === r.initial.enemy[0]!.uid)).toBe(false);
+  });
+});

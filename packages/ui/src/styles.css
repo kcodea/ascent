@@ -1856,7 +1856,7 @@ body.choreo-open .pixifx-under { z-index: 204; }
 .cbtns .btn.big.endturn { box-shadow: 0 5px 0 var(--acc-dk); }
 /* Top-right combat HUD (replay only): a small Skip button with the speed slider stacked beneath it, tucked
    under the tribes bar so the arena stays clear. */
-.combathud { position: fixed; top: calc(var(--bar-y) + 146 * var(--u)); right: calc(var(--bar-x) + 16 * var(--u)); z-index: 30; display: flex; flex-direction: column; align-items: flex-end; gap: calc(8 * var(--u)); animation: fadein 0.25s ease; }
+.combathud { position: fixed; top: calc(var(--bar-y) + 16 * var(--u)); left: 50%; transform: translateX(-50%); z-index: 30; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); animation: fadein 0.25s ease; }
 /* Hide the run-buffs window during combat so it never collides with the combat HUD below the opponent frame
    (buffs aren't actionable mid-replay; it returns in recruit). The QUEST panel stays visible in combat — its
    objectives tick up live as the replay plays (the whole point of the combat quest live-tick). */

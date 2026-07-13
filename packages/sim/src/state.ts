@@ -299,6 +299,9 @@ export interface RunState {
    *  improves this by (step + that stat's spell power). A missing Health field on an old save heals to 0. */
   frontToBackBonus: number;
   frontToBackBonusH: number;
+  /** Front to Back's lifetime cast count — the escalation improves only every OTHER cast (owner 2026-07-13), so
+   *  this parity gates the improvement step. Absent = 0. */
+  frontToBackCasts?: number;
   /** Fleeting Vigor — a one-shot Start-of-Combat buff banked for the NEXT combat only (your minions enter
    *  that fight at +this; spent in `faceOmen`, win or lose). Absent = none. */
   fleetingVigor?: { attack: number; health: number };

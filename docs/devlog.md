@@ -23,6 +23,34 @@ full printed price on a normal coin while actually buying for less.
 Verified: `typecheck + lint + test` (948) & `build:web` green; **live** across three board states — no Lazarus:
 Growth costs **2** on a normal coin; Lazarus: **1** on a green coin; golden Lazarus: **0** on a green coin.
 
+### feat(ui): Taunt heater-shield card frame — painterly raster compositing pipeline
+
+Taunt units are now reshaped into a forged gold **heater shield** instead of signalling via the flat
+grey card border. The bigger win is the **layered-composite pipeline** this establishes, which is meant
+to be the default way we do card art/frames/effects going forward:
+
+- **Portrait (raster, masked):** the unit art is clipped to the frame's window silhouette. The window
+  outline (`--heater`) was **measured from the frame PNG's alpha channel** (via a `sharp` script) so the
+  masked art fills the opening exactly. `border`/`border-radius` are zeroed on the Taunt `.art` because
+  the base card's arch rounding was intersecting the clip and rounding the heater into an oval.
+- **Frame (authored asset):** an ornate gold-shield PNG with a transparent window
+  (`apps/web/public/frames/taunt-shield.png`), laid over the portrait. `Card.tsx` prefers the raster and
+  falls back to a built-in **SVG placeholder** if the asset is absent (so nothing breaks pre-asset).
+- **Tint:** per-tribe recolour hook (SVG-fallback band uses `var(--c)`), so one frame serves all tribes.
+- **Data (DOM):** tier badge rides the shield's banner; **atk/hp/tribe medallion stay in the exact
+  standard position** — a hard rule (the frame is sized around the fixed stat cluster, never the reverse).
+- **Size:** the whole composite scales from a single `--sh` knob (frame + portrait + tier, all centred on
+  the archbox, placement constants derived from the measured window centre).
+
+Reactive off the `.taunt` class (`card.keywords.includes('T')`), so granting Taunt mid-combat flips the
+card to the shield the instant the keyword lands. Frame authoring spec (transparent window, empty slots,
+neutral gold) lives in `apps/web/public/frames/README.md`.
+
+**Verified:** typecheck + lint + test + build:web green; live DOM probes at each step (window silhouette
+trace, `calc(var())` resolution, clip/border computed values) to confirm alignment before eyeballing.
+**Follow-ups:** thinner-border frame variant (art reaching closer to the gold); re-add the forge-heat
+pulse as a glow hugging the frame; portrait-aspect art for shield units (fills with zero crop).
+
 ### fix: Spirit Pup combat casts COUNT toward its transform + Tauntbreaker Rally text
 
 Follow-up to #349 (which added the combat *countdown display*): the transform itself now advances from

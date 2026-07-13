@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Taunt units now wear a painterly gold heater shield.** Instead of the flat grey border, a Taunt card is
+  reshaped into an ornate shield: an authored frame PNG composited over the unit portrait (clipped to the
+  frame's measured window). Establishes the reusable **layered card pipeline** (portrait → frame → tint →
+  fixed stat badges → FX); the whole shield scales from one `--sh` knob and flips on in real time when a unit
+  gains Taunt. Frame spec in `apps/web/public/frames/README.md`.
 - **Audio hooks: per-card sounds now cover combat too.** Building on the shop/menu hooks, a minion's own
   **death** clip (`cards/<id>.death.mp3`) plays when it dies, and its **effect** clip (`cards/<id>.effect.mp3`)
   plays when its Deathrattle/Start-of-Combat/etc. procs — via the replay's uid→cardId map, deduped per card.

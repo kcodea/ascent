@@ -2,7 +2,7 @@ import { makeRng, COMBAT_REPLAYABLE_BATTLECRIES, type CardDef, type EffectDef, t
 import { BUYABLE_CARDS, CARD_INDEX, SPELL_CARDS } from '@game/content';
 import { CONFIG } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
-import { mixSeed, TAG, type BoardCard, type DiscoverSpec, type RunState, type ShopCard } from './state';
+import { mixSeed, TAG, type BoardCard, type BuffFxEvent, type DiscoverSpec, type RunState, type ShopCard } from './state';
 import { returnToPool, rollSpellShop, takeFromPool } from './shop';
 
 /**
@@ -78,6 +78,36 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
   const e = card.buffs.find((b) => b.source === source);
   if (e) { e.attack += attack; e.health += health; e.count += count; }
   else card.buffs.push({ source, attack, health, count });
+}
+
+/**
+ * Run a recruit factory dispatch and capture any buff it applied to OTHER board minions as `BuffFxEvent`s on
+ * `state.recruitBuffFx`, for the UI to replay as a tendril (living `source`) or a descend (`source` undefined /
+ * kind spell|deathrattle). Diffs board `{attack,health}` by uid around `run()`, attributing each other card's
+ * positive delta to `source`. Pure display metadata — the diff is ≤7 entries and never touches RNG or stats.
+ */
+function captureBuffFx(
+  state: RunState,
+  source: BoardCard | undefined,
+  kind: BuffFxEvent['kind'],
+  run: () => void,
+): void {
+  const before = new Map(state.board.map((c) => [c.uid, { a: c.attack, h: c.health }]));
+  run();
+  for (const c of state.board) {
+    if (source && c.uid === source.uid) continue;      // self-buffs use the pulse channel, not a tendril
+    const p = before.get(c.uid);
+    if (!p) continue;                                   // a newly summoned card is creation, not a buff
+    const da = c.attack - p.a;
+    const dh = c.health - p.h;
+    if (da <= 0 && dh <= 0) continue;
+    state.recruitBuffFx.push({
+      sourceUid: kind === 'minion' ? source?.uid : undefined,
+      targetUid: c.uid, attack: da, health: dh,
+      sourceCardId: source?.cardId ?? '', sourceTribe: source?.tribe ?? 'neutral',
+      kind,
+    });
+  }
 }
 
 /**
@@ -485,7 +515,7 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
   const fireOnce = (): void => {
     for (const eff of effects) {
       if (eff.on !== 'onDeath') continue;
-      RECRUIT_FACTORIES[eff.do]?.(ctx, minion, eff.params ?? {}, { minion });
+      captureBuffFx(ctx.state, minion, 'deathrattle', () => RECRUIT_FACTORIES[eff.do]?.(ctx, minion, eff.params ?? {}, { minion }));
     }
   };
   if (hasDR) ctx.state.deathrattlesTriggered += 1; // base trigger, before firing (Grim counts its own death)
@@ -2273,7 +2303,7 @@ function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?: Board
     // `_source` labels target buffs in the inspect breakdown; `_maxTier` carries the spell's gild cap
     // (Eyes of Aresmar) down to the factory.
     const params = { ...(effect.params ?? {}), _source: spellDef.name, _maxTier: spellDef.targetMaxTier };
-    if (fn) fn(ctx, target as BoardCard, params, { minion: target as BoardCard });
+    if (fn) captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard }));
   }
 }
 
@@ -2290,7 +2320,7 @@ function fire(
     for (const effect of def.effects) {
       if (effect.on !== event) continue;
       const fn = RECRUIT_FACTORIES[effect.do];
-      if (fn) fn(ctx, card, effect.params ?? {}, payload);
+      if (fn) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, payload));
     }
   }
   // Den Marker (run-wide quest aura): a Beast entering play gains the current buff, which then climbs every `per`.
@@ -2342,7 +2372,7 @@ function makeContext(state: RunState): RecruitContext {
           for (const effect of def.effects) {
             if (effect.on !== 'summonOverflow') continue;
             const fn = RECRUIT_FACTORIES[effect.do];
-            if (fn) fn(ctx, c, effect.params ?? {}, { minion: c });
+            if (fn) captureBuffFx(ctx.state, c, 'minion', () => fn(ctx, c, effect.params ?? {}, { minion: c }));
           }
         }
         return undefined;
@@ -2502,7 +2532,7 @@ export function applyBattlecryTarget(state: RunState, card: BoardCard, target: B
     if (effect.on !== 'onPlay') continue;
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
-    for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card, target });
+    captureBuffFx(ctx.state, card, 'minion', () => { for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card, target }); });
   }
   for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state); // a Battlecry → procs Karwind
   if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
@@ -2572,7 +2602,7 @@ export function replayBattlecry(state: RunState, card: BoardCard): boolean {
   for (const effect of onPlay) {
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
-    for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card });
+    captureBuffFx(ctx.state, card, 'minion', () => { for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card }); });
   }
   for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state); // a Battlecry → procs Karwind
   if (state.karwindFlash && state.karwindFlash.length) state.karwindFlashSeq = (state.karwindFlashSeq ?? 0) + 1;
@@ -2791,7 +2821,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
     for (const effect of def.effects) {
       if (effect.on !== 'spellCast') continue;
       const fn = RECRUIT_FACTORIES[effect.do];
-      if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
+      if (fn) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card }));
     }
   }
 }
@@ -2987,7 +3017,7 @@ export function playCard(state: RunState, played: BoardCard): void {
     if (effect.on !== 'onPlay') continue;
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
-    for (let r = 0; r < repeats; r++) fn(ctx, played, effect.params ?? {}, { minion: played });
+    captureBuffFx(ctx.state, played, 'minion', () => { for (let r = 0; r < repeats; r++) fn(ctx, played, effect.params ?? {}, { minion: played }); });
   }
   // each Battlecry fire (incl. Drakko repeats) procs Battlecry-triggered watchers (Karwind)
   if (hasBattlecry) for (let r = 0; r < repeats; r++) fireBattlecryTriggered(state);

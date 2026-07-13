@@ -204,6 +204,19 @@ export interface ActiveQuest {
   partProgress?: number[];
 }
 
+/** One shop-phase buff-other, captured for the UI to replay as a source→target tendril (living-minion source)
+ *  or a rain-down descend (`spell` / `deathrattle` — no living source). Pure display metadata: consumes no RNG
+ *  and does not affect stats, so determinism / golden sims are unaffected. Mirrors the `fodderEaten` pattern. */
+export interface BuffFxEvent {
+  sourceUid?: string;       // present + kind:'minion' → tendril from this board minion; absent → descend
+  targetUid: string;
+  attack: number;
+  health: number;
+  sourceCardId: string;     // for buffPreset (tendril tribe look)
+  sourceTribe: Tribe;
+  kind: 'minion' | 'spell' | 'deathrattle';
+}
+
 export interface RunState {
   seed: number;
   /** Game mode: 'ascent' (the scored climb) or 'practice' (the SAME course — any hero, unlimited health,
@@ -398,6 +411,10 @@ export interface RunState {
   fodderEaten?: { eaterUid: string; fodderId: string; attack: number; health: number; gainA: number; gainH: number }[];
   /** Bumps each time Fodder is auto-eaten — the UI keys its swirl animation off this. */
   fodderEatenSeq: number;
+  /** Transient buff-other FX captured during the CURRENT action (cleared at the top of `reduce`). */
+  recruitBuffFx: BuffFxEvent[];
+  /** Monotonic bump when `recruitBuffFx` is non-empty after an action — the UI fires once per change. */
+  recruitFxSeq: number;
   /** Dragon uids Karwind just flame-buffed on the most recent Battlecry — the UI flashes flames
    *  on them (on top of the normal buff flash). Transient. */
   karwindFlash?: string[];
@@ -724,6 +741,8 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     pendingTavern: [],
     cardBuffs: {},
     fodderEatenSeq: 0,
+    recruitBuffFx: [],
+    recruitFxSeq: 0,
     karwindFlashSeq: 0,
   };
   rollShop(state);

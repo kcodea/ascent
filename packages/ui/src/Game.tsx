@@ -13,6 +13,7 @@ import { Inspect } from './Inspect';
 import { MinionBook } from './MinionBook';
 import { EscMenu } from './EscMenu';
 import { DevMenu } from './DevMenu';
+import { BalancePanel } from './BalancePanel';
 import { Icon } from './Icon';
 import { ErrorBoundary } from './ErrorBoundary';
 import { PixiFxLayer } from './PixiFxLayer';
@@ -117,6 +118,7 @@ export function Game() {
       {menuOpen && <EscMenu res={res} onRes={setRes} scrim={scrim} onScrim={setScrim} onClose={() => setMenuOpen(false)} />}
       {/* DEV-only tuning menu — one 🛠️ button opening every live tuner (stripped from production). */}
       {import.meta.env.DEV && <DevMenu />}
+      {import.meta.env.DEV && <BalancePanel />}
       {/* Topmost layers: the pre-run hero picker (self-gates on heroChoices), and above it the title
           screen (self-gates on showTitle) — the front door into Ascent / Practice / Settings. */}
       <HeroSelect />

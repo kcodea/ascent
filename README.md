@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **In-app balance report.** `npm run report` now has a dev-only in-app twin (🛠️ Dev menu → "📊 Balance Report"):
+  runs seeded greedy-bot games in the browser and shows the same offer/pick/win tables for heroes, quests, runes,
+  minions, and spells. The sim + tally moved into `@game/sim`, so the panel and the CLI share one implementation and
+  produce identical numbers.
 - **Audio mixing desk.** All audio dials now live in one `audioConfig` — a master limiter + four category buses
   (ui/combat/voice/hero) + per-category levels. The dev SFX panel became a **mixing desk**: master limiter dials,
   per-bus faders, **live peak + gain-reduction meters**, realistic **test-scenes** (Combat beat / Shop spam /

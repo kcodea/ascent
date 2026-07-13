@@ -219,6 +219,10 @@ interface GameStore {
   showBook: boolean;
   toggleBook: () => void;
   closeBook: () => void;
+  /** DEV-only balance-report panel (runs greedy-bot games in-browser + shows offer/pick/win tables). */
+  showBalance: boolean;
+  openBalance: () => void;
+  closeBalance: () => void;
 }
 
 const randomSeed = (): number => Math.floor(Math.random() * 0x7fffffff);
@@ -483,6 +487,9 @@ export const useGame = create<GameStore>((set, get) => ({
   showBook: false,
   toggleBook: () => set((s) => ({ showBook: !s.showBook })),
   closeBook: () => set({ showBook: false }),
+  showBalance: false,
+  openBalance: () => set({ showBalance: true }),
+  closeBalance: () => set({ showBalance: false }),
 }));
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the

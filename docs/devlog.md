@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### balance: card batch — Trail Forager, Hoard Whelp, Bloodbinder, Runic Beetle
+
+Owner card pass (PR-A of a larger batch; the quest consolidation follows separately):
+- **Trail Forager** — base sell **2g → 3g** (still +1g per Beast played). `sellValueOf` + `trailForagerText` bumped;
+  text reworded to "Sells for **3g**, plus **1g** for every Beast you play" (the live value still greens in).
+- **Hoard Whelp** — keeps Sell: 6 Gold, gains **End of Turn: get a random Tier 1 Spell or Minion** (golden 2). New
+  `endOfTurnGrantRandomTierCard` recruit factory — one combined pool of Tier-1 spells + active-tribe/neutral Tier-1
+  minions, uniform pick, hand-cap-safe.
+- **Bloodbinder** — Bleed marks **2** enemies (golden **4**), up from 1/2. Just the `targets` param (golden mul
+  already doubles) + text.
+- **Runic Beetle** — gains **Combo: give both** (Rise **and** Flurry). Because its Choose One is *targeted*, the
+  combo defers to a single target pick and applies BOTH options to it — new `bothOptions` flag on `pendingTarget`,
+  handled in the combo play-path and `battlecryTarget` (no viable Beast → both auto-grant to itself).
+- **Verified**: `typecheck`/`lint`/`test` (975, incl. new Runic Beetle combo (both-grant + no-primer-still-prompts),
+  Hoard Whelp EoT (T1 spell-or-minion, golden 2), updated Trail Forager + Bloodbinder marks-2/golden-4 tests)/
+  `build:web` green; live — all four texts render, the Runic Beetle combo targets one Beast and grants R+W, no
+  console errors.
+
 ### balance: Bleed down to 1 mark (golden 2, no dmg-double) + Black Belt Brian Combo
 
 Owner tuning:

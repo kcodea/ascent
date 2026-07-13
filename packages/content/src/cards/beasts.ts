@@ -95,7 +95,7 @@ export const BEASTS: CardDef[] = [
     keywords: [],
     token: true,
     effects: [],
-    text: 'This sells for **2g**. Increase the value by **1g** for every Beast you play.',
+    text: 'Sells for **3g**, plus **1g** for every Beast you play.',
   },
   {
     // Quest reward (Trophy Den): a Rally snowball — each of its attacks gives your Beasts a GROWING +N/+N aura
@@ -296,7 +296,10 @@ export const BEASTS: CardDef[] = [
       { text: 'Give a friendly Beast **Rise**.', effects: [{ on: 'onPlay', do: 'battlecryGrantKeyword', params: { keywords: ['R'] } }] },
       { text: 'Give a friendly Beast **Flurry**.', effects: [{ on: 'onPlay', do: 'battlecryGrantKeyword', params: { keywords: ['W'] } }] },
     ],
-    text: '**Choose One:** give a friendly Beast **Rise**, or **Flurry**.',
+    // Combo: grant BOTH Rise and Flurry — the player still picks one friendly Beast; it receives both (via the
+    // targeted `bothOptions` path in the reducer). No pick / no other Beast → both auto-grant to itself.
+    combo: { chooseBoth: true },
+    text: '**Choose One:** give a friendly Beast **Rise**, or **Flurry**. **Combo:** give both.',
   },
   {
     // Dual-type Beast/Mech finisher. Rally builds a rest-of-combat Beast Attack aura that catches summons

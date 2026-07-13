@@ -198,6 +198,37 @@ describe('run loop (@game/sim)', () => {
       expect(solo.discover!.every((id) => CARD_INDEX[id]!.spell)).toBe(true);
       expect(solo.discoverQueue?.length ?? 0).toBe(0); // no combo → no minion Discover
     });
+
+    it("Runic Beetle Combo grants BOTH Rise and Flurry to one picked Beast", () => {
+      // The ally Beast is already on board; the primer sits immediately before Runic Beetle in hand.
+      let s: RunState = {
+        ...createRun(1),
+        board: [{ uid: 'ally', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+        hand: [mk('p', 'emberpouch'), { uid: 'rb', cardId: 'beetle', tribe: 'beast', attack: 3, health: 1, keywords: [], golden: false }],
+      };
+      s = reduce(s, { type: 'play', uid: 'p' }); // arm the combo
+      s = reduce(s, { type: 'play', uid: 'rb' }); // combo → targeted pick, NO Choose One prompt
+      expect(s.chooseOne).toBeUndefined();
+      expect(s.pendingTarget?.cardId).toBe('beetle');
+      expect(s.pendingTarget?.bothOptions).toBe(true);
+      // Pick the ally Beast → it gets BOTH Rise (R) and Flurry (W).
+      s = reduce(s, { type: 'battlecryTarget', targetUid: 'ally' });
+      const ally = s.board.find((c) => c.uid === 'ally')!;
+      expect(ally.keywords).toContain('R');
+      expect(ally.keywords).toContain('W');
+      expect(s.pendingTarget).toBeUndefined();
+    });
+
+    it("Runic Beetle WITHOUT a primer still prompts a normal Choose One", () => {
+      let s: RunState = {
+        ...createRun(1),
+        board: [{ uid: 'ally', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+        hand: [{ uid: 'rb', cardId: 'beetle', tribe: 'beast', attack: 3, health: 1, keywords: [], golden: false }],
+      };
+      s = reduce(s, { type: 'play', uid: 'rb' });
+      expect(s.chooseOne?.cardId).toBe('beetle'); // normal Choose One, not the combo both-grant
+      expect(s.pendingTarget).toBeUndefined();
+    });
   });
 
   it('rejects a buy without enough embers', () => {
@@ -4967,6 +4998,27 @@ describe('Dragon quests + reward minions', () => {
     expect(s.embers).toBe(CONFIG.sellValue + 6);
   });
 
+  it('Hoard Whelp — End of Turn: get a random Tier 1 Spell or Minion (golden 2)', () => {
+    const whelp = (golden: boolean): BoardCard => ({ uid: 'h', cardId: 'hoardwhelp', tribe: 'dragon', attack: 3, health: 2, keywords: [], golden });
+    let s: RunState = {
+      ...createRun(1), tier: 3, phase: 'recruit', embers: 0, hand: [],
+      tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'],
+      board: [whelp(false)],
+    };
+    s = reduce(s, { type: 'faceOmen' }); // fires End of Turn before combat
+    expect(s.hand.length).toBe(1);
+    expect(CARD_INDEX[s.hand[0]!.cardId]!.tier).toBe(1); // exactly Tier 1 (spell or minion)
+    // Golden grants two.
+    let g: RunState = {
+      ...createRun(1), tier: 3, phase: 'recruit', embers: 0, hand: [],
+      tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'],
+      board: [whelp(true)],
+    };
+    g = reduce(g, { type: 'faceOmen' });
+    expect(g.hand.length).toBe(2);
+    expect(g.hand.every((c) => CARD_INDEX[c.cardId]!.tier === 1)).toBe(true);
+  });
+
   it('Skybound Pact (tribeStats) advances by +Attack/+Health buffs granted to Dragons', () => {
     let s: RunState = {
       ...createRun(1), tier: 6, phase: 'recruit', embers: 10,
@@ -5190,11 +5242,11 @@ describe('Beast quests (combat objectives + rewards)', () => {
     const forager: BoardCard = { uid: 'f', cardId: 'trailforager', tribe: 'beast', attack: 1, health: 4, keywords: [], golden: false };
     const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
     let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', board: [forager], hand: [beast] };
-    expect(sellValueOf(s.board[0]!)).toBe(2);
+    expect(sellValueOf(s.board[0]!)).toBe(3); // base 3g
     s = reduce(s, { type: 'play', uid: 'b' });
     const f = s.board.find((c) => c.cardId === 'trailforager')!;
     expect(f.sellBonus).toBe(1);
-    expect(sellValueOf(f)).toBe(3);
+    expect(sellValueOf(f)).toBe(4); // 3 + 1 per Beast played
   });
 
   it('Feed the Alpha spell sells the target and feeds the right-most Beast', () => {

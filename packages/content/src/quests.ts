@@ -113,6 +113,17 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_rulebreakers_crown', name: "Rulebreaker's Crown", tribe: 'neutral', tier: 'capstone', objective: { event: 'attack', count: 14 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['goldcrafter'] }, { kind: 'combatFlag', flag: 'doubleLeftmostAttack' }] } },
   { id: 'q_authors_hand', name: "The Author's Hand", tribe: 'neutral', tier: 'capstone', objective: { event: 'authorsHand', count: 5 }, reward: { kind: 'multi', rewards: [{ kind: 'shoutRepeat', scope: 'firstEachRound' }, { kind: 'echoRepeat', scope: 'firstEachCombat' }, { kind: 'rallyRepeat', scope: 'firstEachCombat' }, { kind: 'slaughterRepeat', scope: 'firstEachCombat' }] } },
   { id: 'q_impossible_shop', name: 'Taurus Ascension', tribe: 'neutral', tier: 'greater', objective: { event: 'spendGold', count: 40 }, reward: { kind: 'grant', cards: ['taurustruth'] } },
+
+  // ── Turn-11 capstone additions (owner batch 2026-07-13). Each hangs a NEW recurring End-of-Turn / widen
+  //    mechanic off a tribe's signature minion. Objective counts + reward magnitudes are starting dials. ──
+  // UNDEAD — Spear Warden "pass the spears", the Undead speed aura, and Cratering Hulk's stat-hoard spread.
+  { id: 'q_passing_spears', name: 'Passing Spears', tribe: 'undead', tier: 'capstone', objective: { event: 'friendlyDeath', count: 12 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['knit'] }, { kind: 'recurringEndOfTurn', effect: 'spearWardenEcho' }] } },
+  { id: 'q_forsaken_speed', name: 'Forsaken Speed', tribe: 'undead', tier: 'capstone', objective: { event: 'summonCombat', count: 10, tribe: 'undead' }, reward: { kind: 'recurringEndOfTurn', effect: 'undeadPlayedAtk' } },
+  { id: 'q_cratering_missive', name: 'Cratering Missive', tribe: 'undead', tier: 'capstone', objective: { event: 'summonCombat', count: 14 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['thunderingabomination'] }, { kind: 'recurringEndOfTurn', effect: 'crateringMissive' }] } },
+  // DEMON — grant a Bane + widen its after-Battlecry payoff to all Demons.
+  { id: 'q_banes_existence', name: "Bane's Existence", tribe: 'demon', tier: 'capstone', objective: { event: 'shout', count: 12 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['bane'] }, { kind: 'baneDemonAura', attack: 2, health: 2 }] } },
+  // MECH — Cling Drones self-magnetize onto your Mechs every End of Turn.
+  { id: 'q_clinging_on', name: 'Clinging On', tribe: 'mech', tier: 'capstone', objective: { event: 'playAttachment', count: 10 }, reward: { kind: 'recurringEndOfTurn', effect: 'attachClingDrones' } },
 ];
 
 export const QUEST_INDEX: Record<string, QuestDef> = Object.fromEntries(

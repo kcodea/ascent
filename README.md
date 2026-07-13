@@ -28,6 +28,9 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
 - **Player Leaderboard + Hall of Champions.** The victory-runs page is now titled **Hall of Champions**, and a new
   **Leaderboard** ranks the **top 10 players by rating** (games played + favorite hero). Backed by a new `profiles`
   table upserted on every finished run — dormant until the backend migration runs, like the other shared tables.
+- **Five new turn-11 capstone quests.** Passing Spears, Forsaken Speed, Cratering Missive, Bane's Existence, and
+  Clinging On — each hangs a new recurring End-of-Turn payoff (or a Bane widen) off a tribe's signature minion,
+  completing the turn-11 quest batch. Recruit-side only; numbers are starting dials.
 - **In-app balance report.** `npm run report` now has a dev-only in-app twin (🛠️ Dev menu → "📊 Balance Report"):
   runs seeded greedy-bot games in the browser and shows the same offer/pick/win tables for heroes, quests, runes,
   minions, and spells. The sim + tally moved into `@game/sim`, so the panel and the CLI share one implementation and

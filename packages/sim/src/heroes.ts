@@ -29,9 +29,9 @@ export type HeroPowerKind =
   | 'displace' // Darah: swap a friendly minion with a random tavern minion (active, targeted)
   | 'grantReborn' // Lord of the Risen: give a friendly minion Rise for the next combat (active, targeted)
   | 'recurringGoldcrafter' // Gildmaster (passive): get a Goldcrafter (gild-a-minion spell) every 4 turns
-  | 'runeforge' // Runesmith (passive): on turn 6 the Runeforge opens — buy ONE of a random 3 runes (a run-long buff)
-  | 'epicRuneforge' // Runeguard (passive): the EPIC Runeforge opens on turn 10 (scheduled via `epicForgeWave` at run start)
-  | 'pathfinder' // Coran (passive): no lesser quest; the Greater + Capstone quest shops arrive on turns 6 + 10
+  | 'runeforge' // Runesmith (passive): on turn 7 the Runeforge opens — buy ONE of a random 3 runes (a run-long buff)
+  | 'epicRuneforge' // Runeguard (passive): the EPIC Runeforge opens on turn 12 (scheduled via `epicForgeWave` at run start)
+  | 'pathfinder' // Coran (passive): skips the turn-5 quest; gets the turn-11 (late) quest early, on turn 7
   | 'dynamiteDig'; // Jenkins: 1 Gold Discover a minion of your tier — costs 1 more Gold each use (active, untargeted)
 
 export interface HeroPower {
@@ -333,8 +333,8 @@ export const HEROES: HeroDef[] = [
       name: 'Runeforge',
       kind: 'runeforge',
       passive: true, // fires on the turn-6 advance (opens the Runeforge offer); resolved by `buyRune` / `skipRuneforge`
-      oncePerGame: true, // the forge opens exactly once, on turn 6
-      text: 'Runeforge: On turn 6, buy one of a random 3 Runes (re-roll once for 2 Gold) — a permanent buff for the run.',
+      oncePerGame: true, // the forge opens exactly once, on turn 7
+      text: 'Runeforge: On turn 7, buy one of a random 3 Runes (re-roll once for 2 Gold) — a permanent buff for the run.',
     },
   },
   {
@@ -347,7 +347,7 @@ export const HEROES: HeroDef[] = [
       name: 'Defend the Forge',
       kind: 'epicRuneforge',
       passive: true, // scheduled at run start (createRun sets `epicForgeWave = 10`); opens via advanceCombat sequencing
-      text: 'Defend the Forge: Visit the Epic Runeforge on turn 10 — buy one Epic Rune (a permanent buff for the run).',
+      text: 'Defend the Forge: Visit the Epic Runeforge on turn 12 — buy one Epic Rune (a permanent buff for the run).',
     },
   },
   {
@@ -359,8 +359,8 @@ export const HEROES: HeroDef[] = [
     power: {
       name: 'Pathfinder',
       kind: 'pathfinder',
-      passive: true, // resolved on the turn-advance quest schedule (no lesser quest; Greater turn 6, Capstone turn 10)
-      text: 'Pathfinder: You skip the Lesser quest, and reach the Greater + Capstone quest shops early (turns 6 & 10).',
+      passive: true, // resolved on the turn-advance quest schedule (skips the turn-5 quest; the turn-11 quest arrives on turn 7)
+      text: 'Pathfinder: You skip the first quest, and reach your big quest early — on turn 7 instead of turn 11.',
     },
   },
   {

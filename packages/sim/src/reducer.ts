@@ -3,7 +3,7 @@ import { BUYABLE_CARDS, CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, 
 import { CONFIG } from './config';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
-import { generateQuestOffer, questTierForWave } from './quests';
+import { generateQuestOffer, questOfferPlan } from './quests';
 import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
@@ -1658,23 +1658,18 @@ function advanceCombat(s: RunState): void {
   // (freezing a partial shop shouldn't leave you with fewer options); otherwise full reroll.
   // Either way, queued Fodder (Soulfeeder) still gets injected — freezing must not strand the
   // promised Fodder in `pendingTavern` forever.
-  // Quest-turn (waves 4/8/12): open the quest shop. The tavern still ROLLS this turn — deferred to just after
-  // `checkTriples` below (the same rngCursor point the old post-`buyQuest` roll used, so runs stay byte-identical)
-  // — so the shop sits behind the quest overlay and the pick is shop-informed. An empty offer (no content, or
-  // quests disabled) falls through to a normal turn — a content gap never soft-locks. The "quest phase" is just
-  // "questOffer is set" (no new phase enum); the modal guard locks every action but buyQuest until it resolves.
-  // Fi's Errand: an EXTRA, lower-tier quest shop on turn 3 (an off-wave, drawn from the 'lesser' pool). On the
-  // normal quest waves (4/8/12) she gets those as usual; this is a bonus offer, once, ahead of schedule.
-  const hp = getHero(s.heroId).power.kind;
-  const fiExtra = hp === 'lesserQuest' && s.wave === 3;
-  // Coran (Pathfinder): his OWN quest schedule replaces the normal 4/8/12 — no Lesser, Greater on turn 6, Capstone
-  // on turn 10. Returns `null` off his quest turns so the normal schedule is skipped entirely for him.
-  const coranTier = hp === 'pathfinder' ? (s.wave === 6 ? 'greater' : s.wave === 10 ? 'capstone' : null) : undefined;
-  const questTier = fiExtra ? 'lesser' : coranTier !== undefined ? coranTier : questTierForWave(s.wave);
-  const questOffer = questTier ? generateQuestOffer(s, questTier) : [];
-  // Runesmith: the Runeforge opens exactly once, on turn 6 — offer a random 3 of the runes for the player to buy
+  // Quest-turns (waves 5 & 11 — consolidated from the old 4/8/12): open the quest shop. The tavern still ROLLS
+  // this turn — deferred to just after `checkTriples` below (the same rngCursor point the old post-`buyQuest` roll
+  // used, so runs stay byte-identical) — so the shop sits behind the quest overlay and the pick is shop-informed.
+  // An empty offer (no content, or quests disabled) falls through to a normal turn — a content gap never soft-locks.
+  // The "quest phase" is just "questOffer is set" (no new phase enum); the modal guard locks every action but
+  // buyQuest until it resolves. Fi's Errand (bonus Lesser offer on turn 3) and Coran's Pathfinder (turn-11 bucket on
+  // turn 7, no turn-5 quest) are folded into `questOfferPlan`.
+  const questPlan = questOfferPlan(s);
+  const questOffer = questPlan ? generateQuestOffer(s, questPlan) : [];
+  // Runesmith: the Runeforge opens exactly once, on turn 7 — offer a random 3 of the runes for the player to buy
   // ONE. Like the quest shop, the tavern is rolled behind the overlay so the shop is ready once the forge closes.
-  const forge = getHero(s.heroId).power.kind === 'runeforge' && s.wave === 6 && !s.heroPowerSpent;
+  const forge = getHero(s.heroId).power.kind === 'runeforge' && s.wave === 7 && !s.heroPowerSpent;
   if (forge) {
     s.runeforgeEpic = undefined; // basic forge — set before runeforgePool so it reads the normal set
     s.runeforgeRerolled = undefined;

@@ -1,14 +1,33 @@
-import { makeRng, type QuestTier, type Tribe } from '@game/core';
+import { makeRng, type QuestDef, type Tribe } from '@game/core';
 import { CARD_INDEX, QUEST_DEFS } from '@game/content';
 import { CONFIG } from './config';
+import { getHero } from './heroes';
 import { mixSeed, TAG, type RunState } from './state';
 
-/** The three quest-turns and their tiers: wave 4 → lesser, 8 → greater, 12 → capstone; null otherwise.
- *  `CONFIG.questsEnabled = false` forces null everywhere — the master off-switch for the quest system. Both
- *  the reducer's phase gate AND `generateQuestOffer` route through here, so nothing can slip past a single flag. */
-export function questTierForWave(wave: number): QuestTier | null {
+/** The two quest-turn buckets (owner 2026-07-13 — consolidated from three tiers/turns to two). Turn 5 = the
+ *  "early" pool (Lesser + most Greater quests); turn 11 = the "late" pool (Capstones, plus the two Greater
+ *  neutrals — Ancient Runes & Last Rites — promoted into the late slot per the owner's table). The quest's
+ *  `tier` field is retained for other semantics (Fi's Lesser-only filter, reward pools). */
+export function questBucketFor(q: QuestDef): 5 | 11 {
+  if (q.tier === 'capstone') return 11;
+  return q.id === 'q_ancient_runes' || q.id === 'q_last_rites' ? 11 : 5;
+}
+
+/** The quest-offer plan for the current turn: which bucket to draw from, and whether it's restricted to Lesser
+ *  quests (Fi's bonus turn-3 offer). Null = not a quest turn for this run/hero. `CONFIG.questsEnabled = false`
+ *  forces null everywhere — the master off-switch, honored by both the reducer's phase gate and the offer gen. */
+export type QuestOfferPlan = { bucket: 5 | 11; lesserOnly?: boolean };
+export function questOfferPlan(s: RunState): QuestOfferPlan | null {
   if (!CONFIG.questsEnabled) return null;
-  return wave === 4 ? 'lesser' : wave === 8 ? 'greater' : wave === 12 ? 'capstone' : null;
+  const hp = getHero(s.heroId).power.kind;
+  // Fi's Errand: a bonus LESSER-only offer on turn 3 (from the turn-5 bucket), ON TOP of the normal turns 5 & 11.
+  if (hp === 'lesserQuest' && s.wave === 3) return { bucket: 5, lesserOnly: true };
+  // Coran (Pathfinder): skips the turn-5 quest; gets the turn-11 bucket quest EARLY on turn 7 (nothing on 5 or 11).
+  if (hp === 'pathfinder') return s.wave === 7 ? { bucket: 11 } : null;
+  // Everyone else: the early bucket on turn 5, the late bucket on turn 11.
+  if (s.wave === 5) return { bucket: 5 };
+  if (s.wave === 11) return { bucket: 11 };
+  return null;
 }
 
 /** The player's most-played board tribe (most minions of one non-neutral tribe; dual-types count for both),
@@ -34,21 +53,21 @@ function dominantTribe(s: RunState): Tribe | null {
 }
 
 /**
- * Generate the quest offer for a quest-wave (4/8/12): always a **neutral** quest plus **3 distinct-tribe**
- * quests (4 total), all of the wave's tier. Seeded off (seed, wave) in its own RNG stream (`TAG.QUEST`) so it's
- * reproducible and never perturbs the shop roll. Waves 8 & 12 force at least one tribe slot to the player's
- * most-played board tribe (a chance at the second, once a tribe has ≥2 quests of the tier); wave 4 is
- * free-steering (random distinct tribes). Quests you've ALREADY taken this run are excluded, and no quest can
- * appear twice in one offer. Returns quest ids (0–4). An EMPTY result (no content for the tier) signals "no
- * quest phase" — the caller falls through to a normal turn, so a content gap can't soft-lock.
+ * Generate the quest offer for a quest turn: always a **neutral** quest plus **3 distinct-tribe** quests (4
+ * total) drawn from the plan's bucket. Seeded off (seed, wave) in its own RNG stream (`TAG.QUEST`) so it's
+ * reproducible and never perturbs the shop roll. The two main quest turns (5 & 11) force at least one tribe slot
+ * to the player's most-played board tribe (a chance at the second, once a tribe has ≥2 quests in the bucket);
+ * Fi's bonus Lesser-only turn-3 offer is free-steering (random distinct tribes). Quests you've ALREADY taken this
+ * run are excluded, and no quest can appear twice in one offer. Returns quest ids (0–4). An EMPTY result signals
+ * "no quest phase" — the caller falls through to a normal turn, so a content gap can't soft-lock.
  */
-export function generateQuestOffer(s: RunState, forcedTier?: QuestTier): string[] {
-  const tier = forcedTier ?? questTierForWave(s.wave);
-  if (!tier) return [];
+export function generateQuestOffer(s: RunState, plan: QuestOfferPlan): string[] {
   const rng = makeRng(mixSeed(s.seed, s.wave, TAG.QUEST));
   // Never re-offer a quest you already hold (taken/active/completed), and never repeat a quest within one offer.
   const taken = new Set((s.activeQuests ?? []).map((aq) => aq.questId));
-  const pool = QUEST_DEFS.filter((q) => q.tier === tier && !taken.has(q.id));
+  const pool = QUEST_DEFS.filter(
+    (q) => questBucketFor(q) === plan.bucket && (!plan.lesserOnly || q.tier === 'lesser') && !taken.has(q.id),
+  );
   const used = new Set<string>();
   const idsOf = (t: Tribe): string[] => pool.filter((q) => q.tribe === t && !used.has(q.id)).map((q) => q.id);
   const pick = (ids: string[]): string | null => (ids.length ? ids[rng.int(ids.length)]! : null);
@@ -61,7 +80,8 @@ export function generateQuestOffer(s: RunState, forcedTier?: QuestTier): string[
   // 2) Three tribe slots (distinct non-neutral tribes).
   const tribes: Tribe[] = [...new Set(pool.map((q) => q.tribe))].filter((t) => t !== 'neutral');
   const chosen: Tribe[] = [];
-  const dom = tier !== 'lesser' ? dominantTribe(s) : null;
+  // Guarantee the player's dominant tribe on the two main quest turns; Fi's bonus Lesser offer stays free-steering.
+  const dom = plan.lesserOnly ? null : dominantTribe(s);
   if (dom && tribes.includes(dom)) {
     chosen.push(dom);
     // Chance at a 2nd dominant slot — only bites once a tribe has ≥2 quests of the tier.

@@ -14,6 +14,11 @@ describe('DEFAULT_AUDIO_CONFIG', () => {
       expect(['ui', 'combat', 'voice', 'hero']).toContain(c.bus);
     }
   });
+  it('includes synth-only cues from the bus map (routing) on their bus at unity gain', () => {
+    for (const k of ['death', 'shield', 'buff', 'maxgold']) {
+      expect(DEFAULT_AUDIO_CONFIG.categories[k], k).toEqual({ bus: 'combat', gain: 1 });
+    }
+  });
   it('buses default to unity gain, compressor bypassed', () => {
     for (const b of ['ui', 'combat', 'voice', 'hero'] as const) {
       expect(DEFAULT_AUDIO_CONFIG.buses[b]).toEqual({ gain: 1, comp: null });

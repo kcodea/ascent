@@ -40,8 +40,12 @@ const UNMAPPED: CategoryConfig = { bus: 'ui', gain: 0.6 };
 
 function buildCategories(): Record<string, CategoryConfig> {
   const out: Record<string, CategoryConfig> = {};
-  for (const [key, gain] of Object.entries(CATEGORY_GAINS)) {
-    out[key] = { bus: CATEGORY_BUS[key] ?? 'ui', gain };
+  // Union both maps: sample-backed categories carry their tuned gain; synth-only cues (present in CATEGORY_BUS
+  // only — e.g. death/shield/buff/maxgold) get unity gain. Their level is the cue's own literal synth vol, so
+  // for them the category is *routing-only* (which bus their fader controls), not a gain.
+  const keys = new Set([...Object.keys(CATEGORY_GAINS), ...Object.keys(CATEGORY_BUS)]);
+  for (const key of keys) {
+    out[key] = { bus: CATEGORY_BUS[key] ?? 'ui', gain: CATEGORY_GAINS[key] ?? 1 };
   }
   return out;
 }

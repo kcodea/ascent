@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### fix: consume-quest real-time tally + defer the Fodder eat behind the quest/Runeforge overlay
+
+Two Fodder-timing bugs + a cleave regression lock:
+- **Track and Fodder didn't update in real time** — the quest-advancement wrapper was gated on `state.phase ===
+  'recruit'`, so a **start-of-turn consume** (Fodder injected + eaten during `advanceCombat`, part of the
+  `resolveCombat` action while still in the combat phase) never advanced the `consumeFodder`/`consumeStats` quests
+  — the tally only started counting on the player's first recruit roll. Moved the consume-delta advancement OUT of
+  the recruit guard so it fires for any state-changing action (incl. `resolveCombat`).
+- **Fodder was eaten while the quest/Runeforge offer was open** — the turn-setup tavern roll (rolled behind the
+  overlay for a shop-informed pick) consumed the injected Fodder immediately. Now the eat is **deferred**: the
+  Fodder sits visible in the shop, and `openNextStartOfTurnModal` runs the consume once every start-of-turn modal
+  (quest / Runeforge / Discover) clears. New `RunState.holdFodderConsume`; `refreshTavern`/`injectPendingTavern`
+  gained a `hold` flag.
+- **Cleave** — investigated the report that it "only works on the first attack": the engine is correct (a long
+  fight cleaves on EVERY attack; only Baby Cub carries Cleave and it's never stripped) and every replay path
+  (`compileMoments`/`computeFrame`/`spawnFloats`/`animFor`) includes the neighbour hit each attack. Added a
+  regression test asserting cleave splashes on every attack across a multi-round fight. If a visual gap remains it's
+  a subtle presentation issue needing a live repro.
+- **Verified**: `typecheck`/`lint`/`test` (979)/`build:web` green.
+
 ### balance: Fried Circuits +4/+5 (asymmetric) + Shared Circuit ward-transfer
 
 Two Mech-capstone quest-reward tweaks:

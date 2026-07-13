@@ -527,6 +527,10 @@ export interface RunState {
   /** Demon quests. `runFodderConsumed` = run-wide Fodder-Consumed totals (count + Σ stats) feeding `consumeFodder`
    *  / `consumeStats`. `pitWithoutEndImps` = Pit Without End's board-wipe Imp count. */
   runFodderConsumed?: { count: number; stats: number };
+  /** Set when a turn-setup tavern roll injected Fodder but DEFERRED the Demon consume (because a start-of-turn
+   *  modal — quest offer / Runeforge — is open). `openNextStartOfTurnModal` runs the consume once every modal
+   *  clears, so the player sees the Fodder in the shop before their Demons eat it (owner 2026-07-13). */
+  holdFodderConsume?: boolean;
   pitWithoutEndImps?: number;
   /** Rulebreaker (neutral) quest rewards. `dupeFirstBuyEachTurn` = the first minion bought each turn is copied to
    *  hand (`dupeUsedThisTurn` tracks the per-turn spend). `spellDoubleAlways` = every spell casts twice (Ancient

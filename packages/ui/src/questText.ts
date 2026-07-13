@@ -202,6 +202,10 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return r.effect === 'triggerLeftmostShout' ? 'End of Turn: trigger your leftmost Shout'
         : r.effect === 'grantRandomAttachments' ? 'End of Turn: get 2 random Attachments'
         : r.effect === 'buffMechsPerAttachment' ? 'End of Turn: give your Mechs +2/+2 for every Attachment they have'
+        : r.effect === 'spearWardenEcho' ? 'End of Turn: each Spear Warden gives another minion +2/+2'
+        : r.effect === 'undeadPlayedAtk' ? 'End of Turn: your Undead gain +3 Attack for each card you played this turn'
+        : r.effect === 'crateringMissive' ? 'End of Turn: give your whole board +1/+1 for each Cratering Hulk you have'
+        : r.effect === 'attachClingDrones' ? 'End of Turn: weld a Cling Drone onto up to 3 of your Mechs'
         : 'End of Turn: get a random Shout minion';
     case 'gainGold':
       return `Get ${r.amount} Gold`;
@@ -239,6 +243,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return `Each minion you buy buffs shop Mechs +${r.stepAttack}/+${r.stepHealth}, improving by +${r.stepAttack}/+${r.stepHealth} each purchase`;
     case 'undeadSpellAura':
       return `Casting a spell gives your Undead +${r.attack} Attack (in the shop and combat)`;
+    case 'baneDemonAura':
+      return `Your Banes' Battlecry payoff also gives your Demons +${r.attack}/+${r.health}`;
     case 'openEpicRuneforge':
       return 'Visit the Epic Runeforge at the start of next turn';
     case 'scheduleRuneforge':

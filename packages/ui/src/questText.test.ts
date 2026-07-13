@@ -78,6 +78,15 @@ describe('questText — rewards', () => {
   it('buffMechsPerAttachment recurring effect states the per-attachment grant', () => {
     expect(questRewardText({ kind: 'recurringEndOfTurn', effect: 'buffMechsPerAttachment' })).toBe('End of Turn: give your Mechs +2/+2 for every Attachment they have');
   });
+  it('turn-11 recurring effects each render their own End-of-Turn line', () => {
+    expect(questRewardText({ kind: 'recurringEndOfTurn', effect: 'spearWardenEcho' })).toBe('End of Turn: each Spear Warden gives another minion +2/+2');
+    expect(questRewardText({ kind: 'recurringEndOfTurn', effect: 'undeadPlayedAtk' })).toBe('End of Turn: your Undead gain +3 Attack for each card you played this turn');
+    expect(questRewardText({ kind: 'recurringEndOfTurn', effect: 'crateringMissive' })).toBe('End of Turn: give your whole board +1/+1 for each Cratering Hulk you have');
+    expect(questRewardText({ kind: 'recurringEndOfTurn', effect: 'attachClingDrones' })).toBe('End of Turn: weld a Cling Drone onto up to 3 of your Mechs');
+  });
+  it('baneDemonAura states the Demon widen', () => {
+    expect(questRewardText({ kind: 'baneDemonAura', attack: 2, health: 2 })).toBe("Your Banes' Battlecry payoff also gives your Demons +2/+2");
+  });
 });
 
 describe('questText — live reward magnitude (badge tooltip)', () => {

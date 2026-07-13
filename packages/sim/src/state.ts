@@ -564,7 +564,10 @@ export interface RunState {
   lastSurvivorCardIds?: string[];
   /** Recurring End-of-Turn effects granted by quests (Echoing Roar → re-fire leftmost Shout; The Hoard Wakes →
    *  conjure a random Shout minion). Fired every End of Turn for the rest of the run. Absent = none. */
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'spearWardenEcho' | 'undeadPlayedAtk' | 'crateringMissive' | 'attachClingDrones')[];
+  /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
+   *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
+  baneBuffsDemons?: { attack: number; health: number };
   /** A pending Discover offer (3 card ids) — pick one to hand. */
   discover?: string[];
   /** Disco Dan's Setlist: the shop tier the CURRENTLY-open Discover's pick will be locked until (its

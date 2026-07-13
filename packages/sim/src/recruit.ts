@@ -1181,6 +1181,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const h = num(params.health, 1) * gold(self);
     buffFodderRunWide(ctx.state, a, h, nameOf(self));
     buffImpsRunWide(ctx.state, a, h, nameOf(self)); // Bane now buffs Imps too
+    // Bane's Existence (quest): the widen — also buff every Demon you have (board + hand) by the flag amount.
+    const dem = ctx.state.baneBuffsDemons;
+    if (dem && (dem.attack !== 0 || dem.health !== 0)) {
+      for (const c of [...ctx.state.board, ...ctx.state.hand]) {
+        if (isTribe(c, 'demon')) addBuff(c, `${nameOf(self)} (Demons)`, dem.attack, dem.health);
+      }
+    }
     // Flash Bane itself + any Fodder on the board it just enchanted, so the proc is visible even when no
     // Fodder is out (its enchant is run-wide, to the card *type*). Reuses the battlecry-trigger flame flash:
     // the seq bump happens in `fireBattlecryTriggered`'s callers once this list is non-empty.
@@ -2852,7 +2859,7 @@ export function applyEndOfTurn(state: RunState): void {
 /** One quest-granted recurring End-of-Turn effect. `triggerLeftmostShout`: re-fire your leftmost Battlecry
  *  minion's Battlecry (Echoing Roar). `grantRandomShout`: conjure a random Battlecry minion (≤ tavern tier) to
  *  hand (The Hoard Wakes). `grantRandomAttachments`: conjure 2 random Magnetic minions to hand (Blueprint Cache). */
-function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs'): void {
+function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['questRecurringEndOfTurn']>[number]): void {
   if (effect === 'triggerLeftmostShout') {
     const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
     if (leftmost) replayBattlecry(state, leftmost);
@@ -2878,6 +2885,41 @@ function runRecurringEndOfTurn(state: RunState, effect: 'triggerLeftmostShout' |
     // Rune of the Reliquary: fire your leftmost minion's Echo (Deathrattle) out of combat.
     const leftmost = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
     if (leftmost) fireRecruitDeathrattles(makeContext(state), leftmost);
+  } else if (effect === 'spearWardenEcho') {
+    // Passing Spears: each Spear Warden on your board gives ANOTHER friendly minion +2/+2. Deterministic target —
+    // the leftmost minion that isn't this Spear Warden (stacks if several Wardens or a Warden is the only "other").
+    for (const warden of state.board.filter((c) => c.cardId === 'knit')) {
+      const target = state.board.find((c) => c.uid !== warden.uid) ?? state.board.find((c) => c !== warden);
+      if (target) addBuff(target, 'Passing Spears', 2, 2);
+    }
+  } else if (effect === 'undeadPlayedAtk') {
+    // Forsaken Speed: your Undead gain +3 Attack for each card you played this turn (reads `playedThisTurn`).
+    const n = (state.playedThisTurn ?? []).length;
+    if (n > 0) for (const c of state.board) if (isTribe(c, 'undead')) addBuff(c, 'Forsaken Speed', 3 * n, 0);
+  } else if (effect === 'crateringMissive') {
+    // Cratering Missive: give your WHOLE board +1/+1 for each Cratering Hulk you control (spreads the Hulk's
+    // stat-hoarding to every tribe).
+    const hulks = state.board.filter((c) => c.cardId === 'thunderingabomination').length;
+    if (hulks > 0) for (const c of state.board) addBuff(c, 'Cratering Missive', hulks, hulks);
+  } else if (effect === 'attachClingDrones') {
+    // Clinging On: weld a Cling Drone onto up to 3 of your Mechs (the leftmost three) at End of Turn.
+    const cling = CARD_INDEX['cling'];
+    const mechs = state.board.filter((c) => isTribe(c, 'mech')).slice(0, 3);
+    if (cling) {
+      const buff = cardBuff(state, cling.id);
+      for (const m of mechs) {
+        weldMagnetic(state, m, {
+          source: cling.name,
+          attack: cling.attack + buff.attack,
+          health: cling.health + buff.health,
+          keywords: [...cling.keywords],
+          mana: cling.manaPerTurn ?? 0,
+          rallyMechAtk: cling.rallyMechAtk,
+          spellAura: cling.spellAura,
+          fodderAura: cling.fodderAura,
+        }, 1); // each weld is one Cling magnetized → fires Cling Drone's own "+1/+1 to your Clings"
+      }
+    }
   } else if (effect === 'weldMoneyBotsEdgeMechs') {
     // Rune of Banking: weld a Money Bot onto your left-most and right-most Mech (deduped if only one Mech).
     const money = CARD_INDEX['moneybot'];
@@ -2964,6 +3006,8 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   buffMechsPerAttachment: 'Blueprint Cache',
   runeSpending: 'Rune of Spending', runeAction: 'Rune of Action', triggerLeftmostEcho: 'Rune of the Reliquary',
   weldMoneyBotsEdgeMechs: 'Rune of Banking',
+  spearWardenEcho: 'Passing Spears', undeadPlayedAtk: 'Forsaken Speed', crateringMissive: 'Cratering Missive',
+  attachClingDrones: 'Clinging On',
 };
 
 /**

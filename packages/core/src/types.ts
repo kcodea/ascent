@@ -489,7 +489,11 @@ export type QuestReward =
   // `weldMoneyBotsEdgeMechs` (Rune of Banking): End of Turn — weld a Money Bot onto your leftmost + rightmost Mech.
   // `buffMechsPerAttachment` (Blueprint Cache): End of Turn — give each friendly Mech +2/+2 for every Attachment
   // (Magnetic minion) welded onto it.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' }
+  // `spearWardenEcho` (Passing Spears): End of Turn — each Spear Warden gives another friendly minion +2/+2.
+  // `undeadPlayedAtk` (Forsaken Speed): End of Turn — your Undead gain +3 Attack for each card you played this turn.
+  // `crateringMissive` (Cratering Missive): End of Turn — give your whole board +1/+1 for each Cratering Hulk you have.
+  // `attachClingDrones` (Clinging On): End of Turn — weld a Cling Drone onto up to 3 random friendly Mechs.
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'spearWardenEcho' | 'undeadPlayedAtk' | 'crateringMissive' | 'attachClingDrones' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -567,6 +571,8 @@ export type QuestReward =
   // Forsaken Will (Undead greater): each spell you cast permanently grants your Undead aura +`attack` Attack
   // (applies in the shop AND combat, like Lantern of Souls).
   | { kind: 'undeadSpellAura'; attack: number }
+  // Bane's Existence: after this, your Banes' after-Battlecry buff also gives all your Demons +A/+H run-wide.
+  | { kind: 'baneDemonAura'; attack: number; health: number }
   // A quest that grants SEVERAL of the above at once (The Hoard Wakes = shoutRepeat + recurringEndOfTurn).
   | { kind: 'multi'; rewards: QuestReward[] };
 export type QuestRewardKind = QuestReward['kind'];

@@ -63,6 +63,31 @@ labelled **Hall of Champions**, and a brand-new **Leaderboard** sits above it: t
   a slot") with no `profiles` table yet, and a mock top-4 confirmed the row layout (medals, tangerine rating, favorite
   hero portraits, "—" for a heroless player); Hall of Champions still opens its victory-run list unchanged.
 
+### content: the five remaining turn-11 capstone quests (Passing Spears / Forsaken Speed / Cratering Missive / Bane's Existence / Clinging On)
+
+Finishes the six-quest turn-11 batch (Leader of the Pack shipped earlier). Each hangs a **new** payoff off a tribe's
+signature minion; all implemented **recruit-side only** (no combat-sim changes) so `main` stays low-risk. Objective
+counts + reward magnitudes are **starting dials** (flagged for retuning).
+
+- **Passing Spears** (Undead capstone, `friendlyDeath 12`) — grant a Spear Warden + a recurring **End of Turn: each
+  Spear Warden gives another friendly minion +2/+2**.
+- **Forsaken Speed** (Undead capstone, `summonCombat 10`) — recurring **End of Turn: your Undead gain +3 Attack for
+  each card you played this turn** (reads `playedThisTurn`, like Rune of Action).
+- **Cratering Missive** (Undead capstone, `summonCombat 14`) — grant a Cratering Hulk + recurring **End of Turn: your
+  whole board +1/+1 for each Cratering Hulk you have** (spreads the Hulk's stat-hoard to every tribe).
+- **Bane's Existence** (Demon capstone, `shout 12`) — grant a Bane + a **widen**: your Banes' after-Battlecry payoff
+  now also gives all your Demons +2/+2 run-wide (new `baneBuffsDemons` flag, read in `onBattlecryBuffFodder`).
+- **Clinging On** (Mech capstone, `playAttachment 10`) — recurring **End of Turn: weld a Cling Drone onto up to 3 of
+  your Mechs** (reuses `weldMagnetic`; each weld fires the Cling Drone's own "+1/+1 to your Clings").
+
+Plumbing: four new `recurringEndOfTurn` effects (`spearWardenEcho` / `undeadPlayedAtk` / `crateringMissive` /
+`attachClingDrones`) + one new reward kind (`baneDemonAura`), threaded through the full stack — `types.ts`,
+`schema.ts`, `state.ts`, `reducer.ts`, `recruit.ts` (`runRecurringEndOfTurn` + the EoT label map + the Bane factory),
+and `questText.ts`. Because they ride the recurring-EoT rail, the recruit-screen End-of-Turn telegraph animates them
+for free. Verified: `typecheck`/`lint`/`test` (**996** — 6 new quest tests + 5 questText assertions)/`build:web`
+green; dev server boots clean (content validation accepts the new reward kinds). **Follow-up:** balance the dials +
+whether three Undead capstones crowds that slot.
+
 ### fix(fx): Taunt target/selection glow follows the shield silhouette
 
 A Taunt card is reshaped into a heater **shield** (portrait clipped to `--heater`, the frame PNG laid over an

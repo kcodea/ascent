@@ -30,6 +30,9 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   frame's measured window). Establishes the reusable **layered card pipeline** (portrait → frame → tint →
   fixed stat badges → FX); the whole shield scales from one `--sh` knob and flips on in real time when a unit
   gains Taunt. Frame spec in `apps/web/public/frames/README.md`.
+- **Audio recording guide.** [`docs/audio/RECORDING-GUIDE.md`](docs/audio/RECORDING-GUIDE.md) documents the
+  whole sound workflow end to end — record → name → `npm run sfx:import` → hear it — plus naming, mixing, and
+  troubleshooting. The audio authoring pipeline (manifest, generator, playback hooks, importer) is now fully on `main`.
 - **Audio hooks: per-card sounds now cover combat too.** Building on the shop/menu hooks, a minion's own
   **death** clip (`cards/<id>.death.mp3`) plays when it dies, and its **effect** clip (`cards/<id>.effect.mp3`)
   plays when its Deathrattle/Start-of-Combat/etc. procs — via the replay's uid→cardId map, deduped per card.

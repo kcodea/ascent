@@ -1,5 +1,8 @@
 # Audio docs
 
+> **Adding sound to the game? Start with [`RECORDING-GUIDE.md`](RECORDING-GUIDE.md)** — the full
+> record → name → import → hear-it workflow, naming reference, mixing, and troubleshooting.
+
 Both files below are **generated together** by `npm run sfx:manifest` from the real card/hero/spell data —
 edit the manifest's Creative-brief/Status columns (preserved across runs), never the tables' Filename/Trigger.
 

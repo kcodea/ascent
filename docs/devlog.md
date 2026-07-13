@@ -3,6 +3,22 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-13 (session 35)
+
+### feat(ui): self-buff pulse 50% larger
+
+Owner ruling: the in-combat **self-buff pulse** (the ring shockwave + gold core flash + spark burst that pops
+in place when a unit empowers ITSELF — Target Dummy gaining Attack on damage, and any other `source === target`
+buff routed through the `buffSelf` channel) reads too small. Scaled `PULSE_PRESETS.default`
+(`packages/ui/src/pulsePresets.ts`) up 50% on its px-radius dials: `ringSize` 173 → 259.5, `coreFlashSize`
+200 → 300, `sparkSize` 7 → 10.5, and `sparkSpeed` 390 → 585 (so the spark burst's *extent* grows with the
+rings rather than landing inside the now-larger ring). Left `ringWidth`, durations, and counts as-is — the
+effect grows in footprint without getting thicker-lined or slower. `PULSE_ASSIGN` is empty, so the change
+applies to **every** unit's self-buff pulse, not just Target Dummy.
+
+Verified: `typecheck + lint + test` & `build:web` green (`pulsePresets.test.ts` asserts field presence, not
+values, so the numeric change is safe).
+
 ## 2026-07-12 (session 34)
 
 ### feat: quest Part C — 3 new reward mechanics + live badge tooltips
@@ -262,6 +278,15 @@ player-side-scoped in `simulate` — spell-power/tally/spells/beasts were the on
 round-trip `addedTribes` / `bloodlust`; an ENEMY Bloodlust fires its opening strike; plus the re-landed per-side
 `simulate` proofs (enemy Pack Leader / Runescale use the opponent's values). Follow-up: keep sweeping the snapshot
 for any remaining representativeness gaps.
+### docs: audio recording & usage guide (`docs/audio/RECORDING-GUIDE.md`)
+
+With the audio pipeline fully merged to `main` (manifest + generator #335, shop/menu hooks #336, combat hooks
+#337, drop-folder importer #344), a single how-to that ties it together: the record → name → `npm run
+sfx:import` → hear-it loop, the full **what-plays-when** taxonomy (play/death/effect, hero select/power, spell
+cast + `castspell` bed, system cues), the naming reference (display-name/id + variant word, with fuzzy
+matching), the import flag reference, the manifest ↔ visual-guide relationship, **volume & mixing** (per-category
+`SAMPLE_VOL_DEFAULTS` + the dev SFX Mixer + the Esc-menu master volume/mute), how to verify each sound in game,
+the team flow for committing clip batches, and troubleshooting. Linked from `docs/audio/README.md`.
 
 ### feat(tools): `npm run sfx:import` — smart drop-folder audio importer
 

@@ -86,18 +86,25 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
  * kind spell|deathrattle). Diffs board `{attack,health}` by uid around `run()`, attributing each other card's
  * positive delta to `source`. Pure display metadata — the diff is ≤7 entries and never touches RNG or stats.
  */
-function captureBuffFx(
+export function captureBuffFx(
   state: RunState,
   source: BoardCard | undefined,
   kind: BuffFxEvent['kind'],
   run: () => void,
 ): void {
   const before = new Map(state.board.map((c) => [c.uid, { a: c.attack, h: c.health }]));
+  const fxStart = state.recruitBuffFx.length; // entries pushed DURING run() are nested (deeper) captures
   run();
+  // A nested capture (e.g. a summoned token's aura, or Karwind reacting) already recorded these targets with a
+  // more specific source — don't also attribute their delta to THIS (outer) source. Sibling captures (sequential,
+  // not nested — e.g. a Growth spell then Guel both buffing X) are NOT skipped: they legitimately produce two events.
+  const innerTargets = new Set<string>();
+  for (let i = fxStart; i < state.recruitBuffFx.length; i++) innerTargets.add(state.recruitBuffFx[i]!.targetUid);
   for (const c of state.board) {
-    if (source && c.uid === source.uid) continue;      // self-buffs use the pulse channel, not a tendril
+    if (source && c.uid === source.uid) continue; // self-buffs use the pulse channel, not a tendril
+    if (innerTargets.has(c.uid)) continue;        // a deeper capture already claimed this target
     const p = before.get(c.uid);
-    if (!p) continue;                                   // a newly summoned card is creation, not a buff
+    if (!p) continue;                             // a newly summoned card is creation, not a buff
     const da = c.attack - p.a;
     const dh = c.health - p.h;
     if (da <= 0 && dh <= 0) continue;
@@ -2461,7 +2468,7 @@ function fireBattlecryTriggered(state: RunState): void {
     for (const effect of def.effects) {
       if (effect.on !== 'battlecryTriggered') continue;
       const fn = RECRUIT_FACTORIES[effect.do];
-      if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
+      if (fn) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card }));
     }
   }
   // Twin Sun Oath (Dragon capstone): this Shout trigger buffs your leftmost + rightmost board minion. Fires per
@@ -2502,7 +2509,7 @@ export function applyChooseOne(state: RunState, card: BoardCard, effects: CardDe
   const ctx = makeContext(state);
   for (const effect of effects) {
     const fn = RECRUIT_FACTORIES[effect.do];
-    if (fn) fn(ctx, card, effect.params ?? {}, { minion: card });
+    if (fn) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card }));
   }
 }
 
@@ -2514,7 +2521,7 @@ export function applyChooseOneTarget(state: RunState, card: BoardCard, effects: 
   const ctx = makeContext(state);
   for (const effect of effects) {
     const fn = RECRUIT_FACTORIES[effect.do];
-    if (fn) fn(ctx, card, effect.params ?? {}, { minion: card, target });
+    if (fn) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, target }));
   }
 }
 

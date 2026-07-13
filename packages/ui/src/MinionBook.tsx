@@ -128,6 +128,25 @@ function grantsKeyword(c: CardDef, code: Keyword): boolean {
  *  surfaces Mumi (which has no Rise itself but hands it out), "Ward" surfaces Selfless Sentinel, etc. */
 const kwMatch = (code: Keyword) => (c: CardDef): boolean => c.keywords.includes(code) || grantsKeyword(c, code);
 
+/** Build a text predicate from the raw search-box value. Two modes:
+ *  - **Quoted** (`"Imp"`) → WHOLE-WORD match, so it hits "Imp" / "Imp King" but NOT "Improve" / "Imps" / "Impala".
+ *  - **Unquoted** (`Imp`) → case-insensitive substring (the loose default).
+ *  Empty / quotes-only → matches everything. Callers OR it across a card's name + text fields. */
+function makeSearchMatcher(raw: string): (text: string) => boolean {
+  const trimmed = raw.trim();
+  if (!trimmed) return () => true;
+  const quoted = trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"');
+  if (quoted) {
+    const term = trimmed.slice(1, -1).trim();
+    if (!term) return () => true;
+    // `\b…\b` around the regex-escaped term: a word boundary on each side excludes substrings inside a larger word.
+    const re = new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    return (text) => re.test(text);
+  }
+  const lower = trimmed.toLowerCase();
+  return (text) => text.toLowerCase().includes(lower);
+}
+
 /** The glossary — every keyword + trigger the cards use, one rule apiece. Grouped by when-it-fires
  *  (Triggers), what-it-does-in-combat (Combat), and shop/build terms. Icons + names mirror the card
  *  pills (KW_LABEL / KW_ICON + triggerPill in Card.tsx) so the codex and the cards speak one language.
@@ -230,8 +249,8 @@ export function MinionBook() {
   // Every rune (both forges) for the Runes tab — Basic set first, then Epic, each alphabetical. Not run-scoped
   // (runes aren't tribe-bound); shown as read-only RuneCards.
   const runesToShow = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const match = (r: { name: string; text: string }): boolean => !q || r.name.toLowerCase().includes(q) || r.text.toLowerCase().includes(q);
+    const m = makeSearchMatcher(search);
+    const match = (r: { name: string; text: string }): boolean => m(r.name) || m(r.text);
     return [...[...RUNES].sort((a, b) => a.name.localeCompare(b.name)), ...[...EPIC_RUNES].sort((a, b) => a.name.localeCompare(b.name))].filter(match);
   }, [search]);
 
@@ -240,11 +259,11 @@ export function MinionBook() {
   const questTierOrder = { lesser: 0, greater: 1, capstone: 2 } as const;
   const questsToShow = useMemo(() => {
     const tribeSel = [...cats].filter((x): x is Tribe => !NON_TRIBE_CATS.has(x));
-    const q = search.trim().toLowerCase();
+    const m = makeSearchMatcher(search);
     return QUEST_DEFS
       .filter((qd) => qd.tribe === 'neutral' || tribes.includes(qd.tribe))
       .filter((qd) => tribeSel.length === 0 || tribeSel.includes(qd.tribe))
-      .filter((qd) => !q || qd.name.toLowerCase().includes(q)) // search matches the quest name
+      .filter((qd) => m(qd.name)) // search matches the quest name
       .sort((a, b) => questTierOrder[a.tier] - questTierOrder[b.tier] || a.name.localeCompare(b.name));
   }, [tribes, cats, search]);
 
@@ -269,9 +288,10 @@ export function MinionBook() {
   }, [tribes]);
 
   const query = search.trim().toLowerCase();
-  // Free-text match over a card's name + printed text (and golden text) — powers the search box ("Imp", "Ward", …).
-  const matchText = (c: CardDef): boolean =>
-    !query || c.name.toLowerCase().includes(query) || (c.text ?? '').toLowerCase().includes(query) || (c.goldenText ?? '').toLowerCase().includes(query);
+  // Free-text match over a card's name + printed text (and golden text) — powers the search box. Quote the query
+  // ("Imp") for a whole-word match; leave it unquoted (Imp) for a loose substring.
+  const searchMatch = makeSearchMatcher(search);
+  const matchText = (c: CardDef): boolean => searchMatch(c.name) || searchMatch(c.text ?? '') || searchMatch(c.goldenText ?? '');
 
   const filtered = useMemo(() => {
     // A text search is GLOBAL: it scans every in-scope card (minions + evolutions + spells + quest/rune rewards),
@@ -341,7 +361,7 @@ export function MinionBook() {
               : query
                 ? `${(cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : filtered.length)} result${
                     (cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : filtered.length) === 1 ? '' : 's'
-                  } for "${search.trim()}"`
+                  } for "${search.trim().replace(/^"(.*)"$/, '$1')}"`
               : cats.has('runes')
                 ? `${runesToShow.length} runes — the Basic + Epic Runeforge stock`
                 : cats.has('quests')
@@ -356,7 +376,7 @@ export function MinionBook() {
             <input
               className="book-search"
               type="search"
-              placeholder="Search… (e.g. Imp)"
+              placeholder={'Search… (Imp, or "Imp" exact)'}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Search cards, quests, and runes by name or text"

@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type ShopCard } from '@game/sim';
+import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
@@ -2100,7 +2100,7 @@ export function Recruit() {
   const endTurn = (): void => {
     if (inCombat || endTurnPendingRef.current) return;
     const repeats = endOfTurnRepeats(run);
-    type Beat = { uid: string; kind: 'ritualist' | 'combinator' | 'generic'; targets: string[]; completes: boolean };
+    type Beat = { uid: string; kind: 'ritualist' | 'combinator' | 'generic'; targets: string[]; completes: boolean; label?: string };
     const beats: Beat[] = [];
     for (const card of run.board) {
       const def = CARD_INDEX[card.cardId];
@@ -2124,6 +2124,13 @@ export function Recruit() {
           kind === 'combinator' ? magnetizeTargets(run.board, card.uid, 2, run.seed, run.wave, slot, r) : [];
         beats.push({ uid: card.uid, kind, targets, completes });
       }
+    }
+    // Quest/rune recurring End-of-Turn REWARDS (Rune of Spending, Rune of Action, Echoing Roar, …) fire AFTER
+    // the warband's own effects (matching `applyEndOfTurn`) and were previously invisible. Append a beat per
+    // (effect × repeat) — the stat climb is auto-derived from the projection diff below, so no source card is
+    // needed; the beat just anchors the flourish/label on whatever minion(s) actually gain.
+    for (const qb of questEndOfTurnBeats(run)) {
+      beats.push({ uid: '', kind: 'generic', targets: [], completes: true, label: qb.label });
     }
     if (beats.length === 0) {
       dispatch({ type: 'faceOmen' });

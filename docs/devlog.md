@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### balance: quest table v2 (bucket/tier reshuffle + repeatable) + Hoard Cleric
+
+Owner's second quest pass + a card tweak (the data + existing-mechanic parts; new-mechanic quests/cards deferred).
+- **Hoard Cleric** — back to **Tier 3** (3/4), Battlecry **+3/+3** (was T2 3/2, +2/+3). Updated the many Battlecry-baking
+  test fixtures that use it (Karwind, golden, Drakko, Myra's Pulse, …).
+- **Explicit bucket field** — added `QuestDef.wave?: 5 | 11`; `questBucketFor` reads it (default Capstone → 11, else
+  → 5). Only **Umbral Energy** + **The Epic Runeforge** set it (Greater quests parked in the turn-11 bucket).
+- **Tier/bucket moves** — Anomalous Reactor / Taurus Ascension / Empty Graves / The Bone Throne: Capstone → **Greater**
+  (turn 5). Ancient Runes / Last Rites: Greater → **Capstone** (turn 11). Umbral Energy + The Epic Runeforge → turn 11.
+- **Repeatable** — Forest Grove, Hoard Spark, Imp Census, Small Offering, Dark Bargain, Scrap Contract are now
+  `repeatable: true` (re-earn by redoing the objective); dropped their old `repeatInTurns` delayed re-grant.
+- **Reconciliations** — Attachment Issues (Kill 12→10, deal cost 2→**1**), Echoing Coop (Echoes 10→**18**), Umbral
+  Energy (Dragons +2/+2 → **+3/+3** per spell), The Hoard Wakes reward (recurring EoT grant → a one-time Shout-minion
+  grant), quest **Maw of the Run** renamed **Track and Fodder**.
+- **Verified**: `typecheck`/`lint`/`test` (974)/`build:web` green; live — Hoard Cleric renders T3 +3/+3, no console errors.
+- **Deferred (PR-C2/C3, flagged)**: Speed Demon (rename Run Maw + "give allies 50% of its stats"); Herald of the
+  Apocalypse rewire (+ Rally: copy to hand); Den Marker (run-wide Den Mother aura); Fried Circuits +4/+5 (asymmetric
+  step); Shared Circuit ward-transfer; and the six brand-new turn-11 quests (Passing Spears, Forsaken Speed, Cratering
+  Missive, Leader of the Pack, Bane's Existence, Clinging On). A dev balance report was scoped (offer/win rate easy via
+  the bot harness; pick rate is bot-policy-dependent).
+
 ### feat: quest consolidation — two quest turns (5 & 11) + objective/reward reconciliation
 
 Owner reorg: collapse the three quest turns/tiers (4/8/12 → lesser/greater/capstone) into **two quest turns**.

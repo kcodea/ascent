@@ -416,5 +416,6 @@ export const QuestDefSchema = z.object({
     }).strict()).min(2).optional(),
   }).strict(),
   reward: QuestRewardSchema,
+  wave: z.union([z.literal(5), z.literal(11)]).optional(),
   repeatable: z.boolean().optional(),
 }).strict();

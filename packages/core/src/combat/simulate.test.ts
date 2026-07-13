@@ -1783,8 +1783,8 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.slice(0, firstDmg + 1).some((e) => e.type === 'attack' && e.attacker === enemyBlm)).toBe(true);
   });
 
-  it('Umbral Energy (Dragon greater): Start of Combat gives Dragons +2/+2 per spell cast this game', () => {
-    // spellsCast (10th arg) = 3 → +6/+6 on the Dragon at SoC; questMods.umbralEnergy is the last arg.
+  it('Umbral Energy (Dragon greater): Start of Combat gives Dragons +3/+3 per spell cast this game', () => {
+    // spellsCast (10th arg) = 3 → +9/+9 on the Dragon at SoC; questMods.umbralEnergy is the last arg.
     const a = simulate(
       [{ cardId: 'bronzewarden', attack: 3, health: 50 }], // a Dragon
       [{ cardId: 'omen', attack: 0, health: 50 }],
@@ -1793,7 +1793,7 @@ describe('simulate (handoff A.3)', () => {
       6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0,
       { umbralEnergy: true },
     );
-    expect(a.events.some((e) => e.type === 'buff' && e.attack === 6 && e.health === 6)).toBe(true);
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 9 && e.health === 9)).toBe(true);
   });
 
   it('Feeding Line (Beast capstone): a Beast Slaughter gives the next Beast an immediate out-of-turn attack', () => {
@@ -3150,8 +3150,8 @@ describe('served enemy quest/rune COMBAT effects (per-side questMods)', () => {
 
   it('an ENEMY Umbral Energy buffs the ENEMY Dragons per its captured lifetime spellsCast', () => {
     const r = simEnemy([{ cardId: 'sandbag', attack: 0, health: 40 }], [{ cardId: 'bronzewarden', attack: 3, health: 40 }], 1, { umbralEnergy: true }, { spellsCast: 3 });
-    // +2/+2 × 3 spells = +6/+6 on the enemy Dragon at Start of Combat.
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === r.initial.enemy[0]!.uid && ev.attack === 6)).toBe(true);
+    // +3/+3 × 3 spells = +9/+9 on the enemy Dragon at Start of Combat.
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === r.initial.enemy[0]!.uid && ev.attack === 9)).toBe(true);
   });
 
   it('the player’s questMods never leak onto the enemy (enemyQuestMods empty → no enemy ward)', () => {

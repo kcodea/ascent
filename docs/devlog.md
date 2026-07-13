@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 36)
 
+### tweak: Balance Report — add a Spells table, count Discover offers/picks, readable names
+
+Three owner tweaks to the player Balance Report:
+- **Spells table** — cards are now split into **Minions** and **Spells**, each with the same offer/pick columns
+  (`aggregatePlayerReport` buckets by `CARD_INDEX[id].spell`). Previously spells were dropped entirely.
+- **Discover counts** — `reconstructRunTelemetry` now also records the 3-card **Discover** offer (added to
+  `offeredCards`) and the card taken from it (added to `boughtCards`), so a card seen/taken via Discover feeds its
+  offer/pick rate just like a shop row. (`offeredCards`/`boughtCards` now mean "offered anywhere" / "acquired
+  anywhere".)
+- **Readable names** — the name column was truncating to "Co…"/"Cinderw…". Widened the tables (min 320→400px) + the
+  name column (min 7.5em, tighter numeric columns) and added a full-name-on-hover tooltip (`name (id)`), so long
+  card/hero/quest names read in full.
+Verified: `typecheck`/`lint`/`test`/`build:web` green; live — the report now shows Heroes / Quests / Runes /
+Minions / **Spells**, names render in full, and a mock confirmed a spell (Growth) lands in the Spells table with
+offer/pick and a minion (Pack Leader) in Minions.
+
 ### feat: shop-phase buff FX — replay combat's tendril / descend when a card buffs others in the shop (M2)
 
 Milestone 2 of `docs/superpowers/specs/2026-07-13-shop-buff-fx-and-step-counters-design.md`. When a card buffs

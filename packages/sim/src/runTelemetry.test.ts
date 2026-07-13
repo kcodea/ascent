@@ -48,15 +48,17 @@ describe('aggregatePlayerReport', () => {
     expect(r1.winRate).toBe(100); // the one picked run was a win
   });
 
-  it('minions get offer + pick only (no win credit); spells are excluded', () => {
+  it('cards split into minions vs spells; each gets offer + pick only (no win credit)', () => {
     const rows: RunTelemetry[] = [
-      blank({ won: true, offeredCards: ['alley', 'growth'], boughtCards: ['alley'] }), // growth is a spell → excluded
+      blank({ won: true, offeredCards: ['alley', 'growth'], boughtCards: ['alley', 'growth'] }), // alley=minion, growth=spell
     ];
     const rep = aggregatePlayerReport(rows);
     const alley = rep.minions.find((m) => m.id === 'alley')!;
-    expect(alley.offered).toBe(1);
-    expect(alley.picked).toBe(1);
-    expect(rep.minions.some((m) => m.id === 'growth')).toBe(false); // spell not in the minion table
+    expect([alley.offered, alley.picked]).toEqual([1, 1]);
+    expect(rep.minions.some((m) => m.id === 'growth')).toBe(false); // the spell is NOT in the minion table…
+    const growth = rep.spells.find((s) => s.id === 'growth')!; // …it's in the spell table
+    expect(growth, 'growth in spells').toBeDefined();
+    expect([growth.offered, growth.picked]).toEqual([1, 1]);
   });
 });
 

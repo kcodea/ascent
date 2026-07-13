@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 36)
 
+### fix: a Rise (Reborn) counts as a summon for "Summon N in combat" quests
+
+**Bug (owner-reported):** Forsaken Will (`summonCombat` Undead) wasn't counting Undead that came back via **Rise**
+(Reborn). Rising re-enters a body into play, so it should count as summoning. Root cause: the Rise revival path in
+`killOrReborn` revives the SAME body in place + emits a `reborn` event — it never routes through `placeSummon`, which
+is the single place `bumpQuestTally('summonCombat', …)` fires. So a Rise was invisible to every "Summon N in combat"
+quest (Forsaken Will, Pack Mentality, …). Fix: after a player-side Rise re-slots, bump the summonCombat tally (+ the
+Imp tally if the risen body is an Imp), mirroring `placeSummon`. Deliberately NOT an `onSummon` broadcast — Rise still
+doesn't re-fire onSummon/Battlecry effects; this is the quest count only. Verified: new regression test (a player
+Grave Knit Rises → `summonCombat` + `summonCombatByTribe.undead` ≥ 1); `typecheck`/`lint`/`test` (**991**)/`build:web`
+green.
+
 ### docs: concurrency playbook for many-session work
 
 Wrote [`docs/concurrency.md`](concurrency.md) and linked it from the top of CLAUDE.md's Collaboration section,

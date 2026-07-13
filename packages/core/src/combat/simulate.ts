@@ -872,6 +872,13 @@ export function simulate(
       nextStep(); // the body's return is its own moment, after the rattle's summons
       emit({ type: 'reborn', target: minion.uid, hp: minion.health, attack: minion.attack, keywords: [...minion.keywords], ...(after ? { after } : {}) });
       applyTribeAuras(minion); // a Reborn Beast inherits Kennelmaster's aura too ("summoned in any way")
+      // A Rise IS a summon (owner ruling 2026-07-13): count it toward "Summon N in combat" quests (Forsaken Will,
+      // Pack Mentality, …) — the body re-enters play, so it summons. Player-side only; mirrors placeSummon's tally.
+      // NOT an onSummon broadcast: Rise deliberately doesn't re-fire onSummon effects — this is the quest count only.
+      if (minion.side === 'player') {
+        bumpQuestTally('summonCombat', minion);
+        if (cards[minion.cardId]?.imp) { playerImpsSummoned += 1; questEvents.push({ step: stepN, kind: 'summonImp', tribes: [] }); }
+      }
       return;
     }
     minion.dead = true;

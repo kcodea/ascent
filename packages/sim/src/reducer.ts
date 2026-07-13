@@ -8,7 +8,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -176,6 +176,10 @@ const QUEST_TICK_EVENTS: Partial<Record<Action['type'], QuestObjectiveEvent>> = 
 };
 
 export function reduce(state: RunState, action: Action): RunState {
+  // Shop-buff FX are per-ACTION: reset the scratch buffer on the INPUT state BEFORE reduceCore's clone, so the
+  // clone (`next`) starts empty and, after the action, holds EXACTLY this action's captures (never accumulated
+  // across dispatches). For a rejected no-op reduceCore returns `state` itself → `next.recruitBuffFx` stays [].
+  state.recruitBuffFx = [];
   const next = reduceCore(state, action);
   // onGainAttack reactors (Hunter — "when this gains Attack, give your minions +Health") fire whenever a
   // recruit action raises a BOARD minion's Attack, from ANY source (Fortify, spells, tribe Battlecries,
@@ -189,7 +193,9 @@ export function reduce(state: RunState, action: Action): RunState {
     const handBefore = next.hand.length; // grows if a quest completing this action grants a card → triple-check
     for (const c of next.board) {
       const prev = before.get(c.uid);
-      if (prev !== undefined && c.attack > prev) fireOnGainAttack(next, c);
+      // Wrap the reactor so Hunter's "give your minions +Health" buff-to-others is captured as shop-buff FX,
+      // sourced from the reacting minion `c` (a minion tendril), same as any other buff-other.
+      if (prev !== undefined && c.attack > prev) captureBuffFx(next, c, 'minion', () => fireOnGainAttack(next, c));
     }
     // "Give Dragons N total stats" (Skybound Pact / Taragosa's Inheritance): sum the +Attack/+Health BUFFS a
     // Dragon present BEFORE and AFTER this action received (base stats of new Dragons are excluded — only gains
@@ -300,6 +306,10 @@ export function reduce(state: RunState, action: Action): RunState {
     if (fcAfter.count > fcBefore.count) advanceQuestsBy(next, (o) => o.event === 'consumeFodder', fcAfter.count - fcBefore.count);
     if (fcAfter.stats > fcBefore.stats) advanceQuestsBy(next, (o) => o.event === 'consumeStats', fcAfter.stats - fcBefore.stats);
   }
+  // Bump the FX sequence once per action that actually buffed OTHERS (including the Hunter reaction wrapped
+  // above, which runs before this). The UI fires the shop-buff replay once per bump; a no-op / non-buffing
+  // action leaves `recruitBuffFx` empty and the seq unchanged.
+  if (next !== state && next.recruitBuffFx.length > 0) next.recruitFxSeq += 1;
   return next;
 }
 

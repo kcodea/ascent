@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { createRun, type BoardCard, type RunState } from './state';
 import { captureBuffFx, castSpell, applyChooseOne, playCard } from './recruit';
+import { reduce } from './reducer';
+
+const stray = (uid: string): BoardCard => ({ uid, cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
+const growthInHand = (uid: string): BoardCard => ({ uid, cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false });
 
 describe('recruitBuffFx run-state fields', () => {
   it('initialise empty on a fresh run', () => {
@@ -110,5 +114,64 @@ describe('recruitBuffFx capture (source → target)', () => {
     expect(stFx[0]!.sourceCardId).toBe('shaper');
     expect(stFx[0]!.attack).toBe(1);
     expect(stFx[0]!.health).toBe(3);
+  });
+});
+
+describe('recruitBuffFx per-action isolation via reduce (reset + seq bump)', () => {
+  it('a buffing action bumps recruitFxSeq once and leaves this action’s events', () => {
+    const s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 20,
+      board: [stray('a'), stray('b')],
+      hand: [growthInHand('g1')],
+    };
+    const next = reduce(s, { type: 'play', uid: 'g1' });
+    expect(next).not.toBe(s);
+    expect(next.recruitFxSeq).toBe(s.recruitFxSeq + 1);
+    expect(next.recruitBuffFx.length).toBeGreaterThan(0);
+    expect(next.recruitBuffFx.length).toBe(2); // one descend per buffed board minion
+  });
+
+  it('a SECOND buffing action carries ONLY its own events (no accumulation) and bumps seq again', () => {
+    const s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 20,
+      board: [stray('a'), stray('b')],
+      hand: [growthInHand('g1'), growthInHand('g2')],
+    };
+    const first = reduce(s, { type: 'play', uid: 'g1' });
+    const second = reduce(first, { type: 'play', uid: 'g2' });
+    // Isolation: the second action's captures are EXACTLY its two buffed targets — NOT 4 (both actions summed).
+    expect(second.recruitBuffFx.length).toBe(2);
+    expect(second.recruitFxSeq).toBe(first.recruitFxSeq + 1);
+  });
+
+  it('a non-buffing action clears recruitBuffFx to [] and leaves recruitFxSeq unchanged', () => {
+    const primed: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 20,
+      board: [stray('a'), stray('b')],
+      hand: [growthInHand('g1')],
+    };
+    // First buff so seq/fx are non-zero, then a reroll (buffs nobody).
+    const buffed = reduce(primed, { type: 'play', uid: 'g1' });
+    expect(buffed.recruitBuffFx.length).toBeGreaterThan(0);
+    const rolled = reduce(buffed, { type: 'roll' });
+    expect(rolled).not.toBe(buffed);
+    expect(rolled.recruitBuffFx).toEqual([]);
+    expect(rolled.recruitFxSeq).toBe(buffed.recruitFxSeq); // unchanged — no buff-others this action
+  });
+
+  it('Hunter (onGainAttack) buff-to-others is captured, sourced from Hunter', () => {
+    const s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 20,
+      board: [
+        { uid: 'hu', cardId: 'hunter', tribe: 'dragon', attack: 5, health: 7, keywords: [], golden: false },
+        stray('st'),
+      ],
+      hand: [growthInHand('g1')],
+    };
+    // Growth (+3/+4 to all) raises Hunter's Attack → Hunter's onGainAttack gives all minions +Health.
+    const next = reduce(s, { type: 'play', uid: 'g1' });
+    const hunterFx = next.recruitBuffFx.filter((e) => e.kind === 'minion' && e.sourceCardId === 'hunter');
+    expect(hunterFx.length).toBeGreaterThanOrEqual(1);
+    expect(hunterFx.some((e) => e.sourceUid === 'hu' && e.targetUid === 'st')).toBe(true);
   });
 });

@@ -3,6 +3,22 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-13 (session 35)
+
+### feat(ui): self-buff pulse 50% larger
+
+Owner ruling: the in-combat **self-buff pulse** (the ring shockwave + gold core flash + spark burst that pops
+in place when a unit empowers ITSELF — Target Dummy gaining Attack on damage, and any other `source === target`
+buff routed through the `buffSelf` channel) reads too small. Scaled `PULSE_PRESETS.default`
+(`packages/ui/src/pulsePresets.ts`) up 50% on its px-radius dials: `ringSize` 173 → 259.5, `coreFlashSize`
+200 → 300, `sparkSize` 7 → 10.5, and `sparkSpeed` 390 → 585 (so the spark burst's *extent* grows with the
+rings rather than landing inside the now-larger ring). Left `ringWidth`, durations, and counts as-is — the
+effect grows in footprint without getting thicker-lined or slower. `PULSE_ASSIGN` is empty, so the change
+applies to **every** unit's self-buff pulse, not just Target Dummy.
+
+Verified: `typecheck + lint + test` & `build:web` green (`pulsePresets.test.ts` asserts field presence, not
+values, so the numeric change is safe).
+
 ## 2026-07-12 (session 34)
 
 ### balance: quest-reward minion tweaks (Contract Imp, Scrap Vendor, Bloodlust, Trophy Stalker, Chorus Engine, Bone Taxer)

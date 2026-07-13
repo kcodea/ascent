@@ -21,9 +21,9 @@ export interface PulsePresetCfg {
  *  eligible self-buff (PULSE_ASSIGN is empty, so all resolve here). Values baked straight from the rig's JSON. */
 const DEFAULT: PulsePresetCfg = {
   style: 'ring', blend: 'add',
-  ringCount: 1, ringSize: 173, ringWidth: 16, ringSpeed: 2.45, ringMs: 280, ringStaggerMs: 200,
-  coreFlashSize: 200, coreFlashMs: 950,
-  sparkCount: 60, sparkSpeed: 390, sparkLife: 1400, sparkSize: 7,
+  ringCount: 1, ringSize: 259.5, ringWidth: 16, ringSpeed: 2.45, ringMs: 280, ringStaggerMs: 200,
+  coreFlashSize: 300, coreFlashMs: 950,
+  sparkCount: 60, sparkSpeed: 585, sparkLife: 1400, sparkSize: 10.5,
   holdMs: 60,
   colorRing: '#ffffff', colorCore: '#fff694', colorSpark: '#fef962',
 };

@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### tooling: dev balance report (`npm run report`)
+
+New headless tool (`packages/tools/src/balance-report.ts`, `npm run report [-- games]`) — runs many seeded bot games
+across every pickable hero and prints **offer / pick / win** tables for heroes, quests, runes, minions, and spells.
+Built on the same greedy bot as `npm run bot`. Documented caveats: OFFER rate + WIN rate are the meaningful signals;
+PICK rate reflects the naive bot's index-0 policy, not human choice; per-card WIN rate is correlational (a card is one
+of up to 7 on a winning board). Seeded + deterministic. Sorted most-winning first, with sample sizes shown.
+
 ### fix: consume-quest real-time tally + defer the Fodder eat behind the quest/Runeforge overlay
 
 Two Fodder-timing bugs + a cleave regression lock:

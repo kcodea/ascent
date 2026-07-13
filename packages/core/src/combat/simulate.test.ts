@@ -789,6 +789,24 @@ describe('simulate (handoff A.3)', () => {
     expect(cleaved.length).toBe(attackSteps.length); // EVERY attack cleaved
   });
 
+  it('Cleave splashes the LIVING neighbour even when a dead unit sits between (owner repro 2026-07-13)', () => {
+    // E1 is an unkillable Taunt (always the target). E2 (between) dies to the first cleave; from then on the only
+    // way E3 can be hit is the cleave reaching PAST the dead E2 — which the old index-based lookup failed to do.
+    const r = run(
+      [{ cardId: 'alley', attack: 3, health: 500, keywords: ['C'] }],
+      [
+        { cardId: 'sandbag', attack: 0, health: 100000, keywords: ['T'] }, // E1 — unkillable taunt target
+        { cardId: 'sandbag', attack: 0, health: 1, keywords: [] }, // E2 — dies to the first cleave
+        { cardId: 'sandbag', attack: 0, health: 100000, keywords: [] }, // E3 — reachable only via cleave-over-dead
+      ],
+      1,
+    );
+    const e2 = r.initial.enemy[1]!.uid;
+    const e3 = r.initial.enemy[2]!.uid;
+    expect(r.events.some((ev) => ev.type === 'death' && ev.target === e2)).toBe(true); // E2 fell
+    expect(r.events.filter((ev) => ev.type === 'dmg' && ev.target === e3).length).toBeGreaterThan(0); // E3 still cleaved
+  });
+
   it('Twilight Whelp Deathrattle summons a 3/3 Whelp that attacks immediately (out of turn order)', () => {
     // The 1/1 trades into the enemy and dies → its Deathrattle summons a 3/3 Whelp that strikes RIGHT AWAY.
     const a = run([{ cardId: 'twilightwhelp', attack: 1, health: 1 }], [{ cardId: 'omen', attack: 1, health: 12 }], 3);

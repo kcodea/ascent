@@ -1123,13 +1123,14 @@ export function simulate(
       // pre-clash Reborn state (nothing flips it until phase 2), so a spent Rise reads as a kill below.
       const victims: { m: Minion; killer: Minion; couldReborn: boolean }[] = [];
 
-      // Cleave hits the target's neighbours in the same clash (A.3 step 5).
+      // Cleave hits the target's neighbours in the same clash (A.3 step 5). Uses LIVING adjacency, not raw array
+      // index: dead minions are kept in `boards[side]` (never spliced), so an index-based lookup would splash a
+      // dead slot and skip the living neighbour beyond it — the exact bug where a Cleave over a fallen unit missed
+      // the still-standing minion next to it (owner repro 2026-07-13). The visual board is the living order.
       if (attacker.keywords.includes('C')) {
-        const arr = boards[defenderSide];
-        const di = arr.indexOf(target);
-        const neighbours = [arr[di - 1], arr[di + 1]].filter(
-          (n): n is Minion => !!n && !n.dead && n.health > 0,
-        );
+        const live = boards[defenderSide].filter((m) => !m.dead && m.health > 0);
+        const di = live.indexOf(target);
+        const neighbours = [live[di - 1], live[di + 1]].filter((n): n is Minion => !!n);
         for (const n of neighbours) {
           victims.push({ m: n, killer: attacker, couldReborn: n.rebornAvailable });
           applyDamage(n, attacker.attack * critMult, poison, false, attacker);

@@ -4,7 +4,7 @@ import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { questArt, runeArt } from './art';
-import { questRewardText } from './questText';
+import { questRewardText, questRewardLiveText, type QuestRewardLive } from './questText';
 import { useGame } from './store';
 
 /** Each tribe's emblem glyph — the fallback when a quest has no art yet (mirrors QuestCard). */
@@ -53,6 +53,17 @@ export function QuestBadges() {
         if (r.kind === 'shoutDouble') { chip = `${r.count - charges}/${r.count} used`; ongoing = charges > 0; }
         else if (r.kind === 'grant' && r.repeatInTurns) { ongoing = repeatTurns > 0; if (ongoing) chip = `↻ ${repeatTurns}t`; }
         const rewardTxt = questRewardText(r, { completed: true, shoutCharges: charges, repeatTurns });
+        // The LIVE ongoing magnitude of a scaling/stat reward (current Beast aura, Umbral per-spell grant, the
+        // scaling countdown) — folded from the run state so the tooltip shows what it's producing NOW.
+        const scaling = (r.kind === 'scalingTribeAura')
+          ? (run.questScalingAuras ?? []).find((a) => a.tribe === r.tribe && a.event === r.event)
+          : undefined;
+        const live: QuestRewardLive = {
+          beastAura: { attack: run.beastBuyAtk ?? 0, health: run.beastBuyHp ?? 0 },
+          spellsCast: run.spellsCast ?? 0,
+          scaling: scaling ? { progress: scaling.progress, per: scaling.per } : undefined,
+        };
+        const liveTxt = questRewardLiveText(r, live);
         return (
           <div className={`questbadge${ongoing ? ' ongoing' : ''}`} style={{ '--c': c } as CSSProperties} key={aq.questId}>
             {art ? (
@@ -64,6 +75,7 @@ export function QuestBadges() {
             <div className="questbadge-tip" role="tooltip">
               <b>{def.name}</b>
               <span className="questbadge-tip-reward">{rewardTxt}{def.repeatable ? ' · Repeatable' : ''}</span>
+              {liveTxt && <span className="questbadge-tip-state">{liveTxt}</span>}
               {chip && <span className="questbadge-tip-state">{ongoing ? 'Active' : 'Done'} · {chip}</span>}
             </div>
           </div>

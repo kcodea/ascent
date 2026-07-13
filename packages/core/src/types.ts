@@ -440,6 +440,9 @@ export type QuestReward =
   | { kind: 'scalingTribeAura'; tribe: Tribe; attack: number; health: number; per: number; event: QuestObjectiveEvent; stepAttack: number; stepHealth: number }
   // Conjure `cards` to hand at the END OF EACH TURN, for the rest of the run (Feed the Alpha's recurring spell).
   | { kind: 'recurringGrant'; cards: string[] }
+  // Imp Census: permanently improve your Imps by +A/+H run-wide (bumps `impBuff`, so every current + future
+  // friendly Imp inherits it). Repeats via the reward's `repeatInTurns` (folded through `multi`).
+  | { kind: 'impAura'; attack: number; health: number }
   // Arm a run-wide combat modifier consumed by `simulate()` (see QuestCombatMods): Blood Trail, Echoing Coop,
   // Law of Teeth, The Old Hunt. `amount` parameterizes the flag where it needs a magnitude (Old Hunt's aura step).
   | { kind: 'combatFlag'; flag: QuestCombatFlag; amount?: number }
@@ -455,7 +458,9 @@ export type QuestReward =
   // `runeAction` (Rune of Action): End of Turn — give your leftmost minion +1/+1 for every card you played this turn.
   // `triggerLeftmostEcho` (Rune of the Reliquary): End of Turn — fire your leftmost minion's Echo (Deathrattle).
   // `weldMoneyBotsEdgeMechs` (Rune of Banking): End of Turn — weld a Money Bot onto your leftmost + rightmost Mech.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' }
+  // `buffMechsPerAttachment` (Blueprint Cache): End of Turn — give each friendly Mech +2/+2 for every Attachment
+  // (Magnetic minion) welded onto it.
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -538,7 +543,7 @@ export type QuestReward =
 export type QuestRewardKind = QuestReward['kind'];
 /** A run-wide combat modifier a completed quest arms; `simulate()` reads them via `QuestCombatMods`. */
 export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'oldHunt' | 'sharedCircuit'
-  | 'deepHunger' | 'contractRewrite' | 'pitWithoutEnd' | 'doubleLeftmostAttack' | 'feedingLine' | 'umbralEnergy' | 'emptyGraves'
+  | 'deepHunger' | 'contractRewrite' | 'pitWithoutEnd' | 'doubleLeftmostAttack' | 'feedingLine' | 'umbralEnergy' | 'emptyGraves' | 'assemblyLine'
   // Runes (Runesmith): runeWarding = Start of Combat give your leftmost minion Ward; runeFury = your Avenges
   // trigger twice; runeSlaying = every Slaughter this combat banks +2 Gold for next turn (read at settle).
   | 'runeWarding' | 'runeFury' | 'runeSlaying'
@@ -583,6 +588,9 @@ export interface QuestCombatMods {
   echoFirstEachCombat?: number;
   /** The Bone Throne: >0 arms it — every this-many friendly deaths in combat, trigger your leftmost Echo. */
   boneThroneStep?: number;
+  /** Assembly Line: >0 arms it — every this-many friendly deaths in combat, add a Money Bot to your hand
+   *  (Avenge N). Player-only (`grantToHand` no-ops for a served enemy). */
+  assemblyLineStep?: number;
   /** Infinite Assembly: every Rally (on-attack) trigger fires this many extra times (stacks with Law of Teeth +
    *  Rallying Offensive + Spark Permit — all additive). */
   rallyExtraAlways?: number;

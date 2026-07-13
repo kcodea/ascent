@@ -5359,10 +5359,27 @@ describe('Demon quests — consume/imp objectives, fodder reward, flags, cards',
     expect(s.hand.some((c) => c.cardId === 'runmaw')).toBe(true);
   });
 
-  it('summonImp objective (Imp Census) reads the combat imp tally → grants a random Demon', () => {
+  it('summonImp objective (Imp Census) reads the combat imp tally → grants a random Demon + improves Imps +1/+1', () => {
     const s = settleWith({ ...createRun(1), tier: 6, hand: [], activeQuests: [{ questId: 'q_imp_census', progress: 0, completed: false }] }, { playerImpsSummoned: 6 });
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.hand.some((c) => { const d = CARD_INDEX[c.cardId]; return d?.tribe === 'demon' || d?.tribe2 === 'demon'; })).toBe(true);
+    expect(s.impBuff).toEqual({ attack: 1, health: 1 }); // run-wide Imp aura bumped
+  });
+
+  it('Blueprint Cache (buffMechsPerAttachment): End of Turn buffs each Mech +2/+2 per Attachment welded on it', () => {
+    const mech = (uid: string, attachments: number): BoardCard => ({ uid, cardId: 'drone', tribe: 'mech', attack: 3, health: 3, keywords: [], golden: false, attachments });
+    const s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', questRecurringEndOfTurn: ['buffMechsPerAttachment'],
+      board: [mech('m1', 2), mech('m2', 0)] };
+    applyEndOfTurn(s);
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([7, 7]); // 3 + 2×2 attachments
+    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([3, 3]); // no attachments → untouched
+  });
+
+  it('weldMagnetic increments the host Attachment count (drives Blueprint Cache)', () => {
+    const host: BoardCard = { uid: 'h', cardId: 'drone', tribe: 'mech', attack: 2, health: 2, keywords: [], golden: false };
+    const s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', board: [host] };
+    weldMagnetic(s, s.board[0]!, { source: 'Cling', attack: 1, health: 1, keywords: [], mana: 0 });
+    expect(s.board[0]!.attachments).toBe(1);
   });
 
   it('Pit Without End (summonImp) arms its board-wipe Imp count; new cards are reward-only tokens', () => {

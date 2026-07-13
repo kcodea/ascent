@@ -31,11 +31,11 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_grave_robber', name: 'Grave Robber', tribe: 'undead', tier: 'lesser', objective: { event: 'sell', count: 4 }, reward: { kind: 'grant', cards: ['cryptbroker'] } },
   // MECH — Attachment (Magnetic) + Rally engine (owner spec 2026-07-08). Tribe-specific quests (buy/sell/play
   // Mechs/Attachments) are `mech`; the keyword-only Rally quests are `neutral`.
-  { id: 'q_assembly_line', name: 'Assembly Line', tribe: 'mech', tier: 'lesser', objective: { event: 'buy', count: 4, tribe: 'mech' }, reward: { kind: 'grant', cards: ['moneybot'], repeatInTurns: 2 } },
+  { id: 'q_assembly_line', name: 'Assembly Line', tribe: 'mech', tier: 'lesser', objective: { event: 'buy', count: 4, tribe: 'mech' }, reward: { kind: 'combatFlag', flag: 'assemblyLine', amount: 4 } },
   { id: 'q_scrap_contract', name: 'Scrap Contract', tribe: 'mech', tier: 'lesser', objective: { event: 'sell', count: 3, tribe: 'mech' }, reward: { kind: 'grant', cards: ['scrapvendor'] } },
   // DEMON — the Fodder / Imp / Consume engine (owner spec 2026-07-08). `consumeFodder`/`consumeStats` count Fodder
   // Consumed; `summonImp` counts Imps summoned (combat + recruit).
-  { id: 'q_imp_census', name: 'Imp Census', tribe: 'demon', tier: 'lesser', objective: { event: 'summonImp', count: 4 }, reward: { kind: 'grant', randomTribe: 'demon', randomCount: 1, repeatInTurns: 2 } },
+  { id: 'q_imp_census', name: 'Imp Census', tribe: 'demon', tier: 'lesser', objective: { event: 'summonImp', count: 4 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomTribe: 'demon', randomCount: 1, repeatInTurns: 2 }, { kind: 'impAura', attack: 1, health: 1 }] } },
   { id: 'q_small_offering', name: 'Small Offering', tribe: 'demon', tier: 'lesser', objective: { event: 'consumeFodder', count: 3 }, reward: { kind: 'fodderReward', fodder: 1, attack: 1, health: 1 } },
   { id: 'q_dark_bargain', name: 'Dark Bargain', tribe: 'demon', tier: 'lesser', objective: { event: 'sell', count: 3 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['contractimp'] }, { kind: 'fodderReward', fodder: 1 }] } },
   // NEUTRAL — the always-offered, build-agnostic slot: keyword-triggered quests (Shout / Echo / Rally) reassigned
@@ -67,7 +67,7 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_ossuary_rite', name: 'Ossuary Rite', tribe: 'undead', tier: 'greater', objective: { event: 'deathrattle', count: 8 }, reward: { kind: 'recurringGrant', cards: ['ossuaryrite'] } },
   { id: 'q_perfect_machine', name: 'Perfect Machine', tribe: 'mech', tier: 'greater', objective: { event: 'playAttachment', count: 5 }, reward: { kind: 'grant', cards: ['perfectcore'] } },
   { id: 'q_machine_chorus', name: 'Machine Chorus', tribe: 'mech', tier: 'greater', objective: { event: 'rally', count: 6 }, reward: { kind: 'grant', cards: ['chorusengine'] } },
-  { id: 'q_blueprint_cache', name: 'Blueprint Cache', tribe: 'mech', tier: 'greater', objective: { event: 'playAttachment', count: 4 }, reward: { kind: 'recurringEndOfTurn', effect: 'grantRandomAttachments' } },
+  { id: 'q_blueprint_cache', name: 'Blueprint Cache', tribe: 'mech', tier: 'greater', objective: { event: 'playAttachment', count: 6 }, reward: { kind: 'recurringEndOfTurn', effect: 'buffMechsPerAttachment' } },
   { id: 'q_deep_hunger', name: 'Deep Hunger', tribe: 'demon', tier: 'greater', objective: { event: 'consumeFodder', count: 8 }, reward: { kind: 'combatFlag', flag: 'deepHunger' } },
   { id: 'q_food_for_gold', name: 'Food for Gold', tribe: 'demon', tier: 'greater', objective: { event: 'consumeFodder', count: 16 }, reward: { kind: 'goldFodder', per: 7, attack: 1, health: 1 } },
   { id: 'q_contract_rewrite', name: 'Contract Rewrite', tribe: 'demon', tier: 'greater', objective: { event: 'spendGold', count: 25 }, reward: { kind: 'combatFlag', flag: 'contractRewrite' } },

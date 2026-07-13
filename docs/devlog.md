@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-12 (session 34)
 
+### feat: quest Part C — 3 new reward mechanics + live badge tooltips
+
+Completes the quest/minion spec pass. The three quests that needed genuinely new mechanics, plus live tooltips.
+
+- **Imp Census** → `multi[grant a random Demon (repeatable), impAura +1/+1]`. New `impAura` reward calls the
+  existing `buffImpsRunWide` (bumps `impBuff`, the run-wide Imp aura `simulate` already applies to every friendly
+  Imp), so Imps improve +1/+1 permanently — and again on each `repeatInTurns` re-grant (folded through `multi`).
+- **Assembly Line** → `combatFlag assemblyLine` (amount 4). New `assemblyLineStep` combat mod: every 4th friendly
+  death in combat, `grantToHand('moneybot')` (player-only — Avenge-paced like The Bone Throne).
+- **Blueprint Cache** → new `recurringEndOfTurn` effect `buffMechsPerAttachment`: each End of Turn, buff every
+  friendly Mech +2/+2 **per Attachment welded onto it**. `weldMagnetic` now increments a per-card `attachments`
+  counter (host + any Beatboxer mirror) to drive it. Objective 4 → **6**.
+- **Live badge tooltips** (owner ask): new `questRewardLiveText` folds the CURRENT magnitude of scaling/stat
+  rewards into the completed-quest tooltip — scalingTribeAura shows "Now: Beasts +X/+Y · +step in N more", tribeAura
+  / The Old Hunt show the live Beast aura total, Umbral Energy shows its live "+2×spells/+2×spells at Start of
+  Combat". `QuestBadges` computes the live context (`beastBuyAtk/Hp`, `spellsCast`, the matching `questScalingAuras`
+  entry) from the run and renders it.
+
+Verified: `typecheck + lint + test` (960, incl. new mechanic + live-text tests) & `build:web` green; **live** — a
+completed Pack Mentality badge's tooltip reads "Now: Beasts +12/+12 · +4/+4 in 3 more".
+
 ### balance: quest-reward minion tweaks (Contract Imp, Scrap Vendor, Bloodlust, Trophy Stalker, Chorus Engine, Bone Taxer)
 
 Owner balance pass on six quest-reward cards (Part A of a larger quest/minion spec):

@@ -79,6 +79,24 @@ describe('board snapshot + replay', () => {
     expect(plain.deathrattles).toBeUndefined();
   });
 
+  it('snapshotBoard captures the ACTIVE reward trophies (completed quests + owned runes) for the opponent frame', () => {
+    const s: RunState = {
+      ...createRun(1),
+      activeQuests: [
+        { questId: 'q_done', completed: true, progress: 5, target: 5 },
+        { questId: 'q_wip', completed: false, progress: 2, target: 5 },
+      ] as RunState['activeQuests'],
+      ownedRunes: ['rune_warding'],
+      board: [{ uid: 'a', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
+    };
+    const snap = snapshotBoard(s);
+    expect(snap.quests).toEqual(['q_done']); // only COMPLETED quests (the active reward), not the in-progress one
+    expect(snap.runes).toEqual(['rune_warding']);
+    const plain = snapshotBoard({ ...createRun(1), board: [{ uid: 'p', cardId: 'pack', tribe: 'beast', attack: 3, health: 4, keywords: [], golden: false }] });
+    expect(plain.quests).toBeUndefined(); // omitted when none
+    expect(plain.runes).toBeUndefined();
+  });
+
   it('snapshotBoard captures the per-source buff breakdown (for the inspect panel), cloned from the board', () => {
     const buffs = [{ source: 'Spirit Fire', attack: 6, health: 6, count: 2 }];
     const s: RunState = {

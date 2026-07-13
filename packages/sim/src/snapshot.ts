@@ -88,6 +88,11 @@ export interface BoardSnapshot {
   deathrattles?: number; // Deathrattles triggered this game so far (Grim)
   spellsThisTurn?: number; // spells cast this recruit turn (Runescale Drake)
   beastsPlayed?: number; // Beasts played this recruit turn (Pack Leader)
+  /** The owner's ACTIVE reward trophies at capture — completed quest ids + owned rune ids — so the opponent
+   *  frame can show the same badges the player sees above their own frame. Only active rewards (a quest that's
+   *  completed, a rune that's been bought). Omitted when empty; opponent-frame intel only, never read by combat. */
+  quests?: string[]; // completed quest ids (QUEST_INDEX)
+  runes?: string[]; // owned rune ids (RUNE_INDEX)
 }
 
 /**
@@ -183,6 +188,9 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     const d = CARD_INDEX[id];
     return !!d && (d.tribe === 'beast' || d.tribe2 === 'beast');
   }).length;
+  // Active reward trophies — the same set the player sees in their own badges (completed quests + owned runes).
+  const quests = (s.activeQuests ?? []).filter((q) => q.completed).map((q) => q.questId);
+  const runes = [...(s.ownedRunes ?? [])];
   return {
     v: 1,
     wave: s.wave,
@@ -202,6 +210,8 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(s.deathrattlesTriggered ? { deathrattles: s.deathrattlesTriggered } : {}),
     ...(s.spellsThisTurn ? { spellsThisTurn: s.spellsThisTurn } : {}),
     ...(beastsPlayed ? { beastsPlayed } : {}),
+    ...(quests.length ? { quests } : {}),
+    ...(runes.length ? { runes } : {}),
   };
 }
 

@@ -1,8 +1,14 @@
 import type { CSSProperties } from 'react';
 import { getHero, nextOpponent, dominantTribe, THREATS } from '@game/sim';
-import { heroArt } from './art';
+import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
+import { heroArt, questArt, runeArt } from './art';
 import { Icon } from './Icon';
+import { mdBold } from './Card';
+import { questRewardText } from './questText';
 import { useGame } from './store';
+
+/** Tribe → emblem glyph fallback when a quest has no art yet (mirrors QuestBadges). */
+const TRIBE_ICON: Record<string, string> = { beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star' };
 
 /** Tribe → display label; pluralized by count (Undead is already plural). "3 Dragons", "1 Mech", "5 Undead". */
 const TRIBE_LABEL: Record<string, string> = {
@@ -44,6 +50,11 @@ export function OpponentFrame() {
   const hero = getHero(snap.heroId);
   const dom = dominantTribe(snap);
   const art = heroArt(snap.heroId);
+  // The opponent's ACTIVE reward trophies (runes bought + quests completed), captured in the snapshot — shown
+  // UNDER the frame, mirroring the player's badges above their own frame. Read-only (no live chip — we only
+  // know the opponent's state at capture). Filtered to ids this build still knows.
+  const oppRunes = (snap.runes ?? []).filter((id) => RUNE_INDEX[id]);
+  const oppQuests = (snap.quests ?? []).filter((id) => QUEST_INDEX[id]);
   const name = snap.author ?? 'Next Foe';
   const provenance = snap.author
     ? `by ${snap.author}`
@@ -82,6 +93,45 @@ export function OpponentFrame() {
               </span>
             )}
           </div>
+        </div>
+      )}
+      {/* Opponent's active reward trophies — runes bought + quests completed — a row of circular badges UNDER
+          the frame, mirroring the player's completed-quest badges above their own hero panel. */}
+      {(oppRunes.length > 0 || oppQuests.length > 0) && (
+        <div className="oppbadges">
+          {oppRunes.map((id) => {
+            const rune = RUNE_INDEX[id]!;
+            const rart = runeArt(rune.id);
+            return (
+              <div className="questbadge runebadge" key={`r:${id}`}>
+                {rart
+                  ? <img className="questbadge-art" src={rart} alt="" aria-hidden />
+                  : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
+                <div className="questbadge-tip" role="tooltip">
+                  <b>{rune.name}</b>
+                  <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
+                  <span className="questbadge-tip-state">Rune · active</span>
+                </div>
+              </div>
+            );
+          })}
+          {oppQuests.map((id) => {
+            const def = QUEST_INDEX[id]!;
+            const qart = questArt(def.id);
+            const c = def.tribe === 'neutral' ? 'var(--t-neutral)' : `var(--t-${def.tribe})`;
+            return (
+              <div className="questbadge" style={{ '--c': c } as CSSProperties} key={`q:${id}`}>
+                {qart
+                  ? <img className="questbadge-art" src={qart} alt="" aria-hidden />
+                  : <span className="questbadge-emblem" aria-hidden><Icon name={TRIBE_ICON[def.tribe] ?? 'star'} /></span>}
+                <div className="questbadge-tip" role="tooltip">
+                  <b>{def.name}</b>
+                  <span className="questbadge-tip-reward">{questRewardText(def.reward, { completed: true })}{def.repeatable ? ' · Repeatable' : ''}</span>
+                  <span className="questbadge-tip-state">Quest · complete</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

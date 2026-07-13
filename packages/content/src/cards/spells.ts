@@ -568,7 +568,7 @@ export const SPELLS: CardDef[] = [
     cost: 3,
     target: 'friendly',
     effects: [{ on: 'cast', do: 'spellBloodlust' }],
-    text: "Choose a friendly minion. It attacks immediately at the start of next combat and can't die from that attack.",
+    text: "Choose a friendly minion. It attacks immediately at the start of next combat (can't die from that attack) and gains **Rally: give a friendly minion this minion's Attack** for that combat.",
   },
   {
     // Banked economy: +2 Gold at the start of next turn (the Hoarder channel — bonusEmbersNextTurn).

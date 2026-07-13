@@ -710,6 +710,9 @@ export interface BoardMinion {
   /** Bloodlust: at Start of Combat this minion takes an immediate out-of-turn attack, immune to retaliation for
    *  that swing ("cannot die from that attack"). Spell-applied in recruit; consumed by this one combat. */
   bloodlust?: boolean;
+  /** Bloodlust weld: the Bloodlust spell also grants its target a Rally — on each of its own attacks, give a
+   *  random friendly minion Attack equal to this minion's Attack. One-fight, like `bloodlust` (stripped at settle). */
+  bloodlustRally?: boolean;
   /** Extra magnitude added to this minion's summon-buff effect (Kennelmaster's Avenge
    *  improvements, persisted across the run). Default 0. */
   summonBonus?: number;
@@ -780,6 +783,9 @@ export interface Minion {
   rallySpellWeld?: number;
   /** Bloodlust: at Start of Combat, take an immediate out-of-turn attack, immune to retaliation for that swing. */
   bloodlust?: boolean;
+  /** Bloodlust weld: on each of its own attacks, give a random friendly minion Attack equal to this minion's
+   *  Attack (the Rally the Bloodlust spell grants alongside the immune swing). One-fight. */
+  bloodlustRally?: boolean;
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };

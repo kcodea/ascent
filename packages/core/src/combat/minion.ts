@@ -61,6 +61,7 @@ export function instantiate(
     // a standalone Perfect Core grants via its own onAttack `rallyGrantSpell` effect, so no double-count.
     rallySpellWeld: board.rallySpellWeld && board.rallySpellWeld > 0 ? board.rallySpellWeld : undefined,
     bloodlust: board.bloodlust, // Bloodlust: an immediate immune attack at Start of Combat (one combat)
+    bloodlustRally: board.bloodlustRally, // Bloodlust's welded Rally: give a friendly minion this minion's Attack (one combat)
     resummon: board.resummon, // The Reclaimer's start-of-combat destroy + resummon mark
     buffs: board.buffs, // recruit-phase buff breakdown, carried into the snapshot for the combat inspect
     side,

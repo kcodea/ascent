@@ -302,8 +302,8 @@ export const MECHS: CardDef[] = [
     name: 'Scrap Vendor',
     tribe: 'mech',
     tier: 2,
-    attack: 4,
-    health: 7,
+    attack: 3,
+    health: 4,
     keywords: [],
     effects: [
       { on: 'endOfTurn', do: 'endOfTurnBonusGold', params: { amount: 1 } },
@@ -320,8 +320,8 @@ export const MECHS: CardDef[] = [
     name: 'Chorus Engine',
     tribe: 'mech',
     tier: 6,
-    attack: 8,
-    health: 6,
+    attack: 5,
+    health: 5,
     keywords: ['RL'],
     effects: [
       { on: 'onAttack', do: 'rallyBuffAttachments', params: { attack: 4, health: 4 } },

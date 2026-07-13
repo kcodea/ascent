@@ -109,8 +109,8 @@ export const BEASTS: CardDef[] = [
     health: 4,
     keywords: ['RL'],
     token: true,
-    effects: [{ on: 'onAttack', do: 'rallyTribeAuraGrowing', params: { tribe: 'beast', attack: 3, health: 3, step: 1 } }],
-    text: '**Rally:** give your Beasts **+3/+3** wherever they are. Improve this whenever Trophy Stalker attacks.',
+    effects: [{ on: 'onAttack', do: 'rallyTribeAuraGrowing', params: { tribe: 'beast', attack: 5, health: 5, step: 5 } }],
+    text: '**Rally:** give your Beasts **+5/+5** wherever they are. Improve this by **+5/+5** whenever Trophy Stalker attacks.',
   },
   {
     // A glass-cannon finisher: a 7/1 that pays off enormously when it dies.

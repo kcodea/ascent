@@ -1056,6 +1056,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  immediate out-of-turn attack, immune to retaliation for that swing. One fight only (stripped at settle). */
   spellBloodlust: (_ctx, self) => {
     self.bloodlust = true;
+    self.bloodlustRally = true; // also grant the target a one-fight Rally: give a friendly minion its Attack
   },
 
   /** Anomaly Reactor (cast, targeted): give the target minion an extra tribe (a Mech type) for the rest of the

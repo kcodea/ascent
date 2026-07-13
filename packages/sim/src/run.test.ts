@@ -5098,6 +5098,16 @@ describe('Beast quests (combat objectives + rewards)', () => {
     expect(s.questFlags?.bloodTrail).toBe(true);
   });
 
+  it('Leader of the Pack (attack 18 w/ Beasts): grants a GOLDEN Pack Leader + 10 Gold', () => {
+    const control = settle('q_blood_trail', { enemyDeaths: 0 }); // baseline next-shop Gold (no gainGold reward)
+    const s = settle('q_leader_of_the_pack', { playerQuestTally: { ...zeroTally(), attack: 18, attackByTribe: { beast: 18 } } });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    const pack = s.hand.find((c) => c.cardId === 'packleader');
+    expect(pack).toBeDefined();
+    expect(pack!.golden).toBe(true); // a GILDED Pack Leader
+    expect(s.embers).toBe(control.embers + 10); // + 10 Gold banked into the next shop
+  });
+
   it('Forest Grove (a `summon` objective) counts COMBAT Beast summons, not just recruit ones', () => {
     // Combat-summoned Beasts (tokens, Reborn, etc.) tick the "Summon 8 Beasts" objective via the combat tally —
     // previously only recruit summons counted.

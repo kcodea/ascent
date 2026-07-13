@@ -596,18 +596,52 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; z-index: 3;
   box-shadow: inset 0 0 0 2px rgba(196, 245, 130, 0.9), inset 0 0 18px 4px rgba(140, 210, 40, 0.92);
 }
-/* Taunt — a thick GREY "bulwark" border surrounding the card (the T keyword: enemies must attack it first).
-   Replaces the old Pixi silver-bulwark aura; the `.card.taunt` marker is already on every Taunt card in the
-   shop / hand / warband / combat. A STATIC box-shadow ring (compositor-cheap, no per-frame repaint) hugging
-   the archbox silhouette, so it wraps the existing tribe frame without shifting layout the way a wider CSS
-   border would. Grey band + a thin dark edge so it reads crisp against the cream board. */
-.card.compact.taunt .archbox::after {
-  content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); border-bottom-left-radius: 0; border-bottom-right-radius: 0; pointer-events: none; z-index: 4;
-  /* grey band + thin dark edge, then an ALWAYS-ON red glow pooling UNDER the band (mirrors the warm hover glow,
-     but red + bottom-weighted). Listed last so it paints behind the grey ring and reads as glowing from beneath. */
-  box-shadow: 0 0 0 9px #6f757e, 0 0 0 11px rgba(28, 22, 16, 0.5),
-    0 9px 26px 11.5px rgba(224, 45, 45, 1);
+/* Taunt (Tier B) — the unit is reshaped into a forged HEATER SHIELD (the T keyword: enemies must attack it
+   first). Scoped to `.card.compact.taunt`; the `.taunt` class is reactive off the card's keywords, so a spell
+   granting Taunt mid-combat FLIPS the card to the shield the instant the keyword lands.
+   LAYER STACK (the reusable pipeline): portrait (raster, clipped to the frame's window) → frame (authored PNG,
+   `.tframe-img`) → tint (per-tribe) → data (badges, DOM) → fx. Every constant below is MEASURED from the actual
+   frame art (`apps/web/public/frames/taunt-shield.png`, 1086×1448; window at x16.9–82.4% / y21.9–84.8%, centre
+   49.65% / 53.35%), so the masked portrait fills the window edge-to-edge. Retune if the frame art changes. */
+.card.compact.taunt {
+  /* the frame's WINDOW silhouette, traced from its alpha — the portrait clips to exactly this */
+  --heater: polygon(19.5% 0%, 80.9% 0%, 97.1% 5%, 99% 12%, 99.9% 22%, 99.7% 35%, 97.6% 50%, 92.7% 65%, 84.1% 78%, 73.7% 88%, 64% 95%, 50% 100%, 36.7% 95%, 26.8% 88%, 16.2% 78%, 7.2% 65%, 2.1% 50%, 0.1% 35%, 0.1% 22%, 1.1% 12%, 3.2% 5%);
+  /* SHIELD SIZE — one knob for the whole composite (frame + portrait + tier, all centred on the archbox). 1.0
+     = window as wide as a normal card's art (huge, since the gold adds ~50% around it); 0.72 ≈ 1.1× a card.
+     Lower = smaller. (atk/hp/tribe are tuned for the current value; ping me to re-seat them if you change it a lot.) */
+  --sh: 0.72;
 }
+/* PORTRAIT — fills the frame's (taller-than-square) window, clipped to its silhouette, centred on the archbox.
+   border:none + border-radius:0 are REQUIRED: the base card art carries the arch's rounded border, and that
+   rounded mask intersects the clip-path — rounding the heater's shoulders/point into an oval. Kill it so ONLY
+   the heater clip shapes the art. */
+.card.compact.taunt .art {
+  position: absolute; z-index: 1; clip-path: var(--heater); border: none; border-radius: 0;
+  width: calc(var(--ccw) * var(--sh)); height: calc(var(--ccw) * 1.279 * var(--sh));
+  left: calc(var(--ccw) * (0.5 - 0.5 * var(--sh))); top: calc(var(--ccw) * (0.5 - 0.6395 * var(--sh)));
+}
+/* cover = art fills the window edge-to-edge (meets the gold, no gaps). Square art in a portrait window means
+   the sides crop a little; object-position keeps the subject centred. Real fix = portrait-authored art. */
+.card.compact.taunt .art .artimg,
+.card.compact.taunt .art canvas { width: 100%; height: 100%; object-fit: cover; object-position: center; }
+/* FRAME — the authored shield PNG (`.tframe-img`), sized/placed so its window lands dead-on the portrait; falls
+   back to the SVG placeholder when the asset is absent. z 3 = above the portrait (z1), below the badges (z6). */
+.card.compact.taunt .tframe {
+  position: absolute; z-index: 3; pointer-events: none; overflow: visible;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
+}
+.card.compact.taunt .tframe-img {
+  inset: auto; height: auto;
+  width: calc(var(--ccw) * 1.527 * var(--sh));
+  left: calc(var(--ccw) * (0.5 - 0.758 * var(--sh))); top: calc(var(--ccw) * (0.5 - 1.086 * var(--sh)));
+}
+.card.compact.taunt .tframe .tf-band { stroke: var(--c); }   /* TINT layer — recolours the SVG-fallback band per tribe */
+/* DATA — badges seated onto the shield: tier into the top banner, atk/hp on the lower body, tribe above the
+   point. Starting positions measured from the art; expect a quick nudge pass over HMR. */
+.card.compact.taunt .tierbadge { top: calc(var(--ccw) * (0.5 - 0.775 * var(--sh))); }   /* rides the banner (nudged up ~6px to sit in the slot) */
+/* HARD RULE: the stat cluster (atk / hp / tribe medallion) is NEVER repositioned for Taunt — it must sit in the
+   IDENTICAL place on every card, always. So there are deliberately NO .atk/.hp/.cgem overrides here; they
+   inherit the standard positions. The shield frame is sized/placed around that fixed cluster, never the reverse. */
 /* One shared opacity-only pulse for every keyword/triple glow ::before layer (compositor-only — no repaint). */
 @keyframes kwglow { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
 

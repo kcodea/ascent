@@ -141,6 +141,11 @@ look because the engine already produces the data.
   in the focused Chrome tab once clips exist. A shared visual recording worklist exists as an Artifact.
 
 ### B0. FX follow-ups (from the Echo skull poof + buff tendrils, session 29)
+- **Taunt shield frame — polish (session 34, → devlog).** The heater-shield frame + raster compositing pipeline
+  shipped. Open threads: (1) a **thinner-border frame** variant so the art reaches closer to the gold (current
+  window is ~70% of the shield width — art fills it correctly, the border is just wide); (2) re-add the
+  **forge-heat pulse** as an opacity glow hugging the frame; (3) **portrait-aspect art** for shield units so the
+  window fills with zero crop; (4) roll the same 5-layer pipeline out to a normal-card frame + golden/spell frames.
 - **Buff descend — per-tribe looks.** The descend system (Deathrattle buff-others rain down; session 33) shipped
   one owner-tuned `default`. Tune a drop + landing-pulse look per tribe on `buff-descend-preview.html`, bake into
   `DESCEND_PRESETS` + `DESCEND_ASSIGN.byTribe`. Until then every tribe's Deathrattle buff uses the one amber default.

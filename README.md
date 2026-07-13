@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Audio mixing desk.** All audio dials now live in one `audioConfig` — a master limiter + four category buses
+  (ui/combat/voice/hero) + per-category levels. The dev SFX panel became a **mixing desk**: master limiter dials,
+  per-bus faders, **live peak + gain-reduction meters**, realistic **test-scenes** (Combat beat / Shop spam /
+  Torture) to tune against overlapping stacks, and Export-config. Day-one audio unchanged; groundwork for tuning
+  the incoming wave of sounds.
 - **Taunt glows hug the shield now.** A Taunt card is a shield-shaped card, but its target/selection glows were
   square box-shadows floating off the silhouette. The aimed danger telegraph, the hero-power selection ring, the
   attacking flash, and the yellow shop **hover** glow now all glow the shield's own outline (via a `drop-shadow` on

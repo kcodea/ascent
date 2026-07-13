@@ -128,7 +128,9 @@ export type EffectFactoryId =
   | 'rallyImproveSummonAura' // Baby Cub: Rally bumps a friendly Den Mother's summon aura (summonBonus), carried back
   | 'avengeImproveSummon' // Kennelmaster: Avenge (X) permanently improves its summon buff
   | 'avengeMaxGold' // Soulsman: Avenge (X) raises your max Gold by 1, carried back (Undead)
-  | 'scConsumeWeakestBuffDemons' // Run Maw: Start of Combat — consume your weakest minion, Demons gain 25% of its stats (Demon)
+  | 'scConsumeWeakestBuffDemons' // (retired from Speed Demon) Start of Combat — consume your weakest minion, Demons gain % of its stats
+  | 'scBuffAlliesPctSelf' // Speed Demon: Start of Combat — give every other friendly minion %-of-self's stats (golden doubles the %)
+  | 'rallyGrantSelfCopy' // Herald of the Apocalypse: Rally — add a copy of this minion to your hand (golden 2 per attack)
   | 'scEngraveAll' // Taurus the Truth Bringer: Start of Combat — Engrave ALL your minions (triggers first) (neutral)
   | 'rallyGiveHealthToDragons' // Chimerus: Rally — give this minion's Health to 2 friendly Dragons (Dragon)
   | 'rallyGrantSpell' // Perfect Core: Rally (on-attack) — add a random spell to hand after combat (Mech)

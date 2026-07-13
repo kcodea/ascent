@@ -2845,15 +2845,27 @@ describe('Demon quests — imp summons + Deep Hunger / Contract Rewrite / Pit Wi
     expect(r.playerImpsSummoned).toBeGreaterThanOrEqual(2);
   });
 
-  it('Run Maw consumes your weakest minion at Start of Combat and hands Demons 50% of its stats', () => {
+  it("Speed Demon (runmaw) gives every OTHER friendly minion 50% of its own stats at Start of Combat", () => {
     const p: BoardMinion[] = [
-      { cardId: 'runmaw', attack: 10, health: 8 },
-      { cardId: 'acid', attack: 8, health: 8 }, // Korok — a Demon
-      { cardId: 'sandbag', attack: 4, health: 4 }, // the weakest → consumed
+      { cardId: 'runmaw', attack: 10, health: 8 }, // Speed Demon → shares 50% of 10/8 = +5/+4
+      { cardId: 'acid', attack: 3, health: 3 }, // an ally (any tribe)
+      { cardId: 'sandbag', attack: 0, health: 20 }, // another ally
     ];
     const r = simMods(p, [{ cardId: 'omen', attack: 0, health: 200 }], 1, {});
-    // 50% of the 4/4 sandbag = +2/+2 to each Demon (Run Maw + Korok).
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 2)).toBe(true);
+    const speedUid = r.initial.player.find((u) => u.cardId === 'runmaw')!.uid;
+    const acidUid = r.initial.player.find((u) => u.cardId === 'acid')!.uid;
+    // Each OTHER ally gets +5/+4 (floor of 50% of 10/8); Speed Demon itself is NOT buffed.
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === acidUid && ev.attack === 5 && ev.health === 4)).toBe(true);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === speedUid)).toBe(false);
+  });
+
+  it("Herald of the Apocalypse Rally hands you a fresh copy each time it attacks", () => {
+    const p: BoardMinion[] = [{ cardId: 'heraldapoc', attack: 5, health: 30, keywords: ['RL'] }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 200 }]; // tanky → Herald keeps attacking
+    const r = simMods(p, e, 1, {});
+    // Each of the Herald's attacks flies a copy of itself to hand (a `toHand` event + a carried-back hand grant).
+    expect(r.events.some((ev) => ev.type === 'toHand' && ev.cardId === 'heraldapoc')).toBe(true);
+    expect(r.playerHandGrants).toContain('heraldapoc');
   });
 });
 

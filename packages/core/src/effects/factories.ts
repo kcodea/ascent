@@ -799,6 +799,26 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Speed Demon — Start of Combat: give every OTHER friendly minion `pct`% of THIS minion's OWN stats
+   *  (golden doubles the %, so 50% → 100%). Rounded down; a pure aura, nothing is consumed. */
+  scBuffAlliesPctSelf: (ctx, self, params) => {
+    const pct = num(params.pct, 50) * mul(self);
+    const ga = Math.floor((self.attack * pct) / 100);
+    const gh = Math.floor((self.health * pct) / 100);
+    if (ga <= 0 && gh <= 0) return;
+    for (const m of ctx.living(self.side)) {
+      if (m !== self) ctx.buff(m, ga, gh, self.uid);
+    }
+  },
+
+  /** Herald of the Apocalypse — Rally: each time THIS minion attacks, add a copy of itself to your hand after
+   *  combat (golden 2 per attack). Player-only (grantToHand no-ops for a served enemy); fires per hit (Flurry ×2). */
+  rallyGrantSelfCopy: (ctx, self, _params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only on this minion's own attack
+    for (let i = 0; i < mul(self); i++) ctx.grantToHand(self.cardId, self.side, self.uid);
+  },
+
   /** Mechanical Jouster — Rally: when THIS minion attacks, add a random Magnetic Mech to your hand after
    *  combat (golden 2 per attack). Mirrors Junkyard Titan's grant pool, filtered to Mech magnetics; fires on
    *  this minion's own attack (Windfury → per hit). */

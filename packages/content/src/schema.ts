@@ -217,6 +217,8 @@ export const EffectFactoryIdSchema = z.enum([
   'onKillGrantMagnetic',
   'endOfTurnBonusGold',
   'scConsumeWeakestBuffDemons',
+  'scBuffAlliesPctSelf',
+  'rallyGrantSelfCopy',
   'battlecryAllDemonsConsume',
   'spellBuffImpsPerDemon',
   'scEngraveAll',

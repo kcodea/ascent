@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 36)
 
+### docs: concurrency playbook for many-session work
+
+Wrote [`docs/concurrency.md`](concurrency.md) and linked it from the top of CLAUDE.md's Collaboration section,
+after a session where the shared checkout's branch got switched and a feature worktree was torn down twice by
+other sessions mid-task. The playbook's spine: the root cause is many sessions sharing one working dir + git
+index, so the fix is **one isolated checkout (worktree/clone) per active session, off latest `origin/main`,
+touching nothing else's** — plus commit/push early (origin is the only durable copy), tiny branches, take
+`main` in often, split by ownership seam, look before you start (`gh pr list`), and per-session dev ports.
+Docs-only; no code touched.
+
 ### fix(fx): Taunt target/selection glow follows the shield silhouette
 
 A Taunt card is reshaped into a heater **shield** (portrait clipped to `--heater`, the frame PNG laid over an

@@ -4777,18 +4777,18 @@ describe('quests (M3 framework)', () => {
   });
 
   it('an objective ticks on its tracked action and applies its reward at the threshold', () => {
-    // q_forest_grove = objective "Summon 5 Beasts" → reward: a random Beast to hand. Playing a Beast that lands
+    // q_forest_grove = objective "Summon 8 Beasts" → reward: a random Beast to hand. Playing a Beast that lands
     // cleanly (no Battlecry / summon buff / Magnetic / token-summon) ticks `summon` by exactly 1.
     const beast = BUYABLE_CARDS.find(
       (c) => c.tribe === 'beast' && !c.spell && !c.chooseOne && !c.target && !c.keywords.includes('M') && !c.effects.some((e) => e.on === 'onPlay' || e.on === 'onSummon'),
     )!;
     const mk = (uid: string): BoardCard => ({ uid, cardId: beast.id, tribe: beast.tribe, attack: beast.attack, health: beast.health, keywords: [...beast.keywords], golden: false });
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_forest_grove', progress: 3, completed: false }], hand: [mk('h1'), mk('h2')], board: [] };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_forest_grove', progress: 6, completed: false }], hand: [mk('h1'), mk('h2')], board: [] };
     s = reduce(s, { type: 'play', uid: 'h1' });
-    expect(s.activeQuests![0]!.progress).toBe(4);
+    expect(s.activeQuests![0]!.progress).toBe(7);
     expect(s.activeQuests![0]!.completed).toBe(false);
     s = reduce(s, { type: 'play', uid: 'h2' });
-    expect(s.activeQuests![0]!.completed).toBe(true); // 5th Beast summoned
+    expect(s.activeQuests![0]!.completed).toBe(true); // 8th Beast summoned
     // Reward: a random Beast conjured to hand.
     expect(s.hand.some((c) => { const d = CARD_INDEX[c.cardId]; return d?.tribe === 'beast' || d?.tribe2 === 'beast'; })).toBe(true);
   });
@@ -4801,16 +4801,16 @@ describe('quests (M3 framework)', () => {
   });
 
   it('a summon objective counts tokens, not just the played card (Pennycat = 2 toward the goal)', () => {
-    // Forest Grove wants 5 Beast summons. Pennycat (beast, played) + its Stray (beast token) = 2 in ONE play —
-    // the "every minion entering the board" rule. From progress 1, two plays (+2 each) clear the bar. Two copies
+    // Forest Grove wants 8 Beast summons. Pennycat (beast, played) + its Stray (beast token) = 2 in ONE play —
+    // the "every minion entering the board" rule. From progress 4, two plays (+2 each) clear the bar. Two copies
     // each → no triples.
     const mk = (uid: string): BoardCard => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_forest_grove', progress: 1, completed: false }], hand: [mk('a1'), mk('a2')], board: [] };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_forest_grove', progress: 4, completed: false }], hand: [mk('a1'), mk('a2')], board: [] };
     s = reduce(s, { type: 'play', uid: 'a1' });
-    expect(s.activeQuests![0]!.progress).toBe(3); // 1 + (Pennycat + its summoned Stray)
+    expect(s.activeQuests![0]!.progress).toBe(6); // 4 + (Pennycat + its summoned Stray)
     expect(s.activeQuests![0]!.completed).toBe(false);
     s = reduce(s, { type: 'play', uid: 'a2' });
-    expect(s.activeQuests![0]!.completed).toBe(true); // 2 more entries clears the 5-Beast bar
+    expect(s.activeQuests![0]!.completed).toBe(true); // 2 more entries clears the 8-Beast bar
   });
 
   it('a summon objective is tribe-gated: playing NEUTRAL minions does not tick "Summon 5 Beasts"', () => {
@@ -4823,11 +4823,11 @@ describe('quests (M3 framework)', () => {
     expect(s.activeQuests![0]!.progress).toBe(0); // neutral summons don't count toward a Beast objective
   });
 
-  it('Forest Grove: summoning 5 Beasts grants a random Beast and schedules a repeat', () => {
-    // Pennycat (beast, played) + its Stray (beast token) = 2 Beast summons per play; from progress 1, two plays
-    // clear the 5-Beast bar with no triple.
+  it('Forest Grove: summoning 8 Beasts grants a random Beast and schedules a repeat', () => {
+    // Pennycat (beast, played) + its Stray (beast token) = 2 Beast summons per play; from progress 4, two plays
+    // clear the 8-Beast bar with no triple.
     const mk = (uid: string): BoardCard => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_forest_grove', progress: 1, completed: false }], hand: [mk('m1'), mk('m2')], board: [] };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_forest_grove', progress: 4, completed: false }], hand: [mk('m1'), mk('m2')], board: [] };
     for (const uid of ['m1', 'm2']) s = reduce(s, { type: 'play', uid });
     expect(s.activeQuests![0]!.completed).toBe(true);
     // Immediate reward: a random Beast landed in hand.
@@ -5041,9 +5041,9 @@ describe('Beast quests (combat objectives + rewards)', () => {
   });
 
   it('Forest Grove (a `summon` objective) counts COMBAT Beast summons, not just recruit ones', () => {
-    // Combat-summoned Beasts (tokens, Reborn, etc.) tick the "Summon 5 Beasts" objective via the combat tally —
+    // Combat-summoned Beasts (tokens, Reborn, etc.) tick the "Summon 8 Beasts" objective via the combat tally —
     // previously only recruit summons counted.
-    const s = settle('q_forest_grove', { playerQuestTally: { ...zeroTally(), summonCombat: 5, summonCombatByTribe: { beast: 5 } } });
+    const s = settle('q_forest_grove', { playerQuestTally: { ...zeroTally(), summonCombat: 8, summonCombatByTribe: { beast: 8 } } });
     expect(s.activeQuests![0]!.completed).toBe(true);
   });
 
@@ -5129,10 +5129,8 @@ describe('Beast quests (combat objectives + rewards)', () => {
     expect(s.activeQuests![0]!.completed).toBe(false); // slaughter part still empty
   });
 
-  it('Forsaken Will (compound): completes across spells + combat summons; then spells buff Undead like the Weaver', () => {
-    const s = settle('q_forsaken_will', { playerQuestTally: { ...zeroTally(), summonCombat: 6 } }, {
-      activeQuests: [{ questId: 'q_forsaken_will', progress: 14, completed: false, partProgress: [14, 0] }],
-    });
+  it('Forsaken Will (summon 6 Undead in combat): completes, then spells buff Undead like the Weaver', () => {
+    const s = settle('q_forsaken_will', { playerQuestTally: { ...zeroTally(), summonCombat: 6, summonCombatByTribe: { undead: 6 } } });
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.forsakenWillAttack).toBe(6);
     // Casting a spell now behaves EXACTLY like the Forsaken Weaver: +6 baked into every current Undead AND
@@ -5158,12 +5156,14 @@ describe('Beast quests (combat objectives + rewards)', () => {
     expect(s.activeQuests![0]!.completed).toBe(false);
   });
 
-  it('Den Marker (tribeAura) folds +3 Attack into the Beast aura + buffs current Beasts', () => {
+  it('Den Marker (tribeAura) folds +2/+2 into the Beast aura + buffs current Beasts', () => {
     const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
     const s = settle('q_den_marker', { playerQuestTally: { ...zeroTally(), summonCombat: 8 } }, { board: [beast] });
     expect(s.activeQuests![0]!.completed).toBe(true);
-    expect(s.beastBuyAtk).toBe(3);
-    expect(s.board[0]!.attack).toBe(4); // 1 base + 3 aura
+    expect(s.beastBuyAtk).toBe(2);
+    expect(s.beastBuyHp).toBe(2);
+    expect(s.board[0]!.attack).toBe(3); // 1 base + 2 aura
+    expect(s.board[0]!.health).toBe(3); // 1 base + 2 aura
   });
 
   it('Echoing Coop (deathrattle/Echo objective) reads the combat Deathrattle tally', () => {
@@ -5233,7 +5233,7 @@ describe('Undead quests — combat-objective completion + reward application', (
   });
 
   it('echoRepeat "firstEachCombat" reward (Grave Contract) arms the first-Echo bonus', () => {
-    const s = settleWith({ ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_grave_contract', progress: 0, completed: false }] }, { playerDeathrattles: 4 });
+    const s = settleWith({ ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_grave_contract', progress: 0, completed: false }] }, { playerDeathrattles: 7 });
     expect(s.echoFirstEachCombat).toBe(1);
   });
 
@@ -5349,7 +5349,7 @@ describe('Demon quests — consume/imp objectives, fodder reward, flags, cards',
     let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_small_offering', progress: 1, completed: false }], board: [demon('d1', 'feed')], hand: [demon('h1', 'heraldapoc')] };
     s = reduce(s, { type: 'play', uid: 'h1' });
     expect(s.activeQuests![0]!.completed).toBe(true); // 1 + 2 Consumed ≥ 3
-    expect((s.pendingTavern ?? []).filter((id) => id === 'fred').length).toBe(2); // reward queued 2 Fodder
+    expect((s.pendingTavern ?? []).filter((id) => id === 'fred').length).toBe(1); // reward queued 1 Fodder
   });
 
   it('consumeStats objective (Maw of the Run) counts total Consumed stats → grants Run Maw', () => {

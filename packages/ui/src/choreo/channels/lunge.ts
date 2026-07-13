@@ -35,6 +35,10 @@ export interface LungeCtx {
    *  tendrils (on-attack / Rally buffers), so the sequence reads pulse → tendril → lunge. Its presence (like a
    *  rally) triggers the wind-up hold, so the tendril has time to land before the strike. */
   onWindupBuffs?: () => void;
+  /** Fired at the CONTACT GSAP position — the caller shatters any Ward this exchange consumed (attacker/defender)
+   *  so the gold break reads AT the clash, not on a fixed start-relative delay that drifts off the hit (which
+   *  left the bubble lingering disjointed from the unit mid-recoil). Rides the (speed-scaled) lunge timeline. */
+  onImpactAuras?: () => void;
 }
 
 /**
@@ -47,7 +51,7 @@ export interface LungeCtx {
  * Returns the built timeline (seekable via `.progress()` in tests, without needing real time to pass).
  */
 export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
-  const { attacker, dx, dy, speed, strike, strikeDur, leadTilt, attackerRebound, onContact, onImpact, impactOffsetMs = 0, onRallyPulse, onWindupBuffs, rallyPauseMs = 0 } = ctx;
+  const { attacker, dx, dy, speed, strike, strikeDur, leadTilt, attackerRebound, onContact, onImpact, impactOffsetMs = 0, onRallyPulse, onWindupBuffs, onImpactAuras, rallyPauseMs = 0 } = ctx;
   const c = getLungeConfig();
   const rest = attacker.getBoundingClientRect();
   const cx0 = rest.left + rest.width / 2;
@@ -93,10 +97,13 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
   // The impact (smack/FX/recoil) fires at contact + its offset — an ABSOLUTE timeline position so a negative
   // offset lands EARLIER than contact (the smack-lead), clamped to ≥ 0 (can't precede the timeline). It rides
   // this (speed-timeScaled) timeline, so the smack stays killed/seekable with the lunge and scales with speed.
+  const contactAt = c.windupDur + windupPauseS + strikeDur - c.smackLead;
   if (onImpact) {
-    const contactAt = c.windupDur + windupPauseS + strikeDur - c.smackLead;
     tl.add(onImpact, Math.max(0, contactAt + impactOffsetMs / 1000));
   }
+  // The Ward shatter for this exchange fires AT contact (offset 0) so the gold break lands with the smack — the
+  // bubble tracks the lunge until here, then pops at the hit instead of drifting off mid-recoil.
+  if (onImpactAuras) tl.add(onImpactAuras, Math.max(0, contactAt));
   tl.timeScale(speed);
   return tl;
 }

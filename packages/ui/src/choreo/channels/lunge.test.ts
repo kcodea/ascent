@@ -80,4 +80,31 @@ describe('playLunge', () => {
     const withBuffs = playLunge({ ...base(), rallyPauseMs: 440, onWindupBuffs: () => {} });
     expect(withBuffs.duration()).toBeGreaterThan(plain.duration());
   });
+
+  it('fires onImpactAuras exactly once by the end of the lunge', () => {
+    const auras = vi.fn();
+    const tl = playLunge({ ...base(), onImpactAuras: auras });
+    tl.progress(1);
+    expect(auras).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires onImpactAuras AT contact — same position as onContact, not on the elastic settle tail', () => {
+    // Reading tl.progress() inside a callback during a seek returns the SEEK target, not the callback's own
+    // position — so instead scan a fresh timeline in small steps and record the first progress where each fired.
+    const firstFire = (key: 'contact' | 'auras'): number => {
+      const fn = vi.fn();
+      const tl = playLunge({
+        ...base(),
+        onContact: key === 'contact' ? fn : () => {},
+        onImpactAuras: key === 'auras' ? fn : () => {},
+      });
+      for (let p = 0; p <= 1.0001; p += 0.01) { tl.progress(Math.min(1, p)); if (fn.mock.calls.length) return p; }
+      return 1;
+    };
+    const auras = firstFire('auras');
+    const contact = firstFire('contact');
+    expect(auras).toBeGreaterThan(0);       // not fired at the start (the old start+300ms bug)
+    expect(auras).toBeLessThan(0.9);        // well before the long elastic settle tail
+    expect(Math.abs(auras - contact)).toBeLessThanOrEqual(0.02); // welded to the clash (within one scan step)
+  });
 });

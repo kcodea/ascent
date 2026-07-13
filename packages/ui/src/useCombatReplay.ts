@@ -720,7 +720,7 @@ export function useCombatReplay(
         timers.push(window.setTimeout(() => setDeathFloats((arr) => arr.filter((x) => !ids.has(x.id))), getChoreoConfig().deathFloatMs / combatSpeedRef.current));
       },
       onAuraBurst: (uid) => burstDeathAuras(uid, rectOf(uid)),
-      onShieldBreak: (uid) => breakShieldAura(uid),
+      onShieldBreak: (uid) => breakShieldAura(rectOf(uid)),
       onReborn: (uid) => reformReborn(rebornRects.get(uid) ?? rectOf(uid)),
       // buff-OTHER casts (source ≠ target) → tendril/descend + badge flash (shared with the attack-wind-up path).
       onBuffCasts: (casts) => fireBuffCasts(casts, timers),
@@ -830,6 +830,13 @@ export function useCombatReplay(
       const atkEl = findEl(cur.primary.attacker);
       const a = center(cur.primary.attacker);
       const d = center(cur.primary.defender);
+      // Wards this exchange consumed (attacker/defender): shatter them AT the lunge's contact (onImpactAuras),
+      // not on the old fixed start+300ms cue that drifted off the hit — see score.ts (auraBreak removed here). The
+      // ward is CSS now, so the shatter fires at the unit's live rect (no Pixi bubble to read coords from).
+      const wardTargets: string[] = [];
+      for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'shield') wardTargets.push(e.target); }
+      const rectFor = (uid: string) => { const r = findEl(uid)?.getBoundingClientRect(); return r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : null; };
+      const breakWards = wardTargets.length ? () => { for (const t of wardTargets) breakShieldAura(rectFor(t)); } : undefined;
       if (atkEl && a && d) {
         setAttackUid(cur.primary.attacker);
         // A Rally firing as THIS unit attacks → the lunge pauses at the top of the wind-up and flashes the
@@ -853,11 +860,14 @@ export function useCombatReplay(
             window.setTimeout(() => setRallyPulse((prev) => { const m = new Map(prev); if (m.get(atkUid) === n) m.delete(atkUid); return m; }), 1150);
           } : undefined,
           onWindupBuffs: windupCasts.length ? () => fireBuffCasts(windupCasts, windupTimers) : undefined,
+          onImpactAuras: breakWards,
         });
         engineAdvancingRef.current = tl !== null; // engine owns the advance; if it couldn't build, the scheduler falls back
+        if (tl === null) breakWards?.(); // lunge cue dropped → no contact anchor to ride; shatter now so it isn't lost
       } else {
         setAttackUid(null);
         engineAdvancingRef.current = false; // elements unresolved — let the scheduler advance so the replay never stalls
+        breakWards?.(); // no lunge to anchor to → shatter now (the bubble's last-tracked spot) rather than drop it
       }
     } else {
       setAttackUid(null);

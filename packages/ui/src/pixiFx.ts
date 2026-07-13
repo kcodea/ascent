@@ -964,34 +964,44 @@ class FxController {
     const len = Math.hypot(dx, dy) || 1;
     const ux = dx / len;
     const uy = dy / len;
-    const angle = Math.atan2(uy, ux) + (Math.random() - 0.5) * 0.16;
-    // left behind the card: a touch of backward velocity + lateral drift (displaced air swirling off)
-    const back = 30 + Math.random() * 40;
-    const side = (Math.random() - 0.5) * 2 * c.drift;
+    const px = -uy, py = ux; // perpendicular to travel — the trail's cross-axis (band width + glint spread)
     const special = variant !== 'wind'; // gold/blue are tinted + additive with a glint; wind is pale + normal
     const tint = variant === 'gold' ? 0xffe9a8 : variant === 'blue' ? 0x8ec7ff : 0xf5efe0;
     const peak = variant === 'gold' ? c.goldAlpha : variant === 'blue' ? c.blueAlpha : c.alpha;
-    this.spawn(this.wispTex!, {
-      x: x - ux * 8 + (Math.random() - 0.5) * 6,
-      y: y - uy * 8 + (Math.random() - 0.5) * 6,
-      vx: -ux * back + -uy * side,
-      vy: -uy * back + ux * side,
-      drag: 0.3, // the whoosh settles quickly
-      life: c.lifeMs * (0.8 + Math.random() * 0.4),
-      fromScale: c.size * (0.85 + Math.random() * 0.3),
-      toScale: 0.05,
-      spin: 0,
-      rotation: angle,
-      stretchX: c.stretch,
-      tint,
-      blend: special ? 'add' : 'normal',
-      peakAlpha: peak * (0.85 + Math.random() * 0.3),
-    });
-    // gold/blue only: an occasional tiny glint mote, mimicking the aura's glassy sparkle
+    // gold/blue emit a DENSER cluster spread across a WIDER perpendicular BAND (the ward/reborn trail reads as a
+    // broad shimmer, not a thin line); wind stays one narrow wisp. Component SIZE (fromScale) is unchanged.
+    const count = special ? Math.max(1, Math.round(c.count)) : 1;
+    const band = special ? c.width : 0;
+    for (let n = 0; n < count; n++) {
+      // left behind the card: a touch of backward velocity + lateral drift (displaced air swirling off)
+      const angle = Math.atan2(uy, ux) + (Math.random() - 0.5) * 0.16;
+      const back = 30 + Math.random() * 40;
+      const side = (Math.random() - 0.5) * 2 * c.drift;
+      const off = (Math.random() - 0.5) * band; // position across the perpendicular band
+      this.spawn(this.wispTex!, {
+        x: x - ux * 8 + px * off + (Math.random() - 0.5) * 6,
+        y: y - uy * 8 + py * off + (Math.random() - 0.5) * 6,
+        vx: -ux * back + -uy * side,
+        vy: -uy * back + ux * side,
+        drag: 0.3, // the whoosh settles quickly
+        life: c.lifeMs * (0.8 + Math.random() * 0.4),
+        fromScale: c.size * (0.85 + Math.random() * 0.3),
+        toScale: 0.05,
+        spin: 0,
+        rotation: angle,
+        stretchX: c.stretch,
+        tint,
+        blend: special ? 'add' : 'normal',
+        peakAlpha: peak * (0.85 + Math.random() * 0.3),
+      });
+    }
+    // gold/blue only: an occasional tiny glint mote, mimicking the aura's glassy sparkle — spread across the band too
     if (special && Math.random() < c.sparkChance) {
+      const back = 30 + Math.random() * 40;
+      const off = (Math.random() - 0.5) * band;
       this.spawn(this.sparkTex!, {
-        x: x + (Math.random() - 0.5) * 14,
-        y: y + (Math.random() - 0.5) * 14,
+        x: x + px * off + (Math.random() - 0.5) * 14,
+        y: y + py * off + (Math.random() - 0.5) * 14,
         vx: -ux * back * 0.5 + (Math.random() - 0.5) * 30,
         vy: -uy * back * 0.5 + (Math.random() - 0.5) * 30,
         drag: 0.3,
@@ -1286,23 +1296,25 @@ class FxController {
     b.shader.destroy();
     b.container.destroy({ children: true });
     this.shields.delete(key);
+    this.shatterAt(cx, cy, w, h, kind);
+  }
+
+  /**
+   * The shield SHATTERS at an explicit rect (no persistent bubble needed) — the CSS-ward break path calls this
+   * with the card's rect; `breakShield` (reborn) calls it with the destroyed bubble's coords. A pure gold
+   * explosion: fracture lines + shockwave rings + shrapnel shards + energy motes. Deliberately NO bubble/shield
+   * DISC flash — the old hex-shield bubble is retired, so the break reads as a shatter, not a shield reappearing.
+   */
+  shatterAt(cx: number, cy: number, w: number, h: number, kind: AuraKind = 'shield'): void {
     if (!this.ready) return;
     if (kind === 'reborn') { this.rebornShatter(cx, cy, w, h); return; } // wispy spirit release, not shards
     const rad = Math.max(w, h) * 0.5 * AURA[kind].margin;
 
     // NB: additive gold washes out to near-white on the light "Sunward" cream board (the burst was invisible —
     // see impact()'s same note). So the READABLE elements below use NORMAL blend with SATURATED gold that paints
-    // over cream; a hot additive core/rim layers on top for the glassy glint.
+    // over cream; a hot additive rim layers on top for the glassy glint.
 
-    // 1) CRACK — a saturated-gold flash (normal, paints over cream) + a hot additive core glint.
-    this.spawn(this.bubbleTex!, {
-      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 190, fromScale: rad / BUBBLE_TEX_R,
-      toScale: (rad / BUBBLE_TEX_R) * 1.22, spin: 0, tint: 0xeca310, blend: 'normal', peakAlpha: 0.92,
-    });
-    this.spawn(this.bubbleTex!, {
-      x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 150, fromScale: (rad / BUBBLE_TEX_R) * 0.5,
-      toScale: (rad / BUBBLE_TEX_R) * 1.0, spin: 0, tint: 0xfff3c8, blend: 'add', // hot glint core
-    });
+    // 1) CRACK — dark-gold fracture LINES only (the shield-disc flash is gone → no hex/shield shape on break).
     for (let i = 0; i < 4; i++) {
       const a = Math.random() * Math.PI;
       this.spawn(this.veinTex!, {

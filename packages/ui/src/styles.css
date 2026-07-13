@@ -582,9 +582,41 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* illustrated art (art/minions/<id>.png) fills the panel exactly (absolute so the grid can't
    size it to the square's width-driven height and overflow onto the text below) */
 .artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; }
-/* Divine Shield's signifier is now the Pixi shield BUBBLE (see pixiFx.setShield / Recruit's syncShields,
-   driven from the `.card.dscard` marker) — the old gold glow/halo/art-border + ward badge were removed.
-   The `.card.dscard` class is kept purely as the DOM hook the bubble tracker reads. */
+/* Ward (Divine Shield): a layered glassy GOLD DOME in pure CSS, glued to the card via a `.ward` stack of child
+   els inside the arched art (rendered by Card.tsx for DS cards) — so it persists through drag + the combat lunge
+   and vanishes exactly when the sim clears `.dscard` (retires the old per-frame-tracked Pixi bubble; Pixi now only
+   fires the break shatter + drag/drop sparkles). Compositor-only: static gradients/shadows; only the gold body's
+   opacity pulse + the breath's opacity animate. Look tuned on `fx/ward-css-preview.html`. The dome layers ride the
+   arch-clipped `.ward` stack; the outer aura + breath ride the CARD (bleed past the art, follow the arch). */
+.card.compact.dscard { z-index: 4; box-shadow: 0 0 16px 4px rgba(245, 188, 48, 1), 0 0 32px 9px rgba(240, 176, 32, 0.6); }   /* intense outer aura (2-layer) */
+.card.compact.dscard .ward { position: absolute; inset: 0; border-radius: var(--arch-radius); overflow: hidden; pointer-events: none; z-index: 2; }
+.card.compact.dscard .ward > * { position: absolute; inset: 0; border-radius: var(--arch-radius); }
+.card.compact.dscard .ward-body {   /* translucent gold ring, CLEAR centre (sprite reads through), SLOW-pulsing */
+  background: radial-gradient(120% 88% at 50% 44%,
+    rgba(255, 242, 196, 0) 0%, rgba(255, 206, 84, 0) 28%, rgba(255, 206, 84, 1) 56%, rgba(236, 168, 26, 1) 78%, rgba(236, 168, 26, 0) 100%);
+  animation: wardpulse 6.5s ease-in-out infinite; will-change: opacity;
+}
+@keyframes wardpulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }   /* stays solidly gold (high floor) */
+.card.compact.dscard .ward-hex {   /* hexagons PROJECTED onto a sphere (public/fx/ward-hexsphere.svg — big centre, compressed rim); rim-masked so only the edge band shows */
+  background: url("/fx/ward-hexsphere.svg") center / 140% no-repeat; opacity: 1; mix-blend-mode: screen;
+  -webkit-mask-image: radial-gradient(circle at 50% 46%, transparent 46%, #000 calc(46% + 12%), #000 84%, transparent 99%);
+          mask-image: radial-gradient(circle at 50% 46%, transparent 46%, #000 calc(46% + 12%), #000 84%, transparent 99%);
+}
+.card.compact.dscard .ward-shadow { box-shadow: inset 0 0 27px 8px rgba(78, 44, 6, 0.87); }   /* inner-edge vignette → depth */
+.card.compact.dscard .ward-spot {   /* soft bright highlight the gloss sits on */
+  background: radial-gradient(ellipse 57% 34% at 50% 27%,
+    rgba(255, 255, 255, 0.95) 0%, rgba(255, 250, 224, 0.5) 42%, rgba(255, 248, 214, 0) 72%);
+}
+.card.compact.dscard .ward-gloss {   /* shiny diagonal reflection streak, masked to a glint, screen-blended */
+  background: linear-gradient(142deg, transparent calc(30% - 6%), rgba(255, 255, 255, 0.74) 30%, transparent calc(30% + 6%));
+  -webkit-mask-image: radial-gradient(ellipse 40% 50% at 50% 44%, #000 45%, transparent 100%);
+          mask-image: radial-gradient(ellipse 40% 50% at 50% 44%, #000 45%, transparent 100%);
+  mix-blend-mode: screen;
+}
+.card.compact.dscard::before {  /* breathing bloom — opacity-only pulse of a static shadow (kwglow: 0→1), arched */
+  content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none;
+  box-shadow: 0 0 27px 8px rgba(255, 224, 120, 0.9); animation: kwglow 6s ease-in-out infinite; will-change: opacity;
+}
 /* Reborn's signifier is now the Pixi blue wispy AURA (pixiFx kind='reborn', driven from the `.reborncard`
    marker, parallel to the shield bubble) — the old blue glow/halo/art-border + rising tears were removed.
    The `.reborncard` class is kept purely as the DOM hook the aura tracker reads. */

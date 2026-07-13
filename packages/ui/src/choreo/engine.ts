@@ -20,6 +20,9 @@ export interface AttackCueCtx {
    *  top of the wind-up and calls this (launch the buff tendrils) after `onRallyPulse`, before the strike, so the
    *  beat reads pulse → tendril → lunge. Absent = no absorbed buffs. */
   onWindupBuffs?: () => void;
+  /** Set when this exchange consumed a Ward (a `shield` event on attacker/defender) → shatter it at the lunge's
+   *  real contact position instead of a fixed start-relative delay, so the gold break reads AT the hit. */
+  onImpactAuras?: () => void;
 }
 
 /** ms the lunge holds at the top of the wind-up when a Rally fires, so its bright yellow pulse has time to
@@ -72,6 +75,7 @@ export function runAttackExchangeCues(
     impactOffsetMs: impact?.offset ?? 0,
     onRallyPulse: ctx.onRallyPulse,
     onWindupBuffs: ctx.onWindupBuffs,
+    onImpactAuras: ctx.onImpactAuras,
     rallyPauseMs: RALLY_PAUSE_MS,
   });
 }

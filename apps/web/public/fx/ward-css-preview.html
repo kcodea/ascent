@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ward CSS — glassy bubble tuner</title>
+<style>
+  * { box-sizing: border-box; }
+  /* The STAGE is the game's cream board (#f6ecd9) so the glassy gold dome reads honestly against the
+     real surface it composites over — not against a flattering near-black. */
+  body { margin: 0; background: #f6ecd9; color: #3a2f1c; font: 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace; display: flex; height: 100vh; overflow: hidden; }
+  #stage { flex: 1; position: relative; display: grid; place-items: center; background: #f6ecd9; }
+
+  /* --- the card mock: the game's real arched card shape ------------------- */
+  .card {
+    --arch-radius: 48% 48% 20% 20% / 35% 35% 14% 14%;
+    position: relative;
+    width: 150px;
+    aspect-ratio: 3 / 4;
+    border-radius: var(--arch-radius);
+    background: #fffdf8;
+    border: 2px solid #e2c78f;
+    box-shadow: 0 8px 26px rgba(90,60,20,.22);
+    /* Tunable custom properties (bright-spot / vignette / outer-glow are LOCKED and hardcoded below):
+       — the dome-gold intensity + its slow pulse, and the shiny-reflection gloss. */
+    --ward-gold-peak: 1;
+    --ward-gold-edge: 0.5;
+    --ward-pulse-min: 0.55;
+    --ward-pulse-s: 3.5s;
+    --gloss-alpha: 0.9;
+    --gloss-angle: 118deg;
+    --gloss-pos: 44%;
+    --gloss-width: 6%;
+    --gloss-y: 28%;
+    --gloss-mask-w: 68%;
+    --gloss-mask-h: 50%;
+    --hex-alpha: 0.5;
+    --hex-size: 100%;
+    --hex-ring: 32%;
+  }
+  .archbox {
+    position: absolute;
+    inset: 8px;
+    border-radius: var(--arch-radius);
+    overflow: hidden;
+    background: linear-gradient(160deg, #6fb2d8, #2f5f86);
+    display: grid;
+    place-items: center;
+    font-size: 54px;
+  }
+  .archbox .sprite { filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); }
+  /* corner stat badges so it reads like a game card */
+  .badge {
+    position: absolute; width: 30px; height: 30px; border-radius: 50%;
+    display: grid; place-items: center; font: 700 14px/1 ui-monospace, monospace;
+    color: #fff; border: 2px solid #fffdf8; box-shadow: 0 2px 5px rgba(0,0,0,.3); z-index: 4;
+  }
+  .badge.atk { top: 6px; left: 6px; background: #e8a13a; }        /* attack */
+  .badge.hp  { top: 6px; right: 6px; background: #d6425f; }        /* health */
+  .badge.gear{ bottom: 4px; left: 50%; transform: translateX(-50%); width: 24px; height: 24px; background: #6b5d44; font-size: 12px; } /* small gear */
+
+  /* --- the WARD, layered for depth --------------------------------------- */
+  /* `.ward` is the arch-clipped stack over the art. The outer aura + breath live on `.ward-glow` on the CARD so
+     they bleed past the art. All layers are compositor-friendly — static gradients/shadows; only the gold body's
+     opacity pulse and the breath's opacity animate. */
+  .ward { position: absolute; inset: 0; border-radius: var(--arch-radius); overflow: hidden; pointer-events: none; z-index: 2; }
+  .ward > * { position: absolute; inset: 0; border-radius: var(--arch-radius); }
+
+  /* 1) dome GOLD BODY (TUNABLE) — translucent gold ring with a CLEAR centre (sprite reads through); its side-gold
+     intensity is dialable and it SLOW-PULSES (opacity only). No vignette here so the pulse doesn't wobble it. */
+  .ward-body {
+    background: radial-gradient(120% 88% at 50% 44%,
+      rgba(255,242,196, 0) 0%, rgba(255,206,84, 0) 28%,
+      rgba(255,206,84, var(--ward-gold-peak)) 56%,
+      rgba(236,168,26, var(--ward-gold-edge)) 78%,
+      rgba(236,168,26, 0) 100%);
+    animation: wardpulse var(--ward-pulse-s) ease-in-out infinite; will-change: opacity;
+  }
+  @keyframes wardpulse { 0%,100% { opacity: var(--ward-pulse-min); } 50% { opacity: 1; } }
+  /* 1.5) HEX force-field SPHERE (TUNABLE) — a bespoke SVG of hexagons PROJECTED onto a sphere (big in the middle,
+     compressed toward the rim, per the reference). One centred image (not a tile). The rim mask clears the centre
+     so the sprite reads through and only the rim band of facets shows. Screen-blended so it shimmers over the gold. */
+  .ward-hex {
+    background: url("/fx/ward-hexsphere.svg") center / var(--hex-size) no-repeat;
+    opacity: var(--hex-alpha);
+    -webkit-mask-image: radial-gradient(circle at 50% 46%, transparent var(--hex-ring), #000 calc(var(--hex-ring) + 12%), #000 84%, transparent 99%);
+            mask-image: radial-gradient(circle at 50% 46%, transparent var(--hex-ring), #000 calc(var(--hex-ring) + 12%), #000 84%, transparent 99%);
+    mix-blend-mode: screen;
+  }
+  /* 2) inner-edge shadow (LOCKED) — static vignette hugging the frame for depth (separate so the pulse won't move it) */
+  .ward-shadow { box-shadow: inset 0 0 27px 8px rgba(78,44,6, 0.87); }
+  /* 3) bright SPOT (LOCKED) — the soft glassy highlight the gloss sits on top of */
+  .ward-spot {
+    background: radial-gradient(ellipse 57% 34% at 50% 27%,
+      rgba(255,255,255, 0.95) 0%, rgba(255,250,224, 0.5) 42%, rgba(255,248,214, 0) 72%);
+  }
+  /* 4) shiny REFLECTION gloss (TUNABLE) — a crisp diagonal glass streak, masked to an ellipse over the highlight
+     so it reads as a glint; `screen` blend so it adds light, not paint */
+  .ward-gloss {
+    background: linear-gradient(var(--gloss-angle),
+      transparent calc(var(--gloss-pos) - var(--gloss-width)),
+      rgba(255,255,255, var(--gloss-alpha)) var(--gloss-pos),
+      transparent calc(var(--gloss-pos) + var(--gloss-width)));
+    -webkit-mask-image: radial-gradient(ellipse var(--gloss-mask-w) var(--gloss-mask-h) at 50% var(--gloss-y), #000 45%, transparent 100%);
+            mask-image: radial-gradient(ellipse var(--gloss-mask-w) var(--gloss-mask-h) at 50% var(--gloss-y), #000 45%, transparent 100%);
+    mix-blend-mode: screen;
+  }
+  /* 5) outer aura + breathing bloom (LOCKED) — on the card, bleeds past the art, arched */
+  .ward-glow { position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; z-index: 1;
+    box-shadow: 0 0 12px 3px rgba(240,176,32, 0.79); }
+  .ward-glow::before {
+    content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius);
+    box-shadow: 0 0 16px 5px rgba(255,220,110, 0.6);
+    animation: kwglow 6s ease-in-out infinite; will-change: opacity;
+  }
+  @keyframes kwglow { 0%,100% { opacity: 0; } 50% { opacity: 1; } }
+
+  .stagehint { position: absolute; bottom: 14px; left: 0; right: 0; text-align: center; color: #a08a5f; font-size: 11px; letter-spacing: .1em; }
+
+  /* --- control panel (matches the sibling rigs' house style) ------------- */
+  #panel { width: 330px; padding: 14px 16px; overflow-y: auto; background: #0e100a; border-left: 1px solid #2b3020; color: #e6ecdc; }
+  h1 { font-size: 13px; margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; color: #f0b820; }
+  .sub { color: #8a7f56; font-size: 11px; margin-bottom: 12px; }
+  h2 { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #8a7f56; margin: 16px 0 6px; border-top: 1px solid #2b3020; padding-top: 10px; }
+  .row { display: grid; grid-template-columns: 1fr 62px; gap: 8px; align-items: center; margin-bottom: 7px; }
+  .row label { grid-column: 1 / -1; color: #d8c894; font-size: 11.5px; }
+  input[type=range] { width: 100%; accent-color: #f0b820; }
+  .val { text-align: right; color: #f0b820; font-size: 11px; }
+  button { width: 100%; padding: 9px; margin-top: 12px; border: 0; border-radius: 6px; background: #c98a1e; color: #fff; font: inherit; font-weight: 700; letter-spacing: .06em; cursor: pointer; }
+  button:hover { background: #e0a02c; }
+  button.ghost { background: #241f15; color: #d8c894; }
+  button.ghost:hover { background: #302a1c; }
+  textarea { width: 100%; height: 240px; margin-top: 10px; background: #080a05; color: #f0b820; border: 1px solid #2b3020; border-radius: 6px; padding: 8px; font: 10.5px/1.45 ui-monospace, monospace; resize: vertical; }
+  .hint { color: #6a5f40; font-size: 10.5px; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div class="card" id="card">
+      <div class="archbox">
+        <span class="sprite">🤖</span>
+        <div class="ward">
+          <div class="ward-body"></div>
+          <div class="ward-hex"></div>
+          <div class="ward-shadow"></div>
+          <div class="ward-spot"></div>
+          <div class="ward-gloss"></div>
+        </div>
+      </div>
+      <div class="badge atk">4</div>
+      <div class="badge hp">5</div>
+      <div class="badge gear">⚙</div>
+      <div class="ward-glow"></div>
+    </div>
+    <div class="stagehint">glassy gold Ward — pulsing gold body + vignette + bright spot + shiny gloss</div>
+  </div>
+  <div id="panel">
+    <h1>Ward CSS</h1>
+    <div class="sub">Tuning the dome-gold intensity + slow pulse and the shiny-reflection gloss (spot / vignette / outer-glow are locked to the approved look). Slider positions persist across refreshes.</div>
+
+    <div id="controls"></div>
+
+    <h2>Resolved CSS (live export)</h2>
+    <button id="copy">Copy CSS 📋</button>
+    <textarea id="out" readonly></textarea>
+    <div class="hint">Exports the full ward stack (<code>.ward-body/-shadow/-spot/-gloss</code> + <code>.ward-glow</code>). In-game these become real child els in a <code>.ward</code> stack inside the DS card's art.</div>
+    <button id="reset" class="ghost">Reset to defaults</button>
+    <div class="hint" id="diag">booting…</div>
+  </div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Standalone CSS look-tuning rig for the WARD (Divine-Shield-style) FX — a LAYERED
+// glassy gold dome over a game card:
+//   1) .ward-body   — translucent gold ring, clear centre, TUNABLE intensity + slow pulse
+//   2) .ward-shadow — inner-edge vignette (locked)
+//   3) .ward-spot   — soft bright highlight (locked)
+//   4) .ward-gloss  — shiny diagonal reflection streak, TUNABLE
+//   5) .ward-glow   — outer aura + breathing bloom (locked, on the card)
+// Sliders write live onto the card via setProperty and PERSIST to localStorage (so a
+// refresh/edit never loses tuning). "Copy CSS" exports the full stack. Vanilla JS, no build.
+// ---------------------------------------------------------------------------
+
+// Any uncaught error would otherwise leave a silent blank page — surface it loudly instead.
+addEventListener('error', (e) => {
+  const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;inset:0 auto auto 0;z-index:99;background:#b0203a;color:#fff;padding:10px 14px;font:12px ui-monospace,monospace;white-space:pre-wrap;max-width:100%';
+  b.textContent = 'SCRIPT ERROR: ' + (e.message || e.error) + '\n' + (e.filename || '') + ':' + (e.lineno || '?');
+  document.body.appendChild(b);
+});
+
+// --- dial schema: grouped [group, property, min, max, step, default, unit] --
+const DIALS = [
+  { group: 'Dome gold + pulse',        prop: '--ward-gold-peak', min: 0,   max: 1,   step: 0.01, def: 1,    unit: '' },
+  { group: 'Dome gold + pulse',        prop: '--ward-gold-edge', min: 0,   max: 1,   step: 0.01, def: 0.5,  unit: '' },
+  { group: 'Dome gold + pulse',        prop: '--ward-pulse-min', min: 0,   max: 1,   step: 0.01, def: 0.55, unit: '' },
+  { group: 'Dome gold + pulse',        prop: '--ward-pulse-s',   min: 1,   max: 10,  step: 0.1,  def: 3.5,  unit: 's' },
+  { group: 'Shiny reflection (gloss)', prop: '--gloss-alpha',    min: 0,   max: 1,   step: 0.01, def: 0.9,  unit: '' },
+  { group: 'Shiny reflection (gloss)', prop: '--gloss-angle',    min: 0,   max: 180, step: 1,    def: 118,  unit: 'deg' },
+  { group: 'Shiny reflection (gloss)', prop: '--gloss-pos',      min: 0,   max: 100, step: 1,    def: 44,   unit: '%' },
+  { group: 'Shiny reflection (gloss)', prop: '--gloss-width',    min: 0.5, max: 30,  step: 0.5,  def: 6,    unit: '%' },
+  { group: 'Shiny reflection (gloss)', prop: '--gloss-y',        min: 0,   max: 80,  step: 1,    def: 28,   unit: '%' },
+  { group: 'Shiny reflection (gloss)', prop: '--gloss-mask-w',   min: 20,  max: 120, step: 1,    def: 68,   unit: '%' },
+  { group: 'Shiny reflection (gloss)', prop: '--gloss-mask-h',   min: 20,  max: 120, step: 1,    def: 50,   unit: '%' },
+  { group: 'Hex sphere',               prop: '--hex-alpha',      min: 0,   max: 1,   step: 0.01, def: 0.5,  unit: '' },
+  { group: 'Hex sphere',               prop: '--hex-size',       min: 60,  max: 140, step: 1,    def: 100,  unit: '%' },
+  { group: 'Hex sphere',               prop: '--hex-ring',       min: 0,   max: 60,  step: 1,    def: 32,   unit: '%' },
+];
+
+const LS_KEY = 'ascent.wardCssTuner';
+const card = document.getElementById('card');
+const controls = document.getElementById('controls');
+const out = document.getElementById('out');
+const diag = document.getElementById('diag');
+
+// C holds the current numeric value of every dial (keyed by property name).
+const C = {};
+// Persisted overrides, read once at load (only KNOWN dials are applied → new dials fall back to their default).
+let stored = {};
+try { stored = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch { stored = {}; }
+
+function label(prop) { return prop.replace(/^--(ward|gloss)-/, '').replace(/-/g, ' '); }
+function apply(d) { card.style.setProperty(d.prop, C[d.prop] + d.unit); }
+function persist() { try { localStorage.setItem(LS_KEY, JSON.stringify(C)); } catch {} }
+
+// --- build the slider rows, grouped by section -----------------------------
+function build(useStored) {
+  controls.innerHTML = '';
+  let lastGroup = null;
+  for (const d of DIALS) {
+    const start = useStored && typeof stored[d.prop] === 'number' ? stored[d.prop] : d.def;
+    C[d.prop] = start;
+    if (d.group !== lastGroup) {
+      const h = document.createElement('h2'); h.textContent = d.group; controls.appendChild(h);
+      lastGroup = d.group;
+    }
+    const row = document.createElement('div'); row.className = 'row';
+    const l = document.createElement('label'); l.textContent = label(d.prop);
+    const inp = document.createElement('input'); inp.type = 'range';
+    inp.min = d.min; inp.max = d.max; inp.step = d.step; inp.value = start;
+    const v = document.createElement('span'); v.className = 'val';
+    v.textContent = start + d.unit;
+    inp.oninput = () => {
+      C[d.prop] = parseFloat(inp.value);
+      v.textContent = C[d.prop] + d.unit;
+      apply(d);
+      persist();
+      save();
+    };
+    row.appendChild(l); row.appendChild(inp); row.appendChild(v);
+    controls.appendChild(row);
+    apply(d); // push onto the card immediately
+  }
+}
+
+// --- resolve the current dials into the full paste-ready ward stack ---------
+function resolvedCSS() {
+  const g = (p) => C[p];
+  const peak = g('--ward-gold-peak'), edge = g('--ward-gold-edge'), pMin = g('--ward-pulse-min'), pS = g('--ward-pulse-s');
+  const a = g('--gloss-alpha'), ang = g('--gloss-angle'), pos = g('--gloss-pos'), w = g('--gloss-width');
+  const y = g('--gloss-y'), mw = g('--gloss-mask-w'), mh = g('--gloss-mask-h');
+  const hexA = g('--hex-alpha'), hexSize = g('--hex-size'), hexR = g('--hex-ring');
+
+  return `/* Ward — full layered glassy gold dome (resolved from the tuner). In-game: a .ward stack of child els
+   inside the DS card's art (.ward-body/-shadow/-spot/-gloss) + .ward-glow on the card. */
+.ward-body {
+  background: radial-gradient(120% 88% at 50% 44%,
+    rgba(255,242,196, 0) 0%, rgba(255,206,84, 0) 28%,
+    rgba(255,206,84, ${peak}) 56%, rgba(236,168,26, ${edge}) 78%, rgba(236,168,26, 0) 100%);
+  animation: wardpulse ${pS}s ease-in-out infinite; will-change: opacity;
+}
+@keyframes wardpulse { 0%,100% { opacity: ${pMin}; } 50% { opacity: 1; } }
+.ward-hex {   /* hexagons projected onto a sphere (fx/ward-hexsphere.svg) — rim-masked so only the edge band shows */
+  background: url("/fx/ward-hexsphere.svg") center / ${hexSize}% no-repeat; opacity: ${hexA}; mix-blend-mode: screen;
+  -webkit-mask-image: radial-gradient(circle at 50% 46%, transparent ${hexR}%, #000 calc(${hexR}% + 12%), #000 84%, transparent 99%);
+          mask-image: radial-gradient(circle at 50% 46%, transparent ${hexR}%, #000 calc(${hexR}% + 12%), #000 84%, transparent 99%);
+}
+.ward-shadow { box-shadow: inset 0 0 27px 8px rgba(78,44,6, 0.87); }
+.ward-spot {
+  background: radial-gradient(ellipse 57% 34% at 50% 27%,
+    rgba(255,255,255, 0.95) 0%, rgba(255,250,224, 0.5) 42%, rgba(255,248,214, 0) 72%);
+}
+.ward-gloss {
+  background: linear-gradient(${ang}deg,
+    transparent calc(${pos}% - ${w}%), rgba(255,255,255, ${a}) ${pos}%, transparent calc(${pos}% + ${w}%));
+  -webkit-mask-image: radial-gradient(ellipse ${mw}% ${mh}% at 50% ${y}%, #000 45%, transparent 100%);
+          mask-image: radial-gradient(ellipse ${mw}% ${mh}% at 50% ${y}%, #000 45%, transparent 100%);
+  mix-blend-mode: screen;
+}
+.ward-glow { box-shadow: 0 0 12px 3px rgba(240,176,32, 0.79); }
+.ward-glow::before {
+  box-shadow: 0 0 16px 5px rgba(255,220,110, 0.6); animation: kwglow 6s ease-in-out infinite; will-change: opacity;
+}
+@keyframes kwglow { 0%,100% { opacity: 0; } 50% { opacity: 1; } }`;
+}
+
+function save() {
+  out.value = resolvedCSS();
+  diag.textContent = 'live · ' + DIALS.map((d) => label(d.prop).replace(/ /g, '-') + '=' + C[d.prop] + d.unit).join(' · ');
+}
+
+// --- Copy CSS ---------------------------------------------------------------
+document.getElementById('copy').onclick = async () => {
+  const btn = document.getElementById('copy');
+  try {
+    await navigator.clipboard.writeText(out.value);
+    btn.textContent = 'Copied ✓';
+  } catch {
+    out.focus(); out.select();
+    btn.textContent = 'Select+⌘C';
+  }
+  setTimeout(() => { btn.textContent = 'Copy CSS 📋'; }, 1200);
+};
+
+// --- Reset (clears persistence) ---------------------------------------------
+document.getElementById('reset').onclick = () => {
+  try { localStorage.removeItem(LS_KEY); } catch {}
+  stored = {};
+  build(false);
+  persist();
+  save();
+};
+
+// --- boot -------------------------------------------------------------------
+build(true);
+save();
+</script>
+</body>
+</html>

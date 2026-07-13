@@ -560,6 +560,7 @@ export function Recruit() {
     // state (works from ANY source — its CardView keywords say if it has the aura). DURING COMBAT only combat
     // UNITS (`.unit`) get auras, so a frozen shop/hand card can't float its aura over the arena.
     for (const cfg of AURA_CFGS) {
+      if (cfg.kind === 'shield') continue; // Ward is CSS now (Card.tsx `.ward` stack); Pixi only fires its break shatter + drag sparkles
       const els = document.querySelectorAll<HTMLElement>(
         inCombatRef.current
           ? `.unit .card.${cfg.marker}`

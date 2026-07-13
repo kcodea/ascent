@@ -23,6 +23,11 @@ export interface TrailConfig {
   blueAlpha: number;
   /** Gold/blue only: chance per emit of an extra tiny spark mote (the glassy glint). */
   sparkChance: number;
+  /** Gold/blue only: wisps spawned per emit (more = denser trail, same component size). Wind stays 1. */
+  count: number;
+  /** Gold/blue only: perpendicular BAND width (px) the wisps spread across — the trail's cross-axis width
+   *  (NOT the wisp size). Wind stays a thin single wisp. */
+  width: number;
 }
 
 const DEFAULTS: TrailConfig = {
@@ -35,6 +40,8 @@ const DEFAULTS: TrailConfig = {
   goldAlpha: 0.13,
   blueAlpha: 0.14,
   sparkChance: 0.4,
+  count: 3,
+  width: 40,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -48,6 +55,8 @@ export const TRAIL_RANGES: Record<keyof TrailConfig, [number, number, number]> =
   goldAlpha: [0.05, 1, 0.01],
   blueAlpha: [0.05, 1, 0.01],
   sparkChance: [0, 1, 0.05],
+  count: [1, 10, 1],
+  width: [0, 150, 2],
 };
 export const TRAIL_KEYS = Object.keys(DEFAULTS) as (keyof TrailConfig)[];
 

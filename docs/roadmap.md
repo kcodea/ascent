@@ -167,6 +167,17 @@ look because the engine already produces the data.
   (Supporter, Chimerus, Chorus Engine, Raptor, Crypt Drake, Taragosa) now fire tendrils woven into the attacker's
   wind-up (pulse → tendril → lunge) via `onWindupBuffs` on the lunge timeline. Landed at the wind-up (not
   contact-timed as originally sketched — the owner wanted the buff to read *before* the swing).
+- ~~**Ward shatter timing.**~~ ✓ **shipped (session 33, → devlog):** a warded unit's shatter now fires at the
+  lunge's real `contact` (`onImpactAuras` on the lunge timeline) instead of a fixed start+300ms cue that drifted
+  off the hit and left the bubble lingering disjointed from the unit. `auraBreak` removed from the `attackExchange`
+  score (engine-owned there); it still handles Wards broken outside an attack.
+- ~~**Ward → CSS hex-sphere dome.**~~ ✓ **shipped (session 34, → devlog):** retired the per-frame-tracked Pixi
+  ward bubble for a pure-CSS layered dome glued to the card (`.ward` stack: gold pulse body + projected hex-sphere
+  SVG + vignette + spot + gloss, over the card art; outer glow + breath on the card). Break shatter → rect-based
+  `pixiFx.shatterAt` at contact, WITHOUT the old shield-disc flash. Gold/blue trail beefed (`count` + perpendicular
+  `width` band). **Follow-ups:** (a) give **Reborn** the same CSS treatment (still on Pixi, same fragility); (b) the
+  hex-sphere is a *flat-projected* SVG — no true per-cell perspective compression at the very rim (good enough, but
+  a real 3D-baked asset would be crisper); (c) facet density is baked into the SVG (regenerate the script to change).
 - **Spear Warden echo-aura.** `deathrattleBuffCardTypeRunWide` (`knit`) is deliberately excluded from descend
   (asserted false) — the owner wants it reframed as a persistent "echo-aura" (its own effect concept), separate
   from Deathrattle. Design + build when ready.

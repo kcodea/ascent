@@ -5,6 +5,105 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-12 (session 34)
 
+### feat: served enemies carry their owner's quest/rune COMBAT effects + opponent reward badges
+
+The last "true-PvP" fidelity gap. A served enemy board fought WITHOUT its owner's quest/rune combat modifiers —
+all ~26 `questMods` were applied player-only. Now per-side, following the proven `enemyScalers` playbook:
+- **Snapshot** captures the assembled `questCombatMods(s)` object (not raw `questFlags` — that loses the
+  magnitudes held in top-level RunState fields), plus lifetime `spellsCast` (Umbral Energy) and `beastBuyAtk`
+  (Beast aura). `questCombatMods` is now exported from the reducer.
+- **`simulate`** takes a trailing `enemyQuestMods` param + `enemyScalers.spellsCast/beastBuyAtk`; a `modsFor(side)`
+  selector + per-side `beastAtkAuraFor` / `firstEchoDone|firstRallyDone|firstSlaughterDone|pitDone|emptyGravesDone`
+  records. Every player-hardcoded site (~22) now mirrors to both boards: the SoC rune grants (Warden, Twilight,
+  Shared Circuit, Warding, Echoing Coop, Rallying, Rising Graves), the avenge runes (Broodpit, Spearline, Fury
+  doubling), Packcraft, Inheritance, First Claws, Bone Throne, Pit Without End, Empty Graves, Rulebreaker's Crown,
+  Umbral Energy, Contract Rewrite, The Old Hunt, Law of Teeth / echo / rally / slaughter doublers, Feeding Line.
+- **Player-only (correctly):** the economy/hand/gold rune payoffs — Soul Taxes (+max Gold), Salvage & Blood Trail
+  (cards → hand), Deep Hunger (Fodder → shop), Appraisal (spell-power carry-back). A snapshot enemy has no
+  hand/shop/run, so these have no enemy-side meaning. Quest TALLIES + carry-backs stay player-only too.
+- **`reducer`** passes the served board's captured `questMods` + scalers into combat.
+
+Determinism: player-side math is byte-identical (procedural foes pass `{}`; the big restructure preserved player
+order/behavior — full suite green). Balance: a served board that had runes/quests now fights stronger, as intended.
+
+**Opponent reward badges** (companion display feature): `snapshotBoard` also captures the owner's ACTIVE rewards —
+completed quest ids + owned rune ids — and `OpponentFrame` renders them as a row of badges under the frame (art +
+hover tooltip), mirroring the player's own badges above their hero panel. Tooltip opens downward/right-anchored.
+
+**Verified:** `typecheck + lint + test` (946) & `build:web` green. New tests: the enemy runs its OWN Warding /
+Rising Graves / Umbral Energy; the player's mods never leak onto the enemy; the snapshot captures `questMods` +
+`spellsCast` + `beastBuyAtk` + quests/runes; and a reducer-level end-to-end — a served board's Rune of Warding
+fires FOR THE ENEMY through `faceOmen`. Live-verified the opponent badges (injected board → Warding + Forest Grove
+badges show).
+
+### fix: combat live-display completeness — ascend fold, Trophy Stalker, Rising Graves pill, Guel tally
+
+An audit ("are player AND enemy cards showing real-time-accurate values everywhere, true-PvP on both sides?") of
+the `simulate` → event-log → `computeFrame` fold → `Unit.tsx` pipeline. The fold is already fully side-agnostic
+(no `side === 'you'` branch; every per-instance accrual — stats, DS/keywords, Sergeant's HP-grant, Kennelmaster's
+aura, Tara's ascend tally, Engraved permaGain — is seeded for the enemy snapshot too and updated by side-agnostic
+events). The audit found three display mutations that emitted **no foldable event**, so the card froze mid-replay
+(on both sides):
+
+- **`ascend` never folded.** A mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen) mutated
+  cardId/name/tribe/keywords in the sim but `computeFrame` had no `ascend` case, so the card kept its pre-ascension
+  face (old art/name/rule text) for the rest of the fight even as the new form's buffs landed. Added an `ascend`
+  fold that adopts the new form's identity + keywords (mirrors `ascendMinion`).
+- **Trophy Stalker** (`rallyTribeAuraGrowing`) bumped its own `summonBonus` each attack with no `improve` event, so
+  its displayed "+M/+M" grant was frozen. Now emits `improve` so the live text climbs.
+- **Rune of Rising Graves** granted `R` but emitted a display-silent `sc` (not folded into keywords), so the pill
+  never showed — now emits a foldable `keyword` event like `scGrantReborn` / `runeWarding`'s DS grant.
+
+**Archmagus Guel — combat casts now count toward his tally (owner ruling 2026-07-12).** His combat half used the
+run-wide `spellsCast` (via `spellTotals`) for the grant while the display read his frozen per-instance
+`spellProgress` — inconsistent, and the countdown never moved. Rewrote the combat `spellCastBuffOthers` to match
+the recruit half: tick THIS Guel's `spellProgress` per combat cast, grant `base + floor(progress/4)`, emit a new
+`spellProgress` combat event (folded by `computeFrame` → live countdown), and carry the tally back at settle
+(`playerSpellProgress`) so combat casts persist permanently. The recruit-half comment already promised "combat
+casts tick it at settle" — this makes that true. Combat-math change (a late-bought Guel now scales per-instance,
+not off the whole run's spell count), covered by determinism + the new test; both boards get it (side-agnostic fold).
+
+Still **flagged, not fixed** (needs your read): Crypt Drake's "N to go" countdown is approximate between procs —
+the UI reconstructs its attack count from the buff *proc* (once per 2 attacks) rather than the raw `attack` events,
+so the text is off between procs (the flat +2/+2 magnitude is correct). Fixable by counting ally `attack` events in
+`computeFrame`.
+
+**Verified:** `typecheck + lint + test` (940) & `build:web` green. New tests: `computeFrame` folds an `ascend` on
+BOTH sides (identity swaps live); Trophy Stalker emits `improve` each attack; Rising Graves emits the `keyword` R;
+Guel's combat spell casts tick his per-instance tally (live `spellProgress` event + carry-back above the seed).
+
+### fix: player-snapshot fidelity — re-land per-side scalers + capture addedTribes / Bloodlust
+
+A fidelity pass so a **player-snapshotted board is a faithful image of its run** — every card behaves + reads
+exactly as it did when captured (served as an opponent AND on the leaderboard / Career). An audit surfaced three
+things:
+
+**1. PR #340's squash lost "part 2".** The per-side run-level scalers (spell power / Deathrattle tally / spells /
+Beasts-played threaded per-board so an enemy Grim / Taragosa / Runescale / Pack Leader reads its OWN value, not the
+current player's) were **not** actually on `main` — the squash-merge of #340 captured only part 1. Re-landed the
+whole per-side layer (`ctx.spellPowerFor(side)` / `spellsThisTurnFor` / `beastsPlayedFor` / `deathrattleTally(side)`,
+`simulate`'s `enemyScalers` param, `CombatResult.enemyScalers`, `snapshotBoard` capture, the reducer passing the
+served board's scalers, and `Unit.tsx` per-side display).
+
+**2. `addedTribes` + `bloodlust` were dropped even in the PLAYER's own board→combat mapping** (`reducer.ts`). So an
+Anomaly Reactor spell-added tribe (e.g. a minion made a Mech) stopped counting for tribe synergies in the player's
+*own* fights, and a **Bloodlust** opening strike never fired — a live bug, not just a snapshot gap. Threaded both
+through: the reducer's player mapping, `cleanBoard` (capture), and `opponentBoard` (served restore). Also folded
+`addedTribes` into the leaderboard / Career / BoardLog display (`cardViewOf`) so the spell-added tribe badge shows.
+
+**3. Bloodlust was player-only in the sim.** The Start-of-Combat Bloodlust loop iterated `boards.player` only, so a
+served opponent's Bloodlust wouldn't fire. Made it iterate **both** sides (player first → determinism preserved;
+`flushImmediateAttacks` strikes `OTHER[side]`, so an enemy Bloodlust correctly swings at the player).
+
+The audit also **confirmed no other run-level aura leaks**: the Undead / Beast / Magnetic / Imp auras, `cardBuffs`,
+`spellsCast`, `fodderConsumed`, tier/tribes, attack-first / rally-double, and every `questMods` field are already
+player-side-scoped in `simulate` — spell-power/tally/spells/beasts were the only shared globals.
+
+**Verified:** `typecheck + lint + test` (935) & `build:web` green. New tests: `opponentBoard` + `snapshotBoard`
+round-trip `addedTribes` / `bloodlust`; an ENEMY Bloodlust fires its opening strike; plus the re-landed per-side
+`simulate` proofs (enemy Pack Leader / Runescale use the opponent's values). Follow-up: keep sweeping the snapshot
+for any remaining representativeness gaps.
+
 ### feat(tools): `npm run sfx:import` — smart drop-folder audio importer
 
 Removes the friction of getting recorded clips into the game. A sandboxed claude.ai page can't write into the
@@ -228,37 +327,6 @@ the shipped tendril handler, but a focused-tab visual check is a recommended fol
 styles (the `style` seam is ready); recruit-phase hero-power/spell pulses (a different, shop-phase code path);
 a dedicated neutral preset.
 
-## 2026-07-11 (session 31)
-
-### fix: combat state accuracy — served enemies keep their accruals; Runescale/Hoardbreaker live text
-
-Combat-state pass (part 1). Two gaps made combat cards show stale/base numbers instead of their real live values.
-
-**1. Served opponents dropped their per-minion accruals (the visible bug).** `opponentBoard` (opponents.ts)
-reconstructed a served enemy board copying only `cardId/attack/health/keywords/golden/summonBonus` — it silently
-dropped `hpGrantBonus`, `ascendProgress`, `spellProgress`, `overflowBonus`, `rallyMechAtk`, `rallySpellWeld`, and the
-`buffs` inspect breakdown, even though `cleanBoard` *persists* them into the snapshot and `instantiate` (minion.ts)
-*reads* them. So a served **Sergeant** that had grown its Deathrattle HP-grant during its owner's run showed the
-printed base **+2 Health** and fought weaker than the real board; same for Tara (ascend), Guel (spell tally), Flowing
-Monk (triple bonus), and welded Better Bot / Perfect Core Rally. Fixed by restoring **every** accrual in
-`opponentBoard`, symmetric with `cleanBoard`. Also taught `cleanBoard` to persist `spellProgress` + `overflowBonus`
-(it already saved the others) so Guel/Monk are captured too. Net: a served enemy is now as strong AND reads as
-accurately as the board it was captured from — the card shows the value it had in its owner's game.
-
-**2. Two scaling cards weren't wired into the combat live-text chain.** **Runescale Drake** (`scTribeBuffPerSpellText`,
-Start-of-Combat Dragon buff per spell cast) had a helper used in the shop but was never called in `Unit.tsx`, so it
-showed base +2/+2 mid-fight. **Hoardbreaker Drake** (`onKillCastSpell` → Growth + spell power) had *no* helper — its
-+3/+4 went stale whenever spell power > 0, on every surface. Added a generic `combatCastGrantText` (mirrors the sim's
-`(base + spellPower) × golden`) and wired both cards into the combat chain (`Unit.tsx`) and the shop chain
-(`instView.ts`).
-
-**Known follow-up (part 2):** run-LEVEL scalers still read the *current player's* run state for both boards — spell
-power (Taragosa/Watcher/Hoardbreaker), Deathrattle tally (Grim), per-turn tallies (Pack Leader). Making an enemy show
-the *opponent's* value at capture time needs those run-level values snapshotted + threaded per-side through the sim
-(determinism-locked math + a pool regen). Scoped as its own PR.
-
-**Verified:** `typecheck + lint + test` (888) & `build:web` green. New tests: `opponentBoard` round-trips all six
-accruals (cloned, not shared); `combatCastGrantText` scales Hoardbreaker's Growth by spell power (golden ×2).
 ### feat: sourced "spell cast" SFX when a spell is played from hand
 
 **What:** replaced the synth-only `sfx.castSpell` placeholder with a real sourced clip (owner-provided
@@ -358,6 +426,56 @@ Touches `useCombatReplay.ts` (gate + nonce state), `Recruit.tsx` (pass the nonce
 live in a real fight — every rally unit flashes gold on the wind-up, on every swing. The wind-up hold stays
 the tuned 440 ms (`RALLY_PAUSE_MS`); revisit whether it should explicitly wait on the rally's downstream
 effects if the beat ever feels rushed.
+
+
+## 2026-07-11 (session 31)
+
+### fix: combat state accuracy — enemy + player cards read their REAL live values (both boards)
+
+Combat-state pass. Combat cards showed stale/base numbers instead of their real live values — worst on the ENEMY
+board, where a served Sergeant read "+2 Health" no matter how far its owner had grown it. Three fixes, both boards.
+
+**1. Served opponents dropped their per-minion accruals (the visible bug).** `opponentBoard` (opponents.ts)
+reconstructed a served enemy board copying only `cardId/attack/health/keywords/golden/summonBonus` — it silently
+dropped `hpGrantBonus`, `ascendProgress`, `spellProgress`, `overflowBonus`, `rallyMechAtk`, `rallySpellWeld`, and the
+`buffs` inspect breakdown, even though `cleanBoard` *persists* them into the snapshot and `instantiate` (minion.ts)
+*reads* them. So a served **Sergeant** that had grown its Deathrattle HP-grant during its owner's run showed the
+printed base **+2 Health** and fought weaker than the real board; same for Tara (ascend), Guel (spell tally), Flowing
+Monk (triple bonus), and welded Better Bot / Perfect Core Rally. Fixed by restoring **every** accrual in
+`opponentBoard`, symmetric with `cleanBoard`. Also taught `cleanBoard` to persist `spellProgress` + `overflowBonus`
+(it already saved the others) so Guel/Monk are captured too. Net: a served enemy is now as strong AND reads as
+accurately as the board it was captured from — the card shows the value it had in its owner's game.
+
+**2. Two scaling cards weren't wired into the combat live-text chain.** **Runescale Drake** (`scTribeBuffPerSpellText`,
+Start-of-Combat Dragon buff per spell cast) had a helper used in the shop but was never called in `Unit.tsx`, so it
+showed base +2/+2 mid-fight. **Hoardbreaker Drake** (`onKillCastSpell` → Growth + spell power) had *no* helper — its
++3/+4 went stale whenever spell power > 0, on every surface. Added a generic `combatCastGrantText` (mirrors the sim's
+`(base + spellPower) × golden`) and wired both cards into the combat chain (`Unit.tsx`) and the shop chain
+(`instView.ts`).
+
+**3. Run-LEVEL scalers were single-sided — enemy cards read the CURRENT player's run state (part 2).** Spell power
+(Taragosa/Watcher/Hoardbreaker), the Deathrattle tally (Grim), spells-this-turn (Runescale) and Beasts-played (Pack
+Leader) were threaded into `simulate` as player values and used for BOTH boards — so an enemy Grim/Taragosa *leeched
+your* numbers in the combat math AND the card text. Now per-side, end to end:
+- `snapshotBoard` captures the owner's `spellPower / deathrattles / spellsThisTurn / beastsPlayed` (omitted when 0).
+- `simulate` takes an `enemyScalers` object; `CombatContext` gains `spellPowerFor(side)` / `spellsThisTurnFor(side)` /
+  `beastsPlayedFor(side)` and `deathrattleTally(side)`. The eight combat factories that fold these now key on the acting
+  minion's `side`, so an enemy scaling card uses the OPPONENT's captured value (0 for the procedural threat / legacy
+  boards — correct for a synthetic foe with no run economy).
+- `CombatResult.enemyScalers` carries those values to the UI; `Unit.tsx` renders an enemy card at the opponent's value
+  (player minions keep reading the live run). `scTribeBuffPerPlayedText` now also accepts a pre-counted number (the
+  enemy's `beastsPlayed`, since the played card-ids aren't carried in the snapshot).
+
+Determinism: player-side math is byte-identical (player scalers unchanged); only enemy scaling cards shift — from
+leeching your values to using their own (0 for existing pool/synthetic boards). The committed synthetic pool has no run
+economy, so no regen was needed (it can never carry scalers); real captured/imported boards pick the fields up when
+baked under this build.
+
+**Verified:** `typecheck + lint + test` (892) & `build:web` green. New tests: `opponentBoard` round-trips all six
+accruals (cloned, not shared); `combatCastGrantText` scales Hoardbreaker's Growth by spell power (golden ×2); a per-side
+`simulate` proof that an enemy Pack Leader / Runescale scales with the OPPONENT's Beasts-played / spells and never
+leeches the current player's; `snapshotBoard` captures the run-level scalers; `scTribeBuffPerPlayedText` accepts the
+enemy's pre-counted number.
 
 ### fix: Rune of Action counts every card played, not just board minions
 

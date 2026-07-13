@@ -36,31 +36,40 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
   const cls = ['unit', side, u.divineShield ? 'ds' : '', anim ?? ''].filter(Boolean).join(' ');
   const def = CARD_INDEX[u.cardId];
   const goldMul = u.golden ? 2 : 1;
-  // The run's spell power (frozen during combat — the fight hasn't settled) so Taragosa's Growth text reflects
-  // the same value the combat used. Primitive selectors → the memoized Unit only re-renders if they change.
-  const spA = useGame((s) => spellAttackBonus(s.run));
-  const spH = useGame((s) => spellHealthBonus(s.run));
-  // Run-level scalers, frozen during combat (read like spell power above) so a Grim / Guel / Spirit Worgen
-  // shows the same magnitude the fight used: the run Deathrattle tally, spells cast this run, spells this turn.
-  const drTally = useGame((s) => s.run.deathrattlesTriggered);
-  const spellsThisTurn = useGame((s) => s.run.spellsThisTurn);
-  const playedThisTurn = useGame((s) => s.run.playedThisTurn);
+  // Run-level scalers. For a PLAYER minion these come from the live run (frozen during combat so the text
+  // reflects the value the fight used). For an ENEMY minion (side === 'foe') they come from the OPPONENT's
+  // captured snapshot (`lastCombat.enemyScalers`) — so an enemy Grim / Taragosa / Watcher / Hoardbreaker /
+  // Pack Leader / Runescale reads at the value THAT player had, not ours (mirrors the per-side sim math).
+  const foe = side === 'foe';
+  const runSpA = useGame((s) => spellAttackBonus(s.run));
+  const runSpH = useGame((s) => spellHealthBonus(s.run));
+  const runDrTally = useGame((s) => s.run.deathrattlesTriggered);
+  const runSpellsThisTurn = useGame((s) => s.run.spellsThisTurn);
+  const runPlayedThisTurn = useGame((s) => s.run.playedThisTurn);
+  const enemyScalers = useGame((s) => s.run.lastCombat?.enemyScalers);
+  const spA = foe ? (enemyScalers?.spellPower.attack ?? 0) : runSpA;
+  const spH = foe ? (enemyScalers?.spellPower.health ?? 0) : runSpH;
+  const drTally = foe ? (enemyScalers?.deathrattles ?? 0) : runDrTally;
+  const spellsThisTurn = foe ? (enemyScalers?.spellsThisTurn ?? 0) : runSpellsThisTurn;
+  // Pack Leader's grant: the player counts qualifying plays from the card-id array; the enemy's beast count is
+  // pre-computed in its snapshot (the ids aren't carried), so pass the number straight through.
+  const beastsPlayed: string[] | number | undefined = foe ? (enemyScalers?.beastsPlayed ?? 0) : runPlayedThisTurn;
   // Combat live text — show current values for minions whose effects scale mid-fight (per-minion accruals)
   // or with frozen run-level scalers (Grim/Guel/Worgen, like Taragosa's spell power). Mirrors the shop chain.
   const liveText = summonBuffText(u.cardId, u.summonBonus)
     ?? summonImproveText(u.cardId, u.summonBonus, u.golden) // Mama Bear: live "+M/+M per summon" (climbs via improve events)
-    ?? summonScalingText(u.cardId, spellsThisTurn, playedThisTurn) // Spirit Worgen: per-summon gain + live proc count
-    ?? scTribeBuffPerPlayedText(u.cardId, u.golden, playedThisTurn) // Pack Leader: live grant from Beasts played this turn
-    ?? scTribeBuffPerSpellText(u.cardId, u.golden, spellsThisTurn) // Runescale Drake: live Start-of-Combat Dragon buff per spell cast this turn
+    ?? summonScalingText(u.cardId, spellsThisTurn, foe ? undefined : runPlayedThisTurn) // Spirit Worgen: per-summon gain + live proc count (recruit-only; enemy shows base)
+    ?? scTribeBuffPerPlayedText(u.cardId, u.golden, beastsPlayed) // Pack Leader: live grant from Beasts played this turn (per-side)
+    ?? scTribeBuffPerSpellText(u.cardId, u.golden, spellsThisTurn) // Runescale Drake: live Start-of-Combat Dragon buff per spell cast this turn (per-side)
     ?? cryptDrakeText(u.cardId, u.golden, u.attackSeen ?? 0)
     ?? ascendProgressText(u.cardId, u.ascendProgress ?? 0)
     ?? sergeantText(u.cardId, u.golden, u.hpGrantBonus ?? 0)
-    ?? tallyBuffText(u.cardId, drTally) // Grim: live "+N/+N" from the run Deathrattle tally
+    ?? tallyBuffText(u.cardId, drTally) // Grim: live "+N/+N" from the Deathrattle tally (per-side)
     ?? guelProgressText(u.cardId, u.golden, u.spellProgress ?? 0) // Guel: live grant + countdown from HIS on-board tally (per-instance, seeded by the snapshot)
     ?? monkProgressText(u.cardId, u.golden, u.summonBonus, u.overflowBonus ?? 0) // Flowing Monk: live grant + overflow countdown (climbs via improve events)
     ?? taragosaText(u.cardId, u.golden, spA, spH)
-    ?? combatCastGrantText(u.cardId, u.golden, spA, spH) // Hoardbreaker Drake: live Growth grant (base + spell power) on Slaughter
-    ?? watcherText(u.cardId, u.golden, spA, spH) // Watcher: live Lantern buff +x/+y (base + spell power, both stats)
+    ?? combatCastGrantText(u.cardId, u.golden, spA, spH) // Hoardbreaker Drake: live Growth grant (base + spell power) on Slaughter (per-side)
+    ?? watcherText(u.cardId, u.golden, spA, spH) // Watcher: live Lantern buff +x/+y (base + spell power, both stats, per-side)
     ?? engraveTallyText(u.cardId, u.permaGain)
     ?? def?.text ?? '';
   const view: CardView = {
@@ -118,6 +127,7 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.u.attackSeen === b.u.attackSeen &&
   a.u.ascendProgress === b.u.ascendProgress &&
   a.u.hpGrantBonus === b.u.hpGrantBonus &&
+  a.u.spellProgress === b.u.spellProgress &&
   a.u.permaGain?.attack === b.u.permaGain?.attack &&
   a.u.permaGain?.health === b.u.permaGain?.health &&
   a.u.name === b.u.name &&

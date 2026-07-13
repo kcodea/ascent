@@ -12,7 +12,8 @@ import { fetchPlayerRoundBoards, remoteEnabled, type RoundBoard } from './remote
 function cardViewOf(m: BoardMinion): CardView {
   const def = CARD_INDEX[m.cardId];
   return {
-    name: def?.name ?? m.cardId, cardId: m.cardId, tribe: def?.tribe ?? 'neutral', tribe2: def?.tribe2,
+    name: def?.name ?? m.cardId, cardId: m.cardId, tribe: def?.tribe ?? 'neutral',
+    tribe2: def?.tribe2 ?? m.addedTribes?.find((t) => t !== (def?.tribe ?? 'neutral')), // Anomaly Reactor: show the spell-added tribe badge
     attack: m.attack, health: m.health, keywords: m.keywords ?? [],
     text: m.text ?? def?.text ?? '', goldenText: m.goldenText ?? def?.goldenText, golden: m.golden,
     tier: def?.tier ?? 1, baseAttack: def?.attack ?? m.attack, baseHealth: def?.health ?? m.health, buffs: m.buffs,

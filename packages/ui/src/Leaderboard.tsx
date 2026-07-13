@@ -13,7 +13,8 @@ import { fetchBoardStats, fetchVictories, remoteEnabled, type BoardWinStats, typ
 function cardViewOf(m: BoardMinion): CardView {
   const def = CARD_INDEX[m.cardId];
   return {
-    name: def?.name ?? m.cardId, cardId: m.cardId, tribe: def?.tribe ?? 'neutral', tribe2: def?.tribe2,
+    name: def?.name ?? m.cardId, cardId: m.cardId, tribe: def?.tribe ?? 'neutral',
+    tribe2: def?.tribe2 ?? m.addedTribes?.find((t) => t !== (def?.tribe ?? 'neutral')), // Anomaly Reactor: show the spell-added tribe badge
     attack: m.attack, health: m.health, keywords: m.keywords ?? [],
     // Prefer the LIVE end-of-run text baked into the snapshot (a maxed Sergeant's real grant, etc.); older
     // snapshots without it fall back to the printed card text.

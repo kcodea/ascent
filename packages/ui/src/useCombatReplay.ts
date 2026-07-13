@@ -92,7 +92,7 @@ function recordBuff(buffs: MinionBuff[], source: string, attack: number, health:
  * the current beat is kept one beat (rendered with its death pop, no grey) so the
  * killing blow reads, then it's gone next beat.
  */
-function computeFrame(
+export function computeFrame(
   initial: { player: MinionSnapshot[]; enemy: MinionSnapshot[] },
   events: CombatEvent[],
   upto: number,
@@ -196,12 +196,29 @@ function computeFrame(
     } else if (e.type === 'hpGrant') {
       const u = find(e.target);
       if (u) u.hpGrantBonus = e.amount; // Sergeant: absolute cumulative HP-grant bonus → live card text
+    } else if (e.type === 'spellProgress') {
+      const u = find(e.target);
+      if (u) u.spellProgress = e.amount; // Archmagus Guel: on-board spell tally after a combat cast → live countdown
     } else if (e.type === 'improve') {
       const u = find(e.target);
       if (u) u.summonBonus += e.amount; // Kennelmaster's aura climbs mid-fight → live card text
     } else if (e.type === 'summon') {
       const arr = e.side === 'player' ? player : enemy;
       arr.splice(Math.min(e.index, arr.length), 0, fromSnap(e.minion));
+    } else if (e.type === 'ascend') {
+      // A mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen): adopt the new form's identity so
+      // the card's art / name / tribe / rule text / new-form keyword pills update live, exactly as the sim does
+      // in `ascendMinion` (the stat buffs keep landing on the same uid via `buff` events). Without this the card
+      // kept its pre-ascension face for the rest of the replay.
+      const u = find(e.target);
+      const def = CARD_INDEX[e.into];
+      if (u && def) {
+        u.cardId = e.into;
+        u.name = def.name;
+        u.tribe = def.tribe;
+        for (const k of def.keywords) if (!u.keywords.includes(k)) u.keywords.push(k);
+        if (def.keywords.includes('DS')) u.divineShield = true;
+      }
     }
   }
   return { player: player.filter((u) => !gone.has(u.uid)), enemy: enemy.filter((u) => !gone.has(u.uid)) };

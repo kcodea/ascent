@@ -13,7 +13,8 @@ import { careerStats, loadRunHistory } from './runHistory';
 function cardViewOf(m: BoardMinion): CardView {
   const def = CARD_INDEX[m.cardId];
   return {
-    name: def?.name ?? m.cardId, cardId: m.cardId, tribe: def?.tribe ?? 'neutral', tribe2: def?.tribe2,
+    name: def?.name ?? m.cardId, cardId: m.cardId, tribe: def?.tribe ?? 'neutral',
+    tribe2: def?.tribe2 ?? m.addedTribes?.find((t) => t !== (def?.tribe ?? 'neutral')), // Anomaly Reactor: show the spell-added tribe badge
     attack: m.attack, health: m.health, keywords: m.keywords ?? [],
     // Prefer the live end-of-run text baked into the final-board snapshot; older entries fall back to printed.
     text: m.text ?? def?.text ?? '', goldenText: m.goldenText ?? def?.goldenText, golden: m.golden,

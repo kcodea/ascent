@@ -5197,14 +5197,34 @@ describe('Beast quests (combat objectives + rewards)', () => {
     expect(s.activeQuests![0]!.completed).toBe(false);
   });
 
-  it('Den Marker (tribeAura) folds +2/+2 into the Beast aura + buffs current Beasts', () => {
-    const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
-    const s = settle('q_den_marker', { playerQuestTally: { ...zeroTally(), summonCombat: 8 } }, { board: [beast] });
+  it('Den Marker (beastPlayBuff): played Beasts gain +2/+2, improving +2/+2 every 3 Beasts', () => {
+    // Four DISTINCT vanilla Beasts (no Battlecry / summon / token, distinct ids so no triple) — each play ticks once.
+    const cleanBeasts = BUYABLE_CARDS.filter(
+      (c) => c.tribe === 'beast' && !c.spell && !c.chooseOne && !c.target && !c.keywords.includes('M') && !c.effects.some((e) => e.on === 'onPlay' || e.on === 'onSummon'),
+    ).slice(0, 4);
+    const uids = ['b1', 'b2', 'b3', 'b4'];
+    const baseOf = new Map(cleanBeasts.map((d, i) => [uids[i]!, d]));
+    let s: RunState = {
+      ...createRun(1), tier: 6, phase: 'recruit',
+      denMarker: { attack: 2, health: 2, step: 2, per: 3, count: 0 }, // the armed quest aura
+      hand: cleanBeasts.map((d, i) => ({ uid: uids[i]!, cardId: d.id, tribe: d.tribe, attack: d.attack, health: d.health, keywords: [...d.keywords], golden: false })),
+      board: [],
+    };
+    for (const uid of uids) s = reduce(s, { type: 'play', uid });
+    const gain = (uid: string): number => s.board.find((c) => c.uid === uid)!.attack - baseOf.get(uid)!.attack;
+    expect(gain('b1')).toBe(2); // +2/+2
+    expect(gain('b2')).toBe(2);
+    expect(gain('b3')).toBe(2); // 3rd Beast → after it, the magnitude climbs to +4/+4
+    expect(gain('b4')).toBe(4); // 4th Beast gets the improved +4/+4
+    expect(s.board.find((c) => c.uid === 'b4')!.health - baseOf.get('b4')!.health).toBe(4);
+  });
+
+  it('Den Marker: completing q_den_marker (spendGold) arms the run-wide beast-play aura', () => {
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 40, shop: [{ uid: 'x', cardId: 'alley' }],
+      activeQuests: [{ questId: 'q_den_marker', progress: 27, completed: false }] };
+    s = reduce(s, { type: 'buy', uid: 'x' }); // a 3-Gold buy → 30 spent total → quest completes
     expect(s.activeQuests![0]!.completed).toBe(true);
-    expect(s.beastBuyAtk).toBe(2);
-    expect(s.beastBuyHp).toBe(2);
-    expect(s.board[0]!.attack).toBe(3); // 1 base + 2 aura
-    expect(s.board[0]!.health).toBe(3); // 1 base + 2 aura
+    expect(s.denMarker).toMatchObject({ attack: 2, health: 2, step: 2, per: 3 });
   });
 
   it('Echoing Coop (deathrattle/Echo objective) reads the combat Deathrattle tally', () => {

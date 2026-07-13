@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 35)
 
+### feat: Den Marker quest — run-wide Den Mother aura (Beasts +2/+2 on play, scaling)
+
+The Den Marker quest now grants a **run-wide Den-Mother-style aura** instead of a flat tribe aura (owner: "extend the
+Den Mother aura here"). New `beastPlayBuff` reward kind + `RunState.denMarker`: every Beast you play/summon gains
+**+2/+2**, and that magnitude climbs **+2/+2 every 3 Beasts**. Applied in the recruit `onSummon` chokepoint
+(`applyDenMarker` in `fire`), so it stacks on top of a real Den Mother and catches summoned Beast tokens too. Objective
+changed to **Spend 30 Gold** (per the table). `questText` renders the new reward. Verified: `typecheck`/`lint`/`test`
+(976 — the aura scaling every 3 + completing the spendGold quest arms it)/`build:web` green.
+
 ### feat: Speed Demon (ex-Run Maw) + Herald of the Apocalypse rework
 
 Two reward-minion reworks (the first slice of the deferred new-mechanic batch):

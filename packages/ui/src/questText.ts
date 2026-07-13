@@ -162,6 +162,8 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     }
     case 'impAura':
       return `Improve your Imps by ${statPhrase(r.attack, r.health)}`;
+    case 'beastPlayBuff':
+      return `Your Beasts gain ${statPhrase(r.attack, r.health)} when played, improving every ${r.per} Beasts`;
     case 'combatFlag':
       switch (r.flag) {
         case 'bloodTrail':

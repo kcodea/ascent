@@ -469,6 +469,9 @@ export type QuestReward =
   // Imp Census: permanently improve your Imps by +A/+H run-wide (bumps `impBuff`, so every current + future
   // friendly Imp inherits it). Repeats via the reward's `repeatInTurns` (folded through `multi`).
   | { kind: 'impAura'; attack: number; health: number }
+  // Den Marker: a run-wide Den-Mother-style aura — every Beast you play/summon gains +attack/+health, and that
+  // magnitude improves by +step/+step every `per` Beasts. Armed as `RunState.denMarker`, applied in the onSummon path.
+  | { kind: 'beastPlayBuff'; attack: number; health: number; step: number; per: number }
   // Arm a run-wide combat modifier consumed by `simulate()` (see QuestCombatMods): Blood Trail, Echoing Coop,
   // Law of Teeth, The Old Hunt. `amount` parameterizes the flag where it needs a magnitude (Old Hunt's aura step).
   | { kind: 'combatFlag'; flag: QuestCombatFlag; amount?: number }

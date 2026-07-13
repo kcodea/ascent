@@ -2,6 +2,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
+import type { StepProgress } from './cardText';
 import { artFor } from './art';
 import { renameTerms } from './terms';
 import { Icon } from './Icon';
@@ -64,6 +65,8 @@ export interface CardView {
   text: string;
   /** Explicit golden text (overrides the numeric doubler when shown golden). */
   goldenText?: string;
+  /** "X/N toward next step" pill for step-based scalers (Guel, Monk, Spirit Pup, …). Absent = no counter. */
+  stepProgress?: StepProgress;
   cost?: number;
   /** The cost was changed off the flat minion price (Moe's discounted Attachment) — renders the coin green. */
   costChanged?: boolean;
@@ -336,6 +339,17 @@ export const Card = memo(function Card({
           Keyed so a fresh buff remounts it and replays the rise. */}
       {buffFloat && (
         <span key={buffFloat.key} className="float buff cardfloat">+{buffFloat.attack}/+{buffFloat.health}</span>
+      )}
+      {/* Step-progress counter — "X/N to next step" below step-based scalers (Guel 1/4, Monk 2/5, …). Keyed on
+          `current` so each tick replays the compositor-only bump. Board minions only (populated by the caller). */}
+      {card.stepProgress && (
+        <span
+          key={card.stepProgress.current}
+          className="stepcounter"
+          aria-label={`Step progress ${card.stepProgress.current} of ${card.stepProgress.total}`}
+        >
+          {card.stepProgress.current}/{card.stepProgress.total}
+        </span>
       )}
       {card.tier !== undefined && <span className="tierbadge" data-tier={card.tier}>Tier {card.tier}</span>}
       {/* Disco Dan's Setlist lock — a padlock ribbon across a greyed card, captioned with the tier it unlocks at. */}

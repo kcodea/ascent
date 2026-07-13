@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Step-progress counters.** Step-based scaling minions now show a small **"X/N"** pill below the card,
+  counting toward their next step/transform/proc — Archmagus Guel `1/4`, `2/4`… per spell; Flowing Monk per
+  overflow; Spirit Pup toward transform; Tara toward ascend; Crypt Drake per attack; Frontdrake/Money Maker per
+  turn. Shown on board minions (and live mid-combat); continuous accumulators get none.
 - **Player Leaderboard + Hall of Champions.** The victory-runs page is now titled **Hall of Champions**, and a new
   **Leaderboard** ranks the **top 10 players by rating** (games played + favorite hero). Backed by a new `profiles`
   table upserted on every finished run — dormant until the backend migration runs, like the other shared tables.

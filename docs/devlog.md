@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 36)
 
+### feat(ui): step-progress counters on step-based scaling minions (M1 of the shop-FX/counter spec)
+
+Milestone 1 of `docs/superpowers/specs/2026-07-13-shop-buff-fx-and-step-counters-design.md`. Step-based scaling
+minions now render a small **"X/N"** pill below the card, counting toward their next step/transform/proc so the
+mechanic is legible at a glance (Guel `1/4 → 2/4 …` per spell was the driving example).
+
+- **`stepProgress(cardId, params)` resolver** (`packages/ui/src/cardText.ts`) — the single source of truth for the
+  counter, keyed off **effect signatures** (not a card-id list) so it stays in lock-step with the existing
+  `*ProgressText` live-text helpers. Covers exactly the six scalers that have a discrete countdown: Guel
+  (`spellCastBuffOthers`, per 4 spells), Flowing Monk (`overflowBuffRandom`, every N overflows), Crypt Drake
+  (`onAllyAttackBuffAll`, every N attacks), Frontdrake/Money Maker cadence (`endOfTurn` + `every`), Spirit Pup
+  (`spellCastTransform`, transform at N — one-time clamp), Tara (`ascendAt`/`ascendInto` — one-time clamp).
+  Cyclic scalers count `1..N` then wrap; continuous accumulators (Kennelmaster, Mama Bear, Sergeant, Grim, …)
+  return `null` (no counter). 8 unit tests cover all six.
+- **`.stepcounter` pill** (`CardView.stepProgress` + `Card.tsx` + `styles.css`) — a centered Sunward pill below the
+  card frame, keyed on `current` so each tick replays a compositor-only `stepbump` scale (no looped paint
+  properties, per `docs/performance.md`).
+- **Wiring** — folded into `instView` **board-only** (`live.onBoard`; hand/shop copies show nothing since progress
+  only accrues on board) and into combat via `Unit.tsx` so it ticks live mid-fight (Guel's `spellProgress` already
+  updates during replay). `attackSeen`/`eotTick` are combat-vs-shop-specific and omitted where the field doesn't
+  exist on that surface (correctly reads `0/N`).
+
+Verified: `typecheck` + `lint` + full `test` (992) + `build:web` all green; rebased on `origin/main`. **Follow-up
+(M2, planned):** shop-phase buff FX — replay the combat tendril/descend when a card buffs others in the shop.
 ### feat: Balance Report now shows REAL player data (offer/pick/win/avg) + moved to the home screen
 
 Owner feedback: the in-app balance report was running greedy-bot SIMULATIONS; they want **real player** data, and it

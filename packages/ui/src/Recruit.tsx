@@ -1138,7 +1138,7 @@ export function Recruit() {
     [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.frontToBackBonusH],
   );
   const boardViews = useMemo(
-    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, live)] as const)),
+    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, { ...live, onBoard: true })] as const)),
     [run.board, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live],
   );
   const handViews = useMemo(

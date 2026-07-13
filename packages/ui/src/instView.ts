@@ -4,7 +4,7 @@ import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText, combatCastGrantText,
   escalatingCastText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText,
-  sergeantText, soulsmanText, squirlScoutText, stewardText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
+  sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
   taragosaText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
 
@@ -97,7 +97,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; frontToBackBonusH?: number },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; frontToBackBonusH?: number; onBoard?: boolean },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -130,6 +130,12 @@ export function instView(
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
     baseHealth: inst.golden ? c.health * 2 : c.health,
     buffs: inst.buffs,
+    stepProgress: live?.onBoard
+      ? (stepProgress(inst.cardId, {
+          spellProgress: inst.spellProgress, summonBonus: inst.summonBonus,
+          ascendProgress: inst.ascendProgress, eotTick: inst.eotTick,
+        }) ?? undefined)
+      : undefined,
   };
 }
 

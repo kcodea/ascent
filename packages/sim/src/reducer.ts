@@ -2150,6 +2150,10 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'undeadSpellAura':
       s.forsakenWillAttack = r.attack; // Forsaken Will: each spell cast grants your Undead aura +attack
       break;
+    case 'baneDemonAura':
+      // Bane's Existence: arm the widen — Banes now also buff all your Demons run-wide on each Battlecry trigger.
+      s.baneBuffsDemons = { attack: r.attack, health: r.health };
+      break;
     case 'slaughterRepeat':
       s.slaughterFirstEachCombat = (s.slaughterFirstEachCombat ?? 0) + 1; // Author's Hand
       break;

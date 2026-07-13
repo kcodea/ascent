@@ -14,7 +14,7 @@
  * seeds should still pin to the committed pool only (see docs/board-pool.md).
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { registerOpponents, type BoardSnapshot } from '@game/sim';
+import { registerOpponents, type BoardSnapshot, type RunTelemetry } from '@game/sim';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -185,6 +185,115 @@ export async function fetchVictories(limit = 20): Promise<VictoryRow[]> {
         createdAt: r.created_at ?? undefined,
         boardId: r.board?.id ?? undefined, // the fight-ledger id lives inside the board jsonb
       }));
+  } catch {
+    return [];
+  }
+}
+
+// ── Run telemetry (player balance report) ───────────────────────────────────────────────────────────────────
+// One row per finished Ascent run: what the player was OFFERED + PICKED (heroes, quests, runes, minions) + the
+// outcome, reconstructed from the run's replay at run-end. The in-app Balance Report fetches recent rows and
+// aggregates them client-side into real offer/pick/win/avg tables. Same fire-and-forget / no-op-when-unconfigured
+// / never-throws contract; dormant until the `run_telemetry` table is migrated (see schema.sql).
+
+/** Upload one finished run's telemetry. Fire-and-forget; never throws / blocks. */
+export async function uploadRunTelemetry(t: RunTelemetry, meta: { author?: string; patch: string }): Promise<void> {
+  const c = client();
+  if (!c) return;
+  try {
+    await c.from('run_telemetry').insert([{
+      patch: meta.patch, author: meta.author ?? null,
+      hero_id: t.heroId, hero_offer: t.heroOffer, won: t.won, wins: t.wins,
+      offered_quests: t.offeredQuests, picked_quests: t.pickedQuests, quest_turns: t.questTurns,
+      offered_runes: t.offeredRunes, picked_runes: t.pickedRunes,
+      offered_cards: t.offeredCards, bought_cards: t.boughtCards,
+    }]);
+  } catch {
+    /* best-effort — telemetry must never disrupt the end screen */
+  }
+}
+
+/** Fetch the most recent `limit` run-telemetry rows (newest first) for the player balance report. Best-effort +
+ *  time-boxed; [] on any failure / no backend / un-migrated table. */
+export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetry[]> {
+  const c = client();
+  if (!c) return [];
+  try {
+    const request = Promise.resolve(
+      c.from('run_telemetry').select('hero_id, hero_offer, won, wins, offered_quests, picked_quests, quest_turns, offered_runes, picked_runes, offered_cards, bought_cards')
+        .order('created_at', { ascending: false }).limit(limit),
+    );
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([request, timeout]);
+    if (!result || result.error || !result.data) return [];
+    return (result.data as Array<Record<string, unknown>>).map((r) => ({
+      heroId: (r.hero_id as string) ?? '',
+      heroOffer: (r.hero_offer as string[]) ?? [],
+      won: !!r.won,
+      wins: (r.wins as number) ?? 0,
+      offeredQuests: (r.offered_quests as string[]) ?? [],
+      pickedQuests: (r.picked_quests as string[]) ?? [],
+      questTurns: (r.quest_turns as Record<string, number>) ?? {},
+      offeredRunes: (r.offered_runes as string[]) ?? [],
+      pickedRunes: (r.picked_runes as string[]) ?? [],
+      offeredCards: (r.offered_cards as string[]) ?? [],
+      boughtCards: (r.bought_cards as string[]) ?? [],
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// ── Player leaderboard (profiles) ───────────────────────────────────────────────────────────────────────────
+// One row per NAMED player, upserted on every finished Ascent run: their skill rating (the "MMR"), total games
+// played, and favorite hero (most-played). Powers the player Leaderboard (top 10 by rating). Same
+// no-op-when-unconfigured / fire-and-forget / never-throws contract, and dormant until the `profiles` table is
+// migrated (see schema.sql) — exactly like the board_results ledger.
+
+/** One ranked player, shaped for the leaderboard UI. */
+export interface PlayerRow {
+  author: string;
+  rating: number;
+  gamesPlayed: number;
+  /** Hero id of the most-played hero (resolved to a name + portrait in the UI). Undefined if none recorded. */
+  favoriteHero?: string;
+}
+
+/** Upsert a player's leaderboard row (keyed by author). Fire-and-forget; never throws / blocks. Skipped for
+ *  anonymous players (no author) — an unnamed run can't own a leaderboard slot. */
+export async function uploadPlayerProfile(p: {
+  author?: string; rating: number; gamesPlayed: number; favoriteHero?: string; patch: string;
+}): Promise<void> {
+  const c = client();
+  if (!c || !p.author) return;
+  try {
+    await c.from('profiles').upsert(
+      {
+        author: p.author, rating: p.rating, games_played: p.gamesPlayed,
+        favorite_hero: p.favoriteHero ?? null, patch: p.patch, updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'author' },
+    );
+  } catch {
+    /* best-effort — profile sync must never disrupt the end screen */
+  }
+}
+
+/** Fetch the top `limit` players by rating (the "MMR"), highest first, games-played as a tiebreak. Best-effort
+ *  + time-boxed; [] on any failure / no backend / un-migrated table. */
+export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
+  const c = client();
+  if (!c) return [];
+  try {
+    const request = Promise.resolve(
+      c.from('profiles').select('author, rating, games_played, favorite_hero')
+        .order('rating', { ascending: false }).order('games_played', { ascending: false }).limit(limit),
+    );
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([request, timeout]);
+    if (!result || result.error || !result.data) return [];
+    return (result.data as Array<{ author: string; rating: number; games_played: number; favorite_hero: string | null }>)
+      .map((r) => ({ author: r.author, rating: r.rating, gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined }));
   } catch {
     return [];
   }

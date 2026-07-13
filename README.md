@@ -33,6 +33,25 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   counting toward their next step/transform/proc — Archmagus Guel `1/4`, `2/4`… per spell; Flowing Monk per
   overflow; Spirit Pup toward transform; Tara toward ascend; Crypt Drake per attack; Frontdrake/Money Maker per
   turn. Shown on board minions (and live mid-combat); continuous accumulators get none.
+- **Player Leaderboard + Hall of Champions.** The victory-runs page is now titled **Hall of Champions**, and a new
+  **Leaderboard** ranks the **top 10 players by rating** (games played + favorite hero). Backed by a new `profiles`
+  table upserted on every finished run — dormant until the backend migration runs, like the other shared tables.
+- **Five new turn-11 capstone quests.** Passing Spears, Forsaken Speed, Cratering Missive, Bane's Existence, and
+  Clinging On — each hangs a new recurring End-of-Turn payoff (or a Bane widen) off a tribe's signature minion,
+  completing the turn-11 quest batch. Recruit-side only; numbers are starting dials.
+- **In-app balance report.** `npm run report` now has a dev-only in-app twin (🛠️ Dev menu → "📊 Balance Report"):
+  runs seeded greedy-bot games in the browser and shows the same offer/pick/win tables for heroes, quests, runes,
+  minions, and spells. The sim + tally moved into `@game/sim`, so the panel and the CLI share one implementation and
+  produce identical numbers.
+- **Audio mixing desk.** All audio dials now live in one `audioConfig` — a master limiter + four category buses
+  (ui/combat/voice/hero) + per-category levels. The dev SFX panel became a **mixing desk**: master limiter dials,
+  per-bus faders, **live peak + gain-reduction meters**, realistic **test-scenes** (Combat beat / Shop spam /
+  Torture) to tune against overlapping stacks, and Export-config. Day-one audio unchanged; groundwork for tuning
+  the incoming wave of sounds.
+- **Taunt glows hug the shield now.** A Taunt card is a shield-shaped card, but its target/selection glows were
+  square box-shadows floating off the silhouette. The aimed danger telegraph, the hero-power selection ring, the
+  attacking flash, and the yellow shop **hover** glow now all glow the shield's own outline (via a `drop-shadow` on
+  the frame), so the highlight follows the heater shape instead of squaring off or getting clipped away.
 - **Ward is a glassy hex-sphere dome now.** Divine Shield retired its Pixi bubble for a pure-CSS layered dome glued
   to the card — a pulsing gold body, hexagons projected onto a sphere (compressed at the rim), vignette, bright spot,
   and a shiny gloss. It stays put through drag + the combat lunge, and the break is a clean gold shard burst (no more

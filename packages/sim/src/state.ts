@@ -312,6 +312,9 @@ export interface RunState {
    *  improves this by (step + that stat's spell power). A missing Health field on an old save heals to 0. */
   frontToBackBonus: number;
   frontToBackBonusH: number;
+  /** Front to Back's lifetime cast count — the escalation improves only every OTHER cast (owner 2026-07-13), so
+   *  this parity gates the improvement step. Absent = 0. */
+  frontToBackCasts?: number;
   /** Fleeting Vigor — a one-shot Start-of-Combat buff banked for the NEXT combat only (your minions enter
    *  that fight at +this; spent in `faceOmen`, win or lose). Absent = none. */
   fleetingVigor?: { attack: number; health: number };
@@ -578,7 +581,10 @@ export interface RunState {
   lastSurvivorCardIds?: string[];
   /** Recurring End-of-Turn effects granted by quests (Echoing Roar → re-fire leftmost Shout; The Hoard Wakes →
    *  conjure a random Shout minion). Fired every End of Turn for the rest of the run. Absent = none. */
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'spearWardenEcho' | 'undeadPlayedAtk' | 'crateringMissive' | 'attachClingDrones')[];
+  /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
+   *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
+  baneBuffsDemons?: { attack: number; health: number };
   /** A pending Discover offer (3 card ids) — pick one to hand. */
   discover?: string[];
   /** Disco Dan's Setlist: the shop tier the CURRENTLY-open Discover's pick will be locked until (its

@@ -139,6 +139,10 @@ look because the engine already produces the data.
   the right path and statuses flip. **Next:** record the actual clips into `packages/ui/src/audio/{cards,heroes}/`;
   reconcile the spell default bed with `feat/spellcast-sfx` (`castspell.mp3`); a live audio + combat-feel pass
   in the focused Chrome tab once clips exist. A shared visual recording worklist exists as an Artifact.
+- **Mixing desk shipped** (session 35, → devlog): all audio dials in one `audioConfig` (master limiter + 4
+  category buses + per-category levels); the dev SFX panel is now a desk with master dials, per-bus faders,
+  live peak/gain-reduction meters, realistic test-scenes, and Export-config. **Next (deferred slots exist):**
+  per-bus compressors shipped-on (Approach 2), sidechain ducking, and ingest LUFS-normalization in `sfx:import`.
 
 ### B0. FX follow-ups (from the Echo skull poof + buff tendrils, session 29)
 - **Taunt shield frame — polish (session 34, → devlog).** The heater-shield frame + raster compositing pipeline
@@ -502,6 +506,13 @@ scale, and warband/hand/HUD position. Not yet: (1) a **shop-row position** offse
 `position: static` and hosts enemy combat units, so it needs a combat-safe hook (`position: relative` + verify
 its absolute children, or a recruit-only offset); (2) **per-element** movers (individual buttons/badges/panels)
 rather than just the four regions. Both are quick, additive extensions to `layoutConfig.ts` + the CSS hooks.
+
+**Player Leaderboard migration + hardening:** the new player Leaderboard (top players by rating) reads/writes a
+`profiles` table that must be created by re-running `schema.sql` (the block is idempotent; dormant until then — it
+shows the empty state meanwhile). Friend-scale trust model: anon may upsert any row by name (like the rest of the
+remote seam) — hardening later = server-side validation (re-derive rating from the replay before trusting the
+client), and possibly split "games played" into wins/losses or add a min-games gate so a single lucky run can't top
+the board.
 
 **Leaderboard W/L spread for old rows:** the Hall of Champions round-spread only populates for victory runs
 logged *after* the `runs.history` column shipped (per-round order isn't stored on older rows and can't be

@@ -82,6 +82,59 @@ drop policy if exists "anon insert board_results"  on public.board_results;
 create policy "anon read board_results"   on public.board_results for select to anon using (true);
 create policy "anon insert board_results"  on public.board_results for insert to anon with check (true);
 
+-- ── profiles — the player Leaderboard (top players by rating / "MMR") ──────────────────────────────────────
+-- One row per NAMED player, keyed by author (display name), UPSERTED on every finished Ascent run: their skill
+-- rating (the "MMR" the leaderboard ranks by), total games played, and favorite hero (most-played, derived from
+-- local history). Friend-scale trust model: anon may insert AND update (upsert overwrites your own slot by name).
+-- Dormant until this runs — the game + all other uploads work unchanged whether or not you've migrated it.
+create table if not exists public.profiles (
+  author        text primary key,          -- display name (the leaderboard slot key)
+  rating        int  not null default 0,   -- skill rating = the "MMR" the leaderboard ranks by
+  games_played  int  not null default 0,   -- total finished Ascent runs (win or loss)
+  favorite_hero text,                       -- hero id of the most-played hero
+  patch         text,                       -- build of the last run that wrote this row
+  updated_at    timestamptz not null default now()
+);
+create index if not exists profiles_rating on public.profiles (rating desc);
+
+alter table public.profiles enable row level security;
+drop policy if exists "anon read profiles"   on public.profiles;
+drop policy if exists "anon insert profiles"  on public.profiles;
+drop policy if exists "anon update profiles"  on public.profiles;
+create policy "anon read profiles"   on public.profiles for select to anon using (true);
+create policy "anon insert profiles"  on public.profiles for insert to anon with check (true);
+create policy "anon update profiles"  on public.profiles for update to anon using (true) with check (true);
+
+-- ── run_telemetry — the player Balance Report (offer / pick / win / avg) ───────────────────────────────────
+-- One row per finished Ascent run: what the player was OFFERED + PICKED (heroes, quests, runes, shop cards) + the
+-- outcome, reconstructed from the run's replay at run-end. The in-app Balance Report fetches recent rows and
+-- aggregates them client-side. Append-only (insert + read for anon); dormant until this runs. `quest_turns` maps a
+-- completed quest id → the wave it finished on (for "avg turns to complete").
+create table if not exists public.run_telemetry (
+  id             bigint generated always as identity primary key,
+  patch          text,
+  author         text,
+  hero_id        text not null,             -- the hero the player picked
+  hero_offer     text[],                    -- the 3 heroes the picker offered
+  won            boolean not null default false,
+  wins           int not null default 0,    -- scored wins over the course
+  offered_quests text[],
+  picked_quests  text[],
+  quest_turns    jsonb,                      -- { questId: completionWave }
+  offered_runes  text[],
+  picked_runes   text[],
+  offered_cards  text[],                     -- every card seen in the shop this run
+  bought_cards   text[],                     -- cards bought from the shop
+  created_at     timestamptz not null default now()
+);
+create index if not exists run_telemetry_created on public.run_telemetry (created_at desc);
+
+alter table public.run_telemetry enable row level security;
+drop policy if exists "anon read run_telemetry"   on public.run_telemetry;
+drop policy if exists "anon insert run_telemetry"  on public.run_telemetry;
+create policy "anon read run_telemetry"   on public.run_telemetry for select to anon using (true);
+create policy "anon insert run_telemetry"  on public.run_telemetry for insert to anon with check (true);
+
 -- ── Maintenance (run by hand in the SQL Editor when needed) ────────────────────────────────────────────────
 -- Clear everything EXCEPT the current patch (the "regenerate per balance patch" op):
 --   delete from public.boards where patch not like '0.1.0+%';

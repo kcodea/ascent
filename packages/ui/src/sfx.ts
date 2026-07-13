@@ -3,7 +3,27 @@
  * fly. Each effect is a short oscillator blip with a quick gain envelope. Muting
  * persists in localStorage. The context is created lazily and resumed on the
  * first call (which happens inside a user gesture, satisfying autoplay policy).
+ *
+ * Routing: every sound flows through a CATEGORY bus (ui/combat/voice/hero) → an
+ * optional per-bus compressor → the master limiter → a tunable master-gain node →
+ * the mute bus → destination. Levels/buses/limiter dials all live in `audioConfig`
+ * (see ./audio/config); this file just builds + tunes the graph from that config.
  */
+
+import {
+  DEFAULT_AUDIO_CONFIG,
+  mergeConfig,
+  effectiveGain,
+  busOf,
+  BUS_NAMES,
+  type AudioConfig,
+  type BusName,
+  type CompConfig,
+  type CategoryConfig,
+} from './audio/config';
+import { SCENES } from './audio/scenes';
+
+export { SCENES };
 
 let ctx: AudioContext | null = null;
 let muted = (() => {
@@ -13,25 +33,51 @@ let muted = (() => {
     return false;
   }
 })();
-// Master volume (0–1) — a global multiplier on every sound, set by the Settings slider, persisted.
-let masterVol = (() => {
+
+// --- Audio config (levels + buses + limiter) — the single source of truth, read to build/tune the graph.
+// Loaded from localStorage (with a one-time migration of the old per-key gains + master volume) over defaults.
+const cfg: AudioConfig = mergeConfig(DEFAULT_AUDIO_CONFIG, readSavedConfig());
+const busNodes = new Map<BusName, { input: GainNode; comp: DynamicsCompressorNode | null }>();
+let masterGain: GainNode | null = null;
+// Passive AnalyserNode taps for the desk's meters — keyed 'master' + each bus name. Connecting an analyser
+// doesn't alter the audio path (it's a read-only fork), so these are pure telemetry (see meterLevel).
+const analysers = new Map<string, AnalyserNode>();
+
+/** Read the saved config, migrating the legacy `ascent.sfxvol` (per-category gains) + `ascent.vol` (master) keys
+ *  the first time (before `ascent.audiocfg` exists). Returns a partial config to merge over the defaults. */
+function readSavedConfig(): Partial<AudioConfig> | null {
   try {
-    const v = parseFloat(localStorage.getItem('ascent.vol') ?? '1');
-    return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 1;
+    const raw = localStorage.getItem('ascent.audiocfg');
+    if (raw) return JSON.parse(raw) as Partial<AudioConfig>;
+    const gains = JSON.parse(localStorage.getItem('ascent.sfxvol') ?? 'null');
+    const vol = parseFloat(localStorage.getItem('ascent.vol') ?? '');
+    const mig: Partial<AudioConfig> = {};
+    if (gains && typeof gains === 'object')
+      mig.categories = Object.fromEntries(
+        Object.entries(gains).map(([k, g]) => [k, { bus: DEFAULT_AUDIO_CONFIG.categories[k]?.bus ?? 'ui', gain: Number(g) }]),
+      );
+    if (Number.isFinite(vol)) mig.masterGain = vol;
+    return Object.keys(mig).length ? mig : null;
   } catch {
-    return 1;
+    return null;
   }
-})();
-export function getVolume(): number {
-  return masterVol;
 }
-export function setVolume(v: number): void {
-  masterVol = Math.min(1, Math.max(0, v));
+function persistConfig(): void {
   try {
-    localStorage.setItem('ascent.vol', String(masterVol));
+    localStorage.setItem('ascent.audiocfg', JSON.stringify(cfg));
   } catch {
     /* ignore */
   }
+}
+
+export function getVolume(): number {
+  return cfg.masterGain;
+}
+export function setVolume(v: number): void {
+  cfg.masterGain = Math.min(1, Math.max(0, v));
+  const a = audio();
+  if (a && masterGain) masterGain.gain.setTargetAtTime(cfg.masterGain, a.currentTime, 0.01);
+  persistConfig();
 }
 
 /** True while the tab is backgrounded — we suppress sound then, so a pile-up doesn't blast on tab-in. */
@@ -50,15 +96,11 @@ let lastRebornSummon = 0;
 let lastSkullBurst = 0;
 
 // A master limiter every sound routes through, so overlapping clips (landing + voiceline + summon, etc.)
-// can never sum past full scale and hard-clip the output. Configured limiter-style: catch anything above the
-// threshold with a high ratio + fast attack, so peaks are tamed transparently for short SFX.
+// can never sum past full scale and hard-clip the output. Configured limiter-style (from `cfg.master`): catch
+// anything above the threshold with a high ratio + fast attack, so peaks are tamed transparently for short SFX.
 let master: DynamicsCompressorNode | null = null;
-/** The node sounds connect to (the limiter if ready, else the raw destination). */
-function out(a: AudioContext): AudioNode {
-  return master ?? a.destination;
-}
 
-// A master mute bus (limiter → bus → destination) whose gain is snapped to 0 to kill ALL audio at once —
+// A master mute bus (masterGain → bus → destination) whose gain is snapped to 0 to kill ALL audio at once —
 // used by the Skip-combat fade, which cuts the replay short and must silence everything instantly (a
 // replacement one-shot will play in its place later). `audioSuspended` also gates NEW sounds from scheduling
 // while suspended, so nothing sneaks in during the fade; `resumeAudio()` restores the bus for the next fight.
@@ -77,6 +119,21 @@ export function resumeAudio(): void {
   if (a && bus) { bus.gain.cancelScheduledValues(a.currentTime); bus.gain.setTargetAtTime(1, a.currentTime, 0.008); }
 }
 
+/** Apply a limiter/compressor config's dials to a DynamicsCompressorNode. */
+function applyComp(node: DynamicsCompressorNode, c: CompConfig): void {
+  node.threshold.value = c.threshold;
+  node.knee.value = c.knee;
+  node.ratio.value = c.ratio;
+  node.attack.value = c.attack;
+  node.release.value = c.release;
+}
+
+/** The node a category's sounds connect to: its bus input (if built), else the master limiter, else destination. */
+function busInput(a: AudioContext, category: string): AudioNode {
+  const b = busNodes.get(busOf(cfg, category));
+  return b ? b.input : (master ?? a.destination);
+}
+
 function audio(): AudioContext | null {
   try {
     const isNew = !ctx;
@@ -84,16 +141,40 @@ function audio(): AudioContext | null {
     if (ctx.state === 'suspended') void ctx.resume();
     if (isNew) {
       master = ctx.createDynamicsCompressor();
-      master.threshold.value = -6; // engage when stacked sounds sum past -6 dBFS (single clips at playback
-                                   // gain sit well below this, so they pass untouched — only loud stacks limit)
-      master.knee.value = 0;       // hard knee → behaves like a limiter
-      master.ratio.value = 20;     // max ratio: anything above threshold is held down hard
-      master.attack.value = 0.001; // 1ms — fast enough that even a torture-test sum stays under 0 dBFS
-      master.release.value = 0.25;
+      applyComp(master, cfg.master); // engage when stacked sounds sum past threshold — single clips at playback
+                                     // gain sit well below, so they pass untouched; only loud stacks limit.
       bus = ctx.createGain();
       bus.gain.value = audioSuspended ? 0 : 1; // the master mute bus (see stopAllAudio) — silences the whole mix
-      master.connect(bus);
+      masterGain = ctx.createGain();
+      masterGain.gain.value = cfg.masterGain;  // the Settings-slider master volume (was a per-play multiply)
+      master.connect(masterGain);
+      masterGain.connect(bus);
       bus.connect(ctx.destination);
+      // Category buses: each an input gain → optional per-bus comp → master limiter. Sounds route in by category.
+      for (const b of BUS_NAMES) {
+        const input = ctx.createGain();
+        input.gain.value = cfg.buses[b].gain;
+        let comp: DynamicsCompressorNode | null = null;
+        if (cfg.buses[b].comp) {
+          comp = ctx.createDynamicsCompressor();
+          applyComp(comp, cfg.buses[b].comp!);
+          input.connect(comp);
+          comp.connect(master);
+        } else {
+          input.connect(master);
+        }
+        busNodes.set(b, { input, comp });
+      }
+      // Meter taps: a passive analyser on the master limiter + on each bus input (read-only forks; they
+      // don't touch the audio path). fftSize 256 → a small time-domain buffer, plenty for a peak meter.
+      const tap = (key: string, node: AudioNode): void => {
+        const an = ctx!.createAnalyser();
+        an.fftSize = 256;
+        node.connect(an);
+        analysers.set(key, an);
+      };
+      tap('master', master);
+      for (const b of BUS_NAMES) tap(b, busNodes.get(b)!.input);
       prefetchSamples(); // decode the mp3 SFX once the context exists (first user gesture)
     }
     return ctx;
@@ -148,10 +229,17 @@ function prefetchSamples(): void {
   for (const path of Object.keys(SAMPLE_URLS)) loadSample(sampleName(path));
 }
 
-/** Play a decoded sample (fresh BufferSource → overlaps fine). Returns false if its buffer isn't ready yet,
- *  so the caller can fall back to a synth blip while the sample finishes decoding. `delay` (s) schedules the
- *  start later on the audio clock (sample-accurate) — used to stagger a token's clip after the summon cue. */
-function playSample(name: string, vol = 0.6, delay = 0): boolean {
+/** The first real card voiceline clip present (a `cards/*` sample, excluding `.effect`/`.death` variants), or
+ *  undefined if none has been recorded yet. Used by playScene to fill a scene step's `arg: '__first__'`. */
+function firstCardClip(): string | undefined {
+  return Object.keys(SAMPLE_URLS).map(sampleName).find((n) => n.startsWith('cards/') && !n.endsWith('.effect') && !n.endsWith('.death'));
+}
+
+/** Play a decoded sample (fresh BufferSource → overlaps fine) at its CATEGORY's effective gain, routed into that
+ *  category's bus. Returns false if its buffer isn't ready yet, so the caller can fall back to a synth blip while
+ *  the sample finishes decoding. `delay` (s) schedules the start later on the audio clock (sample-accurate) —
+ *  used to stagger a token's clip after the summon cue. */
+function playSample(name: string, category: string, delay = 0): boolean {
   if (isHidden() || audioSuspended) return false; // backgrounded, or hard-muted by a Skip-combat fade
   const a = audio();
   if (!a || muted) return false;
@@ -160,8 +248,8 @@ function playSample(name: string, vol = 0.6, delay = 0): boolean {
   const src = a.createBufferSource();
   src.buffer = buf;
   const g = a.createGain();
-  g.gain.value = vol * masterVol;
-  src.connect(g).connect(out(a));
+  g.gain.value = effectiveGain(cfg, category, name);
+  src.connect(g).connect(busInput(a, category));
   src.start(a.currentTime + Math.max(0, delay));
   return true;
 }
@@ -173,9 +261,12 @@ interface ToneOpts {
   vol?: number;
   slideTo?: number;
   delay?: number;
+  category?: string;
 }
 
-function tone({ freq, dur, type = 'sine', vol = 0.18, slideTo, delay = 0 }: ToneOpts): void {
+// The synth `vol` is the oscillator's OWN level (unaffected by category gain — those scale the sourced clips);
+// only the ROUTING goes through the category's bus. The master-gain node applies the Settings-slider volume.
+function tone({ freq, dur, type = 'sine', vol = 0.18, slideTo, delay = 0, category = 'ui' }: ToneOpts): void {
   if (isHidden() || audioSuspended) return; // backgrounded, or hard-muted by a Skip-combat fade
   const a = audio();
   if (!a || muted) return;
@@ -186,74 +277,15 @@ function tone({ freq, dur, type = 'sine', vol = 0.18, slideTo, delay = 0 }: Tone
   osc.frequency.setValueAtTime(freq, t0);
   if (slideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(1, slideTo), t0 + dur);
   gain.gain.setValueAtTime(0, t0);
-  gain.gain.linearRampToValueAtTime(Math.max(0.0001, vol * masterVol), t0 + 0.008);
+  gain.gain.linearRampToValueAtTime(Math.max(0.0001, vol), t0 + 0.008);
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  osc.connect(gain).connect(out(a));
+  osc.connect(gain).connect(busInput(a, category));
   osc.start(t0);
   osc.stop(t0 + dur + 0.03);
 }
 
 const chord = (freqs: number[], opts: Omit<ToneOpts, 'freq' | 'delay'>, step = 0.06): void =>
   freqs.forEach((f, i) => tone({ ...opts, freq: f, delay: i * step }));
-
-// Per-sourced-clip gain (0..1), keyed by logical sound name. Tunable LIVE via the dev SFX mixer (DEV only)
-// + persisted, so audio levels can be dialed in by ear without a code change — set the value here as the
-// shipped default. (Synth fallbacks keep their own inline gains.)
-const SAMPLE_VOL_DEFAULTS: Record<string, number> = {
-  // Whole-bank mix dialed in by ear via the DEV SFX mixer ("Copy values"), then pasted here as the shipped
-  // defaults. cardVoice = shared gain for per-card voicelines; summon = the general summon cue.
-  buy: 0.44,
-  sell: 0.3,
-  smack: 0.06,
-  cardlanding: 0.56,
-  castspell: 0.68,
-  discover: 0.36,
-  taunt: 0.31,
-  reorder: 0.225,
-  deny: 0.46,
-  freeze: 0.23,
-  unfreeze: 0.25,
-  pulse: 0.67,
-  triggerpulse: 0.24,
-  triggerglow: 0.34,
-  clickthock: 0.44,
-  cardtouch: 0.5,
-  divineshieldbreak: 0.21,
-  rebornshatter: 0.42,
-  rebornsummon: 0.49,
-  skullburst: 0.06, // owner-tuned (dialed well down — the shatter reads without dominating)
-  inspect: 0.5,
-  upgrade: 0.39,
-  roll: 0.69,
-  combatStart: 0.48,
-  cardVoice: 0.18,
-  cardEffect: 0.18, // a card's Battlecry/effect proc voiceline (cards/<id>.effect.mp3), layered over the action
-  cardDeath: 0.18, // a card's own death voiceline (cards/<id>.death.mp3), layered over the general death sound
-  heroSelect: 0.5, // a hero picked in Hero Select (heroes/<id>.mp3), layered over the generic pulse
-  heroPower: 0.5, // a hero power activating (heroes/<id>.power.mp3), layered over the generic pulse
-  summon: 0.37,
-};
-let sampleVol: Record<string, number> = (() => {
-  try {
-    const saved: unknown = JSON.parse(localStorage.getItem('ascent.sfxvol') ?? '{}');
-    return { ...SAMPLE_VOL_DEFAULTS, ...(saved && typeof saved === 'object' ? (saved as Record<string, number>) : {}) };
-  } catch {
-    return { ...SAMPLE_VOL_DEFAULTS };
-  }
-})();
-/** The sourced-clip names, in mixer order. */
-export const SFX_KEYS = Object.keys(SAMPLE_VOL_DEFAULTS);
-export function getSampleVolumes(): Record<string, number> {
-  return { ...sampleVol };
-}
-export function setSampleVolume(key: string, v: number): void {
-  sampleVol = { ...sampleVol, [key]: Math.min(1, Math.max(0, v)) };
-  try {
-    localStorage.setItem('ascent.sfxvol', JSON.stringify(sampleVol));
-  } catch {
-    /* ignore */
-  }
-}
 
 /** Seconds the summoned token's own voiceline waits after the general summon cue, so the summon SFX
  *  gets room to land first (a slight overlap is intended). Tune by ear. */
@@ -262,103 +294,103 @@ const SUMMON_VOICE_LEAD = 0.3;
 export const sfx = {
   buy: () => {
     // One of the 2 sourced buy clips at random (buy1/buy2); synth blip until they decode / if absent.
-    if (playSample(`buy${1 + Math.floor(Math.random() * 2)}`, sampleVol.buy)) return;
-    tone({ freq: 540, dur: 0.07, type: 'square', vol: 0.1 });
-    tone({ freq: 820, dur: 0.09, type: 'square', vol: 0.08, delay: 0.05 });
+    if (playSample(`buy${1 + Math.floor(Math.random() * 2)}`, 'buy')) return;
+    tone({ freq: 540, dur: 0.07, type: 'square', vol: 0.1, category: 'buy' });
+    tone({ freq: 820, dur: 0.09, type: 'square', vol: 0.08, delay: 0.05, category: 'buy' });
   },
   // Rejected action (can't afford, board/hand full, timer up) — the sourced "deny" clip; synth "wrong"
   // double-buzz fallback until it decodes / if absent.
   deny: () => {
-    if (playSample('deny', sampleVol.deny)) return;
-    tone({ freq: 200, dur: 0.12, type: 'square', vol: 0.13, slideTo: 150 });
-    tone({ freq: 150, dur: 0.17, type: 'square', vol: 0.12, slideTo: 96, delay: 0.085 });
+    if (playSample('deny', 'deny')) return;
+    tone({ freq: 200, dur: 0.12, type: 'square', vol: 0.13, slideTo: 150, category: 'deny' });
+    tone({ freq: 150, dur: 0.17, type: 'square', vol: 0.12, slideTo: 96, delay: 0.085, category: 'deny' });
   },
   // Freeze the tavern — the sourced "freezetavern" clip; falls back to the roll sweep until it decodes.
   freeze: () => {
-    if (playSample('freezetavern', sampleVol.freeze)) return;
-    [0, 0.04, 0.08].forEach((d, i) => tone({ freq: 380 + i * 60, dur: 0.05, type: 'square', vol: 0.06, delay: d }));
+    if (playSample('freezetavern', 'freeze')) return;
+    [0, 0.04, 0.08].forEach((d, i) => tone({ freq: 380 + i * 60, dur: 0.05, type: 'square', vol: 0.06, delay: d, category: 'freeze' }));
   },
   // Unfreeze the tavern — the sourced "unfreezetavern" clip; synth descending sweep fallback.
   unfreeze: () => {
-    if (playSample('unfreezetavern', sampleVol.unfreeze)) return;
-    [0, 0.04, 0.08].forEach((d, i) => tone({ freq: 560 - i * 60, dur: 0.05, type: 'square', vol: 0.06, delay: d }));
+    if (playSample('unfreezetavern', 'unfreeze')) return;
+    [0, 0.04, 0.08].forEach((d, i) => tone({ freq: 560 - i * 60, dur: 0.05, type: 'square', vol: 0.06, delay: d, category: 'unfreeze' }));
   },
   // Inspect a card (right-click → enlarged overlay) — the sourced "inspect" clip; soft synth ping fallback.
   inspect: () => {
-    if (playSample('inspect', sampleVol.inspect)) return;
-    tone({ freq: 880, dur: 0.07, type: 'sine', vol: 0.08, slideTo: 1100 });
+    if (playSample('inspect', 'inspect')) return;
+    tone({ freq: 880, dur: 0.07, type: 'sine', vol: 0.08, slideTo: 1100, category: 'inspect' });
   },
   // A MINION lands on the board — the sourced "cardlanding" clip at the smack level; synth slide until it
   // decodes / if absent. Drop the clip at `packages/ui/src/audio/cardlanding.mp3`.
   play: () => {
-    if (playSample('cardlanding', sampleVol.cardlanding)) return;
-    tone({ freq: 260, dur: 0.13, type: 'triangle', vol: 0.2, slideTo: 150 });
+    if (playSample('cardlanding', 'cardlanding')) return;
+    tone({ freq: 260, dur: 0.13, type: 'triangle', vol: 0.2, slideTo: 150, category: 'cardlanding' });
   },
   // A SPELL is cast from hand — kept distinct from a minion landing. The sourced "castspell" clip; synth
   // slide fallback until it decodes / if absent.
   castSpell: () => {
-    if (playSample('castspell', sampleVol.castspell)) return;
-    tone({ freq: 300, dur: 0.13, type: 'triangle', vol: 0.18, slideTo: 170 });
+    if (playSample('castspell', 'castspell')) return;
+    tone({ freq: 300, dur: 0.13, type: 'triangle', vol: 0.18, slideTo: 170, category: 'castspell' });
   },
   sell: () => {
     // One of the 4 sourced sell clips at random (sell1–sell4); synth blip until they finish decoding.
-    if (playSample(`sell${1 + Math.floor(Math.random() * 4)}`, sampleVol.sell)) return;
-    tone({ freq: 700, dur: 0.07, type: 'square', vol: 0.09 });
-    tone({ freq: 1040, dur: 0.11, type: 'square', vol: 0.07, delay: 0.06 });
+    if (playSample(`sell${1 + Math.floor(Math.random() * 4)}`, 'sell')) return;
+    tone({ freq: 700, dur: 0.07, type: 'square', vol: 0.09, category: 'sell' });
+    tone({ freq: 1040, dur: 0.11, type: 'square', vol: 0.07, delay: 0.06, category: 'sell' });
   },
   // Refresh / reroll the tavern — the sourced "roll" clip; synth ascending blip fallback until it decodes.
   roll: () => {
-    if (playSample('roll', sampleVol.roll)) return;
-    [0, 0.04, 0.08].forEach((d, i) => tone({ freq: 380 + i * 60, dur: 0.05, type: 'square', vol: 0.06, delay: d }));
+    if (playSample('roll', 'roll')) return;
+    [0, 0.04, 0.08].forEach((d, i) => tone({ freq: 380 + i * 60, dur: 0.05, type: 'square', vol: 0.06, delay: d, category: 'roll' }));
   },
   // A specific card's unique voiceline/SFX — drop `audio/cards/<cardId>.mp3` and it plays when that card is
   // played, LAYERED over the general landing/cast sound. Silent (no fallback) if the card has no clip.
-  cardVoice: (cardId: string) => { playSample(`cards/${cardId}`, sampleVol.cardVoice); },
+  cardVoice: (cardId: string) => { playSample(`cards/${cardId}`, 'cardVoice'); },
   // A specific card's EFFECT proc SFX — drop `audio/cards/<cardId>.effect.mp3` and it plays when that card's
   // signature effect fires (its Battlecry landing in the shop today; combat procs later), LAYERED over the
   // action. Silent (no fallback) if the card has no effect clip.
-  cardEffect: (cardId: string) => { playSample(`cards/${cardId}.effect`, sampleVol.cardEffect); },
+  cardEffect: (cardId: string) => { playSample(`cards/${cardId}.effect`, 'cardEffect'); },
   // A specific card's DEATH SFX — drop `audio/cards/<cardId>.death.mp3` and it plays when that minion dies in
   // combat, LAYERED over the general death sound. Silent (no fallback) if the card has no death clip.
-  cardDeath: (cardId: string) => { playSample(`cards/${cardId}.death`, sampleVol.cardDeath); },
+  cardDeath: (cardId: string) => { playSample(`cards/${cardId}.death`, 'cardDeath'); },
   // A hero is CHOSEN in Hero Select — drop `audio/heroes/<heroId>.mp3` and it plays, LAYERED over the generic
   // pulse. Silent (no fallback) if the hero has no clip.
-  heroSelect: (heroId: string) => { playSample(`heroes/${heroId}`, sampleVol.heroSelect); },
+  heroSelect: (heroId: string) => { playSample(`heroes/${heroId}`, 'heroSelect'); },
   // A hero POWER activates — drop `audio/heroes/<heroId>.power.mp3` and it plays, LAYERED over the generic
   // pulse. Silent (no fallback) if the hero has no power clip.
-  heroPower: (heroId: string) => { playSample(`heroes/${heroId}.power`, sampleVol.heroPower); },
+  heroPower: (heroId: string) => { playSample(`heroes/${heroId}.power`, 'heroPower'); },
   // A token is summoned — a general "summon" pop (sourced `summon` clip; synth rising blip fallback) LAYERED
   // with the summoned token's own cards/<tokenId>.mp3 voiceline if present. Fires on battlecry summons
   // (recruit, from store.ts) and combat summons (deathrattles etc., from useCombatReplay.ts).
   summon: (tokenId?: string) => {
-    if (!playSample('summon', sampleVol.summon)) tone({ freq: 300, dur: 0.12, type: 'triangle', vol: 0.1, slideTo: 520 });
+    if (!playSample('summon', 'summon')) tone({ freq: 300, dur: 0.12, type: 'triangle', vol: 0.1, slideTo: 520, category: 'summon' });
     // Let the summon cue land first, THEN the summoned token's own voiceline (slight overlap is fine).
-    if (tokenId) playSample(`cards/${tokenId}`, sampleVol.cardVoice, SUMMON_VOICE_LEAD);
+    if (tokenId) playSample(`cards/${tokenId}`, 'cardVoice', SUMMON_VOICE_LEAD);
   },
   // A Discover choice opens — the sourced "discover" clip; synth shimmer until it decodes / if absent.
   discover: () => {
-    if (playSample('discover', sampleVol.discover)) return;
-    chord([523, 784, 1046], { dur: 0.16, type: 'triangle', vol: 0.1 }, 0.05);
+    if (playSample('discover', 'discover')) return;
+    chord([523, 784, 1046], { dur: 0.16, type: 'triangle', vol: 0.1, category: 'discover' }, 0.05);
   },
   // A friendly minion is GIVEN Taunt — the sourced "taunt" clip; synth thunk until it decodes / if absent.
   taunt: () => {
-    if (playSample('taunt', sampleVol.taunt)) return;
-    tone({ freq: 220, dur: 0.14, type: 'square', vol: 0.12, slideTo: 160 });
+    if (playSample('taunt', 'taunt')) return;
+    tone({ freq: 220, dur: 0.14, type: 'square', vol: 0.12, slideTo: 160, category: 'taunt' });
   },
   // A card is repositioned (warband / shop reorder) — the sourced "reordercard" clip; synth tick fallback.
   reorder: () => {
-    if (playSample('reordercard', sampleVol.reorder)) return;
-    tone({ freq: 440, dur: 0.05, type: 'square', vol: 0.07 });
+    if (playSample('reordercard', 'reorder')) return;
+    tone({ freq: 440, dur: 0.05, type: 'square', vol: 0.07, category: 'reorder' });
   },
   // Tavern Up — the sourced "tavernupgrade" clip; synth rising triad fallback until it decodes / if absent.
   upgrade: () => {
-    if (playSample('tavernupgrade', sampleVol.upgrade)) return;
-    chord([392, 523, 659], { dur: 0.14, type: 'triangle', vol: 0.12 }, 0.07);
+    if (playSample('tavernupgrade', 'upgrade')) return;
+    chord([392, 523, 659], { dur: 0.14, type: 'triangle', vol: 0.12, category: 'upgrade' }, 0.07);
   },
   // Choosing a hero / pressing the hero-power button — the sourced "pulse" clip; synth ping fallback.
   pulse: () => {
-    if (playSample('pulse', sampleVol.pulse)) return;
-    tone({ freq: 1400, dur: 0.1, type: 'sine', vol: 0.12, slideTo: 1900 });
+    if (playSample('pulse', 'pulse')) return;
+    tone({ freq: 1400, dur: 0.1, type: 'sine', vol: 0.12, slideTo: 1900, category: 'pulse' });
   },
   // A trigger medallion releases its energy pulse (an effect officially fired). DEDUPED: many units can
   // pulse on the same combat beat / EOT step — a short throttle collapses simultaneous calls into one
@@ -367,8 +399,8 @@ export const sfx = {
     const now = typeof performance !== 'undefined' ? performance.now() : 0;
     if (now - lastTriggerPulse < 70) return; // one play per ~frame of simultaneous pulses
     lastTriggerPulse = now;
-    if (playSample('triggerpulse', sampleVol.triggerpulse)) return;
-    tone({ freq: 660, dur: 0.16, type: 'triangle', vol: 0.11, slideTo: 1180 });
+    if (playSample('triggerpulse', 'triggerpulse')) return;
+    tone({ freq: 660, dur: 0.16, type: 'triangle', vol: 0.11, slideTo: 1180, category: 'triggerpulse' });
   },
   // A trigger medallion GLOWS (progress only — a multi-turn cadence card ticked toward firing but didn't
   // release, e.g. Frontdrake's per-turn countdown). DEDUPED like triggerPulse: many units can tick on the
@@ -378,20 +410,20 @@ export const sfx = {
     const now = typeof performance !== 'undefined' ? performance.now() : 0;
     if (now - lastTriggerGlow < 70) return; // one play per ~frame of simultaneous glows
     lastTriggerGlow = now;
-    if (playSample('triggerglow', sampleVol.triggerglow)) return;
-    tone({ freq: 520, dur: 0.12, type: 'triangle', vol: 0.08, slideTo: 760 });
+    if (playSample('triggerglow', 'triggerglow')) return;
+    tone({ freq: 520, dur: 0.12, type: 'triangle', vol: 0.08, slideTo: 760, category: 'triggerglow' });
   },
   // A mouse click on the empty board (the table surface, not a card/control) — a short tactile "thock".
   // Sourced "clickthock" clip; soft synth tick fallback until it decodes / if absent.
   clickThock: () => {
-    if (playSample('clickthock', sampleVol.clickthock)) return;
-    tone({ freq: 180, dur: 0.05, type: 'square', vol: 0.07, slideTo: 120 });
+    if (playSample('clickthock', 'clickthock')) return;
+    tone({ freq: 180, dur: 0.05, type: 'square', vol: 0.07, slideTo: 120, category: 'clickthock' });
   },
   // Pressing any card — shop, hand, or board — a soft "card touch". Sourced "cardtouch" clip; soft synth
   // tick fallback until it decodes / if absent.
   cardTouch: () => {
-    if (playSample('cardtouch', sampleVol.cardtouch)) return;
-    tone({ freq: 330, dur: 0.05, type: 'sine', vol: 0.07, slideTo: 260 });
+    if (playSample('cardtouch', 'cardtouch')) return;
+    tone({ freq: 330, dur: 0.05, type: 'sine', vol: 0.07, slideTo: 260, category: 'cardtouch' });
   },
   // A Divine Shield is DESTROYED in combat (the bubble cracks + shatters) — the sourced clip; synth crash
   // fallback. DEDUPED: a single beat can break several shields (Cleave / simultaneous), so a short throttle
@@ -400,24 +432,24 @@ export const sfx = {
     const now = typeof performance !== 'undefined' ? performance.now() : 0;
     if (now - lastShieldBreak < 60) return;
     lastShieldBreak = now;
-    if (playSample('divineshieldbreak', sampleVol.divineshieldbreak)) return;
-    tone({ freq: 900, dur: 0.18, type: 'square', vol: 0.12, slideTo: 200 });
+    if (playSample('divineshieldbreak', 'divineshieldbreak')) return;
+    tone({ freq: 900, dur: 0.18, type: 'square', vol: 0.12, slideTo: 200, category: 'divineshieldbreak' });
   },
   // A Reborn aura SHATTERS in combat (the unit dies + its spirit releases). Deduped like shieldBreak.
   rebornShatter: () => {
     const now = typeof performance !== 'undefined' ? performance.now() : 0;
     if (now - lastRebornShatter < 60) return;
     lastRebornShatter = now;
-    if (playSample('rebornshatter', sampleVol.rebornshatter)) return;
-    tone({ freq: 520, dur: 0.22, type: 'sine', vol: 0.11, slideTo: 160 });
+    if (playSample('rebornshatter', 'rebornshatter')) return;
+    tone({ freq: 520, dur: 0.22, type: 'sine', vol: 0.11, slideTo: 160, category: 'rebornshatter' });
   },
   // A Reborn unit RE-FORMS (the rebirth/resummon). Its own clip, distinct from the generic summon. Deduped.
   rebornSummon: () => {
     const now = typeof performance !== 'undefined' ? performance.now() : 0;
     if (now - lastRebornSummon < 60) return;
     lastRebornSummon = now;
-    if (playSample('rebornsummon', sampleVol.rebornsummon)) return;
-    tone({ freq: 300, dur: 0.26, type: 'sine', vol: 0.12, slideTo: 620 });
+    if (playSample('rebornsummon', 'rebornsummon')) return;
+    tone({ freq: 300, dur: 0.26, type: 'sine', vol: 0.12, slideTo: 620, category: 'rebornsummon' });
   },
   // A Deathrattle skull SHATTERS into bone (the pixiFx.deathrattle burst) — the sourced "skullburst" clip;
   // synth magic-burst fallback until it decodes. DEDUPED: several Deathrattle units can burst near-together,
@@ -426,52 +458,68 @@ export const sfx = {
     const now = typeof performance !== 'undefined' ? performance.now() : 0;
     if (now - lastSkullBurst < 60) return;
     lastSkullBurst = now;
-    if (playSample('skullburst', sampleVol.skullburst)) return;
-    tone({ freq: 900, dur: 0.18, type: 'sawtooth', vol: 0.12, slideTo: 200 });
-    tone({ freq: 1400, dur: 0.14, type: 'triangle', vol: 0.07, delay: 0.02, slideTo: 500 });
+    if (playSample('skullburst', 'skullburst')) return;
+    tone({ freq: 900, dur: 0.18, type: 'sawtooth', vol: 0.12, slideTo: 200, category: 'skullburst' });
+    tone({ freq: 1400, dur: 0.14, type: 'triangle', vol: 0.07, delay: 0.02, slideTo: 500, category: 'skullburst' });
   },
   temper: () => {
-    tone({ freq: 1200, dur: 0.06, type: 'square', vol: 0.1 });
-    tone({ freq: 1600, dur: 0.12, type: 'sine', vol: 0.12, delay: 0.04 });
+    tone({ freq: 1200, dur: 0.06, type: 'square', vol: 0.1, category: 'ui' });
+    tone({ freq: 1600, dur: 0.12, type: 'sine', vol: 0.12, delay: 0.04, category: 'ui' });
   },
-  tick: () => tone({ freq: 1040, dur: 0.045, type: 'square', vol: 0.09 }),
+  tick: () => tone({ freq: 1040, dur: 0.045, type: 'square', vol: 0.09, category: 'ui' }),
   // End Turn → Face the Omen — the sourced "combatStart" clip; synth low sawtooth down-slide fallback.
   combatStart: () => {
-    if (playSample('combatStart', sampleVol.combatStart)) return;
-    tone({ freq: 200, dur: 0.45, type: 'sawtooth', vol: 0.16, slideTo: 90 });
+    if (playSample('combatStart', 'combatStart')) return;
+    tone({ freq: 200, dur: 0.45, type: 'sawtooth', vol: 0.16, slideTo: 90, category: 'combatStart' });
   },
-  attack: () => tone({ freq: 320, dur: 0.08, type: 'sawtooth', vol: 0.1, slideTo: 130 }),
+  attack: () => tone({ freq: 320, dur: 0.08, type: 'sawtooth', vol: 0.1, slideTo: 130, category: 'smack' }),
   // A Start-of-Combat effect firing (Ember Whelp's scorch, Blaster, etc.) — a quick magic "zap", distinct
-  // from the physical smack so SC damage doesn't read as a melee hit. Synth for now (gets its own clip later).
+  // from the physical smack so SC damage doesn't read as a melee hit. Synth for now (gets its own clip later);
+  // routed on the combat bus alongside the melee smack.
   cast: () => {
-    tone({ freq: 1040, dur: 0.14, type: 'sawtooth', vol: 0.085, slideTo: 360 });
-    tone({ freq: 1500, dur: 0.1, type: 'triangle', vol: 0.05, delay: 0.02, slideTo: 900 });
+    tone({ freq: 1040, dur: 0.14, type: 'sawtooth', vol: 0.085, slideTo: 360, category: 'smack' });
+    tone({ freq: 1500, dur: 0.1, type: 'triangle', vol: 0.05, delay: 0.02, slideTo: 900, category: 'smack' });
   },
   // Impact in combat — the sourced "Smack" clip (dialed down across passes); synth thud until it decodes.
   // Fired frame-accurately from the lunge's GSAP timeline (see playAttackLunge) so it lands on contact.
   hit: () => {
-    if (playSample('smack', sampleVol.smack)) return;
-    tone({ freq: 170, dur: 0.12, type: 'square', vol: 0.15, slideTo: 80 });
+    if (playSample('smack', 'smack')) return;
+    tone({ freq: 170, dur: 0.12, type: 'square', vol: 0.15, slideTo: 80, category: 'smack' });
   },
-  death: () => tone({ freq: 130, dur: 0.26, type: 'sine', vol: 0.2, slideTo: 48 }),
-  shield: () => tone({ freq: 760, dur: 0.18, type: 'sine', vol: 0.11, slideTo: 1300 }),
+  death: () => tone({ freq: 130, dur: 0.26, type: 'sine', vol: 0.2, slideTo: 48, category: 'death' }),
+  shield: () => tone({ freq: 760, dur: 0.18, type: 'sine', vol: 0.11, slideTo: 1300, category: 'shield' }),
   buff: () => {
-    tone({ freq: 480, dur: 0.09, type: 'triangle', vol: 0.12 });
-    tone({ freq: 720, dur: 0.12, type: 'triangle', vol: 0.1, delay: 0.06 });
+    tone({ freq: 480, dur: 0.09, type: 'triangle', vol: 0.12, category: 'buff' });
+    tone({ freq: 720, dur: 0.12, type: 'triangle', vol: 0.1, delay: 0.06, category: 'buff' });
   },
-  // An End-of-Turn effect firing — a short shimmer so each proc is heard, not just seen.
+  // An End-of-Turn effect firing — a short shimmer so each proc is heard, not just seen. Routed on the combat
+  // bus (it fires during the combat/EOT phase) alongside the trigger cues.
   proc: () => {
-    tone({ freq: 540, dur: 0.1, type: 'triangle', vol: 0.11, slideTo: 880 });
-    tone({ freq: 1080, dur: 0.13, type: 'sine', vol: 0.07, delay: 0.05 });
+    tone({ freq: 540, dur: 0.1, type: 'triangle', vol: 0.11, slideTo: 880, category: 'triggerpulse' });
+    tone({ freq: 1080, dur: 0.13, type: 'sine', vol: 0.07, delay: 0.05, category: 'triggerpulse' });
   },
   // Soulsman's Avenge raises your max Gold — a bright rising coin shimmer (synth; combat proc).
-  maxGold: () => chord([784, 1046, 1318, 1568], { dur: 0.11, type: 'triangle', vol: 0.1 }, 0.045),
-  triple: () => chord([523, 659, 784, 1046], { dur: 0.13, type: 'triangle', vol: 0.12 }, 0.06),
-  win: () => chord([523, 659, 784, 1046], { dur: 0.2, type: 'triangle', vol: 0.14 }, 0.1),
-  lose: () => chord([392, 311, 233], { dur: 0.24, type: 'sawtooth', vol: 0.13 }, 0.12),
+  maxGold: () => chord([784, 1046, 1318, 1568], { dur: 0.11, type: 'triangle', vol: 0.1, category: 'maxgold' }, 0.045),
+  triple: () => chord([523, 659, 784, 1046], { dur: 0.13, type: 'triangle', vol: 0.12, category: 'ui' }, 0.06),
+  win: () => chord([523, 659, 784, 1046], { dur: 0.2, type: 'triangle', vol: 0.14, category: 'ui' }, 0.1),
+  lose: () => chord([392, 311, 233], { dur: 0.24, type: 'sawtooth', vol: 0.13, category: 'ui' }, 0.12),
 } as const;
 
-/** Play a sourced clip by its mixer key (for the dev SFX mixer's preview button). */
+// --- Dev SFX mixer bridge (DEV only). SfxMixer.tsx still edits per-CATEGORY gains through these until it's
+//     rewritten (T4) to drive the full audioConfig (buses + limiter). Bridged onto `cfg.categories` here so the
+//     existing mixer keeps working; changes persist the whole config. ---
+/** The category keys, in mixer order. */
+export const SFX_KEYS = Object.keys(DEFAULT_AUDIO_CONFIG.categories);
+export function getSampleVolumes(): Record<string, number> {
+  return Object.fromEntries(Object.entries(cfg.categories).map(([k, c]) => [k, c.gain]));
+}
+export function setSampleVolume(key: string, v: number): void {
+  const prev = cfg.categories[key] ?? { bus: 'ui' as BusName, gain: 0.6 };
+  cfg.categories[key] = { ...prev, gain: Math.min(1, Math.max(0, v)) };
+  persistConfig();
+}
+
+/** Play a sourced clip by its category key (for the dev SFX mixer's preview button). */
 const SFX_PREVIEW: Record<string, () => void> = {
   buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, cardlanding: sfx.play, castspell: sfx.castSpell,
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
@@ -480,30 +528,84 @@ const SFX_PREVIEW: Record<string, () => void> = {
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.
   cardVoice: () => {
     const first = Object.keys(SAMPLE_URLS).map(sampleName).find((n) => n.startsWith('cards/') && !n.endsWith('.effect') && !n.endsWith('.death'));
-    if (first) playSample(first, sampleVol.cardVoice);
+    if (first) playSample(first, 'cardVoice');
   },
   // The per-card / per-hero categories are keyed by id at call time; the mixer preview plays whichever clip of
   // that category is present in the tree (first found), or nothing if none has been recorded yet.
   cardEffect: () => {
     const first = Object.keys(SAMPLE_URLS).map(sampleName).find((n) => n.startsWith('cards/') && n.endsWith('.effect'));
-    if (first) playSample(first, sampleVol.cardEffect);
+    if (first) playSample(first, 'cardEffect');
   },
   cardDeath: () => {
     const first = Object.keys(SAMPLE_URLS).map(sampleName).find((n) => n.startsWith('cards/') && n.endsWith('.death'));
-    if (first) playSample(first, sampleVol.cardDeath);
+    if (first) playSample(first, 'cardDeath');
   },
   heroSelect: () => {
     const first = Object.keys(SAMPLE_URLS).map(sampleName).find((n) => n.startsWith('heroes/') && !n.endsWith('.power'));
-    if (first) playSample(first, sampleVol.heroSelect);
+    if (first) playSample(first, 'heroSelect');
   },
   heroPower: () => {
     const first = Object.keys(SAMPLE_URLS).map(sampleName).find((n) => n.startsWith('heroes/') && n.endsWith('.power'));
-    if (first) playSample(first, sampleVol.heroPower);
+    if (first) playSample(first, 'heroPower');
   },
   summon: () => sfx.summon(),
 };
 export function previewSfx(key: string): void {
   SFX_PREVIEW[key]?.();
+}
+
+// --- Mixing-desk API — the full audioConfig surface (buses + master limiter + categories) the rebuilt SfxMixer
+//     drives, plus live meters/gain-reduction telemetry off the analyser taps and the test-scene player. ---
+export function getAudioConfig(): AudioConfig {
+  return cfg;
+}
+/** Set a bus's fader gain — live-ramps the running node + persists. */
+export function setBusGain(b: BusName, v: number): void {
+  cfg.buses[b].gain = v;
+  const a = audio();
+  busNodes.get(b)?.input.gain.setTargetAtTime(v, a?.currentTime ?? 0, 0.01);
+  persistConfig();
+}
+/** Set one master-limiter dial (threshold/knee/ratio/attack/release) — live on the node + persists. */
+export function setMasterComp(k: keyof CompConfig, v: number): void {
+  cfg.master[k] = v;
+  if (master) master[k].value = v; // keyof CompConfig ⊂ the node's AudioParam keys, so master[k] is an AudioParam
+  persistConfig();
+}
+/** Patch a category's routing/gain (creating it with sane defaults if new) — persists. */
+export function setCategory(cat: string, patch: Partial<CategoryConfig>): void {
+  cfg.categories[cat] = { bus: 'ui', gain: 0.6, ...(cfg.categories[cat] ?? {}), ...patch };
+  persistConfig();
+}
+/** Peak level 0..1 for a meter key ('master' | bus name). */
+export function meterLevel(key: string): number {
+  const an = analysers.get(key);
+  if (!an) return 0;
+  const buf = new Uint8Array(an.fftSize);
+  an.getByteTimeDomainData(buf);
+  let peak = 0;
+  for (const v of buf) peak = Math.max(peak, Math.abs(v - 128) / 128);
+  return peak;
+}
+/** Master limiter gain-reduction as a 0..~1 bar value. */
+export function gainReduction(): number {
+  return master ? -master.reduction.value / 20 : 0;
+}
+/** The current config serialized (for the desk's export/copy button). */
+export function exportConfig(): string {
+  return JSON.stringify(cfg, null, 2);
+}
+/** Fire a named test scene's steps on the wall clock, filling `arg: '__first__'` with the first card clip. */
+export function playScene(id: string): void {
+  const scene = SCENES.find((s) => s.id === id);
+  if (!scene) return;
+  const first = firstCardClip();
+  for (const step of scene.steps) {
+    window.setTimeout(() => {
+      const fn = (sfx as unknown as Record<string, (arg?: string) => void>)[step.cue];
+      if (fn) fn(step.arg === '__first__' ? first : step.arg);
+    }, step.delay);
+  }
 }
 
 export function isMuted(): boolean {

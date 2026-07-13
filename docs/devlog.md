@@ -61,6 +61,190 @@ mechanic is legible at a glance (Guel `1/4 → 2/4 …` per spell was the drivin
 
 Verified: `typecheck` + `lint` + full `test` (992) + `build:web` all green; rebased on `origin/main`. **Follow-up
 (M2, planned):** shop-phase buff FX — replay the combat tendril/descend when a card buffs others in the shop.
+### feat: Balance Report now shows REAL player data (offer/pick/win/avg) + moved to the home screen
+
+Owner feedback: the in-app balance report was running greedy-bot SIMULATIONS; they want **real player** data, and it
+on the **home screen** (not the dev tuner). Rework:
+- **Capture (no sim pollution):** a finished run is `(seed, heroId, actions)`, so at run-end we **reconstruct** what
+  the player was offered + picked by replaying the action log through the deterministic reducer (`runTelemetry.ts` —
+  `reconstructRunTelemetry`), the same trick as `replayRun`. It records every quest / rune / shop-card OFFER, the
+  player's PICKS (buyQuest / buyRune / buy), each quest's completion turn, and the outcome. The offered hero trio
+  isn't in the seeded replay (the picker rolls off UI randomness), so it's stashed at pick time (`lastHeroOffer`).
+  One compact `run_telemetry` row uploads per finished run (deferred, best-effort).
+- **Aggregate:** `aggregatePlayerReport` folds recent rows into four tables — **Heroes** (offer/pick/win/avg wins),
+  **Quests** (offer/pick/win/avg turns to complete), **Runes** (offer/pick/win), **Minions** (offer/pick) — matching
+  the owner's spec exactly. Client-side over a bounded fetch (`fetchRunTelemetry`), like the board stats.
+- **UI:** `BalancePanel` reworked to fetch + aggregate + render those columns; opened from a new **Balance Report**
+  link on the **home screen** (Title secondary row) and removed from the 🛠️ Dev menu. The seeded greedy-bot report
+  still lives at `npm run report` (CLI, unchanged).
+- Backend: new `run_telemetry` table (schema.sql) — dormant until migrated, like the other shared tables.
+Verified: `typecheck` / `lint` / `test` (aggregation math + a reconstruction-from-real-playthrough test) / `build:web`
+green.
+
+### fix: a Rise (Reborn) counts as a summon for "Summon N in combat" quests
+
+**Bug (owner-reported):** Forsaken Will (`summonCombat` Undead) wasn't counting Undead that came back via **Rise**
+(Reborn). Rising re-enters a body into play, so it should count as summoning. Root cause: the Rise revival path in
+`killOrReborn` revives the SAME body in place + emits a `reborn` event — it never routes through `placeSummon`, which
+is the single place `bumpQuestTally('summonCombat', …)` fires. So a Rise was invisible to every "Summon N in combat"
+quest (Forsaken Will, Pack Mentality, …). Fix: after a player-side Rise re-slots, bump the summonCombat tally (+ the
+Imp tally if the risen body is an Imp), mirroring `placeSummon`. Deliberately NOT an `onSummon` broadcast — Rise still
+doesn't re-fire onSummon/Battlecry effects; this is the quest count only. Verified: new regression test (a player
+Grave Knit Rises → `summonCombat` + `summonCombatByTribe.undead` ≥ 1); `typecheck`/`lint`/`test` (**991**)/`build:web`
+green.
+
+### ui: Hall of Champions shows the full Career fight-record breakdown
+
+Owner request: the Hall of Champions round-17 slot record now uses the **same** "N Fights · W Wins · T Ties · L
+Losses · X% win rate" layout as the Career per-round board log (the `.bl-record` / `.bl-stat` styling), instead of the
+old compact "N wins · X%" pill. Same data (the `BoardWinStats` already fetched per slot), reused markup + colours
+(green Wins / yellow Ties / red Losses / tangerine win rate). A small `.lb-record` modifier makes it a compact inline
+group at the right of the entry head (no margin-auto push). Verified live: entries with a logged fight show
+"1 Fights · 0 Wins · 0 Ties · 1 Losses · 0% win rate"; slots with none still read "No fights yet". `typecheck` /
+`lint` / `build:web` green.
+
+### docs: concurrency playbook for many-session work
+
+Wrote [`docs/concurrency.md`](concurrency.md) and linked it from the top of CLAUDE.md's Collaboration section,
+after a session where the shared checkout's branch got switched and a feature worktree was torn down twice by
+other sessions mid-task. The playbook's spine: the root cause is many sessions sharing one working dir + git
+index, so the fix is **one isolated checkout (worktree/clone) per active session, off latest `origin/main`,
+touching nothing else's** — plus commit/push early (origin is the only durable copy), tiny branches, take
+`main` in often, split by ownership seam, look before you start (`gh pr list`), and per-session dev ports.
+Docs-only; no code touched.
+
+### tooling: in-app dev Balance Report panel (owner request)
+
+The `npm run report` balance tool now has an **in-app, dev-only** twin so the numbers are one click away without
+dropping to a terminal. Refactor: the whole sim + tally moved into `@game/sim` (`balanceReport.ts` —
+`computeBalanceReport` / `createReportAccumulator` / `playAndRecordInto` / `finalizeReport`, all pure, Node-free),
+and the CLI (`packages/tools/src/balance-report.ts`) is now just argv + formatting over it — so the panel and the CLI
+share ONE implementation and produce **identical** numbers. New `BalancePanel.tsx` (mounted only under
+`import.meta.env.DEV`, opened from the 🛠️ Dev menu → "📊 Balance Report") runs the report **hero-by-hero on a
+`setTimeout` yield** so the main thread never locks up and a progress bar ticks; results are the five ranked
+offer/pick/win tables (heroes, quests, runes, minions, spells) with a win-rate heat tint. Games/hero is a 5/10/20/30
+chip. Verified live: opened the panel, ran 5 games/hero (100 runs) — progress bar advanced to 100% with the page
+still responsive, all five tables populated; matches `npm run report -- 5`. `typecheck`/`lint`/`test`/`build:web`
+green.
+
+### feat: player Leaderboard (top players by rating) + rename Leaderboard → Hall of Champions
+
+The old "Leaderboard" menu entry (which was already the victory-runs page titled **Hall of Champions**) is now
+labelled **Hall of Champions**, and a brand-new **Leaderboard** sits above it: the **top 10 players by rating** (the
+"MMR" — the existing `PlayerProfile.rating`), each with their **games played** and **favorite hero** (most-played).
+
+- Backend: a new `profiles` table (schema.sql), UPSERTED on every finished Ascent run (win or loss) with the player's
+  rating + total games + favorite-hero id. Games + favorite hero are derived from the just-saved **local** match
+  history (`careerStats`: `runs` + `perHero[0]`); the upload is skipped for anonymous (un-named) players. New
+  `uploadPlayerProfile` / `fetchTopPlayers` in `remoteBoards.ts`, same best-effort / no-op-when-unconfigured /
+  never-throws contract as the rest of the remote seam. **Dormant until the owner runs the `profiles` migration** in
+  schema.sql (exactly like the `board_results` ledger) — the game + every other upload keep working unchanged
+  meanwhile.
+- UI: new `Rankings.tsx` full-page overlay (reuses the `.lbpage` shell) — a ranked table (rank medals · player ·
+  rating · games · favorite-hero portrait+name), your own row highlighted. New store flags `showRankings` /
+  `openRankings` / `closeRankings`; Title gains the new button (opens Rankings) and the existing one is relabelled +
+  repointed to open the champions page.
+- Verified: `typecheck` / `lint` / `test` (990) / `build:web` green. Live: the Title menu reads
+  PLAY / CAREER / LEADERBOARD / HALL OF CHAMPIONS; the new Leaderboard renders its empty state ("finish a run to claim
+  a slot") with no `profiles` table yet, and a mock top-4 confirmed the row layout (medals, tangerine rating, favorite
+  hero portraits, "—" for a heroless player); Hall of Champions still opens its victory-run list unchanged.
+
+### content: the five remaining turn-11 capstone quests (Passing Spears / Forsaken Speed / Cratering Missive / Bane's Existence / Clinging On)
+
+Finishes the six-quest turn-11 batch (Leader of the Pack shipped earlier). Each hangs a **new** payoff off a tribe's
+signature minion; all implemented **recruit-side only** (no combat-sim changes) so `main` stays low-risk. Objective
+counts + reward magnitudes are **starting dials** (flagged for retuning).
+
+- **Passing Spears** (Undead capstone, `friendlyDeath 12`) — grant a Spear Warden + a recurring **End of Turn: each
+  Spear Warden gives another friendly minion +2/+2**.
+- **Forsaken Speed** (Undead capstone, `summonCombat 10`) — recurring **End of Turn: your Undead gain +3 Attack for
+  each card you played this turn** (reads `playedThisTurn`, like Rune of Action).
+- **Cratering Missive** (Undead capstone, `summonCombat 14`) — grant a Cratering Hulk + recurring **End of Turn: your
+  whole board +1/+1 for each Cratering Hulk you have** (spreads the Hulk's stat-hoard to every tribe).
+- **Bane's Existence** (Demon capstone, `shout 12`) — grant a Bane + a **widen**: your Banes' after-Battlecry payoff
+  now also gives all your Demons +2/+2 run-wide (new `baneBuffsDemons` flag, read in `onBattlecryBuffFodder`).
+- **Clinging On** (Mech capstone, `playAttachment 10`) — recurring **End of Turn: weld a Cling Drone onto up to 3 of
+  your Mechs** (reuses `weldMagnetic`; each weld fires the Cling Drone's own "+1/+1 to your Clings").
+
+Plumbing: four new `recurringEndOfTurn` effects (`spearWardenEcho` / `undeadPlayedAtk` / `crateringMissive` /
+`attachClingDrones`) + one new reward kind (`baneDemonAura`), threaded through the full stack — `types.ts`,
+`schema.ts`, `state.ts`, `reducer.ts`, `recruit.ts` (`runRecurringEndOfTurn` + the EoT label map + the Bane factory),
+and `questText.ts`. Because they ride the recurring-EoT rail, the recruit-screen End-of-Turn telegraph animates them
+for free. Verified: `typecheck`/`lint`/`test` (**996** — 6 new quest tests + 5 questText assertions)/`build:web`
+green; dev server boots clean (content validation accepts the new reward kinds). **Follow-up:** balance the dials +
+whether three Undead capstones crowds that slot.
+
+### fix(fx): Taunt target/selection glow follows the shield silhouette
+
+A Taunt card is reshaped into a heater **shield** (portrait clipped to `--heater`, the frame PNG laid over an
+otherwise-transparent card box). But every highlight glow is a `box-shadow` on the rectangular `.card` element, so
+on a Taunt unit the glow floated as a **square** detached from the shield — most visibly the raspberry `.unit.aimed`
+danger telegraph (the "target glow"), and equally the `.armed`/`.targeted` hero-power selection ring and the
+`.attacking` flash.
+
+Fix (presentation-only, `packages/ui/src/styles.css`): for `.card.compact.taunt`, suppress the rectangular
+box-shadow in all four glow states and instead glow the shield PNG's own alpha via a `drop-shadow` filter on
+`.tframe` — `drop-shadow` traces the frame's silhouette, so the highlight hugs the heater shape. A `--tglow`
+variable carries the per-state colour into one shared filter (aimed → `--threat`, attacking → `--acc`,
+armed/targeted → tribe `--c`), and the frame's base `0 4px 6px` drop-shadow is preserved in the same filter stack.
+Compositor-friendly (filter on a static PNG; no per-frame repaint loop). Verified: `build:web` clean; shape to be
+eyeballed live in combat (aimed) + hero-power targeting.
+
+**Follow-up (same PR): the yellow hover glow too.** The shop/board hover glow is the last `box-shadow` layer on
+`.card.compact .art` (driven by `--hglow-*`), but Taunt's `.art` is `clip-path: var(--heater)`, and clip-path
+*clips* box-shadow — so a Taunt card in the tavern got **no hover glow at all** (clipped to the silhouette →
+invisible). Re-added it as a `drop-shadow` layer on `.tframe` blurred by `var(--hglow-blur, 0)`: 0 when not
+hovering (invisible, hidden behind the opaque frame), 22px on hover → a yellow glow that hugs the shield. Reuses
+the existing hover state machine, so it's automatically suppressed in-hand and while dragging (those zero the
+hglow vars). Verified live in Chrome (extension): drove a `sandbag` Taunt onto the board, forced the hover vars,
+and confirmed the glow tracks the heater outline (side-by-side vs a normal shop card's arch glow).
+
+## 2026-07-13 (session 35)
+
+### fix(ui): Divine Shield conforms to the shield silhouette on Taunt units
+
+**Bug (owner-reported):** on a **Taunt** unit — which is reshaped into a heater SHIELD (portrait clipped to
+`--heater` + the authored frame) — the Divine Shield read wrong two ways: (1) the gold **outer aura + breathing
+bloom** are a rounded rectangle, so they haloed a *box* around the shield instead of the shield outline; and
+(2) the glassy gold **`.ward` dome**, authored for a SQUARE art, stretched into a vertical egg in the taller
+heater window and sat off-centre. There was no `.card.compact.taunt.dscard` rule, so Taunt+DS just fell through
+to the generic `.dscard` treatment.
+
+**Fix (scoped to `.card.compact.taunt.dscard` — NON-taunt Divine Shield is untouched):**
+- **Outer glow → shield-shaped.** Dropped the rectangular `box-shadow` aura and the arched `::before` bloom;
+  instead glow the frame PNG's own alpha with a **static gold `drop-shadow`** on `.tframe`, so the halo traces
+  the shield silhouette. Static (no filter animation) per the perf rule — never animate drop-shadow in a loop.
+- **Dome → round + centred.** Constrained the `.ward` stack to a **square** (`--wardsq` = shield-window width)
+  seated on the shield's round body, so the dome keeps its round proportions instead of stretching to fill the
+  taller window; `.art`'s `--heater` clip still trims it to the shield edge. Zeroed the arch `border-radius` on
+  the ward children inside the heater clip.
+
+**Verified:** `npm run build:web` green (CSS-only change). The dome size/seat were dialled in by eye on the
+ward-css-preview rig (a Taunt+DS card was added to it) and baked in — `--wardsq` = shield-window width × **1.4**,
+vertical seat **−0.08 × --ccw**; the glow re-shape is deterministic.
+
+### fix: Cleave splashes past a dead unit to the living neighbour (real bug this time)
+
+The owner's repro was right — Cleave DID have a bug (my earlier "verified correct" pass used a surviving attacker and
+never hit this path). Dead minions are kept in `boards[side]` (never spliced), and Cleave found its neighbours via
+`arr.indexOf(target)` + index-adjacent slots. So once a unit BETWEEN the target and its living neighbour died, Cleave
+splashed the dead slot and **skipped the still-standing minion beyond it** — the exact "cleave attacked, the unit next
+to the target took no damage" report. Fixed: Cleave now computes neighbours over the **living** array (the visual
+order). New regression test: an unkillable Taunt target with a 1-HP unit between it and a tanky third — the third is
+cleaved every clash after the middle dies. Verified: `typecheck`/`lint`/`test` (981)/`build:web` green.
+
+### tweak: Skip-combat button → top-middle + Front to Back improves every other cast
+
+Two owner tweaks:
+- **Skip-combat button** moved from the top-right combat HUD back to the **top-middle** of the arena (`.combathud`
+  → `left: 50%` / `translateX(-50%)`, centred; the speed slider still stacks beneath it). Verified live: the HUD
+  centres on the viewport (near the top) and clears the top-right opponent frame.
+- **Front to Back** now improves **every OTHER cast** instead of every cast — new `RunState.frontToBackCasts` parity
+  gate on the escalation step (the grant still lands each cast; the +2/+2 improvement only compounds on the 2nd,
+  4th, … cast). Card text updated to "…every other cast"; the live `spellDisplayText` still greens the current
+  grant + improvement values.
+- **Verified**: `typecheck`/`lint`/`test` (980 — the four Front to Back tests reworked for the every-other cadence)/
+  `build:web` green; live — the Skip HUD is top-centered, no console errors.
 
 ### content: new quest — Leader of the Pack (Beast capstone)
 
@@ -108,6 +292,33 @@ Two Mech-capstone quest-reward tweaks:
   break. Implemented as a per-side `onLoseDivineShield` subscription in `simulate` (mirrors Rune of Salvage).
 - **Verified**: `typecheck`/`lint`/`test` (977, incl. Fried Circuits asymmetric escalation + Shared Circuit
   transfer-on-break capped at N)/`build:web` green.
+### feat(audio): mixing desk — config-driven levels + category buses + a metered, tunable master
+
+As hundreds of clips arrive, per-clip hand-tuning + a hardcoded limiter don't scale. All audio dials now live in
+one typed **`audioConfig`** (`packages/ui/src/audio/config.ts`): master limiter, `masterGain`, four **category
+buses** (`ui / combat / voice / hero`), per-category `{ bus, gain }`, and optional per-clip overrides. Seeded
+from the old values so **day-one audio is unchanged**; live config = defaults ⊕ `localStorage` (`ascent.audiocfg`,
+migrating the old `ascent.sfxvol`/`ascent.vol`).
+
+- **Graph (`sfx.ts`)** — `clip/synth → playGain(effectiveGain) → busInput[bus] → (bus comp, off by default) →
+  master limiter → masterGain → mute bus → speakers`. `playSample`/`tone` now take a **category** and resolve
+  gain + bus from the config (replacing the per-call `sampleVol.X` arg + the per-play `masterVol` multiply, now a
+  node). Synth-only combat cues (death/shield/buff/maxgold) route to the combat bus (routing-only; their level
+  stays the cue's literal synth vol). `stopAllAudio`/`resumeAudio`/mute + every cue's fallback/dedup preserved.
+- **Desk API** — `getAudioConfig`/`setBusGain`/`setMasterComp`/`setCategory`, `meterLevel`/`gainReduction`
+  (AnalyserNode taps on master + each bus; passive), `exportConfig`, `playScene` + `SCENES`.
+- **Console (`SfxMixer.tsx` → mixing desk)** — master limiter dials + **live peak & gain-reduction meters**,
+  per-bus faders + meters, categories grouped under their bus (gain slider + bus-reassign dropdown + ▶ preview),
+  **test-scene** buttons (Combat beat / Shop spam / Hero moment / Torture — realistic *stacks* so you tune
+  against overlap), and **Export config** (paste back into `DEFAULT_AUDIO_CONFIG`). Meters animate `transform`
+  only (rAF); dev-only, stripped from prod.
+- **Deferred (config slots exist):** per-bus compressors shipped-on (Approach 2), sidechain ducking, ingest
+  LUFS-normalization.
+
+**Verified:** config + scene unit tests (7 + 3); full gate green (typecheck 0, lint, 986 tests, build:web ✓).
+Day-one audio unchanged by construction (defaults mirror the old limiter + gains; bus gains unity, comps off).
+The live meters/scenes are eyeballed in `npm run dev` (Dev menu → Mixing Desk) — rAF meters can't be seen in a
+headless tab.
 
 ### feat: Den Marker quest — run-wide Den Mother aura (Beasts +2/+2 on play, scaling)
 

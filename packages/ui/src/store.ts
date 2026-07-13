@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX } from '@game/content';
-import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, nextOpponent, reduce, resolveRunRating, runRecord, serialize, snapshotBoard, type Action, type BoardMinion, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunState } from '@game/sim';
+import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, nextOpponent, reconstructRunTelemetry, reduce, resolveRunRating, runRecord, serialize, snapshotBoard, type Action, type BoardMinion, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunState } from '@game/sim';
 import type { Tribe } from '@game/core';
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
@@ -16,8 +16,8 @@ export interface CombatQuestDelta {
 import { sfx } from './sfx';
 import { liveBoardView } from './instView';
 import { loadStoredBoards, saveRunBoards } from './boardLibrary';
-import { fetchAndRegisterPool, recordFightResult, uploadBoards, uploadVictory } from './remoteBoards';
-import { buildRunHistoryEntry, clearRunHistory, saveRunHistoryEntry } from './runHistory';
+import { fetchAndRegisterPool, recordFightResult, uploadBoards, uploadPlayerProfile, uploadRunTelemetry, uploadVictory } from './remoteBoards';
+import { buildRunHistoryEntry, careerStats, clearRunHistory, saveRunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
 
@@ -135,6 +135,9 @@ interface GameStore {
   inspect: CardView | null;
   /** Hero ids offered by the pre-run picker; non-null = the hero-select overlay is showing. */
   heroChoices: string[] | null;
+  /** The hero trio the current run was picked from (captured at pickHero) — for run telemetry (hero offer rate).
+   *  Not in the seeded replay (the picker rolls off UI randomness), so it's stashed here at pick time. */
+  lastHeroOffer: string[];
   /** UI: cards show compact (art + keyword glyphs, full text on hover) vs. always-on rules text. */
   compactCards: boolean;
   /** Flip the compact / full-text card display (Esc menu). */
@@ -206,10 +209,14 @@ interface GameStore {
   startPractice: () => void;
   /** Return to the title screen (from the end screen). */
   openTitle: () => void;
-  /** The leaderboard overlay (Hall of Champions — latest victory runs) is open. */
+  /** The Hall of Champions overlay (latest victory runs + their warbands) is open. */
   showLeaderboard: boolean;
   openLeaderboard: () => void;
   closeLeaderboard: () => void;
+  /** The player Leaderboard overlay (top players by rating / "MMR") is open. */
+  showRankings: boolean;
+  openRankings: () => void;
+  closeRankings: () => void;
   /** The Career overlay (your local match history + per-hero stats) is open. */
   showCareer: boolean;
   openCareer: () => void;
@@ -219,6 +226,10 @@ interface GameStore {
   showBook: boolean;
   toggleBook: () => void;
   closeBook: () => void;
+  /** DEV-only balance-report panel (runs greedy-bot games in-browser + shows offer/pick/win tables). */
+  showBalance: boolean;
+  openBalance: () => void;
+  closeBalance: () => void;
 }
 
 const randomSeed = (): number => Math.floor(Math.random() * 0x7fffffff);
@@ -319,6 +330,7 @@ export const useGame = create<GameStore>((set, get) => ({
   inspect: null,
   // Boot into the title screen (the front door); the hero picker opens once a mode is chosen.
   heroChoices: null,
+  lastHeroOffer: [],
   showTitle: true,
   showLeaderboard: false,
   pendingMode: 'ascent',
@@ -378,6 +390,7 @@ export const useGame = create<GameStore>((set, get) => ({
       ) {
         const replay = { seed: next.seed, heroId: next.heroId, actions: [...s.replayActions, action] };
         const author = s.playerName || undefined;
+        const heroOffer = s.lastHeroOffer;
         const won = next.phase === 'victory';
         // Capture locally (→ this browser's pool next launch) AND push to the shared backend (→ everyone's pool).
         // A victory also logs a leaderboard run (its final warband for the hover). Deferred so it never hitches
@@ -418,7 +431,21 @@ export const useGame = create<GameStore>((set, get) => ({
           });
           saveProfile(change.profile);
           set({ profile: change.profile, lastRating: change });
-          saveRunHistoryEntry(buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change }));
+          const history = saveRunHistoryEntry(buildRunHistoryEntry(next, { date, boardsContributed: fresh.length, board: finalBoard, apt, cardsPlayed, rating: change }));
+          // Player Leaderboard: upsert this named player's slot — rating (the "MMR") + total games + favorite
+          // hero, both derived from the just-updated local history (games = runs, favorite = most-played hero).
+          // Best-effort + skipped for anonymous players (see uploadPlayerProfile).
+          const career = careerStats(history);
+          void uploadPlayerProfile({
+            author, rating: change.profile.rating, gamesPlayed: career.runs,
+            favoriteHero: career.perHero[0]?.heroId, patch: `${__APP_VERSION__}+${__BUILD_SHA__}`,
+          });
+          // Player Balance Report: reconstruct this run's offers/picks from its replay (deterministic, deferred so
+          // it never hitches the end screen) + upload one telemetry row. `lastHeroOffer` = the picked hero's trio.
+          try {
+            const telemetry = reconstructRunTelemetry(replay, heroOffer);
+            void uploadRunTelemetry(telemetry, { author, patch: `${__APP_VERSION__}+${__BUILD_SHA__}` });
+          } catch { /* best-effort — telemetry must never disrupt the end screen */ }
           if (won) {
             void uploadVictory({
               heroId: next.heroId, author, wave: next.wave,
@@ -464,7 +491,7 @@ export const useGame = create<GameStore>((set, get) => ({
       // The run's par comes from the player's rating-derived Line (career skill pressure).
       const run = createRun(randomSeed(), heroId, s.pendingMode, s.profile.currentLine);
       writeSave(run, []); // the new run is now the resumable save
-      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [] };
+      return { run, savedRun: run, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [] };
     }),
   newRun: (seed, heroId) =>
     set((s) => {
@@ -477,12 +504,18 @@ export const useGame = create<GameStore>((set, get) => ({
   openTitle: () => set({ showTitle: true, heroChoices: null }),
   openLeaderboard: () => set({ showLeaderboard: true }),
   closeLeaderboard: () => set({ showLeaderboard: false }),
+  showRankings: false,
+  openRankings: () => set({ showRankings: true }),
+  closeRankings: () => set({ showRankings: false }),
   showCareer: false,
   openCareer: () => set({ showCareer: true }),
   closeCareer: () => set({ showCareer: false }),
   showBook: false,
   toggleBook: () => set((s) => ({ showBook: !s.showBook })),
   closeBook: () => set({ showBook: false }),
+  showBalance: false,
+  openBalance: () => set({ showBalance: true }),
+  closeBalance: () => set({ showBalance: false }),
 }));
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the

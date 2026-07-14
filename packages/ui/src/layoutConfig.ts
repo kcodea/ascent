@@ -57,6 +57,15 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'hudS', cssVar: '--z-hud-s', label: 'Scale', group: 'HUD bar', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   { key: 'hudX', cssVar: '--z-hud-x', label: 'X offset', group: 'HUD bar', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
   { key: 'hudY', cssVar: '--z-hud-y', label: 'Y offset', group: 'HUD bar', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
+
+  // The burning-rope divider. STATIC px (decoupled from --u + the old 86% board-relative width), so it no longer
+  // resizes with resolution — length/thickness are absolute, X/Y nudge it off the measured board midline
+  // (--rope-y still auto-aligns the base to the art divider at any aspect; these ride on top). Defaults are the
+  // CSS fallbacks in styles.css `.rope` — keep the two in sync so production (no tuner) matches a Reset.
+  { key: 'ropeLen', cssVar: '--rope-len', label: 'Length', group: 'Rope', min: 400, max: 3600, step: 4, def: 1600, fmt: 'px' },
+  { key: 'ropeThick', cssVar: '--rope-thick', label: 'Width', group: 'Rope', min: 2, max: 40, step: 1, def: 10, fmt: 'px' },
+  { key: 'ropeX', cssVar: '--rope-x', label: 'X offset', group: 'Rope', min: -600, max: 600, step: 1, def: 0, fmt: 'px' },
+  { key: 'ropeY', cssVar: '--rope-yoff', label: 'Y offset', group: 'Rope', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
 ];
 
 export type LayoutConfig = Record<string, number>;

@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Reborn CSS — wispy ethereal aura tuner (oval frame)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #eef3ef; color: #cde6df; font: 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace; display: flex; height: 100vh; overflow: hidden; }
+  #stage { flex: 1; position: relative; display: grid; place-items: center; background: #f6ecd9; transition: background .2s; }
+  #stage.dark { background: radial-gradient(120% 120% at 50% 30%, #10201c, #04080a 80%); }
+
+  /* --- SUBJECT: the game's oval frame (mirrors ward-css-preview) ------------------------------------------ */
+  .card {
+    position: relative; width: 210px; height: 210px;
+    --dome-alpha: 0.32;
+    --dome-edge: 0.5;
+    --dome-soft: 30%;
+    --pulse-min: 0.55;
+    --pulse-s: 4.5s;
+    --wisp-count: 7;
+    --wisp-alpha: 0.85;
+    --wisp-size: 26%;
+    --wisp-rise: 62%;
+    --wisp-blur: 5px;
+    --wisp-s: 3.4s;
+    --wisp-spread: 62%;
+    --glow-inner: 3px;
+    --glow-outer: 11px;
+    --glow-outer-a: 0.5;
+    --rebornsize: 1.0;
+    --reborny: 52%;
+  }
+  .art {
+    position: absolute; z-index: 1; overflow: hidden;
+    clip-path: ellipse(50% 50% at 50% 50%);
+    width: 199px; height: 256px; left: 5px; top: -23px;
+    background: linear-gradient(165deg, #35505a, #172630);
+    display: grid; place-items: center;
+  }
+  .art .sprite { font-size: 78px; filter: drop-shadow(0 3px 5px rgba(0,0,0,.4)); transform: translateY(-6px); }
+
+  /* --- the REBORN aura: a faint wispy DOME + rising ethereal WISPS (aqua-green) --------------------------- */
+  .reborn {
+    position: absolute; inset: auto; top: var(--reborny); left: 50%; transform: translate(-50%, -50%);
+    width: calc(210px * var(--rebornsize)); height: calc(210px * var(--rebornsize));
+    overflow: visible; pointer-events: none; z-index: 2;
+  }
+  /* faint translucent aqua-green DOME shell — a ghostly bubble, much softer than the DS dome (JS sets bg) */
+  .reborn-dome {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: var(--reborn-dome-bg);
+    animation: rebornpulse var(--pulse-s) ease-in-out infinite; will-change: opacity;
+    mix-blend-mode: screen;
+  }
+  @keyframes rebornpulse { 0%,100% { opacity: var(--pulse-min); } 50% { opacity: 1; } }
+  /* rising ethereal WISPS — soft blurred spirit streaks drifting up + fading (JS makes N of them) */
+  .reborn-wisps { position: absolute; inset: 0; }
+  .wisp {
+    position: absolute; bottom: 8%; width: var(--wisp-size); aspect-ratio: 1 / 2.4;
+    background: var(--reborn-wisp-bg);
+    filter: blur(var(--wisp-blur)); mix-blend-mode: screen;
+    animation: rebornwisp var(--wisp-s) ease-in-out infinite; will-change: transform, opacity;
+  }
+  @keyframes rebornwisp {
+    0%   { transform: translateY(18%) scaleY(0.7) scaleX(0.9); opacity: 0; }
+    22%  { opacity: var(--wisp-alpha); }
+    100% { transform: translateY(calc(-1 * var(--wisp-rise))) scaleY(1.25) scaleX(0.7); opacity: 0; }
+  }
+
+  .cframe-img { position: absolute; z-index: 3; inset: auto; width: 227px; height: auto; left: -8px; top: -61px; pointer-events: none;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.45)) var(--reborn-frameglow); }
+
+  .stagehint { position: absolute; bottom: 14px; left: 0; right: 0; text-align: center; color: #6f8b82; font-size: 11px; letter-spacing: .1em; }
+
+  /* --- panel --- */
+  #panel { width: 340px; padding: 14px 16px; overflow-y: auto; background: #08110e; border-left: 1px solid #16261f; color: #cde6df; }
+  h1 { font-size: 13px; margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; color: #45e8c0; }
+  .sub { color: #5a7a70; font-size: 11px; margin-bottom: 12px; }
+  h2 { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #5a7a70; margin: 16px 0 6px; border-top: 1px solid #16261f; padding-top: 10px; }
+  .row { display: grid; grid-template-columns: 1fr 62px; gap: 8px; align-items: center; margin-bottom: 7px; }
+  .row label { grid-column: 1 / -1; color: #96c2b6; font-size: 11.5px; }
+  input[type=range] { width: 100%; accent-color: #23c39e; }
+  .colorrow { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .colorrow label { flex: 1; color: #96c2b6; font-size: 11.5px; }
+  input[type=color] { width: 44px; height: 26px; border: 1px solid #24463b; border-radius: 5px; background: #0c1713; cursor: pointer; }
+  .val { text-align: right; color: #45e8c0; font-size: 11px; }
+  button { width: 100%; padding: 9px; margin-top: 12px; border: 0; border-radius: 6px; background: #178f86; color: #fff; font: inherit; font-weight: 700; letter-spacing: .06em; cursor: pointer; }
+  button:hover { background: #1fae9f; }
+  button.ghost { background: #10201b; color: #96c2b6; }
+  button.ghost:hover { background: #16302a; }
+  textarea { width: 100%; height: 210px; margin-top: 10px; background: #040a08; color: #45e8c0; border: 1px solid #16261f; border-radius: 6px; padding: 8px; font: 10.5px/1.45 ui-monospace, monospace; resize: vertical; }
+  .hint { color: #46605a; font-size: 10.5px; margin-top: 8px; }
+  #stagetoggle { position: absolute; top: 12px; right: 12px; width: auto; margin: 0; padding: 6px 12px; background: rgba(14,28,24,.7); color: #cde6df; font-size: 11px; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <button id="stagetoggle">◐ dark floor</button>
+    <div class="card" id="card">
+      <div class="art">
+        <span class="sprite">💀</span>
+        <div class="reborn">
+          <div class="reborn-dome"></div>
+          <div class="reborn-wisps" id="wisps"></div>
+        </div>
+      </div>
+      <img class="cframe-img" src="/frames/standard-oval.png" alt="" />
+    </div>
+    <div class="stagehint">wispy ethereal Reborn on the OVAL frame — faint aqua-green dome + rising spirit wisps</div>
+  </div>
+  <div id="panel">
+    <h1>Reborn CSS · oval</h1>
+    <div class="sub">Tuning the Reborn "has-reborn" aura (replacing the old Pixi wisp) — a faint ghostly dome + rising ethereal wisps in undead aqua-green. Pick the colour, dial the dome / wisps / glow. Persists across refreshes. "Copy CSS" exports the game-ready stack.</div>
+
+    <h2>Ethereal colour (undead aqua-green)</h2>
+    <div class="colorrow"><label>bright (wisps / core)</label><input type="color" id="c-bright" value="#45e8c0" /></div>
+    <div class="colorrow"><label>deep (dome / glow)</label><input type="color" id="c-deep" value="#178f86" /></div>
+
+    <div id="controls"></div>
+
+    <h2>Resolved CSS (live export)</h2>
+    <button id="copy">Copy CSS 📋</button>
+    <textarea id="out" readonly></textarea>
+    <div class="hint">Exports the <code>.reborn-dome</code> + <code>.wisp</code> (×N) + frame glow + <code>--rebornsize/--reborny</code> seat. In-game these become a <code>.reborn</code> stack inside the DS-style art of a <code>.reborncard</code>.</div>
+    <button id="reset" class="ghost">Reset to defaults</button>
+    <div class="hint" id="diag">booting…</div>
+  </div>
+
+<script>
+addEventListener('error', (e) => {
+  const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;inset:0 auto auto 0;z-index:99;background:#b0203a;color:#fff;padding:10px 14px;font:12px ui-monospace,monospace;white-space:pre-wrap;max-width:100%';
+  b.textContent = 'SCRIPT ERROR: ' + (e.message || e.error) + '\n' + (e.filename || '') + ':' + (e.lineno || '?');
+  document.body.appendChild(b);
+});
+
+const DIALS = [
+  { group: 'Dome (ghost shell)', prop: '--dome-alpha',  min: 0, max: 1,   step: 0.01, def: 0.32, unit: '' },
+  { group: 'Dome (ghost shell)', prop: '--dome-edge',   min: 0, max: 1,   step: 0.01, def: 0.5,  unit: '' },
+  { group: 'Dome (ghost shell)', prop: '--dome-soft',   min: 0, max: 60,  step: 1,    def: 30,   unit: '%' },
+  { group: 'Dome (ghost shell)', prop: '--pulse-min',   min: 0, max: 1,   step: 0.01, def: 0.55, unit: '' },
+  { group: 'Dome (ghost shell)', prop: '--pulse-s',     min: 1, max: 10,  step: 0.1,  def: 4.5,  unit: 's' },
+  { group: 'Rising wisps',       prop: '--wisp-count',  min: 1, max: 16,  step: 1,    def: 7,    unit: '' },
+  { group: 'Rising wisps',       prop: '--wisp-alpha',  min: 0, max: 1,   step: 0.01, def: 0.85, unit: '' },
+  { group: 'Rising wisps',       prop: '--wisp-size',   min: 6, max: 60,  step: 1,    def: 26,   unit: '%' },
+  { group: 'Rising wisps',       prop: '--wisp-rise',   min: 20,max: 120, step: 1,    def: 62,   unit: '%' },
+  { group: 'Rising wisps',       prop: '--wisp-blur',   min: 0, max: 16,  step: 0.5,  def: 5,    unit: 'px' },
+  { group: 'Rising wisps',       prop: '--wisp-s',      min: 1, max: 8,   step: 0.1,  def: 3.4,  unit: 's' },
+  { group: 'Rising wisps',       prop: '--wisp-spread', min: 20,max: 100, step: 1,    def: 62,   unit: '%' },
+  { group: 'Aura seat',          prop: '--rebornsize',  min: 0.5,max: 1.3,step: 0.01, def: 1.0,  unit: '' },
+  { group: 'Aura seat',          prop: '--reborny',     min: 30,max: 80,  step: 1,    def: 52,   unit: '%' },
+  { group: 'Frame rim glow',     prop: '--glow-inner',  min: 0, max: 10,  step: 0.5,  def: 3,    unit: 'px' },
+  { group: 'Frame rim glow',     prop: '--glow-outer',  min: 0, max: 24,  step: 0.5,  def: 11,   unit: 'px' },
+  { group: 'Frame rim glow',     prop: '--glow-outer-a',min: 0, max: 1,   step: 0.01, def: 0.5,  unit: '' },
+];
+
+const LS_KEY = 'ascent.rebornCssTuner';
+const card = document.getElementById('card');
+const controls = document.getElementById('controls');
+const wispsEl = document.getElementById('wisps');
+const out = document.getElementById('out');
+const diag = document.getElementById('diag');
+const cBright = document.getElementById('c-bright');
+const cDeep = document.getElementById('c-deep');
+
+const C = {};
+let stored = {};
+try { stored = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch { stored = {}; }
+if (stored['c-bright']) cBright.value = stored['c-bright'];
+if (stored['c-deep']) cDeep.value = stored['c-deep'];
+
+const hexToRgb = (h) => { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const rgba = (rgb, a) => `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${a})`;
+const label = (p) => p.replace(/^--/, '').replace(/-/g, ' ');
+
+// evenly spread N wisps across the dome width (deterministic — index-based jitter so it's stable across rebuilds)
+function buildWisps() {
+  const n = Math.round(C['--wisp-count']);
+  const spread = C['--wisp-spread'];
+  wispsEl.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const t = n === 1 ? 0.5 : i / (n - 1);
+    const x = 50 + (t - 0.5) * spread;                 // % across the dome
+    const jitter = ((i * 37) % 20) - 10;               // stable per-index vertical/size jitter
+    const w = document.createElement('div'); w.className = 'wisp';
+    w.style.left = x + '%';
+    w.style.transform = 'translateX(-50%)';
+    w.style.animationDelay = (-(i * C['--wisp-s'] / n) - (jitter * 0.03)).toFixed(2) + 's';
+    w.style.setProperty('--wisp-size', (C['--wisp-size'] + jitter * 0.3) + '%');
+    wispsEl.appendChild(w);
+  }
+}
+
+function composeColours() {
+  const B = hexToRgb(cBright.value), D = hexToRgb(cDeep.value);
+  // faint ghost dome — a soft rim ring, very translucent
+  card.style.setProperty('--reborn-dome-bg',
+    `radial-gradient(circle at 50% 46%, ${rgba(B,0)} 0%, ${rgba(D,0)} calc(52% - ${C['--dome-soft']}%), ${rgba(D,C['--dome-alpha'])} 62%, ${rgba(B,C['--dome-edge'])} 80%, ${rgba(B,0)} 100%)`);
+  // wisp body — bright core fading to nothing (soft vertical plume)
+  card.style.setProperty('--reborn-wisp-bg',
+    `radial-gradient(ellipse 60% 50% at 50% 62%, ${rgba(B,0.95)} 0%, ${rgba(D,0.5)} 45%, ${rgba(D,0)} 78%)`);
+  card.style.setProperty('--reborn-frameglow',
+    `drop-shadow(0 0 ${C['--glow-inner']}px ${rgba(B,0.85)}) drop-shadow(0 0 ${C['--glow-outer']}px ${rgba(D,C['--glow-outer-a'])})`);
+}
+
+function apply(d) { card.style.setProperty(d.prop, C[d.prop] + d.unit); }
+function persist() { try { localStorage.setItem(LS_KEY, JSON.stringify({ ...C, 'c-bright': cBright.value, 'c-deep': cDeep.value })); } catch {} }
+
+function build(useStored) {
+  controls.innerHTML = '';
+  let lastGroup = null;
+  for (const d of DIALS) {
+    const start = useStored && typeof stored[d.prop] === 'number' ? stored[d.prop] : d.def;
+    C[d.prop] = start;
+    if (d.group !== lastGroup) { const h = document.createElement('h2'); h.textContent = d.group; controls.appendChild(h); lastGroup = d.group; }
+    const row = document.createElement('div'); row.className = 'row';
+    const l = document.createElement('label'); l.textContent = label(d.prop);
+    const inp = document.createElement('input'); inp.type = 'range'; inp.min = d.min; inp.max = d.max; inp.step = d.step; inp.value = start;
+    const v = document.createElement('span'); v.className = 'val'; v.textContent = start + d.unit;
+    inp.oninput = () => {
+      C[d.prop] = parseFloat(inp.value); v.textContent = C[d.prop] + d.unit; apply(d);
+      if (d.prop === '--wisp-count' || d.prop === '--wisp-spread' || d.prop === '--wisp-size' || d.prop === '--wisp-s') buildWisps();
+      composeColours(); persist(); save();
+    };
+    row.appendChild(l); row.appendChild(inp); row.appendChild(v);
+    controls.appendChild(row); apply(d);
+  }
+}
+
+function resolvedCSS() {
+  const B = hexToRgb(cBright.value), D = hexToRgb(cDeep.value);
+  const g = (p) => C[p];
+  return `/* Reborn — wispy ethereal AQUA-GREEN aura on the oval frame (resolved from the tuner). In-game: a
+   .reborn stack inside a .reborncard's art — a faint .reborn-dome + N .wisp children (JS-spread), + frame glow. */
+.card.compact.stdframe { --rebornsize: ${g('--rebornsize')}; --reborny: ${g('--reborny')}%; }
+.card.compact.reborncard .reborn-dome {
+  background: radial-gradient(circle at 50% 46%,
+    ${rgba(B,0)} 0%, ${rgba(D,0)} calc(52% - ${g('--dome-soft')}%), ${rgba(D,g('--dome-alpha'))} 62%, ${rgba(B,g('--dome-edge'))} 80%, ${rgba(B,0)} 100%);
+  animation: rebornpulse ${g('--pulse-s')}s ease-in-out infinite; mix-blend-mode: screen; will-change: opacity;
+}
+@keyframes rebornpulse { 0%,100% { opacity: ${g('--pulse-min')}; } 50% { opacity: 1; } }
+.card.compact.reborncard .wisp {
+  width: ${g('--wisp-size')}%; aspect-ratio: 1 / 2.4; filter: blur(${g('--wisp-blur')}px); mix-blend-mode: screen;
+  background: radial-gradient(ellipse 60% 50% at 50% 62%, ${rgba(B,0.95)} 0%, ${rgba(D,0.5)} 45%, ${rgba(D,0)} 78%);
+  animation: rebornwisp ${g('--wisp-s')}s ease-in-out infinite; will-change: transform, opacity;
+}
+@keyframes rebornwisp {
+  0%   { transform: translateX(-50%) translateY(18%) scaleY(0.7) scaleX(0.9); opacity: 0; }
+  22%  { opacity: ${g('--wisp-alpha')}; }
+  100% { transform: translateX(-50%) translateY(-${g('--wisp-rise')}%) scaleY(1.25) scaleX(0.7); opacity: 0; }
+}
+/* wisp COUNT ${Math.round(g('--wisp-count'))} · spread ${g('--wisp-spread')}% — spawned by Card.tsx (like the ward hex) */
+/* frame rim glow (energy aqua-green) — on .card.compact.stdframe.reborncard .cframe / .taunt.reborncard .tframe */
+FRAME-GLOW: drop-shadow(0 0 ${g('--glow-inner')}px ${rgba(B,0.85)}) drop-shadow(0 0 ${g('--glow-outer')}px ${rgba(D,g('--glow-outer-a'))});`;
+}
+
+function save() {
+  out.value = resolvedCSS();
+  diag.textContent = 'live · bright ' + cBright.value + ' · deep ' + cDeep.value + ' · ' + Math.round(C['--wisp-count']) + ' wisps';
+}
+
+cBright.oninput = () => { composeColours(); persist(); save(); };
+cDeep.oninput = () => { composeColours(); persist(); save(); };
+
+document.getElementById('copy').onclick = async () => {
+  const btn = document.getElementById('copy');
+  try { await navigator.clipboard.writeText(out.value); btn.textContent = 'Copied ✓'; }
+  catch { out.focus(); out.select(); btn.textContent = 'Select+⌘C'; }
+  setTimeout(() => { btn.textContent = 'Copy CSS 📋'; }, 1200);
+};
+document.getElementById('reset').onclick = () => {
+  try { localStorage.removeItem(LS_KEY); } catch {}
+  stored = {}; cBright.value = '#45e8c0'; cDeep.value = '#178f86';
+  build(false); buildWisps(); composeColours(); persist(); save();
+};
+document.getElementById('stagetoggle').onclick = () => { document.getElementById('stage').classList.toggle('dark'); };
+
+build(true);
+buildWisps();
+composeColours();
+save();
+</script>
+</body>
+</html>

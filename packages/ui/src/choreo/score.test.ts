@@ -9,7 +9,7 @@ const moment = (kind: Moment['kind'], events: CombatEvent[]): Moment => ({ start
 const baseCtx = (events: CombatEvent[], overrides: Partial<Parameters<typeof runMomentCues>[1]> = {}) => ({
   events, combatSpeed: 1, onShake: vi.fn(), findEl: () => null, attackerUid: null,
   onFloats: vi.fn(), onDeathFloats: vi.fn(),
-  onAuraBurst: vi.fn(), onShieldBreak: vi.fn(), onReborn: vi.fn(), onBuffCasts: vi.fn(), onSelfBuffs: vi.fn(), onImprove: vi.fn(), onMaxGold: vi.fn(), onDamageFx: vi.fn(), onSummonFx: vi.fn(), ...overrides,
+  onAuraBurst: vi.fn(), onShieldBreak: vi.fn(), onReborn: vi.fn(), onBuffCasts: vi.fn(), onSelfBuffs: vi.fn(), onImprove: vi.fn(), onMaxGold: vi.fn(), onDamageFx: vi.fn(), onSummonFx: vi.fn(), onAscend: vi.fn(), ...overrides,
 });
 const ctx = baseCtx;
 
@@ -176,6 +176,12 @@ describe('score', () => {
     const c = ctx([{ type: 'attack', attacker: 'a', defender: 'b', swing: 0 }, { type: 'dmg', target: 'b', amount: 3, remainingHp: 0 }]);
     runMomentCues(moment('attackExchange', c.events), c);
     expect(c.onDamageFx).not.toHaveBeenCalled();
+  });
+
+  it('an ascend moment → onAscend with the transforming unit', () => {
+    const c = ctx([{ type: 'ascend', target: 'tara', into: 'taragosa' }] as CombatEvent[]);
+    runMomentCues(moment('ascend', c.events), c);
+    expect(c.onAscend).toHaveBeenCalledWith(['tara']);
   });
 
   it('a summon moment → onSummonFx with the summoned uid, AFTER the +250ms bounce offset', () => {

@@ -29,6 +29,20 @@ rig (headless preview can't screenshot). Follow-up: none outstanding on DS.
 
 ## 2026-07-13 (session 39)
 
+### feat(ui): transform morph FX — ascend flash (item 8 baked)
+
+Effect-animation coverage sweep, item 8 complete. Baked the owner's tuned **flash** morph (from
+`transform-morph-preview.html`) into the `ascend` FX: when a unit transforms (Tara→Taragosa, Spirit Pup→Worgen) a
+bright lime-white flash blooms over it — masking the card swap — then the new card pops in. New `ascendPresets.ts`
+(`AscendPresetCfg` + owner-tuned `default`, mirroring `pulsePresets`/`descendPresets`), `pixiFx.flashBloom` (a
+single glow-disc bloom, screen-blend), an `ascendFx` cue on the `ascend` moment kind, an `ascendpop` CSS keyframe for
+the new card's overshoot, and the `ascend` anims-map case. Baked config: flash radius 190px / alpha 1 / 660ms /
+`#cdffa3`, new-card overshoot 0.32 (peak scale ~1.32). The swap is masked by the flash rather than delayed to
+`swapAt` (kept in the preset for round-trip). **Wants a live eyeball** — the flash + pop compose over the real card
+swap, not yet watched on a fight; all dials live in `ascendPresets.ts` for a quick retune.
+
+Verified: `typecheck + lint + test` (1050, +5 new) & `build:web` green.
+
 ### chore(fx): transform-morph preview rig (item 8 — awaiting owner tuning)
 
 Effect-animation coverage sweep, item 8 (transform / `ascend`). Owner chose a **new bespoke morph** for

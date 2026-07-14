@@ -17,6 +17,7 @@ import { burstDeathAuras, breakShieldAura, reformReborn } from './choreo/channel
 import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
 import { combatBuffDelta, type CombatBuffDelta } from './runBuffs';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
+import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { isDeathrattleBufferCard } from './deathrattleBuffers';
 import { fireBuffFx } from './buffFxRender';
 
@@ -260,6 +261,7 @@ function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'death': return { [e.target]: 'dying' };
     case 'summon': return { [e.minion.uid]: 'summoned' };
     case 'rally': return { [e.source]: 'sccast', [e.target]: 'flare' }; // Deathsayer pulses; the Deathrattle minion flares
+    case 'ascend': return { [e.target]: 'ascendpop' }; // transform: the new card pops in under the flash bloom (fired by onAscend)
     default: return {};
   }
 }
@@ -802,6 +804,20 @@ export function useCombatReplay(
           const r = el.getBoundingClientRect();
           if (r.width < 1 || r.height < 1) continue; // not laid out yet → no valid spawn rect
           pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
+        }
+      },
+      // A transform (Tara→Taragosa, Spirit Pup→Worgen) → bloom a flash over the unit, masking the card swap
+      // (owner-tuned `flash` morph). The new card's pop-in rides the CSS `ascendpop` anim (see the anims map).
+      onAscend: (uids) => {
+        for (const uid of uids) {
+          const el = findEl(uid);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          const cardId = cardIds.get(uid) ?? '';
+          const cfg = ASCEND_PRESETS[ascendPreset(cardId, (CARD_INDEX[cardId]?.tribe ?? 'neutral') as Tribe)];
+          pixiFx.flashBloom(r.left + r.width / 2, r.top + r.height / 2, {
+            flashSize: cfg.flashSize, flashMs: cfg.flashMs, flashAlpha: cfg.flashAlpha, colorGlow: cfg.colorGlow, blend: 'screen',
+          });
         }
       },
     });

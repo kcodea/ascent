@@ -5,6 +5,69 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 37)
 
+### feat(ui): authored frames — gold OVAL on minions, purple SQUARE on spells (Taunt pipeline, generalized)
+
+The Taunt heater-shield pipeline is now the **base frame** for two whole card categories, using two authored
+alpha PNGs the owner supplied (`apps/web/public/frames/standard-oval.png` 1059×1427, `spell-frame.png` 1122×1346).
+
+- **Pipeline (same as Taunt):** the portrait `.art` is reshaped to `position:absolute` and **clipped to the
+  frame's window** (an `ellipse()` for the oval, a rounded `inset()` for the spell square), the authored PNG
+  (`.cframe-img`) is laid over it, and the atk/hp/tribe cluster + tier stay **DOM overlays on top** — the stat
+  cluster is NEVER repositioned (locked rule); only the **tier** re-seats onto the frame's top **banner plaque**.
+  Geometry is MEASURED from each PNG's alpha (window bbox + banner band, decoded via a one-off zlib PNG reader)
+  and encoded as a single `--sh` size knob + per-window multipliers in `styles.css` → **"AUTHORED FRAMES"**.
+- **Per-tribe tint (minions):** a `.cframe-tint` layer recolours the neutral gold toward the tribe hue —
+  `background: var(--c)`, masked to the frame's own alpha, `mix-blend-mode: color`, opacity 0.4 (the strength
+  knob). **Dual-tribe** splits it into a `var(--c)→var(--c2)` gradient. Spells get **no** tint (tribeless; the
+  frame is already purple).
+- **Precedence / fallback:** a card wears exactly one frame — spell → square (but NOT the golden
+  `discoverspell` Triple-Reward token, which keeps its bespoke look) · else Taunt → heater · else → oval.
+  `.stdframe` / `.spellframe` are added by `Card.tsx` only when the PNG loads; a 404 flips the availability flag
+  and the card renders its **original arch / spell look** (graceful, no SVG placeholder needed).
+- **Keyword-state reconciliation (full, one PR):** every visual authored for the arched square was refitted to
+  the new silhouettes — hover/armed/targeted/aimed/attacking glows become state-coloured **drop-shadows on the
+  frame alpha** (rectangular box-shadows are clipped away by the window), the **Divine-Shield** ward re-seats as
+  a centred square trimmed by the ellipse (+ static gold halo, no animated drop-shadow per the perf rule),
+  **Venomous** (static lime halo, inner ring survives as an oval vignette), **Golden** (crown + static gold
+  halo; the arch gradient border is gone), and **Frozen** ices the frame silhouette via a mask. `.dscard::after`
+  / `.reborncard::after` are content-less (just border-radius) so no square rings leak; Reborn's Pixi aura tracks
+  the card rect unchanged.
+
+Verified: `typecheck` / `lint` / `build:web` all green; live DOM check in a run — standard minions carry
+`stdframe` + a loaded 1059×1427 frame img + `mix-blend-mode:color` tint, the Taunt minion is untouched, the
+spell carries `spellframe` + a loaded 1122×1346 frame img + no tint, and the card layout slot stays 141² (frames
+overhang visually without reflowing rows). Runtime window/frame rects matched the analytical geometry to ~0.01.
+**Oval tuned live (Mike, over HMR).** The seating pass surfaced that the portrait needed to (a) fill the oval
+under the gold and (b) show *more* of the illustration (subjects were cropped tight). So the oval portrait now
+uses `object-fit: contain` (whole illustration visible, tribe-tinted matte fills the rest) and a set of live
+knobs on `.card.compact.stdframe`: `--sh` (frame size), `--fill` (portrait ellipse overfill so it tucks under
+the gold, no gap ring), `--dy` (whole composite), `--frameY` (frame + banner + tier only), `--tier` (pill seat),
+`--artY` (portrait vertical framing), `--artZoom` (portrait content zoom). Locked values:
+`--sh .74 · --fill 1.12 · --dy 0 · --frameY .03 · --tier .83 · --artY 45% · --artZoom 1.2`.
+Per owner call the oval is now **neutral gold on every tribe** (the per-tribe `.cframe-tint` layer was removed;
+tribe reads from the medallion).
+
+**Spell frame + a live dev tuner.** The spell square got the same knob set (`--fill`/`--frameY`/`--artY`/
+`--artZoom` + spell-only `--artRound`/`--artAR`/`--artW`) and switched to `object-fit: cover` (every spell fills
+the window to one consistent shape). Key lesson from the seating pass: sizing the window *past* the frame's real
+opening causes gaps AND poke-out (the wide `.art` box + its bg overhangs the tapered bottom gem), so the window
+is now **locked to the measured opening** (a small `--fill` overfill tucks the art under the gold; shape the ART
+with `--artZoom`/`--artY`, not by resizing the window). Verified live in the real Chrome tab (headless preview
+can't screenshot): oval + spell render clean, no gap/overhang. To make future seating self-serve, added a
+**dev-only `FrameTuner`** (🖼️ Card Frames in the DevMenu, `import.meta.env.DEV`-gated): sliders for every knob on
+both frames that write a live-override `<style>`, plus **Copy CSS** to grab paste-ready values.
+
+**Rarity frames — silver default, gold when gilded + a deploy pulse.** Minion frames (oval + taunt shield) now
+render **silver** by default and turn **gold** when the unit is gilded (golden/tripled); spells keep their purple
+identity. Implemented as a `--frame-tone` CSS var threaded as the first function into every frame `filter`
+(`grayscale(.92) brightness(1.2) contrast(.9)` = silver on `.stdframe`/`.taunt`; `brightness(1)` no-op = gold,
+which `.golden` resets to — `none` can't sit in a filter list). When a **golden minion first deploys** (played
+from hand, or formed by a triple on the board), `Recruit` fires the existing **self-buff pulse**
+(`pixiFx.pulse` + `PULSE_PRESETS.default`, the warm-gold shockwave) at the card centre — a new-golden-uid diff
+with a ref seeded on mount/re-entry so existing gilded minions never re-pulse. Verified live in Chrome: silver
+frames + a gilded card visibly gold beside them; typecheck/lint/1024 tests/build green. (The pulse itself is the
+shipped self-buff FX; couldn't screenshot the animation headlessly — rAF throttles off-focus.) **Still to do:**
+owner's final spell-frame dial-in via the tuner; silver-tone taste pass; DS/Venom/Dual eyeball.
 ### art: wire Leader of the Pack quest illustration
 
 Wired the owner's `LeaderOfThePack.png` master for the `q_leader_of_the_pack` quest → optimized to

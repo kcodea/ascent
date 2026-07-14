@@ -132,6 +132,15 @@ look because the engine already produces the data.
 
 ## Phase B — UX polish (parallelizable; slot any time)
 
+### By. Authored frames — live nudge pass (after `feat/card-frames-standard-spell`)
+The gold-oval (minions) + purple-square (spells) frames shipped with geometry MEASURED from the art and verified
+via DOM, but the **headless preview can't render a screenshot**, so the by-eye seating is deferred to Mike over
+HMR. **Do-when:** in a focused tab, dial (1) the tint strength/blend on `.cframe-tint` (currently `color` @0.4),
+(2) the exact tier seat on each banner + the atk/hp badges on the oval's lower curve, (3) the spell "✦ Spell"
+ribbon position, (4) eyeball the DS ward / Venom / Golden / Dual-tribe states on the new shapes, and (5) the
+fanned-hand overlap now that framed cards overhang ~1.1× the slot. All knobs are the `--sh` + multipliers in
+`styles.css` → "AUTHORED FRAMES".
+
 ### Bx. Audio SFX — authoring pipeline (in flight)
 - **Manifest + generator** (`npm run sfx:manifest`, PR #335), **wiring** (per-card play/death/effect + hero
   select/power hooks, PRs #336/#337), and the **`npm run sfx:import` drop-folder importer** (session 34, →

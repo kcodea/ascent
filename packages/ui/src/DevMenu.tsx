@@ -10,6 +10,7 @@ import { SmokeTuner } from './SmokeTuner';
 import { ChoreographyPanel } from './ChoreographyPanel';
 import { FloatTuner } from './FloatTuner';
 import { LayoutTuner } from './LayoutTuner';
+import { FrameTuner } from './FrameTuner';
 import { pixiFx } from './pixiFx';
 
 /**
@@ -20,6 +21,7 @@ import { pixiFx } from './pixiFx';
  */
 const TUNERS = [
   { key: 'layout', label: '📐 Scale & Layout', C: LayoutTuner },
+  { key: 'frame', label: '🖼️ Card Frames', C: FrameTuner },
   { key: 'sfx', label: '🔊 SFX Mixer', C: SfxMixer },
   { key: 'lunge', label: '🗡️ Lunge', C: LungeTuner },
   { key: 'strikefx', label: '💥 Lunge Strike Effects', C: StrikeFxTuner },

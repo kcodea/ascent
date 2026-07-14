@@ -11,6 +11,7 @@ import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
 import { fireBuffFx } from './buffFxRender';
+import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { getDragFeel } from './dragFeel';
 import { getFlipConfig } from './flipConfig';
 import { getShieldConfig } from './shieldConfig';
@@ -1803,6 +1804,24 @@ export function Recruit() {
       });
     }, 760);
     return () => window.clearTimeout(t);
+  }, [run.board, inCombat]);
+
+  // Gilded (golden) minion deploys → fire the self-buff pulse ON it — the moment a unit turns gold (played from
+  // hand, or formed by a triple on the board). The ref is seeded on first run / re-entry (inCombat) so existing
+  // golden minions never re-pulse just from (re)opening the shop; only a genuinely NEW golden uid fires.
+  const prevGoldUidsRef = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const current = new Set(run.board.filter((c) => c.golden).map((c) => c.uid));
+    if (prevGoldUidsRef.current === null || inCombat) { prevGoldUidsRef.current = current; return; }
+    const prev = prevGoldUidsRef.current;
+    prevGoldUidsRef.current = current;
+    const fresh = run.board.filter((c) => c.golden && !prev.has(c.uid));
+    for (const c of fresh) {
+      const el = findEl(c.uid);
+      if (!el) continue;
+      const r = (el.querySelector<HTMLElement>('.archbox') ?? el).getBoundingClientRect();
+      pixiFx.pulse(r.left + r.width / 2, r.top + r.height / 2, PULSE_PRESETS[pulsePreset(c.cardId, c.tribe)]);
+    }
   }, [run.board, inCombat]);
 
   // Discover opened → erupt the golden magic burst on the overlay's behind-the-cards FX layer. Fired once

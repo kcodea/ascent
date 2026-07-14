@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Authored card frames + rarity.** The Taunt shield pipeline is now the base frame for whole categories: an
+  **oval** on every non-Taunt minion and a purple **square** on regular spells (portrait clips to the frame's
+  window, tier seats on the banner). Minion frames render **silver**, turning **gold** when the unit is gilded —
+  which also fires a self-buff deploy pulse. A dev-only **FrameTuner** dials every knob live.
 - **Rope timing synced.** The burning rope is now driven frame-by-frame off the turn clock — it starts at the left on
   the first lit second and finishes **exactly** as the timer hits 0 (no more burning past it), calibrated to the real
   per-wave turn length.

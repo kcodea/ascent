@@ -670,7 +670,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
      CLIPS the box-shadow away → a Taunt card gets no hover glow. Re-add it as a drop-shadow on the frame,
      driven by the same `--hglow-blur` hover var (0 when not hovering → invisible; auto-zeroed in hand/drag), so
      the yellow glow hugs the shield silhouette exactly like the arch glow hugs a normal card. */
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
           drop-shadow(0 0 var(--hglow-blur, 0) rgba(255, 226, 110, 0.92));
 }
 .card.compact.taunt .tframe-img {
@@ -700,7 +700,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .card.compact.taunt.dscard { box-shadow: 0 3px 0 var(--shadow); }   /* kill the rectangular gold aura */
 .card.compact.taunt.dscard::before { display: none; }               /* kill the arched breathing bloom */
 .card.compact.taunt.dscard .tframe {                                 /* gold halo that traces the shield's alpha */
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
           drop-shadow(0 0 5px rgba(245, 188, 48, 0.95))
           drop-shadow(0 0 13px rgba(240, 176, 32, 0.7));
 }
@@ -1630,10 +1630,195 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .card.compact.taunt.targeted .tframe,
 .unit.aimed .card.compact.taunt .tframe,
 .unit.attacking .card.compact.taunt .tframe {
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
           drop-shadow(0 0 4px var(--tglow))
           drop-shadow(0 0 12px var(--tglow));
 }
+
+/* ============================================================================================================
+   AUTHORED FRAMES — the gold OVAL on every non-Taunt minion, the purple SQUARE on regular spells. Same pipeline
+   as the Taunt heater shield above: portrait clipped to the frame's WINDOW → authored PNG frame over it → (minion
+   only) per-tribe tint → DOM data (badges/tier) → fx. `.stdframe` / `.spellframe` are added by Card.tsx ONLY when
+   the PNG loads; a 404 drops the class and the card renders its original arch / spell look. This block is placed
+   AFTER the golden / dual / venom / spell rules so its `.art` reshape reliably wins the source-order cascade.
+   GEOMETRY — MEASURED from the alpha of each PNG (retune the two `--sh` knobs + these constants if the art changes):
+     standard-oval.png 1059×1427 · window x16.0–83.5% / y24.2–88.6% (H/W 1.285) · banner ≈y21%
+     spell-frame.png   1122×1346 · window x13.9–86.0% / y25.2–83.1% (H/W 0.963) · banner ≈y22%
+   Each derived multiplier below = (window metric) ÷ (window width fraction), so one `--sh` scales the whole
+   composite. Expect a quick live NUDGE PASS over HMR to seat badges/tier/frame exactly (like the Taunt comments).
+   ============================================================================================================ */
+
+/* ---- shared frame-layer plumbing (both oval + spell) ------------------------------------------------------ */
+.card.compact.stdframe .cframe,
+.card.compact.spellframe .cframe {
+  position: absolute; z-index: 3; pointer-events: none; overflow: visible;
+  /* hover glow: box-shadow on the (reshaped) `.art` is clipped away by the window clip, so re-add it as a
+     drop-shadow on the frame PNG's own alpha, driven by the same `--hglow-blur` hover var (0 = invisible). */
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+          drop-shadow(0 0 var(--hglow-blur, 0) rgba(255, 226, 110, 0.92));
+}
+/* Frame metal TONE — minion frames (oval + taunt shield) render SILVER by default; a GILDED (golden) minion goes
+   GOLD. Threaded as the first function into every frame `filter` above. Spells never set it → keep their own
+   colour. (`brightness(1)` is a no-op stand-in for "gold" — `none` can't sit inside a filter list.) */
+.card.compact { --frame-tone: brightness(1); }
+.card.compact.stdframe, .card.compact.taunt { --frame-tone: grayscale(0.92) brightness(1.2) contrast(0.9); }
+.card.compact.golden { --frame-tone: brightness(1); }   /* gilded → gold; placed AFTER the silver rule so it wins */
+
+/* PORTRAIT reshape (shared): absolute, unbordered, clipped to the window; the base arch border/radius/shadow are
+   killed so ONLY the window clip shapes the art (same rule Taunt relies on). */
+.card.compact.stdframe .art,
+.card.compact.spellframe .art {
+  position: absolute; z-index: 1; border: none; border-radius: 0; box-shadow: none; margin: 0;
+}
+.card.compact.stdframe .art .artimg,
+.card.compact.stdframe .art canvas,
+.card.compact.spellframe .art .artimg,
+.card.compact.spellframe .art canvas { width: 100%; height: 100%; object-fit: cover; object-position: center; margin: 0; }
+
+/* ---- STANDARD OVAL (every non-Taunt minion) --------------------------------------------------------------- */
+/* LIVE KNOBS — tune these over HMR (only these usually change):
+     --sh    frame + window size (× card width)
+     --fill  portrait ZOOM — >1 makes the art fill the oval and tuck UNDER the gold inner edge (kills the gap ring)
+     --dy    nudge the WHOLE composite (frame + window + tier) DOWN by ×ccw, so the banner drops to meet the tier
+     --tier  tier-pill seat: LOWER number = tier moves DOWN toward the banner (raise it to move the pill UP)
+     --artY  portrait vertical framing (object-position %): SMALLER = subject rides higher in the oval
+     --artZoom  portrait CONTENT zoom: <1 shrinks the subject so MORE of the illustration shows (a tribe-tinted
+                matte fills the freed space inside the oval); 1 = full-bleed cover. Does NOT resize the frame.
+     --frameY   shift ONLY the gold frame (+ its banner + tier) DOWN by ×ccw, leaving the art window put. Big
+                shifts expose the art oval's top edge above the frame — raise --artZoom / --fill to compensate.
+   `--dy` moves EVERYTHING together; `--frameY` moves just the frame relative to the art. */
+.card.compact.stdframe { --sh: 0.73; --fill: 1.3; --dy: 0; --frameY: 0.03; --tier: 0.83; --artY: 39%; --artZoom: 1.07; }
+.card.compact.stdframe .art {
+  clip-path: ellipse(50% 50% at 50% 50%);                          /* the elliptical window */
+  width: calc(var(--ccw) * var(--sh) * var(--fill));
+  height: calc(var(--ccw) * 1.285 * var(--sh) * var(--fill));      /* 1.285 = window H/W */
+  left: calc(var(--ccw) * (0.5 - 0.5 * var(--sh) * var(--fill)));  /* window centred on the archbox */
+  top: calc(var(--ccw) * (0.5 - 0.6425 * var(--sh) * var(--fill) + var(--dy)));  /* 0.6425 = 1.285/2 */
+}
+/* portrait framing: `contain` fits the WHOLE illustration inside the window (so nothing is cropped off — the
+   subject reads smaller and you see more of the art), `--artZoom` scales it from there (>1 fills more / mild crop,
+   <1 shrinks it), `--artY` sets the vertical framing. The `.art` tribe-tinted background shows as the matte. */
+.card.compact.stdframe .art .artimg,
+.card.compact.stdframe .art canvas { object-fit: contain; object-position: center var(--artY); transform: scale(var(--artZoom)); }
+.card.compact.stdframe .cframe-img {
+  position: absolute; inset: auto; height: auto;
+  width: calc(var(--ccw) * 1.481 * var(--sh));                     /* 1.481 = 1/0.675 (window is 67.5% of canvas W) */
+  left: calc(var(--ccw) * (0.5 - 0.737 * var(--sh)));             /* 0.737 = windowCx 0.4975 / 0.675 */
+  top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh) + var(--dy) + var(--frameY)));  /* 1.126 = windowCy 0.564 · (1427/1059) / 0.675 */
+}
+/* The oval stays neutral GOLD on every minion (no per-tribe tint) — tribe is read from the medallion. */
+/* tier rides the oval's banner plaque; the atk/hp/tribe cluster is NEVER moved. `--tier` + `--dy` seat it. */
+.card.compact.stdframe .tierbadge { top: calc(var(--ccw) * (0.5 - var(--tier) * var(--sh) + var(--dy) + var(--frameY))); }
+
+/* ---- SPELL SQUARE (regular spells) ------------------------------------------------------------------------ */
+/* Same LIVE KNOBS as the oval (see stdframe): --sh size · --fill window overfill · --dy whole composite ·
+   --frameY frame+tier only · --tier pill seat · --artY portrait framing · --artZoom portrait content zoom.
+   No tint layer (spells are tribeless). Window is a rounded rectangle; measured from spell-frame.png.
+   --artRound = the window's CORNER RADIUS (% of the box): raise for rounder corners, lower for squarer.
+   --artAR = window HEIGHT (× the base): >0.963 = TALLER.   --artW = window WIDTH (× the base): <1 = LESS WIDE.
+   (artAR and artW are independent, so you can make the window taller and narrower separately.) */
+/* WINDOW = the frame's real opening (measured), with a small --fill overfill to tuck the art under the gold so
+   there's no gap ring. Keep --artAR≈0.963 / --artW≈1.0 (that IS the opening) so it can't poke out; shape the
+   ART itself with --artZoom (crop tighter) + --artY (vertical framing), NOT by resizing the window past the hole. */
+.card.compact.spellframe { --sh: 0.8; --fill: 1.23; --dy: -0.065; --frameY: 0.05; --tier: 0.67; --artY: 36%; --artZoom: 0.94; --artRound: 12%; --artAR: 1.03; --artW: 1.01; }
+.card.compact.spellframe .art {
+  clip-path: inset(0 round var(--artRound));                       /* the rounded-rectangle window */
+  width: calc(var(--ccw) * var(--sh) * var(--fill) * var(--artW));
+  height: calc(var(--ccw) * var(--artAR) * var(--sh) * var(--fill));
+  left: calc(var(--ccw) * (0.5 - 0.5 * var(--sh) * var(--fill) * var(--artW)));
+  top: calc(var(--ccw) * (0.5 - 0.5 * var(--artAR) * var(--sh) * var(--fill) + var(--dy)));
+}
+/* spells COVER the window (fill the shape you set with --artW/--artAR/--artRound, cropping overflow) so every
+   spell frames identically. --artY sets the vertical crop framing; --artZoom fine-tunes the fill (1 = exact fill). */
+.card.compact.spellframe .art .artimg,
+.card.compact.spellframe .art canvas { object-fit: cover; object-position: center var(--artY); transform: scale(var(--artZoom)); }
+.card.compact.spellframe .cframe-img {
+  position: absolute; inset: auto; height: auto;
+  width: calc(var(--ccw) * 1.387 * var(--sh));                     /* 1.387 = 1/0.721 */
+  left: calc(var(--ccw) * (0.5 - 0.6928 * var(--sh)));           /* 0.6928 = 0.4995 / 0.721 */
+  top: calc(var(--ccw) * (0.5 - 0.9009 * var(--sh) + var(--dy) + var(--frameY)));  /* 0.9009 = 0.5415 · (1346/1122) / 0.721 */
+}
+.card.compact.spellframe .tierbadge { top: calc(var(--ccw) * (0.5 - var(--tier) * var(--sh) + var(--dy) + var(--frameY))); }
+/* the "✦ Spell" ribbon rides the frame's bottom gem instead of the arch base (tracks --dy / --frameY) */
+.card.compact.spellframe .ctype.spell { bottom: calc(var(--ccw) * (0.5 - 0.42 * var(--sh) - var(--dy) - var(--frameY))); }
+
+/* ---- selection / combat glows (shared) — same shape-fix as Taunt: drop the rectangular box-shadow and glow the
+   frame PNG's alpha via a state-coloured drop-shadow, so the highlight hugs the oval / square silhouette. ------ */
+.card.compact.stdframe.armed,
+.card.compact.stdframe.targeted,
+.card.compact.spellframe.armed,
+.card.compact.spellframe.targeted,
+.unit.aimed .card.compact.stdframe,
+.unit.attacking .card.compact.stdframe { box-shadow: 0 3px 0 var(--shadow); }
+.card.compact.stdframe.armed, .card.compact.spellframe.armed { --tglow: var(--c); }
+.card.compact.stdframe.targeted, .card.compact.spellframe.targeted { --tglow: var(--c); }
+.unit.attacking .card.compact.stdframe { --tglow: var(--acc); }
+.unit.aimed .card.compact.stdframe { --tglow: var(--threat); }
+.card.compact.stdframe.armed .cframe,
+.card.compact.stdframe.targeted .cframe,
+.card.compact.spellframe.armed .cframe,
+.card.compact.spellframe.targeted .cframe,
+.unit.aimed .card.compact.stdframe .cframe,
+.unit.attacking .card.compact.stdframe .cframe {
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+          drop-shadow(0 0 4px var(--tglow))
+          drop-shadow(0 0 12px var(--tglow));
+}
+
+/* ---- keyword states on the OVAL (reshaped from the arch, mirroring Taunt's DS reconciliation) -------------- */
+/* Divine Shield: kill the rectangular gold aura + arched bloom, glow the frame alpha (STATIC — never animate a
+   drop-shadow, per the perf rule), and re-seat the glassy dome as a centred square on the window (the ellipse
+   clip trims it to the oval). */
+.card.compact.stdframe.dscard { box-shadow: 0 3px 0 var(--shadow); }
+.card.compact.stdframe.dscard::before { display: none; }
+.card.compact.stdframe.dscard .cframe {
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+          drop-shadow(0 0 5px rgba(245, 188, 48, 0.95))
+          drop-shadow(0 0 13px rgba(240, 176, 32, 0.7));
+}
+.card.compact.stdframe.dscard .ward {
+  --wardsq: calc(var(--ccw) * var(--sh) * 0.92);
+  inset: auto; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: var(--wardsq); height: var(--wardsq); border-radius: 0;
+}
+.card.compact.stdframe.dscard .ward > * { border-radius: 0; }
+/* Venomous: same treatment in toxic lime. The inner `.art::after` ring survives (it lives inside the ellipse-
+   clipped art, so it reads as an oval lime vignette); only the outer square wash is reshaped. */
+.card.compact.stdframe.venomcard { box-shadow: 0 3px 0 var(--shadow); }
+.card.compact.stdframe.venomcard::before { display: none; }
+.card.compact.stdframe.venomcard .cframe {
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+          drop-shadow(0 0 5px rgba(150, 228, 52, 0.9))
+          drop-shadow(0 0 13px rgba(120, 200, 40, 0.6));
+}
+/* Golden (tripled): the arch's gold gradient border is gone (art reshaped), so the golden read is the crown
+   (still rendered, top-left) + a static gold halo on the frame. */
+.card.compact.stdframe.golden { box-shadow: 0 3px 0 var(--shadow); }
+.card.compact.stdframe.golden .cframe {
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+          drop-shadow(0 0 6px rgba(255, 213, 90, 0.95))
+          drop-shadow(0 0 16px rgba(255, 190, 50, 0.7));
+}
+/* Frozen (held shop card): ice the frame silhouette by masking the frost `::after` to the frame PNG. */
+[data-zone='tavern'].frozen .card.stdframe::after {
+  inset: auto; border: none; border-radius: 0; box-shadow: none;
+  width: calc(var(--ccw) * 1.481 * var(--sh));
+  left: calc(var(--ccw) * (0.5 - 0.737 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh)));
+  aspect-ratio: 1059 / 1427;
+  -webkit-mask: url('/frames/standard-oval.png') center / 100% 100% no-repeat;
+          mask: url('/frames/standard-oval.png') center / 100% 100% no-repeat;
+}
+[data-zone='tavern'].frozen .card.spellframe::after {
+  inset: auto; border: none; border-radius: 0; box-shadow: none;
+  width: calc(var(--ccw) * 1.387 * var(--sh));
+  left: calc(var(--ccw) * (0.5 - 0.6928 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 0.9009 * var(--sh)));
+  aspect-ratio: 1122 / 1346;
+  -webkit-mask: url('/frames/spell-frame.png') center / 100% 100% no-repeat;
+          mask: url('/frames/spell-frame.png') center / 100% 100% no-repeat;
+}
+
 .unit.struck .card { animation: struck 0.34s ease; }
 @keyframes struck { 0%, 100% { transform: none; filter: none; } 45% { transform: translateY(5px) scale(0.94); filter: brightness(1.15) drop-shadow(0 0 8px var(--threat)); } }
 /* a white-hot impact spark at the point of contact */
@@ -2314,6 +2499,7 @@ svg { width: 18px; height: 18px; }
 .sfxmix-h { font-weight: 800; font-size: 15px; color: var(--ink); margin-bottom: 8px; }
 .sfxmix-h.drag { cursor: move; user-select: none; touch-action: none; }
 .sfxmix-h span { font-size: 10px; font-weight: 700; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.08em; }
+.sfxmix-sub { font-weight: 800; font-size: 11px; color: var(--acc-dk); text-transform: uppercase; letter-spacing: 0.06em; margin: 10px 0 4px; border-top: 1px solid var(--line); padding-top: 8px; }
 .sfxmix-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
 .sfxmix-name { flex: 0 0 86px; font-size: 12px; font-weight: 700; color: var(--ink); }
 .sfxmix-row input[type='range'] { flex: 1; height: 6px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; outline: none; cursor: pointer; }

@@ -3,6 +3,30 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-14 (session 40)
+
+### fix(ui): Divine-Shield ward reshaped to the oval frame + retuned to a glassy ENERGY-BLUE
+
+The ward (Divine Shield dome) was still tuned for the old arch card, so on the new oval frames it floated too
+high (centred on the card, `y 0.5`, while the oval window centres at `~0.587`) and didn't fill the oval. Reworked
+end-to-end:
+- **Seat on the window:** the dome is now a centred round bubble on the oval *window* via two knobs on
+  `.card.compact.stdframe` — `--wardsize` (diameter ×ccw) and `--wardy` (vertical seat) — both live in the
+  FrameTuner. Owner-tuned to `1.08 / 53%`.
+- **Gold → energy-blue, glassier:** recolored the whole DS treatment to a deep energy-blue (`#0040ff` core →
+  `#001eff` deep) — dome body ring, deep-blue vignette, a big upper-left glass **spot** highlight (the shine), the
+  frame rim glow (tightened), and the outer aura. Regenerated `ward-hexsphere.svg` **denser** (S 0.235→0.15, ~40→
+  **121 facets**) and **blue-white** so the hex force-field reads finer, like the reference.
+- **Standalone tuner reworked:** `apps/web/public/fx/ward-css-preview.html` now renders the **oval frame** as the
+  subject (not the arch), with **colour pickers** for the blue, a **Glass shine (spot)** dial group, ward
+  size/seat + frame-glow dials, a dark-floor toggle, and a game-ready **Copy CSS** export. This is where the owner
+  dialled the final look; its output was baked into styles.css.
+- **Break + trail:** the Pixi shield-**break** shatter (crack lines, shockwave, shards, motes) and the DS
+  drag-**trail** were recolored gold → the same energy-blue, so DS reads blue on cast, break, and drag.
+
+Verified: typecheck / lint / tests / build:web all green; the look was dialled live by the owner in the standalone
+rig (headless preview can't screenshot). Follow-up: none outstanding on DS.
+
 ## 2026-07-13 (session 39)
 
 ### feat(ui): dust poof on summon arrival

@@ -7,8 +7,8 @@
 // force-field sphere. Output is one SVG string (viewBox 0 0 100 100, centred), gold facets.
 const R2D = 180 / Math.PI;
 const CX = 50, CY = 50, SCALE = 48;      // 2D unit radius → 48px (sphere ~96px across the 100 viewBox)
-const S = 0.235;                          // hex-centre arc spacing (rad) — smaller = more, finer facets
-const H = 0.222;                          // hex vertex radius (rad); < S → thin gaps between plates
+const S = 0.15;                           // hex-centre arc spacing (rad) — smaller = more, finer facets
+const H = 0.142;                          // hex vertex radius (rad); < S → thin gaps between plates
 const RHO_MAX = 1.5;                      // include hex centres out to just shy of the equator (π/2)
 const HALF_PI = Math.PI / 2;
 
@@ -37,11 +37,11 @@ for (let r = -nR; r <= nR; r++) {
   }
 }
 
-// Faint translucent plate fill + a crisp gold facet stroke. Colours are fixed gold; the CSS layer controls
-// overall opacity / blend / rim-mask. `vector-effect` keeps strokes even after CSS scales the sphere.
+// Faint translucent plate fill + a crisp bright-blue facet stroke. Screen-blended in CSS over the blue dome, so
+// white-blue strokes read as glowing energy facets. The CSS layer controls overall opacity / blend / rim-mask.
 const svg =
   `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>` +
-  `<g fill='#ffd24a' fill-opacity='0.05' stroke='#ffe9a8' stroke-width='0.45' stroke-opacity='0.9'>` +
+  `<g fill='#8fd0ff' fill-opacity='0.05' stroke='#dff2ff' stroke-width='0.32' stroke-opacity='0.92'>` +
   polys.join('') +
   `</g></svg>`;
 

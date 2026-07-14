@@ -966,7 +966,7 @@ class FxController {
     const uy = dy / len;
     const px = -uy, py = ux; // perpendicular to travel — the trail's cross-axis (band width + glint spread)
     const special = variant !== 'wind'; // gold/blue are tinted + additive with a glint; wind is pale + normal
-    const tint = variant === 'gold' ? 0xffe9a8 : variant === 'blue' ? 0x8ec7ff : 0xf5efe0;
+    const tint = variant === 'gold' ? 0x6ba3ff : variant === 'blue' ? 0x8ec7ff : 0xf5efe0; // 'gold' = Divine Shield, now energy-blue
     const peak = variant === 'gold' ? c.goldAlpha : variant === 'blue' ? c.blueAlpha : c.alpha;
     // gold/blue emit a DENSER cluster spread across a WIDER perpendicular BAND (the ward/reborn trail reads as a
     // broad shimmer, not a thin line); wind stays one narrow wisp. Component SIZE (fromScale) is unchanged.
@@ -1310,39 +1310,39 @@ class FxController {
     if (kind === 'reborn') { this.rebornShatter(cx, cy, w, h); return; } // wispy spirit release, not shards
     const rad = Math.max(w, h) * 0.5 * AURA[kind].margin;
 
-    // NB: additive gold washes out to near-white on the light "Sunward" cream board (the burst was invisible —
-    // see impact()'s same note). So the READABLE elements below use NORMAL blend with SATURATED gold that paints
-    // over cream; a hot additive rim layers on top for the glassy glint.
+    // NB: additive colour washes out to near-white on the light "Sunward" cream board (the burst was invisible —
+    // see impact()'s same note). So the READABLE elements below use NORMAL blend with SATURATED ENERGY-BLUE that
+    // paints over cream; a hot additive blue-white rim layers on top for the glassy glint. Matches the CSS ward.
 
-    // 1) CRACK — dark-gold fracture LINES only (the shield-disc flash is gone → no hex/shield shape on break).
+    // 1) CRACK — deep-blue fracture LINES only (the shield-disc flash is gone → no hex/shield shape on break).
     for (let i = 0; i < 4; i++) {
       const a = Math.random() * Math.PI;
       this.spawn(this.veinTex!, {
         x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 140, fromScale: (rad / 26) * 1.1, toScale: rad / 26,
-        spin: 0, rotation: a, tint: 0xb87608, blend: 'normal', peakAlpha: 0.92, // dark-gold fracture lines
+        spin: 0, rotation: a, tint: 0x1233c8, blend: 'normal', peakAlpha: 0.92, // deep-blue fracture lines
       });
     }
 
-    // 2) SHOCKWAVE — a saturated-gold ring expanding past the bubble edge (normal, reads on cream) + a fainter
-    //    hot additive rim for the glassy pop.
+    // 2) SHOCKWAVE — a saturated-blue ring expanding past the bubble edge (normal, reads on cream) + a fainter
+    //    hot additive blue-white rim for the glassy pop.
     this.spawn(this.rimTex!, {
       x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 460, fromScale: (rad / BUBBLE_TEX_R) * 0.85,
-      toScale: (rad / BUBBLE_TEX_R) * 2.1, spin: 0, tint: 0xe09410, blend: 'normal', peakAlpha: 0.9,
+      toScale: (rad / BUBBLE_TEX_R) * 2.1, spin: 0, tint: 0x2050e0, blend: 'normal', peakAlpha: 0.9,
     });
     this.spawn(this.rimTex!, {
       x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 360, fromScale: (rad / BUBBLE_TEX_R) * 0.85,
-      toScale: (rad / BUBBLE_TEX_R) * 1.9, spin: 0, tint: 0xffe27a, blend: 'add', peakAlpha: 0.7,
+      toScale: (rad / BUBBLE_TEX_R) * 1.9, spin: 0, tint: 0x9cc4ff, blend: 'add', peakAlpha: 0.7,
     });
 
-    // 3) SHRAPNEL — golden shards flung radially out of the rim (normal + saturated golds so they read as debris
-    //    over the cream, not washed-out glints).
+    // 3) SHRAPNEL — energy-blue shards flung radially out of the rim (normal + saturated blues so they read as
+    //    debris over the cream, not washed-out glints).
     const shards = 22;
     for (let i = 0; i < shards; i++) {
       const a = (i / shards) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
       const speed = 320 + Math.random() * 640;
       const tex = Math.random() < 0.5 ? this.shardRectTex! : this.shardTriTex!;
       const warm = Math.random();
-      const tint = warm < 0.5 ? 0xd18a10 : warm < 0.85 ? 0xefac20 : 0xffcb4a;
+      const tint = warm < 0.5 ? 0x1840d0 : warm < 0.85 ? 0x2f5ae8 : 0x6a97ff;
       this.spawn(tex, {
         x: cx + Math.cos(a) * rad * 0.7, y: cy + Math.sin(a) * rad * 0.7,
         vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.12,
@@ -1351,14 +1351,14 @@ class FxController {
       });
     }
 
-    // 4) ENERGY MOTES — soft glints drifting out, longer-lived, for the "energy" feel.
+    // 4) ENERGY MOTES — soft blue-white glints drifting out, longer-lived, for the "energy" feel.
     for (let i = 0; i < 10; i++) {
       const a = Math.random() * Math.PI * 2;
       const speed = 110 + Math.random() * 240;
       this.spawn(this.sparkTex!, {
         x: cx, y: cy, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.5,
         life: 500 + Math.random() * 400, fromScale: 0.9 + Math.random() * 0.8, toScale: 0.05,
-        spin: 0, tint: 0xffe9a8, blend: 'add', peakAlpha: 0.95,
+        spin: 0, tint: 0xcfe6ff, blend: 'add', peakAlpha: 0.95,
       });
     }
   }

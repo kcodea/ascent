@@ -1529,8 +1529,10 @@ export function Recruit() {
     const update = (): void => {
       const ar = app.getBoundingClientRect();
       const wr = wb.getBoundingClientRect();
-      // The art divider sits a touch above the exact centre, so bias the rope up a smidge to land on it.
-      wb.style.setProperty('--rope-y', `${ar.top + ar.height / 2 - wr.top - 14}px`);
+      // The art divider sits a touch above the exact centre, so bias the rope up a smidge to land on it. The
+      // bias must SCALE with the stage (19 reference px = the tuned 14px at the owner's 0.745-scale stage) —
+      // fixed px rode proportionally higher on a short phone stage ("rope too high", owner's mobile test).
+      wb.style.setProperty('--rope-y', `${ar.top + ar.height / 2 - wr.top - 19 * (ar.height / 1440)}px`);
     };
     update();
     const ro = new ResizeObserver(update);

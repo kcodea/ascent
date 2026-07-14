@@ -53,6 +53,9 @@ export function Game() {
       // whole point of the uniform scale is that the layout stays proportional at ANY size.
       const scale = Math.max(0.2, Math.min(1.25, gh / 1440));
       document.documentElement.style.setProperty('--scale', String(scale));
+      // Phone-height stages get a modest CARD zoom (--ch-base multiplies by this; chrome/--u stays put) so
+      // minions are bigger to read + tap (owner request). Starting dial: +15% under a 600px-tall stage.
+      document.documentElement.style.setProperty('--mobile-boost', gh < 600 ? '1.15' : '1');
     };
     apply();
     window.addEventListener('resize', apply);

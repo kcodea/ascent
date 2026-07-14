@@ -38,8 +38,10 @@
      1 (the 1440-tall tuned look) until JS sets it; JS clamps it [0.45, 1.25] so it never gets unusably tiny/oversized. */
   --scale: 1;
   /* one standard card size everywhere (shop / warband / hand / combat) — 384px at the reference, × --scale.
-     `--ch` multiplies it by the dev Layout Lab's `--card-scale`; per-region rules can multiply again for a row. */
-  --ch-base: calc(384px * var(--scale));
+     `--mobile-boost` (JS-set, 1.15 on phone-height stages, else 1) zooms CARDS only so they stay readable/tappable
+     on phones while the chrome (--u) stays put. `--ch` multiplies in the dev Layout Lab's `--card-scale`;
+     per-region rules can multiply again for a row. */
+  --ch-base: calc(384px * var(--scale) * var(--mobile-boost, 1));
   --ch: calc(var(--ch-base) * var(--card-scale, 0.77)); --cw: calc(var(--ch) * 0.752);
   /* compact-card size: 15% smaller than the full card width, used at rest + in combat (kept in sync). */
   --ccw: calc(var(--cw) * 0.85);
@@ -115,8 +117,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
    fixed --gw/--gh. Transparent — the board art now lives on `.boardbg` (a full-viewport layer BEHIND the stage)
    so it can extend past the stage into the side/top margins on off-16:9 monitors instead of black letterbox bars. */
 /* `touch-action: none` on the board so a card DRAG (pointer events) isn't stolen by the browser as a scroll/pan
-   on touch devices — taps/buttons still fire. Scrollable overlays (balance report, settings) sit outside .app. */
-.app { position: relative; z-index: 1; flex: none; width: var(--gw); height: var(--gh); display: flex; flex-direction: column; padding: 12px 18px calc(var(--ch) * 0.92); gap: 8px; background: transparent; border-radius: 2px; touch-action: none; }
+   on touch devices — taps/buttons still fire. Scrollable overlays (balance report, settings) sit outside .app.
+   Paddings/gap ride --u (were fixed 12/18/8px): the fixed overhead ate ~3× more of a short phone stage, pushing
+   the shop row + controls visibly low ("shop ui and minions too low", owner's mobile test). */
+.app { position: relative; z-index: 1; flex: none; width: var(--gw); height: var(--gh); display: flex; flex-direction: column; padding: calc(12 * var(--u)) calc(18 * var(--u)) calc(var(--ch) * 0.92); gap: calc(8 * var(--u)); background: transparent; border-radius: 2px; touch-action: none; }
 /* Board backdrop layer: full viewport, behind the stage. The wide (--board) art is scaled to the STAGE height and
    centred, so its ornate frame lands at the same size/place as the 16:9 UI expects — a wider window just reveals
    more of the surrounding floor art in the margins (cropped to 16:9 at standard aspect). Board dimming was removed
@@ -158,8 +162,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
   position: absolute; left: 50%; top: var(--rope-y, 50%);
   transform: translate(calc(-50% + var(--rope-x, 3px) * var(--scale)), calc(-50% + var(--rope-yoff, -22px) * var(--scale)));
   width: calc(var(--rope-len, 1420px) * var(--scale)); height: calc(var(--rope-thick, 13px) * var(--scale)); z-index: 8; border-radius: 999px; overflow: visible; pointer-events: none;
+  /* Braid stripes SCALE with the stage (4/9.4 reference px = the tuned 3/7px at the owner's 0.745-scale stage) —
+     fixed-px stripes on a ~4px-tall phone rope read as dashes instead of a braid (owner's mobile test). */
   background:
-    repeating-linear-gradient(48deg, rgba(255, 240, 200, 0.22) 0 3px, rgba(90, 60, 25, 0.30) 3px 7px),
+    repeating-linear-gradient(48deg, rgba(255, 240, 200, 0.22) 0 calc(4px * var(--scale)), rgba(90, 60, 25, 0.30) calc(4px * var(--scale)) calc(9.4px * var(--scale))),
     linear-gradient(to bottom, #e3b870, #bb8a3f 52%, #8c6326);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   animation: ropein 0.4s ease both;
@@ -170,7 +176,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .rope-lit {
   position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px 0 0 999px;
   background:
-    repeating-linear-gradient(48deg, rgba(130, 65, 20, 0.45) 0 3px, rgba(12, 7, 3, 0.55) 3px 7px),
+    repeating-linear-gradient(48deg, rgba(130, 65, 20, 0.45) 0 calc(4px * var(--scale)), rgba(12, 7, 3, 0.55) calc(4px * var(--scale)) calc(9.4px * var(--scale))),
     linear-gradient(to bottom, #3a2517, #140b05);
   box-shadow: inset calc(-11 * var(--u)) 0 calc(10 * var(--u)) calc(-5 * var(--u)) rgba(255, 135, 45, 0.95);
 }
@@ -936,12 +942,14 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   100% { opacity: 1; clip-path: inset(0 0 0 0); }
 }
 /* tier pill rides the arch top */
-.card.compact .tierbadge { top: calc(var(--ccw) * -0.055); border-radius: 999px; font-size: calc(var(--ccw) * 0.072); padding: calc(var(--ccw) * 0.018) calc(var(--ccw) * 0.075); border: 2px solid color-mix(in srgb, #fff 55%, var(--c)); z-index: 6; }
+.card.compact .tierbadge { top: calc(var(--ccw) * -0.055); border-radius: 999px; font-size: calc(var(--ccw) * 0.072); padding: calc(var(--ccw) * 0.018) calc(var(--ccw) * 0.075); border: calc(var(--ccw) * 0.014) solid color-mix(in srgb, #fff 55%, var(--c)); z-index: 6; }
 /* circular, gold-set attack / health badges in the arch's bottom corners (relative to .archbox) */
+/* Border + ring track the badge size (were fixed 3px/2px — on a ~16px phone-scale badge that read as a huge
+   goofy outline, owner's mobile test). Ratios = the tuned px at the desktop badge (~141px --ccw). */
 .card.compact .atk, .card.compact .hp {
   width: calc(var(--ccw) * 0.29); height: calc(var(--ccw) * 0.29); font-size: calc(var(--ccw) * 0.15);
-  border-radius: 50%; border: 3px solid #f6e3ad; bottom: calc(var(--ccw) * -0.065);
-  box-shadow: 0 0 0 2px #9c6f24, 0 3px 7px rgba(0, 0, 0, 0.4);
+  border-radius: 50%; border: calc(var(--ccw) * 0.021) solid #f6e3ad; bottom: calc(var(--ccw) * -0.065);
+  box-shadow: 0 0 0 calc(var(--ccw) * 0.014) #9c6f24, 0 calc(var(--ccw) * 0.021) calc(var(--ccw) * 0.05) rgba(0, 0, 0, 0.4);
 }
 .card.compact .atk { left: calc(var(--ccw) * -0.02); }
 .card.compact .hp { right: calc(var(--ccw) * -0.02); }
@@ -951,7 +959,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   width: calc(var(--ccw) * 0.21); height: calc(var(--ccw) * 0.21);
   transform: translateX(-50%); border-radius: 50%;
   background: radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--c) 55%, #2c2535), #1b1722);
-  border: 2px solid #f6e3ad; box-shadow: 0 2px 7px rgba(0, 0, 0, 0.5);
+  border: calc(var(--ccw) * 0.014) solid #f6e3ad; box-shadow: 0 calc(var(--ccw) * 0.014) calc(var(--ccw) * 0.05) rgba(0, 0, 0, 0.5);
   display: grid; place-items: center;
 }
 .card.compact .cgem svg { width: 62%; height: 62%; color: #f6e3ad; }

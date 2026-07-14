@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### fix: mobile polish round 2 — rope alignment/texture, row heights, badge outlines, card zoom
+
+Third iPhone itch test (owner): four more phone-only issues, all the same two root-cause families as round 1
+(fixed px that doesn't ride the stage scale) plus one texture quirk:
+- **Rope too high** — the JS midline bias (`-14px`, tuned on desktop) was fixed px, so it rode proportionally
+  ~3× higher on a short phone stage. Now scales with the stage (19 reference px × gh/1440).
+- **Rope "looks different"** — the braid's `repeating-linear-gradient` stripes were fixed 3/7px; on a ~4px-tall
+  phone rope they read as dashes instead of a braid. Stripe stops now ride `--scale` (4/9.4 reference px).
+- **Shop UI + minions too low** — `.app`'s fixed `12px/18px` padding + `8px` gaps ate ~3× more of a short stage,
+  pushing every row down (shop badges landed ON the rope). Now `--u`-scaled (identical on desktop where --u≈1px).
+- **Goofy stat-badge outlines** — the atk/hp badges size with `--ccw` but their cream border (3px), dark-gold ring
+  (2px), tier-pill border (2px), and medallion border (2px) were fixed px — huge on a ~16px phone badge. All now
+  track `--ccw` (ratios = the tuned px at the desktop badge).
+- **Mobile card zoom** — new `--mobile-boost` (JS-set: 1.15 when the stage is under 600px tall, else 1) multiplies
+  `--ch-base` so CARDS are ~15% bigger to read/tap on phones while the chrome (`--u`) stays put. Starting dial.
+
+Verified at 932×430: rope sits below the shop row with braid texture, rows match desktop proportions, badge
+outlines clean, cards 65px (was 56). Desktop parity confirmed (scale 0.746, boost 1, card 141px — unchanged).
+`typecheck`/`lint`/`build:web` green; test zip repacked.
+
 ### fix: itch sub-path asset 404s ("old frames") + raw-px UI that ignored the stage scale
 
 Second iPhone itch test surfaced two distinct bug classes:

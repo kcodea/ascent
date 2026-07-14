@@ -5,6 +5,35 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### fix: mobile scaling round 3 — combat FX, quest offers, slider, title/settings, DPR perf
+
+Six device-reported issues, all the same family (authored at desktop scale, doesn't shrink) plus one GPU lever:
+
+- **Combat effects too large.** The WebGL particle bursts (impact flash/shockwave/ring, sparks, dust, pulse, smoke)
+  size themselves from absolute px dials tuned at the owner's ~0.745 desktop scale — they never tracked `--scale`,
+  so on a phone the desktop-sized burst dwarfed the tiny card (the giant yellow ring). Added `pixiFx.setScale()`
+  (wired from Game.tsx's resize effect as `(scale × mobile-boost) / 0.745` → 1.0 on desktop, ~0.46 on a phone) and
+  applied it in the single `spawn()` choke to every particle's `fromScale`/`toScale`/`vx`/`vy`/`gravity`. Positions
+  stay in absolute screen coords (they're already correct); only size + motion scale. The persistent shield/reborn
+  bubbles are sized from card w/h (a different path) and are unaffected — still correct.
+- **Performance on mobile.** Capped the pixi render resolution at `min(devicePixelRatio, 2)` on both FX canvases. A
+  phone's DPR is often 3, and a full-viewport WebGL overlay at 3× is 9× the fill of 1× — the biggest single GPU cost
+  for a soft-particle layer whose glows don't need 3× crispness. 2 keeps retina-sharp edges on desktop while ~halving
+  phone fill. (This is the mobile-smoothness lever; combined with the smaller bursts above, far less to draw.)
+- **Quest offer cards stretched vertically + unreadable.** `.questcard*` outer size is `--cw`-relative (scaled) but
+  every inner metric (34px head padding, 23px title, 13px body text, the −22px emblem overhang) was raw px — so on a
+  phone the text overflowed the shrunk card, wrapped one word per line, and the `min-height` grew the card tall.
+  Converted the whole inner block to `--u` (matching the already-scaled `.quest-row` active panel).
+- **Skip/speed HUD scaled weirdly.** The combat-speed slider's track (8px), thumb (18px), and value (14px/36px) were
+  raw px while the rest of the HUD was `--u` — so the control stayed desktop-sized against shrunk chrome. Converted
+  to `--u`.
+- **Title Practice/Balance off-screen + Settings not scaling.** Both are raw-px fullscreen overlays living OUTSIDE the
+  `--scale` stage, so a 430px-tall landscape phone clipped the title's `.titlesecondary` row (Practice · Compendium ·
+  Balance Report) off the bottom and rendered the settings panel oversized. Added one reusable `--ui-zoom`
+  (`clamp(0.34, --scale/0.745, 1)` — 1.0 on desktop, shrink-only so a big monitor never inflates them) and applied
+  `zoom:` to `.titlemenu`, `.titleaccount`, and `.escpanel`. Verified live at 932×430: the full title menu + secondary
+  row fit, the settings panel fits, the combat HUD slider is proportional, and combat cards render scaled.
+
 ### fix: hero-select scales on phones (zoom off the stage scale)
 
 The hero picker (and the end screen, which reuses its `.hsbox` shell) is authored in fixed px tuned at the owner's

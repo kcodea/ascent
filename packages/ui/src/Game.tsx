@@ -18,6 +18,7 @@ import { BalancePanel } from './BalancePanel';
 import { Icon } from './Icon';
 import { ErrorBoundary } from './ErrorBoundary';
 import { PixiFxLayer } from './PixiFxLayer';
+import { pixiFx } from './pixiFx';
 import { warmArt } from './art';
 import { useGame } from './store';
 
@@ -55,7 +56,12 @@ export function Game() {
       document.documentElement.style.setProperty('--scale', String(scale));
       // Phone-height stages get a modest CARD zoom (--ch-base multiplies by this; chrome/--u stays put) so
       // minions are bigger to read + tap (owner request). Starting dial: +15% under a 600px-tall stage.
-      document.documentElement.style.setProperty('--mobile-boost', gh < 600 ? '1.15' : '1');
+      const boost = gh < 600 ? 1.15 : 1;
+      document.documentElement.style.setProperty('--mobile-boost', String(boost));
+      // Keep the WebGL combat particles proportional to the (shrinking) cards. The FX px dials were tuned at the
+      // owner's ~0.745 desktop scale, so divide that reference out → 1.0 on desktop, ~0.45 on a phone. Fold in the
+      // card boost so bursts match the boosted card size, not the bare stage.
+      pixiFx.setScale((scale * boost) / 0.745);
     };
     apply();
     window.addEventListener('resize', apply);

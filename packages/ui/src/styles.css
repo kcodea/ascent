@@ -51,6 +51,10 @@
      so the chrome tracks the cards. Use calc(N*--u). */
   --u-base: calc(1.34px * var(--scale));
   --u: calc(var(--u-base) * var(--ui-scale, 0.96));
+  /* Shrink-only zoom for the OFF-STAGE fullscreen overlays (title menu, settings) that are authored in raw px and
+     live outside the --scale system. 1.0 at the owner's ~0.745 desktop scale (untouched), ~0.4 on a phone, clamped
+     to never ENLARGE past the authored look on a big monitor. Applied via `zoom:` so the whole panel scales as one. */
+  --ui-zoom: clamp(0.34, calc(var(--scale) / 0.745), 1);
 }
 /* Resolution scaler (Esc menu): cap the stage to a fixed resolution box, centred + letterboxed.
    Each maintains its aspect ratio (the height cap keeps it true) and never exceeds the window. The aspect must
@@ -327,25 +331,26 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Read-only quest cards in the Compendium's Quests tab — a reference view, not a take-a-quest button. Use the
    game's custom default cursor (NOT the bare `default` keyword, which shows the Windows arrow). */
 .questcard.readonly { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
-.questcard-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 32%; border-radius: 13px; z-index: 0; }
-.questcard::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 48%; border-radius: 13px 13px 0 0; background: linear-gradient(180deg, rgba(8, 6, 4, 0.74) 0%, rgba(8, 6, 4, 0.3) 46%, transparent 100%); z-index: 1; pointer-events: none; }
-/* Tribe emblem (top) + gem (bottom): tribe-hued, overhanging the frame. */
-.questcard-emblem { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); width: 50px; height: 50px; z-index: 5; display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 50% 34%, #2c211a, #0e0a07); border: 3px solid var(--c); box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.5), 0 3px 9px rgba(0, 0, 0, 0.6), 0 0 16px -4px color-mix(in srgb, var(--c) 75%, transparent); }
+.questcard-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 32%; border-radius: calc(13 * var(--u)); z-index: 0; }
+.questcard::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 48%; border-radius: calc(13 * var(--u)) calc(13 * var(--u)) 0 0; background: linear-gradient(180deg, rgba(8, 6, 4, 0.74) 0%, rgba(8, 6, 4, 0.3) 46%, transparent 100%); z-index: 1; pointer-events: none; }
+/* Tribe emblem (top) + gem (bottom): tribe-hued, overhanging the frame. Metrics are --u-scaled so the offer card
+   shrinks whole on a phone (raw px kept the text/emblem desktop-sized → text overflowed + stretched it tall). */
+.questcard-emblem { position: absolute; top: calc(-22 * var(--u)); left: 50%; transform: translateX(-50%); width: calc(50 * var(--u)); height: calc(50 * var(--u)); z-index: 5; display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 50% 34%, #2c211a, #0e0a07); border: calc(3 * var(--u)) solid var(--c); box-shadow: 0 0 0 calc(3 * var(--u)) rgba(0, 0, 0, 0.5), 0 3px 9px rgba(0, 0, 0, 0.6), 0 0 16px -4px color-mix(in srgb, var(--c) 75%, transparent); }
 .questcard-emblem svg { width: 54%; height: 54%; color: var(--c); }
-.questcard-gem { position: absolute; bottom: -11px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 20px; height: 20px; z-index: 5; border-radius: 4px; background: linear-gradient(135deg, color-mix(in srgb, var(--c) 85%, #fff), var(--c) 46%, color-mix(in srgb, var(--c) 55%, #000)); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.55); }
+.questcard-gem { position: absolute; bottom: calc(-11 * var(--u)); left: 50%; transform: translateX(-50%) rotate(45deg); width: calc(20 * var(--u)); height: calc(20 * var(--u)); z-index: 5; border-radius: calc(4 * var(--u)); background: linear-gradient(135deg, color-mix(in srgb, var(--c) 85%, #fff), var(--c) 46%, color-mix(in srgb, var(--c) 55%, #000)); box-shadow: 0 0 0 calc(2 * var(--u)) rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.55); }
 /* Head (tier·tribe + title) sits over the top of the art; body panels pin to the bottom. */
-.questcard-head { position: relative; z-index: 2; padding: 34px 14px 0; text-align: center; }
-.questcard-tier { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.09em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 60%, #fff); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
-.questcard-name { font-family: var(--font-title); font-weight: 800; font-size: 23px; line-height: 1.05; color: #fff; text-shadow: 0 2px 7px rgba(0, 0, 0, 0.8); margin-top: 3px; }
-.questcard-body { position: relative; z-index: 2; margin-top: auto; padding: 12px; display: flex; flex-direction: column; gap: 7px; }
-.questcard-sect { background: rgba(11, 8, 6, 0.82); border: 1px solid color-mix(in srgb, var(--c) 34%, rgba(0, 0, 0, 0.4)); border-radius: 10px; padding: 7px 10px; }
-.questcard-lbl { display: flex; align-items: center; gap: 5px; font-weight: 800; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 72%, #fff); margin-bottom: 4px; }
-.questcard-lbl svg { width: 14px; height: 14px; color: var(--c); }
+.questcard-head { position: relative; z-index: 2; padding: calc(34 * var(--u)) calc(14 * var(--u)) 0; text-align: center; }
+.questcard-tier { font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.09em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 60%, #fff); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
+.questcard-name { font-family: var(--font-title); font-weight: 800; font-size: calc(23 * var(--u)); line-height: 1.05; color: #fff; text-shadow: 0 2px 7px rgba(0, 0, 0, 0.8); margin-top: calc(3 * var(--u)); }
+.questcard-body { position: relative; z-index: 2; margin-top: auto; padding: calc(12 * var(--u)); display: flex; flex-direction: column; gap: calc(7 * var(--u)); }
+.questcard-sect { background: rgba(11, 8, 6, 0.82); border: 1px solid color-mix(in srgb, var(--c) 34%, rgba(0, 0, 0, 0.4)); border-radius: calc(10 * var(--u)); padding: calc(7 * var(--u)) calc(10 * var(--u)); }
+.questcard-lbl { display: flex; align-items: center; gap: calc(5 * var(--u)); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 72%, #fff); margin-bottom: calc(4 * var(--u)); }
+.questcard-lbl svg { width: calc(14 * var(--u)); height: calc(14 * var(--u)); color: var(--c); }
 /* Sized to fit the longest quest text (Author's Hand: a 3-line objective + a 4-part reward) inside the card.
    `overflow-wrap` breaks any long token; the card itself grows to fit via `min-height` (below), and the modal
    row's `align-items: stretch` levels every card to the tallest — so text never spills past the frame. */
-.questcard-txt { font-weight: 700; font-size: 13px; line-height: 1.2; color: #f1ece3; overflow-wrap: anywhere; }
-.questcard-sect + .questcard-txt, .questcard-txt + .questcard-txt { margin-top: 2px; }
+.questcard-txt { font-weight: 700; font-size: calc(13 * var(--u)); line-height: 1.2; color: #f1ece3; overflow-wrap: anywhere; }
+.questcard-sect + .questcard-txt, .questcard-txt + .questcard-txt { margin-top: calc(2 * var(--u)); }
 /* Per-round track (replaces the old fill bar): one dash per course round. A win prints a green ✓, a loss a
    red ✕; rounds not yet played show a faint dash, the current round a lit-orange dash. Setup rounds (1–2)
    read quieter and get a small gap after (marking where the scored climb begins). */
@@ -2188,10 +2193,10 @@ body.choreo-open .pixifx-under { z-index: 204; }
 /* combat replay-speed slider — now sits in the top-right combat HUD, beneath the Skip button */
 .combatspeed { flex: none; display: flex; align-items: center; gap: calc(10 * var(--u)); background: var(--card); border: 2px solid var(--line); padding: calc(5 * var(--u)) calc(14 * var(--u)); border-radius: calc(13 * var(--u)); }
 .combatspeed .csl { font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink3); }
-.combatspeed input[type='range'] { width: calc(110 * var(--u)); height: 8px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; cursor: pointer; outline: none; }
-.combatspeed input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
-.combatspeed input[type='range']::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
-.combatspeed .combatspeed-val { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: var(--acc-dk); min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
+.combatspeed input[type='range'] { width: calc(110 * var(--u)); height: calc(8 * var(--u)); -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; cursor: pointer; outline: none; }
+.combatspeed input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: calc(18 * var(--u)); height: calc(18 * var(--u)); border-radius: 50%; background: var(--acc); border: calc(2 * var(--u)) solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
+.combatspeed input[type='range']::-moz-range-thumb { width: calc(18 * var(--u)); height: calc(18 * var(--u)); border-radius: 50%; background: var(--acc); border: calc(2 * var(--u)) solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
+.combatspeed .combatspeed-val { font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); color: var(--acc-dk); min-width: calc(36 * var(--u)); text-align: right; font-variant-numeric: tabular-nums; }
 /* post-combat Combat Log overlay */
 .logov { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(20, 15, 10, 0.55); animation: logfade 0.16s ease; }
 @keyframes logfade { from { opacity: 0; } to { opacity: 1; } }
@@ -2463,7 +2468,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .crest { width: 1em; height: 1em; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
 
 /* Account name (top-right) — click to set/rename yourself; wires to the real account when that lands. */
-.titleaccount { position: absolute; top: 24px; right: 30px; display: flex; align-items: center; gap: 12px; }
+.titleaccount { zoom: var(--ui-zoom); position: absolute; top: 24px; right: 30px; display: flex; align-items: center; gap: 12px; }
 .titleavatar { width: 92px; height: 92px; border-radius: 50%; overflow: hidden; padding: 0; display: grid; place-items: center; background: linear-gradient(150deg, #f3c96a, #e08a3c); border: 2px solid rgba(255, 255, 255, 0.35); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s ease, border-color 0.1s ease; }
 .titleavatar:hover { transform: scale(1.07); border-color: rgba(255, 255, 255, 0.7); }
 .titleavatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -2488,7 +2493,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .acctinput::placeholder { color: rgba(236, 220, 178, 0.45); }
 
 /* The left menu column. */
-.titlemenu { position: absolute; left: clamp(40px, 7vw, 150px); top: 50%; transform: translateY(-50%);
+.titlemenu { zoom: var(--ui-zoom); position: absolute; left: clamp(40px, 7vw, 150px); top: 50%; transform: translateY(-50%);
   display: flex; flex-direction: column; align-items: flex-start; gap: 30px; max-width: 90vw; }
 .titlelogo { display: flex; align-items: center; gap: 14px; }
 .titlelogo .crest { font-size: 62px; }
@@ -2559,7 +2564,7 @@ svg { width: 18px; height: 18px; }
 .version span { font-weight: 600; opacity: 0.7; }
 /* Esc / settings overlay — above everything incl. game-over, so resolution is changeable anywhere */
 .escov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; background: rgba(20, 14, 7, 0.62); backdrop-filter: blur(3px); animation: fadein 0.16s ease; }
-.escpanel { background: var(--card); border: 2px solid var(--line); border-radius: 22px; padding: 26px 26px 20px; min-width: 380px; box-shadow: 0 26px 64px -16px rgba(0, 0, 0, 0.62); }
+.escpanel { zoom: var(--ui-zoom); background: var(--card); border: 2px solid var(--line); border-radius: 22px; padding: 26px 26px 20px; min-width: 380px; box-shadow: 0 26px 64px -16px rgba(0, 0, 0, 0.62); }
 .escpanel .esch { font-weight: 800; font-size: 28px; color: var(--ink); text-align: center; }
 .escsec { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); text-align: center; margin: 16px 0 10px; }
 .escres { display: grid; gap: 8px; }

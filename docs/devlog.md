@@ -3,6 +3,22 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-13 (session 37)
+
+### docs: multi-session playbook (human runbook for concurrent sessions)
+
+Added [`docs/multi-session-playbook.md`](multi-session-playbook.md) — the operational, step-by-step companion to
+`docs/concurrency.md`. Where `concurrency.md` gives the principles and the *why*, the playbook gives the exact
+per-session lifecycle (**START → WORK → FINISH**) with copy-pasteable Windows/PowerShell commands: create an
+isolated worktree under `.claude\worktrees\<task>` off `origin/main`, claim the branch on origin, look-before-you-start
+(`gh pr list` / `git branch -a` / `git log origin/main`), stay in one ownership seam, rebase + prove-green before the
+PR, then tear down cleanly (`git worktree remove` + `prune` + `branch -d`). Motivated by a real cleanup this session:
+8 stray `Desktop\ascent-*` folders had accumulated as leftover worktree husks (worktrees created as Desktop siblings
++ Windows failing to fully delete their locked `node_modules` on teardown). The playbook codifies the three habits
+that prevent it: worktrees under `.claude\worktrees\` (never Desktop siblings), `git worktree remove`/`prune` on
+teardown (never drag-to-trash), and the primary checkout stays read-only while sessions are live. Also added a
+cross-link from `concurrency.md`. Docs-only; no code touched.
+
 ## 2026-07-13 (session 36)
 
 ### art: re-wire minion + quest art from the updated masters

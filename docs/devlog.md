@@ -21,6 +21,9 @@ a faint ghost **dome** + **N rising randomized wisps** — seated on the oval wi
   Pixi aura; `rebornShatter` / `rebornSummon` + all combat FX are untouched.
 - **Shield break → hex shards:** added a hexagon shard texture (`shardHexTex`, the Ward's own facet shape); the
   break shrapnel now flings mostly blue hexagons outward (+ a little triangle debris).
+- **Reborn combat FX recolored to teal:** `rebornShatter` (spirit release) + `rebornSummon` (re-form) + the
+  reborn drag-trail moved from spectral blue → the aqua-teal palette (deep `#178f86` → bright `#45e8c0` →
+  white-teal highlights), matching the new CSS aura.
 
 Verified: typecheck / lint / 1045 tests / build:web all green. Owner tuned the look in the standalone rig; the
 in-game render still needs an eyeball (Browser pane + Chrome ext both flaky this session). **Perf watch:** 27

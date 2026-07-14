@@ -130,15 +130,17 @@ canvas.spr { image-rendering: pixelated; display: block; }
   animation: ropein 0.4s ease both;
 }
 @keyframes ropein { from { opacity: 0; } to { opacity: 1; } }
+/* width (lit fill) + the flame's transform are driven per-frame by BurnRope's rAF, synced to the turn clock —
+   NO CSS transition here (a 1s tween would lag each frame's update and desync the burn from the timer). */
 .rope-lit {
-  position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px 0 0 999px; transition: width 1s linear;
+  position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px 0 0 999px;
   background:
     repeating-linear-gradient(48deg, rgba(130, 65, 20, 0.45) 0 3px, rgba(12, 7, 3, 0.55) 3px 7px),
     linear-gradient(to bottom, #3a2517, #140b05);
   box-shadow: inset calc(-11 * var(--u)) 0 calc(10 * var(--u)) calc(-5 * var(--u)) rgba(255, 135, 45, 0.95);
 }
 /* the live flame, anchored to the burn point and rising from the rope */
-.rope-flame { position: absolute; top: 50%; left: 0; width: 0; height: 0; transform: translate(-50%, -50%); transition: left 1s linear; z-index: 6; pointer-events: none; }
+.rope-flame { position: absolute; top: 50%; left: 0; width: 0; height: 0; transform: translate(-50%, -50%); z-index: 6; pointer-events: none; }
 .rope-flame .fl-glow {
   position: absolute; left: 0; top: 0; transform: translate(-50%, -50%);
   width: calc(58 * var(--u)); height: calc(26 * var(--u)); border-radius: 50%;

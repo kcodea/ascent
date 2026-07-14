@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 37)
 
+### fix: burning-rope timing 100% synced to the turn clock (no more burning past 0)
+
+Owner-reported: the rope kept burning after the timer ran out. Two causes. (1) The burn window was a fixed
+`ROPE_SECONDS = 20`, but the actual turn is `min(80, 18 + 4·(wave-1))` — so on short early turns (wave 1 = 18s) the
+rate was miscalibrated and the rope started already part-burnt. (2) The flame/char were driven by integer per-second
+ticks with a **1s CSS `transition`** on `left`/`width`, so the animation always trailed ~1 second — the burn finished a
+second AFTER the clock hit 0. Rewrote `BurnRope`: the window is now the ACTUAL turn length (`min(ROPE_SECONDS,
+turnSeconds)`), and a rAF interpolates WITHIN each integer second from the wall-clock moment it began, writing the lit
+width + the flame `transform` straight to refs each frame (no per-frame React render; flame moves compositor-only so
+its drop-shadow never repaints). It also takes a `paused` prop (Discover / quest / runeforge / hero-select / overlay)
+that freezes the burn in lock-step with the countdown. Removed the now-unused `transition: width/left` from
+`.rope-lit`/`.rope-flame` (a tween would re-lag each frame). Verified live by recording the countdown: the flame
+starts at 0 on the first lit second and reaches the rope's end at **f=0.999 exactly as the clock reads 0**, then holds
+(was overshooting ~1s); mid-burn at 11s-left it sits at 7/18 ≈ 0.39. `typecheck`/`lint`/`test` (1033)/`build:web` green.
+
 ### dev: rope scaler in the Layout Lab + make the burning rope static (no resolution scaling)
 
 Owner request: the centre-divider burning rope resized with resolution and needed live tuning. It was `width: 86%`

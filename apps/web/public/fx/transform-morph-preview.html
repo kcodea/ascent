@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Transform Morph — ascend FX preview</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  /* Cream stage = the real combat board (#e4dccf), matching the buff-pulse / tendril rigs, so a
+     morph's flash/particles read honestly against the surface the game actually uses. */
+  body { margin: 0; background: #e4dccf; color: #e6ecdc; font: 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace; display: flex; height: 100vh; overflow: hidden; }
+  #stage { flex: 1; position: relative; display: grid; place-items: center; background: #e4dccf; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  /* The morph target: two stacked mock cards (before + after). JS drives their opacity/transform/clip
+     each frame. "before" = a teal Spirit Pup stand-in; "after" = a purple Spirit Worgen stand-in. */
+  #cardwrap { position: relative; width: 150px; height: 208px; z-index: 0; }
+  .mock { position: absolute; inset: 0; border-radius: 12px; border: 1px solid #e7dcc7; box-shadow: 0 8px 26px rgba(60,45,20,.22); overflow: hidden; display: grid; grid-template-rows: 1fr auto; will-change: transform, opacity, clip-path; }
+  .mock .art { width: 100%; height: 100%; }
+  .mock .name { text-align: center; font-size: 12px; font-weight: 700; letter-spacing: .06em; padding: 6px 0; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+  #before .art { background: radial-gradient(120% 90% at 50% 25%, #4fd6c4, #157f74 60%, #0c4a44); }
+  #before .name { background: #0c4a44; } #before { }
+  #after .art { background: radial-gradient(120% 90% at 50% 25%, #c79bff, #7b3fd6 58%, #3a1470); }
+  #after .name { background: #3a1470; }
+  #flash { position: absolute; inset: -20% -20%; border-radius: 22px; pointer-events: none; opacity: 0; mix-blend-mode: screen; }
+  #panel { width: 316px; padding: 14px 16px; overflow-y: auto; background: #0e100a; border-left: 1px solid #2b3020; }
+  h1 { font-size: 13px; margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; color: #c8e070; }
+  .sub { color: #7a8556; font-size: 11px; margin-bottom: 12px; }
+  h2 { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #7a8556; margin: 16px 0 6px; border-top: 1px solid #2b3020; padding-top: 10px; }
+  .row { display: grid; grid-template-columns: 1fr 54px; gap: 8px; align-items: center; margin-bottom: 7px; }
+  label { color: #b7c194; font-size: 11.5px; }
+  input[type=range] { width: 100%; accent-color: #c8e070; }
+  input[type=color] { width: 100%; height: 24px; border: 1px solid #444d2f; background: none; border-radius: 4px; padding: 0; cursor: pointer; }
+  select { width: 100%; background: #232a16; color: #e6ecdc; border: 1px solid #444d2f; border-radius: 4px; padding: 5px; font: inherit; }
+  .val { text-align: right; color: #c8e070; font-size: 11px; }
+  button { width: 100%; padding: 9px; margin-top: 12px; border: 0; border-radius: 6px; background: #6f9a2f; color: #fff; font: inherit; font-weight: 700; letter-spacing: .06em; cursor: pointer; }
+  button:hover { background: #86b83e; }
+  button.ghost { background: #1f2415; color: #b7c194; } button.ghost:hover { background: #2a3120; }
+  .checkrow { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: #b7c194; font-size: 12px; }
+  .checkrow input { accent-color: #c8e070; width: 15px; height: 15px; }
+  textarea { width: 100%; height: 150px; margin-top: 10px; background: #080a05; color: #c8e070; border: 1px solid #2b3020; border-radius: 6px; padding: 8px; font: 10.5px/1.45 ui-monospace, monospace; resize: vertical; }
+  .hint { color: #5a6440; font-size: 10.5px; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div id="cardwrap">
+      <div class="mock" id="after"><div class="art"></div><div class="name">Spirit Worgen</div></div>
+      <div class="mock" id="before"><div class="art"></div><div class="name">Spirit Pup</div></div>
+      <div id="flash"></div>
+    </div>
+    <canvas id="cv"></canvas>
+  </div>
+  <div id="panel">
+    <h1>Transform Morph</h1>
+    <div class="sub">The <b>ascend</b> FX — one unit becomes another (Tara→Taragosa, Spirit Pup→Worgen). Compare styles, then tune.<br />Click the stage or press space to re-fire.</div>
+
+    <h2>Style</h2>
+    <select id="style">
+      <option value="flash">Flash-swap — bright bloom, card swaps at peak</option>
+      <option value="dissolve">Dissolve — old rises as motes, new fades in</option>
+      <option value="shatter">Shatter-reform — old cracks into shards, new assembles</option>
+      <option value="wipe">Energy-wipe — a bright band sweeps + reveals</option>
+      <option value="vortex">Vortex — old spins down, new spins up</option>
+    </select>
+
+    <div id="controls"></div>
+    <button id="fire">MORPH ⚡ (space)</button>
+    <label class="checkrow"><input type="checkbox" id="loop" /> Auto-repeat (~1.8s)</label>
+
+    <h2>MorphPresetCfg (live export)</h2>
+    <textarea id="out" readonly></textarea>
+    <div class="hint">Pick a style + tune, then paste this back to Claude to bake into the transform renderer.</div>
+    <button id="reset" class="ghost">Reset this style</button>
+    <div class="hint" id="diag">booting…</div>
+  </div>
+
+<script>
+(() => {
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  const before = document.getElementById('before'), after = document.getElementById('after');
+  const flash = document.getElementById('flash'), wrap = document.getElementById('cardwrap');
+  const styleSel = document.getElementById('style'), controls = document.getElementById('controls');
+  const out = document.getElementById('out'), diag = document.getElementById('diag');
+
+  // Per-style tunable schema. Every dial the renderer reads is here → the export is a complete config.
+  // ms = duration; sizes in px; colors hex; counts/speeds unitless. `common` applies to every style.
+  const COMMON = {
+    durationMs: { v: 620, min: 200, max: 1600, step: 20 },
+    flashSize:  { v: 150, min: 0,   max: 320,  step: 5, label: 'flash radius' },
+    flashAlpha: { v: 0.85, min: 0,  max: 1,    step: 0.05 },
+    flashMs:    { v: 300, min: 60,  max: 900,  step: 20 },
+    colorGlow:  { v: '#ffe6a3', color: true, label: 'flash colour' },
+    colorSpark: { v: '#c79bff', color: true, label: 'particle colour' },
+  };
+  const STYLES = {
+    flash:    { swapAt: { v: 0.5, min: 0.2, max: 0.8, step: 0.05, label: 'swap point' }, overshoot: { v: 0.12, min: 0, max: 0.4, step: 0.02, label: 'new-card pop' } },
+    dissolve: { moteCount: { v: 60, min: 10, max: 160, step: 5 }, moteRise: { v: 90, min: 10, max: 260, step: 10, label: 'mote rise px' }, moteSize: { v: 5, min: 1, max: 14, step: 0.5 }, moteLife: { v: 700, min: 200, max: 1400, step: 50 } },
+    shatter:  { shardCount: { v: 26, min: 6, max: 70, step: 2 }, shardSpeed: { v: 360, min: 60, max: 900, step: 20 }, shardSpin: { v: 6, min: 0, max: 20, step: 1 }, shardLife: { v: 620, min: 200, max: 1400, step: 50 }, reformPop: { v: 0.18, min: 0, max: 0.5, step: 0.02, label: 'new-card pop' } },
+    wipe:     { bandWidth: { v: 46, min: 8, max: 140, step: 4 }, bandGlow: { v: 26, min: 0, max: 80, step: 2 }, sparkCount: { v: 34, min: 0, max: 120, step: 4, label: 'trail sparks' }, sparkSpeed: { v: 200, min: 20, max: 600, step: 20 } },
+    vortex:   { turns: { v: 1.4, min: 0.25, max: 4, step: 0.05 }, swirlCount: { v: 44, min: 0, max: 140, step: 4 }, swirlRadius: { v: 96, min: 20, max: 220, step: 5 }, shrinkTo: { v: 0.1, min: 0, max: 0.6, step: 0.05, label: 'old shrink→' } },
+  };
+
+  let cfg = {};                    // live values, keyed field→number/string
+  let style = 'flash';
+  const clone = o => JSON.parse(JSON.stringify(o));
+  const defaults = {}; // style → {field:v}
+  for (const [s, sc] of Object.entries(STYLES)) { defaults[s] = {}; for (const k in COMMON) defaults[s][k] = COMMON[k].v; for (const k in sc) defaults[s][k] = sc[k].v; }
+  const cur = clone(defaults);     // mutable per-style state
+
+  function schemaFor(s) { const o = {}; for (const k in COMMON) o[k] = COMMON[k]; for (const k in STYLES[s]) o[k] = STYLES[s][k]; return o; }
+
+  function buildControls() {
+    const sc = schemaFor(style); controls.innerHTML = '';
+    for (const [k, def] of Object.entries(sc)) {
+      const row = document.createElement('div'); row.className = 'row';
+      const lab = document.createElement('label'); lab.textContent = def.label || k; row.appendChild(lab);
+      if (def.color) {
+        const inp = document.createElement('input'); inp.type = 'color'; inp.value = cur[style][k];
+        inp.style.gridColumn = '1 / span 2';
+        inp.oninput = () => { cur[style][k] = inp.value; sync(); };
+        row.appendChild(document.createElement('span')); row.insertBefore(inp, lab.nextSibling);
+        row.style.gridTemplateColumns = '1fr'; row.innerHTML = ''; row.appendChild(lab); row.appendChild(inp);
+      } else {
+        const inp = document.createElement('input'); inp.type = 'range'; inp.min = def.min; inp.max = def.max; inp.step = def.step; inp.value = cur[style][k];
+        const val = document.createElement('span'); val.className = 'val'; val.textContent = cur[style][k];
+        inp.oninput = () => { cur[style][k] = parseFloat(inp.value); val.textContent = inp.value; sync(); };
+        row.appendChild(inp); row.appendChild(val);
+      }
+      controls.appendChild(row);
+    }
+  }
+  function sync() { cfg = cur[style]; out.value = JSON.stringify({ style, ...cfg }, null, 2); }
+
+  // ---- particle system (canvas) ----
+  let parts = []; let raf = 0; let t0 = 0; let firing = false;
+  function resize() { const r = cv.getBoundingClientRect(); cv.width = r.width * devicePixelRatio; cv.height = r.height * devicePixelRatio; ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); }
+  window.addEventListener('resize', resize);
+
+  function cardRect() { const r = wrap.getBoundingClientRect(); const s = cv.getBoundingClientRect(); return { x: r.left - s.left, y: r.top - s.top, w: r.width, h: r.height, cx: r.left - s.left + r.width/2, cy: r.top - s.top + r.height/2 }; }
+  const rnd = (a,b) => a + Math.random()*(b-a);
+
+  function spawn(c) {
+    const R = cardRect();
+    if (style === 'dissolve') for (let i=0;i<c.moteCount;i++) parts.push({ k:'mote', x: R.x+Math.random()*R.w, y: R.y+Math.random()*R.h, vx: rnd(-20,20), vy: -rnd(c.moteRise*0.5, c.moteRise*1.4)/(c.moteLife/1000), life: c.moteLife, age:0, size: rnd(c.moteSize*0.6,c.moteSize), col: c.colorSpark });
+    if (style === 'shatter') for (let i=0;i<c.shardCount;i++){ const a=rnd(0,Math.PI*2), sp=c.shardSpeed*rnd(0.5,1.2); parts.push({ k:'shard', x:R.cx, y:R.cy, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp - 40, rot: rnd(0,Math.PI), vr: rnd(-c.shardSpin,c.shardSpin), life:c.shardLife, age:0, w: rnd(8,20), h: rnd(6,16), col: i%2? c.colorSpark : c.colorGlow }); }
+    if (style === 'wipe') { /* sparks spawned along the band each frame in render */ }
+    if (style === 'vortex') for (let i=0;i<c.swirlCount;i++){ const a=rnd(0,Math.PI*2); parts.push({ k:'swirl', a, r0: rnd(c.swirlRadius*0.3,c.swirlRadius), life:c.durationMs, age:0, size: rnd(2,5), col: c.colorSpark, dir: Math.random()<0.5?1:-1 }); }
+  }
+
+  function fire() {
+    const c = cur[style]; firing = true; t0 = performance.now(); parts = [];
+    before.style.opacity = 1; before.style.transform = 'none'; before.style.clipPath = 'none';
+    after.style.opacity  = 0; after.style.transform = 'none'; after.style.clipPath = 'none';
+    flash.style.background = `radial-gradient(circle, ${c.colorGlow} 0%, ${c.colorGlow}00 70%)`;
+    spawn(c);
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
+    diag.textContent = `${style} · ${c.durationMs}ms`;
+  }
+
+  function loop(now) {
+    const c = cur[style]; const dt = 16.7; const T = Math.min(1, (now - t0) / c.durationMs);
+    ctx.clearRect(0,0,cv.width,cv.height);
+    const R = cardRect();
+
+    // flash envelope (sin, peaks mid of flashMs)
+    const fT = Math.min(1, (now - t0) / c.flashMs);
+    flash.style.opacity = (fT < 1 ? Math.sin(Math.PI*fT) * c.flashAlpha : 0);
+    flash.style.transform = `scale(${0.6 + (c.flashSize/150)*0.9})`;
+
+    // card treatment per style
+    if (style === 'flash') { const sw = T >= c.swapAt; before.style.opacity = sw?0:1; after.style.opacity = sw?1:0; if (sw){ const p=(T-c.swapAt)/(1-c.swapAt); after.style.transform=`scale(${1 + c.overshoot*Math.sin(Math.PI*p)})`; } }
+    else if (style === 'dissolve') { before.style.opacity = 1-T; after.style.opacity = Math.max(0,(T-0.35)/0.65); }
+    else if (style === 'shatter') { before.style.opacity = T<0.12?1:0; const p=Math.max(0,(T-0.25)/0.75); after.style.opacity = p>0?1:0; after.style.transform = p>0?`scale(${1 - c.reformPop*(1-p)})`:'scale(0.6)'; }
+    else if (style === 'wipe') { const y = T; before.style.clipPath = `inset(${y*100}% 0 0 0)`; after.style.opacity=1; after.style.clipPath = `inset(0 0 ${(1-y)*100}% 0)`; }
+    else if (style === 'vortex') { const p=T; before.style.opacity = 1-p; before.style.transform = `rotate(${p*c.turns*360}deg) scale(${1-(1-c.shrinkTo)*p})`; const q=Math.max(0,(T-0.4)/0.6); after.style.opacity = q; after.style.transform = `rotate(${(1-q)*-c.turns*180}deg) scale(${0.2 + 0.8*q})`; }
+
+    // wipe sparks: emit along the band edge
+    if (style === 'wipe' && T < 1) { const by = R.y + T*R.h; for (let i=0;i<Math.ceil(c.sparkCount/30);i++){ parts.push({ k:'mote', x: R.x+Math.random()*R.w, y: by, vx: rnd(-c.sparkSpeed,c.sparkSpeed)/20, vy: rnd(-c.sparkSpeed,c.sparkSpeed)/20, life: 300, age:0, size: rnd(1.5,3.5), col: c.colorGlow }); } }
+
+    // particles
+    for (const p of parts) {
+      p.age += dt; const a = 1 - p.age/p.life; if (a<=0) continue;
+      ctx.globalAlpha = Math.max(0,a);
+      if (p.k==='swirl') { const prog = p.age/p.life; const rad = p.r0*(1-prog); const ang = p.a + p.dir*prog*c.turns*Math.PI*2; const x=R.cx+Math.cos(ang)*rad, y=R.cy+Math.sin(ang)*rad; ctx.fillStyle=p.col; ctx.beginPath(); ctx.arc(x,y,p.size,0,7); ctx.fill(); }
+      else if (p.k==='shard') { p.x+=p.vx*dt/1000; p.y+=p.vy*dt/1000; p.vy+=600*dt/1000; p.rot+=p.vr*dt/1000; ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot); ctx.fillStyle=p.col; ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h); ctx.restore(); }
+      else { p.x+=p.vx*dt/1000; p.y+=p.vy*dt/1000; ctx.fillStyle=p.col; ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,7); ctx.fill(); }
+    }
+    ctx.globalAlpha = 1;
+    parts = parts.filter(p => p.age < p.life);
+
+    if (T < 1 || parts.length) raf = requestAnimationFrame(loop);
+    else { firing = false; flash.style.opacity = 0; }
+  }
+
+  // ---- wiring ----
+  styleSel.onchange = () => { style = styleSel.value; buildControls(); sync(); fire(); };
+  document.getElementById('fire').onclick = fire;
+  document.getElementById('reset').onclick = () => { cur[style] = clone(defaults[style]); buildControls(); sync(); fire(); };
+  document.getElementById('stage').onclick = fire;
+  window.addEventListener('keydown', e => { if (e.code==='Space'){ e.preventDefault(); fire(); } });
+  let loopTimer = null;
+  document.getElementById('loop').onchange = e => { clearInterval(loopTimer); if (e.target.checked) loopTimer = setInterval(fire, 1800); };
+
+  resize(); buildControls(); sync();
+  diag.textContent = 'ready — press space or click the stage';
+  setTimeout(fire, 200);
+})();
+</script>
+</body>
+</html>

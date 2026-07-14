@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 36)
 
+### art: re-wire minion + quest art from the updated masters
+
+Re-synced the in-repo card/quest art from the masters under `C:\Game Assets\Ascent Art\{Minions,Quests}`. Matched
+each master to its card/quest **id** by normalized-name (with an exact-id fallback + a small curated override for
+renames the name-match can't catch: Alleycat→`alley`, LeaderOfThePack→`packleader`, Supporterr→`supporter`,
+Fodder→`fred`, Pup1/2→`pup`/`pup2`; TheImpossibleShop→`q_impossible_shop`, BoneThrone→`q_the_bone_throne`,
+TrohpyDen→`q_trophy_den`). Net: **6 new quest arts wired** — the 5 new turn-11 quests (Passing Spears, Forsaken Speed,
+Cratering Missive, Bane's Existence, Clinging On) + Shared Circuit — plus refreshed masters (Pack Leader, Cratering
+Hulk, Combinator, The Runeforge, Epic Commission), and **46 redundant quest PNGs cleaned up** (each already had its
+webp). Also taught `scripts/optimize-art.mjs` to process the `quests`/`runes` dirs and JPEG sources (not just
+minions/heroes PNGs). Verified live: forced a quest offer of the three new quests → all render their art
+(`q_passing_spears.webp` etc.). `build:web` green.
+
+**Not auto-wired (flagged for the owner):** masters with no clear current card/quest — minions `Ghostsmith`,
+`HexFlayer`, `HarryBotter`, `DenCaller`, `Sheldon`, `SparePartsDrone`, `SpellDrummer`, `FodderFeeder`,
+`TrainingDummy`, `ClingStone`, `ChaosMagnetic`, `TaurusTheAncient`; quests `GraveToll`, `TrailRations`, `FirstTracks`,
+`ToothAndTempo`, `ShieldCalibration`, `Bloodlust`, + the UUID-named exports. These are renames/removed content or
+un-attributed files — need an owner-confirmed id before wiring (per the name-match rule).
+
 ### tweak(ui): player Leaderboard — align header to rows + column dividers
 
 The Leaderboard (Rankings) header didn't line up with the row values. Root cause: the grid `grid-template-columns`

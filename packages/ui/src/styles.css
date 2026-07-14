@@ -1628,6 +1628,169 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
           drop-shadow(0 0 4px var(--tglow))
           drop-shadow(0 0 12px var(--tglow));
 }
+
+/* ============================================================================================================
+   AUTHORED FRAMES — the gold OVAL on every non-Taunt minion, the purple SQUARE on regular spells. Same pipeline
+   as the Taunt heater shield above: portrait clipped to the frame's WINDOW → authored PNG frame over it → (minion
+   only) per-tribe tint → DOM data (badges/tier) → fx. `.stdframe` / `.spellframe` are added by Card.tsx ONLY when
+   the PNG loads; a 404 drops the class and the card renders its original arch / spell look. This block is placed
+   AFTER the golden / dual / venom / spell rules so its `.art` reshape reliably wins the source-order cascade.
+   GEOMETRY — MEASURED from the alpha of each PNG (retune the two `--sh` knobs + these constants if the art changes):
+     standard-oval.png 1059×1427 · window x16.0–83.5% / y24.2–88.6% (H/W 1.285) · banner ≈y21%
+     spell-frame.png   1122×1346 · window x13.9–86.0% / y25.2–83.1% (H/W 0.963) · banner ≈y22%
+   Each derived multiplier below = (window metric) ÷ (window width fraction), so one `--sh` scales the whole
+   composite. Expect a quick live NUDGE PASS over HMR to seat badges/tier/frame exactly (like the Taunt comments).
+   ============================================================================================================ */
+
+/* ---- shared frame-layer plumbing (both oval + spell) ------------------------------------------------------ */
+.card.compact.stdframe .cframe,
+.card.compact.spellframe .cframe {
+  position: absolute; z-index: 3; pointer-events: none; overflow: visible;
+  /* hover glow: box-shadow on the (reshaped) `.art` is clipped away by the window clip, so re-add it as a
+     drop-shadow on the frame PNG's own alpha, driven by the same `--hglow-blur` hover var (0 = invisible). */
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+          drop-shadow(0 0 var(--hglow-blur, 0) rgba(255, 226, 110, 0.92));
+}
+/* PORTRAIT reshape (shared): absolute, unbordered, clipped to the window; the base arch border/radius/shadow are
+   killed so ONLY the window clip shapes the art (same rule Taunt relies on). */
+.card.compact.stdframe .art,
+.card.compact.spellframe .art {
+  position: absolute; z-index: 1; border: none; border-radius: 0; box-shadow: none; margin: 0;
+}
+.card.compact.stdframe .art .artimg,
+.card.compact.stdframe .art canvas,
+.card.compact.spellframe .art .artimg,
+.card.compact.spellframe .art canvas { width: 100%; height: 100%; object-fit: cover; object-position: center; margin: 0; }
+
+/* ---- STANDARD OVAL (every non-Taunt minion) --------------------------------------------------------------- */
+.card.compact.stdframe { --sh: 0.74; }   /* window width ÷ card width — the one size knob for the whole oval */
+.card.compact.stdframe .art {
+  clip-path: ellipse(50% 50% at 50% 50%);                          /* the elliptical window */
+  width: calc(var(--ccw) * var(--sh));
+  height: calc(var(--ccw) * 1.285 * var(--sh));                    /* 1.285 = window H/W */
+  left: calc(var(--ccw) * (0.5 - 0.5 * var(--sh)));                /* window centred on the archbox */
+  top: calc(var(--ccw) * (0.5 - 0.6425 * var(--sh)));             /* 0.6425 = 1.285/2 */
+}
+.card.compact.stdframe .cframe-img {
+  position: absolute; inset: auto; height: auto;
+  width: calc(var(--ccw) * 1.481 * var(--sh));                     /* 1.481 = 1/0.675 (window is 67.5% of canvas W) */
+  left: calc(var(--ccw) * (0.5 - 0.737 * var(--sh)));             /* 0.737 = windowCx 0.4975 / 0.675 */
+  top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh)));             /* 1.126 = windowCy 0.564 · (1427/1059) / 0.675 */
+}
+/* TINT — per-tribe recolour of the neutral gold, masked to the frame's own alpha so only the metal is tinted
+   (the window stays clear). `color` blend keeps the metal's light/shadow; opacity is the strength knob. Same box
+   as the frame img. Dual-tribe splits the gradient below. */
+.card.compact.stdframe .cframe-tint {
+  position: absolute; z-index: 4; pointer-events: none;
+  width: calc(var(--ccw) * 1.481 * var(--sh));
+  left: calc(var(--ccw) * (0.5 - 0.737 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh)));
+  aspect-ratio: 1059 / 1427;
+  background: var(--c);
+  -webkit-mask: url('/frames/standard-oval.png') center / 100% 100% no-repeat;
+          mask: url('/frames/standard-oval.png') center / 100% 100% no-repeat;
+  mix-blend-mode: color; opacity: 0.4;
+}
+.card.compact.stdframe.dual .cframe-tint { background: linear-gradient(110deg, var(--c) 0 46%, var(--c2) 54% 100%); }
+/* tier rides the oval's banner plaque (≈21% down the canvas → this seat); the atk/hp/tribe cluster is NEVER moved. */
+.card.compact.stdframe .tierbadge { top: calc(var(--ccw) * (0.5 - 0.707 * var(--sh))); }
+
+/* ---- SPELL SQUARE (regular spells) ------------------------------------------------------------------------ */
+.card.compact.spellframe { --sh: 0.76; }
+.card.compact.spellframe .art {
+  clip-path: inset(0 round 14%);                                   /* the rounded-rectangle window */
+  width: calc(var(--ccw) * var(--sh));
+  height: calc(var(--ccw) * 0.963 * var(--sh));                    /* 0.963 = window H/W */
+  left: calc(var(--ccw) * (0.5 - 0.5 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 0.4815 * var(--sh)));            /* 0.4815 = 0.963/2 */
+}
+.card.compact.spellframe .cframe-img {
+  position: absolute; inset: auto; height: auto;
+  width: calc(var(--ccw) * 1.387 * var(--sh));                     /* 1.387 = 1/0.721 */
+  left: calc(var(--ccw) * (0.5 - 0.6928 * var(--sh)));           /* 0.6928 = 0.4995 / 0.721 */
+  top: calc(var(--ccw) * (0.5 - 0.9009 * var(--sh)));           /* 0.9009 = 0.5415 · (1346/1122) / 0.721 */
+}
+.card.compact.spellframe .tierbadge { top: calc(var(--ccw) * (0.5 - 0.535 * var(--sh))); }
+/* the "✦ Spell" ribbon rides the frame's bottom gem instead of the arch base */
+.card.compact.spellframe .ctype.spell { bottom: calc(var(--ccw) * (0.5 - 0.42 * var(--sh))); }
+
+/* ---- selection / combat glows (shared) — same shape-fix as Taunt: drop the rectangular box-shadow and glow the
+   frame PNG's alpha via a state-coloured drop-shadow, so the highlight hugs the oval / square silhouette. ------ */
+.card.compact.stdframe.armed,
+.card.compact.stdframe.targeted,
+.card.compact.spellframe.armed,
+.card.compact.spellframe.targeted,
+.unit.aimed .card.compact.stdframe,
+.unit.attacking .card.compact.stdframe { box-shadow: 0 3px 0 var(--shadow); }
+.card.compact.stdframe.armed, .card.compact.spellframe.armed { --tglow: var(--c); }
+.card.compact.stdframe.targeted, .card.compact.spellframe.targeted { --tglow: var(--c); }
+.unit.attacking .card.compact.stdframe { --tglow: var(--acc); }
+.unit.aimed .card.compact.stdframe { --tglow: var(--threat); }
+.card.compact.stdframe.armed .cframe,
+.card.compact.stdframe.targeted .cframe,
+.card.compact.spellframe.armed .cframe,
+.card.compact.spellframe.targeted .cframe,
+.unit.aimed .card.compact.stdframe .cframe,
+.unit.attacking .card.compact.stdframe .cframe {
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+          drop-shadow(0 0 4px var(--tglow))
+          drop-shadow(0 0 12px var(--tglow));
+}
+
+/* ---- keyword states on the OVAL (reshaped from the arch, mirroring Taunt's DS reconciliation) -------------- */
+/* Divine Shield: kill the rectangular gold aura + arched bloom, glow the frame alpha (STATIC — never animate a
+   drop-shadow, per the perf rule), and re-seat the glassy dome as a centred square on the window (the ellipse
+   clip trims it to the oval). */
+.card.compact.stdframe.dscard { box-shadow: 0 3px 0 var(--shadow); }
+.card.compact.stdframe.dscard::before { display: none; }
+.card.compact.stdframe.dscard .cframe {
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+          drop-shadow(0 0 5px rgba(245, 188, 48, 0.95))
+          drop-shadow(0 0 13px rgba(240, 176, 32, 0.7));
+}
+.card.compact.stdframe.dscard .ward {
+  --wardsq: calc(var(--ccw) * var(--sh) * 0.92);
+  inset: auto; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: var(--wardsq); height: var(--wardsq); border-radius: 0;
+}
+.card.compact.stdframe.dscard .ward > * { border-radius: 0; }
+/* Venomous: same treatment in toxic lime. The inner `.art::after` ring survives (it lives inside the ellipse-
+   clipped art, so it reads as an oval lime vignette); only the outer square wash is reshaped. */
+.card.compact.stdframe.venomcard { box-shadow: 0 3px 0 var(--shadow); }
+.card.compact.stdframe.venomcard::before { display: none; }
+.card.compact.stdframe.venomcard .cframe {
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+          drop-shadow(0 0 5px rgba(150, 228, 52, 0.9))
+          drop-shadow(0 0 13px rgba(120, 200, 40, 0.6));
+}
+/* Golden (tripled): the arch's gold gradient border is gone (art reshaped), so the golden read is the crown
+   (still rendered, top-left) + a static gold halo on the frame. */
+.card.compact.stdframe.golden { box-shadow: 0 3px 0 var(--shadow); }
+.card.compact.stdframe.golden .cframe {
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+          drop-shadow(0 0 6px rgba(255, 213, 90, 0.95))
+          drop-shadow(0 0 16px rgba(255, 190, 50, 0.7));
+}
+/* Frozen (held shop card): ice the frame silhouette by masking the frost `::after` to the frame PNG. */
+[data-zone='tavern'].frozen .card.stdframe::after {
+  inset: auto; border: none; border-radius: 0; box-shadow: none;
+  width: calc(var(--ccw) * 1.481 * var(--sh));
+  left: calc(var(--ccw) * (0.5 - 0.737 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh)));
+  aspect-ratio: 1059 / 1427;
+  -webkit-mask: url('/frames/standard-oval.png') center / 100% 100% no-repeat;
+          mask: url('/frames/standard-oval.png') center / 100% 100% no-repeat;
+}
+[data-zone='tavern'].frozen .card.spellframe::after {
+  inset: auto; border: none; border-radius: 0; box-shadow: none;
+  width: calc(var(--ccw) * 1.387 * var(--sh));
+  left: calc(var(--ccw) * (0.5 - 0.6928 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 0.9009 * var(--sh)));
+  aspect-ratio: 1122 / 1346;
+  -webkit-mask: url('/frames/spell-frame.png') center / 100% 100% no-repeat;
+          mask: url('/frames/spell-frame.png') center / 100% 100% no-repeat;
+}
+
 .unit.struck .card { animation: struck 0.34s ease; }
 @keyframes struck { 0%, 100% { transform: none; filter: none; } 45% { transform: translateY(5px) scale(0.94); filter: brightness(1.15) drop-shadow(0 0 8px var(--threat)); } }
 /* a white-hot impact spark at the point of contact */

@@ -42,3 +42,20 @@ NOT contain a character, numbers, or a filled center.
 
 Save the result here as **`taunt-shield.png`** and reload — every Taunt card switches from the SVG
 placeholder to your art automatically.
+
+## `standard-oval.png` — the standard minion frame · `spell-frame.png` — the spell frame
+
+Same pipeline as the Taunt shield, applied as the **base frame** for two whole card categories:
+
+- **`standard-oval.png`** — the ornate gold **oval** on every non-Taunt minion. Neutral gold; a per-tribe
+  **tint layer** (`.cframe-tint`, masked to the frame's alpha, `mix-blend-mode: color`) recolours it toward
+  the tribe hue (dual-tribe splits the gradient). Window = an **ellipse**.
+- **`spell-frame.png`** — the purple **square** on regular spells (NOT the golden Triple-Reward token). No
+  tint (spells have no tribe; the frame carries its own purple accent). Window = a **rounded rectangle**.
+
+Requirements are identical to the Taunt shield: **frame only**, real **alpha**, transparent window, neutral
+metal, a bakeable empty top **banner** (the tier plaque seats on it), **no** baked stats/tier/tribe glyphs.
+The geometry is MEASURED from each PNG's alpha and encoded in `styles.css` under **"AUTHORED FRAMES"**
+(the `--sh` size knob + per-window multipliers) — **if you replace the art, re-measure the window/banner and
+retune those constants.** Precedence per card: spell → square · else Taunt → heater · else → oval. On a 404
+the class is dropped and the card falls back to the original arch / spell look.

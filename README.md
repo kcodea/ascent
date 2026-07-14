@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Authored card frames.** The Taunt shield pipeline is now the base frame for whole categories: a gold
+  **oval** on every non-Taunt minion (with a per-tribe tint, dual-tribe split) and a purple **square** on
+  regular spells. Portrait clips to the frame's window, the PNG lays over it, tier seats on the banner, and
+  every keyword-state glow (DS / Venom / Golden / Frozen / selection) was refitted to the new silhouettes.
 - **Shop-phase buff FX.** When a card buffs *other* minions in the shop (Battlecry, on-summon, Guel, spell casts,
   Deathrattles, Karwind/Bane, Choose One, Hunter), it now shoots the same **tendril** (from a living source) or
   rains the same **descend** (from a spell / Deathrattle) that combat uses — no longer just a green flash. Captured

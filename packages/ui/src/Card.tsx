@@ -15,6 +15,14 @@ import { useGame } from './store';
 // false after the first 404 this session so we don't re-request a missing asset on every Taunt card.
 const TAUNT_FRAME_SRC = '/frames/taunt-shield.png';
 let tauntFrameAvailable = true;
+// STANDARD frame (every non-Taunt MINION) — the authored gold OVAL, and SPELL frame — the authored purple SQUARE.
+// Same pipeline as Taunt (portrait clipped to the frame's window → PNG over it → per-tribe tint → DOM data). Each
+// class is applied ONLY when its PNG loads; on a 404 the availability flag flips false (so we stop re-requesting)
+// and the card falls back to the original arched / spell look. See styles.css "AUTHORED FRAMES" for the geometry.
+const STD_FRAME_SRC = '/frames/standard-oval.png';
+let stdFrameAvailable = true;
+const SPELL_FRAME_SRC = '/frames/spell-frame.png';
+let spellFrameAvailable = true;
 
 const KW_LABEL: Record<Keyword, string> = {
   T: 'Taunt', DS: 'Ward', V: 'Toxin', W: 'Flurry', R: 'Rise', C: 'Cleave', M: 'Attachment', SC: 'Start', CN: 'Consume',
@@ -300,9 +308,17 @@ export const Card = memo(function Card({
   const artUrl = artFor(card.cardId, uid);
   // TAUNT frame: render the raster shield if the asset loads; on 404 fall back to the SVG placeholder.
   const [frameOk, setFrameOk] = useState(tauntFrameAvailable);
+  // STANDARD / SPELL frames: same load-or-fallback guard. A card wears exactly one authored frame — Taunt wins
+  // for a Taunt minion; regular spells (but NOT the golden Triple-Reward token) get the purple square; every other
+  // minion gets the oval. On 404 the flag flips and the card renders its original arch/spell look.
+  const [sframeOk, setSframeOk] = useState(stdFrameAvailable);
+  const [pframeOk, setPframeOk] = useState(spellFrameAvailable);
+  const isTaunt = card.keywords.includes('T');
+  const useSpellFrame = !!card.spell && card.cardId !== 'discoverspell' && pframeOk;
+  const useStdFrame = !card.spell && !isTaunt && sframeOk;
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${comboReady ? ' comboready' : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${comboReady ? ' comboready' : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
@@ -444,6 +460,38 @@ export const Card = memo(function Card({
             <path className="tf-gem" fill="url(#tf-gem)" stroke="#7d5a1e" strokeWidth="1.4" d="M50 -6 L61 5 L50 16 L39 5 Z" />
             <path className="tf-gem" fill="url(#tf-gem)" stroke="#7d5a1e" strokeWidth="1.4" d="M50 94 L57 101 L50 109 L43 101 Z" />
           </svg>
+        )}
+        {/* STANDARD OVAL frame (every non-Taunt minion) — the authored gold oval laid OVER the portrait, which is
+            clipped to the frame's elliptical window. `.cframe-tint` is a per-tribe recolour of the gold, masked to
+            the frame's own alpha (dual-tribe splits it left→right). See styles.css "AUTHORED FRAMES". */}
+        {useStdFrame && (
+          <>
+            <img
+              className="cframe cframe-img"
+              src={STD_FRAME_SRC}
+              alt=""
+              aria-hidden="true"
+              onError={() => {
+                stdFrameAvailable = false;
+                setSframeOk(false);
+              }}
+            />
+            <div className="cframe-tint" aria-hidden="true" />
+          </>
+        )}
+        {/* SPELL SQUARE frame (regular spells) — the authored purple square. No tint layer: spells have no tribe,
+            and the frame carries its own purple accent. */}
+        {useSpellFrame && (
+          <img
+            className="cframe cframe-img"
+            src={SPELL_FRAME_SRC}
+            alt=""
+            aria-hidden="true"
+            onError={() => {
+              spellFrameAvailable = false;
+              setPframeOk(false);
+            }}
+          />
         )}
         {/* Golden (tripled) marker — a gold crown emblem; pairs with the gold arch frame so a tripled
             minion is instantly findable in a row. */}

@@ -62,9 +62,9 @@
     animation: rebornwisp var(--wisp-s) ease-in-out infinite; will-change: transform, opacity;
   }
   @keyframes rebornwisp {
-    0%   { transform: translateY(18%) scaleY(0.7) scaleX(0.9); opacity: 0; }
+    0%   { transform: translateX(-50%) translateY(18%) scaleY(0.7) scaleX(0.9); opacity: 0; }
     22%  { opacity: var(--wisp-alpha); }
-    100% { transform: translateY(calc(-1 * var(--wisp-rise))) scaleY(1.25) scaleX(0.7); opacity: 0; }
+    100% { transform: translateX(calc(-50% + var(--wx, 0px))) translateY(calc(-1 * var(--wisp-rise))) scaleY(1.25) scaleX(0.7); opacity: 0; }
   }
 
   .cframe-img { position: absolute; z-index: 3; inset: auto; width: 227px; height: auto; left: -8px; top: -61px; pointer-events: none;
@@ -173,20 +173,21 @@ const hexToRgb = (h) => { const n = parseInt(h.slice(1), 16); return [n >> 16 & 
 const rgba = (rgb, a) => `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${a})`;
 const label = (p) => p.replace(/^--/, '').replace(/-/g, ' ');
 
-// evenly spread N wisps across the dome width (deterministic — index-based jitter so it's stable across rebuilds)
+// scatter N wisps: random x across the spread band, random start height, phase, size, rise + a sideways drift —
+// so they read as an organic cloud, not a line. (Card.tsx spawns them the same way with Math.random.)
 function buildWisps() {
   const n = Math.round(C['--wisp-count']);
   const spread = C['--wisp-spread'];
+  const base = C['--wisp-size'];
   wispsEl.innerHTML = '';
   for (let i = 0; i < n; i++) {
-    const t = n === 1 ? 0.5 : i / (n - 1);
-    const x = 50 + (t - 0.5) * spread;                 // % across the dome
-    const jitter = ((i * 37) % 20) - 10;               // stable per-index vertical/size jitter
     const w = document.createElement('div'); w.className = 'wisp';
-    w.style.left = x + '%';
-    w.style.transform = 'translateX(-50%)';
-    w.style.animationDelay = (-(i * C['--wisp-s'] / n) - (jitter * 0.03)).toFixed(2) + 's';
-    w.style.setProperty('--wisp-size', (C['--wisp-size'] + jitter * 0.3) + '%');
+    w.style.left = (50 + (Math.random() - 0.5) * spread).toFixed(1) + '%';           // scatter across the band
+    w.style.bottom = (Math.random() * 16).toFixed(1) + '%';                          // random start height (no line)
+    w.style.animationDelay = (-Math.random() * C['--wisp-s']).toFixed(2) + 's';      // random phase
+    w.style.setProperty('--wisp-size', (base * (0.65 + Math.random() * 0.7)).toFixed(1) + '%'); // ±size
+    w.style.setProperty('--wisp-rise', (C['--wisp-rise'] * (0.8 + Math.random() * 0.45)).toFixed(0) + '%'); // ±rise
+    w.style.setProperty('--wx', ((Math.random() - 0.5) * 44).toFixed(0) + 'px');     // sideways drift while rising
     wispsEl.appendChild(w);
   }
 }
@@ -219,7 +220,7 @@ function build(useStored) {
     const v = document.createElement('span'); v.className = 'val'; v.textContent = start + d.unit;
     inp.oninput = () => {
       C[d.prop] = parseFloat(inp.value); v.textContent = C[d.prop] + d.unit; apply(d);
-      if (d.prop === '--wisp-count' || d.prop === '--wisp-spread' || d.prop === '--wisp-size' || d.prop === '--wisp-s') buildWisps();
+      if (['--wisp-count','--wisp-spread','--wisp-size','--wisp-s','--wisp-rise'].includes(d.prop)) buildWisps();
       composeColours(); persist(); save();
     };
     row.appendChild(l); row.appendChild(inp); row.appendChild(v);
@@ -247,9 +248,10 @@ function resolvedCSS() {
 @keyframes rebornwisp {
   0%   { transform: translateX(-50%) translateY(18%) scaleY(0.7) scaleX(0.9); opacity: 0; }
   22%  { opacity: ${g('--wisp-alpha')}; }
-  100% { transform: translateX(-50%) translateY(-${g('--wisp-rise')}%) scaleY(1.25) scaleX(0.7); opacity: 0; }
+  100% { transform: translateX(calc(-50% + var(--wx, 0px))) translateY(calc(-1 * var(--wisp-rise, ${g('--wisp-rise')}%))) scaleY(1.25) scaleX(0.7); opacity: 0; }
 }
-/* wisp COUNT ${Math.round(g('--wisp-count'))} · spread ${g('--wisp-spread')}% — spawned by Card.tsx (like the ward hex) */
+/* wisp COUNT ${Math.round(g('--wisp-count'))} · spread ${g('--wisp-spread')}% — Card.tsx spawns each with random
+   left, bottom, animation-delay, --wisp-size (±35%), --wisp-rise (±), and --wx sideways drift (Math.random). */
 /* frame rim glow (energy aqua-green) — on .card.compact.stdframe.reborncard .cframe / .taunt.reborncard .tframe */
 FRAME-GLOW: drop-shadow(0 0 ${g('--glow-inner')}px ${rgba(B,0.85)}) drop-shadow(0 0 ${g('--glow-outer')}px ${rgba(D,g('--glow-outer-a'))});`;
 }

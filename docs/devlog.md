@@ -5,7 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
-### feat: mobile support foundation — landscape-only, touch, safe areas, rotate prompt
+### fix: phone-size scale floor + PWA manifest for true iPhone fullscreen
+
+First real-device test (owner's iPhone, via a secondary itch upload) showed the UI ~50% oversized with overlapping
+HUD/hero/shop. Cause: the `--scale` clamp floor of 0.45 — an iPhone's landscape stage is only ~380-460 CSS px tall
+(true ratio ~0.27-0.32), so the floor forced everything 1.5× too big. Dropped the floor to 0.2 (the uniform scale's
+whole point is staying proportional at any size); verified at 932×430 (iPhone 15 Pro Max landscape): scale 0.299,
+no overlaps, End Turn + hero panel fully clear.
+
+True fullscreen on iPhone: Safari has NO fullscreen API for games (itch's fullscreen button is a no-op on iOS) —
+the real path is **Add to Home Screen**, which launches standalone with zero browser chrome. Added the missing PWA
+pieces so that installs cleanly: `manifest.webmanifest` (fullscreen display, landscape orientation, dark theme) +
+generated icons (192/512 + apple-touch-icon 180, centre-cropped from the homescreen art) + the manifest/icon links
+in `index.html`. Repacked `ascent-itch-mobile-test.zip` for the owner's test page.
 
 First mobile pass (owner: landscape-only + rotate prompt, "make it playable"). Builds on the 16:9-locked, uniformly
 `--scale`d UI so a phone just needs it to fit + take touch:

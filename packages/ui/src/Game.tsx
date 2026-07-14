@@ -48,7 +48,10 @@ export function Game() {
   useLayoutEffect(() => {
     const apply = (): void => {
       const gh = Math.min(window.innerHeight, (window.innerWidth * 9) / 16); // matches the CSS --gh (16:9 stage)
-      const scale = Math.max(0.45, Math.min(1.25, gh / 1440));
+      // No meaningful floor: a phone's landscape stage is only ~380-460px tall (true ratio ~0.27-0.32), and
+      // flooring at 0.45 oversized everything 1.5× → overlapping HUD/hero/shop (owner's iPhone report). The
+      // whole point of the uniform scale is that the layout stays proportional at ANY size.
+      const scale = Math.max(0.2, Math.min(1.25, gh / 1440));
       document.documentElement.style.setProperty('--scale', String(scale));
     };
     apply();

@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 37)
 
+### fix: Balance Report — real Seen/Bought COUNTS for cards + quest DNF
+
+Owner-reported: the report showed every bought minion as "1 / 100%" regardless of how many times it was actually
+seen/bought — because `reconstructRunTelemetry` deduped `offeredCards`/`boughtCards` into per-run **Sets**. Now they
+COUNT: `offeredCards` gets one entry per distinct shop-offer instance (tracked by uid, so a card lingering in the shop
+across a turn counts once; a reroll mints a new sighting) + each Discover option; `boughtCards` gets one per shop buy
++ Discover pick. The Minions/Spells tables now show **Seen** (total sightings) · **Bought** (total buys) · **Buy %**
+(bought/seen) instead of the misleading per-run rates. Quests now show **DNF** in the Avg-Turns column when a quest
+was taken but never completed (picked with no completion turn). Verified live with a mock: Bloodbinder read
+"Seen 10 · Bought 4 · 40%"; a picked-but-unfinished quest read "DNF". No schema change (the `text[]` columns just
+hold duplicates now). `typecheck`/`lint`/`test`/`build:web` green.
+
 ### docs: multi-session playbook (human runbook for concurrent sessions)
 
 Added [`docs/multi-session-playbook.md`](multi-session-playbook.md) — the operational, step-by-step companion to

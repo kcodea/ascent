@@ -48,17 +48,29 @@ describe('aggregatePlayerReport', () => {
     expect(r1.winRate).toBe(100); // the one picked run was a win
   });
 
-  it('cards split into minions vs spells; each gets offer + pick only (no win credit)', () => {
+  it('a picked quest that never completed shows no avg turn (→ DNF in the UI)', () => {
     const rows: RunTelemetry[] = [
-      blank({ won: true, offeredCards: ['alley', 'growth'], boughtCards: ['alley', 'growth'] }), // alley=minion, growth=spell
+      blank({ won: false, offeredQuests: ['q9'], pickedQuests: ['q9'], questTurns: {} }), // picked, never completed
+    ];
+    const q9 = aggregatePlayerReport(rows).quests.find((q) => q.id === 'q9')!;
+    expect(q9.picked).toBe(1);
+    expect(q9.avgTurns).toBe(null); // no completion → the UI renders "DNF" (picked > 0, avgTurns null)
+  });
+
+  it('cards are COUNTED, not deduped: offered/picked reflect how many times seen / bought', () => {
+    const rows: RunTelemetry[] = [
+      // Alleycat seen 5×, bought 3× across two runs; growth (spell) seen 2×, bought 1×.
+      blank({ offeredCards: ['alley', 'alley', 'alley', 'growth'], boughtCards: ['alley', 'alley', 'growth'] }),
+      blank({ offeredCards: ['alley', 'alley', 'growth'], boughtCards: ['alley'] }),
     ];
     const rep = aggregatePlayerReport(rows);
     const alley = rep.minions.find((m) => m.id === 'alley')!;
-    expect([alley.offered, alley.picked]).toEqual([1, 1]);
-    expect(rep.minions.some((m) => m.id === 'growth')).toBe(false); // the spell is NOT in the minion table…
-    const growth = rep.spells.find((s) => s.id === 'growth')!; // …it's in the spell table
-    expect(growth, 'growth in spells').toBeDefined();
-    expect([growth.offered, growth.picked]).toEqual([1, 1]);
+    expect(alley.offered).toBe(5); // seen 5 times total (not 2 runs)
+    expect(alley.picked).toBe(3); // bought 3 times
+    expect(alley.pickRate).toBe(60); // 3/5
+    const growth = rep.spells.find((s) => s.id === 'growth')!;
+    expect([growth.offered, growth.picked]).toEqual([2, 1]);
+    expect(rep.minions.some((m) => m.id === 'growth')).toBe(false); // spell not in the minion table
   });
 });
 

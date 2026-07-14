@@ -11,8 +11,10 @@ import { fetchRunTelemetry, remoteEnabled } from './remoteBoards';
  * is PLAYER data, not simulation — the seeded greedy-bot report still lives at `npm run report` (CLI). Best-effort:
  * empty until the backend is configured + the `run_telemetry` table migrated (see schema.sql).
  */
-type Col = 'offer' | 'pick' | 'win' | 'avgWins' | 'avgTurns' | 'n';
-const COL_LABEL: Record<Col, string> = { offer: 'Offer', pick: 'Pick', win: 'Win', avgWins: 'Avg Wins', avgTurns: 'Avg Turns', n: 'n' };
+// offer/pick/win are per-run RATES (%); seen/bought are raw COUNTS (a card is seen many times per run); buypct =
+// bought/seen. avgTurns shows DNF when a quest was taken but never completed.
+type Col = 'offer' | 'pick' | 'win' | 'avgWins' | 'avgTurns' | 'n' | 'seen' | 'bought' | 'buypct';
+const COL_LABEL: Record<Col, string> = { offer: 'Offer', pick: 'Pick', win: 'Win', avgWins: 'Avg Wins', avgTurns: 'Avg Turns', n: 'n', seen: 'Seen', bought: 'Bought', buypct: 'Buy %' };
 
 const fmtPct = (n: number): string => (n < 0 ? '–' : `${n}%`);
 const fmtNum = (n: number | null): string => (n === null ? '–' : String(n));
@@ -31,7 +33,11 @@ function cellFor(r: PlayerReportRow, c: Col): { text: string; cls: string } {
     case 'pick': return { text: fmtPct(r.pickRate), cls: 'balnum' };
     case 'win': return { text: fmtPct(r.winRate), cls: `balnum balwin${heat(r.winRate)}` };
     case 'avgWins': return { text: fmtNum(r.avgWins), cls: 'balnum' };
-    case 'avgTurns': return { text: fmtNum(r.avgTurns), cls: 'balnum' };
+    // Quests: "DNF" when it was picked but never completed (no completion turn recorded); else the avg turn.
+    case 'avgTurns': return { text: r.avgTurns === null ? (r.picked > 0 ? 'DNF' : '–') : String(r.avgTurns), cls: `balnum${r.avgTurns === null && r.picked > 0 ? ' balwin cold' : ''}` };
+    case 'seen': return { text: String(r.offered), cls: 'balnum' };
+    case 'bought': return { text: String(r.picked), cls: 'balnum' };
+    case 'buypct': return { text: fmtPct(r.pickRate), cls: 'balnum' };
     case 'n': return { text: String(r.games || r.picked), cls: 'balnum baldim' };
   }
 }
@@ -101,8 +107,8 @@ export function BalancePanel() {
             <Table title="Heroes" rows={report.heroes} cols={['offer', 'pick', 'win', 'avgWins', 'n']} />
             <Table title="Quests" rows={report.quests} cols={['offer', 'pick', 'win', 'avgTurns', 'n']} />
             <Table title="Runes" rows={report.runes} cols={['offer', 'pick', 'win', 'n']} />
-            <Table title="Minions" rows={report.minions} cols={['offer', 'pick', 'n']} />
-            <Table title="Spells" rows={report.spells} cols={['offer', 'pick', 'n']} />
+            <Table title="Minions" rows={report.minions} cols={['seen', 'bought', 'buypct']} />
+            <Table title="Spells" rows={report.spells} cols={['seen', 'bought', 'buypct']} />
           </>
         ) : (
           <div className="balempty">

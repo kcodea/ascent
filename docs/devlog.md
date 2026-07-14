@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 37)
 
+### fix(ui): Deathrattle/Rise read-lead survives an intervening clash buff
+
+Owner-reported: an Echo (Deathrattle) summon *sometimes* pops in almost instantly after the skull, instead of getting
+the deliberate read-lead (#299/#326/#333 tuned it to 800ms defender / 1150ms attacker). Root-caused with a headless
+sweep (not a guess): `deathConsequenceLead` only inspected the **immediately-preceding** moment for the triggering
+death, but `deferClashBuffs` slides an `onDamaged` self-buff (Target Dummy et al.) to the clash tail — and since a
+`buff` isn't a result type, `compileMoments` makes it its **own `buffWave` moment** that lands *between* the death and
+its summon. So the summon's preceding moment was the buff (no death) → lead returned 0 → instant. A sweep over 1999
+real echo summons showed **~46%** hit this whenever the clash also produced a buff (hence "sometimes"). It is a latent
+bug, not a regression: `deferClashBuffs` (#287) predates the lead tuning (#333), so the leads were dialed on boards
+that happened not to trigger it. Fix: new exported `consequenceLead(beats, beatIdx, events, cardIds)` walks the lead's
+"shown" moment back past any `buffWave` moments to the death-bearing moment before measuring — so a Deathrattle summon
+/ Rise reborn keeps its lead regardless of an intervening buff, while a cascade's 2nd+ summon (which sits behind a
+`summon` moment, not a `buffWave`) still correctly gets no extra lead (one burst, not 800ms between each token). Also
+fixes the attacker/defender pick in that case (`attackerOfImpact` now reads the real clash moment, not the buff).
+Verified: new `echoLead.test.ts` (3 tests) — the classic Broodmother-beside-Target-Dummy case, a 40-board sweep
+asserting every FIRST echo summon now leads (was ~46% lead-less), and a cascade guard (two whelps from one death lead
+once); all three fail with the walk-back disabled. `typecheck`/`lint`/`test` (**1034**)/`build:web` green.
+
 ### fix: Balance Report — real Seen/Bought COUNTS for cards + quest DNF
 
 Owner-reported: the report showed every bought minion as "1 / 100%" regardless of how many times it was actually

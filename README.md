@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Deathrattle/Rise read-lead fix.** An Echo summon (or Rise reborn) no longer pops in instantly when the same
+  clash also produced an `onDamaged` buff (Target Dummy et al.). That buff was becoming a `buffWave` moment wedged
+  between the death and its summon, so the summon lost its skull-read lead ~46% of the time; the lead now walks back
+  past the buff and applies reliably (a multi-summon cascade still fires as one burst).
 - **Shop-phase buff FX.** When a card buffs *other* minions in the shop (Battlecry, on-summon, Guel, spell casts,
   Deathrattles, Karwind/Bane, Choose One, Hunter), it now shoots the same **tendril** (from a living source) or
   rains the same **descend** (from a spell / Deathrattle) that combat uses — no longer just a green flash. Captured

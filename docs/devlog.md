@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### fix: mobile readability zoom — bigger cards in a wider frame (mobile-only)
+
+Owner: "everything is impossible to read… zoom in ~20-25%." The binding constraint is vertical: two full card rows +
+HUD + hero must fit a ~430px landscape-phone stage, and cards are also width-capped by the 7-minion fit. So a naive
+base-scale bump either overflows vertically or (with the 7-fit cap) grows only chrome, not cards. Instead, enlarged
+the CARDS and WIDENED the board frame to make room:
+
+- `--mobile-boost` 1.18 → **1.36** — minions/card-text ~+15% (the readable content). ~the vertical max before the
+  warband row overlaps the hero panel.
+- `--board-mobile-zoom` 1.1 → **1.3** — the board backdrop frame is wider, the horizontal room the bigger cards need
+  to still fit 7 across.
+- `--gap-tighten` 0.62 → **0.48** — tighter card gaps so 7 fit the (wider) floor.
+- Re-tuned rope offsets for the taller rows: `--wb-drop` 92 → **112**, `--shop-drop` −37 → **−47** → shop bottom ~9px
+  above the rope, warband top ~8px below, 12px hero clearance (verified at 932×430 with a full 7+hand board).
+
+All still mobile-only (every var = desktop identity at ≥600px stage — verified desktop untouched). NB the layout can't
+cleanly exceed ~+15% on the current two-row 16:9 stage without cropping or a denser mobile relayout; the 1.3× tap-reveal
+(prev change) remains the tool for reading full text. Pairs with a matching FX size bump (fxScale tracks the boost).
+
 ### fix: mobile — shrink keyword pills + enlarge the tap/hover card reveal 30%
 
 Two on-device readability asks (mobile-focused; desktop preserved exactly):

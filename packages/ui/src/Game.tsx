@@ -55,27 +55,28 @@ export function Game() {
       const scale = Math.max(0.2, Math.min(1.25, gh / 1440));
       document.documentElement.style.setProperty('--scale', String(scale));
       // Phone-height stages get a CARD zoom (--ch-base multiplies by this; chrome/--u stays put) so minions are
-      // bigger to read + tap (owner request). +18% under a 600px-tall stage — dialed back from an earlier +27% so
-      // the Warband (dropped below the rope, see --wb-drop) still clears the bottom-pinned hand fan.
+      // bigger to read + tap (owner: "everything is impossible to read"). +36% under a 600px-tall stage — paired with
+      // the wider board frame (--board-mobile-zoom) so 7 minions still fit, and re-tuned rope offsets below. This is
+      // ~the vertical max: two full card rows + HUD + hero must fit 430px, so a bigger boost overlaps the hero panel.
       const mobile = gh < 600;
-      const boost = mobile ? 1.18 : 1;
+      const boost = mobile ? 1.36 : 1;
       document.documentElement.style.setProperty('--mobile-boost', String(boost));
       // Tighten the warband/shop card gaps on a phone so the wider (7-minion) board still fits the frame after the
       // card zoom above — the bigger cards would otherwise re-overflow the floor. Desktop keeps the full gap (1).
-      document.documentElement.style.setProperty('--gap-tighten', mobile ? '0.62' : '1');
+      document.documentElement.style.setProperty('--gap-tighten', mobile ? '0.48' : '1');
       // Mobile-only chrome/layout tweaks (owner 2026-07-14) — every one is a MULTIPLIER/offset that defaults to the
       // desktop identity (1 / 0px) so desktop is provably untouched; only phone stages (gh<600) get the non-1 value.
       //  · --hud-mobile: grow the non-shop HUD chrome ~10% (folded into the global --u + the top status bar's --u,
       //    NOT the shop controls' --u — see styles.css).
-      //  · --board-mobile-zoom: enlarge the board backdrop art ~10% (composed with the Lab's --board-zoom so it isn't
-      //    clobbered) → the frame covers more of the screen.
+      //  · --board-mobile-zoom: enlarge the board backdrop art ~30% so the frame is WIDER — the room the +36% cards
+      //    need to still fit 7 across (composed with the Lab's --board-zoom so it isn't clobbered).
       //  · --wb-drop / --shop-drop: nudge the Warband DOWN and the Shop UP (reference px, ×--scale in CSS) so the
-      //    shop bottom + warband top sit symmetric distances above/below the centre rope (~14px each — owner's
-      //    green-line alignment). The rope is fixed at the .app centre; these just close the gaps evenly.
+      //    shop bottom + warband top sit ~symmetric ~8px above/below the centre rope after the bigger cards made the
+      //    rows taller. The rope is fixed at the .app centre; these just close the gaps evenly.
       document.documentElement.style.setProperty('--hud-mobile', mobile ? '1.1' : '1');
-      document.documentElement.style.setProperty('--board-mobile-zoom', mobile ? '1.1' : '1');
-      document.documentElement.style.setProperty('--wb-drop', mobile ? '92px' : '0px');
-      document.documentElement.style.setProperty('--shop-drop', mobile ? '-37px' : '0px');
+      document.documentElement.style.setProperty('--board-mobile-zoom', mobile ? '1.3' : '1');
+      document.documentElement.style.setProperty('--wb-drop', mobile ? '112px' : '0px');
+      document.documentElement.style.setProperty('--shop-drop', mobile ? '-47px' : '0px');
       //  · --inspect-zoom: enlarge the tap/hover card-reveal popup ~30% on a phone so a minion's text is readable
       //    (Card.tsx's showRefTip folds the same factor into its on-screen placement math).
       document.documentElement.style.setProperty('--inspect-zoom', mobile ? '1.3' : '1');

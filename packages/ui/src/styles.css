@@ -1811,13 +1811,15 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
           drop-shadow(0 0 5px rgba(150, 228, 52, 0.9))
           drop-shadow(0 0 13px rgba(120, 200, 40, 0.6));
 }
-/* Golden (tripled): the arch's gold gradient border is gone (art reshaped), so the golden read is the crown
-   (still rendered, top-left) + a static gold halo on the frame. */
-.card.compact.stdframe.golden { box-shadow: 0 3px 0 var(--shadow); }
-.card.compact.stdframe.golden .cframe {
+/* Golden (tripled): gold read = the gold frame metal + the crown + a TIGHT gold rim that hugs the frame's own
+   alpha (no wide bleed outside the oval). Kill the base rectangular gold aura for BOTH framed types (stdframe
+   uses `.cframe`, taunt uses `.tframe`). */
+.card.compact.stdframe.golden,
+.card.compact.taunt.golden { box-shadow: 0 3px 0 var(--shadow); }
+.card.compact.stdframe.golden .cframe,
+.card.compact.taunt.golden .tframe {
   filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
-          drop-shadow(0 0 6px rgba(255, 213, 90, 0.95))
-          drop-shadow(0 0 16px rgba(255, 190, 50, 0.7));
+          drop-shadow(0 0 5px rgba(255, 205, 80, 0.95));
 }
 /* Frozen (held shop card): ice the frame silhouette by masking the frost `::after` to the frame PNG. */
 [data-zone='tavern'].frozen .card.stdframe::after {

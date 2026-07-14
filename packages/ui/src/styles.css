@@ -24,10 +24,10 @@
   --gw: 100vw; --gh: 100vh;
   --bar-x: calc((100vw - var(--gw)) / 2); --bar-y: calc((100vh - var(--gh)) / 2);
   /* The in-game board backdrop, keyed to the stage's aspect (see .app). Default is the 16:9 art
-     (board2c); the 21:9 art (board2upscaled2, native 3440×1440) is swapped in for the ultrawide
+     (board169, 2560×1429); the 21:9 art (board219, 3440×1459) is swapped in for the ultrawide
      resolution + a fit window that's actually ultrawide. Only the URL changes — the gradient scrim + fallback
      colour stay in .app. */
-  --board: url('/board2c.webp');
+  --board: url('/board169.webp');
   /* one standard card size everywhere (shop / warband / hand / combat) — scales with the
      stage height so the board fills big screens (16:9 → 21:9), clamped to sane bounds.
      `--ch-base` is the responsive height; `--ch` multiplies it by the dev Layout Lab's `--card-scale`
@@ -51,9 +51,9 @@
 :root[data-res="r3440"] { --gw: min(100vw, calc(100vh * 21 / 9), 3440px); --gh: min(100vh, calc(100vw * 9 / 21), 1440px); }
 /* 21:9 stage → the ultrawide board art. The forced 3440 res is always 21:9; a "fit" window (no data-res,
    so the stage = the window) uses the 21:9 art only when the window itself is actually ultrawide. Fixed 16:9
-   res (r1920/r2560) stays letterboxed to 16:9 regardless of monitor, so it correctly keeps the default board2c. */
-:root[data-res="r3440"] { --board: url('/board2upscaled2.webp'); }
-@media (min-aspect-ratio: 2 / 1) { :root:not([data-res]) { --board: url('/board2upscaled2.webp'); } }
+   res (r1920/r2560) stays letterboxed to 16:9 regardless of monitor, so it correctly keeps the default board169. */
+:root[data-res="r3440"] { --board: url('/board219.webp'); }
+@media (min-aspect-ratio: 2 / 1) { :root:not([data-res]) { --board: url('/board219.webp'); } }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
 /* centre the stage box in the window (it shrinks under the resolution scaler, letterboxing the rest) */

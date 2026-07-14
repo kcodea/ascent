@@ -2,7 +2,8 @@ import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { Card, type CardView } from './Card';
-import { ascendProgressText, combatCastGrantText, cryptDrakeText, engraveTallyText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText, ritualistText, sergeantText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, transformProgressText, watcherText } from './cardText';
+import { stepProgress } from './cardText';
+import { liveCardText } from './instView';
 import { useGame } from './store';
 import type { UnitFrame } from './useCombatReplay';
 
@@ -54,26 +55,30 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
   // Pack Leader's grant: the player counts qualifying plays from the card-id array; the enemy's beast count is
   // pre-computed in its snapshot (the ids aren't carried), so pass the number straight through.
   const beastsPlayed: string[] | number | undefined = foe ? (enemyScalers?.beastsPlayed ?? 0) : runPlayedThisTurn;
-  // Combat live text — show current values for minions whose effects scale mid-fight (per-minion accruals)
-  // or with frozen run-level scalers (Grim/Guel/Worgen, like Taragosa's spell power). Mirrors the shop chain.
-  const liveText = transformProgressText(u.cardId, u.spellProgress ?? 0) // Spirit Pup: live "N to go" spell-transform countdown (seeded from the run tally)
-    ?? summonBuffText(u.cardId, u.summonBonus)
-    ?? summonImproveText(u.cardId, u.summonBonus, u.golden) // Mama Bear: live "+M/+M per summon" (climbs via improve events)
-    ?? summonScalingText(u.cardId, spellsThisTurn, foe ? undefined : runPlayedThisTurn) // Spirit Worgen: per-summon gain + live proc count (recruit-only; enemy shows base)
-    ?? scTribeBuffPerPlayedText(u.cardId, u.golden, beastsPlayed) // Pack Leader: live grant from Beasts played this turn (per-side)
-    ?? scTribeBuffPerSpellText(u.cardId, u.golden, spellsThisTurn) // Runescale Drake: live Start-of-Combat Dragon buff per spell cast this turn (per-side)
-    ?? cryptDrakeText(u.cardId, u.golden, u.attackSeen ?? 0)
-    ?? ascendProgressText(u.cardId, u.ascendProgress ?? 0)
-    ?? sergeantText(u.cardId, u.golden, u.hpGrantBonus ?? 0)
-    ?? ritualistText(u.cardId, u.golden, u.eotBonus ?? 0) // Ritualist: live per-tick Fodder/Imp grant (seeded from the run board's End-of-Turn accrual)
-    ?? tallyBuffText(u.cardId, drTally) // Grim: live "+N/+N" from the Deathrattle tally (per-side)
-    ?? guelProgressText(u.cardId, u.golden, u.spellProgress ?? 0) // Guel: live grant + countdown from HIS on-board tally (per-instance, seeded by the snapshot)
-    ?? monkProgressText(u.cardId, u.golden, u.summonBonus, u.overflowBonus ?? 0) // Flowing Monk: live grant + overflow countdown (climbs via improve events)
-    ?? taragosaText(u.cardId, u.golden, spA, spH)
-    ?? combatCastGrantText(u.cardId, u.golden, spA, spH) // Hoardbreaker Drake: live Growth grant (base + spell power) on Slaughter (per-side)
-    ?? watcherText(u.cardId, u.golden, spA, spH) // Watcher: live Lantern buff +x/+y (base + spell power, both stats, per-side)
-    ?? engraveTallyText(u.cardId, u.permaGain)
-    ?? def?.text ?? '';
+  // Combat live text — the SAME `liveCardText` the shop/board use, so every card reads identically in both phases
+  // and any newly-added scaling card is covered automatically (no parallel chain to drift). Per-instance values
+  // come from the snapshot (u.*); run-level scalers are per-side (player = the live run, frozen for the fight;
+  // enemy = its captured `enemyScalers`); run-wide economy (Steward's last spell, Cling enchant, Soulsman Gold,
+  // Eternal Knight's run tally, …) is player-only — an enemy carries no run, so those fall back to base text.
+  const run = useGame((s) => s.run);
+  const { text: liveText, goldenText: liveGoldenText } = def
+    ? liveCardText(u.cardId, {
+        tier: run.tier, golden: u.golden,
+        spellBonus: spA, spellBonusH: spH,
+        frontToBackBonus: foe ? 0 : run.frontToBackBonus, frontToBackBonusH: foe ? 0 : run.frontToBackBonusH,
+        spellsThisTurn, spellsCast: foe ? 0 : run.spellsCast, deathrattlesTriggered: drTally,
+        clingEnchant: foe ? undefined : run.cardBuffs?.cling,
+        fodderConsumed: foe ? undefined : run.fodderConsumedThisTurn,
+        undeadBuyAtk: foe ? 0 : run.undeadBuyAtk, soulsmanGold: foe ? 0 : (run.soulsmanGold ?? 0),
+        cardBuffs: foe ? undefined : run.cardBuffs,
+        spellProgress: u.spellProgress, ascendProgress: u.ascendProgress, summonBonus: u.summonBonus,
+        overflowBonus: u.overflowBonus, hpGrantBonus: u.hpGrantBonus, eotBonus: u.eotBonus, eotTick: u.eotTick,
+        sellBonus: u.sellBonus, attackSeen: u.attackSeen, permaGain: u.permaGain,
+        playedThisTurn: beastsPlayed, squirlScoutBuff: foe ? 0 : run.squirlScoutBuff,
+        goldSpent: foe ? 0 : run.goldSpentThisTurn,
+        lastSpellName: foe ? undefined : (run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined),
+      })
+    : { text: '', goldenText: undefined };
   const view: CardView = {
     name: u.name, cardId: u.cardId, tribe: u.tribe, tribe2: def?.tribe2,
     // Buff-tendril: hold the pre-buff value while the tendril flies; on strike, release + flash the changed badge(s).
@@ -83,9 +88,9 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
     flashHp: statFlash?.hp,
     keywords: u.keywords, golden: u.golden,
     text: liveText,
-    // The chain is already golden-aware, so for a golden unit whose live text resolved, feed it to
-    // goldenText (which Card renders for goldens) instead of the static printed goldenText.
-    goldenText: u.golden && liveText !== (def?.text ?? '') ? liveText : def?.goldenText,
+    // liveCardText already folds golden-awareness + the golden-variant fallback into its goldenText (Card renders
+    // that for goldens), so pass it straight through — same source of truth as the shop.
+    goldenText: liveGoldenText ?? def?.goldenText,
     tier: def?.tier,
     // Two thresholds in combat: green above the *printed* base (it's buffed), red below the *floor* it
     // entered the fight with (it's been damaged/debuffed). So a recruit-buffed 5/5 stays green until

@@ -46,6 +46,13 @@ export interface UnitFrame {
   spellProgress?: number;
   /** Sergeant: accumulated HP bonus on the Deathrattle (grows each time Sergeant gains Attack). */
   hpGrantBonus?: number;
+  /** Ritualist's End-of-Turn grant accrual, Trail Forager's sell bonus, and the cadence End-of-Turn counter
+   *  (Frontdrake / Money Maker / Vineweaver) — all seeded from the snapshot purely so the live combat card text
+   *  reads the same value the shop shows. (Without carrying these here they were silently dropped, so those cards
+   *  reverted to their printed base in combat.) */
+  eotBonus?: number;
+  sellBonus?: number;
+  eotTick?: number;
   /** Thundering Abomination (Engraved): permanent stat gains accrued mid-combat. */
   permaGain?: { attack: number; health: number };
   /** Per-source buff breakdown for the right-click inspect panel: the recruit-phase buffs this minion
@@ -72,6 +79,9 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   hpGrantBonus: s.hpGrantBonus, // Sergeant: seed the live combat text from the run-board accrual (frame 1)
   ascendProgress: s.ascendProgress, // Tara: seed the ascend tracker from the run-board total, then count up
   spellProgress: s.spellProgress, // Guel: seed his on-board spell tally for the live combat text
+  eotBonus: s.eotBonus, // Ritualist: seed the per-tick grant so the combat text isn't stuck at base
+  sellBonus: s.sellBonus, // Trail Forager: seed the accrued sell value for the combat text
+  eotTick: s.eotTick, // Frontdrake / Money Maker / Vineweaver: seed the cadence counter for the combat text
   baseAttack: s.attack, baseHealth: s.health, // the stats it entered the fight (or was summoned) with
   // Clone the recruit-buff breakdown so the per-beat fold can merge in combat buffs without mutating the snapshot.
   buffs: s.buffs ? s.buffs.map((b) => ({ ...b })) : undefined,

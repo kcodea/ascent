@@ -160,6 +160,8 @@ function cleanBoard(s: RunState): BoardMinion[] {
     ...(c.bloodlust ? { bloodlust: true } : {}), // Bloodlust: a pending Start-of-Combat immune out-of-turn strike
     ...(c.summonBonus ? { summonBonus: c.summonBonus } : {}),
     ...(c.eotBonus ? { eotBonus: c.eotBonus } : {}), // Ritualist: carry the accrued per-tick grant so a served board reads + plays true
+    ...(c.sellBonus ? { sellBonus: c.sellBonus } : {}), // Trail Forager: carry the sell bonus so a served board reads its live sell value
+    ...(c.eotTick ? { eotTick: c.eotTick } : {}), // Frontdrake / Money Maker / Vineweaver: carry the cadence counter for live text
     ...(c.rallyMechAtk ? { rallyMechAtk: c.rallyMechAtk } : {}),
     ...(c.rallySpellWeld ? { rallySpellWeld: c.rallySpellWeld } : {}),
     // Per-minion accruals, so a board served as an opponent is as strong AND reads as accurately as the board

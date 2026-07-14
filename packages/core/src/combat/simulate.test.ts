@@ -1991,6 +1991,18 @@ describe('simulate (handoff A.3)', () => {
     expect(a.initial.player[0]!.eotBonus).toBe(6);
   });
 
+  it('carries sellBonus (Trail Forager) + eotTick (cadence) into the combat snapshot for live text', () => {
+    // Neither changes in combat, but both must survive instantiate → snapshot so the arena card text reads the
+    // same live value the shop shows (owner ruling: every card carries over into combat perfectly).
+    const a = run(
+      [{ cardId: 'trailforager', attack: 1, health: 4, sellBonus: 4 }, { cardId: 'frontdrake', attack: 3, health: 5, eotTick: 2 }],
+      [{ cardId: 'omen', attack: 20, health: 60 }],
+      3,
+    );
+    expect(a.initial.player[0]!.sellBonus).toBe(4);
+    expect(a.initial.player[1]!.eotTick).toBe(2);
+  });
+
   it('Raptor buffs another friendly Beast +3/+1 when it attacks — but never itself', () => {
     const a = run(
       [

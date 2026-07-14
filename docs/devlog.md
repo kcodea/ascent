@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### tooling: `npm run task` — one-command isolated worktree per session
+
+Codifies the [`docs/concurrency.md`](concurrency.md) top rule (each session works in its own worktree off latest
+`origin/main`, touching nothing else's) into a helper so nobody does feature work in the shared primary checkout:
+- `scripts/worktree.mjs` + npm scripts **`task` / `task:list` / `task:done`**.
+- `npm run task -- <branch>` fetches origin, branches off `origin/main`, and creates the tree under
+  `.claude/worktrees/<slug>` (gitignored, NOT a Desktop sibling — avoids the Windows hollow-husk teardown leak),
+  then prints the commit-early / push / `gh pr create` next steps. `--install` also runs `npm install` in it.
+  `task:done -- <branch>` removes the worktree + local branch after the PR merges.
+- Bare names default to `feat/<name>`; validates the branch, prunes stale registrations, guards existing
+  tree/branch. Self-tested end-to-end (create → list → done). `docs/concurrency.md` now points at it.
+
 ### chore(ui): ship the owner's tuned Layout Lab values as the new defaults
 
 Baked the owner's dialed-in Layout Lab config (tuned 2026-07-14) into the shipped layout. Because production never

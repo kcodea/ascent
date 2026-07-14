@@ -229,6 +229,25 @@ function prefetchSamples(): void {
   for (const path of Object.keys(SAMPLE_URLS)) loadSample(sampleName(path));
 }
 
+// Variant families: a logical clip (e.g. `smack`) can be backed by N numbered files (`smack1.mp3`…`smackN.mp3`);
+// one is picked at random per play so a repeated action doesn't sound identical (buy/sell do the same, hard-coded).
+// Built once from the glob so dropping in another `smack5.mp3` — or removing one — needs no code change. Only
+// bare `<letters><digits>` top-level names group (so `cards/…`, `heroes/…`, and digit-less names like
+// `combatStart` are never treated as families).
+const variantFamilies = (() => {
+  const groups = new Map<string, string[]>();
+  for (const path of Object.keys(SAMPLE_URLS)) {
+    const m = /^([a-zA-Z]+)\d+$/.exec(sampleName(path));
+    if (m) (groups.get(m[1]) ?? groups.set(m[1], []).get(m[1])!).push(m.input);
+  }
+  return groups;
+})();
+/** Pick a random variant of a clip family (`smack` → `smack2`), or the bare name if it has no numbered files. */
+function pickVariant(base: string): string {
+  const list = variantFamilies.get(base);
+  return list && list.length ? list[Math.floor(Math.random() * list.length)] : base;
+}
+
 /** The first real card voiceline clip present (a `cards/*` sample, excluding `.effect`/`.death` variants), or
  *  undefined if none has been recorded yet. Used by playScene to fill a scene step's `arg: '__first__'`. */
 function firstCardClip(): string | undefined {
@@ -480,10 +499,11 @@ export const sfx = {
     tone({ freq: 1040, dur: 0.14, type: 'sawtooth', vol: 0.085, slideTo: 360, category: 'smack' });
     tone({ freq: 1500, dur: 0.1, type: 'triangle', vol: 0.05, delay: 0.02, slideTo: 900, category: 'smack' });
   },
-  // Impact in combat — the sourced "Smack" clip (dialed down across passes); synth thud until it decodes.
-  // Fired frame-accurately from the lunge's GSAP timeline (see playAttackLunge) so it lands on contact.
+  // Impact in combat — one of the sourced strike clips (`smack1`…`smackN`) at random so repeated hits don't
+  // sound identical; synth thud until they decode. Fired frame-accurately from the lunge's GSAP timeline
+  // (see playAttackLunge) so it lands on contact.
   hit: () => {
-    if (playSample('smack', 'smack')) return;
+    if (playSample(pickVariant('smack'), 'smack')) return;
     tone({ freq: 170, dur: 0.12, type: 'square', vol: 0.15, slideTo: 80, category: 'smack' });
   },
   death: () => tone({ freq: 130, dur: 0.26, type: 'sine', vol: 0.2, slideTo: 48, category: 'death' }),

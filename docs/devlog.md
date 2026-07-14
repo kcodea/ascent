@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 37)
 
+### feat(audio): 4 randomized strike clips for combat impact + new combat-start sound
+
+**What:** replaced the single `smack.mp3` with **4 owner-authored strike clips** (`smack1`–`smack4`) that the
+combat-impact cue (`sfx.hit`, fired frame-accurately off the lunge timeline) now picks from **at random**, so a
+long clash no longer repeats one identical thud. Also fully replaced `combatStart.mp3` with a new
+"end turn → start combat" clip (single file, no code change — same key/category).
+
+**How:** added a `pickVariant(base)` helper that groups the sample glob into "variant families" — any bare
+top-level clip named `<letters><digits>` (`smack1`, `smack2`, …) — and returns a random member, or the bare name
+if a family has none. `hit` now calls `playSample(pickVariant('smack'), 'smack')`. This is **count-agnostic**:
+dropping in a `smack5.mp3` (or removing one) needs no code change — an improvement over the hard-coded `*2`/`*4`
+in `buy`/`sell` (left as-is; they could adopt the helper later). The `smack` category gain/bus (0.06, combat
+bus) is unchanged and shared by all variants; no per-clip overrides.
+
+**Verified:** `npm run typecheck && npm run lint && npm test` (1033) `&& npm run build:web` all green; confirmed
+all four `smack1–4` + the new `combatStart` bundle as hashed assets and the old `smack.mp3` is gone. Audible
+playback left for an in-tab ear check (headless preview mutes when backgrounded).
+
 ### feat(ui): authored frames — gold OVAL on minions, purple SQUARE on spells (Taunt pipeline, generalized)
 
 The Taunt heater-shield pipeline is now the **base frame** for two whole card categories, using two authored

@@ -8,6 +8,8 @@ describe('isDeathrattleBufferCard', () => {
     expect(isDeathrattleBufferCard('impking')).toBe(true);   // onDeath deathrattleSummon + deathrattleBuffImps
     expect(isDeathrattleBufferCard('trickster')).toBe(true); // onDeath deathrattleGiveHealth
     expect(isDeathrattleBufferCard('nanon')).toBe(true);     // onDeath deathrattleSummonOverflowBuff
+    expect(isDeathrattleBufferCard('burialimp')).toBe(true); // onDeath deathrattleBuffFodder
+    expect(isDeathrattleBufferCard('chefraag')).toBe(true);  // onDeath deathrattleBuffAllByImpAura
   });
   it('false — Spear Warden (deathrattleBuffCardTypeRunWide) is deliberately excluded (future echo-aura)', () => {
     expect(isDeathrattleBufferCard('knit')).toBe(false);     // onDeath deathrattleBuffCardTypeRunWide — NOT descend

@@ -29,6 +29,83 @@ rig (headless preview can't screenshot). Follow-up: none outstanding on DS.
 
 ## 2026-07-13 (session 39)
 
+### feat(ui): dust poof on summon arrival
+
+Effect-animation coverage sweep, item 7. Summons (Deathrattle summons, tokens, overflow spawns, SoC copies) got
+only a CSS `summonpop` scale-in + the summoner's medallion pulse — the most *common* board-changing effect had no
+pixi punctuation. Added a `summonFx` cue on the `summon` moment kind that poofs `pixiFx.dust` under each arriving
+unit. Fired at **+250ms (scaled)** so it lands on the `summonpop` overshoot (the "bounce") — by then the scale-in has
+grown the unit to a measurable, full-size rect (guarded: skips a sub-1px rect). New `CueContext.onSummonFx` +
+`summonFx` channel. *Wants a live eyeball* — the spawn position/size + the 250ms timing are reasoned from the
+`summonpop` keyframes, not yet watched on a real fight; both are tunable (the offset via the dev score panel).
+
+Verified: `typecheck + lint + test` (1045, +1 new) & `build:web` green.
+
+### feat(ui): non-melee damage now bursts (SC nukes / split damage / Blaster AoE)
+
+Effect-animation coverage sweep, item 6. A non-melee hit — a Start-of-Combat nuke, split damage, or Blaster's
+Deathrattle AoE — showed only a floating number at the target (the pixi `damageBurst`/`impactPulse` pairing was
+recruit-hero-power-only). Added a `damageFx` cue that pops `pixiFx.damageBurst` + `impactPulse` at each hit target,
+so a cast hit reads like a hit. Wired to the `damage` moment kind (SC nukes / split damage) **and** `death` (Blaster's
+AoE lands in its own death moment); the handler dedupes targets and no-ops on a plain death with no dmg events.
+**Melee dmg is untouched** — it lives in `attackExchange`, which already fires the full lunge/impact FX, so it never
+double-bursts (asserted in a test). New `CueContext.onDamageFx` + `damageFx` channel. Tied to the damage MOMENT, not
+the CSS `.proj` bolt's fixed 0.5s travel, so it stays synced without coupling to the bolt animation.
+
+Verified: `typecheck + lint + test` (1044, +3 new) & `build:web` green.
+
+### feat(ui): coins burst on a combat max-Gold gain
+
+Effect-animation coverage sweep, item 5. A `maxGold` event (Soulsman / Bone Taxer Avenge raising your max Gold)
+showed only a "+N max gold" float + medallion pulse. Added a `coins` cue to the `maxGold` moment kind that bursts
+the existing `pixiFx.coins` (the recruit-phase coin spray) at the unit, on top of the float. Same channel pattern as
+`improveSelf` (new `CueContext.onMaxGold` + `coins` channel with dev-tuner colour/label). *Judgement call:* max-Gold
+raises the ceiling rather than handing you coins now, so the coin spray is thematic juice rather than literal — the
+float still spells out "+N max gold". Easy to drop if it reads as "gained gold".
+
+Verified: `typecheck + lint + test` (+1 new) & `build:web` green.
+
+### feat(ui): pulse when an aura strengthens (improve → self-pulse)
+
+Effect-animation coverage sweep, item 3. An `improve` event (a summon / rally AURA strengthening — Kennelmaster's
+Avenge bump, Mama Bear / Flowing Monk growth) showed only a ✦ float + medallion pulse, none of the buff FX. Added an
+`improveSelf` cue to the `improve` **moment kind** (`score.ts`) that pops an in-place `pixiFx.pulse` at each
+strengthened unit, reusing that card's self-buff pulse preset. **No badge hold/flash** — an improve grows the unit's
+aura (future grants), not its own Attack/Health, so the pulse fires bare. Wired **only** to the standalone `improve`
+moment kind, **not** `attackExchange`: an improve absorbed into an attack (Trophy Stalker's growth tick) rides that
+unit's on-attack self-buff pulse from item 1 instead, so it never double-pops. New `CueContext.onImprove` +
+`improveSelf` channel (with its dev-tuner colour/label).
+
+Verified: `typecheck + lint + test` (1041, +2 new) & `build:web` green.
+
+### fix(ui): descend FX for Burial Imp + Chef Raag (Deathrattle buff-others)
+
+Effect-animation coverage sweep, item 2. **Burial Imp** (`deathrattleBuffFodder`) and **Chef Raag**
+(`deathrattleBuffAllByImpAura`) buff OTHER minions on death, but weren't in `DEATHRATTLE_BUFF_FACTORIES`, so the
+combat replay routed them as a *living-source* tendril — and by strike time the source is dead, so `fireBuffCasts`
+dropped the FX entirely (**no animation at all**). Added both factory names to the descend allow-list → they now
+rain the sourceless **descend** onto each buffed ally, like every other Deathrattle buff-other. (`knit`/Spear Warden
+stays out, pending its echo-aura redesign.)
+
+Verified: `typecheck + lint + test` (1039, +2 assertions on `isDeathrattleBufferCard`) & `build:web` green.
+
+### feat(ui): fire the self-buff pulse for on-attack self-buffs (attack wind-up)
+
+Kicks off an **effect-animation coverage sweep** (audit this session → owner; queue in roadmap B0). First gap
+closed: a unit that buffs a group INCLUDING ITSELF on its own / an ally's attack — **Solaris Fang, Trophy Stalker,
+Watcher, Crypt Drake, Taragosa, Forsaken Mage**, and conditionally **Hunter** — had its self-buff absorbed into the
+`attackExchange` moment, and the attack wind-up FX path fired only buff-OTHER tendrils (`groupBuffCasts` deliberately
+skips self-buffs), so the caster's own +N/+N popped **no pulse**. (Standalone / Start-of-Combat / `onDamaged`
+self-buffs already pulse via the `buffWave` path.) Extracted the buffWave path's self-pulse logic into a shared
+`fireSelfBuffs` helper (`useCombatReplay.ts`) and called it from the attack wind-up alongside `fireBuffCasts` — the
+same buff-others-tendril / self-pulse split the buffWave path makes, so an on-attack aura-of-self now reads exactly
+like a standalone one. Only the caster's self-portion changed; its buffs to *other* minions already animated.
+**Karthus is NOT affected** — `onKill` buffs are deferred to their own buffWave (they already pulse); only `onAttack`
+is absorbed. New regression test proves Solaris's self-buff surfaces on the `attackExchange` moment that
+`groupSelfBuffs` reads.
+
+Verified: `typecheck + lint + test` (1039, +1 new) & `build:web` all green.
+
 ### feat(ui): drag-lift shadow (card reads as further off the table) + live tuner knobs
 
 When a card is picked up it scales up ("lifted off the table"). Now its **grounding shadow** reacts too: while a

@@ -10,6 +10,8 @@ export const DEATHRATTLE_BUFF_FACTORIES: ReadonlySet<string> = new Set([
   'deathrattleBuffTribe', 'deathrattleBuffTribeByTally', 'deathrattleBuffAll', 'deathrattleBuffAllHealth',
   'deathrattleBuffImps', 'deathrattleBuffRandom', 'deathrattleBuffAllRandomStat',
   'deathrattleGiveHealth', 'deathrattleSummonOverflowBuff',
+  'deathrattleBuffFodder', 'deathrattleBuffAllByImpAura', // Burial Imp / Chef Raag — buff OTHERS on death (their
+  // source is gone by strike time, so a living-source tendril is dropped → they need the sourceless descend).
   // NOT included: 'deathrattleBuffCardTypeRunWide' (Spear Warden / 'knit') — the owner wants that card
   // reframed as an "echo-aura" (its own effect concept), kept separate from Deathrattle descend. Excluded
   // deliberately until that design lands; do not add it here.

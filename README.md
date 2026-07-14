@@ -25,6 +25,19 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Summons kick up dust.** A newly-summoned unit (Deathrattle summons, tokens, overflow, SoC copies) now poofs
+  dust as it lands, instead of just scaling in silently.
+- **Spell/AoE hits now land visibly.** Start-of-Combat nukes, split damage, and Blaster's Deathrattle AoE pop a
+  damage burst + impact ring at each target instead of just a floating number (melee already had its impact).
+- **Coins burst on a combat max-Gold gain.** Soulsman / Bone Taxer's Avenge raising your max Gold now sprays coins,
+  not just a text float.
+- **Aura strengthens now pulse.** When a summon/rally aura grows (Kennelmaster's Avenge bump, Mama Bear, Flowing
+  Monk), the unit now pops an in-place pulse instead of just a ✦ float.
+- **More Deathrattle buffs now animate.** Burial Imp and Chef Raag buff allies on death but showed no FX (their
+  buff was dropped as a dead-source tendril); they now rain the **descend** animation like other Deathrattle buffers.
+- **On-attack self-buffs now pulse.** A unit that buffs itself as part of its own (or an ally's) attack — Solaris
+  Fang, Trophy Stalker, Watcher, Crypt Drake, Taragosa, Forsaken Mage — now pops the in-place buff pulse it was
+  missing (its buffs to *other* minions already animated). First steps of an effect-animation coverage sweep.
 - **Cards lift off the table when dragged.** A picked-up card's grounding shadow now grows, drops, softens, and
   lightens so it reads as floating higher above the board. All four traits are live-tunable in the dev Drag Feel
   tuner (with a "preview" toggle so you can dial them across resting cards without holding a card down).

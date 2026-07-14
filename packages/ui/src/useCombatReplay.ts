@@ -11,6 +11,7 @@ import { compileMoments, type Moment } from './choreo/compile';
 import { deferClashBuffs } from './choreo/clashOrder';
 import { runMomentCues } from './choreo/score';
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
+import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
 import { burstDeathAuras, breakShieldAura, reformReborn } from './choreo/channels/aura';
 import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
@@ -590,6 +591,36 @@ export function useCombatReplay(
     }
   }, [findEl, cardIds]);
 
+  // Fire a moment's SELF-buffs (a unit empowering ITSELF): one in-place pulse per unit, then HOLD its pre-buff
+  // badge value and, after holdMs, release the hold + flash the changed badge(s) to the new value — the blast
+  // "causes" the tick. Shared by the `buffWave` path (`onSelfBuffs`) and the attack-wind-up path (on-attack /
+  // on-ally-attack self-buffers absorbed into the exchange, which `groupBuffCasts` deliberately skips). `timers`
+  // collects the hold/flash timeouts so the caller's effect can clear them on teardown.
+  const fireSelfBuffs = useCallback((selfBuffs: SelfBuff[], timers: number[]): void => {
+    const unitOf = (uid: string) =>
+      frameRef.current?.player.find((u) => u.uid === uid) ?? frameRef.current?.enemy.find((u) => u.uid === uid);
+    for (const s of selfBuffs) {
+      const el = findEl(s.uid);
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      const cardId = cardIds.get(s.uid) ?? '';
+      const cfg = PULSE_PRESETS[pulsePreset(cardId, (CARD_INDEX[cardId]?.tribe ?? 'neutral') as Tribe)];
+      pixiFx.pulse(r.left + r.width / 2, r.top + r.height / 2, cfg);
+
+      const tgt = unitOf(s.uid);
+      if (!tgt) continue; // no frame entry → fall back to normal display (no negative held value)
+      const held = { atk: tgt.attack - s.attack, hp: tgt.health - s.health };
+      setStatHold((m) => new Map(m).set(s.uid, held));
+      const holdMs = cfg.holdMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
+      timers.push(window.setTimeout(() => {
+        setStatHold((m) => { const n = new Map(m); n.delete(s.uid); return n; });
+        setStatFlash((m) => new Map(m).set(s.uid, { atk: s.attack !== 0, hp: s.health !== 0 }));
+        timers.push(window.setTimeout(() =>
+          setStatFlash((m) => { const n = new Map(m); n.delete(s.uid); return n; }), 360));
+      }, holdMs));
+    }
+  }, [findEl, cardIds]);
+
   // Track tab visibility (drives the pause-while-hidden gate on the beat clock).
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -728,30 +759,49 @@ export function useCombatReplay(
       onReborn: (uid) => reformReborn(rebornRects.get(uid) ?? rectOf(uid)),
       // buff-OTHER casts (source ≠ target) → tendril/descend + badge flash (shared with the attack-wind-up path).
       onBuffCasts: (casts) => fireBuffCasts(casts, timers),
-      onSelfBuffs: (selfBuffs) => {
-        // Fire one in-place pulse per self-buffing unit, then HOLD its pre-buff badge value and, after holdMs,
-        // release the hold + flash the changed badge(s) to the new value — the blast "causes" the tick.
-        const unitOf = (uid: string) =>
-          frameRef.current?.player.find((u) => u.uid === uid) ?? frameRef.current?.enemy.find((u) => u.uid === uid);
-        for (const s of selfBuffs) {
-          const el = findEl(s.uid);
+      onSelfBuffs: (selfBuffs) => fireSelfBuffs(selfBuffs, timers),
+      // An aura STRENGTHENED (Kennelmaster's Avenge bump, Mama Bear / Flowing Monk growth) → a bare in-place pulse
+      // at the unit. No badge hold/flash: an `improve` grows the unit's AURA (future grants), not its own Atk/HP.
+      onImprove: (uids) => {
+        for (const uid of uids) {
+          const el = findEl(uid);
           if (!el) continue;
           const r = el.getBoundingClientRect();
-          const cardId = cardIds.get(s.uid) ?? '';
+          const cardId = cardIds.get(uid) ?? '';
           const cfg = PULSE_PRESETS[pulsePreset(cardId, (CARD_INDEX[cardId]?.tribe ?? 'neutral') as Tribe)];
           pixiFx.pulse(r.left + r.width / 2, r.top + r.height / 2, cfg);
-
-          const tgt = unitOf(s.uid);
-          if (!tgt) continue; // no frame entry → fall back to normal display (no negative held value)
-          const held = { atk: tgt.attack - s.attack, hp: tgt.health - s.health };
-          setStatHold((m) => new Map(m).set(s.uid, held));
-          const holdMs = cfg.holdMs / (combatSpeedRef.current > 0 ? combatSpeedRef.current : 1);
-          timers.push(window.setTimeout(() => {
-            setStatHold((m) => { const n = new Map(m); n.delete(s.uid); return n; });
-            setStatFlash((m) => new Map(m).set(s.uid, { atk: s.attack !== 0, hp: s.health !== 0 }));
-            timers.push(window.setTimeout(() =>
-              setStatFlash((m) => { const n = new Map(m); n.delete(s.uid); return n; }), 360));
-          }, holdMs));
+        }
+      },
+      // A max-Gold gain (Soulsman / Bone Taxer Avenge) → a coins burst at the unit, on top of the "+N max gold" float.
+      onMaxGold: (uids) => {
+        for (const uid of uids) {
+          const el = findEl(uid);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          pixiFx.coins(r.left + r.width / 2, r.top + r.height / 2);
+        }
+      },
+      // A NON-melee hit (SC nuke / split damage / Blaster AoE) → a damage burst + impact ring at each target, so a
+      // cast hit reads like a hit and not just a number. Melee dmg rides its attack's own impact FX (never here).
+      onDamageFx: (uids) => {
+        for (const uid of uids) {
+          const el = findEl(uid);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          pixiFx.damageBurst(cx, cy);
+          pixiFx.impactPulse(cx, cy);
+        }
+      },
+      // A summon arrival → a dust poof under the new unit. Fired late (cue offset) so the summonpop scale-in has
+      // grown it to a measurable, full size; skip if the element isn't resolvable (e.g. a summon off-screen).
+      onSummonFx: (uids) => {
+        for (const uid of uids) {
+          const el = findEl(uid);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          if (r.width < 1 || r.height < 1) continue; // not laid out yet → no valid spawn rect
+          pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
         }
       },
     });
@@ -776,7 +826,7 @@ export function useCombatReplay(
       if (r) pixiFx.deathrattle(r.cx, r.cy, r.w);
     }
     return () => { timers.forEach((id) => window.clearTimeout(id)); stop(); };
-  }, [active, beatIdx, beats, events, findEl, cardIds, fireBuffCasts]);
+  }, [active, beatIdx, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
 
   // Verdict sting when the replay finishes.
   useEffect(() => {
@@ -852,9 +902,12 @@ export function useCombatReplay(
         const atkUnit = frameRef.current?.player.find((u) => u.uid === atkUid) ?? frameRef.current?.enemy.find((u) => u.uid === atkUid);
         let rallies = !!atkUnit?.keywords.includes('RL') || !!CARD_INDEX[cardIds.get(atkUid) ?? '']?.keywords?.includes('RL');
         if (!rallies) for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'rally' && e.source === atkUid) { rallies = true; break; } }
-        // Buff-others absorbed into this attack's wind-up (on-attack / Rally buffers) → fire their tendrils at the
-        // top of the wind-up (after the yellow rally pulse), so the beat reads pulse → tendril → lunge.
+        // Buffs absorbed into this attack's wind-up (on-attack / on-ally-attack / Rally buffers) → fire their FX at
+        // the top of the wind-up (after the yellow rally pulse), so the beat reads pulse → tendril → lunge. Buff-
+        // OTHERS rain a tendril/descend; the buffer's own SELF-buff (which `groupBuffCasts` skips) pops an in-place
+        // pulse — the same split the `buffWave` path makes, so an on-attack aura-of-self reads like a standalone one.
         const windupCasts = groupBuffCasts(cur, events);
+        const windupSelfBuffs = groupSelfBuffs(cur, events);
         const tl = runAttackExchangeCues(cur, atkEl, findEl(cur.primary.defender), d.x - a.x, d.y - a.y, {
           combatSpeed, advance: () => setBeatIdx((k) => k + 1),
           onRallyPulse: rallies ? () => {
@@ -863,7 +916,9 @@ export function useCombatReplay(
             setRallyPulse((prev) => new Map(prev).set(atkUid, n));
             window.setTimeout(() => setRallyPulse((prev) => { const m = new Map(prev); if (m.get(atkUid) === n) m.delete(atkUid); return m; }), 1150);
           } : undefined,
-          onWindupBuffs: windupCasts.length ? () => fireBuffCasts(windupCasts, windupTimers) : undefined,
+          onWindupBuffs: (windupCasts.length || windupSelfBuffs.length)
+            ? () => { fireBuffCasts(windupCasts, windupTimers); fireSelfBuffs(windupSelfBuffs, windupTimers); }
+            : undefined,
           onImpactAuras: breakWards,
         });
         engineAdvancingRef.current = tl !== null; // engine owns the advance; if it couldn't build, the scheduler falls back
@@ -914,7 +969,7 @@ export function useCombatReplay(
     }
     setProjectiles(ps);
     return () => { windupTimers.forEach((id) => window.clearTimeout(id)); };
-  }, [beatIdx, beats, events, findEl, cardIds, fireBuffCasts]);
+  }, [beatIdx, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
 
   const names = useMemo(() => {
     const m = new Map<string, string>();

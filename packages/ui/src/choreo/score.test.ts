@@ -9,7 +9,7 @@ const moment = (kind: Moment['kind'], events: CombatEvent[]): Moment => ({ start
 const baseCtx = (events: CombatEvent[], overrides: Partial<Parameters<typeof runMomentCues>[1]> = {}) => ({
   events, combatSpeed: 1, onShake: vi.fn(), findEl: () => null, attackerUid: null,
   onFloats: vi.fn(), onDeathFloats: vi.fn(),
-  onAuraBurst: vi.fn(), onShieldBreak: vi.fn(), onReborn: vi.fn(), onBuffCasts: vi.fn(), onSelfBuffs: vi.fn(), ...overrides,
+  onAuraBurst: vi.fn(), onShieldBreak: vi.fn(), onReborn: vi.fn(), onBuffCasts: vi.fn(), onSelfBuffs: vi.fn(), onImprove: vi.fn(), onMaxGold: vi.fn(), onDamageFx: vi.fn(), onSummonFx: vi.fn(), ...overrides,
 });
 const ctx = baseCtx;
 
@@ -143,6 +143,49 @@ describe('score', () => {
     const c = ctx([{ type: 'buff', target: 'a', source: 'b', attack: 2, health: 1 }]);
     runMomentCues(moment('buffWave', c.events), c);
     expect(c.onSelfBuffs).not.toHaveBeenCalled();
+  });
+
+  it('runMomentCues routes an improve moment → onImprove with the strengthened targets', () => {
+    const c = ctx([{ type: 'improve', target: 'k', amount: 1 }, { type: 'improve', target: 'm', amount: 2 }]);
+    runMomentCues(moment('improve', c.events), c);
+    expect(c.onImprove).toHaveBeenCalledWith(['k', 'm']);
+  });
+
+  it('the improveSelf cue is NOT on the attackExchange kind (an absorbed improve rides the self-buff pulse instead)', () => {
+    expect(SCORE_DEFAULTS.improve.some((c) => c.ch === 'improveSelf')).toBe(true);
+    expect(SCORE_DEFAULTS.attackExchange.some((c) => c.ch === 'improveSelf')).toBe(false);
+  });
+
+  it('runMomentCues routes a maxGold moment → onMaxGold with the gaining units', () => {
+    const c = ctx([{ type: 'maxGold', target: 'g', side: 'player', amount: 2 }]);
+    runMomentCues(moment('maxGold', c.events), c);
+    expect(c.onMaxGold).toHaveBeenCalledWith(['g']);
+  });
+
+  it('a damage moment (non-melee dmg) → onDamageFx with the unique hit targets', () => {
+    const c = ctx([
+      { type: 'dmg', target: 'x', amount: 3, remainingHp: 0 },
+      { type: 'dmg', target: 'y', amount: 2, remainingHp: 1 },
+      { type: 'dmg', target: 'x', amount: 1, remainingHp: 0 }, // second hit on x → deduped
+    ]);
+    runMomentCues(moment('damage', c.events), c);
+    expect(c.onDamageFx).toHaveBeenCalledWith(['x', 'y']);
+  });
+
+  it('melee dmg (attackExchange) does NOT route to onDamageFx — the attack owns its impact FX', () => {
+    const c = ctx([{ type: 'attack', attacker: 'a', defender: 'b', swing: 0 }, { type: 'dmg', target: 'b', amount: 3, remainingHp: 0 }]);
+    runMomentCues(moment('attackExchange', c.events), c);
+    expect(c.onDamageFx).not.toHaveBeenCalled();
+  });
+
+  it('a summon moment → onSummonFx with the summoned uid, AFTER the +250ms bounce offset', () => {
+    vi.useFakeTimers();
+    const c = ctx([{ type: 'summon', side: 'player', index: 0, minion: { uid: 'z', cardId: 'alley', name: 'Alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false } }] as CombatEvent[]);
+    runMomentCues(moment('summon', c.events), c);
+    expect(c.onSummonFx).not.toHaveBeenCalled(); // offset 250 → scheduled, not synchronous
+    vi.advanceTimersByTime(250);
+    expect(c.onSummonFx).toHaveBeenCalledWith(['z']);
+    vi.useRealTimers();
   });
 });
 

@@ -68,6 +68,15 @@ with a ref seeded on mount/re-entry so existing gilded minions never re-pulse. V
 frames + a gilded card visibly gold beside them; typecheck/lint/1024 tests/build green. (The pulse itself is the
 shipped self-buff FX; couldn't screenshot the animation headlessly — rAF throttles off-focus.) **Still to do:**
 owner's final spell-frame dial-in via the tuner; silver-tone taste pass; DS/Venom/Dual eyeball.
+### art: wire Leader of the Pack quest illustration
+
+Wired the owner's `LeaderOfThePack.png` master for the `q_leader_of_the_pack` quest → optimized to
+`packages/ui/src/art/quests/q_leader_of_the_pack.webp` (512², 41KB) via `npm run optimize-art`. The provided master is
+byte-identical to the Pack Leader minion art (the quest grants a golden Pack Leader), so Vite dedupes them to one shared
+asset — both keys resolve it. Verified live in the Compendium (Quests tab): the Leader of the Pack card renders the
+illustration (was the textless fallback); the bundle references `q_leader_of_the_pack`. Dev server restarted so the
+eager art glob re-ran.
+
 ### fix: burning-rope timing 100% synced to the turn clock (no more burning past 0)
 
 Owner-reported: the rope kept burning after the timer ran out. Two causes. (1) The burn window was a fixed

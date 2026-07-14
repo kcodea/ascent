@@ -29,20 +29,23 @@
      the surrounding floor art just extends into the side margins on wider monitors (cropped to 16:9 at standard
      aspect). No aspect swap — the same wide art serves every screen. */
   --board: url('/testboard2.webp');
-  /* one standard card size everywhere (shop / warband / hand / combat) — scales with the
-     stage height so the board fills big screens (16:9 → 21:9), clamped to sane bounds.
-     `--ch-base` is the responsive height; `--ch` multiplies it by the dev Layout Lab's `--card-scale`
-     (default 1 → unchanged), and per-region rules can multiply again for a single row. */
-  --ch-base: clamp(220px, calc(var(--gh) * 0.27), 384px);
+  /* ONE uniform scale factor for the whole board: the stage height ÷ the 1440px design reference, as a UNITLESS
+     number set from JS (`applyStageScale` in Game.tsx) — CSS can't derive a unitless ratio from a length. Everything
+     the layout is authored at (card size, chrome, rope, per-region offsets — all in reference px) is multiplied by
+     `--scale`, so the whole UI shrinks/grows as ONE unit with the window and stays locked to the board. Defaults to
+     1 (the 1440-tall tuned look) until JS sets it; JS clamps it [0.45, 1.25] so it never gets unusably tiny/oversized. */
+  --scale: 1;
+  /* one standard card size everywhere (shop / warband / hand / combat) — 384px at the reference, × --scale.
+     `--ch` multiplies it by the dev Layout Lab's `--card-scale`; per-region rules can multiply again for a row. */
+  --ch-base: calc(384px * var(--scale));
   --ch: calc(var(--ch-base) * var(--card-scale, 0.77)); --cw: calc(var(--ch) * 0.752);
   /* compact-card size: 15% smaller than the full card width, used at rest + in combat (kept in sync). */
   --ccw: calc(var(--cw) * 0.85);
   /* the compact card's arched silhouette — shared by the frame, the card box, and keyword overlays. */
   --arch-radius: 48% 48% 20% 20% / 35% 35% 14% 14%;
-  /* a scaled "px" for the chrome (HUD / tavern controls / status tray / timer): floor 1px so
-     laptops + short windows read exactly as before, growing to ~+34% on tall monitors so the
-     chrome stays proportional to the cards (which already scale with --ch). Use calc(N*--u). */
-  --u-base: clamp(1px, calc(var(--gh) * 0.00107), 1.34px);
+  /* a scaled "px" for the chrome (HUD / tavern controls / status tray / timer): 1.34px at the reference, × --scale
+     so the chrome tracks the cards. Use calc(N*--u). */
+  --u-base: calc(1.34px * var(--scale));
   --u: calc(var(--u-base) * var(--ui-scale, 0.96));
 }
 /* Resolution scaler (Esc menu): cap the stage to a fixed resolution box, centred + letterboxed.
@@ -94,11 +97,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .app { position: relative; z-index: 1; flex: none; width: var(--gw); height: var(--gh); display: flex; flex-direction: column; padding: 12px 18px calc(var(--ch) * 0.92); gap: 8px; background: transparent; border-radius: 2px; }
 /* Board backdrop layer: full viewport, behind the stage. The wide (--board) art is scaled to the STAGE height and
    centred, so its ornate frame lands at the same size/place as the 16:9 UI expects — a wider window just reveals
-   more of the surrounding floor art in the margins (cropped to 16:9 at standard aspect). The readability scrim +
-   fallback colour ride on top of the art here. `zoom` (--board-zoom, dev-tunable) fine-scales the frame to fit. */
+   more of the surrounding floor art in the margins (cropped to 16:9 at standard aspect). Board dimming was removed
+   (owner 2026-07-14) — `--scrim` defaults to 0 (no dim); the fallback colour + `--board-zoom` frame-fit remain. */
 .boardbg { position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background:
-    linear-gradient(rgb(28 22 16 / calc(0.34 * var(--scrim, 0.15))), rgb(28 22 16 / calc(0.46 * var(--scrim, 0.15)))),
+    linear-gradient(rgb(28 22 16 / calc(0.34 * var(--scrim, 0))), rgb(28 22 16 / calc(0.46 * var(--scrim, 0)))),
     var(--board) center / auto calc(var(--gh) * var(--board-zoom, 1)) no-repeat,
     var(--bg);
 }
@@ -107,8 +110,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half
    grows to fill its space and centres its cards. Warband gets extra bottom padding so it
    rides a little higher, opening a gap above the hand. */
-.zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-shop-s, 1)); top: var(--z-shop-y, 45px); left: var(--z-shop-x, 6px); }
-.zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-wb-s, 1)); top: var(--z-wb-y, -71px); left: var(--z-wb-x, 6px); }
+.zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-shop-s, 1)); top: calc(var(--z-shop-y, 45px) * var(--scale)); left: calc(var(--z-shop-x, 6px) * var(--scale)); }
+.zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-wb-s, 1)); top: calc(var(--z-wb-y, -71px) * var(--scale)); left: calc(var(--z-wb-x, 6px) * var(--scale)); }
 /* Nudge the whole Warband DOWN a touch so it sits clearly UNDER the board's centre line instead of hugging
    it. Done with `position: relative; top` (the zone is ALREADY position:relative) — NOT a `transform`: a
    transform on the row makes it a stacking/transform context wrapping the combat units, and their per-swing
@@ -119,7 +122,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    Warband rides right at the line (the reported bug); short/laptop windows already sit it low with almost no
    hero-panel clearance, so nudging there would overlap it — hence the height gate. */
 @media (min-height: 900px) {
-  .zone[data-zone='warband'] { top: calc(var(--ch) * 0.07 + var(--z-wb-y, -71px)); }
+  .zone[data-zone='warband'] { top: calc(var(--ch) * 0.07 + var(--z-wb-y, -71px) * var(--scale)); }
 }
 
 /* Burning-rope turn timer — a braided fuse pinned to the board's centre divider (`--rope-y`, measured on the
@@ -131,8 +134,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
      resolution (was 86% board-width × --u thickness). --rope-y still auto-aligns the base to the art divider;
      --rope-x / --rope-yoff nudge it. Keep these fallbacks in sync with layoutConfig.ts's rope defs. */
   position: absolute; left: 50%; top: var(--rope-y, 50%);
-  transform: translate(calc(-50% + var(--rope-x, 3px)), calc(-50% + var(--rope-yoff, -22px)));
-  width: var(--rope-len, 1420px); height: var(--rope-thick, 13px); z-index: 8; border-radius: 999px; overflow: visible; pointer-events: none;
+  transform: translate(calc(-50% + var(--rope-x, 3px) * var(--scale)), calc(-50% + var(--rope-yoff, -22px) * var(--scale)));
+  width: calc(var(--rope-len, 1420px) * var(--scale)); height: calc(var(--rope-thick, 13px) * var(--scale)); z-index: 8; border-radius: 999px; overflow: visible; pointer-events: none;
   background:
     repeating-linear-gradient(48deg, rgba(255, 240, 200, 0.22) 0 3px, rgba(90, 60, 25, 0.30) 3px 7px),
     linear-gradient(to bottom, #e3b870, #bb8a3f 52%, #8c6326);
@@ -200,10 +203,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
    vars (--cw/--ccw) so it actually resizes the hand cards, instead of only inflating --ch → --hand-tuck (which
    just slid the hand up/down — the reported bug). The width is built from the ROOT basis (--ch-base * --card-scale,
    NOT the 1.18-inflated --ch) × the lever, so at the default 1 the hand card is exactly a shop/warband card. */
-.zone[data-zone='hand'] { --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * 1.18); --cw: calc(var(--ch-base) * var(--card-scale, 0.77) * 0.752 * var(--z-hand-s, 1)); --ccw: calc(var(--cw) * 0.85); translate: var(--z-hand-x, 0px) var(--z-hand-y, -2px); }
+.zone[data-zone='hand'] { --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * 1.18); --cw: calc(var(--ch-base) * var(--card-scale, 0.77) * 0.752 * var(--z-hand-s, 1)); --ccw: calc(var(--cw) * 0.85); translate: calc(var(--z-hand-x, 0px) * var(--scale)) calc(var(--z-hand-y, -2px) * var(--scale)); }
 
 /* HUD */
-.bar { display: flex; align-items: center; gap: calc(12 * var(--u)); flex: none; position: relative; --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--z-hud-s, 1)); top: var(--z-hud-y, 0px); left: var(--z-hud-x, 0px); }
+.bar { display: flex; align-items: center; gap: calc(12 * var(--u)); flex: none; position: relative; --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--z-hud-s, 1)); top: calc(var(--z-hud-y, 0px) * var(--scale)); left: calc(var(--z-hud-x, 0px) * var(--scale)); }
 .alt { display: flex; align-items: center; gap: calc(11 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); padding: calc(6 * var(--u)) calc(15 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); }
 .alt .wavecol { display: flex; flex-direction: column; align-items: flex-start; gap: calc(3 * var(--u)); }
 .alt .w { font-family: var(--font-ui); font-weight: 800; font-size: calc(18 * var(--u)); color: var(--acc-dk); line-height: 1; }
@@ -391,7 +394,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Shop controls tray (round plaque + Upgrade/Reroll/Freeze/End Turn + info strip). Scales via a LOCAL --u
    (like the HUD .bar) so the whole tray grows/shrinks proportionally, with X/Y offsets — dev Layout Lab "Shop
    controls" group. Defaults are a no-op (×1 / 0px). */
-.shopbar { position: relative; --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--z-shopui-s, 1)); top: var(--z-shopui-y, -55px); left: var(--z-shopui-x, 0px); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); min-height: calc(111 * var(--u)); margin-top: calc(10 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
+.shopbar { position: relative; --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--z-shopui-s, 1)); top: calc(var(--z-shopui-y, -55px) * var(--scale)); left: calc(var(--z-shopui-x, 0px) * var(--scale)); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); min-height: calc(111 * var(--u)); margin-top: calc(10 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
 .shopbar.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
 .shoprow { display: flex; align-items: center; gap: calc(13 * var(--u)); }
 /* Info strip — the turn's read-only stats (Gold · Tier · Setup Time) in ONE segmented cream plaque, gold-
@@ -2683,11 +2686,13 @@ svg { width: 18px; height: 18px; }
 
 /* DEV-only Balance Report panel — reuses the .lbpage shell; adds a controls row + progress bar + dense tables. */
 .balpage { position: fixed; inset: 0; z-index: 480; display: flex; flex-direction: column; background: linear-gradient(rgba(6, 11, 22, 0.9), rgba(6, 11, 22, 0.95)); animation: fadein 0.2s ease; font-family: var(--font-ui); }
-.baltopbar { display: flex; align-items: center; gap: 18px; padding: 20px 30px 12px; flex: none; flex-wrap: wrap; }
-.baltitle .esch { color: #fff; font-size: 24px; text-align: left; line-height: 1.05; }
-.balsub { font-weight: 600; font-size: 12px; color: rgba(255, 255, 255, 0.58); }
+/* Top bar: the section picker + Refresh sit CENTRED; Back is pinned top-left (owner 2026-07-14). */
+.baltopbar { position: relative; display: flex; justify-content: center; align-items: flex-start; padding: 18px 30px 12px; flex: none; }
+.balpage .lbback { position: absolute; left: 30px; top: 16px; }
+.balhead-c { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.balsub { font-weight: 600; font-size: 12px; color: rgba(255, 255, 255, 0.58); text-align: center; }
 .balsub code, .balempty code { background: rgba(255, 255, 255, 0.1); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
-.balcontrols { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.balcontrols { display: flex; align-items: center; gap: 8px; }
 .balchip, .balrun { font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.2); padding: 7px 12px; border-radius: 9px; cursor: pointer; }
 .balchip.on { border-color: var(--acc); color: var(--acc); }
 .balchip:disabled, .balrun:disabled { opacity: 0.5; cursor: default; }
@@ -2696,8 +2701,8 @@ svg { width: 18px; height: 18px; }
 .balprogress { position: relative; height: 16px; margin: 4px 30px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.12); overflow: hidden; flex: none; }
 .balprogfill { position: absolute; inset: 0; transform-origin: left; background: var(--acc); transition: transform 0.1s linear; }
 .balprogtxt { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 800; font-size: 11px; color: #fff; mix-blend-mode: difference; }
-/* One report at a time, centred (owner 2026-07-14) — a single wide column instead of the old five-across grid. */
-.balscroll { flex: 1; overflow-y: auto; padding: 8px 30px 40px; display: grid; grid-template-columns: minmax(0, 960px); justify-content: center; gap: 16px; align-content: start; }
+/* One report at a time, centred (owner 2026-07-14) — a single wide table instead of the old five-across grid. */
+.balscroll { flex: 1; overflow-y: auto; padding: 8px 30px 40px; display: flex; flex-direction: column; align-items: center; }
 .balempty { max-width: 720px; margin: 40px auto; color: rgba(255, 255, 255, 0.72); font-weight: 600; font-size: 15px; line-height: 1.5; text-align: center; }
 .baltable { background: rgba(0, 0, 0, 0.32); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 14px; padding: 10px 12px; }
 .baltabletitle { font-weight: 800; font-size: 15px; color: var(--acc); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -2712,9 +2717,11 @@ svg { width: 18px; height: 18px; }
 .balwin.cool { color: #f0c04a; }
 .balwin.cold { color: #f07a6a; }
 
-/* Solo report table (owner 2026-07-14): full-width, LARGE text, sticky sortable header. */
-.balsolo { width: 100%; background: rgba(0, 0, 0, 0.32); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 16px; padding: 4px 22px 16px; }
-.balgrid-solo .balrow { grid-template-columns: minmax(11em, 1fr) repeat(var(--balcols, 4), minmax(4.5em, 7em)); gap: 16px; padding: 10px 2px; font-size: 17px; }
+/* Solo report table (owner 2026-07-14): fixed-width, centred, LARGE text, sticky sortable header. */
+.balsolo { width: min(960px, 100%); background: rgba(0, 0, 0, 0.32); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 16px; padding: 4px 22px 16px; }
+/* Number columns are a FIXED rem width (not em/minmax) so every row — including the smaller-font header — resolves
+   IDENTICAL tracks and the columns line up perfectly across Heroes/Quests/Runes/Minions/Spells. Name fills the rest. */
+.balgrid-solo .balrow { grid-template-columns: minmax(0, 1fr) repeat(var(--balcols, 4), 6rem); gap: 14px; padding: 10px 2px; font-size: 17px; }
 .balgrid-solo .balrow.balhead { position: sticky; top: 0; z-index: 1; background: #0b1524; font-size: 13px; padding-top: 12px; padding-bottom: 10px; }
 .balgrid-solo .balrow:not(.balhead):hover { background: rgba(255, 255, 255, 0.04); }
 /* Column headers double as sort buttons — reset the button chrome, keep the header look, hint the active one. */

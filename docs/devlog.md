@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### feat: uniform stage scaling + trimmed Settings + Balance Report alignment
+
+Three UI passes on the 16:9-lock branch:
+- **Scalable UI (uniform `--scale`).** Everything the layout is authored at — card size (`--ch`), chrome (`--u`),
+  the rope, and every per-region offset (shop/warband/hand/HUD/shop-controls) — is now multiplied by ONE unitless
+  `--scale` = the 16:9 stage height ÷ the 1440 design reference (clamped [0.45, 1.25]), set from JS in `Game.tsx`
+  on mount + resize (CSS can't turn a length into a unitless ratio). So the whole board shrinks/grows as one unit
+  with the window and stays locked — no element drifts relative to another. Verified: at a 1073-tall stage
+  `--scale` 0.745 (card 141, rope 1058); shrinking to 720 → `--scale` 0.5, card 94, rope 710 — everything scales
+  together. (The rope, made static px earlier, now rides `--scale` so it tracks the cards again — that's the intent
+  under the locked layout.)
+- **Settings trimmed** (owner: "old and outdated"). Removed combat speed, the resolution picker (the game just
+  fills the window at 16:9 now), board dimming (`--scrim` → 0), and the board picker (one board). Renamed **Start
+  Over → "Quit back to main menu"** — it now returns to the title via `openTitle` and KEEPS the run saved (Continue
+  resumes it) rather than abandoning it to hero-select. `EscMenu` lost its res/board/scrim props; `Game.tsx` dropped
+  that state + the `data-res` / `--scrim` / `--board` effects.
+- **Balance Report fixes.** Columns now line up across every section — the number columns use a FIXED `rem` width
+  (em resolved differently for the smaller-font header vs the 17px data rows, which is why Heroes/Quests/Runes were
+  misaligned), and the table is a fixed `min(960px,100%)` centred block that fills its width (Minions/Spells no
+  longer half-empty). The section dropdown + Refresh moved to **top-centre**, Back pinned top-left. Verified live:
+  header/data column lefts are pixel-identical. `typecheck`/`lint`/`test` (1038)/`build:web` green.
+
 ### feat: lock the UI to a 16:9 canvas + extend the board art into the margins (foundation)
 
 Owner direction: stop UI elements moving with screen size — define everything relative to the BOARD, design 16:9-first,

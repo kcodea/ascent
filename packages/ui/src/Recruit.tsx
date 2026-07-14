@@ -123,7 +123,7 @@ function BurnRope({ inCombat, window: ropeWindow, paused }: { inCombat: boolean;
       if (litRef.current) litRef.current.style.width = `${frac * 100}%`;
       // translateX by the burn fraction of the (static px) rope length — compositor-only, so the flame's
       // drop-shadow never repaints per frame. The -50% (of the 0-width anchor) is inert; children self-centre.
-      if (flameRef.current) flameRef.current.style.transform = `translate(calc(var(--rope-len, 1420px) * ${frac} - 50%), -50%)`;
+      if (flameRef.current) flameRef.current.style.transform = `translate(calc(var(--rope-len, 1420px) * var(--scale) * ${frac} - 50%), -50%)`;
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);

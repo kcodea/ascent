@@ -1,7 +1,8 @@
-/** Pause / settings overlay (Esc). Houses audio (master volume + mute), the display resolution scaler
- *  (pick a fixed 16:9 / 21:9 box the game letterboxes into, or fill the window — the choice persists)
- *  and Start Over. The HUD's quick-mute button sits behind the enemy frame, so the dependable audio
- *  controls live here, in a modal nothing can obscure. */
+/** Pause / settings overlay (Esc). Trimmed to what players actually need: audio (master volume + mute), the
+ *  local-data resets (captured boards + career), and Quit back to the main menu. Resolution, board picker, board
+ *  dimming, and combat speed were removed (2026-07-14) — the game now fills the window at a fixed 16:9 with one
+ *  board, and combat runs at a single speed. The HUD's quick-mute sits behind the enemy frame, so the dependable
+ *  audio controls live here, in a modal nothing can obscure. */
 
 import { useState } from 'react';
 import { clearStoredBoards, loadStoredBoards } from './boardLibrary';
@@ -9,34 +10,8 @@ import { loadRunHistory } from './runHistory';
 import { getVolume, isMuted, setVolume, sfx, toggleMute } from './sfx';
 import { useGame } from './store';
 
-export const RES_OPTIONS: { id: string; label: string; sub: string }[] = [
-  { id: 'fit', label: 'Fit to Window', sub: 'Fill the screen' },
-  { id: 'r1920', label: '1920 × 1080', sub: '16:9' },
-  { id: 'r2560', label: '2560 × 1440', sub: '16:9' },
-  { id: 'r3440', label: '3440 × 1440', sub: '21:9 ultrawide' },
-];
-
-// Board backdrop options. 'default' has no `url` → clears the inline override so the responsive CSS default resumes
-// (board169 at 16:9, board219 at 21:9). Any other option pins its `url` as the `--board` regardless of resolution.
-export const BOARD_OPTIONS: { id: string; label: string; sub: string; url?: string }[] = [
-  { id: 'default', label: 'Arena', sub: 'Primary board · all resolutions', url: "url('/testboard2.webp')" },
-  { id: 'july', label: 'July board', sub: 'Alternate', url: "url('/board219.webp')" },
-];
-
-export function EscMenu({
-  res, onRes, board, onBoard, scrim, onScrim, onClose,
-}: {
-  res: string;
-  onRes: (r: string) => void;
-  board: string;
-  onBoard: (b: string) => void;
-  scrim: number;
-  onScrim: (s: number) => void;
-  onClose: () => void;
-}) {
-  const startHeroSelect = useGame((s) => s.startHeroSelect);
-  const combatSpeed = useGame((s) => s.combatSpeed);
-  const setCombatSpeed = useGame((s) => s.setCombatSpeed);
+export function EscMenu({ onClose }: { onClose: () => void }) {
+  const openTitle = useGame((s) => s.openTitle);
   const profile = useGame((s) => s.profile);
   const resetCareer = useGame((s) => s.resetCareer);
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
@@ -101,59 +76,6 @@ export function EscMenu({
           <span className="ebl">{muted ? 'Muted' : 'Sound on'}</span>
           <span className="ebs">{muted ? 'All audio is off' : 'Tap to mute everything'}</span>
         </button>
-        <div className="escsec">Gameplay</div>
-        <div className="escvol">
-          <span className="evl">Combat speed</span>
-          <input
-            type="range"
-            min={0.5}
-            max={5}
-            step={0.1}
-            value={combatSpeed}
-            aria-label="Combat speed"
-            onChange={(e) => setCombatSpeed(Number(e.target.value))}
-          />
-          <span className="evv">{combatSpeed.toFixed(1)}×</span>
-        </div>
-        <div className="escsec">Display Resolution</div>
-        <div className="escres">
-          {RES_OPTIONS.map((o) => (
-            <button
-              key={o.id}
-              className={`escbtn${res === o.id ? ' on' : ''}`}
-              onPointerDown={() => onRes(o.id)}
-            >
-              <span className="ebl">{o.label}</span>
-              <span className="ebs">{o.sub}</span>
-            </button>
-          ))}
-        </div>
-        <div className="escsec">Board</div>
-        <div className="escres">
-          {BOARD_OPTIONS.map((o) => (
-            <button
-              key={o.id}
-              className={`escbtn${board === o.id ? ' on' : ''}`}
-              onPointerDown={() => onBoard(o.id)}
-            >
-              <span className="ebl">{o.label}</span>
-              <span className="ebs">{o.sub}</span>
-            </button>
-          ))}
-        </div>
-        <div className="escvol">
-          <span className="evl">Board dimming</span>
-          <input
-            type="range"
-            min={0}
-            max={1.5}
-            step={0.05}
-            value={scrim}
-            aria-label="Board dimming"
-            onChange={(e) => onScrim(Number(e.target.value))}
-          />
-          <span className="evv">{Math.round(scrim * 100)}%</span>
-        </div>
         <div className="escsec">Saved Boards</div>
         <div className="escboards">
           <button className={`escbtn${confirmClear ? ' danger' : ''}`} onPointerDown={clearBoards}>
@@ -171,12 +93,13 @@ export function EscMenu({
           {careerMsg && <div className="escboards-msg">{careerMsg}</div>}
         </div>
         <div className="escsec">Run</div>
+        {/* Back to the main menu — the run stays saved (Continue resumes it); it does NOT abandon the run. */}
         <button
-          className="escbtn danger"
-          onPointerDown={() => { startHeroSelect(); onClose(); }}
+          className="escbtn"
+          onPointerDown={() => { openTitle(); onClose(); }}
         >
-          <span className="ebl">Start Over</span>
-          <span className="ebs">Abandon this run + pick a new hero</span>
+          <span className="ebl">Quit back to main menu</span>
+          <span className="ebs">Your run stays saved — Continue resumes it</span>
         </button>
         <button className="escclose" onPointerDown={onClose}>Resume</button>
       </div>

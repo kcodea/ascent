@@ -72,10 +72,10 @@ const DEFAULTS: DragFeel = {
   magSlideMs: 390,
   collapseY: 20,    // lift only a little before the row fills the gap
   handFloor: 0.82,  // bottom-anchored pop: every hovered card lands its bottom on the same line (tuned by eye)
-  shGrow: 1.1,      // shadow ~10% bigger than the card face while lifted
-  shLift: 22,       // shadow drops well below the lifted card
-  shBlur: 18,       // clearly softer than the resting 9px
-  shFade: 0.7,      // a touch lighter than the resting solid shadow
+  shGrow: 1.08,     // owner-tuned: shadow a touch bigger than the card face while lifted
+  shLift: 18,       // owner-tuned: shadow drops below the lifted card
+  shBlur: 11,       // owner-tuned: softer than the resting 9px, but still tight
+  shFade: 0.54,     // owner-tuned: noticeably lighter than the resting solid shadow
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

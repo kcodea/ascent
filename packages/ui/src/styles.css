@@ -1701,9 +1701,9 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 body.dsh-preview .card.compact.stdframe .cframe.cshadow,
 body.dsh-preview .card.compact.spellframe .cframe.cshadow,
 body.dsh-preview .card.compact.taunt .tframe.cshadow {
-  filter: brightness(0) blur(var(--dsh-blur, 18px));
-  transform: translateY(var(--dsh-lift, 22px)) scale(var(--dsh-grow, 1.1));
-  opacity: var(--dsh-fade, 0.7);
+  filter: brightness(0) blur(var(--dsh-blur, 11px));
+  transform: translateY(var(--dsh-lift, 18px)) scale(var(--dsh-grow, 1.08));
+  opacity: var(--dsh-fade, 0.54);
 }
 
 /* Frame metal TONE — minion frames (oval + taunt shield) render SILVER by default; a GILDED (golden) minion goes

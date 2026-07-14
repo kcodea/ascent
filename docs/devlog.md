@@ -21,8 +21,8 @@ Made it **owner-tunable in real time** via the existing Drag Feel tuner (dev men
   sliders can be dialed live and watched across the board. The tuned values become the shipped defaults via the
   tuner's "Copy values" → paste into `DEFAULTS`.
 
-Defaults (starting dials, tune to taste): grow 1.1, lift 22px, blur 18px, fade 0.7. Static filter (no per-frame
-animation) → compositor-safe, same as the resting shadow.
+Defaults (owner-tuned): grow 1.08, lift 18px, blur 11px, fade 0.54. Static filter (no per-frame animation) →
+compositor-safe, same as the resting shadow.
 
 Verified live (in-app browser, running build): `--dsh-*` reflect at boot; `body.dsh-preview` makes a resting
 `.cshadow` compute to `blur(18px) scale(1.1) translateY(22px) opacity .7`; changing a `--dsh-*` var updates the

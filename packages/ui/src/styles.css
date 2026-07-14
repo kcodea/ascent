@@ -1819,7 +1819,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .card.compact.stdframe.golden .cframe,
 .card.compact.taunt.golden .tframe {
   filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
-          drop-shadow(0 0 5px rgba(255, 205, 80, 0.95));
+          drop-shadow(0 0 4px rgba(255, 205, 80, 0.67));
 }
 /* Frozen (held shop card): ice the frame silhouette by masking the frost `::after` to the frame PNG. */
 [data-zone='tavern'].frozen .card.stdframe::after {

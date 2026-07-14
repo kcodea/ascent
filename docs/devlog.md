@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 37)
 
+### fix: Disco Dan no longer re-Discovers his Tier 6 on reload
+
+Owner-reported: reloading a Disco Dan run re-opened his turn-1 Setlist Tier 6 Discover. Root cause in
+`deserialize`: it builds a fresh `createRun` skeleton and merges the save over it (`{...defaults, ...parsed}`) so
+newer fields get their zero value — but `createRun` for Disco Dan *opens* the Tier 6 Discover (`defaults.discover`)
+and queues Tier 4 / Tier 2 behind it as a run-start action. `JSON.stringify` drops `undefined`, so a save that had
+already resolved the Discovers omits the `discover` / `discoverLockTier` keys, and the merge leaked the fresh Tier 6
+offer straight back in on every load. Fixed by forcing the three Discover-sequence fields (`discover`,
+`discoverLockTier`, `discoverQueue`) from the SAVED state after the merge (absent → cleared), so a resumed run keeps
+exactly the Discover state it was saved with; the existing `pendingSpellDiscovers` heal still re-appends to that
+queue. New regression test: resolve all three Setlist Discovers → `serialize`/`deserialize` → none re-open, the three
+picks stay in hand. `run.test.ts` (398) + `typecheck` green. (Same class of leak could touch other hero run-start
+fields like Runeguard's `epicForgeWave` — flagged for the owner, not changed here.)
+
 ### feat: selectable board backdrop in Settings (+ Test Board option)
 
 Added a **Board** style selector to the Settings (Esc) panel so the board backdrop can be switched — **Default**

@@ -3817,6 +3817,21 @@ describe('hero powers (@game/sim)', () => {
     expect(reduce(d, { type: 'play', uid: t2card.uid })).toBe(d); // rejected while locked
   });
 
+  it('Disco Dan does NOT re-open his Setlist Discovers after save/load (resolved stays resolved)', () => {
+    // Resolve all three Setlist Discovers, then round-trip through serialize/deserialize (a reload). The fresh
+    // createRun skeleton that deserialize builds re-queues the Tier 6 Discover — it must not leak past the save,
+    // which (JSON.stringify dropping `undefined`) omits the now-cleared `discover` key. (owner bug 2026-07-13)
+    let s = createRun(1, 'discodan');
+    while (s.discover) s = reduce(s, { type: 'discover', index: 0 });
+    expect(s.discover).toBeUndefined();
+    const reloaded = deserialize(serialize(s));
+    expect(reloaded.discover).toBeUndefined();
+    expect(reloaded.discoverLockTier).toBeUndefined();
+    expect(reloaded.discoverQueue ?? []).toEqual([]);
+    // The three picks are still in hand — not re-offered.
+    expect(reloaded.hand.filter((c) => c.lockedUntilTier).length).toBe(3);
+  });
+
   it('Disco Dan can take no shop action on turn 1 (buy/roll/upgrade blocked)', () => {
     let s = createRun(1, 'discodan');
     while (s.discover) s = reduce(s, { type: 'discover', index: 0 }); // clear the Setlist Discovers

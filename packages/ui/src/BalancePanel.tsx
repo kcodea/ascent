@@ -147,22 +147,22 @@ export function BalancePanel() {
     <div className="balpage">
       <div className="baltopbar">
         <button className="lbback" onClick={back}>← Back</button>
-        <div className="baltitle">
-          <div className="esch disp">Balance Report</div>
-          <div className="balsub">Real player data · offer / pick / win rates from finished runs{report ? ` · ${report.totalRuns} runs` : ''}</div>
-        </div>
-        <div className="balcontrols">
-          <select
-            className="balpick"
-            value={sectionKey}
-            onChange={(e) => { sfx.pulse(); setSectionKey(e.target.value as Section['key']); }}
-            aria-label="Choose report"
-          >
-            {SECTIONS.map((s) => (
-              <option key={s.key} value={s.key}>{s.label}{report ? ` (${report[s.key].length})` : ''}</option>
-            ))}
-          </select>
-          <button className="balrun" disabled={loading} onClick={refresh}>{loading ? 'Loading…' : 'Refresh'}</button>
+        {/* Section picker + Refresh, centred at the top. */}
+        <div className="balhead-c">
+          <div className="balcontrols">
+            <select
+              className="balpick"
+              value={sectionKey}
+              onChange={(e) => { sfx.pulse(); setSectionKey(e.target.value as Section['key']); }}
+              aria-label="Choose report"
+            >
+              {SECTIONS.map((s) => (
+                <option key={s.key} value={s.key}>{s.label}{report ? ` (${report[s.key].length})` : ''}</option>
+              ))}
+            </select>
+            <button className="balrun" disabled={loading} onClick={refresh}>{loading ? 'Loading…' : 'Refresh'}</button>
+          </div>
+          <div className="balsub">Real player data{report ? ` · ${report.totalRuns} runs` : ''}</div>
         </div>
       </div>
 

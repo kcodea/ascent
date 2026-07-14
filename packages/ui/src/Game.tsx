@@ -1,5 +1,5 @@
 import './styles.css';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { Recruit } from './Recruit';
 import { EndScreen } from './EndScreen';
 import { HeroSelect } from './HeroSelect';
@@ -12,7 +12,7 @@ import { FontLab } from './FontLab';
 import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
 import { MinionBook } from './MinionBook';
-import { BOARD_OPTIONS, EscMenu } from './EscMenu';
+import { EscMenu } from './EscMenu';
 import { DevMenu } from './DevMenu';
 import { BalancePanel } from './BalancePanel';
 import { Icon } from './Icon';
@@ -35,48 +35,26 @@ export function Game() {
   // heroId never change mid-run), so it only remounts when the run itself changes.
   const runKey = useGame((s) => `${s.run.seed}:${s.run.heroId}`);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [res, setRes] = useState<string>(() => {
-    try { return localStorage.getItem('ascent-res') || 'fit'; } catch { return 'fit'; }
-  });
-  // Scrim strength: a multiplier on the board's readability overlay. Default 0.15 (a light dim that lets the
-  // board art stay vibrant); a slider in Settings dials it brighter/darker. Note 0 is a valid pick (no dim),
-  // so distinguish "unset" from 0 rather than truthiness-checking.
-  const [scrim, setScrim] = useState<number>(() => {
-    try { const raw = localStorage.getItem('ascent-scrim'); const v = Number(raw); return raw !== null && Number.isFinite(v) ? v : 0.15; } catch { return 0.15; }
-  });
-  // Board backdrop choice (Settings). 'default' = the responsive CSS default (board169 / board219); any other
-  // option pins its art as `--board` regardless of resolution. Persists like res/scrim.
-  const [board, setBoard] = useState<string>(() => {
-    try { return localStorage.getItem('ascent-board') || 'default'; } catch { return 'default'; }
-  });
 
   // Preload all card/hero art once, on idle, so the first shop renders with art already cached — kills the
   // cold-load "pop-in" (esp. the itch CDN, where each webp is a separate first-appearance round-trip).
   useEffect(() => { warmArt(); }, []);
+  // The game now fills the window at a fixed 16:9 (no resolution picker → no `data-res`), draws one board
+  // (`--board` = the CSS default), and applies no readability dim — so there's no res/scrim/board state to persist.
 
-  // Apply the resolution box (a [data-res] attribute drives the --gw/--gh letterbox) + persist it.
-  useEffect(() => {
-    const root = document.documentElement;
-    if (res === 'fit') root.removeAttribute('data-res');
-    else root.setAttribute('data-res', res);
-    try { localStorage.setItem('ascent-res', res); } catch { /* ignore */ }
-  }, [res]);
-
-  // Apply the board-scrim multiplier (the --scrim var the .app board gradient reads) + persist it.
-  useEffect(() => {
-    document.documentElement.style.setProperty('--scrim', String(scrim));
-    try { localStorage.setItem('ascent-scrim', String(scrim)); } catch { /* ignore */ }
-  }, [scrim]);
-
-  // Apply the board choice: pin the option's art as an inline `--board` override, or clear it so the responsive
-  // CSS default (board169 / board219) resumes for 'default'. Inline wins over the stylesheet's aspect swaps. Persist.
-  useEffect(() => {
-    const style = document.documentElement.style;
-    const url = BOARD_OPTIONS.find((o) => o.id === board)?.url;
-    if (url) style.setProperty('--board', url);
-    else style.removeProperty('--board');
-    try { localStorage.setItem('ascent-board', board); } catch { /* ignore */ }
-  }, [board]);
+  // Uniform stage scale: --scale = the 16:9 stage height ÷ the 1440 design reference (clamped), as a UNITLESS
+  // number the CSS multiplies every authored size/offset by, so the whole UI shrinks/grows as ONE unit with the
+  // window. Set pre-paint + on every resize. (CSS can't turn a length into a unitless ratio, hence JS.)
+  useLayoutEffect(() => {
+    const apply = (): void => {
+      const gh = Math.min(window.innerHeight, (window.innerWidth * 9) / 16); // matches the CSS --gh (16:9 stage)
+      const scale = Math.max(0.45, Math.min(1.25, gh / 1440));
+      document.documentElement.style.setProperty('--scale', String(scale));
+    };
+    apply();
+    window.addEventListener('resize', apply);
+    return () => window.removeEventListener('resize', apply);
+  }, []);
 
   // Esc toggles the menu — but if the menu is closed and a card is being inspected, let the
   // inspect overlay claim Esc (it closes itself) instead of opening the menu. The Minion Book
@@ -131,7 +109,7 @@ export function Game() {
       <div className="version" title={`ASCENT v${__APP_VERSION__} · build ${__BUILD_SHA__}`}>
         v{__APP_VERSION__} <span>{__BUILD_SHA__}</span>
       </div>
-      {menuOpen && <EscMenu res={res} onRes={setRes} board={board} onBoard={setBoard} scrim={scrim} onScrim={setScrim} onClose={() => setMenuOpen(false)} />}
+      {menuOpen && <EscMenu onClose={() => setMenuOpen(false)} />}
       {/* DEV-only tuning menu — one 🛠️ button opening every live tuner (stripped from production). */}
       {import.meta.env.DEV && <DevMenu />}
       <BalancePanel />

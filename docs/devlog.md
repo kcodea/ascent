@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### feat: Balance Report redesign — one full-screen sortable table + section dropdown
+
+Owner request: the report crammed all five sections (Heroes / Quests / Runes / Minions / Spells) into tiny
+side-by-side tables you couldn't read or reorder. Rebuilt it to show **one section at a time**, full-width and
+centred with **large text**, chosen from a **dropdown** (each option shows its row count). **Every column — Name
+included — is click-to-sort**: the header doubles as a sort button (▾/▴ arrow marks the active one), a first click
+sorts descending for numeric columns / A→Z for Name, a second toggles direction; missing values (no data / DNF) always
+sink to the bottom regardless of direction. Each section defaults to its most useful column, descending (Minions/Spells
+by Seen, Heroes/Quests/Runes by Offer). The sticky header stays put while scrolling. Verified live against real
+telemetry (14 runs): the dropdown switches Minions (121) ↔ Quests (48) ↔ … with the right columns + counts; sorting
+Minions by Bought leads Buddy Buddy (13) → Black Belt Brian (12); Name sorts A→Z. `typecheck`/`lint`/`build:web` green.
+
 ### dev: Buy/Sell drop-zone tuner group in the Layout Lab
 
 Added a **"Buy/Sell zones"** group to the dev Layout Lab — **Sell edge** + **Buy edge** px offsets — so the

@@ -37,9 +37,15 @@ Verified: `typecheck` / `lint` / `build:web` all green; live DOM check in a run 
 `stdframe` + a loaded 1059×1427 frame img + `mix-blend-mode:color` tint, the Taunt minion is untouched, the
 spell carries `spellframe` + a loaded 1122×1346 frame img + no tint, and the card layout slot stays 141² (frames
 overhang visually without reflowing rows). Runtime window/frame rects matched the analytical geometry to ~0.01.
-**Follow-up (Mike, live nudge over HMR — the headless preview here can't render a screenshot):** dial the tint
-strength/blend, the exact tier/badge seating on the banner + oval lower curve, the spell "✦ Spell" ribbon
-position, and eyeball the DS/Venom/Golden/Dual states + the fanned hand overlap at the bigger footprint.
+**Oval tuned live (Mike, over HMR).** The seating pass surfaced that the portrait needed to (a) fill the oval
+under the gold and (b) show *more* of the illustration (subjects were cropped tight). So the oval portrait now
+uses `object-fit: contain` (whole illustration visible, tribe-tinted matte fills the rest) and a set of live
+knobs on `.card.compact.stdframe`: `--sh` (frame size), `--fill` (portrait ellipse overfill so it tucks under
+the gold, no gap ring), `--dy` (whole composite), `--frameY` (frame + banner + tier only), `--tier` (pill seat),
+`--artY` (portrait vertical framing), `--artZoom` (portrait content zoom). Locked values:
+`--sh .74 · --fill 1.12 · --dy 0 · --frameY .03 · --tier .83 · --artY 45% · --artZoom 1.2`.
+**Still to do:** the **spell** frame carries the same pipeline but is untouched at defaults — its own tuning pass
+is next; then eyeball the DS/Venom/Golden/Dual states + the fanned-hand overlap at the bigger footprint.
 
 ### fix(ui): crash screen shows the stack trace (self-diagnosing) + Copy button
 

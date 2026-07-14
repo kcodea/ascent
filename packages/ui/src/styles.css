@@ -1663,19 +1663,35 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .card.compact.spellframe .art canvas { width: 100%; height: 100%; object-fit: cover; object-position: center; margin: 0; }
 
 /* ---- STANDARD OVAL (every non-Taunt minion) --------------------------------------------------------------- */
-.card.compact.stdframe { --sh: 0.74; }   /* window width ÷ card width — the one size knob for the whole oval */
+/* LIVE KNOBS — tune these over HMR (only these usually change):
+     --sh    frame + window size (× card width)
+     --fill  portrait ZOOM — >1 makes the art fill the oval and tuck UNDER the gold inner edge (kills the gap ring)
+     --dy    nudge the WHOLE composite (frame + window + tier) DOWN by ×ccw, so the banner drops to meet the tier
+     --tier  tier-pill seat: LOWER number = tier moves DOWN toward the banner (raise it to move the pill UP)
+     --artY  portrait vertical framing (object-position %): SMALLER = subject rides higher in the oval
+     --artZoom  portrait CONTENT zoom: <1 shrinks the subject so MORE of the illustration shows (a tribe-tinted
+                matte fills the freed space inside the oval); 1 = full-bleed cover. Does NOT resize the frame.
+     --frameY   shift ONLY the gold frame (+ its banner + tier) DOWN by ×ccw, leaving the art window put. Big
+                shifts expose the art oval's top edge above the frame — raise --artZoom / --fill to compensate.
+   `--dy` moves EVERYTHING together; `--frameY` moves just the frame relative to the art. */
+.card.compact.stdframe { --sh: 0.74; --fill: 1.12; --dy: 0.00; --frameY: 0.03; --tier: 0.83; --artY: 45%; --artZoom: 1.2; }
 .card.compact.stdframe .art {
   clip-path: ellipse(50% 50% at 50% 50%);                          /* the elliptical window */
-  width: calc(var(--ccw) * var(--sh));
-  height: calc(var(--ccw) * 1.285 * var(--sh));                    /* 1.285 = window H/W */
-  left: calc(var(--ccw) * (0.5 - 0.5 * var(--sh)));                /* window centred on the archbox */
-  top: calc(var(--ccw) * (0.5 - 0.6425 * var(--sh)));             /* 0.6425 = 1.285/2 */
+  width: calc(var(--ccw) * var(--sh) * var(--fill));
+  height: calc(var(--ccw) * 1.285 * var(--sh) * var(--fill));      /* 1.285 = window H/W */
+  left: calc(var(--ccw) * (0.5 - 0.5 * var(--sh) * var(--fill)));  /* window centred on the archbox */
+  top: calc(var(--ccw) * (0.5 - 0.6425 * var(--sh) * var(--fill) + var(--dy)));  /* 0.6425 = 1.285/2 */
 }
+/* portrait framing: `contain` fits the WHOLE illustration inside the window (so nothing is cropped off — the
+   subject reads smaller and you see more of the art), `--artZoom` scales it from there (>1 fills more / mild crop,
+   <1 shrinks it), `--artY` sets the vertical framing. The `.art` tribe-tinted background shows as the matte. */
+.card.compact.stdframe .art .artimg,
+.card.compact.stdframe .art canvas { object-fit: contain; object-position: center var(--artY); transform: scale(var(--artZoom)); }
 .card.compact.stdframe .cframe-img {
   position: absolute; inset: auto; height: auto;
   width: calc(var(--ccw) * 1.481 * var(--sh));                     /* 1.481 = 1/0.675 (window is 67.5% of canvas W) */
   left: calc(var(--ccw) * (0.5 - 0.737 * var(--sh)));             /* 0.737 = windowCx 0.4975 / 0.675 */
-  top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh)));             /* 1.126 = windowCy 0.564 · (1427/1059) / 0.675 */
+  top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh) + var(--dy) + var(--frameY)));  /* 1.126 = windowCy 0.564 · (1427/1059) / 0.675 */
 }
 /* TINT — per-tribe recolour of the neutral gold, masked to the frame's own alpha so only the metal is tinted
    (the window stays clear). `color` blend keeps the metal's light/shadow; opacity is the strength knob. Same box
@@ -1684,7 +1700,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   position: absolute; z-index: 4; pointer-events: none;
   width: calc(var(--ccw) * 1.481 * var(--sh));
   left: calc(var(--ccw) * (0.5 - 0.737 * var(--sh)));
-  top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh) + var(--dy) + var(--frameY)));
   aspect-ratio: 1059 / 1427;
   background: var(--c);
   -webkit-mask: url('/frames/standard-oval.png') center / 100% 100% no-repeat;
@@ -1692,8 +1708,8 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   mix-blend-mode: color; opacity: 0.4;
 }
 .card.compact.stdframe.dual .cframe-tint { background: linear-gradient(110deg, var(--c) 0 46%, var(--c2) 54% 100%); }
-/* tier rides the oval's banner plaque (≈21% down the canvas → this seat); the atk/hp/tribe cluster is NEVER moved. */
-.card.compact.stdframe .tierbadge { top: calc(var(--ccw) * (0.5 - 0.707 * var(--sh))); }
+/* tier rides the oval's banner plaque; the atk/hp/tribe cluster is NEVER moved. `--tier` + `--dy` seat it. */
+.card.compact.stdframe .tierbadge { top: calc(var(--ccw) * (0.5 - var(--tier) * var(--sh) + var(--dy) + var(--frameY))); }
 
 /* ---- SPELL SQUARE (regular spells) ------------------------------------------------------------------------ */
 .card.compact.spellframe { --sh: 0.76; }

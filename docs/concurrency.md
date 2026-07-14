@@ -18,13 +18,16 @@ session mid-task. Fix that structurally and the rest gets easy.
 
 Never do feature work as two live sessions in the same folder.
 
-- **Preferred — a dedicated worktree per task**, owned by exactly one session:
+- **Preferred — a dedicated worktree per task**, owned by exactly one session. There's a helper for this:
   ```sh
-  git fetch origin
-  git worktree add ../trees/<task> -b feat/<task> origin/main
+  npm run task -- fix/my-thing        # isolated worktree off latest origin/main (--install to also npm install)
+  npm run task:list                   # every worktree
+  npm run task:done -- fix/my-thing   # tear it down after the PR merges
   ```
-  Work only there. Put worktrees in a predictable place (`../trees/` or your session scratchpad), named by
-  task/branch.
+  It fetches origin, branches off `origin/main`, and drops the tree under `.claude/worktrees/<slug>` (gitignored;
+  NOT a Desktop sibling — Windows leaves hollow husks when siblings are torn down). Under the hood it's just
+  `git fetch origin && git worktree add .claude/worktrees/<slug> -b <branch> origin/main` — do that by hand if
+  you prefer. **Work only in that tree.**
 - **Or a separate clone** per person if worktrees keep colliding.
 - Treat the **primary `Desktop/ascent` checkout as a shared reference**, not a place anyone does feature edits
   or branch switches.

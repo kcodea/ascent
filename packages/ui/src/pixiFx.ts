@@ -806,6 +806,22 @@ class FxController {
     this.pulses.push({ x, y, cfg, age: 0, ringsSpawned: 0 });
   }
 
+  /**
+   * ASCEND flash — a single soft glow disc that blooms and fades over a transforming unit, masking the card swap
+   * (Tara→Taragosa, Spirit Pup→Worgen). `flashSize` is a px RADIUS (÷ TENDRIL_GLOW_R → sprite scale), 1:1 with
+   * the transform-morph rig. Owner-tuned per `AscendPresetCfg`; the new-card pop rides a CSS `ascendpop` alongside.
+   */
+  flashBloom(x: number, y: number, cfg: { flashSize: number; flashMs: number; flashAlpha: number; colorGlow: string; blend: 'add' | 'normal' | 'screen' }): void {
+    if (!this.ready || !this.glowTex || !this.layer) return;
+    if (cfg.flashMs <= 0 || cfg.flashSize <= 0) return;
+    const s = cfg.flashSize / TENDRIL_GLOW_R;
+    this.spawn(this.glowTex, {
+      x, y, vx: 0, vy: 0, drag: 1, life: cfg.flashMs,
+      fromScale: s * 0.3, toScale: s, spin: 0,
+      tint: hexNum(cfg.colorGlow), blend: cfg.blend, peakAlpha: cfg.flashAlpha,
+    });
+  }
+
   /** Emit ring index `i` of a pulse — a thin expanding ring (pulseTex) from ~0 out to `ringSize`. */
   private spawnPulseRing(p: PulseFx, i: number): void {
     if (!this.pulseTex) return;

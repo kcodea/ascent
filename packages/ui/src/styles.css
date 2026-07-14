@@ -1966,6 +1966,11 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
 /* in-combat summon — the new minion pops in */
 .unit.summoned .card { animation: summonpop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
 @keyframes summonpop { 0% { transform: scale(0.2); opacity: 0; } 60% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); } }
+/* Ascend (transform: Tara→Taragosa, Spirit Pup→Worgen) — the NEW card pops in under the flash bloom (fired by
+   onAscend). Overshoot peak ≈ 1.32 mirrors the owner-tuned `ascendPresets` overshoot (0.32); the swap itself is
+   masked by the pixi flash, so the card starts small and bounces to full. */
+.unit.ascendpop .card { animation: ascendpop 0.55s cubic-bezier(0.34, 1.7, 0.64, 1); }
+@keyframes ascendpop { 0% { transform: scale(0.7); } 55% { transform: scale(1.32); } 100% { transform: scale(1); } }
 
 /* a kill shakes the unit rows (hit-stop feel) — see .app.shaking */
 @keyframes boardshake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 45% { transform: translateX(6px); } 70% { transform: translateX(-4px); } 88% { transform: translateX(2px); } }

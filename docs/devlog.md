@@ -54,6 +54,45 @@ rig (headless preview can't screenshot). Follow-up: none outstanding on DS.
 
 ## 2026-07-13 (session 39)
 
+### feat(ui): transform morph FX — ascend flash (item 8 baked)
+
+Effect-animation coverage sweep, item 8 complete. Baked the owner's tuned **flash** morph (from
+`transform-morph-preview.html`) into the `ascend` FX: when a unit transforms (Tara→Taragosa, Spirit Pup→Worgen) a
+bright lime-white flash blooms over it — masking the card swap — then the new card pops in. New `ascendPresets.ts`
+(`AscendPresetCfg` + owner-tuned `default`, mirroring `pulsePresets`/`descendPresets`), `pixiFx.flashBloom` (a
+single glow-disc bloom, screen-blend), an `ascendFx` cue on the `ascend` moment kind, an `ascendpop` CSS keyframe for
+the new card's overshoot, and the `ascend` anims-map case. Baked config: flash radius 190px / alpha 1 / 660ms /
+`#cdffa3`, new-card overshoot 0.32 (peak scale ~1.32). The swap is masked by the flash rather than delayed to
+`swapAt` (kept in the preset for round-trip). **Wants a live eyeball** — the flash + pop compose over the real card
+swap, not yet watched on a fight; all dials live in `ascendPresets.ts` for a quick retune.
+
+Verified: `typecheck + lint + test` (1050, +5 new) & `build:web` green.
+
+### chore(fx): transform-morph preview rig (item 8 — awaiting owner tuning)
+
+Effect-animation coverage sweep, item 8 (transform / `ascend`). Owner chose a **new bespoke morph** for
+Tara→Taragosa / Spirit Pup→Worgen, prototyped on a rig first (the standing FX rule). Built
+`apps/web/public/fx/transform-morph-preview.html` — a standalone rig (same shell as `buff-pulse-preview.html`: cream
+board stage, dark control panel, live JSON export) with **five candidate morph styles** to compare and tune: `flash`
+(bright bloom, card swaps at peak), `dissolve` (old rises as motes, new fades in), `shatter` (old cracks into shards,
+new assembles), `wipe` (a bright band sweeps + reveals), `vortex` (old spins down, new spins up). Each has common
+dials (duration, flash radius/alpha/ms, glow + particle colours) plus per-style params; the export is a complete
+`{ style, ...cfg }` to paste back for baking. Verified: JS syntax + a live load (5 styles, controls rebuild on style
+switch, JSON export updates, no console errors). **Next:** owner opens `/fx/transform-morph-preview.html`, picks a
+style + tunes, pastes the JSON; then I bake it into an `ascend`-event renderer (a new `ascendFx` cue on the `ascend`
+moment kind, mirroring the `summonFx`/`damageFx` channels).
+
+### feat(ui): keyword grants pulse the granter's medallion (part 1 of item 4)
+
+Effect-animation coverage sweep, item 4a. A `keyword` event (Mumi grants Rise, Gravewarden's SoC Rise, Combo Kim's
+Taunt, `deathrattleGrantShield`, …) wasn't in the medallion trigger whitelist, so the GRANTER's effect firing went
+unmarked. Added `keyword` (when it carries a `source`) alongside `sc`/`buff` → the granter's medallion now pulses
+when it hands out a keyword. The **bubble pop-in** half of item 4 (making the granted Ward dome / Taunt frame / Rise
+bubble pop *at grant time*) is a per-keyword visual and — per the owner's rule to agree an FX look on a preview rig
+before wiring — is being built on a rig next, not wired blind.
+
+Verified: `typecheck + lint + test` (1045) & `build:web` green.
+
 ### feat(ui): dust poof on summon arrival
 
 Effect-animation coverage sweep, item 7. Summons (Deathrattle summons, tokens, overflow spawns, SoC copies) got

@@ -793,6 +793,17 @@ export function useCombatReplay(
           pixiFx.impactPulse(cx, cy);
         }
       },
+      // A summon arrival → a dust poof under the new unit. Fired late (cue offset) so the summonpop scale-in has
+      // grown it to a measurable, full size; skip if the element isn't resolvable (e.g. a summon off-screen).
+      onSummonFx: (uids) => {
+        for (const uid of uids) {
+          const el = findEl(uid);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          if (r.width < 1 || r.height < 1) continue; // not laid out yet → no valid spawn rect
+          pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
+        }
+      },
     });
 
     // A Rise DEFENDER (dying but NOT the impact attacker being pulled home) explodes in place immediately —

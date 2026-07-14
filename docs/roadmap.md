@@ -174,8 +174,9 @@ fanned-hand overlap now that framed cards overhang ~1.1× the slot. All knobs ar
   - ✅ **Non-melee damage (shipped session 39).** New `damageFx` cue on the `damage` + `death` moment kinds pops
     `damageBurst`+`impactPulse` at each SC-nuke / split-damage / Blaster-AoE target. Tied to the damage moment (not
     the CSS bolt), dedupes targets, and never double-bursts melee (which owns its attack impact FX).
-  - **Summon arrival burst (NEW-ish)** — summons get only a CSS scale-pop; add a `dust` poof at the spawn rect.
-    Most common board-changing effect → highest payoff.
+  - ✅ **Summon arrival burst (shipped session 39).** New `summonFx` cue poofs `pixiFx.dust` under each arriving unit
+    at +250ms (the `summonpop` bounce). *Wants a live eyeball* — spawn position/size + timing reasoned from the
+    keyframes, not yet watched; tunable via the dev score panel offset.
   - **Transform / `ascend` (NEW)** — Tara→Taragosa, Spirit Pup→Worgen swap the card face in total silence; needs a
     morph / dispersal-reform flash. Most dramatic under-served effect.
   - **Minor** — `keywordLost` (Tauntbreaker strip), `venomLost`, Stealth `reveal` show nothing beyond a pill/opacity change.

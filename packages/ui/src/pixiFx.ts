@@ -457,6 +457,7 @@ class FxController {
   private glowTex: Texture | null = null;
   private shardRectTex: Texture | null = null; // jagged spark: elongated rectangle
   private shardTriTex: Texture | null = null;   // jagged spark: triangle
+  private shardHexTex: Texture | null = null;   // energy facet: hexagon (the Ward shield's shape, flung on break)
   private coinTex: Texture | null = null;       // gold coin (sell sprinkle)
   private bubbleTex: Texture | null = null;     // soft translucent disc — shield body
   private rimTex: Texture | null = null;        // bright ring — shield rim highlight
@@ -556,6 +557,7 @@ class FxController {
     this.glowTex = this.makeGlowTexture(app);
     this.shardRectTex = this.makeShardRectTexture(app);
     this.shardTriTex = this.makeShardTriTexture(app);
+    this.shardHexTex = this.makeShardHexTexture(app);
     this.coinTex = this.makeCoinTexture(app);
     this.bubbleTex = this.makeBubbleTexture(app);
     this.rimTex = this.makeRimTexture(app);
@@ -599,6 +601,7 @@ class FxController {
     this.glowTex = null;
     this.shardRectTex = null;
     this.shardTriTex = null;
+    this.shardHexTex = null;
     this.coinTex = null;
     this.bubbleTex = null;
     this.rimTex = null;
@@ -982,7 +985,7 @@ class FxController {
     const uy = dy / len;
     const px = -uy, py = ux; // perpendicular to travel — the trail's cross-axis (band width + glint spread)
     const special = variant !== 'wind'; // gold/blue are tinted + additive with a glint; wind is pale + normal
-    const tint = variant === 'gold' ? 0x6ba3ff : variant === 'blue' ? 0x8ec7ff : 0xf5efe0; // 'gold' = Divine Shield, now energy-blue
+    const tint = variant === 'gold' ? 0x6ba3ff : variant === 'blue' ? 0x5fe6c8 : 0xf5efe0; // 'gold' = DS (energy-blue), 'blue' = Reborn (now aqua-teal)
     const peak = variant === 'gold' ? c.goldAlpha : variant === 'blue' ? c.blueAlpha : c.alpha;
     // gold/blue emit a DENSER cluster spread across a WIDER perpendicular BAND (the ward/reborn trail reads as a
     // broad shimmer, not a thin line); wind stays one narrow wisp. Component SIZE (fromScale) is unchanged.
@@ -1356,7 +1359,7 @@ class FxController {
     for (let i = 0; i < shards; i++) {
       const a = (i / shards) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
       const speed = 320 + Math.random() * 640;
-      const tex = Math.random() < 0.5 ? this.shardRectTex! : this.shardTriTex!;
+      const tex = Math.random() < 0.82 ? this.shardHexTex! : this.shardTriTex!; // mostly hex facets + a little tri debris
       const warm = Math.random();
       const tint = warm < 0.5 ? 0x1840d0 : warm < 0.85 ? 0x2f5ae8 : 0x6a97ff;
       this.spawn(tex, {
@@ -1385,20 +1388,20 @@ class FxController {
    *  not glass), but the flash/ring/speed put it in the same punch class as the gold shatter. */
   private rebornShatter(cx: number, cy: number, w: number, h: number): void {
     const rad = Math.max(w, h) * 0.5 * AURA.reborn.margin;
-    // CRACK — a hot white-blue flash at the moment the spirit tears free.
+    // CRACK — a hot white-teal flash at the moment the spirit tears free.
     this.spawn(this.glowTex!, {
       x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 170, fromScale: 0.5, toScale: (rad / 40) * 2.4,
-      spin: 0, tint: 0xeaf4ff, blend: 'add', peakAlpha: 0.95,
+      spin: 0, tint: 0xe6fff6, blend: 'add', peakAlpha: 0.95,
     });
-    // SHOCKWAVE — a crisp spectral-blue ring expanding past the aura edge (the ward-break punctuation).
+    // SHOCKWAVE — a crisp teal ring expanding past the aura edge (the ward-break punctuation).
     this.spawn(this.rimTex!, {
       x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 420, fromScale: (rad / BUBBLE_TEX_R) * 0.7,
-      toScale: (rad / BUBBLE_TEX_R) * 2.2, spin: 0, tint: 0x7ab8ff, blend: 'add', peakAlpha: 0.9,
+      toScale: (rad / BUBBLE_TEX_R) * 2.2, spin: 0, tint: 0x45e8c0, blend: 'add', peakAlpha: 0.9,
     });
-    // soft blue bloom that swells + fades under the flash
+    // soft teal bloom that swells + fades under the flash
     this.spawn(this.bubbleTex!, {
       x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 300, fromScale: (rad / BUBBLE_TEX_R) * 0.8,
-      toScale: (rad / BUBBLE_TEX_R) * 2.0, spin: 0, tint: 0x9ccbff, blend: 'add', peakAlpha: 0.8,
+      toScale: (rad / BUBBLE_TEX_R) * 2.0, spin: 0, tint: 0x8ff2d8, blend: 'add', peakAlpha: 0.8,
     });
     // smoke wisps — soft blobs BLASTED outward (faster than the old sigh) that bias UPWARD (spirits rising)
     const wisps = 18;
@@ -1410,7 +1413,7 @@ class FxController {
         vx: Math.cos(a) * speed * 0.7, vy: Math.sin(a) * speed * 0.5 - (70 + Math.random() * 140), // rise
         drag: 0.4, life: 600 + Math.random() * 520, fromScale: 0.5 + Math.random() * 0.5,
         toScale: 1.4 + Math.random() * 0.8, spin: (Math.random() - 0.5) * 1.0,
-        tint: Math.random() < 0.5 ? 0x6ab0ff : 0xbfe2ff, blend: 'add', peakAlpha: 0.5 + Math.random() * 0.2,
+        tint: Math.random() < 0.5 ? 0x2fd6b0 : 0xa8f5df, blend: 'add', peakAlpha: 0.5 + Math.random() * 0.2,
       });
     }
     // bright spirit motes streaking up — more of them, flung harder
@@ -1421,20 +1424,20 @@ class FxController {
         x: cx + (Math.random() - 0.5) * rad * 0.6, y: cy,
         vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.35,
         life: 500 + Math.random() * 400, fromScale: 0.8 + Math.random() * 0.6, toScale: 0.05,
-        spin: 0, tint: 0xdfeeff, blend: 'add', peakAlpha: 0.9,
+        spin: 0, tint: 0xd6fff2, blend: 'add', peakAlpha: 0.9,
       });
     }
   }
 
-  /** The REBORN rebirth — the unit re-forms from the spirit: blue wisps CONVERGE inward + rise into the
-   *  reborn unit + a soft blue flash. The wispy counterpart of a summon poof (fired on the `reborn` beat). */
+  /** The REBORN rebirth — the unit re-forms from the spirit: teal wisps CONVERGE inward + rise into the
+   *  reborn unit + a soft teal flash. The wispy counterpart of a summon poof (fired on the `reborn` beat). */
   rebornSummon(cx: number, cy: number, w: number, h: number): void {
     if (!this.ready) return;
     const rad = Math.max(w, h) * 0.5 * AURA.reborn.margin;
-    // soft blue flash as the body knits back together
+    // soft teal flash as the body knits back together
     this.spawn(this.bubbleTex!, {
       x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: 320, fromScale: (rad / BUBBLE_TEX_R) * 0.3,
-      toScale: (rad / BUBBLE_TEX_R) * 1.2, spin: 0, tint: 0xcfe6ff, blend: 'add', peakAlpha: 0.65,
+      toScale: (rad / BUBBLE_TEX_R) * 1.2, spin: 0, tint: 0xcffff0, blend: 'add', peakAlpha: 0.65,
     });
     // wisps starting below + around, rising and converging into the unit
     const n = 16;
@@ -1446,7 +1449,7 @@ class FxController {
         x: cx + Math.cos(a) * r0, y: cy + Math.sin(a) * r0 + rad * 0.4, // start a touch low → rise in
         vx: -Math.cos(a) * speed * 0.6, vy: -Math.abs(Math.sin(a)) * speed - 40, // inward + up
         drag: 0.12, life: 360 + Math.random() * 220, fromScale: 0.6 + Math.random() * 0.5, toScale: 0.05,
-        spin: 0, tint: Math.random() < 0.5 ? 0x6ab0ff : 0xdfeeff, blend: 'add', peakAlpha: 0.7,
+        spin: 0, tint: Math.random() < 0.5 ? 0x2fd6b0 : 0xd6fff2, blend: 'add', peakAlpha: 0.7,
       });
     }
   }
@@ -1979,6 +1982,18 @@ class FxController {
   private makeShardTriTexture(app: Application): Texture {
     const g = new Graphics();
     g.poly([8, 0, -6, 5, -6, -5]).fill({ color: 0xffffff });
+    const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
+    g.destroy();
+    return tex;
+  }
+
+  /** An energy-facet shard: a pointy-top HEXAGON (bright outline + faint fill) — the Ward shield's own shape,
+   *  flung outward when the shield shatters. White so the shatter tint colours it. */
+  private makeShardHexTexture(app: Application): Texture {
+    const g = new Graphics();
+    const r = 7, pts: number[] = [];
+    for (let k = 0; k < 6; k++) { const a = ((60 * k + 30) * Math.PI) / 180; pts.push(Math.cos(a) * r, Math.sin(a) * r); }
+    g.poly(pts).fill({ color: 0xffffff, alpha: 0.22 }).stroke({ color: 0xffffff, width: 1.6, alignment: 0.5 });
     const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
     g.destroy();
     return tex;

@@ -3,7 +3,32 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
-## 2026-07-14 (session 40)
+## 2026-07-14 (session 41)
+
+### feat(ui): Reborn moved from Pixi wisp to a CSS ethereal AQUA-GREEN aura + hex shards on shield break
+
+Reworked the "has Reborn" signifier the same way Divine Shield was moved to CSS. Was: a persistent Pixi wisp
+aura (`kind:'reborn'`) that `syncShields` tracked onto the card. Now: a pure-CSS **ethereal aqua-green** aura —
+a faint ghost **dome** + **N rising randomized wisps** — seated on the oval window inside the ellipse-clipped art.
+- **New standalone tuner** `apps/web/public/fx/reborn-css-preview.html` (oval subject, colour pickers seeded from
+  the undead art — karthus' cyan + deathsayer's necrotic green → teal), dome/wisp/glow dials, wisp
+  count/rise/duration caps, and randomized-scatter wisps. The owner dialled the final look there; values baked in.
+- **Card.tsx** renders a `.reborn` stack (`.reborn-dome` + 27 `.wisp` children) inside `.art`; each wisp gets a
+  random left / bottom / delay / `--wisp-size` / `--wisp-rise` / `--wx` (sideways drift) so they read as an
+  organic cloud (Math.random is presentation-only). The dead `.reborntears` markup + `REBORN_TEARS` were removed.
+- **styles.css** — the tuned `.reborn-dome` / `.wisp` / `rebornpulse` / `rebornwisp` + `--rebornsize/--reborny`
+  seat + an aqua-green frame rim glow. **Recruit** `syncShields` now skips `reborn` (like `shield`), retiring the
+  Pixi aura; `rebornShatter` / `rebornSummon` + all combat FX are untouched.
+- **Shield break → hex shards:** added a hexagon shard texture (`shardHexTex`, the Ward's own facet shape); the
+  break shrapnel now flings mostly blue hexagons outward (+ a little triangle debris).
+- **Reborn combat FX recolored to teal:** `rebornShatter` (spirit release) + `rebornSummon` (re-form) + the
+  reborn drag-trail moved from spectral blue → the aqua-teal palette (deep `#178f86` → bright `#45e8c0` →
+  white-teal highlights), matching the new CSS aura.
+
+Verified: typecheck / lint / 1045 tests / build:web all green. Owner tuned the look in the standalone rig; the
+in-game render still needs an eyeball (Browser pane + Chrome ext both flaky this session). **Perf watch:** 27
+blurred, layer-promoted wisps per reborn card — fine for a few, worth measuring if many reborn minions stack.
+
 
 ### fix(ui): Divine-Shield ward reshaped to the oval frame + retuned to a glassy ENERGY-BLUE
 

@@ -640,9 +640,42 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none;
   box-shadow: 0 0 27px 8px rgba(255, 224, 120, 0.9); animation: kwglow 6s ease-in-out infinite; will-change: opacity;
 }
-/* Reborn's signifier is now the Pixi blue wispy AURA (pixiFx kind='reborn', driven from the `.reborncard`
-   marker, parallel to the shield bubble) — the old blue glow/halo/art-border + rising tears were removed.
-   The `.reborncard` class is kept purely as the DOM hook the aura tracker reads. */
+/* Reborn — wispy ethereal AQUA-GREEN aura (tuned on fx/reborn-css-preview.html), replacing the old Pixi wisp.
+   A faint ghost DOME + N rising RANDOMIZED wisps, seated on the oval window inside the ellipse-clipped art
+   (Card.tsx spawns the `.wisp` children each with random left/bottom/delay/--wisp-size/--wisp-rise/--wx). The
+   Pixi reborn aura is retired (Recruit's syncShields skips it); its combat break/re-form FX stay. */
+.card.compact.reborncard { --rebornsize: 1.3; --reborny: 53%; }
+.card.compact.reborncard .reborn {
+  position: absolute; inset: auto; top: var(--reborny); left: 50%; transform: translate(-50%, -50%);
+  width: calc(var(--ccw) * var(--rebornsize)); height: calc(var(--ccw) * var(--rebornsize));
+  pointer-events: none; z-index: 2; overflow: visible;
+}
+.card.compact.reborncard .reborn-dome {
+  position: absolute; inset: 0; border-radius: 50%; mix-blend-mode: screen; will-change: opacity;
+  background: radial-gradient(circle at 50% 46%,
+    rgba(69, 232, 192, 0) 0%, rgba(23, 143, 134, 0) calc(52% - 13%), rgba(23, 143, 134, 1) 62%, rgba(69, 232, 192, 0.51) 80%, rgba(69, 232, 192, 0) 100%);
+  animation: rebornpulse 3.2s ease-in-out infinite;
+}
+@keyframes rebornpulse { 0%, 100% { opacity: 0.06; } 50% { opacity: 1; } }
+.card.compact.reborncard .reborn-wisps { position: absolute; inset: 0; }
+.card.compact.reborncard .wisp {
+  position: absolute; bottom: 8%; left: 50%; width: var(--wisp-size, 27%); aspect-ratio: 1 / 2.4;
+  background: radial-gradient(ellipse 60% 50% at 50% 62%, rgba(69, 232, 192, 0.95) 0%, rgba(23, 143, 134, 0.5) 45%, rgba(23, 143, 134, 0) 78%);
+  filter: blur(7.5px); mix-blend-mode: screen;
+  animation: rebornwisp 10.3s ease-in-out infinite; will-change: transform, opacity;
+}
+@keyframes rebornwisp {
+  0%   { transform: translateX(-50%) translateY(18%) scaleY(0.7) scaleX(0.9); opacity: 0; }
+  22%  { opacity: 0.78; }
+  100% { transform: translateX(calc(-50% + var(--wx, 0px))) translateY(calc(-1 * var(--wisp-rise, 320%))) scaleY(1.25) scaleX(0.7); opacity: 0; }
+}
+/* Reborn frame rim glow — energy aqua-green on the reshaped oval / taunt frame */
+.card.compact.stdframe.reborncard .cframe,
+.card.compact.taunt.reborncard .tframe {
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+          drop-shadow(0 0 3px rgba(69, 232, 192, 0.85))
+          drop-shadow(0 0 11px rgba(23, 143, 134, 0.5));
+}
 /* Venomous — the same unmistakable treatment in toxic LIME (the V keyword: any damage it deals kills). */
 .card.compact.venomcard { z-index: 4; box-shadow: 0 0 10px 3px rgba(150, 228, 52, 0.58), 0 0 20px 5px rgba(120, 200, 40, 0.26); }
 .card.compact.venomcard::before { content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; box-shadow: 0 0 14px 4px rgba(168, 238, 70, 0.8), 0 0 27px 7px rgba(128, 208, 46, 0.4); animation: kwglow 2.6s ease-in-out infinite; will-change: opacity; }

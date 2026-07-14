@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Coins burst on a combat max-Gold gain.** Soulsman / Bone Taxer's Avenge raising your max Gold now sprays coins,
+  not just a text float.
 - **Aura strengthens now pulse.** When a summon/rally aura grows (Kennelmaster's Avenge bump, Mama Bear, Flowing
   Monk), the unit now pops an in-place pulse instead of just a ✦ float.
 - **More Deathrattle buffs now animate.** Burial Imp and Chef Raag buff allies on death but showed no FX (their

@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 39)
 
+### feat(ui): coins burst on a combat max-Gold gain
+
+Effect-animation coverage sweep, item 5. A `maxGold` event (Soulsman / Bone Taxer Avenge raising your max Gold)
+showed only a "+N max gold" float + medallion pulse. Added a `coins` cue to the `maxGold` moment kind that bursts
+the existing `pixiFx.coins` (the recruit-phase coin spray) at the unit, on top of the float. Same channel pattern as
+`improveSelf` (new `CueContext.onMaxGold` + `coins` channel with dev-tuner colour/label). *Judgement call:* max-Gold
+raises the ceiling rather than handing you coins now, so the coin spray is thematic juice rather than literal — the
+float still spells out "+N max gold". Easy to drop if it reads as "gained gold".
+
+Verified: `typecheck + lint + test` (+1 new) & `build:web` green.
+
 ### feat(ui): pulse when an aura strengthens (improve → self-pulse)
 
 Effect-animation coverage sweep, item 3. An `improve` event (a summon / rally AURA strengthening — Kennelmaster's

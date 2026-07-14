@@ -16,7 +16,7 @@ import { groupSelfBuffs } from './channels/buffSelf';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -64,7 +64,8 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   damage: [...BASE], shieldPop: [...BASE], poisonTick: [...BASE],
   death: [...BASE], riseDeath: [...BASE], scCast: [...BASE],
   summon: [...BASE], buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }], reborn: withReform(), ascend: [...BASE],
-  rally: [...BASE], toHand: [...BASE], maxGold: [...BASE],
+  rally: [...BASE], toHand: [...BASE],
+  maxGold: [...BASE, { ch: 'coins', at: 'start', offset: 0 }],
   improve: [...BASE, { ch: 'improveSelf', at: 'start', offset: 0 }],
   keyword: [...BASE], keywordLost: [...BASE], hpGrant: [...BASE], spellProgress: [...BASE], reveal: [...BASE],
 };
@@ -148,6 +149,9 @@ export interface CueContext {
    *  the unit's aura (future grants), not its own current Attack/Health. Wired only to the standalone `improve`
    *  moment kind — an improve absorbed into an attack rides that unit's self-buff pulse instead (no double-pop). */
   onImprove: (uids: string[]) => void;
+  /** This moment's `maxGold` targets — a unit whose Avenge raised your max Gold (Soulsman, Bone Taxer). The replay
+   *  bursts coins at each, on top of the "+N max gold" float. */
+  onMaxGold: (uids: string[]) => void;
 }
 
 /** Run one moment's plain-effect cues (sfx + float + the three aura sub-channels). Each cue fires at
@@ -196,6 +200,11 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       const uids: string[] = [];
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'improve') uids.push(e.target); }
       if (uids.length) ctx.onImprove(uids);
+    });
+    else if (cue.ch === 'coins') at(cue, () => {
+      const uids: string[] = [];
+      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'maxGold') uids.push(e.target); }
+      if (uids.length) ctx.onMaxGold(uids);
     });
     // lunge/impact are engine-driven (runAttackExchangeCues) — no-op here, by design.
   }

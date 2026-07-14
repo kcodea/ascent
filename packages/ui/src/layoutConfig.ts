@@ -71,6 +71,14 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'ropeThick', cssVar: '--rope-thick', label: 'Width', group: 'Rope', min: 2, max: 40, step: 1, def: 13, fmt: 'px' },
   { key: 'ropeX', cssVar: '--rope-x', label: 'X offset', group: 'Rope', min: -600, max: 600, step: 1, def: 3, fmt: 'px' },
   { key: 'ropeY', cssVar: '--rope-yoff', label: 'Y offset', group: 'Rope', min: -400, max: 400, step: 1, def: -22, fmt: 'px' },
+
+  // The drag-to-BUY / drag-to-SELL drop regions. Unlike the other groups these aren't pure CSS — the boundary is
+  // computed in JS at drag start (sell = above the warband top; buy = below the board midline) and drives BOTH the
+  // gradient overlay AND the actual drop hit-test. These px offsets nudge that boundary (read via getLayout() in
+  // Recruit): +Sell edge lowers the sell line (bigger sell region); −Buy edge raises the buy line (bigger buy
+  // region). Default 0 = no-op, so production (tuner unmounted, getLayout → defaults) is unchanged.
+  { key: 'sellZoneY', cssVar: '--z-sellzone-y', label: 'Sell edge', group: 'Buy/Sell zones', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
+  { key: 'buyZoneY', cssVar: '--z-buyzone-y', label: 'Buy edge', group: 'Buy/Sell zones', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
 ];
 
 export type LayoutConfig = Record<string, number>;

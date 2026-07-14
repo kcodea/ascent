@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### dev: Buy/Sell drop-zone tuner group in the Layout Lab
+
+Added a **"Buy/Sell zones"** group to the dev Layout Lab — **Sell edge** + **Buy edge** px offsets — so the
+drag-to-sell / drag-to-buy drop regions can be nudged after a layout re-tune. Unlike the other groups these aren't
+pure CSS: the boundary is computed in JS at drag start (`wbTop` = the warband top for the sell line; `midlineY` =
+the board midline for the buy line) and drives BOTH the gradient overlay AND the actual drop hit-test. The offsets
+are read once per drag via `getLayout()` (a cheap singleton read; defaults → 0 in prod so it's a no-op there) and
+added to `wbTop` / `midlineY`, so the overlay and the hit-test move together. +Sell edge lowers the sell line
+(bigger sell region); −Buy edge raises the buy line (bigger buy region). Verified live: the group renders with its
+two sliders and drives `--z-sellzone-y` / `getLayout()` (Sell edge 80 → 80px). `typecheck`/`lint`/`build:web` green.
+
 ### tooling: `npm run task` — one-command isolated worktree per session
 
 Codifies the [`docs/concurrency.md`](concurrency.md) top rule (each session works in its own worktree off latest

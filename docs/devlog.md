@@ -17,6 +17,18 @@ was taken but never completed (picked with no completion turn). Verified live wi
 "Seen 10 · Bought 4 · 40%"; a picked-but-unfinished quest read "DNF". No schema change (the `text[]` columns just
 hold duplicates now). `typecheck`/`lint`/`test`/`build:web` green.
 
+### ui: Hall of Champions shows the board WITH its Start-of-Combat buffs
+
+Owner request: the Hall of Champions warband showed the base recruit board, missing the Start-of-Combat buffs (Pack
+Leader's Beast buff, a Whelp summoned at SoC, etc.) that made the board impressive. New pure `socBoard(result)` in
+`@game/sim` reconstructs the player board at Start of Combat AFTER SoC effects fire but before the first attack — it
+replays the SoC-phase events (buff / keyword / shieldUp / summon, up to the first `attack`) on the last combat's
+`initial.player`. The run-end upload (`combatStartBoard`) merges those SoC-buffed stats/keywords onto the live-text
+end-state snapshot (matched by combat-start index, so scaling cards keep their live text) and appends any
+SoC-summoned minions. Verified: unit test folds Pack Leader's SoC +2/+2 onto the captured board (2/4→4/6, 1/1→3/3).
+`typecheck`/`lint`/`test` (**1031**)/`build:web` green. (Backfill-free — only victory runs finished after this show
+the buffed board.)
+
 ### docs: multi-session playbook (human runbook for concurrent sessions)
 
 Added [`docs/multi-session-playbook.md`](multi-session-playbook.md) — the operational, step-by-step companion to

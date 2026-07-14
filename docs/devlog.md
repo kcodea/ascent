@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### fix: mobile round 4 — board gaps, minion zoom, hero-power coin, touch drag feel
+
+- **7-minion warband/shop overflowed the board.** The row gaps (`--z-shop-gap`/`--z-wb-gap`, and the base `.row`)
+  defaulted to raw `22px` applied WITHOUT `* var(--scale)` — so cards shrank on a phone but the gaps didn't, and the
+  7th warband minion fell off the frame. Scaled all three by `var(--scale) / 0.745` (the owner's desktop ref → gaps
+  identical on desktop, ~9px on a phone). Measured live at 932×430: 7 cards span 534px inside the ~650px floor.
+- **Zoom minions ~10% + tighten mobile spacing (owner request).** Bumped `--mobile-boost` 1.15 → 1.27 (cards read
+  ~10% larger, chrome/offsets untouched so nothing collides with the frame/hero panel) and added a JS-set
+  `--gap-tighten` (0.62 on phone stages, 1 on desktop) multiplied into the row gap, so the bigger cards still fit 7
+  across (verified: cards 201→735px within the board floor).
+- **Hero-power gold coin oversized.** `.hpcost` (the cost coin eclipsing the power button) was raw px (44px / 22px
+  font / −14px offset) while the button beneath it is `--u`-scaled — so it ballooned on a phone. Converted to `--u`
+  (now 17px at phone scale, 42px on desktop — unchanged).
+- **Touch drag felt like low FPS — it was the weighted-lag drag feel, not frame rate.** The card catches up to the
+  pointer at `follow: 0.6` (a deliberate mouse-tuned weight); trailing behind a *cursor* reads as juicy heft, but
+  trailing behind a *fingertip* reads as stutter. Captured `pointerType` on grab (`dragIsTouchRef`) and, in the
+  imperative drag rAF, override `follow` to `max(f.follow, 0.9)` for touch/pen so the card sticks to the finger. Mouse
+  keeps the owner's DEV-tuned feel exactly. (This is a *feel* fix, not a perf fix — the drag was already a
+  compositor-only, FPS-independent rAF; combined with round 3's DPR cap + smaller FX, actual frame cost is down too.)
+  All desktop values verified pixel-identical (scale 0.746, boost 1, gap 22px, coin 42px).
+
 ### fix: mobile scaling round 3 — combat FX, quest offers, slider, title/settings, DPR perf
 
 Six device-reported issues, all the same family (authored at desktop scale, doesn't shrink) plus one GPU lever:

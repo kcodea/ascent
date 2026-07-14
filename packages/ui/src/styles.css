@@ -521,8 +521,8 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 .hpwrap { flex: none; margin-left: auto; position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(3 * var(--u)); }
 /* Hero-power cost — a GOLD coin eclipsing the top-left corner of the power button, identical in style to a
    Rune's cost coin (.runecard-cost). Gold is the run economy, so the coin reads the same everywhere. */
-.hpcost { position: absolute; top: -14px; left: -12px; width: 44px; height: 44px; z-index: 6; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 38% 30%, #ffe293, #eab63f 58%, #b9821f); border: 3px solid #1b1d22; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.55), inset 0 -3px 4px rgba(120, 80, 10, 0.4); pointer-events: none; }
-.hpcost .costn { font-family: var(--font-ui); font-weight: 900; font-size: 22px; color: #4a3208; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); line-height: 1; }
+.hpcost { position: absolute; top: calc(-14 * var(--u)); left: calc(-12 * var(--u)); width: calc(44 * var(--u)); height: calc(44 * var(--u)); z-index: 6; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 38% 30%, #ffe293, #eab63f 58%, #b9821f); border: calc(3 * var(--u)) solid #1b1d22; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.55), inset 0 -3px 4px rgba(120, 80, 10, 0.4); pointer-events: none; }
+.hpcost .costn { font-family: var(--font-ui); font-weight: 900; font-size: calc(22 * var(--u)); color: #4a3208; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); line-height: 1; }
 .heropowerbtn {
   width: calc(75 * var(--u)); height: calc(75 * var(--u)); border-radius: 50%; padding: 0; overflow: hidden;
   border: 3px solid var(--acc-dk); display: grid; place-items: center;
@@ -558,11 +558,14 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 .btn.go { background: var(--acc); color: #fff; border-color: var(--acc-dk); box-shadow: 0 4px 0 var(--acc-dk); padding: 7px 20px; font-size: 14px; font-weight: 800; }
 .btn.go svg { color: #fff; }
 .btn.go:disabled { box-shadow: none; }
-.row { flex: none; height: var(--ch); display: flex; gap: 22px; justify-content: center; align-items: center; }
+.row { flex: none; height: var(--ch); display: flex; gap: calc(22px * var(--scale) / 0.745 * var(--gap-tighten, 1)); justify-content: center; align-items: center; }
 /* Layout Lab (dev) — per-row card spacing. Layout-only (`gap`), so it's combat-safe (spaces the combat units
-   too) and falls back to the shipped 22px; absent in production. The hand spaces via overlap (see below). */
-.zone[data-zone='tavern'] .row { gap: var(--z-shop-gap, 22px); }
-.row.warband { gap: var(--z-wb-gap, 22px); }
+   too) and falls back to the shipped 22px; absent in production. The hand spaces via overlap (see below).
+   The tuned px is authored at the owner's ~0.745 desktop scale, so `* --scale / 0.745` keeps desktop identical
+   while the gap shrinks WITH the cards on a phone (raw px left 22px gaps between ~0.3-scale cards → the 7th
+   warband minion fell off the board). */
+.zone[data-zone='tavern'] .row { gap: calc(var(--z-shop-gap, 22px) * var(--scale) / 0.745 * var(--gap-tighten, 1)); }
+.row.warband { gap: calc(var(--z-wb-gap, 22px) * var(--scale) / 0.745 * var(--gap-tighten, 1)); }
 /* Hand: a fixed fan pinned to the bottom edge, its lower half tucked behind the
    Embers/Hero/Resolve status bar; a hovered card pops up over the bar to read in full.
    The whole zone is a wide (mostly invisible) drop band so buying still works when empty. */

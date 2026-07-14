@@ -26,7 +26,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
 - **Transforms flash.** When a unit becomes another (Tara→Taragosa, Spirit Pup→Spirit Worgen), a bright flash
-  blooms over it and the new card pops in — instead of the card silently swapping.
+  blooms over it and the new card pops in — instead of the card silently swapping. Fires in **combat and the shop**.
 - **Summons kick up dust.** A newly-summoned unit (Deathrattle summons, tokens, overflow, SoC copies) now poofs
   dust as it lands, instead of just scaling in silently.
 - **Spell/AoE hits now land visibly.** Start-of-Combat nukes, split damage, and Blaster's Deathrattle AoE pop a

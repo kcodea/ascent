@@ -54,6 +54,17 @@ rig (headless preview can't screenshot). Follow-up: none outstanding on DS.
 
 ## 2026-07-13 (session 39)
 
+### feat(ui): transform flash also fires in the shop phase
+
+Owner ask: item 8's transform flash should also play in **recruit**. Spirit Pup → Spirit Worgen transforms in the
+shop (`spellCastTransform` on the 10th spell cast — mutates `cardId` in place, keeps the uid), a different code path
+from the combat `ascend` cue. Added a board diff in `Recruit.tsx`: a board card whose `cardId` changed in place fires
+the same `pixiFx.flashBloom` (`ASCEND_PRESETS` default) at its slot — mirroring the existing golden-deploy pulse
+effect. Gated to a def that can actually morph (`spellCastTransform` / `ascendInto`) so a triple / golden / Magnetic
+merge never false-fires. **Wants a live eyeball** — play Spirit Pup, cast 10 spells.
+
+Verified: `typecheck + lint + test` (1050) & `build:web` green.
+
 ### feat(ui): transform morph FX — ascend flash (item 8 baked)
 
 Effect-animation coverage sweep, item 8 complete. Baked the owner's tuned **flash** morph (from

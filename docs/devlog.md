@@ -21,10 +21,16 @@ and on wider monitors let the board art extend rather than letterbox. Pass 1 lay
   when new art is dropped in.
 
 Verified live: at 16:9 the board fills and the UI is unchanged; at a 2.39 ultrawide viewport the stage stays **1280×720
-(16:9), centred, HUD locked inside it**, while the board art (720px tall, ~1698 wide) extends into the margins — no
-black bars. `typecheck`/`lint`/`build:web` green. **Next:** the ideal ultrawide look needs art whose FRAME sits in the
-centre 16:9 with floor in the wings (board219's frame spans the full 21:9, so its edges currently show past the UI);
-resolution presets (the 21:9 `r3440`) and per-aspect tuning are follow-ups.
+(16:9), centred, HUD locked inside it**, while the board art (720px tall) extends into the margins — no black bars.
+
+**Primary board → `testboard2` (owner call).** Wired the stone-arena art (`testboard2`) as THE board across all
+resolutions — it's framed for this model (the ornate frame sits in the centre 16:9 with floor/scenery in the wings),
+so on ultrawide the frame stays 16:9-sized and the surrounding scene simply extends outward (matches the owner's
+reference). Set the CSS `--board` default + the Settings picker primary to it (July `board219` kept as an alternate),
+dropped the per-aspect board swap, and preload only `testboard2`. Verified live at 16:9 (frame fills, UI unchanged) and
+2.39 ultrawide (fountain/desk/lanterns extend into the margins, UI locked). `typecheck`/`lint`/`build:web` green.
+**Next (still on this branch):** simplify the resolution presets (the 21:9 `r3440` is redundant now) + per-aspect and
+mobile tuning; make the tuned layout values committable/syncable between devs.
 
 ### fix: r3440 "native" ultrawide left the stage 80px short of the screen (aspect rounding)
 

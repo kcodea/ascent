@@ -19,8 +19,8 @@ export const RES_OPTIONS: { id: string; label: string; sub: string }[] = [
 // Board backdrop options. 'default' has no `url` → clears the inline override so the responsive CSS default resumes
 // (board169 at 16:9, board219 at 21:9). Any other option pins its `url` as the `--board` regardless of resolution.
 export const BOARD_OPTIONS: { id: string; label: string; sub: string; url?: string }[] = [
-  { id: 'default', label: 'Default', sub: 'July board · 16:9 / 21:9' },
-  { id: 'test', label: 'Test Board', sub: '21:9 preview', url: "url('/testboard2.webp')" },
+  { id: 'default', label: 'Arena', sub: 'Primary board · all resolutions', url: "url('/testboard2.webp')" },
+  { id: 'july', label: 'July board', sub: 'Alternate', url: "url('/board219.webp')" },
 ];
 
 export function EscMenu({

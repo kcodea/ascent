@@ -28,7 +28,7 @@
      the 16:9 stage): scaled to the stage height + centred, so the ornate frame stays locked to the 16:9 UI and
      the surrounding floor art just extends into the side margins on wider monitors (cropped to 16:9 at standard
      aspect). No aspect swap — the same wide art serves every screen. */
-  --board: url('/board219.webp');
+  --board: url('/testboard2.webp');
   /* one standard card size everywhere (shop / warband / hand / combat) — scales with the
      stage height so the board fills big screens (16:9 → 21:9), clamped to sane bounds.
      `--ch-base` is the responsive height; `--ch` multiplies it by the dev Layout Lab's `--card-scale`
@@ -48,16 +48,12 @@
 /* Resolution scaler (Esc menu): cap the stage to a fixed resolution box, centred + letterboxed.
    Each maintains its aspect ratio (the height cap keeps it true) and never exceeds the window. The aspect must
    be the option's EXACT pixel ratio (w/h), not a rounded label like 21:9 — 3440×1440 is really 43/18 (2.389),
-   NOT 21/9 (2.333); the rounded value capped the width at 1440·(21/9)=3360 on a true 3440×1440 monitor, leaving
-   ~80px of side letterbox even at "native" res (owner report). 16:9 is exact for 1920×1080 / 2560×1440. */
+   NOT 21/9 (2.333); the rounded value capped the width at 1440·(21/9)=3360 on a true 3440×1440 monitor. */
 :root[data-res="r1920"] { --gw: min(100vw, calc(100vh * 1920 / 1080), 1920px); --gh: min(100vh, calc(100vw * 1080 / 1920), 1080px); }
 :root[data-res="r2560"] { --gw: min(100vw, calc(100vh * 2560 / 1440), 2560px); --gh: min(100vh, calc(100vw * 1440 / 2560), 1440px); }
 :root[data-res="r3440"] { --gw: min(100vw, calc(100vh * 3440 / 1440), 3440px); --gh: min(100vh, calc(100vw * 1440 / 3440), 1440px); }
-/* 21:9 stage → the ultrawide board art. The forced 3440 res is always 21:9; a "fit" window (no data-res,
-   so the stage = the window) uses the 21:9 art only when the window itself is actually ultrawide. Fixed 16:9
-   res (r1920/r2560) stays letterboxed to 16:9 regardless of monitor, so it correctly keeps the default board169. */
-:root[data-res="r3440"] { --board: url('/board219.webp'); }
-@media (min-aspect-ratio: 2 / 1) { :root:not([data-res]) { --board: url('/board219.webp'); } }
+/* One board art (testboard2) serves every resolution now — drawn on `.boardbg`, cropped to 16:9 at standard aspect
+   and extending into the margins on wider windows. No per-aspect --board swap. */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
 /* centre the stage box in the window (it shrinks under the resolution scaler, letterboxing the rest) */

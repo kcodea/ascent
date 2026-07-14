@@ -43,6 +43,17 @@ export interface DragFeel {
    *  lands its BOTTOM on the SAME line (uniform), and this one value sets where that line is. Reflected to the
    *  `--hand-floor` CSS var. Higher = the card sits lower (bottom nearer the play-field floor). */
   handFloor: number;
+  /** DRAG SHADOW — while a card is lifted (`.dragcard`), its grounding shadow (`.cshadow`) grows/softens/drops
+   *  to read as further OFF the table (a higher object casts a bigger, softer, more-offset, lighter shadow).
+   *  Reflected to `--dsh-*` CSS vars; applied by `.dragcard .cshadow` in styles.css. */
+  /** Shadow scale while dragging (bigger = higher off the table). */
+  shGrow: number;
+  /** Shadow downward offset while dragging, px (further from the card = higher). */
+  shLift: number;
+  /** Shadow blur while dragging, px (softer = higher). */
+  shBlur: number;
+  /** Shadow opacity while dragging (lighter = higher/airier). */
+  shFade: number;
 }
 
 const DEFAULTS: DragFeel = {
@@ -61,6 +72,10 @@ const DEFAULTS: DragFeel = {
   magSlideMs: 390,
   collapseY: 20,    // lift only a little before the row fills the gap
   handFloor: 0.82,  // bottom-anchored pop: every hovered card lands its bottom on the same line (tuned by eye)
+  shGrow: 1.08,     // owner-tuned: shadow a touch bigger than the card face while lifted
+  shLift: 18,       // owner-tuned: shadow drops below the lifted card
+  shBlur: 11,       // owner-tuned: softer than the resting 9px, but still tight
+  shFade: 0.54,     // owner-tuned: noticeably lighter than the resting solid shadow
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -80,6 +95,10 @@ export const DRAG_RANGES: Record<keyof DragFeel, [number, number, number]> = {
   magSlideMs: [100, 600, 10],
   collapseY: [0, 200, 5],
   handFloor: [0, 1.5, 0.01],
+  shGrow: [0.8, 1.6, 0.01],
+  shLift: [0, 80, 1],
+  shBlur: [0, 50, 1],
+  shFade: [0, 1, 0.02],
 };
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
@@ -99,6 +118,10 @@ export const DRAG_DESC: Record<keyof DragFeel, string> = {
   magSlideMs: 'Duration of the Mech “absorb” slide when a Magnetic minion merges (milliseconds).',
   collapseY: 'Vertical distance (px) you must lift a card out of its row before the others slide in to fill the gap.',
   handFloor: 'Where a hovered hand card’s BOTTOM lands (× card height). Because the pop lifts each card by its own height, ALL cards — spell or minion — land on the same line. Higher = the card sits lower.',
+  shGrow: 'Drag shadow SIZE while a card is lifted (scale). Bigger = the card reads as higher off the table.',
+  shLift: 'Drag shadow OFFSET below the lifted card (px). Further = higher off the table.',
+  shBlur: 'Drag shadow SOFTNESS while lifted (blur px). Softer = higher off the table.',
+  shFade: 'Drag shadow OPACITY while lifted. Lower = a lighter, airier shadow (reads as higher/further).',
 };
 export const DRAG_KEYS = Object.keys(DEFAULTS) as (keyof DragFeel)[];
 
@@ -119,7 +142,13 @@ export function getDragFeel(): DragFeel {
  *  like `.row.hand .card:hover` pick up the current/tuned value live. */
 export function applyDragFeelVars(): void {
   if (typeof document === 'undefined') return;
-  document.documentElement.style.setProperty('--hand-floor', String(cfg.handFloor));
+  const root = document.documentElement.style;
+  root.setProperty('--hand-floor', String(cfg.handFloor));
+  // Drag shadow — consumed by `.dragcard .cshadow` (and the dev preview) in styles.css.
+  root.setProperty('--dsh-grow', String(cfg.shGrow));
+  root.setProperty('--dsh-lift', `${cfg.shLift}px`);
+  root.setProperty('--dsh-blur', `${cfg.shBlur}px`);
+  root.setProperty('--dsh-fade', String(cfg.shFade));
 }
 export function setDragValue(key: keyof DragFeel, value: number): void {
   cfg = { ...cfg, [key]: value };

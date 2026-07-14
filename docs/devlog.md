@@ -3,6 +3,31 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-13 (session 39)
+
+### feat(ui): drag-lift shadow (card reads as further off the table) + live tuner knobs
+
+When a card is picked up it scales up ("lifted off the table"). Now its **grounding shadow** reacts too: while a
+card is the floating `.dragcard`, the shadow grows, drops further below, softens, and lightens — the real cue a
+higher object gives (bigger, softer, more-offset, lighter shadow). Implemented purely off the existing shadow
+layer: a `.dragcard .cshadow` rule overrides the resting shadow with four `--dsh-*` values.
+
+Made it **owner-tunable in real time** via the existing Drag Feel tuner (dev menu → 🎴 Drag Feel):
+- `dragFeel.ts` gains four knobs — `shGrow` (scale), `shLift` (offset px), `shBlur` (px), `shFade` (opacity) —
+  with ranges + tooltips, persisted to localStorage, and reflected onto `:root` as `--dsh-grow/lift/blur/fade`
+  by `applyDragFeelVars()`. They auto-appear as sliders in `DragTuner.tsx` (labelled "drag shadow · …").
+- Because one pointer can't drag a card AND a slider at once, the tuner also gets a **"preview drag shadow"
+  checkbox** that toggles `body.dsh-preview`, pinning the drag shadow onto every *resting* card so the four
+  sliders can be dialed live and watched across the board. The tuned values become the shipped defaults via the
+  tuner's "Copy values" → paste into `DEFAULTS`.
+
+Defaults (owner-tuned): grow 1.08, lift 18px, blur 11px, fade 0.54. Static filter (no per-frame animation) →
+compositor-safe, same as the resting shadow.
+
+Verified live (in-app browser, running build): `--dsh-*` reflect at boot; `body.dsh-preview` makes a resting
+`.cshadow` compute to `blur(18px) scale(1.1) translateY(22px) opacity .7`; changing a `--dsh-*` var updates the
+shadow instantly; the tuner renders the preview checkbox + all four sliders. `typecheck`/`lint`/`build:web` green.
+
 ## 2026-07-13 (session 38)
 
 ### feat: uniform stage scaling + trimmed Settings + Balance Report alignment

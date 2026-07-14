@@ -1689,6 +1689,22 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   filter: brightness(0) blur(9px);
   transform: translateY(5px) scale(0.99);
 }
+/* DRAG-LIFT SHADOW — while a card is lifted (the floating `.dragcard`), grow / drop / soften / lighten its
+   grounding shadow so it reads as further OFF the table (a higher object casts a bigger, softer, more-offset,
+   lighter shadow). Values are the `--dsh-*` vars reflected from `dragFeel.ts` (tunable live via the Drag Feel
+   tuner). `body.dsh-preview` pins the same look onto every RESTING card so the sliders can be dialed without
+   holding a card down (the tuner's "preview drag shadow" toggle). Higher specificity than the resting block
+   above so it wins. Still a static filter (no per-frame animation) → compositor-safe. */
+.dragcard .card.compact.stdframe .cframe.cshadow,
+.dragcard .card.compact.spellframe .cframe.cshadow,
+.dragcard .card.compact.taunt .tframe.cshadow,
+body.dsh-preview .card.compact.stdframe .cframe.cshadow,
+body.dsh-preview .card.compact.spellframe .cframe.cshadow,
+body.dsh-preview .card.compact.taunt .tframe.cshadow {
+  filter: brightness(0) blur(var(--dsh-blur, 11px));
+  transform: translateY(var(--dsh-lift, 18px)) scale(var(--dsh-grow, 1.08));
+  opacity: var(--dsh-fade, 0.54);
+}
 
 /* Frame metal TONE — minion frames (oval + taunt shield) render SILVER by default; a GILDED (golden) minion goes
    GOLD. Threaded as the first function into every frame `filter` above. Spells never set it → keep their own

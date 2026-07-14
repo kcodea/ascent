@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Randomized strike sounds.** Combat impact now plays one of 4 strike clips at random (count-agnostic — drop
+  in more with no code change) so a long clash stops sounding like one repeated thud; new combat-start sound too.
 - **Authored card frames + rarity.** The Taunt shield pipeline is now the base frame for whole categories: an
   **oval** on every non-Taunt minion and a purple **square** on regular spells (portrait clips to the frame's
   window, tier seats on the banner). Minion frames render **silver**, turning **gold** when the unit is gilded —

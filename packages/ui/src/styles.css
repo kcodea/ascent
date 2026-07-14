@@ -22,8 +22,10 @@
      (--gw/--gh), not the raw viewport, so the UI never reflows with screen size; a wider/taller window just adds
      margins around the 16:9 stage, which the board art extends into (see `.boardbg`) instead of black bars. The
      Esc-menu resolution scaler can still cap the box to a fixed pixel size (see [data-res]). */
-  --gw: min(100vw, calc(100vh * 16 / 9)); --gh: min(100vh, calc(100vw * 9 / 16));
-  --bar-x: calc((100vw - var(--gw)) / 2); --bar-y: calc((100vh - var(--gh)) / 2);
+  /* `dvh` (dynamic viewport height) instead of `vh` so the stage tracks the mobile browser's shrinking/growing
+     address bar and fills the real visible area on phones. */
+  --gw: min(100vw, calc(100dvh * 16 / 9)); --gh: min(100dvh, calc(100vw * 9 / 16));
+  --bar-x: calc((100vw - var(--gw)) / 2); --bar-y: calc((100dvh - var(--gh)) / 2);
   /* The in-game board backdrop — ONE wide (21:9) source art, drawn on `.boardbg` (a full-viewport layer behind
      the 16:9 stage): scaled to the stage height + centred, so the ornate frame stays locked to the 16:9 UI and
      the surrounding floor art just extends into the side margins on wider monitors (cropped to 16:9 at standard
@@ -59,9 +61,27 @@
    and extending into the margins on wider windows. No per-aspect --board swap. */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
+/* Mobile: no rubber-band overscroll / pull-to-refresh, and kill the 300ms double-tap-zoom (the board handles
+   its own zoom-free scaling). `dvh` (dynamic viewport height) below tracks the mobile browser chrome. */
+html, body { overscroll-behavior: none; touch-action: manipulation; }
 /* centre the stage box in the window (it shrinks under the resolution scaler, letterboxing the rest) */
 #root { display: flex; align-items: center; justify-content: center; overflow: hidden; }
 body { font-family: var(--font-body), sans-serif; color: var(--ink); background: var(--bg); overflow: hidden; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; user-select: none; -webkit-user-select: none; }
+/* Landscape-only on phones: a full-screen "rotate your device" overlay, shown ONLY on a touch device held in
+   portrait (`pointer: coarse` excludes a desktop window that merely happens to be portrait). The 16:9 board is
+   unusable upright, so we ask the player to rotate rather than maintain a second, portrait layout. */
+.rotate-prompt { display: none; }
+@media (orientation: portrait) and (pointer: coarse) {
+  .rotate-prompt {
+    display: flex; position: fixed; inset: 0; z-index: 10000; flex-direction: column; align-items: center;
+    justify-content: center; gap: 20px; text-align: center; padding: 40px calc(40px + env(safe-area-inset-right));
+    background: #160f08; color: #f0e8da; font-family: var(--font-ui), sans-serif; pointer-events: auto;
+  }
+  .rotate-prompt svg { width: 76px; height: 76px; color: var(--acc, #f0902e); animation: rotatehint 2.6s ease-in-out infinite; }
+  .rotate-prompt-t { font-weight: 800; font-size: 22px; letter-spacing: 0.02em; }
+  .rotate-prompt-s { font-weight: 600; font-size: 15px; color: rgba(240, 232, 218, 0.68); max-width: 300px; line-height: 1.5; }
+}
+@keyframes rotatehint { 0%, 42% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
 /* Boot loading screen — held up front while all card/hero art fetches + decodes (see Boot.tsx). Uses only
    fixed units (no --u letterbox vars, which Game sets later) so it renders correctly before Game mounts. */
 .bootload { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: var(--bg2, #efe5d4); color: var(--ink, #2a2017); }
@@ -94,7 +114,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* The stage box: the 16:9 design canvas holding all the UI, centred in the window (#root flex-centres it) at a
    fixed --gw/--gh. Transparent — the board art now lives on `.boardbg` (a full-viewport layer BEHIND the stage)
    so it can extend past the stage into the side/top margins on off-16:9 monitors instead of black letterbox bars. */
-.app { position: relative; z-index: 1; flex: none; width: var(--gw); height: var(--gh); display: flex; flex-direction: column; padding: 12px 18px calc(var(--ch) * 0.92); gap: 8px; background: transparent; border-radius: 2px; }
+/* `touch-action: none` on the board so a card DRAG (pointer events) isn't stolen by the browser as a scroll/pan
+   on touch devices — taps/buttons still fire. Scrollable overlays (balance report, settings) sit outside .app. */
+.app { position: relative; z-index: 1; flex: none; width: var(--gw); height: var(--gh); display: flex; flex-direction: column; padding: 12px 18px calc(var(--ch) * 0.92); gap: 8px; background: transparent; border-radius: 2px; touch-action: none; }
 /* Board backdrop layer: full viewport, behind the stage. The wide (--board) art is scaled to the STAGE height and
    centred, so its ornate frame lands at the same size/place as the 16:9 UI expects — a wider window just reveals
    more of the surrounding floor art in the margins (cropped to 16:9 at standard aspect). Board dimming was removed
@@ -1508,7 +1530,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* The status tray, tucked into the bottom-LEFT corner so the hand owns the whole
    bottom-centre: Embers + Hero on the top row, the Resolve HP bar across the bottom.
    Still click-through (only the hero/Embers capture, and even they go through mid-drag). */
-.statusbar { position: fixed; bottom: calc(var(--bar-y) + 14px); left: calc(var(--bar-x) + 16px); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
+.statusbar { position: fixed; bottom: calc(var(--bar-y) + 14px + env(safe-area-inset-bottom)); left: calc(var(--bar-x) + 16px + env(safe-area-inset-left)); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
 /* Player name — a small white box above the hero panel; black text (mirrors the opponent name up top). */
 .statusbar .playername { align-self: flex-start; margin-left: calc(5 * var(--u)); background: #fff; color: var(--ink); border: 2px solid var(--gold); border-radius: calc(10 * var(--u)); padding: calc(3 * var(--u)) calc(13 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; max-width: calc(260 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow); }
 /* stretch so the Embers chip is as tall as the (taller) hero panel */
@@ -2508,11 +2530,11 @@ svg { width: 18px; height: 18px; }
 .side.foe { color: #ff6f95; }
 
 /* settings gear (bottom-right corner, opposite the status tray) — opens the Esc menu */
-.gearbtn { position: fixed; bottom: calc(var(--bar-y) + 16px); right: calc(var(--bar-x) + 16px); width: calc(40 * var(--u)); height: calc(40 * var(--u)); border-radius: calc(12 * var(--u)); border: 2px solid var(--line); background: color-mix(in srgb, var(--card) 88%, transparent); color: var(--ink2); display: grid; place-items: center; cursor: pointer; z-index: 85; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5); }
+.gearbtn { position: fixed; bottom: calc(var(--bar-y) + 16px + env(safe-area-inset-bottom)); right: calc(var(--bar-x) + 16px + env(safe-area-inset-right)); width: calc(40 * var(--u)); height: calc(40 * var(--u)); border-radius: calc(12 * var(--u)); border: 2px solid var(--line); background: color-mix(in srgb, var(--card) 88%, transparent); color: var(--ink2); display: grid; place-items: center; cursor: pointer; z-index: 85; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5); }
 .gearbtn:hover { border-color: var(--acc); color: var(--ink); transform: rotate(35deg); transition: transform 0.2s ease; }
 .gearbtn svg { width: calc(21 * var(--u)); height: calc(21 * var(--u)); }
 /* Build badge — sits just above the gear (scales with --u so it clears the gear at any resolution box). */
-.version { position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 16px + 40 * var(--u) + 7px); z-index: 84; pointer-events: none; user-select: none; text-align: right; font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.03em; color: var(--ink3); opacity: 0.72; }
+.version { position: fixed; right: calc(var(--bar-x) + 16px + env(safe-area-inset-right)); bottom: calc(var(--bar-y) + 16px + 40 * var(--u) + 7px + env(safe-area-inset-bottom)); z-index: 84; pointer-events: none; user-select: none; text-align: right; font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.03em; color: var(--ink3); opacity: 0.72; }
 .version span { font-weight: 600; opacity: 0.7; }
 /* Esc / settings overlay — above everything incl. game-over, so resolution is changeable anywhere */
 .escov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; background: rgba(20, 14, 7, 0.62); backdrop-filter: blur(3px); animation: fadein 0.16s ease; }

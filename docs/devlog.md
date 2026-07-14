@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### feat: mobile support foundation — landscape-only, touch, safe areas, rotate prompt
+
+First mobile pass (owner: landscape-only + rotate prompt, "make it playable"). Builds on the 16:9-locked, uniformly
+`--scale`d UI so a phone just needs it to fit + take touch:
+- **Viewport / zoom lock.** `index.html` gets `maximum-scale=1, user-scalable=no, viewport-fit=cover` (the board
+  does its own zoom-free scaling), a dark `theme-color`, and the iOS web-app status-bar metas.
+- **Touch input.** `.app` (the board) is `touch-action: none` so a card DRAG isn't hijacked as a page scroll/pan on
+  touch — taps/buttons still fire; scrollable overlays (balance report, settings) sit outside `.app` and keep normal
+  scrolling. `html, body` get `overscroll-behavior: none` (no rubber-band / pull-to-refresh) + `touch-action:
+  manipulation` (kills the 300 ms double-tap-zoom).
+- **Fills the real viewport.** The stage height switched from `vh` → `dvh` (dynamic viewport height) so it tracks the
+  mobile browser's shrinking/growing address bar.
+- **Safe areas.** The bottom-corner UI (status bar, gear, version) adds `env(safe-area-inset-*)` so it clears the
+  notch / home indicator (0 elsewhere).
+- **Landscape-only.** A full-screen "Rotate your device" overlay (animated phone icon) shows ONLY on a touch device
+  held in portrait (`@media (orientation: portrait) and (pointer: coarse)` — a desktop portrait window never triggers
+  it); landscape gets the full 16:9 board.
+
+Verified live: at a 812×375 landscape phone the board fills and everything scales (`--scale` 0.45, `touch-action:
+none` on the board); the rotate overlay renders correctly (media logic confirmed: `portrait` matches, `coarse` is
+false in the desktop pane so it stays hidden there). `typecheck`/`lint`/`build:web` green. **Next:** the title/menu
+screen still needs mobile sizing (its buttons are oversized at phone widths — it doesn't ride `--scale`), touch-drag
+feel + tap targets, and a real-device pass.
+
 ### feat: uniform stage scaling + trimmed Settings + Balance Report alignment
 
 Three UI passes on the 16:9-lock branch:

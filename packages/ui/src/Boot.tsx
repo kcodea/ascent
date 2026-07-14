@@ -34,13 +34,26 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
     return () => { alive = false; window.clearTimeout(cap); };
   }, [ready]);
 
-  if (ready) return <>{children}</>;
-
   return (
-    <div className="bootload" aria-live="polite" aria-busy="true">
-      <div className="bootload-mark">ASCENT</div>
-      <div className="bootload-bar"><div className="bootload-fill" style={{ width: `${Math.round(pct * 100)}%` }} /></div>
-      <div className="bootload-sub">Loading art… {Math.round(pct * 100)}%</div>
-    </div>
+    <>
+      {ready ? (
+        children
+      ) : (
+        <div className="bootload" aria-live="polite" aria-busy="true">
+          <div className="bootload-mark">ASCENT</div>
+          <div className="bootload-bar"><div className="bootload-fill" style={{ width: `${Math.round(pct * 100)}%` }} /></div>
+          <div className="bootload-sub">Loading art… {Math.round(pct * 100)}%</div>
+        </div>
+      )}
+      {/* Landscape-only on phones: CSS shows this only on a touch device held in portrait (see `.rotate-prompt`). */}
+      <div className="rotate-prompt" role="alertdialog" aria-label="Rotate your device">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="7" y="3" width="10" height="18" rx="2.2" />
+          <path d="M11 5.5h2" />
+        </svg>
+        <div className="rotate-prompt-t">Rotate your device</div>
+        <div className="rotate-prompt-s">ASCENT plays in landscape — turn your phone sideways to play.</div>
+      </div>
+    </>
   );
 }

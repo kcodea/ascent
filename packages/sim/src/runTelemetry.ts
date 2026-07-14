@@ -32,10 +32,11 @@ export interface RunTelemetry {
   questTurns: Record<string, number>;
   offeredRunes: string[];
   pickedRunes: string[];
-  /** Every card OFFERED this run (deduped) — shop rows + Discover choices. Split into minion vs spell at
-   *  aggregation time. */
+  /** Every card SIGHTING this run (NOT deduped) — one entry per fresh shop-offer instance + each Discover option.
+   *  The count of an id = how many times it was seen. Split into minion vs spell at aggregation time. */
   offeredCards: string[];
-  /** Cards the player ACQUIRED this run (deduped) — bought from the shop OR taken from a Discover. */
+  /** Every card ACQUISITION this run (NOT deduped) — one entry per shop buy + each Discover pick. The count of an
+   *  id = how many times it was taken. */
   boughtCards: string[];
 }
 
@@ -49,8 +50,13 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
   const pickedQuests = new Set<string>();
   const offeredRunes = new Set<string>();
   const pickedRunes = new Set<string>();
-  const offeredCards = new Set<string>();
-  const boughtCards = new Set<string>();
+  // Cards are counted, NOT deduped: `offeredCards` gets one entry per distinct shop-offer SIGHTING (a card sitting
+  // in the shop keeps its uid, so it's counted once per fresh appearance — a reroll/refresh mints new uids) plus
+  // each Discover option; `boughtCards` gets one entry per buy / Discover pick. So the array length per id = how
+  // many times it was SEEN / TAKEN this run.
+  const offeredCards: string[] = [];
+  const boughtCards: string[] = [];
+  const seenShopUids = new Set<string>(); // each shop-offer instance counts once, however many turns it lingers
   const questTurns: Record<string, number> = {};
   const seenCompleted = new Set<string>(); // quests already recorded as completed (detect the flip)
 
@@ -66,9 +72,10 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
   recordCompletions(s);
   for (const action of replay.actions) {
     const before = s;
-    // Snapshot offers visible in the state this action is acting on — shop rows, Discover choices, quests, runes.
-    for (const id of before.shop ?? []) if (id.cardId) offeredCards.add(id.cardId);
-    if (before.discover) for (const id of before.discover) offeredCards.add(id); // Discover = a 3-card offer too
+    // Shop sightings: each fresh shop-offer instance (by uid) counts once.
+    for (const c of before.shop ?? []) {
+      if (c.uid && c.cardId && !seenShopUids.has(c.uid)) { seenShopUids.add(c.uid); offeredCards.push(c.cardId); }
+    }
     if (before.questOffer) for (const id of before.questOffer) offeredQuests.add(id);
     if (before.runeforgeOffer) for (const id of before.runeforgeOffer) offeredRunes.add(id);
 
@@ -83,10 +90,12 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
       if (picked) pickedRunes.add(picked);
     } else if (action.type === 'buy') {
       const card = before.shop?.find((c) => c.uid === action.uid);
-      if (card?.cardId) boughtCards.add(card.cardId);
+      if (card?.cardId) boughtCards.push(card.cardId); // one entry per purchase
     } else if (action.type === 'discover' && before.discover) {
-      const picked = before.discover[action.index]; // the card taken from the Discover → an acquisition
-      if (picked) boughtCards.add(picked);
+      // A Discover is a one-time 3-card offer resolved right here: count all 3 as seen + the chosen one as taken.
+      for (const id of before.discover) offeredCards.push(id);
+      const picked = before.discover[action.index];
+      if (picked) boughtCards.push(picked);
     }
     recordCompletions(s);
   }
@@ -102,8 +111,8 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
     questTurns,
     offeredRunes: [...offeredRunes],
     pickedRunes: [...pickedRunes],
-    offeredCards: [...offeredCards].filter((id) => CARD_INDEX[id]),
-    boughtCards: [...boughtCards].filter((id) => CARD_INDEX[id]),
+    offeredCards: offeredCards.filter((id) => CARD_INDEX[id]),
+    boughtCards: boughtCards.filter((id) => CARD_INDEX[id]),
   };
 }
 

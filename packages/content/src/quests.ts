@@ -117,9 +117,9 @@ export const QUEST_DEFS: QuestDef[] = [
   // ── Turn-11 capstone additions (owner batch 2026-07-13). Each hangs a NEW recurring End-of-Turn / widen
   //    mechanic off a tribe's signature minion. Objective counts + reward magnitudes are starting dials. ──
   // UNDEAD — Spear Warden "pass the spears", the Undead speed aura, and Cratering Hulk's stat-hoard spread.
-  { id: 'q_passing_spears', name: 'Passing Spears', tribe: 'undead', tier: 'capstone', objective: { event: 'friendlyDeath', count: 12 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['knit'] }, { kind: 'recurringEndOfTurn', effect: 'spearWardenEcho' }] } },
+  { id: 'q_passing_spears', name: 'Passing Spears', tribe: 'undead', tier: 'capstone', objective: { event: 'friendlyDeath', count: 12 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['knit'] }, { kind: 'combatFlag', flag: 'passingSpears' }] } },
   { id: 'q_forsaken_speed', name: 'Forsaken Speed', tribe: 'undead', tier: 'capstone', objective: { event: 'summonCombat', count: 10, tribe: 'undead' }, reward: { kind: 'recurringEndOfTurn', effect: 'undeadPlayedAtk' } },
-  { id: 'q_cratering_missive', name: 'Cratering Missive', tribe: 'undead', tier: 'capstone', objective: { event: 'summonCombat', count: 14 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['thunderingabomination'] }, { kind: 'recurringEndOfTurn', effect: 'crateringMissive' }] } },
+  { id: 'q_cratering_missive', name: 'Cratering Missive', tribe: 'undead', tier: 'capstone', objective: { event: 'summonCombat', count: 14 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['thunderingabomination'] }, { kind: 'combatFlag', flag: 'crateringMissive' }] } },
   // DEMON — grant a Bane + widen its after-Battlecry payoff to all Demons.
   { id: 'q_banes_existence', name: "Bane's Existence", tribe: 'demon', tier: 'capstone', objective: { event: 'shout', count: 12 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['bane'] }, { kind: 'baneDemonAura', attack: 2, health: 2 }] } },
   // MECH — Cling Drones self-magnetize onto your Mechs every End of Turn.

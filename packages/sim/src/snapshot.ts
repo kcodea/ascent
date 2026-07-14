@@ -10,7 +10,7 @@
  * replay re-runs byte-identically — so every round's board is reconstructable headlessly from a few KB,
  * no need to store each board live. `replayRun` turns a replay into the per-wave snapshots.
  */
-import { makeRng, type BoardMinion, type CombatOutcome, type QuestCombatMods, type Rng, type Tribe } from '@game/core';
+import { makeRng, type BoardMinion, type CombatOutcome, type CombatResult, type Keyword, type QuestCombatMods, type Rng, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { HEROES } from './heroes';
 import { createRun, type Action, type RunState, type ShopCard } from './state';
@@ -159,6 +159,7 @@ function cleanBoard(s: RunState): BoardMinion[] {
     ...(c.addedTribes && c.addedTribes.length ? { addedTribes: [...c.addedTribes] } : {}), // Anomaly Reactor: a spell-added tribe (combat folds it into tribe2; the display badge reads it)
     ...(c.bloodlust ? { bloodlust: true } : {}), // Bloodlust: a pending Start-of-Combat immune out-of-turn strike
     ...(c.summonBonus ? { summonBonus: c.summonBonus } : {}),
+    ...(c.eotBonus ? { eotBonus: c.eotBonus } : {}), // Ritualist: carry the accrued per-tick grant so a served board reads + plays true
     ...(c.rallyMechAtk ? { rallyMechAtk: c.rallyMechAtk } : {}),
     ...(c.rallySpellWeld ? { rallySpellWeld: c.rallySpellWeld } : {}),
     // Per-minion accruals, so a board served as an opponent is as strong AND reads as accurately as the board
@@ -181,6 +182,32 @@ function cleanBoard(s: RunState): BoardMinion[] {
  * Snapshot the board a run fought this wave. Call right after a combat is set up (`faceOmen`), when the
  * board is final and `lastCombat.result` is known. Pure — the caller stamps any wall-clock time.
  */
+/**
+ * The player board at Start of Combat AFTER SoC effects fire (buffs / keywords / shields / SoC summons) but BEFORE
+ * the first attack — reconstructed from a CombatResult's `initial.player` + its SoC-phase events (every event up to
+ * the first `attack`). Lets the Hall of Champions show the *buffed* board the player fought with (Pack Leader's Beast
+ * buff, a Whelp summoned at SoC), not the base recruit warband. Pure; order matches the combat-start board, with
+ * SoC-summoned minions appended.
+ */
+export function socBoard(result: CombatResult): BoardMinion[] {
+  const units = result.initial.player.map((m) => ({
+    uid: m.uid, cardId: m.cardId, attack: m.attack, health: m.health, keywords: [...m.keywords] as Keyword[], golden: m.golden, buffs: m.buffs,
+  }));
+  const byUid = new Map(units.map((u) => [u.uid, u]));
+  for (const e of result.events) {
+    if (e.type === 'attack') break; // SoC phase ends at the first swing
+    if (e.type === 'buff') { const u = byUid.get(e.target); if (u) { u.attack += e.attack; u.health += e.health; } }
+    else if (e.type === 'keyword') { const u = byUid.get(e.target); if (u && !u.keywords.includes(e.keyword)) u.keywords.push(e.keyword); }
+    else if (e.type === 'shieldUp') { const u = byUid.get(e.target); if (u && !u.keywords.includes('DS')) u.keywords.push('DS'); }
+    else if (e.type === 'summon' && e.side === 'player') {
+      const m = e.minion;
+      const nu = { uid: m.uid, cardId: m.cardId, attack: m.attack, health: m.health, keywords: [...m.keywords] as Keyword[], golden: m.golden, buffs: m.buffs };
+      units.push(nu); byUid.set(m.uid, nu);
+    }
+  }
+  return units.map(({ uid: _uid, ...m }) => m as BoardMinion);
+}
+
 export function snapshotBoard(s: RunState): BoardSnapshot {
   const minions = cleanBoard(s);
   // Run-LEVEL combat scalers at capture, so a served opponent's Grim / Taragosa / Pack Leader / Runescale

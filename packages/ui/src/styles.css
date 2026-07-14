@@ -24,10 +24,10 @@
   --gw: 100vw; --gh: 100vh;
   --bar-x: calc((100vw - var(--gw)) / 2); --bar-y: calc((100vh - var(--gh)) / 2);
   /* The in-game board backdrop, keyed to the stage's aspect (see .app). Default is the 16:9 art
-     (board2c); the 21:9 art (board2upscaled2, native 3440×1440) is swapped in for the ultrawide
+     (board169, 2560×1429); the 21:9 art (board219, 3440×1459) is swapped in for the ultrawide
      resolution + a fit window that's actually ultrawide. Only the URL changes — the gradient scrim + fallback
      colour stay in .app. */
-  --board: url('/board2c.webp');
+  --board: url('/board169.webp');
   /* one standard card size everywhere (shop / warband / hand / combat) — scales with the
      stage height so the board fills big screens (16:9 → 21:9), clamped to sane bounds.
      `--ch-base` is the responsive height; `--ch` multiplies it by the dev Layout Lab's `--card-scale`
@@ -51,9 +51,9 @@
 :root[data-res="r3440"] { --gw: min(100vw, calc(100vh * 21 / 9), 3440px); --gh: min(100vh, calc(100vw * 9 / 21), 1440px); }
 /* 21:9 stage → the ultrawide board art. The forced 3440 res is always 21:9; a "fit" window (no data-res,
    so the stage = the window) uses the 21:9 art only when the window itself is actually ultrawide. Fixed 16:9
-   res (r1920/r2560) stays letterboxed to 16:9 regardless of monitor, so it correctly keeps the default board2c. */
-:root[data-res="r3440"] { --board: url('/board2upscaled2.webp'); }
-@media (min-aspect-ratio: 2 / 1) { :root:not([data-res]) { --board: url('/board2upscaled2.webp'); } }
+   res (r1920/r2560) stays letterboxed to 16:9 regardless of monitor, so it correctly keeps the default board169. */
+:root[data-res="r3440"] { --board: url('/board219.webp'); }
+@media (min-aspect-ratio: 2 / 1) { :root:not([data-res]) { --board: url('/board219.webp'); } }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
 /* centre the stage box in the window (it shrinks under the resolution scaler, letterboxing the rest) */
@@ -117,8 +117,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
    a live flame (halo + hot core + rising embers) with a glowing char edge trailing behind it. Only the flame's
    transform/opacity animate in a loop (compositor-only, per docs/performance.md); the drop-shadow is static. */
 .rope {
-  position: absolute; left: 50%; top: var(--rope-y, 50%); transform: translate(-50%, -50%);
-  width: 86%; height: calc(8 * var(--u)); z-index: 8; border-radius: 999px; overflow: visible; pointer-events: none;
+  /* STATIC size (dev Layout Lab "Rope" group): length/width are absolute px so the rope no longer scales with
+     resolution (was 86% board-width × --u thickness). --rope-y still auto-aligns the base to the art divider;
+     --rope-x / --rope-yoff nudge it. Keep these fallbacks in sync with layoutConfig.ts's rope defs. */
+  position: absolute; left: 50%; top: var(--rope-y, 50%);
+  transform: translate(calc(-50% + var(--rope-x, 0px)), calc(-50% + var(--rope-yoff, 0px)));
+  width: var(--rope-len, 1600px); height: var(--rope-thick, 10px); z-index: 8; border-radius: 999px; overflow: visible; pointer-events: none;
   background:
     repeating-linear-gradient(48deg, rgba(255, 240, 200, 0.22) 0 3px, rgba(90, 60, 25, 0.30) 3px 7px),
     linear-gradient(to bottom, #e3b870, #bb8a3f 52%, #8c6326);
@@ -126,15 +130,17 @@ canvas.spr { image-rendering: pixelated; display: block; }
   animation: ropein 0.4s ease both;
 }
 @keyframes ropein { from { opacity: 0; } to { opacity: 1; } }
+/* width (lit fill) + the flame's transform are driven per-frame by BurnRope's rAF, synced to the turn clock —
+   NO CSS transition here (a 1s tween would lag each frame's update and desync the burn from the timer). */
 .rope-lit {
-  position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px 0 0 999px; transition: width 1s linear;
+  position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px 0 0 999px;
   background:
     repeating-linear-gradient(48deg, rgba(130, 65, 20, 0.45) 0 3px, rgba(12, 7, 3, 0.55) 3px 7px),
     linear-gradient(to bottom, #3a2517, #140b05);
   box-shadow: inset calc(-11 * var(--u)) 0 calc(10 * var(--u)) calc(-5 * var(--u)) rgba(255, 135, 45, 0.95);
 }
 /* the live flame, anchored to the burn point and rising from the rope */
-.rope-flame { position: absolute; top: 50%; left: 0; width: 0; height: 0; transform: translate(-50%, -50%); transition: left 1s linear; z-index: 6; pointer-events: none; }
+.rope-flame { position: absolute; top: 50%; left: 0; width: 0; height: 0; transform: translate(-50%, -50%); z-index: 6; pointer-events: none; }
 .rope-flame .fl-glow {
   position: absolute; left: 0; top: 0; transform: translate(-50%, -50%);
   width: calc(58 * var(--u)); height: calc(26 * var(--u)); border-radius: 50%;
@@ -2676,8 +2682,17 @@ svg { width: 18px; height: 18px; }
 /* Player Leaderboard (Rankings) — reuses the .lbpage shell; a compact ranked table (rank · player · rating · games · favorite hero). */
 .rankpage .lbscroll { max-width: 860px; margin: 0 auto; width: 100%; }
 .ranktable { display: flex; flex-direction: column; gap: 2px; font-family: var(--font-ui); }
-.rankrow { display: grid; grid-template-columns: 3em 1fr 5em 5em 12em; gap: 12px; align-items: center; padding: 12px 16px; background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: #f0e8da; }
-.rankrow.rankhead { background: none; border: none; border-bottom: 2px solid rgba(255, 255, 255, 0.16); border-radius: 0; padding-bottom: 6px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.5); }
+/* Columns in PX (not em) so the header — which uses a smaller font-size — computes the SAME track widths as the
+   data rows and lines up. (em tracks scale with each row's own font-size, which was the misalignment.) */
+.rankrow { display: grid; grid-template-columns: 40px minmax(0, 1fr) 96px 96px 210px; gap: 0; align-items: stretch; padding: 10px 18px; background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: #f0e8da; }
+/* Transparent 2px border keeps the header's columns inset the SAME as the bordered data rows, so they line up. */
+.rankrow.rankhead { background: none; border: 2px solid transparent; border-bottom: 2px solid rgba(255, 255, 255, 0.16); border-radius: 0; padding-top: 4px; padding-bottom: 8px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.5); }
+/* Column dividers: a full-height rule at the left of every column after the player name. */
+.rankrow > .ranknum, .rankrow > .rankfav { align-self: stretch; display: flex; align-items: center; border-left: 1px solid rgba(255, 255, 255, 0.1); padding-left: 14px; margin-left: 14px; }
+.rankrow.rankhead > .ranknum, .rankrow.rankhead > .rankfav { border-left-color: transparent; }
+.rankrow > .ranknum { justify-content: flex-end; }
+.rankrow > .rankrank, .rankrow > .rankname { display: flex; align-items: center; }
+.rankrow > .rankrank { justify-content: center; }
 .rankrow.me { border-color: var(--acc); background: rgba(255, 140, 40, 0.12); }
 .rankrank { font-weight: 800; font-size: 20px; text-align: center; color: rgba(255, 255, 255, 0.6); }
 .rankrank.r1 { color: #ffcf4a; }

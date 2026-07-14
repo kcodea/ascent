@@ -10,7 +10,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const DIRS = ['minions', 'heroes', 'effects', 'powers'].map((s) => join(ROOT, 'packages/ui/src/art', s));
+const DIRS = ['minions', 'heroes', 'effects', 'powers', 'quests', 'runes'].map((s) => join(ROOT, 'packages/ui/src/art', s));
 const MAX = 512;
 const QUALITY = 85;
 
@@ -20,20 +20,20 @@ let n = 0;
 for (const dir of DIRS) {
   if (!existsSync(dir)) continue; // a sub-dir (e.g. effects/) may not exist in every checkout — skip it
   for (const f of readdirSync(dir)) {
-    if (!f.endsWith('.png')) continue;
-    const png = join(dir, f);
-    const webp = png.replace(/\.png$/, '.webp');
-    const b0 = statSync(png).size;
-    await sharp(png)
+    if (!/\.(png|jpe?g)$/i.test(f)) continue; // source masters may be PNG or JPEG
+    const src = join(dir, f);
+    const webp = src.replace(/\.(png|jpe?g)$/i, '.webp');
+    const b0 = statSync(src).size;
+    await sharp(src)
       .resize(MAX, MAX, { fit: 'inside', withoutEnlargement: true })
       .webp({ quality: QUALITY, effort: 6 })
       .toFile(webp);
     const b1 = statSync(webp).size;
-    unlinkSync(png); // the WebP replaces the PNG; the high-res master is retained out-of-repo
+    unlinkSync(src); // the WebP replaces the source; the high-res master is retained out-of-repo
     before += b0;
     after += b1;
     n++;
-    console.log(`  ${f.replace('.png', '').padEnd(20)} ${String(Math.round(b0 / 1024)).padStart(5)}KB → ${String(Math.round(b1 / 1024)).padStart(4)}KB`);
+    console.log(`  ${f.replace(/\.(png|jpe?g)$/i, '').padEnd(20)} ${String(Math.round(b0 / 1024)).padStart(5)}KB → ${String(Math.round(b1 / 1024)).padStart(4)}KB`);
   }
 }
 console.log(

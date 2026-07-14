@@ -25,10 +25,20 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
-- **Authored card frames.** The Taunt shield pipeline is now the base frame for whole categories: a gold
-  **oval** on every non-Taunt minion (with a per-tribe tint, dual-tribe split) and a purple **square** on
-  regular spells. Portrait clips to the frame's window, the PNG lays over it, tier seats on the banner, and
-  every keyword-state glow (DS / Venom / Golden / Frozen / selection) was refitted to the new silhouettes.
+- **Authored card frames + rarity.** The Taunt shield pipeline is now the base frame for whole categories: an
+  **oval** on every non-Taunt minion and a purple **square** on regular spells (portrait clips to the frame's
+  window, tier seats on the banner). Minion frames render **silver**, turning **gold** when the unit is gilded —
+  which also fires a self-buff deploy pulse. A dev-only **FrameTuner** dials every knob live.
+- **Rope timing synced.** The burning rope is now driven frame-by-frame off the turn clock — it starts at the left on
+  the first lit second and finishes **exactly** as the timer hits 0 (no more burning past it), calibrated to the real
+  per-wave turn length.
+- **Rope scaler (dev).** The centre-divider burning rope is now **static** (fixed px, no longer scales with
+  resolution) and tunable live from the Layout Lab's new "Rope" group — Length, Width, X, Y.
+- **New board backdrops.** Fresh July board art wired for both aspect ratios — `board169` at 16:9 resolutions,
+  `board219` at 21:9 (forced ultrawide res + a genuinely ultrawide fit window).
+- **Ritualist live text.** Ritualist now shows its **current** per-tick Fodder/Imp grant (climbing each End of Turn)
+  in the shop, on the board, AND in combat — its per-instance accrual is carried across the combat boundary, so
+  mousing it in the arena no longer reverts to the printed base.
 - **Shop-phase buff FX.** When a card buffs *other* minions in the shop (Battlecry, on-summon, Guel, spell casts,
   Deathrattles, Karwind/Bane, Choose One, Hunter), it now shoots the same **tendril** (from a living source) or
   rains the same **descend** (from a spell / Deathrattle) that combat uses — no longer just a green flash. Captured

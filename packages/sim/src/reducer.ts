@@ -8,7 +8,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -2015,19 +2015,14 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       if ((r.randomSpell ?? 0) > 0) conjureToHand(s, SPELL_CARDS.filter((c) => c.tier <= s.tier), r.randomSpell!); // Hoard Spark's random spell
       if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, r.randomFilterCount ?? 1, r.randomFilterExactTier); // "N random Shout/Echo/Rally/Attachment minions"
       if (r.randomTier) grantRandomTierMinion(s, r.randomTier, r.randomCount ?? 1); // Rune of the Pair — N random Tier-K minions
-      for (const id of r.grantGolden ?? []) { // Stormcalling / Frontline Glory — a GILDED copy
-        const before = s.hand.length;
-        conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
-        if (s.hand.length > before) gildMinion(s.hand[s.hand.length - 1]!);
+      for (const id of r.grantGolden ?? []) { // Leader of the Pack / Stormcalling — a GILDED copy (board-overflow safe)
+        if (CARD_INDEX[id]) grantMinionToHandOrBoard(s, CARD_INDEX[id]!, true);
       }
       for (const id of r.cards ?? []) {
-        const before = s.hand.length;
-        conjureToHand(s, CARD_INDEX[id] ? [CARD_INDEX[id]!] : [], 1);
+        if (!CARD_INDEX[id]) continue;
+        const card = grantMinionToHandOrBoard(s, CARD_INDEX[id]!, false);
         // Apex Hunt: stamp the granted card (a Badgington) with extra keywords (Flurry + Ward) on the way in.
-        if (r.grantKeywords && s.hand.length > before) {
-          const card = s.hand[s.hand.length - 1]!;
-          for (const kw of r.grantKeywords) if (!card.keywords.includes(kw)) card.keywords.push(kw);
-        }
+        if (r.grantKeywords) for (const kw of r.grantKeywords) if (!card.keywords.includes(kw)) card.keywords.push(kw);
       }
       if (allowRepeat && (r.repeatInTurns ?? 0) > 0) {
         (s.pendingQuestRewards ??= []).push({ questId: def.id, turnsLeft: r.repeatInTurns! });
@@ -2325,6 +2320,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     feedingLine: f?.feedingLine,
     umbralEnergy: f?.umbralEnergy,
     emptyGraves: f?.emptyGraves,
+    crateringMissive: f?.crateringMissive, // Cratering Missive: Hulk overflow buffs ALL tribes, not just Undead
+    passingSpears: f?.passingSpears, // Passing Spears: Spear Wardens give their stats to a friendly minion on death
+
     runeWarding: f?.runeWarding, // Rune of Warding: SoC give leftmost minion Ward
     runeFury: f?.runeFury, // Rune of Fury: Avenges trigger twice
     runeRallying: f?.runeRallying, // Rune of Rallying: SoC trigger your Rally (on-attack) effects

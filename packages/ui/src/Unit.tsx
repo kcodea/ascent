@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { spellAttackBonus, spellHealthBonus } from '@game/sim';
 import { Card, type CardView } from './Card';
-import { ascendProgressText, combatCastGrantText, cryptDrakeText, engraveTallyText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText, sergeantText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, transformProgressText, watcherText } from './cardText';
+import { ascendProgressText, combatCastGrantText, cryptDrakeText, engraveTallyText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText, ritualistText, sergeantText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, transformProgressText, watcherText } from './cardText';
 import { useGame } from './store';
 import type { UnitFrame } from './useCombatReplay';
 
@@ -65,6 +65,7 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
     ?? cryptDrakeText(u.cardId, u.golden, u.attackSeen ?? 0)
     ?? ascendProgressText(u.cardId, u.ascendProgress ?? 0)
     ?? sergeantText(u.cardId, u.golden, u.hpGrantBonus ?? 0)
+    ?? ritualistText(u.cardId, u.golden, u.eotBonus ?? 0) // Ritualist: live per-tick Fodder/Imp grant (seeded from the run board's End-of-Turn accrual)
     ?? tallyBuffText(u.cardId, drTally) // Grim: live "+N/+N" from the Deathrattle tally (per-side)
     ?? guelProgressText(u.cardId, u.golden, u.spellProgress ?? 0) // Guel: live grant + countdown from HIS on-board tally (per-instance, seeded by the snapshot)
     ?? monkProgressText(u.cardId, u.golden, u.summonBonus, u.overflowBonus ?? 0) // Flowing Monk: live grant + overflow countdown (climbs via improve events)

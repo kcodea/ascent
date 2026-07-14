@@ -328,6 +328,7 @@ export function simulate(
     keywords: [...m.keywords],
     golden: m.golden,
     summonBonus: m.summonBonus,
+    eotBonus: m.eotBonus,
     overflowBonus: m.overflowBonus,
     hpGrantBonus: m.hpGrantBonus,
     ascendProgress: m.ascendProgress,
@@ -681,7 +682,12 @@ export function simulate(
       if (!minion.effects.includes(effect)) return;
       // A dead minion fires nothing except its own Deathrattle.
       if (minion.dead && effect.on !== 'onDeath') return;
-      fn(ctx, minion, effect.params ?? {}, payload);
+      // Cratering Missive: drop the tribe filter on the Cratering Hulk's overflow buff so it hits ALL your minions.
+      const params =
+        effect.do === 'onSummonOverflowBuffTribe' && modsFor(minion.side).crateringMissive
+          ? { ...(effect.params ?? {}), tribe: '' }
+          : effect.params ?? {};
+      fn(ctx, minion, params, payload);
       // Rune of Fury: your Avenges trigger twice — re-run the avenge effect once more. Per side (a served enemy's
       // Fury doubles its own minions' Avenges too).
       if (modsFor(minion.side).runeFury && effect.on === 'avenge') {
@@ -1546,6 +1552,20 @@ export function simulate(
       if (idx < 0 || boards[side].slice(0, idx).some((m) => !m.dead && m.health > 0)) return; // not the leftmost
       const right = [...boards[side]].reverse().find((m) => !m.dead && m.health > 0 && m !== minion);
       if (right) ctx.buff(right, minion.attack, minion.maxHealth, 'Rune of Inheritance');
+    });
+  }
+  // Passing Spears: your Spear Wardens gain "Echo: when this dies, give its stats to a friendly minion" — on a
+  // Spear Warden's death, hand its full stats (attack + max Health) to your strongest OTHER living minion. Per side.
+  if (questMods.passingSpears || enemyQuestMods.passingSpears) {
+    bus.on('onDeath', (payload) => {
+      const { minion, side } = payload as { minion: Minion; side: Side };
+      if (minion.cardId !== 'knit' || !modsFor(side).passingSpears) return;
+      let best: Minion | undefined;
+      for (const m of boards[side]) {
+        if (m === minion || m.dead || m.health <= 0) continue;
+        if (!best || m.attack + m.maxHealth > best.attack + best.maxHealth) best = m;
+      }
+      if (best) ctx.buff(best, minion.attack, minion.maxHealth, 'Passing Spears');
     });
   }
   // Rune of Salvage: a friendly Mech losing its Ward drops a random Attachment into your hand next shop —

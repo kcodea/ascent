@@ -68,6 +68,160 @@ with a ref seeded on mount/re-entry so existing gilded minions never re-pulse. V
 frames + a gilded card visibly gold beside them; typecheck/lint/1024 tests/build green. (The pulse itself is the
 shipped self-buff FX; couldn't screenshot the animation headlessly — rAF throttles off-focus.) **Still to do:**
 owner's final spell-frame dial-in via the tuner; silver-tone taste pass; DS/Venom/Dual eyeball.
+### fix: burning-rope timing 100% synced to the turn clock (no more burning past 0)
+
+Owner-reported: the rope kept burning after the timer ran out. Two causes. (1) The burn window was a fixed
+`ROPE_SECONDS = 20`, but the actual turn is `min(80, 18 + 4·(wave-1))` — so on short early turns (wave 1 = 18s) the
+rate was miscalibrated and the rope started already part-burnt. (2) The flame/char were driven by integer per-second
+ticks with a **1s CSS `transition`** on `left`/`width`, so the animation always trailed ~1 second — the burn finished a
+second AFTER the clock hit 0. Rewrote `BurnRope`: the window is now the ACTUAL turn length (`min(ROPE_SECONDS,
+turnSeconds)`), and a rAF interpolates WITHIN each integer second from the wall-clock moment it began, writing the lit
+width + the flame `transform` straight to refs each frame (no per-frame React render; flame moves compositor-only so
+its drop-shadow never repaints). It also takes a `paused` prop (Discover / quest / runeforge / hero-select / overlay)
+that freezes the burn in lock-step with the countdown. Removed the now-unused `transition: width/left` from
+`.rope-lit`/`.rope-flame` (a tween would re-lag each frame). Verified live by recording the countdown: the flame
+starts at 0 on the first lit second and reaches the rope's end at **f=0.999 exactly as the clock reads 0**, then holds
+(was overshooting ~1s); mid-burn at 11s-left it sits at 7/18 ≈ 0.39. `typecheck`/`lint`/`test` (1033)/`build:web` green.
+
+### dev: rope scaler in the Layout Lab + make the burning rope static (no resolution scaling)
+
+Owner request: the centre-divider burning rope resized with resolution and needed live tuning. It was `width: 86%`
+(board-relative) × `height: calc(8 * var(--u))` (chrome-scaled), so both dimensions grew/shrank with the stage. Made
+it **STATIC**: `.rope` now reads `width: var(--rope-len, 1600px)` and `height: var(--rope-thick, 10px)` (absolute px,
+decoupled from `--u` and the percentage) plus `--rope-x` / `--rope-yoff` offsets folded into its transform. Added a new
+**"Rope"** group to the dev Layout Lab (`layoutConfig.ts` → `LAYOUT_VARS`, which the tuner renders automatically):
+Length (400–3600px), Width (2–40px), X offset + Y offset (±px). `--rope-y` still auto-aligns the base to the art
+divider at any aspect; the offsets ride on top. CSS fallbacks match the `layoutConfig` defaults so production (tuner
+unmounted) equals a Reset. Verified live: rope holds **1600×10 across r1920/r2560/r3440** (was resolution-dependent);
+all four knobs drive it (length/thickness resize, X/Y translate by the exact px); the "Rope" group renders with its
+four sliders. `typecheck`/`lint`/`build:web` green. (Judgement call: "static" read as fixed px regardless of
+resolution — the 1600px/10px defaults match the ~1920 look; the owner tunes the rest live and it persists.)
+
+### art: new July board backdrops (16:9 + 21:9)
+
+Wired the owner's two new board masters (`C:\Game Assets\Ascent Art\Game Boards\julyboard169.jpg` /
+`julyboard219.jpg`) as the in-game board backdrops, replacing `board2c` / `board2upscaled2`. Converted each to WebP
+(sharp, q82): `board169.webp` (2560×1429, from the 5504×3072 master) for the 16:9 resolutions and `board219.webp`
+(3440×1459, from the 6336×2688 master) for 21:9. Each keeps its own aspect so the CSS `center / cover` scrim crops
+only the edges. Updated the three `--board` `url()`s in `styles.css` (default + `data-res="r3440"` + the ultrawide
+`min-aspect-ratio` fit-window path), the `PUBLIC_ART_URLS` preload list in `art.ts`, and removed the two orphaned old
+WebPs from `apps/web/public/`. Verified live: `--board` resolves to `board169.webp` at default/16:9 and swaps to
+`board219.webp` under `r3440` + an ultrawide window; both serve 200 at the intended dimensions and render full-bright
+in-run (frame, centre rope, corner emblems intact) at both aspects. `typecheck`/`lint`/`build:web` green.
+
+### fix: Ritualist live text (per-tick grant) shows current value in shop AND combat + carryover audit
+
+Owner-reported: Ritualist's combat card text reverted to "default" (printed base) and never showed the current
+per-tick Fodder/Imp grant it was handing out, and even the shop text lagged. Ritualist's End-of-Turn effect
+(`buffFodderImpsImproving`) climbs a per-instance accrual (`self.eotBonus += step`, then grants Fodder+Imps that new
+total), but it had NO live-text helper anywhere. Added `ritualistText(cardId, golden, eotBonus)` in `cardText.ts`
+(greens the FIRST magnitude — the grant = accrued + next step — leaving the "+3/+3 improves" step printed) and wired it
+into BOTH chains: `liveCardText` (shop/board/hand/Discover/end-screen, via a new `eotBonus` on `LiveTextParams`, fed
+from `inst.eotBonus`) and the `Unit.tsx` combat chain. Plumbed `eotBonus` per-instance through the combat boundary,
+mirroring `summonBonus`: `BoardMinion`/`Minion`/`MinionSnapshot` (core `types.ts`), `instantiate` (`minion.ts`),
+`snapshot` (`simulate.ts`), and `cleanBoard` (sim `snapshot.ts`, so a served opponent board reads + plays true).
+Verified: new helper unit tests (accrued 3 → next grant +6, golden 6 → +12; null before first trigger) + a combat
+snapshot test (`eotBonus: 6` survives instantiate→snapshot). `typecheck`/`lint`/`test` (**1033**)/`build:web` green.
+
+Audit (owner asked to "make sure all cards have correct carryover"): diffed every live-text helper in the shop chain
+vs the combat chain. Ritualist was the one genuine per-instance *magnitude* desync. The remaining shop-only helpers
+are intentionally left showing base rule text in combat because their "current value" is a **recruit-phase countdown
+or economy metric that has no meaning mid-fight**: `cadenceProgressText` (Frontdrake/Money Maker "Next in N turns" —
+no turns tick during combat), `escalatingCastText` (Vineweaver's next-End-of-Turn cast count), `abhorrentHorrorText`
+("+X/+Y next combat" — already baked into stats once fighting), `clingProgressText`/`squirlScoutText`/`trailForagerText`/
+`stewardText` (run-wide enchant / sell / last-spell economy). Showing a between-turns countdown while a minion swings
+would itself be the confusing thing, so their base combat text is the accurate display. (Carrying those would need
+run-wide scaler plumbing across the shared combat/UI boundary — flagged for owner if desired.)
+
+### fix: Balance Report — real Seen/Bought COUNTS for cards + quest DNF
+
+Owner-reported: the report showed every bought minion as "1 / 100%" regardless of how many times it was actually
+seen/bought — because `reconstructRunTelemetry` deduped `offeredCards`/`boughtCards` into per-run **Sets**. Now they
+COUNT: `offeredCards` gets one entry per distinct shop-offer instance (tracked by uid, so a card lingering in the shop
+across a turn counts once; a reroll mints a new sighting) + each Discover option; `boughtCards` gets one per shop buy
++ Discover pick. The Minions/Spells tables now show **Seen** (total sightings) · **Bought** (total buys) · **Buy %**
+(bought/seen) instead of the misleading per-run rates. Quests now show **DNF** in the Avg-Turns column when a quest
+was taken but never completed (picked with no completion turn). Verified live with a mock: Bloodbinder read
+"Seen 10 · Bought 4 · 40%"; a picked-but-unfinished quest read "DNF". No schema change (the `text[]` columns just
+hold duplicates now). `typecheck`/`lint`/`test`/`build:web` green.
+
+### ui: Hall of Champions shows the board WITH its Start-of-Combat buffs
+
+Owner request: the Hall of Champions warband showed the base recruit board, missing the Start-of-Combat buffs (Pack
+Leader's Beast buff, a Whelp summoned at SoC, etc.) that made the board impressive. New pure `socBoard(result)` in
+`@game/sim` reconstructs the player board at Start of Combat AFTER SoC effects fire but before the first attack — it
+replays the SoC-phase events (buff / keyword / shieldUp / summon, up to the first `attack`) on the last combat's
+`initial.player`. The run-end upload (`combatStartBoard`) merges those SoC-buffed stats/keywords onto the live-text
+end-state snapshot (matched by combat-start index, so scaling cards keep their live text) and appends any
+SoC-summoned minions. Verified: unit test folds Pack Leader's SoC +2/+2 onto the captured board (2/4→4/6, 1/1→3/3).
+`typecheck`/`lint`/`test` (**1031**)/`build:web` green. (Backfill-free — only victory runs finished after this show
+the buffed board.)
+
+### docs: multi-session playbook (human runbook for concurrent sessions)
+
+Added [`docs/multi-session-playbook.md`](multi-session-playbook.md) — the operational, step-by-step companion to
+`docs/concurrency.md`. Where `concurrency.md` gives the principles and the *why*, the playbook gives the exact
+per-session lifecycle (**START → WORK → FINISH**) with copy-pasteable Windows/PowerShell commands: create an
+isolated worktree under `.claude\worktrees\<task>` off `origin/main`, claim the branch on origin, look-before-you-start
+(`gh pr list` / `git branch -a` / `git log origin/main`), stay in one ownership seam, rebase + prove-green before the
+PR, then tear down cleanly (`git worktree remove` + `prune` + `branch -d`). Motivated by a real cleanup this session:
+8 stray `Desktop\ascent-*` folders had accumulated as leftover worktree husks (worktrees created as Desktop siblings
++ Windows failing to fully delete their locked `node_modules` on teardown). The playbook codifies the three habits
+that prevent it: worktrees under `.claude\worktrees\` (never Desktop siblings), `git worktree remove`/`prune` on
+teardown (never drag-to-trash), and the primary checkout stays read-only while sessions are live. Also added a
+cross-link from `concurrency.md`. Docs-only; no code touched.
+
+## 2026-07-13 (session 36)
+
+### fix/content: quest-reward batch — Leader of the Pack, Cratering Missive, Passing Spears, golden Godfodder
+
+Four owner-reported quest issues:
+- **Leader of the Pack "only gave 10 Gold."** Two bugs: (1) the reward TEXT never listed the golden Pack Leader —
+  `questRewardText`'s `grant` case rendered `cards` but not `grantGolden`, so the card only showed "Get 10 Gold"; now
+  it reads "Get a Golden Pack Leader. Get 10 Gold". (2) On a **full hand** the golden Pack Leader was silently dropped
+  (`conjureToHand` no-ops at hand cap) — new `grantMinionToHandOrBoard` overflows a guaranteed quest-reward minion to
+  the **board** (then over-cap hand as a last resort) so a promised reward is never lost.
+- **Cratering Missive** redesigned per spec: grant a Cratering Hulk + a run-wide flag that makes your Cratering Hulks'
+  overflow Engrave buff **ALL** your minions, not just Undead. New `crateringMissive` combat flag drops the tribe
+  filter on `onSummonOverflowBuffTribe` in the sim. (Replaces the old EoT "+1/+1 per Hulk" design.)
+- **Passing Spears** redesigned per spec: grant a Spear Warden + give Spear Wardens "**Echo:** when this dies, give
+  its stats to a friendly minion." New `passingSpears` combat flag → an `onDeath` handler transfers a dying Spear
+  Warden's stats to your strongest other minion (like Rune of Inheritance). (Replaces the old EoT design.)
+- **Golden Godfodder** Choose-One text was wrong — the effects DID double (`× gold(self)`), but the two options had no
+  `goldenText`, so the window showed the base "2 Fodder / +3/+3" for a golden card. Added `goldenText` (4 / +6/+6).
+
+Cleaned up the now-unused `spearWardenEcho` / `crateringMissive` recurringEndOfTurn effects across the enums.
+Verified: `typecheck`/`lint`/`test` (**1029** — new `questBatch2.test.ts` covers all four + hand-full overflow)/
+`build:web` green. Live: golden Godfodder shows "Add 4 Fodder" / "+6/+6"; all three quest cards read correctly.
+
+### art: re-wire minion + quest art from the updated masters
+
+Re-synced the in-repo card/quest art from the masters under `C:\Game Assets\Ascent Art\{Minions,Quests}`. Matched
+each master to its card/quest **id** by normalized-name (with an exact-id fallback + a small curated override for
+renames the name-match can't catch: Alleycat→`alley`, LeaderOfThePack→`packleader`, Supporterr→`supporter`,
+Fodder→`fred`, Pup1/2→`pup`/`pup2`; TheImpossibleShop→`q_impossible_shop`, BoneThrone→`q_the_bone_throne`,
+TrohpyDen→`q_trophy_den`). Net: **6 new quest arts wired** — the 5 new turn-11 quests (Passing Spears, Forsaken Speed,
+Cratering Missive, Bane's Existence, Clinging On) + Shared Circuit — plus refreshed masters (Pack Leader, Cratering
+Hulk, Combinator, The Runeforge, Epic Commission), and **46 redundant quest PNGs cleaned up** (each already had its
+webp). Also taught `scripts/optimize-art.mjs` to process the `quests`/`runes` dirs and JPEG sources (not just
+minions/heroes PNGs). Verified live: forced a quest offer of the three new quests → all render their art
+(`q_passing_spears.webp` etc.). `build:web` green.
+
+**Not auto-wired (flagged for the owner):** masters with no clear current card/quest — minions `Ghostsmith`,
+`HexFlayer`, `HarryBotter`, `DenCaller`, `Sheldon`, `SparePartsDrone`, `SpellDrummer`, `FodderFeeder`,
+`TrainingDummy`, `ClingStone`, `ChaosMagnetic`, `TaurusTheAncient`; quests `GraveToll`, `TrailRations`, `FirstTracks`,
+`ToothAndTempo`, `ShieldCalibration`, `Bloodlust`, + the UUID-named exports. These are renames/removed content or
+un-attributed files — need an owner-confirmed id before wiring (per the name-match rule).
+
+### tweak(ui): player Leaderboard — align header to rows + column dividers
+
+The Leaderboard (Rankings) header didn't line up with the row values. Root cause: the grid `grid-template-columns`
+were in **`em`**, and the header uses a smaller font-size (11px) than the data rows (16px), so its `em` tracks
+computed narrower — the columns drifted (measured Rating header 120px off the row). Fix: columns in **px**
+(`40px minmax(0,1fr) 96px 96px 210px`) so every row computes identical tracks regardless of its font-size (verified:
+header + row cell lefts identical, `aligned: true`), and gave the header a transparent 2px border so its inset matches
+the bordered rows. Added subtle **column dividers** (a full-height `border-left` on the Rating / Games / Favorite-hero
+cells, hidden in the header). Verified live with a 4-player mock.
 
 ### fix(ui): crash screen shows the stack trace (self-diagnosing) + Copy button
 

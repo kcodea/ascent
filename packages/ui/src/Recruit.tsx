@@ -91,17 +91,49 @@ function ShopTimer({ label }: { label: string }) {
 }
 
 /** The burning-rope turn timer — a braided fuse pinned to the board's centre divider (via `--rope-y`, measured
- *  in the recruit layout effect) that lights in the final `ROPE_SECONDS` and burns left→right as the clock runs
- *  down (live flame + glowing char trail). Its own tiny clock subscriber, so the per-second tick re-renders only
- *  this — never the heavy card tree (see turnClock.ts). Hidden during combat. */
-function BurnRope({ inCombat }: { inCombat: boolean }) {
+ *  in the recruit layout effect) that lights in the final `window` seconds and burns left→right as the clock runs
+ *  down (live flame + glowing char trail). Hidden during combat.
+ *
+ *  Timing is 100% synced to the turn clock: the burn window is the ACTUAL turn length (`min(ROPE_SECONDS,
+ *  turnSeconds)`, so short early-wave turns calibrate correctly, not a fixed 20s), and a rAF interpolates WITHIN
+ *  each integer second from the wall-clock moment it began — so the flame starts at the very left on the first lit
+ *  second and reaches the rope's end EXACTLY as the clock hits 0 (the old per-second `left`/`width` CSS transitions
+ *  trailed by ~1s, burning past the timer). Writes styles straight to the two refs each frame (no per-frame React
+ *  render), and only runs while lit + unpaused — the heavy card tree is never touched (the clock lives in an
+ *  external store; see turnClock.ts). The flame moves by `transform` (compositor-only, no drop-shadow repaint). */
+function BurnRope({ inCombat, window: ropeWindow, paused }: { inCombat: boolean; window: number; paused: boolean }) {
   const seconds = Math.max(0, useTurnSeconds());
-  if (inCombat || seconds > ROPE_SECONDS) return null;
-  const pct = ((ROPE_SECONDS - seconds) / ROPE_SECONDS) * 100;
+  const litRef = useRef<HTMLDivElement>(null);
+  const flameRef = useRef<HTMLDivElement>(null);
+  const tickAtRef = useRef(0);
+  const lit = !inCombat && seconds <= ropeWindow;
+
+  // Stamp wall-clock time whenever the integer second changes OR we resume from a pause, so the rAF interpolates
+  // the sub-second fraction from the exact instant this second began — keeping the flame locked to real time.
+  useEffect(() => { tickAtRef.current = performance.now(); }, [seconds, paused, lit]);
+
+  useEffect(() => {
+    if (!lit) return;
+    let raf = 0;
+    const draw = (): void => {
+      const within = paused ? 0 : Math.min(1, (performance.now() - tickAtRef.current) / 1000);
+      const elapsed = Math.min(ropeWindow, (ropeWindow - seconds) + within);
+      const frac = ropeWindow > 0 ? Math.max(0, Math.min(1, elapsed / ropeWindow)) : 0;
+      if (litRef.current) litRef.current.style.width = `${frac * 100}%`;
+      // translateX by the burn fraction of the (static px) rope length — compositor-only, so the flame's
+      // drop-shadow never repaints per frame. The -50% (of the 0-width anchor) is inert; children self-centre.
+      if (flameRef.current) flameRef.current.style.transform = `translate(calc(var(--rope-len, 1600px) * ${frac} - 50%), -50%)`;
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [lit, seconds, paused, ropeWindow]);
+
+  if (!lit) return null;
   return (
     <div className="rope" title={`${seconds}s left`} aria-hidden="true">
-      <div className="rope-lit" style={{ width: `${pct}%` }} />
-      <div className="rope-flame" style={{ left: `${pct}%` }}>
+      <div className="rope-lit" ref={litRef} />
+      <div className="rope-flame" ref={flameRef}>
         <span className="fl-glow" />
         <span className="fl-body" />
         <span className="fl-core" />
@@ -2630,7 +2662,11 @@ export function Recruit() {
       </div>
 
       <div className={`zone${overWarband || wouldMagnetize ? ' dropok' : ''}`} data-zone="warband">
-        <BurnRope inCombat={inCombat} />
+        <BurnRope
+          inCombat={inCombat}
+          window={Math.min(ROPE_SECONDS, turnSeconds)}
+          paused={!!(run.discover || run.questOffer || run.runeforgeOffer || heroSelecting || overlayOpen)}
+        />
         <div className="row warband">
           {inCombat ? (
             replay.frame.player.map((u) => (

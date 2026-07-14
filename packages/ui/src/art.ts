@@ -101,8 +101,8 @@ export const avatarSrc = (id?: string | null): string | undefined => (id ? AVATA
  *  swap flashes the default arrow until its SVG is fetched). They live outside the ui package's globs, so
  *  they're listed by URL — keep in sync with `styles.css` `url()` refs + `apps/web/public/`. */
 const PUBLIC_ART_URLS: string[] = [
-  '/board2c.webp',
-  '/board2upscaled2.webp',
+  '/board169.webp',
+  '/board219.webp',
   '/homescreen.webp',
   '/cursors/gauntlet_default.svg',
   '/cursors/gauntlet_open.svg',

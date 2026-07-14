@@ -9,6 +9,9 @@ session mid-task. Fix that structurally and the rest gets easy.
 > **The one rule that prevents most pain:** your session works in **its own checkout** and touches **nothing
 > else's** — never another session's worktree, branch, or the shared primary checkout.
 
+> 📋 **Want the step-by-step moves** (START → WORK → FINISH per session)? See the human runbook:
+> [`multi-session-playbook.md`](multi-session-playbook.md). This doc is the *why*; that one is the *how*.
+
 ---
 
 ## 1. One isolated checkout per active session (highest leverage)

@@ -760,6 +760,18 @@ export function useCombatReplay(
       // buff-OTHER casts (source ≠ target) → tendril/descend + badge flash (shared with the attack-wind-up path).
       onBuffCasts: (casts) => fireBuffCasts(casts, timers),
       onSelfBuffs: (selfBuffs) => fireSelfBuffs(selfBuffs, timers),
+      // An aura STRENGTHENED (Kennelmaster's Avenge bump, Mama Bear / Flowing Monk growth) → a bare in-place pulse
+      // at the unit. No badge hold/flash: an `improve` grows the unit's AURA (future grants), not its own Atk/HP.
+      onImprove: (uids) => {
+        for (const uid of uids) {
+          const el = findEl(uid);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          const cardId = cardIds.get(uid) ?? '';
+          const cfg = PULSE_PRESETS[pulsePreset(cardId, (CARD_INDEX[cardId]?.tribe ?? 'neutral') as Tribe)];
+          pixiFx.pulse(r.left + r.width / 2, r.top + r.height / 2, cfg);
+        }
+      },
     });
 
     // A Rise DEFENDER (dying but NOT the impact attacker being pulled home) explodes in place immediately —

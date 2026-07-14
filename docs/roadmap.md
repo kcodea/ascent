@@ -162,8 +162,9 @@ fanned-hand overlap now that framed cards overhang ~1.1× the slot. All knobs ar
   - ✅ **Descend allow-list (shipped session 39).** `deathrattleBuffFodder` (Burial Imp) + `deathrattleBuffAllByImpAura`
     (Chef Raag) added to `DEATHRATTLE_BUFF_FACTORIES` — they routed as a dead-source tendril → dropped; now descend.
     (`knit`/Spear Warden stays out pending its echo-aura redesign.)
-  - **`improve` events → pulse** — aura strengthens (Kennelmaster, Flowing Monk, Trophy Stalker growth) get a ✦
-    float + medallion only; add a self-pulse cue to the `improve` moment kind.
+  - ✅ **`improve` events → pulse (shipped session 39).** New `improveSelf` cue on the `improve` moment kind pops a
+    bare pulse (no badge flash) at each strengthened unit. Not on `attackExchange` — Trophy Stalker's growth rides
+    its on-attack self-buff pulse instead (no double-pop).
   - **Keyword grants** — Ward/Taunt/Rise/Toxin granted mid-combat land as just a glyph float; fire a burst at grant
     time (un-shelf the built-but-unused `tauntBurst`) + add the grantee to the medallion whitelist.
   - **Combat gold gains** — `maxGold`/gold effects show a float; reuse the recruit-only `coins` primitive.

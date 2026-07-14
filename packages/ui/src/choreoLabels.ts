@@ -11,7 +11,7 @@ import type { Anchor, Channel } from './choreo/score';
 export const CH_COLOR: Record<Channel, string> = {
   sfx: '#7aa2ff', float: '#8affc0', lunge: '#ffb35c', impact: '#ff6a6a',
   auraBurst: '#c88bff', auraBreak: '#ffd24a', auraReform: '#6ab0ff',
-  buffCast: '#ff8ad0', buffSelf: '#ffa35c',
+  buffCast: '#ff8ad0', buffSelf: '#ffa35c', improveSelf: '#ffcf5c',
 };
 
 /** What each effect CHANNEL is. */
@@ -25,6 +25,7 @@ export const CH_DESC: Record<Channel, string> = {
   auraReform: 'The Reborn re-form glow — the wispy blue shimmer as a returning unit knits back together.',
   buffCast: 'A buff-OTHER cast — a tendril flies from the source to each buffed ally, releasing the +atk/+hp on the strike.',
   buffSelf: 'A self-buff — a unit empowering ITSELF pulses in place, then flashes its badge to the new value.',
+  improveSelf: "An aura STRENGTHENS — a unit whose summon/rally aura grew (Kennelmaster's Avenge bump, Mama Bear) pulses in place (no badge flash — its own stats don't change).",
 };
 
 /** What each ANCHOR means + how offsets behave relative to it. */

@@ -16,7 +16,7 @@ import { groupSelfBuffs } from './channels/buffSelf';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -64,7 +64,8 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   damage: [...BASE], shieldPop: [...BASE], poisonTick: [...BASE],
   death: [...BASE], riseDeath: [...BASE], scCast: [...BASE],
   summon: [...BASE], buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }], reborn: withReform(), ascend: [...BASE],
-  rally: [...BASE], toHand: [...BASE], maxGold: [...BASE], improve: [...BASE],
+  rally: [...BASE], toHand: [...BASE], maxGold: [...BASE],
+  improve: [...BASE, { ch: 'improveSelf', at: 'start', offset: 0 }],
   keyword: [...BASE], keywordLost: [...BASE], hpGrant: [...BASE], spellProgress: [...BASE], reveal: [...BASE],
 };
 
@@ -142,6 +143,11 @@ export interface CueContext {
   /** This moment's SELF-buffs (source === target), grouped per uid. The replay fires a pulse per unit and holds
    *  then flashes its badge to the new value (Task 6). */
   onSelfBuffs: (selfBuffs: import('./channels/buffSelf').SelfBuff[]) => void;
+  /** This moment's `improve` targets — a unit whose AURA strengthened (Kennelmaster's Avenge bump, Mama Bear /
+   *  Flowing Monk growth). The replay pops an in-place pulse at each, with NO badge hold/flash: an improve grows
+   *  the unit's aura (future grants), not its own current Attack/Health. Wired only to the standalone `improve`
+   *  moment kind — an improve absorbed into an attack rides that unit's self-buff pulse instead (no double-pop). */
+  onImprove: (uids: string[]) => void;
 }
 
 /** Run one moment's plain-effect cues (sfx + float + the three aura sub-channels). Each cue fires at
@@ -185,6 +191,11 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     else if (cue.ch === 'buffSelf') at(cue, () => {
       const selfBuffs = groupSelfBuffs(moment, ctx.events);
       if (selfBuffs.length) ctx.onSelfBuffs(selfBuffs);
+    });
+    else if (cue.ch === 'improveSelf') at(cue, () => {
+      const uids: string[] = [];
+      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'improve') uids.push(e.target); }
+      if (uids.length) ctx.onImprove(uids);
     });
     // lunge/impact are engine-driven (runAttackExchangeCues) — no-op here, by design.
   }

@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 39)
 
+### feat(ui): pulse when an aura strengthens (improve → self-pulse)
+
+Effect-animation coverage sweep, item 3. An `improve` event (a summon / rally AURA strengthening — Kennelmaster's
+Avenge bump, Mama Bear / Flowing Monk growth) showed only a ✦ float + medallion pulse, none of the buff FX. Added an
+`improveSelf` cue to the `improve` **moment kind** (`score.ts`) that pops an in-place `pixiFx.pulse` at each
+strengthened unit, reusing that card's self-buff pulse preset. **No badge hold/flash** — an improve grows the unit's
+aura (future grants), not its own Attack/Health, so the pulse fires bare. Wired **only** to the standalone `improve`
+moment kind, **not** `attackExchange`: an improve absorbed into an attack (Trophy Stalker's growth tick) rides that
+unit's on-attack self-buff pulse from item 1 instead, so it never double-pops. New `CueContext.onImprove` +
+`improveSelf` channel (with its dev-tuner colour/label).
+
+Verified: `typecheck + lint + test` (1041, +2 new) & `build:web` green.
+
 ### fix(ui): descend FX for Burial Imp + Chef Raag (Deathrattle buff-others)
 
 Effect-animation coverage sweep, item 2. **Burial Imp** (`deathrattleBuffFodder`) and **Chef Raag**

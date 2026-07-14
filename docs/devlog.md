@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 37)
 
+### art: new July board backdrops (16:9 + 21:9)
+
+Wired the owner's two new board masters (`C:\Game Assets\Ascent Art\Game Boards\julyboard169.jpg` /
+`julyboard219.jpg`) as the in-game board backdrops, replacing `board2c` / `board2upscaled2`. Converted each to WebP
+(sharp, q82): `board169.webp` (2560×1429, from the 5504×3072 master) for the 16:9 resolutions and `board219.webp`
+(3440×1459, from the 6336×2688 master) for 21:9. Each keeps its own aspect so the CSS `center / cover` scrim crops
+only the edges. Updated the three `--board` `url()`s in `styles.css` (default + `data-res="r3440"` + the ultrawide
+`min-aspect-ratio` fit-window path), the `PUBLIC_ART_URLS` preload list in `art.ts`, and removed the two orphaned old
+WebPs from `apps/web/public/`. Verified live: `--board` resolves to `board169.webp` at default/16:9 and swaps to
+`board219.webp` under `r3440` + an ultrawide window; both serve 200 at the intended dimensions and render full-bright
+in-run (frame, centre rope, corner emblems intact) at both aspects. `typecheck`/`lint`/`build:web` green.
+
 ### fix: Ritualist live text (per-tick grant) shows current value in shop AND combat + carryover audit
 
 Owner-reported: Ritualist's combat card text reverted to "default" (printed base) and never showed the current

@@ -33,7 +33,7 @@
      `--ch-base` is the responsive height; `--ch` multiplies it by the dev Layout Lab's `--card-scale`
      (default 1 → unchanged), and per-region rules can multiply again for a single row. */
   --ch-base: clamp(220px, calc(var(--gh) * 0.27), 384px);
-  --ch: calc(var(--ch-base) * var(--card-scale, 1)); --cw: calc(var(--ch) * 0.752);
+  --ch: calc(var(--ch-base) * var(--card-scale, 0.77)); --cw: calc(var(--ch) * 0.752);
   /* compact-card size: 15% smaller than the full card width, used at rest + in combat (kept in sync). */
   --ccw: calc(var(--cw) * 0.85);
   /* the compact card's arched silhouette — shared by the frame, the card box, and keyword overlays. */
@@ -42,7 +42,7 @@
      laptops + short windows read exactly as before, growing to ~+34% on tall monitors so the
      chrome stays proportional to the cards (which already scale with --ch). Use calc(N*--u). */
   --u-base: clamp(1px, calc(var(--gh) * 0.00107), 1.34px);
-  --u: calc(var(--u-base) * var(--ui-scale, 1));
+  --u: calc(var(--u-base) * var(--ui-scale, 0.96));
 }
 /* Resolution scaler (Esc menu): cap the stage to a fixed resolution box, centred + letterboxed.
    Each maintains its aspect ratio (the height cap keeps it true) and never exceeds the window. */
@@ -97,8 +97,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half
    grows to fill its space and centres its cards. Warband gets extra bottom padding so it
    rides a little higher, opening a gap above the hand. */
-.zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 1) * var(--z-shop-s, 1)); top: var(--z-shop-y, 0px); left: var(--z-shop-x, 0px); }
-.zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 1) * var(--z-wb-s, 1)); top: var(--z-wb-y, 0px); left: var(--z-wb-x, 0px); }
+.zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-shop-s, 1)); top: var(--z-shop-y, 45px); left: var(--z-shop-x, 6px); }
+.zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-wb-s, 1)); top: var(--z-wb-y, -71px); left: var(--z-wb-x, 6px); }
 /* Nudge the whole Warband DOWN a touch so it sits clearly UNDER the board's centre line instead of hugging
    it. Done with `position: relative; top` (the zone is ALREADY position:relative) — NOT a `transform`: a
    transform on the row makes it a stacking/transform context wrapping the combat units, and their per-swing
@@ -109,7 +109,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    Warband rides right at the line (the reported bug); short/laptop windows already sit it low with almost no
    hero-panel clearance, so nudging there would overlap it — hence the height gate. */
 @media (min-height: 900px) {
-  .zone[data-zone='warband'] { top: calc(var(--ch) * 0.07 + var(--z-wb-y, 0px)); }
+  .zone[data-zone='warband'] { top: calc(var(--ch) * 0.07 + var(--z-wb-y, -71px)); }
 }
 
 /* Burning-rope turn timer — a braided fuse pinned to the board's centre divider (`--rope-y`, measured on the
@@ -121,8 +121,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
      resolution (was 86% board-width × --u thickness). --rope-y still auto-aligns the base to the art divider;
      --rope-x / --rope-yoff nudge it. Keep these fallbacks in sync with layoutConfig.ts's rope defs. */
   position: absolute; left: 50%; top: var(--rope-y, 50%);
-  transform: translate(calc(-50% + var(--rope-x, 0px)), calc(-50% + var(--rope-yoff, 0px)));
-  width: var(--rope-len, 1600px); height: var(--rope-thick, 10px); z-index: 8; border-radius: 999px; overflow: visible; pointer-events: none;
+  transform: translate(calc(-50% + var(--rope-x, 3px)), calc(-50% + var(--rope-yoff, -22px)));
+  width: var(--rope-len, 1420px); height: var(--rope-thick, 13px); z-index: 8; border-radius: 999px; overflow: visible; pointer-events: none;
   background:
     repeating-linear-gradient(48deg, rgba(255, 240, 200, 0.22) 0 3px, rgba(90, 60, 25, 0.30) 3px 7px),
     linear-gradient(to bottom, #e3b870, #bb8a3f 52%, #8c6326);
@@ -190,10 +190,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
    vars (--cw/--ccw) so it actually resizes the hand cards, instead of only inflating --ch → --hand-tuck (which
    just slid the hand up/down — the reported bug). The width is built from the ROOT basis (--ch-base * --card-scale,
    NOT the 1.18-inflated --ch) × the lever, so at the default 1 the hand card is exactly a shop/warband card. */
-.zone[data-zone='hand'] { --ch: calc(var(--ch-base) * var(--card-scale, 1) * 1.18); --cw: calc(var(--ch-base) * var(--card-scale, 1) * 0.752 * var(--z-hand-s, 1)); --ccw: calc(var(--cw) * 0.85); translate: var(--z-hand-x, 0px) var(--z-hand-y, 0px); }
+.zone[data-zone='hand'] { --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * 1.18); --cw: calc(var(--ch-base) * var(--card-scale, 0.77) * 0.752 * var(--z-hand-s, 1)); --ccw: calc(var(--cw) * 0.85); translate: var(--z-hand-x, 0px) var(--z-hand-y, -2px); }
 
 /* HUD */
-.bar { display: flex; align-items: center; gap: calc(12 * var(--u)); flex: none; position: relative; --u: calc(var(--u-base) * var(--ui-scale, 1) * var(--z-hud-s, 1)); top: var(--z-hud-y, 0px); left: var(--z-hud-x, 0px); }
+.bar { display: flex; align-items: center; gap: calc(12 * var(--u)); flex: none; position: relative; --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--z-hud-s, 1)); top: var(--z-hud-y, 0px); left: var(--z-hud-x, 0px); }
 .alt { display: flex; align-items: center; gap: calc(11 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); padding: calc(6 * var(--u)) calc(15 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); }
 .alt .wavecol { display: flex; flex-direction: column; align-items: flex-start; gap: calc(3 * var(--u)); }
 .alt .w { font-family: var(--font-ui); font-weight: 800; font-size: calc(18 * var(--u)); color: var(--acc-dk); line-height: 1; }
@@ -378,7 +378,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
    in shop + combat. Pinned via min-height rather than letting content drive it: the action tray's 2px borders
    are fixed px (not --u), so a content-driven height drifted the warband ~1px per --u step above 1 (tall
    monitors) — the "warband slightly moves for combat" bug. Content is centred within the block. */
-.shopbar { align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); min-height: calc(111 * var(--u)); margin-top: calc(10 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
+/* Shop controls tray (round plaque + Upgrade/Reroll/Freeze/End Turn + info strip). Scales via a LOCAL --u
+   (like the HUD .bar) so the whole tray grows/shrinks proportionally, with X/Y offsets — dev Layout Lab "Shop
+   controls" group. Defaults are a no-op (×1 / 0px). */
+.shopbar { position: relative; --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--z-shopui-s, 1)); top: var(--z-shopui-y, -55px); left: var(--z-shopui-x, 0px); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); min-height: calc(111 * var(--u)); margin-top: calc(10 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
 .shopbar.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
 .shoprow { display: flex; align-items: center; gap: calc(13 * var(--u)); }
 /* Info strip — the turn's read-only stats (Gold · Tier · Setup Time) in ONE segmented cream plaque, gold-
@@ -529,7 +532,7 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
    the card itself up to reveal its full text. The fan STAYS fanned through a drag — the reorder measures the
    cards' rotated rects directly (the bbox stays centred on each card, so the slot midpoints match within a
    pixel or two), no flatten, no pickup jiggle. */
-.row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); --fan-rot: 0deg; margin-left: calc(var(--ccw) * var(--z-hand-gap, -0.16)); transform-origin: center 42%; transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
+.row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); --fan-rot: 0deg; margin-left: calc(var(--ccw) * var(--z-hand-gap, -0.3)); transform-origin: center 42%; transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
 .row.hand .card:first-child { margin-left: 0; }
 /* Hover pops the in-hand card ITSELF up out of the fan — straightened, scaled a touch, and lifted to reveal its
    full text. UNIFORM POP: the lift is `translateY(-100% + --ch·--hand-floor)` — the `-100%` raises each card by
@@ -558,7 +561,7 @@ body.dragging .row.hand .card { transition: transform 0.26s cubic-bezier(0.12, 0
    floating drag card, and on hand cards (which pop up instead of glowing). */
 .row.hand .card:hover,
 body.dragging .zone[data-zone='warband'] .card:hover,
-body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow-blur: 0px; --hglow-spread: 0px; }
+body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow-blur: 0px; --hglow-spread: 0px; --hglow-a: 0; }
 
 /* STANDARD CARD */
 .card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); transition: transform 0.12s, border-color 0.12s; }
@@ -580,7 +583,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    rectangular border-box, so on a full card it shows as a boxy halo around/under the drawer (the reported
    "light box under the card"). No lift/tilt, and no z-index bump: raising z would make the card a stacking
    context above the z3 shield-bubble canvas (hiding the divine-shield/reborn aura on hover). */
-.card:hover, .card.compact:hover { --hglow-ring: 3px; --hglow-blur: 22px; --hglow-spread: 7px; }
+.card:hover, .card.compact:hover { --hglow-ring: 3px; --hglow-blur: 22px; --hglow-spread: 7px; --hglow-a: 0.92; }
 @keyframes cardpop { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
 .art { position: relative; flex: 0 0 60%; min-height: 0; overflow: hidden; display: grid; place-items: center; margin: 7px 7px 0; background: color-mix(in srgb, var(--c) 18%, var(--card)); border: 2px solid color-mix(in srgb, var(--c) 60%, var(--card)); border-radius: 10px; }
 .art canvas { margin-top: -14px; } /* nudge the sprite up so the name pill clears it */
@@ -668,10 +671,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   position: absolute; z-index: 3; pointer-events: none; overflow: visible;
   /* The shop/board hover glow is a box-shadow on `.art`, but Taunt's `.art` is clip-path'd to the heater, which
      CLIPS the box-shadow away → a Taunt card gets no hover glow. Re-add it as a drop-shadow on the frame,
-     driven by the same `--hglow-blur` hover var (0 when not hovering → invisible; auto-zeroed in hand/drag), so
-     the yellow glow hugs the shield silhouette exactly like the arch glow hugs a normal card. */
+     gated by BOTH `--hglow-blur` and `--hglow-a` (alpha) so at rest (alpha 0) it's fully transparent and leaves
+     NO resting rim; on hover the yellow glow hugs the shield silhouette like the arch glow hugs a normal card. */
   filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
-          drop-shadow(0 0 var(--hglow-blur, 0) rgba(255, 226, 110, 0.92));
+          drop-shadow(0 0 var(--hglow-blur, 0) rgba(255, 226, 110, var(--hglow-a, 0)));
 }
 .card.compact.taunt .tframe-img {
   inset: auto; height: auto;
@@ -1653,10 +1656,27 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .card.compact.spellframe .cframe {
   position: absolute; z-index: 3; pointer-events: none; overflow: visible;
   /* hover glow: box-shadow on the (reshaped) `.art` is clipped away by the window clip, so re-add it as a
-     drop-shadow on the frame PNG's own alpha, driven by the same `--hglow-blur` hover var (0 = invisible). */
+     drop-shadow on the frame PNG's own alpha. Gated by BOTH `--hglow-blur` (22px on hover) and `--hglow-a`
+     (0.92 on hover): at rest alpha is 0 → fully transparent, so the layer leaves NO resting rim (a 0-blur
+     drop-shadow with a solid colour bleeds through the PNG's soft edges — the yellow-fringe bug). */
   filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
-          drop-shadow(0 0 var(--hglow-blur, 0) rgba(255, 226, 110, 0.92));
+          drop-shadow(0 0 var(--hglow-blur, 0) rgba(255, 226, 110, var(--hglow-a, 0)));
 }
+/* GROUNDING SHADOW — a black silhouette of each card's OWN frame, blurred + nudged down and seated BEHIND the
+   portrait (z0, under the art at z1), so every framed card casts a soft contact shadow onto the board instead of
+   floating. Rendered by Card.tsx as a 2nd copy of the frame `<img>` (`.cshadow`), so it inherits the frame's
+   geometry for free and auto-matches every shape (oval minion / square spell / taunt shield). `brightness(0)`
+   recolours the frame pixels to pure #000 (same result as masking a solid #000 by the PNG alpha, but no mask →
+   the blur softens freely instead of being re-clipped to a hard edge); the blur is the softness, the small
+   translateY seats it on the board. Static filter (no per-frame animation) → compositor-safe. */
+.card.compact.stdframe .cframe.cshadow,
+.card.compact.spellframe .cframe.cshadow,
+.card.compact.taunt .tframe.cshadow {
+  z-index: 0;
+  filter: brightness(0) blur(9px);
+  transform: translateY(5px) scale(0.99);
+}
+
 /* Frame metal TONE — minion frames (oval + taunt shield) render SILVER by default; a GILDED (golden) minion goes
    GOLD. Threaded as the first function into every frame `filter` above. Spells never set it → keep their own
    colour. (`brightness(1)` is a no-op stand-in for "gold" — `none` can't sit inside a filter list.) */

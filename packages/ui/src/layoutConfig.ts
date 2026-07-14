@@ -31,28 +31,33 @@ export interface LayoutVarDef {
 
 /** The full set of tunable knobs, in panel order. */
 export const LAYOUT_VARS: LayoutVarDef[] = [
-  { key: 'cardScale', cssVar: '--card-scale', label: 'Card size', group: 'Global', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
-  { key: 'uiScale', cssVar: '--ui-scale', label: 'UI chrome', group: 'Global', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
+  { key: 'cardScale', cssVar: '--card-scale', label: 'Card size', group: 'Global', min: 0.5, max: 1.6, step: 0.01, def: 0.77, fmt: 'mul' },
+  { key: 'uiScale', cssVar: '--ui-scale', label: 'UI chrome', group: 'Global', min: 0.5, max: 1.6, step: 0.01, def: 0.96, fmt: 'mul' },
 
   { key: 'shopS', cssVar: '--z-shop-s', label: 'Card size', group: 'Shop row', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   { key: 'shopGap', cssVar: '--z-shop-gap', label: 'Card gap', group: 'Shop row', min: 0, max: 80, step: 1, def: 22, fmt: 'px' },
   // Offsets the shop CARDS only (the tavern zone) — not the shop buttons (a separate `.shopbar`). The enemy
   // warband renders in this same tavern zone during combat, so these also place the opponent's board.
-  { key: 'shopX', cssVar: '--z-shop-x', label: 'X offset', group: 'Shop row', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
-  { key: 'shopY', cssVar: '--z-shop-y', label: 'Y offset', group: 'Shop row', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
+  { key: 'shopX', cssVar: '--z-shop-x', label: 'X offset', group: 'Shop row', min: -400, max: 400, step: 1, def: 6, fmt: 'px' },
+  { key: 'shopY', cssVar: '--z-shop-y', label: 'Y offset', group: 'Shop row', min: -400, max: 400, step: 1, def: 45, fmt: 'px' },
+
+  // The shop CONTROLS tray (round plaque + Upgrade/Reroll/Freeze/End Turn + info strip), scaled via its local --u.
+  { key: 'shopUiS', cssVar: '--z-shopui-s', label: 'Scale', group: 'Shop controls', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
+  { key: 'shopUiX', cssVar: '--z-shopui-x', label: 'X offset', group: 'Shop controls', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
+  { key: 'shopUiY', cssVar: '--z-shopui-y', label: 'Y offset', group: 'Shop controls', min: -400, max: 400, step: 1, def: -55, fmt: 'px' },
 
   { key: 'wbS', cssVar: '--z-wb-s', label: 'Card size', group: 'Warband', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   { key: 'wbGap', cssVar: '--z-wb-gap', label: 'Card gap', group: 'Warband', min: 0, max: 80, step: 1, def: 22, fmt: 'px' },
-  { key: 'wbX', cssVar: '--z-wb-x', label: 'X offset', group: 'Warband', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
-  { key: 'wbY', cssVar: '--z-wb-y', label: 'Y offset', group: 'Warband', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
+  { key: 'wbX', cssVar: '--z-wb-x', label: 'X offset', group: 'Warband', min: -400, max: 400, step: 1, def: 6, fmt: 'px' },
+  { key: 'wbY', cssVar: '--z-wb-y', label: 'Y offset', group: 'Warband', min: -400, max: 400, step: 1, def: -71, fmt: 'px' },
 
   { key: 'handS', cssVar: '--z-hand-s', label: 'Card size', group: 'Hand', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   // Hand cards fan + overlap via a NEGATIVE margin that's a fraction of the (compact) card width, so it stays
   // proportional to card size — hence 'mul' (of --ccw), not px: -0.44 = the shipped overlap, 0 = edges touch,
   // >0 = a real gap between fanned cards.
-  { key: 'handGap', cssVar: '--z-hand-gap', label: 'Card overlap', group: 'Hand', min: -0.7, max: 0.1, step: 0.01, def: -0.16, fmt: 'mul' },
+  { key: 'handGap', cssVar: '--z-hand-gap', label: 'Card overlap', group: 'Hand', min: -0.7, max: 0.1, step: 0.01, def: -0.3, fmt: 'mul' },
   { key: 'handX', cssVar: '--z-hand-x', label: 'X offset', group: 'Hand', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
-  { key: 'handY', cssVar: '--z-hand-y', label: 'Y offset', group: 'Hand', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
+  { key: 'handY', cssVar: '--z-hand-y', label: 'Y offset', group: 'Hand', min: -400, max: 400, step: 1, def: -2, fmt: 'px' },
 
   { key: 'hudS', cssVar: '--z-hud-s', label: 'Scale', group: 'HUD bar', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   { key: 'hudX', cssVar: '--z-hud-x', label: 'X offset', group: 'HUD bar', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
@@ -62,10 +67,10 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   // resizes with resolution — length/thickness are absolute, X/Y nudge it off the measured board midline
   // (--rope-y still auto-aligns the base to the art divider at any aspect; these ride on top). Defaults are the
   // CSS fallbacks in styles.css `.rope` — keep the two in sync so production (no tuner) matches a Reset.
-  { key: 'ropeLen', cssVar: '--rope-len', label: 'Length', group: 'Rope', min: 400, max: 3600, step: 4, def: 1600, fmt: 'px' },
-  { key: 'ropeThick', cssVar: '--rope-thick', label: 'Width', group: 'Rope', min: 2, max: 40, step: 1, def: 10, fmt: 'px' },
-  { key: 'ropeX', cssVar: '--rope-x', label: 'X offset', group: 'Rope', min: -600, max: 600, step: 1, def: 0, fmt: 'px' },
-  { key: 'ropeY', cssVar: '--rope-yoff', label: 'Y offset', group: 'Rope', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
+  { key: 'ropeLen', cssVar: '--rope-len', label: 'Length', group: 'Rope', min: 400, max: 3600, step: 4, def: 1420, fmt: 'px' },
+  { key: 'ropeThick', cssVar: '--rope-thick', label: 'Width', group: 'Rope', min: 2, max: 40, step: 1, def: 13, fmt: 'px' },
+  { key: 'ropeX', cssVar: '--rope-x', label: 'X offset', group: 'Rope', min: -600, max: 600, step: 1, def: 3, fmt: 'px' },
+  { key: 'ropeY', cssVar: '--rope-yoff', label: 'Y offset', group: 'Rope', min: -400, max: 400, step: 1, def: -22, fmt: 'px' },
 ];
 
 export type LayoutConfig = Record<string, number>;

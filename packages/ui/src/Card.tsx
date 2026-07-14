@@ -426,16 +426,21 @@ export const Card = memo(function Card({
             `--heater` silhouette so it aligns with the art's clip. Prefers the raster PNG (painterly); falls back
             to the SVG placeholder until that asset exists. The real frame drops into this same layer unchanged. */}
         {card.keywords.includes('T') && frameOk && (
-          <img
-            className="tframe tframe-img"
-            src={TAUNT_FRAME_SRC}
-            alt=""
-            aria-hidden="true"
-            onError={() => {
-              tauntFrameAvailable = false;
-              setFrameOk(false);
-            }}
-          />
+          <>
+            {/* grounding shadow (see styles.css "GROUNDING SHADOW"): a black, blurred copy of the frame seated
+                behind the art, so the shield reads as sitting on the board rather than floating. */}
+            <img className="tframe tframe-img cshadow" src={TAUNT_FRAME_SRC} alt="" aria-hidden="true" />
+            <img
+              className="tframe tframe-img"
+              src={TAUNT_FRAME_SRC}
+              alt=""
+              aria-hidden="true"
+              onError={() => {
+                tauntFrameAvailable = false;
+                setFrameOk(false);
+              }}
+            />
+          </>
         )}
         {card.keywords.includes('T') && !frameOk && (
           <svg className="tframe" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -464,30 +469,40 @@ export const Card = memo(function Card({
         {/* STANDARD OVAL frame (every non-Taunt minion) — the authored gold oval laid OVER the portrait, which is
             clipped to the frame's elliptical window. Neutral gold on every tribe. See styles.css "AUTHORED FRAMES". */}
         {useStdFrame && (
-          <img
-            className="cframe cframe-img"
-            src={STD_FRAME_SRC}
-            alt=""
-            aria-hidden="true"
-            onError={() => {
-              stdFrameAvailable = false;
-              setSframeOk(false);
-            }}
-          />
+          <>
+            {/* grounding shadow (see styles.css "GROUNDING SHADOW") — a black, blurred copy of the oval seated
+                behind the art so the card sits on the board. */}
+            <img className="cframe cframe-img cshadow" src={STD_FRAME_SRC} alt="" aria-hidden="true" />
+            <img
+              className="cframe cframe-img"
+              src={STD_FRAME_SRC}
+              alt=""
+              aria-hidden="true"
+              onError={() => {
+                stdFrameAvailable = false;
+                setSframeOk(false);
+              }}
+            />
+          </>
         )}
         {/* SPELL SQUARE frame (regular spells) — the authored purple square. No tint layer: spells have no tribe,
             and the frame carries its own purple accent. */}
         {useSpellFrame && (
-          <img
-            className="cframe cframe-img"
-            src={SPELL_FRAME_SRC}
-            alt=""
-            aria-hidden="true"
-            onError={() => {
-              spellFrameAvailable = false;
-              setPframeOk(false);
-            }}
-          />
+          <>
+            {/* grounding shadow (see styles.css "GROUNDING SHADOW") — a black, blurred copy of the square seated
+                behind the art so the spell sits on the board. */}
+            <img className="cframe cframe-img cshadow" src={SPELL_FRAME_SRC} alt="" aria-hidden="true" />
+            <img
+              className="cframe cframe-img"
+              src={SPELL_FRAME_SRC}
+              alt=""
+              aria-hidden="true"
+              onError={() => {
+                spellFrameAvailable = false;
+                setPframeOk(false);
+              }}
+            />
+          </>
         )}
         {/* Golden (tripled) marker — a gold crown emblem; pairs with the gold arch frame so a tripled
             minion is instantly findable in a row. */}

@@ -16,11 +16,20 @@ export const RES_OPTIONS: { id: string; label: string; sub: string }[] = [
   { id: 'r3440', label: '3440 × 1440', sub: '21:9 ultrawide' },
 ];
 
+// Board backdrop options. 'default' has no `url` → clears the inline override so the responsive CSS default resumes
+// (board169 at 16:9, board219 at 21:9). Any other option pins its `url` as the `--board` regardless of resolution.
+export const BOARD_OPTIONS: { id: string; label: string; sub: string; url?: string }[] = [
+  { id: 'default', label: 'Default', sub: 'July board · 16:9 / 21:9' },
+  { id: 'test', label: 'Test Board', sub: '21:9 preview', url: "url('/testboard2.webp')" },
+];
+
 export function EscMenu({
-  res, onRes, scrim, onScrim, onClose,
+  res, onRes, board, onBoard, scrim, onScrim, onClose,
 }: {
   res: string;
   onRes: (r: string) => void;
+  board: string;
+  onBoard: (b: string) => void;
   scrim: number;
   onScrim: (s: number) => void;
   onClose: () => void;
@@ -120,6 +129,18 @@ export function EscMenu({
           ))}
         </div>
         <div className="escsec">Board</div>
+        <div className="escres">
+          {BOARD_OPTIONS.map((o) => (
+            <button
+              key={o.id}
+              className={`escbtn${board === o.id ? ' on' : ''}`}
+              onPointerDown={() => onBoard(o.id)}
+            >
+              <span className="ebl">{o.label}</span>
+              <span className="ebs">{o.sub}</span>
+            </button>
+          ))}
+        </div>
         <div className="escvol">
           <span className="evl">Board dimming</span>
           <input

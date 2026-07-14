@@ -3,7 +3,84 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-13 (session 38)
+
+### chore(ui): ship the owner's tuned Layout Lab values as the new defaults
+
+Baked the owner's dialed-in Layout Lab config (tuned 2026-07-14) into the shipped layout. Because production never
+mounts the dev tuner (`applyLayout` is `import.meta.env.DEV`-gated), the SHIPPED values are the CSS `var(name,
+FALLBACK)` fallbacks — so both were updated in lockstep: each changed var's `def` in `layoutConfig.ts` AND its CSS
+fallback in `styles.css` (plus the one `--rope-len` fallback in `Recruit.tsx`'s flame-transform rAF, so the burn stays
+synced in prod). Changed from shipped defaults: **cardScale 1→0.77**, **uiScale 1→0.96**, shop cards **X 0→6 / Y
+0→45**, shop controls **Y 0→−55**, warband **X 0→6 / Y 0→−71**, hand **overlap −0.16→−0.3 / Y 0→−2**, rope **len
+1600→1420 / thick 10→13 / X 0→3 / Y 0→−22**. The rest stay at their prior defaults. Verified live (defaults path,
+saved dev layout cleared): all 13 computed vars match the tabled JSON exactly; at 1920×1080 the shop row sits with the
+rope just beneath it and the warband raised into place, no overlap/errors. `typecheck`/`lint`/`test` (1034)/`build:web`
+green.
+
+### feat(ui): grounding shadow under framed cards + fix the hover-glow resting rim
+
+**Grounding shadow.** Framed cards (oval minions, square spells, taunt shields) clip `.art` to the frame window
+and kill its box-shadow, so their only shadow was a tight `drop-shadow(0 4px 6px)` on the frame PNG — they read as
+*floating* over the board texture rather than sitting on it. Added a dedicated **grounding shadow**: `Card.tsx`
+renders a second copy of each frame `<img>` with a `.cshadow` class, and `styles.css` styles it as
+`filter: brightness(0) blur(9px)` (pure `#000`, softly blurred), `transform: translateY(5px) scale(0.99)`, at
+`z-index: 0` — i.e. a black silhouette of the card's own frame, seated **behind the portrait** (art is z1) and
+nudged down onto the board. Because it reuses the frame image it inherits the frame's geometry for free and
+auto-matches every shape. `brightness(0)` gives the same pixels as masking a solid `#000` by the PNG alpha, but
+with no mask the blur softens freely (a mask would re-clip the blur to a hard edge — the "hard line" trap). Static
+filter, no per-frame animation → compositor-safe.
+
+**Hover-glow resting-rim fix.** While tuning the shadow we found the hover glow from PR #370 left a faint
+*always-on* yellow rim: its `drop-shadow(0 0 var(--hglow-blur,0) rgba(255,226,110,0.92))` sits at 0 blur when not
+hovering, and a 0-blur drop-shadow with a **solid** colour still bleeds through the frame PNG's soft anti-aliased
+edges. Invisible against the bright board, but it landed right on the new dark shadow and read as yellow. Fix: gate
+the glow's **alpha** by a new `--hglow-a` var (0 at rest → fully transparent → no bleed; `0.92` on hover, `0` in
+hand/drag suppression), alongside the existing `--hglow-blur`. The hover glow is visually unchanged; the resting
+artifact is gone.
+
+Verified live in Chrome (extension) across the tuning loop: dark shadow seats the cards on the board, art renders
+above it (never darkened), colour is neutral black (no yellow), and the hover glow still fires on hover only.
+`typecheck` / `lint` / `build:web` green.
+
 ## 2026-07-13 (session 37)
+
+### dev: shop controls tray added to the Layout Lab scale tuner
+
+Added a **"Shop controls"** group to the dev Layout Lab — Scale, X offset, Y offset for the `.shopbar` tray (the
+round plaque + Upgrade/Reroll/Freeze/End Turn + info strip), which the existing "Shop row" only covered for the shop
+CARDS, not the buttons. Mirrors the HUD-bar pattern: `.shopbar` gets `position: relative` + a LOCAL
+`--u: calc(--u-base × --ui-scale × --z-shopui-s)` so the whole tray scales proportionally, plus `--z-shopui-x/y`
+offsets. Config lives in `layoutConfig.ts` (`LAYOUT_VARS`, auto-rendered by the tuner); defaults are a no-op. Verified
+live: the group renders with three sliders; setting Scale 1.3 grew the tray 950×149 → 1229×193, and X/Y offset it.
+`typecheck`/`lint`/`build:web` green.
+
+### fix: Disco Dan no longer re-Discovers his Tier 6 on reload
+
+Owner-reported: reloading a Disco Dan run re-opened his turn-1 Setlist Tier 6 Discover. Root cause in
+`deserialize`: it builds a fresh `createRun` skeleton and merges the save over it (`{...defaults, ...parsed}`) so
+newer fields get their zero value — but `createRun` for Disco Dan *opens* the Tier 6 Discover (`defaults.discover`)
+and queues Tier 4 / Tier 2 behind it as a run-start action. `JSON.stringify` drops `undefined`, so a save that had
+already resolved the Discovers omits the `discover` / `discoverLockTier` keys, and the merge leaked the fresh Tier 6
+offer straight back in on every load. Fixed by forcing the three Discover-sequence fields (`discover`,
+`discoverLockTier`, `discoverQueue`) from the SAVED state after the merge (absent → cleared), so a resumed run keeps
+exactly the Discover state it was saved with; the existing `pendingSpellDiscovers` heal still re-appends to that
+queue. New regression test: resolve all three Setlist Discovers → `serialize`/`deserialize` → none re-open, the three
+picks stay in hand. `run.test.ts` (398) + `typecheck` green. (Same class of leak could touch other hero run-start
+fields like Runeguard's `epicForgeWave` — flagged for the owner, not changed here.)
+
+### feat: selectable board backdrop in Settings (+ Test Board option)
+
+Added a **Board** style selector to the Settings (Esc) panel so the board backdrop can be switched — **Default**
+(the responsive July board: `board169` 16:9 / `board219` 21:9) or **Test Board** (`testboard2`, a 21:9 preview
+master converted to `testboard2.webp`, 3440×1459). Mirrors the existing resolution/scrim pattern: a `board` state in
+`Game.tsx` persisted to `localStorage` (`ascent-board`), applied via an effect that pins the option's art as an inline
+`--board` on `:root` (inline wins over the stylesheet's aspect swaps), or clears the override for 'default' so the
+responsive CSS default resumes. Options live in `BOARD_OPTIONS` (EscMenu) — adding another board is one entry + a webp
+in `apps/web/public/`. The test asset is loaded on selection (not added to the always-on art warm-up). Verified live:
+Settings shows a Board section with Default/Test Board; selecting Test Board sets `--board` to `testboard2.webp`
+(loads 3440×1459) and renders in-run; Default clears the override (back to `board169`); the choice
+persists across reload (applied at boot). `typecheck`/`lint`/`build:web` green.
 
 ### feat(audio): 4 randomized strike clips for combat impact + new combat-start sound
 

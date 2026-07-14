@@ -799,6 +799,16 @@ export function deserialize(json: string): RunState {
   state.armor = parsed.armor ?? 0; // Armor shipped later — a pre-Armor in-progress run gets none, not the hero's
   state.maxArmor = parsed.maxArmor ?? 0;
   if (!parsed.pool) state.pool = stockPool(state.tribes); // pre-pool saves: stock for the run's own tribes
+  // createRun seeds hero run-START Discovers into the defaults skeleton (Disco Dan's Setlist opens a Tier 6
+  // Discover + queues Tier 4 / Tier 2 behind it). Those are a fresh-run ACTION, not a field default — but
+  // JSON.stringify drops `undefined`, so a save that already resolved them omits the `discover` /
+  // `discoverLockTier` keys and the `{...defaults, ...parsed}` merge leaks the fresh Tier 6 offer straight back
+  // in — re-Discovering on every reload (owner bug 2026-07-13). Force the SAVED values (absent → cleared), so a
+  // resumed run keeps exactly the Discover state it was saved with. (The pendingSpellDiscovers heal below then
+  // re-appends to whatever queue the save actually had.)
+  state.discover = parsed.discover;
+  state.discoverLockTier = parsed.discoverLockTier;
+  state.discoverQueue = parsed.discoverQueue;
   // Heal saves from before the generalized Discover queue: fold the old single spell-Discover counter
   // (golden Black Belt Brian) into the new queue as that many spell specs.
   if (parsed.pendingSpellDiscovers && parsed.pendingSpellDiscovers > 0) {

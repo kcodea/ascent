@@ -29,6 +29,17 @@ rig (headless preview can't screenshot). Follow-up: none outstanding on DS.
 
 ## 2026-07-13 (session 39)
 
+### feat(ui): keyword grants pulse the granter's medallion (part 1 of item 4)
+
+Effect-animation coverage sweep, item 4a. A `keyword` event (Mumi grants Rise, Gravewarden's SoC Rise, Combo Kim's
+Taunt, `deathrattleGrantShield`, …) wasn't in the medallion trigger whitelist, so the GRANTER's effect firing went
+unmarked. Added `keyword` (when it carries a `source`) alongside `sc`/`buff` → the granter's medallion now pulses
+when it hands out a keyword. The **bubble pop-in** half of item 4 (making the granted Ward dome / Taunt frame / Rise
+bubble pop *at grant time*) is a per-keyword visual and — per the owner's rule to agree an FX look on a preview rig
+before wiring — is being built on a rig next, not wired blind.
+
+Verified: `typecheck + lint + test` (1045) & `build:web` green.
+
 ### feat(ui): dust poof on summon arrival
 
 Effect-animation coverage sweep, item 7. Summons (Deathrattle summons, tokens, overflow spawns, SoC copies) got

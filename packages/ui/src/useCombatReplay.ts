@@ -687,7 +687,7 @@ export function useCombatReplay(
       if (!e) continue;
       // NB: `rally` is intentionally NOT here — a Rally that fires as a unit attacks pulses YELLOW from the
       // lunge's wind-up pause instead (see the attack layout effect), so it reads at the swing, not beat-start.
-      if ((e.type === 'sc' || e.type === 'buff') && e.source) trig.add(e.source);
+      if ((e.type === 'sc' || e.type === 'buff' || e.type === 'keyword') && e.source) trig.add(e.source);
       else if ((e.type === 'summon' || e.type === 'toHand') && e.source) trig.add(e.source);
       else if (e.type === 'improve' || e.type === 'maxGold' || e.type === 'hpGrant' || e.type === 'reborn') trig.add(e.target);
       // A death whose unit has a Deathrattle/Avenge effect: its trigger just fired (the cleanest signal —

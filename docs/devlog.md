@@ -55,8 +55,19 @@ is now **locked to the measured opening** (a small `--fill` overfill tucks the a
 with `--artZoom`/`--artY`, not by resizing the window). Verified live in the real Chrome tab (headless preview
 can't screenshot): oval + spell render clean, no gap/overhang. To make future seating self-serve, added a
 **dev-only `FrameTuner`** (🖼️ Card Frames in the DevMenu, `import.meta.env.DEV`-gated): sliders for every knob on
-both frames that write a live-override `<style>`, plus **Copy CSS** to grab paste-ready values. **Still to do:**
-owner's final spell-frame dial-in via the tuner; then eyeball DS/Venom/Golden/Dual + the fanned-hand overlap.
+both frames that write a live-override `<style>`, plus **Copy CSS** to grab paste-ready values.
+
+**Rarity frames — silver default, gold when gilded + a deploy pulse.** Minion frames (oval + taunt shield) now
+render **silver** by default and turn **gold** when the unit is gilded (golden/tripled); spells keep their purple
+identity. Implemented as a `--frame-tone` CSS var threaded as the first function into every frame `filter`
+(`grayscale(.92) brightness(1.2) contrast(.9)` = silver on `.stdframe`/`.taunt`; `brightness(1)` no-op = gold,
+which `.golden` resets to — `none` can't sit in a filter list). When a **golden minion first deploys** (played
+from hand, or formed by a triple on the board), `Recruit` fires the existing **self-buff pulse**
+(`pixiFx.pulse` + `PULSE_PRESETS.default`, the warm-gold shockwave) at the card centre — a new-golden-uid diff
+with a ref seeded on mount/re-entry so existing gilded minions never re-pulse. Verified live in Chrome: silver
+frames + a gilded card visibly gold beside them; typecheck/lint/1024 tests/build green. (The pulse itself is the
+shipped self-buff FX; couldn't screenshot the animation headlessly — rAF throttles off-focus.) **Still to do:**
+owner's final spell-frame dial-in via the tuner; silver-tone taste pass; DS/Venom/Dual eyeball.
 
 ### fix(ui): crash screen shows the stack trace (self-diagnosing) + Copy button
 

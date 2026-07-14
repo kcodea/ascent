@@ -664,7 +664,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
      CLIPS the box-shadow away → a Taunt card gets no hover glow. Re-add it as a drop-shadow on the frame,
      driven by the same `--hglow-blur` hover var (0 when not hovering → invisible; auto-zeroed in hand/drag), so
      the yellow glow hugs the shield silhouette exactly like the arch glow hugs a normal card. */
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
           drop-shadow(0 0 var(--hglow-blur, 0) rgba(255, 226, 110, 0.92));
 }
 .card.compact.taunt .tframe-img {
@@ -694,7 +694,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .card.compact.taunt.dscard { box-shadow: 0 3px 0 var(--shadow); }   /* kill the rectangular gold aura */
 .card.compact.taunt.dscard::before { display: none; }               /* kill the arched breathing bloom */
 .card.compact.taunt.dscard .tframe {                                 /* gold halo that traces the shield's alpha */
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
           drop-shadow(0 0 5px rgba(245, 188, 48, 0.95))
           drop-shadow(0 0 13px rgba(240, 176, 32, 0.7));
 }
@@ -1624,7 +1624,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .card.compact.taunt.targeted .tframe,
 .unit.aimed .card.compact.taunt .tframe,
 .unit.attacking .card.compact.taunt .tframe {
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
           drop-shadow(0 0 4px var(--tglow))
           drop-shadow(0 0 12px var(--tglow));
 }
@@ -1648,9 +1648,16 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   position: absolute; z-index: 3; pointer-events: none; overflow: visible;
   /* hover glow: box-shadow on the (reshaped) `.art` is clipped away by the window clip, so re-add it as a
      drop-shadow on the frame PNG's own alpha, driven by the same `--hglow-blur` hover var (0 = invisible). */
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
           drop-shadow(0 0 var(--hglow-blur, 0) rgba(255, 226, 110, 0.92));
 }
+/* Frame metal TONE — minion frames (oval + taunt shield) render SILVER by default; a GILDED (golden) minion goes
+   GOLD. Threaded as the first function into every frame `filter` above. Spells never set it → keep their own
+   colour. (`brightness(1)` is a no-op stand-in for "gold" — `none` can't sit inside a filter list.) */
+.card.compact { --frame-tone: brightness(1); }
+.card.compact.stdframe, .card.compact.taunt { --frame-tone: grayscale(0.92) brightness(1.2) contrast(0.9); }
+.card.compact.golden { --frame-tone: brightness(1); }   /* gilded → gold; placed AFTER the silver rule so it wins */
+
 /* PORTRAIT reshape (shared): absolute, unbordered, clipped to the window; the base arch border/radius/shadow are
    killed so ONLY the window clip shapes the art (same rule Taunt relies on). */
 .card.compact.stdframe .art,
@@ -1747,7 +1754,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .card.compact.spellframe.targeted .cframe,
 .unit.aimed .card.compact.stdframe .cframe,
 .unit.attacking .card.compact.stdframe .cframe {
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
           drop-shadow(0 0 4px var(--tglow))
           drop-shadow(0 0 12px var(--tglow));
 }
@@ -1759,7 +1766,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .card.compact.stdframe.dscard { box-shadow: 0 3px 0 var(--shadow); }
 .card.compact.stdframe.dscard::before { display: none; }
 .card.compact.stdframe.dscard .cframe {
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
           drop-shadow(0 0 5px rgba(245, 188, 48, 0.95))
           drop-shadow(0 0 13px rgba(240, 176, 32, 0.7));
 }
@@ -1774,7 +1781,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .card.compact.stdframe.venomcard { box-shadow: 0 3px 0 var(--shadow); }
 .card.compact.stdframe.venomcard::before { display: none; }
 .card.compact.stdframe.venomcard .cframe {
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
           drop-shadow(0 0 5px rgba(150, 228, 52, 0.9))
           drop-shadow(0 0 13px rgba(120, 200, 40, 0.6));
 }
@@ -1782,7 +1789,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    (still rendered, top-left) + a static gold halo on the frame. */
 .card.compact.stdframe.golden { box-shadow: 0 3px 0 var(--shadow); }
 .card.compact.stdframe.golden .cframe {
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
           drop-shadow(0 0 6px rgba(255, 213, 90, 0.95))
           drop-shadow(0 0 16px rgba(255, 190, 50, 0.7));
 }

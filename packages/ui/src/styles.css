@@ -3034,7 +3034,7 @@ svg { width: 18px; height: 18px; }
   left: 50%;
   bottom: -0.7rem;
   transform: translateX(-50%);
-  z-index: 3;
+  z-index: 8;   /* ABOVE the authored oval/taunt frame (z3, which overhangs the bottom) + badges — was z3, so the frame covered it */
   padding: 0.05rem 0.4rem;
   border-radius: 999px;
   font: 700 0.72rem/1 var(--font-ui, system-ui, sans-serif);

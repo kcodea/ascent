@@ -439,6 +439,28 @@ function deathConsequenceLead(
   return lead;
 }
 
+/** The read-lead (ms, 1×) to hold before the moment `beats[beatIdx]` — non-zero only when it's a Deathrattle
+ *  summon or a Rise reborn whose triggering death reads first. The death lives in the CLASH moment, but
+ *  `deferClashBuffs` can slide an onDamaged buff (Target Dummy et al.) to the clash's tail, so a `buffWave`
+ *  moment can land BETWEEN the death and its consequence. We walk back past any such buff moments to the
+ *  death-bearing moment before measuring the lead — otherwise the summon/reborn loses its lead and pops in
+ *  instantly (~46% of real fights, whenever the clash also produced a buff). A cascade's 2nd+ summon has a
+ *  `summon` moment immediately before it (not `buffWave`), so the walk-back stops there and it correctly gets
+ *  no extra lead — only the FIRST consequence of a death does. Exported for the regression test. */
+export function consequenceLead(
+  beats: Moment[],
+  beatIdx: number,
+  events: CombatEvent[],
+  cardIds: Map<string, string>,
+): number {
+  if (beatIdx <= 0 || beatIdx >= beats.length) return 0;
+  const next = beats[beatIdx]!;
+  let li = beatIdx - 1;
+  while (li > 0 && beats[li]?.kind === 'buffWave') li--;
+  const leadShown = li >= 0 ? beats[li] : undefined;
+  return deathConsequenceLead(leadShown, next, events, cardIds, attackerOfImpact(beats, li));
+}
+
 /**
  * The combat-replay engine, decoupled from layout. Folds `combat`'s event log into a
  * beat-by-beat animation: `active` gates whether the clock is ticking (so the caller
@@ -617,8 +639,8 @@ export function useCombatReplay(
     let d = holdMs(next, shown, combatSpeed);
     // A Deathrattle summon (skull) or a Rise return (body fade) waits for the death to read — and an attacker
     // to settle home — before the consequence-overlap gap, so the tokens/returned body land AFTER the proc
-    // reads, not on top of it.
-    const lead = deathConsequenceLead(shown, next, events, cardIds, attackerOfImpact(beats, beatIdx - 1));
+    // reads, not on top of it. (See `consequenceLead` for the buff-moment skip that keeps this reliable.)
+    const lead = consequenceLead(beats, beatIdx, events, cardIds);
     if (lead) d += lead / combatSpeed;
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);

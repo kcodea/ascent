@@ -75,7 +75,7 @@ html, body, #root { height: 100%; }
 html, body { overscroll-behavior: none; touch-action: manipulation; }
 /* centre the stage box in the window (it shrinks under the resolution scaler, letterboxing the rest) */
 #root { display: flex; align-items: center; justify-content: center; overflow: hidden; }
-body { font-family: var(--font-body), sans-serif; color: var(--ink); background: var(--bg); overflow: hidden; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; user-select: none; -webkit-user-select: none; }
+body { font-family: var(--font-body), sans-serif; color: var(--ink); background: var(--bg); overflow: hidden; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 /* Landscape-only on phones: a full-screen "rotate your device" overlay, shown ONLY on a touch device held in
    portrait (`pointer: coarse` excludes a desktop window that merely happens to be portrait). The 16:9 board is
    unusable upright, so we ask the player to rotate rather than maintain a second, portrait layout. */
@@ -644,7 +644,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .art canvas { max-width: 84%; max-height: 86%; }
 /* illustrated art (art/minions/<id>.png) fills the panel exactly (absolute so the grid can't
    size it to the square's width-driven height and overflow onto the text below) */
-.artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; }
+.artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; }
 /* Ward (Divine Shield): a layered glassy GOLD DOME in pure CSS, glued to the card via a `.ward` stack of child
    els inside the arched art (rendered by Card.tsx for DS cards) — so it persists through drag + the combat lunge
    and vanishes exactly when the sim clears `.dscard` (retires the old per-frame-tracked Pixi bubble; Pixi now only

@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### fix: suppress iOS long-press "Copy/Save Image" callout on card/unit art
+
+On a phone, press-and-holding a minion popped iOS Safari's image callout menu (Copy/Save Image) over the card art. The
+art `<img>` already had `draggable={false}` + `-webkit-user-drag: none` (drag-to-copy blocked) but not
+`-webkit-touch-callout: none`, which is the specific property that governs the long-press callout. Added it to `body`
+(broad — covers every image/link) and to `.artimg` (the shared card/combat-unit art). No-op on desktop (a `-webkit-`
+touch property), so desktop is unaffected. iOS-only behavior — verify on-device.
+
 ### tweak: mobile — warband up to the rope (owner green-line, mobile-only)
 
 Owner nudged the Warband up closer to the centre rope on-device (green-line mark): `--wb-drop` 115 → 92px, so the

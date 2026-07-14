@@ -45,10 +45,13 @@
   --u: calc(var(--u-base) * var(--ui-scale, 0.96));
 }
 /* Resolution scaler (Esc menu): cap the stage to a fixed resolution box, centred + letterboxed.
-   Each maintains its aspect ratio (the height cap keeps it true) and never exceeds the window. */
-:root[data-res="r1920"] { --gw: min(100vw, calc(100vh * 16 / 9), 1920px); --gh: min(100vh, calc(100vw * 9 / 16), 1080px); }
-:root[data-res="r2560"] { --gw: min(100vw, calc(100vh * 16 / 9), 2560px); --gh: min(100vh, calc(100vw * 9 / 16), 1440px); }
-:root[data-res="r3440"] { --gw: min(100vw, calc(100vh * 21 / 9), 3440px); --gh: min(100vh, calc(100vw * 9 / 21), 1440px); }
+   Each maintains its aspect ratio (the height cap keeps it true) and never exceeds the window. The aspect must
+   be the option's EXACT pixel ratio (w/h), not a rounded label like 21:9 — 3440×1440 is really 43/18 (2.389),
+   NOT 21/9 (2.333); the rounded value capped the width at 1440·(21/9)=3360 on a true 3440×1440 monitor, leaving
+   ~80px of side letterbox even at "native" res (owner report). 16:9 is exact for 1920×1080 / 2560×1440. */
+:root[data-res="r1920"] { --gw: min(100vw, calc(100vh * 1920 / 1080), 1920px); --gh: min(100vh, calc(100vw * 1080 / 1920), 1080px); }
+:root[data-res="r2560"] { --gw: min(100vw, calc(100vh * 2560 / 1440), 2560px); --gh: min(100vh, calc(100vw * 1440 / 2560), 1440px); }
+:root[data-res="r3440"] { --gw: min(100vw, calc(100vh * 3440 / 1440), 3440px); --gh: min(100vh, calc(100vw * 1440 / 3440), 1440px); }
 /* 21:9 stage → the ultrawide board art. The forced 3440 res is always 21:9; a "fit" window (no data-res,
    so the stage = the window) uses the 21:9 art only when the window itself is actually ultrawide. Fixed 16:9
    res (r1920/r2560) stays letterboxed to 16:9 regardless of monitor, so it correctly keeps the default board169. */

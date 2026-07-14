@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### fix: r3440 "native" ultrawide left the stage 80px short of the screen (aspect rounding)
+
+Owner report: selecting the 3440×1440 resolution left a gap on the left/right — only "Fit to Window" filled the
+screen. Cause: the fixed-resolution rules cap the stage to `min(100vw, 100vh × aspect, maxpx)`, and r3440 used the
+ROUNDED label aspect `21 / 9` (2.333) instead of the option's exact pixel ratio `3440 / 1440` (2.389). On a true
+3440×1440 monitor that capped the width at `1440 × (21/9) = 3360px` → ~80px of side letterbox even at native res.
+Switched all three rules to their exact pixel ratios (`1920/1080`, `2560/1440`, `3440/1440`) — 16:9 was already exact,
+so r1920/r2560 are unchanged; r3440 now fills a 3440×1440 screen edge-to-edge. Verified: at a 2.389-aspect viewport,
+`--gw` under r3440 now equals the full viewport width (0px side gap; was 40px each side). `build:web` green.
+
 ### feat: Balance Report redesign — one full-screen sortable table + section dropdown
 
 Owner request: the report crammed all five sections (Heroes / Quests / Runes / Minions / Spells) into tiny

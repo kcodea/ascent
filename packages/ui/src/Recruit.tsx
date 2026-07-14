@@ -2472,6 +2472,9 @@ export function Recruit() {
       }`}
       onPointerDown={onBoardPointerDown}
     >
+      {/* Board art on a full-viewport layer behind the 16:9 stage — extends into the margins on off-16:9 monitors
+          (see `.boardbg` in styles.css) rather than letterboxing to black. */}
+      <div className="boardbg" aria-hidden="true" />
       <HudBar />
 
       {!fighting ? (

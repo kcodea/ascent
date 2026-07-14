@@ -33,6 +33,9 @@ export interface LayoutVarDef {
 export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'cardScale', cssVar: '--card-scale', label: 'Card size', group: 'Global', min: 0.5, max: 1.6, step: 0.01, def: 0.77, fmt: 'mul' },
   { key: 'uiScale', cssVar: '--ui-scale', label: 'UI chrome', group: 'Global', min: 0.5, max: 1.6, step: 0.01, def: 0.96, fmt: 'mul' },
+  // Fine-scale the board backdrop art (its height on `.boardbg`) so the painted frame lines up with the (fixed
+  // 16:9) UI when you swap in new board art — 1 = art scaled to the stage height.
+  { key: 'boardZoom', cssVar: '--board-zoom', label: 'Board zoom', group: 'Global', min: 0.6, max: 1.8, step: 0.01, def: 1, fmt: 'mul' },
 
   { key: 'shopS', cssVar: '--z-shop-s', label: 'Card size', group: 'Shop row', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   { key: 'shopGap', cssVar: '--z-shop-gap', label: 'Card gap', group: 'Shop row', min: 0, max: 80, step: 1, def: 22, fmt: 'px' },

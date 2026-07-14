@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### feat: lock the UI to a 16:9 canvas + extend the board art into the margins (foundation)
+
+Owner direction: stop UI elements moving with screen size — define everything relative to the BOARD, design 16:9-first,
+and on wider monitors let the board art extend rather than letterbox. Pass 1 lays the foundation:
+- **Stage locked to 16:9.** The default stage box (`--gw`/`--gh`, which every UI element sizes/positions off) is now
+  `min(100vw, 100vh·16/9)` × `min(100vh, 100vw·9/16)` instead of the raw viewport — so the whole UI is a fixed 16:9
+  canvas, centred, that never reflows with window aspect. A wider/taller window just adds margins around it.
+- **Board art on a full-viewport `.boardbg` layer BEHIND the stage.** One wide source art (`board219`) scaled to the
+  STAGE height (`background-size: auto calc(var(--gh) * var(--board-zoom, 1))`) and centred, so the ornate frame lands
+  where the 16:9 UI expects it, and a wider window simply reveals more of the surrounding floor art in the side margins
+  (no black letterbox bars). `.app` is now transparent; the readability scrim rides on `.boardbg`. Dropped the
+  board169/board219 aspect swap — one wide art serves every screen (cropped to 16:9 at standard aspect).
+- Added a dev **Board zoom** knob (`--board-zoom`) to the Layout Lab to fine-scale the art's frame against the fixed UI
+  when new art is dropped in.
+
+Verified live: at 16:9 the board fills and the UI is unchanged; at a 2.39 ultrawide viewport the stage stays **1280×720
+(16:9), centred, HUD locked inside it**, while the board art (720px tall, ~1698 wide) extends into the margins — no
+black bars. `typecheck`/`lint`/`build:web` green. **Next:** the ideal ultrawide look needs art whose FRAME sits in the
+centre 16:9 with floor in the wings (board219's frame spans the full 21:9, so its edges currently show past the UI);
+resolution presets (the 21:9 `r3440`) and per-aspect tuning are follow-ups.
+
 ### fix: r3440 "native" ultrawide left the stage 80px short of the screen (aspect rounding)
 
 Owner report: selecting the 3440×1440 resolution left a gap on the left/right — only "Fit to Window" filled the

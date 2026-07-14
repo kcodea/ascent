@@ -18,16 +18,17 @@
   /* Tier palette — one source of truth for the card tier badges + the SHOP TIER label. */
   --tier-1: #74809a; --tier-2: #1f9d6b; --tier-3: #2b82d4; --tier-4: #7b54c8; --tier-5: #ef8a25; --tier-6: #e0395f;
   --mana: #f4be35; --mana-dk: #a8780f; /* Gold (the economy / cost color). --mana var kept internally */
-  /* the game renders into a centred "stage" box. By default it fills the window; the Esc-menu
-     resolution scaler shrinks it to a fixed aspect/size, letterboxing the rest (see [data-res]).
-     All sizing keys off the box (--gw/--gh), not the raw viewport, so the board scales inside it. */
-  --gw: 100vw; --gh: 100vh;
+  /* The game renders into a centred "stage" box, LOCKED to 16:9 — the design aspect. Everything sizes off the box
+     (--gw/--gh), not the raw viewport, so the UI never reflows with screen size; a wider/taller window just adds
+     margins around the 16:9 stage, which the board art extends into (see `.boardbg`) instead of black bars. The
+     Esc-menu resolution scaler can still cap the box to a fixed pixel size (see [data-res]). */
+  --gw: min(100vw, calc(100vh * 16 / 9)); --gh: min(100vh, calc(100vw * 9 / 16));
   --bar-x: calc((100vw - var(--gw)) / 2); --bar-y: calc((100vh - var(--gh)) / 2);
-  /* The in-game board backdrop, keyed to the stage's aspect (see .app). Default is the 16:9 art
-     (board169, 2560×1429); the 21:9 art (board219, 3440×1459) is swapped in for the ultrawide
-     resolution + a fit window that's actually ultrawide. Only the URL changes — the gradient scrim + fallback
-     colour stay in .app. */
-  --board: url('/board169.webp');
+  /* The in-game board backdrop — ONE wide (21:9) source art, drawn on `.boardbg` (a full-viewport layer behind
+     the 16:9 stage): scaled to the stage height + centred, so the ornate frame stays locked to the 16:9 UI and
+     the surrounding floor art just extends into the side margins on wider monitors (cropped to 16:9 at standard
+     aspect). No aspect swap — the same wide art serves every screen. */
+  --board: url('/board219.webp');
   /* one standard card size everywhere (shop / warband / hand / combat) — scales with the
      stage height so the board fills big screens (16:9 → 21:9), clamped to sane bounds.
      `--ch-base` is the responsive height; `--ch` multiplies it by the dev Layout Lab's `--card-scale`
@@ -91,10 +92,20 @@ body.dragging, body.dragging * { cursor: url('/cursors/hand_closed.svg') 13 12, 
 .disp { font-family: var(--font-title), sans-serif; }
 canvas.spr { image-rendering: pixelated; display: block; }
 
-/* The stage box: centred in the window via absolute inset:0 + margin auto + a fixed --gw/--gh.
-   By default it fills the window; the resolution scaler shrinks it. The illustrated board art +
-   readability scrim live here (so letterbox bars stay the dark body frame). */
-.app { position: relative; flex: none; width: var(--gw); height: var(--gh); display: flex; flex-direction: column; padding: 12px 18px calc(var(--ch) * 0.92); gap: 8px; background: linear-gradient(rgb(28 22 16 / calc(0.34 * var(--scrim, 0.15))), rgb(28 22 16 / calc(0.46 * var(--scrim, 0.15)))), var(--board) center / cover no-repeat, var(--bg); border-radius: 2px; }
+/* The stage box: the 16:9 design canvas holding all the UI, centred in the window (#root flex-centres it) at a
+   fixed --gw/--gh. Transparent — the board art now lives on `.boardbg` (a full-viewport layer BEHIND the stage)
+   so it can extend past the stage into the side/top margins on off-16:9 monitors instead of black letterbox bars. */
+.app { position: relative; z-index: 1; flex: none; width: var(--gw); height: var(--gh); display: flex; flex-direction: column; padding: 12px 18px calc(var(--ch) * 0.92); gap: 8px; background: transparent; border-radius: 2px; }
+/* Board backdrop layer: full viewport, behind the stage. The wide (--board) art is scaled to the STAGE height and
+   centred, so its ornate frame lands at the same size/place as the 16:9 UI expects — a wider window just reveals
+   more of the surrounding floor art in the margins (cropped to 16:9 at standard aspect). The readability scrim +
+   fallback colour ride on top of the art here. `zoom` (--board-zoom, dev-tunable) fine-scales the frame to fit. */
+.boardbg { position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    linear-gradient(rgb(28 22 16 / calc(0.34 * var(--scrim, 0.15))), rgb(28 22 16 / calc(0.46 * var(--scrim, 0.15)))),
+    var(--board) center / auto calc(var(--gh) * var(--board-zoom, 1)) no-repeat,
+    var(--bg);
+}
 /* With the omen + row labels gone and the hand tucked under the status bar, let the
    Tavern + Warband settle lower: auto margins centre the block in the freed space. */
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half

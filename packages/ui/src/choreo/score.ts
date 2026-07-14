@@ -16,7 +16,7 @@ import { groupSelfBuffs } from './channels/buffSelf';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -61,8 +61,12 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
     // bubble lingering disjointed from the unit. `auraBurst` (a death's in-place burst) stays at start.
     { ch: 'auraBurst', at: 'start', offset: 0 },
   ],
-  damage: [...BASE], shieldPop: [...BASE], poisonTick: [...BASE],
-  death: [...BASE], riseDeath: [...BASE], scCast: [...BASE],
+  // `damageFx` = a NON-melee hit burst (damageBurst + impact ring) at each dmg target. On `damage` (SC nukes,
+  // split damage) and `death` (Blaster's Deathrattle AoE lands in its death moment). Melee dmg stays in
+  // `attackExchange` (already has the full lunge/impact FX), so it never double-bursts; the handler no-ops on a
+  // plain death that carries no dmg events.
+  damage: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }], shieldPop: [...BASE], poisonTick: [...BASE],
+  death: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }], riseDeath: [...BASE], scCast: [...BASE],
   summon: [...BASE], buffWave: [...BASE, { ch: 'buffCast', at: 'start', offset: 0 }, { ch: 'buffSelf', at: 'start', offset: 0 }], reborn: withReform(), ascend: [...BASE],
   rally: [...BASE], toHand: [...BASE],
   maxGold: [...BASE, { ch: 'coins', at: 'start', offset: 0 }],
@@ -152,6 +156,10 @@ export interface CueContext {
   /** This moment's `maxGold` targets — a unit whose Avenge raised your max Gold (Soulsman, Bone Taxer). The replay
    *  bursts coins at each, on top of the "+N max gold" float. */
   onMaxGold: (uids: string[]) => void;
+  /** This moment's NON-melee `dmg` targets — a unit hit by a Start-of-Combat nuke / split damage / Blaster's
+   *  Deathrattle AoE (melee dmg rides the attack's own impact FX and never reaches here). The replay pops a
+   *  damage burst + impact ring at each, so a cast hit reads like a hit, not just a number. */
+  onDamageFx: (uids: string[]) => void;
 }
 
 /** Run one moment's plain-effect cues (sfx + float + the three aura sub-channels). Each cue fires at
@@ -205,6 +213,11 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       const uids: string[] = [];
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'maxGold') uids.push(e.target); }
       if (uids.length) ctx.onMaxGold(uids);
+    });
+    else if (cue.ch === 'damageFx') at(cue, () => {
+      const uids = new Set<string>();
+      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'dmg') uids.add(e.target); }
+      if (uids.size) ctx.onDamageFx([...uids]);
     });
     // lunge/impact are engine-driven (runAttackExchangeCues) — no-op here, by design.
   }

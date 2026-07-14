@@ -171,8 +171,9 @@ fanned-hand overlap now that framed cards overhang ~1.1× the slot. All knobs ar
     dome/bubble pop-in per keyword, or a new small grant burst. Plus: pulse the GRANTER's medallion (clearly correct).
   - ✅ **Combat gold gains (shipped session 39).** New `coins` cue on the `maxGold` moment bursts `pixiFx.coins` at the
     unit (Soulsman / Bone Taxer Avenge), on top of the float. (Thematic, not literal — max-Gold is a ceiling raise.)
-  - **Non-melee damage** — SC nukes / Blaster AoE / split damage show only a number; lift the recruit
-    `damageBurst`+`impactPulse` pairing into the combat `.proj` scheduler.
+  - ✅ **Non-melee damage (shipped session 39).** New `damageFx` cue on the `damage` + `death` moment kinds pops
+    `damageBurst`+`impactPulse` at each SC-nuke / split-damage / Blaster-AoE target. Tied to the damage moment (not
+    the CSS bolt), dedupes targets, and never double-bursts melee (which owns its attack impact FX).
   - **Summon arrival burst (NEW-ish)** — summons get only a CSS scale-pop; add a `dust` poof at the spawn rect.
     Most common board-changing effect → highest payoff.
   - **Transform / `ascend` (NEW)** — Tara→Taragosa, Spirit Pup→Worgen swap the card face in total silence; needs a

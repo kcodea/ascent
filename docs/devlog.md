@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### fix: hero-select scales on phones (zoom off the stage scale)
+
+The hero picker (and the end screen, which reuses its `.hsbox` shell) is authored in fixed px tuned at the owner's
+0.745-scale desktop (333px cards, 151px art, 68px title) and sat outside the stage's `--scale` system — on a phone it
+rendered desktop-sized into a scrollable overlay. Fixed with the codebase's established `zoom` pattern (the end-board
+already uses it): `.hsbox { zoom: calc(var(--scale)/0.745 × var(--mobile-boost)) }` — exactly 1 on the owner's desktop
+(unchanged), ~0.46 on a phone (× the 1.15 tap boost). Catch: vw lengths inside a zoomed box get multiplied by the
+zoom too, so the box's `max-width: 96vw` falsely wrapped the third card — the cap now divides the zoom back out. The
+Practice "dense" all-heroes grid opts out via `:has` (it already self-scales with vw clamps; zoom would double-shrink
+it). Verified at 932×430 (all three Ascent choices fit one row, sized for the stage), desktop parity (zoom 1, card
+333px), and the dense grid (zoom snaps to 1). `typecheck`/`lint`/`build:web` green; test zip repacked.
+
 ### fix: mobile polish round 2 — rope alignment/texture, row heights, badge outlines, card zoom
 
 Third iPhone itch test (owner): four more phone-only issues, all the same two root-cause families as round 1

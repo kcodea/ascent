@@ -2299,7 +2299,14 @@ body.choreo-open .pixifx-under { z-index: 204; }
    panel, status bar) — the dimmed board art above is the only backdrop until a champion is chosen. */
 body:has(.heroselect) .app { visibility: hidden; }
 body:has(.heroselect) .statusbar { visibility: hidden; }
-.hsbox { display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 96vw; }
+/* The picker (and the end screen, which reuses it) is authored in fixed px tuned at the owner's 0.745-scale
+   desktop — zoom the whole box by the stage scale so it shrinks proportionally on phones (× the mobile card
+   boost so it stays tappable). Desktop = zoom 1 (unchanged). vw lengths inside a zoomed box also get multiplied
+   by the zoom, so the width caps divide it back out (else the row falsely wraps on phones). The Practice
+   "dense" all-heroes grid already self-scales via vw clamps, so it opts out (zoom would double-shrink it). */
+.heroselect { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * var(--mobile-boost, 1)); }
+.hsbox { display: flex; flex-direction: column; align-items: center; text-align: center; zoom: var(--hs-zoom); max-width: calc(96vw / var(--hs-zoom)); }
+.hsbox:has(.hsrow.dense) { zoom: 1; max-width: 96vw; }
 /* Hero-picker panels + the title/eyebrow above them sit ~30% larger than the base sizes. */
 .heroselect .eyebrow { font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.3em; color: var(--acc); text-transform: uppercase; }
 .hstitle { font-family: var(--font-title); font-weight: 900; font-size: 68px; letter-spacing: 0.06em; color: #f6efe2; margin: 8px 0 22px; }

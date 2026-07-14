@@ -12,7 +12,7 @@ import { FontLab } from './FontLab';
 import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
 import { MinionBook } from './MinionBook';
-import { EscMenu } from './EscMenu';
+import { BOARD_OPTIONS, EscMenu } from './EscMenu';
 import { DevMenu } from './DevMenu';
 import { BalancePanel } from './BalancePanel';
 import { Icon } from './Icon';
@@ -44,6 +44,11 @@ export function Game() {
   const [scrim, setScrim] = useState<number>(() => {
     try { const raw = localStorage.getItem('ascent-scrim'); const v = Number(raw); return raw !== null && Number.isFinite(v) ? v : 0.15; } catch { return 0.15; }
   });
+  // Board backdrop choice (Settings). 'default' = the responsive CSS default (board169 / board219); any other
+  // option pins its art as `--board` regardless of resolution. Persists like res/scrim.
+  const [board, setBoard] = useState<string>(() => {
+    try { return localStorage.getItem('ascent-board') || 'default'; } catch { return 'default'; }
+  });
 
   // Preload all card/hero art once, on idle, so the first shop renders with art already cached — kills the
   // cold-load "pop-in" (esp. the itch CDN, where each webp is a separate first-appearance round-trip).
@@ -62,6 +67,16 @@ export function Game() {
     document.documentElement.style.setProperty('--scrim', String(scrim));
     try { localStorage.setItem('ascent-scrim', String(scrim)); } catch { /* ignore */ }
   }, [scrim]);
+
+  // Apply the board choice: pin the option's art as an inline `--board` override, or clear it so the responsive
+  // CSS default (board169 / board219) resumes for 'default'. Inline wins over the stylesheet's aspect swaps. Persist.
+  useEffect(() => {
+    const style = document.documentElement.style;
+    const url = BOARD_OPTIONS.find((o) => o.id === board)?.url;
+    if (url) style.setProperty('--board', url);
+    else style.removeProperty('--board');
+    try { localStorage.setItem('ascent-board', board); } catch { /* ignore */ }
+  }, [board]);
 
   // Esc toggles the menu — but if the menu is closed and a card is being inspected, let the
   // inspect overlay claim Esc (it closes itself) instead of opening the menu. The Minion Book
@@ -116,7 +131,7 @@ export function Game() {
       <div className="version" title={`ASCENT v${__APP_VERSION__} · build ${__BUILD_SHA__}`}>
         v{__APP_VERSION__} <span>{__BUILD_SHA__}</span>
       </div>
-      {menuOpen && <EscMenu res={res} onRes={setRes} scrim={scrim} onScrim={setScrim} onClose={() => setMenuOpen(false)} />}
+      {menuOpen && <EscMenu res={res} onRes={setRes} board={board} onBoard={setBoard} scrim={scrim} onScrim={setScrim} onClose={() => setMenuOpen(false)} />}
       {/* DEV-only tuning menu — one 🛠️ button opening every live tuner (stripped from production). */}
       {import.meta.env.DEV && <DevMenu />}
       <BalancePanel />

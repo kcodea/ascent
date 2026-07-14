@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 37)
 
+### feat: selectable board backdrop in Settings (+ Test Board option)
+
+Added a **Board** style selector to the Settings (Esc) panel so the board backdrop can be switched — **Default**
+(the responsive July board: `board169` 16:9 / `board219` 21:9) or **Test Board** (`testboard2`, a 21:9 preview
+master converted to `testboard2.webp`, 3440×1459). Mirrors the existing resolution/scrim pattern: a `board` state in
+`Game.tsx` persisted to `localStorage` (`ascent-board`), applied via an effect that pins the option's art as an inline
+`--board` on `:root` (inline wins over the stylesheet's aspect swaps), or clears the override for 'default' so the
+responsive CSS default resumes. Options live in `BOARD_OPTIONS` (EscMenu) — adding another board is one entry + a webp
+in `apps/web/public/`. The test asset is loaded on selection (not added to the always-on art warm-up). Verified live:
+Settings shows a Board section with Default/Test Board; selecting Test Board sets `--board` to `testboard2.webp`
+(loads 3440×1459) and renders in-run; Default clears the override (back to `board169`); the choice
+persists across reload (applied at boot). `typecheck`/`lint`/`build:web` green.
+
 ### feat(audio): 4 randomized strike clips for combat impact + new combat-start sound
 
 **What:** replaced the single `smack.mp3` with **4 owner-authored strike clips** (`smack1`–`smack4`) that the

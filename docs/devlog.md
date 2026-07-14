@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 39)
 
+### fix(ui): descend FX for Burial Imp + Chef Raag (Deathrattle buff-others)
+
+Effect-animation coverage sweep, item 2. **Burial Imp** (`deathrattleBuffFodder`) and **Chef Raag**
+(`deathrattleBuffAllByImpAura`) buff OTHER minions on death, but weren't in `DEATHRATTLE_BUFF_FACTORIES`, so the
+combat replay routed them as a *living-source* tendril — and by strike time the source is dead, so `fireBuffCasts`
+dropped the FX entirely (**no animation at all**). Added both factory names to the descend allow-list → they now
+rain the sourceless **descend** onto each buffed ally, like every other Deathrattle buff-other. (`knit`/Spear Warden
+stays out, pending its echo-aura redesign.)
+
+Verified: `typecheck + lint + test` (1039, +2 assertions on `isDeathrattleBufferCard`) & `build:web` green.
+
 ### feat(ui): fire the self-buff pulse for on-attack self-buffs (attack wind-up)
 
 Kicks off an **effect-animation coverage sweep** (audit this session → owner; queue in roadmap B0). First gap

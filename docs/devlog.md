@@ -21,6 +21,27 @@ cross-link from `concurrency.md`. Docs-only; no code touched.
 
 ## 2026-07-13 (session 36)
 
+### fix/content: quest-reward batch — Leader of the Pack, Cratering Missive, Passing Spears, golden Godfodder
+
+Four owner-reported quest issues:
+- **Leader of the Pack "only gave 10 Gold."** Two bugs: (1) the reward TEXT never listed the golden Pack Leader —
+  `questRewardText`'s `grant` case rendered `cards` but not `grantGolden`, so the card only showed "Get 10 Gold"; now
+  it reads "Get a Golden Pack Leader. Get 10 Gold". (2) On a **full hand** the golden Pack Leader was silently dropped
+  (`conjureToHand` no-ops at hand cap) — new `grantMinionToHandOrBoard` overflows a guaranteed quest-reward minion to
+  the **board** (then over-cap hand as a last resort) so a promised reward is never lost.
+- **Cratering Missive** redesigned per spec: grant a Cratering Hulk + a run-wide flag that makes your Cratering Hulks'
+  overflow Engrave buff **ALL** your minions, not just Undead. New `crateringMissive` combat flag drops the tribe
+  filter on `onSummonOverflowBuffTribe` in the sim. (Replaces the old EoT "+1/+1 per Hulk" design.)
+- **Passing Spears** redesigned per spec: grant a Spear Warden + give Spear Wardens "**Echo:** when this dies, give
+  its stats to a friendly minion." New `passingSpears` combat flag → an `onDeath` handler transfers a dying Spear
+  Warden's stats to your strongest other minion (like Rune of Inheritance). (Replaces the old EoT design.)
+- **Golden Godfodder** Choose-One text was wrong — the effects DID double (`× gold(self)`), but the two options had no
+  `goldenText`, so the window showed the base "2 Fodder / +3/+3" for a golden card. Added `goldenText` (4 / +6/+6).
+
+Cleaned up the now-unused `spearWardenEcho` / `crateringMissive` recurringEndOfTurn effects across the enums.
+Verified: `typecheck`/`lint`/`test` (**1029** — new `questBatch2.test.ts` covers all four + hand-full overflow)/
+`build:web` green. Live: golden Godfodder shows "Add 4 Fodder" / "+6/+6"; all three quest cards read correctly.
+
 ### art: re-wire minion + quest art from the updated masters
 
 Re-synced the in-repo card/quest art from the masters under `C:\Game Assets\Ascent Art\{Minions,Quests}`. Matched

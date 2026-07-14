@@ -44,8 +44,19 @@ knobs on `.card.compact.stdframe`: `--sh` (frame size), `--fill` (portrait ellip
 the gold, no gap ring), `--dy` (whole composite), `--frameY` (frame + banner + tier only), `--tier` (pill seat),
 `--artY` (portrait vertical framing), `--artZoom` (portrait content zoom). Locked values:
 `--sh .74 · --fill 1.12 · --dy 0 · --frameY .03 · --tier .83 · --artY 45% · --artZoom 1.2`.
-**Still to do:** the **spell** frame carries the same pipeline but is untouched at defaults — its own tuning pass
-is next; then eyeball the DS/Venom/Golden/Dual states + the fanned-hand overlap at the bigger footprint.
+Per owner call the oval is now **neutral gold on every tribe** (the per-tribe `.cframe-tint` layer was removed;
+tribe reads from the medallion).
+
+**Spell frame + a live dev tuner.** The spell square got the same knob set (`--fill`/`--frameY`/`--artY`/
+`--artZoom` + spell-only `--artRound`/`--artAR`/`--artW`) and switched to `object-fit: cover` (every spell fills
+the window to one consistent shape). Key lesson from the seating pass: sizing the window *past* the frame's real
+opening causes gaps AND poke-out (the wide `.art` box + its bg overhangs the tapered bottom gem), so the window
+is now **locked to the measured opening** (a small `--fill` overfill tucks the art under the gold; shape the ART
+with `--artZoom`/`--artY`, not by resizing the window). Verified live in the real Chrome tab (headless preview
+can't screenshot): oval + spell render clean, no gap/overhang. To make future seating self-serve, added a
+**dev-only `FrameTuner`** (🖼️ Card Frames in the DevMenu, `import.meta.env.DEV`-gated): sliders for every knob on
+both frames that write a live-override `<style>`, plus **Copy CSS** to grab paste-ready values. **Still to do:**
+owner's final spell-frame dial-in via the tuner; then eyeball DS/Venom/Golden/Dual + the fanned-hand overlap.
 
 ### fix(ui): crash screen shows the stack trace (self-diagnosing) + Copy button
 

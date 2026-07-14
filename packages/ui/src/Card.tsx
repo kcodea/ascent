@@ -462,22 +462,18 @@ export const Card = memo(function Card({
           </svg>
         )}
         {/* STANDARD OVAL frame (every non-Taunt minion) — the authored gold oval laid OVER the portrait, which is
-            clipped to the frame's elliptical window. `.cframe-tint` is a per-tribe recolour of the gold, masked to
-            the frame's own alpha (dual-tribe splits it left→right). See styles.css "AUTHORED FRAMES". */}
+            clipped to the frame's elliptical window. Neutral gold on every tribe. See styles.css "AUTHORED FRAMES". */}
         {useStdFrame && (
-          <>
-            <img
-              className="cframe cframe-img"
-              src={STD_FRAME_SRC}
-              alt=""
-              aria-hidden="true"
-              onError={() => {
-                stdFrameAvailable = false;
-                setSframeOk(false);
-              }}
-            />
-            <div className="cframe-tint" aria-hidden="true" />
-          </>
+          <img
+            className="cframe cframe-img"
+            src={STD_FRAME_SRC}
+            alt=""
+            aria-hidden="true"
+            onError={() => {
+              stdFrameAvailable = false;
+              setSframeOk(false);
+            }}
+          />
         )}
         {/* SPELL SQUARE frame (regular spells) — the authored purple square. No tint layer: spells have no tribe,
             and the frame carries its own purple accent. */}

@@ -1693,42 +1693,41 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   left: calc(var(--ccw) * (0.5 - 0.737 * var(--sh)));             /* 0.737 = windowCx 0.4975 / 0.675 */
   top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh) + var(--dy) + var(--frameY)));  /* 1.126 = windowCy 0.564 · (1427/1059) / 0.675 */
 }
-/* TINT — per-tribe recolour of the neutral gold, masked to the frame's own alpha so only the metal is tinted
-   (the window stays clear). `color` blend keeps the metal's light/shadow; opacity is the strength knob. Same box
-   as the frame img. Dual-tribe splits the gradient below. */
-.card.compact.stdframe .cframe-tint {
-  position: absolute; z-index: 4; pointer-events: none;
-  width: calc(var(--ccw) * 1.481 * var(--sh));
-  left: calc(var(--ccw) * (0.5 - 0.737 * var(--sh)));
-  top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh) + var(--dy) + var(--frameY)));
-  aspect-ratio: 1059 / 1427;
-  background: var(--c);
-  -webkit-mask: url('/frames/standard-oval.png') center / 100% 100% no-repeat;
-          mask: url('/frames/standard-oval.png') center / 100% 100% no-repeat;
-  mix-blend-mode: color; opacity: 0.4;
-}
-.card.compact.stdframe.dual .cframe-tint { background: linear-gradient(110deg, var(--c) 0 46%, var(--c2) 54% 100%); }
+/* The oval stays neutral GOLD on every minion (no per-tribe tint) — tribe is read from the medallion. */
 /* tier rides the oval's banner plaque; the atk/hp/tribe cluster is NEVER moved. `--tier` + `--dy` seat it. */
 .card.compact.stdframe .tierbadge { top: calc(var(--ccw) * (0.5 - var(--tier) * var(--sh) + var(--dy) + var(--frameY))); }
 
 /* ---- SPELL SQUARE (regular spells) ------------------------------------------------------------------------ */
-.card.compact.spellframe { --sh: 0.76; }
+/* Same LIVE KNOBS as the oval (see stdframe): --sh size · --fill window overfill · --dy whole composite ·
+   --frameY frame+tier only · --tier pill seat · --artY portrait framing · --artZoom portrait content zoom.
+   No tint layer (spells are tribeless). Window is a rounded rectangle; measured from spell-frame.png.
+   --artRound = the window's CORNER RADIUS (% of the box): raise for rounder corners, lower for squarer.
+   --artAR = window HEIGHT (× the base): >0.963 = TALLER.   --artW = window WIDTH (× the base): <1 = LESS WIDE.
+   (artAR and artW are independent, so you can make the window taller and narrower separately.) */
+/* WINDOW = the frame's real opening (measured), with a small --fill overfill to tuck the art under the gold so
+   there's no gap ring. Keep --artAR≈0.963 / --artW≈1.0 (that IS the opening) so it can't poke out; shape the
+   ART itself with --artZoom (crop tighter) + --artY (vertical framing), NOT by resizing the window past the hole. */
+.card.compact.spellframe { --sh: 0.76; --fill: 1.05; --dy: 0.00; --frameY: 0.00; --tier: 0.82; --artY: 42%; --artZoom: 1.0; --artRound: 14%; --artAR: 0.963; --artW: 1.0; }
 .card.compact.spellframe .art {
-  clip-path: inset(0 round 14%);                                   /* the rounded-rectangle window */
-  width: calc(var(--ccw) * var(--sh));
-  height: calc(var(--ccw) * 0.963 * var(--sh));                    /* 0.963 = window H/W */
-  left: calc(var(--ccw) * (0.5 - 0.5 * var(--sh)));
-  top: calc(var(--ccw) * (0.5 - 0.4815 * var(--sh)));            /* 0.4815 = 0.963/2 */
+  clip-path: inset(0 round var(--artRound));                       /* the rounded-rectangle window */
+  width: calc(var(--ccw) * var(--sh) * var(--fill) * var(--artW));
+  height: calc(var(--ccw) * var(--artAR) * var(--sh) * var(--fill));
+  left: calc(var(--ccw) * (0.5 - 0.5 * var(--sh) * var(--fill) * var(--artW)));
+  top: calc(var(--ccw) * (0.5 - 0.5 * var(--artAR) * var(--sh) * var(--fill) + var(--dy)));
 }
+/* spells COVER the window (fill the shape you set with --artW/--artAR/--artRound, cropping overflow) so every
+   spell frames identically. --artY sets the vertical crop framing; --artZoom fine-tunes the fill (1 = exact fill). */
+.card.compact.spellframe .art .artimg,
+.card.compact.spellframe .art canvas { object-fit: cover; object-position: center var(--artY); transform: scale(var(--artZoom)); }
 .card.compact.spellframe .cframe-img {
   position: absolute; inset: auto; height: auto;
   width: calc(var(--ccw) * 1.387 * var(--sh));                     /* 1.387 = 1/0.721 */
   left: calc(var(--ccw) * (0.5 - 0.6928 * var(--sh)));           /* 0.6928 = 0.4995 / 0.721 */
-  top: calc(var(--ccw) * (0.5 - 0.9009 * var(--sh)));           /* 0.9009 = 0.5415 · (1346/1122) / 0.721 */
+  top: calc(var(--ccw) * (0.5 - 0.9009 * var(--sh) + var(--dy) + var(--frameY)));  /* 0.9009 = 0.5415 · (1346/1122) / 0.721 */
 }
-.card.compact.spellframe .tierbadge { top: calc(var(--ccw) * (0.5 - 0.535 * var(--sh))); }
-/* the "✦ Spell" ribbon rides the frame's bottom gem instead of the arch base */
-.card.compact.spellframe .ctype.spell { bottom: calc(var(--ccw) * (0.5 - 0.42 * var(--sh))); }
+.card.compact.spellframe .tierbadge { top: calc(var(--ccw) * (0.5 - var(--tier) * var(--sh) + var(--dy) + var(--frameY))); }
+/* the "✦ Spell" ribbon rides the frame's bottom gem instead of the arch base (tracks --dy / --frameY) */
+.card.compact.spellframe .ctype.spell { bottom: calc(var(--ccw) * (0.5 - 0.42 * var(--sh) - var(--dy) - var(--frameY))); }
 
 /* ---- selection / combat glows (shared) — same shape-fix as Taunt: drop the rectangular box-shadow and glow the
    frame PNG's alpha via a state-coloured drop-shadow, so the highlight hugs the oval / square silhouette. ------ */
@@ -2487,6 +2486,7 @@ svg { width: 18px; height: 18px; }
 .sfxmix-h { font-weight: 800; font-size: 15px; color: var(--ink); margin-bottom: 8px; }
 .sfxmix-h.drag { cursor: move; user-select: none; touch-action: none; }
 .sfxmix-h span { font-size: 10px; font-weight: 700; color: var(--ink3); text-transform: uppercase; letter-spacing: 0.08em; }
+.sfxmix-sub { font-weight: 800; font-size: 11px; color: var(--acc-dk); text-transform: uppercase; letter-spacing: 0.06em; margin: 10px 0 4px; border-top: 1px solid var(--line); padding-top: 8px; }
 .sfxmix-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
 .sfxmix-name { flex: 0 0 86px; font-size: 12px; font-weight: 700; color: var(--ink); }
 .sfxmix-row input[type='range'] { flex: 1; height: 6px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; outline: none; cursor: pointer; }

@@ -159,9 +159,9 @@ fanned-hand overlap now that framed cards overhang ~1.1× the slot. All knobs ar
   - ✅ **Attack-windup self-pulse (shipped session 39).** On-attack / on-ally-attack self-buffs (Solaris, Trophy
     Stalker, Watcher, Crypt Drake, Taragosa, Forsaken Mage, Hunter) were absorbed into the `attackExchange` and got
     no pulse; the wind-up path now also runs `groupSelfBuffs` → in-place pulse (shared `fireSelfBuffs` helper).
-  - **Descend allow-list** — add `deathrattleBuffFodder` (Burial Imp) + `deathrattleBuffAllByImpAura` (Chef Raag) to
-    `DEATHRATTLE_BUFF_FACTORIES`; they currently route as a dead-source tendril → dropped (no FX). (`knit`/Spear
-    Warden stays out pending its echo-aura redesign.)
+  - ✅ **Descend allow-list (shipped session 39).** `deathrattleBuffFodder` (Burial Imp) + `deathrattleBuffAllByImpAura`
+    (Chef Raag) added to `DEATHRATTLE_BUFF_FACTORIES` — they routed as a dead-source tendril → dropped; now descend.
+    (`knit`/Spear Warden stays out pending its echo-aura redesign.)
   - **`improve` events → pulse** — aura strengthens (Kennelmaster, Flowing Monk, Trophy Stalker growth) get a ✦
     float + medallion only; add a self-pulse cue to the `improve` moment kind.
   - **Keyword grants** — Ward/Taunt/Rise/Toxin granted mid-combat land as just a glyph float; fire a burst at grant

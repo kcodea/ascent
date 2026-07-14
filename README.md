@@ -25,9 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **More Deathrattle buffs now animate.** Burial Imp and Chef Raag buff allies on death but showed no FX (their
+  buff was dropped as a dead-source tendril); they now rain the **descend** animation like other Deathrattle buffers.
 - **On-attack self-buffs now pulse.** A unit that buffs itself as part of its own (or an ally's) attack — Solaris
   Fang, Trophy Stalker, Watcher, Crypt Drake, Taragosa, Forsaken Mage — now pops the in-place buff pulse it was
-  missing (its buffs to *other* minions already animated). First step of an effect-animation coverage sweep.
+  missing (its buffs to *other* minions already animated). First steps of an effect-animation coverage sweep.
 - **Cards lift off the table when dragged.** A picked-up card's grounding shadow now grows, drops, softens, and
   lightens so it reads as floating higher above the board. All four traits are live-tunable in the dev Drag Feel
   tuner (with a "preview" toggle so you can dial them across resting cards without holding a card down).

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX } from '@game/content';
-import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, nextOpponent, reconstructRunTelemetry, reduce, resolveRunRating, runRecord, serialize, snapshotBoard, type Action, type BoardMinion, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunState } from '@game/sim';
+import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, nextOpponent, reconstructRunTelemetry, reduce, resolveRunRating, runRecord, serialize, snapshotBoard, socBoard, type Action, type BoardMinion, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunState } from '@game/sim';
 import type { Tribe } from '@game/core';
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
@@ -297,6 +297,27 @@ function endStateBoard(run: RunState): BoardSnapshot | null {
   return snap;
 }
 
+/**
+ * The board the player fought their LAST combat with, captured at Start of Combat AFTER SoC effects fire (buffs /
+ * keywords / shields / SoC summons) but BEFORE the first attack — so the Hall of Champions shows the *buffed* board
+ * (e.g. Pack Leader's Beast buff, a Whelp summoned at SoC), not the base recruit warband. It merges the SoC-buffed
+ * combat stats onto the live-text recruit snapshot (matched by combat-start index, so scaling cards keep their live
+ * text) and appends any SoC-summoned minions. Falls back to the plain end-state board when there's no combat to read.
+ */
+function combatStartBoard(run: RunState): BoardSnapshot | null {
+  const base = endStateBoard(run);
+  const lc = run.lastCombat;
+  if (!base || !lc || lc.initial.player.length === 0) return base;
+  const soc = socBoard(lc); // the SoC-buffed combat board (buffs / keywords / shields / summons applied)
+  // Keep each recruit minion's live text but take the SoC-buffed stats/keywords (matched by combat-start order);
+  // append any SoC-summoned minions beyond the recruit board.
+  const merged: BoardMinion[] = base.minions.map((m, i) => (soc[i] ? { ...m, attack: soc[i]!.attack, health: soc[i]!.health, keywords: soc[i]!.keywords } : m));
+  for (let i = base.minions.length; i < soc.length; i++) merged.push(soc[i]!);
+  base.minions = merged;
+  base.power = merged.reduce((sum, m) => sum + m.attack + m.health, 0);
+  return base;
+}
+
 export const useGame = create<GameStore>((set, get) => ({
   // Boot into the saved in-progress run if there is one (behind the title, which shows a Continue entry);
   // otherwise a throwaway fresh run that Play/Practice will replace.
@@ -405,7 +426,9 @@ export const useGame = create<GameStore>((set, get) => ({
           // printed base). This replaces the old pre-combat, printed-text replay snapshot. Falls back to that
           // snapshot only if the end-state board is empty (shouldn't happen for a real finish).
           const highestFresh = fresh.reduce<BoardSnapshot | null>((best, b) => (!best || b.wave > best.wave ? b : best), null);
-          const finalBoard = endStateBoard(next) ?? highestFresh;
+          // Show the board WITH its final combat's Start-of-Combat buffs (owner request) — the impressive version the
+          // player actually fought with — falling back to the plain end-state board, then a captured pool board.
+          const finalBoard = combatStartBoard(next) ?? highestFresh;
           // Link the leaderboard/Career final board to the SAME id as the highest-wave pool board (the one served
           // as the round-17 opponent), so a fight-result recorded against that served board also counts for this
           // leaderboard slot.

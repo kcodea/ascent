@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 37)
 
+### dev: rope scaler in the Layout Lab + make the burning rope static (no resolution scaling)
+
+Owner request: the centre-divider burning rope resized with resolution and needed live tuning. It was `width: 86%`
+(board-relative) × `height: calc(8 * var(--u))` (chrome-scaled), so both dimensions grew/shrank with the stage. Made
+it **STATIC**: `.rope` now reads `width: var(--rope-len, 1600px)` and `height: var(--rope-thick, 10px)` (absolute px,
+decoupled from `--u` and the percentage) plus `--rope-x` / `--rope-yoff` offsets folded into its transform. Added a new
+**"Rope"** group to the dev Layout Lab (`layoutConfig.ts` → `LAYOUT_VARS`, which the tuner renders automatically):
+Length (400–3600px), Width (2–40px), X offset + Y offset (±px). `--rope-y` still auto-aligns the base to the art
+divider at any aspect; the offsets ride on top. CSS fallbacks match the `layoutConfig` defaults so production (tuner
+unmounted) equals a Reset. Verified live: rope holds **1600×10 across r1920/r2560/r3440** (was resolution-dependent);
+all four knobs drive it (length/thickness resize, X/Y translate by the exact px); the "Rope" group renders with its
+four sliders. `typecheck`/`lint`/`build:web` green. (Judgement call: "static" read as fixed px regardless of
+resolution — the 1600px/10px defaults match the ~1920 look; the owner tunes the rest live and it persists.)
+
 ### art: new July board backdrops (16:9 + 21:9)
 
 Wired the owner's two new board masters (`C:\Game Assets\Ascent Art\Game Boards\julyboard169.jpg` /

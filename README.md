@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Rope scaler (dev).** The centre-divider burning rope is now **static** (fixed px, no longer scales with
+  resolution) and tunable live from the Layout Lab's new "Rope" group — Length, Width, X, Y.
 - **New board backdrops.** Fresh July board art wired for both aspect ratios — `board169` at 16:9 resolutions,
   `board219` at 21:9 (forced ultrawide res + a genuinely ultrawide fit window).
 - **Ritualist live text.** Ritualist now shows its **current** per-tick Fodder/Imp grant (climbing each End of Turn)

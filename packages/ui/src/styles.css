@@ -117,8 +117,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
    a live flame (halo + hot core + rising embers) with a glowing char edge trailing behind it. Only the flame's
    transform/opacity animate in a loop (compositor-only, per docs/performance.md); the drop-shadow is static. */
 .rope {
-  position: absolute; left: 50%; top: var(--rope-y, 50%); transform: translate(-50%, -50%);
-  width: 86%; height: calc(8 * var(--u)); z-index: 8; border-radius: 999px; overflow: visible; pointer-events: none;
+  /* STATIC size (dev Layout Lab "Rope" group): length/width are absolute px so the rope no longer scales with
+     resolution (was 86% board-width × --u thickness). --rope-y still auto-aligns the base to the art divider;
+     --rope-x / --rope-yoff nudge it. Keep these fallbacks in sync with layoutConfig.ts's rope defs. */
+  position: absolute; left: 50%; top: var(--rope-y, 50%);
+  transform: translate(calc(-50% + var(--rope-x, 0px)), calc(-50% + var(--rope-yoff, 0px)));
+  width: var(--rope-len, 1600px); height: var(--rope-thick, 10px); z-index: 8; border-radius: 999px; overflow: visible; pointer-events: none;
   background:
     repeating-linear-gradient(48deg, rgba(255, 240, 200, 0.22) 0 3px, rgba(90, 60, 25, 0.30) 3px 7px),
     linear-gradient(to bottom, #e3b870, #bb8a3f 52%, #8c6326);

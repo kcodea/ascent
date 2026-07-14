@@ -29,6 +29,20 @@ rig (headless preview can't screenshot). Follow-up: none outstanding on DS.
 
 ## 2026-07-13 (session 39)
 
+### chore(fx): transform-morph preview rig (item 8 — awaiting owner tuning)
+
+Effect-animation coverage sweep, item 8 (transform / `ascend`). Owner chose a **new bespoke morph** for
+Tara→Taragosa / Spirit Pup→Worgen, prototyped on a rig first (the standing FX rule). Built
+`apps/web/public/fx/transform-morph-preview.html` — a standalone rig (same shell as `buff-pulse-preview.html`: cream
+board stage, dark control panel, live JSON export) with **five candidate morph styles** to compare and tune: `flash`
+(bright bloom, card swaps at peak), `dissolve` (old rises as motes, new fades in), `shatter` (old cracks into shards,
+new assembles), `wipe` (a bright band sweeps + reveals), `vortex` (old spins down, new spins up). Each has common
+dials (duration, flash radius/alpha/ms, glow + particle colours) plus per-style params; the export is a complete
+`{ style, ...cfg }` to paste back for baking. Verified: JS syntax + a live load (5 styles, controls rebuild on style
+switch, JSON export updates, no console errors). **Next:** owner opens `/fx/transform-morph-preview.html`, picks a
+style + tunes, pastes the JSON; then I bake it into an `ascend`-event renderer (a new `ascendFx` cue on the `ascend`
+moment kind, mirroring the `summonFx`/`damageFx` channels).
+
 ### feat(ui): keyword grants pulse the granter's medallion (part 1 of item 4)
 
 Effect-animation coverage sweep, item 4a. A `keyword` event (Mumi grants Rise, Gravewarden's SoC Rise, Combo Kim's

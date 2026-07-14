@@ -2686,8 +2686,9 @@ svg { width: 18px; height: 18px; }
 .balprogress { position: relative; height: 16px; margin: 4px 30px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.12); overflow: hidden; flex: none; }
 .balprogfill { position: absolute; inset: 0; transform-origin: left; background: var(--acc); transition: transform 0.1s linear; }
 .balprogtxt { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 800; font-size: 11px; color: #fff; mix-blend-mode: difference; }
-.balscroll { flex: 1; overflow-y: auto; padding: 8px 30px 40px; display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 16px; align-content: start; }
-.balempty { grid-column: 1 / -1; max-width: 720px; margin: 40px auto; color: rgba(255, 255, 255, 0.72); font-weight: 600; font-size: 15px; line-height: 1.5; text-align: center; }
+/* One report at a time, centred (owner 2026-07-14) — a single wide column instead of the old five-across grid. */
+.balscroll { flex: 1; overflow-y: auto; padding: 8px 30px 40px; display: grid; grid-template-columns: minmax(0, 960px); justify-content: center; gap: 16px; align-content: start; }
+.balempty { max-width: 720px; margin: 40px auto; color: rgba(255, 255, 255, 0.72); font-weight: 600; font-size: 15px; line-height: 1.5; text-align: center; }
 .baltable { background: rgba(0, 0, 0, 0.32); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 14px; padding: 10px 12px; }
 .baltabletitle { font-weight: 800; font-size: 15px; color: var(--acc); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
 .balgrid { display: flex; flex-direction: column; }
@@ -2700,6 +2701,21 @@ svg { width: 18px; height: 18px; }
 .balwin.warm { color: #a6d96a; }
 .balwin.cool { color: #f0c04a; }
 .balwin.cold { color: #f07a6a; }
+
+/* Solo report table (owner 2026-07-14): full-width, LARGE text, sticky sortable header. */
+.balsolo { width: 100%; background: rgba(0, 0, 0, 0.32); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 16px; padding: 4px 22px 16px; }
+.balgrid-solo .balrow { grid-template-columns: minmax(11em, 1fr) repeat(var(--balcols, 4), minmax(4.5em, 7em)); gap: 16px; padding: 10px 2px; font-size: 17px; }
+.balgrid-solo .balrow.balhead { position: sticky; top: 0; z-index: 1; background: #0b1524; font-size: 13px; padding-top: 12px; padding-bottom: 10px; }
+.balgrid-solo .balrow:not(.balhead):hover { background: rgba(255, 255, 255, 0.04); }
+/* Column headers double as sort buttons — reset the button chrome, keep the header look, hint the active one. */
+.balsort { background: none; border: none; font: inherit; color: inherit; cursor: pointer; padding: 0; text-align: right; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+.balsort.balname { text-align: left; }
+.balsort:hover { color: rgba(255, 255, 255, 0.9); }
+.balsort.on { color: var(--acc); }
+/* Report picker dropdown (which section to view). */
+.balpick { font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: #f6efe2; background: rgba(0, 0, 0, 0.34); border: 2px solid rgba(255, 255, 255, 0.2); padding: 7px 12px; border-radius: 9px; cursor: pointer; }
+.balpick:focus-visible { outline: 2px solid var(--acc); }
+.balpick option { color: #1a1206; }
 
 /* Player Leaderboard (Rankings) — reuses the .lbpage shell; a compact ranked table (rank · player · rating · games · favorite hero). */
 .rankpage .lbscroll { max-width: 860px; margin: 0 auto; width: 100%; }

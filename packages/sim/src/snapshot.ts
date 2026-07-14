@@ -159,6 +159,7 @@ function cleanBoard(s: RunState): BoardMinion[] {
     ...(c.addedTribes && c.addedTribes.length ? { addedTribes: [...c.addedTribes] } : {}), // Anomaly Reactor: a spell-added tribe (combat folds it into tribe2; the display badge reads it)
     ...(c.bloodlust ? { bloodlust: true } : {}), // Bloodlust: a pending Start-of-Combat immune out-of-turn strike
     ...(c.summonBonus ? { summonBonus: c.summonBonus } : {}),
+    ...(c.eotBonus ? { eotBonus: c.eotBonus } : {}), // Ritualist: carry the accrued per-tick grant so a served board reads + plays true
     ...(c.rallyMechAtk ? { rallyMechAtk: c.rallyMechAtk } : {}),
     ...(c.rallySpellWeld ? { rallySpellWeld: c.rallySpellWeld } : {}),
     // Per-minion accruals, so a board served as an opponent is as strong AND reads as accurately as the board

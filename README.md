@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Ritualist live text.** Ritualist now shows its **current** per-tick Fodder/Imp grant (climbing each End of Turn)
+  in the shop, on the board, AND in combat — its per-instance accrual is carried across the combat boundary, so
+  mousing it in the arena no longer reverts to the printed base.
 - **Shop-phase buff FX.** When a card buffs *other* minions in the shop (Battlecry, on-summon, Guel, spell casts,
   Deathrattles, Karwind/Bane, Choose One, Hunter), it now shoots the same **tendril** (from a living source) or
   rains the same **descend** (from a spell / Deathrattle) that combat uses — no longer just a green flash. Captured

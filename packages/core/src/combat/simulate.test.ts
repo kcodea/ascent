@@ -1979,6 +1979,18 @@ describe('simulate (handoff A.3)', () => {
     expect(monkBuffs.every((b) => b.type === 'buff' && b.attack === 14 && b.health === 14)).toBe(true);
   });
 
+  it('Ritualist carries its End-of-Turn grant accrual (eotBonus) into the combat snapshot for live text', () => {
+    // A Ritualist that has triggered its End of Turn twice on the run board rides eotBonus=6 (steps of 3).
+    // Combat never changes it, but it must survive instantiate → snapshot so the arena card text can show the
+    // current per-tick grant rather than reverting to the printed base.
+    const a = run(
+      [{ cardId: 'ritualist', attack: 5, health: 6, eotBonus: 6 }],
+      [{ cardId: 'omen', attack: 20, health: 60 }],
+      3,
+    );
+    expect(a.initial.player[0]!.eotBonus).toBe(6);
+  });
+
   it('Raptor buffs another friendly Beast +3/+1 when it attacks — but never itself', () => {
     const a = run(
       [

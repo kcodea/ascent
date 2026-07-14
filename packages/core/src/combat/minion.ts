@@ -50,6 +50,7 @@ export function instantiate(
     reAttackOnKill: cardReAttacksOnKill(card),
     critChance: card.critChance, // Commander Impala: per-swing double-damage chance (constant per CardDef)
     summonBonus: board.summonBonus ?? 0,
+    eotBonus: board.eotBonus, // Ritualist: seed the End-of-Turn grant accrual so the live combat text shows its per-tick value
     attackImmuneLeft: card.attackImmuneTurns, // Bounty Bot: fresh each combat — immune for its first N swings, spent per attack
 
     overflowBonus: board.overflowBonus, // Flowing Monk: flat grant bonus from the triple combine

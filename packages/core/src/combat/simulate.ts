@@ -328,6 +328,7 @@ export function simulate(
     keywords: [...m.keywords],
     golden: m.golden,
     summonBonus: m.summonBonus,
+    eotBonus: m.eotBonus,
     overflowBonus: m.overflowBonus,
     hpGrantBonus: m.hpGrantBonus,
     ascendProgress: m.ascendProgress,

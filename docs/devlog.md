@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 37)
 
+### dev: shop controls tray added to the Layout Lab scale tuner
+
+Added a **"Shop controls"** group to the dev Layout Lab — Scale, X offset, Y offset for the `.shopbar` tray (the
+round plaque + Upgrade/Reroll/Freeze/End Turn + info strip), which the existing "Shop row" only covered for the shop
+CARDS, not the buttons. Mirrors the HUD-bar pattern: `.shopbar` gets `position: relative` + a LOCAL
+`--u: calc(--u-base × --ui-scale × --z-shopui-s)` so the whole tray scales proportionally, plus `--z-shopui-x/y`
+offsets. Config lives in `layoutConfig.ts` (`LAYOUT_VARS`, auto-rendered by the tuner); defaults are a no-op. Verified
+live: the group renders with three sliders; setting Scale 1.3 grew the tray 950×149 → 1229×193, and X/Y offset it.
+`typecheck`/`lint`/`build:web` green.
+
 ### fix: Disco Dan no longer re-Discovers his Tier 6 on reload
 
 Owner-reported: reloading a Disco Dan run re-opened his turn-1 Setlist Tier 6 Discover. Root cause in

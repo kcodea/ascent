@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### fix: mobile — shrink keyword pills + enlarge the tap/hover card reveal 30%
+
+Two on-device readability asks (mobile-focused; desktop preserved exactly):
+
+- **Keyword pills too large.** `.kw` (Echo / Taunt / etc.) + `.kws` were authored in raw px (12px font, 3px/9px
+  padding, 8px radius, 12px svg) so they stayed desktop-sized on a phone's small card and dwarfed the description
+  text. Converted every metric to `--ccw` fractions at the exact value they held at the owner's ~141px desktop
+  `--ccw` (so desktop is byte-for-byte identical — verified `.kw` still computes to 12.0px there) while a phone's
+  smaller card now wears proportionally smaller pills (5.7px at 932×430).
+- **Tap/hover card reveal too small to read.** The `.cardref` popup (the enlarged card + referenced-token reveal
+  that pops on tap/hover) renders at the card's natural `--ccw`, which is tiny on a phone. Added `--inspect-zoom`
+  (JS-set, 1.3 on phone stages / 1 desktop) applied as `zoom` on `.cardref-inner` — 30% larger for reading. `zoom`
+  (not transform, which the float animation owns). `showRefTip` now folds the same factor into its width/height
+  placement estimates so the bigger popup still clamps on-screen (verified not off-screen at 932×430). Desktop popup
+  unchanged (`--inspect-zoom` = 1).
+
 ### fix: suppress iOS long-press "Copy/Save Image" callout on card/unit art
 
 On a phone, press-and-holding a minion popped iOS Safari's image callout menu (Copy/Save Image) over the card art. The

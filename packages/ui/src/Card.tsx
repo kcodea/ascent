@@ -293,10 +293,14 @@ export const Card = memo(function Card({
       const r = el.getBoundingClientRect();
       const n = popupCards.length;
       const gap = 10;
-      const tipW = r.width * n + (n - 1) * gap; // full-size cards, laid left→right
+      // The popup is `zoom`ed by --inspect-zoom (1.3 on mobile) for readability, so its rendered footprint is that
+      // much bigger than a natural card — fold the same factor into the width/height estimates so it stays on-screen.
+      const zoom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--inspect-zoom')) || 1;
+      const cardW = r.width * zoom;
+      const tipW = cardW * n + (n - 1) * gap; // full-size cards, laid left→right
       const flip = r.right + gap + tipW > window.innerWidth - 6; // off the right edge → show on the left
       const left = flip ? Math.max(6, r.left - gap - tipW) : r.right + gap;
-      const estH = r.width * 1.34; // a full card is ~1.34× its width tall — clamp so it stays on-screen
+      const estH = cardW * 1.34; // a full card is ~1.34× its width tall — clamp so it stays on-screen
       const top = Math.max(6, Math.min(r.top, window.innerHeight - estH - 6));
       setRefPos({ left, top, origin: flip ? 'right' : 'left' });
     }, showText ? 250 : 100);

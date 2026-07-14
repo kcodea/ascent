@@ -76,6 +76,9 @@ export function Game() {
       document.documentElement.style.setProperty('--board-mobile-zoom', mobile ? '1.1' : '1');
       document.documentElement.style.setProperty('--wb-drop', mobile ? '92px' : '0px');
       document.documentElement.style.setProperty('--shop-drop', mobile ? '-37px' : '0px');
+      //  · --inspect-zoom: enlarge the tap/hover card-reveal popup ~30% on a phone so a minion's text is readable
+      //    (Card.tsx's showRefTip folds the same factor into its on-screen placement math).
+      document.documentElement.style.setProperty('--inspect-zoom', mobile ? '1.3' : '1');
       // Keep the WebGL combat particles proportional to the (shrinking) cards. The FX px dials were tuned at the
       // owner's ~0.745 desktop scale, so divide that reference out → 1.0 on desktop, ~0.45 on a phone. Fold in the
       // card boost so bursts match the boosted card size, not the bare stage.

@@ -880,9 +880,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .cn { flex: none; align-self: center; max-width: 100%; font-family: var(--font-ui); font-weight: 700; font-size: 13px; line-height: 1.1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: color-mix(in srgb, var(--card) 88%, transparent); border-radius: 8px; padding: 2px 9px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
 /* always reserves one pill-row of height (even with no pills) so the description below
    always starts on the same line — Battlecry text aligns with Start-of-Combat text, etc. */
-.kws { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; align-items: center; min-height: 22px; margin: 6px 0 5px; }
-.kw { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.02em; padding: 3px 9px; border-radius: 8px; background: var(--c); color: #fff; display: flex; align-items: center; gap: 4px; }
-.kw svg { width: 12px; height: 12px; }
+/* Keyword pills — sized relative to the card width (--ccw) so they scale WITH the card. The fractions equal the
+   original raw px at the owner's ~140px desktop --ccw (desktop unchanged), so a phone's smaller card no longer wears
+   desktop-sized pills (owner: "keyword pills are really large"). */
+.kws { display: flex; gap: calc(var(--ccw) * 0.036); flex-wrap: wrap; justify-content: center; align-items: center; min-height: calc(var(--ccw) * 0.156); margin: calc(var(--ccw) * 0.043) 0 calc(var(--ccw) * 0.036); }
+.kw { font-family: var(--font-ui); font-weight: 700; font-size: calc(var(--ccw) * 0.085); letter-spacing: 0.02em; padding: calc(var(--ccw) * 0.021) calc(var(--ccw) * 0.064); border-radius: calc(var(--ccw) * 0.057); background: var(--c); color: #fff; display: flex; align-items: center; gap: calc(var(--ccw) * 0.028); }
+.kw svg { width: calc(var(--ccw) * 0.085); height: calc(var(--ccw) * 0.085); }
 .desc { font-size: 14px; font-weight: 600; line-height: 1.34; color: var(--ink2); text-align: center; flex: 1; background: var(--card); border-radius: 9px; padding: 6px 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
 .desc b { color: var(--ink); font-weight: 700; }
 /* a modified/buffed value in card text (e.g. Kennelmaster's Avenge-boosted summon buff) */
@@ -1208,7 +1211,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   animation: cardrefin 0.3s ease-out;
 }
 /* the hover reveal sits at full size (it's the readable full card now) with a gentle bob */
-.cardref-inner { display: flex; gap: calc(8 * var(--u)); animation: cardreffloat 3.6s ease-in-out infinite; }
+/* `--inspect-zoom` (JS-set, 1.3 on phone stages else 1) enlarges the tap/hover reveal popup ~30% so a minion's text
+   is readable on a small screen (owner request). `zoom` (not transform — that's owned by the float animation);
+   showRefTip folds the same factor into its placement so the bigger popup still lands on-screen. */
+.cardref-inner { display: flex; gap: calc(8 * var(--u)); animation: cardreffloat 3.6s ease-in-out infinite; zoom: var(--inspect-zoom, 1); }
 @keyframes cardrefin { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes cardreffloat {
   0%, 100% { transform: translateY(0); }

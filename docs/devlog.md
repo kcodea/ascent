@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 39)
 
+### feat(ui): fire the self-buff pulse for on-attack self-buffs (attack wind-up)
+
+Kicks off an **effect-animation coverage sweep** (audit this session → owner; queue in roadmap B0). First gap
+closed: a unit that buffs a group INCLUDING ITSELF on its own / an ally's attack — **Solaris Fang, Trophy Stalker,
+Watcher, Crypt Drake, Taragosa, Forsaken Mage**, and conditionally **Hunter** — had its self-buff absorbed into the
+`attackExchange` moment, and the attack wind-up FX path fired only buff-OTHER tendrils (`groupBuffCasts` deliberately
+skips self-buffs), so the caster's own +N/+N popped **no pulse**. (Standalone / Start-of-Combat / `onDamaged`
+self-buffs already pulse via the `buffWave` path.) Extracted the buffWave path's self-pulse logic into a shared
+`fireSelfBuffs` helper (`useCombatReplay.ts`) and called it from the attack wind-up alongside `fireBuffCasts` — the
+same buff-others-tendril / self-pulse split the buffWave path makes, so an on-attack aura-of-self now reads exactly
+like a standalone one. Only the caster's self-portion changed; its buffs to *other* minions already animated.
+**Karthus is NOT affected** — `onKill` buffs are deferred to their own buffWave (they already pulse); only `onAttack`
+is absorbed. New regression test proves Solaris's self-buff surfaces on the `attackExchange` moment that
+`groupSelfBuffs` reads.
+
+Verified: `typecheck + lint + test` (1039, +1 new) & `build:web` all green.
+
 ### feat(ui): drag-lift shadow (card reads as further off the table) + live tuner knobs
 
 When a card is picked up it scales up ("lifted off the table"). Now its **grounding shadow** reacts too: while a

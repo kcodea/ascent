@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **On-attack self-buffs now pulse.** A unit that buffs itself as part of its own (or an ally's) attack — Solaris
+  Fang, Trophy Stalker, Watcher, Crypt Drake, Taragosa, Forsaken Mage — now pops the in-place buff pulse it was
+  missing (its buffs to *other* minions already animated). First step of an effect-animation coverage sweep.
 - **Cards lift off the table when dragged.** A picked-up card's grounding shadow now grows, drops, softens, and
   lightens so it reads as floating higher above the board. All four traits are live-tunable in the dev Drag Feel
   tuner (with a "preview" toggle so you can dial them across resting cards without holding a card down).

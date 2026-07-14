@@ -154,6 +154,26 @@ fanned-hand overlap now that framed cards overhang ~1.1× the slot. All knobs ar
   per-bus compressors shipped-on (Approach 2), sidechain ducking, and ingest LUFS-normalization in `sfx:import`.
 
 ### B0. FX follow-ups (from the Echo skull poof + buff tendrils, session 29)
+- **Effect-animation coverage audit (session 39 → devlog).** Full sweep of which combat effects show an animation
+  vs none, across the three buff FX (pulse / tendril / descend) and non-buff effects. Ordered queue (owner: do all):
+  - ✅ **Attack-windup self-pulse (shipped session 39).** On-attack / on-ally-attack self-buffs (Solaris, Trophy
+    Stalker, Watcher, Crypt Drake, Taragosa, Forsaken Mage, Hunter) were absorbed into the `attackExchange` and got
+    no pulse; the wind-up path now also runs `groupSelfBuffs` → in-place pulse (shared `fireSelfBuffs` helper).
+  - **Descend allow-list** — add `deathrattleBuffFodder` (Burial Imp) + `deathrattleBuffAllByImpAura` (Chef Raag) to
+    `DEATHRATTLE_BUFF_FACTORIES`; they currently route as a dead-source tendril → dropped (no FX). (`knit`/Spear
+    Warden stays out pending its echo-aura redesign.)
+  - **`improve` events → pulse** — aura strengthens (Kennelmaster, Flowing Monk, Trophy Stalker growth) get a ✦
+    float + medallion only; add a self-pulse cue to the `improve` moment kind.
+  - **Keyword grants** — Ward/Taunt/Rise/Toxin granted mid-combat land as just a glyph float; fire a burst at grant
+    time (un-shelf the built-but-unused `tauntBurst`) + add the grantee to the medallion whitelist.
+  - **Combat gold gains** — `maxGold`/gold effects show a float; reuse the recruit-only `coins` primitive.
+  - **Non-melee damage** — SC nukes / Blaster AoE / split damage show only a number; lift the recruit
+    `damageBurst`+`impactPulse` pairing into the combat `.proj` scheduler.
+  - **Summon arrival burst (NEW-ish)** — summons get only a CSS scale-pop; add a `dust` poof at the spawn rect.
+    Most common board-changing effect → highest payoff.
+  - **Transform / `ascend` (NEW)** — Tara→Taragosa, Spirit Pup→Worgen swap the card face in total silence; needs a
+    morph / dispersal-reform flash. Most dramatic under-served effect.
+  - **Minor** — `keywordLost` (Tauntbreaker strip), `venomLost`, Stealth `reveal` show nothing beyond a pill/opacity change.
 - **Taunt shield frame — polish (session 34, → devlog).** The heater-shield frame + raster compositing pipeline
   shipped. Open threads: (1) a **thinner-border frame** variant so the art reaches closer to the gold (current
   window is ~70% of the shield width — art fills it correctly, the border is just wide); (2) re-add the

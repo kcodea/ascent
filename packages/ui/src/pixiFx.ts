@@ -457,6 +457,7 @@ class FxController {
   private glowTex: Texture | null = null;
   private shardRectTex: Texture | null = null; // jagged spark: elongated rectangle
   private shardTriTex: Texture | null = null;   // jagged spark: triangle
+  private shardHexTex: Texture | null = null;   // energy facet: hexagon (the Ward shield's shape, flung on break)
   private coinTex: Texture | null = null;       // gold coin (sell sprinkle)
   private bubbleTex: Texture | null = null;     // soft translucent disc — shield body
   private rimTex: Texture | null = null;        // bright ring — shield rim highlight
@@ -556,6 +557,7 @@ class FxController {
     this.glowTex = this.makeGlowTexture(app);
     this.shardRectTex = this.makeShardRectTexture(app);
     this.shardTriTex = this.makeShardTriTexture(app);
+    this.shardHexTex = this.makeShardHexTexture(app);
     this.coinTex = this.makeCoinTexture(app);
     this.bubbleTex = this.makeBubbleTexture(app);
     this.rimTex = this.makeRimTexture(app);
@@ -599,6 +601,7 @@ class FxController {
     this.glowTex = null;
     this.shardRectTex = null;
     this.shardTriTex = null;
+    this.shardHexTex = null;
     this.coinTex = null;
     this.bubbleTex = null;
     this.rimTex = null;
@@ -1340,7 +1343,7 @@ class FxController {
     for (let i = 0; i < shards; i++) {
       const a = (i / shards) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
       const speed = 320 + Math.random() * 640;
-      const tex = Math.random() < 0.5 ? this.shardRectTex! : this.shardTriTex!;
+      const tex = Math.random() < 0.82 ? this.shardHexTex! : this.shardTriTex!; // mostly hex facets + a little tri debris
       const warm = Math.random();
       const tint = warm < 0.5 ? 0x1840d0 : warm < 0.85 ? 0x2f5ae8 : 0x6a97ff;
       this.spawn(tex, {
@@ -1963,6 +1966,18 @@ class FxController {
   private makeShardTriTexture(app: Application): Texture {
     const g = new Graphics();
     g.poly([8, 0, -6, 5, -6, -5]).fill({ color: 0xffffff });
+    const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
+    g.destroy();
+    return tex;
+  }
+
+  /** An energy-facet shard: a pointy-top HEXAGON (bright outline + faint fill) — the Ward shield's own shape,
+   *  flung outward when the shield shatters. White so the shatter tint colours it. */
+  private makeShardHexTexture(app: Application): Texture {
+    const g = new Graphics();
+    const r = 7, pts: number[] = [];
+    for (let k = 0; k < 6; k++) { const a = ((60 * k + 30) * Math.PI) / 180; pts.push(Math.cos(a) * r, Math.sin(a) * r); }
+    g.poly(pts).fill({ color: 0xffffff, alpha: 0.22 }).stroke({ color: 0xffffff, width: 1.6, alignment: 0.5 });
     const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
     g.destroy();
     return tex;

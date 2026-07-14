@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 39)
 
+### feat(ui): dust poof on summon arrival
+
+Effect-animation coverage sweep, item 7. Summons (Deathrattle summons, tokens, overflow spawns, SoC copies) got
+only a CSS `summonpop` scale-in + the summoner's medallion pulse — the most *common* board-changing effect had no
+pixi punctuation. Added a `summonFx` cue on the `summon` moment kind that poofs `pixiFx.dust` under each arriving
+unit. Fired at **+250ms (scaled)** so it lands on the `summonpop` overshoot (the "bounce") — by then the scale-in has
+grown the unit to a measurable, full-size rect (guarded: skips a sub-1px rect). New `CueContext.onSummonFx` +
+`summonFx` channel. *Wants a live eyeball* — the spawn position/size + the 250ms timing are reasoned from the
+`summonpop` keyframes, not yet watched on a real fight; both are tunable (the offset via the dev score panel).
+
+Verified: `typecheck + lint + test` (1045, +1 new) & `build:web` green.
+
 ### feat(ui): non-melee damage now bursts (SC nukes / split damage / Blaster AoE)
 
 Effect-animation coverage sweep, item 6. A non-melee hit — a Start-of-Combat nuke, split damage, or Blaster's

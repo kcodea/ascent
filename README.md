@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Aura strengthens now pulse.** When a summon/rally aura grows (Kennelmaster's Avenge bump, Mama Bear, Flowing
+  Monk), the unit now pops an in-place pulse instead of just a ✦ float.
 - **More Deathrattle buffs now animate.** Burial Imp and Chef Raag buff allies on death but showed no FX (their
   buff was dropped as a dead-source tendril); they now rain the **descend** animation like other Deathrattle buffers.
 - **On-attack self-buffs now pulse.** A unit that buffs itself as part of its own (or an ally's) attack — Solaris

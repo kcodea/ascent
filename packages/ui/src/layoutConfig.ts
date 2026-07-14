@@ -41,6 +41,11 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'shopX', cssVar: '--z-shop-x', label: 'X offset', group: 'Shop row', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
   { key: 'shopY', cssVar: '--z-shop-y', label: 'Y offset', group: 'Shop row', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
 
+  // The shop CONTROLS tray (round plaque + Upgrade/Reroll/Freeze/End Turn + info strip), scaled via its local --u.
+  { key: 'shopUiS', cssVar: '--z-shopui-s', label: 'Scale', group: 'Shop controls', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
+  { key: 'shopUiX', cssVar: '--z-shopui-x', label: 'X offset', group: 'Shop controls', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
+  { key: 'shopUiY', cssVar: '--z-shopui-y', label: 'Y offset', group: 'Shop controls', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
+
   { key: 'wbS', cssVar: '--z-wb-s', label: 'Card size', group: 'Warband', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   { key: 'wbGap', cssVar: '--z-wb-gap', label: 'Card gap', group: 'Warband', min: 0, max: 80, step: 1, def: 22, fmt: 'px' },
   { key: 'wbX', cssVar: '--z-wb-x', label: 'X offset', group: 'Warband', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },

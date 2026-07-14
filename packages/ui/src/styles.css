@@ -378,7 +378,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
    in shop + combat. Pinned via min-height rather than letting content drive it: the action tray's 2px borders
    are fixed px (not --u), so a content-driven height drifted the warband ~1px per --u step above 1 (tall
    monitors) — the "warband slightly moves for combat" bug. Content is centred within the block. */
-.shopbar { align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); min-height: calc(111 * var(--u)); margin-top: calc(10 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
+/* Shop controls tray (round plaque + Upgrade/Reroll/Freeze/End Turn + info strip). Scales via a LOCAL --u
+   (like the HUD .bar) so the whole tray grows/shrinks proportionally, with X/Y offsets — dev Layout Lab "Shop
+   controls" group. Defaults are a no-op (×1 / 0px). */
+.shopbar { position: relative; --u: calc(var(--u-base) * var(--ui-scale, 1) * var(--z-shopui-s, 1)); top: var(--z-shopui-y, 0px); left: var(--z-shopui-x, 0px); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); min-height: calc(111 * var(--u)); margin-top: calc(10 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
 .shopbar.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
 .shoprow { display: flex; align-items: center; gap: calc(13 * var(--u)); }
 /* Info strip — the turn's read-only stats (Gold · Tier · Setup Time) in ONE segmented cream plaque, gold-

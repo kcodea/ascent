@@ -165,9 +165,12 @@ fanned-hand overlap now that framed cards overhang ~1.1× the slot. All knobs ar
   - ✅ **`improve` events → pulse (shipped session 39).** New `improveSelf` cue on the `improve` moment kind pops a
     bare pulse (no badge flash) at each strengthened unit. Not on `attackExchange` — Trophy Stalker's growth rides
     its on-attack self-buff pulse instead (no double-pop).
-  - **Keyword grants** — Ward/Taunt/Rise/Toxin granted mid-combat land as just a glyph float; fire a burst at grant
-    time (un-shelf the built-but-unused `tauntBurst`) + add the grantee to the medallion whitelist.
-  - **Combat gold gains** — `maxGold`/gold effects show a float; reuse the recruit-only `coins` primitive.
+  - **Keyword grants** — Ward/Taunt/Rise/Toxin granted mid-combat land as just a glyph float. ⚠️ **Blocked on a look
+    call:** the audit's "un-shelf `tauntBurst`" is stale — `tauntBurst`/`tauntConfig`/`TauntTuner` were removed in the
+    Taunt→CSS migration. Options: a generic `pulse` at the grantee (risks reading as a stat-buff), emphasize the CSS
+    dome/bubble pop-in per keyword, or a new small grant burst. Plus: pulse the GRANTER's medallion (clearly correct).
+  - ✅ **Combat gold gains (shipped session 39).** New `coins` cue on the `maxGold` moment bursts `pixiFx.coins` at the
+    unit (Soulsman / Bone Taxer Avenge), on top of the float. (Thematic, not literal — max-Gold is a ceiling raise.)
   - **Non-melee damage** — SC nukes / Blaster AoE / split damage show only a number; lift the recruit
     `damageBurst`+`impactPulse` pairing into the combat `.proj` scheduler.
   - **Summon arrival burst (NEW-ish)** — summons get only a CSS scale-pop; add a `dust` poof at the spawn rect.

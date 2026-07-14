@@ -9,7 +9,7 @@ const moment = (kind: Moment['kind'], events: CombatEvent[]): Moment => ({ start
 const baseCtx = (events: CombatEvent[], overrides: Partial<Parameters<typeof runMomentCues>[1]> = {}) => ({
   events, combatSpeed: 1, onShake: vi.fn(), findEl: () => null, attackerUid: null,
   onFloats: vi.fn(), onDeathFloats: vi.fn(),
-  onAuraBurst: vi.fn(), onShieldBreak: vi.fn(), onReborn: vi.fn(), onBuffCasts: vi.fn(), onSelfBuffs: vi.fn(), onImprove: vi.fn(), ...overrides,
+  onAuraBurst: vi.fn(), onShieldBreak: vi.fn(), onReborn: vi.fn(), onBuffCasts: vi.fn(), onSelfBuffs: vi.fn(), onImprove: vi.fn(), onMaxGold: vi.fn(), ...overrides,
 });
 const ctx = baseCtx;
 
@@ -154,6 +154,12 @@ describe('score', () => {
   it('the improveSelf cue is NOT on the attackExchange kind (an absorbed improve rides the self-buff pulse instead)', () => {
     expect(SCORE_DEFAULTS.improve.some((c) => c.ch === 'improveSelf')).toBe(true);
     expect(SCORE_DEFAULTS.attackExchange.some((c) => c.ch === 'improveSelf')).toBe(false);
+  });
+
+  it('runMomentCues routes a maxGold moment → onMaxGold with the gaining units', () => {
+    const c = ctx([{ type: 'maxGold', target: 'g', side: 'player', amount: 2 }]);
+    runMomentCues(moment('maxGold', c.events), c);
+    expect(c.onMaxGold).toHaveBeenCalledWith(['g']);
   });
 });
 

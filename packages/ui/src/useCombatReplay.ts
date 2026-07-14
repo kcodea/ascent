@@ -772,6 +772,15 @@ export function useCombatReplay(
           pixiFx.pulse(r.left + r.width / 2, r.top + r.height / 2, cfg);
         }
       },
+      // A max-Gold gain (Soulsman / Bone Taxer Avenge) → a coins burst at the unit, on top of the "+N max gold" float.
+      onMaxGold: (uids) => {
+        for (const uid of uids) {
+          const el = findEl(uid);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          pixiFx.coins(r.left + r.width / 2, r.top + r.height / 2);
+        }
+      },
     });
 
     // A Rise DEFENDER (dying but NOT the impact attacker being pulled home) explodes in place immediately —

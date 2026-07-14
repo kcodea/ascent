@@ -776,6 +776,9 @@ export interface BoardMinion {
   /** Extra magnitude added to this minion's summon-buff effect (Kennelmaster's Avenge
    *  improvements, persisted across the run). Default 0. */
   summonBonus?: number;
+  /** Ritualist: accrued End-of-Turn Fodder/Imp grant (climbs by `step` each trigger) — carried into combat so the
+   *  live card text shows its current per-tick value there too. */
+  eotBonus?: number;
   /** Flowing Monk: flat +X/+X on top of the stepped overflow grant — created by the TRIPLE combine (the
    *  golden starts at the SUM of the two highest copies' current grants). Static during combat. */
   overflowBonus?: number;
@@ -829,6 +832,8 @@ export interface Minion {
   /** Extra magnitude on this minion's summon-buff (Kennelmaster), grown by Avenge in
    *  combat and carried back to the run board afterwards. */
   summonBonus: number;
+  /** Ritualist: accrued End-of-Turn grant seeded from the run board — read (not changed) in combat for live text. */
+  eotBonus?: number;
   /** Bounty Bot: swings of "immune while attacking" remaining this combat (>0 → this minion takes no
    *  retaliation on its own attack, then spends one charge). Seeded fresh each combat from CardDef.attackImmuneTurns. */
   attackImmuneLeft?: number;
@@ -896,6 +901,8 @@ export interface MinionSnapshot {
   golden?: boolean;
   /** Current summon-buff bonus (Kennelmaster) — for the live combat card text. */
   summonBonus?: number;
+  /** Ritualist: current End-of-Turn grant step (seeded) — for the live combat card text (per-tick Fodder/Imp value). */
+  eotBonus?: number;
   /** Flowing Monk's flat grant bonus (triple combine) — for the live combat card text. */
   overflowBonus?: number;
   /** Current Sergeant Deathrattle HP-grant bonus (seeded value) — for the live combat card text from frame 1. */

@@ -285,6 +285,23 @@ export function sergeantText(cardId: string, golden: boolean, hpGrantBonus: numb
 }
 
 /**
+ * Ritualist's End-of-Turn Fodder/Imp buff climbs by `step` every trigger (`eotBonus` accumulates on the instance).
+ * Shows the live value it will give NEXT tick — `eotBonus + step` — with the changed number green. Returns null
+ * until it has triggered at least once (the printed +step/+step is already accurate). Works in the shop (reads the
+ * BoardCard's `eotBonus`) and in combat (reads the seeded MinionSnapshot `eotBonus`).
+ */
+export function ritualistText(cardId: string, golden: boolean, eotBonus: number): string | null {
+  if (eotBonus <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'buffFodderImpsImproving');
+  if (!def || !eff) return null;
+  const step = Number((eff.params as { step?: number })?.step ?? 3) * (golden ? 2 : 1);
+  const next = eotBonus + step; // eotBonus climbs by `step` each trigger, then buffs Fodder/Imps by the new total
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${next}/+${next}}}`); // only the FIRST magnitude (the grant, not the step)
+}
+
+/**
  * Taragosa's Growth is a real spell, so it scales with the run's spell power. Shows the live per-attack buff
  * — base +3/+4 plus spell power, ×2 when golden (it casts Growth twice). Returns null with no spell power
  * (the printed +3/+4 — golden +6/+8 — is already accurate).

@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 37)
 
+### fix: Ritualist live text (per-tick grant) shows current value in shop AND combat + carryover audit
+
+Owner-reported: Ritualist's combat card text reverted to "default" (printed base) and never showed the current
+per-tick Fodder/Imp grant it was handing out, and even the shop text lagged. Ritualist's End-of-Turn effect
+(`buffFodderImpsImproving`) climbs a per-instance accrual (`self.eotBonus += step`, then grants Fodder+Imps that new
+total), but it had NO live-text helper anywhere. Added `ritualistText(cardId, golden, eotBonus)` in `cardText.ts`
+(greens the FIRST magnitude — the grant = accrued + next step — leaving the "+3/+3 improves" step printed) and wired it
+into BOTH chains: `liveCardText` (shop/board/hand/Discover/end-screen, via a new `eotBonus` on `LiveTextParams`, fed
+from `inst.eotBonus`) and the `Unit.tsx` combat chain. Plumbed `eotBonus` per-instance through the combat boundary,
+mirroring `summonBonus`: `BoardMinion`/`Minion`/`MinionSnapshot` (core `types.ts`), `instantiate` (`minion.ts`),
+`snapshot` (`simulate.ts`), and `cleanBoard` (sim `snapshot.ts`, so a served opponent board reads + plays true).
+Verified: new helper unit tests (accrued 3 → next grant +6, golden 6 → +12; null before first trigger) + a combat
+snapshot test (`eotBonus: 6` survives instantiate→snapshot). `typecheck`/`lint`/`test` (**1033**)/`build:web` green.
+
+Audit (owner asked to "make sure all cards have correct carryover"): diffed every live-text helper in the shop chain
+vs the combat chain. Ritualist was the one genuine per-instance *magnitude* desync. The remaining shop-only helpers
+are intentionally left showing base rule text in combat because their "current value" is a **recruit-phase countdown
+or economy metric that has no meaning mid-fight**: `cadenceProgressText` (Frontdrake/Money Maker "Next in N turns" —
+no turns tick during combat), `escalatingCastText` (Vineweaver's next-End-of-Turn cast count), `abhorrentHorrorText`
+("+X/+Y next combat" — already baked into stats once fighting), `clingProgressText`/`squirlScoutText`/`trailForagerText`/
+`stewardText` (run-wide enchant / sell / last-spell economy). Showing a between-turns countdown while a minion swings
+would itself be the confusing thing, so their base combat text is the accurate display. (Carrying those would need
+run-wide scaler plumbing across the shared combat/UI boundary — flagged for owner if desired.)
+
 ### fix: Balance Report — real Seen/Bought COUNTS for cards + quest DNF
 
 Owner-reported: the report showed every bought minion as "1 / 100%" regardless of how many times it was actually

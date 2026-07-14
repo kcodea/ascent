@@ -4,7 +4,7 @@ import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText, combatCastGrantText,
   escalatingCastText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText,
-  sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
+  ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
   taragosaText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
 
@@ -18,7 +18,7 @@ export interface LiveTextParams {
   clingEnchant?: { attack: number; health: number };
   fodderConsumed?: { attack: number; health: number };
   undeadBuyAtk: number; soulsmanGold: number; cardBuffs?: Record<string, { attack: number; health: number }>;
-  spellProgress?: number; ascendProgress?: number; summonBonus?: number; overflowBonus?: number; hpGrantBonus?: number; eotTick?: number; sellBonus?: number;
+  spellProgress?: number; ascendProgress?: number; summonBonus?: number; overflowBonus?: number; hpGrantBonus?: number; eotTick?: number; eotBonus?: number; sellBonus?: number;
   /** Card ids you've played this recruit turn — Pack Leader / Spirit Worgen show their live per-play scaling. */
   playedThisTurn?: string[];
   /** Squirl Scout's run-wide accrued grant size — its live "+N/+N" next grant. */
@@ -55,6 +55,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             trailForagerText(c.id, p.golden, p.sellBonus ?? 0) ??
             squirlScoutText(c.id, p.golden, p.squirlScoutBuff ?? 0) ??
             sergeantText(c.id, p.golden, p.hpGrantBonus ?? 0) ??
+            ritualistText(c.id, p.golden, p.eotBonus ?? 0) ?? // Ritualist: live per-tick Fodder/Imp grant (climbs each End of Turn)
             stewardText(c.id, p.golden, p.lastSpellName) ??
             tallyBuffText(c.id, p.deathrattlesTriggered) ??
             guelProgressText(c.id, p.golden, p.spellProgress ?? 0) ?? // per-instance: a shop/hand Guel reads at base
@@ -109,7 +110,7 @@ export function instView(
     goldSpent: live?.goldSpent ?? 0,
     spellProgress: inst.spellProgress, ascendProgress: inst.ascendProgress, summonBonus: inst.summonBonus,
     overflowBonus: inst.overflowBonus,
-    hpGrantBonus: inst.hpGrantBonus, eotTick: inst.eotTick, sellBonus: inst.sellBonus,
+    hpGrantBonus: inst.hpGrantBonus, eotTick: inst.eotTick, eotBonus: inst.eotBonus, sellBonus: inst.sellBonus,
     playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff,
     lastSpellName: live?.lastSpellName,
   });

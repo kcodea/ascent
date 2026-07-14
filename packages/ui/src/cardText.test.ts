@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, combatCastGrantText, escalatingCastText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText, watcherText } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, combatCastGrantText, escalatingCastText, guelProgressText, monkProgressText, ritualistText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText, watcherText } from './cardText';
 
 describe('cardText helpers', () => {
   it('scTribeBuffPerSpellText shows Runescale Drake’s live Dragon grant (base + per-spell, golden-aware)', () => {
@@ -153,6 +153,17 @@ describe('cardText helpers', () => {
   it('cadenceProgressText also covers Money Maker’s every-2-turns cadence', () => {
     expect(cadenceProgressText('moneymaker', 0)).toContain('{{Next in 2 turns.}}');
     expect(cadenceProgressText('moneymaker', 1)).toContain('{{End of this turn.}}'); // one shy (1 % 2 === 1)
+  });
+
+  it('ritualistText shows the live per-tick Imp/Fodder grant = accrued eotBonus + next step (golden-aware)', () => {
+    // eotBonus rides the run board (climbs by `step` each End of Turn, then grants the new total). The live text
+    // shows the NEXT grant = current accrual + one more step. Only the FIRST magnitude (the grant) is greened;
+    // the "improves by +3/+3" step stays printed.
+    expect(ritualistText('ritualist', false, 0)).toBeNull(); // never triggered → printed base (+3/+3) is accurate
+    expect(ritualistText('ritualist', false, 3)).toContain('{{+6/+6}}'); // accrued 3 + step 3 = next grant +6
+    expect(ritualistText('ritualist', false, 3)).toContain('**+3/+3**'); // the step magnitude is left printed
+    expect(ritualistText('ritualist', true, 6)).toContain('{{+12/+12}}'); // golden step 6: accrued 6 + 6 = +12
+    expect(ritualistText('sandbag', false, 3)).toBeNull(); // not Ritualist
   });
 
   it('summonBuffText shows Kennelmaster’s live Start-of-Combat Beast aura (base + Avenge bonus)', () => {

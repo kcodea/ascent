@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 36)
 
+### tweak(ui): player Leaderboard — align header to rows + column dividers
+
+The Leaderboard (Rankings) header didn't line up with the row values. Root cause: the grid `grid-template-columns`
+were in **`em`**, and the header uses a smaller font-size (11px) than the data rows (16px), so its `em` tracks
+computed narrower — the columns drifted (measured Rating header 120px off the row). Fix: columns in **px**
+(`40px minmax(0,1fr) 96px 96px 210px`) so every row computes identical tracks regardless of its font-size (verified:
+header + row cell lefts identical, `aligned: true`), and gave the header a transparent 2px border so its inset matches
+the bordered rows. Added subtle **column dividers** (a full-height `border-left` on the Rating / Games / Favorite-hero
+cells, hidden in the header). Verified live with a 4-player mock.
+
 ### fix(ui): crash screen shows the stack trace (self-diagnosing) + Copy button
 
 When a render crash trips the ErrorBoundary ("The game hit a snag"), the screen only showed the one-line message,

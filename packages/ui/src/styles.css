@@ -2490,8 +2490,17 @@ svg { width: 18px; height: 18px; }
 /* Player Leaderboard (Rankings) — reuses the .lbpage shell; a compact ranked table (rank · player · rating · games · favorite hero). */
 .rankpage .lbscroll { max-width: 860px; margin: 0 auto; width: 100%; }
 .ranktable { display: flex; flex-direction: column; gap: 2px; font-family: var(--font-ui); }
-.rankrow { display: grid; grid-template-columns: 3em 1fr 5em 5em 12em; gap: 12px; align-items: center; padding: 12px 16px; background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: #f0e8da; }
-.rankrow.rankhead { background: none; border: none; border-bottom: 2px solid rgba(255, 255, 255, 0.16); border-radius: 0; padding-bottom: 6px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.5); }
+/* Columns in PX (not em) so the header — which uses a smaller font-size — computes the SAME track widths as the
+   data rows and lines up. (em tracks scale with each row's own font-size, which was the misalignment.) */
+.rankrow { display: grid; grid-template-columns: 40px minmax(0, 1fr) 96px 96px 210px; gap: 0; align-items: stretch; padding: 10px 18px; background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: #f0e8da; }
+/* Transparent 2px border keeps the header's columns inset the SAME as the bordered data rows, so they line up. */
+.rankrow.rankhead { background: none; border: 2px solid transparent; border-bottom: 2px solid rgba(255, 255, 255, 0.16); border-radius: 0; padding-top: 4px; padding-bottom: 8px; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.5); }
+/* Column dividers: a full-height rule at the left of every column after the player name. */
+.rankrow > .ranknum, .rankrow > .rankfav { align-self: stretch; display: flex; align-items: center; border-left: 1px solid rgba(255, 255, 255, 0.1); padding-left: 14px; margin-left: 14px; }
+.rankrow.rankhead > .ranknum, .rankrow.rankhead > .rankfav { border-left-color: transparent; }
+.rankrow > .ranknum { justify-content: flex-end; }
+.rankrow > .rankrank, .rankrow > .rankname { display: flex; align-items: center; }
+.rankrow > .rankrank { justify-content: center; }
 .rankrow.me { border-color: var(--acc); background: rgba(255, 140, 40, 0.12); }
 .rankrank { font-weight: 800; font-size: 20px; text-align: center; color: rgba(255, 255, 255, 0.6); }
 .rankrank.r1 { color: #ffcf4a; }

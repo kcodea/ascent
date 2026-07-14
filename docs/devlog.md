@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### fix: mobile round 6 — symmetric shop/warband gaps around the rope (mobile-only)
+
+Follow-up to round 5's warband drop: the owner marked green lines showing the shop bottom + warband top should sit
+SYMMETRIC distances above/below the centre rope (round 5 left the shop bottom ~3px above the rope but the warband top
+~16px below — lopsided). The rope is fixed at the `.app` vertical centre (~209px at 932×430; its `--rope-y` var
+recomputes on resize to stay there regardless of row offsets), so this is purely closing the two gaps evenly:
+
+- Added a `--shop-drop` lever (mirrors `--wb-drop`) folded into the tavern zone's `top` (`(var(--z-shop-y,45px) +
+  var(--shop-drop,0px)) * --scale`); −37px on mobile lifts the shop bottom to ~14px above the rope.
+- Trimmed `--wb-drop` 122 → 115px so the warband top lands ~14px below the rope — symmetric.
+
+Verified live at 932×430: shop bottom 195 / warband top 223 with the rope at ~209 → 14px on each side; warband bottom
+still clears the hand (22px to the hero panel). Desktop provably untouched (`--shop-drop`/`--wb-drop` = 0, tavern
+`top` still `45 × scale = 33.6px`).
+
 ### fix: mobile round 5 — warband below the rope, +10% HUD, +10% board art (all mobile-only)
 
 Owner asked (phone only, "none of this should change the desktop feel or look at all"): drop the Warband clearly

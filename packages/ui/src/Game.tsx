@@ -69,11 +69,13 @@ export function Game() {
       //    NOT the shop controls' --u — see styles.css).
       //  · --board-mobile-zoom: enlarge the board backdrop art ~10% (composed with the Lab's --board-zoom so it isn't
       //    clobbered) → the frame covers more of the screen.
-      //  · --wb-drop: push the Warband row DOWN (reference px, ×--scale in CSS) so it sits clearly below the centre
-      //    rope instead of riding on it once the minions are zoomed.
+      //  · --wb-drop / --shop-drop: nudge the Warband DOWN and the Shop UP (reference px, ×--scale in CSS) so the
+      //    shop bottom + warband top sit symmetric distances above/below the centre rope (~14px each — owner's
+      //    green-line alignment). The rope is fixed at the .app centre; these just close the gaps evenly.
       document.documentElement.style.setProperty('--hud-mobile', mobile ? '1.1' : '1');
       document.documentElement.style.setProperty('--board-mobile-zoom', mobile ? '1.1' : '1');
-      document.documentElement.style.setProperty('--wb-drop', mobile ? '122px' : '0px');
+      document.documentElement.style.setProperty('--wb-drop', mobile ? '115px' : '0px');
+      document.documentElement.style.setProperty('--shop-drop', mobile ? '-37px' : '0px');
       // Keep the WebGL combat particles proportional to the (shrinking) cards. The FX px dials were tuned at the
       // owner's ~0.745 desktop scale, so divide that reference out → 1.0 on desktop, ~0.45 on a phone. Fold in the
       // card boost so bursts match the boosted card size, not the bare stage.

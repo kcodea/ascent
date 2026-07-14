@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### fix: mobile round 5 — warband below the rope, +10% HUD, +10% board art (all mobile-only)
+
+Owner asked (phone only, "none of this should change the desktop feel or look at all"): drop the Warband clearly
+BELOW the centre rope (the shop/warband separation matters — minions may shrink slightly to afford it), grow the
+non-shop HUD ~10%, and zoom the board backdrop ~10% so the frame covers more screen. Every lever is a JS-set
+MULTIPLIER/offset that defaults to the desktop identity (1 / 0px) and only takes a non-identity value on phone stages
+(`gh < 600`), so desktop is provably untouched — verified live (all vars 1/0, warband `top` computes to the same
+−37.5px, desktop screenshot unchanged):
+
+- **Warband below the rope.** New `--wb-drop` (122px on mobile, 0 on desktop) added into the warband zone's `top`
+  offset (both the base rule and the `min-height:900px` desktop rule fold in `+ var(--wb-drop, 0px)` → desktop = +0).
+  At 932×430 the shop row now ends ~9px above the rope and the warband starts ~10px below it — a clean symmetric gap.
+- **Minion zoom dialed back 1.27 → 1.18.** The bigger the minions, the taller the warband row and the more it crowds
+  the bottom-pinned hand fan after the drop. 1.18 keeps them larger-than-desktop while the warband bottom clears the
+  hand's tucked cards (verified with a full hand).
+- **Non-shop HUD +10%.** New `--hud-mobile` (1.1 mobile / 1 desktop) folded into the GLOBAL `--u` (hero, opponent,
+  buffs, quests) and the top status bar's `--u` — but deliberately NOT `.shopbar`'s `--u`, so the shop controls
+  (Upgrade/Reroll/Freeze/End Turn) stay put per "non-shop HUD".
+- **Board art +10%.** New `--board-mobile-zoom` (1.1 mobile / 1 desktop) composed INTO the `.boardbg` size alongside
+  the Lab's `--board-zoom` (`* var(--board-mobile-zoom, 1)`), so it enlarges the backdrop on a phone without
+  clobbering the owner's Layout-Lab board-zoom on desktop.
+
 ### fix: mobile round 4 — board gaps, minion zoom, hero-power coin, touch drag feel
 
 - **7-minion warband/shop overflowed the board.** The row gaps (`--z-shop-gap`/`--z-wb-gap`, and the base `.row`)

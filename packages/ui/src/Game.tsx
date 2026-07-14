@@ -55,14 +55,25 @@ export function Game() {
       const scale = Math.max(0.2, Math.min(1.25, gh / 1440));
       document.documentElement.style.setProperty('--scale', String(scale));
       // Phone-height stages get a CARD zoom (--ch-base multiplies by this; chrome/--u stays put) so minions are
-      // bigger to read + tap (owner request). +27% under a 600px-tall stage — the extra zoom vs chrome keeps the
-      // vertical offsets put (no frame/hero collision) while the minions read ~10% larger than the last pass.
+      // bigger to read + tap (owner request). +18% under a 600px-tall stage — dialed back from an earlier +27% so
+      // the Warband (dropped below the rope, see --wb-drop) still clears the bottom-pinned hand fan.
       const mobile = gh < 600;
-      const boost = mobile ? 1.27 : 1;
+      const boost = mobile ? 1.18 : 1;
       document.documentElement.style.setProperty('--mobile-boost', String(boost));
       // Tighten the warband/shop card gaps on a phone so the wider (7-minion) board still fits the frame after the
       // card zoom above — the bigger cards would otherwise re-overflow the floor. Desktop keeps the full gap (1).
       document.documentElement.style.setProperty('--gap-tighten', mobile ? '0.62' : '1');
+      // Mobile-only chrome/layout tweaks (owner 2026-07-14) — every one is a MULTIPLIER/offset that defaults to the
+      // desktop identity (1 / 0px) so desktop is provably untouched; only phone stages (gh<600) get the non-1 value.
+      //  · --hud-mobile: grow the non-shop HUD chrome ~10% (folded into the global --u + the top status bar's --u,
+      //    NOT the shop controls' --u — see styles.css).
+      //  · --board-mobile-zoom: enlarge the board backdrop art ~10% (composed with the Lab's --board-zoom so it isn't
+      //    clobbered) → the frame covers more of the screen.
+      //  · --wb-drop: push the Warband row DOWN (reference px, ×--scale in CSS) so it sits clearly below the centre
+      //    rope instead of riding on it once the minions are zoomed.
+      document.documentElement.style.setProperty('--hud-mobile', mobile ? '1.1' : '1');
+      document.documentElement.style.setProperty('--board-mobile-zoom', mobile ? '1.1' : '1');
+      document.documentElement.style.setProperty('--wb-drop', mobile ? '122px' : '0px');
       // Keep the WebGL combat particles proportional to the (shrinking) cards. The FX px dials were tuned at the
       // owner's ~0.745 desktop scale, so divide that reference out → 1.0 on desktop, ~0.45 on a phone. Fold in the
       // card boost so bursts match the boosted card size, not the bare stage.

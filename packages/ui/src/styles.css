@@ -50,7 +50,10 @@
   /* a scaled "px" for the chrome (HUD / tavern controls / status tray / timer): 1.34px at the reference, × --scale
      so the chrome tracks the cards. Use calc(N*--u). */
   --u-base: calc(1.34px * var(--scale));
-  --u: calc(var(--u-base) * var(--ui-scale, 0.96));
+  /* `--hud-mobile` (JS-set, 1.1 on phone stages else 1) grows the non-shop HUD chrome ~10% on mobile only. It's
+     folded into the GLOBAL --u (hero / opponent / buffs / quests) and the top status bar (.bar) — but deliberately
+     NOT the shop controls (.shopbar redefines --u without it), per the owner's "non-shop HUD" request. */
+  --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--hud-mobile, 1));
   /* Shrink-only zoom for the OFF-STAGE fullscreen overlays (title menu, settings) that are authored in raw px and
      live outside the --scale system. 1.0 at the owner's ~0.745 desktop scale (untouched), ~0.4 on a phone, clamped
      to never ENLARGE past the authored look on a big monitor. Applied via `zoom:` so the whole panel scales as one. */
@@ -132,7 +135,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .boardbg { position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background:
     linear-gradient(rgb(28 22 16 / calc(0.34 * var(--scrim, 0))), rgb(28 22 16 / calc(0.46 * var(--scrim, 0)))),
-    var(--board) center / auto calc(var(--gh) * var(--board-zoom, 1)) no-repeat,
+    var(--board) center / auto calc(var(--gh) * var(--board-zoom, 1) * var(--board-mobile-zoom, 1)) no-repeat,
     var(--bg);
 }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the
@@ -141,7 +144,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    grows to fill its space and centres its cards. Warband gets extra bottom padding so it
    rides a little higher, opening a gap above the hand. */
 .zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-shop-s, 1)); top: calc(var(--z-shop-y, 45px) * var(--scale)); left: calc(var(--z-shop-x, 6px) * var(--scale)); }
-.zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-wb-s, 1)); top: calc(var(--z-wb-y, -71px) * var(--scale)); left: calc(var(--z-wb-x, 6px) * var(--scale)); }
+.zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-wb-s, 1)); top: calc((var(--z-wb-y, -71px) + var(--wb-drop, 0px)) * var(--scale)); left: calc(var(--z-wb-x, 6px) * var(--scale)); }
 /* Nudge the whole Warband DOWN a touch so it sits clearly UNDER the board's centre line instead of hugging
    it. Done with `position: relative; top` (the zone is ALREADY position:relative) — NOT a `transform`: a
    transform on the row makes it a stacking/transform context wrapping the combat units, and their per-swing
@@ -152,7 +155,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    Warband rides right at the line (the reported bug); short/laptop windows already sit it low with almost no
    hero-panel clearance, so nudging there would overlap it — hence the height gate. */
 @media (min-height: 900px) {
-  .zone[data-zone='warband'] { top: calc(var(--ch) * 0.07 + var(--z-wb-y, -71px) * var(--scale)); }
+  .zone[data-zone='warband'] { top: calc(var(--ch) * 0.07 + (var(--z-wb-y, -71px) + var(--wb-drop, 0px)) * var(--scale)); }
 }
 
 /* Burning-rope turn timer — a braided fuse pinned to the board's centre divider (`--rope-y`, measured on the
@@ -238,7 +241,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .zone[data-zone='hand'] { --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * 1.18); --cw: calc(var(--ch-base) * var(--card-scale, 0.77) * 0.752 * var(--z-hand-s, 1)); --ccw: calc(var(--cw) * 0.85); translate: calc(var(--z-hand-x, 0px) * var(--scale)) calc(var(--z-hand-y, -2px) * var(--scale)); }
 
 /* HUD */
-.bar { display: flex; align-items: center; gap: calc(12 * var(--u)); flex: none; position: relative; --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--z-hud-s, 1)); top: calc(var(--z-hud-y, 0px) * var(--scale)); left: calc(var(--z-hud-x, 0px) * var(--scale)); }
+.bar { display: flex; align-items: center; gap: calc(12 * var(--u)); flex: none; position: relative; --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--z-hud-s, 1) * var(--hud-mobile, 1)); top: calc(var(--z-hud-y, 0px) * var(--scale)); left: calc(var(--z-hud-x, 0px) * var(--scale)); }
 .alt { display: flex; align-items: center; gap: calc(11 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); padding: calc(6 * var(--u)) calc(15 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); }
 .alt .wavecol { display: flex; flex-direction: column; align-items: flex-start; gap: calc(3 * var(--u)); }
 .alt .w { font-family: var(--font-ui); font-weight: 800; font-size: calc(18 * var(--u)); color: var(--acc-dk); line-height: 1; }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DRAG_KEYS, DRAG_RANGES, DRAG_DESC, getDragFeel, resetDragFeel, setDragValue, type DragFeel } from './dragFeel';
 import { useDraggablePanel } from './useDraggablePanel';
 
@@ -26,11 +26,22 @@ const LABELS: Record<keyof DragFeel, string> = {
   magSlideMs: 'magnet-slide ms',
   collapseY: 'row collapse px',
   handFloor: 'hand pop floor',
+  shGrow: 'drag shadow · grow',
+  shLift: 'drag shadow · lift',
+  shBlur: 'drag shadow · blur',
+  shFade: 'drag shadow · fade',
 };
 
 export function DragTuner() {
   const [cfg, setCfg] = useState<DragFeel>(getDragFeel());
   const [copied, setCopied] = useState(false);
+  // Preview pins the "drag shadow" onto every RESTING card (`body.dsh-preview`), so the shGrow/shLift/shBlur/shFade
+  // sliders can be dialed live without holding a card down (one pointer can't drag a card AND a slider).
+  const [preview, setPreview] = useState(false);
+  useEffect(() => {
+    document.body.classList.toggle('dsh-preview', preview);
+    return () => document.body.classList.remove('dsh-preview');
+  }, [preview]);
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('dragfeel');
 
   const set = (k: keyof DragFeel, v: number): void => {
@@ -47,6 +58,11 @@ export function DragTuner() {
   return (
     <div className="sfxmix lunge dragfeel" ref={panelRef} style={panelStyle}>
       <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Drag Feel <span>dev · live · drag a card</span></div>
+      <div className="sfxmix-row">
+        <span className="sfxmix-name" title="Pin the drag shadow onto every resting card so the 4 'drag shadow' sliders can be tuned live (you can't hold a card and a slider at once).">preview drag shadow</span>
+        <input type="checkbox" checked={preview} onChange={(e) => setPreview(e.target.checked)} />
+        <span className="sfxmix-val">{preview ? 'on' : 'off'}</span>
+      </div>
       {DRAG_KEYS.map((k) => {
         const range = DRAG_RANGES[k];
         if (!range) return null; // guard a transient HMR desync (keys vs ranges) so it can't blank the app

@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Cards lift off the table when dragged.** A picked-up card's grounding shadow now grows, drops, softens, and
+  lightens so it reads as floating higher above the board. All four traits are live-tunable in the dev Drag Feel
+  tuner (with a "preview" toggle so you can dial them across resting cards without holding a card down).
 - **Live text carries into combat.** Every card now shows its current value on mouseover in combat, matching the shop
   exactly — combat reuses the shop's one text composer, so scaling cards (Trail Forager's sell value, Ritualist's
   per-tick grant, …) no longer revert to their printed base in the arena.

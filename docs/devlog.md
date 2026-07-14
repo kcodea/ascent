@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### chore(ui): ship the owner's tuned Layout Lab values as the new defaults
+
+Baked the owner's dialed-in Layout Lab config (tuned 2026-07-14) into the shipped layout. Because production never
+mounts the dev tuner (`applyLayout` is `import.meta.env.DEV`-gated), the SHIPPED values are the CSS `var(name,
+FALLBACK)` fallbacks — so both were updated in lockstep: each changed var's `def` in `layoutConfig.ts` AND its CSS
+fallback in `styles.css` (plus the one `--rope-len` fallback in `Recruit.tsx`'s flame-transform rAF, so the burn stays
+synced in prod). Changed from shipped defaults: **cardScale 1→0.77**, **uiScale 1→0.96**, shop cards **X 0→6 / Y
+0→45**, shop controls **Y 0→−55**, warband **X 0→6 / Y 0→−71**, hand **overlap −0.16→−0.3 / Y 0→−2**, rope **len
+1600→1420 / thick 10→13 / X 0→3 / Y 0→−22**. The rest stay at their prior defaults. Verified live (defaults path,
+saved dev layout cleared): all 13 computed vars match the tabled JSON exactly; at 1920×1080 the shop row sits with the
+rope just beneath it and the warband raised into place, no overlap/errors. `typecheck`/`lint`/`test` (1034)/`build:web`
+green.
+
 ### feat(ui): grounding shadow under framed cards + fix the hover-glow resting rim
 
 **Grounding shadow.** Framed cards (oval minions, square spells, taunt shields) clip `.art` to the frame window

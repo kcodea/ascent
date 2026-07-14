@@ -15,6 +15,36 @@ are read once per drag via `getLayout()` (a cheap singleton read; defaults → 0
 added to `wbTop` / `midlineY`, so the overlay and the hit-test move together. +Sell edge lowers the sell line
 (bigger sell region); −Buy edge raises the buy line (bigger buy region). Verified live: the group renders with its
 two sliders and drives `--z-sellzone-y` / `getLayout()` (Sell edge 80 → 80px). `typecheck`/`lint`/`build:web` green.
+### fix: cards carry their live text into combat perfectly — one shared composer (Trail Forager, Ritualist, …)
+
+Owner ruling: EVERY card must show its current value on mouseover in combat, updating in real time — not just the
+combat-scaling ones. Trail Forager was the example (its sell value reverted to the printed "3g" in the arena). Root
+cause was structural: combat had its OWN parallel live-text chain in `Unit.tsx` that had to be hand-kept in sync with
+the shop's `liveCardText`, and the two kept drifting (Ritualist, now Trail Forager). AND the per-instance accruals
+were silently dropped across **five** conversion layers between the run board and the rendered combat card.
+
+Fix — make combat reuse the shop's single source of truth + plumb every layer:
+- **`Unit.tsx` now calls `liveCardText`** (the exact composer the shop/board use) instead of its own chain, building
+  the params per-side: per-instance values from the snapshot (`u.*`), run-level scalers per-side (player = the live
+  run, frozen for the fight; enemy = its captured `enemyScalers`), and run-wide economy (Steward's last spell, Cling
+  enchant, Soulsman Gold, Eternal Knight's run tally) player-only (an enemy carries no run → base text). Any new
+  scaling card is now covered automatically — no parallel chain to drift.
+- Folded the two combat-only helpers (`cryptDrakeText` attackSeen, `engraveTallyText` permaGain) into `liveCardText`
+  (null in the shop where those are 0), and widened `playedThisTurn` to `string[] | number` (an enemy passes a
+  pre-counted number).
+- **Plumbed `sellBonus` (Trail Forager) + `eotTick` (Frontdrake / Money Maker / Vineweaver cadence) through all six
+  layers**, mirroring the existing accruals: `BoardCard → reducer player mapping → BoardMinion → Minion →
+  MinionSnapshot → UnitFrame`. Two of those layers were dropping the accruals for EVERYONE: the reducer's hand-written
+  player-board→combat map (`reducer.ts`) and the `UnitFrame`/`fromSnap` layer (`useCombatReplay.ts`) — the latter also
+  means **Ritualist's `eotBonus` never actually reached the live combat card before this** (the prior fix only
+  covered served enemy boards + the isolated `simulate` test; the UI silently dropped it). Both now carry
+  `eotBonus`/`sellBonus`/`eotTick`.
+
+Verified live (injected boards → faceOmen → read the rendered combat card): Trail Forager reads **"Sells for 7g"**
+(sellBonus 4), Sergeant still reads **+6 Health** (no regression), and Ritualist now reads its live grant **+12/+12**
+(eotBonus ticked 6→9 at End of Turn → next grant 12) instead of the printed "+3/+3". New tests: `liveCardText` resolves
+Trail Forager / Crypt Drake / Ritualist / Eternal Knight (`instView.test.ts`); `sellBonus`+`eotTick` survive the combat
+snapshot (`simulate.test.ts`). `typecheck`/`lint`/`test` (**1038**)/`build:web` green.
 
 ### tooling: `npm run task` — one-command isolated worktree per session
 

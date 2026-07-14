@@ -329,6 +329,8 @@ export function simulate(
     golden: m.golden,
     summonBonus: m.summonBonus,
     eotBonus: m.eotBonus,
+    sellBonus: m.sellBonus,
+    eotTick: m.eotTick,
     overflowBonus: m.overflowBonus,
     hpGrantBonus: m.hpGrantBonus,
     ascendProgress: m.ascendProgress,

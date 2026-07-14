@@ -3,7 +3,7 @@ import { CONFIG, spellAttackBonus, spellDisplayText, spellHealthBonus, type Boar
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText, combatCastGrantText,
-  escalatingCastText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText,
+  cryptDrakeText, engraveTallyText, escalatingCastText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText,
   ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
   taragosaText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
@@ -19,8 +19,13 @@ export interface LiveTextParams {
   fodderConsumed?: { attack: number; health: number };
   undeadBuyAtk: number; soulsmanGold: number; cardBuffs?: Record<string, { attack: number; health: number }>;
   spellProgress?: number; ascendProgress?: number; summonBonus?: number; overflowBonus?: number; hpGrantBonus?: number; eotTick?: number; eotBonus?: number; sellBonus?: number;
-  /** Card ids you've played this recruit turn — Pack Leader / Spirit Worgen show their live per-play scaling. */
-  playedThisTurn?: string[];
+  /** Card ids you've played this recruit turn — Pack Leader / Spirit Worgen show their live per-play scaling. In
+   *  COMBAT an enemy passes a pre-counted NUMBER instead (its snapshot doesn't carry the played ids). */
+  playedThisTurn?: string[] | number;
+  /** Combat-only per-instance accruals (from the MinionSnapshot), so the unified text covers combat-scaling cards
+   *  too: Crypt Drake's total Attack seen, and an Engrave minion's permanent run gain. Absent (0) in the shop. */
+  attackSeen?: number;
+  permaGain?: { attack: number; health: number };
   /** Squirl Scout's run-wide accrued grant size — its live "+N/+N" next grant. */
   squirlScoutBuff?: number;
   /** Gold spent this recruit turn — Patch Job shows the current total it'll grant (steps × per-step value). */
@@ -43,11 +48,13 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
         ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus)
         : transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
+            cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0) ?? // combat-only: null in the shop (attackSeen 0)
+            engraveTallyText(c.id, p.permaGain) ?? // combat-only: null in the shop (no permaGain)
             taragosaText(c.id, p.golden, p.spellBonus, p.spellBonusH) ??
             combatCastGrantText(c.id, p.golden, p.spellBonus, p.spellBonusH) ?? // Hoardbreaker Drake: live Growth grant (base + spell power)
             watcherText(c.id, p.golden, p.spellBonus, p.spellBonusH) ?? // Watcher: live Lantern buff +x/+y (base + spell power, both stats)
             abhorrentHorrorText(c.id, p.fodderConsumed, p.golden) ??
-            summonScalingText(c.id, p.spellsThisTurn, p.playedThisTurn) ??
+            summonScalingText(c.id, p.spellsThisTurn, Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined) ?? // Spirit Worgen: recruit-only; enemy (number) shows base
             scTribeBuffPerSpellText(c.id, p.golden, p.spellsThisTurn) ??
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
             summonBuffText(c.id, p.summonBonus ?? 0) ??

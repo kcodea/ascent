@@ -51,6 +51,8 @@ export function instantiate(
     critChance: card.critChance, // Commander Impala: per-swing double-damage chance (constant per CardDef)
     summonBonus: board.summonBonus ?? 0,
     eotBonus: board.eotBonus, // Ritualist: seed the End-of-Turn grant accrual so the live combat text shows its per-tick value
+    sellBonus: board.sellBonus, // Trail Forager: seed the accrued sell value for the live combat text (no combat effect)
+    eotTick: board.eotTick, // Frontdrake / Money Maker / Vineweaver: seed the cadence counter for the live combat text
     attackImmuneLeft: card.attackImmuneTurns, // Bounty Bot: fresh each combat — immune for its first N swings, spent per attack
 
     overflowBonus: board.overflowBonus, // Flowing Monk: flat grant bonus from the triple combine

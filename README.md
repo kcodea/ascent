@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Live text carries into combat.** Every card now shows its current value on mouseover in combat, matching the shop
+  exactly — combat reuses the shop's one text composer, so scaling cards (Trail Forager's sell value, Ritualist's
+  per-tick grant, …) no longer revert to their printed base in the arena.
 - **Cards sit on the board.** Framed cards now cast a soft black grounding shadow (a blurred silhouette of their
   own frame, seated behind the art) so they read as resting on the board instead of floating. Also fixed a faint
   always-on yellow rim the hover glow was leaving at rest.

@@ -561,7 +561,7 @@ body.dragging .row.hand .card { transition: transform 0.26s cubic-bezier(0.12, 0
    floating drag card, and on hand cards (which pop up instead of glowing). */
 .row.hand .card:hover,
 body.dragging .zone[data-zone='warband'] .card:hover,
-body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow-blur: 0px; --hglow-spread: 0px; }
+body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow-blur: 0px; --hglow-spread: 0px; --hglow-a: 0; }
 
 /* STANDARD CARD */
 .card { position: relative; flex: 0 0 var(--cw); width: var(--cw); height: var(--ch); background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 13px; border: 2px solid var(--line); display: flex; flex-direction: column; box-shadow: 0 0 0 4px var(--c), 0 3px 0 var(--shadow), 0 0 17px -3px color-mix(in srgb, var(--c) 70%, transparent); transition: transform 0.12s, border-color 0.12s; }
@@ -583,7 +583,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    rectangular border-box, so on a full card it shows as a boxy halo around/under the drawer (the reported
    "light box under the card"). No lift/tilt, and no z-index bump: raising z would make the card a stacking
    context above the z3 shield-bubble canvas (hiding the divine-shield/reborn aura on hover). */
-.card:hover, .card.compact:hover { --hglow-ring: 3px; --hglow-blur: 22px; --hglow-spread: 7px; }
+.card:hover, .card.compact:hover { --hglow-ring: 3px; --hglow-blur: 22px; --hglow-spread: 7px; --hglow-a: 0.92; }
 @keyframes cardpop { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
 .art { position: relative; flex: 0 0 60%; min-height: 0; overflow: hidden; display: grid; place-items: center; margin: 7px 7px 0; background: color-mix(in srgb, var(--c) 18%, var(--card)); border: 2px solid color-mix(in srgb, var(--c) 60%, var(--card)); border-radius: 10px; }
 .art canvas { margin-top: -14px; } /* nudge the sprite up so the name pill clears it */
@@ -671,10 +671,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   position: absolute; z-index: 3; pointer-events: none; overflow: visible;
   /* The shop/board hover glow is a box-shadow on `.art`, but Taunt's `.art` is clip-path'd to the heater, which
      CLIPS the box-shadow away → a Taunt card gets no hover glow. Re-add it as a drop-shadow on the frame,
-     driven by the same `--hglow-blur` hover var (0 when not hovering → invisible; auto-zeroed in hand/drag), so
-     the yellow glow hugs the shield silhouette exactly like the arch glow hugs a normal card. */
+     gated by BOTH `--hglow-blur` and `--hglow-a` (alpha) so at rest (alpha 0) it's fully transparent and leaves
+     NO resting rim; on hover the yellow glow hugs the shield silhouette like the arch glow hugs a normal card. */
   filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
-          drop-shadow(0 0 var(--hglow-blur, 0) rgba(255, 226, 110, 0.92));
+          drop-shadow(0 0 var(--hglow-blur, 0) rgba(255, 226, 110, var(--hglow-a, 0)));
 }
 .card.compact.taunt .tframe-img {
   inset: auto; height: auto;
@@ -1656,10 +1656,27 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .card.compact.spellframe .cframe {
   position: absolute; z-index: 3; pointer-events: none; overflow: visible;
   /* hover glow: box-shadow on the (reshaped) `.art` is clipped away by the window clip, so re-add it as a
-     drop-shadow on the frame PNG's own alpha, driven by the same `--hglow-blur` hover var (0 = invisible). */
+     drop-shadow on the frame PNG's own alpha. Gated by BOTH `--hglow-blur` (22px on hover) and `--hglow-a`
+     (0.92 on hover): at rest alpha is 0 → fully transparent, so the layer leaves NO resting rim (a 0-blur
+     drop-shadow with a solid colour bleeds through the PNG's soft edges — the yellow-fringe bug). */
   filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
-          drop-shadow(0 0 var(--hglow-blur, 0) rgba(255, 226, 110, 0.92));
+          drop-shadow(0 0 var(--hglow-blur, 0) rgba(255, 226, 110, var(--hglow-a, 0)));
 }
+/* GROUNDING SHADOW — a black silhouette of each card's OWN frame, blurred + nudged down and seated BEHIND the
+   portrait (z0, under the art at z1), so every framed card casts a soft contact shadow onto the board instead of
+   floating. Rendered by Card.tsx as a 2nd copy of the frame `<img>` (`.cshadow`), so it inherits the frame's
+   geometry for free and auto-matches every shape (oval minion / square spell / taunt shield). `brightness(0)`
+   recolours the frame pixels to pure #000 (same result as masking a solid #000 by the PNG alpha, but no mask →
+   the blur softens freely instead of being re-clipped to a hard edge); the blur is the softness, the small
+   translateY seats it on the board. Static filter (no per-frame animation) → compositor-safe. */
+.card.compact.stdframe .cframe.cshadow,
+.card.compact.spellframe .cframe.cshadow,
+.card.compact.taunt .tframe.cshadow {
+  z-index: 0;
+  filter: brightness(0) blur(9px);
+  transform: translateY(5px) scale(0.99);
+}
+
 /* Frame metal TONE — minion frames (oval + taunt shield) render SILVER by default; a GILDED (golden) minion goes
    GOLD. Threaded as the first function into every frame `filter` above. Spells never set it → keep their own
    colour. (`brightness(1)` is a no-op stand-in for "gold" — `none` can't sit inside a filter list.) */

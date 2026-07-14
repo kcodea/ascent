@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Cards sit on the board.** Framed cards now cast a soft black grounding shadow (a blurred silhouette of their
+  own frame, seated behind the art) so they read as resting on the board instead of floating. Also fixed a faint
+  always-on yellow rim the hover glow was leaving at rest.
 - **Selectable board.** Settings now has a Board style picker — Default (the July board) or a Test Board — persisted
   per browser.
 - **Randomized strike sounds.** Combat impact now plays one of 4 strike clips at random (count-agnostic — drop

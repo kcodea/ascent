@@ -3,6 +3,33 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-13 (session 38)
+
+### feat(ui): grounding shadow under framed cards + fix the hover-glow resting rim
+
+**Grounding shadow.** Framed cards (oval minions, square spells, taunt shields) clip `.art` to the frame window
+and kill its box-shadow, so their only shadow was a tight `drop-shadow(0 4px 6px)` on the frame PNG — they read as
+*floating* over the board texture rather than sitting on it. Added a dedicated **grounding shadow**: `Card.tsx`
+renders a second copy of each frame `<img>` with a `.cshadow` class, and `styles.css` styles it as
+`filter: brightness(0) blur(9px)` (pure `#000`, softly blurred), `transform: translateY(5px) scale(0.99)`, at
+`z-index: 0` — i.e. a black silhouette of the card's own frame, seated **behind the portrait** (art is z1) and
+nudged down onto the board. Because it reuses the frame image it inherits the frame's geometry for free and
+auto-matches every shape. `brightness(0)` gives the same pixels as masking a solid `#000` by the PNG alpha, but
+with no mask the blur softens freely (a mask would re-clip the blur to a hard edge — the "hard line" trap). Static
+filter, no per-frame animation → compositor-safe.
+
+**Hover-glow resting-rim fix.** While tuning the shadow we found the hover glow from PR #370 left a faint
+*always-on* yellow rim: its `drop-shadow(0 0 var(--hglow-blur,0) rgba(255,226,110,0.92))` sits at 0 blur when not
+hovering, and a 0-blur drop-shadow with a **solid** colour still bleeds through the frame PNG's soft anti-aliased
+edges. Invisible against the bright board, but it landed right on the new dark shadow and read as yellow. Fix: gate
+the glow's **alpha** by a new `--hglow-a` var (0 at rest → fully transparent → no bleed; `0.92` on hover, `0` in
+hand/drag suppression), alongside the existing `--hglow-blur`. The hover glow is visually unchanged; the resting
+artifact is gone.
+
+Verified live in Chrome (extension) across the tuning loop: dark shadow seats the cards on the board, art renders
+above it (never darkened), colour is neutral black (no yellow), and the hover glow still fires on hover only.
+`typecheck` / `lint` / `build:web` green.
+
 ## 2026-07-13 (session 37)
 
 ### dev: shop controls tray added to the Layout Lab scale tuner

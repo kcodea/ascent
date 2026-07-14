@@ -13,6 +13,7 @@ import { pixiFx, discoverFx } from './pixiFx';
 import { fireBuffFx } from './buffFxRender';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { getDragFeel } from './dragFeel';
+import { getLayout } from './layoutConfig';
 import { getFlipConfig } from './flipConfig';
 import { getShieldConfig } from './shieldConfig';
 import { getTrailConfig } from './trailConfig';
@@ -1274,11 +1275,14 @@ export function Recruit() {
     // (only the cards inside them shift), so we can hit-test the pointer against cached rects instead of
     // calling elementFromPoint / getBoundingClientRect every frame — both force a synchronous layout,
     // the main source of drag micro-stutter.
-    const wbTop = document.querySelector('[data-zone="warband"]')?.getBoundingClientRect().top ?? 0;
+    // Dev Layout Lab "Buy/Sell zones": nudge the sell/buy boundaries (both the overlay + the drop hit-test).
+    // getLayout() is a cheap singleton read (defaults → 0 in prod, so a no-op there). Read once per drag start.
+    const zoneCfg = getLayout();
+    const wbTop = (document.querySelector('[data-zone="warband"]')?.getBoundingClientRect().top ?? 0) + (zoneCfg.sellZoneY ?? 0);
     // The board's horizontal midline (background divider): the .app's vertical centre, since the board art is
     // cover-centred so its centre split maps there. Buying requires releasing a shop card BELOW this line.
     const appR = document.querySelector('.app')?.getBoundingClientRect();
-    const midlineY = appR ? appR.top + appR.height / 2 : wbTop;
+    const midlineY = (appR ? appR.top + appR.height / 2 : wbTop) + (zoneCfg.buyZoneY ?? 0);
     const zoneRects = [...document.querySelectorAll<HTMLElement>('[data-zone]')].map((el) => ({
       zone: el.getAttribute('data-zone') as Zone,
       r: el.getBoundingClientRect(),

@@ -151,8 +151,8 @@ export const DEMONS: CardDef[] = [
     keywords: [],
     effects: [],
     chooseOne: [
-      { text: 'Add **2** Fodder to your next shop.', effects: [{ on: 'onPlay', do: 'addTavernFodder', params: { count: 2 } }] },
-      { text: 'Give your **Fodder** **+3/+3**.', effects: [{ on: 'onPlay', do: 'battlecryBuffFodder', params: { attack: 3, health: 3 } }] },
+      { text: 'Add **2** Fodder to your next shop.', goldenText: 'Add **4** Fodder to your next shop.', effects: [{ on: 'onPlay', do: 'addTavernFodder', params: { count: 2 } }] },
+      { text: 'Give your **Fodder** **+3/+3**.', goldenText: 'Give your **Fodder** **+6/+6**.', effects: [{ on: 'onPlay', do: 'battlecryBuffFodder', params: { attack: 3, health: 3 } }] },
     ],
     combo: { chooseBoth: true },
     text: '**Choose One:** add **2** Fodder to your next shop, or give your **Fodder** **+3/+3**. **Combo:** do both.',

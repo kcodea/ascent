@@ -126,6 +126,13 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       if (r.randomTribe && (r.randomCount ?? 0) > 0) parts.push(randomMinionPhrase(r.randomTribe, r.randomCount!));
       if ((r.randomSpell ?? 0) > 0) parts.push(r.randomSpell === 1 ? 'a random spell' : `${r.randomSpell} random spells`);
       if (r.randomFilter) parts.push(`a random ${FILTER_NAME[r.randomFilter]} minion${r.randomFilterExactTier ? ' of your tier' : ''}`);
+      // Gilded grants (Leader of the Pack → a Golden Pack Leader). Rendered before the plain cards.
+      const goldenCounts = new Map<string, number>();
+      for (const id of r.grantGolden ?? []) goldenCounts.set(id, (goldenCounts.get(id) ?? 0) + 1);
+      for (const [id, n] of goldenCounts) {
+        const name = CARD_INDEX[id]?.name ?? 'card';
+        parts.push(n === 1 ? `a Golden ${name}` : `${n} Golden ${name}s`);
+      }
       // Group duplicate card ids so "['keyfindings','keyfindings']" reads "2 Key Findings" (not "a X + a X").
       const cardCounts = new Map<string, number>();
       for (const id of r.cards ?? []) cardCounts.set(id, (cardCounts.get(id) ?? 0) + 1);
@@ -192,6 +199,10 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
           return 'Your first friendly death each combat summons a 1/1 Gravebody that copies your leftmost Echo';
         case 'assemblyLine':
           return `Avenge (${r.amount ?? 4}): add a Money Bot to your hand`;
+        case 'crateringMissive':
+          return "Your Cratering Hulks' overflow buffs ALL your minions, not just your Undead";
+        case 'passingSpears':
+          return 'Your Spear Wardens gain "Echo: when this dies, give its stats to a friendly minion"';
       }
       return '';
     case 'shoutRepeat':
@@ -202,9 +213,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
       return r.effect === 'triggerLeftmostShout' ? 'End of Turn: trigger your leftmost Shout'
         : r.effect === 'grantRandomAttachments' ? 'End of Turn: get 2 random Attachments'
         : r.effect === 'buffMechsPerAttachment' ? 'End of Turn: give your Mechs +2/+2 for every Attachment they have'
-        : r.effect === 'spearWardenEcho' ? 'End of Turn: each Spear Warden gives another minion +2/+2'
         : r.effect === 'undeadPlayedAtk' ? 'End of Turn: your Undead gain +3 Attack for each card you played this turn'
-        : r.effect === 'crateringMissive' ? 'End of Turn: give your whole board +1/+1 for each Cratering Hulk you have'
         : r.effect === 'attachClingDrones' ? 'End of Turn: weld a Cling Drone onto up to 3 of your Mechs'
         : 'End of Turn: get a random Shout minion';
     case 'gainGold':

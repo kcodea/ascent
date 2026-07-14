@@ -23,15 +23,6 @@ describe('Turn-11 capstone quests (owner batch 2026-07-13)', () => {
     }
   });
 
-  it('Passing Spears: End of Turn — each Spear Warden gives ANOTHER minion +2/+2', () => {
-    const s = base({ questRecurringEndOfTurn: ['spearWardenEcho'], board: [mk('w', 'knit'), mk('a', 'alley')] });
-    applyEndOfTurn(s);
-    const ally = s.board.find((c) => c.uid === 'a')!;
-    expect([ally.attack, ally.health]).toEqual([1 + 2, 1 + 2]); // the non-Warden ally got +2/+2
-    const warden = s.board.find((c) => c.uid === 'w')!;
-    expect([warden.attack, warden.health]).toEqual([CARD_INDEX['knit']!.attack, CARD_INDEX['knit']!.health]); // Warden buffed no one else → itself unchanged
-  });
-
   it('Forsaken Speed: End of Turn — your Undead gain +3 Attack per card played this turn (Attack only)', () => {
     const s = base({ questRecurringEndOfTurn: ['undeadPlayedAtk'], playedThisTurn: ['x', 'y'], board: [mk('u', 'knit'), mk('b', 'alley')] });
     const undeadHp = s.board[0]!.health;
@@ -42,12 +33,6 @@ describe('Turn-11 capstone quests (owner batch 2026-07-13)', () => {
     expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1); // the Beast (non-Undead) is untouched
   });
 
-  it('Cratering Missive: End of Turn — whole board +1/+1 per Cratering Hulk', () => {
-    const s = base({ questRecurringEndOfTurn: ['crateringMissive'], board: [mk('h1', 'thunderingabomination'), mk('h2', 'thunderingabomination'), mk('a', 'alley')] });
-    applyEndOfTurn(s);
-    const ally = s.board.find((c) => c.uid === 'a')!;
-    expect([ally.attack, ally.health]).toEqual([1 + 2, 1 + 2]); // 2 Hulks → +2/+2 to everyone
-  });
 
   it('Clinging On: End of Turn — welds a Cling Drone onto up to 3 of your Mechs', () => {
     const s = base({ questRecurringEndOfTurn: ['attachClingDrones'], board: [mk('m', 'drone'), mk('n', 'alley')] });

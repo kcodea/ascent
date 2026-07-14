@@ -489,11 +489,9 @@ export type QuestReward =
   // `weldMoneyBotsEdgeMechs` (Rune of Banking): End of Turn — weld a Money Bot onto your leftmost + rightmost Mech.
   // `buffMechsPerAttachment` (Blueprint Cache): End of Turn — give each friendly Mech +2/+2 for every Attachment
   // (Magnetic minion) welded onto it.
-  // `spearWardenEcho` (Passing Spears): End of Turn — each Spear Warden gives another friendly minion +2/+2.
   // `undeadPlayedAtk` (Forsaken Speed): End of Turn — your Undead gain +3 Attack for each card you played this turn.
-  // `crateringMissive` (Cratering Missive): End of Turn — give your whole board +1/+1 for each Cratering Hulk you have.
   // `attachClingDrones` (Clinging On): End of Turn — weld a Cling Drone onto up to 3 random friendly Mechs.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'spearWardenEcho' | 'undeadPlayedAtk' | 'crateringMissive' | 'attachClingDrones' }
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -578,7 +576,7 @@ export type QuestReward =
 export type QuestRewardKind = QuestReward['kind'];
 /** A run-wide combat modifier a completed quest arms; `simulate()` reads them via `QuestCombatMods`. */
 export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'oldHunt' | 'sharedCircuit'
-  | 'deepHunger' | 'contractRewrite' | 'pitWithoutEnd' | 'doubleLeftmostAttack' | 'feedingLine' | 'umbralEnergy' | 'emptyGraves' | 'assemblyLine'
+  | 'deepHunger' | 'contractRewrite' | 'pitWithoutEnd' | 'doubleLeftmostAttack' | 'feedingLine' | 'umbralEnergy' | 'emptyGraves' | 'assemblyLine' | 'crateringMissive' | 'passingSpears'
   // Runes (Runesmith): runeWarding = Start of Combat give your leftmost minion Ward; runeFury = your Avenges
   // trigger twice; runeSlaying = every Slaughter this combat banks +2 Gold for next turn (read at settle).
   | 'runeWarding' | 'runeFury' | 'runeSlaying'
@@ -652,6 +650,12 @@ export interface QuestCombatMods {
   /** Umbral Energy (Dragon greater): at Start of Combat, give your Dragons +2/+2 for every spell cast this game
    *  (read from the run's `spellsCast`). */
   umbralEnergy?: boolean;
+  /** Cratering Missive (Undead capstone): your Cratering Hulks' overflow Engrave buffs ALL your minions, not just
+   *  your Undead — the sim reads this to drop the tribe filter on `onSummonOverflowBuffTribe`. */
+  crateringMissive?: boolean;
+  /** Passing Spears (Undead capstone): your Spear Wardens gain "Echo: when this dies, give its stats to a friendly
+   *  minion" — the sim watches Spear Warden deaths and transfers their stats to your strongest other minion. */
+  passingSpears?: boolean;
   /** Empty Graves (Undead capstone): the FIRST friendly death each combat summons a 1/1 Gravebody (which copies
    *  your leftmost Echo on summon). Once per fight. */
   emptyGraves?: boolean;

@@ -486,6 +486,31 @@ export function improveClingDrones(state: RunState, times: number): void {
  * (Ritualist), leaves the shared pool (`takeFromPool`), and respects the hand cap. No-op on an
  * empty pool. Mirrors `battlecryGainRandomMinion`'s conjure path.
  */
+/**
+ * Grant ONE specific minion as a guaranteed quest reward — to hand, or to the BOARD when the hand is full (Leader
+ * of the Pack's golden Pack Leader was silently dropped on a full hand, so the capstone gave only its Gold). Both
+ * full → keep it in hand over the cap rather than lose a promised reward (a rare turn-11 edge). `golden` gilds it.
+ * Returns the created card so the caller can stamp extra keywords (Apex Hunt). Buffs mirror `conjureToHand`.
+ */
+export function grantMinionToHandOrBoard(state: RunState, def: CardDef, golden: boolean): BoardCard {
+  const cb = cardBuff(state, def.id);
+  const card: BoardCard = {
+    uid: `b${state.uidSeq++}`,
+    cardId: def.id,
+    tribe: def.tribe,
+    attack: def.attack + cb.attack + undeadBuyBonus(state, def),
+    health: def.health + cb.health + buyHealthAura(state, def),
+    keywords: [...def.keywords],
+    golden: false,
+  };
+  if (state.hand.length < CONFIG.handMax) state.hand.push(card);
+  else if (state.board.length < CONFIG.boardMax) state.board.push(card); // hand full → onto the board
+  else state.hand.push(card); // both full — never LOSE a promised reward (over-cap last resort)
+  if (golden) gildMinion(card);
+  takeFromPool(state, def.id);
+  return card;
+}
+
 export function conjureToHand(state: RunState, pool: CardDef[], reps: number): void {
   if (pool.length === 0) return;
   const rng = makeRng(state.rngCursor);
@@ -2922,22 +2947,10 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     // Rune of the Reliquary: fire your leftmost minion's Echo (Deathrattle) out of combat.
     const leftmost = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
     if (leftmost) fireRecruitDeathrattles(makeContext(state), leftmost);
-  } else if (effect === 'spearWardenEcho') {
-    // Passing Spears: each Spear Warden on your board gives ANOTHER friendly minion +2/+2. Deterministic target —
-    // the leftmost minion that isn't this Spear Warden (stacks if several Wardens or a Warden is the only "other").
-    for (const warden of state.board.filter((c) => c.cardId === 'knit')) {
-      const target = state.board.find((c) => c.uid !== warden.uid) ?? state.board.find((c) => c !== warden);
-      if (target) addBuff(target, 'Passing Spears', 2, 2);
-    }
   } else if (effect === 'undeadPlayedAtk') {
     // Forsaken Speed: your Undead gain +3 Attack for each card you played this turn (reads `playedThisTurn`).
     const n = (state.playedThisTurn ?? []).length;
     if (n > 0) for (const c of state.board) if (isTribe(c, 'undead')) addBuff(c, 'Forsaken Speed', 3 * n, 0);
-  } else if (effect === 'crateringMissive') {
-    // Cratering Missive: give your WHOLE board +1/+1 for each Cratering Hulk you control (spreads the Hulk's
-    // stat-hoarding to every tribe).
-    const hulks = state.board.filter((c) => c.cardId === 'thunderingabomination').length;
-    if (hulks > 0) for (const c of state.board) addBuff(c, 'Cratering Missive', hulks, hulks);
   } else if (effect === 'attachClingDrones') {
     // Clinging On: weld a Cling Drone onto up to 3 of your Mechs (the leftmost three) at End of Turn.
     const cling = CARD_INDEX['cling'];
@@ -3043,7 +3056,7 @@ const RECURRING_EOT_LABEL: Record<string, string> = {
   buffMechsPerAttachment: 'Blueprint Cache',
   runeSpending: 'Rune of Spending', runeAction: 'Rune of Action', triggerLeftmostEcho: 'Rune of the Reliquary',
   weldMoneyBotsEdgeMechs: 'Rune of Banking',
-  spearWardenEcho: 'Passing Spears', undeadPlayedAtk: 'Forsaken Speed', crateringMissive: 'Cratering Missive',
+  undeadPlayedAtk: 'Forsaken Speed',
   attachClingDrones: 'Clinging On',
 };
 

@@ -781,6 +781,18 @@ export function useCombatReplay(
           pixiFx.coins(r.left + r.width / 2, r.top + r.height / 2);
         }
       },
+      // A NON-melee hit (SC nuke / split damage / Blaster AoE) → a damage burst + impact ring at each target, so a
+      // cast hit reads like a hit and not just a number. Melee dmg rides its attack's own impact FX (never here).
+      onDamageFx: (uids) => {
+        for (const uid of uids) {
+          const el = findEl(uid);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          pixiFx.damageBurst(cx, cy);
+          pixiFx.impactPulse(cx, cy);
+        }
+      },
     });
 
     // A Rise DEFENDER (dying but NOT the impact attacker being pulled home) explodes in place immediately —

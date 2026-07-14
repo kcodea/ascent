@@ -9,7 +9,7 @@ const moment = (kind: Moment['kind'], events: CombatEvent[]): Moment => ({ start
 const baseCtx = (events: CombatEvent[], overrides: Partial<Parameters<typeof runMomentCues>[1]> = {}) => ({
   events, combatSpeed: 1, onShake: vi.fn(), findEl: () => null, attackerUid: null,
   onFloats: vi.fn(), onDeathFloats: vi.fn(),
-  onAuraBurst: vi.fn(), onShieldBreak: vi.fn(), onReborn: vi.fn(), onBuffCasts: vi.fn(), onSelfBuffs: vi.fn(), onImprove: vi.fn(), onMaxGold: vi.fn(), ...overrides,
+  onAuraBurst: vi.fn(), onShieldBreak: vi.fn(), onReborn: vi.fn(), onBuffCasts: vi.fn(), onSelfBuffs: vi.fn(), onImprove: vi.fn(), onMaxGold: vi.fn(), onDamageFx: vi.fn(), ...overrides,
 });
 const ctx = baseCtx;
 
@@ -160,6 +160,22 @@ describe('score', () => {
     const c = ctx([{ type: 'maxGold', target: 'g', side: 'player', amount: 2 }]);
     runMomentCues(moment('maxGold', c.events), c);
     expect(c.onMaxGold).toHaveBeenCalledWith(['g']);
+  });
+
+  it('a damage moment (non-melee dmg) → onDamageFx with the unique hit targets', () => {
+    const c = ctx([
+      { type: 'dmg', target: 'x', amount: 3, remainingHp: 0 },
+      { type: 'dmg', target: 'y', amount: 2, remainingHp: 1 },
+      { type: 'dmg', target: 'x', amount: 1, remainingHp: 0 }, // second hit on x → deduped
+    ]);
+    runMomentCues(moment('damage', c.events), c);
+    expect(c.onDamageFx).toHaveBeenCalledWith(['x', 'y']);
+  });
+
+  it('melee dmg (attackExchange) does NOT route to onDamageFx — the attack owns its impact FX', () => {
+    const c = ctx([{ type: 'attack', attacker: 'a', defender: 'b', swing: 0 }, { type: 'dmg', target: 'b', amount: 3, remainingHp: 0 }]);
+    runMomentCues(moment('attackExchange', c.events), c);
+    expect(c.onDamageFx).not.toHaveBeenCalled();
   });
 });
 

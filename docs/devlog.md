@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 39)
 
+### feat(ui): non-melee damage now bursts (SC nukes / split damage / Blaster AoE)
+
+Effect-animation coverage sweep, item 6. A non-melee hit — a Start-of-Combat nuke, split damage, or Blaster's
+Deathrattle AoE — showed only a floating number at the target (the pixi `damageBurst`/`impactPulse` pairing was
+recruit-hero-power-only). Added a `damageFx` cue that pops `pixiFx.damageBurst` + `impactPulse` at each hit target,
+so a cast hit reads like a hit. Wired to the `damage` moment kind (SC nukes / split damage) **and** `death` (Blaster's
+AoE lands in its own death moment); the handler dedupes targets and no-ops on a plain death with no dmg events.
+**Melee dmg is untouched** — it lives in `attackExchange`, which already fires the full lunge/impact FX, so it never
+double-bursts (asserted in a test). New `CueContext.onDamageFx` + `damageFx` channel. Tied to the damage MOMENT, not
+the CSS `.proj` bolt's fixed 0.5s travel, so it stays synced without coupling to the bolt animation.
+
+Verified: `typecheck + lint + test` (1044, +3 new) & `build:web` green.
+
 ### feat(ui): coins burst on a combat max-Gold gain
 
 Effect-animation coverage sweep, item 5. A `maxGold` event (Soulsman / Bone Taxer Avenge raising your max Gold)

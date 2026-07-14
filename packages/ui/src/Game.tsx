@@ -74,7 +74,7 @@ export function Game() {
       //    green-line alignment). The rope is fixed at the .app centre; these just close the gaps evenly.
       document.documentElement.style.setProperty('--hud-mobile', mobile ? '1.1' : '1');
       document.documentElement.style.setProperty('--board-mobile-zoom', mobile ? '1.1' : '1');
-      document.documentElement.style.setProperty('--wb-drop', mobile ? '115px' : '0px');
+      document.documentElement.style.setProperty('--wb-drop', mobile ? '92px' : '0px');
       document.documentElement.style.setProperty('--shop-drop', mobile ? '-37px' : '0px');
       // Keep the WebGL combat particles proportional to the (shrinking) cards. The FX px dials were tuned at the
       // owner's ~0.745 desktop scale, so divide that reference out → 1.0 on desktop, ~0.45 on a phone. Fold in the

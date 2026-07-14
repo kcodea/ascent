@@ -5,6 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### tweak: mobile — warband up to the rope (owner green-line, mobile-only)
+
+Owner nudged the Warband up closer to the centre rope on-device (green-line mark): `--wb-drop` 115 → 92px, so the
+warband top now sits ~6px below the rope (was ~13px); the shop stays ~15px above it. Pure mobile value tweak — desktop
+unaffected (`--wb-drop` is still 0px there). Verified at 932×430.
+
 ### fix: mobile round 6 — symmetric shop/warband gaps around the rope (mobile-only)
 
 Follow-up to round 5's warband drop: the owner marked green lines showing the shop bottom + warband top should sit

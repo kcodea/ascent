@@ -555,7 +555,9 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 /* Hand: a fixed fan pinned to the bottom edge, its lower half tucked behind the
    Embers/Hero/Resolve status bar; a hovered card pops up over the bar to read in full.
    The whole zone is a wide (mostly invisible) drop band so buying still works when empty. */
-.zone[data-zone='hand'] { position: fixed; left: 50%; bottom: calc(var(--bar-y) - 26px); transform: translateX(-50%); width: min(1180px, calc(var(--gw) * 0.94)); z-index: 25; display: flex; justify-content: center; align-items: flex-start; }
+/* Lift (-26) + width cap ride --u/--scale (were fixed px — right on desktop, oversized at phone scale). The
+   1584px cap = the tuned 1180px at the owner's 0.745-scale stage, re-expressed at the 1440 reference. */
+.zone[data-zone='hand'] { position: fixed; left: 50%; bottom: calc(var(--bar-y) - 26 * var(--u)); transform: translateX(-50%); width: min(calc(1584px * var(--scale)), calc(var(--gw) * 0.94)); z-index: 25; display: flex; justify-content: center; align-items: flex-start; }
 .row.hand { gap: 0; align-items: flex-start; height: var(--ch); width: 100%; }
 /* Hand overlap = 20% of a card's width (relative, not a fixed px, so it stays ~20% across viewport sizes
    where the card width --ccw scales). Lower magnitude = more spread; a full 10-card hand widens toward the
@@ -789,8 +791,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   100% { opacity: 0; transform: translateY(52px) scaleY(0.85); }
 }
 /* cost badge — a teal Mana circle overhanging the top-left corner */
-.cost { position: absolute; top: -20px; left: -16px; width: 60px; height: 60px; z-index: 6; border-radius: 50%; background: var(--mana); border: 3px solid var(--card); display: grid; place-items: center; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.3); }
-.cost .costn { font-family: var(--font-ui); font-weight: 800; font-size: 29px; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
+/* --u-scaled (was fixed 60px etc.) so the coin tracks the card at ANY stage size — raw px read fine on desktop
+   (--u ≈ 1px there) but rendered ~3× oversized at phone scale (owner's mobile itch test). */
+.cost { position: absolute; top: calc(-20 * var(--u)); left: calc(-16 * var(--u)); width: calc(60 * var(--u)); height: calc(60 * var(--u)); z-index: 6; border-radius: 50%; background: var(--mana); border: calc(3 * var(--u)) solid var(--card); display: grid; place-items: center; box-shadow: 0 calc(3 * var(--u)) calc(7 * var(--u)) rgba(0, 0, 0, 0.3); }
+.cost .costn { font-family: var(--font-ui); font-weight: 800; font-size: calc(29 * var(--u)); color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
 /* Changed price (Moe's discounted Attachment) — a green coin so the cheaper cost reads as a deal at a glance. */
 .cost.discount { background: #1aa86f; }
 /* Spell cast multiplier (Nimbus / Yazzus): a bold "×N" pill top-right of the spell card. */
@@ -2156,10 +2160,12 @@ body.choreo-open .pixifx-under { z-index: 204; }
 .combatctl { position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: calc(10 * var(--u)); flex: none; min-height: calc(121 * var(--u)); animation: combatctlin 0.4s ease both; }
 /* the post-combat / Skip buttons are ~2x the shop controls (scoped to .cbtns so the
    tavern controls keep their size); extra gap so they never crowd each other */
-.cbtns { display: flex; align-items: center; gap: 28px; }
-.cbtns .btn.big { font-size: 32px; padding: 24px 48px; border-radius: 18px; gap: 16px; box-shadow: 0 5px 0 var(--shadow); }
-.cbtns .btn.big svg { width: 42px; height: 42px; }
-.cbtns .btn.big.endturn { box-shadow: 0 5px 0 var(--acc-dk); }
+/* --u-scaled (was fixed 32px/24px/48px…) so the post-combat buttons track the board at any stage size — raw px
+   was ~3× oversized at phone scale (owner's mobile itch test). */
+.cbtns { display: flex; align-items: center; gap: calc(28 * var(--u)); }
+.cbtns .btn.big { font-size: calc(32 * var(--u)); padding: calc(24 * var(--u)) calc(48 * var(--u)); border-radius: calc(18 * var(--u)); gap: calc(16 * var(--u)); box-shadow: 0 calc(5 * var(--u)) 0 var(--shadow); }
+.cbtns .btn.big svg { width: calc(42 * var(--u)); height: calc(42 * var(--u)); }
+.cbtns .btn.big.endturn { box-shadow: 0 calc(5 * var(--u)) 0 var(--acc-dk); }
 /* Top-right combat HUD (replay only): a small Skip button with the speed slider stacked beneath it, tucked
    under the tribes bar so the arena stays clear. */
 .combathud { position: fixed; top: calc(var(--bar-y) + 16 * var(--u)); left: 50%; transform: translateX(-50%); z-index: 30; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); animation: fadein 0.25s ease; }

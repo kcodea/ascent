@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-13 (session 38)
 
+### fix: itch sub-path asset 404s ("old frames") + raw-px UI that ignored the stage scale
+
+Second iPhone itch test surfaced two distinct bug classes:
+- **"Old frames" on itch = absolute asset paths, not an old build.** `Card.tsx` loaded the authored frames from
+  root-absolute `'/frames/standard-oval.png'` etc. itch serves the game from a CDN **sub-path**, so those 404 — and
+  the frames' graceful 404-fallback silently rendered the pre-frame arched look. (The board art still worked because
+  Vite rewrites CSS `url(/…)` to relative at build — but it can't rewrite JS string literals.) Fixed by prefixing
+  every JS-side public-asset URL with `import.meta.env.BASE_URL` ('/' in dev, './' in the build): the three frame
+  srcs in `Card.tsx` + the five `PUBLIC_ART_URLS` preloads in `art.ts` (those were silently skipping their warm-up
+  on itch too). Verified: the built bundle now emits `./frames/…`.
+- **Raw-px styles don't ride the stage scale.** The uniform `--scale` only reaches CSS authored in `--u`/`--ch`;
+  rules still written in raw px read fine on desktop (`--u` ≈ 1px there) but render ~3× oversized at phone scale.
+  Converted the offenders visible on the device: `.cost` (the spell Gold coin — fixed 60px, WIDER than the whole
+  phone-scale card, which also inflated the shop row into the rope), `.cbtns`/`.btn.big` (post-combat Summary /
+  End Combat — fixed 32px font + 24/48px padding), and the hand zone's fixed lift/width cap (−26px / 1180px →
+  `--u`/`--scale`). Verified at 932×430: coin/card ratio matches desktop (23px vs 56px card), the shop row sits
+  above the rope again, and the combat buttons scale with the board. **A full stylesheet sweep for remaining raw-px
+  in-game rules is the systematic follow-up** — these were the ones the device test exposed.
+
 ### fix: phone-size scale floor + PWA manifest for true iPhone fullscreen
 
 First real-device test (owner's iPhone, via a secondary itch upload) showed the UI ~50% oversized with overlapping

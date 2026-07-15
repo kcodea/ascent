@@ -5,6 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-14 (session 41)
 
+### tweak(ui): lighter, tighter resting grounding shadow (−20% spread + opacity)
+
+Owner ask. The RESTING card grounding shadow (the blurred frame-silhouette `.cshadow` seated under each unit)
+reduced 20% on both spread and opacity: `blur` 9px → 7.2px, `opacity` 1 → 0.8. The DRAG-LIFT shadow (the `--dsh-*`
+block for a lifted `.dragcard`, higher specificity) is explicitly left unchanged. Verified: `lint` + `build:web` green.
+
 ### feat(ui): Reborn moved from Pixi wisp to a CSS ethereal AQUA-GREEN aura + hex shards on shield break
 
 Reworked the "has Reborn" signifier the same way Divine Shield was moved to CSS. Was: a persistent Pixi wisp

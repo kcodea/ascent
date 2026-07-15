@@ -1771,8 +1771,11 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .card.compact.spellframe .cframe.cshadow,
 .card.compact.taunt .tframe.cshadow {
   z-index: 0;
-  filter: brightness(0) blur(9px);
+  /* Resting grounding shadow: spread (blur) −20% (9px→7.2px) + opacity −20% (1→0.8) for a tighter, lighter
+     contact shadow. The DRAG-LIFT block below overrides both via `--dsh-*` at higher specificity — untouched. */
+  filter: brightness(0) blur(7.2px);
   transform: translateY(5px) scale(0.99);
+  opacity: 0.8;
 }
 /* DRAG-LIFT SHADOW — while a card is lifted (the floating `.dragcard`), grow / drop / soften / lighten its
    grounding shadow so it reads as further OFF the table (a higher object casts a bigger, softer, more-offset,

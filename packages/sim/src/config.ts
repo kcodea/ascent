@@ -4,10 +4,6 @@
  * the balance *truth* they're tuned toward.
  */
 export const CONFIG = {
-  // A limited-time "anomaly" patch — a global run modifier for a bit of fun. `'freedom'` = the FIRST minion you
-  // buy each turn is free. `null` disables it. Surfaced on hero select as "Anomaly: <Name>".
-  anomaly: 'freedom' as 'freedom' | null,
-
   // Economy (Embers = gold)
   startEmbers: 3,
   embersPerWave: 1,
@@ -55,6 +51,50 @@ export const CONFIG = {
   // chokepoint, so nothing downstream can activate. Default on.
   questsEnabled: true,
 };
+
+/**
+ * ── Anomalies ──────────────────────────────────────────────────────────────────────────────────────────
+ * A limited-time "anomaly" is a **global rule bent for fun for a while, then switched back off** — think
+ * seasonal / weekend modifiers. This is the extensible spine for them: add a new entry to `ANOMALIES`, give
+ * it an `enabled` switch + display copy, and teach the relevant system to honour its id. At most one anomaly
+ * is active at a time (the first `enabled` entry, in declaration order).
+ *
+ * Turning one on/off is a one-line `enabled: true|false` flip — no other wiring. The active anomaly is
+ * **snapshotted onto each run at creation** (`RunState.anomaly`), so a saved or replayed run keeps the rules
+ * it was played under even after we flip the global switch off (same "pin what actually happened" philosophy
+ * as pinned opponents). Runtime code should read `RunState.anomaly` / `run.anomaly`, never the live registry.
+ */
+export type AnomalyId = 'freedom';
+
+export interface AnomalyDef {
+  id: AnomalyId;
+  /** Display name — shown on hero select as "Anomaly: <name>". */
+  name: string;
+  /** One-line rules blurb for banners / tooltips. */
+  blurb: string;
+  /** The on/off switch. `false` retires the anomaly for NEW runs (in-flight runs keep their pinned copy). */
+  enabled: boolean;
+  /** Optional human note on the intended window (e.g. "through 2026-07-20"). Informational only — the
+   *  functional switch is `enabled`; we flip it (or ship a build) when the window ends. */
+  runsThrough?: string;
+}
+
+export const ANOMALIES: Record<AnomalyId, AnomalyDef> = {
+  freedom: {
+    id: 'freedom',
+    name: 'Freedom',
+    blurb: 'The first minion you buy each turn is free.',
+    enabled: true,
+    runsThrough: 'a limited-time celebration patch',
+  },
+};
+
+/** The anomaly a NEW run should adopt — the first enabled entry, or `null` if none. Deterministic (depends
+ *  only on the registry's `enabled` flags), so it's safe to call from `createRun`. */
+export function activeAnomaly(): AnomalyDef | null {
+  for (const a of Object.values(ANOMALIES)) if (a.enabled) return a;
+  return null;
+}
 
 /**
  * Minion-pool quantities per tier — how many copies of each tier's cards sit in the shared

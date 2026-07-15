@@ -1,13 +1,10 @@
 import type { CSSProperties } from 'react';
 import { renameTerms } from './terms';
-import { getHero, CONFIG } from '@game/sim';
+import { getHero, activeAnomaly } from '@game/sim';
 import { heroArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
-
-/** Display names for the active-anomaly telegraph (keyed by CONFIG.anomaly). */
-const ANOMALY_NAMES: Record<string, string> = { freedom: 'Freedom' };
 
 /**
  * Pre-run hero picker. Shows whenever the store has `heroChoices` (first load + after a
@@ -20,6 +17,7 @@ export function HeroSelect() {
   const openTitle = useGame((s) => s.openTitle);
   const mode = useGame((s) => s.pendingMode);
   const profile = useGame((s) => s.profile);
+  const anomaly = activeAnomaly(); // the limited-time global modifier a new run will adopt (null when none)
   if (!choices) return null;
 
   // The "dense" grid (Practice — every hero) balances the roster into as few rows as read well, then sizes each
@@ -47,10 +45,10 @@ export function HeroSelect() {
         )}
         {/* Active "anomaly" patch — a limited-time global run modifier (see CONFIG.anomaly). Telegraphed here so
             the player knows the rules are bent before they pick. */}
-        {CONFIG.anomaly && (
-          <div className="hsanomaly" aria-label="Active anomaly patch">
+        {anomaly && (
+          <div className="hsanomaly" aria-label="Active anomaly patch" title={anomaly.blurb}>
             <span className="hsanomaly-tag">Anomaly</span>
-            <span className="hsanomaly-name">{ANOMALY_NAMES[CONFIG.anomaly]}</span>
+            <span className="hsanomaly-name">{anomaly.name}</span>
           </div>
         )}
         {/* Naming yourself now lives on the home screen (the account chip). Practice shows EVERY hero (20+), which

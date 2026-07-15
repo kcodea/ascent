@@ -40,7 +40,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
-- **"Freedom" anomaly patch.** A temporary live-ops modifier (`CONFIG.anomaly`): the **first minion you buy
+- **Anomaly system + "Freedom".** A registry of limited-time global rule modifiers (`ANOMALIES`, flip
+  `enabled`), pinned onto each run so replays keep them. First one, **Freedom**: the **first minion you buy
   each turn is free**. Telegraphed as "Anomaly: Freedom" on hero select and called out on the home banner.
 - **Critical Strike VFX.** A crit (Commander Impala) now lands with a crimson-gold flourish — an amplified
   impact burst, a bold ring, a "CRIT!" pop, a red flash on the struck card, and a punchier board shake — not

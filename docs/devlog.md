@@ -5,21 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
-### feat(sim/ui): "Freedom" anomaly patch — first minion each turn is free
+### feat(sim/ui): "anomaly" system (limited-time global rules) + first anomaly "Freedom"
 
-- **New live-ops "anomaly" toggle.** Added `CONFIG.anomaly` (`'freedom' | null`), a temporary global run
-  modifier for a bit of fun. `'freedom'` makes the **first minion bought each turn free** (0 Gold). Wired in
-  the reducer buy path: `freeBuy = anomaly === 'freedom' && !s.freeBuyUsedThisTurn` overrides every price
-  source (Moe's set price / Merchant's Mark / Hank / default), sets the new `RunState.freeBuyUsedThisTurn`
-  flag, and that flag clears in the start-of-turn reset. Spell offers (Spell Cart) and held-minion re-buys
-  return before the freebie, so it only spends on a fresh *minion* purchase.
-- **Surfaced in the UI.** The shop `shopView` shows the eligible first minion at cost 0 (memo re-derives when
-  `freeBuyUsedThisTurn` flips); hero select telegraphs **"Anomaly: Freedom"** in a glowing pill under the
-  Line; the home-screen birthday banner gains an "Enjoy a special anomaly patch to have some fun ✨" line.
+- **New live-ops "anomaly" spine.** Anomalies are global rules bent for fun for a while, then switched off.
+  Added an extensible registry in `config.ts`: `ANOMALIES: Record<AnomalyId, AnomalyDef>` (each `{ id, name,
+  blurb, enabled, runsThrough? }`) + `activeAnomaly()` (the first `enabled` entry, or null). Adding a mode is
+  a new entry + teaching one system its id; turning one on/off is a **one-line `enabled: true|false` flip**.
+- **Pinned per run.** `createRun` snapshots `activeAnomaly()?.id` onto the new `RunState.anomaly`, and all
+  runtime code reads that pin (not the live registry) — so a saved / replayed run keeps the rules it was
+  played under even after we flip the global switch off (same philosophy as pinned opponents). Carried through
+  serialize/deserialize automatically (full-state JSON + heal-by-construction merge).
+- **First anomaly — "Freedom":** the **first minion bought each turn is free** (0 Gold). Reducer buy path:
+  `freeBuy = s.anomaly === 'freedom' && !s.freeBuyUsedThisTurn` overrides every price source (Moe / Merchant's
+  Mark / Hank / default), sets `RunState.freeBuyUsedThisTurn`, cleared in the start-of-turn reset. Spell
+  offers (Spell Cart) and held-minion re-buys return before the freebie, so it only spends on a fresh minion.
+- **Surfaced in the UI.** The shop shows the eligible first minion at cost 0 (memo re-derives on
+  `run.anomaly`/`freeBuyUsedThisTurn`); hero select telegraphs **"Anomaly: Freedom"** (name + blurb tooltip
+  from the registry) in a glowing pill under the Line; the home banner's "Enjoy a special anomaly patch…" line
+  now renders only while an anomaly is active.
 - **Tests + verification.** New `freedomAnomaly.test.ts` (first buy free → second paid → refreshes next turn →
-  off when disabled). The base economy/quest tests assert the *un-bent* game, so `vitest.setup.ts` neutralizes
-  `CONFIG.anomaly` globally and the anomaly suite opts back in around its body. typecheck + lint + full test
-  (1094) + build:web all green.
+  no-anomaly pays normally → registry enable/disable pins/unpins on `createRun`). The base economy/quest tests
+  assert the *un-bent* game, so `vitest.setup.ts` retires all anomalies globally (`enabled = false`). typecheck
+  + lint + full test (1095) + build:web all green.
 
 ### fix(sim/ui): correct tavern buff-source names + Hoard Spark X/N badge counter + birthday banner
 

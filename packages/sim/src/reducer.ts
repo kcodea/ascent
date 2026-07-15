@@ -412,7 +412,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         return s;
       }
       // "Freedom" anomaly: the FIRST minion bought each turn is free (overrides every price source below).
-      const freeBuy = CONFIG.anomaly === 'freedom' && !s.freeBuyUsedThisTurn;
+      const freeBuy = s.anomaly === 'freedom' && !s.freeBuyUsedThisTurn;
       const buyCost = freeBuy ? 0 : (offer.cost ?? s.minionCostOverride ?? minionCostOf(s)); // Moe's set price > Merchant's Mark override > Hank/default
       if (s.embers < buyCost || s.hand.length >= CONFIG.handMax) return state;
       s.shop.splice(i, 1);

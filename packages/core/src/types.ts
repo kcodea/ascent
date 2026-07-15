@@ -1011,6 +1011,9 @@ export interface CombatResult {
     attackByTribe: Partial<Record<Tribe, number>>;
     summonCombatByTribe: Partial<Record<Tribe, number>>;
     slaughterByTribe: Partial<Record<Tribe, number>>;
+    /** Σ positive +Attack/+Health granted to a PLAYER minion in combat, per tribe — so the `tribeStats` quest
+     *  ("Give Dragons N total stats": Skybound Pact / Taragosa's Inheritance) counts combat buffs, not just recruit. */
+    statGainByTribe: Partial<Record<Tribe, number>>;
   };
   /** The Old Hunt: run-wide Beast Attack aura gained this combat (step × Beast attacks). Stacks into
    *  `beastBuyAtk` + applied to existing run-board Beasts in settleCombat. Absent if 0. */

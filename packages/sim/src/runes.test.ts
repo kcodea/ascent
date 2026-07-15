@@ -144,7 +144,7 @@ describe('Runeforge — rune effects fire in play', () => {
       ...createRun(1, 'runesmith'), phase: 'combat', questFlags: { runeSlaying: true },
       lastCombat: {
         events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 3, initial: { player: [], enemy: [] },
-        playerQuestTally: { attack: 0, summonCombat: 0, slaughter: 3, slaughterKeyword: 0, attackByTribe: {}, summonCombatByTribe: {}, slaughterByTribe: {} },
+        playerQuestTally: { attack: 0, summonCombat: 0, slaughter: 3, slaughterKeyword: 0, attackByTribe: {}, summonCombatByTribe: {}, slaughterByTribe: {}, statGainByTribe: {} },
       } as CombatResult,
     }, { type: 'settleCombat' }); // settle WITHOUT advancing, so bonusEmbersNextTurn isn't yet spent into next turn
     expect(s.bonusEmbersNextTurn).toBe(6); // 3 slaughters × 2

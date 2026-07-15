@@ -270,6 +270,7 @@ export function simulate(
     attackByTribe: {} as Partial<Record<Tribe, number>>,
     summonCombatByTribe: {} as Partial<Record<Tribe, number>>,
     slaughterByTribe: {} as Partial<Record<Tribe, number>>,
+    statGainByTribe: {} as Partial<Record<Tribe, number>>,
   };
   const ALL_TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
   const tribesFor = (m: Minion): Tribe[] => {
@@ -393,6 +394,13 @@ export function simulate(
       target.health += health;
       if (health > 0) target.maxHealth += health;
       emit({ type: 'buff', target: target.uid, attack, health, source });
+      // "Give <tribe> N total stats" (Skybound Pact / Taragosa's Inheritance): every positive combat stat gain on
+      // a PLAYER minion counts toward its tribe(s), so combat buffs advance the `tribeStats` quest like recruit
+      // ones (owner: Skybound Pact stats in combat should count). Uses the post-gainMult value actually applied.
+      if (target.side === 'player') {
+        const g = Math.max(0, attack) + Math.max(0, health);
+        if (g > 0) for (const t of tribesFor(target)) questTally.statGainByTribe[t] = (questTally.statGainByTribe[t] ?? 0) + g;
+      }
       // Engraved: a minion that keeps its combat gains accrues every buff into permaGain, which carries
       // back to the run board after the fight (Flowing Monk records its gift directly for non-Engraved).
       if (target.keywords.includes('EG')) {
@@ -1741,7 +1749,7 @@ export function simulate(
       return alive.length > 0 ? alive : undefined;
     })(),
     enemyDeaths,
-    playerQuestTally: (questTally.attack > 0 || questTally.summonCombat > 0 || questTally.slaughter > 0 || questTally.slaughterKeyword > 0) ? questTally : undefined,
+    playerQuestTally: (questTally.attack > 0 || questTally.summonCombat > 0 || questTally.slaughter > 0 || questTally.slaughterKeyword > 0 || Object.keys(questTally.statGainByTribe).length > 0) ? questTally : undefined,
     playerQuestEvents: questEvents.length > 0 ? questEvents : undefined,
     playerBeastBuyAtkGain: beastBuyAtkGain > 0 ? beastBuyAtkGain : undefined,
     initial,

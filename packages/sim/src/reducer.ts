@@ -2228,6 +2228,9 @@ function combatEventCount(result: CombatResult, o: { event: QuestObjectiveEvent;
   if (o.event === 'summonCombat' || o.event === 'summon') return o.tribe ? (t.summonCombatByTribe[o.tribe] ?? 0) : t.summonCombat;
   if (o.event === 'slaughter') return o.tribe ? (t.slaughterByTribe[o.tribe] ?? 0) : t.slaughter;
   if (o.event === 'slaughterKeyword') return t.slaughterKeyword; // The Red Trail — tribe-agnostic
+  // "Give <tribe> N total stats" (Skybound Pact / Taragosa's Inheritance): combat buffs to that tribe, on top of
+  // the recruit-phase diff (see the `tribeStats` advance in advanceQuests).
+  if (o.event === 'tribeStats') return o.tribe ? (t.statGainByTribe[o.tribe] ?? 0) : 0;
   return 0;
 }
 

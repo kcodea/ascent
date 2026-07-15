@@ -85,7 +85,7 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   // sync so production (no tuner) matches a Reset. (Look — colours/glow/timing — is tuned in fx/turn-glyph-preview.html.)
   { key: 'glyphW', cssVar: '--charge-w', label: 'Size', group: 'Charge Glyph', min: 200, max: 1600, step: 4, def: 1144, fmt: 'px' },
   { key: 'glyphX', cssVar: '--charge-x', label: 'X offset', group: 'Charge Glyph', min: -600, max: 600, step: 1, def: -5, fmt: 'px' },
-  { key: 'glyphY', cssVar: '--charge-yoff', label: 'Y offset', group: 'Charge Glyph', min: -400, max: 400, step: 1, def: -20, fmt: 'px' },
+  { key: 'glyphY', cssVar: '--charge-yoff', label: 'Y offset', group: 'Charge Glyph', min: -400, max: 400, step: 1, def: -19, fmt: 'px' },
 
   // The drag-to-BUY / drag-to-SELL drop regions. Unlike the other groups these aren't pure CSS — the boundary is
   // computed in JS at drag start (sell = above the warband top; buy = below the board midline) and drives BOTH the

@@ -160,7 +160,7 @@ fanned-hand overlap now that framed cards overhang ~1.1× the slot. All knobs ar
   ticks). Remaining: (1) **Pixi motes pass** — white-hot motes streaming toward centre + a soft flare on each
   converging front (softens the hard reveal edges without dimming the core) + a bloom pop at completion; prototype
   in `fx/turn-glyph-preview.html` first. (2) ✅ **`turncharge.mp3` landed** (`packages/ui/src/audio/`, the owner's
-  ~20s build). (3) ✅ **Owner's tuned look + placement baked** (size 1144 / x −5 / y −20; deep #0037ff / mid
+  ~20s build). (3) ✅ **Owner's tuned look + placement baked** (size 1144 / x −5 / y −19; deep #0037ff / mid
   #009dff / white core; big 40/80px glow; thin 90×5% core; bloomAt 0.65; unlit etch off). (4) **Perf**: verify the
   per-frame mask recompute is cheap on a full board (prod); move the drop-shadow glow to Pixi if it costs frames.
   (5) **Pixi motes pass** builds off this locked geometry.

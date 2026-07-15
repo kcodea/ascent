@@ -1627,7 +1627,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    escape the circle (the art is clipped to the circle on its own element). */
 /* Active-quest / rune nodes — dev-movable (scale / x / y / separation), pinned to the stage via px × --scale so
    they don't drift with resolution. `transform-origin: left center` grows the row rightward from its left anchor. */
-.questbadges { align-self: flex-start; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(var(--qb-gap, 6) * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; transform: translate(calc(var(--qb-x, 0px) * var(--scale)), calc(var(--qb-y, 0px) * var(--scale))) scale(var(--qb-s, 1)); transform-origin: left center; }
+.questbadges { align-self: flex-start; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(var(--qb-gap, 2) * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; transform: translate(calc(var(--qb-x, -12px) * var(--scale)), calc(var(--qb-y, -56px) * var(--scale))) scale(var(--qb-s, 1.63)); transform-origin: left center; }
 .questbadge { position: relative; width: calc(53 * var(--u)); height: calc(53 * var(--u)); border-radius: 50%; border: 2px solid var(--c, var(--gold)); background: var(--card); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 .questbadge.ongoing { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 0 calc(2 * var(--u)) color-mix(in srgb, var(--c) 45%, transparent), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 /* A completed quest / owned rune's COMBAT effect just fired this replay — ONE bright, larger pulse, then dormant
@@ -1712,16 +1712,16 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
      scales the whole thing via --hpow-s. The hero portrait + Resolve stay in the bottom-left statusrow; the
      aim-line anchor (.heropowerbtn) is unaffected (still queried inside .statusbar). */
   position: fixed;
-  left: calc(19% + var(--hpow-x, 0px) * var(--scale)); top: calc(45% + var(--hpow-y, 0px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--hpow-s, 1));
+  left: calc(19% + var(--hpow-x, 237px) * var(--scale)); top: calc(45% + var(--hpow-y, 46px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--hpow-s, 1.22));
   align-self: auto; pointer-events: auto; z-index: 41;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(7 * var(--u));
 }
 body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-reaching hand drop through */
 .statusbar .heropanel.passive { opacity: 0.9; }
 /* The READY / ARMED cue is the button's own glow — its blur radius is dev-tunable via --hpow-glow. */
-.statusbar .heropanel.ready .heropowerbtn { box-shadow: 0 0 0 3px var(--acc), 0 4px 0 var(--acc-dk), 0 0 calc(18px * var(--hpow-glow, 1)) -2px var(--acc); }
-.statusbar .heropanel.armed .heropowerbtn { box-shadow: 0 0 0 4px var(--acc), 0 0 calc(22px * var(--hpow-glow, 1)) 2px var(--acc); }
+.statusbar .heropanel.ready .heropowerbtn { box-shadow: 0 0 0 3px var(--acc), 0 4px 0 var(--acc-dk), 0 0 calc(18px * var(--hpow-glow, 2.1)) -2px var(--acc); }
+.statusbar .heropanel.armed .heropowerbtn { box-shadow: 0 0 0 4px var(--acc), 0 0 calc(22px * var(--hpow-glow, 2.1)) 2px var(--acc); }
 .statusbar .heropanel .hpwrap { margin-left: 0; }
 .statusbar .heropanel .heropowerbtn { width: calc(82 * var(--u)); height: calc(82 * var(--u)); }
 .statusbar .heropanel .heropowerbtn svg { width: calc(40 * var(--u)); height: calc(40 * var(--u)); }

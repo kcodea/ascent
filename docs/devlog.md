@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat: pulse on EVERY quest activation (recruit + all SoC/combat triggers) + tuned HUD defaults
+
+- **New scale-tuner defaults** baked (hero power + quest nodes): hpowS 1.22, hpowX 237, hpowY 46, hpowGlow 2.1;
+  qbS 1.63, qbX -12, qbY -56, qbGap 2 — updated in `layoutConfig.ts` defs AND the `styles.css` fallbacks.
+- **Recruit-phase pulse:** QuestBadges now shows REPEATABLE quests too (they bump `completionCount`, never
+  `completed`), and the badge pulses on every activation — a shop-phase completion / re-fire (e.g. Hoard Spark
+  buying its 4th Dragon) OR a combat trigger. The pulse key = `completionCount + completed + combatTriggerCount`,
+  so a fresh one-shot fires on each bump.
+- **SoC + more combat triggers** now emit `questTrigger`: Shared Circuit (SoC Mech Ward — owner's example), Rune of
+  Warding / Rising Graves / Warden / Rallying / First Claws, Echoing Coop, Empty Graves, Passing Spears — on top of
+  the Avenge family + Bone Throne + Assembly Line already covered. Flag names resolve through the content map
+  (`combatFlag` flag → badge id; e.g. `sharedCircuit` → `q_shared_circuit`).
+
+Verified: new SoC test (Rune of Warding emits `questTrigger`; Shared Circuit maps to its quest); 1065 tests green,
+typecheck + lint + build:web clean. Determinism/golden unaffected (the markers are cosmetic).
 ### feat(ui): step counter — combat-only 3s fade + baked tuned placement
 
 Owner ask: the step counter ("X/N to next step") should only flash in **combat** — fade in near-instantly each

@@ -9,6 +9,7 @@ import { TrailTuner } from './TrailTuner';
 import { SmokeTuner } from './SmokeTuner';
 import { ChoreographyPanel } from './ChoreographyPanel';
 import { FloatTuner } from './FloatTuner';
+import { StepCounterTuner } from './StepCounterTuner';
 import { LayoutTuner } from './LayoutTuner';
 import { FrameTuner } from './FrameTuner';
 import { pixiFx } from './pixiFx';
@@ -32,6 +33,7 @@ const TUNERS = [
   { key: 'smoke', label: '🌫️ Smoke & Dust', C: SmokeTuner },
   { key: 'choreo', label: '🎬 Choreography', C: ChoreographyPanel },
   { key: 'float', label: '🔢 Damage Float', C: FloatTuner },
+  { key: 'stepcounter', label: '📈 Step Counter', C: StepCounterTuner },
 ] as const;
 
 export function DevMenu() {

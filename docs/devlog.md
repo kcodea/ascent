@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(ui): DEV Step Counter tuner (text size + x/y placement)
+
+Owner asked for a tuner to dial the step-counter "X/N" numbers by eye. Added a **Step Counter** dev tuner (DevMenu →
+📈 Step Counter), mirroring the Float tuner: three sliders — text size (px), x offset, y/below — write to CSS vars
+(`--sc-size` / `--sc-x` / `--sc-y`) live via `stepCounterConfig.ts`, so any on-board counter (Guel, Tara, Avenge
+units, …) updates immediately; **Copy values** grabs the JSON, **Reset** restores defaults, panel is draggable +
+localStorage-backed. `.stepcounter` now reads those vars with the shipped values as fallbacks (so production, which
+never runs the tuner, is unchanged). The x offset applies via `left` (not `transform`) so the `stepbump` keyframe's
+`translateX(-50%)` centring isn't disturbed. Verified live: the counter responds to the vars (size + position change)
+and the panel opens with the three sliders + Copy/Reset. Verified: `typecheck + lint` & `build:web` green.
+
+
 ### fix: enemy snapshot fidelity — carry the last 5 run-wide scalers so enemy-generated bodies are correctly sized
 
 Enemy boards are `BoardSnapshot`s fed to `simulate()` as the enemy side; they START with correct stats, but bodies

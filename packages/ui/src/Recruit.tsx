@@ -157,14 +157,26 @@ const CARD_REFERENCES: Record<string, string[]> = {
   // both Fodder and Imps (Ritualist, Bane, Fodder Feeder) reference both.
   impking: ['impscrap'], fodderfeeder: ['fred', 'impscrap'], bane: ['fred', 'impscrap'],
 };
-/** A referenced token's card view. Fodder ('fred') folds in Ritualist's persistent buff, and the Imp token
- *  ('impscrap') folds in the run-wide `impBuff`, so each popup shows the token's current stats. */
+/** A referenced token/spell card view. A referenced SPELL (a caster's Growth / Lantern) folds in the run's live
+ *  spell power via `spellLive`, so hovering the caster shows the spell's CURRENT value — the reason the caster's
+ *  own text no longer restates it. A token folds in its persistent buff: Fodder ('fred') gets Ritualist's buff,
+ *  the Imp token ('impscrap') the run-wide `impBuff` — so each popup shows the token's current stats. */
 function tokenRefView(
   id: string,
   cardBuffs?: Record<string, { attack: number; health: number }>,
   impBuff?: { attack: number; health: number },
+  spellLive?: { a: number; h: number; ftb: number; ftbH: number; goldSpent: number },
 ): CardView {
   const c = CARD_INDEX[id];
+  if (c.spell && spellLive) {
+    return {
+      name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
+      attack: c.attack, health: c.health, keywords: c.keywords,
+      text: spellDisplayText(c.id, spellLive.a, spellLive.ftb, spellLive.h, spellLive.goldSpent, spellLive.ftbH),
+      tier: c.tier, spell: c.spell, target: c.target,
+      baseAttack: c.attack, baseHealth: c.health,
+    };
+  }
   const cb = id === 'impscrap' ? (impBuff ?? { attack: 0, health: 0 }) : (cardBuffs?.[id] ?? { attack: 0, health: 0 });
   return {
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
@@ -1173,13 +1185,14 @@ export function Recruit() {
       const def = CARD_INDEX[cardId];
       const refs = [...new Set([...(CARD_REFERENCES[cardId] ?? []), ...(def ? referencedCardIds(def) : [])])]
         .filter((id) => CARD_INDEX[id]);
-      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, run.cardBuffs, run.impBuff)));
+      const spellLive = { a: spellBonus, h: spellBonusH, ftb: run.frontToBackBonus, ftbH: run.frontToBackBonusH ?? run.frontToBackBonus, goldSpent: run.goldSpentThisTurn ?? 0 };
+      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, run.cardBuffs, run.impBuff, spellLive)));
     };
     for (const c of run.board) add(c.uid, c.cardId);
     for (const c of run.hand) add(c.uid, c.cardId);
     for (const o of run.shop) add(o.uid, o.cardId);
     return m;
-  }, [run.board, run.hand, run.shop, run.cardBuffs, run.impBuff]);
+  }, [run.board, run.hand, run.shop, run.cardBuffs, run.impBuff, spellBonus, spellBonusH, run.frontToBackBonus, run.frontToBackBonusH, run.goldSpentThisTurn]);
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(

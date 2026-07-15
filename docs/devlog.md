@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### refactor(content): spell-casting minions name the spell (live value on its hover) instead of restating it
+
+Owner ruling: a minion that CASTS a named spell shouldn't restate the spell's numbers on its own card — just
+name the spell (already bolded), and let the spell's **hover-preview** show the value, which is already live to
+spell-power increases. Saves card text and keeps one source of truth for the spell's magnitude.
+
+- **Text trimmed:** Hoardbreaker Drake drops "(Give your minions **+3/+4**)" → just "**Rally:** Cast **Growth**.
+  **Slaughter:** Cast **Growth**." (golden → "Cast **Growth twice**" per trigger). Taragosa drops
+  "(+3/+4 to your minions)" → "cast **Growth**" (golden "cast **Growth twice**").
+- **Spell hover-preview:** `referencedCardIds` now derives the cast spell from the caster's effect (`castSpell`,
+  `onKillCastSpell`, `rallyCastSpell`, `endOfTurnCastSpellEscalating`, `onAllyAttackCastGrowth`,
+  `rallyCastTribeAttack`, `battlecryGrantSpell`), so hovering a caster trails its spell card. Taragosa/Watcher
+  carry a reference-only `spellId` param (their factory ignores it) since their cast is implicit. The referenced
+  spell's popup folds in the run's **live spell power** (`tokenRefView` → `spellDisplayText`), so Growth reads
+  its current +5/+6 (with +2/+2 power), not the base +3/+4.
+- **Dead helpers removed:** `taragosaText` + `combatCastGrantText` (which used to fold the value INTO the minion
+  text) are deleted from `cardText.ts` + the `liveCardText` chain + their tests — the value now lives on the
+  spell hover. `watcherText` stays (Watcher keeps its "rest of the run" run-wide wording).
+
+Verified: `referencedCardIds` test (Hoardbreaker/Taragosa → Growth, Watcher → Lantern, Vineweaver → Growth);
+live DOM check — the crafted board renders "Cast **Growth**. Cast **Growth**." with the parenthetical gone;
+**1068 tests green**, typecheck + lint + build:web clean.
+
 ### feat(content): 4 scaling-minion reworks + balance-report shop/Discover split columns
 
 Five queued items (the four minion mechanics the owner spec'd + the report column split):

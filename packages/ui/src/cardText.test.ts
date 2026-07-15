@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, combatCastGrantText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText, watcherText } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, undeadBuyAtkText, watcherText } from './cardText';
 
 describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
   it('Avenge units show 0/N on the board and tick with the death tally in combat, cyclic', () => {
@@ -128,20 +128,6 @@ describe('cardText helpers', () => {
     expect(summonScalingText('grim', 3, false)).toBeNull(); // not a spells-this-turn scaler
   });
 
-  it('combatCastGrantText scales Hoardbreaker’s Slaughter Growth with spell power (golden doubles)', () => {
-    expect(combatCastGrantText('hoardbreaker', false, 0, 0)).toBeNull(); // no spell power → printed +3/+4
-    expect(combatCastGrantText('hoardbreaker', false, 2, 2)).toContain('{{+5/+6}}'); // base 3/4 + spell power 2/2
-    expect(combatCastGrantText('hoardbreaker', true, 2, 2)).toContain('{{+10/+12}}'); // ×2 golden, matching onKillCastSpell
-    expect(combatCastGrantText('taragosa', false, 2, 2)).toBeNull(); // Taragosa uses its own helper (no spellId param)
-    expect(combatCastGrantText('sandbag', false, 2, 2)).toBeNull(); // not a spell-caster
-  });
-
-  it('taragosaText scales Growth with spell power (golden casts twice)', () => {
-    expect(taragosaText('taragosa', false, 4, 4)).toContain('{{+7/+8}}'); // base 3/4 + spell power 4/4
-    expect(taragosaText('taragosa', true, 4, 4)).toContain('{{+14/+16}}'); // ×2 (Growth twice)
-    expect(taragosaText('taragosa', false, 0, 0)).toBeNull(); // no spell power → printed +3/+4
-    expect(taragosaText('tara', false, 4, 4)).toBeNull(); // not Taragosa
-  });
 
   it('watcherText shows the live Lantern buff +x/+y (spell power in both stats); golden casts twice', () => {
     expect(watcherText('watcher', false, 2, 2)).toContain('{{+5/+2}}'); // base 3 + sp 2 attack, sp 2 health

@@ -271,8 +271,8 @@ export const DRAGONS: CardDef[] = [
       { on: 'onAttack', do: 'rallyCastSpell', params: { spellId: 'growth' } },
       { on: 'onKill', do: 'onKillCastSpell', params: { spellId: 'growth' } },
     ],
-    text: '**Rally:** Cast **Growth**. **Slaughter:** Cast **Growth**. (Give your minions **+3/+4**)',
-    goldenText: '**Rally:** Cast **Growth**. **Slaughter:** Cast **Growth**. (Give your minions **+6/+8**)',
+    text: '**Rally:** Cast **Growth**. **Slaughter:** Cast **Growth**.',
+    goldenText: '**Rally:** Cast **Growth twice**. **Slaughter:** Cast **Growth twice**.',
   },
 
   // ── Dragon quest reward minions (owner spec 2026-07-08) — `token: true` = reward-exclusive (never in the shop

@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Spell-casters name the spell.** A minion that casts a spell (Hoardbreaker, Taragosa) no longer restates the
+  spell's numbers — it names the spell, and the spell's **hover-preview** shows the live (spell-power-aware) value.
+  Golden reads "cast twice". Trims card text; hovering any caster now trails its spell card.
 - **Scaling-minion reworks.** **Hoardbreaker** now casts Growth on both Rally (first swing) *and* Slaughter;
   **Scrap Herald** also grants a Money Bot; **Hunter** is a scaling aura that only triggers on gaining Attack
   (buffs your others + improves itself); **Spirit Worgen** is back to on-play (+3/+3 per Beast/Dragon played,

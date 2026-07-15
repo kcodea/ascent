@@ -336,48 +336,6 @@ export function ritualistText(cardId: string, golden: boolean, eotBonus: number)
 }
 
 /**
- * Taragosa's Growth is a real spell, so it scales with the run's spell power. Shows the live per-attack buff
- * — base +3/+4 plus spell power, ×2 when golden (it casts Growth twice). Returns null with no spell power
- * (the printed +3/+4 — golden +6/+8 — is already accurate).
- */
-export function taragosaText(cardId: string, golden: boolean, spellBonusA: number, spellBonusH: number): string | null {
-  if (cardId !== 'taragosa' || (spellBonusA <= 0 && spellBonusH <= 0)) return null;
-  const def = CARD_INDEX[cardId];
-  const eff = def?.effects.find((e) => e.do === 'onAllyAttackCastGrowth');
-  if (!def || !eff) return null;
-  const m = golden ? 2 : 1;
-  const a = (Number((eff.params as { attack?: number })?.attack ?? 3) + spellBonusA) * m;
-  const h = (Number((eff.params as { health?: number })?.health ?? 4) + spellBonusH) * m;
-  const src = golden ? (def.goldenText ?? def.text) : def.text;
-  return src.replace(/\+\d+\/\+\d+/, `{{+${a}/+${h}}}`);
-}
-
-/**
- * A minion whose COMBAT effect casts a stat-buff spell (Hoardbreaker Drake's Slaughter → Growth) shows the
- * live grant — the spell's base buff + the run's spell power, ×2 when golden — exactly as the sim computes it
- * (`onKillCastSpell`: `(base + spellPower) × golden`). Generic over the `spellId` param, so future combat
- * spell-casters are covered. Its printed "+A/+B" becomes the live value (green). Returns null with no spell
- * power (the printed base is already accurate) or for non-matching cards. Taragosa has its own helper
- * (`taragosaText`) because its cast is implicit (`onAllyAttackCastGrowth`, no `spellId`).
- */
-export function combatCastGrantText(cardId: string, golden: boolean, spellBonusA: number, spellBonusH: number): string | null {
-  if (spellBonusA <= 0 && spellBonusH <= 0) return null;
-  const def = CARD_INDEX[cardId];
-  const eff = def?.effects.find((e) => e.do === 'onKillCastSpell');
-  if (!def || !eff) return null;
-  const spell = CARD_INDEX[String((eff.params as { spellId?: string })?.spellId ?? '')];
-  const buff = spell?.effects.find((e) => e.do === 'spellBuffAll' || e.do === 'spellBuffTarget')?.params as
-    | { attack?: number; health?: number }
-    | undefined;
-  if (!spell || !buff) return null;
-  const m = golden ? 2 : 1;
-  const a = ((buff.attack ?? 0) + spellBonusA) * m;
-  const h = ((buff.health ?? 0) + spellBonusH) * m;
-  const src = golden ? (def.goldenText ?? def.text) : def.text;
-  return src.replace(/\+\d+\/\+\d+/, `{{+${a}/+${h}}}`);
-}
-
-/**
  * Watcher casts Lantern of Souls on Rally — your Undead get +(base + spell power)/+(spell power) for the rest
  * of the run, folding the run's spell power into BOTH stats exactly like a shop-cast Lantern (+3/+0 base,
  * +5/+2 with +2/+2). Its printed "+3/+0" becomes the live value (highlighted green), so the card always

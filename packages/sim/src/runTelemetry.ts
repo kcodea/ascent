@@ -66,7 +66,11 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
 
   const recordCompletions = (st: RunState): void => {
     for (const q of st.activeQuests ?? []) {
-      if (q.completed && !seenCompleted.has(q.questId)) {
+      // A one-shot quest flips `completed`; a REPEATABLE never does but bumps `completionCount` on each re-fire.
+      // Record the FIRST completion's wave for either (into the existing `questTurns` — no schema change), so
+      // repeatables (Forest Grove, Scrap Contract, Imp Census, Dark Bargain, …) count toward completion metrics.
+      const done = q.completed || (q.completionCount ?? 0) > 0;
+      if (done && !seenCompleted.has(q.questId)) {
         seenCompleted.add(q.questId);
         questTurns[q.questId] = st.wave;
       }

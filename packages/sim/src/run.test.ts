@@ -5058,6 +5058,17 @@ describe('Beast quests (combat objectives + rewards)', () => {
     expect(other.activeQuests![0]!.completed).toBe(false);
   });
 
+  it('a repeatable quest bumps completionCount (never sets `completed`) so telemetry can see it', () => {
+    // Forest Grove: "Summon 8 Beasts", repeatable. One big combat fires it — progress resets, quest stays active.
+    const s = settle('q_forest_grove', { playerQuestTally: { ...zeroTally(), summonCombat: 8, summonCombatByTribe: { beast: 8 } } });
+    expect(s.activeQuests![0]!.completed).toBe(false);     // repeatable never "completes"…
+    expect(s.activeQuests![0]!.completionCount).toBe(1);   // …but records the fire (for completion metrics/trophies)
+    // A one-shot quest sets BOTH completed and completionCount.
+    const oneShot = settle('q_leader_of_the_pack', { playerQuestTally: { ...zeroTally(), attack: 18, attackByTribe: { beast: 18 } } });
+    expect(oneShot.activeQuests![0]!.completed).toBe(true);
+    expect(oneShot.activeQuests![0]!.completionCount).toBe(1);
+  });
+
   it('Leader of the Pack (attack 18 w/ Beasts): grants a GOLDEN Pack Leader + 10 Gold', () => {
     const control = settle('q_blood_trail', { enemyDeaths: 0 }); // baseline next-shop Gold (no gainGold reward)
     const s = settle('q_leader_of_the_pack', { playerQuestTally: { ...zeroTally(), attack: 18, attackByTribe: { beast: 18 } } });

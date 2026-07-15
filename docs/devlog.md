@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### fix: repeatable quests are visible to completion telemetry (Codex review follow-up)
+
+Repeatable quests (Forest Grove, Hoard Spark, Scrap Contract, Imp Census, Small Offering, Dark Bargain) fire their
+reward and re-arm but NEVER set `completed`, so the run-telemetry `recordCompletions` (which only watched the
+`completed` flip) missed them — first-completion, completion wave, and completion-rate all under-counted them in the
+Balance Report.
+
+- Added `ActiveQuest.completionCount` (absent = 0). `resolveQuestThreshold` bumps it on every reward fire — once for
+  a one-shot (alongside `completed`), once per re-fire for a repeatable; the compound path bumps it too.
+- Telemetry now records a quest's first completion when `completed || completionCount > 0`, into the EXISTING
+  `questTurns` map — so repeatables get a completion wave with **no schema change** (the Balance Report's quest
+  "Avg Turns" picks them up automatically).
+
+Purely additive (a counter — no gameplay/reward change). Verified: new test (a repeatable bumps `completionCount`
+without `completed`; a one-shot sets both) + `typecheck` + `lint` + **1050 tests** + `build:web` green.
+
 ### feat(ui): step counter extended to Avenge units + Koron / Banksly + Bloodbinder
 
 Owner-reported the "X/N" step-progress pill (Guel 1/4, Spirit Pup X/10, Tara X/20, …) wasn't showing on Avenge units

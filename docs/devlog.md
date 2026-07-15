@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(ui): shared AnomalyPill — clean floating tooltip + in-game HUD pill
+
+- **Clean tooltip.** Replaced the anomaly pill's native `title=` hover with the game's standard floating
+  tooltip (the same card as `.questbadge-tip` — dark rounded card, accent title, fade-in). Extracted a shared
+  `AnomalyPill` component (`variant: 'hero' | 'hud'`) so hero select and the HUD share one look; dropped the
+  old `.hsanomaly*` CSS for a `.anomalypill*` system (pill size via `--ap-fs`, tooltip opens below).
+- **In-game pill.** Added the pill to the HUD (`HudBar`), sitting directly under the round plaque (first item
+  in `.topleft`, above the run buffs). Shown only when the run is pinned to an anomaly (`run.anomaly`), read
+  from the `ANOMALIES` registry so the name + blurb stay in sync.
+- **Verified** live in the dev server: hero-select tooltip is now the floating card (old `.hsanomaly` gone),
+  and the HUD pill renders under the plaque (top ~44px vs plaque bottom ~34px, left-aligned) reading "ANOMALY
+  · RUNIC BEHAVIOR". typecheck + lint + full test (1097) + build:web green.
+
 ### feat(sim): second anomaly "Runic Behavior" — every hero hits the basic Runeforge on turn 7
 
 - **New anomaly `runic`.** Added a second entry to the `ANOMALIES` registry: *Runic Behavior* — on turn 7,

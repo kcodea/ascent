@@ -863,6 +863,15 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* Taunt signifies via its silver bulwark Pixi AURA (behind the card) — no badge. */
 /* Stealth — a shadowy, semi-transparent look until it attacks (loses Stealth); edge stays tribe-coloured. */
 .card.stealth { opacity: 0.8; }
+/* Stealth BREAK (the `reveal` event, fired as the unit attacks) — a quick de-cloak: it flashes brighter +
+   desaturated (still ghostly) and resolves to full colour/opacity, reading as "materialising into view".
+   Transform/opacity/filter only → compositor-safe; ~0.4s so it rides the attack lunge without lingering. */
+.unit.revealed .card { animation: revealpop 0.4s ease; }
+@keyframes revealpop {
+  0% { opacity: 0.5; filter: brightness(1.55) saturate(0.55); }
+  45% { opacity: 1; filter: brightness(1.28) saturate(0.85); }
+  100% { opacity: 1; filter: none; }
+}
 /* Venomous ward — a bold status badge top-right. */
 .kwward { position: absolute; top: -14px; right: -14px; width: 66px; height: 66px; border-radius: 50%; border: 4px solid var(--card); display: grid; place-items: center; z-index: 9; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4); }
 .kwward svg { width: 40px; height: 40px; color: #fff; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
@@ -1767,8 +1776,11 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .card.compact.spellframe .cframe.cshadow,
 .card.compact.taunt .tframe.cshadow {
   z-index: 0;
-  filter: brightness(0) blur(9px);
+  /* Resting grounding shadow: spread (blur) −20% (9px→7.2px) + opacity −20% (1→0.8) for a tighter, lighter
+     contact shadow. The DRAG-LIFT block below overrides both via `--dsh-*` at higher specificity — untouched. */
+  filter: brightness(0) blur(7.2px);
   transform: translateY(5px) scale(0.99);
+  opacity: 0.8;
 }
 /* DRAG-LIFT SHADOW — while a card is lifted (the floating `.dragcard`), grow / drop / soften / lighten its
    grounding shadow so it reads as further OFF the table (a higher object casts a bigger, softer, more-offset,
@@ -1926,11 +1938,15 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
 }
 /* Golden (tripled): gold read = the gold frame metal + the crown + a TIGHT gold rim that hugs the frame's own
    alpha (no wide bleed outside the oval). Kill the base rectangular gold aura for BOTH framed types (stdframe
-   uses `.cframe`, taunt uses `.tframe`). */
+   uses `.cframe`, taunt uses `.tframe`). NB `:not(.cshadow)` — the grounding shadow is a 2nd `.cframe` copy, and
+   WITHOUT this exclusion it matched here (equal specificity, later in source) and rendered as a GOLD-tinted frame
+   silhouette behind the unit — the "gold arch glowing behind a golden minion" bug. Excluding it lets the shadow
+   keep its `brightness(0) blur` black silhouette (the resting `.cshadow` rule), so a golden unit casts a normal
+   contact shadow, not a gold arch. */
 .card.compact.stdframe.golden,
 .card.compact.taunt.golden { box-shadow: 0 3px 0 var(--shadow); }
-.card.compact.stdframe.golden .cframe,
-.card.compact.taunt.golden .tframe {
+.card.compact.stdframe.golden .cframe:not(.cshadow),
+.card.compact.taunt.golden .tframe:not(.cshadow) {
   filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
           drop-shadow(0 0 4px rgba(255, 205, 80, 0.67));
 }

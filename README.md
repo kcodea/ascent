@@ -44,6 +44,8 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   spell cast while that copy has been on board (per-instance, persistent; tripling **sums** the tally).
 - **Balance report splits shop vs Discover.** The Minions/Spells tables now show **Shop Seen · Shop Buy · Disc
   Seen · Disc Buy · Buy%** — tavern odds and Discover odds are tracked and displayed separately.
+- **Cadence counters count turns.** End-of-turn cards (Money Maker, Frontdrake) now show the turns left until they
+  fire — "2 Turns" ticking to "1 Turn" at end of turn — instead of an X/N bar.
 - **Real combat/UI sounds.** The synth placeholder cues are now real clips (each with its own mixer level): the
   attack wind-up, death, shield-up (gaining a Ward), triple/golden reward, the Start-of-Combat zap (reuses the
   pulse clip), and the max-Gold raise (reuses the sell clip). Also deleted two dead synth cues (`temper`, `proc`).

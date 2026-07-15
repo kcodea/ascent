@@ -89,6 +89,46 @@ Verified: new/updated tests across `simulate.test.ts` (Runescale SoC + spellProg
 (Worgen on-play, Runescale accrual + triple-SUM), `cardText.test.ts` (hunter/worgen/runescale live text),
 `runTelemetry.test.ts` (source split) — **1069 tests green**, typecheck + lint + build:web all clean.
 Determinism/golden unaffected.
+### feat(ui): cadence counter reads "N Turns" (countdown), not X/N
+
+Owner ask: for End-of-Turn cadence cards (Money Maker, Frontdrake, Vineweaver) the step counter should read the
+turns REMAINING until it fires, not an X/N progress bar — "2 Turns", ticking to "1 Turn" at end of turn before
+combat.
+
+- `StepProgress` gains an optional `label` (rendered verbatim by Card instead of `current/total`; `current` still
+  drives the keyed re-bump + the shop hide-at-0 gate). Cadence now returns
+  `{ current: toNext, total: every, label: "N Turn(s)" }` where `toNext = every − (eotTick % every)` (1..every,
+  wraps to `every` on the fire turn). Singular "1 Turn" / plural "N Turns".
+- Because `toNext` is never 0, a fresh Money Maker now SHOWS "2 Turns" in the shop (the old 0/N hide-at-0 only bit
+  the X/N form; that gate still hides a fresh Avenge 0/N). It rides the existing end-of-turn projection, so it
+  ticks "2 Turns → 1 Turn" on the beat and is hidden through combat (cadence passes no `eotTick` there).
+- Card renders `label ?? "current/total"`, keyed on `label ?? current`, with a `.turns` class hook. Updated the
+  cadence unit test to the new turns-left shape + a combat-null assertion.
+
+Verified live (DOM MutationObserver over a real End-Turn): fresh Money Maker `2 Turns`, Frontdrake (every 3,
+eotTick 1) `2 Turns`, eotTick-1 Money Maker `1 Turn`; the end-turn beat records `recruit 2 Turns → recruit 1 Turn
+→ combat (none)`. typecheck + lint + `build:web` clean, 1080 tests green.
+
+### chore(audio): bake the owner's full mixer export as the shipped default
+
+Owner tuned the whole SFX bank by ear in the dev desk and exported the config; pasted it into `config.ts` as the
+new default (`DEFAULT_AUDIO_CONFIG`). Changes vs prior defaults:
+- **`masterGain` 1 → 0.8** (whole mix pulled down).
+- **Every category gain re-tuned** to the export — notably `smack` 0.06→0.29, `attack` 0.4→0.25, `cardlanding`
+  0.56→0.33, `roll` 0.69→0.88, `combatStart` 0.48→0.64, `rebornshatter` 0.42→0.16, `maxgold` 0.4→0.22,
+  `cardVoice` 0.18→0.11, `summon` 0.37→0.24, plus smaller nudges across the rest.
+- **`combatStart` re-routed** from the `combat` bus to the `ui` bus (per the export). Audibly identical today
+  (both buses unity), honored for the owner's routing intent.
+- **`buff`** now carries its exported gain 0.46 in `CATEGORY_GAINS` — but it's a **synth-only** cue, so the
+  category gain is **inert** (a synth cue's loudness is its own literal `tone()` vol; category gain only scales
+  *sourced* clips). Kept only to match the export 1:1. `config.test.ts` updated: `masterGain` → 0.8 assertion,
+  and the "synth-only cues at unity gain" check retired (all categories now carry an explicit gain) → a routing
+  check for `buff`.
+
+Supersedes the abandoned `smack 0.06→0.33` one-off (the export sets `smack` to 0.29). Reminder: a browser with a
+saved mixer config in `localStorage['ascent.audiocfg']` keeps its own values until reset — these defaults apply to
+fresh profiles / anyone who hasn't tuned locally.
+
 ### feat(audio): source stock combat/UI sounds (wind-up, death, shield-up, triple, SoC zap, max-Gold); remove dead cues
 
 **What:** batch of the stock-sound audit — replaced four synth cues with owner-authored clips, and **deleted two

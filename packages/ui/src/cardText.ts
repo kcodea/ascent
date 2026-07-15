@@ -449,7 +449,13 @@ export function tallyBuffText(cardId: string, deathrattlesTriggered: number): st
   return def.text.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${n}/+${n}}}`);
 }
 
-export interface StepProgress { current: number; total: number; }
+export interface StepProgress {
+  current: number;
+  total: number;
+  /** When set, the counter renders THIS text instead of "current/total" (e.g. cadence → "2 Turns"). `current`
+   *  still drives the keyed re-bump + the shop hide-at-0 gate, so keep it the value that changes per tick. */
+  label?: string;
+}
 
 /**
  * Discrete "X/N toward the next step / transform / proc" for the STEP-BASED scalers only — the cards whose
@@ -478,7 +484,15 @@ export function stepProgress(
   // `eotTick` is undefined in combat (Unit.tsx passes no eotTick), where the cadence is irrelevant, so we
   // return null there (no combat counter), mirroring `goldSpent` below. The recruit path always passes it.
   const cadence = def.effects.find((e) => e.on === 'endOfTurn' && (e.params as { every?: number } | undefined)?.every !== undefined);
-  if (cadence) return p.eotTick === undefined ? null : cyc(p.eotTick, Math.max(1, n((cadence.params as { every?: number })?.every, 3)));
+  if (cadence) {
+    if (p.eotTick === undefined) return null; // combat: cadence is irrelevant, no counter
+    const every = Math.max(1, n((cadence.params as { every?: number })?.every, 3));
+    // Countdown of TURNS until the effect next fires (not an X/N progress bar): every=2 reads "2 Turns" fresh,
+    // ticks to "1 Turn" at end of turn, fires, resets to "2 Turns". `toNext` is 1..every (never 0), so the shop
+    // hide-at-0 gate always shows it. Keyed re-bump rides `current = toNext` (flips each turn).
+    const toNext = every - (p.eotTick % every);
+    return { current: toNext, total: every, label: `${toNext} Turn${toNext === 1 ? '' : 's'}` };
+  }
   // Avenge (Solaris, Soulsman, Bone Taxer, Brood Matron, …): the Avenge re-fires every N FRIENDLY deaths (the sim
   // gates on `count % threshold === 0`), so it's a cyclic 1..N counter driven by that side's running death tally.
   // Shows on the board too (`avengeSeen` is undefined outside a fight → 0/N), so a shop unit advertises its Avenge

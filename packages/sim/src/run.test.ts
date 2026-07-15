@@ -2534,10 +2534,13 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'sp' });
     s = reduce(s, { type: 'chooseOne', index: 0 }); // "Give the shop +1/+3"
     expect(s.shop.every((o) => o.atk === 1 && o.hp === 3)).toBe(true); // both offers buffed
+    // The offer records the SOURCE (Apples), so the inspect + the bought minion attribute it correctly.
+    expect(s.shop[0]!.buffs).toEqual([{ source: 'Apples', attack: 1, health: 3, count: 1 }]);
     s = { ...s, embers: 10 };
     s = reduce(s, { type: 'buy', uid: 'x' }); // Alleycat 1/1 + Apples +1/+3
     const bought = s.hand.find((c) => c.cardId === 'alley')!;
     expect([bought.attack, bought.health]).toEqual([2, 4]);
+    expect(bought.buffs).toEqual([{ source: 'Apples', attack: 1, health: 3, count: 1 }]); // NOT a blanket "Fortify"
   });
 
   it('Fleeting Vigor banks a Start-of-Combat buff applied to the next combat, then spent', () => {

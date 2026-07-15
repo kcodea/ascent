@@ -63,6 +63,11 @@ export function QuestBadges() {
         let ongoing = false;
         if (r.kind === 'shoutDouble') { chip = `${r.count - charges}/${r.count} used`; ongoing = charges > 0; }
         else if (r.kind === 'grant' && r.repeatInTurns) { ongoing = repeatTurns > 0; if (ongoing) chip = `↻ ${repeatTurns}t`; }
+        // A REPEATABLE count-threshold quest (Hoard Spark: buy 4 Dragons) shows its progress toward the NEXT
+        // trigger as an X/N counter ABOVE the badge — the same look as the combat avenge tally. `aq.progress`
+        // holds the leftover after each fire (see resolveQuestThreshold). Compound objectives have no single count.
+        const stepTotal = def.repeatable && typeof def.objective.count === 'number' ? def.objective.count : 0;
+        const stepCur = stepTotal ? Math.min(stepTotal, aq.progress ?? 0) : 0;
         const rewardTxt = questRewardText(r, { completed: true, shoutCharges: charges, repeatTurns });
         // The LIVE ongoing magnitude of a scaling/stat reward (current Beast aura, Umbral per-spell grant, the
         // scaling countdown) — folded from the run state so the tooltip shows what it's producing NOW.
@@ -89,6 +94,9 @@ export function QuestBadges() {
               )}
             </div>
             {chip && <span className="questbadge-chip">{chip}</span>}
+            {stepTotal > 0 && (
+              <span className="stepcounter questbadge-step" aria-label={`Quest progress ${stepCur} of ${stepTotal}`}>{stepCur}/{stepTotal}</span>
+            )}
             <div className="questbadge-tip" role="tooltip">
               <b>{def.name}</b>
               <span className="questbadge-tip-reward">{rewardTxt}{def.repeatable ? ' · Repeatable' : ''}</span>

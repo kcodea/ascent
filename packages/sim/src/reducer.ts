@@ -8,7 +8,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, addOfferBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -423,7 +423,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const aHp = (s.friedCircuitsStepHp ?? 0) * s.friedCircuitsBuys;
         for (const o of s.shop) {
           const d = CARD_INDEX[o.cardId];
-          if (d && (d.tribe === 'mech' || d.tribe2 === 'mech')) { o.atk = (o.atk ?? 0) + aAtk; o.hp = (o.hp ?? 0) + aHp; }
+          if (d && (d.tribe === 'mech' || d.tribe2 === 'mech')) addOfferBuff(o, 'Fried Circuits', aAtk, aHp);
         }
       }
       const cb = cardBuff(s, card.id); // persistent run buff (Ritualist's Fodder enchantment)
@@ -442,8 +442,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         golden: offer.golden ?? false, // Golden Touch: a gilded tavern offer buys in as a Golden
         boughtWave: s.wave, // Hoarder's sell value climbs from the wave it was bought
       };
-      // a tavern buff (the hero power Fortify applied to this offer) rides in as a tracked buff
-      addBuff(bought, 'Fortify', offer.atk ?? 0, offer.hp ?? 0);
+      // Tavern buffs on the offer (Apples / Fortify / Fried Circuits / next-shop) bake in under their REAL
+      // source names, not a blanket "Fortify"; fall back to a generic label for any legacy offer with no breakdown.
+      if (offer.buffs?.length) for (const b of offer.buffs) addBuff(bought, b.source, b.attack, b.health, b.count);
+      else addBuff(bought, 'Tavern buff', offer.atk ?? 0, offer.hp ?? 0);
       const buyAuraHp = buyHealthAura(s, card); // Scrap Herald: Magnetic minions also carry a Health aura
       if (buyAura > 0 || buyAuraHp > 0) addBuff(bought, 'Tribe Bond', buyAura, buyAuraHp);
       // Staff of Guel — the run-wide "every minion you buy" buff bakes in too (tavern purchases only).
@@ -966,8 +968,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         else {
           const offer = s.shop.find((c) => c.uid === action.uid);
           if (!offer) return state;
-          offer.atk = (offer.atk ?? 0) + amt;
-          offer.hp = (offer.hp ?? 0) + amt;
+          addOfferBuff(offer, 'Fortify', amt, amt);
         }
       }
 
@@ -2405,10 +2406,7 @@ function refreshTavern(s: RunState, hold = false): void {
   // Apples (Choose One → "the next shop"): fold the banked buff onto the freshly-rolled offers, then clear it.
   const nb = s.nextShopBuff;
   if (nb && (nb.attack || nb.health)) {
-    for (const offer of s.shop) {
-      offer.atk = (offer.atk ?? 0) + nb.attack;
-      offer.hp = (offer.hp ?? 0) + nb.health;
-    }
+    for (const offer of s.shop) addOfferBuff(offer, 'Apples', nb.attack, nb.health);
     s.nextShopBuff = undefined;
   }
   injectPendingTavern(s, hold);

@@ -152,6 +152,13 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         </div>
       </div>
 
+      {/* A little celebration on the right — for the team that makes it all move. */}
+      <aside className="titlebanner" role="note">
+        <div className="titlebanner-emoji" aria-hidden>🎉🎂</div>
+        <div className="titlebanner-title">Happy Birthday to our Animations Team!</div>
+        <div className="titlebanner-sub">We appreciate everything you do for our shareholder value 💜</div>
+      </aside>
+
       <div className="titleversion">v{__APP_VERSION__}</div>
     </div>
   );

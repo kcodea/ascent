@@ -80,6 +80,18 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
   else card.buffs.push({ source, attack, health, count });
 }
 
+/** Buff a TAVERN OFFER (Apples / Fortify / Fried Circuits / next-shop) — bumps its `atk`/`hp` AND records the
+ *  named source in `buffs`, so the inspect + the bought minion attribute it correctly (not a generic label). */
+export function addOfferBuff(offer: ShopCard, source: string, attack: number, health: number): void {
+  if (attack === 0 && health === 0) return;
+  offer.atk = (offer.atk ?? 0) + attack;
+  offer.hp = (offer.hp ?? 0) + health;
+  offer.buffs ??= [];
+  const e = offer.buffs.find((b) => b.source === source);
+  if (e) { e.attack += attack; e.health += health; e.count += 1; }
+  else offer.buffs.push({ source, attack, health, count: 1 });
+}
+
 /**
  * Run a recruit factory dispatch and capture any buff it applied to OTHER board minions as `BuffFxEvent`s on
  * `state.recruitBuffFx`, for the UI to replay as a tendril (living `source`) or a descend (`source` undefined /
@@ -1775,10 +1787,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellBuffTavern: (ctx, _self, params) => {
     const a = num(params.attack, 2);
     const h = num(params.health, 3);
-    for (const offer of ctx.state.shop) {
-      offer.atk = (offer.atk ?? 0) + a;
-      offer.hp = (offer.hp ?? 0) + h;
-    }
+    for (const offer of ctx.state.shop) addOfferBuff(offer, 'Apples', a, h); // the only card using this factory
   },
 
   /** Apples (Choose One, second option) — bank a buff for the NEXT tavern roll: it's folded onto that shop's

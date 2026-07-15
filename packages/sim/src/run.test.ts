@@ -507,14 +507,14 @@ describe('run loop (@game/sim)', () => {
       ],
     };
     s = reduce(s, { type: 'play', uid: 'sq' });
-    expect(s.squirlScoutBuff).toBe(3); // first Scout → grant size 3
-    // 3 Beasts owned (2 Pennycats + the Scout) × +3/+3 = +9/+9 total, spread across the board.
+    expect(s.squirlScoutBuff).toBe(1); // first Scout → grant size 1
+    // 3 Beasts owned (2 Pennycats + the Scout) × +1/+1 = +3/+3 total, spread across the board.
     const baseAtk = 1 + 1 + 3; // the three Beasts' base Attack
-    expect(s.board.reduce((n, c) => n + c.attack, 0)).toBe(baseAtk + 9);
-    expect(s.board.reduce((n, c) => n + c.health, 0)).toBe(baseAtk + 9);
-    // A second Scout raises the run-wide grant to 6.
+    expect(s.board.reduce((n, c) => n + c.attack, 0)).toBe(baseAtk + 3);
+    expect(s.board.reduce((n, c) => n + c.health, 0)).toBe(baseAtk + 3);
+    // A second Scout raises the run-wide grant to 2.
     s = reduce(s, { type: 'play', uid: 'sq2' });
-    expect(s.squirlScoutBuff).toBe(6);
+    expect(s.squirlScoutBuff).toBe(2);
   });
 
   it('buying an Undead/Beast bakes the run-wide Attack aura exactly once (no double-count)', () => {
@@ -683,11 +683,11 @@ describe('run loop (@game/sim)', () => {
     expect(s.spellsCast).toBe(8); // 5 (run) + 3 (cast in combat) — permanent, so Guel keeps improving
   });
 
-  it('Tara ascends to Taragosa once granted stats 20 times in combat (at settle), keeping its stats', () => {
+  it('Tara ascends to Taragosa once granted stats 15 times in combat (at settle), keeping its stats', () => {
     let s: RunState = {
       ...createRun(1), phase: 'combat',
       board: [{ uid: 't', cardId: 'tara', tribe: 'dragon', attack: 9, health: 9, keywords: ['EG'], golden: false }],
-      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerAscendCount: [{ sourceUid: 't', count: 20 }] },
+      lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, playerAscendCount: [{ sourceUid: 't', count: 15 }] },
     };
     s = reduce(s, { type: 'resolveCombat' });
     const t = s.board.find((c) => c.uid === 't');
@@ -695,7 +695,7 @@ describe('run loop (@game/sim)', () => {
     expect([t?.attack, t?.health]).toEqual([9, 9]); // …keeping its accumulated stats
   });
 
-  it('Tara banks ascend progress across combats — under 20 it stays Tara', () => {
+  it('Tara banks ascend progress across combats — under 15 it stays Tara', () => {
     let s: RunState = {
       ...createRun(1), phase: 'combat',
       board: [{ uid: 't', cardId: 'tara', tribe: 'dragon', attack: 3, health: 3, keywords: ['EG'], golden: false }],
@@ -5704,11 +5704,11 @@ describe('quest fixes: recruit-summoned Imp buff + triple-on-quest-grant', () =>
   it('completing a quest that grants your 3rd copy triples it into a golden', () => {
     let s: RunState = {
       ...createRun(1), tier: 6, phase: 'recruit',
-      activeQuests: [{ questId: 'q_dark_bargain', progress: 4, completed: false }], // sell 5 → Get a Contract Imp
+      activeQuests: [{ questId: 'q_dark_bargain', progress: 7, completed: false }], // sell 8 → Get a Contract Imp
       board: [mk('sellme', 'pack')],
       hand: [mk('h1', 'contractimp'), mk('h2', 'contractimp')], // two copies already held
     };
-    s = reduce(s, { type: 'sell', uid: 'sellme' }); // 5th sell → fires (repeatable) → grants the 3rd Contract Imp → triple
+    s = reduce(s, { type: 'sell', uid: 'sellme' }); // 8th sell → fires (repeatable) → grants the 3rd Contract Imp → triple
     expect(s.activeQuests![0]!.progress).toBe(0); // repeatable re-arm (Dark Bargain), not completed
     const copies = [...s.board, ...s.hand].filter((c) => c.cardId === 'contractimp');
     expect(copies.length).toBe(1); // three combined into one

@@ -150,7 +150,7 @@ export const BEASTS: CardDef[] = [
     health: 6,
     keywords: [],
     effects: [{ on: 'spellCast', do: 'spellCastTransform', params: { at: 10, into: 'spiritworgen' } }],
-    text: 'Cast **10 spells** with this on board to transform into **Spirit Worgen**.',
+    text: 'Cast **10 spells** to ascend.',
   },
   {
     // The transform target — obtained only via Spirit Pup, so `token: true` keeps it out of the shop
@@ -362,9 +362,9 @@ export const BEASTS: CardDef[] = [
     attack: 3,
     health: 3,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryScoutSpread', params: { step: 3 } }],
-    text: '**Battlecry:** Give a friendly minion **+3/+3**. Repeat for every Beast you own. Every Squirl Scout played improves this by **+3/+3**.',
-    goldenText: '**Battlecry:** Give a friendly minion **+6/+6**. Repeat for every Beast you own. Every Squirl Scout played improves this by **+6/+6**.',
+    effects: [{ on: 'onPlay', do: 'battlecryScoutSpread', params: { step: 1 } }],
+    text: '**Battlecry:** Give a friendly minion **+1/+1**. Repeat for every Beast you own. Every Squirl Scout played improves this by **+1/+1**.',
+    goldenText: '**Battlecry:** Give a friendly minion **+2/+2**. Repeat for every Beast you own. Every Squirl Scout played improves this by **+2/+2**.',
   },
   {
     // Rally splash: on its OWN attack, Philippe also deals its Attack to a RANDOM enemy (golden: +2 more) — a

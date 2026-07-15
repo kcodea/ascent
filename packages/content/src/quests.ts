@@ -41,7 +41,7 @@ export const QUEST_DEFS: QuestDef[] = [
   // Consumed; `summonImp` counts Imps summoned (combat + recruit).
   { id: 'q_imp_census', name: 'Imp Census', tribe: 'demon', tier: 'lesser', objective: { event: 'summonImp', count: 4 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomTribe: 'demon', randomCount: 1 }, { kind: 'impAura', attack: 1, health: 1 }] }, repeatable: true },
   { id: 'q_small_offering', name: 'Small Offering', tribe: 'demon', tier: 'lesser', objective: { event: 'consumeFodder', count: 3 }, reward: { kind: 'fodderReward', fodder: 1, attack: 1, health: 1 }, repeatable: true },
-  { id: 'q_dark_bargain', name: 'Dark Bargain', tribe: 'demon', tier: 'lesser', objective: { event: 'sell', count: 5 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['contractimp'] }, { kind: 'fodderReward', fodder: 1 }] }, repeatable: true },
+  { id: 'q_dark_bargain', name: 'Dark Bargain', tribe: 'demon', tier: 'lesser', objective: { event: 'sell', count: 8 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['contractimp'] }, { kind: 'fodderReward', fodder: 1 }] }, repeatable: true },
   // NEUTRAL — the always-offered, build-agnostic slot: keyword-triggered quests (Shout / Echo / Rally) reassigned
   // from their tribes since they help ANY build with that keyword.
   { id: 'q_warm_embers', name: 'Warm Embers', tribe: 'neutral', tier: 'lesser', objective: { event: 'buy', count: 3, filter: 'shout' }, reward: { kind: 'shoutRepeat', scope: 'firstEachRound' } },

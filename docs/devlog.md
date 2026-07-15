@@ -21,7 +21,7 @@ Two owner-requested balance-report tweaks.
 
 Verified: typecheck + lint green; telemetry aggregation tests pass. (The curve overlay renders only when uploaded
 run data exists, so it's verified by construction here — same x/y projection as the existing lines.)
-=======
+
 ### feat(ui): bake the tuned HUD layout as the new default + move the hero power onto the board
 
 Two owner-directed layout changes.

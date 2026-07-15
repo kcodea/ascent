@@ -29,7 +29,8 @@ export function QuestBadges() {
         const rune = RUNE_INDEX[id]!;
         const art = runeArt(rune.id);
         return (
-          <div className={`questbadge runebadge${triggered.includes(id) ? ' triggered' : ''}`} key={id}>
+          <div className="questbadge runebadge" key={id}>
+            {(triggered[id] ?? 0) > 0 && <span className="questbadge-pulse" key={triggered[id]} aria-hidden />}
             {art
               ? <img className="questbadge-art" src={art} alt="" aria-hidden />
               : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
@@ -66,7 +67,8 @@ export function QuestBadges() {
         };
         const liveTxt = questRewardLiveText(r, live);
         return (
-          <div className={`questbadge${ongoing ? ' ongoing' : ''}${triggered.includes(aq.questId) ? ' triggered' : ''}`} style={{ '--c': c } as CSSProperties} key={aq.questId}>
+          <div className={`questbadge${ongoing ? ' ongoing' : ''}`} style={{ '--c': c } as CSSProperties} key={aq.questId}>
+            {(triggered[aq.questId] ?? 0) > 0 && <span className="questbadge-pulse" key={triggered[aq.questId]} aria-hidden />}
             {art ? (
               <img className="questbadge-art" src={art} alt="" aria-hidden />
             ) : (

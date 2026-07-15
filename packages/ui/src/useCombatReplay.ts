@@ -1081,15 +1081,15 @@ export function useCombatReplay(
   // `flag` resolves to its badge id (via content). The node glows the moment its trigger is REPLAYED (up-to-the-
   // beat, like questDelta), so the player sees e.g. The Bone Throne's Avenge actually go off. Cosmetic only.
   const triggeredQuests = useMemo(() => {
-    if (processedEnd <= 0) return [] as string[];
+    const counts: Record<string, number> = {};
+    if (processedEnd <= 0) return counts;
     const curStep = events[processedEnd - 1]?.step ?? Infinity;
-    const ids = new Set<string>();
     for (const e of events) {
       if (e.type !== 'questTrigger' || e.side !== 'player' || (e.step ?? 0) > curStep) continue;
       const id = badgeIdForCombatFlag(e.flag);
-      if (id) ids.add(id);
+      if (id) counts[id] = (counts[id] ?? 0) + 1; // how many times it has fired so far — a fresh one-shot pulse per bump
     }
-    return [...ids];
+    return counts;
   }, [events, processedEnd]);
 
   // Death reflow is CSS-driven (see `.unit.dying` / `.unit.summoned` in styles.css): the dying unit

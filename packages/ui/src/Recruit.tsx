@@ -719,7 +719,7 @@ export function Recruit() {
   }, [inCombat, run.combatSettled, replay.questDelta, setCombatQuestDelta]);
   // Pulse the completed-quest / owned-rune badges as their combat effects fire during the replay (empty otherwise).
   useEffect(() => {
-    setCombatTriggeredQuests(inCombat && !run.combatSettled ? replay.triggeredQuests : []);
+    setCombatTriggeredQuests(inCombat && !run.combatSettled ? replay.triggeredQuests : {});
   }, [inCombat, run.combatSettled, replay.triggeredQuests, setCombatTriggeredQuests]);
   // Bridge this fight's live run-buff gains (spell power, max Gold) to the store so the Buffs window ticks up
   // in sync with the replay. Cleared to `null` once combat is SETTLED — settleCombat folds the gains into the

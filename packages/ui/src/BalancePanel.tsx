@@ -227,6 +227,20 @@ function ShopCurveChart({ curve }: { curve: ShopCurve }) {
         <text x={padL + plotW / 2} y={H - 6} className="balchart-axt" textAnchor="middle">Wave</text>
         <path d={path(lost)} className="balchart-line lost" fill="none" />
         <path d={path(won)} className="balchart-line won" fill="none" />
+        {/* Per-wave data points + the average tavern tier reached on each — a dot at every wave with its value
+            (won labelled above the point, lost below, so the two don't collide). */}
+        {([['won', won, -9] as const, ['lost', lost, 17] as const]).map(([cls, series, dy]) =>
+          Array.from({ length: maxWave }, (_, i) => i + 1).map((w) => {
+            const v = series[w];
+            if (v == null) return null;
+            return (
+              <g key={`pt-${cls}-${w}`}>
+                <circle cx={x(w)} cy={y(v)} r={3.4} className={`balchart-dot ${cls}`} />
+                <text x={x(w)} y={y(v) + dy} className={`balchart-ptl ${cls}`} textAnchor="middle">{v.toFixed(1)}</text>
+              </g>
+            );
+          }),
+        )}
       </svg>
       <div className="balchart-legend">
         <span className="balchart-key won">Won runs ({wonRuns})</span>

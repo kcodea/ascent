@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(balance report): quest "turns to complete" + per-wave avg-tier points on the shop curve
+
+Two owner-requested balance-report tweaks.
+
+- **Quest "Avg Turns" now measures turns TO complete, not the turn completed on.** `reconstructRunTelemetry` now
+  records each quest's first-active wave (`questStart`) and stores `completionWave − firstActiveWave` in
+  `questTurns` (was the absolute completion wave). The "Avg Turns" column label already fit; only its meaning
+  changed. Aggregation is untouched (it just averages `questTurns`). NOTE: historical uploaded rows carry the old
+  completion-wave semantics, so the average re-baselines as new runs come in.
+- **Shop curve shows a data point per wave with its average tavern tier.** `ShopCurveChart` now draws a dot at
+  every wave on both the won + lost curves, labelled with the average tier reached (1-dp) — won above the point,
+  lost below, so they don't collide. New `.balchart-dot` / `.balchart-ptl` styles (matching the won/lost greens
+  and pinks, with a dark stroke halo for legibility over the gridlines).
+
+Verified: typecheck + lint green; telemetry aggregation tests pass. (The curve overlay renders only when uploaded
+run data exists, so it's verified by construction here — same x/y projection as the existing lines.)
+
 ### feat(ui): bake the tuned HUD layout as the new default + move the hero power onto the board
 
 Two owner-directed layout changes.

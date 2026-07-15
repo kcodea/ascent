@@ -3,6 +3,30 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-15
+
+### chore: remove the Combo / Primer mechanic
+
+Owner's call — pull the Primer→Combo system entirely. A `primer` card armed a bonus that a `combo` card fired if
+played immediately after (tracked via `comboArmed` in the reducer, reset each turn). Removed end to end:
+
+- **Core:** dropped `CardDef.primer` + `CardDef.combo`; removed the now-orphan effect names `scGrantRightTaunt`,
+  `castSpellById`, `buffAllByImpAura` from the `EffectName` union + their factory/recruit implementations.
+- **Content:** stripped `combo`/`primer` (and the "**Combo:**/**Primer.**" text tails) from all 11 cards. The 8
+  **combo** cards keep their base effect (Godfodder → plain Choose One, Chef Raag → Echo, Sporebat/Runic Beetle/
+  Buddy Buddy/Black Belt Brian/Cinderwing Matron → their base Shout/Echo/Discover, Spark Capacitor → Avenge). Of
+  the 3 **primers**: Graverobber keeps its destroy-for-spell Battlecry; **Gold Pouch** becomes a plain "Gain 1
+  Gold" spell; **Combo Kim** was deleted outright (per owner) along with its `scGrantRightTaunt` SoC effect.
+- **Sim:** removed `RunState.comboArmed`, the reducer's arm/capture/fire logic + the combo `chooseBoth` payoff, the
+  targeted `bothOptions` path in `battlecryTarget` (and the `bothOptions` field on `pendingTarget`), and the
+  turn-start reset. Verified Combo Kim wasn't in the generated `opponentPool.data.ts` (no regen needed).
+- **UI:** removed the `comboReady` prop (Card.tsx) + its computation (Recruit.tsx) + the `.comboready` orange glow.
+- **Tests:** replaced the `Combo / Primer` describe block with an `ex-combo` block that keeps the still-valid base
+  behaviour (Godfodder/Runic Beetle prompt a normal Choose One; Black Belt Brian Discovers only a spell); fixed the
+  Gold Pouch display-text assertion.
+
+Verified: `typecheck` + `lint` + **1046 tests** + `build:web` all green.
+
 ## 2026-07-14 (session 41)
 
 ### feat(ui): Reborn moved from Pixi wisp to a CSS ethereal AQUA-GREEN aura + hex shards on shield break

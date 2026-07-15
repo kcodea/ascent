@@ -56,23 +56,8 @@ export const NEUTRAL: CardDef[] = [
     health: 3,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryGainRandomMinion', params: { tier: 1 } }],
-    combo: { effects: [{ on: 'onPlay', do: 'deathrattleGrantRandomSpell', params: { exactTier: 1 } }] },
-    text: '**Shout:** get a random **Tier 1** minion. **Combo:** also get a random **Tier 1** spell.',
-    goldenText: '**Shout:** get **two** random **Tier 1** minions. **Combo:** also get a random **Tier 1** spell.',
-  },
-  {
-    // A cheap Primer body: playing it arms a Combo for your next card, and at Start of Combat it hands the
-    // minion on its right a Taunt (a defensive nudge for a go-wide board).
-    id: 'combokim',
-    name: 'Combo Kim',
-    tribe: 'neutral',
-    tier: 2,
-    attack: 2,
-    health: 4,
-    keywords: ['SC'],
-    primer: true,
-    effects: [{ on: 'startOfCombat', do: 'scGrantRightTaunt' }],
-    text: '**Primer. Start of Combat:** give the minion to the right of this **Taunt**.',
+    text: '**Shout:** get a random **Tier 1** minion.',
+    goldenText: '**Shout:** get **two** random **Tier 1** minions.',
   },
   {
     // Spell payoff. Each tavern spell you cast pumps three *other* friends (the triple-reward Discover
@@ -244,11 +229,8 @@ export const NEUTRAL: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryDiscoverSpell' }],
-    // Combo: ALSO Discover a minion — queued after the spell Discover(s) (the combo effect runs after playCard's
-    // Battlecry, and queueDiscover appends behind the already-open spell Discover). Golden Discovers 2 minions.
-    combo: { effects: [{ on: 'onPlay', do: 'battlecryDiscoverMinion' }] },
-    text: '**Battlecry:** Discover a spell. **Combo:** Discover a minion too.',
-    goldenText: '**Battlecry:** Discover **2** spells. **Combo:** Discover **2** minions too.',
+    text: '**Battlecry:** Discover a spell.',
+    goldenText: '**Battlecry:** Discover **2** spells.',
   },
   {
     id: 'jenkins',

@@ -90,7 +90,7 @@ describe('questText — rewards', () => {
     expect(questRewardText({ kind: 'grant', grantGolden: ['packleader'] })).toBe('Get a Golden Pack Leader');
   });
   it('baneDemonAura states the Demon widen', () => {
-    expect(questRewardText({ kind: 'baneDemonAura', attack: 2, health: 2 })).toBe("Your Banes' Battlecry payoff also gives your Demons +2/+2");
+    expect(questRewardText({ kind: 'baneDemonAura', attack: 2, health: 2 })).toBe("Your Banes' Shout payoff also gives your Demons +2/+2");
   });
 });
 

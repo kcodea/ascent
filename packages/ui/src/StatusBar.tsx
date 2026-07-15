@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { renameTerms } from './terms';
 import { getHero, spellAmplifyBonus } from '@game/sim';
 import { heroArt, heroPowerArt } from './art';
 import { Icon } from './Icon';
@@ -155,7 +156,7 @@ export function StatusBar() {
               type="button"
               className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}`}
               disabled={isPassive || (!canHero && !heroArmed)}
-              aria-label={`${power.name} — ${power.text}`}
+              aria-label={`${power.name} — ${renameTerms(power.text)}`}
               onPointerDown={(e) => {
                 // B1: arm on PRESS, not click — so a press-drag-release onto a minion is one continuous
                 // gesture (like dragging a card). A quick tap without dragging just arms it, preserving the
@@ -174,7 +175,7 @@ export function StatusBar() {
           </div>
           <div className="hplabel">{isPassive ? 'Passive' : power.name}</div>
           <div className="herotip" role="tooltip">
-            <b>{power.name}</b> — {power.text}
+            <b>{power.name}</b> — {renameTerms(power.text)}
             {powerNote}
           </div>
         </div>

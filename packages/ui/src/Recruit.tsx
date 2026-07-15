@@ -187,7 +187,7 @@ function tokenRefView(
 }
 
 interface ShopViewOpts {
-  /** "Freedom" anomaly: the first minion this turn is free → every minion offer shows a 0-Gold price until one is bought. */
+  /** "Freedom" rift: the first minion this turn is free → every minion offer shows a 0-Gold price until one is bought. */
   freeFirstBuy?: boolean;
   spellCostMod?: number;
   cardBuffs?: Record<string, { attack: number; health: number }>;
@@ -317,7 +317,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     goldenText: lt.goldenText ?? c.goldenText,
     buffs: offerBuffs.length > 0 ? offerBuffs : undefined,
     // Moe's guaranteed Attachment carries a discounted price (`card.cost`) — show it on a green coin.
-    // Freedom anomaly: a minion offer reads FREE (0 Gold, green) until the turn's free buy is spent.
+    // Freedom rift: a minion offer reads FREE (0 Gold, green) until the turn's free buy is spent.
     cost: opts.freeFirstBuy ? 0 : (card.cost ?? CONFIG.minionCost), costChanged: opts.freeFirstBuy || card.cost !== undefined,
     tier: c.tier, golden: card.golden,
     baseAttack: c.attack * goldMul, baseHealth: c.health * goldMul,
@@ -1191,8 +1191,8 @@ export function Recruit() {
   const shopViews = useMemo(
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
-    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.anomaly === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, castMult: CARD_INDEX[o.cardId]?.spell ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const)),
-    [run.shop, run.anomaly, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellMult, run.goldSpentThisTurn, run.playedThisTurn, run.squirlScoutBuff],
+    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, castMult: CARD_INDEX[o.cardId]?.spell ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const)),
+    [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellMult, run.goldSpentThisTurn, run.playedThisTurn, run.squirlScoutBuff],
   );
   const spellView = useMemo(
     () => (run.spell ? shopView(run.spell, { spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, castMult: CARD_INDEX[run.spell.cardId]?.spell ? spellCastCount(run, CARD_INDEX[run.spell.cardId]!) : undefined }) : null),

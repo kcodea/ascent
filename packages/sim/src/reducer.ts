@@ -411,8 +411,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         checkTriples(s); // a restored copy can still complete a triple
         return s;
       }
-      // "Freedom" anomaly: the FIRST minion bought each turn is free (overrides every price source below).
-      const freeBuy = s.anomaly === 'freedom' && !s.freeBuyUsedThisTurn;
+      // "Freedom" rift: the FIRST minion bought each turn is free (overrides every price source below).
+      const freeBuy = s.rift === 'freedom' && !s.freeBuyUsedThisTurn;
       const buyCost = freeBuy ? 0 : (offer.cost ?? s.minionCostOverride ?? minionCostOf(s)); // Moe's set price > Merchant's Mark override > Hank/default
       if (s.embers < buyCost || s.hand.length >= CONFIG.handMax) return state;
       s.shop.splice(i, 1);
@@ -1700,7 +1700,7 @@ function advanceCombat(s: RunState): void {
   s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
   s.shoutFirstUsedThisTurn = false; // Warm Embers' "first Shout each round triggers twice" freebie resets each turn
   s.dupeUsedThisTurn = false; // Dupes: the first-buy copy is a per-turn freebie
-  s.freeBuyUsedThisTurn = false; // Freedom anomaly: the first minion each turn is free again
+  s.freeBuyUsedThisTurn = false; // Freedom rift: the first minion each turn is free again
   s.spellFirstUsedThisTurn = false; // Spell Thesis: "first spell each turn casts twice" resets each turn
   s.fodderConsumedThisTurn = { attack: 0, health: 0 }; // Abhorrent Horror's SoC window resets each wave
   for (const c of s.board) {
@@ -1732,10 +1732,11 @@ function advanceCombat(s: RunState): void {
     s.runeforgeEpic = undefined; // basic forge — set before runeforgePool so it reads the normal set
     s.runeforgeRerolled = undefined;
     s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST)));
-  } else if (s.anomaly === 'runic' && s.wave === 7) {
-    // "Runic Behavior" anomaly: EVERY (non-Runesmith) hero visits the basic Runeforge on turn 7. Queue it as a
-    // free (no hero-power charge) scheduled forge so it slots into the normal start-of-turn modal priority
-    // (behind any quest offer — e.g. Coran's turn-7 bucket — via openNextStartOfTurnModal).
+  } else if (s.rift === 'runic' && s.wave === 6) {
+    // "Runic Behavior" rift: EVERY hero visits the basic Runeforge on turn 6. Queue it as a free (no
+    // hero-power charge) scheduled forge so it slots into the normal start-of-turn modal priority (behind any
+    // quest offer, via openNextStartOfTurnModal). Turn 6 has no quest, so it opens directly. (The Runesmith
+    // still gets its own turn-7 forge on top — the rift is an extra visit, not a replacement.)
     s.pendingBasicForge = { deferred: false };
   }
   if (questOffer.length > 0) {

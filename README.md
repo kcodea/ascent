@@ -25,6 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Cadence counters count turns.** End-of-turn cards (Money Maker, Frontdrake) now show the turns left until they
+  fire — "2 Turns" ticking to "1 Turn" at end of turn — instead of an X/N bar.
 - **Real combat/UI sounds.** The synth placeholder cues are now real clips (each with its own mixer level): the
   attack wind-up, death, shield-up (gaining a Ward), triple/golden reward, the Start-of-Combat zap (reuses the
   pulse clip), and the max-Gold raise (reuses the sell clip). Also deleted two dead synth cues (`temper`, `proc`).

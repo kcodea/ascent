@@ -3301,4 +3301,10 @@ describe('questTrigger events (badge-pulse markers)', () => {
     expect(badgeIdForCombatFlag('runeWarding')).toBe('rune_warding'); // rune combatFlag → its badge id
     expect(badgeIdForCombatFlag('nope')).toBeNull(); // unmapped → no glow
   });
+
+  it('emits a questTrigger for a Start-of-Combat rune (Rune of Warding), and Shared Circuit maps to its quest', () => {
+    const a = simMods([{ cardId: 'gnash', attack: 5, health: 8 }], [{ cardId: 'sandbag', attack: 0, health: 40 }], 1, { runeWarding: true });
+    expect(a.events.some((ev) => ev.type === 'questTrigger' && ev.flag === 'runeWarding' && ev.side === 'player')).toBe(true);
+    expect(badgeIdForCombatFlag('sharedCircuit')).toBe('q_shared_circuit'); // Shared Circuit's SoC Ward → its badge
+  });
 });

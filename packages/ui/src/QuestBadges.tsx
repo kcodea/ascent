@@ -19,7 +19,9 @@ const TRIBE_ICON: Record<Tribe, string> = { beast: 'paw', dragon: 'flame', mech:
 export function QuestBadges() {
   const run = useGame((s) => s.run);
   const triggered = useGame((s) => s.combatTriggeredQuests); // ids pulsing this replay beat
-  const done = (run.activeQuests ?? []).filter((aq) => aq.completed && QUEST_INDEX[aq.questId]);
+  // Show a badge once a quest has activated — a one-shot flips `completed`; a REPEATABLE (Hoard Spark, Imp Census,
+  // …) never does but bumps `completionCount` on each re-fire, so include those too (they pulse on every re-fire).
+  const done = (run.activeQuests ?? []).filter((aq) => (aq.completed || (aq.completionCount ?? 0) > 0) && QUEST_INDEX[aq.questId]);
   const runes = (run.ownedRunes ?? []).filter((id) => RUNE_INDEX[id]);
   if (done.length === 0 && runes.length === 0) return null;
   return (
@@ -46,6 +48,9 @@ export function QuestBadges() {
         const def = QUEST_INDEX[aq.questId]!;
         const r = def.reward;
         const art = questArt(def.id);
+        // One-shot pulse count: a recruit-phase completion / repeatable re-fire (completionCount, e.g. Hoard Spark
+        // buying its 4th Dragon) OR a combat trigger (combatTriggeredQuests, beat-synced). Keyed → fresh pulse per bump.
+        const pulse = (aq.completionCount ?? 0) + (aq.completed ? 1 : 0) + (triggered[aq.questId] ?? 0);
         const c = def.tribe === 'neutral' ? 'var(--t-neutral)' : `var(--t-${def.tribe})`;
         // The live ongoing chip, mirroring the QuestPanel: Shouts used, repeat countdown, else nothing.
         const charges = run.shoutDoubleCharges ?? 0;
@@ -68,7 +73,7 @@ export function QuestBadges() {
         const liveTxt = questRewardLiveText(r, live);
         return (
           <div className={`questbadge${ongoing ? ' ongoing' : ''}`} style={{ '--c': c } as CSSProperties} key={aq.questId}>
-            {(triggered[aq.questId] ?? 0) > 0 && <span className="questbadge-pulse" key={triggered[aq.questId]} aria-hidden />}
+            {pulse > 0 && <span className="questbadge-pulse" key={pulse} aria-hidden />}
             {art ? (
               <img className="questbadge-art" src={art} alt="" aria-hidden />
             ) : (

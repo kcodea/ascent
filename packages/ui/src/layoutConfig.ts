@@ -68,16 +68,16 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
 
   // Hero power (the board-floated power button). X/Y are px nudges off its 19%/45% base, × --scale (pinned to the
   // stage, so it doesn't drift with resolution). Glow scales the READY/ARMED blur radius.
-  { key: 'hpowS', cssVar: '--hpow-s', label: 'Scale', group: 'Hero power', min: 0.5, max: 1.8, step: 0.01, def: 1, fmt: 'mul' },
-  { key: 'hpowX', cssVar: '--hpow-x', label: 'X offset', group: 'Hero power', min: -800, max: 800, step: 1, def: 0, fmt: 'px' },
-  { key: 'hpowY', cssVar: '--hpow-y', label: 'Y offset', group: 'Hero power', min: -600, max: 600, step: 1, def: 0, fmt: 'px' },
-  { key: 'hpowGlow', cssVar: '--hpow-glow', label: 'Glow radius', group: 'Hero power', min: 0, max: 4, step: 0.05, def: 1, fmt: 'mul' },
+  { key: 'hpowS', cssVar: '--hpow-s', label: 'Scale', group: 'Hero power', min: 0.5, max: 1.8, step: 0.01, def: 1.22, fmt: 'mul' },
+  { key: 'hpowX', cssVar: '--hpow-x', label: 'X offset', group: 'Hero power', min: -800, max: 800, step: 1, def: 237, fmt: 'px' },
+  { key: 'hpowY', cssVar: '--hpow-y', label: 'Y offset', group: 'Hero power', min: -600, max: 600, step: 1, def: 46, fmt: 'px' },
+  { key: 'hpowGlow', cssVar: '--hpow-glow', label: 'Glow radius', group: 'Hero power', min: 0, max: 4, step: 0.05, def: 2.1, fmt: 'mul' },
 
   // Active-quest / rune nodes (the badge row above the hero panel). X/Y px nudges × --scale; separation = the gap.
-  { key: 'qbS', cssVar: '--qb-s', label: 'Scale', group: 'Quest nodes', min: 0.5, max: 2, step: 0.01, def: 1, fmt: 'mul' },
-  { key: 'qbX', cssVar: '--qb-x', label: 'X offset', group: 'Quest nodes', min: -400, max: 800, step: 1, def: 0, fmt: 'px' },
-  { key: 'qbY', cssVar: '--qb-y', label: 'Y offset', group: 'Quest nodes', min: -600, max: 400, step: 1, def: 0, fmt: 'px' },
-  { key: 'qbGap', cssVar: '--qb-gap', label: 'Separation', group: 'Quest nodes', min: 0, max: 30, step: 0.5, def: 6, fmt: 'mul' },
+  { key: 'qbS', cssVar: '--qb-s', label: 'Scale', group: 'Quest nodes', min: 0.5, max: 2, step: 0.01, def: 1.63, fmt: 'mul' },
+  { key: 'qbX', cssVar: '--qb-x', label: 'X offset', group: 'Quest nodes', min: -400, max: 800, step: 1, def: -12, fmt: 'px' },
+  { key: 'qbY', cssVar: '--qb-y', label: 'Y offset', group: 'Quest nodes', min: -600, max: 400, step: 1, def: -56, fmt: 'px' },
+  { key: 'qbGap', cssVar: '--qb-gap', label: 'Separation', group: 'Quest nodes', min: 0, max: 30, step: 0.5, def: 2, fmt: 'mul' },
 
   // The burning-rope divider. STATIC px (decoupled from --u + the old 86% board-relative width), so it no longer
   // resizes with resolution — length/thickness are absolute, X/Y nudge it off the measured board midline

@@ -938,7 +938,7 @@ export function simulate(
     if (modsFor(side).emptyGraves && !emptyGravesDone[side]) {
       emptyGravesDone[side] = true;
       const gb = cards['gravebody'];
-      if (gb) { nextStep(); summonMinion(side, gb, undefined); }
+      if (gb) { nextStep(); fireTrigger('emptyGraves', side); summonMinion(side, gb, undefined); }
     }
   }
 
@@ -1399,7 +1399,7 @@ export function simulate(
     // Rune of the Warden: if the board has room (< 7), summon a Spear Warden.
     if (rmods.runeWarden && boards[rside].length < 7) {
       const knit = cards['knit'];
-      if (knit) { nextStep(); summonMinion(rside, knit, undefined); }
+      if (knit) { nextStep(); fireTrigger('runeWarden', rside); summonMinion(rside, knit, undefined); }
     }
     // Rune of Twilight: Start-of-Combat effects trigger an ADDITIONAL time — a second SoC pass for this board.
     if (rmods.runeTwilight) {
@@ -1416,11 +1416,13 @@ export function simulate(
     if ((rmods.sharedCircuitWard ?? 0) > 0) {
       const sideMods = rmods.sharedCircuitWard!;
       let left = sideMods;
+      let sharedFired = false;
       for (const m of boards[rside]) {
         if (left <= 0) break;
         if (m.dead || m.health <= 0 || m.divineShield) continue;
         if (m.tribe !== 'mech' && m.tribe2 !== 'mech') continue;
         nextStep();
+        if (!sharedFired) { fireTrigger('sharedCircuit', rside); sharedFired = true; } // one pulse for the SoC grant
         m.divineShield = true;
         if (!m.keywords.includes('DS')) m.keywords.push('DS');
         emit({ type: 'shieldUp', target: m.uid });
@@ -1447,7 +1449,7 @@ export function simulate(
     if (rmods.runeWarding) {
       const lead = boards[rside].find((m) => !m.dead && m.health > 0 && !m.divineShield);
       if (lead) {
-        nextStep();
+        nextStep(); fireTrigger('runeWarding', rside);
         lead.divineShield = true;
         if (!lead.keywords.includes('DS')) lead.keywords.push('DS');
         emit({ type: 'shieldUp', target: lead.uid });
@@ -1456,9 +1458,11 @@ export function simulate(
     // Echoing Coop: trigger every minion's Echo once, without killing the body (Sylus doubles them). The
     // Deathrattle tally (Grim) is player-only.
     if (rmods.echoingCoop) {
+      let coopFired = false;
       for (const minion of [...boards[rside]]) {
         if (minion.dead || minion.health <= 0 || !minion.effects.some((e) => e.on === 'onDeath')) continue;
         nextStep();
+        if (!coopFired) { fireTrigger('echoingCoop', rside); coopFired = true; }
         emit({ type: 'sc', source: minion.uid, text: 'Echo' });
         if (rside === 'player') bumpDeathrattles(1);
         fireOwnDeathrattles(minion);
@@ -1466,6 +1470,7 @@ export function simulate(
     }
     // Rune of Rallying: trigger each minion's Rally (on-attack) effects once — a free rally without an attack.
     if (rmods.runeRallying) {
+      let rallyFired = false;
       for (const minion of [...boards[rside]]) {
         if (minion.dead || minion.health <= 0) continue;
         const cardRally = minion.keywords.includes('RL') && minion.effects.some((e) => e.on === 'onAttack');
@@ -1473,6 +1478,7 @@ export function simulate(
         const spellRally = (minion.rallySpellWeld ?? 0) > 0;
         if (!cardRally && !mechRally && !spellRally) continue;
         nextStep();
+        if (!rallyFired) { fireTrigger('runeRallying', rside); rallyFired = true; }
         emit({ type: 'sc', source: minion.uid, text: 'Rally' });
         if (cardRally) {
           for (const effect of minion.effects) {
@@ -1497,6 +1503,7 @@ export function simulate(
       for (const m of boards[rside]) {
         if (given >= 2) break;
         if (m.dead || m.health <= 0 || m.rebornAvailable || !isUndeadMinion(m)) continue;
+        if (given === 0) fireTrigger('runeRisingGraves', rside);
         nextStep();
         m.rebornAvailable = true;
         if (!m.keywords.includes('R')) m.keywords.push('R');
@@ -1565,7 +1572,7 @@ export function simulate(
         if (m === minion || m.dead || m.health <= 0) continue;
         if (!best || m.attack + m.maxHealth > best.attack + best.maxHealth) best = m;
       }
-      if (best) ctx.buff(best, minion.attack, minion.maxHealth, 'Passing Spears');
+      if (best) { fireTrigger('passingSpears', side); ctx.buff(best, minion.attack, minion.maxHealth, 'Passing Spears'); }
     });
   }
   // Rune of Salvage: a friendly Mech losing its Ward drops a random Attachment into your hand next shop —
@@ -1586,7 +1593,7 @@ export function simulate(
     const beasts = boards[fside].filter((m) => !m.dead && m.health > 0 && m.attack > 0 && isBeast(m));
     const targets = beasts.length <= 2 ? beasts : [beasts[0]!, beasts[beasts.length - 1]!];
     if (targets.length > 0) {
-      nextStep();
+      nextStep(); fireTrigger('runeFirstClaws', fside);
       for (const m of targets) ctx.attackNow?.(m, false);
       flushImmediateAttacks();
     }

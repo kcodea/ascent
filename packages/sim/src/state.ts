@@ -569,6 +569,9 @@ export interface RunState {
    *  Hand's first-Slaughter doubler (fed into QuestCombatMods). */
   dupeFirstBuyEachTurn?: boolean;
   dupeUsedThisTurn?: boolean;
+  /** "Freedom" anomaly: the first minion bought each turn is free — set once that freebie is spent this turn,
+   *  cleared at the start of the next turn. */
+  freeBuyUsedThisTurn?: boolean;
   spellDoubleAlways?: boolean;
   spellFirstDoubleEachTurn?: boolean;
   spellFirstUsedThisTurn?: boolean;

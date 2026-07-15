@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(sim/ui): "Freedom" anomaly patch — first minion each turn is free
+
+- **New live-ops "anomaly" toggle.** Added `CONFIG.anomaly` (`'freedom' | null`), a temporary global run
+  modifier for a bit of fun. `'freedom'` makes the **first minion bought each turn free** (0 Gold). Wired in
+  the reducer buy path: `freeBuy = anomaly === 'freedom' && !s.freeBuyUsedThisTurn` overrides every price
+  source (Moe's set price / Merchant's Mark / Hank / default), sets the new `RunState.freeBuyUsedThisTurn`
+  flag, and that flag clears in the start-of-turn reset. Spell offers (Spell Cart) and held-minion re-buys
+  return before the freebie, so it only spends on a fresh *minion* purchase.
+- **Surfaced in the UI.** The shop `shopView` shows the eligible first minion at cost 0 (memo re-derives when
+  `freeBuyUsedThisTurn` flips); hero select telegraphs **"Anomaly: Freedom"** in a glowing pill under the
+  Line; the home-screen birthday banner gains an "Enjoy a special anomaly patch to have some fun ✨" line.
+- **Tests + verification.** New `freedomAnomaly.test.ts` (first buy free → second paid → refreshes next turn →
+  off when disabled). The base economy/quest tests assert the *un-bent* game, so `vitest.setup.ts` neutralizes
+  `CONFIG.anomaly` globally and the anomaly suite opts back in around its body. typecheck + lint + full test
+  (1094) + build:web all green.
+
 ### fix(sim/ui): correct tavern buff-source names + Hoard Spark X/N badge counter + birthday banner
 
 - **Buff sources on tavern offers are now named correctly.** A tavern offer's accrued buff was a single

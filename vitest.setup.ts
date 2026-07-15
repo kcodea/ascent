@@ -16,3 +16,9 @@ if (typeof globalThis.navigator === 'undefined') {
     writable: true,
   });
 }
+
+// Disable the live-ops "anomaly" patch (CONFIG.anomaly) inside the test suite. Anomalies are a temporary
+// overlay on the base economy/rules; the deterministic economy + quest tests assert the *base* game, so we
+// neutralize it here. The dedicated anomaly test (freedomAnomaly.test.ts) opts back in around its own body.
+import { CONFIG } from './packages/sim/src/config';
+CONFIG.anomaly = null;

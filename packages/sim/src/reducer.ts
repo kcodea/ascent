@@ -411,10 +411,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         checkTriples(s); // a restored copy can still complete a triple
         return s;
       }
-      const buyCost = offer.cost ?? s.minionCostOverride ?? minionCostOf(s); // Moe's set price > Merchant's Mark override > Hank/default
+      // "Freedom" anomaly: the FIRST minion bought each turn is free (overrides every price source below).
+      const freeBuy = CONFIG.anomaly === 'freedom' && !s.freeBuyUsedThisTurn;
+      const buyCost = freeBuy ? 0 : (offer.cost ?? s.minionCostOverride ?? minionCostOf(s)); // Moe's set price > Merchant's Mark override > Hank/default
       if (s.embers < buyCost || s.hand.length >= CONFIG.handMax) return state;
       s.shop.splice(i, 1);
       spendGold(s, buyCost);
+      if (freeBuy) s.freeBuyUsedThisTurn = true;
       // Fried Circuits: each minion bought buffs every Mech OFFER remaining in the shop, escalating by step per
       // purchase (buy 1 → +step, buy 2 → +2·step, …). The buff bakes into the offer's atk/hp when it's bought.
       if (s.friedCircuitsStepAtk || s.friedCircuitsStepHp) {
@@ -1697,6 +1700,7 @@ function advanceCombat(s: RunState): void {
   s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
   s.shoutFirstUsedThisTurn = false; // Warm Embers' "first Shout each round triggers twice" freebie resets each turn
   s.dupeUsedThisTurn = false; // Dupes: the first-buy copy is a per-turn freebie
+  s.freeBuyUsedThisTurn = false; // Freedom anomaly: the first minion each turn is free again
   s.spellFirstUsedThisTurn = false; // Spell Thesis: "first spell each turn casts twice" resets each turn
   s.fodderConsumedThisTurn = { attack: 0, health: 0 }; // Abhorrent Horror's SoC window resets each wave
   for (const c of s.board) {

@@ -1,10 +1,13 @@
 import type { CSSProperties } from 'react';
 import { renameTerms } from './terms';
-import { getHero } from '@game/sim';
+import { getHero, CONFIG } from '@game/sim';
 import { heroArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
+
+/** Display names for the active-anomaly telegraph (keyed by CONFIG.anomaly). */
+const ANOMALY_NAMES: Record<string, string> = { freedom: 'Freedom' };
 
 /**
  * Pre-run hero picker. Shows whenever the store has `heroChoices` (first load + after a
@@ -40,6 +43,14 @@ export function HeroSelect() {
             <span className="hsline-rat">Rating {profile.rating}</span>
             <span className="hsline-line">Line {profile.currentLine}</span>
             <span className="hsline-note">Cover {profile.currentLine} wins · Strong {profile.currentLine + 2}+</span>
+          </div>
+        )}
+        {/* Active "anomaly" patch — a limited-time global run modifier (see CONFIG.anomaly). Telegraphed here so
+            the player knows the rules are bent before they pick. */}
+        {CONFIG.anomaly && (
+          <div className="hsanomaly" aria-label="Active anomaly patch">
+            <span className="hsanomaly-tag">Anomaly</span>
+            <span className="hsanomaly-name">{ANOMALY_NAMES[CONFIG.anomaly]}</span>
           </div>
         )}
         {/* Naming yourself now lives on the home screen (the account chip). Practice shows EVERY hero (20+), which

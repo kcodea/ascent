@@ -2548,6 +2548,10 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .hsline-rat { color: rgba(255, 255, 255, 0.6); }
 .hsline-line { padding: 3px 12px; border-radius: 999px; background: var(--acc); color: #2a1c0c; }
 .hsline-note { color: rgba(255, 255, 255, 0.5); text-transform: none; letter-spacing: 0.02em; font-weight: 700; }
+/* Anomaly-patch telegraph — a small pill under the Line, colored to read as "special / bent rules". */
+.hsanomaly { display: inline-flex; align-items: center; gap: 8px; margin: -8px 0 20px; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; }
+.hsanomaly-tag { color: rgba(198, 160, 255, 0.85); }
+.hsanomaly-name { padding: 3px 12px; border-radius: 999px; background: linear-gradient(135deg, #a06bff, #6b8bff); color: #150a26; box-shadow: 0 0 14px rgba(150, 110, 255, 0.5); }
 .hsrow { display: flex; gap: 29px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
 .herocard { width: 333px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 13px; padding: 29px 23px 23px; border-radius: 26px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
 .herocard:hover { transform: translateY(-8px); border-color: var(--acc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--acc) 40%, transparent), 0 16px 36px -12px rgba(0, 0, 0, 0.55); }

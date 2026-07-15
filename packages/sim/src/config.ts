@@ -4,6 +4,10 @@
  * the balance *truth* they're tuned toward.
  */
 export const CONFIG = {
+  // A limited-time "anomaly" patch — a global run modifier for a bit of fun. `'freedom'` = the FIRST minion you
+  // buy each turn is free. `null` disables it. Surfaced on hero select as "Anomaly: <Name>".
+  anomaly: 'freedom' as 'freedom' | null,
+
   // Economy (Embers = gold)
   startEmbers: 3,
   embersPerWave: 1,

@@ -883,11 +883,18 @@ export function useCombatReplay(
           const isRise = !!e.rise;
           const hasDR = !!CARD_INDEX[cardIds.get(impactAtk) ?? '']?.effects?.some((f) => f.on === 'onDeath');
           if (!isRise && !hasDR) continue;
+          // Capture the unit's rect NOW (it's present — we just passed the `!el` guard). In a MUTUAL kill
+          // (attacker + defender both die), the dying attacker can be dropped from the DOM before the ~0.34s
+          // pull-back's `onLanded` fires, so re-finding it there returns null and the skull/burst was LOST.
+          // Fall back to this captured rect so the FX always fire — at home when the unit survives the
+          // pull-back, at its last-known spot otherwise.
+          const capR = el.getBoundingClientRect();
+          const capRect = { cx: capR.left + capR.width / 2, cy: capR.top + capR.height / 2, w: capR.width, h: capR.height };
           runRiseReturn(el, combatSpeed, () => {
             const r = findEl(impactAtk)?.getBoundingClientRect();
-            const rect = r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : null;
+            const rect = r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : capRect;
             if (isRise) burstDeathAuras(impactAtk, rect);                       // spirit release, at home
-            if (hasDR && rect) pixiFx.deathrattle(rect.cx, rect.cy, rect.w);    // bone-skull shatter, at home
+            if (hasDR) pixiFx.deathrattle(rect.cx, rect.cy, rect.w);            // bone-skull shatter — always fires
           });
         }
       }

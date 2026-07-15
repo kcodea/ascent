@@ -90,6 +90,11 @@ export interface BoardSnapshot {
   beastsPlayed?: number; // Beasts played this recruit turn (Pack Leader)
   spellsCast?: number; // lifetime spells cast this run (enemy Umbral Energy)
   beastBuyAtk?: number; // run-wide Beast Attack aura (enemy Beast aura)
+  impAura?: { attack: number; health: number }; // run-wide Imp Aura (enemy Imp King / Brood Matron / Chef Raag summons)
+  undeadAura?: { attack: number; health: number }; // Lantern of Souls / Watcher (combat-only, applies to ALL enemy Undead)
+  undeadBuyAtk?: number; // Undead buy-time Attack slice (Deathswarmer / Forsaken Weaver / Karthus) — re-added to from-base Undead
+  magneticAura?: { attack: number; health: number }; // Attachment/Magnetic aura (Scrap Herald / Banksly) — enemy from-base Magnetics
+  fodderConsumed?: { attack: number; health: number }; // Fodder consumed this turn (enemy Abhorrent Horror's SC)
   /** The owner's assembled quest/rune COMBAT modifiers (the `questCombatMods` output) — so a served board
    *  reproduces its runes/quests at Start of Combat / on avenge / etc. Omitted when empty. */
   questMods?: QuestCombatMods;
@@ -249,6 +254,11 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(beastsPlayed ? { beastsPlayed } : {}),
     ...(s.spellsCast ? { spellsCast: s.spellsCast } : {}),
     ...(s.beastBuyAtk ? { beastBuyAtk: s.beastBuyAtk } : {}),
+    ...(s.impBuff?.attack || s.impBuff?.health ? { impAura: { attack: s.impBuff.attack, health: s.impBuff.health } } : {}),
+    ...(s.undeadAttackBonus || s.undeadHealthBonus ? { undeadAura: { attack: s.undeadAttackBonus ?? 0, health: s.undeadHealthBonus ?? 0 } } : {}),
+    ...(s.undeadBuyAtk ? { undeadBuyAtk: s.undeadBuyAtk } : {}),
+    ...(s.magneticBuyAtk || s.magneticBuyHp ? { magneticAura: { attack: s.magneticBuyAtk ?? 0, health: s.magneticBuyHp ?? 0 } } : {}),
+    ...(s.fodderConsumedThisTurn?.attack || s.fodderConsumedThisTurn?.health ? { fodderConsumed: { attack: s.fodderConsumedThisTurn.attack, health: s.fodderConsumedThisTurn.health } } : {}),
     ...(hasQmods ? { questMods: qmods } : {}),
     ...(quests.length ? { quests } : {}),
     ...(runes.length ? { runes } : {}),

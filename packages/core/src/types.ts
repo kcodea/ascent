@@ -967,6 +967,20 @@ export interface EnemyScalers {
   spellsCast?: number;
   /** The run-wide Beast Attack aura (The Old Hunt / Pack Mentality's Attack half) — for the enemy Beast aura. */
   beastBuyAtk?: number;
+  /** Imp Aura (impBuff) — so enemy Imp King / Brood Matron / Chef Raag summon correctly-sized Imps. */
+  impAtk?: number;
+  impHp?: number;
+  /** Undead Lantern aura (Lantern of Souls / Watcher) — combat-only, applies to ALL enemy Undead. */
+  undeadAtk?: number;
+  undeadHp?: number;
+  /** Undead buy-time Attack slice (Deathswarmer / Forsaken Weaver / Karthus) — re-added to from-base Undead. */
+  undeadBuyAtk?: number;
+  /** Attachment/Magnetic aura (Scrap Herald / Banksly) — so enemy from-base Magnetics get it too. */
+  magneticAtk?: number;
+  magneticHp?: number;
+  /** Fodder consumed this turn (enemy Abhorrent Horror's SC) — side-scoped so it reads the enemy's own tally. */
+  fodderConsumedAtk?: number;
+  fodderConsumedHp?: number;
 }
 
 export interface CombatResult {
@@ -1202,10 +1216,10 @@ export interface CombatContext {
    *  `CombatResult.playerSpellsCast` to permanently bump the run's `spellsCast`. The spell's actual effect
    *  (the buff/damage) is applied by the caller — this just fires the `spellCast` trigger + counts it. */
   castSpell(side: Side): void;
-  /** Abhorrent Horror: total Fodder stats consumed this turn (attack + health), passed in from RunState.
-   *  The `scGainFodderStats` factory reads these at Start of Combat. 0 if no Fodder was eaten. */
-  readonly fodderConsumedAtk: number;
-  readonly fodderConsumedHp: number;
+  /** Abhorrent Horror: total Fodder stats consumed this turn for a given side (attack + health) — the player's
+   *  live run state, or a served enemy's captured tally. `scGainFodderStats` reads its OWN side at Start of
+   *  Combat (so an enemy Horror gains the ENEMY's consumed stats, not the player's). {0,0} if none. */
+  fodderConsumedFor(side: Side): { attack: number; health: number };
   /** Karthus: permanently raise run-wide Undead buy-time attack by `amount` (player only). Carried back
    *  via CombatResult.playerUndeadBuyAtkGain, stacked into undeadBuyAtk and applied to the run board. */
   grantUndeadBuyAtk(amount: number, side: Side): void;

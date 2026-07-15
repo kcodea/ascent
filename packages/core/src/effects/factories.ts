@@ -1263,14 +1263,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
-  /** Abhorrent Horror — Start of Combat: gain +Attack/+Health equal to all Fodder consumed this turn
-   *  (passed in on the CombatContext). Golden doubles everything. Player-side only: the context's
-   *  consumed-Fodder tally is the PLAYER's run state — a captured enemy snapshot carries no tally of its
-   *  own, so an enemy Horror's SC is a no-op (not the player's numbers). */
+  /** Abhorrent Horror — Start of Combat: gain +Attack/+Health equal to all Fodder consumed this turn (read from
+   *  the CombatContext, per SIDE — the player's live run state or a served enemy's captured tally). Golden
+   *  doubles everything. An enemy Horror now gains the ENEMY's consumed stats (0 if its board ate none). */
   scGainFodderStats: (ctx, self, _params, _payload) => {
-    if (self.side !== 'player') return;
-    const atk = ctx.fodderConsumedAtk * mul(self);
-    const hp = ctx.fodderConsumedHp * mul(self);
+    const fc = ctx.fodderConsumedFor(self.side);
+    const atk = fc.attack * mul(self);
+    const hp = fc.health * mul(self);
     if (atk > 0 || hp > 0) {
       ctx.log({ type: 'sc', source: self.uid, text: `${self.name} absorbs the consumed essence` });
       ctx.buff(self, atk, hp, self.uid);

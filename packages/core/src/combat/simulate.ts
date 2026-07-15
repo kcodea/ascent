@@ -133,7 +133,7 @@ export function simulate(
   // Fixes: enemy Imps spawning at 1/1 (enemy had no aura), and a later-summoned player Imp missing an earlier buff.
   const impAura: Record<Side, { attack: number; health: number }> = {
     player: { attack: impAtkBonus, health: impHpBonus },
-    enemy: { attack: 0, health: 0 },
+    enemy: { attack: enemyScalers.impAtk ?? 0, health: enemyScalers.impHp ?? 0 },
   };
 
   // Bleed (Bloodbinder): at Start of Combat the bleeder MARKS a fixed set of enemies (chosen once, in `armBleed`);
@@ -148,7 +148,14 @@ export function simulate(
   // in-combat (enemy), re-added only to a from-base body; `attack`/`health` (Lantern) apply to all Undead.
   const undeadAura: Record<Side, { attack: number; health: number; buyAtk: number }> = {
     player: { attack: undeadAttackBonus, health: undeadHealthBonus, buyAtk: undeadBuyAtk },
-    enemy: { attack: 0, health: 0, buyAtk: 0 },
+    enemy: { attack: enemyScalers.undeadAtk ?? 0, health: enemyScalers.undeadHp ?? 0, buyAtk: enemyScalers.undeadBuyAtk ?? 0 },
+  };
+
+  // Attachment/Magnetic aura (Scrap Herald / Banksly welds), PER SIDE — a served enemy carries its own captured
+  // value, so enemy from-base Magnetics (summoned/Reborn) get it too, just like Beasts.
+  const magneticAuraFor: Record<Side, { attack: number; health: number }> = {
+    player: { attack: magneticBuyAtk, health: magneticBuyHp },
+    enemy: { attack: enemyScalers.magneticAtk ?? 0, health: enemyScalers.magneticHp ?? 0 },
   };
 
   // Each aura yields the +atk/+hp it grants a given minion (0/0 = doesn't apply). `bakedAtk` is the slice of
@@ -166,11 +173,11 @@ export function simulate(
     },
     {
       // Scrap Herald — run-wide Attachment/Magnetic aura (+atk AND +hp), all baked at buy, so it's re-added
-      // only to from-base bodies (summoned/Reborn Magnetics); starting Magnetics already carry it.
+      // only to from-base bodies (summoned/Reborn Magnetics); starting Magnetics already carry it. Per-side.
       label: 'Attachment Aura',
       grant: (m) =>
         m.keywords.includes('M')
-          ? { attack: 0, health: 0, bakedAtk: magneticBuyAtk, bakedHp: magneticBuyHp }
+          ? { attack: 0, health: 0, bakedAtk: magneticAuraFor[m.side].attack, bakedHp: magneticAuraFor[m.side].health }
           : { attack: 0, health: 0 },
     },
   ];
@@ -193,11 +200,9 @@ export function simulate(
       if (ua.health > 0) { m.health += ua.health; m.maxHealth += ua.health; }
     }
     // Beast / Attachment auras: baked into starting stats at buy time, so re-added only to a from-base body.
-    // The BEAST aura is per-side — the base is baked, but an oldHunt / Packcraft pump grows it in combat, and a
-    // served enemy carries its own captured aura — so enemy from-base Beasts get it too. The ATTACHMENT aura has
-    // no enemy-captured value / combat grant path, so it stays player-only.
+    // Both are per-side — a served enemy carries its own captured aura value (`beastAtkAuraFor` / `magneticAuraFor`),
+    // so enemy from-base Beasts / Magnetics (summons / Reborn) inherit it, just like the player's.
     for (const aura of AURAS) {
-      if (aura.label === 'Attachment Aura' && !isPlayer) continue;
       const g = aura.grant(m);
       const a = g.attack + (fromBase ? g.bakedAtk ?? 0 : 0);
       const h = g.health + (fromBase ? g.bakedHp ?? 0 : 0);
@@ -373,8 +378,9 @@ export function simulate(
     spellPowerFor: (side) => (side === 'player' ? spellPower : enemySpellPower),
     spellsThisTurnFor: (side) => (side === 'player' ? spellsThisTurn : enemySpellsThisTurn),
     beastsPlayedFor: (side) => (side === 'player' ? beastsPlayedThisTurn : enemyBeastsPlayed),
-    fodderConsumedAtk,
-    fodderConsumedHp,
+    fodderConsumedFor: (side) => (side === 'player'
+      ? { attack: fodderConsumedAtk, health: fodderConsumedHp }
+      : { attack: enemyScalers.fodderConsumedAtk ?? 0, health: enemyScalers.fodderConsumedHp ?? 0 }),
     deathrattleTally: (side) => (side === 'player' ? deathrattlesBase + playerDeathrattles : enemyDeathrattles),
     log: (event) => {
       emit(event);

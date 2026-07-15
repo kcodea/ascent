@@ -1277,6 +1277,33 @@ describe('simulate (handoff A.3)', () => {
     expect(imps.some((e) => e.type === 'summon' && e.minion.attack > 1)).toBe(true); // enemy Imps buffed now (were all 1/1)
   });
 
+  // Snapshot fidelity: a served enemy carries its RUN-WIDE auras/scalers via `enemyScalers` — so an enemy body
+  // GENERATED mid-fight (summon / Reborn) comes out correctly sized, even on the FIRST one (before any in-combat
+  // buff). These previously hard-zeroed for the enemy (or leaked the player's value).
+  it('enemy run-wide Imp Aura (from the snapshot) sizes an enemy-summoned Imp — was 1/1', () => {
+    // Enemy Brood Matron: a friend dies → it summons an Imp. With the enemy's captured Imp Aura (2/2) that Imp
+    // must arrive as a 3/3 (1/1 base + 2/2), just like the player's. `enemyScalers` is the 28th positional arg.
+    const r = simulate(
+      [{ cardId: 'omen', attack: 100, health: 1000, keywords: [] }],
+      [{ cardId: 'brood', attack: 0, health: 1000 }, { cardId: 'sandbag', attack: 0, health: 1 }],
+      makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, [], {}, false, false, 0, 0, 0, 0, {},
+      { impAtk: 2, impHp: 2 },
+    );
+    const imp = r.events.find((e) => e.type === 'summon' && e.minion.cardId === 'impscrap');
+    expect(imp?.type === 'summon' ? [imp.minion.attack, imp.minion.health] : null).toEqual([3, 3]);
+  });
+
+  it('enemy Abhorrent Horror reads the ENEMY fodder tally, not the player\'s (no leak)', () => {
+    const player = [{ cardId: 'omen', attack: 0, health: 1000, keywords: [] }];
+    const enemy = [{ cardId: 'abhorrenthorror', attack: 1, health: 1 }];
+    // Player consumed 10/10 of Fodder this turn (args 12,13). The ENEMY Horror must NOT absorb it → no big SC buff.
+    const leak = simulate(player, enemy, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 10, 10, 0, 0, 0, 0, 1, [], {}, false, false, 0, 0, 0, 0, {}, {});
+    expect(leak.events.some((e) => e.type === 'buff' && (e.attack >= 5 || e.health >= 5))).toBe(false);
+    // With the enemy's OWN captured tally (4/4), it does gain it → a +4/+4 SC buff fires.
+    const own = simulate(player, enemy, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 10, 10, 0, 0, 0, 0, 1, [], {}, false, false, 0, 0, 0, 0, {}, { fodderConsumedAtk: 4, fodderConsumedHp: 4 });
+    expect(own.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true);
+  });
+
   it('enemy Undead Aura reaches an enemy Undead Reborn (Karthus Slaughter on the enemy side)', () => {
     // Enemy Karthus (Slaughter → +3 Attack to enemy Undead, permanent aura). After it kills a player minion, an
     // enemy Undead that Reborns from base must inherit that aura — previously the aura was gated to the player.

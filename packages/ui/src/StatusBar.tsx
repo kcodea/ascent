@@ -113,14 +113,14 @@ export function StatusBar() {
 
   return (
     <div className="statusbar">
-      {/* Player name — a small white box above the hero panel (mirrors the opponent name, top-right). */}
-      {playerName && <div className="playername" title="You">{playerName}</div>}
       {/* Completed-quest trophies — a horizontal row of art circles sitting directly above the hero panel. */}
       <QuestBadges />
       <div className="statusrow">
         <div
           className={`hero${isPassive ? ' passive' : canHero ? '' : ' spent'}${heroArmed ? ' armed' : ''}${canHero && !heroArmed ? ' ready' : ''}`}
         >
+          {/* Player name — a pill eclipsing the top of the hero box (mirrors the opponent name on its frame). */}
+          {playerName && <div className="playername" title="You">{playerName}</div>}
           <div className="f">
             {heroArt(hero.id) ? (
               <img className="heroimg" src={heroArt(hero.id)} alt={hero.name} draggable={false} />

@@ -129,10 +129,10 @@ interface GameStore {
    *  combat (the panel reads only the run state's progress). */
   combatQuestDelta: CombatQuestDelta | null;
   setCombatQuestDelta: (d: CombatQuestDelta | null) => void;
-  /** Completed-quest / owned-rune badge ids whose combat effect has FIRED so far in the current replay — the
-   *  QuestBadges row pulses the matching node. Empty outside combat / before its trigger is replayed. */
-  combatTriggeredQuests: string[];
-  setCombatTriggeredQuests: (ids: string[]) => void;
+  /** Badge id → how many times its combat effect has FIRED so far in the current replay. QuestBadges plays a
+   *  one-shot pulse on the matching node each time the count bumps (keyed by the count), then it goes dormant. */
+  combatTriggeredQuests: Record<string, number>;
+  setCombatTriggeredQuests: (counts: Record<string, number>) => void;
   /** Increments on each sell — drives the gold "+1" flash on the Embers chip. */
   sellTick: number;
   /** The card being inspected (right-click) in a centred, enlarged overlay, or null. */
@@ -351,7 +351,7 @@ export const useGame = create<GameStore>((set, get) => ({
   combatEnemyDeaths: 0,
   combatBuffs: null,
   combatQuestDelta: null,
-  combatTriggeredQuests: [],
+  combatTriggeredQuests: {},
   sellTick: 0,
   inspect: null,
   // Boot into the title screen (the front door); the hero picker opens once a mode is chosen.

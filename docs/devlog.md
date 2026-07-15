@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(ui): HUD tuning batch — name pill, hero-power restyle, dev movers, one-shot quest pulse
+
+Owner UI batch.
+
+- **Player name pill eclipses the hero box** (mirrors the opponent frame): moved `.playername` inside `.hero`
+  (now `position: relative`) as an absolutely-centered pill overlapping the top edge — cream/gold to read friendly.
+- **Hero power: white box removed** — `.heropanel` is now a bare power button + a **name pill** underneath (dark
+  gold-bordered), instead of the boxed card frame. The READY/ARMED cue is the button's own glow.
+- **Dev movers** (Layout Lab): a **Hero power** group (scale / X / Y / glow radius) and a **Quest nodes** group
+  (scale / X / Y / separation). X/Y are px offsets × `--scale` so they stay pinned to the stage (resolution-
+  independent), like the other layout knobs. Hero power X/Y nudge its 19%/45% base; defaults are no-ops.
+- **Quest badge pulse is now one-shot**: instead of looping while triggered, each fire plays a single bright,
+  larger pulse then goes dormant until the NEXT trigger. `triggeredQuests` became a per-id fire COUNT; QuestBadges
+  renders a `.questbadge-pulse` element keyed by the count, so a fresh one-shot animation replays on each bump
+  (compositor-only opacity + scale; static glow — perf north star).
+
+Verified live: recruit screen renders clean (name pill eclipsing, hero power as button + pill, no console errors —
+the transient mid-edit HMR error was stale). 1064 tests green, typecheck + lint + build:web clean.
+
 ### feat: quest/rune trigger glow — badges pulse when their combat effect fires (#6/#7)
 
 Owner ask: when a completed quest / owned rune's COMBAT effect fires (their example: The Bone Throne's Avenge-4

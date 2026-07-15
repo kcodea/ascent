@@ -1617,23 +1617,33 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    Still click-through (only the hero/Embers capture, and even they go through mid-drag). */
 .statusbar { position: fixed; bottom: calc(var(--bar-y) + 14px + env(safe-area-inset-bottom)); left: calc(var(--bar-x) + 16px + env(safe-area-inset-left)); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
 /* Player name — a small white box above the hero panel; black text (mirrors the opponent name up top). */
-.statusbar .playername { align-self: flex-start; margin-left: calc(5 * var(--u)); background: #fff; color: var(--ink); border: 2px solid var(--gold); border-radius: calc(10 * var(--u)); padding: calc(3 * var(--u)) calc(13 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; max-width: calc(260 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow); }
+/* Player name — a pill eclipsing the TOP edge of the hero box (mirrors the opponent's `.opp-name` on its frame):
+   absolutely centered on the top border, nudged up so it half-overlaps. Cream/gold to read as friendly (the
+   opponent's is raspberry). */
+.statusbar .hero .playername { position: absolute; top: 0; left: 50%; transform: translate(-50%, -55%); z-index: 3; max-width: calc(200 * var(--u)); padding: calc(2 * var(--u)) calc(14 * var(--u)); background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow); }
 /* stretch so the Embers chip is as tall as the (taller) hero panel */
 /* Completed-quest trophy badges — a horizontal row above the hero panel. A quest moves here from the
    QuestPanel on completion; hovering floats its live reward state. Overflow visible so the tooltip + chip
    escape the circle (the art is clipped to the circle on its own element). */
-.questbadges { align-self: flex-start; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(6 * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; }
+/* Active-quest / rune nodes — dev-movable (scale / x / y / separation), pinned to the stage via px × --scale so
+   they don't drift with resolution. `transform-origin: left center` grows the row rightward from its left anchor. */
+.questbadges { align-self: flex-start; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(var(--qb-gap, 6) * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; transform: translate(calc(var(--qb-x, 0px) * var(--scale)), calc(var(--qb-y, 0px) * var(--scale))) scale(var(--qb-s, 1)); transform-origin: left center; }
 .questbadge { position: relative; width: calc(53 * var(--u)); height: calc(53 * var(--u)); border-radius: 50%; border: 2px solid var(--c, var(--gold)); background: var(--card); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 .questbadge.ongoing { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 0 calc(2 * var(--u)) color-mix(in srgb, var(--c) 45%, transparent), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
-/* A completed quest / owned rune's COMBAT effect just fired this replay — a bright pulse so the player SEES it
-   trigger. Compositor-only: pulse the OPACITY of a ::after carrying a STATIC glow (never animate box-shadow in a
-   loop — perf north star, cf. kwglow). --c is the quest's tribe hue (runes fall back to gold). */
-.questbadge.triggered::after {
-  content: ''; position: absolute; inset: calc(-3 * var(--u)); border-radius: 50%; pointer-events: none; z-index: 3;
-  box-shadow: 0 0 calc(12 * var(--u)) calc(3 * var(--u)) var(--c, var(--gold)), 0 0 calc(5 * var(--u)) calc(1 * var(--u)) #fff;
-  animation: questpulse 0.66s ease-in-out infinite;
+/* A completed quest / owned rune's COMBAT effect just fired this replay — ONE bright, larger pulse, then dormant
+   until the NEXT trigger (the element is re-keyed by the fire count in QuestBadges, so a fresh pulse plays each
+   time). Compositor-only: a single-iteration opacity + transform animation (never a looping box-shadow — perf
+   north star, cf. kwglow). Static glow; only opacity/scale animate. --c is the quest's tribe hue (rune → gold). */
+.questbadge-pulse {
+  position: absolute; inset: calc(-3 * var(--u)); border-radius: 50%; pointer-events: none; z-index: 3; opacity: 0;
+  box-shadow: 0 0 calc(15 * var(--u)) calc(4 * var(--u)) var(--c, var(--gold)), 0 0 calc(6 * var(--u)) calc(2 * var(--u)) #fff;
+  animation: questpulse 0.72s ease-out 1;
 }
-@keyframes questpulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+@keyframes questpulse {
+  0% { opacity: 0; transform: scale(0.85); }
+  28% { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 0; transform: scale(1); }
+}
 .questbadge-art { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
 .questbadge-emblem { display: flex; color: var(--c); }
 .questbadge-emblem svg { width: calc(28 * var(--u)); height: calc(28 * var(--u)); }
@@ -1677,6 +1687,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
    the four cells; the fixed width wraps the power line to a second row (which is where the added height comes
    from). */
 .statusbar .hero {
+  position: relative; /* anchor for the name pill eclipsing the top edge */
   display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; justify-items: start;
   width: calc(232 * var(--u)); gap: calc(6 * var(--u)) calc(13 * var(--u));
   padding: calc(9 * var(--u)) calc(15 * var(--u)); border-radius: calc(21 * var(--u));
@@ -1695,27 +1706,34 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Hero-power box — a standalone card to the RIGHT of the hero frame (a `.statusrow` flex sibling), stretched to
    the hero's height. Sized up so an active power is an obvious button; the whole box glows when usable. */
 .statusbar .heropanel {
-  /* Pulled OUT of the bottom-left hero row and floated onto the board's mid-left (on the rope line), so the
-     power reads as a board action, not a corner button. Tunable via --hpow-x/--hpow-y; centered on that point.
-     The hero portrait + Resolve stay in the bottom-left statusrow. Aim-line anchor (.heropowerbtn) is unaffected
-     (still queried inside .statusbar). */
-  position: fixed; left: var(--hpow-x, 19%); top: var(--hpow-y, 45%); transform: translate(-50%, -50%);
+  /* Floated onto the board's mid-left (on the rope line) — the power reads as a board action, NOT a boxed corner
+     button, so there's no panel background/border: just the round power button + a name pill. Base position is
+     19%/45%; the dev mover nudges it via px offsets × --scale (pinned to the stage, resolution-independent) and
+     scales the whole thing via --hpow-s. The hero portrait + Resolve stay in the bottom-left statusrow; the
+     aim-line anchor (.heropowerbtn) is unaffected (still queried inside .statusbar). */
+  position: fixed;
+  left: calc(19% + var(--hpow-x, 0px) * var(--scale)); top: calc(45% + var(--hpow-y, 0px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--hpow-s, 1));
   align-self: auto; pointer-events: auto; z-index: 41;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u));
-  background: var(--card); border: 2px solid var(--line); border-radius: calc(18 * var(--u));
-  padding: calc(9 * var(--u)) calc(15 * var(--u));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 6px rgba(0, 0, 0, 0.14);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(7 * var(--u));
 }
 body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-reaching hand drop through */
-.statusbar .heropanel.ready { border-color: var(--acc); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 0 2px color-mix(in srgb, var(--acc) 55%, transparent), 0 0 22px -4px var(--acc); }
-.statusbar .heropanel.armed { border-color: var(--acc-dk); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 0 3px var(--acc), 0 0 24px 0 var(--acc); }
 .statusbar .heropanel.passive { opacity: 0.9; }
+/* The READY / ARMED cue is the button's own glow — its blur radius is dev-tunable via --hpow-glow. */
+.statusbar .heropanel.ready .heropowerbtn { box-shadow: 0 0 0 3px var(--acc), 0 4px 0 var(--acc-dk), 0 0 calc(18px * var(--hpow-glow, 1)) -2px var(--acc); }
+.statusbar .heropanel.armed .heropowerbtn { box-shadow: 0 0 0 4px var(--acc), 0 0 calc(22px * var(--hpow-glow, 1)) 2px var(--acc); }
 .statusbar .heropanel .hpwrap { margin-left: 0; }
 .statusbar .heropanel .heropowerbtn { width: calc(82 * var(--u)); height: calc(82 * var(--u)); }
 .statusbar .heropanel .heropowerbtn svg { width: calc(40 * var(--u)); height: calc(40 * var(--u)); }
-/* The power name under the button — dims for a passive, brightens to the accent when the power is usable. */
-.statusbar .hplabel { font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.02em; color: var(--ink2); text-align: center; max-width: calc(104 * var(--u)); line-height: 1.15; }
-.statusbar .heropanel.ready .hplabel { color: var(--acc-dk); }
+/* The power name in a dark pill under the button (replaces the old white panel box) — brightens when usable. */
+.statusbar .hplabel {
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.02em;
+  color: #f4ecdb; text-align: center; line-height: 1.05; white-space: nowrap;
+  background: linear-gradient(180deg, #211812, #16100b); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
+  border-radius: calc(11 * var(--u)); padding: calc(3 * var(--u)) calc(12 * var(--u));
+  box-shadow: 0 calc(3 * var(--u)) calc(9 * var(--u)) -3px rgba(0, 0, 0, 0.6);
+}
+.statusbar .heropanel.ready .hplabel { color: #fff; border-color: var(--acc); }
 /* Embers chip scaled to fill the (hero-tall) chip */
 .statusbar .chip { padding: calc(11 * var(--u)) calc(16 * var(--u)); border-radius: calc(18 * var(--u)); gap: calc(11 * var(--u)); }
 .statusbar .chip .ic { width: calc(64 * var(--u)); height: calc(64 * var(--u)); border-radius: calc(16 * var(--u)); }

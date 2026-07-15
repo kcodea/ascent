@@ -482,6 +482,13 @@ export const sfx = {
     tone({ freq: 1400, dur: 0.14, type: 'triangle', vol: 0.07, delay: 0.02, slideTo: 500, category: 'skullburst' });
   },
   tick: () => tone({ freq: 1040, dur: 0.045, type: 'square', vol: 0.09, category: 'ui' }),
+  // The end-of-turn CHARGE GLYPH starts charging (20s left, or turn start on short early waves) — fires once per
+  // turn when the glyph lights. The sourced "turncharge" clip; synth rising-hum fallback until it decodes / if
+  // absent. Drop the clip at `packages/ui/src/audio/turncharge.mp3`.
+  turnCharge: () => {
+    if (playSample('turncharge', 'turncharge')) return;
+    tone({ freq: 150, dur: 0.7, type: 'sawtooth', vol: 0.1, slideTo: 480, category: 'turncharge' });
+  },
   // End Turn → Face the Omen — the sourced "combatStart" clip; synth low sawtooth down-slide fallback.
   combatStart: () => {
     if (playSample('combatStart', 'combatStart')) return;

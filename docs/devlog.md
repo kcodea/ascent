@@ -5,6 +5,40 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(ui): charge-glyph — live in-game tuner + charge-start SFX (retire the 5s ticks)
+
+**What:** two additions on top of the charge-glyph swap (below): a **live in-game tuner** for the effect at true
+game scale, and a **charge-start sound** that fires when the glyph begins charging (replacing the last-5s tick
+beeps).
+
+**Live tuner (`ChargeGlyphTuner`, in DevMenu → "⚡ Charge Glyph"):**
+- The standalone `fx/turn-glyph-preview.html` renders the board at a fixed size, so its scale ≠ the live game
+  (glow radii etc. read differently). This panel tunes the effect **on the real glyph at real scale**.
+- The `.chargeglyph` look was refactored to ride `--cg-*` CSS vars (colours/gradient/glow/pulse/core/base) with
+  the **baked values as fallbacks** — behaviour-preserving; production with no tuner is unchanged. The panel
+  composes those vars from colour pickers + sliders and writes an override `<style id="chargeglyphtuner">` (bumped
+  selector), so every knob updates the real glyph live. "Copy CSS" emits paste-ready values to bake back.
+- Since the glyph only shows in the last ~20s, a **preview block** (Show / ▶ Play 20s / charge scrubber) drives a
+  new `chargePreview` store (`chargeGlyphTune.ts`, mirrors `turnClock`) that `ChargeGlyph` honours — force-showing
+  + scrubbing the fill 0→1 on demand without waiting for a turn. The core-bloom curve (bloomAt / coreMax), which
+  isn't a CSS var, mutates the shared `chargeTune` object the component reads each frame. On panel close the
+  override + preview clear and `chargeTune` resets — shipped behaviour resumes. Placement (Size/X/Y) stays in the
+  Layout Lab "Charge Glyph" group.
+
+**Charge-start SFX:**
+- New `sfx.turnCharge()` cue (sourced `turncharge` clip via the `./audio/*.mp3` glob; synth rising-hum fallback
+  until the file lands at `packages/ui/src/audio/turncharge.mp3`) + a `turncharge` category (ui bus, gain 0.5).
+- Fires **once** when the clock ENTERS the charge window — from a `seconds`-driven effect in `ChargeGlyph` that
+  catches both the normal cross-down past the window and a fresh turn that resets already inside it (short early
+  waves where `turnSeconds ≤ 20`). Keyed on `seconds`, so a pause/resume (which freezes the clock, not `seconds`)
+  never re-fires it.
+- **Retired the last-5s tick beeps** (`sfx.tick()` in the countdown loop) per owner — the charge sound replaces
+  them. `sfx.tick` itself stays (BalancePanel still uses it).
+
+**How verified:** typecheck + lint + `build:web` + 1080 tests all green.
+
+**Follow-ups:** owner drops `turncharge.mp3`; the Pixi motes pass (soft converging fronts) still queued.
+
 ### feat(ui): replace the burning-rope turn timer with a board-native "charge glyph" (CSS mask, both-sides-in)
 
 **What:** retired the burning-rope EoT timer *visual* and replaced it with a **charging arcane glyph** that lights

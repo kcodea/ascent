@@ -194,20 +194,24 @@ canvas.spr { image-rendering: pixelated; display: block; }
 }
 /* steady charged energy — deep blue at the conduit ends → cyan → white-hot core at the sigil, so the bright core
    is revealed LAST (the climax). Pulses subtly (opacity only, compositor). */
+/* The look (colours/gradient/glow/pulse/core/feather/base) is exposed as --cg-* vars with the baked defaults as
+   fallbacks, so the dev ChargeGlyphTuner can override them LIVE at true game scale (it composes the strings + sets
+   the vars on .chargeglyph); production with no tuner uses the fallbacks. Look first tuned in
+   fx/turn-glyph-preview.html; the in-game tuner re-tunes the scale-dependent bits (glow radii). */
 .chargeglyph .charge-fill {
-  background: linear-gradient(90deg, #0a40ff 0%, #33b0ff 24%, #eafcff 50%, #33b0ff 76%, #0a40ff 100%);
-  filter: drop-shadow(0 0 20px rgba(51, 176, 255, 0.85)) drop-shadow(0 0 31px rgba(10, 64, 255, 0.6));
-  animation: chargepulse 2.5s ease-in-out infinite; mix-blend-mode: screen; will-change: opacity;
+  background: var(--cg-fill, linear-gradient(90deg, #0a40ff 0%, #33b0ff 24%, #eafcff 50%, #33b0ff 76%, #0a40ff 100%));
+  filter: var(--cg-glow, drop-shadow(0 0 20px rgba(51, 176, 255, 0.85)) drop-shadow(0 0 31px rgba(10, 64, 255, 0.6)));
+  animation: chargepulse var(--cg-pulse-s, 2.5s) ease-in-out infinite; mix-blend-mode: screen; will-change: opacity;
 }
-@keyframes chargepulse { 0%, 100% { opacity: 0.63; } 50% { opacity: 1; } }
+@keyframes chargepulse { 0%, 100% { opacity: var(--cg-pulse-min, 0.63); } 50% { opacity: 1; } }
 /* the sigil CORE bloom — a white-hot radial that swells in over the final stretch (opacity set per-frame by
-   ChargeGlyph: 0 until charge > 0.49, then eases to 1 as t*t). */
+   ChargeGlyph: 0 until charge > bloomAt, then eases to coreMax as t*t; both live-tunable via chargeGlyphTune). */
 .chargeglyph .charge-core {
-  background: radial-gradient(ellipse 55% 20% at 50% 50%, #eafcff 0%, #33b0ff 34%, transparent 62%);
-  filter: drop-shadow(0 0 20px #eafcff); mix-blend-mode: screen; opacity: 0; will-change: opacity;
+  background: var(--cg-core, radial-gradient(ellipse 55% 20% at 50% 50%, #eafcff 0%, #33b0ff 34%, transparent 62%));
+  filter: var(--cg-core-glow, drop-shadow(0 0 20px #eafcff)); mix-blend-mode: screen; opacity: 0; will-change: opacity;
 }
 /* faint always-on etch so the geometry hints before charging */
-.chargeglyph .charge-base { background: #0a40ff; opacity: 0.14; mix-blend-mode: screen; }
+.chargeglyph .charge-base { background: var(--cg-base, #0a40ff); opacity: var(--cg-base-a, 0.14); mix-blend-mode: screen; }
 
 /* Layout Lab (dev) — hand + HUD region hooks (shop + warband ride the sizing var above; see the Warband note
    for why scaling never uses a transform). The hand carries no combat units, so it can use the standalone

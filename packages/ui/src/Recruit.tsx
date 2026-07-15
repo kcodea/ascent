@@ -24,6 +24,7 @@ import { useGame } from './store';
 import { Unit } from './Unit';
 import { useCombatReplay } from './useCombatReplay';
 import { turnClock, useTurnSeconds, useTurnTimeUp } from './turnClock';
+import { chargeTune, useChargePreview } from './chargeGlyphTune';
 
 gsap.registerPlugin(Flip);
 
@@ -92,11 +93,6 @@ function ShopTimer({ label }: { label: string }) {
   );
 }
 
-// Sigil core-bloom curve — the white-hot centre stays dark until the two fronts near the middle, then swells in.
-// Kept in sync with the CSS comment on `.charge-core`. Matches the tuner's bloom-at / core-max.
-const CHARGE_BLOOM_AT = 0.49;
-const CHARGE_CORE_MAX = 1;
-
 /** The end-of-turn CHARGE GLYPH turn timer — the board's etched sigil charging with white-hot blue energy over the
  *  final `window` seconds, building from BOTH sides inward along the midline conduit and filling the centre sigil
  *  LAST, completing exactly as the clock hits 0. Anchored to the measured board midline (`--charge-y`); replaces the
@@ -111,32 +107,53 @@ const CHARGE_CORE_MAX = 1;
  *  write; the mask does the both-sides-in fill. */
 function ChargeGlyph({ inCombat, window: chargeWindow, paused }: { inCombat: boolean; window: number; paused: boolean }) {
   const seconds = Math.max(0, useTurnSeconds());
+  const preview = useChargePreview();          // dev tuner force-shows + scrubs the glyph; null in normal play
   const boxRef = useRef<HTMLDivElement>(null);
   const coreRef = useRef<HTMLDivElement>(null);
   const tickAtRef = useRef(0);
-  const lit = !inCombat && seconds <= chargeWindow;
+  const prevSecRef = useRef(0);
+  const lit = preview != null || (!inCombat && seconds <= chargeWindow);
 
   // Stamp wall-clock time whenever the integer second changes OR we resume from a pause, so the rAF interpolates
   // the sub-second fraction from the exact instant this second began — keeping the charge locked to real time.
   useEffect(() => { tickAtRef.current = performance.now(); }, [seconds, paused, lit]);
 
+  // Fire the "charge begins" cue ONCE when the clock ENTERS the window — either crossing down past it (normal
+  // turns) or a fresh turn that resets already inside it (short early waves where turnSeconds ≤ CHARGE_SECONDS).
+  // Driven off the integer `seconds` (not `lit`), so a pause/resume — which freezes the clock, not `seconds` —
+  // never re-fires it, and the short-wave case (where `lit` is true from the turn's first tick) still triggers.
+  useEffect(() => {
+    const prev = prevSecRef.current;
+    prevSecRef.current = seconds;
+    if (inCombat || seconds <= 0) return;
+    const crossedIn = prev > chargeWindow && seconds <= chargeWindow; // ticked down into the window
+    const startedIn = seconds > prev && seconds <= chargeWindow;      // turn reset jumped up into the window
+    if (crossedIn || startedIn) sfx.turnCharge();
+  }, [seconds, inCombat, chargeWindow]);
+
   useEffect(() => {
     if (!lit) return;
+    // Paint --charge + the core-bloom opacity for a fill fraction (0→1). Core stays dark until bloomAt, then eases
+    // in as t² up to coreMax (both live-tunable via chargeTune).
+    const paint = (charge: number): void => {
+      if (boxRef.current) boxRef.current.style.setProperty('--charge', charge.toFixed(4));
+      if (coreRef.current) {
+        const t = charge <= chargeTune.bloomAt ? 0 : (charge - chargeTune.bloomAt) / (1 - chargeTune.bloomAt);
+        coreRef.current.style.opacity = (t * t * chargeTune.coreMax).toFixed(3);
+      }
+    };
+    if (preview != null) { paint(preview); return; } // dev preview: pin to the forced charge (no clock)
+    // Live: a rAF interpolates WITHIN each integer second so the fill hits 1 EXACTLY as the clock reaches 0.
     let raf = 0;
     const draw = (): void => {
       const within = paused ? 0 : Math.min(1, (performance.now() - tickAtRef.current) / 1000);
       const elapsed = Math.min(chargeWindow, (chargeWindow - seconds) + within);
-      const charge = chargeWindow > 0 ? Math.max(0, Math.min(1, elapsed / chargeWindow)) : 0;
-      if (boxRef.current) boxRef.current.style.setProperty('--charge', charge.toFixed(4));
-      if (coreRef.current) {
-        const t = charge <= CHARGE_BLOOM_AT ? 0 : (charge - CHARGE_BLOOM_AT) / (1 - CHARGE_BLOOM_AT);
-        coreRef.current.style.opacity = (t * t * CHARGE_CORE_MAX).toFixed(3);
-      }
+      paint(chargeWindow > 0 ? Math.max(0, Math.min(1, elapsed / chargeWindow)) : 0);
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [lit, seconds, paused, chargeWindow]);
+  }, [lit, seconds, paused, chargeWindow, preview]);
 
   if (!lit) return null;
   return (
@@ -1702,8 +1719,7 @@ export function Recruit() {
       const cur = turnClock.get();
       if (cur <= 0) return; // at 0 the timer just stops — actions lock (except End Turn); no auto-combat
       const next = cur - 1;
-      if (next <= 5 && next > 0) sfx.tick(); // tick out the last five seconds
-      turnClock.set(next);
+      turnClock.set(next); // (the last-5s tick beeps were retired — the charge-glyph turnCharge cue replaces them)
       id = window.setTimeout(tick, 1000);
     };
     id = window.setTimeout(tick, 1000);

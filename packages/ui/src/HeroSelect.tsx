@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { renameTerms } from './terms';
 import { getHero } from '@game/sim';
 import { heroArt } from './art';
 import { Icon } from './Icon';
@@ -61,7 +62,7 @@ export function HeroSelect() {
                   {hero.armor > 0 && <span className="hcarmor" title="Starting Armor — extra effective HP on top of Resolve">+{hero.armor}</span>}
                 </div>
                 <div className="hcpw">
-                  <b>{power.name}</b> · {power.text}
+                  <b>{power.name}</b> · {renameTerms(power.text)}
                 </div>
                 {power.unlockWave && power.unlockWave > 1 && (
                   <div className="hclock">Unlocks turn {power.unlockWave}</div>

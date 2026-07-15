@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### fix: unify player-facing terminology (Codex review follow-up)
+
+The keyword rename (Battlecry→Shout, Deathrattle→Echo, Divine Shield→Ward, Reborn→Rise, Golden→Gilded, …) was
+applied ONLY to card body text (`renameTerms` in Card.tsx). Hero-power text, rune text, and Choose One options
+rendered the RAW vocabulary — so a player could see both dialects in one run (Codex [Low]).
+
+- **Centralized:** folded `renameTerms` into `mdBold` — the de-facto rich-rules-text HTML formatter that card
+  bodies, rune text, and Choose One options all render through — so the vocabulary is consistent everywhere in one
+  place (`renameTerms` is idempotent, so the card body's now-redundant explicit call was dropped, harmlessly).
+- **Hero-power text** (plain-text, not `mdBold`): wrapped `renameTerms` at its 3 render sites (HeroSelect card +
+  the StatusBar hero-power tooltip + aria-label).
+- Fixed one stale `Battlecry` string in `questRewardText` (the quest text helpers already use the new vocab).
+
+Verified live: every hero power now reads in the new vocabulary (Warden "Ward" was "Divine Shield"; Myra "Shout"
+was "Battlecry"; Gild "gilded" was "Golden") with zero old-vocab leaks. `typecheck` + `lint` + **1053 tests** +
+`build:web` green.
+
 ### tweak(ui): Avenge / Bloodbinder step counter now shows on the board (0/N), not combat-only
 
 Owner-reported not seeing the counter on an Avenge unit in play. It was gated combat-only (`avengeSeen`/`bleedAttacks`
@@ -20,7 +37,6 @@ Owner ask. Dropped the `.stepcounter` pill (background / border / border-radius 
 white "X/N" numbers with a soft drop shadow underneath, matching the resting card grounding shadow settings
 (5px down, 7.2px blur, 0.8 black). The bump animation + centered-under-frame position are unchanged. `lint` +
 `build:web` green.
-
 ### fix: repeatable quests are visible to completion telemetry (Codex review follow-up)
 
 Repeatable quests (Forest Grove, Hoard Spark, Scrap Contract, Imp Census, Small Offering, Dark Bargain) fire their

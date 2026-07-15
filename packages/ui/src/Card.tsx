@@ -44,7 +44,11 @@ const TRIBE_ICON: Record<Tribe, string> = {
   beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star',
 };
 
-export const mdBold = (s: string): string => s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+/** Render rules text to HTML: fold the player-facing keyword rename (Battlecry→Shout, …) in FIRST, then bold
+ *  `**…**`. Every rich rules-text surface (card body, rune text, Choose One options) goes through this, so the
+ *  vocabulary is consistent everywhere — not just on card bodies (`renameTerms` is idempotent, so a caller that
+ *  already renamed is harmless). */
+export const mdBold = (s: string): string => renameTerms(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 /** A {{…}} marker → a green "modified" span (e.g. Kennelmaster's Avenge-boosted buff). */
 const descUp = (s: string): string => s.replace(/\{\{(.+?)\}\}/g, '<span class="descup">$1</span>');
 /**
@@ -555,7 +559,7 @@ export const Card = memo(function Card({
         )}
         {card.text && (
           <div className="desc">
-            <span dangerouslySetInnerHTML={{ __html: descUp(mdBold(renameTerms(shownText))) }} />
+            <span dangerouslySetInnerHTML={{ __html: descUp(mdBold(shownText)) }} />
           </div>
         )}
         {!card.spell && (

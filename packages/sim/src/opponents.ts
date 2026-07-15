@@ -38,11 +38,21 @@ export const OPPONENT_POOL: BoardSnapshot[] = [];
  * untouched). Consumes `rng` only when it returns a board. `power` is retained for signature stability but no
  * longer weights the pick (selection is fully random within the chosen tier).
  */
+/** A stable identity for "the same opponent" — the board's stamped id when present (real self / friend / remote
+ *  boards), else a content-derived key (committed / synthetic boards carry no id). Two boards with the same key
+ *  are treated as the same opponent for the no-repeat rule. */
+export function oppKey(s: BoardSnapshot): string {
+  return s.id ? `id:${s.id}` : `k:${s.author ?? ''}:${s.seed}:${s.wave}:${s.power}:${s.minions.length}`;
+}
+
 export function pickOpponent(
   wave: number,
   power: number,
   rng: Rng,
   pool: BoardSnapshot[] = OPPONENT_POOL,
+  /** Identities (`oppKey`) of boards the player faced too recently to serve again (the last N rounds). Excluded
+   *  from the pick unless doing so would leave nothing to serve, in which case a repeat beats no opponent. */
+  exclude: Set<string> = new Set(),
 ): BoardSnapshot | null {
   void power; // no longer weights the pick — kept so the call signature (and the recruit preview) stays stable
   if (pool.length === 0) return null;
@@ -52,11 +62,18 @@ export function pickOpponent(
     const minDist = Math.min(...pool.map((s) => Math.abs(s.wave - wave)));
     candidates = pool.filter((s) => Math.abs(s.wave - wave) === minDist);
   }
-  // 2) Source priority: live Supabase pool → local player/friend boards → committed synthetic floor.
+  // 2) No-repeat: drop boards fought in the last few rounds (owner rule) — before source-tiering, so a fresh
+  //    lower-priority board is preferred over repeating a higher-priority one. Fall back to the full set only
+  //    when excluding would empty it (a small pool → a repeat is unavoidable).
+  if (exclude.size) {
+    const fresh = candidates.filter((s) => !exclude.has(oppKey(s)));
+    if (fresh.length) candidates = fresh;
+  }
+  // 3) Source priority: live Supabase pool → local player/friend boards → committed synthetic floor.
   const remote = candidates.filter((s) => s.remote);
   const real = candidates.filter((s) => s.origin === 'self' || s.origin === 'friend');
   const tier = remote.length ? remote : real.length ? real : candidates;
-  // 3) Fully random within the chosen tier (uniform — no similar-power bias).
+  // 4) Fully random within the chosen tier (uniform — no similar-power bias).
   return tier[rng.int(tier.length)] ?? null;
 }
 

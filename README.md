@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **No-repeat opponents.** You'll never face the same opponent board within 4 rounds — the pick excludes the
+  boards you actually fought over the last four waves (falling back to a repeat only if the pool has nothing else).
+
 - **Opponent pinning.** Each run now records the exact board it fought every wave (`RunState.servedBoards`); a
   restored/replayed run serves those pinned opponents verbatim instead of re-picking, so a rebuild stays faithful
   even if the shared pool has since changed. Groundwork for server-side replay validation. No behavior change to

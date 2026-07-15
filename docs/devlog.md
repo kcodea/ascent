@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat: no-repeat opponents (within 4 rounds) + new Forsaken Mage art
+
+**No-repeat rule** (owner) — the player never faces the same opponent within 4 rounds. Builds on the same-day
+opponent-pinning pass: `pickOpponent` gains an `exclude` set of recently-faced identities (`oppKey` — the board's
+stamped id, or a content key for id-less committed/synthetic boards), applied to the candidate list BEFORE
+source-tiering so a fresh lower-priority board wins over repeating a higher-priority one. If excluding would leave
+nothing to serve (a small pool), it falls back to a repeat — better than no opponent. `nextOpponent` builds the
+exclude set from `servedBoards[wave-1 .. wave-4]` (the boards actually fought), so it's deterministic and the recruit
+preview + the real serve still agree. Pinned replays are unaffected (they serve the recorded board directly).
+
+**Forsaken Mage art** — wired the new `ForsakenMage.png` master → `forsakenweaver.webp` (1.8MB → 38KB), replacing the
+prior art. Filename matches the card's display name; the card id is `forsakenweaver`.
+
+Verified: 2 new tests (pickOpponent excludes a recent board but repeats rather than serve nothing; nextOpponent bars
+a board fought in the last 4 rounds); full suite green (**1063**), typecheck + lint + build:web clean.
+
 ### feat(ui): bake the tuned HUD layout as the new default + move the hero power onto the board
 
 Two owner-directed layout changes.

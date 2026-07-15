@@ -3117,11 +3117,17 @@ svg { width: 18px; height: 18px; }
    only — no looped paint properties (see docs/performance.md). Keyed remount replays `stepbump` on each tick. */
 .stepcounter {
   position: absolute;
-  left: 50%;
-  bottom: -0.7rem;
+  /* size + x/y placement are live-tunable via the DEV Step Counter tuner (`stepCounterConfig.ts` → these vars);
+     the fallbacks are the shipped values. x offsets via `left` (NOT transform) so the `stepbump` keyframe's
+     `translateX(-50%)` still centres it and doesn't fight the offset. */
+  left: calc(50% + var(--sc-x, 0px));
+  bottom: var(--sc-y, -11px);
   transform: translateX(-50%);
   z-index: 3;
-  font: 700 0.72rem/1 var(--font-ui, system-ui, sans-serif);
+  font-family: var(--font-ui, system-ui, sans-serif);
+  font-weight: 700;
+  font-size: var(--sc-size, 11.5px);
+  line-height: 1;
   /* Plain white numbers (no pill). A soft drop shadow UNDERNEATH (5px down, 7.2px blur, 0.8 black — same as the
      resting card grounding shadow) PLUS a tight dark edge so the white reads on the LIGHT cream board (white-on-
      cream is near-invisible without it — that's why the counter looked missing). */

@@ -108,6 +108,15 @@ describe('questText — live reward magnitude (badge tooltip)', () => {
     expect(questRewardLiveText({ kind: 'combatFlag', flag: 'umbralEnergy' }, { spellsCast: 5 }))
       .toBe('Now: Dragons +10/+10 at Start of Combat (5 spells cast)');
   });
+  it('beastPlayBuff (Den Marker) shows the current per-play grant + countdown to the next improve', () => {
+    const r: QuestReward = { kind: 'beastPlayBuff', attack: 2, health: 2, step: 2, per: 3 };
+    // 4 Beasts played → 1 improve done (+2/+2), so the grant is +4/+4; next improve in 2 more (3 − 4%3).
+    expect(questRewardLiveText(r, { denMarkerCount: 4 }))
+      .toBe('Now: Beasts +4/+4 when played · +2/+2 in 2 more Beasts');
+    // Fresh (0 played) → base +2/+2, next in 3.
+    expect(questRewardLiveText(r, { denMarkerCount: 0 }))
+      .toBe('Now: Beasts +2/+2 when played · +2/+2 in 3 more Beasts');
+  });
   it('returns null for a reward with no live-varying magnitude', () => {
     expect(questRewardLiveText({ kind: 'gainGold', amount: 10 }, {})).toBeNull();
   });

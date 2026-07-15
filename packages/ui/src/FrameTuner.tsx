@@ -13,12 +13,12 @@ type Knob = { key: string; label: string; min: number; max: number; step: number
 // Defaults MIRROR the shipped values in styles.css — keep them in sync when you bake in new numbers.
 const STD_KNOBS: Knob[] = [
   { key: 'sh', label: 'frame size', min: 0.5, max: 1.0, step: 0.01, def: 0.73 },
-  { key: 'fill', label: 'art overfill', min: 1.0, max: 1.5, step: 0.01, def: 1.3 },
+  { key: 'fill', label: 'art overfill', min: 1.0, max: 1.5, step: 0.01, def: 1.28 },
   { key: 'dy', label: 'all Y', min: -0.1, max: 0.15, step: 0.005, def: 0.0 },
   { key: 'frameY', label: 'frame Y', min: -0.05, max: 0.15, step: 0.005, def: 0.03 },
   { key: 'tier', label: 'tier seat', min: 0.5, max: 1.0, step: 0.01, def: 0.83 },
-  { key: 'artY', label: 'art vert %', min: 0, max: 100, step: 1, def: 39, pct: true },
-  { key: 'artZoom', label: 'art zoom', min: 0.8, max: 1.8, step: 0.01, def: 1.07 },
+  { key: 'artY', label: 'art vert %', min: 0, max: 100, step: 1, def: 60, pct: true },
+  { key: 'artZoom', label: 'art zoom', min: 0.8, max: 1.8, step: 0.01, def: 1.12 },
   { key: 'wardsize', label: 'ward size (DS)', min: 0.4, max: 1.2, step: 0.01, def: 1.08 },
   { key: 'wardy', label: 'ward Y % (DS)', min: 30, max: 80, step: 1, def: 53, pct: true },
 ];

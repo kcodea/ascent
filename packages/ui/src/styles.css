@@ -1829,7 +1829,7 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
      --frameY   shift ONLY the gold frame (+ its banner + tier) DOWN by ×ccw, leaving the art window put. Big
                 shifts expose the art oval's top edge above the frame — raise --artZoom / --fill to compensate.
    `--dy` moves EVERYTHING together; `--frameY` moves just the frame relative to the art. */
-.card.compact.stdframe { --sh: 0.73; --fill: 1.3; --dy: 0; --frameY: 0.03; --tier: 0.83; --artY: 39%; --artZoom: 1.07; --wardsize: 1.08; --wardy: 53%; }
+.card.compact.stdframe { --sh: 0.73; --fill: 1.28; --dy: 0; --frameY: 0.03; --tier: 0.83; --artY: 60%; --artZoom: 1.12; --wardsize: 1.08; --wardy: 53%; }
 .card.compact.stdframe .art {
   clip-path: ellipse(50% 50% at 50% 50%);                          /* the elliptical window */
   width: calc(var(--ccw) * var(--sh) * var(--fill));

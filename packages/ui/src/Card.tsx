@@ -29,7 +29,11 @@ let tauntFrameAvailable = true;
 // grayscale(...)` on `.stdframe` (Gilded minions still show it gold).
 const STD_FRAME_SRC = `${import.meta.env.BASE_URL}frames/standard-oval-v2.png`;
 let stdFrameAvailable = true;
-const SPELL_FRAME_SRC = `${import.meta.env.BASE_URL}frames/spell-frame.png`;
+// New spell frame art (owner-supplied, session 42). Filename-swapped for one-line revert (original untouched).
+// Same 1122×1346 dims + window as the original → geometry unchanged. NOTE: spells carry NO `--frame-tone`
+// (it's a no-op `brightness(1)`), so this renders as-authored — the new art is GOLD w/ purple gems. Add the
+// grayscale tone to `.spellframe` if a silver spell frame is wanted (to match the minion oval).
+const SPELL_FRAME_SRC = `${import.meta.env.BASE_URL}frames/spell-frame-v2.png`;
 let spellFrameAvailable = true;
 
 const KW_LABEL: Record<Keyword, string> = {

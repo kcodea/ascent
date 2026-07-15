@@ -35,16 +35,18 @@ describe('stepProgress', () => {
     expect(stepProgress('cryptdrake', { attackSeen: 2 })).toEqual({ current: 2, total: 2 });
     expect(stepProgress('cryptdrake', { attackSeen: 3 })).toEqual({ current: 1, total: 2 });
   });
-  it('Cadence cards (endOfTurn + every) count turns then wrap (cyclic)', () => {
-    // Frontdrake: every 3 turns.
-    expect(stepProgress('frontdrake', { eotTick: 0 })).toEqual({ current: 0, total: 3 });
-    expect(stepProgress('frontdrake', { eotTick: 2 })).toEqual({ current: 2, total: 3 });
-    expect(stepProgress('frontdrake', { eotTick: 3 })).toEqual({ current: 3, total: 3 });
-    expect(stepProgress('frontdrake', { eotTick: 4 })).toEqual({ current: 1, total: 3 });
-    // Money Maker: every 2 turns.
-    expect(stepProgress('moneymaker', { eotTick: 1 })).toEqual({ current: 1, total: 2 });
-    expect(stepProgress('moneymaker', { eotTick: 2 })).toEqual({ current: 2, total: 2 });
-    expect(stepProgress('moneymaker', { eotTick: 3 })).toEqual({ current: 1, total: 2 });
+  it('Cadence cards (endOfTurn + every) count DOWN turns-until-fire (labelled "N Turns")', () => {
+    // Frontdrake: every 3 turns. toNext = every − (eotTick % every), 1..every, wraps to `every` on the fire turn.
+    expect(stepProgress('frontdrake', { eotTick: 0 })).toEqual({ current: 3, total: 3, label: '3 Turns' });
+    expect(stepProgress('frontdrake', { eotTick: 2 })).toEqual({ current: 1, total: 3, label: '1 Turn' });
+    expect(stepProgress('frontdrake', { eotTick: 3 })).toEqual({ current: 3, total: 3, label: '3 Turns' });
+    expect(stepProgress('frontdrake', { eotTick: 4 })).toEqual({ current: 2, total: 3, label: '2 Turns' });
+    // Money Maker: every 2 turns. Fresh reads "2 Turns", ticks to "1 Turn", fires, resets to "2 Turns".
+    expect(stepProgress('moneymaker', { eotTick: 0 })).toEqual({ current: 2, total: 2, label: '2 Turns' });
+    expect(stepProgress('moneymaker', { eotTick: 1 })).toEqual({ current: 1, total: 2, label: '1 Turn' });
+    expect(stepProgress('moneymaker', { eotTick: 2 })).toEqual({ current: 2, total: 2, label: '2 Turns' });
+    // Combat passes no eotTick → cadence is irrelevant → no counter.
+    expect(stepProgress('moneymaker', {})).toBeNull();
   });
   it('Tara clamps at her one-time ascend threshold (ascendAt 15)', () => {
     expect(stepProgress('tara', { ascendProgress: 10 })).toEqual({ current: 10, total: 15 });

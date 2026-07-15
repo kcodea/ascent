@@ -375,15 +375,16 @@ export const Card = memo(function Card({
       {buffFloat && (
         <span key={buffFloat.key} className="float buff cardfloat">+{buffFloat.attack}/+{buffFloat.health}</span>
       )}
-      {/* Step-progress counter — "X/N to next step" below step-based scalers (Guel 1/4, Monk 2/5, …). Keyed on
-          `current` so each tick replays the compositor-only bump. Board minions only (populated by the caller). */}
+      {/* Step-progress counter below step-based scalers — either "X/N to next step" (Guel 1/4, Monk 2/5, …) or a
+          `label` override for cadence cards ("2 Turns" until Money Maker fires). Keyed on the shown value so each
+          tick replays the compositor-only bump. Board minions only (populated by the caller). */}
       {card.stepProgress && (
         <span
-          key={card.stepProgress.current}
-          className={`stepcounter${card.stepEphemeral ? ' ephemeral' : ''}`}
-          aria-label={`Step progress ${card.stepProgress.current} of ${card.stepProgress.total}`}
+          key={card.stepProgress.label ?? card.stepProgress.current}
+          className={`stepcounter${card.stepProgress.label ? ' turns' : ''}${card.stepEphemeral ? ' ephemeral' : ''}`}
+          aria-label={card.stepProgress.label ?? `Step progress ${card.stepProgress.current} of ${card.stepProgress.total}`}
         >
-          {card.stepProgress.current}/{card.stepProgress.total}
+          {card.stepProgress.label ?? `${card.stepProgress.current}/${card.stepProgress.total}`}
         </span>
       )}
       {card.tier !== undefined && <span className="tierbadge" data-tier={card.tier}>Tier {card.tier}</span>}

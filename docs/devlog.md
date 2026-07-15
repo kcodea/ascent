@@ -37,6 +37,25 @@ Verified: two subagents drafted in parallel (partitioned by file, no overlap); e
 importing the real arrays; the four source edits are strictly comment-only; typecheck + lint + test (1085) +
 build:web all green. Docs-only — no runtime change.
 
+### feat(ui): cadence counter reads "N Turns" (countdown), not X/N
+
+Owner ask: for End-of-Turn cadence cards (Money Maker, Frontdrake, Vineweaver) the step counter should read the
+turns REMAINING until it fires, not an X/N progress bar — "2 Turns", ticking to "1 Turn" at end of turn before
+combat.
+
+- `StepProgress` gains an optional `label` (rendered verbatim by Card instead of `current/total`; `current` still
+  drives the keyed re-bump + the shop hide-at-0 gate). Cadence now returns
+  `{ current: toNext, total: every, label: "N Turn(s)" }` where `toNext = every − (eotTick % every)` (1..every,
+  wraps to `every` on the fire turn). Singular "1 Turn" / plural "N Turns".
+- Because `toNext` is never 0, a fresh Money Maker now SHOWS "2 Turns" in the shop (the old 0/N hide-at-0 only bit
+  the X/N form; that gate still hides a fresh Avenge 0/N). It rides the existing end-of-turn projection, so it
+  ticks "2 Turns → 1 Turn" on the beat and is hidden through combat (cadence passes no `eotTick` there).
+- Card renders `label ?? "current/total"`, keyed on `label ?? current`, with a `.turns` class hook. Updated the
+  cadence unit test to the new turns-left shape + a combat-null assertion.
+
+Verified live (DOM MutationObserver over a real End-Turn): fresh Money Maker `2 Turns`, Frontdrake (every 3,
+eotTick 1) `2 Turns`, eotTick-1 Money Maker `1 Turn`; the end-turn beat records `recruit 2 Turns → recruit 1 Turn
+→ combat (none)`. typecheck + lint + `build:web` clean, 1080 tests green.
 
 ### chore(audio): bake the owner's full mixer export as the shipped default
 

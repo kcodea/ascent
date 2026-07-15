@@ -32,10 +32,14 @@ export function QuestBadges() {
         const art = runeArt(rune.id);
         return (
           <div className="questbadge runebadge" key={id}>
-            {(triggered[id] ?? 0) > 0 && <span className="questbadge-pulse" key={triggered[id]} aria-hidden />}
-            {art
-              ? <img className="questbadge-art" src={art} alt="" aria-hidden />
-              : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
+            {/* Keyed on the trigger count → remounts and replays the scale-punch bounce (like a unit's self-buff)
+                each time this rune's combat effect fires. The glow ring rides inside so it replays in lockstep. */}
+            <div className="questbadge-inner" key={triggered[id] ?? 0} data-pulse={triggered[id] ?? 0}>
+              {(triggered[id] ?? 0) > 0 && <span className="questbadge-pulse" aria-hidden />}
+              {art
+                ? <img className="questbadge-art" src={art} alt="" aria-hidden />
+                : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
+            </div>
             <div className="questbadge-tip" role="tooltip">
               <b>{rune.name}</b>
               <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
@@ -73,12 +77,16 @@ export function QuestBadges() {
         const liveTxt = questRewardLiveText(r, live);
         return (
           <div className={`questbadge${ongoing ? ' ongoing' : ''}`} style={{ '--c': c } as CSSProperties} key={aq.questId}>
-            {pulse > 0 && <span className="questbadge-pulse" key={pulse} aria-hidden />}
-            {art ? (
-              <img className="questbadge-art" src={art} alt="" aria-hidden />
-            ) : (
-              <span className="questbadge-emblem" aria-hidden><Icon name={TRIBE_ICON[def.tribe]} /></span>
-            )}
+            {/* Keyed on the pulse count → remounts + replays the scale-punch bounce (a quest's own "self-buff")
+                each time it completes / re-fires / triggers in combat. The glow ring rides inside, in lockstep. */}
+            <div className="questbadge-inner" key={pulse} data-pulse={pulse}>
+              {pulse > 0 && <span className="questbadge-pulse" aria-hidden />}
+              {art ? (
+                <img className="questbadge-art" src={art} alt="" aria-hidden />
+              ) : (
+                <span className="questbadge-emblem" aria-hidden><Icon name={TRIBE_ICON[def.tribe]} /></span>
+              )}
+            </div>
             {chip && <span className="questbadge-chip">{chip}</span>}
             <div className="questbadge-tip" role="tooltip">
               <b>{def.name}</b>

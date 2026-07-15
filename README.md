@@ -25,6 +25,15 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **"Twice" always means two casts.** Golden Hoardbreaker (and any "cast twice") now fires the spell as **two
+  genuine instances**, not one doubled cast — so spell-count payoffs proc twice. Golden **Karwind** gives +2/+2
+  twice; **Nimbus** reworded to "your next spell played from hand casts twice".
+- **Shop Curve: avg wave to each tier.** The balance report's Y-axis now shows the average wave a run first reaches
+  each tavern tier beside its label; the always-T1 wave-1 label is dropped.
+- **Quest badges bounce on trigger.** A completed quest / rune now does the combat-unit **self-buff scale-punch**
+  when its effect fires (recruit or combat), replacing the easy-to-miss glow ring.
+- **Hero power pinned to the board.** Fixed the mid-left power drifting off-board on non-16:9 windows — it's now
+  anchored to the stage box, not the raw viewport.
 - **Spell-casters name the spell.** A minion that casts a spell (Hoardbreaker, Taragosa) no longer restates the
   spell's numbers — it names the spell, and the spell's **hover-preview** shows the live (spell-power-aware) value.
   Golden reads "cast twice". Trims card text; hovering any caster now trails its spell card.

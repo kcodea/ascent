@@ -204,10 +204,10 @@ export function BalancePanel() {
 /** Shop-leveling curve — average tavern tier reached by each wave, won runs (green) vs lost runs (red). A pure
  *  SVG line chart (bounded engine: 6 tiers). Null slots (no runs reached that wave) break the line. */
 function ShopCurveChart({ curve }: { curve: ShopCurve }) {
-  const { maxWave, won, lost, wonRuns, lostRuns } = curve;
+  const { maxWave, won, lost, wonRuns, lostRuns, avgWaveToTier } = curve;
   if (maxWave < 1) return <div className="balempty">No shop-leveling data yet.</div>;
   const MAX_TIER = 6;
-  const W = 760, H = 420, padL = 48, padR = 22, padT = 22, padB = 46;
+  const W = 760, H = 420, padL = 82, padR = 22, padT = 22, padB = 46;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const x = (wave: number): number => padL + (maxWave === 1 ? plotW / 2 : ((wave - 1) / (maxWave - 1)) * plotW);
   const y = (tier: number): number => padT + (1 - (tier - 1) / (MAX_TIER - 1)) * plotH;
@@ -227,12 +227,18 @@ function ShopCurveChart({ curve }: { curve: ShopCurve }) {
   return (
     <div className="balchart">
       <svg viewBox={`0 0 ${W} ${H}`} className="balchart-svg" role="img" aria-label="Average tavern tier by wave, won vs lost runs">
-        {Array.from({ length: MAX_TIER }, (_, i) => i + 1).map((tier) => (
-          <g key={`y${tier}`}>
-            <line x1={padL} y1={y(tier)} x2={W - padR} y2={y(tier)} className="balchart-grid" />
-            <text x={padL - 9} y={y(tier) + 4} className="balchart-axl" textAnchor="end">T{tier}</text>
-          </g>
-        ))}
+        {Array.from({ length: MAX_TIER }, (_, i) => i + 1).map((tier) => {
+          const avg = avgWaveToTier?.[tier]; // avg wave a run first reaches this tavern tier (T1 = wave 1, a given)
+          return (
+            <g key={`y${tier}`}>
+              <line x1={padL} y1={y(tier)} x2={W - padR} y2={y(tier)} className="balchart-grid" />
+              <text x={padL - 9} y={y(tier) + 4} className="balchart-axl" textAnchor="end">T{tier}</text>
+              {avg != null && tier > 1 && (
+                <text x={padL - 34} y={y(tier) + 4} className="balchart-tieravg" textAnchor="end">◷{avg.toFixed(1)}</text>
+              )}
+            </g>
+          );
+        })}
         {waveTicks.map((w) => (
           <text key={`x${w}`} x={x(w)} y={H - padB + 22} className="balchart-axl" textAnchor="middle">{w}</text>
         ))}
@@ -248,7 +254,8 @@ function ShopCurveChart({ curve }: { curve: ShopCurve }) {
             return (
               <g key={`pt-${cls}-${w}`}>
                 <circle cx={x(w)} cy={y(v)} r={3.4} className={`balchart-dot ${cls}`} />
-                <text x={x(w)} y={y(v) + dy} className={`balchart-ptl ${cls}`} textAnchor="middle">{v.toFixed(1)}</text>
+                {/* Wave 1 is always T1 (a given) — skip its "1.0" label to cut noise, keep the dot. */}
+                {w > 1 && <text x={x(w)} y={y(v) + dy} className={`balchart-ptl ${cls}`} textAnchor="middle">{v.toFixed(1)}</text>}
               </g>
             );
           }),
@@ -257,6 +264,7 @@ function ShopCurveChart({ curve }: { curve: ShopCurve }) {
       <div className="balchart-legend">
         <span className="balchart-key won">Won runs ({wonRuns})</span>
         <span className="balchart-key lost">Lost runs ({lostRuns})</span>
+        <span className="balchart-key tieravg">◷ avg wave reaching tier</span>
       </div>
     </div>
   );

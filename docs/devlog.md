@@ -5,6 +5,34 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat: "twice" = 2 real casts everywhere · Karwind/Nimbus · balance-report Y-axis · quest bounce · hero-power pin
+
+A batch off the owner's review of the shop-curve screenshot + the "twice" semantics:
+
+- **"Twice" now always means 2 genuine instances.** Golden **Hoardbreaker** cast "Growth twice" as one *doubled*
+  cast (½ the intent — it didn't proc spell-count reactions twice). Now it loops the cast twice: 2 real
+  `castSpell`s, each base-magnitude — so Guel / transforms / `spellsCast` all see both. (Taragosa + Watcher
+  already looped, so they were already correct.) Net stats unchanged.
+- **Golden Karwind → "+2/+2 twice"** (was +4/+4 once). Both the recruit + combat halves apply the buff twice at
+  base magnitude — two visible buff pulses, same net +4/+4.
+- **Nimbus reworded** → "**Shout:** Your next spell played from hand casts **twice**." (golden: three times). The
+  `nextSpellMult` mechanic was already hand-only (a minion's in-combat `castSpell` never reads it) and already
+  resolves the spell as genuine repeat instances — this is the text made accurate.
+- **Balance report — Shop Curve:** each Y-axis tier label now shows the **average wave a run first reaches that
+  tavern tier** (tangerine, e.g. "◷2.5" beside T2), from a new `avgWaveToTier` aggregate. The wave-1 "1.0" data
+  label is dropped (T1 is a given).
+- **Quest/rune trigger feedback:** the badge now plays the **scale-punch bounce** (the same beat a combat unit does
+  on a self-buff) via a `pulse`-keyed inner wrapper that remounts + replays `questbounce`, instead of the easily-
+  missed glow ring alone (ring kept, riding inside). Fires on every completion / repeatable re-fire / combat trigger.
+- **Hero power pinned to the stage, not the viewport.** It was `position: fixed` at `19%/45%` of the *window*, so a
+  non-16:9 client area (browser chrome / taskbar letterboxing the 16:9 stage) drifted it off the board — the bug on
+  Mike's machine. Now anchored to the stage box (`--bar-x/-y + 0.19·--gw / 0.45·--gh`), so it lands on the same
+  board spot at any aspect. Verified `onBoard` at a 6:5 window.
+
+Verified: new tests (golden Hoardbreaker = 2 base casts not 1 doubled; `avgWaveToTier` aggregate); **1085 tests
+green**, typecheck + lint + build:web clean; live DOM checks (hero-power fraction-of-stage across aspects; quest
+badge `questbounce` active + art centered). Determinism/golden unaffected (the cast-count change nets identical stats).
+
 ### refactor(content): spell-casting minions name the spell (live value on its hover) instead of restating it
 
 Owner ruling: a minion that CASTS a named spell shouldn't restate the spell's numbers on its own card — just

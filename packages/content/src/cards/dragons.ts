@@ -55,7 +55,7 @@ export const DRAGONS: CardDef[] = [
     keywords: [],
     effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 2, health: 2 } }],
     text: 'Whenever a **Battlecry** triggers, give your Dragons **+2/+2**.',
-    goldenText: 'Whenever a **Battlecry** triggers, give your Dragons **+4/+4**.',
+    goldenText: 'Whenever a **Battlecry** triggers, give your Dragons **+2/+2** twice.',
   },
   {
     // Dual-type Dragon/Demon payoff. Every Battlecry *fire* on your board permanently enchants the Fodder

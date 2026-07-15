@@ -141,4 +141,16 @@ describe('shop-leveling curve aggregation', () => {
     expect(c.won[5]).toBeNull();    // no won run reached wave 5
     expect(c.lost[5]).toBe(2);      // single lost run
   });
+
+  it('averages the wave a run first reaches each tavern tier (T1 = 1; null if none got there)', () => {
+    const rows: RunTelemetry[] = [
+      blank({ tierByWave: [0, 1, 1, 2, 3] }), // T2 at wave 3, T3 at wave 4
+      blank({ tierByWave: [0, 1, 2, 2] }),     // T2 at wave 2, never T3
+    ];
+    const c = aggregatePlayerReport(rows).shopCurve;
+    expect(c.avgWaveToTier[1]).toBe(1);   // T1 is a given (wave 1)
+    expect(c.avgWaveToTier[2]).toBe(2.5); // (3 + 2) / 2
+    expect(c.avgWaveToTier[3]).toBe(4);   // only run 1 reached T3, at wave 4
+    expect(c.avgWaveToTier[4]).toBeNull(); // nobody reached T4
+  });
 });

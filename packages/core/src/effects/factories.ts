@@ -308,12 +308,16 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const eff = spell?.effects.find((e) => e.do === 'spellBuffAll' || e.do === 'spellBuffTarget');
     if (!eff) return;
     const sp = ctx.spellPowerFor(self.side); // per-side: enemy Hoardbreaker scales with the OPPONENT's spell power
-    const a = (num(eff.params?.attack, 0) + sp.attack) * mul(self);
-    const h = (num(eff.params?.health, 0) + sp.health) * mul(self);
+    const a = num(eff.params?.attack, 0) + sp.attack;
+    const h = num(eff.params?.health, 0) + sp.health;
     if (a <= 0 && h <= 0) return;
-    const targets = eff.do === 'spellBuffAll' ? ctx.living(self.side) : ctx.living(self.side).filter((m) => m !== self);
-    for (const t of targets) ctx.buff(t, a, h, self.uid);
-    ctx.castSpell(self.side); // "cast Growth" is a real spell cast — proc in-combat spell reactions + count it
+    // Golden "casts Growth twice" = TWO genuine casts (mul = 2), not one doubled cast — so it procs in-combat
+    // spell reactions (Guel, transforms, spell-count payoffs) twice, matching how a hand-played "twice" resolves.
+    for (let i = 0; i < mul(self); i++) {
+      const targets = eff.do === 'spellBuffAll' ? ctx.living(self.side) : ctx.living(self.side).filter((m) => m !== self);
+      for (const t of targets) ctx.buff(t, a, h, self.uid);
+      ctx.castSpell(self.side);
+    }
   },
 
   /** Hoardbreaker Drake (Rally): on its OWN attack, "cast Growth" — the Slaughter twin (onKillCastSpell) on the
@@ -326,12 +330,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const eff = spell?.effects.find((e) => e.do === 'spellBuffAll' || e.do === 'spellBuffTarget');
     if (!eff) return;
     const sp = ctx.spellPowerFor(self.side); // per-side: enemy scales with the OPPONENT's spell power
-    const a = (num(eff.params?.attack, 0) + sp.attack) * mul(self);
-    const h = (num(eff.params?.health, 0) + sp.health) * mul(self);
+    const a = num(eff.params?.attack, 0) + sp.attack;
+    const h = num(eff.params?.health, 0) + sp.health;
     if (a <= 0 && h <= 0) return;
-    const targets = eff.do === 'spellBuffAll' ? ctx.living(self.side) : ctx.living(self.side).filter((m) => m !== self);
-    for (const t of targets) ctx.buff(t, a, h, self.uid);
-    ctx.castSpell(self.side);
+    for (let i = 0; i < mul(self); i++) { // golden = two genuine casts (see onKillCastSpell)
+      const targets = eff.do === 'spellBuffAll' ? ctx.living(self.side) : ctx.living(self.side).filter((m) => m !== self);
+      for (const t of targets) ctx.buff(t, a, h, self.uid);
+      ctx.castSpell(self.side);
+    }
   },
 
   /** Spell Drummer — Rally: cast a random stat spell on a random friendly minion (its buff + combat spell power,
@@ -1553,11 +1559,14 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   onBattlecryBuffTribe: (ctx, self, params, payload) => {
     if (self.dead || (payload as { side: Side }).side !== self.side) return;
     const tribe = str(params.tribe);
-    const a = num(params.attack, 1) * mul(self);
-    const h = num(params.health, 1) * mul(self);
-    for (const m of ctx.living(self.side)) {
-      if (tribe && tribe !== 'any' && m.tribe !== tribe && m.tribe2 !== tribe && !ctx.getCard(m.cardId)?.universalTribe) continue;
-      ctx.buff(m, a, h, self.uid);
+    const a = num(params.attack, 1);
+    const h = num(params.health, 1);
+    // Golden "+2/+2 twice" = the buff applied twice (mul = 2), not one doubled grant — two visible buff pulses.
+    for (let i = 0; i < mul(self); i++) {
+      for (const m of ctx.living(self.side)) {
+        if (tribe && tribe !== 'any' && m.tribe !== tribe && m.tribe2 !== tribe && !ctx.getCard(m.cardId)?.universalTribe) continue;
+        ctx.buff(m, a, h, self.uid);
+      }
     }
   },
 

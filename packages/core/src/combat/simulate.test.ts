@@ -334,6 +334,21 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 4)).toBe(true); // Rally cast Growth
   });
 
+  it('golden Hoardbreaker casts Growth as genuine 2× instances — base +3/+4 events, never a doubled +6/+8', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'hoardbreaker', attack: 4, health: 20, golden: true },
+      { cardId: 'sandbag', attack: 0, health: 1 }, // dies to one enemy swing → combat ends after the first Hoardbreaker swing
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies to Hoardbreaker's swing → Rally + Slaughter both fire
+    const r = run(p, e, 3);
+    const hb = r.initial.player[0]!.uid; // Hoardbreaker buffs all friends including itself
+    const base = r.events.filter((ev) => ev.type === 'buff' && ev.target === hb && ev.attack === 3 && ev.health === 4);
+    const doubled = r.events.filter((ev) => ev.type === 'buff' && ev.target === hb && ev.attack === 6 && ev.health === 8);
+    expect(doubled.length).toBe(0); // golden is TWO base casts, never one doubled cast
+    expect(base.length % 2).toBe(0); // each trigger fires the cast twice (Rally + Slaughter → a multiple of 2)
+    expect(base.length).toBeGreaterThanOrEqual(2);
+  });
+
   it('Spark Capacitor Avenge (4) adds a Spark Plug to hand', () => {
     const p: BoardMinion[] = [
       { cardId: 'sparkcapacitor', attack: 4, health: 40 },

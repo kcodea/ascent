@@ -820,13 +820,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  Records the buffed uids so the UI can flame-flash exactly those minions. */
   onBattlecryBuffTribe: (ctx, self, params) => {
     const tribe = str(params.tribe);
-    const a = num(params.attack, 1) * gold(self);
-    const h = num(params.health, 1) * gold(self);
+    const a = num(params.attack, 1);
+    const h = num(params.health, 1);
     const flash = (ctx.state.karwindFlash ??= []);
-    for (const c of ctx.state.board) {
-      if (tribe && tribe !== 'any' && !isTribe(c, tribe as Tribe)) continue;
-      addBuff(c, nameOf(self), a, h);
-      if (!flash.includes(c.uid)) flash.push(c.uid);
+    // Golden "+2/+2 twice" = the buff applied twice at base magnitude (not one doubled grant), so both pulses land.
+    for (let i = 0; i < gold(self); i++) {
+      for (const c of ctx.state.board) {
+        if (tribe && tribe !== 'any' && !isTribe(c, tribe as Tribe)) continue;
+        addBuff(c, nameOf(self), a, h);
+        if (!flash.includes(c.uid)) flash.push(c.uid);
+      }
     }
   },
 

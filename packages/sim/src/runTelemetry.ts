@@ -173,6 +173,9 @@ export interface ShopCurve {
   lostRuns: number;
   won: (number | null)[];
   lost: (number | null)[];
+  /** Average wave at which a run first REACHES each tavern tier, indexed by tier (1..6; index 0 unused). T1 is
+   *  always wave 1 (a given). A null slot = no run reached that tier. Shown beside the Y-axis tier labels. */
+  avgWaveToTier: (number | null)[];
 }
 
 /** The finished player report: five ranked tables + the shop-leveling curve + the run count behind them. */
@@ -207,12 +210,31 @@ function aggregateShopCurve(rows: RunTelemetry[]): ShopCurve {
     for (let w = 1; w <= maxWave; w++) out[w] = cnt[b][w] ? Math.round((sum[b][w]! / cnt[b][w]!) * 100) / 100 : null;
     return out;
   };
+  // Average wave a run first reaches each tier (2..6) — the first wave whose recorded tier ≥ the target, averaged
+  // over the runs that got there. T1 is a given (wave 1). Feeds the Y-axis "avg turn to reach this tavern" labels.
+  const tierSum: number[] = [];
+  const tierCnt: number[] = [];
+  for (const r of rows) {
+    const t = r.tierByWave ?? [];
+    for (let tier = 2; tier <= 6; tier++) {
+      let firstWave: number | null = null;
+      for (let w = 1; w < t.length; w++) {
+        if (t[w] != null && t[w]! >= tier) { firstWave = w; break; }
+      }
+      if (firstWave != null) { tierSum[tier] = (tierSum[tier] ?? 0) + firstWave; tierCnt[tier] = (tierCnt[tier] ?? 0) + 1; }
+    }
+  }
+  const avgWaveToTier: (number | null)[] = [];
+  for (let tier = 1; tier <= 6; tier++) {
+    avgWaveToTier[tier] = tier === 1 ? 1 : (tierCnt[tier] ? Math.round((tierSum[tier]! / tierCnt[tier]!) * 10) / 10 : null);
+  }
   return {
     maxWave,
     wonRuns: rows.filter((r) => r.won).length,
     lostRuns: rows.filter((r) => !r.won).length,
     won: mean('won'),
     lost: mean('lost'),
+    avgWaveToTier,
   };
 }
 

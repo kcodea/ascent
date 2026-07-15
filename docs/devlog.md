@@ -22,8 +22,21 @@ Verified live: every hero power now reads in the new vocabulary (Warden "Ward" w
 was "Battlecry"; Gild "gilded" was "Golden") with zero old-vocab leaks. `typecheck` + `lint` + **1053 tests** +
 `build:web` green.
 
-## 2026-07-15
+### tweak(ui): Avenge / Bloodbinder step counter now shows on the board (0/N), not combat-only
 
+Owner-reported not seeing the counter on an Avenge unit in play. It was gated combat-only (`avengeSeen`/`bleedAttacks`
+undefined outside a fight → null), so it only appeared mid-combat. Now those cases return `cyc(tally ?? 0, N)` → a
+board Avenge unit shows **0/N** (advertising its threshold), and it ticks up in combat as your units die / attack —
+consistent with how Guel/Tara show on the board. (Aside: "Broodmother" = **Violet Whelpmother**, a plain
+Deathrattle-summon with no threshold → correctly still no counter; the Avenge unit is **Brood Matron**.) Verified:
+`typecheck + lint + test` (1051) & `build:web` green.
+
+### tweak(ui): step counter is now plain white numbers (no pill)
+
+Owner ask. Dropped the `.stepcounter` pill (background / border / border-radius / box-shadow) — it's just the
+white "X/N" numbers with a soft drop shadow underneath, matching the resting card grounding shadow settings
+(5px down, 7.2px blur, 0.8 black). The bump animation + centered-under-frame position are unchanged. `lint` +
+`build:web` green.
 ### fix: repeatable quests are visible to completion telemetry (Codex review follow-up)
 
 Repeatable quests (Forest Grove, Hoard Spark, Scrap Contract, Imp Census, Small Offering, Dark Bargain) fire their

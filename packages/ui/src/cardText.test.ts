@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, combatCastGrantText, escalatingCastText, guelProgressText, monkProgressText, ritualistText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText, watcherText } from './cardText';
 
 describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
-  it('Avenge units are COMBAT-only: no counter without a death tally, cyclic once it exists', () => {
-    expect(stepProgress('soulsman', {})).toBeNull();            // Avenge (4) — no fight → no shop pill
+  it('Avenge units show 0/N on the board and tick with the death tally in combat, cyclic', () => {
+    expect(stepProgress('soulsman', {})).toEqual({ current: 0, total: 4 });            // Avenge (4) — shop: 0/4
     expect(stepProgress('soulsman', { avengeSeen: 3 })).toEqual({ current: 3, total: 4 });
     expect(stepProgress('soulsman', { avengeSeen: 4 })).toEqual({ current: 4, total: 4 }); // procs here…
     expect(stepProgress('soulsman', { avengeSeen: 5 })).toEqual({ current: 1, total: 4 }); // …then wraps
@@ -14,8 +14,8 @@ describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
     expect(stepProgress('acid', { goldTick: 3 })).toEqual({ current: 3, total: 7 });   // every 7
     expect(stepProgress('banksly', { goldTick: 12 })).toEqual({ current: 2, total: 10 }); // every 10, wrapped
   });
-  it('Bloodbinder counts GLOBAL combat attacks (bleedAttacks), cyclic, combat-only', () => {
-    expect(stepProgress('bloodbinder', {})).toBeNull();
+  it('Bloodbinder counts GLOBAL combat attacks (bleedAttacks), cyclic; 0/N on the board', () => {
+    expect(stepProgress('bloodbinder', {})).toEqual({ current: 0, total: 4 });
     expect(stepProgress('bloodbinder', { bleedAttacks: 4 })).toEqual({ current: 4, total: 4 });
     expect(stepProgress('bloodbinder', { bleedAttacks: 5 })).toEqual({ current: 1, total: 4 });
   });

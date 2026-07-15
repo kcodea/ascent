@@ -1112,6 +1112,15 @@ function reduceCore(state: RunState, action: Action): RunState {
             deathrattles: served.deathrattles ?? 0,
             spellsCast: served.spellsCast ?? 0, // enemy Umbral Energy
             beastBuyAtk: served.beastBuyAtk ?? 0, // enemy Beast aura
+            impAtk: served.impAura?.attack ?? 0, // enemy Imp Aura → correctly-sized enemy Imp summons
+            impHp: served.impAura?.health ?? 0,
+            undeadAtk: served.undeadAura?.attack ?? 0, // enemy Undead Lantern aura
+            undeadHp: served.undeadAura?.health ?? 0,
+            undeadBuyAtk: served.undeadBuyAtk ?? 0, // enemy Undead buy-time Attack
+            magneticAtk: served.magneticAura?.attack ?? 0, // enemy Attachment aura
+            magneticHp: served.magneticAura?.health ?? 0,
+            fodderConsumedAtk: served.fodderConsumed?.attack ?? 0, // enemy Abhorrent Horror
+            fodderConsumedHp: served.fodderConsumed?.health ?? 0,
           }
         : {};
       // The served board's quest/rune COMBAT modifiers — so it reproduces its owner's runes/quests in combat.

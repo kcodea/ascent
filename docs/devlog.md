@@ -5,6 +5,34 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### fix: enemy snapshot fidelity — carry the last 5 run-wide scalers so enemy-generated bodies are correctly sized
+
+Enemy boards are `BoardSnapshot`s fed to `simulate()` as the enemy side; they START with correct stats, but bodies
+GENERATED mid-fight (Deathrattle summons, Reborn/Rise, aura-scaled payoffs) came out the wrong size because run-wide
+state the player side gets was zeroed (or leaking) for the enemy. A prior pass (PR #340) fixed several; a focused
+audit found the **five remaining gaps**, each missing on BOTH halves (no capture + zeroed/leaking in the sim). Closed
+all five with the established per-side pattern (capture into `BoardSnapshot` → carry in `EnemyScalers` → seed the
+enemy record in `simulate`):
+
+1. **Imp Aura** (`impBuff`) — enemy Imp King / Brood Matron / Chef Raag summons now inherit the run-wide Imp buff
+   (was `impAura.enemy = {0,0}`).
+2. **Attachment/Magnetic aura** — made per-side (`magneticAuraFor`) and dropped the explicit `!isPlayer` skip, so
+   enemy from-base Magnetics get it.
+3. **Fodder-consumed** — was a raw non-side-scoped scalar, so an enemy Abhorrent Horror absorbed the **player's**
+   consumed stats. Now a side-scoped `ctx.fodderConsumedFor(side)` reads the enemy's own captured tally (0 if none).
+4. **Undead buy-time Attack** (`undeadBuyAtk`) — re-added to enemy from-base Undead.
+5. **Undead Lantern aura** (`undeadAttackBonus/HealthBonus`) — the widest (combat-only, so it also affects STARTING
+   enemy Undead); now seeded per-side.
+
+Player-side and procedural/legacy-pool enemies are **unaffected** (empty `enemyScalers` → every new field defaults 0
+→ identical behavior; the committed opponent pool needs no regen). 2 new targeted tests (enemy Imp Aura sizes an
+enemy-summoned Imp to 3/3; enemy Abhorrent Horror reads its own fodder, not the player's — proving the no-leak fix).
+`typecheck` + `lint` + **1055 tests** (incl. the determinism/golden suite) + `build:web` green.
+
+NB this is the **correctness** fix. The symmetric-`CombatSideState` refactor (Codex #8, which would prevent this
+class of gap from recurring) is a separate, larger cleanup left for later; opponent-pinning (#2) remains a non-issue
+until server-validation / replays exist.
+
 ### fix(ui): step counter white numbers were invisible on the cream board — added a dark edge
 
 Owner couldn't see the counter on Brood Matron. Diagnosed via a live DOM probe (injected a board `brood` — the
@@ -12,7 +40,6 @@ Owner couldn't see the counter on Brood Matron. Diagnosed via a live DOM probe (
 tweak) had near-zero contrast on the light cream board, and its drop shadow sits *below* rather than outlining the
 glyphs. Added a tight dark edge to the `text-shadow` (`0 0 2px` + `0 1px 1.5px` black) on top of the existing soft
 underneath shadow, so the white numbers read on the light board (and still on dark). `lint` + `build:web` green.
-
 
 ### fix: unify player-facing terminology (Codex review follow-up)
 

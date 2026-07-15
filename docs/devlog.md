@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(ui): chunkier quest cards + cleaner quest-shop chrome
+
+Owner polish on the quest shop (the discover-style panel at waves 4/8/12).
+
+- **Chunkier quest cards** — the quest offer is a big turn-opening choice, so the cards render ~22% larger than a
+  normal card (`.quest-ov-cards` overrides `--ch`/`--cw`) with a touch more gap, for a more exciting read.
+- **Cleaner chrome** — restyled the "Quest Shop" title banner + the "Inspect the shop" toggle from the ornate
+  cream/gold Discover look to a flat dark pill (dark gradient, thin gold-tinted border, cream text) that matches the
+  dark, art-forward quest frames. Scoped to `.quest-ov` / `.quest-toggle`, so the Discover panel + the Runeforge
+  keep their own chrome.
+
+CSS-only, `typecheck` + `lint` + `build:web` green. NOTE: the quest shop only opens on a real wave-4/8/12 turn, so
+this wasn't auto-screenshotted — worth an eyeball to confirm the card size + chrome feel right (both are easy dials).
 ### feat: no-repeat opponents (within 4 rounds) + new Forsaken Mage art
 
 **No-repeat rule** (owner) — the player never faces the same opponent within 4 rounds. Builds on the same-day

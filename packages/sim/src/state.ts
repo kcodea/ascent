@@ -6,6 +6,7 @@ import { DEFAULT_HERO_ID, getHero } from './heroes';
 import { queueDiscover } from './recruit';
 import { rollShop, stockPool } from './shop';
 import { selectThreat, type ThreatId } from './threats';
+import type { BoardSnapshot } from './snapshot';
 
 /**
  * Tags that separate the run's RNG streams. The shop stream advances with the
@@ -610,6 +611,14 @@ export interface RunState {
   pendingTarget?: { uid: string; cardId: string; optionIndex?: number };
   /** The most recent combat's result, for the UI to replay. Transient. */
   lastCombat?: CombatResult;
+  /** OPPONENT PINNING: the exact board fought each wave, keyed by wave number — the full served
+   *  `BoardSnapshot`, or `null` when the procedural threat was used (no pool match). The opponent pick is
+   *  already deterministic from `(seed, wave)` GIVEN the pool, so within a session/frozen pool a replay
+   *  reproduces the same board; this pins the *identity* so a later rebuild stays faithful even if the shared
+   *  pool changed (boards uploaded/pruned) — the groundwork server-side replay validation needs. Recorded at
+   *  serve time; when a wave is already present here (a restored/replayed run), the reducer serves the pinned
+   *  board instead of re-picking. Key presence = "decided"; absent = pick fresh. */
+  servedBoards?: Record<number, BoardSnapshot | null>;
 }
 
 export type Action =
@@ -733,6 +742,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     drakkoBuys: 0,
     cassenKills: 0,
     turnStartPower: 0,
+    servedBoards: {},
     spellCostMod: 0,
     hand: [],
     board: [],

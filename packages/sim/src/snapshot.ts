@@ -178,6 +178,13 @@ function cleanBoard(s: RunState): BoardMinion[] {
     ...(c.ascendProgress ? { ascendProgress: c.ascendProgress } : {}),
     ...(c.spellProgress ? { spellProgress: c.spellProgress } : {}), // Archmagus Guel: on-board spell tally
     ...(c.overflowBonus ? { overflowBonus: c.overflowBonus } : {}), // Flowing Monk: flat triple-combine grant bonus
+    // Per-instance COMBAT state (mirrors the reducer's own player board→combat mapping): without these a served
+    // board fought differently than the real one did — Gravetwin's copied Echo never procced, Bloodbinder's Rally
+    // used the wrong stat, the Bloodlust weld-Rally + the "All tribes" flag went missing.
+    ...(c.copiedEcho?.length ? { copiedEcho: c.copiedEcho.map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })) } : {}), // Gravetwin: its copied Deathrattle procs on combat death
+    ...(c.bloodbinderMode ? { bloodbinderMode: c.bloodbinderMode } : {}), // Bloodbinder: which stat this fight's Rally gives Fodder (atk/hp)
+    ...(c.bloodlustRally ? { bloodlustRally: true as const } : {}), // Bloodlust weld: on-attack Rally (give a friendly minion this minion's Attack)
+    ...(c.allTribes ? { universalTribe: true as const } : {}), // Anomaly Reactor "All": counts as every tribe in combat
     // Per-source recruit-buff breakdown ("Spirit Fire ×2: +6/+6") — carried so a captured board can show
     // HOW its minions were buffed in the right-click inspect (leaderboard / served opponent). Cloned so the
     // snapshot never shares the run board's arrays.

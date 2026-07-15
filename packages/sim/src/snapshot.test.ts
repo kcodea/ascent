@@ -62,6 +62,33 @@ describe('board snapshot + replay', () => {
     expect(snap.minions.find((m) => m.cardId === 'moe')?.bloodlust).toBe(true);
   });
 
+  it('snapshot round-trips per-instance COMBAT state (copiedEcho / bloodbinderMode / bloodlustRally / allTribes)', () => {
+    // These change how a minion FIGHTS — dropping them made a served board behave differently than it was
+    // captured from. Verify snapshotBoard captures them AND opponentBoard restores them into the served board.
+    const echo = [{ on: 'onDeath' as const, do: 'deathrattleBuffTribe' as const, params: { tribe: 'undead', attack: 1, health: 1 } }];
+    const s: RunState = {
+      ...createRun(1),
+      board: [
+        { uid: 'gt', cardId: 'gravetwin', tribe: 'undead', attack: 4, health: 4, keywords: [], golden: false, copiedEcho: echo },
+        { uid: 'bb', cardId: 'bloodbinder', tribe: 'demon', attack: 3, health: 3, keywords: [], golden: false, bloodbinderMode: 'hp' },
+        { uid: 'bl', cardId: 'gnash', tribe: 'beast', attack: 5, health: 5, keywords: [], golden: false, bloodlust: true, bloodlustRally: true },
+        { uid: 'ar', cardId: 'moe', tribe: 'demon', attack: 4, health: 4, keywords: [], golden: false, allTribes: true },
+      ],
+    };
+    const snap = snapshotBoard(s);
+    expect(snap.minions.find((m) => m.cardId === 'gravetwin')?.copiedEcho).toEqual(echo);
+    expect(snap.minions.find((m) => m.cardId === 'bloodbinder')?.bloodbinderMode).toBe('hp');
+    expect(snap.minions.find((m) => m.cardId === 'gnash')?.bloodlustRally).toBe(true);
+    expect(snap.minions.find((m) => m.cardId === 'moe')?.universalTribe).toBe(true); // allTribes → universalTribe
+
+    // And the serve path (opponentBoard) restores them, so a served enemy fights faithfully.
+    const served = opponentBoard(snap);
+    expect(served.find((m) => m.cardId === 'gravetwin')?.copiedEcho).toEqual(echo);
+    expect(served.find((m) => m.cardId === 'bloodbinder')?.bloodbinderMode).toBe('hp');
+    expect(served.find((m) => m.cardId === 'gnash')?.bloodlustRally).toBe(true);
+    expect(served.find((m) => m.cardId === 'moe')?.universalTribe).toBe(true);
+  });
+
   it('snapshotBoard captures the run-LEVEL scalers (spell power / Deathrattles / spells / Beasts played)', () => {
     // So a served opponent's Grim / Taragosa / Pack Leader / Runescale fights + reads at the value THIS run had.
     const s: RunState = {

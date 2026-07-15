@@ -82,6 +82,16 @@ export function opponentBoard(snap: BoardSnapshot): BoardMinion[] {
     ...(m.overflowBonus ? { overflowBonus: m.overflowBonus } : {}), // Flowing Monk: flat triple-combine grant bonus
     ...(m.rallyMechAtk ? { rallyMechAtk: m.rallyMechAtk } : {}), // Better Bot Rally welded onto a host Mech
     ...(m.rallySpellWeld ? { rallySpellWeld: m.rallySpellWeld } : {}), // Perfect Core Rally welded onto a host
+    // Per-instance COMBAT state — must be restored or the served board fights differently than it was captured:
+    ...(m.copiedEcho?.length ? { copiedEcho: m.copiedEcho.map((e) => ({ ...e, ...(e.params ? { params: { ...e.params } } : {}) })) } : {}), // Gravetwin: copied Echo procs on combat death
+    ...(m.bloodbinderMode ? { bloodbinderMode: m.bloodbinderMode } : {}), // Bloodbinder: this fight's Rally stat (atk/hp)
+    ...(m.bloodlustRally ? { bloodlustRally: true as const } : {}), // Bloodlust weld: on-attack Rally
+    ...(m.universalTribe ? { universalTribe: true as const } : {}), // Anomaly Reactor "All": every tribe in combat
+    // Display-only accruals (no combat behavior) — carried so the served enemy's live card text reads its real
+    // per-tick / cadence / sell value, not the printed base:
+    ...(m.eotBonus ? { eotBonus: m.eotBonus } : {}), // Ritualist: accrued End-of-Turn grant
+    ...(m.sellBonus ? { sellBonus: m.sellBonus } : {}), // Trail Forager: accrued sell value
+    ...(m.eotTick ? { eotTick: m.eotTick } : {}), // Frontdrake / Money Maker / Vineweaver: cadence counter
     ...(m.buffs && m.buffs.length ? { buffs: m.buffs.map((b) => ({ ...b })) } : {}), // recruit-buff breakdown for inspect
   }));
   // Enemy hero power — Soren's Reclaim: a board captured from a Soren run arms it, so ONE enemy minion is

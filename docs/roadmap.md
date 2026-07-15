@@ -501,10 +501,13 @@ hold so we don't regress it.
   boards aren't reproducible). Both are DB-independent and added *when* going public.
 - **Combat side-state is now symmetric** (`CombatSideState`, shipped 2026-07-15 → devlog): both the player and a
   served enemy feed `simulate()` through one identical struct, retiring the positional-vs-`EnemyScalers` asymmetry
-  that caused the piecemeal snapshot-fidelity bugs. **Opponent pinning** (persist which served board was fought each
-  wave, so a later rebuild/replay can't drift) stays **deferred** — a non-issue for today's game (telemetry rebuilds
-  same-session on a frozen pool; Continue restores the full serialized run; the leaderboard stores the actual board),
-  and only needed alongside server-side replay validation above. The symmetric struct is the groundwork it wanted.
+  that caused the piecemeal snapshot-fidelity bugs.
+- **Opponent pinning shipped** (2026-07-15 → devlog): `RunState.servedBoards` records the exact board fought each
+  wave; the reducer serves a pinned board verbatim when one is present, else picks fresh + records. Survives the
+  save round-trip. This closes the last cross-session drift gap — when **server-side replay validation** (above)
+  lands, a run's opponents are already reproducible regardless of how the shared pool has changed. Remaining size
+  lever if the autosave ever needs trimming: store a pool `id` reference for always-resolvable committed/synthetic
+  boards instead of the full snapshot (keep full snapshots only for remote/self boards that can vanish).
 
 ---
 

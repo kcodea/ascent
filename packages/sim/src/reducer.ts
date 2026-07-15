@@ -1028,7 +1028,14 @@ function reduceCore(state: RunState, action: Action): RunState {
       // procedural omen blobs); otherwise fall back to the procedural threat. `nextOpponent` (which the
       // recruit-phase opponent frame previewed) makes the pick; the fallback gets its own fresh rng, so an
       // empty / no-match pool stays byte-identical to before the pool seam existed.
-      const served = nextOpponent(s);
+      // OPPONENT PINNING: if this wave's board was already decided (a restored / replayed run carries it in
+      // `servedBoards`), serve THAT exact board — so the fight reproduces even if the shared pool has since
+      // changed. Otherwise pick fresh (deterministic from seed+wave GIVEN the pool) and record the choice.
+      // `null` = the procedural threat was used; key presence marks the wave as decided. No behavior change on a
+      // normal forward turn (the key is absent → picks + records exactly as before).
+      const pinned = s.servedBoards ? Object.prototype.hasOwnProperty.call(s.servedBoards, s.wave) : false;
+      const served = pinned ? (s.servedBoards![s.wave] ?? null) : nextOpponent(s);
+      if (!pinned) s.servedBoards = { ...(s.servedBoards ?? {}), [s.wave]: served };
       const player: BoardMinion[] = s.board.map((b) => ({
         cardId: b.cardId,
         attack: b.attack,

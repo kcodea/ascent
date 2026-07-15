@@ -5,6 +5,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### fix(ui): anomaly pill kept the custom game cursor on hover
+
+- The `.anomalypill` rule set a bare `cursor: default`, which dropped the game's custom gauntlet SVG cursor
+  back to the OS arrow while hovering the pill (on hero select + the HUD). Switched it to the same
+  `url('/cursors/gauntlet_default.svg') 6 2, help` the other hover-info elements use (`.chip`, `.oppframe`),
+  so the cursor stays consistent and reads as "hover for info". Verified the computed cursor in the dev server.
+
 ### feat(ui): shared AnomalyPill — clean floating tooltip + in-game HUD pill
 
 - **Clean tooltip.** Replaced the anomaly pill's native `title=` hover with the game's standard floating

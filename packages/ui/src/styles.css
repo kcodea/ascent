@@ -2551,7 +2551,7 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 /* Anomaly-patch telegraph — a glowing pill ("Anomaly: <name>") with the game's standard clean floating
    tooltip (mirrors .questbadge-tip). Shared by hero select (`-hero`, big) + the in-game HUD (`-hud`, compact).
    `--ap-fs` sizes the pill so each context can scale it; the tooltip is a fixed, readable size. */
-.anomalypill { position: relative; display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; font-size: var(--ap-fs, 13px); cursor: default; }
+.anomalypill { position: relative; display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; font-size: var(--ap-fs, 13px); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
 .anomalypill-tag { color: rgba(198, 160, 255, 0.85); }
 .anomalypill-name { padding: 0.24em 0.9em; border-radius: 999px; background: linear-gradient(135deg, #a06bff, #6b8bff); color: #150a26; box-shadow: 0 0 14px rgba(150, 110, 255, 0.5); }
 .anomalypill-hero { --ap-fs: 13px; margin: -8px 0 20px; }

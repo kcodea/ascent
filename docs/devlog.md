@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### fix: pause the combat replay behind full-screen overlays (no background combat / sfx leak)
+
+Opening the Leaderboard / Balance Report / Career mid-combat left the replay running underneath — you'd hear combat
+sfx while sitting in a menu (owner report). Root cause: the replay beat-clock only paused on `hidden` (backgrounded
+tab), and `overlayOpen` (which already froze the recruit turn timer) didn't include the Balance Report or the
+Rankings leaderboard, nor was it wired to the replay.
+
+- Added a `paused` opt to `useCombatReplay`, ORed into the beat-clock gate exactly like the existing `hidden` pause
+  (the clock stops, so beats + their per-beat sfx stop, and it resumes cleanly on dismiss — no audio-bus juggling
+  that could fight the Skip-mute).
+- Extended `overlayOpen` to include `showBalance` + `showRankings` (was missing both), and passed it as
+  `paused` to the replay.
+
+Verified live: with the Balance Report open mid-fight the combat stayed frozen for 4s (a whole fight would have
+finished), then resumed and replayed on close. `typecheck` + `lint` + 1047 tests + `build:web` green. (Follow-up:
+the Esc/Settings menu is React-local state in Game.tsx, not a store flag, so it isn't covered yet — same treatment
+once it's plumbed to the store.)
+
+## 2026-07-15
+
 ### feat: Balance Report → Shop Curve chart (avg tavern tier by wave, won vs lost)
 
 New "Shop Curve" section in the player Balance Report: an SVG line chart of the **average tavern tier reached by

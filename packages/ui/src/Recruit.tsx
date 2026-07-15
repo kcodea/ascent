@@ -326,9 +326,10 @@ export function Recruit() {
   // Recruit stays mounted under the title / leaderboard overlays (see Game.tsx), so the round clock must also
   // pause for those — otherwise the timer keeps ticking (and the last-5s `sfx.tick` fires) on the Hall of
   // Champions / title screen, where there's no active turn.
-  // Any full-screen overlay pauses the recruit turn timer + logic — so the saved game never ticks / runs
-  // "in the background" behind the Career, Leaderboard, Compendium, or title (an exploit + a confusing UX).
-  const overlayOpen = useGame((s) => s.showTitle || s.showLeaderboard || s.showCareer || s.showBook);
+  // Any full-screen overlay pauses the recruit turn timer + logic AND the combat replay (see `paused` below) — so
+  // the saved game never ticks / runs "in the background" (and no combat sfx leak) behind the Career, Leaderboard
+  // (Hall of Champions + Rankings), Balance Report, Compendium, or title (an exploit + a confusing UX).
+  const overlayOpen = useGame((s) => s.showTitle || s.showLeaderboard || s.showRankings || s.showCareer || s.showBook || s.showBalance);
   // Fortify can target a tavern offer too; Gild / Encore act only on your warband.
   const heroPowerKind = getHero(run.heroId).power.kind;
   const heroTargetsTavern = heroPowerKind === 'fortify';
@@ -532,7 +533,7 @@ export function Recruit() {
       ),
     [],
   );
-  const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed });
+  const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed, paused: overlayOpen });
 
   // --- Divine-shield bubbles (Pixi) ------------------------------------------------------------------
   // A persistent golden bubble tracks every shielded card via its `.card.dscard` DOM marker, so the

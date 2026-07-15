@@ -463,9 +463,9 @@ function deathConsequenceLead(
  */
 export function useCombatReplay(
   combat: CombatResult | null | undefined,
-  opts: { active: boolean; findEl: (uid: string) => Element | null; combatSpeed?: number },
+  opts: { active: boolean; findEl: (uid: string) => Element | null; combatSpeed?: number; paused?: boolean },
 ): CombatReplay {
-  const { active, findEl } = opts;
+  const { active, findEl, paused = false } = opts;
   // User-controlled replay speed (in-combat slider). 1 = the tuned default; >1 faster, <1 slower. Every
   // beat delay / float lifetime / final hold is divided by it, and each lunge is timeScaled to match.
   const combatSpeed = opts.combatSpeed && opts.combatSpeed > 0 ? opts.combatSpeed : 1;
@@ -650,7 +650,9 @@ export function useCombatReplay(
   // animation has finished and the fight is on), and NOT while the tab is hidden (so beats + GSAP lunges
   // don't pile up in the background and fire as one loud burst on tab-in; the clock resumes on return).
   useEffect(() => {
-    if (!active || hidden || beatIdx >= beats.length) return;
+    // `paused` (a fullscreen overlay — Leaderboard / Balance Report / Career — is open) freezes the beat clock
+    // just like `hidden` (backgrounded tab): the replay + its per-beat sfx stop, and resume when it's dismissed.
+    if (!active || hidden || paused || beatIdx >= beats.length) return;
     // The moment on screen is beats[beatIdx-1]; the clock decides how long it stays before beats[beatIdx].
     // EXCEPT the attack-wind-up → its impact transition: the choreo engine's GSAP timeline (see the layout
     // effect below, `runAttackExchangeCues`) advances that one itself, anchored at the lunge's real
@@ -666,7 +668,7 @@ export function useCombatReplay(
     if (lead) d += lead / combatSpeed;
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
-  }, [active, hidden, beatIdx, beats, combatSpeed, events, cardIds]);
+  }, [active, hidden, paused, beatIdx, beats, combatSpeed, events, cardIds]);
 
   // Hold on the final beat: once the clock reaches the end, wait FINAL_HOLD_MS before reporting `done` — so
   // the last kill's death collapse + damage float fully play before cleanup + the round-end UI take over.

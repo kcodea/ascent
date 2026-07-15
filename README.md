@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Beast scaling buffs.** Den Mother now grants **+2/+2** per Beast played (was +1/+1), improving +2/+2 each time.
+  Pack Leader is reworked: its Start-of-Combat Beast buff now grows **+3/+3 for every Beast summoned while it's on
+  the board** — a *permanent* per-instance tally that persists across turns (and rides into enemy snapshots), never
+  counting Beasts you played before you had it. New art, too.
 - **Deathrattle FX fixed when a unit dies attacking a Target Dummy.** A Deathrattle unit that died *as the
   attacker* into an on-damaged body (Target Dummy) lost its purple echo skull and its pre-summon wait (repro:
   Reclaim on a Void Panther). The clash-buff was wedging a beat between the death and its summons, and the skull's

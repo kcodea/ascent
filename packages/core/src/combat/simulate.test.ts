@@ -3194,13 +3194,14 @@ describe('enemy run-level scalers (per-side)', () => {
     evs.reduce((mx, ev) => (ev.type === 'buff' && ev.attack > mx ? ev.attack : mx), 0);
   const wall: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 40, keywords: [] }];
 
-  it('enemy Pack Leader scales with the OPPONENT’s Beasts-played, and never leeches the current player’s', () => {
-    const enemy: BoardMinion[] = [{ cardId: 'packleader', attack: 6, health: 6, keywords: [] }];
-    const g = (enemyBeasts: number, playerBeasts: number) =>
-      maxBuffAtk(runVs(wall, enemy, { beastsPlayed: enemyBeasts }, { beastsPlayed: playerBeasts }).events);
-    expect(g(3, 0)).toBe(2 + 2 * 3); // base 2 + perPlayed 2 × its own 3 = +8/+8 (buffs itself, a Beast)
-    expect(g(3, 0)).toBeGreaterThan(g(1, 0)); // scales with ITS beasts-played
-    expect(g(0, 5)).toBe(g(0, 0)); // and does NOT leech the player's 5 (would be +12 if it did)
+  it('enemy Pack Leader spends its OWN accrued tally (summonBonus rides its snapshot), not any run-level scaler', () => {
+    // Pack Leader's grant is now a pure per-instance tally carried on the minion (captured in the enemy
+    // snapshot), so the enemy reads its OWN value with zero run-level plumbing and no chance of leeching ours.
+    const g = (tally: number, playerBeasts: number) =>
+      maxBuffAtk(runVs(wall, [{ cardId: 'packleader', attack: 6, health: 6, keywords: [], summonBonus: tally }], {}, { beastsPlayed: playerBeasts }).events);
+    expect(g(6, 0)).toBe(6); // grant = its own tally (2 Beasts × 3), buffs itself (a Beast)
+    expect(g(9, 0)).toBeGreaterThan(g(6, 0)); // scales with its captured tally
+    expect(g(6, 5)).toBe(g(6, 0)); // and the current player's Beasts-played is irrelevant to it
   });
 
   it('enemy Runescale Drake scales with the OPPONENT’s spells-this-turn, not the current player’s', () => {

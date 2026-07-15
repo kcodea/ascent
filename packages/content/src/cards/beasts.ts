@@ -257,9 +257,9 @@ export const BEASTS: CardDef[] = [
     attack: 5,
     health: 5,
     keywords: [],
-    effects: [{ on: 'onSummon', do: 'summonBuffTribeImprove', params: { tribe: 'beast', attack: 1, health: 1 } }],
-    text: 'When you play a **Beast**, give it **+1/+1** — and improve this by **+1/+1**.',
-    goldenText: 'When you play a **Beast**, give it **+2/+2** — and improve this by **+2/+2**.',
+    effects: [{ on: 'onSummon', do: 'summonBuffTribeImprove', params: { tribe: 'beast', attack: 2, health: 2 } }],
+    text: 'When you play a **Beast**, give it **+2/+2** — and improve this by **+2/+2**.',
+    goldenText: 'When you play a **Beast**, give it **+4/+4** — and improve this by **+4/+4**.',
   },
   {
     // Rally payoff for a Den Mother board: each of its own attacks permanently improves every friendly Den
@@ -331,9 +331,12 @@ export const BEASTS: CardDef[] = [
     goldenText: '**Start of Combat:** Summon **two** copies of this minion.',
   },
   {
-    // Start of Combat: buff your Beasts +2/+2, improved +2/+2 for each Beast you played this recruit turn
-    // (frozen at combat start, threaded into the sim like spellsThisTurn). A go-wide Beast SoC payoff that
-    // rewards a busy beast turn. Golden doubles the whole grant. Live grant via scTribeBuffPerPlayedText.
+    // Every Beast summoned WHILE Pack Leader is on the board accrues +3/+3 (+6/+6 golden) into a permanent,
+    // per-instance tally (`countTribeSummon` → summonBonus); Start of Combat spends the whole tally as a
+    // Beast-wide buff (`scTribeBuffImproving` with step 0 so the SoC half only reads, never self-improves,
+    // ×golden). The tally starts at 0 when acquired and only counts summons it witnesses — never retroactive
+    // — and rides the per-uid summonBonus carry-back across turns (and into enemy snapshots). Live grant via
+    // packLeaderText.
     id: 'packleader',
     name: 'Pack Leader',
     tribe: 'beast',
@@ -341,9 +344,12 @@ export const BEASTS: CardDef[] = [
     attack: 2,
     health: 4,
     keywords: [],
-    effects: [{ on: 'startOfCombat', do: 'scTribeBuffPerPlayed', params: { tribe: 'beast', attack: 2, health: 2, perPlayed: 2 } }],
-    text: '**Start of Combat:** Give your **Beasts** **+2/+2**. Improve this by **+2/+2** for every Beast played.',
-    goldenText: '**Start of Combat:** Give your **Beasts** **+4/+4**. Improve this by **+4/+4** for every Beast played.',
+    effects: [
+      { on: 'onSummon', do: 'countTribeSummon', params: { tribe: 'beast', step: 3 } },
+      { on: 'startOfCombat', do: 'scTribeBuffImproving', params: { tribe: 'beast', attack: 0, step: 0 } },
+    ],
+    text: '**Start of Combat:** Give your **Beasts** **+3/+3** for each **Beast** played while Pack Leader is on the board.',
+    goldenText: '**Start of Combat:** Give your **Beasts** **+6/+6** for each **Beast** played while Pack Leader is on the board.',
   },
   {
     // Battlecry: give a RANDOM friendly minion +3/+3, once per Beast you own — a spread go-wide payoff that

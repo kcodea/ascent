@@ -5,6 +5,41 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat: beast scaling buffs — Den Mother +2/+2, Pack Leader reworked to a permanent on-board tally + new art
+
+Two Beast payoff cards got stronger and one got a mechanic overhaul (owner request).
+
+**Den Mother (`mamabear`)** — the per-summon grant and its self-improve doubled from **+1/+1 → +2/+2** (golden
+**+2/+2 → +4/+4**). Pure dial change: `summonBuffTribeImprove` params `attack/health: 1 → 2`, text + goldenText
+updated. The live-text helper (`summonImproveText`) and the run-buffs panel (`runBuffs.ts` reads the base param
+from the def, so it tracked automatically) both reflect the new base.
+
+**Pack Leader (`packleader`)** — was a Start-of-Combat buff that scaled off Beasts *played this recruit turn*
+(`scTribeBuffPerPlayed` + the `beastsPlayed` per-side scaler). Reworked per owner ruling into a **permanent,
+per-instance tally that only counts Beasts summoned WHILE Pack Leader is on the board — never retroactively**:
+- New recruit effect `countTribeSummon` (in `recruit.ts`): every Beast summoned while Pack Leader is present
+  accrues **+3** (its `step`) into `self.summonBonus`. It starts at 0 when acquired and only climbs on summons it
+  witnesses, so Beasts played before you owned it are never counted. Tokens count (a summoned body is a summon),
+  exactly like Den Mother.
+- Start of Combat now uses the previously-unused `scTribeBuffImproving` with **`attack: 0, step: 0`** — it spends
+  the whole tally as a Beast-wide **+summonBonus/+summonBonus** (×golden → **+6/+6 per Beast** when golden) and,
+  with step 0, only READS the tally (never self-improves), so the recruit half is the sole accruer.
+- Because the count rides `summonBonus`, it carries across turns via the existing per-uid carry-back AND is
+  captured in the board snapshot — so an **enemy Pack Leader spends its own tally with zero new EnemyScalers
+  plumbing** (the old per-side `beastsPlayed` leak-risk is gone entirely).
+- Triple-combine: added `countTribeSummon` to the `improveEffect` branch in `reducer.ts` so a golden Pack Leader
+  keeps its tally at the highest copy's value (Mama-Bear-style), not reset.
+- Live text: new `packLeaderText` helper surfaces the current total grant (green) + the per-Beast rate, on every
+  surface (shop/board/hand/Discover via `liveCardText`, combat via `Unit.tsx`). Returns null before any Beast is
+  witnessed, so the printed "+3/+3 per Beast" reads accurately at rest.
+- **New art** wired: `PackLeader.png` master → optimized to `packleader.webp` (2.5MB → 55KB).
+
+Verified: full suite green (**1056 tests**, incl. rewritten run.test/socBoard/simulate enemy-scaler/BuffsFrame/
+cardText cases + a new accrual test proving the tally counts only on-board summons and ignores retroactive
+Beasts), typecheck + lint clean, `build:web` OK. Follow-ups: the old `scTribeBuffPerPlayed` factory /
+`scTribeBuffPerPlayedText` helper / `beastsPlayed` snapshot field are now unused (left in place; a cleanup pass
+could remove them).
+
 ### fix: enemy snapshot fidelity — carry the last 5 run-wide scalers so enemy-generated bodies are correctly sized
 
 Enemy boards are `BoardSnapshot`s fed to `simulate()` as the enemy side; they START with correct stats, but bodies

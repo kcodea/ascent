@@ -24,7 +24,7 @@ export function summonBuffText(cardId: string, summonBonus: number): string | nu
   const def = CARD_INDEX[cardId];
   // `buffOnSummon` (legacy summon-buff) or Kennelmaster's `scBeastAura` (Start-of-Combat Beast aura). Both
   // grant `base + summonBonus`, so the same live magnitude injects into the printed "+N/+N".
-  const eff = def?.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura' || e.do === 'scTribeBuffImproving' || e.do === 'rallyTribeAuraGrowing');
+  const eff = def?.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura' || e.do === 'rallyTribeAuraGrowing');
   if (!def || !eff) return null;
   const base = Number((eff.params as { attack?: number })?.attack ?? 1);
   const m = base + summonBonus;
@@ -133,6 +133,25 @@ export function scTribeBuffPerPlayedText(cardId: string, golden: boolean, played
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   let done = false;
   return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${x}/+${x}}}`)));
+}
+
+/**
+ * Pack Leader (`scTribeBuffImproving`, step 0) — Start of Combat spends its permanent per-instance tally
+ * (`summonBonus`, accrued +step per Beast played WHILE on board) as a +X/+X Beast buff, where X = tally ×
+ * golden. Surface the CURRENT total grant (green) alongside the per-Beast rate. Returns null before any Beast
+ * has been witnessed (the printed "+step/+step per Beast" text is accurate), matching the sibling contracts.
+ */
+export function packLeaderText(cardId: string, summonBonus: number, golden: boolean): string | null {
+  if (summonBonus <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'scTribeBuffImproving');
+  const countEff = def?.effects.find((e) => e.do === 'countTribeSummon');
+  if (!def || !eff || !countEff) return null;
+  const step = Number((countEff.params as { step?: number })?.step ?? 3);
+  const mult = golden ? 2 : 1;
+  const x = summonBonus * mult; // total grant right now (tally already holds `step` per Beast)
+  const per = step * mult; // per-Beast rate, golden-aware
+  return `**Start of Combat:** Give your **Beasts** {{+${x}/+${x}}} — **+${per}/+${per}** per **Beast** played while on the board.`;
 }
 
 /**

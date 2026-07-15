@@ -25,6 +25,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Avenge beats wait for the summons.** An Avenge payoff (buff pulse, coin burst, Discover) now always deploys
+  AFTER the death cascade's summons — no more seeing the Avenge before a later death's token, or before a Violet
+  Whelp's deferred "attacks immediately" Whelp pops in. Presentation-only (sim tags Avenge events; the replay
+  reorders them past the summons), so the resolved board is untouched.
+
 - **Step counter fades in combat.** The "X/N to next step" counter now flashes in only during combat — fades in
   on each avenge/step tick, holds ~3s, fades out (a second tick resets the window); it stays persistent in the
   shop for planning. Owner-tuned size/placement baked in.

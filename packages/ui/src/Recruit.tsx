@@ -2536,7 +2536,7 @@ export function Recruit() {
 
   return (
     <div
-      className={`app${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking || lossShake ? ' shaking' : ''}${
+      className={`app${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking || lossShake ? ' shaking' : ''}${replay.critShaking ? ' shaking-crit' : ''}${
         inCombat && replay.done ? ` done ${replay.result}` : ''
       }${combatOutro === 'out' || skipFade === 'out' ? ' combatout' : combatOutro === 'in' || skipFade === 'in' ? ' combatin' : ''}${
         skipFade === 'out' ? ' combatfrozen' : ''

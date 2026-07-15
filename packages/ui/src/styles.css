@@ -3122,10 +3122,11 @@ svg { width: 18px; height: 18px; }
   transform: translateX(-50%);
   z-index: 3;
   font: 700 0.72rem/1 var(--font-ui, system-ui, sans-serif);
-  /* Plain white numbers (no pill) with a soft drop shadow UNDERNEATH — same offset / blur / opacity as the
-     resting card grounding shadow (5px down, 7.2px blur, 0.8 black). */
+  /* Plain white numbers (no pill). A soft drop shadow UNDERNEATH (5px down, 7.2px blur, 0.8 black — same as the
+     resting card grounding shadow) PLUS a tight dark edge so the white reads on the LIGHT cream board (white-on-
+     cream is near-invisible without it — that's why the counter looked missing). */
   color: #fff;
-  text-shadow: 0 5px 7.2px rgba(0, 0, 0, 0.8);
+  text-shadow: 0 5px 7.2px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.95), 0 1px 1.5px rgba(0, 0, 0, 1);
   pointer-events: none;
   white-space: nowrap;
   animation: stepbump 220ms ease-out;

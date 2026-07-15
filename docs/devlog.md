@@ -14,6 +14,8 @@ dead synth cues** (`sfx.temper`, `sfx.proc`; defined but wired to nothing — gr
 - **death** (`sfx.death`, a unit dying → `death.mp3`)
 - **shield-up** (`sfx.shield`, a unit GAINING a Ward/Divine Shield mid-combat → `shieldgain.mp3`)
 - **triple** (`sfx.triple`, making a golden from 3 copies → `triplereward.mp3`)
+- **Start-of-Combat zap** (`sfx.cast`) — **reuses the `pulse` sourced clip** per owner request (same sound as
+  the hero-power pulse), on its own new `cast` category (combat bus, 0.5) so it can be leveled independently.
 
 **How:**
 - `sfx.attack` now does `playSample('windup', 'attack')` with the old sawtooth `tone()` kept as the decode/absent
@@ -36,8 +38,12 @@ dead synth cues** (`sfx.temper`, `sfx.proc`; defined but wired to nothing — gr
 - Removed `temper`/`proc` method bodies; nothing referenced them (the lone `proc` hit in `Card.tsx` is an
   unrelated visual-FX comment).
 
-Part of the stock-sound audit. Remaining pure-synth cues still to source: `cast` (SoC zap), `buff`, plus the meta
-fanfares `win`/`lose`/`tick`/`maxGold`.
+- `sfx.cast` (Start-of-Combat zap) now does `playSample('pulse', 'cast')` — reusing the existing `pulse.mp3`
+  rather than a new file, on a new `cast` category (combat bus, 0.5) so it's independent of the hero-power
+  `pulse` level; synth zap kept as fallback. Added a `cast` mixer preview entry.
+
+Part of the stock-sound audit. Remaining pure-synth cues still to source: `buff`, plus the meta fanfares
+`win`/`lose`/`tick`/`maxGold`.
 
 **Verified:** `npm run typecheck && npm run lint && npm test` (1064) `&& npm run build:web` all green (isolated
 worktree, own install); `windup.mp3` bundles as a hashed asset. Audible check left for an in-tab listen.

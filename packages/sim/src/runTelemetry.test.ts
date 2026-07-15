@@ -7,7 +7,7 @@ import { CONFIG } from './config';
 const blank = (over: Partial<RunTelemetry>): RunTelemetry => ({
   heroId: 'warden', heroOffer: [], won: false, wins: 0,
   offeredQuests: [], pickedQuests: [], questTurns: {}, offeredRunes: [], pickedRunes: [],
-  offeredCards: [], boughtCards: [], ...over,
+  offeredCards: [], boughtCards: [], tierByWave: [], ...over,
 });
 
 describe('aggregatePlayerReport', () => {
@@ -101,5 +101,30 @@ describe('reconstructRunTelemetry', () => {
     expect(t.offeredQuests.length).toBeGreaterThan(0); // a quest turn was reached
     // Every bought card was also offered (you can only buy what's in the shop).
     for (const id of t.boughtCards) expect(t.offeredCards).toContain(id);
+    // Shop-leveling curve is captured: wave 1 opens at tavern tier 1, and tier is monotonic non-decreasing.
+    expect(t.tierByWave[1]).toBe(1);
+    for (let w = 2; w < t.tierByWave.length; w++) {
+      if (t.tierByWave[w] == null || t.tierByWave[w - 1] == null) continue;
+      expect(t.tierByWave[w]!).toBeGreaterThanOrEqual(t.tierByWave[w - 1]!);
+    }
+  });
+});
+
+describe('shop-leveling curve aggregation', () => {
+  it('averages tavern tier by wave, split won vs lost', () => {
+    const rows: RunTelemetry[] = [
+      blank({ won: true, tierByWave: [0, 1, 1, 2, 3] }),    // waves 1-4
+      blank({ won: true, tierByWave: [0, 1, 2, 2] }),        // waves 1-3
+      blank({ won: false, tierByWave: [0, 1, 1, 1, 1, 2] }), // waves 1-5
+    ];
+    const c = aggregatePlayerReport(rows).shopCurve;
+    expect(c.maxWave).toBe(5);
+    expect(c.wonRuns).toBe(2);
+    expect(c.lostRuns).toBe(1);
+    expect(c.won[1]).toBe(1);       // (1+1)/2
+    expect(c.won[3]).toBe(2);       // (2+2)/2
+    expect(c.won[4]).toBe(3);       // only run 1 reached wave 4
+    expect(c.won[5]).toBeNull();    // no won run reached wave 5
+    expect(c.lost[5]).toBe(2);      // single lost run
   });
 });

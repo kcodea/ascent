@@ -38,6 +38,9 @@ export interface RunTelemetry {
   /** Every card ACQUISITION this run (NOT deduped) — one entry per shop buy + each Discover pick. The count of an
    *  id = how many times it was taken. */
   boughtCards: string[];
+  /** Tavern tier reached by the end of each wave — `tierByWave[wave] = tier` (1-indexed; index 0 unused). Drives
+   *  the Balance Report's shop-leveling curve (average tier by turn, split won vs lost). */
+  tierByWave: number[];
 }
 
 /**
@@ -59,6 +62,7 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
   const seenShopUids = new Set<string>(); // each shop-offer instance counts once, however many turns it lingers
   const questTurns: Record<string, number> = {};
   const seenCompleted = new Set<string>(); // quests already recorded as completed (detect the flip)
+  const tierByWave: number[] = []; // tavern tier at the end of each wave (tier is monotonic, so last-write = reached)
 
   const recordCompletions = (st: RunState): void => {
     for (const q of st.activeQuests ?? []) {
@@ -70,6 +74,7 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
   };
 
   recordCompletions(s);
+  tierByWave[s.wave] = s.tier;
   for (const action of replay.actions) {
     const before = s;
     // Shop sightings: each fresh shop-offer instance (by uid) counts once.
@@ -98,6 +103,7 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
       if (picked) boughtCards.push(picked);
     }
     recordCompletions(s);
+    tierByWave[s.wave] = s.tier;
   }
 
   const rec = runRecord(s);
@@ -113,6 +119,7 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
     pickedRunes: [...pickedRunes],
     offeredCards: offeredCards.filter((id) => CARD_INDEX[id]),
     boughtCards: boughtCards.filter((id) => CARD_INDEX[id]),
+    tierByWave,
   };
 }
 
@@ -134,7 +141,17 @@ export interface PlayerReportRow {
   avgTurns: number | null;
 }
 
-/** The finished player report: four ranked tables + the run count behind them. */
+/** The shop-leveling curve: average tavern tier reached by each wave, split by outcome. `won`/`lost` are indexed
+ *  by wave (index 0 unused); a null slot = no runs reached that wave. Feeds the Balance Report's curve chart. */
+export interface ShopCurve {
+  maxWave: number;
+  wonRuns: number;
+  lostRuns: number;
+  won: (number | null)[];
+  lost: (number | null)[];
+}
+
+/** The finished player report: five ranked tables + the shop-leveling curve + the run count behind them. */
 export interface PlayerReport {
   totalRuns: number;
   heroes: PlayerReportRow[];
@@ -142,6 +159,37 @@ export interface PlayerReport {
   runes: PlayerReportRow[];
   minions: PlayerReportRow[];
   spells: PlayerReportRow[];
+  shopCurve: ShopCurve;
+}
+
+/** Average the per-run `tierByWave` arrays into two mean curves (won runs vs lost runs), indexed by wave. */
+function aggregateShopCurve(rows: RunTelemetry[]): ShopCurve {
+  const sum = { won: [] as number[], lost: [] as number[] };
+  const cnt = { won: [] as number[], lost: [] as number[] };
+  let maxWave = 0;
+  for (const r of rows) {
+    const bucket = r.won ? 'won' : 'lost';
+    const t = r.tierByWave ?? [];
+    for (let w = 1; w < t.length; w++) {
+      const tier = t[w];
+      if (tier == null) continue;
+      sum[bucket][w] = (sum[bucket][w] ?? 0) + tier;
+      cnt[bucket][w] = (cnt[bucket][w] ?? 0) + 1;
+      if (w > maxWave) maxWave = w;
+    }
+  }
+  const mean = (b: 'won' | 'lost'): (number | null)[] => {
+    const out: (number | null)[] = [];
+    for (let w = 1; w <= maxWave; w++) out[w] = cnt[b][w] ? Math.round((sum[b][w]! / cnt[b][w]!) * 100) / 100 : null;
+    return out;
+  };
+  return {
+    maxWave,
+    wonRuns: rows.filter((r) => r.won).length,
+    lostRuns: rows.filter((r) => !r.won).length,
+    won: mean('won'),
+    lost: mean('lost'),
+  };
 }
 
 interface Acc {
@@ -221,5 +269,6 @@ export function aggregatePlayerReport(rows: RunTelemetry[]): PlayerReport {
     runes: toRows(runes, total, (id) => RUNE_INDEX[id]?.name ?? id, { wins: true }),
     minions: toRows(minions, total, (id) => CARD_INDEX[id]?.name ?? id),
     spells: toRows(spells, total, (id) => CARD_INDEX[id]?.name ?? id),
+    shopCurve: aggregateShopCurve(rows),
   };
 }

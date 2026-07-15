@@ -207,6 +207,7 @@ export async function uploadRunTelemetry(t: RunTelemetry, meta: { author?: strin
       offered_quests: t.offeredQuests, picked_quests: t.pickedQuests, quest_turns: t.questTurns,
       offered_runes: t.offeredRunes, picked_runes: t.pickedRunes,
       offered_cards: t.offeredCards, bought_cards: t.boughtCards,
+      tier_by_wave: t.tierByWave,
     }]);
   } catch {
     /* best-effort — telemetry must never disrupt the end screen */
@@ -220,7 +221,7 @@ export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetry[]> {
   if (!c) return [];
   try {
     const request = Promise.resolve(
-      c.from('run_telemetry').select('hero_id, hero_offer, won, wins, offered_quests, picked_quests, quest_turns, offered_runes, picked_runes, offered_cards, bought_cards')
+      c.from('run_telemetry').select('hero_id, hero_offer, won, wins, offered_quests, picked_quests, quest_turns, offered_runes, picked_runes, offered_cards, bought_cards, tier_by_wave')
         .order('created_at', { ascending: false }).limit(limit),
     );
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
@@ -238,6 +239,7 @@ export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetry[]> {
       pickedRunes: (r.picked_runes as string[]) ?? [],
       offeredCards: (r.offered_cards as string[]) ?? [],
       boughtCards: (r.bought_cards as string[]) ?? [],
+      tierByWave: (r.tier_by_wave as number[]) ?? [],
     }));
   } catch {
     return [];

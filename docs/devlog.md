@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat: Balance Report → Shop Curve chart (avg tavern tier by wave, won vs lost)
+
+New "Shop Curve" section in the player Balance Report: an SVG line chart of the **average tavern tier reached by
+each wave**, split into two lines — **won runs (green)** vs **lost runs (red)** — so you can see whether faster
+leveling correlates with success (owner request).
+
+- **Capture (free, no play-time instrumentation):** telemetry is reconstructed by replaying each finished run
+  through the reducer, so `reconstructRunTelemetry` now records `tierByWave[wave] = s.tier` as it steps (tier is
+  monotonic → last write = tier reached). Added `tierByWave` to `RunTelemetry`.
+- **Aggregate:** `aggregatePlayerReport` now also returns a `ShopCurve` (`maxWave`, `wonRuns`/`lostRuns`, and
+  per-wave mean-tier arrays for won/lost; a null slot = no run reached that wave, which breaks the line).
+- **Storage:** new `tier_by_wave jsonb` column on `run_telemetry` (added to the CREATE + a re-runnable
+  `alter table … add column if not exists` migration in schema.sql — **owner must run it**; old rows stay null and
+  are skipped, like the rest of the report). Wired through `uploadRunTelemetry` + `fetchRunTelemetry`.
+- **UI:** `BalancePanel` gets a "Shop Curve" dropdown entry that renders a pure-SVG `ShopCurveChart` (6-tier Y
+  axis, wave X axis, thinned tick labels, green/red series + legend) instead of a table.
+
+Verified: `typecheck` + `lint` + **1051 tests** (new capture + aggregation tests) + `build:web` green, and the
+chart rendered correctly against injected mock data (green climbs to T6, red plateaus lower). Dormant until the
+`tier_by_wave` migration runs + fresh runs log.
+
 ### chore: remove the Combo / Primer mechanic
 
 Owner's call — pull the Primer→Combo system entirely. A `primer` card armed a bonus that a `combo` card fired if

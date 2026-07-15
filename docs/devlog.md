@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(sim): second anomaly "Runic Behavior" — every hero hits the basic Runeforge on turn 7
+
+- **New anomaly `runic`.** Added a second entry to the `ANOMALIES` registry: *Runic Behavior* — on turn 7,
+  **every hero visits the basic Runeforge** (buy one of 3 runes, a run-long buff), not just the Runesmith.
+  Wired at the same turn-setup chokepoint as the Runesmith forge: when `s.anomaly === 'runic'` and it's turn 7
+  and the hero isn't already opening its own forge, queue `pendingBasicForge` — reusing the existing scheduled
+  no-charge forge path so it slots into start-of-turn modal priority (behind a quest offer, e.g. Coran's
+  turn-7 bucket) and buying it spends no hero-power charge.
+- **Switched the active anomaly.** Flipped `freedom.enabled → false` and `runic.enabled → true` (one line
+  each) — the pinning + UI machinery from the anomaly system carries the rest (hero-select pill now reads
+  "Anomaly: Runic Behavior" with its blurb tooltip; the home banner line stays since an anomaly is active).
+- **Tests + verification.** Renamed `freedomAnomaly.test.ts` → `anomalies.test.ts`; added Runic coverage
+  (turn-7 win → basic no-charge forge opens for a non-Runesmith hero; not without the anomaly; not on other
+  turns). Live-checked the pill in the running dev server (`.hsanomaly` = "ANOMALY · RUNIC BEHAVIOR", tooltip
+  "Every hero visits the basic Runeforge on turn 7."). typecheck + lint + full test (1097) + build:web green.
+
 ### feat(sim/ui): "anomaly" system (limited-time global rules) + first anomaly "Freedom"
 
 - **New live-ops "anomaly" spine.** Anomalies are global rules bent for fun for a while, then switched off.

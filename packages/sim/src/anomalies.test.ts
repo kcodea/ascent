@@ -55,8 +55,10 @@ describe('Freedom anomaly (first minion each turn is free)', () => {
   // disabled one is not. This is the one-line on/off switch the live-ops flow uses.
   it('createRun pins the active anomaly, and only while it is enabled', () => {
     const prev = ANOMALIES.freedom.enabled;
+    const prevRunic = ANOMALIES.runic.enabled;
     try {
       ANOMALIES.freedom.enabled = true;
+      ANOMALIES.runic.enabled = false;
       expect(activeAnomaly()?.id).toBe('freedom');
       expect(createRun(1, 'warden').anomaly).toBe('freedom');
 
@@ -65,6 +67,29 @@ describe('Freedom anomaly (first minion each turn is free)', () => {
       expect(createRun(1, 'warden').anomaly).toBeNull();
     } finally {
       ANOMALIES.freedom.enabled = prev;
+      ANOMALIES.runic.enabled = prevRunic;
     }
+  });
+});
+
+// The "Runic Behavior" anomaly: EVERY hero visits the basic Runeforge on turn 7. Drive it by pinning
+// `anomaly` on the run state, then win the turn-6 combat so the turn-7 shop opens.
+describe('Runic Behavior anomaly (all heroes hit the basic Runeforge on turn 7)', () => {
+  const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
+  const advanceTo = (heroId: string, fromWave: number, anomaly: 'runic' | null): RunState =>
+    reduce({ ...createRun(1, heroId), anomaly, wave: fromWave, phase: 'combat', hand: [], lastCombat: win }, { type: 'resolveCombat' });
+
+  it('opens the basic (no-charge) Runeforge on turn 7 for a non-Runesmith hero', () => {
+    const s = advanceTo('warden', 6, 'runic');
+    expect(s.wave).toBe(7);
+    expect(s.runeforgeOffer?.length).toBeGreaterThan(0);
+    expect(s.runeforgeEpic).toBeFalsy(); // basic, not epic
+    expect(s.runeforgeNoCharge).toBe(true); // free — buying it spends no hero-power charge
+  });
+
+  it('does NOT open on turn 7 without the anomaly, and not on other turns with it', () => {
+    expect(advanceTo('warden', 6, null).runeforgeOffer).toBeFalsy();
+    expect(advanceTo('warden', 5, 'runic').runeforgeOffer).toBeFalsy(); // → turn 6, not 7
+    expect(advanceTo('warden', 7, 'runic').runeforgeOffer).toBeFalsy(); // → turn 8, not 7
   });
 });

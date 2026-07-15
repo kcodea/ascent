@@ -64,7 +64,7 @@ export const CONFIG = {
  * it was played under even after we flip the global switch off (same "pin what actually happened" philosophy
  * as pinned opponents). Runtime code should read `RunState.anomaly` / `run.anomaly`, never the live registry.
  */
-export type AnomalyId = 'freedom';
+export type AnomalyId = 'freedom' | 'runic';
 
 export interface AnomalyDef {
   id: AnomalyId;
@@ -84,6 +84,13 @@ export const ANOMALIES: Record<AnomalyId, AnomalyDef> = {
     id: 'freedom',
     name: 'Freedom',
     blurb: 'The first minion you buy each turn is free.',
+    enabled: false,
+    runsThrough: 'a limited-time celebration patch',
+  },
+  runic: {
+    id: 'runic',
+    name: 'Runic Behavior',
+    blurb: 'Every hero visits the basic Runeforge on turn 7.',
     enabled: true,
     runsThrough: 'a limited-time celebration patch',
   },

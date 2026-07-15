@@ -40,9 +40,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
-- **Anomaly system + "Freedom".** A registry of limited-time global rule modifiers (`ANOMALIES`, flip
-  `enabled`), pinned onto each run so replays keep them. First one, **Freedom**: the **first minion you buy
-  each turn is free**. Telegraphed as "Anomaly: Freedom" on hero select and called out on the home banner.
+- **Anomaly system + modes.** A registry of limited-time global rule modifiers (`ANOMALIES`, flip `enabled`),
+  pinned onto each run so replays keep them, telegraphed on hero select. Current: **Runic Behavior** — every
+  hero visits the basic Runeforge on turn 7. (Also built: **Freedom** — first minion each turn is free.)
 - **Critical Strike VFX.** A crit (Commander Impala) now lands with a crimson-gold flourish — an amplified
   impact burst, a bold ring, a "CRIT!" pop, a red flash on the struck card, and a punchier board shake — not
   just the crit sound. Owner-tuned on a preview rig, baked into the Pixi renderer, with a live DEV tuner.

@@ -1732,6 +1732,11 @@ function advanceCombat(s: RunState): void {
     s.runeforgeEpic = undefined; // basic forge — set before runeforgePool so it reads the normal set
     s.runeforgeRerolled = undefined;
     s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST)));
+  } else if (s.anomaly === 'runic' && s.wave === 7) {
+    // "Runic Behavior" anomaly: EVERY (non-Runesmith) hero visits the basic Runeforge on turn 7. Queue it as a
+    // free (no hero-power charge) scheduled forge so it slots into the normal start-of-turn modal priority
+    // (behind any quest offer — e.g. Coran's turn-7 bucket — via openNextStartOfTurnModal).
+    s.pendingBasicForge = { deferred: false };
   }
   if (questOffer.length > 0) {
     s.questOffer = questOffer;

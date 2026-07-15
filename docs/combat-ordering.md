@@ -123,6 +123,14 @@ Each fallen body runs `killOrReborn` as its own step. Two paths:
    `death` → `onDeath` bus (Deathrattle) → `summon` · `buff` → Echo doublers (Sylus, Funeral Engine)
    re-fire the rattle → `avenge` bus → Bone Throne / Pit Without End / Empty Graves may trigger.
 
+   > **Presentation note.** Every event an `avenge` handler emits is stamped `avenge:true` (presentation
+   > metadata, like `step` — zero effect on resolution). The replay holds those Avenge payoff beats until
+   > AFTER the death cascade's summons deploy (`deferAvengeAfterSummons` in `useCombatReplay.ts`): otherwise a
+   > multi-death clash (the Avenge lands on death #2, before death #3's summon) or a deferred attack-on-summon
+   > token (the Whelp summons at the post-cascade flush) shows the payoff before the token pops in. The sim log
+   > order is unchanged; the reorder only hops an Avenge event past summons + other-unit events, so the folded
+   > frame is identical.
+
 ### On-kill (own step, after every Phase-2 death)
 
 9. **Slaughter fires — but only where `killer === attacker`.** Each victim in damage order: the

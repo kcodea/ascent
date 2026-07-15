@@ -25,9 +25,22 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
-- **Real combat/UI sounds.** Four synth placeholders are now sourced clips (each with its own mixer level): the
-  attack wind-up, the death cue, the shield-up (gaining a Ward) chime, and the triple/golden reward. Also deleted
-  two dead synth cues (`temper`, `proc`) that fired nowhere.
+- **Real combat/UI sounds.** The synth placeholder cues are now real clips (each with its own mixer level): the
+  attack wind-up, death, shield-up (gaining a Ward), triple/golden reward, the Start-of-Combat zap (reuses the
+  pulse clip), and the max-Gold raise (reuses the sell clip). Also deleted two dead synth cues (`temper`, `proc`).
+- **Avenge beats wait for the summons.** An Avenge payoff (buff pulse, coin burst, Discover) now always deploys
+  AFTER the death cascade's summons — no more seeing the Avenge before a later death's token, or before a Violet
+  Whelp's deferred "attacks immediately" Whelp pops in. Presentation-only (sim tags Avenge events; the replay
+  reorders them past the summons), so the resolved board is untouched.
+
+- **Step counter: cleaner shop + honest timing.** The "X/N" counter now hides a fresh `0/N` in the shop (shows
+  from `1/N` up), and end-of-turn cadence counters (Money Maker, Frontdrake) tick up *on the end-of-turn beat*
+  and stay hidden through combat where they're irrelevant.
+
+- **Step counter fades in combat.** The "X/N to next step" counter now flashes in only during combat — fades in
+  on each avenge/step tick, holds ~3s, fades out (a second tick resets the window); it stays persistent in the
+  shop for planning. Owner-tuned size/placement baked in.
+
 - **No-repeat opponents.** You'll never face the same opponent board within 4 rounds — the pick excludes the
   boards you actually fought over the last four waves (falling back to a repeat only if the pool has nothing else).
 

@@ -5,7 +5,7 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
-### feat(audio): source 4 stock combat/UI sounds (wind-up, death, shield-up, triple); remove dead cues
+### feat(audio): source stock combat/UI sounds (wind-up, death, shield-up, triple, SoC zap, max-Gold); remove dead cues
 
 **What:** batch of the stock-sound audit — replaced four synth cues with owner-authored clips, and **deleted two
 dead synth cues** (`sfx.temper`, `sfx.proc`; defined but wired to nothing — grep-confirmed no call sites in
@@ -54,6 +54,97 @@ Part of the stock-sound audit. Remaining pure-synth cues still to source: `buff`
 
 **Verified:** `npm run typecheck && npm run lint && npm test` (1064) `&& npm run build:web` all green (isolated
 worktree, own install); `windup.mp3` bundles as a hashed asset. Audible check left for an in-tab listen.
+
+### fix(ui): step counter — hide at 0 in shop · end-of-turn cadence ticks with the beat · hidden in combat
+
+Owner follow-up on the step counter, three parts:
+
+- **Shop hides a fresh 0/N** — a `0/2` counter reads as noise, so the recruit/board path (`instView`) now only
+  renders the counter from `1/N` up (`sp.current > 0`). Effect: a shop **Avenge** unit (Brood Matron) or a
+  freshly-placed **Money Maker** shows nothing until it has real progress. Combat is unchanged (keeps its own
+  `0/N` that fades in on the first tick).
+- **Cadence counters are shop-only, hidden in combat** — Money Maker / Frontdrake / Vineweaver tick at END OF
+  TURN, so `stepProgress` now returns `null` when `eotTick` is undefined (the combat path passes no `eotTick`),
+  mirroring how `goldSpent` already hides. Fixes Money Maker showing a stale, irrelevant `0/2` mid-combat.
+- **The tick lands on the beat, not a turn late** — `eotTick` is only committed in `faceOmen` (after the
+  End-of-Turn beats), so the counter used to jump a turn later (into combat, where it's now hidden). Added an
+  `eotAnimTick` projection in `Recruit.tsx`: when a card's EoT beat fires, its counter climbs to `eotTick + 1`
+  in lock-step with the medallion pulse/glow. Threaded via a new `eotTickOverride` on `instView` (used for both
+  the card text and the counter, so they stay in sync — card-text-current-value rule). Money Maker's flow is now:
+  hidden at `0/2` → ticks to `1/2` on the end-of-turn beat → hidden through combat → `1/2` next shop.
+
+Verified live (worktree dev server, DOM probe): shop shows `1/2` only (0/2 + shop-Avenge hidden); the EoT beat
+sequence records `recruit(hidden) → recruit 1/2 → combat(hidden)`; both Money Makers carry no counter in combat
+while an Avenge unit still shows its fading `0/3`. typecheck + lint + `build:web` clean, 1064 tests green.
+
+### fix(ui): Avenge payoff beats deploy AFTER the death's summons
+
+Owner report: "Avenge effects come before Deathrattle effects — perhaps just summon Deathrattles; make all
+Avenge effects wait until after the summon beats deploy." Traced with headless event-log repros: the sim fires
+an Avenge the instant a death hits its threshold, right after that death's own summon (correct for a lone
+death). But it inverts against summons that land LATER in the SAME exchange — (a) a **multi-death clash**
+(Cleave / AoE): deaths resolve one-by-one, so an Avenge on death #2 fires before death #3's summon; (b) a
+**deferred attack-on-summon token** (a Violet Whelp's "Whelp that attacks immediately"): that summon is held to
+the post-cascade flush, so any Avenge in the same death lands before the token exists. You'd see the payoff (a
+buff pulse / coin burst / Discover) before the token popped in.
+
+Fix is presentation-only, in two parts:
+- **Sim tag (`packages/core`).** `CombatEvent` gains an optional `avenge?: true` (mirrors the `step` tag —
+  pure presentation metadata, never touches resolution). `simulate()` stamps it via a new `emitAvenge(side,
+  count)` helper that sets an `inAvenge` flag around the `bus.emit('avenge', …)` at both friendly-death tally
+  sites (true death + a board-full Rise that stays dead), so every event an Avenge handler emits — buff /
+  improve / maxGold / shieldUp / summon / toHand, incl. Rune of Fury doubling + rune Avenges — is tagged.
+- **UI reorder (`packages/ui`).** New `deferAvengeAfterSummons` (choreo), composed after `deferClashBuffs` in
+  `useCombatReplay`, slides each `avenge`-tagged NON-summon beat to just after the last summon that follows it
+  within the same exchange (stops at the next `attack`; never reorders an Avenge *summon*, whose board slot is
+  index-based). Correctness: an Avenge event only ever hops forward past a `summon` (a brand-new uid) or an
+  event on a DIFFERENT unit — both commute with it in `computeFrame`'s in-order fold — and BAILS if a same-unit
+  interaction (its own target's `reborn`/`dmg`/`death`) sits in the way. So the folded board is byte-identical.
+
+Verified: `avengeOrder.test.ts` (10 unit cases — multi-death, deferred Whelp, attack-boundary stop, reborn
+bail, Avenge-summon left in place, non-Avenge buff untouched, relative-order preservation) + `avengeOrder.fold.
+test.ts` (real Cleave/Whelp fights: tag present, reorder fires end-to-end on the Arcane Weaver Avenge(2) +
+deferred Whelp case, and `computeFrame` before == after on every scenario). Full gate green: 1079 tests,
+typecheck, lint, build:web. Follow-up: the reorder deliberately does not un-defer Avenge *summons* (rune Imps,
+Knit) relative to Deathrattle summons — those are already summon-vs-summon and index-sensitive.
+
+### feat: pulse on EVERY quest activation (recruit + all SoC/combat triggers) + tuned HUD defaults
+
+- **New scale-tuner defaults** baked (hero power + quest nodes): hpowS 1.22, hpowX 237, hpowY 46, hpowGlow 2.1;
+  qbS 1.63, qbX -12, qbY -56, qbGap 2 — updated in `layoutConfig.ts` defs AND the `styles.css` fallbacks.
+- **Recruit-phase pulse:** QuestBadges now shows REPEATABLE quests too (they bump `completionCount`, never
+  `completed`), and the badge pulses on every activation — a shop-phase completion / re-fire (e.g. Hoard Spark
+  buying its 4th Dragon) OR a combat trigger. The pulse key = `completionCount + completed + combatTriggerCount`,
+  so a fresh one-shot fires on each bump.
+- **SoC + more combat triggers** now emit `questTrigger`: Shared Circuit (SoC Mech Ward — owner's example), Rune of
+  Warding / Rising Graves / Warden / Rallying / First Claws, Echoing Coop, Empty Graves, Passing Spears — on top of
+  the Avenge family + Bone Throne + Assembly Line already covered. Flag names resolve through the content map
+  (`combatFlag` flag → badge id; e.g. `sharedCircuit` → `q_shared_circuit`).
+
+Verified: new SoC test (Rune of Warding emits `questTrigger`; Shared Circuit maps to its quest); 1065 tests green,
+typecheck + lint + build:web clean. Determinism/golden unaffected (the markers are cosmetic).
+
+### feat(ui): step counter — combat-only 3s fade + baked tuned placement
+
+Owner ask: the step counter ("X/N to next step") should only flash in **combat** — fade in near-instantly each
+time an avenge (or other step) ticks, stay visible ~3s, then fade out; a second tick inside that window re-shows
+it and resets the 3s. In the **shop/recruit** phase it stays persistently visible for planning (owner's explicit
+choice). Also baked the owner-tuned placement from the Step Counter dev tuner.
+
+- **Baked placement** (`styles.css` `.stepcounter` fallbacks + `stepCounterConfig.ts` DEFAULTS): `size 20.5px`,
+  `x 1px`, `y -44px` (was 11.5 / 0 / -11). The dev tuner's Reset now returns to these.
+- **Combat fade** (`.stepcounter.ephemeral`): runs `stepbump` (the existing scale bump) alongside a new
+  `stepfade` — opacity `0 → 1` by ~120ms, hold to ~2.46s, `→ 0` by 3s (`forwards`). Opacity-only = compositor-
+  safe (no looped paint; perf north star). The span is keyed on `current`, so each tick remounts it and restarts
+  both animations — a second avenge inside the window naturally re-shows + resets the timer.
+- **Applied combat-only**: `Card.tsx` adds the `ephemeral` class when the new `stepEphemeral` view flag is set;
+  `Unit.tsx` (combat path) sets it `true`. The recruit/board path (`instView`) leaves it undefined, so those
+  counters stay persistent.
+- **Memo fix**: the `Unit` memo comparator now also compares `avengeSeen`, so an avenge tick reliably re-renders
+  the card and restarts the fade. Deliberately did **not** add `bleedAttacks` — it's the global attack count
+  stamped on every unit each attack, so comparing it would re-render the whole board every beat (perf regression).
+
+Verified: typecheck + lint + `build:web` clean, 1064 tests green.
 
 ### feat(ui): HUD tuning batch — name pill, hero-power restyle, dev movers, one-shot quest pulse
 

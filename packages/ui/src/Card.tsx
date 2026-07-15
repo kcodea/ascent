@@ -91,6 +91,9 @@ export interface CardView {
   goldenText?: string;
   /** "X/N toward next step" pill for step-based scalers (Guel, Monk, Spirit Pup, …). Absent = no counter. */
   stepProgress?: StepProgress;
+  /** Combat only: fade the counter in on each tick, hold ~3s, then fade out (`.ephemeral`). Shop/recruit
+   *  leaves it undefined so the counter stays persistently visible for planning. */
+  stepEphemeral?: boolean;
   cost?: number;
   /** The cost was changed off the flat minion price (Moe's discounted Attachment) — renders the coin green. */
   costChanged?: boolean;
@@ -377,7 +380,7 @@ export const Card = memo(function Card({
       {card.stepProgress && (
         <span
           key={card.stepProgress.current}
-          className="stepcounter"
+          className={`stepcounter${card.stepEphemeral ? ' ephemeral' : ''}`}
           aria-label={`Step progress ${card.stepProgress.current} of ${card.stepProgress.total}`}
         >
           {card.stepProgress.current}/{card.stepProgress.total}

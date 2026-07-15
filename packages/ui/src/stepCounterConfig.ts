@@ -18,9 +18,9 @@ export interface StepCounterConfig {
 }
 
 const DEFAULTS: StepCounterConfig = {
-  size: 11.5, // ≈ the shipped 0.72rem
-  x: 0,
-  y: -11, // ≈ the shipped bottom: -0.7rem (below the card's bottom edge)
+  size: 20.5, // shipped .stepcounter font-size
+  x: 1, // shipped horizontal nudge from centre
+  y: -44, // shipped `bottom` (below the card's bottom edge)
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

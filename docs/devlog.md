@@ -37,6 +37,90 @@ Verified: two subagents drafted in parallel (partitioned by file, no overlap); e
 importing the real arrays; the four source edits are strictly comment-only; typecheck + lint + test (1085) +
 build:web all green. Docs-only — no runtime change.
 
+### feat: "twice" = 2 real casts everywhere · Karwind/Nimbus · balance-report Y-axis · quest bounce · hero-power pin
+
+A batch off the owner's review of the shop-curve screenshot + the "twice" semantics:
+
+- **"Twice" now always means 2 genuine instances.** Golden **Hoardbreaker** cast "Growth twice" as one *doubled*
+  cast (½ the intent — it didn't proc spell-count reactions twice). Now it loops the cast twice: 2 real
+  `castSpell`s, each base-magnitude — so Guel / transforms / `spellsCast` all see both. (Taragosa + Watcher
+  already looped, so they were already correct.) Net stats unchanged.
+- **Golden Karwind → "+2/+2 twice"** (was +4/+4 once). Both the recruit + combat halves apply the buff twice at
+  base magnitude — two visible buff pulses, same net +4/+4.
+- **Nimbus reworded** → "**Shout:** Your next spell played from hand casts **twice**." (golden: three times). The
+  `nextSpellMult` mechanic was already hand-only (a minion's in-combat `castSpell` never reads it) and already
+  resolves the spell as genuine repeat instances — this is the text made accurate.
+- **Balance report — Shop Curve:** each Y-axis tier label now shows the **average wave a run first reaches that
+  tavern tier** (tangerine, e.g. "◷2.5" beside T2), from a new `avgWaveToTier` aggregate. The wave-1 "1.0" data
+  label is dropped (T1 is a given).
+- **Quest/rune trigger feedback:** the badge now plays the **scale-punch bounce** (the same beat a combat unit does
+  on a self-buff) via a `pulse`-keyed inner wrapper that remounts + replays `questbounce`, instead of the easily-
+  missed glow ring alone (ring kept, riding inside). Fires on every completion / repeatable re-fire / combat trigger.
+- **Hero power pinned to the stage, not the viewport.** It was `position: fixed` at `19%/45%` of the *window*, so a
+  non-16:9 client area (browser chrome / taskbar letterboxing the 16:9 stage) drifted it off the board — the bug on
+  Mike's machine. Now anchored to the stage box (`--bar-x/-y + 0.19·--gw / 0.45·--gh`), so it lands on the same
+  board spot at any aspect. Verified `onBoard` at a 6:5 window.
+
+Verified: new tests (golden Hoardbreaker = 2 base casts not 1 doubled; `avgWaveToTier` aggregate); **1085 tests
+green**, typecheck + lint + build:web clean; live DOM checks (hero-power fraction-of-stage across aspects; quest
+badge `questbounce` active + art centered). Determinism/golden unaffected (the cast-count change nets identical stats).
+
+### refactor(content): spell-casting minions name the spell (live value on its hover) instead of restating it
+
+Owner ruling: a minion that CASTS a named spell shouldn't restate the spell's numbers on its own card — just
+name the spell (already bolded), and let the spell's **hover-preview** show the value, which is already live to
+spell-power increases. Saves card text and keeps one source of truth for the spell's magnitude.
+
+- **Text trimmed:** Hoardbreaker Drake drops "(Give your minions **+3/+4**)" → just "**Rally:** Cast **Growth**.
+  **Slaughter:** Cast **Growth**." (golden → "Cast **Growth twice**" per trigger). Taragosa drops
+  "(+3/+4 to your minions)" → "cast **Growth**" (golden "cast **Growth twice**").
+- **Spell hover-preview:** `referencedCardIds` now derives the cast spell from the caster's effect (`castSpell`,
+  `onKillCastSpell`, `rallyCastSpell`, `endOfTurnCastSpellEscalating`, `onAllyAttackCastGrowth`,
+  `rallyCastTribeAttack`, `battlecryGrantSpell`), so hovering a caster trails its spell card. Taragosa/Watcher
+  carry a reference-only `spellId` param (their factory ignores it) since their cast is implicit. The referenced
+  spell's popup folds in the run's **live spell power** (`tokenRefView` → `spellDisplayText`), so Growth reads
+  its current +5/+6 (with +2/+2 power), not the base +3/+4.
+- **Dead helpers removed:** `taragosaText` + `combatCastGrantText` (which used to fold the value INTO the minion
+  text) are deleted from `cardText.ts` + the `liveCardText` chain + their tests — the value now lives on the
+  spell hover. `watcherText` stays (Watcher keeps its "rest of the run" run-wide wording).
+
+Verified: `referencedCardIds` test (Hoardbreaker/Taragosa → Growth, Watcher → Lantern, Vineweaver → Growth);
+live DOM check — the crafted board renders "Cast **Growth**. Cast **Growth**." with the parenthetical gone;
+**1068 tests green**, typecheck + lint + build:web clean.
+
+### feat(content): 4 scaling-minion reworks + balance-report shop/Discover split columns
+
+Five queued items (the four minion mechanics the owner spec'd + the report column split):
+
+- **Hoardbreaker Drake** (`rallyCastSpell`, dragons): now **Rally** (on-attack) *and* **Slaughter** (on-kill)
+  both cast **Growth**, so it fires on the first swing every combat, not only on a kill. New combat factory
+  mirrors `onKillCastSpell` on the `onAttack` trigger.
+- **Attachment Mechanic / Scrap Herald** (`battlecryGrantMinion`, mechs): Battlecry now also grants a **Money
+  Bot** (golden: two). New recruit factory grants a token minion to hand/board `count × golden` times.
+- **Hunter** (`onGainAttackBuffImproving`, beasts): reworked to a **scaling aura** — only triggers on **gaining
+  Attack**; each proc gives every *other* friendly minion the current +N/+N and improves itself +1/+1 (per-
+  instance via `summonBonus`). Fires in BOTH phases (combat factory + a recruit-half twin), each with a
+  re-entry guard (WeakSet) + exclude-self so a Hunter buffing a Hunter can't loop. Triple-combine = max.
+  Live text via new `hunterText`.
+- **Spirit Worgen** (`summonBuffSelfTribe`, beasts): reverted from the End-of-Turn lump to **on-play** — each
+  Beast/Dragon you play gives it **+3/+3**, and each spell cast this turn improves that per-play grant by
+  another +3/+3 (base × (1 + spellsThisTurn)). Live text `summonScalingText` rewritten (golden-aware).
+- **Runescale Drake** (`scTribeBuffPerProgress` + `spellCastImproveSelf`, dragons): Start of Combat gives your
+  Dragons **+1/+1**, improved **+1/+1 for every spell cast while THIS instance has been on the board** — a
+  per-instance `spellProgress` tally (persistent, non-retroactive, NOT this-turn-only; a fresh copy starts at
+  +1/+1). Recruit casts tick it via a new `spellCast` recruit factory; combat casts carry back at settle;
+  **tripling SUMS** the copies' progress (not max, unlike Spirit Pup). Live text via repurposed `runescaleText`
+  (reads `spellProgress`, already threaded into both the shop and combat text chains).
+- **Balance report — split card columns**: `runTelemetry` now tracks Discover offers/picks in their own streams
+  (`discoverOfferedCards`/`discoverBoughtCards`) separate from the shop streams; the aggregate carries per-source
+  counts, and the Minions/Spells tables show **Shop Seen · Shop Buy · Disc Seen · Disc Buy · Buy%** columns.
+  New DB columns (`discover_offered_cards`/`discover_bought_cards`) with a `schema.sql` migration; the upload +
+  fetch degrade gracefully (retry without the columns) so telemetry keeps recording until the owner migrates.
+
+Verified: new/updated tests across `simulate.test.ts` (Runescale SoC + spellProgress + enemy-side), `run.test.ts`
+(Worgen on-play, Runescale accrual + triple-SUM), `cardText.test.ts` (hunter/worgen/runescale live text),
+`runTelemetry.test.ts` (source split) — **1069 tests green**, typecheck + lint + build:web all clean.
+Determinism/golden unaffected.
 ### feat(ui): cadence counter reads "N Turns" (countdown), not X/N
 
 Owner ask: for End-of-Turn cadence cards (Money Maker, Frontdrake, Vineweaver) the step counter should read the

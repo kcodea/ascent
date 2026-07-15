@@ -310,8 +310,8 @@ export const NEUTRAL: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryDoubleNextSpell' }],
-    text: '**Battlecry:** your next Tavern spell casts **twice**.',
-    goldenText: '**Battlecry:** your next Tavern spell casts **three times**.',
+    text: '**Battlecry:** your next spell played from hand casts **twice**.',
+    goldenText: '**Battlecry:** your next spell played from hand casts **three times**.',
   },
   {
     // Echo Warden: a passive presence special-cased in the combat summon path (simulate's summonMinion) — while

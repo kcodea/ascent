@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, combatCastGrantText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, scTribeBuffPerSpellText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText, watcherText } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, undeadBuyAtkText, watcherText } from './cardText';
 
 describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
   it('Avenge units show 0/N on the board and tick with the death tally in combat, cyclic', () => {
@@ -22,14 +22,14 @@ describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
 });
 
 describe('cardText helpers', () => {
-  it('scTribeBuffPerSpellText shows Runescale Drake’s live Dragon grant (base + per-spell, golden-aware)', () => {
-    expect(scTribeBuffPerSpellText('runescale', false, 0)).toBeNull(); // no spells → printed base is accurate
-    // 2 spells cast → +2/+2 base + 2×+1/+1 = +4/+4 (first group only; the "+1/+1" improve rate is left alone).
-    expect(scTribeBuffPerSpellText('runescale', false, 2)).toContain('{{+4/+4}}');
-    expect(scTribeBuffPerSpellText('runescale', false, 2)).toContain('**+1/+1**');
-    // Golden doubles the grant: (2 + 2) × 2 = +8/+8.
-    expect(scTribeBuffPerSpellText('runescale', true, 2)).toContain('{{+8/+8}}');
-    expect(scTribeBuffPerSpellText('sandbag', false, 3)).toBeNull();
+  it('runescaleText shows Runescale Drake’s live Dragon grant (base + on-board spell tally, golden-aware)', () => {
+    expect(runescaleText('runescale', false, 0)).toBeNull(); // no on-board spells → printed base is accurate
+    // spellProgress 3 → base 1 + 3 = +4/+4 (first group only; the "+1/+1" improve rate is left alone).
+    expect(runescaleText('runescale', false, 3)).toContain('{{+4/+4}}');
+    expect(runescaleText('runescale', false, 3)).toContain('**+1/+1**');
+    // Golden doubles the grant: (1 + 3) × 2 = +8/+8.
+    expect(runescaleText('runescale', true, 3)).toContain('{{+8/+8}}');
+    expect(runescaleText('sandbag', false, 3)).toBeNull();
   });
   it('packLeaderText shows the live total grant from the on-board Beast tally (summonBonus), golden-aware', () => {
     // Pack Leader accrues +3/+3 into summonBonus per Beast played WHILE on board; SoC spends the whole tally.
@@ -121,26 +121,13 @@ describe('cardText helpers', () => {
     expect(summonImproveText('sandbag', 4, false)).toBeNull(); // not a per-summon-improve card
   });
 
-  it('summonScalingText (Spirit Worgen) greens the per-unit gain = base + spells cast this turn', () => {
-    expect(summonScalingText('spiritworgen', 3)).toContain('{{+5/+5}}'); // base 2 + 3 spells this turn
-    expect(summonScalingText('spiritworgen', 0)).toBeNull(); // no spells this turn → printed +2/+2
-    expect(summonScalingText('grim', 3)).toBeNull(); // not a spells-this-turn scaler
+  it('summonScalingText (Spirit Worgen) greens the per-play gain = base × (1 + spells cast this turn)', () => {
+    expect(summonScalingText('spiritworgen', 3, false)).toContain('{{+12/+12}}'); // base 3 × (1 + 3 spells)
+    expect(summonScalingText('spiritworgen', 2, true)).toContain('{{+18/+18}}'); // golden base 6 × (1 + 2 spells)
+    expect(summonScalingText('spiritworgen', 0, false)).toBeNull(); // no spells this turn → printed +3/+3
+    expect(summonScalingText('grim', 3, false)).toBeNull(); // not a spells-this-turn scaler
   });
 
-  it('combatCastGrantText scales Hoardbreaker’s Slaughter Growth with spell power (golden doubles)', () => {
-    expect(combatCastGrantText('hoardbreaker', false, 0, 0)).toBeNull(); // no spell power → printed +3/+4
-    expect(combatCastGrantText('hoardbreaker', false, 2, 2)).toContain('{{+5/+6}}'); // base 3/4 + spell power 2/2
-    expect(combatCastGrantText('hoardbreaker', true, 2, 2)).toContain('{{+10/+12}}'); // ×2 golden, matching onKillCastSpell
-    expect(combatCastGrantText('taragosa', false, 2, 2)).toBeNull(); // Taragosa uses its own helper (no spellId param)
-    expect(combatCastGrantText('sandbag', false, 2, 2)).toBeNull(); // not a spell-caster
-  });
-
-  it('taragosaText scales Growth with spell power (golden casts twice)', () => {
-    expect(taragosaText('taragosa', false, 4, 4)).toContain('{{+7/+8}}'); // base 3/4 + spell power 4/4
-    expect(taragosaText('taragosa', true, 4, 4)).toContain('{{+14/+16}}'); // ×2 (Growth twice)
-    expect(taragosaText('taragosa', false, 0, 0)).toBeNull(); // no spell power → printed +3/+4
-    expect(taragosaText('tara', false, 4, 4)).toBeNull(); // not Taragosa
-  });
 
   it('watcherText shows the live Lantern buff +x/+y (spell power in both stats); golden casts twice', () => {
     expect(watcherText('watcher', false, 2, 2)).toContain('{{+5/+2}}'); // base 3 + sp 2 attack, sp 2 health

@@ -43,6 +43,16 @@ const CARD_REF_EFFECTS: Record<string, string> = {
   deathrattleGrantCardToHand: 'cardId',
   avengeGrantSpell: 'cardId',
   deathrattleBuffCardTypeRunWide: 'cardId',
+  // Minions that CAST a named spell — surface that spell on hover so its live (spell-power-aware) value is
+  // readable there instead of restated on the minion. Taragosa/Watcher cast a fixed spell with no `spellId`
+  // in their factory, so they carry a reference-only `spellId` param purely for this map (the factory ignores it).
+  castSpell: 'spellId',
+  onKillCastSpell: 'spellId',
+  rallyCastSpell: 'spellId',
+  endOfTurnCastSpellEscalating: 'spellId',
+  onAllyAttackCastGrowth: 'spellId',
+  rallyCastTribeAttack: 'spellId',
+  battlecryGrantSpell: 'spellId',
 };
 
 /** Every card id a card names in its effects — the tokens it summons (`tokenId`), the cards it grants /

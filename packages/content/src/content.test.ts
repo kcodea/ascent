@@ -10,6 +10,12 @@ describe('content', () => {
     it("derives Spark Capacitor's Spark Plug (avengeGrantSpell)", () => {
       expect(referencedCardIds(CARD_INDEX['sparkcapacitor']!)).toContain('sparkplug');
     });
+    it('derives the spell a minion CASTS so the hover-preview shows it (Hoardbreaker/Taragosa → Growth, Watcher → Lantern)', () => {
+      expect(referencedCardIds(CARD_INDEX['hoardbreaker']!)).toContain('growth'); // rallyCastSpell + onKillCastSpell
+      expect(referencedCardIds(CARD_INDEX['taragosa']!)).toContain('growth'); // onAllyAttackCastGrowth (reference-only spellId)
+      expect(referencedCardIds(CARD_INDEX['watcher']!)).toContain('lanternofsouls'); // rallyCastTribeAttack
+      expect(referencedCardIds(CARD_INDEX['vineweaver']!)).toContain('growth'); // endOfTurnCastSpellEscalating
+    });
     it('every referenced id resolves to a real card, and never lists the card itself', () => {
       for (const c of ALL_CARDS) {
         const refs = referencedCardIds(c);

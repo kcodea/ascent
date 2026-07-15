@@ -640,6 +640,10 @@ export function grantTopTypeMinion(state: RunState): boolean {
   return state.hand.length > before; // false if the hand was full (no minion added)
 }
 
+/** Re-entry guard for Hunter's recruit-side scaling aura: buffing another minion's Attack can re-fire
+ *  `onGainAttack`, so a Hunter buffing a second Hunter must not ping-pong. Cleared after each dispatch. */
+const recruitHuntGuard = new WeakSet<object>();
+
 const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Brightwing Broker: every minion you buy gets +atk/+hp (not itself). */
   buffOnBuy: (_ctx, self, params, { minion }) => {
@@ -816,13 +820,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  Records the buffed uids so the UI can flame-flash exactly those minions. */
   onBattlecryBuffTribe: (ctx, self, params) => {
     const tribe = str(params.tribe);
-    const a = num(params.attack, 1) * gold(self);
-    const h = num(params.health, 1) * gold(self);
+    const a = num(params.attack, 1);
+    const h = num(params.health, 1);
     const flash = (ctx.state.karwindFlash ??= []);
-    for (const c of ctx.state.board) {
-      if (tribe && tribe !== 'any' && !isTribe(c, tribe as Tribe)) continue;
-      addBuff(c, nameOf(self), a, h);
-      if (!flash.includes(c.uid)) flash.push(c.uid);
+    // Golden "+2/+2 twice" = the buff applied twice at base magnitude (not one doubled grant), so both pulses land.
+    for (let i = 0; i < gold(self); i++) {
+      for (const c of ctx.state.board) {
+        if (tribe && tribe !== 'any' && !isTribe(c, tribe as Tribe)) continue;
+        addBuff(c, nameOf(self), a, h);
+        if (!flash.includes(c.uid)) flash.push(c.uid);
+      }
     }
   },
 
@@ -832,6 +839,22 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   onGainAttackBuffAll: (ctx, self, params) => {
     const h = num(params.health, 2) * gold(self);
     for (const c of ctx.state.board) addBuff(c, nameOf(self), 0, h);
+  },
+
+  /** Hunter (recruit half, scaling aura) — when this gains Attack in the shop, give every OTHER friendly
+   *  minion the current per-proc +N/+N, then improve this by the base +N/+N (per-instance, via `summonBonus`).
+   *  Excludes self + a re-entry guard so a Hunter buffing another Hunter can't loop. Golden doubles the grant. */
+  onGainAttackBuffImproving: (ctx, self, params) => {
+    if (recruitHuntGuard.has(self)) return;
+    recruitHuntGuard.add(self);
+    try {
+      const base = num(params.attack, 1);
+      const m = (base + (self.summonBonus ?? 0)) * gold(self);
+      if (m > 0) for (const c of ctx.state.board) if (c !== self) addBuff(c, nameOf(self), m, m);
+      self.summonBonus = (self.summonBonus ?? 0) + base;
+    } finally {
+      recruitHuntGuard.delete(self);
+    }
   },
 
   // --- Demons (Consume, recruit-resolved: bakes into stats before combat) ---
@@ -969,15 +992,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Spirit Worgen: when a friendly minion of one of `tribes` is summoned (played or token-summoned),
-   *  gain +X/+X where X = base + spells cast THIS turn — so casting spells this turn improves the
-   *  per-summon gain. Self-targeting; ignores its own arrival. */
+   *  gain +X/+X where X = base × (1 + spells cast THIS turn) — so each spell cast this turn improves the
+   *  per-summon gain by another full `base`. Golden doubles `base`. Self-targeting; ignores its own arrival. */
   summonBuffSelfTribe: (ctx, self, params, { minion }) => {
     if (minion === self) return;
     const tribes = Array.isArray(params.tribes) ? (params.tribes as string[]) : [];
     const def = CARD_INDEX[minion.cardId];
     if (!tribes.includes(minion.tribe) && !(def?.tribe2 && tribes.includes(def.tribe2)) && !def?.universalTribe) return;
-    const x = (num(params.attack, 1) + ctx.state.spellsThisTurn) * gold(self);
-    const y = (num(params.health, 1) + ctx.state.spellsThisTurn) * gold(self);
+    const x = num(params.attack, 3) * gold(self) * (1 + ctx.state.spellsThisTurn);
+    const y = num(params.health, 3) * gold(self) * (1 + ctx.state.spellsThisTurn);
     addBuff(self, nameOf(self), x, y);
   },
 
@@ -1018,6 +1041,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const a = (num(params.attack, 1) + step) * gold(self);
     const h = (num(params.health, 1) + step) * gold(self);
     for (const m of picks) addBuff(m, nameOf(self), a, h);
+  },
+
+  /** Runescale Drake (recruit half): each tavern spell cast while THIS instance is on the board ticks its
+   *  per-instance `spellProgress` by 1 (non-retroactive — a freshly bought copy starts at 0). The Start-of-
+   *  Combat half reads that tally to size its Dragon buff; combat casts tick it at settle (see resolveCombat). */
+  spellCastImproveSelf: (_ctx, self) => {
+    self.spellProgress = (self.spellProgress ?? 0) + 1;
   },
 
   /** Flowing Monk (recruit half): when a summon can't fit the full board, Engrave `count` random friendly
@@ -1239,6 +1269,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         golden: false,
       });
     }
+  },
+
+  /** Battlecry: grant a specific minion (`cardId`) to hand — e.g. Attachment Mechanic gets a Money Bot. Routes
+   *  through `grantMinionToHandOrBoard` so it honors run-wide buys/auras + overflows to the board when the hand is
+   *  full. Golden doubles the count. */
+  battlecryGrantMinion: (ctx, self, params) => {
+    const def = CARD_INDEX[str(params.cardId)];
+    if (!def) return;
+    const count = num(params.count, 1) * gold(self);
+    for (let i = 0; i < count; i++) grantMinionToHandOrBoard(ctx.state, def, false);
   },
 
   /** The Godfodder (Choose One, option A) — Battlecry: give your Fodder +atk/+hp run-wide (persistent, the

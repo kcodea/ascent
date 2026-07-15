@@ -5,6 +5,43 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### fix(ui): Beast Health buy-aura shows in the tavern + balance-report Disc % column, un-greyed
+
+- **Beast buy-aura Health now previews in the shop.** A Beast quest aura (Pack Mentality / Den Mother's
+  `beastBuyAtk`/`beastBuyHp`) baked its +Health into the minion on BUY, but the tavern OFFER preview only added
+  the Attack term (`beastBuyHp` was never passed to `shopView`, and `addHp` had no beast term) — so a 1/1 Beast
+  read 5/1 in the shop then bought in at 5/5. Preview fixed to match the buy.
+- **Balance report:** added a **Disc %** column (Discover pick rate = discoverPicked / discoverOffered) to the
+  Minions + Spells tables, and removed the dimmed (`baldim`) styling from the Disc Seen / Disc Buy columns so the
+  Discover metrics read at full weight alongside the shop columns.
+
+Verified: live DOM check (a Beast offer previews 5/5 under a +4/+4 Beast aura). 1090 tests green; typecheck + lint clean.
+
+### feat(ui): hero-panel cleanup + dark pill/glass restyle of the hero / opponent / round panels
+
+- **Hero panel decluttered.** Removed the always-visible power description + progress line from the hero box.
+  The power NAME now sits in the pill for passives too (mirrors the active-power pill, e.g. Soren's Reclaim),
+  and the live status (current magnitude + countdown) + rule move to the hover tip (`.herotip-rule` /
+  `.herotip-live`). Per the owner's choice, no counter chip above the button — status reads on hover.
+- **Dark pill/glass restyle.** The hero box, health box, opponent frame, and round-stat HUD were plain
+  cream/white boxes; they now use the dark gradient + gold-mix border the quest badges / name pills already
+  use, with all inner text lightened to read on the dark fill. Verified live across all three panels.
+- **Den Marker (quest `beastPlayBuff`) shows live values on hover.** Its badge tip had no live line (the switch
+  didn't handle the kind) — now it reads "Now: Beasts +X/+X when played · +step/+step in N more Beasts",
+  folding the current per-play grant (base + step × improves-done) and the countdown from `run.denMarker.count`.
+
+Verified: new `questRewardLiveText` test (Den Marker current grant + countdown); live browser checks (all three
+panels dark with readable light text). 1090 tests green; typecheck + lint + build:web clean.
+
+### fix(sim): triple-reward Discover freezes its tier at grant (no longer inflates on tavern-up)
+
+The golden/triple-reward Discover spell ("peek one tier up") resolved its tier from the LIVE tavern tier when
+played — so taverning up with it sitting in hand bumped the offer (and its printed text) to the higher tier.
+Now the spell captures the shop tier when it's GRANTED (`BoardCard.grantedTier = s.tier`); the `discoverOnPlay`
+resolution and the live card text both read that frozen tier (`grantedTier ?? s.tier`), so a Discover granted at
+tier 2 always peeks tier 3 no matter how far you climb afterwards. New test covers grant-at-2 → tavern-to-4 →
+offer max tier still 3. 1089 tests green; typecheck + lint clean.
+
 ### fix(ui): stranded buff-hold on multi-summon auras + quest tooltip under the hero power
 
 Two presentation fixes (the sim was correct in both):

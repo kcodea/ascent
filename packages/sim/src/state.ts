@@ -86,6 +86,10 @@ export interface BoardCard {
   /** Anomaly Reactor's "All" mode: this instance counts as EVERY tribe for the rest of the run — `isTribe`
    *  short-circuits true, and combat seeds `universalTribe` from it. */
   allTribes?: boolean;
+  /** Triple-reward Discover spell: the shop tier CAPTURED when it was granted to hand, so its "peek one tier up"
+   *  is frozen at grant time — taverning up afterwards no longer inflates the Discover's tier (owner 2026-07-15).
+   *  Read by the `discoverOnPlay` resolution + the live card text; absent on non-granted cards. */
+  grantedTier?: number;
   /** Per-source recruit-phase stat buffs applied to this instance (Karwind, Nadir, Spirit Fire,
    *  Fortify, …) — drives the inspect-panel breakdown. Base stats are NOT recorded here. */
   buffs?: CardBuff[];

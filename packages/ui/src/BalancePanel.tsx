@@ -17,17 +17,17 @@ import { fetchRunTelemetry, remoteEnabled } from './remoteBoards';
 // offer/pick/win are per-run RATES (%); seen/bought are raw COUNTS (a card is seen many times per run); buypct =
 // bought/seen. avgTurns shows DNF when a quest was taken but never completed.
 type Col = 'offer' | 'pick' | 'win' | 'avgWins' | 'avgTurns' | 'n' | 'seen' | 'bought' | 'buypct'
-  | 'shopSeen' | 'shopBought' | 'discSeen' | 'discBought';
+  | 'shopSeen' | 'shopBought' | 'discSeen' | 'discBought' | 'discpct';
 const COL_LABEL: Record<Col, string> = {
   offer: 'Offer', pick: 'Pick', win: 'Win', avgWins: 'Avg Wins', avgTurns: 'Avg Turns', n: 'n', seen: 'Seen', bought: 'Bought', buypct: 'Buy %',
-  shopSeen: 'Shop Seen', shopBought: 'Shop Buy', discSeen: 'Disc Seen', discBought: 'Disc Buy',
+  shopSeen: 'Shop Seen', shopBought: 'Shop Buy', discSeen: 'Disc Seen', discBought: 'Disc Buy', discpct: 'Disc %',
 };
 
 /** The report sections, in dropdown order — each names the rows it reads off the aggregate + the columns it shows. */
 type Section = { key: keyof PlayerReport & ('heroes' | 'quests' | 'runes' | 'minions' | 'spells'); label: string; cols: Col[] };
 const SECTIONS: Section[] = [
-  { key: 'minions', label: 'Minions', cols: ['shopSeen', 'shopBought', 'discSeen', 'discBought', 'buypct'] },
-  { key: 'spells', label: 'Spells', cols: ['shopSeen', 'shopBought', 'discSeen', 'discBought', 'buypct'] },
+  { key: 'minions', label: 'Minions', cols: ['shopSeen', 'shopBought', 'discSeen', 'discBought', 'discpct', 'buypct'] },
+  { key: 'spells', label: 'Spells', cols: ['shopSeen', 'shopBought', 'discSeen', 'discBought', 'discpct', 'buypct'] },
   { key: 'heroes', label: 'Heroes', cols: ['offer', 'pick', 'win', 'avgWins', 'n'] },
   { key: 'quests', label: 'Quests', cols: ['offer', 'pick', 'win', 'avgTurns', 'n'] },
   { key: 'runes', label: 'Runes', cols: ['offer', 'pick', 'win', 'n'] },
@@ -58,10 +58,11 @@ function cellFor(r: PlayerReportRow, c: Col): { text: string; cls: string } {
     case 'seen': return { text: String(r.offered), cls: 'balnum' };
     case 'bought': return { text: String(r.picked), cls: 'balnum' };
     case 'buypct': return { text: fmtPct(r.pickRate), cls: 'balnum' };
+    case 'discpct': return { text: r.discoverOffered > 0 ? fmtPct(Math.round((100 * r.discoverPicked) / r.discoverOffered)) : '–', cls: 'balnum' };
     case 'shopSeen': return { text: String(r.shopOffered), cls: 'balnum' };
     case 'shopBought': return { text: String(r.shopPicked), cls: 'balnum' };
-    case 'discSeen': return { text: String(r.discoverOffered), cls: 'balnum baldim' };
-    case 'discBought': return { text: String(r.discoverPicked), cls: 'balnum baldim' };
+    case 'discSeen': return { text: String(r.discoverOffered), cls: 'balnum' };
+    case 'discBought': return { text: String(r.discoverPicked), cls: 'balnum' };
     case 'n': return { text: String(r.games || r.picked), cls: 'balnum baldim' };
   }
 }
@@ -81,6 +82,7 @@ function sortValue(r: PlayerReportRow, c: Col): number | null {
     case 'shopBought': return r.shopPicked;
     case 'discSeen': return r.discoverOffered;
     case 'discBought': return r.discoverPicked;
+    case 'discpct': return r.discoverOffered > 0 ? Math.round((100 * r.discoverPicked) / r.discoverOffered) : null;
     case 'n': return r.games || r.picked;
   }
 }

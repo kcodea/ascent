@@ -71,31 +71,9 @@ export function StatusBar() {
                   : power.kind === 'dynamiteDig'
                     ? `${power.name} · ${!run.heroReady ? 'used' : run.embers >= digCost! ? `${digCost} Gold` : `need ${digCost} Gold`}`
                     : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;
-  const powerNote = isPassive
-    ? power.kind === 'spellAmplify'
-      ? ` Passive — your spells gain +${spellAmplifyBonus(run.spellsCast)}/+${spellAmplifyBonus(run.spellsCast)}. ${run.spellsCast % 10}/10 spells cast toward the next +1/+1.`
-      : power.kind === 'recurringGoldcrafter'
-        ? ` Passive — a Goldcrafter arrives in your hand every 4 turns${run.wave % 4 === 0 ? ' (one this turn)' : ` (next in ${4 - (run.wave % 4)})`}.`
-        : ' Passive — always on.'
-    : !unlocked
-      ? ` Unlocks on turn ${unlockWave}.`
-      : power.kind === 'gild'
-        ? run.heroPowerSpent
-          ? ` Recharging — ${gildSpent}/40 Gold spent since your last Gild.`
-          : ' Drag onto a friendly minion (or click, then click it). Refreshes after you spend 40 Gold.'
-        : power.kind === 'scalingGold'
-          ? run.heroPowerSpent
-            ? ' Already used this game.'
-            : ` Click to gain ${1 + run.wave} Gold — the payout grows +1 each turn you wait. One use per game.`
-        : power.oncePerGame
-          ? run.heroPowerSpent
-            ? ' Already used this game.'
-            : ' Drag onto a friendly minion (or click, then click it). One use per game.'
-          : run.heroReady
-            ? power.untargeted
-              ? ` Click to use.${power.cost ? ` Costs ${power.cost} Gold.` : ''}`
-              : ' Drag onto a minion (or click, then click a minion).'
-            : ' Used this wave.';
+  // The live status line (current magnitude + countdown) shown ON HOVER, with the leading "Name · " stripped
+  // (the name is the tip's header). Reuses the same live computations the old always-visible line did.
+  const powerStatus = powerLine.startsWith(`${power.name} · `) ? powerLine.slice(power.name.length + 3) : powerLine;
   // When effective HP drops (Armor or Resolve — a wave broke through), shake the chip + float the −X.
   const prevHp = useRef(run.resolve + run.armor);
   const [hit, setHit] = useState<{ amt: number; key: number } | null>(null);
@@ -130,7 +108,7 @@ export function StatusBar() {
           </div>
           <div className="htxt">
             <div className="nm">{hero.name}</div>
-            <div className="pw">{powerLine}</div>
+            {/* The power's name + live status now live in the power button's pill + hover tip (below), not here. */}
           </div>
           {/* Health as a compact white box under the hero — the number is Resolve (+Armor). Keeps the hit-shake
               + −X float when a wave breaks through. */}
@@ -173,10 +151,15 @@ export function StatusBar() {
             </button>
             {(digCost ?? power.cost) ? <span className="hpcost"><span className="costn">{digCost ?? power.cost}</span></span> : null}
           </div>
-          <div className="hplabel">{isPassive ? 'Passive' : power.name}</div>
+          {/* The power NAME now lives in the pill for passives too (mirrors the active-power pill, e.g. Soren's
+              Reclaim); the "Passive"/status detail moves to the hover tip below. */}
+          <div className="hplabel">{power.name}</div>
           <div className="herotip" role="tooltip">
-            <b>{power.name}</b> — {renameTerms(power.text)}
-            {powerNote}
+            <b>{power.name}</b>{isPassive ? ' · passive' : ''}
+            <span className="herotip-rule">{renameTerms(power.text)}</span>
+            {/* Live status (current magnitude + countdown) on hover — the progress text was removed from the
+                always-visible hero box, so it reads here instead. */}
+            <span className="herotip-live">{powerStatus}</span>
           </div>
         </div>
       </div>

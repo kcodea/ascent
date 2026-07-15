@@ -1755,6 +1755,49 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   box-shadow: 0 calc(3 * var(--u)) calc(9 * var(--u)) -3px rgba(0, 0, 0, 0.6);
 }
 .statusbar .heropanel.ready .hplabel { color: #fff; border-color: var(--acc); }
+/* Dark "pill/glass" restyle of the hero box + health box — matches the quest-badge / name-pill aesthetic
+   (the dark gradient + gold-mix border the `.hplabel` already uses) instead of the old cream/white boxes. */
+.statusbar .hero {
+  background: linear-gradient(180deg, #241a13, #17110c);
+  border-color: color-mix(in srgb, var(--gold) 55%, #000);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 calc(4 * var(--u)) calc(12 * var(--u)) -4px var(--shadow);
+}
+.statusbar .hero .nm { color: #f4ecdb; }
+.statusbar .hero .hpbox {
+  background: linear-gradient(180deg, #241a13, #17110c);
+  border-color: color-mix(in srgb, var(--gold) 55%, #000);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+.statusbar .hero .hpbox svg { color: var(--threat); }
+.statusbar .hero .hpbox .hpval { color: #ff9db0; } /* threat, lightened to read on the dark box */
+.statusbar .hero .hpbox .armval { color: #b7c2cf; }
+/* Hover tip: the rule (muted) + the live status (tangerine) stacked under the bold power name. */
+.herotip-rule { display: block; margin-top: 3px; color: #d8ccb6; font-weight: 600; }
+.herotip-live { display: block; margin-top: 5px; color: var(--acc); font-weight: 800; }
+.herotip-live:empty { display: none; }
+/* Opponent frame + round-stat HUD: same dark pill/glass as the hero box, with inner text lightened to read on
+   the dark fill (they were tuned for the old cream boxes). */
+.oppframe { background: linear-gradient(180deg, #241a13, #17110c); border-color: color-mix(in srgb, var(--gold) 55%, #000); }
+.oppframe .opp-hero { color: #f4ecdb; }
+.oppframe .opp-stat { color: #d8ccb6; }
+.oppframe .opp-stat.label { color: #b7a98f; }
+.oppframe .opp-stat.life { color: #ff9db0; }
+.oppframe .opp-stat.life svg { color: var(--threat); }
+.oppframe .opp-armor { color: #9aa6b2; }
+.oppframe .opp-compline { color: #c9bca3; }
+.oppframe .opp-preview { border-top-color: rgba(255, 255, 255, 0.1); }
+.oppframe .opp-pic { background: #17110c; border-color: color-mix(in srgb, var(--gold) 55%, #000); }
+.oppframe .opp-pic svg { color: #c9bca3; }
+.statstrip { background: linear-gradient(180deg, #241a13, #17110c); border-color: color-mix(in srgb, var(--gold) 55%, #000); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); }
+.statcell + .statcell { border-left-color: color-mix(in srgb, var(--gold) 32%, transparent); }
+.statcell .sc-l { color: #b7a98f; }
+.statcell .sc-v { color: #f4ecdb; }
+.statcell .sc-ic svg { color: var(--acc); }
+.statcell.gold { background: color-mix(in srgb, var(--gold) 14%, transparent); }
+.statcell.gold .sc-v { color: #ffd98a; }
+.statcell.tier .sc-v { color: var(--acc); }
+.statcell.time.low { background: color-mix(in srgb, var(--threat) 22%, transparent); }
+.statcell.time.low .sc-ic svg, .statcell.time.low .sc-v { color: #ff9db0; }
 /* Embers chip scaled to fill the (hero-tall) chip */
 .statusbar .chip { padding: calc(11 * var(--u)) calc(16 * var(--u)); border-radius: calc(18 * var(--u)); gap: calc(11 * var(--u)); }
 .statusbar .chip .ic { width: calc(64 * var(--u)); height: calc(64 * var(--u)); border-radius: calc(16 * var(--u)); }

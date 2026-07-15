@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Deathrattle FX fixed when a unit dies attacking a Target Dummy.** A Deathrattle unit that died *as the
+  attacker* into an on-damaged body (Target Dummy) lost its purple echo skull and its pre-summon wait (repro:
+  Reclaim on a Void Panther). The clash-buff was wedging a beat between the death and its summons, and the skull's
+  re-find missed the unit after a mutual kill — both fixed.
 - **Transforms flash.** When a unit becomes another (Tara→Taragosa, Spirit Pup→Spirit Worgen), a bright flash
   blooms over it and the new card pops in — instead of the card silently swapping. Fires in **combat and the shop**.
 - **Summons kick up dust.** A newly-summoned unit (Deathrattle summons, tokens, overflow, SoC copies) now poofs

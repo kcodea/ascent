@@ -21,7 +21,23 @@ DURING the fight (Start-of-Combat, Rally, auras, spell power, …) never counted
 Verified: new test (combat `statGainByTribe.dragon = 25` completes Skybound Pact; a Beast gain does not) +
 `typecheck` + `lint` + **1048 tests** + `build:web` green.
 
-## 2026-07-15
+### fix: pause the combat replay behind full-screen overlays (no background combat / sfx leak)
+
+Opening the Leaderboard / Balance Report / Career mid-combat left the replay running underneath — you'd hear combat
+sfx while sitting in a menu (owner report). Root cause: the replay beat-clock only paused on `hidden` (backgrounded
+tab), and `overlayOpen` (which already froze the recruit turn timer) didn't include the Balance Report or the
+Rankings leaderboard, nor was it wired to the replay.
+
+- Added a `paused` opt to `useCombatReplay`, ORed into the beat-clock gate exactly like the existing `hidden` pause
+  (the clock stops, so beats + their per-beat sfx stop, and it resumes cleanly on dismiss — no audio-bus juggling
+  that could fight the Skip-mute).
+- Extended `overlayOpen` to include `showBalance` + `showRankings` (was missing both), and passed it as
+  `paused` to the replay.
+
+Verified live: with the Balance Report open mid-fight the combat stayed frozen for 4s (a whole fight would have
+finished), then resumed and replayed on close. `typecheck` + `lint` + 1047 tests + `build:web` green. (Follow-up:
+the Esc/Settings menu is React-local state in Game.tsx, not a store flag, so it isn't covered yet — same treatment
+once it's plumbed to the store.)
 
 ### feat: Balance Report → Shop Curve chart (avg tavern tier by wave, won vs lost)
 
@@ -65,6 +81,39 @@ played immediately after (tracked via `comboArmed` in the reducer, reset each tu
   Gold Pouch display-text assertion.
 
 Verified: `typecheck` + `lint` + **1046 tests** + `build:web` all green.
+## 2026-07-14 (session 42)
+
+### fix(fx): second-deathrattle skull + summon-wait lost when a DR unit dies attacking a Target Dummy
+
+**Bug (repro: Soren's Reclaim on a Void Panther):** when a Deathrattle unit's SECOND death fires (the Reclaim'd
+Panther returns, then dies in combat), its purple **echo skull FX doesn't play** and the **pre-summon wait is
+skipped** — the cubs just pop. Confirmed on video (DR#1, the start-of-combat destroy, shows the skull; DR#2, the
+attacker death, shows only the melee burst).
+
+**Root cause (two coupled defects, both surfaced by the *attacker* death — DR#1 dies not-attacking so it's fine):**
+1. **The summon-wait.** The Panther kills a **Target Dummy**, whose `onDamagedGainAttack` emits a `buff` mid-clash.
+   `deferClashBuffs` slides that buff to the tail of the clash run — but that landed it as a beat *between* the
+   Deathrattle death and its summons (`…death → BUFF → summon,summon`). `deathConsequenceLead` needs the summon's
+   preceding beat to contain the death; with the buff wedged in, it saw no death → **lead 0 → no wait**.
+2. **The skull.** A Deathrattle ATTACKER's skull is deferred into `runRiseReturn`'s `onLanded` (~0.34s pull-back),
+   which **re-finds** the unit's DOM node. In a **mutual kill** (attacker + defender both die) the dying attacker
+   is dropped from the DOM within ~100ms — long before `onLanded` — so the re-find returned null and the skull was
+   **silently skipped** (`if (hasDR && rect)`), where a solo-attacker death kept the node and worked.
+
+**Fixes (presentation-only):**
+- `choreo/clashOrder.ts` — when deferring a clash buff, also let the clash's consequence **summons** play *before*
+  the buff, so order is `results → deaths → summons → buffs`. Restores death→summon adjacency → the pre-summon
+  wait returns. (+ a `clashOrder.test.ts` case for the deathrattle-summon shape.)
+- `useCombatReplay.ts` — capture the dying attacker's rect at setup (it's provably present) and use it as a
+  **fallback** when `onLanded`'s re-find fails, so the skull (and Rise burst) **always fire** — at home when the
+  unit survives the pull-back, at its last-known spot otherwise.
+
+**How verified:** built a headless repro (`simulate` of the exact Reclaim+Panther+Target-Dummy fight) and drove
+the real replay in a browser with a manually-pumped GSAP ticker + instrumentation. Confirmed BEFORE: `onLanded`
+re-find `false` → skull skipped; the buff split the death from its summons. AFTER: `onLanded` fires the skull with
+the captured rect (`w=94`, full size); `deferClashBuffs` emits `…death,death,summon,summon,buff`. `typecheck` /
+`lint` / `test` (incl. new clashOrder case) / `build:web` all green. This is likely one source of the broader
+"combat timing" oddities — any Deathrattle unit trading into an on-damaged/Enrage body hit the same split.
 
 ## 2026-07-14 (session 41)
 

@@ -36,7 +36,16 @@ export function deferClashBuffs(events: CombatEvent[]): CombatEvent[] {
         else { nonBuff.push(events[i]!); if (seenBuff) changed = true; } // a result after a buff → order moved
         i++;
       }
-      out.push(...nonBuff, ...buffs);
+      out.push(...nonBuff);
+      // If we're deferring buffs, let the clash's own consequence SUMMONS (deathrattle tokens, emitted right
+      // after the death in the log) play BEFORE the buff floats. Otherwise the deferred buff becomes a beat
+      // wedged between a Deathrattle death and its summons, which breaks the death→summon adjacency the replay
+      // needs: `deathConsequenceLead` sees no death before the summon (→ no pre-summon wait), and the death
+      // beat advances early (its next beat is the buff, not the lead-carrying summon) so a dying ATTACKER is
+      // dropped from the DOM before its skull fires at `landed`. Keeping order results→deaths→summons→buffs
+      // restores both. (Summons still commute with the buff: a token vs a stat gain on a — usually dead — unit.)
+      if (buffs.length) while (i < events.length && events[i]!.type === 'summon') { out.push(events[i]!); i++; }
+      out.push(...buffs);
     } else {
       out.push(events[i]!);
       i++;

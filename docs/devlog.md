@@ -5,6 +5,37 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### fix: snapshot fidelity — capture 4 per-instance COMBAT fields a served board was dropping
+
+A fresh audit (owner directive: "make player-snapshotted boards faithfully reproduce what the player had") compared
+what `cleanBoard` (snapshot capture) + `opponentBoard` (serve path) carry against the reducer's OWN player
+board→combat mapping (the ground truth for what a run card needs in combat). Found **four combat-affecting
+per-instance fields captured for the player's live fight but dropped from the snapshot**, so a served board fought
+differently than it was captured from:
+
+- **`copiedEcho`** (Gravetwin) — its copied Deathrattle. Dropped → a served Gravetwin never procced its Echo on
+  combat death.
+- **`bloodbinderMode`** (Bloodbinder) — which stat this fight's Rally gives Fodder (atk/hp, alternates each turn).
+  Dropped → a served Bloodbinder used the wrong/default stat.
+- **`bloodlustRally`** (Bloodlust weld) — the on-attack Rally the Bloodlust spell grants (sibling of the already-
+  captured `bloodlust`). Dropped → the Rally half went missing.
+- **`allTribes` → `universalTribe`** (Anomaly Reactor "All") — dropped → a served all-tribes minion stopped counting
+  as every tribe.
+
+Fixed both mappings symmetrically: `cleanBoard` now captures all four (mapping the run-board `allTribes` flag to the
+BoardMinion `universalTribe`, matching the reducer), and `opponentBoard` restores them on serve. Also restored the
+display-only accruals `opponentBoard` was dropping (`eotBonus`/`sellBonus`/`eotTick`) so a served enemy's live card
+text reads its real per-tick/cadence/sell value, not the printed base.
+
+**Confirmed NOT gaps:** `resummon` (The Reclaimer's mark) is deliberately *reconstructed* deterministically in
+`opponentBoard` for Soren boards (marks the best Deathrattle minion), so dropping it in capture is correct;
+`sourceUid` is a run-local ref, correctly dropped. The audit found no other run-level or per-instance leaks — the
+symmetric `CombatSideState` refactor (same day) already unified every run-level scaler.
+
+Verified: new round-trip test proves snapshotBoard captures + opponentBoard restores all four; full suite green
+(**1057 tests**), typecheck + lint + build:web clean. Follow-up: opponent pinning (persist which served board was
+fought each wave) is next, as a separate PR.
+
 ### refactor: symmetric `CombatSideState` — one struct per side into `simulate()` (kills the positional-vs-bag asymmetry)
 
 `simulate()` used to take the PLAYER's run-level combat context as ~23 positional arguments (spellsThisTurn,

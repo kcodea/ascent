@@ -12,7 +12,7 @@ import { useSyncExternalStore } from 'react';
  * dev tuner sets it), ChargeGlyph renders regardless of the clock and pins `--charge` to it, so the effect can be
  * scrubbed / played on demand without waiting for a real 20s turn. null in production → zero effect.
  */
-export const chargeTune = { bloomAt: 0.49, coreMax: 1 };
+export const chargeTune = { bloomAt: 0.65, coreMax: 1 };
 
 let preview: number | null = null;
 const subs = new Set<() => void>();

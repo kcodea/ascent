@@ -19,17 +19,17 @@ import { chargeTune, chargePreview } from './chargeGlyphTune';
 type Knob = { key: string; label: string; min: number; max: number; step: number; def: number; unit?: string };
 
 const KNOBS: Knob[] = [
-  { key: 'm1', label: 'gradient mid stop', min: 8, max: 49, step: 1, def: 24, unit: '%' },
-  { key: 'glowIn', label: 'glow inner', min: 0, max: 40, step: 1, def: 20, unit: 'px' },
-  { key: 'glowOut', label: 'glow outer', min: 0, max: 80, step: 1, def: 31, unit: 'px' },
-  { key: 'glowOutA', label: 'glow outer α', min: 0, max: 1, step: 0.01, def: 0.6 },
-  { key: 'coreW', label: 'core width', min: 8, max: 90, step: 1, def: 55, unit: '%' },
-  { key: 'coreH', label: 'core height', min: 5, max: 60, step: 1, def: 20, unit: '%' },
+  { key: 'm1', label: 'gradient mid stop', min: 8, max: 49, step: 1, def: 19, unit: '%' },
+  { key: 'glowIn', label: 'glow inner', min: 0, max: 100, step: 1, def: 40, unit: 'px' },
+  { key: 'glowOut', label: 'glow outer', min: 0, max: 200, step: 1, def: 80, unit: 'px' },
+  { key: 'glowOutA', label: 'glow outer α', min: 0, max: 1, step: 0.01, def: 1 },
+  { key: 'coreW', label: 'core width', min: 8, max: 100, step: 1, def: 90, unit: '%' },
+  { key: 'coreH', label: 'core height', min: 1, max: 60, step: 1, def: 5, unit: '%' },
   { key: 'feather', label: 'front feather', min: 0, max: 24, step: 0.5, def: 0, unit: '%' },
   { key: 'pulseMin', label: 'pulse min', min: 0.3, max: 1, step: 0.01, def: 0.63 },
-  { key: 'pulseS', label: 'pulse speed', min: 1, max: 8, step: 0.1, def: 2.5, unit: 's' },
-  { key: 'baseA', label: 'unlit etch α', min: 0, max: 0.4, step: 0.01, def: 0.14 },
-  { key: 'bloomAt', label: 'core bloom start', min: 0, max: 1, step: 0.01, def: 0.49 },
+  { key: 'pulseS', label: 'pulse speed', min: 1, max: 8, step: 0.1, def: 4.3, unit: 's' },
+  { key: 'baseA', label: 'unlit etch α', min: 0, max: 0.4, step: 0.01, def: 0 },
+  { key: 'bloomAt', label: 'core bloom start', min: 0, max: 1, step: 0.01, def: 0.65 },
   { key: 'coreMax', label: 'core bloom max', min: 0, max: 1, step: 0.01, def: 1 },
 ];
 
@@ -47,7 +47,7 @@ const rgba = (h: string, a: number): string => {
 };
 
 type Colors = { core: string; mid: string; deep: string };
-const DEF_COLORS: Colors = { core: '#eafcff', mid: '#33b0ff', deep: '#0a40ff' };
+const DEF_COLORS: Colors = { core: '#ffffff', mid: '#009dff', deep: '#0037ff' };
 
 const fillGrad = (c: Colors, v: Vals): string =>
   `linear-gradient(90deg, ${c.deep} 0%, ${c.mid} ${v.m1}%, ${c.core} 50%, ${c.mid} ${100 - v.m1}%, ${c.deep} 100%)`;
@@ -121,7 +121,7 @@ export function ChargeGlyphTuner() {
       cancelAnimationFrame(rafRef.current);
       document.getElementById('chargeglyphtuner')?.remove();
       chargePreview.set(null);
-      chargeTune.bloomAt = 0.49;
+      chargeTune.bloomAt = 0.65;
       chargeTune.coreMax = 1;
     },
     [],

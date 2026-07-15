@@ -83,9 +83,9 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   // midline (--charge-y auto-aligns to the art divider at any aspect); Size scales the whole glyph (aspect-locked),
   // X/Y nudge it off the midline. Defaults are the CSS fallbacks in styles.css `.chargeglyph` — keep the two in
   // sync so production (no tuner) matches a Reset. (Look — colours/glow/timing — is tuned in fx/turn-glyph-preview.html.)
-  { key: 'glyphW', cssVar: '--charge-w', label: 'Size', group: 'Charge Glyph', min: 200, max: 1600, step: 4, def: 560, fmt: 'px' },
-  { key: 'glyphX', cssVar: '--charge-x', label: 'X offset', group: 'Charge Glyph', min: -600, max: 600, step: 1, def: 0, fmt: 'px' },
-  { key: 'glyphY', cssVar: '--charge-yoff', label: 'Y offset', group: 'Charge Glyph', min: -400, max: 400, step: 1, def: -14, fmt: 'px' },
+  { key: 'glyphW', cssVar: '--charge-w', label: 'Size', group: 'Charge Glyph', min: 200, max: 1600, step: 4, def: 1144, fmt: 'px' },
+  { key: 'glyphX', cssVar: '--charge-x', label: 'X offset', group: 'Charge Glyph', min: -600, max: 600, step: 1, def: -5, fmt: 'px' },
+  { key: 'glyphY', cssVar: '--charge-yoff', label: 'Y offset', group: 'Charge Glyph', min: -400, max: 400, step: 1, def: -20, fmt: 'px' },
 
   // The drag-to-BUY / drag-to-SELL drop regions. Unlike the other groups these aren't pure CSS — the boundary is
   // computed in JS at drag start (sell = above the warband top; buy = below the board midline) and drives BOTH the

@@ -29,7 +29,7 @@
   .masked {
     position: absolute; inset: 0;
     -webkit-mask:
-      url("/fx/turn-glyph.svg") center / contain no-repeat,
+      url("turn-glyph.svg") center / contain no-repeat,
       linear-gradient(90deg,
         #fff 0,
         #fff calc(var(--charge) * 50% - var(--feather, 6%)),
@@ -39,7 +39,7 @@
         #fff 100%);
     -webkit-mask-composite: source-in;
             mask:
-      url("/fx/turn-glyph.svg") center / contain no-repeat,
+      url("turn-glyph.svg") center / contain no-repeat,
       linear-gradient(90deg,
         #fff 0,
         #fff calc(var(--charge) * 50% - var(--feather, 6%)),
@@ -109,7 +109,7 @@
       <button id="full">Fill now</button>
     </div>
     <div class="board" id="board">
-      <img src="/testboard2.webp" alt="board" />
+      <img src="../testboard2.webp" alt="board" />
       <div class="glyphfx" id="fx">
         <div class="masked charge-base" id="base"></div>
         <div class="masked charge-fill" id="fill"></div>
@@ -312,7 +312,7 @@ document.getElementById('reset').onclick = () => {
 
 build(true);
 composeColours();
-setCharge(0.35);   // start part-charged so the effect is visible on load
+setCharge(1);   // start FULLY charged on load = the mockup end-state (hit ▶ Play to watch it build)
 save();
 </script>
 </body>

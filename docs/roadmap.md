@@ -159,10 +159,10 @@ fanned-hand overlap now that framed cards overhang ~1.1× the slot. All knobs ar
   Charge Glyph, var-driven look + preview scrubber), and the `turnCharge` cue at charge-start (retired the 5s
   ticks). Remaining: (1) **Pixi motes pass** — white-hot motes streaming toward centre + a soft flare on each
   converging front (softens the hard reveal edges without dimming the core) + a bloom pop at completion; prototype
-  in `fx/turn-glyph-preview.html` first. (2) **Owner's `turncharge.mp3`** → `packages/ui/src/audio/` (synth
-  fallback until then). (3) **In-game look + placement tune** (⚡ Charge Glyph tuner + Layout Lab "Charge Glyph"
-  group), then bake defaults. (4) **Perf**: verify the per-frame mask recompute is cheap on a full board (prod);
-  move the drop-shadow glow to Pixi if it costs frames.
+  in `fx/turn-glyph-preview.html` first. (2) ✅ **`turncharge.mp3` landed** (`packages/ui/src/audio/`, the owner's
+  ~20s build). (3) **In-game look + placement tune** (⚡ Charge Glyph tuner + Layout Lab "Charge Glyph" group),
+  then bake defaults. (4) **Perf**: verify the per-frame mask recompute is cheap on a full board (prod); move the
+  drop-shadow glow to Pixi if it costs frames.
 - **Effect-animation coverage audit (session 39 → devlog).** Full sweep of which combat effects show an animation
   vs none, across the three buff FX (pulse / tendril / descend) and non-buff effects. Ordered queue (owner: do all):
   - ✅ **Attack-windup self-pulse (shipped session 39).** On-attack / on-ally-attack self-buffs (Solaris, Trophy

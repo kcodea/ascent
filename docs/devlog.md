@@ -108,6 +108,18 @@ All cyclic (they re-fire), matching Guel's 1/4→…→4/4→1/4; `stepProgress`
 no per-id list. 3 new unit tests (thresholds verified against the real cards). **Wants a live eyeball** — the two
 combat counters tick as your units die / attack, which unit tests can't watch. Verified: `typecheck + lint + test`
 (1051, +3) & `build:web` green.
+### art: new minion (oval, silver) + spell (square) frames — owner art, filename-swapped for easy revert
+
+Swapped BOTH authored frames for new owner-supplied art: the standard minion oval (`standard-oval-v2.png`, rendered silver) and the spell square (`spell-frame-v2.png`, 1122×1346, rendered as-authored -- gold w/ purple gems, since spells carry no `--frame-tone`). Each (`apps/web/public/frames/standard-oval-v2.png`,
+1059×1427 RGBA — same dims + window as the original). Wired by pointing `Card.tsx`'s `STD_FRAME_SRC` at the new
+file, so **reverting is a one-line change** back to `standard-oval.png` (the original PNG is untouched on disk).
+No geometry or tuning changes: the frame is a gold PNG rendered **silver** by the existing `--frame-tone:
+grayscale(0.92) brightness(1.2) contrast(0.9)` on `.stdframe` (Gilded minions still show it gold), and the
+"AUTHORED FRAMES" `--sh`/window/badge geometry drops in unchanged because the dimensions match. Verified live:
+new asset loads (`naturalWidth 1059`), the grayscale filter is applied (silver), and the ellipse window clips the
+portrait through. Owner can fine-tune live via the dev **Frame Tuner** (🛠️, existing oval sliders) and "Copy CSS"
+to bake any adjustment.
+
 
 ### fix: Skybound Pact / tribeStats quests count COMBAT stat gains too
 

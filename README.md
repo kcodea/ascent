@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **New minion + spell card frames.** Swapped both authored frames to new art — the minion oval (rendered silver
+  via the existing tint; Gilded stays gold) and the spell square (gold w/ purple gems). Filename-swapped so each
+  reverts in one line; tune live via the dev Frame Tuner.
 - **Deathrattle FX fixed when a unit dies attacking a Target Dummy.** A Deathrattle unit that died *as the
   attacker* into an on-damaged body (Target Dummy) lost its purple echo skull and its pre-summon wait (repro:
   Reclaim on a Void Panther). The clash-buff was wedging a beat between the death and its summons, and the skull's

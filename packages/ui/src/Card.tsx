@@ -23,9 +23,17 @@ let tauntFrameAvailable = true;
 // Same pipeline as Taunt (portrait clipped to the frame's window → PNG over it → per-tribe tint → DOM data). Each
 // class is applied ONLY when its PNG loads; on a 404 the availability flag flips false (so we stop re-requesting)
 // and the card falls back to the original arched / spell look. See styles.css "AUTHORED FRAMES" for the geometry.
-const STD_FRAME_SRC = `${import.meta.env.BASE_URL}frames/standard-oval.png`;
+// New silver-oval art (owner-supplied, session 42). Swapped by filename so reverting is a one-line change back
+// to `standard-oval.png` (the original PNG stays on disk, untouched). Same 1059×1427 dims + window as the
+// original, so the "AUTHORED FRAMES" geometry drops in unchanged; rendered SILVER via `--frame-tone:
+// grayscale(...)` on `.stdframe` (Gilded minions still show it gold).
+const STD_FRAME_SRC = `${import.meta.env.BASE_URL}frames/standard-oval-v2.png`;
 let stdFrameAvailable = true;
-const SPELL_FRAME_SRC = `${import.meta.env.BASE_URL}frames/spell-frame.png`;
+// New spell frame art (owner-supplied, session 42). Filename-swapped for one-line revert (original untouched).
+// Same 1122×1346 dims + window as the original → geometry unchanged. NOTE: spells carry NO `--frame-tone`
+// (it's a no-op `brightness(1)`), so this renders as-authored — the new art is GOLD w/ purple gems. Add the
+// grayscale tone to `.spellframe` if a silver spell frame is wanted (to match the minion oval).
+const SPELL_FRAME_SRC = `${import.meta.env.BASE_URL}frames/spell-frame-v2.png`;
 let spellFrameAvailable = true;
 
 const KW_LABEL: Record<Keyword, string> = {

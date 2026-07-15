@@ -1,7 +1,7 @@
 import { makeRng } from '@game/core';
 import type { CombatOutcome, CombatResult, EffectDef, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG, activeAnomaly, type AnomalyId } from './config';
+import { CONFIG, activeRift, type RiftId } from './config';
 import { DEFAULT_HERO_ID, getHero } from './heroes';
 import { queueDiscover } from './recruit';
 import { rollShop, stockPool } from './shop';
@@ -569,11 +569,11 @@ export interface RunState {
    *  Hand's first-Slaughter doubler (fed into QuestCombatMods). */
   dupeFirstBuyEachTurn?: boolean;
   dupeUsedThisTurn?: boolean;
-  /** The limited-time "anomaly" this run was created under, snapshotted from `activeAnomaly()` at `createRun`
+  /** The limited-time "rift" this run was created under, snapshotted from `activeRift()` at `createRun`
    *  so a saved/replayed run keeps its rules even after we flip the global switch off. `undefined`/`null` =
-   *  no anomaly. See `ANOMALIES` in config.ts. */
-  anomaly?: AnomalyId | null;
-  /** `'freedom'` anomaly: the first minion bought each turn is free — set once that freebie is spent this
+   *  no rift. See `RIFTS` in config.ts. */
+  rift?: RiftId | null;
+  /** `'freedom'` rift: the first minion bought each turn is free — set once that freebie is spent this
    *  turn, cleared at the start of the next turn. */
   freeBuyUsedThisTurn?: boolean;
   spellDoubleAlways?: boolean;
@@ -776,7 +776,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     recruitBuffFx: [],
     recruitFxSeq: 0,
     karwindFlashSeq: 0,
-    anomaly: activeAnomaly()?.id ?? null, // pin the live anomaly so replays keep it after the switch flips off
+    rift: activeRift()?.id ?? null, // pin the live rift so replays keep it after the switch flips off
   };
   rollShop(state);
   // Runeguard (Defend the Forge): schedule the Epic Runeforge for turn 12 — advanceCombat's start-of-turn

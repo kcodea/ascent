@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { activeAnomaly } from '@game/sim';
+import { activeRift } from '@game/sim';
 import { avatarSrc } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -158,7 +158,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         <div className="titlebanner-emoji" aria-hidden>🎉🎂</div>
         <div className="titlebanner-title">Happy Birthday to our Animations Team!</div>
         <div className="titlebanner-sub">We appreciate everything you do for our shareholder value 💜</div>
-        {activeAnomaly() && <div className="titlebanner-sub">Enjoy a special anomaly patch to have some fun ✨</div>}
+        {activeRift() && <div className="titlebanner-sub">Enjoy a special rift patch to have some fun ✨</div>}
       </aside>
 
       <div className="titleversion">v{__APP_VERSION__}</div>

@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { ANOMALIES, activeAnomaly, CONFIG, createRun, reduce, type RunState } from './index';
+import { RIFTS, activeRift, CONFIG, createRun, reduce, type RunState } from './index';
 
-// The "Freedom" anomaly: the FIRST minion bought each turn is free (0 Gold). The active anomaly is pinned onto
-// each run at creation (RunState.anomaly); the reducer reads that pin. These tests set the pin directly so they
+// The "Freedom" rift: the FIRST minion bought each turn is free (0 Gold). The active rift is pinned onto
+// each run at creation (RunState.rift); the reducer reads that pin. These tests set the pin directly so they
 // don't depend on the global registry switch (which the test setup retires).
-describe('Freedom anomaly (first minion each turn is free)', () => {
+describe('Freedom rift (first minion each turn is free)', () => {
   it('first minion of the turn costs 0, the second pays the normal cost', () => {
     let s: RunState = {
       ...createRun(1, 'warden'),
-      anomaly: 'freedom',
+      rift: 'freedom',
       embers: 10,
       shop: [{ uid: 'a', cardId: 'alley' }, { uid: 'b', cardId: 'alley' }],
       hand: [],
@@ -25,7 +25,7 @@ describe('Freedom anomaly (first minion each turn is free)', () => {
   it('the freebie refreshes once freeBuyUsedThisTurn is cleared (next turn)', () => {
     let s: RunState = {
       ...createRun(1, 'warden'),
-      anomaly: 'freedom',
+      rift: 'freedom',
       embers: 10,
       shop: [{ uid: 'a', cardId: 'alley' }, { uid: 'c', cardId: 'alley' }],
       hand: [],
@@ -38,10 +38,10 @@ describe('Freedom anomaly (first minion each turn is free)', () => {
     expect(s.embers).toBe(10); // free again
   });
 
-  it('a run with no anomaly pays normally on the first buy', () => {
+  it('a run with no rift pays normally on the first buy', () => {
     let s: RunState = {
       ...createRun(1, 'warden'),
-      anomaly: null,
+      rift: null,
       embers: 10,
       shop: [{ uid: 'a', cardId: 'alley' }],
       hand: [],
@@ -51,33 +51,33 @@ describe('Freedom anomaly (first minion each turn is free)', () => {
     expect(s.freeBuyUsedThisTurn).toBeFalsy();
   });
 
-  // The system wiring: an enabled registry entry becomes the active anomaly and is pinned onto new runs; a
+  // The system wiring: an enabled registry entry becomes the active rift and is pinned onto new runs; a
   // disabled one is not. This is the one-line on/off switch the live-ops flow uses.
-  it('createRun pins the active anomaly, and only while it is enabled', () => {
-    const prev = ANOMALIES.freedom.enabled;
-    const prevRunic = ANOMALIES.runic.enabled;
+  it('createRun pins the active rift, and only while it is enabled', () => {
+    const prev = RIFTS.freedom.enabled;
+    const prevRunic = RIFTS.runic.enabled;
     try {
-      ANOMALIES.freedom.enabled = true;
-      ANOMALIES.runic.enabled = false;
-      expect(activeAnomaly()?.id).toBe('freedom');
-      expect(createRun(1, 'warden').anomaly).toBe('freedom');
+      RIFTS.freedom.enabled = true;
+      RIFTS.runic.enabled = false;
+      expect(activeRift()?.id).toBe('freedom');
+      expect(createRun(1, 'warden').rift).toBe('freedom');
 
-      ANOMALIES.freedom.enabled = false;
-      expect(activeAnomaly()).toBeNull();
-      expect(createRun(1, 'warden').anomaly).toBeNull();
+      RIFTS.freedom.enabled = false;
+      expect(activeRift()).toBeNull();
+      expect(createRun(1, 'warden').rift).toBeNull();
     } finally {
-      ANOMALIES.freedom.enabled = prev;
-      ANOMALIES.runic.enabled = prevRunic;
+      RIFTS.freedom.enabled = prev;
+      RIFTS.runic.enabled = prevRunic;
     }
   });
 });
 
-// The "Runic Behavior" anomaly: EVERY hero visits the basic Runeforge on turn 7. Drive it by pinning
-// `anomaly` on the run state, then win the turn-5 combat so the turn-6 shop opens.
-describe('Runic Behavior anomaly (all heroes hit the basic Runeforge on turn 6)', () => {
+// The "Runic Behavior" rift: EVERY hero visits the basic Runeforge on turn 6. Drive it by pinning
+// `rift` on the run state, then win the turn-5 combat so the turn-6 shop opens.
+describe('Runic Behavior rift (all heroes hit the basic Runeforge on turn 6)', () => {
   const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
-  const advanceTo = (heroId: string, fromWave: number, anomaly: 'runic' | null): RunState =>
-    reduce({ ...createRun(1, heroId), anomaly, wave: fromWave, phase: 'combat', hand: [], lastCombat: win }, { type: 'resolveCombat' });
+  const advanceTo = (heroId: string, fromWave: number, rift: 'runic' | null): RunState =>
+    reduce({ ...createRun(1, heroId), rift, wave: fromWave, phase: 'combat', hand: [], lastCombat: win }, { type: 'resolveCombat' });
 
   it('opens the basic (no-charge) Runeforge on turn 6 for a non-Runesmith hero', () => {
     const s = advanceTo('warden', 5, 'runic');
@@ -87,7 +87,7 @@ describe('Runic Behavior anomaly (all heroes hit the basic Runeforge on turn 6)'
     expect(s.runeforgeNoCharge).toBe(true); // free — buying it spends no hero-power charge
   });
 
-  it('does NOT open on turn 6 without the anomaly, and not on other turns with it', () => {
+  it('does NOT open on turn 6 without the rift, and not on other turns with it', () => {
     expect(advanceTo('warden', 5, null).runeforgeOffer).toBeFalsy();
     expect(advanceTo('warden', 6, 'runic').runeforgeOffer).toBeFalsy(); // → turn 7, not 6
     expect(advanceTo('warden', 3, 'runic').runeforgeOffer).toBeFalsy(); // → turn 4, not 6

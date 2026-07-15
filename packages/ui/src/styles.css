@@ -2548,20 +2548,20 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .hsline-rat { color: rgba(255, 255, 255, 0.6); }
 .hsline-line { padding: 3px 12px; border-radius: 999px; background: var(--acc); color: #2a1c0c; }
 .hsline-note { color: rgba(255, 255, 255, 0.5); text-transform: none; letter-spacing: 0.02em; font-weight: 700; }
-/* Anomaly-patch telegraph — a glowing pill ("Anomaly: <name>") with the game's standard clean floating
+/* Rift-patch telegraph — a glowing pill ("Rift: <name>") with the game's standard clean floating
    tooltip (mirrors .questbadge-tip). Shared by hero select (`-hero`, big) + the in-game HUD (`-hud`, compact).
    `--ap-fs` sizes the pill so each context can scale it; the tooltip is a fixed, readable size. */
-.anomalypill { position: relative; display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; font-size: var(--ap-fs, 13px); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
-.anomalypill-tag { color: rgba(198, 160, 255, 0.85); }
-.anomalypill-name { padding: 0.24em 0.9em; border-radius: 999px; background: linear-gradient(135deg, #a06bff, #6b8bff); color: #150a26; box-shadow: 0 0 14px rgba(150, 110, 255, 0.5); }
-.anomalypill-hero { --ap-fs: 13px; margin: -8px 0 20px; }
-.anomalypill-hud { --ap-fs: calc(12 * var(--u)); margin-bottom: calc(6 * var(--u)); }
+.riftpill { position: relative; display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; font-size: var(--ap-fs, 13px); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
+.riftpill-tag { color: rgba(198, 160, 255, 0.85); }
+.riftpill-name { padding: 0.24em 0.9em; border-radius: 999px; background: linear-gradient(135deg, #a06bff, #6b8bff); color: #150a26; box-shadow: 0 0 14px rgba(150, 110, 255, 0.5); }
+.riftpill-hero { --ap-fs: 13px; margin: -8px 0 20px; }
+.riftpill-hud { --ap-fs: calc(12 * var(--u)); margin-bottom: calc(6 * var(--u)); }
 /* The floating tooltip — same clean card as .questbadge-tip, opened below the pill (both pills sit high on
    screen). Normal-case + normal tracking so the blurb reads as prose, not a label. */
-.anomalypill-tip { position: absolute; top: calc(100% + 10px); left: 0; width: 230px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 4px; background: var(--ink); color: #fff; border-radius: 12px; padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-transform: none; letter-spacing: normal; text-align: center; overflow-wrap: break-word; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 70; transition: opacity 0.14s; }
-.anomalypill-tip b { color: var(--acc); font-weight: 800; }
-.anomalypill-tip .anomalypill-tip-body { color: #f4f0e6; }
-.anomalypill:hover .anomalypill-tip { opacity: 1; transition-delay: 0.3s; }
+.riftpill-tip { position: absolute; top: calc(100% + 10px); left: 0; width: 230px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 4px; background: var(--ink); color: #fff; border-radius: 12px; padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-transform: none; letter-spacing: normal; text-align: center; overflow-wrap: break-word; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 70; transition: opacity 0.14s; }
+.riftpill-tip b { color: var(--acc); font-weight: 800; }
+.riftpill-tip .riftpill-tip-body { color: #f4f0e6; }
+.riftpill:hover .riftpill-tip { opacity: 1; transition-delay: 0.3s; }
 .hsrow { display: flex; gap: 29px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
 .herocard { width: 333px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 13px; padding: 29px 23px 23px; border-radius: 26px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
 .herocard:hover { transform: translateY(-8px); border-color: var(--acc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--acc) 40%, transparent), 0 16px 36px -12px rgba(0, 0, 0, 0.55); }

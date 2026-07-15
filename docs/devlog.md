@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### refactor: rename the "Anomaly" system → "Rift"
+
+- Renamed the limited-time global-modifier feature from **Anomaly** to **Rift** throughout: identifiers
+  (`ANOMALIES`→`RIFTS`, `AnomalyId`→`RiftId`, `AnomalyDef`→`RiftDef`, `activeAnomaly`→`activeRift`,
+  `RunState.anomaly`→`RunState.rift`), the shared component (`AnomalyPill.tsx`→`RiftPill.tsx`, `.anomalypill*`
+  →`.riftpill*`), the test file (`anomalies.test.ts`→`rifts.test.ts`), and all user-facing copy (the pill tag
+  now reads "Rift", hero-select "Rift: <name>", the home banner "special rift patch"). Left the unrelated
+  **Anomaly Reactor** / **Demonic Anomaly** cards untouched (separate content). Pure rename — no behaviour
+  change. typecheck + lint + test (1097) + build:web green; live-checked the pill reads "RIFT · RUNIC BEHAVIOR".
+
 ### chore(sim): Runic Behavior forge moves to turn 6
 
 - Moved the "Runic Behavior" anomaly's basic-Runeforge visit from turn 7 → **turn 6** (reducer trigger +

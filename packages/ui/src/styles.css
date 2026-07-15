@@ -171,11 +171,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
   position: absolute; left: 50%; top: var(--charge-y, 50%);
   width: calc(var(--charge-w, 1144px) * var(--scale)); aspect-ratio: 1385 / 544;
   transform: translate(calc(-50% + var(--charge-x, -5px) * var(--scale)), calc(-50% + var(--charge-yoff, -19px) * var(--scale)));
-  /* z-index -1 sends the glyph to the BACK of .app (which itself sits above the board art .boardbg z0), so it
-     reads as a board-surface effect — just above the background board, BEHIND every card + their drop shadows.
-     The warband zone is position:relative WITHOUT z-index (no stacking context — see the Warband note above), so
-     this -1 competes in .app's context, not the zone's. */
-  z-index: -1; overflow: visible; pointer-events: none;
+  /* z-index 0 (NOT -1): .app is transparent over an opaque dark wrapper, so a NEGATIVE-z child paints behind
+     .app's content and gets covered (invisible). z:0 keeps the glyph painted above .app's backdrop (visible over
+     the board art) while sitting in the SAME paint group as the warband cards (which are position:relative /
+     z:auto) — tree order then decides, and the glyph is their EARLIER sibling, so it renders BEHIND the cards +
+     their drop shadows. Reads as a board-surface effect just above the background board. */
+  z-index: 0; overflow: visible; pointer-events: none;
   --feather: 0%; /* hard reveal edges (Pixi softens the fronts). Raising it dims the sigil at full charge — see the spec. */
   animation: chargein 0.4s ease both;
 }

@@ -7,12 +7,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ### fix(ui): charge glyph sits behind the cards (board-surface layer)
 
-Dropped `.chargeglyph` from `z-index: 8` (a rope holdover, which painted it over the cards) to `z-index: -1`,
-sending it to the back of `.app` — which itself sits above the board art (`.boardbg` z0). So the charge now reads
-as a **board-surface effect**: just above the background board, behind every card and their drop shadows. (The
-warband zone is `position: relative` without z-index, so it's not a stacking context — the −1 competes in `.app`'s
-context as intended.) Side effect: at the back of `.app` the glyph no longer screen-blends against the cards
-(internal fill+core compositing is unchanged; its interaction with the board goes from "screen" to "over").
+Moved `.chargeglyph` from `z-index: 8` (a rope holdover, which painted it over the cards) to `z-index: 0`, so it
+reads as a **board-surface effect** behind the warband cards + their drop shadows. First tried `-1`, but `.app` is
+transparent over an opaque dark wrapper, so a negative-z child paints behind `.app`'s content and vanishes (DOM-
+verified). `z:0` keeps it painted above `.app`'s backdrop (visible over the board art) yet in the same paint group
+as the cards (which are `position: relative` / `z:auto`) — tree order decides, and the glyph is their earlier
+sibling, so it renders behind them. Side effect: it no longer screen-blends against the cards (internal fill+core
+compositing unchanged; its interaction with the board goes "screen" → "over"). NOTE: warband cards are behind it;
+if the tall sigil overlaps the SHOP cards (earlier in the tree) it needs a dedicated board-fx layer behind all
+zones (a bigger move that would require re-tuning placement).
 
 ### feat(ui): charge-glyph — live in-game tuner + charge-start SFX (retire the 5s ticks)
 

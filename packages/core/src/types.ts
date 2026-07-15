@@ -955,33 +955,58 @@ export type CombatEvent = (
 
 export type CombatOutcome = 'win' | 'lose' | 'draw';
 
-/** The ENEMY board's run-level combat scalers, captured in its board snapshot and threaded into `simulate`
- *  so an enemy Grim / Taragosa / Watcher / Hoardbreaker / Pack Leader / Runescale scales with the OPPONENT's
- *  values, not the current player's. All optional (default 0 — procedural threat / legacy boards). */
-export interface EnemyScalers {
-  spellPowerAtk?: number;
-  spellPowerHp?: number;
-  spellsThisTurn?: number;
-  beastsPlayed?: number;
-  deathrattles?: number;
-  /** Lifetime spells cast this run (Umbral Energy scales Dragons +2/+2 per spell) — for an enemy capstone. */
-  spellsCast?: number;
-  /** The run-wide Beast Attack aura (The Old Hunt / Pack Mentality's Attack half) — for the enemy Beast aura. */
-  beastBuyAtk?: number;
-  /** Imp Aura (impBuff) — so enemy Imp King / Brood Matron / Chef Raag summon correctly-sized Imps. */
-  impAtk?: number;
-  impHp?: number;
-  /** Undead Lantern aura (Lantern of Souls / Watcher) — combat-only, applies to ALL enemy Undead. */
-  undeadAtk?: number;
-  undeadHp?: number;
+/** One side's complete run-level combat context — the SAME struct for the player and the enemy. Combat is
+ *  symmetric: every scaler an effect reads per-side (auras, spell power, tribe tallies, quest/rune mods, tavern
+ *  tier, active tribes) lives here, so `simulate()` takes `playerState` + `enemyState` of this one type instead
+ *  of the old asymmetric split (player as ~23 positional args, enemy as an `EnemyScalers` bag). The player's is
+ *  built from live `RunState`; the enemy's is reconstituted from its board snapshot (a served foe) or left at
+ *  defaults (the procedural threat / a synthetic board with no run economy). Build one with `combatSide(...)`.
+ *  NOTE: the boards themselves stay separate positional args to `simulate` — this struct is the run-state context
+ *  that rides alongside each board, the piece that used to be asymmetric. */
+export interface CombatSideState {
+  /** Spells cast THIS recruit turn (Spirit Worgen / Runescale per-turn scalers). */
+  spellsThisTurn: number;
+  /** Lifetime spells cast this run (Umbral Energy scales Dragons +N per spell; seeds the combat spell tally). */
+  spellsCast: number;
+  /** Deathrattles triggered this run (Forsaken tally payoffs). */
+  deathrattles: number;
+  /** Run-wide spell power (Skullblade etc.) folded into this side's spell grants. */
+  spellPowerAtk: number;
+  spellPowerHp: number;
+  /** Undead Lantern aura (Lantern of Souls / Watcher) — applies to ALL of this side's Undead in combat. */
+  undeadAtk: number;
+  undeadHp: number;
   /** Undead buy-time Attack slice (Deathswarmer / Forsaken Weaver / Karthus) — re-added to from-base Undead. */
-  undeadBuyAtk?: number;
-  /** Attachment/Magnetic aura (Scrap Herald / Banksly) — so enemy from-base Magnetics get it too. */
-  magneticAtk?: number;
-  magneticHp?: number;
-  /** Fodder consumed this turn (enemy Abhorrent Horror's SC) — side-scoped so it reads the enemy's own tally. */
-  fodderConsumedAtk?: number;
-  fodderConsumedHp?: number;
+  undeadBuyAtk: number;
+  /** Imp Aura (Fodder Feeder / Ritualist / Bane) — sizes this side's Imp summons. */
+  impAtk: number;
+  impHp: number;
+  /** Fodder consumed this turn (Abhorrent Horror's Start-of-Combat payoff). */
+  fodderConsumedAtk: number;
+  fodderConsumedHp: number;
+  /** Run-wide Beast Attack aura (The Old Hunt / Pack Mentality's Attack half). */
+  beastBuyAtk: number;
+  /** Beasts played this recruit turn (legacy — retained for the ctx accessor + result echo). */
+  beastsPlayed: number;
+  /** Attachment/Magnetic aura (Scrap Herald / Banksly welds) — sizes this side's from-base Magnetics. */
+  magneticAtk: number;
+  magneticHp: number;
+  /** This side's tavern tier. The player's drives token/spell generation; the enemy's drives loss-damage. */
+  tier: number;
+  /** This side's active tribes — the generation pool filter. */
+  tribes: string[];
+  /** Per-card run enchants (Fodder Aura / Eternal Knight), keyed by cardId. Player-authoritative today. */
+  cardBuffs: Record<string, { attack: number; health: number }>;
+  /** This side's quest/rune COMBAT modifiers (assembled `questCombatMods` output). */
+  questMods: QuestCombatMods;
+}
+
+/** Combat-resolution flags that are genuinely player-only one-fight overrides (runes), not per-side run state. */
+export interface CombatConfig {
+  /** Rune Forthcoming / attack-first-next: the player's board strikes first this fight. */
+  playerAttacksFirst?: boolean;
+  /** Rallying Offensive: the player's Rally triggers fire twice this fight. */
+  playerRallyDouble?: boolean;
 }
 
 export interface CombatResult {

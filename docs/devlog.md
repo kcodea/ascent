@@ -5,6 +5,41 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### refactor: symmetric `CombatSideState` — one struct per side into `simulate()` (kills the positional-vs-bag asymmetry)
+
+`simulate()` used to take the PLAYER's run-level combat context as ~23 positional arguments (spellsThisTurn,
+undeadAttackBonus, impAtkBonus, spellPower, playerTier, cardBuffs, questMods, …) while the ENEMY's equivalent
+context arrived as two trailing bags (`EnemyScalers` + `enemyQuestMods`). That asymmetry was the root cause of the
+whole class of snapshot-fidelity bugs we'd been patching one scaler at a time (PR #340, #449): every time an effect
+needed a run-level value per side, we had to thread a new positional player-arg AND a new `EnemyScalers` key AND a
+snapshot field, and it was easy to miss the enemy half (enemy Imps at 1/1, enemy Fodder leaking the player's tally,
+etc.).
+
+Replaced both with one symmetric type, **`CombatSideState`** (packages/core/src/types.ts) — the SAME struct for
+each side, holding every per-side scaler (spellsThisTurn/spellsCast/deathrattles, spell power, undead/imp/beast/
+magnetic auras, fodder-consumed, tier, tribes, cardBuffs, questMods). New signature:
+`simulate(playerBoard, enemyBoard, rng, cards, playerState?, enemyState?, config?)` where `config` holds the two
+genuinely player-only one-fight rune overrides (attack-first, rally-double). A `combatSide(partial)` factory +
+frozen `EMPTY_SIDE` (packages/core/src/combat/side.ts) fill defaults, so a bare `simulate(p, e, rng, cards)` is
+unchanged — the boards stay positional (they were already symmetric), only the run-context that WAS asymmetric got
+unified.
+
+- **simulate.ts:** every positional player-arg + `enemyScalers.*` read now sources from `playerState.*` /
+  `enemyState.*`. The internals already used per-side maps (`impAura[side]`, `undeadAura[side]`, `modsFor(side)`),
+  so this was mostly a signature/seed change; the actual combat resolution is byte-identical.
+- **reducer.ts:** `resolveCombatVs` builds one `playerState` (from live `RunState`) + one `enemyState` (from the
+  served board's snapshot, folding in `enemyTier` as `enemyState.tier`) + `config`, shared by the real fight and
+  the 1000-sim odds probe. The old `servedScalers: EnemyScalers` block became a `servedState: CombatSideState`.
+- **Deleted** the now-orphaned `EnemyScalers` interface. Tools (`balance`/`perf`/`combat-harness`/`enemy-curve`)
+  use the bare 4-arg form (unchanged); `rating.ts` + all test call sites migrated to `combatSide({...})` (the
+  `run`/`runVs`/`simMods`/`runMods`/`simEnemy` helpers absorbed the bulk; ~40 inline calls converted 1:1).
+- **Behavior-preserving by construction, proved by the guardrails:** the determinism + golden suites lock exact
+  event logs, and all **1056 tests** pass unchanged (typecheck + lint + build:web green). No gameplay change.
+
+This is the groundwork the deferred "opponent pinning" item wanted: both sides now serialize through one identical
+struct. (Pinning-proper — persisting which served board was fought each wave for future server-validation/replays —
+remains a non-issue for today's game, so it stays deferred; see roadmap.)
+
 ### feat: beast scaling buffs — Den Mother +2/+2, Pack Leader reworked to a permanent on-board tally + new art
 
 Two Beast payoff cards got stronger and one got a mechanic overhaul (owner request).

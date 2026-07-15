@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { BoardMinion } from '@game/core';
-import { simulate, makeRng } from '@game/core';
+import { simulate, makeRng, combatSide } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { socBoard } from './snapshot';
 
@@ -15,7 +15,7 @@ describe('socBoard — the board WITH Start-of-Combat buffs (Hall of Champions)'
       { cardId: 'alley', attack: 1, health: 1, keywords: [] },
     ];
     const enemy: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 500 }];
-    const r = simulate(player, enemy, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL);
+    const r = simulate(player, enemy, makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL }));
     // Base capture (pre-SoC) is the run stats; socBoard should show the +6/+6 SoC buff on top.
     const soc = socBoard(r);
     const pl = soc.find((m) => m.cardId === 'packleader')!;

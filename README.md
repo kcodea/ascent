@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Symmetric combat state (engine refactor).** `simulate()` now takes one `CombatSideState` struct per side
+  instead of ~23 positional player args + an `EnemyScalers` bag for the enemy — killing the plumbing asymmetry
+  that caused the snapshot-fidelity bugs. Behavior-identical (all 1056 tests, incl. determinism + golden, pass
+  unchanged); no gameplay change.
 - **Beast scaling buffs.** Den Mother now grants **+2/+2** per Beast played (was +1/+1), improving +2/+2 each time.
   Pack Leader is reworked: its Start-of-Combat Beast buff now grows **+3/+3 for every Beast summoned while it's on
   the board** — a *permanent* per-instance tally that persists across turns (and rides into enemy snapshots), never

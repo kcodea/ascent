@@ -324,6 +324,29 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .quest-row .quest-objline { font-variant-numeric: tabular-nums; }
 .quest-row .quest-objline.reward { margin-top: calc(2 * var(--u)); color: var(--acc-dk); }
 
+/* Dark pill/glass restyle of the round bar (`.alt`) + the buff / active-quest side panels — matches the hero,
+   opponent and round-HUD panels; inner text lightened to read on the dark fill (was tuned for the cream boxes). */
+.alt, .buffsframe, .questframe {
+  background: linear-gradient(180deg, #241a13, #17110c);
+  border-color: color-mix(in srgb, var(--gold) 55%, #000);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 calc(4 * var(--u)) calc(12 * var(--u)) -4px var(--shadow);
+}
+.alt .w { color: var(--acc); }
+.alt .maxdmg { color: #ff9db0; }
+.alt .lbl, .alt .lbl.calib { color: #b7a98f; }
+.alt .lbl.record, .alt .lbl.line { color: #f4ecdb; }
+.alt .lbl.record svg { color: var(--acc); }
+.rd-future::before, .rd-draw::before { background: #c9bca3; opacity: 0.5; }
+.rd-draw::before { background: #e6dcc8; opacity: 0.85; }
+.rd-win { color: #6fe39a; }
+.buff-row .buff-label { color: #e8ddc7; }
+.buff-row .buff-val { color: var(--acc); }
+.quest-row { border-top-color: rgba(255, 255, 255, 0.1); }
+.quest-row .quest-name { color: #f4ecdb; }
+.quest-row .quest-prog { color: var(--acc); }
+.quest-row .quest-sub { color: #c1b49b; }
+.quest-row .quest-objline.reward { color: var(--acc); }
+
 /* Quest offer cards — the tribe-hued, clickable quest offers, shown in the Discover-style quest overlay. */
 /* Art-forward, tribe-framed offer card (matches the reference): a top tribe emblem, CRISP full-bleed art (no
    wash-out — only a short top scrim for the title), dark inset objective/reward panels, and a bottom gem.

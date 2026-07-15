@@ -30,6 +30,10 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   Whelp's deferred "attacks immediately" Whelp pops in. Presentation-only (sim tags Avenge events; the replay
   reorders them past the summons), so the resolved board is untouched.
 
+- **Step counter: cleaner shop + honest timing.** The "X/N" counter now hides a fresh `0/N` in the shop (shows
+  from `1/N` up), and end-of-turn cadence counters (Money Maker, Frontdrake) tick up *on the end-of-turn beat*
+  and stay hidden through combat where they're irrelevant.
+
 - **Step counter fades in combat.** The "X/N to next step" counter now flashes in only during combat — fades in
   on each avenge/step tick, holds ~3s, fades out (a second tick resets the window); it stays persistent in the
   shop for planning. Owner-tuned size/placement baked in.

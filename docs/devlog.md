@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### fix(ui): Beast Health buy-aura shows in the tavern + balance-report Disc % column, un-greyed
+
+- **Beast buy-aura Health now previews in the shop.** A Beast quest aura (Pack Mentality / Den Mother's
+  `beastBuyAtk`/`beastBuyHp`) baked its +Health into the minion on BUY, but the tavern OFFER preview only added
+  the Attack term (`beastBuyHp` was never passed to `shopView`, and `addHp` had no beast term) — so a 1/1 Beast
+  read 5/1 in the shop then bought in at 5/5. Preview fixed to match the buy.
+- **Balance report:** added a **Disc %** column (Discover pick rate = discoverPicked / discoverOffered) to the
+  Minions + Spells tables, and removed the dimmed (`baldim`) styling from the Disc Seen / Disc Buy columns so the
+  Discover metrics read at full weight alongside the shop columns.
+
+Verified: live DOM check (a Beast offer previews 5/5 under a +4/+4 Beast aura). 1090 tests green; typecheck + lint clean.
+
 ### feat(ui): hero-panel cleanup + dark pill/glass restyle of the hero / opponent / round panels
 
 - **Hero panel decluttered.** Removed the always-visible power description + progress line from the hero box.

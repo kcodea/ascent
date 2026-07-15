@@ -1727,17 +1727,17 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
      19%/45% lands on the same board spot on any window aspect (a non-16:9 viewport letterboxes the stage; anchoring
      to the viewport drifted the power off the board on Mike's 16:9 once browser chrome made the client area off-ratio).
      The dev mover then nudges it via px × --scale, staying resolution-independent. */
-  left: calc(var(--bar-x) + 0.19 * var(--gw) + var(--hpow-x, 237px) * var(--scale));
-  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--hpow-y, 46px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--hpow-s, 1.22));
+  left: calc(var(--bar-x) + 0.19 * var(--gw) + var(--hpow-x, -89px) * var(--scale));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--hpow-y, 408px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--hpow-s, 1.31));
   align-self: auto; pointer-events: auto; z-index: 41;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(7 * var(--u));
 }
 body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-reaching hand drop through */
 .statusbar .heropanel.passive { opacity: 0.9; }
 /* The READY / ARMED cue is the button's own glow — its blur radius is dev-tunable via --hpow-glow. */
-.statusbar .heropanel.ready .heropowerbtn { box-shadow: 0 0 0 3px var(--acc), 0 4px 0 var(--acc-dk), 0 0 calc(18px * var(--hpow-glow, 2.1)) -2px var(--acc); }
-.statusbar .heropanel.armed .heropowerbtn { box-shadow: 0 0 0 4px var(--acc), 0 0 calc(22px * var(--hpow-glow, 2.1)) 2px var(--acc); }
+.statusbar .heropanel.ready .heropowerbtn { box-shadow: 0 0 0 3px var(--acc), 0 4px 0 var(--acc-dk), 0 0 calc(18px * var(--hpow-glow, 2.5)) -2px var(--acc); }
+.statusbar .heropanel.armed .heropowerbtn { box-shadow: 0 0 0 4px var(--acc), 0 0 calc(22px * var(--hpow-glow, 2.5)) 2px var(--acc); }
 .statusbar .heropanel .hpwrap { margin-left: 0; }
 .statusbar .heropanel .heropowerbtn { width: calc(82 * var(--u)); height: calc(82 * var(--u)); }
 .statusbar .heropanel .heropowerbtn svg { width: calc(40 * var(--u)); height: calc(40 * var(--u)); }

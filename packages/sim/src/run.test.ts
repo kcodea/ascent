@@ -1478,6 +1478,22 @@ describe('run loop (@game/sim)', () => {
     expect(s.nextSpellMult).toBeUndefined(); // charge spent
   });
 
+  it('Nimbus charge PERSISTS through combat — survives faceOmen + resolveCombat, spent only on the next hand spell', () => {
+    let s: RunState = {
+      ...createRun(1), resolve: 100, maxResolve: 100,
+      nextSpellMult: 2, // armed by Nimbus this turn; NO spell cast yet
+      board: [{ uid: 'w', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+      hand: [{ uid: 'g', cardId: 'growth', tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.nextSpellMult).toBe(2); // still armed after a full combat — the per-turn resets never touch it
+    const before = s.board.find((c) => c.uid === 'w')!.attack;
+    s = reduce(s, { type: 'play', uid: 'g' }); // cast Growth from hand next turn
+    expect(s.nextSpellMult).toBeUndefined(); // NOW the charge is spent
+    expect(s.board.find((c) => c.uid === 'w')!.attack).toBe(before + 6); // doubled: Growth +3 Attack × 2 casts
+  });
+
   it('Heckbinder (Demon/Mech) magnetizes onto a Demon or a Mech, but not other tribes', () => {
     const heck = (): BoardCard => ({ uid: 'h', cardId: 'heckbinder', tribe: 'demon', attack: 3, health: 3, keywords: ['M'], golden: false });
     // onto a Demon → merges (+3/+3)

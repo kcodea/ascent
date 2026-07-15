@@ -28,7 +28,7 @@ export interface RunTelemetry {
   offeredQuests: string[];
   /** Quests the player took (buyQuest). */
   pickedQuests: string[];
-  /** Completed quest id → the wave it completed on (for "avg turns to complete"). */
+  /** Completed quest id → the number of TURNS it took to complete (completion wave − first-active wave). */
   questTurns: Record<string, number>;
   offeredRunes: string[];
   pickedRunes: string[];
@@ -64,15 +64,19 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
   const seenCompleted = new Set<string>(); // quests already recorded as completed (detect the flip)
   const tierByWave: number[] = []; // tavern tier at the end of each wave (tier is monotonic, so last-write = reached)
 
+  const questStart: Record<string, number> = {}; // first wave each quest was active (acquired), for turns-to-complete
   const recordCompletions = (st: RunState): void => {
     for (const q of st.activeQuests ?? []) {
+      // Remember the wave a quest first became active, so completion records the TURNS IT TOOK (elapsed), not the
+      // absolute turn it finished on (owner request 2026-07-15).
+      if (!(q.questId in questStart)) questStart[q.questId] = st.wave;
       // A one-shot quest flips `completed`; a REPEATABLE never does but bumps `completionCount` on each re-fire.
-      // Record the FIRST completion's wave for either (into the existing `questTurns` — no schema change), so
-      // repeatables (Forest Grove, Scrap Contract, Imp Census, Dark Bargain, …) count toward completion metrics.
+      // Record the FIRST completion for either (into the existing `questTurns` — no schema change), so repeatables
+      // (Forest Grove, Scrap Contract, Imp Census, Dark Bargain, …) count toward completion metrics.
       const done = q.completed || (q.completionCount ?? 0) > 0;
       if (done && !seenCompleted.has(q.questId)) {
         seenCompleted.add(q.questId);
-        questTurns[q.questId] = st.wave;
+        questTurns[q.questId] = Math.max(0, st.wave - (questStart[q.questId] ?? st.wave)); // turns to complete
       }
     }
   };
@@ -141,7 +145,7 @@ export interface PlayerReportRow {
   winRate: number;
   /** Heroes/quests/runes only (won runs among picked / picked games). */
   avgWins: number | null;
-  /** Quests only — average wave a completed quest finished on. */
+  /** Quests only — average number of turns a completed quest took (completion wave − first-active wave). */
   avgTurns: number | null;
 }
 
@@ -202,7 +206,7 @@ interface Acc {
   games: number; // runs picked (= games played with it)
   won: number; // won runs among picked
   winsSum: number; // Σ scored wins among picked (hero avg wins)
-  turnsSum: number; // Σ completion wave among picked+completed (quest avg turns)
+  turnsSum: number; // Σ turns-to-complete among picked+completed (quest avg turns)
   turnsCount: number;
 }
 const blankAcc = (): Acc => ({ offered: 0, picked: 0, games: 0, won: 0, winsSum: 0, turnsSum: 0, turnsCount: 0 });

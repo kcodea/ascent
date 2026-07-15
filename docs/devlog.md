@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### fix(ui): charge glyph sits behind the cards (board-surface layer)
+
+Dropped `.chargeglyph` from `z-index: 8` (a rope holdover, which painted it over the cards) to `z-index: -1`,
+sending it to the back of `.app` — which itself sits above the board art (`.boardbg` z0). So the charge now reads
+as a **board-surface effect**: just above the background board, behind every card and their drop shadows. (The
+warband zone is `position: relative` without z-index, so it's not a stacking context — the −1 competes in `.app`'s
+context as intended.) Side effect: at the back of `.app` the glyph no longer screen-blends against the cards
+(internal fill+core compositing is unchanged; its interaction with the board goes from "screen" to "over").
+
 ### feat(ui): charge-glyph — live in-game tuner + charge-start SFX (retire the 5s ticks)
 
 **What:** two additions on top of the charge-glyph swap (below): a **live in-game tuner** for the effect at true

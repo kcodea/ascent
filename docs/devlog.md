@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### chore(audio): bake the owner's full mixer export as the shipped default
+
+Owner tuned the whole SFX bank by ear in the dev desk and exported the config; pasted it into `config.ts` as the
+new default (`DEFAULT_AUDIO_CONFIG`). Changes vs prior defaults:
+- **`masterGain` 1 → 0.8** (whole mix pulled down).
+- **Every category gain re-tuned** to the export — notably `smack` 0.06→0.29, `attack` 0.4→0.25, `cardlanding`
+  0.56→0.33, `roll` 0.69→0.88, `combatStart` 0.48→0.64, `rebornshatter` 0.42→0.16, `maxgold` 0.4→0.22,
+  `cardVoice` 0.18→0.11, `summon` 0.37→0.24, plus smaller nudges across the rest.
+- **`combatStart` re-routed** from the `combat` bus to the `ui` bus (per the export). Audibly identical today
+  (both buses unity), honored for the owner's routing intent.
+- **`buff`** now carries its exported gain 0.46 in `CATEGORY_GAINS` — but it's a **synth-only** cue, so the
+  category gain is **inert** (a synth cue's loudness is its own literal `tone()` vol; category gain only scales
+  *sourced* clips). Kept only to match the export 1:1. `config.test.ts` updated: `masterGain` → 0.8 assertion,
+  and the "synth-only cues at unity gain" check retired (all categories now carry an explicit gain) → a routing
+  check for `buff`.
+
+Supersedes the abandoned `smack 0.06→0.33` one-off (the export sets `smack` to 0.29). Reminder: a browser with a
+saved mixer config in `localStorage['ascent.audiocfg']` keeps its own values until reset — these defaults apply to
+fresh profiles / anyone who hasn't tuned locally.
+
 ### feat(audio): source stock combat/UI sounds (wind-up, death, shield-up, triple, SoC zap, max-Gold); remove dead cues
 
 **What:** batch of the stock-sound audit — replaced four synth cues with owner-authored clips, and **deleted two

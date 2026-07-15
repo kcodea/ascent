@@ -61,6 +61,108 @@ Verified: new/updated tests across `simulate.test.ts` (Runescale SoC + spellProg
 (Worgen on-play, Runescale accrual + triple-SUM), `cardText.test.ts` (hunter/worgen/runescale live text),
 `runTelemetry.test.ts` (source split) — **1069 tests green**, typecheck + lint + build:web all clean.
 Determinism/golden unaffected.
+### feat(audio): source stock combat/UI sounds (wind-up, death, shield-up, triple, SoC zap, max-Gold); remove dead cues
+
+**What:** batch of the stock-sound audit — replaced four synth cues with owner-authored clips, and **deleted two
+dead synth cues** (`sfx.temper`, `sfx.proc`; defined but wired to nothing — grep-confirmed no call sites in
+`packages/ui`). The four sourced:
+- **attack wind-up** (`sfx.attack`, the tiny sawtooth on every swing's start → `windup.mp3`)
+- **death** (`sfx.death`, a unit dying → `death.mp3`)
+- **shield-up** (`sfx.shield`, a unit GAINING a Ward/Divine Shield mid-combat → `shieldgain.mp3`)
+- **triple** (`sfx.triple`, making a golden from 3 copies → `triplereward.mp3`)
+- **Start-of-Combat zap** (`sfx.cast`) — **reuses the `pulse` sourced clip** per owner request (same sound as
+  the hero-power pulse), on its own new `cast` category (combat bus, 0.5) so it can be leveled independently.
+- **max-Gold raise** (`sfx.maxGold`, Soulsman's Avenge) — **reuses the `sell` clips** (random sell1–selN) per
+  owner request, on its own `maxgold` category level.
+
+**How:**
+- `sfx.attack` now does `playSample('windup', 'attack')` with the old sawtooth `tone()` kept as the decode/absent
+  fallback — the standard sourced-clip pattern. It still fires from the combat SFX channel on every `attack`
+  event (`choreo/channels/sfx.ts`), so no call-site change was needed. New `attack` mixer category on the
+  **combat** bus at a **0.4** starting gain (fires on every swing → wants to sit subtle). Previously the synth
+  blip borrowed the `smack` category; it now has its own level. Added an `attack` mixer preview entry.
+- `sfx.death` now does `playSample('death', 'death')` with the synth low-sine drop as fallback, on a **0.5**
+  starting gain. `death` was already routed to the combat bus but had no explicit gain (so it would have played
+  the sourced clip at unity 1.0) — added `death: 0.5` to `CATEGORY_GAINS`. Fires from the combat SFX channel on a
+  real (non-Rise) death; the unit's own `cards/<id>.death.mp3` voiceline still layers over it. Added a `death`
+  mixer preview entry.
+- `sfx.shield` now does `playSample('shieldgain', 'shield')` with the synth rising-sine chime as fallback, on a
+  new **0.5** gain (`shield` was routed to the combat bus but had no explicit gain → would have played at unity).
+  Fires on `shieldUp` events. Added a `shield` mixer preview entry + removed `shield` from `config.test.ts`'s
+  synth-only-at-unity list.
+- `sfx.triple` now does `playSample('triplereward', 'triple')` with the synth arpeggio fallback. `triple` had NO
+  category at all (the chord borrowed `ui`); added a new **`triple`** category on the **ui** bus at **0.6** gain +
+  a mixer preview entry.
+- Removed `temper`/`proc` method bodies; nothing referenced them (the lone `proc` hit in `Card.tsx` is an
+  unrelated visual-FX comment).
+
+- `sfx.cast` (Start-of-Combat zap) now does `playSample('pulse', 'cast')` — reusing the existing `pulse.mp3`
+  rather than a new file, on a new `cast` category (combat bus, 0.5) so it's independent of the hero-power
+  `pulse` level; synth zap kept as fallback. Added a `cast` mixer preview entry.
+
+- `sfx.maxGold` now does `playSample(pickVariant('sell'), 'maxgold')` — reusing the existing `sell` clips rather
+  than a new file, on its own `maxgold` category (was combat-bus unity; now `maxgold: 0.4`) so it levels apart
+  from the shop sell; synth coin-shimmer kept as fallback. Preview entry added; removed `maxgold` from
+  `config.test.ts`'s synth-only list.
+
+Part of the stock-sound audit. Remaining pure-synth cues still to source: `buff`, plus the fanfares
+`win`/`lose`/`tick`.
+
+**Verified:** `npm run typecheck && npm run lint && npm test` (1064) `&& npm run build:web` all green (isolated
+worktree, own install); `windup.mp3` bundles as a hashed asset. Audible check left for an in-tab listen.
+
+### fix(ui): step counter — hide at 0 in shop · end-of-turn cadence ticks with the beat · hidden in combat
+
+Owner follow-up on the step counter, three parts:
+
+- **Shop hides a fresh 0/N** — a `0/2` counter reads as noise, so the recruit/board path (`instView`) now only
+  renders the counter from `1/N` up (`sp.current > 0`). Effect: a shop **Avenge** unit (Brood Matron) or a
+  freshly-placed **Money Maker** shows nothing until it has real progress. Combat is unchanged (keeps its own
+  `0/N` that fades in on the first tick).
+- **Cadence counters are shop-only, hidden in combat** — Money Maker / Frontdrake / Vineweaver tick at END OF
+  TURN, so `stepProgress` now returns `null` when `eotTick` is undefined (the combat path passes no `eotTick`),
+  mirroring how `goldSpent` already hides. Fixes Money Maker showing a stale, irrelevant `0/2` mid-combat.
+- **The tick lands on the beat, not a turn late** — `eotTick` is only committed in `faceOmen` (after the
+  End-of-Turn beats), so the counter used to jump a turn later (into combat, where it's now hidden). Added an
+  `eotAnimTick` projection in `Recruit.tsx`: when a card's EoT beat fires, its counter climbs to `eotTick + 1`
+  in lock-step with the medallion pulse/glow. Threaded via a new `eotTickOverride` on `instView` (used for both
+  the card text and the counter, so they stay in sync — card-text-current-value rule). Money Maker's flow is now:
+  hidden at `0/2` → ticks to `1/2` on the end-of-turn beat → hidden through combat → `1/2` next shop.
+
+Verified live (worktree dev server, DOM probe): shop shows `1/2` only (0/2 + shop-Avenge hidden); the EoT beat
+sequence records `recruit(hidden) → recruit 1/2 → combat(hidden)`; both Money Makers carry no counter in combat
+while an Avenge unit still shows its fading `0/3`. typecheck + lint + `build:web` clean, 1064 tests green.
+
+### fix(ui): Avenge payoff beats deploy AFTER the death's summons
+
+Owner report: "Avenge effects come before Deathrattle effects — perhaps just summon Deathrattles; make all
+Avenge effects wait until after the summon beats deploy." Traced with headless event-log repros: the sim fires
+an Avenge the instant a death hits its threshold, right after that death's own summon (correct for a lone
+death). But it inverts against summons that land LATER in the SAME exchange — (a) a **multi-death clash**
+(Cleave / AoE): deaths resolve one-by-one, so an Avenge on death #2 fires before death #3's summon; (b) a
+**deferred attack-on-summon token** (a Violet Whelp's "Whelp that attacks immediately"): that summon is held to
+the post-cascade flush, so any Avenge in the same death lands before the token exists. You'd see the payoff (a
+buff pulse / coin burst / Discover) before the token popped in.
+
+Fix is presentation-only, in two parts:
+- **Sim tag (`packages/core`).** `CombatEvent` gains an optional `avenge?: true` (mirrors the `step` tag —
+  pure presentation metadata, never touches resolution). `simulate()` stamps it via a new `emitAvenge(side,
+  count)` helper that sets an `inAvenge` flag around the `bus.emit('avenge', …)` at both friendly-death tally
+  sites (true death + a board-full Rise that stays dead), so every event an Avenge handler emits — buff /
+  improve / maxGold / shieldUp / summon / toHand, incl. Rune of Fury doubling + rune Avenges — is tagged.
+- **UI reorder (`packages/ui`).** New `deferAvengeAfterSummons` (choreo), composed after `deferClashBuffs` in
+  `useCombatReplay`, slides each `avenge`-tagged NON-summon beat to just after the last summon that follows it
+  within the same exchange (stops at the next `attack`; never reorders an Avenge *summon*, whose board slot is
+  index-based). Correctness: an Avenge event only ever hops forward past a `summon` (a brand-new uid) or an
+  event on a DIFFERENT unit — both commute with it in `computeFrame`'s in-order fold — and BAILS if a same-unit
+  interaction (its own target's `reborn`/`dmg`/`death`) sits in the way. So the folded board is byte-identical.
+
+Verified: `avengeOrder.test.ts` (10 unit cases — multi-death, deferred Whelp, attack-boundary stop, reborn
+bail, Avenge-summon left in place, non-Avenge buff untouched, relative-order preservation) + `avengeOrder.fold.
+test.ts` (real Cleave/Whelp fights: tag present, reorder fires end-to-end on the Arcane Weaver Avenge(2) +
+deferred Whelp case, and `computeFrame` before == after on every scenario). Full gate green: 1079 tests,
+typecheck, lint, build:web. Follow-up: the reorder deliberately does not un-defer Avenge *summons* (rune Imps,
+Knit) relative to Deathrattle summons — those are already summon-vs-summon and index-sensitive.
 
 ### feat: pulse on EVERY quest activation (recruit + all SoC/combat triggers) + tuned HUD defaults
 
@@ -77,6 +179,7 @@ Determinism/golden unaffected.
 
 Verified: new SoC test (Rune of Warding emits `questTrigger`; Shared Circuit maps to its quest); 1065 tests green,
 typecheck + lint + build:web clean. Determinism/golden unaffected (the markers are cosmetic).
+
 ### feat(ui): step counter — combat-only 3s fade + baked tuned placement
 
 Owner ask: the step counter ("X/N to next step") should only flash in **combat** — fade in near-instantly each

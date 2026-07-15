@@ -64,11 +64,23 @@ export function simulate(
   // Rule of thumb when extending the sim: finer is safer (the UI compiler can MERGE steps, never split them).
   let stepN = 0;
   const nextStep = (): void => { stepN++; };
-  const emit = (e: CombatEvent): void => { events.push({ ...e, step: stepN }); };
+  // `inAvenge` is true only while an Avenge handler bus-emission is running (see `emitAvenge`). Every event a
+  // handler emits during that window is stamped `avenge:true` — pure presentation metadata (like `step`) that
+  // lets the replay hold Avenge payoff beats until after the death's summons deploy. Zero effect on outcomes.
+  let inAvenge = false;
+  const emit = (e: CombatEvent): void => { events.push({ ...e, step: stepN, ...(inAvenge ? { avenge: true as const } : {}) }); };
   // A completed quest / owned rune's COMBAT effect just fired — emit a marker the UI folds into a badge pulse
   // (the `flag` maps to the quest/rune id via content). Purely cosmetic; zero effect on resolution.
   const fireTrigger = (flag: string, side: Side): void => emit({ type: 'questTrigger', flag, side });
   const bus = new CombatBus();
+  // Fire the Avenge bus with `inAvenge` set, so every event the handlers emit (buff / improve / maxGold /
+  // shieldUp / summon / …) is stamped `avenge:true`. try/finally guarantees the flag clears even if a handler
+  // throws. The two call sites are the two friendly-death tallies (a true death, and a board-full Rise that
+  // stays dead). Presentation-only tag; resolution is unchanged.
+  const emitAvenge = (side: Side, count: number): void => {
+    inAvenge = true;
+    try { bus.emit('avenge', { side, count }); } finally { inAvenge = false; }
+  };
   let uidCounter = 0;
   const mkUid = (): string => `m${uidCounter++}`;
   const handGrants: string[] = []; // cards the player's deathrattles add to hand after combat
@@ -843,7 +855,7 @@ export function simulate(
         if (minion.side === 'enemy') enemyDeaths++;
         deaths[minion.side] += 1;
         if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
-        bus.emit('avenge', { side: minion.side, count: deaths[minion.side] });
+        emitAvenge(minion.side, deaths[minion.side]);
         return;
       }
       // Rise: revive the SAME body (keeps its uid → "reborn attacks again" + every per-instance carry-back
@@ -913,7 +925,7 @@ export function simulate(
     // Avenge: count the death and notify that side's avengers.
     deaths[minion.side] += 1;
     if (minion.side === 'player') questEvents.push({ step: stepN, kind: 'friendlyDeath', tribes: [] });
-    bus.emit('avenge', { side: minion.side, count: deaths[minion.side] });
+    emitAvenge(minion.side, deaths[minion.side]);
     // The Bone Throne: every N friendly deaths, trigger your leftmost living Echo (like Echoing Coop, but
     // paced by the death counter). Fires the leftmost minion that HAS a Deathrattle — its own doublers apply.
     const side = minion.side; // per-side quest/rune death effects — a served enemy runs its own

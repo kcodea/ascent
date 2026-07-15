@@ -105,10 +105,14 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; frontToBackBonusH?: number; onBoard?: boolean },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
+  // During the End-of-Turn animation the cadence tick is PROJECTED one turn ahead (the reducer only commits
+  // it in `faceOmen`, after the beats play), so the card text + step counter climb in sync with the medallion
+  // pulse instead of jumping a turn later. Outside the animation this is the committed value.
+  const eotTickShown = live?.eotTickOverride ?? inst.eotTick;
   // The full live rule text (+ golden variant) — shared with the shop / Discover via liveCardText.
   const { text, goldenText } = liveCardText(inst.cardId, {
     tier, golden: !!inst.golden, spellBonus, spellBonusH, frontToBackBonus, frontToBackBonusH: live?.frontToBackBonusH ?? frontToBackBonus, spellsThisTurn, spellsCast,
@@ -117,7 +121,7 @@ export function instView(
     goldSpent: live?.goldSpent ?? 0,
     spellProgress: inst.spellProgress, ascendProgress: inst.ascendProgress, summonBonus: inst.summonBonus,
     overflowBonus: inst.overflowBonus,
-    hpGrantBonus: inst.hpGrantBonus, eotTick: inst.eotTick, eotBonus: inst.eotBonus, sellBonus: inst.sellBonus,
+    hpGrantBonus: inst.hpGrantBonus, eotTick: eotTickShown, eotBonus: inst.eotBonus, sellBonus: inst.sellBonus,
     playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff,
     lastSpellName: live?.lastSpellName,
   });
@@ -138,11 +142,16 @@ export function instView(
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
     baseHealth: inst.golden ? c.health * 2 : c.health,
     buffs: inst.buffs,
+    // Shop/board counter: only render once it has PROGRESS — a fresh 0/N reads as noise (owner ruling), so
+    // hide at 0 and surface it from 1/N up. (Combat keeps its own 0/N → fades in on the first tick.)
     stepProgress: live?.onBoard
-      ? (stepProgress(inst.cardId, {
-          spellProgress: inst.spellProgress, summonBonus: inst.summonBonus,
-          ascendProgress: inst.ascendProgress, eotTick: inst.eotTick, goldTick: inst.goldTick,
-        }) ?? undefined)
+      ? ((): ReturnType<typeof stepProgress> => {
+          const sp = stepProgress(inst.cardId, {
+            spellProgress: inst.spellProgress, summonBonus: inst.summonBonus,
+            ascendProgress: inst.ascendProgress, eotTick: eotTickShown, goldTick: inst.goldTick,
+          });
+          return sp && sp.current > 0 ? sp : null;
+        })() ?? undefined
       : undefined,
   };
 }

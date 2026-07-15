@@ -481,23 +481,26 @@ export const sfx = {
     tone({ freq: 900, dur: 0.18, type: 'sawtooth', vol: 0.12, slideTo: 200, category: 'skullburst' });
     tone({ freq: 1400, dur: 0.14, type: 'triangle', vol: 0.07, delay: 0.02, slideTo: 500, category: 'skullburst' });
   },
-  temper: () => {
-    tone({ freq: 1200, dur: 0.06, type: 'square', vol: 0.1, category: 'ui' });
-    tone({ freq: 1600, dur: 0.12, type: 'sine', vol: 0.12, delay: 0.04, category: 'ui' });
-  },
   tick: () => tone({ freq: 1040, dur: 0.045, type: 'square', vol: 0.09, category: 'ui' }),
   // End Turn → Face the Omen — the sourced "combatStart" clip; synth low sawtooth down-slide fallback.
   combatStart: () => {
     if (playSample('combatStart', 'combatStart')) return;
     tone({ freq: 200, dur: 0.45, type: 'sawtooth', vol: 0.16, slideTo: 90, category: 'combatStart' });
   },
-  attack: () => tone({ freq: 320, dur: 0.08, type: 'sawtooth', vol: 0.1, slideTo: 130, category: 'smack' }),
-  // A Start-of-Combat effect firing (Ember Whelp's scorch, Blaster, etc.) — a quick magic "zap", distinct
-  // from the physical smack so SC damage doesn't read as a melee hit. Synth for now (gets its own clip later);
-  // routed on the combat bus alongside the melee smack.
+  // A unit begins its attack — the wind-up. Sourced "windup" clip; synth sawtooth blip fallback until it decodes
+  // / if absent. Fired at the start of every attack event (see choreo/channels/sfx.ts).
+  attack: () => {
+    if (playSample('windup', 'attack')) return;
+    tone({ freq: 320, dur: 0.08, type: 'sawtooth', vol: 0.1, slideTo: 130, category: 'attack' });
+  },
+  // A Start-of-Combat effect firing (Ember Whelp's scorch, Blaster, etc.) — a magic "zap", distinct from the
+  // physical smack so SC damage doesn't read as a melee hit. REUSES the `pulse` sourced clip, but on its own
+  // `cast` category (combat bus) so it can be leveled independently of the hero-power pulse; synth zap fallback
+  // until it decodes / if absent.
   cast: () => {
-    tone({ freq: 1040, dur: 0.14, type: 'sawtooth', vol: 0.085, slideTo: 360, category: 'smack' });
-    tone({ freq: 1500, dur: 0.1, type: 'triangle', vol: 0.05, delay: 0.02, slideTo: 900, category: 'smack' });
+    if (playSample('pulse', 'cast')) return;
+    tone({ freq: 1040, dur: 0.14, type: 'sawtooth', vol: 0.085, slideTo: 360, category: 'cast' });
+    tone({ freq: 1500, dur: 0.1, type: 'triangle', vol: 0.05, delay: 0.02, slideTo: 900, category: 'cast' });
   },
   // Impact in combat — one of the sourced strike clips (`smack1`…`smackN`) at random so repeated hits don't
   // sound identical; synth thud until they decode. Fired frame-accurately from the lunge's GSAP timeline
@@ -513,21 +516,36 @@ export const sfx = {
     if (playSample('crit', 'crit')) return;
     tone({ freq: 240, dur: 0.16, type: 'square', vol: 0.18, slideTo: 90, category: 'crit' });
   },
-  death: () => tone({ freq: 130, dur: 0.26, type: 'sine', vol: 0.2, slideTo: 48, category: 'death' }),
-  shield: () => tone({ freq: 760, dur: 0.18, type: 'sine', vol: 0.11, slideTo: 1300, category: 'shield' }),
+  // A unit DIES in combat — the sourced "death" clip; synth low sine-drop fallback until it decodes / if absent.
+  // Fired from the combat SFX channel on a real (non-Rise) death; the unit's own cards/<id>.death.mp3 voiceline
+  // still layers over this.
+  death: () => {
+    if (playSample('death', 'death')) return;
+    tone({ freq: 130, dur: 0.26, type: 'sine', vol: 0.2, slideTo: 48, category: 'death' });
+  },
+  // A unit GAINS a Ward / Divine Shield during combat (the protective bubble pops onto it) — the sourced
+  // "shieldgain" clip; synth rising-sine chime fallback. Counterpart to shieldBreak. Fired on `shieldUp` events
+  // (Start-of-Combat grants, Avenge shields, Ward transfers, Mech grants) from the combat SFX channel.
+  shield: () => {
+    if (playSample('shieldgain', 'shield')) return;
+    tone({ freq: 760, dur: 0.18, type: 'sine', vol: 0.11, slideTo: 1300, category: 'shield' });
+  },
   buff: () => {
     tone({ freq: 480, dur: 0.09, type: 'triangle', vol: 0.12, category: 'buff' });
     tone({ freq: 720, dur: 0.12, type: 'triangle', vol: 0.1, delay: 0.06, category: 'buff' });
   },
-  // An End-of-Turn effect firing — a short shimmer so each proc is heard, not just seen. Routed on the combat
-  // bus (it fires during the combat/EOT phase) alongside the trigger cues.
-  proc: () => {
-    tone({ freq: 540, dur: 0.1, type: 'triangle', vol: 0.11, slideTo: 880, category: 'triggerpulse' });
-    tone({ freq: 1080, dur: 0.13, type: 'sine', vol: 0.07, delay: 0.05, category: 'triggerpulse' });
+  // Soulsman's Avenge raises your max Gold — REUSES the sell clip (one of sell1–selN at random) per owner
+  // request, on its own `maxgold` category (combat bus) so it levels independently of the shop sell; synth rising
+  // coin-shimmer fallback until it decodes / if absent.
+  maxGold: () => {
+    if (playSample(pickVariant('sell'), 'maxgold')) return;
+    chord([784, 1046, 1318, 1568], { dur: 0.11, type: 'triangle', vol: 0.1, category: 'maxgold' }, 0.045);
   },
-  // Soulsman's Avenge raises your max Gold — a bright rising coin shimmer (synth; combat proc).
-  maxGold: () => chord([784, 1046, 1318, 1568], { dur: 0.11, type: 'triangle', vol: 0.1, category: 'maxgold' }, 0.045),
-  triple: () => chord([523, 659, 784, 1046], { dur: 0.13, type: 'triangle', vol: 0.12, category: 'ui' }, 0.06),
+  // You make a triple (3 copies → a golden) — the sourced "triplereward" clip; synth rising arpeggio fallback.
+  triple: () => {
+    if (playSample('triplereward', 'triple')) return;
+    chord([523, 659, 784, 1046], { dur: 0.13, type: 'triangle', vol: 0.12, category: 'triple' }, 0.06);
+  },
   win: () => chord([523, 659, 784, 1046], { dur: 0.2, type: 'triangle', vol: 0.14, category: 'ui' }, 0.1),
   lose: () => chord([392, 311, 233], { dur: 0.24, type: 'sawtooth', vol: 0.13, category: 'ui' }, 0.12),
 } as const;
@@ -548,7 +566,7 @@ export function setSampleVolume(key: string, v: number): void {
 
 /** Play a sourced clip by its category key (for the dev SFX mixer's preview button). */
 const SFX_PREVIEW: Record<string, () => void> = {
-  buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, crit: sfx.critHit, cardlanding: sfx.play, castspell: sfx.castSpell,
+  buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, crit: sfx.critHit, attack: sfx.attack, death: sfx.death, shield: sfx.shield, triple: sfx.triple, cast: sfx.cast, maxgold: sfx.maxGold, cardlanding: sfx.play, castspell: sfx.castSpell,
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
   unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, skullburst: sfx.skullBurst, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   combatStart: sfx.combatStart,

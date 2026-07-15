@@ -494,6 +494,10 @@ export function Recruit() {
   // During the End-of-Turn animation, the per-proc stats to *show* on each minion (uid → live stats),
   // so the board's numbers climb one proc at a time. Null outside the animation (show the real stats).
   const [eotAnimStats, setEotAnimStats] = useState<Record<string, { attack: number; health: number }> | null>(null);
+  // During the same animation, the PROJECTED cadence tick per uid (eotTick + 1) so a cadence counter
+  // (Money Maker / Frontdrake) visibly ticks up on its beat — the reducer only commits eotTick in faceOmen
+  // (after the beats), so without this the counter would jump a turn late. Null outside the animation.
+  const [eotAnimTick, setEotAnimTick] = useState<Record<string, number> | null>(null);
   // Dragons Karwind just flame-buffed (keyed off run.karwindFlashSeq) — a one-shot flame flash.
   const [karwindFlameUids, setKarwindFlameUids] = useState<Set<string>>(new Set());
   const prevKarwindSeq = useRef(run.karwindFlashSeq);
@@ -752,6 +756,7 @@ export function Recruit() {
     }
     handBeforeCombatRef.current = new Set(run.hand.map((c) => c.uid));
     setEotAnimStats(null); // the End-of-Turn climb is done + baked in; combat shows the real units
+    setEotAnimTick(null); // projected cadence tick is now committed (faceOmen) — drop the override
     setFodderAnim(null); // never let a lingering Fodder ghost survive into combat + replay on return
     setCombatStage('closing');
     setEndTurnFlash(true);
@@ -1200,8 +1205,8 @@ export function Recruit() {
     [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.frontToBackBonusH],
   );
   const boardViews = useMemo(
-    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, { ...live, onBoard: true })] as const)),
-    [run.board, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live],
+    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, { ...live, onBoard: true, eotTickOverride: eotAnimTick?.[m.uid] })] as const)),
+    [run.board, run.tier, eotAnimStats, eotAnimTick, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live],
   );
   const handViews = useMemo(
     () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, CARD_INDEX[m.cardId]?.spell ? { ...live, castMult: spellCastCount(run, CARD_INDEX[m.cardId]!) } : live)] as const)),
@@ -2286,6 +2291,10 @@ export function Recruit() {
     const baseStats: Record<string, { attack: number; health: number }> = {};
     for (const c of [...run.board, ...run.hand]) baseStats[c.uid] = { attack: c.attack, health: c.health };
     const total = (s?: { attack: number; health: number }): number => (s ? s.attack + s.health : 0);
+    // Pre-animation cadence tick per uid — the counter projects to baseTick+1 when a card's beat fires
+    // (eotTick advances once per turn regardless of Chronos repeats), matching what faceOmen commits.
+    const baseTick: Record<string, number> = {};
+    for (const c of run.board) baseTick[c.uid] = c.eotTick ?? 0;
     if (heroArmed) armHero(); // a stray armed Hero Power shouldn't fire mid-animation
     endTurnPendingRef.current = true;
     setEndTurnAnimating(true); // lock the shop / board / hero power while the beats play
@@ -2304,6 +2313,13 @@ export function Recruit() {
       const b = beats[i]!;
       setEotProcUids(new Set([b.uid]));
       setEotPulseUids(b.completes ? new Set([b.uid]) : new Set()); // pulse only when it officially fires
+      // Tick this card's cadence counter up (projected) in lock-step with its beat — so Money Maker /
+      // Frontdrake visibly climbs 1/2 → 2/2 as the medallion fires, not a turn later. (No-op for uids
+      // without a cadence counter; '' quest beats carry no source card.)
+      if (b.uid && baseTick[b.uid] !== undefined) {
+        const projected = baseTick[b.uid]! + 1;
+        setEotAnimTick((prev) => ({ ...(prev ?? {}), [b.uid]: projected }));
+      }
       // Medallion cue: officially firing → the energy-release pulse; progress-only (cadence ticked but
       // didn't fire, e.g. Frontdrake's countdown) → the softer glow cue.
       if (b.completes) sfx.triggerPulse();

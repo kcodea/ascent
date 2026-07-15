@@ -12,8 +12,10 @@ APP BOOT  ──fetchAndRegisterPool(`<version>+`)──►  GET boards (current
 RUN ENDS  ──uploadBoards(saveRunBoards(...))────►  INSERT this run's boards (fire-and-forget, never blocks)
 ```
 
-- **Read** is once at startup and kept static for the session → replays stay faithful (daily/shareable seeds
-  should still pin to the committed pool — see [board-pool.md](board-pool.md)).
+- **Read** is once at startup and kept static for the session. The remote pool can differ across sessions, so
+  faithful replay no longer relies on it: the exact opponent served each wave is **pinned into run state**
+  (`servedBoards[wave]`) at `faceOmen`, so a saved run re-serves its real opponents on Continue even if the
+  shared pool has since changed (see [board-pool.md](board-pool.md)).
 - **Write** is fire-and-forget on run end; offline → silently skipped.
 - Both sit behind one file, `packages/ui/src/remoteBoards.ts`, and **no-op when the env vars are unset**.
 - Boards are served by **version prefix** (`<version>+%`), so per-commit SHA churn doesn't hide your boards;

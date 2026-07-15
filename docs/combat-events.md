@@ -7,7 +7,7 @@ factual/terse by design — a reference, not prose. Verify against source before
 new phase: `packages/core/src/types.ts` (the `CombatEvent` union, ~line 455) and
 `packages/core/src/combat/simulate.ts` (the resolution loop).
 
-## 1. Event vocabulary (19 types)
+## 1. Event vocabulary (22 types)
 
 All events are stamped `{ ...payload, step?: number }` (§4). Grouped by family.
 
@@ -33,6 +33,7 @@ All events are stamped `{ ...payload, step?: number }` (§4). Grouped by family.
 | `reborn` | `target, hp, attack, keywords, after?` | A Rise minion returns at base Attack + 1 Health, granted keywords shed. `after` = the uid it re-slots to the RIGHT of (when its own Deathrattle summoned into its old slot). |
 | `reveal` | `target` | A Stealth minion attacked and lost Stealth (revealed = now targetable). |
 | `keyword` | `target, keyword, source?` | A combat effect grants a keyword mid-fight (Mumi → Rise, Ryme-replayed keyword Battlecries). Rides in the RESULT family so it never splits an impact run mid-death-cascade. |
+| `keywordLost` | `target, keyword, source?` | A combat effect STRIPS a keyword (Tauntbreaker → Taunt/Rise off the enemy it hit) — the UI drops that pill. |
 | `ascend` | `target, into` | Mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen) — keeps current stats/buffs, swaps identity + effects + keywords. |
 
 ### Board/economy changes (carried-back effects, telegraphed live)
@@ -44,11 +45,13 @@ All events are stamped `{ ...payload, step?: number }` (§4). Grouped by family.
 | `maxGold` | `target, side, amount` | Soulsman's Avenge permanently raises max Gold. |
 | `toHand` | `cardId, side, source?` | A combat effect adds a specific card to the hand (Arcane Weaver, Ryme-replayed Discover, generated spell/minion) — resolved to the real card during the fight, not silently at settle. |
 | `hpGrant` | `target, amount` | Sergeant: live HP-grant amount after each Attack-gain improvement (so the tooltip/telegraph shows the current accrued number). |
+| `spellProgress` | `target, amount` | Archmagus Guel: on-board spell tally after a combat cast (live countdown). |
+| `questTrigger` | `flag, side` | A completed quest / owned rune's COMBAT effect fired — `flag` maps to its badge id so the UI can pulse the node. |
 
-*(19 types total across the three tables above: Actions — sc, attack, summon, rally (4); Impact
-results — dmg, shield, shieldUp, poison, venomLost, death, reborn, reveal, keyword, ascend (10);
-Board/meta — buff, improve, maxGold, toHand, hpGrant (5). This line is just the tally; the tables
-above are the authoritative per-type payload/meaning.)*
+*(22 types total across the three tables above: Actions — sc, attack, summon, rally (4); Impact
+results — dmg, shield, shieldUp, poison, venomLost, death, reborn, reveal, keyword, keywordLost, ascend (11);
+Board/meta — buff, improve, maxGold, toHand, hpGrant, spellProgress, questTrigger (7). This line is just the
+tally; the tables above are the authoritative per-type payload/meaning.)*
 
 ## 2. Combat lifecycle (trigger order, top to bottom)
 

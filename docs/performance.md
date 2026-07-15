@@ -95,10 +95,12 @@ with 5 shielded Mechs"), the faster the pinpoint.
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.
 
-- **Never animate `box-shadow`, `filter`, `drop-shadow`, `background`, or `border-radius` in a loop.** They
-  repaint every frame. Animate `transform`/`opacity` only (compositor-only). For a breathing glow, put a
-  *static* box-shadow on a `::before` layer and animate its **opacity** (see `.card.compact.dscard::before` +
-  `@keyframes kwglow` in `styles.css`).
+- **Never animate `box-shadow`, `filter`, `drop-shadow`, `background`, or `border-radius` in a REPEATING /
+  looping animation.** They repaint every frame, so a loop repaints forever. Animate `transform`/`opacity`
+  only in loops (compositor-only). For a breathing glow, put a *static* box-shadow on a `::before` layer and
+  animate its **opacity** (see `.card.compact.dscard::before` + `@keyframes kwglow` in `styles.css`). A
+  **one-shot** transition or non-looping animation (a single fade/pop that runs once and stops) MAY animate a
+  paint property when it reads better — profile it first to confirm the single repaint is cheap.
 - **Don't read layout (`getBoundingClientRect`, `elementFromPoint`) per frame**, especially after a style
   write — that forces a synchronous reflow (layout thrash). Cache rects once per drag in a ref (see
   `targetRectsRef` / `insertRectsRef` in `Recruit.tsx`).

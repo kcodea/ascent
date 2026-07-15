@@ -48,6 +48,7 @@ export function runAttackExchangeCues(
   if (!cues.some((c) => c.ch === 'lunge' && c.enabled !== false)) return null;
   const impact = cues.find((c) => c.ch === 'impact' && c.at === 'contact' && c.enabled !== false);
   const power = hitPower(moment.primary.swing);
+  const crit = moment.primary.crit === true; // Critical Strike this swing → the impact plays the crit sound
   // The advance always fires AT contact (the beat clock stays welded to connection); the smack fires at
   // contact + the impact cue's offset — negative fires it BEFORE contact (the smack-lead), positive after.
   // playLunge places it on its own timeline, so it stays killed/seekable with the lunge and scales with speed.
@@ -71,7 +72,7 @@ export function runAttackExchangeCues(
     attacker, dx, dy, speed: ctx.combatSpeed,
     strike: strikeOffset, strikeDur: geo.strikeDur, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
     onContact: () => ctx.advance(),
-    onImpact: impact ? () => playContactImpact(defender, dx, dy, power, ctx.combatSpeed, impactAt, spinDeg) : undefined,
+    onImpact: impact ? () => playContactImpact(defender, dx, dy, power, ctx.combatSpeed, impactAt, spinDeg, crit) : undefined,
     impactOffsetMs: impact?.offset ?? 0,
     onRallyPulse: ctx.onRallyPulse,
     onWindupBuffs: ctx.onWindupBuffs,

@@ -41,6 +41,30 @@ tweak) had near-zero contrast on the light cream board, and its drop shadow sits
 glyphs. Added a tight dark edge to the `text-shadow` (`0 0 2px` + `0 1px 1.5px` black) on top of the existing soft
 underneath shadow, so the white numbers read on the light board (and still on dark). `lint` + `build:web` green.
 
+### feat(audio): dedicated Critical Strike sound (replaces the smack on a crit)
+
+**What:** a critical strike (Commander Impala's `CR` keyword — a per-swing `critChance` roll that doubles the
+swing's damage) now plays its own owner-authored `crit.mp3` **instead of** the normal smack, so the doubled hit
+reads audibly.
+
+**How (UI-only — the mechanic already exists in the sim):** the crit roll is already emitted on the combat
+`attack` event as `crit?: boolean` (`types.ts`). The melee smack fires in exactly one place — `sfx.hit()` inside
+`playContactImpact` (the impact channel), driven by the choreo engine's `runAttackExchangeCues`. Wiring:
+- `engine.ts` reads `moment.primary.crit` (the attack event is `moment.primary`) and threads it into
+  `playContactImpact(..., crit)`.
+- `impact.ts` gains a trailing `crit = false` param and plays `crit ? sfx.critHit() : sfx.hit()` — a replacement,
+  not a layer.
+- `sfx.ts` adds `critHit()` (sourced `crit` clip, synth-crack fallback) + a mixer preview entry; `config.ts`
+  registers a `crit` category on the **combat** bus at a starting gain of **0.5** (owner to tune by ear —
+  deliberately not matched to the dialed-down 0.06 smack, since the crit should read prominently).
+
+No core/sim changes; the doubled-damage logic was already there. Only the melee-attack smack is affected —
+Start-of-Combat `cast`/`attack` synth cues are untouched.
+
+**Verified:** `npm run typecheck && npm run lint && npm test` (1053) `&& npm run build:web` all green (in an
+isolated worktree with its own install); `crit.mp3` bundles as a hashed asset. Audible playback left for an
+in-tab ear check (needs an Impala crit to actually roll; headless preview mutes when backgrounded).
+
 ### fix: unify player-facing terminology (Codex review follow-up)
 
 The keyword rename (Battlecry→Shout, Deathrattle→Echo, Divine Shield→Ward, Reborn→Rise, Golden→Gilded, …) was

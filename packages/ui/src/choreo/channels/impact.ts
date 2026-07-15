@@ -14,11 +14,12 @@ export const hitPower = (swing: number): number => Math.max(0.9, Math.min(2, 0.8
  * engine blends between the defender's centre and the attacker's leading corner (`strikePoint`) — falling back
  * to the defender's centre otherwise. Fired from the lunge's `contact` GSAP position (see `engine.ts`).
  * `dx`/`dy` is the attacker→defender vector; `power` scales the FX + knockback with the swing's damage (see
- * `hitPower`); `spinDeg` is the defender's counter-spin (already scaled to strikePoint by the engine). No-op
- * FX/recoil when there's no defender (still fires the hit sound).
+ * `hitPower`); `spinDeg` is the defender's counter-spin (already scaled to strikePoint by the engine). `crit`
+ * (Critical Strike this swing) swaps the smack for the dedicated crit sound. No-op FX/recoil when there's no
+ * defender (still fires the hit/crit sound).
  */
-export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, contact?: { x: number; y: number }, spinDeg = 0): void {
-  sfx.hit();
+export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, contact?: { x: number; y: number }, spinDeg = 0, crit = false): void {
+  if (crit) sfx.critHit(); else sfx.hit();
   if (!defender) return;
   const r = defender.getBoundingClientRect();
   const fx = contact ?? { x: r.left + r.width / 2, y: r.top + r.height / 2 };

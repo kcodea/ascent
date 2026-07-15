@@ -1609,7 +1609,11 @@ function settleCombat(s: RunState, result: CombatResult): void {
   }
   // The Old Hunt: the Beast Attack aura pumped this combat is permanent — fold it into the run + apply to
   // current run-board/hand Beasts (so they keep the gain without re-buying).
-  if (result.playerBeastBuyAtkGain) grantTribeAura(s, 'beast', result.playerBeastBuyAtkGain, 0, 'The Old Hunt');
+  // The Old Hunt (Attack) + Pack Mentality (Attack + Health) both grow the run-wide Beast aura live in combat;
+  // fold their carried-back gain into `beastBuyAtk`/`beastBuyHp` + every current run-board Beast.
+  if (result.playerBeastBuyAtkGain || result.playerBeastBuyHpGain) {
+    grantTribeAura(s, 'beast', result.playerBeastBuyAtkGain ?? 0, result.playerBeastBuyHpGain ?? 0, result.playerBeastBuyHpGain ? 'Pack Mentality' : 'The Old Hunt');
+  }
   // Pack Mentality: grow any scaling tribe auras by this combat's tally of their trigger event.
   growScalingAuras(s, result);
   // (Random spell/minion grants — Sporebat, Ryme re-firing Sea Urchin / Black Belt Brian — are now picked in
@@ -2324,6 +2328,13 @@ function advanceCombatQuests(s: RunState, result: CombatResult): void {
  *  aura up once per `per` accrued (leftover carries in `progress`). */
 function growScalingAuras(s: RunState, result: CombatResult): void {
   for (const sa of s.questScalingAuras ?? []) {
+    // A Beast + summon-in-combat aura (Pack Mentality) grows LIVE during the fight — its magnitude is already
+    // folded in via `playerBeastBuy*Gain` above, so here we only sync the leftover progress the engine reported
+    // (re-growing from the tally would double-count).
+    if (sa.tribe === 'beast' && sa.event === 'summonCombat') {
+      if (result.playerBeastScaleProgress !== undefined) sa.progress = result.playerBeastScaleProgress;
+      continue;
+    }
     const inc = combatEventCount(result, { event: sa.event, tribe: sa.tribe });
     if (inc <= 0) continue;
     sa.progress += inc;
@@ -2338,8 +2349,12 @@ function growScalingAuras(s: RunState, result: CombatResult): void {
  *  plus any armed quest combat flags. */
 export function questCombatMods(s: RunState): QuestCombatMods {
   const f = s.questFlags;
+  // Pack Mentality's LIVE growth config, if a Beast + summon-in-combat scaling aura is armed — the combat engine
+  // grows the aura per `per` Beasts summoned and carries the gain back (so settle skips re-growing it, below).
+  const beastScale = (s.questScalingAuras ?? []).find((a) => a.tribe === 'beast' && a.event === 'summonCombat');
   return {
     beastAuraHp: s.beastBuyHp || undefined,
+    beastSummonScale: beastScale ? { per: beastScale.per, stepAttack: beastScale.stepAttack, stepHealth: beastScale.stepHealth, progress: beastScale.progress } : undefined,
     bloodTrail: f?.bloodTrail,
     echoingCoop: f?.echoingCoop,
     lawOfTeeth: f?.lawOfTeeth,

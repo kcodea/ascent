@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { renameTerms } from './terms';
-import { getHero } from '@game/sim';
+import { getHero, activeAnomaly } from '@game/sim';
+import { AnomalyPill } from './AnomalyPill';
 import { heroArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -17,6 +18,7 @@ export function HeroSelect() {
   const openTitle = useGame((s) => s.openTitle);
   const mode = useGame((s) => s.pendingMode);
   const profile = useGame((s) => s.profile);
+  const anomaly = activeAnomaly(); // the limited-time global modifier a new run will adopt (null when none)
   if (!choices) return null;
 
   // The "dense" grid (Practice — every hero) balances the roster into as few rows as read well, then sizes each
@@ -42,6 +44,9 @@ export function HeroSelect() {
             <span className="hsline-note">Cover {profile.currentLine} wins · Strong {profile.currentLine + 2}+</span>
           </div>
         )}
+        {/* Active "anomaly" patch — a limited-time global run modifier (see CONFIG.anomaly). Telegraphed here so
+            the player knows the rules are bent before they pick. */}
+        {anomaly && <AnomalyPill anomaly={anomaly} variant="hero" />}
         {/* Naming yourself now lives on the home screen (the account chip). Practice shows EVERY hero (20+), which
             overflows at the full card size — the `dense` grid shrinks the cards so they all fit without scrolling.
             Ascent only offers 3, so it keeps the big cards. */}

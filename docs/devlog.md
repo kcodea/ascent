@@ -5,6 +5,58 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(ui): shared AnomalyPill — clean floating tooltip + in-game HUD pill
+
+- **Clean tooltip.** Replaced the anomaly pill's native `title=` hover with the game's standard floating
+  tooltip (the same card as `.questbadge-tip` — dark rounded card, accent title, fade-in). Extracted a shared
+  `AnomalyPill` component (`variant: 'hero' | 'hud'`) so hero select and the HUD share one look; dropped the
+  old `.hsanomaly*` CSS for a `.anomalypill*` system (pill size via `--ap-fs`, tooltip opens below).
+- **In-game pill.** Added the pill to the HUD (`HudBar`), sitting directly under the round plaque (first item
+  in `.topleft`, above the run buffs). Shown only when the run is pinned to an anomaly (`run.anomaly`), read
+  from the `ANOMALIES` registry so the name + blurb stay in sync.
+- **Verified** live in the dev server: hero-select tooltip is now the floating card (old `.hsanomaly` gone),
+  and the HUD pill renders under the plaque (top ~44px vs plaque bottom ~34px, left-aligned) reading "ANOMALY
+  · RUNIC BEHAVIOR". typecheck + lint + full test (1097) + build:web green.
+
+### feat(sim): second anomaly "Runic Behavior" — every hero hits the basic Runeforge on turn 7
+
+- **New anomaly `runic`.** Added a second entry to the `ANOMALIES` registry: *Runic Behavior* — on turn 7,
+  **every hero visits the basic Runeforge** (buy one of 3 runes, a run-long buff), not just the Runesmith.
+  Wired at the same turn-setup chokepoint as the Runesmith forge: when `s.anomaly === 'runic'` and it's turn 7
+  and the hero isn't already opening its own forge, queue `pendingBasicForge` — reusing the existing scheduled
+  no-charge forge path so it slots into start-of-turn modal priority (behind a quest offer, e.g. Coran's
+  turn-7 bucket) and buying it spends no hero-power charge.
+- **Switched the active anomaly.** Flipped `freedom.enabled → false` and `runic.enabled → true` (one line
+  each) — the pinning + UI machinery from the anomaly system carries the rest (hero-select pill now reads
+  "Anomaly: Runic Behavior" with its blurb tooltip; the home banner line stays since an anomaly is active).
+- **Tests + verification.** Renamed `freedomAnomaly.test.ts` → `anomalies.test.ts`; added Runic coverage
+  (turn-7 win → basic no-charge forge opens for a non-Runesmith hero; not without the anomaly; not on other
+  turns). Live-checked the pill in the running dev server (`.hsanomaly` = "ANOMALY · RUNIC BEHAVIOR", tooltip
+  "Every hero visits the basic Runeforge on turn 7."). typecheck + lint + full test (1097) + build:web green.
+
+### feat(sim/ui): "anomaly" system (limited-time global rules) + first anomaly "Freedom"
+
+- **New live-ops "anomaly" spine.** Anomalies are global rules bent for fun for a while, then switched off.
+  Added an extensible registry in `config.ts`: `ANOMALIES: Record<AnomalyId, AnomalyDef>` (each `{ id, name,
+  blurb, enabled, runsThrough? }`) + `activeAnomaly()` (the first `enabled` entry, or null). Adding a mode is
+  a new entry + teaching one system its id; turning one on/off is a **one-line `enabled: true|false` flip**.
+- **Pinned per run.** `createRun` snapshots `activeAnomaly()?.id` onto the new `RunState.anomaly`, and all
+  runtime code reads that pin (not the live registry) — so a saved / replayed run keeps the rules it was
+  played under even after we flip the global switch off (same philosophy as pinned opponents). Carried through
+  serialize/deserialize automatically (full-state JSON + heal-by-construction merge).
+- **First anomaly — "Freedom":** the **first minion bought each turn is free** (0 Gold). Reducer buy path:
+  `freeBuy = s.anomaly === 'freedom' && !s.freeBuyUsedThisTurn` overrides every price source (Moe / Merchant's
+  Mark / Hank / default), sets `RunState.freeBuyUsedThisTurn`, cleared in the start-of-turn reset. Spell
+  offers (Spell Cart) and held-minion re-buys return before the freebie, so it only spends on a fresh minion.
+- **Surfaced in the UI.** The shop shows the eligible first minion at cost 0 (memo re-derives on
+  `run.anomaly`/`freeBuyUsedThisTurn`); hero select telegraphs **"Anomaly: Freedom"** (name + blurb tooltip
+  from the registry) in a glowing pill under the Line; the home banner's "Enjoy a special anomaly patch…" line
+  now renders only while an anomaly is active.
+- **Tests + verification.** New `freedomAnomaly.test.ts` (first buy free → second paid → refreshes next turn →
+  no-anomaly pays normally → registry enable/disable pins/unpins on `createRun`). The base economy/quest tests
+  assert the *un-bent* game, so `vitest.setup.ts` retires all anomalies globally (`enabled = false`). typecheck
+  + lint + full test (1095) + build:web all green.
+
 ### tweak(ui): "CRIT!" text lingers 100% longer
 
 Owner note after eyeballing the shipped Critical Strike VFX live — the "CRIT!" pop reads great but flashes past

@@ -5,6 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### balance: Contract Imp → Choose One (Fodder +2/+2 or Imps +4/+4)
+
+Contract Imp (Dark Bargain reward) is now a **Choose One** instead of buffing both: option A gives your Fodder
++2/+2, option B gives your Imps +4/+4 (golden doubles each). Data-only — uses the existing `chooseOne` card
+structure (like Wildwood Shaper), the two prior onPlay buffs split into the two options. 1063 tests green.
+
 ### balance: Squirl Scout / Tara / Spirit Pup / Dark Bargain (clean value+text dials)
 
 First (clean) slice of an owner balance batch — pure value/text changes; the batch's mechanic-change items

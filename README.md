@@ -40,6 +40,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **Mixing desk (dev).** The 🎛️ Mixing Desk in the Dev menu is now a horizontal console with vertical faders —
+  master limiter + per-bus + per-category strips, each with its own ▶ to preview that sound and a bus-reassign
+  dropdown. Readable labels throughout; meters are compositor-only.
 - **Target glow fades in on attack.** The attacker's orange glow is gone; the defender's red "target" glow now
   fades in over the attacker's wind-up (a one-shot ramp) instead of snapping on. Selection glows are unchanged.
 - **Teal card hover glow.** Hovering a card now lights a bright teal line hugging its frame + a stacked soft

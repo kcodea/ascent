@@ -599,6 +599,11 @@ export interface QuestCombatMods {
   /** Pack Mentality's Health half of the Beast aura — the `beastBuyHp` sibling of `beastBuyAtk`, re-added to
    *  from-base Beast bodies (summons / Reborn) so "+/+H wherever they are" catches combat summons. */
   beastAuraHp?: number;
+  /** Pack Mentality's LIVE growth: every `per` Beasts summoned in combat, the run-wide Beast aura grows by
+   *  `stepAttack`/`stepHealth` — applied immediately to every living Beast this fight and carried back via
+   *  `playerBeastBuyAtkGain` / `playerBeastBuyHpGain` (+ leftover `progress` via `playerBeastScaleProgress`).
+   *  Player-side only (a served enemy has no run to grow); absent when no such quest is armed. */
+  beastSummonScale?: { per: number; stepAttack: number; stepHealth: number; progress: number };
   /** Blood Trail: at Start of Combat your leftmost minion gains "Slaughter: get a random Beast" for this fight. */
   bloodTrail?: boolean;
   /** Echoing Coop: at Start of Combat, trigger every one of your minions' Echoes (Deathrattles) once. */
@@ -1061,9 +1066,16 @@ export interface CombatResult {
      *  ("Give Dragons N total stats": Skybound Pact / Taragosa's Inheritance) counts combat buffs, not just recruit. */
     statGainByTribe: Partial<Record<Tribe, number>>;
   };
-  /** The Old Hunt: run-wide Beast Attack aura gained this combat (step × Beast attacks). Stacks into
-   *  `beastBuyAtk` + applied to existing run-board Beasts in settleCombat. Absent if 0. */
+  /** The Old Hunt + Pack Mentality: run-wide Beast Attack aura gained this combat (Old Hunt step × Beast
+   *  attacks + Pack Mentality stepAttack × improves). Stacks into `beastBuyAtk` + applied to existing run-board
+   *  Beasts in settleCombat. Absent if 0. */
   playerBeastBuyAtkGain?: number;
+  /** Pack Mentality: run-wide Beast HEALTH aura gained this combat (stepHealth × improves). Stacks into
+   *  `beastBuyHp` + applied to existing run-board Beasts in settleCombat. Absent if 0. */
+  playerBeastBuyHpGain?: number;
+  /** Pack Mentality: the leftover Beast-summon progress after this combat's live growth — written back onto the
+   *  scaling aura so the countdown continues next fight (the magnitude grew live, so settle skips re-growing it). */
+  playerBeastScaleProgress?: number;
   /** Step-tagged timeline of combat quest-objective ticks (one per increment) so the UI can LIVE-TICK quest
    *  progress during the replay: an entry with `step` ≤ the replay's current step is already counted. `tribes`
    *  narrows tribe-scoped objectives ("…with Beasts"); deathrattle (Echo) entries carry no tribe. */

@@ -1299,7 +1299,7 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   // top-two copies' magnitudes — two boosted Kennelmasters at +6/+4 combine to +10, and
   // a fresh triple just doubles the base (the golden doubling falls out of the combine).
   const summonEffect = def.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura');
-  const improveEffect = def.effects.find((e) => e.do === 'summonBuffTribeImprove' || e.do === 'countTribeSummon');
+  const improveEffect = def.effects.find((e) => e.do === 'summonBuffTribeImprove' || e.do === 'countTribeSummon' || e.do === 'onGainAttackBuffImproving');
   let summonBonus: number | undefined;
   if (summonEffect) {
     const base = Number((summonEffect.params as { attack?: number })?.attack ?? 0);
@@ -1361,9 +1361,14 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
     (sum, c) => ({ attack: sum.attack + (c.fodderAuraBonus?.attack ?? 0), health: sum.health + (c.fodderAuraBonus?.health ?? 0) }),
     { attack: 0, health: 0 },
   );
-  // Spirit Pup: the golden keeps the *highest* spell progress of the copies (= the lowest spells-left),
-  // so a 2-left + 8-left + 5-left triple needs only 2 more spells to evolve.
-  const goldenProgress = Math.max(...combined.map((c) => c.spellProgress ?? 0));
+  // Spirit Pup / Guel: the golden keeps the *highest* spell progress of the copies (= the lowest spells-left),
+  // so a 2-left + 8-left + 5-left triple needs only 2 more spells to evolve. Runescale Drake instead SUMS the
+  // copies' progress (owner ruling: "tripling takes the combined values" — a +20 and two fresh +1 → +21), so
+  // its accrued Dragon buff isn't thrown away by the merge. Keyed on the `spellCastImproveSelf` effect.
+  const sumsProgress = def.effects.some((e) => e.do === 'spellCastImproveSelf');
+  const goldenProgress = sumsProgress
+    ? combined.reduce((sum, c) => sum + (c.spellProgress ?? 0), 0)
+    : Math.max(...combined.map((c) => c.spellProgress ?? 0));
   // Tara: the golden keeps the *highest* ascend progress of the copies (= the lowest "to go"), so tripling a
   // Tara that's close to ascending doesn't reset it back to 20-to-go.
   const goldenAscend = def.ascendAt ? Math.max(...combined.map((c) => c.ascendProgress ?? 0)) : 0;
@@ -1565,7 +1570,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerSpellsCast) {
     s.spellsCast += result.playerSpellsCast;
     for (const c of s.board) {
-      if (CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'spellCastBuffOthers')) {
+      if (CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'spellCastBuffOthers' || e.do === 'spellCastImproveSelf')) {
         c.spellProgress = (c.spellProgress ?? 0) + result.playerSpellsCast;
       }
     }

@@ -2,10 +2,10 @@ import { CARD_INDEX } from '@game/content';
 import { CONFIG, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import {
-  abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText, combatCastGrantText,
-  cryptDrakeText, engraveTallyText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText,
+  abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText,
+  cryptDrakeText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
-  taragosaText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
+  trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
@@ -50,16 +50,15 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0) ?? // combat-only: null in the shop (attackSeen 0)
             engraveTallyText(c.id, p.permaGain) ?? // combat-only: null in the shop (no permaGain)
-            taragosaText(c.id, p.golden, p.spellBonus, p.spellBonusH) ??
-            combatCastGrantText(c.id, p.golden, p.spellBonus, p.spellBonusH) ?? // Hoardbreaker Drake: live Growth grant (base + spell power)
             watcherText(c.id, p.golden, p.spellBonus, p.spellBonusH) ?? // Watcher: live Lantern buff +x/+y (base + spell power, both stats)
             abhorrentHorrorText(c.id, p.fodderConsumed, p.golden) ??
-            summonScalingText(c.id, p.spellsThisTurn, Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined) ?? // Spirit Worgen: recruit-only; enemy (number) shows base
-            scTribeBuffPerSpellText(c.id, p.golden, p.spellsThisTurn) ??
+            summonScalingText(c.id, p.spellsThisTurn, p.golden) ?? // Spirit Worgen: recruit-only per-play scaling
+            runescaleText(c.id, p.golden, p.spellProgress ?? 0) ??
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
             packLeaderText(c.id, p.summonBonus ?? 0, p.golden) ??
             summonBuffText(c.id, p.summonBonus ?? 0) ??
             summonImproveText(c.id, p.summonBonus ?? 0, p.golden) ??
+            hunterText(c.id, p.summonBonus ?? 0, p.golden) ??
             trailForagerText(c.id, p.golden, p.sellBonus ?? 0) ??
             squirlScoutText(c.id, p.golden, p.squirlScoutBuff ?? 0) ??
             sergeantText(c.id, p.golden, p.hpGrantBonus ?? 0) ??

@@ -166,10 +166,10 @@ export const BEASTS: CardDef[] = [
     keywords: [],
     token: true,
     effects: [
-      { on: 'endOfTurn', do: 'endOfTurnBuffPerTribePlayed', params: { tribes: ['beast', 'dragon'], attack: 2, health: 2 } },
+      { on: 'onSummon', do: 'summonBuffSelfTribe', params: { tribes: ['beast', 'dragon'], attack: 3, health: 3 } },
     ],
-    text: '**End of Turn:** gain **+2/+2** for each **Beast** or **Dragon** you played this turn. Improve this by **+1/+1** for each spell you cast.',
-    goldenText: '**End of Turn:** gain **+4/+4** for each **Beast** or **Dragon** you played this turn. Improve this by **+2/+2** for each spell you cast.',
+    text: 'When you play a **Beast** or **Dragon**, gain **+3/+3**. Improves by **+3/+3** for every spell you cast this turn.',
+    goldenText: 'When you play a **Beast** or **Dragon**, gain **+6/+6**. Improves by **+6/+6** for every spell you cast this turn.',
   },
 
   // --- New beasts (2026-06-24 content batch). Manasaber is a token-summoner (data only); Raptor and Sea

@@ -94,9 +94,9 @@ export const TOKENS: CardDef[] = [
     health: 3,
     keywords: ['EG'],
     token: true,
-    effects: [{ on: 'onAttack', do: 'onAllyAttackCastGrowth', params: { attack: 3, health: 4 } }],
-    text: 'All stats are **Engraved**. When a minion attacks, cast **Growth** (+3/+4 to your minions).',
-    goldenText: 'All stats are **Engraved**. When a minion attacks, cast **Growth twice** (+6/+8 to your minions).',
+    effects: [{ on: 'onAttack', do: 'onAllyAttackCastGrowth', params: { attack: 3, health: 4, spellId: 'growth' } }],
+    text: 'All stats are **Engraved**. When a minion attacks, cast **Growth**.',
+    goldenText: 'All stats are **Engraved**. When a minion attacks, cast **Growth twice**.',
   },
   {
     // Chaos hero power token (id kept as `symbioticattachment` for save/pool compatibility) — a 1/1 Magnetic

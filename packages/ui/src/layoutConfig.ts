@@ -68,10 +68,10 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
 
   // Hero power (the board-floated power button). X/Y are px nudges off its 19%/45% base, × --scale (pinned to the
   // stage, so it doesn't drift with resolution). Glow scales the READY/ARMED blur radius.
-  { key: 'hpowS', cssVar: '--hpow-s', label: 'Scale', group: 'Hero power', min: 0.5, max: 1.8, step: 0.01, def: 1.22, fmt: 'mul' },
-  { key: 'hpowX', cssVar: '--hpow-x', label: 'X offset', group: 'Hero power', min: -800, max: 800, step: 1, def: 237, fmt: 'px' },
-  { key: 'hpowY', cssVar: '--hpow-y', label: 'Y offset', group: 'Hero power', min: -600, max: 600, step: 1, def: 46, fmt: 'px' },
-  { key: 'hpowGlow', cssVar: '--hpow-glow', label: 'Glow radius', group: 'Hero power', min: 0, max: 4, step: 0.05, def: 2.1, fmt: 'mul' },
+  { key: 'hpowS', cssVar: '--hpow-s', label: 'Scale', group: 'Hero power', min: 0.5, max: 1.8, step: 0.01, def: 1.31, fmt: 'mul' },
+  { key: 'hpowX', cssVar: '--hpow-x', label: 'X offset', group: 'Hero power', min: -800, max: 800, step: 1, def: -89, fmt: 'px' },
+  { key: 'hpowY', cssVar: '--hpow-y', label: 'Y offset', group: 'Hero power', min: -600, max: 600, step: 1, def: 408, fmt: 'px' },
+  { key: 'hpowGlow', cssVar: '--hpow-glow', label: 'Glow radius', group: 'Hero power', min: 0, max: 4, step: 0.05, def: 2.5, fmt: 'mul' },
 
   // Active-quest / rune nodes (the badge row above the hero panel). X/Y px nudges × --scale; separation = the gap.
   { key: 'qbS', cssVar: '--qb-s', label: 'Scale', group: 'Quest nodes', min: 0.5, max: 2, step: 0.01, def: 1.63, fmt: 'mul' },

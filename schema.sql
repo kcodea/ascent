@@ -125,6 +125,8 @@ create table if not exists public.run_telemetry (
   picked_runes   text[],
   offered_cards  text[],                     -- every card seen in the shop this run
   bought_cards   text[],                     -- cards bought from the shop
+  discover_offered_cards text[],             -- every card shown as a Discover option this run
+  discover_bought_cards  text[],             -- cards picked from a Discover
   tier_by_wave   jsonb,                      -- [wave] = tavern tier reached by that wave (shop-leveling curve)
   created_at     timestamptz not null default now()
 );
@@ -149,3 +151,8 @@ create policy "anon insert run_telemetry"  on public.run_telemetry for insert to
 -- Add the shop-leveling curve column to run_telemetry (safe to re-run; old rows stay null and are skipped by the
 -- Balance Report's Shop Curve chart until fresh runs are logged):
 --   alter table public.run_telemetry add column if not exists tier_by_wave jsonb;
+-- Split the card offer/pick streams by SOURCE — shop vs Discover — for the Balance Report's Minions/Spells tables
+-- (safe to re-run; old rows stay null and simply show 0 in the Disc columns until fresh runs are logged). The app
+-- degrades gracefully until these exist, so run at your convenience:
+--   alter table public.run_telemetry add column if not exists discover_offered_cards text[];
+--   alter table public.run_telemetry add column if not exists discover_bought_cards  text[];

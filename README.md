@@ -25,6 +25,25 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **"Twice" always means two casts.** Golden Hoardbreaker (and any "cast twice") now fires the spell as **two
+  genuine instances**, not one doubled cast — so spell-count payoffs proc twice. Golden **Karwind** gives +2/+2
+  twice; **Nimbus** reworded to "your next spell played from hand casts twice".
+- **Shop Curve: avg wave to each tier.** The balance report's Y-axis now shows the average wave a run first reaches
+  each tavern tier beside its label; the always-T1 wave-1 label is dropped.
+- **Quest badges bounce on trigger.** A completed quest / rune now does the combat-unit **self-buff scale-punch**
+  when its effect fires (recruit or combat), replacing the easy-to-miss glow ring.
+- **Hero power pinned to the board.** Fixed the mid-left power drifting off-board on non-16:9 windows — it's now
+  anchored to the stage box, not the raw viewport.
+- **Spell-casters name the spell.** A minion that casts a spell (Hoardbreaker, Taragosa) no longer restates the
+  spell's numbers — it names the spell, and the spell's **hover-preview** shows the live (spell-power-aware) value.
+  Golden reads "cast twice". Trims card text; hovering any caster now trails its spell card.
+- **Scaling-minion reworks.** **Hoardbreaker** now casts Growth on both Rally (first swing) *and* Slaughter;
+  **Scrap Herald** also grants a Money Bot; **Hunter** is a scaling aura that only triggers on gaining Attack
+  (buffs your others + improves itself); **Spirit Worgen** is back to on-play (+3/+3 per Beast/Dragon played,
+  improved +3/+3 per spell this turn); **Runescale Drake** buffs your Dragons +1/+1, improving +1/+1 for every
+  spell cast while that copy has been on board (per-instance, persistent; tripling **sums** the tally).
+- **Balance report splits shop vs Discover.** The Minions/Spells tables now show **Shop Seen · Shop Buy · Disc
+  Seen · Disc Buy · Buy%** — tavern odds and Discover odds are tracked and displayed separately.
 - **Cadence counters count turns.** End-of-turn cards (Money Maker, Frontdrake) now show the turns left until they
   fire — "2 Turns" ticking to "1 Turn" at end of turn — instead of an X/N bar.
 - **Real combat/UI sounds.** The synth placeholder cues are now real clips (each with its own mixer level): the

@@ -55,7 +55,7 @@ export const DRAGONS: CardDef[] = [
     keywords: [],
     effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 2, health: 2 } }],
     text: 'Whenever a **Battlecry** triggers, give your Dragons **+2/+2**.',
-    goldenText: 'Whenever a **Battlecry** triggers, give your Dragons **+4/+4**.',
+    goldenText: 'Whenever a **Battlecry** triggers, give your Dragons **+2/+2** twice.',
   },
   {
     // Dual-type Dragon/Demon payoff. Every Battlecry *fire* on your board permanently enchants the Fodder
@@ -159,9 +159,9 @@ export const DRAGONS: CardDef[] = [
     attack: 5,
     health: 7,
     keywords: [],
-    effects: [{ on: 'onGainAttack', do: 'onGainAttackBuffAll', params: { health: 2 } }],
-    text: 'When this gains Attack, give your minions **+2 Health**.',
-    goldenText: 'When this gains Attack, give your minions **+4 Health**.',
+    effects: [{ on: 'onGainAttack', do: 'onGainAttackBuffImproving', params: { attack: 1 } }],
+    text: 'When this gains Attack, give your minions **+1/+1** and improve this by **+1/+1**.',
+    goldenText: 'When this gains Attack, give your minions **+2/+2** and improve this by **+2/+2**.',
   },
   {
     // Undead/Dragon snowball: every 2 ally attacks, buff your whole board a flat +2/+2. Golden → +4/+4.
@@ -225,8 +225,9 @@ export const DRAGONS: CardDef[] = [
     goldenText: '**Deathrattle:** summon 4 **Violet Whelps** with **Taunt**.',
   },
   {
-    // Start of Combat: buff your Dragons +2/+2, +1/+1 more per spell you cast this turn (a spell-payoff Dragon).
-    // Golden doubles the whole grant. A one-time buff to the Dragons out at combat start.
+    // Start of Combat: buff your Dragons +1/+1, improved +1/+1 for every spell cast while THIS Runescale has
+    // been on the board (per-instance `spellProgress` — persistent, non-retroactive, NOT this-turn-only). A
+    // fresh copy starts at +1/+1 and grows every spell; tripling SUMS the copies' progress. Golden doubles the grant.
     id: 'runescale',
     name: 'Runescale Drake',
     tribe: 'dragon',
@@ -234,9 +235,12 @@ export const DRAGONS: CardDef[] = [
     attack: 4,
     health: 2,
     keywords: [],
-    effects: [{ on: 'startOfCombat', do: 'scTribeBuffPerSpell', params: { tribe: 'dragon', attack: 2, health: 2, perSpell: 1 } }],
-    text: '**Start of Combat:** Give your **Dragons** **+2/+2**. Improve this by **+1/+1** for each spell you cast this turn.',
-    goldenText: '**Start of Combat:** Give your **Dragons** **+4/+4**. Improve this by **+2/+2** for each spell you cast this turn.',
+    effects: [
+      { on: 'spellCast', do: 'spellCastImproveSelf' },
+      { on: 'startOfCombat', do: 'scTribeBuffPerProgress', params: { tribe: 'dragon', attack: 1, health: 1 } },
+    ],
+    text: '**Start of Combat:** Give your **Dragons** **+1/+1**. Improve this by **+1/+1** for every spell you cast.',
+    goldenText: '**Start of Combat:** Give your **Dragons** **+2/+2**. Improve this by **+2/+2** for every spell you cast.',
   },
   {
     // Escalating End-of-Turn engine: casts Growth once on its first End of Turn, twice on its second, and so
@@ -262,10 +266,13 @@ export const DRAGONS: CardDef[] = [
     tier: 4,
     attack: 6,
     health: 4,
-    keywords: ['SL'],
-    effects: [{ on: 'onKill', do: 'onKillCastSpell', params: { spellId: 'growth' } }],
-    text: '**Slaughter:** Cast **Growth** (give your minions **+3/+4**).',
-    goldenText: '**Slaughter:** Cast **Growth** (give your minions **+6/+8**).',
+    keywords: ['RL', 'SL'],
+    effects: [
+      { on: 'onAttack', do: 'rallyCastSpell', params: { spellId: 'growth' } },
+      { on: 'onKill', do: 'onKillCastSpell', params: { spellId: 'growth' } },
+    ],
+    text: '**Rally:** Cast **Growth**. **Slaughter:** Cast **Growth**.',
+    goldenText: '**Rally:** Cast **Growth twice**. **Slaughter:** Cast **Growth twice**.',
   },
 
   // ── Dragon quest reward minions (owner spec 2026-07-08) — `token: true` = reward-exclusive (never in the shop

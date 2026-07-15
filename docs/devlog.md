@@ -16,6 +16,8 @@ dead synth cues** (`sfx.temper`, `sfx.proc`; defined but wired to nothing — gr
 - **triple** (`sfx.triple`, making a golden from 3 copies → `triplereward.mp3`)
 - **Start-of-Combat zap** (`sfx.cast`) — **reuses the `pulse` sourced clip** per owner request (same sound as
   the hero-power pulse), on its own new `cast` category (combat bus, 0.5) so it can be leveled independently.
+- **max-Gold raise** (`sfx.maxGold`, Soulsman's Avenge) — **reuses the `sell` clips** (random sell1–selN) per
+  owner request, on its own `maxgold` category level.
 
 **How:**
 - `sfx.attack` now does `playSample('windup', 'attack')` with the old sawtooth `tone()` kept as the decode/absent
@@ -42,8 +44,13 @@ dead synth cues** (`sfx.temper`, `sfx.proc`; defined but wired to nothing — gr
   rather than a new file, on a new `cast` category (combat bus, 0.5) so it's independent of the hero-power
   `pulse` level; synth zap kept as fallback. Added a `cast` mixer preview entry.
 
-Part of the stock-sound audit. Remaining pure-synth cues still to source: `buff`, plus the meta fanfares
-`win`/`lose`/`tick`/`maxGold`.
+- `sfx.maxGold` now does `playSample(pickVariant('sell'), 'maxgold')` — reusing the existing `sell` clips rather
+  than a new file, on its own `maxgold` category (was combat-bus unity; now `maxgold: 0.4`) so it levels apart
+  from the shop sell; synth coin-shimmer kept as fallback. Preview entry added; removed `maxgold` from
+  `config.test.ts`'s synth-only list.
+
+Part of the stock-sound audit. Remaining pure-synth cues still to source: `buff`, plus the fanfares
+`win`/`lose`/`tick`.
 
 **Verified:** `npm run typecheck && npm run lint && npm test` (1064) `&& npm run build:web` all green (isolated
 worktree, own install); `windup.mp3` bundles as a hashed asset. Audible check left for an in-tab listen.

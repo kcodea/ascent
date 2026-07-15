@@ -17,7 +17,7 @@ export interface AudioConfig {
 
 /** Per-category gains — moved verbatim from sfx.ts's former SAMPLE_VOL_DEFAULTS (the exact shipped numbers). */
 export const CATEGORY_GAINS: Record<string, number> = {
-  buy: 0.44, sell: 0.3, smack: 0.06, crit: 0.5, attack: 0.4, death: 0.5, shield: 0.5, triple: 0.6, cast: 0.5, cardlanding: 0.56, castspell: 0.68, discover: 0.36, taunt: 0.31,
+  buy: 0.44, sell: 0.3, smack: 0.06, crit: 0.5, attack: 0.4, death: 0.5, shield: 0.5, triple: 0.6, cast: 0.5, maxgold: 0.4, cardlanding: 0.56, castspell: 0.68, discover: 0.36, taunt: 0.31,
   reorder: 0.225, deny: 0.46, freeze: 0.23, unfreeze: 0.25, pulse: 0.67, triggerpulse: 0.24, triggerglow: 0.34,
   clickthock: 0.44, cardtouch: 0.5, divineshieldbreak: 0.21, rebornshatter: 0.42, rebornsummon: 0.49,
   skullburst: 0.06, inspect: 0.5, upgrade: 0.39, roll: 0.69, combatStart: 0.48, cardVoice: 0.18,

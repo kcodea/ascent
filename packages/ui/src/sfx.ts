@@ -534,8 +534,13 @@ export const sfx = {
     tone({ freq: 480, dur: 0.09, type: 'triangle', vol: 0.12, category: 'buff' });
     tone({ freq: 720, dur: 0.12, type: 'triangle', vol: 0.1, delay: 0.06, category: 'buff' });
   },
-  // Soulsman's Avenge raises your max Gold — a bright rising coin shimmer (synth; combat proc).
-  maxGold: () => chord([784, 1046, 1318, 1568], { dur: 0.11, type: 'triangle', vol: 0.1, category: 'maxgold' }, 0.045),
+  // Soulsman's Avenge raises your max Gold — REUSES the sell clip (one of sell1–selN at random) per owner
+  // request, on its own `maxgold` category (combat bus) so it levels independently of the shop sell; synth rising
+  // coin-shimmer fallback until it decodes / if absent.
+  maxGold: () => {
+    if (playSample(pickVariant('sell'), 'maxgold')) return;
+    chord([784, 1046, 1318, 1568], { dur: 0.11, type: 'triangle', vol: 0.1, category: 'maxgold' }, 0.045);
+  },
   // You make a triple (3 copies → a golden) — the sourced "triplereward" clip; synth rising arpeggio fallback.
   triple: () => {
     if (playSample('triplereward', 'triple')) return;
@@ -561,7 +566,7 @@ export function setSampleVolume(key: string, v: number): void {
 
 /** Play a sourced clip by its category key (for the dev SFX mixer's preview button). */
 const SFX_PREVIEW: Record<string, () => void> = {
-  buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, crit: sfx.critHit, attack: sfx.attack, death: sfx.death, shield: sfx.shield, triple: sfx.triple, cast: sfx.cast, cardlanding: sfx.play, castspell: sfx.castSpell,
+  buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, crit: sfx.critHit, attack: sfx.attack, death: sfx.death, shield: sfx.shield, triple: sfx.triple, cast: sfx.cast, maxgold: sfx.maxGold, cardlanding: sfx.play, castspell: sfx.castSpell,
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
   unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, skullburst: sfx.skullBurst, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   combatStart: sfx.combatStart,

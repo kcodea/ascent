@@ -29,6 +29,11 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   Pack Leader is reworked: its Start-of-Combat Beast buff now grows **+3/+3 for every Beast summoned while it's on
   the board** — a *permanent* per-instance tally that persists across turns (and rides into enemy snapshots), never
   counting Beasts you played before you had it. New art, too.
+- **New minion + spell card frames.** Swapped both authored frames to new art — the minion oval (rendered silver
+  via the existing tint; Gilded stays gold) and the spell square (gold w/ purple gems). Filename-swapped so each
+  reverts in one line; tune live via the dev Frame Tuner.
+- **Critical Strike sound.** A crit (Commander Impala's double-damage swing) now plays its own dedicated clip in
+  place of the normal smack, so the heavier hit reads audibly. Its own level in the SFX mixer.
 - **Deathrattle FX fixed when a unit dies attacking a Target Dummy.** A Deathrattle unit that died *as the
   attacker* into an on-damaged body (Target Dummy) lost its purple echo skull and its pre-summon wait (repro:
   Reclaim on a Void Panther). The clash-buff was wedging a beat between the death and its summons, and the skull's

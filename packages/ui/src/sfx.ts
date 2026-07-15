@@ -506,6 +506,13 @@ export const sfx = {
     if (playSample(pickVariant('smack'), 'smack')) return;
     tone({ freq: 170, dur: 0.12, type: 'square', vol: 0.15, slideTo: 80, category: 'smack' });
   },
+  // A CRITICAL STRIKE lands (Commander Impala's CR keyword — this swing dealt DOUBLE damage). REPLACES the smack
+  // with its own clip so the doubled hit reads distinctly; sourced "crit" clip, synth crack fallback until it
+  // decodes / if absent. Fired in place of `hit` from the impact channel when the attack event is a crit.
+  critHit: () => {
+    if (playSample('crit', 'crit')) return;
+    tone({ freq: 240, dur: 0.16, type: 'square', vol: 0.18, slideTo: 90, category: 'crit' });
+  },
   death: () => tone({ freq: 130, dur: 0.26, type: 'sine', vol: 0.2, slideTo: 48, category: 'death' }),
   shield: () => tone({ freq: 760, dur: 0.18, type: 'sine', vol: 0.11, slideTo: 1300, category: 'shield' }),
   buff: () => {
@@ -541,7 +548,7 @@ export function setSampleVolume(key: string, v: number): void {
 
 /** Play a sourced clip by its category key (for the dev SFX mixer's preview button). */
 const SFX_PREVIEW: Record<string, () => void> = {
-  buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, cardlanding: sfx.play, castspell: sfx.castSpell,
+  buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, crit: sfx.critHit, cardlanding: sfx.play, castspell: sfx.castSpell,
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
   unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, skullburst: sfx.skullBurst, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   combatStart: sfx.combatStart,

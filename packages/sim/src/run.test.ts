@@ -11,6 +11,8 @@ import {
   selectThreat,
   buildEnemyBoard,
   pickOpponent,
+  oppKey,
+  nextOpponent,
   isServableBoard,
   registerOpponents,
   buildBootstrapPool,
@@ -4291,6 +4293,39 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     const back = deserialize(serialize(s));
     expect(back.servedBoards?.[2]?.minions[0]?.cardId).toBe('gnash');
     expect(back.servedBoards?.[3]).toBeNull(); // a procedural wave round-trips as null (still "decided")
+  });
+
+  it('no-repeat: pickOpponent excludes recently-faced boards, but repeats rather than serve nothing', () => {
+    const mk = (id: string): BoardSnapshot => ({
+      v: 1, wave: 5, heroId: 'warden', resolve: 30, tier: 1, triples: 0, tribes: [], threat: 'glass', power: 13,
+      minions: [{ cardId: 'gnash', attack: 5, health: 8, keywords: [] }], seed: 1, origin: 'self', id,
+    });
+    const a = mk('A'), b = mk('B');
+    const pool = [a, b];
+    // Exclude A → the only fresh board is B, so B must be served across many seeds.
+    for (let seed = 1; seed <= 20; seed++) {
+      expect(pickOpponent(5, 0, makeRng(seed), pool, new Set([oppKey(a)]))?.id).toBe('B');
+    }
+    // Exclude BOTH → excluding would empty the pool, so a repeat is served (never null).
+    expect(pickOpponent(5, 0, makeRng(1), pool, new Set([oppKey(a), oppKey(b)]))).not.toBeNull();
+  });
+
+  it('no-repeat: nextOpponent never serves a board fought in the last 4 rounds', () => {
+    const mk = (id: string, wave: number): BoardSnapshot => ({
+      v: 1, wave, heroId: 'warden', resolve: 30, tier: 1, triples: 0, tribes: [], threat: 'glass', power: 13,
+      minions: [{ cardId: 'gnash', attack: 5, health: 8, keywords: [] }], seed: 1, origin: 'self', id,
+    });
+    // Two candidates at wave 6; the last 4 rounds all fought board A → nextOpponent must serve B.
+    OPPONENT_POOL.push(mk('A', 6), mk('B', 6));
+    try {
+      const s: RunState = {
+        ...createRun(1), wave: 6,
+        servedBoards: { 2: mk('A', 2), 3: mk('A', 3), 4: mk('A', 4), 5: mk('A', 5) },
+      };
+      expect(nextOpponent(s)?.id).toBe('B'); // A is barred (faced within the last 4 rounds)
+    } finally {
+      OPPONENT_POOL.length = 0;
+    }
   });
 
   it('isServableBoard rejects boards referencing a card this build no longer has (stale capture)', () => {

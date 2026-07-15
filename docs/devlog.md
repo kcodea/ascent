@@ -20,6 +20,34 @@ Mechanic + Money Bot) are held for a separate pass.
 
 Verified: value tests updated (Squirl Scout grant sizes, Tara threshold ×2, Dark Bargain progress, stepProgress),
 full suite green (**1061**), typecheck + lint + build:web clean.
+### feat(ui): chunkier quest cards + cleaner quest-shop chrome
+
+Owner polish on the quest shop (the discover-style panel at waves 4/8/12).
+
+- **Chunkier quest cards** — the quest offer is a big turn-opening choice, so the cards render ~22% larger than a
+  normal card (`.quest-ov-cards` overrides `--ch`/`--cw`) with a touch more gap, for a more exciting read.
+- **Cleaner chrome** — restyled the "Quest Shop" title banner + the "Inspect the shop" toggle from the ornate
+  cream/gold Discover look to a flat dark pill (dark gradient, thin gold-tinted border, cream text) that matches the
+  dark, art-forward quest frames. Scoped to `.quest-ov` / `.quest-toggle`, so the Discover panel + the Runeforge
+  keep their own chrome.
+
+CSS-only, `typecheck` + `lint` + `build:web` green. NOTE: the quest shop only opens on a real wave-4/8/12 turn, so
+this wasn't auto-screenshotted — worth an eyeball to confirm the card size + chrome feel right (both are easy dials).
+### feat: no-repeat opponents (within 4 rounds) + new Forsaken Mage art
+
+**No-repeat rule** (owner) — the player never faces the same opponent within 4 rounds. Builds on the same-day
+opponent-pinning pass: `pickOpponent` gains an `exclude` set of recently-faced identities (`oppKey` — the board's
+stamped id, or a content key for id-less committed/synthetic boards), applied to the candidate list BEFORE
+source-tiering so a fresh lower-priority board wins over repeating a higher-priority one. If excluding would leave
+nothing to serve (a small pool), it falls back to a repeat — better than no opponent. `nextOpponent` builds the
+exclude set from `servedBoards[wave-1 .. wave-4]` (the boards actually fought), so it's deterministic and the recruit
+preview + the real serve still agree. Pinned replays are unaffected (they serve the recorded board directly).
+
+**Forsaken Mage art** — wired the new `ForsakenMage.png` master → `forsakenweaver.webp` (1.8MB → 38KB), replacing the
+prior art. Filename matches the card's display name; the card id is `forsakenweaver`.
+
+Verified: 2 new tests (pickOpponent excludes a recent board but repeats rather than serve nothing; nextOpponent bars
+a board fought in the last 4 rounds); full suite green (**1063**), typecheck + lint + build:web clean.
 
 ### feat(balance report): quest "turns to complete" + per-wave avg-tier points on the shop curve
 

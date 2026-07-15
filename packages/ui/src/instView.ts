@@ -32,6 +32,9 @@ export interface LiveTextParams {
   goldSpent?: number;
   /** Name of the most recent spell cast this run (`lastSpellCastId` → name) — Steward of Spells shows what it copies. */
   lastSpellName?: string;
+  /** Triple-reward Discover spell: the tier captured when it was granted, so its "peek one tier up" text stays
+   *  frozen (falls back to the live run tier when absent). */
+  grantedTier?: number;
 }
 
 /**
@@ -43,7 +46,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
   const c = CARD_INDEX[cardId];
   const text =
     c.id === 'discoverspell'
-      ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, p.tier + 1)}** minion.`
+      ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
       : c.spell
         ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus)
         : transformProgressText(c.id, p.spellProgress ?? 0) ??
@@ -123,7 +126,7 @@ export function instView(
     overflowBonus: inst.overflowBonus,
     hpGrantBonus: inst.hpGrantBonus, eotTick: eotTickShown, eotBonus: inst.eotBonus, sellBonus: inst.sellBonus,
     playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff,
-    lastSpellName: live?.lastSpellName,
+    lastSpellName: live?.lastSpellName, grantedTier: inst.grantedTier,
   });
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.

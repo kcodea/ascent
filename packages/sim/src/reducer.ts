@@ -491,7 +491,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         // `exactCurrentTier` (Key Findings) locks the pool to the live tavern tier; `exactTier` is a fixed tier
         // (Sprout); otherwise the offer tier is current + `tierOffset`.
         const exactTier = dop.exactCurrentTier ? s.tier : dop.exactTier;
-        const tier = exactTier ?? s.tier + (dop.tierOffset ?? 0);
+        // A triple-reward Discover carries the tier it was GRANTED at (`grantedTier`) so its "one tier up" is
+        // frozen — taverning up with it in hand no longer bumps the offer. Other Discovers read the live tier.
+        const baseTier = card.grantedTier ?? s.tier;
+        const tier = exactTier ?? baseTier + (dop.tierOffset ?? 0);
         const tribe = dop.tribe === 'dominant' ? (dominantBoardTribe(s) ?? undefined) : dop.tribe;
         const spec = {
           kind: 'minion' as const,
@@ -1227,6 +1230,7 @@ function grantGoldenDiscover(s: RunState): void {
     health: 1,
     keywords: [],
     golden: false,
+    grantedTier: s.tier, // freeze "peek one tier up" at the tier it was granted — taverning up later can't inflate it
   });
 }
 

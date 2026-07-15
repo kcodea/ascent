@@ -2849,6 +2849,18 @@ describe('run loop (@game/sim)', () => {
     expect(s.hand.some((c) => c.cardId === 'discoverspell')).toBe(false); // spell consumed, no board slot
   });
 
+  it('a triple-reward Discover freezes its tier at grant — taverning up in hand does not inflate it', () => {
+    let s: RunState = {
+      ...createRun(1), tier: 2,
+      hand: [{ uid: 'ds', cardId: 'discoverspell', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false, grantedTier: 2 }],
+    };
+    s = { ...s, tier: 4 }; // tavern up AFTER the grant — grantedTier stays 2
+    s = reduce(s, { type: 'play', uid: 'ds' });
+    expect(s.discover?.length).toBe(3);
+    const tiers = s.discover!.map((id) => CARD_INDEX[id]!.tier);
+    expect(Math.max(...tiers)).toBe(3); // grantedTier(2) + 1 = 3, NOT the live tier(4) + 1 = 5
+  });
+
   it('Discover adds the chosen card to the hand and clears the offer', () => {
     let s: RunState = { ...createRun(1), hand: [], discover: ['frontdrake', 'cleric', 'weaver'] };
     s = reduce(s, { type: 'discover', index: 1 });

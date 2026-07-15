@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### fix(sim): triple-reward Discover freezes its tier at grant (no longer inflates on tavern-up)
+
+The golden/triple-reward Discover spell ("peek one tier up") resolved its tier from the LIVE tavern tier when
+played — so taverning up with it sitting in hand bumped the offer (and its printed text) to the higher tier.
+Now the spell captures the shop tier when it's GRANTED (`BoardCard.grantedTier = s.tier`); the `discoverOnPlay`
+resolution and the live card text both read that frozen tier (`grantedTier ?? s.tier`), so a Discover granted at
+tier 2 always peeks tier 3 no matter how far you climb afterwards. New test covers grant-at-2 → tavern-to-4 →
+offer max tier still 3. 1089 tests green; typecheck + lint clean.
+
 ### fix(ui): stranded buff-hold on multi-summon auras + quest tooltip under the hero power
 
 Two presentation fixes (the sim was correct in both):

@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Critical Strike — impact FX preview</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  /* The STAGE matches the REAL combat board: a light warm cream (#e4dccf) — so the crit burst,
+     ring, and "CRIT" pop read HONESTLY against the same surface the real board uses (additive gold
+     washes out on cream, which is why the shockwave is normal-blend saturated — same as pixiFx.impact). */
+  body { margin: 0; background: #e4dccf; color: #e6ecdc; font: 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace; display: flex; height: 100vh; overflow: hidden; }
+  #stage { flex: 1; position: relative; display: grid; place-items: center; background: #e4dccf; overflow: hidden; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #panel { width: 320px; padding: 14px 16px; overflow-y: auto; background: #0e100a; border-left: 1px solid #2b3020; }
+  h1 { font-size: 13px; margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; color: #ff8a4a; }
+  .sub { color: #a58156; font-size: 11px; margin-bottom: 12px; }
+  h2 { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #a58156; margin: 16px 0 6px; border-top: 1px solid #2b3020; padding-top: 10px; }
+  .row { display: grid; grid-template-columns: 1fr 54px; gap: 8px; align-items: center; margin-bottom: 7px; }
+  label { color: #c9b394; font-size: 11.5px; }
+  input[type=range] { width: 100%; accent-color: #ff8a4a; }
+  input[type=color] { width: 100%; height: 24px; border: 1px solid #4d3a2f; background: none; border-radius: 4px; padding: 0; cursor: pointer; }
+  .val { text-align: right; color: #ff8a4a; font-size: 11px; }
+  .btnrow { display: flex; gap: 8px; margin-top: 12px; }
+  button { flex: 1; padding: 9px; border: 0; border-radius: 6px; color: #fff; font: inherit; font-weight: 700; letter-spacing: .06em; cursor: pointer; }
+  #fireCrit { background: #b0203a; } #fireCrit:hover { background: #d0294a; }
+  #fireNormal { background: #6f5a2f; } #fireNormal:hover { background: #8a713e; }
+  button.ghost { background: #1f1815; color: #c9b394; }
+  button.ghost:hover { background: #2a2120; }
+  .checkrow { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: #c9b394; font-size: 12px; }
+  .checkrow input { accent-color: #ff8a4a; width: 15px; height: 15px; }
+  textarea { width: 100%; height: 168px; margin-top: 10px; background: #080a05; color: #ff9d5a; border: 1px solid #2b3020; border-radius: 6px; padding: 8px; font: 10.5px/1.45 ui-monospace, monospace; resize: vertical; }
+  .hint { color: #6a5540; font-size: 10.5px; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div id="stage"><canvas id="cv"></canvas></div>
+  <div id="panel">
+    <h1>Critical Strike FX</h1>
+    <div class="sub">A crit (Commander Impala — double-damage swing) currently only swaps the SOUND. This rig previews the VISUAL: an amplified crimson-gold impact burst + bold ring + a "CRIT" pop + a red defender flash + screen shake.<br />Space = fire crit · N = fire normal · drag the cards.</div>
+
+    <div class="btnrow"><button id="fireCrit">CRIT ⚡ (space)</button><button id="fireNormal">normal (N)</button></div>
+    <label class="checkrow"><input type="checkbox" id="loop" /> Auto-repeat crit (~1.6s)</label>
+
+    <div id="controls"></div>
+
+    <h2>CritFxCfg (live export)</h2>
+    <textarea id="out" readonly></textarea>
+    <div class="hint">Tune, then paste this back to Claude to bake into the real Pixi crit renderer.</div>
+    <button id="reset" class="ghost" style="width:100%;margin-top:8px">Reset to defaults</button>
+    <div class="hint" id="diag">booting…</div>
+  </div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Standalone preview of the proposed CRITICAL-STRIKE impact FX. Mirrors the math
+// of the real pixiFx.impact (hot additive core + normal-blend saturated shockwave
+// + a heavy-hit ring + jagged sparks), then layers the CRIT-only amplifiers:
+//   • crimson-gold recolour + a power boost over a normal hit
+//   • a bold expanding RING
+//   • a "CRIT" text POP that overshoots, rises, and fades
+//   • a red full-card FLASH on the defender
+//   • a decaying screen SHAKE
+// Plain 2D canvas so it runs with zero build. Every dial maps 1:1 onto the
+// CritFxCfg the engine will bake.  (px radii are the source of truth here.)
+// ---------------------------------------------------------------------------
+
+const DEFAULTS = {
+  // Overall
+  critPower:     1.8,   // crit intensity vs a normal hit (a normal swing ≈ 1.0). Scales core/shock/sparks.
+  // Core + shockwave (the pixiFx.impact base, amplified)
+  flashSize:     5.4,   // hot additive core flash scale
+  shockwaveSize: 5.6,   // saturated normal-blend shockwave scale (paints over cream)
+  // Bold CRIT ring
+  ringSize:      240,   // px — max radius the ring expands to
+  ringWidth:     10,    // px — ring stroke width
+  ringMs:        420,   // ms — ring expand+fade duration
+  // Sparks (shrapnel flung from the hit)
+  sparkCount:    36,    // shard count
+  sparkSpeed:    760,   // px/s initial speed
+  sparkLife:     640,   // ms lifetime
+  sparkSize:     13,    // px drawn size
+  sparkSpread:   160,   // deg — cone width around the blow direction (wide = radial burst)
+  // "CRIT" text pop
+  textSize:      48,    // px font size
+  textRise:      46,    // px it floats up over its life
+  textMs:        760,   // ms lifetime
+  textPop:       1.7,   // initial overshoot scale (springs down to 1)
+  // Defender red flash
+  cardFlashAlpha: 0.5,  // 0..1 peak red overlay alpha on the defender card
+  cardFlashMs:   280,   // ms flash fade
+  // Screen shake
+  shakePx:       13,    // px peak shake amplitude
+  shakeMs:       280,   // ms shake decay
+  // Colours
+  colorCore:  '#fff0c0',
+  colorShock: '#ff3320',
+  colorRing:  '#ffd24a',
+  colorSpark1:'#ff2a14',
+  colorSpark2:'#ff9d20',
+  colorSpark3:'#ffe24a',
+  colorText:  '#ffdc3c',
+  colorTextEdge: '#6e1000',
+};
+
+const RANGES = {
+  critPower:     [1, 3, 0.05],
+  flashSize:     [1, 12, 0.1],
+  shockwaveSize: [1, 12, 0.1],
+  ringSize:      [40, 480, 5],
+  ringWidth:     [1, 30, 1],
+  ringMs:        [150, 1000, 10],
+  sparkCount:    [0, 80, 1],
+  sparkSpeed:    [100, 1600, 20],
+  sparkLife:     [200, 1400, 10],
+  sparkSize:     [2, 40, 1],
+  sparkSpread:   [20, 360, 5],
+  textSize:      [16, 96, 1],
+  textRise:      [0, 140, 2],
+  textMs:        [300, 1600, 20],
+  textPop:       [1, 3, 0.05],
+  cardFlashAlpha:[0, 1, 0.02],
+  cardFlashMs:   [100, 800, 10],
+  shakePx:       [0, 40, 1],
+  shakeMs:       [0, 700, 10],
+};
+
+const GROUPS = [
+  ['Overall', ['critPower']],
+  ['Core burst', ['flashSize', 'shockwaveSize']],
+  ['CRIT ring', ['ringSize', 'ringWidth', 'ringMs']],
+  ['Sparks', ['sparkCount', 'sparkSpeed', 'sparkLife', 'sparkSize', 'sparkSpread']],
+  ['"CRIT" pop', ['textSize', 'textRise', 'textMs', 'textPop']],
+  ['Defender flash', ['cardFlashAlpha', 'cardFlashMs']],
+  ['Screen shake', ['shakePx', 'shakeMs']],
+  ['Colours', ['colorCore', 'colorShock', 'colorRing', 'colorSpark1', 'colorSpark2', 'colorSpark3', 'colorText', 'colorTextEdge']],
+];
+
+const EXPORT_ORDER = [
+  'critPower', 'flashSize', 'shockwaveSize',
+  'ringSize', 'ringWidth', 'ringMs',
+  'sparkCount', 'sparkSpeed', 'sparkLife', 'sparkSize', 'sparkSpread',
+  'textSize', 'textRise', 'textMs', 'textPop',
+  'cardFlashAlpha', 'cardFlashMs', 'shakePx', 'shakeMs',
+  'colorCore', 'colorShock', 'colorRing', 'colorSpark1', 'colorSpark2', 'colorSpark3', 'colorText', 'colorTextEdge',
+];
+
+// Surface any uncaught error loudly (a silent blank page is the worst preview).
+addEventListener('error', (e) => {
+  const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;inset:0 auto auto 0;z-index:99;background:#b0203a;color:#fff;padding:10px 14px;font:12px ui-monospace,monospace;white-space:pre-wrap;max-width:100%';
+  b.textContent = 'SCRIPT ERROR: ' + (e.message || e.error) + '\n' + (e.filename || '') + ':' + (e.lineno || '?');
+  document.body.appendChild(b);
+});
+
+let C = { ...DEFAULTS };
+const diag = document.getElementById('diag');
+
+// --- radial glow sprite (stands in for the Pixi glow texture) ---------------
+const glowTex = (() => {
+  const s = 128, c = document.createElement('canvas'); c.width = c.height = s;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
+  grd.addColorStop(0, 'rgba(255,255,255,1)');
+  grd.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+  grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, s, s);
+  return c;
+})();
+// a jagged shard sprite (a thin diamond) for spark shrapnel
+const shardTex = (() => {
+  const w = 64, h = 20, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.beginPath();
+  g.moveTo(0, h/2); g.lineTo(w*0.5, 0); g.lineTo(w, h/2); g.lineTo(w*0.5, h); g.closePath(); g.fill();
+  return c;
+})();
+
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+function resize() {
+  const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  cv.width = r.width * dpr; cv.height = r.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener('resize', resize);
+
+// --- the two combat cards (draggable) ---------------------------------------
+const CARD_W = 118, CARD_H = 164;
+const attacker = { x: 300, y: 300 };
+const defender = { x: 560, y: 300 };
+let drag = null;
+
+// --- tint cache -------------------------------------------------------------
+const tintCache = new Map();
+function tinted(tex, color) {
+  const key = tex === glowTex ? 'g' + color : 's' + color;
+  let t = tintCache.get(key);
+  if (!t) {
+    t = document.createElement('canvas'); t.width = tex.width; t.height = tex.height;
+    const g = t.getContext('2d');
+    g.drawImage(tex, 0, 0);
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = color; g.fillRect(0, 0, t.width, t.height);
+    tintCache.set(key, t);
+  }
+  return t;
+}
+function drawTex(tex, x, y, w, h, color, rot) {
+  const t = tinted(tex, color);
+  if (rot) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+    ctx.drawImage(t, -w/2, -h/2, w, h); ctx.restore();
+  } else {
+    ctx.drawImage(t, x - w/2, y - h/2, w, h);
+  }
+}
+
+// --- the FX system ----------------------------------------------------------
+// Each "hit" snapshots the dials so mid-flight edits don't corrupt it.
+const hits = [];
+let shake = { amp: 0, age: 0, ms: 1, seedx: 0, seedy: 0 };
+
+function fire(isCrit) {
+  // contact point = defender's near edge toward the attacker (mirrors the engine's corner-strike)
+  const dx = defender.x - attacker.x, dy = defender.y - attacker.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len, uy = dy / len;
+  const contact = { x: defender.x - ux * CARD_W * 0.42, y: defender.y - uy * CARD_H * 0.42 };
+  // A normal hit uses a fixed baseline look (orange, power 1, no ring/text/flash/shake) for comparison.
+  const cfg = isCrit ? { ...C } : {
+    ...C, critPower: 1.0, ringWidth: 0, textMs: 0, cardFlashAlpha: 0, shakePx: 0,
+    flashSize: 4.5, shockwaveSize: 4.4, sparkCount: 16, sparkSpeed: 460, sparkSize: 9,
+    colorShock: '#ff6a1e', colorSpark1: '#ff5a14', colorSpark2: '#ff9d20', colorSpark3: '#ffd24a',
+  };
+  const power = cfg.critPower;
+  const sparks = [];
+  const n = Math.round(cfg.sparkCount);
+  const cone = (cfg.sparkSpread * Math.PI) / 180;
+  for (let i = 0; i < n; i++) {
+    const a = Math.atan2(uy, ux) + (Math.random() - 0.5) * cone;
+    const sp = cfg.sparkSpeed * (0.6 + Math.random() * 0.7) * (0.85 + 0.15 * power);
+    const warm = Math.random();
+    const tint = warm < 0.45 ? cfg.colorSpark1 : warm < 0.8 ? cfg.colorSpark2 : cfg.colorSpark3;
+    sparks.push({ x: 0, y: 0, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      life: cfg.sparkLife * (0.7 + Math.random() * 0.6), rot: a + (Math.random() - 0.5) * 0.5, tint });
+  }
+  hits.push({ x: contact.x, y: contact.y, age: 0, cfg, isCrit, power, sparks, def: { x: defender.x, y: defender.y } });
+  if (isCrit && cfg.shakePx > 0) shake = { amp: cfg.shakePx, age: 0, ms: cfg.shakeMs, seedx: Math.random()*99, seedy: Math.random()*99 };
+}
+
+function drawHit(h, dt) {
+  const cfg = h.cfg, p = h.power;
+  const t = h.age;
+
+  // hot additive core flash (0..220ms)
+  if (t < 240) {
+    ctx.globalCompositeOperation = 'lighter';
+    const k = 1 - t / 240;
+    ctx.globalAlpha = k;
+    const sz = 26 * cfg.flashSize * p * (0.5 + 0.5 * (1 - k));
+    drawTex(glowTex, h.x, h.y, sz, sz, cfg.colorCore);
+  }
+  // saturated normal-blend shockwave (0..300ms) — paints over cream
+  if (t < 320) {
+    ctx.globalCompositeOperation = 'source-over';
+    const k = 1 - t / 320;
+    ctx.globalAlpha = k * 0.9;
+    const sz = 26 * cfg.shockwaveSize * p * (0.4 + 0.6 * (1 - k));
+    drawTex(glowTex, h.x, h.y, sz, sz, cfg.colorShock);
+  }
+  // bold CRIT ring — expands 0→ringSize, fades
+  let alive = t < 340;
+  if (cfg.ringWidth > 0 && t < cfg.ringMs) {
+    alive = true;
+    const tt = t / cfg.ringMs;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = Math.max(0, 1 - tt) * 0.9;
+    ctx.strokeStyle = cfg.colorRing;
+    ctx.lineWidth = cfg.ringWidth * (1 - tt * 0.5);
+    ctx.beginPath(); ctx.arc(h.x, h.y, tt * cfg.ringSize * (0.6 + 0.4 * p), 0, Math.PI * 2); ctx.stroke();
+  }
+  // sparks — fly out, decelerate, shrink + fade
+  ctx.globalCompositeOperation = 'source-over';
+  const dtS = dt / 1000;
+  for (const s of h.sparks) {
+    const tt = h.age / s.life;
+    if (tt >= 1) continue;
+    alive = true;
+    const dk = Math.pow(0.9, dt / (1000 / 60));
+    s.vx *= dk; s.vy *= dk;
+    s.x += s.vx * dtS; s.y += s.vy * dtS;
+    const sz = cfg.sparkSize * (1 - tt);
+    ctx.globalAlpha = Math.max(0, 1 - tt * tt);
+    drawTex(shardTex, h.x + s.x, h.y + s.y, sz * 2.6, sz, s.tint, s.rot);
+  }
+  // defender red card flash
+  if (cfg.cardFlashAlpha > 0 && t < cfg.cardFlashMs) {
+    alive = true;
+    const k = 1 - t / cfg.cardFlashMs;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = k * cfg.cardFlashAlpha;
+    ctx.fillStyle = '#ff1e28';
+    roundRect(h.def.x - CARD_W/2, h.def.y - CARD_H/2, CARD_W, CARD_H, 10); ctx.fill();
+  }
+  // "CRIT" text pop — overshoot scale springs to 1, rises, fades
+  if (cfg.textMs > 0 && t < cfg.textMs) {
+    alive = true;
+    const tt = t / cfg.textMs;
+    const rise = cfg.textRise * tt;
+    const grow = Math.min(1, t / 90);
+    const scale = cfg.textPop - (cfg.textPop - 1) * grow;   // overshoot → settle
+    const a = tt < 0.75 ? 1 : Math.max(0, 1 - (tt - 0.75) / 0.25);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = a;
+    ctx.save();
+    ctx.translate(h.x, h.y - 26 - rise);
+    ctx.scale(scale, scale);
+    ctx.font = `900 ${cfg.textSize}px "Arial Black", system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = Math.max(3, cfg.textSize * 0.13); ctx.strokeStyle = cfg.colorTextEdge;
+    ctx.lineJoin = 'round';
+    ctx.strokeText('CRIT!', 0, 0);
+    ctx.fillStyle = cfg.colorText; ctx.fillText('CRIT!', 0, 0);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+  return alive;
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function drawCard(u, label, accent) {
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  const x = u.x - CARD_W/2, y = u.y - CARD_H/2;
+  roundRect(x, y, CARD_W, CARD_H, 10);
+  ctx.fillStyle = '#fffdf8'; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = accent; ctx.stroke();
+  // a dark art window so the burst reads over both cream + dark
+  roundRect(x + 10, y + 12, CARD_W - 20, CARD_H - 54, 6);
+  ctx.fillStyle = 'linear'; ctx.fillStyle = '#2a2418'; ctx.fill();
+  ctx.fillStyle = '#b3a687'; ctx.font = '10px ui-monospace, monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText(label, u.x, y + CARD_H - 8);
+}
+
+let last = performance.now();
+function tick(now) {
+  const dtMs = Math.min(50, now - last); last = now;
+  ctx.setTransform((devicePixelRatio||1), 0, 0, (devicePixelRatio||1), 0, 0);
+  ctx.clearRect(0, 0, cv.width, cv.height);
+
+  // screen shake — offset the whole scene by a decaying jitter
+  let ox = 0, oy = 0;
+  if (shake.amp > 0 && shake.age < shake.ms) {
+    shake.age += dtMs;
+    const k = 1 - shake.age / shake.ms;
+    ox = Math.sin(shake.age * 0.08 + shake.seedx) * shake.amp * k;
+    oy = Math.cos(shake.age * 0.11 + shake.seedy) * shake.amp * k;
+  }
+  ctx.save();
+  ctx.translate(ox, oy);
+
+  drawCard(attacker, 'attacker', '#7a8f5a');
+  drawCard(defender, 'defender', '#b0842f');
+
+  for (let i = hits.length - 1; i >= 0; i--) {
+    const h = hits[i]; h.age += dtMs;
+    if (!drawHit(h, dtMs)) hits.splice(i, 1);
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+
+  diag.textContent = `canvas ${Math.round(cv.width)}×${Math.round(cv.height)} · hits ${hits.length}`;
+  requestAnimationFrame(tick);
+}
+
+// --- UI ---------------------------------------------------------------------
+const controls = document.getElementById('controls'), out = document.getElementById('out');
+function label(k) { return k.replace(/([A-Z0-9])/g, ' $1').toLowerCase().replace('color ', ''); }
+function build() {
+  controls.innerHTML = '';
+  for (const [title, keys] of GROUPS) {
+    const h = document.createElement('h2'); h.textContent = title; controls.appendChild(h);
+    for (const k of keys) {
+      const row = document.createElement('div'); row.className = 'row';
+      const l = document.createElement('label'); l.textContent = label(k); row.appendChild(l);
+      if (k.startsWith('color')) {
+        const inp = document.createElement('input'); inp.type = 'color'; inp.value = C[k];
+        inp.style.gridColumn = '1 / -1';
+        inp.oninput = () => { C[k] = inp.value; tintCache.clear(); save(); };
+        l.style.gridColumn = '1 / -1'; row.appendChild(inp);
+      } else {
+        const [mn, mx, st] = RANGES[k];
+        const inp = document.createElement('input'); inp.type = 'range';
+        inp.min = mn; inp.max = mx; inp.step = st; inp.value = C[k];
+        const v = document.createElement('span'); v.className = 'val'; v.textContent = C[k];
+        inp.oninput = () => { C[k] = parseFloat(inp.value); v.textContent = C[k]; save(); };
+        row.appendChild(inp); row.appendChild(v);
+      }
+      controls.appendChild(row);
+    }
+  }
+}
+function save() {
+  const ordered = {};
+  for (const k of EXPORT_ORDER) ordered[k] = C[k];
+  out.value = JSON.stringify(ordered, null, 2);
+}
+
+document.getElementById('fireCrit').onclick = () => fire(true);
+document.getElementById('fireNormal').onclick = () => fire(false);
+addEventListener('keydown', (e) => {
+  if (e.code === 'Space') { e.preventDefault(); fire(true); }
+  else if (e.key === 'n' || e.key === 'N') { fire(false); }
+});
+let loopId = null;
+document.getElementById('loop').onchange = (e) => {
+  if (e.target.checked) { loopId = setInterval(() => fire(true), 1600); fire(true); }
+  else if (loopId) { clearInterval(loopId); loopId = null; }
+};
+document.getElementById('reset').onclick = () => { C = { ...DEFAULTS }; tintCache.clear(); build(); save(); };
+
+// drag the cards
+function pos(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+function hitCard(p, u) { return Math.abs(p.x - u.x) <= CARD_W/2 && Math.abs(p.y - u.y) <= CARD_H/2; }
+cv.addEventListener('pointerdown', (e) => {
+  const p = pos(e);
+  if (hitCard(p, attacker)) drag = attacker; else if (hitCard(p, defender)) drag = defender; else { fire(true); return; }
+  cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener('pointermove', (e) => { if (!drag) return; const p = pos(e); drag.x = p.x; drag.y = p.y; });
+cv.addEventListener('pointerup', (e) => { drag = null; try { cv.releasePointerCapture(e.pointerId); } catch {} });
+
+// boot
+build(); save(); resize();
+requestAnimationFrame((t) => { last = t; tick(t); });
+setTimeout(() => fire(true), 350);
+</script>
+</body>
+</html>

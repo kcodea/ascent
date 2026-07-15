@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { SfxMixer } from './SfxMixer';
 import { LungeTuner } from './LungeTuner';
 import { StrikeFxTuner } from './StrikeFxTuner';
+import { CritFxTuner } from './CritFxTuner';
 import { DragTuner } from './DragTuner';
 import { FlipTuner } from './FlipTuner';
 import { ShieldTuner } from './ShieldTuner';
@@ -26,6 +27,7 @@ const TUNERS = [
   { key: 'sfx', label: '🔊 SFX Mixer', C: SfxMixer },
   { key: 'lunge', label: '🗡️ Lunge', C: LungeTuner },
   { key: 'strikefx', label: '💥 Lunge Strike Effects', C: StrikeFxTuner },
+  { key: 'critfx', label: '⚡ Critical Strike FX', C: CritFxTuner },
   { key: 'drag', label: '🎴 Drag Feel', C: DragTuner },
   { key: 'flip', label: '🔀 Reposition', C: FlipTuner },
   { key: 'shield', label: '🛡 Shield Place', C: ShieldTuner },
@@ -60,6 +62,7 @@ export function DevMenu() {
             </button>
           ))}
           <button className="devmenu-item" onClick={() => pixiFx.test()}>✨ Test FX <span>▸</span></button>
+          <button className="devmenu-item" onClick={() => pixiFx.testCrit()}>⚡ Test Crit <span>▸</span></button>
         </div>
       )}
       {TUNERS.map(({ key, C }) => (shown.has(key) ? <C key={key} /> : null))}

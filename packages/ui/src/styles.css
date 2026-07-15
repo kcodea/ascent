@@ -2178,6 +2178,9 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
 
 /* a kill shakes the unit rows (hit-stop feel) — see .app.shaking */
 @keyframes boardshake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 45% { transform: translateX(6px); } 70% { transform: translateX(-4px); } 88% { transform: translateX(2px); } }
+/* a CRITICAL STRIKE hits harder — a punchier board shake (owner-tuned ~13px), fired at the crit's contact
+   (`.app.shaking-crit`, see useCombatReplay's onCritImpact). Two-axis so it reads distinctly from a plain kill. */
+@keyframes boardshake-crit { 0%, 100% { transform: translate(0, 0); } 15% { transform: translate(-13px, 3px); } 35% { transform: translate(11px, -3px); } 55% { transform: translate(-8px, 2px); } 78% { transform: translate(5px, -1px); } 92% { transform: translate(-2px, 0); } }
 /* result vignette keyframe — used by .app.combat.done::after */
 @keyframes resulttint { from { opacity: 0; } to { opacity: 1; } }
 /* A combat-granted card (Arcane Weaver → Spirit Fire) pops in centre-screen, then flies down + fades
@@ -2490,6 +2493,8 @@ body.choreo-open .pixifx-under { z-index: 204; }
 
 /* a kill shakes just the unit rows (never the HUD / hero) */
 .app.shaking .zone[data-zone='tavern'] .row, .app.shaking .zone[data-zone='warband'] .row { animation: boardshake 0.3s ease; }
+/* a crit shakes harder — same rows, the punchier two-axis keyframe */
+.app.shaking-crit .zone[data-zone='tavern'] .row, .app.shaking-crit .zone[data-zone='warband'] .row { animation: boardshake-crit 0.3s ease; }
 
 /* (result vignette removed — no green/raspberry screen tint when the replay settles) */
 

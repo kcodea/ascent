@@ -21,6 +21,36 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   value already shows).
 
 1091 tests green; typecheck + lint + build:web clean.
+### feat(ui): Critical Strike VFX — the crimson-gold crit flourish
+
+A crit (Commander Impala's CR — a double-damage swing) previously only swapped the SOUND (#447). It now gets a
+full VISUAL, owner-tuned on a preview rig then baked into the real Pixi renderer.
+
+**Look-agreement first (the cheap-iterate rule):** a standalone canvas rig (`apps/web/public/fx/crit-preview.html`,
+same pattern as the buff-FX rigs) previews the whole flourish on the cream board with live dials + a normal-hit
+comparison; the owner tuned it and signed off ("this is perfect") before any `pixiFx` was touched. The rig's field
+names + UNITS map 1:1 onto the engine config, so the tuned values transfer verbatim.
+
+**The flourish (5 layers), fired at the lunge's real contact:**
+- amplified additive **core flash** + a saturated **crimson shockwave** (normal-blend, paints over cream) vs the
+  normal hit's orange;
+- a bold expanding **ring**; a wide **spark** burst flung along the blow direction;
+- a **"CRIT!" text pop** (pre-rendered texture → sprite; overshoots to `textPop`, settles, rises, fades);
+- a red **defender-card flash**; and a punchier two-axis **board shake**.
+
+**Wiring:** `critFxConfig.ts` (config + DEV tuner state, baked to the owner's values) → `pixiFx.critImpact(x,y,dx,dy,
+defRect)` (a crit-flavoured sibling of `impact()`; the ring/text/flash are tracked `CritFx` instances advanced +
+retired in the ticker, the burst/sparks are one-shot particles). The impact channel (`impact.ts`) calls
+`critImpact` in place of the normal burst when `crit` (the flag already reaches it from `engine.ts` since #447),
+with a 1.4× knockback; a new `onCritImpact` engine callback fires the board shake (`.app.shaking-crit`, a new
+compositor-only keyframe) AT contact, wired through `useCombatReplay` (`critShaking`). A live **"⚡ Critical Strike
+FX"** DEV tuner (`CritFxTuner.tsx`, in the 🛠️ menu) + a **"⚡ Test Crit"** one-shot (`pixiFx.testCrit()`) let the
+owner re-tune on the real board without waiting for an actual crit.
+
+Verified: typecheck + lint + build:web green; all Pixi v8 Graphics/`fill`/`stroke`/`Texture.from`/`Sprite.destroy`
+calls match the existing renderer's usage. The animated look is the owner's to eyeball live (rig-approved; the
+headless preview pane can't run rAF). Presentation-only — no sim/determinism impact. Follow-up: `shakePx`/`shakeMs`
+are display-only dials (the shake is the fixed CSS keyframe); promote to CSS vars if live shake-tuning is wanted.
 
 ### feat(sim): Pack Mentality grows the Beast aura LIVE in combat (was only between fights)
 

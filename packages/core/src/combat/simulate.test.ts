@@ -97,6 +97,22 @@ describe('simulate (handoff A.3)', () => {
     expect(buffed.length).toBe(2); // BOTH inherit the +1/+1 aura, not only the first
   });
 
+  it('Pack Mentality grows the Beast aura LIVE in combat — a per-N summon buffs living Beasts immediately + carries back', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'pack', attack: 2, health: 1 },   // Mama Pup — dies → summons two Pups (Beasts)
+      { cardId: 'alley', attack: 3, health: 60 }, // a wall Beast we watch (survives the fight)
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 60 }];
+    const scale = { per: 2, stepAttack: 4, stepHealth: 4, progress: 0 };
+    const r = simulate(p, e, makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ['beast'], questMods: { beastSummonScale: scale } }), combatSide({ tier: 1 }));
+    const wall = r.initial.player[1]!.uid;
+    // Two Pups summon → per 2 → one growth → EVERY living Beast (incl. the wall) gains +4/+4 mid-fight.
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === wall && ev.attack === 4 && ev.health === 4)).toBe(true);
+    expect(r.playerBeastBuyAtkGain).toBe(4); // carried back to the run's Beast aura (Attack)
+    expect(r.playerBeastBuyHpGain).toBe(4);  // …and Health
+    expect(r.playerBeastScaleProgress).toBe(0); // 2 summons % per 2 = 0 leftover
+  });
+
   it('Tauntbreaker strips Taunt and Rise from the enemy it hits (owner 2026-07-09)', () => {
     // Tauntbreaker (6/4, Ward + Flurry) attacks the Taunt enemy. Its on-attack strip removes Taunt AND Rise
     // from that enemy before the damage exchange resolves — so the lethal blow this same swing keeps it dead.

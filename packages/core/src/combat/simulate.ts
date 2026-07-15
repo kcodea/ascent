@@ -56,6 +56,12 @@ export function simulate(
   const beastAtkAuraFor: Record<Side, number> = { player: playerState.beastBuyAtk, enemy: enemyState.beastBuyAtk };
   const beastHpAuraFor: Record<Side, number> = { player: playerState.questMods.beastAuraHp ?? 0, enemy: enemyState.questMods.beastAuraHp ?? 0 };
   let beastBuyAtkGain = 0; // The Old Hunt: run-wide Beast Attack aura gained this combat → carried back
+  // Pack Mentality: player-side LIVE growth of the Beast aura (every `per` Beasts summoned this fight grow it by
+  // step, applied at once to living Beasts). `beastScaleProgress` counts toward the next step; the Health gain is
+  // its own carry-back (The Old Hunt is Attack-only, so `beastBuyHpGain` is new).
+  const beastScale = playerState.questMods.beastSummonScale;
+  let beastBuyHpGain = 0;
+  let beastScaleProgress = beastScale?.progress ?? 0;
   const events: CombatEvent[] = [];
   // Resolution-step tag (choreographer spec 2026-07-06): `stepN` identifies the atomic resolution moment
   // each event belongs to. `emit` stamps it; `nextStep()` is called wherever a NEW atomic resolution begins
@@ -289,6 +295,21 @@ export function simulate(
     const by = byTribeMap[kind];
     for (const t of tribes) by[t] = (by[t] ?? 0) + 1;
     questEvents.push({ step: stepN, kind, tribes });
+    // Pack Mentality (player): a Beast summoned in combat ticks the aura toward its next step; on each step,
+    // grow the live Beast aura + buff EVERY living Beast immediately (matching "wherever they are"), then carry
+    // the gain + leftover progress back to the run at settle. The just-summoned Beast is already on the board,
+    // so it's included in the buff.
+    if (kind === 'summonCombat' && beastScale && tribes.includes('beast')) {
+      beastScaleProgress += 1;
+      while (beastScaleProgress >= beastScale.per) {
+        beastScaleProgress -= beastScale.per;
+        beastAtkAuraFor.player += beastScale.stepAttack;
+        beastHpAuraFor.player += beastScale.stepHealth;
+        beastBuyAtkGain += beastScale.stepAttack;
+        beastBuyHpGain += beastScale.stepHealth;
+        for (const b of boards.player) if (!b.dead && b.health > 0 && isBeast(b)) ctx.buff(b, beastScale.stepAttack, beastScale.stepHealth, 'Pack Mentality');
+      }
+    }
   };
   // Player Deathrattle triggers (Echo objective + Grim tally) — increment + record for the live-tick timeline.
   const bumpDeathrattles = (n: number): void => {
@@ -1761,6 +1782,8 @@ export function simulate(
     playerQuestTally: (questTally.attack > 0 || questTally.summonCombat > 0 || questTally.slaughter > 0 || questTally.slaughterKeyword > 0 || Object.keys(questTally.statGainByTribe).length > 0) ? questTally : undefined,
     playerQuestEvents: questEvents.length > 0 ? questEvents : undefined,
     playerBeastBuyAtkGain: beastBuyAtkGain > 0 ? beastBuyAtkGain : undefined,
+    playerBeastBuyHpGain: beastBuyHpGain > 0 ? beastBuyHpGain : undefined,
+    playerBeastScaleProgress: beastScale ? beastScaleProgress : undefined,
     initial,
     playerSummonBonus,
     playerHpGrantBonus: playerHpGrantBonus.length > 0 ? playerHpGrantBonus : undefined,

@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(sim): Pack Mentality grows the Beast aura LIVE in combat (was only between fights)
+
+A `scalingTribeAura` (Pack Mentality — "improve +N/+N every M Beasts summoned in combat") only grew at combat
+SETTLE, so the improvement never touched the current fight — the Beasts summoned this combat didn't benefit
+until the next one. Now it grows in real time: every `M` Beasts summoned in combat, the player's run-wide Beast
+aura steps up by `+step/+step` and **every living Beast is buffed immediately** (matching the "wherever they are"
+promise). The gain + leftover countdown carry back at settle (`playerBeastBuyAtkGain` / new
+`playerBeastBuyHpGain` / `playerBeastScaleProgress`), and the old settle-time growth is skipped for that aura so
+it isn't double-counted. Player-side only (a served enemy has no run to persist to — it never grew before either).
+
+Wired via `QuestCombatMods.beastSummonScale` (new) into the pure engine, mirroring The Old Hunt's live Attack
+pump (extended to Health). New test: two Pups summoned under a +4/+4-per-2 aura → a living wall Beast gains +4/+4
+mid-fight, carried back as +4 Atk / +4 Hp with 0 leftover. 1091 tests green (determinism + golden unchanged);
+typecheck + lint + build:web clean.
+
 ### fix(ui): Beast Health buy-aura shows in the tavern + balance-report Disc % column, un-greyed
 
 - **Beast buy-aura Health now previews in the shop.** A Beast quest aura (Pack Mentality / Den Mother's

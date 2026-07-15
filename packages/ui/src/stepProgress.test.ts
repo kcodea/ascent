@@ -15,8 +15,10 @@ describe('stepProgress', () => {
     const done = stepProgress('spiritpup', { spellProgress: 999 });
     expect(done?.current).toBe(done?.total);
   });
-  it('returns null for a continuous accumulator (no threshold)', () => {
-    expect(stepProgress('kennel', { summonBonus: 5 })).toBeNull();
+  it('returns null for a continuous accumulator with no threshold (Grim — tally, no cap)', () => {
+    // NB Kennelmaster (`kennel`) is NOT a pure accumulator — it also has Avenge (3), so it now shows the avenge
+    // 0/N counter. Grim's Deathrattle tally has no threshold at all, so it stays null.
+    expect(stepProgress('grim', { summonBonus: 5 })).toBeNull();
   });
   it('returns null for an unknown card', () => {
     expect(stepProgress('not-a-card', {})).toBeNull();

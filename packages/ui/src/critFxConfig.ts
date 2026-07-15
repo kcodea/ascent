@@ -57,7 +57,7 @@ const DEFAULTS: CritFxConfig = {
   sparkSpread: 220,
   textSize: 45,
   textRise: 92,
-  textMs: 760,
+  textMs: 1520, // owner: show the "CRIT!" pop for 100% longer (was 760)
   textPop: 2.45,
   cardFlashAlpha: 0.56,
   cardFlashMs: 470,

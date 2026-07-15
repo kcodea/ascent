@@ -293,12 +293,24 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   // Every scaling offer (Grim, Guel, Taragosa, Spirit Worgen, …) shows its live value in the tavern, not just
   // on the board — the same live-text chain the board uses (instView), via the shared liveCardText.
   const lt = liveCardText(c.id, offerLiveTextParams(!!card.golden, opts));
+  // Itemize the buy-time buffs the offer previews (Fortify, run enchant, Staff of Guel, tribe buy-aura) so the
+  // tavern inspect shows WHERE the boosted stats come from — the same sources the reducer's buy path records.
+  const offerBuffs: { source: string; attack: number; health: number; count: number }[] = [];
+  const pushBuff = (source: string, a: number, h: number): void => { if (a || h) offerBuffs.push({ source, attack: a, health: h, count: 1 }); };
+  pushBuff('Fortify', card.atk ?? 0, card.hp ?? 0);
+  pushBuff(c.name, cb.attack, cb.health); // persistent per-card run enchant (Ritualist Fodder, Staff of Guel target…)
+  pushBuff('Tavern', tavernAtk, tavernHp);
+  pushBuff('Tribe Bond',
+    (undead ? (opts.undeadAtk ?? 0) + (opts.undeadBuyAtk ?? 0) : 0) + (beast ? opts.beastBuyAtk ?? 0 : 0) + (magnetic ? opts.magneticBuyAtk ?? 0 : 0),
+    (undead ? opts.undeadHp ?? 0 : 0) + (beast ? opts.beastBuyHp ?? 0 : 0) + (magnetic ? opts.magneticBuyHp ?? 0 : 0));
+  if (card.golden) pushBuff('Golden Touch', c.attack, c.health); // gilded doubles the base stats
   return {
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
     attack: (c.attack + addAtk) * goldMul, health: (c.health + addHp) * goldMul,
     keywords: [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))],
     text: lt.text,
     goldenText: lt.goldenText ?? c.goldenText,
+    buffs: offerBuffs.length > 0 ? offerBuffs : undefined,
     // Moe's guaranteed Attachment carries a discounted price (`card.cost`) — show it on a green coin.
     cost: card.cost ?? CONFIG.minionCost, costChanged: card.cost !== undefined,
     tier: c.tier, golden: card.golden,

@@ -1726,22 +1726,27 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
    the four cells; the fixed width wraps the power line to a second row (which is where the added height comes
    from). */
 .statusbar .hero {
-  position: relative; /* anchor for the name pill eclipsing the top edge */
-  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; justify-items: start;
-  width: calc(232 * var(--u)); gap: calc(6 * var(--u)) calc(13 * var(--u));
-  padding: calc(9 * var(--u)) calc(15 * var(--u)); border-radius: calc(21 * var(--u));
+  position: relative; /* anchor for the player-name pill (top eclipse) */
+  display: flex; align-items: center; gap: calc(13 * var(--u));
+  padding: calc(9 * var(--u)) calc(18 * var(--u)) calc(11 * var(--u)) calc(10 * var(--u)); border-radius: calc(21 * var(--u));
 }
-.statusbar .hero .f { width: calc(60 * var(--u)); height: calc(60 * var(--u)); border-radius: calc(16 * var(--u)); }
-.statusbar .hero .f svg { width: calc(34 * var(--u)); height: calc(34 * var(--u)); }
-.statusbar .hero .htxt { min-width: 0; }
-.statusbar .hero .nm { font-size: calc(20 * var(--u)); line-height: 1.1; }
-.statusbar .hero .pw { font-size: calc(13 * var(--u)); white-space: normal; line-height: 1.26; }
-/* Resolve is the bottom row — it now spans BOTH columns (the hero power moved out to its own `.heropanel`), so
-   it centres under the portrait + name. */
-.statusbar .hero .hpbox { grid-column: 1 / -1; justify-self: center; align-self: center; padding: calc(6 * var(--u)) calc(14 * var(--u)); }
-.statusbar .hero .hpbox svg { width: calc(23 * var(--u)); height: calc(23 * var(--u)); }
-.statusbar .hero .hpbox .hpval { font-size: calc(23 * var(--u)); }
-.statusbar .hero .hpbox .armval { font-size: calc(16 * var(--u)); }
+/* Larger portrait holding ONLY the hero art; `overflow: visible` lets the hero-name pill eclipse its bottom. */
+.statusbar .hero .f { position: relative; overflow: visible; width: calc(80 * var(--u)); height: calc(80 * var(--u)); border-radius: calc(18 * var(--u)); }
+.statusbar .hero .f .heroimg { border-radius: inherit; }
+.statusbar .hero .f svg { width: calc(42 * var(--u)); height: calc(42 * var(--u)); }
+/* Hero name — a pill eclipsing the BOTTOM edge of the portrait (mirrors the player-name pill eclipsing the top). */
+.statusbar .hero .heroname {
+  position: absolute; left: 50%; bottom: 0; transform: translate(-50%, 52%); z-index: 4;
+  max-width: calc(124 * var(--u)); padding: calc(2 * var(--u)) calc(13 * var(--u));
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; line-height: 1.1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow);
+}
+/* Health/Armor sits to the RIGHT of the portrait (a flex sibling), no longer a bottom row. */
+.statusbar .hero .hpbox { align-self: center; padding: calc(8 * var(--u)) calc(15 * var(--u)); }
+.statusbar .hero .hpbox svg { width: calc(26 * var(--u)); height: calc(26 * var(--u)); }
+.statusbar .hero .hpbox .hpval { font-size: calc(26 * var(--u)); }
+.statusbar .hero .hpbox .armval { font-size: calc(18 * var(--u)); }
 /* Hero-power box — a standalone card to the RIGHT of the hero frame (a `.statusrow` flex sibling), stretched to
    the hero's height. Sized up so an active power is an obvious button; the whole box glows when usable. */
 .statusbar .heropanel {

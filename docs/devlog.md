@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(ui): hero-panel layout redesign + tavern inspect buff sources + repeatable quests leave the log
+
+- **Hero panel layout.** The corner portrait is larger (60u → 80u) and holds ONLY the hero art; the hero name
+  moved out of a text line into its own pill eclipsing the BOTTOM edge of the portrait (mirrors the player-name
+  pill at the top); Health/Armor moved from a bottom row to the RIGHT of the portrait (flex row, centered).
+  Verified via element geometry.
+- **Tavern offers show their buy-time buff sources on inspect** (like warband). `shopView` now itemizes the
+  buffs an offer previews — Fortify, per-card run enchant, Tavern (Staff of Guel), tribe buy-aura (Tribe Bond),
+  Golden Touch — into `CardView.buffs`, the same field board minions use, so a right-click inspect on a tavern
+  offer shows where its boosted stats come from.
+- **Repeatable quests leave the quest log on their first completion.** The log already dropped `completed`
+  one-shots, but a REPEATABLE never flips `completed` (it bumps `completionCount`), so it lingered; now it's
+  dropped once it's fired at least once — moving to its trophy badge above the hero panel (where its live reward
+  value already shows).
+
+1091 tests green; typecheck + lint + build:web clean.
 ### feat(ui): Critical Strike VFX — the crimson-gold crit flourish
 
 A crit (Commander Impala's CR — a double-damage swing) previously only swapped the SOUND (#447). It now gets a

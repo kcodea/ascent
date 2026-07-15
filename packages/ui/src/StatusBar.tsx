@@ -99,16 +99,15 @@ export function StatusBar() {
         >
           {/* Player name — a pill eclipsing the top of the hero box (mirrors the opponent name on its frame). */}
           {playerName && <div className="playername" title="You">{playerName}</div>}
+          {/* The portrait holds ONLY the hero art; the hero name rides a pill eclipsing its bottom edge (mirrors
+              the player-name pill at the top). Health/Armor sits to its right (see `.hpbox` CSS). */}
           <div className="f">
             {heroArt(hero.id) ? (
               <img className="heroimg" src={heroArt(hero.id)} alt={hero.name} draggable={false} />
             ) : (
               <Icon name="anvil" />
             )}
-          </div>
-          <div className="htxt">
-            <div className="nm">{hero.name}</div>
-            {/* The power's name + live status now live in the power button's pill + hover tip (below), not here. */}
+            <div className="heroname" title={hero.name}>{hero.name}</div>
           </div>
           {/* Health as a compact white box under the hero — the number is Resolve (+Armor). Keeps the hit-shake
               + −X float when a wave breaks through. */}

@@ -42,6 +42,11 @@ export interface UnitFrame {
   overflowBonus?: number;
   /** Crypt Drake: ally attacks seen this combat — drives the live "current buff / N to go" text. */
   attackSeen?: number;
+  /** Avenge units: this side's running FRIENDLY-death tally this combat (drives the "N/threshold" Avenge counter).
+   *  Combat-only (set by `computeFrame`); undefined outside a fight → no shop counter. */
+  avengeSeen?: number;
+  /** Bloodbinder: total GLOBAL attack swings this combat (either side) — drives the Bleed's "N/every" counter. */
+  bleedAttacks?: number;
   /** Tara: how many stat-grants have accumulated toward ascension this combat. */
   ascendProgress?: number;
   /** Guel: spells cast while on the run board (seeded from the snapshot) — for the live combat text. */
@@ -114,8 +119,13 @@ export function computeFrame(
   const enemy = initial.enemy.map(fromSnap);
   const find = (uid: string) => player.find((u) => u.uid === uid) ?? enemy.find((u) => u.uid === uid);
   const gone = new Set<string>();
+  // Running tallies for the live Avenge / Bleed step counters: FRIENDLY deaths per side (a Rise death doesn't count —
+  // matches the sim's Avenge gate) and total GLOBAL attack swings (Bloodbinder's Bleed fires every N, either side).
+  const deaths: Record<'player' | 'enemy', number> = { player: 0, enemy: 0 };
+  let attackCount = 0;
   for (let i = 0; i < Math.min(upto, events.length); i++) {
     const e = events[i];
+    if (e.type === 'attack') attackCount++;
     if (e.type === 'dmg') {
       const u = find(e.target);
       if (u) u.health = e.remainingHp;
@@ -175,6 +185,7 @@ export function computeFrame(
     } else if (e.type === 'death') {
       const u = find(e.target);
       if (u) { u.alive = false; u.health = 0; }
+      if (!e.rise && (e.side === 'player' || e.side === 'enemy')) deaths[e.side] += 1; // friendly-death tally → Avenge counter
       if (i < beatStart) gone.add(e.target);
     } else if (e.type === 'buff') {
       const u = find(e.target);
@@ -232,6 +243,10 @@ export function computeFrame(
       }
     }
   }
+  // Stamp the live step-counter tallies onto every frame: each unit sees its OWN side's death count (Avenge) and
+  // the global attack count (Bleed). stepProgress only reads these for the qualifying cards; others ignore them.
+  for (const u of player) { u.avengeSeen = deaths.player; u.bleedAttacks = attackCount; }
+  for (const u of enemy) { u.avengeSeen = deaths.enemy; u.bleedAttacks = attackCount; }
   return { player: player.filter((u) => !gone.has(u.uid)), enemy: enemy.filter((u) => !gone.has(u.uid)) };
 }
 

@@ -141,7 +141,7 @@ export function instView(
     stepProgress: live?.onBoard
       ? (stepProgress(inst.cardId, {
           spellProgress: inst.spellProgress, summonBonus: inst.summonBonus,
-          ascendProgress: inst.ascendProgress, eotTick: inst.eotTick,
+          ascendProgress: inst.ascendProgress, eotTick: inst.eotTick, goldTick: inst.goldTick,
         }) ?? undefined)
       : undefined,
   };

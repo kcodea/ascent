@@ -102,6 +102,7 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
     stepProgress: stepProgress(u.cardId, {
       spellProgress: u.spellProgress, summonBonus: u.summonBonus,
       ascendProgress: u.ascendProgress, attackSeen: u.attackSeen,
+      avengeSeen: u.avengeSeen, bleedAttacks: u.bleedAttacks,
     }) ?? undefined,
   };
   return (

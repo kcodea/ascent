@@ -469,7 +469,7 @@ export interface StepProgress { current: number; total: number; }
  */
 export function stepProgress(
   cardId: string,
-  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number },
+  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number },
 ): StepProgress | null {
   const def = CARD_INDEX[cardId];
   if (!def) return null;
@@ -483,6 +483,18 @@ export function stepProgress(
   if (crypt) return cyc(p.attackSeen ?? 0, Math.max(1, n((crypt.params as { every?: number })?.every, 2)));
   const cadence = def.effects.find((e) => e.on === 'endOfTurn' && (e.params as { every?: number } | undefined)?.every !== undefined);
   if (cadence) return cyc(p.eotTick ?? 0, Math.max(1, n((cadence.params as { every?: number })?.every, 3)));
+  // Avenge (Solaris, Soulsman, Bone Taxer, Brood Matron, …): the Avenge re-fires every N FRIENDLY deaths (the sim
+  // gates on `count % threshold === 0`), so it's a cyclic 1..N counter driven by that side's running death tally.
+  // COMBAT-ONLY — `avengeSeen` is undefined outside a fight (no deaths in the shop), so no persistent 0/N shop pill.
+  const avenge = def.effects.find((e) => e.on === 'avenge');
+  if (avenge) return p.avengeSeen === undefined ? null : cyc(p.avengeSeen, Math.max(1, n((avenge.params as { count?: number })?.count, 2)));
+  // Bloodbinder: the armed Bleed fires every N GLOBAL combat attack swings (either side). COMBAT-ONLY (`bleedAttacks`).
+  const bleed = def.effects.find((e) => e.do === 'scArmBleed');
+  if (bleed) return p.bleedAttacks === undefined ? null : cyc(p.bleedAttacks, Math.max(1, n((bleed.params as { every?: number })?.every, 4)));
+  // Koron / Banksly: their payoff re-fires every N Gold SPENT while on the board (the `goldTick` meter). SHOP-phase —
+  // `goldTick` is a recruit accrual (undefined in combat, where no Gold is spent), so it shows on the shop board.
+  const goldSpent = def.effects.find((e) => e.on === 'goldSpent' && (e.params as { every?: number } | undefined)?.every !== undefined);
+  if (goldSpent) return p.goldTick === undefined ? null : cyc(p.goldTick, Math.max(1, n((goldSpent.params as { every?: number })?.every, 7)));
   const pup = def.effects.find((e) => e.do === 'spellCastTransform');
   if (pup) { const at = Math.max(1, n((pup.params as { at?: number })?.at, 10)); return { current: Math.min(p.spellProgress ?? 0, at), total: at }; }
   if (def.ascendAt && def.ascendInto) { const at = def.ascendAt; return { current: Math.min(p.ascendProgress ?? 0, at), total: at }; }

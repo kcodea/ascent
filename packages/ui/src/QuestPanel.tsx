@@ -30,8 +30,15 @@ export function QuestPanel() {
   const combatQuestDelta = useGame((s) => s.combatQuestDelta); // live combat progress during the replay (null otherwise)
   const [collapsed, setCollapsed] = useState(false);
   // Only IN-PROGRESS quests live here now — a quest MOVES to a trophy badge above the hero panel (QuestBadges)
-  // the moment it completes, where its live ongoing reward state (Shouts used, repeat countdown) is shown.
-  const quests = (run.activeQuests ?? []).filter((aq) => !aq.completed && QUEST_INDEX[aq.questId]);
+  // the moment it completes, where its live ongoing reward state (Shouts used, repeat countdown, current aura)
+  // is shown. A REPEATABLE never flips `completed` (it bumps `completionCount`), so drop it once it's fired at
+  // least once too — its first completion moves it to the badge just like a one-shot (owner 2026-07-15).
+  const quests = (run.activeQuests ?? []).filter((aq) => {
+    const def = QUEST_INDEX[aq.questId];
+    if (!def || aq.completed) return false;
+    if (def.repeatable && (aq.completionCount ?? 0) > 0) return false;
+    return true;
+  });
   if (quests.length === 0) return null;
   return (
     <div className="questframe">

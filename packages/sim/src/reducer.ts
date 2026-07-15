@@ -6,7 +6,7 @@ import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
 import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
-import { pickOpponent, opponentBoard } from './opponents';
+import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
 import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type BoardCard, type CardBuff, type RunState } from './state';
@@ -120,10 +120,21 @@ export function refreshCostOf(s: RunState): number {
  * or null when the pool is empty (→ the procedural threat). Pure + deterministic — the opponent frame previews
  * it during recruit, and `faceOmen` resolves exactly this.
  */
+/** No-repeat window: the player never faces the same opponent within this many rounds (owner rule 2026-07-15). */
+const NO_REPEAT_ROUNDS = 4;
+
 export function nextOpponent(s: RunState): BoardSnapshot | null {
   // Match on WAVE (same development stage — see pickOpponent). Power (captured at TURN START, so the
   // telegraphed foe stays fixed as you shop) is the fairness tiebreak among same-wave boards.
-  return pickOpponent(s.wave, s.turnStartPower, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)));
+  // No-repeat: exclude the identities of the boards fought in the last NO_REPEAT_ROUNDS waves (recorded in
+  // `servedBoards` by the pinning pass). Deterministic — the recruit preview and the actual serve read the same
+  // fixed history, so they still agree.
+  const exclude = new Set<string>();
+  for (let w = s.wave - 1; w >= s.wave - NO_REPEAT_ROUNDS && w >= 1; w--) {
+    const b = s.servedBoards?.[w];
+    if (b) exclude.add(oppKey(b));
+  }
+  return pickOpponent(s.wave, s.turnStartPower, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)), undefined, exclude);
 }
 
 /** Loss-damage cap by round — the most Resolve a single loss can cost, ramping up as the course escalates:

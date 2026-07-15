@@ -25,6 +25,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Real combat/UI sounds.** The synth placeholder cues are now real clips (each with its own mixer level): the
+  attack wind-up, death, shield-up (gaining a Ward), triple/golden reward, the Start-of-Combat zap (reuses the
+  pulse clip), and the max-Gold raise (reuses the sell clip). Also deleted two dead synth cues (`temper`, `proc`).
 - **Avenge beats wait for the summons.** An Avenge payoff (buff pulse, coin burst, Discover) now always deploys
   AFTER the death cascade's summons — no more seeing the Avenge before a later death's token, or before a Violet
   Whelp's deferred "attacks immediately" Whelp pops in. Presentation-only (sim tags Avenge events; the replay

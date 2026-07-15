@@ -5,6 +5,56 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(audio): source stock combat/UI sounds (wind-up, death, shield-up, triple, SoC zap, max-Gold); remove dead cues
+
+**What:** batch of the stock-sound audit — replaced four synth cues with owner-authored clips, and **deleted two
+dead synth cues** (`sfx.temper`, `sfx.proc`; defined but wired to nothing — grep-confirmed no call sites in
+`packages/ui`). The four sourced:
+- **attack wind-up** (`sfx.attack`, the tiny sawtooth on every swing's start → `windup.mp3`)
+- **death** (`sfx.death`, a unit dying → `death.mp3`)
+- **shield-up** (`sfx.shield`, a unit GAINING a Ward/Divine Shield mid-combat → `shieldgain.mp3`)
+- **triple** (`sfx.triple`, making a golden from 3 copies → `triplereward.mp3`)
+- **Start-of-Combat zap** (`sfx.cast`) — **reuses the `pulse` sourced clip** per owner request (same sound as
+  the hero-power pulse), on its own new `cast` category (combat bus, 0.5) so it can be leveled independently.
+- **max-Gold raise** (`sfx.maxGold`, Soulsman's Avenge) — **reuses the `sell` clips** (random sell1–selN) per
+  owner request, on its own `maxgold` category level.
+
+**How:**
+- `sfx.attack` now does `playSample('windup', 'attack')` with the old sawtooth `tone()` kept as the decode/absent
+  fallback — the standard sourced-clip pattern. It still fires from the combat SFX channel on every `attack`
+  event (`choreo/channels/sfx.ts`), so no call-site change was needed. New `attack` mixer category on the
+  **combat** bus at a **0.4** starting gain (fires on every swing → wants to sit subtle). Previously the synth
+  blip borrowed the `smack` category; it now has its own level. Added an `attack` mixer preview entry.
+- `sfx.death` now does `playSample('death', 'death')` with the synth low-sine drop as fallback, on a **0.5**
+  starting gain. `death` was already routed to the combat bus but had no explicit gain (so it would have played
+  the sourced clip at unity 1.0) — added `death: 0.5` to `CATEGORY_GAINS`. Fires from the combat SFX channel on a
+  real (non-Rise) death; the unit's own `cards/<id>.death.mp3` voiceline still layers over it. Added a `death`
+  mixer preview entry.
+- `sfx.shield` now does `playSample('shieldgain', 'shield')` with the synth rising-sine chime as fallback, on a
+  new **0.5** gain (`shield` was routed to the combat bus but had no explicit gain → would have played at unity).
+  Fires on `shieldUp` events. Added a `shield` mixer preview entry + removed `shield` from `config.test.ts`'s
+  synth-only-at-unity list.
+- `sfx.triple` now does `playSample('triplereward', 'triple')` with the synth arpeggio fallback. `triple` had NO
+  category at all (the chord borrowed `ui`); added a new **`triple`** category on the **ui** bus at **0.6** gain +
+  a mixer preview entry.
+- Removed `temper`/`proc` method bodies; nothing referenced them (the lone `proc` hit in `Card.tsx` is an
+  unrelated visual-FX comment).
+
+- `sfx.cast` (Start-of-Combat zap) now does `playSample('pulse', 'cast')` — reusing the existing `pulse.mp3`
+  rather than a new file, on a new `cast` category (combat bus, 0.5) so it's independent of the hero-power
+  `pulse` level; synth zap kept as fallback. Added a `cast` mixer preview entry.
+
+- `sfx.maxGold` now does `playSample(pickVariant('sell'), 'maxgold')` — reusing the existing `sell` clips rather
+  than a new file, on its own `maxgold` category (was combat-bus unity; now `maxgold: 0.4`) so it levels apart
+  from the shop sell; synth coin-shimmer kept as fallback. Preview entry added; removed `maxgold` from
+  `config.test.ts`'s synth-only list.
+
+Part of the stock-sound audit. Remaining pure-synth cues still to source: `buff`, plus the fanfares
+`win`/`lose`/`tick`.
+
+**Verified:** `npm run typecheck && npm run lint && npm test` (1064) `&& npm run build:web` all green (isolated
+worktree, own install); `windup.mp3` bundles as a hashed asset. Audible check left for an in-tab listen.
+
 ### fix(ui): step counter — hide at 0 in shop · end-of-turn cadence ticks with the beat · hidden in combat
 
 Owner follow-up on the step counter, three parts:

@@ -521,14 +521,24 @@ export const sfx = {
     if (playSample('death', 'death')) return;
     tone({ freq: 130, dur: 0.26, type: 'sine', vol: 0.2, slideTo: 48, category: 'death' });
   },
-  shield: () => tone({ freq: 760, dur: 0.18, type: 'sine', vol: 0.11, slideTo: 1300, category: 'shield' }),
+  // A unit GAINS a Ward / Divine Shield during combat (the protective bubble pops onto it) — the sourced
+  // "shieldgain" clip; synth rising-sine chime fallback. Counterpart to shieldBreak. Fired on `shieldUp` events
+  // (Start-of-Combat grants, Avenge shields, Ward transfers, Mech grants) from the combat SFX channel.
+  shield: () => {
+    if (playSample('shieldgain', 'shield')) return;
+    tone({ freq: 760, dur: 0.18, type: 'sine', vol: 0.11, slideTo: 1300, category: 'shield' });
+  },
   buff: () => {
     tone({ freq: 480, dur: 0.09, type: 'triangle', vol: 0.12, category: 'buff' });
     tone({ freq: 720, dur: 0.12, type: 'triangle', vol: 0.1, delay: 0.06, category: 'buff' });
   },
   // Soulsman's Avenge raises your max Gold — a bright rising coin shimmer (synth; combat proc).
   maxGold: () => chord([784, 1046, 1318, 1568], { dur: 0.11, type: 'triangle', vol: 0.1, category: 'maxgold' }, 0.045),
-  triple: () => chord([523, 659, 784, 1046], { dur: 0.13, type: 'triangle', vol: 0.12, category: 'ui' }, 0.06),
+  // You make a triple (3 copies → a golden) — the sourced "triplereward" clip; synth rising arpeggio fallback.
+  triple: () => {
+    if (playSample('triplereward', 'triple')) return;
+    chord([523, 659, 784, 1046], { dur: 0.13, type: 'triangle', vol: 0.12, category: 'triple' }, 0.06);
+  },
   win: () => chord([523, 659, 784, 1046], { dur: 0.2, type: 'triangle', vol: 0.14, category: 'ui' }, 0.1),
   lose: () => chord([392, 311, 233], { dur: 0.24, type: 'sawtooth', vol: 0.13, category: 'ui' }, 0.12),
 } as const;
@@ -549,7 +559,7 @@ export function setSampleVolume(key: string, v: number): void {
 
 /** Play a sourced clip by its category key (for the dev SFX mixer's preview button). */
 const SFX_PREVIEW: Record<string, () => void> = {
-  buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, crit: sfx.critHit, attack: sfx.attack, death: sfx.death, cardlanding: sfx.play, castspell: sfx.castSpell,
+  buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, crit: sfx.critHit, attack: sfx.attack, death: sfx.death, shield: sfx.shield, triple: sfx.triple, cardlanding: sfx.play, castspell: sfx.castSpell,
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
   unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, skullburst: sfx.skullBurst, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   combatStart: sfx.combatStart,

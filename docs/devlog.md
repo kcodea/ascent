@@ -5,12 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
-### feat(audio): real attack wind-up + death sounds; removed two dead synth cues
+### feat(audio): source 4 stock combat/UI sounds (wind-up, death, shield-up, triple); remove dead cues
 
-**What:** replaced two synth combat cues with owner-authored clips — the "attack wind-up" blip (`sfx.attack`, the
-tiny sawtooth on every swing's start → `windup.mp3`) and the **death** cue (`sfx.death`, a unit dying →
-`death.mp3`) — and **deleted two dead synth cues**, `sfx.temper` and `sfx.proc`, which were defined but wired to
-nothing (grep-confirmed: no call sites anywhere in `packages/ui`).
+**What:** batch of the stock-sound audit — replaced four synth cues with owner-authored clips, and **deleted two
+dead synth cues** (`sfx.temper`, `sfx.proc`; defined but wired to nothing — grep-confirmed no call sites in
+`packages/ui`). The four sourced:
+- **attack wind-up** (`sfx.attack`, the tiny sawtooth on every swing's start → `windup.mp3`)
+- **death** (`sfx.death`, a unit dying → `death.mp3`)
+- **shield-up** (`sfx.shield`, a unit GAINING a Ward/Divine Shield mid-combat → `shieldgain.mp3`)
+- **triple** (`sfx.triple`, making a golden from 3 copies → `triplereward.mp3`)
 
 **How:**
 - `sfx.attack` now does `playSample('windup', 'attack')` with the old sawtooth `tone()` kept as the decode/absent
@@ -23,12 +26,18 @@ nothing (grep-confirmed: no call sites anywhere in `packages/ui`).
   the sourced clip at unity 1.0) — added `death: 0.5` to `CATEGORY_GAINS`. Fires from the combat SFX channel on a
   real (non-Rise) death; the unit's own `cards/<id>.death.mp3` voiceline still layers over it. Added a `death`
   mixer preview entry.
+- `sfx.shield` now does `playSample('shieldgain', 'shield')` with the synth rising-sine chime as fallback, on a
+  new **0.5** gain (`shield` was routed to the combat bus but had no explicit gain → would have played at unity).
+  Fires on `shieldUp` events. Added a `shield` mixer preview entry + removed `shield` from `config.test.ts`'s
+  synth-only-at-unity list.
+- `sfx.triple` now does `playSample('triplereward', 'triple')` with the synth arpeggio fallback. `triple` had NO
+  category at all (the chord borrowed `ui`); added a new **`triple`** category on the **ui** bus at **0.6** gain +
+  a mixer preview entry.
 - Removed `temper`/`proc` method bodies; nothing referenced them (the lone `proc` hit in `Card.tsx` is an
   unrelated visual-FX comment).
 
-Part of the stock-sound audit (identifying synth placeholders for replacement). Remaining pure-synth cues still
-to source: `cast` (SoC zap), `shield` (shield-up), `buff`, plus the meta fanfares `win`/`lose`/`triple`/`tick`/
-`maxGold`.
+Part of the stock-sound audit. Remaining pure-synth cues still to source: `cast` (SoC zap), `buff`, plus the meta
+fanfares `win`/`lose`/`tick`/`maxGold`.
 
 **Verified:** `npm run typecheck && npm run lint && npm test` (1064) `&& npm run build:web` all green (isolated
 worktree, own install); `windup.mp3` bundles as a hashed asset. Audible check left for an in-tab listen.

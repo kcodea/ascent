@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-14 (session 41)
 
+### fix(ui): golden minion no longer casts a gold "arch" behind it (grounding shadow mis-tint)
+
+Owner-reported: a gilded minion showed an old arch shape glowing gold behind it. Root cause: the grounding shadow
+is a 2nd copy of the frame img (`.cframe.cshadow`), and the golden frame-filter rule `.card.compact.stdframe.golden
+.cframe` (and the taunt `.tframe` variant) ALSO matched that shadow copy — equal specificity to the resting
+`.cshadow` rule but later in source, so it won — repainting the shadow with the GOLD frame filter
+(`brightness(1)` + a gold drop-shadow) instead of the black `brightness(0) blur` silhouette. So the "gold arch"
+was really the contact shadow tinted gold. Fixed by excluding the shadow copy from the golden filter
+(`.cframe:not(.cshadow)` / `.tframe:not(.cshadow)`) → a golden unit now casts a normal black contact shadow; the
+visible frame keeps its gold metal + rim. **Verified live** via a DOM computed-style probe: the golden `.cshadow`
+filter is now `brightness(0) blur(7.2px)` (no gold), while the real frame retains its gold drop-shadow. `lint` +
+`build:web` green.
+
 ### tweak(ui): lighter, tighter resting grounding shadow (−20% spread + opacity)
 
 Owner ask. The RESTING card grounding shadow (the blurred frame-silhouette `.cshadow` seated under each unit)

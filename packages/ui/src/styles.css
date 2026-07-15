@@ -1829,7 +1829,7 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
      --frameY   shift ONLY the gold frame (+ its banner + tier) DOWN by ×ccw, leaving the art window put. Big
                 shifts expose the art oval's top edge above the frame — raise --artZoom / --fill to compensate.
    `--dy` moves EVERYTHING together; `--frameY` moves just the frame relative to the art. */
-.card.compact.stdframe { --sh: 0.73; --fill: 1.28; --dy: 0; --frameY: 0.03; --tier: 0.83; --artY: 60%; --artZoom: 1.12; --wardsize: 1.08; --wardy: 53%; }
+.card.compact.stdframe { --sh: 0.73; --fill: 1.28; --dy: 0; --frameY: 0.03; --tier: 0.83; --artY: 60%; --artZoom: 1.12; --wardsize: 1.2; --wardy: 46%; }
 .card.compact.stdframe .art {
   clip-path: ellipse(50% 50% at 50% 50%);                          /* the elliptical window */
   width: calc(var(--ccw) * var(--sh) * var(--fill));
@@ -1862,7 +1862,7 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
 /* WINDOW = the frame's real opening (measured), with a small --fill overfill to tuck the art under the gold so
    there's no gap ring. Keep --artAR≈0.963 / --artW≈1.0 (that IS the opening) so it can't poke out; shape the
    ART itself with --artZoom (crop tighter) + --artY (vertical framing), NOT by resizing the window past the hole. */
-.card.compact.spellframe { --sh: 0.8; --fill: 1.23; --dy: -0.065; --frameY: 0.05; --tier: 0.67; --artY: 36%; --artZoom: 0.94; --artRound: 12%; --artAR: 1.03; --artW: 1.01; }
+.card.compact.spellframe { --sh: 0.78; --fill: 1.22; --dy: -0.02; --frameY: 0.02; --tier: 0.67; --artY: 48%; --artZoom: 1.02; --artRound: 13%; --artAR: 1.06; --artW: 0.97; }
 .card.compact.spellframe .art {
   clip-path: inset(0 round var(--artRound));                       /* the rounded-rectangle window */
   width: calc(var(--ccw) * var(--sh) * var(--fill) * var(--artW));

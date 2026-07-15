@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-14 (session 41)
 
+### feat(ui): Stealth de-cloak shimmer (effect-animation sweep, item 9)
+
+Item 9 (the "minor" cosmetics) of the effect-animation coverage sweep. Re-checked the three flagged events on current
+`main`: **keywordLost** (Tauntbreaker strip) already flinches (`struck` + impact spark) and **venomLost** already
+bursts (`venomspent` green ring) — both were already handled, so left untouched. Only **`reveal`** (a Stealth unit
+breaking cover as it attacks) lacked a visual beyond the opacity bump + float. Added a `revealed` anim class (anims
+map) + a `revealpop` de-cloak keyframe: the unit flashes brighter + desaturated, then resolves to full colour /
+opacity — "materialising into view", ~0.4s so it rides the attack lunge without lingering. Compositor-safe
+(transform / opacity / filter only). Verified: `typecheck + lint + test` (1050) & `build:web` green.
+
 ### fix(ui): golden minion no longer casts a gold "arch" behind it (grounding shadow mis-tint)
 
 Owner-reported: a gilded minion showed an old arch shape glowing gold behind it. Root cause: the grounding shadow

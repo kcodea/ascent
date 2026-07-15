@@ -181,7 +181,8 @@ fanned-hand overlap now that framed cards overhang ~1.1× the slot. All knobs ar
     `ascendFx` cue (`pixiFx.flashBloom` + `ascendPresets.ts` + an `ascendpop` CSS pop). A lime-white flash masks the
     swap, then the new card pops in. *Wants a live eyeball* — dials in `ascendPresets.ts`. Rig retained for retuning;
     dissolve/shatter/wipe/vortex styles reserved.
-  - **Minor** — `keywordLost` (Tauntbreaker strip), `venomLost`, Stealth `reveal` show nothing beyond a pill/opacity change.
+  - ✅ **Minor (shipped session 41).** Re-check found `keywordLost` already flinches (`struck` + spark) and `venomLost`
+    already bursts (`venomspent` ring); only Stealth `reveal` was bare → added a `revealpop` de-cloak shimmer.
 - **Taunt shield frame — polish (session 34, → devlog).** The heater-shield frame + raster compositing pipeline
   shipped. Open threads: (1) a **thinner-border frame** variant so the art reaches closer to the gold (current
   window is ~70% of the shield width — art fills it correctly, the border is just wide); (2) re-add the

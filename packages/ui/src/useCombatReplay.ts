@@ -262,6 +262,7 @@ function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'summon': return { [e.minion.uid]: 'summoned' };
     case 'rally': return { [e.source]: 'sccast', [e.target]: 'flare' }; // Deathsayer pulses; the Deathrattle minion flares
     case 'ascend': return { [e.target]: 'ascendpop' }; // transform: the new card pops in under the flash bloom (fired by onAscend)
+    case 'reveal': return { [e.target]: 'revealed' }; // Stealth breaks (unit attacks) → a quick de-cloak shimmer into full view
     default: return {};
   }
 }

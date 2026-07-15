@@ -1164,10 +1164,27 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* Quest overlay: reuses the Discover chrome (blur backdrop, floating transparent panel, gold banner, fixed
    toggle). A subtitle under the banner + a little breathing room for the taller art-forward QuestCards. */
 .disc-sub { font-family: var(--font-ui); font-weight: 700; font-size: calc(13 * var(--u)); color: #ece1c8; text-align: center; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
-.quest-ov-cards { margin-top: calc(15 * var(--u)); align-items: stretch; }
+/* Chunkier, more exciting quest cards (owner) — the quest offer is a big turn-opening choice, so bump the cards
+   ~22% over a normal card + a bit more gap. `--ch` drives both the card width (`--cw`) and its height. */
+.quest-ov-cards { margin-top: calc(18 * var(--u)); align-items: stretch; gap: calc(28 * var(--u)); --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * 1.22); --cw: calc(var(--ch) * 0.752); }
+/* Quest-shop chrome: cleaner + flatter, matching the dark art-forward quest frames rather than the ornate cream/
+   gold Discover banner. Scoped to the quest overlay so Discover + the Runeforge keep their own look. */
+.quest-ov .disc-banner {
+  background: linear-gradient(180deg, #211812, #16100b); border: 2px solid color-mix(in srgb, var(--gold) 58%, #000);
+  border-radius: calc(15 * var(--u)); padding: calc(8 * var(--u)) calc(42 * var(--u));
+  box-shadow: 0 calc(7 * var(--u)) calc(20 * var(--u)) -8px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.quest-ov .disc-banner .disp { color: #f4ecdb; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7); }
 /* The taller art-forward quest cards reach lower than a Discover row, so drop the toggle clear of them (it stays
-   pinned across minimize/return). Sits below the cards, above the player panel. */
-.quest-toggle { top: 75%; }
+   pinned across minimize/return). Sits below the cards, above the player panel. Restyled dark/clean to match. */
+.quest-toggle {
+  top: 78%; color: #f4ecdb;
+  background: linear-gradient(180deg, #211812, #16100b); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
+  box-shadow: 0 calc(6 * var(--u)) calc(16 * var(--u)) -6px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.55);
+}
+.quest-toggle svg { color: var(--gold); }
+.quest-toggle:hover { filter: brightness(1.12); }
 
 /* ── Runeforge (Runesmith, turn 6) — a STONE/ENGRAVED shop, deliberately cold + carved vs the warm gold Quest
    panel: slate backdrop, a chiseled stone banner with engraved text, and carved rune tablets. ── */

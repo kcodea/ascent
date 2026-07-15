@@ -2773,8 +2773,6 @@ export function Recruit() {
             const fanRot = n <= 1 ? 0 : Math.max(-7, Math.min(7, (i - (n - 1) / 2) * 1.8));
             // Disco Dan's Setlist: a card locked until its shop tier is greyed + shows a padlock (and can't be played).
             const locked = !!m.lockedUntilTier && run.tier < m.lockedUntilTier;
-            // Combo armed by a Primer just played → glow any hand card with a Combo (playing it now triggers it).
-            const comboReady = !!run.comboArmed && !locked && !!CARD_INDEX[m.cardId]?.combo;
             return (
               <Card
                 key={m.uid}
@@ -2791,7 +2789,6 @@ export function Recruit() {
                 onPointerDown={onCardPointerDown}
                 locked={locked}
                 lockLabel={locked ? `Tier ${m.lockedUntilTier}` : undefined}
-                comboReady={comboReady}
                 forceFull
               />
             );

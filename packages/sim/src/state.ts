@@ -263,9 +263,6 @@ export interface RunState {
   /** Minion cardIds PLAYED this recruit turn (normal plays) — Pack Leader (SoC, via a simulate param) and
    *  Spirit Worgen (End of Turn) scale off "Beasts/Dragons you played this turn". Reset each turn. */
   playedThisTurn?: string[];
-  /** Combo: true when the LAST card played was a Primer — the next card played fires its Combo (if it has one).
-   *  Set on every play to `def.primer`; a Combo card checks it, then it re-arms based on the card just played. */
-  comboArmed?: boolean;
   resolve: number;
   maxResolve: number;
   /** Armor — extra effective HP on top of Resolve. Loss damage chips Armor first, then Resolve; it doesn't
@@ -606,7 +603,7 @@ export interface RunState {
    *  on the board and waiting for the player to pick the friendly minion its Battlecry hits. Resolved
    *  by `battlecryTarget`; auto-resolves on the carry if the turn ends first. `optionIndex` marks a deferred
    *  *targeted Choose One* (Runic Beetle) — the chosen option's effects resolve on the picked target. */
-  pendingTarget?: { uid: string; cardId: string; optionIndex?: number; bothOptions?: boolean };
+  pendingTarget?: { uid: string; cardId: string; optionIndex?: number };
   /** The most recent combat's result, for the UI to replay. Transient. */
   lastCombat?: CombatResult;
 }

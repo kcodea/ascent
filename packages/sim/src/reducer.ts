@@ -467,11 +467,6 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (card.lockedUntilTier && s.tier < card.lockedUntilTier) return state;
 
       const def = CARD_INDEX[card.cardId];
-      // Combo: a Combo fires only if the previous play was a Primer. Capture that BEFORE re-arming, then re-arm
-      // for the NEXT play from THIS card (a primer arms it; anything else disarms it) — set now so it holds
-      // across every successful-play exit below.
-      const comboActive = !!s.comboArmed && !!def?.combo;
-      s.comboArmed = !!def?.primer;
 
       // Discover-on-play (data-driven): playing this card isn't a minion — it opens a Discover (a peek) and
       // is consumed (no board slot). The offer is resolved from the card's `discoverOnPlay` spec against the
@@ -615,30 +610,6 @@ function reduceCore(state: RunState, action: Action): RunState {
           : Math.max(0, Math.min(s.board.length, action.toIndex));
       s.board.splice(to, 0, card);
       playCard(s, card);
-      // Combo payoff (this card was played right after a primer):
-      if (comboActive && def?.combo) {
-        // A Choose One combo (The Godfodder) plays BOTH options with no prompt — not a Shout, just both effects.
-        if (def.combo.chooseBoth && def.chooseOne?.length) {
-          // A TARGETED Choose One (Runic Beetle: grant a keyword to a friendly Beast) defers to ONE target pick,
-          // then applies BOTH options' effects to that target (resolved in `battlecryTarget` via `bothOptions`).
-          if (def.target === 'friendly') {
-            const hasTarget = def.targetTribe
-              ? s.board.some((c) => c.uid !== card.uid && isTribe(c, def.targetTribe!))
-              : s.board.some((c) => c.uid !== card.uid);
-            if (hasTarget) {
-              s.pendingTarget = { uid: card.uid, cardId: card.cardId, bothOptions: true };
-              return s;
-            }
-            // No viable friend → each option auto-grants to self (applyChooseOne's fallback) below.
-          }
-          for (const opt of def.chooseOne) applyChooseOne(s, card, opt.effects);
-          checkTriples(s);
-          if (card.golden) grantGoldenDiscover(s);
-          return s;
-        }
-        // Otherwise the combo adds extra on-play effects (Buddy Buddy's spell, Sporebat's spell, …).
-        if (def.combo.effects?.length) applyChooseOne(s, card, def.combo.effects);
-      }
       // Choose One: pause for the player's pick before resolving triples / the golden Discover.
       if (CARD_INDEX[card.cardId]?.chooseOne?.length) {
         s.chooseOne = { uid: card.uid, cardId: card.cardId };
@@ -719,16 +690,11 @@ function reduceCore(state: RunState, action: Action): RunState {
       const card = s.board.find((c) => c.uid === pt.uid);
       const target = s.board.find((c) => c.uid === action.targetUid);
       if (!card || !target) return state; // a friendly target is required
-      // A deferred targeted Choose One (Runic Beetle) resolves the CHOSEN option's effects on the target; its
-      // Combo (`bothOptions`) applies EVERY option's effects to the one target; a normal targeted Battlecry
-      // (Toxin Tender) re-fires the card's own onPlay effects.
-      if (pt.bothOptions) {
-        for (const o of CARD_INDEX[pt.cardId]?.chooseOne ?? []) applyChooseOneTarget(s, card, o.effects, target);
-      } else {
-        const opt = pt.optionIndex !== undefined ? CARD_INDEX[pt.cardId]?.chooseOne?.[pt.optionIndex] : undefined;
-        if (opt) applyChooseOneTarget(s, card, opt.effects, target);
-        else applyBattlecryTarget(s, card, target);
-      }
+      // A deferred targeted Choose One (Runic Beetle) resolves the CHOSEN option's effects on the target; a
+      // normal targeted Battlecry (Toxin Tender) re-fires the card's own onPlay effects.
+      const opt = pt.optionIndex !== undefined ? CARD_INDEX[pt.cardId]?.chooseOne?.[pt.optionIndex] : undefined;
+      if (opt) applyChooseOneTarget(s, card, opt.effects, target);
+      else applyBattlecryTarget(s, card, target);
       s.pendingTarget = undefined;
       checkTriples(s);
       if (card.golden) grantGoldenDiscover(s);
@@ -1657,7 +1623,6 @@ function advanceCombat(s: RunState): void {
   s.turnStartPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
   s.playedThisTurn = []; // Pack Leader / Spirit Worgen: minions-played-this-turn resets each turn
-  s.comboArmed = undefined; // Combo: a primer doesn't carry a combo across the turn boundary
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
   s.shoutFirstUsedThisTurn = false; // Warm Embers' "first Shout each round triggers twice" freebie resets each turn

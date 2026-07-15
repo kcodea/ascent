@@ -347,8 +347,9 @@ fanned-hand overlap now that framed cards overhang ~1.1× the slot. All knobs ar
   3rd spell casts Growth; shop minions -1/-1). **Size:** L. **Depends:** A1; pairs well with C1's offer UI.
 
 ### C4. New mechanics (depth, later)
-- ~~**Combo** (Primer arms a Finisher → consumed for a bonus; rewards sequencing).~~ **DONE** (session 35):
-  `primer`/`combo` on cards, orange combo-ready glow, chooseBoth + extra-effect shapes. See the devlog.
+- ~~**Combo** (Primer arms a Finisher → consumed for a bonus; rewards sequencing).~~ **REMOVED** (2026-07-15): the
+  `primer`/`combo` mechanic was built then pulled at the owner's call — affected cards kept their base effect, Combo
+  Kim was retired. See the devlog.
 - **Balance** (average two units' stats — shop puzzle). **Mark / Bind / Curse** (apply Echo-style effects to
   allies; name by valence). **Rewind** (start narrow: "repeat the last friendly keyword trigger" — avoid true
   undo until the rules are sturdier). Each is its own spec when reached. **Size:** L each.

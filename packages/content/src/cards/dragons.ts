@@ -28,9 +28,8 @@ export const DRAGONS: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryBuffSpellPower', params: { attack: 0, health: 1 } }],
-    combo: { effects: [{ on: 'onPlay', do: 'battlecryBuffSpellPower', params: { attack: 1, health: 0 } }] },
-    text: '**Shout:** give your spells **+1 Health**. **Combo:** also give **+1 Attack**.',
-    goldenText: '**Shout:** give your spells **+2 Health**. **Combo:** also give **+2 Attack**.',
+    text: '**Shout:** give your spells **+1 Health**.',
+    goldenText: '**Shout:** give your spells **+2 Health**.',
   },
   {
     id: 'weaver',

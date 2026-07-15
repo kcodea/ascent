@@ -227,11 +227,8 @@ export const EffectFactoryIdSchema = z.enum([
   'copyLeftmostEcho',
   'spellAddTribe',
   'spellAddAllTribes',
-  'castSpellById',
-  'buffAllByImpAura',
   'deathrattleBuffAllByImpAura',
   'buffFodderImpsImproving',
-  'scGrantRightTaunt',
   'onAttackStripKeywords',
 ]);
 
@@ -288,8 +285,6 @@ export const CardDefSchema = z.object({
     .array(z.object({ text: z.string(), goldenText: z.string().optional(), effects: z.array(EffectDefSchema), target: z.enum(['friendly', 'any']).optional() }).strict())
     .min(2)
     .optional(),
-  primer: z.boolean().optional(),
-  combo: z.object({ effects: z.array(EffectDefSchema).optional(), chooseBoth: z.boolean().optional() }).strict().optional(),
   discoverOnPlay: z
     .object({
       exactTier: z.number().int().positive().optional(),

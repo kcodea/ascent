@@ -154,13 +154,12 @@ export const DEMONS: CardDef[] = [
       { text: 'Add **2** Fodder to your next shop.', goldenText: 'Add **4** Fodder to your next shop.', effects: [{ on: 'onPlay', do: 'addTavernFodder', params: { count: 2 } }] },
       { text: 'Give your **Fodder** **+3/+3**.', goldenText: 'Give your **Fodder** **+6/+6**.', effects: [{ on: 'onPlay', do: 'battlecryBuffFodder', params: { attack: 3, health: 3 } }] },
     ],
-    combo: { chooseBoth: true },
-    text: '**Choose One:** add **2** Fodder to your next shop, or give your **Fodder** **+3/+3**. **Combo:** do both.',
-    goldenText: '**Choose One:** add **4** Fodder to your next shop, or give your **Fodder** **+6/+6**. **Combo:** do both.',
+    text: '**Choose One:** add **2** Fodder to your next shop, or give your **Fodder** **+3/+3**.',
+    goldenText: '**Choose One:** add **4** Fodder to your next shop, or give your **Fodder** **+6/+6**.',
   },
   {
     // Imp-payoff engine: converts your run-wide Imp Aura into a board-wide buff. On death (Echo) it fires in
-    // combat off the live aura; with a Combo primer it ALSO fires on play (the recruit half reads run `impBuff`).
+    // combat off the live aura (the recruit half reads run `impBuff`).
     id: 'chefraag',
     name: 'Chef Raag',
     tribe: 'demon',
@@ -169,9 +168,8 @@ export const DEMONS: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleBuffAllByImpAura' }],
-    combo: { effects: [{ on: 'onPlay', do: 'buffAllByImpAura' }] },
-    text: '**Echo:** give your minions stats equal to your **Imp Aura**. **Combo:** do it on play too.',
-    goldenText: '**Echo:** give your minions **double** your **Imp Aura**. **Combo:** do it on play too.',
+    text: '**Echo:** give your minions stats equal to your **Imp Aura**.',
+    goldenText: '**Echo:** give your minions **double** your **Imp Aura**.',
   },
   {
     id: 'trickster',

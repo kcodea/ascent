@@ -171,7 +171,6 @@ export const Card = memo(function Card({
   fanRot,
   locked,
   lockLabel,
-  comboReady,
 }: {
   card: CardView;
   /** Instance id, exposed as data-uid so layout (FLIP) animations can track the card. */
@@ -242,9 +241,6 @@ export const Card = memo(function Card({
   locked?: boolean;
   /** Short lock caption for the badge (e.g. "Tier 4"). */
   lockLabel?: string;
-  /** Combo is armed (a Primer was just played) AND this hand card has a Combo — glow it orange to flag that
-   *  playing it NOW triggers the combo. */
-  comboReady?: boolean;
 }) {
   const inspectCard = useGame((s) => s.inspectCard);
   // The arched frame is universal now. `showText` = also render the drop-down text drawer (the "full"
@@ -326,7 +322,7 @@ export const Card = memo(function Card({
   const useStdFrame = !card.spell && !isTaunt && sframeOk;
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${comboReady ? ' comboready' : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,

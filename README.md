@@ -109,11 +109,10 @@ _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).
   Golden Gild). **Indy's** Gild recharges after every **40 Gold spent** (was once per game). **Yirin's** spell-power
   step improves every **10** spells cast (was 5). **Herald** removed; **Warden / Myra / Chaos** temporarily
   withheld from the picker.
-- **Combo / Primer keyword.** A **Primer** card (Gold Pouch, Graverobber, Combo Kim) arms a combo for the
-  *next* card played; a card with a Combo, played immediately after, fires a bonus payoff — playing anything
-  else in between disarms it. A hand card whose Combo is armed glows **orange**. Ships with a demon-flavoured
-  card batch (Godfodder "do both", escalating Ritualist, new Chef Raag & Combo Kim, Buddy Buddy / Sporebat /
-  Spark Capacitor / Cinderwing combos, Hoard Cleric→T2, Tara→T3).
+- **Combo / Primer removed.** The Primer→Combo mechanic (a primer card arming a bonus for the next card) is gone —
+  the `primer`/`combo` card fields, `comboArmed` reducer tracking, and the orange combo-ready glow are all pulled.
+  The affected cards keep their base effect (Godfodder is a plain Choose One, Chef Raag keeps its Echo, Spark
+  Capacitor its Avenge, etc.); **Combo Kim** was retired and **Gold Pouch** is now a plain "Gain 1 Gold" spell.
 - **Taunt units now wear a painterly gold heater shield.** Instead of the flat grey border, a Taunt card is
   reshaped into an ornate shield: an authored frame PNG composited over the unit portrait (clipped to the
   frame's measured window). Establishes the reusable **layered card pipeline** (portrait → frame → tint →

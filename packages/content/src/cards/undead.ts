@@ -312,10 +312,9 @@ export const UNDEAD: CardDef[] = [
     health: 4,
     keywords: [],
     target: 'friendly',
-    primer: true,
     effects: [{ on: 'onPlay', do: 'battlecryDestroyForSpell' }],
-    text: '**Battlecry:** Destroy a friendly minion (procs its **Deathrattle**), then add a random spell of its tier to your hand. **Primer.**',
-    goldenText: '**Battlecry:** Destroy a friendly minion (procs its **Deathrattle**), then add **2** random spells of its tier to your hand. **Primer.**',
+    text: '**Battlecry:** Destroy a friendly minion (procs its **Deathrattle**), then add a random spell of its tier to your hand.',
+    goldenText: '**Battlecry:** Destroy a friendly minion (procs its **Deathrattle**), then add **2** random spells of its tier to your hand.',
   },
 
   // --- Undead quest rewards (2026-07-08). token: true → reward-only, never rolled in the tavern. ---

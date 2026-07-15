@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### fix(ui): step counter white numbers were invisible on the cream board — added a dark edge
+
+Owner couldn't see the counter on Brood Matron. Diagnosed via a live DOM probe (injected a board `brood` — the
+`.stepcounter` rendered `0/3` correctly, so the logic was fine): the plain **white** text (from the prior no-pill
+tweak) had near-zero contrast on the light cream board, and its drop shadow sits *below* rather than outlining the
+glyphs. Added a tight dark edge to the `text-shadow` (`0 0 2px` + `0 1px 1.5px` black) on top of the existing soft
+underneath shadow, so the white numbers read on the light board (and still on dark). `lint` + `build:web` green.
+
+
 ### fix: unify player-facing terminology (Codex review follow-up)
 
 The keyword rename (Battlecry→Shout, Deathrattle→Echo, Divine Shield→Ward, Reborn→Rise, Golden→Gilded, …) was

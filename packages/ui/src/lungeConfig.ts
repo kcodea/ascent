@@ -44,7 +44,7 @@ export interface LungeConfig {
 }
 
 const DEFAULTS: LungeConfig = {
-  windupDur: 0.47,   // tuned by eye in the DEV Lunge tuner (2026-07-10)
+  windupDur: 0.70,   // owner: ~50% longer wind-up (was 0.47); the beat hold derives from this so damage still lands on contact
   windupDepth: 0.1,
   windupScale: 1.28, // swell during the wind-up, then return to 1 on the strike
   strikeDur: 0.17,   // fallback only (used when elements are unresolved); live strikes derive from distance
@@ -62,7 +62,7 @@ const DEFAULTS: LungeConfig = {
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const LUNGE_RANGES: Record<keyof LungeConfig, [number, number, number]> = {
-  windupDur: [0.05, 0.5, 0.01],
+  windupDur: [0.05, 0.9, 0.01],
   windupDepth: [0, 0.4, 0.01],
   windupScale: [1, 1.5, 0.01],
   strikeDur: [0.04, 0.3, 0.01],

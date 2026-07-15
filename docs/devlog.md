@@ -40,6 +40,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### tweak(ui): attack wind-up ~50% longer
+
+Owner ask — the anticipation lean-back before a strike should read longer. Bumped `lungeConfig.windupDur`
+0.47 → 0.70s (~+49%) and raised the DEV Lunge tuner's slider ceiling to match (`LUNGE_RANGES.windupDur` max
+0.5 → 0.9). No other change needed: the attack RESULT beat's hold is derived live from `windupDur + strikeDur
+- smackLead` (see `useCombatReplay.ts`), so the damage float + recoil still land exactly on contact — the whole
+exchange just anticipates longer. typecheck + build:web green.
+
 ### feat(content): Coran's Pathfinder reworked — bonus Capstone quest on turn 10
 
 - Reworked Coran (Pathfinder). **Old:** skipped the turn-5 quest and got the turn-11-bucket quest early on

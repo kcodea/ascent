@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { simulate, makeRng, type BoardMinion, type CombatEvent, type Keyword } from '../index';
+import { combatSide, simulate, makeRng, type BoardMinion, type CombatEvent, type CombatSideState, type Keyword } from '../index';
 import { CARD_INDEX } from '@game/content';
 
 /** The health deltas of every `buff` event in a combat (for asserting Deathrattle HP grants). */
@@ -8,7 +8,7 @@ const buffHealths = (events: CombatEvent[]): number[] =>
 
 const ALL_TRIBES = ['beast', 'dragon', 'undead', 'mech', 'demon'];
 const run = (p: BoardMinion[], e: BoardMinion[], seed: number, enemyTier = 1, playerTier = 6, playerTribes: string[] = ALL_TRIBES) =>
-  simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, enemyTier, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, playerTier, playerTribes);
+  simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: playerTier, tribes: playerTribes }), combatSide({ tier: enemyTier }));
 
 describe('simulate (handoff A.3)', () => {
   it('is deterministic for the same seed', () => {
@@ -280,7 +280,7 @@ describe('simulate (handoff A.3)', () => {
   it('Runescale Drake scales with spells cast this turn (3 spells → +5/+5)', () => {
     const p: BoardMinion[] = [{ cardId: 'runescale', attack: 4, health: 20 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }];
-    const r = simulate(p, e, makeRng(3), CARD_INDEX, 3); // 3 spells this turn → base 2 + 3
+    const r = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ spellsThisTurn: 3 })); // 3 spells this turn → base 2 + 3
     expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 5 && ev.health === 5)).toBe(true);
   });
 
@@ -406,7 +406,7 @@ describe('simulate (handoff A.3)', () => {
     ];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies to one swing → exactly one Rally
     const call = (rallyDouble: boolean) =>
-      simulate(p, e, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, rallyDouble);
+      simulate(p, e, makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES }), combatSide(), { playerRallyDouble: rallyDouble });
     const rally5 = (r: ReturnType<typeof simulate>) => r.events.filter((ev) => ev.type === 'buff' && ev.attack === 5).length;
     expect(rally5(call(false))).toBe(2); // Solaris + Mama Pup, once
     expect(rally5(call(true))).toBe(4);  // …twice with Rallying Offensive
@@ -470,7 +470,7 @@ describe('simulate (handoff A.3)', () => {
     const p: BoardMinion[] = [{ cardId: 'watcher', attack: 8, health: 30 }, { cardId: 'spore', attack: 1, health: 30 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }];
     // spellPowerAtk = 2, spellPowerHp = 2 (16th/17th positional args after CARD_INDEX).
-    const r = simulate(p, e, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 6, ALL_TRIBES);
+    const r = simulate(p, e, makeRng(1), CARD_INDEX, combatSide({ spellPowerAtk: 2, spellPowerHp: 2, tier: 6, tribes: ALL_TRIBES }));
     expect(r.playerUndeadAuraGain).toEqual({ attack: 5, health: 2 }); // base 3 + spell power → +5/+2
   });
 
@@ -1063,7 +1063,7 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'stray', attack: 1, health: 2 },
     ];
     const first = (attackFirst: boolean): string => {
-      const r = simulate(p, e, makeRng(9), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, [], {}, attackFirst);
+      const r = simulate(p, e, makeRng(9), CARD_INDEX, combatSide(), combatSide(), { playerAttacksFirst: attackFirst });
       const atk = r.events.find((ev) => ev.type === 'attack');
       return atk && atk.type === 'attack' ? atk.attacker : '';
     };
@@ -1242,7 +1242,7 @@ describe('simulate (handoff A.3)', () => {
     const r = simulate(
       [{ cardId: 'brood', attack: 0, health: 1000 }, { cardId: 'sandbag', attack: 0, health: 1 }],
       [{ cardId: 'omen', attack: 100, health: 1000, keywords: [] }],
-      makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 2, 2,
+      makeRng(1), CARD_INDEX, combatSide({ impAtk: 2, impHp: 2 }),
     );
     const imp = r.events.find((e) => e.type === 'summon' && e.minion.cardId === 'impscrap');
     expect(imp?.type === 'summon' ? [imp.minion.attack, imp.minion.health] : null).toEqual([3, 3]);
@@ -1286,8 +1286,8 @@ describe('simulate (handoff A.3)', () => {
     const r = simulate(
       [{ cardId: 'omen', attack: 100, health: 1000, keywords: [] }],
       [{ cardId: 'brood', attack: 0, health: 1000 }, { cardId: 'sandbag', attack: 0, health: 1 }],
-      makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, [], {}, false, false, 0, 0, 0, 0, {},
-      { impAtk: 2, impHp: 2 },
+      makeRng(1), CARD_INDEX, combatSide(),
+      combatSide({ impAtk: 2, impHp: 2 }),
     );
     const imp = r.events.find((e) => e.type === 'summon' && e.minion.cardId === 'impscrap');
     expect(imp?.type === 'summon' ? [imp.minion.attack, imp.minion.health] : null).toEqual([3, 3]);
@@ -1297,10 +1297,10 @@ describe('simulate (handoff A.3)', () => {
     const player = [{ cardId: 'omen', attack: 0, health: 1000, keywords: [] }];
     const enemy = [{ cardId: 'abhorrenthorror', attack: 1, health: 1 }];
     // Player consumed 10/10 of Fodder this turn (args 12,13). The ENEMY Horror must NOT absorb it → no big SC buff.
-    const leak = simulate(player, enemy, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 10, 10, 0, 0, 0, 0, 1, [], {}, false, false, 0, 0, 0, 0, {}, {});
+    const leak = simulate(player, enemy, makeRng(1), CARD_INDEX, combatSide({ fodderConsumedAtk: 10, fodderConsumedHp: 10 }), combatSide());
     expect(leak.events.some((e) => e.type === 'buff' && (e.attack >= 5 || e.health >= 5))).toBe(false);
     // With the enemy's OWN captured tally (4/4), it does gain it → a +4/+4 SC buff fires.
-    const own = simulate(player, enemy, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 10, 10, 0, 0, 0, 0, 1, [], {}, false, false, 0, 0, 0, 0, {}, { fodderConsumedAtk: 4, fodderConsumedHp: 4 });
+    const own = simulate(player, enemy, makeRng(1), CARD_INDEX, combatSide({ fodderConsumedAtk: 10, fodderConsumedHp: 10 }), combatSide({ fodderConsumedAtk: 4, fodderConsumedHp: 4 }));
     expect(own.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true);
   });
 
@@ -1465,10 +1465,10 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'sandbag', attack: 0, health: 100 },
     ];
     const enemy: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 4000, keywords: [] }];
-    // simulate(...15 args..., spellPowerAtk, spellPowerHp). With +4/+4 spell power each Growth is +7/+8.
-    const r = simulate(board, enemy, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4);
+    // spellPowerAtk/spellPowerHp = 4/4. With +4/+4 spell power each Growth is +7/+8.
+    const r = simulate(board, enemy, makeRng(1), CARD_INDEX, combatSide({ spellPowerAtk: 4, spellPowerHp: 4 }));
     expect(r.events.some((e) => e.type === 'buff' && e.attack === 7 && e.health === 8)).toBe(true);
-    const r0 = simulate(board, enemy, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    const r0 = simulate(board, enemy, makeRng(1), CARD_INDEX, combatSide());
     expect(r0.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 4)).toBe(true); // no spell power → base
   });
 
@@ -1648,7 +1648,7 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'alley', attack: 2, health: 80, sourceUid: 'C' }, // surviving Beast (no Deathrattle)
     ];
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 300 }];
-    const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 5); // 6th arg = run-wide Deathrattle base
+    const a = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ deathrattles: 5 })); // deathrattles = run-wide Deathrattle base
     const allyUid = a.initial.player.find((m) => m.cardId === 'alley')!.uid;
     expect(a.events.some((ev) => ev.type === 'buff' && ev.target === allyUid && ev.attack === 6 && ev.health === 6)).toBe(true);
   });
@@ -1805,8 +1805,7 @@ describe('simulate (handoff A.3)', () => {
         { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] },
       ],
       [{ cardId: 'omen', attack: 20, health: 50 }],
-      makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0,
-      { emptyGraves: true },
+      makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: { emptyGraves: true } }),
     );
     expect(a.events.some((e) => e.type === 'summon' && e.minion.cardId === 'gravebody')).toBe(true);
   });
@@ -1839,7 +1838,7 @@ describe('simulate (handoff A.3)', () => {
         { cardId: 'omen', attack: 0, health: 50 }, // after the SoC Bloodlust strike, so `pre` holds only that swing
         { cardId: 'omen', attack: 0, health: 50 },
       ],
-      makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, {},
+      makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES }),
     );
     const blmUid = a.initial.player[0]!.uid;
     const enemyUids = new Set(a.initial.enemy.map((m) => m.uid));
@@ -1855,7 +1854,7 @@ describe('simulate (handoff A.3)', () => {
     const a = simulate(
       [{ cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] }],
       [{ cardId: 'alley', attack: 3, health: 2, bloodlust: true }],
-      makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, {},
+      makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES }),
     );
     const enemyBlm = a.initial.enemy[0]!.uid;
     const firstDmg = a.events.findIndex((e) => e.type === 'dmg');
@@ -1869,9 +1868,7 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'bronzewarden', attack: 3, health: 50 }], // a Dragon
       [{ cardId: 'omen', attack: 0, health: 50 }],
       makeRng(1), CARD_INDEX,
-      0, 0, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, // spellsThisTurn … spellPowerHp (spellsCast = 3)
-      6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0,
-      { umbralEnergy: true },
+      combatSide({ spellsCast: 3, tier: 6, tribes: ALL_TRIBES, questMods: { umbralEnergy: true } }),
     );
     expect(a.events.some((e) => e.type === 'buff' && e.attack === 9 && e.health === 9)).toBe(true);
   });
@@ -1892,9 +1889,7 @@ describe('simulate (handoff A.3)', () => {
           { cardId: 'omen', attack: 1, health: 1 }, // turn-1 Slaughter; the survivor's swing marks the enemy's turn
         ],
         makeRng(3), CARD_INDEX,
-        0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // spellsThisTurn … spellPowerHp
-        6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, // playerTier … magneticBuyHp
-        feedingLine ? { feedingLine: true } : {},
+        combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: feedingLine ? { feedingLine: true } : {} }),
       );
     // Count the second Beast's attacks that land BEFORE the enemy's first swing.
     const nextBeastEarlyAttacks = (r: ReturnType<typeof sim>): number => {
@@ -2095,7 +2090,7 @@ describe('simulate (handoff A.3)', () => {
         { cardId: 'guel', attack: 2, health: 50 },
       ],
       [{ cardId: 'omen', attack: 0, health: 80 }],
-      makeRng(3), CARD_INDEX, 0, 0, 1, 0, 0, 4, // …, spellsCast = 4
+      makeRng(3), CARD_INDEX, combatSide({ spellsCast: 4 }), // spellsCast = 4
     );
     expect(a.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
   });
@@ -2488,7 +2483,7 @@ describe('simulate (handoff A.3)', () => {
       { cardId: 'sandbag', attack: 0, health: 4 }, // not Undead → untouched
     ];
     const e: BoardMinion[] = [{ cardId: 'spore', attack: 1, health: 2 }]; // enemy Undead → no bonus
-    const a = simulate(p, e, makeRng(7), CARD_INDEX, 0, 0, 1, 3); // 8th arg = undeadAttackBonus
+    const a = simulate(p, e, makeRng(7), CARD_INDEX, combatSide({ undeadAtk: 3 })); // undeadAtk 3
     const pSpore = a.initial.player.find((m) => m.cardId === 'spore')!;
     const pSandbag = a.initial.player.find((m) => m.cardId === 'sandbag')!;
     const eSpore = a.initial.enemy.find((m) => m.cardId === 'spore')!;
@@ -2503,7 +2498,7 @@ describe('simulate (handoff A.3)', () => {
     // death's Eternal-Knight enchant (+3/+2). So the reborn body is 3 + 3 + 3 = 9 Attack (not the base 3).
     const p: BoardMinion[] = [{ cardId: 'knit', attack: 2, health: 2, keywords: ['R'] }]; // R granted inline (knit is no longer Reborn by default)
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 5, health: 80 }]; // out-trades the Knit → forces the Reborn
-    const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 0, 1, 3);
+    const a = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ undeadAtk: 3 }));
     const reborn = a.events.find((ev) => ev.type === 'reborn');
     expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(9); // base 3 + Lantern 3 + Eternal-Knight 3
   });
@@ -2514,7 +2509,7 @@ describe('simulate (handoff A.3)', () => {
     // from-base body — a bought Undead already has it in its stats). → 1 + 5 + 4 = 10 attack, 1 + 3 = 4 health.
     const p: BoardMinion[] = [{ cardId: 'deathlesshand', attack: 0, health: 1, sourceUid: 'u' }]; // 0-atk so it can't win — it dies, summoning the Footman
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 10, health: 40 }];
-    const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 0, 1, 5, 3, 0, 4); // undeadAttackBonus 5, undeadHealthBonus 3, undeadBuyAtk 4
+    const a = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ undeadAtk: 5, undeadHp: 3, undeadBuyAtk: 4 })); // undeadAtk 5, undeadHp 3, undeadBuyAtk 4
     const summon = a.events.find((ev) => ev.type === 'summon' && ev.minion.cardId === 'footman');
     expect(summon && summon.type === 'summon' ? [summon.minion.attack, summon.minion.health] : null).toEqual([10, 4]);
   });
@@ -2528,7 +2523,7 @@ describe('simulate (handoff A.3)', () => {
       buffs: [{ source: 'Spear Warden', attack: 15, health: 10, count: 5 }],
     }];
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 20, health: 200 }]; // out-trades the Warden → forces the Reborn
-    const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 0, 1);
+    const a = simulate(p, e, makeRng(3), CARD_INDEX, combatSide());
     const reborn = a.events.find((ev) => ev.type === 'reborn');
     expect(reborn && reborn.type === 'reborn' && reborn.attack).toBe(21); // base 3 + (15 prior + 3 this fight)
     expect(reborn && reborn.type === 'reborn' && reborn.hp).toBe(13); // 1 (Rise) + (10 prior + 2 this fight)
@@ -2544,7 +2539,7 @@ describe('simulate (handoff A.3)', () => {
     ];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }];
     const resummonAtk = (undeadAtk: number): number => {
-      const a = simulate(mk(), e, makeRng(5), CARD_INDEX, 0, 0, 1, undeadAtk, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES);
+      const a = simulate(mk(), e, makeRng(5), CARD_INDEX, combatSide({ undeadAtk, tier: 6, tribes: ALL_TRIBES }));
       const ev = a.events.filter((x) => x.type === 'summon' && x.minion.cardId === 'knit').pop();
       return ev && ev.type === 'summon' ? ev.minion.attack : -1;
     };
@@ -2559,7 +2554,7 @@ describe('simulate (handoff A.3)', () => {
     // means the summoned Pups arrive at 3/4.
     const p: BoardMinion[] = [{ cardId: 'pack', attack: 1, health: 1 }]; // dies → Deathrattle summons Pups
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 50 }];
-    const a = simulate(p, e, makeRng(3), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, { pup: { attack: 2, health: 3 } });
+    const a = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, cardBuffs: { pup: { attack: 2, health: 3 } } }));
     const pup = a.events.find((ev) => ev.type === 'summon' && ev.minion.cardId === 'pup');
     expect(pup && pup.type === 'summon' && pup.minion.attack).toBe(3); // base 1 + 2
     expect(pup && pup.type === 'summon' && pup.minion.health).toBe(4); // base 1 + 3
@@ -2569,7 +2564,7 @@ describe('simulate (handoff A.3)', () => {
     // +4 Attack / +1 Health (the spell-power scaling): a 1/2 Sporeling (Undead) enters combat at 5/3.
     const p: BoardMinion[] = [{ cardId: 'spore', attack: 1, health: 2, sourceUid: 'u' }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 4 }];
-    const a = simulate(p, e, makeRng(7), CARD_INDEX, 0, 0, 1, 4, 1); // 8th arg = +Attack, 9th arg = +Health
+    const a = simulate(p, e, makeRng(7), CARD_INDEX, combatSide({ undeadAtk: 4, undeadHp: 1 })); // undeadAtk 4, undeadHp 1
     const spore = a.initial.player.find((m) => m.cardId === 'spore')!;
     expect(spore.attack).toBe(5); // 1 + 4
     expect(spore.health).toBe(3); // 2 + 1
@@ -2609,11 +2604,11 @@ describe('simulate (handoff A.3)', () => {
     // fodderConsumedAtk/Hp on the context are the player's run state; a captured enemy snapshot has none.
     const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 20 }];
     const e: BoardMinion[] = [{ cardId: 'abhorrenthorror', attack: 1, health: 1 }];
-    const r = simulate(p, e, makeRng(7), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 5, 5); // 12th/13th args = consumed Fodder 5/5
+    const r = simulate(p, e, makeRng(7), CARD_INDEX, combatSide({ fodderConsumedAtk: 5, fodderConsumedHp: 5 })); // consumed Fodder 5/5
     const horrorUid = r.initial.enemy[0]!.uid;
     expect(r.events.some((ev) => ev.type === 'buff' && ev.target === horrorUid)).toBe(false);
     // Control: the PLAYER's Horror still absorbs the tally.
-    const r2 = simulate(e, p, makeRng(7), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 5, 5);
+    const r2 = simulate(e, p, makeRng(7), CARD_INDEX, combatSide({ fodderConsumedAtk: 5, fodderConsumedHp: 5 }));
     const pHorrorUid = r2.initial.player[0]!.uid;
     expect(r2.events.some((ev) => ev.type === 'buff' && ev.target === pHorrorUid && ev.attack === 5 && ev.health === 5)).toBe(true);
   });
@@ -2789,8 +2784,7 @@ describe('combat-phase quest tallies', () => {
         ? [{ cardId: 'sylus', attack: 3, health: 30 }, { cardId: 'pack', attack: 3, health: 30 }]
         : [{ cardId: 'pack', attack: 3, health: 30 }];
       const r = simulate(
-        p, e, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, ['beast'], {}, false, false, 0, 0, 0, 0,
-        { echoingCoop: true },
+        p, e, makeRng(1), CARD_INDEX, combatSide({ tribes: ['beast'], questMods: { echoingCoop: true } }),
       );
       return r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'pup').length;
     };
@@ -2806,8 +2800,7 @@ describe('combat-phase quest tallies', () => {
         ? [{ cardId: 'sylus', attack: 3, health: 30 }, { cardId: 'pack', attack: 3, health: 30 }]
         : [{ cardId: 'pack', attack: 3, health: 30 }];
       const r = simulate(
-        p, e, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, ['beast'], {}, false, false, 0, 0, 0, 0,
-        { echoingCoop: true },
+        p, e, makeRng(1), CARD_INDEX, combatSide({ tribes: ['beast'], questMods: { echoingCoop: true } }),
       );
       return r.playerDeathrattles; // the Echo (deathrattle) objective + Grim read this tally
     };
@@ -2831,8 +2824,7 @@ describe('combat-phase quest tallies', () => {
     const p: BoardMinion[] = [{ cardId: 'alley', attack: 3, health: 40 }]; // survives to attack several times
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 30 }];
     const r = simulate(
-      p, e, makeRng(1), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, ['beast'], {}, false, false, 0, 0, 0, 0,
-      { oldHuntStep: 7 },
+      p, e, makeRng(1), CARD_INDEX, combatSide({ tribes: ['beast'], questMods: { oldHuntStep: 7 } }),
     );
     // At least one Beast attack landed → the aura grew by a multiple of the step.
     expect(r.playerBeastBuyAtkGain).toBeGreaterThanOrEqual(7);
@@ -2844,7 +2836,7 @@ describe('Undead quests — Echo doublers stack additively + friendly-death coun
   // questMods is the last positional arg — this fills the middle with the run helper's defaults (tier 6, all
   // tribes) so a test only supplies the boards + mods it cares about.
   const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
-    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, mods);
+    simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide());
 
   // A single tanky Sporeling (Deathrattle: buff all) vs a 0-attack Omen — it never dies, so the ONLY Echo
   // trigger is the one Echoing Coop fires at Start of Combat. That isolates the doubler math on exactly one Echo.
@@ -2904,7 +2896,7 @@ describe('Undead quests — Echo doublers stack additively + friendly-death coun
 describe('Mech/neutral quests — Rally doublers stack additively + Shared Circuit', () => {
   // attackFirst=true so the player's Rally minion strikes ACTIVELY (a retaliation/counter doesn't trigger Rally).
   const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
-    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, true, false, 0, 0, 0, 0, mods);
+    simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide(), { playerAttacksFirst: true });
 
   // Deathsayer (RL, on-attack) actively one-shots a 0/5 dummy → exactly ONE Rally trigger, isolating the doubler
   // math. Its Rally (fire leftmost Echo) no-ops here (it's the only minion, no Echo).
@@ -2945,7 +2937,7 @@ describe('Mech/neutral quests — Rally doublers stack additively + Shared Circu
 
 describe('Demon quests — imp summons + Deep Hunger / Contract Rewrite / Pit Without End / Run Maw', () => {
   const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
-    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, true, false, 0, 0, 0, 0, mods);
+    simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide(), { playerAttacksFirst: true });
 
   it('Pit Without End summons N Imps when your board is wiped (once, tallied as Imp summons)', () => {
     const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 1 }];
@@ -2987,7 +2979,7 @@ describe('Demon quests — imp summons + Deep Hunger / Contract Rewrite / Pit Wi
 
 describe('Rulebreaker quests — double-leftmost-attack, Chimerus, Taurus engrave-all', () => {
   const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
-    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, true, false, 0, 0, 0, 0, mods);
+    simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide(), { playerAttacksFirst: true });
 
   it("Rulebreaker's Crown doubles the leftmost minion's Attack at Start of Combat", () => {
     const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 30 }];
@@ -3032,7 +3024,7 @@ describe('Rulebreaker quests — double-leftmost-attack, Chimerus, Taurus engrav
 
 describe('Rune of Rallying (Start of Combat: trigger your rallies)', () => {
   const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
-    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, mods);
+    simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide());
 
   it("fires each Rally minion's on-attack effect once at Start of Combat, before the attack loop", () => {
     // Philippe (RL) — Rally: deal its Attack (4) to a random enemy, no retaliation. The 3-hp Omen dies at SoC.
@@ -3059,7 +3051,7 @@ describe('Rune of Rallying (Start of Combat: trigger your rallies)', () => {
 
 describe('Epic combat runes (Rising Graves / Broodpit / Spearline / Appraisal)', () => {
   const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
-    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, mods);
+    simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide());
 
   it('Rising Graves: Start of Combat gives exactly two friendly Undead Rise', () => {
     const p: BoardMinion[] = [
@@ -3112,7 +3104,7 @@ describe('Epic combat runes (Rising Graves / Broodpit / Spearline / Appraisal)',
 
 describe('Combat runes batch 6 (First Claws / Packcraft / Inheritance / Salvage)', () => {
   const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
-    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, mods);
+    simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide());
 
   it('First Claws: the Start-of-Combat immediate attacks change the fight (they fire)', () => {
     const p: BoardMinion[] = [{ cardId: 'gnash', attack: 8, health: 8 }, { cardId: 'alley', attack: 3, health: 4 }];
@@ -3148,7 +3140,7 @@ describe('Combat runes batch 6 (First Claws / Packcraft / Inheritance / Salvage)
 
 describe('Rune of Twilight (Start-of-Combat effects trigger an extra time)', () => {
   const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
-    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, mods);
+    simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide());
 
   it("re-fires your minions' Start-of-Combat effects (Kennelmaster's Beast aura lands twice)", () => {
     const p: BoardMinion[] = [{ cardId: 'kennel', attack: 1, health: 4 }, { cardId: 'gnash', attack: 5, health: 8 }];
@@ -3160,7 +3152,7 @@ describe('Rune of Twilight (Start-of-Combat effects trigger an extra time)', () 
 
 describe('Rune of the Warden (Start of Combat: summon a Spear Warden if there is room)', () => {
   const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
-    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, mods);
+    simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide());
 
   it('summons a Spear Warden at Start of Combat when the board has room', () => {
     const p: BoardMinion[] = [{ cardId: 'gnash', attack: 5, health: 8 }];
@@ -3178,16 +3170,16 @@ describe('Rune of the Warden (Start of Combat: summon a Spear Warden if there is
 });
 
 describe('enemy run-level scalers (per-side)', () => {
-  // Full positional call so we can pass the PLAYER scalers (spellsThisTurn / beastsPlayedThisTurn) AND the
-  // ENEMY's captured scalers (last arg) independently — proving an enemy scaling card reads its OWN value.
+  // Symmetric call: the PLAYER's side-state and the ENEMY's side-state are independent `CombatSideState`s, so we
+  // prove an enemy scaling card reads its OWN captured values, never the current player's.
   const runVs = (
     p: BoardMinion[], e: BoardMinion[],
-    enemyScalers: { spellsThisTurn?: number; beastsPlayed?: number; deathrattles?: number; spellPowerAtk?: number; spellPowerHp?: number },
+    enemyScalers: Partial<CombatSideState>,
     player: { spellsThisTurn?: number; beastsPlayed?: number } = {},
   ) =>
     simulate(p, e, makeRng(1), CARD_INDEX,
-      player.spellsThisTurn ?? 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false,
-      player.beastsPlayed ?? 0, 0, 0, 0, {}, enemyScalers);
+      combatSide({ spellsThisTurn: player.spellsThisTurn ?? 0, beastsPlayed: player.beastsPlayed ?? 0, tier: 6, tribes: ALL_TRIBES }),
+      combatSide({ ...enemyScalers }));
   // Only the enemy scaling card buffs in these setups (the player is a vanilla wall), so the biggest buff
   // Attack across the log IS that card's grant.
   const maxBuffAtk = (evs: CombatEvent[]): number =>
@@ -3215,7 +3207,7 @@ describe('enemy run-level scalers (per-side)', () => {
 
 describe('live-display events (combat cards update in real time)', () => {
   const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
-    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, mods);
+    simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide());
 
   it('Trophy Stalker emits an `improve` event each attack so its live grant climbs on the card', () => {
     // Its "+M/+M" (summonBonus) rises on every attack; without the event the frame fold froze the displayed value.
@@ -3255,10 +3247,10 @@ describe('live-display events (combat cards update in real time)', () => {
 
 describe('served enemy quest/rune COMBAT effects (per-side questMods)', () => {
   // enemyQuestMods is the LAST simulate arg (after questMods + enemyScalers) — a served board's captured mods.
-  const simEnemy = (p: BoardMinion[], e: BoardMinion[], seed: number, enemyMods = {}, enemyScalers = {}) =>
-    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, {}, enemyScalers, enemyMods);
+  const simEnemy = (p: BoardMinion[], e: BoardMinion[], seed: number, enemyMods = {}, enemyScalers: Partial<CombatSideState> = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES }), combatSide({ ...enemyScalers, questMods: enemyMods }));
   const simPlayer = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
-    simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL_TRIBES, {}, false, false, 0, 0, 0, 0, mods);
+    simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }));
 
   it('an ENEMY Rune of Warding wards the ENEMY leftmost minion (its own rune, not the player’s)', () => {
     const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 20, keywords: ['T'] }];

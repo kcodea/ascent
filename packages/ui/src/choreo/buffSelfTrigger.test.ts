@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { simulate, makeRng, type BoardMinion, type CombatEvent } from '@game/core';
+import { simulate, combatSide, makeRng, type BoardMinion, type CombatEvent } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { compileMoments } from './compile';
 import { groupSelfBuffs } from './channels/buffSelf';
@@ -13,7 +13,7 @@ describe('buff-pulse trigger path (real combat)', () => {
   it('a Target Dummy on-damaged self-buff lands in a buffWave moment groupSelfBuffs picks up', () => {
     const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 30 }]; // tanky dummy: survives + gets hit
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 30 }]; // an attacker that trades blows
-    const r = simulate(p, e, makeRng(7), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ['beast']);
+    const r = simulate(p, e, makeRng(7), CARD_INDEX, combatSide({ tier: 6, tribes: ['beast'] }));
 
     // There is at least one self-buff (source === target) in the log — the dummy pumping its own Attack.
     const selfBuffEvents = r.events.filter((ev: CombatEvent) => ev.type === 'buff' && ev.source === ev.target);
@@ -40,7 +40,7 @@ describe('buff-pulse trigger path (real combat)', () => {
     // FX path calls `groupSelfBuffs` on that attack moment to fire the in-place pulse — this guards that data path.
     const p: BoardMinion[] = [{ cardId: 'solaris', attack: 5, health: 20 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 20 }]; // 0-atk Taunt bag: Solaris keeps swinging
-    const r = simulate(p, e, makeRng(3), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ['beast']);
+    const r = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ tier: 6, tribes: ['beast'] }));
 
     const selfBuffs = r.events.filter((ev: CombatEvent) => ev.type === 'buff' && ev.source === ev.target);
     expect(selfBuffs.length).toBeGreaterThan(0);

@@ -1,11 +1,12 @@
 import type {
   BoardMinion,
   CardDef,
+  CombatConfig,
   CombatContext,
   CombatEvent,
   CombatOutcome,
   CombatResult,
-  EnemyScalers,
+  CombatSideState,
   EffectDef,
   Keyword,
   Minion,
@@ -18,6 +19,7 @@ import type { Rng } from '../rng';
 import { CombatBus } from '../events';
 import { FACTORIES } from '../effects/factories';
 import { instantiate, type CardIndex } from './minion';
+import { EMPTY_SIDE } from './side';
 
 const OTHER: Record<Side, Side> = { player: 'enemy', enemy: 'player' };
 const ITERATION_GUARD = 300;
@@ -34,47 +36,25 @@ export function simulate(
   enemy: BoardMinion[],
   rng: Rng,
   cards: CardIndex,
-  spellsThisTurn = 0,
-  deathrattlesBase = 0,
-  enemyTier = 1,
-  undeadAttackBonus = 0,
-  undeadHealthBonus = 0,
-  spellsCast = 0,
-  undeadBuyAtk = 0,
-  fodderConsumedAtk = 0,
-  fodderConsumedHp = 0,
-  impAtkBonus = 0,
-  impHpBonus = 0,
-  spellPowerAtk = 0,
-  spellPowerHp = 0,
-  playerTier = 1,
-  playerTribes: string[] = [],
-  cardBuffs: Record<string, { attack: number; health: number }> = {},
-  playerAttacksFirst = false,
-  playerRallyDouble = false,
-  beastsPlayedThisTurn = 0,
-  beastBuyAtk = 0,
-  magneticBuyAtk = 0,
-  magneticBuyHp = 0,
-  questMods: QuestCombatMods = {},
-  /** The ENEMY board's run-level scalers, captured in its board snapshot — so an enemy Grim / Taragosa /
-   *  Pack Leader / Runescale scales with the OPPONENT's values, not the current player's. All default 0
-   *  (procedural threat / legacy boards), which is also correct for a synthetic foe with no run economy. */
-  enemyScalers: EnemyScalers = {},
-  /** The ENEMY board's quest/rune COMBAT modifiers, captured in its snapshot (the assembled `questCombatMods`
-   *  output) — so a served board reproduces its owner's runes/quests at Start of Combat / on avenge / etc. Every
-   *  per-side combat site reads `modsFor(side)`. Economy/hand/gold rune payoffs (Soul Taxes, Salvage, Blood Trail,
-   *  Deep Hunger, Appraisal) stay player-only — a snapshot enemy has no hand/shop/run to receive them. Default {}
-   *  (procedural threat / legacy boards). */
-  enemyQuestMods: QuestCombatMods = {},
+  /** The PLAYER side's run-level combat context (auras, spell power, tribe tallies, tier, tribes, quest mods).
+   *  Built from live `RunState`. Defaults to the neutral all-zero side, so a bare `simulate(player, enemy, rng,
+   *  cards)` behaves exactly as it always did. */
+  playerState: CombatSideState = EMPTY_SIDE,
+  /** The ENEMY side's run-level context — the SAME struct — reconstituted from its board snapshot, so an enemy
+   *  Grim / Taragosa / Pack Leader / Runescale / Watcher scales with the OPPONENT's values, not the current
+   *  player's. Defaults to the neutral side (procedural threat / synthetic foe with no run economy). */
+  enemyState: CombatSideState = EMPTY_SIDE,
+  /** Player-only one-fight combat overrides (runes): attack-first + Rally-double. */
+  config: CombatConfig = {},
 ): CombatResult {
-  // Per-side quest/rune combat modifiers: the player's live mods, or the served enemy's captured mods.
-  const modsFor = (side: Side): QuestCombatMods => (side === 'player' ? questMods : enemyQuestMods);
+  const { playerAttacksFirst = false, playerRallyDouble = false } = config;
+  // Per-side quest/rune combat modifiers: each side reads its OWN captured mods.
+  const modsFor = (side: Side): QuestCombatMods => (side === 'player' ? playerState.questMods : enemyState.questMods);
   // Beast Attack aura, PER SIDE, mutable so The Old Hunt (oldHuntStep) can pump it live as Beasts attack —
   // later from-base Beast bodies (summons / Reborn) then inherit the grown value. Its Health sibling
   // (Pack Mentality) is fixed for the fight. Enemy values come from the served snapshot.
-  const beastAtkAuraFor: Record<Side, number> = { player: beastBuyAtk, enemy: enemyScalers.beastBuyAtk ?? 0 };
-  const beastHpAuraFor: Record<Side, number> = { player: questMods.beastAuraHp ?? 0, enemy: enemyQuestMods.beastAuraHp ?? 0 };
+  const beastAtkAuraFor: Record<Side, number> = { player: playerState.beastBuyAtk, enemy: enemyState.beastBuyAtk };
+  const beastHpAuraFor: Record<Side, number> = { player: playerState.questMods.beastAuraHp ?? 0, enemy: enemyState.questMods.beastAuraHp ?? 0 };
   let beastBuyAtkGain = 0; // The Old Hunt: run-wide Beast Attack aura gained this combat → carried back
   const events: CombatEvent[] = [];
   // Resolution-step tag (choreographer spec 2026-07-06): `stepN` identifies the atomic resolution moment
@@ -104,7 +84,7 @@ export function simulate(
   let attachmentShopGrants = 0; // Moe: shops that must contain a guaranteed Magnetic offer, banked from combat
   // Running spell tally per side for in-combat casts (Taragosa's Growth). The player side is seeded from
   // the run's spellsCast so Guel's grant scales correctly; `playerCombatSpells` is the delta carried back.
-  const spellTotals: Record<Side, number> = { player: spellsCast, enemy: 0 };
+  const spellTotals: Record<Side, number> = { player: playerState.spellsCast, enemy: 0 };
   let playerCombatSpells = 0; // spells the player cast THIS combat → added to the run's spellsCast at settle
   // Economy battlecries Ryme re-fired in combat (Fodder / Gold / shop / gain-minion) — can't run in pure combat,
   // so they're recorded here and replayed through their real recruit factory at settle (full RunState access).
@@ -132,8 +112,8 @@ export function simulate(
   // `grantImpBuff`) then accrue onto their OWN side, so Imps summoned LATER inherit the gain — for both sides.
   // Fixes: enemy Imps spawning at 1/1 (enemy had no aura), and a later-summoned player Imp missing an earlier buff.
   const impAura: Record<Side, { attack: number; health: number }> = {
-    player: { attack: impAtkBonus, health: impHpBonus },
-    enemy: { attack: enemyScalers.impAtk ?? 0, health: enemyScalers.impHp ?? 0 },
+    player: { attack: playerState.impAtk, health: playerState.impHp },
+    enemy: { attack: enemyState.impAtk, health: enemyState.impHp },
   };
 
   // Bleed (Bloodbinder): at Start of Combat the bleeder MARKS a fixed set of enemies (chosen once, in `armBleed`);
@@ -147,15 +127,15 @@ export function simulate(
   // must inherit it — just like the player's. `buyAtk` is the Attack slice baked at buy time (player) or accrued
   // in-combat (enemy), re-added only to a from-base body; `attack`/`health` (Lantern) apply to all Undead.
   const undeadAura: Record<Side, { attack: number; health: number; buyAtk: number }> = {
-    player: { attack: undeadAttackBonus, health: undeadHealthBonus, buyAtk: undeadBuyAtk },
-    enemy: { attack: enemyScalers.undeadAtk ?? 0, health: enemyScalers.undeadHp ?? 0, buyAtk: enemyScalers.undeadBuyAtk ?? 0 },
+    player: { attack: playerState.undeadAtk, health: playerState.undeadHp, buyAtk: playerState.undeadBuyAtk },
+    enemy: { attack: enemyState.undeadAtk, health: enemyState.undeadHp, buyAtk: enemyState.undeadBuyAtk },
   };
 
   // Attachment/Magnetic aura (Scrap Herald / Banksly welds), PER SIDE — a served enemy carries its own captured
   // value, so enemy from-base Magnetics (summoned/Reborn) get it too, just like Beasts.
   const magneticAuraFor: Record<Side, { attack: number; health: number }> = {
-    player: { attack: magneticBuyAtk, health: magneticBuyHp },
-    enemy: { attack: enemyScalers.magneticAtk ?? 0, health: enemyScalers.magneticHp ?? 0 },
+    player: { attack: playerState.magneticAtk, health: playerState.magneticHp },
+    enemy: { attack: enemyState.magneticAtk, health: enemyState.magneticHp },
   };
 
   // Each aura yields the +atk/+hp it grants a given minion (0/0 = doesn't apply). `bakedAtk` is the slice of
@@ -215,7 +195,7 @@ export function simulate(
     // stacks banked THIS fight (`cardBuffGains`) are the player's own tracking, so they only fold onto players.
     const def = cards[m.cardId];
     const prior = fromBase
-      ? (isPlayer ? cardBuffs[m.cardId] : undefined) ?? (def ? m.buffs?.find((b) => b.source === def.name) : undefined)
+      ? (isPlayer ? playerState.cardBuffs[m.cardId] : undefined) ?? (def ? m.buffs?.find((b) => b.source === def.name) : undefined)
       : undefined;
     const gain = isPlayer ? cardBuffGains.find((c) => c.cardId === m.cardId) : undefined;
     const a = (prior?.attack ?? 0) + (gain?.attack ?? 0);
@@ -357,31 +337,31 @@ export function simulate(
   // Live spell power: starts at the run's value, then mid-combat grants (Gnasher's kills, Bladesmith deaths)
   // bump it IN PLACE via grantSpellPower — so Taragosa's Growth and any spell cast later this fight read the
   // gain in real time, not just at settle. `spellPowerGain` is the separate carry-back delta.
-  const spellPower = { attack: spellPowerAtk, health: spellPowerHp };
+  const spellPower = { attack: playerState.spellPowerAtk, health: playerState.spellPowerHp };
   // The enemy board's run-level scalers (from its snapshot) — static: enemies have no run economy and never
   // gain spell power mid-fight. Effects on the enemy side read these via the per-side accessors below, so an
   // enemy Taragosa/Grim/Pack Leader/Runescale scales with the OPPONENT's values, not the current player's.
-  const enemySpellPower = { attack: enemyScalers.spellPowerAtk ?? 0, health: enemyScalers.spellPowerHp ?? 0 };
-  const enemySpellsThisTurn = enemyScalers.spellsThisTurn ?? 0;
-  const enemyBeastsPlayed = enemyScalers.beastsPlayed ?? 0;
-  const enemyDeathrattles = enemyScalers.deathrattles ?? 0;
+  const enemySpellPower = { attack: enemyState.spellPowerAtk, health: enemyState.spellPowerHp };
+  const enemySpellsThisTurn = enemyState.spellsThisTurn;
+  const enemyBeastsPlayed = enemyState.beastsPlayed;
+  const enemyDeathrattles = enemyState.deathrattles;
 
   const ctx: CombatContext = {
     rng,
     bus,
     boards,
     events,
-    spellsThisTurn,
-    beastsPlayedThisTurn,
+    spellsThisTurn: playerState.spellsThisTurn,
+    beastsPlayedThisTurn: playerState.beastsPlayed,
     spellPower,
     enemySpellPower,
     spellPowerFor: (side) => (side === 'player' ? spellPower : enemySpellPower),
-    spellsThisTurnFor: (side) => (side === 'player' ? spellsThisTurn : enemySpellsThisTurn),
-    beastsPlayedFor: (side) => (side === 'player' ? beastsPlayedThisTurn : enemyBeastsPlayed),
+    spellsThisTurnFor: (side) => (side === 'player' ? playerState.spellsThisTurn : enemySpellsThisTurn),
+    beastsPlayedFor: (side) => (side === 'player' ? playerState.beastsPlayed : enemyBeastsPlayed),
     fodderConsumedFor: (side) => (side === 'player'
-      ? { attack: fodderConsumedAtk, health: fodderConsumedHp }
-      : { attack: enemyScalers.fodderConsumedAtk ?? 0, health: enemyScalers.fodderConsumedHp ?? 0 }),
-    deathrattleTally: (side) => (side === 'player' ? deathrattlesBase + playerDeathrattles : enemyDeathrattles),
+      ? { attack: playerState.fodderConsumedAtk, health: playerState.fodderConsumedHp }
+      : { attack: enemyState.fodderConsumedAtk, health: enemyState.fodderConsumedHp }),
+    deathrattleTally: (side) => (side === 'player' ? playerState.deathrattles + playerDeathrattles : enemyDeathrattles),
     log: (event) => {
       emit(event);
     },
@@ -531,7 +511,7 @@ export function simulate(
       if (side !== 'player') return; // enemies have no hand
       // Pick the ACTUAL spell now (tavern tier passed in) and route it through grantToHand — so the replay
       // shows the real card flying to your hand (a `toHand` event), and settle just adds the carried cardId.
-      const pool = Object.values(cards).filter((c) => c.spell && !c.token && c.tier <= playerTier); // exclude reward-exclusive spells (Feed the Alpha)
+      const pool = Object.values(cards).filter((c) => c.spell && !c.token && c.tier <= playerState.tier); // exclude reward-exclusive spells (Feed the Alpha)
       for (let i = 0; i < count && pool.length > 0; i++) {
         const pick = pool[Math.floor(rng.next() * pool.length)]!;
         handGrants.push(pick.id);
@@ -543,8 +523,8 @@ export function simulate(
       // Same as spells but for the buyable-minion pool (tribe-filtered, ≤ tavern tier, active tribes only).
       const pool = Object.values(cards).filter(
         (c) =>
-          !c.token && !c.spell && c.tier <= playerTier && c.id !== exclude &&
-          (c.tribe === 'neutral' || playerTribes.includes(c.tribe)) &&
+          !c.token && !c.spell && c.tier <= playerState.tier && c.id !== exclude &&
+          (c.tribe === 'neutral' || playerState.tribes.includes(c.tribe)) &&
           (!tribe || c.tribe === tribe || c.tribe2 === tribe || !!c.universalTribe),
       );
       for (let i = 0; i < count && pool.length > 0; i++) {
@@ -1213,7 +1193,7 @@ export function simulate(
               if (killer.effects.some((e) => e.on === 'onKill')) bumpSlaughterKeyword(); // The Red Trail: a Slaughter-keyword trigger
               // Blood Trail (Beast → hand) + Deep Hunger (Fodder → next shop) are ECONOMY/HAND — player-only (a
               // served enemy has no hand or shop). Their SoC marks are also only set on the player board.
-              if (questMods.bloodTrail && killer === bloodTrailMinion && killerAlive) ctx.grantRandomMinion(1, 'beast', 'player', undefined, killer.uid);
+              if (playerState.questMods.bloodTrail && killer === bloodTrailMinion && killerAlive) ctx.grantRandomMinion(1, 'beast', 'player', undefined, killer.uid);
               if (killer === deepHungerMinion && killerAlive) fodderGrants += 3;
             }
             // Law of Teeth: a Beast's Slaughter triggers one extra time — re-run only this killer's own on-kill
@@ -1354,9 +1334,9 @@ export function simulate(
   //     engraves its line too). Effects reading the player's RUN state (Abhorrent Horror's consumed-Fodder
   //     tally) side-gate themselves, since an enemy snapshot carries no run state. ---
   // Blood Trail: mark the leftmost living player minion — its kills this fight conjure a random Beast (above).
-  if (questMods.bloodTrail) bloodTrailMinion = boards.player.find((m) => !m.dead && m.health > 0);
+  if (playerState.questMods.bloodTrail) bloodTrailMinion = boards.player.find((m) => !m.dead && m.health > 0);
   // Deep Hunger: mark the leftmost living Demon — its kills queue 3 Fodder into the next shop (below).
-  if (questMods.deepHunger) deepHungerMinion = boards.player.find((m) => !m.dead && m.health > 0 && isDemon(m));
+  if (playerState.questMods.deepHunger) deepHungerMinion = boards.player.find((m) => !m.dead && m.health > 0 && isDemon(m));
   // Run-level SoC quest/rune grants, PER SIDE (a served enemy runs its own): Rulebreaker's Crown, Umbral Energy,
   // Contract Rewrite. Enemy values come from the captured mods / scalers.
   for (const scSide of ['player', 'enemy'] as const) {
@@ -1367,7 +1347,7 @@ export function simulate(
       if (lead && lead.attack > 0) { nextStep(); ctx.buff(lead, lead.attack, 0, lead.uid); }
     }
     // Umbral Energy: give every living Dragon +3/+3 for every spell cast this game (lifetime spellsCast, per side).
-    const scSpells = scSide === 'player' ? spellsCast : (enemyScalers.spellsCast ?? 0);
+    const scSpells = scSide === 'player' ? playerState.spellsCast : enemyState.spellsCast;
     if (smods.umbralEnergy && scSpells > 0) {
       const amt = 3 * scSpells;
       let stepped = false;
@@ -1550,7 +1530,7 @@ export function simulate(
 
   // Rune of Packcraft: whenever you summon a minion in combat, your Beasts gain +1 Attack (aura — current Beasts
   // now + carried back so future bought Beasts inherit it, like The Old Hunt). Per side; carry-back player-only.
-  if (questMods.runePackcraft || enemyQuestMods.runePackcraft) {
+  if (playerState.questMods.runePackcraft || enemyState.questMods.runePackcraft) {
     bus.on('onSummon', (payload) => {
       const { side } = payload as { minion: Minion; side: Side };
       if (!modsFor(side).runePackcraft) return;
@@ -1560,7 +1540,7 @@ export function simulate(
     });
   }
   // Rune of Inheritance: when your LEFT-MOST living minion dies, your right-most living minion gains its stats. Per side.
-  if (questMods.runeInheritance || enemyQuestMods.runeInheritance) {
+  if (playerState.questMods.runeInheritance || enemyState.questMods.runeInheritance) {
     bus.on('onDeath', (payload) => {
       const { minion, side } = payload as { minion: Minion; side: Side };
       if (!modsFor(side).runeInheritance) return;
@@ -1572,7 +1552,7 @@ export function simulate(
   }
   // Passing Spears: your Spear Wardens gain "Echo: when this dies, give its stats to a friendly minion" — on a
   // Spear Warden's death, hand its full stats (attack + max Health) to your strongest OTHER living minion. Per side.
-  if (questMods.passingSpears || enemyQuestMods.passingSpears) {
+  if (playerState.questMods.passingSpears || enemyState.questMods.passingSpears) {
     bus.on('onDeath', (payload) => {
       const { minion, side } = payload as { minion: Minion; side: Side };
       if (minion.cardId !== 'knit' || !modsFor(side).passingSpears) return;
@@ -1586,7 +1566,7 @@ export function simulate(
   }
   // Rune of Salvage: a friendly Mech losing its Ward drops a random Attachment into your hand next shop —
   // ECONOMY/HAND, so player-only (a served enemy has no hand; grantToHand no-ops for it anyway).
-  if (questMods.runeSalvage) {
+  if (playerState.questMods.runeSalvage) {
     const magnetics = Object.values(cards).filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech') && c.keywords.includes('M') && !c.token && !c.spell);
     if (magnetics.length > 0) {
       bus.on('onLoseDivineShield', (payload) => {
@@ -1704,7 +1684,7 @@ export function simulate(
   // the procedural fallback); a token / unknown survivor counts as tier 1.
   const playerDamage =
     result === 'lose'
-      ? enemyTier + survivorsE.reduce((sum, m) => sum + (cards[m.cardId]?.tier ?? 1), 0)
+      ? enemyState.tier + survivorsE.reduce((sum, m) => sum + (cards[m.cardId]?.tier ?? 1), 0)
       : 0;
 
   // Per-instance state to carry back to the run board: a Kennelmaster whose Avenge

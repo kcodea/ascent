@@ -11,7 +11,7 @@
  * Deterministic (fixed bot seeds + a fixed combat seed), so `npm run pool` bakes stable ratings + bands.
  * Used for pool CURATION / QA only — live matchmaking still uses Σ(atk+hp) power (see `opponents.ts`).
  */
-import { simulate, makeRng, type BoardMinion } from '@game/core';
+import { combatSide, simulate, makeRng, type BoardMinion } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { buildBootstrapPool, type BoardSnapshot } from './snapshot';
 import { opponentBoard } from './opponents';
@@ -107,7 +107,7 @@ export function rateBoardForWave(board: BoardMinion[], wave: number, ladders: Wa
   if (ladder.length === 0) return 0;
   let score = 0;
   for (const ref of ladder) {
-    const { result } = simulate(board, ref, makeRng(RATING_SEED), CARD_INDEX, 0, 0, tier);
+    const { result } = simulate(board, ref, makeRng(RATING_SEED), CARD_INDEX, combatSide(), combatSide({ tier }));
     score += result === 'win' ? 1 : result === 'draw' ? 0.5 : 0;
   }
   return score / ladder.length;

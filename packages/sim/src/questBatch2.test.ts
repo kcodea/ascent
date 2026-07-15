@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { BoardMinion, CombatResult, QuestCombatMods } from '@game/core';
-import { simulate } from '@game/core';
+import { simulate, combatSide } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { makeRng } from '@game/core';
 import { createRun, type RunState } from './state';
@@ -9,7 +9,7 @@ import { reduce } from './reducer';
 const ALL = ['beast', 'undead', 'mech', 'dragon', 'demon'];
 /** Run combat with explicit player quest combat mods (questMods is deep in the positional arg list). */
 const runMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods: QuestCombatMods): CombatResult =>
-  simulate(p, e, makeRng(seed), CARD_INDEX, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, ALL, {}, false, false, 0, 0, 0, 0, mods);
+  simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL, questMods: mods }));
 
 const shell = (over: Partial<CombatResult>): CombatResult => ({
   events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, ...over,

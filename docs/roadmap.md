@@ -499,6 +499,12 @@ hold so we don't regress it.
   public:** (1) CDN-front the read path (static/edge blob, never hit the DB on boot); (2) **server-side
   replay validation** (a Worker re-derives boards from the `{seed,heroId,actions}` replay → fabricated
   boards aren't reproducible). Both are DB-independent and added *when* going public.
+- **Combat side-state is now symmetric** (`CombatSideState`, shipped 2026-07-15 → devlog): both the player and a
+  served enemy feed `simulate()` through one identical struct, retiring the positional-vs-`EnemyScalers` asymmetry
+  that caused the piecemeal snapshot-fidelity bugs. **Opponent pinning** (persist which served board was fought each
+  wave, so a later rebuild/replay can't drift) stays **deferred** — a non-issue for today's game (telemetry rebuilds
+  same-session on a frozen pool; Continue restores the full serialized run; the leaderboard stores the actual board),
+  and only needed alongside server-side replay validation above. The symmetric struct is the groundwork it wanted.
 
 ---
 

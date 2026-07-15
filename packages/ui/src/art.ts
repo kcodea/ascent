@@ -100,12 +100,14 @@ export const avatarSrc = (id?: string | null): string | undefined => (id ? AVATA
  *  lazily: the board backdrops + title art (CSS `url()` / title <img>) and the custom drag cursors (a cursor
  *  swap flashes the default arrow until its SVG is fetched). They live outside the ui package's globs, so
  *  they're listed by URL — keep in sync with `styles.css` `url()` refs + `apps/web/public/`. */
+// BASE_URL-relative (not root-absolute): itch serves the game from a CDN sub-path, where '/x.webp' 404s and the
+// warm-up silently skipped these (BASE_URL is '/' in dev, './' in the build — resolved against index.html).
 const PUBLIC_ART_URLS: string[] = [
-  '/testboard2.webp', // the primary board (all resolutions); the July board (board219) loads on demand if selected
-  '/homescreen.webp',
-  '/cursors/gauntlet_default.svg',
-  '/cursors/gauntlet_open.svg',
-  '/cursors/hand_closed.svg',
+  `${import.meta.env.BASE_URL}testboard2.webp`, // the primary board (all resolutions); the July board (board219) loads on demand if selected
+  `${import.meta.env.BASE_URL}homescreen.webp`,
+  `${import.meta.env.BASE_URL}cursors/gauntlet_default.svg`,
+  `${import.meta.env.BASE_URL}cursors/gauntlet_open.svg`,
+  `${import.meta.env.BASE_URL}cursors/hand_closed.svg`,
 ];
 
 /** Every bundled art URL (minions + heroes + powers) + the public backdrops/cursors, deduped — the warm-up set. */

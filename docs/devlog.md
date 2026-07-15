@@ -206,6 +206,229 @@ shadow instantly; the tuner renders the preview checkbox + all four sliders. `ty
 
 ## 2026-07-13 (session 38)
 
+### fix: mobile readability zoom — bigger cards in a wider frame (mobile-only)
+
+Owner: "everything is impossible to read… zoom in ~20-25%." The binding constraint is vertical: two full card rows +
+HUD + hero must fit a ~430px landscape-phone stage, and cards are also width-capped by the 7-minion fit. So a naive
+base-scale bump either overflows vertically or (with the 7-fit cap) grows only chrome, not cards. Instead, enlarged
+the CARDS and WIDENED the board frame to make room:
+
+- `--mobile-boost` 1.18 → **1.36** — minions/card-text ~+15% (the readable content). ~the vertical max before the
+  warband row overlaps the hero panel.
+- `--board-mobile-zoom` 1.1 → **1.3** — the board backdrop frame is wider, the horizontal room the bigger cards need
+  to still fit 7 across.
+- `--gap-tighten` 0.62 → **0.48** — tighter card gaps so 7 fit the (wider) floor.
+- Re-tuned rope offsets for the taller rows: `--wb-drop` 92 → **112**, `--shop-drop` −37 → **−47** → shop bottom ~9px
+  above the rope, warband top ~8px below, 12px hero clearance (verified at 932×430 with a full 7+hand board).
+
+All still mobile-only (every var = desktop identity at ≥600px stage — verified desktop untouched). NB the layout can't
+cleanly exceed ~+15% on the current two-row 16:9 stage without cropping or a denser mobile relayout; the 1.3× tap-reveal
+(prev change) remains the tool for reading full text. Pairs with a matching FX size bump (fxScale tracks the boost).
+
+### fix: mobile — shrink keyword pills + enlarge the tap/hover card reveal 30%
+
+Two on-device readability asks (mobile-focused; desktop preserved exactly):
+
+- **Keyword pills too large.** `.kw` (Echo / Taunt / etc.) + `.kws` were authored in raw px (12px font, 3px/9px
+  padding, 8px radius, 12px svg) so they stayed desktop-sized on a phone's small card and dwarfed the description
+  text. Converted every metric to `--ccw` fractions at the exact value they held at the owner's ~141px desktop
+  `--ccw` (so desktop is byte-for-byte identical — verified `.kw` still computes to 12.0px there) while a phone's
+  smaller card now wears proportionally smaller pills (5.7px at 932×430).
+- **Tap/hover card reveal too small to read.** The `.cardref` popup (the enlarged card + referenced-token reveal
+  that pops on tap/hover) renders at the card's natural `--ccw`, which is tiny on a phone. Added `--inspect-zoom`
+  (JS-set, 1.3 on phone stages / 1 desktop) applied as `zoom` on `.cardref-inner` — 30% larger for reading. `zoom`
+  (not transform, which the float animation owns). `showRefTip` now folds the same factor into its width/height
+  placement estimates so the bigger popup still clamps on-screen (verified not off-screen at 932×430). Desktop popup
+  unchanged (`--inspect-zoom` = 1).
+
+### fix: suppress iOS long-press "Copy/Save Image" callout on card/unit art
+
+On a phone, press-and-holding a minion popped iOS Safari's image callout menu (Copy/Save Image) over the card art. The
+art `<img>` already had `draggable={false}` + `-webkit-user-drag: none` (drag-to-copy blocked) but not
+`-webkit-touch-callout: none`, which is the specific property that governs the long-press callout. Added it to `body`
+(broad — covers every image/link) and to `.artimg` (the shared card/combat-unit art). No-op on desktop (a `-webkit-`
+touch property), so desktop is unaffected. iOS-only behavior — verify on-device.
+
+### tweak: mobile — warband up to the rope (owner green-line, mobile-only)
+
+Owner nudged the Warband up closer to the centre rope on-device (green-line mark): `--wb-drop` 115 → 92px, so the
+warband top now sits ~6px below the rope (was ~13px); the shop stays ~15px above it. Pure mobile value tweak — desktop
+unaffected (`--wb-drop` is still 0px there). Verified at 932×430.
+
+### fix: mobile round 6 — symmetric shop/warband gaps around the rope (mobile-only)
+
+Follow-up to round 5's warband drop: the owner marked green lines showing the shop bottom + warband top should sit
+SYMMETRIC distances above/below the centre rope (round 5 left the shop bottom ~3px above the rope but the warband top
+~16px below — lopsided). The rope is fixed at the `.app` vertical centre (~209px at 932×430; its `--rope-y` var
+recomputes on resize to stay there regardless of row offsets), so this is purely closing the two gaps evenly:
+
+- Added a `--shop-drop` lever (mirrors `--wb-drop`) folded into the tavern zone's `top` (`(var(--z-shop-y,45px) +
+  var(--shop-drop,0px)) * --scale`); −37px on mobile lifts the shop bottom to ~14px above the rope.
+- Trimmed `--wb-drop` 122 → 115px so the warband top lands ~14px below the rope — symmetric.
+
+Verified live at 932×430: shop bottom 195 / warband top 223 with the rope at ~209 → 14px on each side; warband bottom
+still clears the hand (22px to the hero panel). Desktop provably untouched (`--shop-drop`/`--wb-drop` = 0, tavern
+`top` still `45 × scale = 33.6px`).
+
+### fix: mobile round 5 — warband below the rope, +10% HUD, +10% board art (all mobile-only)
+
+Owner asked (phone only, "none of this should change the desktop feel or look at all"): drop the Warband clearly
+BELOW the centre rope (the shop/warband separation matters — minions may shrink slightly to afford it), grow the
+non-shop HUD ~10%, and zoom the board backdrop ~10% so the frame covers more screen. Every lever is a JS-set
+MULTIPLIER/offset that defaults to the desktop identity (1 / 0px) and only takes a non-identity value on phone stages
+(`gh < 600`), so desktop is provably untouched — verified live (all vars 1/0, warband `top` computes to the same
+−37.5px, desktop screenshot unchanged):
+
+- **Warband below the rope.** New `--wb-drop` (122px on mobile, 0 on desktop) added into the warband zone's `top`
+  offset (both the base rule and the `min-height:900px` desktop rule fold in `+ var(--wb-drop, 0px)` → desktop = +0).
+  At 932×430 the shop row now ends ~9px above the rope and the warband starts ~10px below it — a clean symmetric gap.
+- **Minion zoom dialed back 1.27 → 1.18.** The bigger the minions, the taller the warband row and the more it crowds
+  the bottom-pinned hand fan after the drop. 1.18 keeps them larger-than-desktop while the warband bottom clears the
+  hand's tucked cards (verified with a full hand).
+- **Non-shop HUD +10%.** New `--hud-mobile` (1.1 mobile / 1 desktop) folded into the GLOBAL `--u` (hero, opponent,
+  buffs, quests) and the top status bar's `--u` — but deliberately NOT `.shopbar`'s `--u`, so the shop controls
+  (Upgrade/Reroll/Freeze/End Turn) stay put per "non-shop HUD".
+- **Board art +10%.** New `--board-mobile-zoom` (1.1 mobile / 1 desktop) composed INTO the `.boardbg` size alongside
+  the Lab's `--board-zoom` (`* var(--board-mobile-zoom, 1)`), so it enlarges the backdrop on a phone without
+  clobbering the owner's Layout-Lab board-zoom on desktop.
+
+### fix: mobile round 4 — board gaps, minion zoom, hero-power coin, touch drag feel
+
+- **7-minion warband/shop overflowed the board.** The row gaps (`--z-shop-gap`/`--z-wb-gap`, and the base `.row`)
+  defaulted to raw `22px` applied WITHOUT `* var(--scale)` — so cards shrank on a phone but the gaps didn't, and the
+  7th warband minion fell off the frame. Scaled all three by `var(--scale) / 0.745` (the owner's desktop ref → gaps
+  identical on desktop, ~9px on a phone). Measured live at 932×430: 7 cards span 534px inside the ~650px floor.
+- **Zoom minions ~10% + tighten mobile spacing (owner request).** Bumped `--mobile-boost` 1.15 → 1.27 (cards read
+  ~10% larger, chrome/offsets untouched so nothing collides with the frame/hero panel) and added a JS-set
+  `--gap-tighten` (0.62 on phone stages, 1 on desktop) multiplied into the row gap, so the bigger cards still fit 7
+  across (verified: cards 201→735px within the board floor).
+- **Hero-power gold coin oversized.** `.hpcost` (the cost coin eclipsing the power button) was raw px (44px / 22px
+  font / −14px offset) while the button beneath it is `--u`-scaled — so it ballooned on a phone. Converted to `--u`
+  (now 17px at phone scale, 42px on desktop — unchanged).
+- **Touch drag felt like low FPS — it was the weighted-lag drag feel, not frame rate.** The card catches up to the
+  pointer at `follow: 0.6` (a deliberate mouse-tuned weight); trailing behind a *cursor* reads as juicy heft, but
+  trailing behind a *fingertip* reads as stutter. Captured `pointerType` on grab (`dragIsTouchRef`) and, in the
+  imperative drag rAF, override `follow` to `max(f.follow, 0.9)` for touch/pen so the card sticks to the finger. Mouse
+  keeps the owner's DEV-tuned feel exactly. (This is a *feel* fix, not a perf fix — the drag was already a
+  compositor-only, FPS-independent rAF; combined with round 3's DPR cap + smaller FX, actual frame cost is down too.)
+  All desktop values verified pixel-identical (scale 0.746, boost 1, gap 22px, coin 42px).
+
+### fix: mobile scaling round 3 — combat FX, quest offers, slider, title/settings, DPR perf
+
+Six device-reported issues, all the same family (authored at desktop scale, doesn't shrink) plus one GPU lever:
+
+- **Combat effects too large.** The WebGL particle bursts (impact flash/shockwave/ring, sparks, dust, pulse, smoke)
+  size themselves from absolute px dials tuned at the owner's ~0.745 desktop scale — they never tracked `--scale`,
+  so on a phone the desktop-sized burst dwarfed the tiny card (the giant yellow ring). Added `pixiFx.setScale()`
+  (wired from Game.tsx's resize effect as `(scale × mobile-boost) / 0.745` → 1.0 on desktop, ~0.46 on a phone) and
+  applied it in the single `spawn()` choke to every particle's `fromScale`/`toScale`/`vx`/`vy`/`gravity`. Positions
+  stay in absolute screen coords (they're already correct); only size + motion scale. The persistent shield/reborn
+  bubbles are sized from card w/h (a different path) and are unaffected — still correct.
+- **Performance on mobile.** Capped the pixi render resolution at `min(devicePixelRatio, 2)` on both FX canvases. A
+  phone's DPR is often 3, and a full-viewport WebGL overlay at 3× is 9× the fill of 1× — the biggest single GPU cost
+  for a soft-particle layer whose glows don't need 3× crispness. 2 keeps retina-sharp edges on desktop while ~halving
+  phone fill. (This is the mobile-smoothness lever; combined with the smaller bursts above, far less to draw.)
+- **Quest offer cards stretched vertically + unreadable.** `.questcard*` outer size is `--cw`-relative (scaled) but
+  every inner metric (34px head padding, 23px title, 13px body text, the −22px emblem overhang) was raw px — so on a
+  phone the text overflowed the shrunk card, wrapped one word per line, and the `min-height` grew the card tall.
+  Converted the whole inner block to `--u` (matching the already-scaled `.quest-row` active panel).
+- **Skip/speed HUD scaled weirdly.** The combat-speed slider's track (8px), thumb (18px), and value (14px/36px) were
+  raw px while the rest of the HUD was `--u` — so the control stayed desktop-sized against shrunk chrome. Converted
+  to `--u`.
+- **Title Practice/Balance off-screen + Settings not scaling.** Both are raw-px fullscreen overlays living OUTSIDE the
+  `--scale` stage, so a 430px-tall landscape phone clipped the title's `.titlesecondary` row (Practice · Compendium ·
+  Balance Report) off the bottom and rendered the settings panel oversized. Added one reusable `--ui-zoom`
+  (`clamp(0.34, --scale/0.745, 1)` — 1.0 on desktop, shrink-only so a big monitor never inflates them) and applied
+  `zoom:` to `.titlemenu`, `.titleaccount`, and `.escpanel`. Verified live at 932×430: the full title menu + secondary
+  row fit, the settings panel fits, the combat HUD slider is proportional, and combat cards render scaled.
+
+### fix: hero-select scales on phones (zoom off the stage scale)
+
+The hero picker (and the end screen, which reuses its `.hsbox` shell) is authored in fixed px tuned at the owner's
+0.745-scale desktop (333px cards, 151px art, 68px title) and sat outside the stage's `--scale` system — on a phone it
+rendered desktop-sized into a scrollable overlay. Fixed with the codebase's established `zoom` pattern (the end-board
+already uses it): `.hsbox { zoom: calc(var(--scale)/0.745 × var(--mobile-boost)) }` — exactly 1 on the owner's desktop
+(unchanged), ~0.46 on a phone (× the 1.15 tap boost). Catch: vw lengths inside a zoomed box get multiplied by the
+zoom too, so the box's `max-width: 96vw` falsely wrapped the third card — the cap now divides the zoom back out. The
+Practice "dense" all-heroes grid opts out via `:has` (it already self-scales with vw clamps; zoom would double-shrink
+it). Verified at 932×430 (all three Ascent choices fit one row, sized for the stage), desktop parity (zoom 1, card
+333px), and the dense grid (zoom snaps to 1). `typecheck`/`lint`/`build:web` green; test zip repacked.
+
+### fix: mobile polish round 2 — rope alignment/texture, row heights, badge outlines, card zoom
+
+Third iPhone itch test (owner): four more phone-only issues, all the same two root-cause families as round 1
+(fixed px that doesn't ride the stage scale) plus one texture quirk:
+- **Rope too high** — the JS midline bias (`-14px`, tuned on desktop) was fixed px, so it rode proportionally
+  ~3× higher on a short phone stage. Now scales with the stage (19 reference px × gh/1440).
+- **Rope "looks different"** — the braid's `repeating-linear-gradient` stripes were fixed 3/7px; on a ~4px-tall
+  phone rope they read as dashes instead of a braid. Stripe stops now ride `--scale` (4/9.4 reference px).
+- **Shop UI + minions too low** — `.app`'s fixed `12px/18px` padding + `8px` gaps ate ~3× more of a short stage,
+  pushing every row down (shop badges landed ON the rope). Now `--u`-scaled (identical on desktop where --u≈1px).
+- **Goofy stat-badge outlines** — the atk/hp badges size with `--ccw` but their cream border (3px), dark-gold ring
+  (2px), tier-pill border (2px), and medallion border (2px) were fixed px — huge on a ~16px phone badge. All now
+  track `--ccw` (ratios = the tuned px at the desktop badge).
+- **Mobile card zoom** — new `--mobile-boost` (JS-set: 1.15 when the stage is under 600px tall, else 1) multiplies
+  `--ch-base` so CARDS are ~15% bigger to read/tap on phones while the chrome (`--u`) stays put. Starting dial.
+
+Verified at 932×430: rope sits below the shop row with braid texture, rows match desktop proportions, badge
+outlines clean, cards 65px (was 56). Desktop parity confirmed (scale 0.746, boost 1, card 141px — unchanged).
+`typecheck`/`lint`/`build:web` green; test zip repacked.
+
+### fix: itch sub-path asset 404s ("old frames") + raw-px UI that ignored the stage scale
+
+Second iPhone itch test surfaced two distinct bug classes:
+- **"Old frames" on itch = absolute asset paths, not an old build.** `Card.tsx` loaded the authored frames from
+  root-absolute `'/frames/standard-oval.png'` etc. itch serves the game from a CDN **sub-path**, so those 404 — and
+  the frames' graceful 404-fallback silently rendered the pre-frame arched look. (The board art still worked because
+  Vite rewrites CSS `url(/…)` to relative at build — but it can't rewrite JS string literals.) Fixed by prefixing
+  every JS-side public-asset URL with `import.meta.env.BASE_URL` ('/' in dev, './' in the build): the three frame
+  srcs in `Card.tsx` + the five `PUBLIC_ART_URLS` preloads in `art.ts` (those were silently skipping their warm-up
+  on itch too). Verified: the built bundle now emits `./frames/…`.
+- **Raw-px styles don't ride the stage scale.** The uniform `--scale` only reaches CSS authored in `--u`/`--ch`;
+  rules still written in raw px read fine on desktop (`--u` ≈ 1px there) but render ~3× oversized at phone scale.
+  Converted the offenders visible on the device: `.cost` (the spell Gold coin — fixed 60px, WIDER than the whole
+  phone-scale card, which also inflated the shop row into the rope), `.cbtns`/`.btn.big` (post-combat Summary /
+  End Combat — fixed 32px font + 24/48px padding), and the hand zone's fixed lift/width cap (−26px / 1180px →
+  `--u`/`--scale`). Verified at 932×430: coin/card ratio matches desktop (23px vs 56px card), the shop row sits
+  above the rope again, and the combat buttons scale with the board. **A full stylesheet sweep for remaining raw-px
+  in-game rules is the systematic follow-up** — these were the ones the device test exposed.
+
+### fix: phone-size scale floor + PWA manifest for true iPhone fullscreen
+
+First real-device test (owner's iPhone, via a secondary itch upload) showed the UI ~50% oversized with overlapping
+HUD/hero/shop. Cause: the `--scale` clamp floor of 0.45 — an iPhone's landscape stage is only ~380-460 CSS px tall
+(true ratio ~0.27-0.32), so the floor forced everything 1.5× too big. Dropped the floor to 0.2 (the uniform scale's
+whole point is staying proportional at any size); verified at 932×430 (iPhone 15 Pro Max landscape): scale 0.299,
+no overlaps, End Turn + hero panel fully clear.
+
+True fullscreen on iPhone: Safari has NO fullscreen API for games (itch's fullscreen button is a no-op on iOS) —
+the real path is **Add to Home Screen**, which launches standalone with zero browser chrome. Added the missing PWA
+pieces so that installs cleanly: `manifest.webmanifest` (fullscreen display, landscape orientation, dark theme) +
+generated icons (192/512 + apple-touch-icon 180, centre-cropped from the homescreen art) + the manifest/icon links
+in `index.html`. Repacked `ascent-itch-mobile-test.zip` for the owner's test page.
+
+First mobile pass (owner: landscape-only + rotate prompt, "make it playable"). Builds on the 16:9-locked, uniformly
+`--scale`d UI so a phone just needs it to fit + take touch:
+- **Viewport / zoom lock.** `index.html` gets `maximum-scale=1, user-scalable=no, viewport-fit=cover` (the board
+  does its own zoom-free scaling), a dark `theme-color`, and the iOS web-app status-bar metas.
+- **Touch input.** `.app` (the board) is `touch-action: none` so a card DRAG isn't hijacked as a page scroll/pan on
+  touch — taps/buttons still fire; scrollable overlays (balance report, settings) sit outside `.app` and keep normal
+  scrolling. `html, body` get `overscroll-behavior: none` (no rubber-band / pull-to-refresh) + `touch-action:
+  manipulation` (kills the 300 ms double-tap-zoom).
+- **Fills the real viewport.** The stage height switched from `vh` → `dvh` (dynamic viewport height) so it tracks the
+  mobile browser's shrinking/growing address bar.
+- **Safe areas.** The bottom-corner UI (status bar, gear, version) adds `env(safe-area-inset-*)` so it clears the
+  notch / home indicator (0 elsewhere).
+- **Landscape-only.** A full-screen "Rotate your device" overlay (animated phone icon) shows ONLY on a touch device
+  held in portrait (`@media (orientation: portrait) and (pointer: coarse)` — a desktop portrait window never triggers
+  it); landscape gets the full 16:9 board.
+
+Verified live: at a 812×375 landscape phone the board fills and everything scales (`--scale` 0.45, `touch-action:
+none` on the board); the rotate overlay renders correctly (media logic confirmed: `portrait` matches, `coarse` is
+false in the desktop pane so it stays hidden there). `typecheck`/`lint`/`build:web` green. **Next:** the title/menu
+screen still needs mobile sizing (its buttons are oversized at phone widths — it doesn't ride `--scale`), touch-drag
+feel + tap targets, and a real-device pass.
+
 ### feat: uniform stage scaling + trimmed Settings + Balance Report alignment
 
 Three UI passes on the 16:9-lock branch:

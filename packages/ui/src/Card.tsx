@@ -13,15 +13,19 @@ import { useGame } from './store';
 // TAUNT frame — pipeline layer 2 (the authored shield). Prefer an authored raster PNG (painterly, drops into
 // `apps/web/public/frames/`); until it exists the SVG placeholder renders instead. `tauntFrameAvailable` flips
 // false after the first 404 this session so we don't re-request a missing asset on every Taunt card.
-const TAUNT_FRAME_SRC = '/frames/taunt-shield.png';
+// NB: BASE_URL-relative, NOT root-absolute — itch serves the game from a CDN sub-path, where '/frames/…' 404s
+// and the graceful fallback silently rendered the OLD pre-frame look (owner's mobile itch test). Vite rewrites
+// CSS url(/…) to relative at build, but it can't rewrite JS string literals — these must carry the base
+// themselves (BASE_URL is '/' in dev, './' in the build).
+const TAUNT_FRAME_SRC = `${import.meta.env.BASE_URL}frames/taunt-shield.png`;
 let tauntFrameAvailable = true;
 // STANDARD frame (every non-Taunt MINION) — the authored gold OVAL, and SPELL frame — the authored purple SQUARE.
 // Same pipeline as Taunt (portrait clipped to the frame's window → PNG over it → per-tribe tint → DOM data). Each
 // class is applied ONLY when its PNG loads; on a 404 the availability flag flips false (so we stop re-requesting)
 // and the card falls back to the original arched / spell look. See styles.css "AUTHORED FRAMES" for the geometry.
-const STD_FRAME_SRC = '/frames/standard-oval.png';
+const STD_FRAME_SRC = `${import.meta.env.BASE_URL}frames/standard-oval.png`;
 let stdFrameAvailable = true;
-const SPELL_FRAME_SRC = '/frames/spell-frame.png';
+const SPELL_FRAME_SRC = `${import.meta.env.BASE_URL}frames/spell-frame.png`;
 let spellFrameAvailable = true;
 
 const KW_LABEL: Record<Keyword, string> = {
@@ -289,10 +293,14 @@ export const Card = memo(function Card({
       const r = el.getBoundingClientRect();
       const n = popupCards.length;
       const gap = 10;
-      const tipW = r.width * n + (n - 1) * gap; // full-size cards, laid left→right
+      // The popup is `zoom`ed by --inspect-zoom (1.3 on mobile) for readability, so its rendered footprint is that
+      // much bigger than a natural card — fold the same factor into the width/height estimates so it stays on-screen.
+      const zoom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--inspect-zoom')) || 1;
+      const cardW = r.width * zoom;
+      const tipW = cardW * n + (n - 1) * gap; // full-size cards, laid left→right
       const flip = r.right + gap + tipW > window.innerWidth - 6; // off the right edge → show on the left
       const left = flip ? Math.max(6, r.left - gap - tipW) : r.right + gap;
-      const estH = r.width * 1.34; // a full card is ~1.34× its width tall — clamp so it stays on-screen
+      const estH = cardW * 1.34; // a full card is ~1.34× its width tall — clamp so it stays on-screen
       const top = Math.max(6, Math.min(r.top, window.innerHeight - estH - 6));
       setRefPos({ left, top, origin: flip ? 'right' : 'left' });
     }, showText ? 250 : 100);

@@ -480,6 +480,15 @@ class FxController {
   private readonly live: Particle[] = [];
   private readonly pool: Sprite[] = [];
   private fadeRaf = 0; // in-flight setVisible fade (rAF) — cancelled if a new fade starts
+  // Uniform FX size/motion multiplier, tracking the DOM stage `--scale` so particle bursts stay proportional to
+  // the (shrinking) cards. Every px dial was tuned at the owner's ~0.745 desktop scale, so `setScale` divides that
+  // reference out → 1.0 on desktop (untouched look), ~0.45 on a phone. Applied in `spawn` to size + velocity.
+  private fxScale = 1;
+
+  /** Track the stage scale so combat particle bursts shrink with the cards (see `fxScale`). Idempotent; cheap. */
+  setScale(stageScale: number): void {
+    this.fxScale = stageScale > 0 ? stageScale : 1;
+  }
 
   /** Mount the overlay canvas into `parent` (a fixed, full-viewport, pointer-events:none div).
    *  Lazily creates the PixiJS Application on first call and reuses it thereafter. */
@@ -500,13 +509,17 @@ class FxController {
   }
 
   private async init(parent: HTMLElement): Promise<void> {
+    // Cap the render resolution: a phone's DPR is often 3, and a full-viewport WebGL overlay at 3× is 9× the
+    // fill of 1× — the biggest single GPU cost on mobile for a soft-particle layer whose glows don't need 3×
+    // crispness. 2 keeps retina-sharp edges on desktop while ~halving phone fill (owner's mobile-smoothness pass).
+    const res = Math.min(window.devicePixelRatio || 1, 2);
     const app = new Application();
     await app.init({
       resizeTo: window,
       backgroundAlpha: 0, // transparent — it's an overlay
       antialias: true,
       autoDensity: true,
-      resolution: window.devicePixelRatio || 1,
+      resolution: res,
       preference: 'webgl',
       powerPreference: 'high-performance',
     });
@@ -531,7 +544,7 @@ class FxController {
       const sApp = new Application();
       await sApp.init({
         resizeTo: window, backgroundAlpha: 0, antialias: true, autoDensity: true,
-        resolution: window.devicePixelRatio || 1, preference: 'webgl', powerPreference: 'high-performance',
+        resolution: res, preference: 'webgl', powerPreference: 'high-performance',
       });
       const sc = sApp.canvas;
       sc.style.position = 'absolute'; sc.style.top = '0'; sc.style.left = '0';
@@ -1758,6 +1771,11 @@ class FxController {
     const layer = this.layer;
     if (!layer) return;
     const peakAlpha = cfg.peakAlpha ?? 1;
+    // Scale SIZE + MOTION (not position — x/y are absolute screen coords) by the stage scale so a burst on a
+    // phone's small card is a small burst. fromScale/toScale/vx/vy/gravity all track it; positions do not.
+    const fx = this.fxScale;
+    const fromScale = cfg.fromScale * fx;
+    const toScale = cfg.toScale * fx;
     const sprite = this.pool.pop() ?? new Sprite();
     sprite.texture = tex;
     sprite.anchor.set(0.5);
@@ -1766,14 +1784,14 @@ class FxController {
     sprite.alpha = peakAlpha;
     sprite.x = cfg.x;
     sprite.y = cfg.y;
-    sprite.scale.set(cfg.fromScale * (cfg.stretchX ?? 1), cfg.fromScale);
+    sprite.scale.set(fromScale * (cfg.stretchX ?? 1), fromScale);
     sprite.rotation = cfg.rotation ?? 0;
     sprite.visible = true;
     layer.addChild(sprite);
     this.live.push({
-      sprite, x: cfg.x, y: cfg.y, vx: cfg.vx, vy: cfg.vy, drag: cfg.drag,
-      life: cfg.life, maxLife: cfg.life, fromScale: cfg.fromScale, toScale: cfg.toScale, spin: cfg.spin, peakAlpha,
-      gravity: cfg.gravity ?? 0,
+      sprite, x: cfg.x, y: cfg.y, vx: cfg.vx * fx, vy: cfg.vy * fx, drag: cfg.drag,
+      life: cfg.life, maxLife: cfg.life, fromScale, toScale, spin: cfg.spin, peakAlpha,
+      gravity: (cfg.gravity ?? 0) * fx,
       stretchX: cfg.stretchX ?? 1,
     });
   }

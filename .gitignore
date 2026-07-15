@@ -5,7 +5,7 @@ coverage/
 .env.*
 !.env.example
 !apps/web/.env
-ascent-itch.zip
+ascent-itch*.zip
 *.tsbuildinfo
 *.log
 .DS_Store

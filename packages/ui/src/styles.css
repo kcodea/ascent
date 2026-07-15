@@ -22,8 +22,10 @@
      (--gw/--gh), not the raw viewport, so the UI never reflows with screen size; a wider/taller window just adds
      margins around the 16:9 stage, which the board art extends into (see `.boardbg`) instead of black bars. The
      Esc-menu resolution scaler can still cap the box to a fixed pixel size (see [data-res]). */
-  --gw: min(100vw, calc(100vh * 16 / 9)); --gh: min(100vh, calc(100vw * 9 / 16));
-  --bar-x: calc((100vw - var(--gw)) / 2); --bar-y: calc((100vh - var(--gh)) / 2);
+  /* `dvh` (dynamic viewport height) instead of `vh` so the stage tracks the mobile browser's shrinking/growing
+     address bar and fills the real visible area on phones. */
+  --gw: min(100vw, calc(100dvh * 16 / 9)); --gh: min(100dvh, calc(100vw * 9 / 16));
+  --bar-x: calc((100vw - var(--gw)) / 2); --bar-y: calc((100dvh - var(--gh)) / 2);
   /* The in-game board backdrop — ONE wide (21:9) source art, drawn on `.boardbg` (a full-viewport layer behind
      the 16:9 stage): scaled to the stage height + centred, so the ornate frame stays locked to the 16:9 UI and
      the surrounding floor art just extends into the side margins on wider monitors (cropped to 16:9 at standard
@@ -36,8 +38,10 @@
      1 (the 1440-tall tuned look) until JS sets it; JS clamps it [0.45, 1.25] so it never gets unusably tiny/oversized. */
   --scale: 1;
   /* one standard card size everywhere (shop / warband / hand / combat) — 384px at the reference, × --scale.
-     `--ch` multiplies it by the dev Layout Lab's `--card-scale`; per-region rules can multiply again for a row. */
-  --ch-base: calc(384px * var(--scale));
+     `--mobile-boost` (JS-set, 1.15 on phone-height stages, else 1) zooms CARDS only so they stay readable/tappable
+     on phones while the chrome (--u) stays put. `--ch` multiplies in the dev Layout Lab's `--card-scale`;
+     per-region rules can multiply again for a row. */
+  --ch-base: calc(384px * var(--scale) * var(--mobile-boost, 1));
   --ch: calc(var(--ch-base) * var(--card-scale, 0.77)); --cw: calc(var(--ch) * 0.752);
   /* compact-card size: 15% smaller than the full card width, used at rest + in combat (kept in sync). */
   --ccw: calc(var(--cw) * 0.85);
@@ -46,7 +50,14 @@
   /* a scaled "px" for the chrome (HUD / tavern controls / status tray / timer): 1.34px at the reference, × --scale
      so the chrome tracks the cards. Use calc(N*--u). */
   --u-base: calc(1.34px * var(--scale));
-  --u: calc(var(--u-base) * var(--ui-scale, 0.96));
+  /* `--hud-mobile` (JS-set, 1.1 on phone stages else 1) grows the non-shop HUD chrome ~10% on mobile only. It's
+     folded into the GLOBAL --u (hero / opponent / buffs / quests) and the top status bar (.bar) — but deliberately
+     NOT the shop controls (.shopbar redefines --u without it), per the owner's "non-shop HUD" request. */
+  --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--hud-mobile, 1));
+  /* Shrink-only zoom for the OFF-STAGE fullscreen overlays (title menu, settings) that are authored in raw px and
+     live outside the --scale system. 1.0 at the owner's ~0.745 desktop scale (untouched), ~0.4 on a phone, clamped
+     to never ENLARGE past the authored look on a big monitor. Applied via `zoom:` so the whole panel scales as one. */
+  --ui-zoom: clamp(0.34, calc(var(--scale) / 0.745), 1);
 }
 /* Resolution scaler (Esc menu): cap the stage to a fixed resolution box, centred + letterboxed.
    Each maintains its aspect ratio (the height cap keeps it true) and never exceeds the window. The aspect must
@@ -59,9 +70,27 @@
    and extending into the margins on wider windows. No per-aspect --board swap. */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
+/* Mobile: no rubber-band overscroll / pull-to-refresh, and kill the 300ms double-tap-zoom (the board handles
+   its own zoom-free scaling). `dvh` (dynamic viewport height) below tracks the mobile browser chrome. */
+html, body { overscroll-behavior: none; touch-action: manipulation; }
 /* centre the stage box in the window (it shrinks under the resolution scaler, letterboxing the rest) */
 #root { display: flex; align-items: center; justify-content: center; overflow: hidden; }
-body { font-family: var(--font-body), sans-serif; color: var(--ink); background: var(--bg); overflow: hidden; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; user-select: none; -webkit-user-select: none; }
+body { font-family: var(--font-body), sans-serif; color: var(--ink); background: var(--bg); overflow: hidden; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+/* Landscape-only on phones: a full-screen "rotate your device" overlay, shown ONLY on a touch device held in
+   portrait (`pointer: coarse` excludes a desktop window that merely happens to be portrait). The 16:9 board is
+   unusable upright, so we ask the player to rotate rather than maintain a second, portrait layout. */
+.rotate-prompt { display: none; }
+@media (orientation: portrait) and (pointer: coarse) {
+  .rotate-prompt {
+    display: flex; position: fixed; inset: 0; z-index: 10000; flex-direction: column; align-items: center;
+    justify-content: center; gap: 20px; text-align: center; padding: 40px calc(40px + env(safe-area-inset-right));
+    background: #160f08; color: #f0e8da; font-family: var(--font-ui), sans-serif; pointer-events: auto;
+  }
+  .rotate-prompt svg { width: 76px; height: 76px; color: var(--acc, #f0902e); animation: rotatehint 2.6s ease-in-out infinite; }
+  .rotate-prompt-t { font-weight: 800; font-size: 22px; letter-spacing: 0.02em; }
+  .rotate-prompt-s { font-weight: 600; font-size: 15px; color: rgba(240, 232, 218, 0.68); max-width: 300px; line-height: 1.5; }
+}
+@keyframes rotatehint { 0%, 42% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
 /* Boot loading screen — held up front while all card/hero art fetches + decodes (see Boot.tsx). Uses only
    fixed units (no --u letterbox vars, which Game sets later) so it renders correctly before Game mounts. */
 .bootload { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: var(--bg2, #efe5d4); color: var(--ink, #2a2017); }
@@ -94,7 +123,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* The stage box: the 16:9 design canvas holding all the UI, centred in the window (#root flex-centres it) at a
    fixed --gw/--gh. Transparent — the board art now lives on `.boardbg` (a full-viewport layer BEHIND the stage)
    so it can extend past the stage into the side/top margins on off-16:9 monitors instead of black letterbox bars. */
-.app { position: relative; z-index: 1; flex: none; width: var(--gw); height: var(--gh); display: flex; flex-direction: column; padding: 12px 18px calc(var(--ch) * 0.92); gap: 8px; background: transparent; border-radius: 2px; }
+/* `touch-action: none` on the board so a card DRAG (pointer events) isn't stolen by the browser as a scroll/pan
+   on touch devices — taps/buttons still fire. Scrollable overlays (balance report, settings) sit outside .app.
+   Paddings/gap ride --u (were fixed 12/18/8px): the fixed overhead ate ~3× more of a short phone stage, pushing
+   the shop row + controls visibly low ("shop ui and minions too low", owner's mobile test). */
+.app { position: relative; z-index: 1; flex: none; width: var(--gw); height: var(--gh); display: flex; flex-direction: column; padding: calc(12 * var(--u)) calc(18 * var(--u)) calc(var(--ch) * 0.92); gap: calc(8 * var(--u)); background: transparent; border-radius: 2px; touch-action: none; }
 /* Board backdrop layer: full viewport, behind the stage. The wide (--board) art is scaled to the STAGE height and
    centred, so its ornate frame lands at the same size/place as the 16:9 UI expects — a wider window just reveals
    more of the surrounding floor art in the margins (cropped to 16:9 at standard aspect). Board dimming was removed
@@ -102,7 +135,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .boardbg { position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background:
     linear-gradient(rgb(28 22 16 / calc(0.34 * var(--scrim, 0))), rgb(28 22 16 / calc(0.46 * var(--scrim, 0)))),
-    var(--board) center / auto calc(var(--gh) * var(--board-zoom, 1)) no-repeat,
+    var(--board) center / auto calc(var(--gh) * var(--board-zoom, 1) * var(--board-mobile-zoom, 1)) no-repeat,
     var(--bg);
 }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the
@@ -110,8 +143,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half
    grows to fill its space and centres its cards. Warband gets extra bottom padding so it
    rides a little higher, opening a gap above the hand. */
-.zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-shop-s, 1)); top: calc(var(--z-shop-y, 45px) * var(--scale)); left: calc(var(--z-shop-x, 6px) * var(--scale)); }
-.zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-wb-s, 1)); top: calc(var(--z-wb-y, -71px) * var(--scale)); left: calc(var(--z-wb-x, 6px) * var(--scale)); }
+.zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-shop-s, 1)); top: calc((var(--z-shop-y, 45px) + var(--shop-drop, 0px)) * var(--scale)); left: calc(var(--z-shop-x, 6px) * var(--scale)); }
+.zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-wb-s, 1)); top: calc((var(--z-wb-y, -71px) + var(--wb-drop, 0px)) * var(--scale)); left: calc(var(--z-wb-x, 6px) * var(--scale)); }
 /* Nudge the whole Warband DOWN a touch so it sits clearly UNDER the board's centre line instead of hugging
    it. Done with `position: relative; top` (the zone is ALREADY position:relative) — NOT a `transform`: a
    transform on the row makes it a stacking/transform context wrapping the combat units, and their per-swing
@@ -122,7 +155,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    Warband rides right at the line (the reported bug); short/laptop windows already sit it low with almost no
    hero-panel clearance, so nudging there would overlap it — hence the height gate. */
 @media (min-height: 900px) {
-  .zone[data-zone='warband'] { top: calc(var(--ch) * 0.07 + var(--z-wb-y, -71px) * var(--scale)); }
+  .zone[data-zone='warband'] { top: calc(var(--ch) * 0.07 + (var(--z-wb-y, -71px) + var(--wb-drop, 0px)) * var(--scale)); }
 }
 
 /* Burning-rope turn timer — a braided fuse pinned to the board's centre divider (`--rope-y`, measured on the
@@ -136,8 +169,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
   position: absolute; left: 50%; top: var(--rope-y, 50%);
   transform: translate(calc(-50% + var(--rope-x, 3px) * var(--scale)), calc(-50% + var(--rope-yoff, -22px) * var(--scale)));
   width: calc(var(--rope-len, 1420px) * var(--scale)); height: calc(var(--rope-thick, 13px) * var(--scale)); z-index: 8; border-radius: 999px; overflow: visible; pointer-events: none;
+  /* Braid stripes SCALE with the stage (4/9.4 reference px = the tuned 3/7px at the owner's 0.745-scale stage) —
+     fixed-px stripes on a ~4px-tall phone rope read as dashes instead of a braid (owner's mobile test). */
   background:
-    repeating-linear-gradient(48deg, rgba(255, 240, 200, 0.22) 0 3px, rgba(90, 60, 25, 0.30) 3px 7px),
+    repeating-linear-gradient(48deg, rgba(255, 240, 200, 0.22) 0 calc(4px * var(--scale)), rgba(90, 60, 25, 0.30) calc(4px * var(--scale)) calc(9.4px * var(--scale))),
     linear-gradient(to bottom, #e3b870, #bb8a3f 52%, #8c6326);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   animation: ropein 0.4s ease both;
@@ -148,7 +183,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .rope-lit {
   position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px 0 0 999px;
   background:
-    repeating-linear-gradient(48deg, rgba(130, 65, 20, 0.45) 0 3px, rgba(12, 7, 3, 0.55) 3px 7px),
+    repeating-linear-gradient(48deg, rgba(130, 65, 20, 0.45) 0 calc(4px * var(--scale)), rgba(12, 7, 3, 0.55) calc(4px * var(--scale)) calc(9.4px * var(--scale))),
     linear-gradient(to bottom, #3a2517, #140b05);
   box-shadow: inset calc(-11 * var(--u)) 0 calc(10 * var(--u)) calc(-5 * var(--u)) rgba(255, 135, 45, 0.95);
 }
@@ -206,7 +241,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .zone[data-zone='hand'] { --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * 1.18); --cw: calc(var(--ch-base) * var(--card-scale, 0.77) * 0.752 * var(--z-hand-s, 1)); --ccw: calc(var(--cw) * 0.85); translate: calc(var(--z-hand-x, 0px) * var(--scale)) calc(var(--z-hand-y, -2px) * var(--scale)); }
 
 /* HUD */
-.bar { display: flex; align-items: center; gap: calc(12 * var(--u)); flex: none; position: relative; --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--z-hud-s, 1)); top: calc(var(--z-hud-y, 0px) * var(--scale)); left: calc(var(--z-hud-x, 0px) * var(--scale)); }
+.bar { display: flex; align-items: center; gap: calc(12 * var(--u)); flex: none; position: relative; --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--z-hud-s, 1) * var(--hud-mobile, 1)); top: calc(var(--z-hud-y, 0px) * var(--scale)); left: calc(var(--z-hud-x, 0px) * var(--scale)); }
 .alt { display: flex; align-items: center; gap: calc(11 * var(--u)); background: var(--card); border: 2px solid var(--gold); border-radius: calc(13 * var(--u)); padding: calc(6 * var(--u)) calc(15 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); }
 .alt .wavecol { display: flex; flex-direction: column; align-items: flex-start; gap: calc(3 * var(--u)); }
 .alt .w { font-family: var(--font-ui); font-weight: 800; font-size: calc(18 * var(--u)); color: var(--acc-dk); line-height: 1; }
@@ -299,25 +334,26 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Read-only quest cards in the Compendium's Quests tab — a reference view, not a take-a-quest button. Use the
    game's custom default cursor (NOT the bare `default` keyword, which shows the Windows arrow). */
 .questcard.readonly { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
-.questcard-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 32%; border-radius: 13px; z-index: 0; }
-.questcard::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 48%; border-radius: 13px 13px 0 0; background: linear-gradient(180deg, rgba(8, 6, 4, 0.74) 0%, rgba(8, 6, 4, 0.3) 46%, transparent 100%); z-index: 1; pointer-events: none; }
-/* Tribe emblem (top) + gem (bottom): tribe-hued, overhanging the frame. */
-.questcard-emblem { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); width: 50px; height: 50px; z-index: 5; display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 50% 34%, #2c211a, #0e0a07); border: 3px solid var(--c); box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.5), 0 3px 9px rgba(0, 0, 0, 0.6), 0 0 16px -4px color-mix(in srgb, var(--c) 75%, transparent); }
+.questcard-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 32%; border-radius: calc(13 * var(--u)); z-index: 0; }
+.questcard::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 48%; border-radius: calc(13 * var(--u)) calc(13 * var(--u)) 0 0; background: linear-gradient(180deg, rgba(8, 6, 4, 0.74) 0%, rgba(8, 6, 4, 0.3) 46%, transparent 100%); z-index: 1; pointer-events: none; }
+/* Tribe emblem (top) + gem (bottom): tribe-hued, overhanging the frame. Metrics are --u-scaled so the offer card
+   shrinks whole on a phone (raw px kept the text/emblem desktop-sized → text overflowed + stretched it tall). */
+.questcard-emblem { position: absolute; top: calc(-22 * var(--u)); left: 50%; transform: translateX(-50%); width: calc(50 * var(--u)); height: calc(50 * var(--u)); z-index: 5; display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 50% 34%, #2c211a, #0e0a07); border: calc(3 * var(--u)) solid var(--c); box-shadow: 0 0 0 calc(3 * var(--u)) rgba(0, 0, 0, 0.5), 0 3px 9px rgba(0, 0, 0, 0.6), 0 0 16px -4px color-mix(in srgb, var(--c) 75%, transparent); }
 .questcard-emblem svg { width: 54%; height: 54%; color: var(--c); }
-.questcard-gem { position: absolute; bottom: -11px; left: 50%; transform: translateX(-50%) rotate(45deg); width: 20px; height: 20px; z-index: 5; border-radius: 4px; background: linear-gradient(135deg, color-mix(in srgb, var(--c) 85%, #fff), var(--c) 46%, color-mix(in srgb, var(--c) 55%, #000)); box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.55); }
+.questcard-gem { position: absolute; bottom: calc(-11 * var(--u)); left: 50%; transform: translateX(-50%) rotate(45deg); width: calc(20 * var(--u)); height: calc(20 * var(--u)); z-index: 5; border-radius: calc(4 * var(--u)); background: linear-gradient(135deg, color-mix(in srgb, var(--c) 85%, #fff), var(--c) 46%, color-mix(in srgb, var(--c) 55%, #000)); box-shadow: 0 0 0 calc(2 * var(--u)) rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.55); }
 /* Head (tier·tribe + title) sits over the top of the art; body panels pin to the bottom. */
-.questcard-head { position: relative; z-index: 2; padding: 34px 14px 0; text-align: center; }
-.questcard-tier { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.09em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 60%, #fff); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
-.questcard-name { font-family: var(--font-title); font-weight: 800; font-size: 23px; line-height: 1.05; color: #fff; text-shadow: 0 2px 7px rgba(0, 0, 0, 0.8); margin-top: 3px; }
-.questcard-body { position: relative; z-index: 2; margin-top: auto; padding: 12px; display: flex; flex-direction: column; gap: 7px; }
-.questcard-sect { background: rgba(11, 8, 6, 0.82); border: 1px solid color-mix(in srgb, var(--c) 34%, rgba(0, 0, 0, 0.4)); border-radius: 10px; padding: 7px 10px; }
-.questcard-lbl { display: flex; align-items: center; gap: 5px; font-weight: 800; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 72%, #fff); margin-bottom: 4px; }
-.questcard-lbl svg { width: 14px; height: 14px; color: var(--c); }
+.questcard-head { position: relative; z-index: 2; padding: calc(34 * var(--u)) calc(14 * var(--u)) 0; text-align: center; }
+.questcard-tier { font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.09em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 60%, #fff); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7); }
+.questcard-name { font-family: var(--font-title); font-weight: 800; font-size: calc(23 * var(--u)); line-height: 1.05; color: #fff; text-shadow: 0 2px 7px rgba(0, 0, 0, 0.8); margin-top: calc(3 * var(--u)); }
+.questcard-body { position: relative; z-index: 2; margin-top: auto; padding: calc(12 * var(--u)); display: flex; flex-direction: column; gap: calc(7 * var(--u)); }
+.questcard-sect { background: rgba(11, 8, 6, 0.82); border: 1px solid color-mix(in srgb, var(--c) 34%, rgba(0, 0, 0, 0.4)); border-radius: calc(10 * var(--u)); padding: calc(7 * var(--u)) calc(10 * var(--u)); }
+.questcard-lbl { display: flex; align-items: center; gap: calc(5 * var(--u)); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 72%, #fff); margin-bottom: calc(4 * var(--u)); }
+.questcard-lbl svg { width: calc(14 * var(--u)); height: calc(14 * var(--u)); color: var(--c); }
 /* Sized to fit the longest quest text (Author's Hand: a 3-line objective + a 4-part reward) inside the card.
    `overflow-wrap` breaks any long token; the card itself grows to fit via `min-height` (below), and the modal
    row's `align-items: stretch` levels every card to the tallest — so text never spills past the frame. */
-.questcard-txt { font-weight: 700; font-size: 13px; line-height: 1.2; color: #f1ece3; overflow-wrap: anywhere; }
-.questcard-sect + .questcard-txt, .questcard-txt + .questcard-txt { margin-top: 2px; }
+.questcard-txt { font-weight: 700; font-size: calc(13 * var(--u)); line-height: 1.2; color: #f1ece3; overflow-wrap: anywhere; }
+.questcard-sect + .questcard-txt, .questcard-txt + .questcard-txt { margin-top: calc(2 * var(--u)); }
 /* Per-round track (replaces the old fill bar): one dash per course round. A win prints a green ✓, a loss a
    red ✕; rounds not yet played show a faint dash, the current round a lit-orange dash. Setup rounds (1–2)
    read quieter and get a small gap after (marking where the scored climb begins). */
@@ -488,8 +524,8 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 .hpwrap { flex: none; margin-left: auto; position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(3 * var(--u)); }
 /* Hero-power cost — a GOLD coin eclipsing the top-left corner of the power button, identical in style to a
    Rune's cost coin (.runecard-cost). Gold is the run economy, so the coin reads the same everywhere. */
-.hpcost { position: absolute; top: -14px; left: -12px; width: 44px; height: 44px; z-index: 6; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 38% 30%, #ffe293, #eab63f 58%, #b9821f); border: 3px solid #1b1d22; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.55), inset 0 -3px 4px rgba(120, 80, 10, 0.4); pointer-events: none; }
-.hpcost .costn { font-family: var(--font-ui); font-weight: 900; font-size: 22px; color: #4a3208; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); line-height: 1; }
+.hpcost { position: absolute; top: calc(-14 * var(--u)); left: calc(-12 * var(--u)); width: calc(44 * var(--u)); height: calc(44 * var(--u)); z-index: 6; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 38% 30%, #ffe293, #eab63f 58%, #b9821f); border: calc(3 * var(--u)) solid #1b1d22; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.55), inset 0 -3px 4px rgba(120, 80, 10, 0.4); pointer-events: none; }
+.hpcost .costn { font-family: var(--font-ui); font-weight: 900; font-size: calc(22 * var(--u)); color: #4a3208; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); line-height: 1; }
 .heropowerbtn {
   width: calc(75 * var(--u)); height: calc(75 * var(--u)); border-radius: 50%; padding: 0; overflow: hidden;
   border: 3px solid var(--acc-dk); display: grid; place-items: center;
@@ -525,15 +561,20 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 .btn.go { background: var(--acc); color: #fff; border-color: var(--acc-dk); box-shadow: 0 4px 0 var(--acc-dk); padding: 7px 20px; font-size: 14px; font-weight: 800; }
 .btn.go svg { color: #fff; }
 .btn.go:disabled { box-shadow: none; }
-.row { flex: none; height: var(--ch); display: flex; gap: 22px; justify-content: center; align-items: center; }
+.row { flex: none; height: var(--ch); display: flex; gap: calc(22px * var(--scale) / 0.745 * var(--gap-tighten, 1)); justify-content: center; align-items: center; }
 /* Layout Lab (dev) — per-row card spacing. Layout-only (`gap`), so it's combat-safe (spaces the combat units
-   too) and falls back to the shipped 22px; absent in production. The hand spaces via overlap (see below). */
-.zone[data-zone='tavern'] .row { gap: var(--z-shop-gap, 22px); }
-.row.warband { gap: var(--z-wb-gap, 22px); }
+   too) and falls back to the shipped 22px; absent in production. The hand spaces via overlap (see below).
+   The tuned px is authored at the owner's ~0.745 desktop scale, so `* --scale / 0.745` keeps desktop identical
+   while the gap shrinks WITH the cards on a phone (raw px left 22px gaps between ~0.3-scale cards → the 7th
+   warband minion fell off the board). */
+.zone[data-zone='tavern'] .row { gap: calc(var(--z-shop-gap, 22px) * var(--scale) / 0.745 * var(--gap-tighten, 1)); }
+.row.warband { gap: calc(var(--z-wb-gap, 22px) * var(--scale) / 0.745 * var(--gap-tighten, 1)); }
 /* Hand: a fixed fan pinned to the bottom edge, its lower half tucked behind the
    Embers/Hero/Resolve status bar; a hovered card pops up over the bar to read in full.
    The whole zone is a wide (mostly invisible) drop band so buying still works when empty. */
-.zone[data-zone='hand'] { position: fixed; left: 50%; bottom: calc(var(--bar-y) - 26px); transform: translateX(-50%); width: min(1180px, calc(var(--gw) * 0.94)); z-index: 25; display: flex; justify-content: center; align-items: flex-start; }
+/* Lift (-26) + width cap ride --u/--scale (were fixed px — right on desktop, oversized at phone scale). The
+   1584px cap = the tuned 1180px at the owner's 0.745-scale stage, re-expressed at the 1440 reference. */
+.zone[data-zone='hand'] { position: fixed; left: 50%; bottom: calc(var(--bar-y) - 26 * var(--u)); transform: translateX(-50%); width: min(calc(1584px * var(--scale)), calc(var(--gw) * 0.94)); z-index: 25; display: flex; justify-content: center; align-items: flex-start; }
 .row.hand { gap: 0; align-items: flex-start; height: var(--ch); width: 100%; }
 /* Hand overlap = 20% of a card's width (relative, not a fixed px, so it stays ~20% across viewport sizes
    where the card width --ccw scales). Lower magnitude = more spread; a full 10-card hand widens toward the
@@ -603,7 +644,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .art canvas { max-width: 84%; max-height: 86%; }
 /* illustrated art (art/minions/<id>.png) fills the panel exactly (absolute so the grid can't
    size it to the square's width-driven height and overflow onto the text below) */
-.artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; }
+.artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; }
 /* Ward (Divine Shield): a layered glassy GOLD DOME in pure CSS, glued to the card via a `.ward` stack of child
    els inside the arched art (rendered by Card.tsx for DS cards) — so it persists through drag + the combat lunge
    and vanishes exactly when the sim clears `.dscard` (retires the old per-frame-tracked Pixi bubble; Pixi now only
@@ -801,8 +842,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   100% { opacity: 0; transform: translateY(52px) scaleY(0.85); }
 }
 /* cost badge — a teal Mana circle overhanging the top-left corner */
-.cost { position: absolute; top: -20px; left: -16px; width: 60px; height: 60px; z-index: 6; border-radius: 50%; background: var(--mana); border: 3px solid var(--card); display: grid; place-items: center; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.3); }
-.cost .costn { font-family: var(--font-ui); font-weight: 800; font-size: 29px; color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
+/* --u-scaled (was fixed 60px etc.) so the coin tracks the card at ANY stage size — raw px read fine on desktop
+   (--u ≈ 1px there) but rendered ~3× oversized at phone scale (owner's mobile itch test). */
+.cost { position: absolute; top: calc(-20 * var(--u)); left: calc(-16 * var(--u)); width: calc(60 * var(--u)); height: calc(60 * var(--u)); z-index: 6; border-radius: 50%; background: var(--mana); border: calc(3 * var(--u)) solid var(--card); display: grid; place-items: center; box-shadow: 0 calc(3 * var(--u)) calc(7 * var(--u)) rgba(0, 0, 0, 0.3); }
+.cost .costn { font-family: var(--font-ui); font-weight: 800; font-size: calc(29 * var(--u)); color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
 /* Changed price (Moe's discounted Attachment) — a green coin so the cheaper cost reads as a deal at a glance. */
 .cost.discount { background: #1aa86f; }
 /* Spell cast multiplier (Nimbus / Yazzus): a bold "×N" pill top-right of the spell card. */
@@ -871,9 +914,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .cn { flex: none; align-self: center; max-width: 100%; font-family: var(--font-ui); font-weight: 700; font-size: 13px; line-height: 1.1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: color-mix(in srgb, var(--card) 88%, transparent); border-radius: 8px; padding: 2px 9px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
 /* always reserves one pill-row of height (even with no pills) so the description below
    always starts on the same line — Battlecry text aligns with Start-of-Combat text, etc. */
-.kws { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; align-items: center; min-height: 22px; margin: 6px 0 5px; }
-.kw { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.02em; padding: 3px 9px; border-radius: 8px; background: var(--c); color: #fff; display: flex; align-items: center; gap: 4px; }
-.kw svg { width: 12px; height: 12px; }
+/* Keyword pills — sized relative to the card width (--ccw) so they scale WITH the card. The fractions equal the
+   original raw px at the owner's ~140px desktop --ccw (desktop unchanged), so a phone's smaller card no longer wears
+   desktop-sized pills (owner: "keyword pills are really large"). */
+.kws { display: flex; gap: calc(var(--ccw) * 0.036); flex-wrap: wrap; justify-content: center; align-items: center; min-height: calc(var(--ccw) * 0.156); margin: calc(var(--ccw) * 0.043) 0 calc(var(--ccw) * 0.036); }
+.kw { font-family: var(--font-ui); font-weight: 700; font-size: calc(var(--ccw) * 0.085); letter-spacing: 0.02em; padding: calc(var(--ccw) * 0.021) calc(var(--ccw) * 0.064); border-radius: calc(var(--ccw) * 0.057); background: var(--c); color: #fff; display: flex; align-items: center; gap: calc(var(--ccw) * 0.028); }
+.kw svg { width: calc(var(--ccw) * 0.085); height: calc(var(--ccw) * 0.085); }
 .desc { font-size: 14px; font-weight: 600; line-height: 1.34; color: var(--ink2); text-align: center; flex: 1; background: var(--card); border-radius: 9px; padding: 6px 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
 .desc b { color: var(--ink); font-weight: 700; }
 /* a modified/buffed value in card text (e.g. Kennelmaster's Avenge-boosted summon buff) */
@@ -944,12 +990,14 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   100% { opacity: 1; clip-path: inset(0 0 0 0); }
 }
 /* tier pill rides the arch top */
-.card.compact .tierbadge { top: calc(var(--ccw) * -0.055); border-radius: 999px; font-size: calc(var(--ccw) * 0.072); padding: calc(var(--ccw) * 0.018) calc(var(--ccw) * 0.075); border: 2px solid color-mix(in srgb, #fff 55%, var(--c)); z-index: 6; }
+.card.compact .tierbadge { top: calc(var(--ccw) * -0.055); border-radius: 999px; font-size: calc(var(--ccw) * 0.072); padding: calc(var(--ccw) * 0.018) calc(var(--ccw) * 0.075); border: calc(var(--ccw) * 0.014) solid color-mix(in srgb, #fff 55%, var(--c)); z-index: 6; }
 /* circular, gold-set attack / health badges in the arch's bottom corners (relative to .archbox) */
+/* Border + ring track the badge size (were fixed 3px/2px — on a ~16px phone-scale badge that read as a huge
+   goofy outline, owner's mobile test). Ratios = the tuned px at the desktop badge (~141px --ccw). */
 .card.compact .atk, .card.compact .hp {
   width: calc(var(--ccw) * 0.29); height: calc(var(--ccw) * 0.29); font-size: calc(var(--ccw) * 0.15);
-  border-radius: 50%; border: 3px solid #f6e3ad; bottom: calc(var(--ccw) * -0.065);
-  box-shadow: 0 0 0 2px #9c6f24, 0 3px 7px rgba(0, 0, 0, 0.4);
+  border-radius: 50%; border: calc(var(--ccw) * 0.021) solid #f6e3ad; bottom: calc(var(--ccw) * -0.065);
+  box-shadow: 0 0 0 calc(var(--ccw) * 0.014) #9c6f24, 0 calc(var(--ccw) * 0.021) calc(var(--ccw) * 0.05) rgba(0, 0, 0, 0.4);
 }
 .card.compact .atk { left: calc(var(--ccw) * -0.02); }
 .card.compact .hp { right: calc(var(--ccw) * -0.02); }
@@ -959,7 +1007,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   width: calc(var(--ccw) * 0.21); height: calc(var(--ccw) * 0.21);
   transform: translateX(-50%); border-radius: 50%;
   background: radial-gradient(circle at 50% 32%, color-mix(in srgb, var(--c) 55%, #2c2535), #1b1722);
-  border: 2px solid #f6e3ad; box-shadow: 0 2px 7px rgba(0, 0, 0, 0.5);
+  border: calc(var(--ccw) * 0.014) solid #f6e3ad; box-shadow: 0 calc(var(--ccw) * 0.014) calc(var(--ccw) * 0.05) rgba(0, 0, 0, 0.5);
   display: grid; place-items: center;
 }
 .card.compact .cgem svg { width: 62%; height: 62%; color: #f6e3ad; }
@@ -1197,7 +1245,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   animation: cardrefin 0.3s ease-out;
 }
 /* the hover reveal sits at full size (it's the readable full card now) with a gentle bob */
-.cardref-inner { display: flex; gap: calc(8 * var(--u)); animation: cardreffloat 3.6s ease-in-out infinite; }
+/* `--inspect-zoom` (JS-set, 1.3 on phone stages else 1) enlarges the tap/hover reveal popup ~30% so a minion's text
+   is readable on a small screen (owner request). `zoom` (not transform — that's owned by the float animation);
+   showRefTip folds the same factor into its placement so the bigger popup still lands on-screen. */
+.cardref-inner { display: flex; gap: calc(8 * var(--u)); animation: cardreffloat 3.6s ease-in-out infinite; zoom: var(--inspect-zoom, 1); }
 @keyframes cardrefin { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes cardreffloat {
   0%, 100% { transform: translateY(0); }
@@ -1542,7 +1593,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* The status tray, tucked into the bottom-LEFT corner so the hand owns the whole
    bottom-centre: Embers + Hero on the top row, the Resolve HP bar across the bottom.
    Still click-through (only the hero/Embers capture, and even they go through mid-drag). */
-.statusbar { position: fixed; bottom: calc(var(--bar-y) + 14px); left: calc(var(--bar-x) + 16px); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
+.statusbar { position: fixed; bottom: calc(var(--bar-y) + 14px + env(safe-area-inset-bottom)); left: calc(var(--bar-x) + 16px + env(safe-area-inset-left)); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
 /* Player name — a small white box above the hero panel; black text (mirrors the opponent name up top). */
 .statusbar .playername { align-self: flex-start; margin-left: calc(5 * var(--u)); background: #fff; color: var(--ink); border: 2px solid var(--gold); border-radius: calc(10 * var(--u)); padding: calc(3 * var(--u)) calc(13 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; max-width: calc(260 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow); }
 /* stretch so the Embers chip is as tall as the (taller) hero panel */
@@ -2192,10 +2243,12 @@ body.choreo-open .pixifx-under { z-index: 204; }
 .combatctl { position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: calc(10 * var(--u)); flex: none; min-height: calc(121 * var(--u)); animation: combatctlin 0.4s ease both; }
 /* the post-combat / Skip buttons are ~2x the shop controls (scoped to .cbtns so the
    tavern controls keep their size); extra gap so they never crowd each other */
-.cbtns { display: flex; align-items: center; gap: 28px; }
-.cbtns .btn.big { font-size: 32px; padding: 24px 48px; border-radius: 18px; gap: 16px; box-shadow: 0 5px 0 var(--shadow); }
-.cbtns .btn.big svg { width: 42px; height: 42px; }
-.cbtns .btn.big.endturn { box-shadow: 0 5px 0 var(--acc-dk); }
+/* --u-scaled (was fixed 32px/24px/48px…) so the post-combat buttons track the board at any stage size — raw px
+   was ~3× oversized at phone scale (owner's mobile itch test). */
+.cbtns { display: flex; align-items: center; gap: calc(28 * var(--u)); }
+.cbtns .btn.big { font-size: calc(32 * var(--u)); padding: calc(24 * var(--u)) calc(48 * var(--u)); border-radius: calc(18 * var(--u)); gap: calc(16 * var(--u)); box-shadow: 0 calc(5 * var(--u)) 0 var(--shadow); }
+.cbtns .btn.big svg { width: calc(42 * var(--u)); height: calc(42 * var(--u)); }
+.cbtns .btn.big.endturn { box-shadow: 0 calc(5 * var(--u)) 0 var(--acc-dk); }
 /* Top-right combat HUD (replay only): a small Skip button with the speed slider stacked beneath it, tucked
    under the tribes bar so the arena stays clear. */
 .combathud { position: fixed; top: calc(var(--bar-y) + 16 * var(--u)); left: 50%; transform: translateX(-50%); z-index: 30; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); animation: fadein 0.25s ease; }
@@ -2210,10 +2263,10 @@ body.choreo-open .pixifx-under { z-index: 204; }
 /* combat replay-speed slider — now sits in the top-right combat HUD, beneath the Skip button */
 .combatspeed { flex: none; display: flex; align-items: center; gap: calc(10 * var(--u)); background: var(--card); border: 2px solid var(--line); padding: calc(5 * var(--u)) calc(14 * var(--u)); border-radius: calc(13 * var(--u)); }
 .combatspeed .csl { font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink3); }
-.combatspeed input[type='range'] { width: calc(110 * var(--u)); height: 8px; -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; cursor: pointer; outline: none; }
-.combatspeed input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
-.combatspeed input[type='range']::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--acc); border: 2px solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
-.combatspeed .combatspeed-val { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: var(--acc-dk); min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
+.combatspeed input[type='range'] { width: calc(110 * var(--u)); height: calc(8 * var(--u)); -webkit-appearance: none; appearance: none; background: var(--line); border-radius: 99px; cursor: pointer; outline: none; }
+.combatspeed input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: calc(18 * var(--u)); height: calc(18 * var(--u)); border-radius: 50%; background: var(--acc); border: calc(2 * var(--u)) solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
+.combatspeed input[type='range']::-moz-range-thumb { width: calc(18 * var(--u)); height: calc(18 * var(--u)); border-radius: 50%; background: var(--acc); border: calc(2 * var(--u)) solid var(--card); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); cursor: pointer; }
+.combatspeed .combatspeed-val { font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); color: var(--acc-dk); min-width: calc(36 * var(--u)); text-align: right; font-variant-numeric: tabular-nums; }
 /* post-combat Combat Log overlay */
 .logov { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(20, 15, 10, 0.55); animation: logfade 0.16s ease; }
 @keyframes logfade { from { opacity: 0; } to { opacity: 1; } }
@@ -2321,7 +2374,14 @@ body.choreo-open .pixifx-under { z-index: 204; }
    panel, status bar) — the dimmed board art above is the only backdrop until a champion is chosen. */
 body:has(.heroselect) .app { visibility: hidden; }
 body:has(.heroselect) .statusbar { visibility: hidden; }
-.hsbox { display: flex; flex-direction: column; align-items: center; text-align: center; max-width: 96vw; }
+/* The picker (and the end screen, which reuses it) is authored in fixed px tuned at the owner's 0.745-scale
+   desktop — zoom the whole box by the stage scale so it shrinks proportionally on phones (× the mobile card
+   boost so it stays tappable). Desktop = zoom 1 (unchanged). vw lengths inside a zoomed box also get multiplied
+   by the zoom, so the width caps divide it back out (else the row falsely wraps on phones). The Practice
+   "dense" all-heroes grid already self-scales via vw clamps, so it opts out (zoom would double-shrink it). */
+.heroselect { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * var(--mobile-boost, 1)); }
+.hsbox { display: flex; flex-direction: column; align-items: center; text-align: center; zoom: var(--hs-zoom); max-width: calc(96vw / var(--hs-zoom)); }
+.hsbox:has(.hsrow.dense) { zoom: 1; max-width: 96vw; }
 /* Hero-picker panels + the title/eyebrow above them sit ~30% larger than the base sizes. */
 .heroselect .eyebrow { font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.3em; color: var(--acc); text-transform: uppercase; }
 .hstitle { font-family: var(--font-title); font-weight: 900; font-size: 68px; letter-spacing: 0.06em; color: #f6efe2; margin: 8px 0 22px; }
@@ -2478,7 +2538,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .crest { width: 1em; height: 1em; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
 
 /* Account name (top-right) — click to set/rename yourself; wires to the real account when that lands. */
-.titleaccount { position: absolute; top: 24px; right: 30px; display: flex; align-items: center; gap: 12px; }
+.titleaccount { zoom: var(--ui-zoom); position: absolute; top: 24px; right: 30px; display: flex; align-items: center; gap: 12px; }
 .titleavatar { width: 92px; height: 92px; border-radius: 50%; overflow: hidden; padding: 0; display: grid; place-items: center; background: linear-gradient(150deg, #f3c96a, #e08a3c); border: 2px solid rgba(255, 255, 255, 0.35); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s ease, border-color 0.1s ease; }
 .titleavatar:hover { transform: scale(1.07); border-color: rgba(255, 255, 255, 0.7); }
 .titleavatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -2503,7 +2563,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .acctinput::placeholder { color: rgba(236, 220, 178, 0.45); }
 
 /* The left menu column. */
-.titlemenu { position: absolute; left: clamp(40px, 7vw, 150px); top: 50%; transform: translateY(-50%);
+.titlemenu { zoom: var(--ui-zoom); position: absolute; left: clamp(40px, 7vw, 150px); top: 50%; transform: translateY(-50%);
   display: flex; flex-direction: column; align-items: flex-start; gap: 30px; max-width: 90vw; }
 .titlelogo { display: flex; align-items: center; gap: 14px; }
 .titlelogo .crest { font-size: 62px; }
@@ -2566,15 +2626,15 @@ svg { width: 18px; height: 18px; }
 .side.foe { color: #ff6f95; }
 
 /* settings gear (bottom-right corner, opposite the status tray) — opens the Esc menu */
-.gearbtn { position: fixed; bottom: calc(var(--bar-y) + 16px); right: calc(var(--bar-x) + 16px); width: calc(40 * var(--u)); height: calc(40 * var(--u)); border-radius: calc(12 * var(--u)); border: 2px solid var(--line); background: color-mix(in srgb, var(--card) 88%, transparent); color: var(--ink2); display: grid; place-items: center; cursor: pointer; z-index: 85; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5); }
+.gearbtn { position: fixed; bottom: calc(var(--bar-y) + 16px + env(safe-area-inset-bottom)); right: calc(var(--bar-x) + 16px + env(safe-area-inset-right)); width: calc(40 * var(--u)); height: calc(40 * var(--u)); border-radius: calc(12 * var(--u)); border: 2px solid var(--line); background: color-mix(in srgb, var(--card) 88%, transparent); color: var(--ink2); display: grid; place-items: center; cursor: pointer; z-index: 85; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5); }
 .gearbtn:hover { border-color: var(--acc); color: var(--ink); transform: rotate(35deg); transition: transform 0.2s ease; }
 .gearbtn svg { width: calc(21 * var(--u)); height: calc(21 * var(--u)); }
 /* Build badge — sits just above the gear (scales with --u so it clears the gear at any resolution box). */
-.version { position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 16px + 40 * var(--u) + 7px); z-index: 84; pointer-events: none; user-select: none; text-align: right; font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.03em; color: var(--ink3); opacity: 0.72; }
+.version { position: fixed; right: calc(var(--bar-x) + 16px + env(safe-area-inset-right)); bottom: calc(var(--bar-y) + 16px + 40 * var(--u) + 7px + env(safe-area-inset-bottom)); z-index: 84; pointer-events: none; user-select: none; text-align: right; font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.03em; color: var(--ink3); opacity: 0.72; }
 .version span { font-weight: 600; opacity: 0.7; }
 /* Esc / settings overlay — above everything incl. game-over, so resolution is changeable anywhere */
 .escov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; background: rgba(20, 14, 7, 0.62); backdrop-filter: blur(3px); animation: fadein 0.16s ease; }
-.escpanel { background: var(--card); border: 2px solid var(--line); border-radius: 22px; padding: 26px 26px 20px; min-width: 380px; box-shadow: 0 26px 64px -16px rgba(0, 0, 0, 0.62); }
+.escpanel { zoom: var(--ui-zoom); background: var(--card); border: 2px solid var(--line); border-radius: 22px; padding: 26px 26px 20px; min-width: 380px; box-shadow: 0 26px 64px -16px rgba(0, 0, 0, 0.62); }
 .escpanel .esch { font-weight: 800; font-size: 28px; color: var(--ink); text-align: center; }
 .escsec { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); text-align: center; margin: 16px 0 10px; }
 .escres { display: grid; gap: 8px; }

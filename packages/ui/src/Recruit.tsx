@@ -945,6 +945,9 @@ export function Recruit() {
   // When the card is snapping back or magnet-sliding, React/CSS own the transform instead (see the JSX).
   const dragCardRef = useRef<HTMLDivElement>(null);
   const dragMotionRef = useRef({ rx: 0, ry: 0, ax: 0, ay: 0 }); // rx/ry = smoothed position; ax/ay = anchor (grab→centre)
+  // Touch drags stick to the FINGER (near-1 catch-up), not the mouse-tuned weighted lag: a card trailing the
+  // cursor reads as pleasant "weight" with a mouse, but under a fingertip the same lag reads as stutter/low-FPS.
+  const dragIsTouchRef = useRef(false);
   const reactDrivesDrag = snapping || magSlide; // these use a CSS transition, not the rAF lean
   const reactDrivesDragRef = useRef(reactDrivesDrag);
   reactDrivesDragRef.current = reactDrivesDrag;
@@ -982,7 +985,10 @@ export function Recruit() {
       const d = dragRef.current;
       if (!d || reactDrivesDragRef.current) return; // snap/magslide → React+CSS own the transform
       const f = getDragFeel();
-      const k = f.follow >= 1 ? 1 : 1 - Math.pow(1 - f.follow, dt / 16.667); // frame-rate-independent catch-up
+      // On touch, override the mouse-tuned weighted lag with a near-instant catch-up so the card tracks the
+      // fingertip (trailing under a finger reads as stutter, not weight). Mouse keeps the dialed `follow`.
+      const follow = dragIsTouchRef.current ? Math.max(f.follow, 0.9) : f.follow;
+      const k = follow >= 1 ? 1 : 1 - Math.pow(1 - follow, dt / 16.667); // frame-rate-independent catch-up
       // recentre the anchor from the grab point toward the card centre — but only once the pointer has dragged
       // `recenterAfter` px from the grab point, and at its own (slower) `recenter` rate so the glide reads.
       if (Math.hypot(d.x - d.startX, d.y - d.startY) >= f.recenterAfter) {
@@ -1255,6 +1261,7 @@ export function Recruit() {
       // capture the pointer so move/up keep firing even if it leaves the window or races
       // ahead of the floating card — events still bubble to the window listeners.
       try { el.setPointerCapture(e.pointerId); } catch { /* unsupported / detached */ }
+      dragIsTouchRef.current = e.pointerType !== 'mouse'; // touch/pen → snap to the finger (see dragIsTouchRef)
       setDrag({
         uid, source, view,
         ox: w / 2, oy: h / 2,                        // anchor = centre → the card rides centred on the cursor
@@ -1530,8 +1537,10 @@ export function Recruit() {
     const update = (): void => {
       const ar = app.getBoundingClientRect();
       const wr = wb.getBoundingClientRect();
-      // The art divider sits a touch above the exact centre, so bias the rope up a smidge to land on it.
-      wb.style.setProperty('--rope-y', `${ar.top + ar.height / 2 - wr.top - 14}px`);
+      // The art divider sits a touch above the exact centre, so bias the rope up a smidge to land on it. The
+      // bias must SCALE with the stage (19 reference px = the tuned 14px at the owner's 0.745-scale stage) —
+      // fixed px rode proportionally higher on a short phone stage ("rope too high", owner's mobile test).
+      wb.style.setProperty('--rope-y', `${ar.top + ar.height / 2 - wr.top - 19 * (ar.height / 1440)}px`);
     };
     update();
     const ro = new ResizeObserver(update);

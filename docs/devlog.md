@@ -20,6 +20,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 Verified: new SoC test (Rune of Warding emits `questTrigger`; Shared Circuit maps to its quest); 1065 tests green,
 typecheck + lint + build:web clean. Determinism/golden unaffected (the markers are cosmetic).
+### feat(ui): step counter — combat-only 3s fade + baked tuned placement
+
+Owner ask: the step counter ("X/N to next step") should only flash in **combat** — fade in near-instantly each
+time an avenge (or other step) ticks, stay visible ~3s, then fade out; a second tick inside that window re-shows
+it and resets the 3s. In the **shop/recruit** phase it stays persistently visible for planning (owner's explicit
+choice). Also baked the owner-tuned placement from the Step Counter dev tuner.
+
+- **Baked placement** (`styles.css` `.stepcounter` fallbacks + `stepCounterConfig.ts` DEFAULTS): `size 20.5px`,
+  `x 1px`, `y -44px` (was 11.5 / 0 / -11). The dev tuner's Reset now returns to these.
+- **Combat fade** (`.stepcounter.ephemeral`): runs `stepbump` (the existing scale bump) alongside a new
+  `stepfade` — opacity `0 → 1` by ~120ms, hold to ~2.46s, `→ 0` by 3s (`forwards`). Opacity-only = compositor-
+  safe (no looped paint; perf north star). The span is keyed on `current`, so each tick remounts it and restarts
+  both animations — a second avenge inside the window naturally re-shows + resets the timer.
+- **Applied combat-only**: `Card.tsx` adds the `ephemeral` class when the new `stepEphemeral` view flag is set;
+  `Unit.tsx` (combat path) sets it `true`. The recruit/board path (`instView`) leaves it undefined, so those
+  counters stay persistent.
+- **Memo fix**: the `Unit` memo comparator now also compares `avengeSeen`, so an avenge tick reliably re-renders
+  the card and restarts the fade. Deliberately did **not** add `bleedAttacks` — it's the global attack count
+  stamped on every unit each attack, so comparing it would re-render the whole board every beat (perf regression).
+
+Verified: typecheck + lint + `build:web` clean, 1064 tests green.
 
 ### feat(ui): HUD tuning batch — name pill, hero-power restyle, dev movers, one-shot quest pulse
 

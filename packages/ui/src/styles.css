@@ -3176,13 +3176,13 @@ svg { width: 18px; height: 18px; }
   /* size + x/y placement are live-tunable via the DEV Step Counter tuner (`stepCounterConfig.ts` → these vars);
      the fallbacks are the shipped values. x offsets via `left` (NOT transform) so the `stepbump` keyframe's
      `translateX(-50%)` still centres it and doesn't fight the offset. */
-  left: calc(50% + var(--sc-x, 0px));
-  bottom: var(--sc-y, -11px);
+  left: calc(50% + var(--sc-x, 1px));
+  bottom: var(--sc-y, -44px);
   transform: translateX(-50%);
   z-index: 3;
   font-family: var(--font-ui, system-ui, sans-serif);
   font-weight: 700;
-  font-size: var(--sc-size, 11.5px);
+  font-size: var(--sc-size, 20.5px);
   line-height: 1;
   /* Plain white numbers (no pill). A soft drop shadow UNDERNEATH (5px down, 7.2px blur, 0.8 black — same as the
      resting card grounding shadow) PLUS a tight dark edge so the white reads on the LIGHT cream board (white-on-
@@ -3197,4 +3197,18 @@ svg { width: 18px; height: 18px; }
   0% { transform: translateX(-50%) scale(1); }
   45% { transform: translateX(-50%) scale(1.28); }
   100% { transform: translateX(-50%) scale(1); }
+}
+/* COMBAT ONLY (Unit.tsx sets `.ephemeral`): the counter fades in near-instantly on each tick, holds ~2.5s,
+   then fades out — total ~3s visible. Because the span is keyed on `current`, every tick remounts it and
+   restarts BOTH animations, so a second avenge inside the window re-shows it and resets the 3s. The scale
+   bump still runs alongside. Opacity-only fade = compositor-safe (no looped paint). In the shop/recruit
+   phase the counter has NO `.ephemeral`, so it stays persistently visible (opacity 1) for planning. */
+.stepcounter.ephemeral {
+  animation: stepbump 220ms ease-out, stepfade 3s ease-out forwards;
+}
+@keyframes stepfade {
+  0% { opacity: 0; }
+  4% { opacity: 1; }   /* ~120ms fade-in — near instant */
+  82% { opacity: 1; }  /* hold to ~2.46s */
+  100% { opacity: 0; } /* faded out by 3s */
 }

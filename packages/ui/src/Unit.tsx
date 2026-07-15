@@ -104,6 +104,9 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
       ascendProgress: u.ascendProgress, attackSeen: u.attackSeen,
       avengeSeen: u.avengeSeen, bleedAttacks: u.bleedAttacks,
     }) ?? undefined,
+    // Combat: the counter fades in on each tick and fades out after ~3s (see `.stepcounter.ephemeral`).
+    // Shop/recruit paths (instView) leave this undefined so the counter stays persistently visible.
+    stepEphemeral: true,
   };
   return (
     <div className={cls} data-uid={u.uid}>
@@ -138,6 +141,11 @@ export const Unit = memo(UnitInner, (a, b) =>
   a.u.golden === b.u.golden &&
   a.u.summonBonus === b.u.summonBonus &&
   a.u.attackSeen === b.u.attackSeen &&
+  // avengeSeen only ticks on a death (a rare board-reflow beat) — cheap to compare, and it's what
+  // restarts the avenge counter's fade-in. (bleedAttacks is the GLOBAL attack count stamped on every
+  // unit every attack; comparing it here would re-render the whole board each beat — deliberately left
+  // out. A bleed unit's counter still refreshes when that unit re-renders for its own attack/buff.)
+  a.u.avengeSeen === b.u.avengeSeen &&
   a.u.ascendProgress === b.u.ascendProgress &&
   a.u.hpGrantBonus === b.u.hpGrantBonus &&
   a.u.spellProgress === b.u.spellProgress &&

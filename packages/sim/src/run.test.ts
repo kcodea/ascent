@@ -5040,7 +5040,7 @@ describe('Beast quests (combat objectives + rewards)', () => {
     events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0,
     initial: { player: [], enemy: [] }, ...over,
   });
-  const zeroTally = () => ({ attack: 0, summonCombat: 0, slaughter: 0, slaughterKeyword: 0, attackByTribe: {}, summonCombatByTribe: {}, slaughterByTribe: {} });
+  const zeroTally = () => ({ attack: 0, summonCombat: 0, slaughter: 0, slaughterKeyword: 0, attackByTribe: {}, summonCombatByTribe: {}, slaughterByTribe: {}, statGainByTribe: {} });
   const settle = (quest: string, over: Partial<CombatResult>, extra?: Partial<RunState>): RunState =>
     reduce({ ...createRun(1), phase: 'combat', combatSettled: false, lastCombat: combatWith(over), activeQuests: [{ questId: quest, progress: 0, completed: false }], ...extra }, { type: 'resolveCombat' });
 
@@ -5048,6 +5048,14 @@ describe('Beast quests (combat objectives + rewards)', () => {
     const s = settle('q_blood_trail', { enemyDeaths: 9, playerQuestTally: { ...zeroTally(), slaughter: 9, slaughterByTribe: { beast: 9 } } });
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.questFlags?.bloodTrail).toBe(true);
+  });
+
+  it('Skybound Pact (tribeStats, Dragons) counts COMBAT stat gains — buffs to Dragons in the fight advance it', () => {
+    const s = settle('q_skybound_pact', { playerQuestTally: { ...zeroTally(), statGainByTribe: { dragon: 25 } } });
+    expect(s.activeQuests![0]!.completed).toBe(true);
+    // Non-dragon combat stat gains don't count toward the Dragon objective.
+    const other = settle('q_skybound_pact', { playerQuestTally: { ...zeroTally(), statGainByTribe: { beast: 25 } } });
+    expect(other.activeQuests![0]!.completed).toBe(false);
   });
 
   it('Leader of the Pack (attack 18 w/ Beasts): grants a GOLDEN Pack Leader + 10 Gold', () => {

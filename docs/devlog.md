@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### fix: Skybound Pact / tribeStats quests count COMBAT stat gains too
+
+"Give Dragons N total stats" (Skybound Pact + Taragosa's Inheritance, both `tribeStats`) only advanced on
+RECRUIT-phase stat changes — the reducer diffs board/hand before/after each recruit action. Buffs a Dragon gained
+DURING the fight (Start-of-Combat, Rally, auras, spell power, …) never counted (owner report).
+
+- **Sim:** the combat `buff(target, atk, hp)` choke now tallies every positive stat gain on a **player** minion
+  into a new per-tribe `questTally.statGainByTribe` (using the post-`gainMult` value actually applied). Carried
+  back on `playerQuestTally` (a fight that only buffed Dragons now still ships the tally).
+- **Reducer:** `combatEventCount` maps `tribeStats` → `statGainByTribe[tribe]`, so `advanceCombatQuests` advances
+  the quest by the combat gain **on top of** the existing recruit-phase advance. No double-count: the recruit diff
+  is per-action and carried-back `permaGain` lands at settle, not during a recruit action.
+
+Verified: new test (combat `statGainByTribe.dragon = 25` completes Skybound Pact; a Beast gain does not) +
+`typecheck` + `lint` + **1048 tests** + `build:web` green.
+
 ### fix: pause the combat replay behind full-screen overlays (no background combat / sfx leak)
 
 Opening the Leaderboard / Balance Report / Career mid-combat left the replay running underneath — you'd hear combat
@@ -22,8 +38,6 @@ Verified live: with the Balance Report open mid-fight the combat stayed frozen f
 finished), then resumed and replayed on close. `typecheck` + `lint` + 1047 tests + `build:web` green. (Follow-up:
 the Esc/Settings menu is React-local state in Game.tsx, not a store flag, so it isn't covered yet — same treatment
 once it's plumbed to the store.)
-
-## 2026-07-15
 
 ### feat: Balance Report → Shop Curve chart (avg tavern tier by wave, won vs lost)
 

@@ -4224,6 +4224,75 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     }
   });
 
+  it('opponent pinning: faceOmen records the served board into servedBoards[wave]', () => {
+    const board: BoardSnapshot = {
+      v: 1, wave: 1, heroId: 'warden', resolve: 30, tier: 1, triples: 0, tribes: [], threat: 'glass', power: 13,
+      minions: [{ cardId: 'gnash', attack: 5, health: 8, keywords: [] }], seed: 1, origin: 'self',
+    };
+    OPPONENT_POOL.push(board);
+    try {
+      const s: RunState = {
+        ...createRun(1), wave: 1,
+        board: [{ uid: 'a', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 20, keywords: ['T'], golden: false }],
+      };
+      const s2 = reduce(s, { type: 'faceOmen' });
+      // the exact board that fought is recorded, keyed by wave — the pin
+      expect(s2.servedBoards?.[1]?.minions.some((m) => m.cardId === 'gnash')).toBe(true);
+    } finally {
+      OPPONENT_POOL.length = 0;
+    }
+  });
+
+  it('opponent pinning: a pre-recorded servedBoards[wave] is served verbatim, overriding the pool pick', () => {
+    const pinned: BoardSnapshot = {
+      v: 1, wave: 5, heroId: 'warden', resolve: 30, tier: 1, triples: 0, tribes: [], threat: 'glass', power: 13,
+      minions: [{ cardId: 'gnash', attack: 5, health: 8, keywords: [] }], seed: 1, origin: 'self',
+    };
+    // a DIFFERENT board sits in the pool — proving the pin wins over a fresh pick
+    OPPONENT_POOL.push({ ...pinned, minions: [{ cardId: 'kennel', attack: 4, health: 5, keywords: [] }] });
+    try {
+      const s: RunState = {
+        ...createRun(1), wave: 5,
+        servedBoards: { 5: pinned },
+        board: [{ uid: 'a', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 20, keywords: ['T'], golden: false }],
+      };
+      const enemy = reduce(s, { type: 'faceOmen' }).lastCombat!.initial.enemy;
+      expect(enemy.some((m) => m.cardId === 'gnash')).toBe(true); // the PINNED board
+      expect(enemy.some((m) => m.cardId === 'kennel')).toBe(false); // NOT the pool pick
+    } finally {
+      OPPONENT_POOL.length = 0;
+    }
+  });
+
+  it('opponent pinning: a recorded null pins the procedural threat, even when the pool has a wave match', () => {
+    OPPONENT_POOL.push({
+      v: 1, wave: 1, heroId: 'warden', resolve: 30, tier: 1, triples: 0, tribes: [], threat: 'glass', power: 13,
+      minions: [{ cardId: 'gnash', attack: 5, health: 8, keywords: [] }], seed: 1, origin: 'self',
+    });
+    try {
+      const s: RunState = {
+        ...createRun(1), wave: 1,
+        servedBoards: { 1: null }, // this wave was procedural at capture — pin that, don't re-pick from the pool
+        board: [{ uid: 'a', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 20, keywords: ['T'], golden: false }],
+      };
+      const enemy = reduce(s, { type: 'faceOmen' }).lastCombat!.initial.enemy;
+      expect(enemy.every((m) => m.cardId === 'omen')).toBe(true); // procedural, not the pool's gnash board
+    } finally {
+      OPPONENT_POOL.length = 0;
+    }
+  });
+
+  it('opponent pinning: servedBoards survives the save round-trip (Continue restores the pinned opponents)', () => {
+    const pinned: BoardSnapshot = {
+      v: 1, wave: 2, heroId: 'warden', resolve: 30, tier: 1, triples: 0, tribes: [], threat: 'glass', power: 13,
+      minions: [{ cardId: 'gnash', attack: 5, health: 8, keywords: [] }], seed: 1, origin: 'self',
+    };
+    const s: RunState = { ...createRun(1), servedBoards: { 2: pinned, 3: null } };
+    const back = deserialize(serialize(s));
+    expect(back.servedBoards?.[2]?.minions[0]?.cardId).toBe('gnash');
+    expect(back.servedBoards?.[3]).toBeNull(); // a procedural wave round-trips as null (still "decided")
+  });
+
   it('isServableBoard rejects boards referencing a card this build no longer has (stale capture)', () => {
     const known: BoardSnapshot = {
       v: 1, wave: 3, heroId: 'warden', resolve: 25, tier: 2, triples: 0, tribes: [], threat: 'horde', power: 20,

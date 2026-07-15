@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Opponent pinning.** Each run now records the exact board it fought every wave (`RunState.servedBoards`); a
+  restored/replayed run serves those pinned opponents verbatim instead of re-picking, so a rebuild stays faithful
+  even if the shared pool has since changed. Groundwork for server-side replay validation. No behavior change to
+  live play.
 - **Snapshot fidelity fix.** A served opponent board now reproduces four per-instance combat states it used to
   drop — Gravetwin's copied Deathrattle, Bloodbinder's Rally stat, the Bloodlust weld-Rally, and Anomaly Reactor's
   "All tribes" — so a captured board fights exactly as it did for its owner.

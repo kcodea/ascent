@@ -5,6 +5,33 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat: opponent pinning — record the exact board fought each wave into RunState
+
+The opponent pick is already deterministic (`nextOpponent` seeds `makeRng(mixSeed(seed, wave, TAG.ENEMY))`), so
+within a session / frozen pool a replay reproduces the same board. Drift only appears across sessions when the
+shared pool CHANGES (boards uploaded/pruned reorder the candidate list → a different index is picked). Pinning
+records the board *identity* so a later rebuild stays faithful regardless — the groundwork server-side replay
+validation needs.
+
+- **`RunState.servedBoards?: Record<number, BoardSnapshot | null>`** — the full board fought each wave (or `null`
+  when the procedural threat was used). Keyed by wave; key presence = "this wave is decided".
+- **Reducer (faceOmen) is now pin-aware:** if `servedBoards[wave]` is already present (a restored/replayed run
+  carries it), it serves THAT exact board — pool pick bypassed — else it picks fresh and records the choice. A
+  `null` entry pins the procedural threat even if the pool later gains a wave match. **No behavior change on a
+  normal forward turn** (the key is absent → picks + records exactly as before; the determinism + golden suites
+  pass unchanged).
+- **Survives the save round-trip** for free (whole-state `serialize`/`deserialize` + heal-merge), so Continue
+  restores the pinned opponents.
+- **Self-contained** (full snapshot, no pool dependency) per the owner's call. Size: ~1–2KB per wave, ~17
+  waves → tens of KB in the localStorage autosave; acceptable, and mostly local (the pool upload is board
+  snapshots, telemetry is typed columns — neither carries the whole RunState). **Follow-up size lever if ever
+  needed:** store a reference (`id`) for committed/synthetic pool boards that are always resolvable, keeping the
+  full snapshot only for remote/self boards that can vanish.
+- CombatResult / the UI contract untouched.
+
+Verified: 4 new tests (records on serve · a pre-recorded board overrides the pool pick · a `null` pins procedural ·
+survives serialize→deserialize); full suite green (**1061 tests**), typecheck + lint + build:web clean.
+
 ### fix: snapshot fidelity — capture 4 per-instance COMBAT fields a served board was dropping
 
 A fresh audit (owner directive: "make player-snapshotted boards faithfully reproduce what the player had") compared

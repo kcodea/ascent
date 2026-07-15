@@ -18,6 +18,7 @@ const TRIBE_ICON: Record<Tribe, string> = { beast: 'paw', dragon: 'flame', mech:
  */
 export function QuestBadges() {
   const run = useGame((s) => s.run);
+  const triggered = useGame((s) => s.combatTriggeredQuests); // ids pulsing this replay beat
   const done = (run.activeQuests ?? []).filter((aq) => aq.completed && QUEST_INDEX[aq.questId]);
   const runes = (run.ownedRunes ?? []).filter((id) => RUNE_INDEX[id]);
   if (done.length === 0 && runes.length === 0) return null;
@@ -28,7 +29,7 @@ export function QuestBadges() {
         const rune = RUNE_INDEX[id]!;
         const art = runeArt(rune.id);
         return (
-          <div className="questbadge runebadge" key={id}>
+          <div className={`questbadge runebadge${triggered.includes(id) ? ' triggered' : ''}`} key={id}>
             {art
               ? <img className="questbadge-art" src={art} alt="" aria-hidden />
               : <span className="questbadge-emblem" aria-hidden><Icon name="sc" /></span>}
@@ -65,7 +66,7 @@ export function QuestBadges() {
         };
         const liveTxt = questRewardLiveText(r, live);
         return (
-          <div className={`questbadge${ongoing ? ' ongoing' : ''}`} style={{ '--c': c } as CSSProperties} key={aq.questId}>
+          <div className={`questbadge${ongoing ? ' ongoing' : ''}${triggered.includes(aq.questId) ? ' triggered' : ''}`} style={{ '--c': c } as CSSProperties} key={aq.questId}>
             {art ? (
               <img className="questbadge-art" src={art} alt="" aria-hidden />
             ) : (

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, simulate, makeRng, type BoardMinion, type CombatEvent, type CombatSideState, type Keyword } from '../index';
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, badgeIdForCombatFlag } from '@game/content';
 
 /** The health deltas of every `buff` event in a combat (for asserting Deathrattle HP grants). */
 const buffHealths = (events: CombatEvent[]): number[] =>
@@ -3280,5 +3280,25 @@ describe('served enemy quest/rune COMBAT effects (per-side questMods)', () => {
     // Player's Warding wards the PLAYER leftmost, not the enemy.
     expect(r.events.some((ev) => ev.type === 'shieldUp' && ev.target === r.initial.player[0]!.uid)).toBe(true);
     expect(r.events.some((ev) => ev.type === 'shieldUp' && ev.target === r.initial.enemy[0]!.uid)).toBe(false);
+  });
+});
+
+describe('questTrigger events (badge-pulse markers)', () => {
+  const ALL = ['beast', 'dragon', 'undead', 'mech', 'demon'];
+  const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL, questMods: mods }), combatSide());
+
+  it('emits a questTrigger when The Bone Throne fires, and its flag maps to the quest badge', () => {
+    // A friendly death (Avenge) with boneThroneStep armed fires the leftmost Echo minion AND emits the marker.
+    const a = simMods(
+      // A durable Echo (Mama Pup 0/40 — has an Echo, 0 atk so it survives) + a fragile attacker that dies.
+      [{ cardId: 'pack', attack: 0, health: 40 }, { cardId: 'sandbag', attack: 2, health: 1 }],
+      [{ cardId: 'gnash', attack: 5, health: 40 }],
+      1, { boneThroneStep: 1 }, // every friendly death → fire the leftmost living Echo (Mama Pup)
+    );
+    expect(a.events.some((ev) => ev.type === 'questTrigger' && ev.flag === 'boneThroneStep' && ev.side === 'player')).toBe(true);
+    expect(badgeIdForCombatFlag('boneThroneStep')).toBe('q_the_bone_throne'); // resolves to the badge id
+    expect(badgeIdForCombatFlag('runeWarding')).toBe('rune_warding'); // rune combatFlag → its badge id
+    expect(badgeIdForCombatFlag('nope')).toBeNull(); // unmapped → no glow
   });
 });

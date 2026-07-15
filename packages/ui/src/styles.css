@@ -1625,6 +1625,15 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .questbadges { align-self: flex-start; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(6 * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; }
 .questbadge { position: relative; width: calc(53 * var(--u)); height: calc(53 * var(--u)); border-radius: 50%; border: 2px solid var(--c, var(--gold)); background: var(--card); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 .questbadge.ongoing { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 0 calc(2 * var(--u)) color-mix(in srgb, var(--c) 45%, transparent), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
+/* A completed quest / owned rune's COMBAT effect just fired this replay — a bright pulse so the player SEES it
+   trigger. Compositor-only: pulse the OPACITY of a ::after carrying a STATIC glow (never animate box-shadow in a
+   loop — perf north star, cf. kwglow). --c is the quest's tribe hue (runes fall back to gold). */
+.questbadge.triggered::after {
+  content: ''; position: absolute; inset: calc(-3 * var(--u)); border-radius: 50%; pointer-events: none; z-index: 3;
+  box-shadow: 0 0 calc(12 * var(--u)) calc(3 * var(--u)) var(--c, var(--gold)), 0 0 calc(5 * var(--u)) calc(1 * var(--u)) #fff;
+  animation: questpulse 0.66s ease-in-out infinite;
+}
+@keyframes questpulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
 .questbadge-art { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
 .questbadge-emblem { display: flex; color: var(--c); }
 .questbadge-emblem svg { width: calc(28 * var(--u)); height: calc(28 * var(--u)); }

@@ -1,5 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, combatCastGrantText, escalatingCastText, guelProgressText, monkProgressText, ritualistText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText, sergeantText, soulsmanText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText, watcherText } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, combatCastGrantText, escalatingCastText, guelProgressText, monkProgressText, ritualistText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText, watcherText } from './cardText';
+
+describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
+  it('Avenge units are COMBAT-only: no counter without a death tally, cyclic once it exists', () => {
+    expect(stepProgress('soulsman', {})).toBeNull();            // Avenge (4) — no fight → no shop pill
+    expect(stepProgress('soulsman', { avengeSeen: 3 })).toEqual({ current: 3, total: 4 });
+    expect(stepProgress('soulsman', { avengeSeen: 4 })).toEqual({ current: 4, total: 4 }); // procs here…
+    expect(stepProgress('soulsman', { avengeSeen: 5 })).toEqual({ current: 1, total: 4 }); // …then wraps
+    expect(stepProgress('solaris', { avengeSeen: 5 })).toEqual({ current: 5, total: 5 });  // Avenge (5)
+  });
+  it('Koron / Banksly count Gold spent (the goldTick meter), cyclic', () => {
+    expect(stepProgress('acid', {})).toBeNull();                       // Koron — no meter passed
+    expect(stepProgress('acid', { goldTick: 3 })).toEqual({ current: 3, total: 7 });   // every 7
+    expect(stepProgress('banksly', { goldTick: 12 })).toEqual({ current: 2, total: 10 }); // every 10, wrapped
+  });
+  it('Bloodbinder counts GLOBAL combat attacks (bleedAttacks), cyclic, combat-only', () => {
+    expect(stepProgress('bloodbinder', {})).toBeNull();
+    expect(stepProgress('bloodbinder', { bleedAttacks: 4 })).toEqual({ current: 4, total: 4 });
+    expect(stepProgress('bloodbinder', { bleedAttacks: 5 })).toEqual({ current: 1, total: 4 });
+  });
+});
 
 describe('cardText helpers', () => {
   it('scTribeBuffPerSpellText shows Runescale Drake’s live Dragon grant (base + per-spell, golden-aware)', () => {

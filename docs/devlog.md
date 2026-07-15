@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(ui): step counter extended to Avenge units + Koron / Banksly + Bloodbinder
+
+Owner-reported the "X/N" step-progress pill (Guel 1/4, Spirit Pup X/10, Tara X/20, …) wasn't showing on Avenge units
+or other goal units. Audit found it covered only a subset (Guel, Monk, Crypt Drake, Frontdrake/Money Maker cadence,
+Spirit Pup, ascend). Extended `stepProgress` (`cardText.ts`) to every remaining threshold mechanic:
+- **Avenge (12 units — Solaris, Brood Matron, Pit Supplier, Weaver, Obsidian Drake, Spark Capacitor, Spell Appraiser,
+  Prof. Greg, Steadfast, Soulsman, Bone Taxer, Kennelmaster)** — the running FRIENDLY-death tally this combat, cyclic
+  mod the Avenge threshold (the sim re-fires every N deaths via `count % N === 0`). **Combat-only** — no deaths in the
+  shop, so no persistent 0/N pill there. `computeFrame` now tallies per-side non-Rise deaths → stamps `avengeSeen` on
+  each frame; `Unit.tsx` feeds it in.
+- **Koron / Banksly** (`goldSpent` every 7 / 10) — the per-instance `goldTick` Gold-spend meter, cyclic. **Shop-phase**
+  (`instView` passes `goldTick`).
+- **Bloodbinder** (`scArmBleed` every 4) — total GLOBAL combat attack swings (either side, matching the sim's Bleed
+  gate), cyclic. **Combat-only** (`bleedAttacks`, tallied in `computeFrame`).
+
+All cyclic (they re-fire), matching Guel's 1/4→…→4/4→1/4; `stepProgress` keys off effect `do`/`on` names so it needs
+no per-id list. 3 new unit tests (thresholds verified against the real cards). **Wants a live eyeball** — the two
+combat counters tick as your units die / attack, which unit tests can't watch. Verified: `typecheck + lint + test`
+(1051, +3) & `build:web` green.
+
 ### fix: Skybound Pact / tribeStats quests count COMBAT stat gains too
 
 "Give Dragons N total stats" (Skybound Pact + Taragosa's Inheritance, both `tribeStats`) only advanced on

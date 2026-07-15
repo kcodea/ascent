@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(audio): real attack wind-up sound + removed two dead synth cues
+
+**What:** replaced the synth "attack wind-up" blip (`sfx.attack`, the tiny sawtooth that fired on every swing's
+start) with an owner-authored sourced clip `windup.mp3`, and **deleted two dead synth cues** — `sfx.temper` and
+`sfx.proc` — which were defined but wired to nothing (grep-confirmed: no call sites anywhere in `packages/ui`).
+
+**How:**
+- `sfx.attack` now does `playSample('windup', 'attack')` with the old sawtooth `tone()` kept as the decode/absent
+  fallback — the standard sourced-clip pattern. It still fires from the combat SFX channel on every `attack`
+  event (`choreo/channels/sfx.ts`), so no call-site change was needed.
+- New `attack` mixer category on the **combat** bus at a **0.4** starting gain (owner to tune — it fires on every
+  swing, so it wants to sit subtle). Previously the synth blip borrowed the `smack` category; it now has its own
+  level, independent of the strike. Added an `attack` preview entry to the dev SFX mixer.
+- Removed `temper`/`proc` method bodies; nothing referenced them (the lone `proc` hit in `Card.tsx` is an
+  unrelated visual-FX comment).
+
+Part of the stock-sound audit (identifying synth placeholders for replacement). Remaining pure-synth cues still
+to source: `cast` (SoC zap), `death`, `shield` (shield-up), `buff`, plus the meta fanfares `win`/`lose`/`triple`/
+`tick`/`maxGold`.
+
+**Verified:** `npm run typecheck && npm run lint && npm test` (1064) `&& npm run build:web` all green (isolated
+worktree, own install); `windup.mp3` bundles as a hashed asset. Audible check left for an in-tab listen.
+
 ### feat(ui): HUD tuning batch — name pill, hero-power restyle, dev movers, one-shot quest pulse
 
 Owner UI batch.

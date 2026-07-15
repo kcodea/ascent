@@ -514,7 +514,13 @@ export const sfx = {
     if (playSample('crit', 'crit')) return;
     tone({ freq: 240, dur: 0.16, type: 'square', vol: 0.18, slideTo: 90, category: 'crit' });
   },
-  death: () => tone({ freq: 130, dur: 0.26, type: 'sine', vol: 0.2, slideTo: 48, category: 'death' }),
+  // A unit DIES in combat — the sourced "death" clip; synth low sine-drop fallback until it decodes / if absent.
+  // Fired from the combat SFX channel on a real (non-Rise) death; the unit's own cards/<id>.death.mp3 voiceline
+  // still layers over this.
+  death: () => {
+    if (playSample('death', 'death')) return;
+    tone({ freq: 130, dur: 0.26, type: 'sine', vol: 0.2, slideTo: 48, category: 'death' });
+  },
   shield: () => tone({ freq: 760, dur: 0.18, type: 'sine', vol: 0.11, slideTo: 1300, category: 'shield' }),
   buff: () => {
     tone({ freq: 480, dur: 0.09, type: 'triangle', vol: 0.12, category: 'buff' });
@@ -543,7 +549,7 @@ export function setSampleVolume(key: string, v: number): void {
 
 /** Play a sourced clip by its category key (for the dev SFX mixer's preview button). */
 const SFX_PREVIEW: Record<string, () => void> = {
-  buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, crit: sfx.critHit, attack: sfx.attack, cardlanding: sfx.play, castspell: sfx.castSpell,
+  buy: sfx.buy, sell: sfx.sell, smack: sfx.hit, crit: sfx.critHit, attack: sfx.attack, death: sfx.death, cardlanding: sfx.play, castspell: sfx.castSpell,
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
   unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, skullburst: sfx.skullBurst, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   combatStart: sfx.combatStart,

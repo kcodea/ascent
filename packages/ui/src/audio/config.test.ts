@@ -15,7 +15,7 @@ describe('DEFAULT_AUDIO_CONFIG', () => {
     }
   });
   it('includes synth-only cues from the bus map (routing) on their bus at unity gain', () => {
-    for (const k of ['death', 'shield', 'buff', 'maxgold']) {
+    for (const k of ['shield', 'buff', 'maxgold']) {
       expect(DEFAULT_AUDIO_CONFIG.categories[k], k).toEqual({ bus: 'combat', gain: 1 });
     }
   });

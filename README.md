@@ -25,8 +25,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
-- **Real attack wind-up sound.** The synth blip that played as a unit began its swing is now a sourced clip
-  (its own mixer level); also deleted two dead synth cues (`temper`, `proc`) that fired nowhere.
+- **Real attack wind-up + death sounds.** The synth blip on a unit's swing wind-up and the synth death cue are
+  now sourced clips (each with its own mixer level); also deleted two dead synth cues (`temper`, `proc`).
 - **No-repeat opponents.** You'll never face the same opponent board within 4 rounds — the pick excludes the
   boards you actually fought over the last four waves (falling back to a repeat only if the pool has nothing else).
 

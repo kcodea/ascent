@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### fix(ui): step counter — hide at 0 in shop · end-of-turn cadence ticks with the beat · hidden in combat
+
+Owner follow-up on the step counter, three parts:
+
+- **Shop hides a fresh 0/N** — a `0/2` counter reads as noise, so the recruit/board path (`instView`) now only
+  renders the counter from `1/N` up (`sp.current > 0`). Effect: a shop **Avenge** unit (Brood Matron) or a
+  freshly-placed **Money Maker** shows nothing until it has real progress. Combat is unchanged (keeps its own
+  `0/N` that fades in on the first tick).
+- **Cadence counters are shop-only, hidden in combat** — Money Maker / Frontdrake / Vineweaver tick at END OF
+  TURN, so `stepProgress` now returns `null` when `eotTick` is undefined (the combat path passes no `eotTick`),
+  mirroring how `goldSpent` already hides. Fixes Money Maker showing a stale, irrelevant `0/2` mid-combat.
+- **The tick lands on the beat, not a turn late** — `eotTick` is only committed in `faceOmen` (after the
+  End-of-Turn beats), so the counter used to jump a turn later (into combat, where it's now hidden). Added an
+  `eotAnimTick` projection in `Recruit.tsx`: when a card's EoT beat fires, its counter climbs to `eotTick + 1`
+  in lock-step with the medallion pulse/glow. Threaded via a new `eotTickOverride` on `instView` (used for both
+  the card text and the counter, so they stay in sync — card-text-current-value rule). Money Maker's flow is now:
+  hidden at `0/2` → ticks to `1/2` on the end-of-turn beat → hidden through combat → `1/2` next shop.
+
+Verified live (worktree dev server, DOM probe): shop shows `1/2` only (0/2 + shop-Avenge hidden); the EoT beat
+sequence records `recruit(hidden) → recruit 1/2 → combat(hidden)`; both Money Makers carry no counter in combat
+while an Avenge unit still shows its fading `0/3`. typecheck + lint + `build:web` clean, 1064 tests green.
+
 ### fix(ui): Avenge payoff beats deploy AFTER the death's summons
 
 Owner report: "Avenge effects come before Deathrattle effects — perhaps just summon Deathrattles; make all

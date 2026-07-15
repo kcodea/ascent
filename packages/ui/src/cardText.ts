@@ -501,8 +501,11 @@ export function stepProgress(
   if (monk) return cyc(p.summonBonus ?? 0, Math.max(1, n((monk.params as { improveEvery?: number })?.improveEvery, 5)));
   const crypt = def.effects.find((e) => e.do === 'onAllyAttackBuffAll');
   if (crypt) return cyc(p.attackSeen ?? 0, Math.max(1, n((crypt.params as { every?: number })?.every, 2)));
+  // Frontdrake / Money Maker / Vineweaver: cadence ticks at END OF TURN, so it's a SHOP-phase counter —
+  // `eotTick` is undefined in combat (Unit.tsx passes no eotTick), where the cadence is irrelevant, so we
+  // return null there (no combat counter), mirroring `goldSpent` below. The recruit path always passes it.
   const cadence = def.effects.find((e) => e.on === 'endOfTurn' && (e.params as { every?: number } | undefined)?.every !== undefined);
-  if (cadence) return cyc(p.eotTick ?? 0, Math.max(1, n((cadence.params as { every?: number })?.every, 3)));
+  if (cadence) return p.eotTick === undefined ? null : cyc(p.eotTick, Math.max(1, n((cadence.params as { every?: number })?.every, 3)));
   // Avenge (Solaris, Soulsman, Bone Taxer, Brood Matron, …): the Avenge re-fires every N FRIENDLY deaths (the sim
   // gates on `count % threshold === 0`), so it's a cyclic 1..N counter driven by that side's running death tally.
   // Shows on the board too (`avengeSeen` is undefined outside a fight → 0/N), so a shop unit advertises its Avenge

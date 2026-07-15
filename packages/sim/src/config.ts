@@ -90,7 +90,7 @@ export const ANOMALIES: Record<AnomalyId, AnomalyDef> = {
   runic: {
     id: 'runic',
     name: 'Runic Behavior',
-    blurb: 'Every hero visits the basic Runeforge on turn 7.',
+    blurb: 'Every hero visits the basic Runeforge on turn 6.',
     enabled: true,
     runsThrough: 'a limited-time celebration patch',
   },

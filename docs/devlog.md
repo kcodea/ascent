@@ -5,6 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### chore(sim): Runic Behavior forge moves to turn 6
+
+- Moved the "Runic Behavior" anomaly's basic-Runeforge visit from turn 7 → **turn 6** (reducer trigger +
+  blurb). The Runesmith's own forge stays on turn 7, so under the anomaly it now gets both (turn-6 anomaly
+  visit + turn-7 native). Updated the anomaly tests to the new wave. typecheck + lint + test (1097) + build green.
+
 ### fix(ui): anomaly pill kept the custom game cursor on hover
 
 - The `.anomalypill` rule set a bare `cursor: default`, which dropped the game's custom gauntlet SVG cursor

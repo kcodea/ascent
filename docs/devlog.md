@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### fix(sim/ui): correct tavern buff-source names + Hoard Spark X/N badge counter + birthday banner
+
+- **Buff sources on tavern offers are now named correctly.** A tavern offer's accrued buff was a single
+  `atk`/`hp` number written by several sources (Apples, Fortify, Fried Circuits, next-shop), and both the
+  inspect and the buy-bake labelled the whole thing **"Fortify"** — so an Apples-buffed Squirl Scout read
+  "Fortify ×1". Added a per-source `ShopCard.buffs` breakdown (via a new `addOfferBuff` helper); every write
+  site tags its real source, `shopView` + the buy-bake read the breakdown (generic "Tavern buff" fallback for
+  legacy offers). New test: an Apples-buffed offer + the minion it buys both itemize "Apples", not "Fortify".
+- **Repeatable count-quests show an X/N counter above the badge.** Hoard Spark (buy 4 Dragons, repeatable) and
+  any repeatable count-threshold quest now show their progress toward the NEXT trigger (`aq.progress` /
+  `objective.count`) as a counter above the trophy badge, styled identically to the combat avenge/step tally
+  (`.stepcounter`, repositioned on top).
+- **Birthday banner** on the title screen — a celebratory glass card on the right for the Animations team.
+
+1091 tests green; typecheck + lint + build:web clean. (The in-app preview was unresponsive this session, so the
+banner + badge counter were verified via build + code review, not a live screenshot — worth an eyeball.)
+
 ### feat(ui): hero-panel layout redesign + tavern inspect buff sources + repeatable quests leave the log
 
 - **Hero panel layout.** The corner portrait is larger (60u → 80u) and holds ONLY the hero art; the hero name

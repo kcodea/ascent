@@ -296,8 +296,11 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
   // Itemize the buy-time buffs the offer previews (Fortify, run enchant, Staff of Guel, tribe buy-aura) so the
   // tavern inspect shows WHERE the boosted stats come from — the same sources the reducer's buy path records.
   const offerBuffs: { source: string; attack: number; health: number; count: number }[] = [];
-  const pushBuff = (source: string, a: number, h: number): void => { if (a || h) offerBuffs.push({ source, attack: a, health: h, count: 1 }); };
-  pushBuff('Fortify', card.atk ?? 0, card.hp ?? 0);
+  const pushBuff = (source: string, a: number, h: number, count = 1): void => { if (a || h) offerBuffs.push({ source, attack: a, health: h, count }); };
+  // Tavern buffs on the offer (Apples / Fortify / Fried Circuits / next-shop) — read their real per-source
+  // breakdown when present (so the inspect names the actual source), else fall back to the raw atk/hp total.
+  if (card.buffs?.length) for (const b of card.buffs) pushBuff(b.source, b.attack, b.health, b.count);
+  else pushBuff('Tavern buff', card.atk ?? 0, card.hp ?? 0);
   pushBuff(c.name, cb.attack, cb.health); // persistent per-card run enchant (Ritualist Fodder, Staff of Guel target…)
   pushBuff('Tavern', tavernAtk, tavernHp);
   pushBuff('Tribe Bond',

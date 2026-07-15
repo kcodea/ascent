@@ -51,6 +51,9 @@ export interface ShopCard {
    *  a shop minion) — baked into the minion's stats/keywords when it's bought. */
   atk?: number;
   hp?: number;
+  /** Per-SOURCE breakdown of `atk`/`hp` (Apples, Fortify, Fried Circuits, …) so the tavern inspect + the bought
+   *  minion attribute the buff to the right name instead of a generic label. Sums to `atk`/`hp`. */
+  buffs?: CardBuff[];
   keywords?: Keyword[];
   /** Golden Touch: this offer buys in as a Golden (offer-level flag; the buy path bakes golden:true in). */
   golden?: boolean;

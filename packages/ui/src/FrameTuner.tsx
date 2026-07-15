@@ -19,6 +19,8 @@ const STD_KNOBS: Knob[] = [
   { key: 'tier', label: 'tier seat', min: 0.5, max: 1.0, step: 0.01, def: 0.83 },
   { key: 'artY', label: 'art vert %', min: 0, max: 100, step: 1, def: 39, pct: true },
   { key: 'artZoom', label: 'art zoom', min: 0.8, max: 1.8, step: 0.01, def: 1.07 },
+  { key: 'wardsize', label: 'ward size (DS)', min: 0.4, max: 1.2, step: 0.01, def: 1.08 },
+  { key: 'wardy', label: 'ward Y % (DS)', min: 30, max: 80, step: 1, def: 53, pct: true },
 ];
 const SPELL_KNOBS: Knob[] = [
   { key: 'sh', label: 'frame size', min: 0.5, max: 1.0, step: 0.01, def: 0.8 },

@@ -11,7 +11,7 @@ import type { Anchor, Channel } from './choreo/score';
 export const CH_COLOR: Record<Channel, string> = {
   sfx: '#7aa2ff', float: '#8affc0', lunge: '#ffb35c', impact: '#ff6a6a',
   auraBurst: '#c88bff', auraBreak: '#ffd24a', auraReform: '#6ab0ff',
-  buffCast: '#ff8ad0', buffSelf: '#ffa35c',
+  buffCast: '#ff8ad0', buffSelf: '#ffa35c', improveSelf: '#ffcf5c', coins: '#f4c542', damageFx: '#ff8a5c', summonFx: '#c9b48a', ascendFx: '#cdffa3',
 };
 
 /** What each effect CHANNEL is. */
@@ -25,6 +25,11 @@ export const CH_DESC: Record<Channel, string> = {
   auraReform: 'The Reborn re-form glow — the wispy blue shimmer as a returning unit knits back together.',
   buffCast: 'A buff-OTHER cast — a tendril flies from the source to each buffed ally, releasing the +atk/+hp on the strike.',
   buffSelf: 'A self-buff — a unit empowering ITSELF pulses in place, then flashes its badge to the new value.',
+  improveSelf: "An aura STRENGTHENS — a unit whose summon/rally aura grew (Kennelmaster's Avenge bump, Mama Bear) pulses in place (no badge flash — its own stats don't change).",
+  coins: "A max-Gold gain — a unit whose Avenge raised your max Gold (Soulsman, Bone Taxer) bursts coins, on top of the '+N max gold' float.",
+  damageFx: 'A NON-melee hit — a Start-of-Combat nuke / split damage / Blaster AoE pops a damage burst + impact ring at each target, so a cast hit reads like a hit (melee already has its own impact).',
+  summonFx: 'A summon arrival — a dust poof kicks up under a newly-summoned unit as it lands (Deathrattle summons, tokens, overflow, SoC copies). Fires on the summonpop bounce.',
+  ascendFx: 'A transform — a unit becomes another (Tara→Taragosa, Spirit Pup→Worgen): a bright flash blooms over it, masking the card swap, then the new card pops in.',
 };
 
 /** What each ANCHOR means + how offsets behave relative to it. */

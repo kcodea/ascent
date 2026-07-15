@@ -3,6 +3,207 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-14 (session 41)
+
+### feat(ui): Reborn moved from Pixi wisp to a CSS ethereal AQUA-GREEN aura + hex shards on shield break
+
+Reworked the "has Reborn" signifier the same way Divine Shield was moved to CSS. Was: a persistent Pixi wisp
+aura (`kind:'reborn'`) that `syncShields` tracked onto the card. Now: a pure-CSS **ethereal aqua-green** aura —
+a faint ghost **dome** + **N rising randomized wisps** — seated on the oval window inside the ellipse-clipped art.
+- **New standalone tuner** `apps/web/public/fx/reborn-css-preview.html` (oval subject, colour pickers seeded from
+  the undead art — karthus' cyan + deathsayer's necrotic green → teal), dome/wisp/glow dials, wisp
+  count/rise/duration caps, and randomized-scatter wisps. The owner dialled the final look there; values baked in.
+- **Card.tsx** renders a `.reborn` stack (`.reborn-dome` + 27 `.wisp` children) inside `.art`; each wisp gets a
+  random left / bottom / delay / `--wisp-size` / `--wisp-rise` / `--wx` (sideways drift) so they read as an
+  organic cloud (Math.random is presentation-only). The dead `.reborntears` markup + `REBORN_TEARS` were removed.
+- **styles.css** — the tuned `.reborn-dome` / `.wisp` / `rebornpulse` / `rebornwisp` + `--rebornsize/--reborny`
+  seat + an aqua-green frame rim glow. **Recruit** `syncShields` now skips `reborn` (like `shield`), retiring the
+  Pixi aura; `rebornShatter` / `rebornSummon` + all combat FX are untouched.
+- **Shield break → hex shards:** added a hexagon shard texture (`shardHexTex`, the Ward's own facet shape); the
+  break shrapnel now flings mostly blue hexagons outward (+ a little triangle debris).
+- **Reborn combat FX recolored to teal:** `rebornShatter` (spirit release) + `rebornSummon` (re-form) + the
+  reborn drag-trail moved from spectral blue → the aqua-teal palette (deep `#178f86` → bright `#45e8c0` →
+  white-teal highlights), matching the new CSS aura.
+
+Verified: typecheck / lint / 1045 tests / build:web all green. Owner tuned the look in the standalone rig; the
+in-game render still needs an eyeball (Browser pane + Chrome ext both flaky this session). **Perf watch:** 27
+blurred, layer-promoted wisps per reborn card — fine for a few, worth measuring if many reborn minions stack.
+
+
+### fix(ui): Divine-Shield ward reshaped to the oval frame + retuned to a glassy ENERGY-BLUE
+
+The ward (Divine Shield dome) was still tuned for the old arch card, so on the new oval frames it floated too
+high (centred on the card, `y 0.5`, while the oval window centres at `~0.587`) and didn't fill the oval. Reworked
+end-to-end:
+- **Seat on the window:** the dome is now a centred round bubble on the oval *window* via two knobs on
+  `.card.compact.stdframe` — `--wardsize` (diameter ×ccw) and `--wardy` (vertical seat) — both live in the
+  FrameTuner. Owner-tuned to `1.08 / 53%`.
+- **Gold → energy-blue, glassier:** recolored the whole DS treatment to a deep energy-blue (`#0040ff` core →
+  `#001eff` deep) — dome body ring, deep-blue vignette, a big upper-left glass **spot** highlight (the shine), the
+  frame rim glow (tightened), and the outer aura. Regenerated `ward-hexsphere.svg` **denser** (S 0.235→0.15, ~40→
+  **121 facets**) and **blue-white** so the hex force-field reads finer, like the reference.
+- **Standalone tuner reworked:** `apps/web/public/fx/ward-css-preview.html` now renders the **oval frame** as the
+  subject (not the arch), with **colour pickers** for the blue, a **Glass shine (spot)** dial group, ward
+  size/seat + frame-glow dials, a dark-floor toggle, and a game-ready **Copy CSS** export. This is where the owner
+  dialled the final look; its output was baked into styles.css.
+- **Break + trail:** the Pixi shield-**break** shatter (crack lines, shockwave, shards, motes) and the DS
+  drag-**trail** were recolored gold → the same energy-blue, so DS reads blue on cast, break, and drag.
+
+Verified: typecheck / lint / tests / build:web all green; the look was dialled live by the owner in the standalone
+rig (headless preview can't screenshot). Follow-up: none outstanding on DS.
+
+## 2026-07-13 (session 39)
+
+### feat(ui): transform flash also fires in the shop phase
+
+Owner ask: item 8's transform flash should also play in **recruit**. Spirit Pup → Spirit Worgen transforms in the
+shop (`spellCastTransform` on the 10th spell cast — mutates `cardId` in place, keeps the uid), a different code path
+from the combat `ascend` cue. Added a board diff in `Recruit.tsx`: a board card whose `cardId` changed in place fires
+the same `pixiFx.flashBloom` (`ASCEND_PRESETS` default) at its slot — mirroring the existing golden-deploy pulse
+effect. Gated to a def that can actually morph (`spellCastTransform` / `ascendInto`) so a triple / golden / Magnetic
+merge never false-fires. **Wants a live eyeball** — play Spirit Pup, cast 10 spells.
+
+Verified: `typecheck + lint + test` (1050) & `build:web` green.
+
+### feat(ui): transform morph FX — ascend flash (item 8 baked)
+
+Effect-animation coverage sweep, item 8 complete. Baked the owner's tuned **flash** morph (from
+`transform-morph-preview.html`) into the `ascend` FX: when a unit transforms (Tara→Taragosa, Spirit Pup→Worgen) a
+bright lime-white flash blooms over it — masking the card swap — then the new card pops in. New `ascendPresets.ts`
+(`AscendPresetCfg` + owner-tuned `default`, mirroring `pulsePresets`/`descendPresets`), `pixiFx.flashBloom` (a
+single glow-disc bloom, screen-blend), an `ascendFx` cue on the `ascend` moment kind, an `ascendpop` CSS keyframe for
+the new card's overshoot, and the `ascend` anims-map case. Baked config: flash radius 190px / alpha 1 / 660ms /
+`#cdffa3`, new-card overshoot 0.32 (peak scale ~1.32). The swap is masked by the flash rather than delayed to
+`swapAt` (kept in the preset for round-trip). **Wants a live eyeball** — the flash + pop compose over the real card
+swap, not yet watched on a fight; all dials live in `ascendPresets.ts` for a quick retune.
+
+Verified: `typecheck + lint + test` (1050, +5 new) & `build:web` green.
+
+### chore(fx): transform-morph preview rig (item 8 — awaiting owner tuning)
+
+Effect-animation coverage sweep, item 8 (transform / `ascend`). Owner chose a **new bespoke morph** for
+Tara→Taragosa / Spirit Pup→Worgen, prototyped on a rig first (the standing FX rule). Built
+`apps/web/public/fx/transform-morph-preview.html` — a standalone rig (same shell as `buff-pulse-preview.html`: cream
+board stage, dark control panel, live JSON export) with **five candidate morph styles** to compare and tune: `flash`
+(bright bloom, card swaps at peak), `dissolve` (old rises as motes, new fades in), `shatter` (old cracks into shards,
+new assembles), `wipe` (a bright band sweeps + reveals), `vortex` (old spins down, new spins up). Each has common
+dials (duration, flash radius/alpha/ms, glow + particle colours) plus per-style params; the export is a complete
+`{ style, ...cfg }` to paste back for baking. Verified: JS syntax + a live load (5 styles, controls rebuild on style
+switch, JSON export updates, no console errors). **Next:** owner opens `/fx/transform-morph-preview.html`, picks a
+style + tunes, pastes the JSON; then I bake it into an `ascend`-event renderer (a new `ascendFx` cue on the `ascend`
+moment kind, mirroring the `summonFx`/`damageFx` channels).
+
+### feat(ui): keyword grants pulse the granter's medallion (part 1 of item 4)
+
+Effect-animation coverage sweep, item 4a. A `keyword` event (Mumi grants Rise, Gravewarden's SoC Rise, Combo Kim's
+Taunt, `deathrattleGrantShield`, …) wasn't in the medallion trigger whitelist, so the GRANTER's effect firing went
+unmarked. Added `keyword` (when it carries a `source`) alongside `sc`/`buff` → the granter's medallion now pulses
+when it hands out a keyword. The **bubble pop-in** half of item 4 (making the granted Ward dome / Taunt frame / Rise
+bubble pop *at grant time*) is a per-keyword visual and — per the owner's rule to agree an FX look on a preview rig
+before wiring — is being built on a rig next, not wired blind.
+
+Verified: `typecheck + lint + test` (1045) & `build:web` green.
+
+### feat(ui): dust poof on summon arrival
+
+Effect-animation coverage sweep, item 7. Summons (Deathrattle summons, tokens, overflow spawns, SoC copies) got
+only a CSS `summonpop` scale-in + the summoner's medallion pulse — the most *common* board-changing effect had no
+pixi punctuation. Added a `summonFx` cue on the `summon` moment kind that poofs `pixiFx.dust` under each arriving
+unit. Fired at **+250ms (scaled)** so it lands on the `summonpop` overshoot (the "bounce") — by then the scale-in has
+grown the unit to a measurable, full-size rect (guarded: skips a sub-1px rect). New `CueContext.onSummonFx` +
+`summonFx` channel. *Wants a live eyeball* — the spawn position/size + the 250ms timing are reasoned from the
+`summonpop` keyframes, not yet watched on a real fight; both are tunable (the offset via the dev score panel).
+
+Verified: `typecheck + lint + test` (1045, +1 new) & `build:web` green.
+
+### feat(ui): non-melee damage now bursts (SC nukes / split damage / Blaster AoE)
+
+Effect-animation coverage sweep, item 6. A non-melee hit — a Start-of-Combat nuke, split damage, or Blaster's
+Deathrattle AoE — showed only a floating number at the target (the pixi `damageBurst`/`impactPulse` pairing was
+recruit-hero-power-only). Added a `damageFx` cue that pops `pixiFx.damageBurst` + `impactPulse` at each hit target,
+so a cast hit reads like a hit. Wired to the `damage` moment kind (SC nukes / split damage) **and** `death` (Blaster's
+AoE lands in its own death moment); the handler dedupes targets and no-ops on a plain death with no dmg events.
+**Melee dmg is untouched** — it lives in `attackExchange`, which already fires the full lunge/impact FX, so it never
+double-bursts (asserted in a test). New `CueContext.onDamageFx` + `damageFx` channel. Tied to the damage MOMENT, not
+the CSS `.proj` bolt's fixed 0.5s travel, so it stays synced without coupling to the bolt animation.
+
+Verified: `typecheck + lint + test` (1044, +3 new) & `build:web` green.
+
+### feat(ui): coins burst on a combat max-Gold gain
+
+Effect-animation coverage sweep, item 5. A `maxGold` event (Soulsman / Bone Taxer Avenge raising your max Gold)
+showed only a "+N max gold" float + medallion pulse. Added a `coins` cue to the `maxGold` moment kind that bursts
+the existing `pixiFx.coins` (the recruit-phase coin spray) at the unit, on top of the float. Same channel pattern as
+`improveSelf` (new `CueContext.onMaxGold` + `coins` channel with dev-tuner colour/label). *Judgement call:* max-Gold
+raises the ceiling rather than handing you coins now, so the coin spray is thematic juice rather than literal — the
+float still spells out "+N max gold". Easy to drop if it reads as "gained gold".
+
+Verified: `typecheck + lint + test` (+1 new) & `build:web` green.
+
+### feat(ui): pulse when an aura strengthens (improve → self-pulse)
+
+Effect-animation coverage sweep, item 3. An `improve` event (a summon / rally AURA strengthening — Kennelmaster's
+Avenge bump, Mama Bear / Flowing Monk growth) showed only a ✦ float + medallion pulse, none of the buff FX. Added an
+`improveSelf` cue to the `improve` **moment kind** (`score.ts`) that pops an in-place `pixiFx.pulse` at each
+strengthened unit, reusing that card's self-buff pulse preset. **No badge hold/flash** — an improve grows the unit's
+aura (future grants), not its own Attack/Health, so the pulse fires bare. Wired **only** to the standalone `improve`
+moment kind, **not** `attackExchange`: an improve absorbed into an attack (Trophy Stalker's growth tick) rides that
+unit's on-attack self-buff pulse from item 1 instead, so it never double-pops. New `CueContext.onImprove` +
+`improveSelf` channel (with its dev-tuner colour/label).
+
+Verified: `typecheck + lint + test` (1041, +2 new) & `build:web` green.
+
+### fix(ui): descend FX for Burial Imp + Chef Raag (Deathrattle buff-others)
+
+Effect-animation coverage sweep, item 2. **Burial Imp** (`deathrattleBuffFodder`) and **Chef Raag**
+(`deathrattleBuffAllByImpAura`) buff OTHER minions on death, but weren't in `DEATHRATTLE_BUFF_FACTORIES`, so the
+combat replay routed them as a *living-source* tendril — and by strike time the source is dead, so `fireBuffCasts`
+dropped the FX entirely (**no animation at all**). Added both factory names to the descend allow-list → they now
+rain the sourceless **descend** onto each buffed ally, like every other Deathrattle buff-other. (`knit`/Spear Warden
+stays out, pending its echo-aura redesign.)
+
+Verified: `typecheck + lint + test` (1039, +2 assertions on `isDeathrattleBufferCard`) & `build:web` green.
+
+### feat(ui): fire the self-buff pulse for on-attack self-buffs (attack wind-up)
+
+Kicks off an **effect-animation coverage sweep** (audit this session → owner; queue in roadmap B0). First gap
+closed: a unit that buffs a group INCLUDING ITSELF on its own / an ally's attack — **Solaris Fang, Trophy Stalker,
+Watcher, Crypt Drake, Taragosa, Forsaken Mage**, and conditionally **Hunter** — had its self-buff absorbed into the
+`attackExchange` moment, and the attack wind-up FX path fired only buff-OTHER tendrils (`groupBuffCasts` deliberately
+skips self-buffs), so the caster's own +N/+N popped **no pulse**. (Standalone / Start-of-Combat / `onDamaged`
+self-buffs already pulse via the `buffWave` path.) Extracted the buffWave path's self-pulse logic into a shared
+`fireSelfBuffs` helper (`useCombatReplay.ts`) and called it from the attack wind-up alongside `fireBuffCasts` — the
+same buff-others-tendril / self-pulse split the buffWave path makes, so an on-attack aura-of-self now reads exactly
+like a standalone one. Only the caster's self-portion changed; its buffs to *other* minions already animated.
+**Karthus is NOT affected** — `onKill` buffs are deferred to their own buffWave (they already pulse); only `onAttack`
+is absorbed. New regression test proves Solaris's self-buff surfaces on the `attackExchange` moment that
+`groupSelfBuffs` reads.
+
+Verified: `typecheck + lint + test` (1039, +1 new) & `build:web` all green.
+
+### feat(ui): drag-lift shadow (card reads as further off the table) + live tuner knobs
+
+When a card is picked up it scales up ("lifted off the table"). Now its **grounding shadow** reacts too: while a
+card is the floating `.dragcard`, the shadow grows, drops further below, softens, and lightens — the real cue a
+higher object gives (bigger, softer, more-offset, lighter shadow). Implemented purely off the existing shadow
+layer: a `.dragcard .cshadow` rule overrides the resting shadow with four `--dsh-*` values.
+
+Made it **owner-tunable in real time** via the existing Drag Feel tuner (dev menu → 🎴 Drag Feel):
+- `dragFeel.ts` gains four knobs — `shGrow` (scale), `shLift` (offset px), `shBlur` (px), `shFade` (opacity) —
+  with ranges + tooltips, persisted to localStorage, and reflected onto `:root` as `--dsh-grow/lift/blur/fade`
+  by `applyDragFeelVars()`. They auto-appear as sliders in `DragTuner.tsx` (labelled "drag shadow · …").
+- Because one pointer can't drag a card AND a slider at once, the tuner also gets a **"preview drag shadow"
+  checkbox** that toggles `body.dsh-preview`, pinning the drag shadow onto every *resting* card so the four
+  sliders can be dialed live and watched across the board. The tuned values become the shipped defaults via the
+  tuner's "Copy values" → paste into `DEFAULTS`.
+
+Defaults (owner-tuned): grow 1.08, lift 18px, blur 11px, fade 0.54. Static filter (no per-frame animation) →
+compositor-safe, same as the resting shadow.
+
+Verified live (in-app browser, running build): `--dsh-*` reflect at boot; `body.dsh-preview` makes a resting
+`.cshadow` compute to `blur(18px) scale(1.1) translateY(22px) opacity .7`; changing a `--dsh-*` var updates the
+shadow instantly; the tuner renders the preview checkbox + all four sliders. `typecheck`/`lint`/`build:web` green.
+
 ## 2026-07-13 (session 38)
 
 ### fix: mobile readability zoom — bigger cards in a wider frame (mobile-only)

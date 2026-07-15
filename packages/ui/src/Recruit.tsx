@@ -12,6 +12,7 @@ import { sfx, stopAllAudio, resumeAudio } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
 import { fireBuffFx } from './buffFxRender';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
+import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { getDragFeel } from './dragFeel';
 import { getLayout } from './layoutConfig';
 import { getFlipConfig } from './flipConfig';
@@ -596,7 +597,7 @@ export function Recruit() {
     // state (works from ANY source — its CardView keywords say if it has the aura). DURING COMBAT only combat
     // UNITS (`.unit`) get auras, so a frozen shop/hand card can't float its aura over the arena.
     for (const cfg of AURA_CFGS) {
-      if (cfg.kind === 'shield') continue; // Ward is CSS now (Card.tsx `.ward` stack); Pixi only fires its break shatter + drag sparkles
+      if (cfg.kind === 'shield' || cfg.kind === 'reborn') continue; // Ward + Reborn are CSS now (Card.tsx `.ward` / `.reborn` stacks); Pixi only fires their combat break/re-form FX + drag sparkles
       const els = document.querySelectorAll<HTMLElement>(
         inCombatRef.current
           ? `.unit .card.${cfg.marker}`
@@ -1834,6 +1835,31 @@ export function Recruit() {
       if (!el) continue;
       const r = (el.querySelector<HTMLElement>('.archbox') ?? el).getBoundingClientRect();
       pixiFx.pulse(r.left + r.width / 2, r.top + r.height / 2, PULSE_PRESETS[pulsePreset(c.cardId, c.tribe)]);
+    }
+  }, [run.board, inCombat]);
+
+  // Shop-phase TRANSFORM flash: a board card whose cardId changed IN PLACE (uid stable) just transformed — Spirit
+  // Pup → Spirit Worgen on its 10th spell (`spellCastTransform` keeps the uid, swaps cardId). Bloom the SAME ascend
+  // flash combat uses, at the card's slot, so a shop transform reads as dramatically as a combat one. Gated to a def
+  // that can actually morph (spellCastTransform / ascendInto) so a triple / golden / Magnetic merge never false-fires.
+  const prevBoardCardIdsRef = useRef<Map<string, string> | null>(null);
+  useEffect(() => {
+    const current = new Map(run.board.map((c) => [c.uid, c.cardId]));
+    if (prevBoardCardIdsRef.current === null || inCombat) { prevBoardCardIdsRef.current = current; return; }
+    const prev = prevBoardCardIdsRef.current;
+    prevBoardCardIdsRef.current = current;
+    for (const c of run.board) {
+      const was = prev.get(c.uid);
+      if (!was || was === c.cardId) continue;
+      const wasDef = CARD_INDEX[was];
+      if (!wasDef || !(wasDef.effects.some((e) => e.do === 'spellCastTransform') || wasDef.ascendInto)) continue;
+      const el = findEl(c.uid);
+      if (!el) continue;
+      const r = (el.querySelector<HTMLElement>('.archbox') ?? el).getBoundingClientRect();
+      const cfg = ASCEND_PRESETS[ascendPreset(c.cardId, c.tribe)];
+      pixiFx.flashBloom(r.left + r.width / 2, r.top + r.height / 2, {
+        flashSize: cfg.flashSize, flashMs: cfg.flashMs, flashAlpha: cfg.flashAlpha, colorGlow: cfg.colorGlow, blend: 'screen',
+      });
     }
   }, [run.board, inCombat]);
 

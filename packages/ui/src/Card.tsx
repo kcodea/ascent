@@ -429,6 +429,22 @@ export const Card = memo(function Card({
               <div className="ward-gloss" />
             </div>
           )}
+          {/* Reborn — a faint ethereal aqua-green dome + rising randomized wisps (CSS, replacing the old Pixi
+              wisp), clipped to the oval window. Each wisp carries its own random position/size/rise/drift. */}
+          {card.keywords.includes('R') && (
+            <div className="reborn" aria-hidden="true">
+              <div className="reborn-dome" />
+              <div className="reborn-wisps">
+                {REBORN_WISPS.map((w, i) => (
+                  <div
+                    key={i}
+                    className="wisp"
+                    style={{ left: w.left, bottom: w.bottom, animationDelay: w.delay, '--wisp-size': w.size, '--wisp-rise': w.rise, '--wx': w.wx } as CSSProperties}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         {/* TAUNT frame layer (pipeline prototype) — an authored shield laid OVER the portrait, tracing the exact
             `--heater` silhouette so it aligns with the art's clip. Prefers the raster PNG (painterly); falls back
@@ -594,14 +610,6 @@ export const Card = memo(function Card({
           <span className="bc-mote" style={{ '--a': '22deg' } as CSSProperties} />
         </span>
       )}
-      {/* Reborn — spectral blue tears drift up across the card for a touch of life. */}
-      {card.keywords.includes('R') && (
-        <span className="reborntears" aria-hidden="true">
-          {REBORN_TEARS.map((t, i) => (
-            <span key={i} className="rt" style={{ left: t.x, top: t.y, animationDelay: t.d } as CSSProperties} />
-          ))}
-        </span>
-      )}
       {/* Venomous — green venom globs constantly drip off the card (no rim glow). */}
       {card.keywords.includes('V') && (
         <span className="venomdrip" aria-hidden="true">
@@ -626,15 +634,18 @@ export const Card = memo(function Card({
   );
 });
 
-/** Drifting positions + staggered delays for the Reborn tear particles (several visible at once). */
-const REBORN_TEARS = [
-  { x: '18%', y: '34%', d: '0s' },
-  { x: '68%', y: '24%', d: '0.9s' },
-  { x: '42%', y: '54%', d: '1.8s' },
-  { x: '82%', y: '46%', d: '2.6s' },
-  { x: '30%', y: '20%', d: '3.4s' },
-  { x: '58%', y: '60%', d: '4.0s' },
-];
+/** Reborn wisps — a fixed randomized set (generated once at module load) of rising ethereal spirit wisps. Each
+ *  carries its own position / size / rise / sideways-drift so they read as an organic cloud, not a line. Count +
+ *  ranges mirror the tuner (fx/reborn-css-preview.html): count 27, spread 38%, size 27%±35%, rise 320%±, wx ±22px.
+ *  Math.random is presentation-only jitter (the ban is scoped to core/content/sim). */
+const REBORN_WISPS = Array.from({ length: 27 }, () => ({
+  left: (50 + (Math.random() - 0.5) * 38).toFixed(1) + '%',
+  bottom: (Math.random() * 16).toFixed(1) + '%',
+  delay: (-Math.random() * 10.3).toFixed(2) + 's',
+  size: (27 * (0.65 + Math.random() * 0.7)).toFixed(1) + '%',
+  rise: (320 * (0.8 + Math.random() * 0.45)).toFixed(0) + '%',
+  wx: ((Math.random() - 0.5) * 44).toFixed(0) + 'px',
+}));
 
 /** Venom glob source points (along the lower art) + staggered delays for a constant drip. */
 const VENOM_DRIPS = [

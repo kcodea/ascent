@@ -651,38 +651,72 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    fires the break shatter + drag/drop sparkles). Compositor-only: static gradients/shadows; only the gold body's
    opacity pulse + the breath's opacity animate. Look tuned on `fx/ward-css-preview.html`. The dome layers ride the
    arch-clipped `.ward` stack; the outer aura + breath ride the CARD (bleed past the art, follow the arch). */
-.card.compact.dscard { z-index: 4; box-shadow: 0 0 16px 4px rgba(245, 188, 48, 1), 0 0 32px 9px rgba(240, 176, 32, 0.6); }   /* intense outer aura (2-layer) */
+.card.compact.dscard { z-index: 4; box-shadow: 0 0 16px 4px rgba(60, 180, 235, 1), 0 0 32px 9px rgba(39, 169, 221, 0.6); }   /* intense outer BLUE aura (2-layer) */
 .card.compact.dscard .ward { position: absolute; inset: 0; border-radius: var(--arch-radius); overflow: hidden; pointer-events: none; z-index: 2; }
 .card.compact.dscard .ward > * { position: absolute; inset: 0; border-radius: var(--arch-radius); }
-.card.compact.dscard .ward-body {   /* translucent gold ring, CLEAR centre (sprite reads through), SLOW-pulsing */
+/* Ward stack tuned on `fx/ward-css-preview.html` (the oval-frame rig) — a glassy ENERGY-BLUE energy dome. */
+.card.compact.dscard .ward-body {   /* translucent energy-blue ring, CLEAR centre, SLOW-pulsing */
   background: radial-gradient(120% 88% at 50% 44%,
-    rgba(255, 242, 196, 0) 0%, rgba(255, 206, 84, 0) 28%, rgba(255, 206, 84, 1) 56%, rgba(236, 168, 26, 1) 78%, rgba(236, 168, 26, 0) 100%);
-  animation: wardpulse 6.5s ease-in-out infinite; will-change: opacity;
+    rgba(0, 64, 255, 0) 0%, rgba(0, 64, 255, 0) 28%, rgba(0, 64, 255, 1) 56%, rgba(0, 30, 255, 1) 78%, rgba(0, 30, 255, 0) 100%);
+  animation: wardpulse 3.8s ease-in-out infinite; will-change: opacity;
 }
-@keyframes wardpulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }   /* stays solidly gold (high floor) */
-.card.compact.dscard .ward-hex {   /* hexagons PROJECTED onto a sphere (public/fx/ward-hexsphere.svg — big centre, compressed rim); rim-masked so only the edge band shows */
-  background: url("/fx/ward-hexsphere.svg") center / 140% no-repeat; opacity: 1; mix-blend-mode: screen;
-  -webkit-mask-image: radial-gradient(circle at 50% 46%, transparent 46%, #000 calc(46% + 12%), #000 84%, transparent 99%);
-          mask-image: radial-gradient(circle at 50% 46%, transparent 46%, #000 calc(46% + 12%), #000 84%, transparent 99%);
+@keyframes wardpulse { 0%, 100% { opacity: 0.78; } 50% { opacity: 1; } }
+.card.compact.dscard .ward-hex {   /* dense blue-white hex facets projected onto a sphere; rim-masked */
+  background: url("/fx/ward-hexsphere.svg") center / 99% no-repeat; opacity: 0.79; mix-blend-mode: screen;
+  -webkit-mask-image: radial-gradient(circle at 50% 46%, transparent 39%, #000 calc(39% + 12%), #000 88%, transparent 99%);
+          mask-image: radial-gradient(circle at 50% 46%, transparent 39%, #000 calc(39% + 12%), #000 88%, transparent 99%);
 }
-.card.compact.dscard .ward-shadow { box-shadow: inset 0 0 27px 8px rgba(78, 44, 6, 0.87); }   /* inner-edge vignette → depth */
-.card.compact.dscard .ward-spot {   /* soft bright highlight the gloss sits on */
-  background: radial-gradient(ellipse 57% 34% at 50% 27%,
-    rgba(255, 255, 255, 0.95) 0%, rgba(255, 250, 224, 0.5) 42%, rgba(255, 248, 214, 0) 72%);
+.card.compact.dscard .ward-shadow { box-shadow: inset 0 0 27px 8px rgba(0, 11, 89, 0.8); }   /* deep-blue inner vignette → depth */
+.card.compact.dscard .ward-spot {   /* the big soft GLASS reflection (the shine, upper-left) */
+  background: radial-gradient(ellipse 20% 56% at 35% 9%,
+    rgba(255, 255, 255, 1) 0%, rgba(220, 240, 255, 0.5) 42%, rgba(200, 232, 255, 0) 72%);
 }
-.card.compact.dscard .ward-gloss {   /* shiny diagonal reflection streak, masked to a glint, screen-blended */
-  background: linear-gradient(142deg, transparent calc(30% - 6%), rgba(255, 255, 255, 0.74) 30%, transparent calc(30% + 6%));
-  -webkit-mask-image: radial-gradient(ellipse 40% 50% at 50% 44%, #000 45%, transparent 100%);
-          mask-image: radial-gradient(ellipse 40% 50% at 50% 44%, #000 45%, transparent 100%);
+.card.compact.dscard .ward-gloss {   /* diagonal gloss streak — tuned OFF (the spot carries the shine) */
+  background: linear-gradient(0deg, transparent calc(0% - 0.5%), rgba(255, 255, 255, 0) 0%, transparent calc(0% + 0.5%));
+  -webkit-mask-image: radial-gradient(ellipse 20% 20% at 50% 0%, #000 45%, transparent 100%);
+          mask-image: radial-gradient(ellipse 20% 20% at 50% 0%, #000 45%, transparent 100%);
   mix-blend-mode: screen;
 }
 .card.compact.dscard::before {  /* breathing bloom — opacity-only pulse of a static shadow (kwglow: 0→1), arched */
   content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none;
   box-shadow: 0 0 27px 8px rgba(255, 224, 120, 0.9); animation: kwglow 6s ease-in-out infinite; will-change: opacity;
 }
-/* Reborn's signifier is now the Pixi blue wispy AURA (pixiFx kind='reborn', driven from the `.reborncard`
-   marker, parallel to the shield bubble) — the old blue glow/halo/art-border + rising tears were removed.
-   The `.reborncard` class is kept purely as the DOM hook the aura tracker reads. */
+/* Reborn — wispy ethereal AQUA-GREEN aura (tuned on fx/reborn-css-preview.html), replacing the old Pixi wisp.
+   A faint ghost DOME + N rising RANDOMIZED wisps, seated on the oval window inside the ellipse-clipped art
+   (Card.tsx spawns the `.wisp` children each with random left/bottom/delay/--wisp-size/--wisp-rise/--wx). The
+   Pixi reborn aura is retired (Recruit's syncShields skips it); its combat break/re-form FX stay. */
+.card.compact.reborncard { --rebornsize: 1.3; --reborny: 53%; }
+.card.compact.reborncard .reborn {
+  position: absolute; inset: auto; top: var(--reborny); left: 50%; transform: translate(-50%, -50%);
+  width: calc(var(--ccw) * var(--rebornsize)); height: calc(var(--ccw) * var(--rebornsize));
+  pointer-events: none; z-index: 2; overflow: visible;
+}
+.card.compact.reborncard .reborn-dome {
+  position: absolute; inset: 0; border-radius: 50%; mix-blend-mode: screen; will-change: opacity;
+  background: radial-gradient(circle at 50% 46%,
+    rgba(69, 232, 192, 0) 0%, rgba(23, 143, 134, 0) calc(52% - 13%), rgba(23, 143, 134, 1) 62%, rgba(69, 232, 192, 0.51) 80%, rgba(69, 232, 192, 0) 100%);
+  animation: rebornpulse 3.2s ease-in-out infinite;
+}
+@keyframes rebornpulse { 0%, 100% { opacity: 0.06; } 50% { opacity: 1; } }
+.card.compact.reborncard .reborn-wisps { position: absolute; inset: 0; }
+.card.compact.reborncard .wisp {
+  position: absolute; bottom: 8%; left: 50%; width: var(--wisp-size, 27%); aspect-ratio: 1 / 2.4;
+  background: radial-gradient(ellipse 60% 50% at 50% 62%, rgba(69, 232, 192, 0.95) 0%, rgba(23, 143, 134, 0.5) 45%, rgba(23, 143, 134, 0) 78%);
+  filter: blur(7.5px); mix-blend-mode: screen;
+  animation: rebornwisp 10.3s ease-in-out infinite; will-change: transform, opacity;
+}
+@keyframes rebornwisp {
+  0%   { transform: translateX(-50%) translateY(18%) scaleY(0.7) scaleX(0.9); opacity: 0; }
+  22%  { opacity: 0.78; }
+  100% { transform: translateX(calc(-50% + var(--wx, 0px))) translateY(calc(-1 * var(--wisp-rise, 320%))) scaleY(1.25) scaleX(0.7); opacity: 0; }
+}
+/* Reborn frame rim glow — energy aqua-green on the reshaped oval / taunt frame */
+.card.compact.stdframe.reborncard .cframe,
+.card.compact.taunt.reborncard .tframe {
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
+          drop-shadow(0 0 3px rgba(69, 232, 192, 0.85))
+          drop-shadow(0 0 11px rgba(23, 143, 134, 0.5));
+}
 /* Venomous — the same unmistakable treatment in toxic LIME (the V keyword: any damage it deals kills). */
 .card.compact.venomcard { z-index: 4; box-shadow: 0 0 10px 3px rgba(150, 228, 52, 0.58), 0 0 20px 5px rgba(120, 200, 40, 0.26); }
 .card.compact.venomcard::before { content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; box-shadow: 0 0 14px 4px rgba(168, 238, 70, 0.8), 0 0 27px 7px rgba(128, 208, 46, 0.4); animation: kwglow 2.6s ease-in-out infinite; will-change: opacity; }
@@ -756,10 +790,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
        ward-css-preview rig (sq-mul 1.4, ward-top −0.08). */
 .card.compact.taunt.dscard { box-shadow: 0 3px 0 var(--shadow); }   /* kill the rectangular gold aura */
 .card.compact.taunt.dscard::before { display: none; }               /* kill the arched breathing bloom */
-.card.compact.taunt.dscard .tframe {                                 /* gold halo that traces the shield's alpha */
+.card.compact.taunt.dscard .tframe {                                 /* energy-blue halo tracing the shield's alpha (tuned on the ward rig) */
   filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
-          drop-shadow(0 0 5px rgba(245, 188, 48, 0.95))
-          drop-shadow(0 0 13px rgba(240, 176, 32, 0.7));
+          drop-shadow(0 0 2px rgba(0, 64, 255, 0.9))
+          drop-shadow(0 0 10px rgba(0, 30, 255, 0.35));
 }
 .card.compact.taunt.dscard .ward {
   --wardsq: calc(var(--ccw) * var(--sh) * 1.4);   /* dome size — tuned on the ward preview (sq-mul 1.4) */
@@ -1740,6 +1774,22 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   filter: brightness(0) blur(9px);
   transform: translateY(5px) scale(0.99);
 }
+/* DRAG-LIFT SHADOW — while a card is lifted (the floating `.dragcard`), grow / drop / soften / lighten its
+   grounding shadow so it reads as further OFF the table (a higher object casts a bigger, softer, more-offset,
+   lighter shadow). Values are the `--dsh-*` vars reflected from `dragFeel.ts` (tunable live via the Drag Feel
+   tuner). `body.dsh-preview` pins the same look onto every RESTING card so the sliders can be dialed without
+   holding a card down (the tuner's "preview drag shadow" toggle). Higher specificity than the resting block
+   above so it wins. Still a static filter (no per-frame animation) → compositor-safe. */
+.dragcard .card.compact.stdframe .cframe.cshadow,
+.dragcard .card.compact.spellframe .cframe.cshadow,
+.dragcard .card.compact.taunt .tframe.cshadow,
+body.dsh-preview .card.compact.stdframe .cframe.cshadow,
+body.dsh-preview .card.compact.spellframe .cframe.cshadow,
+body.dsh-preview .card.compact.taunt .tframe.cshadow {
+  filter: brightness(0) blur(var(--dsh-blur, 11px));
+  transform: translateY(var(--dsh-lift, 18px)) scale(var(--dsh-grow, 1.08));
+  opacity: var(--dsh-fade, 0.54);
+}
 
 /* Frame metal TONE — minion frames (oval + taunt shield) render SILVER by default; a GILDED (golden) minion goes
    GOLD. Threaded as the first function into every frame `filter` above. Spells never set it → keep their own
@@ -1771,7 +1821,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
      --frameY   shift ONLY the gold frame (+ its banner + tier) DOWN by ×ccw, leaving the art window put. Big
                 shifts expose the art oval's top edge above the frame — raise --artZoom / --fill to compensate.
    `--dy` moves EVERYTHING together; `--frameY` moves just the frame relative to the art. */
-.card.compact.stdframe { --sh: 0.73; --fill: 1.3; --dy: 0; --frameY: 0.03; --tier: 0.83; --artY: 39%; --artZoom: 1.07; }
+.card.compact.stdframe { --sh: 0.73; --fill: 1.3; --dy: 0; --frameY: 0.03; --tier: 0.83; --artY: 39%; --artZoom: 1.07; --wardsize: 1.08; --wardy: 53%; }
 .card.compact.stdframe .art {
   clip-path: ellipse(50% 50% at 50% 50%);                          /* the elliptical window */
   width: calc(var(--ccw) * var(--sh) * var(--fill));
@@ -1856,14 +1906,17 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .card.compact.stdframe.dscard { box-shadow: 0 3px 0 var(--shadow); }
 .card.compact.stdframe.dscard::before { display: none; }
 .card.compact.stdframe.dscard .cframe {
+  /* energy-blue rim, tuned on the ward rig */
   filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
-          drop-shadow(0 0 5px rgba(245, 188, 48, 0.95))
-          drop-shadow(0 0 13px rgba(240, 176, 32, 0.7));
+          drop-shadow(0 0 2px rgba(0, 64, 255, 0.9))
+          drop-shadow(0 0 10px rgba(0, 30, 255, 0.35));
 }
+/* The dome is a centred round bubble seated on the oval WINDOW (not the .art centre): `--wardy` drops it onto
+   the window centre (the frame sits lower than the art box) and `--wardsize` (×ccw) fills the oval's width. The
+   `.art` ellipse clip + the frame gold on top trim it to the oval. Both are live knobs (FrameTuner). */
 .card.compact.stdframe.dscard .ward {
-  --wardsq: calc(var(--ccw) * var(--sh) * 0.92);
-  inset: auto; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: var(--wardsq); height: var(--wardsq); border-radius: 0;
+  inset: auto; top: var(--wardy); left: 50%; transform: translate(-50%, -50%);
+  width: calc(var(--ccw) * var(--wardsize)); height: calc(var(--ccw) * var(--wardsize)); border-radius: 0;
 }
 .card.compact.stdframe.dscard .ward > * { border-radius: 0; }
 /* Venomous: same treatment in toxic lime. The inner `.art::after` ring survives (it lives inside the ellipse-
@@ -1964,6 +2017,11 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 /* in-combat summon — the new minion pops in */
 .unit.summoned .card { animation: summonpop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
 @keyframes summonpop { 0% { transform: scale(0.2); opacity: 0; } 60% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); } }
+/* Ascend (transform: Tara→Taragosa, Spirit Pup→Worgen) — the NEW card pops in under the flash bloom (fired by
+   onAscend). Overshoot peak ≈ 1.32 mirrors the owner-tuned `ascendPresets` overshoot (0.32); the swap itself is
+   masked by the pixi flash, so the card starts small and bounces to full. */
+.unit.ascendpop .card { animation: ascendpop 0.55s cubic-bezier(0.34, 1.7, 0.64, 1); }
+@keyframes ascendpop { 0% { transform: scale(0.7); } 55% { transform: scale(1.32); } 100% { transform: scale(1); } }
 
 /* a kill shakes the unit rows (hit-stop feel) — see .app.shaking */
 @keyframes boardshake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 45% { transform: translateX(6px); } 70% { transform: translateX(-4px); } 88% { transform: translateX(2px); } }

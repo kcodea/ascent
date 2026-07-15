@@ -154,6 +154,34 @@ fanned-hand overlap now that framed cards overhang ~1.1× the slot. All knobs ar
   per-bus compressors shipped-on (Approach 2), sidechain ducking, and ingest LUFS-normalization in `sfx:import`.
 
 ### B0. FX follow-ups (from the Echo skull poof + buff tendrils, session 29)
+- **Effect-animation coverage audit (session 39 → devlog).** Full sweep of which combat effects show an animation
+  vs none, across the three buff FX (pulse / tendril / descend) and non-buff effects. Ordered queue (owner: do all):
+  - ✅ **Attack-windup self-pulse (shipped session 39).** On-attack / on-ally-attack self-buffs (Solaris, Trophy
+    Stalker, Watcher, Crypt Drake, Taragosa, Forsaken Mage, Hunter) were absorbed into the `attackExchange` and got
+    no pulse; the wind-up path now also runs `groupSelfBuffs` → in-place pulse (shared `fireSelfBuffs` helper).
+  - ✅ **Descend allow-list (shipped session 39).** `deathrattleBuffFodder` (Burial Imp) + `deathrattleBuffAllByImpAura`
+    (Chef Raag) added to `DEATHRATTLE_BUFF_FACTORIES` — they routed as a dead-source tendril → dropped; now descend.
+    (`knit`/Spear Warden stays out pending its echo-aura redesign.)
+  - ✅ **`improve` events → pulse (shipped session 39).** New `improveSelf` cue on the `improve` moment kind pops a
+    bare pulse (no badge flash) at each strengthened unit. Not on `attackExchange` — Trophy Stalker's growth rides
+    its on-attack self-buff pulse instead (no double-pop).
+  - **Keyword grants** (Ward/Taunt/Rise/Toxin granted mid-combat). Owner chose **bubble pop-in + granter medallion**.
+    - ✅ **4a — granter medallion (shipped session 39):** `keyword` events (with a source) now pulse the granter's medallion.
+    - ⏳ **4b — bubble pop-in:** make the granted Ward dome / Taunt frame / Rise bubble POP at grant time. Per-keyword
+      visual → build on a preview rig first (owner FX rule), then wire. Not wired blind.
+  - ✅ **Combat gold gains (shipped session 39).** New `coins` cue on the `maxGold` moment bursts `pixiFx.coins` at the
+    unit (Soulsman / Bone Taxer Avenge), on top of the float. (Thematic, not literal — max-Gold is a ceiling raise.)
+  - ✅ **Non-melee damage (shipped session 39).** New `damageFx` cue on the `damage` + `death` moment kinds pops
+    `damageBurst`+`impactPulse` at each SC-nuke / split-damage / Blaster-AoE target. Tied to the damage moment (not
+    the CSS bolt), dedupes targets, and never double-bursts melee (which owns its attack impact FX).
+  - ✅ **Summon arrival burst (shipped session 39).** New `summonFx` cue poofs `pixiFx.dust` under each arriving unit
+    at +250ms (the `summonpop` bounce). *Wants a live eyeball* — spawn position/size + timing reasoned from the
+    keyframes, not yet watched; tunable via the dev score panel offset.
+  - ✅ **Transform / `ascend` (shipped session 39).** Owner tuned the **flash** morph on the rig; baked into an
+    `ascendFx` cue (`pixiFx.flashBloom` + `ascendPresets.ts` + an `ascendpop` CSS pop). A lime-white flash masks the
+    swap, then the new card pops in. *Wants a live eyeball* — dials in `ascendPresets.ts`. Rig retained for retuning;
+    dissolve/shatter/wipe/vortex styles reserved.
+  - **Minor** — `keywordLost` (Tauntbreaker strip), `venomLost`, Stealth `reveal` show nothing beyond a pill/opacity change.
 - **Taunt shield frame — polish (session 34, → devlog).** The heater-shield frame + raster compositing pipeline
   shipped. Open threads: (1) a **thinner-border frame** variant so the art reaches closer to the gold (current
   window is ~70% of the shield width — art fills it correctly, the border is just wide); (2) re-add the

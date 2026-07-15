@@ -26,7 +26,58 @@ Verified: `typecheck` + `lint` + **1051 tests** (new capture + aggregation tests
 chart rendered correctly against injected mock data (green climbs to T6, red plateaus lower). Dormant until the
 `tier_by_wave` migration runs + fresh runs log.
 
+### chore: remove the Combo / Primer mechanic
+
+Owner's call — pull the Primer→Combo system entirely. A `primer` card armed a bonus that a `combo` card fired if
+played immediately after (tracked via `comboArmed` in the reducer, reset each turn). Removed end to end:
+
+- **Core:** dropped `CardDef.primer` + `CardDef.combo`; removed the now-orphan effect names `scGrantRightTaunt`,
+  `castSpellById`, `buffAllByImpAura` from the `EffectName` union + their factory/recruit implementations.
+- **Content:** stripped `combo`/`primer` (and the "**Combo:**/**Primer.**" text tails) from all 11 cards. The 8
+  **combo** cards keep their base effect (Godfodder → plain Choose One, Chef Raag → Echo, Sporebat/Runic Beetle/
+  Buddy Buddy/Black Belt Brian/Cinderwing Matron → their base Shout/Echo/Discover, Spark Capacitor → Avenge). Of
+  the 3 **primers**: Graverobber keeps its destroy-for-spell Battlecry; **Gold Pouch** becomes a plain "Gain 1
+  Gold" spell; **Combo Kim** was deleted outright (per owner) along with its `scGrantRightTaunt` SoC effect.
+- **Sim:** removed `RunState.comboArmed`, the reducer's arm/capture/fire logic + the combo `chooseBoth` payoff, the
+  targeted `bothOptions` path in `battlecryTarget` (and the `bothOptions` field on `pendingTarget`), and the
+  turn-start reset. Verified Combo Kim wasn't in the generated `opponentPool.data.ts` (no regen needed).
+- **UI:** removed the `comboReady` prop (Card.tsx) + its computation (Recruit.tsx) + the `.comboready` orange glow.
+- **Tests:** replaced the `Combo / Primer` describe block with an `ex-combo` block that keeps the still-valid base
+  behaviour (Godfodder/Runic Beetle prompt a normal Choose One; Black Belt Brian Discovers only a spell); fixed the
+  Gold Pouch display-text assertion.
+
+Verified: `typecheck` + `lint` + **1046 tests** + `build:web` all green.
+
 ## 2026-07-14 (session 41)
+
+### feat(ui): Stealth de-cloak shimmer (effect-animation sweep, item 9)
+
+Item 9 (the "minor" cosmetics) of the effect-animation coverage sweep. Re-checked the three flagged events on current
+`main`: **keywordLost** (Tauntbreaker strip) already flinches (`struck` + impact spark) and **venomLost** already
+bursts (`venomspent` green ring) — both were already handled, so left untouched. Only **`reveal`** (a Stealth unit
+breaking cover as it attacks) lacked a visual beyond the opacity bump + float. Added a `revealed` anim class (anims
+map) + a `revealpop` de-cloak keyframe: the unit flashes brighter + desaturated, then resolves to full colour /
+opacity — "materialising into view", ~0.4s so it rides the attack lunge without lingering. Compositor-safe
+(transform / opacity / filter only). Verified: `typecheck + lint + test` (1050) & `build:web` green.
+
+### fix(ui): golden minion no longer casts a gold "arch" behind it (grounding shadow mis-tint)
+
+Owner-reported: a gilded minion showed an old arch shape glowing gold behind it. Root cause: the grounding shadow
+is a 2nd copy of the frame img (`.cframe.cshadow`), and the golden frame-filter rule `.card.compact.stdframe.golden
+.cframe` (and the taunt `.tframe` variant) ALSO matched that shadow copy — equal specificity to the resting
+`.cshadow` rule but later in source, so it won — repainting the shadow with the GOLD frame filter
+(`brightness(1)` + a gold drop-shadow) instead of the black `brightness(0) blur` silhouette. So the "gold arch"
+was really the contact shadow tinted gold. Fixed by excluding the shadow copy from the golden filter
+(`.cframe:not(.cshadow)` / `.tframe:not(.cshadow)`) → a golden unit now casts a normal black contact shadow; the
+visible frame keeps its gold metal + rim. **Verified live** via a DOM computed-style probe: the golden `.cshadow`
+filter is now `brightness(0) blur(7.2px)` (no gold), while the real frame retains its gold drop-shadow. `lint` +
+`build:web` green.
+
+### tweak(ui): lighter, tighter resting grounding shadow (−20% spread + opacity)
+
+Owner ask. The RESTING card grounding shadow (the blurred frame-silhouette `.cshadow` seated under each unit)
+reduced 20% on both spread and opacity: `blur` 9px → 7.2px, `opacity` 1 → 0.8. The DRAG-LIFT shadow (the `--dsh-*`
+block for a lifted `.dragcard`, higher specificity) is explicitly left unchanged. Verified: `lint` + `build:web` green.
 
 ### feat(ui): Reborn moved from Pixi wisp to a CSS ethereal AQUA-GREEN aura + hex shards on shield break
 

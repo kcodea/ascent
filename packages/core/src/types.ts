@@ -258,9 +258,6 @@ export type EffectFactoryId =
   | 'battlecryCopyEcho' // Gravetwin: Battlecry — copy a targeted friendly Echo minion's Deathrattle onto itself (recruit)
   | 'spellBloodlust' // Bloodlust: cast — mark a friendly minion to take an immediate immune attack at Start of Combat (recruit)
   | 'copyLeftmostEcho' // Grave Body: Start of Combat / on-summon — copy your leftmost friendly Echo as this minion's combat Deathrattle
-  | 'scGrantRightTaunt' // Combo Kim: Start of Combat — give the minion to the right of this Taunt (combat)
-  | 'castSpellById' // Spark Capacitor Combo: cast a named spell (Spark Plug) on play (recruit)
-  | 'buffAllByImpAura' // Chef Raag Combo: give all your minions stats equal to your Imp Aura, on play (recruit)
   | 'deathrattleBuffAllByImpAura' // Chef Raag: Echo — give your minions stats equal to your Imp Aura (combat)
   | 'buffFodderImpsImproving' // Ritualist: End of Turn — buff Imps + Fodder, escalating each trigger (recruit)
   | 'spellAddTribe' // Anomaly Reactor: cast — give the target minion an extra tribe (a Mech type) for the run (recruit)
@@ -354,14 +351,6 @@ export interface CardDef {
   /** Choose One: when played, the player picks one of these options; its `effects` then resolve
    *  as the card's Battlecry (in place of `onPlay`). Each option carries its own display text. */
   chooseOne?: { text: string; goldenText?: string; effects: EffectDef[]; target?: 'friendly' | 'any' }[];
-  /** Primer (Combo): playing this card arms a Combo for the NEXT card played. A Combo only fires if the very
-   *  next play follows a primer — playing anything else in between disarms it (see `comboArmed` in the reducer). */
-  primer?: boolean;
-  /** Combo: an extra payoff that fires only when this card is played IMMEDIATELY after a primer. `effects` are
-   *  extra on-play effects (Buddy Buddy's spell, Sporebat's spell, Spark Capacitor's cast). `chooseBoth` (a
-   *  Choose One card, e.g. The Godfodder) instead plays BOTH options with no prompt — it is NOT a Shout, it just
-   *  resolves both option effects. */
-  combo?: { effects?: EffectDef[]; chooseBoth?: boolean };
   /** Discover-on-play: playing this card opens a Discover (a peek) and consumes the card — no board slot,
    *  no `cast` effect, and never multiplied by spell-quantity (Yazzus). Used by the tavern Discover spells
    *  (Sprout, Help Wanted, Tribe Portal, Corpse Board) and the golden Triple Reward token. The tier/tribe

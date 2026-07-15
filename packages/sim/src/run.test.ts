@@ -132,102 +132,38 @@ describe('run loop (@game/sim)', () => {
     expect(s.hand.map((m) => m.uid)).toEqual(['b', 'c', 'a']);
   });
 
-  describe('Combo / Primer', () => {
+  describe('Choose One / Battlecry cards (ex-combo)', () => {
     const mk = (uid: string, cardId: string): BoardCard => ({
       uid, cardId, tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false,
     });
 
-    it('a Primer arms the combo; a non-primer card disarms it', () => {
-      // Gold Pouch (emberpouch) is a Primer spell; Sandbag is a plain minion.
-      let s: RunState = { ...createRun(1), hand: [mk('p', 'emberpouch'), mk('x', 'sandbag')] };
-      s = reduce(s, { type: 'play', uid: 'p' });
-      expect(s.comboArmed).toBe(true);
-      s = reduce(s, { type: 'play', uid: 'x' });
-      expect(s.comboArmed).toBe(false);
-    });
-
-    it('a Combo card played right after a Primer fires its combo (Godfodder plays BOTH options, no prompt)', () => {
-      let s: RunState = { ...createRun(1), hand: [mk('p', 'emberpouch'), mk('gf', 'godfodder')] };
-      s = reduce(s, { type: 'play', uid: 'p' }); // arm
-      s = reduce(s, { type: 'play', uid: 'gf' }); // combo → both Choose One options, no chooseOne modal
-      expect(s.chooseOne).toBeUndefined();
-      // Option 1: add 2 Fodder to next shop → pendingTavern; Option 2: Fodder +3/+3 run-wide (Fred is Fodder).
-      expect((s.pendingTavern ?? []).filter((x) => x === 'fred')).toHaveLength(2);
-      expect(s.cardBuffs?.fred).toEqual({ attack: 3, health: 3 });
-    });
-
-    it('a Combo card played WITHOUT a primer resolves normally (Godfodder prompts a Choose One)', () => {
+    it('Godfodder prompts a Choose One (no auto-resolve)', () => {
       let s: RunState = { ...createRun(1), hand: [mk('gf', 'godfodder')] };
       s = reduce(s, { type: 'play', uid: 'gf' });
-      expect(s.chooseOne?.cardId).toBe('godfodder'); // still a plain Choose One — combo did not fire
-      expect((s.pendingTavern ?? []).length).toBe(0);
-    });
-
-    it('a Primer then a DIFFERENT card disarms the combo — a later Combo card does NOT fire', () => {
-      let s: RunState = { ...createRun(1), hand: [mk('p', 'emberpouch'), mk('x', 'sandbag'), mk('gf', 'godfodder')] };
-      s = reduce(s, { type: 'play', uid: 'p' }); // arm
-      s = reduce(s, { type: 'play', uid: 'x' }); // disarm (sandbag isn't a primer)
-      s = reduce(s, { type: 'play', uid: 'gf' }); // no combo → normal Choose One prompt
       expect(s.chooseOne?.cardId).toBe('godfodder');
       expect((s.pendingTavern ?? []).length).toBe(0);
     });
 
-    it("Black Belt Brian Combo Discovers a minion AFTER the spell Discover", () => {
+    it('Black Belt Brian Discovers a spell (only)', () => {
       let s: RunState = {
-        ...createRun(1), tier: 3, embers: 0, shop: [], board: [],
-        tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'],
-        hand: [mk('p', 'emberpouch'), mk('b', 'blackbelt')],
-      };
-      s = reduce(s, { type: 'play', uid: 'p' }); // Gold Pouch primer → arms the combo
-      s = reduce(s, { type: 'play', uid: 'b' }); // Brian: spell Discover opens; combo queues a minion Discover behind it
-      // The FIRST Discover offered is spells (the Battlecry).
-      expect(s.discover?.length).toBeGreaterThan(0);
-      expect(s.discover!.every((id) => CARD_INDEX[id]!.spell)).toBe(true);
-      // The combo minion Discover is queued behind it (fires after the spell one resolves).
-      expect(s.discoverQueue?.length ?? 0).toBe(1);
-      // Resolve the spell Discover → the queued MINION Discover opens next.
-      s = reduce(s, { type: 'discover', index: 0 });
-      expect(s.discover?.length).toBeGreaterThan(0);
-      expect(s.discover!.every((id) => !CARD_INDEX[id]!.spell)).toBe(true);
-      // Without a primer, Brian just Discovers a spell (no minion queued).
-      let solo: RunState = {
         ...createRun(1), tier: 3, embers: 0, shop: [], board: [],
         tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'],
         hand: [mk('b', 'blackbelt')],
       };
-      solo = reduce(solo, { type: 'play', uid: 'b' });
-      expect(solo.discover!.every((id) => CARD_INDEX[id]!.spell)).toBe(true);
-      expect(solo.discoverQueue?.length ?? 0).toBe(0); // no combo → no minion Discover
+      s = reduce(s, { type: 'play', uid: 'b' });
+      expect(s.discover?.length).toBeGreaterThan(0);
+      expect(s.discover!.every((id) => CARD_INDEX[id]!.spell)).toBe(true);
+      expect(s.discoverQueue?.length ?? 0).toBe(0); // nothing queued behind it
     });
 
-    it("Runic Beetle Combo grants BOTH Rise and Flurry to one picked Beast", () => {
-      // The ally Beast is already on board; the primer sits immediately before Runic Beetle in hand.
-      let s: RunState = {
-        ...createRun(1),
-        board: [{ uid: 'ally', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
-        hand: [mk('p', 'emberpouch'), { uid: 'rb', cardId: 'beetle', tribe: 'beast', attack: 3, health: 1, keywords: [], golden: false }],
-      };
-      s = reduce(s, { type: 'play', uid: 'p' }); // arm the combo
-      s = reduce(s, { type: 'play', uid: 'rb' }); // combo → targeted pick, NO Choose One prompt
-      expect(s.chooseOne).toBeUndefined();
-      expect(s.pendingTarget?.cardId).toBe('beetle');
-      expect(s.pendingTarget?.bothOptions).toBe(true);
-      // Pick the ally Beast → it gets BOTH Rise (R) and Flurry (W).
-      s = reduce(s, { type: 'battlecryTarget', targetUid: 'ally' });
-      const ally = s.board.find((c) => c.uid === 'ally')!;
-      expect(ally.keywords).toContain('R');
-      expect(ally.keywords).toContain('W');
-      expect(s.pendingTarget).toBeUndefined();
-    });
-
-    it("Runic Beetle WITHOUT a primer still prompts a normal Choose One", () => {
+    it('Runic Beetle prompts a normal Choose One', () => {
       let s: RunState = {
         ...createRun(1),
         board: [{ uid: 'ally', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }],
         hand: [{ uid: 'rb', cardId: 'beetle', tribe: 'beast', attack: 3, health: 1, keywords: [], golden: false }],
       };
       s = reduce(s, { type: 'play', uid: 'rb' });
-      expect(s.chooseOne?.cardId).toBe('beetle'); // normal Choose One, not the combo both-grant
+      expect(s.chooseOne?.cardId).toBe('beetle');
       expect(s.pendingTarget).toBeUndefined();
     });
   });
@@ -3975,7 +3911,7 @@ describe('spell stat bonus + display (@game/sim)', () => {
     expect(spellDisplayText('spiritfire', 1)).toBe('Give a friendly minion **{{+5/+5}}**.');
     expect(spellDisplayText('bulwark', 1)).toBe('Give a friendly minion **{{+1/+2}}** and **Taunt**.');
     // A non-stat spell (Gold Pouch) is untouched even with a bonus.
-    expect(spellDisplayText('emberpouch', 2)).toBe('Gain **1 Gold**. **Primer.**');
+    expect(spellDisplayText('emberpouch', 2)).toBe('Gain **1 Gold**.');
   });
 
   it('a welded spell-power aura (spellAuraBonus) boosts spells while the host is on board', () => {

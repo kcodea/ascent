@@ -229,9 +229,8 @@ export const BEASTS: CardDef[] = [
     health: 3,
     keywords: ['T'],
     effects: [{ on: 'onDeath', do: 'deathrattleGrantRandomSpell', params: { count: 1 } }],
-    combo: { effects: [{ on: 'onPlay', do: 'deathrattleGrantRandomSpell', params: { count: 1 } }] },
-    text: '**Taunt. Echo:** get a random spell. **Combo:** get a random spell (on play).',
-    goldenText: '**Taunt. Echo:** get **2** random spells. **Combo:** get a random spell (on play).',
+    text: '**Taunt. Echo:** get a random spell.',
+    goldenText: '**Taunt. Echo:** get **2** random spells.',
   },
   {
     // Economy Taunt: each time it takes damage, bank a free shop reroll — up to 4 hits a combat (the cap
@@ -296,10 +295,7 @@ export const BEASTS: CardDef[] = [
       { text: 'Give a friendly Beast **Rise**.', effects: [{ on: 'onPlay', do: 'battlecryGrantKeyword', params: { keywords: ['R'] } }] },
       { text: 'Give a friendly Beast **Flurry**.', effects: [{ on: 'onPlay', do: 'battlecryGrantKeyword', params: { keywords: ['W'] } }] },
     ],
-    // Combo: grant BOTH Rise and Flurry — the player still picks one friendly Beast; it receives both (via the
-    // targeted `bothOptions` path in the reducer). No pick / no other Beast → both auto-grant to itself.
-    combo: { chooseBoth: true },
-    text: '**Choose One:** give a friendly Beast **Rise**, or **Flurry**. **Combo:** give both.',
+    text: '**Choose One:** give a friendly Beast **Rise**, or **Flurry**.',
   },
   {
     // Dual-type Beast/Mech finisher. Rally builds a rest-of-combat Beast Attack aura that catches summons

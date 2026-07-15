@@ -1454,29 +1454,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** (recruit half) — add `count` random Tavern spell(s) (≤ tavern tier) to hand; golden doubles. */
   deathrattleGrantRandomSpell: (ctx, self, params) => {
-    // `exactTier` (Buddy Buddy's Combo: a random Tier-1 spell) pins the tier; else any spell up to the tavern tier.
+    // `exactTier` pins the spell to a specific tier; else any spell up to the tavern tier.
     const ok = params.exactTier != null
       ? (c: CardDef) => c.tier === num(params.exactTier)
       : (c: CardDef) => c.tier <= ctx.state.tier;
     conjureToHand(ctx.state, SPELL_CARDS.filter(ok), num(params.count, 1) * gold(self));
-  },
-
-  /** Cast a specific spell by id, on this minion's play (Spark Capacitor's Combo: "cast a Spark Plug"). Runs the
-   *  named spell's `cast` effects on the run — no hand card, no cost. Golden casts it twice. */
-  castSpellById: (ctx, self, params) => {
-    const spell = CARD_INDEX[str(params.cardId)];
-    if (!spell?.spell) return;
-    for (let i = 0; i < gold(self); i++) castSpell(ctx.state, spell);
-  },
-
-  /** Chef Raag — give ALL your minions +A/+H equal to your current Imp Aura (`impBuff`). Golden doubles the
-   *  grant. Fires on Echo (out of combat) and, with a Combo primer, on play too. */
-  buffAllByImpAura: (ctx, self) => {
-    const imp = ctx.state.impBuff ?? { attack: 0, health: 0 };
-    const a = imp.attack * gold(self);
-    const h = imp.health * gold(self);
-    if (a <= 0 && h <= 0) return;
-    for (const c of ctx.state.board) addBuff(c, nameOf(self), a, h);
   },
 
   /** (recruit half) — add a random Magnetic minion to hand; golden adds two. */

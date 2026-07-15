@@ -318,6 +318,7 @@ export function Recruit() {
   const eotAnimating = useGame((s) => s.endTurnAnimating);
   const setCombatEnemyDeaths = useGame((s) => s.setCombatEnemyDeaths);
   const setCombatQuestDelta = useGame((s) => s.setCombatQuestDelta);
+  const setCombatTriggeredQuests = useGame((s) => s.setCombatTriggeredQuests);
   const setCombatBuffs = useGame((s) => s.setCombatBuffs);
   const combatSpeed = useGame((s) => s.combatSpeed);
   const setCombatSpeed = useGame((s) => s.setCombatSpeed);
@@ -716,6 +717,10 @@ export function Recruit() {
   useEffect(() => {
     setCombatQuestDelta(inCombat && !run.combatSettled ? replay.questDelta : null);
   }, [inCombat, run.combatSettled, replay.questDelta, setCombatQuestDelta]);
+  // Pulse the completed-quest / owned-rune badges as their combat effects fire during the replay (empty otherwise).
+  useEffect(() => {
+    setCombatTriggeredQuests(inCombat && !run.combatSettled ? replay.triggeredQuests : []);
+  }, [inCombat, run.combatSettled, replay.triggeredQuests, setCombatTriggeredQuests]);
   // Bridge this fight's live run-buff gains (spell power, max Gold) to the store so the Buffs window ticks up
   // in sync with the replay. Cleared to `null` once combat is SETTLED — settleCombat folds the gains into the
   // run state, so the row then reads them from there (adding the live delta too would briefly double-count).

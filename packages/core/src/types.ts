@@ -951,6 +951,7 @@ export type CombatEvent = (
   | { type: 'toHand'; cardId: string; side: Side; source?: string } // a combat effect adds a card to your hand (Arcane Weaver)
   | { type: 'hpGrant'; target: string; amount: number } // Sergeant: live HP-grant amount after each Attack-gain improvement
   | { type: 'spellProgress'; target: string; amount: number } // Archmagus Guel: on-board spell tally after a combat cast (live countdown)
+  | { type: 'questTrigger'; flag: string; side: Side } // a completed quest / owned rune's COMBAT effect fired — `flag` maps to its badge id so the UI can pulse the node
 ) & { step?: number };
 
 export type CombatOutcome = 'win' | 'lose' | 'draw';

@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat: quest/rune trigger glow — badges pulse when their combat effect fires (#6/#7)
+
+Owner ask: when a completed quest / owned rune's COMBAT effect fires (their example: The Bone Throne's Avenge-4
+firing your leftmost Echo), there was no feedback it triggered. Now the matching badge above the hero frame pulses
+the moment its trigger is replayed.
+
+- **New `questTrigger` combat event** (`{ type, flag, side }`) — emitted from `simulate` when a quest/rune combat
+  effect fires. Cosmetic only (determinism + golden suites pass unchanged). Emitted at the Avenge chokepoint
+  (`runeAvenge` — covers Broodpit / Spearline / Appraisal / Soul Taxes) + The Bone Throne + Assembly Line.
+- **Content map** `badgeIdForCombatFlag(flag)` — derived from QUEST_DEFS + RUNES (their `combatFlag` rewards, +
+  Bone Throne) — resolves a fired flag to the quest/rune id the badge is keyed by.
+- **UI chain** mirrors the existing beat-aware `questDelta`: `useCombatReplay` collects the triggered badge ids
+  up to the current replay beat → store (`combatTriggeredQuests`) → `QuestBadges` adds a `.triggered` class → a
+  compositor-only pulse (opacity of a `::after` with a STATIC glow — per the perf north star, never box-shadow in a
+  loop).
+
+Verified: new sim test (a Bone-Throne board emits `questTrigger`; the flag maps to `q_the_bone_throne`; a rune flag
+maps to its id; unmapped → null). 1064 tests green, typecheck + lint + build:web clean. Follow-up: SoC-only runes
+(Warding / Rising Graves / First Claws) + spell casts aren't wired yet — same `fireTrigger` helper, more sites.
+
 ### balance: Contract Imp → Choose One (Fodder +2/+2 or Imps +4/+4)
 
 Contract Imp (Dark Bargain reward) is now a **Choose One** instead of buffing both: option A gives your Fodder

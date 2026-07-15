@@ -65,6 +65,9 @@ export function simulate(
   let stepN = 0;
   const nextStep = (): void => { stepN++; };
   const emit = (e: CombatEvent): void => { events.push({ ...e, step: stepN }); };
+  // A completed quest / owned rune's COMBAT effect just fired — emit a marker the UI folds into a badge pulse
+  // (the `flag` maps to the quest/rune id via content). Purely cosmetic; zero effect on resolution.
+  const fireTrigger = (flag: string, side: Side): void => emit({ type: 'questTrigger', flag, side });
   const bus = new CombatBus();
   let uidCounter = 0;
   const mkUid = (): string => `m${uidCounter++}`;
@@ -917,12 +920,12 @@ export function simulate(
     const throneStep = modsFor(side).boneThroneStep ?? 0;
     if (throneStep > 0 && deaths[side] % throneStep === 0) {
       const lead = boards[side].find((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onDeath'));
-      if (lead) { nextStep(); if (side === 'player') bumpDeathrattles(1); fireOwnDeathrattles(lead); }
+      if (lead) { nextStep(); fireTrigger('boneThroneStep', side); if (side === 'player') bumpDeathrattles(1); fireOwnDeathrattles(lead); }
     }
     // Assembly Line: every N friendly deaths (Avenge N), add a Money Bot to your hand. Player-only —
     // `grantToHand` no-ops for a served enemy (no hand). Avenge-paced like The Bone Throne.
     const asmStep = modsFor(side).assemblyLineStep ?? 0;
-    if (asmStep > 0 && deaths[side] % asmStep === 0) { nextStep(); ctx.grantToHand('moneybot', side, minion.uid); }
+    if (asmStep > 0 && deaths[side] % asmStep === 0) { nextStep(); fireTrigger('assemblyLine', side); ctx.grantToHand('moneybot', side, minion.uid); }
     // Pit Without End: the friendly death that empties your board summons N Imps (a last stand, once per fight).
     const pitImps = modsFor(side).pitWithoutEndImps ?? 0;
     if (pitImps > 0 && !pitDone[side] && countLiving(side) === 0) {
@@ -1505,28 +1508,29 @@ export function simulate(
   // Rune-granted run-wide AVENGE effects (no minion source): a bus handler fires every N friendly deaths. Rune of
   // Fury doubles them, matching how a minion's Avenge doubles (see registerEffect). Registered before the attack
   // loop so they catch every death.
-  const runeAvenge = (everyN: number, mask: (m: QuestCombatMods, side: Side) => boolean, fire: (side: Side) => void): void => {
+  const runeAvenge = (everyN: number, flag: string, mask: (m: QuestCombatMods, side: Side) => boolean, fire: (side: Side) => void): void => {
     bus.on('avenge', (payload) => {
       const { side, count } = payload as { side: Side; count: number };
       if (count % everyN !== 0) return;
       const m = modsFor(side);
       if (!mask(m, side)) return;
+      fireTrigger(flag, side); // pulse the rune's badge when its Avenge fires
       fire(side);
       if (m.runeFury) fire(side); // "your Avenge effects trigger twice" — per side
     });
   };
   // Combat avenge runes — PER SIDE (a served enemy runs its own): Broodpit + Spearline summon to their own side.
-  runeAvenge(6, (m) => !!m.runeBroodpit, (side) => { // summon 2 Imps with Taunt
+  runeAvenge(6, 'runeBroodpit', (m) => !!m.runeBroodpit, (side) => { // summon 2 Imps with Taunt
     const imp = cards['impscrap'];
     if (imp) { nextStep(); for (let i = 0; i < 2; i++) summonMinion(side, imp, undefined, ['T']); }
   });
-  runeAvenge(4, (m) => !!m.runeSpearline, (side) => { // summon a Spear Warden that attacks immediately
+  runeAvenge(4, 'runeSpearline', (m) => !!m.runeSpearline, (side) => { // summon a Spear Warden that attacks immediately
     const knit = cards['knit'];
     if (knit) { nextStep(); summonMinion(side, knit, undefined, undefined, false, true); }
   });
   // Economy avenge runes — PLAYER-ONLY (grant to the run's spell power / max Gold; no enemy meaning).
-  runeAvenge(4, (m, side) => side === 'player' && !!m.runeAppraisal, () => ctx.grantSpellPower(1, 1, 'player', undefined)); // spells +1/+1
-  runeAvenge(4, (m, side) => side === 'player' && !!m.runeSoulTaxes, () => ctx.grantMaxGold(1, 'player')); // +1 max Gold
+  runeAvenge(4, 'runeAppraisal', (m, side) => side === 'player' && !!m.runeAppraisal, () => ctx.grantSpellPower(1, 1, 'player', undefined)); // spells +1/+1
+  runeAvenge(4, 'runeSoulTaxes', (m, side) => side === 'player' && !!m.runeSoulTaxes, () => ctx.grantMaxGold(1, 'player')); // +1 max Gold
 
   // Rune of Packcraft: whenever you summon a minion in combat, your Beasts gain +1 Attack (aura — current Beasts
   // now + carried back so future bought Beasts inherit it, like The Old Hunt). Per side; carry-back player-only.

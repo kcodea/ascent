@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import gsap from 'gsap';
 import type { CombatEvent, CombatResult, Keyword, MinionBuff, MinionSnapshot, Tribe } from '@game/core';
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, badgeIdForCombatFlag } from '@game/content';
 import { pixiFx } from './pixiFx';
 import { sfx } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
@@ -1077,6 +1077,21 @@ export function useCombatReplay(
     return d;
   }, [combat, events, processedEnd]);
 
+  // Quest/rune badges whose COMBAT effect has fired so far this fight (player side): each `questTrigger` event's
+  // `flag` resolves to its badge id (via content). The node glows the moment its trigger is REPLAYED (up-to-the-
+  // beat, like questDelta), so the player sees e.g. The Bone Throne's Avenge actually go off. Cosmetic only.
+  const triggeredQuests = useMemo(() => {
+    if (processedEnd <= 0) return [] as string[];
+    const curStep = events[processedEnd - 1]?.step ?? Infinity;
+    const ids = new Set<string>();
+    for (const e of events) {
+      if (e.type !== 'questTrigger' || e.side !== 'player' || (e.step ?? 0) > curStep) continue;
+      const id = badgeIdForCombatFlag(e.flag);
+      if (id) ids.add(id);
+    }
+    return [...ids];
+  }, [events, processedEnd]);
+
   // Death reflow is CSS-driven (see `.unit.dying` / `.unit.summoned` in styles.css): the dying unit
   // collapses its own flex slot AS it plays its death pop, so the survivors glide in simultaneously
   // (one smooth phase) instead of waiting a beat and then sliding. CSS flex animates the neighbours for
@@ -1159,6 +1174,6 @@ export function useCombatReplay(
     statHoldFor: (uid: string) => statHold.get(uid),
     statFlashFor: (uid: string) => statFlash.get(uid),
     done, result: combat ? combat.result : null, shaking,
-    beatCount: beats.length, enemyDeaths, combatBuffs, questDelta, skip: () => setBeatIdx(beats.length),
+    beatCount: beats.length, enemyDeaths, combatBuffs, questDelta, triggeredQuests, skip: () => setBeatIdx(beats.length),
   };
 }

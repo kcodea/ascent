@@ -95,6 +95,7 @@ export function validateCards(cards: CardDef[] = ALL_CARDS): void {
 export { CardDefSchema, QuestDefSchema, RuneDefSchema } from './schema';
 export { QUEST_DEFS, QUEST_INDEX, validateQuests } from './quests';
 export { RUNES, EPIC_RUNES, RUNE_INDEX, validateRunes } from './runes';
+export { badgeIdForCombatFlag } from './questFlags';
 export { NEUTRAL } from './cards/neutral';
 export { BEASTS } from './cards/beasts';
 export { DRAGONS } from './cards/dragons';

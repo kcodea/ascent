@@ -2848,6 +2848,13 @@ svg { width: 18px; height: 18px; }
 .balchart-line { stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
 .balchart-line.won { stroke: #46d17f; filter: drop-shadow(0 0 5px rgba(70, 209, 127, 0.5)); }
 .balchart-line.lost { stroke: #ff6f95; filter: drop-shadow(0 0 5px rgba(255, 111, 149, 0.4)); }
+/* Per-wave data-point dots + their average-tier value labels. */
+.balchart-dot { stroke: rgba(0, 0, 0, 0.35); stroke-width: 1; }
+.balchart-dot.won { fill: #46d17f; }
+.balchart-dot.lost { fill: #ff6f95; }
+.balchart-ptl { font-family: var(--font-ui), sans-serif; font-weight: 800; font-size: 11px; font-variant-numeric: tabular-nums; paint-order: stroke; stroke: rgba(0, 0, 0, 0.55); stroke-width: 2.5px; }
+.balchart-ptl.won { fill: #7ff0aa; }
+.balchart-ptl.lost { fill: #ffa7be; }
 .balchart-legend { display: flex; justify-content: center; gap: 26px; margin-top: 8px; font-family: var(--font-ui), sans-serif; font-weight: 800; font-size: 14px; }
 .balchart-key { display: inline-flex; align-items: center; gap: 8px; color: rgba(255, 255, 255, 0.85); }
 .balchart-key::before { content: ''; width: 20px; height: 4px; border-radius: 2px; }

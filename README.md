@@ -25,6 +25,13 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Scaling-minion reworks.** **Hoardbreaker** now casts Growth on both Rally (first swing) *and* Slaughter;
+  **Scrap Herald** also grants a Money Bot; **Hunter** is a scaling aura that only triggers on gaining Attack
+  (buffs your others + improves itself); **Spirit Worgen** is back to on-play (+3/+3 per Beast/Dragon played,
+  improved +3/+3 per spell this turn); **Runescale Drake** buffs your Dragons +1/+1, improving +1/+1 for every
+  spell cast while that copy has been on board (per-instance, persistent; tripling **sums** the tally).
+- **Balance report splits shop vs Discover.** The Minions/Spells tables now show **Shop Seen · Shop Buy · Disc
+  Seen · Disc Buy · Buy%** — tavern odds and Discover odds are tracked and displayed separately.
 - **Step counter fades in combat.** The "X/N to next step" counter now flashes in only during combat — fades in
   on each avenge/step tick, holds ~3s, fades out (a second tick resets the window); it stays persistent in the
   shop for planning. Owner-tuned size/placement baked in.

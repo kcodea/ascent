@@ -5,6 +5,40 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(content): 4 scaling-minion reworks + balance-report shop/Discover split columns
+
+Five queued items (the four minion mechanics the owner spec'd + the report column split):
+
+- **Hoardbreaker Drake** (`rallyCastSpell`, dragons): now **Rally** (on-attack) *and* **Slaughter** (on-kill)
+  both cast **Growth**, so it fires on the first swing every combat, not only on a kill. New combat factory
+  mirrors `onKillCastSpell` on the `onAttack` trigger.
+- **Attachment Mechanic / Scrap Herald** (`battlecryGrantMinion`, mechs): Battlecry now also grants a **Money
+  Bot** (golden: two). New recruit factory grants a token minion to hand/board `count × golden` times.
+- **Hunter** (`onGainAttackBuffImproving`, beasts): reworked to a **scaling aura** — only triggers on **gaining
+  Attack**; each proc gives every *other* friendly minion the current +N/+N and improves itself +1/+1 (per-
+  instance via `summonBonus`). Fires in BOTH phases (combat factory + a recruit-half twin), each with a
+  re-entry guard (WeakSet) + exclude-self so a Hunter buffing a Hunter can't loop. Triple-combine = max.
+  Live text via new `hunterText`.
+- **Spirit Worgen** (`summonBuffSelfTribe`, beasts): reverted from the End-of-Turn lump to **on-play** — each
+  Beast/Dragon you play gives it **+3/+3**, and each spell cast this turn improves that per-play grant by
+  another +3/+3 (base × (1 + spellsThisTurn)). Live text `summonScalingText` rewritten (golden-aware).
+- **Runescale Drake** (`scTribeBuffPerProgress` + `spellCastImproveSelf`, dragons): Start of Combat gives your
+  Dragons **+1/+1**, improved **+1/+1 for every spell cast while THIS instance has been on the board** — a
+  per-instance `spellProgress` tally (persistent, non-retroactive, NOT this-turn-only; a fresh copy starts at
+  +1/+1). Recruit casts tick it via a new `spellCast` recruit factory; combat casts carry back at settle;
+  **tripling SUMS** the copies' progress (not max, unlike Spirit Pup). Live text via repurposed `runescaleText`
+  (reads `spellProgress`, already threaded into both the shop and combat text chains).
+- **Balance report — split card columns**: `runTelemetry` now tracks Discover offers/picks in their own streams
+  (`discoverOfferedCards`/`discoverBoughtCards`) separate from the shop streams; the aggregate carries per-source
+  counts, and the Minions/Spells tables show **Shop Seen · Shop Buy · Disc Seen · Disc Buy · Buy%** columns.
+  New DB columns (`discover_offered_cards`/`discover_bought_cards`) with a `schema.sql` migration; the upload +
+  fetch degrade gracefully (retry without the columns) so telemetry keeps recording until the owner migrates.
+
+Verified: new/updated tests across `simulate.test.ts` (Runescale SoC + spellProgress + enemy-side), `run.test.ts`
+(Worgen on-play, Runescale accrual + triple-SUM), `cardText.test.ts` (hunter/worgen/runescale live text),
+`runTelemetry.test.ts` (source split) — **1069 tests green**, typecheck + lint + build:web all clean.
+Determinism/golden unaffected.
+
 ### feat: pulse on EVERY quest activation (recruit + all SoC/combat triggers) + tuned HUD defaults
 
 - **New scale-tuner defaults** baked (hero power + quest nodes): hpowS 1.22, hpowX 237, hpowY 46, hpowGlow 2.1;

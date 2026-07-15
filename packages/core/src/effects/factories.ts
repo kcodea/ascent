@@ -1,5 +1,9 @@
 import type { CombatContext, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 
+/** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
+ *  minion object + always cleared in `finally`, so it never pollutes a shared card across combats/turns. */
+const huntGuard = new WeakSet<object>();
+
 /**
  * An effect primitive. Bound to a `self` minion and invoked when its subscribed
  * `GameEvent` fires. Factories decide their own relevance from the payload
@@ -310,6 +314,24 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const targets = eff.do === 'spellBuffAll' ? ctx.living(self.side) : ctx.living(self.side).filter((m) => m !== self);
     for (const t of targets) ctx.buff(t, a, h, self.uid);
     ctx.castSpell(self.side); // "cast Growth" is a real spell cast — proc in-combat spell reactions + count it
+  },
+
+  /** Hoardbreaker Drake (Rally): on its OWN attack, "cast Growth" — the Slaughter twin (onKillCastSpell) on the
+   *  attack trigger. Buffs the board by the spell's stats + combat spell power (golden doubles) and counts as a
+   *  real cast. Fires once per swing (Windfury → twice). */
+  rallyCastSpell: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only on this minion's own attack
+    const spell = ctx.getCard(str(params.spellId));
+    const eff = spell?.effects.find((e) => e.do === 'spellBuffAll' || e.do === 'spellBuffTarget');
+    if (!eff) return;
+    const sp = ctx.spellPowerFor(self.side); // per-side: enemy scales with the OPPONENT's spell power
+    const a = (num(eff.params?.attack, 0) + sp.attack) * mul(self);
+    const h = (num(eff.params?.health, 0) + sp.health) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    const targets = eff.do === 'spellBuffAll' ? ctx.living(self.side) : ctx.living(self.side).filter((m) => m !== self);
+    for (const t of targets) ctx.buff(t, a, h, self.uid);
+    ctx.castSpell(self.side);
   },
 
   /** Spell Drummer — Rally: cast a random stat spell on a random friendly minion (its buff + combat spell power,
@@ -904,6 +926,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.log({ type: 'spellProgress', target: self.uid, amount: self.spellProgress });
   },
 
+  /** Runescale Drake (combat half) — a spell cast in combat counts toward its on-board tally exactly like the
+   *  shop (owner ruling: "spells cast in combat count"). Ticks THIS instance's `spellProgress` and emits the
+   *  live event so the countdown climbs; the permanent carry-back to the run card happens at settle. The
+   *  Dragon buff itself fires once at Start of Combat (frozen at the seeded tally), so this only grows future
+   *  combats' grant. Identical body to `spellCastTransform`, named for its own card so intent stays clear. */
+  spellCastImproveSelf: (ctx, self, params, payload) => {
+    const { side } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    void params;
+    self.spellProgress = (self.spellProgress ?? 0) + 1;
+    ctx.log({ type: 'spellProgress', target: self.uid, amount: self.spellProgress });
+  },
+
   /** Hunter — when THIS minion's Attack rises (onGainAttack), give every living friend +`health` Health.
    *  Health-only, so it never re-triggers onGainAttack (no loop). Golden doubles. */
   onGainAttackBuffAll: (ctx, self, params, payload) => {
@@ -911,6 +946,26 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.dead || minion !== self) return; // only when self gains Attack
     const h = num(params.health, 2) * mul(self);
     for (const m of ctx.living(self.side)) ctx.buff(m, 0, h, self.uid);
+  },
+
+  /** Hunter — when THIS gains Attack, give your minions +M/+M (M = base + its accrued `summonBonus`, ×golden),
+   *  then improve the accrual by `base` for good (carried across combats via the per-uid summonBonus carry-back,
+   *  like Kennelmaster). A scaling board-wide aura. Live grant via cardText's hunterText. */
+  onGainAttackBuffImproving: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return; // only when self gains Attack
+    // Our own +Attack grant would re-fire onGainAttack (infinite loop; two Hunters would ping-pong). Buff OTHERS
+    // only, and bail if we're already mid-grant. `finally` clears the guard so it never leaks across turns.
+    if (huntGuard.has(self)) return;
+    huntGuard.add(self);
+    try {
+      const base = num(params.attack, 1);
+      const m = (base + (self.summonBonus ?? 0)) * mul(self); // ?? 0 — recruit BoardCards may not have it seeded
+      if (m > 0) for (const t of ctx.living(self.side)) if (t !== self) ctx.buff(t, m, m, self.uid);
+      self.summonBonus = (self.summonBonus ?? 0) + base; // permanent improve, carried back
+    } finally {
+      huntGuard.delete(self);
+    }
   },
 
   /** Deathsayer's Rally — when *this* attacks, fire your leftmost living minion's Deathrattle *first*
@@ -1207,6 +1262,21 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const spells = ctx.spellsThisTurnFor(self.side); // per-side: enemy Runescale uses the OPPONENT's spells this turn
     const a = (num(params.attack, 2) + per * spells) * mul(self);
     const h = (num(params.health, 2) + per * spells) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} channels the runes` });
+    for (const m of ctx.living(self.side)) {
+      if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+    }
+  },
+
+  /** Runescale Drake — Start of Combat: give your `tribe` (Dragons) +M/+M where M = base + the spells cast
+   *  while THIS instance has been on the board (`self.spellProgress`, seeded from the run card; non-retroactive,
+   *  NOT this-turn-only). Golden doubles the grant. A one-time buff to the living tribe, not a persisting aura. */
+  scTribeBuffPerProgress: (ctx, self, params) => {
+    const tribe = (str(params.tribe) || 'dragon') as Tribe;
+    const prog = self.spellProgress ?? 0;
+    const a = (num(params.attack, 1) + prog) * mul(self);
+    const h = (num(params.health, 1) + prog) * mul(self);
     if (a <= 0 && h <= 0) return;
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} channels the runes` });
     for (const m of ctx.living(self.side)) {

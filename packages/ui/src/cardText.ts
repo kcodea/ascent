@@ -50,6 +50,24 @@ export function summonImproveText(cardId: string, summonBonus: number, golden: b
 }
 
 /**
+ * Hunter (`onGainAttackBuffImproving`) — its board-wide grant GROWS: each Attack gain gives your minions
+ * (base + accrued `summonBonus`) × golden, then the accrual climbs by base. Surface the CURRENT grant (green) in
+ * place of the first printed "+N/+N"; the "+step/+step" improve rate stays. Null with no accrual yet (printed base
+ * is accurate), matching the sibling contracts.
+ */
+export function hunterText(cardId: string, summonBonus: number, golden: boolean): string | null {
+  if (summonBonus <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'onGainAttackBuffImproving');
+  if (!def || !eff) return null;
+  const base = Number((eff.params as { attack?: number })?.attack ?? 1);
+  const m = (base + summonBonus) * (golden ? 2 : 1);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  let done = false;
+  return src.replace(/\+\d+\/\+\d+/g, (mt) => (done ? mt : ((done = true), `{{+${m}/+${m}}}`)));
+}
+
+/**
  * A transform card (Spirit Pup) appends its live "N to go" countdown (highlighted green) so the
  * player sees how many spells remain before it transforms. `spellProgress` is the per-instance
  * tally; returns null for non-transform cards so callers fall back to the printed text.
@@ -95,22 +113,20 @@ export function cadenceProgressText(cardId: string, eotTick: number): string | n
 }
 
 /**
- * Spirit Worgen's End-of-Turn per-unit gain (+atk/+hp for each Beast/Dragon played this turn) is improved
- * +1/+1 for each spell cast this turn — so the printed "+base/+base" shows as its current "+X/+X"
- * (X = base + spellsThisTurn), highlighted green, once a spell's been cast this turn. Returns null otherwise
- * (falls back to the printed value). The ×(played) multiplier isn't shown — only the per-unit, as before.
+ * Spirit Worgen's on-play per-Beast/Dragon gain (+base/+base each time you play a Beast or Dragon) is improved
+ * by another full `base` for every spell cast this turn — so the current per-play value is base × (1 + spells).
+ * Fold that live "+X/+X" (green) into the first printed grant once a spell's been cast this turn; null otherwise
+ * (the printed text is already accurate). Golden-aware: reads the golden text + doubled base for a golden copy.
  */
-export function summonScalingText(cardId: string, spellsThisTurn: number, playedThisTurn?: string[]): string | null {
+export function summonScalingText(cardId: string, spellsThisTurn: number, golden: boolean): string | null {
   const def = CARD_INDEX[cardId];
-  const eff = def?.effects.find((e) => e.do === 'endOfTurnBuffPerTribePlayed');
+  const eff = def?.effects.find((e) => e.do === 'summonBuffSelfTribe');
   if (!def || !eff) return null;
-  const tribes = (eff.params as { tribes?: Tribe[] })?.tribes ?? (['beast', 'dragon'] as Tribe[]);
-  const played = countPlayed(playedThisTurn, tribes); // the ×multiplier the End of Turn will apply
-  if (spellsThisTurn <= 0 && played <= 0) return null; // nothing live → printed text is accurate
-  const base = Number((eff.params as { attack?: number })?.attack ?? 2);
-  let text = spellsThisTurn > 0 ? def.text.replace(`+${base}/+${base}`, `{{+${base + spellsThisTurn}/+${base + spellsThisTurn}}}`) : def.text;
-  if (played > 0) text += ` {{(${played})}}`; // live proc count: Beasts/Dragons played this turn
-  return text;
+  if (spellsThisTurn <= 0) return null; // nothing live → printed text is accurate
+  const base = Number((eff.params as { attack?: number })?.attack ?? 3) * (golden ? 2 : 1);
+  const per = base * (1 + spellsThisTurn);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(`+${base}/+${base}`, `{{+${per}/+${per}}}`); // first "+base/+base" = the per-play grant
 }
 
 /**
@@ -155,19 +171,18 @@ export function packLeaderText(cardId: string, summonBonus: number, golden: bool
 }
 
 /**
- * Runescale Drake's Start-of-Combat Dragon buff climbs +perSpell/+perSpell for each spell cast this turn.
- * Surface the CURRENT grant (green) — (base + perSpell × spellsThisTurn), ×2 if golden — by replacing ONLY the
- * first "+A/+B" group (the grant), leaving the "+step/+step" improvement rate that follows. Returns null with
- * no spells cast yet (the printed base is already accurate).
+ * Runescale Drake's Start-of-Combat Dragon buff = base + the spells cast while THIS instance has been on the
+ * board (per-instance `spellProgress`; non-retroactive, persistent). Surface the CURRENT grant (green) —
+ * (base + spellProgress) × golden — by replacing ONLY the first "+A/+B" group (the grant), leaving the "+1/+1"
+ * improve rate that follows. Returns null before any spell has been cast on board (the printed base is accurate).
  */
-export function scTribeBuffPerSpellText(cardId: string, golden: boolean, spellsThisTurn: number): string | null {
-  if (spellsThisTurn <= 0) return null;
+export function runescaleText(cardId: string, golden: boolean, spellProgress: number): string | null {
+  if (spellProgress <= 0) return null;
   const def = CARD_INDEX[cardId];
-  const eff = def?.effects.find((e) => e.do === 'scTribeBuffPerSpell');
+  const eff = def?.effects.find((e) => e.do === 'scTribeBuffPerProgress');
   if (!def || !eff) return null;
-  const base = Number((eff.params as { attack?: number })?.attack ?? 2);
-  const per = Number((eff.params as { perSpell?: number })?.perSpell ?? 1);
-  const x = (base + per * spellsThisTurn) * (golden ? 2 : 1);
+  const base = Number((eff.params as { attack?: number })?.attack ?? 1);
+  const x = (base + spellProgress) * (golden ? 2 : 1);
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   let done = false;
   return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${x}/+${x}}}`)));

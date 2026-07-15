@@ -270,17 +270,17 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerFodderGrants).toBeUndefined();
   });
 
-  it('Runescale Drake Start of Combat buffs your Dragons +2/+2 (base, 0 spells)', () => {
+  it('Runescale Drake Start of Combat buffs your Dragons +1/+1 (base, no on-board spells)', () => {
     const p: BoardMinion[] = [{ cardId: 'runescale', attack: 4, health: 20 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }];
     const r = run(p, e, 3);
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 2)).toBe(true);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true);
   });
 
-  it('Runescale Drake scales with spells cast this turn (3 spells → +5/+5)', () => {
-    const p: BoardMinion[] = [{ cardId: 'runescale', attack: 4, health: 20 }];
+  it('Runescale Drake scales with its per-instance spell tally (spellProgress 4 → +5/+5)', () => {
+    const p: BoardMinion[] = [{ cardId: 'runescale', attack: 4, health: 20, spellProgress: 4 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }];
-    const r = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ spellsThisTurn: 3 })); // 3 spells this turn → base 2 + 3
+    const r = run(p, e, 3); // base 1 + 4 spells cast while on board = +5/+5
     expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 5 && ev.health === 5)).toBe(true);
   });
 
@@ -322,6 +322,16 @@ describe('simulate (handoff A.3)', () => {
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies to Hoardbreaker → Slaughter
     const r = run(p, e, 3);
     expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 4)).toBe(true);
+  });
+
+  it('Hoardbreaker Drake Rally casts Growth on its own attack (no kill needed)', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'hoardbreaker', attack: 4, health: 20 },
+      { cardId: 'sandbag', attack: 0, health: 20 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 60 }]; // survives — no Slaughter, only Rally
+    const r = run(p, e, 3);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 4)).toBe(true); // Rally cast Growth
   });
 
   it('Spark Capacitor Avenge (4) adds a Spark Plug to hand', () => {
@@ -2109,7 +2119,7 @@ describe('simulate (handoff A.3)', () => {
     expect(tara?.count).toBeGreaterThan(0); // Tara was granted stats and counted them toward ascension
   });
 
-  it('Hunter grants Health to your board whenever its Attack rises (driven here by Crypt Drake)', () => {
+  it('Hunter buffs your board +M/+M whenever its Attack rises, scaling +1 each time (driven by Crypt Drake)', () => {
     const a = run(
       [
         { cardId: 'hunter', attack: 5, health: 60 },
@@ -2119,8 +2129,9 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 0, health: 200 }],
       3,
     );
-    // Hunter's reaction is a Health-only +0/+2 to the board — uniquely distinguishable from Crypt Drake's +X/+X.
-    expect(a.events.some((e) => e.type === 'buff' && e.attack === 0 && e.health === 2)).toBe(true);
+    // First Attack-gain → +1/+1 to the board; the next → +2/+2 (scaling per-instance accrual).
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 1 && e.health === 1)).toBe(true);
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2 && e.source === a.initial.player[0]!.uid)).toBe(true);
   });
 
   it('Burial Imp: its Echo buffs your Fodder +1/+1 (carried back) and summons an Imp', () => {
@@ -3196,12 +3207,12 @@ describe('enemy run-level scalers (per-side)', () => {
     expect(g(6, 5)).toBe(g(6, 0)); // and the current player's Beasts-played is irrelevant to it
   });
 
-  it('enemy Runescale Drake scales with the OPPONENT’s spells-this-turn, not the current player’s', () => {
-    const enemy: BoardMinion[] = [{ cardId: 'runescale', attack: 6, health: 6, keywords: [] }];
+  it('enemy Runescale Drake scales with its OWN per-instance spell tally, ignoring spells-this-turn', () => {
+    const enemy: BoardMinion[] = [{ cardId: 'runescale', attack: 6, health: 6, keywords: [], spellProgress: 3 }];
     const g = (enemySpells: number, playerSpells: number) =>
       maxBuffAtk(runVs(wall, enemy, { spellsThisTurn: enemySpells }, { spellsThisTurn: playerSpells }).events);
-    expect(g(3, 0)).toBe(2 + 1 * 3); // base 2 + perSpell 1 × its own 3 = +5/+5
-    expect(g(0, 5)).toBe(g(0, 0)); // does NOT leech the player's spells-this-turn
+    expect(g(0, 0)).toBe(1 + 3); // base 1 + its carried spellProgress 3 = +4/+4
+    expect(g(9, 9)).toBe(g(0, 0)); // neither side's spells-this-turn leeches into the grant anymore
   });
 });
 

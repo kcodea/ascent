@@ -72,6 +72,20 @@ describe('aggregatePlayerReport', () => {
     expect([growth.offered, growth.picked]).toEqual([2, 1]);
     expect(rep.minions.some((m) => m.id === 'growth')).toBe(false); // spell not in the minion table
   });
+
+  it('splits card offers/picks by SOURCE (shop vs Discover); combined totals still drive ranking', () => {
+    const rows: RunTelemetry[] = [
+      blank({
+        offeredCards: ['alley', 'alley'], boughtCards: ['alley'], // shop: seen 2, bought 1
+        discoverOfferedCards: ['alley', 'alley', 'alley'], discoverBoughtCards: ['alley'], // Discover: seen 3, bought 1
+      }),
+    ];
+    const alley = aggregatePlayerReport(rows).minions.find((m) => m.id === 'alley')!;
+    expect([alley.shopOffered, alley.shopPicked]).toEqual([2, 1]);
+    expect([alley.discoverOffered, alley.discoverPicked]).toEqual([3, 1]);
+    expect([alley.offered, alley.picked]).toEqual([5, 2]); // combined (shop + Discover) — used for pick rate + sort
+    expect(alley.pickRate).toBe(40); // 2 / 5
+  });
 });
 
 describe('reconstructRunTelemetry', () => {

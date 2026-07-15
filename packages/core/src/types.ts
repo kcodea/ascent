@@ -67,6 +67,7 @@ export type EffectFactoryId =
   | 'onKillGrantAttachmentRefreshes' // Moe: Slaughter — N free refreshes + N shops with a guaranteed Magnetic (carried back)
   | 'onKillGrantGold' // Bounty Bot: Slaughter — grant N Gold into the next shop (carried back)
   | 'onKillCastSpell' // Hoardbreaker Drake: Slaughter — cast a board-wide stat spell (Growth) in combat
+  | 'rallyCastSpell' // Hoardbreaker Drake: Rally — cast that same board-wide stat spell on its own attack
   | 'rallyCastRandomStatSpell' // Spell Drummer: Rally — cast a random stat spell on a random friend + copy self to hand
   | 'avengeCastRandomStatSpell' // Spark Capacitor: Avenge — cast a random stat spell on your lowest-Health Mech
   | 'deathrattleDamageAll' // Deathrattle: damage every minion on both sides (Blaster)
@@ -101,7 +102,8 @@ export type EffectFactoryId =
   | 'scDestroyHighestAttack'
   | 'scGrantEnemyTaunt' // Arena Heckler: Start of Combat — give the enemy's rightmost minion Taunt; golden the two rightmost
   | 'scSummonCopy' // Mirrorhide Rhino: Start of Combat — summon a copy of this minion's current body; golden two
-  | 'scTribeBuffPerSpell' // Runescale Drake: Start of Combat — buff a tribe +N/+N, +M per spell cast this turn
+  | 'scTribeBuffPerSpell' // (legacy) Start of Combat — buff a tribe +N/+N, +M per spell cast this turn
+  | 'scTribeBuffPerProgress' // Runescale Drake: Start of Combat — buff a tribe +N/+N, +1 per spell cast while this was on board
   | 'scTribeBuffPerPlayed' // (retired dial) Start of Combat — buff Beasts +N/+N, +M per Beast played this turn
   | 'scTribeBuffImproving' // Pack Leader: Start of Combat — buff Beasts +M/+M (base + accrued), improve permanently
   // recruit-time (resolved by @game/sim, baked into stats before combat)
@@ -148,7 +150,8 @@ export type EffectFactoryId =
   | 'onFriendlyAttackBuffTribe' // Raptor: when another friendly minion of a tribe attacks, buff it (Beast)
   | 'onAllyAttackBuffAll' // Crypt Drake: when any ally attacks, buff your minions — improving every N attacks
   | 'onAllyAttackCastGrowth' // Taragosa: when any ally attacks, cast Growth (+atk/+hp to all friends); golden ×2
-  | 'onGainAttackBuffAll' // Hunter: when this minion's Attack rises, buff your minions' Health
+  | 'onGainAttackBuffAll' // (legacy) when this minion's Attack rises, buff your minions' Health
+  | 'onGainAttackBuffImproving' // Hunter: when this gains Attack, buff your minions +M/+M (scaling per-instance)
   | 'battlecryDiscoverMinion' // Sea Urchin: Battlecry — Discover a minion of a tribe (Beast)
   | 'onConsumeBuffSelf'
   | 'onConsumeGrantSelfKeyword'
@@ -173,6 +176,7 @@ export type EffectFactoryId =
   | 'spellCastBuffOthers' // spellCast: give N other friendly minions +atk/+hp (Archmagus Guel)
   | 'overflowBuffRandom' // summonOverflow: buff a random friendly minion (Flowing Monk)
   | 'spellCastTransform' // spellCast: tick a per-instance counter; at the threshold, transform into another card (Spirit Pup → Worgen)
+  | 'spellCastImproveSelf' // spellCast: tick this instance's on-board spell tally (Runescale Drake) — no other effect
   | 'spellCastBuffSelf' // spellCast: buff self +atk/+hp per spell cast (Spirit Worgen)
   | 'summonBuffSelfTribe' // onSummon: buff self when a friendly minion of a given tribe is summoned (Spirit Worgen)
   // Spells (batch): tavern + run-level effects
@@ -249,6 +253,7 @@ export type EffectFactoryId =
   | 'battlecryDoubleNextSpell' // Nimbus: Battlecry arms the next Tavern spell to cast twice (recruit)
   | 'endOfTurnCastSpellEscalating' // Vineweaver Drake: EoT casts a spell once per End of Turn seen (recruit)
   | 'battlecryGrantSpell' // Field Mechanic: Battlecry adds a specific spell (Patch Job) to your hand (recruit)
+  | 'battlecryGrantMinion' // Attachment Mechanic: Battlecry adds a specific minion (Money Bot) to your hand (recruit)
   | 'endOfTurnAdjacentConsumeFodder' // Abyssal Feeder: EoT — both board-adjacent minions Consume a Fodder (recruit)
   | 'endOfTurnFeastConsume' // Feasting Bogrot: EoT — self Consumes a Fodder + shares its stats to adjacent (recruit)
   | 'endOfTurnBuffPerTribePlayed' // Spirit Worgen: EoT — gain per Beast/Dragon played this turn, +per spell cast (recruit)

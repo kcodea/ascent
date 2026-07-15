@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Charge Glyph — Pixi motes preview (converging fronts)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #05070c; color: #cfe6ff; font: 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace; display: flex; height: 100vh; overflow: hidden; }
+  #stage { flex: 1; position: relative; display: grid; place-items: center; overflow: hidden; }
+  .board { position: relative; width: min(94%, 1500px); aspect-ratio: 3440 / 1459; box-shadow: 0 20px 60px rgba(0,0,0,.6); border-radius: 10px; overflow: hidden; }
+  .board > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+  /* The CSS charge glyph (baked game look), so the motes are judged over the real fill. */
+  .glyphfx { position: absolute; left: 50%; top: 50%; width: var(--fx-w, 74%); aspect-ratio: 1385 / 544;
+    transform: translate(calc(-50% + var(--fx-x, -0.4%)), calc(-50% + var(--fx-y, -3.5%))); pointer-events: none; --charge: 0; }
+  .masked { position: absolute; inset: 0;
+    -webkit-mask: url("turn-glyph.svg") center/contain no-repeat,
+      linear-gradient(90deg, #fff 0, #fff calc(var(--charge)*50%), transparent calc(var(--charge)*50%), transparent calc(100% - var(--charge)*50%), #fff calc(100% - var(--charge)*50%), #fff 100%);
+    -webkit-mask-composite: source-in;
+    mask: url("turn-glyph.svg") center/contain no-repeat,
+      linear-gradient(90deg, #fff 0, #fff calc(var(--charge)*50%), transparent calc(var(--charge)*50%), transparent calc(100% - var(--charge)*50%), #fff calc(100% - var(--charge)*50%), #fff 100%);
+    mask-composite: intersect; }
+  .charge-fill { background: linear-gradient(90deg, #0037ff 0%, #009dff 19%, #ffffff 50%, #009dff 81%, #0037ff 100%);
+    filter: drop-shadow(0 0 40px rgba(0,157,255,.85)) drop-shadow(0 0 80px rgba(0,55,255,1)); mix-blend-mode: screen; animation: cpulse 4.3s ease-in-out infinite; }
+  @keyframes cpulse { 0%,100% { opacity: .63; } 50% { opacity: 1; } }
+  .charge-core { background: radial-gradient(ellipse 90% 5% at 50% 50%, #fff 0%, #009dff 34%, transparent 62%); filter: drop-shadow(0 0 40px #fff); mix-blend-mode: screen; opacity: 0; }
+
+  /* the motes canvas overlays the whole board, aligned to the glyph in JS */
+  #motes { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+  #stagebar { position: absolute; top: 12px; left: 0; right: 0; display: flex; gap: 10px; justify-content: center; }
+  #stagebar button { padding: 7px 16px; background: rgba(10,20,36,.82); color: #cfe6ff; font-size: 12px; border: 1px solid #1c3350; border-radius: 6px; cursor: pointer; }
+  #scrubwrap { position: absolute; bottom: 30px; left: 8%; right: 8%; display: flex; align-items: center; gap: 12px; }
+  #scrubwrap input { flex: 1; accent-color: #35b6ff; }
+  #scrubwrap span { color: #7fd0ff; font-size: 11px; min-width: 96px; text-align: right; }
+  .hint { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; color: #4f6d92; font-size: 11px; }
+
+  #panel { width: 344px; padding: 14px 16px; overflow-y: auto; background: #060b12; border-left: 1px solid #12233a; }
+  h1 { font-size: 13px; margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; color: #35b6ff; }
+  .sub { color: #5c7ba0; font-size: 11px; margin-bottom: 12px; }
+  h2 { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #5c7ba0; margin: 15px 0 6px; border-top: 1px solid #12233a; padding-top: 9px; }
+  .row { display: grid; grid-template-columns: 1fr 66px; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .row label { grid-column: 1 / -1; color: #9ac2e6; font-size: 11.5px; }
+  input[type=range] { width: 100%; accent-color: #2f9cff; }
+  .colorrow { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+  .colorrow label { flex: 1; color: #9ac2e6; font-size: 11.5px; }
+  input[type=color] { width: 44px; height: 26px; border: 1px solid #1c3a56; border-radius: 5px; background: #0a1420; cursor: pointer; }
+  .val { text-align: right; color: #35b6ff; font-size: 11px; }
+  button.act { width: 100%; padding: 9px; margin-top: 12px; border: 0; border-radius: 6px; background: #1668c8; color: #fff; font: inherit; font-weight: 700; letter-spacing: .06em; cursor: pointer; }
+  button.act.ghost { background: #0e1c2c; color: #9ac2e6; }
+  textarea { width: 100%; height: 150px; margin-top: 10px; background: #04090f; color: #35b6ff; border: 1px solid #12233a; border-radius: 6px; padding: 8px; font: 10.5px/1.45 ui-monospace, monospace; resize: vertical; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div id="stagebar">
+      <button id="play">▶ Play 20s</button>
+      <button id="empty">Empty</button>
+      <button id="full">Full</button>
+    </div>
+    <div class="board" id="board">
+      <img src="../testboard2.webp" alt="board" />
+      <div class="glyphfx" id="fx">
+        <div class="masked charge-fill"></div>
+        <div class="masked charge-core" id="core"></div>
+      </div>
+      <canvas id="motes"></canvas>
+    </div>
+    <div id="scrubwrap"><span>charge</span><input type="range" id="scrub" min="0" max="1" step="0.001" value="0" /><span id="scrubval">0%</span></div>
+    <div class="hint">motes stream from BOTH converging fronts into the sigil · flare rides each front · bloom at completion</div>
+  </div>
+
+  <div id="panel">
+    <h1>Charge Motes · Pixi preview</h1>
+    <div class="sub">Tune the white-hot energy motes that stream along the conduit toward centre as it charges, the flare riding each converging front, and the completion bloom. Copy Settings → I bake into pixiFx as a ChargeFxCfg. Persists across refresh.</div>
+
+    <h2>Colour</h2>
+    <div class="colorrow"><label>mote core (hot)</label><input type="color" id="c-core" value="#ffffff" /></div>
+    <div class="colorrow"><label>mote tail (cyan)</label><input type="color" id="c-mote" value="#33b0ff" /></div>
+    <div class="colorrow"><label>flare</label><input type="color" id="c-flare" value="#bfe6ff" /></div>
+    <div class="colorrow"><label>bloom</label><input type="color" id="c-bloom" value="#eafcff" /></div>
+
+    <div id="controls"></div>
+
+    <h2>Export</h2>
+    <button class="act" id="copy">Copy Settings 📋</button>
+    <textarea id="out" readonly></textarea>
+    <button class="act ghost" id="reset">Reset to defaults</button>
+    <div class="val" id="diag" style="text-align:left;margin-top:8px;color:#45607e">booting…</div>
+  </div>
+
+<script>
+addEventListener('error', (e) => { const b=document.createElement('div'); b.style.cssText='position:fixed;inset:0 auto auto 0;z-index:99;background:#b0203a;color:#fff;padding:10px;font:12px monospace;white-space:pre-wrap'; b.textContent='ERR: '+(e.message||e.error)+'\n'+(e.filename||'')+':'+(e.lineno||'?'); document.body.appendChild(b); });
+
+const DIALS = [
+  { group: 'Emission', prop: 'rate',       min: 0,   max: 600, step: 5,    def: 240, unit: '/s' },
+  { group: 'Emission', prop: 'frontBias',  min: 0,   max: 1,   step: 0.01, def: 0.7, unit: '' },   // 1 = all at fronts, 0 = spread along lit conduit
+  { group: 'Emission', prop: 'convergeBias',min: 0,  max: 1,   step: 0.01, def: 0.55, unit: '' },  // how much emission ramps up as fronts near centre
+  { group: 'Motes',    prop: 'speed',      min: 60,  max: 2400,step: 20,   def: 900, unit: 'px/s' },
+  { group: 'Motes',    prop: 'speedVar',   min: 0,   max: 1,   step: 0.01, def: 0.5, unit: '' },
+  { group: 'Motes',    prop: 'life',       min: 0.1, max: 2.5, step: 0.05, def: 0.7, unit: 's' },
+  { group: 'Motes',    prop: 'size',       min: 1,   max: 40,  step: 0.5,  def: 9,   unit: 'px' },
+  { group: 'Motes',    prop: 'sizeVar',    min: 0,   max: 1,   step: 0.01, def: 0.5, unit: '' },
+  { group: 'Motes',    prop: 'spreadY',    min: 0,   max: 80,  step: 1,    def: 10,  unit: 'px' },
+  { group: 'Motes',    prop: 'drag',       min: 0.8, max: 1,   step: 0.005,def: 0.985,unit: '' },
+  { group: 'Motes',    prop: 'pull',       min: 0,   max: 3000,step: 25,   def: 400, unit: 'px/s²' }, // extra accel toward centre
+  { group: 'Front flare', prop: 'flareSize', min: 0, max: 160, step: 2,    def: 46,  unit: 'px' },
+  { group: 'Front flare', prop: 'flareAlpha',min: 0, max: 1,   step: 0.02, def: 0.8, unit: '' },
+  { group: 'Front flare', prop: 'flarePulse',min: 0, max: 1,   step: 0.02, def: 0.3, unit: '' },
+  { group: 'Completion bloom', prop: 'bloomSize', min: 0, max: 600, step: 5, def: 320, unit: 'px' },
+  { group: 'Completion bloom', prop: 'bloomAlpha',min: 0, max: 1, step: 0.02, def: 0.9, unit: '' },
+  { group: 'Completion bloom', prop: 'bloomMs',  min: 100, max: 1600, step: 20, def: 620, unit: 'ms' },
+];
+
+const LS = 'ascent.chargeMotesPreview';
+const fx = document.getElementById('fx');
+const core = document.getElementById('core');
+const cv = document.getElementById('motes');
+const ctx = cv.getContext('2d');
+const controls = document.getElementById('controls');
+const out = document.getElementById('out'), diag = document.getElementById('diag');
+const scrub = document.getElementById('scrub'), scrubval = document.getElementById('scrubval');
+const cCore = document.getElementById('c-core'), cMote = document.getElementById('c-mote'), cFlare = document.getElementById('c-flare'), cBloom = document.getElementById('c-bloom');
+
+const V = {};
+let stored = {}; try { stored = JSON.parse(localStorage.getItem(LS) || '{}'); } catch {}
+if (stored.colors) { cCore.value = stored.colors.core ?? cCore.value; cMote.value = stored.colors.mote ?? cMote.value; cFlare.value = stored.colors.flare ?? cFlare.value; cBloom.value = stored.colors.bloom ?? cBloom.value; }
+
+const label = (p) => p.replace(/([A-Z])/g, ' $1').toLowerCase();
+function buildControls(useStored) {
+  controls.innerHTML = ''; let g = null;
+  for (const d of DIALS) {
+    V[d.prop] = useStored && typeof stored[d.prop] === 'number' ? stored[d.prop] : d.def;
+    if (d.group !== g) { const h = document.createElement('h2'); h.textContent = d.group; controls.appendChild(h); g = d.group; }
+    const row = document.createElement('div'); row.className = 'row';
+    const l = document.createElement('label'); l.textContent = label(d.prop);
+    const inp = document.createElement('input'); inp.type = 'range'; inp.min = d.min; inp.max = d.max; inp.step = d.step; inp.value = V[d.prop];
+    const v = document.createElement('span'); v.className = 'val'; v.textContent = V[d.prop] + d.unit;
+    inp.oninput = () => { V[d.prop] = parseFloat(inp.value); v.textContent = V[d.prop] + d.unit; persist(); save(); };
+    row.append(l, inp, v); controls.appendChild(row);
+  }
+}
+function persist() { try { localStorage.setItem(LS, JSON.stringify({ ...V, colors: { core: cCore.value, mote: cMote.value, flare: cFlare.value, bloom: cBloom.value } })); } catch {} }
+function save() { out.value = JSON.stringify({ ...roundAll(V), colors: { core: cCore.value, mote: cMote.value, flare: cFlare.value, bloom: cBloom.value } }, null, 1); }
+function roundAll(o) { const r = {}; for (const k in o) r[k] = Math.round(o[k] * 1000) / 1000; return r; }
+
+const hexToRgb = (h) => { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const lerp = (a, b, t) => a + (b - a) * t;
+const rgbLerp = (A, B, t) => [lerp(A[0],B[0],t), lerp(A[1],B[1],t), lerp(A[2],B[2],t)];
+
+// ── particle sim ──────────────────────────────────────────────────────────────────────────────────
+let parts = [];
+let charge = 0, playing = false, playT0 = 0;
+let bloomAt = 0;          // timestamp the completion bloom fired (0 = not yet)
+let lastCharge = 0;
+let emitAcc = 0;
+
+function setCharge(c) { charge = Math.max(0, Math.min(1, c)); fx.style.setProperty('--charge', charge.toFixed(4));
+  const t = charge <= 0.65 ? 0 : (charge - 0.65) / 0.35; core.style.opacity = (t*t).toFixed(3);
+  scrub.value = charge; scrubval.textContent = Math.round(charge*100) + '%'; }
+
+// glyph geometry in CANVAS pixels (canvas is board-sized). Measured each frame (cheap; board is static here).
+function geom() {
+  const br = document.getElementById('board').getBoundingClientRect();
+  const gr = fx.getBoundingClientRect();
+  const sx = cv.width / br.width, sy = cv.height / br.height;
+  const cx = (gr.left + gr.width / 2 - br.left) * sx;
+  const cy = (gr.top + gr.height / 2 - br.top) * sy;
+  const halfW = (gr.width * 0.5 * 0.93) * sx;         // conduit reaches ~93% of the fx box
+  return { cx, cy, halfW, sx };
+}
+
+function emit(dt, G) {
+  // fronts converge from the edges to the centre as charge → 1
+  const fl = G.cx - (1 - charge) * G.halfW;
+  const fr = G.cx + (1 - charge) * G.halfW;
+  // rate ramps up as the fronts near the centre (convergeBias)
+  const ramp = 1 - V.convergeBias * (1 - charge);
+  emitAcc += V.rate * ramp * dt;
+  const n = Math.floor(emitAcc); emitAcc -= n;
+  const core = hexToRgb(cCore.value), mote = hexToRgb(cMote.value);
+  for (let i = 0; i < n; i++) {
+    const rightSide = Math.random() < 0.5;
+    const front = rightSide ? fr : fl;
+    // spawn AT the front (frontBias) or spread back along the lit conduit toward the edge
+    const back = rightSide ? Math.min(1, (fr - G.cx) / G.halfW) : Math.min(1, (G.cx - fl) / G.halfW);
+    const spread = (1 - V.frontBias) * back * G.halfW;
+    const x = front + (rightSide ? 1 : -1) * Math.random() * spread;
+    const y = G.cy + (Math.random() - 0.5) * 2 * V.spreadY * G.sx;
+    const sp = V.speed * G.sx * (1 - V.speedVar * Math.random());
+    const dir = x > G.cx ? -1 : 1;                     // toward centre
+    parts.push({
+      x, y, vx: dir * sp, vy: (Math.random() - 0.5) * sp * 0.12,
+      life: V.life * (1 - V.sizeVar * 0.4 * Math.random()), max: V.life,
+      size: V.size * G.sx * (1 - V.sizeVar * Math.random()),
+      mix: Math.random(), core, mote,
+    });
+  }
+}
+
+function drawDot(x, y, r, rgb, a) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`);
+  g.addColorStop(0.4, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a*0.5})`);
+  g.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill();
+}
+
+let last = 0;
+function frame(now) {
+  const dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016; last = now;
+  // size the canvas to the board bitmap
+  const br = document.getElementById('board').getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const W = Math.round(br.width * dpr), H = Math.round(br.height * dpr);
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+
+  if (playing) { const f = Math.min(1, (now - playT0) / 20000); setCharge(f); if (f >= 1) playing = false; }
+
+  const G = geom();
+  // completion bloom: fire once as charge crosses ~1
+  if (charge >= 0.999 && lastCharge < 0.999) bloomAt = now;
+  lastCharge = charge;
+
+  if (charge > 0.001 && charge < 1) emit(dt, G);
+
+  // advance
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i]; p.life -= dt;
+    if (p.life <= 0) { parts.splice(i, 1); continue; }
+    const dragF = Math.pow(p.drag ?? V.drag, dt);
+    p.vx *= dragF; p.vy *= dragF;
+    const dir = p.x > G.cx ? -1 : 1; p.vx += dir * V.pull * G.sx * dt;    // pull toward centre
+    p.x += p.vx * dt; p.y += p.vy * dt;
+  }
+
+  // draw (additive)
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.globalCompositeOperation = 'lighter';
+  const flare = hexToRgb(cFlare.value);
+  for (const p of parts) {
+    const t = 1 - p.life / p.max;
+    const a = (1 - t * t);
+    const rgb = rgbLerp(p.mote, p.core, (1 - t) * (0.4 + 0.6 * p.mix)); // hot near birth → cools as it fades
+    drawDot(p.x, p.y, p.size * (1 - 0.5 * t), rgb, a);
+  }
+  // front flares
+  if (charge > 0.001 && charge < 1) {
+    const fl = G.cx - (1 - charge) * G.halfW, fr = G.cx + (1 - charge) * G.halfW;
+    const pulse = 1 - V.flarePulse * (0.5 + 0.5 * Math.sin(now / 120));
+    const fr2 = V.flareSize * G.sx * pulse;
+    drawDot(fl, G.cy, fr2, flare, V.flareAlpha);
+    drawDot(fr, G.cy, fr2, flare, V.flareAlpha);
+  }
+  // completion bloom
+  if (bloomAt) {
+    const k = (now - bloomAt) / V.bloomMs;
+    if (k >= 1) bloomAt = 0;
+    else drawDot(G.cx, G.cy, V.bloomSize * G.sx * (0.3 + 0.7 * k), hexToRgb(cBloom.value), V.bloomAlpha * (1 - k));
+  }
+  ctx.globalCompositeOperation = 'source-over';
+
+  diag.textContent = `charge ${Math.round(charge*100)}% · ${parts.length} motes`;
+  requestAnimationFrame(frame);
+}
+
+// controls
+[cCore, cMote, cFlare, cBloom].forEach((el) => el.oninput = () => { persist(); save(); });
+scrub.oninput = () => { playing = false; setCharge(parseFloat(scrub.value)); };
+document.getElementById('play').onclick = () => { playing = true; playT0 = performance.now(); parts = []; bloomAt = 0; };
+document.getElementById('empty').onclick = () => { playing = false; parts = []; bloomAt = 0; setCharge(0); };
+document.getElementById('full').onclick = () => { playing = false; setCharge(1); };
+document.getElementById('copy').onclick = async () => { const b = document.getElementById('copy'); try { await navigator.clipboard.writeText(out.value); b.textContent = 'Copied ✓'; } catch { out.focus(); out.select(); } setTimeout(() => b.textContent = 'Copy Settings 📋', 1200); };
+document.getElementById('reset').onclick = () => { try { localStorage.removeItem(LS); } catch {} stored = {}; cCore.value = '#ffffff'; cMote.value = '#33b0ff'; cFlare.value = '#bfe6ff'; cBloom.value = '#eafcff'; buildControls(false); persist(); save(); };
+
+buildControls(true); save(); setCharge(0.5); requestAnimationFrame(frame);
+</script>
+</body>
+</html>

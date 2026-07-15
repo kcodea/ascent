@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, combatCastGrantText, escalatingCastText, guelProgressText, monkProgressText, ritualistText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText, watcherText } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, combatCastGrantText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, scTribeBuffPerSpellText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, taragosaText, undeadBuyAtkText, watcherText } from './cardText';
 
 describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
   it('Avenge units show 0/N on the board and tick with the death tally in combat, cyclic', () => {
@@ -31,13 +31,14 @@ describe('cardText helpers', () => {
     expect(scTribeBuffPerSpellText('runescale', true, 2)).toContain('{{+8/+8}}');
     expect(scTribeBuffPerSpellText('sandbag', false, 3)).toBeNull();
   });
-  it('scTribeBuffPerPlayedText takes the played array (player) OR a pre-counted number (served enemy)', () => {
-    // Pack Leader: base 2 + perPlayed 2 × count. Player passes card ids (Beasts counted); the enemy passes the
-    // count straight from its snapshot (`beastsPlayed`). Both must yield the same live grant for the same count.
-    expect(scTribeBuffPerPlayedText('packleader', false, ['alley', 'alley'])).toContain('{{+6/+6}}'); // 2 + 2×2
-    expect(scTribeBuffPerPlayedText('packleader', false, 2)).toContain('{{+6/+6}}'); // number path = same
-    expect(scTribeBuffPerPlayedText('packleader', false, 0)).toBeNull(); // none played → printed base
-    expect(scTribeBuffPerPlayedText('packleader', true, 2)).toContain('{{+12/+12}}'); // golden doubles the grant
+  it('packLeaderText shows the live total grant from the on-board Beast tally (summonBonus), golden-aware', () => {
+    // Pack Leader accrues +3/+3 into summonBonus per Beast played WHILE on board; SoC spends the whole tally.
+    // 2 Beasts → summonBonus 6 → +6/+6 grant. The enemy's tally rides its snapshot the same way.
+    expect(packLeaderText('packleader', 6, false)).toContain('{{+6/+6}}'); // total grant = tally
+    expect(packLeaderText('packleader', 6, false)).toContain('+3/+3'); // per-Beast rate shown
+    expect(packLeaderText('packleader', 0, false)).toBeNull(); // none witnessed → printed rate is accurate
+    expect(packLeaderText('packleader', 6, true)).toContain('{{+12/+12}}'); // golden doubles the grant
+    expect(packLeaderText('packleader', 6, true)).toContain('+6/+6'); // golden per-Beast rate
   });
   it('escalatingCastText shows Vineweaver Drake’s live Growth grant + next-turn cast count', () => {
     expect(escalatingCastText('vineweaver', false, 0, 0, 0)).toContain('+3/+4'); // base grant, 1 cast next End of Turn
@@ -113,10 +114,10 @@ describe('cardText helpers', () => {
     expect(sergeantText('grim', false, 4)).toBeNull(); // not Sergeant
   });
 
-  it('summonImproveText (Den Mother) shows the live per-play grant = (1 base + accrued), golden-aware', () => {
-    expect(summonImproveText('mamabear', 4, false)).toContain('{{+5/+5}}'); // 1 base + 4 accrued
-    expect(summonImproveText('mamabear', 2, true)).toContain('{{+6/+6}}'); // (1 + 2) × 2 golden (from goldenText)
-    expect(summonImproveText('mamabear', 0, false)).toBeNull(); // no accrual yet → printed +1/+1
+  it('summonImproveText (Den Mother) shows the live per-play grant = (2 base + accrued), golden-aware', () => {
+    expect(summonImproveText('mamabear', 4, false)).toContain('{{+6/+6}}'); // 2 base + 4 accrued
+    expect(summonImproveText('mamabear', 2, true)).toContain('{{+8/+8}}'); // (2 + 2) × 2 golden (from goldenText)
+    expect(summonImproveText('mamabear', 0, false)).toBeNull(); // no accrual yet → printed +2/+2
     expect(summonImproveText('sandbag', 4, false)).toBeNull(); // not a per-summon-improve card
   });
 

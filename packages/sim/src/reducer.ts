@@ -1252,7 +1252,7 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   // top-two copies' magnitudes — two boosted Kennelmasters at +6/+4 combine to +10, and
   // a fresh triple just doubles the base (the golden doubling falls out of the combine).
   const summonEffect = def.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura');
-  const improveEffect = def.effects.find((e) => e.do === 'summonBuffTribeImprove');
+  const improveEffect = def.effects.find((e) => e.do === 'summonBuffTribeImprove' || e.do === 'countTribeSummon');
   let summonBonus: number | undefined;
   if (summonEffect) {
     const base = Number((summonEffect.params as { attack?: number })?.attack ?? 0);

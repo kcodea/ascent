@@ -3,7 +3,7 @@ import { CONFIG, spellAttackBonus, spellDisplayText, spellHealthBonus, type Boar
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText, combatCastGrantText,
-  cryptDrakeText, engraveTallyText, escalatingCastText, guelProgressText, monkProgressText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText,
+  cryptDrakeText, engraveTallyText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText,
   ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
   taragosaText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
@@ -57,6 +57,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             summonScalingText(c.id, p.spellsThisTurn, Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined) ?? // Spirit Worgen: recruit-only; enemy (number) shows base
             scTribeBuffPerSpellText(c.id, p.golden, p.spellsThisTurn) ??
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
+            packLeaderText(c.id, p.summonBonus ?? 0, p.golden) ??
             summonBuffText(c.id, p.summonBonus ?? 0) ??
             summonImproveText(c.id, p.summonBonus ?? 0, p.golden) ??
             trailForagerText(c.id, p.golden, p.sellBonus ?? 0) ??

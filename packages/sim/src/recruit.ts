@@ -674,6 +674,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     self.summonBonus = (self.summonBonus ?? 0) + base;
   },
 
+  /** Pack Leader (recruit half) — every time a Beast is summoned WHILE Pack Leader is on the board, accrue
+   *  `step` into its `summonBonus`. This is a pure counter (no buff here); the Start-of-Combat half
+   *  (`scTribeBuffImproving`, step 0) spends the accrual as a +summonBonus/+summonBonus Beast buff (×golden).
+   *  Because it starts at 0 when acquired and only climbs on summons it witnesses, it never counts Beasts
+   *  played before you owned it (owner ruling: "only tracks while on board, not retroactively"). Persists
+   *  across combats via the same per-uid summonBonus carry-back Kennelmaster/Mama Bear use. */
+  countTribeSummon: (ctx, self, params, { minion }) => {
+    if (minion === self) return;
+    const tribe = str(params.tribe);
+    if (tribe && !isTribe(minion, tribe as Tribe)) return;
+    self.summonBonus = (self.summonBonus ?? 0) + num(params.step, 3);
+  },
+
   /** Imp Overseer — Battlecry: give your Imps a persistent +atk/+hp run-wide (board + hand + future copies)
    *  via the shared imp enchant (`impBuff`). Golden doubles. */
   battlecryBuffImps: (ctx, self, params) => {

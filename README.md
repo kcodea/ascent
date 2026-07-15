@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Beast scaling buffs.** Den Mother now grants **+2/+2** per Beast played (was +1/+1), improving +2/+2 each time.
+  Pack Leader is reworked: its Start-of-Combat Beast buff now grows **+3/+3 for every Beast summoned while it's on
+  the board** — a *permanent* per-instance tally that persists across turns (and rides into enemy snapshots), never
+  counting Beasts you played before you had it. New art, too.
 - **New minion + spell card frames.** Swapped both authored frames to new art — the minion oval (rendered silver
   via the existing tint; Gilded stays gold) and the spell square (gold w/ purple gems). Filename-swapped so each
   reverts in one line; tune live via the dev Frame Tuner.

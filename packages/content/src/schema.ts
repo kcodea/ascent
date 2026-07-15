@@ -146,6 +146,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleGrantRandomSpell',
   'onDamagedGrantRefresh',
   'summonBuffTribeImprove',
+  'countTribeSummon',
   'deathrattleGiveHealth',
   'scGainFodderStats',
   'onSummonSelfBuff',

@@ -196,6 +196,10 @@ export interface ActiveQuest {
   questId: string;
   progress: number;
   completed: boolean;
+  /** How many times this quest has fired its reward. A one-shot quest sets `completed` and this is 1; a REPEATABLE
+   *  quest (Forest Grove, Scrap Contract, Imp Census, Dark Bargain, …) never sets `completed` but bumps this on
+   *  each re-fire — so telemetry/trophies can still see it was completed (and count how often). Absent = 0. */
+  completionCount?: number;
   /** The Author's Hand compound objective: per-key progress toward the shared `count` (Shout / Echo / Rally each).
    *  `progress` mirrors the min of the three for the panel bar. Absent for normal single-count objectives. */
   subProgress?: { shout: number; echo: number; rally: number };

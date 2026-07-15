@@ -1816,6 +1816,7 @@ function advanceCompound(s: RunState, aq: ActiveQuest, def: QuestDef, amounts: n
   aq.progress = pp.reduce((a, b) => a + b, 0);
   if (parts.every((part, i) => (pp[i] ?? 0) >= part.count)) {
     aq.completed = true;
+    aq.completionCount = (aq.completionCount ?? 0) + 1;
     applyQuestReward(s, def, true);
   }
 }
@@ -1827,10 +1828,12 @@ function resolveQuestThreshold(s: RunState, aq: ActiveQuest, def: QuestDef): voi
   if (def.repeatable) {
     while (aq.progress >= def.objective.count) {
       aq.progress -= def.objective.count;
+      aq.completionCount = (aq.completionCount ?? 0) + 1; // never sets `completed`; bumps so telemetry still sees it
       applyQuestReward(s, def, true);
     }
   } else if (aq.progress >= def.objective.count) {
     aq.completed = true;
+    aq.completionCount = (aq.completionCount ?? 0) + 1;
     applyQuestReward(s, def, true);
   }
 }

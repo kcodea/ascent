@@ -863,7 +863,17 @@ export function useCombatReplay(
       const r = rectOf(e.target);
       if (r) pixiFx.deathrattle(r.cx, r.cy, r.w);
     }
-    return () => { timers.forEach((id) => window.clearTimeout(id)); stop(); };
+    return () => {
+      timers.forEach((id) => window.clearTimeout(id));
+      // Release any statHold whose flash timer we just cancelled — otherwise a buff whose tendril hadn't
+      // "landed" when the beat advances (or the replay ends) leaves its target STUCK at its pre-buff value.
+      // Repro: Kennelmaster + a Deathrattle that summons several Beasts — only the first summon's hold released,
+      // the rest stayed at base (e.g. 2/2, 1/1, 1/1). The folded frame already carries the real stats, so
+      // dropping the holds simply shows them.
+      setStatHold((m) => (m.size ? new Map() : m));
+      setStatFlash((m) => (m.size ? new Map() : m));
+      stop();
+    };
   }, [active, beatIdx, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
 
   // Verdict sting when the replay finishes.

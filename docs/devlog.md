@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### fix(ui): stranded buff-hold on multi-summon auras + quest tooltip under the hero power
+
+Two presentation fixes (the sim was correct in both):
+
+- **Kennelmaster's aura now shows on EVERY Deathrattle summon, not just the first.** A summoned Beast's badge
+  was stuck at its pre-buff value (repro screenshot: 2/2, 1/1, 1/1 across three summons). Root cause: the buff
+  tendril HOLDS a target's displayed stat at its pre-buff value, released by a per-target timer — but the beat
+  effect cleanup **cancels all those timers on teardown**, so any hold whose tendril hadn't "landed" when the
+  beat advanced (or the replay ended) was abandoned, leaving the unit stuck at base. `computeFrame` always
+  folded the real stats (verified by a new test that runs the real `simulate` output through the frame — both
+  Pups read 2/2), so the fix is to **release the held/flash state on teardown** instead of stranding it.
+- **Quest / rune tooltips now render over the hero-power icon.** The badges and the board-floated hero-power
+  panel (`z-index: 41`) are SIBLINGS inside `.statusbar`, and the tooltip's `z-index: 60` is trapped inside
+  `.questbadges`' transform stacking context — so the power icon painted over the tip. Now `.questbadges` lifts
+  above the power (`z-index: 62`) **only while a badge is hovered** (`:has(.questbadge:hover)`), so the tip reads
+  on top without the (low-tuned) power button being covered at rest.
+
+Verified: new core test (Kennelmaster aura buffs BOTH Pups) + new `computeFrame` test (both Pups fold to 2/2);
+DOM check that the `:has` hover rule is live and lifts the badges above the z-41 power. 1088 tests green;
+typecheck + lint + build:web clean.
+
 ### docs: canonical refresh — kill the wave-20 / 4-8-12 staleness across the docs + comments
 
 A documentation-only pass (its own `docs/refresh-canonical` branch/PR) after a Codex audit confirmed the docs

@@ -84,6 +84,19 @@ describe('simulate (handoff A.3)', () => {
     expect(summonAura).toBe(true);
   });
 
+  it('Kennelmaster aura buffs EVERY Deathrattle summon, not just the first (repro: both Pups)', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'kennel', attack: 1, health: 40 },
+      { cardId: 'pack', attack: 2, health: 1 }, // Mama Pup → two 1/1 Pups on death
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 40 }];
+    const r = run(p, e, 1);
+    const pupUids = r.events.flatMap((ev) => (ev.type === 'summon' && ev.minion.cardId === 'pup' ? [ev.minion.uid] : []));
+    expect(pupUids.length).toBe(2); // both Pups summoned
+    const buffed = pupUids.filter((uid) => r.events.some((ev) => ev.type === 'buff' && ev.target === uid && ev.attack === 1 && ev.health === 1));
+    expect(buffed.length).toBe(2); // BOTH inherit the +1/+1 aura, not only the first
+  });
+
   it('Tauntbreaker strips Taunt and Rise from the enemy it hits (owner 2026-07-09)', () => {
     // Tauntbreaker (6/4, Ward + Flurry) attacks the Taunt enemy. Its on-attack strip removes Taunt AND Rise
     // from that enemy before the damage exchange resolves — so the lethal blow this same swing keeps it dead.

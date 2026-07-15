@@ -1666,6 +1666,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .questbadge-tip .questbadge-tip-reward { color: #f4f0e6; }
 .questbadge-tip .questbadge-tip-state { color: var(--gold); font-weight: 800; }
 .questbadge:hover .questbadge-tip { opacity: 1; transition-delay: 0.3s; }
+/* The badges and the board-floated hero-power panel (z-index 41) are SIBLINGS inside `.statusbar`, and the tip's
+   own z-index (60) is trapped inside `.questbadges`' transform stacking context — so the power icon painted over a
+   quest/rune tooltip. While a badge is hovered, lift the whole badge row above the hero power so the tip reads on
+   top; drop back at rest so the (low-tuned) power button isn't covered when you're not inspecting a badge. */
+.questbadges:has(.questbadge:hover) { z-index: 62; }
 /* Opponent's active reward trophies — a row of smaller badges under the opponent frame (top-right of screen),
    mirroring the player's completed-quest badges above their own hero panel. */
 .oppbadges { display: flex; flex-wrap: wrap; gap: calc(5 * var(--u)); justify-content: flex-end; margin-top: calc(6 * var(--u)); pointer-events: auto; }

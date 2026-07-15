@@ -5,6 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### tweak(ui): "CRIT!" text lingers 100% longer
+
+Owner note after eyeballing the shipped Critical Strike VFX live — the "CRIT!" pop reads great but flashes past
+too quickly. Doubled its on-screen lifetime (`critFxConfig.textMs` 760 → 1520); the pop/rise/fade shape is
+unchanged (the fade still runs in the last 25% of the life), so it just holds longer before dropping. One-line
+default tweak; the live "⚡ Critical Strike FX" tuner still overrides it. typecheck + build:web green.
 ### fix(sim/ui): correct tavern buff-source names + Hoard Spark X/N badge counter + birthday banner
 
 - **Buff sources on tavern offers are now named correctly.** A tavern offer's accrued buff was a single

@@ -158,76 +158,56 @@ canvas.spr { image-rendering: pixelated; display: block; }
   .zone[data-zone='warband'] { top: calc(var(--ch) * 0.07 + (var(--z-wb-y, -71px) + var(--wb-drop, 0px)) * var(--scale)); }
 }
 
-/* Burning-rope turn timer — a braided fuse pinned to the board's centre divider (`--rope-y`, measured on the
-   warband zone in Recruit) that lights in the final ROPE_SECONDS and burns left→right as the clock runs down:
-   a live flame (halo + hot core + rising embers) with a glowing char edge trailing behind it. Only the flame's
-   transform/opacity animate in a loop (compositor-only, per docs/performance.md); the drop-shadow is static. */
-.rope {
-  /* STATIC size (dev Layout Lab "Rope" group): length/width are absolute px so the rope no longer scales with
-     resolution (was 86% board-width × --u thickness). --rope-y still auto-aligns the base to the art divider;
-     --rope-x / --rope-yoff nudge it. Keep these fallbacks in sync with layoutConfig.ts's rope defs. */
-  position: absolute; left: 50%; top: var(--rope-y, 50%);
-  transform: translate(calc(-50% + var(--rope-x, 3px) * var(--scale)), calc(-50% + var(--rope-yoff, -22px) * var(--scale)));
-  width: calc(var(--rope-len, 1420px) * var(--scale)); height: calc(var(--rope-thick, 13px) * var(--scale)); z-index: 8; border-radius: 999px; overflow: visible; pointer-events: none;
-  /* Braid stripes SCALE with the stage (4/9.4 reference px = the tuned 3/7px at the owner's 0.745-scale stage) —
-     fixed-px stripes on a ~4px-tall phone rope read as dashes instead of a braid (owner's mobile test). */
-  background:
-    repeating-linear-gradient(48deg, rgba(255, 240, 200, 0.22) 0 calc(4px * var(--scale)), rgba(90, 60, 25, 0.30) calc(4px * var(--scale)) calc(9.4px * var(--scale))),
-    linear-gradient(to bottom, #e3b870, #bb8a3f 52%, #8c6326);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  animation: ropein 0.4s ease both;
+/* End-of-turn CHARGE GLYPH — replaces the burning rope. Over the final CHARGE_SECONDS the board's etched sigil
+   charges with white-hot blue energy, building from BOTH sides inward along the midline conduit and filling the
+   centre sigil LAST, completing exactly as the clock hits 0. Three SVG-masked layers (turn-glyph.svg = the shape)
+   revealed both-sides-in by a wipe mask driven per-frame by --charge (0→1) from ChargeGlyph's rAF (a compositor-
+   friendly custom-prop write; the heavy card tree is never touched — the clock lives in turnClock.ts). Anchored to
+   the measured board midline (--charge-y); --charge-w/-x/-yoff size + nudge it (dev Layout Lab "Charge Glyph"
+   group — keep these fallbacks in sync with layoutConfig.ts). Look tuned in fx/turn-glyph-preview.html. PERF: the
+   per-frame mask recompute repaints the (thin, midline) FX region; the drop-shadow glow is the heaviest bit —
+   move it to the Pixi bloom layer if it costs frames on a full board (see docs/performance.md). */
+.chargeglyph {
+  position: absolute; left: 50%; top: var(--charge-y, 50%);
+  width: calc(var(--charge-w, 560px) * var(--scale)); aspect-ratio: 1385 / 544;
+  transform: translate(calc(-50% + var(--charge-x, 0px) * var(--scale)), calc(-50% + var(--charge-yoff, -14px) * var(--scale)));
+  z-index: 8; overflow: visible; pointer-events: none;
+  --feather: 0%; /* hard reveal edges (Pixi softens the fronts). Raising it dims the sigil at full charge — see the spec. */
+  animation: chargein 0.4s ease both;
 }
-@keyframes ropein { from { opacity: 0; } to { opacity: 1; } }
-/* width (lit fill) + the flame's transform are driven per-frame by BurnRope's rAF, synced to the turn clock —
-   NO CSS transition here (a 1s tween would lag each frame's update and desync the burn from the timer). */
-.rope-lit {
-  position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px 0 0 999px;
-  background:
-    repeating-linear-gradient(48deg, rgba(130, 65, 20, 0.45) 0 calc(4px * var(--scale)), rgba(12, 7, 3, 0.55) calc(4px * var(--scale)) calc(9.4px * var(--scale))),
-    linear-gradient(to bottom, #3a2517, #140b05);
-  box-shadow: inset calc(-11 * var(--u)) 0 calc(10 * var(--u)) calc(-5 * var(--u)) rgba(255, 135, 45, 0.95);
+@keyframes chargein { from { opacity: 0; } to { opacity: 1; } }
+/* each layer = the SVG shape  ∩  a symmetric both-sides-in wipe: lit at both EDGES, an unlit central GAP that
+   closes as --charge → 1, so energy builds inward and the centre sigil fills LAST. Driven per-frame (no CSS
+   transition — a tween would lag the update and desync the charge from the clock). */
+.chargeglyph .masked {
+  position: absolute; inset: 0;
+  -webkit-mask: url('/fx/turn-glyph.svg') center / contain no-repeat,
+    linear-gradient(90deg, #fff 0, #fff calc(var(--charge, 0) * 50% - var(--feather)),
+      transparent calc(var(--charge, 0) * 50%), transparent calc(100% - var(--charge, 0) * 50%),
+      #fff calc(100% - var(--charge, 0) * 50% + var(--feather)), #fff 100%);
+  -webkit-mask-composite: source-in;
+  mask: url('/fx/turn-glyph.svg') center / contain no-repeat,
+    linear-gradient(90deg, #fff 0, #fff calc(var(--charge, 0) * 50% - var(--feather)),
+      transparent calc(var(--charge, 0) * 50%), transparent calc(100% - var(--charge, 0) * 50%),
+      #fff calc(100% - var(--charge, 0) * 50% + var(--feather)), #fff 100%);
+  mask-composite: intersect;
 }
-/* the live flame, anchored to the burn point and rising from the rope */
-.rope-flame { position: absolute; top: 50%; left: 0; width: 0; height: 0; transform: translate(-50%, -50%); z-index: 6; pointer-events: none; }
-.rope-flame .fl-glow {
-  position: absolute; left: 0; top: 0; transform: translate(-50%, -50%);
-  width: calc(58 * var(--u)); height: calc(26 * var(--u)); border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(255, 185, 75, 0.8), rgba(255, 95, 25, 0.3) 45%, transparent 70%);
-  animation: ropeglow 0.5s ease-in-out infinite alternate;
+/* steady charged energy — deep blue at the conduit ends → cyan → white-hot core at the sigil, so the bright core
+   is revealed LAST (the climax). Pulses subtly (opacity only, compositor). */
+.chargeglyph .charge-fill {
+  background: linear-gradient(90deg, #0a40ff 0%, #33b0ff 24%, #eafcff 50%, #33b0ff 76%, #0a40ff 100%);
+  filter: drop-shadow(0 0 20px rgba(51, 176, 255, 0.85)) drop-shadow(0 0 31px rgba(10, 64, 255, 0.6));
+  animation: chargepulse 2.5s ease-in-out infinite; mix-blend-mode: screen; will-change: opacity;
 }
-.rope-flame .fl-body {
-  position: absolute; left: 0; bottom: 0; transform: translateX(-50%); transform-origin: 50% 100%;
-  width: calc(17 * var(--u)); height: calc(18 * var(--u));
-  background: radial-gradient(ellipse at 50% 82%, #fff3b0 0%, #ffd34a 26%, #ff9a2e 56%, #ff5a1e 80%, rgba(255, 70, 20, 0.12) 100%);
-  border-radius: 50% 50% 48% 52% / 70% 70% 36% 36%;
-  filter: drop-shadow(0 0 calc(7 * var(--u)) rgba(255, 140, 40, 0.85));
-  animation: ropeflame 0.16s ease-in-out infinite alternate;
+@keyframes chargepulse { 0%, 100% { opacity: 0.63; } 50% { opacity: 1; } }
+/* the sigil CORE bloom — a white-hot radial that swells in over the final stretch (opacity set per-frame by
+   ChargeGlyph: 0 until charge > 0.49, then eases to 1 as t*t). */
+.chargeglyph .charge-core {
+  background: radial-gradient(ellipse 55% 20% at 50% 50%, #eafcff 0%, #33b0ff 34%, transparent 62%);
+  filter: drop-shadow(0 0 20px #eafcff); mix-blend-mode: screen; opacity: 0; will-change: opacity;
 }
-.rope-flame .fl-core {
-  position: absolute; left: 0; bottom: calc(1 * var(--u)); transform: translateX(-50%); transform-origin: 50% 100%;
-  width: calc(8 * var(--u)); height: calc(11 * var(--u));
-  background: radial-gradient(ellipse at 50% 80%, #fffbe0 0%, #ffe07a 55%, rgba(255, 205, 90, 0.3) 100%);
-  border-radius: 50% 50% 48% 52% / 70% 70% 36% 36%;
-  animation: ropeflame 0.13s ease-in-out infinite alternate-reverse;
-}
-.rope-flame .fl-ember {
-  position: absolute; left: 0; bottom: calc(5 * var(--u)); width: calc(4 * var(--u)); height: calc(4 * var(--u));
-  border-radius: 50%; background: radial-gradient(circle, #ffe3a0, #ff8a2e 70%, transparent);
-  animation: ropeember 1s ease-out infinite;
-}
-@keyframes ropeflame {
-  0% { transform: translateX(-50%) scale(1.05, 0.9) skewX(-5deg); opacity: 0.92; }
-  100% { transform: translateX(-50%) scale(0.93, 1.16) skewX(5deg); opacity: 1; }
-}
-@keyframes ropeglow {
-  0% { opacity: 0.6; transform: translate(-50%, -50%) scale(0.92); }
-  100% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
-}
-@keyframes ropeember {
-  0% { transform: translate(-50%, 0) scale(1); opacity: 0; }
-  25% { opacity: 1; }
-  100% { transform: translate(calc(-50% + var(--ex, 0px)), calc(-28 * var(--u))) scale(0.2); opacity: 0; }
-}
+/* faint always-on etch so the geometry hints before charging */
+.chargeglyph .charge-base { background: #0a40ff; opacity: 0.14; mix-blend-mode: screen; }
 
 /* Layout Lab (dev) — hand + HUD region hooks (shop + warband ride the sizing var above; see the Warband note
    for why scaling never uses a transform). The hand carries no combat units, so it can use the standalone

@@ -25,6 +25,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Most recent first — the full history is in [docs/devlog.md](docs/devlog.md).)_
 
+- **Turn timer reborn as a charging glyph.** The burning rope is gone — the final 20s now charge the board's own
+  etched sigil with white-hot blue energy, building from both sides inward and filling the centre last, completing
+  as the clock hits 0. (Timer logic unchanged; the M:SS plaque still ticks. Pixi motes + new SFX to follow.)
+
 - **Real combat/UI sounds.** The synth placeholder cues are now real clips (each with its own mixer level): the
   attack wind-up, death, shield-up (gaining a Ward), triple/golden reward, the Start-of-Combat zap (reuses the
   pulse clip), and the max-Gold raise (reuses the sell clip). Also deleted two dead synth cues (`temper`, `proc`).

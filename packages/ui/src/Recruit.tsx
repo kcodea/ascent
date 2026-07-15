@@ -60,7 +60,7 @@ type Zone = 'tavern' | 'warband' | 'hand';
 // moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
 const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre* passes its midpoint
 const TURN_SECONDS = 18; // base round timer (wave 1); grows +4s/wave, capped at 80 (see turnSeconds)
-const ROPE_SECONDS = 20; // the burning rope lights + burns over the final 20s of the turn
+const CHARGE_SECONDS = 20; // the charge glyph fills over the final 20s of the turn
 
 /** The cast count a spell shows (its ×N badge + cast-spark replay): Implosion resolves 1 + your Demons times
  *  (per-Demon recast, read off the live board), and that whole count is MULTIPLIED by the run-wide spell-recast
@@ -92,26 +92,32 @@ function ShopTimer({ label }: { label: string }) {
   );
 }
 
-/** The burning-rope turn timer — a braided fuse pinned to the board's centre divider (via `--rope-y`, measured
- *  in the recruit layout effect) that lights in the final `window` seconds and burns left→right as the clock runs
- *  down (live flame + glowing char trail). Hidden during combat.
+// Sigil core-bloom curve — the white-hot centre stays dark until the two fronts near the middle, then swells in.
+// Kept in sync with the CSS comment on `.charge-core`. Matches the tuner's bloom-at / core-max.
+const CHARGE_BLOOM_AT = 0.49;
+const CHARGE_CORE_MAX = 1;
+
+/** The end-of-turn CHARGE GLYPH turn timer — the board's etched sigil charging with white-hot blue energy over the
+ *  final `window` seconds, building from BOTH sides inward along the midline conduit and filling the centre sigil
+ *  LAST, completing exactly as the clock hits 0. Anchored to the measured board midline (`--charge-y`); replaces the
+ *  burning rope. Hidden during combat. (Pixi motes + the converging-front flare layer on top — added at wire-in.)
  *
- *  Timing is 100% synced to the turn clock: the burn window is the ACTUAL turn length (`min(ROPE_SECONDS,
+ *  Timing is 100% synced to the turn clock: the charge window is the ACTUAL turn length (`min(CHARGE_SECONDS,
  *  turnSeconds)`, so short early-wave turns calibrate correctly, not a fixed 20s), and a rAF interpolates WITHIN
- *  each integer second from the wall-clock moment it began — so the flame starts at the very left on the first lit
- *  second and reaches the rope's end EXACTLY as the clock hits 0 (the old per-second `left`/`width` CSS transitions
- *  trailed by ~1s, burning past the timer). Writes styles straight to the two refs each frame (no per-frame React
- *  render), and only runs while lit + unpaused — the heavy card tree is never touched (the clock lives in an
- *  external store; see turnClock.ts). The flame moves by `transform` (compositor-only, no drop-shadow repaint). */
-function BurnRope({ inCombat, window: ropeWindow, paused }: { inCombat: boolean; window: number; paused: boolean }) {
+ *  each integer second from the wall-clock moment it began — so charge starts at 0 on the first lit second and hits
+ *  1 EXACTLY as the clock reaches 0. Writes `--charge` (0→1) straight to the box ref each frame + the core-bloom
+ *  opacity to its ref (no per-frame React render), only while lit + unpaused — the heavy card tree is never touched
+ *  (the clock lives in an external store; see turnClock.ts). The wipe/reveal is a compositor-friendly custom-prop
+ *  write; the mask does the both-sides-in fill. */
+function ChargeGlyph({ inCombat, window: chargeWindow, paused }: { inCombat: boolean; window: number; paused: boolean }) {
   const seconds = Math.max(0, useTurnSeconds());
-  const litRef = useRef<HTMLDivElement>(null);
-  const flameRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const coreRef = useRef<HTMLDivElement>(null);
   const tickAtRef = useRef(0);
-  const lit = !inCombat && seconds <= ropeWindow;
+  const lit = !inCombat && seconds <= chargeWindow;
 
   // Stamp wall-clock time whenever the integer second changes OR we resume from a pause, so the rAF interpolates
-  // the sub-second fraction from the exact instant this second began — keeping the flame locked to real time.
+  // the sub-second fraction from the exact instant this second began — keeping the charge locked to real time.
   useEffect(() => { tickAtRef.current = performance.now(); }, [seconds, paused, lit]);
 
   useEffect(() => {
@@ -119,30 +125,25 @@ function BurnRope({ inCombat, window: ropeWindow, paused }: { inCombat: boolean;
     let raf = 0;
     const draw = (): void => {
       const within = paused ? 0 : Math.min(1, (performance.now() - tickAtRef.current) / 1000);
-      const elapsed = Math.min(ropeWindow, (ropeWindow - seconds) + within);
-      const frac = ropeWindow > 0 ? Math.max(0, Math.min(1, elapsed / ropeWindow)) : 0;
-      if (litRef.current) litRef.current.style.width = `${frac * 100}%`;
-      // translateX by the burn fraction of the (static px) rope length — compositor-only, so the flame's
-      // drop-shadow never repaints per frame. The -50% (of the 0-width anchor) is inert; children self-centre.
-      if (flameRef.current) flameRef.current.style.transform = `translate(calc(var(--rope-len, 1420px) * var(--scale) * ${frac} - 50%), -50%)`;
+      const elapsed = Math.min(chargeWindow, (chargeWindow - seconds) + within);
+      const charge = chargeWindow > 0 ? Math.max(0, Math.min(1, elapsed / chargeWindow)) : 0;
+      if (boxRef.current) boxRef.current.style.setProperty('--charge', charge.toFixed(4));
+      if (coreRef.current) {
+        const t = charge <= CHARGE_BLOOM_AT ? 0 : (charge - CHARGE_BLOOM_AT) / (1 - CHARGE_BLOOM_AT);
+        coreRef.current.style.opacity = (t * t * CHARGE_CORE_MAX).toFixed(3);
+      }
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [lit, seconds, paused, ropeWindow]);
+  }, [lit, seconds, paused, chargeWindow]);
 
   if (!lit) return null;
   return (
-    <div className="rope" title={`${seconds}s left`} aria-hidden="true">
-      <div className="rope-lit" ref={litRef} />
-      <div className="rope-flame" ref={flameRef}>
-        <span className="fl-glow" />
-        <span className="fl-body" />
-        <span className="fl-core" />
-        <span className="fl-ember" style={{ '--ex': '-6px', animationDelay: '0s' } as CSSProperties} />
-        <span className="fl-ember" style={{ '--ex': '5px', animationDelay: '0.33s' } as CSSProperties} />
-        <span className="fl-ember" style={{ '--ex': '-1px', animationDelay: '0.66s' } as CSSProperties} />
-      </div>
+    <div className="chargeglyph" ref={boxRef} title={`${seconds}s left`} aria-hidden="true">
+      <div className="masked charge-base" />
+      <div className="masked charge-fill" />
+      <div className="masked charge-core" ref={coreRef} />
     </div>
   );
 }
@@ -1538,7 +1539,7 @@ export function Recruit() {
     return () => document.body.classList.remove('dragging');
   }, [drag?.active]);
 
-  // Align the burn-rope to the board's midline (the background divider) at any resolution/aspect: --rope-y is
+  // Align the charge glyph to the board's midline (the background divider) at any resolution/aspect: --charge-y is
   // the offset from the warband zone's top down to the .app's vertical centre (where the cover-centred board's
   // split lands). A ResizeObserver re-measures on window / letterbox / resolution changes.
   useLayoutEffect(() => {
@@ -1548,10 +1549,10 @@ export function Recruit() {
     const update = (): void => {
       const ar = app.getBoundingClientRect();
       const wr = wb.getBoundingClientRect();
-      // The art divider sits a touch above the exact centre, so bias the rope up a smidge to land on it. The
+      // The art divider sits a touch above the exact centre, so bias the anchor up a smidge to land on it. The
       // bias must SCALE with the stage (19 reference px = the tuned 14px at the owner's 0.745-scale stage) —
       // fixed px rode proportionally higher on a short phone stage ("rope too high", owner's mobile test).
-      wb.style.setProperty('--rope-y', `${ar.top + ar.height / 2 - wr.top - 19 * (ar.height / 1440)}px`);
+      wb.style.setProperty('--charge-y', `${ar.top + ar.height / 2 - wr.top - 19 * (ar.height / 1440)}px`);
     };
     update();
     const ro = new ResizeObserver(update);
@@ -2726,9 +2727,9 @@ export function Recruit() {
       </div>
 
       <div className={`zone${overWarband || wouldMagnetize ? ' dropok' : ''}`} data-zone="warband">
-        <BurnRope
+        <ChargeGlyph
           inCombat={inCombat}
-          window={Math.min(ROPE_SECONDS, turnSeconds)}
+          window={Math.min(CHARGE_SECONDS, turnSeconds)}
           paused={!!(run.discover || run.questOffer || run.runeforgeOffer || heroSelecting || overlayOpen)}
         />
         <div className="row warband">

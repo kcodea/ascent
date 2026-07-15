@@ -8,8 +8,8 @@ import { useSyncExternalStore } from 'react';
  * heavy late-game board that's an ~8–17ms reconcile every second (doubled by StrictMode in dev): a
  * periodic frame-drop during play. Performance is the north star, so the clock is decoupled.
  *
- * Now only the components that actually display the time subscribe to `seconds` (the ring + the rope —
- * both tiny), via `useTurnSeconds()`. Recruit subscribes only to the derived `timeUp` boolean
+ * Now only the components that actually display the time subscribe to `seconds` (the ShopTimer plaque + the
+ * ChargeGlyph — both tiny), via `useTurnSeconds()`. Recruit subscribes only to the derived `timeUp` boolean
  * (`useTurnTimeUp()`), which changes once per turn — so the per-second tick never touches the cards.
  * The countdown loop in Recruit reads/writes this store directly (no React state, no re-render).
  */

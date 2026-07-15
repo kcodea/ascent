@@ -79,14 +79,13 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'qbY', cssVar: '--qb-y', label: 'Y offset', group: 'Quest nodes', min: -600, max: 400, step: 1, def: -56, fmt: 'px' },
   { key: 'qbGap', cssVar: '--qb-gap', label: 'Separation', group: 'Quest nodes', min: 0, max: 30, step: 0.5, def: 2, fmt: 'mul' },
 
-  // The burning-rope divider. STATIC px (decoupled from --u + the old 86% board-relative width), so it no longer
-  // resizes with resolution — length/thickness are absolute, X/Y nudge it off the measured board midline
-  // (--rope-y still auto-aligns the base to the art divider at any aspect; these ride on top). Defaults are the
-  // CSS fallbacks in styles.css `.rope` — keep the two in sync so production (no tuner) matches a Reset.
-  { key: 'ropeLen', cssVar: '--rope-len', label: 'Length', group: 'Rope', min: 400, max: 3600, step: 4, def: 1420, fmt: 'px' },
-  { key: 'ropeThick', cssVar: '--rope-thick', label: 'Width', group: 'Rope', min: 2, max: 40, step: 1, def: 13, fmt: 'px' },
-  { key: 'ropeX', cssVar: '--rope-x', label: 'X offset', group: 'Rope', min: -600, max: 600, step: 1, def: 3, fmt: 'px' },
-  { key: 'ropeY', cssVar: '--rope-yoff', label: 'Y offset', group: 'Rope', min: -400, max: 400, step: 1, def: -22, fmt: 'px' },
+  // The end-of-turn CHARGE GLYPH (replaces the rope). STATIC px scaled by --scale, anchored to the measured board
+  // midline (--charge-y auto-aligns to the art divider at any aspect); Size scales the whole glyph (aspect-locked),
+  // X/Y nudge it off the midline. Defaults are the CSS fallbacks in styles.css `.chargeglyph` — keep the two in
+  // sync so production (no tuner) matches a Reset. (Look — colours/glow/timing — is tuned in fx/turn-glyph-preview.html.)
+  { key: 'glyphW', cssVar: '--charge-w', label: 'Size', group: 'Charge Glyph', min: 200, max: 1600, step: 4, def: 560, fmt: 'px' },
+  { key: 'glyphX', cssVar: '--charge-x', label: 'X offset', group: 'Charge Glyph', min: -600, max: 600, step: 1, def: 0, fmt: 'px' },
+  { key: 'glyphY', cssVar: '--charge-yoff', label: 'Y offset', group: 'Charge Glyph', min: -400, max: 400, step: 1, def: -14, fmt: 'px' },
 
   // The drag-to-BUY / drag-to-SELL drop regions. Unlike the other groups these aren't pure CSS — the boundary is
   // computed in JS at drag start (sell = above the warband top; buy = below the board midline) and drives BOTH the

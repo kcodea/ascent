@@ -5,6 +5,47 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(ui): replace the burning-rope turn timer with a board-native "charge glyph" (CSS mask, both-sides-in)
+
+**What:** retired the burning-rope EoT timer *visual* and replaced it with a **charging arcane glyph** that lights
+up the board's own etched sigil. Over the final 20s (`min(CHARGE_SECONDS, turnSeconds)`, same window the rope
+used), white-hot blue energy **builds from both sides inward** along the board midline conduit and fills the
+centre sigil **last**, completing exactly as the clock hits 0. The timer **mechanics are unchanged** — the clock
+still counts down, the `ShopTimer` plaque still shows M:SS (red in the last 5s), `timeUp` still fires. This is a
+pure presentation swap.
+
+**How:**
+- **New asset** `apps/web/public/fx/turn-glyph.svg` — the fully-charged silhouette (one white filled compound
+  path: central sigil + horizontal conduit, symmetric, viewBox 1385×544, midline y≈274), used as a CSS
+  `mask-image`.
+- **`.chargeglyph` CSS** (`styles.css`, replacing the whole `.rope*` block + `ropein/ropeflame/ropeglow/ropeember`
+  keyframes): three SVG-masked layers (`charge-base`/`charge-fill`/`charge-core`), each `mask`ed by the SVG shape
+  **∩** a symmetric both-sides-in wipe gradient. The wipe's central unlit gap closes as `--charge` (0→1), so the
+  fronts march inward and the sigil fills last. `charge-fill` is a deep-blue→cyan→white-hot horizontal gradient
+  (bright core revealed last) with a static drop-shadow glow + a compositor-only opacity pulse; `charge-core` is a
+  white-hot radial whose opacity is driven per-frame. Anchored to the measured board midline (`--charge-y`),
+  sized/nudged by `--charge-w/-x/-yoff`.
+- **`ChargeGlyph` component** (`Recruit.tsx`, replacing `BurnRope`): subscribes to the turn clock, a rAF
+  interpolates the sub-second fraction and writes `--charge` (0→1) to the box ref + the core-bloom opacity to its
+  ref each frame — no per-frame React render, only while lit + unpaused, so the heavy card tree is never touched
+  (clock stays in `turnClock.ts`'s external store). `min(CHARGE_SECONDS, turnSeconds)` window; hidden in combat.
+- **Placement knobs** — repurposed the dev Layout Lab "Rope" group into a **"Charge Glyph"** group (`--charge-w/
+  -x/-yoff`); `--rope-y` midline measurement renamed `--charge-y`.
+- **Look tuned** in a new standalone rig `apps/web/public/fx/turn-glyph-preview.html` (board image + SVG + colour/
+  alignment/glow/timing sliders + Copy CSS), mirroring `ward-css-preview` / `reborn-css-preview`. The shipped
+  colours/gradient/glow/pulse/bloom are the owner's exported values (feather 0 — a CSS feather dims the sigil at
+  full charge, so soft fronts come from the Pixi layer instead).
+
+**How verified:** typecheck + lint + `build:web` + 1080 tests all green. Look proven in the standalone tuner
+(board + SVG mask confirmed a real shape via canvas alpha-sampling, not a rectangle). Spec:
+`docs/superpowers/specs/2026-07-15-end-of-turn-charge-glyph-design.md`.
+
+**Follow-ups:** (1) **Pixi motes pass** — white-hot motes streaming toward centre + a soft flare riding each
+converging front (softens the hard reveal edges without dimming the core) + a bloom pop at completion; prototype
+in the tuner first. (2) **Replace the 5s countdown SFX** (`sfx.ts`) — deferred phase 2. (3) In-game **placement
+tune** via the Layout Lab "Charge Glyph" group, then bake defaults. (4) **Perf**: confirm the per-frame mask
+recompute is cheap on a full board (prod); move the drop-shadow glow to Pixi if it costs frames.
+
 ### feat(audio): source stock combat/UI sounds (wind-up, death, shield-up, triple, SoC zap, max-Gold); remove dead cues
 
 **What:** batch of the stock-sound audit — replaced four synth cues with owner-authored clips, and **deleted two

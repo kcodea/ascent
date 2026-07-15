@@ -154,6 +154,13 @@ fanned-hand overlap now that framed cards overhang ~1.1× the slot. All knobs ar
   per-bus compressors shipped-on (Approach 2), sidechain ducking, and ingest LUFS-normalization in `sfx:import`.
 
 ### B0. FX follow-ups (from the Echo skull poof + buff tendrils, session 29)
+- **Charge-glyph EoT timer (rope replacement) — base shipped `feat/eot-glyph-timer`; follow-ups open.** The CSS
+  both-sides-in charge effect is wired (→ devlog); remaining: (1) **Pixi motes pass** — white-hot motes streaming
+  toward centre + a soft flare on each converging front (softens the hard reveal edges without dimming the core) +
+  a bloom pop at completion; prototype in `fx/turn-glyph-preview.html` first. (2) **Replace the 5s countdown SFX**
+  (`sfx.ts`) with the owner's new charge audio (phase 2). (3) **In-game placement tune** via the Layout Lab "Charge
+  Glyph" group, then bake defaults. (4) **Perf**: verify the per-frame mask recompute is cheap on a full board
+  (prod); move the drop-shadow glow to Pixi if it costs frames.
 - **Effect-animation coverage audit (session 39 → devlog).** Full sweep of which combat effects show an animation
   vs none, across the three buff FX (pulse / tendril / descend) and non-buff effects. Ordered queue (owner: do all):
   - ✅ **Attack-windup self-pulse (shipped session 39).** On-attack / on-ally-attack self-buffs (Solaris, Trophy

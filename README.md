@@ -40,6 +40,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **Critical Strike VFX.** A crit (Commander Impala) now lands with a crimson-gold flourish — an amplified
+  impact burst, a bold ring, a "CRIT!" pop, a red flash on the struck card, and a punchier board shake — not
+  just the crit sound. Owner-tuned on a preview rig, baked into the Pixi renderer, with a live DEV tuner.
 - **Real combat/UI sounds.** The synth placeholders are now real clips, each with its own mixer level (attack
   wind-up, death, Ward gain, triple/Gilded reward, Start-of-Combat zap, max-Gold raise).
 - **Avenge beats wait for the summons.** An Avenge payoff now deploys after the death cascade's summons —

@@ -1,6 +1,7 @@
 import { Application, Container, Graphics, Mesh, MeshGeometry, Shader, Sprite, Texture, type BLEND_MODES, type Ticker } from 'pixi.js';
 import { getSmokeConfig } from './smokeConfig';
 import { getStrikeFxConfig } from './strikeFxConfig';
+import { getCritFxConfig, type CritFxConfig } from './critFxConfig';
 import { getTrailConfig } from './trailConfig';
 import { sfx } from './sfx';
 
@@ -253,6 +254,21 @@ interface Particle {
  *  additive glow sprite; when its pop+hold elapses it POOFS into smoke + embers (see `burstSkull`). */
 interface SkullPop { sprite: Sprite; glow: Sprite; x: number; y: number; scale: number; age: number; }
 
+/** One live CRITICAL-STRIKE flourish (Commander Impala's CR). The one-shot burst (core flash / shockwave /
+ *  sparks) fires as fire-and-forget particles at birth; the three PERSISTENT-for-a-beat elements — the bold
+ *  expanding ring (a stroked `Graphics`), the "CRIT!" text pop (a `Sprite` on a pre-rendered texture), and the
+ *  red defender-card flash (a rounded-rect `Graphics`) — are advanced here each frame and retired together.
+ *  `cfg` is snapshotted so a mid-flight DEV-tuner edit can't corrupt an in-flight crit. */
+interface CritFx {
+  x: number; y: number;
+  cfg: CritFxConfig;
+  age: number;
+  ring: Graphics;
+  text: Sprite;
+  flash: Graphics | null; // the defender-card red overlay (null when no defender rect was supplied)
+  flashRect: { x: number; y: number; w: number; h: number } | null;
+}
+
 // ── Echo (Deathrattle) skull-poof feel ──────────────────────────────────────────────────────────────
 // Baked from the DEV preview (apps/web/public/fx/purple-skull-preview.html); tune there, paste here.
 // No live tuner, by design.
@@ -469,6 +485,8 @@ class FxController {
   private skullSrcH = 1;
   private readonly skullPops: SkullPop[] = [];
   private readonly tendrils: Tendril[] = []; // live buff tendrils — tapered ribbons advanced in `update`
+  private readonly critFxs: CritFx[] = []; // live Critical-Strike flourishes (ring + "CRIT!" + card flash)
+  private readonly critTextCache = new Map<string, Texture>(); // "CRIT!" textures keyed by size|color|edge
   private readonly pulses: PulseFx[] = [];
   private readonly descends: DescendFx[] = [];
   private shieldLayer: Container | null = null; // holds the persistent bubbles, beneath the particle layer
@@ -592,6 +610,10 @@ class FxController {
     this.skullPops.length = 0;
     for (const td of this.tendrils) { td.g.destroy(); }
     this.tendrils.length = 0;
+    for (const cf of this.critFxs) { cf.ring.destroy(); cf.text.destroy({ texture: false, textureSource: false }); cf.flash?.destroy(); }
+    this.critFxs.length = 0;
+    for (const t of this.critTextCache.values()) t.destroy(true);
+    this.critTextCache.clear();
     this.pulses.length = 0;
     for (const d of this.descends) { d.g.destroy(); }
     this.descends.length = 0;
@@ -780,6 +802,96 @@ class FxController {
         tint: 0xffd24a, blend: 'add', peakAlpha: 0.6,
       });
     }
+  }
+
+  /** A pre-rendered "CRIT!" text texture (canvas → Texture), cached by size|fill|edge so a run with the baked
+   *  defaults builds it once; the DEV tuner rebuilds on a colour/size change. Bold with a thick dark outline so
+   *  it punches over the bright cream board. */
+  private makeCritText(size: number, fill: string, edge: string): Texture {
+    const key = `${size}|${fill}|${edge}`;
+    const cached = this.critTextCache.get(key);
+    if (cached) return cached;
+    const pad = Math.ceil(size * 0.5);
+    const c = document.createElement('canvas');
+    const g = c.getContext('2d')!;
+    const font = `900 ${size}px "Arial Black", system-ui, sans-serif`;
+    g.font = font;
+    const w = Math.ceil(g.measureText('CRIT!').width);
+    c.width = w + pad * 2;
+    c.height = Math.ceil(size * 1.6) + pad * 2;
+    g.font = font;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineJoin = 'round';
+    g.lineWidth = Math.max(3, size * 0.13);
+    g.strokeStyle = edge;
+    g.strokeText('CRIT!', c.width / 2, c.height / 2);
+    g.fillStyle = fill;
+    g.fillText('CRIT!', c.width / 2, c.height / 2);
+    const tex = Texture.from(c);
+    this.critTextCache.set(key, tex);
+    return tex;
+  }
+
+  /**
+   * CRITICAL-STRIKE impact (Commander Impala's CR — a double-damage swing). Replaces the normal `impact` burst
+   * with the owner-tuned crimson-gold flourish (crit-preview.html → `critFxConfig`): an amplified additive core
+   * + saturated shockwave + a wide spark burst (all one-shot particles), plus a bold expanding RING, a "CRIT!"
+   * text POP, and a red flash over the DEFENDER card (advanced per-frame in `update`). `dx`/`dy` is the
+   * attacker→defender vector (orients the spark cone); `defRect` is the defender's viewport rect for the card
+   * flash. Sizes follow the rig's px→scale mapping (glow 80px Ø, ring tex 50px R), so tuned values transfer 1:1.
+   */
+  critImpact(x: number, y: number, dx: number, dy: number, defRect?: { x: number; y: number; w: number; h: number }): void {
+    if (!this.ready || !this.glowTex || !this.layer) return;
+    const c = { ...getCritFxConfig() };
+    const p = c.critPower;
+    const fx = this.fxScale;
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len, uy = dy / len;
+    const GLOW_D = 80; // glowTex diameter (px) at scale 1
+
+    // Hot additive core flash — a white-hot glint at contact (grows from half → full while fading).
+    const coreD = 26 * c.flashSize * p; // peak diameter (px), rig math
+    this.spawn(this.glowTex, {
+      x, y, vx: 0, vy: 0, drag: 1, life: 240,
+      fromScale: (coreD * 0.5) / GLOW_D, toScale: coreD / GLOW_D, spin: 0,
+      tint: hexNum(c.colorCore), blend: 'add',
+    });
+    // Saturated shockwave — normal blend so it paints over the cream (crimson vs the normal hit's orange).
+    const shockD = 26 * c.shockwaveSize * p;
+    this.spawn(this.glowTex, {
+      x, y, vx: 0, vy: 0, drag: 1, life: 320,
+      fromScale: (shockD * 0.4) / GLOW_D, toScale: shockD / GLOW_D, spin: 0,
+      tint: hexNum(c.colorShock), blend: 'normal', peakAlpha: 0.9,
+    });
+    // Spark shrapnel — jagged shards flung within the cone of the blow, oriented along their travel.
+    const count = Math.round(c.sparkCount);
+    const cone = (c.sparkSpread * Math.PI) / 180;
+    const spinBase = Math.atan2(uy, ux);
+    for (let i = 0; i < count; i++) {
+      const a = spinBase + (Math.random() - 0.5) * cone;
+      const speed = c.sparkSpeed * (0.6 + Math.random() * 0.7) * (0.85 + 0.15 * p);
+      const warm = Math.random();
+      const tint = hexNum(warm < 0.45 ? c.colorSpark1 : warm < 0.8 ? c.colorSpark2 : c.colorSpark3);
+      const tex = Math.random() < 0.5 ? this.shardRectTex! : this.shardTriTex!;
+      this.spawn(tex, {
+        x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.1,
+        life: c.sparkLife * (0.7 + Math.random() * 0.6),
+        fromScale: (c.sparkSize / 12) * (0.85 + Math.random() * 0.5), toScale: 0.05, spin: (Math.random() - 0.5) * 8,
+        rotation: a + (Math.random() - 0.5) * 0.5, tint, blend: 'normal', stretchX: 2.4,
+      });
+    }
+
+    // The three beat-length elements (ring / text / card flash) — created here, advanced + retired in `update`.
+    const ring = new Graphics();
+    this.layer.addChild(ring);
+    const text = new Sprite(this.makeCritText(Math.round(c.textSize), c.colorText, c.colorTextEdge));
+    text.anchor.set(0.5);
+    text.x = x; text.y = y - 26 * fx;
+    this.layer.addChild(text);
+    let flash: Graphics | null = null;
+    if (defRect) { flash = new Graphics(); this.layer.addChild(flash); }
+    this.critFxs.push({ x, y, cfg: c, age: 0, ring, text, flash, flashRect: defRect ?? null });
   }
 
   /**
@@ -1310,6 +1422,12 @@ class FxController {
     // Tendril ribbons are Graphics (not pooled) — destroy them outright.
     for (const td of this.tendrils) { this.layer?.removeChild(td.g); td.g.destroy(); }
     this.tendrils.length = 0;
+    for (const cf of this.critFxs) {
+      this.layer?.removeChild(cf.ring); cf.ring.destroy();
+      this.layer?.removeChild(cf.text); cf.text.destroy({ texture: false, textureSource: false });
+      if (cf.flash) { this.layer?.removeChild(cf.flash); cf.flash.destroy(); }
+    }
+    this.critFxs.length = 0; // the cached "CRIT!" textures survive (rebuilt lazily) — only clears live instances
     this.pulses.length = 0;
     for (const d of this.descends) { this.layer?.removeChild(d.g); d.g.destroy(); }
     this.descends.length = 0;
@@ -1503,6 +1621,15 @@ class FxController {
         life: 1200, fromScale: 2.5, toScale: 0.2, spin: 0, tint: 0xffd24a,
       });
     }
+  }
+
+  /** DEV: fire the current CRIT flourish at screen centre (a card-sized flash target) so it can be previewed +
+   *  tuned without waiting for Commander Impala to actually crit. Wired to the Dev Menu's "Test Crit" button. */
+  testCrit(): void {
+    if (!this.ready) { console.warn('[pixiFx.testCrit] not ready — refresh the page.'); return; }
+    const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+    const w = 150, h = 210; // a stand-in defender card rect centred on the burst
+    this.critImpact(cx, cy, 1, 0, { x: cx - w / 2, y: cy - h / 2, w, h });
   }
 
   /** Pull a sprite from the pool (or make one), configure it as a live particle. */
@@ -1893,6 +2020,49 @@ class FxController {
       const ringLife = p.cfg.ringMs / (p.cfg.ringSpeed > 0 ? p.cfg.ringSpeed : 1);
       if (p.ringsSpawned >= p.cfg.ringCount && p.age >= lastRingBorn + ringLife) {
         this.pulses.splice(i, 1); // the spawned ring particles finish on their own in the pool
+      }
+    }
+
+    // Critical-strike flourishes: advance the ring (expand+fade), the "CRIT!" pop (overshoot→settle, rise, fade),
+    // and the defender red flash; retire the whole instance once every element's lifetime has elapsed.
+    for (let i = this.critFxs.length - 1; i >= 0; i--) {
+      const cf = this.critFxs[i]!;
+      cf.age += dtMs;
+      const { cfg, age } = cf;
+      const fx = this.fxScale;
+      // RING — a stroked circle expanding 0→ringSize, thinning + fading as it goes.
+      const rt = cfg.ringMs > 0 ? age / cfg.ringMs : 1;
+      cf.ring.clear();
+      if (rt < 1) {
+        const radius = rt * cfg.ringSize * (0.6 + 0.4 * cfg.critPower) * fx;
+        cf.ring.circle(cf.x, cf.y, radius).stroke({ width: Math.max(0.5, cfg.ringWidth * (1 - rt * 0.5) * fx), color: hexNum(cfg.colorRing), alpha: Math.max(0, 1 - rt) * 0.9 });
+      }
+      // "CRIT!" — quick overshoot to `textPop` then settle to 1 (springs in ~90ms), floats up `textRise`, fades late.
+      const tt = cfg.textMs > 0 ? age / cfg.textMs : 1;
+      if (tt < 1) {
+        const grow = Math.min(1, age / 90);
+        const scale = (cfg.textPop - (cfg.textPop - 1) * grow) * fx;
+        cf.text.scale.set(scale);
+        cf.text.y = cf.y - (26 + cfg.textRise * tt) * fx;
+        cf.text.alpha = tt < 0.75 ? 1 : Math.max(0, 1 - (tt - 0.75) / 0.25);
+      } else {
+        cf.text.visible = false;
+      }
+      // Defender RED FLASH — a card-shaped overlay fading from `cardFlashAlpha` → 0.
+      if (cf.flash && cf.flashRect) {
+        const ft = cfg.cardFlashMs > 0 ? age / cfg.cardFlashMs : 1;
+        cf.flash.clear();
+        if (ft < 1) {
+          const r = cf.flashRect;
+          cf.flash.roundRect(r.x, r.y, r.w, r.h, Math.min(r.w, r.h) * 0.09).fill({ color: 0xff1e28, alpha: cfg.cardFlashAlpha * (1 - ft) });
+        }
+      }
+      const done = age >= Math.max(cfg.ringMs, cfg.textMs, cf.flash ? cfg.cardFlashMs : 0);
+      if (done) {
+        this.layer?.removeChild(cf.ring); cf.ring.destroy();
+        this.layer?.removeChild(cf.text); cf.text.destroy({ texture: false, textureSource: false }); // keep the cached texture
+        if (cf.flash) { this.layer?.removeChild(cf.flash); cf.flash.destroy(); }
+        this.critFxs.splice(i, 1);
       }
     }
 

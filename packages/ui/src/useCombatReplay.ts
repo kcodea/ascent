@@ -420,6 +420,7 @@ export interface CombatReplay {
   done: boolean;
   result: CombatResult['result'] | null;
   shaking: boolean;
+  critShaking: boolean;
   beatCount: number;
   /** Enemy minions killed so far in the replay (up to the current beat) — drives Cassen's live counter. */
   enemyDeaths: number;
@@ -511,6 +512,8 @@ export function useCombatReplay(
   const [statFlash, setStatFlash] = useState<Map<string, { atk: boolean; hp: boolean }>>(new Map());
   const [shake, setShake] = useState(0);
   const [shaking, setShaking] = useState(false);
+  const [critShake, setCritShake] = useState(0);   // bumped at a crit's contact → the punchier `.shaking-crit`
+  const [critShaking, setCritShaking] = useState(false);
   // Which minion is mid-attack — drives the `attacking` glow class. The lunge MOTION is run
   // imperatively by GSAP (see the layout effect below); React never sets a transform on a unit.
   const [attackUid, setAttackUid] = useState<string | null>(null);
@@ -664,6 +667,13 @@ export function useCombatReplay(
     const t = window.setTimeout(() => setShaking(false), 300);
     return () => window.clearTimeout(t);
   }, [shake]);
+
+  useEffect(() => {
+    if (!critShake) return;
+    setCritShaking(true);
+    const t = window.setTimeout(() => setCritShaking(false), 300);
+    return () => window.clearTimeout(t);
+  }, [critShake]);
 
   // Advance one beat at a time (a beat = an action + all its result events) — only once `active` (the intro
   // animation has finished and the fight is on), and NOT while the tab is hidden (so beats + GSAP lunges
@@ -975,6 +985,7 @@ export function useCombatReplay(
             ? () => { fireBuffCasts(windupCasts, windupTimers); fireSelfBuffs(windupSelfBuffs, windupTimers); }
             : undefined,
           onImpactAuras: breakWards,
+          onCritImpact: cur.primary.crit ? () => setCritShake((n) => n + 1) : undefined,
         });
         engineAdvancingRef.current = tl !== null; // engine owns the advance; if it couldn't build, the scheduler falls back
         if (tl === null) breakWards?.(); // lunge cue dropped → no contact anchor to ride; shatter now so it isn't lost
@@ -1187,7 +1198,7 @@ export function useCombatReplay(
     rallyPulseUids: rallyPulse,
     statHoldFor: (uid: string) => statHold.get(uid),
     statFlashFor: (uid: string) => statFlash.get(uid),
-    done, result: combat ? combat.result : null, shaking,
+    done, result: combat ? combat.result : null, shaking, critShaking,
     beatCount: beats.length, enemyDeaths, combatBuffs, questDelta, triggeredQuests, skip: () => setBeatIdx(beats.length),
   };
 }

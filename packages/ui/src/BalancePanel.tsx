@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { aggregatePlayerReport, type PlayerReport, type PlayerReportRow } from '@game/sim';
+import { aggregatePlayerReport, type PlayerReport, type PlayerReportRow, type ShopCurve } from '@game/sim';
 import { sfx } from './sfx';
 import { useGame } from './store';
 import { fetchRunTelemetry, remoteEnabled } from './remoteBoards';
@@ -28,6 +28,9 @@ const SECTIONS: Section[] = [
   { key: 'quests', label: 'Quests', cols: ['offer', 'pick', 'win', 'avgTurns', 'n'] },
   { key: 'runes', label: 'Runes', cols: ['offer', 'pick', 'win', 'n'] },
 ];
+/** The chart section is not a table — it renders the shop-leveling curve instead of rows. */
+const SHOP_CURVE = 'shopcurve' as const;
+type SectionKey = Section['key'] | typeof SHOP_CURVE;
 
 const fmtPct = (n: number): string => (n < 0 ? '–' : `${n}%`);
 const fmtNum = (n: number | null): string => (n === null ? '–' : String(n));
@@ -123,7 +126,7 @@ export function BalancePanel() {
   const close = useGame((s) => s.closeBalance);
   const [report, setReport] = useState<PlayerReport | null>(null);
   const [loading, setLoading] = useState(false);
-  const [sectionKey, setSectionKey] = useState<Section['key']>('minions');
+  const [sectionKey, setSectionKey] = useState<SectionKey>('minions');
 
   const load = (): void => {
     setLoading(true);
@@ -140,8 +143,9 @@ export function BalancePanel() {
 
   const back = (): void => { sfx.pulse(); close(); };
   const refresh = (): void => { sfx.pulse(); load(); };
+  const isCurve = sectionKey === SHOP_CURVE;
   const section = SECTIONS.find((s) => s.key === sectionKey) ?? SECTIONS[0]!;
-  const rows = report ? report[section.key] : [];
+  const rows = report && !isCurve ? report[section.key] : [];
 
   return (
     <div className="balpage">
@@ -153,12 +157,13 @@ export function BalancePanel() {
             <select
               className="balpick"
               value={sectionKey}
-              onChange={(e) => { sfx.pulse(); setSectionKey(e.target.value as Section['key']); }}
+              onChange={(e) => { sfx.pulse(); setSectionKey(e.target.value as SectionKey); }}
               aria-label="Choose report"
             >
               {SECTIONS.map((s) => (
                 <option key={s.key} value={s.key}>{s.label}{report ? ` (${report[s.key].length})` : ''}</option>
               ))}
+              <option value={SHOP_CURVE}>Shop Curve</option>
             </select>
             <button className="balrun" disabled={loading} onClick={refresh}>{loading ? 'Loading…' : 'Refresh'}</button>
           </div>
@@ -172,13 +177,60 @@ export function BalancePanel() {
         ) : loading ? (
           <div className="balempty">Loading player data…</div>
         ) : report && report.totalRuns > 0 ? (
-          <SortableTable key={section.key} section={section} rows={rows} />
+          isCurve ? <ShopCurveChart curve={report.shopCurve} /> : <SortableTable key={section.key} section={section} rows={rows} />
         ) : (
           <div className="balempty">
             No player data yet. Finished runs upload their offers/picks/outcomes to <code>run_telemetry</code>; this report
             aggregates them once runs have been logged (and the <code>run_telemetry</code> migration has been run).
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Shop-leveling curve — average tavern tier reached by each wave, won runs (green) vs lost runs (red). A pure
+ *  SVG line chart (bounded engine: 6 tiers). Null slots (no runs reached that wave) break the line. */
+function ShopCurveChart({ curve }: { curve: ShopCurve }) {
+  const { maxWave, won, lost, wonRuns, lostRuns } = curve;
+  if (maxWave < 1) return <div className="balempty">No shop-leveling data yet.</div>;
+  const MAX_TIER = 6;
+  const W = 760, H = 420, padL = 48, padR = 22, padT = 22, padB = 46;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const x = (wave: number): number => padL + (maxWave === 1 ? plotW / 2 : ((wave - 1) / (maxWave - 1)) * plotW);
+  const y = (tier: number): number => padT + (1 - (tier - 1) / (MAX_TIER - 1)) * plotH;
+  const path = (series: (number | null)[]): string => {
+    let d = '', pen = false;
+    for (let w = 1; w <= maxWave; w++) {
+      const v = series[w];
+      if (v == null) { pen = false; continue; }
+      d += `${pen ? 'L' : 'M'}${x(w).toFixed(1)} ${y(v).toFixed(1)} `;
+      pen = true;
+    }
+    return d.trim();
+  };
+  // Thin the X ticks on long runs so labels don't collide.
+  const waveTicks: number[] = [];
+  for (let w = 1; w <= maxWave; w++) if (maxWave <= 12 || w % 2 === 1 || w === maxWave) waveTicks.push(w);
+  return (
+    <div className="balchart">
+      <svg viewBox={`0 0 ${W} ${H}`} className="balchart-svg" role="img" aria-label="Average tavern tier by wave, won vs lost runs">
+        {Array.from({ length: MAX_TIER }, (_, i) => i + 1).map((tier) => (
+          <g key={`y${tier}`}>
+            <line x1={padL} y1={y(tier)} x2={W - padR} y2={y(tier)} className="balchart-grid" />
+            <text x={padL - 9} y={y(tier) + 4} className="balchart-axl" textAnchor="end">T{tier}</text>
+          </g>
+        ))}
+        {waveTicks.map((w) => (
+          <text key={`x${w}`} x={x(w)} y={H - padB + 22} className="balchart-axl" textAnchor="middle">{w}</text>
+        ))}
+        <text x={padL + plotW / 2} y={H - 6} className="balchart-axt" textAnchor="middle">Wave</text>
+        <path d={path(lost)} className="balchart-line lost" fill="none" />
+        <path d={path(won)} className="balchart-line won" fill="none" />
+      </svg>
+      <div className="balchart-legend">
+        <span className="balchart-key won">Won runs ({wonRuns})</span>
+        <span className="balchart-key lost">Lost runs ({lostRuns})</span>
       </div>
     </div>
   );

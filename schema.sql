@@ -125,6 +125,7 @@ create table if not exists public.run_telemetry (
   picked_runes   text[],
   offered_cards  text[],                     -- every card seen in the shop this run
   bought_cards   text[],                     -- cards bought from the shop
+  tier_by_wave   jsonb,                      -- [wave] = tavern tier reached by that wave (shop-leveling curve)
   created_at     timestamptz not null default now()
 );
 create index if not exists run_telemetry_created on public.run_telemetry (created_at desc);
@@ -145,3 +146,6 @@ create policy "anon insert run_telemetry"  on public.run_telemetry for insert to
 -- Migration for an EXISTING project — add the per-round spread column to the leaderboard (safe to re-run;
 -- old rows keep a null history and simply show no spread until a fresh victory is logged):
 --   alter table public.runs add column if not exists history text;
+-- Add the shop-leveling curve column to run_telemetry (safe to re-run; old rows stay null and are skipped by the
+-- Balance Report's Shop Curve chart until fresh runs are logged):
+--   alter table public.run_telemetry add column if not exists tier_by_wave jsonb;

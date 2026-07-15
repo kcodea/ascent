@@ -46,9 +46,9 @@ describe('stepProgress', () => {
     expect(stepProgress('moneymaker', { eotTick: 2 })).toEqual({ current: 2, total: 2 });
     expect(stepProgress('moneymaker', { eotTick: 3 })).toEqual({ current: 1, total: 2 });
   });
-  it('Tara clamps at her one-time ascend threshold (ascendAt 20)', () => {
-    expect(stepProgress('tara', { ascendProgress: 10 })).toEqual({ current: 10, total: 20 });
-    expect(stepProgress('tara', { ascendProgress: 20 })).toEqual({ current: 20, total: 20 });
-    expect(stepProgress('tara', { ascendProgress: 25 })).toEqual({ current: 20, total: 20 });
+  it('Tara clamps at her one-time ascend threshold (ascendAt 15)', () => {
+    expect(stepProgress('tara', { ascendProgress: 10 })).toEqual({ current: 10, total: 15 });
+    expect(stepProgress('tara', { ascendProgress: 15 })).toEqual({ current: 15, total: 15 });
+    expect(stepProgress('tara', { ascendProgress: 25 })).toEqual({ current: 15, total: 15 });
   });
 });

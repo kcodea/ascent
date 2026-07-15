@@ -429,7 +429,8 @@ export function squirlScoutText(cardId: string, golden: boolean, squirlScoutBuff
   if (cardId !== 'squirlscout' || squirlScoutBuff <= 0) return null;
   const def = CARD_INDEX[cardId];
   if (!def) return null;
-  const next = squirlScoutBuff + 3 * (golden ? 2 : 1); // what playing this one now would grant per Beast
+  const step = Number((def.effects.find((e) => e.do === 'battlecryScoutSpread')?.params as { step?: number })?.step ?? 3);
+  const next = squirlScoutBuff + step * (golden ? 2 : 1); // what playing this one now would grant per Beast
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   let done = false;
   return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${next}/+${next}}}`)));

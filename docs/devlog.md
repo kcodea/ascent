@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### balance: Squirl Scout / Tara / Spirit Pup / Dark Bargain (clean value+text dials)
+
+First (clean) slice of an owner balance batch — pure value/text changes; the batch's mechanic-change items
+(Contract Imp → Choose-One, Runescale, Spirit Worgen revert, Hunter → scaling, Hoardbreaker + Rally, Attachment
+Mechanic + Money Bot) are held for a separate pass.
+
+- **Squirl Scout** — grant + per-Scout improve `+3/+3 → +1/+1` (`battlecryScoutSpread` step 3→1; golden +2/+2). Also
+  fixed `squirlScoutText` (it hardcoded the +3 step → now reads the param, so the live grant stays accurate).
+- **Tara** — ascend threshold `20 → 15` grants (`ascendAt`), text reworded to "**Engraved**. Grant stats **15
+  times** in combat to ascend." The live "N to go" countdown + `stepProgress` total follow `ascendAt` automatically.
+- **Spirit Pup** — text simplified to "Cast **10 spells** to ascend." (threshold unchanged at 10).
+- **Dark Bargain** quest — objective `sell 5 → sell 8`.
+
+Verified: value tests updated (Squirl Scout grant sizes, Tara threshold ×2, Dark Bargain progress, stepProgress),
+full suite green (**1061**), typecheck + lint + build:web clean.
+
 ### feat(balance report): quest "turns to complete" + per-wave avg-tier points on the shop curve
 
 Two owner-requested balance-report tweaks.

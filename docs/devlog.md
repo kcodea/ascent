@@ -5,6 +5,37 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### fix(ui): Avenge payoff beats deploy AFTER the death's summons
+
+Owner report: "Avenge effects come before Deathrattle effects — perhaps just summon Deathrattles; make all
+Avenge effects wait until after the summon beats deploy." Traced with headless event-log repros: the sim fires
+an Avenge the instant a death hits its threshold, right after that death's own summon (correct for a lone
+death). But it inverts against summons that land LATER in the SAME exchange — (a) a **multi-death clash**
+(Cleave / AoE): deaths resolve one-by-one, so an Avenge on death #2 fires before death #3's summon; (b) a
+**deferred attack-on-summon token** (a Violet Whelp's "Whelp that attacks immediately"): that summon is held to
+the post-cascade flush, so any Avenge in the same death lands before the token exists. You'd see the payoff (a
+buff pulse / coin burst / Discover) before the token popped in.
+
+Fix is presentation-only, in two parts:
+- **Sim tag (`packages/core`).** `CombatEvent` gains an optional `avenge?: true` (mirrors the `step` tag —
+  pure presentation metadata, never touches resolution). `simulate()` stamps it via a new `emitAvenge(side,
+  count)` helper that sets an `inAvenge` flag around the `bus.emit('avenge', …)` at both friendly-death tally
+  sites (true death + a board-full Rise that stays dead), so every event an Avenge handler emits — buff /
+  improve / maxGold / shieldUp / summon / toHand, incl. Rune of Fury doubling + rune Avenges — is tagged.
+- **UI reorder (`packages/ui`).** New `deferAvengeAfterSummons` (choreo), composed after `deferClashBuffs` in
+  `useCombatReplay`, slides each `avenge`-tagged NON-summon beat to just after the last summon that follows it
+  within the same exchange (stops at the next `attack`; never reorders an Avenge *summon*, whose board slot is
+  index-based). Correctness: an Avenge event only ever hops forward past a `summon` (a brand-new uid) or an
+  event on a DIFFERENT unit — both commute with it in `computeFrame`'s in-order fold — and BAILS if a same-unit
+  interaction (its own target's `reborn`/`dmg`/`death`) sits in the way. So the folded board is byte-identical.
+
+Verified: `avengeOrder.test.ts` (10 unit cases — multi-death, deferred Whelp, attack-boundary stop, reborn
+bail, Avenge-summon left in place, non-Avenge buff untouched, relative-order preservation) + `avengeOrder.fold.
+test.ts` (real Cleave/Whelp fights: tag present, reorder fires end-to-end on the Arcane Weaver Avenge(2) +
+deferred Whelp case, and `computeFrame` before == after on every scenario). Full gate green: 1079 tests,
+typecheck, lint, build:web. Follow-up: the reorder deliberately does not un-defer Avenge *summons* (rune Imps,
+Knit) relative to Deathrattle summons — those are already summon-vs-summon and index-sensitive.
+
 ### feat: pulse on EVERY quest activation (recruit + all SoC/combat triggers) + tuned HUD defaults
 
 - **New scale-tuner defaults** baked (hero power + quest nodes): hpowS 1.22, hpowX 237, hpowY 46, hpowGlow 2.1;
@@ -20,6 +51,7 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 Verified: new SoC test (Rune of Warding emits `questTrigger`; Shared Circuit maps to its quest); 1065 tests green,
 typecheck + lint + build:web clean. Determinism/golden unaffected (the markers are cosmetic).
+
 ### feat(ui): step counter — combat-only 3s fade + baked tuned placement
 
 Owner ask: the step counter ("X/N to next step") should only flash in **combat** — fade in near-instantly each

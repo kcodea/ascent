@@ -449,7 +449,9 @@ Iterative timing/juice polish on the live arena, one PR each. **Shipped:** Death
 tuning; consequence-overlap (summon/reborn/improve ride the preceding beat via `overlapMs`); shield/reborn auras
 track the card's lunge position **and** rotation; Deathrattle attacker returns home before triggering; shield-break
 burst made visible on cream (normal-blend gold); Rally attack (wind-up pause + yellow trigger pulse); **End-Combat
-one synchronized crossfade** (units + FX fade out together → board + survivors fade in together; → devlog).
+one synchronized crossfade** (units + FX fade out together → board + survivors fade in together; → devlog);
+**Avenge payoffs deploy after the death's summons** (sim tags `avenge` events; `deferAvengeAfterSummons` holds the
+buff/coin/Discover beat past the cascade's summons + the deferred Whelp token — fold-invariant; → devlog).
 **Remaining:** a dying unit should begin *leaving the board* in tandem with the other units' Deathrattle/Reborn
 effects (currently the `.dr` collapse hold can trail them) — needs live tuning against the #245 skull-in-own-slot
 hold so we don't regress it.

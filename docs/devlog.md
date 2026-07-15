@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(ui): bake the tuned HUD layout as the new default + move the hero power onto the board
+
+Two owner-directed layout changes.
+
+**New default layout** — baked the owner's Layout Lab values into the shipped defaults. Only three knobs actually
+differed from the current defaults: shop-row Y `45→23`, shop-controls Y `-55→-67`, hand overlap `-0.3→-0.15`
+(tighter fan). Updated each in `layoutConfig.ts` (`def`) AND its CSS fallback in `styles.css` (`--z-shop-y` /
+`--z-shopui-y` / `--z-hand-gap`), so production — which never runs the dev tuner — matches a Reset.
+
+**Hero power moved onto the board** — pulled `.heropanel` out of the bottom-left hero row and floated it onto the
+board's mid-left, on the rope line (`position: fixed; left: 19%; top: 45%`, centered; tunable via `--hpow-x` /
+`--hpow-y`), so the power reads as a board action rather than a corner button. The hero portrait + Resolve stay in
+the bottom-left `statusrow`; the aim-line anchor (`.heropowerbtn`, still queried inside `.statusbar`) is unaffected.
+Verified live on a fresh run (Chronos): the power box lands on the rope line mid-left, no console errors.
+
 ### feat: opponent pinning — record the exact board fought each wave into RunState
 
 The opponent pick is already deterministic (`nextOpponent` seeds `makeRng(mixSeed(seed, wave, TAG.ENEMY))`), so

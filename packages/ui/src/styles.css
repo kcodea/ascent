@@ -143,7 +143,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Tavern offers and Warband mirror each other across the board's centre rope: each half
    grows to fill its space and centres its cards. Warband gets extra bottom padding so it
    rides a little higher, opening a gap above the hand. */
-.zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-shop-s, 1)); top: calc((var(--z-shop-y, 45px) + var(--shop-drop, 0px)) * var(--scale)); left: calc(var(--z-shop-x, 6px) * var(--scale)); }
+.zone[data-zone='tavern'] { position: relative; flex: 1 1 0; justify-content: center; --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-shop-s, 1)); top: calc((var(--z-shop-y, 23px) + var(--shop-drop, 0px)) * var(--scale)); left: calc(var(--z-shop-x, 6px) * var(--scale)); }
 .zone[data-zone='warband'] { position: relative; flex: 1 1 0; justify-content: center; padding-bottom: calc(var(--ch) * 0.13); --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * var(--z-wb-s, 1)); top: calc((var(--z-wb-y, -71px) + var(--wb-drop, 0px)) * var(--scale)); left: calc(var(--z-wb-x, 6px) * var(--scale)); }
 /* Nudge the whole Warband DOWN a touch so it sits clearly UNDER the board's centre line instead of hugging
    it. Done with `position: relative; top` (the zone is ALREADY position:relative) — NOT a `transform`: a
@@ -430,7 +430,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Shop controls tray (round plaque + Upgrade/Reroll/Freeze/End Turn + info strip). Scales via a LOCAL --u
    (like the HUD .bar) so the whole tray grows/shrinks proportionally, with X/Y offsets — dev Layout Lab "Shop
    controls" group. Defaults are a no-op (×1 / 0px). */
-.shopbar { position: relative; --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--z-shopui-s, 1)); top: calc(var(--z-shopui-y, -55px) * var(--scale)); left: calc(var(--z-shopui-x, 0px) * var(--scale)); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); min-height: calc(111 * var(--u)); margin-top: calc(10 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
+.shopbar { position: relative; --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--z-shopui-s, 1)); top: calc(var(--z-shopui-y, -67px) * var(--scale)); left: calc(var(--z-shopui-x, 0px) * var(--scale)); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); min-height: calc(111 * var(--u)); margin-top: calc(10 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
 .shopbar.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
 .shoprow { display: flex; align-items: center; gap: calc(13 * var(--u)); }
 /* Info strip — the turn's read-only stats (Gold · Tier · Setup Time) in ONE segmented cream plaque, gold-
@@ -586,7 +586,7 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
    the card itself up to reveal its full text. The fan STAYS fanned through a drag — the reorder measures the
    cards' rotated rects directly (the bbox stays centred on each card, so the slot midpoints match within a
    pixel or two), no flatten, no pickup jiggle. */
-.row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); --fan-rot: 0deg; margin-left: calc(var(--ccw) * var(--z-hand-gap, -0.3)); transform-origin: center 42%; transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
+.row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); --fan-rot: 0deg; margin-left: calc(var(--ccw) * var(--z-hand-gap, -0.15)); transform-origin: center 42%; transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
 .row.hand .card:first-child { margin-left: 0; }
 /* Hover pops the in-hand card ITSELF up out of the fan — straightened, scaled a touch, and lifted to reveal its
    full text. UNIFORM POP: the lift is `translateY(-100% + --ch·--hand-floor)` — the `-100%` raises each card by
@@ -1669,7 +1669,12 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Hero-power box — a standalone card to the RIGHT of the hero frame (a `.statusrow` flex sibling), stretched to
    the hero's height. Sized up so an active power is an obvious button; the whole box glows when usable. */
 .statusbar .heropanel {
-  position: relative; align-self: stretch; pointer-events: auto;
+  /* Pulled OUT of the bottom-left hero row and floated onto the board's mid-left (on the rope line), so the
+     power reads as a board action, not a corner button. Tunable via --hpow-x/--hpow-y; centered on that point.
+     The hero portrait + Resolve stay in the bottom-left statusrow. Aim-line anchor (.heropowerbtn) is unaffected
+     (still queried inside .statusbar). */
+  position: fixed; left: var(--hpow-x, 19%); top: var(--hpow-y, 45%); transform: translate(-50%, -50%);
+  align-self: auto; pointer-events: auto; z-index: 41;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u));
   background: var(--card); border: 2px solid var(--line); border-radius: calc(18 * var(--u));
   padding: calc(9 * var(--u)) calc(15 * var(--u));

@@ -192,7 +192,8 @@ export type DiscoverSpec =
   | { kind: 'pool'; ids: string[] };
 
 /** A quest the player has bought — its live objective progress + completion flag. Persists for the run
- *  (shown in the quest panel); up to 3 accumulate over a run (waves 4/8/12). */
+ *  (shown in the quest panel); one is bought per quest turn, so most heroes accumulate up to 2 (waves 5 & 11),
+ *  or up to 3 with Fi's bonus Lesser-only turn-3 offer. */
 export interface ActiveQuest {
   questId: string;
   progress: number;

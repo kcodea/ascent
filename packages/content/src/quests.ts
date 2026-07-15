@@ -2,16 +2,12 @@ import type { QuestDef } from '@game/core';
 import { QuestDefSchema } from './schema';
 
 /**
- * QUEST DATA — the SKINNY first pass: pure TEST quests, just enough to prove the framework end-to-end. Each
- * has a trivial objective (a recruit-action counter) and a flat board buff. There's exactly one per tribe +
- * neutral per tier, so the offer generator always has a neutral slot and ≥2 distinct tribe slots to draw
- * from, and every tribe has a quest at every tier (so the wave-8/12 "most-played tribe" guarantee resolves).
- *
- * `tribe: 'neutral'` is the build-agnostic slot offered every quest-turn. The remaining `Test ·` quests use
- * throwaway objectives (buy / play / sell / roll) and a flat board buff to exercise the tick routing. Real
- * content is landing tribe by tribe: the LESSER beast/dragon/undead quests below (Trail Rations, Warm Embers,
- * Grave Toll) are the first — meaningful `summon` / `shout` objectives and the richer reward palette (card
- * generation, delayed repeats, Shout-doubling). The rest grow the same way.
+ * QUEST DATA — the full quest set (79 quests). Two quest turns per run — wave 5 (the "early" bucket: Lesser +
+ * most Greater) and wave 11 (the "late" bucket: Capstones + a couple promoted Greater neutrals). Each quest
+ * turn offers 4 (a neutral slot + 3 distinct-tribe slots, tier-bucketed); the player buys one. Objectives run
+ * from simple recruit-action counters (buy / play / sell / roll / summon / shout) up to compound multi-part
+ * goals, and rewards span flat board buffs, card generation, delayed repeats, keyword-doublers, Runeforge
+ * trips, and more. Every tribe has quests in both buckets so the "most-played tribe" offer guarantee resolves.
  */
 export const QUEST_DEFS: QuestDef[] = [
   // Turn buckets (owner 2026-07-13): `tier` still labels each quest's power band, but scheduling collapsed to

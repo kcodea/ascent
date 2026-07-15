@@ -46,8 +46,8 @@ export const CONFIG = {
     statScalePerWave: 0.16,
   },
 
-  // Quests (M3, C1): the master on/off for the whole quest system. `false` → waves 4/8/12 are ordinary
-  // shop turns (no quest phase / panel / objectives / rewards). Gated at the single `questTierForWave`
+  // Quests: the master on/off for the whole quest system. `false` → the quest waves (5 and 11) are ordinary
+  // shop turns (no quest phase / panel / objectives / rewards). Gated at the single `questBucketFor`
   // chokepoint, so nothing downstream can activate. Default on.
   questsEnabled: true,
 };

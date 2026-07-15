@@ -5,6 +5,39 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### docs: canonical refresh — kill the wave-20 / 4-8-12 staleness across the docs + comments
+
+A documentation-only pass (its own `docs/refresh-canonical` branch/PR) after a Codex audit confirmed the docs
+describe an earlier version of the game. Every claim below was verified against source, not the old docs.
+
+- **`CLAUDE.md`** rewritten to **engineering + agent-workflow only** — dropped the stale game synopsis (endless /
+  waves-survived / threat-typed), the "LOCKED per Build Handoff v2" game-rules + Pixel-Arena visual direction, and
+  the M0–M4 milestone history. Kept/updated the real invariants (deterministic sim, seeded RNG, cards-as-data,
+  the live-card-text hard rule + its new spell-hover exception, monorepo, commands, collaboration). Game rules now
+  point to the new docs.
+- **New `docs/GAME-RULES.md`** (canonical, fully cited): the 17-round course (2 calibration + 15 scored), the
+  **Line** = rating-driven success contract (`playerRating.ts`, bands 7–12, default Line 9), Resolve/economy,
+  the shop→board→combat loop, quests (waves **5 & 11**, 4 offers, tier buckets), the Runeforge schedule (Basic
+  turn 7 / Epic turn 12), wave-first source-prioritized matchmaking, and the display terminology table.
+- **New `docs/CONTENT.md`**: verified point-in-time counts with a drift warning + source-of-truth pointers —
+  **119 shop minions, 37 shop spells, 79 quests, 25 Basic + 23 Epic runes, 23 heroes (20 selectable), 6 tribes**,
+  22 combat event types. Includes the regenerate commands (`dump-cards` / `audit` / `balance`).
+- **`docs/roadmap.md`** rewritten into **Now / Next / Later / Parked / Public Release** — salvaged the live queue,
+  removed the C1 / 4-8-12 implementation-diary history.
+- **`README.md`** cut from a ~1,200-line second changelog to a lean front page (quick-start, one-screen synopsis,
+  latest highlights, architecture) + links to the canonical docs.
+- **Both handoffs archived** → `docs/archive/handoffs/` with a `HISTORICAL SNAPSHOT — DO NOT USE AS CURRENT
+  RULES` banner (codex-review-2026-07-03.md, balance-handoff.md).
+- **Stale comments/docs fixed against code:** `config.ts` + `state.ts` + `content/quests.ts` + `content/runes.ts`
+  (4-8-12 → 5/11; "one Epic rune wired" → 23; "turn-6 forge" → turn 7); `performance.md` (paint-prop ban is
+  loop-only, one-shot allowed); `combat-events.md` + `combat-ordering.md` (19/20 → 22 types); `board-pool.md` +
+  `board-backend.md` (wave-first + source-priority + `servedBoards` pinning, no power weighting).
+
+Verified: two subagents drafted in parallel (partitioned by file, no overlap); every count re-derived by
+importing the real arrays; the four source edits are strictly comment-only; typecheck + lint + test (1085) +
+build:web all green. Docs-only — no runtime change.
+
+
 ### chore(audio): bake the owner's full mixer export as the shipped default
 
 Owner tuned the whole SFX bank by ear in the dev desk and exported the config; pasted it into `config.ts` as the

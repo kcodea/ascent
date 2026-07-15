@@ -1,3 +1,5 @@
+> ⚠️ **HISTORICAL SNAPSHOT — DO NOT USE AS CURRENT RULES.** Archived 2026-07-15. This describes an earlier version of ASCENT (wave-20 course, small tribes, the old counter matrix). For current rules see [docs/GAME-RULES.md](../../GAME-RULES.md); for current content counts see [docs/CONTENT.md](../../CONTENT.md).
+
 # ASCENT — Balance Handoff
 
 **Snapshot date:** 2026-06-22 · **Purpose:** a self-contained brief for a *separate* balancing

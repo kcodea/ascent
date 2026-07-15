@@ -25,8 +25,13 @@ strong-for-the-wave.**
 - **Why wave-relative:** the old `rateBoard` fought one fixed gauntlet (top rung 7/9/16) and **saturated** —
   by ~wave 8 any decent board beat all rungs → rating `1.0`, so it couldn't tell a weak high-wave board from
   a strong one. That's exactly how high-wave boards silently went weak after a balance patch.
-- **Curation / QA only.** Live matchmaking (`pickOpponent`) still matches by wave then biases to the closest
-  `Σ(atk+hp)` power. Bands drive the pool bake + pruning, **not** opponent selection (yet — see the roadmap).
+- **Curation / QA only.** Live matchmaking (`pickOpponent`) selects **WAVE-first** — you face a board at the
+  same development stage — and no longer power-weights: within the wave it excludes recently-faced opponents,
+  prioritizes sources **remote (Supabase) → local (self/friend) → synthetic floor**, then samples **uniformly at
+  random** within the highest non-empty source (the `power` arg is retained for signature stability only). Bands
+  drive the pool bake + pruning, **not** opponent selection. The exact board served each wave is then **pinned
+  into run state** (`servedBoards[wave]`, `null` = a procedural wave), so a run replays its real opponents even
+  though the remote pool is fetched once per app session and can differ across sessions.
 
 ## Patches
 

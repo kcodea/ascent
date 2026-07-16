@@ -678,16 +678,42 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
    Rune's cost coin (.runecard-cost). Gold is the run economy, so the coin reads the same everywhere. */
 .hpcost { position: absolute; top: calc(-14 * var(--u)); left: calc(-12 * var(--u)); width: calc(44 * var(--u)); height: calc(44 * var(--u)); z-index: 6; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 38% 30%, #ffe293, #eab63f 58%, #b9821f); border: calc(3 * var(--u)) solid #1b1d22; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.55), inset 0 -3px 4px rgba(120, 80, 10, 0.4); pointer-events: none; }
 .hpcost .costn { font-family: var(--font-ui); font-weight: 900; font-size: calc(22 * var(--u)); color: #4a3208; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); line-height: 1; }
+/* ---- Hero-power DIAMOND (owner direction 2026-07-16) — the bronze diamond housing on the board's
+   middle-left, mirroring the End Turn diamond. Same layer recipe: face-cut glow (masked source → only the
+   halo paints), the frame, and the power art clipped to the face window. `--hpb-*` vars come from the
+   💠 Hero Power Button tuner (heroPowerBtnConfig.ts); fallbacks here mirror the shipped defaults. */
 .heropowerbtn {
-  width: calc(75 * var(--u)); height: calc(75 * var(--u)); border-radius: 50%; padding: 0; overflow: hidden;
-  border: 3px solid var(--acc-dk); display: grid; place-items: center;
-  background: radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.45), transparent 55%), var(--acc);
-  box-shadow: 0 4px 0 var(--acc-dk);
+  position: relative; padding: 0; border: none; background: none; box-shadow: none; display: block;
+  width: calc(128 * var(--u)); height: calc(141 * var(--u)); /* the trimmed art's 466×512 aspect */
 }
-.heropowerbtn img { width: 100%; height: 100%; object-fit: cover; }
-.heropowerbtn svg { width: 52%; height: 52%; color: #fff; }
-.heropowerbtn.ready { animation: endpulse 0.9s ease-in-out infinite; box-shadow: 0 0 0 3px var(--acc), 0 4px 0 var(--acc-dk), 0 0 18px -2px var(--acc); }
-.heropowerbtn.armed { box-shadow: 0 0 0 4px var(--acc), 0 0 22px 2px var(--acc); }
+/* Power art fills the inner FACE — clipped to the measured face-diamond polygon of the frame art. */
+.heropowerbtn .hpb-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; clip-path: polygon(50% 13.8%, 83% 50.1%, 50% 83.6%, 16.8% 50.1%); pointer-events: none; -webkit-user-drag: none; }
+.heropowerbtn .hpb-frame { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; -webkit-user-drag: none; }
+.heropowerbtn svg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: calc(50 * var(--u)); height: calc(50 * var(--u)); color: #fff; z-index: 1; }
+/* The FACE GLOW — the face-only cut with a STATIC stacked drop-shadow (halo = the inner diamond's
+   silhouette), seated above the frame so the light spills over the bronze; a mask (full canvas MINUS the
+   face) cuts the source pixels back out so ONLY the halo paints. Hover shows it; READY/ARMED pin it (the
+   press-me cue); breathing animates OPACITY only (compositor-cheap). */
+.heropowerbtn .hpb-glow {
+  position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none;
+  transform: translate(calc(var(--hpb-glow-x, 0) * var(--u)), calc(var(--hpb-glow-y, 0) * var(--u))) scale(var(--hpb-glow-w, 1), var(--hpb-glow-h, 1));
+  filter: var(--hpb-glow-filter, drop-shadow(0 0 1px #ffb347) drop-shadow(0 0 1px #ffb347) drop-shadow(0 0 1px #ffb347) drop-shadow(0 0 1px #ffb347) drop-shadow(0 0 1px #ffb347) drop-shadow(0 0 1px #ffb347));
+  mask-image: linear-gradient(#fff, #fff), url('/frames/heropowerbutton_face.webp');
+  mask-size: 100% 100%; mask-repeat: no-repeat; mask-composite: exclude;
+  opacity: 0; transition: opacity 0.22s ease;
+}
+.heropowerbtn:not(:disabled):hover .hpb-glow,
+.statusbar .heropanel.ready .hpb-glow,
+.statusbar .heropanel.armed .hpb-glow,
+body.hpb-glow-preview .heropowerbtn .hpb-glow {
+  opacity: var(--hpb-glow-alpha, 0.93);
+  animation: hpbbreathe var(--hpb-glow-pulse, 0.7s) ease-in-out infinite;
+}
+.statusbar .heropanel.armed .hpb-glow { animation-duration: 0.4s; } /* aiming — the breath quickens */
+@keyframes hpbbreathe {
+  0%, 100% { opacity: var(--hpb-glow-alpha, 0.93); }
+  50% { opacity: var(--hpb-glow-dim, 0.83); }
+}
 /* An ACTIVE power that's on cooldown / unaffordable dims; a PASSIVE hero's button stays full (it's always on,
    just not clickable) but never glows — so every hero shows its power art, only active ones pulse. */
 .heropowerbtn:not(.ready):not(.armed):not(.passive) { opacity: 0.5; filter: saturate(0.75); }
@@ -1876,30 +1902,29 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Hero-power box — a standalone card to the RIGHT of the hero frame (a `.statusrow` flex sibling), stretched to
    the hero's height. Sized up so an active power is an obvious button; the whole box glows when usable. */
 .statusbar .heropanel {
-  /* Floated onto the board's mid-left (on the rope line) — the power reads as a board action, NOT a boxed corner
-     button, so there's no panel background/border: just the round power button + a name pill. Base position is
-     19%/45%; the dev mover nudges it via px offsets × --scale (pinned to the stage, resolution-independent) and
-     scales the whole thing via --hpow-s. The hero portrait + Resolve stay in the bottom-left statusrow; the
-     aim-line anchor (.heropowerbtn) is unaffected (still queried inside .statusbar). */
+  /* Floated onto the board's mid-left — the power reads as a board action, NOT a boxed corner button: the
+     diamond housing + a name pill, no panel background/border. Base position is 19%/45%; the 💠 tuner nudges
+     it via px offsets × --scale (pinned to the stage, resolution-independent) and scales via --hpb-s. The
+     hero portrait + Resolve stay in the bottom-left statusrow; the aim-line anchor (.heropowerbtn) is
+     unaffected (still queried inside .statusbar). */
   position: fixed;
   /* Pinned to the STAGE box (--gw/--gh offset by the letterbox bars --bar-x/--bar-y), NOT the raw viewport — so
      19%/45% lands on the same board spot on any window aspect (a non-16:9 viewport letterboxes the stage; anchoring
      to the viewport drifted the power off the board on Mike's 16:9 once browser chrome made the client area off-ratio).
      The dev mover then nudges it via px × --scale, staying resolution-independent. */
-  left: calc(var(--bar-x) + 0.19 * var(--gw) + var(--hpow-x, -89px) * var(--scale));
-  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--hpow-y, 408px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--hpow-s, 1.31));
+  /* Mirrors the End Turn diamond across the board's centre line (owner direction 2026-07-16): base
+     0.19/0.45 of the stage + the 💠 tuner's px offsets × --scale. */
+  left: calc(var(--bar-x) + 0.19 * var(--gw) + var(--hpb-x, -140px) * var(--scale));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--hpb-y, 32px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--hpb-s, 1.14));
   align-self: auto; pointer-events: auto; z-index: 41;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(7 * var(--u));
 }
 body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-reaching hand drop through */
 .statusbar .heropanel.passive { opacity: 0.9; }
-/* The READY / ARMED cue is the button's own glow — its blur radius is dev-tunable via --hpow-glow. */
-.statusbar .heropanel.ready .heropowerbtn { box-shadow: 0 0 0 3px var(--acc), 0 4px 0 var(--acc-dk), 0 0 calc(18px * var(--hpow-glow, 2.5)) -2px var(--acc); }
-.statusbar .heropanel.armed .heropowerbtn { box-shadow: 0 0 0 4px var(--acc), 0 0 calc(22px * var(--hpow-glow, 2.5)) 2px var(--acc); }
+/* The READY / ARMED cue is the diamond's FACE GLOW (see .hpb-glow above) — the old box-shadow ring retired
+   with the diamond housing (2026-07-16). */
 .statusbar .heropanel .hpwrap { margin-left: 0; }
-.statusbar .heropanel .heropowerbtn { width: calc(82 * var(--u)); height: calc(82 * var(--u)); }
-.statusbar .heropanel .heropowerbtn svg { width: calc(40 * var(--u)); height: calc(40 * var(--u)); }
 /* The power name in a dark pill under the button (replaces the old white panel box) — brightens when usable. */
 .statusbar .hplabel {
   font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.02em;

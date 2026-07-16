@@ -5,6 +5,31 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): hero power → the bronze DIAMOND housing on the board's middle-left + 💠 tuner
+
+- Owner direction: same strategy as the End Turn diamond, mirrored to the board's middle-left (its combat
+  effects will diverge later — this round is the housing, pinning, glow, and tuner).
+- **Art**: `heropowerbutton.webp` (the bronze diamond frame with a dark face) + `heropowerbutton_face.webp`
+  (the inner-face cut, measured by centre-line scans, for the glow silhouette) — both extracted on one
+  aligned canvas. The hero's power art renders inside the face via a measured `clip-path` polygon; the icon
+  fallback centres over it. The gold cost coin and the name pill stay.
+- **Pinning**: the `.heropanel` moves from its old spot (0.19/0.45 + −89/408 via the retired Layout Lab
+  `--hpow-*` rows) to the End Turn's mirror — 0.19/0.45 of the stage + `--hpb-x/y` (defaults −140/32, the
+  exact mirror of the diamond's 140/32) × `--scale`, scale 1.14. Verified pixel-mirrored across the board's
+  centre line (button centres 314 vs 1286 on a 1600 stage).
+- **Glow**: the ETB recipe — the face cut's stacked drop-shadow (halo = the inner diamond silhouette),
+  source pixels masked back out so only the halo paints, alignment offset/fit dials, opacity-only
+  breathing. Shown on hover AND pinned while the power is READY (the old box-shadow press-me cue, retired)
+  — ARMED quickens the breath. Amber default (#ffb347).
+- **💠 Hero Power Button tuner** (Dev Tuning Menu): position x/y · scale · glow offset/fit/blur/opacity/
+  strength/pulse speed+depth/colour + a "glow always on" pin. Dev-only localStorage
+  (`ascent.heropowerbtn`); production ships the defaults (styles.css `var(--hpb-*, …)` fallbacks mirror).
+- The Layout Lab's four "Hero power" rows were retired (superseded); the aim-line anchor (`.heropowerbtn`),
+  press-to-arm flow, cost coin, tooltip, and passive/cooldown dimming all carry over unchanged.
+- Verified live: layers + face clip render (warden's power art in the window); glow 0 at rest, pinned at
+  0.93 breathing 0.7s when READY, 0.4s while ARMED (aim-line armed ✓); tuner rows move/scale it live;
+  reset restores. Typecheck + lint + 1109 tests + build:web green; throwaway state cleaned up.
+
 ### chore(ui): unwire the endbuttonhit2 strike sound (owner: not needed)
 
 - Removed `sfx.endButtonHit`, the `endbutton` mixer category (gains/bus/desk strip/preview) and the

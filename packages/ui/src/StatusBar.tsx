@@ -6,6 +6,7 @@ import { Icon } from './Icon';
 import { QuestBadges } from './QuestBadges';
 import { sfx } from './sfx';
 import { useGame } from './store';
+import './heroPowerBtnConfig'; // side-effect: reflects the --hpb-* vars (diamond position/scale/glow) at load
 
 /** Bottom bar, rooted across the whole round: Embers and Resolve flank the hero. */
 export function StatusBar() {
@@ -146,7 +147,16 @@ export function StatusBar() {
                 else armHero();
               }}
             >
-              {heroPowerArt(hero.id) ? <img src={heroPowerArt(hero.id)} alt="" draggable={false} /> : <Icon name="sc" />}
+              {/* DIAMOND housing (owner direction 2026-07-16 — same strategy as the End Turn diamond,
+                  mirrored to the board's middle-left). Layers: the FACE-cut glow (drop-shadows follow the
+                  inner diamond's alpha; a CSS mask cuts the source pixels back out so only the halo paints
+                  — hover shows it, READY/ARMED pin it), the bronze frame, and the power art clipped to the
+                  face window. All dialed live by the 💠 Hero Power Button tuner via --hpb-* vars. */}
+              <img className="hpb-glow" src="/frames/heropowerbutton_face.webp" alt="" draggable={false} aria-hidden="true" />
+              <img className="hpb-frame" src="/frames/heropowerbutton.webp" alt="" draggable={false} aria-hidden="true" />
+              {heroPowerArt(hero.id)
+                ? <img className="hpb-art" src={heroPowerArt(hero.id)} alt="" draggable={false} />
+                : <Icon name="sc" />}
             </button>
             {(digCost ?? power.cost) ? <span className="hpcost"><span className="costn">{digCost ?? power.cost}</span></span> : null}
           </div>

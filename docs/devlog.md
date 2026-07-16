@@ -8,8 +8,11 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 ### feat(ui): Hall of Champions / Career re-fit + end-of-run quests & runes
 
 - **Re-fit the warband cards** in the Hall of Champions + Career. The card art overhaul had made the
-  `.lbwarband` cells read large and crowd the row; dropped the cell basis (`--ccw` `clamp(112px,13vh,150px)` →
-  `clamp(84px,9.5vh,118px)`) so a 7-card board sits cleanly on one line with the existing gaps.
+  `.lbwarband` cells read large, and the old `vh`-based clamp swung with the window aspect and OVERFLOWED the
+  row (7th card clipped). Now the cards are sized **relative to the warband's own width** via container-query
+  units (`100cqw`) — exactly 7 across, capped at 132px — so they never clip and adapt to the Career (narrower,
+  has a sidebar) vs Hall (full-width) panels and any window size. Verified live via injected mock history:
+  7 cards, no clip, trophies left-aligned.
 - **Show what the champion built.** New shared `RunTrophies` component renders the run's completed **quests**
   and owned **runes** (already stored on the board snapshot — `board.quests` / `board.runes`) as circular
   badges under the warband, each with the game's standard floating tooltip (name + reward text). Wired into

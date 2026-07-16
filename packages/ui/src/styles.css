@@ -3129,10 +3129,14 @@ svg { width: 18px; height: 18px; }
 .lbpip.cal { opacity: 0.4; filter: grayscale(0.55); }
 /* Shrink the cards for the leaderboard: compact cards size off --ccw (the others derive from it). flex-wrap so
    a wide warband never overflows; the page is the top layer so the full-text-on-hover popup sits on top. */
-/* Re-fit (2026-07-16): the card art overhaul made these read large + crowd the row, so the cell basis is
-   smaller now — a 7-card warband sits comfortably on one line with the current gaps. */
-.lbwarband { --ccw: clamp(84px, 9.5vh, 118px); --cw: calc(var(--ccw) / 0.85); --ch: calc(var(--cw) / 0.752); display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-start; padding-top: 10px; }
-.lbwarband .card { min-width: 0; }
+/* Re-fit (2026-07-16): the card art overhaul made these read large, and the old `vh`-based size swung with the
+   window aspect and overflowed the row. Size the cards RELATIVE TO THE CONTAINER instead — exactly 7 across,
+   capped so wide screens don't bloat them. `100% − 96px` reserves the six 10px gaps (60) plus ~36px slack for
+   each card's outer glow ring, so the last card never clips. No `vh`, so it's stable across window shapes. */
+.lbwarband { container-type: inline-size; display: flex; gap: 10px; flex-wrap: nowrap; align-items: flex-start; padding-top: 10px; width: 100%; box-sizing: border-box; }
+/* Size each card to the WARBAND's own width (100cqw) so exactly 7 fit — declared on the card, whose nearest
+   container ancestor is the warband, so `cqw` resolves against it (not an outer box). Capped at 150px. */
+.lbwarband .card { --cw: min(132px, calc((100cqw - 74px) / 7)); --ch: calc(var(--cw) / 0.752); --ccw: calc(var(--cw) * 0.85); min-width: 0; }
 
 /* Run trophies — the completed quests + owned runes a finished run ended with, as circular badges with the
    game's standard floating tooltip (name + reward). Shown under the warband in the Hall of Champions + Career. */

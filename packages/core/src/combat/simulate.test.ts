@@ -1381,7 +1381,7 @@ describe('simulate (handoff A.3)', () => {
     const p: BoardMinion[] = [{ cardId: 'karthus', attack: 10, health: 60, keywords: ['SL'], sourceUid: 'k1' }];
     const e: BoardMinion[] = Array.from({ length: 3 }, () => ({ cardId: 'omen', attack: 0, health: 1 }));
     const r = run(p, e, 1);
-    const grants = r.events.filter((ev) => ev.type === 'buff' && ev.health === 0 && ev.attack > 0).map((ev) => ev.attack);
+    const grants = r.events.flatMap((ev) => (ev.type === 'buff' && ev.health === 0 && ev.attack > 0 ? [ev.attack] : []));
     expect(grants.slice(0, 3)).toEqual([3, 6, 9]); // base 3, then +3 improvement per Slaughter
     // The accrued improvement (9 after 3 kills) carries back to the run board, keyed to the source card.
     expect(r.playerSummonBonus).toEqual([{ sourceUid: 'k1', bonus: 9 }]);
@@ -1391,12 +1391,12 @@ describe('simulate (handoff A.3)', () => {
     const golden: BoardMinion[] = [{ cardId: 'karthus', attack: 10, health: 60, keywords: ['SL'], golden: true }];
     const e = () => Array.from({ length: 2 }, () => ({ cardId: 'omen', attack: 0, health: 1 }));
     const g = run(golden, e(), 1);
-    const gGrants = g.events.filter((ev) => ev.type === 'buff' && ev.health === 0 && ev.attack > 0).map((ev) => ev.attack);
+    const gGrants = g.events.flatMap((ev) => (ev.type === 'buff' && ev.health === 0 && ev.attack > 0 ? [ev.attack] : []));
     expect(gGrants.slice(0, 2)).toEqual([6, 12]);
     // A copy seeded with a prior accrual (summonBonus 9) grants base+9 on its first kill this fight.
     const seeded: BoardMinion[] = [{ cardId: 'karthus', attack: 10, health: 60, keywords: ['SL'], summonBonus: 9 }];
     const s2 = run(seeded, e(), 1);
-    const sGrants = s2.events.filter((ev) => ev.type === 'buff' && ev.health === 0 && ev.attack > 0).map((ev) => ev.attack);
+    const sGrants = s2.events.flatMap((ev) => (ev.type === 'buff' && ev.health === 0 && ev.attack > 0 ? [ev.attack] : []));
     expect(sGrants[0]).toBe(12); // 3 + 9
   });
 
@@ -1405,7 +1405,7 @@ describe('simulate (handoff A.3)', () => {
     const p: BoardMinion[] = [{ cardId: 'cryptdrake', attack: 1, health: 90, sourceUid: 'cd1' }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 400 }];
     const r = run(p, e, 1);
-    const grants = r.events.filter((ev) => ev.type === 'buff' && ev.attack === ev.health && ev.attack > 0).map((ev) => ev.attack);
+    const grants = r.events.flatMap((ev) => (ev.type === 'buff' && ev.attack === ev.health && ev.attack > 0 ? [ev.attack] : []));
     // attack 2 → +2/+2; attack 4 → +2/+2 then improve; attack 6 → +4/+4; attack 8 → +4/+4 then improve …
     expect(grants.slice(0, 4)).toEqual([2, 2, 4, 4]);
     // The accrual carries back for the run (keyed to the source card) — it improved at attacks 4, 8, …

@@ -3,6 +3,39 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-16
+
+### feat(fx): charge-glyph motes + ramped feather + completion flash (baked into the game)
+
+**What:** ported the owner-tuned end-of-turn charge FX (from `fx/turn-glyph-motes-preview.html`) into the game —
+white-hot **motes** that stream onto the charging glyph and **gather into the mandala + a flash** at completion,
+plus a **ramped feather** that softens the incoming reveal fronts without dimming the sigil.
+
+**Motes (`chargeMotes.ts` + `ChargeGlyph` in Recruit.tsx):**
+- A light **2D-canvas** particle engine (NOT Pixi): the main Pixi canvas is z110 (over the cards), and the motes
+  must sit BEHIND the cards like the glyph — so they render on a `.charge-motes` canvas co-located with the glyph
+  at **z:0** (same `--charge-*` anchor, 1.5× and square so the flash/gather aren't clipped).
+- Perf: sprite-blit (one pre-baked radial-glow sprite per colour via `drawImage`, not per-particle gradients);
+  `edgeBias` keeps the live count modest; rects measured **once** at charge-start (no per-frame layout reads);
+  runs only during the last ~20s of a recruit turn; the card tree is never touched.
+- Motion: the owner's tuned `flowSpeed` is 0, so motes spawn on the lit glyph shape (sampled once at runtime from
+  `/fx/turn-glyph.svg` → on-shape points) with no initial velocity and are drawn in by `centerPull` (+ swirl) —
+  no tangent field needed. At 100% charge: live motes redirect + a `gatherBurst` rush the mandala and the flash
+  fires. `CHARGE_MOTES_CFG` holds the owner's exported values; px quantities scale by glyph width (`REF_W`).
+- `ChargeGlyph` runs a continuous rAF (keyed on `lit`) that reads the live charge from a ref and drives the engine.
+
+**Ramped feather:** the `.chargeglyph` mask feather is now driven per-frame as `CHARGE_MAX_FEATHER × (1 − charge)`
+(24% → 0%) — soft incoming fronts while charging, feather **0 at completion** so the sigil is full-bright + the
+flash reads crisp. Solves the original feather-dims-the-sigil problem (the reason it had been baked to 0).
+
+**How verified:** typecheck + lint + `build:web` + 1080 tests all green; app loads with **no console errors**.
+Look locked on the standalone preview rig (motes flow → gather → flash, tangent-field wisp fix, ramped feather).
+
+**Follow-ups:** (1) **In-game eyeball** — verify scale/position of the motes + flash at real board size (the
+`REF_W` glyph-width scaling is approximate; may need a nudge). (2) **Perf-measure** the canvas on a full board
+(prod) per the north star — the trail `fillRect` + blits; reduce `rate`/canvas size if it hitches. (3) Optional
+**mote tuner knobs** in the ⚡ Charge Glyph panel for live fine-tuning.
+
 ## 2026-07-15
 
 ### fix(ui): charge glyph sits behind the cards (board-surface layer)

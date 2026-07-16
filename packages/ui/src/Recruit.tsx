@@ -25,6 +25,7 @@ import { Unit } from './Unit';
 import { useCombatReplay } from './useCombatReplay';
 import { turnClock, useTurnSeconds, useTurnTimeUp } from './turnClock';
 import { chargeTune, useChargePreview } from './chargeGlyphTune';
+import { ChargeMotes } from './chargeMotes';
 
 gsap.registerPlugin(Flip);
 
@@ -62,6 +63,7 @@ type Zone = 'tavern' | 'warband' | 'hand';
 const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre* passes its midpoint
 const TURN_SECONDS = 18; // base round timer (wave 1); grows +4s/wave, capped at 80 (see turnSeconds)
 const CHARGE_SECONDS = 20; // the charge glyph fills over the final 20s of the turn
+const CHARGE_MAX_FEATHER = 24; // % — the reveal feather = this × (1−charge): soft incoming fronts, 0 at completion (no sigil dimming)
 
 /** The cast count a spell shows (its ×N badge + cast-spark replay): Implosion resolves 1 + your Demons times
  *  (per-Demon recast, read off the live board), and that whole count is MULTIPLIED by the run-wide spell-recast
@@ -110,6 +112,8 @@ function ChargeGlyph({ inCombat, window: chargeWindow, paused }: { inCombat: boo
   const preview = useChargePreview();          // dev tuner force-shows + scrubs the glyph; null in normal play
   const boxRef = useRef<HTMLDivElement>(null);
   const coreRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const chargeRef = useRef(0);                  // the live charge (0→1), read by the motes loop each frame
   const tickAtRef = useRef(0);
   const prevSecRef = useRef(0);
   const lit = preview != null || (!inCombat && seconds <= chargeWindow);
@@ -136,7 +140,11 @@ function ChargeGlyph({ inCombat, window: chargeWindow, paused }: { inCombat: boo
     // Paint --charge + the core-bloom opacity for a fill fraction (0→1). Core stays dark until bloomAt, then eases
     // in as t² up to coreMax (both live-tunable via chargeTune).
     const paint = (charge: number): void => {
-      if (boxRef.current) boxRef.current.style.setProperty('--charge', charge.toFixed(4));
+      chargeRef.current = charge;
+      if (boxRef.current) {
+        boxRef.current.style.setProperty('--charge', charge.toFixed(4));
+        boxRef.current.style.setProperty('--feather', (CHARGE_MAX_FEATHER * (1 - charge)).toFixed(2) + '%'); // soft fronts → 0 at completion
+      }
       if (coreRef.current) {
         const t = charge <= chargeTune.bloomAt ? 0 : (charge - chargeTune.bloomAt) / (1 - chargeTune.bloomAt);
         coreRef.current.style.opacity = (t * t * chargeTune.coreMax).toFixed(3);
@@ -155,13 +163,40 @@ function ChargeGlyph({ inCombat, window: chargeWindow, paused }: { inCombat: boo
     return () => cancelAnimationFrame(raf);
   }, [lit, seconds, paused, chargeWindow, preview]);
 
+  // Motes: a light 2D-canvas particle layer co-located with the glyph (z:0, behind the cards — the main Pixi canvas
+  // is z110, the wrong layer). A continuous rAF (started once per charge session, keyed on `lit`) reads the live
+  // charge from chargeRef and drives the engine: white-hot motes onto the lit shape, gathering into the mandala + a
+  // flash at completion. Glyph/canvas rects are measured ONCE at start (never per frame — perf north star). Runs
+  // only while lit; the card tree is never touched. Tuned in fx/turn-glyph-motes-preview.html (see chargeMotes.ts).
+  useEffect(() => {
+    if (!lit) return;
+    const canvas = canvasRef.current, glyph = boxRef.current;
+    if (!canvas || !glyph) return;
+    const engine = new ChargeMotes(canvas);
+    const gr = glyph.getBoundingClientRect(), cr = canvas.getBoundingClientRect();
+    const glyphCssW = gr.width, glyphCssH = gr.height;
+    engine.resize(cr.width, cr.height, Math.min(window.devicePixelRatio || 1, 2));
+    engine.reset();
+    let raf = 0, last = performance.now();
+    const loop = (t: number): void => {
+      engine.frame(chargeRef.current, glyphCssW, glyphCssH, t - last);
+      last = t;
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [lit]);
+
   if (!lit) return null;
   return (
-    <div className="chargeglyph" ref={boxRef} title={`${seconds}s left`} aria-hidden="true">
-      <div className="masked charge-base" />
-      <div className="masked charge-fill" />
-      <div className="masked charge-core" ref={coreRef} />
-    </div>
+    <>
+      <div className="chargeglyph" ref={boxRef} title={`${seconds}s left`} aria-hidden="true">
+        <div className="masked charge-base" />
+        <div className="masked charge-fill" />
+        <div className="masked charge-core" ref={coreRef} />
+      </div>
+      <canvas className="charge-motes" ref={canvasRef} aria-hidden="true" />
+    </>
   );
 }
 

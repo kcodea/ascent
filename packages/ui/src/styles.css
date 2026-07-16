@@ -217,6 +217,15 @@ canvas.spr { image-rendering: pixelated; display: block; }
 }
 /* faint always-on etch so the geometry hints before charging */
 .chargeglyph .charge-base { background: var(--cg-base, #0037ff); opacity: var(--cg-base-a, 0); mix-blend-mode: screen; }
+/* The motes canvas — a 2D particle layer co-located with the glyph (same anchor; 1.5× and SQUARE so the completion
+   flash + gather aren't clipped), at z:0 so it sits BEHIND the cards like the glyph. Driven by ChargeGlyph via
+   chargeMotes.ts (spawns white-hot motes on the lit shape → gather into the mandala + flash). pointer-events off. */
+.charge-motes {
+  position: absolute; left: 50%; top: var(--charge-y, 50%);
+  width: calc(var(--charge-w, 1144px) * var(--scale) * 1.5); aspect-ratio: 1 / 1;
+  transform: translate(calc(-50% + var(--charge-x, -5px) * var(--scale)), calc(-50% + var(--charge-yoff, -19px) * var(--scale)));
+  z-index: 0; pointer-events: none;
+}
 
 /* Layout Lab (dev) — hand + HUD region hooks (shop + warband ride the sizing var above; see the Warband note
    for why scaling never uses a transform). The hand carries no combat units, so it can use the standalone

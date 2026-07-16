@@ -154,16 +154,15 @@ fanned-hand overlap now that framed cards overhang ~1.1× the slot. All knobs ar
   per-bus compressors shipped-on (Approach 2), sidechain ducking, and ingest LUFS-normalization in `sfx:import`.
 
 ### B0. FX follow-ups (from the Echo skull poof + buff tendrils, session 29)
-- **Charge-glyph EoT timer (rope replacement) — base + live tuner + SFX wiring shipped `feat/eot-glyph-timer`;
-  follow-ups open.** Done (→ devlog): the CSS both-sides-in charge effect, a live in-game tuner (DevMenu → ⚡
-  Charge Glyph, var-driven look + preview scrubber), and the `turnCharge` cue at charge-start (retired the 5s
-  ticks). Remaining: (1) **Pixi motes pass** — white-hot motes streaming toward centre + a soft flare on each
-  converging front (softens the hard reveal edges without dimming the core) + a bloom pop at completion; prototype
-  in `fx/turn-glyph-preview.html` first. (2) ✅ **`turncharge.mp3` landed** (`packages/ui/src/audio/`, the owner's
-  ~20s build). (3) ✅ **Owner's tuned look + placement baked** (size 1144 / x −5 / y −19; deep #0037ff / mid
-  #009dff / white core; big 40/80px glow; thin 90×5% core; bloomAt 0.65; unlit etch off). (4) **Perf**: verify the
-  per-frame mask recompute is cheap on a full board (prod); move the drop-shadow glow to Pixi if it costs frames.
-  (5) **Pixi motes pass** builds off this locked geometry.
+- **Charge-glyph EoT timer (rope replacement) — effect complete on `feat/eot-glyph-timer`; verify + perf open.**
+  Done (→ devlog): the CSS both-sides-in charge effect; live in-game tuner (DevMenu → ⚡ Charge Glyph); the
+  `turnCharge` cue at charge-start (retired the 5s ticks) + `turncharge.mp3`; owner's tuned look + placement baked
+  (size 1144 / x −5 / y −19; #0037ff/#009dff/white; 40/80px glow; bloomAt 0.65); glyph on the behind-cards layer;
+  **motes** (2D-canvas, spawn-on-shape → gather + flash at completion, `chargeMotes.ts`); **ramped feather**
+  (24%→0%, soft fronts, no sigil dimming). Remaining: (1) **In-game eyeball** the motes/flash scale + position at
+  real board size (`REF_W` scaling is approximate). (2) **Perf-measure** the motes canvas on a full board (prod) —
+  trail `fillRect` + blits; reduce `rate`/canvas size if it hitches. (3) Optional **mote tuner knobs** in the ⚡
+  panel for live fine-tuning. (4) The CSS mask's per-frame recompute + drop-shadow glow perf check still stands.
 - **Effect-animation coverage audit (session 39 → devlog).** Full sweep of which combat effects show an animation
   vs none, across the three buff FX (pulse / tendril / descend) and non-buff effects. Ordered queue (owner: do all):
   - ✅ **Attack-windup self-pulse (shipped session 39).** On-attack / on-ally-attack self-buffs (Solaris, Trophy

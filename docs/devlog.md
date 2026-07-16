@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): hero + power art re-wire, and the PLAY-mode champion select rebuilt
+
+- **Art re-wire** (owner drop 2026-07-16): all 24 hero portraits from `Ascent Art/Heroes` and 20 hero-power
+  arts from `Heroes/Hero Powers` converted to 512² webp over the existing filenames (the eager globs pick
+  them up — NEW glob keys needed the dev-server restart, per the stale-glob rule). Filename→id mapping incl.
+  LordOfTheRisen→risen, Chronos→chronoshero, GuardianHP→runeguard, JensenHP→jenkins, RascalHP→baggerben,
+  TradesmanHP→hermithank, Pathfinder→coran, YirinHP→rohan. `Yirin.png` (newer) won the Rohan/Yirin duplicate
+  for id `rohan`. The three WIP heroes (warden/myra/chaos) have no new power art — their old files remain.
+- **Champion select (PLAY mode only — Practice's dense grid is untouched)**: the big card is rebuilt —
+  larger hero art (245² in its own gold-bordered frame), the hero-name pill eclipsing the frame's TOP edge
+  and the HP+Armor pill its BOTTOM edge (the hero-panel pill language), and hovering the card CROSSFADES
+  the hero-power art in over the portrait while the power name/text (+ unlock note) fades in below
+  (opacity-only transitions; the text block reserves its height so the card never jumps).
+- Verified live: 3 big cards with framed new art + eclipsing pills; a forced-hover preview showed Drakko's
+  Drumline art + bolded text below; power imgs present for all three after the server restart. Typecheck +
+  lint + 1109 tests + build:web green.
+
 ### chore(ui/content): opponent-frame tooltips removed + Jenkins → Jensen
 
 - All six native `title` tooltips on the opponent panel are gone (the frame's "by <author>" provenance,

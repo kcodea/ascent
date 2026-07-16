@@ -2892,6 +2892,38 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .hclock { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 16%, transparent); border: 1.5px solid color-mix(in srgb, var(--acc) 45%, transparent); padding: 4px 13px; border-radius: 8px; }
 .hcblurb { font-size: 13px; font-style: italic; color: var(--ink3); line-height: 1.4; margin-top: auto; padding-top: 6px; }
 .hcpick { margin-top: 16px; font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.12em; text-transform: uppercase; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); box-shadow: 0 4px 0 var(--acc-dk); padding: 10px 29px; border-radius: 12px; }
+/* ---- PLAY-MODE hero card (owner rework 2026-07-16): big framed art — the name pill eclipses the frame's
+   TOP edge, the HP+Armor pill its BOTTOM edge (the hero-panel pill language) — and hovering the card
+   crossfades the HERO POWER art in over the portrait while the power text fades in below. All transitions
+   are opacity-only one-shots. Practice keeps the compact card above (the dense grid). */
+.herocard.big { gap: 10px; padding: 34px 23px 23px; }
+.herocard.big .hcframe {
+  position: relative; width: 245px; height: 245px; flex: none; margin-bottom: 10px;
+  border-radius: 22px; border: 3px solid var(--gold); background: var(--ink);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35), 0 8px 22px -10px rgba(0, 0, 0, 0.5);
+}
+.herocard.big .hcframe-art, .herocard.big .hcframe-pow { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 18px; -webkit-user-drag: none; }
+/* The power art rides above the portrait at opacity 0 — hover crossfades it in. */
+.herocard.big .hcframe-pow { opacity: 0; transition: opacity 0.28s ease; }
+.herocard.big:hover .hcframe-pow { opacity: 1; }
+.herocard.big .hcframe > svg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 80px; height: 80px; color: var(--acc); }
+/* Name pill — eclipsing the frame's top edge. */
+.herocard.big .hcname {
+  position: absolute; left: 50%; top: 0; transform: translate(-50%, -55%); z-index: 3;
+  max-width: 118%; white-space: nowrap;
+  font-size: 23px; padding: 3px 20px; background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink);
+  border: 2px solid var(--gold); border-radius: 999px; box-shadow: 0 2px 6px -2px var(--shadow);
+}
+/* HP + Armor pill — eclipsing the frame's bottom edge. */
+.herocard.big .hchp {
+  position: absolute; left: 50%; bottom: 0; transform: translate(-50%, 52%); z-index: 3; margin: 0;
+  white-space: nowrap; font-size: 21px; padding: 3px 18px; background: linear-gradient(180deg, #fff, #f3ead4);
+  border: 2px solid var(--gold); border-radius: 999px; box-shadow: 0 2px 6px -2px var(--shadow);
+}
+/* Power text — fades in with the power art; reserved height so the card never jumps on hover. */
+.herocard.big .hcpw { min-height: 92px; opacity: 0; transition: opacity 0.28s ease; }
+.herocard.big:hover .hcpw { opacity: 1; }
+.herocard.big .hcpw .hclock { display: inline-block; margin-top: 8px; }
 /* Dense grid — Practice mode offers EVERY hero (20+), so shrink the cards to fit without scrolling. The whole
    card is a button, so the "Choose" pill is dropped (hover-lift + accent border carry the affordance) and the
    power text is clamped to 3 lines. Ascent (3 heroes) keeps the big cards. */

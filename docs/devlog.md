@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): hero panel DECOUPLED — minimal portrait square + floating Resolve housing
+
+- Owner report: shrinking the tray pushed the art out (the old flex row squeezed its children). The tray is
+  restructured to the owner's target layout: the `.hero` box is now a **minimal square hugging just the
+  portrait** — the player-name pill eclipses its TOP edge, the hero-name pill its BOTTOM edge — and the
+  Resolve (health + armor) box floats beside it in its **own housing**, absolutely positioned off the
+  square's right midline (no flex coupling anywhere).
+- The portrait **fills** the square (`inset` by the frame padding), so the 🧍 tuner's `square · width /
+  height` dials resize the art WITH the square — it can never be ejected; 0 = the snug 92-design-px
+  default. The Resolve box's base transform is its midline centring, with the resolve dials (and the
+  hit-shake keyframes) composing on top.
+- Verified live: snug square 62×62 around a 50×50 portrait with the pills eclipsing both edges; a hard
+  shrink to a 40×40 square scaled the portrait to 28×28 fully inside it while the Resolve housing kept its
+  own size beside. Typecheck + lint + 1109 tests + build:web green.
+
 ### feat(ui): 🧍 Hero Panel tuner — tray DIMENSION dials (width/height, 0 = auto)
 
 - Owner follow-up: the tray's box itself is now dialable — **`panel · width` / `panel · height`** (design px

@@ -1903,14 +1903,14 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
    gets a golden outline/pulse (it's not the click target anymore). */
 /* resolve took a hit */
 .hero .hpbox.hit { animation: hitshake 0.5s ease; }
-/* The shake COMPOSES over the 🧍 tuner's Resolve-box transform (identity fallback) — without the prefix a
-   tuned offset/scale would snap to origin for the shake's duration. */
+/* The shake COMPOSES over the 🧍 tuner's Resolve-box transform (fallback = its midline centring) — without
+   the prefix a tuned offset/scale would snap to origin for the shake's duration. */
 @keyframes hitshake {
-  0%, 100% { transform: var(--hpn-hp-t, translate(0, 0)); }
-  20% { transform: var(--hpn-hp-t, translate(0, 0)) translateX(-5px); }
-  40% { transform: var(--hpn-hp-t, translate(0, 0)) translateX(5px); }
-  60% { transform: var(--hpn-hp-t, translate(0, 0)) translateX(-3px); }
-  80% { transform: var(--hpn-hp-t, translate(0, 0)) translateX(2px); }
+  0%, 100% { transform: var(--hpn-hp-t, translateY(-50%)); }
+  20% { transform: var(--hpn-hp-t, translateY(-50%)) translateX(-5px); }
+  40% { transform: var(--hpn-hp-t, translateY(-50%)) translateX(5px); }
+  60% { transform: var(--hpn-hp-t, translateY(-50%)) translateX(-3px); }
+  80% { transform: var(--hpn-hp-t, translateY(-50%)) translateX(2px); }
 }
 .resfx { position: absolute; top: -10px; right: 14px; font-family: var(--font-ui); font-weight: 900; font-size: 24px; color: var(--threat); pointer-events: none; animation: sellrise 1s ease forwards; }
 /* compact sizing for the corner tray (was hero-sized when it was the centrepiece); the
@@ -1920,21 +1920,26 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
    the corner instead of ducking behind. The DOM order (.f, .htxt, .hpwrap, .hpbox) auto-places row-major into
    the four cells; the fixed width wraps the power line to a second row (which is where the added height comes
    from). */
+/* DECOUPLED tray (owner direction 2026-07-16): the `.hero` box is a MINIMAL SQUARE hugging just the
+   portrait — the player-name pill eclipses its top edge, the hero-name pill its bottom edge, and the
+   Resolve box floats beside it in its OWN housing (absolute — no flex coupling, so resizing the square
+   never pushes the art out). Every piece re-seats via the 🧍 tuner. */
 .statusbar .hero {
-  position: relative; /* anchor for the player-name pill (top eclipse) */
-  display: flex; align-items: center; gap: calc(13 * var(--u));
-  padding: calc(9 * var(--u)) calc(18 * var(--u)) calc(11 * var(--u)) calc(10 * var(--u)); border-radius: calc(21 * var(--u));
-  /* The 🧍 tuner's whole-panel transform lives HERE (the hero tray), NOT on .statusbar — a transform on
+  position: relative; /* anchor for the pills + the floated Resolve box */
+  display: block; padding: calc(6 * var(--u)); border-radius: calc(18 * var(--u));
+  /* The 🧍 tuner's whole-panel transform lives HERE (the hero square), NOT on .statusbar — a transform on
      .statusbar would become the containing block for the power diamond's `position: fixed` and break its
      stage pinning. Identity fallback matches the shipped defaults in heroPanelConfig.ts. */
   transform: var(--hpn-panel-t, none); transform-origin: bottom left;
-  /* Tray dimensions — the 🧍 tuner's width/height dials (design px × --u); unset (0) = auto-hug the
-     contents. box-sizing so the padding stays inside a dialed size. */
-  width: var(--hpn-panel-w, auto); height: var(--hpn-panel-h, auto); box-sizing: border-box;
+  /* Square dimensions — the 🧍 tuner's width/height dials (design px × --u); unset (0) = the snug
+     default square. The portrait FILLS the square (inset by the padding), so a resize never ejects it. */
+  width: var(--hpn-panel-w, calc(92 * var(--u))); height: var(--hpn-panel-h, calc(92 * var(--u)));
+  box-sizing: border-box;
 }
-/* Larger portrait holding ONLY the hero art; `overflow: visible` lets the hero-name pill eclipse its bottom.
-   Takes the 🧍 tuner's portrait transform (NB: the hero-name pill lives inside, so it rides this scale). */
-.statusbar .hero .f { position: relative; overflow: visible; width: calc(80 * var(--u)); height: calc(80 * var(--u)); border-radius: calc(18 * var(--u)); transform: var(--hpn-portrait-t, none); }
+/* Portrait fills the square (inset by the frame padding) — resizing the square resizes the art WITH it;
+   the 🧍 portrait dials then fine-seat it. `overflow: visible` lets the hero-name pill eclipse its bottom
+   (the pill lives inside, so it rides the portrait transform too). */
+.statusbar .hero .f { position: absolute; inset: calc(6 * var(--u)); width: auto; height: auto; overflow: visible; border-radius: calc(14 * var(--u)); transform: var(--hpn-portrait-t, none); }
 .statusbar .hero .f .heroimg { border-radius: inherit; }
 .statusbar .hero .f svg { width: calc(42 * var(--u)); height: calc(42 * var(--u)); }
 /* Hero name — a pill eclipsing the BOTTOM edge of the portrait (mirrors the player-name pill eclipsing the top). */
@@ -1945,8 +1950,10 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
   font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; line-height: 1.1;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow);
 }
-/* Health/Armor sits to the RIGHT of the portrait (a flex sibling), no longer a bottom row. */
-.statusbar .hero .hpbox { align-self: center; padding: calc(8 * var(--u)) calc(15 * var(--u)); }
+/* Health/Armor — its OWN housing floated to the RIGHT of the portrait square (absolute, decoupled from
+   the square's size). Base transform centres it on the square's midline; the 🧍 resolve dials stack onto
+   that base (see heroPanelConfig), so it re-seats freely. */
+.statusbar .hero .hpbox { position: absolute; left: calc(100% + 10 * var(--u)); top: 50%; transform: var(--hpn-hp-t, translateY(-50%)); padding: calc(8 * var(--u)) calc(15 * var(--u)); }
 .statusbar .hero .hpbox svg { width: calc(26 * var(--u)); height: calc(26 * var(--u)); }
 .statusbar .hero .hpbox .hpval { font-size: calc(26 * var(--u)); }
 .statusbar .hero .hpbox .armval { font-size: calc(18 * var(--u)); }

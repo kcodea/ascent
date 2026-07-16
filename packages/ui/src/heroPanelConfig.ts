@@ -19,9 +19,10 @@ export interface HeroPanelConfig {
   panelY: number;
   /** Whole panel — scale (×), about its bottom-left anchor. */
   panelScale: number;
-  /** Whole panel — explicit tray WIDTH (design px, × --u). 0 = auto (sized by its contents). */
+  /** Whole panel — the portrait SQUARE's width (design px, × --u). 0 = the snug default square. The
+   *  portrait art fills the square, so resizing scales the art with it (never ejects it). */
   panelW: number;
-  /** Whole panel — explicit tray HEIGHT (design px, × --u). 0 = auto. */
+  /** Whole panel — the portrait square's height (design px, × --u). 0 = the snug default. */
   panelH: number;
   /** Hero portrait (the framed art) — design-px offset (× --u). */
   portraitX: number;
@@ -66,8 +67,8 @@ export const HPN_DESC: Record<keyof HeroPanelConfig, string> = {
   panelX: 'Whole panel — horizontal offset (stage px × scale) from its bottom-left corner anchor.',
   panelY: 'Whole panel — vertical offset. Positive = down.',
   panelScale: 'Whole panel — overall size (×), scaling about the bottom-left anchor.',
-  panelW: 'Whole panel — the tray box WIDTH (design px). 0 = auto (hug the contents).',
-  panelH: 'Whole panel — the tray box HEIGHT (design px). 0 = auto.',
+  panelW: 'Portrait square — width (design px). 0 = the snug default. The art fills the square.',
+  panelH: 'Portrait square — height (design px). 0 = the snug default.',
   portraitX: 'Hero portrait — horizontal nudge (design px).',
   portraitY: 'Hero portrait — vertical nudge (design px).',
   portraitScale: 'Hero portrait — size (×). The hero-name pill rides this too (it lives on the frame).',
@@ -123,7 +124,7 @@ export function applyHeroPanelVars(): void {
   root.setProperty('--hpn-portrait-t', t(cfg.portraitX, cfg.portraitY, cfg.portraitScale));
   root.setProperty('--hpn-pname-t', t(cfg.playerNameX, cfg.playerNameY, cfg.playerNameScale, 'translate(-50%, -55%)'));
   root.setProperty('--hpn-hname-t', t(cfg.heroNameX, cfg.heroNameY, cfg.heroNameScale, 'translate(-50%, 52%)'));
-  root.setProperty('--hpn-hp-t', t(cfg.resolveX, cfg.resolveY, cfg.resolveScale));
+  root.setProperty('--hpn-hp-t', t(cfg.resolveX, cfg.resolveY, cfg.resolveScale, 'translateY(-50%)'));
 }
 
 export function setHeroPanelValue(key: keyof HeroPanelConfig, value: number): void {

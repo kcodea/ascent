@@ -310,10 +310,10 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
 });
 
 describe('Runes batch 1 — grants / discovers / economy', () => {
-  it('Rune of Small Fortune: banks 6 Gold into the next shop (the standard "Get N Gold" channel)', () => {
+  it('Rune of Small Fortune: gives 7 Gold immediately (this shop, not banked)', () => {
     const s = buyRune('rune_small_fortune', 10); // cost 1
-    expect(s.embers).toBe(9); // 10 − 1 spent now
-    expect(s.bonusEmbersNextTurn).toBe(6); // +6 lands next shop
+    expect(s.embers).toBe(16); // 10 − 1 spent + 7 immediately
+    expect(s.bonusEmbersNextTurn ?? 0).toBe(0); // nothing banked for next shop
   });
 
   it('Rune of Quick Study: conjures 3 random spells to hand', () => {

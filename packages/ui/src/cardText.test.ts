@@ -179,5 +179,9 @@ describe('cardText helpers', () => {
     expect(summonBuffText('kennel', 0)).toBeNull(); // fresh → falls back to printed +1/+1
     expect(summonBuffText('kennel', 2)).toContain('{{+3/+3}}'); // base 1 + summonBonus 2
     expect(summonBuffText('sandbag', 3)).toBeNull(); // not a summon-buff / aura card
+    // Trophy Stalker's growing Rally (base 5): golden doubles the live grant so the printed number matches the
+    // real +10/+10 effect (owner-caught: it was under-showing +5/+5). Non-golden stays base+bonus.
+    expect(summonBuffText('trophystalker', 5)).toContain('{{+10/+10}}'); // (5 + 5) × 1
+    expect(summonBuffText('trophystalker', 5, true)).toContain('{{+20/+20}}'); // (5 + 5) × 2 golden
   });
 });

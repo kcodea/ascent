@@ -3,6 +3,20 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-16
+
+### fix(content): Rune of Small Fortune → 7g immediate + golden Trophy Stalker live-text
+
+- **Rune of Small Fortune** now grants **7 Gold immediately** (was 6, banked into the next shop). Added an
+  optional `immediate` flag to the `gainGold` reward (`+= s.embers` this shop vs. the banked
+  `bonusEmbersNextTurn` channel); schema + core type + reducer + rune data + test updated.
+- **Golden Trophy Stalker live text fixed.** The combat *effect* was already correct (golden applies +10/+10,
+  proven by a new sim test), but `summonBuffText` — the live text for its growing Rally — wasn't golden-aware:
+  once the grant started climbing it printed the **un-doubled** value (wrapped in `{{…}}`, which the Card
+  excludes from its generic golden `doubleNums`), so a golden copy visually read +5/+5 while hitting for
+  +10/+10. Threaded `golden` through `summonBuffText` (×2) and its `instView` call site. Tests: golden effect
+  magnitude (sim) + golden/non-golden text. typecheck + lint + test (1103) + build:web green.
+
 ## 2026-07-15
 
 ### feat(content): Coran's Pathfinder reworked — bonus Capstone quest on turn 10

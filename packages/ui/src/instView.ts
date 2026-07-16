@@ -59,7 +59,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             runescaleText(c.id, p.golden, p.spellProgress ?? 0) ??
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
             packLeaderText(c.id, p.summonBonus ?? 0, p.golden) ??
-            summonBuffText(c.id, p.summonBonus ?? 0) ??
+            summonBuffText(c.id, p.summonBonus ?? 0, p.golden) ??
             summonImproveText(c.id, p.summonBonus ?? 0, p.golden) ??
             hunterText(c.id, p.summonBonus ?? 0, p.golden) ??
             trailForagerText(c.id, p.golden, p.sellBonus ?? 0) ??

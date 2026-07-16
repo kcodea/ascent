@@ -234,7 +234,7 @@ export const NEUTRAL: CardDef[] = [
   },
   {
     id: 'jenkins',
-    name: 'Jenkins & Fi',
+    name: 'Jensen & Fi',
     tribe: 'neutral',
     tier: 5,
     attack: 3,

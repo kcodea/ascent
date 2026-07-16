@@ -365,7 +365,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'jenkins',
-    name: 'Jenkins',
+    name: 'Jensen',
     blurb: 'Every dig turns up something — for a price that only ever climbs.',
     resolve: 30,
     armor: 10,

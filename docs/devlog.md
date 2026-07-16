@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### chore(ui/content): opponent-frame tooltips removed + Jenkins → Jensen
+
+- All six native `title` tooltips on the opponent panel are gone (the frame's "by <author>" provenance,
+  the threat-board hint, Life/Tier/Wins stat hovers, and the Triples count) — owner note 2026-07-16; the
+  unused `provenance` string was retired with them.
+- Renames (display-only; the hero id stays `jenkins` and the card id is unchanged, so saves/art/tests are
+  untouched): hero **Jenkins → Jensen**, card **Jenkins & Fi → Jensen & Fi**.
+- Verified live: zero `title` attributes inside `.oppframe`; a jenkins run shows "Jensen" in the hero pill.
+  Typecheck + lint + 1109 tests + build:web green.
+
 ### fix(ui): hero pills — no tooltip, text auto-fits; hero power **keywords** render bold
 
 - Three owner notes:

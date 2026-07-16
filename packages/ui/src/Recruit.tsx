@@ -8,6 +8,7 @@ import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
 import { HudBar } from './HudBar';
 import { EndTurnButton } from './EndTurnButton';
+import { TavernUpButton } from './TavernUpButton';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
@@ -2698,21 +2699,10 @@ export function Recruit() {
           </div>
           <ShopTimer label={isCalibrationRound(run.wave) ? 'Setup Time' : 'Time'} />
         </div>
-        {/* Action tray — the turn's actions grouped into one control bar (Upgrade Tavern · Reroll · Freeze ·
-            End Turn), framed by shopbutton.webp. */}
+        {/* Action tray — the turn's actions grouped into one control bar (Reroll · Freeze), framed by
+            shopbutton.webp. Tavern Up moved onto the board as the standalone STONE button (TavernUpButton,
+            mounted below with the End Turn diamond); Reroll/Freeze are queued for the same treatment. */}
         <div className="shoprow actiontray">
-          {/* Tavern Up — cost = upgradeCostOf(run) (includes Hermit Hank's +2 surcharge); disabled at max tier /
-              can't afford / time up. Uses the same helper the reducer charges with, so the shown cost is accurate. */}
-          <button
-            className="shopbtn"
-            disabled={run.tier >= CONFIG.maxTier || run.embers < upgradeCostOf(run) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
-            onClick={() => dispatch({ type: 'upgrade' })}
-          >
-            <span className="sb-l">Upgrade Tavern</span>
-            <span className="sb-ic"><Icon name="star" /></span>
-            <span className="sb-v">{run.tier < CONFIG.maxTier ? upgradeCostOf(run) : '★'}</span>
-            <span className="sbtip">{run.tier >= CONFIG.maxTier ? 'Tavern at max tier' : `Upgrade Tavern — to tier ${run.tier + 1}`}</span>
-          </button>
           {/* Reroll — free rolls show 0. */}
           <button
             className="shopbtn"
@@ -2771,6 +2761,19 @@ export function Recruit() {
         pressed={inCombat || eotAnimating}
         urgent={timeUp && !inCombat}
       />
+
+      {/* Tavern Up — the standalone STONE button on the board's left (replaces the tray plaque; same
+          reducer wiring + disabled conditions — a re-skin, not a behavior change). Shop phase only; the
+          max-tier condition lives in the component (it shows the broken "complete" gem there). */}
+      {!inCombat && (
+        <TavernUpButton
+          tier={run.tier}
+          maxTier={CONFIG.maxTier}
+          cost={upgradeCostOf(run)}
+          disabled={run.embers < upgradeCostOf(run) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+          onUpgrade={() => dispatch({ type: 'upgrade' })}
+        />
+      )}
 
       {/* Top-middle combat HUD (during the replay) — the Skip button centred near the top of the arena, with
           the replay-speed slider stacked beneath it. */}

@@ -661,6 +661,137 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
   0% { opacity: 0; transform: translate(-50%, -50%) translateY(7px); }
   100% { opacity: 1; transform: translate(-50%, -50%) translateY(0); }
 }
+/* ---- Standalone TAVERN UP STONE (TavernUpButton.tsx) — the carved rock medallion replacing the "Upgrade
+   Tavern" plaque (same playbook as the End Turn diamond). Stage-pinned to the board's LEFT (base point
+   0.155/0.42 of the stage + tuner px offsets × --scale); everything below reads the `--tvb-*` vars the
+   🍺 Tavern Up dev tuner sets live — the fallbacks here mirror the shipped defaults in tavernUpConfig.ts.
+   Layer stack: gem (z0, UNDER the base — seated through the stone's transparent hole so the gold ring
+   overlaps its rim) → base (z1) → tier pips (z2) → gem-halo glow (z3) → press flash (z4) → cost coin (z5). */
+.tvbwrap {
+  position: fixed;
+  left: calc(var(--bar-x) + 0.155 * var(--gw) + var(--tvb-x, 0px) * var(--scale));
+  top: calc(var(--bar-y) + 0.42 * var(--gh) + var(--tvb-y, 0px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--tvb-s, 1));
+  width: calc(128 * var(--u)); height: calc(125.5 * var(--u)); /* the trimmed base art's 512×502 aspect */
+  background: none; border: none; padding: 0; z-index: 41;
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+}
+body.dragging .tvbwrap { pointer-events: none; } /* a card dragged across it drops through */
+.tvbwrap:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+/* Disabled (can't afford / locked) dims the ART only — a static filter (brightness from the tuner's artDim).
+   MAXED is excluded: the broken "complete" gem + all six pips tell that story at full strength. */
+.tvbwrap:disabled:not(.maxed) .tvb-base,
+.tvbwrap:disabled:not(.maxed) .tvb-pips,
+.tvbwrap:disabled:not(.maxed) .tvb-gembox { filter: grayscale(0.45) brightness(var(--tvb-art-dim, 0.78)); }
+.tvbwrap .tvb-base { position: absolute; inset: 0; width: 100%; height: 100%; -webkit-user-drag: none; z-index: 1; }
+/* The GEM — seated UNDER the base (z0) through its transparent hole (measured: centre 52.56%/48.93% of the
+   base, gem 28.1% of its width ≈ the hole + a small lip under the ring — the forgiving seat). The broken gem
+   is the max-tier state; both stay mounted, CSS flips them on `.maxed` (no src-swap flash). */
+.tvbwrap .tvb-gembox {
+  position: absolute; z-index: 0; pointer-events: none;
+  left: calc(52.56% + var(--tvb-gem-x, 0) * var(--u));
+  top: calc(48.93% + var(--tvb-gem-y, 0) * var(--u));
+  width: calc(28.1% * var(--tvb-gem-s, 1)); aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+}
+.tvbwrap .tvb-gem { position: absolute; inset: 0; width: 100%; height: 100%; -webkit-user-drag: none; }
+.tvbwrap .tvb-gem.broken { display: none; }
+.tvbwrap.maxed .tvb-gem.lit { display: none; }
+.tvbwrap.maxed .tvb-gem.broken { display: block; }
+/* TIER PIPS — the current tavern tier lit into the stone's slot arc. The six variants share ONE
+   centroid-aligned canvas (823×374 source, 71.63% of the base's width — see the conversion notes), so this
+   single seat places every tier; CSS shows the active one. Default centre puts pip 1 on the base's first
+   slot (measured); the pip dials nudge the whole arc. */
+.tvbwrap .tvb-pips {
+  position: absolute; z-index: 2; display: none; pointer-events: none; -webkit-user-drag: none;
+  left: calc(50.4% + var(--tvb-pip-x, 0) * var(--u));
+  top: calc(24.2% + var(--tvb-pip-y, 0) * var(--u));
+  width: calc(71.63% * var(--tvb-pip-s, 1)); height: auto;
+  transform: translate(-50%, -50%);
+}
+.tvbwrap .tvb-pips.on { display: block; }
+/* The GEM GLOW — the gem art's stacked drop-shadow follows its alpha, so the halo hugs the blue gem; the
+   mask (full canvas MINUS the gem shape, mask-composite: exclude) cuts the source pixels back out so ONLY
+   the halo paints (the End Turn diamond's construction). HOVER-ONLY; the breath animates OPACITY only. */
+.tvbwrap .tvb-glow {
+  position: absolute; z-index: 3; pointer-events: none; -webkit-user-drag: none;
+  left: calc(52.56% + (var(--tvb-gem-x, 0) + var(--tvb-glow-x, 0)) * var(--u));
+  top: calc(48.93% + (var(--tvb-gem-y, 0) + var(--tvb-glow-y, 0)) * var(--u));
+  width: calc(28.1% * var(--tvb-gem-s, 1)); aspect-ratio: 1;
+  transform: translate(-50%, -50%) scale(var(--tvb-glow-w, 1), var(--tvb-glow-h, 1));
+  filter: var(--tvb-glow-filter, drop-shadow(0 0 2px #ffc25e) drop-shadow(0 0 2px #ffc25e) drop-shadow(0 0 2px #ffc25e) drop-shadow(0 0 2px #ffc25e) drop-shadow(0 0 2px #ffc25e));
+  mask-image: linear-gradient(#fff, #fff), url('/frames/tavernup_gem.webp');
+  mask-size: 100% 100%; mask-repeat: no-repeat; mask-composite: exclude;
+  opacity: 0; transition: opacity 0.22s ease;
+}
+.tvbwrap:not(:disabled):hover .tvb-glow {
+  opacity: var(--tvb-glow-alpha, 0.9);
+  animation: tvbbreathe var(--tvb-glow-pulse, 1.2s) ease-in-out infinite;
+}
+/* Tuner's "glow always on" preview — pins the hover glow so its sliders can be dialed without holding hover. */
+body.tvb-glow-preview .tvbwrap:not(:disabled) .tvb-glow {
+  opacity: var(--tvb-glow-alpha, 0.9);
+  animation: tvbbreathe var(--tvb-glow-pulse, 1.2s) ease-in-out infinite;
+}
+@keyframes tvbbreathe {
+  0%, 100% { opacity: var(--tvb-glow-alpha, 0.9); }
+  50% { opacity: var(--tvb-glow-dim, 0.765); }
+}
+/* The press FLASH — a warm-white pop of the gem masking the tier-pip advance. Static bright filter; the
+   one-shot animation (duration from the tuner via --tvb-flash-ms) fades OPACITY only, then the layer
+   unmounts — never a loop. */
+.tvbwrap .tvb-flash {
+  position: absolute; z-index: 4; pointer-events: none; -webkit-user-drag: none;
+  left: calc(52.56% + var(--tvb-gem-x, 0) * var(--u));
+  top: calc(48.93% + var(--tvb-gem-y, 0) * var(--u));
+  width: calc(28.1% * var(--tvb-gem-s, 1)); aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  filter: brightness(2.2) saturate(0.6) drop-shadow(0 0 18px rgba(255, 214, 130, 0.9));
+  animation: tvbflash var(--tvb-flash-ms, 450ms) ease-out forwards;
+}
+@keyframes tvbflash { 0% { opacity: 1; } 100% { opacity: 0; } }
+/* Ambient SHEEN — a narrow glare bar sweeping the gem's face on a slow cycle, clipped to the gem's circle
+   (inside the gembox, so it rides the gem seat). The bar animates TRANSFORM only (compositor-cheap loop);
+   sweep occupies the first quarter of the cycle, then parks off-gem. Cycle/strength are 🍺-tuner dials. */
+.tvbwrap .tvb-sheen {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden;
+  clip-path: circle(47% at 50% 50%);
+  opacity: var(--tvb-sheen-alpha, 0.35);
+}
+.tvbwrap .tvb-sheen-bar {
+  position: absolute; top: -25%; left: 0; width: 30%; height: 150%;
+  background: linear-gradient(105deg, transparent 8%, rgba(255, 255, 255, 0.85) 50%, transparent 92%);
+  transform: translateX(-160%) rotate(8deg);
+  animation: tvbsheen var(--tvb-sheen-cycle, 4s) linear infinite;
+}
+@keyframes tvbsheen {
+  0% { transform: translateX(-160%) rotate(8deg); }
+  26% { transform: translateX(440%) rotate(8deg); }
+  100% { transform: translateX(440%) rotate(8deg); }
+}
+/* COST COIN — the live upgrade cost on a small gold pill (hidden at max tier). Seat + size are tuner dials. */
+.tvbwrap .tvb-cost {
+  position: absolute; z-index: 5; pointer-events: none;
+  left: calc(50% + var(--tvb-cost-x, -46) * var(--u));
+  top: calc(50% + var(--tvb-cost-y, 46) * var(--u));
+  transform: translate(-50%, -50%) scale(var(--tvb-cost-s, 1));
+  display: inline-flex; align-items: center; gap: calc(4 * var(--u));
+  padding: calc(4 * var(--u)) calc(10 * var(--u)); border-radius: 999px;
+  background: radial-gradient(circle at 38% 30%, #ffe293, #eab63f 58%, #b9821f);
+  border: calc(2.5 * var(--u)) solid #1b1d22;
+  font-family: var(--font-ui); font-weight: 900; font-size: calc(17 * var(--u)); color: #241a08;
+  box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.55);
+}
+.tvbwrap .tvb-cost svg { width: calc(14 * var(--u)); height: calc(14 * var(--u)); }
+/* Hover tip — the dark pill, seated under the stone (same look as the diamond's). */
+.tvbwrap .tvb-tip {
+  position: absolute; left: 50%; top: calc(100% + 10px); transform: translateX(-50%) translateY(7px);
+  white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.38s ease, transform 0.38s ease;
+  font-family: var(--font-ui); font-weight: 700; font-size: 13.5px; color: #f4ecdb;
+  background: linear-gradient(180deg, #211812, #16100b); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
+  border-radius: 11px; padding: 5px 14px; box-shadow: 0 3px 9px -3px rgba(0, 0, 0, 0.6); z-index: 6;
+}
+.tvbwrap:hover .tvb-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
 /* Styled hover tooltip (replaces the native title): the game's dark rounded pill, dropping below the control
    with a small arrow — same format as the hero/opponent tips. The hovered control lifts above its neighbours
    so the pill never gets trapped behind the next plaque. */

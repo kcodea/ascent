@@ -16,6 +16,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   beats an exact-wave repeat. Only when the ENTIRE pool was fought recently is a repeat served (still beats no
   opponent). New test reproduces the starved 16→17 collapse (old code re-served X; now serves the fresh Y) +
   the truly-unavoidable case. typecheck + lint + test (1109) + build:web green.
+- **Second (bigger) cause — the remote pool pull starved mid/high waves.** The owner's repeat hit at round
+  ~9, which exposed the startup fetch: a single global `order(wave, asc).limit(2000)` fills the cap from wave 1
+  upward — and dead runs over-contribute low waves — so once the `boards` table outgrew the cap, waves ~9+
+  were **truncated out of the pool entirely**, collapsing matchmaking onto whatever nearby board existed.
+  `fetchAndRegisterPool` now pulls a capped, NEWEST-first sample **per wave** (17 parallel queries ×120,
+  `Promise.allSettled` so one flaky wave can't kill the pool) — guaranteed coverage across the whole course at
+  any table size.
 
 ### feat(ui/content): vocabulary pass (Renown/Oath/…) + 23 hero-power text rewrites + tooltip cleanups
 

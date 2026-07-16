@@ -1933,16 +1933,16 @@ function resolveQuestThreshold(s: RunState, aq: ActiveQuest, def: QuestDef): voi
 
 /** Conjure `reps` random minions of `tribe` (≤ current tier) into the hand — the quest-reward draw (Grave
  *  Toll's "random Undead", Trail Rations' "random Beast"). Shares `conjureToHand`'s seeded pick + hand cap. */
-function grantRandomTribeMinion(s: RunState, tribe: Tribe, reps: number): void {
+function grantRandomTribeMinion(s: RunState, tribe: Tribe, reps: number, overflow = false): void {
   const pool = BUYABLE_CARDS.filter((c) => (c.tribe === tribe || c.tribe2 === tribe) && c.tier <= s.tier);
-  conjureToHand(s, pool, reps);
+  conjureToHand(s, pool, reps, overflow);
 }
 
 /** Conjure `reps` random buyable minions of EXACTLY `tier` (in your tribes / neutral) — Rune of the Pair's
  *  "2 random Tier 4 minions". */
-function grantRandomTierMinion(s: RunState, tier: number, reps: number): void {
+function grantRandomTierMinion(s: RunState, tier: number, reps: number, overflow = false): void {
   const pool = BUYABLE_CARDS.filter((c) => c.tier === tier && (c.tribe === 'neutral' || s.tribes.includes(c.tribe)));
-  conjureToHand(s, pool, reps);
+  conjureToHand(s, pool, reps, overflow);
 }
 
 /** Whether a card matches a reward's minion "class" filter (a Shout=Battlecry, an End-of-Turn, an Echo=Deathrattle,
@@ -1960,11 +1960,11 @@ function matchesFilter(c: (typeof BUYABLE_CARDS)[number], filter: 'shout' | 'end
 /** Conjure `reps` random buyable minions matching a class filter into the hand. `exactTier` restricts to the
  *  CURRENT tavern tier (fallback ≤ tier if none there); otherwise ≤ current tier. Powers the "get a random
  *  Shout / End-of-Turn / Echo / Rally / Attachment minion" rewards. */
-function grantRandomFilterMinion(s: RunState, filter: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment', reps: number, exactTier = false): void {
+function grantRandomFilterMinion(s: RunState, filter: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment', reps: number, exactTier = false, overflow = false): void {
   const base = BUYABLE_CARDS.filter((c) => matchesFilter(c, filter));
   let pool = base.filter((c) => (exactTier ? c.tier === s.tier : c.tier <= s.tier));
   if (pool.length === 0) pool = base.filter((c) => c.tier <= s.tier); // exact-tier gap → fall back to ≤ tier
-  conjureToHand(s, pool, reps);
+  conjureToHand(s, pool, reps, overflow);
 }
 
 /**
@@ -2075,16 +2075,18 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       for (const c of s.board) addBuff(c, `Quest: ${def.name}`, r.attack, r.health);
       break;
     case 'grant':
-      if (r.randomTribe && (r.randomCount ?? 0) > 0) grantRandomTribeMinion(s, r.randomTribe, r.randomCount!);
-      if ((r.randomSpell ?? 0) > 0) conjureToHand(s, SPELL_CARDS.filter((c) => c.tier <= s.tier), r.randomSpell!); // Hoard Spark's random spell
-      if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, r.randomFilterCount ?? 1, r.randomFilterExactTier); // "N random Shout/Echo/Rally/Attachment minions"
-      if (r.randomTier) grantRandomTierMinion(s, r.randomTier, r.randomCount ?? 1); // Rune of the Pair — N random Tier-K minions
+      // Quest / rune reward cards are guaranteed delivery — they OVERFLOW the hand cap rather than being dropped
+      // when hand + board are full (owner ruling: never lose an earned reward). `overflow = true` on every grant.
+      if (r.randomTribe && (r.randomCount ?? 0) > 0) grantRandomTribeMinion(s, r.randomTribe, r.randomCount!, true);
+      if ((r.randomSpell ?? 0) > 0) conjureToHand(s, SPELL_CARDS.filter((c) => c.tier <= s.tier), r.randomSpell!, true); // Hoard Spark's random spell
+      if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, r.randomFilterCount ?? 1, r.randomFilterExactTier, true); // "N random Shout/Echo/Rally/Attachment minions"
+      if (r.randomTier) grantRandomTierMinion(s, r.randomTier, r.randomCount ?? 1, true); // Rune of the Pair — N random Tier-K minions
       for (const id of r.grantGolden ?? []) { // Leader of the Pack / Stormcalling — a GILDED copy (board-overflow safe)
-        if (CARD_INDEX[id]) grantMinionToHandOrBoard(s, CARD_INDEX[id]!, true);
+        if (CARD_INDEX[id]) grantMinionToHandOrBoard(s, CARD_INDEX[id]!, true, true);
       }
       for (const id of r.cards ?? []) {
         if (!CARD_INDEX[id]) continue;
-        const card = grantMinionToHandOrBoard(s, CARD_INDEX[id]!, false);
+        const card = grantMinionToHandOrBoard(s, CARD_INDEX[id]!, false, true);
         // Apex Hunt: stamp the granted card (a Badgington) with extra keywords (Flurry + Ward) on the way in.
         if (r.grantKeywords) for (const kw of r.grantKeywords) if (!card.keywords.includes(kw)) card.keywords.push(kw);
       }

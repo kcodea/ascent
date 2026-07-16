@@ -1483,10 +1483,34 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* z160: discover / choose-one must sit above ALL effects — the FX overlay (.pixifx z110), a freshly-placed
    card's z111 lift, and the Fodder swirl (z120) — so a unit that triggers Discover can't cover its own menu. */
 .discover-ov { position: fixed; inset: 0; background: rgba(34, 22, 9, 0.62); backdrop-filter: blur(3px); display: grid; place-items: center; z-index: 160; animation: fadein 0.2s ease; }
+/* While a Discover / quest / Runeforge overlay covers the board, the hero panel + power diamond + quest
+   badges sit OUTSIDE its backdrop root (own fixed stacking contexts) — blur + dim them by hand so they match
+   the covered board behind the modal. The filter sits ON each element (never an ancestor of the fixed diamond:
+   a filtered ancestor becomes its containing block and would break the stage pinning). One-shot transition —
+   not a looping paint animation. Interaction is parked while covered. */
+body.modalup .statusbar .hero,
+body.modalup .statusbar .heropanel,
+body.modalup .statusbar .questbadges {
+  filter: blur(3px) brightness(0.55) saturate(0.85);
+  pointer-events: none;
+}
+.statusbar .hero, .statusbar .heropanel, .statusbar .questbadges { transition: filter 0.2s ease; }
 .discover-box { background: var(--card); border: 3px solid var(--acc); border-radius: calc(20 * var(--u)); padding: calc(22 * var(--u)) calc(26 * var(--u)); box-shadow: 0 18px 50px -10px rgba(0, 0, 0, 0.4); }
 .discover-title { font-family: var(--font-ui); font-weight: 800; font-size: calc(19 * var(--u)); text-align: center; margin-bottom: calc(16 * var(--u)); color: var(--ink); }
 .discover-title b { color: var(--acc-dk); }
 .discover-cards { display: flex; gap: calc(16 * var(--u)); justify-content: center; }
+/* Runeforge: the current-Gold chip under the banner — the runes charge Gold, so the purse must be visible. */
+.forge-gold {
+  display: flex; align-items: center; gap: calc(6 * var(--u)); justify-content: center;
+  margin: calc(-4 * var(--u)) auto calc(10 * var(--u)); padding: calc(4 * var(--u)) calc(16 * var(--u));
+  width: fit-content; border-radius: 999px;
+  background: linear-gradient(180deg, #2b2015, #1a130c); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
+  color: #f4ecdb; font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+.forge-gold svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); color: var(--gold); }
+.forge-gold b { color: var(--gold); }
+
 /* Discover — an ornate, gold-framed parchment panel with a banner title, blue gems, a flourished
    subtitle, and tier-coloured glows on the three cards. */
 .disc-panel {
@@ -2095,7 +2119,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
    2026-07-16): anchored to the square's midpoint with a translate(-50%,-50%) base, so the pill grows/
    shrinks symmetrically when the armor chip appears or vanishes — the heart never drifts left. The 🧍
    resolve dials stack onto that base (see heroPanelConfig). */
-.statusbar .hero .hpbox { position: absolute; left: 50%; top: 50%; transform: var(--hpn-hp-t, translate(-50%, -50%) translate(calc(0 * var(--u)), calc(65 * var(--u))) scale(0.51)); padding: calc(8 * var(--u)) calc(15 * var(--u)); }
+.statusbar .hero .hpbox { position: absolute; left: 50%; top: 50%; transform: var(--hpn-hp-t, translate(-50%, -50%) translate(calc(-2 * var(--u)), calc(65 * var(--u))) scale(0.51)); padding: calc(8 * var(--u)) calc(15 * var(--u)); }
 .statusbar .hero .hpbox svg { width: calc(26 * var(--u)); height: calc(26 * var(--u)); }
 .statusbar .hero .hpbox .hpval { font-size: calc(26 * var(--u)); }
 .statusbar .hero .hpbox .armval { font-size: calc(18 * var(--u)); }

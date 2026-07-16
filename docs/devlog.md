@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### fix(ui): +6s rounds 6+, modal blur covers the hero panel, Runeforge shows Gold, Resolve pill bake
+
+Owner round (2026-07-16), four items:
+- **Turn timer**: every round from ROUND 6 on gets a flat **+6s** on top of the +4s/wave ramp — w5 34s →
+  w6 44s, w7 48s, … reaching the 80s cap at w15 (was w17). Wave 1's 21s floor unchanged.
+- **Modal blur**: the hero portrait/pills/power diamond sit OUTSIDE the Discover/Quest/Runeforge overlay's
+  backdrop root (own fixed stacking contexts), so its `backdrop-filter` never blurred them — they floated
+  crisp over the covered board. The existing `modalCovering` effect now stamps `body.modalup`, and CSS blurs
+  + dims `.hero`, `.heropanel`, `.questbadges` to match (filter ON each element — never an ancestor of the
+  fixed diamond, which would break its stage pinning; 0.2s one-shot transition; pointer-events parked).
+  Minimize restores them.
+- **Runeforge Gold**: the forge panel now shows a "🔸N Gold" chip under the banner (`.forge-gold`) — the
+  runes charge Gold, so the purse must be visible while choosing. Live via `run.embers`.
+- **Resolve pill**: baked the owner's resolveX **−2** (heroPanelConfig DEFAULTS + the CSS fallback) — the
+  pill sits centred directly under the hero-name pill.
+- Verified live: discover open → hero + diamond blur/dim, close → crisp; forge chip reads the live Gold;
+  clean-storage pill centre within 3px of the name's centre, flush under it. Typecheck + lint + 1122
+  tests + build:web green.
+
+
+
 ### feat(ui): Tavern Up stone button — layered art, live tier pips, 🍺 tuner (`feat/tavernup-button`)
 
 The "Upgrade Tavern" tray plaque is now a carved STONE MEDALLION on the board's upper-left (owner art, cut

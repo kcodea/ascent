@@ -51,7 +51,7 @@ const DEFAULTS: HeroPanelConfig = {
   portraitX: 0, portraitY: 0, portraitScale: 1.16,
   playerNameX: 0, playerNameY: 0, playerNameScale: 0.59,
   heroNameX: 0, heroNameY: 0, heroNameScale: 0.67,
-  resolveX: 0, resolveY: 65, resolveScale: 0.51,
+  resolveX: -2, resolveY: 65, resolveScale: 0.51, // resolveX −2: owner bake 2026-07-16 — the pill sits centred under the hero-name pill
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

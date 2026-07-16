@@ -8,7 +8,7 @@ import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
 import { HudBar } from './HudBar';
 import { Icon } from './Icon';
-import { sfx, stopAllAudio, resumeAudio } from './sfx';
+import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
 import { fireBuffFx } from './buffFxRender';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
@@ -127,6 +127,8 @@ function ChargeGlyph({ inCombat, window: chargeWindow, paused }: { inCombat: boo
     if (lit) { setMounted(true); setFading(false); return; }
     if (!mounted) return;                 // already unmounted — nothing to fade
     setFading(true);                       // lit → unlit while on screen: begin the fade-out
+    stopTurnCharge();                      // + fade the long charge-build sound out alongside the visual (it's a
+                                           // fire-and-forget clip that would otherwise keep playing under combat)
     const t = window.setTimeout(() => { setMounted(false); setFading(false); }, CHARGE_FADEOUT_MS);
     return () => window.clearTimeout(t);
   }, [lit, mounted]);

@@ -81,6 +81,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### fix(audio): stop the turn-charge build sound when the turn ends (audio companion to the glyph fade)
+
+**Bug (owner-reported):** the end-of-turn charge build (`turncharge.mp3`, a long ~25–40s clip) kept playing under
+combat after **End Turn** was pressed. Root cause: `sfx.turnCharge()` fires the clip **fire-and-forget** the
+moment the glyph lights, and nothing ever stops it — so ending the turn early left the rest of the build ringing.
+Pre-existing from the charge-glyph feature (#499); the earlier visual fade (#501) never touched audio, which is
+exactly why the sigil faded but the sound didn't.
+
+**Fix:** Web Audio sources are fire-and-forget, so `playSample` now optionally hands back its live `{ src, gain }`
+via an `onNodes` callback; `turnCharge` holds those in `turnChargeNodes` (cleared on the clip's natural `onended`)
+and safety-stops any leftover build before starting a new turn's charge (no stacking). A new exported
+`stopTurnCharge(ms=300)` ramps that gain → 0 and stops the source, and `ChargeGlyph`'s fade effect calls it the
+moment the glyph stops being lit (End Turn press **or** natural timer-zero) — so the build now fades out in ~300ms
+alongside the visual fade instead of playing on. No-ops safely on the synth-fallback / muted / no-context paths.
+
+**Verified:** `npm run typecheck && npm run lint && npm test` (1108) `&& npm run build:web` all green. The fade
+itself is an ear-check (headless preview can't verify audio).
+
 ### fix(ui): a dying ATTACKER always returns home before it dies (not just Rise/Deathrattle)
 
 Owner report: a REBORN unit that attacks and dies to retaliation blinked out mid-lunge — jarring — instead of

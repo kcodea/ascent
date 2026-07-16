@@ -24,6 +24,8 @@ import { useGame } from './store';
 import { Unit } from './Unit';
 import { useCombatReplay } from './useCombatReplay';
 import { turnClock, useTurnSeconds, useTurnTimeUp } from './turnClock';
+import { chargeTune, useChargePreview } from './chargeGlyphTune';
+import { ChargeMotes } from './chargeMotes';
 
 gsap.registerPlugin(Flip);
 
@@ -60,7 +62,8 @@ type Zone = 'tavern' | 'warband' | 'hand';
 // moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
 const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre* passes its midpoint
 const TURN_SECONDS = 18; // base round timer (wave 1); grows +4s/wave, capped at 80 (see turnSeconds)
-const ROPE_SECONDS = 20; // the burning rope lights + burns over the final 20s of the turn
+const CHARGE_SECONDS = 20; // the charge glyph fills over the final 20s of the turn
+const CHARGE_MAX_FEATHER = 24; // % — the reveal feather = this × (1−charge): soft incoming fronts, 0 at completion (no sigil dimming)
 
 /** The cast count a spell shows (its ×N badge + cast-spark replay): Implosion resolves 1 + your Demons times
  *  (per-Demon recast, read off the live board), and that whole count is MULTIPLIED by the run-wide spell-recast
@@ -92,58 +95,108 @@ function ShopTimer({ label }: { label: string }) {
   );
 }
 
-/** The burning-rope turn timer — a braided fuse pinned to the board's centre divider (via `--rope-y`, measured
- *  in the recruit layout effect) that lights in the final `window` seconds and burns left→right as the clock runs
- *  down (live flame + glowing char trail). Hidden during combat.
+/** The end-of-turn CHARGE GLYPH turn timer — the board's etched sigil charging with white-hot blue energy over the
+ *  final `window` seconds, building from BOTH sides inward along the midline conduit and filling the centre sigil
+ *  LAST, completing exactly as the clock hits 0. Anchored to the measured board midline (`--charge-y`); replaces the
+ *  burning rope. Hidden during combat. (Pixi motes + the converging-front flare layer on top — added at wire-in.)
  *
- *  Timing is 100% synced to the turn clock: the burn window is the ACTUAL turn length (`min(ROPE_SECONDS,
+ *  Timing is 100% synced to the turn clock: the charge window is the ACTUAL turn length (`min(CHARGE_SECONDS,
  *  turnSeconds)`, so short early-wave turns calibrate correctly, not a fixed 20s), and a rAF interpolates WITHIN
- *  each integer second from the wall-clock moment it began — so the flame starts at the very left on the first lit
- *  second and reaches the rope's end EXACTLY as the clock hits 0 (the old per-second `left`/`width` CSS transitions
- *  trailed by ~1s, burning past the timer). Writes styles straight to the two refs each frame (no per-frame React
- *  render), and only runs while lit + unpaused — the heavy card tree is never touched (the clock lives in an
- *  external store; see turnClock.ts). The flame moves by `transform` (compositor-only, no drop-shadow repaint). */
-function BurnRope({ inCombat, window: ropeWindow, paused }: { inCombat: boolean; window: number; paused: boolean }) {
+ *  each integer second from the wall-clock moment it began — so charge starts at 0 on the first lit second and hits
+ *  1 EXACTLY as the clock reaches 0. Writes `--charge` (0→1) straight to the box ref each frame + the core-bloom
+ *  opacity to its ref (no per-frame React render), only while lit + unpaused — the heavy card tree is never touched
+ *  (the clock lives in an external store; see turnClock.ts). The wipe/reveal is a compositor-friendly custom-prop
+ *  write; the mask does the both-sides-in fill. */
+function ChargeGlyph({ inCombat, window: chargeWindow, paused }: { inCombat: boolean; window: number; paused: boolean }) {
   const seconds = Math.max(0, useTurnSeconds());
-  const litRef = useRef<HTMLDivElement>(null);
-  const flameRef = useRef<HTMLDivElement>(null);
+  const preview = useChargePreview();          // dev tuner force-shows + scrubs the glyph; null in normal play
+  const boxRef = useRef<HTMLDivElement>(null);
+  const coreRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const chargeRef = useRef(0);                  // the live charge (0→1), read by the motes loop each frame
   const tickAtRef = useRef(0);
-  const lit = !inCombat && seconds <= ropeWindow;
+  const prevSecRef = useRef(0);
+  const lit = preview != null || (!inCombat && seconds <= chargeWindow);
 
   // Stamp wall-clock time whenever the integer second changes OR we resume from a pause, so the rAF interpolates
-  // the sub-second fraction from the exact instant this second began — keeping the flame locked to real time.
+  // the sub-second fraction from the exact instant this second began — keeping the charge locked to real time.
   useEffect(() => { tickAtRef.current = performance.now(); }, [seconds, paused, lit]);
+
+  // Fire the "charge begins" cue ONCE when the clock ENTERS the window — either crossing down past it (normal
+  // turns) or a fresh turn that resets already inside it (short early waves where turnSeconds ≤ CHARGE_SECONDS).
+  // Driven off the integer `seconds` (not `lit`), so a pause/resume — which freezes the clock, not `seconds` —
+  // never re-fires it, and the short-wave case (where `lit` is true from the turn's first tick) still triggers.
+  useEffect(() => {
+    const prev = prevSecRef.current;
+    prevSecRef.current = seconds;
+    if (inCombat || seconds <= 0) return;
+    const crossedIn = prev > chargeWindow && seconds <= chargeWindow; // ticked down into the window
+    const startedIn = seconds > prev && seconds <= chargeWindow;      // turn reset jumped up into the window
+    if (crossedIn || startedIn) sfx.turnCharge();
+  }, [seconds, inCombat, chargeWindow]);
 
   useEffect(() => {
     if (!lit) return;
+    // Paint --charge + the core-bloom opacity for a fill fraction (0→1). Core stays dark until bloomAt, then eases
+    // in as t² up to coreMax (both live-tunable via chargeTune).
+    const paint = (charge: number): void => {
+      chargeRef.current = charge;
+      if (boxRef.current) {
+        boxRef.current.style.setProperty('--charge', charge.toFixed(4));
+        boxRef.current.style.setProperty('--feather', (CHARGE_MAX_FEATHER * (1 - charge)).toFixed(2) + '%'); // soft fronts → 0 at completion
+      }
+      if (coreRef.current) {
+        const t = charge <= chargeTune.bloomAt ? 0 : (charge - chargeTune.bloomAt) / (1 - chargeTune.bloomAt);
+        coreRef.current.style.opacity = (t * t * chargeTune.coreMax).toFixed(3);
+      }
+    };
+    if (preview != null) { paint(preview); return; } // dev preview: pin to the forced charge (no clock)
+    // Live: a rAF interpolates WITHIN each integer second so the fill hits 1 EXACTLY as the clock reaches 0.
     let raf = 0;
     const draw = (): void => {
       const within = paused ? 0 : Math.min(1, (performance.now() - tickAtRef.current) / 1000);
-      const elapsed = Math.min(ropeWindow, (ropeWindow - seconds) + within);
-      const frac = ropeWindow > 0 ? Math.max(0, Math.min(1, elapsed / ropeWindow)) : 0;
-      if (litRef.current) litRef.current.style.width = `${frac * 100}%`;
-      // translateX by the burn fraction of the (static px) rope length — compositor-only, so the flame's
-      // drop-shadow never repaints per frame. The -50% (of the 0-width anchor) is inert; children self-centre.
-      if (flameRef.current) flameRef.current.style.transform = `translate(calc(var(--rope-len, 1420px) * var(--scale) * ${frac} - 50%), -50%)`;
+      const elapsed = Math.min(chargeWindow, (chargeWindow - seconds) + within);
+      paint(chargeWindow > 0 ? Math.max(0, Math.min(1, elapsed / chargeWindow)) : 0);
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [lit, seconds, paused, ropeWindow]);
+  }, [lit, seconds, paused, chargeWindow, preview]);
+
+  // Motes: a light 2D-canvas particle layer co-located with the glyph (z:0, behind the cards — the main Pixi canvas
+  // is z110, the wrong layer). A continuous rAF (started once per charge session, keyed on `lit`) reads the live
+  // charge from chargeRef and drives the engine: white-hot motes onto the lit shape, gathering into the mandala + a
+  // flash at completion. Glyph/canvas rects are measured ONCE at start (never per frame — perf north star). Runs
+  // only while lit; the card tree is never touched. Tuned in fx/turn-glyph-motes-preview.html (see chargeMotes.ts).
+  useEffect(() => {
+    if (!lit) return;
+    const canvas = canvasRef.current, glyph = boxRef.current;
+    if (!canvas || !glyph) return;
+    const engine = new ChargeMotes(canvas);
+    const gr = glyph.getBoundingClientRect(), cr = canvas.getBoundingClientRect();
+    const glyphCssW = gr.width, glyphCssH = gr.height;
+    engine.resize(cr.width, cr.height, Math.min(window.devicePixelRatio || 1, 2));
+    engine.reset();
+    let raf = 0, last = performance.now();
+    const loop = (t: number): void => {
+      engine.frame(chargeRef.current, glyphCssW, glyphCssH, t - last);
+      last = t;
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [lit]);
 
   if (!lit) return null;
   return (
-    <div className="rope" title={`${seconds}s left`} aria-hidden="true">
-      <div className="rope-lit" ref={litRef} />
-      <div className="rope-flame" ref={flameRef}>
-        <span className="fl-glow" />
-        <span className="fl-body" />
-        <span className="fl-core" />
-        <span className="fl-ember" style={{ '--ex': '-6px', animationDelay: '0s' } as CSSProperties} />
-        <span className="fl-ember" style={{ '--ex': '5px', animationDelay: '0.33s' } as CSSProperties} />
-        <span className="fl-ember" style={{ '--ex': '-1px', animationDelay: '0.66s' } as CSSProperties} />
+    <>
+      <div className="chargeglyph" ref={boxRef} title={`${seconds}s left`} aria-hidden="true">
+        <div className="masked charge-base" />
+        <div className="masked charge-fill" />
+        <div className="masked charge-core" ref={coreRef} />
       </div>
-    </div>
+      <canvas className="charge-motes" ref={canvasRef} aria-hidden="true" />
+    </>
   );
 }
 
@@ -1576,7 +1629,7 @@ export function Recruit() {
     return () => document.body.classList.remove('dragging');
   }, [drag?.active]);
 
-  // Align the burn-rope to the board's midline (the background divider) at any resolution/aspect: --rope-y is
+  // Align the charge glyph to the board's midline (the background divider) at any resolution/aspect: --charge-y is
   // the offset from the warband zone's top down to the .app's vertical centre (where the cover-centred board's
   // split lands). A ResizeObserver re-measures on window / letterbox / resolution changes.
   useLayoutEffect(() => {
@@ -1586,10 +1639,10 @@ export function Recruit() {
     const update = (): void => {
       const ar = app.getBoundingClientRect();
       const wr = wb.getBoundingClientRect();
-      // The art divider sits a touch above the exact centre, so bias the rope up a smidge to land on it. The
+      // The art divider sits a touch above the exact centre, so bias the anchor up a smidge to land on it. The
       // bias must SCALE with the stage (19 reference px = the tuned 14px at the owner's 0.745-scale stage) —
       // fixed px rode proportionally higher on a short phone stage ("rope too high", owner's mobile test).
-      wb.style.setProperty('--rope-y', `${ar.top + ar.height / 2 - wr.top - 19 * (ar.height / 1440)}px`);
+      wb.style.setProperty('--charge-y', `${ar.top + ar.height / 2 - wr.top - 19 * (ar.height / 1440)}px`);
     };
     update();
     const ro = new ResizeObserver(update);
@@ -1739,8 +1792,8 @@ export function Recruit() {
       const cur = turnClock.get();
       if (cur <= 0) return; // at 0 the timer just stops — actions lock (except End Turn); no auto-combat
       const next = cur - 1;
-      if (next <= 5 && next > 0) sfx.tick(); // tick out the last five seconds
-      turnClock.set(next);
+      if (next === 0) sfx.turnExplode(); // timer hits 0 — shop locks; syncs with the charge glyph's completion flash
+      turnClock.set(next); // (the last-5s tick beeps were retired — the charge-glyph turnCharge cue replaces them)
       id = window.setTimeout(tick, 1000);
     };
     id = window.setTimeout(tick, 1000);
@@ -2764,9 +2817,9 @@ export function Recruit() {
       </div>
 
       <div className={`zone${overWarband || wouldMagnetize ? ' dropok' : ''}`} data-zone="warband">
-        <BurnRope
+        <ChargeGlyph
           inCombat={inCombat}
-          window={Math.min(ROPE_SECONDS, turnSeconds)}
+          window={Math.min(CHARGE_SECONDS, turnSeconds)}
           paused={!!(run.discover || run.questOffer || run.runeforgeOffer || heroSelecting || overlayOpen)}
         />
         <div className="row warband">

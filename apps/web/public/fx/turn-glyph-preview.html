@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>End-of-Turn Charge Glyph — tuner (both-sides-in)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0a0f16; color: #cfe6ff; font: 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace; display: flex; height: 100vh; overflow: hidden; }
+  #stage { flex: 1; position: relative; display: grid; place-items: center; background: #05070c; overflow: hidden; }
+
+  /* --- SUBJECT: the real board, with the charge FX overlaid + aligned to its etched glyph ----------------- */
+  .board { position: relative; width: min(92%, 1400px); aspect-ratio: 3440 / 1459; box-shadow: 0 20px 60px rgba(0,0,0,.6); border-radius: 10px; overflow: hidden; }
+  .board > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+  /* the FX layer: an aspect-locked box centred on the board, holding the SVG-masked charge fill + glow + core.
+     --fx-w sizes it (as % of board width), --fx-x/--fx-y nudge it onto the etched glyph. */
+  .glyphfx {
+    position: absolute; left: 50%; top: 50%;
+    width: calc(var(--fx-w, 78%)); aspect-ratio: 1385 / 544;
+    transform: translate(calc(-50% + var(--fx-x, 0%)), calc(-50% + var(--fx-y, 0%)));
+    pointer-events: none;
+    /* the countdown charge, 0 (empty) -> 1 (full). Scrubbed by hand or ramped by Play. */
+    --charge: 0;
+  }
+
+  /* shared: both mask layers = the SVG shape  ∩  the symmetric both-sides-in wipe.
+     wipe: lit at both EDGES, an unlit central GAP that closes as --charge -> 1, so energy builds inward and the
+     centre sigil fills LAST. --feather softens the two moving fronts into a glowing leading edge. */
+  .masked {
+    position: absolute; inset: 0;
+    -webkit-mask:
+      url("turn-glyph.svg") center / contain no-repeat,
+      linear-gradient(90deg,
+        #fff 0,
+        #fff calc(var(--charge) * 50% - var(--feather, 6%)),
+        transparent calc(var(--charge) * 50%),
+        transparent calc(100% - var(--charge) * 50%),
+        #fff calc(100% - var(--charge) * 50% + var(--feather, 6%)),
+        #fff 100%);
+    -webkit-mask-composite: source-in;
+            mask:
+      url("turn-glyph.svg") center / contain no-repeat,
+      linear-gradient(90deg,
+        #fff 0,
+        #fff calc(var(--charge) * 50% - var(--feather, 6%)),
+        transparent calc(var(--charge) * 50%),
+        transparent calc(100% - var(--charge) * 50%),
+        #fff calc(100% - var(--charge) * 50% + var(--feather, 6%)),
+        #fff 100%);
+            mask-composite: intersect;
+  }
+
+  /* the steady charged energy — a horizontal gradient: deep blue at the conduit ends -> cyan -> white-hot core at
+     the sigil, so the bright core is revealed LAST (the climax). Pulses subtly (opacity, compositor-only). */
+  .charge-fill {
+    background: linear-gradient(90deg,
+      var(--deep) 0%, var(--mid) var(--m1, 34%), var(--core) 50%, var(--mid) var(--m2, 66%), var(--deep) 100%);
+    filter: drop-shadow(0 0 var(--glow-in, 6px) var(--midglow)) drop-shadow(0 0 var(--glow-out, 16px) var(--deepglow));
+    animation: chargepulse var(--pulse-s, 2.6s) ease-in-out infinite; will-change: opacity;
+    mix-blend-mode: screen;
+  }
+  @keyframes chargepulse { 0%,100% { opacity: var(--pulse-min, 0.82); } 50% { opacity: 1; } }
+
+  /* the sigil CORE bloom — a white-hot radial that swells in over the final stretch (opacity set by JS from
+     --charge past --bloom-at). Sells "fully powered" the instant the fronts converge. */
+  .charge-core {
+    background: radial-gradient(ellipse var(--core-w, 30%) var(--core-h, 70%) at 50% 50%,
+      var(--core) 0%, var(--mid) 34%, transparent 62%);
+    opacity: 0; mix-blend-mode: screen;
+    filter: drop-shadow(0 0 var(--glow-in, 6px) var(--core));
+  }
+
+  /* faint always-on UNLIT etch — a whisper of the shape so the geometry hints before charging (toggle) */
+  .charge-base { background: var(--deep); opacity: var(--base-a, 0.06); mix-blend-mode: screen; }
+
+  #stagebar { position: absolute; top: 12px; left: 0; right: 0; display: flex; gap: 10px; justify-content: center; align-items: center; }
+  #stagebar button { width: auto; margin: 0; padding: 7px 16px; background: rgba(10,20,36,.82); color: #cfe6ff; font-size: 12px; border: 1px solid #1c3350; }
+  #stagebar button:hover { background: rgba(20,40,72,.9); }
+  .stagehint { position: absolute; bottom: 12px; left: 0; right: 0; text-align: center; color: #4f6d92; font-size: 11px; letter-spacing: .08em; }
+  #scrubwrap { position: absolute; bottom: 34px; left: 8%; right: 8%; display: flex; align-items: center; gap: 12px; }
+  #scrubwrap input { flex: 1; accent-color: #35b6ff; }
+  #scrubwrap span { color: #7fd0ff; font-size: 11px; min-width: 74px; text-align: right; }
+
+  /* --- panel --- */
+  #panel { width: 348px; padding: 14px 16px; overflow-y: auto; background: #060b12; border-left: 1px solid #12233a; }
+  h1 { font-size: 13px; margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; color: #35b6ff; }
+  .sub { color: #5c7ba0; font-size: 11px; margin-bottom: 12px; }
+  h2 { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #5c7ba0; margin: 16px 0 6px; border-top: 1px solid #12233a; padding-top: 10px; }
+  .row { display: grid; grid-template-columns: 1fr 62px; gap: 8px; align-items: center; margin-bottom: 7px; }
+  .row label { grid-column: 1 / -1; color: #9ac2e6; font-size: 11.5px; }
+  input[type=range] { width: 100%; accent-color: #2f9cff; }
+  .colorrow { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .colorrow label { flex: 1; color: #9ac2e6; font-size: 11.5px; }
+  input[type=color] { width: 44px; height: 26px; border: 1px solid #1c3a56; border-radius: 5px; background: #0a1420; cursor: pointer; }
+  .val { text-align: right; color: #35b6ff; font-size: 11px; }
+  button { width: 100%; padding: 9px; margin-top: 12px; border: 0; border-radius: 6px; background: #1668c8; color: #fff; font: inherit; font-weight: 700; letter-spacing: .06em; cursor: pointer; }
+  button:hover { background: #1f7fe0; }
+  button.ghost { background: #0e1c2c; color: #9ac2e6; }
+  button.ghost:hover { background: #163049; }
+  textarea { width: 100%; height: 220px; margin-top: 10px; background: #04090f; color: #35b6ff; border: 1px solid #12233a; border-radius: 6px; padding: 8px; font: 10.5px/1.45 ui-monospace, monospace; resize: vertical; }
+  .hint { color: #45607e; font-size: 10.5px; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div id="stagebar">
+      <button id="play">▶ Play 20s</button>
+      <button id="empty">Reset to empty</button>
+      <button id="full">Fill now</button>
+    </div>
+    <div class="board" id="board">
+      <img src="../testboard2.webp" alt="board" />
+      <div class="glyphfx" id="fx">
+        <div class="masked charge-base" id="base"></div>
+        <div class="masked charge-fill" id="fill"></div>
+        <div class="masked charge-core" id="core"></div>
+      </div>
+    </div>
+    <div id="scrubwrap">
+      <span>charge</span>
+      <input type="range" id="scrub" min="0" max="1" step="0.001" value="0" />
+      <span id="scrubval">0%</span>
+    </div>
+    <div class="stagehint">energy builds from BOTH sides → converges on the sigil (fills last) → complete at 0s · scrub or Play</div>
+  </div>
+
+  <div id="panel">
+    <h1>Charge Glyph · EoT timer</h1>
+    <div class="sub">Replacing the burning rope. White-hot blue energy charges the board's etched glyph over the final 20s, building from both sides into the centre sigil. Tune colour / alignment / reveal / glow, then Copy CSS. Persists across refreshes.</div>
+
+    <h2>Energy colour</h2>
+    <div class="colorrow"><label>core (white-hot)</label><input type="color" id="c-core" value="#eafcff" /></div>
+    <div class="colorrow"><label>mid (cyan)</label><input type="color" id="c-mid" value="#33b0ff" /></div>
+    <div class="colorrow"><label>deep (blue)</label><input type="color" id="c-deep" value="#0a40ff" /></div>
+
+    <div id="controls"></div>
+
+    <h2>Resolved CSS (live export)</h2>
+    <button id="copy">Copy CSS 📋</button>
+    <textarea id="out" readonly></textarea>
+    <div class="hint">Exports the <code>.chargeglyph</code> mask stack + gradients + glow + alignment seat. In-game a <code>ChargeGlyph</code> component writes <code>--charge</code> (0→1) per frame from the turn clock (rAF), and Pixi adds motes on top.</div>
+    <button id="reset" class="ghost">Reset to defaults</button>
+    <div class="hint" id="diag">booting…</div>
+  </div>
+
+<script>
+addEventListener('error', (e) => {
+  const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;inset:0 auto auto 0;z-index:99;background:#b0203a;color:#fff;padding:10px 14px;font:12px ui-monospace,monospace;white-space:pre-wrap;max-width:100%';
+  b.textContent = 'SCRIPT ERROR: ' + (e.message || e.error) + '\n' + (e.filename || '') + ':' + (e.lineno || '?');
+  document.body.appendChild(b);
+});
+
+const DIALS = [
+  { group: 'Alignment (onto etched glyph)', prop: '--fx-w',   min: 10, max: 100, step: 0.5, def: 78,  unit: '%' },
+  { group: 'Alignment (onto etched glyph)', prop: '--fx-x',   min: -12,max: 12,  step: 0.1, def: 0,   unit: '%' },
+  { group: 'Alignment (onto etched glyph)', prop: '--fx-y',   min: -12,max: 12,  step: 0.1, def: -1,  unit: '%' },
+  { group: 'Reveal (both-sides-in)',        prop: '--feather',min: 0,  max: 20,  step: 0.5, def: 6,   unit: '%' },
+  { group: 'Fill gradient shape',           prop: '--m1',     min: 10, max: 49,  step: 1,   def: 34,  unit: '%' },
+  { group: 'Sigil core bloom',              prop: '--bloom-at',min: 0, max: 1,   step: 0.01,def: 0.62,unit: '' },
+  { group: 'Sigil core bloom',              prop: '--core-max',min: 0, max: 1,   step: 0.01,def: 0.9, unit: '' },
+  { group: 'Sigil core bloom',              prop: '--core-w', min: 8,  max: 60,  step: 1,   def: 26,  unit: '%' },
+  { group: 'Sigil core bloom',              prop: '--core-h', min: 20, max: 100, step: 1,   def: 72,  unit: '%' },
+  { group: 'Glow',                          prop: '--glow-in', min: 0, max: 20,  step: 0.5, def: 6,   unit: 'px' },
+  { group: 'Glow',                          prop: '--glow-out',min: 0, max: 48,  step: 1,   def: 18,  unit: 'px' },
+  { group: 'Glow',                          prop: '--glow-out-a',min: 0,max: 1,  step: 0.01,def: 0.4, unit: '' },
+  { group: 'Pulse (living energy)',         prop: '--pulse-min',min: 0.4,max: 1, step: 0.01,def: 0.82,unit: '' },
+  { group: 'Pulse (living energy)',         prop: '--pulse-s', min: 1, max: 8,   step: 0.1, def: 2.6, unit: 's' },
+  { group: 'Unlit etch hint',               prop: '--base-a',  min: 0, max: 0.3, step: 0.005,def: 0.06,unit: '' },
+];
+
+const LS_KEY = 'ascent.chargeGlyphTuner';
+const fx = document.getElementById('fx');
+const core = document.getElementById('core');
+const controls = document.getElementById('controls');
+const out = document.getElementById('out');
+const diag = document.getElementById('diag');
+const scrub = document.getElementById('scrub');
+const scrubval = document.getElementById('scrubval');
+const cCore = document.getElementById('c-core');
+const cMid = document.getElementById('c-mid');
+const cDeep = document.getElementById('c-deep');
+
+const C = {};
+let stored = {};
+try { stored = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch { stored = {}; }
+if (stored['c-core']) cCore.value = stored['c-core'];
+if (stored['c-mid']) cMid.value = stored['c-mid'];
+if (stored['c-deep']) cDeep.value = stored['c-deep'];
+
+const hexToRgb = (h) => { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+const rgba = (rgb, a) => `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${a})`;
+const label = (p) => p.replace(/^--/, '').replace(/-/g, ' ');
+
+let charge = 0;
+function setCharge(v) {
+  charge = Math.max(0, Math.min(1, v));
+  fx.style.setProperty('--charge', charge.toFixed(4));
+  scrub.value = charge; scrubval.textContent = Math.round(charge * 100) + '%';
+  // core bloom: 0 until bloom-at, then eases up to core-max as charge -> 1
+  const at = C['--bloom-at'] ?? 0.62, mx = C['--core-max'] ?? 0.9;
+  const t = charge <= at ? 0 : (charge - at) / (1 - at);
+  core.style.opacity = (t * t * mx).toFixed(3);
+}
+
+function composeColours() {
+  const CO = hexToRgb(cCore.value), M = hexToRgb(cMid.value), D = hexToRgb(cDeep.value);
+  fx.style.setProperty('--core', rgba(CO, 1));
+  fx.style.setProperty('--mid', rgba(M, 1));
+  fx.style.setProperty('--deep', rgba(D, 1));
+  fx.style.setProperty('--midglow', rgba(M, 0.85));
+  fx.style.setProperty('--deepglow', rgba(D, C['--glow-out-a'] ?? 0.4));
+}
+
+function apply(d) {
+  if (d.prop === '--glow-out-a') { composeColours(); return; }   // folded into --deepglow
+  if (d.prop === '--core-max' || d.prop === '--bloom-at') { setCharge(charge); return; }
+  fx.style.setProperty(d.prop, C[d.prop] + d.unit);
+}
+function persist() { try { localStorage.setItem(LS_KEY, JSON.stringify({ ...C, 'c-core': cCore.value, 'c-mid': cMid.value, 'c-deep': cDeep.value })); } catch {} }
+
+function build(useStored) {
+  controls.innerHTML = '';
+  let lastGroup = null;
+  for (const d of DIALS) {
+    const start = useStored && typeof stored[d.prop] === 'number' ? stored[d.prop] : d.def;
+    C[d.prop] = start;
+    if (d.group !== lastGroup) { const h = document.createElement('h2'); h.textContent = d.group; controls.appendChild(h); lastGroup = d.group; }
+    const row = document.createElement('div'); row.className = 'row';
+    const l = document.createElement('label'); l.textContent = label(d.prop);
+    const inp = document.createElement('input'); inp.type = 'range'; inp.min = d.min; inp.max = d.max; inp.step = d.step; inp.value = start;
+    const v = document.createElement('span'); v.className = 'val'; v.textContent = start + d.unit;
+    inp.oninput = () => { C[d.prop] = parseFloat(inp.value); v.textContent = C[d.prop] + d.unit; apply(d); persist(); save(); };
+    row.appendChild(l); row.appendChild(inp); row.appendChild(v);
+    controls.appendChild(row); apply(d);
+  }
+}
+
+function resolvedCSS() {
+  const g = (p) => C[p];
+  const co = cCore.value, mi = cMid.value, de = cDeep.value;
+  const M = hexToRgb(mi), D = hexToRgb(de);
+  return `/* End-of-Turn Charge Glyph (resolved from the tuner). In-game: a .chargeglyph FX box on the board midline,
+   three SVG-masked layers, revealed both-sides-in by a wipe mask driven by --charge (0->1, written per frame from
+   the turn clock via rAF). Pixi adds white-hot motes + the converging-front flare on top. Colours: core ${co} /
+   mid ${mi} / deep ${de}. */
+.chargeglyph {
+  position: absolute; left: 50%; top: var(--rope-y, 50%);
+  width: ${g('--fx-w')}%; aspect-ratio: 1385 / 544; pointer-events: none; z-index: 8;
+  transform: translate(calc(-50% + ${g('--fx-x')}%), calc(-50% + ${g('--fx-y')}%));
+  --charge: 0; /* set per frame by ChargeGlyph */
+}
+.chargeglyph .masked {
+  position: absolute; inset: 0;
+  -webkit-mask: url("/fx/turn-glyph.svg") center/contain no-repeat,
+    linear-gradient(90deg, #fff 0, #fff calc(var(--charge)*50% - ${g('--feather')}%),
+      transparent calc(var(--charge)*50%), transparent calc(100% - var(--charge)*50%),
+      #fff calc(100% - var(--charge)*50% + ${g('--feather')}%), #fff 100%);
+  -webkit-mask-composite: source-in;
+  mask: url("/fx/turn-glyph.svg") center/contain no-repeat,
+    linear-gradient(90deg, #fff 0, #fff calc(var(--charge)*50% - ${g('--feather')}%),
+      transparent calc(var(--charge)*50%), transparent calc(100% - var(--charge)*50%),
+      #fff calc(100% - var(--charge)*50% + ${g('--feather')}%), #fff 100%);
+  mask-composite: intersect;
+}
+.chargeglyph .charge-fill {
+  background: linear-gradient(90deg, ${de} 0%, ${mi} ${g('--m1')}%, ${co} 50%, ${mi} ${100 - g('--m1')}%, ${de} 100%);
+  filter: drop-shadow(0 0 ${g('--glow-in')}px ${rgba(M,0.85)}) drop-shadow(0 0 ${g('--glow-out')}px ${rgba(D,g('--glow-out-a'))});
+  animation: chargepulse ${g('--pulse-s')}s ease-in-out infinite; mix-blend-mode: screen; will-change: opacity;
+}
+@keyframes chargepulse { 0%,100% { opacity: ${g('--pulse-min')}; } 50% { opacity: 1; } }
+.chargeglyph .charge-core { /* opacity set by JS: 0 until charge>${g('--bloom-at')}, eases to ${g('--core-max')} */
+  background: radial-gradient(ellipse ${g('--core-w')}% ${g('--core-h')}% at 50% 50%, ${co} 0%, ${mi} 34%, transparent 62%);
+  filter: drop-shadow(0 0 ${g('--glow-in')}px ${co}); mix-blend-mode: screen; opacity: 0;
+}
+.chargeglyph .charge-base { background: ${de}; opacity: ${g('--base-a')}; mix-blend-mode: screen; }
+/* core bloom curve (JS): t = max(0,(charge-${g('--bloom-at')})/(1-${g('--bloom-at')})); opacity = t*t*${g('--core-max')} */
+/* PERF: the wipe mask repaints the (thin, midline) FX region per frame — measure on a full board (prod); the
+   drop-shadow glow is the heaviest bit — move it to Pixi bloom if it costs frames. Card tree is never touched. */`;
+}
+
+function save() {
+  out.value = resolvedCSS();
+  diag.textContent = 'live · charge ' + Math.round(charge * 100) + '% · core ' + cCore.value + ' · mid ' + cMid.value + ' · deep ' + cDeep.value;
+}
+
+[cCore, cMid, cDeep].forEach((el) => el.oninput = () => { composeColours(); persist(); save(); });
+
+// scrub takes over (pauses any play), Play ramps 0->1 over 20s using the wall clock (rAF), like the real turn clock
+let raf = 0;
+function stopPlay() { if (raf) { cancelAnimationFrame(raf); raf = 0; } }
+scrub.oninput = () => { stopPlay(); setCharge(parseFloat(scrub.value)); save(); };
+document.getElementById('play').onclick = () => {
+  stopPlay(); const t0 = performance.now(); const dur = 20000;
+  const step = (now) => { const f = Math.min(1, (now - t0) / dur); setCharge(f); save(); if (f < 1) raf = requestAnimationFrame(step); else raf = 0; };
+  raf = requestAnimationFrame(step);
+};
+document.getElementById('empty').onclick = () => { stopPlay(); setCharge(0); save(); };
+document.getElementById('full').onclick = () => { stopPlay(); setCharge(1); save(); };
+
+document.getElementById('copy').onclick = async () => {
+  const btn = document.getElementById('copy');
+  try { await navigator.clipboard.writeText(out.value); btn.textContent = 'Copied ✓'; }
+  catch { out.focus(); out.select(); btn.textContent = 'Select+⌘C'; }
+  setTimeout(() => { btn.textContent = 'Copy CSS 📋'; }, 1200);
+};
+document.getElementById('reset').onclick = () => {
+  try { localStorage.removeItem(LS_KEY); } catch {}
+  stored = {}; cCore.value = '#eafcff'; cMid.value = '#33b0ff'; cDeep.value = '#0a40ff';
+  build(false); composeColours(); setCharge(0.35); save();
+};
+
+build(true);
+composeColours();
+setCharge(1);   // start FULLY charged on load = the mockup end-state (hit ▶ Play to watch it build)
+save();
+</script>
+</body>
+</html>

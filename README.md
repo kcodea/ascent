@@ -40,6 +40,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **Turn timer → charging glyph.** The burning rope is gone: the final ~20s now charge the board's etched sigil
+  with white-hot blue energy (motes flowing in, a ramped feather, a completion flash), sitting behind the cards on
+  the board surface — plus a build sound at charge-start and an explosion at zero. (Timer logic unchanged.)
 - **Mixing desk (dev).** The 🎛️ Mixing Desk in the Dev menu is now a horizontal console with vertical faders —
   master limiter + per-bus + per-category strips, each with its own ▶ to preview that sound and a bus-reassign
   dropdown. Readable labels throughout; meters are compositor-only.

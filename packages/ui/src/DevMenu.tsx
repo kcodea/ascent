@@ -13,6 +13,7 @@ import { FloatTuner } from './FloatTuner';
 import { StepCounterTuner } from './StepCounterTuner';
 import { LayoutTuner } from './LayoutTuner';
 import { FrameTuner } from './FrameTuner';
+import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { GlowTuner } from './GlowTuner';
 import { pixiFx } from './pixiFx';
 
@@ -38,6 +39,7 @@ const TUNERS = [
   { key: 'choreo', label: '🎬 Choreography', C: ChoreographyPanel },
   { key: 'float', label: '🔢 Damage Float', C: FloatTuner },
   { key: 'stepcounter', label: '📈 Step Counter', C: StepCounterTuner },
+  { key: 'chargeglyph', label: '⚡ Charge Glyph', C: ChargeGlyphTuner },
 ] as const;
 
 export function DevMenu() {

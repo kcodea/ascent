@@ -5,6 +5,33 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### feat(fx): replace the burning-rope turn timer with an end-of-turn "charge glyph" (`feat/eot-glyph-timer`)
+
+Retired the burning-rope EoT timer for a **charging arcane glyph** on the board's etched sigil. Timer *mechanics*
+are unchanged (clock, M:SS plaque, `timeUp`); this is a presentation swap + new audio. Landed as one feature:
+
+- **Both-sides-in CSS charge** — over the final `min(20, turnSeconds)`s, white-hot blue energy builds from both
+  edges inward along the midline conduit and fills the centre sigil last, completing at 0. `turn-glyph.svg` (the
+  charged silhouette) as a CSS `mask` × a symmetric wipe driven per-frame by `--charge` (0→1) from a `ChargeGlyph`
+  rAF; the card tree is never touched (clock in `turnClock.ts`). Owner-tuned look (colours/gradient/glow/core/
+  bloom) baked into var-driven `.chargeglyph` + placement in the Layout Lab "Charge Glyph" group.
+- **Behind-cards layer** — the glyph + its FX sit at `z:0` (board-surface, behind the cards + drop shadows), not
+  over them.
+- **Ramped feather** — the reveal feather = `24% × (1−charge)`: soft incoming fronts while charging, **0 at
+  completion** so the sigil is full-bright (solves the feather-dims-the-sigil problem).
+- **Motes + flash** (`chargeMotes.ts`) — a light 2D-canvas particle layer (co-located at `z:0`; the main Pixi
+  canvas is z110, wrong layer). White-hot motes spawn on the lit glyph (sampled from the SVG) and are pulled into
+  the mandala, which lights up progressively; at completion they gather + a flash fires. Owner-tuned
+  `CHARGE_MOTES_CFG`; sprite-blit + `edgeBias` keep it cheap; runs only during the last ~20s of recruit.
+- **Audio** — `sfx.turnCharge()` (owner's `turncharge.mp3`) at charge-start, replacing the old last-5s ticks; new
+  `sfx.turnExplode()` (`turnexplosion.mp3`) at timer-zero (the shop-lock moment), synced with the flash.
+- **Dev tooling** — a live in-game ⚡ Charge Glyph tuner (var-driven look + preview scrubber) + standalone preview
+  rigs (`fx/turn-glyph-preview.html`, `turn-glyph-motes-preview.html`) where the look was locked.
+
+**Verified:** typecheck + lint + `build:web` + 1080 tests green; app loads with no console errors; look + audio
+confirmed live by the owner. **Follow-ups:** in-game eyeball of the motes/flash scale (`REF_W` approximate) +
+perf-measure on a full board (prod); optional mote knobs in the ⚡ tuner.
+
 ### fix(ui): aimed target glow — compositor-only (opacity), not a per-frame filter animation
 
 Owner reported combat "jumps" and suspected the longer wind-up. Investigated: the wind-up timing is sound — the

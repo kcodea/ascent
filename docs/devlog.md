@@ -5,6 +5,98 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): hero power TALLY above the diamond + refresh-flash timing fixes
+
+- **Live power tally** (owner ask 2026-07-16) — the Avenge/step-counter numerals riding above the diamond's
+  top point for value-tracking powers (same white-with-grounding-shadow style, keyed on its text so each
+  change replays the compositor-only bump):
+  Indy `12/40g` while recharging (hides when re-armed) · Yirin `X/10` spells · Cassen `X/5` kills (live in
+  combat via `combatEnemyDeaths`) · Drakko `X/5` buys (fades away when complete) · Chronos `X/4` (same) ·
+  Robin `Xg` banked for next turn (hidden at 0) · Gildmaster next-Goldcrafter countdown (`2t` / `now`) ·
+  Bagger Ben `Xg` current value (hides once spent) · Fi / Runesmith / Runeguard / Coran `Xt` until their
+  errand/forge/epic-forge/capstone (waves 3/7/12/10, hide after) · Jenkins `Tier X` (the dig's discover
+  tier). Judgement calls: Gildmaster shows the CADENCE countdown (no "2/2 charges" data exists — no hero
+  has maxUses today); Chronos included alongside Drakko for consistency.
+- **Refresh-flash fixes** (owner report: late at shop start, missing on Indy's re-arm):
+  - The trigger signal is now `canHero && phase === 'recruit'` — a re-arm that lands while combat is on
+    screen (the reducer preps next-turn state early) defers its bloom to the moment the shop returns.
+  - The bloom carries a 0.2s CSS delay (`both` holds it dark through the delay) so a start-of-turn refresh
+    peaks ON the settled shop instead of washing out under the combat→recruit crossfade (~0.26s).
+  - Indy's mid-shop re-arm verified end-to-end: poked a spent Gild 3 Gold from the threshold, bought a
+    minion → re-armed, flash mounted, and the recharge tally hid.
+- Verified across 12 heroes in one sweep (tally text per hero incl. correct hides for Robin-at-0 and
+  Warden); typecheck + lint + 1109 tests + build:web green.
+
+### feat(ui): hero power diamond — refresh FLASH when the power re-arms
+
+- Owner ask: the End Turn relight's sibling — a one-shot bloom of the diamond's face whenever the power
+  **comes back up for usage**. Triggered on `canHero` flipping false→true, which covers every re-arm path
+  in one place: the start-of-shop recharge, a mid-shop re-arm (Indy's Gild hitting 40 Gold spent), and
+  re-affording a costed power after gold swings.
+- Implementation mirrors the ETB relight: the face-cut image with a static bright filter mounts for one
+  eased opacity in-and-out (duration = the 💠 tuner's new **`flash · refresh (ms)`** dial, default 450,
+  0 = off) and unmounts after — never a loop.
+- Verified live: no flash at run start while unaffordable (warden, 3 Gold vs cost 4); the flash mounted the
+  moment the wave-2 shop opened with the power newly ready, and unmounted after its one-shot. Typecheck +
+  lint + 1109 tests + build:web green.
+
+### fix(ui): hero power diamond — dark face restored + tunable used-state fade
+
+- Owner correction on the hollow-frame change: the housing must stay WHOLE — the frame's dark face is the
+  intended backing behind the power art (the punched hole was letting the board show through the window).
+  The frame webp is rebuilt with the face intact (centre pixel opaque again).
+- The used/unaffordable fade is now a dial: **`art · used opacity`** (`artDim`, default 0.5, 1 = never
+  dims) — the art fades against the dark face; the housing never fades in any state (unchanged from the
+  previous round).
+- Verified live: frame centre rgb(37,28,26)/alpha 255; the var drives the used-state art opacity in real
+  time (0.5 → 0.25 on a slider move); frame opacity 1 throughout. Typecheck + lint + 1109 tests +
+  build:web green.
+
+### fix(ui): hero power diamond — housing never dims + art-fit scalers in the 💠 tuner
+
+- Owner notes: the cooldown/unaffordable dim now applies to the power ART ONLY — the bronze housing stays
+  at full opacity in every state (the old rule faded the whole button). And the 💠 tuner gained three
+  **art-fit scalers** — `art · offset x / offset y / scale` — that move/zoom the power art INSIDE the face
+  window: the art moved into a clipping wrapper (the diamond clip stays pinned to the frame) so the dials
+  never drag the window with it.
+- Verified live: with an unaffordable power the frame reads 1.0 opacity while the art reads 0.5; the art
+  transforms inside the fixed clip (matrix confirmed, offsets × --u); the tuner shows 17 rows including the
+  three art dials. Typecheck + lint + 1109 tests + build:web green.
+
+### fix(ui): hero power diamond — art on top, hollow frame (no opaque slab)
+
+- Owner notes on the new housing: the power art now rides **ON TOP of the diamond** (frame z1 → art z2 →
+  glow z3, still clipped to the face polygon so the bronze ring frames it), and the frame asset was rebuilt
+  **HOLLOW** — the dark inner face is punched out (`dest-out` on the measured face diamond), so the housing
+  never reads as an opaque slab; with no/transparent art the board shows through the window.
+- Verified live: warden's shield art fills the window brightly above the ring; the rebuilt webp's centre
+  pixel is fully transparent; layer order confirmed. Typecheck + lint + 1109 tests + build:web green.
+
+### feat(ui): hero power → the bronze DIAMOND housing on the board's middle-left + 💠 tuner
+
+- Owner direction: same strategy as the End Turn diamond, mirrored to the board's middle-left (its combat
+  effects will diverge later — this round is the housing, pinning, glow, and tuner).
+- **Art**: `heropowerbutton.webp` (the bronze diamond frame with a dark face) + `heropowerbutton_face.webp`
+  (the inner-face cut, measured by centre-line scans, for the glow silhouette) — both extracted on one
+  aligned canvas. The hero's power art renders inside the face via a measured `clip-path` polygon; the icon
+  fallback centres over it. The gold cost coin and the name pill stay.
+- **Pinning**: the `.heropanel` moves from its old spot (0.19/0.45 + −89/408 via the retired Layout Lab
+  `--hpow-*` rows) to the End Turn's mirror — 0.19/0.45 of the stage + `--hpb-x/y` (defaults −140/32, the
+  exact mirror of the diamond's 140/32) × `--scale`, scale 1.14. Verified pixel-mirrored across the board's
+  centre line (button centres 314 vs 1286 on a 1600 stage).
+- **Glow**: the ETB recipe — the face cut's stacked drop-shadow (halo = the inner diamond silhouette),
+  source pixels masked back out so only the halo paints, alignment offset/fit dials, opacity-only
+  breathing. Shown on hover AND pinned while the power is READY (the old box-shadow press-me cue, retired)
+  — ARMED quickens the breath. Amber default (#ffb347).
+- **💠 Hero Power Button tuner** (Dev Tuning Menu): position x/y · scale · glow offset/fit/blur/opacity/
+  strength/pulse speed+depth/colour + a "glow always on" pin. Dev-only localStorage
+  (`ascent.heropowerbtn`); production ships the defaults (styles.css `var(--hpb-*, …)` fallbacks mirror).
+- The Layout Lab's four "Hero power" rows were retired (superseded); the aim-line anchor (`.heropowerbtn`),
+  press-to-arm flow, cost coin, tooltip, and passive/cooldown dimming all carry over unchanged.
+- Verified live: layers + face clip render (warden's power art in the window); glow 0 at rest, pinned at
+  0.93 breathing 0.7s when READY, 0.4s while ARMED (aim-line armed ✓); tuner rows move/scale it live;
+  reset restores. Typecheck + lint + 1109 tests + build:web green; throwaway state cleaned up.
+
 ### chore(ui): unwire the endbuttonhit2 strike sound (owner: not needed)
 
 - Removed `sfx.endButtonHit`, the `endbutton` mixer category (gains/bus/desk strip/preview) and the

@@ -678,20 +678,81 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
    Rune's cost coin (.runecard-cost). Gold is the run economy, so the coin reads the same everywhere. */
 .hpcost { position: absolute; top: calc(-14 * var(--u)); left: calc(-12 * var(--u)); width: calc(44 * var(--u)); height: calc(44 * var(--u)); z-index: 6; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 38% 30%, #ffe293, #eab63f 58%, #b9821f); border: calc(3 * var(--u)) solid #1b1d22; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.55), inset 0 -3px 4px rgba(120, 80, 10, 0.4); pointer-events: none; }
 .hpcost .costn { font-family: var(--font-ui); font-weight: 900; font-size: calc(22 * var(--u)); color: #4a3208; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); line-height: 1; }
+/* ---- Hero-power DIAMOND (owner direction 2026-07-16) — the bronze diamond housing on the board's
+   middle-left, mirroring the End Turn diamond. Same layer recipe: face-cut glow (masked source → only the
+   halo paints), the frame, and the power art clipped to the face window. `--hpb-*` vars come from the
+   💠 Hero Power Button tuner (heroPowerBtnConfig.ts); fallbacks here mirror the shipped defaults. */
 .heropowerbtn {
-  width: calc(75 * var(--u)); height: calc(75 * var(--u)); border-radius: 50%; padding: 0; overflow: hidden;
-  border: 3px solid var(--acc-dk); display: grid; place-items: center;
-  background: radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.45), transparent 55%), var(--acc);
-  box-shadow: 0 4px 0 var(--acc-dk);
+  position: relative; padding: 0; border: none; background: none; box-shadow: none; display: block;
+  width: calc(128 * var(--u)); height: calc(141 * var(--u)); /* the trimmed art's 466×512 aspect */
 }
-.heropowerbtn img { width: 100%; height: 100%; object-fit: cover; }
-.heropowerbtn svg { width: 52%; height: 52%; color: #fff; }
-.heropowerbtn.ready { animation: endpulse 0.9s ease-in-out infinite; box-shadow: 0 0 0 3px var(--acc), 0 4px 0 var(--acc-dk), 0 0 18px -2px var(--acc); }
-.heropowerbtn.armed { box-shadow: 0 0 0 4px var(--acc), 0 0 22px 2px var(--acc); }
-/* An ACTIVE power that's on cooldown / unaffordable dims; a PASSIVE hero's button stays full (it's always on,
-   just not clickable) but never glows — so every hero shows its power art, only active ones pulse. */
-.heropowerbtn:not(.ready):not(.armed):not(.passive) { opacity: 0.5; filter: saturate(0.75); }
-.heropowerbtn.passive { opacity: 1; }
+/* Power art rides ON TOP of the diamond (owner note 2026-07-16), inside a CLIPPING wrapper pinned to the
+   measured face polygon — the window stays fixed while the 💠 tuner's art dials (offset x/y + scale, the
+   --hpb-art-* vars) move the art within it. The frame asset keeps its DARK FACE intact (owner note: the
+   housing stays whole) — it's the backing the art fades against when the power is used, so the board never
+   peeks through the window. */
+.heropowerbtn .hpb-frame { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; -webkit-user-drag: none; }
+.heropowerbtn .hpb-artwrap { position: absolute; inset: 0; z-index: 2; clip-path: polygon(50% 13.8%, 83% 50.1%, 50% 83.6%, 16.8% 50.1%); pointer-events: none; }
+.heropowerbtn .hpb-art {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none;
+  transform: translate(calc(var(--hpb-art-x, 0) * var(--u)), calc(var(--hpb-art-y, 0) * var(--u))) scale(var(--hpb-art-s, 1));
+}
+.heropowerbtn svg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: calc(50 * var(--u)); height: calc(50 * var(--u)); color: #fff; z-index: 2; }
+/* The FACE GLOW — the face-only cut with a STATIC stacked drop-shadow (halo = the inner diamond's
+   silhouette), seated above the frame so the light spills over the bronze; a mask (full canvas MINUS the
+   face) cuts the source pixels back out so ONLY the halo paints. Hover shows it; READY/ARMED pin it (the
+   press-me cue); breathing animates OPACITY only (compositor-cheap). */
+.heropowerbtn .hpb-glow {
+  position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none;
+  transform: translate(calc(var(--hpb-glow-x, 0) * var(--u)), calc(var(--hpb-glow-y, 0) * var(--u))) scale(var(--hpb-glow-w, 1), var(--hpb-glow-h, 1));
+  filter: var(--hpb-glow-filter, drop-shadow(0 0 1px #ffb347) drop-shadow(0 0 1px #ffb347) drop-shadow(0 0 1px #ffb347) drop-shadow(0 0 1px #ffb347) drop-shadow(0 0 1px #ffb347) drop-shadow(0 0 1px #ffb347));
+  mask-image: linear-gradient(#fff, #fff), url('/frames/heropowerbutton_face.webp');
+  mask-size: 100% 100%; mask-repeat: no-repeat; mask-composite: exclude;
+  opacity: 0; transition: opacity 0.22s ease;
+}
+.heropowerbtn:not(:disabled):hover .hpb-glow,
+.statusbar .heropanel.ready .hpb-glow,
+.statusbar .heropanel.armed .hpb-glow,
+body.hpb-glow-preview .heropowerbtn .hpb-glow {
+  opacity: var(--hpb-glow-alpha, 0.93);
+  animation: hpbbreathe var(--hpb-glow-pulse, 0.7s) ease-in-out infinite;
+}
+.statusbar .heropanel.armed .hpb-glow { animation-duration: 0.4s; } /* aiming — the breath quickens */
+@keyframes hpbbreathe {
+  0%, 100% { opacity: var(--hpb-glow-alpha, 0.93); }
+  50% { opacity: var(--hpb-glow-dim, 0.83); }
+}
+/* The REFRESH FLASH — a one-shot bloom of the face as the power re-arms (mirrors the End Turn diamond's
+   relight). Static bright filter; the animation (duration from the tuner via --hpb-flash-ms) eases OPACITY
+   in and out, then the layer unmounts — never a loop. */
+.heropowerbtn .hpb-flash {
+  position: absolute; inset: 0; width: 100%; height: 100%; z-index: 4; pointer-events: none;
+  /* The 0.2s delay parks the bloom until the shop's combat→recruit crossfade (~0.26s) has mostly landed,
+     so a start-of-turn refresh peaks ON the settled shop instead of washing out mid-fade (owner report:
+     "happens late" — it was firing under the fade). `both` holds opacity 0 through the delay. */
+  filter: brightness(2.2) saturate(0.5) drop-shadow(0 0 14px rgba(255, 214, 140, 0.85));
+  animation: hpbrefresh var(--hpb-flash-ms, 450ms) ease-out 0.2s both;
+}
+@keyframes hpbrefresh { 0% { opacity: 0; } 25% { opacity: 0.95; } 100% { opacity: 0; } }
+/* Live power TALLY — the Avenge/step-counter numerals riding ABOVE the diamond's top point (owner ask
+   2026-07-16): recharge progress (12/40g), quest tallies (3/5), cadence countdowns (2t), scaling values
+   (7g), Jenkins's "Tier 3". Same white-with-grounding-shadow treatment as .stepcounter; keyed on its text
+   in StatusBar so each change replays the compositor-only stepbump. */
+.hpwrap .hpb-tally {
+  position: absolute; left: 50%; top: calc(-14 * var(--u)); transform: translateX(-50%);
+  z-index: 6; pointer-events: none; white-space: nowrap;
+  font-family: var(--font-ui); font-weight: 700; font-size: calc(19 * var(--u)); line-height: 1;
+  color: #fff;
+  text-shadow: 0 5px 7.2px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.95), 0 1px 1.5px rgba(0, 0, 0, 1);
+  animation: stepbump 220ms ease-out;
+}
+/* An ACTIVE power that's used / unaffordable fades its ART ONLY, to the 💠 tuner's `art · used opacity`
+   (--hpb-art-dim) — the housing (frame + dark face) NEVER fades, so the art dims against the dark backing,
+   never the board (owner notes 2026-07-16). A PASSIVE hero's art stays full (it's always on, just not
+   clickable) but never glows — so every hero shows its power art, only active ones pulse. */
+.heropowerbtn:not(.ready):not(.armed):not(.passive) .hpb-art,
+.heropowerbtn:not(.ready):not(.armed):not(.passive) > svg { opacity: var(--hpb-art-dim, 0.5); filter: saturate(0.75); }
+.heropowerbtn.passive .hpb-art { opacity: 1; }
 .btn.big { font-size: calc(17 * var(--u)); padding: calc(13 * var(--u)) calc(26 * var(--u)); border-radius: calc(15 * var(--u)); gap: calc(9 * var(--u)); box-shadow: 0 3px 0 var(--shadow); }
 /* non-clickable Tavern Tier label, shaded to read apart from the buttons */
 .tavernbox { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(16 * var(--u)); padding: 0 calc(18 * var(--u)); border-radius: calc(15 * var(--u)); background: var(--bg2); color: var(--ink2); border: 2px solid var(--line); }
@@ -1876,30 +1937,29 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Hero-power box — a standalone card to the RIGHT of the hero frame (a `.statusrow` flex sibling), stretched to
    the hero's height. Sized up so an active power is an obvious button; the whole box glows when usable. */
 .statusbar .heropanel {
-  /* Floated onto the board's mid-left (on the rope line) — the power reads as a board action, NOT a boxed corner
-     button, so there's no panel background/border: just the round power button + a name pill. Base position is
-     19%/45%; the dev mover nudges it via px offsets × --scale (pinned to the stage, resolution-independent) and
-     scales the whole thing via --hpow-s. The hero portrait + Resolve stay in the bottom-left statusrow; the
-     aim-line anchor (.heropowerbtn) is unaffected (still queried inside .statusbar). */
+  /* Floated onto the board's mid-left — the power reads as a board action, NOT a boxed corner button: the
+     diamond housing + a name pill, no panel background/border. Base position is 19%/45%; the 💠 tuner nudges
+     it via px offsets × --scale (pinned to the stage, resolution-independent) and scales via --hpb-s. The
+     hero portrait + Resolve stay in the bottom-left statusrow; the aim-line anchor (.heropowerbtn) is
+     unaffected (still queried inside .statusbar). */
   position: fixed;
   /* Pinned to the STAGE box (--gw/--gh offset by the letterbox bars --bar-x/--bar-y), NOT the raw viewport — so
      19%/45% lands on the same board spot on any window aspect (a non-16:9 viewport letterboxes the stage; anchoring
      to the viewport drifted the power off the board on Mike's 16:9 once browser chrome made the client area off-ratio).
      The dev mover then nudges it via px × --scale, staying resolution-independent. */
-  left: calc(var(--bar-x) + 0.19 * var(--gw) + var(--hpow-x, -89px) * var(--scale));
-  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--hpow-y, 408px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--hpow-s, 1.31));
+  /* Mirrors the End Turn diamond across the board's centre line (owner direction 2026-07-16): base
+     0.19/0.45 of the stage + the 💠 tuner's px offsets × --scale. */
+  left: calc(var(--bar-x) + 0.19 * var(--gw) + var(--hpb-x, -140px) * var(--scale));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--hpb-y, 32px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--hpb-s, 1.14));
   align-self: auto; pointer-events: auto; z-index: 41;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(7 * var(--u));
 }
 body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-reaching hand drop through */
 .statusbar .heropanel.passive { opacity: 0.9; }
-/* The READY / ARMED cue is the button's own glow — its blur radius is dev-tunable via --hpow-glow. */
-.statusbar .heropanel.ready .heropowerbtn { box-shadow: 0 0 0 3px var(--acc), 0 4px 0 var(--acc-dk), 0 0 calc(18px * var(--hpow-glow, 2.5)) -2px var(--acc); }
-.statusbar .heropanel.armed .heropowerbtn { box-shadow: 0 0 0 4px var(--acc), 0 0 calc(22px * var(--hpow-glow, 2.5)) 2px var(--acc); }
+/* The READY / ARMED cue is the diamond's FACE GLOW (see .hpb-glow above) — the old box-shadow ring retired
+   with the diamond housing (2026-07-16). */
 .statusbar .heropanel .hpwrap { margin-left: 0; }
-.statusbar .heropanel .heropowerbtn { width: calc(82 * var(--u)); height: calc(82 * var(--u)); }
-.statusbar .heropanel .heropowerbtn svg { width: calc(40 * var(--u)); height: calc(40 * var(--u)); }
 /* The power name in a dark pill under the button (replaces the old white panel box) — brightens when usable. */
 .statusbar .hplabel {
   font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.02em;

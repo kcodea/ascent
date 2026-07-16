@@ -6,6 +6,7 @@ import { Icon } from './Icon';
 import { QuestBadges } from './QuestBadges';
 import { sfx } from './sfx';
 import { useGame } from './store';
+import { getHeroPowerBtnConfig } from './heroPowerBtnConfig'; // also reflects the --hpb-* vars at load (side-effect)
 
 /** Bottom bar, rooted across the whole round: Embers and Resolve flank the hero. */
 export function StatusBar() {
@@ -41,6 +42,27 @@ export function StatusBar() {
     (power.oncePerGame ? !run.heroPowerSpent : run.heroReady) &&
     (!power.cost || run.embers >= power.cost) &&
     (digCost === undefined || run.embers >= digCost);
+  // Live power TALLY (owner ask 2026-07-16) — the Avenge-style numerals riding ABOVE the diamond for powers
+  // that track a value: recharge/quest progress, cadence countdowns, scaling values, Jenkins's dig tier.
+  // Null hides it (e.g. a completed quest fades away by unmounting; Robin with nothing banked shows nothing).
+  const powerTally: string | null = (() => {
+    switch (power.kind) {
+      case 'gild': return run.heroPowerSpent ? `${gildSpent}/40g` : null; // Indy — recharging
+      case 'spellAmplify': return `${run.spellsCast % 10}/10`; // Yirin — spells toward the next step
+      case 'collision': return `${Math.min(5, run.cassenKills + combatEnemyDeaths)}/5`; // Cassen — kills
+      case 'quest': return run.heroPowerSpent ? null : `${run.drakkoBuys}/5`; // Drakko — fades away when complete
+      case 'questChronos': return run.heroPowerSpent ? null : `${run.eotMinionBuys ?? 0}/4`; // Chronos — same
+      case 'sellGold': return (run.bonusEmbersNextTurn ?? 0) > 0 ? `${run.bonusEmbersNextTurn}g` : null; // Robin — banked
+      case 'recurringGoldcrafter': return run.wave % 4 === 0 ? 'now' : `${4 - (run.wave % 4)}t`; // Gildmaster — cadence
+      case 'scalingGold': return run.heroPowerSpent ? null : `${1 + run.wave}g`; // Bagger Ben — current value
+      case 'lesserQuest': return run.wave < 3 ? `${3 - run.wave}t` : null; // Fi — turns to the errand
+      case 'runeforge': return run.wave < 7 && !run.heroPowerSpent ? `${7 - run.wave}t` : null; // Runesmith
+      case 'epicRuneforge': return run.epicForgeWave != null && run.wave < run.epicForgeWave ? `${run.epicForgeWave - run.wave}t` : null; // Runeguard
+      case 'pathfinder': return run.wave < 10 ? `${10 - run.wave}t` : null; // Coran — turns to the capstone
+      case 'dynamiteDig': return `Tier ${run.tier}`; // Jenkins — what the dig would discover
+      default: return null;
+    }
+  })();
   // The big line under the hero name: what tapping the power does *right now*.
   const powerLine = isPassive
     ? power.kind === 'spellAmplify'
@@ -74,6 +96,25 @@ export function StatusBar() {
   // The live status line (current magnitude + countdown) shown ON HOVER, with the leading "Name · " stripped
   // (the name is the tip's header). Reuses the same live computations the old always-visible line did.
   const powerStatus = powerLine.startsWith(`${power.name} · `) ? powerLine.slice(power.name.length + 3) : powerLine;
+  // REFRESH FLASH (owner note 2026-07-16, mirroring the End Turn diamond's relight): when the power comes
+  // back up for usage the face blooms once. The signal is canHero AND the shop being on screen — a re-arm
+  // that lands during combat (the reducer preps next-turn state early) defers its bloom to the moment the
+  // shop returns, instead of firing invisibly mid-fight and reading "late"/missed (owner report). Covers
+  // every re-arm path: start-of-shop recharge, Indy's Gild mid-shop, re-affording a costed power. One-shot
+  // on mount (the layer unmounts after the tuner's `flash · refresh` ms + the 0.2s CSS delay); 0 disables.
+  const [refreshFlash, setRefreshFlash] = useState(false);
+  const flashSignal = canHero && run.phase === 'recruit';
+  const prevFlashSignal = useRef(false);
+  useEffect(() => {
+    const was = prevFlashSignal.current;
+    prevFlashSignal.current = flashSignal;
+    if (!flashSignal || was) return;
+    const ms = getHeroPowerBtnConfig().refreshFlash;
+    if (ms <= 0) return;
+    setRefreshFlash(true);
+    const id = window.setTimeout(() => setRefreshFlash(false), ms + 280);
+    return () => window.clearTimeout(id);
+  }, [flashSignal]);
   // When effective HP drops (Armor or Resolve — a wave broke through), shake the chip + float the −X.
   const prevHp = useRef(run.resolve + run.armor);
   const [hit, setHit] = useState<{ amt: number; key: number } | null>(null);
@@ -146,9 +187,26 @@ export function StatusBar() {
                 else armHero();
               }}
             >
-              {heroPowerArt(hero.id) ? <img src={heroPowerArt(hero.id)} alt="" draggable={false} /> : <Icon name="sc" />}
+              {/* DIAMOND housing (owner direction 2026-07-16 — same strategy as the End Turn diamond,
+                  mirrored to the board's middle-left). Layers, bottom-up: the FULL bronze frame with its
+                  dark face intact (the backing the art fades against — the board never peeks through), the
+                  power art ON TOP clipped to the face window, and the FACE-cut glow above (drop-shadows
+                  follow the inner diamond's alpha; a CSS mask cuts the source pixels back out so only the
+                  halo paints — hover shows it, READY/ARMED pin it). All dialed live by the 💠 tuner via
+                  --hpb-* vars. */}
+              <img className="hpb-glow" src="/frames/heropowerbutton_face.webp" alt="" draggable={false} aria-hidden="true" />
+              <img className="hpb-frame" src="/frames/heropowerbutton.webp" alt="" draggable={false} aria-hidden="true" />
+              {/* Art sits in a CLIPPING wrapper (the face window stays fixed) so the 💠 tuner's art
+                  offset/scale dials move the art INSIDE the window without moving the clip. */}
+              {heroPowerArt(hero.id)
+                ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={heroPowerArt(hero.id)} alt="" draggable={false} /></span>
+                : <Icon name="sc" />}
+              {/* The REFRESH FLASH — a one-shot bloom of the face as the power re-arms (never a loop). */}
+              {refreshFlash && <img className="hpb-flash" src="/frames/heropowerbutton_face.webp" alt="" draggable={false} aria-hidden="true" />}
             </button>
             {(digCost ?? power.cost) ? <span className="hpcost"><span className="costn">{digCost ?? power.cost}</span></span> : null}
+            {/* Keyed on its text so every change replays the compositor-only bump (the Avenge-tally feel). */}
+            {powerTally && <span key={powerTally} className="hpb-tally">{powerTally}</span>}
           </div>
           {/* The power NAME now lives in the pill for passives too (mirrors the active-power pill, e.g. Soren's
               Reclaim); the "Passive"/status detail moves to the hover tip below. */}

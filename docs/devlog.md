@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### fix(ui): hero power diamond — art on top, hollow frame (no opaque slab)
+
+- Owner notes on the new housing: the power art now rides **ON TOP of the diamond** (frame z1 → art z2 →
+  glow z3, still clipped to the face polygon so the bronze ring frames it), and the frame asset was rebuilt
+  **HOLLOW** — the dark inner face is punched out (`dest-out` on the measured face diamond), so the housing
+  never reads as an opaque slab; with no/transparent art the board shows through the window.
+- Verified live: warden's shield art fills the window brightly above the ring; the rebuilt webp's centre
+  pixel is fully transparent; layer order confirmed. Typecheck + lint + 1109 tests + build:web green.
+
 ### feat(ui): hero power → the bronze DIAMOND housing on the board's middle-left + 💠 tuner
 
 - Owner direction: same strategy as the End Turn diamond, mirrored to the board's middle-left (its combat

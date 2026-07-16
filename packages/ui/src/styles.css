@@ -686,10 +686,12 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
   position: relative; padding: 0; border: none; background: none; box-shadow: none; display: block;
   width: calc(128 * var(--u)); height: calc(141 * var(--u)); /* the trimmed art's 466×512 aspect */
 }
-/* Power art fills the inner FACE — clipped to the measured face-diamond polygon of the frame art. */
-.heropowerbtn .hpb-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; clip-path: polygon(50% 13.8%, 83% 50.1%, 50% 83.6%, 16.8% 50.1%); pointer-events: none; -webkit-user-drag: none; }
-.heropowerbtn .hpb-frame { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; -webkit-user-drag: none; }
-.heropowerbtn svg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: calc(50 * var(--u)); height: calc(50 * var(--u)); color: #fff; z-index: 1; }
+/* Power art rides ON TOP of the diamond (owner note 2026-07-16), clipped to the measured face polygon so
+   the bronze ring still frames it. The frame asset itself is HOLLOW — the dark face is punched out, so a
+   missing/transparent art shows the board through the window, never an opaque slab. */
+.heropowerbtn .hpb-frame { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; -webkit-user-drag: none; }
+.heropowerbtn .hpb-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; clip-path: polygon(50% 13.8%, 83% 50.1%, 50% 83.6%, 16.8% 50.1%); pointer-events: none; -webkit-user-drag: none; }
+.heropowerbtn svg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: calc(50 * var(--u)); height: calc(50 * var(--u)); color: #fff; z-index: 2; }
 /* The FACE GLOW — the face-only cut with a STATIC stacked drop-shadow (halo = the inner diamond's
    silhouette), seated above the frame so the light spills over the bronze; a mask (full canvas MINUS the
    face) cuts the source pixels back out so ONLY the halo paints. Hover shows it; READY/ARMED pin it (the

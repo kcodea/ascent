@@ -1117,6 +1117,20 @@ export function useCombatReplay(
     return counts;
   }, [events, processedEnd]);
 
+  // Quests that COMPLETED mid-combat so far this fight (player side): each `questComplete` event's questId, up to
+  // the replayed beat. The quest node doesn't exist in the badge row yet (it only settles as `completed` after
+  // the replay), so the QuestBadges row renders + pulses these live off this set — the reward "lights up" the
+  // instant its objective crosses, matching the effect (Feeding Line etc.) that just went live in the fight.
+  const completedQuests = useMemo(() => {
+    if (processedEnd <= 0) return [] as string[];
+    const curStep = events[processedEnd - 1]?.step ?? Infinity;
+    const ids: string[] = [];
+    for (const e of events) {
+      if (e.type === 'questComplete' && e.side === 'player' && (e.step ?? 0) <= curStep) ids.push(e.questId);
+    }
+    return ids;
+  }, [events, processedEnd]);
+
   // Death reflow is CSS-driven (see `.unit.dying` / `.unit.summoned` in styles.css): the dying unit
   // collapses its own flex slot AS it plays its death pop, so the survivors glide in simultaneously
   // (one smooth phase) instead of waiting a beat and then sliding. CSS flex animates the neighbours for
@@ -1199,6 +1213,6 @@ export function useCombatReplay(
     statHoldFor: (uid: string) => statHold.get(uid),
     statFlashFor: (uid: string) => statFlash.get(uid),
     done, result: combat ? combat.result : null, shaking, critShaking,
-    beatCount: beats.length, enemyDeaths, combatBuffs, questDelta, triggeredQuests, skip: () => setBeatIdx(beats.length),
+    beatCount: beats.length, enemyDeaths, combatBuffs, questDelta, triggeredQuests, completedQuests, skip: () => setBeatIdx(beats.length),
   };
 }

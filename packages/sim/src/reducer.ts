@@ -2390,6 +2390,19 @@ function pendingQuestMods(reward: QuestDef['reward']): QuestCombatMods | undefin
   return Object.keys(out).length ? (out as QuestCombatMods) : undefined;
 }
 
+/** The first CARD a quest's reward grants (named grant / gilded copy), walking `multi` — flown to hand as the
+ *  live "→ hand" visual the moment the quest completes mid-combat. Undefined for non-card rewards. */
+function pendingRewardCard(reward: QuestDef['reward']): string | undefined {
+  let found: string | undefined;
+  const walk = (r: QuestDef['reward']): void => {
+    if (found) return;
+    if (r.kind === 'grant') found = r.cards?.[0] ?? r.grantGolden?.[0];
+    else if (r.kind === 'multi') for (const sub of r.rewards) walk(sub);
+  };
+  walk(reward);
+  return found;
+}
+
 /** The player's active, INCOMPLETE quests whose objective counts a COMBAT event — threaded into `simulate` so
  *  they can complete + activate mid-fight (see `CombatSideState.pendingQuests`). Compound / recruit-only
  *  objectives are excluded (they settle post-combat as before). */
@@ -2402,7 +2415,7 @@ export function buildPendingCombatQuests(s: RunState): PendingCombatQuest[] {
     if (!def) continue;
     const o = def.objective;
     if (!PENDING_COMBAT_EVENTS.has(o.event) || typeof o.count !== 'number') continue;
-    out.push({ questId: aq.questId, event: o.event, count: o.count, tribe: o.tribe, progress: aq.progress, mods: pendingQuestMods(def.reward) });
+    out.push({ questId: aq.questId, event: o.event, count: o.count, tribe: o.tribe, progress: aq.progress, mods: pendingQuestMods(def.reward), rewardCardId: pendingRewardCard(def.reward) });
   }
   return out;
 }

@@ -316,6 +316,10 @@ export function simulate(
       p.fired = true;
       if (p.def.mods) Object.assign(playerState.questMods, p.def.mods); // activate ongoing combat effects from here on
       emit({ type: 'questComplete', questId: p.def.questId, side: 'player' });
+      // Fly the reward card to hand as a live VISUAL only — a bare `toHand` event, NOT `ctx.grantToHand` (which
+      // would also record it in `playerHandGrants`). The reducer grants the reward for real at settle
+      // (`applyQuestReward`), so emitting here would otherwise double it.
+      if (p.def.rewardCardId) emit({ type: 'toHand', cardId: p.def.rewardCardId, side: 'player' });
     }
   };
   const bumpQuestTally = (kind: 'attack' | 'summonCombat' | 'slaughter', m: Minion): void => {

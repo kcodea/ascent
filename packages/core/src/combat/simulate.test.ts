@@ -3293,8 +3293,10 @@ describe('live-display events (combat cards update in real time)', () => {
       { cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'sandbag', attack: 0, health: 1 },
       { cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'sandbag', attack: 0, health: 1 },
     ];
-    const pending = [{ questId: 'q_feed', event: 'slaughter' as const, count: 1, tribe: 'beast' as const, progress: 0, mods: { feedingLine: true } }];
+    const pending = [{ questId: 'q_feed', event: 'slaughter' as const, count: 1, tribe: 'beast' as const, progress: 0, mods: { feedingLine: true }, rewardCardId: 'alley' }];
     const withQuest = simulate(player, enemy, makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, pendingQuests: pending }), combatSide({ tier: 1 }));
+    // Its card reward flies to hand live — a `toHand` event on the completion beat (visual only; settle grants it).
+    expect(withQuest.events.some((e) => e.type === 'toHand' && e.cardId === 'alley' && e.side === 'player')).toBe(true);
     const noQuest = simulate(player, enemy, makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES }), combatSide({ tier: 1 }));
     // The quest completes on the first Beast kill (progress 0 + 1 ≥ count 1) → a `questComplete` event fires.
     expect(withQuest.events.some((e) => e.type === 'questComplete' && e.questId === 'q_feed')).toBe(true);

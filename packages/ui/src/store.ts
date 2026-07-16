@@ -133,6 +133,10 @@ interface GameStore {
    *  one-shot pulse on the matching node each time the count bumps (keyed by the count), then it goes dormant. */
   combatTriggeredQuests: Record<string, number>;
   setCombatTriggeredQuests: (counts: Record<string, number>) => void;
+  /** Quest ids that COMPLETED mid-combat so far in the current replay — QuestBadges renders + pulses these live
+   *  (their node hasn't settled as `completed` yet). Cleared out of combat. */
+  combatCompletedQuests: string[];
+  setCombatCompletedQuests: (ids: string[]) => void;
   /** Increments on each sell — drives the gold "+1" flash on the Embers chip. */
   sellTick: number;
   /** The card being inspected (right-click) in a centred, enlarged overlay, or null. */
@@ -352,6 +356,7 @@ export const useGame = create<GameStore>((set, get) => ({
   combatBuffs: null,
   combatQuestDelta: null,
   combatTriggeredQuests: {},
+  combatCompletedQuests: [],
   sellTick: 0,
   inspect: null,
   // Boot into the title screen (the front door); the hero picker opens once a mode is chosen.
@@ -512,6 +517,7 @@ export const useGame = create<GameStore>((set, get) => ({
   setCombatBuffs: (b) => set({ combatBuffs: b }),
   setCombatQuestDelta: (d) => set({ combatQuestDelta: d }),
   setCombatTriggeredQuests: (ids) => set({ combatTriggeredQuests: ids }),
+  setCombatCompletedQuests: (ids) => set({ combatCompletedQuests: ids }),
   inspectCard: (view) => { sfx.inspect(); set({ inspect: view }); },
   clearInspect: () => set({ inspect: null }),
   startHeroSelect: () => set({ heroChoices: rollHeroChoices() }),

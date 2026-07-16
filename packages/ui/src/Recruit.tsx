@@ -109,7 +109,7 @@ function ShopTimer({ label }: { label: string }) {
  *  opacity to its ref (no per-frame React render), only while lit + unpaused — the heavy card tree is never touched
  *  (the clock lives in an external store; see turnClock.ts). The wipe/reveal is a compositor-friendly custom-prop
  *  write; the mask does the both-sides-in fill. */
-function ChargeGlyph({ inCombat, window: chargeWindow, paused }: { inCombat: boolean; window: number; paused: boolean }) {
+function ChargeGlyph({ inCombat, window: chargeWindow, paused, covered }: { inCombat: boolean; window: number; paused: boolean; covered: boolean }) {
   const seconds = Math.max(0, useTurnSeconds());
   const preview = useChargePreview();          // dev tuner force-shows + scrubs the glyph; null in normal play
   const boxRef = useRef<HTMLDivElement>(null);
@@ -117,8 +117,13 @@ function ChargeGlyph({ inCombat, window: chargeWindow, paused }: { inCombat: boo
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chargeRef = useRef(0);                  // the live charge (0→1), read by the motes loop each frame
   const tickAtRef = useRef(0);
-  const prevSecRef = useRef(0);
-  const lit = preview != null || (!inCombat && seconds <= chargeWindow);
+  // `covered` = a full-screen surface (title / hero select / career / compendium / leaderboard / balance) is
+  // hiding the game — the glyph must not be lit behind it: Recruit stays mounted across EVERY phase, so on the
+  // MAIN MENU the wave-1 clock (18s ≤ the 20s window) had it lighting invisibly and firing the ~30s charge-build
+  // swell at players sitting on the title (owner-reported). Unlit-when-covered kills the sound (via the fade
+  // path's stopTurnCharge), the invisible paint, and the motes rAF. Mid-run POPUPS (Discover / quest / forge)
+  // are NOT covered — the board stays visible behind them, so the glyph stays lit and merely pauses.
+  const lit = preview != null || (!inCombat && !covered && seconds <= chargeWindow);
   // Keep the glyph mounted for a short fade-out when it stops being lit (End Turn pressed / timer ends → combat)
   // instead of snapping to null. `mounted` holds the DOM through the fade; `fading` drives the opacity→0 transition
   // (the paint/motes rAFs are gated on `lit`, so during the fade the glyph freezes at its last frame and just fades).
@@ -133,23 +138,26 @@ function ChargeGlyph({ inCombat, window: chargeWindow, paused }: { inCombat: boo
     const t = window.setTimeout(() => { setMounted(false); setFading(false); }, CHARGE_FADEOUT_MS);
     return () => window.clearTimeout(t);
   }, [lit, mounted]);
+  // If the whole component unmounts mid-charge (a new run remounts Recruit via its runKey), the long build clip
+  // must die with it — the fade path above only runs while mounted.
+  useEffect(() => () => stopTurnCharge(), []);
 
   // Stamp wall-clock time whenever the integer second changes OR we resume from a pause, so the rAF interpolates
   // the sub-second fraction from the exact instant this second began — keeping the charge locked to real time.
   useEffect(() => { tickAtRef.current = performance.now(); }, [seconds, paused, lit]);
 
-  // Fire the "charge begins" cue ONCE when the clock ENTERS the window — either crossing down past it (normal
-  // turns) or a fresh turn that resets already inside it (short early waves where turnSeconds ≤ CHARGE_SECONDS).
-  // Driven off the integer `seconds` (not `lit`), so a pause/resume — which freezes the clock, not `seconds` —
-  // never re-fires it, and the short-wave case (where `lit` is true from the turn's first tick) still triggers.
+  // Fire the "charge begins" cue ONCE per LIGHT — edge-triggered on `lit` going false→true, which uniformly
+  // covers every entry: the clock ticking down into the window, a fresh turn resetting already inside it (short
+  // early waves), and a covering surface (title / hero select) closing onto an in-window clock. It can never fire
+  // behind the main menu (covered → unlit), and a mid-shop pause (Discover etc.) doesn't flip `lit`, so it never
+  // re-fires there. `seconds > 0` keeps a re-light at a dead clock (e.g. menu closed after time-up) silent, and
+  // the dev preview's forced light is excluded.
+  const prevLitRef = useRef(false);
   useEffect(() => {
-    const prev = prevSecRef.current;
-    prevSecRef.current = seconds;
-    if (inCombat || seconds <= 0) return;
-    const crossedIn = prev > chargeWindow && seconds <= chargeWindow; // ticked down into the window
-    const startedIn = seconds > prev && seconds <= chargeWindow;      // turn reset jumped up into the window
-    if (crossedIn || startedIn) sfx.turnCharge();
-  }, [seconds, inCombat, chargeWindow]);
+    const was = prevLitRef.current;
+    prevLitRef.current = lit;
+    if (lit && !was && preview == null && seconds > 0) sfx.turnCharge();
+  }, [lit, preview, seconds]);
 
   useEffect(() => {
     if (!lit) return;
@@ -2652,6 +2660,7 @@ export function Recruit() {
         inCombat={inCombat}
         window={Math.min(CHARGE_SECONDS, turnSeconds)}
         paused={!!(run.discover || run.questOffer || run.runeforgeOffer || heroSelecting || overlayOpen)}
+        covered={!!(heroSelecting || overlayOpen)}
       />
       <HudBar />
 

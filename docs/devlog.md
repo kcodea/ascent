@@ -5,6 +5,35 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### fix(audio/fx): charge glyph no longer lights (or plays its swell) behind the main menu
+
+**Bug (player-reported):** players sitting on the MAIN MENU heard the end-of-turn glyph's ~30s charge-build
+swell. Root cause: `Recruit` stays mounted across every phase, and on boot the wave-1 clock resets to 18s —
+inside the 20s charge window — so the `ChargeGlyph` "lit" **invisibly behind the title** and fired
+`sfx.turnCharge()` (the fire-and-forget clip then became audible at the player's first click, when the audio
+context unlocked). The lit check and the swell trigger both ignored `showTitle`/overlays entirely. Same leak on
+quit-to-menu mid-charge (the swell kept playing; the glyph kept its motes rAF burning behind the title).
+
+**Fix — unlit when covered:**
+- New `covered` prop = `heroSelecting || overlayOpen` (title / hero select / career / compendium / leaderboard /
+  balance — full-screen surfaces that HIDE the game). `lit` now requires `!covered`, so behind the menu the glyph
+  doesn't render, paint, run motes, or make noise. Mid-run POPUPS (Discover / quest / forge) are deliberately NOT
+  covered — the board stays visible, the glyph stays lit and merely pauses (unchanged).
+- The "charge begins" swell is now **edge-triggered on `lit`** (false→true) instead of integer-second crossings —
+  one mechanism uniformly covers ticking into the window, a turn resetting inside it, and the menu/hero-select
+  closing onto an in-window clock, and it structurally **cannot fire while covered**. Guards: `seconds > 0` (a
+  re-light at a dead clock stays silent) and the dev preview's forced light is excluded.
+- Quit-to-menu mid-charge now rides the existing fade path (covered → unlit → `stopTurnCharge()` + 450ms visual
+  fade). Added an unmount cleanup so a new-run remount (`runKey`) also kills a lingering build clip.
+- **"No game sounds on the main menu" guarantee:** with this, every autonomous sound source is menu-safe — the
+  combat replay already freezes on `overlayOpen` (so no combat audio behind the title), and all other game sounds
+  are action-driven. Only deliberate UI sfx (clicks etc.) can play on the menu. (Known ≤2s tails from sounds fired
+  just before opening the menu are accepted.)
+
+**Verified live** (pinned worktree server + DOM probes): on the title `.chargeglyph` is absent (pre-fix it
+rendered lit); closing the menu onto an in-window clock lights glyph + motes; re-opening the menu fades it out and
+unmounts. Plus `typecheck` / `lint` / `npm test` (1109) / `build:web` all green.
+
 ### chore(ui): unwire the endbuttonhit2 strike sound (owner: not needed)
 
 - Removed `sfx.endButtonHit`, the `endbutton` mixer category (gains/bus/desk strip/preview) and the

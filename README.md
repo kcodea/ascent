@@ -40,6 +40,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **No game sounds on the main menu.** The charge glyph no longer lights (or plays its ~30s swell) invisibly
+  behind the title — it's fully suppressed while any full-screen surface covers the game, and quitting to the
+  menu mid-charge fades the swell out. Only deliberate UI sfx play on the menu.
 - **End Turn diamond.** The End Turn / Start Combat action is now the gem-in-bronze diamond on the board's
   middle-right (de-coupled from the shop tray) — breathing diamond-silhouette glow, lightning arcs along its
   edges, a dulled-gem pressed state, and a full 💎 dev tuner (position / scale / glow / lightning).

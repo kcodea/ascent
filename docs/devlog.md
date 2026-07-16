@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### tweak(ui): remove the attacker/defender combat glows on attack
+
+Owner ask: drop the glow that lit the attacker (orange `--acc`) and the aimed defender (red `--threat`) during an
+attack's wind-up/lunge. Removed at the source across all three frame paths — the plain-card box-shadow ring/glow
+(`.unit.attacking .card` / `.unit.aimed .card` now carry only the neutral grounding shadow), and the authored
+taunt (`.tframe`) and stdframe/spellframe (`.cframe`) drop-shadow variants (dropped their `--tglow` state colours
++ pulled the attacking/aimed selectors out of the glow-filter lists, so those states fall back to the base frame
+filter). The armed/targeted **selection** glow is untouched (it shares the blocks but keys off `--tglow: var(--c)`).
+
+Verified live (computed-style probe on the running dev server): no `--acc`/`--threat` colour survives on any
+attacking/aimed state (plain/stdframe/taunt) — only the grounding shadow + base frame filter remain; an armed card
+still renders its tribe-coloured selection drop-shadow. `build:web` clean.
+
 ### feat(sim/ui): mid-combat quest completion — Phase 2b visuals (badge + card fly)
 
 - The visual polish on top of the mid-combat activation. When a quest completes MID-COMBAT: (1) its **badge

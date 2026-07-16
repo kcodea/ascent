@@ -29,4 +29,10 @@ describe('hand is hard-capped at CONFIG.handMax', () => {
     expect(s.hand.length).toBe(CONFIG.handMax);
     expect(s.board.length).toBe(CONFIG.boardMax);
   });
+
+  it('quest/rune REWARD cards (overflow) DO over-cap the hand rather than being dropped', () => {
+    const s: RunState = { ...createRun(1), hand: filler(CONFIG.handMax, 'h'), board: filler(CONFIG.boardMax, 'b') };
+    grantMinionToHandOrBoard(s, def, false, true); // overflow = true (a quest/rune reward)
+    expect(s.hand.length).toBe(CONFIG.handMax + 1); // reward is never lost — it over-caps
+  });
 });

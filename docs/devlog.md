@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### feat(sim): quest/rune reward cards overflow the hand (never dropped)
+
+- Phase 1 of the mid-combat quest work. The hard 10-card hand cap now has ONE sanctioned exception: **quest and
+  rune reward cards over-cap the hand** rather than being dropped when hand + board are both full (owner ruling
+  — an earned reward is guaranteed delivery). Threaded an `overflow` flag through `grantMinionToHandOrBoard` +
+  `conjureToHand` + the random-grant helpers; `applyQuestReward`'s `grant` case passes `overflow = true` on
+  every card grant (named, gilded, random-tribe/tier/filter, random-spell). Every other add-to-hand path
+  (buy / discover / triple / recurring) stays hard-capped. New test covers the overflow. typecheck + lint +
+  test (1107) + build:web green.
 ### fix(ui): combat hand stays full-size (no shrink)
 
 - The hand shrank to `scale(0.66)` during combat; owner wants it static. Dropped the transform so the combat

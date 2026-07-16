@@ -504,7 +504,7 @@ export function improveClingDrones(state: RunState, times: number): void {
  * full → keep it in hand over the cap rather than lose a promised reward (a rare turn-11 edge). `golden` gilds it.
  * Returns the created card so the caller can stamp extra keywords (Apex Hunt). Buffs mirror `conjureToHand`.
  */
-export function grantMinionToHandOrBoard(state: RunState, def: CardDef, golden: boolean): BoardCard {
+export function grantMinionToHandOrBoard(state: RunState, def: CardDef, golden: boolean, overflow = false): BoardCard {
   const cb = cardBuff(state, def.id);
   const card: BoardCard = {
     uid: `b${state.uidSeq++}`,
@@ -517,16 +517,18 @@ export function grantMinionToHandOrBoard(state: RunState, def: CardDef, golden: 
   };
   if (state.hand.length < CONFIG.handMax) state.hand.push(card);
   else if (state.board.length < CONFIG.boardMax) state.board.push(card); // hand full → onto the board
-  else return card; // hand + board BOTH full → drop: the hand is a hard 10-card cap (owner ruling), never over-capped
+  else if (overflow) state.hand.push(card); // quest / rune REWARD cards may over-cap the hand (owner ruling — never lose an earned reward)
+  else return card; // otherwise the hand is a hard 10-card cap: hand + board both full → drop, never over-capped
   if (golden) gildMinion(card);
   takeFromPool(state, def.id); // only claim a pool copy for a card we actually placed
   return card;
 }
 
-export function conjureToHand(state: RunState, pool: CardDef[], reps: number): void {
+export function conjureToHand(state: RunState, pool: CardDef[], reps: number, overflow = false): void {
   if (pool.length === 0) return;
   const rng = makeRng(state.rngCursor);
-  for (let i = 0; i < reps && state.hand.length < CONFIG.handMax; i++) {
+  // `overflow` (quest / rune reward grants) bypasses the hand cap so an earned reward is never dropped.
+  for (let i = 0; i < reps && (overflow || state.hand.length < CONFIG.handMax); i++) {
     const def = pool[rng.int(pool.length)]!;
     const cb = cardBuff(state, def.id);
     state.hand.push({

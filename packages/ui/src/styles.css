@@ -683,7 +683,7 @@ body.dragging .tvbwrap { pointer-events: none; } /* a card dragged across it dro
    flush — owner note 2026-07-16). The gem going dark reads as "can't use right now". Static filter; brightness
    from the tuner's artDim. MAXED is excluded (the broken "complete" gem tells that story at full strength),
    and so is COMBAT — there the stone is a passive tier indicator, not a locked action. */
-.tvbwrap:disabled:not(.maxed):not(.combat) .tvb-gembox { filter: grayscale(0.45) brightness(var(--tvb-art-dim, 1)); }
+.tvbwrap:disabled:not(.maxed):not(.combat) .tvb-gembox { filter: grayscale(0.45) brightness(var(--tvb-art-dim, 0.44)); }
 .tvbwrap .tvb-base { position: absolute; inset: 0; width: 100%; height: 100%; -webkit-user-drag: none; z-index: 1; }
 /* The GEM — seated UNDER the base (z0) through its transparent hole (measured: centre 52.56%/48.93% of the
    base, gem 28.1% of its width ≈ the hole + a small lip under the ring — the forgiving seat). The broken gem
@@ -705,9 +705,9 @@ body.dragging .tvbwrap { pointer-events: none; } /* a card dragged across it dro
    slot (measured); the pip dials nudge the whole arc. */
 .tvbwrap .tvb-pips {
   position: absolute; z-index: 2; display: none; pointer-events: none; -webkit-user-drag: none;
-  left: calc(50.4% + var(--tvb-pip-x, 7) * var(--u));
+  left: calc(50.4% + var(--tvb-pip-x, 6.5) * var(--u));
   top: calc(24.2% + var(--tvb-pip-y, -6.5) * var(--u));
-  width: calc(71.63% * var(--tvb-pip-s, 1.015)); height: auto;
+  width: calc(71.63% * var(--tvb-pip-s, 1)); height: auto;
   transform: translate(-50%, -50%);
 }
 .tvbwrap .tvb-pips.on { display: block; }
@@ -724,21 +724,21 @@ body.dragging .tvbwrap { pointer-events: none; } /* a card dragged across it dro
   width: calc(27.7% * var(--tvb-gem-s, 1.2)); aspect-ratio: 1; /* the gem's visible circle (the hole size) */
   transform: translate(-50%, -50%) scale(var(--tvb-glow-w, 0.85), var(--tvb-glow-h, 0.85));
   border-radius: 50%;
-  box-shadow: var(--tvb-glow-shadow, 0 0 15px #5cabff, 0 0 15px #5cabff, 0 0 15px #5cabff, 0 0 15px #5cabff, 0 0 15px #5cabff, 0 0 15px #5cabff, 0 0 15px #5cabff, 0 0 15px #5cabff);
+  box-shadow: var(--tvb-glow-shadow, 0 0 10px #00bfff, 0 0 10px #00bfff, 0 0 10px #00bfff, 0 0 10px #00bfff, 0 0 10px #00bfff, 0 0 10px #00bfff, 0 0 10px #00bfff, 0 0 10px #00bfff);
   opacity: 0; transition: opacity 0.22s ease;
 }
 .tvbwrap:not(:disabled):hover .tvb-glow {
-  opacity: var(--tvb-glow-alpha, 0.81);
+  opacity: var(--tvb-glow-alpha, 1);
   animation: tvbbreathe var(--tvb-glow-pulse, 2.6s) ease-in-out infinite;
 }
 /* Tuner's "glow always on" preview — pins the hover glow so its sliders can be dialed without holding hover. */
 body.tvb-glow-preview .tvbwrap:not(:disabled) .tvb-glow {
-  opacity: var(--tvb-glow-alpha, 0.81);
+  opacity: var(--tvb-glow-alpha, 1);
   animation: tvbbreathe var(--tvb-glow-pulse, 2.6s) ease-in-out infinite;
 }
 @keyframes tvbbreathe {
-  0%, 100% { opacity: var(--tvb-glow-alpha, 0.81); }
-  50% { opacity: var(--tvb-glow-dim, 0.4536); }
+  0%, 100% { opacity: var(--tvb-glow-alpha, 1); }
+  50% { opacity: var(--tvb-glow-dim, 0.35); }
 }
 /* The press FLASH — a warm-white pop of the gem masking the tier-pip advance. Static bright filter; the
    one-shot animation (duration from the tuner via --tvb-flash-ms) fades OPACITY only, then the layer
@@ -750,7 +750,7 @@ body.tvb-glow-preview .tvbwrap:not(:disabled) .tvb-glow {
   width: calc(84.33% * var(--tvb-gem-s, 1.2)); aspect-ratio: 1; /* padded source — room for the flash halo */
   transform: translate(-50%, -50%);
   filter: brightness(2.2) saturate(0.6) drop-shadow(0 0 18px rgba(255, 214, 130, 0.9));
-  animation: tvbflash var(--tvb-flash-ms, 220ms) ease-out forwards;
+  animation: tvbflash var(--tvb-flash-ms, 740ms) ease-out forwards;
 }
 @keyframes tvbflash { 0% { opacity: 1; } 100% { opacity: 0; } }
 /* Ambient SHEEN — a narrow glare bar sweeping the gem's face on a slow cycle, clipped to the gem's circle
@@ -759,7 +759,7 @@ body.tvb-glow-preview .tvbwrap:not(:disabled) .tvb-glow {
 .tvbwrap .tvb-sheen {
   position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden;
   clip-path: circle(47% at 50% 50%);
-  opacity: var(--tvb-sheen-alpha, 0.75);
+  opacity: var(--tvb-sheen-alpha, 0.67);
 }
 /* Fully upgraded (the broken "complete" gem) — a shattered gem doesn't catch a glare; kill the sweep. */
 .tvbwrap.maxed .tvb-sheen { display: none; }
@@ -767,7 +767,7 @@ body.tvb-glow-preview .tvbwrap:not(:disabled) .tvb-glow {
   position: absolute; top: -25%; left: 0; width: 30%; height: 150%;
   background: linear-gradient(105deg, transparent 8%, rgba(255, 255, 255, 0.85) 50%, transparent 92%);
   transform: translateX(-160%) rotate(8deg);
-  animation: tvbsheen var(--tvb-sheen-cycle, 2.8s) linear infinite;
+  animation: tvbsheen var(--tvb-sheen-cycle, 4.8s) linear infinite;
 }
 @keyframes tvbsheen {
   0% { transform: translateX(-160%) rotate(8deg); }

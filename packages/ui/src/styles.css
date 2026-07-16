@@ -151,12 +151,14 @@ canvas.spr { image-rendering: pixelated; display: block; }
    GSAP attack/hit lunges (which drive each unit's own transform, and each `.unit` has `transition: transform`)
    fought it — the warband appeared to jump UP on every attack and hit. `top` is pure layout, so the units
    animate normally on top of the offset. The zone is shared by shop + combat, so both drop together and stay
-   aligned. Only on tall windows: there the big --ch inflates the bottom padding, pushing the board up so the
-   Warband rides right at the line (the reported bug); short/laptop windows already sit it low with almost no
-   hero-panel clearance, so nudging there would overlap it — hence the height gate. */
-@media (min-height: 900px) {
-  .zone[data-zone='warband'] { top: calc(var(--ch) * 0.07 + (var(--z-wb-y, -71px) + var(--wb-drop, 0px)) * var(--scale)); }
-}
+   aligned. On tall windows the big --ch inflates the bottom padding, pushing the board up so the Warband rides
+   right at the line (the reported bug); short/laptop windows already sit it low with almost no hero-panel
+   clearance, so a full nudge there would overlap it. This used to be a HARD `min-height: 900px` gate — but
+   browser zoom shifts the CSS-pixel height, so crossing 900px (e.g. 125% zoom on a 1080p window) SNAPPED the
+   warband up to the line (Mike, 2026-07-17). Now the nudge RAMPS smoothly: 0 at ≤780px viewport height,
+   +0.16px per px of height above that, capped at the full `--ch × 0.07` (reached ≈890px, matching the old
+   ≥900px behavior) — so any zoom level / window height just slides it a few px, never snaps. */
+.zone[data-zone='warband'] { top: calc(clamp(0px, (100vh - 780px) * 0.16, var(--ch) * 0.07) + (var(--z-wb-y, -71px) + var(--wb-drop, 0px)) * var(--scale)); }
 
 /* End-of-turn CHARGE GLYPH — replaces the burning rope. Over the final CHARGE_SECONDS the board's etched sigil
    charges with white-hot blue energy, building from BOTH sides inward along the midline conduit and filling the

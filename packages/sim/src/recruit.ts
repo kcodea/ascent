@@ -212,6 +212,13 @@ export function buyHealthAura(state: RunState, def: CardDef): number {
   return bonus;
 }
 
+/** Tiff's Dragon Tamer cost: 5 Gold, dropping 1 per Dragon/spell bought since the last use (floor 0 —
+ *  the `tiffDiscount` bank, reset when the power fires). Shared by the reducer's charge, the StatusBar's
+ *  live cost coin, and canHero's affordability gate so the three never drift. */
+export function dragonTamerCostOf(state: RunState): number {
+  return Math.max(0, 5 - (state.tiffDiscount ?? 0));
+}
+
 /** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by
  *  the reducer's sell case and the UI's sell-amount float so the two never drift. */
 export function sellValueOf(card: BoardCard): number {

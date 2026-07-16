@@ -71,8 +71,8 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
 
   // Active-quest / rune nodes (the badge row above the hero panel). X/Y px nudges × --scale; separation = the gap.
   { key: 'qbS', cssVar: '--qb-s', label: 'Scale', group: 'Quest nodes', min: 0.5, max: 2, step: 0.01, def: 1.32, fmt: 'mul' },
-  { key: 'qbX', cssVar: '--qb-x', label: 'X offset', group: 'Quest nodes', min: -400, max: 800, step: 1, def: -12, fmt: 'px' },
-  { key: 'qbY', cssVar: '--qb-y', label: 'Y offset', group: 'Quest nodes', min: -600, max: 400, step: 1, def: -56, fmt: 'px' },
+  { key: 'qbX', cssVar: '--qb-x', label: 'X offset', group: 'Quest nodes', min: -800, max: 800, step: 1, def: -12, fmt: 'px' },
+  { key: 'qbY', cssVar: '--qb-y', label: 'Y offset', group: 'Quest nodes', min: -1400, max: 400, step: 1, def: -746, fmt: 'px' },
   { key: 'qbGap', cssVar: '--qb-gap', label: 'Separation', group: 'Quest nodes', min: 0, max: 30, step: 0.5, def: 2, fmt: 'mul' },
 
   // The end-of-turn CHARGE GLYPH (replaces the rope). STATIC px scaled by --scale, anchored to the measured board

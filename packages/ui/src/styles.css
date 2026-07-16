@@ -695,7 +695,7 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
 .heropowerbtn .hpb-artwrap { position: absolute; inset: 0; z-index: 2; clip-path: polygon(50% 13.8%, 83% 50.1%, 50% 83.6%, 16.8% 50.1%); pointer-events: none; }
 .heropowerbtn .hpb-art {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none;
-  transform: translate(calc(var(--hpb-art-x, 0) * var(--u)), calc(var(--hpb-art-y, 0) * var(--u))) scale(var(--hpb-art-s, 0.68));
+  transform: translate(calc(var(--hpb-art-x, 0) * var(--u)), calc(var(--hpb-art-y, 0) * var(--u))) scale(var(--hpb-art-s, 0.71));
 }
 .heropowerbtn svg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: calc(50 * var(--u)); height: calc(50 * var(--u)); color: #fff; z-index: 2; }
 /* The FACE GLOW — the face-only cut with a STATIC stacked drop-shadow (halo = the inner diamond's
@@ -704,8 +704,8 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
    press-me cue); breathing animates OPACITY only (compositor-cheap). */
 .heropowerbtn .hpb-glow {
   position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none;
-  transform: translate(calc(var(--hpb-glow-x, 0) * var(--u)), calc(var(--hpb-glow-y, 0) * var(--u))) scale(var(--hpb-glow-w, 0.985), var(--hpb-glow-h, 1.01));
-  filter: var(--hpb-glow-filter, drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94));
+  transform: translate(calc(var(--hpb-glow-x, 0) * var(--u)), calc(var(--hpb-glow-y, 0) * var(--u))) scale(var(--hpb-glow-w, 1.02), var(--hpb-glow-h, 1.01));
+  filter: var(--hpb-glow-filter, drop-shadow(0 0 2px #ffc085) drop-shadow(0 0 2px #ffc085) drop-shadow(0 0 2px #ffc085) drop-shadow(0 0 2px #ffc085) drop-shadow(0 0 2px #ffc085));
   mask-image: linear-gradient(#fff, #fff), url('/frames/heropowerbutton_face.webp');
   mask-size: 100% 100%; mask-repeat: no-repeat; mask-composite: exclude;
   opacity: 0; transition: opacity 0.22s ease;
@@ -1837,7 +1837,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    escape the circle (the art is clipped to the circle on its own element). */
 /* Active-quest / rune nodes — dev-movable (scale / x / y / separation), pinned to the stage via px × --scale so
    they don't drift with resolution. `transform-origin: left center` grows the row rightward from its left anchor. */
-.questbadges { align-self: flex-start; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(var(--qb-gap, 2) * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; transform: translate(calc(var(--qb-x, -12px) * var(--scale)), calc(var(--qb-y, -56px) * var(--scale))) scale(var(--qb-s, 1.32)); transform-origin: left center; }
+.questbadges { align-self: flex-start; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(var(--qb-gap, 2) * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; transform: translate(calc(var(--qb-x, -12px) * var(--scale)), calc(var(--qb-y, -746px) * var(--scale))) scale(var(--qb-s, 1.32)); transform-origin: left center; }
 .questbadge { position: relative; width: calc(53 * var(--u)); height: calc(53 * var(--u)); border-radius: 50%; border: 2px solid var(--c, var(--gold)); background: var(--card); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 .questbadge.ongoing { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 0 calc(2 * var(--u)) color-mix(in srgb, var(--c) 45%, transparent), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 /* A completed quest / owned rune's COMBAT effect just fired this replay — ONE bright, larger pulse, then dormant
@@ -1906,11 +1906,11 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* The shake COMPOSES over the 🧍 tuner's Resolve-box transform (fallback = its midline centring) — without
    the prefix a tuned offset/scale would snap to origin for the shake's duration. */
 @keyframes hitshake {
-  0%, 100% { transform: var(--hpn-hp-t, translateY(-50%) translate(calc(-119 * var(--u)), calc(65 * var(--u))) scale(0.51)); }
-  20% { transform: var(--hpn-hp-t, translateY(-50%) translate(calc(-119 * var(--u)), calc(65 * var(--u))) scale(0.51)) translateX(-5px); }
-  40% { transform: var(--hpn-hp-t, translateY(-50%) translate(calc(-119 * var(--u)), calc(65 * var(--u))) scale(0.51)) translateX(5px); }
-  60% { transform: var(--hpn-hp-t, translateY(-50%) translate(calc(-119 * var(--u)), calc(65 * var(--u))) scale(0.51)) translateX(-3px); }
-  80% { transform: var(--hpn-hp-t, translateY(-50%) translate(calc(-119 * var(--u)), calc(65 * var(--u))) scale(0.51)) translateX(2px); }
+  0%, 100% { transform: var(--hpn-hp-t, translate(-50%, -50%) translate(calc(0 * var(--u)), calc(65 * var(--u))) scale(0.51)); }
+  20% { transform: var(--hpn-hp-t, translate(-50%, -50%) translate(calc(0 * var(--u)), calc(65 * var(--u))) scale(0.51)) translateX(-5px); }
+  40% { transform: var(--hpn-hp-t, translate(-50%, -50%) translate(calc(0 * var(--u)), calc(65 * var(--u))) scale(0.51)) translateX(5px); }
+  60% { transform: var(--hpn-hp-t, translate(-50%, -50%) translate(calc(0 * var(--u)), calc(65 * var(--u))) scale(0.51)) translateX(-3px); }
+  80% { transform: var(--hpn-hp-t, translate(-50%, -50%) translate(calc(0 * var(--u)), calc(65 * var(--u))) scale(0.51)) translateX(2px); }
 }
 .resfx { position: absolute; top: -10px; right: 14px; font-family: var(--font-ui); font-weight: 900; font-size: 24px; color: var(--threat); pointer-events: none; animation: sellrise 1s ease forwards; }
 /* compact sizing for the corner tray (was hero-sized when it was the centrepiece); the
@@ -1950,10 +1950,11 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
   font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; line-height: 1.1;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow);
 }
-/* Health/Armor — its OWN housing floated to the RIGHT of the portrait square (absolute, decoupled from
-   the square's size). Base transform centres it on the square's midline; the 🧍 resolve dials stack onto
-   that base (see heroPanelConfig), so it re-seats freely. */
-.statusbar .hero .hpbox { position: absolute; left: calc(100% + 10 * var(--u)); top: 50%; transform: var(--hpn-hp-t, translateY(-50%) translate(calc(-119 * var(--u)), calc(65 * var(--u))) scale(0.51)); padding: calc(8 * var(--u)) calc(15 * var(--u)); }
+/* Health/Armor — its OWN housing, decoupled from the square's size and ROOTED AT ITS CENTRE (owner note
+   2026-07-16): anchored to the square's midpoint with a translate(-50%,-50%) base, so the pill grows/
+   shrinks symmetrically when the armor chip appears or vanishes — the heart never drifts left. The 🧍
+   resolve dials stack onto that base (see heroPanelConfig). */
+.statusbar .hero .hpbox { position: absolute; left: 50%; top: 50%; transform: var(--hpn-hp-t, translate(-50%, -50%) translate(calc(0 * var(--u)), calc(65 * var(--u))) scale(0.51)); padding: calc(8 * var(--u)) calc(15 * var(--u)); }
 .statusbar .hero .hpbox svg { width: calc(26 * var(--u)); height: calc(26 * var(--u)); }
 .statusbar .hero .hpbox .hpval { font-size: calc(26 * var(--u)); }
 .statusbar .hero .hpbox .armval { font-size: calc(18 * var(--u)); }
@@ -3702,7 +3703,10 @@ svg { width: 18px; height: 18px; }
 .book-cat svg { width: 18px; height: 18px; color: var(--c); flex: none; }
 .book-cat:hover { border-color: var(--c); }
 .book-cat.on { background: color-mix(in srgb, var(--c) 20%, var(--card)); border-color: var(--c); color: var(--ink); }
-.book-grid { flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px 14px; padding: 20px; overflow-y: auto; align-content: start; justify-items: center; --ch: clamp(212px, 26vh, 276px); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
+/* Columns never squeeze below a full card width (auto-fill drops a column instead of overlapping), and the
+   row gap reserves space for the text plate hanging under each oval (owner report 2026-07-16: cards were
+   stacking on top of each other). */
+.book-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--cw) + 16px), 1fr)); gap: calc(var(--ch) * 0.45) 18px; padding: 20px; overflow-y: auto; align-content: start; justify-items: center; --ch: clamp(212px, 26vh, 276px); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
 /* (Book scroll areas hide the native scrollbar — see the shared rule near the top; a styled webkit
    scrollbar can't keep the custom cursor, so we hide it and scroll by wheel/trackpad.) */
 .book-cell { transition: transform 0.12s ease; }

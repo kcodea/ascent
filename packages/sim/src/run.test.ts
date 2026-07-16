@@ -3775,16 +3775,16 @@ describe('hero powers (@game/sim)', () => {
     expect(s.hand.some((c) => c.cardId === 'chronos')).toBe(true);
   });
 
-  it("Fi's Errand opens an extra LESSER-only quest shop on turn 3", () => {
-    // Drive a real advance into wave 3 and confirm the quest offer opens, restricted to Lesser quests.
-    let s: RunState = { ...createRun(1, 'fi'), wave: 2, phase: 'recruit' };
-    s = reduce(s, { type: 'faceOmen' }); // → combat for wave 2
-    s = reduce(s, { type: 'resolveCombat' }); // → recruit for wave 3, Fi's quest opens
-    expect(s.wave).toBe(3);
+  it("Fi's Errand opens an extra LESSER-only quest shop on turn 4", () => {
+    // Drive a real advance into wave 4 and confirm the quest offer opens, restricted to Lesser quests.
+    let s: RunState = { ...createRun(1, 'fi'), wave: 3, phase: 'recruit' };
+    s = reduce(s, { type: 'faceOmen' }); // → combat for wave 3
+    s = reduce(s, { type: 'resolveCombat' }); // → recruit for wave 4, Fi's quest opens
+    expect(s.wave).toBe(4);
     expect((s.questOffer?.length ?? 0)).toBeGreaterThan(0);
     expect(s.questOffer!.every((id) => QUEST_INDEX[id]!.tier === 'lesser')).toBe(true); // Lesser only
-    // A non-Fi hero gets no turn-3 quest.
-    let w: RunState = { ...createRun(1, 'soren'), wave: 2, phase: 'recruit' };
+    // A non-Fi hero gets no turn-4 quest.
+    let w: RunState = { ...createRun(1, 'soren'), wave: 3, phase: 'recruit' };
     w = reduce(w, { type: 'faceOmen' });
     w = reduce(w, { type: 'resolveCombat' });
     expect(w.questOffer).toBeUndefined();
@@ -5425,6 +5425,20 @@ describe('Beast quests (combat objectives + rewards)', () => {
     const f = s.board.find((c) => c.cardId === 'trailforager')!;
     expect(f.sellBonus).toBe(1);
     expect(sellValueOf(f)).toBe(4); // 3 + 1 per Beast played
+  });
+
+  it('GOLDEN Trail Forager sells for 6g +2g per Beast played, and its printed golden text says so', () => {
+    const forager: BoardCard = { uid: 'f', cardId: 'trailforager', tribe: 'beast', attack: 2, health: 8, keywords: [], golden: true };
+    const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', board: [forager], hand: [beast] };
+    expect(sellValueOf(s.board[0]!)).toBe(6); // golden base 6g
+    s = reduce(s, { type: 'play', uid: 'b' });
+    const f = s.board.find((c) => c.cardId === 'trailforager')!;
+    expect(f.sellBonus).toBe(2); // +2 per Beast while golden
+    expect(sellValueOf(f)).toBe(8); // 6 + 2
+    // The printed golden text must state the doubled values (a fresh golden showed the 3g/1g base — owner
+    // report 2026-07-16; behavior was already doubled, the display wasn't).
+    expect(CARD_INDEX['trailforager']!.goldenText).toBe('Sells for **6g**, plus **2g** for every Beast you play.');
   });
 
   it('Feed the Alpha spell sells the target and feeds the right-most Beast', () => {

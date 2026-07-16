@@ -531,13 +531,57 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 .shoprow.actiontray { gap: calc(8 * var(--u)); padding: calc(4 * var(--u)) calc(5 * var(--u)); background: linear-gradient(180deg, rgba(70, 48, 18, 0.16), rgba(70, 48, 18, 0.30)); border: 2px solid var(--gold); border-radius: calc(16 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(50, 34, 14, 0.30), 0 calc(3 * var(--u)) calc(9 * var(--u)) -4px var(--shadow); }
 /* Buttons inside the tray drop their outer drop-shadow (the tray carries it) so the group reads as one unit. */
 .shoprow.actiontray .shopbtn { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55); }
-/* End Turn — the primary action, amber like the standalone right-edge button. */
-.shopbtn.endturn { background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 76%, #ffd583) 0%, var(--acc) 100%); border-color: var(--acc-dk); color: #fff; }
-.shopbtn.endturn .sb-l { color: #fff; }
-.shopbtn.endturn .sb-ic svg { color: #fff; }
-.shopbtn.endturn .sb-v { color: #fff; }
-.shopbtn.endturn:not(:disabled):hover { filter: brightness(1.06); }
-.shopbtn.endturn.urgent { animation: endpulse 0.9s ease-in-out infinite; }
+/* ---- Standalone End Turn DIAMOND (EndTurnButton.tsx) — the gem-in-bronze button on the board's middle-right,
+   de-coupled from the shop tray (owner direction 2026-07-16). Stage-pinned like the hero power (base point
+   0.81/0.45 of the stage + tuner px offsets × --scale); everything below reads the `--etb-*` vars the
+   💎 End Turn Button dev tuner sets live — the fallbacks here mirror the shipped defaults in endTurnConfig.ts. */
+.etbwrap {
+  position: fixed;
+  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 0px) * var(--scale));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--etb-y, 0px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--etb-s, 1));
+  width: calc(128 * var(--u)); height: calc(140 * var(--u)); /* the trimmed art's 468×512 aspect */
+  background: none; border: none; padding: 0; z-index: 41;
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+}
+body.dragging .etbwrap { pointer-events: none; } /* a card dragged across it drops through */
+.etbwrap:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.etbwrap:disabled .etb-art { filter: grayscale(0.4) brightness(0.8); }
+.etbwrap .etb-art { position: absolute; inset: 0; width: 100%; height: 100%; -webkit-user-drag: none; z-index: 2; }
+/* One-shot hover brighten (not a loop — the paint rule allows it). */
+.etbwrap:not(:disabled):hover .etb-art.lit { filter: brightness(1.09); }
+.etbwrap:not(:disabled):active .etb-art { transform: scale(0.96); }
+/* Pressed (end-of-turn beats playing) or the tuner's preview: swap to the dulled gem, kill the glow. */
+.etbwrap .etb-art.dim { display: none; }
+.etbwrap.pressed .etb-art.lit, body.etb-pressed-preview .etbwrap .etb-art.lit { display: none; }
+.etbwrap.pressed .etb-art.dim, body.etb-pressed-preview .etbwrap .etb-art.dim { display: block; }
+/* The DIAMOND GLOW — a duplicate of the art whose stacked drop-shadow follows the alpha silhouette, so the
+   halo is exactly the diamond shape. The filter is STATIC; the breathing loop animates OPACITY only
+   (compositor-only, per the perf rule — same trick as kwglow). */
+.etbwrap .etb-glow {
+  position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;
+  filter: var(--etb-glow-filter, drop-shadow(0 0 14px #38b6ff) drop-shadow(0 0 14px #38b6ff) drop-shadow(0 0 14px #38b6ff));
+  opacity: var(--etb-glow-alpha, 0.85);
+  animation: etbbreathe var(--etb-glow-pulse, 2.2s) ease-in-out infinite;
+}
+.etbwrap.pressed .etb-glow, body.etb-pressed-preview .etbwrap .etb-glow, .etbwrap:disabled .etb-glow { opacity: 0; animation: none; }
+.etbwrap.urgent .etb-glow { animation-duration: 0.7s; } /* time up — the breath quickens */
+@keyframes etbbreathe {
+  0%, 100% { opacity: var(--etb-glow-alpha, 0.85); }
+  50% { opacity: var(--etb-glow-dim, 0.38); }
+}
+/* Lightning canvas — arcs crackling along the diamond edges (drawn by EndTurnButton's rAF; the 24px-per-side
+   margin gives jitter room). Sized in --u so it tracks the art at any resolution. */
+.etbwrap .etb-bolts { position: absolute; left: calc(-24 * var(--u)); top: calc(-24 * var(--u)); width: calc(176 * var(--u)); height: calc(188 * var(--u)); z-index: 3; pointer-events: none; }
+/* Hover tip — the dark pill the shop buttons use, seated under the diamond. */
+.etbwrap .etb-tip {
+  position: absolute; left: 50%; top: calc(100% + 10px); transform: translateX(-50%);
+  white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.12s ease;
+  font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: #f4ecdb;
+  background: linear-gradient(180deg, #211812, #16100b); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
+  border-radius: 10px; padding: 4px 12px; box-shadow: 0 3px 9px -3px rgba(0, 0, 0, 0.6); z-index: 4;
+}
+.etbwrap:not(:disabled):hover .etb-tip { opacity: 1; }
 /* Styled hover tooltip (replaces the native title): the game's dark rounded pill, dropping below the control
    with a small arrow — same format as the hero/opponent tips. The hovered control lifts above its neighbours
    so the pill never gets trapped behind the next plaque. */

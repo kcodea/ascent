@@ -15,6 +15,7 @@ import { LayoutTuner } from './LayoutTuner';
 import { FrameTuner } from './FrameTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { GlowTuner } from './GlowTuner';
+import { EndTurnTuner } from './EndTurnTuner';
 import { pixiFx } from './pixiFx';
 
 /**
@@ -40,6 +41,7 @@ const TUNERS = [
   { key: 'float', label: '🔢 Damage Float', C: FloatTuner },
   { key: 'stepcounter', label: '📈 Step Counter', C: StepCounterTuner },
   { key: 'chargeglyph', label: '⚡ Charge Glyph', C: ChargeGlyphTuner },
+  { key: 'endturnbtn', label: '💎 End Turn Button', C: EndTurnTuner },
 ] as const;
 
 export function DevMenu() {

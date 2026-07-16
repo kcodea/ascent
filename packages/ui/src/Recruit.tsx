@@ -7,6 +7,7 @@ import { RuneCard } from './RuneCard';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
 import { HudBar } from './HudBar';
+import { EndTurnButton } from './EndTurnButton';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
@@ -2711,18 +2712,16 @@ export function Recruit() {
             <span className="sb-ic"><Icon name="freeze" /></span>
             <span className="sbtip">{run.frozen ? 'Frozen — click to unfreeze' : 'Freeze the tavern'}</span>
           </button>
-          {/* End Turn — the primary action, styled amber; mirrors the standalone right-edge button. */}
-          <button
-            className={`shopbtn endturn${timeUp ? ' urgent' : ''}`}
-            disabled={eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
-            onClick={endTurn}
-          >
-            <span className="sb-l">End Turn</span>
-            <span className="sb-ic"><Icon name="sword" /></span>
-            <span className="sbtip">End your turn and start combat</span>
-          </button>
         </div>
       </div>
+      {/* End Turn — the standalone DIAMOND button on the board's middle-right (de-coupled from the shop
+          tray, owner direction 2026-07-16). Pressed art shows while the end-of-turn beats play. */}
+      <EndTurnButton
+        onEndTurn={endTurn}
+        disabled={eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+        pressed={eotAnimating}
+        urgent={timeUp}
+      />
       </>
       ) : (
         <div className="combatctl">

@@ -5,6 +5,32 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): End Turn button remake — standalone diamond + 💎 dev tuner
+
+- Owner direction: replace the shop-tray End Turn button with the new **gem-in-bronze diamond art**
+  (`end_button` / `end_button_pressed`, converted from the Ascent Art folder to alpha-trimmed webps —
+  743KB PNGs → 34KB each at 468×512), **de-coupled from the shop** and placed on the board's middle-right.
+- **`EndTurnButton.tsx`** — stage-pinned like the hero power (base point 0.81/0.45 of the stage + `--etb-*`
+  px offsets × `--scale`), layered for perf:
+  - the **lit gem** until pressed; the **dulled gem** while the end-of-turn beats play (both `<img>`s stay
+    mounted, CSS flips them — no src-swap flash);
+  - a **diamond glow**: a duplicate of the art with a *static* stacked drop-shadow filter (the shadow follows
+    the alpha, so the halo IS the diamond silhouette) whose **opacity** breathes on a loop (compositor-only,
+    per the perf rule; the breath quickens when the turn timer expires);
+  - **lightning arcs** crackling along the diamond's four edges on a small canvas — the rAF reads the config
+    live each frame (slider moves apply instantly), skips clearing when idle, and unmounts with the button
+    in combat. Disabled = greyscale one-shot filter; hover pill tooltip; drops pass through while dragging.
+- **`endTurnConfig.ts` + `EndTurnTuner.tsx` (💎 End Turn Button in the Dev Tuning Menu)** — position x/y,
+  scale, glow (blur / opacity / stack strength / pulse speed / pulse depth / colour) and lightning (rate /
+  length / jitter magnitude / width / life / opacity / colour), plus a "preview pressed" toggle (body class →
+  pure CSS art flip). localStorage-persisted in DEV only; production always renders the shipped defaults
+  (Layout Lab convention), which the styles.css `var(--etb-*, …)` fallbacks mirror.
+- Removed the old amber `.shopbtn.endturn` from the action tray (End Combat's `.btn.big.endturn` unchanged).
+- Verified: typecheck + lint + tests + build:web green; live dev-server run — button renders mid-right with a
+  breathing glow, lightning drew on 36/36 sampled frames, tuner sliders moved/scaled it live, pressed preview
+  flips to the dulled gem + kills the glow, and the full loop (click → combat → End Combat → wave 2 recruit
+  with the button back at defaults) played clean. Throwaway run + tuner localStorage cleaned up after.
+
 ### feat(ui): Career + post-game visual pass (mockup-match)
 
 - Owner supplied two visual mockups (Career page + course-complete screen) and asked for a close match while

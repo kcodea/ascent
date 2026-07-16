@@ -560,6 +560,9 @@ body.dragging .etbwrap { pointer-events: none; } /* a card dragged across it dro
    breath and the fade animate OPACITY only (compositor-only, per the perf rule — same trick as kwglow). */
 .etbwrap .etb-glow {
   position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none;
+  /* Alignment dials (💎 tuner): nudge in design px (× --u) + width/height fit, so the halo can be seated
+     square on the gem. Near-identity values keep the overlaid gem pixels invisible on the art below. */
+  transform: translate(calc(var(--etb-glow-x, 0) * var(--u)), calc(var(--etb-glow-y, 0) * var(--u))) scale(var(--etb-glow-w, 1), var(--etb-glow-h, 1));
   filter: var(--etb-glow-filter, drop-shadow(0 0 14px #38b6ff) drop-shadow(0 0 14px #38b6ff) drop-shadow(0 0 14px #38b6ff));
   opacity: 0; transition: opacity 0.22s ease;
 }

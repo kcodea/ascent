@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): End Turn diamond — glow alignment + full strike dials in the 💎 tuner
+
+- Owner report: the glow wasn't seated square on the gem. Two fixes + full tunability:
+  - **Tighter gem cut** — `end_button_gem.webp` regenerated with the EXACT detected gem bounds (the old
+    2.5% mask pad pushed the halo rim outside the gem edge, reading as "not fixed to the diamond").
+  - **Glow alignment dials** — `glow · offset x/y` (design px × `--u`) and `glow · width/height fit`
+    (0.85–1.15×) transform the glow layer live so the halo can be seated by eye. Near-identity values keep
+    the overlaid gem pixels invisible on the art below (the ranges are deliberately tight — blur/strength
+    remain the SIZE dials).
+  - **Full strike effect dials** — the single "ripple power" split into `strike · dust amount / size / life`
+    and `strike · ripple rings / size / life`. `pixiFx.impactDust`/`impactPulse` gained optional per-call
+    multiplier `opts` (count/size/life; radius/life/rings) so the button dials its own billow/shockwave
+    without touching the shared combat `imp*` tuning (combat call sites pass nothing — unchanged).
+  - Also fixed: the strike rows' tuner LABELS were missing (rows rendered unlabeled) — added. Curiously
+    `tsc` accepted the incomplete `Record<keyof …>` literal; noted, not chased.
+- Verified live: 30 tuner rows; glow offset/fit sliders move the halo in real time (computed transform
+  `matrix(1.05, 0, 0, 1, 4, −2.7)` for a 6/−4/1.05 dial at this window's `--u`); all 8 strike rows present;
+  reset restores defaults. Typecheck + lint + 1109 tests + build:web green; throwaway state cleaned up.
+
 ### feat(ui): End Turn diamond — strike round (gem-only glow, masked swap, shockwave ripple)
 
 - Second owner-notes round on the diamond:

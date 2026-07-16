@@ -30,6 +30,10 @@ const LABELS: Record<keyof EndTurnConfig, string> = {
   glowStrength: 'glow · strength',
   glowPulse: 'glow · pulse speed',
   glowPulseDepth: 'glow · pulse depth',
+  glowX: 'glow · offset x',
+  glowY: 'glow · offset y',
+  glowW: 'glow · width fit',
+  glowH: 'glow · height fit',
   glowColor: 'glow · colour',
   boltRate: 'lightning · rate',
   boltScale: 'lightning · length',
@@ -38,6 +42,14 @@ const LABELS: Record<keyof EndTurnConfig, string> = {
   boltLife: 'lightning · life',
   boltAlpha: 'lightning · opacity',
   boltColor: 'lightning · colour',
+  strikeBolts: 'strike · bolts',
+  strikeFlash: 'strike · flash',
+  strikeDustCount: 'strike · dust amount',
+  strikeDustSize: 'strike · dust size',
+  strikeDustLife: 'strike · dust life',
+  strikeRings: 'strike · ripple rings',
+  strikeRingRadius: 'strike · ripple size',
+  strikeRingLife: 'strike · ripple life',
 };
 
 export function EndTurnTuner() {

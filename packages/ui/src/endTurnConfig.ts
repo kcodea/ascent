@@ -34,6 +34,14 @@ export interface EndTurnConfig {
   glowPulse: number;
   /** Glow — how deep the breath dips: the glow eases between peak and peak×(1−depth). */
   glowPulseDepth: number;
+  /** Glow — ALIGNMENT nudge x (px of the 128-wide design box, × --u). Fixes the halo sitting off the gem. */
+  glowX: number;
+  /** Glow — alignment nudge y (px, × --u). */
+  glowY: number;
+  /** Glow — width fit (×). Small corrections so the halo hugs the gem's sides; use blur/strength for SIZE. */
+  glowW: number;
+  /** Glow — height fit (×). */
+  glowH: number;
   /** Glow — colour (hex). */
   glowColor: string;
   /** Lightning — arcs spawned per second. 0 disables the canvas entirely. */
@@ -54,8 +62,18 @@ export interface EndTurnConfig {
   strikeBolts: number;
   /** Strike — the white-hot gem flash's duration (ms). 0 disables the flash. */
   strikeFlash: number;
-  /** Strike — power of the outward shockwave RIPPLE + dirt billow (× the combat impact's base). 0 disables. */
-  strikeRipple: number;
+  /** Strike — dirt/smoke billow AMOUNT (× the combat impact-dust count). 0 disables the dust. */
+  strikeDustCount: number;
+  /** Strike — dirt/smoke puff SIZE (×). */
+  strikeDustSize: number;
+  /** Strike — dirt/smoke LIFETIME (×): how long the billow hangs before settling. */
+  strikeDustLife: number;
+  /** Strike — shockwave RING COUNT (0–2). 0 disables the ripple. */
+  strikeRings: number;
+  /** Strike — shockwave ring RADIUS (× the combat pulse's base): how far the ripple expands. */
+  strikeRingRadius: number;
+  /** Strike — shockwave ring LIFETIME (×): slower = a statelier expanding wave. */
+  strikeRingLife: number;
 }
 
 const DEFAULTS: EndTurnConfig = {
@@ -67,6 +85,10 @@ const DEFAULTS: EndTurnConfig = {
   glowStrength: 3,
   glowPulse: 2.2,
   glowPulseDepth: 0.55,
+  glowX: 0,
+  glowY: 0,
+  glowW: 1,
+  glowH: 1,
   glowColor: '#38b6ff',
   boltRate: 3,
   boltScale: 0.45,
@@ -77,7 +99,12 @@ const DEFAULTS: EndTurnConfig = {
   boltColor: '#9fdcff',
   strikeBolts: 8,
   strikeFlash: 340,
-  strikeRipple: 1.5,
+  strikeDustCount: 1.5,
+  strikeDustSize: 1,
+  strikeDustLife: 1,
+  strikeRings: 2,
+  strikeRingRadius: 1.5,
+  strikeRingLife: 1,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */
@@ -96,9 +123,18 @@ export const ETB_RANGES: Record<Exclude<keyof EndTurnConfig, 'glowColor' | 'bolt
   boltWidth: [0.5, 6, 0.25],
   boltLife: [60, 900, 10],
   boltAlpha: [0, 1, 0.01],
+  glowX: [-24, 24, 0.5],
+  glowY: [-24, 24, 0.5],
+  glowW: [0.85, 1.15, 0.005],
+  glowH: [0.85, 1.15, 0.005],
   strikeBolts: [0, 20, 1],
   strikeFlash: [0, 900, 10],
-  strikeRipple: [0, 3, 0.05],
+  strikeDustCount: [0, 4, 0.05],
+  strikeDustSize: [0.2, 3, 0.05],
+  strikeDustLife: [0.2, 3, 0.05],
+  strikeRings: [0, 2, 1],
+  strikeRingRadius: [0, 4, 0.05],
+  strikeRingLife: [0.2, 3, 0.05],
 };
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
@@ -119,17 +155,29 @@ export const ETB_DESC: Record<keyof EndTurnConfig, string> = {
   boltLife: 'Lightning — each arc’s lifetime (ms) before it fades.',
   boltAlpha: 'Lightning — arc opacity.',
   boltColor: 'Lightning — arc colour.',
+  glowX: 'Glow alignment — nudge the halo horizontally (design px) so it sits square on the gem.',
+  glowY: 'Glow alignment — nudge the halo vertically (design px).',
+  glowW: 'Glow fit — halo width (× the gem). Small corrections only; use blur/strength for overall size.',
+  glowH: 'Glow fit — halo height (× the gem).',
   strikeBolts: 'Strike — how many lightning arcs burst out the instant the button is hit.',
   strikeFlash: 'Strike — the white-hot gem flash duration (ms). 0 = no flash.',
-  strikeRipple: 'Strike — shockwave ripple + dirt billow power (× the combat impact base). 0 = off.',
+  strikeDustCount: 'Strike — dirt/smoke billow amount (× the combat impact dust). 0 = no dust.',
+  strikeDustSize: 'Strike — dirt/smoke puff size (×).',
+  strikeDustLife: 'Strike — dirt/smoke lifetime (×): how long the billow hangs.',
+  strikeRings: 'Strike — shockwave ring count (0–2). 0 = no ripple.',
+  strikeRingRadius: 'Strike — shockwave radius (×): how far the ripple expands.',
+  strikeRingLife: 'Strike — shockwave lifetime (×): slower = a statelier wave.',
 };
 
 /** Keys grouped by control type for the tuner UI. */
 export const ETB_NUM_KEYS = [
   'x', 'y', 'scale',
+  'glowX', 'glowY', 'glowW', 'glowH',
   'glowBlur', 'glowAlpha', 'glowStrength', 'glowPulse', 'glowPulseDepth',
   'boltRate', 'boltScale', 'boltMag', 'boltWidth', 'boltLife', 'boltAlpha',
-  'strikeBolts', 'strikeFlash', 'strikeRipple',
+  'strikeBolts', 'strikeFlash',
+  'strikeDustCount', 'strikeDustSize', 'strikeDustLife',
+  'strikeRings', 'strikeRingRadius', 'strikeRingLife',
 ] as const;
 export const ETB_COLOR_KEYS = ['glowColor', 'boltColor'] as const;
 
@@ -166,6 +214,11 @@ export function applyEndTurnVars(): void {
   root.setProperty('--etb-x', `${cfg.x}px`);
   root.setProperty('--etb-y', `${cfg.y}px`);
   root.setProperty('--etb-s', String(cfg.scale));
+  // Glow alignment — unitless design-px (the CSS multiplies by --u) + fit scale factors.
+  root.setProperty('--etb-glow-x', String(cfg.glowX));
+  root.setProperty('--etb-glow-y', String(cfg.glowY));
+  root.setProperty('--etb-glow-w', String(cfg.glowW));
+  root.setProperty('--etb-glow-h', String(cfg.glowH));
   root.setProperty('--etb-glow-alpha', String(cfg.glowAlpha));
   // Pulse 0 = steady: pin the dip to the peak (and park the duration) rather than running a 0s loop.
   root.setProperty('--etb-glow-dim', String(cfg.glowPulse > 0 ? cfg.glowAlpha * (1 - cfg.glowPulseDepth) : cfg.glowAlpha));

@@ -42,10 +42,10 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent }: {
   const click = (): void => {
     const cfg = getEndTurnConfig();
     const r = wrapRef.current?.getBoundingClientRect();
-    if (r && cfg.strikeRipple > 0) {
+    if (r) {
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-      pixiFx.impactDust(cx, cy, cfg.strikeRipple);
-      pixiFx.impactPulse(cx, cy, cfg.strikeRipple);
+      if (cfg.strikeDustCount > 0) pixiFx.impactDust(cx, cy, 1, { count: cfg.strikeDustCount, size: cfg.strikeDustSize, life: cfg.strikeDustLife });
+      if (cfg.strikeRings > 0) pixiFx.impactPulse(cx, cy, 1, { radius: cfg.strikeRingRadius, life: cfg.strikeRingLife, rings: cfg.strikeRings });
     }
     burstRef.current = performance.now();
     if (cfg.strikeFlash > 0) {

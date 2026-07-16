@@ -38,7 +38,7 @@ export function Rankings() {
           <Icon name="crown" />
           <div>
             <div className="esch disp">Leaderboard</div>
-            <div className="lbsub">Top players by rating</div>
+            <div className="lbsub">Top players by renown</div>
           </div>
         </div>
       </div>
@@ -55,7 +55,7 @@ export function Rankings() {
             <div className="rankrow rankhead">
               <span className="rankrank">#</span>
               <span className="rankname">Player</span>
-              <span className="ranknum">Rating</span>
+              <span className="ranknum">Renown</span>
               <span className="ranknum">Games</span>
               <span className="rankfav">Favorite hero</span>
             </div>

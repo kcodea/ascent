@@ -40,6 +40,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **Vocabulary pass + hero-power rewrites.** The UI now speaks in themed terms — **Renown** (Rating), **Oath**
+  (Line), Fulfilled / Surpassed / Fell Short verdicts, **ASCENDED** / **FALLEN** endings — and all 23 hero
+  powers got shorter, cleaner text. Hero select shows just Renown + Oath.
+
 - **Charge glyph fades out on End Turn.** Ending the turn now eases the charging sigil away over ~450ms instead
   of snapping it off-screen.
 - **Turn timer → charging glyph.** The burning rope is gone: the final ~20s now charge the board's etched sigil

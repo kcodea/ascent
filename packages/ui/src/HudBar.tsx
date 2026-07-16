@@ -62,7 +62,7 @@ export function HudBar() {
             <Icon name="crown" />{wins}–{losses}
           </span>
         )}
-        <span className="lbl line" title={`Your par for this run — cover or beat ${run.line} wins`}>Line {run.line}</span>
+        <span className="lbl line" title={`Your Oath for this run — fulfill it with ${run.line} wins`}>Oath {run.line}</span>
       </div>
       {/* Run-buffs window — floats top-left just under the round plaque. Absolutely positioned (NOT an in-flow
           column) so it can never grow the bar and push the shop/board down when buffs are active. */}

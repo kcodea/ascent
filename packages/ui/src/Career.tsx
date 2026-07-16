@@ -24,7 +24,7 @@ function cardViewOf(m: BoardMinion): CardView {
 }
 
 const VERDICT: Record<LineStatus, string> = {
-  flawless: 'Flawless', exceeded: 'Exceeded', covered: 'Covered', missed: 'Missed', failed: 'Failed',
+  flawless: 'Flawless', exceeded: 'Surpassed', covered: 'Fulfilled', missed: 'Fell Short', failed: 'Fallen',
 };
 const TRIBE_LABEL: Record<Tribe, string> = {
   beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral',
@@ -95,7 +95,7 @@ export function Career() {
         <BoardLog />
         {entries.length === 0 ? (
           <div className="lbempty">
-            <div className="carempty-rating">Rating {profile.rating} · Line {profile.currentLine}</div>
+            <div className="carempty-rating">Renown {profile.rating} · Oath {profile.currentLine}</div>
             No runs yet — play a run to start your career.
           </div>
         ) : (
@@ -108,8 +108,8 @@ export function Career() {
                   {avatarImg ? <img src={avatarImg} alt="Your avatar" draggable={false} /> : avatarChar || <Icon name="anvil" />}
                 </button>
                 <div className="carpname">{playerName || 'Unnamed Climber'}</div>
-                <div className="carrank">Rating {profile.rating} · Line {profile.currentLine}</div>
-                <div className="carranksub">Highest {profile.highestRating} · Line {profile.highestLine}</div>
+                <div className="carrank">Renown {profile.rating} · Oath {profile.currentLine}</div>
+                <div className="carranksub">Highest {profile.highestRating} · Oath {profile.highestLine}</div>
                 <div className="carprofmeta">
                   <div><b>{stats.completions}</b><span>Completed</span></div>
                   <div><b>{stats.flawless}</b><span>Flawless</span></div>
@@ -128,7 +128,7 @@ export function Career() {
                   <Insight icon="paw" label="Favorite Tribe" value={favTribe} />
                   <Insight icon="sc" label="Favorite Mechanic" value={stats.favoriteMechanic ?? '—'} />
                   <Insight icon="heart" label="Favorite Minion" value={stats.favoriteMinion ?? '—'} />
-                  <Insight icon="flame" label="Current Streak" value={stats.streak > 0 ? `${stats.streak} on line` : '—'} />
+                  <Insight icon="flame" label="Current Streak" value={stats.streak > 0 ? `${stats.streak} on oath` : '—'} />
                 </div>
 
                 {stats.perHero.length > 0 && (
@@ -164,10 +164,10 @@ export function Career() {
                           <div className="lbname">
                             {getHero(e.heroId).name}
                             <span className={`carrec ${metLine(e.lineStatus) ? 'won' : 'lost'}`}>{e.wins}–{e.losses}</span>
-                            <span className={`carverdict ${e.lineStatus}`}>Line {e.line} · {VERDICT[e.lineStatus]}</span>
+                            <span className={`carverdict ${e.lineStatus}`}>Oath {e.line} · {VERDICT[e.lineStatus]}</span>
                           </div>
                           <div className="lbmeta">
-                            {e.completed ? 'Course complete' : `Fell on round ${e.wave}`}{e.date ? ` · ${e.date}` : ''}
+                            {e.completed ? 'Ascended' : `Fallen on round ${e.wave}`}{e.date ? ` · ${e.date}` : ''}
                           </div>
                           {e.tags.length > 0 && (
                             <div className="cartags">{e.tags.map((t) => <span className="endtag" key={t}>{t}{TAG_INFO[t] && <span className="tagtip">{TAG_INFO[t]}</span>}</span>)}</div>

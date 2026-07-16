@@ -31,7 +31,7 @@ export type HeroPowerKind =
   | 'recurringGoldcrafter' // Gildmaster (passive): get a Goldcrafter (gild-a-minion spell) every 4 turns
   | 'runeforge' // Runesmith (passive): on turn 7 the Runeforge opens — buy ONE of a random 3 runes (a run-long buff)
   | 'epicRuneforge' // Runeguard (passive): the EPIC Runeforge opens on turn 12 (scheduled via `epicForgeWave` at run start)
-  | 'pathfinder' // Coran (passive): skips the turn-5 quest; gets the turn-11 (late) quest early, on turn 7
+  | 'pathfinder' // Coran (passive): a bonus late-bucket (Capstone) quest on turn 10, on top of the normal 5 & 11
   | 'dynamiteDig'; // Jenkins: 1 Gold Discover a minion of your tier — costs 1 more Gold each use (active, untargeted)
 
 export interface HeroPower {
@@ -83,7 +83,7 @@ export const HEROES: HeroDef[] = [
       name: 'Aegis',
       kind: 'grantWard',
       cost: 4,
-      text: 'Spend 4 Gold: give a friendly minion a **Ward** (permanent). (Once per turn)',
+      text: 'Give a friendly minion permanent **Ward**.',
     },
   },
   {
@@ -96,7 +96,7 @@ export const HEROES: HeroDef[] = [
       name: 'Gild',
       kind: 'gild',
       oncePerGame: true, // one charge at a time; the charge recharges after every 40 Gold spent (see reducer)
-      text: 'Gild: Make a friendly minion golden. Refreshes after you spend 40 Gold.',
+      text: 'Make a friendly minion **Gilded**. Recharges after you spend 40 Gold.',
     },
   },
   {
@@ -110,7 +110,7 @@ export const HEROES: HeroDef[] = [
       name: 'Pulse',
       kind: 'replayBattlecry',
       unlockWave: 3,
-      text: "Pulse: Trigger a friendly minion's Battlecry effect. (Once per turn)",
+      text: "Trigger a friendly minion's **Shout**.",
     },
   },
   {
@@ -122,7 +122,7 @@ export const HEROES: HeroDef[] = [
     power: {
       name: 'Reclaim',
       kind: 'resummon',
-      text: 'Reclaim: Mark a minion. At the start of combat, that minion is destroyed and returns when possible.',
+      text: 'Choose a friendly minion. At the start of combat, destroy it and resummon a copy when there is room.',
     },
   },
   {
@@ -135,7 +135,7 @@ export const HEROES: HeroDef[] = [
       name: 'Attunement',
       kind: 'spellAmplify',
       passive: true,
-      text: 'Attunement: Spells gain +1/+1. Improve this every 10 spells cast.',
+      text: 'Your spells give +1/+1 more. Improves every 10 spells you cast.',
     },
   },
   {
@@ -148,7 +148,7 @@ export const HEROES: HeroDef[] = [
       name: 'Cadence',
       kind: 'replayAllEndOfTurn',
       untargeted: true,
-      text: 'Cadence: Trigger EVERY friendly minion\'s End of Turn effect. (Once per turn)',
+      text: 'Trigger all friendly **End of Turn** effects.',
     },
   },
   {
@@ -162,7 +162,7 @@ export const HEROES: HeroDef[] = [
       kind: 'gainMaxMana',
       untargeted: true,
       cost: 3,
-      text: 'Gold Font: Spend 3 Gold to gain +1 max Gold permanently.',
+      text: 'Gain 1 maximum Gold.',
     },
   },
   {
@@ -175,7 +175,7 @@ export const HEROES: HeroDef[] = [
       name: 'Collision',
       kind: 'collision',
       passive: true, // a carry-back — the work happens after combat (settleCombat), nothing to arm
-      text: 'Collision: After you kill 5 enemy minions, get a minion of your most common type.',
+      text: 'Every 5 enemy minions you kill, get a minion of your most common type.',
     },
   },
   {
@@ -189,7 +189,7 @@ export const HEROES: HeroDef[] = [
       kind: 'quest',
       passive: true, // a quest — the work happens in the buy case, nothing to arm
       oncePerGame: true,
-      text: 'Drumline: Buy 5 Battlecry minions to get Drakko the Drummer. (Once per game)',
+      text: 'After you buy 5 **Shout** minions, get Drakko the Drummer.',
     },
   },
   {
@@ -203,7 +203,7 @@ export const HEROES: HeroDef[] = [
       name: 'Chaos Bond',
       kind: 'chaos',
       passive: true,
-      text: 'Start with a **Chaos Attachment** in hand. Get another at the start of every 5th turn.',
+      text: 'Start with a **Chaos Attachment**. Get another every 5 turns.',
     },
   },
   {
@@ -216,7 +216,7 @@ export const HEROES: HeroDef[] = [
       name: 'Spoils',
       kind: 'sellGold',
       passive: true,
-      text: 'When you sell a minion, gain 1 Gold at the start of next turn.',
+      text: 'For each minion you sell, gain 1 Gold next turn.',
     },
   },
   {
@@ -228,7 +228,7 @@ export const HEROES: HeroDef[] = [
     power: {
       name: 'Displace',
       kind: 'displace',
-      text: 'Choose a friendly minion — swap it with a random minion in the tavern.',
+      text: 'Swap a friendly minion with a random minion in the Shop.',
     },
   },
   {
@@ -253,7 +253,7 @@ export const HEROES: HeroDef[] = [
       name: 'Goldcrafter',
       kind: 'recurringGoldcrafter',
       passive: true, // resolved at each turn setup (turns 4, 8, 12, …) — conjures a Goldcrafter to hand
-      text: 'Get a **Goldcrafter** every 4 turns (a spell that makes a friendly minion golden).',
+      text: 'Every 4 turns, get a **Goldcrafter**.',
     },
   },
   {
@@ -266,7 +266,7 @@ export const HEROES: HeroDef[] = [
       name: 'Setlist',
       kind: 'discoLock',
       passive: true, // resolved at run start (the three locked Discovers) + the play-gate on locked cards
-      text: 'Turn 1: Discover a Tier 6, then Tier 4, then Tier 2 minion. Each is locked in your hand until you reach that shop tier.',
+      text: 'On turn 1, Discover Tier 6, Tier 4, and Tier 2 minions. Each unlocks when you reach its Shop tier.',
     },
   },
   {
@@ -280,7 +280,7 @@ export const HEROES: HeroDef[] = [
       kind: 'scalingGold',
       untargeted: true,
       oncePerGame: true,
-      text: 'Bag It: Gain Gold now — the payout grows +1 every turn you wait. (Once per game)',
+      text: 'Gain Gold. The amount increases by 1 each turn you wait.',
     },
   },
   {
@@ -293,7 +293,7 @@ export const HEROES: HeroDef[] = [
       name: 'Frugal',
       kind: 'cheapMinions',
       passive: true,
-      text: 'Shop minions cost 2 Gold. Tavern upgrades cost 2 more. Rerolls cost 2.',
+      text: 'Shop minions cost 2 Gold. Shop upgrades cost 2 more, and rerolls cost 2 Gold.',
     },
   },
   {
@@ -306,7 +306,7 @@ export const HEROES: HeroDef[] = [
       name: 'Errand',
       kind: 'lesserQuest',
       passive: true, // resolved on the turn-3 advance (an extra, lower-tier quest offer)
-      text: 'Turn 3: choose from an extra, lower-tier quest.',
+      text: 'On turn 3, choose an extra **Lesser Quest**.',
     },
   },
   {
@@ -320,7 +320,7 @@ export const HEROES: HeroDef[] = [
       kind: 'questChronos',
       passive: true, // a quest — resolved in the buy case (buy 4 End-of-Turn minions)
       oncePerGame: true,
-      text: 'Encore: Buy 4 End-of-Turn minions to get a Chronos. (Once per game)',
+      text: 'After you buy 4 **End of Turn** minions, get Chronos.',
     },
   },
   {
@@ -334,7 +334,7 @@ export const HEROES: HeroDef[] = [
       kind: 'runeforge',
       passive: true, // fires on the turn-6 advance (opens the Runeforge offer); resolved by `buyRune` / `skipRuneforge`
       oncePerGame: true, // the forge opens exactly once, on turn 7
-      text: 'Runeforge: On turn 7, buy one of a random 3 Runes (re-roll once for 2 Gold) — a permanent buff for the run.',
+      text: 'On turn 7, visit the Runeforge.',
     },
   },
   {
@@ -347,7 +347,7 @@ export const HEROES: HeroDef[] = [
       name: 'Defend the Forge',
       kind: 'epicRuneforge',
       passive: true, // scheduled at run start (createRun sets `epicForgeWave = 10`); opens via advanceCombat sequencing
-      text: 'Defend the Forge: Visit the Epic Runeforge on turn 12 — buy one Epic Rune (a permanent buff for the run).',
+      text: 'On turn 12, visit the Epic Runeforge.',
     },
   },
   {
@@ -360,7 +360,7 @@ export const HEROES: HeroDef[] = [
       name: 'Pathfinder',
       kind: 'pathfinder',
       passive: true, // resolved on the turn-advance quest schedule (a bonus turn-11-bucket quest on turn 10, on top of the normal 5 & 11)
-      text: 'Pathfinder: Take an extra Capstone quest on turn 10 — on top of your normal quests.',
+      text: 'On turn 10, choose an extra late-game Quest.',
     },
   },
   {
@@ -373,7 +373,7 @@ export const HEROES: HeroDef[] = [
       name: 'Dynamite Dig',
       kind: 'dynamiteDig',
       untargeted: true, // fires immediately: Discover a minion of your tier; the escalating cost is handled in the reducer
-      text: 'Dynamite Dig: Spend 1 Gold to Discover a minion of your tier. Costs 1 more Gold each use.',
+      text: 'Discover a minion from your Shop tier. Each use costs 1 more Gold.',
     },
   },
 ];

@@ -7,6 +7,11 @@ ASCENT is a single-player roguelike auto-battler: shop for minions, build a 7-sl
 fight an ever-rising curve of enemy boards across a fixed course. You don't play forever — you
 play a **17-round course** and are graded against a personal target called **the Line**.
 
+> **Player-facing vocabulary (2026-07-16):** the UI displays these systems under themed names while
+> the code keeps the internal terms. **Rating → Renown** · **Line → Oath** · **Cover → Fulfill** ·
+> **Exceeded → Surpassed** · **Missed → Fell Short** · **course completion → Ascended** ·
+> **death before round 17 → Fallen**. This doc uses the internal terms (Rating/Line) since it cites code.
+
 ---
 
 ## The course — 17 rounds (2 calibration + 15 scored)

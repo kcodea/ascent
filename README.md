@@ -40,6 +40,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **Tavern Up stone button.** The "Upgrade Tavern" plaque is now a carved stone medallion on the board (owner
+  art): your current shop tier lit as slot pips, a breathing blue gem glow, a warm press flash + dust +
+  shockwave, and a broken "complete" gem at max tier. Stays up through combat as a passive tier indicator.
+  Owner-tuned via a live 🍺 dev tuner; defaults baked into JS + CSS.
 - **Three new heroes.** **Re-Pete** (Second Hand — every 3 turns, a plain copy of your left-most hand card),
   **Atrius** (Possession — Start of Combat, the leftmost minion gains the rightmost's Attack and the rightmost
   gains the leftmost's Health) and **Gorr** (Four Peat — your 3rd minion buy each turn conjures a plain copy of

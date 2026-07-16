@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### feat(ui): Heroes tab in the Compendium
+
+- Added a **Heroes** category to the Compendium (`MinionBook`) — a read-only gallery of every shippable hero
+  (WIP ones withheld, like the picker) showing portrait + Resolve/Armor + power name & text, searchable by
+  name or power. Not run-scoped (heroes aren't tribe-bound), rendered as its own gallery like the Runes/Quests
+  tabs (its own left-rail chip, hidden tier bar, own count subtitle). New `.bookhero*` styles. Live-checked:
+  20 heroes render with art + power. typecheck + lint + build:web green.
+
 ### feat(sim/ui): hard 10-card hand cap + hoverable hand in combat
 
 - **Hand is now a hard 10-card cap.** Grants/discovers/triples no longer over-cap the hand (the source of the

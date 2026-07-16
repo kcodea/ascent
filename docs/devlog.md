@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### feat(ui): Hall of Champions / Career re-fit + end-of-run quests & runes
+
+- **Re-fit the warband cards** in the Hall of Champions + Career. The card art overhaul had made the
+  `.lbwarband` cells read large and crowd the row; dropped the cell basis (`--ccw` `clamp(112px,13vh,150px)` →
+  `clamp(84px,9.5vh,118px)`) so a 7-card board sits cleanly on one line with the existing gaps.
+- **Show what the champion built.** New shared `RunTrophies` component renders the run's completed **quests**
+  and owned **runes** (already stored on the board snapshot — `board.quests` / `board.runes`) as circular
+  badges under the warband, each with the game's standard floating tooltip (name + reward text). Wired into
+  both `Leaderboard` (Hall of Champions) and `Career`. Renders nothing for older snapshots that carry none.
+- typecheck + lint + build:web green. (Populated visuals need real backend/history data — verified structure +
+  empty-state locally.)
+
 ### feat(ui): Heroes tab in the Compendium
 
 - Added a **Heroes** category to the Compendium (`MinionBook`) — a read-only gallery of every shippable hero

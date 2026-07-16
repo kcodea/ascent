@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getEndTurnConfig, rgba } from './endTurnConfig';
 import { pixiFx } from './pixiFx';
 
@@ -10,9 +10,10 @@ import { pixiFx } from './pixiFx';
  * (pixiFx.impactDust) at the gem.
  *
  * Layered so every effect follows the DIAMOND silhouette and stays cheap:
- *   - `.etb-glow` — a duplicate of the art with a STATIC stacked drop-shadow filter (`--etb-glow-filter`);
- *     drop-shadow follows the image alpha, so the glow is exactly the diamond shape. Its breathing animates
- *     the layer's OPACITY only (compositor-only loop — the paint-property perf rule holds).
+ *   - `.etb-glow` — the GEM-ONLY cut of the art (end_button_gem.webp) with a STATIC stacked drop-shadow
+ *     filter (`--etb-glow-filter`); drop-shadow follows the image alpha, so the halo hugs the blue diamond
+ *     itself — not the bronze housing (owner note 2026-07-16). Hover-only; its breathing animates the
+ *     layer's OPACITY only (compositor-only loop — the paint-property perf rule holds).
  *   - `.etb-bolts` — a small canvas crackling lightning arcs along the diamond's four edges. The rAF loop
  *     reads `getEndTurnConfig()` live each frame (tuner slider moves apply instantly) and self-gates: it
  *     draws nothing (and skips clearing) while there are no live arcs and spawning is off/pressed.
@@ -32,12 +33,25 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent }: {
   const wrapRef = useRef<HTMLButtonElement>(null);
   const pressedRef = useRef(pressed);
   pressedRef.current = pressed;
+  const burstRef = useRef(0); // timestamp of a pending strike burst — the rAF loop consumes it
+  const [striking, setStriking] = useState(false); // the one-shot strike flash is playing
 
-  // The hit lands with a dirt/smoke billow at the gem (owner note 2026-07-16) — the same warm impact
-  // dust the combat clack uses, sourced at the button's live on-screen centre.
+  // The STRIKE (owner notes 2026-07-16): the art swaps to the dim gem immediately, and the swap is masked
+  // by a white-hot gem flash + a burst of lightning arcs + a dirt/smoke billow + an outward shockwave
+  // RIPPLE (pixiFx.impactPulse — the combat clack's expanding energy rings), all at the gem's live centre.
   const click = (): void => {
+    const cfg = getEndTurnConfig();
     const r = wrapRef.current?.getBoundingClientRect();
-    if (r) pixiFx.impactDust(r.left + r.width / 2, r.top + r.height / 2, 1.4);
+    if (r && cfg.strikeRipple > 0) {
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      pixiFx.impactDust(cx, cy, cfg.strikeRipple);
+      pixiFx.impactPulse(cx, cy, cfg.strikeRipple);
+    }
+    burstRef.current = performance.now();
+    if (cfg.strikeFlash > 0) {
+      setStriking(true);
+      window.setTimeout(() => setStriking(false), cfg.strikeFlash + 60);
+    }
     onEndTurn();
   };
 
@@ -77,8 +91,7 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent }: {
       const previewPressed = document.body.classList.contains('etb-pressed-preview'); // dev tuner's pressed preview
       const spawning = !pressedRef.current && !previewPressed && cfg.boltRate > 0 && cfg.boltAlpha > 0;
       arcs = arcs.filter((a) => now - a.born < cfg.boltLife);
-      if (spawning && now - lastSpawn > 1000 / cfg.boltRate) {
-        lastSpawn = now;
+      const spawnArc = (): void => {
         if (Math.random() < 0.5) {
           // EDGE arc — a spark riding one of the diamond's four edges (length = boltScale of the edge).
           const seg = Math.floor(Math.random() * 4);
@@ -101,6 +114,16 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent }: {
             born: now, seed: Math.random() * 1e4,
           });
         }
+      };
+      // A pending STRIKE burst — a whole volley at once, bypassing the pressed/rate gates so the crackle
+      // that masks the lit→dim art swap always fires (stale requests older than 500ms are dropped).
+      if (burstRef.current) {
+        if (now - burstRef.current < 500) for (let i = 0; i < cfg.strikeBolts; i++) spawnArc();
+        burstRef.current = 0;
+      }
+      if (spawning && now - lastSpawn > 1000 / cfg.boltRate) {
+        lastSpawn = now;
+        spawnArc();
       }
       if (arcs.length === 0) {
         if (dirty) { ctx.clearRect(0, 0, canvas.width, canvas.height); dirty = false; }
@@ -146,12 +169,18 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent }: {
       aria-label="End your turn and start combat"
     >
       <canvas ref={canvasRef} className="etb-bolts" aria-hidden="true" />
-      <img className="etb-glow" src="/frames/end_button.webp" alt="" draggable={false} aria-hidden="true" />
+      {/* Hover glow — the GEM-ONLY cut of the art (end_button_gem, owner note 2026-07-16), so the stacked
+          drop-shadow halo hugs the blue diamond itself, not the bronze housing. Sits ABOVE the art: the
+          gem's light spills over the housing instead of hiding behind it. */}
+      <img className="etb-glow" src="/frames/end_button_gem.webp" alt="" draggable={false} aria-hidden="true" />
       {/* Both arts stay mounted; CSS flips them on `.pressed` (or the tuner's body-class preview) — no
           src-swap flash, and the pressed art is already decoded when the click lands. The pressed gem
           (end_button_pressed2) holds through the whole combat screen; the lit gem returns with the shop. */}
       <img className="etb-art lit" src="/frames/end_button.webp" alt="" draggable={false} />
       <img className="etb-art dim" src="/frames/end_button_pressed2.webp" alt="" draggable={false} />
+      {/* The strike FLASH — a white-hot pop of the gem that masks the lit→dim swap. Mounted only for the
+          one-shot (its animation runs on mount and it unmounts right after — never a loop). */}
+      {striking && <img className="etb-flash" src="/frames/end_button_gem.webp" alt="" draggable={false} aria-hidden="true" />}
       <span className="etb-tip">End your turn and start combat</span>
     </button>
   );

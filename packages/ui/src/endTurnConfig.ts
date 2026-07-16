@@ -50,6 +50,12 @@ export interface EndTurnConfig {
   boltAlpha: number;
   /** Lightning — colour (hex). */
   boltColor: string;
+  /** Strike — lightning arcs burst out the instant the button is hit (masks the lit→dim art swap). */
+  strikeBolts: number;
+  /** Strike — the white-hot gem flash's duration (ms). 0 disables the flash. */
+  strikeFlash: number;
+  /** Strike — power of the outward shockwave RIPPLE + dirt billow (× the combat impact's base). 0 disables. */
+  strikeRipple: number;
 }
 
 const DEFAULTS: EndTurnConfig = {
@@ -69,6 +75,9 @@ const DEFAULTS: EndTurnConfig = {
   boltLife: 220,
   boltAlpha: 0.9,
   boltColor: '#9fdcff',
+  strikeBolts: 8,
+  strikeFlash: 340,
+  strikeRipple: 1.5,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */
@@ -87,6 +96,9 @@ export const ETB_RANGES: Record<Exclude<keyof EndTurnConfig, 'glowColor' | 'bolt
   boltWidth: [0.5, 6, 0.25],
   boltLife: [60, 900, 10],
   boltAlpha: [0, 1, 0.01],
+  strikeBolts: [0, 20, 1],
+  strikeFlash: [0, 900, 10],
+  strikeRipple: [0, 3, 0.05],
 };
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
@@ -107,6 +119,9 @@ export const ETB_DESC: Record<keyof EndTurnConfig, string> = {
   boltLife: 'Lightning — each arc’s lifetime (ms) before it fades.',
   boltAlpha: 'Lightning — arc opacity.',
   boltColor: 'Lightning — arc colour.',
+  strikeBolts: 'Strike — how many lightning arcs burst out the instant the button is hit.',
+  strikeFlash: 'Strike — the white-hot gem flash duration (ms). 0 = no flash.',
+  strikeRipple: 'Strike — shockwave ripple + dirt billow power (× the combat impact base). 0 = off.',
 };
 
 /** Keys grouped by control type for the tuner UI. */
@@ -114,6 +129,7 @@ export const ETB_NUM_KEYS = [
   'x', 'y', 'scale',
   'glowBlur', 'glowAlpha', 'glowStrength', 'glowPulse', 'glowPulseDepth',
   'boltRate', 'boltScale', 'boltMag', 'boltWidth', 'boltLife', 'boltAlpha',
+  'strikeBolts', 'strikeFlash', 'strikeRipple',
 ] as const;
 export const ETB_COLOR_KEYS = ['glowColor', 'boltColor'] as const;
 
@@ -158,6 +174,7 @@ export function applyEndTurnVars(): void {
   // filter a variable number of times). STATIC: only the glow layer's opacity animates.
   const one = `drop-shadow(0 0 ${cfg.glowBlur}px ${rgba(cfg.glowColor, 1)})`;
   root.setProperty('--etb-glow-filter', Array(Math.max(1, Math.round(cfg.glowStrength))).fill(one).join(' '));
+  root.setProperty('--etb-flash-ms', `${Math.max(1, cfg.strikeFlash)}ms`);
 }
 
 export function setEndTurnValue(key: keyof EndTurnConfig, value: number | string): void {

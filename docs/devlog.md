@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): End Turn diamond — strike round (gem-only glow, masked swap, shockwave ripple)
+
+- Second owner-notes round on the diamond:
+  1. **Glow hugs the GEM, not the housing** — the glow layer now uses a gem-only cut of the art
+     (`end_button_gem.webp`, built by masking the source with the blue gem's detected diamond polygon and
+     extracting the SAME trim box as the button art, so the layers align 1:1). Seated ABOVE the art so the
+     gem's light spills over the bronze frame; drop-shadow follows the cut's alpha → the halo is exactly
+     the gem silhouette.
+  2. **The press swap is immediate + masked** — the button keys off `inCombat` (the phase itself), not
+     `fighting` (which waits for the arena intro), so the dim gem shows the instant the click lands
+     (verified: dim art visible at +30ms). The swap hides under a STRIKE: a white-hot gem flash (one-shot
+     opacity fade, static filter, unmounts after), a burst of lightning arcs (bypasses the pressed/rate
+     gates), and the dirt billow.
+  3. **Shockwave ripple** — `pixiFx.impactPulse` (the combat clack's expanding energy rings) fires at the
+     gem's centre alongside the dust.
+  - New tuner rows: `strike · bolts` (burst arc count), `strike · flash` (ms, 0 = off, drives
+    `--etb-flash-ms`), `strike · ripple` (× power for the rings + dust, 0 = off).
+- Verified live: gem-only halo (bronze points sit outside the glow), flash mounted at +30ms with the dim
+  art already swapped and unmounted after its one-shot, burst bolts on the canvas, full loop back to a lit
+  wave-2 shop. Typecheck + lint + 1109 tests + build:web green. (One dev hiccup: a stale HMR chunk threw
+  "useState is not defined" — a hard reload cleared it; not a source issue.)
+
 ### feat(ui): End Turn diamond — owner notes round (hover glow, cross-lightning, dust, pressed2)
 
 - Six owner notes applied to the new diamond button:

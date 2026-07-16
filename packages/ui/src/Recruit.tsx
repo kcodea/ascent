@@ -2743,12 +2743,13 @@ export function Recruit() {
       {/* End Turn — the standalone DIAMOND button on the board's middle-right (de-coupled from the shop
           tray, owner direction 2026-07-16). Mounted through BOTH phases: the lit gem during recruit, the
           pressed (dim) gem from the click all the way through the combat screen — it relights when the
-          next shop phase opens (owner note 2026-07-16). */}
+          next shop phase opens (owner note 2026-07-16). Keyed off `inCombat` (the phase itself), NOT
+          `fighting` (which waits for the intro), so the art swap is IMMEDIATE on the click. */}
       <EndTurnButton
         onEndTurn={endTurn}
-        disabled={fighting || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
-        pressed={fighting || eotAnimating}
-        urgent={timeUp && !fighting}
+        disabled={inCombat || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+        pressed={inCombat || eotAnimating}
+        urgent={timeUp && !inCombat}
       />
 
       {/* Top-middle combat HUD (during the replay) — the Skip button centred near the top of the arena, with

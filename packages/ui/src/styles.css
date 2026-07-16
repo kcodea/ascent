@@ -553,12 +553,13 @@ body.dragging .etbwrap { pointer-events: none; } /* a card dragged across it dro
 .etbwrap .etb-art.dim { display: none; }
 .etbwrap.pressed .etb-art.lit, body.etb-pressed-preview .etbwrap .etb-art.lit { display: none; }
 .etbwrap.pressed .etb-art.dim, body.etb-pressed-preview .etbwrap .etb-art.dim { display: block; }
-/* The DIAMOND GLOW — a duplicate of the art whose stacked drop-shadow follows the alpha silhouette, so the
-   halo is exactly the diamond shape. HOVER-ONLY (owner note 2026-07-16): hidden at rest (a soft opacity
-   transition eases it in/out), breathing while hovered. The filter is STATIC; both the breath and the
-   fade animate OPACITY only (compositor-only, per the perf rule — same trick as kwglow). */
+/* The DIAMOND GLOW — the GEM-ONLY cut of the art (end_button_gem.webp) whose stacked drop-shadow follows
+   the alpha silhouette, so the halo hugs the blue diamond itself, NOT the bronze housing (owner note
+   2026-07-16). Seated ABOVE the art (the gem's light spills over the housing). HOVER-ONLY: hidden at rest
+   (a soft opacity transition eases it in/out), breathing while hovered. The filter is STATIC; both the
+   breath and the fade animate OPACITY only (compositor-only, per the perf rule — same trick as kwglow). */
 .etbwrap .etb-glow {
-  position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;
+  position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none;
   filter: var(--etb-glow-filter, drop-shadow(0 0 14px #38b6ff) drop-shadow(0 0 14px #38b6ff) drop-shadow(0 0 14px #38b6ff));
   opacity: 0; transition: opacity 0.22s ease;
 }
@@ -574,16 +575,25 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
   0%, 100% { opacity: var(--etb-glow-alpha, 0.85); }
   50% { opacity: var(--etb-glow-dim, 0.38); }
 }
-/* Lightning canvas — arcs crackling along the diamond edges (drawn by EndTurnButton's rAF; the 24px-per-side
-   margin gives jitter room). Sized in --u so it tracks the art at any resolution. */
-.etbwrap .etb-bolts { position: absolute; left: calc(-24 * var(--u)); top: calc(-24 * var(--u)); width: calc(176 * var(--u)); height: calc(188 * var(--u)); z-index: 3; pointer-events: none; }
+/* The strike FLASH — a white-hot pop of the gem masking the lit→dim swap. Static bright filter; the
+   one-shot animation (duration from the tuner via --etb-flash-ms) fades OPACITY only, then the layer
+   unmounts — never a loop. */
+.etbwrap .etb-flash {
+  position: absolute; inset: 0; width: 100%; height: 100%; z-index: 4; pointer-events: none;
+  filter: brightness(2.4) saturate(0.45) drop-shadow(0 0 18px rgba(210, 240, 255, 0.9));
+  animation: etbstrikeflash var(--etb-flash-ms, 340ms) ease-out forwards;
+}
+@keyframes etbstrikeflash { 0% { opacity: 1; } 100% { opacity: 0; } }
+/* Lightning canvas — arcs crackling along the diamond edges + across its face (drawn by EndTurnButton's
+   rAF; the 24px-per-side margin gives jitter room). Sized in --u so it tracks the art at any resolution. */
+.etbwrap .etb-bolts { position: absolute; left: calc(-24 * var(--u)); top: calc(-24 * var(--u)); width: calc(176 * var(--u)); height: calc(188 * var(--u)); z-index: 5; pointer-events: none; }
 /* Hover tip — the dark pill the shop buttons use, seated under the diamond. */
 .etbwrap .etb-tip {
   position: absolute; left: 50%; top: calc(100% + 10px); transform: translateX(-50%);
   white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.12s ease;
   font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: #f4ecdb;
   background: linear-gradient(180deg, #211812, #16100b); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
-  border-radius: 10px; padding: 4px 12px; box-shadow: 0 3px 9px -3px rgba(0, 0, 0, 0.6); z-index: 4;
+  border-radius: 10px; padding: 4px 12px; box-shadow: 0 3px 9px -3px rgba(0, 0, 0, 0.6); z-index: 6;
 }
 .etbwrap:not(:disabled):hover .etb-tip { opacity: 1; }
 /* Styled hover tooltip (replaces the native title): the game's dark rounded pill, dropping below the control

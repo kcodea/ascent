@@ -9,7 +9,7 @@ import { instView, liveCardText, type LiveTextParams } from './instView';
 import { HudBar } from './HudBar';
 import { EndTurnButton } from './EndTurnButton';
 import { Icon } from './Icon';
-import { sfx, stopAllAudio, resumeAudio } from './sfx';
+import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
 import { fireBuffFx } from './buffFxRender';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
@@ -128,6 +128,8 @@ function ChargeGlyph({ inCombat, window: chargeWindow, paused }: { inCombat: boo
     if (lit) { setMounted(true); setFading(false); return; }
     if (!mounted) return;                 // already unmounted — nothing to fade
     setFading(true);                       // lit → unlit while on screen: begin the fade-out
+    stopTurnCharge();                      // + fade the long charge-build sound out alongside the visual (it's a
+                                           // fire-and-forget clip that would otherwise keep playing under combat)
     const t = window.setTimeout(() => { setMounted(false); setFading(false); }, CHARGE_FADEOUT_MS);
     return () => window.clearTimeout(t);
   }, [lit, mounted]);
@@ -201,7 +203,12 @@ function ChargeGlyph({ inCombat, window: chargeWindow, paused }: { inCombat: boo
     return () => cancelAnimationFrame(raf);
   }, [lit]);
 
-  if (!mounted) return null;
+  // Render the moment `lit` is true — `mounted` only HOLDS the DOM through the fade-out. `mounted` alone lags one
+  // commit behind `lit` (it's set by an effect), and gating the render on it meant the `[lit]`-keyed motes/paint
+  // effects fired BEFORE the canvas/glyph existed on any re-light where the glyph had been away (turn 2+, where it
+  // lights mid-shop) — the motes engine grabbed null refs and never started. Turn 1 escaped only because the very
+  // first render seeded `mounted` from an already-true `lit`.
+  if (!lit && !mounted) return null;
   return (
     <>
       <div className={`chargeglyph${fading ? ' fading' : ''}`} ref={boxRef} title={`${seconds}s left`} aria-hidden="true">

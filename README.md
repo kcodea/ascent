@@ -56,7 +56,8 @@ _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
   powers got shorter, cleaner text. Hero select shows just Renown + Oath.
 
 - **Charge glyph fades out on End Turn.** Ending the turn now eases the charging sigil away over ~450ms instead
-  of snapping it off-screen.
+  of snapping it off-screen — and the long charge-build **sound** fades out with it (~300ms) instead of playing
+  on under combat.
 - **Turn timer → charging glyph.** The burning rope is gone: the final ~20s now charge the board's etched sigil
   with white-hot blue energy (motes flowing in, a ramped feather, a completion flash), sitting behind the cards on
   the board surface — plus a build sound at charge-start and an explosion at zero. (Timer logic unchanged.)

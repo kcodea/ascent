@@ -253,6 +253,44 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### fix(fx): charge-glyph motes dead on turn 2+ — regression from the #501 fade
+
+**Bug (owner-reported, reproduced on a pinned fresh build):** the glyph's mote particles ("the pixi effect for the
+end of turn glyph") fired on turn 1 but never again on turn 2+. **Root cause: the #501 fade change.** It gated the
+render on a `mounted` state that is set by an effect and therefore lags one commit behind `lit`. On any re-light
+where the glyph had been away (turn 2+, where it lights mid-shop at ~20s), the component still returned `null` on
+the exact commit where `lit` flipped true — so the `[lit]`-keyed motes effect ran BEFORE the canvas existed,
+grabbed null refs, bailed, and never retried (its dep didn't change again). Turn 1 escaped only because the very
+first render seeded `mounted` from an already-true `lit` (wave 1's short timer), so the DOM existed in time. The
+charge FILL survived (its effect re-runs every second and null-checks per frame) — only the motes died, which is
+why it read as "the pixi effect" missing.
+
+**Fix:** render the moment `lit` is true — the gate is now `if (!lit && !mounted) return null`, so `mounted` only
+HOLDS the DOM through the 450ms fade-out and never delays a light-up. The `[lit]` effects now always find their
+refs (React attaches refs at commit, before effects run). Also removes the ≤1s late start the fill had on re-light.
+
+**Verified:** live repro on the pinned 5199 test server (turn 2+ motes back) + `typecheck`/`lint`/`npm test`
+(1109) /`build:web` green. Lesson: a state-lagged mount gate breaks sibling effects keyed on the underlying
+condition — derive render-presence from the condition itself.
+
+### fix(audio): stop the turn-charge build sound when the turn ends (audio companion to the glyph fade)
+
+**Bug (owner-reported):** the end-of-turn charge build (`turncharge.mp3`, a long ~25–40s clip) kept playing under
+combat after **End Turn** was pressed. Root cause: `sfx.turnCharge()` fires the clip **fire-and-forget** the
+moment the glyph lights, and nothing ever stops it — so ending the turn early left the rest of the build ringing.
+Pre-existing from the charge-glyph feature (#499); the earlier visual fade (#501) never touched audio, which is
+exactly why the sigil faded but the sound didn't.
+
+**Fix:** Web Audio sources are fire-and-forget, so `playSample` now optionally hands back its live `{ src, gain }`
+via an `onNodes` callback; `turnCharge` holds those in `turnChargeNodes` (cleared on the clip's natural `onended`)
+and safety-stops any leftover build before starting a new turn's charge (no stacking). A new exported
+`stopTurnCharge(ms=300)` ramps that gain → 0 and stops the source, and `ChargeGlyph`'s fade effect calls it the
+moment the glyph stops being lit (End Turn press **or** natural timer-zero) — so the build now fades out in ~300ms
+alongside the visual fade instead of playing on. No-ops safely on the synth-fallback / muted / no-context paths.
+
+**Verified:** `npm run typecheck && npm run lint && npm test` (1108) `&& npm run build:web` all green. The fade
+itself is an ear-check (headless preview can't verify audio).
+
 ### fix(ui): a dying ATTACKER always returns home before it dies (not just Rise/Deathrattle)
 
 Owner report: a REBORN unit that attacks and dies to retaliation blinked out mid-lunge — jarring — instead of

@@ -28,6 +28,7 @@ const LABELS: Record<keyof HeroPowerBtnConfig, string> = {
   artY: 'art · offset y',
   artScale: 'art · scale',
   artDim: 'art · used opacity',
+  refreshFlash: 'flash · refresh (ms)',
   glowX: 'glow · offset x',
   glowY: 'glow · offset y',
   glowW: 'glow · width fit',

@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): hero power diamond — refresh FLASH when the power re-arms
+
+- Owner ask: the End Turn relight's sibling — a one-shot bloom of the diamond's face whenever the power
+  **comes back up for usage**. Triggered on `canHero` flipping false→true, which covers every re-arm path
+  in one place: the start-of-shop recharge, a mid-shop re-arm (Indy's Gild hitting 40 Gold spent), and
+  re-affording a costed power after gold swings.
+- Implementation mirrors the ETB relight: the face-cut image with a static bright filter mounts for one
+  eased opacity in-and-out (duration = the 💠 tuner's new **`flash · refresh (ms)`** dial, default 450,
+  0 = off) and unmounts after — never a loop.
+- Verified live: no flash at run start while unaffordable (warden, 3 Gold vs cost 4); the flash mounted the
+  moment the wave-2 shop opened with the power newly ready, and unmounted after its one-shot. Typecheck +
+  lint + 1109 tests + build:web green.
+
 ### fix(ui): hero power diamond — dark face restored + tunable used-state fade
 
 - Owner correction on the hollow-frame change: the housing must stay WHOLE — the frame's dark face is the

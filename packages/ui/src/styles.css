@@ -722,6 +722,15 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
   0%, 100% { opacity: var(--hpb-glow-alpha, 0.93); }
   50% { opacity: var(--hpb-glow-dim, 0.83); }
 }
+/* The REFRESH FLASH — a one-shot bloom of the face as the power re-arms (mirrors the End Turn diamond's
+   relight). Static bright filter; the animation (duration from the tuner via --hpb-flash-ms) eases OPACITY
+   in and out, then the layer unmounts — never a loop. */
+.heropowerbtn .hpb-flash {
+  position: absolute; inset: 0; width: 100%; height: 100%; z-index: 4; pointer-events: none;
+  filter: brightness(2.2) saturate(0.5) drop-shadow(0 0 14px rgba(255, 214, 140, 0.85));
+  animation: hpbrefresh var(--hpb-flash-ms, 450ms) ease-out forwards;
+}
+@keyframes hpbrefresh { 0% { opacity: 0; } 25% { opacity: 0.95; } 100% { opacity: 0; } }
 /* An ACTIVE power that's used / unaffordable fades its ART ONLY, to the 💠 tuner's `art · used opacity`
    (--hpb-art-dim) — the housing (frame + dark face) NEVER fades, so the art dims against the dark backing,
    never the board (owner notes 2026-07-16). A PASSIVE hero's art stays full (it's always on, just not

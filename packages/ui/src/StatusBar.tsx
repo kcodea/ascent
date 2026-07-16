@@ -6,7 +6,7 @@ import { Icon } from './Icon';
 import { QuestBadges } from './QuestBadges';
 import { sfx } from './sfx';
 import { useGame } from './store';
-import './heroPowerBtnConfig'; // side-effect: reflects the --hpb-* vars (diamond position/scale/glow) at load
+import { getHeroPowerBtnConfig } from './heroPowerBtnConfig'; // also reflects the --hpb-* vars at load (side-effect)
 
 /** Bottom bar, rooted across the whole round: Embers and Resolve flank the hero. */
 export function StatusBar() {
@@ -75,6 +75,22 @@ export function StatusBar() {
   // The live status line (current magnitude + countdown) shown ON HOVER, with the leading "Name · " stripped
   // (the name is the tip's header). Reuses the same live computations the old always-visible line did.
   const powerStatus = powerLine.startsWith(`${power.name} · `) ? powerLine.slice(power.name.length + 3) : powerLine;
+  // REFRESH FLASH (owner note 2026-07-16, mirroring the End Turn diamond's relight): when the power comes
+  // back up for usage — canHero flipping false→true — the face blooms once. Covers every re-arm path: the
+  // start-of-shop recharge, Indy's Gild re-arming mid-shop, and re-affording a costed power. One-shot on
+  // mount (the layer unmounts after the tuner's `flash · refresh` ms); 0 disables it.
+  const [refreshFlash, setRefreshFlash] = useState(false);
+  const prevCanHero = useRef(false);
+  useEffect(() => {
+    const was = prevCanHero.current;
+    prevCanHero.current = canHero;
+    if (!canHero || was) return;
+    const ms = getHeroPowerBtnConfig().refreshFlash;
+    if (ms <= 0) return;
+    setRefreshFlash(true);
+    const id = window.setTimeout(() => setRefreshFlash(false), ms + 60);
+    return () => window.clearTimeout(id);
+  }, [canHero]);
   // When effective HP drops (Armor or Resolve — a wave broke through), shake the chip + float the −X.
   const prevHp = useRef(run.resolve + run.armor);
   const [hit, setHit] = useState<{ amt: number; key: number } | null>(null);
@@ -161,6 +177,8 @@ export function StatusBar() {
               {heroPowerArt(hero.id)
                 ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={heroPowerArt(hero.id)} alt="" draggable={false} /></span>
                 : <Icon name="sc" />}
+              {/* The REFRESH FLASH — a one-shot bloom of the face as the power re-arms (never a loop). */}
+              {refreshFlash && <img className="hpb-flash" src="/frames/heropowerbutton_face.webp" alt="" draggable={false} aria-hidden="true" />}
             </button>
             {(digCost ?? power.cost) ? <span className="hpcost"><span className="costn">{digCost ?? power.cost}</span></span> : null}
           </div>

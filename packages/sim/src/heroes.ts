@@ -32,7 +32,8 @@ export type HeroPowerKind =
   | 'runeforge' // Runesmith (passive): on turn 7 the Runeforge opens — buy ONE of a random 3 runes (a run-long buff)
   | 'epicRuneforge' // Runeguard (passive): the EPIC Runeforge opens on turn 12 (scheduled via `epicForgeWave` at run start)
   | 'pathfinder' // Coran (passive): a bonus late-bucket (Capstone) quest on turn 10, on top of the normal 5 & 11
-  | 'dynamiteDig'; // Jenkins: 1 Gold Discover a minion of your tier — costs 1 more Gold each use (active, untargeted)
+  | 'dynamiteDig' // Jensen: 1 Gold Discover a minion of your tier — costs 1 more Gold each use (active, untargeted)
+  | 'dragonTamer'; // Tiff: 5 Gold Discover a Dragon — the cost drops 1 per Dragon/spell bought, resetting on use
 
 export interface HeroPower {
   name: string;
@@ -361,6 +362,22 @@ export const HEROES: HeroDef[] = [
       kind: 'pathfinder',
       passive: true, // resolved on the turn-advance quest schedule (a bonus turn-11-bucket quest on turn 10, on top of the normal 5 & 11)
       text: 'On turn 10, choose an extra late-game Quest.',
+    },
+  },
+  {
+    id: 'tiff',
+    name: 'Tiff',
+    blurb: 'Every wyrm answers her whistle — and the tavern picks up the tab.',
+    resolve: 30,
+    armor: 14,
+    power: {
+      name: 'Dragon Tamer',
+      kind: 'dragonTamer',
+      // Fires immediately: Discover a Dragon. NO static `cost` — the shrinking price (5 − a discount per
+      // Dragon/spell bought since the last use, floor 0) is charged in the reducer, and the cost coin shows
+      // the LIVE value (the dynamiteDig pattern; a def-level cost would double-charge via the shared block).
+      untargeted: true,
+      text: '**Discover** a Dragon. Costs **5 Gold** — reduced by 1 when you buy a Dragon or a spell.',
     },
   },
   {

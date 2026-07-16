@@ -3,7 +3,7 @@ import type { CombatResult } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNES, RUNE_INDEX, validateRunes } from '@game/content';
 import { createRun, type RunState } from './state';
 import { openEpicRuneforge, reduce } from './reducer';
-import { spellDisplayText } from './recruit';
+import { dragonTamerCostOf, spellDisplayText } from './recruit';
 import { questBucketFor } from './quests';
 import { applyEndOfTurn, projectEndOfTurnSteps, questEndOfTurnBeats } from './recruit';
 
@@ -205,6 +205,39 @@ describe('New heroes — Coran (Pathfinder) + Jenkins (Dynamite Dig)', () => {
     s = reduce(s, { type: 'heroPower' });
     expect(s.embers).toBe(8); // second use costs 2
     expect(s.heroPowerUses).toBe(2);
+  });
+
+  it('Tiff: Dragon buys and spell buys each shave 1 off Dragon Tamer (other minions do not)', () => {
+    let s: RunState = { ...createRun(1, 'tiff'), wave: 3, tier: 2, phase: 'recruit', embers: 20, heroReady: true,
+      shop: [
+        { uid: 'd1', cardId: 'twilightwhelp' }, // Dragon
+        { uid: 'n1', cardId: 'sandbag' },       // neutral — no discount
+      ],
+      spell: { uid: 'sp1', cardId: 'emberpouch' } };
+    expect(dragonTamerCostOf(s)).toBe(5);
+    s = reduce(s, { type: 'buy', uid: 'd1' }); // Dragon → −1
+    expect(s.tiffDiscount).toBe(1);
+    s = reduce(s, { type: 'buy', uid: 'sp1' }); // spell (right slot) → −1
+    expect(s.tiffDiscount).toBe(2);
+    s = reduce(s, { type: 'buy', uid: 'n1' }); // neutral minion → unchanged
+    expect(s.tiffDiscount).toBe(2);
+    expect(dragonTamerCostOf(s)).toBe(3);
+  });
+
+  it('Tiff: Dragon Tamer opens a DRAGON Discover for the live cost, resets the discount, floors at 0', () => {
+    let s: RunState = { ...createRun(1, 'tiff'), wave: 3, tier: 2, phase: 'recruit', embers: 10, heroReady: true, tiffDiscount: 2 };
+    s = reduce(s, { type: 'heroPower' });
+    expect(s.discover).toBeDefined();
+    expect(s.discover!.every((id) => { const d = CARD_INDEX[id]!; return d.tribe === 'dragon' || d.tribe2 === 'dragon'; })).toBe(true);
+    expect(s.embers).toBe(7); // charged 5 − 2
+    expect(s.tiffDiscount).toBe(0); // the bank resets on use
+    expect(s.heroReady).toBe(false); // once per turn
+    // Floor at 0: with a huge bank the power is FREE.
+    let f: RunState = { ...createRun(1, 'tiff'), wave: 3, tier: 2, phase: 'recruit', embers: 0, heroReady: true, tiffDiscount: 9 };
+    expect(dragonTamerCostOf(f)).toBe(0);
+    f = reduce(f, { type: 'heroPower' });
+    expect(f.discover).toBeDefined(); // fires with 0 Gold
+    expect(f.embers).toBe(0);
   });
 });
 

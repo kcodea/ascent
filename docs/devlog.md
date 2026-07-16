@@ -29,6 +29,32 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   reusable effects table (silhouette glow, sheen sweep, press flash, impactDust/impactPulse, dim states)
   with per-button recipes, and the verification/bake workflow. Written for Mike's Claude session to follow;
   reference implementations are linked by file.
+
+
+
+### feat(sim/ui/content): new hero TIFF (Dragon Tamer) + Resolve pill center-rooted + layout bakes
+
+- **Tiff** — 30 Resolve / 14 Armor. **Dragon Tamer** (new `dragonTamer` kind, untargeted): *"Discover a
+  Dragon. Costs 5 Gold — reduced by 1 when you buy a Dragon or a spell."* The shrinking cost is the
+  `tiffDiscount` bank (+1 per Dragon/spell bought — wired into all four buy paths: normal, held-restore,
+  shop-spell, right-slot spell; floor 0 via the shared `dragonTamerCostOf`), charged in the reducer (no
+  def-level cost — the shared block would double-charge, the dynamiteDig lesson) and RESET on use. The
+  Discover is dragon-filtered at the current shop tier; Rune of Empowerment doubles it like the dig. The
+  cost coin + status line read the LIVE cost ("FREE" at 0). Art wired: Tiff.png / TiffHP.png → 512 webps.
+- **Resolve pill center-rooted** (owner note): re-anchored from the square's right edge to its CENTRE with
+  a translate(-50%,-50%) base — measuring the owner's tuned −121 offset showed the pill's centre sat at
+  EXACTLY the square's midline (46u), so the re-baked offset is simply 0. Now the armor chip appearing/
+  vanishing grows the pill symmetrically (verified: 0px centre drift with and without armor — the earlier
+  3.9px reading was the hit-shake mid-animation).
+- **Bakes**: hero-panel resolveX (−121 → centre-anchored 0) and the Layout Lab `qbY` −746 (the owner's
+  quest-node re-seat; defs + CSS fallbacks).
+- Two new hero tests (discount accrual per buy path incl. no-discount for neutrals; the power's live
+  charge / dragon-filtered Discover / bank reset / free-at-0-floor). Verified live end-to-end: coin 5→4 on
+  a Dragon buy, dragon-only Discover for 4 Gold, bank reset, both arts rendering. Typecheck + lint + 1112
+  tests + build:web green.
+
+
+
 ### fix(ui/content): quest-node reach, Compendium spacing, golden Trail Forager text
 
 - **Quest/rune nodes can reach the relocated hero portrait**: the Layout Lab's Quest-node ranges widened

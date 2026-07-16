@@ -392,6 +392,9 @@ export interface RunState {
   /** Total hero-power activations this game — gates powers with a `maxUses` cap (Gildmaster: 2 total,
    *  still once per turn). Absent = 0. Never reset (a whole-game budget, unlike `heroReady`). */
   heroPowerUses?: number;
+  /** Tiff (Dragon Tamer): Dragons/spells BOUGHT since the last power use — each drops the power's 5-Gold
+   *  cost by 1 (floor 0, see `dragonTamerCostOf`). Reset to 0 when the power fires; persists across turns. */
+  tiffDiscount?: number;
   /** Fodder consumed so far this wave (reset in advanceCombat). The Abhorrent Horror reads this at
    *  Start of Combat to gain the fodder's stats. */
   fodderConsumedThisTurn?: { attack: number; health: number };

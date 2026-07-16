@@ -51,7 +51,7 @@ const DEFAULTS: HeroPanelConfig = {
   portraitX: 0, portraitY: 0, portraitScale: 1.16,
   playerNameX: 0, playerNameY: 0, playerNameScale: 0.59,
   heroNameX: 0, heroNameY: 0, heroNameScale: 0.67,
-  resolveX: -119, resolveY: 65, resolveScale: 0.51,
+  resolveX: 0, resolveY: 65, resolveScale: 0.51,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -126,7 +126,7 @@ export function applyHeroPanelVars(): void {
   root.setProperty('--hpn-portrait-t', t(cfg.portraitX, cfg.portraitY, cfg.portraitScale));
   root.setProperty('--hpn-pname-t', t(cfg.playerNameX, cfg.playerNameY, cfg.playerNameScale, 'translate(-50%, -55%)'));
   root.setProperty('--hpn-hname-t', t(cfg.heroNameX, cfg.heroNameY, cfg.heroNameScale, 'translate(-50%, 52%)'));
-  root.setProperty('--hpn-hp-t', t(cfg.resolveX, cfg.resolveY, cfg.resolveScale, 'translateY(-50%)'));
+  root.setProperty('--hpn-hp-t', t(cfg.resolveX, cfg.resolveY, cfg.resolveScale, 'translate(-50%, -50%)'));
 }
 
 export function setHeroPanelValue(key: keyof HeroPanelConfig, value: number): void {

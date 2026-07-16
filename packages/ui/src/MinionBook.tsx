@@ -2,9 +2,12 @@ import { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CardDef, Keyword, QuestReward, Tribe } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, SPELL_CARDS } from '@game/content';
+import { HEROES } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
+import { heroArt } from './art';
+import { renameTerms } from './terms';
 import { Icon } from './Icon';
 import { useGame } from './store';
 
@@ -73,7 +76,7 @@ const SPELL_POOL_IDS = new Set(SPELL_CARDS.map((c) => c.id));
 
 /** Left-rail category: a real tribe, the tribe-less "spells" bucket, the "rewards" (quest-reward cards) bucket,
  *  or the "quests" bucket (the quest DEFINITIONS themselves — objective + art, rendered as QuestCards). */
-type Category = Tribe | 'spells' | 'rewards' | 'quests' | 'runes' | 'runeRewards';
+type Category = Tribe | 'spells' | 'rewards' | 'quests' | 'runes' | 'runeRewards' | 'heroes';
 
 const CAT_META: Record<Category, { label: string; icon: string }> = {
   beast: { label: 'Beasts', icon: 'paw' },
@@ -87,10 +90,11 @@ const CAT_META: Record<Category, { label: string; icon: string }> = {
   quests: { label: 'Quests', icon: 'target' },
   runes: { label: 'Runes', icon: 'anvil' },
   runeRewards: { label: 'Rune Rewards', icon: 'gift' },
+  heroes: { label: 'Heroes', icon: 'shield' },
 };
 
 /** Left-rail categories that are NOT tribes — used to derive the selected-tribe subset from `cats`. */
-const NON_TRIBE_CATS = new Set<Category>(['spells', 'rewards', 'quests', 'runes', 'runeRewards']);
+const NON_TRIBE_CATS = new Set<Category>(['spells', 'rewards', 'quests', 'runes', 'runeRewards', 'heroes']);
 
 const TIERS = [1, 2, 3, 4, 5, 6] as const;
 /** Every non-neutral tribe — the left-rail set when browsing the full game (from the title, pre-run). */
@@ -246,7 +250,16 @@ export function MinionBook() {
 
   // Left-rail categories: the active (or all) tribes, then Neutral (always findable), then Spells, Quest Rewards,
   // and Quests (the quest definitions themselves).
-  const categories: Category[] = useMemo(() => [...tribes, 'neutral', 'spells', 'rewards', 'quests', 'runes', 'runeRewards'], [tribes]);
+  const categories: Category[] = useMemo(() => [...tribes, 'neutral', 'spells', 'rewards', 'quests', 'runes', 'runeRewards', 'heroes'], [tribes]);
+
+  // Heroes for the Heroes tab — every shippable hero (WIP ones are withheld, like the picker), searchable by
+  // name or power. Not run-scoped (heroes aren't tribe-bound), same as the Runes tab.
+  const heroesToShow = useMemo(() => {
+    const m = makeSearchMatcher(search);
+    return HEROES.filter((h) => !h.wip)
+      .filter((h) => m(h.name) || m(h.power.name) || m(h.power.text))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [search]);
 
   // Every rune (both forges) for the Runes tab — Basic set first, then Epic, each alphabetical. Not run-scoped
   // (runes aren't tribe-bound); shown as read-only RuneCards.
@@ -300,7 +313,7 @@ export function MinionBook() {
     // ignoring the tribe chips + Spells/Rewards mode toggles, so typing "Imp" surfaces every match. Tier chips
     // still narrow it. Overrides the category logic below.
     if (query) {
-      if (cats.has('quests') || cats.has('runes')) return []; // those tabs filter their own lists by the query
+      if (cats.has('quests') || cats.has('runes') || cats.has('heroes')) return []; // those tabs filter their own lists by the query
       return allCards
         .filter((c) => (tiers.size === 0 || tiers.has(c.tier)) && matchText(c))
         .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
@@ -309,7 +322,7 @@ export function MinionBook() {
     // (or both pools, if both are on) and hides the minion gallery entirely. With neither selected, the gallery
     // is minions-only — spells and quest rewards never leak into a tribe search unless the player toggles them on.
     // Membership is by pool set (not the `spell` flag), so a minion that's also a reward shows correctly in both.
-    if (cats.has('quests') || cats.has('runes')) return []; // the Quests / Runes tabs render their own galleries below
+    if (cats.has('quests') || cats.has('runes') || cats.has('heroes')) return []; // the Quests / Runes / Heroes tabs render their own galleries below
     const showSpells = cats.has('spells');
     const showRewards = cats.has('rewards');
     const showRuneRewards = cats.has('runeRewards');
@@ -361,10 +374,12 @@ export function MinionBook() {
             {glossary
               ? 'Keywords & abilities — click one to see its minions'
               : query
-                ? `${(cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : filtered.length)} result${
-                    (cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : filtered.length) === 1 ? '' : 's'
+                ? `${(cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length)} result${
+                    (cats.has('quests') ? questsToShow.length : cats.has('runes') ? runesToShow.length : cats.has('heroes') ? heroesToShow.length : filtered.length) === 1 ? '' : 's'
                   } for "${search.trim().replace(/^"(.*)"$/, '$1')}"`
-              : cats.has('runes')
+              : cats.has('heroes')
+                ? `${heroesToShow.length} heroes — every champion and their power`
+                : cats.has('runes')
                 ? `${runesToShow.length} runes — the Basic + Epic Runeforge stock`
                 : cats.has('quests')
                 ? `${questsToShow.length} quests ${showTitle ? 'in the game' : 'available this run'}`
@@ -437,7 +452,7 @@ export function MinionBook() {
           <>
         {/* Tier filters across the top (multi-select); the active keyword filter rides at the far right. Hidden in
             the Quests + Runes tabs — those pools aren't organized by the 1–6 card tiers. */}
-        {!cats.has('quests') && !cats.has('runes') && (
+        {!cats.has('quests') && !cats.has('runes') && !cats.has('heroes') && (
         <div className="book-tiers">
           <span className="book-axislabel">Tier</span>
           {TIERS.map((t) => (
@@ -465,7 +480,7 @@ export function MinionBook() {
               <button
                 key={c}
                 className={`book-cat${cats.has(c) ? ' on' : ''}`}
-                style={{ '--c': c === 'spells' ? 'var(--acc)' : c === 'rewards' ? 'var(--gold)' : c === 'quests' ? 'var(--acc-dk)' : c === 'runes' ? '#b078e6' : c === 'runeRewards' ? '#c9a4ec' : `var(--t-${c})` } as CSSProperties}
+                style={{ '--c': c === 'spells' ? 'var(--acc)' : c === 'rewards' ? 'var(--gold)' : c === 'quests' ? 'var(--acc-dk)' : c === 'runes' ? '#b078e6' : c === 'runeRewards' ? '#c9a4ec' : c === 'heroes' ? '#e0b34a' : `var(--t-${c})` } as CSSProperties}
                 onClick={() => toggleCat(c)}
                 aria-pressed={cats.has(c)}
                 title={CAT_META[c].label}
@@ -476,8 +491,37 @@ export function MinionBook() {
             ))}
           </div>
 
-          {/* The scrolling gallery — cards, the quest DEFINITIONS (Quests tab), or the runes (Runes tab). */}
-          {cats.has('runes') ? (
+          {/* The scrolling gallery — cards, the quest DEFINITIONS (Quests tab), the runes (Runes tab), or the
+              heroes (Heroes tab). */}
+          {cats.has('heroes') ? (
+            heroesToShow.length > 0 ? (
+              <div className="book-grid">
+                {heroesToShow.map((h) => {
+                  const art = heroArt(h.id);
+                  return (
+                    <div className="book-cell" key={h.id}>
+                      <div className="bookhero">
+                        <div className="bookhero-art">
+                          {art ? <img src={art} alt={h.name} draggable={false} /> : <Icon name="shield" />}
+                        </div>
+                        <div className="bookhero-name">{h.name}</div>
+                        <div className="bookhero-hp" title="Starting Resolve (HP) + Armor">
+                          <Icon name="heart" />{h.resolve}
+                          {h.armor > 0 && <span className="bookhero-armor" title="Starting Armor">+{h.armor}</span>}
+                        </div>
+                        <div className="bookhero-pw"><b>{h.power.name}</b> · {renameTerms(h.power.text)}</div>
+                        {h.power.unlockWave && h.power.unlockWave > 1 && (
+                          <div className="bookhero-lock">Unlocks turn {h.power.unlockWave}</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="book-empty">No heroes match your search.</div>
+            )
+          ) : cats.has('runes') ? (
             <div className="book-grid">
               {runesToShow.map((r) => (
                 <div className="book-cell" key={r.id}>

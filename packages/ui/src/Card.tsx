@@ -466,6 +466,10 @@ export const Card = memo(function Card({
             {/* grounding shadow (see styles.css "GROUNDING SHADOW"): a black, blurred copy of the frame seated
                 behind the art, so the shield reads as sitting on the board rather than floating. */}
             <img className="tframe tframe-img cshadow" src={TAUNT_FRAME_SRC} alt="" aria-hidden="true" />
+            {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
+                (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
+                copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
+            <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
             <img
               className="tframe tframe-img"
               src={TAUNT_FRAME_SRC}
@@ -509,6 +513,10 @@ export const Card = memo(function Card({
             {/* grounding shadow (see styles.css "GROUNDING SHADOW") — a black, blurred copy of the oval seated
                 behind the art so the card sits on the board. */}
             <img className="cframe cframe-img cshadow" src={STD_FRAME_SRC} alt="" aria-hidden="true" />
+            {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
+                (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
+                copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
+            <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
             <img
               className="cframe cframe-img"
               src={STD_FRAME_SRC}
@@ -528,6 +536,10 @@ export const Card = memo(function Card({
             {/* grounding shadow (see styles.css "GROUNDING SHADOW") — a black, blurred copy of the square seated
                 behind the art so the spell sits on the board. */}
             <img className="cframe cframe-img cshadow" src={SPELL_FRAME_SRC} alt="" aria-hidden="true" />
+            {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
+                (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
+                copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
+            <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
             <img
               className="cframe cframe-img"
               src={SPELL_FRAME_SRC}

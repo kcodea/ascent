@@ -549,10 +549,13 @@ body.dragging .etbwrap { pointer-events: none; } /* a card dragged across it dro
 /* Non-pressed disabled (quest/rune offer open) greys the gem; the PRESSED gem in combat shows its art as-is. */
 .etbwrap:disabled:not(.pressed) .etb-art { filter: grayscale(0.4) brightness(0.8); }
 .etbwrap .etb-art { position: absolute; inset: 0; width: 100%; height: 100%; -webkit-user-drag: none; z-index: 2; }
-/* Pressed (end-of-turn beats → all of combat) or the tuner's preview: the dim gem, glow killed. */
-.etbwrap .etb-art.dim { display: none; }
+/* Pressed (end-of-turn beats → all of combat) or the tuner's preview: the dim gem, glow killed. Two pressed
+   variants — pressed2 (dim, default) vs pressed3 (cracked); the 💎 tuner's switch sets `html.etb-p3`
+   (endTurnConfig reflects `pressedVariant`, dev-persisted; production ships the default). */
+.etbwrap .etb-art.dim, .etbwrap .etb-art.dim3 { display: none; }
 .etbwrap.pressed .etb-art.lit, body.etb-pressed-preview .etbwrap .etb-art.lit { display: none; }
-.etbwrap.pressed .etb-art.dim, body.etb-pressed-preview .etbwrap .etb-art.dim { display: block; }
+html:not(.etb-p3) .etbwrap.pressed .etb-art.dim, html:not(.etb-p3) body.etb-pressed-preview .etbwrap .etb-art.dim { display: block; }
+html.etb-p3 .etbwrap.pressed .etb-art.dim3, html.etb-p3 body.etb-pressed-preview .etbwrap .etb-art.dim3 { display: block; }
 /* The DIAMOND GLOW — the GEM-ONLY cut of the art (end_button_gem.webp) whose stacked drop-shadow follows
    the alpha silhouette, so the halo hugs the blue diamond itself, NOT the bronze housing (owner note
    2026-07-16). Seated ABOVE the art (the gem's light spills over the housing). HOVER-ONLY: hidden at rest
@@ -561,9 +564,14 @@ body.dragging .etbwrap { pointer-events: none; } /* a card dragged across it dro
 .etbwrap .etb-glow {
   position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none;
   /* Alignment dials (💎 tuner): nudge in design px (× --u) + width/height fit, so the halo can be seated
-     square on the gem. Near-identity values keep the overlaid gem pixels invisible on the art below. */
+     square on the gem. */
   transform: translate(calc(var(--etb-glow-x, 0) * var(--u)), calc(var(--etb-glow-y, 0) * var(--u))) scale(var(--etb-glow-w, 1), var(--etb-glow-h, 1));
   filter: var(--etb-glow-filter, drop-shadow(0 0 14px #38b6ff) drop-shadow(0 0 14px #38b6ff) drop-shadow(0 0 14px #38b6ff));
+  /* Only the HALO paints: the drop-shadows are computed from the gem image's alpha (filter runs first), then
+     this mask — full canvas MINUS the gem shape (mask-composite: exclude) — cuts the source pixels back out.
+     So the offset/fit dials move the glow alone; there's no "copied diamond" riding the art (owner note). */
+  mask-image: linear-gradient(#fff, #fff), url('/frames/end_button_gem.webp');
+  mask-size: 100% 100%; mask-repeat: no-repeat; mask-composite: exclude;
   opacity: 0; transition: opacity 0.22s ease;
 }
 .etbwrap:not(:disabled):hover .etb-glow {

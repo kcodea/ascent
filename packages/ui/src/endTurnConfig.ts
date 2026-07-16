@@ -74,6 +74,9 @@ export interface EndTurnConfig {
   strikeRingRadius: number;
   /** Strike — shockwave ring LIFETIME (×): slower = a statelier expanding wave. */
   strikeRingLife: number;
+  /** Pressed-art variant: 2 = the dim gem (end_button_pressed2), 3 = the cracked gem (end_button_pressed3).
+   *  A tuner switch for A/B-ing pressed looks; reflected as `html.etb-p3` so CSS flips the art. */
+  pressedVariant: number;
 }
 
 const DEFAULTS: EndTurnConfig = {
@@ -105,6 +108,7 @@ const DEFAULTS: EndTurnConfig = {
   strikeRings: 2,
   strikeRingRadius: 1.5,
   strikeRingLife: 1,
+  pressedVariant: 2,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */
@@ -135,6 +139,7 @@ export const ETB_RANGES: Record<Exclude<keyof EndTurnConfig, 'glowColor' | 'bolt
   strikeRings: [0, 2, 1],
   strikeRingRadius: [0, 4, 0.05],
   strikeRingLife: [0.2, 3, 0.05],
+  pressedVariant: [2, 3, 1], // rendered as a switch row in the tuner, not a slider
 };
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
@@ -167,6 +172,7 @@ export const ETB_DESC: Record<keyof EndTurnConfig, string> = {
   strikeRings: 'Strike — shockwave ring count (0–2). 0 = no ripple.',
   strikeRingRadius: 'Strike — shockwave radius (×): how far the ripple expands.',
   strikeRingLife: 'Strike — shockwave lifetime (×): slower = a statelier wave.',
+  pressedVariant: 'Pressed art: OFF = the dim gem (pressed2), ON = the cracked gem (pressed3).',
 };
 
 /** Keys grouped by control type for the tuner UI. */
@@ -228,6 +234,8 @@ export function applyEndTurnVars(): void {
   const one = `drop-shadow(0 0 ${cfg.glowBlur}px ${rgba(cfg.glowColor, 1)})`;
   root.setProperty('--etb-glow-filter', Array(Math.max(1, Math.round(cfg.glowStrength))).fill(one).join(' '));
   root.setProperty('--etb-flash-ms', `${Math.max(1, cfg.strikeFlash)}ms`);
+  // Pressed-art variant switch — a class, not a var, so plain CSS display rules can flip the art.
+  document.documentElement.classList.toggle('etb-p3', cfg.pressedVariant >= 3);
 }
 
 export function setEndTurnValue(key: keyof EndTurnConfig, value: number | string): void {

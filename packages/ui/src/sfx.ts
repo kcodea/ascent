@@ -204,13 +204,14 @@ if (typeof window !== 'undefined') {
 // played by sfx.cardVoice on the `play` action — a unique voiceline/SFX layered over the general landing sound).
 const SAMPLE_URLS = {
   ...import.meta.glob('./audio/*.mp3', { eager: true, query: '?url', import: 'default' }),
+  ...import.meta.glob('./audio/*.wav', { eager: true, query: '?url', import: 'default' }), // wav decodes natively too (endbuttonhit2.wav)
   ...import.meta.glob('./audio/cards/*.mp3', { eager: true, query: '?url', import: 'default' }),
   ...import.meta.glob('./audio/heroes/*.mp3', { eager: true, query: '?url', import: 'default' }),
 } as Record<string, string>;
 const buffers = new Map<string, AudioBuffer>();
 const loadingSamples = new Set<string>();
 // Key = path under ./audio/ minus extension: `./audio/roll.mp3` → `roll`, `./audio/cards/karthus.mp3` → `cards/karthus`.
-const sampleName = (path: string): string => path.replace(/^\.\/audio\//, '').replace(/\.mp3$/, '');
+const sampleName = (path: string): string => path.replace(/^\.\/audio\//, '').replace(/\.(mp3|wav)$/, '');
 
 function loadSample(name: string): void {
   const a = audio();
@@ -501,6 +502,12 @@ export const sfx = {
     if (playSample('combatStart', 'combatStart')) return;
     tone({ freq: 200, dur: 0.45, type: 'sawtooth', vol: 0.16, slideTo: 90, category: 'combatStart' });
   },
+  // The End Turn DIAMOND is struck — the sourced "endbuttonhit" family (endbuttonhit2.wav today; numbered
+  // siblings auto-group as variants). Short synth thock fallback until it decodes.
+  endButtonHit: () => {
+    if (playSample(pickVariant('endbuttonhit'), 'endbutton')) return;
+    tone({ freq: 300, dur: 0.16, type: 'square', vol: 0.12, slideTo: 140, category: 'endbutton' });
+  },
   // A unit begins its attack — the wind-up. Sourced "windup" clip; synth sawtooth blip fallback until it decodes
   // / if absent. Fired at the start of every attack event (see choreo/channels/sfx.ts).
   attack: () => {
@@ -584,6 +591,7 @@ const SFX_PREVIEW: Record<string, () => void> = {
   discover: sfx.discover, taunt: sfx.taunt, reorder: sfx.reorder, deny: sfx.deny, freeze: sfx.freeze,
   unfreeze: sfx.unfreeze, pulse: sfx.pulse, triggerpulse: sfx.triggerPulse, triggerglow: sfx.triggerGlow, clickthock: sfx.clickThock, cardtouch: sfx.cardTouch, divineshieldbreak: sfx.shieldBreak, rebornshatter: sfx.rebornShatter, rebornsummon: sfx.rebornSummon, skullburst: sfx.skullBurst, inspect: sfx.inspect, upgrade: sfx.upgrade, roll: sfx.roll,
   combatStart: sfx.combatStart,
+  endbutton: sfx.endButtonHit,
   // cardVoice is per-card; preview plays whichever card clip is present (first one found), or nothing.
   cardVoice: () => {
     const first = Object.keys(SAMPLE_URLS).map(sampleName).find((n) => n.startsWith('cards/') && !n.endsWith('.effect') && !n.endsWith('.death'));

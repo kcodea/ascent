@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { getEndTurnConfig, rgba } from './endTurnConfig';
 import { pixiFx } from './pixiFx';
+import { sfx } from './sfx';
 
 /**
  * The standalone END TURN / START COMBAT diamond — the gem-in-bronze button pinned to the board's
@@ -41,6 +42,7 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent }: {
   // RIPPLE (pixiFx.impactPulse — the combat clack's expanding energy rings), all at the gem's live centre.
   const click = (): void => {
     const cfg = getEndTurnConfig();
+    sfx.endButtonHit(); // the strike's thunder-crack (mixer category: endbutton)
     const r = wrapRef.current?.getBoundingClientRect();
     if (r) {
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
@@ -170,14 +172,17 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent }: {
     >
       <canvas ref={canvasRef} className="etb-bolts" aria-hidden="true" />
       {/* Hover glow — the GEM-ONLY cut of the art (end_button_gem, owner note 2026-07-16), so the stacked
-          drop-shadow halo hugs the blue diamond itself, not the bronze housing. Sits ABOVE the art: the
-          gem's light spills over the housing instead of hiding behind it. */}
+          drop-shadow halo hugs the blue diamond itself, not the bronze housing. Sits ABOVE the art, and a
+          CSS mask cuts the SOURCE gem pixels back out of the layer — only the halo paints, so the tuner's
+          offset/fit dials move the glow alone, never a copied diamond (owner note, round 4). */}
       <img className="etb-glow" src="/frames/end_button_gem.webp" alt="" draggable={false} aria-hidden="true" />
-      {/* Both arts stay mounted; CSS flips them on `.pressed` (or the tuner's body-class preview) — no
+      {/* All arts stay mounted; CSS flips them on `.pressed` (or the tuner's body-class preview) — no
           src-swap flash, and the pressed art is already decoded when the click lands. The pressed gem
-          (end_button_pressed2) holds through the whole combat screen; the lit gem returns with the shop. */}
+          (pressed2 by default; pressed3 — the cracked gem — via the tuner's variant switch) holds through
+          the whole combat screen; the lit gem returns with the shop. */}
       <img className="etb-art lit" src="/frames/end_button.webp" alt="" draggable={false} />
       <img className="etb-art dim" src="/frames/end_button_pressed2.webp" alt="" draggable={false} />
+      <img className="etb-art dim3" src="/frames/end_button_pressed3.webp" alt="" draggable={false} />
       {/* The strike FLASH — a white-hot pop of the gem that masks the lit→dim swap. Mounted only for the
           one-shot (its animation runs on mount and it unmounts right after — never a loop). */}
       {striking && <img className="etb-flash" src="/frames/end_button_gem.webp" alt="" draggable={false} aria-hidden="true" />}

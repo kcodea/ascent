@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): End Turn diamond — hit sound, halo-only glow (mask fix), pressed3 switch
+
+- Round four of owner notes on the diamond:
+  1. **`endbuttonhit2` wired into the mixer** — the strike now plays the sourced clip on press
+     (`sfx.endButtonHit`, category `endbutton` on the `ui` bus → its own fader + ▶ preview strip in the
+     🎛️ Mixing Desk). The sample glob learned `.wav` (decodes natively; 2.06s stereo). Named as the
+     `endbuttonhit` variant family, so numbered siblings auto-group later.
+  2. **Glow dials now move the GLOW, not a gem copy** — the glow layer's drop-shadows are computed from the
+     gem image's alpha, then a CSS mask (full canvas MINUS the gem shape via `mask-composite: exclude`) cuts
+     the source pixels back out, so only the halo paints. The offset/fit sliders now steer the halo alone —
+     the "copied diamond" that rode the dials is gone.
+  3. **`end_button_pressed3` (cracked gem) wired as a tuner switch** — new `pressed art · cracked gem`
+     checkbox (config `pressedVariant`, dev-persisted, reflected as `html.etb-p3` so pure CSS flips the
+     art; production ships pressed2). The source png is 1254² with its own framing, so it was trimmed and
+     pad-centred into the shared 468×512 box to align with the other arts.
+- Verified live: mask live (`mask-composite: exclude`); an 18px offset + 1.12 width-fit moved ONLY the halo;
+  variant switch flips dim2→dim3 in pressed preview; the wav fetches (200, audio/wav) and decodes; the
+  `endbutton` desk strip exists and its ▶ fires clean. Typecheck + lint + 1109 tests + build:web green.
+- Note for later: the hit clip ships as a 730KB wav — worth an mp3/ogg re-encode pass when convenient.
+
 ### feat(ui): End Turn diamond — glow alignment + full strike dials in the 💎 tuner
 
 - Owner report: the glow wasn't seated square on the gem. Two fixes + full tunability:

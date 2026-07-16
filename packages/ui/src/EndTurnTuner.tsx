@@ -50,6 +50,7 @@ const LABELS: Record<keyof EndTurnConfig, string> = {
   strikeRings: 'strike · ripple rings',
   strikeRingRadius: 'strike · ripple size',
   strikeRingLife: 'strike · ripple life',
+  pressedVariant: 'pressed art · cracked gem',
 };
 
 export function EndTurnTuner() {
@@ -92,6 +93,11 @@ export function EndTurnTuner() {
         <span className="sfxmix-name" title="Pin the hover-only glow on so its sliders can be tuned without holding hover.">glow always on</span>
         <input type="checkbox" checked={glowPreview} onChange={(e) => setGlowPreview(e.target.checked)} />
         <span className="sfxmix-val">{glowPreview ? 'on' : 'off'}</span>
+      </div>
+      <div className="sfxmix-row">
+        <span className="sfxmix-name" title={ETB_DESC.pressedVariant}>{LABELS.pressedVariant}</span>
+        <input type="checkbox" checked={cfg.pressedVariant >= 3} onChange={(e) => set('pressedVariant', e.target.checked ? 3 : 2)} />
+        <span className="sfxmix-val">{cfg.pressedVariant >= 3 ? 'pressed3' : 'pressed2'}</span>
       </div>
       {ETB_NUM_KEYS.map((k) => {
         const [min, max, step] = ETB_RANGES[k];

@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### docs: handoff brief for the shop-button remakes (Mike)
+
+- New [`docs/handoff-shop-buttons.md`](handoff-shop-buttons.md): the full recipe for remaking the
+  Tavern Up / Refresh / Freeze buttons the way the End Turn (💎) and Hero Power (💠) diamonds were built —
+  asset conversion (sharp → public/frames webp, shared canvas box for multi-state arts), the layered-button
+  component pattern, the config + tuner + DevMenu trio (dev-only persistence, CSS-fallback mirroring), the
+  reusable effects table (silhouette glow, sheen sweep, press flash, impactDust/impactPulse, dim states)
+  with per-button recipes, and the verification/bake workflow. Written for Mike's Claude session to follow;
+  reference implementations are linked by file.
+
+
+
 ### feat(ui): PLAY-mode champion select — bare portraits + the in-game teal hover glow
 
 > Round 3 (same day): the teal glow is REMOVED per owner — the hover is just the lift + the power-art

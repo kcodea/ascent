@@ -5,6 +5,138 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): PLAY-mode champion select — bare portraits + the in-game teal hover glow
+
+> Round 3 (same day): the teal glow is REMOVED per owner — the hover is just the lift + the power-art
+> crossfade + the text fade; otherwise "perfect".
+
+- Owner round 2 on the select: the cream cards and Choose buttons are GONE — just the three framed portraits
+  (name pill on the frame's top edge, HP+Armor pill on the bottom) floating on the board. Hovering a
+  portrait lights the **in-game hover glow** (the same `--hg-*` teal line + bloom recipe cards use — a
+  one-shot filter, so the tuned 🔆 Hover Glow values apply here too), crossfades the power art in over the
+  portrait, and fades the power text in below — now styled LIGHT with a grounding shadow since it sits on
+  the bare board. Clicking the portrait picks the hero. Practice's dense grid untouched.
+- Verified live: no cream card/border/Choose on the big cards; a forced-hover preview showed the teal glow
+  hugging the frame + pills with Chronos's Timelapse art + text below. Typecheck + lint + 1109 tests +
+  build:web green.
+
+### feat(ui): hero + power art re-wire, and the PLAY-mode champion select rebuilt
+
+- **Art re-wire** (owner drop 2026-07-16): all 24 hero portraits from `Ascent Art/Heroes` and 20 hero-power
+  arts from `Heroes/Hero Powers` converted to 512² webp over the existing filenames (the eager globs pick
+  them up — NEW glob keys needed the dev-server restart, per the stale-glob rule). Filename→id mapping incl.
+  LordOfTheRisen→risen, Chronos→chronoshero, GuardianHP→runeguard, JensenHP→jenkins, RascalHP→baggerben,
+  TradesmanHP→hermithank, Pathfinder→coran, YirinHP→rohan. `Yirin.png` (newer) won the Rohan/Yirin duplicate
+  for id `rohan`. The three WIP heroes (warden/myra/chaos) have no new power art — their old files remain.
+- **Champion select (PLAY mode only — Practice's dense grid is untouched)**: the big card is rebuilt —
+  larger hero art (245² in its own gold-bordered frame), the hero-name pill eclipsing the frame's TOP edge
+  and the HP+Armor pill its BOTTOM edge (the hero-panel pill language), and hovering the card CROSSFADES
+  the hero-power art in over the portrait while the power name/text (+ unlock note) fades in below
+  (opacity-only transitions; the text block reserves its height so the card never jumps).
+- Verified live: 3 big cards with framed new art + eclipsing pills; a forced-hover preview showed Drakko's
+  Drumline art + bolded text below; power imgs present for all three after the server restart. Typecheck +
+  lint + 1109 tests + build:web green.
+
+### chore(ui/content): opponent-frame tooltips removed + Jenkins → Jensen
+
+- All six native `title` tooltips on the opponent panel are gone (the frame's "by <author>" provenance,
+  the threat-board hint, Life/Tier/Wins stat hovers, and the Triples count) — owner note 2026-07-16; the
+  unused `provenance` string was retired with them.
+- Renames (display-only; the hero id stays `jenkins` and the card id is unchanged, so saves/art/tests are
+  untouched): hero **Jenkins → Jensen**, card **Jenkins & Fi → Jensen & Fi**. Nadja's power settled on
+  **Goldspring** (Gold Font → Wellspring → Goldspring).
+- Verified live: zero `title` attributes inside `.oppframe`; a jenkins run shows "Jensen" in the hero pill.
+  Typecheck + lint + 1109 tests + build:web green.
+
+### fix(ui): hero pills — no tooltip, text auto-fits; hero power **keywords** render bold
+
+- Three owner notes:
+  1. **Hero-name tooltip removed** — the pill no longer carries a native `title` (it existed because long
+     names ellipsized; the fit below makes it unnecessary).
+  2. **Pill text auto-fits** — a tiny `useFitText` hook shrinks the FONT (never ellipsizes) when a name
+     overflows the pill's max-width: one padding-aware content-box ratio measurement (a whole-box ratio
+     under-shrinks because padding doesn't scale with the font), re-run on name change + window resize.
+     Applied to BOTH the hero-name and player-name pills. "Lord of the Risen" now fits in full; short names
+     keep the stylesheet size untouched.
+  3. **`**keyword**` renders BOLD** everywhere hero power text shows: the status-bar hover tip, Hero Select,
+     and the Compendium's Heroes tab all route through `mdBold` (which also applies the vocab renames); the
+     button's aria-label strips the asterisks instead.
+- Verified live: risen shows the full name at a fitted 7.4px with no title attr; the tip renders
+  `<b>Rise</b>` with no asterisks; warden keeps the stylesheet size. Typecheck + lint + 1109 tests +
+  build:web green.
+
+### chore(sim/ui): hero + power renames pass, and the hero panel re-seated to the board's left rail
+
+- **Renames** (display-only; ids stable, kinds/behavior untouched — no test asserted the old names):
+  Djinn→**Djinni**, Bagger Ben→**Rascal**, Runeguard→**Guardian**; powers Gild→**Masterwork**, Gold Font→
+  **Wellspring**, Displace→**Swap**, Rise Again→**Undying**, Bag It→**All In**, Encore (Chronos)→
+  **Timelapse**, Runeforge→**Forgemaster**, Defend the Forge→**Runeguard**. The rest of the owner's table
+  (Pulse, Cadence, Drumline, Chaos Bond, all texts) already matched the shipped data.
+- **Panel re-bake**: the owner moved the hero panel UP the left rail — panel −23/−569 @ 2.27× (it now sits
+  above the power diamond at the board's mid-left instead of the bottom corner), Resolve housing −119/+65 @
+  0.51×. Baked into `heroPanelConfig` DEFAULTS + the CSS fallbacks.
+- Verified with clean localStorage: the panel renders at its new spot stacked over the diamond; an 8-hero
+  sweep confirmed every rename (Rascal/All In, Guardian/Runeguard, Lord of the Risen/Undying, Djinni/
+  Cadence, Indy/Masterwork, Darah/Swap, Chronos/Timelapse, Runesmith/Forgemaster). Typecheck + lint +
+  1109 tests + build:web green.
+
+### chore(ui): hero panel + hero power — owner-tuned values baked as the shipped defaults
+
+- The owner's 🧍 and 💠 exports are now the shipped look, baked into both configs' DEFAULTS and the
+  styles.css `var(--hpn-*/--hpb-*, …)` fallbacks (so clean builds render identically with no localStorage).
+- **Hero panel**: whole panel +19/−19 at **2.27×** (the tray is now the corner's centrepiece), portrait
+  1.16× inside the square, player-name pill 0.59×, hero-name pill 0.67×, Resolve housing −27/+36 at 0.68×.
+- **Hero power diamond**: seated at −99/53 @ 1.13× (just inside the board's left ornament), art zoomed to
+  0.68 inside the face, used-state fade deepened to 0.39, and the ready glow is now a hot **green** rim
+  (#a6ff94, blur 1 × 8 stacks, opacity 1, 0.5s shallow breath, fit 0.985/1.01).
+- Verified with CLEAN localStorage (the defaults path): all vars land (−99px/53px/1.13, art 0.68, dim 0.39,
+  green glow filter, 0.5s pulse) and the corner renders the tuned look. Typecheck + lint + 1109 tests +
+  build:web green.
+
+### feat(ui): hero panel DECOUPLED — minimal portrait square + floating Resolve housing
+
+- Owner report: shrinking the tray pushed the art out (the old flex row squeezed its children). The tray is
+  restructured to the owner's target layout: the `.hero` box is now a **minimal square hugging just the
+  portrait** — the player-name pill eclipses its TOP edge, the hero-name pill its BOTTOM edge — and the
+  Resolve (health + armor) box floats beside it in its **own housing**, absolutely positioned off the
+  square's right midline (no flex coupling anywhere).
+- The portrait **fills** the square (`inset` by the frame padding), so the 🧍 tuner's `square · width /
+  height` dials resize the art WITH the square — it can never be ejected; 0 = the snug 92-design-px
+  default. The Resolve box's base transform is its midline centring, with the resolve dials (and the
+  hit-shake keyframes) composing on top.
+- Verified live: snug square 62×62 around a 50×50 portrait with the pills eclipsing both edges; a hard
+  shrink to a 40×40 square scaled the portrait to 28×28 fully inside it while the Resolve housing kept its
+  own size beside. Typecheck + lint + 1109 tests + build:web green.
+
+### feat(ui): 🧍 Hero Panel tuner — tray DIMENSION dials (width/height, 0 = auto)
+
+- Owner follow-up: the tray's box itself is now dialable — **`panel · width` / `panel · height`** (design px
+  × --u; 0 = auto-hug the contents). Implemented as `--hpn-panel-w/h` vars the CSS reads with an `auto`
+  fallback; at 0 the var is REMOVED so auto genuinely takes over. `box-sizing: border-box` keeps the tray's
+  padding inside a dialed size. The 🧍 tuner is 17 rows now.
+- Verified live: 320/160 dials resized the tray (214×107 at this window's --u) with the bottom-left corner
+  staying anchored, and 0/0 restored the auto-hugged size exactly. Typecheck + lint + 1109 tests +
+  build:web green.
+
+### feat(ui): 🧍 Hero Panel dev tuner — x/y/scale for every part of the bottom-left tray
+
+- Owner ask: scale + move EVERY aspect of the hero panel. New `heroPanelConfig.ts` + `HeroPanelTuner.tsx`
+  (Dev Tuning Menu → 🧍 Hero Panel), 15 dials in 5 groups: the **whole panel** (offset × --scale + scale
+  about its bottom-left anchor), the **portrait**, the **player-name pill**, the **hero-name pill**, and
+  the **Resolve box** (each design-px offsets × --u + scale). Same conventions as the diamond tuners:
+  dev-only localStorage (`ascent.heropanel`), Copy/Reset, production ships the identity defaults that the
+  CSS fallbacks mirror.
+- Values reflect as COMPOSED transform strings (`--hpn-*-t`) because two pills carry base centering
+  transforms the nudges must stack onto, and the Resolve box's hit-shake keyframes now PREPEND the same var
+  so a tuned offset doesn't snap to origin during the shake.
+- Two structural notes: the whole-panel transform lives on `.statusbar .hero` (the tray), NOT `.statusbar` —
+  a transform there would become the containing block for the power diamond's `position: fixed` and break
+  its stage pinning. And the hero-name pill lives inside the portrait frame, so it rides the portrait scale
+  (its own dials stack on top) — noted in the tuner tooltip.
+- Verified live: all 15 rows drive their element (tray +40 × scale, portrait 1.3×, hero-name pill composing
+  1.3 × 1.25, Resolve +30 × --u) while the power diamond's rect stayed pixel-identical; Reset restores.
+  Typecheck + lint + 1109 tests + build:web green.
+
 ### feat(ui): hero power TALLY above the diamond + refresh-flash timing fixes
 
 - **Live power tally** (owner ask 2026-07-16) — the Avenge/step-counter numerals riding above the diamond's

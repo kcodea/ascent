@@ -93,7 +93,7 @@ export const HEROES: HeroDef[] = [
     resolve: 30,
     armor: 15,
     power: {
-      name: 'Gild',
+      name: 'Masterwork',
       kind: 'gild',
       oncePerGame: true, // one charge at a time; the charge recharges after every 40 Gold spent (see reducer)
       text: 'Make a friendly minion **Gilded**. Recharges after you spend 40 Gold.',
@@ -140,7 +140,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'djinn',
-    name: 'Djinn',
+    name: 'Djinni',
     blurb: 'Calls the whole board to its close early — once a turn, on your terms.',
     resolve: 30,
     armor: 15,
@@ -158,7 +158,7 @@ export const HEROES: HeroDef[] = [
     resolve: 30,
     armor: 19,
     power: {
-      name: 'Gold Font',
+      name: 'Goldspring',
       kind: 'gainMaxMana',
       untargeted: true,
       cost: 3,
@@ -226,7 +226,7 @@ export const HEROES: HeroDef[] = [
     resolve: 30,
     armor: 12,
     power: {
-      name: 'Displace',
+      name: 'Swap',
       kind: 'displace',
       text: 'Swap a friendly minion with a random minion in the Shop.',
     },
@@ -238,7 +238,7 @@ export const HEROES: HeroDef[] = [
     resolve: 30,
     armor: 8,
     power: {
-      name: 'Rise Again',
+      name: 'Undying',
       kind: 'grantReborn',
       text: 'Give a friendly minion **Rise** for the next combat.',
     },
@@ -271,12 +271,12 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'baggerben',
-    name: 'Bagger Ben',
+    name: 'Rascal',
     blurb: 'The tip jar only ever grows — a little more set aside each turn.',
     resolve: 30,
     armor: 15,
     power: {
-      name: 'Bag It',
+      name: 'All In',
       kind: 'scalingGold',
       untargeted: true,
       oncePerGame: true,
@@ -316,7 +316,7 @@ export const HEROES: HeroDef[] = [
     resolve: 30,
     armor: 8,
     power: {
-      name: 'Encore',
+      name: 'Timelapse',
       kind: 'questChronos',
       passive: true, // a quest — resolved in the buy case (buy 4 End-of-Turn minions)
       oncePerGame: true,
@@ -330,7 +330,7 @@ export const HEROES: HeroDef[] = [
     resolve: 30,
     armor: 8,
     power: {
-      name: 'Runeforge',
+      name: 'Forgemaster',
       kind: 'runeforge',
       passive: true, // fires on the turn-6 advance (opens the Runeforge offer); resolved by `buyRune` / `skipRuneforge`
       oncePerGame: true, // the forge opens exactly once, on turn 7
@@ -339,12 +339,12 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'runeguard',
-    name: 'Runeguard',
+    name: 'Guardian',
     blurb: 'Sworn to the forge — its greater runes answer only to those who hold the line.',
     resolve: 30,
     armor: 8,
     power: {
-      name: 'Defend the Forge',
+      name: 'Runeguard',
       kind: 'epicRuneforge',
       passive: true, // scheduled at run start (createRun sets `epicForgeWave = 10`); opens via advanceCombat sequencing
       text: 'On turn 12, visit the Epic Runeforge.',
@@ -365,7 +365,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'jenkins',
-    name: 'Jenkins',
+    name: 'Jensen',
     blurb: 'Every dig turns up something — for a price that only ever climbs.',
     resolve: 30,
     armor: 10,

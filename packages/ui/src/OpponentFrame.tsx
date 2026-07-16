@@ -33,7 +33,7 @@ export function OpponentFrame() {
   if (!snap) {
     const threat = THREATS[run.threat];
     return (
-      <div className="oppframe threat" title={`Next foe — ${threat.name} (a wild board, no intel)`}>
+      <div className="oppframe threat">
         <div className="opp-plate">
           <span className="opp-name">Next Foe</span>
           <div className="opp-pic"><Icon name="skull" /></div>
@@ -56,13 +56,10 @@ export function OpponentFrame() {
   const oppRunes = (snap.runes ?? []).filter((id) => RUNE_INDEX[id]);
   const oppQuests = (snap.quests ?? []).filter((id) => QUEST_INDEX[id]);
   const name = snap.author ?? 'Next Foe';
-  const provenance = snap.author
-    ? `by ${snap.author}`
-    : snap.origin === 'synthetic'
-      ? 'Forged board'
-      : 'House board';
+  // (The provenance hover tip — "by <author>" — was retired with the rest of the frame's tooltips,
+  //  owner note 2026-07-16.)
   return (
-    <div className="oppframe" title={provenance}>
+    <div className="oppframe">
       <div className="opp-plate">
         {/* Author name — a pill centered over the top edge (symmetric, deliberate). */}
         <span className="opp-name">{name}</span>
@@ -73,11 +70,11 @@ export function OpponentFrame() {
           <div className="opp-hero">{hero.name}</div>
           {/* One stat row, one size: life(+armor) · tier · wins. Life leads and is colored, not enlarged. */}
           <div className="opp-stats">
-            <span className="opp-stat life" title={`Life ${snap.resolve}${snap.armor ? ` · Armor ${snap.armor}` : ''}`}>
+            <span className="opp-stat life">
               <Icon name="heart" />{snap.resolve}{snap.armor ? <i className="opp-armor">+{snap.armor}</i> : null}
             </span>
-            <span className="opp-stat label" title="Tavern tier">Tier {snap.tier}</span>
-            <span className="opp-stat label" title="Wins">{snap.wins ?? 0} {(snap.wins ?? 0) === 1 ? 'Win' : 'Wins'}</span>
+            <span className="opp-stat label">Tier {snap.tier}</span>
+            <span className="opp-stat label">{snap.wins ?? 0} {(snap.wins ?? 0) === 1 ? 'Win' : 'Wins'}</span>
           </div>
         </div>
       </div>
@@ -85,7 +82,7 @@ export function OpponentFrame() {
       {(snap.triples > 0 || dom) && (
         <div className="opp-preview">
           <div className="opp-compline">
-            {snap.triples > 0 && <span title="Triples formed">{snap.triples} Triple{snap.triples === 1 ? '' : 's'}</span>}
+            {snap.triples > 0 && <span>{snap.triples} Triple{snap.triples === 1 ? '' : 's'}</span>}
             {snap.triples > 0 && dom && ' · '}
             {dom && (
               <span className="opp-tribe" style={{ '--tc': `var(--t-${dom.tribe})` } as CSSProperties}>

@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { renameTerms } from './terms';
+import { mdBold } from './Card';
 import { getHero, spellAmplifyBonus } from '@game/sim';
 import { heroArt, heroPowerArt } from './art';
 import { Icon } from './Icon';
@@ -7,6 +8,33 @@ import { QuestBadges } from './QuestBadges';
 import { sfx } from './sfx';
 import { useGame } from './store';
 import { getHeroPowerBtnConfig } from './heroPowerBtnConfig'; // also reflects the --hpb-* vars at load (side-effect)
+import './heroPanelConfig'; // side-effect: reflects the --hpn-* hero-panel transform vars at load
+
+/** Shrink a pill's TEXT to fit its box (owner note 2026-07-16: no ellipsis — "Lord of the Risen" should
+ *  fit): after layout, if the text overflows the pill's max-width, scale the font down by the overflow
+ *  ratio (one measurement, no loops). Re-fits when the text changes and on window resize (--u shifts). */
+function useFitText(text: string) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const fit = (): void => {
+      const el = ref.current;
+      if (!el) return;
+      el.style.fontSize = ''; // back to the stylesheet size before measuring
+      if (el.scrollWidth > el.clientWidth) {
+        // Ratio over the CONTENT box (padding doesn't scale with the font — a whole-box ratio under-shrinks),
+        // with a hair of slack for subpixel rounding.
+        const cs = getComputedStyle(el);
+        const pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+        const base = parseFloat(cs.fontSize);
+        el.style.fontSize = `${Math.max(6, base * ((el.clientWidth - pad) / (el.scrollWidth - pad)) * 0.98)}px`;
+      }
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, [text]);
+  return ref;
+}
 
 /** Bottom bar, rooted across the whole round: Embers and Resolve flank the hero. */
 export function StatusBar() {
@@ -115,6 +143,9 @@ export function StatusBar() {
     const id = window.setTimeout(() => setRefreshFlash(false), ms + 280);
     return () => window.clearTimeout(id);
   }, [flashSignal]);
+  // Pill text auto-fits its box (no ellipsis / no tooltip needed — owner note 2026-07-16).
+  const heroNameRef = useFitText(hero.name);
+  const playerNameRef = useFitText(playerName);
   // When effective HP drops (Armor or Resolve — a wave broke through), shake the chip + float the −X.
   const prevHp = useRef(run.resolve + run.armor);
   const [hit, setHit] = useState<{ amt: number; key: number } | null>(null);
@@ -139,7 +170,7 @@ export function StatusBar() {
           className={`hero${isPassive ? ' passive' : canHero ? '' : ' spent'}${heroArmed ? ' armed' : ''}${canHero && !heroArmed ? ' ready' : ''}`}
         >
           {/* Player name — a pill eclipsing the top of the hero box (mirrors the opponent name on its frame). */}
-          {playerName && <div className="playername" title="You">{playerName}</div>}
+          {playerName && <div className="playername" ref={playerNameRef}>{playerName}</div>}
           {/* The portrait holds ONLY the hero art; the hero name rides a pill eclipsing its bottom edge (mirrors
               the player-name pill at the top). Health/Armor sits to its right (see `.hpbox` CSS). */}
           <div className="f">
@@ -148,7 +179,7 @@ export function StatusBar() {
             ) : (
               <Icon name="anvil" />
             )}
-            <div className="heroname" title={hero.name}>{hero.name}</div>
+            <div className="heroname" ref={heroNameRef}>{hero.name}</div>
           </div>
           {/* Health as a compact white box under the hero — the number is Resolve (+Armor). Keeps the hit-shake
               + −X float when a wave breaks through. */}
@@ -174,7 +205,7 @@ export function StatusBar() {
               type="button"
               className={`heropowerbtn${isPassive ? ' passive' : heroArmed ? ' armed' : canHero ? ' ready' : ''}`}
               disabled={isPassive || (!canHero && !heroArmed)}
-              aria-label={`${power.name} — ${renameTerms(power.text)}`}
+              aria-label={`${power.name} — ${renameTerms(power.text).replace(/\*\*/g, '')}`}
               onPointerDown={(e) => {
                 // B1: arm on PRESS, not click — so a press-drag-release onto a minion is one continuous
                 // gesture (like dragging a card). A quick tap without dragging just arms it, preserving the
@@ -213,7 +244,8 @@ export function StatusBar() {
           <div className="hplabel">{power.name}</div>
           <div className="herotip" role="tooltip">
             <b>{power.name}</b>{isPassive ? ' · passive' : ''}
-            <span className="herotip-rule">{renameTerms(power.text)}</span>
+            {/* `**word**` = a keyword reference → renders BOLD (mdBold), never raw asterisks. */}
+            <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(power.text) }} />
             {/* Live status (current magnitude + countdown) on hover — the progress text was removed from the
                 always-visible hero box, so it reads here instead. */}
             <span className="herotip-live">{powerStatus}</span>

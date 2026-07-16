@@ -57,27 +57,29 @@ export interface HeroPowerBtnConfig {
   glowColor: string;
 }
 
-// Position mirrors the End Turn diamond's baked spot across the board's centre line; the glow starts from
-// the ETB's baked recipe in the hero-power's amber. All owner-tunable via the 💠 tuner.
+// Owner-tuned by eye in the 💠 tuner and baked as the shipped look (2026-07-16): seated just inside the
+// board's left ornament, art zoomed out to 0.68 inside the face, a tight fast-breathing GREEN rim (the
+// ready cue), and a deep 0.39 used-state fade. Mirror changes into the styles.css `var(--hpb-*, …)`
+// fallbacks.
 const DEFAULTS: HeroPowerBtnConfig = {
-  x: -140,
-  y: 32,
-  scale: 1.14,
+  x: -99,
+  y: 53,
+  scale: 1.13,
   artX: 0,
   artY: 0,
-  artScale: 1,
-  artDim: 0.5,
+  artScale: 0.68,
+  artDim: 0.39,
   refreshFlash: 450,
   glowBlur: 1,
-  glowAlpha: 0.93,
-  glowStrength: 6,
-  glowPulse: 0.7,
-  glowPulseDepth: 0.11,
+  glowAlpha: 1,
+  glowStrength: 8,
+  glowPulse: 0.5,
+  glowPulseDepth: 0.1,
   glowX: 0,
   glowY: 0,
-  glowW: 1,
-  glowH: 1,
-  glowColor: '#ffb347',
+  glowW: 0.985,
+  glowH: 1.01,
+  glowColor: '#a6ff94',
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */

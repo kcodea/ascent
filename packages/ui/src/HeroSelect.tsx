@@ -1,8 +1,8 @@
 import type { CSSProperties } from 'react';
-import { renameTerms } from './terms';
+import { mdBold } from './Card';
 import { getHero, activeRift } from '@game/sim';
 import { RiftPill } from './RiftPill';
-import { heroArt } from './art';
+import { heroArt, heroPowerArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { useGame } from './store';
@@ -54,6 +54,31 @@ export function HeroSelect() {
             const hero = getHero(id);
             const power = hero.power;
             const art = heroArt(hero.id);
+            // PLAY-MODE card (owner rework 2026-07-16): big framed hero art with the name pill eclipsing the
+            // frame's TOP edge and the HP+Armor pill its BOTTOM edge; hovering the card crossfades the HERO
+            // POWER art in over the portrait with the power text fading in below. Practice keeps the old
+            // compact card (the dense grid).
+            if (!dense) {
+              const powArt = heroPowerArt(hero.id);
+              return (
+                <button key={id} className="herocard big" onClick={() => { sfx.pulse(); sfx.heroSelect(id); pickHero(id); }}>
+                  <div className="hcframe">
+                    <div className="hcname">{hero.name}</div>
+                    {art ? <img className="hcframe-art" src={art} alt={hero.name} draggable={false} /> : <Icon name="anvil" />}
+                    {powArt && <img className="hcframe-pow" src={powArt} alt="" draggable={false} aria-hidden="true" />}
+                    <div className="hchp">
+                      <Icon name="heart" />
+                      {hero.resolve}
+                      {hero.armor > 0 && <span className="hcarmor">+{hero.armor}</span>}
+                    </div>
+                  </div>
+                  <div className="hcpw">
+                    <b>{power.name}</b> · <span dangerouslySetInnerHTML={{ __html: mdBold(power.text) }} />
+                    {power.unlockWave && power.unlockWave > 1 && <span className="hclock">Unlocks turn {power.unlockWave}</span>}
+                  </div>
+                </button>
+              );
+            }
             return (
               <button key={id} className="herocard" onClick={() => { sfx.pulse(); sfx.heroSelect(id); pickHero(id); }}>
                 <div className="hcart">
@@ -66,7 +91,7 @@ export function HeroSelect() {
                   {hero.armor > 0 && <span className="hcarmor" title="Starting Armor — extra effective HP on top of Resolve">+{hero.armor}</span>}
                 </div>
                 <div className="hcpw">
-                  <b>{power.name}</b> · {renameTerms(power.text)}
+                  <b>{power.name}</b> · <span dangerouslySetInnerHTML={{ __html: mdBold(power.text) }} />
                 </div>
                 {power.unlockWave && power.unlockWave > 1 && (
                   <div className="hclock">Unlocks turn {power.unlockWave}</div>

@@ -1,0 +1,23 @@
+// vitest.config.ts
+import { fileURLToPath } from "node:url";
+import { defineConfig } from "file:///C:/Users/kevin/the%20ascent/node_modules/vitest/dist/config.js";
+var __vite_injected_original_import_meta_url = "file:///C:/Users/kevin/the%20ascent/vitest.config.ts";
+var resolvePath = (p) => fileURLToPath(new URL(p, __vite_injected_original_import_meta_url));
+var vitest_config_default = defineConfig({
+  resolve: {
+    alias: {
+      "@game/core": resolvePath("./packages/core/src/index.ts"),
+      "@game/content": resolvePath("./packages/content/src/index.ts")
+    }
+  },
+  test: {
+    include: ["packages/**/*.test.ts"],
+    // Polyfill `navigator` for Node < 21 (CI pins Node 20) so pixi.js's module-load `isSafari()` doesn't throw
+    // when a test transitively imports pixiFx (the choreographer impact/lunge/engine tests). See the setup file.
+    setupFiles: ["./vitest.setup.ts"]
+  }
+});
+export {
+  vitest_config_default as default
+};
+//# sourceMappingURL=data:application/json;base64,ewogICJ2ZXJzaW9uIjogMywKICAic291cmNlcyI6IFsidml0ZXN0LmNvbmZpZy50cyJdLAogICJzb3VyY2VzQ29udGVudCI6IFsiY29uc3QgX192aXRlX2luamVjdGVkX29yaWdpbmFsX2Rpcm5hbWUgPSBcIkM6XFxcXFVzZXJzXFxcXGtldmluXFxcXHRoZSBhc2NlbnRcIjtjb25zdCBfX3ZpdGVfaW5qZWN0ZWRfb3JpZ2luYWxfZmlsZW5hbWUgPSBcIkM6XFxcXFVzZXJzXFxcXGtldmluXFxcXHRoZSBhc2NlbnRcXFxcdml0ZXN0LmNvbmZpZy50c1wiO2NvbnN0IF9fdml0ZV9pbmplY3RlZF9vcmlnaW5hbF9pbXBvcnRfbWV0YV91cmwgPSBcImZpbGU6Ly8vQzovVXNlcnMva2V2aW4vdGhlJTIwYXNjZW50L3ZpdGVzdC5jb25maWcudHNcIjtpbXBvcnQgeyBmaWxlVVJMVG9QYXRoIH0gZnJvbSAnbm9kZTp1cmwnO1xuaW1wb3J0IHsgZGVmaW5lQ29uZmlnIH0gZnJvbSAndml0ZXN0L2NvbmZpZyc7XG5cbmNvbnN0IHJlc29sdmVQYXRoID0gKHA6IHN0cmluZykgPT4gZmlsZVVSTFRvUGF0aChuZXcgVVJMKHAsIGltcG9ydC5tZXRhLnVybCkpO1xuXG5leHBvcnQgZGVmYXVsdCBkZWZpbmVDb25maWcoe1xuICByZXNvbHZlOiB7XG4gICAgYWxpYXM6IHtcbiAgICAgICdAZ2FtZS9jb3JlJzogcmVzb2x2ZVBhdGgoJy4vcGFja2FnZXMvY29yZS9zcmMvaW5kZXgudHMnKSxcbiAgICAgICdAZ2FtZS9jb250ZW50JzogcmVzb2x2ZVBhdGgoJy4vcGFja2FnZXMvY29udGVudC9zcmMvaW5kZXgudHMnKSxcbiAgICB9LFxuICB9LFxuICB0ZXN0OiB7XG4gICAgaW5jbHVkZTogWydwYWNrYWdlcy8qKi8qLnRlc3QudHMnXSxcbiAgICAvLyBQb2x5ZmlsbCBgbmF2aWdhdG9yYCBmb3IgTm9kZSA8IDIxIChDSSBwaW5zIE5vZGUgMjApIHNvIHBpeGkuanMncyBtb2R1bGUtbG9hZCBgaXNTYWZhcmkoKWAgZG9lc24ndCB0aHJvd1xuICAgIC8vIHdoZW4gYSB0ZXN0IHRyYW5zaXRpdmVseSBpbXBvcnRzIHBpeGlGeCAodGhlIGNob3Jlb2dyYXBoZXIgaW1wYWN0L2x1bmdlL2VuZ2luZSB0ZXN0cykuIFNlZSB0aGUgc2V0dXAgZmlsZS5cbiAgICBzZXR1cEZpbGVzOiBbJy4vdml0ZXN0LnNldHVwLnRzJ10sXG4gIH0sXG59KTtcbiJdLAogICJtYXBwaW5ncyI6ICI7QUFBMlEsU0FBUyxxQkFBcUI7QUFDelMsU0FBUyxvQkFBb0I7QUFEc0ksSUFBTSwyQ0FBMkM7QUFHcE4sSUFBTSxjQUFjLENBQUMsTUFBYyxjQUFjLElBQUksSUFBSSxHQUFHLHdDQUFlLENBQUM7QUFFNUUsSUFBTyx3QkFBUSxhQUFhO0FBQUEsRUFDMUIsU0FBUztBQUFBLElBQ1AsT0FBTztBQUFBLE1BQ0wsY0FBYyxZQUFZLDhCQUE4QjtBQUFBLE1BQ3hELGlCQUFpQixZQUFZLGlDQUFpQztBQUFBLElBQ2hFO0FBQUEsRUFDRjtBQUFBLEVBQ0EsTUFBTTtBQUFBLElBQ0osU0FBUyxDQUFDLHVCQUF1QjtBQUFBO0FBQUE7QUFBQSxJQUdqQyxZQUFZLENBQUMsbUJBQW1CO0FBQUEsRUFDbEM7QUFDRixDQUFDOyIsCiAgIm5hbWVzIjogW10KfQo=

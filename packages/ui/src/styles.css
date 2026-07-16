@@ -636,6 +636,31 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
   border-radius: 11px; padding: 5px 14px; box-shadow: 0 3px 9px -3px rgba(0, 0, 0, 0.6); z-index: 6;
 }
 .etbwrap:not(:disabled):hover .etb-tip, .etbwrap.urgent .etb-tip, .etbwrap.ready .etb-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
+/* Summary — a small glass pill ABOVE the End Combat diamond (owner note 2026-07-16: shrunk from the big
+   white button, dark-glass style, right side). Anchored to the SAME stage point + --etb-x/y offsets as the
+   diamond so the tuner moves them together; the one-shot mount animation floats it up as it fades in,
+   matching the diamond's tooltip feel. */
+.combatsummary {
+  position: fixed;
+  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 140px) * var(--scale));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--etb-y, 32px) - 142px) * var(--scale));
+  transform: translate(-50%, -50%);
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.03em; color: #f4ecdb;
+  background: linear-gradient(180deg, #211812, #16100b);
+  border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
+  border-radius: 12px; padding: 8px 18px;
+  box-shadow: 0 3px 9px -3px rgba(0, 0, 0, 0.6);
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  z-index: 41;
+  animation: sumfadein 0.38s ease both;
+}
+.combatsummary svg { width: 16px; height: 16px; color: #e8c877; flex: none; }
+.combatsummary:hover { border-color: var(--acc); color: #fff; }
+@keyframes sumfadein {
+  0% { opacity: 0; transform: translate(-50%, -50%) translateY(7px); }
+  100% { opacity: 1; transform: translate(-50%, -50%) translateY(0); }
+}
 /* Styled hover tooltip (replaces the native title): the game's dark rounded pill, dropping below the control
    with a small arrow — same format as the hero/opponent tips. The hovered control lifts above its neighbours
    so the pill never gets trapped behind the next plaque. */

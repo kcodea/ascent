@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): combat Summary → a small glass pill above the End Combat diamond
+
+- The big white top-centre Summary button shrank into a **dark-glass pill** (the `.hplabel`/`.etb-tip`
+  gradient + gold-mix border language) seated on the RIGHT, **above the End Combat diamond** — anchored to
+  the SAME stage point + `--etb-x/y` offsets as the diamond, so the 💎 tuner's position moves them together.
+  It **fades in floating up** (a one-shot 0.38s mount animation matching the diamond tooltip's feel).
+- The `.combatctl` top bar stays as an empty spacer (its footprint keeps the enemy warband's vertical spot).
+- Verified live: pill mounts with the fade on replay-done, centred over the diamond with clean clearance
+  above its top point (first cut overlapped by 9px — pushed from −122 to −142 design px), and the click
+  still opens the combat Summary log. Typecheck + lint + 1109 tests + build:web green.
+
 ### chore(ui): End Turn diamond — owner-tuned values baked as the shipped defaults
 
 - The owner's 💎-tuner export is now the shipped look, baked BOTH into `endTurnConfig.ts` DEFAULTS and the

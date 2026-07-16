@@ -2719,16 +2719,9 @@ export function Recruit() {
         <div className="combatctl">
           {/* Post-combat actions stay centred. During the replay the Skip button + speed slider live in the
               top-right combat HUD (below) instead, so the arena stays clear. */}
-          <div className="cbtns">
-            {/* End Combat now lives on the diamond button (the pressed gem relights on click) — only the
-                Summary action remains here. */}
-            {replay.done && (
-              <button className="btn big" onClick={() => { setLogTab('gains'); setShowLog(true); }}>
-                <Icon name="battlecry" />
-                Summary
-              </button>
-            )}
-          </div>
+          {/* Empty spacer — End Combat lives on the diamond and Summary is a glass pill above it (below);
+              the .combatctl footprint stays so the enemy warband keeps its vertical spot. */}
+          <div className="cbtns" />
         </div>
       )}
 
@@ -2738,6 +2731,14 @@ export function Recruit() {
           phase itself), NOT `fighting` (which waits for the intro), so the art swap is IMMEDIATE on the
           click. Once the replay finishes it doubles as END COMBAT (a loss holds it until the loss-damage
           blast lands, same as the old button) — clicking relights it with a clean shine, no strike. */}
+      {/* Summary — a small glass pill pinned ABOVE the End Combat diamond (same stage anchor + --etb-x/y
+          offsets, so it rides the tuner's position); fades in floating up like the diamond's tooltip. */}
+      {inCombat && replay.done && (
+        <button className="combatsummary" onClick={() => { setLogTab('gains'); setShowLog(true); }}>
+          <Icon name="battlecry" />
+          Summary
+        </button>
+      )}
       <EndTurnButton
         onEndTurn={endTurn}
         onEndCombat={endCombat}

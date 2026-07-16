@@ -1345,11 +1345,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    blown up on the floating drag card / hover-reveal popup. Drop it in those contexts — the wrapper's drop-shadow
    (drag) / white haze (popup) already gives the lift, and the willplay halo below still signals "release to cast". */
 .dragcard .card.spellcard, .cardref .card.spellcard { box-shadow: none; }
-/* While a dragged hand minion is over the playable area (see Recruit's `willplay`), the floating card gets a
-   soft GOLD "release to play" halo. A filter drop-shadow (follows the card's arch alpha) rather than the hard
-   bright-yellow box-shadow the hover glow uses — that box read as harsh + square-cornered blown up over the
-   full-size dragged card. This hugs the silhouette and reads as a gentle glow. */
-.dragcard.willplay .card { filter: drop-shadow(0 0 calc(6 * var(--u)) rgba(255, 202, 80, 0.92)) drop-shadow(0 0 calc(15 * var(--u)) rgba(255, 182, 52, 0.5)); transition: filter 0.14s ease; }
+/* While a dragged hand minion is over the playable area (see Recruit's `willplay`), light the EXACT hover glow on
+   the floating card — the masked-silhouette `.cglow` — so playing a card reads identically to hovering it. (The
+   earlier whole-card drop-shadow read too large + soft because it followed the full card alpha incl. the text
+   drawer; `.cglow` instead hugs just the frame silhouette, tight, like hover.) Scoped `.card.compact` so it
+   out-specifies the `.card.compact.stdframe .cglow { opacity: 0 }` default. */
+.dragcard.willplay .card.compact .cglow { opacity: 1; }
 /* Magnetic: an electric crackle while a Magnetic card hovers a friendly Mech (.electric, the floating drag
    card) and on the host Mech as it's welded (.electrify — drop + Combinator's End of Turn). PERF: a STATIC
    cyan halo on a ::before whose OPACITY breathes — compositor-only, zero per-frame paint. This was an animated

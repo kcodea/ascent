@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### fix(ui): hero power diamond — housing never dims + art-fit scalers in the 💠 tuner
+
+- Owner notes: the cooldown/unaffordable dim now applies to the power ART ONLY — the bronze housing stays
+  at full opacity in every state (the old rule faded the whole button). And the 💠 tuner gained three
+  **art-fit scalers** — `art · offset x / offset y / scale` — that move/zoom the power art INSIDE the face
+  window: the art moved into a clipping wrapper (the diamond clip stays pinned to the frame) so the dials
+  never drag the window with it.
+- Verified live: with an unaffordable power the frame reads 1.0 opacity while the art reads 0.5; the art
+  transforms inside the fixed clip (matrix confirmed, offsets × --u); the tuner shows 17 rows including the
+  three art dials. Typecheck + lint + 1109 tests + build:web green.
+
 ### fix(ui): hero power diamond — art on top, hollow frame (no opaque slab)
 
 - Owner notes on the new housing: the power art now rides **ON TOP of the diamond** (frame z1 → art z2 →

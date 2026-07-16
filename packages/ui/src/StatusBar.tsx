@@ -155,8 +155,10 @@ export function StatusBar() {
                   READY/ARMED pin it). All dialed live by the 💠 tuner via --hpb-* vars. */}
               <img className="hpb-glow" src="/frames/heropowerbutton_face.webp" alt="" draggable={false} aria-hidden="true" />
               <img className="hpb-frame" src="/frames/heropowerbutton.webp" alt="" draggable={false} aria-hidden="true" />
+              {/* Art sits in a CLIPPING wrapper (the face window stays fixed) so the 💠 tuner's art
+                  offset/scale dials move the art INSIDE the window without moving the clip. */}
               {heroPowerArt(hero.id)
-                ? <img className="hpb-art" src={heroPowerArt(hero.id)} alt="" draggable={false} />
+                ? <span className="hpb-artwrap" aria-hidden="true"><img className="hpb-art" src={heroPowerArt(hero.id)} alt="" draggable={false} /></span>
                 : <Icon name="sc" />}
             </button>
             {(digCost ?? power.cost) ? <span className="hpcost"><span className="costn">{digCost ?? power.cost}</span></span> : null}

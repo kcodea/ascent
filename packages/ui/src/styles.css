@@ -686,11 +686,16 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
   position: relative; padding: 0; border: none; background: none; box-shadow: none; display: block;
   width: calc(128 * var(--u)); height: calc(141 * var(--u)); /* the trimmed art's 466×512 aspect */
 }
-/* Power art rides ON TOP of the diamond (owner note 2026-07-16), clipped to the measured face polygon so
-   the bronze ring still frames it. The frame asset itself is HOLLOW — the dark face is punched out, so a
-   missing/transparent art shows the board through the window, never an opaque slab. */
+/* Power art rides ON TOP of the diamond (owner note 2026-07-16), inside a CLIPPING wrapper pinned to the
+   measured face polygon — the window stays fixed while the 💠 tuner's art dials (offset x/y + scale, the
+   --hpb-art-* vars) move the art within it. The frame asset itself is HOLLOW — the dark face is punched
+   out, so a missing/transparent art shows the board through the window, never an opaque slab. */
 .heropowerbtn .hpb-frame { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; -webkit-user-drag: none; }
-.heropowerbtn .hpb-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 2; clip-path: polygon(50% 13.8%, 83% 50.1%, 50% 83.6%, 16.8% 50.1%); pointer-events: none; -webkit-user-drag: none; }
+.heropowerbtn .hpb-artwrap { position: absolute; inset: 0; z-index: 2; clip-path: polygon(50% 13.8%, 83% 50.1%, 50% 83.6%, 16.8% 50.1%); pointer-events: none; }
+.heropowerbtn .hpb-art {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none;
+  transform: translate(calc(var(--hpb-art-x, 0) * var(--u)), calc(var(--hpb-art-y, 0) * var(--u))) scale(var(--hpb-art-s, 1));
+}
 .heropowerbtn svg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: calc(50 * var(--u)); height: calc(50 * var(--u)); color: #fff; z-index: 2; }
 /* The FACE GLOW — the face-only cut with a STATIC stacked drop-shadow (halo = the inner diamond's
    silhouette), seated above the frame so the light spills over the bronze; a mask (full canvas MINUS the
@@ -716,10 +721,12 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
   0%, 100% { opacity: var(--hpb-glow-alpha, 0.93); }
   50% { opacity: var(--hpb-glow-dim, 0.83); }
 }
-/* An ACTIVE power that's on cooldown / unaffordable dims; a PASSIVE hero's button stays full (it's always on,
-   just not clickable) but never glows — so every hero shows its power art, only active ones pulse. */
-.heropowerbtn:not(.ready):not(.armed):not(.passive) { opacity: 0.5; filter: saturate(0.75); }
-.heropowerbtn.passive { opacity: 1; }
+/* An ACTIVE power that's on cooldown / unaffordable dims its ART ONLY — the bronze housing NEVER fades
+   (owner note 2026-07-16). A PASSIVE hero's art stays full (it's always on, just not clickable) but never
+   glows — so every hero shows its power art, only active ones pulse. */
+.heropowerbtn:not(.ready):not(.armed):not(.passive) .hpb-art,
+.heropowerbtn:not(.ready):not(.armed):not(.passive) > svg { opacity: 0.5; filter: saturate(0.75); }
+.heropowerbtn.passive .hpb-art { opacity: 1; }
 .btn.big { font-size: calc(17 * var(--u)); padding: calc(13 * var(--u)) calc(26 * var(--u)); border-radius: calc(15 * var(--u)); gap: calc(9 * var(--u)); box-shadow: 0 3px 0 var(--shadow); }
 /* non-clickable Tavern Tier label, shaded to read apart from the buttons */
 .tavernbox { display: inline-flex; align-items: center; gap: calc(6 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(16 * var(--u)); padding: 0 calc(18 * var(--u)); border-radius: calc(15 * var(--u)); background: var(--bg2); color: var(--ink2); border: 2px solid var(--line); }

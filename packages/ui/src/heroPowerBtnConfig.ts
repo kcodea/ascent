@@ -23,6 +23,12 @@ export interface HeroPowerBtnConfig {
   y: number;
   /** Overall button scale (×). The base art renders at 128px wide before this. */
   scale: number;
+  /** Power ART — offset x inside the face window (design px, × --u). The clip window stays fixed. */
+  artX: number;
+  /** Power ART — offset y inside the face window (design px, × --u). */
+  artY: number;
+  /** Power ART — scale inside the face window (×). >1 zooms the art within the fixed diamond clip. */
+  artScale: number;
   /** Glow — blur radius (px) of each drop-shadow pass. */
   glowBlur: number;
   /** Glow — peak opacity of the glow layer (0–1). 0 disables the glow entirely. */
@@ -51,6 +57,9 @@ const DEFAULTS: HeroPowerBtnConfig = {
   x: -140,
   y: 32,
   scale: 1.14,
+  artX: 0,
+  artY: 0,
+  artScale: 1,
   glowBlur: 1,
   glowAlpha: 0.93,
   glowStrength: 6,
@@ -68,6 +77,9 @@ export const HPB_RANGES: Record<Exclude<keyof HeroPowerBtnConfig, 'glowColor'>, 
   x: [-800, 800, 1],
   y: [-500, 500, 1],
   scale: [0.4, 2.5, 0.01],
+  artX: [-60, 60, 0.5],
+  artY: [-60, 60, 0.5],
+  artScale: [0.4, 2.5, 0.01],
   glowBlur: [0, 48, 1],
   glowAlpha: [0, 1, 0.01],
   glowStrength: [1, 8, 1],
@@ -84,6 +96,9 @@ export const HPB_DESC: Record<keyof HeroPowerBtnConfig, string> = {
   x: 'Horizontal offset (px × scale) from the stage-pinned base point on the board’s middle-left.',
   y: 'Vertical offset (px × scale) from the base point. Positive = down.',
   scale: 'Overall button size (×).',
+  artX: 'Power ART — slide it horizontally inside the face window (the diamond clip stays put).',
+  artY: 'Power ART — slide it vertically inside the face window.',
+  artScale: 'Power ART — zoom it inside the face window (the diamond clip stays put).',
   glowBlur: 'Face glow softness — blur radius (px) of each drop-shadow pass.',
   glowAlpha: 'Face glow peak opacity. 0 turns the glow off.',
   glowStrength: 'Glow intensity — how many times the shadow is stacked. Higher = hotter rim.',
@@ -99,6 +114,7 @@ export const HPB_DESC: Record<keyof HeroPowerBtnConfig, string> = {
 /** Keys grouped by control type for the tuner UI. */
 export const HPB_NUM_KEYS = [
   'x', 'y', 'scale',
+  'artX', 'artY', 'artScale',
   'glowX', 'glowY', 'glowW', 'glowH',
   'glowBlur', 'glowAlpha', 'glowStrength', 'glowPulse', 'glowPulseDepth',
 ] as const;
@@ -136,6 +152,10 @@ export function applyHeroPowerBtnVars(): void {
   root.setProperty('--hpb-x', `${cfg.x}px`);
   root.setProperty('--hpb-y', `${cfg.y}px`);
   root.setProperty('--hpb-s', String(cfg.scale));
+  // Art fit inside the fixed face window — unitless design-px (the CSS multiplies by --u) + a zoom factor.
+  root.setProperty('--hpb-art-x', String(cfg.artX));
+  root.setProperty('--hpb-art-y', String(cfg.artY));
+  root.setProperty('--hpb-art-s', String(cfg.artScale));
   root.setProperty('--hpb-glow-alpha', String(cfg.glowAlpha));
   // Pulse 0 = steady: pin the dip to the peak (and park the duration) rather than running a 0s loop.
   root.setProperty('--hpb-glow-dim', String(cfg.glowPulse > 0 ? cfg.glowAlpha * (1 - cfg.glowPulseDepth) : cfg.glowAlpha));

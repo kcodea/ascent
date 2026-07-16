@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### feat(sim/ui): mid-combat quest completion — Phase 2b visuals (badge + card fly)
+
+- The visual polish on top of the mid-combat activation. When a quest completes MID-COMBAT: (1) its **badge
+  lights up live** in the row — the node appears + pulses on the completion beat, before the quest formally
+  settles as completed; (2) its **card reward flies to hand** on that beat.
+- **Card fly:** `simulate` emits a bare `toHand` event (visual only — NOT `ctx.grantToHand`, which would also
+  record it in `playerHandGrants`) for the pending quest's `rewardCardId` (reducer's `pendingRewardCard` walks
+  the reward for its first granted card). The reducer still grants the reward for real at settle, so no double.
+- **Badge:** the replay engine surfaces `completedQuests` (questIds from `questComplete` events up to the
+  current beat) → new `combatCompletedQuests` store field (set by `Recruit` during the replay, like the
+  existing trigger-pulse) → `QuestBadges` includes those quests in the row + pulses them.
+- Tests: extended the `simulate.test.ts` case (a card-reward pending quest emits `toHand`). 1108 tests +
+  build:web green; app verified to load clean with the new store field.
+
 ### feat(core/sim): mid-combat quest completion — ongoing effects activate live
 
 - The star of the mid-combat quest work. A quest whose objective counts a COMBAT event (kill / summon / attack /

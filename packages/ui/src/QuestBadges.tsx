@@ -19,9 +19,12 @@ const TRIBE_ICON: Record<Tribe, string> = { beast: 'paw', dragon: 'flame', mech:
 export function QuestBadges() {
   const run = useGame((s) => s.run);
   const triggered = useGame((s) => s.combatTriggeredQuests); // ids pulsing this replay beat
+  const completedNow = useGame((s) => s.combatCompletedQuests); // ids that JUST completed mid-replay (pre-settle)
   // Show a badge once a quest has activated — a one-shot flips `completed`; a REPEATABLE (Hoard Spark, Imp Census,
   // …) never does but bumps `completionCount` on each re-fire, so include those too (they pulse on every re-fire).
-  const done = (run.activeQuests ?? []).filter((aq) => (aq.completed || (aq.completionCount ?? 0) > 0) && QUEST_INDEX[aq.questId]);
+  // Also surface quests that complete MID-COMBAT this replay (`completedNow`) — their node appears + lights up the
+  // instant the objective crosses, before the quest formally settles as completed.
+  const done = (run.activeQuests ?? []).filter((aq) => (aq.completed || (aq.completionCount ?? 0) > 0 || completedNow.includes(aq.questId)) && QUEST_INDEX[aq.questId]);
   const runes = (run.ownedRunes ?? []).filter((id) => RUNE_INDEX[id]);
   if (done.length === 0 && runes.length === 0) return null;
   return (
@@ -54,7 +57,7 @@ export function QuestBadges() {
         const art = questArt(def.id);
         // One-shot pulse count: a recruit-phase completion / repeatable re-fire (completionCount, e.g. Hoard Spark
         // buying its 4th Dragon) OR a combat trigger (combatTriggeredQuests, beat-synced). Keyed → fresh pulse per bump.
-        const pulse = (aq.completionCount ?? 0) + (aq.completed ? 1 : 0) + (triggered[aq.questId] ?? 0);
+        const pulse = (aq.completionCount ?? 0) + (aq.completed ? 1 : 0) + (triggered[aq.questId] ?? 0) + (completedNow.includes(aq.questId) ? 1 : 0);
         const c = def.tribe === 'neutral' ? 'var(--t-neutral)' : `var(--t-${def.tribe})`;
         // The live ongoing chip, mirroring the QuestPanel: Shouts used, repeat countdown, else nothing.
         const charges = run.shoutDoubleCharges ?? 0;

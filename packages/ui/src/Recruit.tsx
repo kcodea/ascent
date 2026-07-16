@@ -350,6 +350,7 @@ export function Recruit() {
   const setCombatEnemyDeaths = useGame((s) => s.setCombatEnemyDeaths);
   const setCombatQuestDelta = useGame((s) => s.setCombatQuestDelta);
   const setCombatTriggeredQuests = useGame((s) => s.setCombatTriggeredQuests);
+  const setCombatCompletedQuests = useGame((s) => s.setCombatCompletedQuests);
   const setCombatBuffs = useGame((s) => s.setCombatBuffs);
   const combatSpeed = useGame((s) => s.combatSpeed);
   const setCombatSpeed = useGame((s) => s.setCombatSpeed);
@@ -756,6 +757,11 @@ export function Recruit() {
   useEffect(() => {
     setCombatTriggeredQuests(inCombat && !run.combatSettled ? replay.triggeredQuests : {});
   }, [inCombat, run.combatSettled, replay.triggeredQuests, setCombatTriggeredQuests]);
+  // Quests that COMPLETE mid-replay — surface them to QuestBadges so their node appears + lights up live (before
+  // the quest formally settles as completed). Empty out of combat.
+  useEffect(() => {
+    setCombatCompletedQuests(inCombat && !run.combatSettled ? replay.completedQuests : []);
+  }, [inCombat, run.combatSettled, replay.completedQuests, setCombatCompletedQuests]);
   // Bridge this fight's live run-buff gains (spell power, max Gold) to the store so the Buffs window ticks up
   // in sync with the replay. Cleared to `null` once combat is SETTLED — settleCombat folds the gains into the
   // run state, so the row then reads them from there (adding the live delta too would briefly double-count).

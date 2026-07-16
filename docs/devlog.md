@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### fix(ui): hero power diamond — dark face restored + tunable used-state fade
+
+- Owner correction on the hollow-frame change: the housing must stay WHOLE — the frame's dark face is the
+  intended backing behind the power art (the punched hole was letting the board show through the window).
+  The frame webp is rebuilt with the face intact (centre pixel opaque again).
+- The used/unaffordable fade is now a dial: **`art · used opacity`** (`artDim`, default 0.5, 1 = never
+  dims) — the art fades against the dark face; the housing never fades in any state (unchanged from the
+  previous round).
+- Verified live: frame centre rgb(37,28,26)/alpha 255; the var drives the used-state art opacity in real
+  time (0.5 → 0.25 on a slider move); frame opacity 1 throughout. Typecheck + lint + 1109 tests +
+  build:web green.
+
 ### fix(ui): hero power diamond — housing never dims + art-fit scalers in the 💠 tuner
 
 - Owner notes: the cooldown/unaffordable dim now applies to the power ART ONLY — the bronze housing stays

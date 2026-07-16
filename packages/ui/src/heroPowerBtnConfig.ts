@@ -29,6 +29,9 @@ export interface HeroPowerBtnConfig {
   artY: number;
   /** Power ART — scale inside the face window (×). >1 zooms the art within the fixed diamond clip. */
   artScale: number;
+  /** Power ART — opacity while the power is USED / unaffordable (0–1). The art fades against the housing's
+   *  dark face (which never fades); 1 = no dim at all. */
+  artDim: number;
   /** Glow — blur radius (px) of each drop-shadow pass. */
   glowBlur: number;
   /** Glow — peak opacity of the glow layer (0–1). 0 disables the glow entirely. */
@@ -60,6 +63,7 @@ const DEFAULTS: HeroPowerBtnConfig = {
   artX: 0,
   artY: 0,
   artScale: 1,
+  artDim: 0.5,
   glowBlur: 1,
   glowAlpha: 0.93,
   glowStrength: 6,
@@ -80,6 +84,7 @@ export const HPB_RANGES: Record<Exclude<keyof HeroPowerBtnConfig, 'glowColor'>, 
   artX: [-60, 60, 0.5],
   artY: [-60, 60, 0.5],
   artScale: [0.4, 2.5, 0.01],
+  artDim: [0, 1, 0.01],
   glowBlur: [0, 48, 1],
   glowAlpha: [0, 1, 0.01],
   glowStrength: [1, 8, 1],
@@ -99,6 +104,7 @@ export const HPB_DESC: Record<keyof HeroPowerBtnConfig, string> = {
   artX: 'Power ART — slide it horizontally inside the face window (the diamond clip stays put).',
   artY: 'Power ART — slide it vertically inside the face window.',
   artScale: 'Power ART — zoom it inside the face window (the diamond clip stays put).',
+  artDim: 'Power ART — its opacity while the power is USED / unaffordable; it fades against the dark face. 1 = never dims.',
   glowBlur: 'Face glow softness — blur radius (px) of each drop-shadow pass.',
   glowAlpha: 'Face glow peak opacity. 0 turns the glow off.',
   glowStrength: 'Glow intensity — how many times the shadow is stacked. Higher = hotter rim.',
@@ -114,7 +120,7 @@ export const HPB_DESC: Record<keyof HeroPowerBtnConfig, string> = {
 /** Keys grouped by control type for the tuner UI. */
 export const HPB_NUM_KEYS = [
   'x', 'y', 'scale',
-  'artX', 'artY', 'artScale',
+  'artX', 'artY', 'artScale', 'artDim',
   'glowX', 'glowY', 'glowW', 'glowH',
   'glowBlur', 'glowAlpha', 'glowStrength', 'glowPulse', 'glowPulseDepth',
 ] as const;
@@ -156,6 +162,7 @@ export function applyHeroPowerBtnVars(): void {
   root.setProperty('--hpb-art-x', String(cfg.artX));
   root.setProperty('--hpb-art-y', String(cfg.artY));
   root.setProperty('--hpb-art-s', String(cfg.artScale));
+  root.setProperty('--hpb-art-dim', String(cfg.artDim));
   root.setProperty('--hpb-glow-alpha', String(cfg.glowAlpha));
   // Pulse 0 = steady: pin the dip to the peak (and park the duration) rather than running a 0s loop.
   root.setProperty('--hpb-glow-dim', String(cfg.glowPulse > 0 ? cfg.glowAlpha * (1 - cfg.glowPulseDepth) : cfg.glowAlpha));

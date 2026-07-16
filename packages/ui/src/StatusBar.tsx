@@ -148,11 +148,12 @@ export function StatusBar() {
               }}
             >
               {/* DIAMOND housing (owner direction 2026-07-16 — same strategy as the End Turn diamond,
-                  mirrored to the board's middle-left). Layers, bottom-up: the HOLLOW bronze frame (the dark
-                  face is punched out of the asset — no opaque slab), the power art ON TOP clipped to the
-                  face window, and the FACE-cut glow above (drop-shadows follow the inner diamond's alpha; a
-                  CSS mask cuts the source pixels back out so only the halo paints — hover shows it,
-                  READY/ARMED pin it). All dialed live by the 💠 tuner via --hpb-* vars. */}
+                  mirrored to the board's middle-left). Layers, bottom-up: the FULL bronze frame with its
+                  dark face intact (the backing the art fades against — the board never peeks through), the
+                  power art ON TOP clipped to the face window, and the FACE-cut glow above (drop-shadows
+                  follow the inner diamond's alpha; a CSS mask cuts the source pixels back out so only the
+                  halo paints — hover shows it, READY/ARMED pin it). All dialed live by the 💠 tuner via
+                  --hpb-* vars. */}
               <img className="hpb-glow" src="/frames/heropowerbutton_face.webp" alt="" draggable={false} aria-hidden="true" />
               <img className="hpb-frame" src="/frames/heropowerbutton.webp" alt="" draggable={false} aria-hidden="true" />
               {/* Art sits in a CLIPPING wrapper (the face window stays fixed) so the 💠 tuner's art

@@ -688,8 +688,9 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
 }
 /* Power art rides ON TOP of the diamond (owner note 2026-07-16), inside a CLIPPING wrapper pinned to the
    measured face polygon — the window stays fixed while the 💠 tuner's art dials (offset x/y + scale, the
-   --hpb-art-* vars) move the art within it. The frame asset itself is HOLLOW — the dark face is punched
-   out, so a missing/transparent art shows the board through the window, never an opaque slab. */
+   --hpb-art-* vars) move the art within it. The frame asset keeps its DARK FACE intact (owner note: the
+   housing stays whole) — it's the backing the art fades against when the power is used, so the board never
+   peeks through the window. */
 .heropowerbtn .hpb-frame { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; -webkit-user-drag: none; }
 .heropowerbtn .hpb-artwrap { position: absolute; inset: 0; z-index: 2; clip-path: polygon(50% 13.8%, 83% 50.1%, 50% 83.6%, 16.8% 50.1%); pointer-events: none; }
 .heropowerbtn .hpb-art {
@@ -721,11 +722,12 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
   0%, 100% { opacity: var(--hpb-glow-alpha, 0.93); }
   50% { opacity: var(--hpb-glow-dim, 0.83); }
 }
-/* An ACTIVE power that's on cooldown / unaffordable dims its ART ONLY — the bronze housing NEVER fades
-   (owner note 2026-07-16). A PASSIVE hero's art stays full (it's always on, just not clickable) but never
-   glows — so every hero shows its power art, only active ones pulse. */
+/* An ACTIVE power that's used / unaffordable fades its ART ONLY, to the 💠 tuner's `art · used opacity`
+   (--hpb-art-dim) — the housing (frame + dark face) NEVER fades, so the art dims against the dark backing,
+   never the board (owner notes 2026-07-16). A PASSIVE hero's art stays full (it's always on, just not
+   clickable) but never glows — so every hero shows its power art, only active ones pulse. */
 .heropowerbtn:not(.ready):not(.armed):not(.passive) .hpb-art,
-.heropowerbtn:not(.ready):not(.armed):not(.passive) > svg { opacity: 0.5; filter: saturate(0.75); }
+.heropowerbtn:not(.ready):not(.armed):not(.passive) > svg { opacity: var(--hpb-art-dim, 0.5); filter: saturate(0.75); }
 .heropowerbtn.passive .hpb-art { opacity: 1; }
 .btn.big { font-size: calc(17 * var(--u)); padding: calc(13 * var(--u)) calc(26 * var(--u)); border-radius: calc(15 * var(--u)); gap: calc(9 * var(--u)); box-shadow: 0 3px 0 var(--shadow); }
 /* non-clickable Tavern Tier label, shaded to read apart from the buttons */

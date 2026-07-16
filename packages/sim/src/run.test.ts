@@ -4199,6 +4199,22 @@ describe('opponent pool (M3 step 2 — serve real boards)', () => {
     expect(pickOpponent(3, 20, makeRng(7), [])).toBeNull();
   });
 
+  it('pickOpponent widens to a FRESH nearby-wave board instead of repeating the exact-wave one (starved late pool)', () => {
+    const mk = (over: Partial<BoardSnapshot>): BoardSnapshot => ({
+      v: 1, wave: 3, heroId: 'warden', resolve: 25, tier: 2, triples: 0, tribes: [], threat: 'horde', power: 20,
+      minions: [{ cardId: 'frontdrake', attack: 10, health: 10, keywords: [] }], seed: 0, ...over,
+    });
+    // The late-course pool thins out: nothing at wave 17, one board at 16, one at 15. Waves 16 and 17 both
+    // collapse onto the closest-wave candidate (X) — and X was just fought. The old fallback re-served X
+    // back-to-back ("same snapshot twice in a row", owner report 2026-07-17); now the pick widens to the
+    // fresh wave-15 board instead.
+    const x16 = mk({ wave: 16, origin: 'self', author: 'X', id: 'x16' });
+    const y15 = mk({ wave: 15, origin: 'self', author: 'Y', id: 'y15' });
+    expect(pickOpponent(17, 50, makeRng(7), [x16, y15], new Set([oppKey(x16)]))?.author).toBe('Y');
+    // The ENTIRE pool was fought recently → a repeat is genuinely unavoidable (still beats no opponent).
+    expect(pickOpponent(17, 50, makeRng(7), [x16], new Set([oppKey(x16)]))?.author).toBe('X');
+  });
+
   it('pickOpponent source priority: Supabase (remote) > local player > synthetic, fully random within the tier (no power bias)', () => {
     const mk = (over: Partial<BoardSnapshot>): BoardSnapshot => ({
       v: 1, wave: 3, heroId: 'warden', resolve: 25, tier: 2, triples: 0, tribes: [], threat: 'horde', power: 20,

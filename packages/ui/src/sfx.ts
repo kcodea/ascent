@@ -257,8 +257,9 @@ function firstCardClip(): string | undefined {
 /** Play a decoded sample (fresh BufferSource → overlaps fine) at its CATEGORY's effective gain, routed into that
  *  category's bus. Returns false if its buffer isn't ready yet, so the caller can fall back to a synth blip while
  *  the sample finishes decoding. `delay` (s) schedules the start later on the audio clock (sample-accurate) —
- *  used to stagger a token's clip after the summon cue. */
-function playSample(name: string, category: string, delay = 0): boolean {
+ *  used to stagger a token's clip after the summon cue. `onNodes` hands back the live source+gain so the caller
+ *  can later fade/stop a long clip (see `stopTurnCharge`) — Web Audio sources are otherwise fire-and-forget. */
+function playSample(name: string, category: string, delay = 0, onNodes?: (nodes: PlayNodes) => void): boolean {
   if (isHidden() || audioSuspended) return false; // backgrounded, or hard-muted by a Skip-combat fade
   const a = audio();
   if (!a || muted) return false;
@@ -270,7 +271,28 @@ function playSample(name: string, category: string, delay = 0): boolean {
   g.gain.value = effectiveGain(cfg, category, name);
   src.connect(g).connect(busInput(a, category));
   src.start(a.currentTime + Math.max(0, delay));
+  onNodes?.({ src, gain: g });
   return true;
+}
+interface PlayNodes { src: AudioBufferSourceNode; gain: GainNode; }
+
+// The end-of-turn CHARGE build (`turncharge`) is a long (~25–40s) clip. Web Audio sources are fire-and-forget, so
+// we keep a handle to the live nodes and ramp them down when the turn ends early (End Turn pressed / a new charge
+// starts) — otherwise the build keeps playing under combat. See `stopTurnCharge` + `sfx.turnCharge`.
+let turnChargeNodes: PlayNodes | null = null;
+/** Fade out + stop the currently-playing turn-charge build (if any) over `ms`. No-op if none is playing. */
+export function stopTurnCharge(ms = 300): void {
+  const a = ctx;                    // never CREATE a context just to stop
+  const nodes = turnChargeNodes;
+  turnChargeNodes = null;
+  if (!a || !nodes) return;
+  try {
+    const t = a.currentTime;
+    nodes.gain.gain.cancelScheduledValues(t);
+    nodes.gain.gain.setValueAtTime(nodes.gain.gain.value, t);
+    nodes.gain.gain.linearRampToValueAtTime(0.0001, t + ms / 1000);
+    nodes.src.stop(t + ms / 1000 + 0.02);
+  } catch { /* already ended / stopped */ }
 }
 
 interface ToneOpts {
@@ -486,7 +508,11 @@ export const sfx = {
   // turn when the glyph lights. The sourced "turncharge" clip; synth rising-hum fallback until it decodes / if
   // absent. Drop the clip at `packages/ui/src/audio/turncharge.mp3`.
   turnCharge: () => {
-    if (playSample('turncharge', 'turncharge')) return;
+    stopTurnCharge(80); // never stack: quickly cut any build still ringing from a prior turn before the new one
+    if (playSample('turncharge', 'turncharge', 0, (n) => {
+      turnChargeNodes = n;
+      n.src.onended = () => { if (turnChargeNodes?.src === n.src) turnChargeNodes = null; }; // clear on natural end
+    })) return;
     tone({ freq: 150, dur: 0.7, type: 'sawtooth', vol: 0.1, slideTo: 480, category: 'turncharge' });
   },
   // The turn timer hits ZERO — the last instant the shop is usable (actions lock); syncs with the charge glyph's

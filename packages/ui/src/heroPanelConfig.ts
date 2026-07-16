@@ -47,11 +47,11 @@ export interface HeroPanelConfig {
 // Owner-tuned by eye in the 🧍 tuner and baked as the shipped look (2026-07-16). Mirror changes into the
 // styles.css `var(--hpn-*, …)` fallbacks.
 const DEFAULTS: HeroPanelConfig = {
-  panelX: 19, panelY: -19, panelScale: 2.27, panelW: 0, panelH: 0,
+  panelX: -23, panelY: -569, panelScale: 2.27, panelW: 0, panelH: 0,
   portraitX: 0, portraitY: 0, portraitScale: 1.16,
   playerNameX: 0, playerNameY: 0, playerNameScale: 0.59,
   heroNameX: 0, heroNameY: 0, heroNameScale: 0.67,
-  resolveX: -27, resolveY: 36, resolveScale: 0.68,
+  resolveX: -119, resolveY: 65, resolveScale: 0.51,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

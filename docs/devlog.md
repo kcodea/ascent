@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### chore(sim/ui): hero + power renames pass, and the hero panel re-seated to the board's left rail
+
+- **Renames** (display-only; ids stable, kinds/behavior untouched — no test asserted the old names):
+  Djinn→**Djinni**, Bagger Ben→**Rascal**, Runeguard→**Guardian**; powers Gild→**Masterwork**, Gold Font→
+  **Wellspring**, Displace→**Swap**, Rise Again→**Undying**, Bag It→**All In**, Encore (Chronos)→
+  **Timelapse**, Runeforge→**Forgemaster**, Defend the Forge→**Runeguard**. The rest of the owner's table
+  (Pulse, Cadence, Drumline, Chaos Bond, all texts) already matched the shipped data.
+- **Panel re-bake**: the owner moved the hero panel UP the left rail — panel −23/−569 @ 2.27× (it now sits
+  above the power diamond at the board's mid-left instead of the bottom corner), Resolve housing −119/+65 @
+  0.51×. Baked into `heroPanelConfig` DEFAULTS + the CSS fallbacks.
+- Verified with clean localStorage: the panel renders at its new spot stacked over the diamond; an 8-hero
+  sweep confirmed every rename (Rascal/All In, Guardian/Runeguard, Lord of the Risen/Undying, Djinni/
+  Cadence, Indy/Masterwork, Darah/Swap, Chronos/Timelapse, Runesmith/Forgemaster). Typecheck + lint +
+  1109 tests + build:web green.
+
 ### chore(ui): hero panel + hero power — owner-tuned values baked as the shipped defaults
 
 - The owner's 🧍 and 💠 exports are now the shipped look, baked into both configs' DEFAULTS and the

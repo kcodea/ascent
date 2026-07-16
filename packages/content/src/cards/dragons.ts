@@ -13,8 +13,8 @@ export const DRAGONS: CardDef[] = [
     name: 'Hoard Cleric',
     tribe: 'dragon',
     tier: 3,
-    attack: 3,
-    health: 4,
+    attack: 2,
+    health: 2,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryBuffTribe', params: { tribe: 'dragon', attack: 3, health: 3 } }],
     text: '**Battlecry:** give your Dragons **+3/+3**.',
@@ -50,8 +50,8 @@ export const DRAGONS: CardDef[] = [
     name: 'Karwind',
     tribe: 'dragon',
     tier: 5,
-    attack: 2,
-    health: 12,
+    attack: 5,
+    health: 10,
     keywords: [],
     effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 2, health: 2 } }],
     text: 'Whenever a **Battlecry** triggers, give your Dragons **+2/+2**.',
@@ -98,7 +98,7 @@ export const DRAGONS: CardDef[] = [
     id: 'havendrake',
     name: 'Haven Drake',
     tribe: 'dragon',
-    tier: 4,
+    tier: 5,
     attack: 3,
     health: 5,
     keywords: [],
@@ -114,7 +114,7 @@ export const DRAGONS: CardDef[] = [
     tribe: 'dragon',
     tier: 2,
     attack: 2,
-    health: 3,
+    health: 4,
     keywords: ['RL'],
     effects: [{ on: 'onAttack', do: 'rallyBuff', params: { tribe: 'dragon', count: 2, attack: 1, health: 2 } }],
     text: '**Rally:** give 2 friendly Dragons **+1/+2**.',
@@ -164,7 +164,9 @@ export const DRAGONS: CardDef[] = [
     goldenText: 'When this gains Attack, give your minions **+2/+2** and improve this by **+2/+2**.',
   },
   {
-    // Undead/Dragon snowball: every 2 ally attacks, buff your whole board a flat +2/+2. Golden → +4/+4.
+    // Undead/Dragon snowball: every 2 ally attacks, buff your whole board +2/+2 — improving +2/+2 every
+    // 4 attacks, permanently for this copy (rides summonBonus; a triple sums the two highest accruals).
+    // Golden doubles both the grant and the improve step.
     id: 'cryptdrake',
     name: 'Crypt Drake',
     tribe: 'dragon',
@@ -173,9 +175,9 @@ export const DRAGONS: CardDef[] = [
     attack: 6,
     health: 6,
     keywords: [],
-    effects: [{ on: 'onAttack', do: 'onAllyAttackBuffAll', params: { step: 2, every: 2 } }],
-    text: 'Every **2** ally attacks, give your minions **+2/+2**.',
-    goldenText: 'Every **2** ally attacks, give your minions **+4/+4**.',
+    effects: [{ on: 'onAttack', do: 'onAllyAttackBuffAll', params: { step: 2, every: 2, improveEvery: 4 } }],
+    text: 'Every **2** ally attacks, give your minions **+2/+2**. Improves **+2/+2** every **4** attacks.',
+    goldenText: 'Every **2** ally attacks, give your minions **+4/+4**. Improves **+4/+4** every **4** attacks.',
   },
   {
     // Quest dragon: Engraved (keeps combat stat gains), and after being GRANTED STATS 20 times in combat it
@@ -197,7 +199,7 @@ export const DRAGONS: CardDef[] = [
 
   // --- Twilight Whelp line (2026-06-24) — the immediate-attack mechanic; replaces Ember Whelp at T1. ---
   {
-    // Fragile T1 that leaves a 3/3 Whelp behind — and the Whelp ATTACKS IMMEDIATELY on spawn (the
+    // Fragile T1 that leaves a 3/2 Whelp behind — and the Whelp ATTACKS IMMEDIATELY on spawn (the
     // `whelpling` token's `attackOnSummon`, drained by simulate's immediate-attack queue). Golden → 2 Whelps.
     id: 'twilightwhelp',
     name: 'Violet Whelp',
@@ -207,11 +209,11 @@ export const DRAGONS: CardDef[] = [
     health: 1,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'whelpling', count: 1 } }],
-    text: '**Deathrattle:** summon a 3/3 Whelp that attacks immediately.',
-    goldenText: '**Deathrattle:** summon two 3/3 Whelps that attack immediately.',
+    text: '**Deathrattle:** summon a 3/2 Whelp that attacks immediately.',
+    goldenText: '**Deathrattle:** summon two 3/2 Whelps that attack immediately.',
   },
   {
-    // Deathrattle factory for the Whelp line: leaves 2 Twilight Whelps WITH Taunt (each leaves a 3/3
+    // Deathrattle factory for the Whelp line: leaves 2 Twilight Whelps WITH Taunt (each leaves a 3/2
     // immediate Whelp when it dies). Golden → 4. Uses deathrattleSummon's optional `keyword` grant.
     id: 'broodmother',
     name: 'Violet Whelpmother',
@@ -232,8 +234,8 @@ export const DRAGONS: CardDef[] = [
     name: 'Runescale Drake',
     tribe: 'dragon',
     tier: 4,
-    attack: 4,
-    health: 2,
+    attack: 5,
+    health: 5,
     keywords: [],
     effects: [
       { on: 'spellCast', do: 'spellCastImproveSelf' },

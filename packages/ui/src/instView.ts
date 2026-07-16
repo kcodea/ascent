@@ -3,7 +3,7 @@ import { CONFIG, spellAttackBonus, spellDisplayText, spellHealthBonus, type Boar
 import type { CardView } from './Card';
 import {
   abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText,
-  cryptDrakeText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
+  cryptDrakeText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
   trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
@@ -53,7 +53,8 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
         ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0)
         : transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
-            cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0) ?? // combat-only: null in the shop (attackSeen 0)
+            cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0, p.summonBonus ?? 0) ?? // live grant + combat countdown
+            karthusText(c.id, p.golden, p.summonBonus ?? 0) ?? // Karthus: live per-Slaughter grant
             engraveTallyText(c.id, p.permaGain) ?? // combat-only: null in the shop (no permaGain)
             watcherText(c.id, p.golden, p.spellBonus, p.spellBonusH) ?? // Watcher: live Lantern buff +x/+y (base + spell power, both stats)
             abhorrentHorrorText(c.id, p.fodderConsumed, p.golden) ??

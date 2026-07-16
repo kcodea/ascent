@@ -1351,6 +1351,13 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
     // factory, so all the triple must do is preserve where the accrual already is.
     const maxBonus = Math.max(...combined.map((c) => c.summonBonus ?? 0));
     summonBonus = maxBonus > 0 ? maxBonus : undefined;
+  } else if (def.effects.some((e) => e.do === 'onKillBuffUndeadAttack' || e.do === 'onAllyAttackBuffAll')) {
+    // Karthus / Crypt Drake (owner ruling 2026-07-16): the golden COMBINES the two highest copies'
+    // accrued improvements. The doubled base grant + doubled improve step come from mul(self) in the
+    // factory, so the triple only merges where the accruals already are.
+    const sbs = combined.map((c) => c.summonBonus ?? 0).sort((a, b) => b - a);
+    const sum = (sbs[0] ?? 0) + (sbs[1] ?? 0);
+    summonBonus = sum > 0 ? sum : undefined;
   }
   // Flowing Monk (owner ruling 2026-07-03): the golden COMBINES the two highest copies' CURRENT grants —
   // e.g. +10/+10 and +4/+4 copies triple into a golden granting +14/+14. Since the stepped formula can't

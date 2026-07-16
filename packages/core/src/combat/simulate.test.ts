@@ -669,21 +669,21 @@ describe('simulate (handoff A.3)', () => {
     ];
     const r = run(p, [{ cardId: 'sandbag', attack: 5, health: 300 }], 1);
     expect(r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'nanobot').length).toBe(1);
-    // 5 overflow × +3/+4 = +15/+20 to each Mech (the only buffs this fight).
-    const buffs = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 15 && ev.health === 20);
+    // 5 overflow × +2/+2 = +10/+10 to each Mech (the only buffs this fight).
+    const buffs = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 10 && ev.health === 10);
     expect(buffs.length).toBeGreaterThan(0);
   });
 
   it('a golden Nanon doubles the overflow buff (+4/+4 each), summon count unchanged', () => {
-    // Same full board → still 5 overflow (golden does NOT summon more), but each Mech gets +30/+40 (5 × +6/+8).
+    // Same full board → still 5 overflow (golden does NOT summon more), but each Mech gets +20/+20 (5 × +4/+4).
     const p: BoardMinion[] = [
       { cardId: 'nanon', attack: 1, health: 1, golden: true },
       ...Array.from({ length: 6 }, () => ({ cardId: 'drone', attack: 1, health: 50 })),
     ];
     const r = run(p, [{ cardId: 'sandbag', attack: 5, health: 300 }], 1);
     expect(r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'nanobot').length).toBe(1);
-    const buffs = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 30 && ev.health === 40);
-    expect(buffs.length).toBeGreaterThan(0); // +30/+40 confirms golden keeps 6 summons (5 overflow × +6/+8)
+    const buffs = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 20 && ev.health === 20);
+    expect(buffs.length).toBeGreaterThan(0); // +20/+20 confirms golden keeps 6 summons (5 overflow × +4/+4)
   });
 
 
@@ -1374,6 +1374,43 @@ describe('simulate (handoff A.3)', () => {
     expect(reborns.length).toBeGreaterThan(0);
     // The reborn body reset to base (Attack 3) then re-applied auras → carries the +3 the enemy Karthus granted.
     expect(reborns.some((ev) => ev.type === 'reborn' && ev.attack > 3)).toBe(true);
+  });
+
+  it("Karthus's Slaughter grant IMPROVES +3 per kill (3, 6, 9, …) and carries the accrual back", () => {
+    // Karthus mows through 3 fragile enemies — each Slaughter grants the CURRENT amount, then improves it.
+    const p: BoardMinion[] = [{ cardId: 'karthus', attack: 10, health: 60, keywords: ['SL'], sourceUid: 'k1' }];
+    const e: BoardMinion[] = Array.from({ length: 3 }, () => ({ cardId: 'omen', attack: 0, health: 1 }));
+    const r = run(p, e, 1);
+    const grants = r.events.flatMap((ev) => (ev.type === 'buff' && ev.health === 0 && ev.attack > 0 ? [ev.attack] : []));
+    expect(grants.slice(0, 3)).toEqual([3, 6, 9]); // base 3, then +3 improvement per Slaughter
+    // The accrued improvement (9 after 3 kills) carries back to the run board, keyed to the source card.
+    expect(r.playerSummonBonus).toEqual([{ sourceUid: 'k1', bonus: 9 }]);
+  });
+
+  it('a GOLDEN Karthus grants 6 and improves +6 per kill; a seeded accrual resumes where it left off', () => {
+    const golden: BoardMinion[] = [{ cardId: 'karthus', attack: 10, health: 60, keywords: ['SL'], golden: true }];
+    const e = () => Array.from({ length: 2 }, () => ({ cardId: 'omen', attack: 0, health: 1 }));
+    const g = run(golden, e(), 1);
+    const gGrants = g.events.flatMap((ev) => (ev.type === 'buff' && ev.health === 0 && ev.attack > 0 ? [ev.attack] : []));
+    expect(gGrants.slice(0, 2)).toEqual([6, 12]);
+    // A copy seeded with a prior accrual (summonBonus 9) grants base+9 on its first kill this fight.
+    const seeded: BoardMinion[] = [{ cardId: 'karthus', attack: 10, health: 60, keywords: ['SL'], summonBonus: 9 }];
+    const s2 = run(seeded, e(), 1);
+    const sGrants = s2.events.flatMap((ev) => (ev.type === 'buff' && ev.health === 0 && ev.attack > 0 ? [ev.attack] : []));
+    expect(sGrants[0]).toBe(12); // 3 + 9
+  });
+
+  it("Crypt Drake's board buff improves +2/+2 every 4 ally attacks (2,2 → 4 after the improve) and carries back", () => {
+    // Only the player attacks (enemy 0-Attack sandbag soaks). Attacks 2 & 4 proc the +grant; attack 4 improves.
+    const p: BoardMinion[] = [{ cardId: 'cryptdrake', attack: 1, health: 90, sourceUid: 'cd1' }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 400 }];
+    const r = run(p, e, 1);
+    const grants = r.events.flatMap((ev) => (ev.type === 'buff' && ev.attack === ev.health && ev.attack > 0 ? [ev.attack] : []));
+    // attack 2 → +2/+2; attack 4 → +2/+2 then improve; attack 6 → +4/+4; attack 8 → +4/+4 then improve …
+    expect(grants.slice(0, 4)).toEqual([2, 2, 4, 4]);
+    // The accrual carries back for the run (keyed to the source card) — it improved at attacks 4, 8, …
+    expect(r.playerSummonBonus?.[0]?.sourceUid).toBe('cd1');
+    expect(r.playerSummonBonus?.[0]?.bonus).toBeGreaterThanOrEqual(4);
   });
 
   it("Ryme's Deathrattle re-fires an adjacent minion's combat Battlecry (Alleycat → a Stray)", () => {
@@ -2095,7 +2132,7 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'buff' && e.target === raptorUid)).toBe(false); // Raptor never self-buffs
   });
 
-  it('Crypt Drake buffs your whole board a flat +2/+2 every 2 ally attacks (no improvement)', () => {
+  it('Crypt Drake buffs your whole board +2/+2 every 2 ally attacks, improving every 4 (owner 2026-07-16)', () => {
     const a = run(
       [
         { cardId: 'cryptdrake', attack: 4, health: 80 },
@@ -2105,7 +2142,7 @@ describe('simulate (handoff A.3)', () => {
       3,
     );
     expect(a.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true); // fires every 2nd attack
-    expect(a.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(false); // flat — never improves
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true); // improved after attack 4
   });
 
   it('Taragosa casts Growth (+3/+4 to all your minions) on each ally attack', () => {
@@ -2698,7 +2735,7 @@ describe('simulate (handoff A.3)', () => {
     ];
     const r = run(p, e, 5);
     expect(r.result).toBe('win');
-    expect(r.playerUndeadBuyAtkGain).toBe(9); // 3 kills × +3 (was 3: main target only)
+    expect(r.playerUndeadBuyAtkGain).toBe(18); // 3 kills: +3, +6, +9 (the grant improves each Slaughter)
   });
 
   it('Sword and Bored buffs Fodder +1/+1 on Slaughter (golden doubles to +2/+2)', () => {

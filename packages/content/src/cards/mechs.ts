@@ -68,8 +68,8 @@ export const MECHS: CardDef[] = [
     name: 'Money Bot',
     tribe: 'mech',
     tier: 3,
-    attack: 3,
-    health: 3,
+    attack: 2,
+    health: 2,
     keywords: ['M'],
     effects: [],
     manaPerTurn: 1,
@@ -131,7 +131,7 @@ export const MECHS: CardDef[] = [
     tribe: 'mech',
     tier: 5,
     attack: 6,
-    health: 5,
+    health: 6,
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'battlecryBuffSpellPower', params: { attack: 1, health: 1 } }],
     text: '**End of Turn:** give your spells **+1/+1**.',
@@ -180,7 +180,7 @@ export const MECHS: CardDef[] = [
   },
   {
     // T6 flood-or-pump finisher: its Deathrattle dumps 6 Nanobots, and any that can't fit a full board are
-    // converted into a board-wide Mech buff (+2/+2 each, golden +4/+4 — the count stays 6, so a packed board
+    // converted into a board-wide Mech buff (+2/+2 each, golden +4/+4 — owner trim 2026-07-16; the count stays 6, so a packed board
     // turns the wasted bodies into a big pump instead). Pairs with go-wide Mech boards. Nanobot is a 1/1 token.
     id: 'nanon',
     name: 'Nanon',
@@ -189,9 +189,9 @@ export const MECHS: CardDef[] = [
     attack: 6,
     health: 6,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleSummonOverflowBuff', params: { tokenId: 'nanobot', count: 6, tribe: 'mech', attack: 3, health: 4 } }],
-    text: "**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+3/+4**.",
-    goldenText: "**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+6/+8**.",
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonOverflowBuff', params: { tokenId: 'nanobot', count: 6, tribe: 'mech', attack: 2, health: 2 } }],
+    text: "**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+2/+2**.",
+    goldenText: "**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+4/+4**.",
   },
   {
     // Spend-gold payoff (the gold meter shared with Acid): every 10 Gold you spend, weld a RANDOM Magnetic
@@ -216,7 +216,7 @@ export const MECHS: CardDef[] = [
     tier: 4,
     attack: 4,
     health: 5,
-    keywords: ['RL'],
+    keywords: ['RL', 'DS'],
     effects: [{ on: 'onAttack', do: 'rallyGrantMagnetic', params: { count: 1 } }],
     text: '**Rally:** get a random **Magnetic** Mech.',
     goldenText: '**Rally:** get **2** random **Magnetic** Mechs.',
@@ -256,9 +256,9 @@ export const MECHS: CardDef[] = [
     id: 'fieldmechanic',
     name: 'Field Mechanic',
     tribe: 'mech',
-    tier: 2,
-    attack: 2,
-    health: 2,
+    tier: 3,
+    attack: 3,
+    health: 3,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'patchjob' } }],
     text: '**Battlecry:** add a **Patch Job** to your hand.',
@@ -271,7 +271,7 @@ export const MECHS: CardDef[] = [
     name: 'Spark Capacitor',
     tribe: 'mech',
     tier: 4,
-    attack: 4,
+    attack: 2,
     health: 7,
     keywords: [],
     effects: [{ on: 'avenge', do: 'avengeGrantSpell', params: { count: 3, cardId: 'sparkplug' } }],
@@ -286,8 +286,8 @@ export const MECHS: CardDef[] = [
     name: 'Attachment Mechanic',
     tribe: 'mech',
     tier: 3,
-    attack: 2,
-    health: 3,
+    attack: 1,
+    health: 1,
     keywords: [],
     effects: [
       { on: 'onPlay', do: 'battlecryBuffMagnetics', params: { attack: 2, health: 2 } },

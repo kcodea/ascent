@@ -269,19 +269,44 @@ export function monkProgressText(cardId: string, golden: boolean, summonBonus: n
 }
 
 /**
- * Crypt Drake: "Every N ally attacks, give your minions +X/+X." — appends the live countdown to the next
- * proc. The buff is flat (no improvement), so the magnitude in the printed text is already correct. Returns
- * null when no attacks have been seen yet (falls back to printed text).
+ * Crypt Drake: "Every N ally attacks, give your minions +X/+X. Improves every M attacks." — folds the
+ * CURRENT grant (base + the accrued permanent improvement, riding `summonBonus`) into the printed number,
+ * and appends the live countdown to the next proc in combat. Returns null when neither is live yet
+ * (fresh copy in the shop → the printed base is already correct).
  */
-export function cryptDrakeText(cardId: string, golden: boolean, attackSeen: number): string | null {
-  if (attackSeen <= 0) return null;
+export function cryptDrakeText(cardId: string, golden: boolean, attackSeen: number, bonus = 0): string | null {
+  if (attackSeen <= 0 && bonus <= 0) return null;
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'onAllyAttackBuffAll');
   if (!def || !eff) return null;
   const every = Math.max(1, Number((eff.params as { every?: number } | undefined)?.every ?? 2));
+  let src = golden ? (def.goldenText ?? def.text) : def.text;
+  if (bonus > 0) {
+    // The grant magnitude climbed — print the CURRENT value green (first occurrence = the grant; the
+    // trailing "Improves +X/+X" keeps the printed step, which stays correct).
+    const base = Number((eff.params as { step?: number } | undefined)?.step ?? 2) * (golden ? 2 : 1);
+    const cur = base + bonus;
+    src = src.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${cur}/+${cur}}}`);
+  }
+  if (attackSeen <= 0) return src; // shop view after combats: live magnitude, no countdown
   const toNext = every - (attackSeen % every); // attacks until the next proc (= `every` right after a proc)
-  const src = golden ? (def.goldenText ?? def.text) : def.text;
   return `${src} {{${toNext} to go}}`;
+}
+
+/**
+ * Karthus: "Slaughter: give your Undead +N Attack permanently. Improves +step each Slaughter." — folds the
+ * CURRENT grant (base + the accrued improvement, riding `summonBonus`) into the printed number once it has
+ * climbed. Returns null until then (the printed base is already correct).
+ */
+export function karthusText(cardId: string, golden: boolean, bonus: number): string | null {
+  if (bonus <= 0) return null;
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'onKillBuffUndeadAttack');
+  if (!def || !eff) return null;
+  const base = Number((eff.params as { attack?: number } | undefined)?.attack ?? 3) * (golden ? 2 : 1);
+  const total = base + bonus;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/\*\*\+\d+ Attack\*\*/, `{{+${total} Attack}}`);
 }
 
 /**

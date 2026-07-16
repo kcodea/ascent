@@ -905,8 +905,8 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
     expect(s.board.find((c) => c.cardId === 'frontdrake')?.attack).toBe(5); // 2 + 3
     const cleric = s.board.find((c) => c.cardId === 'cleric');
-    expect(cleric?.attack).toBe(6); // 3 + 3 (Battlecry includes self)
-    expect(cleric?.health).toBe(7); // 4 base + 3
+    expect(cleric?.attack).toBe(5); // 2 + 3 (Battlecry includes self)
+    expect(cleric?.health).toBe(5); // 2 base + 3
   });
 
   it("Ritualist's End of Turn buffs all Fodder — existing copies and the run-level card buff", () => {

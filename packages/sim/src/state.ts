@@ -395,6 +395,9 @@ export interface RunState {
   /** Tiff (Dragon Tamer): Dragons/spells BOUGHT since the last power use — each drops the power's 5-Gold
    *  cost by 1 (floor 0, see `dragonTamerCostOf`). Reset to 0 when the power fires; persists across turns. */
   tiffDiscount?: number;
+  /** Gorr's Four Peat: the cardIds of MINIONS bought THIS turn (reset at turn setup). The 3rd buy conjures a
+   *  plain copy of one of the three at random — once per turn (the array keeps growing past 3 but never re-fires). */
+  gorrBuys?: string[];
   /** Fodder consumed so far this wave (reset in advanceCombat). The Abhorrent Horror reads this at
    *  Start of Combat to gain the fodder's stats. */
   fodderConsumedThisTurn?: { attack: number; health: number };

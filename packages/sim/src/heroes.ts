@@ -33,7 +33,10 @@ export type HeroPowerKind =
   | 'epicRuneforge' // Guardian (passive): the EPIC Runeforge opens on turn 10 (scheduled via `epicForgeWave` at run start)
   | 'pathfinder' // Coran (passive): a bonus late-bucket (Capstone) quest on turn 10, on top of the normal 5 & 11
   | 'dynamiteDig' // Jensen: Discover a minion of your tier — free first, +1 Gold each later use (active, untargeted)
-  | 'dragonTamer'; // Tiff: 5 Gold Discover a Dragon — the cost drops 1 per Dragon/spell bought, resetting on use
+  | 'dragonTamer' // Tiff: 5 Gold Discover a Dragon — the cost drops 1 per Dragon/spell bought, resetting on use
+  | 'secondHand' // Re-Pete (passive): at the END of every 3rd turn, a plain copy of the left-most card in hand (conjured, no pool take)
+  | 'possession' // Atrius (passive): SoC — leftmost gains rightmost's Attack; rightmost gains leftmost's Health
+  | 'fourPeat'; // Gorr (passive): buy 3 minions in one turn → a plain copy of one of them at random (once/turn)
 
 export interface HeroPower {
   name: string;
@@ -391,6 +394,45 @@ export const HEROES: HeroDef[] = [
       kind: 'dynamiteDig',
       untargeted: true, // fires immediately: Discover a minion of your tier; the escalating cost is handled in the reducer
       text: 'Discover a minion from your Shop tier. The first is free; each use costs 1 more Gold.',
+    },
+  },
+  {
+    id: 'repete',
+    name: 'Re-Pete',
+    blurb: 'Anything worth having is worth having twice.',
+    resolve: 30,
+    armor: 9,
+    power: {
+      name: 'Second Hand',
+      kind: 'secondHand',
+      passive: true, // resolved at the END of every 3rd turn (turns 3, 6, 9, …) — in the faceOmen case
+      text: 'At the end of every 3rd turn, get a plain copy of the left-most card in your hand.',
+    },
+  },
+  {
+    id: 'atrius',
+    name: 'Atrius',
+    blurb: 'Two bodies, one will — what one carries, the other wields.',
+    resolve: 30,
+    armor: 13,
+    power: {
+      name: 'Possession',
+      kind: 'possession',
+      passive: true, // a combat-time Start-of-Combat effect (rides the quest-mods channel into simulate)
+      text: "**Start of Combat**: your left-most minion gains your right-most minion's Attack, and your right-most minion gains your left-most minion's Health.",
+    },
+  },
+  {
+    id: 'gorr',
+    name: 'Gorr',
+    blurb: 'Buy three, and a fourth walks itself home.',
+    resolve: 30,
+    armor: 10,
+    power: {
+      name: 'Four Peat',
+      kind: 'fourPeat',
+      passive: true, // resolved in the buy case: the 3rd minion bought each turn conjures a random plain copy
+      text: 'When you buy 3 minions in a turn, get a plain copy of one of them at random.',
     },
   },
 ];

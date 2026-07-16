@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { CombatResult } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNES, RUNE_INDEX, validateRunes } from '@game/content';
 import { createRun, type RunState } from './state';
-import { openEpicRuneforge, reduce } from './reducer';
+import { openEpicRuneforge, questCombatMods, reduce } from './reducer';
 import { dragonTamerCostOf, spellDisplayText } from './recruit';
 import { questBucketFor } from './quests';
 import { applyEndOfTurn, projectEndOfTurnSteps, questEndOfTurnBeats } from './recruit';
@@ -238,6 +238,65 @@ describe('New heroes — Coran (Pathfinder) + Jenkins (Dynamite Dig)', () => {
     f = reduce(f, { type: 'heroPower' });
     expect(f.discover).toBeDefined(); // fires with 0 Gold
     expect(f.embers).toBe(0);
+  });
+});
+
+describe('New heroes — Re-Pete, Gorr, Atrius', () => {
+  it("Re-Pete: Second Hand conjures a PLAIN copy of the left-most hand card at the END of turns 3, 6, 9, …", () => {
+    // A buffed GOLDEN card leads the hand — the copy must come back plain (base stats, not golden).
+    const buffed: RunState['hand'][number] = { uid: 'h1', cardId: 'alley', tribe: 'beast', attack: 9, health: 9, keywords: ['T' as never], golden: true };
+    // Ending turn 2 (a non-multiple) grants nothing.
+    let s: RunState = { ...createRun(1, 'repete'), wave: 2, phase: 'recruit', hand: [buffed] };
+    s = reduce(s, { type: 'faceOmen' }); // end of turn 2 → no grant
+    expect(s.hand.length).toBe(1);
+    s = reduce(s, { type: 'resolveCombat' }); // → recruit for wave 3
+    expect(s.wave).toBe(3);
+    expect(s.hand.length).toBe(1); // nothing at the shop open either
+    s = reduce(s, { type: 'faceOmen' }); // END of turn 3 → the grant fires
+    const copy = s.hand.find((c) => c.uid !== 'h1' && c.cardId === 'alley');
+    expect(copy).toBeDefined();
+    expect(copy!.golden).toBe(false); // plain
+    expect(copy!.attack).toBe(CARD_INDEX['alley']!.attack); // base stats — no buffs carried
+    expect(copy!.health).toBe(CARD_INDEX['alley']!.health);
+  });
+
+  it('Re-Pete: an empty hand grants nothing (no crash) at the end of a multiple-of-3 turn', () => {
+    let s: RunState = { ...createRun(1, 'repete'), wave: 3, phase: 'recruit', hand: [] };
+    s = reduce(s, { type: 'faceOmen' }); // end of turn 3 with an empty hand
+    expect(s.hand.length).toBe(0);
+  });
+
+  it('Gorr: the 3rd minion bought in a turn conjures a plain copy of one of the three at random — once per turn', () => {
+    // NB: explicit 'g*' uids — createRun rolls a right-slot spell whose uid can collide with 's3'.
+    let s: RunState = { ...createRun(1, 'gorr'), wave: 3, tier: 2, phase: 'recruit', embers: 20, hand: [], spell: null,
+      shop: [
+        { uid: 'g1', cardId: 'alley' },
+        { uid: 'g2', cardId: 'pack' },
+        { uid: 'g3', cardId: 'kennel' },
+        { uid: 'g4', cardId: 'gnash' },
+      ] };
+    s = reduce(s, { type: 'buy', uid: 'g1' });
+    expect(s.gorrBuys).toEqual(['alley']);
+    s = reduce(s, { type: 'buy', uid: 'g2' });
+    expect(s.hand.length).toBe(2); // no copy yet
+    s = reduce(s, { type: 'buy', uid: 'g3' }); // the 3rd buy fires
+    expect(s.hand.length).toBe(4); // 3 bought + 1 conjured copy
+    const copy = s.hand[3]!;
+    expect(['alley', 'pack', 'kennel']).toContain(copy.cardId); // one of the three, at random
+    expect(copy.golden).toBe(false);
+    expect(copy.attack).toBe(CARD_INDEX[copy.cardId]!.attack); // plain base stats
+    // A 4th buy the same turn does NOT re-fire.
+    s = reduce(s, { type: 'buy', uid: 'g4' });
+    expect(s.hand.length).toBe(5); // just the bought minion — no second copy
+    // The tally resets at the next turn setup.
+    s = reduce({ ...s, hand: [] }, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.gorrBuys).toBeUndefined();
+  });
+
+  it("Atrius: `questCombatMods` arms the possession Start-of-Combat mod (and only for Atrius)", () => {
+    expect(questCombatMods(createRun(1, 'atrius')).possession).toBe(true);
+    expect(questCombatMods(createRun(1, 'soren')).possession).toBeUndefined();
   });
 });
 

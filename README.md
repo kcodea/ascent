@@ -40,6 +40,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **Three new heroes.** **Re-Pete** (Second Hand — every 3 turns, a plain copy of your left-most hand card),
+  **Atrius** (Possession — Start of Combat, the leftmost minion gains the rightmost's Attack and the rightmost
+  gains the leftmost's Health) and **Gorr** (Four Peat — your 3rd minion buy each turn conjures a plain copy of
+  one of the three at random). All arts wired + live power tallies. Joins **Tiff** (Dragon Tamer) from earlier
+  in the week.
 - **Balance pass: 24 cards.** Stat/tier tuning across all tribes (Mumi, Hoarder, Imp King, Karwind, Rope
   Wrangler → T4, Haven Drake → T5, Field Mechanic → T3, …), Mechanical Jouster gains Ward — and **Karthus** /
   **Crypt Drake** now *improve permanently per copy* (Slaughter grants climb +3 each kill; the every-2-attacks

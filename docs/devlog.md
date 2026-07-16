@@ -5,6 +5,34 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(sim/core/ui): three new heroes — Re-Pete (Second Hand), Atrius (Possession), Gorr (Four Peat)
+
+- **Re-Pete** — 30 Resolve / 9 Armor. **Second Hand** (passive): at the END of every 3rd turn (3, 6, 9, …)
+  conjure a PLAIN copy of the left-most card in hand — base stats only (no buffs/golden/welds carried) and
+  **no pool take** (a conjured card, per the owner's spec). Fires in the faceOmen (end-turn) case right after
+  the End-of-Turn triggers (owner correction: end-of-turn, not start-of-shop). Tally: `Xt` to the next
+  copy, `now` on a firing turn.
+- **Atrius** — 30 Resolve / 13 Armor. **Possession** (passive, combat-time): at Start of Combat the leftmost
+  living minion gains the rightmost's Attack and the rightmost gains the leftmost's Health — simultaneous
+  (both read pre-buff values); 1-minion boards no-op. Implemented as a new `possession` flag on
+  `QuestCombatMods` (the per-side run-level SoC channel, like Rulebreaker's Crown), so a **served Atrius
+  board replays it** via the snapshot's captured mods. (Design updated from the original "give its stats"
+  wording — owner call 2026-07-16.)
+- **Gorr** — 30 Resolve / 10 Armor. **Four Peat** (passive): when you buy your 3rd MINION in a single turn,
+  get a plain copy of one of the three at random — conjured (no pool take), **once per turn** (fires on
+  exactly the 3rd buy; `gorrBuys` resets at turn setup). Hooked into both paid minion-buy paths (normal +
+  held-Displacement restore); the random pick rides the run's shop RNG cursor. Tally: `X/3` buys this turn.
+- New shared `conjurePlainCopy` helper (base-stat, non-golden, hand-cap-safe, pool-untouched) — deliberately
+  NOT `conjureToHand`, which takes from the shared pool and folds in buy auras.
+- Art wired: RePete/Atrius/Gorr (+HP variants) → 512² webps in `art/heroes` + `art/powers`.
+- 6 new tests (plain-copy fidelity + off-turn/empty-hand no-ops; Gorr's 3rd-buy fire / once-per-turn /
+  turn reset; the possession mod arming per hero + the core SoC trade + single-minion no-op). Verified
+  live end-to-end on throwaway runs: golden 9/9 lead card → plain 1/1 copy at wave 3; Gorr's 3 buys →
+  a 4th plain copy + `3/3` tally; Atrius combat events show +4/0 to the leftmost and +0/+5 to the
+  rightmost off a 2/5 + 4/7 board; all six arts render. Typecheck + lint + 1119 tests + build:web green.
+
+
+
 ### chore(sim): retire the Runic Behavior rift
 
 - `RIFTS.runic.enabled` → `false` (owner call 2026-07-16). New runs no longer get the universal turn-6

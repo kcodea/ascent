@@ -1419,6 +1419,17 @@ export function simulate(
       const lead = boards[scSide].find((m) => !m.dead && m.health > 0);
       if (lead && lead.attack > 0) { nextStep(); ctx.buff(lead, lead.attack, 0, lead.uid); }
     }
+    // Atrius's Possession: the leftmost living minion gains the rightmost's Attack, and the rightmost gains
+    // the leftmost's Health — simultaneous (both read the pre-buff values). Needs 2+ living minions.
+    if (smods.possession) {
+      const living = boards[scSide].filter((m) => !m.dead && m.health > 0);
+      if (living.length >= 2) {
+        const first = living[0]!, last = living[living.length - 1]!;
+        const gainAtk = last.attack, gainHp = first.health;
+        if (gainAtk > 0) { nextStep(); ctx.buff(first, gainAtk, 0, first.uid); }
+        if (gainHp > 0) { nextStep(); ctx.buff(last, 0, gainHp, last.uid); }
+      }
+    }
     // Umbral Energy: give every living Dragon +3/+3 for every spell cast this game (lifetime spellsCast, per side).
     const scSpells = scSide === 'player' ? playerState.spellsCast : enemyState.spellsCast;
     if (smods.umbralEnergy && scSpells > 0) {

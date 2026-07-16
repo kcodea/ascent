@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(content): Coran's Pathfinder reworked — bonus Capstone quest on turn 10
+
+- Reworked Coran (Pathfinder). **Old:** skipped the turn-5 quest and got the turn-11-bucket quest early on
+  turn 7 (nothing on 5/11). **New:** he runs the **normal turn-5 and turn-11 quests** like everyone (when
+  quests are on) and gets an **extra Capstone (turn-11-bucket) quest on turn 10**. Implemented as a one-line
+  change to the `pathfinder` branch in `questOfferPlan` (`wave === 10 → { bucket: 11 }`, above the
+  `questsEnabled` gate so it's his native bonus), then falling through to the universal 5/11 logic.
+- Updated his power text + blurb, the Coran tests (runes.test.ts) and the toggle tests (systemToggles.test.ts),
+  and the canonical rule in GAME-RULES.md. Bucket-11 pool (~30 quests) comfortably fills the two separate
+  turn-10 + turn-11 offers. Live-checked the hero-select text. typecheck + lint + test (1102) + build:web green.
+
 ### feat(sim): quest master switch preserves quest-native heroes + new runeforge system toggle
 
 - **Quest master switch no longer strips quest-native heroes.** `questOfferPlan` used to short-circuit on

@@ -96,8 +96,9 @@ toHand, hpGrant, spellProgress, questTrigger`.
   Greater quests); wave 11 draws the "late" bucket (Capstones + two promoted Greater neutrals).
 - The two main quest turns **guarantee your dominant board tribe** appears in a tribe slot (with a
   chance at a second, once a tribe has ≥2 quests in the bucket).
-- Hero exceptions: **Fi** adds a bonus Lesser-only quest offer on turn 3; **Coran (Pathfinder)**
-  skips the turn-5 quest and gets the late-bucket quest early, on turn 7.
+- Hero exceptions (bonus quests that stand **on top of** the normal turns and survive `questsEnabled = false`):
+  **Fi** adds a bonus Lesser-only quest offer on turn 3; **Coran (Pathfinder)** takes an extra late-bucket
+  (Capstone) quest on turn 10, in addition to the normal turn-5 and turn-11 quests.
 
 Source: `packages/sim/src/quests.ts`.
 

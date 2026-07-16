@@ -6,26 +6,32 @@ import { CONFIG, createRun, reduce, questOfferPlan, type RunState } from './inde
 // these cover the quest master switch preserving quest-native heroes, and the runeforge system toggle.
 
 describe('quest system master switch preserves quest-native heroes', () => {
-  it('questsEnabled = false: Fi keeps turn-3, Coran keeps turn-7, universal 5/11 go dark', () => {
+  it('questsEnabled = false: Fi keeps turn-3, Coran keeps turn-10, universal 5/11 go dark', () => {
     const prev = CONFIG.questsEnabled;
     CONFIG.questsEnabled = false;
     try {
       // Fi's Errand (lesserQuest) — the turn-3 bonus offer still plans.
       expect(questOfferPlan({ ...createRun(1, 'fi'), wave: 3 })).toEqual({ bucket: 5, lesserOnly: true });
-      // Coran's Pathfinder — the turn-7 early quest still plans.
-      expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 7 })).toEqual({ bucket: 11 });
-      // …but the UNIVERSAL turns (5 & 11) are off for everyone, including Fi.
+      // Coran's Pathfinder — the turn-10 bonus Capstone quest still plans.
+      expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 10 })).toEqual({ bucket: 11 });
+      // …but the UNIVERSAL turns (5 & 11) are off for everyone, including Fi and Coran.
       expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 5 })).toBeNull();
       expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 11 })).toBeNull();
       expect(questOfferPlan({ ...createRun(1, 'fi'), wave: 5 })).toBeNull();
+      expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 5 })).toBeNull();
+      expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 11 })).toBeNull();
     } finally {
       CONFIG.questsEnabled = prev;
     }
   });
 
-  it('questsEnabled = true: the universal turns are back for everyone', () => {
+  it('questsEnabled = true: the universal turns are back for everyone (incl. Coran) + Coran keeps turn-10', () => {
     expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 5 })).toEqual({ bucket: 5 });
     expect(questOfferPlan({ ...createRun(1, 'warden'), wave: 11 })).toEqual({ bucket: 11 });
+    // Coran runs the universal 5 & 11 AND his bonus turn-10.
+    expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 5 })).toEqual({ bucket: 5 });
+    expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 10 })).toEqual({ bucket: 11 });
+    expect(questOfferPlan({ ...createRun(1, 'coran'), wave: 11 })).toEqual({ bucket: 11 });
   });
 });
 

@@ -7,6 +7,9 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ### feat(ui): PLAY-mode champion select — bare portraits + the in-game teal hover glow
 
+> Round 3 (same day): the teal glow is REMOVED per owner — the hover is just the lift + the power-art
+> crossfade + the text fade; otherwise "perfect".
+
 - Owner round 2 on the select: the cream cards and Choose buttons are GONE — just the three framed portraits
   (name pill on the frame's top edge, HP+Armor pill on the bottom) floating on the board. Hovering a
   portrait lights the **in-game hover glow** (the same `--hg-*` teal line + bloom recipe cards use — a

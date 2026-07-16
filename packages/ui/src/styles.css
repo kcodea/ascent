@@ -2892,17 +2892,12 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .hclock { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--acc-dk); background: color-mix(in srgb, var(--acc) 16%, transparent); border: 1.5px solid color-mix(in srgb, var(--acc) 45%, transparent); padding: 4px 13px; border-radius: 8px; }
 .hcblurb { font-size: 13px; font-style: italic; color: var(--ink3); line-height: 1.4; margin-top: auto; padding-top: 6px; }
 .hcpick { margin-top: 16px; font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.12em; text-transform: uppercase; color: #fff; background: var(--acc); border: 2px solid var(--acc-dk); box-shadow: 0 4px 0 var(--acc-dk); padding: 10px 29px; border-radius: 12px; }
-/* ---- PLAY-MODE hero card (owner rework 2026-07-16, round 2): NO cream card, NO Choose button — just the
-   framed portrait (name pill eclipsing the frame's TOP edge, HP+Armor pill its BOTTOM). Hovering lights the
-   IN-GAME hover glow (the same --hg-* teal line + bloom recipe cards use — a one-shot filter change, not a
-   loop), crossfades the HERO POWER art in over the portrait, and fades the power text in below. Clicking
-   the portrait picks the hero. Practice keeps the compact card above (the dense grid). */
+/* ---- PLAY-MODE hero card (owner rework 2026-07-16, round 3): NO cream card, NO Choose button, NO glow —
+   just the framed portrait (name pill eclipsing the frame's TOP edge, HP+Armor pill its BOTTOM). Hovering
+   lifts the card, crossfades the HERO POWER art in over the portrait, and fades the power text in below.
+   Clicking the portrait picks the hero. Practice keeps the compact card above (the dense grid). */
 .herocard.big { gap: 10px; padding: 26px 10px 10px; background: none; border: none; box-shadow: none; width: 300px; }
 .herocard.big:hover { border-color: transparent; box-shadow: none; transform: translateY(-6px); }
-/* The in-game teal hover glow, on the FRAME (drop-shadow hugs the frame + its eclipsing pills). */
-.herocard.big:hover .hcframe {
-  filter: drop-shadow(0 0 var(--hg-line-blur, 12px) var(--hg-line-col, rgba(0, 255, 213, 1))) var(--hg-bloom-filter, drop-shadow(0 0 4px rgba(0, 251, 255, 0.4)));
-}
 .herocard.big .hcframe {
   position: relative; width: 245px; height: 245px; flex: none; margin-bottom: 10px;
   border-radius: 22px; border: 3px solid var(--gold); background: var(--ink);

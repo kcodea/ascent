@@ -1233,6 +1233,29 @@ the captured rect (`w=94`, full size); `deferClashBuffs` emits `…death,death,s
 `lint` / `test` (incl. new clashOrder case) / `build:web` all green. This is likely one source of the broader
 "combat timing" oddities — any Deathrattle unit trading into an on-damaged/Enrage body hit the same split.
 
+## 2026-07-15 (session 42)
+
+### feat(ui): SFX mixing desk — horizontal console, vertical faders, per-sound preview + readability pass
+
+Reworked the DEV-only mixing desk (opened from the 🛠️ Dev menu) from a vertical stack into a horizontal
+channel-strip **console**, and did a readability pass so someone seeing it cold understands it.
+- **Layout:** a horizontal row of channel strips, each with a **vertical fader** (writing-mode range input),
+  resizable via the panel's bottom-right corner and draggable by its header (`useDraggablePanel`).
+- **Master strip:** the limiter dials — Threshold / Ratio / Knee / Attack / Release — plus live **peak** (`out`)
+  and **gain-reduction** (`gr`) meters.
+- **Bus strips:** one fader + peak meter per bus (ui / combat / voice / hero).
+- **Category strips:** grouped under their bus; each gets its own fader, a **▶ to preview that one sound**
+  (`previewSfx`), and a **bus-reassign dropdown**.
+- **Readability:** category names now read **horizontally** (were sideways); the bus dropdown shows the **full
+  word** not a single letter; master dials are fully labelled; added an instructional hint line + two section
+  headers ("Master & buses…", "Sounds — grouped by bus…"). Dev-menu entry renamed **🎛️ Mixing Desk**.
+- **Perf:** all meters animate `transform: scaleY` only (compositor-only; no per-frame paint), per the north-star
+  rule.
+
+Verified: typecheck / lint / 1064 tests / build:web all green; iterated live over Vite HMR (faders, meters,
+scenes, per-sound preview, export, drag + resize all functional). PR #462.
+
+
 ## 2026-07-14 (session 41)
 
 ### feat(ui): Stealth de-cloak shimmer (effect-animation sweep, item 9)

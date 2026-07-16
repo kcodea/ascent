@@ -26,7 +26,7 @@ const TUNERS = [
   { key: 'layout', label: '📐 Scale & Layout', C: LayoutTuner },
   { key: 'frame', label: '🖼️ Card Frames', C: FrameTuner },
   { key: 'glow', label: '🔆 Hover Glow', C: GlowTuner },
-  { key: 'sfx', label: '🔊 SFX Mixer', C: SfxMixer },
+  { key: 'sfx', label: '🎛️ Mixing Desk', C: SfxMixer },
   { key: 'lunge', label: '🗡️ Lunge', C: LungeTuner },
   { key: 'strikefx', label: '💥 Lunge Strike Effects', C: StrikeFxTuner },
   { key: 'critfx', label: '⚡ Critical Strike FX', C: CritFxTuner },

@@ -3009,48 +3009,79 @@ svg { width: 18px; height: 18px; }
 .choreo-stage-card { width: 50px; height: 64px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #8a7f6d; background: #262119; border: 1px solid #4a4133; border-radius: 6px; }
 .choreo-stage-note { text-align: center; font-size: 10px; color: #6f665a; padding: 0 0 8px; }
 
-/* DEV Mixing Desk — dark dev-tool theme (matches the choreo panel), per-bus faders + master limiter dials +
-   live rAF meters. Tall, so it scrolls. Meters animate transform ONLY (never a paint prop) — see .mtr-fill. */
-.desk { position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 64px); z-index: 200;
-  width: 300px; max-height: 88vh; overflow: auto; background: #1c1a17; border: 2px solid #3a352e; border-radius: 14px;
-  padding: 12px 14px; box-shadow: 0 16px 40px -8px rgba(0,0,0,0.55); font-family: var(--font-ui); color: #efe7db;
-  box-sizing: border-box; resize: both; min-width: 240px; max-width: 92vw; }
-.desk::-webkit-scrollbar { width: 0; height: 0; display: none; }
-.desk-h { font-weight: 800; font-size: 15px; margin-bottom: 10px; color: #efe7db; }
+/* DEV Mixing Desk — a horizontal console of channel strips with VERTICAL faders (like a real mixer). Dark
+   dev-tool theme. Draggable (header) + resizable (bottom-right corner). Meters animate transform ONLY. */
+.desk { position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 48px); z-index: 200;
+  width: 640px; height: 480px; min-width: 340px; min-height: 260px; max-width: 96vw; max-height: 92vh;
+  overflow: auto; resize: both; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px;
+  background: #1c1a17; border: 2px solid #3a352e; border-radius: 14px; padding: 12px 14px;
+  box-shadow: 0 16px 40px -8px rgba(0,0,0,0.55); font-family: var(--font-ui); color: #efe7db;
+  --ui: #ff8a3c; --combat: #e5556f; --voice: #56b6c9; --hero: #c79cff; }
+.desk-h { font-weight: 800; font-size: 15px; color: #efe7db; flex: none; }
 .desk-h.drag { cursor: move; user-select: none; touch-action: none; }
-.desk-h span { font-size: 10px; font-weight: 700; color: #8a7f6d; text-transform: uppercase; letter-spacing: 0.08em; }
-.desk h4 { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; text-transform: uppercase;
-  letter-spacing: 0.06em; color: #ffcf9e; margin: 12px 0 6px; }
-.desk-master, .desk-bus { border-top: 1px solid #33302a; padding-top: 4px; }
-.desk-gr { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 700; color: #8a7f6d;
-  text-transform: uppercase; letter-spacing: 0.06em; margin: 2px 0 6px; }
-.desk .dial, .desk .fader { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 11px; color: #c9bda9; }
-.desk .dial span, .desk .fader span { flex: 0 0 62px; font-weight: 700; }
-.desk .dial b, .desk .fader b { flex: 0 0 44px; text-align: right; font-weight: 800; color: #ffcf9e;
-  font-variant-numeric: tabular-nums; }
-.desk input[type='range'] { flex: 1; height: 6px; accent-color: #ff8a3c; -webkit-appearance: none; appearance: none;
-  background: rgba(255,255,255,.12); border-radius: 99px; outline: none; cursor: pointer; }
-.desk input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px;
-  border-radius: 50%; background: #ff8a3c; cursor: pointer; }
-.desk input[type='range']::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: #ff8a3c;
-  border: none; cursor: pointer; }
-.desk-cat { display: flex; align-items: center; gap: 6px; margin: 3px 0; font-size: 10.5px; }
-.desk-cat .cn { flex: 0 0 78px; color: #c9bda9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.desk-cat input[type='range'] { flex: 1; }
-.desk-cat select { flex: 0 0 62px; background: #2a2620; color: #efe7db; border: 1px solid #4a4133; border-radius: 4px;
-  font-size: 10px; padding: 1px 2px; }
-.desk-cat button, .desk-scenes button { background: #2a2620; color: #efe7db; border: 1px solid #4a4133; border-radius: 5px;
-  cursor: pointer; font-size: 10px; }
-.desk-cat button { flex: 0 0 auto; width: 22px; height: 22px; }
-.desk-scenes { border-top: 1px solid #33302a; padding-top: 4px; }
-.desk-scenes button { margin: 3px 4px 0 0; padding: 4px 9px; font-weight: 700; }
-.desk-scenes button:hover, .desk-cat button:hover { border-color: #ff8a3c; color: #ffcf9e; }
-.desk-export { width: 100%; margin-top: 12px; padding: 7px; border-radius: 9px; border: 1px solid #ff8a3c;
+.desk-h span { font-size: 10px; font-weight: 700; color: #8a7f6d; text-transform: uppercase; letter-spacing: 0.06em; margin-left: 8px; }
+
+/* the top row of channel strips (master + buses) */
+.console { display: flex; gap: 10px; align-items: stretch; overflow-x: auto; padding-bottom: 4px; flex: none; }
+.strip { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 6px 6px;
+  background: #221f1b; border: 1px solid #34302a; border-radius: 10px; min-width: 54px; }
+.strip-name { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #c9bda9; margin-top: 2px; }
+.strip-bus { --acc: var(--ui); }
+.strip-bus.bus-ui { --acc: var(--ui); } .strip-bus.bus-combat { --acc: var(--combat); }
+.strip-bus.bus-voice { --acc: var(--voice); } .strip-bus.bus-hero { --acc: var(--hero); }
+.strip-bus .strip-name { color: var(--acc); }
+.strip-bus b, .strip-master b { font-size: 11px; font-weight: 800; color: #ffcf9e; font-variant-numeric: tabular-nums; }
+.strip-master { --acc: #ffcf9e; }
+.strip-meters { display: flex; gap: 6px; }
+.mcol { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.mcol-l { font-size: 8px; font-weight: 700; text-transform: uppercase; color: #8a7f6d; }
+.strip-dials { display: flex; gap: 6px; }
+.vdial { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 48px; }
+.vdial-l { font-size: 8.5px; font-weight: 700; text-transform: capitalize; color: #b7a998; text-align: center; }
+.vdial b { font-size: 9px; }
+
+/* VERTICAL faders (up = max) — writing-mode is the modern vertical-range approach */
+.vfader { writing-mode: vertical-lr; direction: rtl; width: 22px; height: 130px; accent-color: var(--acc, #ff8a3c);
+  cursor: pointer; }
+.vfader.sm { height: 84px; width: 20px; }
+.vfader.tiny { height: 90px; width: 18px; }
+
+/* VERTICAL meters — fill grows from the bottom via scaleY */
+.vmtr { width: 7px; height: 130px; background: rgba(0,0,0,.32); border-radius: 3px; overflow: hidden; }
+.vmtr.gr { }
+.vmtr-fill { width: 100%; height: 100%; transform-origin: bottom; transform: scaleY(0); will-change: transform;
+  background: linear-gradient(0deg, #5fb07e, #e8b23c 62%, #e5556f); }
+.vmtr.gr .vmtr-fill { background: linear-gradient(0deg, #56b6c9, #c79cff); }
+
+/* scenes row */
+.desk-scenes { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex: none; }
+.sec-l, .cat-group-h { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #8a7f6d; }
+.sec-l.big { flex: none; font-size: 10.5px; color: #b7a998; margin-top: 2px; border-top: 1px solid #33302a; padding-top: 7px; }
+.desk-hint { flex: none; font-size: 10.5px; line-height: 1.45; color: #a99786; margin: 0; }
+.desk-hint b { color: #ffcf9e; font-weight: 800; }
+.desk-scenes button { background: #2a2620; color: #efe7db; border: 1px solid #4a4133; border-radius: 6px;
+  cursor: pointer; font-size: 11px; font-weight: 700; padding: 4px 9px; }
+.desk-scenes button:hover, .cstrip .play:hover { border-color: #ff8a3c; color: #ffcf9e; }
+
+/* categories — grouped by bus, each a mini vertical strip; horizontally scrollable */
+.desk-cats { display: flex; gap: 12px; overflow-x: auto; align-items: flex-start; padding-bottom: 6px;
+  border-top: 1px solid #33302a; padding-top: 8px; flex: 1 1 auto; min-height: 130px; }
+.cat-group { display: flex; flex-direction: column; gap: 5px; }
+.cat-group-h { color: var(--acc); align-self: center; }
+.cat-group-h.bus-ui { --acc: var(--ui); } .cat-group-h.bus-combat { --acc: var(--combat); }
+.cat-group-h.bus-voice { --acc: var(--voice); } .cat-group-h.bus-hero { --acc: var(--hero); }
+.cat-strips { display: flex; gap: 8px; }
+.cstrip { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 68px; }
+.cstrip .vfader { accent-color: #cbb; }
+.cstrip .play { width: 22px; height: 18px; background: #2a2620; color: #efe7db; border: 1px solid #4a4133;
+  border-radius: 4px; cursor: pointer; font-size: 9px; line-height: 1; padding: 0; }
+.cstrip select { width: 60px; background: #2a2620; color: #c9bda9; border: 1px solid #4a4133; border-radius: 4px;
+  font-size: 9px; padding: 1px 2px; }
+.cstrip-name { font-size: 9px; line-height: 1.18; color: #b7a998; text-align: center; width: 100%;
+  overflow-wrap: anywhere; }
+
+.desk-export { flex: none; padding: 7px; border-radius: 9px; border: 1px solid #ff8a3c;
   background: rgba(255,138,60,.16); color: #ffcf9e; font-family: var(--font-ui); font-weight: 800; font-size: 13px; cursor: pointer; }
-.mtr { background: rgba(0,0,0,.25); border-radius: 3px; overflow: hidden; display: inline-block; width: 70px; height: 6px;
-  vertical-align: middle; }
-.mtr-fill { height: 100%; transform-origin: left; transform: scaleX(0);
-  background: linear-gradient(90deg, #5fb07e, #e8601c, #c42b5a); will-change: transform; }
 
 /* Audio: a labeled master-volume slider above the mute toggle. */
 .escvol { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); margin-bottom: 8px; }

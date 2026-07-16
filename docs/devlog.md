@@ -29,6 +29,16 @@ rest of the combat mix. Only the shipped default changes; a local dev config sav
 
 Verified: typecheck / lint / 1108 tests / build:web all green.
 
+### fix(ui): detach the charge glyph from the warband layout group
+
+- The end-of-turn charge glyph lived inside the `[data-zone="warband"]` container, so it inherited the warband's
+  layout offset — adjusting the warband **X / Y / Size** in the Layout Lab moved/scaled the glyph too. The glyph
+  represents the *fixed board sigil*, so it shouldn't ride the card layout.
+- Moved `<ChargeGlyph>` out to a direct child of `.app` (before the zones) and re-measured `--charge-y` against
+  `.app`'s vertical centre instead of the warband zone's top. It now anchors to the board midline independent of
+  `--z-wb-x/y/s`. Z-order preserved (still `z:0`, earliest child → behind the cards, above `.boardbg`); look /
+  timing / `--charge-*` tuner vars unchanged. typecheck + lint + build:web green.
+
 ### feat(fx): replace the burning-rope turn timer with an end-of-turn "charge glyph" (`feat/eot-glyph-timer`)
 
 Retired the burning-rope EoT timer for a **charging arcane glyph** on the board's etched sigil. Timer *mechanics*

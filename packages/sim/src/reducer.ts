@@ -1732,11 +1732,12 @@ function advanceCombat(s: RunState): void {
     s.runeforgeEpic = undefined; // basic forge — set before runeforgePool so it reads the normal set
     s.runeforgeRerolled = undefined;
     s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST)));
-  } else if (s.rift === 'runic' && s.wave === 6) {
-    // "Runic Behavior" rift: EVERY hero visits the basic Runeforge on turn 6. Queue it as a free (no
-    // hero-power charge) scheduled forge so it slots into the normal start-of-turn modal priority (behind any
-    // quest offer, via openNextStartOfTurnModal). Turn 6 has no quest, so it opens directly. (The Runesmith
-    // still gets its own turn-7 forge on top — the rift is an extra visit, not a replacement.)
+  } else if ((CONFIG.runeforgeEnabled || s.rift === 'runic') && s.wave === 6) {
+    // Universal basic Runeforge on turn 6 — driven by EITHER the runeforge system (CONFIG.runeforgeEnabled) or
+    // the "Runic Behavior" rift. Either way it opens exactly ONE free (no hero-power charge) forge, queued so it
+    // slots into the normal start-of-turn modal priority (behind any quest offer, via openNextStartOfTurnModal).
+    // Turn 6 has no quest, so it opens directly. (Runesmith still gets its own turn-7 forge on top — this is an
+    // extra visit, not a replacement.)
     s.pendingBasicForge = { deferred: false };
   }
   if (questOffer.length > 0) {
@@ -1753,6 +1754,9 @@ function advanceCombat(s: RunState): void {
   // Rune of the Epic Forge: it armed the Epic Runeforge for THIS wave — turn it into a pending open, which the
   // start-of-turn sequencing below presents (behind any quest offer / Runesmith forge).
   if (s.epicForgeWave != null && s.wave >= s.epicForgeWave) { s.pendingEpicRuneforge = true; s.epicForgeWave = undefined; }
+  // Runeforge system: EVERY hero visits the Epic Runeforge on turn 9 (free — openEpicRuneforge flags it
+  // no-charge). Independent of Runeguard's own epic forge on turn 12, which its power schedules separately.
+  if (CONFIG.runeforgeEnabled && s.wave === 9) s.pendingEpicRuneforge = true;
   // Promote any forge armed mid-turn (deferred): now that we're at the START of the next turn, it's openable.
   s.pendingForgeDeferred = false;
   if (s.pendingBasicForge) s.pendingBasicForge.deferred = false;

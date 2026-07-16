@@ -353,14 +353,14 @@ export const HEROES: HeroDef[] = [
   {
     id: 'coran',
     name: 'Coran',
-    blurb: 'Reads the trail ahead — the great trials come early, the small ones not at all.',
+    blurb: 'Reads the trail ahead — and calls down an extra great trial before the summit.',
     resolve: 30,
     armor: 10,
     power: {
       name: 'Pathfinder',
       kind: 'pathfinder',
-      passive: true, // resolved on the turn-advance quest schedule (skips the turn-5 quest; the turn-11 quest arrives on turn 7)
-      text: 'Pathfinder: You skip the first quest, and reach your big quest early — on turn 7 instead of turn 11.',
+      passive: true, // resolved on the turn-advance quest schedule (a bonus turn-11-bucket quest on turn 10, on top of the normal 5 & 11)
+      text: 'Pathfinder: Take an extra Capstone quest on turn 10 — on top of your normal quests.',
     },
   },
   {

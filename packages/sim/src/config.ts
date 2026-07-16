@@ -46,10 +46,17 @@ export const CONFIG = {
     statScalePerWave: 0.16,
   },
 
-  // Quests: the master on/off for the whole quest system. `false` → the quest waves (5 and 11) are ordinary
-  // shop turns (no quest phase / panel / objectives / rewards). Gated at the single `questBucketFor`
-  // chokepoint, so nothing downstream can activate. Default on.
+  // Quests: the master on/off for the UNIVERSAL quest turns (waves 5 & 11 — the ones every hero gets). `false`
+  // → those become ordinary shop turns (no quest phase / panel / objectives / rewards). Quest-native heroes
+  // (Fi's Errand, Coran's Pathfinder) keep their own quest access regardless — see `questOfferPlan`. Default on.
   questsEnabled: true,
+
+  // Runeforge: the master on/off for the Runeforge as a UNIVERSAL system. `true` → EVERY hero visits the basic
+  // Runeforge on turn 6 and the Epic Runeforge on turn 9 (free — no hero-power charge). `false` → only the
+  // runeforge-native heroes access it (Runesmith basic on turn 7, Runeguard epic on turn 12), which is always
+  // true independent of this flag. Separate from the `runic` rift (which independently grants the turn-6 basic
+  // forge to all heroes); if both are on, turn 6 still opens exactly one basic forge. Default off.
+  runeforgeEnabled: false,
 };
 
 /**

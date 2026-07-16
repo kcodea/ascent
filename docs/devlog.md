@@ -19,6 +19,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   both `Leaderboard` (Hall of Champions) and `Career`. Renders nothing for older snapshots that carry none.
 - typecheck + lint + build:web green. (Populated visuals need real backend/history data — verified structure +
   empty-state locally.)
+### fix(ui): bake quest-node scale 1.32 (was 1.63) so dev + prod match
+
+- The active-quest / rune node scale (`--qb-s`) shipped at **1.63**, but the owner's tuned value is **1.32**;
+  their Layout-Lab localStorage override masked the mismatch in dev while a fresh build (and other devs) saw
+  the larger 1.63. Baked **1.32** into both the `layoutConfig.ts` `qbS` default and the `styles.css` `--qb-s`
+  fallback so dev and production render identically without a local override. lint + build:web green.
 
 ### feat(ui): Heroes tab in the Compendium
 
@@ -54,6 +60,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   magnitude (sim) + golden/non-golden text. typecheck + lint + test (1103) + build:web green.
 
 ## 2026-07-15
+
+### tweak(ui): attack wind-up ~50% longer
+
+Owner ask — the anticipation lean-back before a strike should read longer. Bumped `lungeConfig.windupDur`
+0.47 → 0.70s (~+49%) and raised the DEV Lunge tuner's slider ceiling to match (`LUNGE_RANGES.windupDur` max
+0.5 → 0.9). No other change needed: the attack RESULT beat's hold is derived live from `windupDur + strikeDur
+- smackLead` (see `useCombatReplay.ts`), so the damage float + recoil still land exactly on contact — the whole
+exchange just anticipates longer. typecheck + build:web green.
 
 ### feat(content): Coran's Pathfinder reworked — bonus Capstone quest on turn 10
 

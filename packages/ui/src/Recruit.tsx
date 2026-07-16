@@ -62,7 +62,7 @@ type Zone = 'tavern' | 'warband' | 'hand';
 // How far into a card the cursor must reach (fraction of width) before the insertion point
 // moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
 const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre* passes its midpoint
-const TURN_SECONDS = 18; // base round timer (wave 1); grows +4s/wave, capped at 80 (see turnSeconds)
+const TURN_SECONDS = 18; // base round timer; grows +4s/wave, capped at 80 — and floored at CHARGE_SECONDS+1, so wave 1 actually kicks off at 21s (see turnSeconds)
 const CHARGE_SECONDS = 20; // the charge glyph fills over the final 20s of the turn
 const CHARGE_MAX_FEATHER = 24; // % — the reveal feather = this × (1−charge): soft incoming fronts, 0 at completion (no sigil dimming)
 const CHARGE_FADEOUT_MS = 450; // when the glyph stops being lit (End Turn / timer end) it fades out over this, not a snap-cut (keep in sync with `.chargeglyph.fading` transition in styles.css)
@@ -109,7 +109,7 @@ function ShopTimer({ label }: { label: string }) {
  *  opacity to its ref (no per-frame React render), only while lit + unpaused — the heavy card tree is never touched
  *  (the clock lives in an external store; see turnClock.ts). The wipe/reveal is a compositor-friendly custom-prop
  *  write; the mask does the both-sides-in fill. */
-function ChargeGlyph({ inCombat, window: chargeWindow, paused }: { inCombat: boolean; window: number; paused: boolean }) {
+function ChargeGlyph({ inCombat, window: chargeWindow, paused, covered }: { inCombat: boolean; window: number; paused: boolean; covered: boolean }) {
   const seconds = Math.max(0, useTurnSeconds());
   const preview = useChargePreview();          // dev tuner force-shows + scrubs the glyph; null in normal play
   const boxRef = useRef<HTMLDivElement>(null);
@@ -117,8 +117,13 @@ function ChargeGlyph({ inCombat, window: chargeWindow, paused }: { inCombat: boo
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chargeRef = useRef(0);                  // the live charge (0→1), read by the motes loop each frame
   const tickAtRef = useRef(0);
-  const prevSecRef = useRef(0);
-  const lit = preview != null || (!inCombat && seconds <= chargeWindow);
+  // `covered` = a full-screen surface (title / hero select / career / compendium / leaderboard / balance) is
+  // hiding the game — the glyph must not be lit behind it: Recruit stays mounted across EVERY phase, so on the
+  // MAIN MENU the wave-1 clock (18s ≤ the 20s window) had it lighting invisibly and firing the ~30s charge-build
+  // swell at players sitting on the title (owner-reported). Unlit-when-covered kills the sound (via the fade
+  // path's stopTurnCharge), the invisible paint, and the motes rAF. Mid-run POPUPS (Discover / quest / forge)
+  // are NOT covered — the board stays visible behind them, so the glyph stays lit and merely pauses.
+  const lit = preview != null || (!inCombat && !covered && seconds <= chargeWindow);
   // Keep the glyph mounted for a short fade-out when it stops being lit (End Turn pressed / timer ends → combat)
   // instead of snapping to null. `mounted` holds the DOM through the fade; `fading` drives the opacity→0 transition
   // (the paint/motes rAFs are gated on `lit`, so during the fade the glyph freezes at its last frame and just fades).
@@ -133,23 +138,26 @@ function ChargeGlyph({ inCombat, window: chargeWindow, paused }: { inCombat: boo
     const t = window.setTimeout(() => { setMounted(false); setFading(false); }, CHARGE_FADEOUT_MS);
     return () => window.clearTimeout(t);
   }, [lit, mounted]);
+  // If the whole component unmounts mid-charge (a new run remounts Recruit via its runKey), the long build clip
+  // must die with it — the fade path above only runs while mounted.
+  useEffect(() => () => stopTurnCharge(), []);
 
   // Stamp wall-clock time whenever the integer second changes OR we resume from a pause, so the rAF interpolates
   // the sub-second fraction from the exact instant this second began — keeping the charge locked to real time.
   useEffect(() => { tickAtRef.current = performance.now(); }, [seconds, paused, lit]);
 
-  // Fire the "charge begins" cue ONCE when the clock ENTERS the window — either crossing down past it (normal
-  // turns) or a fresh turn that resets already inside it (short early waves where turnSeconds ≤ CHARGE_SECONDS).
-  // Driven off the integer `seconds` (not `lit`), so a pause/resume — which freezes the clock, not `seconds` —
-  // never re-fires it, and the short-wave case (where `lit` is true from the turn's first tick) still triggers.
+  // Fire the "charge begins" cue ONCE per LIGHT — edge-triggered on `lit` going false→true, which uniformly
+  // covers every entry: the clock ticking down into the window, a fresh turn resetting already inside it (short
+  // early waves), and a covering surface (title / hero select) closing onto an in-window clock. It can never fire
+  // behind the main menu (covered → unlit), and a mid-shop pause (Discover etc.) doesn't flip `lit`, so it never
+  // re-fires there. `seconds > 0` keeps a re-light at a dead clock (e.g. menu closed after time-up) silent, and
+  // the dev preview's forced light is excluded.
+  const prevLitRef = useRef(false);
   useEffect(() => {
-    const prev = prevSecRef.current;
-    prevSecRef.current = seconds;
-    if (inCombat || seconds <= 0) return;
-    const crossedIn = prev > chargeWindow && seconds <= chargeWindow; // ticked down into the window
-    const startedIn = seconds > prev && seconds <= chargeWindow;      // turn reset jumped up into the window
-    if (crossedIn || startedIn) sfx.turnCharge();
-  }, [seconds, inCombat, chargeWindow]);
+    const was = prevLitRef.current;
+    prevLitRef.current = lit;
+    if (lit && !was && preview == null && seconds > 0) sfx.turnCharge();
+  }, [lit, preview, seconds]);
 
   useEffect(() => {
     if (!lit) return;
@@ -451,7 +459,11 @@ export function Recruit() {
 
   // Round timer grows +4s each wave, capped at 80s. (Recruit now stays mounted across
   // combat, so the per-wave reset is an effect keyed on the wave — see below.) Practice gives 3× the clock.
-  const turnSeconds = Math.min(80, TURN_SECONDS + (run.wave - 1) * 4) * (run.mode === 'practice' ? 3 : 1);
+  // Floored at CHARGE_SECONDS+1 (21s) so NO turn ever STARTS inside the charge window — the glyph then always
+  // lights by the clock TICKING across the threshold, the one battle-tested path. Wave 1's base 18s sat inside
+  // the 20s window, forcing a light-at-shop-mount special case whose swell mis-fired (owner: round 1 kicks off
+  // at 21s instead). Only wave 1 changes: wave 2+ (22s+) and practice (×3) already start above the window.
+  const turnSeconds = Math.max(CHARGE_SECONDS + 1, Math.min(80, TURN_SECONDS + (run.wave - 1) * 4) * (run.mode === 'practice' ? 3 : 1));
 
   // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
@@ -2654,6 +2666,7 @@ export function Recruit() {
         inCombat={inCombat}
         window={Math.min(CHARGE_SECONDS, turnSeconds)}
         paused={!!(run.discover || run.questOffer || run.runeforgeOffer || heroSelecting || overlayOpen)}
+        covered={!!(heroSelecting || overlayOpen)}
       />
       <HudBar />
 

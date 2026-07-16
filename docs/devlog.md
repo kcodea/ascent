@@ -5,6 +5,44 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### fix(audio/fx): charge glyph no longer lights (or plays its swell) behind the main menu
+
+**Bug (player-reported):** players sitting on the MAIN MENU heard the end-of-turn glyph's ~30s charge-build
+swell. Root cause: `Recruit` stays mounted across every phase, and on boot the wave-1 clock resets to 18s —
+inside the 20s charge window — so the `ChargeGlyph` "lit" **invisibly behind the title** and fired
+`sfx.turnCharge()` (the fire-and-forget clip then became audible at the player's first click, when the audio
+context unlocked). The lit check and the swell trigger both ignored `showTitle`/overlays entirely. Same leak on
+quit-to-menu mid-charge (the swell kept playing; the glyph kept its motes rAF burning behind the title).
+
+**Fix — unlit when covered:**
+- New `covered` prop = `heroSelecting || overlayOpen` (title / hero select / career / compendium / leaderboard /
+  balance — full-screen surfaces that HIDE the game). `lit` now requires `!covered`, so behind the menu the glyph
+  doesn't render, paint, run motes, or make noise. Mid-run POPUPS (Discover / quest / forge) are deliberately NOT
+  covered — the board stays visible, the glyph stays lit and merely pauses (unchanged).
+- The "charge begins" swell is now **edge-triggered on `lit`** (false→true) instead of integer-second crossings —
+  one mechanism uniformly covers ticking into the window, a turn resetting inside it, and the menu/hero-select
+  closing onto an in-window clock, and it structurally **cannot fire while covered**. Guards: `seconds > 0` (a
+  re-light at a dead clock stays silent) and the dev preview's forced light is excluded.
+- Quit-to-menu mid-charge now rides the existing fade path (covered → unlit → `stopTurnCharge()` + 450ms visual
+  fade). Added an unmount cleanup so a new-run remount (`runKey`) also kills a lingering build clip.
+- **"No game sounds on the main menu" guarantee:** with this, every autonomous sound source is menu-safe — the
+  combat replay already freezes on `overlayOpen` (so no combat audio behind the title), and all other game sounds
+  are action-driven. Only deliberate UI sfx (clicks etc.) can play on the menu. (Known ≤2s tails from sounds fired
+  just before opening the menu are accepted.)
+
+**Follow-up (owner-tested + owner-proposed fix): round 1 now kicks off at 21s.** Live testing found the wave-1
+swell silent — wave 1's 18s base sat already INSIDE the 20s charge window, forcing the glyph to light at
+shop-mount, a special-case path (which dev StrictMode's double-mount also sabotages: fire → simulated-unmount
+`stopTurnCharge()` → no re-fire). Rather than harden that path, `turnSeconds` is now **floored at
+`CHARGE_SECONDS + 1` (21s)** so NO turn ever starts inside the window — every wave lights the glyph by the clock
+ticking across 20s, the one battle-tested path. Only wave 1 changes (18→21s); wave 2+ (22s+) and practice (×3)
+already start above it.
+
+**Verified live** (pinned worktree server + DOM probes + owner playtest): on the title `.chargeglyph` is absent
+(pre-fix it rendered lit); closing the menu onto a running clock behaves; re-opening the menu fades the glyph out
+and unmounts it; owner confirmed menu silence, quit-mid-charge fade, and rounds 2+ all correct. Plus `typecheck` /
+`lint` / `npm test` (1109) / `build:web` all green.
+
 ### balance(sim)/fix(ui): Jensen free first dig, Fi turn 4, Guardian turn 10 + Coran tip fix + 💠 bake
 
 - **Jensen** — Dynamite Dig now starts FREE (0, 1, 2, … instead of 1, 2, 3, …): reducer `digCost = heroUses`,

@@ -14,6 +14,11 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   every card grant (named, gilded, random-tribe/tier/filter, random-spell). Every other add-to-hand path
   (buy / discover / triple / recurring) stays hard-capped. New test covers the overflow. typecheck + lint +
   test (1107) + build:web green.
+### fix(ui): combat hand stays full-size (no shrink)
+
+- The hand shrank to `scale(0.66)` during combat; owner wants it static. Dropped the transform so the combat
+  hand keeps its recruit size + position; kept `pointer-events: auto` (the hover preview from the earlier PR).
+  Playing/dragging still blocked (`onCardPointerDown` bails on `inCombat`). build:web green.
 
 ### feat(ui): Hall of Champions / Career re-fit + end-of-run quests & runes
 

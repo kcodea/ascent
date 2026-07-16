@@ -8,7 +8,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, addOfferBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, addOfferBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -52,6 +52,16 @@ function spendGold(s: RunState, amount: number): void {
       addBuff(pick, 'Rune of Scale', attack, health);
     }
     s.rngCursor = rng.state();
+  }
+}
+
+/** Tiff's Dragon Tamer: every Dragon or SPELL bought banks a 1-Gold discount on the next power use
+ *  (`tiffDiscount`, read by `dragonTamerCostOf`; reset when the power fires). Called from every buy path —
+ *  the right-hand spell slot, a Spell-Cart shop spell, a held-Displacement restore, and the normal buy. */
+function tiffBuyDiscount(s: RunState, card: CardDef): void {
+  if (getHero(s.heroId).power.kind !== 'dragonTamer') return;
+  if (card.spell || card.tribe === 'dragon' || card.tribe2 === 'dragon' || card.universalTribe) {
+    s.tiffDiscount = (s.tiffDiscount ?? 0) + 1;
   }
 }
 
@@ -380,6 +390,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           golden: false,
         });
         s.spell = null; // bought — the slot stays empty until the next roll
+        tiffBuyDiscount(s, spellDef); // Tiff: a spell buy banks a Dragon Tamer discount
         return s;
       }
       const i = s.shop.findIndex((c) => c.uid === action.uid);
@@ -395,6 +406,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         spendGold(s, sCost);
         s.shop.splice(i, 1);
         s.hand.push({ uid: `b${s.uidSeq++}`, cardId: card.id, tribe: card.tribe, attack: card.attack, health: card.health, keywords: [...card.keywords], golden: false });
+        tiffBuyDiscount(s, card); // Tiff: a spell buy banks a Dragon Tamer discount
         return s;
       }
       // Displacement: a minion stashed in the tavern (held) is restored INTACT on buy — all buffs/progression
@@ -408,6 +420,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         s.hand.push({ ...offer.held, uid: `b${s.uidSeq++}`, keywords: [...offer.held.keywords], buffs: offer.held.buffs ? [...offer.held.buffs] : undefined });
         drakkoQuestBuy(s, card); // a paid buy still progresses Drakko's quest (it used to be skipped)
         chronosQuestBuy(s, card); // …and Chronos's End-of-Turn quest
+        tiffBuyDiscount(s, card); // …and a restored Dragon banks Tiff's discount
         checkTriples(s); // a restored copy can still complete a triple
         return s;
       }
@@ -470,6 +483,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       drakkoQuestBuy(s, card); // Drakko's quest counts every paid Battlecry buy
       chronosQuestBuy(s, card); // Chronos's quest counts every paid End-of-Turn buy
+      tiffBuyDiscount(s, card); // Tiff: a Dragon buy banks a Dragon Tamer discount
       checkTriples(s); // a 3rd copy combines into a golden + grants a Discover
       return s;
     }
@@ -922,15 +936,27 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Untargeted; the once-per-turn charge is spent by the shared block below.
         s.embers += (1 + s.wave) * reps;
       } else if (power.kind === 'dynamiteDig') {
-        // Jenkins: Discover a minion of your CURRENT tier for a Gold cost that climbs 1 each use (1, 2, 3, …).
-        // Untargeted; the escalating cost + the whole-game use count are handled here (not the shared block).
-        const digCost = 1 + heroUses;
+        // Jensen: Discover a minion of your CURRENT tier — the FIRST dig is free, then the cost climbs 1
+        // each use (0, 1, 2, …). Untargeted; cost + use count handled here (not the shared block).
+        const digCost = heroUses;
         if (s.embers < digCost) return state; // can't afford this use → no charge spent
         spendGold(s, digCost);
         s.heroPowerUses = heroUses + 1; // escalate the next use's cost
         for (let r = 0; r < reps; r++) { // Empowerment: two Discovers (the 2nd queues behind the 1st)
           if (r === 0) openDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
           else queueDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
+        }
+      } else if (power.kind === 'dragonTamer') {
+        // Tiff: Discover a Dragon for 5 Gold, reduced 1 per Dragon/spell bought since the last use
+        // (`tiffDiscount` via dragonTamerCostOf, floor 0). Untargeted; the shrinking cost is charged here
+        // (not the shared block) and the discount bank resets on use.
+        const tamerCost = dragonTamerCostOf(s);
+        if (s.embers < tamerCost) return state; // can't afford → no charge spent
+        spendGold(s, tamerCost);
+        s.tiffDiscount = 0;
+        for (let r = 0; r < reps; r++) { // Empowerment: two Discovers (the 2nd queues behind the 1st)
+          if (r === 0) openDiscover(s, { kind: 'minion', tier: s.tier, tribe: 'dragon' });
+          else queueDiscover(s, { kind: 'minion', tier: s.tier, tribe: 'dragon' });
         }
       } else if (power.kind === 'resummon') {
         // The Reclaimer: mark a friendly board minion to be destroyed + resummoned at start of
@@ -1981,7 +2007,7 @@ const RUNEFORGE_OFFER = 4;
 
 /** Hero-power kinds that get value from a double trigger — the (dormant) gate for Rune of Empowerment. Keep in
  *  sync with the `reps`-reading branches in the `heroPower` case (scalingGold / gainMaxMana / fortify / dynamiteDig). */
-const DOUBLEABLE_POWERS = new Set(['scalingGold', 'gainMaxMana', 'fortify', 'dynamiteDig']);
+const DOUBLEABLE_POWERS = new Set(['scalingGold', 'gainMaxMana', 'fortify', 'dynamiteDig', 'dragonTamer']);
 
 /** The eligible rune-id pool for whichever forge is open (normal or Epic), filtered by the current hero's power:
  *  a `requiresDoublePower` rune (Empowerment) is dropped for a hero whose power can't double. */

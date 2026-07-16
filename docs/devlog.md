@@ -43,6 +43,315 @@ already start above it.
 and unmounts it; owner confirmed menu silence, quit-mid-charge fade, and rounds 2+ all correct. Plus `typecheck` /
 `lint` / `npm test` (1109) / `build:web` all green.
 
+### balance(sim)/fix(ui): Jensen free first dig, Fi turn 4, Guardian turn 10 + Coran tip fix + 💠 bake
+
+- **Jensen** — Dynamite Dig now starts FREE (0, 1, 2, … instead of 1, 2, 3, …): reducer `digCost = heroUses`,
+  StatusBar coin/status mirror it (the coin hides at 0; the hover status reads "FREE"). Text: *"The first is
+  free; each use costs 1 more Gold."*
+- **Fi** — the bonus Lesser Quest moves turn 3 → **turn 4** (`quests.ts` plan gate, hero text, the `Xt`
+  tally now counts to 4). systemToggles + run tests re-drive the wave-4 advance.
+- **Guardian** — the Epic Runeforge moves turn 12 → **turn 10** (`epicForgeWave = 10` at run start; hero
+  text + registry comment updated; runes test drives wave 9→10).
+- **Coran** — removed the incorrect "quests turns 6 & 10" hover status line (his capstone is turn 10 only;
+  the tally already says so). Falls through to "passive".
+- **💠 bake** (owner values 2026-07-16 v2): artScale 0.71, glowBlur 2, glowStrength 5, glowW 1.02,
+  glowColor **#ffc085** (warm amber) — DEFAULTS + styles.css fallbacks (incl. the glow filter stack
+  8×1px green → 5×2px amber) so clean builds match.
+- Verified: typecheck/lint/1112 tests/build:web green; live throwaway runs — Jensen's first dig spent 0 Gold
+  and opened the Discover, Fi's tally reads `3t` at wave 1, Coran's stale text absent, computed glow filter
+  is the amber stack, art transform matrix(0.71) with clean localStorage.
+
+
+
+### fix(sim/ui): Gold Pouch shows its LIVE value under Rune of Pillaging
+
+- Owner report: with Rune of Pillaging active ("your Gold Pouches are worth 2 Gold") the pouch card still
+  printed "Gain 1 Gold." — a violation of the hard live-text rule. `spellDisplayText` gains a
+  `goldPouchValue` param (the same `state.goldPouchValue` the cast actually pays out) and prints
+  "Gain {{2 Gold}}." (greened) when raised; threaded through `liveCardText`/`instView`/`shopView` and
+  every Recruit assembly site (shop offers, the cast preview, board/hand views — memo deps included), so
+  the pouch reads its real payout in the shop, hand, Discover, and the caster hover alike.
+- New rune test: the printed text folds the raised payout in (and stays at the base "**1 Gold**" without
+  the rune) — alongside the existing cast-worth-2 behavior test. Verified live: a poked run with
+  `goldPouchValue: 2` renders "Gain 2 Gold." with the standard green `descup` highlight on the hand card.
+  Typecheck + lint + 1110 tests + build:web green.
+
+
+
+### docs: handoff brief for the shop-button remakes (Mike)
+
+- New [`docs/handoff-shop-buttons.md`](handoff-shop-buttons.md): the full recipe for remaking the
+  Tavern Up / Refresh / Freeze buttons the way the End Turn (💎) and Hero Power (💠) diamonds were built —
+  asset conversion (sharp → public/frames webp, shared canvas box for multi-state arts), the layered-button
+  component pattern, the config + tuner + DevMenu trio (dev-only persistence, CSS-fallback mirroring), the
+  reusable effects table (silhouette glow, sheen sweep, press flash, impactDust/impactPulse, dim states)
+  with per-button recipes, and the verification/bake workflow. Written for Mike's Claude session to follow;
+  reference implementations are linked by file.
+
+### feat(sim/ui/content): new hero TIFF (Dragon Tamer) + Resolve pill center-rooted + layout bakes
+
+- **Tiff** — 30 Resolve / 14 Armor. **Dragon Tamer** (new `dragonTamer` kind, untargeted): *"Discover a
+  Dragon. Costs 5 Gold — reduced by 1 when you buy a Dragon or a spell."* The shrinking cost is the
+  `tiffDiscount` bank (+1 per Dragon/spell bought — wired into all four buy paths: normal, held-restore,
+  shop-spell, right-slot spell; floor 0 via the shared `dragonTamerCostOf`), charged in the reducer (no
+  def-level cost — the shared block would double-charge, the dynamiteDig lesson) and RESET on use. The
+  Discover is dragon-filtered at the current shop tier; Rune of Empowerment doubles it like the dig. The
+  cost coin + status line read the LIVE cost ("FREE" at 0). Art wired: Tiff.png / TiffHP.png → 512 webps.
+- **Resolve pill center-rooted** (owner note): re-anchored from the square's right edge to its CENTRE with
+  a translate(-50%,-50%) base — measuring the owner's tuned −121 offset showed the pill's centre sat at
+  EXACTLY the square's midline (46u), so the re-baked offset is simply 0. Now the armor chip appearing/
+  vanishing grows the pill symmetrically (verified: 0px centre drift with and without armor — the earlier
+  3.9px reading was the hit-shake mid-animation).
+- **Bakes**: hero-panel resolveX (−121 → centre-anchored 0) and the Layout Lab `qbY` −746 (the owner's
+  quest-node re-seat; defs + CSS fallbacks).
+- Two new hero tests (discount accrual per buy path incl. no-discount for neutrals; the power's live
+  charge / dragon-filtered Discover / bank reset / free-at-0-floor). Verified live end-to-end: coin 5→4 on
+  a Dragon buy, dragon-only Discover for 4 Gold, bank reset, both arts rendering. Typecheck + lint + 1112
+  tests + build:web green.
+
+
+
+### fix(ui/content): quest-node reach, Compendium spacing, golden Trail Forager text
+
+- **Quest/rune nodes can reach the relocated hero portrait**: the Layout Lab's Quest-node ranges widened
+  (X −800…800, Y −1400…400 — the old −600 floor couldn't follow the panel's move up the left rail) and the
+  default re-seated to −625 (mirroring the panel's −569 shift; CSS fallback updated to match). Owner
+  fine-tunes from there and sends values to re-bake.
+- **Compendium overlap fixed**: `.book-grid` columns are now `auto-fill, minmax(cardWidth+16, 1fr)` — a
+  column DROPS instead of squeezing below a card's width — and the row gap reserves `0.45 × card height`
+  for the text plate hanging under each oval. Verified live on the Tier-2 grid: 0 overlapping card rects.
+- **Golden Trail Forager**: behavior was already right (sells 6g base, accrues +2g per Beast played — both
+  double), but the card had NO golden text so a fresh golden PRINTED the 3g/1g base. Added the explicit
+  goldenText ("Sells for **6g**, plus **2g** for every Beast you play.") — trailForagerText already
+  prefers it for the live-accrual green. New test locks the golden sell math + printed text.
+- Typecheck + lint + 1110 tests + build:web green.
+
+
+
+### feat(ui): PLAY-mode champion select — bare portraits + the in-game teal hover glow
+
+> Round 3 (same day): the teal glow is REMOVED per owner — the hover is just the lift + the power-art
+> crossfade + the text fade; otherwise "perfect".
+
+- Owner round 2 on the select: the cream cards and Choose buttons are GONE — just the three framed portraits
+  (name pill on the frame's top edge, HP+Armor pill on the bottom) floating on the board. Hovering a
+  portrait lights the **in-game hover glow** (the same `--hg-*` teal line + bloom recipe cards use — a
+  one-shot filter, so the tuned 🔆 Hover Glow values apply here too), crossfades the power art in over the
+  portrait, and fades the power text in below — now styled LIGHT with a grounding shadow since it sits on
+  the bare board. Clicking the portrait picks the hero. Practice's dense grid untouched.
+- Verified live: no cream card/border/Choose on the big cards; a forced-hover preview showed the teal glow
+  hugging the frame + pills with Chronos's Timelapse art + text below. Typecheck + lint + 1109 tests +
+  build:web green.
+
+### feat(ui): hero + power art re-wire, and the PLAY-mode champion select rebuilt
+
+- **Art re-wire** (owner drop 2026-07-16): all 24 hero portraits from `Ascent Art/Heroes` and 20 hero-power
+  arts from `Heroes/Hero Powers` converted to 512² webp over the existing filenames (the eager globs pick
+  them up — NEW glob keys needed the dev-server restart, per the stale-glob rule). Filename→id mapping incl.
+  LordOfTheRisen→risen, Chronos→chronoshero, GuardianHP→runeguard, JensenHP→jenkins, RascalHP→baggerben,
+  TradesmanHP→hermithank, Pathfinder→coran, YirinHP→rohan. `Yirin.png` (newer) won the Rohan/Yirin duplicate
+  for id `rohan`. The three WIP heroes (warden/myra/chaos) have no new power art — their old files remain.
+- **Champion select (PLAY mode only — Practice's dense grid is untouched)**: the big card is rebuilt —
+  larger hero art (245² in its own gold-bordered frame), the hero-name pill eclipsing the frame's TOP edge
+  and the HP+Armor pill its BOTTOM edge (the hero-panel pill language), and hovering the card CROSSFADES
+  the hero-power art in over the portrait while the power name/text (+ unlock note) fades in below
+  (opacity-only transitions; the text block reserves its height so the card never jumps).
+- Verified live: 3 big cards with framed new art + eclipsing pills; a forced-hover preview showed Drakko's
+  Drumline art + bolded text below; power imgs present for all three after the server restart. Typecheck +
+  lint + 1109 tests + build:web green.
+
+### chore(ui/content): opponent-frame tooltips removed + Jenkins → Jensen
+
+- All six native `title` tooltips on the opponent panel are gone (the frame's "by <author>" provenance,
+  the threat-board hint, Life/Tier/Wins stat hovers, and the Triples count) — owner note 2026-07-16; the
+  unused `provenance` string was retired with them.
+- Renames (display-only; the hero id stays `jenkins` and the card id is unchanged, so saves/art/tests are
+  untouched): hero **Jenkins → Jensen**, card **Jenkins & Fi → Jensen & Fi**. Nadja's power settled on
+  **Goldspring** (Gold Font → Wellspring → Goldspring).
+- Verified live: zero `title` attributes inside `.oppframe`; a jenkins run shows "Jensen" in the hero pill.
+  Typecheck + lint + 1109 tests + build:web green.
+
+### fix(ui): hero pills — no tooltip, text auto-fits; hero power **keywords** render bold
+
+- Three owner notes:
+  1. **Hero-name tooltip removed** — the pill no longer carries a native `title` (it existed because long
+     names ellipsized; the fit below makes it unnecessary).
+  2. **Pill text auto-fits** — a tiny `useFitText` hook shrinks the FONT (never ellipsizes) when a name
+     overflows the pill's max-width: one padding-aware content-box ratio measurement (a whole-box ratio
+     under-shrinks because padding doesn't scale with the font), re-run on name change + window resize.
+     Applied to BOTH the hero-name and player-name pills. "Lord of the Risen" now fits in full; short names
+     keep the stylesheet size untouched.
+  3. **`**keyword**` renders BOLD** everywhere hero power text shows: the status-bar hover tip, Hero Select,
+     and the Compendium's Heroes tab all route through `mdBold` (which also applies the vocab renames); the
+     button's aria-label strips the asterisks instead.
+- Verified live: risen shows the full name at a fitted 7.4px with no title attr; the tip renders
+  `<b>Rise</b>` with no asterisks; warden keeps the stylesheet size. Typecheck + lint + 1109 tests +
+  build:web green.
+
+### chore(sim/ui): hero + power renames pass, and the hero panel re-seated to the board's left rail
+
+- **Renames** (display-only; ids stable, kinds/behavior untouched — no test asserted the old names):
+  Djinn→**Djinni**, Bagger Ben→**Rascal**, Runeguard→**Guardian**; powers Gild→**Masterwork**, Gold Font→
+  **Wellspring**, Displace→**Swap**, Rise Again→**Undying**, Bag It→**All In**, Encore (Chronos)→
+  **Timelapse**, Runeforge→**Forgemaster**, Defend the Forge→**Runeguard**. The rest of the owner's table
+  (Pulse, Cadence, Drumline, Chaos Bond, all texts) already matched the shipped data.
+- **Panel re-bake**: the owner moved the hero panel UP the left rail — panel −23/−569 @ 2.27× (it now sits
+  above the power diamond at the board's mid-left instead of the bottom corner), Resolve housing −119/+65 @
+  0.51×. Baked into `heroPanelConfig` DEFAULTS + the CSS fallbacks.
+- Verified with clean localStorage: the panel renders at its new spot stacked over the diamond; an 8-hero
+  sweep confirmed every rename (Rascal/All In, Guardian/Runeguard, Lord of the Risen/Undying, Djinni/
+  Cadence, Indy/Masterwork, Darah/Swap, Chronos/Timelapse, Runesmith/Forgemaster). Typecheck + lint +
+  1109 tests + build:web green.
+
+### chore(ui): hero panel + hero power — owner-tuned values baked as the shipped defaults
+
+- The owner's 🧍 and 💠 exports are now the shipped look, baked into both configs' DEFAULTS and the
+  styles.css `var(--hpn-*/--hpb-*, …)` fallbacks (so clean builds render identically with no localStorage).
+- **Hero panel**: whole panel +19/−19 at **2.27×** (the tray is now the corner's centrepiece), portrait
+  1.16× inside the square, player-name pill 0.59×, hero-name pill 0.67×, Resolve housing −27/+36 at 0.68×.
+- **Hero power diamond**: seated at −99/53 @ 1.13× (just inside the board's left ornament), art zoomed to
+  0.68 inside the face, used-state fade deepened to 0.39, and the ready glow is now a hot **green** rim
+  (#a6ff94, blur 1 × 8 stacks, opacity 1, 0.5s shallow breath, fit 0.985/1.01).
+- Verified with CLEAN localStorage (the defaults path): all vars land (−99px/53px/1.13, art 0.68, dim 0.39,
+  green glow filter, 0.5s pulse) and the corner renders the tuned look. Typecheck + lint + 1109 tests +
+  build:web green.
+
+### feat(ui): hero panel DECOUPLED — minimal portrait square + floating Resolve housing
+
+- Owner report: shrinking the tray pushed the art out (the old flex row squeezed its children). The tray is
+  restructured to the owner's target layout: the `.hero` box is now a **minimal square hugging just the
+  portrait** — the player-name pill eclipses its TOP edge, the hero-name pill its BOTTOM edge — and the
+  Resolve (health + armor) box floats beside it in its **own housing**, absolutely positioned off the
+  square's right midline (no flex coupling anywhere).
+- The portrait **fills** the square (`inset` by the frame padding), so the 🧍 tuner's `square · width /
+  height` dials resize the art WITH the square — it can never be ejected; 0 = the snug 92-design-px
+  default. The Resolve box's base transform is its midline centring, with the resolve dials (and the
+  hit-shake keyframes) composing on top.
+- Verified live: snug square 62×62 around a 50×50 portrait with the pills eclipsing both edges; a hard
+  shrink to a 40×40 square scaled the portrait to 28×28 fully inside it while the Resolve housing kept its
+  own size beside. Typecheck + lint + 1109 tests + build:web green.
+
+### feat(ui): 🧍 Hero Panel tuner — tray DIMENSION dials (width/height, 0 = auto)
+
+- Owner follow-up: the tray's box itself is now dialable — **`panel · width` / `panel · height`** (design px
+  × --u; 0 = auto-hug the contents). Implemented as `--hpn-panel-w/h` vars the CSS reads with an `auto`
+  fallback; at 0 the var is REMOVED so auto genuinely takes over. `box-sizing: border-box` keeps the tray's
+  padding inside a dialed size. The 🧍 tuner is 17 rows now.
+- Verified live: 320/160 dials resized the tray (214×107 at this window's --u) with the bottom-left corner
+  staying anchored, and 0/0 restored the auto-hugged size exactly. Typecheck + lint + 1109 tests +
+  build:web green.
+
+### feat(ui): 🧍 Hero Panel dev tuner — x/y/scale for every part of the bottom-left tray
+
+- Owner ask: scale + move EVERY aspect of the hero panel. New `heroPanelConfig.ts` + `HeroPanelTuner.tsx`
+  (Dev Tuning Menu → 🧍 Hero Panel), 15 dials in 5 groups: the **whole panel** (offset × --scale + scale
+  about its bottom-left anchor), the **portrait**, the **player-name pill**, the **hero-name pill**, and
+  the **Resolve box** (each design-px offsets × --u + scale). Same conventions as the diamond tuners:
+  dev-only localStorage (`ascent.heropanel`), Copy/Reset, production ships the identity defaults that the
+  CSS fallbacks mirror.
+- Values reflect as COMPOSED transform strings (`--hpn-*-t`) because two pills carry base centering
+  transforms the nudges must stack onto, and the Resolve box's hit-shake keyframes now PREPEND the same var
+  so a tuned offset doesn't snap to origin during the shake.
+- Two structural notes: the whole-panel transform lives on `.statusbar .hero` (the tray), NOT `.statusbar` —
+  a transform there would become the containing block for the power diamond's `position: fixed` and break
+  its stage pinning. And the hero-name pill lives inside the portrait frame, so it rides the portrait scale
+  (its own dials stack on top) — noted in the tuner tooltip.
+- Verified live: all 15 rows drive their element (tray +40 × scale, portrait 1.3×, hero-name pill composing
+  1.3 × 1.25, Resolve +30 × --u) while the power diamond's rect stayed pixel-identical; Reset restores.
+  Typecheck + lint + 1109 tests + build:web green.
+
+### feat(ui): hero power TALLY above the diamond + refresh-flash timing fixes
+
+- **Live power tally** (owner ask 2026-07-16) — the Avenge/step-counter numerals riding above the diamond's
+  top point for value-tracking powers (same white-with-grounding-shadow style, keyed on its text so each
+  change replays the compositor-only bump):
+  Indy `12/40g` while recharging (hides when re-armed) · Yirin `X/10` spells · Cassen `X/5` kills (live in
+  combat via `combatEnemyDeaths`) · Drakko `X/5` buys (fades away when complete) · Chronos `X/4` (same) ·
+  Robin `Xg` banked for next turn (hidden at 0) · Gildmaster next-Goldcrafter countdown (`2t` / `now`) ·
+  Bagger Ben `Xg` current value (hides once spent) · Fi / Runesmith / Runeguard / Coran `Xt` until their
+  errand/forge/epic-forge/capstone (waves 3/7/12/10, hide after) · Jenkins `Tier X` (the dig's discover
+  tier). Judgement calls: Gildmaster shows the CADENCE countdown (no "2/2 charges" data exists — no hero
+  has maxUses today); Chronos included alongside Drakko for consistency.
+- **Refresh-flash fixes** (owner report: late at shop start, missing on Indy's re-arm):
+  - The trigger signal is now `canHero && phase === 'recruit'` — a re-arm that lands while combat is on
+    screen (the reducer preps next-turn state early) defers its bloom to the moment the shop returns.
+  - The bloom carries a 0.2s CSS delay (`both` holds it dark through the delay) so a start-of-turn refresh
+    peaks ON the settled shop instead of washing out under the combat→recruit crossfade (~0.26s).
+  - Indy's mid-shop re-arm verified end-to-end: poked a spent Gild 3 Gold from the threshold, bought a
+    minion → re-armed, flash mounted, and the recharge tally hid.
+- Verified across 12 heroes in one sweep (tally text per hero incl. correct hides for Robin-at-0 and
+  Warden); typecheck + lint + 1109 tests + build:web green.
+
+### feat(ui): hero power diamond — refresh FLASH when the power re-arms
+
+- Owner ask: the End Turn relight's sibling — a one-shot bloom of the diamond's face whenever the power
+  **comes back up for usage**. Triggered on `canHero` flipping false→true, which covers every re-arm path
+  in one place: the start-of-shop recharge, a mid-shop re-arm (Indy's Gild hitting 40 Gold spent), and
+  re-affording a costed power after gold swings.
+- Implementation mirrors the ETB relight: the face-cut image with a static bright filter mounts for one
+  eased opacity in-and-out (duration = the 💠 tuner's new **`flash · refresh (ms)`** dial, default 450,
+  0 = off) and unmounts after — never a loop.
+- Verified live: no flash at run start while unaffordable (warden, 3 Gold vs cost 4); the flash mounted the
+  moment the wave-2 shop opened with the power newly ready, and unmounted after its one-shot. Typecheck +
+  lint + 1109 tests + build:web green.
+
+### fix(ui): hero power diamond — dark face restored + tunable used-state fade
+
+- Owner correction on the hollow-frame change: the housing must stay WHOLE — the frame's dark face is the
+  intended backing behind the power art (the punched hole was letting the board show through the window).
+  The frame webp is rebuilt with the face intact (centre pixel opaque again).
+- The used/unaffordable fade is now a dial: **`art · used opacity`** (`artDim`, default 0.5, 1 = never
+  dims) — the art fades against the dark face; the housing never fades in any state (unchanged from the
+  previous round).
+- Verified live: frame centre rgb(37,28,26)/alpha 255; the var drives the used-state art opacity in real
+  time (0.5 → 0.25 on a slider move); frame opacity 1 throughout. Typecheck + lint + 1109 tests +
+  build:web green.
+
+### fix(ui): hero power diamond — housing never dims + art-fit scalers in the 💠 tuner
+
+- Owner notes: the cooldown/unaffordable dim now applies to the power ART ONLY — the bronze housing stays
+  at full opacity in every state (the old rule faded the whole button). And the 💠 tuner gained three
+  **art-fit scalers** — `art · offset x / offset y / scale` — that move/zoom the power art INSIDE the face
+  window: the art moved into a clipping wrapper (the diamond clip stays pinned to the frame) so the dials
+  never drag the window with it.
+- Verified live: with an unaffordable power the frame reads 1.0 opacity while the art reads 0.5; the art
+  transforms inside the fixed clip (matrix confirmed, offsets × --u); the tuner shows 17 rows including the
+  three art dials. Typecheck + lint + 1109 tests + build:web green.
+
+### fix(ui): hero power diamond — art on top, hollow frame (no opaque slab)
+
+- Owner notes on the new housing: the power art now rides **ON TOP of the diamond** (frame z1 → art z2 →
+  glow z3, still clipped to the face polygon so the bronze ring frames it), and the frame asset was rebuilt
+  **HOLLOW** — the dark inner face is punched out (`dest-out` on the measured face diamond), so the housing
+  never reads as an opaque slab; with no/transparent art the board shows through the window.
+- Verified live: warden's shield art fills the window brightly above the ring; the rebuilt webp's centre
+  pixel is fully transparent; layer order confirmed. Typecheck + lint + 1109 tests + build:web green.
+
+### feat(ui): hero power → the bronze DIAMOND housing on the board's middle-left + 💠 tuner
+
+- Owner direction: same strategy as the End Turn diamond, mirrored to the board's middle-left (its combat
+  effects will diverge later — this round is the housing, pinning, glow, and tuner).
+- **Art**: `heropowerbutton.webp` (the bronze diamond frame with a dark face) + `heropowerbutton_face.webp`
+  (the inner-face cut, measured by centre-line scans, for the glow silhouette) — both extracted on one
+  aligned canvas. The hero's power art renders inside the face via a measured `clip-path` polygon; the icon
+  fallback centres over it. The gold cost coin and the name pill stay.
+- **Pinning**: the `.heropanel` moves from its old spot (0.19/0.45 + −89/408 via the retired Layout Lab
+  `--hpow-*` rows) to the End Turn's mirror — 0.19/0.45 of the stage + `--hpb-x/y` (defaults −140/32, the
+  exact mirror of the diamond's 140/32) × `--scale`, scale 1.14. Verified pixel-mirrored across the board's
+  centre line (button centres 314 vs 1286 on a 1600 stage).
+- **Glow**: the ETB recipe — the face cut's stacked drop-shadow (halo = the inner diamond silhouette),
+  source pixels masked back out so only the halo paints, alignment offset/fit dials, opacity-only
+  breathing. Shown on hover AND pinned while the power is READY (the old box-shadow press-me cue, retired)
+  — ARMED quickens the breath. Amber default (#ffb347).
+- **💠 Hero Power Button tuner** (Dev Tuning Menu): position x/y · scale · glow offset/fit/blur/opacity/
+  strength/pulse speed+depth/colour + a "glow always on" pin. Dev-only localStorage
+  (`ascent.heropowerbtn`); production ships the defaults (styles.css `var(--hpb-*, …)` fallbacks mirror).
+- The Layout Lab's four "Hero power" rows were retired (superseded); the aim-line anchor (`.heropowerbtn`),
+  press-to-arm flow, cost coin, tooltip, and passive/cooldown dimming all carry over unchanged.
+- Verified live: layers + face clip render (warden's power art in the window); glow 0 at rest, pinned at
+  0.93 breathing 0.7s when READY, 0.4s while ARMED (aim-line armed ✓); tuner rows move/scale it live;
+  reset restores. Typecheck + lint + 1109 tests + build:web green; throwaway state cleaned up.
+
 ### chore(ui): unwire the endbuttonhit2 strike sound (owner: not needed)
 
 - Removed `sfx.endButtonHit`, the `endbutton` mixer category (gains/bus/desk strip/preview) and the

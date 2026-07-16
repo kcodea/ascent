@@ -3,11 +3,10 @@ import type { CSSProperties } from 'react';
 import type { CardDef, Keyword, QuestReward, Tribe } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, SPELL_CARDS } from '@game/content';
 import { HEROES } from '@game/sim';
-import { Card, type CardView } from './Card';
+import { Card, mdBold, type CardView } from './Card';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
 import { heroArt } from './art';
-import { renameTerms } from './terms';
 import { Icon } from './Icon';
 import { useGame } from './store';
 
@@ -509,7 +508,7 @@ export function MinionBook() {
                           <Icon name="heart" />{h.resolve}
                           {h.armor > 0 && <span className="bookhero-armor" title="Starting Armor">+{h.armor}</span>}
                         </div>
-                        <div className="bookhero-pw"><b>{h.power.name}</b> · {renameTerms(h.power.text)}</div>
+                        <div className="bookhero-pw"><b>{h.power.name}</b> · <span dangerouslySetInnerHTML={{ __html: mdBold(h.power.text) }} /></div>
                         {h.power.unlockWave && h.power.unlockWave > 1 && (
                           <div className="bookhero-lock">Unlocks turn {h.power.unlockWave}</div>
                         )}

@@ -21,7 +21,7 @@ export type HeroPowerKind =
   | 'cheapMinions' // Hermit Hank (passive): shop minions cost 2 Gold, but tavern-ups cost 2 more
   | 'discoLock' // Disco Dan (passive): turn-1 sequential Discover T6→T4→T2, each locked in hand until that shop tier
   | 'questChronos' // Chronos (passive): buy 4 End-of-Turn minions → get a Chronos (resolved in the buy case)
-  | 'lesserQuest' // Fi (passive): an extra, lower-tier quest shop on turn 3
+  | 'lesserQuest' // Fi (passive): an extra, lower-tier quest shop on turn 4
   | 'collision' // Cassen (passive): after killing 5 enemy minions, get a minion of your most common type (carry-back)
   | 'quest' // Drakko (passive): buy 5 Battlecry minions → get Drakko the Drummer (resolved in the buy case)
   | 'chaos' // Chaos (passive): starts with a 1/1 all-type Magnetic token; gets another at the start of every 5th turn
@@ -30,9 +30,10 @@ export type HeroPowerKind =
   | 'grantReborn' // Lord of the Risen: give a friendly minion Rise for the next combat (active, targeted)
   | 'recurringGoldcrafter' // Gildmaster (passive): get a Goldcrafter (gild-a-minion spell) every 4 turns
   | 'runeforge' // Runesmith (passive): on turn 7 the Runeforge opens — buy ONE of a random 3 runes (a run-long buff)
-  | 'epicRuneforge' // Runeguard (passive): the EPIC Runeforge opens on turn 12 (scheduled via `epicForgeWave` at run start)
+  | 'epicRuneforge' // Guardian (passive): the EPIC Runeforge opens on turn 10 (scheduled via `epicForgeWave` at run start)
   | 'pathfinder' // Coran (passive): a bonus late-bucket (Capstone) quest on turn 10, on top of the normal 5 & 11
-  | 'dynamiteDig'; // Jenkins: 1 Gold Discover a minion of your tier — costs 1 more Gold each use (active, untargeted)
+  | 'dynamiteDig' // Jensen: Discover a minion of your tier — free first, +1 Gold each later use (active, untargeted)
+  | 'dragonTamer'; // Tiff: 5 Gold Discover a Dragon — the cost drops 1 per Dragon/spell bought, resetting on use
 
 export interface HeroPower {
   name: string;
@@ -93,7 +94,7 @@ export const HEROES: HeroDef[] = [
     resolve: 30,
     armor: 15,
     power: {
-      name: 'Gild',
+      name: 'Masterwork',
       kind: 'gild',
       oncePerGame: true, // one charge at a time; the charge recharges after every 40 Gold spent (see reducer)
       text: 'Make a friendly minion **Gilded**. Recharges after you spend 40 Gold.',
@@ -140,7 +141,7 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'djinn',
-    name: 'Djinn',
+    name: 'Djinni',
     blurb: 'Calls the whole board to its close early — once a turn, on your terms.',
     resolve: 30,
     armor: 15,
@@ -158,7 +159,7 @@ export const HEROES: HeroDef[] = [
     resolve: 30,
     armor: 19,
     power: {
-      name: 'Gold Font',
+      name: 'Goldspring',
       kind: 'gainMaxMana',
       untargeted: true,
       cost: 3,
@@ -226,7 +227,7 @@ export const HEROES: HeroDef[] = [
     resolve: 30,
     armor: 12,
     power: {
-      name: 'Displace',
+      name: 'Swap',
       kind: 'displace',
       text: 'Swap a friendly minion with a random minion in the Shop.',
     },
@@ -238,7 +239,7 @@ export const HEROES: HeroDef[] = [
     resolve: 30,
     armor: 8,
     power: {
-      name: 'Rise Again',
+      name: 'Undying',
       kind: 'grantReborn',
       text: 'Give a friendly minion **Rise** for the next combat.',
     },
@@ -271,12 +272,12 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'baggerben',
-    name: 'Bagger Ben',
+    name: 'Rascal',
     blurb: 'The tip jar only ever grows — a little more set aside each turn.',
     resolve: 30,
     armor: 15,
     power: {
-      name: 'Bag It',
+      name: 'All In',
       kind: 'scalingGold',
       untargeted: true,
       oncePerGame: true,
@@ -305,8 +306,8 @@ export const HEROES: HeroDef[] = [
     power: {
       name: 'Errand',
       kind: 'lesserQuest',
-      passive: true, // resolved on the turn-3 advance (an extra, lower-tier quest offer)
-      text: 'On turn 3, choose an extra **Lesser Quest**.',
+      passive: true, // resolved on the turn-4 advance (an extra, lower-tier quest offer)
+      text: 'On turn 4, choose an extra **Lesser Quest**.',
     },
   },
   {
@@ -316,7 +317,7 @@ export const HEROES: HeroDef[] = [
     resolve: 30,
     armor: 8,
     power: {
-      name: 'Encore',
+      name: 'Timelapse',
       kind: 'questChronos',
       passive: true, // a quest — resolved in the buy case (buy 4 End-of-Turn minions)
       oncePerGame: true,
@@ -330,7 +331,7 @@ export const HEROES: HeroDef[] = [
     resolve: 30,
     armor: 8,
     power: {
-      name: 'Runeforge',
+      name: 'Forgemaster',
       kind: 'runeforge',
       passive: true, // fires on the turn-6 advance (opens the Runeforge offer); resolved by `buyRune` / `skipRuneforge`
       oncePerGame: true, // the forge opens exactly once, on turn 7
@@ -339,15 +340,15 @@ export const HEROES: HeroDef[] = [
   },
   {
     id: 'runeguard',
-    name: 'Runeguard',
+    name: 'Guardian',
     blurb: 'Sworn to the forge — its greater runes answer only to those who hold the line.',
     resolve: 30,
     armor: 8,
     power: {
-      name: 'Defend the Forge',
+      name: 'Runeguard',
       kind: 'epicRuneforge',
       passive: true, // scheduled at run start (createRun sets `epicForgeWave = 10`); opens via advanceCombat sequencing
-      text: 'On turn 12, visit the Epic Runeforge.',
+      text: 'On turn 10, visit the Epic Runeforge.',
     },
   },
   {
@@ -364,8 +365,24 @@ export const HEROES: HeroDef[] = [
     },
   },
   {
+    id: 'tiff',
+    name: 'Tiff',
+    blurb: 'Every wyrm answers her whistle — and the tavern picks up the tab.',
+    resolve: 30,
+    armor: 14,
+    power: {
+      name: 'Dragon Tamer',
+      kind: 'dragonTamer',
+      // Fires immediately: Discover a Dragon. NO static `cost` — the shrinking price (5 − a discount per
+      // Dragon/spell bought since the last use, floor 0) is charged in the reducer, and the cost coin shows
+      // the LIVE value (the dynamiteDig pattern; a def-level cost would double-charge via the shared block).
+      untargeted: true,
+      text: '**Discover** a Dragon. Costs **5 Gold** — reduced by 1 when you buy a Dragon or a spell.',
+    },
+  },
+  {
     id: 'jenkins',
-    name: 'Jenkins',
+    name: 'Jensen',
     blurb: 'Every dig turns up something — for a price that only ever climbs.',
     resolve: 30,
     armor: 10,
@@ -373,7 +390,7 @@ export const HEROES: HeroDef[] = [
       name: 'Dynamite Dig',
       kind: 'dynamiteDig',
       untargeted: true, // fires immediately: Discover a minion of your tier; the escalating cost is handled in the reducer
-      text: 'Discover a minion from your Shop tier. Each use costs 1 more Gold.',
+      text: 'Discover a minion from your Shop tier. The first is free; each use costs 1 more Gold.',
     },
   },
 ];

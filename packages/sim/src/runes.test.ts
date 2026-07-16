@@ -3,6 +3,7 @@ import type { CombatResult } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNES, RUNE_INDEX, validateRunes } from '@game/content';
 import { createRun, type RunState } from './state';
 import { openEpicRuneforge, reduce } from './reducer';
+import { dragonTamerCostOf, spellDisplayText } from './recruit';
 import { questBucketFor } from './quests';
 import { applyEndOfTurn, projectEndOfTurnSteps, questEndOfTurnBeats } from './recruit';
 
@@ -139,6 +140,14 @@ describe('Runeforge — rune effects fire in play', () => {
     expect(s.embers).toBe(2); // worth 2, not 1
   });
 
+  it("Pillaging: the Gold Pouch's PRINTED text reads its live 2-Gold value (hard live-text rule)", () => {
+    // Owner report 2026-07-16: the pouch still said "Gain 1 Gold." with the rune active. The display path
+    // (spellDisplayText → liveCardText/shopView) must fold the raised payout in, greened.
+    expect(spellDisplayText('emberpouch', 0, 0, 0, 0, 0, 2)).toBe('Gain {{2 Gold}}.');
+    // Without the rune (or before it), the printed base stays untouched.
+    expect(spellDisplayText('emberpouch', 0, 0, 0, 0, 0, 0)).toBe('Gain **1 Gold**.');
+  });
+
   it('Slaying: each Slaughter this combat banks +2 Gold for next turn', () => {
     const s = reduce({
       ...createRun(1, 'runesmith'), phase: 'combat', questFlags: { runeSlaying: true },
@@ -184,18 +193,51 @@ describe('New heroes — Coran (Pathfinder) + Jenkins (Dynamite Dig)', () => {
     expect(s.questOffer!.every((id) => questBucketFor(QUEST_INDEX[id]!) === 11)).toBe(true);
   });
 
-  it('Jenkins: Dynamite Dig opens a tier Discover, spends 1 Gold, and the cost climbs each use', () => {
+  it('Jensen: Dynamite Dig opens a tier Discover FREE the first time, and the cost climbs each use', () => {
     let s: RunState = { ...createRun(1, 'jenkins'), wave: 3, tier: 2, phase: 'recruit', embers: 10, heroReady: true };
     s = reduce(s, { type: 'heroPower' });
     expect(s.discover).toBeDefined(); // a minion Discover opened
-    expect(s.embers).toBe(9); // first use costs 1
+    expect(s.embers).toBe(10); // first use is FREE (owner balance 2026-07-16)
     expect(s.heroPowerUses).toBe(1);
-    // Resolve the Discover + recharge, then the second use costs 2.
+    // Resolve the Discover + recharge, then the second use costs 1.
     s = reduce(s, { type: 'discover', index: 0 });
     s = { ...s, heroReady: true, embers: 10 };
     s = reduce(s, { type: 'heroPower' });
-    expect(s.embers).toBe(8); // second use costs 2
+    expect(s.embers).toBe(9); // second use costs 1
     expect(s.heroPowerUses).toBe(2);
+  });
+
+  it('Tiff: Dragon buys and spell buys each shave 1 off Dragon Tamer (other minions do not)', () => {
+    let s: RunState = { ...createRun(1, 'tiff'), wave: 3, tier: 2, phase: 'recruit', embers: 20, heroReady: true,
+      shop: [
+        { uid: 'd1', cardId: 'twilightwhelp' }, // Dragon
+        { uid: 'n1', cardId: 'sandbag' },       // neutral — no discount
+      ],
+      spell: { uid: 'sp1', cardId: 'emberpouch' } };
+    expect(dragonTamerCostOf(s)).toBe(5);
+    s = reduce(s, { type: 'buy', uid: 'd1' }); // Dragon → −1
+    expect(s.tiffDiscount).toBe(1);
+    s = reduce(s, { type: 'buy', uid: 'sp1' }); // spell (right slot) → −1
+    expect(s.tiffDiscount).toBe(2);
+    s = reduce(s, { type: 'buy', uid: 'n1' }); // neutral minion → unchanged
+    expect(s.tiffDiscount).toBe(2);
+    expect(dragonTamerCostOf(s)).toBe(3);
+  });
+
+  it('Tiff: Dragon Tamer opens a DRAGON Discover for the live cost, resets the discount, floors at 0', () => {
+    let s: RunState = { ...createRun(1, 'tiff'), wave: 3, tier: 2, phase: 'recruit', embers: 10, heroReady: true, tiffDiscount: 2 };
+    s = reduce(s, { type: 'heroPower' });
+    expect(s.discover).toBeDefined();
+    expect(s.discover!.every((id) => { const d = CARD_INDEX[id]!; return d.tribe === 'dragon' || d.tribe2 === 'dragon'; })).toBe(true);
+    expect(s.embers).toBe(7); // charged 5 − 2
+    expect(s.tiffDiscount).toBe(0); // the bank resets on use
+    expect(s.heroReady).toBe(false); // once per turn
+    // Floor at 0: with a huge bank the power is FREE.
+    let f: RunState = { ...createRun(1, 'tiff'), wave: 3, tier: 2, phase: 'recruit', embers: 0, heroReady: true, tiffDiscount: 9 };
+    expect(dragonTamerCostOf(f)).toBe(0);
+    f = reduce(f, { type: 'heroPower' });
+    expect(f.discover).toBeDefined(); // fires with 0 Gold
+    expect(f.embers).toBe(0);
   });
 });
 
@@ -533,12 +575,12 @@ describe('Runes batch 4b — new cards (Feasting Bogrot / Reconfigured Combinato
   const buyEpic = (runeId: string): RunState =>
     reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, hand: [], runeforgeOffer: [runeId], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
 
-  it('Runeguard: Defend the Forge — 8 armor + schedules the Epic Runeforge for turn 12', () => {
+  it('Guardian: Runeguard — 8 armor + schedules the Epic Runeforge for turn 10', () => {
     const s = createRun(1, 'runeguard');
     expect(s.armor).toBe(8);
-    expect(s.epicForgeWave).toBe(12);
-    const next = reduce({ ...s, wave: 11, phase: 'combat', epicForgeWave: 12, lastCombat: win }, { type: 'resolveCombat' });
-    expect(next.wave).toBe(12);
+    expect(s.epicForgeWave).toBe(10);
+    const next = reduce({ ...s, wave: 9, phase: 'combat', epicForgeWave: 10, lastCombat: win }, { type: 'resolveCombat' });
+    expect(next.wave).toBe(10);
     expect(next.runeforgeEpic).toBe(true);
   });
 

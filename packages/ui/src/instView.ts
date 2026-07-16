@@ -30,6 +30,8 @@ export interface LiveTextParams {
   squirlScoutBuff?: number;
   /** Gold spent this recruit turn — Patch Job shows the current total it'll grant (steps × per-step value). */
   goldSpent?: number;
+  /** Rune of Pillaging's raised Gold Pouch payout — the pouch's text shows its live value ("Gain 2 Gold."). */
+  goldPouchValue?: number;
   /** Name of the most recent spell cast this run (`lastSpellCastId` → name) — Steward of Spells shows what it copies. */
   lastSpellName?: string;
   /** Triple-reward Discover spell: the tier captured when it was granted, so its "peek one tier up" text stays
@@ -48,7 +50,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
       : c.spell
-        ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus)
+        ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0)
         : transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0) ?? // combat-only: null in the shop (attackSeen 0)
@@ -108,7 +110,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -121,7 +123,7 @@ export function instView(
     tier, golden: !!inst.golden, spellBonus, spellBonusH, frontToBackBonus, frontToBackBonusH: live?.frontToBackBonusH ?? frontToBackBonus, spellsThisTurn, spellsCast,
     deathrattlesTriggered, clingEnchant, fodderConsumed,
     undeadBuyAtk: live?.undeadBuyAtk ?? 0, soulsmanGold: live?.soulsmanGold ?? 0, cardBuffs: live?.cardBuffs,
-    goldSpent: live?.goldSpent ?? 0,
+    goldSpent: live?.goldSpent ?? 0, goldPouchValue: live?.goldPouchValue ?? 0,
     spellProgress: inst.spellProgress, ascendProgress: inst.ascendProgress, summonBonus: inst.summonBonus,
     overflowBonus: inst.overflowBonus,
     hpGrantBonus: inst.hpGrantBonus, eotTick: eotTickShown, eotBonus: inst.eotBonus, sellBonus: inst.sellBonus,

@@ -13,7 +13,7 @@ export function questBucketFor(q: QuestDef): 5 | 11 {
 }
 
 /** The quest-offer plan for the current turn: which bucket to draw from, and whether it's restricted to Lesser
- *  quests (Fi's bonus turn-3 offer). Null = not a quest turn for this run/hero.
+ *  quests (Fi's bonus turn-4 offer). Null = not a quest turn for this run/hero.
  *
  *  `CONFIG.questsEnabled = false` is the master off-switch for the UNIVERSAL quest turns (waves 5 & 11) — the
  *  ones every hero gets. The quest-NATIVE hero powers (Fi's Errand, Coran's Pathfinder) are checked ABOVE that
@@ -24,8 +24,8 @@ export type QuestOfferPlan = { bucket: 5 | 11; lesserOnly?: boolean };
 export function questOfferPlan(s: RunState): QuestOfferPlan | null {
   const hp = getHero(s.heroId).power.kind;
   // Quest-native hero powers — kept above the master gate so they survive `questsEnabled = false`.
-  // Fi's Errand: a bonus LESSER-only offer on turn 3 (from the turn-5 bucket), ON TOP of the normal turns 5 & 11.
-  if (hp === 'lesserQuest' && s.wave === 3) return { bucket: 5, lesserOnly: true };
+  // Fi's Errand: a bonus LESSER-only offer on turn 4 (from the turn-5 bucket), ON TOP of the normal turns 5 & 11.
+  if (hp === 'lesserQuest' && s.wave === 4) return { bucket: 5, lesserOnly: true };
   // Coran (Pathfinder): a bonus CAPSTONE (turn-11 bucket) quest on turn 10, ON TOP of the normal 5 & 11 turns —
   // so he falls through to the universal logic below for those (an early return only on turn 10).
   if (hp === 'pathfinder' && s.wave === 10) return { bucket: 11 };
@@ -63,7 +63,7 @@ function dominantTribe(s: RunState): Tribe | null {
  * total) drawn from the plan's bucket. Seeded off (seed, wave) in its own RNG stream (`TAG.QUEST`) so it's
  * reproducible and never perturbs the shop roll. The two main quest turns (5 & 11) force at least one tribe slot
  * to the player's most-played board tribe (a chance at the second, once a tribe has ≥2 quests in the bucket);
- * Fi's bonus Lesser-only turn-3 offer is free-steering (random distinct tribes). Quests you've ALREADY taken this
+ * Fi's bonus Lesser-only turn-4 offer is free-steering (random distinct tribes). Quests you've ALREADY taken this
  * run are excluded, and no quest can appear twice in one offer. Returns quest ids (0–4). An EMPTY result signals
  * "no quest phase" — the caller falls through to a normal turn, so a content gap can't soft-lock.
  */

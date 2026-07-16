@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### fix(ui): aimed target glow — compositor-only (opacity), not a per-frame filter animation
+
+Owner reported combat "jumps" and suspected the longer wind-up. Investigated: the wind-up timing is sound — the
+beat scheduler defers attack beats to the choreo GSAP engine (`engineAdvancingRef`), which advances at the lunge's
+`contact` position, so a longer `windupDur` just lengthens the timeline (no desync, no double-advance). The real
+regression was **#496's own glow fade**: it animated a PAINT property (`filter` drop-shadow / `box-shadow`) every
+frame for ~0.62s on the defender, concurrently with the lunge — exactly what docs/performance.md forbids (repaints
+each frame; can starve the main thread and make GSAP lag-smoothing jump).
+
+Refactored the aimed glow to be **compositor-only**, reusing the existing `.cglow` silhouette layer (the same
+masked frame-shape copy the hover glow fades via opacity, seated behind the art). The aimed state now tints that
+layer red (static rim + bloom, painted once) and fades it in by **opacity** over the wind-up (`aimglowfade`),
+which the compositor handles with no per-frame repaint. Dropped the `aimglowbox`/`aimglowframe` paint animations
+and the aimed `--tglow` frame drop-shadows. The unframed fallback (no `.cglow`) keeps a simple STATIC box-shadow
+ring (zero per-frame cost). Attacker glow stays removed; armed/targeted selection glow untouched.
+
+Visual note: because `.cglow` sits behind the art, the red now hugs the OUTSIDE of the silhouette (a crisp rim +
+outward bloom) and no longer washes inward over the portrait — cleaner, slightly different from #496's in-front
+frame drop-shadow. Verified live (computed-style probe): aimed stdframe/taunt `.cglow` animates `aimglowfade`
+(opacity, 0.62s) with a red rim, and the frame img itself has NO animation. `build:web` clean.
+
 ### feat(ui): play-into-warband lights the exact hover glow
 
 - **Playing a minion from hand now shows the same teal hover glow as it crosses into the warband.** When a

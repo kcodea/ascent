@@ -1859,16 +1859,12 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 /* Layer the struck defender ABOVE the lunging/recoiling attacker so its stats are never covered at impact. */
 .unit.attacking { z-index: 8; }
 .unit.struck { z-index: 12; }
-/* Telegraph: the aimed defender's RED danger glow FADES IN over the attacker's wind-up (owner ask — it used to
-   snap on). One-shot per attack (not a loop → this paint-property animation is the sanctioned pop exception, like
-   cardbuff/questbounce). Plain (unframed) cards use the box-shadow ring+halo here; authored frames glow their PNG
-   silhouette via the .cframe/.tframe variants below. Duration ~tracks windupDur (lungeConfig default 0.70s). */
+/* Telegraph: the aimed defender gets a RED target glow. On authored frames it FADES IN over the wind-up via the
+   compositor-only `.cglow` silhouette layer (opacity only — see the `.unit.aimed .cglow` block below), NOT by
+   animating a paint property (that janked the concurrent lunge). The plain UNFRAMED fallback has no `.cglow`
+   silhouette, so it keeps a simple STATIC box-shadow ring — painted once, zero per-frame cost. */
 .unit.aimed .card:not(.stdframe):not(.taunt):not(.spellframe) {
-  animation: aimglowbox var(--aim-dur, 0.62s) ease-out forwards;
-}
-@keyframes aimglowbox {
-  from { box-shadow: 0 0 0 3px transparent, 0 0 18px 3px transparent, 0 3px 0 var(--shadow); }
-  to   { box-shadow: 0 0 0 3px var(--threat), 0 0 18px 3px color-mix(in srgb, var(--threat) 70%, transparent), 0 3px 0 var(--shadow); }
+  box-shadow: 0 0 0 3px var(--threat), 0 0 18px 3px color-mix(in srgb, var(--threat) 70%, transparent), 0 3px 0 var(--shadow);
 }
 /* TAUNT glow shape-fix: a Taunt card is reshaped into a heater SHIELD (portrait clipped to `--heater` + the frame
    PNG over a transparent card box), so every rectangular box-shadow glow — the aimed danger telegraph, the
@@ -1881,8 +1877,8 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .unit.attacking .card.compact.taunt { box-shadow: 0 3px 0 var(--shadow); }
 .card.compact.taunt.armed { --tglow: var(--c); }
 .card.compact.taunt.targeted { --tglow: var(--c); }
-/* Attacking (orange) glow stays removed; the aimed (red) danger glow is restored, faded in (see `aimglowframe`). */
-.unit.aimed .card.compact.taunt { --tglow: var(--threat); }
+/* Combat attack glows are NOT on the frame drop-shadow: the attacker (orange) glow is gone, and the aimed (red)
+   glow now uses the compositor-only `.cglow` layer below. Only the armed/targeted selection glow remains here. */
 .card.compact.taunt.armed .tframe,
 .card.compact.taunt.targeted .tframe {
   filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
@@ -2120,8 +2116,8 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 .unit.attacking .card.compact.stdframe { box-shadow: 0 3px 0 var(--shadow); }
 .card.compact.stdframe.armed, .card.compact.spellframe.armed { --tglow: var(--c); }
 .card.compact.stdframe.targeted, .card.compact.spellframe.targeted { --tglow: var(--c); }
-/* Attacking (orange) glow stays removed; the aimed (red) danger glow is restored, faded in (see `aimglowframe`). */
-.unit.aimed .card.compact.stdframe { --tglow: var(--threat); }
+/* Combat attack glows are NOT on the frame drop-shadow (aimed uses the `.cglow` layer below); only the
+   armed/targeted selection glow remains here. */
 .card.compact.stdframe.armed .cframe,
 .card.compact.stdframe.targeted .cframe,
 .card.compact.spellframe.armed .cframe,
@@ -2130,19 +2126,21 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
           drop-shadow(0 0 4px var(--tglow))
           drop-shadow(0 0 12px var(--tglow));
 }
-/* Aimed defender: fade the RED danger glow into the frame's PNG silhouette (oval minion / taunt shield) over the
-   wind-up. One-shot forwards; `--tglow` (red) carries the colour, animating up from transparent. Excludes the
-   `.cshadow` grounding copy so only the main frame img glows. (Perf: one-shot per attack, single element.) */
-.unit.aimed .card.compact.stdframe .cframe:not(.cshadow),
-.unit.aimed .card.compact.taunt .tframe:not(.cshadow) {
-  animation: aimglowframe var(--aim-dur, 0.62s) ease-out forwards;
+/* Aimed defender's RED target glow — reuse the COMPOSITOR-ONLY `.cglow` silhouette layer (the same masked
+   frame-shape copy the hover glow uses, seated BEHIND the art so it never washes over the portrait): a red rim +
+   bloom, faded in via OPACITY over the wind-up. Opacity is compositor-only → no paint-in-a-loop, so it can't jank
+   the concurrent lunge (unlike animating the frame filter, which it replaces). The red rim/bloom are STATIC
+   (painted once); only opacity animates. Duration ~tracks windupDur (lungeConfig default 0.70s). */
+.unit.aimed .card.compact.stdframe .cglow,
+.unit.aimed .card.compact.taunt .cglow {
+  filter:
+    drop-shadow(0 0 5px rgba(229, 68, 107, 0.5)) drop-shadow(0 0 5px rgba(229, 68, 107, 0.5))
+    drop-shadow(0 0 5px rgba(229, 68, 107, 0.5)) drop-shadow(0 0 7px rgba(229, 68, 107, 0.45));
+  animation: aimglowfade var(--aim-dur, 0.62s) ease-out forwards;
 }
-@keyframes aimglowframe {
-  from { filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
-                 drop-shadow(0 0 4px transparent) drop-shadow(0 0 12px transparent); }
-  to   { filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
-                 drop-shadow(0 0 4px var(--tglow)) drop-shadow(0 0 12px var(--tglow)); }
-}
+.unit.aimed .card.compact.stdframe .cglow-rim,
+.unit.aimed .card.compact.taunt .cglow-rim { background: var(--threat); }
+@keyframes aimglowfade { from { opacity: 0; } to { opacity: 1; } }
 
 /* ---- keyword states on the OVAL (reshaped from the arch, mirroring Taunt's DS reconciliation) -------------- */
 /* Divine Shield: kill the rectangular gold aura + arched bloom, glow the frame alpha (STATIC — never animate a

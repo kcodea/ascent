@@ -29,6 +29,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   reusable effects table (silhouette glow, sheen sweep, press flash, impactDust/impactPulse, dim states)
   with per-button recipes, and the verification/bake workflow. Written for Mike's Claude session to follow;
   reference implementations are linked by file.
+### fix(ui/content): quest-node reach, Compendium spacing, golden Trail Forager text
+
+- **Quest/rune nodes can reach the relocated hero portrait**: the Layout Lab's Quest-node ranges widened
+  (X −800…800, Y −1400…400 — the old −600 floor couldn't follow the panel's move up the left rail) and the
+  default re-seated to −625 (mirroring the panel's −569 shift; CSS fallback updated to match). Owner
+  fine-tunes from there and sends values to re-bake.
+- **Compendium overlap fixed**: `.book-grid` columns are now `auto-fill, minmax(cardWidth+16, 1fr)` — a
+  column DROPS instead of squeezing below a card's width — and the row gap reserves `0.45 × card height`
+  for the text plate hanging under each oval. Verified live on the Tier-2 grid: 0 overlapping card rects.
+- **Golden Trail Forager**: behavior was already right (sells 6g base, accrues +2g per Beast played — both
+  double), but the card had NO golden text so a fresh golden PRINTED the 3g/1g base. Added the explicit
+  goldenText ("Sells for **6g**, plus **2g** for every Beast you play.") — trailForagerText already
+  prefers it for the live-accrual green. New test locks the golden sell math + printed text.
+- Typecheck + lint + 1110 tests + build:web green.
 
 
 

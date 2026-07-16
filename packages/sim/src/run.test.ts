@@ -5427,6 +5427,20 @@ describe('Beast quests (combat objectives + rewards)', () => {
     expect(sellValueOf(f)).toBe(4); // 3 + 1 per Beast played
   });
 
+  it('GOLDEN Trail Forager sells for 6g +2g per Beast played, and its printed golden text says so', () => {
+    const forager: BoardCard = { uid: 'f', cardId: 'trailforager', tribe: 'beast', attack: 2, health: 8, keywords: [], golden: true };
+    const beast: BoardCard = { uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', board: [forager], hand: [beast] };
+    expect(sellValueOf(s.board[0]!)).toBe(6); // golden base 6g
+    s = reduce(s, { type: 'play', uid: 'b' });
+    const f = s.board.find((c) => c.cardId === 'trailforager')!;
+    expect(f.sellBonus).toBe(2); // +2 per Beast while golden
+    expect(sellValueOf(f)).toBe(8); // 6 + 2
+    // The printed golden text must state the doubled values (a fresh golden showed the 3g/1g base — owner
+    // report 2026-07-16; behavior was already doubled, the display wasn't).
+    expect(CARD_INDEX['trailforager']!.goldenText).toBe('Sells for **6g**, plus **2g** for every Beast you play.');
+  });
+
   it('Feed the Alpha spell sells the target and feeds the right-most Beast', () => {
     const beastL: BoardCard = { uid: 'bl', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
     const fodder: BoardCard = { uid: 'fo', cardId: 'sandbag', tribe: 'neutral', attack: 3, health: 5, keywords: [], golden: false };

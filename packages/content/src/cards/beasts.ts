@@ -96,6 +96,9 @@ export const BEASTS: CardDef[] = [
     token: true,
     effects: [],
     text: 'Sells for **3g**, plus **1g** for every Beast you play.',
+    // Golden doubles BOTH numbers (the sell math + accrual already do — reducer/sellValueOf); without this
+    // explicit golden text a fresh golden printed the base 3g/1g (owner report 2026-07-16).
+    goldenText: 'Sells for **6g**, plus **2g** for every Beast you play.',
   },
   {
     // Quest reward (Trophy Den): a Rally snowball — each of its attacks gives your Beasts a GROWING +N/+N aura

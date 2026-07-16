@@ -153,11 +153,11 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         </div>
       </div>
 
-      {/* A little celebration on the right — for the team that makes it all move. */}
+      {/* The little note on the right — currently a thank-you as the rift window closes. */}
       <aside className="titlebanner" role="note">
-        <div className="titlebanner-emoji" aria-hidden>🎉🎂</div>
-        <div className="titlebanner-title">Happy Birthday to our Animations Team!</div>
-        <div className="titlebanner-sub">We appreciate everything you do for our shareholder value 💜</div>
+        <div className="titlebanner-emoji" aria-hidden>✨</div>
+        <div className="titlebanner-title">Thanks for testing rifts!</div>
+        <div className="titlebanner-sub">We're cooking up some new and fun rifts to test out in the near future. Back to basics for now, though.</div>
         {activeRift() && <div className="titlebanner-sub">Enjoy a special rift patch to have some fun ✨</div>}
       </aside>
 

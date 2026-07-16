@@ -10,6 +10,9 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 - `RIFTS.runic.enabled` → `false` (owner call 2026-07-16). New runs no longer get the universal turn-6
   basic Runeforge; in-flight runs keep their pinned rift copy (the registry is only read at `createRun`).
   One-line flip, as designed. Typecheck + lint + 1116 tests + build:web green.
+- **Title banner** re-worded for the window closing: ✨ "Thanks for testing rifts!" + "We're cooking up
+  some new and fun rifts to test out in the near future. Back to basics for now, though." (replaces the
+  Animations-Team birthday note; the conditional active-rift line stays for future rifts). Verified live.
 
 ### balance(content/core/sim/ui): 24-card stat pass + Karthus & Crypt Drake improve mechanics
 

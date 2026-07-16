@@ -546,26 +546,30 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 }
 body.dragging .etbwrap { pointer-events: none; } /* a card dragged across it drops through */
 .etbwrap:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
-.etbwrap:disabled .etb-art { filter: grayscale(0.4) brightness(0.8); }
+/* Non-pressed disabled (quest/rune offer open) greys the gem; the PRESSED gem in combat shows its art as-is. */
+.etbwrap:disabled:not(.pressed) .etb-art { filter: grayscale(0.4) brightness(0.8); }
 .etbwrap .etb-art { position: absolute; inset: 0; width: 100%; height: 100%; -webkit-user-drag: none; z-index: 2; }
-/* One-shot hover brighten (not a loop — the paint rule allows it). */
-.etbwrap:not(:disabled):hover .etb-art.lit { filter: brightness(1.09); }
-.etbwrap:not(:disabled):active .etb-art { transform: scale(0.96); }
-/* Pressed (end-of-turn beats playing) or the tuner's preview: swap to the dulled gem, kill the glow. */
+/* Pressed (end-of-turn beats → all of combat) or the tuner's preview: the dim gem, glow killed. */
 .etbwrap .etb-art.dim { display: none; }
 .etbwrap.pressed .etb-art.lit, body.etb-pressed-preview .etbwrap .etb-art.lit { display: none; }
 .etbwrap.pressed .etb-art.dim, body.etb-pressed-preview .etbwrap .etb-art.dim { display: block; }
 /* The DIAMOND GLOW — a duplicate of the art whose stacked drop-shadow follows the alpha silhouette, so the
-   halo is exactly the diamond shape. The filter is STATIC; the breathing loop animates OPACITY only
-   (compositor-only, per the perf rule — same trick as kwglow). */
+   halo is exactly the diamond shape. HOVER-ONLY (owner note 2026-07-16): hidden at rest (a soft opacity
+   transition eases it in/out), breathing while hovered. The filter is STATIC; both the breath and the
+   fade animate OPACITY only (compositor-only, per the perf rule — same trick as kwglow). */
 .etbwrap .etb-glow {
   position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;
   filter: var(--etb-glow-filter, drop-shadow(0 0 14px #38b6ff) drop-shadow(0 0 14px #38b6ff) drop-shadow(0 0 14px #38b6ff));
+  opacity: 0; transition: opacity 0.22s ease;
+}
+.etbwrap:not(:disabled):hover .etb-glow {
   opacity: var(--etb-glow-alpha, 0.85);
   animation: etbbreathe var(--etb-glow-pulse, 2.2s) ease-in-out infinite;
 }
 .etbwrap.pressed .etb-glow, body.etb-pressed-preview .etbwrap .etb-glow, .etbwrap:disabled .etb-glow { opacity: 0; animation: none; }
-.etbwrap.urgent .etb-glow { animation-duration: 0.7s; } /* time up — the breath quickens */
+.etbwrap.urgent:not(:disabled):hover .etb-glow { animation-duration: 0.7s; } /* time up — the breath quickens */
+/* Tuner's "glow always on" preview — pins the hover glow so its sliders can be dialed without holding hover. */
+body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity: var(--etb-glow-alpha, 0.85); animation: etbbreathe var(--etb-glow-pulse, 2.2s) ease-in-out infinite; }
 @keyframes etbbreathe {
   0%, 100% { opacity: var(--etb-glow-alpha, 0.85); }
   50% { opacity: var(--etb-glow-dim, 0.38); }

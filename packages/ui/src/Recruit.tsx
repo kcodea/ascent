@@ -2714,14 +2714,6 @@ export function Recruit() {
           </button>
         </div>
       </div>
-      {/* End Turn — the standalone DIAMOND button on the board's middle-right (de-coupled from the shop
-          tray, owner direction 2026-07-16). Pressed art shows while the end-of-turn beats play. */}
-      <EndTurnButton
-        onEndTurn={endTurn}
-        disabled={eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
-        pressed={eotAnimating}
-        urgent={timeUp}
-      />
       </>
       ) : (
         <div className="combatctl">
@@ -2747,6 +2739,17 @@ export function Recruit() {
           </div>
         </div>
       )}
+
+      {/* End Turn — the standalone DIAMOND button on the board's middle-right (de-coupled from the shop
+          tray, owner direction 2026-07-16). Mounted through BOTH phases: the lit gem during recruit, the
+          pressed (dim) gem from the click all the way through the combat screen — it relights when the
+          next shop phase opens (owner note 2026-07-16). */}
+      <EndTurnButton
+        onEndTurn={endTurn}
+        disabled={fighting || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+        pressed={fighting || eotAnimating}
+        urgent={timeUp && !fighting}
+      />
 
       {/* Top-middle combat HUD (during the replay) — the Skip button centred near the top of the arena, with
           the replay-speed slider stacked beneath it. */}

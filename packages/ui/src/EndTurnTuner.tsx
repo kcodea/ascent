@@ -44,11 +44,17 @@ export function EndTurnTuner() {
   const [cfg, setCfg] = useState<EndTurnConfig>(getEndTurnConfig());
   const [copied, setCopied] = useState(false);
   const [pressedPreview, setPressedPreview] = useState(false);
-  // Flip the live button to its pressed (dulled gem) art without ending the turn.
+  const [glowPreview, setGlowPreview] = useState(true);
+  // Flip the live button to its pressed (dim gem) art without ending the turn.
   useEffect(() => {
     document.body.classList.toggle('etb-pressed-preview', pressedPreview);
     return () => document.body.classList.remove('etb-pressed-preview');
   }, [pressedPreview]);
+  // Pin the hover-only glow on so its sliders can be dialed without holding hover.
+  useEffect(() => {
+    document.body.classList.toggle('etb-glow-preview', glowPreview);
+    return () => document.body.classList.remove('etb-glow-preview');
+  }, [glowPreview]);
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('endturnbtn');
 
   const set = (k: keyof EndTurnConfig, v: number | string): void => {
@@ -66,9 +72,14 @@ export function EndTurnTuner() {
     <div className="sfxmix lunge flip" ref={panelRef} style={panelStyle}>
       <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>End Turn Button <span>dev · live · recruit phase</span></div>
       <div className="sfxmix-row">
-        <span className="sfxmix-name" title="Show the pressed (dulled gem) art without ending the turn.">preview pressed</span>
+        <span className="sfxmix-name" title="Show the pressed (dim gem) art without ending the turn.">preview pressed</span>
         <input type="checkbox" checked={pressedPreview} onChange={(e) => setPressedPreview(e.target.checked)} />
         <span className="sfxmix-val">{pressedPreview ? 'on' : 'off'}</span>
+      </div>
+      <div className="sfxmix-row">
+        <span className="sfxmix-name" title="Pin the hover-only glow on so its sliders can be tuned without holding hover.">glow always on</span>
+        <input type="checkbox" checked={glowPreview} onChange={(e) => setGlowPreview(e.target.checked)} />
+        <span className="sfxmix-val">{glowPreview ? 'on' : 'off'}</span>
       </div>
       {ETB_NUM_KEYS.map((k) => {
         const [min, max, step] = ETB_RANGES[k];

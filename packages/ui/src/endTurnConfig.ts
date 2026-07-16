@@ -5,11 +5,12 @@
  * Three groups of dials, matching the DEV tuner (`EndTurnTuner.tsx`, opened from the Dev Tuning Menu):
  *   - POSITION + SCALE — px offsets from the stage-pinned base point (× --scale, resolution-independent, same
  *     pinning scheme as the hero power) and an overall scale factor.
- *   - GLOW — the diamond-shaped highlight hugging the button. Implemented as a duplicate of the button art with
- *     a stacked drop-shadow filter (the shadow follows the image's alpha, so the glow IS the diamond silhouette),
- *     whose OPACITY breathes on a loop (compositor-only — the filter itself is static, per the perf rule).
- *   - LIGHTNING — little arcs crackling along the diamond's edges on a small canvas overlay. Speed = spawn
- *     cadence, scale = arc length, magnitude = jitter amplitude.
+ *   - GLOW — the diamond-shaped highlight hugging the button, shown ON HOVER ONLY (owner note 2026-07-16).
+ *     Implemented as a duplicate of the button art with a stacked drop-shadow filter (the shadow follows the
+ *     image's alpha, so the glow IS the diamond silhouette), whose OPACITY breathes while hovered
+ *     (compositor-only — the filter itself is static, per the perf rule).
+ *   - LIGHTNING — little arcs crackling along the diamond's edges AND across its face on a small canvas
+ *     overlay. Speed = spawn cadence, scale = arc length, magnitude = jitter amplitude.
  *
  * Config is localStorage-persisted in dev so the tuner survives reloads; PRODUCTION always uses DEFAULTS (the
  * stored overrides are dev-only, mirroring the Layout Lab convention). Position/scale/glow reflect to `--etb-*`

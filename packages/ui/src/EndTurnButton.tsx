@@ -1,10 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { getEndTurnConfig, rgba } from './endTurnConfig';
+import { pixiFx } from './pixiFx';
 
 /**
  * The standalone END TURN / START COMBAT diamond — the gem-in-bronze button pinned to the board's
  * middle-right (de-coupled from the shop tray, owner direction 2026-07-16). Art: frames/end_button.webp
- * (lit gem) until pressed; frames/end_button_pressed.webp (dulled gem) while the end-of-turn beats play.
+ * (lit gem) until pressed; frames/end_button_pressed2.webp (dim gem) from the click through the WHOLE
+ * combat screen — it relights when the next shop phase opens. The hit also kicks up a dirt/smoke billow
+ * (pixiFx.impactDust) at the gem.
  *
  * Layered so every effect follows the DIAMOND silhouette and stays cheap:
  *   - `.etb-glow` — a duplicate of the art with a STATIC stacked drop-shadow filter (`--etb-glow-filter`);
@@ -26,10 +29,20 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent }: {
   urgent: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const wrapRef = useRef<HTMLButtonElement>(null);
   const pressedRef = useRef(pressed);
   pressedRef.current = pressed;
 
-  // Lightning arcs — spawn along a random diamond edge, jitter midpoints, fade over boltLife ms.
+  // The hit lands with a dirt/smoke billow at the gem (owner note 2026-07-16) — the same warm impact
+  // dust the combat clack uses, sourced at the button's live on-screen centre.
+  const click = (): void => {
+    const r = wrapRef.current?.getBoundingClientRect();
+    if (r) pixiFx.impactDust(r.left + r.width / 2, r.top + r.height / 2, 1.4);
+    onEndTurn();
+  };
+
+  // Lightning arcs — half ride a diamond edge, half CROSS the face between two edges (owner note
+  // 2026-07-16: across the button as well as around it); jittered midpoints, fading over boltLife ms.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -48,7 +61,12 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent }: {
       [cx, PAD + BASE_H * inset], [PAD + BASE_W * (1 - inset), cy],
       [cx, PAD + BASE_H * (1 - inset)], [PAD + BASE_W * inset, cy],
     ] as const;
-    interface Arc { seg: number; t0: number; t1: number; born: number; seed: number; }
+    interface Arc { ax: number; ay: number; bx: number; by: number; born: number; seed: number; }
+    const edgePoint = (seg: number, t: number): [number, number] => {
+      const [x0, y0] = pts[seg]!;
+      const [x1, y1] = pts[(seg + 1) % 4]!;
+      return [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t];
+    };
     let arcs: Arc[] = [];
     let raf = 0;
     let lastSpawn = 0;
@@ -61,8 +79,28 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent }: {
       arcs = arcs.filter((a) => now - a.born < cfg.boltLife);
       if (spawning && now - lastSpawn > 1000 / cfg.boltRate) {
         lastSpawn = now;
-        const t0 = Math.random() * (1 - cfg.boltScale);
-        arcs.push({ seg: Math.floor(Math.random() * 4), t0, t1: t0 + cfg.boltScale, born: now, seed: Math.random() * 1e4 });
+        if (Math.random() < 0.5) {
+          // EDGE arc — a spark riding one of the diamond's four edges (length = boltScale of the edge).
+          const seg = Math.floor(Math.random() * 4);
+          const t0 = Math.random() * (1 - cfg.boltScale);
+          const [ax, ay] = edgePoint(seg, t0);
+          const [bx, by] = edgePoint(seg, t0 + cfg.boltScale);
+          arcs.push({ ax, ay, bx, by, born: now, seed: Math.random() * 1e4 });
+        } else {
+          // CROSS arc — a bolt spanning the gem's FACE between two different edges, shrunk about its
+          // midpoint so the length slider still bites (×1.6 keeps crossings long by default).
+          const s0 = Math.floor(Math.random() * 4);
+          const s1 = (s0 + 1 + Math.floor(Math.random() * 3)) % 4;
+          const [px, py] = edgePoint(s0, 0.2 + Math.random() * 0.6);
+          const [qx, qy] = edgePoint(s1, 0.2 + Math.random() * 0.6);
+          const span = Math.min(1, cfg.boltScale * 1.6);
+          const lo = (1 - span) / 2, hi = (1 + span) / 2;
+          arcs.push({
+            ax: px + (qx - px) * lo, ay: py + (qy - py) * lo,
+            bx: px + (qx - px) * hi, by: py + (qy - py) * hi,
+            born: now, seed: Math.random() * 1e4,
+          });
+        }
       }
       if (arcs.length === 0) {
         if (dirty) { ctx.clearRect(0, 0, canvas.width, canvas.height); dirty = false; }
@@ -74,10 +112,7 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent }: {
       ctx.strokeStyle = rgba(cfg.boltColor, 1);
       for (const a of arcs) {
         const life = 1 - (now - a.born) / cfg.boltLife; // 1 → 0
-        const [x0, y0] = pts[a.seg]!;
-        const [x1, y1] = pts[(a.seg + 1) % 4]!;
-        const ax = x0 + (x1 - x0) * a.t0, ay = y0 + (y1 - y0) * a.t0;
-        const bx = x0 + (x1 - x0) * a.t1, by = y0 + (y1 - y0) * a.t1;
+        const { ax, ay, bx, by } = a;
         // Perpendicular for the jitter direction.
         const dx = bx - ax, dy = by - ay;
         const len = Math.hypot(dx, dy) || 1;
@@ -104,17 +139,19 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent }: {
 
   return (
     <button
+      ref={wrapRef}
       className={`etbwrap${pressed ? ' pressed' : ''}${urgent && !pressed ? ' urgent' : ''}`}
       disabled={disabled}
-      onClick={onEndTurn}
+      onClick={click}
       aria-label="End your turn and start combat"
     >
       <canvas ref={canvasRef} className="etb-bolts" aria-hidden="true" />
       <img className="etb-glow" src="/frames/end_button.webp" alt="" draggable={false} aria-hidden="true" />
       {/* Both arts stay mounted; CSS flips them on `.pressed` (or the tuner's body-class preview) — no
-          src-swap flash, and the pressed art is already decoded when the click lands. */}
+          src-swap flash, and the pressed art is already decoded when the click lands. The pressed gem
+          (end_button_pressed2) holds through the whole combat screen; the lit gem returns with the shop. */}
       <img className="etb-art lit" src="/frames/end_button.webp" alt="" draggable={false} />
-      <img className="etb-art dim" src="/frames/end_button_pressed.webp" alt="" draggable={false} />
+      <img className="etb-art dim" src="/frames/end_button_pressed2.webp" alt="" draggable={false} />
       <span className="etb-tip">End your turn and start combat</span>
     </button>
   );

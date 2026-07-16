@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): End Turn diamond — owner notes round (hover glow, cross-lightning, dust, pressed2)
+
+- Six owner notes applied to the new diamond button:
+  1. **Glow is hover-only** — hidden at rest (soft 0.22s opacity ease in/out), breathing while hovered; the
+     tuner gained a "glow always on" preview toggle so its sliders can be dialed without holding hover.
+  2. **White glare removed** — the hover `brightness(1.09)` on the art is gone; hover feedback is the glow.
+  3. **Push effect removed** — no `:active` scale on click.
+  4. **Lightning crosses the face** — arcs now split 50/50: edge sparks (as before) and CROSS bolts spanning
+     the gem's face between two different edges (length slider still bites via a ×1.6 midpoint-scaled span).
+  5. **Dirt/smoke on hit** — the click kicks up `pixiFx.impactDust` (the combat clack's warm tan billow) at
+     the gem's live on-screen centre before ending the turn.
+  6. **`end_button_pressed2` wired as THE pressed art** — shown from the click through the ENTIRE combat
+     screen (the button now mounts in both phases, disabled + un-greyscaled in combat) and relights when the
+     next shop opens. The superseded `end_button_pressed` webp was removed.
+- Verified live: rest state has zero glow/animation/filter; the glow rules fire at tuned opacity + breath via
+  the preview class (same declarations as `:hover`); centre-face canvas sampling caught cross bolts on 8/28
+  frames (edge arcs can't reach there); pressed2 held through combat un-greyscaled and relit on the wave-2
+  shop. Typecheck + lint + 1109 tests + build:web green; throwaway state cleaned up.
+
 ### feat(ui): End Turn button remake — standalone diamond + 💎 dev tuner
 
 - Owner direction: replace the shop-tray End Turn button with the new **gem-in-bronze diamond art**

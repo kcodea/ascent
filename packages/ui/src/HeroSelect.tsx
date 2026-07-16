@@ -76,7 +76,6 @@ export function HeroSelect() {
                     <b>{power.name}</b> · <span dangerouslySetInnerHTML={{ __html: mdBold(power.text) }} />
                     {power.unlockWave && power.unlockWave > 1 && <span className="hclock">Unlocks turn {power.unlockWave}</span>}
                   </div>
-                  <div className="hcpick">Choose</div>
                 </button>
               );
             }

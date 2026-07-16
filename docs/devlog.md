@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): PLAY-mode champion select — bare portraits + the in-game teal hover glow
+
+- Owner round 2 on the select: the cream cards and Choose buttons are GONE — just the three framed portraits
+  (name pill on the frame's top edge, HP+Armor pill on the bottom) floating on the board. Hovering a
+  portrait lights the **in-game hover glow** (the same `--hg-*` teal line + bloom recipe cards use — a
+  one-shot filter, so the tuned 🔆 Hover Glow values apply here too), crossfades the power art in over the
+  portrait, and fades the power text in below — now styled LIGHT with a grounding shadow since it sits on
+  the bare board. Clicking the portrait picks the hero. Practice's dense grid untouched.
+- Verified live: no cream card/border/Choose on the big cards; a forced-hover preview showed the teal glow
+  hugging the frame + pills with Chronos's Timelapse art + text below. Typecheck + lint + 1109 tests +
+  build:web green.
+
 ### feat(ui): hero + power art re-wire, and the PLAY-mode champion select rebuilt
 
 - **Art re-wire** (owner drop 2026-07-16): all 24 hero portraits from `Ascent Art/Heroes` and 20 hero-power

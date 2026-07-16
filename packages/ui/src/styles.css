@@ -695,7 +695,7 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
 .heropowerbtn .hpb-artwrap { position: absolute; inset: 0; z-index: 2; clip-path: polygon(50% 13.8%, 83% 50.1%, 50% 83.6%, 16.8% 50.1%); pointer-events: none; }
 .heropowerbtn .hpb-art {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none;
-  transform: translate(calc(var(--hpb-art-x, 0) * var(--u)), calc(var(--hpb-art-y, 0) * var(--u))) scale(var(--hpb-art-s, 0.68));
+  transform: translate(calc(var(--hpb-art-x, 0) * var(--u)), calc(var(--hpb-art-y, 0) * var(--u))) scale(var(--hpb-art-s, 0.71));
 }
 .heropowerbtn svg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: calc(50 * var(--u)); height: calc(50 * var(--u)); color: #fff; z-index: 2; }
 /* The FACE GLOW — the face-only cut with a STATIC stacked drop-shadow (halo = the inner diamond's
@@ -704,8 +704,8 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
    press-me cue); breathing animates OPACITY only (compositor-cheap). */
 .heropowerbtn .hpb-glow {
   position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none;
-  transform: translate(calc(var(--hpb-glow-x, 0) * var(--u)), calc(var(--hpb-glow-y, 0) * var(--u))) scale(var(--hpb-glow-w, 0.985), var(--hpb-glow-h, 1.01));
-  filter: var(--hpb-glow-filter, drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94));
+  transform: translate(calc(var(--hpb-glow-x, 0) * var(--u)), calc(var(--hpb-glow-y, 0) * var(--u))) scale(var(--hpb-glow-w, 1.02), var(--hpb-glow-h, 1.01));
+  filter: var(--hpb-glow-filter, drop-shadow(0 0 2px #ffc085) drop-shadow(0 0 2px #ffc085) drop-shadow(0 0 2px #ffc085) drop-shadow(0 0 2px #ffc085) drop-shadow(0 0 2px #ffc085));
   mask-image: linear-gradient(#fff, #fff), url('/frames/heropowerbutton_face.webp');
   mask-size: 100% 100%; mask-repeat: no-repeat; mask-composite: exclude;
   opacity: 0; transition: opacity 0.22s ease;

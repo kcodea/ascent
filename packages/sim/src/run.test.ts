@@ -3775,16 +3775,16 @@ describe('hero powers (@game/sim)', () => {
     expect(s.hand.some((c) => c.cardId === 'chronos')).toBe(true);
   });
 
-  it("Fi's Errand opens an extra LESSER-only quest shop on turn 3", () => {
-    // Drive a real advance into wave 3 and confirm the quest offer opens, restricted to Lesser quests.
-    let s: RunState = { ...createRun(1, 'fi'), wave: 2, phase: 'recruit' };
-    s = reduce(s, { type: 'faceOmen' }); // → combat for wave 2
-    s = reduce(s, { type: 'resolveCombat' }); // → recruit for wave 3, Fi's quest opens
-    expect(s.wave).toBe(3);
+  it("Fi's Errand opens an extra LESSER-only quest shop on turn 4", () => {
+    // Drive a real advance into wave 4 and confirm the quest offer opens, restricted to Lesser quests.
+    let s: RunState = { ...createRun(1, 'fi'), wave: 3, phase: 'recruit' };
+    s = reduce(s, { type: 'faceOmen' }); // → combat for wave 3
+    s = reduce(s, { type: 'resolveCombat' }); // → recruit for wave 4, Fi's quest opens
+    expect(s.wave).toBe(4);
     expect((s.questOffer?.length ?? 0)).toBeGreaterThan(0);
     expect(s.questOffer!.every((id) => QUEST_INDEX[id]!.tier === 'lesser')).toBe(true); // Lesser only
-    // A non-Fi hero gets no turn-3 quest.
-    let w: RunState = { ...createRun(1, 'soren'), wave: 2, phase: 'recruit' };
+    // A non-Fi hero gets no turn-4 quest.
+    let w: RunState = { ...createRun(1, 'soren'), wave: 3, phase: 'recruit' };
     w = reduce(w, { type: 'faceOmen' });
     w = reduce(w, { type: 'resolveCombat' });
     expect(w.questOffer).toBeUndefined();

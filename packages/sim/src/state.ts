@@ -782,9 +782,9 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     rift: activeRift()?.id ?? null, // pin the live rift so replays keep it after the switch flips off
   };
   rollShop(state);
-  // Runeguard (Defend the Forge): schedule the Epic Runeforge for turn 12 — advanceCombat's start-of-turn
+  // Guardian (Runeguard): schedule the Epic Runeforge for turn 10 — advanceCombat's start-of-turn
   // sequencing opens it (behind any quest offer). Cleared once it fires.
-  if (hero.power.kind === 'epicRuneforge') state.epicForgeWave = 12;
+  if (hero.power.kind === 'epicRuneforge') state.epicForgeWave = 10;
   if (heroId === 'chaos') {
     const def = CARD_INDEX['symbioticattachment'];
     if (def && state.hand.length < CONFIG.handMax) {

@@ -57,7 +57,7 @@ export function StatusBar() {
   // target a warband minion OR a tavern offer, so it's usable whenever ready — no friend required.
   const withinUses = power.maxUses ? (run.heroPowerUses ?? 0) < power.maxUses : true;
   // Jenkins's Dynamite Dig has an ESCALATING cost (1 Gold + 1 per prior use), not a fixed `power.cost`.
-  const digCost = power.kind === 'dynamiteDig' ? 1 + (run.heroPowerUses ?? 0) : undefined;
+  const digCost = power.kind === 'dynamiteDig' ? (run.heroPowerUses ?? 0) : undefined;
   // Tiff's Dragon Tamer has a SHRINKING cost (5 − a discount per Dragon/spell bought since the last use).
   const tamerCost = power.kind === 'dragonTamer' ? dragonTamerCostOf(run) : undefined;
   // Indy's Gild recharges after 40 Gold spent since the last use — how much of that 40 is banked so far.
@@ -86,7 +86,7 @@ export function StatusBar() {
       case 'sellGold': return (run.bonusEmbersNextTurn ?? 0) > 0 ? `${run.bonusEmbersNextTurn}g` : null; // Robin — banked
       case 'recurringGoldcrafter': return run.wave % 4 === 0 ? 'now' : `${4 - (run.wave % 4)}t`; // Gildmaster — cadence
       case 'scalingGold': return run.heroPowerSpent ? null : `${1 + run.wave}g`; // Bagger Ben — current value
-      case 'lesserQuest': return run.wave < 3 ? `${3 - run.wave}t` : null; // Fi — turns to the errand
+      case 'lesserQuest': return run.wave < 4 ? `${4 - run.wave}t` : null; // Fi — turns to the errand
       case 'runeforge': return run.wave < 7 && !run.heroPowerSpent ? `${7 - run.wave}t` : null; // Runesmith
       case 'epicRuneforge': return run.epicForgeWave != null && run.wave < run.epicForgeWave ? `${run.epicForgeWave - run.wave}t` : null; // Runeguard
       case 'pathfinder': return run.wave < 10 ? `${10 - run.wave}t` : null; // Coran — turns to the capstone
@@ -104,9 +104,7 @@ export function StatusBar() {
           ? `${power.name} · ${run.heroPowerSpent ? 'complete' : `${run.eotMinionBuys ?? 0}/4`}`
           : power.kind === 'collision'
             ? `${power.name} · ${Math.min(5, run.cassenKills + combatEnemyDeaths)}/5`
-            : power.kind === 'pathfinder'
-              ? `${power.name} · quests turns 6 & 10`
-              : power.kind === 'recurringGoldcrafter'
+            : power.kind === 'recurringGoldcrafter'
                 ? `${power.name} · ${run.wave % 4 === 0 ? 'this turn' : `in ${4 - (run.wave % 4)}t`}`
                 : `${power.name} · passive`
     : heroArmed
@@ -122,7 +120,7 @@ export function StatusBar() {
               : power.kind === 'scalingGold'
                   ? `${power.name} · ${run.heroPowerSpent ? 'spent' : `+${1 + run.wave} Gold`}`
                   : power.kind === 'dynamiteDig'
-                    ? `${power.name} · ${!run.heroReady ? 'used' : run.embers >= digCost! ? `${digCost} Gold` : `need ${digCost} Gold`}`
+                    ? `${power.name} · ${!run.heroReady ? 'used' : digCost === 0 ? 'FREE' : run.embers >= digCost! ? `${digCost} Gold` : `need ${digCost} Gold`}`
                     : power.kind === 'dragonTamer'
                       ? `${power.name} · ${!run.heroReady ? 'used' : tamerCost === 0 ? 'FREE' : run.embers >= tamerCost! ? `${tamerCost} Gold` : `need ${tamerCost} Gold`}`
                       : `${power.name} · ${run.heroReady ? 'once per turn' : 'used'}`;

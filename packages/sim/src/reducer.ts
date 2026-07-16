@@ -936,9 +936,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Untargeted; the once-per-turn charge is spent by the shared block below.
         s.embers += (1 + s.wave) * reps;
       } else if (power.kind === 'dynamiteDig') {
-        // Jenkins: Discover a minion of your CURRENT tier for a Gold cost that climbs 1 each use (1, 2, 3, …).
-        // Untargeted; the escalating cost + the whole-game use count are handled here (not the shared block).
-        const digCost = 1 + heroUses;
+        // Jensen: Discover a minion of your CURRENT tier — the FIRST dig is free, then the cost climbs 1
+        // each use (0, 1, 2, …). Untargeted; cost + use count handled here (not the shared block).
+        const digCost = heroUses;
         if (s.embers < digCost) return state; // can't afford this use → no charge spent
         spendGold(s, digCost);
         s.heroPowerUses = heroUses + 1; // escalate the next use's cost

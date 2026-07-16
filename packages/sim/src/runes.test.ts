@@ -193,17 +193,17 @@ describe('New heroes — Coran (Pathfinder) + Jenkins (Dynamite Dig)', () => {
     expect(s.questOffer!.every((id) => questBucketFor(QUEST_INDEX[id]!) === 11)).toBe(true);
   });
 
-  it('Jenkins: Dynamite Dig opens a tier Discover, spends 1 Gold, and the cost climbs each use', () => {
+  it('Jensen: Dynamite Dig opens a tier Discover FREE the first time, and the cost climbs each use', () => {
     let s: RunState = { ...createRun(1, 'jenkins'), wave: 3, tier: 2, phase: 'recruit', embers: 10, heroReady: true };
     s = reduce(s, { type: 'heroPower' });
     expect(s.discover).toBeDefined(); // a minion Discover opened
-    expect(s.embers).toBe(9); // first use costs 1
+    expect(s.embers).toBe(10); // first use is FREE (owner balance 2026-07-16)
     expect(s.heroPowerUses).toBe(1);
-    // Resolve the Discover + recharge, then the second use costs 2.
+    // Resolve the Discover + recharge, then the second use costs 1.
     s = reduce(s, { type: 'discover', index: 0 });
     s = { ...s, heroReady: true, embers: 10 };
     s = reduce(s, { type: 'heroPower' });
-    expect(s.embers).toBe(8); // second use costs 2
+    expect(s.embers).toBe(9); // second use costs 1
     expect(s.heroPowerUses).toBe(2);
   });
 
@@ -575,12 +575,12 @@ describe('Runes batch 4b — new cards (Feasting Bogrot / Reconfigured Combinato
   const buyEpic = (runeId: string): RunState =>
     reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, hand: [], runeforgeOffer: [runeId], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
 
-  it('Runeguard: Defend the Forge — 8 armor + schedules the Epic Runeforge for turn 12', () => {
+  it('Guardian: Runeguard — 8 armor + schedules the Epic Runeforge for turn 10', () => {
     const s = createRun(1, 'runeguard');
     expect(s.armor).toBe(8);
-    expect(s.epicForgeWave).toBe(12);
-    const next = reduce({ ...s, wave: 11, phase: 'combat', epicForgeWave: 12, lastCombat: win }, { type: 'resolveCombat' });
-    expect(next.wave).toBe(12);
+    expect(s.epicForgeWave).toBe(10);
+    const next = reduce({ ...s, wave: 9, phase: 'combat', epicForgeWave: 10, lastCombat: win }, { type: 'resolveCombat' });
+    expect(next.wave).toBe(10);
     expect(next.runeforgeEpic).toBe(true);
   });
 

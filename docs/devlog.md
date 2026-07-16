@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### balance(sim)/fix(ui): Jensen free first dig, Fi turn 4, Guardian turn 10 + Coran tip fix + 💠 bake
+
+- **Jensen** — Dynamite Dig now starts FREE (0, 1, 2, … instead of 1, 2, 3, …): reducer `digCost = heroUses`,
+  StatusBar coin/status mirror it (the coin hides at 0; the hover status reads "FREE"). Text: *"The first is
+  free; each use costs 1 more Gold."*
+- **Fi** — the bonus Lesser Quest moves turn 3 → **turn 4** (`quests.ts` plan gate, hero text, the `Xt`
+  tally now counts to 4). systemToggles + run tests re-drive the wave-4 advance.
+- **Guardian** — the Epic Runeforge moves turn 12 → **turn 10** (`epicForgeWave = 10` at run start; hero
+  text + registry comment updated; runes test drives wave 9→10).
+- **Coran** — removed the incorrect "quests turns 6 & 10" hover status line (his capstone is turn 10 only;
+  the tally already says so). Falls through to "passive".
+- **💠 bake** (owner values 2026-07-16 v2): artScale 0.71, glowBlur 2, glowStrength 5, glowW 1.02,
+  glowColor **#ffc085** (warm amber) — DEFAULTS + styles.css fallbacks (incl. the glow filter stack
+  8×1px green → 5×2px amber) so clean builds match.
+- Verified: typecheck/lint/1112 tests/build:web green; live throwaway runs — Jensen's first dig spent 0 Gold
+  and opened the Discover, Fi's tally reads `3t` at wave 1, Coran's stale text absent, computed glow filter
+  is the amber stack, art transform matrix(0.71) with clean localStorage.
+
+
+
 ### fix(sim/ui): Gold Pouch shows its LIVE value under Rune of Pillaging
 
 - Owner report: with Rune of Pillaging active ("your Gold Pouches are worth 2 Gold") the pouch card still
@@ -29,8 +49,6 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   reusable effects table (silhouette glow, sheen sweep, press flash, impactDust/impactPulse, dim states)
   with per-button recipes, and the verification/bake workflow. Written for Mike's Claude session to follow;
   reference implementations are linked by file.
-
-
 
 ### feat(sim/ui/content): new hero TIFF (Dragon Tamer) + Resolve pill center-rooted + layout bakes
 

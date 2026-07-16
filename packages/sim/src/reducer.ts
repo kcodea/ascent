@@ -991,20 +991,24 @@ function reduceCore(state: RunState, action: Action): RunState {
       const def = id ? CARD_INDEX[id] : undefined;
       if (!def) return state;
       const dcb = cardBuff(s, def.id); // a discovered Fodder carries Ritualist's run buff
-      s.hand.push({
-        uid: `b${s.uidSeq++}`,
-        cardId: def.id,
-        tribe: def.tribe,
-        // A discovered Undead carries the run-wide Undead Attack bonus too (undeadBuyAtk), like a buy.
-        attack: def.attack + dcb.attack + undeadBuyBonus(s, def),
-        health: def.health + dcb.health + buyHealthAura(s, def),
-        keywords: [...def.keywords],
-        golden: false,
-        // Disco Dan's Setlist: this pick is locked in hand until you reach its shop tier (T2/T4/T6).
-        ...(s.discoverLockTier ? { lockedUntilTier: s.discoverLockTier } : {}),
-      });
+      // The hand is a hard 10-card cap: a Discover into a full hand adds nothing (the pick is forfeit rather
+      // than over-capping). Only claim a pool copy when the card is actually taken.
+      if (s.hand.length < CONFIG.handMax) {
+        s.hand.push({
+          uid: `b${s.uidSeq++}`,
+          cardId: def.id,
+          tribe: def.tribe,
+          // A discovered Undead carries the run-wide Undead Attack bonus too (undeadBuyAtk), like a buy.
+          attack: def.attack + dcb.attack + undeadBuyBonus(s, def),
+          health: def.health + dcb.health + buyHealthAura(s, def),
+          keywords: [...def.keywords],
+          golden: false,
+          // Disco Dan's Setlist: this pick is locked in hand until you reach its shop tier (T2/T4/T6).
+          ...(s.discoverLockTier ? { lockedUntilTier: s.discoverLockTier } : {}),
+        });
+        takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
+      }
       s.discoverLockTier = undefined; // consumed — the next queued Discover sets its own (or none)
-      takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
       // Open the next queued Discover (golden / Drakko-doubled Brian, Yazzus-multiplied Help Wanted /
       // Sprout); only clear the offer once the queue is empty. A spec whose pool is empty opens nothing
       // (offerDiscover/offerSpellDiscover leave `discover` unset) — keep draining the rest so the queue
@@ -1226,6 +1230,7 @@ function reduceCore(state: RunState, action: Action): RunState {
 
 /** Playing a golden minion grants a Discover spell (peek one tier up) into the hand. */
 function grantGoldenDiscover(s: RunState): void {
+  if (s.hand.length >= CONFIG.handMax) return; // hard 10-card hand cap — no over-cap grant
   s.hand.push({
     uid: `b${s.uidSeq++}`,
     cardId: 'discoverspell',
@@ -1386,7 +1391,7 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   // is the one that matters. Copies with no boughtWave (not from a buy) are ignored; undefined if none had one.
   const boughtWaves = combined.map((c) => c.boughtWave).filter((w): w is number => w !== undefined);
   const goldenBoughtWave = boughtWaves.length > 0 ? Math.min(...boughtWaves) : undefined;
-  s.hand.push({
+  const goldenCard: BoardCard = {
     uid: `b${s.uidSeq++}`,
     cardId: def.id,
     tribe: def.tribe,
@@ -1407,7 +1412,11 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
     ascendProgress: goldenAscend > 0 ? goldenAscend : undefined,
     boughtWave: goldenBoughtWave,
     eotTick: goldenEotTick,
-  });
+  };
+  // Respect the hard 10-card hand cap. A triple always frees board slots (it consumes ≥1 board copy), so if
+  // the hand is full the golden goes onto the board rather than over-capping the hand — the reward is never lost.
+  if (s.hand.length < CONFIG.handMax) s.hand.push(goldenCard);
+  else s.board.push(goldenCard);
   s.triplesMade++; // run-wide tally — surfaced as opponent intel in board snapshots
 }
 

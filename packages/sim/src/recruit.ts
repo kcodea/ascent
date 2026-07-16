@@ -517,9 +517,9 @@ export function grantMinionToHandOrBoard(state: RunState, def: CardDef, golden: 
   };
   if (state.hand.length < CONFIG.handMax) state.hand.push(card);
   else if (state.board.length < CONFIG.boardMax) state.board.push(card); // hand full → onto the board
-  else state.hand.push(card); // both full — never LOSE a promised reward (over-cap last resort)
+  else return card; // hand + board BOTH full → drop: the hand is a hard 10-card cap (owner ruling), never over-capped
   if (golden) gildMinion(card);
-  takeFromPool(state, def.id);
+  takeFromPool(state, def.id); // only claim a pool copy for a card we actually placed
   return card;
 }
 

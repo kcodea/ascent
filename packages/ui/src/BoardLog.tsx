@@ -56,10 +56,24 @@ export function BoardLog() {
   const boardsThisRound = data?.get(round) ?? [];
   // Winningest = best-record board with enough fights; fall back to the top-sorted board (already win-rate desc).
   const best = boardsThisRound.find((b) => b.stats.fights >= MIN_FIGHTS) ?? boardsThisRound[0];
+  // Header aggregate — total wins/ties across each round's winningest board (the boards this panel shows).
+  const agg = { wins: 0, ties: 0 };
+  if (data) for (const arr of data.values()) {
+    const b = arr.find((x) => x.stats.fights >= MIN_FIGHTS) ?? arr[0];
+    if (b) { agg.wins += b.stats.wins; agg.ties += b.stats.ties; }
+  }
 
   return (
     <div className="carcard boardlog">
-      <div className="carsec">Board Log — your winningest board each round</div>
+      <div className="bl-head">
+        <div className="carsec carsec-ico"><Icon name="crown" />Winning Boards</div>
+        {data !== null && data.size > 0 && (
+          <div className="bl-agg" title="Total wins and ties across your winningest boards">
+            <span className="bl-agg-w"><Icon name="crown" />{agg.wins} Wins</span>
+            <span className="bl-agg-t"><Icon name="shield" />{agg.ties} Ties</span>
+          </div>
+        )}
+      </div>
       {!remoteEnabled() ? (
         <div className="bl-empty">Board log unavailable — no backend configured.</div>
       ) : !playerName ? (

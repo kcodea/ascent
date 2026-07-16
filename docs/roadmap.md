@@ -52,7 +52,8 @@ Per-wave ratings are now trustworthy (synthetic all-wave pool); the run's par Li
   board pool is larger. Path: **early** wave-first (today) → **mid** wave + strength/rating band → **late**
   wave + rating band + record-similarity. Invariant: *any legal board may be served at combat time.*
 - **New-Line grace** — soften the first misses after a promotion (`lineGrace` field reserved).
-- **Surface rating Δ per run** on the Career match cards; optionally seed veterans' rating from history.
+- **Seed veterans' rating from history** — optional backfill for players with pre-rating runs. (Surfacing the
+  per-run Renown Δ on Career match cards shipped 2026-07-17 in the Standout Stats panel.)
 
 ### Run identity
 The career surface exists; deepen what a finished run *remembers*.

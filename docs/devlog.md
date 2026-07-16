@@ -5,6 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### chore(sim): retire the Runic Behavior rift
+
+- `RIFTS.runic.enabled` → `false` (owner call 2026-07-16). New runs no longer get the universal turn-6
+  basic Runeforge; in-flight runs keep their pinned rift copy (the registry is only read at `createRun`).
+  One-line flip, as designed. Typecheck + lint + 1116 tests + build:web green.
+
 ### balance(content/core/sim/ui): 24-card stat pass + Karthus & Crypt Drake improve mechanics
 
 Owner balance list (2026-07-16), all applied:

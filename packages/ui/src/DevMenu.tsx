@@ -17,6 +17,7 @@ import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { GlowTuner } from './GlowTuner';
 import { EndTurnTuner } from './EndTurnTuner';
 import { HeroPowerTuner } from './HeroPowerTuner';
+import { HeroPanelTuner } from './HeroPanelTuner';
 import { pixiFx } from './pixiFx';
 
 /**
@@ -44,6 +45,7 @@ const TUNERS = [
   { key: 'chargeglyph', label: '⚡ Charge Glyph', C: ChargeGlyphTuner },
   { key: 'endturnbtn', label: '💎 End Turn Button', C: EndTurnTuner },
   { key: 'heropowerbtn', label: '💠 Hero Power Button', C: HeroPowerTuner },
+  { key: 'heropanel', label: '🧍 Hero Panel', C: HeroPanelTuner },
 ] as const;
 
 export function DevMenu() {

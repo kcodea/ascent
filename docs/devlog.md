@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): 🧍 Hero Panel dev tuner — x/y/scale for every part of the bottom-left tray
+
+- Owner ask: scale + move EVERY aspect of the hero panel. New `heroPanelConfig.ts` + `HeroPanelTuner.tsx`
+  (Dev Tuning Menu → 🧍 Hero Panel), 15 dials in 5 groups: the **whole panel** (offset × --scale + scale
+  about its bottom-left anchor), the **portrait**, the **player-name pill**, the **hero-name pill**, and
+  the **Resolve box** (each design-px offsets × --u + scale). Same conventions as the diamond tuners:
+  dev-only localStorage (`ascent.heropanel`), Copy/Reset, production ships the identity defaults that the
+  CSS fallbacks mirror.
+- Values reflect as COMPOSED transform strings (`--hpn-*-t`) because two pills carry base centering
+  transforms the nudges must stack onto, and the Resolve box's hit-shake keyframes now PREPEND the same var
+  so a tuned offset doesn't snap to origin during the shake.
+- Two structural notes: the whole-panel transform lives on `.statusbar .hero` (the tray), NOT `.statusbar` —
+  a transform there would become the containing block for the power diamond's `position: fixed` and break
+  its stage pinning. And the hero-name pill lives inside the portrait frame, so it rides the portrait scale
+  (its own dials stack on top) — noted in the tuner tooltip.
+- Verified live: all 15 rows drive their element (tray +40 × scale, portrait 1.3×, hero-name pill composing
+  1.3 × 1.25, Resolve +30 × --u) while the power diamond's rect stayed pixel-identical; Reset restores.
+  Typecheck + lint + 1109 tests + build:web green.
+
 ### feat(ui): hero power TALLY above the diamond + refresh-flash timing fixes
 
 - **Live power tally** (owner ask 2026-07-16) — the Avenge/step-counter numerals riding above the diamond's

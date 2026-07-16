@@ -1830,7 +1830,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* Player name — a pill eclipsing the TOP edge of the hero box (mirrors the opponent's `.opp-name` on its frame):
    absolutely centered on the top border, nudged up so it half-overlaps. Cream/gold to read as friendly (the
    opponent's is raspberry). */
-.statusbar .hero .playername { position: absolute; top: 0; left: 50%; transform: translate(-50%, -55%); z-index: 3; max-width: calc(200 * var(--u)); padding: calc(2 * var(--u)) calc(14 * var(--u)); background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow); }
+.statusbar .hero .playername { position: absolute; top: 0; left: 50%; transform: var(--hpn-pname-t, translate(-50%, -55%)); z-index: 3; max-width: calc(200 * var(--u)); padding: calc(2 * var(--u)) calc(14 * var(--u)); background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow); }
 /* stretch so the Embers chip is as tall as the (taller) hero panel */
 /* Completed-quest trophy badges — a horizontal row above the hero panel. A quest moves here from the
    QuestPanel on completion; hovering floats its live reward state. Overflow visible so the tooltip + chip
@@ -1890,7 +1890,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .oppbadges .questbadge-tip { bottom: auto; top: calc(100% + 10px); left: auto; right: 0; }
 .statusrow { display: flex; align-items: stretch; justify-content: center; gap: 9px; }
 /* Health as a compact WHITE box beside the hero power (replaces the old HP bar): heart + Resolve (+Armor). */
-.hero .hpbox { position: relative; align-self: center; display: flex; align-items: center; gap: calc(7 * var(--u)); background: #fff; border: 2px solid var(--gold); border-radius: calc(16 * var(--u)); padding: calc(9 * var(--u)) calc(15 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 6px rgba(0, 0, 0, 0.14); pointer-events: none; }
+.hero .hpbox { position: relative; align-self: center; display: flex; align-items: center; gap: calc(7 * var(--u)); background: #fff; border: 2px solid var(--gold); border-radius: calc(16 * var(--u)); padding: calc(9 * var(--u)) calc(15 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 6px rgba(0, 0, 0, 0.14); pointer-events: none; transform: var(--hpn-hp-t, none); }
 .hero .hpbox svg { flex: none; width: calc(30 * var(--u)); height: calc(30 * var(--u)); color: var(--threat); }
 .hero .hpbox .hpval { font-family: var(--font-ui); font-weight: 800; font-size: calc(30 * var(--u)); line-height: 1; color: var(--threat-dk); }
 .hero .hpbox .armval { margin-left: calc(3 * var(--u)); font-size: calc(21 * var(--u)); color: #7c8996; }
@@ -1903,7 +1903,15 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
    gets a golden outline/pulse (it's not the click target anymore). */
 /* resolve took a hit */
 .hero .hpbox.hit { animation: hitshake 0.5s ease; }
-@keyframes hitshake { 0%, 100% { transform: none; } 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+/* The shake COMPOSES over the 🧍 tuner's Resolve-box transform (identity fallback) — without the prefix a
+   tuned offset/scale would snap to origin for the shake's duration. */
+@keyframes hitshake {
+  0%, 100% { transform: var(--hpn-hp-t, translate(0, 0)); }
+  20% { transform: var(--hpn-hp-t, translate(0, 0)) translateX(-5px); }
+  40% { transform: var(--hpn-hp-t, translate(0, 0)) translateX(5px); }
+  60% { transform: var(--hpn-hp-t, translate(0, 0)) translateX(-3px); }
+  80% { transform: var(--hpn-hp-t, translate(0, 0)) translateX(2px); }
+}
 .resfx { position: absolute; top: -10px; right: 14px; font-family: var(--font-ui); font-weight: 900; font-size: 24px; color: var(--threat); pointer-events: none; animation: sellrise 1s ease forwards; }
 /* compact sizing for the corner tray (was hero-sized when it was the centrepiece); the
    hero panel is ~15% larger than the chips so it reads as the centrepiece of the tray */
@@ -1916,14 +1924,19 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
   position: relative; /* anchor for the player-name pill (top eclipse) */
   display: flex; align-items: center; gap: calc(13 * var(--u));
   padding: calc(9 * var(--u)) calc(18 * var(--u)) calc(11 * var(--u)) calc(10 * var(--u)); border-radius: calc(21 * var(--u));
+  /* The 🧍 tuner's whole-panel transform lives HERE (the hero tray), NOT on .statusbar — a transform on
+     .statusbar would become the containing block for the power diamond's `position: fixed` and break its
+     stage pinning. Identity fallback matches the shipped defaults in heroPanelConfig.ts. */
+  transform: var(--hpn-panel-t, none); transform-origin: bottom left;
 }
-/* Larger portrait holding ONLY the hero art; `overflow: visible` lets the hero-name pill eclipse its bottom. */
-.statusbar .hero .f { position: relative; overflow: visible; width: calc(80 * var(--u)); height: calc(80 * var(--u)); border-radius: calc(18 * var(--u)); }
+/* Larger portrait holding ONLY the hero art; `overflow: visible` lets the hero-name pill eclipse its bottom.
+   Takes the 🧍 tuner's portrait transform (NB: the hero-name pill lives inside, so it rides this scale). */
+.statusbar .hero .f { position: relative; overflow: visible; width: calc(80 * var(--u)); height: calc(80 * var(--u)); border-radius: calc(18 * var(--u)); transform: var(--hpn-portrait-t, none); }
 .statusbar .hero .f .heroimg { border-radius: inherit; }
 .statusbar .hero .f svg { width: calc(42 * var(--u)); height: calc(42 * var(--u)); }
 /* Hero name — a pill eclipsing the BOTTOM edge of the portrait (mirrors the player-name pill eclipsing the top). */
 .statusbar .hero .heroname {
-  position: absolute; left: 50%; bottom: 0; transform: translate(-50%, 52%); z-index: 4;
+  position: absolute; left: 50%; bottom: 0; transform: var(--hpn-hname-t, translate(-50%, 52%)); z-index: 4;
   max-width: calc(124 * var(--u)); padding: calc(2 * var(--u)) calc(13 * var(--u));
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px;
   font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; line-height: 1.1;

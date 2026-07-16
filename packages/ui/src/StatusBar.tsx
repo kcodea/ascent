@@ -7,6 +7,7 @@ import { QuestBadges } from './QuestBadges';
 import { sfx } from './sfx';
 import { useGame } from './store';
 import { getHeroPowerBtnConfig } from './heroPowerBtnConfig'; // also reflects the --hpb-* vars at load (side-effect)
+import './heroPanelConfig'; // side-effect: reflects the --hpn-* hero-panel transform vars at load
 
 /** Bottom bar, rooted across the whole round: Embers and Resolve flank the hero. */
 export function StatusBar() {

@@ -2470,7 +2470,10 @@ body.choreo-open .pixifx-under { z-index: 204; }
 /* During combat the hand shrinks to the bottom but stays HOVERABLE — mousing a card pops its preview (spell
    text etc.), same as the shop. Playing/dragging is still blocked (onCardPointerDown bails on `inCombat`), so
    `pointer-events: auto` only re-enables the hover popup, not interaction. */
-.app.combat .zone[data-zone='hand'] { transform: translate(-50%, 0) scale(0.66); transform-origin: bottom center; pointer-events: auto; transition: transform 0.45s cubic-bezier(0.4, 0, 0.5, 1); }
+/* Combat hand stays the SAME size + place as in recruit (owner request) — no shrink. It keeps its recruit
+   `translate` (from the base .zone[data-zone='hand'] rule); we only re-enable hover here so mousing a held card
+   still pops its preview. Playing/dragging stays blocked (onCardPointerDown bails on `inCombat`). */
+.app.combat .zone[data-zone='hand'] { pointer-events: auto; }
 
 /* the combat control bar takes the shop control bar's slot (same buttons → same height) */
 /* Match the recruit control frame's height (~118u) so the Tavern + Warband sit at the SAME spot in

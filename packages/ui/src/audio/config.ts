@@ -19,7 +19,7 @@ export interface AudioConfig {
  *  defaults (2026-07-15). `buff` is a synth-only cue so its gain is inert (see buildCategories) but kept to match
  *  the exported config. */
 export const CATEGORY_GAINS: Record<string, number> = {
-  buy: 0.5, sell: 0.27, smack: 0.29, crit: 0.44, attack: 0.25, death: 0.54, shield: 0.45, triple: 0.47, cast: 0.5, maxgold: 0.22, cardlanding: 0.33, castspell: 0.68, discover: 0.5, taunt: 0.3,
+  buy: 0.5, sell: 0.27, smack: 0.29, crit: 0.44, attack: 0.1875, death: 0.54, shield: 0.45, triple: 0.47, cast: 0.5, maxgold: 0.22, cardlanding: 0.33, castspell: 0.68, discover: 0.5, taunt: 0.3,
   reorder: 0.225, deny: 0.5, freeze: 0.31, unfreeze: 0.35, pulse: 0.5, triggerpulse: 0.21, triggerglow: 0.5,
   clickthock: 0.39, cardtouch: 0.27, divineshieldbreak: 0.21, rebornshatter: 0.16, rebornsummon: 0.28,
   skullburst: 0.06, inspect: 0.5, upgrade: 0.37, roll: 0.88, combatStart: 0.64, cardVoice: 0.11,

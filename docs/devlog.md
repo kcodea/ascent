@@ -5,6 +5,34 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): Tavern Up stone button — layered art, live tier pips, 🍺 tuner (`feat/tavernup-button`)
+
+The "Upgrade Tavern" tray plaque is now a carved STONE MEDALLION on the board's upper-left (owner art, cut
+from the board art itself), following the End Turn diamond playbook (handoff #513): layered `<button>` +
+config module + dev tuner + baked owner-tuned defaults.
+
+- **Layers:** blue arrow gem seated UNDER the base through its transparent hole (the gold ring overlaps its
+  rim — hole centre/diameter measured from the base's alpha, so the default seat lands true) → stone base →
+  the CURRENT shop tier as 1–6 lit slot pips → circular gem glow → one-shot press flash → cost coin → tip.
+- **Tier pips:** the six per-tier exports were tight crops with differing bboxes; they're centroid-aligned
+  onto ONE shared canvas at conversion so a single seat places every tier. Tier 1 (exported with a different
+  bbox and no neighbour-glow bleed) additionally needed **alpha cross-correlation against pip 1 inside tier
+  2** — the centroid method left it ~⅓-pip off (owner report).
+- **Glow = stacked BOX-SHADOW on a circular span**, not the diamond's drop-shadow-of-the-art trick: a filter
+  drop-shadow halo clips SQUARE at its element box once the blur grows (padding only makes a bigger square);
+  an outset box-shadow follows `border-radius: 50%` and can never clip. Hover-only, breath animates opacity.
+- **States:** max tier = the broken "complete" gem (CSS flip, both mounted, sheen removed — a shattered gem
+  doesn't catch a glare). Can't-afford/locked dims the GEM only (the stone is board furniture and must sit
+  flush with the board — never dim it) + the cost coin flushes red. **Mounted through combat** as a passive
+  tier indicator: inert, coin hidden, full art, tip reads "Shop tier N" (copy says Shop, not Tavern).
+- **Press:** warm gem flash + `impactDust` billow + `impactPulse` shockwave at the live centre; same reducer
+  wiring as the plaque (`dispatch {type:'upgrade'}`, `upgradeCostOf` cost — a re-skin, not a behavior change).
+- **🍺 Tavern Up Button tuner** (tavernUpConfig.ts + TavernUpTuner.tsx): position/scale, gem/pips/coin seats,
+  glow (blur·opacity·stack·breath·fit·colour, "always on" preview), sheen, press effects, disabled dim — all
+  live via `--tvb-*` vars, dev-persisted; owner values baked into DEFAULTS + the styles.css fallbacks.
+- **Verified:** typecheck + lint + 1113 tests + build:web green; owner-tuned and eyeballed live over HMR
+  (throwaway runs, both phases, all six tiers, maxed + unaffordable states).
+
 ### feat(sim/core/ui): three new heroes — Re-Pete (Second Hand), Atrius (Possession), Gorr (Four Peat)
 
 - **Re-Pete** — 30 Resolve / 9 Armor. **Second Hand** (passive): at the END of every 3rd turn (3, 6, 9, …)

@@ -489,6 +489,13 @@ export const sfx = {
     if (playSample('turncharge', 'turncharge')) return;
     tone({ freq: 150, dur: 0.7, type: 'sawtooth', vol: 0.1, slideTo: 480, category: 'turncharge' });
   },
+  // The turn timer hits ZERO — the last instant the shop is usable (actions lock); syncs with the charge glyph's
+  // completion flash. A heavier "end-turn explosion" than the charge build. Sourced "turnexplosion" clip; synth
+  // boom fallback until it decodes. Drop the clip at `packages/ui/src/audio/turnexplosion.mp3`.
+  turnExplode: () => {
+    if (playSample('turnexplosion', 'turnexplosion')) return;
+    tone({ freq: 90, dur: 0.5, type: 'sawtooth', vol: 0.16, slideTo: 40, category: 'turnexplosion' });
+  },
   // End Turn → Face the Omen — the sourced "combatStart" clip; synth low sawtooth down-slide fallback.
   combatStart: () => {
     if (playSample('combatStart', 'combatStart')) return;

@@ -5,6 +5,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### feat(audio): end-of-turn explosion cue at timer zero
+
+New `sfx.turnExplode()` (sourced `turnexplosion.mp3` + synth boom fallback, `turnexplosion` category on the ui
+bus) fires the instant the round timer hits **0** — the last moment the shop is usable (actions lock) — from the
+countdown loop (`if (next === 0)` in Recruit.tsx). Syncs with the charge glyph's completion flash. Distinct from
+the `turnCharge` build cue that fires at charge-start. Green: typecheck + lint + build.
+
 ### feat(fx): charge-glyph motes + ramped feather + completion flash (baked into the game)
 
 **What:** ported the owner-tuned end-of-turn charge FX (from `fx/turn-glyph-motes-preview.html`) into the game —

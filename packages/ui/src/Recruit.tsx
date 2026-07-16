@@ -1754,6 +1754,7 @@ export function Recruit() {
       const cur = turnClock.get();
       if (cur <= 0) return; // at 0 the timer just stops — actions lock (except End Turn); no auto-combat
       const next = cur - 1;
+      if (next === 0) sfx.turnExplode(); // timer hits 0 — shop locks; syncs with the charge glyph's completion flash
       turnClock.set(next); // (the last-5s tick beeps were retired — the charge-glyph turnCharge cue replaces them)
       id = window.setTimeout(tick, 1000);
     };

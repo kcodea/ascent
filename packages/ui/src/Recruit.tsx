@@ -1642,20 +1642,20 @@ export function Recruit() {
     return () => document.body.classList.remove('dragging');
   }, [drag?.active]);
 
-  // Align the charge glyph to the board's midline (the background divider) at any resolution/aspect: --charge-y is
-  // the offset from the warband zone's top down to the .app's vertical centre (where the cover-centred board's
-  // split lands). A ResizeObserver re-measures on window / letterbox / resolution changes.
+  // Align the charge glyph to the board's midline (the background divider) at any resolution/aspect. The glyph is
+  // a direct child of `.app` (NOT the warband zone), so it's independent of the warband layout offset (x/y/scale) —
+  // it sticks to the board sigil no matter how the warband cards are repositioned. `--charge-y` = the offset from
+  // `.app`'s top down to its vertical centre (where the cover-centred board's split lands), set on `.app` so the
+  // glyph inherits it. A ResizeObserver re-measures on window / letterbox / resolution changes.
   useLayoutEffect(() => {
-    const wb = document.querySelector<HTMLElement>('[data-zone="warband"]');
-    const app = document.querySelector('.app');
-    if (!wb || !app) return;
+    const app = document.querySelector<HTMLElement>('.app');
+    if (!app) return;
     const update = (): void => {
       const ar = app.getBoundingClientRect();
-      const wr = wb.getBoundingClientRect();
       // The art divider sits a touch above the exact centre, so bias the anchor up a smidge to land on it. The
       // bias must SCALE with the stage (19 reference px = the tuned 14px at the owner's 0.745-scale stage) —
       // fixed px rode proportionally higher on a short phone stage ("rope too high", owner's mobile test).
-      wb.style.setProperty('--charge-y', `${ar.top + ar.height / 2 - wr.top - 19 * (ar.height / 1440)}px`);
+      app.style.setProperty('--charge-y', `${ar.height / 2 - 19 * (ar.height / 1440)}px`);
     };
     update();
     const ro = new ResizeObserver(update);
@@ -2636,6 +2636,15 @@ export function Recruit() {
       {/* Board art on a full-viewport layer behind the 16:9 stage — extends into the margins on off-16:9 monitors
           (see `.boardbg` in styles.css) rather than letterboxing to black. */}
       <div className="boardbg" aria-hidden="true" />
+      {/* Charge glyph — the board's etched sigil, anchored to the board midline. Lives HERE (a direct child of
+          `.app`, before the zones) rather than inside the warband zone, so the warband layout offset (x/y/scale)
+          never moves it; it stays on the board sigil. z:0 + earliest tree position keeps it BEHIND the cards but
+          above the board backdrop (see `.chargeglyph` in styles.css). */}
+      <ChargeGlyph
+        inCombat={inCombat}
+        window={Math.min(CHARGE_SECONDS, turnSeconds)}
+        paused={!!(run.discover || run.questOffer || run.runeforgeOffer || heroSelecting || overlayOpen)}
+      />
       <HudBar />
 
       {!fighting ? (
@@ -2830,11 +2839,6 @@ export function Recruit() {
       </div>
 
       <div className={`zone${overWarband || wouldMagnetize ? ' dropok' : ''}`} data-zone="warband">
-        <ChargeGlyph
-          inCombat={inCombat}
-          window={Math.min(CHARGE_SECONDS, turnSeconds)}
-          paused={!!(run.discover || run.questOffer || run.runeforgeOffer || heroSelecting || overlayOpen)}
-        />
         <div className="row warband">
           {inCombat ? (
             replay.frame.player.map((u) => (

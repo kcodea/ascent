@@ -5,6 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### fix(ui): combat hand stays full-size (no shrink)
+
+- The hand shrank to `scale(0.66)` during combat; owner wants it static. Dropped the transform so the combat
+  hand keeps its recruit size + position; kept `pointer-events: auto` (the hover preview from the earlier PR).
+  Playing/dragging still blocked (`onCardPointerDown` bails on `inCombat`). build:web green.
+
 ### feat(ui): Hall of Champions / Career re-fit + end-of-run quests & runes
 
 - **Re-fit the warband cards** in the Hall of Champions + Career. The card art overhaul had made the

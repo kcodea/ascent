@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-15
 
+### feat(sim): quest master switch preserves quest-native heroes + new runeforge system toggle
+
+- **Quest master switch no longer strips quest-native heroes.** `questOfferPlan` used to short-circuit on
+  `!CONFIG.questsEnabled` *above* the hero-power branches, so turning quests off also killed Fi's Errand
+  (turn-3 bonus) and Coran's Pathfinder (turn-7 early quest). Hoisted those two branches above the gate — the
+  master switch now only turns off the UNIVERSAL wave-5/11 quests; quest-native heroes keep their access.
+  (Chronos was already unaffected — his reward is a buy-counter, not routed through the quest offer.)
+- **New runeforge system toggle** — `CONFIG.runeforgeEnabled` (default **off**). When on, EVERY hero visits
+  the basic Runeforge on **turn 6** and the Epic Runeforge on **turn 9** (both free — no hero-power charge).
+  When off, only the runeforge-native heroes access it (Runesmith basic turn 7, Runeguard epic turn 12), which
+  is independent of the flag. Separate from the `runic` rift (which also grants the turn-6 basic forge); the
+  turn-6 trigger is an OR, so if both are on it still opens exactly one basic forge.
+- This gives all three global systems (quests / runeforge / rifts) the same contract: a master on/off that,
+  when off, still lets the system's native heroes in. New `systemToggles.test.ts` covers the quest-native
+  survival + the runeforge system (on → basic@6/epic@9 free; off → nothing for non-natives; natives always).
+  typecheck + lint + test (1102) + build:web green.
+
 ### refactor: rename the "Anomaly" system → "Rift"
 
 - Renamed the limited-time global-modifier feature from **Anomaly** to **Rift** throughout: identifiers

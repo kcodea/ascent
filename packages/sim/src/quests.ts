@@ -13,17 +13,24 @@ export function questBucketFor(q: QuestDef): 5 | 11 {
 }
 
 /** The quest-offer plan for the current turn: which bucket to draw from, and whether it's restricted to Lesser
- *  quests (Fi's bonus turn-3 offer). Null = not a quest turn for this run/hero. `CONFIG.questsEnabled = false`
- *  forces null everywhere — the master off-switch, honored by both the reducer's phase gate and the offer gen. */
+ *  quests (Fi's bonus turn-3 offer). Null = not a quest turn for this run/hero.
+ *
+ *  `CONFIG.questsEnabled = false` is the master off-switch for the UNIVERSAL quest turns (waves 5 & 11) — the
+ *  ones every hero gets. The quest-NATIVE hero powers (Fi's Errand, Coran's Pathfinder) are checked ABOVE that
+ *  gate, so those heroes keep their own quest access even when the universal system is off (mirrors how the
+ *  runeforge system leaves Runesmith/Runeguard native access intact). Chronos's quest-flavoured power isn't
+ *  here at all — it's a buy-counter reward, unaffected either way. */
 export type QuestOfferPlan = { bucket: 5 | 11; lesserOnly?: boolean };
 export function questOfferPlan(s: RunState): QuestOfferPlan | null {
-  if (!CONFIG.questsEnabled) return null;
   const hp = getHero(s.heroId).power.kind;
+  // Quest-native hero powers — kept above the master gate so they survive `questsEnabled = false`.
   // Fi's Errand: a bonus LESSER-only offer on turn 3 (from the turn-5 bucket), ON TOP of the normal turns 5 & 11.
   if (hp === 'lesserQuest' && s.wave === 3) return { bucket: 5, lesserOnly: true };
   // Coran (Pathfinder): skips the turn-5 quest; gets the turn-11 bucket quest EARLY on turn 7 (nothing on 5 or 11).
+  // Always returns for Coran (a plan on turn 7, else null), so he never falls through to the universal 5/11.
   if (hp === 'pathfinder') return s.wave === 7 ? { bucket: 11 } : null;
-  // Everyone else: the early bucket on turn 5, the late bucket on turn 11.
+  // The universal quest turns — gated by the master switch.
+  if (!CONFIG.questsEnabled) return null;
   if (s.wave === 5) return { bucket: 5 };
   if (s.wave === 11) return { bucket: 11 };
   return null;

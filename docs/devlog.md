@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### feat(ui): aimed defender's red target glow fades in over the wind-up
+
+Owner follow-up to #495: instead of removing the defender glow entirely, bring back the RED "target" glow but have
+it **fade in as the attacker winds up**, rather than snapping on. The attacker's orange glow stays gone.
+
+- The `.unit.aimed` red glow is restored across all three frame paths and driven by a one-shot fade animation
+  (`aimglowbox` for the plain/unframed box-shadow ring+halo, `aimglowframe` for the authored taunt `.tframe` /
+  stdframe `.cframe` PNG-silhouette drop-shadow). Both animate from transparent → `--threat`, `forwards`, over
+  `--aim-dur` (0.62s, ~tracking `lungeConfig.windupDur` 0.70s) so it's full right as the strike lands.
+- Scoped carefully: the box-shadow variant is `:not(.stdframe):not(.taunt):not(.spellframe)` so authored frames
+  never get a rectangular ring (they glow their silhouette instead); the frame variant excludes the `.cshadow`
+  grounding copy so only the main frame img glows. The armed/targeted selection glow is untouched.
+- Perf: one-shot per attack on a single element (not a loop) — the sanctioned paint-property pop exception
+  (docs/performance.md), same class as cardbuff/questbounce.
+
+Verified live (computed-style probe): aimed plain card animates `aimglowbox`, aimed stdframe/taunt frames animate
+`aimglowframe` (0.62s); the end state resolves to the red `--threat` ring/drop-shadow on each silhouette; the
+attacker (`.unit.attacking`) has no glow animation. `build:web` clean.
+
 ### tweak(ui): remove the attacker/defender combat glows on attack
 
 Owner ask: drop the glow that lit the attacker (orange `--acc`) and the aimed defender (red `--threat`) during an

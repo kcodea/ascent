@@ -80,6 +80,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `   ✦ ${n(ev.target)} spell tally now ${ev.amount}`;
     case 'questTrigger':
       return `   ✷ ${ev.side}'s ${ev.flag} triggered`;
+    case 'questComplete':
+      return `   ✦ ${ev.side}'s quest ${ev.questId} completes mid-combat`;
   }
 }
 

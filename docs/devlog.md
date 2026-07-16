@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): 🧍 Hero Panel tuner — tray DIMENSION dials (width/height, 0 = auto)
+
+- Owner follow-up: the tray's box itself is now dialable — **`panel · width` / `panel · height`** (design px
+  × --u; 0 = auto-hug the contents). Implemented as `--hpn-panel-w/h` vars the CSS reads with an `auto`
+  fallback; at 0 the var is REMOVED so auto genuinely takes over. `box-sizing: border-box` keeps the tray's
+  padding inside a dialed size. The 🧍 tuner is 17 rows now.
+- Verified live: 320/160 dials resized the tray (214×107 at this window's --u) with the bottom-left corner
+  staying anchored, and 0/0 restored the auto-hugged size exactly. Typecheck + lint + 1109 tests +
+  build:web green.
+
 ### feat(ui): 🧍 Hero Panel dev tuner — x/y/scale for every part of the bottom-left tray
 
 - Owner ask: scale + move EVERY aspect of the hero panel. New `heroPanelConfig.ts` + `HeroPanelTuner.tsx`

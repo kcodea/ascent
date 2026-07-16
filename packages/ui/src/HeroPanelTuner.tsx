@@ -22,6 +22,8 @@ const LABELS: Record<keyof HeroPanelConfig, string> = {
   panelX: 'panel · x',
   panelY: 'panel · y',
   panelScale: 'panel · scale',
+  panelW: 'panel · width (0=auto)',
+  panelH: 'panel · height (0=auto)',
   portraitX: 'portrait · x',
   portraitY: 'portrait · y',
   portraitScale: 'portrait · scale',

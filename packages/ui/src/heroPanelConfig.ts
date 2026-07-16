@@ -19,6 +19,10 @@ export interface HeroPanelConfig {
   panelY: number;
   /** Whole panel — scale (×), about its bottom-left anchor. */
   panelScale: number;
+  /** Whole panel — explicit tray WIDTH (design px, × --u). 0 = auto (sized by its contents). */
+  panelW: number;
+  /** Whole panel — explicit tray HEIGHT (design px, × --u). 0 = auto. */
+  panelH: number;
   /** Hero portrait (the framed art) — design-px offset (× --u). */
   portraitX: number;
   portraitY: number;
@@ -40,7 +44,7 @@ export interface HeroPanelConfig {
 }
 
 const DEFAULTS: HeroPanelConfig = {
-  panelX: 0, panelY: 0, panelScale: 1,
+  panelX: 0, panelY: 0, panelScale: 1, panelW: 0, panelH: 0,
   portraitX: 0, portraitY: 0, portraitScale: 1,
   playerNameX: 0, playerNameY: 0, playerNameScale: 1,
   heroNameX: 0, heroNameY: 0, heroNameScale: 1,
@@ -50,6 +54,7 @@ const DEFAULTS: HeroPanelConfig = {
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const HPN_RANGES: Record<keyof HeroPanelConfig, [number, number, number]> = {
   panelX: [-400, 800, 1], panelY: [-800, 400, 1], panelScale: [0.4, 2.5, 0.01],
+  panelW: [0, 500, 1], panelH: [0, 400, 1],
   portraitX: [-200, 200, 1], portraitY: [-200, 200, 1], portraitScale: [0.4, 2.5, 0.01],
   playerNameX: [-200, 200, 1], playerNameY: [-200, 200, 1], playerNameScale: [0.4, 2.5, 0.01],
   heroNameX: [-200, 200, 1], heroNameY: [-200, 200, 1], heroNameScale: [0.4, 2.5, 0.01],
@@ -61,6 +66,8 @@ export const HPN_DESC: Record<keyof HeroPanelConfig, string> = {
   panelX: 'Whole panel — horizontal offset (stage px × scale) from its bottom-left corner anchor.',
   panelY: 'Whole panel — vertical offset. Positive = down.',
   panelScale: 'Whole panel — overall size (×), scaling about the bottom-left anchor.',
+  panelW: 'Whole panel — the tray box WIDTH (design px). 0 = auto (hug the contents).',
+  panelH: 'Whole panel — the tray box HEIGHT (design px). 0 = auto.',
   portraitX: 'Hero portrait — horizontal nudge (design px).',
   portraitY: 'Hero portrait — vertical nudge (design px).',
   portraitScale: 'Hero portrait — size (×). The hero-name pill rides this too (it lives on the frame).',
@@ -76,7 +83,7 @@ export const HPN_DESC: Record<keyof HeroPanelConfig, string> = {
 };
 
 export const HPN_KEYS = [
-  'panelX', 'panelY', 'panelScale',
+  'panelX', 'panelY', 'panelScale', 'panelW', 'panelH',
   'portraitX', 'portraitY', 'portraitScale',
   'playerNameX', 'playerNameY', 'playerNameScale',
   'heroNameX', 'heroNameY', 'heroNameScale',
@@ -108,6 +115,11 @@ export function applyHeroPanelVars(): void {
   const t = (x: number, y: number, s: number, base = ''): string =>
     `${base}${base ? ' ' : ''}translate(calc(${x} * var(--u)), calc(${y} * var(--u))) scale(${s})`;
   root.setProperty('--hpn-panel-t', `translate(calc(${cfg.panelX}px * var(--scale)), calc(${cfg.panelY}px * var(--scale))) scale(${cfg.panelScale})`);
+  // Tray dimensions — 0 means AUTO: remove the var so the CSS fallback (`auto`) takes over.
+  if (cfg.panelW > 0) root.setProperty('--hpn-panel-w', `calc(${cfg.panelW} * var(--u))`);
+  else root.removeProperty('--hpn-panel-w');
+  if (cfg.panelH > 0) root.setProperty('--hpn-panel-h', `calc(${cfg.panelH} * var(--u))`);
+  else root.removeProperty('--hpn-panel-h');
   root.setProperty('--hpn-portrait-t', t(cfg.portraitX, cfg.portraitY, cfg.portraitScale));
   root.setProperty('--hpn-pname-t', t(cfg.playerNameX, cfg.playerNameY, cfg.playerNameScale, 'translate(-50%, -55%)'));
   root.setProperty('--hpn-hname-t', t(cfg.heroNameX, cfg.heroNameY, cfg.heroNameScale, 'translate(-50%, 52%)'));

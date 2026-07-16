@@ -1928,6 +1928,9 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
      .statusbar would become the containing block for the power diamond's `position: fixed` and break its
      stage pinning. Identity fallback matches the shipped defaults in heroPanelConfig.ts. */
   transform: var(--hpn-panel-t, none); transform-origin: bottom left;
+  /* Tray dimensions — the 🧍 tuner's width/height dials (design px × --u); unset (0) = auto-hug the
+     contents. box-sizing so the padding stays inside a dialed size. */
+  width: var(--hpn-panel-w, auto); height: var(--hpn-panel-h, auto); box-sizing: border-box;
 }
 /* Larger portrait holding ONLY the hero art; `overflow: visible` lets the hero-name pill eclipse its bottom.
    Takes the 🧍 tuner's portrait transform (NB: the hero-name pill lives inside, so it rides this scale). */

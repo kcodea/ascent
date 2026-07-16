@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### fix(ui): hero pills — no tooltip, text auto-fits; hero power **keywords** render bold
+
+- Three owner notes:
+  1. **Hero-name tooltip removed** — the pill no longer carries a native `title` (it existed because long
+     names ellipsized; the fit below makes it unnecessary).
+  2. **Pill text auto-fits** — a tiny `useFitText` hook shrinks the FONT (never ellipsizes) when a name
+     overflows the pill's max-width: one padding-aware content-box ratio measurement (a whole-box ratio
+     under-shrinks because padding doesn't scale with the font), re-run on name change + window resize.
+     Applied to BOTH the hero-name and player-name pills. "Lord of the Risen" now fits in full; short names
+     keep the stylesheet size untouched.
+  3. **`**keyword**` renders BOLD** everywhere hero power text shows: the status-bar hover tip, Hero Select,
+     and the Compendium's Heroes tab all route through `mdBold` (which also applies the vocab renames); the
+     button's aria-label strips the asterisks instead.
+- Verified live: risen shows the full name at a fitted 7.4px with no title attr; the tip renders
+  `<b>Rise</b>` with no asterisks; warden keeps the stylesheet size. Typecheck + lint + 1109 tests +
+  build:web green.
+
 ### chore(sim/ui): hero + power renames pass, and the hero panel re-seated to the board's left rail
 
 - **Renames** (display-only; ids stable, kinds/behavior untouched — no test asserted the old names):

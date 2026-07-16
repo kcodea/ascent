@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { renameTerms } from './terms';
+import { mdBold } from './Card';
 import { getHero, activeRift } from '@game/sim';
 import { RiftPill } from './RiftPill';
 import { heroArt } from './art';
@@ -66,7 +66,7 @@ export function HeroSelect() {
                   {hero.armor > 0 && <span className="hcarmor" title="Starting Armor — extra effective HP on top of Resolve">+{hero.armor}</span>}
                 </div>
                 <div className="hcpw">
-                  <b>{power.name}</b> · {renameTerms(power.text)}
+                  <b>{power.name}</b> · <span dangerouslySetInnerHTML={{ __html: mdBold(power.text) }} />
                 </div>
                 {power.unlockWave && power.unlockWave > 1 && (
                   <div className="hclock">Unlocks turn {power.unlockWave}</div>

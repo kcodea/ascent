@@ -87,6 +87,7 @@ const DIALS = [
   { group: 'Flow (while charging)', prop: 'size',      min: 1, max: 32,  step: 0.5, def: 7, unit: 'px' },
   { group: 'Flow (while charging)', prop: 'sizeVar',   min: 0, max: 1,   step: 0.02, def: 0.5 },
   { group: 'Flow (while charging)', prop: 'swirl',     min: 0, max: 400, step: 5,   def: 40, unit: 'px/s' },
+  { group: 'Flow (while charging)', prop: 'centerPull',min: 0, max: 2000,step: 20,  def: 300, unit: 'px/s2' }, // accel toward centre: motes launch along the line, then curve in
   { group: 'Flow (while charging)', prop: 'trail',     min: 0, max: 0.95,step: 0.01, def: 0 },
   { group: 'Mandala light-up', prop: 'mandalaGlow', min: 0, max: 1.5, step: 0.02, def: 0.7 },
   { group: 'Mandala light-up', prop: 'mandalaR',    min: 0.04,max: 0.4,step: 0.005, def: 0.16 },
@@ -223,6 +224,7 @@ function frame(now) {
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i]; p.life -= dt; if (p.life <= 0) { parts.splice(i,1); continue; }
     if (p.seek) { const dx = cx-p.x, dy = cy-p.y, d = Math.hypot(dx,dy)||1; const spd = V.gatherSpeed*B.s; p.vx = dx/d*spd; p.vy = dy/d*spd; if (d < 0.02*B.w) p.life = Math.min(p.life, 0.06); }
+    else { const dx = cx-p.x, dy = cy-p.y, d = Math.hypot(dx,dy)||1; const pull = V.centerPull*B.s; p.vx += dx/d*pull*dt; p.vy += dy/d*pull*dt; if (d < 0.025*B.w) p.life = Math.min(p.life, 0.1); } // launch along the line, then get pulled to centre
     const sw = p.seek ? 0 : Math.sin(p.ph + (1 - p.life/p.max)*8) * V.swirl * B.s;
     p.x += (p.vx + p.px*sw) * dt; p.y += (p.vy + p.py*sw) * dt;
   }

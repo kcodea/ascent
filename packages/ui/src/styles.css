@@ -181,6 +181,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
   animation: chargein 0.4s ease both;
 }
 @keyframes chargein { from { opacity: 0; } to { opacity: 1; } }
+/* Fade-out when the turn ends (End Turn pressed / timer hits 0): ChargeGlyph adds `.fading` to the glyph + its
+   motes canvas for CHARGE_FADEOUT_MS (Recruit.tsx) before unmounting, so the effect eases away instead of a
+   snap-cut. Drop the chargein hold + pulse and ramp opacity to 0 (compositor-only). Keep 450ms in sync with
+   CHARGE_FADEOUT_MS. */
+.chargeglyph.fading, .charge-motes.fading { animation: none; opacity: 0; transition: opacity 450ms ease; }
+.chargeglyph.fading .charge-fill { animation: none; } /* stop the pulse so the fade reads clean */
 /* each layer = the SVG shape  ∩  a symmetric both-sides-in wipe: lit at both EDGES, an unlit central GAP that
    closes as --charge → 1, so energy builds inward and the centre sigil fills LAST. Driven per-frame (no CSS
    transition — a tween would lag the update and desync the charge from the clock). */

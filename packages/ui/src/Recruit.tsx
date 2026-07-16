@@ -64,6 +64,7 @@ const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre*
 const TURN_SECONDS = 18; // base round timer (wave 1); grows +4s/wave, capped at 80 (see turnSeconds)
 const CHARGE_SECONDS = 20; // the charge glyph fills over the final 20s of the turn
 const CHARGE_MAX_FEATHER = 24; // % — the reveal feather = this × (1−charge): soft incoming fronts, 0 at completion (no sigil dimming)
+const CHARGE_FADEOUT_MS = 450; // when the glyph stops being lit (End Turn / timer end) it fades out over this, not a snap-cut (keep in sync with `.chargeglyph.fading` transition in styles.css)
 
 /** The cast count a spell shows (its ×N badge + cast-spark replay): Implosion resolves 1 + your Demons times
  *  (per-Demon recast, read off the live board), and that whole count is MULTIPLIED by the run-wide spell-recast
@@ -117,6 +118,18 @@ function ChargeGlyph({ inCombat, window: chargeWindow, paused }: { inCombat: boo
   const tickAtRef = useRef(0);
   const prevSecRef = useRef(0);
   const lit = preview != null || (!inCombat && seconds <= chargeWindow);
+  // Keep the glyph mounted for a short fade-out when it stops being lit (End Turn pressed / timer ends → combat)
+  // instead of snapping to null. `mounted` holds the DOM through the fade; `fading` drives the opacity→0 transition
+  // (the paint/motes rAFs are gated on `lit`, so during the fade the glyph freezes at its last frame and just fades).
+  const [mounted, setMounted] = useState(lit);
+  const [fading, setFading] = useState(false);
+  useEffect(() => {
+    if (lit) { setMounted(true); setFading(false); return; }
+    if (!mounted) return;                 // already unmounted — nothing to fade
+    setFading(true);                       // lit → unlit while on screen: begin the fade-out
+    const t = window.setTimeout(() => { setMounted(false); setFading(false); }, CHARGE_FADEOUT_MS);
+    return () => window.clearTimeout(t);
+  }, [lit, mounted]);
 
   // Stamp wall-clock time whenever the integer second changes OR we resume from a pause, so the rAF interpolates
   // the sub-second fraction from the exact instant this second began — keeping the charge locked to real time.
@@ -187,15 +200,15 @@ function ChargeGlyph({ inCombat, window: chargeWindow, paused }: { inCombat: boo
     return () => cancelAnimationFrame(raf);
   }, [lit]);
 
-  if (!lit) return null;
+  if (!mounted) return null;
   return (
     <>
-      <div className="chargeglyph" ref={boxRef} title={`${seconds}s left`} aria-hidden="true">
+      <div className={`chargeglyph${fading ? ' fading' : ''}`} ref={boxRef} title={`${seconds}s left`} aria-hidden="true">
         <div className="masked charge-base" />
         <div className="masked charge-fill" />
         <div className="masked charge-core" ref={coreRef} />
       </div>
-      <canvas className="charge-motes" ref={canvasRef} aria-hidden="true" />
+      <canvas className={`charge-motes${fading ? ' fading' : ''}`} ref={canvasRef} aria-hidden="true" />
     </>
   );
 }

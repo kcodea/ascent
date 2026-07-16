@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### fix(fx): charge glyph fades out over ~450ms on End Turn instead of snapping away
+
+The end-of-turn charge glyph (the etched sigil charging in the final ~20s) previously vanished instantly the
+moment the turn ended — `ChargeGlyph` (Recruit.tsx) returned `null` as soon as it stopped being `lit`, which flips
+the instant `inCombat` goes true (both on the **End Turn** press and on a natural timer-zero). Now the component
+stays mounted for a short fade: `mounted`/`fading` state keeps the DOM alive for `CHARGE_FADEOUT_MS` (450ms, within
+the requested 500ms) and adds a `.fading` class to the glyph + its motes canvas, which drops the `chargein` hold +
+the `charge-fill` pulse and ramps opacity → 0 (compositor-only transition in styles.css). The paint/motes rAFs are
+gated on `lit`, so during the fade the glyph simply freezes at its last frame and eases away. Applies to both exit
+paths (manual End Turn and natural timer end); the natural-zero completion flash/explosion is unchanged and now
+lingers+fades rather than being cut. Presentation-only; no timer/clock logic touched.
+
+**Verified:** `npm run typecheck && npm run lint && npm test` (1108) `&& npm run build:web` all green.
+
 ### feat(fx): replace the burning-rope turn timer with an end-of-turn "charge glyph" (`feat/eot-glyph-timer`)
 
 Retired the burning-rope EoT timer for a **charging arcane glyph** on the board's etched sigil. Timer *mechanics*

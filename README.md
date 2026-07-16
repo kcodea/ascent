@@ -40,6 +40,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **Teal card hover glow.** Hovering a card now lights a bright teal line hugging its frame + a stacked soft
+  bloom, seated *behind* the art (never bleeds over the portrait), with the grounding shadow fading out so the
+  glow reads clean. Owner-tuned via a live DEV tuner (🔆 Hover Glow); shipped defaults baked into JS + CSS.
 - **Anomaly system + modes.** A registry of limited-time global rule modifiers (`ANOMALIES`, flip `enabled`),
   pinned onto each run so replays keep them, telegraphed on hero select. Current: **Runic Behavior** — every
   hero visits the basic Runeforge on turn 7. (Also built: **Freedom** — first minion each turn is free.)

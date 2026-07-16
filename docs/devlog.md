@@ -5,6 +5,35 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### feat(ui): teal card hover glow (masked silhouette) + live tuner
+
+- **Replaced the yellow card hover halo with a tunable teal glow that hugs the frame silhouette** — a bright
+  inner line + a stacked soft bloom — seated **behind** the art so it never washes over the portrait. Why it
+  took a real rethink: the old glow was a `drop-shadow` on the frame PNG at `z-index:3` (in front of the art),
+  which (a) bled inward over the portrait and (b) inherited keyword-frame recolours (Divine-Shield blue, etc.),
+  so it wasn't even teal on those cards.
+- **New construction (`.cglow`, rendered by `Card.tsx` for stdframe/spell/taunt):** a pure-teal **masked
+  silhouette**, not a copy of the frame art — a rim child (solid `--hg-line-col` masked to the frame PNG =
+  the bright line) inside a parent that casts the soft bloom as a drop-shadow. Masking the *child* (not the
+  parent) lets the parent still throw an **unclipped** outward glow. Seated at `z-index:0` behind the portrait
+  (`z1`), so any inward bleed is physically covered by the art. Because it's teal fill — never the gold/silver
+  frame body — scaling its **width/height** only ever reveals more teal, no frame artifact (the earlier "golden
+  frame on hover" bug).
+- **Bloom intensity = the drop-shadow STACKED N times** (`bloomStrength`), composed in `glowConfig.ts` into
+  `--hg-bloom-filter` (CSS can't repeat a filter a variable number of times). A single shadow reads soft even
+  at opacity 1; stacking compounds it into a hot glow.
+- **On hover the grounding contact shadow (`.cshadow`) fades to 0** so it doesn't dilute the glow's intensity.
+- **New DEV `GlowTuner`** (`glowConfig.ts` + `GlowTuner.tsx`), wired into the Dev Tuning Menu (🔆 Hover Glow):
+  live width/height/line(blur·opacity·colour)/bloom(blur·opacity·strength·colour) knobs, localStorage-backed,
+  with an "always on" preview toggle (pins the glow onto every resting card via `body.hglow-preview`). Values
+  reflect to `--hg-*` CSS vars; the **shipped owner-tuned defaults are baked into BOTH `glowConfig.ts` and the
+  `styles.css` `--hg-*` fallbacks** so production renders identically with no JS.
+- Dropped the bespoke `.card.dual:hover` box-shadow — dual-type minions are `stdframe` now, so they get the
+  same `.cglow` as everything else (the old rule added a boxy rectangular halo over the silhouette glow).
+- **Verified:** live DOM checks (mask assets 200; parent filter = the 6× stacked teal drop-shadow; rim = teal
+  masked silhouette; opacity resolves to 1 on hover/preview; frame-shaped glow at `z0`). typecheck + lint +
+  build:web green. Compositor-only (opacity fade), hover-gated, so no per-frame paint cost at rest.
+
 ### fix(ui): bake quest-node scale 1.32 (was 1.63) so dev + prod match
 
 - The active-quest / rune node scale (`--qb-s`) shipped at **1.63**, but the owner's tuned value is **1.32**;

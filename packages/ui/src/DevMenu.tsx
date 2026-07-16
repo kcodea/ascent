@@ -13,6 +13,7 @@ import { FloatTuner } from './FloatTuner';
 import { StepCounterTuner } from './StepCounterTuner';
 import { LayoutTuner } from './LayoutTuner';
 import { FrameTuner } from './FrameTuner';
+import { GlowTuner } from './GlowTuner';
 import { pixiFx } from './pixiFx';
 
 /**
@@ -24,6 +25,7 @@ import { pixiFx } from './pixiFx';
 const TUNERS = [
   { key: 'layout', label: '📐 Scale & Layout', C: LayoutTuner },
   { key: 'frame', label: '🖼️ Card Frames', C: FrameTuner },
+  { key: 'glow', label: '🔆 Hover Glow', C: GlowTuner },
   { key: 'sfx', label: '🔊 SFX Mixer', C: SfxMixer },
   { key: 'lunge', label: '🗡️ Lunge', C: LungeTuner },
   { key: 'strikefx', label: '💥 Lunge Strike Effects', C: StrikeFxTuner },

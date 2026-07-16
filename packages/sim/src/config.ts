@@ -98,7 +98,7 @@ export const RIFTS: Record<RiftId, RiftDef> = {
     id: 'runic',
     name: 'Runic Behavior',
     blurb: 'Every hero visits the basic Runeforge on turn 6.',
-    enabled: true,
+    enabled: false, // retired 2026-07-16 (owner) — in-flight runs keep their pinned copy
     runsThrough: 'a limited-time celebration patch',
   },
 };

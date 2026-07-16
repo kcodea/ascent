@@ -21,6 +21,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 - **Opponent frame** mouseover no longer shows the capture date (just "by <author>").
 - Verified live: hero select reads "Renown 0 · Oath 7", hero cards show the new texts, Cover/Strong gone.
   typecheck + lint + test (1108) + build:web green.
+### fix(ui): warband nudge ramps with viewport height (kills the 900px zoom snap)
+
+- The warband's "sit under the centre line" nudge was gated behind a hard `@media (min-height: 900px)` — so
+  browser zoom (which shifts the CSS-pixel height) SNAPPED the warband ~17px up to the line the moment the
+  viewport crossed 900px (e.g. 125% zoom on a 1080p window). Zoom itself can't be blocked (a UA feature +
+  accessibility), so the fix removes the one thing it actually broke: the nudge now **ramps smoothly** — 0 at
+  ≤780px viewport height, +0.16px per px above that, capped at the full `--ch × 0.07` (cap reached ≈890px,
+  matching the old ≥900 behavior).
+- Verified live across 750/790/860/900/1000px viewports: warband `top` moves smoothly (max ~7px drift per
+  70px of height, no discontinuity), identical to before at ≥900, zero-nudge at ≤780, and no hero-power
+  overlap at any height. lint + build:web green.
 
 ## 2026-07-16
 

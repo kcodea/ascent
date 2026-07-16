@@ -63,7 +63,7 @@ type Zone = 'tavern' | 'warband' | 'hand';
 // How far into a card the cursor must reach (fraction of width) before the insertion point
 // moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
 const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre* passes its midpoint
-const TURN_SECONDS = 18; // base round timer; grows +4s/wave, capped at 80 — and floored at CHARGE_SECONDS+1, so wave 1 actually kicks off at 21s (see turnSeconds)
+const TURN_SECONDS = 18; // base round timer; grows +4s/wave (+6s more from round 6 — owner 2026-07-16), capped at 80 — and floored at CHARGE_SECONDS+1, so wave 1 actually kicks off at 21s (see turnSeconds)
 const CHARGE_SECONDS = 20; // the charge glyph fills over the final 20s of the turn
 const CHARGE_MAX_FEATHER = 24; // % — the reveal feather = this × (1−charge): soft incoming fronts, 0 at completion (no sigil dimming)
 const CHARGE_FADEOUT_MS = 450; // when the glyph stops being lit (End Turn / timer end) it fades out over this, not a snap-cut (keep in sync with `.chargeglyph.fading` transition in styles.css)
@@ -464,7 +464,9 @@ export function Recruit() {
   // lights by the clock TICKING across the threshold, the one battle-tested path. Wave 1's base 18s sat inside
   // the 20s window, forcing a light-at-shop-mount special case whose swell mis-fired (owner: round 1 kicks off
   // at 21s instead). Only wave 1 changes: wave 2+ (22s+) and practice (×3) already start above the window.
-  const turnSeconds = Math.max(CHARGE_SECONDS + 1, Math.min(80, TURN_SECONDS + (run.wave - 1) * 4) * (run.mode === 'practice' ? 3 : 1));
+  // Rounds 6+ get a flat +6s on top of the +4s/wave ramp, and rounds 12–17 a further +12s ON TOP OF the
+  // 80s cap (owner 2026-07-16 ×2): late boards have the most to think about. w12 80s, w13 84s … w15+ 92s.
+  const turnSeconds = Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' ? 3 : 1));
 
   // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
@@ -823,6 +825,11 @@ export function Recruit() {
     // A minimized Discover / Quest overlay leaves the board visible, so keep the behind-card shields showing then.
     const modalCovering = (run.discover && !discoverMin) || (run.questOffer && !questMin) || (run.runeforgeOffer && !forgeMin) || run.chooseOne;
     pixiFx.setShieldsVisible(!modalCovering);
+    // The hero portrait / pills / power diamond live OUTSIDE the overlay's backdrop root (their own fixed
+    // stacking contexts), so the overlay's backdrop-filter can't blur them — mark the body and let CSS blur
+    // + dim them to match the rest of the covered board (owner report 2026-07-16). One-shot filter change.
+    document.body.classList.toggle('modalup', !!modalCovering);
+    return () => document.body.classList.remove('modalup');
   }, [run.discover, run.chooseOne, discoverMin, run.questOffer, questMin, run.runeforgeOffer, forgeMin]);
   // B2: each Discover opens expanded — reset the minimized flag whenever the pending Discover changes.
   useEffect(() => { setDiscoverMin(false); }, [run.discover]);
@@ -2553,7 +2560,7 @@ export function Recruit() {
       if (card) {
         const id = ++sellFloatId.current;
         const fx = x - d.ox + d.w / 2, fy = y - d.oy + d.h / 2;
-        setSellFloats((f) => [...f, { id, x: fx, y: fy, amount: sellValueOf(card) }]);
+        setSellFloats((f) => [...f, { id, x: fx, y: fy, amount: sellValueOf(card, run) }]); // bartering-aware
         window.setTimeout(() => setSellFloats((f) => f.filter((s) => s.id !== id)), 1000);
       }
       // Sprinkle gold coins out of the Gold counter (the GOLD cell in the info strip up top) to sell the income.
@@ -3002,7 +3009,8 @@ export function Recruit() {
       {/* Gold gained from a sale, floating at the spot the minion was released (the actual sell value). */}
       {sellFloats.map((f) => (
         <div key={`sell-${f.id}`} className="deathfloat" style={{ left: f.x, top: f.y } as CSSProperties}>
-          <span className="float gold">+{f.amount}</span>
+          {/* Above-base sells (Hoarder, Trail Forager, Rune of Bartering) float GREEN so the bonus reads. */}
+          <span className={`float ${f.amount > 1 ? 'sellup' : 'gold'}`}>+{f.amount}</span>
         </div>
       ))}
 
@@ -3317,6 +3325,9 @@ export function Recruit() {
         <div className={`discover-ov forge-ov${run.runeforgeEpic ? ' forge-epic' : ''}`} role="dialog" aria-label={run.runeforgeEpic ? 'The Epic Runeforge' : 'The Runeforge'}>
           <div className="disc-panel forge-panel">
             <div className="disc-banner forge-banner"><Icon name="anvil" /><span className="disp">{run.runeforgeEpic ? 'Epic Runeforge' : 'Runeforge'}</span></div>
+            {/* The player's CURRENT Gold — the runes charge Gold, so the panel must say what's in the purse
+                (owner ask 2026-07-16). Re-renders with every buy/re-roll (run.embers). */}
+            <div className="forge-gold" title="Your Gold right now"><Icon name="mana" /><b>{run.embers}</b> Gold</div>
             <div className="disc-cards forge-cards">
               {run.runeforgeOffer.map((id, i) => {
                 const rune = RUNE_INDEX[id];

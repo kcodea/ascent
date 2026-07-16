@@ -3,7 +3,7 @@ import type { CombatResult } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNES, RUNE_INDEX, validateRunes } from '@game/content';
 import { createRun, type RunState } from './state';
 import { openEpicRuneforge, questCombatMods, reduce } from './reducer';
-import { dragonTamerCostOf, spellDisplayText } from './recruit';
+import { dragonTamerCostOf, sellValueOf, spellDisplayText } from './recruit';
 import { questBucketFor } from './quests';
 import { applyEndOfTurn, projectEndOfTurnSteps, questEndOfTurnBeats } from './recruit';
 
@@ -138,6 +138,19 @@ describe('Runeforge — rune effects fire in play', () => {
       hand: [{ uid: 'gp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     s = reduce(s, { type: 'play', uid: 'gp' });
     expect(s.embers).toBe(2); // worth 2, not 1
+  });
+
+  it('Bartering: sellValueOf folds the 2-Gold Shout sell (and the reducer pays it out)', () => {
+    // Alleycat has a Battlecry (Shout) → sells for 2 with the rune, 1 without. Non-Shout minions stay at 1.
+    const alley = mkAlley('a');
+    expect(sellValueOf(alley)).toBe(1);
+    expect(sellValueOf(alley, { runeBartering: true })).toBe(2);
+    const plain: RunState['board'][number] = { uid: 'p', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: [], golden: false };
+    expect(sellValueOf(plain, { runeBartering: true })).toBe(1); // no Shout → base
+    // The reducer's sell pays the bartering value out.
+    let s: RunState = { ...createRun(1, 'runesmith'), wave: 6, phase: 'recruit', embers: 0, runeBartering: true, board: [mkAlley('a1')] };
+    s = reduce(s, { type: 'sell', uid: 'a1' });
+    expect(s.embers).toBe(2);
   });
 
   it("Pillaging: the Gold Pouch's PRINTED text reads its live 2-Gold value (hard live-text rule)", () => {

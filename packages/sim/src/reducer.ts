@@ -772,12 +772,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         sold = s.hand[hi];
         s.hand.splice(hi, 1);
       }
-      // Hoarder sells for a flat 2 Gold (golden 4); everything else for the base sell value (shared helper).
-      // Rune of Bartering: a Shout (Battlecry) minion sells for 2 Gold instead.
-      if (sold) {
-        const soldDef = CARD_INDEX[sold.cardId];
-        s.embers += (s.runeBartering && soldDef && hasBattlecry(soldDef)) ? 2 : sellValueOf(sold);
-      }
+      // Hoarder sells for a flat 2 Gold (golden 4); everything else for the base sell value. Rune of
+      // Bartering (Shout minions sell for 2) is folded into the shared helper, so the UI coin matches.
+      if (sold) s.embers += sellValueOf(sold, s);
       // On-sell effects (Hoard Whelp → get 6 Gold), fired after the card leaves the board/hand.
       if (sold) fireOnSell(s, sold);
       // Robin's Spoils: each minion you sell banks +1 Gold for the START of next turn — stacks all turn, lands

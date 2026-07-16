@@ -56,7 +56,6 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatRead
       return;
     }
     const cfg = getEndTurnConfig();
-    sfx.endButtonHit(); // the strike's thunder-crack (mixer category: endbutton)
     const r = wrapRef.current?.getBoundingClientRect();
     if (r) {
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2;

@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### chore(ui): unwire the endbuttonhit2 strike sound (owner: not needed)
+
+- Removed `sfx.endButtonHit`, the `endbutton` mixer category (gains/bus/desk strip/preview) and the
+  730KB `endbuttonhit2.wav` asset; the strike keeps its visuals (flash/bolts/dust/ripple) with no bespoke
+  clip. The audio glob's `.wav` support stays (harmless, and future clips can use it).
+- Verified: no `endbutton`/`endButtonHit` references remain; strike → combat runs clean with an empty
+  console. Typecheck + lint + 1109 tests + build:web green.
+
 ### feat(ui): combat Summary → a small glass pill above the End Combat diamond
 
 - The big white top-centre Summary button shrank into a **dark-glass pill** (the `.hplabel`/`.etb-tip`

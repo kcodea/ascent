@@ -22,13 +22,17 @@ import { sfx } from './sfx';
  * Position/scale come from `--etb-*` vars (stage-pinned like the hero power); the DEV tuner
  * (`EndTurnTuner.tsx`) dials everything live.
  */
-export function EndTurnButton({ onEndTurn, disabled, pressed, urgent }: {
+export function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatReady, onEndCombat }: {
   onEndTurn: () => void;
   disabled: boolean;
   /** The button has been hit — the end-of-turn beats are playing; show the dulled gem + stop the effects. */
   pressed: boolean;
   /** Turn timer expired — everything else is locked; draw attention. */
   urgent: boolean;
+  /** The combat replay has finished — the pressed diamond doubles as the END COMBAT button (owner note
+   *  2026-07-16): clicking relights it with a clean shine (no strike sfx/vfx) and returns to the shop. */
+  combatReady?: boolean;
+  onEndCombat?: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLButtonElement>(null);
@@ -36,11 +40,21 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent }: {
   pressedRef.current = pressed;
   const burstRef = useRef(0); // timestamp of a pending strike burst — the rAF loop consumes it
   const [striking, setStriking] = useState(false); // the one-shot strike flash is playing
+  const [relighting, setRelighting] = useState(false); // the one-shot END-COMBAT shine is playing
 
   // The STRIKE (owner notes 2026-07-16): the art swaps to the dim gem immediately, and the swap is masked
   // by a white-hot gem flash + a burst of lightning arcs + a dirt/smoke billow + an outward shockwave
   // RIPPLE (pixiFx.impactPulse — the combat clack's expanding energy rings), all at the gem's live centre.
   const click = (): void => {
+    // END COMBAT mode (replay done): no strike sfx/vfx — a clean one-shot SHINE covers the dim→lit
+    // relight while the shop fades back in.
+    if (combatReady) {
+      sfx.pulse();
+      setRelighting(true);
+      window.setTimeout(() => setRelighting(false), 700);
+      onEndCombat?.();
+      return;
+    }
     const cfg = getEndTurnConfig();
     sfx.endButtonHit(); // the strike's thunder-crack (mixer category: endbutton)
     const r = wrapRef.current?.getBoundingClientRect();
@@ -168,7 +182,7 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent }: {
       className={`etbwrap${pressed ? ' pressed' : ''}${urgent && !pressed ? ' urgent' : ''}`}
       disabled={disabled}
       onClick={click}
-      aria-label="End your turn and start combat"
+      aria-label={combatReady ? 'End combat and go back to shop' : 'End your turn and start combat'}
     >
       <canvas ref={canvasRef} className="etb-bolts" aria-hidden="true" />
       {/* Hover glow — the GEM-ONLY cut of the art (end_button_gem, owner note 2026-07-16), so the stacked
@@ -183,10 +197,15 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent }: {
       <img className="etb-art lit" src="/frames/end_button.webp" alt="" draggable={false} />
       <img className="etb-art dim" src="/frames/end_button_pressed2.webp" alt="" draggable={false} />
       <img className="etb-art dim3" src="/frames/end_button_pressed3.webp" alt="" draggable={false} />
+      {/* Ambient SHEEN — a periodic glare sweeping the gem's face (lit AND pressed), clipped to the gem's
+          diamond. The bar animates TRANSFORM only inside a static clip-path (compositor-cheap loop). */}
+      <span className="etb-sheen" aria-hidden="true"><span className="etb-sheen-bar" /></span>
       {/* The strike FLASH — a white-hot pop of the gem that masks the lit→dim swap. Mounted only for the
           one-shot (its animation runs on mount and it unmounts right after — never a loop). */}
       {striking && <img className="etb-flash" src="/frames/end_button_gem.webp" alt="" draggable={false} aria-hidden="true" />}
-      <span className="etb-tip">End your turn and start combat</span>
+      {/* The END-COMBAT relight — the LIT art shines through as the dim gem hands back to the shop. */}
+      {relighting && <img className="etb-flash relight" src="/frames/end_button.webp" alt="" draggable={false} aria-hidden="true" />}
+      <span className="etb-tip">{combatReady ? 'End combat and go back to shop' : 'End your turn and start combat'}</span>
     </button>
   );
 }

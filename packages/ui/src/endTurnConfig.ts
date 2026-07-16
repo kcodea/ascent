@@ -44,6 +44,10 @@ export interface EndTurnConfig {
   glowH: number;
   /** Glow — colour (hex). */
   glowColor: string;
+  /** Sheen — the ambient glare sweep's full cycle (seconds): one sweep then a rest, repeating. */
+  sheenCycle: number;
+  /** Sheen — glare strength (0–1). 0 disables the sweep. */
+  sheenAlpha: number;
   /** Lightning — arcs spawned per second. 0 disables the canvas entirely. */
   boltRate: number;
   /** Lightning — arc length as a fraction of the diamond's edge (0.1 = short sparks, 1 = full edge). */
@@ -93,6 +97,8 @@ const DEFAULTS: EndTurnConfig = {
   glowW: 1,
   glowH: 1,
   glowColor: '#38b6ff',
+  sheenCycle: 3.2,
+  sheenAlpha: 0.4,
   boltRate: 3,
   boltScale: 0.45,
   boltMag: 7,
@@ -131,6 +137,8 @@ export const ETB_RANGES: Record<Exclude<keyof EndTurnConfig, 'glowColor' | 'bolt
   glowY: [-24, 24, 0.5],
   glowW: [0.85, 1.15, 0.005],
   glowH: [0.85, 1.15, 0.005],
+  sheenCycle: [1, 12, 0.1],
+  sheenAlpha: [0, 1, 0.01],
   strikeBolts: [0, 20, 1],
   strikeFlash: [0, 900, 10],
   strikeDustCount: [0, 4, 0.05],
@@ -164,6 +172,8 @@ export const ETB_DESC: Record<keyof EndTurnConfig, string> = {
   glowY: 'Glow alignment — nudge the halo vertically (design px).',
   glowW: 'Glow fit — halo width (× the gem). Small corrections only; use blur/strength for overall size.',
   glowH: 'Glow fit — halo height (× the gem).',
+  sheenCycle: 'Sheen — seconds per glare sweep cycle (one sweep, then a rest). Lower = livelier.',
+  sheenAlpha: 'Sheen — glare strength. 0 = no sweep.',
   strikeBolts: 'Strike — how many lightning arcs burst out the instant the button is hit.',
   strikeFlash: 'Strike — the white-hot gem flash duration (ms). 0 = no flash.',
   strikeDustCount: 'Strike — dirt/smoke billow amount (× the combat impact dust). 0 = no dust.',
@@ -178,6 +188,7 @@ export const ETB_DESC: Record<keyof EndTurnConfig, string> = {
 /** Keys grouped by control type for the tuner UI. */
 export const ETB_NUM_KEYS = [
   'x', 'y', 'scale',
+  'sheenCycle', 'sheenAlpha',
   'glowX', 'glowY', 'glowW', 'glowH',
   'glowBlur', 'glowAlpha', 'glowStrength', 'glowPulse', 'glowPulseDepth',
   'boltRate', 'boltScale', 'boltMag', 'boltWidth', 'boltLife', 'boltAlpha',
@@ -225,6 +236,9 @@ export function applyEndTurnVars(): void {
   root.setProperty('--etb-glow-y', String(cfg.glowY));
   root.setProperty('--etb-glow-w', String(cfg.glowW));
   root.setProperty('--etb-glow-h', String(cfg.glowH));
+  // Ambient sheen sweep — alpha 0 hides it; the cycle keeps its floor so the animation never divides by zero.
+  root.setProperty('--etb-sheen-cycle', `${Math.max(0.5, cfg.sheenCycle)}s`);
+  root.setProperty('--etb-sheen-alpha', String(cfg.sheenAlpha));
   root.setProperty('--etb-glow-alpha', String(cfg.glowAlpha));
   // Pulse 0 = steady: pin the dip to the peak (and park the duration) rather than running a 0s loop.
   root.setProperty('--etb-glow-dim', String(cfg.glowPulse > 0 ? cfg.glowAlpha * (1 - cfg.glowPulseDepth) : cfg.glowAlpha));

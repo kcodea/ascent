@@ -595,6 +595,33 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
   animation: etbstrikeflash var(--etb-flash-ms, 340ms) ease-out forwards;
 }
 @keyframes etbstrikeflash { 0% { opacity: 1; } 100% { opacity: 0; } }
+/* The END-COMBAT relight — gentler than the strike: the LIT art blooms through and eases away while the
+   real lit gem returns with the shop. One-shot on mount, opacity only. */
+.etbwrap .etb-flash.relight {
+  filter: brightness(1.7) drop-shadow(0 0 16px rgba(190, 230, 255, 0.85));
+  animation: etbrelight 0.65s ease-out forwards;
+}
+@keyframes etbrelight { 0% { opacity: 0; } 25% { opacity: 0.95; } 100% { opacity: 0; } }
+/* Ambient SHEEN — a narrow glare bar sweeping the gem's face on a slow cycle (lit AND pressed). The
+   container is clipped to the gem's diamond (a static clip-path over the art box — the gem spans
+   ~16–84% × 17–83% of the trimmed art); the bar animates TRANSFORM only (compositor-cheap loop). Sweep
+   occupies the first quarter of the cycle, then parks off-diamond. Cycle/strength are 💎-tuner dials. */
+.etbwrap .etb-sheen {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden;
+  clip-path: polygon(50% 17%, 83.7% 50%, 50% 83%, 16.4% 50%);
+  opacity: var(--etb-sheen-alpha, 0.4);
+}
+.etbwrap .etb-sheen-bar {
+  position: absolute; top: -25%; left: 0; width: 30%; height: 150%;
+  background: linear-gradient(105deg, transparent 8%, rgba(255, 255, 255, 0.85) 50%, transparent 92%);
+  transform: translateX(-160%) rotate(8deg);
+  animation: etbsheen var(--etb-sheen-cycle, 3.2s) linear infinite;
+}
+@keyframes etbsheen {
+  0% { transform: translateX(-160%) rotate(8deg); }
+  26% { transform: translateX(440%) rotate(8deg); }
+  100% { transform: translateX(440%) rotate(8deg); }
+}
 /* Lightning canvas — arcs crackling along the diamond edges + across its face (drawn by EndTurnButton's
    rAF; the 24px-per-side margin gives jitter room). Sized in --u so it tracks the art at any resolution. */
 .etbwrap .etb-bolts { position: absolute; left: calc(-24 * var(--u)); top: calc(-24 * var(--u)); width: calc(176 * var(--u)); height: calc(188 * var(--u)); z-index: 5; pointer-events: none; }
@@ -648,10 +675,7 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
    Pixel Arena mockup). Costs are teal Mana; the Tavern's next-tier number is tangerine. */
 .btn.big .c { font-size: 22px; font-weight: 800; display: inline-flex; align-items: center; gap: calc(3 * var(--u)); }
 .btn.big .c svg { width: 21px; height: 21px; color: var(--mana-dk); }
-.btn.big.endturn { background: var(--acc); color: #fff; border-color: var(--acc-dk); }
-.btn.big.endturn svg { color: #fff; }
-.btn.big.endturn:hover { border-color: var(--acc-dk); filter: brightness(1.05); }
-.btn.big.endturn.urgent { animation: endpulse 0.9s ease-in-out infinite; }
+/* (The amber End Combat variant retired 2026-07-16 — the pressed diamond IS the End Combat button now.) */
 @keyframes endpulse { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--acc) 45%, transparent); } }
 .btn .c { color: var(--mana-dk); font-weight: 800; } /* button costs are Mana (teal) */
 .btn.frozen { background: var(--acc); color: #fff; border-color: var(--acc-dk); }
@@ -2585,7 +2609,6 @@ body.choreo-open .pixifx-under { z-index: 204; }
 .cbtns { display: flex; align-items: center; gap: calc(28 * var(--u)); }
 .cbtns .btn.big { font-size: calc(32 * var(--u)); padding: calc(24 * var(--u)) calc(48 * var(--u)); border-radius: calc(18 * var(--u)); gap: calc(16 * var(--u)); box-shadow: 0 calc(5 * var(--u)) 0 var(--shadow); }
 .cbtns .btn.big svg { width: calc(42 * var(--u)); height: calc(42 * var(--u)); }
-.cbtns .btn.big.endturn { box-shadow: 0 calc(5 * var(--u)) 0 var(--acc-dk); }
 /* Top-right combat HUD (replay only): a small Skip button with the speed slider stacked beneath it, tucked
    under the tribes bar so the arena stays clear. */
 .combathud { position: fixed; top: calc(var(--bar-y) + 16 * var(--u)); left: 50%; transform: translateX(-50%); z-index: 30; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); animation: fadein 0.25s ease; }

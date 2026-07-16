@@ -30,6 +30,8 @@ const LABELS: Record<keyof EndTurnConfig, string> = {
   glowStrength: 'glow · strength',
   glowPulse: 'glow · pulse speed',
   glowPulseDepth: 'glow · pulse depth',
+  sheenCycle: 'sheen · cycle',
+  sheenAlpha: 'sheen · strength',
   glowX: 'glow · offset x',
   glowY: 'glow · offset y',
   glowW: 'glow · width fit',

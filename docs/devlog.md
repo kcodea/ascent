@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): End Turn diamond — it IS End Combat now + ambient sheen
+
+- Round five of owner notes:
+  1. **End Combat moved onto the diamond** — once the combat replay finishes (a loss still holds until the
+     loss-damage blast lands, same gating as before), the pressed gem becomes the enabled END COMBAT button:
+     hover shows "End combat and go back to shop", and the click plays a clean one-shot **relight shine**
+     (the LIT art blooms through and eases away while the shop returns — verified: shine mounts at +60ms,
+     the lit art is back under it at ~300ms, gone by 1.4s) — deliberately NOT the strike (no thunder-crack /
+     dust / ripple / bolts; just `sfx.pulse`). The old amber "End Combat" `.btn.big.endturn` is retired —
+     only Summary remains in the combat button row.
+  2. **Ambient SHEEN** — a periodic glare bar sweeping the gem's face in BOTH lit and pressed states,
+     clipped to the gem's diamond via a static `clip-path` polygon; the bar animates TRANSFORM only
+     (compositor-cheap loop, per the perf rule). Two new 💎 dials: `sheen · cycle` (s per sweep+rest) and
+     `sheen · strength` (0 = off).
+- Verified live: sheen clip + 3.2s loop live on the lit gem; combat-ready state flips the tooltip/aria and
+  enables the pressed gem with the old button gone; End-Combat click sequence probed at 60/300/800/1400ms.
+  Typecheck + lint + 1109 tests + build:web green; throwaway state cleaned up.
+
 ### feat(ui): End Turn diamond — hit sound, halo-only glow (mask fix), pressed3 switch
 
 - Round four of owner notes on the diamond:

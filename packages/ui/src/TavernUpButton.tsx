@@ -63,7 +63,7 @@ export function TavernUpButton({ tier, maxTier, cost, disabled, combat, onUpgrad
       className={`tvbwrap${maxed ? ' maxed' : ''}${combat ? ' combat' : ''}`}
       disabled={disabled || maxed || combat}
       onClick={click}
-      aria-label={combat ? `Tavern tier ${tier}` : maxed ? 'Tavern at max tier' : `Upgrade Tavern to tier ${tier + 1} for ${cost} Gold`}
+      aria-label={combat ? `Shop tier ${tier}` : maxed ? 'Shop at max tier' : `Upgrade Shop to tier ${tier + 1} for ${cost} Gold`}
     >
       {/* Gem UNDER the base: the stone's transparent hole reveals it and the gold ring overlaps its rim. The
           broken gem is the max-tier "complete" state; both stay mounted (CSS flips on `.maxed`). */}
@@ -94,7 +94,7 @@ export function TavernUpButton({ tier, maxTier, cost, disabled, combat, onUpgrad
           <b>{cost}</b>
         </span>
       )}
-      <span className="tvb-tip">{combat ? `Tavern tier ${tier}` : maxed ? 'Tavern at max tier' : `Upgrade Tavern — to tier ${tier + 1}`}</span>
+      <span className="tvb-tip">{combat ? `Shop tier ${tier}` : maxed ? 'Shop at max tier' : `Upgrade Shop — to tier ${tier + 1}`}</span>
     </button>
   );
 }

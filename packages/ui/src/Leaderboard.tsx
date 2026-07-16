@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { getHero, isCalibrationRound, type BoardMinion } from '@game/sim';
 import { Card, type CardView } from './Card';
+import { RunTrophies } from './RunTrophies';
 import { heroArt } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -150,6 +151,7 @@ export function Leaderboard() {
                     {r.board.minions.map((m, j) => <Card key={j} card={cardViewOf(m)} suppressPop />)}
                   </div>
                 )}
+                <RunTrophies quests={r.board?.quests} runes={r.board?.runes} />
               </div>
             );
           })

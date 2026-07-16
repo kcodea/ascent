@@ -2,10 +2,10 @@ import { CARD_INDEX } from '@game/content';
 import { CONFIG, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import {
-  abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText, combatCastGrantText,
-  cryptDrakeText, engraveTallyText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, scTribeBuffPerPlayedText, scTribeBuffPerSpellText,
+  abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText,
+  cryptDrakeText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
-  taragosaText, trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
+  trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
 } from './cardText';
 
 /** Run-wide state + optional per-instance accruals for the live-text chain. Per-instance fields are absent
@@ -32,6 +32,9 @@ export interface LiveTextParams {
   goldSpent?: number;
   /** Name of the most recent spell cast this run (`lastSpellCastId` → name) — Steward of Spells shows what it copies. */
   lastSpellName?: string;
+  /** Triple-reward Discover spell: the tier captured when it was granted, so its "peek one tier up" text stays
+   *  frozen (falls back to the live run tier when absent). */
+  grantedTier?: number;
 }
 
 /**
@@ -43,23 +46,22 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
   const c = CARD_INDEX[cardId];
   const text =
     c.id === 'discoverspell'
-      ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, p.tier + 1)}** minion.`
+      ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
       : c.spell
         ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus)
         : transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0) ?? // combat-only: null in the shop (attackSeen 0)
             engraveTallyText(c.id, p.permaGain) ?? // combat-only: null in the shop (no permaGain)
-            taragosaText(c.id, p.golden, p.spellBonus, p.spellBonusH) ??
-            combatCastGrantText(c.id, p.golden, p.spellBonus, p.spellBonusH) ?? // Hoardbreaker Drake: live Growth grant (base + spell power)
             watcherText(c.id, p.golden, p.spellBonus, p.spellBonusH) ?? // Watcher: live Lantern buff +x/+y (base + spell power, both stats)
             abhorrentHorrorText(c.id, p.fodderConsumed, p.golden) ??
-            summonScalingText(c.id, p.spellsThisTurn, Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined) ?? // Spirit Worgen: recruit-only; enemy (number) shows base
-            scTribeBuffPerSpellText(c.id, p.golden, p.spellsThisTurn) ??
+            summonScalingText(c.id, p.spellsThisTurn, p.golden) ?? // Spirit Worgen: recruit-only per-play scaling
+            runescaleText(c.id, p.golden, p.spellProgress ?? 0) ??
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
             packLeaderText(c.id, p.summonBonus ?? 0, p.golden) ??
-            summonBuffText(c.id, p.summonBonus ?? 0) ??
+            summonBuffText(c.id, p.summonBonus ?? 0, p.golden) ??
             summonImproveText(c.id, p.summonBonus ?? 0, p.golden) ??
+            hunterText(c.id, p.summonBonus ?? 0, p.golden) ??
             trailForagerText(c.id, p.golden, p.sellBonus ?? 0) ??
             squirlScoutText(c.id, p.golden, p.squirlScoutBuff ?? 0) ??
             sergeantText(c.id, p.golden, p.hpGrantBonus ?? 0) ??
@@ -124,7 +126,7 @@ export function instView(
     overflowBonus: inst.overflowBonus,
     hpGrantBonus: inst.hpGrantBonus, eotTick: eotTickShown, eotBonus: inst.eotBonus, sellBonus: inst.sellBonus,
     playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff,
-    lastSpellName: live?.lastSpellName,
+    lastSpellName: live?.lastSpellName, grantedTier: inst.grantedTier,
   });
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.

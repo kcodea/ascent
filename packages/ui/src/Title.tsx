@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { activeRift } from '@game/sim';
 import { avatarSrc } from './art';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
@@ -151,6 +152,14 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           <button onClick={() => { sfx.pulse(); openBalance(); }} title="Balance Report — real player offer / pick / win rates">Balance Report</button>
         </div>
       </div>
+
+      {/* A little celebration on the right — for the team that makes it all move. */}
+      <aside className="titlebanner" role="note">
+        <div className="titlebanner-emoji" aria-hidden>🎉🎂</div>
+        <div className="titlebanner-title">Happy Birthday to our Animations Team!</div>
+        <div className="titlebanner-sub">We appreciate everything you do for our shareholder value 💜</div>
+        {activeRift() && <div className="titlebanner-sub">Enjoy a special rift patch to have some fun ✨</div>}
+      </aside>
 
       <div className="titleversion">v{__APP_VERSION__}</div>
     </div>

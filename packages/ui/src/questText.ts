@@ -283,6 +283,9 @@ export interface QuestRewardLive {
   /** For a scalingTribeAura: how far into the current step (progress) and the step size (per) — drives the
    *  "+X/+Y in N more" countdown. */
   scaling?: { progress: number; per: number };
+  /** Den Marker (`beastPlayBuff`): Beasts played/summoned so far (`run.denMarker.count`) — drives the current
+   *  per-play grant (base + step × steps done) and the countdown to the next improve. */
+  denMarkerCount?: number;
 }
 
 /** The reward's LIVE ongoing magnitude for the badge tooltip — the CURRENT value a scaling/stat reward is
@@ -304,6 +307,15 @@ export function questRewardLiveText(r: QuestReward, live: QuestRewardLive): stri
       const toNext = live.scaling.per - (live.scaling.progress % live.scaling.per);
       const step = r.stepHealth > 0 ? `+${r.stepAttack}/+${r.stepHealth}` : `+${r.stepAttack}`;
       return `${base} · ${step} in ${toNext} more`;
+    }
+    case 'beastPlayBuff': {
+      // Den Marker: the current per-play grant is base + step × (improves done); count = Beasts played so far.
+      const count = live.denMarkerCount ?? 0;
+      const steps = r.per > 0 ? Math.floor(count / r.per) : 0;
+      const a = r.attack + r.step * steps, h = r.health + r.step * steps;
+      const toNext = r.per > 0 ? r.per - (count % r.per) : 0;
+      const next = r.step > 0 && toNext > 0 ? ` · +${r.step}/+${r.step} in ${toNext} more Beast${toNext === 1 ? '' : 's'}` : '';
+      return `Now: Beasts ${statPhrase(a, h)} when played${next}`;
     }
     case 'combatFlag':
       if (r.flag === 'oldHunt') return beast();

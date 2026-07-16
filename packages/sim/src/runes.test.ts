@@ -164,22 +164,24 @@ describe('New heroes — Coran (Pathfinder) + Jenkins (Dynamite Dig)', () => {
     lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } },
   });
 
-  it('Coran: skips the turn-5 quest', () => {
+  it('Coran: gets the normal turn-5 quest (he now runs the universal turns too)', () => {
     const s = reduce(atCombat('coran', 4), { type: 'resolveCombat' }); // → turn 5
     expect(s.wave).toBe(5);
-    expect(s.questOffer).toBeUndefined();
+    expect(s.questOffer?.length).toBeGreaterThan(0);
+    expect(s.questOffer!.every((id) => questBucketFor(QUEST_INDEX[id]!) === 5)).toBe(true);
   });
-  it('Coran: the turn-11 (late) quest shop opens EARLY on turn 7', () => {
-    const s = reduce(atCombat('coran', 6), { type: 'resolveCombat' }); // → turn 7
-    expect(s.wave).toBe(7);
+  it('Coran: a BONUS Capstone (turn-11 bucket) quest arrives on turn 10', () => {
+    const s = reduce(atCombat('coran', 9), { type: 'resolveCombat' }); // → turn 10
+    expect(s.wave).toBe(10);
     expect(s.questOffer?.length).toBeGreaterThan(0);
     // Everything offered is from the turn-11 bucket (Capstone, or a promoted Greater neutral).
     expect(s.questOffer!.every((id) => questBucketFor(QUEST_INDEX[id]!) === 11)).toBe(true);
   });
-  it('Coran: no quest on the normal turn 11 (he already got it on 7)', () => {
+  it('Coran: still gets the normal turn-11 quest', () => {
     const s = reduce(atCombat('coran', 10), { type: 'resolveCombat' }); // → turn 11
     expect(s.wave).toBe(11);
-    expect(s.questOffer).toBeUndefined();
+    expect(s.questOffer?.length).toBeGreaterThan(0);
+    expect(s.questOffer!.every((id) => questBucketFor(QUEST_INDEX[id]!) === 11)).toBe(true);
   });
 
   it('Jenkins: Dynamite Dig opens a tier Discover, spends 1 Gold, and the cost climbs each use', () => {
@@ -308,10 +310,10 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
 });
 
 describe('Runes batch 1 — grants / discovers / economy', () => {
-  it('Rune of Small Fortune: banks 6 Gold into the next shop (the standard "Get N Gold" channel)', () => {
+  it('Rune of Small Fortune: gives 7 Gold immediately (this shop, not banked)', () => {
     const s = buyRune('rune_small_fortune', 10); // cost 1
-    expect(s.embers).toBe(9); // 10 − 1 spent now
-    expect(s.bonusEmbersNextTurn).toBe(6); // +6 lands next shop
+    expect(s.embers).toBe(16); // 10 − 1 spent + 7 immediately
+    expect(s.bonusEmbersNextTurn ?? 0).toBe(0); // nothing banked for next shop
   });
 
   it('Rune of Quick Study: conjures 3 random spells to hand', () => {

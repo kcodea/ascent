@@ -5,132 +5,642 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
-### feat(audio): end-of-turn explosion cue at timer zero
+### feat(fx): replace the burning-rope turn timer with an end-of-turn "charge glyph" (`feat/eot-glyph-timer`)
 
-New `sfx.turnExplode()` (sourced `turnexplosion.mp3` + synth boom fallback, `turnexplosion` category on the ui
-bus) fires the instant the round timer hits **0** — the last moment the shop is usable (actions lock) — from the
-countdown loop (`if (next === 0)` in Recruit.tsx). Syncs with the charge glyph's completion flash. Distinct from
-the `turnCharge` build cue that fires at charge-start. Green: typecheck + lint + build.
+Retired the burning-rope EoT timer for a **charging arcane glyph** on the board's etched sigil. Timer *mechanics*
+are unchanged (clock, M:SS plaque, `timeUp`); this is a presentation swap + new audio. Landed as one feature:
 
-### feat(fx): charge-glyph motes + ramped feather + completion flash (baked into the game)
+- **Both-sides-in CSS charge** — over the final `min(20, turnSeconds)`s, white-hot blue energy builds from both
+  edges inward along the midline conduit and fills the centre sigil last, completing at 0. `turn-glyph.svg` (the
+  charged silhouette) as a CSS `mask` × a symmetric wipe driven per-frame by `--charge` (0→1) from a `ChargeGlyph`
+  rAF; the card tree is never touched (clock in `turnClock.ts`). Owner-tuned look (colours/gradient/glow/core/
+  bloom) baked into var-driven `.chargeglyph` + placement in the Layout Lab "Charge Glyph" group.
+- **Behind-cards layer** — the glyph + its FX sit at `z:0` (board-surface, behind the cards + drop shadows), not
+  over them.
+- **Ramped feather** — the reveal feather = `24% × (1−charge)`: soft incoming fronts while charging, **0 at
+  completion** so the sigil is full-bright (solves the feather-dims-the-sigil problem).
+- **Motes + flash** (`chargeMotes.ts`) — a light 2D-canvas particle layer (co-located at `z:0`; the main Pixi
+  canvas is z110, wrong layer). White-hot motes spawn on the lit glyph (sampled from the SVG) and are pulled into
+  the mandala, which lights up progressively; at completion they gather + a flash fires. Owner-tuned
+  `CHARGE_MOTES_CFG`; sprite-blit + `edgeBias` keep it cheap; runs only during the last ~20s of recruit.
+- **Audio** — `sfx.turnCharge()` (owner's `turncharge.mp3`) at charge-start, replacing the old last-5s ticks; new
+  `sfx.turnExplode()` (`turnexplosion.mp3`) at timer-zero (the shop-lock moment), synced with the flash.
+- **Dev tooling** — a live in-game ⚡ Charge Glyph tuner (var-driven look + preview scrubber) + standalone preview
+  rigs (`fx/turn-glyph-preview.html`, `turn-glyph-motes-preview.html`) where the look was locked.
 
-**What:** ported the owner-tuned end-of-turn charge FX (from `fx/turn-glyph-motes-preview.html`) into the game —
-white-hot **motes** that stream onto the charging glyph and **gather into the mandala + a flash** at completion,
-plus a **ramped feather** that softens the incoming reveal fronts without dimming the sigil.
+**Verified:** typecheck + lint + `build:web` + 1080 tests green; app loads with no console errors; look + audio
+confirmed live by the owner. **Follow-ups:** in-game eyeball of the motes/flash scale (`REF_W` approximate) +
+perf-measure on a full board (prod); optional mote knobs in the ⚡ tuner.
 
-**Motes (`chargeMotes.ts` + `ChargeGlyph` in Recruit.tsx):**
-- A light **2D-canvas** particle engine (NOT Pixi): the main Pixi canvas is z110 (over the cards), and the motes
-  must sit BEHIND the cards like the glyph — so they render on a `.charge-motes` canvas co-located with the glyph
-  at **z:0** (same `--charge-*` anchor, 1.5× and square so the flash/gather aren't clipped).
-- Perf: sprite-blit (one pre-baked radial-glow sprite per colour via `drawImage`, not per-particle gradients);
-  `edgeBias` keeps the live count modest; rects measured **once** at charge-start (no per-frame layout reads);
-  runs only during the last ~20s of a recruit turn; the card tree is never touched.
-- Motion: the owner's tuned `flowSpeed` is 0, so motes spawn on the lit glyph shape (sampled once at runtime from
-  `/fx/turn-glyph.svg` → on-shape points) with no initial velocity and are drawn in by `centerPull` (+ swirl) —
-  no tangent field needed. At 100% charge: live motes redirect + a `gatherBurst` rush the mandala and the flash
-  fires. `CHARGE_MOTES_CFG` holds the owner's exported values; px quantities scale by glyph width (`REF_W`).
-- `ChargeGlyph` runs a continuous rAF (keyed on `lit`) that reads the live charge from a ref and drives the engine.
+### fix(ui): aimed target glow — compositor-only (opacity), not a per-frame filter animation
 
-**Ramped feather:** the `.chargeglyph` mask feather is now driven per-frame as `CHARGE_MAX_FEATHER × (1 − charge)`
-(24% → 0%) — soft incoming fronts while charging, feather **0 at completion** so the sigil is full-bright + the
-flash reads crisp. Solves the original feather-dims-the-sigil problem (the reason it had been baked to 0).
+Owner reported combat "jumps" and suspected the longer wind-up. Investigated: the wind-up timing is sound — the
+beat scheduler defers attack beats to the choreo GSAP engine (`engineAdvancingRef`), which advances at the lunge's
+`contact` position, so a longer `windupDur` just lengthens the timeline (no desync, no double-advance). The real
+regression was **#496's own glow fade**: it animated a PAINT property (`filter` drop-shadow / `box-shadow`) every
+frame for ~0.62s on the defender, concurrently with the lunge — exactly what docs/performance.md forbids (repaints
+each frame; can starve the main thread and make GSAP lag-smoothing jump).
 
-**How verified:** typecheck + lint + `build:web` + 1080 tests all green; app loads with **no console errors**.
-Look locked on the standalone preview rig (motes flow → gather → flash, tangent-field wisp fix, ramped feather).
+Refactored the aimed glow to be **compositor-only**, reusing the existing `.cglow` silhouette layer (the same
+masked frame-shape copy the hover glow fades via opacity, seated behind the art). The aimed state now tints that
+layer red (static rim + bloom, painted once) and fades it in by **opacity** over the wind-up (`aimglowfade`),
+which the compositor handles with no per-frame repaint. Dropped the `aimglowbox`/`aimglowframe` paint animations
+and the aimed `--tglow` frame drop-shadows. The unframed fallback (no `.cglow`) keeps a simple STATIC box-shadow
+ring (zero per-frame cost). Attacker glow stays removed; armed/targeted selection glow untouched.
 
-**Follow-ups:** (1) **In-game eyeball** — verify scale/position of the motes + flash at real board size (the
-`REF_W` glyph-width scaling is approximate; may need a nudge). (2) **Perf-measure** the canvas on a full board
-(prod) per the north star — the trail `fillRect` + blits; reduce `rate`/canvas size if it hitches. (3) Optional
-**mote tuner knobs** in the ⚡ Charge Glyph panel for live fine-tuning.
+Visual note: because `.cglow` sits behind the art, the red now hugs the OUTSIDE of the silhouette (a crisp rim +
+outward bloom) and no longer washes inward over the portrait — cleaner, slightly different from #496's in-front
+frame drop-shadow. Verified live (computed-style probe): aimed stdframe/taunt `.cglow` animates `aimglowfade`
+(opacity, 0.62s) with a red rim, and the frame img itself has NO animation. `build:web` clean.
+
+### feat(ui): play-into-warband lights the exact hover glow
+
+- **Playing a minion from hand now shows the same teal hover glow as it crosses into the warband.** When a
+  dragged hand minion is over the play area (Recruit's `willplay`), the floating card lights its own
+  masked-silhouette `.cglow` — the *identical* hover glow (bright teal rim + tight stacked bloom, tuned via the
+  🔆 Hover Glow tuner) — instead of the old gold "release to play" drop-shadow halo. A one-line rule
+  (`.dragcard.willplay .card.compact .cglow { opacity: 1 }`), scoped to out-specify the `opacity:0` default.
+- Iterated through a whole-card teal drop-shadow first (recoloured the old gold halo, then tightened blur +
+  stacking), but it read too large/soft because it followed the full card alpha incl. the text drawer; switching
+  to the real `.cglow` makes play read pixel-identical to hover and stay in sync with the tuner automatically.
+- **Verified:** build:web + lint green; live HMR eyeball (owner: "that looks perfect").
+
+### feat(ui): aimed defender's red target glow fades in over the wind-up
+
+Owner follow-up to #495: instead of removing the defender glow entirely, bring back the RED "target" glow but have
+it **fade in as the attacker winds up**, rather than snapping on. The attacker's orange glow stays gone.
+
+- The `.unit.aimed` red glow is restored across all three frame paths and driven by a one-shot fade animation
+  (`aimglowbox` for the plain/unframed box-shadow ring+halo, `aimglowframe` for the authored taunt `.tframe` /
+  stdframe `.cframe` PNG-silhouette drop-shadow). Both animate from transparent → `--threat`, `forwards`, over
+  `--aim-dur` (0.62s, ~tracking `lungeConfig.windupDur` 0.70s) so it's full right as the strike lands.
+- Scoped carefully: the box-shadow variant is `:not(.stdframe):not(.taunt):not(.spellframe)` so authored frames
+  never get a rectangular ring (they glow their silhouette instead); the frame variant excludes the `.cshadow`
+  grounding copy so only the main frame img glows. The armed/targeted selection glow is untouched.
+- Perf: one-shot per attack on a single element (not a loop) — the sanctioned paint-property pop exception
+  (docs/performance.md), same class as cardbuff/questbounce.
+
+Verified live (computed-style probe): aimed plain card animates `aimglowbox`, aimed stdframe/taunt frames animate
+`aimglowframe` (0.62s); the end state resolves to the red `--threat` ring/drop-shadow on each silhouette; the
+attacker (`.unit.attacking`) has no glow animation. `build:web` clean.
+
+### tweak(ui): remove the attacker/defender combat glows on attack
+
+Owner ask: drop the glow that lit the attacker (orange `--acc`) and the aimed defender (red `--threat`) during an
+attack's wind-up/lunge. Removed at the source across all three frame paths — the plain-card box-shadow ring/glow
+(`.unit.attacking .card` / `.unit.aimed .card` now carry only the neutral grounding shadow), and the authored
+taunt (`.tframe`) and stdframe/spellframe (`.cframe`) drop-shadow variants (dropped their `--tglow` state colours
++ pulled the attacking/aimed selectors out of the glow-filter lists, so those states fall back to the base frame
+filter). The armed/targeted **selection** glow is untouched (it shares the blocks but keys off `--tglow: var(--c)`).
+
+Verified live (computed-style probe on the running dev server): no `--acc`/`--threat` colour survives on any
+attacking/aimed state (plain/stdframe/taunt) — only the grounding shadow + base frame filter remain; an armed card
+still renders its tribe-coloured selection drop-shadow. `build:web` clean.
+
+### feat(sim/ui): mid-combat quest completion — Phase 2b visuals (badge + card fly)
+
+- The visual polish on top of the mid-combat activation. When a quest completes MID-COMBAT: (1) its **badge
+  lights up live** in the row — the node appears + pulses on the completion beat, before the quest formally
+  settles as completed; (2) its **card reward flies to hand** on that beat.
+- **Card fly:** `simulate` emits a bare `toHand` event (visual only — NOT `ctx.grantToHand`, which would also
+  record it in `playerHandGrants`) for the pending quest's `rewardCardId` (reducer's `pendingRewardCard` walks
+  the reward for its first granted card). The reducer still grants the reward for real at settle, so no double.
+- **Badge:** the replay engine surfaces `completedQuests` (questIds from `questComplete` events up to the
+  current beat) → new `combatCompletedQuests` store field (set by `Recruit` during the replay, like the
+  existing trigger-pulse) → `QuestBadges` includes those quests in the row + pulses them.
+- Tests: extended the `simulate.test.ts` case (a card-reward pending quest emits `toHand`). 1108 tests +
+  build:web green; app verified to load clean with the new store field.
+
+### feat(core/sim): mid-combat quest completion — ongoing effects activate live
+
+- The star of the mid-combat quest work. A quest whose objective counts a COMBAT event (kill / summon / attack /
+  Deathrattle / Rally …) now **completes and activates in real time** during the fight, instead of only settling
+  afterward. The moment its tally crosses the threshold, its reward's **ongoing** combat mods fold into the live
+  `questMods` — so Feeding Line's "whenever a Beast Slaughters, your next Beast attacks immediately" starts
+  firing for the rest of THAT combat (visible in the replay as the extra out-of-turn attacks). Start-of-Combat
+  rewards, already past, correctly stay no-ops — exactly the "SoC just completes, doesn't retro-proc" rule.
+- **Low-risk mechanism:** `simulate` reads ongoing-trigger mods live off `playerState.questMods`, so mutating
+  that object at the completion beat activates them transparently — no rewrite of the read sites. Threaded via a
+  new `CombatSideState.pendingQuests` (the reducer's `buildPendingCombatQuests` supplies the player's active
+  combat-objective quests + each reward's ongoing mods); detection hooks the existing `bumpQuestTally` path;
+  fires a new `questComplete` event (one-shot per quest). The actual completion + reward grant still settles in
+  the reducer (unchanged; overflow-safe).
+- **Verified:** new `simulate.test.ts` case — a pending Feeding Line completes on the first Beast kill (emits
+  `questComplete`, the fight diverges from the quest-less one). All 1108 tests pass (no golden/determinism
+  break — the effect only activates when `pendingQuests` is threaded), harness determinism ✓, build green.
+- **Follow-ups (Phase 2b):** the completing quest's **badge lighting up** mid-replay (its node doesn't exist yet
+  during the fight) and **flying the card reward to hand** live (`toHand`) — the reward already grants + overflows
+  at settle; these are the remaining visual polish.
+
+### feat(sim): quest/rune reward cards overflow the hand (never dropped)
+
+- Phase 1 of the mid-combat quest work. The hard 10-card hand cap now has ONE sanctioned exception: **quest and
+  rune reward cards over-cap the hand** rather than being dropped when hand + board are both full (owner ruling
+  — an earned reward is guaranteed delivery). Threaded an `overflow` flag through `grantMinionToHandOrBoard` +
+  `conjureToHand` + the random-grant helpers; `applyQuestReward`'s `grant` case passes `overflow = true` on
+  every card grant (named, gilded, random-tribe/tier/filter, random-spell). Every other add-to-hand path
+  (buy / discover / triple / recurring) stays hard-capped. New test covers the overflow. typecheck + lint +
+  test (1107) + build:web green.
+### fix(ui): combat hand stays full-size (no shrink)
+
+- The hand shrank to `scale(0.66)` during combat; owner wants it static. Dropped the transform so the combat
+  hand keeps its recruit size + position; kept `pointer-events: auto` (the hover preview from the earlier PR).
+  Playing/dragging still blocked (`onCardPointerDown` bails on `inCombat`). build:web green.
+
+### feat(ui): Hall of Champions / Career re-fit + end-of-run quests & runes
+
+- **Re-fit the warband cards** in the Hall of Champions + Career. The card art overhaul had made the
+  `.lbwarband` cells read large, and the old `vh`-based clamp swung with the window aspect and OVERFLOWED the
+  row (7th card clipped). Now the cards are sized **relative to the warband's own width** via container-query
+  units (`100cqw`) — exactly 7 across, capped at 132px — so they never clip and adapt to the Career (narrower,
+  has a sidebar) vs Hall (full-width) panels and any window size. Verified live via injected mock history:
+  7 cards, no clip, trophies left-aligned.
+- **Show what the champion built.** New shared `RunTrophies` component renders the run's completed **quests**
+  and owned **runes** (already stored on the board snapshot — `board.quests` / `board.runes`) as circular
+  badges under the warband, each with the game's standard floating tooltip (name + reward text). Wired into
+  both `Leaderboard` (Hall of Champions) and `Career`. Renders nothing for older snapshots that carry none.
+- typecheck + lint + build:web green. (Populated visuals need real backend/history data — verified structure +
+  empty-state locally.)
+### feat(ui): teal card hover glow (masked silhouette) + live tuner
+
+- **Replaced the yellow card hover halo with a tunable teal glow that hugs the frame silhouette** — a bright
+  inner line + a stacked soft bloom — seated **behind** the art so it never washes over the portrait. Why it
+  took a real rethink: the old glow was a `drop-shadow` on the frame PNG at `z-index:3` (in front of the art),
+  which (a) bled inward over the portrait and (b) inherited keyword-frame recolours (Divine-Shield blue, etc.),
+  so it wasn't even teal on those cards.
+- **New construction (`.cglow`, rendered by `Card.tsx` for stdframe/spell/taunt):** a pure-teal **masked
+  silhouette**, not a copy of the frame art — a rim child (solid `--hg-line-col` masked to the frame PNG =
+  the bright line) inside a parent that casts the soft bloom as a drop-shadow. Masking the *child* (not the
+  parent) lets the parent still throw an **unclipped** outward glow. Seated at `z-index:0` behind the portrait
+  (`z1`), so any inward bleed is physically covered by the art. Because it's teal fill — never the gold/silver
+  frame body — scaling its **width/height** only ever reveals more teal, no frame artifact (the earlier "golden
+  frame on hover" bug).
+- **Bloom intensity = the drop-shadow STACKED N times** (`bloomStrength`), composed in `glowConfig.ts` into
+  `--hg-bloom-filter` (CSS can't repeat a filter a variable number of times). A single shadow reads soft even
+  at opacity 1; stacking compounds it into a hot glow.
+- **On hover the grounding contact shadow (`.cshadow`) fades to 0** so it doesn't dilute the glow's intensity.
+- **New DEV `GlowTuner`** (`glowConfig.ts` + `GlowTuner.tsx`), wired into the Dev Tuning Menu (🔆 Hover Glow):
+  live width/height/line(blur·opacity·colour)/bloom(blur·opacity·strength·colour) knobs, localStorage-backed,
+  with an "always on" preview toggle (pins the glow onto every resting card via `body.hglow-preview`). Values
+  reflect to `--hg-*` CSS vars; the **shipped owner-tuned defaults are baked into BOTH `glowConfig.ts` and the
+  `styles.css` `--hg-*` fallbacks** so production renders identically with no JS.
+- Dropped the bespoke `.card.dual:hover` box-shadow — dual-type minions are `stdframe` now, so they get the
+  same `.cglow` as everything else (the old rule added a boxy rectangular halo over the silhouette glow).
+- **Verified:** live DOM checks (mask assets 200; parent filter = the 6× stacked teal drop-shadow; rim = teal
+  masked silhouette; opacity resolves to 1 on hover/preview; frame-shaped glow at `z0`). typecheck + lint +
+  build:web green. Compositor-only (opacity fade), hover-gated, so no per-frame paint cost at rest.
+
+### fix(ui): bake quest-node scale 1.32 (was 1.63) so dev + prod match
+
+- The active-quest / rune node scale (`--qb-s`) shipped at **1.63**, but the owner's tuned value is **1.32**;
+  their Layout-Lab localStorage override masked the mismatch in dev while a fresh build (and other devs) saw
+  the larger 1.63. Baked **1.32** into both the `layoutConfig.ts` `qbS` default and the `styles.css` `--qb-s`
+  fallback so dev and production render identically without a local override. lint + build:web green.
+
+### feat(ui): Heroes tab in the Compendium
+
+- Added a **Heroes** category to the Compendium (`MinionBook`) — a read-only gallery of every shippable hero
+  (WIP ones withheld, like the picker) showing portrait + Resolve/Armor + power name & text, searchable by
+  name or power. Not run-scoped (heroes aren't tribe-bound), rendered as its own gallery like the Runes/Quests
+  tabs (its own left-rail chip, hidden tier bar, own count subtitle). New `.bookhero*` styles. Live-checked:
+  20 heroes render with art + power. typecheck + lint + build:web green.
+
+### feat(sim/ui): hard 10-card hand cap + hoverable hand in combat
+
+- **Hand is now a hard 10-card cap.** Grants/discovers/triples no longer over-cap the hand (the source of the
+  20+-card hand seen in a late Coran run). `grantMinionToHandOrBoard` drops the grant when hand AND board are
+  both full (was an "over-cap last resort" push); the Discover pick and the golden-play Discover both guard on
+  `handMax`; a triple's golden diverts to the board (which it just freed a slot on) instead of over-capping.
+  New `handCap.test.ts` covers hand → board → dropped.
+- **Combat hand is hoverable.** The hand shrinks to the bottom during a fight but was `pointer-events: none`,
+  so you couldn't preview a held spell mid-combat. Flipped it to `pointer-events: auto` — hovering now pops the
+  card preview like the shop. Playing/dragging stays blocked (`onCardPointerDown` already bails on `inCombat`),
+  so this only re-enables the hover popup.
+- typecheck + lint + test (1106) + build:web green.
+
+### fix(content): Rune of Small Fortune → 7g immediate + golden Trophy Stalker live-text
+
+- **Rune of Small Fortune** now grants **7 Gold immediately** (was 6, banked into the next shop). Added an
+  optional `immediate` flag to the `gainGold` reward (`+= s.embers` this shop vs. the banked
+  `bonusEmbersNextTurn` channel); schema + core type + reducer + rune data + test updated.
+- **Golden Trophy Stalker live text fixed.** The combat *effect* was already correct (golden applies +10/+10,
+  proven by a new sim test), but `summonBuffText` — the live text for its growing Rally — wasn't golden-aware:
+  once the grant started climbing it printed the **un-doubled** value (wrapped in `{{…}}`, which the Card
+  excludes from its generic golden `doubleNums`), so a golden copy visually read +5/+5 while hitting for
+  +10/+10. Threaded `golden` through `summonBuffText` (×2) and its `instView` call site. Tests: golden effect
+  magnitude (sim) + golden/non-golden text. typecheck + lint + test (1103) + build:web green.
 
 ## 2026-07-15
 
-### fix(ui): charge glyph sits behind the cards (board-surface layer)
+### tweak(ui): attack wind-up ~50% longer
 
-Moved `.chargeglyph` from `z-index: 8` (a rope holdover, which painted it over the cards) to `z-index: 0`, so it
-reads as a **board-surface effect** behind the warband cards + their drop shadows. First tried `-1`, but `.app` is
-transparent over an opaque dark wrapper, so a negative-z child paints behind `.app`'s content and vanishes (DOM-
-verified). `z:0` keeps it painted above `.app`'s backdrop (visible over the board art) yet in the same paint group
-as the cards (which are `position: relative` / `z:auto`) — tree order decides, and the glyph is their earlier
-sibling, so it renders behind them. Side effect: it no longer screen-blends against the cards (internal fill+core
-compositing unchanged; its interaction with the board goes "screen" → "over"). NOTE: warband cards are behind it;
-if the tall sigil overlaps the SHOP cards (earlier in the tree) it needs a dedicated board-fx layer behind all
-zones (a bigger move that would require re-tuning placement).
+Owner ask — the anticipation lean-back before a strike should read longer. Bumped `lungeConfig.windupDur`
+0.47 → 0.70s (~+49%) and raised the DEV Lunge tuner's slider ceiling to match (`LUNGE_RANGES.windupDur` max
+0.5 → 0.9). No other change needed: the attack RESULT beat's hold is derived live from `windupDur + strikeDur
+- smackLead` (see `useCombatReplay.ts`), so the damage float + recoil still land exactly on contact — the whole
+exchange just anticipates longer. typecheck + build:web green.
 
-### feat(ui): charge-glyph — live in-game tuner + charge-start SFX (retire the 5s ticks)
+### feat(content): Coran's Pathfinder reworked — bonus Capstone quest on turn 10
 
-**What:** two additions on top of the charge-glyph swap (below): a **live in-game tuner** for the effect at true
-game scale, and a **charge-start sound** that fires when the glyph begins charging (replacing the last-5s tick
-beeps).
+- Reworked Coran (Pathfinder). **Old:** skipped the turn-5 quest and got the turn-11-bucket quest early on
+  turn 7 (nothing on 5/11). **New:** he runs the **normal turn-5 and turn-11 quests** like everyone (when
+  quests are on) and gets an **extra Capstone (turn-11-bucket) quest on turn 10**. Implemented as a one-line
+  change to the `pathfinder` branch in `questOfferPlan` (`wave === 10 → { bucket: 11 }`, above the
+  `questsEnabled` gate so it's his native bonus), then falling through to the universal 5/11 logic.
+- Updated his power text + blurb, the Coran tests (runes.test.ts) and the toggle tests (systemToggles.test.ts),
+  and the canonical rule in GAME-RULES.md. Bucket-11 pool (~30 quests) comfortably fills the two separate
+  turn-10 + turn-11 offers. Live-checked the hero-select text. typecheck + lint + test (1102) + build:web green.
 
-**Live tuner (`ChargeGlyphTuner`, in DevMenu → "⚡ Charge Glyph"):**
-- The standalone `fx/turn-glyph-preview.html` renders the board at a fixed size, so its scale ≠ the live game
-  (glow radii etc. read differently). This panel tunes the effect **on the real glyph at real scale**.
-- The `.chargeglyph` look was refactored to ride `--cg-*` CSS vars (colours/gradient/glow/pulse/core/base) with
-  the **baked values as fallbacks** — behaviour-preserving; production with no tuner is unchanged. The panel
-  composes those vars from colour pickers + sliders and writes an override `<style id="chargeglyphtuner">` (bumped
-  selector), so every knob updates the real glyph live. "Copy CSS" emits paste-ready values to bake back.
-- Since the glyph only shows in the last ~20s, a **preview block** (Show / ▶ Play 20s / charge scrubber) drives a
-  new `chargePreview` store (`chargeGlyphTune.ts`, mirrors `turnClock`) that `ChargeGlyph` honours — force-showing
-  + scrubbing the fill 0→1 on demand without waiting for a turn. The core-bloom curve (bloomAt / coreMax), which
-  isn't a CSS var, mutates the shared `chargeTune` object the component reads each frame. On panel close the
-  override + preview clear and `chargeTune` resets — shipped behaviour resumes. Placement (Size/X/Y) stays in the
-  Layout Lab "Charge Glyph" group.
+### feat(sim): quest master switch preserves quest-native heroes + new runeforge system toggle
 
-**Charge-start SFX:**
-- New `sfx.turnCharge()` cue (sourced `turncharge` clip via the `./audio/*.mp3` glob; synth rising-hum fallback
-  until the file lands at `packages/ui/src/audio/turncharge.mp3`) + a `turncharge` category (ui bus, gain 0.5).
-- Fires **once** when the clock ENTERS the charge window — from a `seconds`-driven effect in `ChargeGlyph` that
-  catches both the normal cross-down past the window and a fresh turn that resets already inside it (short early
-  waves where `turnSeconds ≤ 20`). Keyed on `seconds`, so a pause/resume (which freezes the clock, not `seconds`)
-  never re-fires it.
-- **Retired the last-5s tick beeps** (`sfx.tick()` in the countdown loop) per owner — the charge sound replaces
-  them. `sfx.tick` itself stays (BalancePanel still uses it).
+- **Quest master switch no longer strips quest-native heroes.** `questOfferPlan` used to short-circuit on
+  `!CONFIG.questsEnabled` *above* the hero-power branches, so turning quests off also killed Fi's Errand
+  (turn-3 bonus) and Coran's Pathfinder (turn-7 early quest). Hoisted those two branches above the gate — the
+  master switch now only turns off the UNIVERSAL wave-5/11 quests; quest-native heroes keep their access.
+  (Chronos was already unaffected — his reward is a buy-counter, not routed through the quest offer.)
+- **New runeforge system toggle** — `CONFIG.runeforgeEnabled` (default **off**). When on, EVERY hero visits
+  the basic Runeforge on **turn 6** and the Epic Runeforge on **turn 9** (both free — no hero-power charge).
+  When off, only the runeforge-native heroes access it (Runesmith basic turn 7, Runeguard epic turn 12), which
+  is independent of the flag. Separate from the `runic` rift (which also grants the turn-6 basic forge); the
+  turn-6 trigger is an OR, so if both are on it still opens exactly one basic forge.
+- This gives all three global systems (quests / runeforge / rifts) the same contract: a master on/off that,
+  when off, still lets the system's native heroes in. New `systemToggles.test.ts` covers the quest-native
+  survival + the runeforge system (on → basic@6/epic@9 free; off → nothing for non-natives; natives always).
+  typecheck + lint + test (1102) + build:web green.
 
-**How verified:** typecheck + lint + `build:web` + 1080 tests all green.
+### refactor: rename the "Anomaly" system → "Rift"
 
-**Follow-ups:** owner drops `turncharge.mp3`; the Pixi motes pass (soft converging fronts) still queued.
+- Renamed the limited-time global-modifier feature from **Anomaly** to **Rift** throughout: identifiers
+  (`ANOMALIES`→`RIFTS`, `AnomalyId`→`RiftId`, `AnomalyDef`→`RiftDef`, `activeAnomaly`→`activeRift`,
+  `RunState.anomaly`→`RunState.rift`), the shared component (`AnomalyPill.tsx`→`RiftPill.tsx`, `.anomalypill*`
+  →`.riftpill*`), the test file (`anomalies.test.ts`→`rifts.test.ts`), and all user-facing copy (the pill tag
+  now reads "Rift", hero-select "Rift: <name>", the home banner "special rift patch"). Left the unrelated
+  **Anomaly Reactor** / **Demonic Anomaly** cards untouched (separate content). Pure rename — no behaviour
+  change. typecheck + lint + test (1097) + build:web green; live-checked the pill reads "RIFT · RUNIC BEHAVIOR".
 
-### feat(ui): replace the burning-rope turn timer with a board-native "charge glyph" (CSS mask, both-sides-in)
+### chore(sim): Runic Behavior forge moves to turn 6
 
-**What:** retired the burning-rope EoT timer *visual* and replaced it with a **charging arcane glyph** that lights
-up the board's own etched sigil. Over the final 20s (`min(CHARGE_SECONDS, turnSeconds)`, same window the rope
-used), white-hot blue energy **builds from both sides inward** along the board midline conduit and fills the
-centre sigil **last**, completing exactly as the clock hits 0. The timer **mechanics are unchanged** — the clock
-still counts down, the `ShopTimer` plaque still shows M:SS (red in the last 5s), `timeUp` still fires. This is a
-pure presentation swap.
+- Moved the "Runic Behavior" anomaly's basic-Runeforge visit from turn 7 → **turn 6** (reducer trigger +
+  blurb). The Runesmith's own forge stays on turn 7, so under the anomaly it now gets both (turn-6 anomaly
+  visit + turn-7 native). Updated the anomaly tests to the new wave. typecheck + lint + test (1097) + build green.
 
-**How:**
-- **New asset** `apps/web/public/fx/turn-glyph.svg` — the fully-charged silhouette (one white filled compound
-  path: central sigil + horizontal conduit, symmetric, viewBox 1385×544, midline y≈274), used as a CSS
-  `mask-image`.
-- **`.chargeglyph` CSS** (`styles.css`, replacing the whole `.rope*` block + `ropein/ropeflame/ropeglow/ropeember`
-  keyframes): three SVG-masked layers (`charge-base`/`charge-fill`/`charge-core`), each `mask`ed by the SVG shape
-  **∩** a symmetric both-sides-in wipe gradient. The wipe's central unlit gap closes as `--charge` (0→1), so the
-  fronts march inward and the sigil fills last. `charge-fill` is a deep-blue→cyan→white-hot horizontal gradient
-  (bright core revealed last) with a static drop-shadow glow + a compositor-only opacity pulse; `charge-core` is a
-  white-hot radial whose opacity is driven per-frame. Anchored to the measured board midline (`--charge-y`),
-  sized/nudged by `--charge-w/-x/-yoff`.
-- **`ChargeGlyph` component** (`Recruit.tsx`, replacing `BurnRope`): subscribes to the turn clock, a rAF
-  interpolates the sub-second fraction and writes `--charge` (0→1) to the box ref + the core-bloom opacity to its
-  ref each frame — no per-frame React render, only while lit + unpaused, so the heavy card tree is never touched
-  (clock stays in `turnClock.ts`'s external store). `min(CHARGE_SECONDS, turnSeconds)` window; hidden in combat.
-- **Placement knobs** — repurposed the dev Layout Lab "Rope" group into a **"Charge Glyph"** group (`--charge-w/
-  -x/-yoff`); `--rope-y` midline measurement renamed `--charge-y`.
-- **Look tuned** in a new standalone rig `apps/web/public/fx/turn-glyph-preview.html` (board image + SVG + colour/
-  alignment/glow/timing sliders + Copy CSS), mirroring `ward-css-preview` / `reborn-css-preview`. The shipped
-  colours/gradient/glow/pulse/bloom are the owner's exported values (feather 0 — a CSS feather dims the sigil at
-  full charge, so soft fronts come from the Pixi layer instead).
+### fix(ui): anomaly pill kept the custom game cursor on hover
 
-**How verified:** typecheck + lint + `build:web` + 1080 tests all green. Look proven in the standalone tuner
-(board + SVG mask confirmed a real shape via canvas alpha-sampling, not a rectangle). Spec:
-`docs/superpowers/specs/2026-07-15-end-of-turn-charge-glyph-design.md`.
+- The `.anomalypill` rule set a bare `cursor: default`, which dropped the game's custom gauntlet SVG cursor
+  back to the OS arrow while hovering the pill (on hero select + the HUD). Switched it to the same
+  `url('/cursors/gauntlet_default.svg') 6 2, help` the other hover-info elements use (`.chip`, `.oppframe`),
+  so the cursor stays consistent and reads as "hover for info". Verified the computed cursor in the dev server.
 
-**Follow-ups:** (1) **Pixi motes pass** — white-hot motes streaming toward centre + a soft flare riding each
-converging front (softens the hard reveal edges without dimming the core) + a bloom pop at completion; prototype
-in the tuner first. (2) **Replace the 5s countdown SFX** (`sfx.ts`) — deferred phase 2. (3) In-game **placement
-tune** via the Layout Lab "Charge Glyph" group, then bake defaults. (4) **Perf**: confirm the per-frame mask
-recompute is cheap on a full board (prod); move the drop-shadow glow to Pixi if it costs frames.
+### feat(ui): shared AnomalyPill — clean floating tooltip + in-game HUD pill
+
+- **Clean tooltip.** Replaced the anomaly pill's native `title=` hover with the game's standard floating
+  tooltip (the same card as `.questbadge-tip` — dark rounded card, accent title, fade-in). Extracted a shared
+  `AnomalyPill` component (`variant: 'hero' | 'hud'`) so hero select and the HUD share one look; dropped the
+  old `.hsanomaly*` CSS for a `.anomalypill*` system (pill size via `--ap-fs`, tooltip opens below).
+- **In-game pill.** Added the pill to the HUD (`HudBar`), sitting directly under the round plaque (first item
+  in `.topleft`, above the run buffs). Shown only when the run is pinned to an anomaly (`run.anomaly`), read
+  from the `ANOMALIES` registry so the name + blurb stay in sync.
+- **Verified** live in the dev server: hero-select tooltip is now the floating card (old `.hsanomaly` gone),
+  and the HUD pill renders under the plaque (top ~44px vs plaque bottom ~34px, left-aligned) reading "ANOMALY
+  · RUNIC BEHAVIOR". typecheck + lint + full test (1097) + build:web green.
+
+### feat(sim): second anomaly "Runic Behavior" — every hero hits the basic Runeforge on turn 7
+
+- **New anomaly `runic`.** Added a second entry to the `ANOMALIES` registry: *Runic Behavior* — on turn 7,
+  **every hero visits the basic Runeforge** (buy one of 3 runes, a run-long buff), not just the Runesmith.
+  Wired at the same turn-setup chokepoint as the Runesmith forge: when `s.anomaly === 'runic'` and it's turn 7
+  and the hero isn't already opening its own forge, queue `pendingBasicForge` — reusing the existing scheduled
+  no-charge forge path so it slots into start-of-turn modal priority (behind a quest offer, e.g. Coran's
+  turn-7 bucket) and buying it spends no hero-power charge.
+- **Switched the active anomaly.** Flipped `freedom.enabled → false` and `runic.enabled → true` (one line
+  each) — the pinning + UI machinery from the anomaly system carries the rest (hero-select pill now reads
+  "Anomaly: Runic Behavior" with its blurb tooltip; the home banner line stays since an anomaly is active).
+- **Tests + verification.** Renamed `freedomAnomaly.test.ts` → `anomalies.test.ts`; added Runic coverage
+  (turn-7 win → basic no-charge forge opens for a non-Runesmith hero; not without the anomaly; not on other
+  turns). Live-checked the pill in the running dev server (`.hsanomaly` = "ANOMALY · RUNIC BEHAVIOR", tooltip
+  "Every hero visits the basic Runeforge on turn 7."). typecheck + lint + full test (1097) + build:web green.
+
+### feat(sim/ui): "anomaly" system (limited-time global rules) + first anomaly "Freedom"
+
+- **New live-ops "anomaly" spine.** Anomalies are global rules bent for fun for a while, then switched off.
+  Added an extensible registry in `config.ts`: `ANOMALIES: Record<AnomalyId, AnomalyDef>` (each `{ id, name,
+  blurb, enabled, runsThrough? }`) + `activeAnomaly()` (the first `enabled` entry, or null). Adding a mode is
+  a new entry + teaching one system its id; turning one on/off is a **one-line `enabled: true|false` flip**.
+- **Pinned per run.** `createRun` snapshots `activeAnomaly()?.id` onto the new `RunState.anomaly`, and all
+  runtime code reads that pin (not the live registry) — so a saved / replayed run keeps the rules it was
+  played under even after we flip the global switch off (same philosophy as pinned opponents). Carried through
+  serialize/deserialize automatically (full-state JSON + heal-by-construction merge).
+- **First anomaly — "Freedom":** the **first minion bought each turn is free** (0 Gold). Reducer buy path:
+  `freeBuy = s.anomaly === 'freedom' && !s.freeBuyUsedThisTurn` overrides every price source (Moe / Merchant's
+  Mark / Hank / default), sets `RunState.freeBuyUsedThisTurn`, cleared in the start-of-turn reset. Spell
+  offers (Spell Cart) and held-minion re-buys return before the freebie, so it only spends on a fresh minion.
+- **Surfaced in the UI.** The shop shows the eligible first minion at cost 0 (memo re-derives on
+  `run.anomaly`/`freeBuyUsedThisTurn`); hero select telegraphs **"Anomaly: Freedom"** (name + blurb tooltip
+  from the registry) in a glowing pill under the Line; the home banner's "Enjoy a special anomaly patch…" line
+  now renders only while an anomaly is active.
+- **Tests + verification.** New `freedomAnomaly.test.ts` (first buy free → second paid → refreshes next turn →
+  no-anomaly pays normally → registry enable/disable pins/unpins on `createRun`). The base economy/quest tests
+  assert the *un-bent* game, so `vitest.setup.ts` retires all anomalies globally (`enabled = false`). typecheck
+  + lint + full test (1095) + build:web all green.
+
+### tweak(ui): "CRIT!" text lingers 100% longer
+
+Owner note after eyeballing the shipped Critical Strike VFX live — the "CRIT!" pop reads great but flashes past
+too quickly. Doubled its on-screen lifetime (`critFxConfig.textMs` 760 → 1520); the pop/rise/fade shape is
+unchanged (the fade still runs in the last 25% of the life), so it just holds longer before dropping. One-line
+default tweak; the live "⚡ Critical Strike FX" tuner still overrides it. typecheck + build:web green.
+### fix(sim/ui): correct tavern buff-source names + Hoard Spark X/N badge counter + birthday banner
+
+- **Buff sources on tavern offers are now named correctly.** A tavern offer's accrued buff was a single
+  `atk`/`hp` number written by several sources (Apples, Fortify, Fried Circuits, next-shop), and both the
+  inspect and the buy-bake labelled the whole thing **"Fortify"** — so an Apples-buffed Squirl Scout read
+  "Fortify ×1". Added a per-source `ShopCard.buffs` breakdown (via a new `addOfferBuff` helper); every write
+  site tags its real source, `shopView` + the buy-bake read the breakdown (generic "Tavern buff" fallback for
+  legacy offers). New test: an Apples-buffed offer + the minion it buys both itemize "Apples", not "Fortify".
+- **Repeatable count-quests show an X/N counter above the badge.** Hoard Spark (buy 4 Dragons, repeatable) and
+  any repeatable count-threshold quest now show their progress toward the NEXT trigger (`aq.progress` /
+  `objective.count`) as a counter above the trophy badge, styled identically to the combat avenge/step tally
+  (`.stepcounter`, repositioned on top).
+- **Birthday banner** on the title screen — a celebratory glass card on the right for the Animations team.
+
+1091 tests green; typecheck + lint + build:web clean. (The in-app preview was unresponsive this session, so the
+banner + badge counter were verified via build + code review, not a live screenshot — worth an eyeball.)
+
+### feat(ui): hero-panel layout redesign + tavern inspect buff sources + repeatable quests leave the log
+
+- **Hero panel layout.** The corner portrait is larger (60u → 80u) and holds ONLY the hero art; the hero name
+  moved out of a text line into its own pill eclipsing the BOTTOM edge of the portrait (mirrors the player-name
+  pill at the top); Health/Armor moved from a bottom row to the RIGHT of the portrait (flex row, centered).
+  Verified via element geometry.
+- **Tavern offers show their buy-time buff sources on inspect** (like warband). `shopView` now itemizes the
+  buffs an offer previews — Fortify, per-card run enchant, Tavern (Staff of Guel), tribe buy-aura (Tribe Bond),
+  Golden Touch — into `CardView.buffs`, the same field board minions use, so a right-click inspect on a tavern
+  offer shows where its boosted stats come from.
+- **Repeatable quests leave the quest log on their first completion.** The log already dropped `completed`
+  one-shots, but a REPEATABLE never flips `completed` (it bumps `completionCount`), so it lingered; now it's
+  dropped once it's fired at least once — moving to its trophy badge above the hero panel (where its live reward
+  value already shows).
+
+1091 tests green; typecheck + lint + build:web clean.
+### feat(ui): Critical Strike VFX — the crimson-gold crit flourish
+
+A crit (Commander Impala's CR — a double-damage swing) previously only swapped the SOUND (#447). It now gets a
+full VISUAL, owner-tuned on a preview rig then baked into the real Pixi renderer.
+
+**Look-agreement first (the cheap-iterate rule):** a standalone canvas rig (`apps/web/public/fx/crit-preview.html`,
+same pattern as the buff-FX rigs) previews the whole flourish on the cream board with live dials + a normal-hit
+comparison; the owner tuned it and signed off ("this is perfect") before any `pixiFx` was touched. The rig's field
+names + UNITS map 1:1 onto the engine config, so the tuned values transfer verbatim.
+
+**The flourish (5 layers), fired at the lunge's real contact:**
+- amplified additive **core flash** + a saturated **crimson shockwave** (normal-blend, paints over cream) vs the
+  normal hit's orange;
+- a bold expanding **ring**; a wide **spark** burst flung along the blow direction;
+- a **"CRIT!" text pop** (pre-rendered texture → sprite; overshoots to `textPop`, settles, rises, fades);
+- a red **defender-card flash**; and a punchier two-axis **board shake**.
+
+**Wiring:** `critFxConfig.ts` (config + DEV tuner state, baked to the owner's values) → `pixiFx.critImpact(x,y,dx,dy,
+defRect)` (a crit-flavoured sibling of `impact()`; the ring/text/flash are tracked `CritFx` instances advanced +
+retired in the ticker, the burst/sparks are one-shot particles). The impact channel (`impact.ts`) calls
+`critImpact` in place of the normal burst when `crit` (the flag already reaches it from `engine.ts` since #447),
+with a 1.4× knockback; a new `onCritImpact` engine callback fires the board shake (`.app.shaking-crit`, a new
+compositor-only keyframe) AT contact, wired through `useCombatReplay` (`critShaking`). A live **"⚡ Critical Strike
+FX"** DEV tuner (`CritFxTuner.tsx`, in the 🛠️ menu) + a **"⚡ Test Crit"** one-shot (`pixiFx.testCrit()`) let the
+owner re-tune on the real board without waiting for an actual crit.
+
+Verified: typecheck + lint + build:web green; all Pixi v8 Graphics/`fill`/`stroke`/`Texture.from`/`Sprite.destroy`
+calls match the existing renderer's usage. The animated look is the owner's to eyeball live (rig-approved; the
+headless preview pane can't run rAF). Presentation-only — no sim/determinism impact. Follow-up: `shakePx`/`shakeMs`
+are display-only dials (the shake is the fixed CSS keyframe); promote to CSS vars if live shake-tuning is wanted.
+
+### feat(sim): Pack Mentality grows the Beast aura LIVE in combat (was only between fights)
+
+A `scalingTribeAura` (Pack Mentality — "improve +N/+N every M Beasts summoned in combat") only grew at combat
+SETTLE, so the improvement never touched the current fight — the Beasts summoned this combat didn't benefit
+until the next one. Now it grows in real time: every `M` Beasts summoned in combat, the player's run-wide Beast
+aura steps up by `+step/+step` and **every living Beast is buffed immediately** (matching the "wherever they are"
+promise). The gain + leftover countdown carry back at settle (`playerBeastBuyAtkGain` / new
+`playerBeastBuyHpGain` / `playerBeastScaleProgress`), and the old settle-time growth is skipped for that aura so
+it isn't double-counted. Player-side only (a served enemy has no run to persist to — it never grew before either).
+
+Wired via `QuestCombatMods.beastSummonScale` (new) into the pure engine, mirroring The Old Hunt's live Attack
+pump (extended to Health). New test: two Pups summoned under a +4/+4-per-2 aura → a living wall Beast gains +4/+4
+mid-fight, carried back as +4 Atk / +4 Hp with 0 leftover. 1091 tests green (determinism + golden unchanged);
+typecheck + lint + build:web clean.
+
+### fix(ui): Beast Health buy-aura shows in the tavern + balance-report Disc % column, un-greyed
+
+- **Beast buy-aura Health now previews in the shop.** A Beast quest aura (Pack Mentality / Den Mother's
+  `beastBuyAtk`/`beastBuyHp`) baked its +Health into the minion on BUY, but the tavern OFFER preview only added
+  the Attack term (`beastBuyHp` was never passed to `shopView`, and `addHp` had no beast term) — so a 1/1 Beast
+  read 5/1 in the shop then bought in at 5/5. Preview fixed to match the buy.
+- **Balance report:** added a **Disc %** column (Discover pick rate = discoverPicked / discoverOffered) to the
+  Minions + Spells tables, and removed the dimmed (`baldim`) styling from the Disc Seen / Disc Buy columns so the
+  Discover metrics read at full weight alongside the shop columns.
+
+Verified: live DOM check (a Beast offer previews 5/5 under a +4/+4 Beast aura). 1090 tests green; typecheck + lint clean.
+
+### feat(ui): hero-panel cleanup + dark pill/glass restyle of the hero / opponent / round panels
+
+- **Hero panel decluttered.** Removed the always-visible power description + progress line from the hero box.
+  The power NAME now sits in the pill for passives too (mirrors the active-power pill, e.g. Soren's Reclaim),
+  and the live status (current magnitude + countdown) + rule move to the hover tip (`.herotip-rule` /
+  `.herotip-live`). Per the owner's choice, no counter chip above the button — status reads on hover.
+- **Dark pill/glass restyle.** The hero box, health box, opponent frame, and round-stat HUD were plain
+  cream/white boxes; they now use the dark gradient + gold-mix border the quest badges / name pills already
+  use, with all inner text lightened to read on the dark fill. Verified live across all three panels.
+- **Den Marker (quest `beastPlayBuff`) shows live values on hover.** Its badge tip had no live line (the switch
+  didn't handle the kind) — now it reads "Now: Beasts +X/+X when played · +step/+step in N more Beasts",
+  folding the current per-play grant (base + step × improves-done) and the countdown from `run.denMarker.count`.
+
+Verified: new `questRewardLiveText` test (Den Marker current grant + countdown); live browser checks (all three
+panels dark with readable light text). 1090 tests green; typecheck + lint + build:web clean.
+
+### fix(sim): triple-reward Discover freezes its tier at grant (no longer inflates on tavern-up)
+
+The golden/triple-reward Discover spell ("peek one tier up") resolved its tier from the LIVE tavern tier when
+played — so taverning up with it sitting in hand bumped the offer (and its printed text) to the higher tier.
+Now the spell captures the shop tier when it's GRANTED (`BoardCard.grantedTier = s.tier`); the `discoverOnPlay`
+resolution and the live card text both read that frozen tier (`grantedTier ?? s.tier`), so a Discover granted at
+tier 2 always peeks tier 3 no matter how far you climb afterwards. New test covers grant-at-2 → tavern-to-4 →
+offer max tier still 3. 1089 tests green; typecheck + lint clean.
+
+### fix(ui): stranded buff-hold on multi-summon auras + quest tooltip under the hero power
+
+Two presentation fixes (the sim was correct in both):
+
+- **Kennelmaster's aura now shows on EVERY Deathrattle summon, not just the first.** A summoned Beast's badge
+  was stuck at its pre-buff value (repro screenshot: 2/2, 1/1, 1/1 across three summons). Root cause: the buff
+  tendril HOLDS a target's displayed stat at its pre-buff value, released by a per-target timer — but the beat
+  effect cleanup **cancels all those timers on teardown**, so any hold whose tendril hadn't "landed" when the
+  beat advanced (or the replay ended) was abandoned, leaving the unit stuck at base. `computeFrame` always
+  folded the real stats (verified by a new test that runs the real `simulate` output through the frame — both
+  Pups read 2/2), so the fix is to **release the held/flash state on teardown** instead of stranding it.
+- **Quest / rune tooltips now render over the hero-power icon.** The badges and the board-floated hero-power
+  panel (`z-index: 41`) are SIBLINGS inside `.statusbar`, and the tooltip's `z-index: 60` is trapped inside
+  `.questbadges`' transform stacking context — so the power icon painted over the tip. Now `.questbadges` lifts
+  above the power (`z-index: 62`) **only while a badge is hovered** (`:has(.questbadge:hover)`), so the tip reads
+  on top without the (low-tuned) power button being covered at rest.
+
+Verified: new core test (Kennelmaster aura buffs BOTH Pups) + new `computeFrame` test (both Pups fold to 2/2);
+DOM check that the `:has` hover rule is live and lifts the badges above the z-41 power. 1088 tests green;
+typecheck + lint + build:web clean.
+
+### docs: canonical refresh — kill the wave-20 / 4-8-12 staleness across the docs + comments
+
+A documentation-only pass (its own `docs/refresh-canonical` branch/PR) after a Codex audit confirmed the docs
+describe an earlier version of the game. Every claim below was verified against source, not the old docs.
+
+- **`CLAUDE.md`** rewritten to **engineering + agent-workflow only** — dropped the stale game synopsis (endless /
+  waves-survived / threat-typed), the "LOCKED per Build Handoff v2" game-rules + Pixel-Arena visual direction, and
+  the M0–M4 milestone history. Kept/updated the real invariants (deterministic sim, seeded RNG, cards-as-data,
+  the live-card-text hard rule + its new spell-hover exception, monorepo, commands, collaboration). Game rules now
+  point to the new docs.
+- **New `docs/GAME-RULES.md`** (canonical, fully cited): the 17-round course (2 calibration + 15 scored), the
+  **Line** = rating-driven success contract (`playerRating.ts`, bands 7–12, default Line 9), Resolve/economy,
+  the shop→board→combat loop, quests (waves **5 & 11**, 4 offers, tier buckets), the Runeforge schedule (Basic
+  turn 7 / Epic turn 12), wave-first source-prioritized matchmaking, and the display terminology table.
+- **New `docs/CONTENT.md`**: verified point-in-time counts with a drift warning + source-of-truth pointers —
+  **119 shop minions, 37 shop spells, 79 quests, 25 Basic + 23 Epic runes, 23 heroes (20 selectable), 6 tribes**,
+  22 combat event types. Includes the regenerate commands (`dump-cards` / `audit` / `balance`).
+- **`docs/roadmap.md`** rewritten into **Now / Next / Later / Parked / Public Release** — salvaged the live queue,
+  removed the C1 / 4-8-12 implementation-diary history.
+- **`README.md`** cut from a ~1,200-line second changelog to a lean front page (quick-start, one-screen synopsis,
+  latest highlights, architecture) + links to the canonical docs.
+- **Both handoffs archived** → `docs/archive/handoffs/` with a `HISTORICAL SNAPSHOT — DO NOT USE AS CURRENT
+  RULES` banner (codex-review-2026-07-03.md, balance-handoff.md).
+- **Stale comments/docs fixed against code:** `config.ts` + `state.ts` + `content/quests.ts` + `content/runes.ts`
+  (4-8-12 → 5/11; "one Epic rune wired" → 23; "turn-6 forge" → turn 7); `performance.md` (paint-prop ban is
+  loop-only, one-shot allowed); `combat-events.md` + `combat-ordering.md` (19/20 → 22 types); `board-pool.md` +
+  `board-backend.md` (wave-first + source-priority + `servedBoards` pinning, no power weighting).
+
+Verified: two subagents drafted in parallel (partitioned by file, no overlap); every count re-derived by
+importing the real arrays; the four source edits are strictly comment-only; typecheck + lint + test (1085) +
+build:web all green. Docs-only — no runtime change.
+
+### feat: "twice" = 2 real casts everywhere · Karwind/Nimbus · balance-report Y-axis · quest bounce · hero-power pin
+
+A batch off the owner's review of the shop-curve screenshot + the "twice" semantics:
+
+- **"Twice" now always means 2 genuine instances.** Golden **Hoardbreaker** cast "Growth twice" as one *doubled*
+  cast (½ the intent — it didn't proc spell-count reactions twice). Now it loops the cast twice: 2 real
+  `castSpell`s, each base-magnitude — so Guel / transforms / `spellsCast` all see both. (Taragosa + Watcher
+  already looped, so they were already correct.) Net stats unchanged.
+- **Golden Karwind → "+2/+2 twice"** (was +4/+4 once). Both the recruit + combat halves apply the buff twice at
+  base magnitude — two visible buff pulses, same net +4/+4.
+- **Nimbus reworded** → "**Shout:** Your next spell played from hand casts **twice**." (golden: three times). The
+  `nextSpellMult` mechanic was already hand-only (a minion's in-combat `castSpell` never reads it) and already
+  resolves the spell as genuine repeat instances — this is the text made accurate.
+- **Balance report — Shop Curve:** each Y-axis tier label now shows the **average wave a run first reaches that
+  tavern tier** (tangerine, e.g. "◷2.5" beside T2), from a new `avgWaveToTier` aggregate. The wave-1 "1.0" data
+  label is dropped (T1 is a given).
+- **Quest/rune trigger feedback:** the badge now plays the **scale-punch bounce** (the same beat a combat unit does
+  on a self-buff) via a `pulse`-keyed inner wrapper that remounts + replays `questbounce`, instead of the easily-
+  missed glow ring alone (ring kept, riding inside). Fires on every completion / repeatable re-fire / combat trigger.
+- **Hero power pinned to the stage, not the viewport.** It was `position: fixed` at `19%/45%` of the *window*, so a
+  non-16:9 client area (browser chrome / taskbar letterboxing the 16:9 stage) drifted it off the board — the bug on
+  Mike's machine. Now anchored to the stage box (`--bar-x/-y + 0.19·--gw / 0.45·--gh`), so it lands on the same
+  board spot at any aspect. Verified `onBoard` at a 6:5 window.
+
+Verified: new tests (golden Hoardbreaker = 2 base casts not 1 doubled; `avgWaveToTier` aggregate); **1085 tests
+green**, typecheck + lint + build:web clean; live DOM checks (hero-power fraction-of-stage across aspects; quest
+badge `questbounce` active + art centered). Determinism/golden unaffected (the cast-count change nets identical stats).
+
+### refactor(content): spell-casting minions name the spell (live value on its hover) instead of restating it
+
+Owner ruling: a minion that CASTS a named spell shouldn't restate the spell's numbers on its own card — just
+name the spell (already bolded), and let the spell's **hover-preview** show the value, which is already live to
+spell-power increases. Saves card text and keeps one source of truth for the spell's magnitude.
+
+- **Text trimmed:** Hoardbreaker Drake drops "(Give your minions **+3/+4**)" → just "**Rally:** Cast **Growth**.
+  **Slaughter:** Cast **Growth**." (golden → "Cast **Growth twice**" per trigger). Taragosa drops
+  "(+3/+4 to your minions)" → "cast **Growth**" (golden "cast **Growth twice**").
+- **Spell hover-preview:** `referencedCardIds` now derives the cast spell from the caster's effect (`castSpell`,
+  `onKillCastSpell`, `rallyCastSpell`, `endOfTurnCastSpellEscalating`, `onAllyAttackCastGrowth`,
+  `rallyCastTribeAttack`, `battlecryGrantSpell`), so hovering a caster trails its spell card. Taragosa/Watcher
+  carry a reference-only `spellId` param (their factory ignores it) since their cast is implicit. The referenced
+  spell's popup folds in the run's **live spell power** (`tokenRefView` → `spellDisplayText`), so Growth reads
+  its current +5/+6 (with +2/+2 power), not the base +3/+4.
+- **Dead helpers removed:** `taragosaText` + `combatCastGrantText` (which used to fold the value INTO the minion
+  text) are deleted from `cardText.ts` + the `liveCardText` chain + their tests — the value now lives on the
+  spell hover. `watcherText` stays (Watcher keeps its "rest of the run" run-wide wording).
+
+Verified: `referencedCardIds` test (Hoardbreaker/Taragosa → Growth, Watcher → Lantern, Vineweaver → Growth);
+live DOM check — the crafted board renders "Cast **Growth**. Cast **Growth**." with the parenthetical gone;
+**1068 tests green**, typecheck + lint + build:web clean.
+
+### feat(content): 4 scaling-minion reworks + balance-report shop/Discover split columns
+
+Five queued items (the four minion mechanics the owner spec'd + the report column split):
+
+- **Hoardbreaker Drake** (`rallyCastSpell`, dragons): now **Rally** (on-attack) *and* **Slaughter** (on-kill)
+  both cast **Growth**, so it fires on the first swing every combat, not only on a kill. New combat factory
+  mirrors `onKillCastSpell` on the `onAttack` trigger.
+- **Attachment Mechanic / Scrap Herald** (`battlecryGrantMinion`, mechs): Battlecry now also grants a **Money
+  Bot** (golden: two). New recruit factory grants a token minion to hand/board `count × golden` times.
+- **Hunter** (`onGainAttackBuffImproving`, beasts): reworked to a **scaling aura** — only triggers on **gaining
+  Attack**; each proc gives every *other* friendly minion the current +N/+N and improves itself +1/+1 (per-
+  instance via `summonBonus`). Fires in BOTH phases (combat factory + a recruit-half twin), each with a
+  re-entry guard (WeakSet) + exclude-self so a Hunter buffing a Hunter can't loop. Triple-combine = max.
+  Live text via new `hunterText`.
+- **Spirit Worgen** (`summonBuffSelfTribe`, beasts): reverted from the End-of-Turn lump to **on-play** — each
+  Beast/Dragon you play gives it **+3/+3**, and each spell cast this turn improves that per-play grant by
+  another +3/+3 (base × (1 + spellsThisTurn)). Live text `summonScalingText` rewritten (golden-aware).
+- **Runescale Drake** (`scTribeBuffPerProgress` + `spellCastImproveSelf`, dragons): Start of Combat gives your
+  Dragons **+1/+1**, improved **+1/+1 for every spell cast while THIS instance has been on the board** — a
+  per-instance `spellProgress` tally (persistent, non-retroactive, NOT this-turn-only; a fresh copy starts at
+  +1/+1). Recruit casts tick it via a new `spellCast` recruit factory; combat casts carry back at settle;
+  **tripling SUMS** the copies' progress (not max, unlike Spirit Pup). Live text via repurposed `runescaleText`
+  (reads `spellProgress`, already threaded into both the shop and combat text chains).
+- **Balance report — split card columns**: `runTelemetry` now tracks Discover offers/picks in their own streams
+  (`discoverOfferedCards`/`discoverBoughtCards`) separate from the shop streams; the aggregate carries per-source
+  counts, and the Minions/Spells tables show **Shop Seen · Shop Buy · Disc Seen · Disc Buy · Buy%** columns.
+  New DB columns (`discover_offered_cards`/`discover_bought_cards`) with a `schema.sql` migration; the upload +
+  fetch degrade gracefully (retry without the columns) so telemetry keeps recording until the owner migrates.
+
+Verified: new/updated tests across `simulate.test.ts` (Runescale SoC + spellProgress + enemy-side), `run.test.ts`
+(Worgen on-play, Runescale accrual + triple-SUM), `cardText.test.ts` (hunter/worgen/runescale live text),
+`runTelemetry.test.ts` (source split) — **1069 tests green**, typecheck + lint + build:web all clean.
+Determinism/golden unaffected.
+### feat(ui): cadence counter reads "N Turns" (countdown), not X/N
+
+Owner ask: for End-of-Turn cadence cards (Money Maker, Frontdrake, Vineweaver) the step counter should read the
+turns REMAINING until it fires, not an X/N progress bar — "2 Turns", ticking to "1 Turn" at end of turn before
+combat.
+
+- `StepProgress` gains an optional `label` (rendered verbatim by Card instead of `current/total`; `current` still
+  drives the keyed re-bump + the shop hide-at-0 gate). Cadence now returns
+  `{ current: toNext, total: every, label: "N Turn(s)" }` where `toNext = every − (eotTick % every)` (1..every,
+  wraps to `every` on the fire turn). Singular "1 Turn" / plural "N Turns".
+- Because `toNext` is never 0, a fresh Money Maker now SHOWS "2 Turns" in the shop (the old 0/N hide-at-0 only bit
+  the X/N form; that gate still hides a fresh Avenge 0/N). It rides the existing end-of-turn projection, so it
+  ticks "2 Turns → 1 Turn" on the beat and is hidden through combat (cadence passes no `eotTick` there).
+- Card renders `label ?? "current/total"`, keyed on `label ?? current`, with a `.turns` class hook. Updated the
+  cadence unit test to the new turns-left shape + a combat-null assertion.
+
+Verified live (DOM MutationObserver over a real End-Turn): fresh Money Maker `2 Turns`, Frontdrake (every 3,
+eotTick 1) `2 Turns`, eotTick-1 Money Maker `1 Turn`; the end-turn beat records `recruit 2 Turns → recruit 1 Turn
+→ combat (none)`. typecheck + lint + `build:web` clean, 1080 tests green.
+
+### chore(audio): bake the owner's full mixer export as the shipped default
+
+Owner tuned the whole SFX bank by ear in the dev desk and exported the config; pasted it into `config.ts` as the
+new default (`DEFAULT_AUDIO_CONFIG`). Changes vs prior defaults:
+- **`masterGain` 1 → 0.8** (whole mix pulled down).
+- **Every category gain re-tuned** to the export — notably `smack` 0.06→0.29, `attack` 0.4→0.25, `cardlanding`
+  0.56→0.33, `roll` 0.69→0.88, `combatStart` 0.48→0.64, `rebornshatter` 0.42→0.16, `maxgold` 0.4→0.22,
+  `cardVoice` 0.18→0.11, `summon` 0.37→0.24, plus smaller nudges across the rest.
+- **`combatStart` re-routed** from the `combat` bus to the `ui` bus (per the export). Audibly identical today
+  (both buses unity), honored for the owner's routing intent.
+- **`buff`** now carries its exported gain 0.46 in `CATEGORY_GAINS` — but it's a **synth-only** cue, so the
+  category gain is **inert** (a synth cue's loudness is its own literal `tone()` vol; category gain only scales
+  *sourced* clips). Kept only to match the export 1:1. `config.test.ts` updated: `masterGain` → 0.8 assertion,
+  and the "synth-only cues at unity gain" check retired (all categories now carry an explicit gain) → a routing
+  check for `buff`.
+
+Supersedes the abandoned `smack 0.06→0.33` one-off (the export sets `smack` to 0.29). Reminder: a browser with a
+saved mixer config in `localStorage['ascent.audiocfg']` keeps its own values until reset — these defaults apply to
+fresh profiles / anyone who hasn't tuned locally.
 
 ### feat(audio): source stock combat/UI sounds (wind-up, death, shield-up, triple, SoC zap, max-Gold); remove dead cues
 
@@ -782,6 +1292,29 @@ re-find `false` → skull skipped; the buff split the death from its summons. AF
 the captured rect (`w=94`, full size); `deferClashBuffs` emits `…death,death,summon,summon,buff`. `typecheck` /
 `lint` / `test` (incl. new clashOrder case) / `build:web` all green. This is likely one source of the broader
 "combat timing" oddities — any Deathrattle unit trading into an on-damaged/Enrage body hit the same split.
+
+## 2026-07-15 (session 42)
+
+### feat(ui): SFX mixing desk — horizontal console, vertical faders, per-sound preview + readability pass
+
+Reworked the DEV-only mixing desk (opened from the 🛠️ Dev menu) from a vertical stack into a horizontal
+channel-strip **console**, and did a readability pass so someone seeing it cold understands it.
+- **Layout:** a horizontal row of channel strips, each with a **vertical fader** (writing-mode range input),
+  resizable via the panel's bottom-right corner and draggable by its header (`useDraggablePanel`).
+- **Master strip:** the limiter dials — Threshold / Ratio / Knee / Attack / Release — plus live **peak** (`out`)
+  and **gain-reduction** (`gr`) meters.
+- **Bus strips:** one fader + peak meter per bus (ui / combat / voice / hero).
+- **Category strips:** grouped under their bus; each gets its own fader, a **▶ to preview that one sound**
+  (`previewSfx`), and a **bus-reassign dropdown**.
+- **Readability:** category names now read **horizontally** (were sideways); the bus dropdown shows the **full
+  word** not a single letter; master dials are fully labelled; added an instructional hint line + two section
+  headers ("Master & buses…", "Sounds — grouped by bus…"). Dev-menu entry renamed **🎛️ Mixing Desk**.
+- **Perf:** all meters animate `transform: scaleY` only (compositor-only; no per-frame paint), per the north-star
+  rule.
+
+Verified: typecheck / lint / 1064 tests / build:web all green; iterated live over Vite HMR (faders, meters,
+scenes, per-sound preview, export, drag + resize all functional). PR #462.
+
 
 ## 2026-07-14 (session 41)
 

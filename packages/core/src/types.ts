@@ -67,6 +67,7 @@ export type EffectFactoryId =
   | 'onKillGrantAttachmentRefreshes' // Moe: Slaughter — N free refreshes + N shops with a guaranteed Magnetic (carried back)
   | 'onKillGrantGold' // Bounty Bot: Slaughter — grant N Gold into the next shop (carried back)
   | 'onKillCastSpell' // Hoardbreaker Drake: Slaughter — cast a board-wide stat spell (Growth) in combat
+  | 'rallyCastSpell' // Hoardbreaker Drake: Rally — cast that same board-wide stat spell on its own attack
   | 'rallyCastRandomStatSpell' // Spell Drummer: Rally — cast a random stat spell on a random friend + copy self to hand
   | 'avengeCastRandomStatSpell' // Spark Capacitor: Avenge — cast a random stat spell on your lowest-Health Mech
   | 'deathrattleDamageAll' // Deathrattle: damage every minion on both sides (Blaster)
@@ -101,7 +102,8 @@ export type EffectFactoryId =
   | 'scDestroyHighestAttack'
   | 'scGrantEnemyTaunt' // Arena Heckler: Start of Combat — give the enemy's rightmost minion Taunt; golden the two rightmost
   | 'scSummonCopy' // Mirrorhide Rhino: Start of Combat — summon a copy of this minion's current body; golden two
-  | 'scTribeBuffPerSpell' // Runescale Drake: Start of Combat — buff a tribe +N/+N, +M per spell cast this turn
+  | 'scTribeBuffPerSpell' // (legacy) Start of Combat — buff a tribe +N/+N, +M per spell cast this turn
+  | 'scTribeBuffPerProgress' // Runescale Drake: Start of Combat — buff a tribe +N/+N, +1 per spell cast while this was on board
   | 'scTribeBuffPerPlayed' // (retired dial) Start of Combat — buff Beasts +N/+N, +M per Beast played this turn
   | 'scTribeBuffImproving' // Pack Leader: Start of Combat — buff Beasts +M/+M (base + accrued), improve permanently
   // recruit-time (resolved by @game/sim, baked into stats before combat)
@@ -148,7 +150,8 @@ export type EffectFactoryId =
   | 'onFriendlyAttackBuffTribe' // Raptor: when another friendly minion of a tribe attacks, buff it (Beast)
   | 'onAllyAttackBuffAll' // Crypt Drake: when any ally attacks, buff your minions — improving every N attacks
   | 'onAllyAttackCastGrowth' // Taragosa: when any ally attacks, cast Growth (+atk/+hp to all friends); golden ×2
-  | 'onGainAttackBuffAll' // Hunter: when this minion's Attack rises, buff your minions' Health
+  | 'onGainAttackBuffAll' // (legacy) when this minion's Attack rises, buff your minions' Health
+  | 'onGainAttackBuffImproving' // Hunter: when this gains Attack, buff your minions +M/+M (scaling per-instance)
   | 'battlecryDiscoverMinion' // Sea Urchin: Battlecry — Discover a minion of a tribe (Beast)
   | 'onConsumeBuffSelf'
   | 'onConsumeGrantSelfKeyword'
@@ -173,6 +176,7 @@ export type EffectFactoryId =
   | 'spellCastBuffOthers' // spellCast: give N other friendly minions +atk/+hp (Archmagus Guel)
   | 'overflowBuffRandom' // summonOverflow: buff a random friendly minion (Flowing Monk)
   | 'spellCastTransform' // spellCast: tick a per-instance counter; at the threshold, transform into another card (Spirit Pup → Worgen)
+  | 'spellCastImproveSelf' // spellCast: tick this instance's on-board spell tally (Runescale Drake) — no other effect
   | 'spellCastBuffSelf' // spellCast: buff self +atk/+hp per spell cast (Spirit Worgen)
   | 'summonBuffSelfTribe' // onSummon: buff self when a friendly minion of a given tribe is summoned (Spirit Worgen)
   // Spells (batch): tavern + run-level effects
@@ -249,6 +253,7 @@ export type EffectFactoryId =
   | 'battlecryDoubleNextSpell' // Nimbus: Battlecry arms the next Tavern spell to cast twice (recruit)
   | 'endOfTurnCastSpellEscalating' // Vineweaver Drake: EoT casts a spell once per End of Turn seen (recruit)
   | 'battlecryGrantSpell' // Field Mechanic: Battlecry adds a specific spell (Patch Job) to your hand (recruit)
+  | 'battlecryGrantMinion' // Attachment Mechanic: Battlecry adds a specific minion (Money Bot) to your hand (recruit)
   | 'endOfTurnAdjacentConsumeFodder' // Abyssal Feeder: EoT — both board-adjacent minions Consume a Fodder (recruit)
   | 'endOfTurnFeastConsume' // Feasting Bogrot: EoT — self Consumes a Fodder + shares its stats to adjacent (recruit)
   | 'endOfTurnBuffPerTribePlayed' // Spirit Worgen: EoT — gain per Beast/Dragon played this turn, +per spell cast (recruit)
@@ -518,7 +523,7 @@ export type QuestReward =
   // `gold` is granted that turn. Buying/skipping this forge never spends a hero-power charge.
   | { kind: 'scheduleRuneforge'; forge: 'basic' | 'epic'; onWave?: number; gold?: number }
   // Undead: `gainGold` grants Gold immediately on completion (Bone Ledger's "Get 10 Gold").
-  | { kind: 'gainGold'; amount: number }
+  | { kind: 'gainGold'; amount: number; immediate?: boolean }
   // Undead Echo rewards: `always` grants a permanent extra Echo (Deathrattle) trigger (Funeral Engine, stacks
   // like Sylus); `firstEachCombat` makes the FIRST Echo you trigger each combat fire one extra time (Grave
   // Contract / Last Rites, additive with itself + Funeral Engine + Sylus on that first Echo).
@@ -594,6 +599,11 @@ export interface QuestCombatMods {
   /** Pack Mentality's Health half of the Beast aura — the `beastBuyHp` sibling of `beastBuyAtk`, re-added to
    *  from-base Beast bodies (summons / Reborn) so "+/+H wherever they are" catches combat summons. */
   beastAuraHp?: number;
+  /** Pack Mentality's LIVE growth: every `per` Beasts summoned in combat, the run-wide Beast aura grows by
+   *  `stepAttack`/`stepHealth` — applied immediately to every living Beast this fight and carried back via
+   *  `playerBeastBuyAtkGain` / `playerBeastBuyHpGain` (+ leftover `progress` via `playerBeastScaleProgress`).
+   *  Player-side only (a served enemy has no run to grow); absent when no such quest is armed. */
+  beastSummonScale?: { per: number; stepAttack: number; stepHealth: number; progress: number };
   /** Blood Trail: at Start of Combat your leftmost minion gains "Slaughter: get a random Beast" for this fight. */
   bloodTrail?: boolean;
   /** Echoing Coop: at Start of Combat, trigger every one of your minions' Echoes (Deathrattles) once. */
@@ -952,6 +962,7 @@ export type CombatEvent = (
   | { type: 'hpGrant'; target: string; amount: number } // Sergeant: live HP-grant amount after each Attack-gain improvement
   | { type: 'spellProgress'; target: string; amount: number } // Archmagus Guel: on-board spell tally after a combat cast (live countdown)
   | { type: 'questTrigger'; flag: string; side: Side } // a completed quest / owned rune's COMBAT effect fired — `flag` maps to its badge id so the UI can pulse the node
+  | { type: 'questComplete'; questId: string; side: Side } // a quest completed MID-COMBAT (its objective crossed): the UI lights its node + its reward activates from this beat (see PendingCombatQuest)
 ) & { step?: number; avenge?: true }; // `avenge`: this event was emitted by an Avenge handler (payoff for the death count hitting a threshold). Pure presentation metadata (like `step`) — never affects outcomes — so the replay can defer Avenge beats until AFTER the death's summons have deployed.
 
 export type CombatOutcome = 'win' | 'lose' | 'draw';
@@ -1000,6 +1011,31 @@ export interface CombatSideState {
   cardBuffs: Record<string, { attack: number; health: number }>;
   /** This side's quest/rune COMBAT modifiers (assembled `questCombatMods` output). */
   questMods: QuestCombatMods;
+  /** Active, INCOMPLETE quests whose objective is a combat event (kill / summon / attack …). `simulate` tracks
+   *  their live tally and, the moment one crosses its threshold MID-COMBAT, activates its reward's ongoing combat
+   *  mods (merged into `questMods` so effects like Feeding Line trigger for the rest of the fight — Start-of-Combat
+   *  rewards, already past, don't retro-fire) and emits a `questComplete` (+ `toHand` for a card reward) event.
+   *  Player-authoritative; the actual completion + grant still settles in the reducer. Omitted when none. */
+  pendingQuests?: PendingCombatQuest[];
+}
+
+/** A player quest that may complete DURING combat (its objective counts combat events). Threaded into
+ *  `simulate` via `CombatSideState.pendingQuests`; see the field doc. */
+export interface PendingCombatQuest {
+  questId: string;
+  /** The combat objective event this quest counts (attack / summonCombat / slaughter / slaughterKeyword). */
+  event: QuestObjectiveEvent;
+  /** Threshold to complete. */
+  count: number;
+  /** Tribe filter on the objective, if any (e.g. Feeding Line: kill with BEASTS). */
+  tribe?: Tribe;
+  /** Progress already accrued before this combat. */
+  progress: number;
+  /** The reward's ONGOING combat mods to fold into `questMods` on completion (Feeding Line → `{feedingLine:true}`).
+   *  Only ongoing-trigger flags do anything mid-fight; Start-of-Combat / non-combat mods are harmless no-ops. */
+  mods?: QuestCombatMods;
+  /** A card the reward grants — flown to hand (`toHand`) on completion for the live visual. */
+  rewardCardId?: string;
 }
 
 /** Combat-resolution flags that are genuinely player-only one-fight overrides (runes), not per-side run state. */
@@ -1056,9 +1092,16 @@ export interface CombatResult {
      *  ("Give Dragons N total stats": Skybound Pact / Taragosa's Inheritance) counts combat buffs, not just recruit. */
     statGainByTribe: Partial<Record<Tribe, number>>;
   };
-  /** The Old Hunt: run-wide Beast Attack aura gained this combat (step × Beast attacks). Stacks into
-   *  `beastBuyAtk` + applied to existing run-board Beasts in settleCombat. Absent if 0. */
+  /** The Old Hunt + Pack Mentality: run-wide Beast Attack aura gained this combat (Old Hunt step × Beast
+   *  attacks + Pack Mentality stepAttack × improves). Stacks into `beastBuyAtk` + applied to existing run-board
+   *  Beasts in settleCombat. Absent if 0. */
   playerBeastBuyAtkGain?: number;
+  /** Pack Mentality: run-wide Beast HEALTH aura gained this combat (stepHealth × improves). Stacks into
+   *  `beastBuyHp` + applied to existing run-board Beasts in settleCombat. Absent if 0. */
+  playerBeastBuyHpGain?: number;
+  /** Pack Mentality: the leftover Beast-summon progress after this combat's live growth — written back onto the
+   *  scaling aura so the countdown continues next fight (the magnitude grew live, so settle skips re-growing it). */
+  playerBeastScaleProgress?: number;
   /** Step-tagged timeline of combat quest-objective ticks (one per increment) so the UI can LIVE-TICK quest
    *  progress during the replay: an entry with `step` ≤ the replay's current step is already counted. `tribes`
    *  narrows tribe-scoped objectives ("…with Beasts"); deathrattle (Echo) entries carry no tribe. */

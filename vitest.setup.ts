@@ -16,3 +16,10 @@ if (typeof globalThis.navigator === 'undefined') {
     writable: true,
   });
 }
+
+// Disable every live-ops "rift" (see RIFTS in packages/sim/src/config.ts) inside the test suite.
+// Anomalies are a temporary overlay on the base economy/rules; `createRun` pins the active one onto each run,
+// but the deterministic economy + quest tests assert the *base* game — so we retire them here. The dedicated
+// rift test (freedomRift.test.ts) drives the behaviour by pinning `rift` on its own run states.
+import { RIFTS } from './packages/sim/src/config';
+for (const a of Object.values(RIFTS)) a.enabled = false;

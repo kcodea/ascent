@@ -32,12 +32,17 @@ export interface RunTelemetry {
   questTurns: Record<string, number>;
   offeredRunes: string[];
   pickedRunes: string[];
-  /** Every card SIGHTING this run (NOT deduped) — one entry per fresh shop-offer instance + each Discover option.
-   *  The count of an id = how many times it was seen. Split into minion vs spell at aggregation time. */
+  /** Every SHOP card SIGHTING this run (NOT deduped) — one entry per fresh shop-offer instance. The count of an
+   *  id = how many times it was seen in the tavern. Split into minion vs spell at aggregation time. */
   offeredCards: string[];
-  /** Every card ACQUISITION this run (NOT deduped) — one entry per shop buy + each Discover pick. The count of an
-   *  id = how many times it was taken. */
+  /** Every SHOP card ACQUISITION this run (NOT deduped) — one entry per shop buy. */
   boughtCards: string[];
+  /** Every DISCOVER OPTION shown this run (NOT deduped) — one entry per option in each Discover's 3-card offer.
+   *  Kept separate from shop sightings because a Discover offer means something very different (a targeted,
+   *  usually tier-up pick) than a card lingering in the tavern. Absent on pre-split historical rows. */
+  discoverOfferedCards?: string[];
+  /** Every DISCOVER PICK this run (NOT deduped) — one entry per chosen Discover option. */
+  discoverBoughtCards?: string[];
   /** Tavern tier reached by the end of each wave — `tierByWave[wave] = tier` (1-indexed; index 0 unused). Drives
    *  the Balance Report's shop-leveling curve (average tier by turn, split won vs lost). */
   tierByWave: number[];
@@ -59,6 +64,8 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
   // many times it was SEEN / TAKEN this run.
   const offeredCards: string[] = [];
   const boughtCards: string[] = [];
+  const discoverOfferedCards: string[] = [];
+  const discoverBoughtCards: string[] = [];
   const seenShopUids = new Set<string>(); // each shop-offer instance counts once, however many turns it lingers
   const questTurns: Record<string, number> = {};
   const seenCompleted = new Set<string>(); // quests already recorded as completed (detect the flip)
@@ -106,9 +113,10 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
       if (card?.cardId) boughtCards.push(card.cardId); // one entry per purchase
     } else if (action.type === 'discover' && before.discover) {
       // A Discover is a one-time 3-card offer resolved right here: count all 3 as seen + the chosen one as taken.
-      for (const id of before.discover) offeredCards.push(id);
+      // Tracked in its OWN streams (not the shop ones) so the report can separate tavern odds from Discover odds.
+      for (const id of before.discover) discoverOfferedCards.push(id);
       const picked = before.discover[action.index];
-      if (picked) boughtCards.push(picked);
+      if (picked) discoverBoughtCards.push(picked);
     }
     recordCompletions(s);
     tierByWave[s.wave] = s.tier;
@@ -127,6 +135,8 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
     pickedRunes: [...pickedRunes],
     offeredCards: offeredCards.filter((id) => CARD_INDEX[id]),
     boughtCards: boughtCards.filter((id) => CARD_INDEX[id]),
+    discoverOfferedCards: discoverOfferedCards.filter((id) => CARD_INDEX[id]),
+    discoverBoughtCards: discoverBoughtCards.filter((id) => CARD_INDEX[id]),
     tierByWave,
   };
 }
@@ -147,6 +157,12 @@ export interface PlayerReportRow {
   avgWins: number | null;
   /** Quests only — average number of turns a completed quest took (completion wave − first-active wave). */
   avgTurns: number | null;
+  /** Cards only — the offered/picked totals split by SOURCE, so the report separates tavern odds from Discover
+   *  odds. `offered`/`picked` above stay the combined totals (used for ranking). 0 on non-card rows. */
+  shopOffered: number;
+  shopPicked: number;
+  discoverOffered: number;
+  discoverPicked: number;
 }
 
 /** The shop-leveling curve: average tavern tier reached by each wave, split by outcome. `won`/`lost` are indexed
@@ -157,6 +173,9 @@ export interface ShopCurve {
   lostRuns: number;
   won: (number | null)[];
   lost: (number | null)[];
+  /** Average wave at which a run first REACHES each tavern tier, indexed by tier (1..6; index 0 unused). T1 is
+   *  always wave 1 (a given). A null slot = no run reached that tier. Shown beside the Y-axis tier labels. */
+  avgWaveToTier: (number | null)[];
 }
 
 /** The finished player report: five ranked tables + the shop-leveling curve + the run count behind them. */
@@ -191,12 +210,31 @@ function aggregateShopCurve(rows: RunTelemetry[]): ShopCurve {
     for (let w = 1; w <= maxWave; w++) out[w] = cnt[b][w] ? Math.round((sum[b][w]! / cnt[b][w]!) * 100) / 100 : null;
     return out;
   };
+  // Average wave a run first reaches each tier (2..6) — the first wave whose recorded tier ≥ the target, averaged
+  // over the runs that got there. T1 is a given (wave 1). Feeds the Y-axis "avg turn to reach this tavern" labels.
+  const tierSum: number[] = [];
+  const tierCnt: number[] = [];
+  for (const r of rows) {
+    const t = r.tierByWave ?? [];
+    for (let tier = 2; tier <= 6; tier++) {
+      let firstWave: number | null = null;
+      for (let w = 1; w < t.length; w++) {
+        if (t[w] != null && t[w]! >= tier) { firstWave = w; break; }
+      }
+      if (firstWave != null) { tierSum[tier] = (tierSum[tier] ?? 0) + firstWave; tierCnt[tier] = (tierCnt[tier] ?? 0) + 1; }
+    }
+  }
+  const avgWaveToTier: (number | null)[] = [];
+  for (let tier = 1; tier <= 6; tier++) {
+    avgWaveToTier[tier] = tier === 1 ? 1 : (tierCnt[tier] ? Math.round((tierSum[tier]! / tierCnt[tier]!) * 10) / 10 : null);
+  }
   return {
     maxWave,
     wonRuns: rows.filter((r) => r.won).length,
     lostRuns: rows.filter((r) => !r.won).length,
     won: mean('won'),
     lost: mean('lost'),
+    avgWaveToTier,
   };
 }
 
@@ -208,8 +246,12 @@ interface Acc {
   winsSum: number; // Σ scored wins among picked (hero avg wins)
   turnsSum: number; // Σ turns-to-complete among picked+completed (quest avg turns)
   turnsCount: number;
+  shopOffered: number; // cards only — sightings/buys split by source (shop vs Discover)
+  shopPicked: number;
+  discOffered: number;
+  discPicked: number;
 }
-const blankAcc = (): Acc => ({ offered: 0, picked: 0, games: 0, won: 0, winsSum: 0, turnsSum: 0, turnsCount: 0 });
+const blankAcc = (): Acc => ({ offered: 0, picked: 0, games: 0, won: 0, winsSum: 0, turnsSum: 0, turnsCount: 0, shopOffered: 0, shopPicked: 0, discOffered: 0, discPicked: 0 });
 const pct = (n: number, d: number): number => (d === 0 ? -1 : Math.round((100 * n) / d));
 const avg1 = (sum: number, n: number): number | null => (n === 0 ? null : Math.round((10 * sum) / n) / 10);
 
@@ -227,6 +269,8 @@ function toRows(
     winRate: pct(a.won, a.games),
     avgWins: opts.wins ? avg1(a.winsSum, a.games) : null,
     avgTurns: opts.turns ? avg1(a.turnsSum, a.turnsCount) : null,
+    shopOffered: a.shopOffered, shopPicked: a.shopPicked,
+    discoverOffered: a.discOffered, discoverPicked: a.discPicked,
   }));
   // Rank by win rate (games as tiebreak); minions (no win) fall back to pick volume.
   rows.sort((x, y) => (y.winRate - x.winRate) || (y.games - x.games) || (y.picked - x.picked));
@@ -263,9 +307,12 @@ export function aggregatePlayerReport(rows: RunTelemetry[]): PlayerReport {
     creditPicked(quests, r.offeredQuests, r.pickedQuests, r.questTurns);
     creditPicked(runes, r.offeredRunes, r.pickedRunes);
 
-    // Cards (shop + Discover): offer = seen, pick = acquired. No win credit (per spec). Split minion vs spell.
-    for (const id of r.offeredCards) { const def = CARD_INDEX[id]; if (def) bump(def.spell ? spells : minions, id).offered++; }
-    for (const id of r.boughtCards) { const def = CARD_INDEX[id]; if (def) { const a = bump(def.spell ? spells : minions, id); a.picked++; a.games++; } }
+    // Cards: offer = seen, pick = acquired. No win credit (per spec). Split minion vs spell AND shop vs Discover —
+    // `offered`/`picked` accumulate the combined total (for ranking); the shop*/disc* fields track each source.
+    for (const id of r.offeredCards) { const def = CARD_INDEX[id]; if (def) { const a = bump(def.spell ? spells : minions, id); a.offered++; a.shopOffered++; } }
+    for (const id of r.boughtCards) { const def = CARD_INDEX[id]; if (def) { const a = bump(def.spell ? spells : minions, id); a.picked++; a.games++; a.shopPicked++; } }
+    for (const id of r.discoverOfferedCards ?? []) { const def = CARD_INDEX[id]; if (def) { const a = bump(def.spell ? spells : minions, id); a.offered++; a.discOffered++; } }
+    for (const id of r.discoverBoughtCards ?? []) { const def = CARD_INDEX[id]; if (def) { const a = bump(def.spell ? spells : minions, id); a.picked++; a.games++; a.discPicked++; } }
   }
 
   const total = rows.length;

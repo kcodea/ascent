@@ -1,7 +1,7 @@
 import { makeRng } from '@game/core';
 import type { CombatOutcome, CombatResult, EffectDef, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { CONFIG } from './config';
+import { CONFIG, activeRift, type RiftId } from './config';
 import { DEFAULT_HERO_ID, getHero } from './heroes';
 import { queueDiscover } from './recruit';
 import { rollShop, stockPool } from './shop';
@@ -51,6 +51,9 @@ export interface ShopCard {
    *  a shop minion) — baked into the minion's stats/keywords when it's bought. */
   atk?: number;
   hp?: number;
+  /** Per-SOURCE breakdown of `atk`/`hp` (Apples, Fortify, Fried Circuits, …) so the tavern inspect + the bought
+   *  minion attribute the buff to the right name instead of a generic label. Sums to `atk`/`hp`. */
+  buffs?: CardBuff[];
   keywords?: Keyword[];
   /** Golden Touch: this offer buys in as a Golden (offer-level flag; the buy path bakes golden:true in). */
   golden?: boolean;
@@ -86,6 +89,10 @@ export interface BoardCard {
   /** Anomaly Reactor's "All" mode: this instance counts as EVERY tribe for the rest of the run — `isTribe`
    *  short-circuits true, and combat seeds `universalTribe` from it. */
   allTribes?: boolean;
+  /** Triple-reward Discover spell: the shop tier CAPTURED when it was granted to hand, so its "peek one tier up"
+   *  is frozen at grant time — taverning up afterwards no longer inflates the Discover's tier (owner 2026-07-15).
+   *  Read by the `discoverOnPlay` resolution + the live card text; absent on non-granted cards. */
+  grantedTier?: number;
   /** Per-source recruit-phase stat buffs applied to this instance (Karwind, Nadir, Spirit Fire,
    *  Fortify, …) — drives the inspect-panel breakdown. Base stats are NOT recorded here. */
   buffs?: CardBuff[];
@@ -192,7 +199,8 @@ export type DiscoverSpec =
   | { kind: 'pool'; ids: string[] };
 
 /** A quest the player has bought — its live objective progress + completion flag. Persists for the run
- *  (shown in the quest panel); up to 3 accumulate over a run (waves 4/8/12). */
+ *  (shown in the quest panel); one is bought per quest turn, so most heroes accumulate up to 2 (waves 5 & 11),
+ *  or up to 3 with Fi's bonus Lesser-only turn-3 offer. */
 export interface ActiveQuest {
   questId: string;
   progress: number;
@@ -561,6 +569,13 @@ export interface RunState {
    *  Hand's first-Slaughter doubler (fed into QuestCombatMods). */
   dupeFirstBuyEachTurn?: boolean;
   dupeUsedThisTurn?: boolean;
+  /** The limited-time "rift" this run was created under, snapshotted from `activeRift()` at `createRun`
+   *  so a saved/replayed run keeps its rules even after we flip the global switch off. `undefined`/`null` =
+   *  no rift. See `RIFTS` in config.ts. */
+  rift?: RiftId | null;
+  /** `'freedom'` rift: the first minion bought each turn is free — set once that freebie is spent this
+   *  turn, cleared at the start of the next turn. */
+  freeBuyUsedThisTurn?: boolean;
   spellDoubleAlways?: boolean;
   spellFirstDoubleEachTurn?: boolean;
   spellFirstUsedThisTurn?: boolean;
@@ -761,6 +776,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     recruitBuffFx: [],
     recruitFxSeq: 0,
     karwindFlashSeq: 0,
+    rift: activeRift()?.id ?? null, // pin the live rift so replays keep it after the switch flips off
   };
   rollShop(state);
   // Runeguard (Defend the Forge): schedule the Epic Runeforge for turn 12 — advanceCombat's start-of-turn

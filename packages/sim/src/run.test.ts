@@ -543,6 +543,7 @@ describe('run loop (@game/sim)', () => {
     expect([c.attack, c.health]).toEqual([3, 3]); // current board Magnetic +2/+2
     expect([h.attack, h.health]).toEqual([3, 3]); // current hand Magnetic +2/+2
     expect([s.magneticBuyAtk, s.magneticBuyHp]).toEqual([2, 2]); // stacks — future Magnetics inherit it
+    expect(s.hand.some((x) => x.cardId === 'moneybot')).toBe(true); // …and gets a Money Bot
   });
 
   it('Moe / guaranteed attachment: rollShop forces a Magnetic offer while the counter is active, then decrements', () => {
@@ -1475,6 +1476,22 @@ describe('run loop (@game/sim)', () => {
     expect(s.discover).toBeDefined(); // first Discover opens
     expect(s.discoverQueue?.length ?? 0).toBe(1); // the 2nd is queued (Nimbus doubled the cast)
     expect(s.nextSpellMult).toBeUndefined(); // charge spent
+  });
+
+  it('Nimbus charge PERSISTS through combat — survives faceOmen + resolveCombat, spent only on the next hand spell', () => {
+    let s: RunState = {
+      ...createRun(1), resolve: 100, maxResolve: 100,
+      nextSpellMult: 2, // armed by Nimbus this turn; NO spell cast yet
+      board: [{ uid: 'w', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+      hand: [{ uid: 'g', cardId: 'growth', tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false }],
+    };
+    s = reduce(s, { type: 'faceOmen' });
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.nextSpellMult).toBe(2); // still armed after a full combat — the per-turn resets never touch it
+    const before = s.board.find((c) => c.uid === 'w')!.attack;
+    s = reduce(s, { type: 'play', uid: 'g' }); // cast Growth from hand next turn
+    expect(s.nextSpellMult).toBeUndefined(); // NOW the charge is spent
+    expect(s.board.find((c) => c.uid === 'w')!.attack).toBe(before + 6); // doubled: Growth +3 Attack × 2 casts
   });
 
   it('Heckbinder (Demon/Mech) magnetizes onto a Demon or a Mech, but not other tribes', () => {
@@ -2517,10 +2534,13 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'sp' });
     s = reduce(s, { type: 'chooseOne', index: 0 }); // "Give the shop +1/+3"
     expect(s.shop.every((o) => o.atk === 1 && o.hp === 3)).toBe(true); // both offers buffed
+    // The offer records the SOURCE (Apples), so the inspect + the bought minion attribute it correctly.
+    expect(s.shop[0]!.buffs).toEqual([{ source: 'Apples', attack: 1, health: 3, count: 1 }]);
     s = { ...s, embers: 10 };
     s = reduce(s, { type: 'buy', uid: 'x' }); // Alleycat 1/1 + Apples +1/+3
     const bought = s.hand.find((c) => c.cardId === 'alley')!;
     expect([bought.attack, bought.health]).toEqual([2, 4]);
+    expect(bought.buffs).toEqual([{ source: 'Apples', attack: 1, health: 3, count: 1 }]); // NOT a blanket "Fortify"
   });
 
   it('Fleeting Vigor banks a Start-of-Combat buff applied to the next combat, then spent', () => {
@@ -2830,6 +2850,18 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: spell!.uid });
     expect(s.discover?.length).toBe(3);
     expect(s.hand.some((c) => c.cardId === 'discoverspell')).toBe(false); // spell consumed, no board slot
+  });
+
+  it('a triple-reward Discover freezes its tier at grant — taverning up in hand does not inflate it', () => {
+    let s: RunState = {
+      ...createRun(1), tier: 2,
+      hand: [{ uid: 'ds', cardId: 'discoverspell', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false, grantedTier: 2 }],
+    };
+    s = { ...s, tier: 4 }; // tavern up AFTER the grant — grantedTier stays 2
+    s = reduce(s, { type: 'play', uid: 'ds' });
+    expect(s.discover?.length).toBe(3);
+    const tiers = s.discover!.map((id) => CARD_INDEX[id]!.tier);
+    expect(Math.max(...tiers)).toBe(3); // grantedTier(2) + 1 = 3, NOT the live tier(4) + 1 = 5
   });
 
   it('Discover adds the chosen card to the hand and clears the offer', () => {
@@ -3233,12 +3265,13 @@ describe('run loop (@game/sim)', () => {
         { uid: 'a', cardId: 'cleric', tribe: 'dragon', attack: 3, health: 3, keywords: [], golden: false },
       ],
     };
-    s = reduce(s, { type: 'play', uid: 'g' }); // Growth: +3/+4 to the board → Hunter gains Attack → +2 Health to all
+    s = reduce(s, { type: 'play', uid: 'g' }); // Growth: +3/+4 to the board → Hunter gains Attack → +1/+1 to OTHERS
     const hunter = s.board.find((c) => c.uid === 'h')!;
     const ally = s.board.find((c) => c.uid === 'a')!;
-    expect(hunter.attack).toBe(5 + 3); // Growth +3 Attack
-    expect(ally.health).toBe(3 + 4 + 2); // Growth +4 + Hunter's onGainAttack +2
-    expect(hunter.health).toBe(7 + 4 + 2); // Growth +4 + Hunter's own +2
+    expect(hunter.attack).toBe(5 + 3); // Growth +3 Attack (Hunter doesn't buff itself)
+    expect(ally.health).toBe(3 + 4 + 1); // Growth +4 + Hunter's onGainAttack +1
+    expect(ally.attack).toBe(3 + 3 + 1); // Growth +3 + Hunter's +1
+    expect(hunter.health).toBe(7 + 4); // Growth +4 only — Hunter excludes itself (no self-loop)
   });
 
   it('a shop action with no board Attack gain does NOT proc Hunter (Mend heals the hero)', () => {
@@ -4008,22 +4041,14 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     expect(s.triplesMade).toBe(1); // run-wide triples tally bumped by the merge
   });
 
-  it("the Worgen's End-of-Turn gain: +2/+2 per Beast/Dragon played, improved +1/+1 per spell cast", () => {
-    const s: RunState = {
-      ...createRun(1),
-      board: [worgen()],
-      playedThisTurn: ['alley', 'alley', 'cleric'], // 2 Beasts (Pennycat) + 1 Dragon (Hoard Cleric) = 3
-      spellsThisTurn: 1, // per-unit +2/+2 → +3/+3
-    };
-    applyEndOfTurn(s);
-    expect(worgenAtk(s)).toBe(4 + 9); // (2 + 1 spell) × 3 played = +9
-
-    // No plays this turn → no gain; the buff lands at End of Turn, not on play.
-    let s2: RunState = { ...createRun(1), board: [worgen()], hand: [whelp('d')] };
-    s2 = reduce(s2, { type: 'play', uid: 'd' }); // 1 Dragon played
-    expect(worgenAtk(s2)).toBe(4); // nothing yet
-    applyEndOfTurn(s2);
-    expect(worgenAtk(s2)).toBe(4 + 2); // +2 for the 1 Dragon (no spells)
+  it("the Worgen's on-play gain: +3/+3 per Beast/Dragon played, improved +3/+3 per spell cast this turn", () => {
+    let s: RunState = { ...createRun(1), board: [worgen()], hand: [whelp('d1'), pouch(0), whelp('d2')] };
+    s = reduce(s, { type: 'play', uid: 'd1' }); // 1 Dragon, 0 spells → +3/+3, on play (not End of Turn)
+    expect(worgenAtk(s)).toBe(4 + 3);
+    s = reduce(s, { type: 'play', uid: 's0' }); // a spell — not a Beast/Dragon, but bumps spellsThisTurn → 1
+    expect(worgenAtk(s)).toBe(7); // no on-play gain from the spell itself
+    s = reduce(s, { type: 'play', uid: 'd2' }); // 1 Dragon, 1 spell cast → 3 × (1 + 1) = +6/+6
+    expect(worgenAtk(s)).toBe(7 + 6);
   });
 
   it('the Worgen ignores a played neutral (only Beasts/Dragons count)', () => {
@@ -4032,8 +4057,7 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
       hand: [{ uid: 'x', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'x' });
-    applyEndOfTurn(s);
-    expect(worgenAtk(s)).toBe(4); // a neutral doesn't count → no End-of-Turn gain
+    expect(worgenAtk(s)).toBe(4); // a neutral doesn't count → no on-play gain
   });
 
   it('spellsThisTurn resets each wave', () => {
@@ -4132,6 +4156,29 @@ describe('Spirit Pup → Spirit Worgen (@game/sim)', () => {
     };
     d = reduce(d, { type: 'play', uid: 'sf' });
     expect(d.cardBuffs.fred).toEqual({ attack: 4, health: 4 }); // 1 play × 2 fires (Drakko) × +2/+2 → +4/+4
+  });
+});
+
+describe('Runescale Drake (@game/sim)', () => {
+  const rune = (uid: string, spellProgress?: number): BoardCard =>
+    ({ uid, cardId: 'runescale', tribe: 'dragon', attack: 4, health: 2, keywords: [], golden: false, spellProgress });
+  const pouch = (i: number): BoardCard =>
+    ({ uid: `s${i}`, cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false });
+
+  it('a tavern spell cast while on board ticks its per-instance spellProgress (non-retroactive)', () => {
+    let s: RunState = { ...createRun(1), board: [rune('r')], hand: [pouch(0), pouch(1)] };
+    s = reduce(s, { type: 'play', uid: 's0' });
+    s = reduce(s, { type: 'play', uid: 's1' });
+    expect(s.board.find((c) => c.uid === 'r')!.spellProgress).toBe(2); // 2 spells cast while on board
+  });
+
+  it("tripling SUMS the copies' spell progress (not max) — the accrued Dragon buff survives the merge", () => {
+    let s: RunState = { ...createRun(1), board: [rune('r1', 5), rune('r2', 2)], hand: [rune('r3', 0)] };
+    s = reduce(s, { type: 'play', uid: 'r3' }); // 3rd copy → triple → golden in hand
+    const golden = s.hand.find((c) => c.cardId === 'runescale' && c.golden);
+    expect(golden).toBeDefined();
+    expect(golden!.spellProgress).toBe(7); // 5 + 2 + 0 summed (a +20 + fresh +1 → +21), NOT max(5, 2, 0)
+    expect(s.triplesMade).toBe(1);
   });
 });
 

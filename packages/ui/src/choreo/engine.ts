@@ -23,6 +23,9 @@ export interface AttackCueCtx {
   /** Set when this exchange consumed a Ward (a `shield` event on attacker/defender) → shatter it at the lunge's
    *  real contact position instead of a fixed start-relative delay, so the gold break reads AT the hit. */
   onImpactAuras?: () => void;
+  /** Set when this swing is a CRITICAL STRIKE → fired at the lunge's real contact (alongside the crit burst)
+   *  so the board SHAKE lands ON the hit, not at the wind-up. Absent = a normal swing. */
+  onCritImpact?: () => void;
 }
 
 /** ms the lunge holds at the top of the wind-up when a Rally fires, so its bright yellow pulse has time to
@@ -72,7 +75,7 @@ export function runAttackExchangeCues(
     attacker, dx, dy, speed: ctx.combatSpeed,
     strike: strikeOffset, strikeDur: geo.strikeDur, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
     onContact: () => ctx.advance(),
-    onImpact: impact ? () => playContactImpact(defender, dx, dy, power, ctx.combatSpeed, impactAt, spinDeg, crit) : undefined,
+    onImpact: impact ? () => { playContactImpact(defender, dx, dy, power, ctx.combatSpeed, impactAt, spinDeg, crit); if (crit) ctx.onCritImpact?.(); } : undefined,
     impactOffsetMs: impact?.offset ?? 0,
     onRallyPulse: ctx.onRallyPulse,
     onWindupBuffs: ctx.onWindupBuffs,

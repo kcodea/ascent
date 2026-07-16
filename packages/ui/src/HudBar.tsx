@@ -1,4 +1,5 @@
-import { CONFIG, isCalibrationRound, lossDamageCap, runRecord } from '@game/sim';
+import { RIFTS, CONFIG, isCalibrationRound, lossDamageCap, runRecord } from '@game/sim';
+import { RiftPill } from './RiftPill';
 import { BuffsFrame } from './BuffsFrame';
 import { QuestPanel } from './QuestPanel';
 import { Icon } from './Icon';
@@ -14,6 +15,8 @@ export function HudBar() {
   // The one difference the HUD reflects is invulnerability: the "Max −X" loss row is hidden (no Resolve at risk).
   const practice = run.mode === 'practice';
   const calibration = isCalibrationRound(run.wave);
+  // The limited-time rift this run is pinned under (see RIFTS) — telegraphed under the round plaque.
+  const rift = run.rift ? RIFTS[run.rift] : null;
   return (
     <div className="bar">
       <div className="alt">
@@ -64,6 +67,9 @@ export function HudBar() {
       {/* Run-buffs window — floats top-left just under the round plaque. Absolutely positioned (NOT an in-flow
           column) so it can never grow the bar and push the shop/board down when buffs are active. */}
       <div className="topleft">
+        {/* Active-rift pill — sits directly under the round plaque, above the run buffs. Only when a run is
+            pinned to a rift (see RIFTS / RunState.rift). */}
+        {rift && <RiftPill rift={rift} variant="hud" />}
         <BuffsFrame />
         <QuestPanel />
       </div>

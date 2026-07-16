@@ -210,14 +210,26 @@ const CARD_REFERENCES: Record<string, string[]> = {
   // both Fodder and Imps (Ritualist, Bane, Fodder Feeder) reference both.
   impking: ['impscrap'], fodderfeeder: ['fred', 'impscrap'], bane: ['fred', 'impscrap'],
 };
-/** A referenced token's card view. Fodder ('fred') folds in Ritualist's persistent buff, and the Imp token
- *  ('impscrap') folds in the run-wide `impBuff`, so each popup shows the token's current stats. */
+/** A referenced token/spell card view. A referenced SPELL (a caster's Growth / Lantern) folds in the run's live
+ *  spell power via `spellLive`, so hovering the caster shows the spell's CURRENT value — the reason the caster's
+ *  own text no longer restates it. A token folds in its persistent buff: Fodder ('fred') gets Ritualist's buff,
+ *  the Imp token ('impscrap') the run-wide `impBuff` — so each popup shows the token's current stats. */
 function tokenRefView(
   id: string,
   cardBuffs?: Record<string, { attack: number; health: number }>,
   impBuff?: { attack: number; health: number },
+  spellLive?: { a: number; h: number; ftb: number; ftbH: number; goldSpent: number },
 ): CardView {
   const c = CARD_INDEX[id];
+  if (c.spell && spellLive) {
+    return {
+      name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
+      attack: c.attack, health: c.health, keywords: c.keywords,
+      text: spellDisplayText(c.id, spellLive.a, spellLive.ftb, spellLive.h, spellLive.goldSpent, spellLive.ftbH),
+      tier: c.tier, spell: c.spell, target: c.target,
+      baseAttack: c.attack, baseHealth: c.health,
+    };
+  }
   const cb = id === 'impscrap' ? (impBuff ?? { attack: 0, health: 0 }) : (cardBuffs?.[id] ?? { attack: 0, health: 0 });
   return {
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
@@ -228,6 +240,8 @@ function tokenRefView(
 }
 
 interface ShopViewOpts {
+  /** "Freedom" rift: the first minion this turn is free → every minion offer shows a 0-Gold price until one is bought. */
+  freeFirstBuy?: boolean;
   spellCostMod?: number;
   cardBuffs?: Record<string, { attack: number; health: number }>;
   spellBonus?: number;
@@ -241,6 +255,7 @@ interface ShopViewOpts {
   undeadBuyAtk?: number;
   /** Squirl Scout / Scrap Herald run-wide buy auras — previewed on a matching offer so it shows its bought stats. */
   beastBuyAtk?: number;
+  beastBuyHp?: number;
   magneticBuyAtk?: number;
   magneticBuyHp?: number;
   /** How many times a spell offer will cast right now (Nimbus doubling / Yazzus) — drives the "×N" badge. */
@@ -326,21 +341,37 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     + (undead ? (opts.undeadAtk ?? 0) + (opts.undeadBuyAtk ?? 0) : 0)
     + (beast ? opts.beastBuyAtk ?? 0 : 0) + (magnetic ? opts.magneticBuyAtk ?? 0 : 0);
   const addHp = (card.hp ?? 0) + cb.health + tavernHp
-    + (undead ? opts.undeadHp ?? 0 : 0) + (magnetic ? opts.magneticBuyHp ?? 0 : 0);
+    + (undead ? opts.undeadHp ?? 0 : 0) + (beast ? opts.beastBuyHp ?? 0 : 0) + (magnetic ? opts.magneticBuyHp ?? 0 : 0);
   // Golden Touch: a gilded offer shows doubled stats + the golden frame (offer stores base + a flag; the buy
   // bakes the doubling in, mirrored here for display).
   const goldMul = card.golden ? 2 : 1;
   // Every scaling offer (Grim, Guel, Taragosa, Spirit Worgen, …) shows its live value in the tavern, not just
   // on the board — the same live-text chain the board uses (instView), via the shared liveCardText.
   const lt = liveCardText(c.id, offerLiveTextParams(!!card.golden, opts));
+  // Itemize the buy-time buffs the offer previews (Fortify, run enchant, Staff of Guel, tribe buy-aura) so the
+  // tavern inspect shows WHERE the boosted stats come from — the same sources the reducer's buy path records.
+  const offerBuffs: { source: string; attack: number; health: number; count: number }[] = [];
+  const pushBuff = (source: string, a: number, h: number, count = 1): void => { if (a || h) offerBuffs.push({ source, attack: a, health: h, count }); };
+  // Tavern buffs on the offer (Apples / Fortify / Fried Circuits / next-shop) — read their real per-source
+  // breakdown when present (so the inspect names the actual source), else fall back to the raw atk/hp total.
+  if (card.buffs?.length) for (const b of card.buffs) pushBuff(b.source, b.attack, b.health, b.count);
+  else pushBuff('Tavern buff', card.atk ?? 0, card.hp ?? 0);
+  pushBuff(c.name, cb.attack, cb.health); // persistent per-card run enchant (Ritualist Fodder, Staff of Guel target…)
+  pushBuff('Tavern', tavernAtk, tavernHp);
+  pushBuff('Tribe Bond',
+    (undead ? (opts.undeadAtk ?? 0) + (opts.undeadBuyAtk ?? 0) : 0) + (beast ? opts.beastBuyAtk ?? 0 : 0) + (magnetic ? opts.magneticBuyAtk ?? 0 : 0),
+    (undead ? opts.undeadHp ?? 0 : 0) + (beast ? opts.beastBuyHp ?? 0 : 0) + (magnetic ? opts.magneticBuyHp ?? 0 : 0));
+  if (card.golden) pushBuff('Golden Touch', c.attack, c.health); // gilded doubles the base stats
   return {
     name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
     attack: (c.attack + addAtk) * goldMul, health: (c.health + addHp) * goldMul,
     keywords: [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))],
     text: lt.text,
     goldenText: lt.goldenText ?? c.goldenText,
+    buffs: offerBuffs.length > 0 ? offerBuffs : undefined,
     // Moe's guaranteed Attachment carries a discounted price (`card.cost`) — show it on a green coin.
-    cost: card.cost ?? CONFIG.minionCost, costChanged: card.cost !== undefined,
+    // Freedom rift: a minion offer reads FREE (0 Gold, green) until the turn's free buy is spent.
+    cost: opts.freeFirstBuy ? 0 : (card.cost ?? CONFIG.minionCost), costChanged: opts.freeFirstBuy || card.cost !== undefined,
     tier: c.tier, golden: card.golden,
     baseAttack: c.attack * goldMul, baseHealth: c.health * goldMul,
   };
@@ -372,6 +403,7 @@ export function Recruit() {
   const setCombatEnemyDeaths = useGame((s) => s.setCombatEnemyDeaths);
   const setCombatQuestDelta = useGame((s) => s.setCombatQuestDelta);
   const setCombatTriggeredQuests = useGame((s) => s.setCombatTriggeredQuests);
+  const setCombatCompletedQuests = useGame((s) => s.setCombatCompletedQuests);
   const setCombatBuffs = useGame((s) => s.setCombatBuffs);
   const combatSpeed = useGame((s) => s.combatSpeed);
   const setCombatSpeed = useGame((s) => s.setCombatSpeed);
@@ -778,6 +810,11 @@ export function Recruit() {
   useEffect(() => {
     setCombatTriggeredQuests(inCombat && !run.combatSettled ? replay.triggeredQuests : {});
   }, [inCombat, run.combatSettled, replay.triggeredQuests, setCombatTriggeredQuests]);
+  // Quests that COMPLETE mid-replay — surface them to QuestBadges so their node appears + lights up live (before
+  // the quest formally settles as completed). Empty out of combat.
+  useEffect(() => {
+    setCombatCompletedQuests(inCombat && !run.combatSettled ? replay.completedQuests : []);
+  }, [inCombat, run.combatSettled, replay.completedQuests, setCombatCompletedQuests]);
   // Bridge this fight's live run-buff gains (spell power, max Gold) to the store so the Buffs window ticks up
   // in sync with the replay. Cleared to `null` once combat is SETTLED — settleCombat folds the gains into the
   // run state, so the row then reads them from there (adding the live delta too would briefly double-count).
@@ -1213,8 +1250,8 @@ export function Recruit() {
   const shopViews = useMemo(
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
-    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, castMult: CARD_INDEX[o.cardId]?.spell ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const)),
-    [run.shop, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellMult, run.goldSpentThisTurn, run.playedThisTurn, run.squirlScoutBuff],
+    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, castMult: CARD_INDEX[o.cardId]?.spell ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const)),
+    [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellMult, run.goldSpentThisTurn, run.playedThisTurn, run.squirlScoutBuff],
   );
   const spellView = useMemo(
     () => (run.spell ? shopView(run.spell, { spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, castMult: CARD_INDEX[run.spell.cardId]?.spell ? spellCastCount(run, CARD_INDEX[run.spell.cardId]!) : undefined }) : null),
@@ -1231,13 +1268,14 @@ export function Recruit() {
       const def = CARD_INDEX[cardId];
       const refs = [...new Set([...(CARD_REFERENCES[cardId] ?? []), ...(def ? referencedCardIds(def) : [])])]
         .filter((id) => CARD_INDEX[id]);
-      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, run.cardBuffs, run.impBuff)));
+      const spellLive = { a: spellBonus, h: spellBonusH, ftb: run.frontToBackBonus, ftbH: run.frontToBackBonusH ?? run.frontToBackBonus, goldSpent: run.goldSpentThisTurn ?? 0 };
+      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, run.cardBuffs, run.impBuff, spellLive)));
     };
     for (const c of run.board) add(c.uid, c.cardId);
     for (const c of run.hand) add(c.uid, c.cardId);
     for (const o of run.shop) add(o.uid, o.cardId);
     return m;
-  }, [run.board, run.hand, run.shop, run.cardBuffs, run.impBuff]);
+  }, [run.board, run.hand, run.shop, run.cardBuffs, run.impBuff, spellBonus, spellBonusH, run.frontToBackBonus, run.frontToBackBonusH, run.goldSpentThisTurn]);
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(
@@ -2575,7 +2613,7 @@ export function Recruit() {
 
   return (
     <div
-      className={`app${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking || lossShake ? ' shaking' : ''}${
+      className={`app${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${fighting ? ' fighting' : ''}${replay.shaking || lossShake ? ' shaking' : ''}${replay.critShaking ? ' shaking-crit' : ''}${
         inCombat && replay.done ? ` done ${replay.result}` : ''
       }${combatOutro === 'out' || skipFade === 'out' ? ' combatout' : combatOutro === 'in' || skipFade === 'in' ? ' combatin' : ''}${
         skipFade === 'out' ? ' combatfrozen' : ''

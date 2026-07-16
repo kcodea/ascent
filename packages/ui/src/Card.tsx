@@ -375,15 +375,16 @@ export const Card = memo(function Card({
       {buffFloat && (
         <span key={buffFloat.key} className="float buff cardfloat">+{buffFloat.attack}/+{buffFloat.health}</span>
       )}
-      {/* Step-progress counter — "X/N to next step" below step-based scalers (Guel 1/4, Monk 2/5, …). Keyed on
-          `current` so each tick replays the compositor-only bump. Board minions only (populated by the caller). */}
+      {/* Step-progress counter below step-based scalers — either "X/N to next step" (Guel 1/4, Monk 2/5, …) or a
+          `label` override for cadence cards ("2 Turns" until Money Maker fires). Keyed on the shown value so each
+          tick replays the compositor-only bump. Board minions only (populated by the caller). */}
       {card.stepProgress && (
         <span
-          key={card.stepProgress.current}
-          className={`stepcounter${card.stepEphemeral ? ' ephemeral' : ''}`}
-          aria-label={`Step progress ${card.stepProgress.current} of ${card.stepProgress.total}`}
+          key={card.stepProgress.label ?? card.stepProgress.current}
+          className={`stepcounter${card.stepProgress.label ? ' turns' : ''}${card.stepEphemeral ? ' ephemeral' : ''}`}
+          aria-label={card.stepProgress.label ?? `Step progress ${card.stepProgress.current} of ${card.stepProgress.total}`}
         >
-          {card.stepProgress.current}/{card.stepProgress.total}
+          {card.stepProgress.label ?? `${card.stepProgress.current}/${card.stepProgress.total}`}
         </span>
       )}
       {card.tier !== undefined && <span className="tierbadge" data-tier={card.tier}>Tier {card.tier}</span>}
@@ -465,6 +466,10 @@ export const Card = memo(function Card({
             {/* grounding shadow (see styles.css "GROUNDING SHADOW"): a black, blurred copy of the frame seated
                 behind the art, so the shield reads as sitting on the board rather than floating. */}
             <img className="tframe tframe-img cshadow" src={TAUNT_FRAME_SRC} alt="" aria-hidden="true" />
+            {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
+                (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
+                copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
+            <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
             <img
               className="tframe tframe-img"
               src={TAUNT_FRAME_SRC}
@@ -508,6 +513,10 @@ export const Card = memo(function Card({
             {/* grounding shadow (see styles.css "GROUNDING SHADOW") — a black, blurred copy of the oval seated
                 behind the art so the card sits on the board. */}
             <img className="cframe cframe-img cshadow" src={STD_FRAME_SRC} alt="" aria-hidden="true" />
+            {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
+                (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
+                copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
+            <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
             <img
               className="cframe cframe-img"
               src={STD_FRAME_SRC}
@@ -527,6 +536,10 @@ export const Card = memo(function Card({
             {/* grounding shadow (see styles.css "GROUNDING SHADOW") — a black, blurred copy of the square seated
                 behind the art so the spell sits on the board. */}
             <img className="cframe cframe-img cshadow" src={SPELL_FRAME_SRC} alt="" aria-hidden="true" />
+            {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
+                (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
+                copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
+            <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
             <img
               className="cframe cframe-img"
               src={SPELL_FRAME_SRC}

@@ -296,7 +296,7 @@ export const UNDEAD: CardDef[] = [
     attack: 8,
     health: 3,
     keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyCastTribeAttack', params: { tribe: 'undead', amount: 3 } }],
+    effects: [{ on: 'onAttack', do: 'rallyCastTribeAttack', params: { tribe: 'undead', amount: 3, spellId: 'lanternofsouls' } }],
     text: '**Rally:** cast **Lantern of Souls** — your Undead get **+3/+0** for the rest of the run.',
     goldenText: '**Rally:** cast **Lantern of Souls** twice — your Undead get **+6/+0** for the rest of the run.',
   },

@@ -322,6 +322,29 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .quest-row .quest-objline { font-variant-numeric: tabular-nums; }
 .quest-row .quest-objline.reward { margin-top: calc(2 * var(--u)); color: var(--acc-dk); }
 
+/* Dark pill/glass restyle of the round bar (`.alt`) + the buff / active-quest side panels — matches the hero,
+   opponent and round-HUD panels; inner text lightened to read on the dark fill (was tuned for the cream boxes). */
+.alt, .buffsframe, .questframe {
+  background: linear-gradient(180deg, #241a13, #17110c);
+  border-color: color-mix(in srgb, var(--gold) 55%, #000);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 calc(4 * var(--u)) calc(12 * var(--u)) -4px var(--shadow);
+}
+.alt .w { color: var(--acc); }
+.alt .maxdmg { color: #ff9db0; }
+.alt .lbl, .alt .lbl.calib { color: #b7a98f; }
+.alt .lbl.record, .alt .lbl.line { color: #f4ecdb; }
+.alt .lbl.record svg { color: var(--acc); }
+.rd-future::before, .rd-draw::before { background: #c9bca3; opacity: 0.5; }
+.rd-draw::before { background: #e6dcc8; opacity: 0.85; }
+.rd-win { color: #6fe39a; }
+.buff-row .buff-label { color: #e8ddc7; }
+.buff-row .buff-val { color: var(--acc); }
+.quest-row { border-top-color: rgba(255, 255, 255, 0.1); }
+.quest-row .quest-name { color: #f4ecdb; }
+.quest-row .quest-prog { color: var(--acc); }
+.quest-row .quest-sub { color: #c1b49b; }
+.quest-row .quest-objline.reward { color: var(--acc); }
+
 /* Quest offer cards — the tribe-hued, clickable quest offers, shown in the Discover-style quest overlay. */
 /* Art-forward, tribe-framed offer card (matches the reference): a top tribe emblem, CRISP full-bleed art (no
    wash-out — only a short top scrim for the title), dark inset objective/reward panels, and a bottom gem.
@@ -635,7 +658,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    rectangular border-box, so on a full card it shows as a boxy halo around/under the drawer (the reported
    "light box under the card"). No lift/tilt, and no z-index bump: raising z would make the card a stacking
    context above the z3 shield-bubble canvas (hiding the divine-shield/reborn aura on hover). */
-.card:hover, .card.compact:hover { --hglow-ring: 3px; --hglow-blur: 22px; --hglow-spread: 7px; --hglow-a: 0.92; }
+/* Hover glow tuning: a bright, THIN inner line (--hglow-ring) hugged by a milder, LARGER teal bloom
+   (--hglow-blur / -spread, softened via --hglow-a). Colours live per-layer below (teal: line #5CDFF0, bloom #5FDDE7). */
+.card:hover, .card.compact:hover { --hglow-ring: 2px; --hglow-blur: 30px; --hglow-spread: 3px; --hglow-a: 0.6; }
 @keyframes cardpop { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
 .art { position: relative; flex: 0 0 60%; min-height: 0; overflow: hidden; display: grid; place-items: center; margin: 7px 7px 0; background: color-mix(in srgb, var(--c) 18%, var(--card)); border: 2px solid color-mix(in srgb, var(--c) 60%, var(--card)); border-radius: 10px; }
 .art canvas { margin-top: -14px; } /* nudge the sprite up so the name pill clears it */
@@ -755,12 +780,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    back to the SVG placeholder when the asset is absent. z 3 = above the portrait (z1), below the badges (z6). */
 .card.compact.taunt .tframe {
   position: absolute; z-index: 3; pointer-events: none; overflow: visible;
-  /* The shop/board hover glow is a box-shadow on `.art`, but Taunt's `.art` is clip-path'd to the heater, which
-     CLIPS the box-shadow away → a Taunt card gets no hover glow. Re-add it as a drop-shadow on the frame,
-     gated by BOTH `--hglow-blur` and `--hglow-a` (alpha) so at rest (alpha 0) it's fully transparent and leaves
-     NO resting rim; on hover the yellow glow hugs the shield silhouette like the arch glow hugs a normal card. */
-  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
-          drop-shadow(0 0 var(--hglow-blur, 0) rgba(255, 226, 110, var(--hglow-a, 0)));
+  /* Just the metal tone + grounding drop-shadow. The HOVER GLOW is NOT here — it lives on a separate `.cglow`
+     copy seated BEHIND the art (z0) so it can't bleed over the portrait; see the ".cglow" block below. */
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
 }
 .card.compact.taunt .tframe-img {
   inset: auto; height: auto;
@@ -910,8 +932,8 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude;
 }
-/* Dual cards get the same boosted glow on hover as single cards (no solid ring, so the split rim shows). */
-.card.dual:hover { box-shadow: 0 0 0 3px #fff7d1, 0 0 24px 7px rgba(255, 226, 110, 0.95), 0 3px 0 var(--shadow); }
+/* Dual-type minions are still oval `.stdframe` cards, so the hover glow comes from `.cglow` like every other
+   framed card — no bespoke `:hover` box-shadow here (it would add a boxy rectangular halo over the silhouette glow). */
 .card.golden.dual::before, .card.spellcard::before, .card.triplecard::before { display: none; } /* special frames win */
 .cbody { padding: 0 9px 8px; margin-top: -20px; position: relative; z-index: 2; display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; overflow: hidden; }
 .cn { flex: none; align-self: center; max-width: 100%; font-family: var(--font-ui); font-weight: 700; font-size: 13px; line-height: 1.1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: color-mix(in srgb, var(--card) 88%, transparent); border-radius: 8px; padding: 2px 9px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
@@ -960,7 +982,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
      bubble over them on hover). */
   box-shadow: inset 0 0 0 2px color-mix(in srgb, #f6ead0 78%, var(--c)),   /* gold inner line */
               inset 0 7px 18px rgba(0, 0, 0, 0.42), 0 6px 16px rgba(0, 0, 0, 0.42),
-              0 0 0 var(--hglow-ring, 0) #fff7d1, 0 0 var(--hglow-blur, 0) var(--hglow-spread, 0) rgba(255, 226, 110, 0.92);
+              0 0 0 var(--hglow-ring, 0) #5CDFF0, 0 0 var(--hglow-blur, 0) var(--hglow-spread, 0) rgba(95, 221, 231, 0.6);
 }
 /* keyword glows ring the card box — give it the arch radius so they follow the silhouette, and
    re-shape the rectangular Divine-Shield / Reborn washes to the arch too (no more squared-off top). */
@@ -1071,7 +1093,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   background: var(--card); border: 2px solid color-mix(in srgb, var(--c) 40%, var(--line));
   border-top: none; border-radius: 0 0 calc(16 * var(--u)) calc(16 * var(--u));
   box-shadow: 0 8px 18px -6px rgba(0, 0, 0, 0.4),
-              0 0 0 var(--hglow-ring, 0) #fff7d1, 0 0 var(--hglow-blur, 0) var(--hglow-spread, 0) rgba(255, 226, 110, 0.92);
+              0 0 0 var(--hglow-ring, 0) #5CDFF0, 0 0 var(--hglow-blur, 0) var(--hglow-spread, 0) rgba(95, 221, 231, 0.6);
 }
 .card.compact.showtext .drawer .cn { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.088); color: var(--ink); background: none; box-shadow: none; padding: 0; margin: 0 0 calc(var(--ccw) * 0.03); white-space: normal; text-align: center; line-height: 1.1; }
 .card.compact.showtext .drawer .kws { min-height: 0; margin: 0 0 calc(var(--ccw) * 0.035); }
@@ -1321,11 +1343,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    blown up on the floating drag card / hover-reveal popup. Drop it in those contexts — the wrapper's drop-shadow
    (drag) / white haze (popup) already gives the lift, and the willplay halo below still signals "release to cast". */
 .dragcard .card.spellcard, .cardref .card.spellcard { box-shadow: none; }
-/* While a dragged hand minion is over the playable area (see Recruit's `willplay`), the floating card gets a
-   soft GOLD "release to play" halo. A filter drop-shadow (follows the card's arch alpha) rather than the hard
-   bright-yellow box-shadow the hover glow uses — that box read as harsh + square-cornered blown up over the
-   full-size dragged card. This hugs the silhouette and reads as a gentle glow. */
-.dragcard.willplay .card { filter: drop-shadow(0 0 calc(6 * var(--u)) rgba(255, 202, 80, 0.92)) drop-shadow(0 0 calc(15 * var(--u)) rgba(255, 182, 52, 0.5)); transition: filter 0.14s ease; }
+/* While a dragged hand minion is over the playable area (see Recruit's `willplay`), light the EXACT hover glow on
+   the floating card — the masked-silhouette `.cglow` — so playing a card reads identically to hovering it. (The
+   earlier whole-card drop-shadow read too large + soft because it followed the full card alpha incl. the text
+   drawer; `.cglow` instead hugs just the frame silhouette, tight, like hover.) Scoped `.card.compact` so it
+   out-specifies the `.card.compact.stdframe .cglow { opacity: 0 }` default. */
+.dragcard.willplay .card.compact .cglow { opacity: 1; }
 /* Magnetic: an electric crackle while a Magnetic card hovers a friendly Mech (.electric, the floating drag
    card) and on the host Mech as it's welded (.electrify — drop + Combinator's End of Turn). PERF: a STATIC
    cyan halo on a ::before whose OPACITY breathes — compositor-only, zero per-frame paint. This was an animated
@@ -1625,7 +1648,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    escape the circle (the art is clipped to the circle on its own element). */
 /* Active-quest / rune nodes — dev-movable (scale / x / y / separation), pinned to the stage via px × --scale so
    they don't drift with resolution. `transform-origin: left center` grows the row rightward from its left anchor. */
-.questbadges { align-self: flex-start; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(var(--qb-gap, 2) * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; transform: translate(calc(var(--qb-x, -12px) * var(--scale)), calc(var(--qb-y, -56px) * var(--scale))) scale(var(--qb-s, 1.63)); transform-origin: left center; }
+.questbadges { align-self: flex-start; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(var(--qb-gap, 2) * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; transform: translate(calc(var(--qb-x, -12px) * var(--scale)), calc(var(--qb-y, -56px) * var(--scale))) scale(var(--qb-s, 1.32)); transform-origin: left center; }
 .questbadge { position: relative; width: calc(53 * var(--u)); height: calc(53 * var(--u)); border-radius: 50%; border: 2px solid var(--c, var(--gold)); background: var(--card); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 .questbadge.ongoing { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 0 calc(2 * var(--u)) color-mix(in srgb, var(--c) 45%, transparent), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 /* A completed quest / owned rune's COMBAT effect just fired this replay — ONE bright, larger pulse, then dormant
@@ -1642,6 +1665,17 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   28% { opacity: 1; transform: scale(1.2); }
   100% { opacity: 0; transform: scale(1); }
 }
+/* The badge's art wrapper. Keyed on the trigger count in React, so it remounts and replays `questbounce` — the
+   same scale-punch + flash a combat unit does on a self-buff — every time the quest/rune fires (recruit or
+   combat). One-shot (not looped), so animating filter/brightness here is fine per the perf rules. */
+.questbadge-inner { position: absolute; inset: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; z-index: 2; }
+.questbadge-inner[data-pulse]:not([data-pulse="0"]) { animation: questbounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes questbounce {
+  0% { transform: scale(1); filter: none; }
+  30% { transform: scale(1.16) translateY(-6%); filter: brightness(1.4) drop-shadow(0 0 calc(9 * var(--u)) var(--c, var(--gold))); }
+  62% { transform: scale(0.95); filter: brightness(1.08); }
+  100% { transform: scale(1); filter: none; }
+}
 .questbadge-art { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
 .questbadge-emblem { display: flex; color: var(--c); }
 .questbadge-emblem svg { width: calc(28 * var(--u)); height: calc(28 * var(--u)); }
@@ -1653,6 +1687,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .questbadge-tip .questbadge-tip-reward { color: #f4f0e6; }
 .questbadge-tip .questbadge-tip-state { color: var(--gold); font-weight: 800; }
 .questbadge:hover .questbadge-tip { opacity: 1; transition-delay: 0.3s; }
+/* The badges and the board-floated hero-power panel (z-index 41) are SIBLINGS inside `.statusbar`, and the tip's
+   own z-index (60) is trapped inside `.questbadges`' transform stacking context — so the power icon painted over a
+   quest/rune tooltip. While a badge is hovered, lift the whole badge row above the hero power so the tip reads on
+   top; drop back at rest so the (low-tuned) power button isn't covered when you're not inspecting a badge. */
+.questbadges:has(.questbadge:hover) { z-index: 62; }
 /* Opponent's active reward trophies — a row of smaller badges under the opponent frame (top-right of screen),
    mirroring the player's completed-quest badges above their own hero panel. */
 .oppbadges { display: flex; flex-wrap: wrap; gap: calc(5 * var(--u)); justify-content: flex-end; margin-top: calc(6 * var(--u)); pointer-events: auto; }
@@ -1685,22 +1724,27 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
    the four cells; the fixed width wraps the power line to a second row (which is where the added height comes
    from). */
 .statusbar .hero {
-  position: relative; /* anchor for the name pill eclipsing the top edge */
-  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; justify-items: start;
-  width: calc(232 * var(--u)); gap: calc(6 * var(--u)) calc(13 * var(--u));
-  padding: calc(9 * var(--u)) calc(15 * var(--u)); border-radius: calc(21 * var(--u));
+  position: relative; /* anchor for the player-name pill (top eclipse) */
+  display: flex; align-items: center; gap: calc(13 * var(--u));
+  padding: calc(9 * var(--u)) calc(18 * var(--u)) calc(11 * var(--u)) calc(10 * var(--u)); border-radius: calc(21 * var(--u));
 }
-.statusbar .hero .f { width: calc(60 * var(--u)); height: calc(60 * var(--u)); border-radius: calc(16 * var(--u)); }
-.statusbar .hero .f svg { width: calc(34 * var(--u)); height: calc(34 * var(--u)); }
-.statusbar .hero .htxt { min-width: 0; }
-.statusbar .hero .nm { font-size: calc(20 * var(--u)); line-height: 1.1; }
-.statusbar .hero .pw { font-size: calc(13 * var(--u)); white-space: normal; line-height: 1.26; }
-/* Resolve is the bottom row — it now spans BOTH columns (the hero power moved out to its own `.heropanel`), so
-   it centres under the portrait + name. */
-.statusbar .hero .hpbox { grid-column: 1 / -1; justify-self: center; align-self: center; padding: calc(6 * var(--u)) calc(14 * var(--u)); }
-.statusbar .hero .hpbox svg { width: calc(23 * var(--u)); height: calc(23 * var(--u)); }
-.statusbar .hero .hpbox .hpval { font-size: calc(23 * var(--u)); }
-.statusbar .hero .hpbox .armval { font-size: calc(16 * var(--u)); }
+/* Larger portrait holding ONLY the hero art; `overflow: visible` lets the hero-name pill eclipse its bottom. */
+.statusbar .hero .f { position: relative; overflow: visible; width: calc(80 * var(--u)); height: calc(80 * var(--u)); border-radius: calc(18 * var(--u)); }
+.statusbar .hero .f .heroimg { border-radius: inherit; }
+.statusbar .hero .f svg { width: calc(42 * var(--u)); height: calc(42 * var(--u)); }
+/* Hero name — a pill eclipsing the BOTTOM edge of the portrait (mirrors the player-name pill eclipsing the top). */
+.statusbar .hero .heroname {
+  position: absolute; left: 50%; bottom: 0; transform: translate(-50%, 52%); z-index: 4;
+  max-width: calc(124 * var(--u)); padding: calc(2 * var(--u)) calc(13 * var(--u));
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; line-height: 1.1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow);
+}
+/* Health/Armor sits to the RIGHT of the portrait (a flex sibling), no longer a bottom row. */
+.statusbar .hero .hpbox { align-self: center; padding: calc(8 * var(--u)) calc(15 * var(--u)); }
+.statusbar .hero .hpbox svg { width: calc(26 * var(--u)); height: calc(26 * var(--u)); }
+.statusbar .hero .hpbox .hpval { font-size: calc(26 * var(--u)); }
+.statusbar .hero .hpbox .armval { font-size: calc(18 * var(--u)); }
 /* Hero-power box — a standalone card to the RIGHT of the hero frame (a `.statusrow` flex sibling), stretched to
    the hero's height. Sized up so an active power is an obvious button; the whole box glows when usable. */
 .statusbar .heropanel {
@@ -1710,16 +1754,21 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
      scales the whole thing via --hpow-s. The hero portrait + Resolve stay in the bottom-left statusrow; the
      aim-line anchor (.heropowerbtn) is unaffected (still queried inside .statusbar). */
   position: fixed;
-  left: calc(19% + var(--hpow-x, 237px) * var(--scale)); top: calc(45% + var(--hpow-y, 46px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--hpow-s, 1.22));
+  /* Pinned to the STAGE box (--gw/--gh offset by the letterbox bars --bar-x/--bar-y), NOT the raw viewport — so
+     19%/45% lands on the same board spot on any window aspect (a non-16:9 viewport letterboxes the stage; anchoring
+     to the viewport drifted the power off the board on Mike's 16:9 once browser chrome made the client area off-ratio).
+     The dev mover then nudges it via px × --scale, staying resolution-independent. */
+  left: calc(var(--bar-x) + 0.19 * var(--gw) + var(--hpow-x, -89px) * var(--scale));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--hpow-y, 408px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--hpow-s, 1.31));
   align-self: auto; pointer-events: auto; z-index: 41;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(7 * var(--u));
 }
 body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-reaching hand drop through */
 .statusbar .heropanel.passive { opacity: 0.9; }
 /* The READY / ARMED cue is the button's own glow — its blur radius is dev-tunable via --hpow-glow. */
-.statusbar .heropanel.ready .heropowerbtn { box-shadow: 0 0 0 3px var(--acc), 0 4px 0 var(--acc-dk), 0 0 calc(18px * var(--hpow-glow, 2.1)) -2px var(--acc); }
-.statusbar .heropanel.armed .heropowerbtn { box-shadow: 0 0 0 4px var(--acc), 0 0 calc(22px * var(--hpow-glow, 2.1)) 2px var(--acc); }
+.statusbar .heropanel.ready .heropowerbtn { box-shadow: 0 0 0 3px var(--acc), 0 4px 0 var(--acc-dk), 0 0 calc(18px * var(--hpow-glow, 2.5)) -2px var(--acc); }
+.statusbar .heropanel.armed .heropowerbtn { box-shadow: 0 0 0 4px var(--acc), 0 0 calc(22px * var(--hpow-glow, 2.5)) 2px var(--acc); }
 .statusbar .heropanel .hpwrap { margin-left: 0; }
 .statusbar .heropanel .heropowerbtn { width: calc(82 * var(--u)); height: calc(82 * var(--u)); }
 .statusbar .heropanel .heropowerbtn svg { width: calc(40 * var(--u)); height: calc(40 * var(--u)); }
@@ -1732,6 +1781,49 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   box-shadow: 0 calc(3 * var(--u)) calc(9 * var(--u)) -3px rgba(0, 0, 0, 0.6);
 }
 .statusbar .heropanel.ready .hplabel { color: #fff; border-color: var(--acc); }
+/* Dark "pill/glass" restyle of the hero box + health box — matches the quest-badge / name-pill aesthetic
+   (the dark gradient + gold-mix border the `.hplabel` already uses) instead of the old cream/white boxes. */
+.statusbar .hero {
+  background: linear-gradient(180deg, #241a13, #17110c);
+  border-color: color-mix(in srgb, var(--gold) 55%, #000);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 calc(4 * var(--u)) calc(12 * var(--u)) -4px var(--shadow);
+}
+.statusbar .hero .nm { color: #f4ecdb; }
+.statusbar .hero .hpbox {
+  background: linear-gradient(180deg, #241a13, #17110c);
+  border-color: color-mix(in srgb, var(--gold) 55%, #000);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+.statusbar .hero .hpbox svg { color: var(--threat); }
+.statusbar .hero .hpbox .hpval { color: #ff9db0; } /* threat, lightened to read on the dark box */
+.statusbar .hero .hpbox .armval { color: #b7c2cf; }
+/* Hover tip: the rule (muted) + the live status (tangerine) stacked under the bold power name. */
+.herotip-rule { display: block; margin-top: 3px; color: #d8ccb6; font-weight: 600; }
+.herotip-live { display: block; margin-top: 5px; color: var(--acc); font-weight: 800; }
+.herotip-live:empty { display: none; }
+/* Opponent frame + round-stat HUD: same dark pill/glass as the hero box, with inner text lightened to read on
+   the dark fill (they were tuned for the old cream boxes). */
+.oppframe { background: linear-gradient(180deg, #241a13, #17110c); border-color: color-mix(in srgb, var(--gold) 55%, #000); }
+.oppframe .opp-hero { color: #f4ecdb; }
+.oppframe .opp-stat { color: #d8ccb6; }
+.oppframe .opp-stat.label { color: #b7a98f; }
+.oppframe .opp-stat.life { color: #ff9db0; }
+.oppframe .opp-stat.life svg { color: var(--threat); }
+.oppframe .opp-armor { color: #9aa6b2; }
+.oppframe .opp-compline { color: #c9bca3; }
+.oppframe .opp-preview { border-top-color: rgba(255, 255, 255, 0.1); }
+.oppframe .opp-pic { background: #17110c; border-color: color-mix(in srgb, var(--gold) 55%, #000); }
+.oppframe .opp-pic svg { color: #c9bca3; }
+.statstrip { background: linear-gradient(180deg, #241a13, #17110c); border-color: color-mix(in srgb, var(--gold) 55%, #000); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 calc(3 * var(--u)) calc(8 * var(--u)) -3px var(--shadow); }
+.statcell + .statcell { border-left-color: color-mix(in srgb, var(--gold) 32%, transparent); }
+.statcell .sc-l { color: #b7a98f; }
+.statcell .sc-v { color: #f4ecdb; }
+.statcell .sc-ic svg { color: var(--acc); }
+.statcell.gold { background: color-mix(in srgb, var(--gold) 14%, transparent); }
+.statcell.gold .sc-v { color: #ffd98a; }
+.statcell.tier .sc-v { color: var(--acc); }
+.statcell.time.low { background: color-mix(in srgb, var(--threat) 22%, transparent); }
+.statcell.time.low .sc-ic svg, .statcell.time.low .sc-v { color: #ff9db0; }
 /* Embers chip scaled to fill the (hero-tall) chip */
 .statusbar .chip { padding: calc(11 * var(--u)) calc(16 * var(--u)); border-radius: calc(18 * var(--u)); gap: calc(11 * var(--u)); }
 .statusbar .chip .ic { width: calc(64 * var(--u)); height: calc(64 * var(--u)); border-radius: calc(16 * var(--u)); }
@@ -1760,12 +1852,18 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    — .arena/.atop/.ascene/.side/.line/.clash — is gone; combat lives in Recruit now). */
 .unit { position: relative; width: var(--cw); height: var(--ch); transition: transform 0.16s cubic-bezier(0.34, 1.25, 0.64, 1); }
 .unit .card { width: 100%; height: 100%; animation: none; }
-.unit.attacking .card { box-shadow: 0 0 0 3px var(--acc), 0 3px 0 var(--shadow); }
+/* Attacker glow removed (owner ask): no orange ring on the lunging attacker — grounding shadow only. */
+.unit.attacking .card { box-shadow: 0 3px 0 var(--shadow); }
 /* Layer the struck defender ABOVE the lunging/recoiling attacker so its stats are never covered at impact. */
 .unit.attacking { z-index: 8; }
 .unit.struck { z-index: 12; }
-/* Telegraph: the defender about to be hit gets a brief danger glow during the attacker's wind-up. */
-.unit.aimed .card { box-shadow: 0 0 0 3px var(--threat), 0 0 18px 3px color-mix(in srgb, var(--threat) 70%, transparent), 0 3px 0 var(--shadow); }
+/* Telegraph: the aimed defender gets a RED target glow. On authored frames it FADES IN over the wind-up via the
+   compositor-only `.cglow` silhouette layer (opacity only — see the `.unit.aimed .cglow` block below), NOT by
+   animating a paint property (that janked the concurrent lunge). The plain UNFRAMED fallback has no `.cglow`
+   silhouette, so it keeps a simple STATIC box-shadow ring — painted once, zero per-frame cost. */
+.unit.aimed .card:not(.stdframe):not(.taunt):not(.spellframe) {
+  box-shadow: 0 0 0 3px var(--threat), 0 0 18px 3px color-mix(in srgb, var(--threat) 70%, transparent), 0 3px 0 var(--shadow);
+}
 /* TAUNT glow shape-fix: a Taunt card is reshaped into a heater SHIELD (portrait clipped to `--heater` + the frame
    PNG over a transparent card box), so every rectangular box-shadow glow — the aimed danger telegraph, the
    armed/targeted selection ring, the attacking flash — floats as a SQUARE around the invisible card box. For Taunt
@@ -1777,12 +1875,10 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .unit.attacking .card.compact.taunt { box-shadow: 0 3px 0 var(--shadow); }
 .card.compact.taunt.armed { --tglow: var(--c); }
 .card.compact.taunt.targeted { --tglow: var(--c); }
-.unit.attacking .card.compact.taunt { --tglow: var(--acc); }
-.unit.aimed .card.compact.taunt { --tglow: var(--threat); }
+/* Combat attack glows are NOT on the frame drop-shadow: the attacker (orange) glow is gone, and the aimed (red)
+   glow now uses the compositor-only `.cglow` layer below. Only the armed/targeted selection glow remains here. */
 .card.compact.taunt.armed .tframe,
-.card.compact.taunt.targeted .tframe,
-.unit.aimed .card.compact.taunt .tframe,
-.unit.attacking .card.compact.taunt .tframe {
+.card.compact.taunt.targeted .tframe {
   filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
           drop-shadow(0 0 4px var(--tglow))
           drop-shadow(0 0 12px var(--tglow));
@@ -1805,12 +1901,9 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 .card.compact.stdframe .cframe,
 .card.compact.spellframe .cframe {
   position: absolute; z-index: 3; pointer-events: none; overflow: visible;
-  /* hover glow: box-shadow on the (reshaped) `.art` is clipped away by the window clip, so re-add it as a
-     drop-shadow on the frame PNG's own alpha. Gated by BOTH `--hglow-blur` (22px on hover) and `--hglow-a`
-     (0.92 on hover): at rest alpha is 0 → fully transparent, so the layer leaves NO resting rim (a 0-blur
-     drop-shadow with a solid colour bleeds through the PNG's soft edges — the yellow-fringe bug). */
-  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
-          drop-shadow(0 0 var(--hglow-blur, 0) rgba(255, 226, 110, var(--hglow-a, 0)));
+  /* Just the metal tone + grounding drop-shadow. The HOVER GLOW is NOT here — it lives on a separate `.cglow`
+     copy seated BEHIND the art (z0) so it can't bleed over the portrait; see the ".cglow" block below. */
+  filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
 }
 /* GROUNDING SHADOW — a black silhouette of each card's OWN frame, blurred + nudged down and seated BEHIND the
    portrait (z0, under the art at z1), so every framed card casts a soft contact shadow onto the board instead of
@@ -1828,6 +1921,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   filter: brightness(0) blur(7.2px);
   transform: translateY(5px) scale(0.99);
   opacity: 0.8;
+  transition: opacity 0.14s ease; /* so it fades out cleanly when hover drops it (see the hover-glow block) */
 }
 /* DRAG-LIFT SHADOW — while a card is lifted (the floating `.dragcard`), grow / drop / soften / lighten its
    grounding shadow so it reads as further OFF the table (a higher object casts a bigger, softer, more-offset,
@@ -1845,6 +1939,85 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
   transform: translateY(var(--dsh-lift, 18px)) scale(var(--dsh-grow, 1.08));
   opacity: var(--dsh-fade, 0.54);
 }
+
+/* HOVER / SELECT GLOW — a 3rd copy of each card's own frame silhouette (`.cglow`, rendered by Card.tsx), seated
+   BEHIND the portrait (z0, exactly like `.cshadow`). Because it sits under the opaque art (z1), its drop-shadow
+   blooms only OUTWARD — any inward bleed is physically covered by the portrait, so teal never washes over the
+   art (the bug when the glow lived on the in-front frame at z3). Two stacked drop-shadows: a bright THIN inner
+   line hugging the silhouette + a milder, LARGER soft bloom. Colours/blurs are the `--hg-*` vars (live-tunable
+   via the DEV Hover-Glow tuner; the fallbacks below are the SHIPPED look and mirror glowConfig.ts DEFAULTS).
+   opacity 0 at rest hides the layer AND its shadow (zero resting cost, no fringe); 1 on hover — or when the
+   tuner pins `body.hglow-preview`. The opacity fade is compositor-only (no paint-in-a-loop). */
+/* PARENT — sized/placed to the frame (mirrors `.cframe-img`/`.tframe-img` geometry, per-frame below). It carries
+   the W/H shape scale (`--hg-w`/`--hg-h`) + casts the soft outer BLOOM as a drop-shadow of its masked child. The
+   child is unclipped by the parent (parent has no mask), so the bloom spreads freely; masking the child instead
+   of the parent is the trick that lets a masked silhouette still throw an outward glow. */
+.card.compact.stdframe .cglow,
+.card.compact.spellframe .cglow,
+.card.compact.taunt .cglow {
+  position: absolute; overflow: visible; pointer-events: none; z-index: 0;
+  transform: scale(var(--hg-w, 1.03), var(--hg-h, 1.015)); transform-origin: center;
+  /* Bloom = the bloom drop-shadow STACKED `bloomStrength` times (composed in glowConfig.ts → `--hg-bloom-filter`);
+     a single shadow reads soft even at opacity 1, stacking compounds it into a hot glow. Fallback = the shipped
+     6× stack so production (no JS) matches the tuned look. */
+  filter: var(--hg-bloom-filter,
+    drop-shadow(0 0 4px rgba(0, 251, 255, 0.4)) drop-shadow(0 0 4px rgba(0, 251, 255, 0.4))
+    drop-shadow(0 0 4px rgba(0, 251, 255, 0.4)) drop-shadow(0 0 4px rgba(0, 251, 255, 0.4))
+    drop-shadow(0 0 4px rgba(0, 251, 255, 0.4)) drop-shadow(0 0 4px rgba(0, 251, 255, 0.4)));
+  opacity: 0;
+  transition: opacity 0.14s ease;
+}
+/* RIM child — a solid teal fill masked to the frame's silhouette = a pure-colour outline of the card. At W/H=1
+   it sits exactly behind the real frame (hidden); scaling W/H pushes it out past the frame edge, revealing a
+   bright teal rim (the "inner line"). Always teal — never the gold/silver frame art. `--hg-line-blur` softens it
+   (its own filter; the mask keeps it crisp regardless, which reads as the line). Colour = `--hg-line-col`. */
+.cglow-rim {
+  position: absolute; inset: 0;
+  background: var(--hg-line-col, #00ffd5);
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  -webkit-mask-position: center; mask-position: center;
+  filter: blur(var(--hg-line-blur, 12px));
+}
+/* per-frame geometry (mirrors the frame-img rules) + the mask silhouette (the card's own frame PNG alpha). */
+.card.compact.stdframe .cglow {
+  width: calc(var(--ccw) * 1.481 * var(--sh)); aspect-ratio: 1059 / 1427;
+  left: calc(var(--ccw) * (0.5 - 0.737 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh) + var(--dy) + var(--frameY)));
+}
+.card.compact.stdframe .cglow-rim { -webkit-mask-image: url('/frames/standard-oval-v2.png'); mask-image: url('/frames/standard-oval-v2.png'); }
+.card.compact.spellframe .cglow {
+  width: calc(var(--ccw) * 1.387 * var(--sh)); aspect-ratio: 1122 / 1346;
+  left: calc(var(--ccw) * (0.5 - 0.6928 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 0.9009 * var(--sh) + var(--dy) + var(--frameY)));
+}
+.card.compact.spellframe .cglow-rim { -webkit-mask-image: url('/frames/spell-frame-v2.png'); mask-image: url('/frames/spell-frame-v2.png'); }
+.card.compact.taunt .cglow {
+  width: calc(var(--ccw) * 1.527 * var(--sh)); aspect-ratio: 1086 / 1448;
+  left: calc(var(--ccw) * (0.5 - 0.758 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 1.086 * var(--sh)));
+}
+.card.compact.taunt .cglow-rim { -webkit-mask-image: url('/frames/taunt-shield.png'); mask-image: url('/frames/taunt-shield.png'); }
+/* Light on hover — or when the tuner pins `body.hglow-preview`. Scoped to the frame class so they out-specify
+   the scoped `opacity:0` default above (an unscoped `.card:hover .cglow` would LOSE to it). */
+.card.compact.stdframe:hover .cglow,
+.card.compact.spellframe:hover .cglow,
+.card.compact.taunt:hover .cglow,
+body.hglow-preview .card.compact.stdframe .cglow,
+body.hglow-preview .card.compact.spellframe .cglow,
+body.hglow-preview .card.compact.taunt .cglow { opacity: 1; }
+/* On hover, drop the card's grounding contact shadow (`.cshadow`) so it doesn't dilute the glow's intensity. */
+.card.compact.stdframe:hover .cframe.cshadow,
+.card.compact.spellframe:hover .cframe.cshadow,
+.card.compact.taunt:hover .tframe.cshadow,
+body.hglow-preview .card.compact.stdframe .cframe.cshadow,
+body.hglow-preview .card.compact.spellframe .cframe.cshadow,
+body.hglow-preview .card.compact.taunt .tframe.cshadow { opacity: 0; }
+/* Kill the glow where hover isn't real (hand cards the cursor only "hovers" under a pointer-events:none layer;
+   the card being dragged / merged) — mirrors the existing `--hglow-*` suppressors. Placed last to win the tie. */
+.row.hand .card:hover .cglow,
+body.dragging .zone[data-zone='warband'] .card:hover .cglow,
+body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 
 /* Frame metal TONE — minion frames (oval + taunt shield) render SILVER by default; a GILDED (golden) minion goes
    GOLD. Threaded as the first function into every frame `filter` above. Spells never set it → keep their own
@@ -1941,18 +2114,31 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
 .unit.attacking .card.compact.stdframe { box-shadow: 0 3px 0 var(--shadow); }
 .card.compact.stdframe.armed, .card.compact.spellframe.armed { --tglow: var(--c); }
 .card.compact.stdframe.targeted, .card.compact.spellframe.targeted { --tglow: var(--c); }
-.unit.attacking .card.compact.stdframe { --tglow: var(--acc); }
-.unit.aimed .card.compact.stdframe { --tglow: var(--threat); }
+/* Combat attack glows are NOT on the frame drop-shadow (aimed uses the `.cglow` layer below); only the
+   armed/targeted selection glow remains here. */
 .card.compact.stdframe.armed .cframe,
 .card.compact.stdframe.targeted .cframe,
 .card.compact.spellframe.armed .cframe,
-.card.compact.spellframe.targeted .cframe,
-.unit.aimed .card.compact.stdframe .cframe,
-.unit.attacking .card.compact.stdframe .cframe {
+.card.compact.spellframe.targeted .cframe {
   filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
           drop-shadow(0 0 4px var(--tglow))
           drop-shadow(0 0 12px var(--tglow));
 }
+/* Aimed defender's RED target glow — reuse the COMPOSITOR-ONLY `.cglow` silhouette layer (the same masked
+   frame-shape copy the hover glow uses, seated BEHIND the art so it never washes over the portrait): a red rim +
+   bloom, faded in via OPACITY over the wind-up. Opacity is compositor-only → no paint-in-a-loop, so it can't jank
+   the concurrent lunge (unlike animating the frame filter, which it replaces). The red rim/bloom are STATIC
+   (painted once); only opacity animates. Duration ~tracks windupDur (lungeConfig default 0.70s). */
+.unit.aimed .card.compact.stdframe .cglow,
+.unit.aimed .card.compact.taunt .cglow {
+  filter:
+    drop-shadow(0 0 5px rgba(229, 68, 107, 0.5)) drop-shadow(0 0 5px rgba(229, 68, 107, 0.5))
+    drop-shadow(0 0 5px rgba(229, 68, 107, 0.5)) drop-shadow(0 0 7px rgba(229, 68, 107, 0.45));
+  animation: aimglowfade var(--aim-dur, 0.62s) ease-out forwards;
+}
+.unit.aimed .card.compact.stdframe .cglow-rim,
+.unit.aimed .card.compact.taunt .cglow-rim { background: var(--threat); }
+@keyframes aimglowfade { from { opacity: 0; } to { opacity: 1; } }
 
 /* ---- keyword states on the OVAL (reshaped from the arch, mirroring Taunt's DS reconciliation) -------------- */
 /* Divine Shield: kill the rectangular gold aura + arched bloom, glow the frame alpha (STATIC — never animate a
@@ -2084,6 +2270,9 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
 
 /* a kill shakes the unit rows (hit-stop feel) — see .app.shaking */
 @keyframes boardshake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 45% { transform: translateX(6px); } 70% { transform: translateX(-4px); } 88% { transform: translateX(2px); } }
+/* a CRITICAL STRIKE hits harder — a punchier board shake (owner-tuned ~13px), fired at the crit's contact
+   (`.app.shaking-crit`, see useCombatReplay's onCritImpact). Two-axis so it reads distinctly from a plain kill. */
+@keyframes boardshake-crit { 0%, 100% { transform: translate(0, 0); } 15% { transform: translate(-13px, 3px); } 35% { transform: translate(11px, -3px); } 55% { transform: translate(-8px, 2px); } 78% { transform: translate(5px, -1px); } 92% { transform: translate(-2px, 0); } }
 /* result vignette keyframe — used by .app.combat.done::after */
 @keyframes resulttint { from { opacity: 0; } to { opacity: 1; } }
 /* A combat-granted card (Arcane Weaver → Spirit Fire) pops in centre-screen, then flies down + fades
@@ -2294,7 +2483,13 @@ body.choreo-open .pixifx-under { z-index: 204; }
 /* the hand slides down out of view for the whole fight */
 /* In combat the hand stays visible as a compact, non-interactive peek pinned to the bottom (so you can
    always see what you're holding); the narration bar sits just above it. */
-.app.combat .zone[data-zone='hand'] { transform: translate(-50%, 0) scale(0.66); transform-origin: bottom center; pointer-events: none; transition: transform 0.45s cubic-bezier(0.4, 0, 0.5, 1); }
+/* During combat the hand shrinks to the bottom but stays HOVERABLE — mousing a card pops its preview (spell
+   text etc.), same as the shop. Playing/dragging is still blocked (onCardPointerDown bails on `inCombat`), so
+   `pointer-events: auto` only re-enables the hover popup, not interaction. */
+/* Combat hand stays the SAME size + place as in recruit (owner request) — no shrink. It keeps its recruit
+   `translate` (from the base .zone[data-zone='hand'] rule); we only re-enable hover here so mousing a held card
+   still pops its preview. Playing/dragging stays blocked (onCardPointerDown bails on `inCombat`). */
+.app.combat .zone[data-zone='hand'] { pointer-events: auto; }
 
 /* the combat control bar takes the shop control bar's slot (same buttons → same height) */
 /* Match the recruit control frame's height (~118u) so the Tavern + Warband sit at the SAME spot in
@@ -2396,6 +2591,8 @@ body.choreo-open .pixifx-under { z-index: 204; }
 
 /* a kill shakes just the unit rows (never the HUD / hero) */
 .app.shaking .zone[data-zone='tavern'] .row, .app.shaking .zone[data-zone='warband'] .row { animation: boardshake 0.3s ease; }
+/* a crit shakes harder — same rows, the punchier two-axis keyframe */
+.app.shaking-crit .zone[data-zone='tavern'] .row, .app.shaking-crit .zone[data-zone='warband'] .row { animation: boardshake-crit 0.3s ease; }
 
 /* (result vignette removed — no green/raspberry screen tint when the replay settles) */
 
@@ -2449,6 +2646,20 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .hsline-rat { color: rgba(255, 255, 255, 0.6); }
 .hsline-line { padding: 3px 12px; border-radius: 999px; background: var(--acc); color: #2a1c0c; }
 .hsline-note { color: rgba(255, 255, 255, 0.5); text-transform: none; letter-spacing: 0.02em; font-weight: 700; }
+/* Rift-patch telegraph — a glowing pill ("Rift: <name>") with the game's standard clean floating
+   tooltip (mirrors .questbadge-tip). Shared by hero select (`-hero`, big) + the in-game HUD (`-hud`, compact).
+   `--ap-fs` sizes the pill so each context can scale it; the tooltip is a fixed, readable size. */
+.riftpill { position: relative; display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; font-size: var(--ap-fs, 13px); cursor: url('/cursors/gauntlet_default.svg') 6 2, help; }
+.riftpill-tag { color: rgba(198, 160, 255, 0.85); }
+.riftpill-name { padding: 0.24em 0.9em; border-radius: 999px; background: linear-gradient(135deg, #a06bff, #6b8bff); color: #150a26; box-shadow: 0 0 14px rgba(150, 110, 255, 0.5); }
+.riftpill-hero { --ap-fs: 13px; margin: -8px 0 20px; }
+.riftpill-hud { --ap-fs: calc(12 * var(--u)); margin-bottom: calc(6 * var(--u)); }
+/* The floating tooltip — same clean card as .questbadge-tip, opened below the pill (both pills sit high on
+   screen). Normal-case + normal tracking so the blurb reads as prose, not a label. */
+.riftpill-tip { position: absolute; top: calc(100% + 10px); left: 0; width: 230px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 4px; background: var(--ink); color: #fff; border-radius: 12px; padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-transform: none; letter-spacing: normal; text-align: center; overflow-wrap: break-word; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 70; transition: opacity 0.14s; }
+.riftpill-tip b { color: var(--acc); font-weight: 800; }
+.riftpill-tip .riftpill-tip-body { color: #f4f0e6; }
+.riftpill:hover .riftpill-tip { opacity: 1; transition-delay: 0.3s; }
 .hsrow { display: flex; gap: 29px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
 .herocard { width: 333px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 13px; padding: 29px 23px 23px; border-radius: 26px; border: 3px solid var(--line); background: var(--card); color: var(--ink); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5); transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
 .herocard:hover { transform: translateY(-8px); border-color: var(--acc); box-shadow: 0 0 0 4px color-mix(in srgb, var(--acc) 40%, transparent), 0 16px 36px -12px rgba(0, 0, 0, 0.55); }
@@ -2672,6 +2883,19 @@ body:has(.titlescreen) .version { visibility: hidden; }
 
 .titleversion { position: absolute; right: 22px; bottom: 16px; font-family: var(--font-ui); font-weight: 700; font-size: 13px;
   letter-spacing: 0.05em; color: rgba(236, 220, 178, 0.6); }
+/* Birthday banner — a celebratory glass card on the right edge of the title screen for the Animations team. */
+.titlebanner {
+  zoom: var(--ui-zoom); position: absolute; right: 30px; top: 50%; transform: translateY(-50%); z-index: 2;
+  width: min(320px, 30vw); display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
+  padding: 22px 24px; border-radius: 20px; background: linear-gradient(180deg, rgba(36, 26, 19, 0.92), rgba(23, 17, 12, 0.92));
+  border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); box-shadow: 0 18px 46px -14px rgba(0, 0, 0, 0.7);
+  animation: bannerpop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.titlebanner-emoji { font-size: 34px; line-height: 1; }
+.titlebanner-title { font-family: var(--font-title, var(--font-ui)), sans-serif; font-weight: 800; font-size: 20px; line-height: 1.2; color: var(--acc, #ff9d4d); }
+.titlebanner-sub { font-family: var(--font-ui), sans-serif; font-weight: 600; font-size: 13.5px; line-height: 1.45; color: #f4ecdb; }
+@keyframes bannerpop { 0% { opacity: 0; transform: translateY(-50%) scale(0.9); } 100% { opacity: 1; transform: translateY(-50%) scale(1); } }
+@media (max-width: 900px) { .titlebanner { display: none; } }
 .endscreen.won .hstitle { color: #ffd98a; text-shadow: 0 0 28px rgba(255, 200, 110, 0.45); }
 .endscreen:not(.won) .eyebrow { color: var(--threat); }
 
@@ -2782,48 +3006,79 @@ svg { width: 18px; height: 18px; }
 .choreo-stage-card { width: 50px; height: 64px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #8a7f6d; background: #262119; border: 1px solid #4a4133; border-radius: 6px; }
 .choreo-stage-note { text-align: center; font-size: 10px; color: #6f665a; padding: 0 0 8px; }
 
-/* DEV Mixing Desk — dark dev-tool theme (matches the choreo panel), per-bus faders + master limiter dials +
-   live rAF meters. Tall, so it scrolls. Meters animate transform ONLY (never a paint prop) — see .mtr-fill. */
-.desk { position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 64px); z-index: 200;
-  width: 300px; max-height: 88vh; overflow: auto; background: #1c1a17; border: 2px solid #3a352e; border-radius: 14px;
-  padding: 12px 14px; box-shadow: 0 16px 40px -8px rgba(0,0,0,0.55); font-family: var(--font-ui); color: #efe7db;
-  box-sizing: border-box; resize: both; min-width: 240px; max-width: 92vw; }
-.desk::-webkit-scrollbar { width: 0; height: 0; display: none; }
-.desk-h { font-weight: 800; font-size: 15px; margin-bottom: 10px; color: #efe7db; }
+/* DEV Mixing Desk — a horizontal console of channel strips with VERTICAL faders (like a real mixer). Dark
+   dev-tool theme. Draggable (header) + resizable (bottom-right corner). Meters animate transform ONLY. */
+.desk { position: fixed; right: calc(var(--bar-x) + 16px); bottom: calc(var(--bar-y) + 48px); z-index: 200;
+  width: 640px; height: 480px; min-width: 340px; min-height: 260px; max-width: 96vw; max-height: 92vh;
+  overflow: auto; resize: both; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px;
+  background: #1c1a17; border: 2px solid #3a352e; border-radius: 14px; padding: 12px 14px;
+  box-shadow: 0 16px 40px -8px rgba(0,0,0,0.55); font-family: var(--font-ui); color: #efe7db;
+  --ui: #ff8a3c; --combat: #e5556f; --voice: #56b6c9; --hero: #c79cff; }
+.desk-h { font-weight: 800; font-size: 15px; color: #efe7db; flex: none; }
 .desk-h.drag { cursor: move; user-select: none; touch-action: none; }
-.desk-h span { font-size: 10px; font-weight: 700; color: #8a7f6d; text-transform: uppercase; letter-spacing: 0.08em; }
-.desk h4 { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; text-transform: uppercase;
-  letter-spacing: 0.06em; color: #ffcf9e; margin: 12px 0 6px; }
-.desk-master, .desk-bus { border-top: 1px solid #33302a; padding-top: 4px; }
-.desk-gr { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 700; color: #8a7f6d;
-  text-transform: uppercase; letter-spacing: 0.06em; margin: 2px 0 6px; }
-.desk .dial, .desk .fader { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 11px; color: #c9bda9; }
-.desk .dial span, .desk .fader span { flex: 0 0 62px; font-weight: 700; }
-.desk .dial b, .desk .fader b { flex: 0 0 44px; text-align: right; font-weight: 800; color: #ffcf9e;
-  font-variant-numeric: tabular-nums; }
-.desk input[type='range'] { flex: 1; height: 6px; accent-color: #ff8a3c; -webkit-appearance: none; appearance: none;
-  background: rgba(255,255,255,.12); border-radius: 99px; outline: none; cursor: pointer; }
-.desk input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px;
-  border-radius: 50%; background: #ff8a3c; cursor: pointer; }
-.desk input[type='range']::-moz-range-thumb { width: 13px; height: 13px; border-radius: 50%; background: #ff8a3c;
-  border: none; cursor: pointer; }
-.desk-cat { display: flex; align-items: center; gap: 6px; margin: 3px 0; font-size: 10.5px; }
-.desk-cat .cn { flex: 0 0 78px; color: #c9bda9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.desk-cat input[type='range'] { flex: 1; }
-.desk-cat select { flex: 0 0 62px; background: #2a2620; color: #efe7db; border: 1px solid #4a4133; border-radius: 4px;
-  font-size: 10px; padding: 1px 2px; }
-.desk-cat button, .desk-scenes button { background: #2a2620; color: #efe7db; border: 1px solid #4a4133; border-radius: 5px;
-  cursor: pointer; font-size: 10px; }
-.desk-cat button { flex: 0 0 auto; width: 22px; height: 22px; }
-.desk-scenes { border-top: 1px solid #33302a; padding-top: 4px; }
-.desk-scenes button { margin: 3px 4px 0 0; padding: 4px 9px; font-weight: 700; }
-.desk-scenes button:hover, .desk-cat button:hover { border-color: #ff8a3c; color: #ffcf9e; }
-.desk-export { width: 100%; margin-top: 12px; padding: 7px; border-radius: 9px; border: 1px solid #ff8a3c;
+.desk-h span { font-size: 10px; font-weight: 700; color: #8a7f6d; text-transform: uppercase; letter-spacing: 0.06em; margin-left: 8px; }
+
+/* the top row of channel strips (master + buses) */
+.console { display: flex; gap: 10px; align-items: stretch; overflow-x: auto; padding-bottom: 4px; flex: none; }
+.strip { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 6px 6px;
+  background: #221f1b; border: 1px solid #34302a; border-radius: 10px; min-width: 54px; }
+.strip-name { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: #c9bda9; margin-top: 2px; }
+.strip-bus { --acc: var(--ui); }
+.strip-bus.bus-ui { --acc: var(--ui); } .strip-bus.bus-combat { --acc: var(--combat); }
+.strip-bus.bus-voice { --acc: var(--voice); } .strip-bus.bus-hero { --acc: var(--hero); }
+.strip-bus .strip-name { color: var(--acc); }
+.strip-bus b, .strip-master b { font-size: 11px; font-weight: 800; color: #ffcf9e; font-variant-numeric: tabular-nums; }
+.strip-master { --acc: #ffcf9e; }
+.strip-meters { display: flex; gap: 6px; }
+.mcol { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.mcol-l { font-size: 8px; font-weight: 700; text-transform: uppercase; color: #8a7f6d; }
+.strip-dials { display: flex; gap: 6px; }
+.vdial { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 48px; }
+.vdial-l { font-size: 8.5px; font-weight: 700; text-transform: capitalize; color: #b7a998; text-align: center; }
+.vdial b { font-size: 9px; }
+
+/* VERTICAL faders (up = max) — writing-mode is the modern vertical-range approach */
+.vfader { writing-mode: vertical-lr; direction: rtl; width: 22px; height: 130px; accent-color: var(--acc, #ff8a3c);
+  cursor: pointer; }
+.vfader.sm { height: 84px; width: 20px; }
+.vfader.tiny { height: 90px; width: 18px; }
+
+/* VERTICAL meters — fill grows from the bottom via scaleY */
+.vmtr { width: 7px; height: 130px; background: rgba(0,0,0,.32); border-radius: 3px; overflow: hidden; }
+.vmtr.gr { }
+.vmtr-fill { width: 100%; height: 100%; transform-origin: bottom; transform: scaleY(0); will-change: transform;
+  background: linear-gradient(0deg, #5fb07e, #e8b23c 62%, #e5556f); }
+.vmtr.gr .vmtr-fill { background: linear-gradient(0deg, #56b6c9, #c79cff); }
+
+/* scenes row */
+.desk-scenes { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex: none; }
+.sec-l, .cat-group-h { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #8a7f6d; }
+.sec-l.big { flex: none; font-size: 10.5px; color: #b7a998; margin-top: 2px; border-top: 1px solid #33302a; padding-top: 7px; }
+.desk-hint { flex: none; font-size: 10.5px; line-height: 1.45; color: #a99786; margin: 0; }
+.desk-hint b { color: #ffcf9e; font-weight: 800; }
+.desk-scenes button { background: #2a2620; color: #efe7db; border: 1px solid #4a4133; border-radius: 6px;
+  cursor: pointer; font-size: 11px; font-weight: 700; padding: 4px 9px; }
+.desk-scenes button:hover, .cstrip .play:hover { border-color: #ff8a3c; color: #ffcf9e; }
+
+/* categories — grouped by bus, each a mini vertical strip; horizontally scrollable */
+.desk-cats { display: flex; gap: 12px; overflow-x: auto; align-items: flex-start; padding-bottom: 6px;
+  border-top: 1px solid #33302a; padding-top: 8px; flex: 1 1 auto; min-height: 130px; }
+.cat-group { display: flex; flex-direction: column; gap: 5px; }
+.cat-group-h { color: var(--acc); align-self: center; }
+.cat-group-h.bus-ui { --acc: var(--ui); } .cat-group-h.bus-combat { --acc: var(--combat); }
+.cat-group-h.bus-voice { --acc: var(--voice); } .cat-group-h.bus-hero { --acc: var(--hero); }
+.cat-strips { display: flex; gap: 8px; }
+.cstrip { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 68px; }
+.cstrip .vfader { accent-color: #cbb; }
+.cstrip .play { width: 22px; height: 18px; background: #2a2620; color: #efe7db; border: 1px solid #4a4133;
+  border-radius: 4px; cursor: pointer; font-size: 9px; line-height: 1; padding: 0; }
+.cstrip select { width: 60px; background: #2a2620; color: #c9bda9; border: 1px solid #4a4133; border-radius: 4px;
+  font-size: 9px; padding: 1px 2px; }
+.cstrip-name { font-size: 9px; line-height: 1.18; color: #b7a998; text-align: center; width: 100%;
+  overflow-wrap: anywhere; }
+
+.desk-export { flex: none; padding: 7px; border-radius: 9px; border: 1px solid #ff8a3c;
   background: rgba(255,138,60,.16); color: #ffcf9e; font-family: var(--font-ui); font-weight: 800; font-size: 13px; cursor: pointer; }
-.mtr { background: rgba(0,0,0,.25); border-radius: 3px; overflow: hidden; display: inline-block; width: 70px; height: 6px;
-  vertical-align: middle; }
-.mtr-fill { height: 100%; transform-origin: left; transform: scaleX(0);
-  background: linear-gradient(90deg, #5fb07e, #e8601c, #c42b5a); will-change: transform; }
 
 /* Audio: a labeled master-volume slider above the mute toggle. */
 .escvol { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 13px; border: 2px solid var(--line); background: var(--bg2); margin-bottom: 8px; }
@@ -2886,6 +3141,8 @@ svg { width: 18px; height: 18px; }
 .balchart-svg { width: 100%; height: auto; display: block; }
 .balchart-grid { stroke: rgba(255, 255, 255, 0.1); stroke-width: 1; }
 .balchart-axl { fill: rgba(255, 255, 255, 0.6); font-family: var(--font-ui), sans-serif; font-weight: 700; font-size: 14px; }
+/* Avg wave a run first reaches each tavern tier, beside the Y-axis tier label (tangerine accent). */
+.balchart-tieravg { fill: var(--accent, #ff9d4d); font-family: var(--font-ui), sans-serif; font-weight: 800; font-size: 12.5px; font-variant-numeric: tabular-nums; opacity: 0.92; }
 .balchart-axt { fill: rgba(255, 255, 255, 0.82); font-family: var(--font-ui), sans-serif; font-weight: 800; font-size: 15px; letter-spacing: 0.04em; text-transform: uppercase; }
 .balchart-line { stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
 .balchart-line.won { stroke: #46d17f; filter: drop-shadow(0 0 5px rgba(70, 209, 127, 0.5)); }
@@ -2902,6 +3159,8 @@ svg { width: 18px; height: 18px; }
 .balchart-key::before { content: ''; width: 20px; height: 4px; border-radius: 2px; }
 .balchart-key.won::before { background: #46d17f; }
 .balchart-key.lost::before { background: #ff6f95; }
+.balchart-key.tieravg { color: var(--accent, #ff9d4d); font-weight: 700; }
+.balchart-key.tieravg::before { display: none; }
 .baltable { background: rgba(0, 0, 0, 0.32); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 14px; padding: 10px 12px; }
 .baltabletitle { font-weight: 800; font-size: 15px; color: var(--acc); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
 .balgrid { display: flex; flex-direction: column; }
@@ -2996,8 +3255,29 @@ svg { width: 18px; height: 18px; }
 .lbpip.cal { opacity: 0.4; filter: grayscale(0.55); }
 /* Shrink the cards for the leaderboard: compact cards size off --ccw (the others derive from it). flex-wrap so
    a wide warband never overflows; the page is the top layer so the full-text-on-hover popup sits on top. */
-.lbwarband { --ccw: clamp(112px, 13vh, 150px); --cw: calc(var(--ccw) / 0.85); --ch: calc(var(--cw) / 0.752); display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-start; padding-top: 10px; }
-.lbwarband .card { min-width: 0; }
+/* Re-fit (2026-07-16): the card art overhaul made these read large, and the old `vh`-based size swung with the
+   window aspect and overflowed the row. Size the cards RELATIVE TO THE CONTAINER instead — exactly 7 across,
+   capped so wide screens don't bloat them. `100% − 96px` reserves the six 10px gaps (60) plus ~36px slack for
+   each card's outer glow ring, so the last card never clips. No `vh`, so it's stable across window shapes. */
+.lbwarband { container-type: inline-size; display: flex; gap: 10px; flex-wrap: nowrap; align-items: flex-start; padding-top: 10px; width: 100%; box-sizing: border-box; }
+/* Size each card to the WARBAND's own width (100cqw) so exactly 7 fit — declared on the card, whose nearest
+   container ancestor is the warband, so `cqw` resolves against it (not an outer box). Capped at 150px. */
+.lbwarband .card { --cw: min(132px, calc((100cqw - 74px) / 7)); --ch: calc(var(--cw) / 0.752); --ccw: calc(var(--cw) * 0.85); min-width: 0; }
+
+/* Run trophies — the completed quests + owned runes a finished run ended with, as circular badges with the
+   game's standard floating tooltip (name + reward). Shown under the warband in the Hall of Champions + Career. */
+.runtrophies { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.runtrophy { position: relative; }
+.runtrophy-inner { width: 46px; height: 46px; border-radius: 50%; overflow: hidden; border: 2px solid var(--c, var(--gold)); background: #14100c; display: grid; place-items: center; box-shadow: 0 3px 8px -3px rgba(0, 0, 0, 0.6); }
+.runetrophy .runtrophy-inner { border-color: #b078e6; } /* runes ring in the Runeforge purple */
+.runtrophy-art { width: 100%; height: 100%; object-fit: cover; }
+.runtrophy-emblem { color: #d9cfaa; }
+.runtrophy-emblem svg { width: 22px; height: 22px; }
+.runtrophy-tip { position: absolute; bottom: calc(100% + 8px); left: 0; width: 224px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; gap: 4px; background: var(--ink); color: #fff; border-radius: 12px; padding: 10px 13px; font-size: 12px; line-height: 1.4; font-weight: 600; text-align: center; overflow-wrap: break-word; box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; z-index: 60; transition: opacity 0.14s; }
+.runtrophy-tip b { color: var(--acc); font-weight: 800; }
+.runtrophy-tip .runtrophy-tip-body { color: #f4f0e6; }
+.runtrophy-tip .runtrophy-tip-kind { color: var(--gold); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; }
+.runtrophy:hover .runtrophy-tip { opacity: 1; transition-delay: 0.25s; }
 
 /* Career (A7 part 2) — reuses the leaderboard page shell (.lbpage / .lbentry / .lbwarband). */
 .carprofile { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
@@ -3130,6 +3410,17 @@ svg { width: 18px; height: 18px; }
 .book-cell { transition: transform 0.12s ease; }
 .book-cell:hover { transform: scale(1.06); z-index: 3; position: relative; }
 .book-empty { flex: 1; display: grid; place-items: center; font-family: var(--font-ui); font-weight: 700; font-size: 18px; color: var(--ink3); }
+/* Heroes tab — a read-only champion card (portrait + Resolve/Armor + power) sized to the book grid cell. */
+.bookhero { width: var(--cw); min-height: var(--ch); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 14px 12px 16px; border-radius: 16px; border: 2px solid var(--line); background: var(--card); color: var(--ink); box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5); }
+.bookhero-art { width: 100%; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden; background: var(--bg); display: grid; place-items: center; }
+.bookhero-art img { width: 100%; height: 100%; object-fit: cover; }
+.bookhero-name { font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.02em; }
+.bookhero-hp { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: #d64545; }
+.bookhero-hp svg { width: 15px; height: 15px; }
+.bookhero-armor { color: #7aa0c8; }
+.bookhero-pw { font-size: 12px; line-height: 1.4; color: var(--ink3); font-weight: 600; }
+.bookhero-pw b { color: var(--acc); font-weight: 800; }
+.bookhero-lock { margin-top: auto; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink3); }
 
 /* Glossary toggle — swaps the gallery for the keyword codex. Sits left of Gilded, same pill shape; both
    carry margin-left:auto so the pair (or just Glossary, when Gilded is hidden) hugs the close button. */
@@ -3196,6 +3487,8 @@ svg { width: 18px; height: 18px; }
   45% { transform: translateX(-50%) scale(1.28); }
   100% { transform: translateX(-50%) scale(1); }
 }
+/* Repeatable-quest progress (Hoard Spark X/4) — the same combat step-counter numerals, moved ABOVE the badge. */
+.questbadge-step { top: calc(-16 * var(--u)); bottom: auto; font-size: calc(15 * var(--u)); z-index: 5; }
 /* COMBAT ONLY (Unit.tsx sets `.ephemeral`): the counter fades in near-instantly on each tick, holds ~2.5s,
    then fades out — total ~3s visible. Because the span is keyed on `current`, every tick remounts it and
    restarts BOTH animations, so a second avenge inside the window re-shows it and resets the 3s. The scale

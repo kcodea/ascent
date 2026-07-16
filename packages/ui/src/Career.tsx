@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { CARD_INDEX } from '@game/content';
 import { getHero, metLine, TAG_INFO, type BoardMinion, type LineStatus, type Tribe } from '@game/sim';
 import { Card, type CardView } from './Card';
+import { RunTrophies } from './RunTrophies';
 import { avatarSrc, heroArt } from './art';
 import { BoardLog } from './BoardLog';
 import { Icon } from './Icon';
@@ -190,6 +191,7 @@ export function Career() {
                               {e.board.minions.map((m, j) => <Card key={j} card={cardViewOf(m)} suppressPop />)}
                             </div>
                           )}
+                          <RunTrophies quests={e.board?.quests} runes={e.board?.runes} />
                         </div>
                       )}
                     </div>

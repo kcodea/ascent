@@ -1,4 +1,4 @@
-import { combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type PendingCombatQuest, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, SPELL_CARDS } from '@game/content';
 import { CONFIG } from './config';
 import { accumulateContribution, tallyCombat } from './contribution';
@@ -8,7 +8,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, addOfferBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
@@ -411,10 +411,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         checkTriples(s); // a restored copy can still complete a triple
         return s;
       }
-      const buyCost = offer.cost ?? s.minionCostOverride ?? minionCostOf(s); // Moe's set price > Merchant's Mark override > Hank/default
+      // "Freedom" rift: the FIRST minion bought each turn is free (overrides every price source below).
+      const freeBuy = s.rift === 'freedom' && !s.freeBuyUsedThisTurn;
+      const buyCost = freeBuy ? 0 : (offer.cost ?? s.minionCostOverride ?? minionCostOf(s)); // Moe's set price > Merchant's Mark override > Hank/default
       if (s.embers < buyCost || s.hand.length >= CONFIG.handMax) return state;
       s.shop.splice(i, 1);
       spendGold(s, buyCost);
+      if (freeBuy) s.freeBuyUsedThisTurn = true;
       // Fried Circuits: each minion bought buffs every Mech OFFER remaining in the shop, escalating by step per
       // purchase (buy 1 → +step, buy 2 → +2·step, …). The buff bakes into the offer's atk/hp when it's bought.
       if (s.friedCircuitsStepAtk || s.friedCircuitsStepHp) {
@@ -423,7 +426,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const aHp = (s.friedCircuitsStepHp ?? 0) * s.friedCircuitsBuys;
         for (const o of s.shop) {
           const d = CARD_INDEX[o.cardId];
-          if (d && (d.tribe === 'mech' || d.tribe2 === 'mech')) { o.atk = (o.atk ?? 0) + aAtk; o.hp = (o.hp ?? 0) + aHp; }
+          if (d && (d.tribe === 'mech' || d.tribe2 === 'mech')) addOfferBuff(o, 'Fried Circuits', aAtk, aHp);
         }
       }
       const cb = cardBuff(s, card.id); // persistent run buff (Ritualist's Fodder enchantment)
@@ -442,8 +445,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         golden: offer.golden ?? false, // Golden Touch: a gilded tavern offer buys in as a Golden
         boughtWave: s.wave, // Hoarder's sell value climbs from the wave it was bought
       };
-      // a tavern buff (the hero power Fortify applied to this offer) rides in as a tracked buff
-      addBuff(bought, 'Fortify', offer.atk ?? 0, offer.hp ?? 0);
+      // Tavern buffs on the offer (Apples / Fortify / Fried Circuits / next-shop) bake in under their REAL
+      // source names, not a blanket "Fortify"; fall back to a generic label for any legacy offer with no breakdown.
+      if (offer.buffs?.length) for (const b of offer.buffs) addBuff(bought, b.source, b.attack, b.health, b.count);
+      else addBuff(bought, 'Tavern buff', offer.atk ?? 0, offer.hp ?? 0);
       const buyAuraHp = buyHealthAura(s, card); // Scrap Herald: Magnetic minions also carry a Health aura
       if (buyAura > 0 || buyAuraHp > 0) addBuff(bought, 'Tribe Bond', buyAura, buyAuraHp);
       // Staff of Guel — the run-wide "every minion you buy" buff bakes in too (tavern purchases only).
@@ -491,7 +496,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         // `exactCurrentTier` (Key Findings) locks the pool to the live tavern tier; `exactTier` is a fixed tier
         // (Sprout); otherwise the offer tier is current + `tierOffset`.
         const exactTier = dop.exactCurrentTier ? s.tier : dop.exactTier;
-        const tier = exactTier ?? s.tier + (dop.tierOffset ?? 0);
+        // A triple-reward Discover carries the tier it was GRANTED at (`grantedTier`) so its "one tier up" is
+        // frozen — taverning up with it in hand no longer bumps the offer. Other Discovers read the live tier.
+        const baseTier = card.grantedTier ?? s.tier;
+        const tier = exactTier ?? baseTier + (dop.tierOffset ?? 0);
         const tribe = dop.tribe === 'dominant' ? (dominantBoardTribe(s) ?? undefined) : dop.tribe;
         const spec = {
           kind: 'minion' as const,
@@ -963,8 +971,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         else {
           const offer = s.shop.find((c) => c.uid === action.uid);
           if (!offer) return state;
-          offer.atk = (offer.atk ?? 0) + amt;
-          offer.hp = (offer.hp ?? 0) + amt;
+          addOfferBuff(offer, 'Fortify', amt, amt);
         }
       }
 
@@ -984,20 +991,24 @@ function reduceCore(state: RunState, action: Action): RunState {
       const def = id ? CARD_INDEX[id] : undefined;
       if (!def) return state;
       const dcb = cardBuff(s, def.id); // a discovered Fodder carries Ritualist's run buff
-      s.hand.push({
-        uid: `b${s.uidSeq++}`,
-        cardId: def.id,
-        tribe: def.tribe,
-        // A discovered Undead carries the run-wide Undead Attack bonus too (undeadBuyAtk), like a buy.
-        attack: def.attack + dcb.attack + undeadBuyBonus(s, def),
-        health: def.health + dcb.health + buyHealthAura(s, def),
-        keywords: [...def.keywords],
-        golden: false,
-        // Disco Dan's Setlist: this pick is locked in hand until you reach its shop tier (T2/T4/T6).
-        ...(s.discoverLockTier ? { lockedUntilTier: s.discoverLockTier } : {}),
-      });
+      // The hand is a hard 10-card cap: a Discover into a full hand adds nothing (the pick is forfeit rather
+      // than over-capping). Only claim a pool copy when the card is actually taken.
+      if (s.hand.length < CONFIG.handMax) {
+        s.hand.push({
+          uid: `b${s.uidSeq++}`,
+          cardId: def.id,
+          tribe: def.tribe,
+          // A discovered Undead carries the run-wide Undead Attack bonus too (undeadBuyAtk), like a buy.
+          attack: def.attack + dcb.attack + undeadBuyBonus(s, def),
+          health: def.health + dcb.health + buyHealthAura(s, def),
+          keywords: [...def.keywords],
+          golden: false,
+          // Disco Dan's Setlist: this pick is locked in hand until you reach its shop tier (T2/T4/T6).
+          ...(s.discoverLockTier ? { lockedUntilTier: s.discoverLockTier } : {}),
+        });
+        takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
+      }
       s.discoverLockTier = undefined; // consumed — the next queued Discover sets its own (or none)
-      takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
       // Open the next queued Discover (golden / Drakko-doubled Brian, Yazzus-multiplied Help Wanted /
       // Sprout); only clear the offer once the queue is empty. A spec whose pool is empty opens nothing
       // (offerDiscover/offerSpellDiscover leave `discover` unset) — keep draining the rest so the queue
@@ -1122,6 +1133,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         tribes: s.tribes,
         cardBuffs: s.cardBuffs ?? {},
         questMods: questCombatMods(s),
+        pendingQuests: buildPendingCombatQuests(s),
       });
       // Player-only one-fight rune overrides.
       const config: CombatConfig = {
@@ -1219,6 +1231,7 @@ function reduceCore(state: RunState, action: Action): RunState {
 
 /** Playing a golden minion grants a Discover spell (peek one tier up) into the hand. */
 function grantGoldenDiscover(s: RunState): void {
+  if (s.hand.length >= CONFIG.handMax) return; // hard 10-card hand cap — no over-cap grant
   s.hand.push({
     uid: `b${s.uidSeq++}`,
     cardId: 'discoverspell',
@@ -1227,6 +1240,7 @@ function grantGoldenDiscover(s: RunState): void {
     health: 1,
     keywords: [],
     golden: false,
+    grantedTier: s.tier, // freeze "peek one tier up" at the tier it was granted — taverning up later can't inflate it
   });
 }
 
@@ -1299,7 +1313,7 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   // top-two copies' magnitudes — two boosted Kennelmasters at +6/+4 combine to +10, and
   // a fresh triple just doubles the base (the golden doubling falls out of the combine).
   const summonEffect = def.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura');
-  const improveEffect = def.effects.find((e) => e.do === 'summonBuffTribeImprove' || e.do === 'countTribeSummon');
+  const improveEffect = def.effects.find((e) => e.do === 'summonBuffTribeImprove' || e.do === 'countTribeSummon' || e.do === 'onGainAttackBuffImproving');
   let summonBonus: number | undefined;
   if (summonEffect) {
     const base = Number((summonEffect.params as { attack?: number })?.attack ?? 0);
@@ -1361,9 +1375,14 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
     (sum, c) => ({ attack: sum.attack + (c.fodderAuraBonus?.attack ?? 0), health: sum.health + (c.fodderAuraBonus?.health ?? 0) }),
     { attack: 0, health: 0 },
   );
-  // Spirit Pup: the golden keeps the *highest* spell progress of the copies (= the lowest spells-left),
-  // so a 2-left + 8-left + 5-left triple needs only 2 more spells to evolve.
-  const goldenProgress = Math.max(...combined.map((c) => c.spellProgress ?? 0));
+  // Spirit Pup / Guel: the golden keeps the *highest* spell progress of the copies (= the lowest spells-left),
+  // so a 2-left + 8-left + 5-left triple needs only 2 more spells to evolve. Runescale Drake instead SUMS the
+  // copies' progress (owner ruling: "tripling takes the combined values" — a +20 and two fresh +1 → +21), so
+  // its accrued Dragon buff isn't thrown away by the merge. Keyed on the `spellCastImproveSelf` effect.
+  const sumsProgress = def.effects.some((e) => e.do === 'spellCastImproveSelf');
+  const goldenProgress = sumsProgress
+    ? combined.reduce((sum, c) => sum + (c.spellProgress ?? 0), 0)
+    : Math.max(...combined.map((c) => c.spellProgress ?? 0));
   // Tara: the golden keeps the *highest* ascend progress of the copies (= the lowest "to go"), so tripling a
   // Tara that's close to ascending doesn't reset it back to 20-to-go.
   const goldenAscend = def.ascendAt ? Math.max(...combined.map((c) => c.ascendProgress ?? 0)) : 0;
@@ -1373,7 +1392,7 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
   // is the one that matters. Copies with no boughtWave (not from a buy) are ignored; undefined if none had one.
   const boughtWaves = combined.map((c) => c.boughtWave).filter((w): w is number => w !== undefined);
   const goldenBoughtWave = boughtWaves.length > 0 ? Math.min(...boughtWaves) : undefined;
-  s.hand.push({
+  const goldenCard: BoardCard = {
     uid: `b${s.uidSeq++}`,
     cardId: def.id,
     tribe: def.tribe,
@@ -1394,7 +1413,11 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
     ascendProgress: goldenAscend > 0 ? goldenAscend : undefined,
     boughtWave: goldenBoughtWave,
     eotTick: goldenEotTick,
-  });
+  };
+  // Respect the hard 10-card hand cap. A triple always frees board slots (it consumes ≥1 board copy), so if
+  // the hand is full the golden goes onto the board rather than over-capping the hand — the reward is never lost.
+  if (s.hand.length < CONFIG.handMax) s.hand.push(goldenCard);
+  else s.board.push(goldenCard);
   s.triplesMade++; // run-wide tally — surfaced as opponent intel in board snapshots
 }
 
@@ -1565,7 +1588,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (result.playerSpellsCast) {
     s.spellsCast += result.playerSpellsCast;
     for (const c of s.board) {
-      if (CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'spellCastBuffOthers')) {
+      if (CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'spellCastBuffOthers' || e.do === 'spellCastImproveSelf')) {
         c.spellProgress = (c.spellProgress ?? 0) + result.playerSpellsCast;
       }
     }
@@ -1600,7 +1623,11 @@ function settleCombat(s: RunState, result: CombatResult): void {
   }
   // The Old Hunt: the Beast Attack aura pumped this combat is permanent — fold it into the run + apply to
   // current run-board/hand Beasts (so they keep the gain without re-buying).
-  if (result.playerBeastBuyAtkGain) grantTribeAura(s, 'beast', result.playerBeastBuyAtkGain, 0, 'The Old Hunt');
+  // The Old Hunt (Attack) + Pack Mentality (Attack + Health) both grow the run-wide Beast aura live in combat;
+  // fold their carried-back gain into `beastBuyAtk`/`beastBuyHp` + every current run-board Beast.
+  if (result.playerBeastBuyAtkGain || result.playerBeastBuyHpGain) {
+    grantTribeAura(s, 'beast', result.playerBeastBuyAtkGain ?? 0, result.playerBeastBuyHpGain ?? 0, result.playerBeastBuyHpGain ? 'Pack Mentality' : 'The Old Hunt');
+  }
   // Pack Mentality: grow any scaling tribe auras by this combat's tally of their trigger event.
   growScalingAuras(s, result);
   // (Random spell/minion grants — Sporebat, Ryme re-firing Sea Urchin / Black Belt Brian — are now picked in
@@ -1683,6 +1710,7 @@ function advanceCombat(s: RunState): void {
   s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
   s.shoutFirstUsedThisTurn = false; // Warm Embers' "first Shout each round triggers twice" freebie resets each turn
   s.dupeUsedThisTurn = false; // Dupes: the first-buy copy is a per-turn freebie
+  s.freeBuyUsedThisTurn = false; // Freedom rift: the first minion each turn is free again
   s.spellFirstUsedThisTurn = false; // Spell Thesis: "first spell each turn casts twice" resets each turn
   s.fodderConsumedThisTurn = { attack: 0, health: 0 }; // Abhorrent Horror's SoC window resets each wave
   for (const c of s.board) {
@@ -1714,6 +1742,13 @@ function advanceCombat(s: RunState): void {
     s.runeforgeEpic = undefined; // basic forge — set before runeforgePool so it reads the normal set
     s.runeforgeRerolled = undefined;
     s.runeforgeOffer = drawRunes(runeforgePool(s), RUNEFORGE_OFFER, makeRng(mixSeed(s.seed, s.wave, TAG.QUEST)));
+  } else if ((CONFIG.runeforgeEnabled || s.rift === 'runic') && s.wave === 6) {
+    // Universal basic Runeforge on turn 6 — driven by EITHER the runeforge system (CONFIG.runeforgeEnabled) or
+    // the "Runic Behavior" rift. Either way it opens exactly ONE free (no hero-power charge) forge, queued so it
+    // slots into the normal start-of-turn modal priority (behind any quest offer, via openNextStartOfTurnModal).
+    // Turn 6 has no quest, so it opens directly. (Runesmith still gets its own turn-7 forge on top — this is an
+    // extra visit, not a replacement.)
+    s.pendingBasicForge = { deferred: false };
   }
   if (questOffer.length > 0) {
     s.questOffer = questOffer;
@@ -1729,6 +1764,9 @@ function advanceCombat(s: RunState): void {
   // Rune of the Epic Forge: it armed the Epic Runeforge for THIS wave — turn it into a pending open, which the
   // start-of-turn sequencing below presents (behind any quest offer / Runesmith forge).
   if (s.epicForgeWave != null && s.wave >= s.epicForgeWave) { s.pendingEpicRuneforge = true; s.epicForgeWave = undefined; }
+  // Runeforge system: EVERY hero visits the Epic Runeforge on turn 9 (free — openEpicRuneforge flags it
+  // no-charge). Independent of Runeguard's own epic forge on turn 12, which its power schedules separately.
+  if (CONFIG.runeforgeEnabled && s.wave === 9) s.pendingEpicRuneforge = true;
   // Promote any forge armed mid-turn (deferred): now that we're at the START of the next turn, it's openable.
   s.pendingForgeDeferred = false;
   if (s.pendingBasicForge) s.pendingBasicForge.deferred = false;
@@ -1896,16 +1934,16 @@ function resolveQuestThreshold(s: RunState, aq: ActiveQuest, def: QuestDef): voi
 
 /** Conjure `reps` random minions of `tribe` (≤ current tier) into the hand — the quest-reward draw (Grave
  *  Toll's "random Undead", Trail Rations' "random Beast"). Shares `conjureToHand`'s seeded pick + hand cap. */
-function grantRandomTribeMinion(s: RunState, tribe: Tribe, reps: number): void {
+function grantRandomTribeMinion(s: RunState, tribe: Tribe, reps: number, overflow = false): void {
   const pool = BUYABLE_CARDS.filter((c) => (c.tribe === tribe || c.tribe2 === tribe) && c.tier <= s.tier);
-  conjureToHand(s, pool, reps);
+  conjureToHand(s, pool, reps, overflow);
 }
 
 /** Conjure `reps` random buyable minions of EXACTLY `tier` (in your tribes / neutral) — Rune of the Pair's
  *  "2 random Tier 4 minions". */
-function grantRandomTierMinion(s: RunState, tier: number, reps: number): void {
+function grantRandomTierMinion(s: RunState, tier: number, reps: number, overflow = false): void {
   const pool = BUYABLE_CARDS.filter((c) => c.tier === tier && (c.tribe === 'neutral' || s.tribes.includes(c.tribe)));
-  conjureToHand(s, pool, reps);
+  conjureToHand(s, pool, reps, overflow);
 }
 
 /** Whether a card matches a reward's minion "class" filter (a Shout=Battlecry, an End-of-Turn, an Echo=Deathrattle,
@@ -1923,11 +1961,11 @@ function matchesFilter(c: (typeof BUYABLE_CARDS)[number], filter: 'shout' | 'end
 /** Conjure `reps` random buyable minions matching a class filter into the hand. `exactTier` restricts to the
  *  CURRENT tavern tier (fallback ≤ tier if none there); otherwise ≤ current tier. Powers the "get a random
  *  Shout / End-of-Turn / Echo / Rally / Attachment minion" rewards. */
-function grantRandomFilterMinion(s: RunState, filter: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment', reps: number, exactTier = false): void {
+function grantRandomFilterMinion(s: RunState, filter: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment', reps: number, exactTier = false, overflow = false): void {
   const base = BUYABLE_CARDS.filter((c) => matchesFilter(c, filter));
   let pool = base.filter((c) => (exactTier ? c.tier === s.tier : c.tier <= s.tier));
   if (pool.length === 0) pool = base.filter((c) => c.tier <= s.tier); // exact-tier gap → fall back to ≤ tier
-  conjureToHand(s, pool, reps);
+  conjureToHand(s, pool, reps, overflow);
 }
 
 /**
@@ -2038,16 +2076,18 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       for (const c of s.board) addBuff(c, `Quest: ${def.name}`, r.attack, r.health);
       break;
     case 'grant':
-      if (r.randomTribe && (r.randomCount ?? 0) > 0) grantRandomTribeMinion(s, r.randomTribe, r.randomCount!);
-      if ((r.randomSpell ?? 0) > 0) conjureToHand(s, SPELL_CARDS.filter((c) => c.tier <= s.tier), r.randomSpell!); // Hoard Spark's random spell
-      if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, r.randomFilterCount ?? 1, r.randomFilterExactTier); // "N random Shout/Echo/Rally/Attachment minions"
-      if (r.randomTier) grantRandomTierMinion(s, r.randomTier, r.randomCount ?? 1); // Rune of the Pair — N random Tier-K minions
+      // Quest / rune reward cards are guaranteed delivery — they OVERFLOW the hand cap rather than being dropped
+      // when hand + board are full (owner ruling: never lose an earned reward). `overflow = true` on every grant.
+      if (r.randomTribe && (r.randomCount ?? 0) > 0) grantRandomTribeMinion(s, r.randomTribe, r.randomCount!, true);
+      if ((r.randomSpell ?? 0) > 0) conjureToHand(s, SPELL_CARDS.filter((c) => c.tier <= s.tier), r.randomSpell!, true); // Hoard Spark's random spell
+      if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, r.randomFilterCount ?? 1, r.randomFilterExactTier, true); // "N random Shout/Echo/Rally/Attachment minions"
+      if (r.randomTier) grantRandomTierMinion(s, r.randomTier, r.randomCount ?? 1, true); // Rune of the Pair — N random Tier-K minions
       for (const id of r.grantGolden ?? []) { // Leader of the Pack / Stormcalling — a GILDED copy (board-overflow safe)
-        if (CARD_INDEX[id]) grantMinionToHandOrBoard(s, CARD_INDEX[id]!, true);
+        if (CARD_INDEX[id]) grantMinionToHandOrBoard(s, CARD_INDEX[id]!, true, true);
       }
       for (const id of r.cards ?? []) {
         if (!CARD_INDEX[id]) continue;
-        const card = grantMinionToHandOrBoard(s, CARD_INDEX[id]!, false);
+        const card = grantMinionToHandOrBoard(s, CARD_INDEX[id]!, false, true);
         // Apex Hunt: stamp the granted card (a Badgington) with extra keywords (Flurry + Ward) on the way in.
         if (r.grantKeywords) for (const kw of r.grantKeywords) if (!card.keywords.includes(kw)) card.keywords.push(kw);
       }
@@ -2105,9 +2145,11 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       (s.questRecurringEndOfTurn ??= []).push(r.effect);
       break;
     case 'gainGold':
-      // Bone Ledger: bank Gold into your next shop (the standard "Get N Gold" channel — survives the per-turn
-      // embers reset, exactly like Hoarder / Bounty Bot's bonus Gold).
-      s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + r.amount;
+      // `immediate` → spend it THIS shop (Rune of Small Fortune: "Get N Gold immediately"). Otherwise bank it
+      // into your NEXT shop (Bone Ledger — the standard "Get N Gold" channel, surviving the per-turn embers
+      // reset like Hoarder / Bounty Bot's bonus Gold). A Runeforge opens during a shop turn, so += is immediate.
+      if (r.immediate) s.embers += r.amount;
+      else s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + r.amount;
       break;
     case 'echoRepeat':
       // Funeral Engine (always) → +1 permanent Echo trigger (stacks like Sylus); Grave Contract / Last Rites
@@ -2315,6 +2357,13 @@ function advanceCombatQuests(s: RunState, result: CombatResult): void {
  *  aura up once per `per` accrued (leftover carries in `progress`). */
 function growScalingAuras(s: RunState, result: CombatResult): void {
   for (const sa of s.questScalingAuras ?? []) {
+    // A Beast + summon-in-combat aura (Pack Mentality) grows LIVE during the fight — its magnitude is already
+    // folded in via `playerBeastBuy*Gain` above, so here we only sync the leftover progress the engine reported
+    // (re-growing from the tally would double-count).
+    if (sa.tribe === 'beast' && sa.event === 'summonCombat') {
+      if (result.playerBeastScaleProgress !== undefined) sa.progress = result.playerBeastScaleProgress;
+      continue;
+    }
     const inc = combatEventCount(result, { event: sa.event, tribe: sa.tribe });
     if (inc <= 0) continue;
     sa.progress += inc;
@@ -2325,12 +2374,62 @@ function growScalingAuras(s: RunState, result: CombatResult): void {
   }
 }
 
+/** The ONGOING combat mods a not-yet-completed quest's reward would arm — so `simulate` can activate them the
+ *  instant the quest completes MID-COMBAT (Feeding Line → `{feedingLine:true}`). Only boolean `combatFlag`
+ *  rewards whose mod key equals the flag name (the common ongoing effects); the amount-based flags
+ *  (oldHunt / assemblyLine / sharedCircuit / pitWithoutEnd) and non-flag rewards get no mid-combat mod — they
+ *  still complete + arm at settle for the NEXT fight. Walks `multi` rewards. Returns undefined when none. */
+function pendingQuestMods(reward: QuestDef['reward']): QuestCombatMods | undefined {
+  const out: Record<string, boolean> = {};
+  const walk = (r: QuestDef['reward']): void => {
+    if (r.kind === 'combatFlag' && r.flag !== 'oldHunt' && r.flag !== 'assemblyLine' && r.flag !== 'sharedCircuit' && r.flag !== 'pitWithoutEnd') {
+      out[r.flag] = true;
+    } else if (r.kind === 'multi') for (const sub of r.rewards) walk(sub);
+  };
+  walk(reward);
+  return Object.keys(out).length ? (out as QuestCombatMods) : undefined;
+}
+
+/** The first CARD a quest's reward grants (named grant / gilded copy), walking `multi` — flown to hand as the
+ *  live "→ hand" visual the moment the quest completes mid-combat. Undefined for non-card rewards. */
+function pendingRewardCard(reward: QuestDef['reward']): string | undefined {
+  let found: string | undefined;
+  const walk = (r: QuestDef['reward']): void => {
+    if (found) return;
+    if (r.kind === 'grant') found = r.cards?.[0] ?? r.grantGolden?.[0];
+    else if (r.kind === 'multi') for (const sub of r.rewards) walk(sub);
+  };
+  walk(reward);
+  return found;
+}
+
+/** The player's active, INCOMPLETE quests whose objective counts a COMBAT event — threaded into `simulate` so
+ *  they can complete + activate mid-fight (see `CombatSideState.pendingQuests`). Compound / recruit-only
+ *  objectives are excluded (they settle post-combat as before). */
+const PENDING_COMBAT_EVENTS = new Set<QuestObjectiveEvent>(['attack', 'summonCombat', 'summon', 'slaughter', 'slaughterKeyword', 'deathrattle', 'rally']);
+export function buildPendingCombatQuests(s: RunState): PendingCombatQuest[] {
+  const out: PendingCombatQuest[] = [];
+  for (const aq of s.activeQuests ?? []) {
+    if (aq.completed) continue;
+    const def = QUEST_INDEX[aq.questId];
+    if (!def) continue;
+    const o = def.objective;
+    if (!PENDING_COMBAT_EVENTS.has(o.event) || typeof o.count !== 'number') continue;
+    out.push({ questId: aq.questId, event: o.event, count: o.count, tribe: o.tribe, progress: aq.progress, mods: pendingQuestMods(def.reward), rewardCardId: pendingRewardCard(def.reward) });
+  }
+  return out;
+}
+
 /** Build the run-wide combat modifiers (`QuestCombatMods`) threaded into `simulate()`: the Beast Health aura
  *  plus any armed quest combat flags. */
 export function questCombatMods(s: RunState): QuestCombatMods {
   const f = s.questFlags;
+  // Pack Mentality's LIVE growth config, if a Beast + summon-in-combat scaling aura is armed — the combat engine
+  // grows the aura per `per` Beasts summoned and carries the gain back (so settle skips re-growing it, below).
+  const beastScale = (s.questScalingAuras ?? []).find((a) => a.tribe === 'beast' && a.event === 'summonCombat');
   return {
     beastAuraHp: s.beastBuyHp || undefined,
+    beastSummonScale: beastScale ? { per: beastScale.per, stepAttack: beastScale.stepAttack, stepHealth: beastScale.stepHealth, progress: beastScale.progress } : undefined,
     bloodTrail: f?.bloodTrail,
     echoingCoop: f?.echoingCoop,
     lawOfTeeth: f?.lawOfTeeth,
@@ -2381,10 +2480,7 @@ function refreshTavern(s: RunState, hold = false): void {
   // Apples (Choose One → "the next shop"): fold the banked buff onto the freshly-rolled offers, then clear it.
   const nb = s.nextShopBuff;
   if (nb && (nb.attack || nb.health)) {
-    for (const offer of s.shop) {
-      offer.atk = (offer.atk ?? 0) + nb.attack;
-      offer.hp = (offer.hp ?? 0) + nb.health;
-    }
+    for (const offer of s.shop) addOfferBuff(offer, 'Apples', nb.attack, nb.health);
     s.nextShopBuff = undefined;
   }
   injectPendingTavern(s, hold);

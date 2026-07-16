@@ -12,6 +12,7 @@ import type {
   Minion,
   MinionSnapshot,
   QuestCombatMods,
+  PendingCombatQuest,
   Side,
   Tribe,
 } from '../types';
@@ -56,6 +57,12 @@ export function simulate(
   const beastAtkAuraFor: Record<Side, number> = { player: playerState.beastBuyAtk, enemy: enemyState.beastBuyAtk };
   const beastHpAuraFor: Record<Side, number> = { player: playerState.questMods.beastAuraHp ?? 0, enemy: enemyState.questMods.beastAuraHp ?? 0 };
   let beastBuyAtkGain = 0; // The Old Hunt: run-wide Beast Attack aura gained this combat → carried back
+  // Pack Mentality: player-side LIVE growth of the Beast aura (every `per` Beasts summoned this fight grow it by
+  // step, applied at once to living Beasts). `beastScaleProgress` counts toward the next step; the Health gain is
+  // its own carry-back (The Old Hunt is Attack-only, so `beastBuyHpGain` is new).
+  const beastScale = playerState.questMods.beastSummonScale;
+  let beastBuyHpGain = 0;
+  let beastScaleProgress = beastScale?.progress ?? 0;
   const events: CombatEvent[] = [];
   // Resolution-step tag (choreographer spec 2026-07-06): `stepN` identifies the atomic resolution moment
   // each event belongs to. `emit` stamps it; `nextStep()` is called wherever a NEW atomic resolution begins
@@ -283,18 +290,67 @@ export function simulate(
   // current step is "already counted". Deathrattle (Echo) entries carry no tribe (the Echo objective is
   // tribe-agnostic). Carried back via `CombatResult.playerQuestEvents`.
   const questEvents: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'slaughterKeyword' | 'deathrattle' | 'friendlyDeath' | 'rally' | 'summonImp'; tribes: Tribe[] }[] = [];
+  // ── Mid-combat quest completion (player) ───────────────────────────────────────────────────────────────
+  // Active combat-objective quests threaded in via `pendingQuests`. As their tally climbs, the moment one crosses
+  // its threshold we (a) fold its reward's ONGOING combat mods into `playerState.questMods` — so effects like
+  // Feeding Line trigger for the REST of this fight (Start-of-Combat mods, already applied, stay no-ops) — and
+  // (b) emit a `questComplete` event so the UI lights the node on that beat. The actual completion + reward grant
+  // still settles in the reducer; this only makes the in-fight activation live. `checkPendingQuests()` is called
+  // after every objective tally bump; firing is one-shot per quest.
+  const pending = (playerState.pendingQuests ?? []).map((p) => ({ def: p, fired: false }));
+  const pendingCount = (p: PendingCombatQuest): number => {
+    switch (p.event) {
+      case 'attack': return p.tribe ? (questTally.attackByTribe[p.tribe] ?? 0) : questTally.attack;
+      case 'summonCombat': case 'summon': return p.tribe ? (questTally.summonCombatByTribe[p.tribe] ?? 0) : questTally.summonCombat;
+      case 'slaughter': return p.tribe ? (questTally.slaughterByTribe[p.tribe] ?? 0) : questTally.slaughter;
+      case 'slaughterKeyword': return questTally.slaughterKeyword;
+      case 'deathrattle': return playerDeathrattles;
+      case 'rally': return playerRallies;
+      case 'summonImp': return playerImpsSummoned;
+      default: return 0; // friendlyDeath / tribeStats / compound / recruit objectives: settle-time only (no mid-combat proc)
+    }
+  };
+  const checkPendingQuests = pending.length === 0 ? (): void => {} : (): void => {
+    for (const p of pending) {
+      if (p.fired || p.def.progress + pendingCount(p.def) < p.def.count) continue;
+      p.fired = true;
+      if (p.def.mods) Object.assign(playerState.questMods, p.def.mods); // activate ongoing combat effects from here on
+      emit({ type: 'questComplete', questId: p.def.questId, side: 'player' });
+      // Fly the reward card to hand as a live VISUAL only — a bare `toHand` event, NOT `ctx.grantToHand` (which
+      // would also record it in `playerHandGrants`). The reducer grants the reward for real at settle
+      // (`applyQuestReward`), so emitting here would otherwise double it.
+      if (p.def.rewardCardId) emit({ type: 'toHand', cardId: p.def.rewardCardId, side: 'player' });
+    }
+  };
   const bumpQuestTally = (kind: 'attack' | 'summonCombat' | 'slaughter', m: Minion): void => {
     const tribes = tribesFor(m);
     questTally[kind] += 1;
     const by = byTribeMap[kind];
     for (const t of tribes) by[t] = (by[t] ?? 0) + 1;
     questEvents.push({ step: stepN, kind, tribes });
+    // Pack Mentality (player): a Beast summoned in combat ticks the aura toward its next step; on each step,
+    // grow the live Beast aura + buff EVERY living Beast immediately (matching "wherever they are"), then carry
+    // the gain + leftover progress back to the run at settle. The just-summoned Beast is already on the board,
+    // so it's included in the buff.
+    if (kind === 'summonCombat' && beastScale && tribes.includes('beast')) {
+      beastScaleProgress += 1;
+      while (beastScaleProgress >= beastScale.per) {
+        beastScaleProgress -= beastScale.per;
+        beastAtkAuraFor.player += beastScale.stepAttack;
+        beastHpAuraFor.player += beastScale.stepHealth;
+        beastBuyAtkGain += beastScale.stepAttack;
+        beastBuyHpGain += beastScale.stepHealth;
+        for (const b of boards.player) if (!b.dead && b.health > 0 && isBeast(b)) ctx.buff(b, beastScale.stepAttack, beastScale.stepHealth, 'Pack Mentality');
+      }
+    }
+    checkPendingQuests();
   };
   // Player Deathrattle triggers (Echo objective + Grim tally) — increment + record for the live-tick timeline.
   const bumpDeathrattles = (n: number): void => {
     if (n <= 0) return;
     playerDeathrattles += n;
     for (let i = 0; i < n; i++) questEvents.push({ step: stepN, kind: 'deathrattle', tribes: [] });
+    checkPendingQuests();
   };
   // Player Rally (on-attack) triggers — the `rally` objective + live-tick timeline. Each fire (base + doubler
   // re-fires) counts one Rally trigger, matching the Shout/Echo convention.
@@ -302,12 +358,14 @@ export function simulate(
     if (n <= 0) return;
     playerRallies += n;
     for (let i = 0; i < n; i++) questEvents.push({ step: stepN, kind: 'rally', tribes: [] });
+    checkPendingQuests();
   };
   // The Red Trail: a Slaughter-KEYWORD trigger — a player minion with an on-kill effect felling an enemy. One per
   // kill (the primary trigger; doubler re-fires aren't counted). Tribe-agnostic.
   const bumpSlaughterKeyword = (): void => {
     questTally.slaughterKeyword += 1;
     questEvents.push({ step: stepN, kind: 'slaughterKeyword', tribes: [] });
+    checkPendingQuests();
   };
   const isBeast = (m: Minion): boolean => m.tribe === 'beast' || m.tribe2 === 'beast' || !!m.universalTribe;
   const isDemon = (m: Minion): boolean => m.tribe === 'demon' || m.tribe2 === 'demon' || !!m.universalTribe;
@@ -1761,6 +1819,8 @@ export function simulate(
     playerQuestTally: (questTally.attack > 0 || questTally.summonCombat > 0 || questTally.slaughter > 0 || questTally.slaughterKeyword > 0 || Object.keys(questTally.statGainByTribe).length > 0) ? questTally : undefined,
     playerQuestEvents: questEvents.length > 0 ? questEvents : undefined,
     playerBeastBuyAtkGain: beastBuyAtkGain > 0 ? beastBuyAtkGain : undefined,
+    playerBeastBuyHpGain: beastBuyHpGain > 0 ? beastBuyHpGain : undefined,
+    playerBeastScaleProgress: beastScale ? beastScaleProgress : undefined,
     initial,
     playerSummonBonus,
     playerHpGrantBonus: playerHpGrantBonus.length > 0 ? playerHpGrantBonus : undefined,

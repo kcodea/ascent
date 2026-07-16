@@ -16,7 +16,7 @@ presentation layer on top of this log — noted inline below.
 
 ## 1. Event vocabulary
 
-Twenty event types. Recruit-phase effects (Battlecry, buff-on-summon, Consume) are baked into stats
+Twenty-two event types. Recruit-phase effects (Battlecry, buff-on-summon, Consume) are baked into stats
 **before** combat and emit none of these.
 
 | Group | Event | Meaning |
@@ -34,9 +34,11 @@ Twenty event types. Recruit-phase effects (Battlecry, buff-on-summon, Consume) a
 | | `ascend` | Mid-combat transform (Tara → Taragosa). |
 | **Board** | `summon` | A token/minion enters. Carries its snapshot + `index`. |
 | | `toHand` | A combat effect adds a card to your hand (Arcane Weaver). |
+| | `questTrigger` | A completed quest / owned rune's combat effect fired (`flag` → its badge id). |
 | **Stats & keywords** | `buff` | A stat gain (`+atk/+hp`). |
 | | `improve` | A summon-aura strengthens (Kennelmaster). |
 | | `hpGrant` | Sergeant's live HP-grant total. |
+| | `spellProgress` | Archmagus Guel's on-board spell tally after a combat cast (live countdown). |
 | | `maxGold` | Soulsman's Avenge raises max Gold. |
 | | `keyword` | A keyword is granted (Mumi → Rise). |
 | | `keywordLost` | A keyword is stripped (Tauntbreaker). |

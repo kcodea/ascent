@@ -84,6 +84,35 @@ describe('simulate (handoff A.3)', () => {
     expect(summonAura).toBe(true);
   });
 
+  it('Kennelmaster aura buffs EVERY Deathrattle summon, not just the first (repro: both Pups)', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'kennel', attack: 1, health: 40 },
+      { cardId: 'pack', attack: 2, health: 1 }, // Mama Pup → two 1/1 Pups on death
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 40 }];
+    const r = run(p, e, 1);
+    const pupUids = r.events.flatMap((ev) => (ev.type === 'summon' && ev.minion.cardId === 'pup' ? [ev.minion.uid] : []));
+    expect(pupUids.length).toBe(2); // both Pups summoned
+    const buffed = pupUids.filter((uid) => r.events.some((ev) => ev.type === 'buff' && ev.target === uid && ev.attack === 1 && ev.health === 1));
+    expect(buffed.length).toBe(2); // BOTH inherit the +1/+1 aura, not only the first
+  });
+
+  it('Pack Mentality grows the Beast aura LIVE in combat — a per-N summon buffs living Beasts immediately + carries back', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'pack', attack: 2, health: 1 },   // Mama Pup — dies → summons two Pups (Beasts)
+      { cardId: 'alley', attack: 3, health: 60 }, // a wall Beast we watch (survives the fight)
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 60 }];
+    const scale = { per: 2, stepAttack: 4, stepHealth: 4, progress: 0 };
+    const r = simulate(p, e, makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ['beast'], questMods: { beastSummonScale: scale } }), combatSide({ tier: 1 }));
+    const wall = r.initial.player[1]!.uid;
+    // Two Pups summon → per 2 → one growth → EVERY living Beast (incl. the wall) gains +4/+4 mid-fight.
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.target === wall && ev.attack === 4 && ev.health === 4)).toBe(true);
+    expect(r.playerBeastBuyAtkGain).toBe(4); // carried back to the run's Beast aura (Attack)
+    expect(r.playerBeastBuyHpGain).toBe(4);  // …and Health
+    expect(r.playerBeastScaleProgress).toBe(0); // 2 summons % per 2 = 0 leftover
+  });
+
   it('Tauntbreaker strips Taunt and Rise from the enemy it hits (owner 2026-07-09)', () => {
     // Tauntbreaker (6/4, Ward + Flurry) attacks the Taunt enemy. Its on-attack strip removes Taunt AND Rise
     // from that enemy before the damage exchange resolves — so the lethal blow this same swing keeps it dead.
@@ -270,17 +299,17 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerFodderGrants).toBeUndefined();
   });
 
-  it('Runescale Drake Start of Combat buffs your Dragons +2/+2 (base, 0 spells)', () => {
+  it('Runescale Drake Start of Combat buffs your Dragons +1/+1 (base, no on-board spells)', () => {
     const p: BoardMinion[] = [{ cardId: 'runescale', attack: 4, health: 20 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }];
     const r = run(p, e, 3);
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 2)).toBe(true);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true);
   });
 
-  it('Runescale Drake scales with spells cast this turn (3 spells → +5/+5)', () => {
-    const p: BoardMinion[] = [{ cardId: 'runescale', attack: 4, health: 20 }];
+  it('Runescale Drake scales with its per-instance spell tally (spellProgress 4 → +5/+5)', () => {
+    const p: BoardMinion[] = [{ cardId: 'runescale', attack: 4, health: 20, spellProgress: 4 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }];
-    const r = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ spellsThisTurn: 3 })); // 3 spells this turn → base 2 + 3
+    const r = run(p, e, 3); // base 1 + 4 spells cast while on board = +5/+5
     expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 5 && ev.health === 5)).toBe(true);
   });
 
@@ -322,6 +351,31 @@ describe('simulate (handoff A.3)', () => {
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies to Hoardbreaker → Slaughter
     const r = run(p, e, 3);
     expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 4)).toBe(true);
+  });
+
+  it('Hoardbreaker Drake Rally casts Growth on its own attack (no kill needed)', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'hoardbreaker', attack: 4, health: 20 },
+      { cardId: 'sandbag', attack: 0, health: 20 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 60 }]; // survives — no Slaughter, only Rally
+    const r = run(p, e, 3);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 4)).toBe(true); // Rally cast Growth
+  });
+
+  it('golden Hoardbreaker casts Growth as genuine 2× instances — base +3/+4 events, never a doubled +6/+8', () => {
+    const p: BoardMinion[] = [
+      { cardId: 'hoardbreaker', attack: 4, health: 20, golden: true },
+      { cardId: 'sandbag', attack: 0, health: 1 }, // dies to one enemy swing → combat ends after the first Hoardbreaker swing
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies to Hoardbreaker's swing → Rally + Slaughter both fire
+    const r = run(p, e, 3);
+    const hb = r.initial.player[0]!.uid; // Hoardbreaker buffs all friends including itself
+    const base = r.events.filter((ev) => ev.type === 'buff' && ev.target === hb && ev.attack === 3 && ev.health === 4);
+    const doubled = r.events.filter((ev) => ev.type === 'buff' && ev.target === hb && ev.attack === 6 && ev.health === 8);
+    expect(doubled.length).toBe(0); // golden is TWO base casts, never one doubled cast
+    expect(base.length % 2).toBe(0); // each trigger fires the cast twice (Rally + Slaughter → a multiple of 2)
+    expect(base.length).toBeGreaterThanOrEqual(2);
   });
 
   it('Spark Capacitor Avenge (4) adds a Spark Plug to hand', () => {
@@ -2109,7 +2163,7 @@ describe('simulate (handoff A.3)', () => {
     expect(tara?.count).toBeGreaterThan(0); // Tara was granted stats and counted them toward ascension
   });
 
-  it('Hunter grants Health to your board whenever its Attack rises (driven here by Crypt Drake)', () => {
+  it('Hunter buffs your board +M/+M whenever its Attack rises, scaling +1 each time (driven by Crypt Drake)', () => {
     const a = run(
       [
         { cardId: 'hunter', attack: 5, health: 60 },
@@ -2119,8 +2173,9 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 0, health: 200 }],
       3,
     );
-    // Hunter's reaction is a Health-only +0/+2 to the board — uniquely distinguishable from Crypt Drake's +X/+X.
-    expect(a.events.some((e) => e.type === 'buff' && e.attack === 0 && e.health === 2)).toBe(true);
+    // First Attack-gain → +1/+1 to the board; the next → +2/+2 (scaling per-instance accrual).
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 1 && e.health === 1)).toBe(true);
+    expect(a.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2 && e.source === a.initial.player[0]!.uid)).toBe(true);
   });
 
   it('Burial Imp: its Echo buffs your Fodder +1/+1 (carried back) and summons an Imp', () => {
@@ -3196,12 +3251,12 @@ describe('enemy run-level scalers (per-side)', () => {
     expect(g(6, 5)).toBe(g(6, 0)); // and the current player's Beasts-played is irrelevant to it
   });
 
-  it('enemy Runescale Drake scales with the OPPONENT’s spells-this-turn, not the current player’s', () => {
-    const enemy: BoardMinion[] = [{ cardId: 'runescale', attack: 6, health: 6, keywords: [] }];
+  it('enemy Runescale Drake scales with its OWN per-instance spell tally, ignoring spells-this-turn', () => {
+    const enemy: BoardMinion[] = [{ cardId: 'runescale', attack: 6, health: 6, keywords: [], spellProgress: 3 }];
     const g = (enemySpells: number, playerSpells: number) =>
       maxBuffAtk(runVs(wall, enemy, { spellsThisTurn: enemySpells }, { spellsThisTurn: playerSpells }).events);
-    expect(g(3, 0)).toBe(2 + 1 * 3); // base 2 + perSpell 1 × its own 3 = +5/+5
-    expect(g(0, 5)).toBe(g(0, 0)); // does NOT leech the player's spells-this-turn
+    expect(g(0, 0)).toBe(1 + 3); // base 1 + its carried spellProgress 3 = +4/+4
+    expect(g(9, 9)).toBe(g(0, 0)); // neither side's spells-this-turn leeches into the grant anymore
   });
 });
 
@@ -3214,6 +3269,41 @@ describe('live-display events (combat cards update in real time)', () => {
     const a = run([{ cardId: 'trophystalker', attack: 3, health: 40 }], [{ cardId: 'sandbag', attack: 0, health: 40 }], 1);
     const stalker = a.initial.player[0]!.uid;
     expect(a.events.some((ev) => ev.type === 'improve' && ev.target === stalker)).toBe(true);
+  });
+
+  it('Trophy Stalker: golden doubles the Rally grant (baseline +10/+10 vs +5/+5)', () => {
+    const grant = (golden: boolean): string => {
+      const a = run(
+        [{ cardId: 'trophystalker', attack: 5, health: 500, golden }, { cardId: 'trophystalker', attack: 0, health: 500 }],
+        [{ cardId: 'sandbag', attack: 0, health: 3 }], 3,
+      );
+      const b = a.events.find((ev) => ev.type === 'buff');
+      return b && b.type === 'buff' ? `${b.attack}/${b.health}` : 'none';
+    };
+    expect(grant(false)).toBe('5/5');
+    expect(grant(true)).toBe('10/10');
+  });
+
+  it('mid-combat quest completion emits `questComplete` and activates the reward effect (Feeding Line) live', () => {
+    const player: BoardMinion[] = [
+      { cardId: 'trophystalker', attack: 20, health: 80 },
+      { cardId: 'trophystalker', attack: 20, health: 80 },
+    ];
+    const enemy: BoardMinion[] = [
+      { cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'sandbag', attack: 0, health: 1 },
+      { cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'sandbag', attack: 0, health: 1 },
+    ];
+    const pending = [{ questId: 'q_feed', event: 'slaughter' as const, count: 1, tribe: 'beast' as const, progress: 0, mods: { feedingLine: true }, rewardCardId: 'alley' }];
+    const withQuest = simulate(player, enemy, makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, pendingQuests: pending }), combatSide({ tier: 1 }));
+    // Its card reward flies to hand live — a `toHand` event on the completion beat (visual only; settle grants it).
+    expect(withQuest.events.some((e) => e.type === 'toHand' && e.cardId === 'alley' && e.side === 'player')).toBe(true);
+    const noQuest = simulate(player, enemy, makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES }), combatSide({ tier: 1 }));
+    // The quest completes on the first Beast kill (progress 0 + 1 ≥ count 1) → a `questComplete` event fires.
+    expect(withQuest.events.some((e) => e.type === 'questComplete' && e.questId === 'q_feed')).toBe(true);
+    expect(noQuest.events.some((e) => e.type === 'questComplete')).toBe(false);
+    // Feeding Line, activated on that completion beat, grants an extra out-of-turn Beast attack — so the fight
+    // plays out DIFFERENTLY from the identical one without the quest (proving the mod went live mid-combat).
+    expect(JSON.stringify(withQuest.events)).not.toBe(JSON.stringify(noQuest.events));
   });
 
   it('Rune of Rising Graves emits a foldable `keyword` R event (the pill shows), not a display-silent `sc`', () => {

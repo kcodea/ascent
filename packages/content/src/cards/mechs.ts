@@ -289,9 +289,12 @@ export const MECHS: CardDef[] = [
     attack: 2,
     health: 3,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryBuffMagnetics', params: { attack: 2, health: 2 } }],
-    text: '**Battlecry:** your **Attachments** have **+2/+2** wherever they are.',
-    goldenText: '**Battlecry:** your **Attachments** have **+4/+4** wherever they are.',
+    effects: [
+      { on: 'onPlay', do: 'battlecryBuffMagnetics', params: { attack: 2, health: 2 } },
+      { on: 'onPlay', do: 'battlecryGrantMinion', params: { cardId: 'moneybot' } },
+    ],
+    text: '**Battlecry:** Give your **Attachments** **+2/+2** everywhere and get a **Money Bot**.',
+    goldenText: '**Battlecry:** Give your **Attachments** **+4/+4** everywhere and get **two Money Bots**.',
   },
 
   // --- Mech quest rewards (2026-07-08). token: true → reward-only, never rolled in the tavern. ---

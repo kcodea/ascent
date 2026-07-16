@@ -420,6 +420,7 @@ export interface CombatReplay {
   done: boolean;
   result: CombatResult['result'] | null;
   shaking: boolean;
+  critShaking: boolean;
   beatCount: number;
   /** Enemy minions killed so far in the replay (up to the current beat) — drives Cassen's live counter. */
   enemyDeaths: number;
@@ -511,6 +512,8 @@ export function useCombatReplay(
   const [statFlash, setStatFlash] = useState<Map<string, { atk: boolean; hp: boolean }>>(new Map());
   const [shake, setShake] = useState(0);
   const [shaking, setShaking] = useState(false);
+  const [critShake, setCritShake] = useState(0);   // bumped at a crit's contact → the punchier `.shaking-crit`
+  const [critShaking, setCritShaking] = useState(false);
   // Which minion is mid-attack — drives the `attacking` glow class. The lunge MOTION is run
   // imperatively by GSAP (see the layout effect below); React never sets a transform on a unit.
   const [attackUid, setAttackUid] = useState<string | null>(null);
@@ -664,6 +667,13 @@ export function useCombatReplay(
     const t = window.setTimeout(() => setShaking(false), 300);
     return () => window.clearTimeout(t);
   }, [shake]);
+
+  useEffect(() => {
+    if (!critShake) return;
+    setCritShaking(true);
+    const t = window.setTimeout(() => setCritShaking(false), 300);
+    return () => window.clearTimeout(t);
+  }, [critShake]);
 
   // Advance one beat at a time (a beat = an action + all its result events) — only once `active` (the intro
   // animation has finished and the fight is on), and NOT while the tab is hidden (so beats + GSAP lunges
@@ -863,7 +873,17 @@ export function useCombatReplay(
       const r = rectOf(e.target);
       if (r) pixiFx.deathrattle(r.cx, r.cy, r.w);
     }
-    return () => { timers.forEach((id) => window.clearTimeout(id)); stop(); };
+    return () => {
+      timers.forEach((id) => window.clearTimeout(id));
+      // Release any statHold whose flash timer we just cancelled — otherwise a buff whose tendril hadn't
+      // "landed" when the beat advances (or the replay ends) leaves its target STUCK at its pre-buff value.
+      // Repro: Kennelmaster + a Deathrattle that summons several Beasts — only the first summon's hold released,
+      // the rest stayed at base (e.g. 2/2, 1/1, 1/1). The folded frame already carries the real stats, so
+      // dropping the holds simply shows them.
+      setStatHold((m) => (m.size ? new Map() : m));
+      setStatFlash((m) => (m.size ? new Map() : m));
+      stop();
+    };
   }, [active, beatIdx, beats, events, findEl, cardIds, fireBuffCasts, fireSelfBuffs]);
 
   // Verdict sting when the replay finishes.
@@ -965,6 +985,7 @@ export function useCombatReplay(
             ? () => { fireBuffCasts(windupCasts, windupTimers); fireSelfBuffs(windupSelfBuffs, windupTimers); }
             : undefined,
           onImpactAuras: breakWards,
+          onCritImpact: cur.primary.crit ? () => setCritShake((n) => n + 1) : undefined,
         });
         engineAdvancingRef.current = tl !== null; // engine owns the advance; if it couldn't build, the scheduler falls back
         if (tl === null) breakWards?.(); // lunge cue dropped → no contact anchor to ride; shatter now so it isn't lost
@@ -1096,6 +1117,20 @@ export function useCombatReplay(
     return counts;
   }, [events, processedEnd]);
 
+  // Quests that COMPLETED mid-combat so far this fight (player side): each `questComplete` event's questId, up to
+  // the replayed beat. The quest node doesn't exist in the badge row yet (it only settles as `completed` after
+  // the replay), so the QuestBadges row renders + pulses these live off this set — the reward "lights up" the
+  // instant its objective crosses, matching the effect (Feeding Line etc.) that just went live in the fight.
+  const completedQuests = useMemo(() => {
+    if (processedEnd <= 0) return [] as string[];
+    const curStep = events[processedEnd - 1]?.step ?? Infinity;
+    const ids: string[] = [];
+    for (const e of events) {
+      if (e.type === 'questComplete' && e.side === 'player' && (e.step ?? 0) <= curStep) ids.push(e.questId);
+    }
+    return ids;
+  }, [events, processedEnd]);
+
   // Death reflow is CSS-driven (see `.unit.dying` / `.unit.summoned` in styles.css): the dying unit
   // collapses its own flex slot AS it plays its death pop, so the survivors glide in simultaneously
   // (one smooth phase) instead of waiting a beat and then sliding. CSS flex animates the neighbours for
@@ -1177,7 +1212,7 @@ export function useCombatReplay(
     rallyPulseUids: rallyPulse,
     statHoldFor: (uid: string) => statHold.get(uid),
     statFlashFor: (uid: string) => statFlash.get(uid),
-    done, result: combat ? combat.result : null, shaking,
-    beatCount: beats.length, enemyDeaths, combatBuffs, questDelta, triggeredQuests, skip: () => setBeatIdx(beats.length),
+    done, result: combat ? combat.result : null, shaking, critShaking,
+    beatCount: beats.length, enemyDeaths, combatBuffs, questDelta, triggeredQuests, completedQuests, skip: () => setBeatIdx(beats.length),
   };
 }

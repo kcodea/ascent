@@ -46,11 +46,69 @@ export const CONFIG = {
     statScalePerWave: 0.16,
   },
 
-  // Quests (M3, C1): the master on/off for the whole quest system. `false` → waves 4/8/12 are ordinary
-  // shop turns (no quest phase / panel / objectives / rewards). Gated at the single `questTierForWave`
-  // chokepoint, so nothing downstream can activate. Default on.
+  // Quests: the master on/off for the UNIVERSAL quest turns (waves 5 & 11 — the ones every hero gets). `false`
+  // → those become ordinary shop turns (no quest phase / panel / objectives / rewards). Quest-native heroes
+  // (Fi's Errand, Coran's Pathfinder) keep their own quest access regardless — see `questOfferPlan`. Default on.
   questsEnabled: true,
+
+  // Runeforge: the master on/off for the Runeforge as a UNIVERSAL system. `true` → EVERY hero visits the basic
+  // Runeforge on turn 6 and the Epic Runeforge on turn 9 (free — no hero-power charge). `false` → only the
+  // runeforge-native heroes access it (Runesmith basic on turn 7, Runeguard epic on turn 12), which is always
+  // true independent of this flag. Separate from the `runic` rift (which independently grants the turn-6 basic
+  // forge to all heroes); if both are on, turn 6 still opens exactly one basic forge. Default off.
+  runeforgeEnabled: false,
 };
+
+/**
+ * ── Rifts ──────────────────────────────────────────────────────────────────────────────────────────────
+ * A limited-time "rift" is a **global rule bent for fun for a while, then switched back off** — think
+ * seasonal / weekend modifiers. This is the extensible spine for them: add a new entry to `RIFTS`, give
+ * it an `enabled` switch + display copy, and teach the relevant system to honour its id. At most one rift
+ * is active at a time (the first `enabled` entry, in declaration order).
+ *
+ * Turning one on/off is a one-line `enabled: true|false` flip — no other wiring. The active rift is
+ * **snapshotted onto each run at creation** (`RunState.rift`), so a saved or replayed run keeps the rules
+ * it was played under even after we flip the global switch off (same "pin what actually happened" philosophy
+ * as pinned opponents). Runtime code should read `RunState.rift` / `run.rift`, never the live registry.
+ */
+export type RiftId = 'freedom' | 'runic';
+
+export interface RiftDef {
+  id: RiftId;
+  /** Display name — shown on hero select as "Rift: <name>". */
+  name: string;
+  /** One-line rules blurb for banners / tooltips. */
+  blurb: string;
+  /** The on/off switch. `false` retires the rift for NEW runs (in-flight runs keep their pinned copy). */
+  enabled: boolean;
+  /** Optional human note on the intended window (e.g. "through 2026-07-20"). Informational only — the
+   *  functional switch is `enabled`; we flip it (or ship a build) when the window ends. */
+  runsThrough?: string;
+}
+
+export const RIFTS: Record<RiftId, RiftDef> = {
+  freedom: {
+    id: 'freedom',
+    name: 'Freedom',
+    blurb: 'The first minion you buy each turn is free.',
+    enabled: false,
+    runsThrough: 'a limited-time celebration patch',
+  },
+  runic: {
+    id: 'runic',
+    name: 'Runic Behavior',
+    blurb: 'Every hero visits the basic Runeforge on turn 6.',
+    enabled: true,
+    runsThrough: 'a limited-time celebration patch',
+  },
+};
+
+/** The rift a NEW run should adopt — the first enabled entry, or `null` if none. Deterministic (depends
+ *  only on the registry's `enabled` flags), so it's safe to call from `createRun`. */
+export function activeRift(): RiftDef | null {
+  for (const a of Object.values(RIFTS)) if (a.enabled) return a;
+  return null;
+}
 
 /**
  * Minion-pool quantities per tier — how many copies of each tier's cards sit in the shared

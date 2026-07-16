@@ -2,7 +2,9 @@ import type { RuneDef } from '@game/core';
 import { RuneDefSchema } from './schema';
 
 /**
- * Runes — the Runesmith's Runeforge stock. On turn 6 the forge offers a random 3 of these; the player buys ONE
+ * Runes — the Basic Runeforge stock (opened by the Runesmith hero on turn 7; the Epic Runeforge — via the
+ * Runeguard hero on turn 12, or the Epic Commission quest — draws from EPIC_RUNES below). The forge offers a
+ * random few of these; the player buys ONE
  * for its Gold `cost` and its `reward` applies for the rest of the run (no objective — it just takes effect).
  * Each rune reuses the quest `QuestReward` application engine (see `applyQuestReward`), so a rune's effect is a
  * reward: some reuse existing kinds (combatFlag / recurringEndOfTurn / grant), some use rune-only kinds.
@@ -141,8 +143,8 @@ export const RUNES: RuneDef[] = [
     id: 'rune_small_fortune',
     name: 'Rune of Small Fortune',
     cost: 1,
-    text: 'Get **6 Gold**.',
-    reward: { kind: 'gainGold', amount: 6 },
+    text: 'Get **7 Gold** immediately.',
+    reward: { kind: 'gainGold', amount: 7, immediate: true },
   },
   {
     id: 'rune_quick_study',
@@ -200,11 +202,10 @@ export const RUNES: RuneDef[] = [
  * normal Runeforge (offer a random few, buy ONE for Gold, re-roll once for 2 Gold) but draws from THIS set and is
  * NOT tied to a hero power — reached by a quest reward (`openEpicRuneforge`, the Epic Commission quest).
  *
- * NOTE (2026-07-10 re-batch): the designed Epic roster (Stormcalling / Twin Gilding / Broodpit / Feast / Frontline
- * Glory / Assembly / Banking / Appraisal / Den Mother / Twilight / Spearline / Scales / First Claws /
- * Reconfiguration / Soul Taxes / Rising Graves / Copies) is being built out in follow-up batches — most need new
- * card grants + combat/recruit mechanics. Only **Rune of Copies** is wired so far, so the Epic forge is thin until
- * the rest land.
+ * The designed Epic roster is now wired out — **23 Epic runes** across grants, discovers, recurring-end-of-turn,
+ * Start-of-Combat / Avenge combat flags, and recruit-phase mechanics (Copies, Reliquary, Rising Graves, Broodpit,
+ * Spearline, Appraisal, Assembly, Stormcalling, Frontline Glory, Soul Taxes, Scales, Twin Gilding, Den Mother,
+ * Banking, First Claws, Inheritance, Second Path, Twilight, Feast, Reconfiguration, Champion, Armory, Gilded Spark).
  */
 export const EPIC_RUNES: RuneDef[] = [
   {

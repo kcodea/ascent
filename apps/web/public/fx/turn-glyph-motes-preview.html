@@ -12,9 +12,9 @@
   .glyphfx { position: absolute; left: 50%; top: 50%; width: var(--fx-w, 74%); aspect-ratio: 1385 / 544;
     transform: translate(calc(-50% + var(--fx-x, -0.4%)), calc(-50% + var(--fx-y, -3.5%))); pointer-events: none; --charge: 0; }
   .masked { position: absolute; inset: 0;
-    -webkit-mask: url("turn-glyph.svg") center/contain no-repeat, linear-gradient(90deg, #fff 0, #fff calc(var(--charge)*50%), transparent calc(var(--charge)*50%), transparent calc(100% - var(--charge)*50%), #fff calc(100% - var(--charge)*50%), #fff 100%);
+    -webkit-mask: url("turn-glyph.svg") center/contain no-repeat, linear-gradient(90deg, #fff 0, #fff calc(var(--charge)*50% - var(--feather,0%)), transparent calc(var(--charge)*50%), transparent calc(100% - var(--charge)*50%), #fff calc(100% - var(--charge)*50% + var(--feather,0%)), #fff 100%);
     -webkit-mask-composite: source-in;
-    mask: url("turn-glyph.svg") center/contain no-repeat, linear-gradient(90deg, #fff 0, #fff calc(var(--charge)*50%), transparent calc(var(--charge)*50%), transparent calc(100% - var(--charge)*50%), #fff calc(100% - var(--charge)*50%), #fff 100%);
+    mask: url("turn-glyph.svg") center/contain no-repeat, linear-gradient(90deg, #fff 0, #fff calc(var(--charge)*50% - var(--feather,0%)), transparent calc(var(--charge)*50%), transparent calc(100% - var(--charge)*50%), #fff calc(100% - var(--charge)*50% + var(--feather,0%)), #fff 100%);
     mask-composite: intersect; }
   .charge-fill { background: linear-gradient(90deg, #0037ff 0%, #009dff 19%, #ffffff 50%, #009dff 81%, #0037ff 100%);
     filter: drop-shadow(0 0 40px rgba(0,157,255,.85)) drop-shadow(0 0 80px rgba(0,55,255,1)); mix-blend-mode: screen; animation: cpulse 4.3s ease-in-out infinite; opacity: var(--fillop, 1); }
@@ -91,6 +91,7 @@ const DIALS = [
   { group: 'Mandala light-up', prop: 'mandalaGlow', min: 0, max: 1.5, step: 0.02, def: 0.7 },
   { group: 'Mandala light-up', prop: 'mandalaR',    min: 0.04,max: 0.4,step: 0.005, def: 0.16 },
   { group: 'Mandala light-up', prop: 'mandalaRamp', min: 0.4, max: 4,  step: 0.05, def: 1.8 },
+  { group: 'Glyph edge (ramped feather)', prop: 'maxFeather', min: 0, max: 24, step: 0.5, def: 8, unit: '%' }, // feather = this × (1−charge): soft fronts while charging, 0 at completion (no sigil dimming)
   { group: 'Completion — gather + flash', prop: 'gatherSpeed', min: 100, max: 3000, step: 25, def: 1100, unit: 'px/s' },
   { group: 'Completion — gather + flash', prop: 'gatherBurst', min: 0, max: 500, step: 10, def: 160 },
   { group: 'Completion — gather + flash', prop: 'flashSize',  min: 0, max: 700, step: 5, def: 340, unit: 'px' },
@@ -169,7 +170,9 @@ function box() { const br = document.getElementById('board').getBoundingClientRe
   const sx = cv.width / br.width; return { x: (gr.left - br.left)*sx, y: (gr.top - br.top)*sx, w: gr.width*sx, h: gr.height*sx, s: sx }; }
 
 let parts = [], charge = 0, playing = false, playT0 = 0, emitAcc = 0, wasComplete = false, flashT0 = 0;
-function setCharge(c) { charge = Math.max(0, Math.min(1, c)); fx.style.setProperty('--charge', charge.toFixed(4)); scrub.value = charge; scrubval.textContent = Math.round(charge*100)+'%'; }
+function setCharge(c) { charge = Math.max(0, Math.min(1, c)); fx.style.setProperty('--charge', charge.toFixed(4));
+  fx.style.setProperty('--feather', ((V.maxFeather ?? 0) * (1 - charge)).toFixed(2) + '%'); // ramp feather → 0 at completion
+  scrub.value = charge; scrubval.textContent = Math.round(charge*100)+'%'; }
 const isLit = (nx, f) => nx <= f || nx >= 1 - f;
 
 // spawn a mote at shape index si; dir = 'flow' (tangent) or 'gather' (toward centre)
@@ -178,7 +181,8 @@ function spawnAt(si, B, cx, cy, mode) {
   const x = B.x + sp.nx*B.w, y = B.y + sp.ny*B.h;
   let dx, dy;
   if (mode === 'gather') { dx = cx - x; dy = cy - y; }
-  else { dx = tg.tx * B.w; dy = tg.ty * B.h; }               // tangent in px space (aspect-correct)
+  else { dx = tg.tx * B.w; dy = tg.ty * B.h;                 // tangent in px space (aspect-correct)
+    if (dx*(cx - x) + dy*(cy - y) < 0) { dx = -dx; dy = -dy; } } // guarantee net-INWARD (kills backward wisps)
   const d = Math.hypot(dx, dy) || 1;
   const spd = (mode === 'gather' ? V.gatherSpeed : V.flowSpeed) * B.s * (1 - V.speedVar*Math.random());
   parts.push({ x, y, vx: dx/d*spd, vy: dy/d*spd, px: -dy/d, py: dx/d, seek: mode === 'gather',

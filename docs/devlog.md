@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### feat(ui): play-into-warband lights the exact hover glow
+
+- **Playing a minion from hand now shows the same teal hover glow as it crosses into the warband.** When a
+  dragged hand minion is over the play area (Recruit's `willplay`), the floating card lights its own
+  masked-silhouette `.cglow` — the *identical* hover glow (bright teal rim + tight stacked bloom, tuned via the
+  🔆 Hover Glow tuner) — instead of the old gold "release to play" drop-shadow halo. A one-line rule
+  (`.dragcard.willplay .card.compact .cglow { opacity: 1 }`), scoped to out-specify the `opacity:0` default.
+- Iterated through a whole-card teal drop-shadow first (recoloured the old gold halo, then tightened blur +
+  stacking), but it read too large/soft because it followed the full card alpha incl. the text drawer; switching
+  to the real `.cglow` makes play read pixel-identical to hover and stay in sync with the tuner automatically.
+- **Verified:** build:web + lint green; live HMR eyeball (owner: "that looks perfect").
+
 ### feat(ui): aimed defender's red target glow fades in over the wind-up
 
 Owner follow-up to #495: instead of removing the defender glow entirely, bring back the RED "target" glow but have

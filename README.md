@@ -40,6 +40,14 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **Career + post-game visual pass.** The Career page now matches the ornate mockup — full-height profile
+  panel (gold-ringed avatar with an Oath roundel, gradient Renown pill, iconed stat chips, single-line
+  Insights), a "Winning Boards" header with gold round chips + aggregate record, and richer match rows
+  (VICTORY/DEFEAT, labeled stat strip, Standout Stats panel). The course-complete screen got a gradient gold
+  headline + beveled Play Again.
+- **No more repeat opponents.** The remote pool now pulls a newest-first sample **per wave** (the old global
+  cap starved waves ~9+ as the shared table grew), and the no-repeat rule widens to a fresh nearby wave before
+  ever allowing a back-to-back board.
 - **Vocabulary pass + hero-power rewrites.** The UI now speaks in themed terms — **Renown** (Rating), **Oath**
   (Line), Fulfilled / Surpassed / Fell Short verdicts, **ASCENDED** / **FALLEN** endings — and all 23 hero
   powers got shorter, cleaner text. Hero select shows just Renown + Oath.

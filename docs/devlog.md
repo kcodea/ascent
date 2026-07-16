@@ -5,6 +5,33 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): Career + post-game visual pass (mockup-match)
+
+- Owner supplied two visual mockups (Career page + course-complete screen) and asked for a close match while
+  keeping the new vocabulary (Renown/Oath/Surpassed/ASCENDED). **UI/CSS only — no data or logic changes.**
+- **Career** (`Career.tsx` + `styles.css`):
+  - New two-column layout: full-height **profile panel** left; right column stacks the **Winning Boards** log
+    over **Recent Match History** (the BoardLog moved inside the right column instead of full-width on top).
+  - Profile: avatar in a gold double-ring with an **Oath roundel badge** riding its bottom edge, gold gradient
+    **"RENOWN N · OATH N" pill**, "Highest: …" gold subline, and the Completed/Flawless/Streak chips gained
+    icons (sword/shield/flame) + gold-hairline frames.
+  - **Insights** rows are now single-line (icon chip · label left · value right, tabular numerals) per the
+    mockup; dropped the redundant "Current Streak" row (the chip above covers it).
+  - **Winning Boards**: header row with a crown-icon gold title and an aggregate **Wins/Ties** readout on the
+    right (summed across each round's winningest board); the selected round chip is now a solid gold chip with
+    a dark numeral.
+  - **Match rows**: verdict reads as plain colored small-caps ("OATH 7 · SURPASSED") under the name; build-tag
+    pills sit inline on the row's right half; a colored **VICTORY / DEFEAT** word + chevron closes the row.
+    Expanded runs show a **labeled stat strip** (Gold Spent / Avg. Actions / Cards / Triples / 👑 MVP with
+    divider rules) and a bulleted **"Standout Stats"** side panel (Strongest / Most / Renown Δ) beside the
+    warband. All panels share a new ornate frame (deep navy fill, double gold border, inner shade).
+- **End screen** (`styles.css` only): the won headline is a **vertical gold gradient** (`background-clip: text`
+  + a static drop-shadow — one-shot, not animated, so the paint-property perf rule holds), brighter RECORD
+  line, uppercase gold hero name, and a beveled **gradient Play Again** button.
+- Verified: typecheck + lint + 1109 tests + build:web green; live dev-server check with an injected mock run
+  history (4 runs incl. a Fallen/DEFEAT row) — profile panel, insights alignment, expanded stat strip +
+  standout panel, and a DOM-injected end-screen mock all matched the mockups; mocks removed after.
+
 ### fix(sim): no-repeat matchmaking widens to a fresh nearby wave (no more back-to-back boards)
 
 - Owner faced the **same snapshot twice in a row** despite the 4-round no-repeat rule. Root cause: the

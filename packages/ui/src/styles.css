@@ -625,15 +625,17 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
 /* Lightning canvas — arcs crackling along the diamond edges + across its face (drawn by EndTurnButton's
    rAF; the 24px-per-side margin gives jitter room). Sized in --u so it tracks the art at any resolution. */
 .etbwrap .etb-bolts { position: absolute; left: calc(-24 * var(--u)); top: calc(-24 * var(--u)); width: calc(176 * var(--u)); height: calc(188 * var(--u)); z-index: 5; pointer-events: none; }
-/* Hover tip — the dark pill the shop buttons use, seated under the diamond. */
+/* Hover tip — the dark pill the shop buttons use, seated under the diamond. Floats up as it fades in
+   (owner note 2026-07-16: slower + slightly larger). Pinned ALWAYS-ON when the turn timer hits 0 in the
+   shop (`.urgent` — "hit End Turn") and when the combat replay is done (`.ready` — "back to shop"). */
 .etbwrap .etb-tip {
-  position: absolute; left: 50%; top: calc(100% + 10px); transform: translateX(-50%);
-  white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.12s ease;
-  font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: #f4ecdb;
+  position: absolute; left: 50%; top: calc(100% + 10px); transform: translateX(-50%) translateY(7px);
+  white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.38s ease, transform 0.38s ease;
+  font-family: var(--font-ui); font-weight: 700; font-size: 13.5px; color: #f4ecdb;
   background: linear-gradient(180deg, #211812, #16100b); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
-  border-radius: 10px; padding: 4px 12px; box-shadow: 0 3px 9px -3px rgba(0, 0, 0, 0.6); z-index: 6;
+  border-radius: 11px; padding: 5px 14px; box-shadow: 0 3px 9px -3px rgba(0, 0, 0, 0.6); z-index: 6;
 }
-.etbwrap:not(:disabled):hover .etb-tip { opacity: 1; }
+.etbwrap:not(:disabled):hover .etb-tip, .etbwrap.urgent .etb-tip, .etbwrap.ready .etb-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
 /* Styled hover tooltip (replaces the native title): the game's dark rounded pill, dropping below the control
    with a small arrow — same format as the hero/opponent tips. The hovered control lifts above its neighbours
    so the pill never gets trapped behind the next plaque. */

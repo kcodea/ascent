@@ -5,6 +5,20 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): End Turn diamond — zigzag bolts + tooltip polish (always-on at timer-0 / combat-done)
+
+- Round six of owner notes:
+  1. **Zig-zaggier lightning** — bolts went from 6 smooth-jittered segments to 9 joints with a FORCED
+     alternating sign per joint (a shimmering seeded magnitude on top), so arcs read as jagged lightning
+     rather than waves.
+  2. **Tooltip float/fade polish** — the pill now floats up 7px as it fades in over 0.38s (was a 0.12s
+     opacity snap), at 13.5px (was 12) with a touch more padding.
+  3. **Always-on tooltip states** — the pill pins visible (no hover needed) when the shop timer hits 0
+     (`.urgent` → "End your turn and start combat") and when the combat replay finishes (`.ready` → "End
+     combat and go back to shop").
+- Verified live: jagged bolts on a cranked-rate run; timer-0 pill pinned at 13.5px with the right text;
+  combat-done pill pinned with the return-to-shop text. Typecheck + lint + 1109 tests + build:web green.
+
 ### feat(ui): End Turn diamond — it IS End Combat now + ambient sheen
 
 - Round five of owner notes:

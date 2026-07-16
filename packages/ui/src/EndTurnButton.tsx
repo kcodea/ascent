@@ -156,15 +156,18 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatRead
         const dx = bx - ax, dy = by - ay;
         const len = Math.hypot(dx, dy) || 1;
         const nx = -dy / len, ny = dx / len;
-        const segs = 6;
+        const segs = 9;
         ctx.globalAlpha = cfg.boltAlpha * life;
         ctx.lineWidth = cfg.boltWidth;
         ctx.beginPath();
         ctx.moveTo(ax, ay);
         for (let i = 1; i < segs; i++) {
           const t = i / segs;
-          // Deterministic-ish jitter per arc+joint that shimmers over time (seeded sin — no per-frame allocs).
-          const j = Math.sin(a.seed + i * 12.9898 + now * 0.02) * cfg.boltMag * (1 - Math.abs(t - 0.5) * 0.6);
+          // ZIGZAG (owner note 2026-07-16): a forced alternating sign flips direction at EVERY joint, with a
+          // shimmering pseudo-random magnitude per joint (seeded sin — deterministic per arc, no allocs),
+          // tapered toward the endpoints. More joints + hard flips = jagged bolts, not smooth waves.
+          const r = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(a.seed + i * 12.9898 + now * 0.02));
+          const j = (i % 2 ? 1 : -1) * r * cfg.boltMag * (1 - Math.abs(t - 0.5) * 0.6);
           ctx.lineTo(ax + dx * t + nx * j, ay + dy * t + ny * j);
         }
         ctx.lineTo(bx, by);
@@ -179,7 +182,7 @@ export function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatRead
   return (
     <button
       ref={wrapRef}
-      className={`etbwrap${pressed ? ' pressed' : ''}${urgent && !pressed ? ' urgent' : ''}`}
+      className={`etbwrap${pressed ? ' pressed' : ''}${urgent && !pressed ? ' urgent' : ''}${combatReady ? ' ready' : ''}`}
       disabled={disabled}
       onClick={click}
       aria-label={combatReady ? 'End combat and go back to shop' : 'End your turn and start combat'}

@@ -7,10 +7,11 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ### feat(sim/core/ui): three new heroes — Re-Pete (Second Hand), Atrius (Possession), Gorr (Four Peat)
 
-- **Re-Pete** — 30 Resolve / 9 Armor. **Second Hand** (passive): at the start of every 3rd turn (3, 6, 9, …)
+- **Re-Pete** — 30 Resolve / 9 Armor. **Second Hand** (passive): at the END of every 3rd turn (3, 6, 9, …)
   conjure a PLAIN copy of the left-most card in hand — base stats only (no buffs/golden/welds carried) and
-  **no pool take** (a conjured card, per the owner's spec). Runs with the other shop-open hand grants so the
-  copy can still complete a triple. Tally: `Xt` to the next copy.
+  **no pool take** (a conjured card, per the owner's spec). Fires in the faceOmen (end-turn) case right after
+  the End-of-Turn triggers (owner correction: end-of-turn, not start-of-shop). Tally: `Xt` to the next
+  copy, `now` on a firing turn.
 - **Atrius** — 30 Resolve / 13 Armor. **Possession** (passive, combat-time): at Start of Combat the leftmost
   living minion gains the rightmost's Attack and the rightmost gains the leftmost's Health — simultaneous
   (both read pre-buff values); 1-minion boards no-op. Implemented as a new `possession` flag on

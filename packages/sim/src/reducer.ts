@@ -1092,6 +1092,13 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       // End-of-turn triggers fire first and bake into the board's stats (handoff C.5).
       applyEndOfTurn(s);
+      // Re-Pete's Second Hand: at the END of every 3rd turn (3, 6, 9, …), conjure a PLAIN copy of the
+      // left-most card in hand — base stats only (no buffs/golden/welds carried) and NO pool take (a
+      // conjured card). Hand-cap-safe; an empty hand grants nothing. (Owner correction 2026-07-16:
+      // end-of-turn, not start-of-shop.)
+      if (getHero(s.heroId).power.kind === 'secondHand' && s.wave % 3 === 0 && s.hand.length > 0) {
+        conjurePlainCopy(s, s.hand[0]!.cardId);
+      }
       advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires ?? 0); // Parliament of Flame: "Trigger N End-of-Turn effects"
       // Resolve combat now (deterministic) but don't apply the outcome yet —
       // the UI replays the event log, then dispatches `resolveCombat`.
@@ -1859,13 +1866,6 @@ function advanceCombat(s: RunState): void {
       s.chaosGrantSeq = (s.chaosGrantSeq ?? 0) + 1;
       s.chaosGrantUid = grantUid;
     }
-  }
-  // Re-Pete's Second Hand: at the START of every 3rd turn (3, 6, 9, …), conjure a PLAIN copy of the
-  // left-most card in hand — base stats only (no buffs/golden/welds carried) and NO pool take (a conjured
-  // card). Hand-cap-safe; an empty hand grants nothing. Runs with the other shop-open hand grants so the
-  // copy can still complete a triple below.
-  if (getHero(s.heroId).power.kind === 'secondHand' && s.wave % 3 === 0 && s.hand.length > 0) {
-    conjurePlainCopy(s, s.hand[0]!.cardId);
   }
   // Gildmaster: get a Goldcrafter (a spell that makes a friendly minion golden) at the START of every 4th
   // turn — turns 4, 8, 12, …. Conjured to hand (hand-cap-safe); a granted spell can't complete a triple.

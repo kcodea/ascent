@@ -242,33 +242,27 @@ describe('New heroes — Coran (Pathfinder) + Jenkins (Dynamite Dig)', () => {
 });
 
 describe('New heroes — Re-Pete, Gorr, Atrius', () => {
-  const win: CombatResult = { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
-
-  it("Re-Pete: Second Hand conjures a PLAIN copy of the left-most hand card at the start of turns 3, 6, 9, …", () => {
+  it("Re-Pete: Second Hand conjures a PLAIN copy of the left-most hand card at the END of turns 3, 6, 9, …", () => {
     // A buffed GOLDEN card leads the hand — the copy must come back plain (base stats, not golden).
     const buffed: RunState['hand'][number] = { uid: 'h1', cardId: 'alley', tribe: 'beast', attack: 9, health: 9, keywords: ['T' as never], golden: true };
+    // Ending turn 2 (a non-multiple) grants nothing.
     let s: RunState = { ...createRun(1, 'repete'), wave: 2, phase: 'recruit', hand: [buffed] };
-    s = reduce(s, { type: 'faceOmen' }); // → combat for wave 2
-    s = reduce(s, { type: 'resolveCombat' }); // → recruit for wave 3: the grant fires
+    s = reduce(s, { type: 'faceOmen' }); // end of turn 2 → no grant
+    expect(s.hand.length).toBe(1);
+    s = reduce(s, { type: 'resolveCombat' }); // → recruit for wave 3
     expect(s.wave).toBe(3);
+    expect(s.hand.length).toBe(1); // nothing at the shop open either
+    s = reduce(s, { type: 'faceOmen' }); // END of turn 3 → the grant fires
     const copy = s.hand.find((c) => c.uid !== 'h1' && c.cardId === 'alley');
     expect(copy).toBeDefined();
     expect(copy!.golden).toBe(false); // plain
     expect(copy!.attack).toBe(CARD_INDEX['alley']!.attack); // base stats — no buffs carried
     expect(copy!.health).toBe(CARD_INDEX['alley']!.health);
-    // Advancing into a NON-multiple turn (wave 4) grants nothing.
-    const handAt3 = s.hand.length;
-    s = reduce(s, { type: 'faceOmen' });
-    s = reduce({ ...s, lastCombat: win }, { type: 'resolveCombat' });
-    expect(s.wave).toBe(4);
-    expect(s.hand.length).toBe(handAt3);
   });
 
-  it('Re-Pete: an empty hand grants nothing (no crash) on a multiple-of-3 turn', () => {
-    let s: RunState = { ...createRun(1, 'repete'), wave: 2, phase: 'recruit', hand: [] };
-    s = reduce(s, { type: 'faceOmen' });
-    s = reduce(s, { type: 'resolveCombat' });
-    expect(s.wave).toBe(3);
+  it('Re-Pete: an empty hand grants nothing (no crash) at the end of a multiple-of-3 turn', () => {
+    let s: RunState = { ...createRun(1, 'repete'), wave: 3, phase: 'recruit', hand: [] };
+    s = reduce(s, { type: 'faceOmen' }); // end of turn 3 with an empty hand
     expect(s.hand.length).toBe(0);
   });
 

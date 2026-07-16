@@ -34,7 +34,7 @@ export type HeroPowerKind =
   | 'pathfinder' // Coran (passive): a bonus late-bucket (Capstone) quest on turn 10, on top of the normal 5 & 11
   | 'dynamiteDig' // Jensen: Discover a minion of your tier — free first, +1 Gold each later use (active, untargeted)
   | 'dragonTamer' // Tiff: 5 Gold Discover a Dragon — the cost drops 1 per Dragon/spell bought, resetting on use
-  | 'secondHand' // Re-Pete (passive): every 3rd turn, a plain copy of the left-most card in hand (conjured, no pool take)
+  | 'secondHand' // Re-Pete (passive): at the END of every 3rd turn, a plain copy of the left-most card in hand (conjured, no pool take)
   | 'possession' // Atrius (passive): SoC — leftmost gains rightmost's Attack; rightmost gains leftmost's Health
   | 'fourPeat'; // Gorr (passive): buy 3 minions in one turn → a plain copy of one of them at random (once/turn)
 
@@ -405,8 +405,8 @@ export const HEROES: HeroDef[] = [
     power: {
       name: 'Second Hand',
       kind: 'secondHand',
-      passive: true, // resolved at the start of every 3rd turn (turns 3, 6, 9, …)
-      text: 'Every 3 turns, get a plain copy of the left-most card in your hand.',
+      passive: true, // resolved at the END of every 3rd turn (turns 3, 6, 9, …) — in the faceOmen case
+      text: 'At the end of every 3rd turn, get a plain copy of the left-most card in your hand.',
     },
   },
   {

@@ -91,7 +91,7 @@ export function StatusBar() {
       case 'epicRuneforge': return run.epicForgeWave != null && run.wave < run.epicForgeWave ? `${run.epicForgeWave - run.wave}t` : null; // Runeguard
       case 'pathfinder': return run.wave < 10 ? `${10 - run.wave}t` : null; // Coran — turns to the capstone
       case 'dynamiteDig': return `Tier ${run.tier}`; // Jenkins — what the dig would discover
-      case 'secondHand': return `${3 - (run.wave % 3)}t`; // Re-Pete — turns to the next copy
+      case 'secondHand': return run.wave % 3 === 0 ? 'now' : `${3 - (run.wave % 3)}t`; // Re-Pete — fires when this turn ends / countdown
       case 'fourPeat': return `${Math.min(3, run.gorrBuys?.length ?? 0)}/3`; // Gorr — minion buys this turn
       default: return null;
     }

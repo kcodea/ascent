@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### fix(sim/ui): Gold Pouch shows its LIVE value under Rune of Pillaging
+
+- Owner report: with Rune of Pillaging active ("your Gold Pouches are worth 2 Gold") the pouch card still
+  printed "Gain 1 Gold." — a violation of the hard live-text rule. `spellDisplayText` gains a
+  `goldPouchValue` param (the same `state.goldPouchValue` the cast actually pays out) and prints
+  "Gain {{2 Gold}}." (greened) when raised; threaded through `liveCardText`/`instView`/`shopView` and
+  every Recruit assembly site (shop offers, the cast preview, board/hand views — memo deps included), so
+  the pouch reads its real payout in the shop, hand, Discover, and the caster hover alike.
+- New rune test: the printed text folds the raised payout in (and stays at the base "**1 Gold**" without
+  the rune) — alongside the existing cast-worth-2 behavior test. Verified live: a poked run with
+  `goldPouchValue: 2` renders "Gain 2 Gold." with the standard green `descup` highlight on the hand card.
+  Typecheck + lint + 1110 tests + build:web green.
+
+
+
 ### docs: handoff brief for the shop-button remakes (Mike)
 
 - New [`docs/handoff-shop-buttons.md`](handoff-shop-buttons.md): the full recipe for remaking the

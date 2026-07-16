@@ -2307,9 +2307,13 @@ export function spellHealthBonus(state: RunState): number {
  * base text for non-stat spells or a zero bonus. Convention: a stat spell's text shows "+A/+B" matching
  * its `spellBuffTarget` params, so it can be substituted.
  */
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
+  // Rune of Pillaging: Gold Pouch reads its LIVE payout once the rune raises it ("Gain {{2 Gold}}.") —
+  // the same value the cast actually grants (see the gainEmbers override above). Handled before the
+  // spell-power early-return since the pouch scales without any spell power.
+  if (def.id === 'emberpouch' && goldPouchValue > 1) return def.text.replace('**1 Gold**', `{{${goldPouchValue} Gold}}`);
   // Front to Back (escalating): the printed text carries TWO "+A/+H" groups — the GRANT (slot 0) and the per-cast
   // IMPROVEMENT (slot 1). Attack and Health scale INDEPENDENTLY (owner 2026-07-09): each stat's grant = its step +
   // its accumulated escalation (`escalation` / `escalationH`) + its spell power; each stat's improvement step = its

@@ -3,6 +3,7 @@ import type { CombatResult } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNES, RUNE_INDEX, validateRunes } from '@game/content';
 import { createRun, type RunState } from './state';
 import { openEpicRuneforge, reduce } from './reducer';
+import { spellDisplayText } from './recruit';
 import { questBucketFor } from './quests';
 import { applyEndOfTurn, projectEndOfTurnSteps, questEndOfTurnBeats } from './recruit';
 
@@ -137,6 +138,14 @@ describe('Runeforge — rune effects fire in play', () => {
       hand: [{ uid: 'gp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     s = reduce(s, { type: 'play', uid: 'gp' });
     expect(s.embers).toBe(2); // worth 2, not 1
+  });
+
+  it("Pillaging: the Gold Pouch's PRINTED text reads its live 2-Gold value (hard live-text rule)", () => {
+    // Owner report 2026-07-16: the pouch still said "Gain 1 Gold." with the rune active. The display path
+    // (spellDisplayText → liveCardText/shopView) must fold the raised payout in, greened.
+    expect(spellDisplayText('emberpouch', 0, 0, 0, 0, 0, 2)).toBe('Gain {{2 Gold}}.');
+    // Without the rune (or before it), the printed base stays untouched.
+    expect(spellDisplayText('emberpouch', 0, 0, 0, 0, 0, 0)).toBe('Gain **1 Gold**.');
   });
 
   it('Slaying: each Slaughter this combat banks +2 Gold for next turn', () => {

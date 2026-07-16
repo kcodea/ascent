@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### fix(sim): no-repeat matchmaking widens to a fresh nearby wave (no more back-to-back boards)
+
+- Owner faced the **same snapshot twice in a row** despite the 4-round no-repeat rule. Root cause: the
+  late-course pool thins out, so when no board exists at the exact wave the pick widens to the CLOSEST wave —
+  waves 16 and 17 can both collapse onto the same one nearby board. The old fallback then allowed the repeat
+  the moment the same-wave `fresh` set was empty, even though fresh boards existed at other nearby waves.
+- `pickOpponent` now **widens before surrendering**: if every same-wave candidate was fought in the last 4
+  rounds, it re-runs the closest-wave selection over the pool minus the excluded — a fresh nearby-wave board
+  beats an exact-wave repeat. Only when the ENTIRE pool was fought recently is a repeat served (still beats no
+  opponent). New test reproduces the starved 16→17 collapse (old code re-served X; now serves the fresh Y) +
+  the truly-unavoidable case. typecheck + lint + test (1109) + build:web green.
+- **Second (bigger) cause — the remote pool pull starved mid/high waves.** The owner's repeat hit at round
+  ~9, which exposed the startup fetch: a single global `order(wave, asc).limit(2000)` fills the cap from wave 1
+  upward — and dead runs over-contribute low waves — so once the `boards` table outgrew the cap, waves ~9+
+  were **truncated out of the pool entirely**, collapsing matchmaking onto whatever nearby board existed.
+  `fetchAndRegisterPool` now pulls a capped, NEWEST-first sample **per wave** (17 parallel queries ×120,
+  `Promise.allSettled` so one flaky wave can't kill the pool) — guaranteed coverage across the whole course at
+  any table size.
+
 ### feat(ui/content): vocabulary pass (Renown/Oath/…) + 23 hero-power text rewrites + tooltip cleanups
 
 - **Player-facing vocabulary rename** (display-only; internal ids `rating`/`line`/`lineStatus` unchanged, same

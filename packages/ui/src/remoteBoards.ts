@@ -14,12 +14,13 @@
  * seeds should still pin to the committed pool only (see docs/board-pool.md).
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { registerOpponents, type BoardSnapshot, type RunTelemetry } from '@game/sim';
+import { CONFIG, registerOpponents, type BoardSnapshot, type RunTelemetry } from '@game/sim';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const TABLE = 'boards';
-const FETCH_LIMIT = 2000; // cap the startup pull (curate server-side later if the table grows large)
+const FETCH_LIMIT = 2000; // cap for the author/board lookups (the pool pull is capped PER WAVE below)
+const POOL_PER_WAVE_LIMIT = 120; // startup pool: newest N boards per wave (~17 × 120 ≈ the old 2000 total)
 const FETCH_TIMEOUT_MS = 4000; // never block boot on a slow / absent network
 
 /** True when a backend is configured (both env vars present). */
@@ -73,13 +74,23 @@ export async function fetchAndRegisterPool(patchPrefix?: string): Promise<number
   const c = client();
   if (!c) return 0;
   try {
-    let query = c.from(TABLE).select('snapshot');
-    if (patchPrefix) query = query.like('patch', `${patchPrefix}%`);
-    const request = Promise.resolve(query.order('wave', { ascending: true }).limit(FETCH_LIMIT));
+    // One capped, NEWEST-first pull PER WAVE (17 parallel queries), not a single global
+    // `order(wave).limit(2000)`. The global pull filled the cap from wave 1 upward — and dead runs
+    // over-contribute low waves — so once the table outgrew the cap, mid/high waves were truncated out of the
+    // pool entirely. A starved wave then collapses matchmaking onto the one nearby board and repeats it
+    // ("same snapshot twice in a row" at round ~9 — owner report 2026-07-17). Per-wave pulls guarantee
+    // coverage across the whole course no matter how large the table grows.
+    const queries = Array.from({ length: CONFIG.courseRounds }, (_, i) => {
+      let q = c.from(TABLE).select('snapshot').eq('wave', i + 1);
+      if (patchPrefix) q = q.like('patch', `${patchPrefix}%`);
+      return Promise.resolve(q.order('created_at', { ascending: false }).limit(POOL_PER_WAVE_LIMIT));
+    });
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    const result = await Promise.race([request, timeout]);
-    if (!result || result.error || !result.data) return 0;
-    const snaps = (result.data as { snapshot: BoardSnapshot }[])
+    const settled = await Promise.race([Promise.allSettled(queries), timeout]);
+    if (!settled) return 0; // timed out — boot without a remote pool (committed/local boards still serve)
+    const rows = settled.flatMap((r) =>
+      r.status === 'fulfilled' && !r.value.error && r.value.data ? (r.value.data as { snapshot: BoardSnapshot }[]) : []);
+    const snaps = rows
       .map((r) => r.snapshot)
       .filter((s): s is BoardSnapshot => !!s && Array.isArray(s.minions) && s.minions.length > 0)
       .map((s) => ({ ...s, remote: true as const })); // mark as live-shared-pool so pickOpponent prefers them

@@ -57,17 +57,28 @@ export function pickOpponent(
   void power; // no longer weights the pick — kept so the call signature (and the recruit preview) stays stable
   if (pool.length === 0) return null;
   // 1) Same WAVE (same development stage); widen to the closest available wave if none match exactly.
-  let candidates = pool.filter((s) => s.wave === wave);
-  if (candidates.length === 0) {
-    const minDist = Math.min(...pool.map((s) => Math.abs(s.wave - wave)));
-    candidates = pool.filter((s) => Math.abs(s.wave - wave) === minDist);
-  }
+  const closestByWave = (set: BoardSnapshot[]): BoardSnapshot[] => {
+    let c = set.filter((s) => s.wave === wave);
+    if (c.length === 0) {
+      const minDist = Math.min(...set.map((s) => Math.abs(s.wave - wave)));
+      c = set.filter((s) => Math.abs(s.wave - wave) === minDist);
+    }
+    return c;
+  };
+  let candidates = closestByWave(pool);
   // 2) No-repeat: drop boards fought in the last few rounds (owner rule) — before source-tiering, so a fresh
-  //    lower-priority board is preferred over repeating a higher-priority one. Fall back to the full set only
-  //    when excluding would empty it (a small pool → a repeat is unavoidable).
+  //    lower-priority board is preferred over repeating a higher-priority one. If that empties the same-wave
+  //    set, WIDEN before surrendering: a fresh board from the nearest other wave beats an exact-wave repeat
+  //    (the late-course pool thins out, so waves 16+17 could both collapse onto the same one nearby board and
+  //    serve it back-to-back — owner report 2026-07-17). Only when the ENTIRE pool was fought recently is a
+  //    repeat unavoidable (a repeat still beats no opponent).
   if (exclude.size) {
     const fresh = candidates.filter((s) => !exclude.has(oppKey(s)));
     if (fresh.length) candidates = fresh;
+    else {
+      const poolFresh = pool.filter((s) => !exclude.has(oppKey(s)));
+      if (poolFresh.length) candidates = closestByWave(poolFresh);
+    }
   }
   // 3) Source priority: live Supabase pool → local player/friend boards → committed synthetic floor.
   const remote = candidates.filter((s) => s.remote);

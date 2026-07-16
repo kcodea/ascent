@@ -19,6 +19,16 @@ lingers+fades rather than being cut. Presentation-only; no timer/clock logic tou
 
 **Verified:** `npm run typecheck && npm run lint && npm test` (1108) `&& npm run build:web` all green.
 
+### chore(audio): quieter attack wind-up (−25%) (`feat/windup-quieter`)
+
+Dropped the shipped default gain for the `attack` category — the combat wind-up cue (`sfx.attack` → the
+sourced `windup` clip; `sfx.ts:506`) — from `0.25` to `0.1875` (a 25% reduction) in
+`packages/ui/src/audio/config.ts` (`CATEGORY_GAINS`). Owner call: the wind-up read too loud against the
+rest of the combat mix. Only the shipped default changes; a local dev config saved from the mixing desk
+(`localStorage` `ascent.audiocfg`) still overrides it until cleared/re-exported.
+
+Verified: typecheck / lint / 1108 tests / build:web all green.
+
 ### feat(fx): replace the burning-rope turn timer with an end-of-turn "charge glyph" (`feat/eot-glyph-timer`)
 
 Retired the burning-rope EoT timer for a **charging arcane glyph** on the board's etched sigil. Timer *mechanics*

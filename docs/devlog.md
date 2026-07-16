@@ -11,7 +11,8 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
   the threat-board hint, Life/Tier/Wins stat hovers, and the Triples count) — owner note 2026-07-16; the
   unused `provenance` string was retired with them.
 - Renames (display-only; the hero id stays `jenkins` and the card id is unchanged, so saves/art/tests are
-  untouched): hero **Jenkins → Jensen**, card **Jenkins & Fi → Jensen & Fi**.
+  untouched): hero **Jenkins → Jensen**, card **Jenkins & Fi → Jensen & Fi**. Nadja's power settled on
+  **Goldspring** (Gold Font → Wellspring → Goldspring).
 - Verified live: zero `title` attributes inside `.oppframe`; a jenkins run shows "Jensen" in the hero pill.
   Typecheck + lint + 1109 tests + build:web green.
 

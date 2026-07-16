@@ -158,7 +158,7 @@ export const HEROES: HeroDef[] = [
     resolve: 30,
     armor: 19,
     power: {
-      name: 'Wellspring',
+      name: 'Goldspring',
       kind: 'gainMaxMana',
       untargeted: true,
       cost: 3,

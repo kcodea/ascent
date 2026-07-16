@@ -48,8 +48,9 @@ export const UNDEAD: CardDef[] = [
     text: 'When a **Spear Warden** dies in combat, all Spear Wardens gain **+3/+2** permanently.',
   },
   {
-    // On-kill permanent Undead attack buff. Carries back via playerUndeadBuyAtkGain — applied to existing
-    // run-board Undead AND stacked into undeadBuyAtk for future buys.
+    // On-kill permanent Undead attack buff that IMPROVES +3 per Slaughter, permanently for this copy (the
+    // accrual rides summonBonus; a triple sums the two highest copies' accruals). Carries back via
+    // playerUndeadBuyAtkGain — applied to existing run-board Undead AND stacked into undeadBuyAtk for buys.
     id: 'karthus',
     name: 'Karthus',
     tribe: 'undead',
@@ -58,8 +59,8 @@ export const UNDEAD: CardDef[] = [
     health: 8,
     keywords: ['DS', 'SL'],
     effects: [{ on: 'onKill', do: 'onKillBuffUndeadAttack', params: { attack: 3 } }],
-    text: '**Slaughter:** give your Undead **+3 Attack** permanently.',
-    goldenText: '**Slaughter:** give your Undead **+6 Attack** permanently.',
+    text: '**Slaughter:** give your Undead **+3 Attack** permanently. Improves **+3** each Slaughter.',
+    goldenText: '**Slaughter:** give your Undead **+6 Attack** permanently. Improves **+6** each Slaughter.',
   },
   {
     // Deathrattle (combat): re-fire an adjacent minion's Battlecry — only combat-meaningful battlecries
@@ -122,8 +123,8 @@ export const UNDEAD: CardDef[] = [
     name: 'Pillager',
     tribe: 'undead',
     tier: 3,
-    attack: 3,
-    health: 4,
+    attack: 4,
+    health: 2,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleGrantCardToHand', params: { cardId: 'emberpouch', count: 1 } }],
     text: '**Deathrattle:** Get a **Gold Pouch**.',
@@ -136,7 +137,7 @@ export const UNDEAD: CardDef[] = [
     name: 'Mumi',
     tribe: 'undead',
     tier: 2,
-    attack: 5,
+    attack: 3,
     health: 1,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleGrantReborn', params: { tribe: 'undead' } }],
@@ -197,7 +198,7 @@ export const UNDEAD: CardDef[] = [
     goldenText: '**Deathrattle:** Give your minions **+4 Health**. Improves **+4** each time Sergeant gains Attack.',
   },
   {
-    // When you cast a spell, give your Undead +3 Attack wherever they are (board + hand) and stack the
+    // When you cast a spell, give your Undead +4 Attack wherever they are (board + hand) and stack the
     // bonus into undeadBuyAtk for future buys. Golden doubles the per-cast grant.
     id: 'forsakenweaver',
     name: 'Forsaken Mage',
@@ -206,9 +207,9 @@ export const UNDEAD: CardDef[] = [
     attack: 5,
     health: 8,
     keywords: [],
-    effects: [{ on: 'spellCast', do: 'spellCastBuffUndeadAttack', params: { attack: 3 } }],
-    text: 'When you cast a spell, give your Undead **+3 Attack** wherever they are.',
-    goldenText: 'When you cast a spell, give your Undead **+6 Attack** wherever they are.',
+    effects: [{ on: 'spellCast', do: 'spellCastBuffUndeadAttack', params: { attack: 4 } }],
+    text: 'When you cast a spell, give your Undead **+4 Attack** wherever they are.',
+    goldenText: 'When you cast a spell, give your Undead **+8 Attack** wherever they are.',
   },
   {
     // Avenge engine: every 3rd friendly death summons a Spear Warden that attacks IMMEDIATELY (out of

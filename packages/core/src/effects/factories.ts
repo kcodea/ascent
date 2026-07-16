@@ -866,16 +866,25 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.buff(minion, num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.uid);
   },
 
-  /** Crypt Drake — every `every` ally attacks this combat (itself included), buff every living friend a
-   *  FLAT +step/+step (no improvement). Per-combat counter on `self.attackSeen`. Golden doubles `step`. */
+  /** Crypt Drake — every `every` ally attacks this combat (itself included), buff every living friend
+   *  +step/+step, and every `improveEvery` attacks the grant improves by +step/+step PERMANENTLY for this
+   *  copy (the accrual rides `summonBonus` — seeded from the run board, carried back at settle, live-text
+   *  via the 'improve' event). Per-combat attack counter on `self.attackSeen`. Golden doubles both. */
   onAllyAttackBuffAll: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion.side !== self.side) return; // any ally's attack (self included)
     self.attackSeen = (self.attackSeen ?? 0) + 1;
     const every = Math.max(1, num(params.every, 2));
-    if (self.attackSeen % every !== 0) return; // cadence: only proc on every Nth ally attack
-    const mag = num(params.step, 2) * mul(self); // flat buff — no improvement
-    for (const m of ctx.living(self.side)) ctx.buff(m, mag, mag, self.uid);
+    const improveEvery = Math.max(1, num(params.improveEvery, 4));
+    const step = num(params.step, 2) * mul(self);
+    if (self.attackSeen % every === 0) {
+      const mag = step + self.summonBonus; // base + the accrued permanent improvement
+      for (const m of ctx.living(self.side)) ctx.buff(m, mag, mag, self.uid);
+    }
+    if (self.attackSeen % improveEvery === 0) {
+      self.summonBonus += step; // "Improves every 4 attacks" — permanent for this copy (carried back)
+      ctx.log({ type: 'improve', target: self.uid, amount: step }); // → live combat text climbs
+    }
   },
 
   /** Taragosa — when any ally attacks, "cast Growth": buff every living friend +atk/+hp (golden casts it
@@ -1475,18 +1484,23 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantFodderBuff(a, h, self.side);
   },
 
-  /** Karthus — when this kills an enemy, give your Undead +`attack` permanently (golden ×2).
+  /** Karthus — when this kills an enemy, give your Undead +`attack` permanently (golden ×2) AND improve
+   *  the grant by +`attack` for every later Slaughter — permanent for THIS copy (the accrual rides
+   *  `summonBonus`: seeded from the run board, carried back at settle, live-text via the 'improve' event).
    *  Buffs all living friendly Undead immediately, then carries back via `grantUndeadBuyAtk` so
    *  existing run-board Undead and future buys also benefit. */
   onKillBuffUndeadAttack: (ctx, self, params, payload) => {
     const { attacker } = payload as { attacker: Minion; victim: Minion };
     if (self !== attacker || self.dead) return;
-    const amount = num(params.attack, 3) * mul(self);
+    const step = num(params.attack, 3) * mul(self);
+    const amount = step + self.summonBonus; // base + the accrued permanent improvement
     for (const m of ctx.living(self.side)) {
       if (m.tribe !== 'undead' && m.tribe2 !== 'undead' && !ctx.getCard(m.cardId)?.universalTribe) continue;
       ctx.buff(m, amount, 0, self.uid);
     }
     ctx.grantUndeadBuyAtk(amount, self.side);
+    self.summonBonus += step; // "and improve this" — the next Slaughter grants more (carried back)
+    ctx.log({ type: 'improve', target: self.uid, amount: step }); // → live combat text climbs
   },
 
   /** Tauntbreaker — on-attack: strip the listed keywords (Taunt / Rise) off the enemy it hits, so the target

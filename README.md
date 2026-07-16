@@ -40,6 +40,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **Balance pass: 24 cards.** Stat/tier tuning across all tribes (Mumi, Hoarder, Imp King, Karwind, Rope
+  Wrangler → T4, Haven Drake → T5, Field Mechanic → T3, …), Mechanical Jouster gains Ward — and **Karthus** /
+  **Crypt Drake** now *improve permanently per copy* (Slaughter grants climb +3 each kill; the every-2-attacks
+  board buff climbs +2/+2 every 4 attacks), with live card text showing the current numbers everywhere.
 - **No game sounds on the main menu.** The charge glyph no longer lights (or plays its ~30s swell) invisibly
   behind the title — it's fully suppressed while any full-screen surface covers the game, and quitting to the
   menu mid-charge fades the swell out. Only deliberate UI sfx play on the menu. Round 1 now kicks off at **21s**

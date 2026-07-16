@@ -5,6 +5,35 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### balance(content/core/sim/ui): 24-card stat pass + Karthus & Crypt Drake improve mechanics
+
+Owner balance list (2026-07-16), all applied:
+- **Stats**: Mumi 3/1 · Hoarder 3/3 · Supporter 2/4 · Trickster 1/5 · Attachment Mechanic 1/1 ·
+  Buddy Buddy 2/2 · Hoard Cleric 2/2 · Money Bot 2/2 · Pillager 4/2 · Badgington 5/5 · Imp King 4/6 ·
+  Nimbus 4/3 · Runescale Drake 5/5 · Spark Capacitor 2/7 · Aeon Guard 6/6 · Karwind 5/10.
+- **Tier moves**: Field Mechanic → T3 (3/3) · Haven Drake → T5 · Rope Wrangler → T4 (5/4).
+- **Violet Whelp**: the summoned Whelp token is now **3/2** (token def + every referencing text).
+- **Mechanical Jouster**: gains **Ward** (DS) alongside Rally.
+- **Forsaken Mage**: +3 → **+4** Attack per spell cast (golden +8). **Nanon**: overflow buff +3/+4 →
+  **+2/+2** (golden +4/+4).
+- **Karthus** (redesign): *Slaughter: give your Undead +3 Attack permanently. Improves +3 each Slaughter.*
+  The improvement is PERMANENT and per-copy — it rides the generic `summonBonus` channel (seeded from the
+  run board, carried back at settle via `playerSummonBonus`, snapshot-captured for served boards, live-text
+  via the 'improve' event). A triple SUMS the two highest copies' accruals (owner: "copy the 2 highest");
+  the golden grants/improves +6 via the factory's mul.
+- **Crypt Drake** (redesign): *Every 2 ally attacks, give your minions +2/+2. Improves +2/+2 every 4
+  attacks.* Same per-copy permanent accrual + carry-back + triple-sum rule; golden doubles both numbers.
+  `onAllyAttackBuffAll` gains an `improveEvery` param.
+- **Live text (hard rule)**: new `karthusText` + extended `cryptDrakeText` fold the CURRENT grant into the
+  printed number ({{green}}) on every surface — shop/board/hand via `instView`, combat via the same chain +
+  the replay's 'improve' handler — while a fresh copy still prints the accurate base.
+- Tests: 3 new core tests (Karthus 3→6→9 grant ladder + carry-back; golden 6→12 + seeded resume; Crypt
+  Drake 2,2,4,4 ladder + carry-back) + 5 stale expectations updated (Nanon overflow, Hoard Cleric bake,
+  Crypt Drake flat-buff → improving, cleave ×3 Slaughter now 3+6+9=18). Typecheck + lint + **1116 tests** +
+  build:web green. Verified live: a board Karthus with +3 accrued prints "{{+6 Attack}}" while the fresh
+  hand copy prints "+3"; Crypt Drake with +2 prints "{{+4/+4}}"; a real fight emitted 'improve' +3 and the
+  board card persisted 3→6 at settle.
+
 ### fix(audio/fx): charge glyph no longer lights (or plays its swell) behind the main menu
 
 **Bug (player-reported):** players sitting on the MAIN MENU heard the end-of-turn glyph's ~30s charge-build

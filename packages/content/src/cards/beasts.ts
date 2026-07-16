@@ -73,7 +73,7 @@ export const BEASTS: CardDef[] = [
     tribe: 'beast',
     tier: 4,
     attack: 5,
-    health: 6,
+    health: 5,
     keywords: ['RL', 'SL'],
     effects: [
       { on: 'onAttack', do: 'rallyGrantRandomSpell', params: { count: 1 } },

@@ -143,18 +143,18 @@ export const TOKENS: CardDef[] = [
     token: true,
   },
   {
-    // Twilight Whelp's Deathrattle cub — a 3/3 Dragon that ATTACKS IMMEDIATELY when summoned (out of turn
+    // Twilight Whelp's Deathrattle cub — a 3/2 Dragon that ATTACKS IMMEDIATELY when summoned (out of turn
     // order), then joins the rotation. Not in the shop. (Broodmother → Twilight Whelps → these.)
     id: 'whelpling',
     name: 'Whelp',
     tribe: 'dragon',
     tier: 1,
     attack: 3,
-    health: 3,
+    health: 2,
     keywords: [],
     effects: [],
     attackOnSummon: true,
-    text: 'A 3/3 Dragon that attacks immediately when summoned.',
+    text: 'A 3/2 Dragon that attacks immediately when summoned.',
     token: true,
   },
 

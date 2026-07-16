@@ -30,9 +30,18 @@ quit-to-menu mid-charge (the swell kept playing; the glyph kept its motes rAF bu
   are action-driven. Only deliberate UI sfx (clicks etc.) can play on the menu. (Known ≤2s tails from sounds fired
   just before opening the menu are accepted.)
 
-**Verified live** (pinned worktree server + DOM probes): on the title `.chargeglyph` is absent (pre-fix it
-rendered lit); closing the menu onto an in-window clock lights glyph + motes; re-opening the menu fades it out and
-unmounts. Plus `typecheck` / `lint` / `npm test` (1109) / `build:web` all green.
+**Follow-up (owner-tested + owner-proposed fix): round 1 now kicks off at 21s.** Live testing found the wave-1
+swell silent — wave 1's 18s base sat already INSIDE the 20s charge window, forcing the glyph to light at
+shop-mount, a special-case path (which dev StrictMode's double-mount also sabotages: fire → simulated-unmount
+`stopTurnCharge()` → no re-fire). Rather than harden that path, `turnSeconds` is now **floored at
+`CHARGE_SECONDS + 1` (21s)** so NO turn ever starts inside the window — every wave lights the glyph by the clock
+ticking across 20s, the one battle-tested path. Only wave 1 changes (18→21s); wave 2+ (22s+) and practice (×3)
+already start above it.
+
+**Verified live** (pinned worktree server + DOM probes + owner playtest): on the title `.chargeglyph` is absent
+(pre-fix it rendered lit); closing the menu onto a running clock behaves; re-opening the menu fades the glyph out
+and unmounts it; owner confirmed menu silence, quit-mid-charge fade, and rounds 2+ all correct. Plus `typecheck` /
+`lint` / `npm test` (1109) / `build:web` all green.
 
 ### chore(ui): unwire the endbuttonhit2 strike sound (owner: not needed)
 

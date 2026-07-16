@@ -62,7 +62,7 @@ type Zone = 'tavern' | 'warband' | 'hand';
 // How far into a card the cursor must reach (fraction of width) before the insertion point
 // moves past it — below 0.5 so cards slide out of the way sooner / more sensitively.
 const INSERT_FRAC = 0.5; // insert after a card once the *dragged card's centre* passes its midpoint
-const TURN_SECONDS = 18; // base round timer (wave 1); grows +4s/wave, capped at 80 (see turnSeconds)
+const TURN_SECONDS = 18; // base round timer; grows +4s/wave, capped at 80 — and floored at CHARGE_SECONDS+1, so wave 1 actually kicks off at 21s (see turnSeconds)
 const CHARGE_SECONDS = 20; // the charge glyph fills over the final 20s of the turn
 const CHARGE_MAX_FEATHER = 24; // % — the reveal feather = this × (1−charge): soft incoming fronts, 0 at completion (no sigil dimming)
 const CHARGE_FADEOUT_MS = 450; // when the glyph stops being lit (End Turn / timer end) it fades out over this, not a snap-cut (keep in sync with `.chargeglyph.fading` transition in styles.css)
@@ -457,7 +457,11 @@ export function Recruit() {
 
   // Round timer grows +4s each wave, capped at 80s. (Recruit now stays mounted across
   // combat, so the per-wave reset is an effect keyed on the wave — see below.) Practice gives 3× the clock.
-  const turnSeconds = Math.min(80, TURN_SECONDS + (run.wave - 1) * 4) * (run.mode === 'practice' ? 3 : 1);
+  // Floored at CHARGE_SECONDS+1 (21s) so NO turn ever STARTS inside the charge window — the glyph then always
+  // lights by the clock TICKING across the threshold, the one battle-tested path. Wave 1's base 18s sat inside
+  // the 20s window, forcing a light-at-shop-mount special case whose swell mis-fired (owner: round 1 kicks off
+  // at 21s instead). Only wave 1 changes: wave 2+ (22s+) and practice (×3) already start above the window.
+  const turnSeconds = Math.max(CHARGE_SECONDS + 1, Math.min(80, TURN_SECONDS + (run.wave - 1) * 4) * (run.mode === 'practice' ? 3 : 1));
 
   // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).

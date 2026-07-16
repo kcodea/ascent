@@ -464,8 +464,9 @@ export function Recruit() {
   // lights by the clock TICKING across the threshold, the one battle-tested path. Wave 1's base 18s sat inside
   // the 20s window, forcing a light-at-shop-mount special case whose swell mis-fired (owner: round 1 kicks off
   // at 21s instead). Only wave 1 changes: wave 2+ (22s+) and practice (×3) already start above the window.
-  // Rounds 6+ get a flat +6s on top of the +4s/wave ramp (owner 2026-07-16): more board = more to think about.
-  const turnSeconds = Math.max(CHARGE_SECONDS + 1, Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) * (run.mode === 'practice' ? 3 : 1));
+  // Rounds 6+ get a flat +6s on top of the +4s/wave ramp, and rounds 12–17 a further +12s ON TOP OF the
+  // 80s cap (owner 2026-07-16 ×2): late boards have the most to think about. w12 80s, w13 84s … w15+ 92s.
+  const turnSeconds = Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' ? 3 : 1));
 
   // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
@@ -2559,7 +2560,7 @@ export function Recruit() {
       if (card) {
         const id = ++sellFloatId.current;
         const fx = x - d.ox + d.w / 2, fy = y - d.oy + d.h / 2;
-        setSellFloats((f) => [...f, { id, x: fx, y: fy, amount: sellValueOf(card) }]);
+        setSellFloats((f) => [...f, { id, x: fx, y: fy, amount: sellValueOf(card, run) }]); // bartering-aware
         window.setTimeout(() => setSellFloats((f) => f.filter((s) => s.id !== id)), 1000);
       }
       // Sprinkle gold coins out of the Gold counter (the GOLD cell in the info strip up top) to sell the income.
@@ -3008,7 +3009,8 @@ export function Recruit() {
       {/* Gold gained from a sale, floating at the spot the minion was released (the actual sell value). */}
       {sellFloats.map((f) => (
         <div key={`sell-${f.id}`} className="deathfloat" style={{ left: f.x, top: f.y } as CSSProperties}>
-          <span className="float gold">+{f.amount}</span>
+          {/* Above-base sells (Hoarder, Trail Forager, Rune of Bartering) float GREEN so the bonus reads. */}
+          <span className={`float ${f.amount > 1 ? 'sellup' : 'gold'}`}>+{f.amount}</span>
         </div>
       ))}
 

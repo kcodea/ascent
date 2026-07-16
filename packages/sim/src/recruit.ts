@@ -221,12 +221,15 @@ export function dragonTamerCostOf(state: RunState): number {
 
 /** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by
  *  the reducer's sell case and the UI's sell-amount float so the two never drift. */
-export function sellValueOf(card: BoardCard): number {
-  if (card.cardId === 'hoarder') return 2 * (card.golden ? 2 : 1);
-  // Trail Forager: base 2 Gold (×2 golden) + 1 per Beast played (that per-Beast bump is already golden-doubled
+export function sellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBartering'>): number {
+  // Rune of Bartering: a Shout (Battlecry) minion sells for 2 Gold — folded HERE so every sell path AND the
+  // UI's sell-value coin/float read the same number (never below a card's own higher sell value).
+  const barter = state?.runeBartering && hasBattlecry(CARD_INDEX[card.cardId]) ? 2 : 0;
+  if (card.cardId === 'hoarder') return Math.max(barter, 2 * (card.golden ? 2 : 1));
+  // Trail Forager: base 3 Gold (×2 golden) + 1 per Beast played (that per-Beast bump is already golden-doubled
   // as it accrues, in `sellBonus`).
-  if (card.cardId === 'trailforager') return 3 * (card.golden ? 2 : 1) + (card.sellBonus ?? 0);
-  return CONFIG.sellValue;
+  if (card.cardId === 'trailforager') return Math.max(barter, 3 * (card.golden ? 2 : 1) + (card.sellBonus ?? 0));
+  return Math.max(barter, CONFIG.sellValue);
 }
 
 /**
@@ -1852,7 +1855,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const idx = state.board.indexOf(self);
     if (idx < 0) return;
     const sold = state.board.splice(idx, 1)[0]!; // counts as a sell
-    state.embers += sellValueOf(sold); // the Gold the player gets from the sell
+    state.embers += sellValueOf(sold, state); // the Gold the player gets from the sell (bartering-aware)
     // It COUNTS AS A SELL, so Robin's Spoils banks its +1 next-turn Gold too (parity with the reducer's
     // sell case — this path used to skip it).
     if (getHero(state.heroId).power.kind === 'sellGold') state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
@@ -1873,7 +1876,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const idx = state.board.indexOf(self);
     if (idx < 0) return;
     const sold = state.board.splice(idx, 1)[0]!; // counts as a sell
-    state.embers += sellValueOf(sold);
+    state.embers += sellValueOf(sold, state); // bartering-aware (parity with the reducer's sell)
     if (getHero(state.heroId).power.kind === 'sellGold') state.bonusEmbersNextTurn = (state.bonusEmbersNextTurn ?? 0) + 1;
     returnToPool(state, sold.cardId, sold.golden ? 3 : 1);
     const beast = [...state.board].reverse().find((c) => isTribe(c, 'beast')); // right-most Beast (board order)

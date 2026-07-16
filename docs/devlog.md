@@ -7,7 +7,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ### fix(ui): +6s rounds 6+, modal blur covers the hero panel, Runeforge shows Gold, Resolve pill bake
 
-Owner round (2026-07-16), four items:
+Owner round (2026-07-16), six items (the last two in a follow-up commit):
+- **Green sell coin**: the sell float now reads the REAL payout and turns GREEN when above base —
+  `sellValueOf` gains a run-state param folding **Rune of Bartering** (Shout minions sell for 2), the
+  reducer + both spell-sell factories route through it (one source of truth), and the float renders
+  `.float.sellup` (green pill) for any amount > 1 (Hoarder, Trail Forager, Bartering). New rune test.
+- **Timer, again**: rounds **12–17** get a further **+12s** ON TOP of the 80s cap — w12 80s, w13 84s,
+  w14 88s, w15+ 92s.
 - **Turn timer**: every round from ROUND 6 on gets a flat **+6s** on top of the +4s/wave ramp — w5 34s →
   w6 44s, w7 48s, … reaching the 80s cap at w15 (was w17). Wave 1's 21s floor unchanged.
 - **Modal blur**: the hero portrait/pills/power diamond sit OUTSIDE the Discover/Quest/Runeforge overlay's

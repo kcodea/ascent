@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### chore(ui): End Turn diamond — owner-tuned values baked as the shipped defaults
+
+- The owner's 💎-tuner export is now the shipped look, baked BOTH into `endTurnConfig.ts` DEFAULTS and the
+  styles.css `var(--etb-*, …)` fallbacks — so every build (including Mike's, with no localStorage) renders
+  identically, pinned to the letterboxed 16:9 stage exactly like the hero power (base 0.81/0.45 of the stage
+  + 140/32 px offsets × `--scale`, resolution-independent).
+- The shipped look: the diamond seats ON the board's right-edge ornament at 1.14×; the hover glow is a tight
+  1px-blur ×6 rim breathing fast and shallow (0.7s, depth 0.11), fitted 0.98/0.925 with a −1.5px lift;
+  **ambient lightning is OFF** (boltRate 0 — the bolt shape dials still drive the STRIKE burst, which
+  bypasses the rate gate: 20 bolts, 60ms life, #86eafe); strike = 450ms flash + 1.95×/1.6× dust + a single
+  1.5× ripple ring; and the pressed art ships as the **cracked gem** (pressedVariant 3).
+- Verified with CLEAN localStorage (the defaults path Mike gets): vars land (140px/1.14/0.7s), `html.etb-p3`
+  set from defaults, the diamond seats on the ornament, and the cracked gem + pinned return-to-shop pill
+  hold through combat. Typecheck + lint + 1109 tests + build:web green.
+
 ### feat(ui): End Turn diamond — zigzag bolts + tooltip polish (always-on at timer-0 / combat-done)
 
 - Round six of owner notes:

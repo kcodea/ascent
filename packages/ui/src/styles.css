@@ -537,9 +537,9 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
    💎 End Turn Button dev tuner sets live — the fallbacks here mirror the shipped defaults in endTurnConfig.ts. */
 .etbwrap {
   position: fixed;
-  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 0px) * var(--scale));
-  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--etb-y, 0px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--etb-s, 1));
+  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 140px) * var(--scale));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--etb-y, 32px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--etb-s, 1.14));
   width: calc(128 * var(--u)); height: calc(140 * var(--u)); /* the trimmed art's 468×512 aspect */
   background: none; border: none; padding: 0; z-index: 41;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
@@ -565,8 +565,8 @@ html.etb-p3 .etbwrap.pressed .etb-art.dim3, html.etb-p3 body.etb-pressed-preview
   position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none;
   /* Alignment dials (💎 tuner): nudge in design px (× --u) + width/height fit, so the halo can be seated
      square on the gem. */
-  transform: translate(calc(var(--etb-glow-x, 0) * var(--u)), calc(var(--etb-glow-y, 0) * var(--u))) scale(var(--etb-glow-w, 1), var(--etb-glow-h, 1));
-  filter: var(--etb-glow-filter, drop-shadow(0 0 14px #38b6ff) drop-shadow(0 0 14px #38b6ff) drop-shadow(0 0 14px #38b6ff));
+  transform: translate(calc(var(--etb-glow-x, 0) * var(--u)), calc(var(--etb-glow-y, -1.5) * var(--u))) scale(var(--etb-glow-w, 0.98), var(--etb-glow-h, 0.925));
+  filter: var(--etb-glow-filter, drop-shadow(0 0 1px #38b6ff) drop-shadow(0 0 1px #38b6ff) drop-shadow(0 0 1px #38b6ff) drop-shadow(0 0 1px #38b6ff) drop-shadow(0 0 1px #38b6ff) drop-shadow(0 0 1px #38b6ff));
   /* Only the HALO paints: the drop-shadows are computed from the gem image's alpha (filter runs first), then
      this mask — full canvas MINUS the gem shape (mask-composite: exclude) — cuts the source pixels back out.
      So the offset/fit dials move the glow alone; there's no "copied diamond" riding the art (owner note). */
@@ -575,16 +575,16 @@ html.etb-p3 .etbwrap.pressed .etb-art.dim3, html.etb-p3 body.etb-pressed-preview
   opacity: 0; transition: opacity 0.22s ease;
 }
 .etbwrap:not(:disabled):hover .etb-glow {
-  opacity: var(--etb-glow-alpha, 0.85);
-  animation: etbbreathe var(--etb-glow-pulse, 2.2s) ease-in-out infinite;
+  opacity: var(--etb-glow-alpha, 0.93);
+  animation: etbbreathe var(--etb-glow-pulse, 0.7s) ease-in-out infinite;
 }
 .etbwrap.pressed .etb-glow, body.etb-pressed-preview .etbwrap .etb-glow, .etbwrap:disabled .etb-glow { opacity: 0; animation: none; }
 .etbwrap.urgent:not(:disabled):hover .etb-glow { animation-duration: 0.7s; } /* time up — the breath quickens */
 /* Tuner's "glow always on" preview — pins the hover glow so its sliders can be dialed without holding hover. */
-body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity: var(--etb-glow-alpha, 0.85); animation: etbbreathe var(--etb-glow-pulse, 2.2s) ease-in-out infinite; }
+body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity: var(--etb-glow-alpha, 0.93); animation: etbbreathe var(--etb-glow-pulse, 0.7s) ease-in-out infinite; }
 @keyframes etbbreathe {
-  0%, 100% { opacity: var(--etb-glow-alpha, 0.85); }
-  50% { opacity: var(--etb-glow-dim, 0.38); }
+  0%, 100% { opacity: var(--etb-glow-alpha, 0.93); }
+  50% { opacity: var(--etb-glow-dim, 0.83); }
 }
 /* The strike FLASH — a white-hot pop of the gem masking the lit→dim swap. Static bright filter; the
    one-shot animation (duration from the tuner via --etb-flash-ms) fades OPACITY only, then the layer
@@ -592,7 +592,7 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
 .etbwrap .etb-flash {
   position: absolute; inset: 0; width: 100%; height: 100%; z-index: 4; pointer-events: none;
   filter: brightness(2.4) saturate(0.45) drop-shadow(0 0 18px rgba(210, 240, 255, 0.9));
-  animation: etbstrikeflash var(--etb-flash-ms, 340ms) ease-out forwards;
+  animation: etbstrikeflash var(--etb-flash-ms, 450ms) ease-out forwards;
 }
 @keyframes etbstrikeflash { 0% { opacity: 1; } 100% { opacity: 0; } }
 /* The END-COMBAT relight — gentler than the strike: the LIT art blooms through and eases away while the

@@ -12,6 +12,7 @@ import type {
   Minion,
   MinionSnapshot,
   QuestCombatMods,
+  PendingCombatQuest,
   Side,
   Tribe,
 } from '../types';
@@ -289,6 +290,34 @@ export function simulate(
   // current step is "already counted". Deathrattle (Echo) entries carry no tribe (the Echo objective is
   // tribe-agnostic). Carried back via `CombatResult.playerQuestEvents`.
   const questEvents: { step: number; kind: 'attack' | 'summonCombat' | 'slaughter' | 'slaughterKeyword' | 'deathrattle' | 'friendlyDeath' | 'rally' | 'summonImp'; tribes: Tribe[] }[] = [];
+  // ── Mid-combat quest completion (player) ───────────────────────────────────────────────────────────────
+  // Active combat-objective quests threaded in via `pendingQuests`. As their tally climbs, the moment one crosses
+  // its threshold we (a) fold its reward's ONGOING combat mods into `playerState.questMods` — so effects like
+  // Feeding Line trigger for the REST of this fight (Start-of-Combat mods, already applied, stay no-ops) — and
+  // (b) emit a `questComplete` event so the UI lights the node on that beat. The actual completion + reward grant
+  // still settles in the reducer; this only makes the in-fight activation live. `checkPendingQuests()` is called
+  // after every objective tally bump; firing is one-shot per quest.
+  const pending = (playerState.pendingQuests ?? []).map((p) => ({ def: p, fired: false }));
+  const pendingCount = (p: PendingCombatQuest): number => {
+    switch (p.event) {
+      case 'attack': return p.tribe ? (questTally.attackByTribe[p.tribe] ?? 0) : questTally.attack;
+      case 'summonCombat': case 'summon': return p.tribe ? (questTally.summonCombatByTribe[p.tribe] ?? 0) : questTally.summonCombat;
+      case 'slaughter': return p.tribe ? (questTally.slaughterByTribe[p.tribe] ?? 0) : questTally.slaughter;
+      case 'slaughterKeyword': return questTally.slaughterKeyword;
+      case 'deathrattle': return playerDeathrattles;
+      case 'rally': return playerRallies;
+      case 'summonImp': return playerImpsSummoned;
+      default: return 0; // friendlyDeath / tribeStats / compound / recruit objectives: settle-time only (no mid-combat proc)
+    }
+  };
+  const checkPendingQuests = pending.length === 0 ? (): void => {} : (): void => {
+    for (const p of pending) {
+      if (p.fired || p.def.progress + pendingCount(p.def) < p.def.count) continue;
+      p.fired = true;
+      if (p.def.mods) Object.assign(playerState.questMods, p.def.mods); // activate ongoing combat effects from here on
+      emit({ type: 'questComplete', questId: p.def.questId, side: 'player' });
+    }
+  };
   const bumpQuestTally = (kind: 'attack' | 'summonCombat' | 'slaughter', m: Minion): void => {
     const tribes = tribesFor(m);
     questTally[kind] += 1;
@@ -310,12 +339,14 @@ export function simulate(
         for (const b of boards.player) if (!b.dead && b.health > 0 && isBeast(b)) ctx.buff(b, beastScale.stepAttack, beastScale.stepHealth, 'Pack Mentality');
       }
     }
+    checkPendingQuests();
   };
   // Player Deathrattle triggers (Echo objective + Grim tally) — increment + record for the live-tick timeline.
   const bumpDeathrattles = (n: number): void => {
     if (n <= 0) return;
     playerDeathrattles += n;
     for (let i = 0; i < n; i++) questEvents.push({ step: stepN, kind: 'deathrattle', tribes: [] });
+    checkPendingQuests();
   };
   // Player Rally (on-attack) triggers — the `rally` objective + live-tick timeline. Each fire (base + doubler
   // re-fires) counts one Rally trigger, matching the Shout/Echo convention.
@@ -323,12 +354,14 @@ export function simulate(
     if (n <= 0) return;
     playerRallies += n;
     for (let i = 0; i < n; i++) questEvents.push({ step: stepN, kind: 'rally', tribes: [] });
+    checkPendingQuests();
   };
   // The Red Trail: a Slaughter-KEYWORD trigger — a player minion with an on-kill effect felling an enemy. One per
   // kill (the primary trigger; doubler re-fires aren't counted). Tribe-agnostic.
   const bumpSlaughterKeyword = (): void => {
     questTally.slaughterKeyword += 1;
     questEvents.push({ step: stepN, kind: 'slaughterKeyword', tribes: [] });
+    checkPendingQuests();
   };
   const isBeast = (m: Minion): boolean => m.tribe === 'beast' || m.tribe2 === 'beast' || !!m.universalTribe;
   const isDemon = (m: Minion): boolean => m.tribe === 'demon' || m.tribe2 === 'demon' || !!m.universalTribe;

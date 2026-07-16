@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### feat(core/sim): mid-combat quest completion — ongoing effects activate live
+
+- The star of the mid-combat quest work. A quest whose objective counts a COMBAT event (kill / summon / attack /
+  Deathrattle / Rally …) now **completes and activates in real time** during the fight, instead of only settling
+  afterward. The moment its tally crosses the threshold, its reward's **ongoing** combat mods fold into the live
+  `questMods` — so Feeding Line's "whenever a Beast Slaughters, your next Beast attacks immediately" starts
+  firing for the rest of THAT combat (visible in the replay as the extra out-of-turn attacks). Start-of-Combat
+  rewards, already past, correctly stay no-ops — exactly the "SoC just completes, doesn't retro-proc" rule.
+- **Low-risk mechanism:** `simulate` reads ongoing-trigger mods live off `playerState.questMods`, so mutating
+  that object at the completion beat activates them transparently — no rewrite of the read sites. Threaded via a
+  new `CombatSideState.pendingQuests` (the reducer's `buildPendingCombatQuests` supplies the player's active
+  combat-objective quests + each reward's ongoing mods); detection hooks the existing `bumpQuestTally` path;
+  fires a new `questComplete` event (one-shot per quest). The actual completion + reward grant still settles in
+  the reducer (unchanged; overflow-safe).
+- **Verified:** new `simulate.test.ts` case — a pending Feeding Line completes on the first Beast kill (emits
+  `questComplete`, the fight diverges from the quest-less one). All 1108 tests pass (no golden/determinism
+  break — the effect only activates when `pendingQuests` is threaded), harness determinism ✓, build green.
+- **Follow-ups (Phase 2b):** the completing quest's **badge lighting up** mid-replay (its node doesn't exist yet
+  during the fight) and **flying the card reward to hand** live (`toHand`) — the reward already grants + overflows
+  at settle; these are the remaining visual polish.
+
 ### feat(sim): quest/rune reward cards overflow the hand (never dropped)
 
 - Phase 1 of the mid-combat quest work. The hard 10-card hand cap now has ONE sanctioned exception: **quest and

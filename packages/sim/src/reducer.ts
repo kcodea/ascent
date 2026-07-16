@@ -1,4 +1,4 @@
-import { combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
+import { combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type PendingCombatQuest, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
 import { BUYABLE_CARDS, CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, SPELL_CARDS } from '@game/content';
 import { CONFIG } from './config';
 import { accumulateContribution, tallyCombat } from './contribution';
@@ -1133,6 +1133,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         tribes: s.tribes,
         cardBuffs: s.cardBuffs ?? {},
         questMods: questCombatMods(s),
+        pendingQuests: buildPendingCombatQuests(s),
       });
       // Player-only one-fight rune overrides.
       const config: CombatConfig = {
@@ -2371,6 +2372,39 @@ function growScalingAuras(s: RunState, result: CombatResult): void {
       grantTribeAura(s, sa.tribe, sa.stepAttack, sa.stepHealth, 'Pack Mentality');
     }
   }
+}
+
+/** The ONGOING combat mods a not-yet-completed quest's reward would arm — so `simulate` can activate them the
+ *  instant the quest completes MID-COMBAT (Feeding Line → `{feedingLine:true}`). Only boolean `combatFlag`
+ *  rewards whose mod key equals the flag name (the common ongoing effects); the amount-based flags
+ *  (oldHunt / assemblyLine / sharedCircuit / pitWithoutEnd) and non-flag rewards get no mid-combat mod — they
+ *  still complete + arm at settle for the NEXT fight. Walks `multi` rewards. Returns undefined when none. */
+function pendingQuestMods(reward: QuestDef['reward']): QuestCombatMods | undefined {
+  const out: Record<string, boolean> = {};
+  const walk = (r: QuestDef['reward']): void => {
+    if (r.kind === 'combatFlag' && r.flag !== 'oldHunt' && r.flag !== 'assemblyLine' && r.flag !== 'sharedCircuit' && r.flag !== 'pitWithoutEnd') {
+      out[r.flag] = true;
+    } else if (r.kind === 'multi') for (const sub of r.rewards) walk(sub);
+  };
+  walk(reward);
+  return Object.keys(out).length ? (out as QuestCombatMods) : undefined;
+}
+
+/** The player's active, INCOMPLETE quests whose objective counts a COMBAT event — threaded into `simulate` so
+ *  they can complete + activate mid-fight (see `CombatSideState.pendingQuests`). Compound / recruit-only
+ *  objectives are excluded (they settle post-combat as before). */
+const PENDING_COMBAT_EVENTS = new Set<QuestObjectiveEvent>(['attack', 'summonCombat', 'summon', 'slaughter', 'slaughterKeyword', 'deathrattle', 'rally']);
+export function buildPendingCombatQuests(s: RunState): PendingCombatQuest[] {
+  const out: PendingCombatQuest[] = [];
+  for (const aq of s.activeQuests ?? []) {
+    if (aq.completed) continue;
+    const def = QUEST_INDEX[aq.questId];
+    if (!def) continue;
+    const o = def.objective;
+    if (!PENDING_COMBAT_EVENTS.has(o.event) || typeof o.count !== 'number') continue;
+    out.push({ questId: aq.questId, event: o.event, count: o.count, tribe: o.tribe, progress: aq.progress, mods: pendingQuestMods(def.reward) });
+  }
+  return out;
 }
 
 /** Build the run-wide combat modifiers (`QuestCombatMods`) threaded into `simulate()`: the Beast Health aura

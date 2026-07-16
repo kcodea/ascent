@@ -52,7 +52,7 @@ const LABELS: Record<keyof TavernUpConfig, string> = {
   rings: 'press · rings',
   ringRadius: 'press · ring radius',
   ringLife: 'press · ring life',
-  artDim: 'disabled · art dim',
+  artDim: 'disabled · gem dim',
 };
 
 export function TavernUpTuner() {

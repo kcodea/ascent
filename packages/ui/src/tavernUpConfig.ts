@@ -79,46 +79,48 @@ export interface TavernUpConfig {
   ringRadius: number;
   /** Strike — shockwave ring LIFETIME (×). */
   ringLife: number;
-  /** Disabled (can't afford / locked) — the art's brightness while dimmed. */
+  /** Disabled (can't afford / locked) — the GEM's brightness while dimmed (the stone base never dims: it's
+   *  board furniture cut from the board art and must sit flush). */
   artDim: number;
 }
 
-// Starting points per the handoff recipe (Tavern Up = the "heavy investment" button: thick dust + one ring +
-// warm flash, subtle ~4s sheen, hover glow). Owner will tune in the 🍺 tuner; bake the Copy-values JSON here
-// AND mirror position/scale/glow into the styles.css `var(--tvb-*, …)` fallbacks.
+// Owner-tuned by eye in the 🍺 tuner and baked as the shipped look (2026-07-16). Notables: pinned high on the
+// board's left (y −287), a cool BLUE gem glow (8× 15px stack, slow deep breath), a lively 2.8s sheen, a snappy
+// 220ms flash with a thick double-ring shockwave, and artDim 1 (the gem only desaturates when locked, no
+// darkening). Mirror position/scale/glow changes into the styles.css `var(--tvb-*, …)` fallbacks.
 const DEFAULTS: TavernUpConfig = {
-  x: 0,
-  y: 0,
-  scale: 1,
+  x: 8,
+  y: -287,
+  scale: 1.46,
   gemX: 0,
   gemY: 0,
-  gemS: 1,
-  pipX: 0,
-  pipY: 0,
-  pipS: 1,
-  costX: -46,
-  costY: 46,
-  costS: 1,
-  glowBlur: 2,
-  glowAlpha: 0.9,
-  glowStrength: 5,
-  glowPulse: 1.2,
-  glowPulseDepth: 0.15,
-  glowX: 0,
-  glowY: 0,
-  glowW: 1,
-  glowH: 1,
-  glowColor: '#ffc25e',
-  sheenCycle: 4,
-  sheenAlpha: 0.35,
-  flashMs: 450,
-  dustCount: 2,
-  dustSize: 1.6,
-  dustLife: 1.35,
-  rings: 1,
-  ringRadius: 1.5,
-  ringLife: 1.05,
-  artDim: 0.78,
+  gemS: 1.2,
+  pipX: 7,
+  pipY: -6.5,
+  pipS: 1.015,
+  costX: 37,
+  costY: 36,
+  costS: 0.84,
+  glowBlur: 15,
+  glowAlpha: 0.81,
+  glowStrength: 8,
+  glowPulse: 2.6,
+  glowPulseDepth: 0.44,
+  glowX: 0.5,
+  glowY: 0.5,
+  glowW: 0.85,
+  glowH: 0.85,
+  glowColor: '#5cabff',
+  sheenCycle: 2.8,
+  sheenAlpha: 0.75,
+  flashMs: 220,
+  dustCount: 2.8,
+  dustSize: 2.45,
+  dustLife: 1.95,
+  rings: 2,
+  ringRadius: 3.65,
+  ringLife: 1.45,
+  artDim: 1,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */
@@ -189,7 +191,7 @@ export const TVB_DESC: Record<keyof TavernUpConfig, string> = {
   rings: 'Press — shockwave ring count (0–2). 0 = no ripple.',
   ringRadius: 'Press — shockwave radius (×).',
   ringLife: 'Press — shockwave lifetime (×).',
-  artDim: 'Disabled (can’t afford / locked) — the art’s brightness while dimmed.',
+  artDim: 'Disabled (can’t afford / locked) — the GEM’s brightness while dimmed (the stone never dims).',
 };
 
 /** Keys grouped by control type for the tuner UI. */
@@ -257,10 +259,12 @@ export function applyTavernUpVars(): void {
   // Pulse 0 = steady: pin the dip to the peak (and park the duration) rather than running a 0s loop.
   root.setProperty('--tvb-glow-dim', String(cfg.glowPulse > 0 ? cfg.glowAlpha * (1 - cfg.glowPulseDepth) : cfg.glowAlpha));
   root.setProperty('--tvb-glow-pulse', `${cfg.glowPulse > 0 ? cfg.glowPulse : 9999}s`);
-  // The glow filter — a drop-shadow stacked `glowStrength` times (composed here because CSS can't repeat a
-  // filter a variable number of times). STATIC: only the glow layer's opacity animates.
-  const one = `drop-shadow(0 0 ${cfg.glowBlur}px ${rgba(cfg.glowColor, 1)})`;
-  root.setProperty('--tvb-glow-filter', Array(Math.max(1, Math.round(cfg.glowStrength))).fill(one).join(' '));
+  // The glow — a BOX-SHADOW stacked `glowStrength` times (composed here because CSS can't repeat a shadow a
+  // variable number of times). Box-shadow (not drop-shadow-of-the-art): the gem is a circle, and an outset
+  // box-shadow on the circular span paints OUTSIDE the element and never clips square at the box the way a
+  // filter drop-shadow does. STATIC: only the glow layer's opacity animates.
+  const one = `0 0 ${cfg.glowBlur}px ${rgba(cfg.glowColor, 1)}`;
+  root.setProperty('--tvb-glow-shadow', Array(Math.max(1, Math.round(cfg.glowStrength))).fill(one).join(', '));
   root.setProperty('--tvb-sheen-cycle', `${Math.max(0.5, cfg.sheenCycle)}s`);
   root.setProperty('--tvb-sheen-alpha', String(cfg.sheenAlpha));
   root.setProperty('--tvb-flash-ms', `${Math.max(1, cfg.flashMs)}ms`);

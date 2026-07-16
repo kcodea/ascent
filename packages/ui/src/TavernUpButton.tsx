@@ -76,11 +76,13 @@ export function TavernUpButton({ tier, maxTier, cost, disabled, onUpgrade }: {
       {[1, 2, 3, 4, 5, 6].map((n) => (
         <img key={n} className={`tvb-pips${n === pipTier ? ' on' : ''}`} src={`/frames/tavernup_tier${n}.webp`} alt="" draggable={false} aria-hidden="true" />
       ))}
-      {/* Hover glow — the gem-only halo (stacked drop-shadow follows the gem alpha; the mask cuts the source
-          pixels back out so only the halo paints — same construction as the End Turn diamond's glow). */}
-      <img className="tvb-glow" src="/frames/tavernup_gem.webp" alt="" draggable={false} aria-hidden="true" />
+      {/* Hover glow — a circular halo hugging the gem. NOT the diamond's drop-shadow-of-the-art trick: a
+          drop-shadow halo is clipped at its element box (any real blur floods the box and reads SQUARE).
+          The gem is a circle, so a stacked BOX-SHADOW on a border-radius:50% span is exact, paints outside
+          the element, and can never clip. */}
+      <span className="tvb-glow" aria-hidden="true" />
       {/* The press FLASH — a warm pop of the gem masking the pip advance. One-shot: mounts, animates, unmounts. */}
-      {striking && <img className="tvb-flash" src="/frames/tavernup_gem.webp" alt="" draggable={false} aria-hidden="true" />}
+      {striking && <img className="tvb-flash" src="/frames/tavernup_gem_pad.webp" alt="" draggable={false} aria-hidden="true" />}
       {/* Cost coin — the live upgrade cost (hidden at max tier; the broken gem tells that story). */}
       {!maxed && (
         <span className="tvb-cost" aria-hidden="true">

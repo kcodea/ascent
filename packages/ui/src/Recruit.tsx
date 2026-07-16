@@ -2763,17 +2763,17 @@ export function Recruit() {
       />
 
       {/* Tavern Up — the standalone STONE button on the board's left (replaces the tray plaque; same
-          reducer wiring + disabled conditions — a re-skin, not a behavior change). Shop phase only; the
-          max-tier condition lives in the component (it shows the broken "complete" gem there). */}
-      {!inCombat && (
-        <TavernUpButton
-          tier={run.tier}
-          maxTier={CONFIG.maxTier}
-          cost={upgradeCostOf(run)}
-          disabled={run.embers < upgradeCostOf(run) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
-          onUpgrade={() => dispatch({ type: 'upgrade' })}
-        />
-      )}
+          reducer wiring + disabled conditions — a re-skin, not a behavior change). Mounted through BOTH
+          phases (owner note 2026-07-16): in combat it's a passive TIER INDICATOR — inert, cost coin hidden,
+          art at full strength. The max-tier condition lives in the component (the broken "complete" gem). */}
+      <TavernUpButton
+        tier={run.tier}
+        maxTier={CONFIG.maxTier}
+        cost={upgradeCostOf(run)}
+        disabled={run.embers < upgradeCostOf(run) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+        combat={inCombat}
+        onUpgrade={() => dispatch({ type: 'upgrade' })}
+      />
 
       {/* Top-middle combat HUD (during the replay) — the Skip button centred near the top of the arena, with
           the replay-speed slider stacked beneath it. */}

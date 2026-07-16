@@ -681,8 +681,9 @@ body.dragging .tvbwrap { pointer-events: none; } /* a card dragged across it dro
 /* Disabled (can't afford / locked) dims the GEM only — the stone base + pips are board furniture cut straight
    from the board art, so they must NEVER dim (a dimmed base pops out against the board instead of sitting
    flush — owner note 2026-07-16). The gem going dark reads as "can't use right now". Static filter; brightness
-   from the tuner's artDim. MAXED is excluded: the broken "complete" gem tells that story at full strength. */
-.tvbwrap:disabled:not(.maxed) .tvb-gembox { filter: grayscale(0.45) brightness(var(--tvb-art-dim, 1)); }
+   from the tuner's artDim. MAXED is excluded (the broken "complete" gem tells that story at full strength),
+   and so is COMBAT — there the stone is a passive tier indicator, not a locked action. */
+.tvbwrap:disabled:not(.maxed):not(.combat) .tvb-gembox { filter: grayscale(0.45) brightness(var(--tvb-art-dim, 1)); }
 .tvbwrap .tvb-base { position: absolute; inset: 0; width: 100%; height: 100%; -webkit-user-drag: none; z-index: 1; }
 /* The GEM — seated UNDER the base (z0) through its transparent hole (measured: centre 52.56%/48.93% of the
    base, gem 28.1% of its width ≈ the hole + a small lip under the ring — the forgiving seat). The broken gem

@@ -24,7 +24,7 @@ import { Icon } from './Icon';
  * Press = flash + dirt billow + shockwave ring at the button's live centre (the "heavy investment" recipe),
  * then the existing `upgrade` dispatch. All effect magnitudes come from the 🍺 tuner (`TavernUpTuner.tsx`).
  */
-export function TavernUpButton({ tier, maxTier, cost, disabled, onUpgrade }: {
+export function TavernUpButton({ tier, maxTier, cost, disabled, combat, onUpgrade }: {
   /** Current tavern tier (1-based) — drives the lit slot pips + the broken "complete" gem at max. */
   tier: number;
   maxTier: number;
@@ -32,6 +32,9 @@ export function TavernUpButton({ tier, maxTier, cost, disabled, onUpgrade }: {
   cost: number;
   /** Everything EXCEPT the max-tier condition (the component derives that from tier itself). */
   disabled: boolean;
+  /** Combat phase — the stone stays mounted as a passive TIER INDICATOR (owner note 2026-07-16): inert,
+   *  cost coin hidden, no gem dim (it's board furniture showing your tier, not a locked action). */
+  combat?: boolean;
   onUpgrade: () => void;
 }) {
   const wrapRef = useRef<HTMLButtonElement>(null);
@@ -57,10 +60,10 @@ export function TavernUpButton({ tier, maxTier, cost, disabled, onUpgrade }: {
   return (
     <button
       ref={wrapRef}
-      className={`tvbwrap${maxed ? ' maxed' : ''}`}
-      disabled={disabled || maxed}
+      className={`tvbwrap${maxed ? ' maxed' : ''}${combat ? ' combat' : ''}`}
+      disabled={disabled || maxed || combat}
       onClick={click}
-      aria-label={maxed ? 'Tavern at max tier' : `Upgrade Tavern to tier ${tier + 1} for ${cost} Gold`}
+      aria-label={combat ? `Tavern tier ${tier}` : maxed ? 'Tavern at max tier' : `Upgrade Tavern to tier ${tier + 1} for ${cost} Gold`}
     >
       {/* Gem UNDER the base: the stone's transparent hole reveals it and the gold ring overlaps its rim. The
           broken gem is the max-tier "complete" state; both stay mounted (CSS flips on `.maxed`). */}
@@ -83,14 +86,15 @@ export function TavernUpButton({ tier, maxTier, cost, disabled, onUpgrade }: {
       <span className="tvb-glow" aria-hidden="true" />
       {/* The press FLASH — a warm pop of the gem masking the pip advance. One-shot: mounts, animates, unmounts. */}
       {striking && <img className="tvb-flash" src="/frames/tavernup_gem_pad.webp" alt="" draggable={false} aria-hidden="true" />}
-      {/* Cost coin — the live upgrade cost (hidden at max tier; the broken gem tells that story). */}
-      {!maxed && (
+      {/* Cost coin — the live upgrade cost (hidden at max tier — the broken gem tells that story — and
+          during combat, where the stone is a passive tier indicator). */}
+      {!maxed && !combat && (
         <span className="tvb-cost" aria-hidden="true">
           <Icon name="mana" />
           <b>{cost}</b>
         </span>
       )}
-      <span className="tvb-tip">{maxed ? 'Tavern at max tier' : `Upgrade Tavern — to tier ${tier + 1}`}</span>
+      <span className="tvb-tip">{combat ? `Tavern tier ${tier}` : maxed ? 'Tavern at max tier' : `Upgrade Tavern — to tier ${tier + 1}`}</span>
     </button>
   );
 }

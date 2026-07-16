@@ -5,6 +5,13 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### fix(ui): bake quest-node scale 1.32 (was 1.63) so dev + prod match
+
+- The active-quest / rune node scale (`--qb-s`) shipped at **1.63**, but the owner's tuned value is **1.32**;
+  their Layout-Lab localStorage override masked the mismatch in dev while a fresh build (and other devs) saw
+  the larger 1.63. Baked **1.32** into both the `layoutConfig.ts` `qbS` default and the `styles.css` `--qb-s`
+  fallback so dev and production render identically without a local override. lint + build:web green.
+
 ### feat(ui): Heroes tab in the Compendium
 
 - Added a **Heroes** category to the Compendium (`MinionBook`) — a read-only gallery of every shippable hero

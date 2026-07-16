@@ -74,7 +74,7 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   { key: 'hpowGlow', cssVar: '--hpow-glow', label: 'Glow radius', group: 'Hero power', min: 0, max: 4, step: 0.05, def: 2.5, fmt: 'mul' },
 
   // Active-quest / rune nodes (the badge row above the hero panel). X/Y px nudges × --scale; separation = the gap.
-  { key: 'qbS', cssVar: '--qb-s', label: 'Scale', group: 'Quest nodes', min: 0.5, max: 2, step: 0.01, def: 1.63, fmt: 'mul' },
+  { key: 'qbS', cssVar: '--qb-s', label: 'Scale', group: 'Quest nodes', min: 0.5, max: 2, step: 0.01, def: 1.32, fmt: 'mul' },
   { key: 'qbX', cssVar: '--qb-x', label: 'X offset', group: 'Quest nodes', min: -400, max: 800, step: 1, def: -12, fmt: 'px' },
   { key: 'qbY', cssVar: '--qb-y', label: 'Y offset', group: 'Quest nodes', min: -600, max: 400, step: 1, def: -56, fmt: 'px' },
   { key: 'qbGap', cssVar: '--qb-gap', label: 'Separation', group: 'Quest nodes', min: 0, max: 30, step: 0.5, def: 2, fmt: 'mul' },

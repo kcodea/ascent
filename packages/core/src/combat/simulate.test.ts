@@ -3271,6 +3271,19 @@ describe('live-display events (combat cards update in real time)', () => {
     expect(a.events.some((ev) => ev.type === 'improve' && ev.target === stalker)).toBe(true);
   });
 
+  it('Trophy Stalker: golden doubles the Rally grant (baseline +10/+10 vs +5/+5)', () => {
+    const grant = (golden: boolean): string => {
+      const a = run(
+        [{ cardId: 'trophystalker', attack: 5, health: 500, golden }, { cardId: 'trophystalker', attack: 0, health: 500 }],
+        [{ cardId: 'sandbag', attack: 0, health: 3 }], 3,
+      );
+      const b = a.events.find((ev) => ev.type === 'buff');
+      return b && b.type === 'buff' ? `${b.attack}/${b.health}` : 'none';
+    };
+    expect(grant(false)).toBe('5/5');
+    expect(grant(true)).toBe('10/10');
+  });
+
   it('Rune of Rising Graves emits a foldable `keyword` R event (the pill shows), not a display-silent `sc`', () => {
     const a = simMods([{ cardId: 'knit', attack: 2, health: 5 }], [{ cardId: 'sandbag', attack: 0, health: 10 }], 1, { runeRisingGraves: true });
     const undead = a.initial.player[0]!.uid;

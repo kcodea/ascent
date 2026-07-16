@@ -143,8 +143,8 @@ export const RUNES: RuneDef[] = [
     id: 'rune_small_fortune',
     name: 'Rune of Small Fortune',
     cost: 1,
-    text: 'Get **6 Gold**.',
-    reward: { kind: 'gainGold', amount: 6 },
+    text: 'Get **7 Gold** immediately.',
+    reward: { kind: 'gainGold', amount: 7, immediate: true },
   },
   {
     id: 'rune_quick_study',

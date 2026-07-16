@@ -19,15 +19,18 @@ function countPlayed(playedThisTurn: string[] | undefined, tribes: Tribe[]): num
  * Shared by the recruit board (`instView`) and combat units (`Unit`) so a Kennelmaster reads the
  * same boosted value in the shop, the warband, and mid-fight (where `summonBonus` can climb).
  */
-export function summonBuffText(cardId: string, summonBonus: number): string | null {
-  if (summonBonus <= 0) return null;
+export function summonBuffText(cardId: string, summonBonus: number, golden = false): string | null {
+  if (summonBonus <= 0) return null; // baseline: fall back to printed text (golden's `doubleNums` handles it)
   const def = CARD_INDEX[cardId];
-  // `buffOnSummon` (legacy summon-buff) or Kennelmaster's `scBeastAura` (Start-of-Combat Beast aura). Both
-  // grant `base + summonBonus`, so the same live magnitude injects into the printed "+N/+N".
+  // `buffOnSummon` (legacy summon-buff) or Kennelmaster's `scBeastAura` (Start-of-Combat Beast aura) or Trophy
+  // Stalker's `rallyTribeAuraGrowing`. All grant `(base + summonBonus) × golden`, so the same live magnitude
+  // injects into the printed "+N/+N". Golden must be folded in here: the injected value is wrapped in `{{…}}`,
+  // which the Card EXCLUDES from its generic golden `doubleNums` pass — so an un-doubled inject under-showed a
+  // golden copy's real grant (owner-caught on golden Trophy Stalker: effect gave +10/+10, text read +5/+5).
   const eff = def?.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura' || e.do === 'rallyTribeAuraGrowing');
   if (!def || !eff) return null;
   const base = Number((eff.params as { attack?: number })?.attack ?? 1);
-  const m = base + summonBonus;
+  const m = (base + summonBonus) * (golden ? 2 : 1);
   return def.text.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${m}/+${m}}}`);
 }
 

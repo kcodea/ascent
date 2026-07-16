@@ -523,7 +523,7 @@ export type QuestReward =
   // `gold` is granted that turn. Buying/skipping this forge never spends a hero-power charge.
   | { kind: 'scheduleRuneforge'; forge: 'basic' | 'epic'; onWave?: number; gold?: number }
   // Undead: `gainGold` grants Gold immediately on completion (Bone Ledger's "Get 10 Gold").
-  | { kind: 'gainGold'; amount: number }
+  | { kind: 'gainGold'; amount: number; immediate?: boolean }
   // Undead Echo rewards: `always` grants a permanent extra Echo (Deathrattle) trigger (Funeral Engine, stacks
   // like Sylus); `firstEachCombat` makes the FIRST Echo you trigger each combat fire one extra time (Grave
   // Contract / Last Rites, additive with itself + Funeral Engine + Sylus on that first Echo).

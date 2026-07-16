@@ -2133,9 +2133,11 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       (s.questRecurringEndOfTurn ??= []).push(r.effect);
       break;
     case 'gainGold':
-      // Bone Ledger: bank Gold into your next shop (the standard "Get N Gold" channel — survives the per-turn
-      // embers reset, exactly like Hoarder / Bounty Bot's bonus Gold).
-      s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + r.amount;
+      // `immediate` → spend it THIS shop (Rune of Small Fortune: "Get N Gold immediately"). Otherwise bank it
+      // into your NEXT shop (Bone Ledger — the standard "Get N Gold" channel, surviving the per-turn embers
+      // reset like Hoarder / Bounty Bot's bonus Gold). A Runeforge opens during a shop turn, so += is immediate.
+      if (r.immediate) s.embers += r.amount;
+      else s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + r.amount;
       break;
     case 'echoRepeat':
       // Funeral Engine (always) → +1 permanent Echo trigger (stacks like Sylus); Grave Contract / Last Rites

@@ -2391,7 +2391,10 @@ body.choreo-open .pixifx-under { z-index: 204; }
 /* the hand slides down out of view for the whole fight */
 /* In combat the hand stays visible as a compact, non-interactive peek pinned to the bottom (so you can
    always see what you're holding); the narration bar sits just above it. */
-.app.combat .zone[data-zone='hand'] { transform: translate(-50%, 0) scale(0.66); transform-origin: bottom center; pointer-events: none; transition: transform 0.45s cubic-bezier(0.4, 0, 0.5, 1); }
+/* During combat the hand shrinks to the bottom but stays HOVERABLE — mousing a card pops its preview (spell
+   text etc.), same as the shop. Playing/dragging is still blocked (onCardPointerDown bails on `inCombat`), so
+   `pointer-events: auto` only re-enables the hover popup, not interaction. */
+.app.combat .zone[data-zone='hand'] { transform: translate(-50%, 0) scale(0.66); transform-origin: bottom center; pointer-events: auto; transition: transform 0.45s cubic-bezier(0.4, 0, 0.5, 1); }
 
 /* the combat control bar takes the shop control bar's slot (same buttons → same height) */
 /* Match the recruit control frame's height (~118u) so the Tavern + Warband sit at the SAME spot in

@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### feat(sim/ui): hard 10-card hand cap + hoverable hand in combat
+
+- **Hand is now a hard 10-card cap.** Grants/discovers/triples no longer over-cap the hand (the source of the
+  20+-card hand seen in a late Coran run). `grantMinionToHandOrBoard` drops the grant when hand AND board are
+  both full (was an "over-cap last resort" push); the Discover pick and the golden-play Discover both guard on
+  `handMax`; a triple's golden diverts to the board (which it just freed a slot on) instead of over-capping.
+  New `handCap.test.ts` covers hand → board → dropped.
+- **Combat hand is hoverable.** The hand shrinks to the bottom during a fight but was `pointer-events: none`,
+  so you couldn't preview a held spell mid-combat. Flipped it to `pointer-events: auto` — hovering now pops the
+  card preview like the shop. Playing/dragging stays blocked (`onCardPointerDown` already bails on `inCombat`),
+  so this only re-enables the hover popup.
+- typecheck + lint + test (1106) + build:web green.
+
 ### fix(content): Rune of Small Fortune → 7g immediate + golden Trophy Stalker live-text
 
 - **Rune of Small Fortune** now grants **7 Gold immediately** (was 6, banked into the next shop). Added an

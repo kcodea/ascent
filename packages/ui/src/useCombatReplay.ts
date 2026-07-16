@@ -470,6 +470,21 @@ function deathConsequenceLead(
   return lead;
 }
 
+/** A PLAIN attacker death (no Rise / Deathrattle consequence to lead the hold) still gets pulled back to its
+ *  slot before it dies (`runRiseReturn` + `.dying.returning`), so hold this beat long enough for the ~0.34s
+ *  pull-home + the collapse to read in the unit's own slot — otherwise the base beat hold unmounts the body
+ *  mid-pull and the return is cut. Only when the SHOWN beat contains the impact attacker's death; the Rise/DR
+ *  cases already get a (larger) consequence lead, so the caller takes the max. */
+const PULL_HOME_HOLD = 1150; // ms (pre-speed): matches the Deathrattle attacker lead — pull-home + the soft fade read at home
+function pulledHomeAttackerHold(shown: Moment | undefined, attackerUid: string | null, events: CombatEvent[]): number {
+  if (!shown || !attackerUid) return 0;
+  for (let i = shown.start; i < shown.end; i++) {
+    const e = events[i];
+    if (e?.type === 'death' && e.target === attackerUid) return PULL_HOME_HOLD;
+  }
+  return 0;
+}
+
 /**
  * The combat-replay engine, decoupled from layout. Folds `combat`'s event log into a
  * beat-by-beat animation: `active` gates whether the clock is ticking (so the caller
@@ -693,7 +708,10 @@ export function useCombatReplay(
     // A Deathrattle summon (skull) or a Rise return (body fade) waits for the death to read — and an attacker
     // to settle home — before the consequence-overlap gap, so the tokens/returned body land AFTER the proc
     // reads, not on top of it.
-    const lead = deathConsequenceLead(shown, next, events, cardIds, attackerOfImpact(beats, beatIdx - 1));
+    const atkUid = attackerOfImpact(beats, beatIdx - 1);
+    // Hold for the death cascade's consequence (DR summon / Rise return), OR — with no consequence — for a plain
+    // attacker being pulled home to die in its slot. The max: a Rise/DR consequence lead already covers its pull.
+    const lead = Math.max(deathConsequenceLead(shown, next, events, cardIds, atkUid), pulledHomeAttackerHold(shown, atkUid, events));
     if (lead) d += lead / combatSpeed;
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
@@ -923,7 +941,9 @@ export function useCombatReplay(
           // place immediately; a non-attacking Deathrattle death fires its skull immediately in the cue effect.)
           const isRise = !!e.rise;
           const hasDR = !!CARD_INDEX[cardIds.get(impactAtk) ?? '']?.effects?.some((f) => f.on === 'onDeath');
-          if (!isRise && !hasDR) continue;
+          // EVERY dying attacker is pulled home (not just Rise/Deathrattle ones): a plain death — e.g. a REBORN
+          // unit's true death, which has shed its `R` and has no rattle — otherwise fades mid-lunge, which reads
+          // jarring. The pull is universal; the on-land FX below stay gated (only Rise bursts / only DR skulls).
           // Capture the unit's rect NOW (it's present — we just passed the `!el` guard). In a MUTUAL kill
           // (attacker + defender both die), the dying attacker can be dropped from the DOM before the ~0.34s
           // pull-back's `onLanded` fires, so re-finding it there returns null and the skull/burst was LOST.
@@ -1158,6 +1178,11 @@ export function useCombatReplay(
             // that died mid-lunge also gets `returning` — the fade DELAYS while GSAP pulls it home, so the
             // skull pops in its OWN slot (fired at `landed`), not mid-flight.
             anims[uid] = uid === impactAtk ? 'dying dr returning' : 'dying dr';
+          } else if (uid === impactAtk) {
+            // A PLAIN attacker (no Rise, no Deathrattle — e.g. a reborn unit's true death) that died mid-lunge:
+            // `dying returning` delays the collapse + pop until GSAP has pulled it home (see styles.css), so it
+            // dies in its OWN slot, not mid-flight. A plain DEFENDER death keeps the immediate in-place collapse.
+            anims[uid] = 'dying returning';
           } else {
             anims[uid] = cls;
           }

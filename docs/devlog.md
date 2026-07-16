@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-16
 
+### fix(ui): a dying ATTACKER always returns home before it dies (not just Rise/Deathrattle)
+
+Owner report: a REBORN unit that attacks and dies to retaliation blinked out mid-lunge — jarring — instead of
+sliding back to its slot first "like the deathrattle timing." Root cause: the return-home (`runRiseReturn` pull
++ the `returning` fade-delay) was gated to `isRise || hasDR`. A reborn unit's TRUE death has shed its `R` and
+has no rattle, so it matched neither and fell through to the plain in-place collapse — mid-lunge.
+
+Fix (presentation-only, `packages/ui`):
+- **Pull-home for every dying attacker** — removed the `isRise/hasDR` gate in the layout effect, so any attacker
+  that died mid-lunge is pulled back to its slot (the on-land Rise burst / Deathrattle skull stay gated as before;
+  a plain death just pulls).
+- **Plain `dying returning` CSS** matched 1:1 to the Deathrattle attacker (`dying dr returning`): pull home
+  (~0.34s), then a SOFT fade in its own slot (dyingfade, no bouncy pop), slot reflow held — literally "the
+  deathrattle timing," minus the skull. (Owner picked the soft fade over the collapse+pop on eyeball.)
+- **Beat-hold so it isn't cut** — new `pulledHomeAttackerHold` (1150ms, matching the DR summon lead) holds the
+  death beat when the impact attacker dies and there's no summon/reborn consequence to lead it; `max`'d with the
+  existing `deathConsequenceLead`. Side benefit: Deathrattle attackers whose rattle DOESN'T summon now get the
+  hold too, so all attacker deaths are consistent.
+
+Verified: a headless class-assignment probe on a real fight confirmed footman true-death-as-attacker →
+`dying returning`, Footman-Captain (Deathrattle) death-as-attacker → `dying dr returning` (same timing), and
+defender deaths stay instant; owner confirmed the look live after a hard refresh (the hook change needed a full
+reload — Fast Refresh can't hot-swap a hook this size). typecheck + lint + test (1108) + build:web green.
 ### fix(fx): charge glyph fades out over ~450ms on End Turn instead of snapping away
 
 The end-of-turn charge glyph (the etched sigil charging in the final ~20s) previously vanished instantly the

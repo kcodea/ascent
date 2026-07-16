@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui/content): vocabulary pass (Renown/Oath/…) + 23 hero-power text rewrites + tooltip cleanups
+
+- **Player-facing vocabulary rename** (display-only; internal ids `rating`/`line`/`lineStatus` unchanged, same
+  pattern as the B3 keyword pass): **Rating → Renown**, **Line → Oath**, **Cover → Fulfill**, **Exceeded →
+  Surpassed**, **Missed → Fell Short**, **course completion → ASCENDED**, **death before round 17 → FALLEN**.
+  Applied across HeroSelect, HudBar (incl. the Oath tooltip "fulfill it with N wins"), EndScreen (headline +
+  verdict chip + Renown delta + Promoted/Demoted → Oath), Career (verdict badges, profile rank lines, streak,
+  "Ascended"/"Fallen on round N"), EscMenu, Rankings, and the Title's Leaderboard tooltip. GAME-RULES.md gains
+  a vocabulary note (the doc itself keeps internal terms since it cites code).
+- **All 23 hero-power texts rewritten** to the owner's 2026-07-16 table (heroes.ts) — shorter, cleaner, no
+  redundant "Name:" prefix (the card already renders "**Name** · text"), new-vocab keywords (Shout, Gilded).
+  Also fixed the stale `pathfinder` kind comment (still described the old turn-7 behavior).
+- **Hero select** drops the "Cover N wins · Strong N+" note — just **Renown + the run's Oath** now.
+- **Opponent frame** mouseover no longer shows the capture date (just "by <author>").
+- Verified live: hero select reads "Renown 0 · Oath 7", hero cards show the new texts, Cover/Strong gone.
+  typecheck + lint + test (1108) + build:web green.
 ### fix(ui): warband nudge ramps with viewport height (kills the 900px zoom snap)
 
 - The warband's "sit under the centre line" nudge was gated behind a hard `@media (min-height: 900px)` — so

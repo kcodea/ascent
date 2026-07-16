@@ -88,7 +88,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
         <div className="escboards">
           <button className={`escbtn${confirmCareer ? ' danger' : ''}`} onPointerDown={doResetCareer}>
             <span className="ebl">{confirmCareer ? 'Tap again to reset' : 'Reset my career'}</span>
-            <span className="ebs">{confirmCareer ? 'Wipes rating + past games + all stats' : `Rating ${profile.rating} · ${runCount} run${runCount === 1 ? '' : 's'} · wipes history + stats`}</span>
+            <span className="ebs">{confirmCareer ? 'Wipes renown + past games + all stats' : `Renown ${profile.rating} · ${runCount} run${runCount === 1 ? '' : 's'} · wipes history + stats`}</span>
           </button>
           {careerMsg && <div className="escboards-msg">{careerMsg}</div>}
         </div>

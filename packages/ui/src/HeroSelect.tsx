@@ -38,10 +38,9 @@ export function HeroSelect() {
         {/* Run-start telegraph (ascent only): your rating-derived Line — the wins this run is expected to
             cover. Practice is unscored, so it's hidden there. */}
         {mode === 'ascent' && (
-          <div className="hsline" aria-label="Your Line for this run">
-            <span className="hsline-rat">Rating {profile.rating}</span>
-            <span className="hsline-line">Line {profile.currentLine}</span>
-            <span className="hsline-note">Cover {profile.currentLine} wins · Strong {profile.currentLine + 2}+</span>
+          <div className="hsline" aria-label="Your Oath for this run">
+            <span className="hsline-rat">Renown {profile.rating}</span>
+            <span className="hsline-line">Oath {profile.currentLine}</span>
           </div>
         )}
         {/* Active "rift" patch — a limited-time global run modifier (see CONFIG.rift). Telegraphed here so

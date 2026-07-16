@@ -70,14 +70,15 @@ export function EndScreen({ won }: { won: boolean }) {
   // round. The `won` prop only tells us whether the course was *completed* (survived to the end).
   const completedCourse = won;
   const wonPar = metLine(line.status);
-  // Verdict text sits after "Line N", so it doesn't repeat the word — reads "Line 9 · Covered",
-  // "Line 9 · Exceeded +2", "Line 9 · Missed -2". Standardized on "Line" (never "Par"/"Course failed").
+  // Verdict text sits after "Oath N", so it doesn't repeat the word — reads "Oath 9 · Fulfilled",
+  // "Oath 9 · Surpassed +2", "Oath 9 · Fell Short -2". (Vocab pass 2026-07-16: Line→Oath, Covered→Fulfilled,
+  // Exceeded→Surpassed, Missed→Fell Short; a death before round 17 reads "Fallen" in the headline.)
   const LINE_VERDICT: Record<LineStatus, string> = {
     flawless: 'Flawless',
-    exceeded: `Exceeded +${line.delta}`,
-    covered: 'Covered',
-    missed: `Missed ${line.delta}`,
-    failed: `Missed ${line.delta}`,
+    exceeded: `Surpassed +${line.delta}`,
+    covered: 'Fulfilled',
+    missed: `Fell Short ${line.delta}`,
+    failed: `Fell Short ${line.delta}`,
   };
   const ratingSign = lastRating && lastRating.ratingDelta >= 0 ? '+' : '';
   return (
@@ -94,10 +95,10 @@ export function EndScreen({ won }: { won: boolean }) {
           <div className="endhero-name">{hero.name}</div>
         </div>
         <div className="eyebrow">
-          {practice ? 'Practice complete' : wonPar ? (completedCourse ? 'The climb is complete' : 'You covered your line') : ''}
+          {practice ? 'Practice complete' : wonPar ? (completedCourse ? 'The climb is complete' : 'You fulfilled your Oath') : ''}
         </div>
         <h1 className="disp hstitle">
-          {practice ? 'PRACTICE' : wonPar ? (completedCourse ? 'COURSE COMPLETE' : 'LINE COVERED') : 'FALLEN'}
+          {practice ? 'PRACTICE' : wonPar ? (completedCourse ? 'ASCENDED' : 'OATH FULFILLED') : 'FALLEN'}
         </h1>
         <div className="endsub">
           {practice
@@ -108,13 +109,13 @@ export function EndScreen({ won }: { won: boolean }) {
         </div>
         {!practice && (
           <div className={`endline ${line.status}`}>
-            <span className="endline-par">Line {line.line}</span>
+            <span className="endline-par">Oath {line.line}</span>
             <span className="endline-verdict">{LINE_VERDICT[line.status]}</span>
           </div>
         )}
 
         {!practice && lastRating && (
-          <div className={`endrating${lastRating.ratingDelta >= 0 ? ' up' : ' down'}`} aria-label="Rating change">
+          <div className={`endrating${lastRating.ratingDelta >= 0 ? ' up' : ' down'}`} aria-label="Renown change">
             {lastRating.completionBonus > 0 && (
               <span className="endrating-bonus">Summit Bonus +{lastRating.completionBonus}</span>
             )}
@@ -124,10 +125,10 @@ export function EndScreen({ won }: { won: boolean }) {
             {lastRating.finalWinBonus > 0 && (
               <span className="endrating-bonus win">Final Win +{lastRating.finalWinBonus}</span>
             )}
-            <span className="endrating-delta">Rating {ratingSign}{lastRating.ratingDelta}</span>
+            <span className="endrating-delta">Renown {ratingSign}{lastRating.ratingDelta}</span>
             <span className="endrating-now">{lastRating.ratingAfter}</span>
-            {lastRating.promoted && <span className="endrating-move promo">Promoted → Line {lastRating.lineAfter}</span>}
-            {lastRating.demoted && <span className="endrating-move demo">Demoted → Line {lastRating.lineAfter}</span>}
+            {lastRating.promoted && <span className="endrating-move promo">Promoted → Oath {lastRating.lineAfter}</span>}
+            {lastRating.demoted && <span className="endrating-move demo">Demoted → Oath {lastRating.lineAfter}</span>}
           </div>
         )}
 

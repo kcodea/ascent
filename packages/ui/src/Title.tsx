@@ -129,7 +129,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <span className="mbicon"><IconHelm /></span>
             <span className="mblabel">Career</span>
           </button>
-          <button className="menubtn" onClick={() => { sfx.pulse(); openRankings(); }} title="Top players by rating">
+          <button className="menubtn" onClick={() => { sfx.pulse(); openRankings(); }} title="Top players by renown">
             <span className="mbicon"><IconTrophy /></span>
             <span className="mblabel">Leaderboard</span>
           </button>

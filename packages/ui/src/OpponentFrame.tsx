@@ -62,7 +62,7 @@ export function OpponentFrame() {
       ? 'Forged board'
       : 'House board';
   return (
-    <div className="oppframe" title={`${provenance}${snap.capturedAt ? ` · ${snap.capturedAt}` : ''}`}>
+    <div className="oppframe" title={provenance}>
       <div className="opp-plate">
         {/* Author name — a pill centered over the top edge (symmetric, deliberate). */}
         <span className="opp-name">{name}</span>

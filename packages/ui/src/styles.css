@@ -727,10 +727,25 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
    in and out, then the layer unmounts — never a loop. */
 .heropowerbtn .hpb-flash {
   position: absolute; inset: 0; width: 100%; height: 100%; z-index: 4; pointer-events: none;
+  /* The 0.2s delay parks the bloom until the shop's combat→recruit crossfade (~0.26s) has mostly landed,
+     so a start-of-turn refresh peaks ON the settled shop instead of washing out mid-fade (owner report:
+     "happens late" — it was firing under the fade). `both` holds opacity 0 through the delay. */
   filter: brightness(2.2) saturate(0.5) drop-shadow(0 0 14px rgba(255, 214, 140, 0.85));
-  animation: hpbrefresh var(--hpb-flash-ms, 450ms) ease-out forwards;
+  animation: hpbrefresh var(--hpb-flash-ms, 450ms) ease-out 0.2s both;
 }
 @keyframes hpbrefresh { 0% { opacity: 0; } 25% { opacity: 0.95; } 100% { opacity: 0; } }
+/* Live power TALLY — the Avenge/step-counter numerals riding ABOVE the diamond's top point (owner ask
+   2026-07-16): recharge progress (12/40g), quest tallies (3/5), cadence countdowns (2t), scaling values
+   (7g), Jenkins's "Tier 3". Same white-with-grounding-shadow treatment as .stepcounter; keyed on its text
+   in StatusBar so each change replays the compositor-only stepbump. */
+.hpwrap .hpb-tally {
+  position: absolute; left: 50%; top: calc(-14 * var(--u)); transform: translateX(-50%);
+  z-index: 6; pointer-events: none; white-space: nowrap;
+  font-family: var(--font-ui); font-weight: 700; font-size: calc(19 * var(--u)); line-height: 1;
+  color: #fff;
+  text-shadow: 0 5px 7.2px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.95), 0 1px 1.5px rgba(0, 0, 0, 1);
+  animation: stepbump 220ms ease-out;
+}
 /* An ACTIVE power that's used / unaffordable fades its ART ONLY, to the 💠 tuner's `art · used opacity`
    (--hpb-art-dim) — the housing (frame + dark face) NEVER fades, so the art dims against the dark backing,
    never the board (owner notes 2026-07-16). A PASSIVE hero's art stays full (it's always on, just not

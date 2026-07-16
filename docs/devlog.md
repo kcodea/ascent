@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): hero power TALLY above the diamond + refresh-flash timing fixes
+
+- **Live power tally** (owner ask 2026-07-16) — the Avenge/step-counter numerals riding above the diamond's
+  top point for value-tracking powers (same white-with-grounding-shadow style, keyed on its text so each
+  change replays the compositor-only bump):
+  Indy `12/40g` while recharging (hides when re-armed) · Yirin `X/10` spells · Cassen `X/5` kills (live in
+  combat via `combatEnemyDeaths`) · Drakko `X/5` buys (fades away when complete) · Chronos `X/4` (same) ·
+  Robin `Xg` banked for next turn (hidden at 0) · Gildmaster next-Goldcrafter countdown (`2t` / `now`) ·
+  Bagger Ben `Xg` current value (hides once spent) · Fi / Runesmith / Runeguard / Coran `Xt` until their
+  errand/forge/epic-forge/capstone (waves 3/7/12/10, hide after) · Jenkins `Tier X` (the dig's discover
+  tier). Judgement calls: Gildmaster shows the CADENCE countdown (no "2/2 charges" data exists — no hero
+  has maxUses today); Chronos included alongside Drakko for consistency.
+- **Refresh-flash fixes** (owner report: late at shop start, missing on Indy's re-arm):
+  - The trigger signal is now `canHero && phase === 'recruit'` — a re-arm that lands while combat is on
+    screen (the reducer preps next-turn state early) defers its bloom to the moment the shop returns.
+  - The bloom carries a 0.2s CSS delay (`both` holds it dark through the delay) so a start-of-turn refresh
+    peaks ON the settled shop instead of washing out under the combat→recruit crossfade (~0.26s).
+  - Indy's mid-shop re-arm verified end-to-end: poked a spent Gild 3 Gold from the threshold, bought a
+    minion → re-armed, flash mounted, and the recharge tally hid.
+- Verified across 12 heroes in one sweep (tally text per hero incl. correct hides for Robin-at-0 and
+  Warden); typecheck + lint + 1109 tests + build:web green.
+
 ### feat(ui): hero power diamond — refresh FLASH when the power re-arms
 
 - Owner ask: the End Turn relight's sibling — a one-shot bloom of the diamond's face whenever the power

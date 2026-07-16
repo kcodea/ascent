@@ -42,6 +42,27 @@ export function StatusBar() {
     (power.oncePerGame ? !run.heroPowerSpent : run.heroReady) &&
     (!power.cost || run.embers >= power.cost) &&
     (digCost === undefined || run.embers >= digCost);
+  // Live power TALLY (owner ask 2026-07-16) — the Avenge-style numerals riding ABOVE the diamond for powers
+  // that track a value: recharge/quest progress, cadence countdowns, scaling values, Jenkins's dig tier.
+  // Null hides it (e.g. a completed quest fades away by unmounting; Robin with nothing banked shows nothing).
+  const powerTally: string | null = (() => {
+    switch (power.kind) {
+      case 'gild': return run.heroPowerSpent ? `${gildSpent}/40g` : null; // Indy — recharging
+      case 'spellAmplify': return `${run.spellsCast % 10}/10`; // Yirin — spells toward the next step
+      case 'collision': return `${Math.min(5, run.cassenKills + combatEnemyDeaths)}/5`; // Cassen — kills
+      case 'quest': return run.heroPowerSpent ? null : `${run.drakkoBuys}/5`; // Drakko — fades away when complete
+      case 'questChronos': return run.heroPowerSpent ? null : `${run.eotMinionBuys ?? 0}/4`; // Chronos — same
+      case 'sellGold': return (run.bonusEmbersNextTurn ?? 0) > 0 ? `${run.bonusEmbersNextTurn}g` : null; // Robin — banked
+      case 'recurringGoldcrafter': return run.wave % 4 === 0 ? 'now' : `${4 - (run.wave % 4)}t`; // Gildmaster — cadence
+      case 'scalingGold': return run.heroPowerSpent ? null : `${1 + run.wave}g`; // Bagger Ben — current value
+      case 'lesserQuest': return run.wave < 3 ? `${3 - run.wave}t` : null; // Fi — turns to the errand
+      case 'runeforge': return run.wave < 7 && !run.heroPowerSpent ? `${7 - run.wave}t` : null; // Runesmith
+      case 'epicRuneforge': return run.epicForgeWave != null && run.wave < run.epicForgeWave ? `${run.epicForgeWave - run.wave}t` : null; // Runeguard
+      case 'pathfinder': return run.wave < 10 ? `${10 - run.wave}t` : null; // Coran — turns to the capstone
+      case 'dynamiteDig': return `Tier ${run.tier}`; // Jenkins — what the dig would discover
+      default: return null;
+    }
+  })();
   // The big line under the hero name: what tapping the power does *right now*.
   const powerLine = isPassive
     ? power.kind === 'spellAmplify'
@@ -76,21 +97,24 @@ export function StatusBar() {
   // (the name is the tip's header). Reuses the same live computations the old always-visible line did.
   const powerStatus = powerLine.startsWith(`${power.name} · `) ? powerLine.slice(power.name.length + 3) : powerLine;
   // REFRESH FLASH (owner note 2026-07-16, mirroring the End Turn diamond's relight): when the power comes
-  // back up for usage — canHero flipping false→true — the face blooms once. Covers every re-arm path: the
-  // start-of-shop recharge, Indy's Gild re-arming mid-shop, and re-affording a costed power. One-shot on
-  // mount (the layer unmounts after the tuner's `flash · refresh` ms); 0 disables it.
+  // back up for usage the face blooms once. The signal is canHero AND the shop being on screen — a re-arm
+  // that lands during combat (the reducer preps next-turn state early) defers its bloom to the moment the
+  // shop returns, instead of firing invisibly mid-fight and reading "late"/missed (owner report). Covers
+  // every re-arm path: start-of-shop recharge, Indy's Gild mid-shop, re-affording a costed power. One-shot
+  // on mount (the layer unmounts after the tuner's `flash · refresh` ms + the 0.2s CSS delay); 0 disables.
   const [refreshFlash, setRefreshFlash] = useState(false);
-  const prevCanHero = useRef(false);
+  const flashSignal = canHero && run.phase === 'recruit';
+  const prevFlashSignal = useRef(false);
   useEffect(() => {
-    const was = prevCanHero.current;
-    prevCanHero.current = canHero;
-    if (!canHero || was) return;
+    const was = prevFlashSignal.current;
+    prevFlashSignal.current = flashSignal;
+    if (!flashSignal || was) return;
     const ms = getHeroPowerBtnConfig().refreshFlash;
     if (ms <= 0) return;
     setRefreshFlash(true);
-    const id = window.setTimeout(() => setRefreshFlash(false), ms + 60);
+    const id = window.setTimeout(() => setRefreshFlash(false), ms + 280);
     return () => window.clearTimeout(id);
-  }, [canHero]);
+  }, [flashSignal]);
   // When effective HP drops (Armor or Resolve — a wave broke through), shake the chip + float the −X.
   const prevHp = useRef(run.resolve + run.armor);
   const [hit, setHit] = useState<{ amt: number; key: number } | null>(null);
@@ -181,6 +205,8 @@ export function StatusBar() {
               {refreshFlash && <img className="hpb-flash" src="/frames/heropowerbutton_face.webp" alt="" draggable={false} aria-hidden="true" />}
             </button>
             {(digCost ?? power.cost) ? <span className="hpcost"><span className="costn">{digCost ?? power.cost}</span></span> : null}
+            {/* Keyed on its text so every change replays the compositor-only bump (the Avenge-tally feel). */}
+            {powerTally && <span key={powerTally} className="hpb-tally">{powerTally}</span>}
           </div>
           {/* The power NAME now lives in the pill for passives too (mirrors the active-power pill, e.g. Soren's
               Reclaim); the "Passive"/status detail moves to the hover tip below. */}

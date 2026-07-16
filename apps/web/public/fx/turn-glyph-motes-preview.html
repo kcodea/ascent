@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Charge Glyph — motes on the glyph shape + mandala light-up</title>
+<title>Charge Glyph — motes flow the lines → gather + flash</title>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; background: #05070c; color: #cfe6ff; font: 13px/1.4 ui-monospace, Menlo, monospace; display: flex; height: 100vh; overflow: hidden; }
@@ -20,14 +20,12 @@
     filter: drop-shadow(0 0 40px rgba(0,157,255,.85)) drop-shadow(0 0 80px rgba(0,55,255,1)); mix-blend-mode: screen; animation: cpulse 4.3s ease-in-out infinite; opacity: var(--fillop, 1); }
   @keyframes cpulse { 0%,100% { opacity: .63; } 50% { opacity: 1; } }
   #motes { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-
   #stagebar { position: absolute; top: 12px; left: 0; right: 0; display: flex; gap: 10px; justify-content: center; align-items: center; }
   #stagebar button, #stagebar label { padding: 7px 14px; background: rgba(10,20,36,.82); color: #cfe6ff; font-size: 12px; border: 1px solid #1c3350; border-radius: 6px; cursor: pointer; }
   #scrubwrap { position: absolute; bottom: 30px; left: 8%; right: 8%; display: flex; align-items: center; gap: 12px; }
   #scrubwrap input { flex: 1; accent-color: #35b6ff; }
   #scrubwrap span { color: #7fd0ff; font-size: 11px; min-width: 96px; text-align: right; }
   .hint { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; color: #4f6d92; font-size: 11px; }
-
   #panel { width: 350px; padding: 14px 16px; overflow-y: auto; background: #060b12; border-left: 1px solid #12233a; }
   h1 { font-size: 13px; margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; color: #35b6ff; }
   .sub { color: #5c7ba0; font-size: 11px; margin-bottom: 10px; }
@@ -58,20 +56,17 @@
       <canvas id="motes"></canvas>
     </div>
     <div id="scrubwrap"><span>charge</span><input type="range" id="scrub" min="0" max="1" step="0.001" value="0" /><span id="scrubval">0%</span></div>
-    <div class="hint">motes spawn ON the glyph shape (auto-matched) and drift into the mandala, which lights up as they arrive · no path alignment needed</div>
+    <div class="hint">motes flow ALONG the lines while charging → at 100% they gather to centre + the flash fires</div>
   </div>
-
   <div id="panel">
-    <h1>Charge Motes · shape-spawn</h1>
-    <div class="sub">Motes are born ON the lit glyph (sampled from the SVG, so they hug the brackets automatically) and drift toward the mandala, which energises progressively. Toggle "CSS fill" to judge the motes alone. Copy Settings → I bake into pixiFx. Persists across refresh.</div>
-
+    <h1>Charge Motes · flow → gather</h1>
+    <div class="sub">While charging, motes ride the conduit lines (a tangent field sampled from the SVG, signed inward). At completion they rush to the mandala + a flash fires. Toggle "CSS fill" to judge motes alone. Copy Settings → I bake into pixiFx. Persists.</div>
     <h2>Colour</h2>
     <div class="colorrow"><label>mote core (hot)</label><input type="color" id="c-core" value="#ffffff" /></div>
     <div class="colorrow"><label>mote tail (cyan)</label><input type="color" id="c-mote" value="#009dff" /></div>
     <div class="colorrow"><label>mandala glow</label><input type="color" id="c-mandala" value="#33c8ff" /></div>
-
+    <div class="colorrow"><label>flash</label><input type="color" id="c-flash" value="#eafcff" /></div>
     <div id="controls"></div>
-
     <h2>Export</h2>
     <button class="act" id="copy">Copy Settings 📋</button>
     <textarea id="out" readonly></textarea>
@@ -83,30 +78,34 @@
 addEventListener('error', (e) => { const b=document.createElement('div'); b.style.cssText='position:fixed;inset:0 auto auto 0;z-index:99;background:#b0203a;color:#fff;padding:10px;font:12px monospace;white-space:pre-wrap'; b.textContent='ERR: '+(e.message||e.error)+'\n'+(e.filename||'')+':'+(e.lineno||'?'); document.body.appendChild(b); });
 
 const DIALS = [
-  { group: 'Emission', prop: 'rate',    min: 0,   max: 1200, step: 20, def: 420, unit: '/s' },
-  { group: 'Emission', prop: 'edgeBias',min: 0,   max: 1,    step: 0.02, def: 0.5 }, // 1 = spawn near the leading front only; 0 = anywhere on the lit shape
-  { group: 'Motes',  prop: 'speed',   min: 0,   max: 900,  step: 10, def: 260, unit: 'px/s' }, // drift toward mandala
-  { group: 'Motes',  prop: 'speedVar',min: 0,   max: 1,    step: 0.02, def: 0.5 },
-  { group: 'Motes',  prop: 'life',    min: 0.1, max: 2.5,  step: 0.05, def: 0.75, unit: 's' },
-  { group: 'Motes',  prop: 'lifeVar', min: 0,   max: 1,    step: 0.02, def: 0.5 },
-  { group: 'Motes',  prop: 'size',    min: 1,   max: 32,   step: 0.5, def: 7,  unit: 'px' },
-  { group: 'Motes',  prop: 'sizeVar', min: 0,   max: 1,    step: 0.02, def: 0.5 },
-  { group: 'Motes',  prop: 'swirl',   min: 0,   max: 400,  step: 5,  def: 60, unit: 'px/s' }, // tangential drift for a curved feel
-  { group: 'Motes',  prop: 'trail',   min: 0,   max: 0.95, step: 0.01, def: 0 }, // ghosting (transparent fade, board stays visible)
-  { group: 'Mandala light-up', prop: 'mandalaGlow', min: 0, max: 1.5, step: 0.02, def: 0.8 },
+  { group: 'Emission', prop: 'rate',    min: 0,   max: 1400, step: 20, def: 480, unit: '/s' },
+  { group: 'Emission', prop: 'edgeBias',min: 0,   max: 1,    step: 0.02, def: 0.45 },
+  { group: 'Flow (while charging)', prop: 'flowSpeed', min: 0, max: 900, step: 10, def: 300, unit: 'px/s' },
+  { group: 'Flow (while charging)', prop: 'speedVar',  min: 0, max: 1,   step: 0.02, def: 0.4 },
+  { group: 'Flow (while charging)', prop: 'life',      min: 0.1, max: 2.5, step: 0.05, def: 0.7, unit: 's' },
+  { group: 'Flow (while charging)', prop: 'lifeVar',   min: 0, max: 1,   step: 0.02, def: 0.5 },
+  { group: 'Flow (while charging)', prop: 'size',      min: 1, max: 32,  step: 0.5, def: 7, unit: 'px' },
+  { group: 'Flow (while charging)', prop: 'sizeVar',   min: 0, max: 1,   step: 0.02, def: 0.5 },
+  { group: 'Flow (while charging)', prop: 'swirl',     min: 0, max: 400, step: 5,   def: 40, unit: 'px/s' },
+  { group: 'Flow (while charging)', prop: 'trail',     min: 0, max: 0.95,step: 0.01, def: 0 },
+  { group: 'Mandala light-up', prop: 'mandalaGlow', min: 0, max: 1.5, step: 0.02, def: 0.7 },
   { group: 'Mandala light-up', prop: 'mandalaR',    min: 0.04,max: 0.4,step: 0.005, def: 0.16 },
   { group: 'Mandala light-up', prop: 'mandalaRamp', min: 0.4, max: 4,  step: 0.05, def: 1.8 },
-  { group: 'Mandala light-up', prop: 'mandalaArrive',min: 0, max: 1.5, step: 0.02, def: 0.4 },
+  { group: 'Completion — gather + flash', prop: 'gatherSpeed', min: 100, max: 3000, step: 25, def: 1100, unit: 'px/s' },
+  { group: 'Completion — gather + flash', prop: 'gatherBurst', min: 0, max: 500, step: 10, def: 160 },
+  { group: 'Completion — gather + flash', prop: 'flashSize',  min: 0, max: 700, step: 5, def: 340, unit: 'px' },
+  { group: 'Completion — gather + flash', prop: 'flashAlpha', min: 0, max: 1, step: 0.02, def: 0.95 },
+  { group: 'Completion — gather + flash', prop: 'flashMs',    min: 100, max: 2000, step: 20, def: 640, unit: 'ms' },
 ];
 
-const LS = 'ascent.chargeMotesPreview2';
+const LS = 'ascent.chargeMotesPreview3';
 const fx = document.getElementById('fx'), fill = document.getElementById('fill'), cv = document.getElementById('motes'), ctx = cv.getContext('2d');
 const controls = document.getElementById('controls'), out = document.getElementById('out'), diag = document.getElementById('diag');
 const scrub = document.getElementById('scrub'), scrubval = document.getElementById('scrubval'), showfill = document.getElementById('showfill');
-const cCore = document.getElementById('c-core'), cMote = document.getElementById('c-mote'), cMandala = document.getElementById('c-mandala');
+const cCore = document.getElementById('c-core'), cMote = document.getElementById('c-mote'), cMandala = document.getElementById('c-mandala'), cFlash = document.getElementById('c-flash');
 
 const V = {}; let stored = {}; try { stored = JSON.parse(localStorage.getItem(LS) || '{}'); } catch {}
-if (stored.colors) { cCore.value = stored.colors.core ?? cCore.value; cMote.value = stored.colors.mote ?? cMote.value; cMandala.value = stored.colors.mandala ?? cMandala.value; }
+if (stored.colors) { for (const [el, k] of [[cCore,'core'],[cMote,'mote'],[cMandala,'mandala'],[cFlash,'flash']]) if (stored.colors[k]) el.value = stored.colors[k]; }
 
 const label = (p) => p.replace(/([A-Z])/g, ' $1').toLowerCase();
 function buildControls(useStored) {
@@ -122,39 +121,70 @@ function buildControls(useStored) {
     row.append(l, inp, v); controls.appendChild(row);
   }
 }
-function persist() { try { localStorage.setItem(LS, JSON.stringify({ ...V, colors: { core: cCore.value, mote: cMote.value, mandala: cMandala.value } })); } catch {} }
-function save() { const r = {}; for (const k in V) r[k] = Math.round(V[k]*1000)/1000; out.value = JSON.stringify({ ...r, colors: { core: cCore.value, mote: cMote.value, mandala: cMandala.value } }, null, 1); }
+const colorsObj = () => ({ core: cCore.value, mote: cMote.value, mandala: cMandala.value, flash: cFlash.value });
+function persist() { try { localStorage.setItem(LS, JSON.stringify({ ...V, colors: colorsObj() })); } catch {} }
+function save() { const r = {}; for (const k in V) r[k] = Math.round(V[k]*1000)/1000; out.value = JSON.stringify({ ...r, colors: colorsObj() }, null, 1); }
 
 const hexToRgb = (h) => { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
 const lerp = (a, b, t) => a + (b - a) * t, rgbLerp = (A, B, t) => [lerp(A[0],B[0],t), lerp(A[1],B[1],t), lerp(A[2],B[2],t)];
 
-// ── sample the glyph SVG → a list of {nx,ny} points ON the shape (normalized to the fx box) ──────────
-let shapePts = [];
+// ── sample the SVG shape + compute an inward TANGENT field (local line direction at each point) ──────
+let shapePts = [], tangents = [];
 (function loadShape() {
   const img = new Image();
   img.onload = () => {
-    const w = 346, h = 136; // half-ish of the 1385x544 viewBox — enough detail, cheap to scan
+    const w = 346, h = 136;
     const oc = document.createElement('canvas'); oc.width = w; oc.height = h;
     const octx = oc.getContext('2d'); octx.drawImage(img, 0, 0, w, h);
     const data = octx.getImageData(0, 0, w, h).data;
     const pts = [];
-    for (let y = 0; y < h; y += 1) for (let x = 0; x < w; x += 1) {
-      if (data[(y*w + x)*4 + 3] > 40) pts.push({ nx: x / w, ny: y / h });
-    }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (data[(y*w + x)*4 + 3] > 40) pts.push({ nx: x/w, ny: y/h });
     shapePts = pts;
-    diag.textContent = shapePts.length + ' shape points loaded';
+    computeTangents();
+    diag.textContent = shapePts.length + ' pts · tangent field ready';
   };
   img.onerror = () => { diag.textContent = 'SVG failed to load'; };
   img.src = 'turn-glyph.svg';
 })();
 
-function box() { const br = document.getElementById('board').getBoundingClientRect(); const gr = fx.getBoundingClientRect();
-  const sx = cv.width / br.width; return { x: (gr.left - br.left) * sx, y: (gr.top - br.top) * sx, w: gr.width * sx, h: gr.height * sx, s: sx }; }
+function computeTangents() {
+  const R = 0.022, R2 = R*R, cell = R;
+  const grid = new Map(); const key = (a, b) => a + ',' + b;
+  shapePts.forEach((p, i) => { const k = key(Math.floor(p.nx/cell), Math.floor(p.ny/cell)); (grid.get(k) || grid.set(k, []).get(k)).push(i); });
+  tangents = shapePts.map((p) => {
+    const gx = Math.floor(p.nx/cell), gy = Math.floor(p.ny/cell);
+    let sxx=0, sxy=0, syy=0, cnt=0;
+    for (let a=gx-1; a<=gx+1; a++) for (let b=gy-1; b<=gy+1; b++) { const arr = grid.get(key(a,b)); if (!arr) continue;
+      for (const j of arr) { const q = shapePts[j]; const dx=q.nx-p.nx, dy=q.ny-p.ny; if (dx*dx+dy*dy > R2) continue; sxx+=dx*dx; sxy+=dx*dy; syy+=dy*dy; cnt++; } }
+    let tx, ty;
+    if (cnt < 4) { tx = 0.5 - p.nx; ty = 0.5 - p.ny; }        // fallback: toward centre
+    else { const tr = sxx+syy, det = sxx*syy - sxy*sxy, l = tr/2 + Math.sqrt(Math.max(0, tr*tr/4 - det));
+      if (Math.abs(sxy) > 1e-9) { tx = l - syy; ty = sxy; } else { tx = sxx >= syy ? 1 : 0; ty = sxx >= syy ? 0 : 1; } }
+    if ((0.5 - p.nx)*tx + (0.5 - p.ny)*ty < 0) { tx = -tx; ty = -ty; } // sign inward
+    const m = Math.hypot(tx, ty) || 1; return { tx: tx/m, ty: ty/m };
+  });
+}
 
-let parts = [], charge = 0, playing = false, playT0 = 0, emitAcc = 0, arrive = 0;
+function box() { const br = document.getElementById('board').getBoundingClientRect(); const gr = fx.getBoundingClientRect();
+  const sx = cv.width / br.width; return { x: (gr.left - br.left)*sx, y: (gr.top - br.top)*sx, w: gr.width*sx, h: gr.height*sx, s: sx }; }
+
+let parts = [], charge = 0, playing = false, playT0 = 0, emitAcc = 0, wasComplete = false, flashT0 = 0;
 function setCharge(c) { charge = Math.max(0, Math.min(1, c)); fx.style.setProperty('--charge', charge.toFixed(4)); scrub.value = charge; scrubval.textContent = Math.round(charge*100)+'%'; }
-function litFront() { return charge * 0.5; } // both-sides-in: lit where nx<=f or nx>=1-f
 const isLit = (nx, f) => nx <= f || nx >= 1 - f;
+
+// spawn a mote at shape index si; dir = 'flow' (tangent) or 'gather' (toward centre)
+function spawnAt(si, B, cx, cy, mode) {
+  const sp = shapePts[si], tg = tangents[si];
+  const x = B.x + sp.nx*B.w, y = B.y + sp.ny*B.h;
+  let dx, dy;
+  if (mode === 'gather') { dx = cx - x; dy = cy - y; }
+  else { dx = tg.tx * B.w; dy = tg.ty * B.h; }               // tangent in px space (aspect-correct)
+  const d = Math.hypot(dx, dy) || 1;
+  const spd = (mode === 'gather' ? V.gatherSpeed : V.flowSpeed) * B.s * (1 - V.speedVar*Math.random());
+  parts.push({ x, y, vx: dx/d*spd, vy: dy/d*spd, px: -dy/d, py: dx/d, seek: mode === 'gather',
+    life: V.life*(1 - V.lifeVar*Math.random()) * (mode === 'gather' ? 1.6 : 1), max: V.life * (mode === 'gather' ? 1.6 : 1),
+    size: V.size*B.s*(1 - V.sizeVar*Math.random()), ph: Math.random()*6.28, mix: Math.random() });
+}
 
 let last = 0;
 function frame(now) {
@@ -164,69 +194,67 @@ function frame(now) {
   fill.style.setProperty('--fillop', showfill.checked ? '1' : '0');
   if (playing) { const f = Math.min(1, (now-playT0)/20000); setCharge(f); if (f>=1) playing = false; }
   const B = box(), core = hexToRgb(cCore.value), mote = hexToRgb(cMote.value);
-  const cx = B.x + 0.5*B.w, cy = B.y + 0.5*B.h;
-  const f = litFront();
+  const cx = B.x + 0.5*B.w, cy = B.y + 0.5*B.h, f = charge*0.5;
+  const complete = charge >= 0.999;
 
-  // emit: pick random ON-SHAPE points inside the lit region; bias toward the leading front (edgeBias)
-  if (charge > 0.002 && charge < 1 && shapePts.length) {
-    emitAcc += V.rate * dt; let n = Math.floor(emitAcc); emitAcc -= n;
-    let tries = n * 6;
+  // completion edge: gather burst → centre + fire flash, and redirect any live motes inward
+  if (complete && !wasComplete && shapePts.length) {
+    flashT0 = now;
+    for (const p of parts) { const dx = cx-p.x, dy = cy-p.y, d = Math.hypot(dx,dy)||1; const spd = V.gatherSpeed*B.s; p.vx = dx/d*spd; p.vy = dy/d*spd; p.seek = true; p.life = Math.max(p.life, 0.4); p.max = Math.max(p.max, 0.4); }
+    for (let i = 0; i < V.gatherBurst; i++) spawnAt((Math.random()*shapePts.length)|0, B, cx, cy, 'gather');
+  }
+  wasComplete = complete;
+
+  // emit while charging: on the lit shape, flowing along the tangent
+  if (!complete && charge > 0.002 && shapePts.length) {
+    emitAcc += V.rate * dt; let n = Math.floor(emitAcc); emitAcc -= n; let tries = n*6;
     while (n > 0 && tries-- > 0) {
-      const sp = shapePts[(Math.random() * shapePts.length) | 0];
+      const si = (Math.random()*shapePts.length)|0; const sp = shapePts[si];
       if (!isLit(sp.nx, f)) continue;
-      // edgeBias: prefer points near the current front (|dist from front| small)
-      if (V.edgeBias > 0) {
-        const side = sp.nx < 0.5 ? f : 1 - f;                 // the front on this mote's side
-        const near = 1 - Math.min(1, Math.abs(sp.nx - side) / 0.14);
-        if (Math.random() > lerp(1, near, V.edgeBias)) continue;
-      }
-      const x = B.x + sp.nx*B.w, y = B.y + sp.ny*B.h;
-      const dx = cx - x, dy = cy - y, d = Math.hypot(dx, dy) || 1;
-      const sp2 = V.speed * B.s * (1 - V.speedVar*Math.random());
-      parts.push({ x, y, vx: dx/d*sp2, vy: dy/d*sp2, tx: -dy/d, ty: dx/d, // tangent for swirl
-        life: V.life*(1 - V.lifeVar*Math.random()), max: V.life, size: V.size*B.s*(1 - V.sizeVar*Math.random()),
-        ph: Math.random()*6.28, mix: Math.random(), core, mote });
-      n--;
+      if (V.edgeBias > 0) { const side = sp.nx < 0.5 ? f : 1 - f; const near = 1 - Math.min(1, Math.abs(sp.nx - side)/0.14); if (Math.random() > lerp(1, near, V.edgeBias)) continue; }
+      spawnAt(si, B, cx, cy, 'flow'); n--;
     }
   }
-  arrive *= Math.pow(0.015, dt);
+
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i]; p.life -= dt; if (p.life <= 0) { parts.splice(i,1); continue; }
-    const sw = Math.sin(p.ph + (1 - p.life/p.max)*8) * V.swirl * B.s;
-    p.x += (p.vx + p.tx*sw) * dt; p.y += (p.vy + p.ty*sw) * dt;
-    if (Math.hypot(cx - p.x, cy - p.y) < 0.03*B.w) { arrive = Math.min(1.2, arrive + 0.03); p.life = Math.min(p.life, 0.08); }
+    if (p.seek) { const dx = cx-p.x, dy = cy-p.y, d = Math.hypot(dx,dy)||1; const spd = V.gatherSpeed*B.s; p.vx = dx/d*spd; p.vy = dy/d*spd; if (d < 0.02*B.w) p.life = Math.min(p.life, 0.06); }
+    const sw = p.seek ? 0 : Math.sin(p.ph + (1 - p.life/p.max)*8) * V.swirl * B.s;
+    p.x += (p.vx + p.px*sw) * dt; p.y += (p.vy + p.py*sw) * dt;
   }
 
-  // trail: fade existing pixels toward TRANSPARENT (destination-out) so the board stays visible; else clear.
   if (V.trail > 0) { ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = `rgba(0,0,0,${1 - V.trail})`; ctx.fillRect(0,0,cv.width,cv.height); }
   else ctx.clearRect(0,0,cv.width,cv.height);
   ctx.globalCompositeOperation = 'lighter';
 
-  // mandala light-up
   const mc = hexToRgb(cMandala.value);
-  const lit = Math.pow(charge, V.mandalaRamp) * V.mandalaGlow + arrive * V.mandalaArrive;
-  if (lit > 0.002) drawDot(cx, cy, V.mandalaR * B.w, mc, Math.min(1, lit));
+  const glow = Math.pow(charge, V.mandalaRamp) * V.mandalaGlow;
+  if (glow > 0.002) drawDot(cx, cy, V.mandalaR*B.w, mc, Math.min(1, glow));
 
   for (const p of parts) {
-    const t = 1 - p.life/p.max, a = Math.sin(Math.min(1,Math.max(0,1 - t*0.4))*Math.PI*0.5);
-    const rgb = rgbLerp(p.core, p.mote, t*(0.5 + 0.5*p.mix));
+    const t = 1 - p.life/p.max, rgb = rgbLerp(core, mote, t*(0.5 + 0.5*p.mix));
     drawDot(p.x, p.y, p.size*(1 - 0.4*t), rgb, (1 - t*t));
   }
+
+  // completion flash — an expanding, fading bloom at the centre
+  if (flashT0) { const k = (now - flashT0)/V.flashMs; if (k >= 1) flashT0 = 0;
+    else drawDot(cx, cy, V.flashSize*B.s*(0.25 + 0.75*k), hexToRgb(cFlash.value), V.flashAlpha*(1 - k)*(1 - k)); }
+
   ctx.globalCompositeOperation = 'source-over';
-  diag.textContent = `charge ${Math.round(charge*100)}% · ${parts.length} motes · ${shapePts.length} pts`;
+  diag.textContent = `charge ${Math.round(charge*100)}% · ${parts.length} motes${complete ? ' · COMPLETE' : ''}`;
   requestAnimationFrame(frame);
 }
 function drawDot(x, y, r, rgb, a) { if (r<=0||a<=0) return; const g = ctx.createRadialGradient(x,y,0,x,y,r);
   g.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`); g.addColorStop(0.4, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a*0.5})`); g.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x,y,r,0,6.2832); ctx.fill(); }
 
-[cCore, cMote, cMandala].forEach((el) => el.oninput = () => { persist(); save(); });
+[cCore, cMote, cMandala, cFlash].forEach((el) => el.oninput = () => { persist(); save(); });
 scrub.oninput = () => { playing = false; setCharge(parseFloat(scrub.value)); };
-document.getElementById('play').onclick = () => { playing = true; playT0 = performance.now(); parts = []; arrive = 0; };
-document.getElementById('empty').onclick = () => { playing = false; parts = []; arrive = 0; setCharge(0); };
+document.getElementById('play').onclick = () => { playing = true; playT0 = performance.now(); parts = []; wasComplete = false; flashT0 = 0; };
+document.getElementById('empty').onclick = () => { playing = false; parts = []; wasComplete = false; flashT0 = 0; setCharge(0); };
 document.getElementById('full').onclick = () => { playing = false; setCharge(1); };
 document.getElementById('copy').onclick = async () => { const b = document.getElementById('copy'); try { await navigator.clipboard.writeText(out.value); b.textContent = 'Copied ✓'; } catch { out.focus(); out.select(); } setTimeout(()=>b.textContent='Copy Settings 📋',1200); };
-document.getElementById('reset').onclick = () => { try{localStorage.removeItem(LS);}catch{} stored={}; cCore.value='#ffffff'; cMote.value='#009dff'; cMandala.value='#33c8ff'; buildControls(false); persist(); save(); };
+document.getElementById('reset').onclick = () => { try{localStorage.removeItem(LS);}catch{} stored={}; cCore.value='#ffffff'; cMote.value='#009dff'; cMandala.value='#33c8ff'; cFlash.value='#eafcff'; buildControls(false); persist(); save(); };
 
 buildControls(true); save(); setCharge(0.5); requestAnimationFrame(frame);
 </script>

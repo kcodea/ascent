@@ -695,7 +695,7 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
 .heropowerbtn .hpb-artwrap { position: absolute; inset: 0; z-index: 2; clip-path: polygon(50% 13.8%, 83% 50.1%, 50% 83.6%, 16.8% 50.1%); pointer-events: none; }
 .heropowerbtn .hpb-art {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none;
-  transform: translate(calc(var(--hpb-art-x, 0) * var(--u)), calc(var(--hpb-art-y, 0) * var(--u))) scale(var(--hpb-art-s, 1));
+  transform: translate(calc(var(--hpb-art-x, 0) * var(--u)), calc(var(--hpb-art-y, 0) * var(--u))) scale(var(--hpb-art-s, 0.68));
 }
 .heropowerbtn svg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: calc(50 * var(--u)); height: calc(50 * var(--u)); color: #fff; z-index: 2; }
 /* The FACE GLOW — the face-only cut with a STATIC stacked drop-shadow (halo = the inner diamond's
@@ -704,8 +704,8 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
    press-me cue); breathing animates OPACITY only (compositor-cheap). */
 .heropowerbtn .hpb-glow {
   position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none;
-  transform: translate(calc(var(--hpb-glow-x, 0) * var(--u)), calc(var(--hpb-glow-y, 0) * var(--u))) scale(var(--hpb-glow-w, 1), var(--hpb-glow-h, 1));
-  filter: var(--hpb-glow-filter, drop-shadow(0 0 1px #ffb347) drop-shadow(0 0 1px #ffb347) drop-shadow(0 0 1px #ffb347) drop-shadow(0 0 1px #ffb347) drop-shadow(0 0 1px #ffb347) drop-shadow(0 0 1px #ffb347));
+  transform: translate(calc(var(--hpb-glow-x, 0) * var(--u)), calc(var(--hpb-glow-y, 0) * var(--u))) scale(var(--hpb-glow-w, 0.985), var(--hpb-glow-h, 1.01));
+  filter: var(--hpb-glow-filter, drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94) drop-shadow(0 0 1px #a6ff94));
   mask-image: linear-gradient(#fff, #fff), url('/frames/heropowerbutton_face.webp');
   mask-size: 100% 100%; mask-repeat: no-repeat; mask-composite: exclude;
   opacity: 0; transition: opacity 0.22s ease;
@@ -714,13 +714,13 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
 .statusbar .heropanel.ready .hpb-glow,
 .statusbar .heropanel.armed .hpb-glow,
 body.hpb-glow-preview .heropowerbtn .hpb-glow {
-  opacity: var(--hpb-glow-alpha, 0.93);
-  animation: hpbbreathe var(--hpb-glow-pulse, 0.7s) ease-in-out infinite;
+  opacity: var(--hpb-glow-alpha, 1);
+  animation: hpbbreathe var(--hpb-glow-pulse, 0.5s) ease-in-out infinite;
 }
 .statusbar .heropanel.armed .hpb-glow { animation-duration: 0.4s; } /* aiming — the breath quickens */
 @keyframes hpbbreathe {
-  0%, 100% { opacity: var(--hpb-glow-alpha, 0.93); }
-  50% { opacity: var(--hpb-glow-dim, 0.83); }
+  0%, 100% { opacity: var(--hpb-glow-alpha, 1); }
+  50% { opacity: var(--hpb-glow-dim, 0.9); }
 }
 /* The REFRESH FLASH — a one-shot bloom of the face as the power re-arms (mirrors the End Turn diamond's
    relight). Static bright filter; the animation (duration from the tuner via --hpb-flash-ms) eases OPACITY
@@ -751,7 +751,7 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
    never the board (owner notes 2026-07-16). A PASSIVE hero's art stays full (it's always on, just not
    clickable) but never glows — so every hero shows its power art, only active ones pulse. */
 .heropowerbtn:not(.ready):not(.armed):not(.passive) .hpb-art,
-.heropowerbtn:not(.ready):not(.armed):not(.passive) > svg { opacity: var(--hpb-art-dim, 0.5); filter: saturate(0.75); }
+.heropowerbtn:not(.ready):not(.armed):not(.passive) > svg { opacity: var(--hpb-art-dim, 0.39); filter: saturate(0.75); }
 .heropowerbtn.passive .hpb-art { opacity: 1; }
 .btn.big { font-size: calc(17 * var(--u)); padding: calc(13 * var(--u)) calc(26 * var(--u)); border-radius: calc(15 * var(--u)); gap: calc(9 * var(--u)); box-shadow: 0 3px 0 var(--shadow); }
 /* non-clickable Tavern Tier label, shaded to read apart from the buttons */
@@ -1830,7 +1830,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* Player name — a pill eclipsing the TOP edge of the hero box (mirrors the opponent's `.opp-name` on its frame):
    absolutely centered on the top border, nudged up so it half-overlaps. Cream/gold to read as friendly (the
    opponent's is raspberry). */
-.statusbar .hero .playername { position: absolute; top: 0; left: 50%; transform: var(--hpn-pname-t, translate(-50%, -55%)); z-index: 3; max-width: calc(200 * var(--u)); padding: calc(2 * var(--u)) calc(14 * var(--u)); background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow); }
+.statusbar .hero .playername { position: absolute; top: 0; left: 50%; transform: var(--hpn-pname-t, translate(-50%, -55%) scale(0.59)); z-index: 3; max-width: calc(200 * var(--u)); padding: calc(2 * var(--u)) calc(14 * var(--u)); background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow); }
 /* stretch so the Embers chip is as tall as the (taller) hero panel */
 /* Completed-quest trophy badges — a horizontal row above the hero panel. A quest moves here from the
    QuestPanel on completion; hovering floats its live reward state. Overflow visible so the tooltip + chip
@@ -1890,7 +1890,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .oppbadges .questbadge-tip { bottom: auto; top: calc(100% + 10px); left: auto; right: 0; }
 .statusrow { display: flex; align-items: stretch; justify-content: center; gap: 9px; }
 /* Health as a compact WHITE box beside the hero power (replaces the old HP bar): heart + Resolve (+Armor). */
-.hero .hpbox { position: relative; align-self: center; display: flex; align-items: center; gap: calc(7 * var(--u)); background: #fff; border: 2px solid var(--gold); border-radius: calc(16 * var(--u)); padding: calc(9 * var(--u)) calc(15 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 6px rgba(0, 0, 0, 0.14); pointer-events: none; transform: var(--hpn-hp-t, none); }
+.hero .hpbox { position: relative; align-self: center; display: flex; align-items: center; gap: calc(7 * var(--u)); background: #fff; border: 2px solid var(--gold); border-radius: calc(16 * var(--u)); padding: calc(9 * var(--u)) calc(15 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 6px rgba(0, 0, 0, 0.14); pointer-events: none; }
 .hero .hpbox svg { flex: none; width: calc(30 * var(--u)); height: calc(30 * var(--u)); color: var(--threat); }
 .hero .hpbox .hpval { font-family: var(--font-ui); font-weight: 800; font-size: calc(30 * var(--u)); line-height: 1; color: var(--threat-dk); }
 .hero .hpbox .armval { margin-left: calc(3 * var(--u)); font-size: calc(21 * var(--u)); color: #7c8996; }
@@ -1906,11 +1906,11 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* The shake COMPOSES over the 🧍 tuner's Resolve-box transform (fallback = its midline centring) — without
    the prefix a tuned offset/scale would snap to origin for the shake's duration. */
 @keyframes hitshake {
-  0%, 100% { transform: var(--hpn-hp-t, translateY(-50%)); }
-  20% { transform: var(--hpn-hp-t, translateY(-50%)) translateX(-5px); }
-  40% { transform: var(--hpn-hp-t, translateY(-50%)) translateX(5px); }
-  60% { transform: var(--hpn-hp-t, translateY(-50%)) translateX(-3px); }
-  80% { transform: var(--hpn-hp-t, translateY(-50%)) translateX(2px); }
+  0%, 100% { transform: var(--hpn-hp-t, translateY(-50%) translate(calc(-27 * var(--u)), calc(36 * var(--u))) scale(0.68)); }
+  20% { transform: var(--hpn-hp-t, translateY(-50%) translate(calc(-27 * var(--u)), calc(36 * var(--u))) scale(0.68)) translateX(-5px); }
+  40% { transform: var(--hpn-hp-t, translateY(-50%) translate(calc(-27 * var(--u)), calc(36 * var(--u))) scale(0.68)) translateX(5px); }
+  60% { transform: var(--hpn-hp-t, translateY(-50%) translate(calc(-27 * var(--u)), calc(36 * var(--u))) scale(0.68)) translateX(-3px); }
+  80% { transform: var(--hpn-hp-t, translateY(-50%) translate(calc(-27 * var(--u)), calc(36 * var(--u))) scale(0.68)) translateX(2px); }
 }
 .resfx { position: absolute; top: -10px; right: 14px; font-family: var(--font-ui); font-weight: 900; font-size: 24px; color: var(--threat); pointer-events: none; animation: sellrise 1s ease forwards; }
 /* compact sizing for the corner tray (was hero-sized when it was the centrepiece); the
@@ -1930,7 +1930,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
   /* The 🧍 tuner's whole-panel transform lives HERE (the hero square), NOT on .statusbar — a transform on
      .statusbar would become the containing block for the power diamond's `position: fixed` and break its
      stage pinning. Identity fallback matches the shipped defaults in heroPanelConfig.ts. */
-  transform: var(--hpn-panel-t, none); transform-origin: bottom left;
+  transform: var(--hpn-panel-t, translate(calc(19px * var(--scale)), calc(-19px * var(--scale))) scale(2.27)); transform-origin: bottom left;
   /* Square dimensions — the 🧍 tuner's width/height dials (design px × --u); unset (0) = the snug
      default square. The portrait FILLS the square (inset by the padding), so a resize never ejects it. */
   width: var(--hpn-panel-w, calc(92 * var(--u))); height: var(--hpn-panel-h, calc(92 * var(--u)));
@@ -1939,12 +1939,12 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Portrait fills the square (inset by the frame padding) — resizing the square resizes the art WITH it;
    the 🧍 portrait dials then fine-seat it. `overflow: visible` lets the hero-name pill eclipse its bottom
    (the pill lives inside, so it rides the portrait transform too). */
-.statusbar .hero .f { position: absolute; inset: calc(6 * var(--u)); width: auto; height: auto; overflow: visible; border-radius: calc(14 * var(--u)); transform: var(--hpn-portrait-t, none); }
+.statusbar .hero .f { position: absolute; inset: calc(6 * var(--u)); width: auto; height: auto; overflow: visible; border-radius: calc(14 * var(--u)); transform: var(--hpn-portrait-t, scale(1.16)); }
 .statusbar .hero .f .heroimg { border-radius: inherit; }
 .statusbar .hero .f svg { width: calc(42 * var(--u)); height: calc(42 * var(--u)); }
 /* Hero name — a pill eclipsing the BOTTOM edge of the portrait (mirrors the player-name pill eclipsing the top). */
 .statusbar .hero .heroname {
-  position: absolute; left: 50%; bottom: 0; transform: var(--hpn-hname-t, translate(-50%, 52%)); z-index: 4;
+  position: absolute; left: 50%; bottom: 0; transform: var(--hpn-hname-t, translate(-50%, 52%) scale(0.67)); z-index: 4;
   max-width: calc(124 * var(--u)); padding: calc(2 * var(--u)) calc(13 * var(--u));
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px;
   font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; line-height: 1.1;
@@ -1953,7 +1953,7 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
 /* Health/Armor — its OWN housing floated to the RIGHT of the portrait square (absolute, decoupled from
    the square's size). Base transform centres it on the square's midline; the 🧍 resolve dials stack onto
    that base (see heroPanelConfig), so it re-seats freely. */
-.statusbar .hero .hpbox { position: absolute; left: calc(100% + 10 * var(--u)); top: 50%; transform: var(--hpn-hp-t, translateY(-50%)); padding: calc(8 * var(--u)) calc(15 * var(--u)); }
+.statusbar .hero .hpbox { position: absolute; left: calc(100% + 10 * var(--u)); top: 50%; transform: var(--hpn-hp-t, translateY(-50%) translate(calc(-27 * var(--u)), calc(36 * var(--u))) scale(0.68)); padding: calc(8 * var(--u)) calc(15 * var(--u)); }
 .statusbar .hero .hpbox svg { width: calc(26 * var(--u)); height: calc(26 * var(--u)); }
 .statusbar .hero .hpbox .hpval { font-size: calc(26 * var(--u)); }
 .statusbar .hero .hpbox .armval { font-size: calc(18 * var(--u)); }
@@ -1972,9 +1972,9 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
      The dev mover then nudges it via px × --scale, staying resolution-independent. */
   /* Mirrors the End Turn diamond across the board's centre line (owner direction 2026-07-16): base
      0.19/0.45 of the stage + the 💠 tuner's px offsets × --scale. */
-  left: calc(var(--bar-x) + 0.19 * var(--gw) + var(--hpb-x, -140px) * var(--scale));
-  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--hpb-y, 32px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--hpb-s, 1.14));
+  left: calc(var(--bar-x) + 0.19 * var(--gw) + var(--hpb-x, -99px) * var(--scale));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--hpb-y, 53px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--hpb-s, 1.13));
   align-self: auto; pointer-events: auto; z-index: 41;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(7 * var(--u));
 }

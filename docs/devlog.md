@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### chore(ui): hero panel + hero power — owner-tuned values baked as the shipped defaults
+
+- The owner's 🧍 and 💠 exports are now the shipped look, baked into both configs' DEFAULTS and the
+  styles.css `var(--hpn-*/--hpb-*, …)` fallbacks (so clean builds render identically with no localStorage).
+- **Hero panel**: whole panel +19/−19 at **2.27×** (the tray is now the corner's centrepiece), portrait
+  1.16× inside the square, player-name pill 0.59×, hero-name pill 0.67×, Resolve housing −27/+36 at 0.68×.
+- **Hero power diamond**: seated at −99/53 @ 1.13× (just inside the board's left ornament), art zoomed to
+  0.68 inside the face, used-state fade deepened to 0.39, and the ready glow is now a hot **green** rim
+  (#a6ff94, blur 1 × 8 stacks, opacity 1, 0.5s shallow breath, fit 0.985/1.01).
+- Verified with CLEAN localStorage (the defaults path): all vars land (−99px/53px/1.13, art 0.68, dim 0.39,
+  green glow filter, 0.5s pulse) and the corner renders the tuned look. Typecheck + lint + 1109 tests +
+  build:web green.
+
 ### feat(ui): hero panel DECOUPLED — minimal portrait square + floating Resolve housing
 
 - Owner report: shrinking the tray pushed the art out (the old flex row squeezed its children). The tray is

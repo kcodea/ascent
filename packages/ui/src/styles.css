@@ -531,13 +531,136 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
 .shoprow.actiontray { gap: calc(8 * var(--u)); padding: calc(4 * var(--u)) calc(5 * var(--u)); background: linear-gradient(180deg, rgba(70, 48, 18, 0.16), rgba(70, 48, 18, 0.30)); border: 2px solid var(--gold); border-radius: calc(16 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(50, 34, 14, 0.30), 0 calc(3 * var(--u)) calc(9 * var(--u)) -4px var(--shadow); }
 /* Buttons inside the tray drop their outer drop-shadow (the tray carries it) so the group reads as one unit. */
 .shoprow.actiontray .shopbtn { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55); }
-/* End Turn — the primary action, amber like the standalone right-edge button. */
-.shopbtn.endturn { background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 76%, #ffd583) 0%, var(--acc) 100%); border-color: var(--acc-dk); color: #fff; }
-.shopbtn.endturn .sb-l { color: #fff; }
-.shopbtn.endturn .sb-ic svg { color: #fff; }
-.shopbtn.endturn .sb-v { color: #fff; }
-.shopbtn.endturn:not(:disabled):hover { filter: brightness(1.06); }
-.shopbtn.endturn.urgent { animation: endpulse 0.9s ease-in-out infinite; }
+/* ---- Standalone End Turn DIAMOND (EndTurnButton.tsx) — the gem-in-bronze button on the board's middle-right,
+   de-coupled from the shop tray (owner direction 2026-07-16). Stage-pinned like the hero power (base point
+   0.81/0.45 of the stage + tuner px offsets × --scale); everything below reads the `--etb-*` vars the
+   💎 End Turn Button dev tuner sets live — the fallbacks here mirror the shipped defaults in endTurnConfig.ts. */
+.etbwrap {
+  position: fixed;
+  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 140px) * var(--scale));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--etb-y, 32px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--etb-s, 1.14));
+  width: calc(128 * var(--u)); height: calc(140 * var(--u)); /* the trimmed art's 468×512 aspect */
+  background: none; border: none; padding: 0; z-index: 41;
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+}
+body.dragging .etbwrap { pointer-events: none; } /* a card dragged across it drops through */
+.etbwrap:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+/* Non-pressed disabled (quest/rune offer open) greys the gem; the PRESSED gem in combat shows its art as-is. */
+.etbwrap:disabled:not(.pressed) .etb-art { filter: grayscale(0.4) brightness(0.8); }
+.etbwrap .etb-art { position: absolute; inset: 0; width: 100%; height: 100%; -webkit-user-drag: none; z-index: 2; }
+/* Pressed (end-of-turn beats → all of combat) or the tuner's preview: the dim gem, glow killed. Two pressed
+   variants — pressed2 (dim, default) vs pressed3 (cracked); the 💎 tuner's switch sets `html.etb-p3`
+   (endTurnConfig reflects `pressedVariant`, dev-persisted; production ships the default). */
+.etbwrap .etb-art.dim, .etbwrap .etb-art.dim3 { display: none; }
+.etbwrap.pressed .etb-art.lit, body.etb-pressed-preview .etbwrap .etb-art.lit { display: none; }
+html:not(.etb-p3) .etbwrap.pressed .etb-art.dim, html:not(.etb-p3) body.etb-pressed-preview .etbwrap .etb-art.dim { display: block; }
+html.etb-p3 .etbwrap.pressed .etb-art.dim3, html.etb-p3 body.etb-pressed-preview .etbwrap .etb-art.dim3 { display: block; }
+/* The DIAMOND GLOW — the GEM-ONLY cut of the art (end_button_gem.webp) whose stacked drop-shadow follows
+   the alpha silhouette, so the halo hugs the blue diamond itself, NOT the bronze housing (owner note
+   2026-07-16). Seated ABOVE the art (the gem's light spills over the housing). HOVER-ONLY: hidden at rest
+   (a soft opacity transition eases it in/out), breathing while hovered. The filter is STATIC; both the
+   breath and the fade animate OPACITY only (compositor-only, per the perf rule — same trick as kwglow). */
+.etbwrap .etb-glow {
+  position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none;
+  /* Alignment dials (💎 tuner): nudge in design px (× --u) + width/height fit, so the halo can be seated
+     square on the gem. */
+  transform: translate(calc(var(--etb-glow-x, 0) * var(--u)), calc(var(--etb-glow-y, -1.5) * var(--u))) scale(var(--etb-glow-w, 0.98), var(--etb-glow-h, 0.925));
+  filter: var(--etb-glow-filter, drop-shadow(0 0 1px #38b6ff) drop-shadow(0 0 1px #38b6ff) drop-shadow(0 0 1px #38b6ff) drop-shadow(0 0 1px #38b6ff) drop-shadow(0 0 1px #38b6ff) drop-shadow(0 0 1px #38b6ff));
+  /* Only the HALO paints: the drop-shadows are computed from the gem image's alpha (filter runs first), then
+     this mask — full canvas MINUS the gem shape (mask-composite: exclude) — cuts the source pixels back out.
+     So the offset/fit dials move the glow alone; there's no "copied diamond" riding the art (owner note). */
+  mask-image: linear-gradient(#fff, #fff), url('/frames/end_button_gem.webp');
+  mask-size: 100% 100%; mask-repeat: no-repeat; mask-composite: exclude;
+  opacity: 0; transition: opacity 0.22s ease;
+}
+.etbwrap:not(:disabled):hover .etb-glow {
+  opacity: var(--etb-glow-alpha, 0.93);
+  animation: etbbreathe var(--etb-glow-pulse, 0.7s) ease-in-out infinite;
+}
+.etbwrap.pressed .etb-glow, body.etb-pressed-preview .etbwrap .etb-glow, .etbwrap:disabled .etb-glow { opacity: 0; animation: none; }
+.etbwrap.urgent:not(:disabled):hover .etb-glow { animation-duration: 0.7s; } /* time up — the breath quickens */
+/* Tuner's "glow always on" preview — pins the hover glow so its sliders can be dialed without holding hover. */
+body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity: var(--etb-glow-alpha, 0.93); animation: etbbreathe var(--etb-glow-pulse, 0.7s) ease-in-out infinite; }
+@keyframes etbbreathe {
+  0%, 100% { opacity: var(--etb-glow-alpha, 0.93); }
+  50% { opacity: var(--etb-glow-dim, 0.83); }
+}
+/* The strike FLASH — a white-hot pop of the gem masking the lit→dim swap. Static bright filter; the
+   one-shot animation (duration from the tuner via --etb-flash-ms) fades OPACITY only, then the layer
+   unmounts — never a loop. */
+.etbwrap .etb-flash {
+  position: absolute; inset: 0; width: 100%; height: 100%; z-index: 4; pointer-events: none;
+  filter: brightness(2.4) saturate(0.45) drop-shadow(0 0 18px rgba(210, 240, 255, 0.9));
+  animation: etbstrikeflash var(--etb-flash-ms, 450ms) ease-out forwards;
+}
+@keyframes etbstrikeflash { 0% { opacity: 1; } 100% { opacity: 0; } }
+/* The END-COMBAT relight — gentler than the strike: the LIT art blooms through and eases away while the
+   real lit gem returns with the shop. One-shot on mount, opacity only. */
+.etbwrap .etb-flash.relight {
+  filter: brightness(1.7) drop-shadow(0 0 16px rgba(190, 230, 255, 0.85));
+  animation: etbrelight 0.65s ease-out forwards;
+}
+@keyframes etbrelight { 0% { opacity: 0; } 25% { opacity: 0.95; } 100% { opacity: 0; } }
+/* Ambient SHEEN — a narrow glare bar sweeping the gem's face on a slow cycle (lit AND pressed). The
+   container is clipped to the gem's diamond (a static clip-path over the art box — the gem spans
+   ~16–84% × 17–83% of the trimmed art); the bar animates TRANSFORM only (compositor-cheap loop). Sweep
+   occupies the first quarter of the cycle, then parks off-diamond. Cycle/strength are 💎-tuner dials. */
+.etbwrap .etb-sheen {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden;
+  clip-path: polygon(50% 17%, 83.7% 50%, 50% 83%, 16.4% 50%);
+  opacity: var(--etb-sheen-alpha, 0.4);
+}
+.etbwrap .etb-sheen-bar {
+  position: absolute; top: -25%; left: 0; width: 30%; height: 150%;
+  background: linear-gradient(105deg, transparent 8%, rgba(255, 255, 255, 0.85) 50%, transparent 92%);
+  transform: translateX(-160%) rotate(8deg);
+  animation: etbsheen var(--etb-sheen-cycle, 3.2s) linear infinite;
+}
+@keyframes etbsheen {
+  0% { transform: translateX(-160%) rotate(8deg); }
+  26% { transform: translateX(440%) rotate(8deg); }
+  100% { transform: translateX(440%) rotate(8deg); }
+}
+/* Lightning canvas — arcs crackling along the diamond edges + across its face (drawn by EndTurnButton's
+   rAF; the 24px-per-side margin gives jitter room). Sized in --u so it tracks the art at any resolution. */
+.etbwrap .etb-bolts { position: absolute; left: calc(-24 * var(--u)); top: calc(-24 * var(--u)); width: calc(176 * var(--u)); height: calc(188 * var(--u)); z-index: 5; pointer-events: none; }
+/* Hover tip — the dark pill the shop buttons use, seated under the diamond. Floats up as it fades in
+   (owner note 2026-07-16: slower + slightly larger). Pinned ALWAYS-ON when the turn timer hits 0 in the
+   shop (`.urgent` — "hit End Turn") and when the combat replay is done (`.ready` — "back to shop"). */
+.etbwrap .etb-tip {
+  position: absolute; left: 50%; top: calc(100% + 10px); transform: translateX(-50%) translateY(7px);
+  white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.38s ease, transform 0.38s ease;
+  font-family: var(--font-ui); font-weight: 700; font-size: 13.5px; color: #f4ecdb;
+  background: linear-gradient(180deg, #211812, #16100b); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
+  border-radius: 11px; padding: 5px 14px; box-shadow: 0 3px 9px -3px rgba(0, 0, 0, 0.6); z-index: 6;
+}
+.etbwrap:not(:disabled):hover .etb-tip, .etbwrap.urgent .etb-tip, .etbwrap.ready .etb-tip { opacity: 1; transform: translateX(-50%) translateY(0); }
+/* Summary — a small glass pill ABOVE the End Combat diamond (owner note 2026-07-16: shrunk from the big
+   white button, dark-glass style, right side). Anchored to the SAME stage point + --etb-x/y offsets as the
+   diamond so the tuner moves them together; the one-shot mount animation floats it up as it fades in,
+   matching the diamond's tooltip feel. */
+.combatsummary {
+  position: fixed;
+  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 140px) * var(--scale));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--etb-y, 32px) - 142px) * var(--scale));
+  transform: translate(-50%, -50%);
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.03em; color: #f4ecdb;
+  background: linear-gradient(180deg, #211812, #16100b);
+  border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
+  border-radius: 12px; padding: 8px 18px;
+  box-shadow: 0 3px 9px -3px rgba(0, 0, 0, 0.6);
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  z-index: 41;
+  animation: sumfadein 0.38s ease both;
+}
+.combatsummary svg { width: 16px; height: 16px; color: #e8c877; flex: none; }
+.combatsummary:hover { border-color: var(--acc); color: #fff; }
+@keyframes sumfadein {
+  0% { opacity: 0; transform: translate(-50%, -50%) translateY(7px); }
+  100% { opacity: 1; transform: translate(-50%, -50%) translateY(0); }
+}
 /* Styled hover tooltip (replaces the native title): the game's dark rounded pill, dropping below the control
    with a small arrow — same format as the hero/opponent tips. The hovered control lifts above its neighbours
    so the pill never gets trapped behind the next plaque. */
@@ -579,10 +702,7 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
    Pixel Arena mockup). Costs are teal Mana; the Tavern's next-tier number is tangerine. */
 .btn.big .c { font-size: 22px; font-weight: 800; display: inline-flex; align-items: center; gap: calc(3 * var(--u)); }
 .btn.big .c svg { width: 21px; height: 21px; color: var(--mana-dk); }
-.btn.big.endturn { background: var(--acc); color: #fff; border-color: var(--acc-dk); }
-.btn.big.endturn svg { color: #fff; }
-.btn.big.endturn:hover { border-color: var(--acc-dk); filter: brightness(1.05); }
-.btn.big.endturn.urgent { animation: endpulse 0.9s ease-in-out infinite; }
+/* (The amber End Combat variant retired 2026-07-16 — the pressed diamond IS the End Combat button now.) */
 @keyframes endpulse { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--acc) 45%, transparent); } }
 .btn .c { color: var(--mana-dk); font-weight: 800; } /* button costs are Mana (teal) */
 .btn.frozen { background: var(--acc); color: #fff; border-color: var(--acc-dk); }
@@ -2516,7 +2636,6 @@ body.choreo-open .pixifx-under { z-index: 204; }
 .cbtns { display: flex; align-items: center; gap: calc(28 * var(--u)); }
 .cbtns .btn.big { font-size: calc(32 * var(--u)); padding: calc(24 * var(--u)) calc(48 * var(--u)); border-radius: calc(18 * var(--u)); gap: calc(16 * var(--u)); box-shadow: 0 calc(5 * var(--u)) 0 var(--shadow); }
 .cbtns .btn.big svg { width: calc(42 * var(--u)); height: calc(42 * var(--u)); }
-.cbtns .btn.big.endturn { box-shadow: 0 calc(5 * var(--u)) 0 var(--acc-dk); }
 /* Top-right combat HUD (replay only): a small Skip button with the speed slider stacked beneath it, tucked
    under the tribes bar so the arena stays clear. */
 .combathud { position: fixed; top: calc(var(--bar-y) + 16 * var(--u)); left: 50%; transform: translateX(-50%); z-index: 30; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); animation: fadein 0.25s ease; }

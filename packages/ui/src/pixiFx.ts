@@ -753,15 +753,20 @@ class FxController {
    * `imp*` config so it can be tuned independently of the card-drop dust. `power` thickens it a touch on
    * heavy hits. Fired from the melee `contact` position (see `impact.ts`).
    */
-  impactDust(x: number, y: number, power = 1): void {
+  impactDust(
+    x: number, y: number, power = 1,
+    /** Optional per-call multipliers on the `imp*` config — lets a non-combat caller (the End Turn diamond's
+     *  strike) thicken/size/slow ITS billow without touching the shared combat tuning. All default to 1. */
+    opts?: { count?: number; size?: number; life?: number },
+  ): void {
     if (!this.ready) return;
     const sm = getSmokeConfig();
-    const n = Math.round(sm.impDustCount * (0.8 + 0.2 * power));
+    const n = Math.round(sm.impDustCount * (0.8 + 0.2 * power) * (opts?.count ?? 1));
     for (let i = 0; i < n; i++) {
       const ang = Math.random() * Math.PI * 2;
       const speed = sm.impDustSpeed * (0.45 + Math.random() * 0.9);
       const tan = Math.random() < 0.5 ? 0xc9b48f : 0xb8a079; // dry-dirt tans (matches dust())
-      const scale = (sm.impDustSize / 40) * (0.7 + Math.random() * 0.6); // glowTex natural radius ≈ 40px
+      const scale = (sm.impDustSize / 40) * (0.7 + Math.random() * 0.6) * (opts?.size ?? 1); // glowTex natural radius ≈ 40px
       this.spawn(this.glowTex!, {
         x: x + (Math.random() - 0.5) * 8,
         y: y + (Math.random() - 0.5) * 8,
@@ -769,7 +774,7 @@ class FxController {
         vy: Math.sin(ang) * speed * 0.7 - (4 + Math.random() * 12), // vertical damped + slight lift → stays flat
         drag: 0.2,       // dust slows quickly
         gravity: 130,    // gentle settle — no rising column
-        life: sm.impDustLife * (0.8 + Math.random() * 0.5),
+        life: sm.impDustLife * (0.8 + Math.random() * 0.5) * (opts?.life ?? 1),
         fromScale: scale * 0.35,
         toScale: scale, // billow out as it fades
         spin: (Math.random() - 0.5) * 1.2,
@@ -785,19 +790,26 @@ class FxController {
    * fade, an additive "shock" punctuation on every hit. Radius / lifetime / ring-count are `imp*` config;
    * `power` nudges the radius on heavy hits. Fired from the melee `contact` position (see `impact.ts`).
    */
-  impactPulse(x: number, y: number, power = 1): void {
+  impactPulse(
+    x: number, y: number, power = 1,
+    /** Optional per-call overrides on the `imp*` config — `radius`/`life` multiply the base; `rings`
+     *  REPLACES the ring count (the End Turn diamond's shockwave dials). Combat callers pass nothing. */
+    opts?: { radius?: number; life?: number; rings?: number },
+  ): void {
     if (!this.ready || !this.pulseTex) return;
     const sm = getSmokeConfig();
-    if (sm.impPulseRings < 1) return;
-    const radius = sm.impPulseRadius * (0.9 + 0.1 * power);
+    const rings = opts?.rings ?? sm.impPulseRings;
+    if (rings < 1) return;
+    const radius = sm.impPulseRadius * (0.9 + 0.1 * power) * (opts?.radius ?? 1);
+    const life = sm.impPulseDur * (opts?.life ?? 1);
     this.spawn(this.pulseTex, {
-      x, y, vx: 0, vy: 0, drag: 1, life: sm.impPulseDur,
+      x, y, vx: 0, vy: 0, drag: 1, life,
       fromScale: 0.2, toScale: radius / PULSE_TEX_R, spin: 0,
       tint: 0xfff0d0, blend: 'add', peakAlpha: 0.85, // warm white-hot energy
     });
-    if (sm.impPulseRings >= 2) {
+    if (rings >= 2) {
       this.spawn(this.pulseTex, {
-        x, y, vx: 0, vy: 0, drag: 1, life: sm.impPulseDur * 0.9,
+        x, y, vx: 0, vy: 0, drag: 1, life: life * 0.9,
         fromScale: 0.15, toScale: (radius / PULSE_TEX_R) * 0.78, spin: 0,
         tint: 0xffd24a, blend: 'add', peakAlpha: 0.6,
       });

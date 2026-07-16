@@ -7,6 +7,7 @@ import { RuneCard } from './RuneCard';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
 import { HudBar } from './HudBar';
+import { EndTurnButton } from './EndTurnButton';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
@@ -2718,16 +2719,6 @@ export function Recruit() {
             <span className="sb-ic"><Icon name="freeze" /></span>
             <span className="sbtip">{run.frozen ? 'Frozen — click to unfreeze' : 'Freeze the tavern'}</span>
           </button>
-          {/* End Turn — the primary action, styled amber; mirrors the standalone right-edge button. */}
-          <button
-            className={`shopbtn endturn${timeUp ? ' urgent' : ''}`}
-            disabled={eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
-            onClick={endTurn}
-          >
-            <span className="sb-l">End Turn</span>
-            <span className="sb-ic"><Icon name="sword" /></span>
-            <span className="sbtip">End your turn and start combat</span>
-          </button>
         </div>
       </div>
       </>
@@ -2735,26 +2726,36 @@ export function Recruit() {
         <div className="combatctl">
           {/* Post-combat actions stay centred. During the replay the Skip button + speed slider live in the
               top-right combat HUD (below) instead, so the arena stays clear. */}
-          <div className="cbtns">
-            {replay.done && (
-              <>
-                <button className="btn big" onClick={() => { setLogTab('gains'); setShowLog(true); }}>
-                  <Icon name="battlecry" />
-                  Summary
-                </button>
-                {/* On a loss, hold "End Combat" until the loss-damage blast finishes (so the player can't
-                    skip past the Resolve hit); win/draw show it immediately. */}
-                {(replay.result !== 'lose' || lossPhase === 'done') && (
-                  <button className="btn big endturn" onClick={endCombat}>
-                    <Icon name="up" />
-                    End Combat
-                  </button>
-                )}
-              </>
-            )}
-          </div>
+          {/* Empty spacer — End Combat lives on the diamond and Summary is a glass pill above it (below);
+              the .combatctl footprint stays so the enemy warband keeps its vertical spot. */}
+          <div className="cbtns" />
         </div>
       )}
+
+      {/* End Turn — the standalone DIAMOND button on the board's middle-right (de-coupled from the shop
+          tray, owner direction 2026-07-16). Mounted through BOTH phases: the lit gem during recruit, the
+          pressed (dim) gem from the click all the way through the combat screen. Keyed off `inCombat` (the
+          phase itself), NOT `fighting` (which waits for the intro), so the art swap is IMMEDIATE on the
+          click. Once the replay finishes it doubles as END COMBAT (a loss holds it until the loss-damage
+          blast lands, same as the old button) — clicking relights it with a clean shine, no strike. */}
+      {/* Summary — a small glass pill pinned ABOVE the End Combat diamond (same stage anchor + --etb-x/y
+          offsets, so it rides the tuner's position); fades in floating up like the diamond's tooltip. */}
+      {inCombat && replay.done && (
+        <button className="combatsummary" onClick={() => { setLogTab('gains'); setShowLog(true); }}>
+          <Icon name="battlecry" />
+          Summary
+        </button>
+      )}
+      <EndTurnButton
+        onEndTurn={endTurn}
+        onEndCombat={endCombat}
+        combatReady={inCombat && replay.done && (replay.result !== 'lose' || lossPhase === 'done')}
+        disabled={inCombat
+          ? !(replay.done && (replay.result !== 'lose' || lossPhase === 'done'))
+          : eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+        pressed={inCombat || eotAnimating}
+        urgent={timeUp && !inCombat}
+      />
 
       {/* Top-middle combat HUD (during the replay) — the Skip button centred near the top of the arena, with
           the replay-speed slider stacked beneath it. */}

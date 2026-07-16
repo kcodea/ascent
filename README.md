@@ -40,6 +40,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **End Turn diamond.** The End Turn / Start Combat action is now the gem-in-bronze diamond on the board's
+  middle-right (de-coupled from the shop tray) — breathing diamond-silhouette glow, lightning arcs along its
+  edges, a dulled-gem pressed state, and a full 💎 dev tuner (position / scale / glow / lightning).
 - **Career + post-game visual pass.** The Career page now matches the ornate mockup — full-height profile
   panel (gold-ringed avatar with an Oath roundel, gradient Renown pill, iconed stat chips, single-line
   Insights), a "Winning Boards" header with gold round chips + aggregate record, and richer match rows

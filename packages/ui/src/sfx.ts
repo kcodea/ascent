@@ -204,13 +204,14 @@ if (typeof window !== 'undefined') {
 // played by sfx.cardVoice on the `play` action — a unique voiceline/SFX layered over the general landing sound).
 const SAMPLE_URLS = {
   ...import.meta.glob('./audio/*.mp3', { eager: true, query: '?url', import: 'default' }),
+  ...import.meta.glob('./audio/*.wav', { eager: true, query: '?url', import: 'default' }), // wav decodes natively too
   ...import.meta.glob('./audio/cards/*.mp3', { eager: true, query: '?url', import: 'default' }),
   ...import.meta.glob('./audio/heroes/*.mp3', { eager: true, query: '?url', import: 'default' }),
 } as Record<string, string>;
 const buffers = new Map<string, AudioBuffer>();
 const loadingSamples = new Set<string>();
 // Key = path under ./audio/ minus extension: `./audio/roll.mp3` → `roll`, `./audio/cards/karthus.mp3` → `cards/karthus`.
-const sampleName = (path: string): string => path.replace(/^\.\/audio\//, '').replace(/\.mp3$/, '');
+const sampleName = (path: string): string => path.replace(/^\.\/audio\//, '').replace(/\.(mp3|wav)$/, '');
 
 function loadSample(name: string): void {
   const a = audio();

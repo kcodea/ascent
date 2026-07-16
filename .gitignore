@@ -21,3 +21,4 @@ skills-lock.json
 
 # Audio import drop folder (see npm run sfx:import)
 audio-inbox/
+vitest.config.ts.timestamp-*

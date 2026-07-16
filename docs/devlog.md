@@ -5,6 +5,178 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### chore(ui): unwire the endbuttonhit2 strike sound (owner: not needed)
+
+- Removed `sfx.endButtonHit`, the `endbutton` mixer category (gains/bus/desk strip/preview) and the
+  730KB `endbuttonhit2.wav` asset; the strike keeps its visuals (flash/bolts/dust/ripple) with no bespoke
+  clip. The audio glob's `.wav` support stays (harmless, and future clips can use it).
+- Verified: no `endbutton`/`endButtonHit` references remain; strike → combat runs clean with an empty
+  console. Typecheck + lint + 1109 tests + build:web green.
+
+### feat(ui): combat Summary → a small glass pill above the End Combat diamond
+
+- The big white top-centre Summary button shrank into a **dark-glass pill** (the `.hplabel`/`.etb-tip`
+  gradient + gold-mix border language) seated on the RIGHT, **above the End Combat diamond** — anchored to
+  the SAME stage point + `--etb-x/y` offsets as the diamond, so the 💎 tuner's position moves them together.
+  It **fades in floating up** (a one-shot 0.38s mount animation matching the diamond tooltip's feel).
+- The `.combatctl` top bar stays as an empty spacer (its footprint keeps the enemy warband's vertical spot).
+- Verified live: pill mounts with the fade on replay-done, centred over the diamond with clean clearance
+  above its top point (first cut overlapped by 9px — pushed from −122 to −142 design px), and the click
+  still opens the combat Summary log. Typecheck + lint + 1109 tests + build:web green.
+
+### chore(ui): End Turn diamond — owner-tuned values baked as the shipped defaults
+
+- The owner's 💎-tuner export is now the shipped look, baked BOTH into `endTurnConfig.ts` DEFAULTS and the
+  styles.css `var(--etb-*, …)` fallbacks — so every build (including Mike's, with no localStorage) renders
+  identically, pinned to the letterboxed 16:9 stage exactly like the hero power (base 0.81/0.45 of the stage
+  + 140/32 px offsets × `--scale`, resolution-independent).
+- The shipped look: the diamond seats ON the board's right-edge ornament at 1.14×; the hover glow is a tight
+  1px-blur ×6 rim breathing fast and shallow (0.7s, depth 0.11), fitted 0.98/0.925 with a −1.5px lift;
+  **ambient lightning is OFF** (boltRate 0 — the bolt shape dials still drive the STRIKE burst, which
+  bypasses the rate gate: 20 bolts, 60ms life, #86eafe); strike = 450ms flash + 1.95×/1.6× dust + a single
+  1.5× ripple ring; and the pressed art ships as the **cracked gem** (pressedVariant 3).
+- Verified with CLEAN localStorage (the defaults path Mike gets): vars land (140px/1.14/0.7s), `html.etb-p3`
+  set from defaults, the diamond seats on the ornament, and the cracked gem + pinned return-to-shop pill
+  hold through combat. Typecheck + lint + 1109 tests + build:web green.
+
+### feat(ui): End Turn diamond — zigzag bolts + tooltip polish (always-on at timer-0 / combat-done)
+
+- Round six of owner notes:
+  1. **Zig-zaggier lightning** — bolts went from 6 smooth-jittered segments to 9 joints with a FORCED
+     alternating sign per joint (a shimmering seeded magnitude on top), so arcs read as jagged lightning
+     rather than waves.
+  2. **Tooltip float/fade polish** — the pill now floats up 7px as it fades in over 0.38s (was a 0.12s
+     opacity snap), at 13.5px (was 12) with a touch more padding.
+  3. **Always-on tooltip states** — the pill pins visible (no hover needed) when the shop timer hits 0
+     (`.urgent` → "End your turn and start combat") and when the combat replay finishes (`.ready` → "End
+     combat and go back to shop").
+- Verified live: jagged bolts on a cranked-rate run; timer-0 pill pinned at 13.5px with the right text;
+  combat-done pill pinned with the return-to-shop text. Typecheck + lint + 1109 tests + build:web green.
+
+### feat(ui): End Turn diamond — it IS End Combat now + ambient sheen
+
+- Round five of owner notes:
+  1. **End Combat moved onto the diamond** — once the combat replay finishes (a loss still holds until the
+     loss-damage blast lands, same gating as before), the pressed gem becomes the enabled END COMBAT button:
+     hover shows "End combat and go back to shop", and the click plays a clean one-shot **relight shine**
+     (the LIT art blooms through and eases away while the shop returns — verified: shine mounts at +60ms,
+     the lit art is back under it at ~300ms, gone by 1.4s) — deliberately NOT the strike (no thunder-crack /
+     dust / ripple / bolts; just `sfx.pulse`). The old amber "End Combat" `.btn.big.endturn` is retired —
+     only Summary remains in the combat button row.
+  2. **Ambient SHEEN** — a periodic glare bar sweeping the gem's face in BOTH lit and pressed states,
+     clipped to the gem's diamond via a static `clip-path` polygon; the bar animates TRANSFORM only
+     (compositor-cheap loop, per the perf rule). Two new 💎 dials: `sheen · cycle` (s per sweep+rest) and
+     `sheen · strength` (0 = off).
+- Verified live: sheen clip + 3.2s loop live on the lit gem; combat-ready state flips the tooltip/aria and
+  enables the pressed gem with the old button gone; End-Combat click sequence probed at 60/300/800/1400ms.
+  Typecheck + lint + 1109 tests + build:web green; throwaway state cleaned up.
+
+### feat(ui): End Turn diamond — hit sound, halo-only glow (mask fix), pressed3 switch
+
+- Round four of owner notes on the diamond:
+  1. **`endbuttonhit2` wired into the mixer** — the strike now plays the sourced clip on press
+     (`sfx.endButtonHit`, category `endbutton` on the `ui` bus → its own fader + ▶ preview strip in the
+     🎛️ Mixing Desk). The sample glob learned `.wav` (decodes natively; 2.06s stereo). Named as the
+     `endbuttonhit` variant family, so numbered siblings auto-group later.
+  2. **Glow dials now move the GLOW, not a gem copy** — the glow layer's drop-shadows are computed from the
+     gem image's alpha, then a CSS mask (full canvas MINUS the gem shape via `mask-composite: exclude`) cuts
+     the source pixels back out, so only the halo paints. The offset/fit sliders now steer the halo alone —
+     the "copied diamond" that rode the dials is gone.
+  3. **`end_button_pressed3` (cracked gem) wired as a tuner switch** — new `pressed art · cracked gem`
+     checkbox (config `pressedVariant`, dev-persisted, reflected as `html.etb-p3` so pure CSS flips the
+     art; production ships pressed2). The source png is 1254² with its own framing, so it was trimmed and
+     pad-centred into the shared 468×512 box to align with the other arts.
+- Verified live: mask live (`mask-composite: exclude`); an 18px offset + 1.12 width-fit moved ONLY the halo;
+  variant switch flips dim2→dim3 in pressed preview; the wav fetches (200, audio/wav) and decodes; the
+  `endbutton` desk strip exists and its ▶ fires clean. Typecheck + lint + 1109 tests + build:web green.
+- Note for later: the hit clip ships as a 730KB wav — worth an mp3/ogg re-encode pass when convenient.
+
+### feat(ui): End Turn diamond — glow alignment + full strike dials in the 💎 tuner
+
+- Owner report: the glow wasn't seated square on the gem. Two fixes + full tunability:
+  - **Tighter gem cut** — `end_button_gem.webp` regenerated with the EXACT detected gem bounds (the old
+    2.5% mask pad pushed the halo rim outside the gem edge, reading as "not fixed to the diamond").
+  - **Glow alignment dials** — `glow · offset x/y` (design px × `--u`) and `glow · width/height fit`
+    (0.85–1.15×) transform the glow layer live so the halo can be seated by eye. Near-identity values keep
+    the overlaid gem pixels invisible on the art below (the ranges are deliberately tight — blur/strength
+    remain the SIZE dials).
+  - **Full strike effect dials** — the single "ripple power" split into `strike · dust amount / size / life`
+    and `strike · ripple rings / size / life`. `pixiFx.impactDust`/`impactPulse` gained optional per-call
+    multiplier `opts` (count/size/life; radius/life/rings) so the button dials its own billow/shockwave
+    without touching the shared combat `imp*` tuning (combat call sites pass nothing — unchanged).
+  - Also fixed: the strike rows' tuner LABELS were missing (rows rendered unlabeled) — added. Curiously
+    `tsc` accepted the incomplete `Record<keyof …>` literal; noted, not chased.
+- Verified live: 30 tuner rows; glow offset/fit sliders move the halo in real time (computed transform
+  `matrix(1.05, 0, 0, 1, 4, −2.7)` for a 6/−4/1.05 dial at this window's `--u`); all 8 strike rows present;
+  reset restores defaults. Typecheck + lint + 1109 tests + build:web green; throwaway state cleaned up.
+
+### feat(ui): End Turn diamond — strike round (gem-only glow, masked swap, shockwave ripple)
+
+- Second owner-notes round on the diamond:
+  1. **Glow hugs the GEM, not the housing** — the glow layer now uses a gem-only cut of the art
+     (`end_button_gem.webp`, built by masking the source with the blue gem's detected diamond polygon and
+     extracting the SAME trim box as the button art, so the layers align 1:1). Seated ABOVE the art so the
+     gem's light spills over the bronze frame; drop-shadow follows the cut's alpha → the halo is exactly
+     the gem silhouette.
+  2. **The press swap is immediate + masked** — the button keys off `inCombat` (the phase itself), not
+     `fighting` (which waits for the arena intro), so the dim gem shows the instant the click lands
+     (verified: dim art visible at +30ms). The swap hides under a STRIKE: a white-hot gem flash (one-shot
+     opacity fade, static filter, unmounts after), a burst of lightning arcs (bypasses the pressed/rate
+     gates), and the dirt billow.
+  3. **Shockwave ripple** — `pixiFx.impactPulse` (the combat clack's expanding energy rings) fires at the
+     gem's centre alongside the dust.
+  - New tuner rows: `strike · bolts` (burst arc count), `strike · flash` (ms, 0 = off, drives
+    `--etb-flash-ms`), `strike · ripple` (× power for the rings + dust, 0 = off).
+- Verified live: gem-only halo (bronze points sit outside the glow), flash mounted at +30ms with the dim
+  art already swapped and unmounted after its one-shot, burst bolts on the canvas, full loop back to a lit
+  wave-2 shop. Typecheck + lint + 1109 tests + build:web green. (One dev hiccup: a stale HMR chunk threw
+  "useState is not defined" — a hard reload cleared it; not a source issue.)
+
+### feat(ui): End Turn diamond — owner notes round (hover glow, cross-lightning, dust, pressed2)
+
+- Six owner notes applied to the new diamond button:
+  1. **Glow is hover-only** — hidden at rest (soft 0.22s opacity ease in/out), breathing while hovered; the
+     tuner gained a "glow always on" preview toggle so its sliders can be dialed without holding hover.
+  2. **White glare removed** — the hover `brightness(1.09)` on the art is gone; hover feedback is the glow.
+  3. **Push effect removed** — no `:active` scale on click.
+  4. **Lightning crosses the face** — arcs now split 50/50: edge sparks (as before) and CROSS bolts spanning
+     the gem's face between two different edges (length slider still bites via a ×1.6 midpoint-scaled span).
+  5. **Dirt/smoke on hit** — the click kicks up `pixiFx.impactDust` (the combat clack's warm tan billow) at
+     the gem's live on-screen centre before ending the turn.
+  6. **`end_button_pressed2` wired as THE pressed art** — shown from the click through the ENTIRE combat
+     screen (the button now mounts in both phases, disabled + un-greyscaled in combat) and relights when the
+     next shop opens. The superseded `end_button_pressed` webp was removed.
+- Verified live: rest state has zero glow/animation/filter; the glow rules fire at tuned opacity + breath via
+  the preview class (same declarations as `:hover`); centre-face canvas sampling caught cross bolts on 8/28
+  frames (edge arcs can't reach there); pressed2 held through combat un-greyscaled and relit on the wave-2
+  shop. Typecheck + lint + 1109 tests + build:web green; throwaway state cleaned up.
+
+### feat(ui): End Turn button remake — standalone diamond + 💎 dev tuner
+
+- Owner direction: replace the shop-tray End Turn button with the new **gem-in-bronze diamond art**
+  (`end_button` / `end_button_pressed`, converted from the Ascent Art folder to alpha-trimmed webps —
+  743KB PNGs → 34KB each at 468×512), **de-coupled from the shop** and placed on the board's middle-right.
+- **`EndTurnButton.tsx`** — stage-pinned like the hero power (base point 0.81/0.45 of the stage + `--etb-*`
+  px offsets × `--scale`), layered for perf:
+  - the **lit gem** until pressed; the **dulled gem** while the end-of-turn beats play (both `<img>`s stay
+    mounted, CSS flips them — no src-swap flash);
+  - a **diamond glow**: a duplicate of the art with a *static* stacked drop-shadow filter (the shadow follows
+    the alpha, so the halo IS the diamond silhouette) whose **opacity** breathes on a loop (compositor-only,
+    per the perf rule; the breath quickens when the turn timer expires);
+  - **lightning arcs** crackling along the diamond's four edges on a small canvas — the rAF reads the config
+    live each frame (slider moves apply instantly), skips clearing when idle, and unmounts with the button
+    in combat. Disabled = greyscale one-shot filter; hover pill tooltip; drops pass through while dragging.
+- **`endTurnConfig.ts` + `EndTurnTuner.tsx` (💎 End Turn Button in the Dev Tuning Menu)** — position x/y,
+  scale, glow (blur / opacity / stack strength / pulse speed / pulse depth / colour) and lightning (rate /
+  length / jitter magnitude / width / life / opacity / colour), plus a "preview pressed" toggle (body class →
+  pure CSS art flip). localStorage-persisted in DEV only; production always renders the shipped defaults
+  (Layout Lab convention), which the styles.css `var(--etb-*, …)` fallbacks mirror.
+- Removed the old amber `.shopbtn.endturn` from the action tray (End Combat's `.btn.big.endturn` unchanged).
+- Verified: typecheck + lint + tests + build:web green; live dev-server run — button renders mid-right with a
+  breathing glow, lightning drew on 36/36 sampled frames, tuner sliders moved/scaled it live, pressed preview
+  flips to the dulled gem + kills the glow, and the full loop (click → combat → End Combat → wave 2 recruit
+  with the button back at defaults) played clean. Throwaway run + tuner localStorage cleaned up after.
+
 ### feat(ui): Career + post-game visual pass (mockup-match)
 
 - Owner supplied two visual mockups (Career page + course-complete screen) and asked for a close match while

@@ -65,6 +65,27 @@ function tiffBuyDiscount(s: RunState, card: CardDef): void {
   }
 }
 
+/** Push a PLAIN, base-stat copy of a card to hand (Re-Pete's Second Hand / Gorr's Four Peat) — a CONJURED
+ *  card: no per-instance buffs/golden/welds carried, and it does NOT take from the shared pool. Hand-cap-safe. */
+function conjurePlainCopy(s: RunState, cardId: string): void {
+  const def = CARD_INDEX[cardId];
+  if (!def || s.hand.length >= CONFIG.handMax) return;
+  s.hand.push({ uid: `b${s.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false });
+}
+
+/** Gorr's Four Peat: when you buy your 3rd MINION in a single turn, get a plain copy of one of the three at
+ *  random — conjured (no pool take), once per turn (`gorrBuys` resets at turn setup; it keeps counting past 3
+ *  but only the exact 3rd buy fires). Called from both paid minion-buy paths (normal + held-Displacement). */
+function gorrQuestBuy(s: RunState, card: CardDef): void {
+  if (getHero(s.heroId).power.kind !== 'fourPeat' || card.spell) return;
+  const buys = [...(s.gorrBuys ?? []), card.id];
+  s.gorrBuys = buys;
+  if (buys.length !== 3) return; // fires on EXACTLY the 3rd minion buy each turn
+  const rng = makeRng(s.rngCursor);
+  conjurePlainCopy(s, buys[rng.int(3)]!);
+  s.rngCursor = rng.state();
+}
+
 /** Drakko's quest: buy 5 Battlecry minions → get Drakko the Drummer (once per game). Progresses on every
  *  PAID Battlecry buy — the normal path AND a held-Displacement restore (which used to skip it); the
  *  reward lands in the hand if there's room. */
@@ -421,6 +442,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         drakkoQuestBuy(s, card); // a paid buy still progresses Drakko's quest (it used to be skipped)
         chronosQuestBuy(s, card); // …and Chronos's End-of-Turn quest
         tiffBuyDiscount(s, card); // …and a restored Dragon banks Tiff's discount
+        gorrQuestBuy(s, card); // …and a restored minion counts toward Gorr's Four Peat
         checkTriples(s); // a restored copy can still complete a triple
         return s;
       }
@@ -484,6 +506,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       drakkoQuestBuy(s, card); // Drakko's quest counts every paid Battlecry buy
       chronosQuestBuy(s, card); // Chronos's quest counts every paid End-of-Turn buy
       tiffBuyDiscount(s, card); // Tiff: a Dragon buy banks a Dragon Tamer discount
+      gorrQuestBuy(s, card); // Gorr: the 3rd minion bought this turn conjures a random plain copy
       checkTriples(s); // a 3rd copy combines into a golden + grants a Discover
       return s;
     }
@@ -1743,6 +1766,7 @@ function advanceCombat(s: RunState): void {
   s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
   s.shoutFirstUsedThisTurn = false; // Warm Embers' "first Shout each round triggers twice" freebie resets each turn
   s.dupeUsedThisTurn = false; // Dupes: the first-buy copy is a per-turn freebie
+  s.gorrBuys = undefined; // Gorr: the per-turn minion-buy tally resets
   s.freeBuyUsedThisTurn = false; // Freedom rift: the first minion each turn is free again
   s.spellFirstUsedThisTurn = false; // Spell Thesis: "first spell each turn casts twice" resets each turn
   s.fodderConsumedThisTurn = { attack: 0, health: 0 }; // Abhorrent Horror's SoC window resets each wave
@@ -1835,6 +1859,13 @@ function advanceCombat(s: RunState): void {
       s.chaosGrantSeq = (s.chaosGrantSeq ?? 0) + 1;
       s.chaosGrantUid = grantUid;
     }
+  }
+  // Re-Pete's Second Hand: at the START of every 3rd turn (3, 6, 9, …), conjure a PLAIN copy of the
+  // left-most card in hand — base stats only (no buffs/golden/welds carried) and NO pool take (a conjured
+  // card). Hand-cap-safe; an empty hand grants nothing. Runs with the other shop-open hand grants so the
+  // copy can still complete a triple below.
+  if (getHero(s.heroId).power.kind === 'secondHand' && s.wave % 3 === 0 && s.hand.length > 0) {
+    conjurePlainCopy(s, s.hand[0]!.cardId);
   }
   // Gildmaster: get a Goldcrafter (a spell that makes a friendly minion golden) at the START of every 4th
   // turn — turns 4, 8, 12, …. Conjured to hand (hand-cap-safe); a granted spell can't complete a triple.
@@ -2478,6 +2509,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     contractRewrite: f?.contractRewrite,
     pitWithoutEndImps: s.pitWithoutEndImps || undefined,
     doubleLeftmostAttack: f?.doubleLeftmostAttack,
+    possession: getHero(s.heroId).power.kind === 'possession' || undefined, // Atrius: SoC leftmost/rightmost stat trade
     slaughterFirstEachCombat: s.slaughterFirstEachCombat || undefined,
     feedingLine: f?.feedingLine,
     umbralEnergy: f?.umbralEnergy,

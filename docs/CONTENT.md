@@ -28,8 +28,8 @@ non-token). "Shop" counts below **exclude** `token: true` cards and the enemy-on
 | Basic runes (`RUNES`) | **25** | `runes.ts` |
 | Epic runes (`EPIC_RUNES`) | **23** | `runes.ts` |
 | Runes total | **48** | `runes.ts` |
-| Heroes defined (`HEROES`) | **23** | `heroes.ts` |
-| Heroes selectable (non-`wip`) | **20** | `heroes.ts` (filter `HEROES.filter(h => !h.wip)`) |
+| Heroes defined (`HEROES`) | **27** | `heroes.ts` |
+| Heroes selectable (non-`wip`) | **24** | `heroes.ts` (filter `HEROES.filter(h => !h.wip)`) |
 | Tribes | **6** | Beasts, Dragons, Undead, Mechs, Demons + Neutral glue |
 
 Shop-minion breakdown by tribe file (non-token, non-spell): Beasts 21 · Dragons 18 · Undead 20 ·
@@ -37,7 +37,7 @@ Mechs 19 · Demons 18 · Neutral 23 = **119**.
 
 Full card pool (`ALL_CARDS`, everything incl. tokens/spells/enemy) = **198**.
 
-Three heroes are withheld from the picker via `wip: true` (Warden, Myra, Chaos), leaving **20 of 23**
+Three heroes are withheld from the picker via `wip: true` (Warden, Myra, Chaos), leaving **24 of 27**
 selectable.
 
 ---

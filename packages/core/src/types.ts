@@ -640,6 +640,10 @@ export interface QuestCombatMods {
   pitWithoutEndImps?: number;
   /** Rulebreaker's Crown: at Start of Combat your leftmost minion gains +Attack equal to its Attack (doubles it). */
   doubleLeftmostAttack?: boolean;
+  /** Atrius's Possession (hero): at Start of Combat the leftmost living minion gains the rightmost's Attack, and
+   *  the rightmost gains the leftmost's Health (simultaneous — both read pre-buff values; 1-minion boards no-op).
+   *  Rides the quest-mods channel so a served Atrius board replays it. */
+  possession?: boolean;
   /** Author's Hand: your FIRST Slaughter (on-kill) each combat fires this many extra times (additive with Law of
    *  Teeth). */
   slaughterFirstEachCombat?: number;

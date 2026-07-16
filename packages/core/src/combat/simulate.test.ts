@@ -3088,6 +3088,22 @@ describe('Rulebreaker quests — double-leftmost-attack, Chimerus, Taurus engrav
     expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 0 && ev.health === 8)).toBe(true); // +0/+8 = Chimerus's Health
   });
 
+  it("Atrius's Possession: leftmost gains rightmost's Attack, rightmost gains leftmost's Health (pre-buff values)", () => {
+    const p: BoardMinion[] = [
+      { cardId: 'sandbag', attack: 2, health: 5 },
+      { cardId: 'sandbag', attack: 4, health: 7 },
+    ];
+    const r = simMods(p, [{ cardId: 'omen', attack: 0, health: 200 }], 1, { possession: true });
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 4 && ev.health === 0)).toBe(true); // leftmost +4 Atk (the rightmost's)
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 0 && ev.health === 5)).toBe(true); // rightmost +5 HP (the leftmost's)
+  });
+
+  it("Atrius's Possession no-ops on a single-minion board", () => {
+    const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 2, health: 5 }];
+    const r = simMods(p, [{ cardId: 'omen', attack: 0, health: 200 }], 1, { possession: true });
+    expect(r.events.some((ev) => ev.type === 'buff')).toBe(false); // nothing to trade with
+  });
+
   it('Taurus the Truth Bringer engraves the whole board at Start of Combat', () => {
     const p: BoardMinion[] = [{ cardId: 'taurustruth', attack: 12, health: 12, keywords: ['SC'] as Keyword[] }, { cardId: 'sandbag', attack: 2, health: 5 }];
     const r = simMods(p, [{ cardId: 'omen', attack: 0, health: 200 }], 1, {});

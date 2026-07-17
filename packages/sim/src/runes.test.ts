@@ -3,7 +3,7 @@ import type { CombatResult } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNES, RUNE_INDEX, validateRunes } from '@game/content';
 import { createRun, type RunState } from './state';
 import { openEpicRuneforge, questCombatMods, reduce } from './reducer';
-import { buffFodderRunWide, dragonTamerCostOf, sellValueOf, spellDisplayText } from './recruit';
+import { buffFodderRunWide, buffImpsRunWide, dragonTamerCostOf, sellValueOf, spellDisplayText } from './recruit';
 import { questBucketFor } from './quests';
 import { applyEndOfTurn, projectEndOfTurnSteps, questEndOfTurnBeats } from './recruit';
 
@@ -322,6 +322,13 @@ describe('Buff Gust FX signal', () => {
     buffFodderRunWide(s, 1, 1, 'test');
     expect(s.buffGustSeq).toBe(1);
     expect([...(s.buffGustUids ?? [])].sort()).toEqual(['f1', 'f2', 's1']); // Fodder only — no Alleycat
+  });
+
+  it('buffImpsRunWide stamps too — an Imp-aura buff is a tavern-flourish trigger even with no Imp visible', () => {
+    const s: RunState = { ...createRun(1, 'warden'), phase: 'recruit', board: [mkAlley('a1')], hand: [], shop: [] };
+    buffImpsRunWide(s, 2, 2, 'test');
+    expect(s.buffGustSeq).toBe(1); // seq bumps even though no visible card was an Imp
+    expect(s.buffGustUids).toEqual([]); // informational — the UI anchors to the tavern row regardless
   });
 
   it('a Staff of Guel cast widens the stamp to the whole shop minion row', () => {

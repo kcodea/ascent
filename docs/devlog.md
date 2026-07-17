@@ -30,6 +30,18 @@ staggered speed-line streaks blowing into the row edge — "the tavern just got 
 - **💨 Buff Gust tuner** in the Dev menu (config + tuner trio, rig-matched dials) for in-game iteration.
 - 2 signal tests (Fodder-only uid set; the Staff widening to the shop row). Verified live: a real Staff
   cast swept the gust over the shop row in-game. Typecheck + lint + 1127 tests + build:web green.
+- **Round 2 (owner v2 values + wider triggers, same day):** re-baked snappier values (140ms sweeps, 110ms
+  hold, ~1s total) and re-scoped the gust as **the TAVERN flourish for ANY shop-time Fodder/Imp buff**:
+  - The UI now anchors it to the SHOP ROW always (the uids stay informational), pushed toward the board
+    ends by a new **`edgeOut` dial** (default 90px — "move it further out", owner).
+  - `buffImpsRunWide` stamps too (Imp Overseer's Battlecry, Implosion, Chef Raag's sources) — the seq
+    bumps even with no Imp visible (the tavern-got-buffed cue still reads).
+  - **End-of-Turn triggers (Maw, Ritualist) fire on their BEAT** — the faceOmen stamp lands after the
+    phase flips to combat, so the watcher (phase-guarded) skips it; the beat is when the buff visibly
+    happens in the shop. A `gust` flag rides the EoT beat (next to Ritualist's shop-flash cue).
+  - Never in combat: the phase guard + the shop simply isn't rendered there.
+  - +1 signal test (imp-buff stamps with an empty visible set). Verified live: Imp Overseer's Battlecry
+    gusts mid-shop; Maw's End-of-Turn gusts on its beat (screenshots). Full gate green (1128 tests).
 
 ### feat(sim/ui): Displacement swap FX — circular exchange arrows + a 🔀 tuner
 

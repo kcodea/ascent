@@ -27,6 +27,7 @@ const GUST_LABELS: Partial<Record<keyof GustFxConfig, string>> = {
   arcBulge: 'bracket bulge',
   arcWidth: 'bracket width',
   arcTravel: 'bracket drift',
+  edgeOut: 'flank push-out',
   coreAlpha: 'core α',
   glowWidth: 'glow width',
   glowAlpha: 'glow α',

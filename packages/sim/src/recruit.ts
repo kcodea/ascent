@@ -283,9 +283,10 @@ export function buffFodderRunWide(state: RunState, a: number, h: number, source:
     .map((c) => c.uid));
 }
 
-/** Stamp the one-shot Buff Gust FX signal with the affected cards' uids (no-op on an empty set). */
+/** Stamp the one-shot Buff Gust FX signal. The gust is the TAVERN flourish — the UI anchors it to the
+ *  shop row (pushed out by `edgeOut`), so `uids` are informational (which cards were hit), and an empty
+ *  set still stamps: an Imp-aura buff with no Imp visible is still "the tavern got buffed". */
 export function stampBuffGust(state: RunState, uids: string[]): void {
-  if (uids.length === 0) return;
   state.buffGustSeq = (state.buffGustSeq ?? 0) + 1;
   state.buffGustUids = [...new Set(uids)];
 }
@@ -311,6 +312,8 @@ export function buffImpsRunWide(state: RunState, a: number, h: number, source: s
   for (const c of [...state.board, ...state.hand]) {
     if (CARD_INDEX[c.cardId]?.imp) addBuff(c, source, a, h);
   }
+  // Buff Gust FX: an Imp-aura buff is a tavern-flourish trigger too (Imp Overseer, Implosion, Ritualist).
+  stampBuffGust(state, [...state.board, ...state.hand].filter((c) => CARD_INDEX[c.cardId]?.imp).map((c) => c.uid));
 }
 
 /**

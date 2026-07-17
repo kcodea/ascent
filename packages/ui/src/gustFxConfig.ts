@@ -26,6 +26,7 @@ export interface GustFxConfig {
   arcBulge: number;     // px — how far the bracket bows outward
   arcWidth: number;     // px — bracket core stroke width
   arcTravel: number;    // px — inward drift as the bracket draws
+  edgeOut: number;      // px — push each flank OUTWARD beyond the row bounds (toward the board ends)
   coreAlpha: number;    // 0..1
   glowWidth: number;    // px — soft underlay added around every stroke
   glowAlpha: number;    // 0..1
@@ -34,26 +35,27 @@ export interface GustFxConfig {
   colorGlow: string;
 }
 
-// Owner-tuned on the preview rig (2026-07-16): a ~2s violet rush — thin curved streaks fanned across the
-// row height, bold 15px brackets bowing wide, generous hold so the cue registers.
+// Owner-tuned on the preview rig (2026-07-16, v2): a snappy ~1s violet rush — quick 140ms sweeps, brief
+// hold, bold brackets. `edgeOut` pushes the flanks toward the board ends (owner: "move it further out").
 const DEFAULTS: GustFxConfig = {
-  sweepMs: 430,
+  sweepMs: 140,
   staggerMs: 65,
   arcMs: 520,
-  holdMs: 830,
-  fadeMs: 550,
+  holdMs: 110,
+  fadeMs: 280,
   streaks: 5,
-  streakLen: 95,
-  streakTravel: 65,
-  streakWidth: 2.5,
+  streakLen: 105,
+  streakTravel: 75,
+  streakWidth: 3,
   streakCurve: 0.12,
   spreadY: 175,
   arcHeight: 1.5,
   arcBulge: 106,
   arcWidth: 15,
   arcTravel: 36,
+  edgeOut: 90,
   coreAlpha: 0.9,
-  glowWidth: 11,
+  glowWidth: 14,
   glowAlpha: 0.4,
   taper: 1,
   colorCore: '#a83bec',
@@ -63,7 +65,7 @@ const DEFAULTS: GustFxConfig = {
 export const GUSTFX_KEYS = [
   'sweepMs', 'staggerMs', 'arcMs', 'holdMs', 'fadeMs',
   'streaks', 'streakLen', 'streakTravel', 'streakWidth', 'streakCurve', 'spreadY',
-  'arcHeight', 'arcBulge', 'arcWidth', 'arcTravel',
+  'arcHeight', 'arcBulge', 'arcWidth', 'arcTravel', 'edgeOut',
   'coreAlpha', 'glowWidth', 'glowAlpha', 'taper',
   'colorCore', 'colorGlow',
 ] as const satisfies readonly (keyof GustFxConfig)[];
@@ -74,7 +76,7 @@ export const GUSTFX_COLOR_KEYS: (keyof GustFxConfig)[] = ['colorCore', 'colorGlo
 export const GUSTFX_RANGES: Partial<Record<keyof GustFxConfig, [number, number, number]>> = {
   sweepMs: [100, 1500, 10], staggerMs: [0, 200, 5], arcMs: [80, 1200, 10], holdMs: [0, 1500, 10], fadeMs: [80, 1200, 10],
   streaks: [0, 10, 1], streakLen: [40, 400, 5], streakTravel: [0, 400, 5], streakWidth: [1, 20, 0.5], streakCurve: [0, 0.6, 0.02], spreadY: [40, 400, 5],
-  arcHeight: [0.6, 2.5, 0.05], arcBulge: [0, 160, 2], arcWidth: [1, 24, 0.5], arcTravel: [0, 200, 2],
+  arcHeight: [0.6, 2.5, 0.05], arcBulge: [0, 160, 2], arcWidth: [1, 24, 0.5], arcTravel: [0, 200, 2], edgeOut: [0, 400, 5],
   coreAlpha: [0, 1, 0.05], glowWidth: [0, 48, 1], glowAlpha: [0, 1, 0.05], taper: [0, 1, 1],
 };
 

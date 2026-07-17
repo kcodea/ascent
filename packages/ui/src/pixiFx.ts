@@ -355,7 +355,7 @@ export interface SwapArcCfg {
 export interface BuffGustCfg {
   sweepMs: number; staggerMs: number; arcMs: number; holdMs: number; fadeMs: number;
   streaks: number; streakLen: number; streakTravel: number; streakWidth: number; streakCurve: number; spreadY: number;
-  arcHeight: number; arcBulge: number; arcWidth: number; arcTravel: number;
+  arcHeight: number; arcBulge: number; arcWidth: number; arcTravel: number; edgeOut: number;
   coreAlpha: number; glowWidth: number; glowAlpha: number; taper: number;
   colorCore: string; colorGlow: string;
 }
@@ -1962,7 +1962,8 @@ class FxController {
     const fade = 1 - Math.min(1, Math.max(0, (t - fadeStart) / (cfg.fadeMs / 1000 || 0.001)));
 
     for (const side of [-1, 1]) { // -1 = left flank (blows right), +1 = right flank (blows left)
-      const edgeX = side < 0 ? box.left : box.right;
+      // `edgeOut` pushes each flank outward beyond the row bounds — toward the board ends (owner ask).
+      const edgeX = side < 0 ? box.left - cfg.edgeOut : box.right + cfg.edgeOut;
       const dir = -side; // inward
 
       // Bracket arc hugging this end: a tall quadratic bowing OUTWARD, revealed top→bottom + drifting in.

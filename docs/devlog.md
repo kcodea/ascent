@@ -20,6 +20,9 @@ Owner redesign (2026-07-16): the dotted SVG targeting line replaced, and the pow
 - **🎯 Hero Aim FX tuner** (config trio): line width/alpha, aura width/alpha/breathe, arch + arch
   randomness, wobble, dot size, colours + the burst's count/speed/size/life/colour; ▶ Test fires the burst
   at the diamond. Defaults in the diamond's warm-gold language.
+- **Owner values baked** (same day): a bold 11.5px ribbon with a strong breathing aura (α 0.85, breathe
+  0.65), a deep 0.48 arch with ±0.45 randomness, no wobble, an 18px cursor dot — and a dense fast burst
+  (60 fine 3px sparks at 660px/s, 1.42s life, #ffa985).
 - The old dotted `.aimline` SVG renders + CSS (dash keyframes) retired.
 - Verified live: arming Soren draws the continuous warm-gold curve with the endpoint dot (valid target
   highlighted); the burst renders at the diamond (extreme-value capture). Typecheck + lint + 1130 tests +

@@ -32,25 +32,26 @@ export interface AimFxConfig {
   colorBurst: string;
 }
 
-// First pass in the diamond's warm-gold language — tune in the 🎯 tuner, Copy values, bake back.
+// Owner-tuned in the 🎯 tuner (2026-07-16): a bold 11.5px ribbon with a strong breathing aura, a deep
+// 0.48 arch (±0.45 randomness), no wobble — and a dense fast burst of 60 fine sparks.
 const DEFAULTS: AimFxConfig = {
-  coreWidth: 3.5,
+  coreWidth: 11.5,
   coreAlpha: 0.95,
-  glowWidth: 14,
-  glowAlpha: 0.35,
-  curve: 0.18,
-  curveVar: 0.55,
-  wobbleAmp: 6,
-  wobbleSpeed: 1.2,
-  breathe: 0.35,
-  dotSize: 10,
+  glowWidth: 10,
+  glowAlpha: 0.85,
+  curve: 0.48,
+  curveVar: 0.45,
+  wobbleAmp: 0,
+  wobbleSpeed: 2.2,
+  breathe: 0.65,
+  dotSize: 18,
   colorCore: '#ffd9a0',
-  colorGlow: '#ff9a2e',
-  burstCount: 26,
-  burstSpeed: 420,
-  burstSize: 9,
-  burstLife: 480,
-  colorBurst: '#ffd9a0',
+  colorGlow: '#ffa82e',
+  burstCount: 60,
+  burstSpeed: 660,
+  burstSize: 3,
+  burstLife: 1420,
+  colorBurst: '#ffa985',
 };
 
 export const AIMFX_KEYS = [

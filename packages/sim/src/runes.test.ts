@@ -496,6 +496,36 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
     expect(steps[0]!['d']).toEqual({ attack: 1, health: 1 }); // 4th untouched, matching applyEndOfTurn
   });
 
+  // Per-z FX itemization (owner ruling 2026-07-17): "+x/+y per z" EoT rewards project one sourceless FX
+  // event PER UNIT of the scaler (10 Attachments → ten +2/+2 hits, not one +20/+20 lump), while the real
+  // commit (applyEndOfTurn) applies identical totals with no events (its stamps land after the phase flip).
+  it('Blueprint Cache: the projection itemizes one +2/+2 event per Attachment; the commit matches in total', () => {
+    const mk = (): RunState => ({ ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
+      questRecurringEndOfTurn: ['buffMechsPerAttachment'],
+      board: [{ uid: 'm', cardId: 'drone', tribe: 'mech', attack: 2, health: 3, keywords: [], golden: false, attachments: 3 }, mkAlley('b')] });
+    const { steps, fx } = projectEndOfTurnSteps(mk());
+    expect(fx).toHaveLength(1);
+    const evs = fx[0]!.buffFx.filter((e) => e.targetUid === 'm');
+    expect(evs).toHaveLength(3); // one event per Attachment…
+    expect(evs.every((e) => e.sourceUid === undefined && e.attack === 2 && e.health === 2)).toBe(true); // …each +2/+2
+    expect(steps[0]!['m']).toEqual({ attack: 8, health: 9 }); // total still +6/+6
+    const commit = mk();
+    applyEndOfTurn(commit);
+    const m = commit.board.find((c) => c.uid === 'm')!;
+    expect([m.attack, m.health]).toEqual([8, 9]); // commit total identical
+    expect(commit.recruitBuffFx).toHaveLength(0); // …and emits NO events (itemizeFx is projection-only)
+  });
+
+  it('Rune of Spending: the projection itemizes one +1/+1 event per Gold spent', () => {
+    const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
+      questRecurringEndOfTurn: ['runeSpending'], goldSpentThisTurn: 4, board: [mkAlley('a')] };
+    const { steps, fx } = projectEndOfTurnSteps(s);
+    const evs = fx[0]!.buffFx.filter((e) => e.targetUid === 'a');
+    expect(evs).toHaveLength(4);
+    expect(evs.every((e) => e.sourceUid === undefined && e.attack === 1 && e.health === 1)).toBe(true);
+    expect(steps[0]!['a']).toEqual({ attack: 5, health: 5 }); // 1/1 + 4/+4 total, unchanged
+  });
+
   it('Rune of Action: a spell played counts as a card played (playedThisTurn)', () => {
     // Regression (owner 2026-07-11): "each card you played" must include spells / Discover-on-play /
     // welded Magnetics, not just minions that take a board slot — those returned before the tracker.

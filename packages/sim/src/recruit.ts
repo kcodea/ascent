@@ -3045,8 +3045,18 @@ export function applyEndOfTurn(state: RunState): void {
 
 /** One quest-granted recurring End-of-Turn effect. `triggerLeftmostShout`: re-fire your leftmost Battlecry
  *  minion's Battlecry (Echoing Roar). `grantRandomShout`: conjure a random Battlecry minion (≤ tavern tier) to
- *  hand (The Hoard Wakes). `grantRandomAttachments`: conjure 2 random Magnetic minions to hand (Blueprint Cache). */
-function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['questRecurringEndOfTurn']>[number]): void {
+ *  hand (The Hoard Wakes). `grantRandomAttachments`: conjure 2 random Magnetic minions to hand (Blueprint Cache).
+ *
+ *  `itemizeFx` (the UI's EoT beat projection only — the real commit passes false and emits no events): the
+ *  "+x/+y per z" effects apply their buff once PER UNIT OF Z, each unit wrapped in its own nested
+ *  `captureBuffFx`, so the beat replays one descend per step — 10 Attachments read as ten +2/+2 hits landing
+ *  sequentially, not one +20/+20 lump (owner ruling 2026-07-17; End-of-Turn only — Start-of-Combat lumps like
+ *  Umbral Energy stay one-shot). Identical stat outcome either way. */
+function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['questRecurringEndOfTurn']>[number], itemizeFx = false): void {
+  const step = (run: () => void): void => {
+    if (itemizeFx) captureBuffFx(state, undefined, 'spell', run);
+    else run();
+  };
   if (effect === 'triggerLeftmostShout') {
     const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
     if (leftmost) replayBattlecry(state, leftmost);
@@ -3054,28 +3064,37 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     conjureToHand(state, BUYABLE_CARDS.filter((c) => c.tier <= state.tier && c.keywords.includes('M')), 2);
   } else if (effect === 'buffMechsPerAttachment') {
     // Blueprint Cache: give each friendly Mech +2/+2 for every Attachment (Magnetic minion) welded onto it.
+    // Per-z: one +2/+2 step per Attachment (itemized in the projection).
     for (const c of state.board) {
       const n = c.attachments ?? 0;
-      if (n > 0 && isTribe(c, 'mech')) addBuff(c, 'Blueprint Cache', 2 * n, 2 * n);
+      if (n > 0 && isTribe(c, 'mech')) {
+        for (let i = 0; i < n; i++) step(() => addBuff(c, 'Blueprint Cache', 2, 2));
+      }
     }
   } else if (effect === 'runeSpending') {
-    // Rune of Spending: +1 max Gold, and grant your leftmost minion +N/+N where N = the Gold you spent this turn.
+    // Rune of Spending: +1 max Gold, and grant your leftmost minion +1/+1 PER Gold you spent this turn.
     state.maxGoldBonus = (state.maxGoldBonus ?? 0) + 1;
     const n = state.goldSpentThisTurn ?? 0;
     const leftmost = state.board[0];
-    if (leftmost && n > 0) addBuff(leftmost, 'Rune of Spending', n, n);
+    if (leftmost && n > 0) for (let i = 0; i < n; i++) step(() => addBuff(leftmost, 'Rune of Spending', 1, 1));
   } else if (effect === 'runeAction') {
-    // Rune of Action: give your THREE leftmost minions +1/+1 for every card you played this turn.
+    // Rune of Action: give your THREE leftmost minions +1/+1 for every card you played this turn — one
+    // step per card played, each step buffing the (up to) three leftmost.
     const n = (state.playedThisTurn ?? []).length;
-    if (n > 0) for (const c of state.board.slice(0, 3)) addBuff(c, 'Rune of Action', n, n);
+    if (n > 0) {
+      for (let i = 0; i < n; i++) step(() => { for (const c of state.board.slice(0, 3)) addBuff(c, 'Rune of Action', 1, 1); });
+    }
   } else if (effect === 'triggerLeftmostEcho') {
     // Rune of the Reliquary: fire your leftmost minion's Echo (Deathrattle) out of combat.
     const leftmost = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
     if (leftmost) fireRecruitDeathrattles(makeContext(state), leftmost);
   } else if (effect === 'undeadPlayedAtk') {
-    // Forsaken Speed: your Undead gain +3 Attack for each card you played this turn (reads `playedThisTurn`).
+    // Forsaken Speed: your Undead gain +3 Attack for each card you played this turn (reads `playedThisTurn`)
+    // — one step per card played, each step buffing every Undead +3.
     const n = (state.playedThisTurn ?? []).length;
-    if (n > 0) for (const c of state.board) if (isTribe(c, 'undead')) addBuff(c, 'Forsaken Speed', 3 * n, 0);
+    if (n > 0) {
+      for (let i = 0; i < n; i++) step(() => { for (const c of state.board) if (isTribe(c, 'undead')) addBuff(c, 'Forsaken Speed', 3, 0); });
+    }
   } else if (effect === 'attachClingDrones') {
     // Clinging On: weld a Cling Drone onto up to 3 of your Mechs (the leftmost three) at End of Turn.
     const cling = CARD_INDEX['cling'];
@@ -3197,7 +3216,9 @@ export function projectEndOfTurnSteps(state: RunState): {
   // Sourceless (no card to anchor) → their captured buffs replay as descends onto the gaining minions.
   for (const eff of clone.questRecurringEndOfTurn ?? []) {
     for (let r = 0; r < repeats; r++) {
-      beat(undefined, () => runRecurringEndOfTurn(clone, eff));
+      // itemizeFx: the "+x/+y per z" rewards capture one nested event PER UNIT of the scaler, so the beat
+      // replays a sequential descend per step (the outer beat capture skips the itemized targets).
+      beat(undefined, () => runRecurringEndOfTurn(clone, eff, true));
     }
   }
   return { steps, fx };

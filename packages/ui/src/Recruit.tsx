@@ -2046,10 +2046,14 @@ export function Recruit() {
   // (spell / Deathrattle / sourceless), using the same renderer as combat. Shared by the per-action watcher
   // below AND the End-of-Turn beat sequence (whose events come from the projection, since the real commit
   // lands after the phase flips — see `projectEndOfTurnSteps`).
-  const replayBuffFxEvents = useCallback((events: RunState['recruitBuffFx']): void => {
-    for (const ev of events) {
+  // `staggerMs` > 0 plays the events SEQUENTIALLY (one strike per step) — the EoT beats use it so a
+  // per-z reward (Blueprint Cache's +2/+2 per Attachment) reads as N hits landing one after another,
+  // not one simultaneous burst. Rects are measured at fire time (inside the timeout) so a late strike
+  // still lands on the card's current position.
+  const replayBuffFxEvents = useCallback((events: RunState['recruitBuffFx'], staggerMs = 0): void => {
+    const fireOne = (ev: RunState['recruitBuffFx'][number]): void => {
       const tEl = findEl(ev.targetUid);
-      if (!tEl) continue;
+      if (!tEl) return;
       const tr = tEl.getBoundingClientRect();
       const target = { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 };
       const sEl = ev.sourceUid ? findEl(ev.sourceUid) : null;
@@ -2060,7 +2064,11 @@ export function Recruit() {
         cardId: ev.sourceCardId, tribe: ev.sourceTribe,
         sourceless: ev.kind !== 'minion' || !sEl,
       });
-    }
+    };
+    events.forEach((ev, i) => {
+      if (staggerMs > 0 && i > 0) window.setTimeout(() => fireOne(ev), i * staggerMs);
+      else fireOne(ev);
+    });
   }, [findEl]);
 
   // Shop-phase buff FX: when the sim captured buff-others this action (recruitFxSeq bumped), replay them.
@@ -2678,7 +2686,9 @@ export function Recruit() {
       // Feasting Bogrot) as the full ghost-crumble eat choreography.
       const bfx = beatFx[i];
       if (bfx) {
-        if (bfx.buffFx.length > 0) replayBuffFxEvents(bfx.buffFx);
+        // Sequential strikes within the beat: itemized per-z rewards land one descend per step. The
+        // stagger shrinks as the event count grows so the whole run always fits inside the beat window.
+        if (bfx.buffFx.length > 0) replayBuffFxEvents(bfx.buffFx, Math.min(110, Math.floor((BEAT - 140) / bfx.buffFx.length)));
         if (bfx.eaten.length > 0) playFodderEat(bfx.eaten, ++eotEatKey.current);
       }
       // Tick the affected minions' stats up to this proc's values + flash whoever just gained.

@@ -266,7 +266,7 @@ export function noteFodderConsumed(state: RunState, fa: number, fh: number): voi
   if (state.runeConsume) buffFodderRunWide(state, state.runeConsume.attack, state.runeConsume.health, 'Rune of Consumption');
 }
 
-export function buffFodderRunWide(state: RunState, a: number, h: number, source: string): void {
+export function buffFodderRunWide(state: RunState, a: number, h: number, source: string, fx = true): void {
   state.cardBuffs ??= {};
   for (const def of Object.values(CARD_INDEX)) {
     if (!def.keywords.includes('FD')) continue;
@@ -277,10 +277,13 @@ export function buffFodderRunWide(state: RunState, a: number, h: number, source:
   for (const c of [...state.board, ...state.hand]) {
     if (CARD_INDEX[c.cardId]?.keywords.includes('FD')) addBuff(c, source, a, h);
   }
-  // Buff Gust FX: sweep the gust over every AFFECTED visible Fodder — board + hand + the tavern's offers.
-  stampBuffGust(state, [...state.board, ...state.hand, ...state.shop]
-    .filter((c) => CARD_INDEX[c.cardId]?.keywords.includes('FD'))
-    .map((c) => c.uid));
+  // Buff Gust FX — the FODDER-buff cue EXCLUSIVELY (owner 2026-07-16: not Imp auras, not the Staff of
+  // Guel): callers whose identity isn't "a Fodder buff" (the Staff's side-enchant) pass `fx: false`.
+  if (fx) {
+    stampBuffGust(state, [...state.board, ...state.hand, ...state.shop]
+      .filter((c) => CARD_INDEX[c.cardId]?.keywords.includes('FD'))
+      .map((c) => c.uid));
+  }
 }
 
 /** Stamp the one-shot Buff Gust FX signal. The gust is the TAVERN flourish — the UI anchors it to the
@@ -289,6 +292,14 @@ export function buffFodderRunWide(state: RunState, a: number, h: number, source:
 export function stampBuffGust(state: RunState, uids: string[]): void {
   state.buffGustSeq = (state.buffGustSeq ?? 0) + 1;
   state.buffGustUids = [...new Set(uids)];
+}
+
+/** Stamp the one-shot Fodder Infusion FX signal: `uid` = the SOURCE card queuing Fodder for the tavern —
+ *  the UI reaches tendrils from that unit up to the shop line. */
+export function stampFodderSend(state: RunState, uid: string | undefined): void {
+  if (!uid) return;
+  state.fodderSendSeq = (state.fodderSendSeq ?? 0) + 1;
+  state.fodderSendUid = uid;
 }
 
 /**
@@ -312,8 +323,8 @@ export function buffImpsRunWide(state: RunState, a: number, h: number, source: s
   for (const c of [...state.board, ...state.hand]) {
     if (CARD_INDEX[c.cardId]?.imp) addBuff(c, source, a, h);
   }
-  // Buff Gust FX: an Imp-aura buff is a tavern-flourish trigger too (Imp Overseer, Implosion, Ritualist).
-  stampBuffGust(state, [...state.board, ...state.hand].filter((c) => CARD_INDEX[c.cardId]?.imp).map((c) => c.uid));
+  // (No gust here — the cue is Fodder-buff exclusive, owner 2026-07-16. Ritualist still gusts via its
+  // buffFodderRunWide half.)
 }
 
 /**
@@ -903,12 +914,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const count = num(params.count, 1) * gold(self);
     const id = str(params.tokenId) || 'fred';
     (ctx.state.pendingTavern ??= []).push(...Array(count).fill(id));
+    stampFodderSend(ctx.state, self?.uid); // Fodder Infusion FX: tendrils from the sender to the shop line
   },
 
   /** Queue Fodder across the next `shops` tavern refreshes (Soulfeeder: "add a Fodder to the next 2 shops";
    *  golden doubles the per-shop count). Arms `fodderSchedule`, consumed one refresh at a time. */
   addFodderNextShops: (ctx, self, params) => {
     armFodderSchedule(ctx.state, num(params.count, 1) * gold(self), num(params.shops, 2));
+    stampFodderSend(ctx.state, self?.uid); // Fodder Infusion FX
   },
 
   /** The Godfodder — Battlecry: CREATE a Fodder (Fred) and feed it to the targeted friendly minion
@@ -1571,6 +1584,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Burial Imp / Soulfeeder (recruit half) — queue `count` Fodder into your next tavern; golden doubles. */
   deathrattleAddFodder: (ctx, self, params) => {
     (ctx.state.pendingTavern ??= []).push(...Array(num(params.count, 1) * gold(self)).fill('fred'));
+    stampFodderSend(ctx.state, self?.uid); // Fodder Infusion FX (skips gracefully if the dying card left the DOM)
   },
 
   // --- Spells ---
@@ -1745,13 +1759,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // Tavern buffs feed Fodder too — enchant the Fodder type run-wide (like Ritualist), so Demons
     // eating Fodder, and any Fodder you take, carry the Staff's buff. A directly-bought Fodder gets it
     // through this enchant, not the buy-buff (the buy path + shop view skip FD to avoid double-applying).
-    buffFodderRunWide(ctx.state, a, h, 'Staff of Guel');
-    // Buff Gust FX: the Staff enchants EVERY future tavern buy — re-stamp with the whole shop minion row
-    // (+ the visible Fodder the enchant above already covers), overriding the narrower Fodder stamp.
-    stampBuffGust(ctx.state, [
-      ...ctx.state.shop.filter((o) => !CARD_INDEX[o.cardId]?.spell).map((o) => o.uid),
-      ...[...ctx.state.board, ...ctx.state.hand].filter((c) => CARD_INDEX[c.cardId]?.keywords.includes('FD')).map((c) => c.uid),
-    ]);
+    // NO gust: the cue is Fodder-buff exclusive (owner 2026-07-16) — the Staff's enchant is a side effect.
+    buffFodderRunWide(ctx.state, a, h, 'Staff of Guel', false);
   },
 
   /** Lantern of Souls — cast: your Undead get +`amount` Attack (plus spell power on Attack AND Health)
@@ -2072,7 +2081,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const h = num(params.health, 1) * gold(self);
     buffFodderRunWide(ctx.state, a, h, nameOf(self));
     const fodder = num(params.fodder, 0) * gold(self);
-    if (fodder > 0) (ctx.state.pendingTavern ??= []).push(...Array(fodder).fill('fred'));
+    if (fodder > 0) {
+      (ctx.state.pendingTavern ??= []).push(...Array(fodder).fill('fred'));
+      stampFodderSend(ctx.state, self?.uid); // Fodder Infusion FX (rides alongside the Buff Gust's enchant)
+    }
   },
 
   /** Banksly — every `every` Gold you spend (the per-instance gold meter), weld a RANDOM Magnetic minion's

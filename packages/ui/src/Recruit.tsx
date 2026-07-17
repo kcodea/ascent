@@ -13,7 +13,8 @@ import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
-import { getGustFxConfig } from './gustFxConfig';
+import { applyGustLift, getGustFxConfig } from './gustFxConfig';
+import { getInfuseFxConfig } from './infuseFxConfig';
 import { fireBuffFx } from './buffFxRender';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
@@ -596,20 +597,73 @@ export function Recruit() {
     const st = useGame.getState().run;
     if (!st || st.phase !== 'recruit') return;
     const uids = [...st.shop.map((o) => o.uid), ...(st.spell ? [st.spell.uid] : [])];
-    const rects = uids.flatMap((uid) => {
+    const els = uids.flatMap((uid) => {
       const el = document.querySelector(`[data-uid="${uid}"]`);
-      if (!el) return [];
-      const r = el.getBoundingClientRect();
-      return [r];
+      return el ? [el] : [];
     });
-    if (rects.length === 0) return;
+    if (els.length === 0) return;
+    const rects = els.map((el) => el.getBoundingClientRect());
     pixiFx.buffGust({
       left: Math.min(...rects.map((r) => r.left)),
       right: Math.max(...rects.map((r) => r.right)),
       top: Math.min(...rects.map((r) => r.top)),
       bottom: Math.max(...rects.map((r) => r.bottom)),
     }, getGustFxConfig());
+    applyGustLift(els); // lift & settle the row when the gust lands (delayed to the landing internally)
   }, []);
+  // Fodder Infusion — "the unit is SENDING Fodder into the shop" (owner ask 2026-07-16): organic violet
+  // tendrils reach from the queuing unit (Maw / Godfodder / Soulfeeder / Korok / Burial Imp) up to the
+  // shop line, striking just BELOW the row (never wrapping the shop cards), each with a strike flash +
+  // motes and one "sending" pulse at the source. Composed from the existing `pixiFx.buffTendril` ribbons —
+  // `count` of them fanned across `spreadFrac` of the row's width, staggered, curves alternating sides.
+  const fireFodderInfusion = useCallback((sourceUid: string): void => {
+    const st = useGame.getState().run;
+    if (!st || st.phase !== 'recruit') return;
+    const srcEl = document.querySelector(`[data-uid="${sourceUid}"]`);
+    if (!srcEl) return; // source already left the DOM (a consumed Burial Imp) — skip gracefully
+    const sr = srcEl.getBoundingClientRect();
+    const from = { x: sr.left + sr.width / 2, y: sr.top + sr.height / 2 };
+    const rowRects = [...st.shop.map((o) => o.uid), ...(st.spell ? [st.spell.uid] : [])].flatMap((uid) => {
+      const el = document.querySelector(`[data-uid="${uid}"]`);
+      return el ? [el.getBoundingClientRect()] : [];
+    });
+    if (rowRects.length === 0) return;
+    const left = Math.min(...rowRects.map((r) => r.left));
+    const right = Math.max(...rowRects.map((r) => r.right));
+    const bottom = Math.max(...rowRects.map((r) => r.bottom));
+    const cfg = getInfuseFxConfig();
+    const cx = (left + right) / 2;
+    const span = (right - left) * cfg.spreadFrac;
+    for (let i = 0; i < cfg.count; i++) {
+      const f = cfg.count === 1 ? 0.5 : i / (cfg.count - 1); // 0..1 across the fan
+      const to = { x: cx - span / 2 + span * f, y: bottom + cfg.endYOff };
+      const launch = (): void => pixiFx.buffTendril(from, to, {
+        blend: 'add',
+        curve: cfg.curve * (i % 2 === 0 ? 1 : -1) * (1 + Math.floor(i / 2) * 0.35), // alternate + widen → the branch look
+        wobbleAmp: cfg.wobbleAmp, wobbleFreq: cfg.wobbleFreq,
+        travelMs: cfg.travelMs, retractMs: cfg.retractMs,
+        baseWidth: cfg.baseWidth, tipWidth: cfg.tipWidth, coreAlpha: cfg.coreAlpha,
+        glowWidth: cfg.glowWidth, glowAlpha: cfg.glowAlpha,
+        flashSize: cfg.flashSize, flashMs: cfg.flashMs,
+        moteCount: cfg.moteCount, moteSpeed: cfg.moteSpeed, moteLife: cfg.moteLife,
+        // The "sending" pulse fires once, on the first tendril only (a triple-pulse reads as flicker).
+        pulseSize: i === 0 ? cfg.pulseSize : 0, pulseAlpha: cfg.pulseAlpha, pulseMs: i === 0 ? cfg.pulseMs : 0,
+        colorCore: cfg.colorCore, colorGlow: cfg.colorGlow, colorFlash: cfg.colorCore, colorMote: cfg.colorGlow,
+      });
+      if (i === 0 || cfg.staggerMs === 0) launch();
+      else window.setTimeout(launch, i * cfg.staggerMs);
+    }
+  }, []);
+  const prevFodderSendSeq = useRef(run.fodderSendSeq);
+  useEffect(() => {
+    const seq = run.fodderSendSeq;
+    if (seq === undefined || seq === prevFodderSendSeq.current) return;
+    prevFodderSendSeq.current = seq;
+    const uid = run.fodderSendUid;
+    if (!uid || run.phase !== 'recruit') return; // EoT stamps (Maw) land in combat — the beat fires those
+    const raf = requestAnimationFrame(() => fireFodderInfusion(uid));
+    return () => cancelAnimationFrame(raf);
+  }, [run.fodderSendSeq, run.fodderSendUid, run.phase, fireFodderInfusion]);
   // Immediate (mid-shop) triggers arrive via the `buffGustSeq` stamp (one-shot, the swapFxSeq pattern;
   // inits to the current value so a restored save doesn't fire). End-of-Turn triggers (Maw / Ritualist)
   // stamp inside `faceOmen` — by then the phase is combat, so the watcher skips them; their gust fires
@@ -2431,7 +2485,7 @@ export function Recruit() {
   const endTurn = (): void => {
     if (inCombat || endTurnPendingRef.current) return;
     const repeats = endOfTurnRepeats(run);
-    type Beat = { uid: string; kind: 'combinator' | 'generic'; targets: string[]; completes: boolean; label?: string; gust?: boolean };
+    type Beat = { uid: string; kind: 'combinator' | 'generic'; targets: string[]; completes: boolean; label?: string; gust?: boolean; infuse?: boolean };
     const beats: Beat[] = [];
     for (const card of run.board) {
       const def = CARD_INDEX[card.cardId];
@@ -2453,10 +2507,13 @@ export function Recruit() {
       // gust ON THEIR BEAT — the faceOmen stamp lands after the phase flips to combat, so the watcher
       // (correctly) skips it; the beat is when the buff visibly happens in the shop.
       const gust = completes && def.effects.some((e) => e.on === 'endOfTurn' && (e.do === 'battlecryBuffFodder' || e.do === 'buffFodderImpsImproving'));
+      // Fodder-QUEUEING End-of-Turn effects (Maw's "add a Fodder to your next shop") reach the infusion
+      // tendrils on their beat too — same shop-visible timing rationale as the gust.
+      const infuse = completes && def.effects.some((e) => e.on === 'endOfTurn' && (e.do === 'addTavernFodder' || e.do === 'addFodderNextShops'));
       for (let r = 0; r < repeats; r++) {
         const targets =
           kind === 'combinator' ? magnetizeTargets(run.board, card.uid, 2, run.seed, run.wave, slot, r) : [];
-        beats.push({ uid: card.uid, kind, targets, completes, gust });
+        beats.push({ uid: card.uid, kind, targets, completes, gust, infuse });
       }
     }
     // Quest/rune recurring End-of-Turn REWARDS (Rune of Spending, Rune of Action, Echoing Roar, …) fire AFTER
@@ -2510,6 +2567,7 @@ export function Recruit() {
       if (b.completes) sfx.triggerPulse();
       else sfx.triggerGlow();
       if (b.gust) fireTavernGust(); // Maw / Ritualist: the tavern-buffed rush, timed to the beat (replaced Ritualist's old purple shop-wash)
+      if (b.infuse && b.uid) fireFodderInfusion(b.uid); // Maw: send-Fodder tendrils reach the shop on the beat
       if (b.kind === 'combinator') setElectrifyUids(new Set(b.targets));
       // Tick the affected minions' stats up to this proc's values + flash whoever just gained.
       const cur = steps[i];

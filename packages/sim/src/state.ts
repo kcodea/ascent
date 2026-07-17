@@ -455,6 +455,11 @@ export interface RunState {
    *  affected row's flanks. One-shot, like `swapFxSeq`. */
   buffGustSeq?: number;
   buffGustUids?: string[];
+  /** Fodder Infusion FX signal: bumped with the SOURCE card's uid whenever a unit queues Fodder for the
+   *  tavern (Maw's End of Turn, Godfodder's pick, Soulfeeder's Shout, Korok's gold meter, Burial Imp) — the
+   *  UI reaches tendrils from that unit up to the shop line, "sending" the Fodder. One-shot. */
+  fodderSendSeq?: number;
+  fodderSendUid?: string;
   /** The quest shop is open (waves 4/8/12): a pending offer of quest ids to "buy" for 0 Gold. While set, the
    *  reducer blocks every non-`buyQuest` action (the tavern is locked) and the UI pauses the round timer; the
    *  bought quest moves to `activeQuests` and this clears, opening the normal shop. */

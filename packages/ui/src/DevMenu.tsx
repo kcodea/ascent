@@ -5,6 +5,7 @@ import { StrikeFxTuner } from './StrikeFxTuner';
 import { CritFxTuner } from './CritFxTuner';
 import { SwapFxTuner } from './SwapFxTuner';
 import { GustFxTuner } from './GustFxTuner';
+import { InfuseFxTuner } from './InfuseFxTuner';
 import { DragTuner } from './DragTuner';
 import { FlipTuner } from './FlipTuner';
 import { ShieldTuner } from './ShieldTuner';
@@ -39,6 +40,7 @@ const TUNERS = [
   { key: 'critfx', label: '⚡ Critical Strike FX', C: CritFxTuner },
   { key: 'swapfx', label: '🔀 Swap FX (Displacement)', C: SwapFxTuner },
   { key: 'gustfx', label: '💨 Buff Gust FX', C: GustFxTuner },
+  { key: 'infusefx', label: '🍖 Fodder Infusion FX', C: InfuseFxTuner },
   { key: 'drag', label: '🎴 Drag Feel', C: DragTuner },
   { key: 'flip', label: '🔀 Reposition', C: FlipTuner },
   { key: 'shield', label: '🛡 Shield Place', C: ShieldTuner },

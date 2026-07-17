@@ -324,21 +324,41 @@ describe('Buff Gust FX signal', () => {
     expect([...(s.buffGustUids ?? [])].sort()).toEqual(['f1', 'f2', 's1']); // Fodder only — no Alleycat
   });
 
-  it('buffImpsRunWide stamps too — an Imp-aura buff is a tavern-flourish trigger even with no Imp visible', () => {
+  it('the gust is Fodder-buff EXCLUSIVE: an Imp-aura buff does NOT stamp (owner 2026-07-16)', () => {
     const s: RunState = { ...createRun(1, 'warden'), phase: 'recruit', board: [mkAlley('a1')], hand: [], shop: [] };
     buffImpsRunWide(s, 2, 2, 'test');
-    expect(s.buffGustSeq).toBe(1); // seq bumps even though no visible card was an Imp
-    expect(s.buffGustUids).toEqual([]); // informational — the UI anchors to the tavern row regardless
+    expect(s.buffGustSeq).toBeUndefined();
   });
 
-  it('a Staff of Guel cast widens the stamp to the whole shop minion row', () => {
+  it('a Staff of Guel cast does NOT stamp either (its Fodder enchant passes fx: false)', () => {
     let s: RunState = { ...createRun(1, 'warden'), phase: 'recruit', embers: 10,
       board: [], hand: [{ uid: 'st', cardId: 'staffofguel', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
       shop: [{ uid: 's1', cardId: 'alley' }, { uid: 's2', cardId: 'pack' }] };
     s = reduce(s, { type: 'play', uid: 'st' });
-    expect(s.buffGustSeq).toBeGreaterThanOrEqual(1);
-    expect(s.buffGustUids).toContain('s1'); // the whole minion row, not just Fodder
-    expect(s.buffGustUids).toContain('s2');
+    expect(s.tavernBuyBonus.atk).toBeGreaterThan(0); // the Staff still resolved
+    expect(s.buffGustSeq).toBeUndefined(); // …but no gust
+  });
+});
+
+describe('Fodder Infusion FX signal', () => {
+  it("Godfodder's Fodder pick stamps the sender's uid (and queues the Fodder)", () => {
+    let s: RunState = { ...createRun(1, 'warden'), phase: 'recruit', embers: 10, board: [],
+      hand: [{ uid: 'gf', cardId: 'godfodder', tribe: 'demon', attack: 3, health: 2, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'gf' });
+    expect(s.chooseOne).toBeDefined();
+    s = reduce(s, { type: 'chooseOne', index: 0 }); // "Add 2 Fodder to your next shop"
+    expect(s.pendingTavern?.length).toBe(2);
+    expect(s.fodderSendSeq).toBe(1);
+    expect(s.fodderSendUid).toBe('gf'); // the Godfodder itself is the sender (played to the board, uid kept)
+  });
+
+  it("Soulfeeder's Shout stamps too (addFodderNextShops)", () => {
+    let s: RunState = { ...createRun(1, 'warden'), phase: 'recruit', embers: 10, board: [],
+      hand: [{ uid: 'sf', cardId: 'feed', tribe: 'demon', attack: 2, health: 3, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'sf' });
+    expect(s.fodderSendSeq).toBe(1);
+    expect(s.fodderSendUid).toBe('sf');
+    expect(s.fodderSchedule?.[0]).toBeGreaterThanOrEqual(1); // the schedule armed
   });
 });
 

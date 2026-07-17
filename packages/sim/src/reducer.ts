@@ -353,15 +353,18 @@ export function reduce(state: RunState, action: Action): RunState {
   // above, which runs before this). The UI fires the shop-buff replay once per bump; a no-op / non-buffing
   // action leaves `recruitBuffFx` empty and the seq unchanged.
   if (next !== state && next.recruitBuffFx.length > 0) next.recruitFxSeq += 1;
-  // AURA WASH FX: if a run-wide tribe-aura channel ROSE this action — the Undead aura (Lantern of Souls /
-  // Watcher / Forsaken Will), the Imp aura, the Attachment aura (Scrap Herald), or the Beast buy-aura —
-  // stamp the one-shot wash signal with the affected visible cards. Several of these never touch stored
-  // stats (the Lantern folds in at display time; buy-auras only size FUTURE copies), so without the stamp
-  // the numbers jump with zero feedback. Recruit-visible only: a faceOmen-time rise lands after the phase
-  // flips (the shop can't show it), so it isn't stamped. Pure display metadata — never read by the sim.
+  // AURA WASH FX: if a run-wide tribe-aura channel ROSE this action — the Undead aura (Lantern of Souls's
+  // display-fold `undeadAttackBonus` AND the per-instance Undead-Attack snowball `undeadBuyAtk`:
+  // Deathswarmer, Forsaken Mage's spell-cast buff, Forsaken Will), the Imp aura, the Attachment aura
+  // (Scrap Herald), or the Beast buy-aura — stamp the one-shot wash signal with the affected visible cards.
+  // Several of these never touch stored stats (the Lantern folds in at display time; buy-auras only size
+  // FUTURE copies), so without the stamp the numbers jump with zero feedback. The undeadBuyAtk sources DO
+  // also buff current Undead (→ tendrils) — the wash fires ALONGSIDE those (owner call: wash + tendrils).
+  // Recruit-visible only: a faceOmen-time rise lands after the phase flips (the shop can't show it), so it
+  // isn't stamped. Pure display metadata — never read by the sim.
   if (next !== state && state.phase === 'recruit' && next.phase === 'recruit') {
     const channels = (s: RunState): Record<AuraFxTribe, { a: number; h: number }> => ({
-      undead: { a: s.undeadAttackBonus, h: s.undeadHealthBonus },
+      undead: { a: s.undeadAttackBonus + (s.undeadBuyAtk ?? 0), h: s.undeadHealthBonus },
       demon: { a: s.impBuff?.attack ?? 0, h: s.impBuff?.health ?? 0 },
       mech: { a: s.magneticBuyAtk, h: s.magneticBuyHp },
       beast: { a: s.beastBuyAtk, h: s.beastBuyHp },

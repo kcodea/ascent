@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### fix(sim): Aura Wash actually fires for Imp Overseer + Undead buy-Attack sources
+
+Two follow-up fixes after live testing the Aura Wash (#528) — it wasn't triggering where it should:
+- **Imp/Demon wash rendered nothing** (owner repro: "played Imp Overseer, didn't work"). `auraFxTargets`
+  for `demon` matched only cards flagged `imp` — but Imp tokens are combat-summoned and virtually never
+  visible in the shop, and the buffers themselves (Imp Overseer, Contract Imp, Bane) are `demon`, not
+  `imp`. So the target list came back empty → the wash had no cards to bloom over. Fixed: the demon wash
+  now targets your **Demons** (tribe membership, incl. dual types), same as undead/beast use tribe and
+  mech uses the Magnetic keyword. Verified live: playing Imp Overseer stamps `demon` with targets =
+  the board Demons + any shop Demon offer, and the Pixi wash renders over them.
+- **Undead wash missed the buy-Attack snowball.** The channel diff watched only `undeadAttackBonus` (the
+  Lantern of Souls display-fold), so **Deathswarmer**, **Forsaken Mage** (spell-cast Undead buff), and
+  **Forsaken Will** — which write the per-instance `undeadBuyAtk` channel — never washed. Fixed: the undead
+  channel now sums `undeadAttackBonus + undeadBuyAtk`, so any of them triggers it. Those sources also buff
+  the current Undead (→ per-unit tendrils); per owner call the wash fires **alongside** the tendrils.
+- Verified: 2 new sim tests (Deathswarmer → undead wash; Imp Overseer → demon wash over Demons) + the full
+  suite (1138) + a live end-to-end check (play action → `auraFxSeq` bump → non-empty targets → washes
+  rendered at the right board/shop positions). Typecheck + lint + build:web green.
+
 ### fix(core): Slaughter fires when the killer dies in the same clash (mutual kill)
 
 Owner ruling 2026-07-17, revising the old "a mutual kill procs nothing" behavior: a minion that

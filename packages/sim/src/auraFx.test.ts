@@ -29,6 +29,37 @@ describe('auraFx stamp (the Aura Wash FX signal)', () => {
     expect(undead.targets).not.toContain('s2');
   });
 
+  it('Deathswarmer raises the Undead buy-Attack aura (undeadBuyAtk) → stamps the Undead wash', () => {
+    // Regression: the wash used to watch only `undeadAttackBonus` (the Lantern channel), so Deathswarmer /
+    // Forsaken Mage / Forsaken Will — which write the per-instance `undeadBuyAtk` snowball — never washed.
+    const s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 20,
+      board: [card('u1', 'spore', 'undead')],
+      hand: [card('d1', 'deathswarmer', 'undead', 3, 3)],
+    };
+    const next = reduce(s, { type: 'play', uid: 'd1' });
+    expect(next.undeadBuyAtk ?? 0).toBeGreaterThan(0); // the buy-aura channel rose
+    const undead = (next.auraFx ?? []).find((e) => e.tribe === 'undead');
+    expect(undead).toBeDefined();
+    expect(undead!.targets).toContain('u1'); // washes the Undead already on board
+  });
+
+  it('Imp Overseer raises the Imp aura → stamps the Demon wash over your DEMONS (not just imp tokens)', () => {
+    // Regression: the demon target set matched only `imp`-flagged tokens (combat-summoned, ~never in the
+    // shop), so playing Imp Overseer produced an empty target list and rendered nothing.
+    const s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 20,
+      board: [card('b1', 'stray', 'beast')],
+      hand: [card('io', 'impoverseer', 'demon', 3, 2)],
+    };
+    const next = reduce(s, { type: 'play', uid: 'io' });
+    expect(next.impBuff?.attack ?? 0).toBeGreaterThan(0); // the imp aura rose
+    const demon = (next.auraFx ?? []).find((e) => e.tribe === 'demon');
+    expect(demon).toBeDefined();
+    expect(demon!.targets).toContain('io'); // the Demon (Imp Overseer itself) gets a body to wash
+    expect(demon!.targets).not.toContain('b1'); // the Beast is untouched
+  });
+
   it('a non-aura action clears auraFx and leaves auraFxSeq unchanged', () => {
     const s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 20,

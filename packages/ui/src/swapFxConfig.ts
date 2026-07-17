@@ -34,27 +34,27 @@ export interface SwapFxConfig {
   colorOutGlow: string; // departing arc — soft glow/underlay + halo on the tavern card
 }
 
-// First-pass defaults eyeballed against the owner's reference shot (2026-07-16) — tune in the 🔀 tuner,
-// Copy values, and bake back here.
+// Owner-tuned in the 🔀 tuner and baked as the shipped look (2026-07-16): a snappy 360ms exchange with a
+// near-full-circle bulge, fat comet tails tapering to fine tips, small arrowheads, and vivid glows/halos.
 const DEFAULTS: SwapFxConfig = {
-  travelMs: 620,
-  retractMs: 340,
-  curve: 0.55,
+  travelMs: 360,
+  retractMs: 300,
+  curve: 0.94,
   wobbleAmp: 0,
   wobbleFreq: 2,
-  baseWidth: 4,
-  tipWidth: 12,
-  coreAlpha: 0.95,
-  glowWidth: 26,
-  glowAlpha: 0.4,
-  arrowSize: 26,
-  flashSize: 60,
-  flashMs: 300,
+  baseWidth: 24,
+  tipWidth: 2,
+  coreAlpha: 1,
+  glowWidth: 21,
+  glowAlpha: 0.9,
+  arrowSize: 6,
+  flashSize: 76,
+  flashMs: 400,
   moteCount: 10,
-  moteSpeed: 260,
+  moteSpeed: 210,
   moteLife: 500,
   haloSize: 95,
-  haloAlpha: 0.5,
+  haloAlpha: 1,
   colorInCore: '#ffd9a0',
   colorInGlow: '#ff9a2e',
   colorOutCore: '#f0c4ff',

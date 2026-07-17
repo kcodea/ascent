@@ -25,8 +25,11 @@ board minion with a tavern minion.
 - Verified live: Darah's power swapped Alleycat ↔ Drone, `swapFxSeq` stamped with both uids, the held minion
   restored to the tavern intact, and a slowed-down capture shows the two arrowheaded arcs + halos matching
   the reference composition. Typecheck + lint + 1125 tests + build:web green.
-- Follow-ups for the tuning session: a "test swap" button in the tuner, sfx hook, and whether the swapping
-  CARDS should also animate along the arcs (the FX currently draws over the instant card swap).
+- **Owner values baked** (same day): a snappy 360ms exchange, near-full-circle bulge (0.94), fat comet
+  tails (24 → 2px) with small 6px arrowheads, vivid glows (α 0.9) + full-strength halos — swapFxConfig
+  DEFAULTS updated from the tuner's Copy values.
+- Follow-ups: a "test swap" button in the tuner, sfx hook, and whether the swapping CARDS should also
+  animate along the arcs (the FX currently draws over the instant card swap).
 
 ### feat(sim/ui): per-card acquisition analytics — wave-tagged buys + a Balance Report CSV export
 

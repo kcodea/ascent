@@ -220,13 +220,17 @@ export async function uploadRunTelemetry(t: RunTelemetry, meta: { author?: strin
     tier_by_wave: t.tierByWave,
   };
   try {
-    // Prefer the split-source columns; on a pre-migration DB (columns absent) retry the base row so telemetry
-    // keeps recording (minus the shop/Discover split) until `schema.sql`'s ALTER is applied.
-    const res = await c.from('run_telemetry').insert([{
+    // Prefer the full row; on a pre-migration DB (columns absent) fall back column-set by column-set so
+    // telemetry keeps recording until `schema.sql`'s ALTERs are applied.
+    const withSplit = {
       ...base,
       discover_offered_cards: t.discoverOfferedCards, discover_bought_cards: t.discoverBoughtCards,
-    }]);
-    if (res?.error) await c.from('run_telemetry').insert([base]);
+    };
+    const res = await c.from('run_telemetry').insert([{ ...withSplit, buy_events: t.buyEvents ?? [] }]);
+    if (res?.error) {
+      const res2 = await c.from('run_telemetry').insert([withSplit]);
+      if (res2?.error) await c.from('run_telemetry').insert([base]);
+    }
   } catch {
     /* best-effort — telemetry must never disrupt the end screen */
   }
@@ -238,14 +242,15 @@ export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetry[]> {
   const c = client();
   if (!c) return [];
   try {
-    const cols = 'hero_id, hero_offer, won, wins, offered_quests, picked_quests, quest_turns, offered_runes, picked_runes, offered_cards, bought_cards, discover_offered_cards, discover_bought_cards, tier_by_wave';
+    const cols = 'hero_id, hero_offer, won, wins, offered_quests, picked_quests, quest_turns, offered_runes, picked_runes, offered_cards, bought_cards, discover_offered_cards, discover_bought_cards, tier_by_wave, buy_events';
     const query = (select: string) => Promise.resolve(
       c.from('run_telemetry').select(select).order('created_at', { ascending: false }).limit(limit),
     );
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     let result = await Promise.race([query(cols), timeout]);
-    // Pre-migration DB (no discover_* columns) errors the select — retry without them so the report still loads.
-    if (result && result.error) result = await Promise.race([query(cols.replace(', discover_offered_cards, discover_bought_cards', '')), timeout]);
+    // Pre-migration DB (missing newer columns) errors the select — retry progressively so the report still loads.
+    if (result && result.error) result = await Promise.race([query(cols.replace(', buy_events', '')), timeout]);
+    if (result && result.error) result = await Promise.race([query(cols.replace(', discover_offered_cards, discover_bought_cards', '').replace(', buy_events', '')), timeout]);
     if (!result || result.error || !result.data) return [];
     return (result.data as Array<Record<string, unknown>>).map((r) => ({
       heroId: (r.hero_id as string) ?? '',
@@ -262,6 +267,7 @@ export async function fetchRunTelemetry(limit = 500): Promise<RunTelemetry[]> {
       discoverOfferedCards: (r.discover_offered_cards as string[]) ?? [],
       discoverBoughtCards: (r.discover_bought_cards as string[]) ?? [],
       tierByWave: (r.tier_by_wave as number[]) ?? [],
+      buyEvents: (r.buy_events as { id: string; wave: number; src: 'shop' | 'discover' }[]) ?? undefined,
     }));
   } catch {
     return [];

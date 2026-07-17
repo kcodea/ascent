@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(sim/ui): per-card acquisition analytics — wave-tagged buys + a Balance Report CSV export
+
+Owner ask (2026-07-16): a deeper read on minion purchases — what turns cards are bought on and how they
+move win rates — exportable as a spreadsheet.
+- **Wave-tagged buy events**: `RunTelemetry.buyEvents` = `[{ id, wave, src: 'shop'|'discover' }]`, captured
+  in the replay reconstruction (the reducer already knows the wave at every buy). Uploaded to a new
+  `run_telemetry.buy_events` jsonb column (idempotent ALTER in schema.sql); upload + fetch degrade
+  gracefully on a pre-migration DB (progressive column fallback, the discover-split pattern).
+- **Fixed a telemetry blind spot in passing**: the right-hand SPELL slot was invisible — its sightings never
+  counted as offers and its buys never counted as purchases (only `shop` was scanned). Both now recorded.
+- **`buildCardCsv(rows)`** (sim, pure): one row per buyable card — runs seen/bought, **win% when bought vs
+  win% when seen-but-skipped + the lift**, shop seen/bought/conversion, Discover seen/picked, **avg buy turn
+  + per-wave buy counts (t1–t17)**. Percent columns 1-dp; blank = no data; tokens excluded.
+- **Export CSV** button in the Balance Report (next to Refresh) downloads `ascent-cards-<date>.csv` built
+  from the fetched rows — pre-migration rows still contribute counts/win-rates, just not turn columns.
+- 3 new tests (CSV math incl. lift/conversion/turn buckets; pre-migration fallback; replay reconstruction
+  asserts buyEvents mirror boughtCards with waves in 1..17). Typecheck + lint + 1125 tests + build green.
+
 ### fix(ui): +6s rounds 6+, modal blur covers the hero panel, Runeforge shows Gold, Resolve pill bake
 
 Owner round (2026-07-16), six items (the last two in a follow-up commit):

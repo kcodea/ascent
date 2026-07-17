@@ -3,6 +3,7 @@ import { aggregatePlayerReport, type PlayerReport, type PlayerReportRow, type Sh
 import { sfx } from './sfx';
 import { useGame } from './store';
 import { fetchRunTelemetry, remoteEnabled } from './remoteBoards';
+import { buildCardCsv, type RunTelemetry } from '@game/sim';
 
 /**
  * Balance Report (owner request 2026-07-13) — the REAL-PLAYER balance report, opened from the home screen. It
@@ -139,6 +140,7 @@ export function BalancePanel() {
   const show = useGame((s) => s.showBalance);
   const close = useGame((s) => s.closeBalance);
   const [report, setReport] = useState<PlayerReport | null>(null);
+  const [rawRows, setRawRows] = useState<RunTelemetry[]>([]); // kept for the CSV export (per-card analytics)
   const [loading, setLoading] = useState(false);
   const [sectionKey, setSectionKey] = useState<SectionKey>('minions');
 
@@ -146,9 +148,24 @@ export function BalancePanel() {
     setLoading(true);
     setReport(null);
     void fetchRunTelemetry(1000).then((rows) => {
+      setRawRows(rows);
       setReport(aggregatePlayerReport(rows));
       setLoading(false);
     });
+  };
+
+  // Export the per-card acquisition analytics (buy turns, win-rate impact, source split) as a CSV download —
+  // the spreadsheet the owner analyzes offline (owner ask 2026-07-16).
+  const exportCsv = (): void => {
+    sfx.pulse();
+    const csv = buildCardCsv(rawRows);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ascent-cards-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   useEffect(() => { if (show) load(); }, [show]);
@@ -180,6 +197,10 @@ export function BalancePanel() {
               <option value={SHOP_CURVE}>Shop Curve</option>
             </select>
             <button className="balrun" disabled={loading} onClick={refresh}>{loading ? 'Loading…' : 'Refresh'}</button>
+            <button className="balrun" disabled={loading || rawRows.length === 0} onClick={exportCsv}
+              title="Download per-card analytics (buy turns, win-rate impact, source split) as a spreadsheet">
+              Export CSV
+            </button>
           </div>
           <div className="balsub">Real player data{report ? ` · ${report.totalRuns} runs` : ''}</div>
         </div>

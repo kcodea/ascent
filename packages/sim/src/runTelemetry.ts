@@ -46,6 +46,10 @@ export interface RunTelemetry {
   /** Tavern tier reached by the end of each wave — `tierByWave[wave] = tier` (1-indexed; index 0 unused). Drives
    *  the Balance Report's shop-leveling curve (average tier by turn, split won vs lost). */
   tierByWave: number[];
+  /** Every card ACQUISITION with the WAVE it happened on + its source (owner ask 2026-07-16: "what turns are
+   *  minions mostly bought on"). One entry per shop buy / Discover pick — the wave-tagged superset of
+   *  `boughtCards` + `discoverBoughtCards`. Absent on pre-migration historical rows. */
+  buyEvents?: { id: string; wave: number; src: 'shop' | 'discover' }[];
 }
 
 /**
@@ -66,6 +70,7 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
   const boughtCards: string[] = [];
   const discoverOfferedCards: string[] = [];
   const discoverBoughtCards: string[] = [];
+  const buyEvents: { id: string; wave: number; src: 'shop' | 'discover' }[] = [];
   const seenShopUids = new Set<string>(); // each shop-offer instance counts once, however many turns it lingers
   const questTurns: Record<string, number> = {};
   const seenCompleted = new Set<string>(); // quests already recorded as completed (detect the flip)
@@ -96,6 +101,9 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
     for (const c of before.shop ?? []) {
       if (c.uid && c.cardId && !seenShopUids.has(c.uid)) { seenShopUids.add(c.uid); offeredCards.push(c.cardId); }
     }
+    // The right-hand SPELL slot is an offer too — it was invisible to the report (only `shop` was scanned).
+    const slot = before.spell;
+    if (slot?.uid && slot.cardId && !seenShopUids.has(slot.uid)) { seenShopUids.add(slot.uid); offeredCards.push(slot.cardId); }
     if (before.questOffer) for (const id of before.questOffer) offeredQuests.add(id);
     if (before.runeforgeOffer) for (const id of before.runeforgeOffer) offeredRunes.add(id);
 
@@ -109,14 +117,18 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
       const picked = before.runeforgeOffer[action.index];
       if (picked) pickedRunes.add(picked);
     } else if (action.type === 'buy') {
-      const card = before.shop?.find((c) => c.uid === action.uid);
-      if (card?.cardId) boughtCards.push(card.cardId); // one entry per purchase
+      // A buy resolves from the shop row OR the right-hand spell slot (the slot was missed before).
+      const card = before.shop?.find((c) => c.uid === action.uid) ?? (before.spell?.uid === action.uid ? before.spell : undefined);
+      if (card?.cardId) {
+        boughtCards.push(card.cardId); // one entry per purchase
+        buyEvents.push({ id: card.cardId, wave: before.wave, src: 'shop' }); // wave-tagged for the buy-turn read
+      }
     } else if (action.type === 'discover' && before.discover) {
       // A Discover is a one-time 3-card offer resolved right here: count all 3 as seen + the chosen one as taken.
       // Tracked in its OWN streams (not the shop ones) so the report can separate tavern odds from Discover odds.
       for (const id of before.discover) discoverOfferedCards.push(id);
       const picked = before.discover[action.index];
-      if (picked) discoverBoughtCards.push(picked);
+      if (picked) { discoverBoughtCards.push(picked); buyEvents.push({ id: picked, wave: before.wave, src: 'discover' }); }
     }
     recordCompletions(s);
     tierByWave[s.wave] = s.tier;
@@ -138,7 +150,82 @@ export function reconstructRunTelemetry(replay: Replay, heroOffer: string[] = []
     discoverOfferedCards: discoverOfferedCards.filter((id) => CARD_INDEX[id]),
     discoverBoughtCards: discoverBoughtCards.filter((id) => CARD_INDEX[id]),
     tierByWave,
+    buyEvents: buyEvents.filter((e) => CARD_INDEX[e.id]),
   };
+}
+
+// ── CSV export: per-card acquisition analytics (owner ask 2026-07-16) ───────────────────────────────────────
+
+/**
+ * Build a per-card CSV over the fetched telemetry rows — the spreadsheet the owner analyzes offline. One row
+ * per card that was ever SEEN (shop or Discover), with:
+ *  - exposure/acquisition counts split by source + the shop conversion rate,
+ *  - WIN-RATE IMPACT: win% of runs that bought it vs win% of runs that SAW it but never bought (the lift),
+ *  - buy-turn distribution (avg + per-wave counts, waves 1..17) from the wave-tagged `buyEvents`
+ *    (pre-migration rows contribute to the counts/win columns but not the turn columns).
+ * Percent columns are 1-dp numbers; blank = no data (never divide by zero).
+ */
+export function buildCardCsv(rows: RunTelemetry[]): string {
+  const MAX_WAVE = 17;
+  interface Acc {
+    shopSeen: number; shopBought: number; discSeen: number; discPicked: number;
+    runsSeen: number; runsBought: number; winsWhenBought: number; seenNotBought: number; winsSeenNotBought: number;
+    buyWaves: number[]; // one entry per wave-tagged acquisition
+  }
+  const acc = new Map<string, Acc>();
+  const get = (id: string): Acc => {
+    let a = acc.get(id);
+    if (!a) { a = { shopSeen: 0, shopBought: 0, discSeen: 0, discPicked: 0, runsSeen: 0, runsBought: 0, winsWhenBought: 0, seenNotBought: 0, winsSeenNotBought: 0, buyWaves: [] }; acc.set(id, a); }
+    return a;
+  };
+  for (const r of rows) {
+    for (const id of r.offeredCards) get(id).shopSeen++;
+    for (const id of r.boughtCards) get(id).shopBought++;
+    for (const id of r.discoverOfferedCards ?? []) get(id).discSeen++;
+    for (const id of r.discoverBoughtCards ?? []) get(id).discPicked++;
+    for (const e of r.buyEvents ?? []) get(e.id).buyWaves.push(e.wave);
+    // Per-RUN presence: seen = offered anywhere; bought = acquired anywhere. Drives the win-rate split.
+    const seen = new Set([...r.offeredCards, ...(r.discoverOfferedCards ?? [])]);
+    const bought = new Set([...r.boughtCards, ...(r.discoverBoughtCards ?? [])]);
+    for (const id of seen) {
+      const a = get(id);
+      a.runsSeen++;
+      if (bought.has(id)) { a.runsBought++; if (r.won) a.winsWhenBought++; }
+      else { a.seenNotBought++; if (r.won) a.winsSeenNotBought++; }
+    }
+    // Bought without a recorded sighting (granted/conjured paths) still counts as a bought run.
+    for (const id of bought) {
+      if (seen.has(id)) continue;
+      const a = get(id);
+      a.runsBought++;
+      if (r.won) a.winsWhenBought++;
+    }
+  }
+  const pct = (n: number, d: number): string => (d > 0 ? (Math.round((n / d) * 1000) / 10).toString() : '');
+  const esc = (v: string): string => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  const waveCols = Array.from({ length: MAX_WAVE }, (_, i) => `buys_t${i + 1}`);
+  const header = ['id', 'name', 'type', 'tribe', 'tier', 'runs_seen', 'runs_bought', 'win_pct_when_bought',
+    'win_pct_seen_not_bought', 'win_lift_pct', 'shop_seen', 'shop_bought', 'shop_conversion_pct',
+    'discover_seen', 'discover_picked', 'avg_buy_turn', ...waveCols];
+  const lines = [header.join(',')];
+  const ids = [...acc.keys()].sort((x, y) => (acc.get(y)!.runsBought - acc.get(x)!.runsBought) || x.localeCompare(y));
+  for (const id of ids) {
+    const def = CARD_INDEX[id];
+    if (!def || def.token) continue; // skip tokens/rewards that leak in — the sheet is the buyable pool
+    const a = acc.get(id)!;
+    const withPct = pct(a.winsWhenBought, a.runsBought);
+    const withoutPct = pct(a.winsSeenNotBought, a.seenNotBought);
+    const lift = withPct !== '' && withoutPct !== '' ? (Math.round((Number(withPct) - Number(withoutPct)) * 10) / 10).toString() : '';
+    const avgTurn = a.buyWaves.length > 0 ? (Math.round((a.buyWaves.reduce((s2, w) => s2 + w, 0) / a.buyWaves.length) * 10) / 10).toString() : '';
+    const perWave = Array.from({ length: MAX_WAVE }, (_, i) => a.buyWaves.filter((w) => w === i + 1).length.toString());
+    lines.push([
+      id, esc(def.name), def.spell ? 'spell' : 'minion', def.tribe, String(def.tier),
+      String(a.runsSeen), String(a.runsBought), withPct, withoutPct, lift,
+      String(a.shopSeen), String(a.shopBought), pct(a.shopBought, a.shopSeen),
+      String(a.discSeen), String(a.discPicked), avgTurn, ...perWave,
+    ].join(','));
+  }
+  return lines.join('\n');
 }
 
 // ── Aggregation: many run rows → the player balance report ──────────────────────────────────────────────────

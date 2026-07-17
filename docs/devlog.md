@@ -5,6 +5,48 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(fx): Buff Gust preview rig — the tavern-buffed cue, take two
+
+The Enchant Weave (per-card wreaths) didn't hit the mark (owner call — PR #523 closed unmerged, preserved
+on its branch). New concept from the owner's sketch: a **rush of violet wind sweeping IN from both flanks
+of the shop row** — a tall bracket arc hugging each end (stroke-revealed while drifting inward) + a fan of
+staggered speed-line streaks blowing into the row edge — "the tavern just got buffed."
+- New standalone rig [`apps/web/public/fx/buff-gust-preview.html`](../apps/web/public/fx/buff-gust-preview.html)
+  (the same zero-build canvas pattern): dials for lifecycle (sweep/stagger/arc/hold/fade), streaks
+  (count/length/travel/width/curve/vertical fan), brackets (height/bulge/width/drift), the shared
+  core+glow look, taper, and colours — live `BuffGustCfg` JSON export.
+- Geometry note: streaks live in the FLANK GUTTERS — each head sweeps in from outside and lands just
+  kissing the row edge, never flying over the cards (the first draft overshot; fixed against the sketch).
+- Verified live at `/fx/buff-gust-preview.html` — composition matches the owner's sketch.
+- **Pixi port shipped same-day** (owner tuned on the rig): `pixiFx.buffGust(box, cfg)` redraws the
+  brackets + streaks per frame into one additive Graphics (rig math 1:1 — per-segment tapered strokes,
+  eased reveals/drifts). Owner's values baked as `gustFxConfig` DEFAULTS (~2s violet rush: 5 thin curved
+  streaks per flank fanned across 175px, bold 15px brackets bowing 106px, 830ms hold).
+- **Signals** (the shelved weave branch's pattern, renamed): `buffFodderRunWide` stamps `buffGustSeq` +
+  every visible Fodder uid (board/hand/shop) — Ritualist's End of Turn, Rune of Consumption, Bane; a
+  **Staff of Guel** cast re-stamps with the whole shop minion row. Recruit clusters the affected uids into
+  ROWS (split on vertical gaps) and fires one gust per row's bounding box — a Fodder set spanning board +
+  shop gusts each row, never one box across the screen.
+- **💨 Buff Gust tuner** in the Dev menu (config + tuner trio, rig-matched dials) for in-game iteration.
+- 2 signal tests (Fodder-only uid set; the Staff widening to the shop row). Verified live: a real Staff
+  cast swept the gust over the shop row in-game. Typecheck + lint + 1127 tests + build:web green.
+- **Round 2 (owner v2 values + wider triggers, same day):** re-baked snappier values (140ms sweeps, 110ms
+  hold, ~1s total) and re-scoped the gust as **the TAVERN flourish for ANY shop-time Fodder/Imp buff**:
+  - The UI now anchors it to the SHOP ROW always (the uids stay informational), pushed toward the board
+    ends by a new **`edgeOut` dial** (default 90px — "move it further out", owner).
+  - `buffImpsRunWide` stamps too (Imp Overseer's Battlecry, Implosion, Chef Raag's sources) — the seq
+    bumps even with no Imp visible (the tavern-got-buffed cue still reads).
+  - **End-of-Turn triggers (Maw, Ritualist) fire on their BEAT** — the faceOmen stamp lands after the
+    phase flips to combat, so the watcher (phase-guarded) skips it; the beat is when the buff visibly
+    happens in the shop. A `gust` flag rides the EoT beat (next to Ritualist's shop-flash cue).
+  - Never in combat: the phase guard + the shop simply isn't rendered there.
+  - +1 signal test (imp-buff stamps with an empty visible set). Verified live: Imp Overseer's Battlecry
+    gusts mid-shop; Maw's End-of-Turn gusts on its beat (screenshots). Full gate green (1128 tests).
+- **Round 3 (owner v3, same day):** re-baked with a hot PINK core (#ec3cbd) over violet glow, 190ms sweeps /
+  80ms hold / 240ms fade — and **retired Ritualist's old solo purple shop-wash** (the `.shopflash` radial +
+  ring, its state, JSX, CSS, and the 'ritualist' beat kind): the Buff Gust IS the tavern-buffed cue now.
+  Verified live: a Ritualist End of Turn plays the beats with no shopflash element and no errors.
+
 ### feat(sim/ui): Displacement swap FX — circular exchange arrows + a 🔀 tuner
 
 Owner ask (2026-07-16, with a reference shot): a two-arrow circular swap effect when Displacement trades a

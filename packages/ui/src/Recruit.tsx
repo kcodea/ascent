@@ -13,6 +13,7 @@ import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
+import { getGustFxConfig } from './gustFxConfig';
 import { fireBuffFx } from './buffFxRender';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
@@ -586,6 +587,42 @@ export function Recruit() {
     });
     return () => cancelAnimationFrame(raf);
   }, [run.swapFxSeq, run.swapFxBoardUid, run.swapFxShopUid]);
+  // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
+  // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
+  // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the
+  // `edgeOut` dial. Anchored to the SHOP ROW always (the cue means "the tavern got buffed"), never fired
+  // in combat (phase guard + the shop cards simply aren't rendered there).
+  const fireTavernGust = useCallback((): void => {
+    const st = useGame.getState().run;
+    if (!st || st.phase !== 'recruit') return;
+    const uids = [...st.shop.map((o) => o.uid), ...(st.spell ? [st.spell.uid] : [])];
+    const rects = uids.flatMap((uid) => {
+      const el = document.querySelector(`[data-uid="${uid}"]`);
+      if (!el) return [];
+      const r = el.getBoundingClientRect();
+      return [r];
+    });
+    if (rects.length === 0) return;
+    pixiFx.buffGust({
+      left: Math.min(...rects.map((r) => r.left)),
+      right: Math.max(...rects.map((r) => r.right)),
+      top: Math.min(...rects.map((r) => r.top)),
+      bottom: Math.max(...rects.map((r) => r.bottom)),
+    }, getGustFxConfig());
+  }, []);
+  // Immediate (mid-shop) triggers arrive via the `buffGustSeq` stamp (one-shot, the swapFxSeq pattern;
+  // inits to the current value so a restored save doesn't fire). End-of-Turn triggers (Maw / Ritualist)
+  // stamp inside `faceOmen` — by then the phase is combat, so the watcher skips them; their gust fires
+  // from the EoT BEAT instead (see playBeat), while the shop is actually on screen.
+  const prevBuffGustSeq = useRef(run.buffGustSeq);
+  useEffect(() => {
+    const seq = run.buffGustSeq;
+    if (seq === undefined || seq === prevBuffGustSeq.current) return;
+    prevBuffGustSeq.current = seq;
+    if (run.phase !== 'recruit') return;
+    const raf = requestAnimationFrame(fireTavernGust);
+    return () => cancelAnimationFrame(raf);
+  }, [run.buffGustSeq, run.phase, fireTavernGust]);
   // Tavern-Fodder consume: a ghost Fred pops in the tavern and swirls into the eater Demon.
   // The ghost carries the Fodder's *effective* stats (attack/health) so a Ritualist-buffed
   // Fred shows e.g. 3/3, not the 1/1 base.
@@ -638,7 +675,6 @@ export function Recruit() {
   const [karwindFlameUids, setKarwindFlameUids] = useState<Set<string>>(new Set());
   const prevKarwindSeq = useRef(run.karwindFlashSeq);
   // A purple wash over the whole shop when Ritualist's End-of-Turn buffs the Fodder there.
-  const [shopFlash, setShopFlash] = useState(0);
   // Mechs being electrified as Combinator magnetizes Cling Drones onto them (End of Turn).
   const [electrifyUids, setElectrifyUids] = useState<Set<string>>(new Set());
 
@@ -2395,13 +2431,12 @@ export function Recruit() {
   const endTurn = (): void => {
     if (inCombat || endTurnPendingRef.current) return;
     const repeats = endOfTurnRepeats(run);
-    type Beat = { uid: string; kind: 'ritualist' | 'combinator' | 'generic'; targets: string[]; completes: boolean; label?: string };
+    type Beat = { uid: string; kind: 'combinator' | 'generic'; targets: string[]; completes: boolean; label?: string; gust?: boolean };
     const beats: Beat[] = [];
     for (const card of run.board) {
       const def = CARD_INDEX[card.cardId];
       if (!def?.effects.some((e) => e.on === 'endOfTurn')) continue;
-      const kind: Beat['kind'] =
-        card.cardId === 'ritualist' ? 'ritualist' : card.cardId === 'combinator' ? 'combinator' : 'generic';
+      const kind: Beat['kind'] = card.cardId === 'combinator' ? 'combinator' : 'generic';
       // A cadence End-of-Turn effect (Frontdrake: every `every` turns) only *officially* fires on its due
       // turn — other turns it just ticks toward it (progress → glow only). Non-cadence EOT effects fire
       // every turn (→ pulse every turn). `completes` drives glow-vs-pulse + the trigger sound.
@@ -2414,10 +2449,14 @@ export function Recruit() {
       // reducer will (shared seeded picker), so the electrify highlights the Mechs that actually get
       // buffed. Computed per proc (r), since each repeat picks a fresh random pair.
       const slot = run.board.indexOf(card);
+      // Fodder/Imp-buffing End-of-Turn effects (Maw's +1/+1, Ritualist's escalating grant) fire the tavern
+      // gust ON THEIR BEAT — the faceOmen stamp lands after the phase flips to combat, so the watcher
+      // (correctly) skips it; the beat is when the buff visibly happens in the shop.
+      const gust = completes && def.effects.some((e) => e.on === 'endOfTurn' && (e.do === 'battlecryBuffFodder' || e.do === 'buffFodderImpsImproving'));
       for (let r = 0; r < repeats; r++) {
         const targets =
           kind === 'combinator' ? magnetizeTargets(run.board, card.uid, 2, run.seed, run.wave, slot, r) : [];
-        beats.push({ uid: card.uid, kind, targets, completes });
+        beats.push({ uid: card.uid, kind, targets, completes, gust });
       }
     }
     // Quest/rune recurring End-of-Turn REWARDS (Rune of Spending, Rune of Action, Echoing Roar, …) fire AFTER
@@ -2470,7 +2509,7 @@ export function Recruit() {
       // didn't fire, e.g. Frontdrake's countdown) → the softer glow cue.
       if (b.completes) sfx.triggerPulse();
       else sfx.triggerGlow();
-      if (b.kind === 'ritualist') setShopFlash((k) => k + 1);
+      if (b.gust) fireTavernGust(); // Maw / Ritualist: the tavern-buffed rush, timed to the beat (replaced Ritualist's old purple shop-wash)
       if (b.kind === 'combinator') setElectrifyUids(new Set(b.targets));
       // Tick the affected minions' stats up to this proc's values + flash whoever just gained.
       const cur = steps[i];
@@ -2843,7 +2882,6 @@ export function Recruit() {
       )}
 
       <div className={`zone${run.frozen && !inCombat ? ' frozen' : ''}`} data-zone="tavern">
-        {shopFlash > 0 && <div className="shopflash" key={shopFlash} aria-hidden="true" />}
         <div className="row">
           {fighting ? (
             replay.frame.enemy.map((u) => (

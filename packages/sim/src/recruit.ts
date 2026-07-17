@@ -277,6 +277,18 @@ export function buffFodderRunWide(state: RunState, a: number, h: number, source:
   for (const c of [...state.board, ...state.hand]) {
     if (CARD_INDEX[c.cardId]?.keywords.includes('FD')) addBuff(c, source, a, h);
   }
+  // Buff Gust FX: sweep the gust over every AFFECTED visible Fodder — board + hand + the tavern's offers.
+  stampBuffGust(state, [...state.board, ...state.hand, ...state.shop]
+    .filter((c) => CARD_INDEX[c.cardId]?.keywords.includes('FD'))
+    .map((c) => c.uid));
+}
+
+/** Stamp the one-shot Buff Gust FX signal. The gust is the TAVERN flourish — the UI anchors it to the
+ *  shop row (pushed out by `edgeOut`), so `uids` are informational (which cards were hit), and an empty
+ *  set still stamps: an Imp-aura buff with no Imp visible is still "the tavern got buffed". */
+export function stampBuffGust(state: RunState, uids: string[]): void {
+  state.buffGustSeq = (state.buffGustSeq ?? 0) + 1;
+  state.buffGustUids = [...new Set(uids)];
 }
 
 /**
@@ -300,6 +312,8 @@ export function buffImpsRunWide(state: RunState, a: number, h: number, source: s
   for (const c of [...state.board, ...state.hand]) {
     if (CARD_INDEX[c.cardId]?.imp) addBuff(c, source, a, h);
   }
+  // Buff Gust FX: an Imp-aura buff is a tavern-flourish trigger too (Imp Overseer, Implosion, Ritualist).
+  stampBuffGust(state, [...state.board, ...state.hand].filter((c) => CARD_INDEX[c.cardId]?.imp).map((c) => c.uid));
 }
 
 /**
@@ -1732,6 +1746,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // eating Fodder, and any Fodder you take, carry the Staff's buff. A directly-bought Fodder gets it
     // through this enchant, not the buy-buff (the buy path + shop view skip FD to avoid double-applying).
     buffFodderRunWide(ctx.state, a, h, 'Staff of Guel');
+    // Buff Gust FX: the Staff enchants EVERY future tavern buy — re-stamp with the whole shop minion row
+    // (+ the visible Fodder the enchant above already covers), overriding the narrower Fodder stamp.
+    stampBuffGust(ctx.state, [
+      ...ctx.state.shop.filter((o) => !CARD_INDEX[o.cardId]?.spell).map((o) => o.uid),
+      ...[...ctx.state.board, ...ctx.state.hand].filter((c) => CARD_INDEX[c.cardId]?.keywords.includes('FD')).map((c) => c.uid),
+    ]);
   },
 
   /** Lantern of Souls — cast: your Undead get +`amount` Attack (plus spell power on Attack AND Health)

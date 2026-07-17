@@ -13,6 +13,7 @@ import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
+import { getGustFxConfig } from './gustFxConfig';
 import { fireBuffFx } from './buffFxRender';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
@@ -586,6 +587,46 @@ export function Recruit() {
     });
     return () => cancelAnimationFrame(raf);
   }, [run.swapFxSeq, run.swapFxBoardUid, run.swapFxShopUid]);
+  // Buff Gust (Ritualist's Fodder enchant / Rune of Consumption / Staff of Guel): sweep the violet rush
+  // in from the flanks of each AFFECTED row. Affected uids are clustered by vertical position (shop vs
+  // board vs hand rows) and one gust fires per cluster's bounding box — so a Fodder enchant spanning rows
+  // gusts each row, never drawing a box across the whole screen. Keyed off `buffGustSeq` (one-shot, the
+  // swapFxSeq pattern; inits to the current value so a restored save doesn't fire).
+  const prevBuffGustSeq = useRef(run.buffGustSeq);
+  useEffect(() => {
+    const seq = run.buffGustSeq;
+    if (seq === undefined || seq === prevBuffGustSeq.current) return;
+    prevBuffGustSeq.current = seq;
+    const uids = run.buffGustUids;
+    if (!uids?.length) return;
+    const raf = requestAnimationFrame(() => {
+      const rects = uids.flatMap((uid) => {
+        const el = document.querySelector(`[data-uid="${uid}"]`);
+        if (!el) return [];
+        const r = el.getBoundingClientRect();
+        return [{ left: r.left, right: r.right, top: r.top, bottom: r.bottom, cy: r.top + r.height / 2, h: r.height }];
+      });
+      if (rects.length === 0) return;
+      // Cluster into rows: sort by centre-y, split where the gap exceeds ~80% of a card's height.
+      rects.sort((a, b) => a.cy - b.cy);
+      const rows: (typeof rects)[] = [[rects[0]!]];
+      for (let i = 1; i < rects.length; i++) {
+        const prev = rects[i - 1]!, cur = rects[i]!;
+        if (cur.cy - prev.cy > prev.h * 0.8) rows.push([cur]);
+        else rows[rows.length - 1]!.push(cur);
+      }
+      const cfg = getGustFxConfig();
+      for (const row of rows) {
+        pixiFx.buffGust({
+          left: Math.min(...row.map((r) => r.left)),
+          right: Math.max(...row.map((r) => r.right)),
+          top: Math.min(...row.map((r) => r.top)),
+          bottom: Math.max(...row.map((r) => r.bottom)),
+        }, cfg);
+      }
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [run.buffGustSeq, run.buffGustUids]);
   // Tavern-Fodder consume: a ghost Fred pops in the tavern and swirls into the eater Demon.
   // The ghost carries the Fodder's *effective* stats (attack/health) so a Ritualist-buffed
   // Fred shows e.g. 3/3, not the 1/1 base.

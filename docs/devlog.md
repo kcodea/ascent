@@ -17,9 +17,19 @@ staggered speed-line streaks blowing into the row edge — "the tavern just got 
   core+glow look, taper, and colours — live `BuffGustCfg` JSON export.
 - Geometry note: streaks live in the FLANK GUTTERS — each head sweeps in from outside and lands just
   kissing the row edge, never flying over the cards (the first draft overshot; fixed against the sketch).
-- Verified live at `/fx/buff-gust-preview.html` — composition matches the owner's sketch. Next: owner
-  tunes + pastes values, then the Pixi port reuses the shelved weave branch's signal plumbing
-  (`buffFodderRunWide` + Staff of Guel stamps, Recruit wiring, tuner trio) with this visual instead.
+- Verified live at `/fx/buff-gust-preview.html` — composition matches the owner's sketch.
+- **Pixi port shipped same-day** (owner tuned on the rig): `pixiFx.buffGust(box, cfg)` redraws the
+  brackets + streaks per frame into one additive Graphics (rig math 1:1 — per-segment tapered strokes,
+  eased reveals/drifts). Owner's values baked as `gustFxConfig` DEFAULTS (~2s violet rush: 5 thin curved
+  streaks per flank fanned across 175px, bold 15px brackets bowing 106px, 830ms hold).
+- **Signals** (the shelved weave branch's pattern, renamed): `buffFodderRunWide` stamps `buffGustSeq` +
+  every visible Fodder uid (board/hand/shop) — Ritualist's End of Turn, Rune of Consumption, Bane; a
+  **Staff of Guel** cast re-stamps with the whole shop minion row. Recruit clusters the affected uids into
+  ROWS (split on vertical gaps) and fires one gust per row's bounding box — a Fodder set spanning board +
+  shop gusts each row, never one box across the screen.
+- **💨 Buff Gust tuner** in the Dev menu (config + tuner trio, rig-matched dials) for in-game iteration.
+- 2 signal tests (Fodder-only uid set; the Staff widening to the shop row). Verified live: a real Staff
+  cast swept the gust over the shop row in-game. Typecheck + lint + 1127 tests + build:web green.
 
 ### feat(sim/ui): Displacement swap FX — circular exchange arrows + a 🔀 tuner
 

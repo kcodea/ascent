@@ -449,6 +449,12 @@ export interface RunState {
   swapFxSeq?: number;
   swapFxBoardUid?: string;
   swapFxShopUid?: string;
+  /** Buff Gust FX signal (group buffs): bumped with the uids of every AFFECTED visible card — Fodder in
+   *  the board/hand/shop when the run-wide Fodder enchant fires (Ritualist / Rune of Consumption / Bane),
+   *  or the whole shop minion row on a Staff of Guel cast — so the UI sweeps the violet gust in from the
+   *  affected row's flanks. One-shot, like `swapFxSeq`. */
+  buffGustSeq?: number;
+  buffGustUids?: string[];
   /** The quest shop is open (waves 4/8/12): a pending offer of quest ids to "buy" for 0 Gold. While set, the
    *  reducer blocks every non-`buyQuest` action (the tavern is locked) and the UI pauses the round timer; the
    *  bought quest moves to `activeQuests` and this clears, opening the normal shop. */

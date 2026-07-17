@@ -12,6 +12,7 @@ import { pixiFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
+import { getAimFxConfig } from './aimFxConfig';
 
 const rectOf = (uid: string): DOMRect | null =>
   document.querySelector(`[data-uid="${uid}"]`)?.getBoundingClientRect() ?? null;
@@ -58,6 +59,14 @@ export function testGustFx(): void {
     bottom: Math.max(...rects.map((r) => r.bottom)),
   }, getGustFxConfig());
   applyGustLift(els);
+}
+
+/** 🎯 Hero Aim: the activation spark burst at the power diamond. */
+export function testAimBurst(): void {
+  const el = document.querySelector('.heropowerbtn');
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  pixiFx.heroPowerBurst(r.left + r.width / 2, r.top + r.height / 2, getAimFxConfig());
 }
 
 /** 🍖 Fodder Infusion: tendrils from the first board minion (or the hero portrait) up to the shop line.

@@ -366,6 +366,14 @@ export interface BuffGustCfg {
 /** A card row's bounding box (screen px) — the gust anchors to its flanks. */
 export interface GustBox { left: number; right: number; top: number; bottom: number }
 
+/** Renderer-facing aim-line config (structural mirror of AimFxConfig's line half — pixiFx stays
+ *  import-light). The living hero-power targeting line; see `setAimLine`. */
+export interface AimLineCfg {
+  coreWidth: number; coreAlpha: number; glowWidth: number; glowAlpha: number;
+  curve: number; curveVar: number; wobbleAmp: number; wobbleSpeed: number; breathe: number; dotSize: number;
+  colorCore: string; colorGlow: string;
+}
+
 /** Renderer-facing pulse config (structural match of PulsePresetCfg — pixiFx stays import-light). */
 export interface PulseCfg {
   style: 'ring' | 'shard' | 'nova';
@@ -516,6 +524,9 @@ class FxController {
   private readonly skullPops: SkullPop[] = [];
   private readonly tendrils: Tendril[] = []; // live buff tendrils — tapered ribbons advanced in `update`
   private readonly gusts: { g: Graphics; box: GustBox; cfg: BuffGustCfg; age: number; struck?: boolean }[] = []; // buff gusts — redrawn per frame
+  /** The live hero-power targeting line (null = not aiming). `side`/`amp` are rolled once per AIM — each
+   *  new arm gets a fresh random arch (owner ask: never the same static curve) — then held stable. */
+  private aim: { g: Graphics; from: { x: number; y: number }; to: { x: number; y: number }; onTarget: boolean; cfg: AimLineCfg; side: number; amp: number; seed: number } | null = null;
   private readonly critFxs: CritFx[] = []; // live Critical-Strike flourishes (ring + "CRIT!" + card flash)
   private readonly critTextCache = new Map<string, Texture>(); // "CRIT!" textures keyed by size|color|edge
   private readonly pulses: PulseFx[] = [];
@@ -2048,6 +2059,94 @@ class FxController {
     return true;
   }
 
+  /**
+   * THE LIVING AIM LINE (owner redesign 2026-07-16): a continuous curved ribbon from the hero-power
+   * diamond (or a targeting Battlecry/spell source) to the cursor — soft breathing aura under a bright
+   * core, subtle time-based wobble, and a per-aim RANDOM arch (side + amplitude rolled when the aim
+   * starts, stable while it lasts). Call every pointer-move; `clearAimLine` when the aim ends.
+   */
+  setAimLine(from: { x: number; y: number }, to: { x: number; y: number }, onTarget: boolean, cfg: AimLineCfg): void {
+    if (!this.ready || !this.layer) return;
+    if (!this.aim) {
+      const g = new Graphics();
+      g.blendMode = 'add';
+      this.layer.addChild(g);
+      // Roll THIS aim's arch: a random side and a 0.5–1.5× amplitude factor, blended toward 1 by curveVar.
+      const side = Math.random() < 0.5 ? -1 : 1;
+      const amp = 1 + (Math.random() - 0.5) * 2 * cfg.curveVar;
+      this.aim = { g, from: { ...from }, to: { ...to }, onTarget, cfg, side, amp, seed: Math.random() * 1000 };
+    } else {
+      this.aim.from = { ...from };
+      this.aim.to = { ...to };
+      this.aim.onTarget = onTarget;
+      this.aim.cfg = cfg; // live-tunable while aiming
+    }
+  }
+
+  /** Drop the aim line (the aim ended — fired, cancelled, or released). */
+  clearAimLine(): void {
+    if (!this.aim) return;
+    this.layer?.removeChild(this.aim.g);
+    this.aim.g.destroy();
+    this.aim = null;
+  }
+
+  /** Redraw the live aim line for this frame (cleared + rebuilt — the tendril pattern). */
+  private drawAimLine(nowS: number): void {
+    const a = this.aim;
+    if (!a) return;
+    const { g, from, to, cfg } = a;
+    g.clear();
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 4) return;
+    const perp = { x: -dy / len, y: dx / len };
+    const bow = len * cfg.curve * 0.5 * a.side * a.amp;
+    const ctl = { x: (from.x + to.x) / 2 + perp.x * bow, y: (from.y + to.y) / 2 + perp.y * bow };
+    const N = 26;
+    const pts: { x: number; y: number }[] = [];
+    for (let i = 0; i <= N; i++) {
+      const t = i / N;
+      const mt = 1 - t;
+      const bx = mt * mt * from.x + 2 * mt * t * ctl.x + t * t * to.x;
+      const by = mt * mt * from.y + 2 * mt * t * ctl.y + t * t * to.y;
+      // The living wobble: enveloped by sin(π·t) so both ends pin to the diamond and the cursor.
+      const w = Math.sin(t * Math.PI * 2 * 1.6 + nowS * cfg.wobbleSpeed * Math.PI * 2 + a.seed) * cfg.wobbleAmp * Math.sin(Math.PI * t);
+      pts.push({ x: bx + perp.x * w, y: by + perp.y * w });
+    }
+    // Aura (breathing) under the bright core.
+    const breatheK = 1 - cfg.breathe * (0.5 + 0.5 * Math.sin(nowS * 2.4 + a.seed));
+    g.moveTo(pts[0]!.x, pts[0]!.y);
+    for (const p of pts) g.lineTo(p.x, p.y);
+    g.stroke({ width: cfg.coreWidth + cfg.glowWidth, color: hexNum(cfg.colorGlow), alpha: cfg.glowAlpha * breatheK, cap: 'round', join: 'round' });
+    g.moveTo(pts[0]!.x, pts[0]!.y);
+    for (const p of pts) g.lineTo(p.x, p.y);
+    g.stroke({ width: cfg.coreWidth, color: hexNum(cfg.colorCore), alpha: cfg.coreAlpha, cap: 'round', join: 'round' });
+    // The cursor-end dot — grows + brightens over a valid target.
+    if (cfg.dotSize > 0) {
+      const r = cfg.dotSize * (a.onTarget ? 1.6 : 1);
+      g.circle(to.x, to.y, r + cfg.glowWidth * 0.4).fill({ color: hexNum(cfg.colorGlow), alpha: cfg.glowAlpha * breatheK });
+      g.circle(to.x, to.y, r).fill({ color: hexNum(cfg.colorCore), alpha: cfg.coreAlpha });
+    }
+  }
+
+  /** HERO POWER ACTIVATION: a simple radial spray of sparks in all directions from the diamond
+   *  (owner ask 2026-07-16). One-shot; the pooled particles animate on their own. */
+  heroPowerBurst(x: number, y: number, cfg: { burstCount: number; burstSpeed: number; burstSize: number; burstLife: number; colorBurst: string }): void {
+    if (!this.ready || !this.glowTex) return;
+    const scale = cfg.burstSize / TENDRIL_GLOW_R;
+    for (let i = 0; i < cfg.burstCount; i++) {
+      const ang = (i / Math.max(1, cfg.burstCount)) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+      const sp = cfg.burstSpeed * (0.55 + Math.random() * 0.9);
+      this.spawn(this.glowTex, {
+        x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, drag: TENDRIL_MOTE_DRAG,
+        life: cfg.burstLife * (0.7 + Math.random() * 0.6),
+        fromScale: scale, toScale: scale * 0.15, spin: 0,
+        tint: hexNum(cfg.colorBurst), blend: 'add', peakAlpha: 1,
+      });
+    }
+  }
+
   /** Sample ~24 points along the tendril's quadratic curve, up to head fraction `head` (0..1). The sine wobble
    *  is enveloped by sin(π·t) so both ends pin. Mirrors the preview's `samplePath`/`tendrilPoint`. */
   private sampleTendril(td: Tendril, head: number): { x: number; y: number; t: number }[] {
@@ -2254,6 +2353,9 @@ class FxController {
       // Swap-arc arrowhead: ride the travelling tip while the head is en route; fade with the ribbon after.
       if (td.arrowSize) this.drawArrowhead(td.g, pts, td.arrowSize, td.cfg.colorCore, td.cfg.coreAlpha * fade);
     }
+
+    // The live aim line: redrawn every frame while aiming (wobble + breathe are time-based).
+    this.drawAimLine(performance.now() / 1000);
 
     // Buff gusts: advance + redraw each frame; retire when the lifecycle completes.
     for (let i = this.gusts.length - 1; i >= 0; i--) {

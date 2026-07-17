@@ -14,6 +14,7 @@ import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
+import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { fireBuffFx } from './buffFxRender';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
@@ -2152,6 +2153,21 @@ export function Recruit() {
     return () => window.clearTimeout(t);
   }, [run.karwindFlashSeq, run.karwindFlash]);
 
+  // The living aim line (owner redesign 2026-07-16): sync the Pixi curved line to whichever targeting
+  // gesture is live — the armed hero power / a pending targeted Battlecry (the `aim` state), or a
+  // targeted spell being cast from hand (the drag). Replaces the old dotted SVG line; the arch is rolled
+  // fresh inside pixiFx each time an aim STARTS.
+  useEffect(() => {
+    if ((heroArmed || pendingTarget) && aim) {
+      pixiFx.setAimLine({ x: aim.ox, y: aim.oy }, { x: aim.tx, y: aim.ty }, aim.onTarget, getAimFxConfig());
+    } else if (castingSpell && drag) {
+      pixiFx.setAimLine({ x: drag.startX, y: drag.startY }, { x: drag.x, y: drag.y }, !!castTargetUid, getAimFxConfig());
+    } else {
+      pixiFx.clearAimLine();
+    }
+  });
+  useEffect(() => () => pixiFx.clearAimLine(), []); // never strand the line on unmount
+
   // Tavern Fodder was auto-eaten (fodderEatenSeq bumped) — the modernized eat (owner redesign 2026-07-16):
   // the ghost card POPS IN hovering above the shop line (fast in, easing to a stop), holds a beat, then
   // CRUMBLES into purple energy (the CSS fade + a source burst) while a tendril whips from it into each
@@ -3224,21 +3240,8 @@ export function Recruit() {
         </div>
       )}
 
-      {/* Targeted spell: the card leaves the hand and becomes an aim line (like the Hero
-          Power) — release on a friend to cast, release off / right-click to cancel. */}
-      {castingSpell && drag && (
-        <svg className="aimline" aria-hidden="true">
-          <line x1={drag.startX} y1={drag.startY} x2={drag.x} y2={drag.y} />
-          <circle cx={drag.x} cy={drag.y} r={castTargetUid ? 16 : 7} className={castTargetUid ? 'on' : ''} />
-        </svg>
-      )}
-
-      {(heroArmed || pendingTarget) && aim && (
-        <svg className="aimline" aria-hidden="true">
-          <line x1={aim.ox} y1={aim.oy} x2={aim.tx} y2={aim.ty} />
-          <circle cx={aim.tx} cy={aim.ty} r={aim.onTarget ? 16 : 7} className={aim.onTarget ? 'on' : ''} />
-        </svg>
-      )}
+      {/* The targeting line (hero power / targeted Battlecry / targeted spell) is the LIVING Pixi curve
+          now — synced in the aim-line effect above; the old dotted SVG render retired (owner 2026-07-16). */}
 
       {/* Targeted-Battlecry prompt: a played Toxin Tender waits for you to pick the friendly minion
           its grant lands on (click a warband minion; ending the turn auto-targets the carry). */}

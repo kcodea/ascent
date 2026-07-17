@@ -5,6 +5,26 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): living hero-power aim line + activation spark burst + 🎯 tuner
+
+Owner redesign (2026-07-16): the dotted SVG targeting line replaced, and the power's activation got a cue.
+- **The living aim line** (`pixiFx.setAimLine`/`clearAimLine`): a CONTINUOUS curved ribbon from the power
+  diamond (and targeted Battlecries + targeted spells — all three gestures unified) to the cursor — a
+  bright core over a soft BREATHING aura, a subtle time-based wobble, and a **per-aim random arch**: each
+  new aim rolls its bow side + a curveVar-scaled amplitude, held stable while that aim lasts, so the curve
+  is never the same twice. The cursor-end dot grows ×1.6 over a valid target. Redrawn per frame in the
+  Pixi overlay (additive); the config is re-read every frame so the 🎯 tuner dials apply live mid-aim.
+- **Activation burst** (`pixiFx.heroPowerBurst`): when the power actually FIRES, a simple radial spray of
+  sparks in all directions from the diamond. Trigger: StatusBar watches heroReady flipping true→false
+  mid-recruit OR heroPowerSpent flipping false→true — covering targeted and untargeted paths alike.
+- **🎯 Hero Aim FX tuner** (config trio): line width/alpha, aura width/alpha/breathe, arch + arch
+  randomness, wobble, dot size, colours + the burst's count/speed/size/life/colour; ▶ Test fires the burst
+  at the diamond. Defaults in the diamond's warm-gold language.
+- The old dotted `.aimline` SVG renders + CSS (dash keyframes) retired.
+- Verified live: arming Soren draws the continuous warm-gold curve with the endpoint dot (valid target
+  highlighted); the burst renders at the diamond (extreme-value capture). Typecheck + lint + 1130 tests +
+  build:web green.
+
 ### feat(ui): modernized Fodder-eat animation — pop in, crumble to energy, tendril to the eater
 
 Owner redesign (2026-07-16): the old consume anim (ghost appears IN the tavern, spins ~2.2s, flies into

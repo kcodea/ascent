@@ -7,7 +7,9 @@ import { Icon } from './Icon';
 import { QuestBadges } from './QuestBadges';
 import { sfx } from './sfx';
 import { useGame } from './store';
-import { getHeroPowerBtnConfig } from './heroPowerBtnConfig'; // also reflects the --hpb-* vars at load (side-effect)
+import { getHeroPowerBtnConfig } from './heroPowerBtnConfig';
+import { pixiFx } from './pixiFx';
+import { getAimFxConfig } from './aimFxConfig'; // also reflects the --hpb-* vars at load (side-effect)
 import './heroPanelConfig'; // side-effect: reflects the --hpn-* hero-panel transform vars at load
 
 /** Shrink a pill's TEXT to fit its box (owner note 2026-07-16: no ellipsis — "Lord of the Risen" should
@@ -135,6 +137,22 @@ export function StatusBar() {
   // shop returns, instead of firing invisibly mid-fight and reading "late"/missed (owner report). Covers
   // every re-arm path: start-of-shop recharge, Indy's Gild mid-shop, re-affording a costed power. One-shot
   // on mount (the layer unmounts after the tuner's `flash · refresh` ms + the 0.2s CSS delay); 0 disables.
+  // ACTIVATION BURST (owner ask 2026-07-16): when the power actually FIRES — heroReady flipping
+  // true→false mid-recruit (per-turn powers) or heroPowerSpent flipping false→true (once-per-game) —
+  // spray sparks in all directions from the diamond. Covers targeted + untargeted paths alike.
+  const prevReady = useRef(run.heroReady);
+  const prevSpent = useRef(run.heroPowerSpent);
+  useEffect(() => {
+    const used = (prevReady.current && !run.heroReady) || (!prevSpent.current && run.heroPowerSpent);
+    prevReady.current = run.heroReady;
+    prevSpent.current = run.heroPowerSpent;
+    if (!used || run.phase !== 'recruit') return;
+    const el = document.querySelector('.heropowerbtn');
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    pixiFx.heroPowerBurst(r.left + r.width / 2, r.top + r.height / 2, getAimFxConfig());
+  }, [run.heroReady, run.heroPowerSpent, run.phase]);
+
   const [refreshFlash, setRefreshFlash] = useState(false);
   const flashSignal = canHero && run.phase === 'recruit';
   const prevFlashSignal = useRef(false);

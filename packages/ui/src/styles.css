@@ -1941,15 +1941,11 @@ body.modalup .statusbar .questbadges {
    slide (FLIP) to open it, and the held copy drops straight into it. */
 .dropslot { flex: 0 0 var(--ccw); width: var(--ccw); height: var(--ccw); border-radius: var(--arch-radius); border: 3px dashed color-mix(in srgb, var(--acc) 80%, transparent); background: color-mix(in srgb, var(--acc) 20%, transparent); box-shadow: inset 0 0 22px -4px color-mix(in srgb, var(--acc) 55%, transparent); }
 
-/* targeting line — Hero Power (and future single-target Battlecries) */
-.aimline { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 90; overflow: visible; }
-.aimline line { stroke: var(--acc); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 3 11; filter: drop-shadow(0 0 6px var(--acc)); animation: aimdash 0.5s linear infinite; }
-.aimline circle { fill: var(--acc); filter: drop-shadow(0 0 7px var(--acc)); }
-.aimline circle.on { fill: #fff; stroke: var(--acc); stroke-width: 4; }
+/* (The dotted SVG targeting line retired 2026-07-16 — the living Pixi curve replaced it; see
+   pixiFx.setAimLine + the 🎯 Hero Aim FX tuner.) */
 /* Floating prompt while a played minion waits for its targeted-Battlecry pick (Toxin Tender). */
 .targetprompt { position: fixed; left: 50%; top: 30%; transform: translateX(-50%); z-index: 92; pointer-events: none; font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); color: #fff; background: var(--acc-dk); padding: calc(7 * var(--u)) calc(18 * var(--u)); border-radius: 999px; box-shadow: 0 6px 20px -7px rgba(0, 0, 0, 0.5); border: 2px solid color-mix(in srgb, var(--acc) 70%, #fff); animation: tpfade 0.25s ease; }
 @keyframes tpfade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes aimdash { to { stroke-dashoffset: -14; } }
 .ctype { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 64%, var(--ink)); }
 .ctype svg { width: 17px; height: 17px; color: var(--c); }
 .ctype.spell { flex: 1; color: var(--t-demon); font-size: 15px; }

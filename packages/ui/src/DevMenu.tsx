@@ -6,6 +6,7 @@ import { CritFxTuner } from './CritFxTuner';
 import { SwapFxTuner } from './SwapFxTuner';
 import { GustFxTuner } from './GustFxTuner';
 import { InfuseFxTuner } from './InfuseFxTuner';
+import { AimFxTuner } from './AimFxTuner';
 import { DragTuner } from './DragTuner';
 import { FlipTuner } from './FlipTuner';
 import { ShieldTuner } from './ShieldTuner';
@@ -41,6 +42,7 @@ const TUNERS = [
   { key: 'swapfx', label: '🔀 Swap FX (Displacement)', C: SwapFxTuner },
   { key: 'gustfx', label: '💨 Buff Gust FX', C: GustFxTuner },
   { key: 'infusefx', label: '🍖 Fodder Infusion FX', C: InfuseFxTuner },
+  { key: 'aimfx', label: '🎯 Hero Aim FX', C: AimFxTuner },
   { key: 'drag', label: '🎴 Drag Feel', C: DragTuner },
   { key: 'flip', label: '🔀 Reposition', C: FlipTuner },
   { key: 'shield', label: '🛡 Shield Place', C: ShieldTuner },

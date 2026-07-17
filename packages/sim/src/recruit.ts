@@ -2,7 +2,7 @@ import { makeRng, COMBAT_REPLAYABLE_BATTLECRIES, type CardDef, type EffectDef, t
 import { BUYABLE_CARDS, CARD_INDEX, SPELL_CARDS } from '@game/content';
 import { CONFIG } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
-import { mixSeed, TAG, type BoardCard, type BuffFxEvent, type DiscoverSpec, type RunState, type ShopCard } from './state';
+import { mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type DiscoverSpec, type RunState, type ShopCard } from './state';
 import { returnToPool, rollSpellShop, takeFromPool } from './shop';
 
 /**
@@ -292,6 +292,29 @@ export function buffFodderRunWide(state: RunState, a: number, h: number, source:
 export function stampBuffGust(state: RunState, uids: string[]): void {
   state.buffGustSeq = (state.buffGustSeq ?? 0) + 1;
   state.buffGustUids = [...new Set(uids)];
+}
+
+/** The visible cards (board + tavern offers) a run-wide tribe-aura wash should bloom over. Matches each
+ *  channel's real membership: `demon` = Imps only (mirrors `buffImpsRunWide`'s filter), `mech` = Magnetic
+ *  cards (the Attachment aura), `beast`/`undead` = tribe membership incl. dual types (the Lantern aura
+ *  folds onto every Undead; the Beast buy-aura previews on tavern Beasts). Pure display metadata. */
+export function auraFxTargets(state: RunState, tribe: AuraFxTribe): string[] {
+  const uids: string[] = [];
+  for (const c of state.board) {
+    const hit = tribe === 'demon' ? !!CARD_INDEX[c.cardId]?.imp
+      : tribe === 'mech' ? c.keywords.includes('M')
+      : isTribe(c, tribe);
+    if (hit) uids.push(c.uid);
+  }
+  for (const o of state.shop) {
+    const def = CARD_INDEX[o.cardId];
+    if (!def) continue;
+    const hit = tribe === 'demon' ? !!def.imp
+      : tribe === 'mech' ? def.keywords.includes('M')
+      : def.tribe === tribe || def.tribe2 === tribe || !!def.universalTribe;
+    if (hit) uids.push(o.uid);
+  }
+  return uids;
 }
 
 /** Stamp the one-shot Fodder Infusion FX signal: `uid` = the SOURCE card queuing Fodder for the tavern —
@@ -3091,13 +3114,27 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
   }
 }
 
+/** The FX one End-of-Turn beat produced, for the recruit UI to replay ON that beat: `buffFx` = buff-to-others
+ *  captured via `captureBuffFx` (tendrils/descends — incl. a Hunter reacting to the beat's Attack gain),
+ *  `eaten` = Fodder consumed this beat (Abyssal Feeder / Feasting Bogrot → the ghost-crumble eat FX). The
+ *  real commit happens inside `faceOmen` AFTER the phase flips (its stamps land where the shop can't show
+ *  them), so the projection is the only place these can be surfaced. */
+export interface EotStepFx {
+  buffFx: BuffFxEvent[];
+  eaten: NonNullable<RunState['fodderEaten']>;
+}
+
 /**
  * Per-proc preview of the End-of-Turn effects, for the recruit UI to animate the stats rising one
  * proc at a time. Returns one cumulative snapshot (per-uid current stats) *after* each (card × repeat)
- * step, in the same order the UI plays its beats — so the board can show the gain land on each beat.
+ * step, in the same order the UI plays its beats — so the board can show the gain land on each beat —
+ * plus each beat's captured FX (`fx`, aligned 1:1 with `steps`).
  * Runs on a throwaway clone (no side effects); the final entry equals the real end-of-turn result.
  */
-export function projectEndOfTurnSteps(state: RunState): Array<Record<string, { attack: number; health: number }>> {
+export function projectEndOfTurnSteps(state: RunState): {
+  steps: Array<Record<string, { attack: number; health: number }>>;
+  fx: EotStepFx[];
+} {
   // PERF: exclude `lastCombat` (the prior fight's whole event log + snapshots) from the throwaway clone
   // and share it by reference — the same trick as the reducer. The end-of-turn factories never touch it,
   // and this preview runs from the UI on every End Turn.
@@ -3107,33 +3144,57 @@ export function projectEndOfTurnSteps(state: RunState): Array<Record<string, { a
   const ctx = makeContext(clone);
   const repeats = endOfTurnRepeats(clone);
   const steps: Array<Record<string, { attack: number; health: number }>> = [];
+  const fx: EotStepFx[] = [];
   const snap = (): Record<string, { attack: number; health: number }> => {
     const m: Record<string, { attack: number; health: number }> = {};
     for (const c of [...clone.board, ...clone.hand]) m[c.uid] = { attack: c.attack, health: c.health };
     return m;
   };
+  // Run one beat's effects wrapped for FX capture, then snapshot + collect what the beat produced. The
+  // wrap mirrors the reducer boundary: the effect run itself is captured against `source`, then any board
+  // minion whose Attack the beat raised gets its onGainAttack reactor fired (Hunter) — captured against
+  // the REACTING minion so its buff-to-others tendrils out of the Hunter, exactly like a mid-shop gain.
+  // The reactor fires at most ONCE per minion across the whole projection (`gainFired`), matching the
+  // boundary's once-per-action contract — else a multi-beat Attack climb would overshoot the real commit.
+  const gainFired = new Set<string>();
+  const beat = (source: BoardCard | undefined, run: () => void): void => {
+    const fxStart = clone.recruitBuffFx.length;
+    const eatenStart = (clone.fodderEaten ?? []).length;
+    const atkBefore = new Map(clone.board.map((c) => [c.uid, c.attack]));
+    captureBuffFx(clone, source, 'minion', run); // sourceless (quest/rune beat) → sourceUid stays unset → the UI descends
+    for (const c of clone.board) {
+      const prev = atkBefore.get(c.uid);
+      if (prev !== undefined && c.attack > prev && !gainFired.has(c.uid)) {
+        gainFired.add(c.uid);
+        captureBuffFx(clone, c, 'minion', () => fireOnGainAttack(clone, c));
+      }
+    }
+    steps.push(snap());
+    fx.push({ buffFx: clone.recruitBuffFx.slice(fxStart), eaten: (clone.fodderEaten ?? []).slice(eatenStart) });
+  };
   for (const card of [...clone.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def?.effects.some((e) => e.on === 'endOfTurn')) continue;
     for (let r = 0; r < repeats; r++) {
-      for (const effect of def.effects) {
-        if (effect.on !== 'endOfTurn') continue;
-        const fn = RECRUIT_FACTORIES[effect.do];
-        if (fn) fn(ctx, card, effect.params ?? {}, { minion: card, proc: r });
-      }
-      steps.push(snap());
+      beat(card, () => {
+        for (const effect of def.effects) {
+          if (effect.on !== 'endOfTurn') continue;
+          const fn = RECRUIT_FACTORIES[effect.do];
+          if (fn) fn(ctx, card, effect.params ?? {}, { minion: card, proc: r });
+        }
+      });
     }
   }
   // Quest/rune-granted recurring End-of-Turn rewards fire AFTER the warband's own effects (mirrors
   // `applyEndOfTurn`) — one projected step per (effect × repeat), in the same order the UI plays them, so
   // Rune of Spending / Rune of Action's stat gains climb on their own beats (and conjures grow the hand).
+  // Sourceless (no card to anchor) → their captured buffs replay as descends onto the gaining minions.
   for (const eff of clone.questRecurringEndOfTurn ?? []) {
     for (let r = 0; r < repeats; r++) {
-      runRecurringEndOfTurn(clone, eff);
-      steps.push(snap());
+      beat(undefined, () => runRecurringEndOfTurn(clone, eff));
     }
   }
-  return steps;
+  return { steps, fx };
 }
 
 /** The quest/rune recurring End-of-Turn rewards active on the board, in fire order — one entry per

@@ -68,6 +68,19 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
+### Remaining recruit-FX gaps (from the 2026-07-17 buff-animation audit)
+The Aura Wash + EoT beat replay closed the big ones; still open:
+- **Gold-spend feedback** — the Gold counter changes with no flash/shake on buy/reroll/upgrade (only sells
+  produce gold visuals; the coin-spray primitive already exists).
+- **Recruit-time quest progress** — the badge `questpulse`/`questbounce` fire only off combat deltas;
+  shop-phase objective progress updates silently.
+- **Quest/rune-node anchored tendrils** — quest and rune EoT rewards replay as sourceless descends; anchor
+  them to the quest badge / rune chrome (needs a synthetic source kind in `BuffFxEvent` + a node rect).
+- **Rune acquisition burst** — no FX when a rune is bought at the Runeforge.
+- **Reroll** — sound + generic card pops only; no shuffle/sweep animation.
+- **Descend looks are one-amber** — `descendPresets` has empty byCard/byTribe; give spells tribe/identity
+  variants like the tendrils have.
+
 ### Build-authorship depth (meta systems)
 The depth layer that answers *"what kind of run did I author?"* — comes after the balance/identity work above.
 - **Mastery Minions** — normal shop minions that improve through repeated actions (not scheduled, not

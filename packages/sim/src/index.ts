@@ -15,4 +15,4 @@ export * from './synthesize';
 export * from './balanceReport';
 export * from './runTelemetry';
 export * from './opponentPool.data';
-export { addBuff, boardManaBonus, cardBuff, dragonTamerCostOf, endOfTurnRepeats, isTribe, magnetizeTargets, offerBuyStats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellCasts, spellCostReduction, implosionCasts, spellDisplayText, spellStatBonus, spellAttackBonus, spellHealthBonus, undeadBuyBonus } from './recruit';
+export { addBuff, boardManaBonus, cardBuff, dragonTamerCostOf, endOfTurnRepeats, isTribe, magnetizeTargets, offerBuyStats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellCasts, spellCostReduction, implosionCasts, spellDisplayText, spellStatBonus, spellAttackBonus, spellHealthBonus, undeadBuyBonus, type EotStepFx } from './recruit';

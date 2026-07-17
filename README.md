@@ -40,6 +40,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **Aura Wash FX + EoT FX replay + targeting cursor.** Run-wide tribe auras (Undead Lantern / Imp /
+  Attachment / Beast) now announce themselves with a tribe-colored bloom over every affected card (🌀
+  tuner) — the Lantern aura previously changed numbers with zero feedback. End-of-Turn beats replay their
+  real FX: Abyssal Feeder / Feasting Bogrot play the full fodder-eat choreography and EoT buffs (incl.
+  Hunter's reaction) tendril on their beat. The OS cursor hides while a targeter's aim line is live.
 - **Slaughter fires on a mutual kill.** A minion that attacks, kills an enemy, and dies to the retaliation
   in the same clash now still procs its Slaughter (on-kill) effect — previously the dead killer's effect
   was suppressed. A defender felling its attacker still doesn't count as a Slaughter.

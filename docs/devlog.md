@@ -26,6 +26,37 @@ no spell power, Moe banked no reroll, Hoardbreaker cast no Growth.
   Slaughter but not the extra procs. Flag for the owner if the doublers should also fire on death.
 - Verified: 2 new combat tests (Gnasher mutual-kill grants playerSpellPower +1/+1; a defender's
   retaliation kill grants nothing). Typecheck + lint + 1132 tests + build:web green.
+### feat(sim/ui): tribe-colored Aura Wash FX + EoT beat FX replay + targeting cursor hide
+
+Closes the biggest gaps from the buff-animation audit (owner ask 2026-07-17): several run-wide auras
+changed numbers with ZERO feedback, End-of-Turn consume/buff FX died with the `faceOmen` phase flip, and
+the OS cursor fought the Pixi aim line while targeting.
+- **Aura Wash FX** (`pixiFx.auraWash` + 🌀 tuner): a NEW cue for "a run-wide tribe aura just grew" —
+  a tribe-colored bloom sweeps bottom→top through EVERY affected card at once (fill glow + rising band +
+  motes + landing ring + a WAAPI lift), colored from the tribe's `BUFF_PRESETS` palette so it matches the
+  tribe's tendril language. Reads as "a field touched everyone" vs the tendril (source→target) and gust
+  (shop-row rush). Driven by a sim stamp: the reducer boundary diffs the four aura channels per action —
+  Undead (`undeadAttackBonus/HealthBonus` — the Lantern aura, previously FULLY silent since it's a
+  display-time fold), Imp (`impBuff`), Attachment (`magneticBuyAtk/Hp`), Beast buy-aura (`beastBuyAtk/Hp`)
+  — and stamps `auraFx`/`auraFxSeq` with the risen tribes + affected visible uids (`auraFxTargets`:
+  board + tavern, imp/Magnetic/tribe-membership filters). Pure display metadata; recruit-visible only.
+- **EoT beats now replay their FX** (`projectEndOfTurnSteps` → `{ steps, fx }`): the projection wraps
+  each beat's factories in `captureBuffFx` and collects per-beat `buffFx` + `fodderEaten` — the real
+  commit lands inside `faceOmen` AFTER the phase flips, so the beat telegraph is the only place these can
+  show. The beat runner replays them: **Abyssal Feeder / Feasting Bogrot** consumes now play the full
+  ghost-crumble fodder-eat choreography (extracted `playFodderEat`, shared with the mid-shop watcher),
+  and EoT buff-to-others (Vineweaver's Growth, quest/rune rewards as sourceless descends) tendril on
+  their beat. **Hunter's onGainAttack reaction** also fires in the projection (once per minion, matching
+  the reducer boundary's once-per-action contract) — so an EoT Attack gain now tendrils out of the Hunter
+  AND the projected stat climb matches the commit (it previously omitted the reaction).
+- **Targeting cursor hide**: while the aim line is live (armed power / pending targeted Battlecry /
+  targeted spell drag) `body.aiming` hides the OS cursor (`cursor: none`) — the line IS the pointer.
+- Cleanup: `detach`/`clearAll` now also destroy live gusts + washes (stale entries previously survived a
+  detach/re-init and ticked on an orphaned layer).
+- Verified: 4 new sim tests (aura stamp targets/reset, Feeder projection `eaten`, Hunter beat capture) +
+  full suite (1138); live in the 🌀 tuner (wash renders over board+shop cards in tribe colors; tribe
+  picker + ▶ Test); `body.aiming` computed `cursor: none` + clean restore. Typecheck + lint + build:web
+  green.
 
 ### feat(ui): living hero-power aim line + activation spark burst + 🎯 tuner
 

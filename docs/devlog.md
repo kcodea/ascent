@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(sim/ui): per-z End-of-Turn rewards land one hit per step (Blueprint Cache et al.)
+
+Owner ruling: an End-of-Turn "+x/+y per z" reward should READ as z separate hits — 10 Attachments =
+ten sequential +2/+2 strikes on the Mech, not one +20/+20 lump. (End-of-Turn only; Start-of-Combat
+lumps like Umbral Energy stay one-shot.) Applies to all four per-z recurring EoT rewards: **Blueprint
+Cache** (+2/+2 per Attachment), **Rune of Spending** (+1/+1 per Gold spent), **Rune of Action** (+1/+1
+per card played, 3 leftmost), **Forsaken Speed** (+3 Attack per card played, all Undead).
+
+- **Sim:** `runRecurringEndOfTurn` gains an `itemizeFx` flag (projection-only — `projectEndOfTurnSteps`
+  passes true, the real `applyEndOfTurn` commit stays false and emits no events). Each unit of the
+  scaler applies in its own nested `captureBuffFx`, producing one sourceless `BuffFxEvent` per step;
+  the outer beat capture's nesting dedup skips the itemized targets. Stat totals are byte-identical.
+- **UI:** `replayBuffFxEvents` gains a `staggerMs` — the EoT beat plays its events sequentially
+  (`min(110ms, (BEAT−140)/N)` so any count fits the 760ms beat window), rects measured at fire time.
+- Verified: 2 new sim tests (Blueprint Cache: 3 Attachments → exactly three +2/+2 sourceless events,
+  commit total identical with zero events; Rune of Spending: 4 Gold → four +1/+1 events) + full suite
+  (1143) + typecheck + lint + build:web green.
+
 ### chore(ui): bake the owner's tuned Aura Wave defaults
 
 Owner tuned the v2 wave live and handed back the values — baked as the shipped `DEFAULTS`: a fast,

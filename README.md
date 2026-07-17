@@ -40,6 +40,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **Per-z End-of-Turn rewards land one hit per step.** Blueprint Cache (+2/+2 per Attachment), Rune of
+  Spending, Rune of Action, and Forsaken Speed now strike their targets once per unit of the scaler,
+  sequentially on their beat — ten Attachments read as ten +2/+2 hits, not one +20/+20 lump. (End-of-Turn
+  only; Start-of-Combat lumps like Umbral Energy stay one-shot.)
 - **Aura Wave FX — a global board wave.** Run-wide tribe auras (Undead Lantern **and** buy-Attack sources,
   the Imp aura, Beast buy-aura, Scrap Herald's Attachment aura) now announce themselves with a single
   tribe-colored wave that blooms from the board centre out to both edges and dissipates — a global "the whole

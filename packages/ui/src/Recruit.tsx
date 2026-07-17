@@ -14,7 +14,7 @@ import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
-import { applyAuraLift, getAuraFxConfig } from './auraFxConfig';
+import { getAuraFxConfig } from './auraFxConfig';
 import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { fireBuffFx } from './buffFxRender';
@@ -2071,25 +2071,30 @@ export function Recruit() {
     replayBuffFxEvents(run.recruitBuffFx);
   }, [run.recruitFxSeq]);
 
-  // AURA WASH: a run-wide tribe-aura channel rose this action (auraFxSeq bumped) — bloom the tribe-colored
-  // wash over every affected visible card (board + tavern) + the lift & settle. Colors come from the tribe's
-  // tendril palette so the aura language matches the tribe's buff language. (Several aura sources never touch
-  // stored stats — the Lantern folds in at display time — so this is their ONLY feedback.)
-  const fireAuraWash = useCallback((tribe: NonNullable<RunState['auraFx']>[number]['tribe'], uids: string[]): void => {
-    const els = uids.flatMap((uid) => { const el = findEl(uid); return el ? [el] : []; });
-    if (els.length === 0) return;
+  // AURA WAVE: a run-wide tribe-aura channel rose this action (auraFxSeq bumped) — bloom a tribe-colored wave
+  // from the board CENTRE out to both edges. It's a GLOBAL cue (the aura touched the whole board), so it fires
+  // over the board region regardless of which cards match (the old per-card wash showed nothing when no matching
+  // card was on screen). Full board width from the zone, vertical band hugging the card row. Colors come from the
+  // tribe's tendril palette so the aura language matches the tribe's buff language.
+  const fireAuraWave = useCallback((tribe: NonNullable<RunState['auraFx']>[number]['tribe']): void => {
+    const zoneEl = document.querySelector('[data-zone="warband"]');
+    if (!zoneEl) return;
+    const z = zoneEl.getBoundingClientRect();
+    if (z.width < 8 || z.height < 8) return;
+    const rr = zoneEl.querySelector('.row.warband')?.getBoundingClientRect();
+    const y = rr && rr.height > 4 ? rr.top : z.top;
+    const h = rr && rr.height > 4 ? rr.height : z.height;
     const p = BUFF_PRESETS[buffPreset('', tribe)] ?? BUFF_PRESETS.default!;
-    pixiFx.auraWash(
-      els.map((el) => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; }),
+    pixiFx.auraWave(
+      { x: z.left, y, w: z.width, h },
       { ...getAuraFxConfig(), colorCore: p.colorFlash, colorGlow: p.colorGlow, colorMote: p.colorMote },
     );
-    applyAuraLift(els);
-  }, [findEl]);
+  }, []);
   useEffect(() => {
     if ((run.auraFxSeq ?? 0) === prevAuraSeq.current) return;
     prevAuraSeq.current = run.auraFxSeq ?? 0;
     if (inCombat) return;
-    for (const entry of run.auraFx ?? []) fireAuraWash(entry.tribe, entry.targets);
+    for (const entry of run.auraFx ?? []) fireAuraWave(entry.tribe);
   }, [run.auraFxSeq]);
 
   // A freshly-played minion with a Battlecry gets a one-shot flourish beneath it. Diff the

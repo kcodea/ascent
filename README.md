@@ -40,10 +40,12 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
-- **Aura Wash FX + EoT FX replay + targeting cursor.** Run-wide tribe auras announce themselves with a
-  tribe-colored bloom over every affected card (🌀 tuner) — the Undead Lantern **and** buy-Attack sources
-  (Deathswarmer / Forsaken Mage / Forsaken Will), the Imp aura (Imp Overseer / Contract Imp / Implosion /
-  Bane, washing your Demons), and Scrap Herald's Attachment aura. End-of-Turn beats replay their real FX:
+- **Aura Wave FX — a global board wave.** Run-wide tribe auras (Undead Lantern **and** buy-Attack sources,
+  the Imp aura, Beast buy-aura, Scrap Herald's Attachment aura) now announce themselves with a single
+  tribe-colored wave that blooms from the board centre out to both edges and dissipates — a global "the whole
+  board was touched" cue that fires regardless of which cards are on screen (the old per-card bloom showed
+  nothing when the tribe wasn't visible). Owner-tunable via the 🌀 Aura Wave dev tuner.
+- **EoT FX replay + targeting cursor.** End-of-Turn beats replay their real FX:
   Abyssal Feeder / Feasting Bogrot play the full fodder-eat choreography and EoT buffs (incl. Hunter's
   reaction) tendril on their beat. The OS cursor hides while a targeter's aim line is live.
 - **Slaughter fires on a mutual kill.** A minion that attacks, kills an enemy, and dies to the retaliation

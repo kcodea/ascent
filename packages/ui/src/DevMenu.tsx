@@ -42,7 +42,7 @@ const TUNERS = [
   { key: 'critfx', label: '⚡ Critical Strike FX', C: CritFxTuner },
   { key: 'swapfx', label: '🔀 Swap FX (Displacement)', C: SwapFxTuner },
   { key: 'gustfx', label: '💨 Buff Gust FX', C: GustFxTuner },
-  { key: 'aurafx', label: '🌀 Aura Wash FX', C: AuraFxTuner },
+  { key: 'aurafx', label: '🌀 Aura Wave FX', C: AuraFxTuner },
   { key: 'infusefx', label: '🍖 Fodder Infusion FX', C: InfuseFxTuner },
   { key: 'aimfx', label: '🎯 Hero Aim FX', C: AimFxTuner },
   { key: 'drag', label: '🎴 Drag Feel', C: DragTuner },

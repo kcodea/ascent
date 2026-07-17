@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): Aura Wash → global board WAVE (fires regardless of on-screen cards)
+
+Owner rework: the per-card Aura Wash only rendered where a matching tribe card was visible — so an aura
+that rose while its tribe wasn't on the board/shop bloomed over nothing and read as broken. Replaced it
+with a single **global board wave**: a tribe-colored crest born at the board centre that sweeps out to
+both edges and dissipates, under a soft full-board glow with rising sparkle motes — "a field touched the
+whole board", independent of which cards are present.
+
+- **Trigger unchanged.** The reducer already stamps `auraFx`/`auraFxSeq` whenever a channel rises (undead
+  incl. `undeadBuyAtk`, demon/imp, mech/attachment, beast buy-aura), regardless of targets — so this is a
+  pure presentation swap. The UI no longer reads `entry.targets`; it measures the warband zone (full board
+  width, vertical band hugging the card row) and fires one wave keyed only on tribe.
+- **Renderer:** `pixiFx.auraWash`(per-card `WashRect[]`) → `pixiFx.auraWave`(one `WaveRegion`). Two crest
+  ellipses travel `centre→edge` (eased), fading ∝ (1−progress)^`edgeFadePow`; a centre birth-flash; a soft
+  full-board fill; `moteCount` motes drifting up across the whole region. Colors still come from the tribe's
+  `BUFF_PRESETS` palette at fire time. Dropped the per-card lift & landing-ring (they were per-card notions).
+- **Config/tuner reworked** to the wave params (travel/hold/fade, board glow, crest α/width/height/edge-fade,
+  centre flash, motes); DEV "🌀 Aura Wave" tuner + `testAuraFx` fire over the board region now.
+- Verified live in a practice run (throwaway): fired over an **empty** board — the exact case the old wash
+  showed nothing — and the wave rendered full-width, advanced, seeded its motes, and retired cleanly (single
+  fresh pixiFx instance; earlier "stuck" readings were an HMR duplicate-instance artifact). Softened the
+  shipped defaults after seeing the crests blow out additively on the light arena board. Typecheck + lint +
+  test (1138) + build:web green.
+
 ### fix(sim): Aura Wash actually fires for Imp Overseer + Undead buy-Attack sources
 
 Two follow-up fixes after live testing the Aura Wash (#528) — it wasn't triggering where it should:

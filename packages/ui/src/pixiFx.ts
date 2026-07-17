@@ -366,18 +366,19 @@ export interface BuffGustCfg {
 /** A card row's bounding box (screen px) — the gust anchors to its flanks. */
 export interface GustBox { left: number; right: number; top: number; bottom: number }
 
-/** Renderer-facing Aura Wash config (structural mirror of AuraFxConfig + the tribe palette — pixiFx stays
- *  import-light). A tribe-colored bloom swept bottom→top through every affected card; see `auraWash`. */
-export interface AuraWashCfg {
-  riseMs: number; holdMs: number; fadeMs: number; staggerMs: number;
-  fillAlpha: number; padPx: number; sweepAlpha: number; sweepFrac: number;
+/** Renderer-facing Aura Wave config (structural mirror of AuraFxConfig + the tribe palette — pixiFx stays
+ *  import-light). A tribe-colored wave that blooms from the board centre out to both edges and dissipates —
+ *  a global "a field touched the whole board" cue. See `auraWave`. */
+export interface AuraWaveCfg {
+  travelMs: number; holdMs: number; fadeMs: number;
+  fillAlpha: number; fillPadPx: number;
+  crestAlpha: number; crestWidthFrac: number; crestHeightFrac: number; edgeFadePow: number; centerFlash: number;
   moteCount: number; moteSize: number; moteLife: number; moteRise: number;
-  ringSize: number; ringMs: number; ringAlpha: number;
   colorCore: string; colorGlow: string; colorMote: string;
 }
 
-/** One card's screen rect for the Aura Wash (screen px, top-left anchored). */
-export interface WashRect { x: number; y: number; w: number; h: number }
+/** The board region (screen px, top-left anchored) an aura wave sweeps across. */
+export interface WaveRegion { x: number; y: number; w: number; h: number }
 
 /** Renderer-facing aim-line config (structural mirror of AimFxConfig's line half — pixiFx stays
  *  import-light). The living hero-power targeting line; see `setAimLine`. */
@@ -537,7 +538,7 @@ class FxController {
   private readonly skullPops: SkullPop[] = [];
   private readonly tendrils: Tendril[] = []; // live buff tendrils — tapered ribbons advanced in `update`
   private readonly gusts: { g: Graphics; box: GustBox; cfg: BuffGustCfg; age: number; struck?: boolean }[] = []; // buff gusts — redrawn per frame
-  private readonly washes: { g: Graphics; rect: WashRect; cfg: AuraWashCfg; age: number; delay: number; started?: boolean; struck?: boolean }[] = []; // aura washes — one per affected card, redrawn per frame
+  private readonly waves: { g: Graphics; region: WaveRegion; cfg: AuraWaveCfg; age: number; started?: boolean }[] = []; // aura waves — one per rise, a centre→edge board wave redrawn per frame
   /** The live hero-power targeting line (null = not aiming). `side`/`amp` are rolled once per AIM — each
    *  new arm gets a fresh random arch (owner ask: never the same static curve) — then held stable. */
   private aim: { g: Graphics; from: { x: number; y: number }; to: { x: number; y: number }; onTarget: boolean; cfg: AimLineCfg; side: number; amp: number; seed: number } | null = null;
@@ -675,8 +676,8 @@ class FxController {
     this.descends.length = 0;
     for (const w of this.gusts) { w.g.destroy(); }
     this.gusts.length = 0;
-    for (const w of this.washes) { w.g.destroy(); }
-    this.washes.length = 0; // stale entries would otherwise survive a detach/re-init and tick on an orphaned layer
+    for (const w of this.waves) { w.g.destroy(); }
+    this.waves.length = 0; // stale entries would otherwise survive a detach/re-init and tick on an orphaned layer
     this.skullTex?.destroy(true);
     this.skullTex = null;
     for (const b of this.shields.values()) { b.shader.destroy(); b.container.destroy({ children: true }); }
@@ -1505,8 +1506,8 @@ class FxController {
     this.descends.length = 0;
     for (const w of this.gusts) { this.layer?.removeChild(w.g); w.g.destroy(); }
     this.gusts.length = 0;
-    for (const w of this.washes) { this.layer?.removeChild(w.g); w.g.destroy(); }
-    this.washes.length = 0;
+    for (const w of this.waves) { this.layer?.removeChild(w.g); w.g.destroy(); }
+    this.waves.length = 0;
   }
 
   /**
@@ -2082,75 +2083,79 @@ class FxController {
   }
 
   /**
-   * AURA WASH: the "a run-wide tribe aura just grew" cue (Undead Lantern aura / Imp aura / Attachment
-   * aura / Beast buy-aura): a tribe-colored bloom sweeps bottom→top through EVERY affected card at once
-   * (staggered left→right) — a soft card-filling glow, a rising band, sparkle motes drifting up, and a
-   * landing ring as each sweep tops out. Reads as "a field touched everyone", vs. the tendril (a source
-   * hit a target) and the gust (the shop row got rushed). One Graphics per card, redrawn per frame (the
-   * gust pattern); colors come from the tribe's BUFF_PRESETS palette via cfg. Config-driven (🌀 tuner).
+   * AURA WAVE: the "a run-wide tribe aura just grew" cue (Undead Lantern aura / Imp aura / Attachment
+   * aura / Beast buy-aura): a tribe-colored wave born at the board CENTRE that sweeps out to both edges
+   * and dissipates — a soft full-board glow, two crest bands travelling outward (fading toward the rim),
+   * a centre birth-flash, and sparkle motes drifting up across the board. Reads as "a field touched the
+   * whole board", vs. the tendril (a source hit a target) and the gust (the shop row got rushed). It's
+   * GLOBAL: one wave over the board region, independent of which cards are on screen. Colors come from
+   * the tribe's BUFF_PRESETS palette via cfg. One Graphics, redrawn per frame. Config-driven (🌀 tuner).
    */
-  auraWash(rects: WashRect[], cfg: AuraWashCfg): void {
+  auraWave(region: WaveRegion, cfg: AuraWaveCfg): void {
     if (!this.ready || !this.layer) return;
-    rects.forEach((rect, i) => {
-      const g = new Graphics();
-      g.blendMode = 'add';
-      this.layer!.addChild(g);
-      this.washes.push({ g, rect: { ...rect }, cfg, age: 0, delay: i * cfg.staggerMs });
-    });
+    const g = new Graphics();
+    g.blendMode = 'add';
+    this.layer.addChild(g);
+    this.waves.push({ g, region: { ...region }, cfg, age: 0 });
   }
 
-  /** Redraw one card's aura wash for this frame. Returns false once its lifecycle completes (→ retire). */
-  private drawWash(w: { g: Graphics; rect: WashRect; cfg: AuraWashCfg; age: number; delay: number; started?: boolean; struck?: boolean }): boolean {
-    const { g, rect, cfg } = w;
-    const t = w.age - w.delay;
-    if (t < 0) return true; // staggered start not reached yet
-    const total = cfg.riseMs + cfg.holdMs + cfg.fadeMs;
+  /** Redraw the board aura wave for this frame. Returns false once its lifecycle completes (→ retire). */
+  private drawWave(w: { g: Graphics; region: WaveRegion; cfg: AuraWaveCfg; age: number; started?: boolean }): boolean {
+    const { g, region, cfg } = w;
+    const t = w.age;
+    const total = cfg.travelMs + cfg.holdMs + cfg.fadeMs;
     if (t > total) return false;
-    // First live frame: seed the rising sparkle motes (self-animating pool particles).
+    // First live frame: seed the rising sparkle motes across the whole board (self-animating pool particles).
     if (!w.started) {
       w.started = true;
       if (cfg.moteCount > 0 && this.glowTex) {
         const s = cfg.moteSize / TENDRIL_GLOW_R;
         for (let i = 0; i < cfg.moteCount; i++) {
           this.spawn(this.glowTex, {
-            x: rect.x + Math.random() * rect.w,
-            y: rect.y + rect.h * (0.55 + Math.random() * 0.45),
-            vx: (Math.random() - 0.5) * 24, vy: -cfg.moteRise * (0.6 + Math.random() * 0.8),
+            x: region.x + Math.random() * region.w,
+            y: region.y + region.h * (0.35 + Math.random() * 0.6),
+            vx: (Math.random() - 0.5) * 30, vy: -cfg.moteRise * (0.6 + Math.random() * 0.8),
             drag: 0.995, life: cfg.moteLife * (0.7 + Math.random() * 0.6),
-            fromScale: s, toScale: s * 0.25, spin: 0,
-            tint: hexNum(Math.random() < 0.5 ? cfg.colorCore : cfg.colorMote), blend: 'add', peakAlpha: 0.9,
+            fromScale: s, toScale: s * 0.2, spin: 0,
+            tint: hexNum(Math.random() < 0.5 ? cfg.colorCore : cfg.colorMote), blend: 'add', peakAlpha: 0.85,
           });
         }
       }
     }
     g.clear();
-    const p = Math.min(1, t / Math.max(1, cfg.riseMs));
+    const cx = region.x + region.w / 2;
+    const cy = region.y + region.h / 2;
+    const half = region.w / 2;
+    // Crest progress 0..1 (centre→edge), eased out so it leaps then eases into the rim.
+    const p = Math.min(1, t / Math.max(1, cfg.travelMs));
     const ease = 1 - Math.pow(1 - p, 3);
-    const fadeStart = cfg.riseMs + cfg.holdMs;
-    const fade = t > fadeStart ? 1 - Math.min(1, (t - fadeStart) / Math.max(1, cfg.fadeMs)) : 1;
-    const cx = rect.x + rect.w / 2;
-    // Soft card-filling glow — ramps in over the sweep, rides the shared fade.
+    // Overall envelope: a quick ramp-in, hold once the crest lands, then the whole-wave fade-out.
+    const rampMs = Math.min(cfg.travelMs * 0.35, 180);
+    const fadeStart = cfg.travelMs + cfg.holdMs;
+    const env = t < rampMs ? t / Math.max(1, rampMs)
+      : t > fadeStart ? 1 - Math.min(1, (t - fadeStart) / Math.max(1, cfg.fadeMs))
+      : 1;
+    // Soft full-board glow — the aura's ambient wash under the crests.
     if (cfg.fillAlpha > 0) {
-      g.roundRect(rect.x - cfg.padPx, rect.y - cfg.padPx, rect.w + cfg.padPx * 2, rect.h + cfg.padPx * 2, 10)
-        .fill({ color: hexNum(cfg.colorGlow), alpha: cfg.fillAlpha * Math.min(1, p * 1.6) * fade });
+      g.roundRect(region.x - cfg.fillPadPx, region.y - cfg.fillPadPx, region.w + cfg.fillPadPx * 2, region.h + cfg.fillPadPx * 2, 14)
+        .fill({ color: hexNum(cfg.colorGlow), alpha: cfg.fillAlpha * env });
     }
-    // The rising band: an ellipse sweeping bottom→top through the card, brightest mid-travel.
-    if (cfg.sweepAlpha > 0 && p < 1) {
-      const bandH = rect.h * cfg.sweepFrac;
-      const by = rect.y + rect.h - ease * (rect.h + bandH) + bandH / 2;
-      g.ellipse(cx, by, rect.w / 2 + cfg.padPx, bandH / 2)
-        .fill({ color: hexNum(cfg.colorCore), alpha: cfg.sweepAlpha * (1 - Math.abs(2 * p - 1) * 0.35) * fade });
-    }
-    // Landing ring — one-shot the moment the sweep tops out.
-    if (!w.struck && p >= 1) {
-      w.struck = true;
-      if (cfg.ringSize > 0 && cfg.ringMs > 0 && this.pulseTex) {
-        this.spawn(this.pulseTex, {
-          x: cx, y: rect.y + rect.h / 2, vx: 0, vy: 0, drag: 1, life: cfg.ringMs,
-          fromScale: 0.15, toScale: cfg.ringSize / PULSE_TEX_R, spin: 0,
-          tint: hexNum(cfg.colorCore), blend: 'add', peakAlpha: cfg.ringAlpha,
-        });
+    const ry = (region.h / 2) * cfg.crestHeightFrac;
+    // Centre birth-flash — brightest at t=0, gone by mid-travel.
+    if (cfg.centerFlash > 0) {
+      const cf = Math.max(0, 1 - t / Math.max(1, cfg.travelMs * 0.5));
+      if (cf > 0) {
+        g.ellipse(cx, cy, half * cfg.crestWidthFrac * 1.4, ry)
+          .fill({ color: hexNum(cfg.colorCore), alpha: cfg.centerFlash * cf * env });
       }
+    }
+    // Two crests travelling outward from the centre, dissipating toward the edges.
+    if (cfg.crestAlpha > 0 && p < 1) {
+      const rx = Math.max(4, half * cfg.crestWidthFrac);
+      const a = cfg.crestAlpha * Math.pow(1 - p, cfg.edgeFadePow) * env;
+      const dx = ease * half;
+      g.ellipse(cx - dx, cy, rx, ry).fill({ color: hexNum(cfg.colorCore), alpha: a });
+      g.ellipse(cx + dx, cy, rx, ry).fill({ color: hexNum(cfg.colorCore), alpha: a });
     }
     return true;
   }
@@ -2464,14 +2469,14 @@ class FxController {
       }
     }
 
-    // Aura washes: advance + redraw each per-card wash; retire when its lifecycle completes.
-    for (let i = this.washes.length - 1; i >= 0; i--) {
-      const w = this.washes[i]!;
+    // Aura waves: advance + redraw each board wave; retire when its lifecycle completes.
+    for (let i = this.waves.length - 1; i >= 0; i--) {
+      const w = this.waves[i]!;
       w.age += dtMs;
-      if (!this.drawWash(w)) {
+      if (!this.drawWave(w)) {
         this.layer?.removeChild(w.g);
         w.g.destroy();
-        this.washes.splice(i, 1);
+        this.waves.splice(i, 1);
       }
     }
 

@@ -6,30 +6,28 @@ import { useDraggablePanel } from './useDraggablePanel';
 import { testAuraFx, type AuraTestTribe } from './fxTestFire';
 
 /**
- * DEV-only "Aura Wash" tuner — the run-wide tribe-aura bloom (`auraFxConfig` → `pixiFx.auraWash`): the
- * per-card rising sweep, fill glow, motes, landing ring, and the lift & settle. Persists to localStorage;
- * edits apply to the NEXT wash — cast a Lantern of Souls / play an Imp Overseer / an Attachment Mechanic
- * to judge, or ▶ Test with a tribe. Colors are NOT dials: the wash reads the tribe's BUFF_PRESETS palette
- * at fire time, so it always matches that tribe's tendril look. Dev-only — stripped from production.
+ * DEV-only "Aura Wave" tuner — the run-wide tribe-aura board wave (`auraFxConfig` → `pixiFx.auraWave`): the
+ * centre→edge crest travel, the soft full-board glow, the centre birth-flash, and the rising motes. Persists
+ * to localStorage; edits apply to the NEXT wave — cast a Lantern of Souls / play an Imp Overseer / an
+ * Attachment Mechanic to judge, or ▶ Test with a tribe. Colors are NOT dials: the wave reads the tribe's
+ * BUFF_PRESETS palette at fire time, so it always matches that tribe's tendril look. Dev-only — stripped
+ * from production.
  */
 const AURA_LABELS: Partial<Record<keyof AuraFxConfig, string>> = {
-  riseMs: 'sweep ms',
+  travelMs: 'travel ms',
   holdMs: 'hold ms',
   fadeMs: 'fade ms',
-  staggerMs: 'card stagger',
-  fillAlpha: 'fill α',
-  padPx: 'fill pad',
-  sweepAlpha: 'band α',
-  sweepFrac: 'band height ×',
-  moteCount: 'motes/card',
+  fillAlpha: 'board glow α',
+  fillPadPx: 'glow pad',
+  crestAlpha: 'crest α',
+  crestWidthFrac: 'crest width ×',
+  crestHeightFrac: 'crest height ×',
+  edgeFadePow: 'edge fade pow',
+  centerFlash: 'centre flash α',
+  moteCount: 'motes',
   moteSize: 'mote px',
   moteLife: 'mote life',
   moteRise: 'mote rise',
-  ringSize: 'land ring',
-  ringMs: 'ring ms',
-  ringAlpha: 'ring α',
-  liftPx: 'card lift px',
-  liftMs: 'lift ms',
 };
 
 const TEST_TRIBES: AuraTestTribe[] = ['undead', 'demon', 'mech', 'beast'];
@@ -50,7 +48,7 @@ export function AuraFxTuner() {
 
   return (
     <div className="sfxmix lunge" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Aura Wash <span>dev · next wash · drag</span></div>
+      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Aura Wave <span>dev · next wave · drag</span></div>
       {AURAFX_KEYS.map((k) => {
         const [min, max, step] = AURAFX_RANGES[k]!;
         return (

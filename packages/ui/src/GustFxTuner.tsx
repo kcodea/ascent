@@ -3,6 +3,7 @@ import {
   GUSTFX_KEYS, GUSTFX_COLOR_KEYS, GUSTFX_RANGES, getGustFxConfig, resetGustFxConfig, setGustFxValue, type GustFxConfig,
 } from './gustFxConfig';
 import { useDraggablePanel } from './useDraggablePanel';
+import { testGustFx } from './fxTestFire';
 
 /**
  * DEV-only "Buff Gust" tuner — the tavern-buffed rush (`gustFxConfig` → `pixiFx.buffGust`): the flank
@@ -72,6 +73,7 @@ export function GustFxTuner() {
         </div>
       ))}
       <div className="lunge-btns">
+        <button className="sfxmix-copy" onClick={testGustFx} title="Fire the gust over the current shop row — no Fodder buff needed">▶ Test FX</button>
         <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
         <button className="sfxmix-copy" onClick={reset}>Reset</button>
       </div>

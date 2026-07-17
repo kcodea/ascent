@@ -3,6 +3,7 @@ import {
   INFUSEFX_KEYS, INFUSEFX_COLOR_KEYS, INFUSEFX_RANGES, getInfuseFxConfig, resetInfuseFxConfig, setInfuseFxValue, type InfuseFxConfig,
 } from './infuseFxConfig';
 import { useDraggablePanel } from './useDraggablePanel';
+import { testInfuseFx } from './fxTestFire';
 
 /**
  * DEV-only "Fodder Infusion" tuner — the send-Fodder-to-the-shop tendrils (`infuseFxConfig` →
@@ -74,6 +75,7 @@ export function InfuseFxTuner() {
         </div>
       ))}
       <div className="lunge-btns">
+        <button className="sfxmix-copy" onClick={testInfuseFx} title="Fire the tendrils from your first board minion (or hero portrait) to the shop line — no Godfodder needed">▶ Test FX</button>
         <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
         <button className="sfxmix-copy" onClick={reset}>Reset</button>
       </div>

@@ -3,6 +3,7 @@ import {
   SWAPFX_KEYS, SWAPFX_COLOR_KEYS, SWAPFX_RANGES, getSwapFxConfig, resetSwapFxConfig, setSwapFxValue, type SwapFxConfig,
 } from './swapFxConfig';
 import { useDraggablePanel } from './useDraggablePanel';
+import { testSwapFx } from './fxTestFire';
 
 /**
  * DEV-only "Swap FX" tuner — the Displacement circular-exchange arrows (`swapFxConfig` → `pixiFx.swapArc`):
@@ -72,6 +73,7 @@ export function SwapFxTuner() {
         </div>
       ))}
       <div className="lunge-btns">
+        <button className="sfxmix-copy" onClick={testSwapFx} title="Fire the swap arc between your first board minion (or hero portrait) and the first shop offer — no Darah needed">▶ Test FX</button>
         <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
         <button className="sfxmix-copy" onClick={reset}>Reset</button>
       </div>

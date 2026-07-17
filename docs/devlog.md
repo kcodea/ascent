@@ -25,6 +25,11 @@ shop cards.
 - 2 signal tests (Godfodder pick stamps the sender + queues 2; Soulfeeder's Shout stamps + arms the
   schedule). Verified live: a played Godfodder's Fodder pick launched the tendrils from the card up to the
   shop row (screenshot). Typecheck + lint + 1130 tests + build:web green.
+- **▶ Test FX buttons** (owner ask, same day): all three FX tuners (🔀 Swap / 💨 Gust / 🍖 Infusion) gained a
+  test-fire button — a shared dev helper (`fxTestFire.ts`) mirrors each effect's real geometry off the live
+  shop row, with the FIRST BOARD MINION (or the hero portrait when the board is empty) standing in as the
+  source/board side — so the owner iterates without playing a Darah / Godfodder / Maw. Verified live: all
+  three fired from the tuner buttons on an empty board.
 
 ### feat(fx): Buff Gust preview rig — the tavern-buffed cue, take two
 

@@ -19,6 +19,11 @@ the Demon) replaced with a faster, punchier three-beat:
 - **Eater impact wiggle** (owner, same day): the Demon physically reacts as the tendril lands — a quick
   gulp-pop (lift + 1.06 scale + alternating rotate, 380ms), WAAPI transform-only with composite 'add',
   fired alongside the +X/+X float at the tendril's arrival.
+- **Double-pop fix** (owner report, same day): the generic stat-diff flash fired the INSTANT the consume
+  resolved (the reducer applies the buff immediately), so the eater popped twice — once at consume, once at
+  the tendril's landing. The stat-diff effect now tracks `fodderEatenSeq` itself and EXCLUDES that action's
+  eaters from the instant flash/float; their only reaction is the choreographed wiggle + float at arrival.
+  Verified live: no pop/float at consume, exactly one wiggle + one float at the tendril's landing.
 - ~1.2s total vs the old 2.3s; the orbiting swirl orbs + fly-to-eater keyframes retired (dead CSS removed).
 - Verified live: queued Fred + board Demon + roll → the eat resolved (+1/+1 on the Demon), the ghost
   popped + crumbled, and the tendril arced from the crumble point into the eater (slowed capture).

@@ -687,6 +687,7 @@ export function Recruit() {
     } | null
   >(null);
   const prevFodderSeq = useRef(run.fodderEatenSeq);
+  const prevEatFlashSeq = useRef(run.fodderEatenSeq); // the stat-diff flash's own eat tracker (suppresses the eaters' instant pop)
   const prevFxSeq = useRef(run.recruitFxSeq); // inits to current so it never fires on mount (a resumed save may carry a bumped seq)
   // A brief "End of Turn" banner when the turn ends (recruit → combat), making it clear that
   // end-of-turn effects (Ritualist & co.) just resolved.
@@ -1963,13 +1964,21 @@ export function Recruit() {
     const prev = prevStatsRef.current;
     const next = new Map<string, { a: number; h: number }>();
     const newly: string[] = [];
+    // A fresh Fodder eat this action: the EATERS' reaction is choreographed to the consume tendril's
+    // ARRIVAL (the wiggle + delayed float) — suppress the instant stat-diff flash/float for them, or the
+    // Demon pops twice (once now, once when the tendril lands — owner bug report 2026-07-16).
+    const eatUids = new Set<string>();
+    if (run.fodderEatenSeq !== prevEatFlashSeq.current) {
+      prevEatFlashSeq.current = run.fodderEatenSeq;
+      for (const ev of run.fodderEaten ?? []) eatUids.add(ev.eaterUid);
+    }
     // Cards that gained stats, with the exact delta — drives the +X/+X float (board + hand minions).
     const gained: { uid: string; attack: number; health: number }[] = [];
     for (const c of [...run.board, ...run.hand]) {
       const cur = { a: c.attack, h: c.health };
       next.set(c.uid, cur);
       const p = prev.get(c.uid);
-      if (!inCombat && p && cur.a + cur.h > p.a + p.h) {
+      if (!inCombat && p && cur.a + cur.h > p.a + p.h && !eatUids.has(c.uid)) {
         newly.push(c.uid);
         gained.push({ uid: c.uid, attack: cur.a - p.a, health: cur.h - p.h });
       }

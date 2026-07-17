@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### chore(ui): bake the owner's tuned Aura Wave defaults
+
+Owner tuned the v2 wave live and handed back the values — baked as the shipped `DEFAULTS`: a fast,
+subtle bloom (travel 150ms / fade 170ms, fill 0.07 / wake 0.06 at size 172 / spacing 64) under a dense,
+long-lived drift of small tailed motes (140 × 2170ms, 90px/s rise, tail 0.5) — the motes carry the
+effect. Sized 0.7× width / 2.2× height, offset −152px to sit over the board. (The stale legacy keys in
+the handed-back JSON — crest*/ring*/lift*/pad* from the older configs' localStorage — were dropped.)
+Typecheck + lint + test (1138) + build:web green.
+
 ### feat(ui): Aura Wave v2 — dissipating wake + tailed motes + fit-to-board sizing (owner redesign)
 
 Second pass on the board wave after owner tuning (they zeroed the crests/flash and maxed the motes —

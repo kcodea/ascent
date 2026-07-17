@@ -32,22 +32,25 @@ export interface AuraFxConfig {
   moteTail: number;    // 0.1..1 — tail narrowness (smaller = longer-looking vertical streak; 1 = round, no tail)
 }
 
+// Owner-tuned 2026-07-17: a fast, subtle bloom (150ms travel, low alphas) with a dense, long-lived
+// drift of small tailed motes (140 × 2170ms, slow 90px/s rise) — the motes ARE the effect; the glow
+// is just a whisper under them. Sized 0.7× width / 2.2× height, raised 152px to sit over the board.
 const DEFAULTS: AuraFxConfig = {
-  travelMs: 1070,
-  fadeMs: 820,
-  fillAlpha: 0.12,
-  glowAlpha: 0.38,
-  glowSize: 60,
-  glowSpacing: 28,
-  widthScale: 0.85,
-  heightScale: 1,
+  travelMs: 150,
+  fadeMs: 170,
+  fillAlpha: 0.07,
+  glowAlpha: 0.06,
+  glowSize: 172,
+  glowSpacing: 64,
+  widthScale: 0.7,
+  heightScale: 2.2,
   offsetX: 0,
-  offsetY: 0,
-  moteCount: 56,
-  moteSize: 5,
-  moteLife: 1210,
-  moteRise: 300,
-  moteTail: 0.35,
+  offsetY: -152,
+  moteCount: 140,
+  moteSize: 3,
+  moteLife: 2170,
+  moteRise: 90,
+  moteTail: 0.5,
 };
 
 export const AURAFX_KEYS = [

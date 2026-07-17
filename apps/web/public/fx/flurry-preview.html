@@ -24,49 +24,32 @@
 
   /* --- the FLURRY aura: wind-blade COMET RINGS swirling the card ------------------------------------------
      Construction (perf-rule-safe): each ring is a STATIC conic-gradient of N comet arcs (alpha ramps up the
-     tail into a bright leading edge, then cuts) masked to a thin band by a radial-gradient mask. The ring
-     spins via a TRANSFORM-only loop; an outer wrapper's scaleY squash turns the circle into a cyclone
-     ellipse around the card. Blur/gradients are static paint computed once; only transform+opacity animate. */
+     tail into a bright leading edge, then cuts) masked to a thin band by a radial-gradient mask. Rings spin
+     via TRANSFORM-only loops; the wrapper's scaleY squash turns the circles into a cyclone ellipse around
+     the card. Gradients/blur are static paint computed once; only transform + opacity animate. Ring count,
+     sizes and makeups are all dial-driven (JS builds one element per ring, styles inline). */
   .flurry {
     position: absolute; left: 50%; top: var(--fl-y, 50%);
     width: calc(210px * var(--fl-size, 1.28)); aspect-ratio: 1;
     transform: translate(-50%, -50%) scaleY(var(--fl-squash, 0.62));
     overflow: visible; pointer-events: none; z-index: 2;
   }
-  .fl-ring {
-    position: absolute; border-radius: 50%;
-    mix-blend-mode: screen; will-change: transform;
-  }
-  .fl-ring.r1 {
-    inset: calc((1 - var(--r1-d, 1)) * 50%);
-    background: var(--r1-bg);
-    -webkit-mask: var(--r1-mask); mask: var(--r1-mask);
-    filter: blur(var(--r1-blur, 1.5px));
-    opacity: var(--r1-alpha, 0.9);
-    animation: flspin var(--r1-s, 2.6s) linear infinite;
-    animation-direction: var(--r1-dir, normal);
-  }
-  .fl-ring.r2 {
-    inset: calc((1 - var(--r2-d, 0.8)) * 50%);
-    background: var(--r2-bg);
-    -webkit-mask: var(--r2-mask); mask: var(--r2-mask);
-    filter: blur(var(--r2-blur, 2.5px));
-    opacity: var(--r2-alpha, 0.55);
-    animation: flspin var(--r2-s, 4s) linear infinite;
-    animation-direction: var(--r2-dir, normal);
-  }
+  .fl-ring { position: absolute; border-radius: 50%; mix-blend-mode: screen; will-change: transform; animation: flspin var(--s, 3s) linear infinite; }
   @keyframes flspin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-  /* gentle overall breathing (opacity only) on the whole aura */
   .fl-breathe { position: absolute; inset: 0; animation: flbreathe var(--fl-pulse, 3.4s) ease-in-out infinite; }
   @keyframes flbreathe { 0%, 100% { opacity: 1; } 50% { opacity: var(--fl-pulse-min, 0.72); } }
 
   .stagehint { position: absolute; bottom: 14px; left: 0; right: 0; text-align: center; color: #6f8b82; font-size: 11px; letter-spacing: .1em; }
 
   /* --- panel --- */
-  #panel { width: 340px; padding: 14px 16px; overflow-y: auto; background: #08110e; border-left: 1px solid #16261f; color: #cde6df; }
+  #panel { width: 350px; padding: 14px 16px; overflow-y: auto; background: #08110e; border-left: 1px solid #16261f; color: #cde6df; }
   h1 { font-size: 13px; margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; color: #45e8c0; }
   .sub { color: #5a7a70; font-size: 11px; margin-bottom: 12px; }
-  h2 { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #5a7a70; margin: 16px 0 6px; border-top: 1px solid #16261f; padding-top: 10px; }
+  h2 { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #5a7a70; margin: 16px 0 6px; border-top: 1px solid #16261f; padding-top: 10px; display: flex; align-items: center; justify-content: space-between; }
+  h2 .mini { display: flex; gap: 6px; }
+  h2 .mini button { width: auto; margin: 0; padding: 3px 8px; font-size: 10px; background: #10201b; color: #96c2b6; }
+  h2 .mini button:hover { background: #16302a; }
+  h2 .mini button.danger:hover { background: #3a1512; color: #ff9f8a; }
   .row { display: grid; grid-template-columns: 1fr 62px; gap: 8px; align-items: center; margin-bottom: 7px; }
   .row label { grid-column: 1 / -1; color: #96c2b6; font-size: 11.5px; }
   input[type=range] { width: 100%; accent-color: #23c39e; }
@@ -79,7 +62,7 @@
   button:hover { background: #1fae9f; }
   button.ghost { background: #10201b; color: #96c2b6; }
   button.ghost:hover { background: #16302a; }
-  textarea { width: 100%; height: 190px; margin-top: 10px; background: #040a08; color: #45e8c0; border: 1px solid #16261f; border-radius: 6px; padding: 8px; font: 10.5px/1.45 ui-monospace, monospace; resize: vertical; }
+  textarea { width: 100%; height: 170px; margin-top: 10px; background: #040a08; color: #45e8c0; border: 1px solid #16261f; border-radius: 6px; padding: 8px; font: 10.5px/1.45 ui-monospace, monospace; resize: vertical; }
   .hint { color: #46605a; font-size: 10.5px; margin-top: 8px; }
   #stagetoggle { position: absolute; top: 12px; right: 12px; width: auto; margin: 0; padding: 6px 12px; background: rgba(14,28,24,.7); color: #cde6df; font-size: 11px; }
 </style>
@@ -89,12 +72,7 @@
     <button id="stagetoggle">◐ dark floor</button>
     <div class="card" id="card">
       <div class="art"><div class="sprite">🦅</div></div>
-      <div class="flurry" aria-hidden="true">
-        <div class="fl-breathe">
-          <div class="fl-ring r1"></div>
-          <div class="fl-ring r2"></div>
-        </div>
-      </div>
+      <div class="flurry" aria-hidden="true"><div class="fl-breathe" id="rings"></div></div>
       <img class="cframe-img" src="/frames/standard-oval-v2.png" alt="" />
     </div>
     <div class="stagehint">FLURRY — wind blades swirling the card (CSS persistent aura; Pixi adds one-shot sparkle later)</div>
@@ -102,66 +80,58 @@
 
   <div id="panel">
     <h1>Flurry — wind blades</h1>
-    <div class="sub">Comet-arc rings, transform-only spin. Dial it, then Copy for baking.</div>
+    <div class="sub">Comet-arc rings, transform-only spin. Any number of rings — add, duplicate, remove. Copy when it sings.</div>
 
     <h2>Aura box</h2>
     <div id="rows-box"></div>
 
-    <h2>Ring 1 — the blades</h2>
-    <div id="rows-r1"></div>
-    <div class="colorrow"><label>colour</label><input type="color" id="r1-col" value="#c8f4ff" /></div>
-    <div class="checkrow"><input type="checkbox" id="r1-rev" /> reverse direction</div>
+    <div id="ringpanels"></div>
+    <button id="addring" class="ghost">＋ add ring</button>
 
-    <h2>Ring 2 — the haze swirl</h2>
-    <div id="rows-r2"></div>
-    <div class="colorrow"><label>colour</label><input type="color" id="r2-col" value="#9adcf0" /></div>
-    <div class="checkrow"><input type="checkbox" id="r2-rev" /> reverse direction</div>
-    <div class="checkrow"><input type="checkbox" id="r2-on" checked /> ring 2 enabled</div>
-
-    <button id="copy">Copy values (JSON + CSS)</button>
+    <button id="copy">Copy values (JSON)</button>
     <button id="reset" class="ghost">Reset</button>
     <textarea id="out" readonly></textarea>
-    <div class="hint">Everything loops on transform/opacity only; gradients + blur are static paint (perf-rule-safe). Blades = conic comet arcs: alpha ramps up the tail into a hard leading edge.</div>
+    <div class="hint">Every loop is transform/opacity only; gradients + blur are static paint (perf-rule-safe). Blades = conic comet arcs: alpha ramps up the tail into a hard leading edge.</div>
   </div>
 
 <script>
   const $ = (id) => document.getElementById(id);
   const card = $('card');
 
-  // dial spec: [key, label, min, max, step, default]
   const BOX = [
-    ['size',     'aura size (× card)',        0.8, 2.0, 0.01, 1.28],
+    ['size',     'aura size (× card)',        0.8, 2.2, 0.01, 1.28],
     ['y',        'vertical centre (%)',        20, 80, 1, 50],
     ['squash',   'cyclone squash (scaleY)',   0.3, 1.0, 0.01, 0.62],
     ['pulse',    'breathe cycle (s)',          0,  8,  0.1, 3.4],
     ['pulseMin', 'breathe dip (opacity)',      0.2, 1, 0.01, 0.72],
   ];
-  const RING = [
-    ['d',      'diameter (× box)',      0.4, 1.15, 0.005, null],
-    ['thick',  'band thickness (%)',     2,  30,  0.5,  null],
-    ['blades', 'blade count',            1,   6,  1,    null],
-    ['tail',   'tail length (° of arc)', 10, 120, 1,    null],
-    ['edge',   'leading edge (°)',        2,  30, 1,    null],
-    ['alpha',  'opacity',                 0,   1, 0.01, null],
-    ['blur',   'blur (px, static)',       0,   8, 0.25, null],
-    ['s',      'spin (s / rev)',        0.6,  10, 0.1,  null],
+  const RING_SPEC = [
+    ['d',      'diameter (× box)',      0.3, 1.2, 0.005],
+    ['thick',  'band thickness (%)',     2,  40,  0.5],
+    ['blades', 'blade count',            1,   8,  1],
+    ['tail',   'tail length (° of arc)', 5, 160, 1],
+    ['edge',   'leading edge (°)',        2,  40, 1],
+    ['alpha',  'opacity',                 0,   1, 0.01],
+    ['blur',   'blur (px, static)',       0,  10, 0.25],
+    ['s',      'spin (s / rev)',        0.5,  12, 0.1],
   ];
   const DEF = {
     size: 1.28, y: 50, squash: 0.62, pulse: 3.4, pulseMin: 0.72,
-    r1: { d: 1.0,  thick: 9,  blades: 3, tail: 62, edge: 8,  alpha: 0.9,  blur: 1.5, s: 2.6, col: '#c8f4ff', rev: false },
-    r2: { d: 0.82, thick: 16, blades: 2, tail: 95, edge: 14, alpha: 0.55, blur: 2.5, s: 4.0, col: '#9adcf0', rev: true, on: true },
+    rings: [
+      { d: 1.0,  thick: 9,  blades: 3, tail: 62, edge: 8,  alpha: 0.9,  blur: 1.5, s: 2.6, col: '#c8f4ff', rev: false },
+      { d: 0.82, thick: 16, blades: 2, tail: 95, edge: 14, alpha: 0.55, blur: 2.5, s: 4.0, col: '#9adcf0', rev: true },
+    ],
   };
-  const cfg = JSON.parse(JSON.stringify(DEF));
+  let cfg = JSON.parse(JSON.stringify(DEF));
 
   function hexToRgb(h) { h = h.replace('#',''); return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)]; }
   const rgba = (hex, a) => { const [r,g,b] = hexToRgb(hex); return `rgba(${r}, ${g}, ${b}, ${a})`; };
 
-  // A ring's background: N comet arcs — transparent → tail ramp → bright leading edge → hard cut.
   function cometBg(col, blades, tail, edge) {
     const seg = 360 / blades;
     const stops = ['from -90deg'];
     for (let i = 0; i < blades; i++) {
-      const a0 = i * seg;                      // segment start (transparent gap)
+      const a0 = i * seg;
       const tailStart = a0 + Math.max(0, seg - tail - edge);
       const edgeStart = a0 + Math.max(0, seg - edge);
       const end = a0 + seg;
@@ -173,7 +143,6 @@
     }
     return `conic-gradient(${stops.join(', ')})`;
   }
-  // band mask: a thin feathered ring
   function bandMask(thick) {
     const outer = 99, inner = Math.max(1, outer - thick);
     return `radial-gradient(closest-side, transparent ${inner - 2}%, #fff ${inner}%, #fff ${outer - 1}%, transparent ${outer}%)`;
@@ -186,22 +155,24 @@
     s.setProperty('--fl-squash', cfg.squash);
     s.setProperty('--fl-pulse', (cfg.pulse > 0 ? cfg.pulse : 9999) + 's');
     s.setProperty('--fl-pulse-min', cfg.pulse > 0 ? cfg.pulseMin : 1);
-    for (const k of ['r1', 'r2']) {
-      const r = cfg[k];
-      s.setProperty(`--${k}-d`, r.d);
-      s.setProperty(`--${k}-bg`, cometBg(r.col, r.blades, r.tail, r.edge));
-      s.setProperty(`--${k}-mask`, bandMask(r.thick));
-      s.setProperty(`--${k}-alpha`, k === 'r2' && !r.on ? 0 : r.alpha);
-      s.setProperty(`--${k}-blur`, r.blur + 'px');
-      s.setProperty(`--${k}-s`, r.s + 's');
-      s.setProperty(`--${k}-dir`, r.rev ? 'reverse' : 'normal');
-    }
-    $('out').value =
-      JSON.stringify(cfg, null, 1) +
-      '\n\n/* composed r1 background */\n' + cometBg(cfg.r1.col, cfg.r1.blades, cfg.r1.tail, cfg.r1.edge);
+    // one element per ring, styled inline (count is dial-driven)
+    const host = $('rings');
+    while (host.children.length > cfg.rings.length) host.lastChild.remove();
+    while (host.children.length < cfg.rings.length) { const el = document.createElement('div'); el.className = 'fl-ring'; host.append(el); }
+    cfg.rings.forEach((r, i) => {
+      const el = host.children[i];
+      el.style.inset = `${(1 - r.d) * 50}%`;
+      el.style.background = cometBg(r.col, r.blades, r.tail, r.edge);
+      const m = bandMask(r.thick);
+      el.style.webkitMask = m; el.style.mask = m;
+      el.style.filter = r.blur > 0 ? `blur(${r.blur}px)` : 'none';
+      el.style.opacity = r.alpha;
+      el.style.setProperty('--s', r.s + 's');
+      el.style.animationDirection = r.rev ? 'reverse' : 'normal';
+    });
+    $('out').value = JSON.stringify(cfg, null, 1);
   }
 
-  // build slider rows
   function mkRows(host, spec, get, set) {
     for (const [key, label, min, max, step] of spec) {
       const row = document.createElement('div'); row.className = 'row';
@@ -213,18 +184,43 @@
       row.append(lab, inp, val); host.append(row);
     }
   }
-  mkRows($('rows-box'), BOX, (k) => cfg[k], (k, v) => { cfg[k] = v; });
-  mkRows($('rows-r1'), RING.map((r) => [...r]), (k) => cfg.r1[k], (k, v) => { cfg.r1[k] = v; });
-  mkRows($('rows-r2'), RING.map((r) => [...r]), (k) => cfg.r2[k], (k, v) => { cfg.r2[k] = v; });
-  $('r1-col').addEventListener('input', (e) => { cfg.r1.col = e.target.value; apply(); });
-  $('r2-col').addEventListener('input', (e) => { cfg.r2.col = e.target.value; apply(); });
-  $('r1-rev').addEventListener('change', (e) => { cfg.r1.rev = e.target.checked; apply(); });
-  $('r2-rev').addEventListener('change', (e) => { cfg.r2.rev = e.target.checked; apply(); });
-  $('r2-on').addEventListener('change', (e) => { cfg.r2.on = e.target.checked; apply(); });
-  $('r2-rev').checked = DEF.r2.rev;
 
-  $('copy').addEventListener('click', () => { navigator.clipboard?.writeText($('out').value); $('copy').textContent = 'Copied ✓'; setTimeout(() => ($('copy').textContent = 'Copy values (JSON + CSS)'), 1200); });
-  $('reset').addEventListener('click', () => { Object.assign(cfg, JSON.parse(JSON.stringify(DEF))); location.reload(); });
+  function rebuildRingPanels() {
+    const host = $('ringpanels');
+    host.innerHTML = '';
+    cfg.rings.forEach((r, i) => {
+      const h = document.createElement('h2');
+      const title = document.createElement('span'); title.textContent = `Ring ${i + 1}`;
+      const mini = document.createElement('span'); mini.className = 'mini';
+      const dup = document.createElement('button'); dup.textContent = 'duplicate';
+      dup.addEventListener('click', () => { cfg.rings.splice(i + 1, 0, JSON.parse(JSON.stringify(r))); rebuildRingPanels(); apply(); });
+      const del = document.createElement('button'); del.textContent = '✕'; del.className = 'danger';
+      del.addEventListener('click', () => { cfg.rings.splice(i, 1); rebuildRingPanels(); apply(); });
+      mini.append(dup, del); h.append(title, mini); host.append(h);
+      const rows = document.createElement('div');
+      host.append(rows);
+      mkRows(rows, RING_SPEC, (k) => r[k], (k, v) => { r[k] = v; });
+      const crow = document.createElement('div'); crow.className = 'colorrow';
+      const clab = document.createElement('label'); clab.textContent = 'colour';
+      const cin = document.createElement('input'); cin.type = 'color'; cin.value = r.col;
+      cin.addEventListener('input', () => { r.col = cin.value; apply(); });
+      crow.append(clab, cin); host.append(crow);
+      const rrow = document.createElement('div'); rrow.className = 'checkrow';
+      const rin = document.createElement('input'); rin.type = 'checkbox'; rin.checked = r.rev;
+      rin.addEventListener('change', () => { r.rev = rin.checked; apply(); });
+      rrow.append(rin, document.createTextNode(' reverse direction')); host.append(rrow);
+    });
+  }
+
+  mkRows($('rows-box'), BOX, (k) => cfg[k], (k, v) => { cfg[k] = v; });
+  rebuildRingPanels();
+
+  $('addring').addEventListener('click', () => {
+    cfg.rings.push({ d: 0.6, thick: 12, blades: 2, tail: 70, edge: 10, alpha: 0.6, blur: 2, s: 3.2, col: '#dff6ff', rev: cfg.rings.length % 2 === 1 });
+    rebuildRingPanels(); apply();
+  });
+  $('copy').addEventListener('click', () => { navigator.clipboard?.writeText($('out').value); $('copy').textContent = 'Copied ✓'; setTimeout(() => ($('copy').textContent = 'Copy values (JSON)'), 1200); });
+  $('reset').addEventListener('click', () => { cfg = JSON.parse(JSON.stringify(DEF)); location.reload(); });
   $('stagetoggle').addEventListener('click', () => $('stage').classList.toggle('dark'));
 
   apply();

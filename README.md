@@ -44,7 +44,11 @@ _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
   the Imp aura, Beast buy-aura, Scrap Herald's Attachment aura) now announce themselves with a single
   tribe-colored wave that blooms from the board centre out to both edges and dissipates — a global "the whole
   board was touched" cue that fires regardless of which cards are on screen (the old per-card bloom showed
-  nothing when the tribe wasn't visible). Owner-tunable via the 🌀 Aura Wave dev tuner.
+  nothing when the tribe wasn't visible). Owner-tuned via the 🌀 Aura Wave dev tuner (defaults baked).
+- **Triggered rune buffs descend onto their targets.** Rune of Kindling (leftmost +3/+3 per spell), Rune
+  of Scales (Dragons +1/+1 per spell), and Rune of Scale (random allies on Gold-spend) used to jump their
+  targets' numbers with zero feedback — they now rain a descend onto each buffed minion, via the same FX
+  path spells and Deathrattles already use.
 - **EoT FX replay + targeting cursor.** End-of-Turn beats replay their real FX:
   Abyssal Feeder / Feasting Bogrot play the full fodder-eat choreography and EoT buffs (incl. Hunter's
   reaction) tendril on their beat. The OS cursor hides while a targeter's aim line is live.

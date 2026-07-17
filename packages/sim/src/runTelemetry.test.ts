@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aggregatePlayerReport, reconstructRunTelemetry, type RunTelemetry } from './runTelemetry';
+import { aggregatePlayerReport, buildCardCsv, reconstructRunTelemetry, type RunTelemetry } from './runTelemetry';
 import { createRun, type Action } from './state';
 import { reduce } from './reducer';
 import { CONFIG } from './config';
@@ -115,12 +115,53 @@ describe('reconstructRunTelemetry', () => {
     expect(t.offeredQuests.length).toBeGreaterThan(0); // a quest turn was reached
     // Every bought card was also offered (you can only buy what's in the shop).
     for (const id of t.boughtCards) expect(t.offeredCards).toContain(id);
+    // Wave-tagged buy events mirror the acquisitions: one per shop buy + Discover pick, waves in 1..17.
+    const shopEvents = (t.buyEvents ?? []).filter((e) => e.src === 'shop');
+    expect(shopEvents.map((e) => e.id).sort()).toEqual([...t.boughtCards].sort());
+    for (const e of t.buyEvents ?? []) { expect(e.wave).toBeGreaterThanOrEqual(1); expect(e.wave).toBeLessThanOrEqual(17); }
     // Shop-leveling curve is captured: wave 1 opens at tavern tier 1, and tier is monotonic non-decreasing.
     expect(t.tierByWave[1]).toBe(1);
     for (let w = 2; w < t.tierByWave.length; w++) {
       if (t.tierByWave[w] == null || t.tierByWave[w - 1] == null) continue;
       expect(t.tierByWave[w]!).toBeGreaterThanOrEqual(t.tierByWave[w - 1]!);
     }
+  });
+});
+
+describe('buildCardCsv — the per-card analytics spreadsheet', () => {
+  it('splits win rates by bought-vs-seen-only, computes lift, and buckets buy turns', () => {
+    const rows: RunTelemetry[] = [
+      // alley bought on turns 2 and 5 across two WON runs; seen-but-skipped in a lost one.
+      blank({ won: true, offeredCards: ['alley'], boughtCards: ['alley'], buyEvents: [{ id: 'alley', wave: 2, src: 'shop' }] }),
+      blank({ won: true, offeredCards: ['alley'], boughtCards: ['alley'], buyEvents: [{ id: 'alley', wave: 5, src: 'shop' }] }),
+      blank({ won: false, offeredCards: ['alley'], boughtCards: [] }),
+    ];
+    const csv = buildCardCsv(rows);
+    const lines = csv.split('\n');
+    const header = lines[0]!.split(',');
+    const row = lines.find((l) => l.startsWith('alley,'))!.split(',');
+    const col = (name: string): string => row[header.indexOf(name)]!;
+    expect(col('runs_seen')).toBe('3');
+    expect(col('runs_bought')).toBe('2');
+    expect(col('win_pct_when_bought')).toBe('100'); // both bought runs won
+    expect(col('win_pct_seen_not_bought')).toBe('0'); // the skipped run lost
+    expect(col('win_lift_pct')).toBe('100');
+    expect(col('shop_conversion_pct')).toBe('66.7'); // 2 of 3 sightings bought
+    expect(col('avg_buy_turn')).toBe('3.5'); // (2 + 5) / 2
+    expect(col('buys_t2')).toBe('1');
+    expect(col('buys_t5')).toBe('1');
+    expect(col('buys_t3')).toBe('0');
+  });
+
+  it('rows without buyEvents (pre-migration) still contribute counts, just no turn columns', () => {
+    const rows: RunTelemetry[] = [blank({ won: true, offeredCards: ['pack'], boughtCards: ['pack'] })];
+    const csv = buildCardCsv(rows);
+    const lines = csv.split('\n');
+    const header = lines[0]!.split(',');
+    const row = lines.find((l) => l.startsWith('pack,'))!.split(',');
+    const col = (name: string): string => row[header.indexOf(name)]!;
+    expect(col('runs_bought')).toBe('1');
+    expect(col('avg_buy_turn')).toBe(''); // no wave data
   });
 });
 

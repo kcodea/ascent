@@ -24,11 +24,11 @@ The five buckets below are ordered by when we intend to act, not by size:
 ### Human-playtest balance
 The counter matrix is balance *truth*; stat numbers are dials. With all six tribes + the quest content in,
 the game wants a real tuning pass driven by human play (not just the bot).
-- **Rebuild the balance prober first.** `balance.ts` bakes each tribe's 7 *lowest-tier* cards and lets
-  Consume demons eat their own board, so its "Mech dominant / Beast weak / Dragon-Undead inverted" read is
-  mostly tool artifact. Bake tier-appropriate boards per wave (or drive the greedy bot constrained per
-  tribe) + handle Consume/board-cap ordering, THEN read the matrix. Tools: `npm run balance` / `curve` /
-  `player` / `audit`.
+- **Real-player telemetry is the primary balance lens** (owner call 2026-07-16). The greedy bot buys
+  `shop[0]` / picks index 0 — making it "understand the game" is a real project, not a quick fix — so treat
+  bot sims as RELATIVE A/B deltas only, never absolute truth. The wave-tagged buy analytics + Balance Report
+  CSV export (shipped 2026-07-17) is the data source; a parallel mass-sim runner is a cheap add if relative
+  deltas are wanted at scale.
 - **Smooth the curve.** Difficulty is mid-heavy then a victory lap — enemy power steps 45→75→91 across waves
   5–7 (bot win% troughs ~9%), then waves 13–17 read 54–75%. Soften the wave-5–7 wall + steepen the late
   curve. Per-turn scalers also run away (a greedy bot's Target Dummy hits 76/50 by wave 12 with no synergy).

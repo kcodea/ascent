@@ -132,6 +132,11 @@ create table if not exists public.run_telemetry (
 );
 create index if not exists run_telemetry_created on public.run_telemetry (created_at desc);
 
+-- 2026-07-16: wave-tagged acquisitions — [{ id, wave, src: 'shop'|'discover' }] per buy/pick, powering the
+-- per-card buy-turn + win-rate-impact analytics (the Balance Report's CSV export). Idempotent; the client
+-- falls back gracefully while this hasn't run yet.
+alter table public.run_telemetry add column if not exists buy_events jsonb;
+
 alter table public.run_telemetry enable row level security;
 drop policy if exists "anon read run_telemetry"   on public.run_telemetry;
 drop policy if exists "anon insert run_telemetry"  on public.run_telemetry;

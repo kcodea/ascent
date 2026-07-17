@@ -36,6 +36,10 @@ export interface GustFxConfig {
   sparkSize: number;    // px — sparkle size
   sparkLife: number;    // ms — sparkle lifetime
   sparkRise: number;    // px/s — upward drift of the sparkles
+  liftPx: number;       // px — how high the shop cards LIFT when the gust lands (0 = off)
+  liftDeg: number;      // deg — the wiggle rotation at the lift's peak (alternates sides per card)
+  liftMs: number;       // ms — the whole lift → wiggle → settle
+  liftStagger: number;  // ms — per-card delay left→right (0 = all together)
   coreAlpha: number;    // 0..1
   glowWidth: number;    // px — soft underlay added around every stroke
   glowAlpha: number;    // 0..1
@@ -72,6 +76,10 @@ const DEFAULTS: GustFxConfig = {
   sparkSize: 8,
   sparkLife: 620,
   sparkRise: 70,
+  liftPx: 4,
+  liftDeg: 2,
+  liftMs: 420,
+  liftStagger: 35,
   coreAlpha: 0.9,
   glowWidth: 14,
   glowAlpha: 0.5,
@@ -85,6 +93,7 @@ export const GUSTFX_KEYS = [
   'streaks', 'streakLen', 'streakTravel', 'streakWidth', 'streakCurve', 'spreadY',
   'arcHeight', 'arcBulge', 'arcWidth', 'arcTravel', 'edgeOut',
   'washAlpha', 'washPad', 'impactSize', 'impactMs', 'impactAlpha', 'sparkCount', 'sparkSize', 'sparkLife', 'sparkRise',
+  'liftPx', 'liftDeg', 'liftMs', 'liftStagger',
   'coreAlpha', 'glowWidth', 'glowAlpha', 'taper',
   'colorCore', 'colorGlow',
 ] as const satisfies readonly (keyof GustFxConfig)[];
@@ -98,6 +107,7 @@ export const GUSTFX_RANGES: Partial<Record<keyof GustFxConfig, [number, number, 
   arcHeight: [0.6, 2.5, 0.05], arcBulge: [0, 160, 2], arcWidth: [1, 24, 0.5], arcTravel: [0, 200, 2], edgeOut: [0, 400, 5],
   washAlpha: [0, 0.6, 0.02], washPad: [0, 80, 2], impactSize: [0, 320, 5], impactMs: [0, 1000, 10], impactAlpha: [0, 1, 0.05],
   sparkCount: [0, 40, 1], sparkSize: [2, 20, 1], sparkLife: [100, 1500, 10], sparkRise: [0, 200, 5],
+  liftPx: [0, 20, 0.5], liftDeg: [0, 10, 0.5], liftMs: [100, 1200, 10], liftStagger: [0, 150, 5],
   coreAlpha: [0, 1, 0.05], glowWidth: [0, 48, 1], glowAlpha: [0, 1, 0.05], taper: [0, 1, 1],
 };
 
@@ -123,4 +133,28 @@ export function setGustFxValue(key: keyof GustFxConfig, value: number | string):
 export function resetGustFxConfig(): void {
   cfg = { ...DEFAULTS };
   try { localStorage.removeItem(KEY); } catch { /* ignore */ }
+}
+
+/**
+ * LIFT & SETTLE: when the gust LANDS, each shop card lifts a few px with a small alternating wiggle and
+ * springs back — a physical "the buff hit" read on the row (owner ask 2026-07-16). One-shot, transform-only
+ * (Web Animations API with `composite: 'add'`, so it stacks on any CSS transform the card carries) — never
+ * a looping paint animation. Delayed to the gust's landing moment (the same `landAll` the impact ring
+ * uses), staggered left→right. Shared by the real fire (Recruit) and the tuner's ▶ Test button.
+ */
+export function applyGustLift(els: Element[]): void {
+  const c = cfg;
+  if (c.liftPx <= 0 || c.liftMs <= 0) return;
+  const landMs = Math.max((Math.max(0, c.streaks - 1) * c.staggerMs) + c.sweepMs, c.arcMs);
+  els.forEach((el, i) => {
+    const rot = c.liftDeg * (i % 2 === 0 ? 1 : -1);
+    try {
+      el.animate([
+        { transform: 'translateY(0) rotate(0deg)' },
+        { transform: `translateY(${-c.liftPx}px) rotate(${rot}deg)`, offset: 0.3 },
+        { transform: `translateY(${c.liftPx * 0.25}px) rotate(${-rot * 0.5}deg)`, offset: 0.65 },
+        { transform: 'translateY(0) rotate(0deg)' },
+      ], { duration: c.liftMs, delay: landMs + i * c.liftStagger, easing: 'ease-in-out', composite: 'add' });
+    } catch { /* WAAPI composite unsupported: skip the lift rather than clobber the card transform */ }
+  });
 }

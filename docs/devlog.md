@@ -34,6 +34,12 @@ shop cards.
   - **Land sparkles**: motes scattered across the row drifting upward
     (`sparkCount`/`sparkSize`/`sparkLife`/`sparkRise`, mixed core/glow tints).
   Defaults moderate (wash α 0.16, ring 150px, 16 sparkles) — owner dials with the ▶ Test button.
+- **Gust lift & settle** (owner, same day): when the gust LANDS, each shop card lifts a few px with a
+  small alternating wiggle and springs back — Web Animations API, transform-only, `composite: 'add'` (stacks
+  on the card's own CSS transform; skipped gracefully where unsupported), delayed to the same landing moment
+  the impact ring uses, staggered left→right. 4 new dials (`liftPx`/`liftDeg`/`liftMs`/`liftStagger`);
+  shared `applyGustLift` used by the real fire AND the ▶ Test button. Verified live: all shop cards carry a
+  running animation after a test fire.
 - **Gust scope-down** (owner, same day): the gust is the **Fodder-buff cue EXCLUSIVELY** — removed from
   Imp-aura buffs (`buffImpsRunWide` no longer stamps; Ritualist still gusts via its Fodder half) and from
   **Staff of Guel** (its Fodder side-enchant passes a new `fx: false` through `buffFodderRunWide`).

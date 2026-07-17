@@ -10,7 +10,7 @@
 import { useGame } from './store';
 import { pixiFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
-import { getGustFxConfig } from './gustFxConfig';
+import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 
 const rectOf = (uid: string): DOMRect | null =>
@@ -18,12 +18,17 @@ const rectOf = (uid: string): DOMRect | null =>
 
 const center = (r: DOMRect): { x: number; y: number } => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
 
-/** The shop row's offer rects (minions + the right-hand spell slot), from the live run. */
-function shopRects(): DOMRect[] {
+/** The shop row's offer ELEMENTS (minions + the right-hand spell slot), from the live run. */
+function shopEls(): Element[] {
   const run = useGame.getState().run;
   if (!run) return [];
   return [...run.shop.map((o) => o.uid), ...(run.spell ? [run.spell.uid] : [])]
-    .flatMap((uid) => { const r = rectOf(uid); return r ? [r] : []; });
+    .flatMap((uid) => { const el = document.querySelector(`[data-uid="${uid}"]`); return el ? [el] : []; });
+}
+
+/** The shop row's offer rects (minions + the right-hand spell slot), from the live run. */
+function shopRects(): DOMRect[] {
+  return shopEls().map((el) => el.getBoundingClientRect());
 }
 
 /** A "board side" anchor: the first board minion, else the hero portrait. */
@@ -41,16 +46,18 @@ export function testSwapFx(): void {
   pixiFx.swapArc(center(board), center(rects[0]!), getSwapFxConfig());
 }
 
-/** 💨 Buff Gust: the tavern rush over the current shop row. */
+/** 💨 Buff Gust: the tavern rush over the current shop row (+ the lift & settle on landing). */
 export function testGustFx(): void {
-  const rects = shopRects();
-  if (rects.length === 0) return;
+  const els = shopEls();
+  if (els.length === 0) return;
+  const rects = els.map((el) => el.getBoundingClientRect());
   pixiFx.buffGust({
     left: Math.min(...rects.map((r) => r.left)),
     right: Math.max(...rects.map((r) => r.right)),
     top: Math.min(...rects.map((r) => r.top)),
     bottom: Math.max(...rects.map((r) => r.bottom)),
   }, getGustFxConfig());
+  applyGustLift(els);
 }
 
 /** 🍖 Fodder Infusion: tendrils from the first board minion (or the hero portrait) up to the shop line.

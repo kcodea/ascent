@@ -13,7 +13,7 @@ import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
-import { getGustFxConfig } from './gustFxConfig';
+import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { fireBuffFx } from './buffFxRender';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
@@ -597,19 +597,19 @@ export function Recruit() {
     const st = useGame.getState().run;
     if (!st || st.phase !== 'recruit') return;
     const uids = [...st.shop.map((o) => o.uid), ...(st.spell ? [st.spell.uid] : [])];
-    const rects = uids.flatMap((uid) => {
+    const els = uids.flatMap((uid) => {
       const el = document.querySelector(`[data-uid="${uid}"]`);
-      if (!el) return [];
-      const r = el.getBoundingClientRect();
-      return [r];
+      return el ? [el] : [];
     });
-    if (rects.length === 0) return;
+    if (els.length === 0) return;
+    const rects = els.map((el) => el.getBoundingClientRect());
     pixiFx.buffGust({
       left: Math.min(...rects.map((r) => r.left)),
       right: Math.max(...rects.map((r) => r.right)),
       top: Math.min(...rects.map((r) => r.top)),
       bottom: Math.max(...rects.map((r) => r.bottom)),
     }, getGustFxConfig());
+    applyGustLift(els); // lift & settle the row when the gust lands (delayed to the landing internally)
   }, []);
   // Fodder Infusion — "the unit is SENDING Fodder into the shop" (owner ask 2026-07-16): organic violet
   // tendrils reach from the queuing unit (Maw / Godfodder / Soulfeeder / Korok / Burial Imp) up to the

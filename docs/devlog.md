@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): Aura Wave v2 — dissipating wake + tailed motes + fit-to-board sizing (owner redesign)
+
+Second pass on the board wave after owner tuning (they zeroed the crests/flash and maxed the motes —
+the ellipse crests read as hard "headlights", the pads were disliked, and the wave overshot the board):
+- **Wake expansion replaces crests.** The moving front now drops stationary soft glow puffs (the pooled
+  radial `glowTex`, not hard ellipse fills) every `glowSpacing` px; each lives `fadeMs` and fades on its
+  own, so the glow **dissipates outward from the centre behind the front** — the centre dies first, the
+  rims last. No more additive white-out.
+- **No pads.** The board fill clips exactly to the sized region.
+- **Fit-to-board sizing dials** — `widthScale` / `heightScale` / `offsetX` / `offsetY` size the wave
+  inside the measured zone (default 0.85× width; the raw zone overshot the board's visual edges).
+- **Streak-tailed motes in mixed colors.** Motes spawn as the front passes them (riding the expansion),
+  each a bright head + a vertical streak tail (`moteTail` narrowness), colored from the tribe palette
+  plus white/gold accents; count default raised to 56 (owner maxed the old 40 range).
+- Defaults seeded from the owner's tuned wash values (travel 1070ms, fade 820ms, fill 0.12, mote
+  life/rise 1210/300). Config/tuner keys reworked to match.
+- Verified live: probes confirmed wake spawn cadence (±616px at 1738ms), all 56 motes fired, sized
+  region 1274×176 (0.85×), retire clean; screenshots show the centre-dissipated fronts near the rims +
+  rising motes. (Earlier "invisible" screenshots were capture latency — the wave had finished before the
+  shot landed.) Typecheck + lint + test (1138) + build:web green.
+
 ### feat(ui): Aura Wash → global board WAVE (fires regardless of on-screen cards)
 
 Owner rework: the per-card Aura Wash only rendered where a matching tribe card was visible — so an aura

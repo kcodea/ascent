@@ -1,63 +1,69 @@
 /**
  * Tunable parameters for the AURA WAVE FX — the "a run-wide tribe aura just grew" cue. When an aura
  * channel rises (the Undead Lantern aura, the Imp aura, Scrap Herald's Attachment aura, the Beast
- * buy-aura — see `RunState.auraFx`), a soft TRIBE-COLORED wave blooms from the CENTRE of the board out
- * to both edges and dissipates. It's a GLOBAL cue — "a field touched the whole board" — so it fires over
- * the board region regardless of which cards happen to be on screen, distinct from the tendril (a source
- * hit a target) and the gust (the shop row got rushed).
+ * buy-aura — see `RunState.auraFx`), a soft TRIBE-COLORED glow is born at the CENTRE of the board and
+ * expands out to both edges, dissipating from the centre behind the moving front (a fading wake), while
+ * sparkle motes with streak tails float up in mixed colors. It's a GLOBAL cue — "a field touched the
+ * whole board" — so it fires over the board region regardless of which cards happen to be on screen,
+ * distinct from the tendril (a source hit a target) and the gust (the shop row got rushed).
  *
  * Same pattern as `gustFxConfig.ts`: one mutable, localStorage-persisted config dialed via the DEV
  * "🌀 Aura Wave" tuner (`AuraFxTuner.tsx`); `getAuraFxConfig()` is read at fire time, so edits apply to
- * the NEXT wave. Colors are NOT here — they come from the tribe's `BUFF_PRESETS` palette at fire time,
- * so the wave always matches the tribe's tendril look.
+ * the NEXT wave. The `widthScale`/`heightScale`/`offsetX`/`offsetY` dials size the wave region relative
+ * to the measured board zone (owner ask 2026-07-17: fit the wave to the board's visual spacing — no pads).
+ * Colors are NOT here — they come from the tribe's `BUFF_PRESETS` palette at fire time (plus baked
+ * white/gold mote accents), so the wave always matches the tribe's tendril look.
  */
 export interface AuraFxConfig {
-  travelMs: number;       // ms — the crest's centre→edge travel time
-  holdMs: number;         // ms — full-brightness pause once the crest reaches the edges
-  fadeMs: number;         // ms — the whole wave's fade-out
-  fillAlpha: number;      // 0..1 — the soft full-board glow at peak (0 = off)
-  fillPadPx: number;      // px — how far the board glow extends beyond the board bounds
-  crestAlpha: number;     // 0..1 — the moving crest band's brightness (0 = off)
-  crestWidthFrac: number; // 0..1 — the crest band's horizontal thickness as a fraction of the half-board width
-  crestHeightFrac: number;// 0..2 — the crest band's height as a fraction of the board height
-  edgeFadePow: number;    // dissipation exponent — the crest fades ∝ (1 − progress)^pow toward the edges
-  centerFlash: number;    // 0..1 — a bright flash at the board centre where the wave is born (0 = off)
-  moteCount: number;      // rising sparkle motes across the whole board (0 = off)
-  moteSize: number;       // px — sparkle size
-  moteLife: number;       // ms — sparkle lifetime
-  moteRise: number;       // px/s — upward drift of the sparkles
+  travelMs: number;    // ms — the front's centre→edge travel time
+  fadeMs: number;      // ms — how long the wake (and the board glow) lingers before dissipating
+  fillAlpha: number;   // 0..1 — the soft board glow at peak (0 = off); clipped to the sized region, no pad
+  glowAlpha: number;   // 0..1 — the expanding front's wake-puff brightness (0 = off)
+  glowSize: number;    // px — the wake puffs' horizontal size (their height hugs the band)
+  glowSpacing: number; // px — distance between wake puffs along the travel (smaller = denser trail)
+  widthScale: number;  // × — wave width as a fraction of the measured board zone (fit-to-board dial)
+  heightScale: number; // × — wave height as a fraction of the measured card row
+  offsetX: number;     // px — horizontal shift of the wave region
+  offsetY: number;     // px — vertical shift of the wave region
+  moteCount: number;   // rising sparkle motes across the wave (0 = off) — spawned as the front passes them
+  moteSize: number;    // px — sparkle head size
+  moteLife: number;    // ms — sparkle lifetime
+  moteRise: number;    // px/s — upward drift of the sparkles
+  moteTail: number;    // 0.1..1 — tail narrowness (smaller = longer-looking vertical streak; 1 = round, no tail)
 }
 
 const DEFAULTS: AuraFxConfig = {
-  travelMs: 560,
-  holdMs: 60,
-  fadeMs: 380,
-  fillAlpha: 0.13,
-  fillPadPx: 12,
-  crestAlpha: 0.34,
-  crestWidthFrac: 0.18,
-  crestHeightFrac: 1.0,
-  edgeFadePow: 1.9,
-  centerFlash: 0.32,
-  moteCount: 18,
-  moteSize: 10,
-  moteLife: 760,
-  moteRise: 130,
+  travelMs: 1070,
+  fadeMs: 820,
+  fillAlpha: 0.12,
+  glowAlpha: 0.38,
+  glowSize: 60,
+  glowSpacing: 28,
+  widthScale: 0.85,
+  heightScale: 1,
+  offsetX: 0,
+  offsetY: 0,
+  moteCount: 56,
+  moteSize: 5,
+  moteLife: 1210,
+  moteRise: 300,
+  moteTail: 0.35,
 };
 
 export const AURAFX_KEYS = [
-  'travelMs', 'holdMs', 'fadeMs',
-  'fillAlpha', 'fillPadPx',
-  'crestAlpha', 'crestWidthFrac', 'crestHeightFrac', 'edgeFadePow', 'centerFlash',
-  'moteCount', 'moteSize', 'moteLife', 'moteRise',
+  'travelMs', 'fadeMs',
+  'fillAlpha', 'glowAlpha', 'glowSize', 'glowSpacing',
+  'widthScale', 'heightScale', 'offsetX', 'offsetY',
+  'moteCount', 'moteSize', 'moteLife', 'moteRise', 'moteTail',
 ] as const satisfies readonly (keyof AuraFxConfig)[];
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const AURAFX_RANGES: Partial<Record<keyof AuraFxConfig, [number, number, number]>> = {
-  travelMs: [150, 1400, 10], holdMs: [0, 800, 10], fadeMs: [80, 1200, 10],
-  fillAlpha: [0, 0.6, 0.02], fillPadPx: [0, 40, 1],
-  crestAlpha: [0, 1, 0.05], crestWidthFrac: [0.05, 0.8, 0.01], crestHeightFrac: [0.4, 2, 0.05], edgeFadePow: [0.4, 4, 0.1], centerFlash: [0, 1, 0.05],
-  moteCount: [0, 40, 1], moteSize: [2, 20, 1], moteLife: [100, 1500, 10], moteRise: [0, 300, 5],
+  travelMs: [150, 2400, 10], fadeMs: [80, 2000, 10],
+  fillAlpha: [0, 0.4, 0.01], glowAlpha: [0, 1, 0.02], glowSize: [10, 220, 2], glowSpacing: [10, 90, 2],
+  widthScale: [0.3, 1.3, 0.01], heightScale: [0.3, 2.2, 0.02], offsetX: [-400, 400, 2], offsetY: [-250, 250, 2],
+  moteCount: [0, 140, 2], moteSize: [2, 20, 1], moteLife: [100, 2400, 10], moteRise: [0, 500, 5],
+  moteTail: [0.1, 1, 0.02],
 };
 
 const KEY = 'ascent.aurafx';

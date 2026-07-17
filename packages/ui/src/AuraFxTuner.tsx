@@ -7,7 +7,7 @@ import { testAuraFx, type AuraTestTribe } from './fxTestFire';
 
 /**
  * DEV-only "Aura Wave" tuner — the run-wide tribe-aura board wave (`auraFxConfig` → `pixiFx.auraWave`): the
- * centre→edge crest travel, the soft full-board glow, the centre birth-flash, and the rising motes. Persists
+ * centre→edge wake expansion, the board glow, the fit-to-board sizing dials, and the streak-tailed motes. Persists
  * to localStorage; edits apply to the NEXT wave — cast a Lantern of Souls / play an Imp Overseer / an
  * Attachment Mechanic to judge, or ▶ Test with a tribe. Colors are NOT dials: the wave reads the tribe's
  * BUFF_PRESETS palette at fire time, so it always matches that tribe's tendril look. Dev-only — stripped
@@ -15,19 +15,20 @@ import { testAuraFx, type AuraTestTribe } from './fxTestFire';
  */
 const AURA_LABELS: Partial<Record<keyof AuraFxConfig, string>> = {
   travelMs: 'travel ms',
-  holdMs: 'hold ms',
-  fadeMs: 'fade ms',
+  fadeMs: 'dissipate ms',
   fillAlpha: 'board glow α',
-  fillPadPx: 'glow pad',
-  crestAlpha: 'crest α',
-  crestWidthFrac: 'crest width ×',
-  crestHeightFrac: 'crest height ×',
-  edgeFadePow: 'edge fade pow',
-  centerFlash: 'centre flash α',
+  glowAlpha: 'wake α',
+  glowSize: 'wake size px',
+  glowSpacing: 'wake spacing',
+  widthScale: 'width ×',
+  heightScale: 'height ×',
+  offsetX: 'offset X',
+  offsetY: 'offset Y',
   moteCount: 'motes',
   moteSize: 'mote px',
   moteLife: 'mote life',
   moteRise: 'mote rise',
+  moteTail: 'tail narrowness',
 };
 
 const TEST_TRIBES: AuraTestTribe[] = ['undead', 'demon', 'mech', 'beast'];

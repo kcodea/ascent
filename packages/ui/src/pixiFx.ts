@@ -367,17 +367,20 @@ export interface BuffGustCfg {
 export interface GustBox { left: number; right: number; top: number; bottom: number }
 
 /** Renderer-facing Aura Wave config (structural mirror of AuraFxConfig + the tribe palette — pixiFx stays
- *  import-light). A tribe-colored wave that blooms from the board centre out to both edges and dissipates —
- *  a global "a field touched the whole board" cue. See `auraWave`. */
+ *  import-light). A tribe-colored glow born at the board centre that expands to both edges, dissipating from
+ *  the centre behind the front (a fading wake of soft glow puffs), with streak-tailed motes rising in mixed
+ *  colors — a global "a field touched the whole board" cue. See `auraWave`. */
 export interface AuraWaveCfg {
-  travelMs: number; holdMs: number; fadeMs: number;
-  fillAlpha: number; fillPadPx: number;
-  crestAlpha: number; crestWidthFrac: number; crestHeightFrac: number; edgeFadePow: number; centerFlash: number;
-  moteCount: number; moteSize: number; moteLife: number; moteRise: number;
+  travelMs: number; fadeMs: number;
+  fillAlpha: number;
+  glowAlpha: number; glowSize: number; glowSpacing: number;
+  widthScale: number; heightScale: number; offsetX: number; offsetY: number;
+  moteCount: number; moteSize: number; moteLife: number; moteRise: number; moteTail: number;
   colorCore: string; colorGlow: string; colorMote: string;
 }
 
-/** The board region (screen px, top-left anchored) an aura wave sweeps across. */
+/** The board region (screen px, top-left anchored) an aura wave sweeps across — the RAW measured zone;
+ *  `auraWave` applies the cfg's widthScale/heightScale/offsets to size the wave inside it. */
 export interface WaveRegion { x: number; y: number; w: number; h: number }
 
 /** Renderer-facing aim-line config (structural mirror of AimFxConfig's line half — pixiFx stays
@@ -538,7 +541,7 @@ class FxController {
   private readonly skullPops: SkullPop[] = [];
   private readonly tendrils: Tendril[] = []; // live buff tendrils — tapered ribbons advanced in `update`
   private readonly gusts: { g: Graphics; box: GustBox; cfg: BuffGustCfg; age: number; struck?: boolean }[] = []; // buff gusts — redrawn per frame
-  private readonly waves: { g: Graphics; region: WaveRegion; cfg: AuraWaveCfg; age: number; started?: boolean }[] = []; // aura waves — one per rise, a centre→edge board wave redrawn per frame
+  private readonly waves: { g: Graphics; region: WaveRegion; cfg: AuraWaveCfg; age: number; lastWake: number; motes: { off: number; spawned: boolean }[] }[] = []; // aura waves — one per rise, a centre→edge board wave redrawn per frame
   /** The live hero-power targeting line (null = not aiming). `side`/`amp` are rolled once per AIM — each
    *  new arm gets a fresh random arch (owner ask: never the same static curve) — then held stable. */
   private aim: { g: Graphics; from: { x: number; y: number }; to: { x: number; y: number }; onTarget: boolean; cfg: AimLineCfg; side: number; amp: number; seed: number } | null = null;
@@ -2084,78 +2087,108 @@ class FxController {
 
   /**
    * AURA WAVE: the "a run-wide tribe aura just grew" cue (Undead Lantern aura / Imp aura / Attachment
-   * aura / Beast buy-aura): a tribe-colored wave born at the board CENTRE that sweeps out to both edges
-   * and dissipates — a soft full-board glow, two crest bands travelling outward (fading toward the rim),
-   * a centre birth-flash, and sparkle motes drifting up across the board. Reads as "a field touched the
-   * whole board", vs. the tendril (a source hit a target) and the gust (the shop row got rushed). It's
-   * GLOBAL: one wave over the board region, independent of which cards are on screen. Colors come from
-   * the tribe's BUFF_PRESETS palette via cfg. One Graphics, redrawn per frame. Config-driven (🌀 tuner).
+   * aura / Beast buy-aura): a tribe-colored glow born at the board CENTRE that expands out to both edges
+   * and DISSIPATES FROM THE CENTRE — the moving front drops soft glow puffs behind it whose `fadeMs`
+   * lifetimes form a naturally fading wake (owner redesign 2026-07-17: no hard ellipse crests, no pads).
+   * Streak-tailed sparkle motes rise as the front passes them, in mixed colors (tribe core/mote/glow +
+   * white/gold accents) so they read against the board. GLOBAL: one wave over the board region, fired
+   * regardless of which cards are on screen; the cfg's widthScale/heightScale/offsets size the wave inside
+   * the measured zone so the owner can fit it to the board's visual spacing. Wake + motes are pooled
+   * particles (self-animating); the only per-frame Graphics is the low-alpha board fill. 🌀-tuned.
    */
   auraWave(region: WaveRegion, cfg: AuraWaveCfg): void {
     if (!this.ready || !this.layer) return;
+    // Size the wave inside the measured zone (fit-to-board dials; centred, then offset).
+    const w = region.w * cfg.widthScale;
+    const h = region.h * cfg.heightScale;
+    const sized: WaveRegion = {
+      x: region.x + (region.w - w) / 2 + cfg.offsetX,
+      y: region.y + (region.h - h) / 2 + cfg.offsetY,
+      w, h,
+    };
     const g = new Graphics();
     g.blendMode = 'add';
     this.layer.addChild(g);
-    this.waves.push({ g, region: { ...region }, cfg, age: 0 });
+    // Pre-roll each mote's spawn position (a signed offset from centre) — it fires when the front reaches it,
+    // so the sparkles ride the expansion instead of appearing everywhere at once.
+    const motes = Array.from({ length: Math.max(0, Math.round(cfg.moteCount)) }, () => ({
+      off: (Math.random() * 2 - 1) * (w / 2), spawned: false,
+    }));
+    this.waves.push({ g, region: sized, cfg, age: 0, lastWake: -1, motes });
   }
 
-  /** Redraw the board aura wave for this frame. Returns false once its lifecycle completes (→ retire). */
-  private drawWave(w: { g: Graphics; region: WaveRegion; cfg: AuraWaveCfg; age: number; started?: boolean }): boolean {
+  /** Mixed mote palette: the tribe's core/mote/glow plus white + warm gold accents (owner ask — varied,
+   *  noticeable sparkles). */
+  private static readonly WAVE_MOTE_ACCENTS = ['#ffffff', '#ffd77a'];
+
+  /** Advance + redraw the board aura wave for this frame: drop wake puffs behind the front, spawn passed
+   *  motes, redraw the board fill. Returns false once its lifecycle completes (→ retire; the pooled wake
+   *  and mote particles finish on their own). */
+  private drawWave(w: { g: Graphics; region: WaveRegion; cfg: AuraWaveCfg; age: number; lastWake: number; motes: { off: number; spawned: boolean }[] }): boolean {
     const { g, region, cfg } = w;
     const t = w.age;
-    const total = cfg.travelMs + cfg.holdMs + cfg.fadeMs;
-    if (t > total) return false;
-    // First live frame: seed the rising sparkle motes across the whole board (self-animating pool particles).
-    if (!w.started) {
-      w.started = true;
-      if (cfg.moteCount > 0 && this.glowTex) {
-        const s = cfg.moteSize / TENDRIL_GLOW_R;
-        for (let i = 0; i < cfg.moteCount; i++) {
+    if (t > cfg.travelMs + cfg.fadeMs) return false;
+    const cx = region.x + region.w / 2;
+    const cy = region.y + region.h / 2;
+    const half = region.w / 2;
+    // Front progress 0..1 (centre→edge), eased out so it leaps from the centre then settles into the rim.
+    const p = Math.min(1, t / Math.max(1, cfg.travelMs));
+    const front = (1 - Math.pow(1 - p, 3)) * half;
+    // WAKE: as the front advances, drop a stationary soft glow puff every `glowSpacing` px on each side.
+    // Each puff lives `fadeMs` and fades on its own — so the glow nearest the centre (dropped first) dies
+    // first, and the whole band visibly dissipates outward from the centre behind the front.
+    if (cfg.glowAlpha > 0 && this.glowTex) {
+      const vScale = (region.h * 0.55) / TENDRIL_GLOW_R;     // puff height hugs the band
+      const stretchX = cfg.glowSize / (region.h * 0.55);      // horizontal width dial
+      while (w.lastWake + cfg.glowSpacing <= front) {
+        w.lastWake = w.lastWake < 0 ? 0 : w.lastWake + cfg.glowSpacing;
+        const first = w.lastWake === 0;
+        for (const side of first ? [0] : [-1, 1]) {
           this.spawn(this.glowTex, {
-            x: region.x + Math.random() * region.w,
-            y: region.y + region.h * (0.35 + Math.random() * 0.6),
-            vx: (Math.random() - 0.5) * 30, vy: -cfg.moteRise * (0.6 + Math.random() * 0.8),
-            drag: 0.995, life: cfg.moteLife * (0.7 + Math.random() * 0.6),
-            fromScale: s, toScale: s * 0.2, spin: 0,
-            tint: hexNum(Math.random() < 0.5 ? cfg.colorCore : cfg.colorMote), blend: 'add', peakAlpha: 0.85,
+            x: cx + side * w.lastWake, y: cy, vx: 0, vy: 0, drag: 1,
+            life: cfg.fadeMs * (0.85 + Math.random() * 0.3),
+            fromScale: vScale, toScale: vScale * 1.15, spin: 0, stretchX,
+            tint: hexNum(Math.random() < 0.6 ? cfg.colorGlow : cfg.colorCore), blend: 'add',
+            peakAlpha: cfg.glowAlpha,
           });
         }
       }
     }
-    g.clear();
-    const cx = region.x + region.w / 2;
-    const cy = region.y + region.h / 2;
-    const half = region.w / 2;
-    // Crest progress 0..1 (centre→edge), eased out so it leaps then eases into the rim.
-    const p = Math.min(1, t / Math.max(1, cfg.travelMs));
-    const ease = 1 - Math.pow(1 - p, 3);
-    // Overall envelope: a quick ramp-in, hold once the crest lands, then the whole-wave fade-out.
-    const rampMs = Math.min(cfg.travelMs * 0.35, 180);
-    const fadeStart = cfg.travelMs + cfg.holdMs;
-    const env = t < rampMs ? t / Math.max(1, rampMs)
-      : t > fadeStart ? 1 - Math.min(1, (t - fadeStart) / Math.max(1, cfg.fadeMs))
-      : 1;
-    // Soft full-board glow — the aura's ambient wash under the crests.
-    if (cfg.fillAlpha > 0) {
-      g.roundRect(region.x - cfg.fillPadPx, region.y - cfg.fillPadPx, region.w + cfg.fillPadPx * 2, region.h + cfg.fillPadPx * 2, 14)
-        .fill({ color: hexNum(cfg.colorGlow), alpha: cfg.fillAlpha * env });
-    }
-    const ry = (region.h / 2) * cfg.crestHeightFrac;
-    // Centre birth-flash — brightest at t=0, gone by mid-travel.
-    if (cfg.centerFlash > 0) {
-      const cf = Math.max(0, 1 - t / Math.max(1, cfg.travelMs * 0.5));
-      if (cf > 0) {
-        g.ellipse(cx, cy, half * cfg.crestWidthFrac * 1.4, ry)
-          .fill({ color: hexNum(cfg.colorCore), alpha: cfg.centerFlash * cf * env });
+    // MOTES: each pre-rolled sparkle fires when the front passes its offset — a bright head + a vertical
+    // streak tail (a second, taller, narrower particle), in mixed tribe + white/gold colors.
+    if (this.glowTex) {
+      const palette = [cfg.colorCore, cfg.colorMote, cfg.colorGlow, ...FxController.WAVE_MOTE_ACCENTS];
+      const s = cfg.moteSize / TENDRIL_GLOW_R;
+      for (const m of w.motes) {
+        if (m.spawned || Math.abs(m.off) > front) continue;
+        m.spawned = true;
+        const mx = cx + m.off;
+        const my = region.y + region.h * (0.25 + Math.random() * 0.65);
+        const vy = -cfg.moteRise * (0.6 + Math.random() * 0.8);
+        const vx = (Math.random() - 0.5) * 26;
+        const life = cfg.moteLife * (0.7 + Math.random() * 0.6);
+        const tint = hexNum(palette[Math.floor(Math.random() * palette.length)]!);
+        // Tail: a taller particle squeezed horizontally into a vertical streak trailing the head.
+        this.spawn(this.glowTex, {
+          x: mx, y: my + cfg.moteSize * 1.2, vx, vy, drag: 0.995, life,
+          fromScale: s * 1.7, toScale: s * 0.3, spin: 0, stretchX: cfg.moteTail,
+          tint, blend: 'add', peakAlpha: 0.5,
+        });
+        // Head: the bright round sparkle.
+        this.spawn(this.glowTex, {
+          x: mx, y: my, vx, vy, drag: 0.995, life: life * 0.9,
+          fromScale: s, toScale: s * 0.25, spin: 0,
+          tint, blend: 'add', peakAlpha: 0.9,
+        });
       }
     }
-    // Two crests travelling outward from the centre, dissipating toward the edges.
-    if (cfg.crestAlpha > 0 && p < 1) {
-      const rx = Math.max(4, half * cfg.crestWidthFrac);
-      const a = cfg.crestAlpha * Math.pow(1 - p, cfg.edgeFadePow) * env;
-      const dx = ease * half;
-      g.ellipse(cx - dx, cy, rx, ry).fill({ color: hexNum(cfg.colorCore), alpha: a });
-      g.ellipse(cx + dx, cy, rx, ry).fill({ color: hexNum(cfg.colorCore), alpha: a });
+    // BOARD FILL: a low-alpha glow clipped EXACTLY to the sized region (no pad) — ramps with the front,
+    // then dissipates over fadeMs once the front lands.
+    g.clear();
+    if (cfg.fillAlpha > 0) {
+      const env = Math.min(1, p * 1.5) * (t > cfg.travelMs ? 1 - Math.min(1, (t - cfg.travelMs) / Math.max(1, cfg.fadeMs)) : 1);
+      g.roundRect(region.x, region.y, region.w, region.h, 14)
+        .fill({ color: hexNum(cfg.colorGlow), alpha: cfg.fillAlpha * env });
     }
     return true;
   }

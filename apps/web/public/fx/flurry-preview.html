@@ -34,6 +34,9 @@
     transform: translate(-50%, -50%) scaleY(var(--fl-squash, 0.62));
     overflow: visible; pointer-events: none; z-index: 2;
   }
+  /* wrapper holds the per-ring width/height scale (a STATIC transform); the ring inside owns the spin, so the
+     two transforms never fight — scaling a spinning circle non-uniformly = the blades sweep an ellipse. */
+  .fl-ring-wrap { position: absolute; inset: 0; will-change: transform; }
   .fl-ring { position: absolute; border-radius: 50%; mix-blend-mode: screen; will-change: transform; animation: flspin var(--s, 3s) linear infinite; }
   @keyframes flspin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   .fl-breathe { position: absolute; inset: 0; animation: flbreathe var(--fl-pulse, 3.4s) ease-in-out infinite; }
@@ -107,6 +110,8 @@
   ];
   const RING_SPEC = [
     ['d',      'diameter (× box)',      0.3, 1.2, 0.005],
+    ['scaleX', 'width (× — wider/thinner)',  0.35, 1.9, 0.01],
+    ['scaleY', 'height (× — taller/shorter)', 0.35, 1.9, 0.01],
     ['thick',  'band thickness (%)',     2,  40,  0.5],
     ['blades', 'blade count',            1,   8,  1],
     ['tail',   'tail length (° of arc)', 5, 160, 1],
@@ -118,8 +123,8 @@
   const DEF = {
     size: 1.28, y: 50, squash: 0.62, pulse: 3.4, pulseMin: 0.72,
     rings: [
-      { d: 1.0,  thick: 9,  blades: 3, tail: 62, edge: 8,  alpha: 0.9,  blur: 1.5, s: 2.6, col: '#c8f4ff', rev: false },
-      { d: 0.82, thick: 16, blades: 2, tail: 95, edge: 14, alpha: 0.55, blur: 2.5, s: 4.0, col: '#9adcf0', rev: true },
+      { d: 1.0,  scaleX: 1, scaleY: 1, thick: 9,  blades: 3, tail: 62, edge: 8,  alpha: 0.9,  blur: 1.5, s: 2.6, col: '#c8f4ff', rev: false },
+      { d: 0.82, scaleX: 1, scaleY: 1, thick: 16, blades: 2, tail: 95, edge: 14, alpha: 0.55, blur: 2.5, s: 4.0, col: '#9adcf0', rev: true },
     ],
   };
   let cfg = JSON.parse(JSON.stringify(DEF));
@@ -158,9 +163,15 @@
     // one element per ring, styled inline (count is dial-driven)
     const host = $('rings');
     while (host.children.length > cfg.rings.length) host.lastChild.remove();
-    while (host.children.length < cfg.rings.length) { const el = document.createElement('div'); el.className = 'fl-ring'; host.append(el); }
+    while (host.children.length < cfg.rings.length) {
+      const wrap = document.createElement('div'); wrap.className = 'fl-ring-wrap';
+      const el = document.createElement('div'); el.className = 'fl-ring';
+      wrap.append(el); host.append(wrap);
+    }
     cfg.rings.forEach((r, i) => {
-      const el = host.children[i];
+      const wrap = host.children[i];
+      wrap.style.transform = `scale(${r.scaleX ?? 1}, ${r.scaleY ?? 1})`;
+      const el = wrap.firstChild;
       el.style.inset = `${(1 - r.d) * 50}%`;
       el.style.background = cometBg(r.col, r.blades, r.tail, r.edge);
       const m = bandMask(r.thick);
@@ -216,7 +227,7 @@
   rebuildRingPanels();
 
   $('addring').addEventListener('click', () => {
-    cfg.rings.push({ d: 0.6, thick: 12, blades: 2, tail: 70, edge: 10, alpha: 0.6, blur: 2, s: 3.2, col: '#dff6ff', rev: cfg.rings.length % 2 === 1 });
+    cfg.rings.push({ d: 0.6, scaleX: 1, scaleY: 1, thick: 12, blades: 2, tail: 70, edge: 10, alpha: 0.6, blur: 2, s: 3.2, col: '#dff6ff', rev: cfg.rings.length % 2 === 1 });
     rebuildRingPanels(); apply();
   });
   $('copy').addEventListener('click', () => { navigator.clipboard?.writeText($('out').value); $('copy').textContent = 'Copied ✓'; setTimeout(() => ($('copy').textContent = 'Copy values (JSON)'), 1200); });

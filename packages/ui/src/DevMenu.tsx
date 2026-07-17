@@ -4,6 +4,7 @@ import { LungeTuner } from './LungeTuner';
 import { StrikeFxTuner } from './StrikeFxTuner';
 import { CritFxTuner } from './CritFxTuner';
 import { SwapFxTuner } from './SwapFxTuner';
+import { WeaveFxTuner } from './WeaveFxTuner';
 import { DragTuner } from './DragTuner';
 import { FlipTuner } from './FlipTuner';
 import { ShieldTuner } from './ShieldTuner';
@@ -37,6 +38,7 @@ const TUNERS = [
   { key: 'strikefx', label: '💥 Lunge Strike Effects', C: StrikeFxTuner },
   { key: 'critfx', label: '⚡ Critical Strike FX', C: CritFxTuner },
   { key: 'swapfx', label: '🔀 Swap FX (Displacement)', C: SwapFxTuner },
+  { key: 'weavefx', label: '✨ Enchant Weave FX', C: WeaveFxTuner },
   { key: 'drag', label: '🎴 Drag Feel', C: DragTuner },
   { key: 'flip', label: '🔀 Reposition', C: FlipTuner },
   { key: 'shield', label: '🛡 Shield Place', C: ShieldTuner },

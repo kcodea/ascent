@@ -350,6 +350,20 @@ export interface SwapArcCfg {
   colorInCore: string; colorInGlow: string; colorOutCore: string; colorOutGlow: string;
 }
 
+/** Renderer-facing enchant-weave config (structural mirror of WeaveFxConfig — pixiFx stays import-light).
+ *  Filament wreaths + link arcs + twinkles over a set of card rects; see `enchantWeave`. */
+export interface EnchantWeaveCfg {
+  igniteMs: number; staggerMs: number; holdMs: number; fadeMs: number;
+  filaments: number; inset: number; writheAmp: number; writheSpeed: number; jag: number;
+  coreWidth: number; coreAlpha: number; glowWidth: number; glowAlpha: number;
+  linkArcs: number; linkBulge: number; linkWidth: number;
+  sparkleCount: number; sparkleSize: number; sparkleRate: number;
+  colorCore: string; colorGlow: string; colorSparkle: string;
+}
+
+/** One card's ellipse in an enchant weave (centre + radii, screen px). */
+export interface WeaveRect { x: number; y: number; rx: number; ry: number }
+
 /** Renderer-facing pulse config (structural match of PulsePresetCfg — pixiFx stays import-light). */
 export interface PulseCfg {
   style: 'ring' | 'shard' | 'nova';
@@ -499,6 +513,7 @@ class FxController {
   private skullSrcH = 1;
   private readonly skullPops: SkullPop[] = [];
   private readonly tendrils: Tendril[] = []; // live buff tendrils — tapered ribbons advanced in `update`
+  private readonly weaves: { g: Graphics; rects: WeaveRect[]; cfg: EnchantWeaveCfg; age: number }[] = []; // enchant weaves — redrawn per frame
   private readonly critFxs: CritFx[] = []; // live Critical-Strike flourishes (ring + "CRIT!" + card flash)
   private readonly critTextCache = new Map<string, Texture>(); // "CRIT!" textures keyed by size|color|edge
   private readonly pulses: PulseFx[] = [];
@@ -1892,6 +1907,119 @@ class FxController {
     ]).fill({ color: hexNum(color), alpha });
   }
 
+  /**
+   * ENCHANT WEAVE: the group-buff "row lights up" cue (Ritualist's Fodder enchant / Rune of Consumption /
+   * Staff of Guel) — every affected card gets `filaments` writhing noise-loops hugging its oval frame
+   * (bright core over soft glow), adjacent same-row cards are joined by lens link-arcs, and star twinkles
+   * pulse around each wreath. Ignites (optionally left→right staggered), holds while writhing, fades as
+   * one. Redrawn per frame into a single additive Graphics (the tendril pattern); ports the
+   * enchant-weave-preview.html rig's math 1:1 so rig-tuned values transfer verbatim.
+   */
+  enchantWeave(rects: WeaveRect[], cfg: EnchantWeaveCfg): void {
+    if (!this.ready || !this.layer || rects.length === 0) return;
+    const sorted = [...rects].sort((a, b) => a.x - b.x); // left→right for the stagger + links
+    const g = new Graphics();
+    g.blendMode = 'add';
+    this.layer.addChild(g);
+    this.weaves.push({ g, rects: sorted, cfg, age: 0 });
+  }
+
+  /** The rig's cheap value-noise: smooth pseudo-random from (seed, angle-bucket, time). ~-1..1. */
+  private static weaveNoise(seed: number, a: number, t: number): number {
+    const s = Math.sin(seed * 127.1 + a * 311.7) * 43758.5453;
+    const s2 = Math.sin(seed * 269.5 + a * 183.3 + t * 2.1) * 24634.6345;
+    return ((s - Math.floor(s)) + (s2 - Math.floor(s2))) - 1;
+  }
+
+  /** Redraw one enchant weave for this frame (cleared + rebuilt — the tendril-ribbon pattern). */
+  private drawWeave(w: { g: Graphics; rects: WeaveRect[]; cfg: EnchantWeaveCfg; age: number }, nowS: number): boolean {
+    const { g, rects, cfg } = w;
+    const t = w.age / 1000;
+    const lastIgnite = (rects.length - 1) * cfg.staggerMs / 1000;
+    const total = lastIgnite + (cfg.igniteMs + cfg.holdMs + cfg.fadeMs) / 1000;
+    if (t > total) return false; // retire
+    g.clear();
+    const noise = FxController.weaveNoise;
+    // Per-card envelope: scale/fade in over igniteMs (staggered), hold, then the shared fade.
+    const env = (i: number): number => {
+      const start = i * cfg.staggerMs / 1000;
+      const inE = Math.min(1, Math.max(0, (t - start) / (cfg.igniteMs / 1000 || 0.001)));
+      const fadeStart = lastIgnite + (cfg.igniteMs + cfg.holdMs) / 1000;
+      const outE = 1 - Math.min(1, Math.max(0, (t - fadeStart) / (cfg.fadeMs / 1000 || 0.001)));
+      return Math.min(inE, outE);
+    };
+    const core = hexNum(cfg.colorCore), glow = hexNum(cfg.colorGlow), spark = hexNum(cfg.colorSparkle);
+
+    // 1) Link arcs between ADJACENT SAME-ROW affected cards (skip cross-row/board-to-shop jumps).
+    if (cfg.linkArcs > 0) {
+      for (let i = 0; i < rects.length - 1; i++) {
+        const a = rects[i]!, b = rects[i + 1]!;
+        const sameRow = Math.abs(a.y - b.y) < Math.max(a.ry, b.ry) * 0.8;
+        const near = (b.x - a.x) < (a.rx + b.rx) * 3;
+        if (!sameRow || !near) continue;
+        const e = Math.min(env(i), env(i + 1));
+        if (e <= 0) continue;
+        for (let k = 0; k < cfg.linkArcs; k++) {
+          const side = k % 2 === 0 ? 1 : -1;
+          const bow = cfg.linkBulge * (1 + Math.floor(k / 2) * 0.6) * side;
+          const wob = noise(i * 7 + k, 3, nowS * cfg.writheSpeed) * cfg.writheAmp * 0.5;
+          const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 + bow + wob;
+          g.moveTo(a.x + a.rx * 0.7, a.y).quadraticCurveTo(mx, my, b.x - b.rx * 0.7, b.y)
+            .stroke({ width: cfg.glowWidth * 0.8, color: glow, alpha: cfg.glowAlpha * e * 0.8, cap: 'round' });
+          g.moveTo(a.x + a.rx * 0.7, a.y).quadraticCurveTo(mx, my, b.x - b.rx * 0.7, b.y)
+            .stroke({ width: cfg.linkWidth, color: core, alpha: cfg.coreAlpha * e, cap: 'round' });
+        }
+      }
+    }
+
+    // 2) Filament wreaths hugging each card's oval.
+    const N = 46;
+    for (let i = 0; i < rects.length; i++) {
+      const r = rects[i]!;
+      const e = env(i);
+      if (e <= 0) continue;
+      const scale = 0.85 + 0.15 * e;
+      for (let f = 0; f < cfg.filaments; f++) {
+        const seed = i * 31 + f * 7;
+        g.moveTo(0, 0); // replaced by the first vertex below
+        let first: { x: number; y: number } | null = null;
+        for (let s2 = 0; s2 <= N; s2++) {
+          const a = (s2 / N) * Math.PI * 2;
+          const jitter = noise(seed, Math.floor(a * cfg.jag), nowS * cfg.writheSpeed) * cfg.writheAmp;
+          const px = r.x + Math.cos(a) * (r.rx + cfg.inset + jitter) * scale;
+          const py = r.y + Math.sin(a) * (r.ry + cfg.inset + jitter) * scale;
+          if (!first) { first = { x: px, y: py }; g.moveTo(px, py); } else g.lineTo(px, py);
+        }
+        g.stroke({ width: cfg.glowWidth, color: glow, alpha: cfg.glowAlpha * e, join: 'round', cap: 'round' });
+        // Re-trace for the bright core (Pixi strokes consume the path).
+        first = null;
+        for (let s2 = 0; s2 <= N; s2++) {
+          const a = (s2 / N) * Math.PI * 2;
+          const jitter = noise(seed, Math.floor(a * cfg.jag), nowS * cfg.writheSpeed) * cfg.writheAmp;
+          const px = r.x + Math.cos(a) * (r.rx + cfg.inset + jitter) * scale;
+          const py = r.y + Math.sin(a) * (r.ry + cfg.inset + jitter) * scale;
+          if (!first) { first = { x: px, y: py }; g.moveTo(px, py); } else g.lineTo(px, py);
+        }
+        g.stroke({ width: cfg.coreWidth, color: core, alpha: cfg.coreAlpha * e, join: 'round', cap: 'round' });
+      }
+      // 3) Star twinkles — 4-point sparkles pulsing around the wreath (fixed spots, sin-pulsed).
+      for (let sp = 0; sp < cfg.sparkleCount; sp++) {
+        const seed = i * 53 + sp * 13;
+        const a = (noise(seed, 1, 0) + 1) * Math.PI;
+        const rad = 1 + (noise(seed, 2, 0) * 0.5 + 0.5) * 0.25;
+        const x = r.x + Math.cos(a) * (r.rx + cfg.inset) * rad;
+        const y = r.y + Math.sin(a) * (r.ry + cfg.inset) * rad;
+        const tw = Math.max(0, Math.sin(nowS * cfg.sparkleRate * Math.PI * 2 + seed));
+        if (tw <= 0.02) continue;
+        const s3 = cfg.sparkleSize * (0.4 + tw * 0.6);
+        g.moveTo(x, y - s3).quadraticCurveTo(x, y, x + s3, y).quadraticCurveTo(x, y, x, y + s3)
+          .quadraticCurveTo(x, y, x - s3, y).quadraticCurveTo(x, y, x, y - s3)
+          .fill({ color: spark, alpha: e * tw });
+      }
+    }
+    return true;
+  }
+
   /** Sample ~24 points along the tendril's quadratic curve, up to head fraction `head` (0..1). The sine wobble
    *  is enveloped by sin(π·t) so both ends pin. Mirrors the preview's `samplePath`/`tendrilPoint`. */
   private sampleTendril(td: Tendril, head: number): { x: number; y: number; t: number }[] {
@@ -2097,6 +2225,17 @@ class FxController {
       this.rebuildRibbon(td.g, pts, td.cfg, fade);
       // Swap-arc arrowhead: ride the travelling tip while the head is en route; fade with the ribbon after.
       if (td.arrowSize) this.drawArrowhead(td.g, pts, td.arrowSize, td.cfg.colorCore, td.cfg.coreAlpha * fade);
+    }
+
+    // Enchant weaves: advance + redraw each frame; retire when the lifecycle completes.
+    for (let i = this.weaves.length - 1; i >= 0; i--) {
+      const w = this.weaves[i]!;
+      w.age += dtMs;
+      if (!this.drawWeave(w, performance.now() / 1000)) {
+        this.layer?.removeChild(w.g);
+        w.g.destroy();
+        this.weaves.splice(i, 1);
+      }
     }
 
     // Pulse blasts: emit each ring as its stagger time elapses; retire once all rings emitted + last life done.

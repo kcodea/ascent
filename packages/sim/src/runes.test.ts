@@ -3,7 +3,7 @@ import type { CombatResult } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNES, RUNE_INDEX, validateRunes } from '@game/content';
 import { createRun, type RunState } from './state';
 import { openEpicRuneforge, questCombatMods, reduce } from './reducer';
-import { dragonTamerCostOf, sellValueOf, spellDisplayText } from './recruit';
+import { buffFodderRunWide, dragonTamerCostOf, sellValueOf, spellDisplayText } from './recruit';
 import { questBucketFor } from './quests';
 import { applyEndOfTurn, projectEndOfTurnSteps, questEndOfTurnBeats } from './recruit';
 
@@ -310,6 +310,28 @@ describe('New heroes — Re-Pete, Gorr, Atrius', () => {
   it("Atrius: `questCombatMods` arms the possession Start-of-Combat mod (and only for Atrius)", () => {
     expect(questCombatMods(createRun(1, 'atrius')).possession).toBe(true);
     expect(questCombatMods(createRun(1, 'soren')).possession).toBeUndefined();
+  });
+});
+
+describe('Enchant-weave FX signal', () => {
+  it('buffFodderRunWide stamps the seq + every visible Fodder uid (board/hand/shop)', () => {
+    const s: RunState = { ...createRun(1, 'warden'), phase: 'recruit',
+      board: [{ uid: 'f1', cardId: 'fred', tribe: 'demon', attack: 0, health: 5, keywords: ['FD' as never], golden: false }, mkAlley('a1')],
+      hand: [{ uid: 'f2', cardId: 'fred', tribe: 'demon', attack: 0, health: 5, keywords: ['FD' as never], golden: false }],
+      shop: [{ uid: 's1', cardId: 'fred' }, { uid: 's2', cardId: 'alley' }] };
+    buffFodderRunWide(s, 1, 1, 'test');
+    expect(s.weaveFxSeq).toBe(1);
+    expect([...(s.weaveFxUids ?? [])].sort()).toEqual(['f1', 'f2', 's1']); // Fodder only — no Alleycat
+  });
+
+  it('a Staff of Guel cast widens the stamp to the whole shop minion row', () => {
+    let s: RunState = { ...createRun(1, 'warden'), phase: 'recruit', embers: 10,
+      board: [], hand: [{ uid: 'st', cardId: 'staffofguel', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+      shop: [{ uid: 's1', cardId: 'alley' }, { uid: 's2', cardId: 'pack' }] };
+    s = reduce(s, { type: 'play', uid: 'st' });
+    expect(s.weaveFxSeq).toBeGreaterThanOrEqual(1);
+    expect(s.weaveFxUids).toContain('s1'); // the whole minion row, not just Fodder
+    expect(s.weaveFxUids).toContain('s2');
   });
 });
 

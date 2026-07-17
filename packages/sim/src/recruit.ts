@@ -277,6 +277,17 @@ export function buffFodderRunWide(state: RunState, a: number, h: number, source:
   for (const c of [...state.board, ...state.hand]) {
     if (CARD_INDEX[c.cardId]?.keywords.includes('FD')) addBuff(c, source, a, h);
   }
+  // Enchant-weave FX: wrap every AFFECTED visible Fodder — board + hand + the tavern's Fodder offers.
+  stampWeaveFx(state, [...state.board, ...state.hand, ...state.shop]
+    .filter((c) => CARD_INDEX[c.cardId]?.keywords.includes('FD'))
+    .map((c) => c.uid));
+}
+
+/** Stamp the one-shot enchant-weave FX signal with the affected cards' uids (no-op on an empty set). */
+export function stampWeaveFx(state: RunState, uids: string[]): void {
+  if (uids.length === 0) return;
+  state.weaveFxSeq = (state.weaveFxSeq ?? 0) + 1;
+  state.weaveFxUids = [...new Set(uids)];
 }
 
 /**
@@ -1732,6 +1743,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // eating Fodder, and any Fodder you take, carry the Staff's buff. A directly-bought Fodder gets it
     // through this enchant, not the buy-buff (the buy path + shop view skip FD to avoid double-applying).
     buffFodderRunWide(ctx.state, a, h, 'Staff of Guel');
+    // Enchant-weave FX: the Staff enchants EVERY future tavern buy — re-stamp with the whole shop minion
+    // row (+ the visible Fodder the enchant above already covers), overriding the narrower Fodder stamp.
+    stampWeaveFx(ctx.state, [
+      ...ctx.state.shop.filter((o) => !CARD_INDEX[o.cardId]?.spell).map((o) => o.uid),
+      ...[...ctx.state.board, ...ctx.state.hand].filter((c) => CARD_INDEX[c.cardId]?.keywords.includes('FD')).map((c) => c.uid),
+    ]);
   },
 
   /** Lantern of Souls — cast: your Undead get +`amount` Attack (plus spell power on Attack AND Health)

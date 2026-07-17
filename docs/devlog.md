@@ -18,9 +18,19 @@ violet arcane weave.
 - Every dial exported as live JSON (`EnchantWeaveCfg`): lifecycle (ignite/stagger/hold/fade), filament
   count/inset/writhe/jag, core+glow widths/alphas, link arcs/bulge/width, sparkle count/size/rate, and the
   three colours. A "fodder only" toggle previews the Ritualist case (only some of the row wreathed).
-- Verified live at `/fx/enchant-weave-preview.html` — screenshot matches the reference composition. Next:
-  the owner tunes + pastes values, then the Pixi port (a `pixiFx.enchantWeave(rects, cfg)` following the
-  tendril/pulse porting pattern) wired to `buffFodderRunWide` + the Staff of Guel cast.
+- Verified live at `/fx/enchant-weave-preview.html` — screenshot matches the reference composition.
+- **Pixi port shipped same-day** (owner tuned on the rig — "a good starting place"): `pixiFx.enchantWeave
+  (rects, cfg)` redraws the wreaths/links/twinkles per frame into one additive Graphics (the tendril
+  pattern; rig math ported 1:1 so rig JSON bakes verbatim). Links only join adjacent SAME-ROW cards (no
+  cross-board beams when the Fodder set spans rows). Owner's values baked as `weaveFxConfig` DEFAULTS
+  (instant ignite, ~620ms total, 2 tight filaments, 1 bold link, dense twinkles).
+- **Signals**: `buffFodderRunWide` stamps `weaveFxSeq` + every visible Fodder uid (board/hand/shop) —
+  covering Ritualist's End of Turn, Rune of Consumption, and Bane; a **Staff of Guel** cast re-stamps with
+  the whole shop minion row (its buff enchants every future buy). Recruit resolves the uids to rects a
+  frame after commit and fires the weave.
+- **✨ Enchant Weave tuner** in the Dev menu (config + tuner trio, rig-matched dials) for in-game iteration.
+- 2 new signal tests (Fodder-only uid set; the Staff widening to the shop row). Verified live: a real
+  Staff cast wreathed all 3 shop minions in-game. Typecheck + lint + 1127 tests + build:web green.
 
 ### feat(sim/ui): Displacement swap FX — circular exchange arrows + a 🔀 tuner
 

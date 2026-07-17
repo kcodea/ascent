@@ -13,6 +13,7 @@ import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
+import { getWeaveFxConfig } from './weaveFxConfig';
 import { fireBuffFx } from './buffFxRender';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
@@ -586,6 +587,27 @@ export function Recruit() {
     });
     return () => cancelAnimationFrame(raf);
   }, [run.swapFxSeq, run.swapFxBoardUid, run.swapFxShopUid]);
+  // Enchant weave (Ritualist's Fodder enchant / Rune of Consumption / Staff of Guel): wrap every affected
+  // visible card in the violet weave. Keyed off `weaveFxSeq` (one-shot, the swapFxSeq pattern); rects are
+  // read a frame late so React has committed any same-action card changes first.
+  const prevWeaveFxSeq = useRef(run.weaveFxSeq);
+  useEffect(() => {
+    const seq = run.weaveFxSeq;
+    if (seq === undefined || seq === prevWeaveFxSeq.current) return;
+    prevWeaveFxSeq.current = seq;
+    const uids = run.weaveFxUids;
+    if (!uids?.length) return;
+    const raf = requestAnimationFrame(() => {
+      const rects = uids.flatMap((uid) => {
+        const el = document.querySelector(`[data-uid="${uid}"]`);
+        if (!el) return [];
+        const r = el.getBoundingClientRect();
+        return [{ x: r.left + r.width / 2, y: r.top + r.height / 2, rx: r.width / 2, ry: r.height / 2 }];
+      });
+      if (rects.length > 0) pixiFx.enchantWeave(rects, getWeaveFxConfig());
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [run.weaveFxSeq, run.weaveFxUids]);
   // Tavern-Fodder consume: a ghost Fred pops in the tavern and swirls into the eater Demon.
   // The ghost carries the Fodder's *effective* stats (attack/health) so a Ritualist-buffed
   // Fred shows e.g. 3/3, not the 1/1 base.

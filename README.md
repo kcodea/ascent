@@ -40,6 +40,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **Slaughter fires on a mutual kill.** A minion that attacks, kills an enemy, and dies to the retaliation
+  in the same clash now still procs its Slaughter (on-kill) effect — previously the dead killer's effect
+  was suppressed. A defender felling its attacker still doesn't count as a Slaughter.
+
 - **Tavern Up stone button.** The "Upgrade Tavern" plaque is now a carved stone medallion on the board (owner
   art): your current shop tier lit as slot pips, a breathing blue gem glow, a warm press flash + dust +
   shockwave, and a broken "complete" gem at max tier. Stays up through combat as a passive tier indicator.

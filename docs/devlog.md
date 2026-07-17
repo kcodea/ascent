@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### fix(core): Slaughter fires when the killer dies in the same clash (mutual kill)
+
+Owner ruling 2026-07-17, revising the old "a mutual kill procs nothing" behavior: a minion that
+**attacks, kills an enemy, AND dies to the retaliation** should still proc its Slaughter (on-kill) effect.
+Previously the dead killer's on-kill self-suppressed, so e.g. Gnasher trading into a lethal body granted
+no spell power, Moe banked no reroll, Hoardbreaker cast no Growth.
+- **Root cause**: `registerEffect`'s dead-minion guard (`if (minion.dead && effect.on !== 'onDeath')
+  return`) blocked on-kill handlers, and on-kill is emitted in phase 2 AFTER deaths resolve — so a killer
+  that died in the same clash was already `dead` when its Slaughter would fire. Fix: also exempt `onKill`
+  from that guard. Every on-kill factory is attacker-guarded (`payload.attacker === self`), so on the
+  broadcast only the minion that actually landed the kill acts; every other dead minion's handler no-ops.
+  A dead minion can only BE the attacker of a kill in this same-clash mutual case (it can't swing again
+  once dead), so the change stays precisely scoped.
+- Two factories (`onKillBuffFodderImps`, `onKillBuffUndeadAttack`) carried their OWN redundant `self.dead`
+  bail — dropped, so the ruling applies uniformly (the buff still lands on the LIVING friends it empowers).
+- **Unchanged**: a DEFENDER felling its attacker is still not a Slaughter (owner ruling 2026-07-08 —
+  gated on `killer === attacker`); and the quest/rune re-trigger BONUSES (Law of Teeth, Author's Hand's
+  "first Slaughter each combat", Feeding Line) stay gated on `killerAlive` — a dead killer gets its base
+  Slaughter but not the extra procs. Flag for the owner if the doublers should also fire on death.
+- Verified: 2 new combat tests (Gnasher mutual-kill grants playerSpellPower +1/+1; a defender's
+  retaliation kill grants nothing). Typecheck + lint + 1132 tests + build:web green.
+
 ### feat(ui): living hero-power aim line + activation spark burst + 🎯 tuner
 
 Owner redesign (2026-07-16): the dotted SVG targeting line replaced, and the power's activation got a cue.

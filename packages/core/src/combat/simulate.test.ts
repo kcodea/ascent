@@ -378,6 +378,34 @@ describe('simulate (handoff A.3)', () => {
     expect(base.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('Slaughter fires even when the killer dies in the same clash (mutual kill)', () => {
+    // Owner ruling 2026-07-17: a minion that kills an enemy but also dies to the retaliation still procs its
+    // Slaughter. Gnasher (7/6, Slaughter: your spells +1/+1) attacks first (player outnumbers → goes first),
+    // its 7 kills the 6-hp enemy, and the enemy's 6 kills Gnasher (6 hp) — a mutual kill where Gnasher is the
+    // ATTACKER. Before the fix the dead killer's on-kill self-suppressed and playerSpellPower stayed undefined.
+    const p: BoardMinion[] = [
+      { cardId: 'gnash', attack: 7, health: 6 },
+      { cardId: 'sandbag', attack: 0, health: 20 }, // blocker: makes the player outnumber → Gnasher swings first
+    ];
+    const e: BoardMinion[] = [{ cardId: 'stray', attack: 6, health: 6 }]; // Gnasher kills it AND dies to its 6
+    const r = run(p, e, 3);
+    const gnashUid = r.initial.player[0]!.uid;
+    expect(r.events.some((ev) => ev.type === 'death' && ev.target === gnashUid)).toBe(true); // Gnasher did die
+    expect(r.playerSpellPower).toEqual({ attack: 1, health: 1 }); // …and its Slaughter still fired
+  });
+
+  it('a DEFENDER felling its attacker is NOT a Slaughter, even in a mutual kill', () => {
+    // The complement (owner ruling 2026-07-08 unchanged): only the ATTACKER's kills count. Here the enemy
+    // swings into Gnasher; Gnasher's retaliation fells the enemy but Gnasher is the DEFENDER, so no Slaughter.
+    const p: BoardMinion[] = [{ cardId: 'gnash', attack: 7, health: 6 }];
+    const e: BoardMinion[] = [
+      { cardId: 'stray', attack: 6, health: 6 },
+      { cardId: 'sandbag', attack: 0, health: 20 }, // enemy outnumbers → enemy swings first (Gnasher defends)
+    ];
+    const r = run(p, e, 3);
+    expect(r.playerSpellPower).toBeUndefined(); // defender's retaliation kill is not a Slaughter
+  });
+
   it('Spark Capacitor Avenge (4) adds a Spark Plug to hand', () => {
     const p: BoardMinion[] = [
       { cardId: 'sparkcapacitor', attack: 4, health: 40 },

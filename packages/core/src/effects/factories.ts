@@ -1450,7 +1450,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  combat half. The onKill payload carries the killer as `attacker`. */
   onKillBuffFodderImps: (ctx, self, params, payload) => {
     const { attacker } = payload as { attacker?: Minion };
-    if (self !== attacker || self.dead) return;
+    // No `self.dead` bail: a Slaughter fires even when the killer dies in the same clash (owner ruling
+    // 2026-07-17) — the buff still lands on the LIVING friends it empowers.
+    if (self !== attacker) return;
     const a = num(params.attack, 2) * mul(self);
     const h = num(params.health, 2) * mul(self);
     for (const m of ctx.living(self.side)) {
@@ -1491,7 +1493,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  existing run-board Undead and future buys also benefit. */
   onKillBuffUndeadAttack: (ctx, self, params, payload) => {
     const { attacker } = payload as { attacker: Minion; victim: Minion };
-    if (self !== attacker || self.dead) return;
+    // No `self.dead` bail: a Slaughter fires even when the killer dies in the same clash (owner ruling
+    // 2026-07-17) — the +Attack still lands on the LIVING Undead it empowers.
+    if (self !== attacker) return;
     const step = num(params.attack, 3) * mul(self);
     const amount = step + self.summonBonus; // base + the accrued permanent improvement
     for (const m of ctx.living(self.side)) {

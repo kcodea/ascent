@@ -749,8 +749,14 @@ export function simulate(
       // A mid-combat ascension swaps a minion's effects; the CombatBus can't unregister, so a handler whose
       // effect is no longer in the minion's current set self-disables — the old form's abilities stop firing.
       if (!minion.effects.includes(effect)) return;
-      // A dead minion fires nothing except its own Deathrattle.
-      if (minion.dead && effect.on !== 'onDeath') return;
+      // A dead minion fires nothing except its own Deathrattle — AND its own Slaughter (on-kill): a minion
+      // that kills an enemy but dies in the SAME clash (a mutual kill) still procs its Slaughter (owner
+      // ruling 2026-07-17, revising the old "a mutual kill procs nothing" behavior). The on-kill factories
+      // are all attacker-guarded (`payload.attacker === self`), so on this broadcast only the minion that
+      // actually landed the kill acts; every other dead minion's on-kill handler no-ops. A dead minion can
+      // only BE the attacker of a kill in this same-clash mutual case (it can't swing again once dead), so
+      // this stays precisely scoped to "killed and died together".
+      if (minion.dead && effect.on !== 'onDeath' && effect.on !== 'onKill') return;
       // Cratering Missive: drop the tribe filter on the Cratering Hulk's overflow buff so it hits ALL your minions.
       const params =
         effect.do === 'onSummonOverflowBuffTribe' && modsFor(minion.side).crateringMissive

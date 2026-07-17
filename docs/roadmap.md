@@ -95,6 +95,12 @@ Each its own spec when reached: **Balance** (average two units' stats — a shop
 Curse** (apply Echo-style effects to allies), **Rewind** (start narrow: "repeat the last friendly keyword
 trigger"; avoid true undo until the rules are sturdier).
 
+### Open rules question
+- **Slaughter doublers on a mutual kill.** The base Slaughter now fires when the killer dies in the same
+  clash (2026-07-17), but the re-trigger BONUSES (Law of Teeth, Author's Hand's "first Slaughter each
+  combat", Feeding Line) stay gated on `killerAlive` — a dead killer gets its base Slaughter but not the
+  extra procs. Decide whether the doublers should also fire on a mutual kill (owner call).
+
 ---
 
 ## Later

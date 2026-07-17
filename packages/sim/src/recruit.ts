@@ -295,22 +295,20 @@ export function stampBuffGust(state: RunState, uids: string[]): void {
 }
 
 /** The visible cards (board + tavern offers) a run-wide tribe-aura wash should bloom over. Matches each
- *  channel's real membership: `demon` = Imps only (mirrors `buffImpsRunWide`'s filter), `mech` = Magnetic
- *  cards (the Attachment aura), `beast`/`undead` = tribe membership incl. dual types (the Lantern aura
- *  folds onto every Undead; the Beast buy-aura previews on tavern Beasts). Pure display metadata. */
+ *  channel's real membership by TRIBE (incl. dual types): `demon` = your Demons (the Imp aura is a Demon-
+ *  build payoff, and its Imp tokens are combat-summoned — almost never visible in the shop — so washing
+ *  the visible Demons is what gives the aura a body to land on), `mech` = Magnetic cards (the Attachment
+ *  aura rides the Magnetic keyword), `beast`/`undead` = tribe membership. Pure display metadata. */
 export function auraFxTargets(state: RunState, tribe: AuraFxTribe): string[] {
   const uids: string[] = [];
   for (const c of state.board) {
-    const hit = tribe === 'demon' ? !!CARD_INDEX[c.cardId]?.imp
-      : tribe === 'mech' ? c.keywords.includes('M')
-      : isTribe(c, tribe);
+    const hit = tribe === 'mech' ? c.keywords.includes('M') : isTribe(c, tribe);
     if (hit) uids.push(c.uid);
   }
   for (const o of state.shop) {
     const def = CARD_INDEX[o.cardId];
     if (!def) continue;
-    const hit = tribe === 'demon' ? !!def.imp
-      : tribe === 'mech' ? def.keywords.includes('M')
+    const hit = tribe === 'mech' ? def.keywords.includes('M')
       : def.tribe === tribe || def.tribe2 === tribe || !!def.universalTribe;
     if (hit) uids.push(o.uid);
   }

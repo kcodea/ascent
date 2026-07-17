@@ -5,6 +5,22 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(fx): Buff Gust preview rig — the tavern-buffed cue, take two
+
+The Enchant Weave (per-card wreaths) didn't hit the mark (owner call — PR #523 closed unmerged, preserved
+on its branch). New concept from the owner's sketch: a **rush of violet wind sweeping IN from both flanks
+of the shop row** — a tall bracket arc hugging each end (stroke-revealed while drifting inward) + a fan of
+staggered speed-line streaks blowing into the row edge — "the tavern just got buffed."
+- New standalone rig [`apps/web/public/fx/buff-gust-preview.html`](../apps/web/public/fx/buff-gust-preview.html)
+  (the same zero-build canvas pattern): dials for lifecycle (sweep/stagger/arc/hold/fade), streaks
+  (count/length/travel/width/curve/vertical fan), brackets (height/bulge/width/drift), the shared
+  core+glow look, taper, and colours — live `BuffGustCfg` JSON export.
+- Geometry note: streaks live in the FLANK GUTTERS — each head sweeps in from outside and lands just
+  kissing the row edge, never flying over the cards (the first draft overshot; fixed against the sketch).
+- Verified live at `/fx/buff-gust-preview.html` — composition matches the owner's sketch. Next: owner
+  tunes + pastes values, then the Pixi port reuses the shelved weave branch's signal plumbing
+  (`buffFodderRunWide` + Staff of Guel stamps, Recruit wiring, tuner trio) with this visual instead.
+
 ### feat(sim/ui): Displacement swap FX — circular exchange arrows + a 🔀 tuner
 
 Owner ask (2026-07-16, with a reference shot): a two-arrow circular swap effect when Displacement trades a

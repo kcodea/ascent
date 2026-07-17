@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Buff Gust — tavern-buffed FX preview</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  /* The STAGE matches the REAL board: light warm cream (#e4dccf), so the violet gust reads honestly
+     against the surface the shop row actually sits on. */
+  body { margin: 0; background: #e4dccf; color: #e6ecdc; font: 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace; display: flex; height: 100vh; overflow: hidden; }
+  #stage { flex: 1; position: relative; display: grid; place-items: center; background: #e4dccf; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  /* Mock shop row: oval card frames like the real tavern offers. Pure reference surfaces. */
+  #cards { display: flex; gap: 34px; align-items: center; z-index: 0; }
+  .card { width: 118px; height: 158px; border-radius: 50% 50% 46% 46% / 58% 58% 42% 42%; background: linear-gradient(160deg, #4a4034, #241d13); border: 4px solid #cfc4ad; box-shadow: 0 6px 22px rgba(60,45,20,.25); position: relative; }
+  .card::after { content: attr(data-n); position: absolute; inset: auto 0 10px; text-align: center; color: #8a7f63; font-size: 11px; letter-spacing: .12em; }
+  #panel { width: 306px; padding: 14px 16px; overflow-y: auto; background: #14090e; border-left: 1px solid #3a1f33; }
+  h1 { font-size: 13px; margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; color: #e58cff; }
+  .sub { color: #9a6b96; font-size: 11px; margin-bottom: 12px; }
+  h2 { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #9a6b96; margin: 16px 0 6px; border-top: 1px solid #3a1f33; padding-top: 10px; }
+  .row { display: grid; grid-template-columns: 1fr 54px; gap: 8px; align-items: center; margin-bottom: 7px; }
+  label { color: #cba0c6; font-size: 11.5px; }
+  input[type=range] { width: 100%; accent-color: #e58cff; }
+  input[type=color] { width: 100%; height: 24px; border: 1px solid #5a3153; background: none; border-radius: 4px; padding: 0; cursor: pointer; }
+  .val { text-align: right; color: #e58cff; font-size: 11px; }
+  button { width: 100%; padding: 9px; margin-top: 12px; border: 0; border-radius: 6px; background: #a03fd0; color: #fff; font: inherit; font-weight: 700; letter-spacing: .06em; cursor: pointer; }
+  button:hover { background: #b957e6; }
+  button.ghost { background: #241521; color: #cba0c6; }
+  button.ghost:hover { background: #32202e; }
+  .checkrow { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: #cba0c6; font-size: 12px; }
+  .checkrow input { accent-color: #e58cff; width: 15px; height: 15px; }
+  textarea { width: 100%; height: 170px; margin-top: 10px; background: #0b050a; color: #e58cff; border: 1px solid #3a1f33; border-radius: 6px; padding: 8px; font: 10.5px/1.45 ui-monospace, monospace; resize: vertical; }
+  .hint { color: #6e4a68; font-size: 10.5px; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div id="cards">
+      <div class="card" data-n="minion"></div>
+      <div class="card" data-n="minion"></div>
+      <div class="card" data-n="minion"></div>
+      <div class="card" data-n="minion"></div>
+      <div class="card" data-n="minion"></div>
+    </div>
+    <canvas id="cv"></canvas>
+  </div>
+  <div id="panel">
+    <h1>Buff Gust</h1>
+    <div class="sub">Tavern-buffed FX — Ritualist's Fodder enchant / Staff of Guel: a rush of violet wind sweeps IN from both flanks of the shop row — sweeping bracket arcs hugging each end + speed-line streaks blowing inward — "the tavern just got buffed."<br />Click the stage or FIRE to re-fire · space too.</div>
+
+    <div id="controls"></div>
+    <button id="fire">GUST 💨 (space)</button>
+    <label class="checkrow"><input type="checkbox" id="loop" /> Auto-repeat</label>
+
+    <h2>BuffGustCfg (live export)</h2>
+    <textarea id="out" readonly></textarea>
+    <div class="hint">Tune, then paste this back to Claude to bake into the Pixi renderer.</div>
+    <button id="reset" class="ghost">Reset to defaults</button>
+  </div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Standalone preview of the proposed BUFF-GUST FX — the owner's sketch: when the
+// tavern gets buffed (Fodder enchant / Staff of Guel), violet energy RUSHES IN
+// from both sides of the shop row: a big bracket arc hugging each end of the
+// row (drawn in with a stroke-reveal while drifting inward) + a fan of
+// speed-line streaks blowing inward, staggered, each with a soft glow. Snappy
+// one-shot; plain 2D canvas (zero build); dials map 1:1 onto the Pixi cfg.
+// ---------------------------------------------------------------------------
+
+const DEFAULTS = {
+  // lifecycle
+  sweepMs: 380,      // each streak's inward travel time
+  staggerMs: 45,     // delay between successive streaks on a side
+  arcMs: 320,        // the bracket arc's draw-in time
+  holdMs: 120,       // full-brightness pause once everything lands
+  fadeMs: 300,       // whole-gust fade-out
+  // streaks (per side)
+  streaks: 4,        // speed-lines per flank
+  streakLen: 150,    // px — a streak's full length
+  streakTravel: 120, // px — how far the streak drifts inward as it draws
+  streakWidth: 6,    // px — core stroke width
+  streakCurve: 0.12, // slight arc on each streak (0 = straight)
+  spreadY: 150,      // px — vertical fan the streaks are spread across
+  // bracket arcs
+  arcHeight: 1.5,    // × the row height — how tall each end-bracket is
+  arcBulge: 60,      // px — how far the bracket bows outward
+  arcWidth: 8,       // px — bracket core stroke width
+  arcTravel: 40,     // px — inward drift as the bracket draws
+  // shared look
+  coreAlpha: 0.9,
+  glowWidth: 16,     // px — soft underlay added around every stroke
+  glowAlpha: 0.35,
+  taper: 1,          // 1 = streaks taper to a point at the tail; 0 = uniform width
+  colorCore: '#a83bec',
+  colorGlow: '#c44dff',
+};
+const RANGES = {
+  sweepMs: [100, 1500, 10], staggerMs: [0, 200, 5], arcMs: [80, 1200, 10], holdMs: [0, 1500, 10], fadeMs: [80, 1200, 10],
+  streaks: [0, 10, 1], streakLen: [40, 400, 5], streakTravel: [0, 400, 5], streakWidth: [1, 20, 0.5], streakCurve: [0, 0.6, 0.02], spreadY: [40, 400, 5],
+  arcHeight: [0.6, 2.5, 0.05], arcBulge: [0, 160, 2], arcWidth: [1, 24, 0.5], arcTravel: [0, 200, 2],
+  coreAlpha: [0, 1, 0.05], glowWidth: [0, 48, 1], glowAlpha: [0, 1, 0.05], taper: [0, 1, 1],
+};
+const COLORS = ['colorCore', 'colorGlow'];
+let cfg = { ...DEFAULTS };
+
+// --- controls ---------------------------------------------------------------
+const controls = document.getElementById('controls');
+const out = document.getElementById('out');
+function buildControls() {
+  controls.innerHTML = '';
+  for (const k of Object.keys(DEFAULTS)) {
+    const row = document.createElement('div'); row.className = 'row';
+    const lab = document.createElement('label'); lab.textContent = k;
+    if (COLORS.includes(k)) {
+      const input = document.createElement('input'); input.type = 'color'; input.value = cfg[k];
+      input.oninput = () => { cfg[k] = input.value; sync(); };
+      row.append(lab, input); controls.append(row);
+    } else {
+      const [min, max, step] = RANGES[k];
+      const input = document.createElement('input'); input.type = 'range'; input.min = min; input.max = max; input.step = step; input.value = cfg[k];
+      const val = document.createElement('span'); val.className = 'val'; val.textContent = cfg[k];
+      input.oninput = () => { cfg[k] = Number(input.value); val.textContent = input.value; sync(); };
+      row.append(lab, input); controls.append(row);
+      const vrow = document.createElement('div'); vrow.style.cssText = 'text-align:right;margin:-7px 0 5px;'; vrow.append(val);
+      controls.append(vrow);
+    }
+  }
+  sync();
+}
+function sync() { out.value = JSON.stringify(cfg, null, 2); }
+
+// --- canvas -----------------------------------------------------------------
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+function resize() { cv.width = cv.clientWidth * devicePixelRatio; cv.height = cv.clientHeight * devicePixelRatio; ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); }
+addEventListener('resize', resize);
+
+/** The shop ROW's bounding box (canvas space) — the gust anchors to its flanks. */
+function rowBox() {
+  const stage = document.getElementById('stage').getBoundingClientRect();
+  const cards = [...document.querySelectorAll('.card')].map((el) => el.getBoundingClientRect());
+  const left = Math.min(...cards.map((r) => r.left)) - stage.left;
+  const right = Math.max(...cards.map((r) => r.right)) - stage.left;
+  const top = Math.min(...cards.map((r) => r.top)) - stage.top;
+  const bottom = Math.max(...cards.map((r) => r.bottom)) - stage.top;
+  return { left, right, top, bottom, cy: (top + bottom) / 2, h: bottom - top };
+}
+
+const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+let fireAt = -1e9;
+function fire() { fireAt = performance.now(); }
+
+/** Stroke a path (array of pts) twice: soft glow underlay, then bright core. `width` tapers to the tail
+ *  when cfg.taper (per-segment width via many short strokes). */
+function strokeGust(pts, width, alpha) {
+  if (pts.length < 2 || alpha <= 0) return;
+  const layers = [
+    { w: width + cfg.glowWidth, c: cfg.colorGlow, a: cfg.glowAlpha * alpha },
+    { w: width, c: cfg.colorCore, a: cfg.coreAlpha * alpha },
+  ];
+  for (const { w, c, a } of layers) {
+    if (a <= 0 || w <= 0) continue;
+    ctx.strokeStyle = c; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    if (!cfg.taper) {
+      ctx.globalAlpha = a; ctx.lineWidth = w;
+      ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+      for (const [x, y] of pts) ctx.lineTo(x, y);
+      ctx.stroke();
+    } else {
+      // taper: draw per-segment with width ramping tail→head
+      for (let i = 1; i < pts.length; i++) {
+        const f = i / (pts.length - 1); // 0 tail → 1 head
+        ctx.globalAlpha = a; ctx.lineWidth = Math.max(0.5, w * (0.15 + 0.85 * f));
+        ctx.beginPath(); ctx.moveTo(pts[i - 1][0], pts[i - 1][1]); ctx.lineTo(pts[i][0], pts[i][1]); ctx.stroke();
+      }
+    }
+  }
+}
+
+function drawLoop(now) {
+  requestAnimationFrame(drawLoop);
+  ctx.clearRect(0, 0, cv.clientWidth, cv.clientHeight);
+  const t = (now - fireAt) / 1000;
+  const lastStreak = (cfg.streaks - 1) * cfg.staggerMs / 1000;
+  const landAll = Math.max(lastStreak + cfg.sweepMs / 1000, cfg.arcMs / 1000);
+  const total = landAll + (cfg.holdMs + cfg.fadeMs) / 1000;
+  if (t < 0 || t > total) { if (document.getElementById('loop').checked && t > total + 0.5) fire(); return; }
+
+  ctx.globalCompositeOperation = 'lighter';
+  const box = rowBox();
+  const fadeStart = landAll + cfg.holdMs / 1000;
+  const fade = 1 - Math.min(1, Math.max(0, (t - fadeStart) / (cfg.fadeMs / 1000 || 0.001)));
+
+  for (const side of [-1, 1]) { // -1 = left flank (blows right), +1 = right flank (blows left)
+    const edgeX = side < 0 ? box.left : box.right;
+    const dir = -side; // inward
+
+    // Bracket arc hugging this end of the row: a tall quadratic bowing OUTWARD, stroke-revealed
+    // top→bottom while drifting inward.
+    {
+      const p = Math.min(1, t / (cfg.arcMs / 1000 || 0.001));
+      const reveal = easeOut(p);
+      const drift = cfg.arcTravel * easeOut(p) * dir;
+      const H = box.h * cfg.arcHeight;
+      const x0 = edgeX - dir * 40 + drift; // starts just outside the row, drifts in
+      const topY = box.cy - H / 2, botY = box.cy + H / 2;
+      const ctrlX = x0 - dir * cfg.arcBulge * 2; // bow outward
+      const N = 30;
+      const upto = Math.max(2, Math.round(N * reveal));
+      const pts = [];
+      for (let i = 0; i <= upto; i++) {
+        const u = i / N;
+        const mu = 1 - u;
+        const x = mu * mu * x0 + 2 * mu * u * ctrlX + u * u * x0;
+        const y = topY + (botY - topY) * u;
+        pts.push([x, y]);
+      }
+      strokeGust(pts, cfg.arcWidth, fade);
+    }
+
+    // Speed-line streaks fanned vertically, staggered, each drawing + drifting inward.
+    for (let i = 0; i < cfg.streaks; i++) {
+      const start = i * cfg.staggerMs / 1000;
+      const p = Math.min(1, Math.max(0, (t - start) / (cfg.sweepMs / 1000 || 0.001)));
+      if (p <= 0) continue;
+      const e = easeOut(p);
+      const fy = box.cy + ((i + 0.5) / cfg.streaks - 0.5) * cfg.spreadY;
+      const len = cfg.streakLen * (0.7 + 0.3 * ((i * 37) % 10) / 10); // varied lengths
+      // The streak lives in the FLANK GUTTER (the sketch's dashes beside the end cards): its head sweeps
+      // in from outside and lands just kissing the row edge — never flying over the cards.
+      const restX = edgeX + dir * 12;
+      const headX = restX - dir * cfg.streakTravel * (1 - e);
+      const tailX = headX - dir * len * Math.min(1, 0.3 + e); // reveals fast behind the head
+      const N = 14;
+      const pts = [];
+      for (let s2 = 0; s2 <= N; s2++) {
+        const u = s2 / N;
+        const x = tailX + (headX - tailX) * u;
+        const bow = Math.sin(u * Math.PI) * cfg.streakCurve * len * (i % 2 === 0 ? 1 : -1) * 0.5;
+        pts.push([x, fy + bow]);
+      }
+      strokeGust(pts, cfg.streakWidth, fade * Math.min(1, p * 3)); // quick alpha-in
+    }
+  }
+
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+// --- wiring -----------------------------------------------------------------
+document.getElementById('fire').onclick = fire;
+document.getElementById('reset').onclick = () => { cfg = { ...DEFAULTS }; buildControls(); };
+document.getElementById('stage').onclick = fire;
+addEventListener('keydown', (e) => { if (e.code === 'Space') { e.preventDefault(); fire(); } });
+buildControls();
+resize();
+requestAnimationFrame(drawLoop);
+setTimeout(fire, 400);
+</script>
+</body>
+</html>

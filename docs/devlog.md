@@ -16,6 +16,9 @@ the Demon) replaced with a faster, punchier three-beat:
 3. **Tendril**: a ribbon whips from the crumble point into EACH Demon that ate (the Fodder-Infusion
    language — ribbon look + colours read from the 🍖 tuner's config, so it stays tunable); the eater's
    +X/+X floats as the tendril lands (synced to `travelMs`, was a fixed 1450ms guess).
+- **Eater impact wiggle** (owner, same day): the Demon physically reacts as the tendril lands — a quick
+  gulp-pop (lift + 1.06 scale + alternating rotate, 380ms), WAAPI transform-only with composite 'add',
+  fired alongside the +X/+X float at the tendril's arrival.
 - ~1.2s total vs the old 2.3s; the orbiting swirl orbs + fly-to-eater keyframes retired (dead CSS removed).
 - Verified live: queued Fred + board Demon + roll → the eat resolved (+1/+1 on the Demon), the ghost
   popped + crumbled, and the tendril arced from the crumble point into the eater (slowed capture).

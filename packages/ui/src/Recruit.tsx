@@ -2215,6 +2215,19 @@ export function Recruit() {
           for (const k of keyed) n[k.uid] = { attack: k.attack, health: k.health, key: k.key };
           return n;
         });
+        // Impact wiggle: the eater physically reacts as the tendril lands (owner ask 2026-07-16) — a quick
+        // gulp-pop, WAAPI transform-only with composite: 'add' (stacks on the card's own transforms).
+        for (const k of keyed) {
+          const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${k.uid}"]`);
+          try {
+            el?.animate([
+              { transform: 'translateY(0) scale(1) rotate(0deg)' },
+              { transform: 'translateY(-4px) scale(1.06) rotate(-2deg)', offset: 0.25 },
+              { transform: 'translateY(1px) scale(0.99) rotate(1.4deg)', offset: 0.55 },
+              { transform: 'translateY(0) scale(1) rotate(0deg)' },
+            ], { duration: 380, easing: 'ease-in-out', composite: 'add' });
+          } catch { /* WAAPI composite unsupported: skip the wiggle rather than clobber the card transform */ }
+        }
         window.setTimeout(() => {
           setStatFloats((m) => {
             const n = { ...m };

@@ -42,6 +42,10 @@ staggered speed-line streaks blowing into the row edge — "the tavern just got 
   - Never in combat: the phase guard + the shop simply isn't rendered there.
   - +1 signal test (imp-buff stamps with an empty visible set). Verified live: Imp Overseer's Battlecry
     gusts mid-shop; Maw's End-of-Turn gusts on its beat (screenshots). Full gate green (1128 tests).
+- **Round 3 (owner v3, same day):** re-baked with a hot PINK core (#ec3cbd) over violet glow, 190ms sweeps /
+  80ms hold / 240ms fade — and **retired Ritualist's old solo purple shop-wash** (the `.shopflash` radial +
+  ring, its state, JSX, CSS, and the 'ritualist' beat kind): the Buff Gust IS the tavern-buffed cue now.
+  Verified live: a Ritualist End of Turn plays the beats with no shopflash element and no errors.
 
 ### feat(sim/ui): Displacement swap FX — circular exchange arrows + a 🔀 tuner
 

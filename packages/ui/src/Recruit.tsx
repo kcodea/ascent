@@ -675,7 +675,6 @@ export function Recruit() {
   const [karwindFlameUids, setKarwindFlameUids] = useState<Set<string>>(new Set());
   const prevKarwindSeq = useRef(run.karwindFlashSeq);
   // A purple wash over the whole shop when Ritualist's End-of-Turn buffs the Fodder there.
-  const [shopFlash, setShopFlash] = useState(0);
   // Mechs being electrified as Combinator magnetizes Cling Drones onto them (End of Turn).
   const [electrifyUids, setElectrifyUids] = useState<Set<string>>(new Set());
 
@@ -2432,13 +2431,12 @@ export function Recruit() {
   const endTurn = (): void => {
     if (inCombat || endTurnPendingRef.current) return;
     const repeats = endOfTurnRepeats(run);
-    type Beat = { uid: string; kind: 'ritualist' | 'combinator' | 'generic'; targets: string[]; completes: boolean; label?: string; gust?: boolean };
+    type Beat = { uid: string; kind: 'combinator' | 'generic'; targets: string[]; completes: boolean; label?: string; gust?: boolean };
     const beats: Beat[] = [];
     for (const card of run.board) {
       const def = CARD_INDEX[card.cardId];
       if (!def?.effects.some((e) => e.on === 'endOfTurn')) continue;
-      const kind: Beat['kind'] =
-        card.cardId === 'ritualist' ? 'ritualist' : card.cardId === 'combinator' ? 'combinator' : 'generic';
+      const kind: Beat['kind'] = card.cardId === 'combinator' ? 'combinator' : 'generic';
       // A cadence End-of-Turn effect (Frontdrake: every `every` turns) only *officially* fires on its due
       // turn — other turns it just ticks toward it (progress → glow only). Non-cadence EOT effects fire
       // every turn (→ pulse every turn). `completes` drives glow-vs-pulse + the trigger sound.
@@ -2511,8 +2509,7 @@ export function Recruit() {
       // didn't fire, e.g. Frontdrake's countdown) → the softer glow cue.
       if (b.completes) sfx.triggerPulse();
       else sfx.triggerGlow();
-      if (b.kind === 'ritualist') setShopFlash((k) => k + 1);
-      if (b.gust) fireTavernGust(); // Maw / Ritualist: the tavern-buffed rush, timed to the beat
+      if (b.gust) fireTavernGust(); // Maw / Ritualist: the tavern-buffed rush, timed to the beat (replaced Ritualist's old purple shop-wash)
       if (b.kind === 'combinator') setElectrifyUids(new Set(b.targets));
       // Tick the affected minions' stats up to this proc's values + flash whoever just gained.
       const cur = steps[i];
@@ -2885,7 +2882,6 @@ export function Recruit() {
       )}
 
       <div className={`zone${run.frozen && !inCombat ? ' frozen' : ''}`} data-zone="tavern">
-        {shopFlash > 0 && <div className="shopflash" key={shopFlash} aria-hidden="true" />}
         <div className="row">
           {fighting ? (
             replay.frame.enemy.map((u) => (

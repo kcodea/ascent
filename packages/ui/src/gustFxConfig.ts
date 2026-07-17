@@ -35,19 +35,19 @@ export interface GustFxConfig {
   colorGlow: string;
 }
 
-// Owner-tuned on the preview rig (2026-07-16, v2): a snappy ~1s violet rush — quick 140ms sweeps, brief
-// hold, bold brackets. `edgeOut` pushes the flanks toward the board ends (owner: "move it further out").
+// Owner-tuned in the 💨 tuner (2026-07-16, v3): a snappy ~1s rush — 190ms sweeps, brief hold, hot PINK
+// cores over violet glow. `edgeOut` pushes the flanks toward the board ends.
 const DEFAULTS: GustFxConfig = {
-  sweepMs: 140,
+  sweepMs: 190,
   staggerMs: 65,
   arcMs: 520,
-  holdMs: 110,
-  fadeMs: 280,
+  holdMs: 80,
+  fadeMs: 240,
   streaks: 5,
   streakLen: 105,
-  streakTravel: 75,
-  streakWidth: 3,
-  streakCurve: 0.12,
+  streakTravel: 80,
+  streakWidth: 2.5,
+  streakCurve: 0.14,
   spreadY: 175,
   arcHeight: 1.5,
   arcBulge: 106,
@@ -56,10 +56,10 @@ const DEFAULTS: GustFxConfig = {
   edgeOut: 90,
   coreAlpha: 0.9,
   glowWidth: 14,
-  glowAlpha: 0.4,
+  glowAlpha: 0.5,
   taper: 1,
-  colorCore: '#a83bec',
-  colorGlow: '#c44dff',
+  colorCore: '#ec3cbd',
+  colorGlow: '#c64dff',
 };
 
 export const GUSTFX_KEYS = [

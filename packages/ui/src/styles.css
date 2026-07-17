@@ -1716,27 +1716,9 @@ body.modalup .statusbar .questbadges {
 }
 .card.electrify { z-index: 4; }
 @keyframes crackle { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
-/* Ritualist's End of Turn — a purple wash pulses over the whole shop (it buffs the Fodder there). */
+/* (Ritualist's old purple shop-wash retired 2026-07-16 — the Buff Gust is the tavern-buffed cue now.
+   The tavern zone keeps position: relative: the freeze overlay + drop targeting rely on it.) */
 .zone[data-zone='tavern'] { position: relative; }
-.shopflash {
-  position: absolute; inset: calc(-10 * var(--u)); z-index: 12; pointer-events: none; border-radius: 20px;
-  background: radial-gradient(58% 72% at 50% 50%, rgba(177, 92, 240, 0.58), rgba(177, 92, 240, 0.24) 54%, transparent 78%);
-  mix-blend-mode: screen; animation: shopflash 0.78s ease-out forwards;
-}
-.shopflash::after {
-  content: ''; position: absolute; inset: 0; border-radius: inherit; border: 3px solid rgba(190, 120, 245, 0.9);
-  animation: shopflashring 0.78s ease-out forwards;
-}
-@keyframes shopflash {
-  0% { opacity: 0; transform: scale(0.96); }
-  28% { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(1.03); }
-}
-@keyframes shopflashring {
-  0% { opacity: 0; transform: scale(0.92); }
-  30% { opacity: 0.9; }
-  100% { opacity: 0; transform: scale(1.06); }
-}
 /* recruit-phase buff proc (a stat buff just landed on this card) — a green flash + a pop.
    `cardpop` is kept first in the list (matching the base .card) so that toggling cardbuff
    on/off does NOT re-add cardpop — otherwise removing the class replayed cardpop, making

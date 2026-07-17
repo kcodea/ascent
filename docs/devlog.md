@@ -34,6 +34,10 @@ shop cards.
   - **Land sparkles**: motes scattered across the row drifting upward
     (`sparkCount`/`sparkSize`/`sparkLife`/`sparkRise`, mixed core/glow tints).
   Defaults moderate (wash α 0.16, ring 150px, 16 sparkles) — owner dials with the ▶ Test button.
+- **Final FX bakes** (owner, same day — "looks great"): 🍖 Infusion — 5 quick tendrils across the FULL
+  row width, 30ms stagger, 92px strike flashes, snappy 270/210ms. 💨 Gust v4 — long 290px streaks sweeping
+  400px in, quick 260ms brackets, **wash OFF** (the 34-sparkle burst + 10px card lift carry the interior),
+  175px/0.35α impact ring, cooler violet palette (#cd62fe/#8b4dd5). 🔀 Swap re-confirmed unchanged.
 - **Gust lift & settle** (owner, same day): when the gust LANDS, each shop card lifts a few px with a
   small alternating wiggle and springs back — Web Animations API, transform-only, `composite: 'add'` (stacks
   on the card's own CSS transform; skipped gracefully where unsupported), delayed to the same landing moment

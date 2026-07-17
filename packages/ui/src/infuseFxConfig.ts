@@ -37,28 +37,28 @@ export interface InfuseFxConfig {
   colorGlow: string;
 }
 
-// First-pass defaults eyeballed to the owner's reference (2026-07-16) — organic violet tendrils in the
-// Fodder palette (matching the Buff Gust's pink/violet). Tune in the 🍖 tuner, Copy values, bake back.
+// Owner-tuned in the 🍖 tuner (2026-07-16): 5 quick tendrils fanned across the FULL row width, tight
+// 30ms stagger, big 92px strike flashes — a fast, punchy send.
 const DEFAULTS: InfuseFxConfig = {
-  count: 3,
-  spreadFrac: 0.6,
-  staggerMs: 70,
+  count: 5,
+  spreadFrac: 1,
+  staggerMs: 30,
   endYOff: 10,
-  travelMs: 450,
-  retractMs: 350,
+  travelMs: 270,
+  retractMs: 210,
   curve: 0.3,
-  wobbleAmp: 12,
+  wobbleAmp: 8,
   wobbleFreq: 2.5,
   baseWidth: 7,
   tipWidth: 3,
   coreAlpha: 0.9,
-  glowWidth: 18,
+  glowWidth: 23,
   glowAlpha: 0.5,
-  flashSize: 46,
-  flashMs: 260,
-  moteCount: 6,
+  flashSize: 92,
+  flashMs: 360,
+  moteCount: 9,
   moteSpeed: 240,
-  moteLife: 420,
+  moteLife: 520,
   pulseSize: 70,
   pulseAlpha: 0.6,
   pulseMs: 300,

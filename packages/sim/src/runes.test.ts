@@ -427,6 +427,40 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
     expect(s.board.map((c) => [c.attack, c.health])).toEqual([[3, 3], [3, 3], [3, 3]]);
   });
 
+  // FX plumbing (2026-07-17): the recruit-phase rune buffs that fire on a repeated trigger (Gold-spend / spell-cast)
+  // now emit sourceless buff-FX events so the gain descends onto the minion instead of the number silently jumping —
+  // the same defect the Deathswarmer aura-wash fix (#530) closed, applied to these targeted rune buffs.
+  it('Rune of Scale: a Gold-spend emits one sourceless (descend) buff-FX event per picked ally', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10, freeRolls: 0,
+      runeScale: { count: 3, attack: 2, health: 2 }, board: [mkAlley('a'), mkAlley('b'), mkAlley('c')] };
+    s = reduce(s, { type: 'roll' });
+    expect(s.recruitBuffFx.length).toBe(3); // one per buffed ally
+    expect(s.recruitBuffFx.every((e) => e.sourceUid === undefined && e.attack === 2 && e.health === 2)).toBe(true);
+    expect(s.recruitFxSeq).toBeGreaterThan(0); // seq bumped → the UI replays the descends
+  });
+
+  it('Rune of Kindling: casting a spell descends +3/+3 onto the leftmost minion (sourceless FX event)', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10, runeKindling: true,
+      board: [mkAlley('a'), mkAlley('b')],
+      hand: [{ uid: 'sp1', cardId: 'preemptive', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'sp1' }); // casting a spell fires the Kindling buff
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([4, 4]); // 1/1 + 3/3
+    const fx = s.recruitBuffFx.filter((e) => e.targetUid === 'a' && e.sourceUid === undefined);
+    expect(fx.length).toBe(1);
+    expect([fx[0]!.attack, fx[0]!.health]).toEqual([3, 3]);
+  });
+
+  it('Rune of Scales: casting a spell descends +1/+1 onto each board Dragon (Beasts untouched)', () => {
+    const mkDragon = (uid: string): RunState['board'][number] => ({ uid, cardId: 'yazzus', tribe: 'dragon', attack: 2, health: 2, keywords: [], golden: false });
+    let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10, runeScales: true,
+      board: [mkDragon('d1'), mkAlley('b'), mkDragon('d2')],
+      hand: [{ uid: 'sp1', cardId: 'preemptive', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'sp1' });
+    const dragonFx = s.recruitBuffFx.filter((e) => e.sourceUid === undefined && e.attack === 1 && e.health === 1 && (e.targetUid === 'd1' || e.targetUid === 'd2'));
+    expect(dragonFx.length).toBe(2); // one descend per Dragon
+    expect(s.recruitBuffFx.some((e) => e.targetUid === 'b')).toBe(false); // the Beast gets nothing
+  });
+
   it('Rune of Rallying: buying arms the Start-of-Combat rally flag', () => {
     const s: RunState = buyRune('rune_rallying', 10);
     expect(s.questFlags?.runeRallying).toBe(true);

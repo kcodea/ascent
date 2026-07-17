@@ -2971,10 +2971,18 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   state.lastSpellCastId = spellDef.id; // Steward of Spells copies the most recent spell cast
   // Rune of Summoning: each spell cast permanently improves your Imps +1/+1 (run-wide, via the Imp enchant).
   if (state.runeSummoning) buffImpsRunWide(state, 1, 1, 'Rune of Summoning');
-  // Rune of Kindling: each spell cast gives your leftmost board minion +3/+3 (baked onto that minion).
-  if (state.runeKindling && state.board[0]) addBuff(state.board[0], 'Rune of Kindling', 3, 3);
-  // Rune of Scales: each spell cast gives your Dragons +1/+1 (board + hand).
-  if (state.runeScales) for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dragon')) addBuff(c, 'Rune of Scales', 1, 1);
+  // Rune of Kindling: each spell cast gives your leftmost board minion +3/+3 (baked onto that minion). Wrapped
+  // for FX so the gain descends onto the minion (sourceless — no board anchor) instead of the number silently jumping.
+  const kindlingTarget = state.board[0];
+  if (state.runeKindling && kindlingTarget) {
+    captureBuffFx(state, undefined, 'spell', () => addBuff(kindlingTarget, 'Rune of Kindling', 3, 3));
+  }
+  // Rune of Scales: each spell cast gives your Dragons +1/+1 (board + hand) — descends onto each affected board Dragon.
+  if (state.runeScales) {
+    captureBuffFx(state, undefined, 'spell', () => {
+      for (const c of [...state.board, ...state.hand]) if (isTribe(c, 'dragon')) addBuff(c, 'Rune of Scales', 1, 1);
+    });
+  }
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;

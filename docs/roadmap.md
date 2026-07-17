@@ -69,7 +69,13 @@ The career surface exists; deepen what a finished run *remembers*.
 ## Next
 
 ### Remaining recruit-FX gaps (from the 2026-07-17 buff-animation audit)
-The Aura Wash + EoT beat replay closed the big ones; still open:
+The Aura Wash + EoT beat replay closed the big ones — plus the triggered rune buffs (Rune of Kindling /
+Scales / Scale) now descend onto their targets. Still open:
+- **Buff-on-summon rewards** — Den Marker (quest) buffs a Beast *as it enters play*; the buff-diff can't
+  see a card that's new to the board this action, so it's silent. Needs a dedicated descend signal keyed to
+  the freshly-summoned uid (not a `captureBuffFx` wrap).
+- **One-time `buffBoard` quest reward** — the whole-board buff on quest completion fires at a start-of-turn
+  modal moment with no FX; wants timing care before wiring a board-wide descend/wash.
 - **Gold-spend feedback** — the Gold counter changes with no flash/shake on buy/reroll/upgrade (only sells
   produce gold visuals; the coin-spray primitive already exists).
 - **Recruit-time quest progress** — the badge `questpulse`/`questbounce` fire only off combat deltas;

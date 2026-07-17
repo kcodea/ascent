@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(sim): triggered rune buffs descend onto their targets (Kindling / Scales / Scale)
+
+Follow-up to the Aura Wash fixes: three recruit-phase runes buffed minions on a *repeated* trigger
+(spell-cast / Gold-spend) but emitted **no FX** — the target's numbers just jumped silently, the same
+defect class the Deathswarmer wash fix (#530) closed. Wired them into the existing sourceless-buff FX
+path (`captureBuffFx` → `recruitBuffFx` → the UI's `replayBuffFxEvents` → `pixiFx.descend`):
+- **Rune of Kindling** (each spell cast → leftmost minion +3/+3) — now descends onto that minion.
+- **Rune of Scales** (each spell cast → your Dragons +1/+1) — descends onto each affected board Dragon.
+- **Rune of Scale** (each Gold-spend → N random allies +atk/+hp) — descends onto each picked ally. The
+  RNG is untouched (the picks still run inside the wrap; `rngCursor` advances exactly as before), so
+  replays stay byte-identical.
+
+Already-covered cases were deliberately left alone: End-of-Turn rune/quest buffs (Spending, Action,
+Reliquary, Banking, Forsaken Speed…) already descend via `projectEndOfTurnSteps`, and the aura runes
+(Summoning → Imp wash, Forsaken Will → Undead wash) already bloom the tribe wash. **Follow-ups noted,
+not done** (they need a *new* signal, not a wrap): Den Marker's buff-on-summon (the buffed Beast is new
+to the board this action, so the buff-diff can't see it) and the one-time `buffBoard` quest-completion
+reward (fires at a start-of-turn modal moment — wants timing care).
+
+Verified: 3 new sim tests (each rune emits the expected sourceless FX events with correct magnitudes;
+Beasts untouched by Scales) + full suite (1141) green; typecheck + lint + build:web green. The render
+path itself is unchanged — these events flow through the same `descend` the shop already fires for every
+spell / Deathrattle buff — so no new rendering to verify.
+
 ### fix(sim): Aura Wash actually fires for Imp Overseer + Undead buy-Attack sources
 
 Two follow-up fixes after live testing the Aura Wash (#528) — it wasn't triggering where it should:

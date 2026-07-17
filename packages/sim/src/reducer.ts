@@ -47,10 +47,14 @@ function spendGold(s: RunState, amount: number): void {
     const { count, attack, health } = s.runeScale;
     const rng = makeRng(s.rngCursor);
     const pool = [...s.board];
-    for (let i = 0; i < count && pool.length > 0; i++) {
-      const pick = pool.splice(rng.int(pool.length), 1)[0]!;
-      addBuff(pick, 'Rune of Scale', attack, health);
-    }
+    // Wrapped for FX so each picked ally gets a descend (sourceless — the rune has no board anchor) rather than
+    // a silent stat jump. RNG is unchanged: the picks still run inside, s.rngCursor advances exactly as before.
+    captureBuffFx(s, undefined, 'spell', () => {
+      for (let i = 0; i < count && pool.length > 0; i++) {
+        const pick = pool.splice(rng.int(pool.length), 1)[0]!;
+        addBuff(pick, 'Rune of Scale', attack, health);
+      }
+    });
     s.rngCursor = rng.state();
   }
 }

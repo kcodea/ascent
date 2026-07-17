@@ -40,6 +40,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **Triggered rune buffs descend onto their targets.** Rune of Kindling (leftmost +3/+3 per spell), Rune
+  of Scales (Dragons +1/+1 per spell), and Rune of Scale (random allies on Gold-spend) used to jump their
+  targets' numbers with zero feedback — they now rain a descend onto each buffed minion, via the same FX
+  path spells and Deathrattles already use.
 - **Aura Wash FX + EoT FX replay + targeting cursor.** Run-wide tribe auras announce themselves with a
   tribe-colored bloom over every affected card (🌀 tuner) — the Undead Lantern **and** buy-Attack sources
   (Deathswarmer / Forsaken Mage / Forsaken Will), the Imp aura (Imp Overseer / Contract Imp / Implosion /

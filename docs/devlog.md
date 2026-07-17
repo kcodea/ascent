@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(fx): Enchant Weave preview rig — the group-buff "row lights up" mock
+
+Owner ask (2026-07-16, with a reference shot): an effect for when Fodder is buffed run-wide (Ritualist /
+Rune of Consumption) and/or a Staff of Guel cast — the whole affected shop row wrapped in a crackling
+violet arcane weave.
+- New standalone rig [`apps/web/public/fx/enchant-weave-preview.html`](../apps/web/public/fx/enchant-weave-preview.html)
+  (the crit/tendril/pulse rig pattern — plain 2D canvas, zero build, cream board): per-card **filament
+  wreaths** (noise-writhing loops hugging each oval frame, bright core over soft violet glow),
+  **card-to-card link arcs** (lens pairs between adjacent affected cards), **star twinkles**, and a
+  left→right staggered ignite → hold-writhe → fade lifecycle.
+- Every dial exported as live JSON (`EnchantWeaveCfg`): lifecycle (ignite/stagger/hold/fade), filament
+  count/inset/writhe/jag, core+glow widths/alphas, link arcs/bulge/width, sparkle count/size/rate, and the
+  three colours. A "fodder only" toggle previews the Ritualist case (only some of the row wreathed).
+- Verified live at `/fx/enchant-weave-preview.html` — screenshot matches the reference composition. Next:
+  the owner tunes + pastes values, then the Pixi port (a `pixiFx.enchantWeave(rects, cfg)` following the
+  tendril/pulse porting pattern) wired to `buffFodderRunWide` + the Staff of Guel cast.
+
 ### feat(sim/ui): Displacement swap FX — circular exchange arrows + a 🔀 tuner
 
 Owner ask (2026-07-16, with a reference shot): a two-arrow circular swap effect when Displacement trades a

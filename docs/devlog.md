@@ -5,6 +5,60 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### chore(ui): bake the owner's tuned Aura Wave defaults
+
+Owner tuned the v2 wave live and handed back the values — baked as the shipped `DEFAULTS`: a fast,
+subtle bloom (travel 150ms / fade 170ms, fill 0.07 / wake 0.06 at size 172 / spacing 64) under a dense,
+long-lived drift of small tailed motes (140 × 2170ms, 90px/s rise, tail 0.5) — the motes carry the
+effect. Sized 0.7× width / 2.2× height, offset −152px to sit over the board. (The stale legacy keys in
+the handed-back JSON — crest*/ring*/lift*/pad* from the older configs' localStorage — were dropped.)
+Typecheck + lint + test (1138) + build:web green.
+
+### feat(ui): Aura Wave v2 — dissipating wake + tailed motes + fit-to-board sizing (owner redesign)
+
+Second pass on the board wave after owner tuning (they zeroed the crests/flash and maxed the motes —
+the ellipse crests read as hard "headlights", the pads were disliked, and the wave overshot the board):
+- **Wake expansion replaces crests.** The moving front now drops stationary soft glow puffs (the pooled
+  radial `glowTex`, not hard ellipse fills) every `glowSpacing` px; each lives `fadeMs` and fades on its
+  own, so the glow **dissipates outward from the centre behind the front** — the centre dies first, the
+  rims last. No more additive white-out.
+- **No pads.** The board fill clips exactly to the sized region.
+- **Fit-to-board sizing dials** — `widthScale` / `heightScale` / `offsetX` / `offsetY` size the wave
+  inside the measured zone (default 0.85× width; the raw zone overshot the board's visual edges).
+- **Streak-tailed motes in mixed colors.** Motes spawn as the front passes them (riding the expansion),
+  each a bright head + a vertical streak tail (`moteTail` narrowness), colored from the tribe palette
+  plus white/gold accents; count default raised to 56 (owner maxed the old 40 range).
+- Defaults seeded from the owner's tuned wash values (travel 1070ms, fade 820ms, fill 0.12, mote
+  life/rise 1210/300). Config/tuner keys reworked to match.
+- Verified live: probes confirmed wake spawn cadence (±616px at 1738ms), all 56 motes fired, sized
+  region 1274×176 (0.85×), retire clean; screenshots show the centre-dissipated fronts near the rims +
+  rising motes. (Earlier "invisible" screenshots were capture latency — the wave had finished before the
+  shot landed.) Typecheck + lint + test (1138) + build:web green.
+
+### feat(ui): Aura Wash → global board WAVE (fires regardless of on-screen cards)
+
+Owner rework: the per-card Aura Wash only rendered where a matching tribe card was visible — so an aura
+that rose while its tribe wasn't on the board/shop bloomed over nothing and read as broken. Replaced it
+with a single **global board wave**: a tribe-colored crest born at the board centre that sweeps out to
+both edges and dissipates, under a soft full-board glow with rising sparkle motes — "a field touched the
+whole board", independent of which cards are present.
+
+- **Trigger unchanged.** The reducer already stamps `auraFx`/`auraFxSeq` whenever a channel rises (undead
+  incl. `undeadBuyAtk`, demon/imp, mech/attachment, beast buy-aura), regardless of targets — so this is a
+  pure presentation swap. The UI no longer reads `entry.targets`; it measures the warband zone (full board
+  width, vertical band hugging the card row) and fires one wave keyed only on tribe.
+- **Renderer:** `pixiFx.auraWash`(per-card `WashRect[]`) → `pixiFx.auraWave`(one `WaveRegion`). Two crest
+  ellipses travel `centre→edge` (eased), fading ∝ (1−progress)^`edgeFadePow`; a centre birth-flash; a soft
+  full-board fill; `moteCount` motes drifting up across the whole region. Colors still come from the tribe's
+  `BUFF_PRESETS` palette at fire time. Dropped the per-card lift & landing-ring (they were per-card notions).
+- **Config/tuner reworked** to the wave params (travel/hold/fade, board glow, crest α/width/height/edge-fade,
+  centre flash, motes); DEV "🌀 Aura Wave" tuner + `testAuraFx` fire over the board region now.
+- Verified live in a practice run (throwaway): fired over an **empty** board — the exact case the old wash
+  showed nothing — and the wave rendered full-width, advanced, seeded its motes, and retired cleanly (single
+  fresh pixiFx instance; earlier "stuck" readings were an HMR duplicate-instance artifact). Softened the
+  shipped defaults after seeing the crests blow out additively on the light arena board. Typecheck + lint +
+  test (1138) + build:web green.
+
 ### feat(sim): triggered rune buffs descend onto their targets (Kindling / Scales / Scale)
 
 Follow-up to the Aura Wash fixes: three recruit-phase runes buffed minions on a *repeated* trigger

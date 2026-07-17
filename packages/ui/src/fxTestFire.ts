@@ -11,7 +11,7 @@ import { useGame } from './store';
 import { pixiFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
-import { applyAuraLift, getAuraFxConfig } from './auraFxConfig';
+import { getAuraFxConfig } from './auraFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { getAimFxConfig } from './aimFxConfig';
 import { BUFF_PRESETS, buffPreset } from './buffPresets';
@@ -65,20 +65,21 @@ export function testGustFx(): void {
 
 export type AuraTestTribe = 'beast' | 'demon' | 'mech' | 'undead';
 
-/** 🌀 Aura Wash: the tribe-colored aura bloom over the current board + shop cards (no tribe filter —
- *  the test washes everything on screen so the look can be judged without staging an aura source). */
+/** 🌀 Aura Wave: the tribe-colored aura wave that blooms from the board centre out to both edges (no tribe
+ *  filter — the test fires over the whole board region so the look can be judged without staging a source). */
 export function testAuraFx(tribe: AuraTestTribe): void {
-  const run = useGame.getState().run;
-  if (!run) return;
-  const els = [...run.board.map((c) => c.uid), ...run.shop.map((o) => o.uid)]
-    .flatMap((uid) => { const el = document.querySelector(`[data-uid="${uid}"]`); return el ? [el] : []; });
-  if (els.length === 0) return;
+  const zoneEl = document.querySelector('[data-zone="warband"]');
+  if (!zoneEl) return;
+  const z = zoneEl.getBoundingClientRect();
+  if (z.width < 8 || z.height < 8) return;
+  const rr = zoneEl.querySelector('.row.warband')?.getBoundingClientRect();
+  const y = rr && rr.height > 4 ? rr.top : z.top;
+  const h = rr && rr.height > 4 ? rr.height : z.height;
   const p = BUFF_PRESETS[buffPreset('', tribe)] ?? BUFF_PRESETS.default!;
-  pixiFx.auraWash(
-    els.map((el) => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; }),
+  pixiFx.auraWave(
+    { x: z.left, y, w: z.width, h },
     { ...getAuraFxConfig(), colorCore: p.colorFlash, colorGlow: p.colorGlow, colorMote: p.colorMote },
   );
-  applyAuraLift(els);
 }
 
 /** 🎯 Hero Aim: the activation spark burst at the power diamond. */

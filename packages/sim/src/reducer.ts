@@ -8,8 +8,8 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, addOfferBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
-import { mixSeed, TAG, type Action, type ActiveQuest, type BoardCard, type CardBuff, type RunState } from './state';
+import { addBuff, addOfferBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
  *  for buys, rerolls, tier-ups and hero powers. */
@@ -222,6 +222,7 @@ export function reduce(state: RunState, action: Action): RunState {
   // clone (`next`) starts empty and, after the action, holds EXACTLY this action's captures (never accumulated
   // across dispatches). For a rejected no-op reduceCore returns `state` itself → `next.recruitBuffFx` stays [].
   state.recruitBuffFx = [];
+  state.auraFx = undefined; // same per-action scratch contract as recruitBuffFx (auraFxSeq stays monotonic)
   const next = reduceCore(state, action);
   // onGainAttack reactors (Hunter — "when this gains Attack, give your minions +Health") fire whenever a
   // recruit action raises a BOARD minion's Attack, from ANY source (Fortify, spells, tribe Battlecries,
@@ -352,6 +353,32 @@ export function reduce(state: RunState, action: Action): RunState {
   // above, which runs before this). The UI fires the shop-buff replay once per bump; a no-op / non-buffing
   // action leaves `recruitBuffFx` empty and the seq unchanged.
   if (next !== state && next.recruitBuffFx.length > 0) next.recruitFxSeq += 1;
+  // AURA WASH FX: if a run-wide tribe-aura channel ROSE this action — the Undead aura (Lantern of Souls /
+  // Watcher / Forsaken Will), the Imp aura, the Attachment aura (Scrap Herald), or the Beast buy-aura —
+  // stamp the one-shot wash signal with the affected visible cards. Several of these never touch stored
+  // stats (the Lantern folds in at display time; buy-auras only size FUTURE copies), so without the stamp
+  // the numbers jump with zero feedback. Recruit-visible only: a faceOmen-time rise lands after the phase
+  // flips (the shop can't show it), so it isn't stamped. Pure display metadata — never read by the sim.
+  if (next !== state && state.phase === 'recruit' && next.phase === 'recruit') {
+    const channels = (s: RunState): Record<AuraFxTribe, { a: number; h: number }> => ({
+      undead: { a: s.undeadAttackBonus, h: s.undeadHealthBonus },
+      demon: { a: s.impBuff?.attack ?? 0, h: s.impBuff?.health ?? 0 },
+      mech: { a: s.magneticBuyAtk, h: s.magneticBuyHp },
+      beast: { a: s.beastBuyAtk, h: s.beastBuyHp },
+    });
+    const cb = channels(state);
+    const ca = channels(next);
+    const risen: NonNullable<RunState['auraFx']> = [];
+    for (const tribe of ['beast', 'demon', 'mech', 'undead'] as const) {
+      const da = ca[tribe].a - cb[tribe].a;
+      const dh = ca[tribe].h - cb[tribe].h;
+      if (da > 0 || dh > 0) risen.push({ tribe, attack: Math.max(0, da), health: Math.max(0, dh), targets: auraFxTargets(next, tribe) });
+    }
+    if (risen.length > 0) {
+      next.auraFx = risen;
+      next.auraFxSeq = (next.auraFxSeq ?? 0) + 1;
+    }
+  }
   return next;
 }
 

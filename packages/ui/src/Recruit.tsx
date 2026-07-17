@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type ShopCard } from '@game/sim';
+import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
@@ -14,9 +14,11 @@ import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
+import { applyAuraLift, getAuraFxConfig } from './auraFxConfig';
 import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { fireBuffFx } from './buffFxRender';
+import { BUFF_PRESETS, buffPreset } from './buffPresets';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { getDragFeel } from './dragFeel';
@@ -688,8 +690,10 @@ export function Recruit() {
     } | null
   >(null);
   const prevFodderSeq = useRef(run.fodderEatenSeq);
+  const eotEatKey = useRef(1_000_000); // fodderAnim keys for EoT-beat eats — offset far above the seq-keyed watcher's range
   const prevEatFlashSeq = useRef(run.fodderEatenSeq); // the stat-diff flash's own eat tracker (suppresses the eaters' instant pop)
   const prevFxSeq = useRef(run.recruitFxSeq); // inits to current so it never fires on mount (a resumed save may carry a bumped seq)
+  const prevAuraSeq = useRef(run.auraFxSeq ?? 0); // aura-wash FX watcher — same init-to-current contract
   // A brief "End of Turn" banner when the turn ends (recruit → combat), making it clear that
   // end-of-turn effects (Ritualist & co.) just resolved.
   const [endTurnFlash, setEndTurnFlash] = useState(false);
@@ -2038,13 +2042,12 @@ export function Recruit() {
     }, 700);
   }, [run.board, run.hand, run.shop, inCombat, run.recruitBuffFx]);
 
-  // Shop-phase buff FX: when the sim captured buff-others this action (recruitFxSeq bumped), replay each as a
-  // source→target tendril (living minion) or a descend (spell / Deathrattle), using the same renderer as combat.
-  useEffect(() => {
-    if (run.recruitFxSeq === prevFxSeq.current) return;
-    prevFxSeq.current = run.recruitFxSeq;
-    if (run.recruitBuffFx.length === 0) return;
-    for (const ev of run.recruitBuffFx) {
+  // Replay a batch of captured buff-other events as source→target tendrils (living minion) or descends
+  // (spell / Deathrattle / sourceless), using the same renderer as combat. Shared by the per-action watcher
+  // below AND the End-of-Turn beat sequence (whose events come from the projection, since the real commit
+  // lands after the phase flips — see `projectEndOfTurnSteps`).
+  const replayBuffFxEvents = useCallback((events: RunState['recruitBuffFx']): void => {
+    for (const ev of events) {
       const tEl = findEl(ev.targetUid);
       if (!tEl) continue;
       const tr = tEl.getBoundingClientRect();
@@ -2058,7 +2061,36 @@ export function Recruit() {
         sourceless: ev.kind !== 'minion' || !sEl,
       });
     }
+  }, [findEl]);
+
+  // Shop-phase buff FX: when the sim captured buff-others this action (recruitFxSeq bumped), replay them.
+  useEffect(() => {
+    if (run.recruitFxSeq === prevFxSeq.current) return;
+    prevFxSeq.current = run.recruitFxSeq;
+    if (run.recruitBuffFx.length === 0) return;
+    replayBuffFxEvents(run.recruitBuffFx);
   }, [run.recruitFxSeq]);
+
+  // AURA WASH: a run-wide tribe-aura channel rose this action (auraFxSeq bumped) — bloom the tribe-colored
+  // wash over every affected visible card (board + tavern) + the lift & settle. Colors come from the tribe's
+  // tendril palette so the aura language matches the tribe's buff language. (Several aura sources never touch
+  // stored stats — the Lantern folds in at display time — so this is their ONLY feedback.)
+  const fireAuraWash = useCallback((tribe: NonNullable<RunState['auraFx']>[number]['tribe'], uids: string[]): void => {
+    const els = uids.flatMap((uid) => { const el = findEl(uid); return el ? [el] : []; });
+    if (els.length === 0) return;
+    const p = BUFF_PRESETS[buffPreset('', tribe)] ?? BUFF_PRESETS.default!;
+    pixiFx.auraWash(
+      els.map((el) => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; }),
+      { ...getAuraFxConfig(), colorCore: p.colorFlash, colorGlow: p.colorGlow, colorMote: p.colorMote },
+    );
+    applyAuraLift(els);
+  }, [findEl]);
+  useEffect(() => {
+    if ((run.auraFxSeq ?? 0) === prevAuraSeq.current) return;
+    prevAuraSeq.current = run.auraFxSeq ?? 0;
+    if (inCombat) return;
+    for (const entry of run.auraFx ?? []) fireAuraWash(entry.tribe, entry.targets);
+  }, [run.auraFxSeq]);
 
   // A freshly-played minion with a Battlecry gets a one-shot flourish beneath it. Diff the
   // board's uids; a new card whose def has an onPlay effect (or Choose One) just fired its
@@ -2165,25 +2197,26 @@ export function Recruit() {
     } else {
       pixiFx.clearAimLine();
     }
+    // While the targeter is live, the aim line IS the pointer — hide the OS cursor (restored the moment
+    // the aim ends; see styles.css `body.aiming`).
+    document.body.classList.toggle('aiming', !!(((heroArmed || pendingTarget) && aim) || (castingSpell && drag)));
   });
-  useEffect(() => () => pixiFx.clearAimLine(), []); // never strand the line on unmount
+  useEffect(() => () => { pixiFx.clearAimLine(); document.body.classList.remove('aiming'); }, []); // never strand the line/cursor on unmount
 
-  // Tavern Fodder was auto-eaten (fodderEatenSeq bumped) — the modernized eat (owner redesign 2026-07-16):
-  // the ghost card POPS IN hovering above the shop line (fast in, easing to a stop), holds a beat, then
-  // CRUMBLES into purple energy (the CSS fade + a source burst) while a tendril whips from it into each
-  // Demon that ate it (the Fodder-Infusion ribbon language + the 🍖 tuner's dials); the eater's +X/+X
-  // floats as the tendril lands. ~1.2s total (the old swirl-and-fly ran 2.3s).
-  useEffect(() => {
-    if (run.fodderEatenSeq === prevFodderSeq.current) return;
-    prevFodderSeq.current = run.fodderEatenSeq;
-    const events = run.fodderEaten ?? [];
-    if (events.length === 0) return;
-    const seq = run.fodderEatenSeq;
+  // The Fodder-eat choreography (owner redesign 2026-07-16): the ghost card POPS IN hovering above the
+  // shop line (fast in, easing to a stop), holds a beat, then CRUMBLES into purple energy (the CSS fade +
+  // a source burst) while a tendril whips from it into each Demon that ate it (the Fodder-Infusion ribbon
+  // language + the 🍖 tuner's dials); the eater's +X/+X floats as the tendril lands. ~1.2s total.
+  // Shared by the per-action watcher below AND the End-of-Turn beat sequence (Abyssal Feeder / Feasting
+  // Bogrot consume during `faceOmen`, after the phase flips — the beats replay the projection's events
+  // while the shop is still up). Returns a cancel fn (the watcher's effect cleanup).
+  const playFodderEat = useCallback((events: NonNullable<RunState['fodderEaten']>, key: number): (() => void) => {
     let raf = 0;
     let tries = 0;
     let t = 0;
     let crumbleT = 0;
     let floatT = 0;
+    const seq = key;
     // Measure + play once the tavern row is actually in the DOM. If it isn't yet (a consume that procs
     // before the shop has laid out / mid-transition), RETRY on the next frames instead of bailing — the
     // old code marked the seq seen and returned, so that consume's anim was lost forever (never replays).
@@ -2265,6 +2298,15 @@ export function Recruit() {
     };
     tryShow();
     return () => { if (raf) cancelAnimationFrame(raf); window.clearTimeout(t); window.clearTimeout(crumbleT); window.clearTimeout(floatT); };
+  }, []);
+
+  // Tavern Fodder was auto-eaten mid-shop (fodderEatenSeq bumped) — play the eat choreography.
+  useEffect(() => {
+    if (run.fodderEatenSeq === prevFodderSeq.current) return;
+    prevFodderSeq.current = run.fodderEatenSeq;
+    const events = run.fodderEaten ?? [];
+    if (events.length === 0) return;
+    return playFodderEat(events, run.fodderEatenSeq);
     // Keyed on the seq ONLY: `run.fodderEaten` gets a fresh array ref every action, so including it
     // would re-run this effect (and its cleanup) on unrelated actions, stranding the ghost. The seq only
     // changes when Fodder is actually eaten, so the snapshot read of `run.fodderEaten` here is current.
@@ -2584,7 +2626,9 @@ export function Recruit() {
     }
     // Per-proc cumulative stats (aligned 1:1 with `beats`) so the board's numbers visibly climb as each
     // effect fires — then `faceOmen` bakes the same totals in for real. The pre-EoT stats are the floor.
-    const steps = projectEndOfTurnSteps(run);
+    // `fx` carries each beat's captured buff-others + Fodder consumes (also 1:1 with `beats`) — the real
+    // commit lands inside `faceOmen` AFTER the phase flips, so the beats are the only place to show them.
+    const { steps, fx: beatFx } = projectEndOfTurnSteps(run);
     const baseStats: Record<string, { attack: number; health: number }> = {};
     for (const c of [...run.board, ...run.hand]) baseStats[c.uid] = { attack: c.attack, health: c.health };
     const total = (s?: { attack: number; health: number }): number => (s ? s.attack + s.health : 0);
@@ -2624,6 +2668,14 @@ export function Recruit() {
       if (b.gust) fireTavernGust(); // Maw / Ritualist: the tavern-buffed rush, timed to the beat (replaced Ritualist's old purple shop-wash)
       if (b.infuse && b.uid) fireFodderInfusion(b.uid); // Maw: send-Fodder tendrils reach the shop on the beat
       if (b.kind === 'combinator') setElectrifyUids(new Set(b.targets));
+      // This beat's captured FX from the projection: buff-others tendril/descend out of the firing card
+      // (incl. a Hunter reacting to the beat's Attack gain), and Fodder consumes (Abyssal Feeder /
+      // Feasting Bogrot) as the full ghost-crumble eat choreography.
+      const bfx = beatFx[i];
+      if (bfx) {
+        if (bfx.buffFx.length > 0) replayBuffFxEvents(bfx.buffFx);
+        if (bfx.eaten.length > 0) playFodderEat(bfx.eaten, ++eotEatKey.current);
+      }
       // Tick the affected minions' stats up to this proc's values + flash whoever just gained.
       const cur = steps[i];
       if (cur) {

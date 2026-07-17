@@ -453,7 +453,7 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
   it('recruit telegraph: quest/rune recurring EoT rewards get a projected step + labeled beat (Rune of Action)', () => {
     const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', questRecurringEndOfTurn: ['runeAction'],
       playedThisTurn: ['x', 'y', 'z'], board: [mkAlley('a'), mkAlley('b'), mkAlley('c'), mkAlley('d')] };
-    const steps = projectEndOfTurnSteps(s);
+    const { steps } = projectEndOfTurnSteps(s);
     const beats = questEndOfTurnBeats(s);
     // No warband EoT minions here, so the ONLY step is the rune's — and it must match the real applyEndOfTurn.
     expect(beats).toEqual([{ effect: 'runeAction', label: 'Rune of Action' }]);

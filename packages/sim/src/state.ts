@@ -44,6 +44,10 @@ export function mixSeed(...parts: number[]): number {
   return h | 0;
 }
 
+/** The four run-wide tribe-aura channels the Aura Wash FX can announce (see `RunState.auraFx`).
+ *  `demon` = the Imp aura; `mech` = the Magnetic/Attachment aura. */
+export type AuraFxTribe = 'beast' | 'demon' | 'mech' | 'undead';
+
 export interface ShopCard {
   uid: string;
   cardId: string;
@@ -460,6 +464,15 @@ export interface RunState {
    *  UI reaches tendrils from that unit up to the shop line, "sending" the Fodder. One-shot. */
   fodderSendSeq?: number;
   fodderSendUid?: string;
+  /** Aura Wash FX signal: bumped when a run-wide TRIBE-AURA channel ROSE this action — the Undead aura
+   *  (Lantern of Souls / Watcher / Forsaken Will), the Imp aura (Imp Overseer / Imp King / Imp Census),
+   *  the Attachment aura (Scrap Herald), or the Beast buy-aura (Squirl Scout / Pack quests). Several of
+   *  these never touch stored stats (display-fold / future-copy auras), so without this stamp the numbers
+   *  would jump with zero feedback. One entry per risen channel: the tribe key (drives the wash's tribe
+   *  color), the delta, and the AFFECTED visible uids (board + tavern) the UI blooms the wash over.
+   *  One-shot + per-action (cleared at the top of `reduce`), like `recruitBuffFx`. */
+  auraFxSeq?: number;
+  auraFx?: { tribe: AuraFxTribe; attack: number; health: number; targets: string[] }[];
   /** The quest shop is open (waves 4/8/12): a pending offer of quest ids to "buy" for 0 Gold. While set, the
    *  reducer blocks every non-`buyQuest` action (the tavern is locked) and the UI pauses the round timer; the
    *  bought quest moves to `activeQuests` and this clears, opening the normal shop. */

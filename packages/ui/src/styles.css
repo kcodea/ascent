@@ -2711,6 +2711,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    never steals the panel's clicks). Dev-only; restored when the panel closes. */
 body.choreo-open .pixifx { z-index: 205; }
 body.choreo-open .pixifx-under { z-index: 204; }
+/* While a targeter is live (armed hero power / pending targeted Battlecry / a targeted spell drag), the
+   Pixi aim line IS the pointer — hide the OS cursor everywhere. Toggled by Recruit's aim-line effect;
+   removed the moment the aim ends (fired, cancelled, or released). */
+body.aiming, body.aiming * { cursor: none !important; }
 /* Loss-damage tally — the damage counter that assembles above the enemy board on a defeat, plus the
    tier numbers that fly up into it. The Pixi blast bolt (z41) launches from the counter into the Resolve
    bar. Counter z-index sits above the board but below the bolt. */

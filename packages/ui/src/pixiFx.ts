@@ -366,6 +366,19 @@ export interface BuffGustCfg {
 /** A card row's bounding box (screen px) — the gust anchors to its flanks. */
 export interface GustBox { left: number; right: number; top: number; bottom: number }
 
+/** Renderer-facing Aura Wash config (structural mirror of AuraFxConfig + the tribe palette — pixiFx stays
+ *  import-light). A tribe-colored bloom swept bottom→top through every affected card; see `auraWash`. */
+export interface AuraWashCfg {
+  riseMs: number; holdMs: number; fadeMs: number; staggerMs: number;
+  fillAlpha: number; padPx: number; sweepAlpha: number; sweepFrac: number;
+  moteCount: number; moteSize: number; moteLife: number; moteRise: number;
+  ringSize: number; ringMs: number; ringAlpha: number;
+  colorCore: string; colorGlow: string; colorMote: string;
+}
+
+/** One card's screen rect for the Aura Wash (screen px, top-left anchored). */
+export interface WashRect { x: number; y: number; w: number; h: number }
+
 /** Renderer-facing aim-line config (structural mirror of AimFxConfig's line half — pixiFx stays
  *  import-light). The living hero-power targeting line; see `setAimLine`. */
 export interface AimLineCfg {
@@ -524,6 +537,7 @@ class FxController {
   private readonly skullPops: SkullPop[] = [];
   private readonly tendrils: Tendril[] = []; // live buff tendrils — tapered ribbons advanced in `update`
   private readonly gusts: { g: Graphics; box: GustBox; cfg: BuffGustCfg; age: number; struck?: boolean }[] = []; // buff gusts — redrawn per frame
+  private readonly washes: { g: Graphics; rect: WashRect; cfg: AuraWashCfg; age: number; delay: number; started?: boolean; struck?: boolean }[] = []; // aura washes — one per affected card, redrawn per frame
   /** The live hero-power targeting line (null = not aiming). `side`/`amp` are rolled once per AIM — each
    *  new arm gets a fresh random arch (owner ask: never the same static curve) — then held stable. */
   private aim: { g: Graphics; from: { x: number; y: number }; to: { x: number; y: number }; onTarget: boolean; cfg: AimLineCfg; side: number; amp: number; seed: number } | null = null;
@@ -659,6 +673,10 @@ class FxController {
     this.pulses.length = 0;
     for (const d of this.descends) { d.g.destroy(); }
     this.descends.length = 0;
+    for (const w of this.gusts) { w.g.destroy(); }
+    this.gusts.length = 0;
+    for (const w of this.washes) { w.g.destroy(); }
+    this.washes.length = 0; // stale entries would otherwise survive a detach/re-init and tick on an orphaned layer
     this.skullTex?.destroy(true);
     this.skullTex = null;
     for (const b of this.shields.values()) { b.shader.destroy(); b.container.destroy({ children: true }); }
@@ -1485,6 +1503,10 @@ class FxController {
     this.pulses.length = 0;
     for (const d of this.descends) { this.layer?.removeChild(d.g); d.g.destroy(); }
     this.descends.length = 0;
+    for (const w of this.gusts) { this.layer?.removeChild(w.g); w.g.destroy(); }
+    this.gusts.length = 0;
+    for (const w of this.washes) { this.layer?.removeChild(w.g); w.g.destroy(); }
+    this.washes.length = 0;
   }
 
   /**
@@ -2060,6 +2082,80 @@ class FxController {
   }
 
   /**
+   * AURA WASH: the "a run-wide tribe aura just grew" cue (Undead Lantern aura / Imp aura / Attachment
+   * aura / Beast buy-aura): a tribe-colored bloom sweeps bottom→top through EVERY affected card at once
+   * (staggered left→right) — a soft card-filling glow, a rising band, sparkle motes drifting up, and a
+   * landing ring as each sweep tops out. Reads as "a field touched everyone", vs. the tendril (a source
+   * hit a target) and the gust (the shop row got rushed). One Graphics per card, redrawn per frame (the
+   * gust pattern); colors come from the tribe's BUFF_PRESETS palette via cfg. Config-driven (🌀 tuner).
+   */
+  auraWash(rects: WashRect[], cfg: AuraWashCfg): void {
+    if (!this.ready || !this.layer) return;
+    rects.forEach((rect, i) => {
+      const g = new Graphics();
+      g.blendMode = 'add';
+      this.layer!.addChild(g);
+      this.washes.push({ g, rect: { ...rect }, cfg, age: 0, delay: i * cfg.staggerMs });
+    });
+  }
+
+  /** Redraw one card's aura wash for this frame. Returns false once its lifecycle completes (→ retire). */
+  private drawWash(w: { g: Graphics; rect: WashRect; cfg: AuraWashCfg; age: number; delay: number; started?: boolean; struck?: boolean }): boolean {
+    const { g, rect, cfg } = w;
+    const t = w.age - w.delay;
+    if (t < 0) return true; // staggered start not reached yet
+    const total = cfg.riseMs + cfg.holdMs + cfg.fadeMs;
+    if (t > total) return false;
+    // First live frame: seed the rising sparkle motes (self-animating pool particles).
+    if (!w.started) {
+      w.started = true;
+      if (cfg.moteCount > 0 && this.glowTex) {
+        const s = cfg.moteSize / TENDRIL_GLOW_R;
+        for (let i = 0; i < cfg.moteCount; i++) {
+          this.spawn(this.glowTex, {
+            x: rect.x + Math.random() * rect.w,
+            y: rect.y + rect.h * (0.55 + Math.random() * 0.45),
+            vx: (Math.random() - 0.5) * 24, vy: -cfg.moteRise * (0.6 + Math.random() * 0.8),
+            drag: 0.995, life: cfg.moteLife * (0.7 + Math.random() * 0.6),
+            fromScale: s, toScale: s * 0.25, spin: 0,
+            tint: hexNum(Math.random() < 0.5 ? cfg.colorCore : cfg.colorMote), blend: 'add', peakAlpha: 0.9,
+          });
+        }
+      }
+    }
+    g.clear();
+    const p = Math.min(1, t / Math.max(1, cfg.riseMs));
+    const ease = 1 - Math.pow(1 - p, 3);
+    const fadeStart = cfg.riseMs + cfg.holdMs;
+    const fade = t > fadeStart ? 1 - Math.min(1, (t - fadeStart) / Math.max(1, cfg.fadeMs)) : 1;
+    const cx = rect.x + rect.w / 2;
+    // Soft card-filling glow — ramps in over the sweep, rides the shared fade.
+    if (cfg.fillAlpha > 0) {
+      g.roundRect(rect.x - cfg.padPx, rect.y - cfg.padPx, rect.w + cfg.padPx * 2, rect.h + cfg.padPx * 2, 10)
+        .fill({ color: hexNum(cfg.colorGlow), alpha: cfg.fillAlpha * Math.min(1, p * 1.6) * fade });
+    }
+    // The rising band: an ellipse sweeping bottom→top through the card, brightest mid-travel.
+    if (cfg.sweepAlpha > 0 && p < 1) {
+      const bandH = rect.h * cfg.sweepFrac;
+      const by = rect.y + rect.h - ease * (rect.h + bandH) + bandH / 2;
+      g.ellipse(cx, by, rect.w / 2 + cfg.padPx, bandH / 2)
+        .fill({ color: hexNum(cfg.colorCore), alpha: cfg.sweepAlpha * (1 - Math.abs(2 * p - 1) * 0.35) * fade });
+    }
+    // Landing ring — one-shot the moment the sweep tops out.
+    if (!w.struck && p >= 1) {
+      w.struck = true;
+      if (cfg.ringSize > 0 && cfg.ringMs > 0 && this.pulseTex) {
+        this.spawn(this.pulseTex, {
+          x: cx, y: rect.y + rect.h / 2, vx: 0, vy: 0, drag: 1, life: cfg.ringMs,
+          fromScale: 0.15, toScale: cfg.ringSize / PULSE_TEX_R, spin: 0,
+          tint: hexNum(cfg.colorCore), blend: 'add', peakAlpha: cfg.ringAlpha,
+        });
+      }
+    }
+    return true;
+  }
+
+  /**
    * THE LIVING AIM LINE (owner redesign 2026-07-16): a continuous curved ribbon from the hero-power
    * diamond (or a targeting Battlecry/spell source) to the cursor — soft breathing aura under a bright
    * core, subtle time-based wobble, and a per-aim RANDOM arch (side + amplitude rolled when the aim
@@ -2365,6 +2461,17 @@ class FxController {
         this.layer?.removeChild(w.g);
         w.g.destroy();
         this.gusts.splice(i, 1);
+      }
+    }
+
+    // Aura washes: advance + redraw each per-card wash; retire when its lifecycle completes.
+    for (let i = this.washes.length - 1; i >= 0; i--) {
+      const w = this.washes[i]!;
+      w.age += dtMs;
+      if (!this.drawWash(w)) {
+        this.layer?.removeChild(w.g);
+        w.g.destroy();
+        this.washes.splice(i, 1);
       }
     }
 

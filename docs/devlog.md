@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): modernized Fodder-eat animation — pop in, crumble to energy, tendril to the eater
+
+Owner redesign (2026-07-16): the old consume anim (ghost appears IN the tavern, spins ~2.2s, flies into
+the Demon) replaced with a faster, punchier three-beat:
+1. **Pop-in**: the ghost Fodder drops in HOVERING ABOVE the shop line — fast in with a slight overshoot,
+   easing to a stop (`fodderpop`, 0.95s, transform/opacity only).
+2. **Crumble**: after a beat (the 65% mark / CRUMBLE_MS 620), the card shrinks + sinks + fades — while a
+   purple energy burst fires at its position (the tendril's source pulse).
+3. **Tendril**: a ribbon whips from the crumble point into EACH Demon that ate (the Fodder-Infusion
+   language — ribbon look + colours read from the 🍖 tuner's config, so it stays tunable); the eater's
+   +X/+X floats as the tendril lands (synced to `travelMs`, was a fixed 1450ms guess).
+- **Eater impact wiggle** (owner, same day): the Demon physically reacts as the tendril lands — a quick
+  gulp-pop (lift + 1.06 scale + alternating rotate, 380ms), WAAPI transform-only with composite 'add',
+  fired alongside the +X/+X float at the tendril's arrival.
+- **Double-pop fix** (owner report, same day): the generic stat-diff flash fired the INSTANT the consume
+  resolved (the reducer applies the buff immediately), so the eater popped twice — once at consume, once at
+  the tendril's landing. The stat-diff effect now tracks `fodderEatenSeq` itself and EXCLUDES that action's
+  eaters from the instant flash/float; their only reaction is the choreographed wiggle + float at arrival.
+  Verified live: no pop/float at consume, exactly one wiggle + one float at the tendril's landing.
+- ~1.2s total vs the old 2.3s; the orbiting swirl orbs + fly-to-eater keyframes retired (dead CSS removed).
+- Verified live: queued Fred + board Demon + roll → the eat resolved (+1/+1 on the Demon), the ghost
+  popped + crumbled, and the tendril arced from the crumble point into the eater (slowed capture).
+  Typecheck + lint + 1130 tests + build:web green.
+
 ### feat(sim/ui): Fodder Infusion FX — send-Fodder tendrils from the unit to the shop line + 🍖 tuner
 
 Owner ask (2026-07-16, with the reference shot): when a unit queues Fodder for the tavern, organic violet

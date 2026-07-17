@@ -683,10 +683,11 @@ export function Recruit() {
   const [fodderAnim, setFodderAnim] = useState<
     {
       key: number;
-      ghosts: { fid: string; attack: number; health: number; x0: number; y0: number; w: number; h: number; dx: number; dy: number }[];
+      ghosts: { fid: string; attack: number; health: number; x0: number; y0: number; w: number; h: number; eaterUid: string }[];
     } | null
   >(null);
   const prevFodderSeq = useRef(run.fodderEatenSeq);
+  const prevEatFlashSeq = useRef(run.fodderEatenSeq); // the stat-diff flash's own eat tracker (suppresses the eaters' instant pop)
   const prevFxSeq = useRef(run.recruitFxSeq); // inits to current so it never fires on mount (a resumed save may carry a bumped seq)
   // A brief "End of Turn" banner when the turn ends (recruit → combat), making it clear that
   // end-of-turn effects (Ritualist & co.) just resolved.
@@ -1963,13 +1964,21 @@ export function Recruit() {
     const prev = prevStatsRef.current;
     const next = new Map<string, { a: number; h: number }>();
     const newly: string[] = [];
+    // A fresh Fodder eat this action: the EATERS' reaction is choreographed to the consume tendril's
+    // ARRIVAL (the wiggle + delayed float) — suppress the instant stat-diff flash/float for them, or the
+    // Demon pops twice (once now, once when the tendril lands — owner bug report 2026-07-16).
+    const eatUids = new Set<string>();
+    if (run.fodderEatenSeq !== prevEatFlashSeq.current) {
+      prevEatFlashSeq.current = run.fodderEatenSeq;
+      for (const ev of run.fodderEaten ?? []) eatUids.add(ev.eaterUid);
+    }
     // Cards that gained stats, with the exact delta — drives the +X/+X float (board + hand minions).
     const gained: { uid: string; attack: number; health: number }[] = [];
     for (const c of [...run.board, ...run.hand]) {
       const cur = { a: c.attack, h: c.health };
       next.set(c.uid, cur);
       const p = prev.get(c.uid);
-      if (!inCombat && p && cur.a + cur.h > p.a + p.h) {
+      if (!inCombat && p && cur.a + cur.h > p.a + p.h && !eatUids.has(c.uid)) {
         newly.push(c.uid);
         gained.push({ uid: c.uid, attack: cur.a - p.a, health: cur.h - p.h });
       }
@@ -2143,8 +2152,11 @@ export function Recruit() {
     return () => window.clearTimeout(t);
   }, [run.karwindFlashSeq, run.karwindFlash]);
 
-  // Tavern Fodder was auto-eaten (fodderEatenSeq bumped): show a ghost Fred in the tavern
-  // and swirl it into the Demon that ate it (measured from the live DOM), then clear.
+  // Tavern Fodder was auto-eaten (fodderEatenSeq bumped) — the modernized eat (owner redesign 2026-07-16):
+  // the ghost card POPS IN hovering above the shop line (fast in, easing to a stop), holds a beat, then
+  // CRUMBLES into purple energy (the CSS fade + a source burst) while a tendril whips from it into each
+  // Demon that ate it (the Fodder-Infusion ribbon language + the 🍖 tuner's dials); the eater's +X/+X
+  // floats as the tendril lands. ~1.2s total (the old swirl-and-fly ran 2.3s).
   useEffect(() => {
     if (run.fodderEatenSeq === prevFodderSeq.current) return;
     prevFodderSeq.current = run.fodderEatenSeq;
@@ -2154,10 +2166,11 @@ export function Recruit() {
     let raf = 0;
     let tries = 0;
     let t = 0;
+    let crumbleT = 0;
     let floatT = 0;
     // Measure + play once the tavern row is actually in the DOM. If it isn't yet (a consume that procs
     // before the shop has laid out / mid-transition), RETRY on the next frames instead of bailing — the
-    // old code marked the seq seen and returned, so that consume's swirl was lost forever (never replays).
+    // old code marked the seq seen and returned, so that consume's anim was lost forever (never replays).
     const tryShow = (): void => {
       const rowEl = document.querySelector('[data-zone="tavern"] .row');
       if (!rowEl || !rowEl.getClientRects().length) {
@@ -2168,22 +2181,35 @@ export function Recruit() {
       const sample = rowEl.querySelector('.card')?.getBoundingClientRect();
       const w = sample?.width ?? rr.height * 0.752;
       const h = sample?.height ?? rr.height;
-      const cy = rr.top + rr.height / 2;
       const ghosts = events.map((ev, i) => {
         const gx = rr.left + rr.width / 2 + (i - (events.length - 1) / 2) * (w * 0.72);
-        const eaterEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${ev.eaterUid}"]`);
-        let dx = 0;
-        let dy = 220; // fallback: drift down if the eater isn't on screen
-        if (eaterEl) {
-          const er = eaterEl.getBoundingClientRect();
-          dx = er.left + er.width / 2 - gx;
-          dy = er.top + er.height / 2 - cy;
-        }
-        return { fid: ev.fodderId, attack: ev.attack, health: ev.health, x0: gx - w / 2, y0: cy - h / 2, w, h, dx, dy };
+        // Hover ABOVE the shop line: the ghost's centre sits just over the row's top edge.
+        return { fid: ev.fodderId, attack: ev.attack, health: ev.health, x0: gx - w / 2, y0: rr.top - h * 0.62, w, h, eaterUid: ev.eaterUid };
       });
       setFodderAnim({ key: seq, ghosts });
-      // Float the eater's actual +X/+X gain as the ghost swirls in — the shop-phase buff float, the same one
-      // spells/hero-power show — summed per eater (one Demon can eat several Fodder this proc).
+      const CRUMBLE_MS = 620; // when the hover ends and the card breaks into energy (syncs the CSS keyframe's 65%)
+      const icfg = getInfuseFxConfig();
+      // The crumble: a tendril whips from each ghost into ITS eater — the 🍖 ribbon look, with the source
+      // pulse doubling as the card's burst-into-energy.
+      crumbleT = window.setTimeout(() => {
+        for (const g of ghosts) {
+          const from = { x: g.x0 + g.w / 2, y: g.y0 + g.h / 2 };
+          const eaterEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${g.eaterUid}"]`);
+          const er = eaterEl?.getBoundingClientRect();
+          const to = er ? { x: er.left + er.width / 2, y: er.top + er.height / 2 } : { x: from.x, y: from.y + 220 };
+          pixiFx.buffTendril(from, to, {
+            blend: 'add', curve: icfg.curve * 0.6, wobbleAmp: icfg.wobbleAmp, wobbleFreq: icfg.wobbleFreq,
+            travelMs: icfg.travelMs, retractMs: icfg.retractMs,
+            baseWidth: icfg.baseWidth, tipWidth: icfg.tipWidth, coreAlpha: icfg.coreAlpha,
+            glowWidth: icfg.glowWidth, glowAlpha: icfg.glowAlpha,
+            flashSize: icfg.flashSize, flashMs: icfg.flashMs,
+            moteCount: icfg.moteCount, moteSpeed: icfg.moteSpeed, moteLife: icfg.moteLife,
+            pulseSize: icfg.pulseSize, pulseAlpha: icfg.pulseAlpha, pulseMs: icfg.pulseMs,
+            colorCore: icfg.colorCore, colorGlow: icfg.colorGlow, colorFlash: icfg.colorCore, colorMote: icfg.colorGlow,
+          });
+        }
+      }, CRUMBLE_MS);
+      // Float the eater's +X/+X as the tendril LANDS — summed per eater (one Demon can eat several Fodder).
       const gains = new Map<string, { a: number; h: number }>();
       for (const ev of events) {
         const g = gains.get(ev.eaterUid) ?? { a: 0, h: 0 };
@@ -2198,6 +2224,19 @@ export function Recruit() {
           for (const k of keyed) n[k.uid] = { attack: k.attack, health: k.health, key: k.key };
           return n;
         });
+        // Impact wiggle: the eater physically reacts as the tendril lands (owner ask 2026-07-16) — a quick
+        // gulp-pop, WAAPI transform-only with composite: 'add' (stacks on the card's own transforms).
+        for (const k of keyed) {
+          const el = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${k.uid}"]`);
+          try {
+            el?.animate([
+              { transform: 'translateY(0) scale(1) rotate(0deg)' },
+              { transform: 'translateY(-4px) scale(1.06) rotate(-2deg)', offset: 0.25 },
+              { transform: 'translateY(1px) scale(0.99) rotate(1.4deg)', offset: 0.55 },
+              { transform: 'translateY(0) scale(1) rotate(0deg)' },
+            ], { duration: 380, easing: 'ease-in-out', composite: 'add' });
+          } catch { /* WAAPI composite unsupported: skip the wiggle rather than clobber the card transform */ }
+        }
         window.setTimeout(() => {
           setStatFloats((m) => {
             const n = { ...m };
@@ -2205,11 +2244,11 @@ export function Recruit() {
             return n;
           });
         }, 1500);
-      }, 1450); // ~when the ghost reaches the eater
-      t = window.setTimeout(() => setFodderAnim(null), 2300); // slower: hold, then swirl in
+      }, CRUMBLE_MS + icfg.travelMs); // the tendril's arrival
+      t = window.setTimeout(() => setFodderAnim(null), 1250); // the card is long gone by here (fodderpop is 0.95s)
     };
     tryShow();
-    return () => { if (raf) cancelAnimationFrame(raf); window.clearTimeout(t); window.clearTimeout(floatT); };
+    return () => { if (raf) cancelAnimationFrame(raf); window.clearTimeout(t); window.clearTimeout(crumbleT); window.clearTimeout(floatT); };
     // Keyed on the seq ONLY: `run.fodderEaten` gets a fresh array ref every action, so including it
     // would re-run this effect (and its cleanup) on unrelated actions, stranding the ghost. The seq only
     // changes when Fodder is actually eaten, so the snapshot read of `run.fodderEaten` here is current.
@@ -3241,14 +3280,9 @@ export function Recruit() {
             <div
               key={`${fodderAnim.key}-${i}`}
               className="fodderghost"
-              style={{ left: g.x0, top: g.y0, width: g.w, height: g.h, '--dx': `${g.dx}px`, '--dy': `${g.dy}px` } as CSSProperties}
+              style={{ left: g.x0, top: g.y0, width: g.w, height: g.h } as CSSProperties}
               aria-hidden="true"
             >
-              <span className="fodderswirl" aria-hidden="true">
-                {[0, 1, 2, 3].map((n) => (
-                  <span className="fs-orb" key={n} style={{ '--n': n } as CSSProperties} />
-                ))}
-              </span>
               <Card card={view} />
             </div>
           );

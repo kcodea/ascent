@@ -25,6 +25,15 @@ shop cards.
 - 2 signal tests (Godfodder pick stamps the sender + queues 2; Soulfeeder's Shout stamps + arms the
   schedule). Verified live: a played Godfodder's Fodder pick launched the tendrils from the card up to the
   shop row (screenshot). Typecheck + lint + 1130 tests + build:web green.
+- **Gust interior + impact** (owner ask, same day — "fill in the tavern a bit more / more impact"):
+  three new layers on `pixiFx.buffGust`, all tunable in the 💨 tuner —
+  - **Row wash**: a soft additive ellipse filling the row while the gust plays (ramps in over the sweep,
+    rides the shared fade) — `washAlpha`/`washPad`.
+  - **Landing impact**: the moment everything lands, an expanding ring pops at row-centre
+    (`impactSize`/`impactMs`/`impactAlpha`, the pulse-ring texture).
+  - **Land sparkles**: motes scattered across the row drifting upward
+    (`sparkCount`/`sparkSize`/`sparkLife`/`sparkRise`, mixed core/glow tints).
+  Defaults moderate (wash α 0.16, ring 150px, 16 sparkles) — owner dials with the ▶ Test button.
 - **▶ Test FX buttons** (owner ask, same day): all three FX tuners (🔀 Swap / 💨 Gust / 🍖 Infusion) gained a
   test-fire button — a shared dev helper (`fxTestFire.ts`) mirrors each effect's real geometry off the live
   shop row, with the FIRST BOARD MINION (or the hero portrait when the board is empty) standing in as the

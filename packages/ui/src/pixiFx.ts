@@ -356,6 +356,9 @@ export interface BuffGustCfg {
   sweepMs: number; staggerMs: number; arcMs: number; holdMs: number; fadeMs: number;
   streaks: number; streakLen: number; streakTravel: number; streakWidth: number; streakCurve: number; spreadY: number;
   arcHeight: number; arcBulge: number; arcWidth: number; arcTravel: number; edgeOut: number;
+  washAlpha: number; washPad: number;
+  impactSize: number; impactMs: number; impactAlpha: number;
+  sparkCount: number; sparkSize: number; sparkLife: number; sparkRise: number;
   coreAlpha: number; glowWidth: number; glowAlpha: number; taper: number;
   colorCore: string; colorGlow: string;
 }
@@ -512,7 +515,7 @@ class FxController {
   private skullSrcH = 1;
   private readonly skullPops: SkullPop[] = [];
   private readonly tendrils: Tendril[] = []; // live buff tendrils — tapered ribbons advanced in `update`
-  private readonly gusts: { g: Graphics; box: GustBox; cfg: BuffGustCfg; age: number }[] = []; // buff gusts — redrawn per frame
+  private readonly gusts: { g: Graphics; box: GustBox; cfg: BuffGustCfg; age: number; struck?: boolean }[] = []; // buff gusts — redrawn per frame
   private readonly critFxs: CritFx[] = []; // live Critical-Strike flourishes (ring + "CRIT!" + card flash)
   private readonly critTextCache = new Map<string, Texture>(); // "CRIT!" textures keyed by size|color|edge
   private readonly pulses: PulseFx[] = [];
@@ -1947,7 +1950,7 @@ class FxController {
   }
 
   /** Redraw one buff gust for this frame. Returns false once its lifecycle completes (→ retire). */
-  private drawGust(w: { g: Graphics; box: GustBox; cfg: BuffGustCfg; age: number }): boolean {
+  private drawGust(w: { g: Graphics; box: GustBox; cfg: BuffGustCfg; age: number; struck?: boolean }): boolean {
     const { g, box, cfg } = w;
     const t = w.age / 1000;
     const lastStreak = Math.max(0, cfg.streaks - 1) * cfg.staggerMs / 1000;
@@ -1960,6 +1963,41 @@ class FxController {
     const rowH = box.bottom - box.top;
     const fadeStart = landAll + cfg.holdMs / 1000;
     const fade = 1 - Math.min(1, Math.max(0, (t - fadeStart) / (cfg.fadeMs / 1000 || 0.001)));
+
+    // Interior WASH — a soft additive ellipse filling the row while the gust plays (the "fill the tavern
+    // in" layer, owner ask 2026-07-16). Ramps in over the sweep, rides the shared fade.
+    if (cfg.washAlpha > 0) {
+      const rampIn = Math.min(1, t / Math.max(0.001, cfg.sweepMs / 1000));
+      g.ellipse((box.left + box.right) / 2, cy, (box.right - box.left) / 2 + cfg.washPad, rowH / 2 + cfg.washPad)
+        .fill({ color: hexNum(cfg.colorGlow), alpha: cfg.washAlpha * rampIn * fade });
+    }
+
+    // LANDING IMPACT — the moment everything lands: an expanding ring at row-centre + sparkle motes
+    // scattered over the cards, drifting upward (one-shot; the particles animate on their own).
+    if (!w.struck && t >= landAll) {
+      w.struck = true;
+      const cx2 = (box.left + box.right) / 2;
+      if (cfg.impactSize > 0 && cfg.impactMs > 0 && this.pulseTex) {
+        this.spawn(this.pulseTex, {
+          x: cx2, y: cy, vx: 0, vy: 0, drag: 1, life: cfg.impactMs,
+          fromScale: 0.15, toScale: cfg.impactSize / PULSE_TEX_R, spin: 0,
+          tint: hexNum(cfg.colorCore), blend: 'add', peakAlpha: cfg.impactAlpha,
+        });
+      }
+      if (cfg.sparkCount > 0 && this.glowTex) {
+        const sScale = cfg.sparkSize / TENDRIL_GLOW_R;
+        for (let i = 0; i < cfg.sparkCount; i++) {
+          this.spawn(this.glowTex, {
+            x: box.left + Math.random() * (box.right - box.left),
+            y: box.top + Math.random() * rowH,
+            vx: (Math.random() - 0.5) * 30, vy: -cfg.sparkRise * (0.6 + Math.random() * 0.8),
+            drag: 0.995, life: cfg.sparkLife * (0.7 + Math.random() * 0.6),
+            fromScale: sScale, toScale: sScale * 0.25, spin: 0,
+            tint: hexNum(Math.random() < 0.5 ? cfg.colorCore : cfg.colorGlow), blend: 'add', peakAlpha: 0.9,
+          });
+        }
+      }
+    }
 
     for (const side of [-1, 1]) { // -1 = left flank (blows right), +1 = right flank (blows left)
       // `edgeOut` pushes each flank outward beyond the row bounds — toward the board ends (owner ask).

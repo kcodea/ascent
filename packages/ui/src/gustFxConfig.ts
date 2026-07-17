@@ -27,6 +27,15 @@ export interface GustFxConfig {
   arcWidth: number;     // px — bracket core stroke width
   arcTravel: number;    // px — inward drift as the bracket draws
   edgeOut: number;      // px — push each flank OUTWARD beyond the row bounds (toward the board ends)
+  washAlpha: number;    // 0..1 — the soft interior WASH filling the row while the gust plays (0 = off)
+  washPad: number;      // px — how far the wash extends beyond the row bounds
+  impactSize: number;   // px radius — the expanding ring popped at row-centre when everything LANDS (0 = off)
+  impactMs: number;     // ms — the impact ring's expand+fade
+  impactAlpha: number;  // 0..1 — impact ring peak opacity
+  sparkCount: number;   // sparkle motes scattered OVER the row at the landing (0 = off)
+  sparkSize: number;    // px — sparkle size
+  sparkLife: number;    // ms — sparkle lifetime
+  sparkRise: number;    // px/s — upward drift of the sparkles
   coreAlpha: number;    // 0..1
   glowWidth: number;    // px — soft underlay added around every stroke
   glowAlpha: number;    // 0..1
@@ -54,6 +63,15 @@ const DEFAULTS: GustFxConfig = {
   arcWidth: 15,
   arcTravel: 36,
   edgeOut: 90,
+  washAlpha: 0.16,
+  washPad: 20,
+  impactSize: 150,
+  impactMs: 380,
+  impactAlpha: 0.5,
+  sparkCount: 16,
+  sparkSize: 8,
+  sparkLife: 620,
+  sparkRise: 70,
   coreAlpha: 0.9,
   glowWidth: 14,
   glowAlpha: 0.5,
@@ -66,6 +84,7 @@ export const GUSTFX_KEYS = [
   'sweepMs', 'staggerMs', 'arcMs', 'holdMs', 'fadeMs',
   'streaks', 'streakLen', 'streakTravel', 'streakWidth', 'streakCurve', 'spreadY',
   'arcHeight', 'arcBulge', 'arcWidth', 'arcTravel', 'edgeOut',
+  'washAlpha', 'washPad', 'impactSize', 'impactMs', 'impactAlpha', 'sparkCount', 'sparkSize', 'sparkLife', 'sparkRise',
   'coreAlpha', 'glowWidth', 'glowAlpha', 'taper',
   'colorCore', 'colorGlow',
 ] as const satisfies readonly (keyof GustFxConfig)[];
@@ -77,6 +96,8 @@ export const GUSTFX_RANGES: Partial<Record<keyof GustFxConfig, [number, number, 
   sweepMs: [100, 1500, 10], staggerMs: [0, 200, 5], arcMs: [80, 1200, 10], holdMs: [0, 1500, 10], fadeMs: [80, 1200, 10],
   streaks: [0, 10, 1], streakLen: [40, 400, 5], streakTravel: [0, 400, 5], streakWidth: [1, 20, 0.5], streakCurve: [0, 0.6, 0.02], spreadY: [40, 400, 5],
   arcHeight: [0.6, 2.5, 0.05], arcBulge: [0, 160, 2], arcWidth: [1, 24, 0.5], arcTravel: [0, 200, 2], edgeOut: [0, 400, 5],
+  washAlpha: [0, 0.6, 0.02], washPad: [0, 80, 2], impactSize: [0, 320, 5], impactMs: [0, 1000, 10], impactAlpha: [0, 1, 0.05],
+  sparkCount: [0, 40, 1], sparkSize: [2, 20, 1], sparkLife: [100, 1500, 10], sparkRise: [0, 200, 5],
   coreAlpha: [0, 1, 0.05], glowWidth: [0, 48, 1], glowAlpha: [0, 1, 0.05], taper: [0, 1, 1],
 };
 

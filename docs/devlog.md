@@ -34,6 +34,10 @@ shop cards.
   - **Land sparkles**: motes scattered across the row drifting upward
     (`sparkCount`/`sparkSize`/`sparkLife`/`sparkRise`, mixed core/glow tints).
   Defaults moderate (wash α 0.16, ring 150px, 16 sparkles) — owner dials with the ▶ Test button.
+- **Gust scope-down** (owner, same day): the gust is the **Fodder-buff cue EXCLUSIVELY** — removed from
+  Imp-aura buffs (`buffImpsRunWide` no longer stamps; Ritualist still gusts via its Fodder half) and from
+  **Staff of Guel** (its Fodder side-enchant passes a new `fx: false` through `buffFodderRunWide`).
+  Tests inverted to lock the exclusions.
 - **▶ Test FX buttons** (owner ask, same day): all three FX tuners (🔀 Swap / 💨 Gust / 🍖 Infusion) gained a
   test-fire button — a shared dev helper (`fxTestFire.ts`) mirrors each effect's real geometry off the live
   shop row, with the FIRST BOARD MINION (or the hero portrait when the board is empty) standing in as the

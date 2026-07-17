@@ -266,7 +266,7 @@ export function noteFodderConsumed(state: RunState, fa: number, fh: number): voi
   if (state.runeConsume) buffFodderRunWide(state, state.runeConsume.attack, state.runeConsume.health, 'Rune of Consumption');
 }
 
-export function buffFodderRunWide(state: RunState, a: number, h: number, source: string): void {
+export function buffFodderRunWide(state: RunState, a: number, h: number, source: string, fx = true): void {
   state.cardBuffs ??= {};
   for (const def of Object.values(CARD_INDEX)) {
     if (!def.keywords.includes('FD')) continue;
@@ -277,10 +277,13 @@ export function buffFodderRunWide(state: RunState, a: number, h: number, source:
   for (const c of [...state.board, ...state.hand]) {
     if (CARD_INDEX[c.cardId]?.keywords.includes('FD')) addBuff(c, source, a, h);
   }
-  // Buff Gust FX: sweep the gust over every AFFECTED visible Fodder — board + hand + the tavern's offers.
-  stampBuffGust(state, [...state.board, ...state.hand, ...state.shop]
-    .filter((c) => CARD_INDEX[c.cardId]?.keywords.includes('FD'))
-    .map((c) => c.uid));
+  // Buff Gust FX — the FODDER-buff cue EXCLUSIVELY (owner 2026-07-16: not Imp auras, not the Staff of
+  // Guel): callers whose identity isn't "a Fodder buff" (the Staff's side-enchant) pass `fx: false`.
+  if (fx) {
+    stampBuffGust(state, [...state.board, ...state.hand, ...state.shop]
+      .filter((c) => CARD_INDEX[c.cardId]?.keywords.includes('FD'))
+      .map((c) => c.uid));
+  }
 }
 
 /** Stamp the one-shot Buff Gust FX signal. The gust is the TAVERN flourish — the UI anchors it to the
@@ -320,8 +323,8 @@ export function buffImpsRunWide(state: RunState, a: number, h: number, source: s
   for (const c of [...state.board, ...state.hand]) {
     if (CARD_INDEX[c.cardId]?.imp) addBuff(c, source, a, h);
   }
-  // Buff Gust FX: an Imp-aura buff is a tavern-flourish trigger too (Imp Overseer, Implosion, Ritualist).
-  stampBuffGust(state, [...state.board, ...state.hand].filter((c) => CARD_INDEX[c.cardId]?.imp).map((c) => c.uid));
+  // (No gust here — the cue is Fodder-buff exclusive, owner 2026-07-16. Ritualist still gusts via its
+  // buffFodderRunWide half.)
 }
 
 /**
@@ -1756,13 +1759,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // Tavern buffs feed Fodder too — enchant the Fodder type run-wide (like Ritualist), so Demons
     // eating Fodder, and any Fodder you take, carry the Staff's buff. A directly-bought Fodder gets it
     // through this enchant, not the buy-buff (the buy path + shop view skip FD to avoid double-applying).
-    buffFodderRunWide(ctx.state, a, h, 'Staff of Guel');
-    // Buff Gust FX: the Staff enchants EVERY future tavern buy — re-stamp with the whole shop minion row
-    // (+ the visible Fodder the enchant above already covers), overriding the narrower Fodder stamp.
-    stampBuffGust(ctx.state, [
-      ...ctx.state.shop.filter((o) => !CARD_INDEX[o.cardId]?.spell).map((o) => o.uid),
-      ...[...ctx.state.board, ...ctx.state.hand].filter((c) => CARD_INDEX[c.cardId]?.keywords.includes('FD')).map((c) => c.uid),
-    ]);
+    // NO gust: the cue is Fodder-buff exclusive (owner 2026-07-16) — the Staff's enchant is a side effect.
+    buffFodderRunWide(ctx.state, a, h, 'Staff of Guel', false);
   },
 
   /** Lantern of Souls — cast: your Undead get +`amount` Attack (plus spell power on Attack AND Health)

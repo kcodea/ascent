@@ -5,6 +5,27 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(sim/ui): Fodder Infusion FX — send-Fodder tendrils from the unit to the shop line + 🍖 tuner
+
+Owner ask (2026-07-16, with the reference shot): when a unit queues Fodder for the tavern, organic violet
+tendrils should reach from THAT unit up to the shop line — "sending/infusing" it — without wrapping the
+shop cards.
+- **Composed from the existing `pixiFx.buffTendril` ribbons** (no new renderer): `count` tendrils fan from
+  the source card's centre to evenly-spread points just BELOW the shop row (`endYOff`), curves alternating
+  sides for the organic branch look, staggered launches, each striking with a flash + motes, plus ONE
+  "sending" pulse at the source (first tendril only — a triple-pulse reads as flicker).
+- **Signal**: `fodderSendSeq` + `fodderSendUid` (the SOURCE card) stamped in all four queue-fodder
+  factories — `addTavernFodder` (Maw's End of Turn, Godfodder's pick), `addFodderNextShops` (Soulfeeder),
+  `deathrattleAddFodder` (Burial Imp — skips gracefully if the dying card already left the DOM), and
+  `goldSpentBuffFodder` (Korok, riding alongside its Buff Gust). Maw's End-of-Turn fires on its BEAT (the
+  gust pattern — the faceOmen stamp lands in combat, phase-guarded out); never fires in combat.
+- **🍖 Fodder Infusion tuner** (config + tuner + DevMenu trio): count/spread/stagger/strike-offset + the
+  full per-ribbon dials (travel/retract, curve/wobble, widths/alphas, strike flash/motes, source pulse,
+  colours — defaults in the Buff Gust's pink/violet palette).
+- 2 signal tests (Godfodder pick stamps the sender + queues 2; Soulfeeder's Shout stamps + arms the
+  schedule). Verified live: a played Godfodder's Fodder pick launched the tendrils from the card up to the
+  shop row (screenshot). Typecheck + lint + 1130 tests + build:web green.
+
 ### feat(fx): Buff Gust preview rig — the tavern-buffed cue, take two
 
 The Enchant Weave (per-card wreaths) didn't hit the mark (owner call — PR #523 closed unmerged, preserved

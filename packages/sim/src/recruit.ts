@@ -291,6 +291,14 @@ export function stampBuffGust(state: RunState, uids: string[]): void {
   state.buffGustUids = [...new Set(uids)];
 }
 
+/** Stamp the one-shot Fodder Infusion FX signal: `uid` = the SOURCE card queuing Fodder for the tavern —
+ *  the UI reaches tendrils from that unit up to the shop line. */
+export function stampFodderSend(state: RunState, uid: string | undefined): void {
+  if (!uid) return;
+  state.fodderSendSeq = (state.fodderSendSeq ?? 0) + 1;
+  state.fodderSendUid = uid;
+}
+
 /**
  * Accrue the run-wide **Imp** buff (Fodder Feeder / Ritualist / Bane). Imps are combat-summoned tokens
  * (Brood Matron / Imp King), so this bumps `state.impBuff` — which `simulate` applies to every friendly Imp
@@ -903,12 +911,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const count = num(params.count, 1) * gold(self);
     const id = str(params.tokenId) || 'fred';
     (ctx.state.pendingTavern ??= []).push(...Array(count).fill(id));
+    stampFodderSend(ctx.state, self?.uid); // Fodder Infusion FX: tendrils from the sender to the shop line
   },
 
   /** Queue Fodder across the next `shops` tavern refreshes (Soulfeeder: "add a Fodder to the next 2 shops";
    *  golden doubles the per-shop count). Arms `fodderSchedule`, consumed one refresh at a time. */
   addFodderNextShops: (ctx, self, params) => {
     armFodderSchedule(ctx.state, num(params.count, 1) * gold(self), num(params.shops, 2));
+    stampFodderSend(ctx.state, self?.uid); // Fodder Infusion FX
   },
 
   /** The Godfodder — Battlecry: CREATE a Fodder (Fred) and feed it to the targeted friendly minion
@@ -1571,6 +1581,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Burial Imp / Soulfeeder (recruit half) — queue `count` Fodder into your next tavern; golden doubles. */
   deathrattleAddFodder: (ctx, self, params) => {
     (ctx.state.pendingTavern ??= []).push(...Array(num(params.count, 1) * gold(self)).fill('fred'));
+    stampFodderSend(ctx.state, self?.uid); // Fodder Infusion FX (skips gracefully if the dying card left the DOM)
   },
 
   // --- Spells ---
@@ -2072,7 +2083,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const h = num(params.health, 1) * gold(self);
     buffFodderRunWide(ctx.state, a, h, nameOf(self));
     const fodder = num(params.fodder, 0) * gold(self);
-    if (fodder > 0) (ctx.state.pendingTavern ??= []).push(...Array(fodder).fill('fred'));
+    if (fodder > 0) {
+      (ctx.state.pendingTavern ??= []).push(...Array(fodder).fill('fred'));
+      stampFodderSend(ctx.state, self?.uid); // Fodder Infusion FX (rides alongside the Buff Gust's enchant)
+    }
   },
 
   /** Banksly — every `every` Gold you spend (the per-instance gold meter), weld a RANDOM Magnetic minion's

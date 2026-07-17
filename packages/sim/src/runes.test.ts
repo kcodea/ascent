@@ -342,6 +342,28 @@ describe('Buff Gust FX signal', () => {
   });
 });
 
+describe('Fodder Infusion FX signal', () => {
+  it("Godfodder's Fodder pick stamps the sender's uid (and queues the Fodder)", () => {
+    let s: RunState = { ...createRun(1, 'warden'), phase: 'recruit', embers: 10, board: [],
+      hand: [{ uid: 'gf', cardId: 'godfodder', tribe: 'demon', attack: 3, health: 2, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'gf' });
+    expect(s.chooseOne).toBeDefined();
+    s = reduce(s, { type: 'chooseOne', index: 0 }); // "Add 2 Fodder to your next shop"
+    expect(s.pendingTavern?.length).toBe(2);
+    expect(s.fodderSendSeq).toBe(1);
+    expect(s.fodderSendUid).toBe('gf'); // the Godfodder itself is the sender (played to the board, uid kept)
+  });
+
+  it("Soulfeeder's Shout stamps too (addFodderNextShops)", () => {
+    let s: RunState = { ...createRun(1, 'warden'), phase: 'recruit', embers: 10, board: [],
+      hand: [{ uid: 'sf', cardId: 'feed', tribe: 'demon', attack: 2, health: 3, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'sf' });
+    expect(s.fodderSendSeq).toBe(1);
+    expect(s.fodderSendUid).toBe('sf');
+    expect(s.fodderSchedule?.[0]).toBeGreaterThanOrEqual(1); // the schedule armed
+  });
+});
+
 describe('Epic Runeforge', () => {
   /** Open the Epic forge with a chosen Epic rune first, then buy it — returns the post-buy run. */
   const buyEpic = (runeId: string, embers = 10, heroId = 'baggerben', over: Partial<RunState> = {}): RunState => {

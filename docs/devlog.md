@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(sim/ui): Displacement swap FX — circular exchange arrows + a 🔀 tuner
+
+Owner ask (2026-07-16, with a reference shot): a two-arrow circular swap effect when Displacement trades a
+board minion with a tavern minion.
+- **Signal**: `swapWithTavern` stamps `swapFxSeq` + the two NEW uids (the arrival on the board, the displaced
+  offer in the tavern) — the `chaosGrantSeq` one-shot pattern, covering BOTH triggers (Darah's power + the
+  Displacement spell) at the one place the swap actually happens.
+- **`pixiFx.swapArc(board, shop, cfg)`**: two mirrored tendril ribbons (the existing quadratic-arc system)
+  travelling in opposite directions — warm tavern→board, violet board→tavern — same positive curve bulging
+  each arc to its own side (the circle), an **arrowhead** at each travelling tip (a new optional `arrowSize`
+  on the tendril entry, drawn tangent-oriented each frame into the same Graphics), arrival flash + motes
+  (the tendril strike), and a soft **halo** held on both cards for the ride. All Pixi/WebGL — no CSS paint
+  loops; the ribbons already rebuild per-frame in the shared rAF.
+- **🔀 Swap FX tuner** (config + tuner + DevMenu trio): travel/retract, arc bulge, wobble, tail/head widths,
+  core/glow alphas, arrowhead size, strike flash/motes, halo, and the four colours (arrival + departure,
+  core + glow). Dev-persisted (`ascent.swapfx`); DEFAULTS eyeballed to the reference shot — owner tunes with
+  Darah live, Copy values, bake back.
+- Verified live: Darah's power swapped Alleycat ↔ Drone, `swapFxSeq` stamped with both uids, the held minion
+  restored to the tavern intact, and a slowed-down capture shows the two arrowheaded arcs + halos matching
+  the reference composition. Typecheck + lint + 1125 tests + build:web green.
+- Follow-ups for the tuning session: a "test swap" button in the tuner, sfx hook, and whether the swapping
+  CARDS should also animate along the arcs (the FX currently draws over the instant card swap).
+
 ### feat(sim/ui): per-card acquisition analytics — wave-tagged buys + a Balance Report CSV export
 
 Owner ask (2026-07-16): a deeper read on minion purchases — what turns cards are bought on and how they

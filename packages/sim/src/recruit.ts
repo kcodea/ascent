@@ -2691,6 +2691,10 @@ export function swapWithTavern(state: RunState, boardMinion: BoardCard): boolean
   state.board[bi] = incoming;
   // The displaced minion → the tavern, its FULL state stashed on the offer (restored on buy / swap-back).
   state.shop[si] = { uid: `s${state.uidSeq++}`, cardId: boardMinion.cardId, held: { ...boardMinion, keywords: [...boardMinion.keywords], buffs: boardMinion.buffs ? [...boardMinion.buffs] : undefined } };
+  // Signal the UI to fire the circular swap-arrows FX between the two new cards (one-shot, like chaosGrantSeq).
+  state.swapFxSeq = (state.swapFxSeq ?? 0) + 1;
+  state.swapFxBoardUid = incoming.uid;
+  state.swapFxShopUid = state.shop[si]!.uid;
   return true;
 }
 

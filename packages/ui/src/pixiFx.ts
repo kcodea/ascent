@@ -339,6 +339,17 @@ export interface TendrilCfg {
   colorCore: string; colorGlow: string; colorFlash: string; colorMote: string;
 }
 
+/** Renderer-facing swap-arc config (structural mirror of SwapFxConfig — pixiFx stays import-light). Two
+ *  mirrored tendril arcs + arrowheads + card halos; see `swapArc`. */
+export interface SwapArcCfg {
+  travelMs: number; retractMs: number; curve: number; wobbleAmp: number; wobbleFreq: number;
+  baseWidth: number; tipWidth: number; coreAlpha: number; glowWidth: number; glowAlpha: number;
+  arrowSize: number;
+  flashSize: number; flashMs: number; moteCount: number; moteSpeed: number; moteLife: number;
+  haloSize: number; haloAlpha: number;
+  colorInCore: string; colorInGlow: string; colorOutCore: string; colorOutGlow: string;
+}
+
 /** Renderer-facing pulse config (structural match of PulsePresetCfg — pixiFx stays import-light). */
 export interface PulseCfg {
   style: 'ring' | 'shard' | 'nova';
@@ -389,6 +400,9 @@ interface Tendril {
   cfg: TendrilCfg;
   age: number;
   struck: boolean;
+  /** Swap-arc arrowhead: a triangle drawn at the travelling tip, oriented along the path tangent (px; the
+   *  Displacement swap FX). Absent on plain buff tendrils. */
+  arrowSize?: number;
 }
 
 /** One live pulse blast at a point. Rings are staggered, so a tiny state entry emits ring `i` when its stagger
@@ -1815,6 +1829,69 @@ class FxController {
     });
   }
 
+  /**
+   * DISPLACEMENT SWAP: the circular two-arrow exchange between a board card at `board` and a tavern card at
+   * `shop` — a warm arc travels tavern→board (the arrival) while a cool arc travels board→tavern (the
+   * departure), each an arrowheaded tendril ribbon bulging to its own side (mirrored curves → the circle).
+   * A soft halo holds on each card for the ride; each arc strikes (flash + motes) on arrival. One shot,
+   * fully config-driven (`SwapArcCfg` mirrors swapFxConfig 1:1 — the 🔀 tuner drives it live).
+   */
+  swapArc(board: { x: number; y: number }, shop: { x: number; y: number }, cfg: SwapArcCfg): void {
+    if (!this.ready || !this.glowTex || !this.layer) return;
+
+    // The two card halos — soft glow discs held for the whole ride (travel + retract), each in its arc's colour.
+    if (cfg.haloSize > 0 && cfg.haloAlpha > 0) {
+      const holdMs = cfg.travelMs + cfg.retractMs;
+      const s = cfg.haloSize / TENDRIL_GLOW_R;
+      this.spawn(this.glowTex, { x: board.x, y: board.y, vx: 0, vy: 0, drag: 1, life: holdMs, fromScale: s, toScale: s, spin: 0, tint: hexNum(cfg.colorInGlow), blend: 'add', peakAlpha: cfg.haloAlpha });
+      this.spawn(this.glowTex, { x: shop.x, y: shop.y, vx: 0, vy: 0, drag: 1, life: holdMs, fromScale: s, toScale: s, spin: 0, tint: hexNum(cfg.colorOutGlow), blend: 'add', peakAlpha: cfg.haloAlpha });
+    }
+
+    // One tendril per direction. The same positive `curve` bulges each arc to ITS travel-direction's left —
+    // opposite sides of the span, forming the circular exchange (the reference shot's orange-up / purple-down).
+    const mk = (from: { x: number; y: number }, to: { x: number; y: number }, core: string, glow: string): void => {
+      const t: TendrilCfg = {
+        blend: 'add', curve: cfg.curve, wobbleAmp: cfg.wobbleAmp, wobbleFreq: cfg.wobbleFreq,
+        travelMs: cfg.travelMs, retractMs: cfg.retractMs,
+        baseWidth: cfg.baseWidth, tipWidth: cfg.tipWidth, coreAlpha: cfg.coreAlpha,
+        glowWidth: cfg.glowWidth, glowAlpha: cfg.glowAlpha,
+        flashSize: cfg.flashSize, flashMs: cfg.flashMs,
+        moteCount: cfg.moteCount, moteSpeed: cfg.moteSpeed, moteLife: cfg.moteLife,
+        pulseSize: 0, pulseAlpha: 0, pulseMs: 0, // no caster pulse — the halos carry the endpoints
+        colorCore: core, colorGlow: glow, colorFlash: core, colorMote: glow,
+      };
+      const mx = (from.x + to.x) / 2, my = (from.y + to.y) / 2;
+      const dx = to.x - from.x, dy = to.y - from.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const perp = { x: -dy / len, y: dx / len };
+      const off = len * t.curve * 0.5;
+      const ctl = { x: mx + perp.x * off, y: my + perp.y * off };
+      const g = new Graphics();
+      g.blendMode = 'add';
+      this.layer!.addChild(g);
+      this.tendrils.push({ g, from: { ...from }, to: { ...to }, ctl, perp, cfg: t, age: 0, struck: false, arrowSize: cfg.arrowSize });
+    };
+    mk(shop, board, cfg.colorInCore, cfg.colorInGlow);   // the arrival — warm, tavern → board
+    mk(board, shop, cfg.colorOutCore, cfg.colorOutGlow); // the departure — cool, board → tavern
+  }
+
+  /** Draw a swap-arc arrowhead into `g` at the ribbon's tip, oriented along the last-segment tangent. */
+  private drawArrowhead(g: Graphics, pts: { x: number; y: number }[], size: number, color: string, alpha: number): void {
+    if (pts.length < 2 || size <= 0 || alpha <= 0) return;
+    const tip = pts[pts.length - 1]!;
+    const prev = pts[pts.length - 2]!;
+    let tx = tip.x - prev.x, ty = tip.y - prev.y;
+    const tl = Math.hypot(tx, ty) || 1;
+    tx /= tl; ty /= tl;
+    const nx = -ty, ny = tx;
+    const back = size, half = size * 0.55;
+    g.poly([
+      tip.x + tx * size * 0.4, tip.y + ty * size * 0.4, // nose (slightly ahead of the ribbon tip)
+      tip.x - tx * back + nx * half, tip.y - ty * back + ny * half,
+      tip.x - tx * back - nx * half, tip.y - ty * back - ny * half,
+    ]).fill({ color: hexNum(color), alpha });
+  }
+
   /** Sample ~24 points along the tendril's quadratic curve, up to head fraction `head` (0..1). The sine wobble
    *  is enveloped by sin(π·t) so both ends pin. Mirrors the preview's `samplePath`/`tendrilPoint`. */
   private sampleTendril(td: Tendril, head: number): { x: number; y: number; t: number }[] {
@@ -2018,6 +2095,8 @@ class FxController {
       let pts = this.sampleTendril(td, head);
       if (tail > 0) pts = pts.filter((p) => p.t >= tail * head); // drop points behind the retracting tail
       this.rebuildRibbon(td.g, pts, td.cfg, fade);
+      // Swap-arc arrowhead: ride the travelling tip while the head is en route; fade with the ribbon after.
+      if (td.arrowSize) this.drawArrowhead(td.g, pts, td.arrowSize, td.cfg.colorCore, td.cfg.coreAlpha * fade);
     }
 
     // Pulse blasts: emit each ring as its stagger time elapses; retire once all rings emitted + last life done.

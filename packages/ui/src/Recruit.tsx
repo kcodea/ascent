@@ -12,6 +12,7 @@ import { TavernUpButton } from './TavernUpButton';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
+import { getSwapFxConfig } from './swapFxConfig';
 import { fireBuffFx } from './buffFxRender';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
@@ -561,6 +562,30 @@ export function Recruit() {
     });
     return () => { tween.kill(); };
   }, [run.chaosGrantSeq, run.chaosGrantUid]);
+  // Displacement swap (Darah's power / the spell): fire the circular swap-arrows FX between the two NEW
+  // cards (the arrival on the board, the displaced offer in the tavern). Keyed off `swapFxSeq` (one-shot,
+  // the chaosGrantSeq pattern; inits to the current value so a restored save doesn't fire). The rects are
+  // read one frame late so React has committed both new cards first.
+  const prevSwapFxSeq = useRef(run.swapFxSeq);
+  useEffect(() => {
+    const seq = run.swapFxSeq;
+    if (seq === undefined || seq === prevSwapFxSeq.current) return;
+    prevSwapFxSeq.current = seq;
+    const boardUid = run.swapFxBoardUid, shopUid = run.swapFxShopUid;
+    if (!boardUid || !shopUid) return;
+    const raf = requestAnimationFrame(() => {
+      const b = document.querySelector(`[data-uid="${boardUid}"]`);
+      const t = document.querySelector(`[data-uid="${shopUid}"]`);
+      if (!b || !t) return;
+      const br = b.getBoundingClientRect(), tr = t.getBoundingClientRect();
+      pixiFx.swapArc(
+        { x: br.left + br.width / 2, y: br.top + br.height / 2 },
+        { x: tr.left + tr.width / 2, y: tr.top + tr.height / 2 },
+        getSwapFxConfig(),
+      );
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [run.swapFxSeq, run.swapFxBoardUid, run.swapFxShopUid]);
   // Tavern-Fodder consume: a ghost Fred pops in the tavern and swirls into the eater Demon.
   // The ghost carries the Fodder's *effective* stats (attack/health) so a Ritualist-buffed
   // Fred shows e.g. 3/3, not the 1/1 base.

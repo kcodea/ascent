@@ -3,6 +3,7 @@ import { SfxMixer } from './SfxMixer';
 import { LungeTuner } from './LungeTuner';
 import { StrikeFxTuner } from './StrikeFxTuner';
 import { CritFxTuner } from './CritFxTuner';
+import { SwapFxTuner } from './SwapFxTuner';
 import { DragTuner } from './DragTuner';
 import { FlipTuner } from './FlipTuner';
 import { ShieldTuner } from './ShieldTuner';
@@ -35,6 +36,7 @@ const TUNERS = [
   { key: 'lunge', label: '🗡️ Lunge', C: LungeTuner },
   { key: 'strikefx', label: '💥 Lunge Strike Effects', C: StrikeFxTuner },
   { key: 'critfx', label: '⚡ Critical Strike FX', C: CritFxTuner },
+  { key: 'swapfx', label: '🔀 Swap FX (Displacement)', C: SwapFxTuner },
   { key: 'drag', label: '🎴 Drag Feel', C: DragTuner },
   { key: 'flip', label: '🔀 Reposition', C: FlipTuner },
   { key: 'shield', label: '🛡 Shield Place', C: ShieldTuner },

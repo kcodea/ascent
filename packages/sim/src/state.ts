@@ -443,6 +443,12 @@ export interface RunState {
    *  uid — the UI flies it in from the hero portrait. Transient; absent until the first grant. */
   chaosGrantSeq?: number;
   chaosGrantUid?: string;
+  /** Displacement swap FX signal (Darah's power + the Displacement spell): bumped by `swapWithTavern` with
+   *  the uids of the two NEW cards (the arrival on the board, the displaced offer in the tavern) so the UI
+   *  fires the circular swap-arrows effect between their positions. One-shot, like `chaosGrantSeq`. */
+  swapFxSeq?: number;
+  swapFxBoardUid?: string;
+  swapFxShopUid?: string;
   /** The quest shop is open (waves 4/8/12): a pending offer of quest ids to "buy" for 0 Gold. While set, the
    *  reducer blocks every non-`buyQuest` action (the tavern is locked) and the UI pauses the round timer; the
    *  bought quest moves to `activeQuests` and this clears, opening the normal shop. */

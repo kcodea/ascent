@@ -60,7 +60,7 @@ export const FLURRY: FlurryConfig = {
   y: 47,
   squash: 0.48,
   pulse: 6.1,
-  pulseMin: 0.61,
+  pulseMin: 0.2,
   rings: [
     { d: 0.945, scaleX: 0.8,  scaleY: 1.19, thick: 4,    blades: 3, tail: 39, edge: 40, alpha: 0.8,  blur: 2,    s: 0.9, col: '#c8f4ff', rev: false },
     { d: 0.945, scaleX: 0.77, scaleY: 1.62, thick: 2,    blades: 3, tail: 39, edge: 40, alpha: 0.87, blur: 2,    s: 2.3, col: '#c8f4ff', rev: false },

@@ -1455,7 +1455,7 @@ export function simulate(
     // Rulebreaker's Crown: the leftmost living minion gains +Attack equal to its Attack (doubles it).
     if (smods.doubleLeftmostAttack) {
       const lead = boards[scSide].find((m) => !m.dead && m.health > 0);
-      if (lead && lead.attack > 0) { nextStep(); ctx.buff(lead, lead.attack, 0, lead.uid); }
+      if (lead && lead.attack > 0) { nextStep(); fireTrigger('doubleLeftmostAttack', scSide); ctx.buff(lead, lead.attack, 0, lead.uid); }
     }
     // Atrius's Possession: the leftmost living minion gains the rightmost's Attack, and the rightmost gains
     // the leftmost's Health — simultaneous (both read the pre-buff values). Needs 2+ living minions.
@@ -1476,14 +1476,17 @@ export function simulate(
       for (const m of boards[scSide]) {
         if (m.dead || m.health <= 0) continue;
         if (m.tribe !== 'dragon' && m.tribe2 !== 'dragon' && !m.universalTribe) continue;
-        if (!stepped) { nextStep(); stepped = true; }
+        if (!stepped) { nextStep(); stepped = true; fireTrigger('umbralEnergy', scSide); } // its own beat + badge pulse
         ctx.buff(m, amt, amt, m.uid);
       }
     }
-    // Contract Rewrite: the rightmost living Demon gains a Deathrattle — summon 2 Imps with Ward.
+    // Contract Rewrite: the rightmost living Demon gains a Deathrattle — summon 2 Imps with Ward. Gets its own
+    // beat + badge pulse (it used to apply silently — no event at all).
     if (smods.contractRewrite) {
       const demon = [...boards[scSide]].reverse().find((m) => !m.dead && m.health > 0 && isDemon(m));
       if (demon) {
+        nextStep();
+        fireTrigger('contractRewrite', scSide);
         const eff: EffectDef = { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 2, fixed: true, keyword: 'DS' } };
         demon.effects = [...demon.effects, eff];
         registerEffect(demon, eff); // register just the new Deathrattle (effects were registered at combat start)
@@ -1536,12 +1539,17 @@ export function simulate(
     }
     // Rune of Twilight: Start-of-Combat effects trigger an ADDITIONAL time — a second SoC pass for this board.
     if (rmods.runeTwilight) {
+      let twilightFired = false; // one badge pulse announcing the extra SoC pass (on its first effect's beat)
       for (const minion of [...boards[rside]]) {
         if (minion.dead || minion.health <= 0) continue;
         for (const effect of minion.effects) {
           if (effect.on !== 'startOfCombat') continue;
           const fn = FACTORIES[effect.do];
-          if (fn) { nextStep(); fn(ctx, minion, effect.params ?? {}, {}); }
+          if (fn) {
+            nextStep();
+            if (!twilightFired) { twilightFired = true; fireTrigger('runeTwilight', rside); }
+            fn(ctx, minion, effect.params ?? {}, {});
+          }
         }
       }
     }
@@ -1636,8 +1644,8 @@ export function simulate(
       for (const m of boards[rside]) {
         if (given >= 2) break;
         if (m.dead || m.health <= 0 || m.rebornAvailable || !isUndeadMinion(m)) continue;
+        nextStep(); // step FIRST so the badge pulse lands on the grant's own beat, not the previous one
         if (given === 0) fireTrigger('runeRisingGraves', rside);
-        nextStep();
         m.rebornAvailable = true;
         if (!m.keywords.includes('R')) m.keywords.push('R');
         emit({ type: 'keyword', target: m.uid, keyword: 'R', source: m.uid });
@@ -1705,7 +1713,7 @@ export function simulate(
         if (m === minion || m.dead || m.health <= 0) continue;
         if (!best || m.attack + m.maxHealth > best.attack + best.maxHealth) best = m;
       }
-      if (best) { fireTrigger('passingSpears', side); ctx.buff(best, minion.attack, minion.maxHealth, 'Passing Spears'); }
+      if (best) { nextStep(); fireTrigger('passingSpears', side); ctx.buff(best, minion.attack, minion.maxHealth, 'Passing Spears'); } // its own beat, not the death's
     });
   }
   // Rune of Salvage: a friendly Mech losing its Ward drops a random Attachment into your hand next shop —

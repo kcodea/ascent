@@ -5,6 +5,19 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-18
 
+### fix(core): Start-of-Combat triggers get their own beats + badge pulses (audit follow-up)
+
+First fixes out of the combat-pacing audit — SoC-time run modifiers that applied silently (or pulsed
+their badge on the wrong beat) now announce themselves: **Umbral Energy** (buffs + badge on its own
+beat — the badge existed but was never fired), **Rulebreaker's Crown / doubleLeftmostAttack** (badge
+now fires), **Contract Rewrite** (was fully silent — no event at all; now its own beat + badge),
+**Rune of Twilight** (the extra SoC pass now announces itself with one badge pulse), **Rune of Rising
+Graves** + **Passing Spears** (badge pulse used to land on the PREVIOUS step — now steps first, so the
+pulse rides the grant's own beat; Passing Spears' stat hand-off also gets its own beat instead of
+sharing the death's). Steps only group replay visuals — outcomes byte-identical; full suite (1166) +
+typecheck + lint + build:web green. The full audit findings (badge-never-fired inventory, step-collapse
+classes, the contact-anchored catch-up mechanism) are in the roadmap.
+
 ### fix(ui): gold arch bleed behind golden PNG-framed units
 
 The legacy `.card.golden` rule (from before the PNG frames) tints the CARD BOX gold, but that box is still the

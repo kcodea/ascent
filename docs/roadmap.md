@@ -75,7 +75,10 @@ shipped. Remaining, in impact order:
   to the procedural threat (prefer replaying the persisted lastCombat verbatim, or version-gate saves);
   (b) silent localStorage-quota save loss (writeSave swallows errors; servedBoards carries full snapshots —
   consider storing per-wave board identity + pool lookup).
-- **Step-hygiene test + beat-count goldens** — remaining enforcement pieces (badge coverage shipped).
+- **typecheck:web is broken + un-gated** — packages/ui is excluded from the CI typecheck and
+  `npm run typecheck:web` fails with ~8 pre-existing errors (Recruit.tsx, sfx.ts, store.ts BoardMinion,
+  TrailTuner, remoteBoards, useCombatReplay questDelta) — fix the errors, then add it to the CI gate so
+  the ui-side exhaustive Records actually enforce.
 - **Contact-anchored advance** — an attack's next beat fires at the GSAP `contact` position; everything
   after contact (crit flourish, flurry wind-slash, rebound/settle) is fire-and-forget and never extends
   the schedule → beats resolve "underneath" long FX then visually catch up. Fix: gate `ctx.advance()` on

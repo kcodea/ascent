@@ -26,6 +26,9 @@ export interface AttackCueCtx {
   /** Set when this swing is a CRITICAL STRIKE → fired at the lunge's real contact (alongside the crit burst)
    *  so the board SHAKE lands ON the hit, not at the wind-up. Absent = a normal swing. */
   onCritImpact?: () => void;
+  /** A crit / Flurry flourish just fired at contact — the replay extends the NEXT beat's hold by its tail
+   *  (critTail/flurryTail), so beats stop resolving underneath the fire-and-forget FX (2026-07-18 audit). */
+  onFlourishTail?: (crit: boolean, flurry: boolean) => void;
   /** True when the attacker has Flurry (W) — the engine fires the wind-slash sparkle at contact on the EXTRA
    *  swing (swing ≥ 1), so the bonus hit reads as a gust. The swing gate lives here (the event knows it). */
   flurry?: boolean;
@@ -80,7 +83,7 @@ export function runAttackExchangeCues(
     attacker, dx, dy, speed: ctx.combatSpeed, flurry: hasFlurry,
     strike: strikeOffset, strikeDur: geo.strikeDur, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
     onContact: () => ctx.advance(),
-    onImpact: impact ? () => { playContactImpact(defender, dx, dy, power, ctx.combatSpeed, impactAt, spinDeg, crit, hasFlurry, flurrySlash); if (crit) ctx.onCritImpact?.(); } : undefined,
+    onImpact: impact ? () => { playContactImpact(defender, dx, dy, power, ctx.combatSpeed, impactAt, spinDeg, crit, hasFlurry, flurrySlash); if (crit) ctx.onCritImpact?.(); if (crit || flurrySlash) ctx.onFlourishTail?.(crit, flurrySlash); } : undefined,
     impactOffsetMs: impact?.offset ?? 0,
     onRallyPulse: ctx.onRallyPulse,
     onWindupBuffs: ctx.onWindupBuffs,

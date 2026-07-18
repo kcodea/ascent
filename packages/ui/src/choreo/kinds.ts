@@ -13,31 +13,40 @@ export type MomentKind =
   | 'riseDeath'
   | 'scCast'
   | 'summon' | 'buffWave' | 'reborn' | 'ascend' | 'rally' | 'toHand' | 'maxGold' | 'improve'
-  | 'keyword' | 'keywordLost' | 'hpGrant' | 'spellProgress' | 'reveal';
+  | 'keyword' | 'keywordLost' | 'hpGrant' | 'spellProgress' | 'reveal'
+  | 'trigger';
+
+/**
+ * EXHAUSTIVE event→kind map (2026-07-18 pacing audit): `Record<CombatEvent['type'], …>` so adding a new
+ * event type to the `CombatEvent` union WITHOUT deciding its presentation kind is a COMPILE ERROR — the
+ * old switch's `default: 'damage'` silently gave new mechanics accidental pacing. `death` is refined to
+ * `riseDeath` by the `rise` flag in `momentKind` below.
+ */
+const EVENT_KIND: Record<CombatEvent['type'], MomentKind> = {
+  attack: 'attackExchange',
+  dmg: 'damage',
+  shield: 'shieldPop', shieldUp: 'shieldPop',
+  poison: 'poisonTick', venomLost: 'poisonTick',
+  death: 'death',
+  sc: 'scCast',
+  summon: 'summon',
+  buff: 'buffWave',
+  reborn: 'reborn',
+  ascend: 'ascend',
+  rally: 'rally',
+  toHand: 'toHand',
+  maxGold: 'maxGold',
+  improve: 'improve',
+  keyword: 'keyword',
+  keywordLost: 'keywordLost', // Tauntbreaker strips Taunt/Rise — was unhandled → "cues is not iterable" crash
+  hpGrant: 'hpGrant',
+  spellProgress: 'spellProgress', // Archmagus Guel's on-board spell tally tick
+  reveal: 'reveal',
+  questTrigger: 'trigger', questComplete: 'trigger', // quest/rune badge pulses — their own (tunable) kind
+};
 
 export function momentKind(primary: CombatEvent): MomentKind {
-  switch (primary.type) {
-    case 'attack': return 'attackExchange';
-    case 'dmg': return 'damage';
-    case 'shield': case 'shieldUp': return 'shieldPop';
-    case 'poison': case 'venomLost': return 'poisonTick';
-    case 'death': return primary.rise ? 'riseDeath' : 'death';
-    case 'sc': return 'scCast';
-    case 'summon': return 'summon';
-    case 'buff': return 'buffWave';
-    case 'reborn': return 'reborn';
-    case 'ascend': return 'ascend';
-    case 'rally': return 'rally';
-    case 'toHand': return 'toHand';
-    case 'maxGold': return 'maxGold';
-    case 'improve': return 'improve';
-    case 'keyword': return 'keyword';
-    case 'keywordLost': return 'keywordLost'; // Tauntbreaker strips Taunt/Rise — was unhandled → "cues is not iterable" crash
-    case 'hpGrant': return 'hpGrant';
-    case 'spellProgress': return 'spellProgress'; // Archmagus Guel's on-board spell tally tick
-    case 'reveal': return 'reveal';
-    // Defensive: any future event type falls back to a quiet damage-style moment instead of crashing the replay
-    // (momentKind must NEVER return undefined — `getScore()[undefined]` is not iterable).
-    default: return 'damage';
-  }
+  if (primary.type === 'death') return primary.rise ? 'riseDeath' : 'death';
+  // Legacy saved replays could carry an event type this build no longer knows — quiet damage-style beat.
+  return EVENT_KIND[primary.type] ?? 'damage';
 }

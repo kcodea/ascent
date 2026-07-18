@@ -1,0 +1,82 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`beat-count goldens — the compiled moment sequence is pinned > SoC rune stack (Warden + Warding + Mirror March) 1`] = `
+{
+  "beats": 13,
+  "shape": [
+    "trigger×1[1]",
+    "summon×1[1]",
+    "trigger×1[1]",
+    "summon×1[1]",
+    "trigger×1[1]",
+    "shieldPop×1[1]",
+    "attackExchange×1[1]",
+    "damage×1[1]",
+    "buffWave×1[1]",
+    "attackExchange×1[1]",
+    "shieldPop×2[1]",
+    "buffWave×1[1]",
+    "death×1[1]",
+  ],
+}
+`;
+
+exports[`beat-count goldens — the compiled moment sequence is pinned > Umbral Energy + Rulebreaker Crown announce themselves 1`] = `
+{
+  "beats": 8,
+  "shape": [
+    "trigger×1[1]",
+    "buffWave×1[1]",
+    "trigger×1[1]",
+    "buffWave×1[1]",
+    "attackExchange×1[1]",
+    "damage×1[1]",
+    "buffWave×1[1]",
+    "damage×2[2]",
+  ],
+}
+`;
+
+exports[`beat-count goldens — the compiled moment sequence is pinned > avenge + last stand (Pit Without End) 1`] = `
+{
+  "beats": 15,
+  "shape": [
+    "attackExchange×1[1]",
+    "damage×2[1]",
+    "buffWave×1[1]",
+    "death×1[1]",
+    "attackExchange×1[1]",
+    "damage×1[1]",
+    "buffWave×1[1]",
+    "damage×2[2]",
+    "trigger×1[1]",
+    "summon×1[1]",
+    "summon×1[1]",
+    "attackExchange×1[1]",
+    "damage×3[2]",
+    "attackExchange×1[1]",
+    "damage×3[2]",
+  ],
+}
+`;
+
+exports[`beat-count goldens — the compiled moment sequence is pinned > plain exchange + deathrattle cascade 1`] = `
+{
+  "beats": 13,
+  "shape": [
+    "attackExchange×1[1]",
+    "damage×1[1]",
+    "buffWave×1[1]",
+    "damage×1[1]",
+    "attackExchange×1[1]",
+    "damage×2[1]",
+    "buffWave×1[1]",
+    "attackExchange×1[1]",
+    "damage×1[1]",
+    "buffWave×1[1]",
+    "damage×3[3]",
+    "summon×1[1]",
+    "summon×1[1]",
+  ],
+}
+`;

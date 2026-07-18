@@ -4,14 +4,16 @@ import type { Moment } from './compile';
 import { holdMs } from './clock';
 import { getLungeConfig } from '../lungeConfig';
 import { getChoreoConfig, beatDelay } from './choreoConfig';
+import { momentKind } from './kinds';
 
-/** A minimal Moment whose primary is an event of the given type (only `primary.type` is read by the clock). */
+/** A minimal Moment whose primary is an event of the given type. The clock keys holds by the moment's KIND
+ *  (2026-07-18 audit), so the fixture derives it exactly like the real compiler does. */
 const M = (type: CombatEvent['type']): Moment => ({
   start: 0,
   end: 1,
   primary: { type } as CombatEvent,
   stepGroups: [[0]],
-  kind: 'damage',
+  kind: momentKind({ type } as CombatEvent),
 });
 
 describe('holdMs — reproduces the legacy scheduler numbers for non-attack transitions', () => {

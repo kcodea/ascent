@@ -537,6 +537,13 @@ export function useCombatReplay(
   // over — if the lunge couldn't run (elements unresolved), the scheduler still advances, so the replay never
   // stalls (restoring the pre-engine unconditional-advance robustness).
   const engineAdvancingRef = useRef(false);
+  // A crit / Flurry flourish's registered FX tail (ms) — the scheduler extends the NEXT beat's hold by it
+  // once, then clears (2026-07-18 audit: fire-and-forget FX never extended the schedule → beats resolved
+  // underneath the flourish and visually "caught up" after it).
+  const flourishTailRef = useRef(0);
+  // The longest in-flight buff-tendril travel (ms) fired by the beat on screen — the scheduler extends the
+  // hold so the strike lands (and the stat hold releases with its flash) BEFORE the beat advances.
+  const buffTravelRef = useRef(0);
   // Latest combat speed, read by the cue effect's float-expiry timers WITHOUT being a dep (so a mid-beat speed
   // toggle doesn't re-run the effect and re-fire that beat's sfx/shake — sfx is only per-call deduped).
   const combatSpeedRef = useRef(combatSpeed);
@@ -593,6 +600,7 @@ export function useCombatReplay(
   // flash timeouts so the caller's effect can clear them on teardown.
   const fireBuffCasts = useCallback((casts: BuffCast[], timers: number[]): void => {
     const perTarget = new Map<string, { atk: number; hp: number; strikeMs: number }>();
+    let maxStrikeMs = 0; // registered below → the scheduler holds the beat until the slowest tendril lands
     for (const c of casts) {
       const tEl = findEl(c.target);
       if (!tEl) continue; // target not on screen → nothing to land on
@@ -613,7 +621,11 @@ export function useCombatReplay(
       const agg = perTarget.get(c.target);
       if (agg) { agg.atk += c.attack; agg.hp += c.health; }
       else perTarget.set(c.target, { atk: c.attack, hp: c.health, strikeMs });
+      if (strikeMs > maxStrikeMs) maxStrikeMs = strikeMs;
     }
+    // Tendril-travel registration (2026-07-18 audit): the beat that fired these tendrils must outlive their
+    // travel, or the teardown drops the stat holds and the badges SNAP to the folded values mid-flight.
+    if (maxStrikeMs > 0) buffTravelRef.current = Math.max(buffTravelRef.current, maxStrikeMs);
     const unitOf = (uid: string) =>
       frameRef.current?.player.find((u) => u.uid === uid) ?? frameRef.current?.enemy.find((u) => u.uid === uid);
     for (const [target, { atk: sumAtk, hp: sumHp, strikeMs }] of perTarget) {
@@ -713,6 +725,18 @@ export function useCombatReplay(
     // attacker being pulled home to die in its slot. The max: a Rise/DR consequence lead already covers its pull.
     const lead = Math.max(deathConsequenceLead(shown, next, events, cardIds, atkUid), pulledHomeAttackerHold(shown, atkUid, events));
     if (lead) d += lead / combatSpeed;
+    // Flourish tail (2026-07-18 audit): a crit / Flurry impact registered its FX tail — extend THIS hold by
+    // it (once), so the following beats never resolve underneath the flourish and then visually catch up.
+    if (flourishTailRef.current > 0) {
+      d += flourishTailRef.current / combatSpeed;
+      flourishTailRef.current = 0;
+    }
+    // In-flight buff tendrils: hold the beat until the slowest strike lands (plus its 360ms flash), so the
+    // stat holds release naturally instead of snapping at teardown.
+    if (buffTravelRef.current > 0) {
+      d = Math.max(d, (buffTravelRef.current + 360) / combatSpeed);
+      buffTravelRef.current = 0;
+    }
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
   }, [active, hidden, paused, beatIdx, beats, combatSpeed, events, cardIds]);
@@ -1006,6 +1030,10 @@ export function useCombatReplay(
             : undefined,
           onImpactAuras: breakWards,
           onCritImpact: cur.primary.crit ? () => setCritShake((n) => n + 1) : undefined,
+          onFlourishTail: (crit, flurry) => {
+            const cc = getChoreoConfig();
+            flourishTailRef.current = Math.max(flourishTailRef.current, (crit ? cc.critTail : 0) + (flurry ? cc.flurryTail : 0));
+          },
           // Flurry (W): the engine fires the wind-slash gust on the EXTRA swing (swing ≥ 1). Check the unit's
           // LIVE keywords (covers Flurry granted mid-combat), then the printed keyword off the card index.
           flurry: !!atkUnit?.keywords.includes('W') || !!CARD_INDEX[cardIds.get(atkUid) ?? '']?.keywords?.includes('W'),

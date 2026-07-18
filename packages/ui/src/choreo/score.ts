@@ -75,6 +75,7 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   maxGold: [...BASE, { ch: 'coins', at: 'start', offset: 0 }],
   improve: [...BASE, { ch: 'improveSelf', at: 'start', offset: 0 }],
   keyword: [...BASE], keywordLost: [...BASE], hpGrant: [...BASE], spellProgress: [...BASE], reveal: [...BASE],
+  trigger: [...BASE], // quest/rune badge pulse beats — sfx/float channels only (the badge itself renders in parallel)
 };
 
 const KEY = 'ascent.choreoScore';

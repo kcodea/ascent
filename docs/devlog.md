@@ -5,6 +5,31 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-18
 
+### feat(ui): the self-spacing combat clock — kind-keyed holds, flourish tails, tendril-aware beats
+
+The choreo half of the pacing plan (the sim half — withBeat + badge coverage + reload-proof pinning —
+landed earlier today):
+- **Exhaustive event→kind map** (`kinds.ts`): `Record<CombatEvent['type'], MomentKind>` — a new combat
+  event type now REQUIRES a presentation-kind decision instead of silently falling to the 300ms
+  damage-style default. `questTrigger`/`questComplete` get their own `trigger` kind (own score entry +
+  tunable `trigger` hold).
+- **The clock keys holds by KIND** (`clock.ts` → `holdMsForKind`): the exhaustive `KIND_TO_KEY` table is
+  now the live path (it was dead code — `ascend` really gets its 520ms now). Deliberate corrections while
+  routing: `hpGrant` 0ms → 140ms (it was literally instant), `spellProgress` rides `buff` (140) instead of
+  hpGrant's 0.
+- **Flourish tails** (`critTail`/`flurryTail`, tunable): a crit / Flurry impact registers its FX tail with
+  the scheduler, which extends the NEXT beat's hold by it — beats no longer resolve underneath the
+  flourish and "catch up" after it (the audit's core skip mechanism).
+- **Tendril-aware beats**: `fireBuffCasts` registers its longest tendril travel; the scheduler holds the
+  beat until the slowest strike lands (+ its flash) — stat badges release naturally instead of snapping
+  at teardown.
+- Beat-count goldens re-pinned for the trigger-kind labels (the reviewable-diff mechanism working as
+  designed); clock tests updated to derive kinds like the real compiler.
+- **Found in passing:** `typecheck:web` (the UI's tsc pass) is NOT in the CI gate and currently fails
+  with ~8 pre-existing errors — so packages/ui has no compile-level enforcement. Queued in the roadmap.
+
+Full suite (1214) + lint + build:web green.
+
 ### fix(sim): reload-proof opponent pinning + the combat beat contract (withBeat / badge coverage)
 
 **Reload divergence diagnosed + fixed.** The audit traced the owner's "replays differ after reload":

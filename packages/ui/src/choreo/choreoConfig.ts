@@ -41,8 +41,14 @@ export interface ChoreoConfig {
   toHand: number;
   /** Max-gold beat. */
   maxGold: number;
-  /** HP-grant beat (silent by default). */
+  /** HP-grant beat (was 0ms — literally instant; now a buff-length blip, 2026-07-18 audit). */
   hpGrant: number;
+  /** Quest/rune badge-pulse (`questTrigger`/`questComplete`) beats — was the silent 300ms fallback. */
+  trigger: number;
+  /** Flourish TAILS: extra hold on the beat AFTER a crit / Flurry impact, so following beats never
+   *  resolve underneath the fire-and-forget FX (2026-07-18 audit's "catch-up" fix). */
+  critTail: number;
+  flurryTail: number;
   // Result beats (the impact — how long it reads before the next swing).
   /** Damage lands (recoil + HP drop) — the post-hit read. */
   dmg: number;
@@ -74,7 +80,9 @@ const DEFAULTS: ChoreoConfig = {
   speed: 1.5,
   // action beats (ms) — mirror the former DELAY table exactly, so defaults = current behaviour.
   attack: 353, sc: 720, summon: 440, buff: 140, reborn: 640, improve: 520, rally: 720, toHand: 820,
-  maxGold: 560, hpGrant: 0,
+  maxGold: 560, hpGrant: 140, // hpGrant was 0ms — literally instant (2026-07-18 audit); now a buff-length blip
+  trigger: 300, // quest/rune badge-pulse beats (was the silent 300ms fallback — now a real, tunable key)
+  critTail: 450, flurryTail: 350, // flourish TAILS: the beat after a crit / Flurry impact extends by this, so beats stop resolving underneath the FX
   // result beats (ms)
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,
   // overlay lifetimes (ms)
@@ -89,7 +97,8 @@ export const CHOREO_RANGES: Record<keyof ChoreoConfig, [number, number, number]>
   speed: [0.5, 3, 0.05],
   attack: [0, 1200, 10], sc: [0, 1200, 10], summon: [0, 1200, 10], buff: [0, 1200, 10],
   reborn: [0, 1200, 10], improve: [0, 1200, 10], rally: [0, 1200, 10], toHand: [0, 1200, 10],
-  maxGold: [0, 1200, 10], hpGrant: [0, 1200, 10],
+  maxGold: [0, 1200, 10], hpGrant: [0, 1200, 10], trigger: [0, 1200, 10],
+  critTail: [0, 1500, 10], flurryTail: [0, 1500, 10],
   dmg: [0, 1200, 10], shield: [0, 1200, 10], shieldUp: [0, 1200, 10], poison: [0, 1200, 10],
   venomLost: [0, 1200, 10], death: [0, 1200, 10],
   floatMs: [400, 3000, 50], deathFloatMs: [300, 2000, 50], finalHold: [200, 2000, 50],
@@ -148,7 +157,7 @@ const KIND_TO_KEY: Record<MomentKind, keyof ChoreoConfig> = {
   death: 'death', riseDeath: 'death', scCast: 'sc',
   summon: 'summon', buffWave: 'buff', reborn: 'reborn', ascend: 'improve', rally: 'rally',
   toHand: 'toHand', maxGold: 'maxGold', improve: 'improve', keyword: 'buff', keywordLost: 'buff',
-  hpGrant: 'hpGrant', spellProgress: 'hpGrant', reveal: 'summon',
+  hpGrant: 'hpGrant', spellProgress: 'buff', reveal: 'summon', trigger: 'trigger', // spellProgress rode hpGrant's 0ms (instant) — now a buff-length blip
 };
 export function holdMsForKind(kind: MomentKind): number {
   return beatDelay(KIND_TO_KEY[kind]);

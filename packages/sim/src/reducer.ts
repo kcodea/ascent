@@ -159,6 +159,14 @@ export function refreshCostOf(s: RunState): number {
 const NO_REPEAT_ROUNDS = 4;
 
 export function nextOpponent(s: RunState): BoardSnapshot | null {
+  // THE PIN WINS (reload-divergence fix 2026-07-18): once this wave's opponent is stamped into
+  // `servedBoards` (on the first recruit action of the turn — see the reduce() boundary — or at faceOmen),
+  // every reader serves it verbatim: the recruit preview, the fight, and a reloaded session. Before the fix
+  // a reload mid-recruit re-picked from the SESSION's pool (Supabase drift / fetch timing) — the combat rng
+  // was always deterministic, the opponent identity wasn't.
+  // Key-presence check, not truthiness: a NULL pin means "this wave fought the procedural threat" and must
+  // stay procedural (return null), never fall through to a fresh pool pick.
+  if (s.servedBoards && s.wave in s.servedBoards) return s.servedBoards[s.wave] ?? null;
   // Match on WAVE (same development stage — see pickOpponent). Power (captured at TURN START, so the
   // telegraphed foe stays fixed as you shop) is the fairness tiebreak among same-wave boards.
   // No-repeat: exclude the identities of the boards fought in the last NO_REPEAT_ROUNDS waves (recorded in
@@ -228,6 +236,15 @@ export function reduce(state: RunState, action: Action): RunState {
   state.recruitBuffFx = [];
   state.auraFx = undefined; // same per-action scratch contract as recruitBuffFx (auraFxSeq stays monotonic)
   stampImproveReps(state); // Rune of Mastery: mirror the state's Improve multiplier for the stateless addBuff hook
+  // Pin this wave's opponent on the FIRST recruit action of the turn (reload-divergence fix 2026-07-18):
+  // the pick is stamped into `servedBoards` as soon as the turn is played, so the telegraphed foe survives
+  // a reload (the save carries the pin) instead of being re-picked from a session-variable pool. faceOmen's
+  // own pinning stays as the fallback for a turn with zero prior actions. Null pick (empty pool → the
+  // procedural fallback) is never pinned — later actions retry as the pool fills.
+  if (state.phase === 'recruit' && !(state.wave in (state.servedBoards ?? {}))) {
+    const preview = nextOpponent(state);
+    if (preview) state.servedBoards = { ...(state.servedBoards ?? {}), [state.wave]: preview };
+  }
   const next = reduceCore(state, action);
   // onGainAttack reactors (Hunter — "when this gains Attack, give your minions +Health") fire whenever a
   // recruit action raises a BOARD minion's Attack, from ANY source (Fortify, spells, tribe Battlecries,

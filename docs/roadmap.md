@@ -69,7 +69,13 @@ The career surface exists; deepen what a finished run *remembers*.
 ## Next
 
 ### Combat replay pacing (2026-07-18 audit — the "skipped beats" report)
-Root causes found; SoC badge fixes shipped. Remaining, in impact order:
+Root causes found; SoC badges + withBeat contract + badge-coverage test + reload-proof opponent pinning
+shipped. Remaining, in impact order:
+- **Reload-divergence residue** — (a) build updates: a pinned board referencing a removed card falls back
+  to the procedural threat (prefer replaying the persisted lastCombat verbatim, or version-gate saves);
+  (b) silent localStorage-quota save loss (writeSave swallows errors; servedBoards carries full snapshots —
+  consider storing per-wave board identity + pool lookup).
+- **Step-hygiene test + beat-count goldens** — remaining enforcement pieces (badge coverage shipped).
 - **Contact-anchored advance** — an attack's next beat fires at the GSAP `contact` position; everything
   after contact (crit flourish, flurry wind-slash, rebound/settle) is fire-and-forget and never extends
   the schedule → beats resolve "underneath" long FX then visually catch up. Fix: gate `ctx.advance()` on

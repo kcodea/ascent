@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-18
 
+### fix(sim): reload-proof opponent pinning + the combat beat contract (withBeat / badge coverage)
+
+**Reload divergence diagnosed + fixed.** The audit traced the owner's "replays differ after reload":
+combat rng is seeded purely from (seed, wave) and `lastCombat`/`servedBoards` persist verbatim — fought
+waves always replayed byte-identical. The divergence was the OPPONENT PICK for a not-yet-fought wave:
+`nextOpponent` re-picked from the SESSION's pool (Supabase drift between sessions, or the un-awaited
+startup fetch racing the first fight), so a reload mid-recruit could face a different board. Fix: the
+pick is now PINNED into `servedBoards` on the first recruit action of the turn, and `nextOpponent`
+prefers the pin (key-presence check — a NULL pin still means "procedural threat", preserved). Preview,
+fight, and a reloaded session now provably agree (2 new regression tests incl. pool-drift + mid-turn
+fetch arrival). Remaining lower-priority vectors (build-update stale-board fallback; silent localStorage
+quota loss) are queued in the roadmap.
+
+**The beat contract (future-proofing).** `withBeat(flag, side, effect)` in simulate.ts opens a fresh
+step, fires the badge ON it, then runs the effect — new combat content can't forget its beat or
+mis-order its badge. 9 hand-ordered sites migrated (byte-identical logs). `badgeCoverage.test.ts`
+enforces it: every badge-mapped combat flag must fire or sit in an INTENTIONALLY_SILENT allowlist with
+a written reason (schema-derived so it can't go stale) — it caught Pit Without End's dark badge on day
+one (now pulses on its last-stand summon).
+
+Full suite (1206) + typecheck + lint + build:web green.
+
 ### fix(core): Start-of-Combat triggers get their own beats + badge pulses (audit follow-up)
 
 First fixes out of the combat-pacing audit — SoC-time run modifiers that applied silently (or pulsed

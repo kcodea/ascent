@@ -5,7 +5,7 @@ import { createRun, type RunState } from './state';
 import { openEpicRuneforge, questCombatMods, reduce } from './reducer';
 import { buffFodderRunWide, buffImpsRunWide, dragonTamerCostOf, sellValueOf, spellDisplayText } from './recruit';
 import { questBucketFor } from './quests';
-import { applyEndOfTurn, projectEndOfTurnSteps, questEndOfTurnBeats } from './recruit';
+import { applyEndOfTurn, noteFodderConsumed, projectEndOfTurnSteps, questEndOfTurnBeats } from './recruit';
 
 /** A 1/1 Beast board card (id 'alley') for board-setup tests. */
 const mkAlley = (uid: string): RunState['board'][number] => ({ uid, cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false });
@@ -26,7 +26,7 @@ const buyRune = (runeId: string, embers = 10, over: Partial<RunState> = {}): Run
 describe('Runeforge — framework', () => {
   it('every rune validates + is Runeforge-only (never a card/quest id)', () => {
     validateRunes();
-    expect(RUNES.length).toBe(25); // + Rune of the Warden
+    expect(RUNES.length).toBe(30); // + batch 7a (Rebirth / Tempering / Aftershocks / Refrain / Trophy)
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
@@ -853,5 +853,124 @@ describe('The Epic Runeforge — the greater quest that opens the Epic Runeforge
     expect(afterBuy.runeforgeEpic).toBe(true);
     expect(afterBuy.runeforgeOffer!.length).toBe(Math.min(4, EPIC_RUNES.length));
     expect(afterBuy.pendingEpicRuneforge).toBe(false); // now disarmed
+  });
+});
+
+describe('Batch 7a runes (Rebirth / Tempering / Aftershocks / Refrain / Trophy + 7 Epics)', () => {
+  const mkCard = (uid: string, cardId: string, tribe: RunState['board'][number]['tribe'], attack: number, health: number, keywords: RunState['board'][number]['keywords'] = []): RunState['board'][number] =>
+    ({ uid, cardId, tribe, attack, health, keywords: [...keywords], golden: false });
+  const win: CombatResult = { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
+
+  it('every batch 7a rune applies its reward on purchase', () => {
+    expect(buyRune('rune_rebirth').questFlags?.runeRebirth).toBe(true);
+    expect(buyRune('rune_tempering').runeTempering).toBe(true);
+    expect(buyRune('rune_aftershocks').questFlags?.runeAftershocks).toBe(true);
+    expect(buyRune('rune_refrain').runeRefrain).toBe(true);
+    expect(buyRune('rune_trophy').questFlags?.runeTrophy).toBe(true);
+    expect(buyRune('rune_transfusion').runeTransfusion).toBe(true);
+    expect(buyRune('rune_mirror_march').questFlags?.runeMirrorMarch).toBe(true);
+    expect(buyRune('rune_recurrence').questRecurringEndOfTurn).toContain('recastFirstSpell');
+    expect(buyRune('rune_replication').runeReplication).toBe(true);
+    expect(buyRune('rune_conductor').runeConductor).toBe(true);
+    expect(buyRune('rune_undertow').questFlags?.runeUndertow).toBe(true);
+    expect(buyRune('rune_endless_appetite').runeEndlessAppetite).toBe(true);
+  });
+
+  it('Rune of Tempering: the FIRST Attachment welded each turn gives its host Ward — the second does not', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10, runeTempering: true,
+      board: [mkCard('h1', 'drone', 'mech', 2, 3), mkCard('h2', 'drone', 'mech', 2, 3)],
+      hand: [mkCard('c1', 'cling', 'mech', 1, 1, ['M']), mkCard('c2', 'cling', 'mech', 1, 1, ['M'])] };
+    s = reduce(s, { type: 'play', uid: 'c1', toIndex: 0 });
+    expect(s.board[0]!.keywords).toContain('DS'); // first Attachment → host Warded
+    s = reduce(s, { type: 'play', uid: 'c2', toIndex: 1 });
+    expect(s.board[1]!.keywords).not.toContain('DS'); // second → no Ward
+    expect(s.attachmentsThisTurn).toBe(2);
+  });
+
+  it('Rune of Replication: the first Attachment also welds a copy onto the LEFTMOST Mech', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10, runeReplication: true,
+      board: [mkCard('h1', 'drone', 'mech', 2, 3), mkCard('h2', 'drone', 'mech', 2, 3)],
+      hand: [mkCard('c1', 'cling', 'mech', 1, 1, ['M'])] };
+    s = reduce(s, { type: 'play', uid: 'c1', toIndex: 1 }); // weld the 1/1 Cling onto the SECOND drone
+    const left = s.board.find((c) => c.uid === 'h1')!;
+    const host = s.board.find((c) => c.uid === 'h2')!;
+    expect(host.attack).toBe(2 + 1); // the real weld (the played Cling's live 1/1 stats)
+    expect(left.attack).toBe(2 + 1); // …and the replicated copy on the leftmost Mech
+    expect(left.attachments ?? 0).toBe(1);
+  });
+
+  it("Rune of Refrain: the 3rd Shout played returns the turn's FIRST Shout (the actual minion) to hand", () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10, runeRefrain: true,
+      // Three DISTINCT simple Shout minions (three copies of one card would triple into a golden mid-test;
+      // Discover-battlecries would open a modal and block the later plays).
+      hand: [mkCard('a1', 'alley', 'beast', 1, 1), mkCard('a2', 'cleric', 'dragon', 1, 1), mkCard('a3', 'deathswarmer', 'undead', 1, 1)] };
+    s = reduce(s, { type: 'play', uid: 'a1' });
+    s = reduce(s, { type: 'play', uid: 'a2' });
+    expect(s.board.some((c) => c.uid === 'a1')).toBe(true); // still down after two
+    s = reduce(s, { type: 'play', uid: 'a3' });
+    expect(s.board.some((c) => c.uid === 'a1')).toBe(false); // the first Shout left the board…
+    expect(s.hand.some((c) => c.uid === 'a1')).toBe(true);   // …into the hand, same instance
+    expect(s.shoutsThisTurn).toBe(3);
+  });
+
+  it("Rune of Transfusion: a Demon Consume also feeds the leftmost minion the Fodder's stats", () => {
+    const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', runeTransfusion: true,
+      board: [mkCard('lm', 'stray', 'beast', 1, 1), mkCard('d', 'stray', 'demon', 2, 2)] };
+    noteFodderConsumed(s, 3, 2, s.board[1]);
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([1 + 3, 1 + 2]);
+    // A NON-Demon eater does not transfuse.
+    const s2: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', runeTransfusion: true,
+      board: [mkCard('lm', 'stray', 'beast', 1, 1), mkCard('b', 'stray', 'beast', 2, 2)] };
+    noteFodderConsumed(s2, 3, 2, s2.board[1]);
+    expect([s2.board[0]!.attack, s2.board[0]!.health]).toEqual([1, 1]);
+  });
+
+  it('Rune of Endless Appetite: the FIRST Consume each turn fans out to every OTHER Demon — once', () => {
+    const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', runeEndlessAppetite: true,
+      board: [mkCard('a', 'stray', 'demon', 1, 1), mkCard('b', 'stray', 'demon', 1, 1), mkCard('c', 'stray', 'demon', 1, 1), mkCard('x', 'stray', 'beast', 1, 1)] };
+    noteFodderConsumed(s, 2, 1, s.board[0]); // A consumes a 2/1 Fodder
+    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([1 + 2, 1 + 1]); // B copied the Consume
+    expect([s.board[2]!.attack, s.board[2]!.health]).toEqual([1 + 2, 1 + 1]); // C too
+    expect([s.board[3]!.attack, s.board[3]!.health]).toEqual([1, 1]);         // the Beast did not
+    expect(s.consumesThisTurn).toBe(3); // the fan-out consumes are real consumes
+    expect(s.runFodderConsumed?.count).toBe(3);
+    noteFodderConsumed(s, 2, 1, s.board[0]); // the SECOND consume this turn does not fan out
+    expect(s.board[1]!.attack).toBe(3);
+  });
+
+  it('Rune of Recurrence: End of Turn recasts the first spell — untargeted (Growth) and aimed (random ally)', () => {
+    // Untargeted: Growth (+3/+4 board-wide) recast at EoT.
+    const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
+      questRecurringEndOfTurn: ['recastFirstSpell'], firstSpellThisTurnId: 'growth',
+      board: [mkAlley('m')] };
+    applyEndOfTurn(s);
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([1 + 3, 1 + 4]);
+    // Aimed: Patch Job (+3/+3 baseline at 0 Gold spent) recast onto a (seeded-random) board minion.
+    const t: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
+      questRecurringEndOfTurn: ['recastFirstSpell'], firstSpellThisTurnId: 'patchjob', goldSpentThisTurn: 0,
+      board: [mkAlley('m')] };
+    applyEndOfTurn(t);
+    expect(t.board[0]!.attack).toBeGreaterThanOrEqual(1 + 3);
+    // No spell cast this turn → a clean no-op.
+    const u: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
+      questRecurringEndOfTurn: ['recastFirstSpell'], board: [mkAlley('m')] };
+    applyEndOfTurn(u);
+    expect([u.board[0]!.attack, u.board[0]!.health]).toEqual([1, 1]);
+  });
+
+  it('Rune of the Conductor: the shop OPENS by triggering your End of Turn effects (Vineweaver casts Growth)', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'combat', embers: 10, runeConductor: true,
+      board: [mkCard('v', 'vineweaver', 'dragon', 2, 2), mkAlley('m')], lastCombat: win };
+    s = reduce(s, { type: 'resolveCombat' });
+    const m = s.board.find((c) => c.uid === 'm')!;
+    expect(m.attack).toBeGreaterThanOrEqual(1 + 3); // Growth landed at shop open
+    expect(m.health).toBeGreaterThanOrEqual(1 + 4);
+  });
+
+  it('Rune of the Trophy: settleCombat conjures a plain copy of the recorded slaughterer to hand', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'combat', embers: 10,
+      board: [mkAlley('m')], hand: [], lastCombat: { ...win, playerSlaughterCopy: 'alley' } };
+    s = reduce(s, { type: 'resolveCombat' });
+    expect(s.hand.some((c) => c.cardId === 'alley')).toBe(true);
   });
 });

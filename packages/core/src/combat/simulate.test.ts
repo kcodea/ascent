@@ -3479,3 +3479,77 @@ describe('questTrigger events (badge-pulse markers)', () => {
     expect(badgeIdForCombatFlag('sharedCircuit')).toBe('q_shared_circuit'); // Shared Circuit's SoC Ward → its badge
   });
 });
+
+describe('Batch 7a combat runes (Rebirth / Aftershocks / Undertow / Mirror March / Trophy)', () => {
+  const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide());
+
+  it('Rune of Rebirth: a Rise returns at FULL base Health (golden-doubled), not 1', () => {
+    const p: BoardMinion[] = [{ cardId: 'pack', attack: 2, health: 2, keywords: ['R'] }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 40 }];
+    const base = CARD_INDEX['pack']!.health;
+    const withRune = simMods(p, e, 1, { runeRebirth: true });
+    const rb = withRune.events.find((ev) => ev.type === 'reborn');
+    expect(rb && rb.type === 'reborn' ? rb.hp : 0).toBe(base);
+    const without = simMods(p, e, 1, {});
+    const rb0 = without.events.find((ev) => ev.type === 'reborn');
+    expect(rb0 && rb0.type === 'reborn' ? rb0.hp : 0).toBe(1);
+  });
+
+  it('Rune of Aftershocks: Echo-summoned tokens land with +4/+4 baked in', () => {
+    // Pack's Deathrattle summons two 1/1 Pups — with the rune they land as 5/5s.
+    const p: BoardMinion[] = [{ cardId: 'pack', attack: 2, health: 2 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 40 }];
+    const r = simMods(p, e, 1, { runeAftershocks: true });
+    const pups = r.events.filter((ev) => ev.type === 'summon' && ev.minion?.cardId === 'pup');
+    expect(pups.length).toBeGreaterThanOrEqual(2);
+    for (const ev of pups) {
+      if (ev.type !== 'summon') continue;
+      expect(ev.minion.attack).toBe(1 + 4);
+      expect(ev.minion.health).toBe(1 + 4);
+    }
+  });
+
+  it('Rune of Aftershocks: a NON-Echo summon (SoC Warden) is not buffed', () => {
+    const p: BoardMinion[] = [{ cardId: 'gnash', attack: 5, health: 8 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 10 }];
+    const r = simMods(p, e, 1, { runeAftershocks: true, runeWarden: true });
+    const knit = r.events.find((ev) => ev.type === 'summon' && ev.minion?.cardId === 'knit');
+    expect(knit && knit.type === 'summon' ? knit.minion.attack : 0).toBe(CARD_INDEX['knit']!.attack);
+  });
+
+  it('Rune of the Undertow: an Echo-summoned token attacks immediately (before the next normal swing)', () => {
+    // Pack dies to the tanky enemy; its Pups summon and each strikes out-of-turn right after landing.
+    const p: BoardMinion[] = [{ cardId: 'pack', attack: 2, health: 2 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 40 }];
+    const r = simMods(p, e, 1, { runeUndertow: true });
+    const evs = r.events;
+    const pupSummonIdx = evs.findIndex((ev) => ev.type === 'summon' && ev.minion?.cardId === 'pup');
+    expect(pupSummonIdx).toBeGreaterThanOrEqual(0);
+    const pupUid = (() => { const ev = evs[pupSummonIdx]!; return ev.type === 'summon' ? ev.minion.uid : ''; })();
+    // The very next attack event after the pup lands is the pup's own immediate strike.
+    const nextAttack = evs.slice(pupSummonIdx + 1).find((ev) => ev.type === 'attack');
+    expect(nextAttack && nextAttack.type === 'attack' ? nextAttack.attacker : '').toBe(pupUid);
+  });
+
+  it('Rune of the Mirror March: SoC summons an exact copy of the leftmost minion (current stats)', () => {
+    const p: BoardMinion[] = [{ cardId: 'gnash', attack: 9, health: 13 }, { cardId: 'alley', attack: 2, health: 2 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 10 }];
+    const r = simMods(p, e, 1, { runeMirrorMarch: true });
+    const copy = r.events.find((ev) => ev.type === 'summon' && ev.minion?.cardId === 'gnash');
+    expect(copy && copy.type === 'summon' ? [copy.minion.attack, copy.minion.health] : []).toEqual([9, 13]);
+    // Full board: no copy.
+    const full: BoardMinion[] = Array.from({ length: 7 }, () => ({ cardId: 'alley', attack: 2, health: 2 }));
+    const r2 = simMods(full, e, 1, { runeMirrorMarch: true });
+    expect(r2.events.filter((ev) => ev.type === 'summon').length).toBe(0);
+  });
+
+  it('Rune of the Trophy: records the FIRST friendly slaughterer as playerSlaughterCopy (once)', () => {
+    const p: BoardMinion[] = [{ cardId: 'gnash', attack: 9, health: 30 }, { cardId: 'alley', attack: 9, health: 30 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'sandbag', attack: 0, health: 1 }];
+    const r = simMods(p, e, 1, { runeTrophy: true });
+    expect(r.playerSlaughterCopy).toBe('gnash'); // the first killer, not the second
+    const r0 = simMods(p, e, 1, {});
+    expect(r0.playerSlaughterCopy).toBeUndefined();
+  });
+});

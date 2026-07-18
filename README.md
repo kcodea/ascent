@@ -40,6 +40,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **Runes batch 7a — 12 new runes.** Five Basic (Rebirth: Rise with full Health; Tempering: first Attachment
+  each turn Wards its minion; Aftershocks: Echo summons +4/+4; Refrain: your 3rd Shout returns the turn's
+  first Shout to hand; the Trophy: first Slaughter each combat → a copy next shop) and seven Epic
+  (Transfusion, Mirror March, Recurrence, Replication, the Conductor, the Undertow, Endless Appetite).
+  Rune of Mastery follows separately. 30 Basic + 30 Epic total.
 - **Per-z End-of-Turn rewards land one hit per step.** Blueprint Cache (+2/+2 per Attachment), Rune of
   Spending, Rune of Action, and Forsaken Speed now strike their targets once per unit of the scaler,
   sequentially on their beat — ten Attachments read as ten +2/+2 hits, not one +20/+20 lump. (End-of-Turn

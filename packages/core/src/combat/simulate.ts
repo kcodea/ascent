@@ -91,6 +91,7 @@ export function simulate(
   let uidCounter = 0;
   const mkUid = (): string => `m${uidCounter++}`;
   const handGrants: string[] = []; // cards the player's deathrattles add to hand after combat
+  let slaughterCopyId: string | undefined; // Rune of the Trophy: the first friendly slaughterer's card id
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
   const undeadAuraGain = { attack: 0, health: 0 }; // permanent Undead aura (attack+health) from this combat (Watcher's Lantern)
@@ -675,6 +676,18 @@ export function simulate(
       if (copyStats.divineShield) minion.divineShield = true;
       if (copyStats.rebornAvailable) minion.rebornAvailable = true;
     }
+    // Echo summons (a Deathrattle is resolving right now): Rune of Aftershocks bakes +4/+4 into the body
+    // before it lands (the summon snapshot shows the buffed stats, like a golden token); Rune of the
+    // Undertow routes it onto the immediate-attack queue so it lands + strikes as one beat (the Whelp path).
+    if (echoDepth > 0) {
+      const em = modsFor(side);
+      if (em.runeAftershocks) {
+        minion.attack += 4;
+        minion.health += 4;
+        minion.maxHealth += 4;
+      }
+      if (em.runeUndertow) attackNow = true;
+    }
     // Attack-on-summon tokens (Whelp; Steadfast Champion's Spear Warden via `attackNow`) DEFER their whole
     // summon: rather than land + announce here, they queue onto the immediate-attack queue and are placed at
     // the next flushImmediateAttacks — i.e. AFTER the current clash's death cascade fully resolves. So the
@@ -742,6 +755,15 @@ export function simulate(
     return minion;
   }
 
+  // Depth counter marking "an Echo (Deathrattle) effect is currently resolving" — summons that originate
+  // inside it are Echo summons (Rune of Aftershocks buffs them +4/+4; Rune of the Undertow makes them attack
+  // immediately). A DEPTH (not a boolean) because a summoned token's own death mid-rattle can nest.
+  let echoDepth = 0;
+  const asEcho = (run: () => void): void => {
+    echoDepth++;
+    try { run(); } finally { echoDepth--; }
+  };
+
   function registerEffect(minion: Minion, effect: EffectDef): void {
     const fn = FACTORIES[effect.do];
     if (!fn) return; // recruit-phase effects without a combat factory are inert here
@@ -762,7 +784,9 @@ export function simulate(
         effect.do === 'onSummonOverflowBuffTribe' && modsFor(minion.side).crateringMissive
           ? { ...(effect.params ?? {}), tribe: '' }
           : effect.params ?? {};
-      fn(ctx, minion, params, payload);
+      // An Echo (onDeath) effect resolving marks its summons as Echo summons (Aftershocks / Undertow).
+      if (effect.on === 'onDeath') asEcho(() => fn(ctx, minion, params, payload));
+      else fn(ctx, minion, params, payload);
       // Rune of Fury: your Avenges trigger twice — re-run the avenge effect once more. Per side (a served enemy's
       // Fury doubles its own minions' Avenges too).
       if (modsFor(minion.side).runeFury && effect.on === 'avenge') {
@@ -870,7 +894,7 @@ export function simulate(
     const fireOnce = (): void => {
       for (const effect of minion.effects) {
         if (effect.on !== 'onDeath') continue;
-        FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
+        asEcho(() => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
       }
     };
     fireOnce();
@@ -927,9 +951,12 @@ export function simulate(
       minion.dead = false;
       const def = cards[minion.cardId];
       const mul = minion.golden ? 2 : 1;
+      // Rune of Rebirth: the side's minions Rise with FULL (base, golden-doubled) Health instead of 1 —
+      // run-wide auras still re-apply on top below, exactly like the 1-HP path.
+      const fullRise = !!modsFor(minion.side).runeRebirth;
       if (def) {
         minion.attack = Math.max(0, def.attack * mul);
-        minion.health = 1; // Rise returns at 1 Health — golden included — regardless of the card's base Health
+        minion.health = fullRise ? def.health * mul : 1; // Rise returns at 1 Health unless Rune of Rebirth
         minion.maxHealth = minion.health;
         minion.keywords = def.keywords.filter((k) => k !== 'R');
         minion.divineShield = def.keywords.includes('DS');
@@ -979,7 +1006,7 @@ export function simulate(
     for (let r = 0; r < extra; r++) {
       for (const effect of minion.effects) {
         if (effect.on !== 'onDeath') continue;
-        FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side });
+        asEcho(() => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
       }
     }
     // Each RE-TRIGGER is another Echo "triggered" (owner ruling 2026-07-08: TRIGGER-based counts — the Echo
@@ -1270,6 +1297,10 @@ export function simulate(
             if (killer.side === 'player') {
               bumpQuestTally('slaughter', killer);
               if (killer.effects.some((e) => e.on === 'onKill')) bumpSlaughterKeyword(); // The Red Trail: a Slaughter-keyword trigger
+              // Rune of the Trophy: record the FIRST friendly minion to Slaughter this combat — a plain copy
+              // is conjured to hand at settle ("get a copy of it next Shop"). Player-only (a served enemy has
+              // no run to receive it); dying in the same clash still counts (the Slaughter fired).
+              if (kmods.runeTrophy && slaughterCopyId === undefined) slaughterCopyId = killer.cardId;
               // Blood Trail (Beast → hand) + Deep Hunger (Fodder → next shop) are ECONOMY/HAND — player-only (a
               // served enemy has no hand or shop). Their SoC marks are also only set on the player board.
               if (playerState.questMods.bloodTrail && killer === bloodTrailMinion && killerAlive) ctx.grantRandomMinion(1, 'beast', 'player', undefined, killer.uid);
@@ -1487,6 +1518,20 @@ export function simulate(
     if (rmods.runeWarden && boards[rside].length < 7) {
       const knit = cards['knit'];
       if (knit) { nextStep(); fireTrigger('runeWarden', rside); summonMinion(rside, knit, undefined); }
+    }
+    // Rune of the Mirror March: if the board has room, summon an EXACT copy of the leftmost minion (current
+    // combat stats + shield/Rise, the Mirrorhide `copyStats` path), placed to its right.
+    if (rmods.runeMirrorMarch && boards[rside].length < 7) {
+      const lead = boards[rside].find((m) => !m.dead && m.health > 0);
+      const leadDef = lead ? cards[lead.cardId] : undefined;
+      if (lead && leadDef) {
+        nextStep();
+        fireTrigger('runeMirrorMarch', rside);
+        summonMinion(rside, leadDef, lead.uid, undefined, lead.golden, false, {
+          attack: lead.attack, health: lead.health, maxHealth: lead.maxHealth,
+          divineShield: lead.divineShield, rebornAvailable: lead.rebornAvailable,
+        });
+      }
     }
     // Rune of Twilight: Start-of-Combat effects trigger an ADDITIONAL time — a second SoC pass for this board.
     if (rmods.runeTwilight) {
@@ -1856,6 +1901,7 @@ export function simulate(
     playerGuaranteedAttachments: attachmentShopGrants > 0 ? attachmentShopGrants : undefined,
     playerSpellsCast: playerCombatSpells > 0 ? playerCombatSpells : undefined,
     playerUndeadBuyAtkGain: undeadBuyAtkGain > 0 ? undeadBuyAtkGain : undefined,
+    playerSlaughterCopy: slaughterCopyId,
     playerUndeadAuraGain: undeadAuraGain.attack > 0 || undeadAuraGain.health > 0 ? undeadAuraGain : undefined,
     playerImpBuffGain: impBuffGain.attack > 0 || impBuffGain.health > 0 ? impBuffGain : undefined,
     playerFodderBuffGain: fodderBuffGain.attack > 0 || fodderBuffGain.health > 0 ? fodderBuffGain : undefined,

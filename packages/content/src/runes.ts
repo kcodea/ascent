@@ -195,6 +195,42 @@ export const RUNES: RuneDef[] = [
     text: 'Get a **Spear Warden**. When you have room in combat, summon a **Spear Warden**.',
     reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['knit'] }, { kind: 'combatFlag', flag: 'runeWarden' }] },
   },
+  // ── Batch 7a additions (owner designs 2026-07-17) ──
+  {
+    id: 'rune_rebirth',
+    name: 'Rune of Rebirth',
+    cost: 5,
+    text: 'Your minions **Rise with full Health**.',
+    reward: { kind: 'combatFlag', flag: 'runeRebirth' },
+  },
+  {
+    id: 'rune_tempering',
+    name: 'Rune of Tempering',
+    cost: 4,
+    text: 'The first **Attachment** you play each turn also gives that minion **Ward**.',
+    reward: { kind: 'runeTempering' },
+  },
+  {
+    id: 'rune_aftershocks',
+    name: 'Rune of Aftershocks',
+    cost: 4,
+    text: 'Minions summoned by your **Echoes** gain **+4/+4**.',
+    reward: { kind: 'combatFlag', flag: 'runeAftershocks' },
+  },
+  {
+    id: 'rune_refrain',
+    name: 'Rune of Refrain',
+    cost: 5,
+    text: 'After you play your third **Shout** minion each turn, return the first Shout minion you played that turn to your hand.',
+    reward: { kind: 'runeRefrain' },
+  },
+  {
+    id: 'rune_trophy',
+    name: 'Rune of the Trophy',
+    cost: 5,
+    text: 'The first time a friendly minion triggers **Slaughter** each combat, get a copy of it next Shop.',
+    reward: { kind: 'combatFlag', flag: 'runeTrophy' },
+  },
 ];
 
 /**
@@ -202,7 +238,7 @@ export const RUNES: RuneDef[] = [
  * normal Runeforge (offer a random few, buy ONE for Gold, re-roll once for 2 Gold) but draws from THIS set and is
  * NOT tied to a hero power — reached by a quest reward (`openEpicRuneforge`, the Epic Commission quest).
  *
- * The designed Epic roster is now wired out — **23 Epic runes** across grants, discovers, recurring-end-of-turn,
+ * The designed Epic roster is now wired out — **30 Epic runes** across grants, discovers, recurring-end-of-turn,
  * Start-of-Combat / Avenge combat flags, and recruit-phase mechanics (Copies, Reliquary, Rising Graves, Broodpit,
  * Spearline, Appraisal, Assembly, Stormcalling, Frontline Glory, Soul Taxes, Scales, Twin Gilding, Den Mother,
  * Banking, First Claws, Inheritance, Second Path, Twilight, Feast, Reconfiguration, Champion, Armory, Gilded Spark).
@@ -397,6 +433,63 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get a **Goldcrafter**. Get another in **2 turns**.',
     reward: { kind: 'grant', cards: ['goldcrafter'], repeatInTurns: 2 },
+  },
+  // ── Batch 7a additions (owner designs 2026-07-17; Rune of Mastery follows separately in 7b) ──
+  {
+    id: 'rune_transfusion',
+    name: 'Rune of Transfusion',
+    cost: 7,
+    epic: true,
+    text: 'Whenever a **Demon Consumes** Fodder, your **left-most minion** also gains its stats.',
+    reward: { kind: 'runeTransfusion' },
+  },
+  {
+    id: 'rune_mirror_march',
+    name: 'Rune of the Mirror March',
+    cost: 7,
+    epic: true,
+    text: '**Start of Combat:** when you have room, summon a **copy of your left-most minion**.',
+    reward: { kind: 'combatFlag', flag: 'runeMirrorMarch' },
+  },
+  {
+    id: 'rune_recurrence',
+    name: 'Rune of Recurrence',
+    cost: 7,
+    epic: true,
+    text: '**End of Turn:** cast the **first spell** you cast this turn again.',
+    reward: { kind: 'recurringEndOfTurn', effect: 'recastFirstSpell' },
+  },
+  {
+    id: 'rune_replication',
+    name: 'Rune of Replication',
+    cost: 7,
+    epic: true,
+    text: 'The first **Attachment** you play each turn also attaches a **copy** to your left-most Mech.',
+    reward: { kind: 'runeReplication' },
+  },
+  {
+    id: 'rune_conductor',
+    name: 'Rune of the Conductor',
+    cost: 8,
+    epic: true,
+    text: '**Start of Shop:** trigger all your **End of Turn** effects.',
+    reward: { kind: 'runeConductor' },
+  },
+  {
+    id: 'rune_undertow',
+    name: 'Rune of the Undertow',
+    cost: 7,
+    epic: true,
+    text: 'Minions summoned by an **Echo** attack immediately.',
+    reward: { kind: 'combatFlag', flag: 'runeUndertow' },
+  },
+  {
+    id: 'rune_endless_appetite',
+    name: 'Rune of Endless Appetite',
+    cost: 8,
+    epic: true,
+    text: 'The first time you **Consume** Fodder each turn, all your other **Demons Consume** a copy of it.',
+    reward: { kind: 'runeEndlessAppetite' },
   },
 ];
 

@@ -498,7 +498,7 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeUndertow?: boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean };
   // ── Runeforge (Runesmith) ──
   /** The Runeforge is open (turn 6): a pending offer of rune ids to buy for their Gold cost. Like `questOffer`,
    *  while set the reducer blocks every non-`buyRune`/`skipRuneforge` action and the UI pauses the timer; buying
@@ -553,6 +553,29 @@ export interface RunState {
   runeScale?: { count: number; attack: number; health: number };
   /** Rune of Copies (Epic): copy a random board minion to hand at the start of every turn. */
   runeCopies?: boolean;
+  /** Rune of Tempering: the FIRST Attachment (Magnetic) you play each turn also gives that minion Ward. */
+  runeTempering?: boolean;
+  /** Rune of Replication (Epic): the FIRST Attachment you play each turn also welds a copy onto your leftmost Mech. */
+  runeReplication?: boolean;
+  /** Rune of Refrain: after you play your THIRD Shout (Battlecry) minion each turn, the first Shout minion you
+   *  played that turn returns to your hand (the actual instance, buffs intact). */
+  runeRefrain?: boolean;
+  /** Rune of Transfusion (Epic): whenever a Demon Consumes Fodder, your leftmost minion also gains the Fodder's stats. */
+  runeTransfusion?: boolean;
+  /** Rune of Endless Appetite (Epic): the FIRST Fodder Consume each turn fans out — every OTHER friendly Demon
+   *  Consumes a copy of the same Fodder. */
+  runeEndlessAppetite?: boolean;
+  /** Rune of the Conductor (Epic): at the start of every shop, trigger all your End of Turn effects. */
+  runeConductor?: boolean;
+  /** Attachments (Magnetic cards) PLAYED this turn — Tempering/Replication's "first each turn" gate. Reset each wave. */
+  attachmentsThisTurn?: number;
+  /** Shout (Battlecry) minions played this turn + the board uid of the FIRST one — Rune of Refrain. Reset each wave. */
+  shoutsThisTurn?: number;
+  firstShoutUid?: string;
+  /** Fodder Consumes performed this turn — Endless Appetite's "first each turn" gate. Reset each wave. */
+  consumesThisTurn?: number;
+  /** The FIRST spell cast this turn (Rune of Recurrence recasts it at End of Turn). Reset each wave. */
+  firstSpellThisTurnId?: string;
   /** Food for Gold (Demon greater): armed reward — every `per` Gold spent adds a Fodder to the next shop and
    *  bumps the run-wide Fodder aura by +attack/+health. `foodForGoldTick` carries the sub-`per` Gold remainder. */
   foodForGold?: { per: number; attack: number; health: number };
@@ -634,7 +657,7 @@ export interface RunState {
   lastSurvivorCardIds?: string[];
   /** Recurring End-of-Turn effects granted by quests (Echoing Roar → re-fire leftmost Shout; The Hoard Wakes →
    *  conjure a random Shout minion). Fired every End of Turn for the rest of the run. Absent = none. */
-  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones')[];
+  questRecurringEndOfTurn?: ('triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell')[];
   /** Bane's Existence: when set, your Banes' after-Battlecry Fodder/Imp buff ALSO grants all your Demons this
    *  much run-wide (a persistent tribe aura). Absent = Bane only buffs Fodder/Imps as printed. */
   baneBuffsDemons?: { attack: number; health: number };

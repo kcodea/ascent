@@ -659,7 +659,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           const mDef = CARD_INDEX[card.cardId];
           const mana = (mDef?.manaPerTurn ?? 0) * (card.golden ? 2 : 1) + (card.manaBonus ?? 0);
           // Weld the magnetic onto the host — stats, keywords, mana — and let any Beatboxer mimic it.
-          weldMagnetic(s, target, {
+          const weldPayload = {
             source: mDef?.name ?? card.cardId,
             attack: card.attack,
             health: card.health,
@@ -680,7 +680,22 @@ function reduceCore(state: RunState, action: Action): RunState {
                   health: (mDef?.fodderAura?.health ?? 0) * (card.golden ? 2 : 1) + (card.fodderAuraBonus?.health ?? 0),
                 }
               : undefined,
-          }, card.cardId === 'cling' ? 1 : 0); // a magnetized Cling stacks the improvement (via weldMagnetic)
+          };
+          weldMagnetic(s, target, weldPayload, card.cardId === 'cling' ? 1 : 0); // a magnetized Cling stacks the improvement (via weldMagnetic)
+          // The FIRST Attachment played each turn (this weld counts; a standalone Magnetic play counts at its
+          // own site below): Rune of Tempering also gives the minion it attached to Ward; Rune of Replication
+          // also welds a copy of the same payload onto your leftmost Mech (which may be this same host — the
+          // copy stacks, matching the text "attaches a copy").
+          s.attachmentsThisTurn = (s.attachmentsThisTurn ?? 0) + 1;
+          if (s.attachmentsThisTurn === 1) {
+            if (s.runeTempering && !target.keywords.includes('DS')) {
+              target.keywords = [...target.keywords, 'DS'];
+            }
+            if (s.runeReplication) {
+              const leftMech = s.board.find((c) => isTribe(c, 'mech'));
+              if (leftMech) weldMagnetic(s, leftMech, { ...weldPayload, source: `${weldPayload.source} (Replication)` }, card.cardId === 'cling' ? 1 : 0);
+            }
+          }
           // A golden Magnetic still "plays" the triple when welded in — grant its Discover.
           if (card.golden) grantGoldenDiscover(s);
           return s;
@@ -700,6 +715,47 @@ function reduceCore(state: RunState, action: Action): RunState {
           : Math.max(0, Math.min(s.board.length, action.toIndex));
       s.board.splice(to, 0, card);
       playCard(s, card);
+      // A STANDALONE Magnetic play (no host — it took a board slot) is still "playing an Attachment": the
+      // first each turn gets Tempering's Ward on itself, and Replication still copies it onto the leftmost
+      // Mech (the standalone body itself qualifies if it's the leftmost Mech-tribe minion... it welds a copy).
+      if (card.keywords.includes('M')) {
+        s.attachmentsThisTurn = (s.attachmentsThisTurn ?? 0) + 1;
+        if (s.attachmentsThisTurn === 1) {
+          if (s.runeTempering && !card.keywords.includes('DS')) {
+            card.keywords = [...card.keywords, 'DS'];
+          }
+          if (s.runeReplication) {
+            const sDef = CARD_INDEX[card.cardId];
+            const leftMech = s.board.find((c) => c.uid !== card.uid && isTribe(c, 'mech'));
+            if (sDef && leftMech) {
+              weldMagnetic(s, leftMech, {
+                source: `${sDef.name} (Replication)`,
+                attack: card.attack,
+                health: card.health,
+                keywords: card.keywords,
+                mana: (sDef.manaPerTurn ?? 0) * (card.golden ? 2 : 1),
+              }, card.cardId === 'cling' ? 1 : 0);
+            }
+          }
+        }
+      }
+      // Rune of Refrain: track Shout (Battlecry) minions played this turn; the THIRD play returns the FIRST
+      // Shout you played that turn to your hand — the actual instance, buffs/golden intact (replay its Shout
+      // by playing it again). Nothing happens if it left the board (sold/consumed) or your hand is full.
+      {
+        const playedDef = CARD_INDEX[card.cardId];
+        if (playedDef && hasBattlecry(playedDef)) {
+          s.shoutsThisTurn = (s.shoutsThisTurn ?? 0) + 1;
+          if (s.shoutsThisTurn === 1) s.firstShoutUid = card.uid;
+          else if (s.shoutsThisTurn === 3 && s.runeRefrain && s.firstShoutUid) {
+            const idx = s.board.findIndex((c) => c.uid === s.firstShoutUid);
+            if (idx >= 0 && s.hand.length < CONFIG.handMax) {
+              const [ret] = s.board.splice(idx, 1);
+              if (ret) s.hand.push(ret);
+            }
+          }
+        }
+      }
       // Choose One: pause for the player's pick before resolving triples / the golden Discover.
       if (CARD_INDEX[card.cardId]?.chooseOne?.length) {
         s.chooseOne = { uid: card.uid, cardId: card.cardId };
@@ -1614,6 +1670,24 @@ function settleCombat(s: RunState, result: CombatResult): void {
       takeFromPool(s, cardId);
     }
   }
+  // Rune of the Trophy: the first friendly minion to Slaughter this combat arrives as a plain base-stat
+  // copy in hand for the next shop (the same conjure shape as playerHandGrants above — run enchants +
+  // tribe bonds apply; a full hand forfeits it).
+  if (result.playerSlaughterCopy) {
+    const def = CARD_INDEX[result.playerSlaughterCopy];
+    if (def && s.hand.length < CONFIG.handMax) {
+      const cb = cardBuff(s, def.id);
+      s.hand.push({
+        uid: `b${s.uidSeq++}`,
+        cardId: def.id,
+        tribe: def.tribe,
+        attack: def.attack + cb.attack + undeadBuyBonus(s, def),
+        health: def.health + cb.health + buyHealthAura(s, def),
+        keywords: [...def.keywords],
+        golden: false,
+      });
+    }
+  }
   // Skullblade: permanent run-wide spell power gained from its combat Deathrattle (+Attack to your
   // spells), win or lose. Folds into spellAttackBonus / spellHealthBonus from now on, so every future
   // stat spell + its display picks it up. Stacks across combats.
@@ -1801,6 +1875,11 @@ function advanceCombat(s: RunState): void {
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
   s.playedThisTurn = []; // Pack Leader / Spirit Worgen: minions-played-this-turn resets each turn
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
+  s.attachmentsThisTurn = 0; // Tempering/Replication's "first Attachment each turn" gate resets each wave
+  s.shoutsThisTurn = 0; // Rune of Refrain's Shout counter resets each wave
+  s.firstShoutUid = undefined;
+  s.consumesThisTurn = 0; // Endless Appetite's "first Consume each turn" gate resets each wave
+  s.firstSpellThisTurnId = undefined; // Rune of Recurrence's first-spell record resets each wave
   s.extraEotThisTurn = false; // Chrono Staff's one-shot End-of-Turn extra is per-turn
   s.shoutFirstUsedThisTurn = false; // Warm Embers' "first Shout each round triggers twice" freebie resets each turn
   s.dupeUsedThisTurn = false; // Dupes: the first-buy copy is a per-turn freebie
@@ -1926,6 +2005,16 @@ function advanceCombat(s: RunState): void {
   }
   // Rune of Copies (Epic): each turn setup, copy a random board minion to hand (the immediate copy fired on buy).
   if (s.runeCopies) copyRandomBoardMinion(s);
+  // Rune of the Conductor (Epic): the shop OPENS by triggering all your End of Turn effects — the warband's
+  // EoT minions + quest/rune recurring rewards, exactly like a real End of Turn (Chronos repeats included).
+  // Per-turn scalers (Rune of Spending / Rune of Action read Gold-spent / cards-played) see the FRESH turn's
+  // zeroed counters at shop open, so those specific rewards contribute nothing here by design. Wrapped
+  // sourceless for FX (descends onto every gainer via the recruitFxSeq boundary), and the triggers count
+  // toward "Trigger N End of Turn effects" quests like real ones.
+  if (s.runeConductor) {
+    captureBuffFx(s, undefined, 'spell', () => applyEndOfTurn(s));
+    advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires ?? 0);
+  }
   // Triples can be completed by a combat carry-back that lands a 3rd copy in the hand (e.g. a
   // Deathrattle-granted minion) AFTER the last recruit action that would have checked. Every other
   // path checks on the mutation; this is the one entry the player never triggers, so check once here
@@ -2370,6 +2459,24 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'runeEmpowerment':
       s.runeEmpowerment = true; // Rune of Empowerment (Epic): your hero power triggers twice
       break;
+    case 'runeTempering':
+      s.runeTempering = true; // Rune of Tempering: the first Attachment each turn also grants Ward
+      break;
+    case 'runeReplication':
+      s.runeReplication = true; // Rune of Replication: the first Attachment each turn copies onto the leftmost Mech
+      break;
+    case 'runeRefrain':
+      s.runeRefrain = true; // Rune of Refrain: your 3rd Shout each turn returns the turn's first Shout to hand
+      break;
+    case 'runeTransfusion':
+      s.runeTransfusion = true; // Rune of Transfusion: a Demon Consume also feeds your leftmost minion
+      break;
+    case 'runeEndlessAppetite':
+      s.runeEndlessAppetite = true; // Rune of Endless Appetite: the first Consume each turn fans out to all other Demons
+      break;
+    case 'runeConductor':
+      s.runeConductor = true; // Rune of the Conductor: start of every shop triggers your End of Turn effects
+      break;
     case 'openEpicRuneforge':
       // Deferred: arm it now, open at the START of NEXT turn (after this turn's combat). `pendingForgeDeferred`
       // blocks the mid-turn modal-close drains from opening it early (owner bug 2026-07-13: it opened mid-turn
@@ -2562,6 +2669,11 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeSalvage: f?.runeSalvage, // Rune of Salvage: friendly Mech loses Ward → Attachment to hand
     runeTwilight: f?.runeTwilight, // Rune of Twilight: your Start-of-Combat effects trigger an extra time
     runeWarden: f?.runeWarden, // Rune of the Warden: SoC summon a Spear Warden if there's room
+    runeRebirth: f?.runeRebirth, // Rune of Rebirth: your minions Rise with full Health
+    runeAftershocks: f?.runeAftershocks, // Rune of Aftershocks: Echo summons gain +4/+4
+    runeUndertow: f?.runeUndertow, // Rune of the Undertow: Echo summons attack immediately
+    runeMirrorMarch: f?.runeMirrorMarch, // Rune of the Mirror March: SoC summon a copy of your leftmost
+    runeTrophy: f?.runeTrophy, // Rune of the Trophy: first Slaughter → a copy of the slaughterer next shop
   };
 }
 

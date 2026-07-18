@@ -34,6 +34,38 @@ Phase 2 of Flurry: the one-shot combat FX + audio for a Flurry (W) attacker, bui
 
 ## 2026-07-17
 
+### feat: runes batch 7a — 12 new runes (5 Basic + 7 Epic; owner designs)
+
+Basic (now 30): **Rebirth** (your minions Rise with FULL base Health — a `runeRebirth` combat flag at the
+`killOrReborn` revive, golden-doubled, auras re-applied on top), **Tempering** (the first Attachment played
+each turn also Wards the minion it lands on — welds Ward the host, standalone plays Ward themselves),
+**Aftershocks** (Echo summons land with +4/+4 baked in — a new `echoDepth` marker wraps every Deathrattle
+dispatch so `summonMinion` knows a summon is Echo-born), **Refrain** (your 3rd Shout each turn returns the
+turn's FIRST Shout — the actual instance, buffs intact — to hand; new per-turn Shout tracker), and
+**the Trophy** (the first friendly Slaughter each combat carries the slaughterer's card id back via a new
+`CombatResult.playerSlaughterCopy` → a plain copy conjured to hand at settle, owner call: hand-conjure).
+
+Epic (now 30): **Transfusion** (a Demon Consume also feeds your leftmost the Fodder's stats — centralized in
+`noteFodderConsumed`, which now receives the EATER at every consume site), **Mirror March** (SoC: summon an
+exact copy of your leftmost — the Mirrorhide `copyStats` path), **Recurrence** (EoT: recast the turn's first
+spell — new `firstSpellThisTurnId` tracker + a `recastFirstSpell` recurring-EoT effect; aimed spells re-target
+a seeded-random board minion, owner call), **Replication** (the first Attachment each turn also welds a copy
+onto your leftmost Mech), **the Conductor** (the shop OPENS by triggering all your EoT effects — per-turn
+scalers read the fresh turn's zeroed counters by design; triggers count toward EoT quests; sourceless FX
+descends), **the Undertow** (Echo summons attack immediately — the Whelp `attackNow` queue), and **Endless
+Appetite** (the first Consume each turn fans out: every OTHER Demon Consumes a copy — full consumes with
+their own multipliers/triggers, recursion-guarded by the per-turn counter).
+
+**Rune of Mastery deferred to batch 7b** (its own PR): "Improve" is ~15 scattered sites across both engines
+(no chokepoint), too much regression surface to ride along with 12 other runes.
+
+Verified: 15 new tests (6 combat: full-HP rise vs 1-HP control, echo +4/+4 with SoC-summon control, immediate
+echo strike ordering, exact-stat mirror copy + full-board no-op, first-slaughterer-only Trophy carry-back;
+9 recruit: every reward applies on purchase, first-vs-second attachment Ward, leftmost-Mech replication,
+3rd-Shout bounce, Demon-only transfusion, one-shot fan-out with tallies, untargeted+aimed+no-op recast,
+Conductor's shop-open Vineweaver Growth, Trophy settle conjure) + full suite (1158) + typecheck + lint +
+build:web green.
+
 ### feat(ui): Flurry (W) persistent wind-blade aura — CSS ring stack (`feat/flurry-fx`)
 
 Flurry minions now show a swirling wind-blade vortex, following the Ward/Reborn CSS playbook (owner direction:

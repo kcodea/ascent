@@ -101,13 +101,13 @@ The depth layer that answers *"what kind of run did I author?"* — comes after 
   be specced with the owner before build.
 
 ### Rune build-out
-Basic + Epic Runeforges ship with 25 basic + 23 Epic runes wired. Remaining is content + art, sequenced with
-the owner batch-by-batch (several grants need card designs/stats confirmed first):
-- **Easy** — grant/discover/simple-hook runes: Rune of the Pair (2 random exact-tier minions — needs a
-  "grant N random minions of tier N" option), Rune of the Menagerie (one random minion per tribe).
-- **Medium** — new combat effects behind unbuilt runes; mirror the established SoC / Avenge / EoT patterns.
-- **Hard** — deep engine mechanics already sketched but not fully generalized.
-- **Art:** Epic runes + several new basic runes fall back to the sigil glyph — author art.
+Basic + Epic Runeforges ship with 30 basic + 30 Epic runes wired (batch 7a landed 2026-07-17). Remaining:
+- **Rune of Mastery (batch 7b)** — "whenever one of your effects Improves, it improves an additional time."
+  Deferred from 7a: "Improve" is ~15 scattered sites across recruit AND combat (Karthus, Crypt Drake,
+  Runescale, Den Mother, Squirl Scout, Ritualist, Sergeant, escalating spells, overflow/avenge improvers,
+  Rune of Consumption/Summoning/Appraisal) with no chokepoint — wants its own per-site doubling PR with
+  per-site tests. Owner confirmed the scope = cards whose text says **Improve**.
+- **Art:** Epic runes + the batch 7a runes fall back to the sigil glyph — author art.
 
 ### New mechanics (depth, later within Next)
 Each its own spec when reached: **Balance** (average two units' stats — a shop puzzle), **Mark / Bind /

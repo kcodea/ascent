@@ -255,7 +255,7 @@ export function gildMinion(card: BoardCard): void {
 /** Record one Consumed Fodder's stats — the per-turn tally (Abhorrent Horror's SoC window) AND the run-wide
  *  totals the Demon quests read (`consumeFodder` count + `consumeStats` = Σ attack+health). Called at every
  *  consume site. */
-export function noteFodderConsumed(state: RunState, fa: number, fh: number): void {
+export function noteFodderConsumed(state: RunState, fa: number, fh: number, eater?: BoardCard): void {
   state.fodderConsumedThisTurn ??= { attack: 0, health: 0 };
   state.fodderConsumedThisTurn.attack += fa;
   state.fodderConsumedThisTurn.health += fh;
@@ -264,6 +264,27 @@ export function noteFodderConsumed(state: RunState, fa: number, fh: number): voi
   state.runFodderConsumed.stats += fa + fh;
   // Rune of Consumption: every Fodder Consumed permanently bumps your run-wide Fodder aura.
   if (state.runeConsume) buffFodderRunWide(state, state.runeConsume.attack, state.runeConsume.health, 'Rune of Consumption');
+  // Endless Appetite's "first each turn" gate — incremented BEFORE the fan-out below, so the fanned-out
+  // consumes (which re-enter here as real consumes: tallies, Rune of Consumption, Transfusion) never re-fan.
+  const first = (state.consumesThisTurn = (state.consumesThisTurn ?? 0) + 1) === 1;
+  // Rune of Transfusion: whenever a DEMON Consumes, your leftmost minion also gains the Fodder's stats
+  // (skipped when the eater IS the leftmost — its own Consume already banked them).
+  if (state.runeTransfusion && eater && isTribe(eater, 'demon')) {
+    const left = state.board[0];
+    if (left && left.uid !== eater.uid) addBuff(left, 'Rune of Transfusion', fa, fh);
+  }
+  // Rune of Endless Appetite: the FIRST Consume each turn fans out — every OTHER friendly Demon Consumes a
+  // copy of the same Fodder (a full Consume each: its own Voracious multiplier, onConsume triggers, and the
+  // tallies/rune hooks via the recursive note call).
+  if (first && state.runeEndlessAppetite && eater) {
+    const ctx = makeContext(state);
+    for (const d of state.board.filter((c) => c.uid !== eater.uid && isTribe(c, 'demon'))) {
+      const mult = fodderMultiplier(d);
+      addBuff(d, 'Consume', fa * mult, fh * mult);
+      fire(ctx, 'onConsume', { minion: d });
+      noteFodderConsumed(state, fa, fh, d);
+    }
+  }
 }
 
 export function buffFodderRunWide(state: RunState, a: number, h: number, source: string, fx = true): void {
@@ -964,7 +985,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       addBuff(target, 'Consume', fa * mult, fh * mult);
       fire(ctx, 'onConsume', { minion: target });
       eaten.push({ eaterUid: target.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
-      noteFodderConsumed(ctx.state, fa, fh);
+      noteFodderConsumed(ctx.state, fa, fh, target);
     }
     if (eaten.length > 0) {
       // APPEND (not replace): Drakko re-fires this Battlecry, so each fire's Fodder must accumulate — else
@@ -1006,7 +1027,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         addBuff(target, 'Consume', fa * mult, fh * mult);
         fire(ctx, 'onConsume', { minion: target });
         eaten.push({ eaterUid: target.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
-        noteFodderConsumed(ctx.state, fa, fh);
+        noteFodderConsumed(ctx.state, fa, fh, target);
       }
     }
     if (eaten.length > 0) {
@@ -1827,7 +1848,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       addBuff(self, 'Consume', fa * mult, fh * mult);
       fire(ctx, 'onConsume', { minion: self });
       eaten.push({ eaterUid: self.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
-      noteFodderConsumed(ctx.state, fa, fh);
+      noteFodderConsumed(ctx.state, fa, fh, self);
     }
     if (eaten.length > 0) {
       ctx.state.fodderEaten = eaten;
@@ -2873,7 +2894,7 @@ export function adjacentConsumeFodder(state: RunState, center: BoardCard, count:
       addBuff(target, 'Consume', fa * mult, fh * mult);
       fire(ctx, 'onConsume', { minion: target });
       eaten.push({ eaterUid: target.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
-      noteFodderConsumed(state, fa, fh);
+      noteFodderConsumed(state, fa, fh, target);
     }
   }
   if (eaten.length > 0) {
@@ -2901,7 +2922,7 @@ export function feastConsume(state: RunState, center: BoardCard, count: number):
     addBuff(center, 'Consume', fa * mult, fh * mult); // Bogrot eats the Fodder
     fire(ctx, 'onConsume', { minion: center });
     eaten.push({ eaterUid: center.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
-    noteFodderConsumed(state, fa, fh);
+    noteFodderConsumed(state, fa, fh, center);
     for (const n of neighbors) addBuff(n, 'Feasting Bogrot', fa, fh); // …and shares the Fodder's stats to each side
   }
   if (eaten.length > 0) {
@@ -2940,7 +2961,7 @@ export function consumeTavernFodder(state: RunState): void {
     // so the UI can float the +X/+X on the eater (the shop-phase buff float).
     eaten.push({ eaterUid: eater.uid, fodderId: fodder.id, attack: fa, health: fh, gainA: fa * mult, gainH: fh * mult });
     // Track raw fodder stats (pre-multiplier) for Abhorrent Horror's SoC window.
-    noteFodderConsumed(state, fa, fh);
+    noteFodderConsumed(state, fa, fh, eater);
   }
   state.rngCursor = rng.state();
   // Record the consume for the UI to replay (show the Fodder, swirl it into the eater).
@@ -2966,6 +2987,10 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
       state.embers += gain;
     }
   }
+  // Rune of Recurrence: remember the FIRST spell cast each turn (recast at End of Turn). Recorded before the
+  // tally below so the turn's opening cast — and only it — lands here; the EoT recast itself can never
+  // re-record (spellsThisTurn is nonzero by then).
+  if (state.spellsThisTurn === 0) state.firstSpellThisTurnId = spellDef.id;
   state.spellsCast += 1;
   state.spellsThisTurn += 1;
   state.lastSpellCastId = spellDef.id; // Steward of Spells copies the most recent spell cast
@@ -3088,6 +3113,23 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     // Rune of the Reliquary: fire your leftmost minion's Echo (Deathrattle) out of combat.
     const leftmost = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
     if (leftmost) fireRecruitDeathrattles(makeContext(state), leftmost);
+  } else if (effect === 'recastFirstSpell') {
+    // Rune of Recurrence: cast the FIRST spell you cast this turn again, free. An AIMED spell re-targets a
+    // seeded-random friendly board minion (owner call 2026-07-17); untargeted spells just resolve. Skipped
+    // when no spell was cast this turn (or an aimed spell finds an empty board).
+    const def = state.firstSpellThisTurnId ? CARD_INDEX[state.firstSpellThisTurnId] : undefined;
+    if (def?.spell) {
+      if (def.target) {
+        if (state.board.length > 0) {
+          const rng = makeRng(state.rngCursor);
+          const target = state.board[rng.int(state.board.length)]!;
+          state.rngCursor = rng.state();
+          castSpell(state, def, target);
+        }
+      } else {
+        castSpell(state, def);
+      }
+    }
   } else if (effect === 'undeadPlayedAtk') {
     // Forsaken Speed: your Undead gain +3 Attack for each card you played this turn (reads `playedThisTurn`)
     // — one step per card played, each step buffing every Undead +3.

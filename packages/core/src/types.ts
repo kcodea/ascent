@@ -486,7 +486,7 @@ export type QuestReward =
   // (Magnetic minion) welded onto it.
   // `undeadPlayedAtk` (Forsaken Speed): End of Turn — your Undead gain +3 Attack for each card you played this turn.
   // `attachClingDrones` (Clinging On): End of Turn — weld a Cling Drone onto up to 3 random friendly Mechs.
-  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' }
+  | { kind: 'recurringEndOfTurn'; effect: 'triggerLeftmostShout' | 'grantRandomShout' | 'grantRandomAttachments' | 'buffMechsPerAttachment' | 'runeSpending' | 'runeAction' | 'triggerLeftmostEcho' | 'weldMoneyBotsEdgeMechs' | 'undeadPlayedAtk' | 'attachClingDrones' | 'recastFirstSpell' }
   // ── Runeforge runes (Runesmith) — purchased in the turn-6 Runeforge; no objective, effect for the run. ──
   // Rune of Spellslinging: every `per` Gold you spend, get a random spell.
   | { kind: 'runeSpellDrip'; per: number }
@@ -512,6 +512,18 @@ export type QuestReward =
   | { kind: 'runeScale'; count: number; attack: number; health: number }
   // Rune of Copies (Epic): copy a random board minion to your hand now, and again at the start of every turn.
   | { kind: 'runeCopies' }
+  // Rune of Tempering: the first Attachment you play each turn also gives that minion Ward.
+  | { kind: 'runeTempering' }
+  // Rune of Replication (Epic): the first Attachment you play each turn also welds a copy onto your leftmost Mech.
+  | { kind: 'runeReplication' }
+  // Rune of Refrain: after your third Shout minion each turn, the first Shout you played returns to your hand.
+  | { kind: 'runeRefrain' }
+  // Rune of Transfusion (Epic): whenever a Demon Consumes Fodder, your leftmost minion also gains its stats.
+  | { kind: 'runeTransfusion' }
+  // Rune of Endless Appetite (Epic): the first Fodder Consume each turn — all your other Demons Consume a copy.
+  | { kind: 'runeEndlessAppetite' }
+  // Rune of the Conductor (Epic): at the start of every shop, trigger all your End of Turn effects.
+  | { kind: 'runeConductor' }
   // Rune of Empowerment (Epic): your hero power's effect triggers twice (only offered to heroes whose power
   // benefits — see the sim's DOUBLEABLE_POWERS gate).
   | { kind: 'runeEmpowerment' }
@@ -592,7 +604,11 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // SoC effects run in the combat context, so they re-fire here rather than during the recruit End of Turn).
   | 'runeTwilight'
   // Rune of the Warden: at Start of Combat, if your board has room, summon a Spear Warden.
-  | 'runeWarden';
+  | 'runeWarden'
+  // Batch 7 combat runes: Rebirth (Rise with full Health), Aftershocks (Echo summons +4/+4), Undertow (Echo
+  // summons attack immediately), Mirror March (SoC: summon a copy of your leftmost when there's room), Trophy
+  // (first Slaughter each combat → a plain copy of the slaughtering minion lands in hand next shop).
+  | 'runeRebirth' | 'runeAftershocks' | 'runeUndertow' | 'runeMirrorMarch' | 'runeTrophy';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -691,6 +707,18 @@ export interface QuestCombatMods {
   runeTwilight?: boolean;
   /** Rune of the Warden: at Start of Combat, if your board has room, summon a Spear Warden. */
   runeWarden?: boolean;
+  /** Rune of Rebirth: your minions Rise (Reborn) with FULL Health instead of 1. */
+  runeRebirth?: boolean;
+  /** Rune of Aftershocks: minions summoned by your Echoes (Deathrattles) gain +4/+4. */
+  runeAftershocks?: boolean;
+  /** Rune of the Undertow: minions summoned by your Echoes (Deathrattles) attack immediately. */
+  runeUndertow?: boolean;
+  /** Rune of the Mirror March: at Start of Combat, if your board has room, summon a copy of your leftmost
+   *  minion (current combat stats). */
+  runeMirrorMarch?: boolean;
+  /** Rune of the Trophy: the first friendly Slaughter each combat records the slaughtering minion — a plain
+   *  copy is conjured to hand next shop (carried back via `playerSlaughterCopy`). */
+  runeTrophy?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the
@@ -1134,6 +1162,9 @@ export interface CombatResult {
   playerPermaBuffs?: { sourceUid: string; attack: number; health: number; engraved: boolean }[];
   /** Card ids the player's combat deathrattles grant to the hand after combat (Arcane Weaver). */
   playerHandGrants?: string[];
+  /** Rune of the Trophy: the card id of the first friendly minion to Slaughter this combat — a plain copy is
+   *  conjured to hand in settleCombat ("get a copy of it next Shop"). Absent when no Slaughter fired. */
+  playerSlaughterCopy?: string;
   /** Permanent run-wide spell-power gain from this combat (Skullblade's Deathrattle: +Attack to your
    *  spells). Summed across all firings; applied to the run's `spellBonus` in settleCombat. Absent if 0. */
   playerSpellPower?: { attack: number; health: number };

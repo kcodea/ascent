@@ -40,6 +40,12 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **Runes batch 7a — 12 new runes.** Five Basic (Rebirth: Rise with full Health; Tempering: first Attachment
+  each turn Wards its minion; Aftershocks: Echo summons +4/+4; Refrain: your 3rd Shout returns the turn's
+  first Shout to hand; the Trophy: first Slaughter each combat → a copy next shop) and seven Epic
+  (Transfusion, Mirror March, Recurrence, Replication, the Conductor, the Undertow, Endless Appetite).
+  Rune of Mastery follows separately. 30 Basic + 30 Epic total.
+
 - **Flurry swing FX + sounds.** A Flurry (W) attacker's strikes now throw a wind-slash burst (crescent blades +
   sparkles) that *replaces* the normal impact VFX — and wins even on a crit — plus a lunge-whoosh and hit sound
   on both swings. Owner-tuned via a 🌬️ dev tuner + Test button.

@@ -56,15 +56,18 @@ interface FlurryConfig {
 }
 
 export const FLURRY: FlurryConfig = {
-  size: 1.37,
-  y: 48,
-  squash: 0.91,
-  pulse: 3.4,
-  pulseMin: 0.72,
+  size: 1.48,
+  y: 47,
+  squash: 0.48,
+  pulse: 6.1,
+  pulseMin: 0.61,
   rings: [
-    { d: 0.945, scaleX: 0.83, scaleY: 1.22, thick: 2,   blades: 3, tail: 39, edge: 40, alpha: 1, blur: 2, s: 3.8, col: '#c8f4ff', rev: false },
-    { d: 0.765, scaleX: 0.83, scaleY: 1.22, thick: 4.5, blades: 3, tail: 39, edge: 40, alpha: 1, blur: 2, s: 8.3, col: '#c8f4ff', rev: false },
-    { d: 1.025, scaleX: 0.83, scaleY: 1.22, thick: 2,   blades: 3, tail: 39, edge: 40, alpha: 1, blur: 2, s: 1.8, col: '#c8f4ff', rev: false },
+    { d: 0.945, scaleX: 0.8,  scaleY: 1.19, thick: 2, blades: 3, tail: 39, edge: 40, alpha: 0.54, blur: 2,    s: 0.9, col: '#c8f4ff', rev: false },
+    { d: 0.945, scaleX: 0.77, scaleY: 1.62, thick: 2, blades: 3, tail: 39, edge: 40, alpha: 0.56, blur: 2,    s: 2.3, col: '#c8f4ff', rev: false },
+    { d: 0.945, scaleX: 0.82, scaleY: 0.79, thick: 2, blades: 3, tail: 39, edge: 40, alpha: 0.79, blur: 7.25, s: 1.4, col: '#c8f4ff', rev: false },
+    { d: 1.025, scaleX: 0.73, scaleY: 1.9,  thick: 3, blades: 3, tail: 48, edge: 40, alpha: 0.63, blur: 2,    s: 2.5, col: '#c8f4ff', rev: false },
+    { d: 1.025, scaleX: 0.77, scaleY: 1.9,  thick: 2, blades: 3, tail: 48, edge: 40, alpha: 0.23, blur: 2,    s: 1.9, col: '#c8f4ff', rev: false },
+    { d: 1.025, scaleX: 0.85, scaleY: 0.35, thick: 4, blades: 3, tail: 39, edge: 40, alpha: 0.28, blur: 2,    s: 1.8, col: '#c8f4ff', rev: false },
   ],
 };
 

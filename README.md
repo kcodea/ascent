@@ -40,6 +40,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **Flurry wind-blade aura.** Flurry (W) minions now swirl with a persistent vortex of wind blades — a
+  multi-ring CSS aura (spinning comet arcs, per-ring squash/flip + top-middle dim, a slow 100%→20% breathe),
+  owner-tuned via a standalone preview rig. Pure CSS so it rides drag + the combat lunge; Pixi swing sparkle
+  is a queued follow-up.
 - **Per-z End-of-Turn rewards land one hit per step.** Blueprint Cache (+2/+2 per Attachment), Rune of
   Spending, Rune of Action, and Forsaken Speed now strike their targets once per unit of the scaler,
   sequentially on their beat — ten Attachments read as ten +2/+2 hits, not one +20/+20 lump. (End-of-Turn

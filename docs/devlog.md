@@ -5,6 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### feat(ui): Flurry (W) persistent wind-blade aura — CSS ring stack (`feat/flurry-fx`)
+
+Flurry minions now show a swirling wind-blade vortex, following the Ward/Reborn CSS playbook (owner direction:
+CSS for the persistent aura, Pixi reserved for one-shot sparkle later — persistent Pixi is exactly what fought
+`syncShields` for ward/reborn).
+
+- **Construction:** each ring is a STATIC `conic-gradient` of comet arcs (alpha ramps up the tail into a hard
+  bright leading edge, then cuts — that profile reads as a BLADE) masked to a thin band by a radial-gradient.
+  Rings spin via a TRANSFORM-only loop; a per-ring wrapper carries the width/height squash (scaleX/scaleY, which
+  accept NEGATIVES to mirror an axis) so the blades sweep an ellipse; the whole aura breathes on OPACITY only
+  (100%→20%). An optional per-ring **top-middle dim** (a static soft mask on the non-spinning wrapper) fades a
+  fixed zone while the blades rotate through it. Gradients + blur are static paint computed once — only
+  transform/opacity animate, per the perf rule.
+- **Wiring:** `flurryConfig.ts` holds the owner-tuned 7-ring config + precomputed paint; `Card.tsx` renders a
+  `.flurry` stack in the archbox at z2 (above the art, below the frame — so the swirl orbits the card) whenever
+  a card has the `W` keyword, so it rides drag + the combat lunge and vanishes the instant the sim clears `W`.
+  New `flurrycard` marker class + `.flurry`/`.fl-ring`/`@keyframes flspin,flbreathe` in styles.css.
+- **Tuning rig:** `apps/web/public/fx/flurry-preview.html` — the oval-card mock with N-ring add/duplicate/remove,
+  every per-ring dial (diameter, width/height ±flip, thickness, blades/tail/edge, opacity, top-mid dim floor +
+  size, blur, spin/dir, colour), box-level size/y/squash/breathe, and a Load-JSON box. Values baked from it.
+- **Verified:** live in-game (7 rings, flips + dim masks match config, no console errors) on a full board;
+  typecheck + lint + 1123 tests + build:web green. Pixi one-shot swing sparkle is a queued follow-up.
+
 ### chore(ui): re-bake the owner's tuned Aura Wave defaults (v2 tuning)
 
 Owner re-tuned the wave live and handed back new values — baked as the shipped `DEFAULTS`: a slow,

@@ -1070,6 +1070,34 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
           drop-shadow(0 0 3px rgba(69, 232, 192, 0.85))
           drop-shadow(0 0 11px rgba(23, 143, 134, 0.5));
 }
+/* FLURRY (W) — wind blades swirling the card. A ring stack in the archbox (z2: above the art, below the
+   frame — so the swirl orbits AROUND the card), sized to the card width. Rendered by Card.tsx from
+   flurryConfig (per-ring inline: diameter inset, the comet conic-gradient + band mask, blur, opacity, spin
+   period `--fl-s` + direction `--fl-dir`; wrapper carries the width/height squash). PERF: the gradients +
+   blur are STATIC paint (computed once in JS); only the spin (transform) + breathe (opacity) animate. */
+.card.compact.flurrycard .flurry {
+  position: absolute; left: 50%; top: var(--fl-y, 48%);
+  width: calc(var(--ccw) * var(--fl-size, 1.37)); aspect-ratio: 1;
+  transform: translate(-50%, -50%) scaleY(var(--fl-squash, 0.91));
+  z-index: 2; pointer-events: none; overflow: visible;
+}
+.card.compact.flurrycard .fl-breathe { position: absolute; inset: 0; animation: flbreathe var(--fl-pulse, 3.4s) ease-in-out infinite; will-change: opacity; }
+@keyframes flbreathe { 0%, 100% { opacity: 1; } 50% { opacity: var(--fl-pulse-min, 0.72); } }
+.card.compact.flurrycard .fl-ring-wrap {
+  position: absolute; inset: 0; will-change: transform;
+  /* the optional top-middle dim mask (set inline per ring by flurryConfig) covers the box, no tiling */
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+}
+.card.compact.flurrycard .fl-ring {
+  position: absolute; border-radius: 50%; mix-blend-mode: screen; will-change: transform;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  -webkit-mask-position: center; mask-position: center;
+  animation: flspin var(--fl-s, 3s) linear infinite; animation-direction: var(--fl-dir, normal);
+}
+@keyframes flspin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
 /* Venomous — the same unmistakable treatment in toxic LIME (the V keyword: any damage it deals kills). */
 .card.compact.venomcard { z-index: 4; box-shadow: 0 0 10px 3px rgba(150, 228, 52, 0.58), 0 0 20px 5px rgba(120, 200, 40, 0.26); }
 .card.compact.venomcard::before { content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; box-shadow: 0 0 14px 4px rgba(168, 238, 70, 0.8), 0 0 27px 7px rgba(128, 208, 46, 0.4); animation: kwglow 2.6s ease-in-out infinite; will-change: opacity; }
@@ -2521,7 +2549,16 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    keep its `brightness(0) blur` black silhouette (the resting `.cshadow` rule), so a golden unit casts a normal
    contact shadow, not a gold arch. */
 .card.compact.stdframe.golden,
-.card.compact.taunt.golden { box-shadow: 0 3px 0 var(--shadow); }
+.card.compact.spellframe.golden,
+.card.compact.taunt.golden {
+  box-shadow: 0 3px 0 var(--shadow);
+  /* Also KILL the legacy `.card.golden` box tint + border (styles.css §"golden (tripled) minion"): the card
+     BOX is the old ARCH shape (border-radius arch), which is WIDER than the oval/shield PNG frame — so a
+     gold-tinted box bled the old arch silhouette out at the sides behind the frame (owner report, the "arch
+     behind golden units" bug). The frame metal + crown + tight gold rim carry the gilding now. */
+  background: transparent;
+  border-color: transparent;
+}
 .card.compact.stdframe.golden .cframe:not(.cshadow),
 .card.compact.taunt.golden .tframe:not(.cshadow) {
   filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))

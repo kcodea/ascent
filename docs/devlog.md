@@ -3,6 +3,35 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-18
+
+### fix(ui): gold arch bleed behind golden PNG-framed units
+
+The legacy `.card.golden` rule (from before the PNG frames) tints the CARD BOX gold, but that box is still the
+old ARCH shape — wider than the oval/shield frame — so the gold arch poked out at the sides behind the frame
+(owner report + screenshot). The `.stdframe/.taunt.golden` override already killed the gold box-shadow; extended
+it (+ `spellframe`) to also reset `background`/`border-color` to transparent, so the card box is fully invisible
+and the frame metal + crown + tight rim carry the gilding. Verified live (golden stdframe + taunt: card box now
+`rgba(0,0,0,0)`); build:web green.
+
+### feat(ui/audio): Flurry swing FX + attack sounds — phase 2 (`feat/flurry-swing-fx`)
+
+Phase 2 of Flurry: the one-shot combat FX + audio for a Flurry (W) attacker, building on the persistent aura.
+
+- **Wind-slash VFX** (`pixiFx.windSlash`, new baked crescent wind-blade texture): at each strike's contact,
+  crescent blades sweep out along the blow + a sparkle cone + a soft glow. Static-texture particles, one-shot.
+  Owner-tuned (`power 2.95`, `slashCount 6`, `slashSize 95`, …) via a `flurrySwingConfig.ts` + `FlurrySwingTuner`
+  (🌬️) + a "Test Flurry" dev button (fires at screen centre, no fight needed).
+- **It REPLACES the standard strike VFX** for a Flurry attacker (the normal impact burst / dust / pulse are
+  skipped), and **wins even on a crit** — a Flurry crit shows the wind-slash, not the crimson flourish; non-Flurry
+  crits keep the standard crit effect. The smack/crit sound + crit board-shake still fire.
+- **Two attack sounds** (`flurrylunge` / `flurryhit`, owner-supplied clips on the combat bus, own mixer
+  categories at gain 0.375): the lunge whoosh fires just after the wind-up ends (from the lunge channel), the hit
+  layers alongside the smack. Both play on **every** swing of a Flurry unit (the wind identity on both hits).
+- **Wiring:** a `flurry` flag threads from the replay (attacker has W) → the choreo engine, which fires the
+  sounds on every swing and the wind-slash visual at real contact. typecheck + lint + 1143 tests + build:web
+  green; verified live (Test button + a real Flurry fight, no console errors).
+
 ## 2026-07-17
 
 ### feat: runes batch 7a — 12 new runes (5 Basic + 7 Epic; owner designs)
@@ -36,6 +65,29 @@ echo strike ordering, exact-stat mirror copy + full-board no-op, first-slaughter
 3rd-Shout bounce, Demon-only transfusion, one-shot fan-out with tallies, untargeted+aimed+no-op recast,
 Conductor's shop-open Vineweaver Growth, Trophy settle conjure) + full suite (1158) + typecheck + lint +
 build:web green.
+
+### feat(ui): Flurry (W) persistent wind-blade aura — CSS ring stack (`feat/flurry-fx`)
+
+Flurry minions now show a swirling wind-blade vortex, following the Ward/Reborn CSS playbook (owner direction:
+CSS for the persistent aura, Pixi reserved for one-shot sparkle later — persistent Pixi is exactly what fought
+`syncShields` for ward/reborn).
+
+- **Construction:** each ring is a STATIC `conic-gradient` of comet arcs (alpha ramps up the tail into a hard
+  bright leading edge, then cuts — that profile reads as a BLADE) masked to a thin band by a radial-gradient.
+  Rings spin via a TRANSFORM-only loop; a per-ring wrapper carries the width/height squash (scaleX/scaleY, which
+  accept NEGATIVES to mirror an axis) so the blades sweep an ellipse; the whole aura breathes on OPACITY only
+  (100%→20%). An optional per-ring **top-middle dim** (a static soft mask on the non-spinning wrapper) fades a
+  fixed zone while the blades rotate through it. Gradients + blur are static paint computed once — only
+  transform/opacity animate, per the perf rule.
+- **Wiring:** `flurryConfig.ts` holds the owner-tuned 7-ring config + precomputed paint; `Card.tsx` renders a
+  `.flurry` stack in the archbox at z2 (above the art, below the frame — so the swirl orbits the card) whenever
+  a card has the `W` keyword, so it rides drag + the combat lunge and vanishes the instant the sim clears `W`.
+  New `flurrycard` marker class + `.flurry`/`.fl-ring`/`@keyframes flspin,flbreathe` in styles.css.
+- **Tuning rig:** `apps/web/public/fx/flurry-preview.html` — the oval-card mock with N-ring add/duplicate/remove,
+  every per-ring dial (diameter, width/height ±flip, thickness, blades/tail/edge, opacity, top-mid dim floor +
+  size, blur, spin/dir, colour), box-level size/y/squash/breathe, and a Load-JSON box. Values baked from it.
+- **Verified:** live in-game (7 rings, flips + dim masks match config, no console errors) on a full board;
+  typecheck + lint + 1123 tests + build:web green. Pixi one-shot swing sparkle is a queued follow-up.
 
 ### chore(ui): re-bake the owner's tuned Aura Wave defaults (v2 tuning)
 

@@ -9,6 +9,7 @@ import { Icon } from './Icon';
 import { Sprite } from './Sprite';
 import { spriteForTribe } from './sprites';
 import { useGame } from './store';
+import { FLURRY_RINGS, flurryBoxStyle, flurryWrapStyle, flurryRingStyle } from './flurryConfig';
 
 // TAUNT frame — pipeline layer 2 (the authored shield). Prefer an authored raster PNG (painterly, drops into
 // `apps/web/public/frames/`); until it exists the SVG placeholder renders instead. `tauntFrameAvailable` flips
@@ -337,7 +338,7 @@ export const Card = memo(function Card({
   const useStdFrame = !card.spell && !isTaunt && sframeOk;
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
@@ -458,6 +459,21 @@ export const Card = memo(function Card({
             </div>
           )}
         </div>
+        {/* Flurry (W) — wind blades swirling the card: a CSS ring stack (styles.css `.flurrycard .flurry`).
+            Lives in the archbox (NOT `.art`, which clips) at z2 — above the art, below the frame — so the
+            swirl orbits AROUND the card like the preview. Static gradient/mask paint from flurryConfig; only
+            transform (spin + wrapper squash) and opacity (breathe) animate. Rides drag + the lunge for free. */}
+        {card.keywords.includes('W') && (
+          <div className="flurry" aria-hidden="true" style={flurryBoxStyle()}>
+            <div className="fl-breathe">
+              {FLURRY_RINGS.map((r, i) => (
+                <div key={i} className="fl-ring-wrap" style={flurryWrapStyle(r)}>
+                  <div className="fl-ring" style={flurryRingStyle(r)} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {/* TAUNT frame layer (pipeline prototype) — an authored shield laid OVER the portrait, tracing the exact
             `--heater` silhouette so it aligns with the art's clip. Prefers the raster PNG (painterly); falls back
             to the SVG placeholder until that asset exists. The real frame drops into this same layer unchanged. */}

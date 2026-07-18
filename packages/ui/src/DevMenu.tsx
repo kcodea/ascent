@@ -3,6 +3,7 @@ import { SfxMixer } from './SfxMixer';
 import { LungeTuner } from './LungeTuner';
 import { StrikeFxTuner } from './StrikeFxTuner';
 import { CritFxTuner } from './CritFxTuner';
+import { FlurrySwingTuner } from './FlurrySwingTuner';
 import { SwapFxTuner } from './SwapFxTuner';
 import { GustFxTuner } from './GustFxTuner';
 import { AuraFxTuner } from './AuraFxTuner';
@@ -40,6 +41,7 @@ const TUNERS = [
   { key: 'lunge', label: '🗡️ Lunge', C: LungeTuner },
   { key: 'strikefx', label: '💥 Lunge Strike Effects', C: StrikeFxTuner },
   { key: 'critfx', label: '⚡ Critical Strike FX', C: CritFxTuner },
+  { key: 'flurryswing', label: '🌬️ Flurry Swing FX', C: FlurrySwingTuner },
   { key: 'swapfx', label: '🔀 Swap FX (Displacement)', C: SwapFxTuner },
   { key: 'gustfx', label: '💨 Buff Gust FX', C: GustFxTuner },
   { key: 'aurafx', label: '🌀 Aura Wave FX', C: AuraFxTuner },
@@ -85,6 +87,7 @@ export function DevMenu() {
           ))}
           <button className="devmenu-item" onClick={() => pixiFx.test()}>✨ Test FX <span>▸</span></button>
           <button className="devmenu-item" onClick={() => pixiFx.testCrit()}>⚡ Test Crit <span>▸</span></button>
+          <button className="devmenu-item" onClick={() => pixiFx.testFlurry()}>🌬️ Test Flurry <span>▸</span></button>
         </div>
       )}
       {TUNERS.map(({ key, C }) => (shown.has(key) ? <C key={key} /> : null))}

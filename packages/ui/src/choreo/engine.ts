@@ -26,6 +26,9 @@ export interface AttackCueCtx {
   /** Set when this swing is a CRITICAL STRIKE → fired at the lunge's real contact (alongside the crit burst)
    *  so the board SHAKE lands ON the hit, not at the wind-up. Absent = a normal swing. */
   onCritImpact?: () => void;
+  /** True when the attacker has Flurry (W) — the engine fires the wind-slash sparkle at contact on the EXTRA
+   *  swing (swing ≥ 1), so the bonus hit reads as a gust. The swing gate lives here (the event knows it). */
+  flurry?: boolean;
 }
 
 /** ms the lunge holds at the top of the wind-up when a Rally fires, so its bright yellow pulse has time to
@@ -52,6 +55,8 @@ export function runAttackExchangeCues(
   const impact = cues.find((c) => c.ch === 'impact' && c.at === 'contact' && c.enabled !== false);
   const power = hitPower(moment.primary.swing);
   const crit = moment.primary.crit === true; // Critical Strike this swing → the impact plays the crit sound
+  const hasFlurry = ctx.flurry === true;   // attacker has Flurry (W) → the wind sounds + slash on EVERY swing (both hits)
+  const flurrySlash = hasFlurry;           // owner note 2026-07-17: the wind-slash visual rides both strikes, not just the extra
   // The advance always fires AT contact (the beat clock stays welded to connection); the smack fires at
   // contact + the impact cue's offset — negative fires it BEFORE contact (the smack-lead), positive after.
   // playLunge places it on its own timeline, so it stays killed/seekable with the lunge and scales with speed.
@@ -72,10 +77,10 @@ export function runAttackExchangeCues(
   const impactAt = { x: atkC.x + targetOffset.x, y: atkC.y + targetOffset.y };
   const spinDeg = -Math.sign(geo.leadTilt || 1) * cfg.defenderSpin;
   return playLunge({
-    attacker, dx, dy, speed: ctx.combatSpeed,
+    attacker, dx, dy, speed: ctx.combatSpeed, flurry: hasFlurry,
     strike: strikeOffset, strikeDur: geo.strikeDur, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
     onContact: () => ctx.advance(),
-    onImpact: impact ? () => { playContactImpact(defender, dx, dy, power, ctx.combatSpeed, impactAt, spinDeg, crit); if (crit) ctx.onCritImpact?.(); } : undefined,
+    onImpact: impact ? () => { playContactImpact(defender, dx, dy, power, ctx.combatSpeed, impactAt, spinDeg, crit, hasFlurry, flurrySlash); if (crit) ctx.onCritImpact?.(); } : undefined,
     impactOffsetMs: impact?.offset ?? 0,
     onRallyPulse: ctx.onRallyPulse,
     onWindupBuffs: ctx.onWindupBuffs,

@@ -68,6 +68,29 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
+### Combat replay pacing (2026-07-18 audit — the "skipped beats" report)
+Root causes found; SoC badge fixes shipped. Remaining, in impact order:
+- **Contact-anchored advance** — an attack's next beat fires at the GSAP `contact` position; everything
+  after contact (crit flourish, flurry wind-slash, rebound/settle) is fire-and-forget and never extends
+  the schedule → beats resolve "underneath" long FX then visually catch up. Fix: gate `ctx.advance()` on
+  (or add a lead for) the flourish duration, like `deathConsequenceLead` already does for DR-summons.
+- **Buff-tendril stat snap** — while a tendril flies the target's badges hold pre-buff values; a beat
+  teardown drops the holds → stats snap. Extend the beat by the tendril's `strikeMs` or carry holds over.
+- **Badge-never-fired inventory** — ~14 combat flags still have `badgeIdForCombatFlag` mappings but no
+  `fireTrigger` call (runeFury, runeForthcoming, runePackcraft, runeSalvage, runeRebirth, runeAftershocks,
+  runeTrophy, runeInheritance, runeUndertow, runeSlaying, bloodTrail/deepHunger marks, lawOfTeeth, oldHunt,
+  feedingLine, crateringMissive) — mid-combat/reactive flags; decide per flag whether a pulse is wanted.
+- **Step-collapse classes** — one Deathrattle's summons+buffs share one step (echo doublers re-fire in the
+  SAME step); Avenge payoffs share the death step (only the `avenge` tag separates them); a spellCast
+  broadcast (Taragosa Growth + Guel + Weaver reactions) rides the swing's step; Echo Warden copies share
+  the original summon's step. Add `nextStep()` seams if these should read as separate beats.
+- **Clock config gaps** — `hpGrant` hold is 0ms; `holdMs` keys on raw event type so the `KIND_TO_KEY`
+  mapping (e.g. ascend→improve 520ms) is dead code; `questTrigger` holds a content-less 450ms beat while
+  the badge pulses in parallel (fixed 1150ms, speed-independent).
+- **Step-0 fold** — run-wide auras (Undead/Imp/Beast/Magnetic/card enchants) bake silently into the
+  initial board; Fleeting Vigor is baked pre-sim with one un-stepped `sc` narration. Fine if intended —
+  listed for completeness.
+
 ### Remaining recruit-FX gaps (from the 2026-07-17 buff-animation audit)
 The Aura Wash + EoT beat replay closed the big ones — plus the triggered rune buffs (Rune of Kindling /
 Scales / Scale) now descend onto their targets. Still open:

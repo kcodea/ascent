@@ -55,7 +55,8 @@ export function runAttackExchangeCues(
   const impact = cues.find((c) => c.ch === 'impact' && c.at === 'contact' && c.enabled !== false);
   const power = hitPower(moment.primary.swing);
   const crit = moment.primary.crit === true; // Critical Strike this swing → the impact plays the crit sound
-  const flurry = ctx.flurry === true && moment.primary.swing >= 1; // Flurry's EXTRA swing → the wind-slash gust
+  const hasFlurry = ctx.flurry === true;                     // attacker has Flurry (W) → the wind SOUNDS on every swing
+  const flurrySlash = hasFlurry && moment.primary.swing >= 1; // the VISUAL wind-slash rides only the EXTRA swing
   // The advance always fires AT contact (the beat clock stays welded to connection); the smack fires at
   // contact + the impact cue's offset — negative fires it BEFORE contact (the smack-lead), positive after.
   // playLunge places it on its own timeline, so it stays killed/seekable with the lunge and scales with speed.
@@ -76,10 +77,10 @@ export function runAttackExchangeCues(
   const impactAt = { x: atkC.x + targetOffset.x, y: atkC.y + targetOffset.y };
   const spinDeg = -Math.sign(geo.leadTilt || 1) * cfg.defenderSpin;
   return playLunge({
-    attacker, dx, dy, speed: ctx.combatSpeed, flurry,
+    attacker, dx, dy, speed: ctx.combatSpeed, flurry: hasFlurry,
     strike: strikeOffset, strikeDur: geo.strikeDur, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
     onContact: () => ctx.advance(),
-    onImpact: impact ? () => { playContactImpact(defender, dx, dy, power, ctx.combatSpeed, impactAt, spinDeg, crit, flurry); if (crit) ctx.onCritImpact?.(); } : undefined,
+    onImpact: impact ? () => { playContactImpact(defender, dx, dy, power, ctx.combatSpeed, impactAt, spinDeg, crit, hasFlurry, flurrySlash); if (crit) ctx.onCritImpact?.(); } : undefined,
     impactOffsetMs: impact?.offset ?? 0,
     onRallyPulse: ctx.onRallyPulse,
     onWindupBuffs: ctx.onWindupBuffs,

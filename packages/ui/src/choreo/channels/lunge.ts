@@ -40,8 +40,9 @@ export interface LungeCtx {
    *  so the gold break reads AT the clash, not on a fixed start-relative delay that drifts off the hit (which
    *  left the bubble lingering disjointed from the unit mid-recoil). Rides the (speed-scaled) lunge timeline. */
   onImpactAuras?: () => void;
-  /** True for a Flurry (W) EXTRA swing → play the `flurryLunge` gust just after the wind-up ends (as the strike
-   *  drive launches), so the bonus swing whooshes with wind. The extra-hit smack layer is fired from `impact.ts`. */
+  /** True when the attacker has Flurry (W) → play the `flurryLunge` gust just after the wind-up ends (as the
+   *  strike drive launches), on EVERY swing so both hits whoosh with wind. The hit-sound layer fires from
+   *  `impact.ts`; the wind-slash VISUAL is separate (extra swing only). */
   flurry?: boolean;
 }
 

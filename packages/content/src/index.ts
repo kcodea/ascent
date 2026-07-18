@@ -102,7 +102,7 @@ export function validateCards(cards: CardDef[] = ALL_CARDS): void {
   }
 }
 
-export { CardDefSchema, QuestDefSchema, RuneDefSchema } from './schema';
+export { CardDefSchema, QuestCombatFlagSchema, QuestDefSchema, RuneDefSchema } from './schema';
 export { QUEST_DEFS, QUEST_INDEX, validateQuests } from './quests';
 export { RUNES, EPIC_RUNES, RUNE_INDEX, validateRunes } from './runes';
 export { badgeIdForCombatFlag } from './questFlags';

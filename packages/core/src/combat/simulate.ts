@@ -79,6 +79,16 @@ export function simulate(
   // A completed quest / owned rune's COMBAT effect just fired — emit a marker the UI folds into a badge pulse
   // (the `flag` maps to the quest/rune id via content). Purely cosmetic; zero effect on resolution.
   const fireTrigger = (flag: string, side: Side): void => emit({ type: 'questTrigger', flag, side });
+  // THE structural beat wrapper (2026-07-18 pacing audit): opens a fresh resolution step, announces the
+  // trigger's badge ON that step (when `flag` is set), then runs the effect — so a rune/quest/mechanic
+  // written through it CANNOT forget its beat or pulse its badge on the wrong step. New combat content
+  // should use this instead of hand-ordering nextStep()/fireTrigger(). Presentation-only, like the
+  // primitives it wraps — zero effect on resolution.
+  const withBeat = (flag: string | undefined, side: Side, run: () => void): void => {
+    nextStep();
+    if (flag) fireTrigger(flag, side);
+    run();
+  };
   const bus = new CombatBus();
   // Fire the Avenge bus with `inAvenge` set, so every event the handlers emit (buff / improve / maxGold /
   // shieldUp / summon / …) is stamped `avenge:true`. try/finally guarantees the flag clears even if a handler
@@ -1024,25 +1034,25 @@ export function simulate(
     const throneStep = modsFor(side).boneThroneStep ?? 0;
     if (throneStep > 0 && deaths[side] % throneStep === 0) {
       const lead = boards[side].find((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onDeath'));
-      if (lead) { nextStep(); fireTrigger('boneThroneStep', side); if (side === 'player') bumpDeathrattles(1); fireOwnDeathrattles(lead); }
+      if (lead) withBeat('boneThroneStep', side, () => { if (side === 'player') bumpDeathrattles(1); fireOwnDeathrattles(lead); });
     }
     // Assembly Line: every N friendly deaths (Avenge N), add a Money Bot to your hand. Player-only —
     // `grantToHand` no-ops for a served enemy (no hand). Avenge-paced like The Bone Throne.
     const asmStep = modsFor(side).assemblyLineStep ?? 0;
-    if (asmStep > 0 && deaths[side] % asmStep === 0) { nextStep(); fireTrigger('assemblyLine', side); ctx.grantToHand('moneybot', side, minion.uid); }
+    if (asmStep > 0 && deaths[side] % asmStep === 0) withBeat('assemblyLine', side, () => ctx.grantToHand('moneybot', side, minion.uid));
     // Pit Without End: the friendly death that empties your board summons N Imps (a last stand, once per fight).
     const pitImps = modsFor(side).pitWithoutEndImps ?? 0;
     if (pitImps > 0 && !pitDone[side] && countLiving(side) === 0) {
       pitDone[side] = true;
       const imp = cards['impscrap'];
-      if (imp) { nextStep(); for (let i = 0; i < pitImps; i++) summonMinion(side, imp, undefined); }
+      if (imp) withBeat('pitWithoutEnd', side, () => { for (let i = 0; i < pitImps; i++) summonMinion(side, imp, undefined); }); // the last stand announces itself
     }
     // Empty Graves: the FIRST friendly death each combat summons a 1/1 Gravebody (which copies your leftmost Echo
     // on summon via its onSummon `copyLeftmostEcho`). Once per fight.
     if (modsFor(side).emptyGraves && !emptyGravesDone[side]) {
       emptyGravesDone[side] = true;
       const gb = cards['gravebody'];
-      if (gb) { nextStep(); fireTrigger('emptyGraves', side); summonMinion(side, gb, undefined); }
+      if (gb) withBeat('emptyGraves', side, () => summonMinion(side, gb, undefined));
     }
   }
 
@@ -1455,7 +1465,7 @@ export function simulate(
     // Rulebreaker's Crown: the leftmost living minion gains +Attack equal to its Attack (doubles it).
     if (smods.doubleLeftmostAttack) {
       const lead = boards[scSide].find((m) => !m.dead && m.health > 0);
-      if (lead && lead.attack > 0) { nextStep(); fireTrigger('doubleLeftmostAttack', scSide); ctx.buff(lead, lead.attack, 0, lead.uid); }
+      if (lead && lead.attack > 0) withBeat('doubleLeftmostAttack', scSide, () => ctx.buff(lead, lead.attack, 0, lead.uid));
     }
     // Atrius's Possession: the leftmost living minion gains the rightmost's Attack, and the rightmost gains
     // the leftmost's Health — simultaneous (both read the pre-buff values). Needs 2+ living minions.
@@ -1521,7 +1531,7 @@ export function simulate(
     // Rune of the Warden: if the board has room (< 7), summon a Spear Warden.
     if (rmods.runeWarden && boards[rside].length < 7) {
       const knit = cards['knit'];
-      if (knit) { nextStep(); fireTrigger('runeWarden', rside); summonMinion(rside, knit, undefined); }
+      if (knit) withBeat('runeWarden', rside, () => summonMinion(rside, knit, undefined));
     }
     // Rune of the Mirror March: if the board has room, summon an EXACT copy of the leftmost minion (current
     // combat stats + shield/Rise, the Mirrorhide `copyStats` path), placed to its right.
@@ -1590,10 +1600,11 @@ export function simulate(
     if (rmods.runeWarding) {
       const lead = boards[rside].find((m) => !m.dead && m.health > 0 && !m.divineShield);
       if (lead) {
-        nextStep(); fireTrigger('runeWarding', rside);
-        lead.divineShield = true;
-        if (!lead.keywords.includes('DS')) lead.keywords.push('DS');
-        emit({ type: 'shieldUp', target: lead.uid });
+        withBeat('runeWarding', rside, () => {
+          lead.divineShield = true;
+          if (!lead.keywords.includes('DS')) lead.keywords.push('DS');
+          emit({ type: 'shieldUp', target: lead.uid });
+        });
       }
     }
     // Echoing Coop: trigger every minion's Echo once, without killing the body (Sylus doubles them). The
@@ -1713,7 +1724,7 @@ export function simulate(
         if (m === minion || m.dead || m.health <= 0) continue;
         if (!best || m.attack + m.maxHealth > best.attack + best.maxHealth) best = m;
       }
-      if (best) { nextStep(); fireTrigger('passingSpears', side); ctx.buff(best, minion.attack, minion.maxHealth, 'Passing Spears'); } // its own beat, not the death's
+      if (best) withBeat('passingSpears', side, () => ctx.buff(best, minion.attack, minion.maxHealth, 'Passing Spears')); // its own beat, not the death's
     });
   }
   // Rune of Salvage: a friendly Mech losing its Ward drops a random Attachment into your hand next shop —

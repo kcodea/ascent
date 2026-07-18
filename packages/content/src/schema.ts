@@ -392,6 +392,7 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('runeTransfusion') }).strict(),
   z.object({ kind: z.literal('runeEndlessAppetite') }).strict(),
   z.object({ kind: z.literal('runeConductor') }).strict(),
+  z.object({ kind: z.literal('runeMastery') }).strict(),
   z.object({ kind: z.literal('runeEmpowerment') }).strict(),
   z.object({ kind: z.literal('openEpicRuneforge') }).strict(),
   z.object({ kind: z.literal('scheduleRuneforge'), forge: z.enum(['basic', 'epic']), onWave: z.number().int().positive().optional(), gold: z.number().int().nonnegative().optional() }).strict(),

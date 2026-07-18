@@ -32,6 +32,37 @@ Phase 2 of Flurry: the one-shot combat FX + audio for a Flurry (W) attacker, bui
   sounds on every swing and the wind-slash visual at real contact. typecheck + lint + 1143 tests + build:web
   green; verified live (Test button + a real Flurry fight, no console errors).
 
+### feat: Rune of Mastery (batch 7b) — every Improve step applies twice
+
+The deferred 13th rune from the owner's batch-7 sheet: **"Whenever one of your effects Improves, it
+improves an additional time"** (Epic, 7 Gold). "Improve" has no engine chokepoint — it's the vocabulary
+across ~18 card/rune texts — so the rune is a per-site ×2 on each improvement increment, threaded as
+`CombatContext.improveRepsFor(side)` (from `QuestCombatMods.runeMastery`) in combat and
+`improveReps(state)` in the recruit engine.
+
+Sites wired (16): **Karthus** (Slaughter accrual), **Crypt Drake** (every-4-attacks step), **Runescale**
+(per-spell tick, both halves — Spirit Pup's transform tick is a cast COUNT, deliberately untouched),
+**Kennelmaster** (Avenge improve), **Trophy Stalker** (per-attack rally growth), **Den Mother**
+(per-play step, both halves), **the dragon on-gain-Attack improver**, **Flowing Monk / overflow Engrave**
+(per-overflow tick, both halves), **Sergeant** (hpGrant bump — recruit half lives inside the stateless
+`addBuff`, so a `stampImproveReps` mirror is stamped at every reducer + projection entry), **Ritualist**
+(EoT escalation step), **Squirl Scout** (per-copy step), **Front to Back** (every-other-cast escalation),
+and the enchant-verb family: **Rune of Consumption** (+4/+2 per Consume), **Rune of Summoning** (+2/+2
+Imps per spell), **Rune of Appraisal** (Avenge spells +2/+2), **Reconfigured Combinator's Rally**
+(Attachments +8/+8).
+
+**Excluded (documented):** the two per-spell DERIVED improvers (Wildwood-line "improves per spell this
+turn", the neutral "per 4 spells" 3-minion buffer) — their printed live text derives from raw tallies, so
+doubling the magnitude without threading their text helpers would violate the card-text hard rule. Queued
+as a follow-up with their helpers.
+
+Because every accrual is stored ×2 (not re-derived), all live card text stays accurate automatically, and
+the improve/spellProgress combat events carry the doubled amounts so replays fold correctly.
+
+Verified: 6 new tests (purchase; Den Mother +4 vs +2 control; Ritualist +6 vs +3; Consumption +4/+2;
+Summoning +2/+2 Imps; Karthus improve event 6 vs 3 control) + full suite (1164) + typecheck + lint +
+build:web green.
+
 ## 2026-07-17
 
 ### feat: runes batch 7a — 12 new runes (5 Basic + 7 Epic; owner designs)

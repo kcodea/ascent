@@ -44,7 +44,9 @@ _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
   each turn Wards its minion; Aftershocks: Echo summons +4/+4; Refrain: your 3rd Shout returns the turn's
   first Shout to hand; the Trophy: first Slaughter each combat → a copy next shop) and seven Epic
   (Transfusion, Mirror March, Recurrence, Replication, the Conductor, the Undertow, Endless Appetite).
-  Rune of Mastery follows separately. 30 Basic + 30 Epic total.
+  Plus **Rune of Mastery** (batch 7b): every "Improve" step your effects take applies twice — Karthus,
+  Crypt Drake, Runescale, Den Mother, Ritualist, Sergeant, Front to Back, Squirl Scout, and the
+  improve-your-X runes all double. 30 Basic + 31 Epic total.
 
 - **Flurry swing FX + sounds.** A Flurry (W) attacker's strikes now throw a wind-slash burst (crescent blades +
   sparkles) that *replaces* the normal impact VFX — and wins even on a crit — plus a lunge-whoosh and hit sound
@@ -53,6 +55,7 @@ _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
   multi-ring CSS aura (spinning comet arcs, per-ring squash/flip + top-middle dim, a slow 100%→20% breathe),
   owner-tuned via a standalone preview rig. Pure CSS so it rides drag + the combat lunge; Pixi swing sparkle
   is a queued follow-up.
+>>>>>>> fed80504 (feat: Rune of Mastery (batch 7b) - every Improve step applies twice)
 - **Per-z End-of-Turn rewards land one hit per step.** Blueprint Cache (+2/+2 per Attachment), Rune of
   Spending, Rune of Action, and Forsaken Speed now strike their targets once per unit of the scaler,
   sequentially on their beat — ten Attachments read as ten +2/+2 hits, not one +20/+20 lump. (End-of-Turn

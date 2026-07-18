@@ -524,6 +524,8 @@ export type QuestReward =
   | { kind: 'runeEndlessAppetite' }
   // Rune of the Conductor (Epic): at the start of every shop, trigger all your End of Turn effects.
   | { kind: 'runeConductor' }
+  // Rune of Mastery (Epic): whenever one of your effects Improves, it improves an additional time.
+  | { kind: 'runeMastery' }
   // Rune of Empowerment (Epic): your hero power's effect triggers twice (only offered to heroes whose power
   // benefits — see the sim's DOUBLEABLE_POWERS gate).
   | { kind: 'runeEmpowerment' }
@@ -719,6 +721,9 @@ export interface QuestCombatMods {
   /** Rune of the Trophy: the first friendly Slaughter each combat records the slaughtering minion — a plain
    *  copy is conjured to hand next shop (carried back via `playerSlaughterCopy`). */
   runeTrophy?: boolean;
+  /** Rune of Mastery (Epic): every "Improve" step this side's effects take applies twice (read via
+   *  `CombatContext.improveRepsFor`; the recruit engine mirrors it off `RunState.runeMastery`). */
+  runeMastery?: boolean;
 }
 /** Immutable quest definition (data, never mutated). Offered in the quest shop on waves 4/8/12, "bought" for
  *  0 Gold; its objective ticks during play and, when met, applies its reward. `tribe: 'neutral'` is the
@@ -1242,6 +1247,9 @@ export interface CombatContext {
   spellPowerFor(side: Side): { attack: number; health: number };
   /** Per-side "spells cast this turn" — player's, or the opponent's captured value. */
   spellsThisTurnFor(side: Side): number;
+  /** How many times an "Improve" step applies for `side` — 2 under Rune of Mastery, else 1. Every combat
+   *  factory whose card text says **Improve** multiplies its improvement increment by this. */
+  improveRepsFor(side: Side): number;
   /** Per-side "Beasts played this turn" — player's, or the opponent's captured value. */
   beastsPlayedFor(side: Side): number;
   /** Deathrattles triggered this game so far, for `side`: for the PLAYER the run-wide base + this combat's

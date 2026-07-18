@@ -2549,7 +2549,16 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    keep its `brightness(0) blur` black silhouette (the resting `.cshadow` rule), so a golden unit casts a normal
    contact shadow, not a gold arch. */
 .card.compact.stdframe.golden,
-.card.compact.taunt.golden { box-shadow: 0 3px 0 var(--shadow); }
+.card.compact.spellframe.golden,
+.card.compact.taunt.golden {
+  box-shadow: 0 3px 0 var(--shadow);
+  /* Also KILL the legacy `.card.golden` box tint + border (styles.css §"golden (tripled) minion"): the card
+     BOX is the old ARCH shape (border-radius arch), which is WIDER than the oval/shield PNG frame — so a
+     gold-tinted box bled the old arch silhouette out at the sides behind the frame (owner report, the "arch
+     behind golden units" bug). The frame metal + crown + tight gold rim carry the gilding now. */
+  background: transparent;
+  border-color: transparent;
+}
 .card.compact.stdframe.golden .cframe:not(.cshadow),
 .card.compact.taunt.golden .tframe:not(.cshadow) {
   filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))

@@ -55,8 +55,8 @@ export function runAttackExchangeCues(
   const impact = cues.find((c) => c.ch === 'impact' && c.at === 'contact' && c.enabled !== false);
   const power = hitPower(moment.primary.swing);
   const crit = moment.primary.crit === true; // Critical Strike this swing → the impact plays the crit sound
-  const hasFlurry = ctx.flurry === true;                     // attacker has Flurry (W) → the wind SOUNDS on every swing
-  const flurrySlash = hasFlurry && moment.primary.swing >= 1; // the VISUAL wind-slash rides only the EXTRA swing
+  const hasFlurry = ctx.flurry === true;   // attacker has Flurry (W) → the wind sounds + slash on EVERY swing (both hits)
+  const flurrySlash = hasFlurry;           // owner note 2026-07-17: the wind-slash visual rides both strikes, not just the extra
   // The advance always fires AT contact (the beat clock stays welded to connection); the smack fires at
   // contact + the impact cue's offset — negative fires it BEFORE contact (the smack-lead), positive after.
   // playLunge places it on its own timeline, so it stays killed/seekable with the lunge and scales with speed.

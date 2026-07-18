@@ -62,12 +62,12 @@ export const FLURRY: FlurryConfig = {
   pulse: 6.1,
   pulseMin: 0.61,
   rings: [
-    { d: 0.945, scaleX: 0.8,  scaleY: 1.19, thick: 2, blades: 3, tail: 39, edge: 40, alpha: 0.54, blur: 2,    s: 0.9, col: '#c8f4ff', rev: false },
-    { d: 0.945, scaleX: 0.77, scaleY: 1.62, thick: 2, blades: 3, tail: 39, edge: 40, alpha: 0.56, blur: 2,    s: 2.3, col: '#c8f4ff', rev: false },
-    { d: 0.945, scaleX: 0.82, scaleY: 0.79, thick: 2, blades: 3, tail: 39, edge: 40, alpha: 0.79, blur: 7.25, s: 1.4, col: '#c8f4ff', rev: false },
-    { d: 1.025, scaleX: 0.73, scaleY: 1.9,  thick: 3, blades: 3, tail: 48, edge: 40, alpha: 0.63, blur: 2,    s: 2.5, col: '#c8f4ff', rev: false },
-    { d: 1.025, scaleX: 0.77, scaleY: 1.9,  thick: 2, blades: 3, tail: 48, edge: 40, alpha: 0.23, blur: 2,    s: 1.9, col: '#c8f4ff', rev: false },
-    { d: 1.025, scaleX: 0.85, scaleY: 0.35, thick: 4, blades: 3, tail: 39, edge: 40, alpha: 0.28, blur: 2,    s: 1.8, col: '#c8f4ff', rev: false },
+    { d: 0.945, scaleX: 0.8,  scaleY: 1.19, thick: 4,    blades: 3, tail: 39, edge: 40, alpha: 0.8,  blur: 2,    s: 0.9, col: '#c8f4ff', rev: false },
+    { d: 0.945, scaleX: 0.77, scaleY: 1.62, thick: 2,    blades: 3, tail: 39, edge: 40, alpha: 0.87, blur: 2,    s: 2.3, col: '#c8f4ff', rev: false },
+    { d: 0.945, scaleX: 0.82, scaleY: 0.79, thick: 8,    blades: 3, tail: 39, edge: 40, alpha: 0.94, blur: 7.25, s: 1.4, col: '#c8f4ff', rev: false },
+    { d: 1.025, scaleX: 0.73, scaleY: 1.9,  thick: 15,   blades: 3, tail: 48, edge: 40, alpha: 0.63, blur: 2,    s: 2.5, col: '#c8f4ff', rev: false },
+    { d: 1.025, scaleX: 0.77, scaleY: 1.9,  thick: 2,    blades: 3, tail: 48, edge: 40, alpha: 0.23, blur: 2,    s: 1.9, col: '#c8f4ff', rev: false },
+    { d: 1.025, scaleX: 0.85, scaleY: 0.35, thick: 13.5, blades: 3, tail: 39, edge: 40, alpha: 0.28, blur: 2,    s: 1.8, col: '#c2f3ff', rev: false },
   ],
 };
 

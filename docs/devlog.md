@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-18
 
+### fix(ui): gold arch bleed behind golden PNG-framed units
+
+The legacy `.card.golden` rule (from before the PNG frames) tints the CARD BOX gold, but that box is still the
+old ARCH shape — wider than the oval/shield frame — so the gold arch poked out at the sides behind the frame
+(owner report + screenshot). The `.stdframe/.taunt.golden` override already killed the gold box-shadow; extended
+it (+ `spellframe`) to also reset `background`/`border-color` to transparent, so the card box is fully invisible
+and the frame metal + crown + tight rim carry the gilding. Verified live (golden stdframe + taunt: card box now
+`rgba(0,0,0,0)`); build:web green.
+
 ### feat(ui/audio): Flurry swing FX + attack sounds — phase 2 (`feat/flurry-swing-fx`)
 
 Phase 2 of Flurry: the one-shot combat FX + audio for a Flurry (W) attacker, building on the persistent aura.

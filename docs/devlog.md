@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-17
 
+### chore(ui): re-bake the owner's tuned Aura Wave defaults (v2 tuning)
+
+Owner re-tuned the wave live and handed back new values — baked as the shipped `DEFAULTS`: a slow,
+visible expansion (travel 1140ms) with a tight crisp front (28px wake puffs at 10px spacing, α 0.16,
+90ms fade — the front reads as a moving edge now instead of a lingering haze), the board fill nearly
+off (0.04), and the same dense mote drift (140 × 2170ms) at a gentler 60px/s rise, tail 0.54. Sized
+1.13× width / 2.2× height, offset −174px. (Stale legacy keys in the handed-back JSON dropped, as
+before.) Typecheck + lint + test (1143) + build:web green.
+
 ### feat(sim/ui): per-z End-of-Turn rewards land one hit per step (Blueprint Cache et al.)
 
 Owner ruling: an End-of-Turn "+x/+y per z" reward should READ as z separate hits — 10 Attachments =

@@ -14,7 +14,6 @@ import { FlipTuner } from './FlipTuner';
 import { ShieldTuner } from './ShieldTuner';
 import { TrailTuner } from './TrailTuner';
 import { SmokeTuner } from './SmokeTuner';
-import { ChoreographyPanel } from './ChoreographyPanel';
 import { FloatTuner } from './FloatTuner';
 import { StepCounterTuner } from './StepCounterTuner';
 import { LayoutTuner } from './LayoutTuner';
@@ -52,7 +51,6 @@ const TUNERS = [
   { key: 'shield', label: '🛡 Shield Place', C: ShieldTuner },
   { key: 'trail', label: '💨 Trail', C: TrailTuner },
   { key: 'smoke', label: '🌫️ Smoke & Dust', C: SmokeTuner },
-  { key: 'choreo', label: '🎬 Choreography', C: ChoreographyPanel },
   { key: 'float', label: '🔢 Damage Float', C: FloatTuner },
   { key: 'stepcounter', label: '📈 Step Counter', C: StepCounterTuner },
   { key: 'chargeglyph', label: '⚡ Charge Glyph', C: ChargeGlyphTuner },

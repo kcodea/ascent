@@ -183,6 +183,39 @@ CSS for the persistent aura, Pixi reserved for one-shot sparkle later — persis
   size, blur, spin/dir, colour), box-level size/y/squash/breathe, and a Load-JSON box. Values baked from it.
 - **Verified:** live in-game (7 rings, flips + dim masks match config, no console errors) on a full board;
   typecheck + lint + 1123 tests + build:web green. Pixi one-shot swing sparkle is a queued follow-up.
+### fix(ui): stop return-home deaths blinking out unfaded + remove the pacing tuner
+
+**The blink.** Live-profiled the long-standing "cards blink and die without animation" regression by
+instrumenting every dying card's real timeline (class applied → fade animationstart → DOM removal) on a
+6-Reborn-footman fight. Smoking gun: two footmen with **identical** `dying rising returning` choreo — one
+faded (start 1406ms, removed 2263ms), the other's fade **never fired** and it was yanked from the DOM at
+3096ms. A race, exactly as reported (1 skip the first run, many the second).
+
+Root cause is structural, not speed/paint: a dying unit lives in the DOM for **one beat** (`computeFrame`
+drops it once `beatStart` passes its death). Ordinary deaths fade *immediately* (8–26ms) so they always
+finish inside that beat. The #503 **`returning`** (pull-home) death deliberately **delays** its fade
+0.3–0.6s so the card arrives home before dying — and that delay is only safe while the beat clock *holds*
+the beat (`pulledHomeAttackerHold`/`deathConsequenceLead`). But **attack beats are advanced by the choreo
+engine, bypassing that hold** (`useCombatReplay.ts` scheduler early-return). So when a returning death is
+followed by another attack (back-to-back trades — common on any board, turn 1–2 included), the card is
+unmounted *before its delayed fade starts* → it vanishes unfaded.
+
+Fix keeps #503's feel exactly: a **death latch**. When a unit is dying with a `returning` class, snapshot
+it and keep it mounted with its death class for `RETURN_FADE_MS` (1200ms — the longest CSS fade, fixed
+wall-clock) via a one-shot `gsap.delayedCall` expiry that shares the animation clock. The render re-injects
+the ghost at its old slot only into the **rendered** frame (never `frameRef`/survivor logic, and never once
+the replay is complete), and skips any uid the fold has brought back alive (a reborn re-form wins). Once the
+timer fires the ghost drops and the slot collapses normally. No sim/fold change; `computeFrame` tests
+untouched.
+
+**The tuner.** Removed the live DEV Choreography tuner (`ChoreographyPanel` + `ChoreoPreviewStage` +
+`ChoreoTimeline` + `choreoLabels`, its DevMenu entry, and `choreoConfig`'s `setChoreoValue`/
+`resetChoreoConfig`/`CHOREO_RANGES`/`localStorage` plumbing). It persisted slider overrides to
+`localStorage['ascent.pacing']` that `getChoreoConfig()` merged over the defaults at load — so a single
+accidental nudge could silently skew every future combat's timing (amplifying exactly this class of
+fade/lunge cut) with no visible cause. Pacing is now fixed at the tuned `DEFAULTS`; retune by editing them
+(reviewed + committed). Not the root cause here (the profiled tab had no override and still blinked) but a
+real footgun eliminated. Verified: typecheck + lint + test (1143) + build:web all green.
 
 ### chore(ui): re-bake the owner's tuned Aura Wave defaults (v2 tuning)
 

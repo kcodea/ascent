@@ -3,10 +3,10 @@ import type { MomentKind } from './kinds';
 /**
  * Tunable parameters for the combat-replay CHOREOGRAPHY TIMING — the beat clock in `useCombatReplay.ts`. The
  * replay plays the deterministic fight one "beat" at a time (an action + its result events); this config sets
- * how long the clock lingers on each beat type, so the fight's RHYTHM can be dialed by eye via the DEV
- * Choreography panel (`ChoreographyPanel.tsx`) without a code round-trip. The scheduler reads `getChoreoConfig()` at each beat, so
- * changes apply to the next beat. This module supersedes the old pacing-config module (choreographer phase 2
- * relocation) — same values, same behavior, new home under `choreo/`.
+ * how long the clock lingers on each beat type, so the fight's RHYTHM can be tuned by editing the `DEFAULTS`
+ * below (a reviewed code change). The scheduler reads `getChoreoConfig()` at each beat. The live DEV
+ * Choreography tuner that once wrote these to `localStorage` was removed — a stray slider nudge persisted
+ * silently and skewed every later combat's timing (cutting death fades / lunges) with no visible cause.
  *
  * Layering (all multiply/divide cleanly, so they don't fight):
  *   beat hold (ms) = delay[beatType] × `speed` ÷ combatSpeed
@@ -84,28 +84,13 @@ const DEFAULTS: ChoreoConfig = {
   overlapMs: 240,
 };
 
-/** Slider bounds for the DEV tuner — [min, max, step] per key. */
-export const CHOREO_RANGES: Record<keyof ChoreoConfig, [number, number, number]> = {
-  speed: [0.5, 3, 0.05],
-  attack: [0, 1200, 10], sc: [0, 1200, 10], summon: [0, 1200, 10], buff: [0, 1200, 10],
-  reborn: [0, 1200, 10], improve: [0, 1200, 10], rally: [0, 1200, 10], toHand: [0, 1200, 10],
-  maxGold: [0, 1200, 10], hpGrant: [0, 1200, 10],
-  dmg: [0, 1200, 10], shield: [0, 1200, 10], shieldUp: [0, 1200, 10], poison: [0, 1200, 10],
-  venomLost: [0, 1200, 10], death: [0, 1200, 10],
-  floatMs: [400, 3000, 50], deathFloatMs: [300, 2000, 50], finalHold: [200, 2000, 50],
-  overlapMs: [0, 600, 10],
-};
 export const CHOREO_KEYS = Object.keys(DEFAULTS) as (keyof ChoreoConfig)[];
 
-const KEY = 'ascent.pacing';
-let cfg: ChoreoConfig = (() => {
-  try {
-    const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? '{}');
-    return { ...DEFAULTS, ...(saved && typeof saved === 'object' ? (saved as Partial<ChoreoConfig>) : {}) };
-  } catch {
-    return { ...DEFAULTS };
-  }
-})();
+// Pacing is FIXED at the tuned defaults. The live DEV Choreography tuner (and its `ascent.pacing` localStorage
+// override) was removed — an accidental slider nudge used to persist silently and skew every future combat's
+// timing (cutting death fades / lunges) with no visible cause. Retune by editing DEFAULTS above: a reviewed,
+// committed code change, not a runtime side effect.
+const cfg: ChoreoConfig = DEFAULTS;
 
 export function getChoreoConfig(): ChoreoConfig {
   return cfg;
@@ -115,22 +100,6 @@ export function getChoreoConfig(): ChoreoConfig {
 export function beatDelay(type: string): number {
   const v = (cfg as unknown as Record<string, number>)[type];
   return typeof v === 'number' ? v : 300;
-}
-export function setChoreoValue(key: keyof ChoreoConfig, value: number): void {
-  cfg = { ...cfg, [key]: value };
-  try {
-    localStorage.setItem(KEY, JSON.stringify(cfg));
-  } catch {
-    /* ignore */
-  }
-}
-export function resetChoreoConfig(): void {
-  cfg = { ...DEFAULTS };
-  try {
-    localStorage.removeItem(KEY);
-  } catch {
-    /* ignore */
-  }
 }
 
 /** The pre-scale hold (ms) a moment KIND should reproduce — phase 2 mirrors the representative pacing key so

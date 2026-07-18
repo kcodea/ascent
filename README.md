@@ -55,6 +55,11 @@ _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
   multi-ring CSS aura (spinning comet arcs, per-ring squash/flip + top-middle dim, a slow 100%→20% breathe),
   owner-tuned via a standalone preview rig. Pure CSS so it rides drag + the combat lunge; Pixi swing sparkle
   is a queued follow-up.
+- **Return-home deaths no longer blink out unfaded.** The #503 pull-home death delays its fade so the card
+  dies at home — but back-to-back attacks (engine-advanced) used to unmount the card before that delayed fade
+  even started, so it vanished with no animation. A death latch now keeps a `returning` unit mounted through
+  its full fade regardless of the beat clock. Also removed the live DEV Choreography **pacing tuner**, whose
+  `localStorage` overrides could silently skew combat timing across sessions from one accidental slider nudge.
 - **Per-z End-of-Turn rewards land one hit per step.** Blueprint Cache (+2/+2 per Attachment), Rune of
   Spending, Rune of Action, and Forsaken Speed now strike their targets once per unit of the scaler,
   sequentially on their beat — ten Attachments read as ten +2/+2 hits, not one +20/+20 lump. (End-of-Turn

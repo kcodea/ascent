@@ -69,8 +69,9 @@ The career surface exists; deepen what a finished run *remembers*.
 ## Next
 
 ### Combat replay pacing (2026-07-18 audit — the "skipped beats" report)
-Root causes found; SoC badges + withBeat contract + badge-coverage test + reload-proof opponent pinning
-shipped. Remaining, in impact order:
+Root causes found. SHIPPED: SoC badges, withBeat contract, badge-coverage + step-hygiene tests,
+beat-count goldens, reload-proof opponent pinning, kind-keyed exhaustive holds, flourish tails
+(critTail/flurryTail), tendril-aware beats. Remaining, in impact order:
 - **Reload-divergence residue** — (a) build updates: a pinned board referencing a removed card falls back
   to the procedural threat (prefer replaying the persisted lastCombat verbatim, or version-gate saves);
   (b) silent localStorage-quota save loss (writeSave swallows errors; servedBoards carries full snapshots —
@@ -79,12 +80,6 @@ shipped. Remaining, in impact order:
   `npm run typecheck:web` fails with ~8 pre-existing errors (Recruit.tsx, sfx.ts, store.ts BoardMinion,
   TrailTuner, remoteBoards, useCombatReplay questDelta) — fix the errors, then add it to the CI gate so
   the ui-side exhaustive Records actually enforce.
-- **Contact-anchored advance** — an attack's next beat fires at the GSAP `contact` position; everything
-  after contact (crit flourish, flurry wind-slash, rebound/settle) is fire-and-forget and never extends
-  the schedule → beats resolve "underneath" long FX then visually catch up. Fix: gate `ctx.advance()` on
-  (or add a lead for) the flourish duration, like `deathConsequenceLead` already does for DR-summons.
-- **Buff-tendril stat snap** — while a tendril flies the target's badges hold pre-buff values; a beat
-  teardown drops the holds → stats snap. Extend the beat by the tendril's `strikeMs` or carry holds over.
 - **Badge-never-fired inventory** — ~14 combat flags still have `badgeIdForCombatFlag` mappings but no
   `fireTrigger` call (runeFury, runeForthcoming, runePackcraft, runeSalvage, runeRebirth, runeAftershocks,
   runeTrophy, runeInheritance, runeUndertow, runeSlaying, bloodTrail/deepHunger marks, lawOfTeeth, oldHunt,
@@ -93,9 +88,8 @@ shipped. Remaining, in impact order:
   SAME step); Avenge payoffs share the death step (only the `avenge` tag separates them); a spellCast
   broadcast (Taragosa Growth + Guel + Weaver reactions) rides the swing's step; Echo Warden copies share
   the original summon's step. Add `nextStep()` seams if these should read as separate beats.
-- **Clock config gaps** — `hpGrant` hold is 0ms; `holdMs` keys on raw event type so the `KIND_TO_KEY`
-  mapping (e.g. ascend→improve 520ms) is dead code; `questTrigger` holds a content-less 450ms beat while
-  the badge pulses in parallel (fixed 1150ms, speed-independent).
+- **Trigger-medallion pulse is speed-independent** — the parallel badge pulse is a fixed 1150ms
+  regardless of combat speed; scale it, or several overlap in a fast burst.
 - **Step-0 fold** — run-wide auras (Undead/Imp/Beast/Magnetic/card enchants) bake silently into the
   initial board; Fleeting Vigor is baked pre-sim with one un-stepped `sc` narration. Fine if intended —
   listed for completeness.

@@ -974,3 +974,79 @@ describe('Batch 7a runes (Rebirth / Tempering / Aftershocks / Refrain / Trophy +
     expect(s.hand.some((c) => c.cardId === 'alley')).toBe(true);
   });
 });
+
+describe('Rune of Mastery (batch 7b) — Improve steps apply twice', () => {
+  const mk = (uid: string, cardId: string, tribe: RunState['board'][number]['tribe'], attack: number, health: number): RunState['board'][number] =>
+    ({ uid, cardId, tribe, attack, health, keywords: [], golden: false });
+
+  it('applies on purchase', () => {
+    expect(buyRune('rune_mastery').runeMastery).toBe(true);
+  });
+
+  it('Den Mother: the per-play improve step doubles (+4 accrual instead of +2)', () => {
+    const play = (mastery: boolean): number => {
+      let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10,
+        runeMastery: mastery || undefined,
+        board: [mk('dm', 'mamabear', 'beast', 4, 4)],
+        hand: [mk('b1', 'pack', 'beast', 3, 2)] }; // pack summons nothing on play (its Echo is combat-only)
+      s = reduce(s, { type: 'play', uid: 'b1' });
+      return s.board.find((c) => c.uid === 'dm')!.summonBonus ?? 0;
+    };
+    expect(play(false)).toBe(2);
+    expect(play(true)).toBe(4);
+  });
+
+  it('Ritualist: the End-of-Turn escalation step doubles (+6 instead of +3)', () => {
+    const eot = (mastery: boolean): number => {
+      const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
+        runeMastery: mastery || undefined,
+        board: [mk('r', 'ritualist', 'demon', 2, 4)] };
+      applyEndOfTurn(s);
+      return s.board[0]!.eotBonus ?? 0;
+    };
+    expect(eot(false)).toBe(3);
+    expect(eot(true)).toBe(6);
+  });
+
+  it('Rune of Consumption stacked with Mastery: each Consume improves future Fodder twice (+4/+2)', () => {
+    const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
+      runeMastery: true, runeConsume: { attack: 2, health: 1 }, board: [] };
+    noteFodderConsumed(s, 1, 1);
+    expect(s.cardBuffs?.['fred']).toEqual({ attack: 4, health: 2 });
+  });
+
+  it('Spirit Worgen: the per-spell Improve contribution doubles (base per-play grant unchanged)', () => {
+    const gain = (mastery: boolean): number => {
+      let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10,
+        runeMastery: mastery || undefined, spellsThisTurn: 2,
+        board: [mk('w', 'spiritworgen', 'beast', 4, 6)],
+        hand: [mk('b1', 'pack', 'beast', 3, 2)] };
+      s = reduce(s, { type: 'play', uid: 'b1' });
+      return s.board.find((c) => c.uid === 'w')!.attack - 4;
+    };
+    expect(gain(false)).toBe(3 * (1 + 2)); // base 3 × (1 + 2 spells) = 9
+    expect(gain(true)).toBe(3 * (1 + 4));  // the 2 spells count twice = 15
+  });
+
+  it('Archmagus Guel: each cast ticks his Improve tally twice under Mastery', () => {
+    const prog = (mastery: boolean): number => {
+      let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10,
+        runeMastery: mastery || undefined,
+        board: [mk('g', 'guel', 'neutral', 3, 6), mk('m', 'stray', 'beast', 1, 1)],
+        hand: [mk('sp', 'growth', 'neutral', 0, 1)] };
+      s = reduce(s, { type: 'play', uid: 'sp' });
+      return s.board.find((c) => c.uid === 'g')!.spellProgress ?? 0;
+    };
+    expect(prog(false)).toBe(1);
+    expect(prog(true)).toBe(2);
+  });
+
+  it('Rune of Summoning stacked with Mastery: each spell improves your Imps +2/+2', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10,
+      runeMastery: true, runeSummoning: true,
+      board: [mk('m', 'stray', 'beast', 1, 1)],
+      hand: [mk('g1', 'growth', 'neutral', 0, 1)] };
+    s = reduce(s, { type: 'play', uid: 'g1' });
+    expect(s.impBuff).toEqual({ attack: 2, health: 2 });
+  });
+});

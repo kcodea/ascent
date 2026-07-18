@@ -431,6 +431,7 @@ export function simulate(
     enemySpellPower,
     spellPowerFor: (side) => (side === 'player' ? spellPower : enemySpellPower),
     spellsThisTurnFor: (side) => (side === 'player' ? playerState.spellsThisTurn : enemySpellsThisTurn),
+    improveRepsFor: (side) => (modsFor(side).runeMastery ? 2 : 1),
     beastsPlayedFor: (side) => (side === 'player' ? playerState.beastsPlayed : enemyBeastsPlayed),
     fodderConsumedFor: (side) => (side === 'player'
       ? { attack: playerState.fodderConsumedAtk, health: playerState.fodderConsumedHp }
@@ -1668,7 +1669,7 @@ export function simulate(
     if (knit) { nextStep(); summonMinion(side, knit, undefined, undefined, false, true); }
   });
   // Economy avenge runes — PLAYER-ONLY (grant to the run's spell power / max Gold; no enemy meaning).
-  runeAvenge(4, 'runeAppraisal', (m, side) => side === 'player' && !!m.runeAppraisal, () => ctx.grantSpellPower(1, 1, 'player', undefined)); // spells +1/+1
+  runeAvenge(4, 'runeAppraisal', (m, side) => side === 'player' && !!m.runeAppraisal, () => { const r = ctx.improveRepsFor('player'); ctx.grantSpellPower(r, r, 'player', undefined); }); // "improve your spells +1/+1" — ×2 under Rune of Mastery
   runeAvenge(4, 'runeSoulTaxes', (m, side) => side === 'player' && !!m.runeSoulTaxes, () => ctx.grantMaxGold(1, 'player')); // +1 max Gold
 
   // Rune of Packcraft: whenever you summon a minion in combat, your Beasts gain +1 Attack (aura — current Beasts

@@ -3553,3 +3553,18 @@ describe('Batch 7a combat runes (Rebirth / Aftershocks / Undertow / Mirror March
     expect(r0.playerSlaughterCopy).toBeUndefined();
   });
 });
+
+describe('Rune of Mastery (batch 7b) — combat Improve steps apply twice', () => {
+  const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
+    simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide());
+
+  it('Karthus: the Slaughter Improve accrues +6 under Mastery (improve event doubled), +3 without', () => {
+    const p: BoardMinion[] = [{ cardId: 'karthus', attack: 9, health: 30 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }];
+    const r = simMods(p, e, 1, { runeMastery: true });
+    expect(r.events.some((ev) => ev.type === 'improve' && ev.amount === 6)).toBe(true);
+    const r0 = simMods(p, e, 1, {});
+    expect(r0.events.some((ev) => ev.type === 'improve' && ev.amount === 3)).toBe(true);
+    expect(r0.events.some((ev) => ev.type === 'improve' && ev.amount === 6)).toBe(false);
+  });
+});

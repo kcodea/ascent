@@ -26,8 +26,8 @@ non-token). "Shop" counts below **exclude** `token: true` cards and the enemy-on
 | Shop spells (`SPELL_CARDS`) | **37** | `cards/spells.ts` |
 | Quests (`QUEST_DEFS`) | **79** | `quests.ts` |
 | Basic runes (`RUNES`) | **30** | `runes.ts` |
-| Epic runes (`EPIC_RUNES`) | **30** | `runes.ts` |
-| Runes total | **60** | `runes.ts` |
+| Epic runes (`EPIC_RUNES`) | **31** | `runes.ts` |
+| Runes total | **61** | `runes.ts` |
 | Heroes defined (`HEROES`) | **27** | `heroes.ts` |
 | Heroes selectable (non-`wip`) | **24** | `heroes.ts` (filter `HEROES.filter(h => !h.wip)`) |
 | Tribes | **6** | Beasts, Dragons, Undead, Mechs, Demons + Neutral glue |

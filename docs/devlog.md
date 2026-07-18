@@ -32,6 +32,41 @@ Phase 2 of Flurry: the one-shot combat FX + audio for a Flurry (W) attacker, bui
   sounds on every swing and the wind-slash visual at real contact. typecheck + lint + 1143 tests + build:web
   green; verified live (Test button + a real Flurry fight, no console errors).
 
+### feat: Rune of Mastery (batch 7b) — every Improve step applies twice
+
+The deferred 13th rune from the owner's batch-7 sheet: **"Whenever one of your effects Improves, it
+improves an additional time"** (Epic, 7 Gold). "Improve" has no engine chokepoint — it's the vocabulary
+across ~18 card/rune texts — so the rune is a per-site ×2 on each improvement increment, threaded as
+`CombatContext.improveRepsFor(side)` (from `QuestCombatMods.runeMastery`) in combat and
+`improveReps(state)` in the recruit engine.
+
+Sites wired (18 — the full Improve-text family): **Karthus** (Slaughter accrual), **Crypt Drake** (every-4-attacks step), **Runescale**
+(per-spell tick, both halves — Spirit Pup's transform tick is a cast COUNT, deliberately untouched),
+**Kennelmaster** (Avenge improve), **Trophy Stalker** (per-attack rally growth), **Den Mother**
+(per-play step, both halves), **the dragon on-gain-Attack improver**, **Flowing Monk / overflow Engrave**
+(per-overflow tick, both halves), **Sergeant** (hpGrant bump — recruit half lives inside the stateless
+`addBuff`, so a `stampImproveReps` mirror is stamped at every reducer + projection entry), **Ritualist**
+(EoT escalation step), **Squirl Scout** (per-copy step), **Front to Back** (every-other-cast escalation),
+and the enchant-verb family: **Rune of Consumption** (+4/+2 per Consume), **Rune of Summoning** (+2/+2
+Imps per spell), **Rune of Appraisal** (Avenge spells +2/+2), **Reconfigured Combinator's Rally**
+(Attachments +8/+8).
+
+**The two derived improvers are threaded too** (owner ask, same day): **Archmagus Guel** doubles his
+Improve TICK (spellProgress += 2 per cast, both halves) — the "per 4 casts" countdown + step derive from
+the tally, so all printed text stays accurate with zero helper edits (the Runescale treatment). **Spirit
+Worgen** doubles the per-spell contribution (base per-play grant unchanged) in both halves, with
+`improveReps` threaded through the live-text chain (`instView`'s live bag → `summonScalingText`) so the
+shop's printed per-play grant matches what the sim adds. Noted in passing: Worgen's combat half computes
+`base + spells` where the recruit half computes `base × (1 + spells)` — a pre-existing divergence,
+flagged for a balance look, not touched here.
+
+Because every accrual is stored ×2 (not re-derived), all live card text stays accurate automatically, and
+the improve/spellProgress combat events carry the doubled amounts so replays fold correctly.
+
+Verified: 8 new tests (purchase; Den Mother +4 vs +2 control; Ritualist +6 vs +3; Consumption +4/+2;
+Summoning +2/+2 Imps; Karthus improve event 6 vs 3 control; Worgen per-play gain 15 vs 9; Guel tick 2
+vs 1) + full suite (1166) + typecheck + lint + build:web green.
+
 ## 2026-07-17
 
 ### feat: runes batch 7a — 12 new runes (5 Basic + 7 Epic; owner designs)

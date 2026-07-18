@@ -101,13 +101,12 @@ The depth layer that answers *"what kind of run did I author?"* — comes after 
   be specced with the owner before build.
 
 ### Rune build-out
-Basic + Epic Runeforges ship with 30 basic + 30 Epic runes wired (batch 7a landed 2026-07-17). Remaining:
-- **Rune of Mastery (batch 7b)** — "whenever one of your effects Improves, it improves an additional time."
-  Deferred from 7a: "Improve" is ~15 scattered sites across recruit AND combat (Karthus, Crypt Drake,
-  Runescale, Den Mother, Squirl Scout, Ritualist, Sergeant, escalating spells, overflow/avenge improvers,
-  Rune of Consumption/Summoning/Appraisal) with no chokepoint — wants its own per-site doubling PR with
-  per-site tests. Owner confirmed the scope = cards whose text says **Improve**.
-- **Art:** Epic runes + the batch 7a runes fall back to the sigil glyph — author art.
+Basic + Epic Runeforges ship with 30 basic + 31 Epic runes wired (batches 7a + 7b landed 2026-07-17/18).
+Remaining:
+- **Spirit Worgen formula divergence** (spotted during Mastery threading): its combat half grants
+  `base + spellsThisTurn` while the recruit half grants `base × (1 + spells)` — reconcile with the owner
+  which is intended, then align the other half + its combat text.
+- **Art:** Epic runes + the batch 7 runes fall back to the sigil glyph — author art.
 
 ### New mechanics (depth, later within Next)
 Each its own spec when reached: **Balance** (average two units' stats — a shop puzzle), **Mark / Bind /

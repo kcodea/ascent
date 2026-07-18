@@ -567,6 +567,9 @@ export interface RunState {
   runeEndlessAppetite?: boolean;
   /** Rune of the Conductor (Epic): at the start of every shop, trigger all your End of Turn effects. */
   runeConductor?: boolean;
+  /** Rune of Mastery (Epic): whenever one of your effects Improves, it improves an additional time — every
+   *  Improve-text card's improvement step applies ×2, in the shop AND in combat (via QuestCombatMods). */
+  runeMastery?: boolean;
   /** Attachments (Magnetic cards) PLAYED this turn — Tempering/Replication's "first each turn" gate. Reset each wave. */
   attachmentsThisTurn?: number;
   /** Shout (Battlecry) minions played this turn + the board uid of the FIRST one — Rune of Refrain. Reset each wave. */

@@ -62,6 +62,20 @@ function pickRandom<T>(state: RunState, arr: T[], n: number): T[] {
  * ("Spirit Fire ×2: +6/+6"). Pass `count` (default 1) for how many times the source applied. Pure
  * keyword grants (0/0) mutate nothing here and aren't listed. Base stats are never recorded.
  */
+/** How many times an "Improve" step applies — 2 under Rune of Mastery, else 1. Every recruit-phase
+ *  Improve-text site multiplies its improvement increment by this. */
+export function improveReps(state: RunState): number {
+  return state.runeMastery ? 2 : 1;
+}
+
+/** Module-level mirror of `improveReps` for the ONE Improve site with no state in scope (Sergeant's
+ *  hpGrant bump inside `addBuff`). Stamped from the current state at every reducer entry + projection
+ *  entry — deterministic (purely state-derived), defaulting to 1 for direct/test callers. */
+let IMPROVE_REPS = 1;
+export function stampImproveReps(state: RunState): void {
+  IMPROVE_REPS = improveReps(state);
+}
+
 export function addBuff(card: BoardCard, source: string, attack: number, health: number, count = 1): void {
   card.attack = Math.max(0, card.attack + attack); // Attack never drops below 0
   card.health += health;
@@ -71,7 +85,7 @@ export function addBuff(card: BoardCard, source: string, attack: number, health:
   // spell cast improve it twice. Seeds the combat instance + shows live on the card.
   if (attack > 0) {
     const eff = CARD_INDEX[card.cardId]?.effects.find((e) => e.do === 'onGainAttackImproveHpGrant');
-    if (eff) card.hpGrantBonus = (card.hpGrantBonus ?? 0) + num(eff.params?.improve, 2) * gold(card);
+    if (eff) card.hpGrantBonus = (card.hpGrantBonus ?? 0) + num(eff.params?.improve, 2) * gold(card) * IMPROVE_REPS; // ×2 under Rune of Mastery
   }
   if (attack === 0 && health === 0) return;
   card.buffs ??= [];
@@ -262,8 +276,12 @@ export function noteFodderConsumed(state: RunState, fa: number, fh: number, eate
   state.runFodderConsumed ??= { count: 0, stats: 0 };
   state.runFodderConsumed.count += 1;
   state.runFodderConsumed.stats += fa + fh;
-  // Rune of Consumption: every Fodder Consumed permanently bumps your run-wide Fodder aura.
-  if (state.runeConsume) buffFodderRunWide(state, state.runeConsume.attack, state.runeConsume.health, 'Rune of Consumption');
+  // Rune of Consumption: every Fodder Consumed permanently bumps your run-wide Fodder aura ("improve future
+  // Fodder" — the enchant applies twice under Rune of Mastery).
+  if (state.runeConsume) {
+    const reps = improveReps(state);
+    buffFodderRunWide(state, state.runeConsume.attack * reps, state.runeConsume.health * reps, 'Rune of Consumption');
+  }
   // Endless Appetite's "first each turn" gate — incremented BEFORE the fan-out below, so the fanned-out
   // consumes (which re-enter here as real consumes: tallies, Rune of Consumption, Transfusion) never re-fan.
   const first = (state.consumesThisTurn = (state.consumesThisTurn ?? 0) + 1) === 1;
@@ -766,7 +784,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(minion, nameOf(self), mag, mag);
     // Rune of the Den Mother: she also buffs HERSELF by the same amount when she buffs another Beast.
     if (ctx.state.runeDenMother) addBuff(self, nameOf(self), mag, mag);
-    self.summonBonus = (self.summonBonus ?? 0) + base;
+    self.summonBonus = (self.summonBonus ?? 0) + base * improveReps(ctx.state); // "improve this" — ×2 under Mastery
   },
 
   /** Pack Leader (recruit half) — every time a Beast is summoned WHILE Pack Leader is on the board, accrue
@@ -942,7 +960,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       const base = num(params.attack, 1);
       const m = (base + (self.summonBonus ?? 0)) * gold(self);
       if (m > 0) for (const c of ctx.state.board) if (c !== self) addBuff(c, nameOf(self), m, m);
-      self.summonBonus = (self.summonBonus ?? 0) + base;
+      self.summonBonus = (self.summonBonus ?? 0) + base * improveReps(ctx.state); // "improve this" — ×2 under Mastery
     } finally {
       recruitHuntGuard.delete(self);
     }
@@ -1092,8 +1110,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tribes = Array.isArray(params.tribes) ? (params.tribes as string[]) : [];
     const def = CARD_INDEX[minion.cardId];
     if (!tribes.includes(minion.tribe) && !(def?.tribe2 && tribes.includes(def.tribe2)) && !def?.universalTribe) return;
-    const x = num(params.attack, 3) * gold(self) * (1 + ctx.state.spellsThisTurn);
-    const y = num(params.health, 3) * gold(self) * (1 + ctx.state.spellsThisTurn);
+    // Rune of Mastery: the per-spell Improve contribution counts twice (the base per-play grant is unchanged).
+    const spells = ctx.state.spellsThisTurn * improveReps(ctx.state);
+    const x = num(params.attack, 3) * gold(self) * (1 + spells);
+    const y = num(params.health, 3) * gold(self) * (1 + spells);
     addBuff(self, nameOf(self), x, y);
   },
 
@@ -1129,7 +1149,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // grows +1/+1 (golden +2/+2) per 4 spells cast while THIS Guel is on the board — tracked on the
     // instance's `spellProgress` (the Spirit Pup counter), so a fresh copy starts at base. This cast counts
     // (tick first), so the 4th on-board cast gives the first step. Combat casts tick it at settle.
-    self.spellProgress = (self.spellProgress ?? 0) + 1;
+    // Rune of Mastery: each cast's Improve tick applies twice (the countdown + step derive from this tally).
+    self.spellProgress = (self.spellProgress ?? 0) + improveReps(ctx.state);
     const step = Math.floor(self.spellProgress / 4);
     const a = (num(params.attack, 1) + step) * gold(self);
     const h = (num(params.health, 1) + step) * gold(self);
@@ -1139,8 +1160,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Runescale Drake (recruit half): each tavern spell cast while THIS instance is on the board ticks its
    *  per-instance `spellProgress` by 1 (non-retroactive — a freshly bought copy starts at 0). The Start-of-
    *  Combat half reads that tally to size its Dragon buff; combat casts tick it at settle (see resolveCombat). */
-  spellCastImproveSelf: (_ctx, self) => {
-    self.spellProgress = (self.spellProgress ?? 0) + 1;
+  spellCastImproveSelf: (ctx, self) => {
+    // Rune of Mastery: each cast's Improve tick applies twice (the SoC Dragon grant derives from this tally).
+    self.spellProgress = (self.spellProgress ?? 0) + improveReps(ctx.state);
   },
 
   /** Flowing Monk (recruit half): when a summon can't fit the full board, Engrave `count` random friendly
@@ -1156,7 +1178,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const h = num(params.health, 2) * (1 + step) * gold(self) + flat;
     const picks = pickRandom(ctx.state, [...ctx.state.board], num(params.count, 2));
     for (const m of picks) addBuff(m, nameOf(self), a, h);
-    self.summonBonus = (self.summonBonus ?? 0) + 1;
+    self.summonBonus = (self.summonBonus ?? 0) + improveReps(ctx.state); // the Improve tick — ×2 under Mastery
   },
 
   /** End of Turn: buff self (+atk/+hp) when the recruit turn ends. */
@@ -1259,7 +1281,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Ritualist (End of Turn) — give your Imps and Fodder +A/+H, ESCALATING by `step` each time it triggers (the
    *  accrued amount rides on `self.eotBonus`). Golden doubles the step. So it grants step, 2·step, 3·step, … */
   buffFodderImpsImproving: (ctx, self, params) => {
-    const step = num(params.step, 3) * gold(self);
+    const step = num(params.step, 3) * gold(self) * improveReps(ctx.state); // "this improves" — ×2 under Mastery
     self.eotBonus = (self.eotBonus ?? 0) + step;
     buffFodderRunWide(ctx.state, self.eotBonus, self.eotBonus, nameOf(self));
     buffImpsRunWide(ctx.state, self.eotBonus, self.eotBonus, nameOf(self));
@@ -1679,8 +1701,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // Improve only every OTHER cast (owner 2026-07-13): the escalation step lands on the 2nd, 4th, … cast.
     ctx.state.frontToBackCasts = (ctx.state.frontToBackCasts ?? 0) + 1;
     if (ctx.state.frontToBackCasts % 2 === 0) {
-      ctx.state.frontToBackBonus += num(params.attack, 2) + spellAttackBonus(ctx.state);
-      ctx.state.frontToBackBonusH += num(params.health, 2) + spellHealthBonus(ctx.state);
+      const reps = improveReps(ctx.state); // "Improve this every other cast" — the step lands twice under Mastery
+      ctx.state.frontToBackBonus += (num(params.attack, 2) + spellAttackBonus(ctx.state)) * reps;
+      ctx.state.frontToBackBonusH += (num(params.health, 2) + spellHealthBonus(ctx.state)) * reps;
     }
   },
 
@@ -2088,7 +2111,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  (each repeat re-rolls the target). Live grant surfaces via cardText's squirlScoutText. */
   battlecryScoutSpread: (ctx, self, params) => {
     const state = ctx.state;
-    const step = num(params.step, 3) * gold(self);
+    const step = num(params.step, 3) * gold(self) * improveReps(state); // "improves this" — ×2 under Mastery
     state.squirlScoutBuff = (state.squirlScoutBuff ?? 0) + step; // improve first → THIS play grants the new value
     const amount = state.squirlScoutBuff;
     const beasts = state.board.filter((c) => isTribe(c, 'beast')).length; // "for every Beast you own"
@@ -2994,8 +3017,12 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   state.spellsCast += 1;
   state.spellsThisTurn += 1;
   state.lastSpellCastId = spellDef.id; // Steward of Spells copies the most recent spell cast
-  // Rune of Summoning: each spell cast permanently improves your Imps +1/+1 (run-wide, via the Imp enchant).
-  if (state.runeSummoning) buffImpsRunWide(state, 1, 1, 'Rune of Summoning');
+  // Rune of Summoning: each spell cast permanently improves your Imps +1/+1 (run-wide, via the Imp enchant —
+  // "improve your Imps" applies twice under Rune of Mastery).
+  if (state.runeSummoning) {
+    const sr = improveReps(state);
+    buffImpsRunWide(state, sr, sr, 'Rune of Summoning');
+  }
   // Rune of Kindling: each spell cast gives your leftmost board minion +3/+3 (baked onto that minion). Wrapped
   // for FX so the gain descends onto the minion (sourceless — no board anchor) instead of the number silently jumping.
   const kindlingTarget = state.board[0];
@@ -3208,6 +3235,7 @@ export function projectEndOfTurnSteps(state: RunState): {
   const { lastCombat, ...rest } = state;
   const clone = structuredClone(rest) as RunState;
   clone.lastCombat = lastCombat;
+  stampImproveReps(clone); // Rune of Mastery: the projection's Sergeant improves match the real commit
   const ctx = makeContext(clone);
   const repeats = endOfTurnRepeats(clone);
   const steps: Array<Record<string, { attack: number; health: number }>> = [];

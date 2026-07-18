@@ -227,7 +227,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.dead || side !== self.side || minion === self) return;
     const tribes = Array.isArray(params.tribes) ? (params.tribes as Tribe[]) : [];
     if (!tribes.includes(minion.tribe) && !(minion.tribe2 && tribes.includes(minion.tribe2)) && !ctx.getCard(minion.cardId)?.universalTribe) return;
-    const spells = ctx.spellsThisTurnFor(self.side);
+    // Rune of Mastery: the per-spell Improve contribution counts twice. (NB: this combat half's formula
+    // (base + spells) predates the recruit half's base×(1+spells) — a pre-existing divergence, flagged.)
+    const spells = ctx.spellsThisTurnFor(self.side) * ctx.improveRepsFor(self.side);
     const x = (num(params.attack, 1) + spells) * mul(self);
     const y = (num(params.health, 1) + spells) * mul(self);
     ctx.buff(self, x, y, self.name);
@@ -784,8 +786,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  (welded attachments have merged away, so this hits unwelded ones on the board). Golden doubles. */
   rallyBuffAttachments: (ctx, self, params, payload) => {
     if (self.dead || (payload as MinionPayload).minion !== self) return;
-    const a = num(params.attack, 2) * mul(self);
-    const h = num(params.health, 2) * mul(self);
+    // "improve your Attachments" — the enchant-verb Improve family: ×2 under Rune of Mastery.
+    const reps = ctx.improveRepsFor(self.side);
+    const a = num(params.attack, 2) * mul(self) * reps;
+    const h = num(params.health, 2) * mul(self) * reps;
     for (const m of ctx.living(self.side)) if (m !== self && m.keywords.includes('M')) ctx.buff(m, a, h, self.uid);
   },
 
@@ -882,8 +886,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       for (const m of ctx.living(self.side)) ctx.buff(m, mag, mag, self.uid);
     }
     if (self.attackSeen % improveEvery === 0) {
-      self.summonBonus += step; // "Improves every 4 attacks" — permanent for this copy (carried back)
-      ctx.log({ type: 'improve', target: self.uid, amount: step }); // → live combat text climbs
+      const inc = step * ctx.improveRepsFor(self.side); // Rune of Mastery: the Improve step applies twice
+      self.summonBonus += inc; // "Improves every 4 attacks" — permanent for this copy (carried back)
+      ctx.log({ type: 'improve', target: self.uid, amount: inc }); // → live combat text climbs
     }
   },
 
@@ -915,7 +920,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     // count" 2026-07-12): tick THIS Guel's on-board tally (the cast counts — tick first), improve +1/+1 per 4,
     // emit a `spellProgress` event so the live countdown updates, and carry the tally back at settle so it's
     // permanent. The run-wide `spellsCast` payload count is no longer used here.
-    self.spellProgress = (self.spellProgress ?? 0) + 1;
+    // Rune of Mastery: each cast's Improve tick applies twice (countdown + step derive from this tally).
+    self.spellProgress = (self.spellProgress ?? 0) + ctx.improveRepsFor(self.side);
     ctx.log({ type: 'spellProgress', target: self.uid, amount: self.spellProgress });
     const step = Math.floor(self.spellProgress / 4);
     const a = (num(params.attack, 1) + step) * mul(self);
@@ -950,7 +956,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const { side } = payload as { side: Side; count: number };
     if (self.dead || side !== self.side) return;
     void params;
-    self.spellProgress = (self.spellProgress ?? 0) + 1;
+    // Rune of Mastery: each cast's Improve tick applies twice (the SoC Dragon grant derives from this
+    // progress — Spirit Pup's transform tick above is a CAST COUNT, not an Improve, and stays ×1).
+    self.spellProgress = (self.spellProgress ?? 0) + ctx.improveRepsFor(self.side);
     ctx.log({ type: 'spellProgress', target: self.uid, amount: self.spellProgress });
   },
 
@@ -977,7 +985,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       const base = num(params.attack, 1);
       const m = (base + (self.summonBonus ?? 0)) * mul(self); // ?? 0 — recruit BoardCards may not have it seeded
       if (m > 0) for (const t of ctx.living(self.side)) if (t !== self) ctx.buff(t, m, m, self.uid);
-      self.summonBonus = (self.summonBonus ?? 0) + base; // permanent improve, carried back
+      self.summonBonus = (self.summonBonus ?? 0) + base * ctx.improveRepsFor(self.side); // permanent improve (×2 under Mastery), carried back
     } finally {
       huntGuard.delete(self);
     }
@@ -1047,8 +1055,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
     // Log the tally increment as an `improve` (amount = +1 to the accrual, matching Kennelmaster's
     // semantics) — the replay folds it into the unit's summonBonus so the card's live text climbs in-fight.
-    self.summonBonus += 1;
-    ctx.log({ type: 'improve', target: self.uid, amount: 1 });
+    // Rune of Mastery doubles the Improve tick.
+    const overflowInc = ctx.improveRepsFor(self.side);
+    self.summonBonus += overflowInc;
+    ctx.log({ type: 'improve', target: self.uid, amount: overflowInc });
   },
 
   /** Avenge (X): after every `count` friendly deaths in combat, buff self (+atk/+hp). */
@@ -1069,8 +1079,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 3));
     if (count % x !== 0) return;
-    self.summonBonus += 1;
-    ctx.log({ type: 'improve', target: self.uid, amount: 1 });
+    const avengeInc = ctx.improveRepsFor(self.side); // Rune of Mastery: the Improve applies twice
+    self.summonBonus += avengeInc;
+    ctx.log({ type: 'improve', target: self.uid, amount: avengeInc });
   },
 
   /** Avenge (Soulsman): every X friendly deaths, permanently raise your max Gold by 1 (golden +2).
@@ -1403,7 +1414,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  `hpGrant` event so the UI can show the live HP grant total in the combat card text. */
   onGainAttackImproveHpGrant: (ctx, self, params, payload) => {
     if (self.dead || (payload as MinionPayload).minion !== self) return;
-    self.hpGrantBonus = (self.hpGrantBonus ?? 0) + num(params.improve, 2) * mul(self);
+    self.hpGrantBonus = (self.hpGrantBonus ?? 0) + num(params.improve, 2) * mul(self) * ctx.improveRepsFor(self.side); // ×2 under Mastery
     ctx.log({ type: 'hpGrant', target: self.uid, amount: self.hpGrantBonus });
   },
 
@@ -1503,8 +1514,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       ctx.buff(m, amount, 0, self.uid);
     }
     ctx.grantUndeadBuyAtk(amount, self.side);
-    self.summonBonus += step; // "and improve this" — the next Slaughter grants more (carried back)
-    ctx.log({ type: 'improve', target: self.uid, amount: step }); // → live combat text climbs
+    const slayInc = step * ctx.improveRepsFor(self.side); // Rune of Mastery: the Improve applies twice
+    self.summonBonus += slayInc; // "and improve this" — the next Slaughter grants more (carried back)
+    ctx.log({ type: 'improve', target: self.uid, amount: slayInc }); // → live combat text climbs
   },
 
   /** Tauntbreaker — on-attack: strip the listed keywords (Taunt / Rise) off the enemy it hits, so the target
@@ -1654,8 +1666,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
         if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
       }
     }
-    self.summonBonus += step; // "improve whenever it attacks" — the next attack grants more (live text reads this)
-    ctx.log({ type: 'improve', target: self.uid, amount: step }); // fold into the live combat frame so the displayed +M/+M climbs each attack
+    const rallyInc = step * ctx.improveRepsFor(self.side); // Rune of Mastery: the Improve applies twice
+    self.summonBonus += rallyInc; // "improve whenever it attacks" — the next attack grants more (live text reads this)
+    ctx.log({ type: 'improve', target: self.uid, amount: rallyInc }); // fold into the live combat frame so the displayed +M/+M climbs each attack
   },
 
   /** Bloodbinder — Rally (on its own attack): give another friendly Demon Attack equal to THIS minion's current

@@ -238,7 +238,7 @@ export const RUNES: RuneDef[] = [
  * normal Runeforge (offer a random few, buy ONE for Gold, re-roll once for 2 Gold) but draws from THIS set and is
  * NOT tied to a hero power — reached by a quest reward (`openEpicRuneforge`, the Epic Commission quest).
  *
- * The designed Epic roster is now wired out — **30 Epic runes** across grants, discovers, recurring-end-of-turn,
+ * The designed Epic roster is now wired out — **31 Epic runes** across grants, discovers, recurring-end-of-turn,
  * Start-of-Combat / Avenge combat flags, and recruit-phase mechanics (Copies, Reliquary, Rising Graves, Broodpit,
  * Spearline, Appraisal, Assembly, Stormcalling, Frontline Glory, Soul Taxes, Scales, Twin Gilding, Den Mother,
  * Banking, First Claws, Inheritance, Second Path, Twilight, Feast, Reconfiguration, Champion, Armory, Gilded Spark).
@@ -482,6 +482,14 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Minions summoned by an **Echo** attack immediately.',
     reward: { kind: 'combatFlag', flag: 'runeUndertow' },
+  },
+  {
+    id: 'rune_mastery',
+    name: 'Rune of Mastery',
+    cost: 7,
+    epic: true,
+    text: 'Whenever one of your effects **Improves**, it improves an **additional time**.',
+    reward: { kind: 'runeMastery' },
   },
   {
     id: 'rune_endless_appetite',

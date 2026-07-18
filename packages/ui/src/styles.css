@@ -1083,7 +1083,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 }
 .card.compact.flurrycard .fl-breathe { position: absolute; inset: 0; animation: flbreathe var(--fl-pulse, 3.4s) ease-in-out infinite; will-change: opacity; }
 @keyframes flbreathe { 0%, 100% { opacity: 1; } 50% { opacity: var(--fl-pulse-min, 0.72); } }
-.card.compact.flurrycard .fl-ring-wrap { position: absolute; inset: 0; will-change: transform; }
+.card.compact.flurrycard .fl-ring-wrap {
+  position: absolute; inset: 0; will-change: transform;
+  /* the optional top-middle dim mask (set inline per ring by flurryConfig) covers the box, no tiling */
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+}
 .card.compact.flurrycard .fl-ring {
   position: absolute; border-radius: 50%; mix-blend-mode: screen; will-change: transform;
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;

@@ -39,6 +39,11 @@ export interface FlurryRing {
   col: string;
   /** Reverse the spin direction. */
   rev: boolean;
+  /** Top-middle DIM — the opacity floor of a static soft zone at the top-centre (1 = no dim). The blades spin
+   *  THROUGH it (the dim lives on the non-spinning wrapper), so this fixed zone stays faded. Optional. */
+  dimTop?: number;
+  /** Top-middle dim — the zone's size (% of the box). Optional. */
+  dimSize?: number;
 }
 
 interface FlurryConfig {
@@ -102,6 +107,14 @@ function bandMask(thick: number): string {
   const outer = 99, inner = Math.max(1, outer - thick);
   return `radial-gradient(closest-side, transparent ${inner - 2}%, #fff ${inner}%, #fff ${outer - 1}%, transparent ${outer}%)`;
 }
+/** Static top-middle dim — a soft ellipse of REDUCED alpha at the top-centre, full beyond. Applied to the
+ *  ring's WRAPPER (which doesn't spin), so the zone stays put while the blades rotate through it. Returns
+ *  undefined when there's nothing to dim (so the wrapper carries no mask). */
+function dimMask(dimTop?: number, dimSize?: number): string | undefined {
+  if (dimTop === undefined || dimTop >= 1 || !dimSize || dimSize <= 0) return undefined;
+  const a = `rgba(255,255,255,${dimTop})`;
+  return `radial-gradient(${dimSize}% ${dimSize}% at 50% 0%, ${a} 0%, ${a} 32%, #fff 100%)`;
+}
 
 /** The rings with their static paint (gradient + mask) precomputed once — Card.tsx maps over these. */
 export const FLURRY_RINGS = FLURRY.rings.map((r) => ({
@@ -120,9 +133,14 @@ export function flurryBoxStyle(): CSSProperties {
     '--fl-pulse-min': FLURRY.pulse > 0 ? FLURRY.pulseMin : 1,
   } as CSSProperties;
 }
-/** Per-ring wrapper: the static width/height squash. */
+/** Per-ring wrapper: the static width/height squash + the optional top-middle dim mask (this layer does NOT
+ *  spin, so the dim zone is fixed to the card while the blades rotate through it). */
 export function flurryWrapStyle(r: FlurryRing): CSSProperties {
-  return { transform: `scale(${r.scaleX}, ${r.scaleY})` };
+  const dm = dimMask(r.dimTop, r.dimSize);
+  return {
+    transform: `scale(${r.scaleX}, ${r.scaleY})`,
+    ...(dm ? { WebkitMaskImage: dm, maskImage: dm } : null),
+  };
 }
 /** Per-ring spinner: diameter inset, the comet paint + band mask, blur/opacity, spin period + direction. */
 export function flurryRingStyle(r: (typeof FLURRY_RINGS)[number]): CSSProperties {

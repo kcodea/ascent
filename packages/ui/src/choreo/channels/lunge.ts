@@ -2,6 +2,7 @@ import gsap from 'gsap';
 import { getLungeConfig } from '../../lungeConfig';
 import { getTrailConfig } from '../../trailConfig';
 import { pixiFx } from '../../pixiFx';
+import { sfx } from '../../sfx';
 
 export interface LungeCtx {
   attacker: Element;
@@ -39,6 +40,9 @@ export interface LungeCtx {
    *  so the gold break reads AT the clash, not on a fixed start-relative delay that drifts off the hit (which
    *  left the bubble lingering disjointed from the unit mid-recoil). Rides the (speed-scaled) lunge timeline. */
   onImpactAuras?: () => void;
+  /** True for a Flurry (W) EXTRA swing → play the `flurryLunge` gust just after the wind-up ends (as the strike
+   *  drive launches), so the bonus swing whooshes with wind. The extra-hit smack layer is fired from `impact.ts`. */
+  flurry?: boolean;
 }
 
 /**
@@ -51,7 +55,7 @@ export interface LungeCtx {
  * Returns the built timeline (seekable via `.progress()` in tests, without needing real time to pass).
  */
 export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
-  const { attacker, dx, dy, speed, strike, strikeDur, leadTilt, attackerRebound, onContact, onImpact, impactOffsetMs = 0, onRallyPulse, onWindupBuffs, onImpactAuras, rallyPauseMs = 0 } = ctx;
+  const { attacker, dx, dy, speed, strike, strikeDur, leadTilt, attackerRebound, onContact, onImpact, impactOffsetMs = 0, onRallyPulse, onWindupBuffs, onImpactAuras, rallyPauseMs = 0, flurry = false } = ctx;
   const c = getLungeConfig();
   const rest = attacker.getBoundingClientRect();
   const cx0 = rest.left + rest.width / 2;
@@ -90,6 +94,8 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
     if (onWindupBuffs) tl.call(onWindupBuffs);  // …then launch the buff tendrils (pulse → tendril order)…
     tl.to({}, { duration: windupPauseS });      // …then hold the wound-up pose so they read before the strike
   }
+  // Flurry (W) extra swing: the wind-up has ended and the strike is about to drive → whoosh the gust here.
+  if (flurry) tl.call(() => sfx.flurryLunge());
   tl.to(attacker, { x: strike.x, y: strike.y, rotation: leadTilt, scale: 1, duration: strikeDur, ease: 'power3.in' })                                       // strike to the surface, corner leading
     .add(onContact, `-=${c.smackLead}`)                                                                                                                      // contact — the beat advance, smackLead before the strike completes
     .to(attacker, { rotation: -Math.sign(leadTilt) * attackerRebound, duration: 0.06, ease: 'power2.out' })                                                 // rotational rebound off the clack (leadTilt 0 → no lead, no rebound)

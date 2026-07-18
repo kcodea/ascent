@@ -550,6 +550,12 @@ export const sfx = {
     if (playSample(pickVariant('smack'), 'smack')) return;
     tone({ freq: 170, dur: 0.12, type: 'square', vol: 0.15, slideTo: 80, category: 'smack' });
   },
+  // FLURRY (W) — the EXTRA windfury swing. Two exclusive cues layered OVER the normal attack: `flurryLunge`
+  // fires just after the wind-up ends (the gust of the bonus swing launching; from the lunge channel), and
+  // `flurryHit` fires alongside the smack when the extra hit lands. Sourced clips (no synth fallback — they're
+  // additive flavour, not load-bearing, so silence until decode is fine). Own categories on the combat bus.
+  flurryLunge: () => { playSample('flurrylunge', 'flurrylunge'); },
+  flurryHit: () => { playSample('flurryhit', 'flurryhit'); },
   // A CRITICAL STRIKE lands (Commander Impala's CR keyword — this swing dealt DOUBLE damage). REPLACES the smack
   // with its own clip so the doubled hit reads distinctly; sourced "crit" clip, synth crack fallback until it
   // decodes / if absent. Fired in place of `hit` from the impact channel when the attack event is a crit.

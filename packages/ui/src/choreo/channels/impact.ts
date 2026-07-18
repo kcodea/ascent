@@ -21,6 +21,7 @@ export const hitPower = (swing: number): number => Math.max(0.9, Math.min(2, 0.8
  */
 export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, contact?: { x: number; y: number }, spinDeg = 0, crit = false, flurry = false): void {
   if (crit) sfx.critHit(); else sfx.hit();
+  if (flurry) sfx.flurryHit(); // the Flurry extra hit layers OVER the smack (owner note 2026-07-17)
   if (!defender) return;
   const r = defender.getBoundingClientRect();
   const fx = contact ?? { x: r.left + r.width / 2, y: r.top + r.height / 2 };

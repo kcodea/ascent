@@ -76,7 +76,7 @@ export function runAttackExchangeCues(
   const impactAt = { x: atkC.x + targetOffset.x, y: atkC.y + targetOffset.y };
   const spinDeg = -Math.sign(geo.leadTilt || 1) * cfg.defenderSpin;
   return playLunge({
-    attacker, dx, dy, speed: ctx.combatSpeed,
+    attacker, dx, dy, speed: ctx.combatSpeed, flurry,
     strike: strikeOffset, strikeDur: geo.strikeDur, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
     onContact: () => ctx.advance(),
     onImpact: impact ? () => { playContactImpact(defender, dx, dy, power, ctx.combatSpeed, impactAt, spinDeg, crit, flurry); if (crit) ctx.onCritImpact?.(); } : undefined,

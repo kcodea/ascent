@@ -29,13 +29,15 @@ export function playContactImpact(defender: Element | null, dx: number, dy: numb
     // The crit REPLACES the normal impact burst with its own amplified flourish; the dust billow still reads.
     pixiFx.critImpact(fx.x, fx.y, dx, dy, { x: r.left, y: r.top, w: r.width, h: r.height });
     pixiFx.impactDust(fx.x, fx.y, power);
+  } else if (flurrySlash) {
+    // Flurry REPLACES the standard strike VFX (burst / dust / pulse) with the wind-slash gust, so a Flurry
+    // attacker's hits read as wind, not a normal smack (owner note 2026-07-17). The smack SOUND still plays.
+    pixiFx.windSlash(fx.x, fx.y, dx, dy);
   } else {
     pixiFx.impact(fx.x, fx.y, dx, dy, power);
     pixiFx.impactDust(fx.x, fx.y, power); // card-drop-style tan billow from the strike point
     pixiFx.impactPulse(fx.x, fx.y, power); // expanding energy ring(s) from the strike point
   }
-  // Flurry's EXTRA swing lays a wind-slash gust OVER the normal/crit hit (the bonus attack reads as wind).
-  if (flurrySlash) pixiFx.windSlash(fx.x, fx.y, dx, dy);
   gsap.killTweensOf(defender);
   const kb = 0.14 * (0.75 + 0.25 * power) * (crit ? 1.4 : 1); // a crit knocks the defender harder
   gsap.fromTo(defender, { x: 0, y: 0, rotation: 0 }, {

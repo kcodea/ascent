@@ -40,6 +40,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **Flurry swing FX + sounds.** A Flurry (W) attacker's strikes now throw a wind-slash burst (crescent blades +
+  sparkles) that *replaces* the normal impact VFX — and wins even on a crit — plus a lunge-whoosh and hit sound
+  on both swings. Owner-tuned via a 🌬️ dev tuner + Test button.
 - **Flurry wind-blade aura.** Flurry (W) minions now swirl with a persistent vortex of wind blades — a
   multi-ring CSS aura (spinning comet arcs, per-ring squash/flip + top-middle dim, a slow 100%→20% breathe),
   owner-tuned via a standalone preview rig. Pure CSS so it rides drag + the combat lunge; Pixi swing sparkle

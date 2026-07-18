@@ -3,6 +3,26 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-18
+
+### feat(ui/audio): Flurry swing FX + attack sounds — phase 2 (`feat/flurry-swing-fx`)
+
+Phase 2 of Flurry: the one-shot combat FX + audio for a Flurry (W) attacker, building on the persistent aura.
+
+- **Wind-slash VFX** (`pixiFx.windSlash`, new baked crescent wind-blade texture): at each strike's contact,
+  crescent blades sweep out along the blow + a sparkle cone + a soft glow. Static-texture particles, one-shot.
+  Owner-tuned (`power 2.95`, `slashCount 6`, `slashSize 95`, …) via a `flurrySwingConfig.ts` + `FlurrySwingTuner`
+  (🌬️) + a "Test Flurry" dev button (fires at screen centre, no fight needed).
+- **It REPLACES the standard strike VFX** for a Flurry attacker (the normal impact burst / dust / pulse are
+  skipped), and **wins even on a crit** — a Flurry crit shows the wind-slash, not the crimson flourish; non-Flurry
+  crits keep the standard crit effect. The smack/crit sound + crit board-shake still fire.
+- **Two attack sounds** (`flurrylunge` / `flurryhit`, owner-supplied clips on the combat bus, own mixer
+  categories at gain 0.375): the lunge whoosh fires just after the wind-up ends (from the lunge channel), the hit
+  layers alongside the smack. Both play on **every** swing of a Flurry unit (the wind identity on both hits).
+- **Wiring:** a `flurry` flag threads from the replay (attacker has W) → the choreo engine, which fires the
+  sounds on every swing and the wind-slash visual at real contact. typecheck + lint + 1143 tests + build:web
+  green; verified live (Test button + a real Flurry fight, no console errors).
+
 ## 2026-07-17
 
 ### feat(ui): Flurry (W) persistent wind-blade aura — CSS ring stack (`feat/flurry-fx`)

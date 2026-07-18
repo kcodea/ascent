@@ -19,12 +19,19 @@ export const hitPower = (swing: number): number => Math.max(0.9, Math.min(2, 0.8
  * amplified crimson-gold crit flourish (`pixiFx.critImpact` — bold ring, "CRIT!" pop, red card flash), plus a
  * heftier knockback. No-op FX/recoil when there's no defender (still fires the hit/crit sound).
  */
-export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, contact?: { x: number; y: number }, spinDeg = 0, crit = false): void {
+export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, contact?: { x: number; y: number }, spinDeg = 0, crit = false, flurryHit = false, flurrySlash = false): void {
   if (crit) sfx.critHit(); else sfx.hit();
+  if (flurryHit) sfx.flurryHit(); // the Flurry hit layers OVER the smack on EVERY swing (owner note 2026-07-17)
   if (!defender) return;
   const r = defender.getBoundingClientRect();
   const fx = contact ?? { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-  if (crit) {
+  if (flurrySlash) {
+    // Flurry REPLACES the standard strike VFX with the wind-slash gust so a Flurry attacker's hits read as
+    // wind — and it WINS even on a CRIT (a Flurry crit shows the wind-slash, not the crimson flourish; owner
+    // note 2026-07-17). Non-Flurry crits fall through to the standard crit effect below. The smack/crit SOUND
+    // and the crit board-shake still fire (a Flurry crit is still a crit) — see the engine's onCritImpact.
+    pixiFx.windSlash(fx.x, fx.y, dx, dy);
+  } else if (crit) {
     // The crit REPLACES the normal impact burst with its own amplified flourish; the dust billow still reads.
     pixiFx.critImpact(fx.x, fx.y, dx, dy, { x: r.left, y: r.top, w: r.width, h: r.height });
     pixiFx.impactDust(fx.x, fx.y, power);

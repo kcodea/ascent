@@ -2,6 +2,7 @@ import { Application, Container, Graphics, Mesh, MeshGeometry, Shader, Sprite, T
 import { getSmokeConfig } from './smokeConfig';
 import { getStrikeFxConfig } from './strikeFxConfig';
 import { getCritFxConfig, type CritFxConfig } from './critFxConfig';
+import { getFlurrySwingConfig } from './flurrySwingConfig';
 import { getTrailConfig } from './trailConfig';
 import { sfx } from './sfx';
 
@@ -535,6 +536,7 @@ class FxController {
   private pulseTex: Texture | null = null;      // thin bright ring — the combat impact energy pulse
   private veinTex: Texture | null = null;       // thin streak — shield energy vein
   private wispTex: Texture | null = null;
+  private crescentTex: Texture | null = null;      // thin curved wind-blade — the Flurry-swing slash
   private skullTex: Texture | null = null;         // the purple glowing ☠, glow baked in (Echo/Deathrattle FX)
   private skullSrcW = 1;
   private skullSrcH = 1;
@@ -655,6 +657,7 @@ class FxController {
     this.pulseTex = this.makePulseRingTexture(app);
     this.veinTex = this.makeVeinTexture(app);
     this.wispTex = this.makeWispTexture(app);
+    this.crescentTex = this.makeCrescentTexture(app);
     this.buildSkullTex(); // the Echo skull: ☠ rendered purple with its glow baked into the texture
     app.ticker.add(this.update);
     this.ready = true;
@@ -707,6 +710,7 @@ class FxController {
     this.pulseTex = null;
     this.veinTex = null;
     this.wispTex = null;
+    this.crescentTex = null;
     this.ready = false;
     this.initing = null;
   }
@@ -968,6 +972,60 @@ class FxController {
     let flash: Graphics | null = null;
     if (defRect) { flash = new Graphics(); this.layer.addChild(flash); }
     this.critFxs.push({ x, y, cfg: c, age: 0, ring, text, flash, flashRect: defRect ?? null });
+  }
+
+  /**
+   * FLURRY SWING — the one-shot wind-slash sparkle a Flurry (W) minion fires on its EXTRA swing (windfury's
+   * 2nd attack), at the contact point (x,y), oriented along the blow direction (dx,dy). Crescent wind-blades
+   * sweep across the hit, a cone of bright sparkles bursts out, and a soft glow flashes. Every dial lives in
+   * `getFlurrySwingConfig()` (the 🌬️ tuner), read at fire time. All static-texture particles → cheap one-shot.
+   */
+  windSlash(x: number, y: number, dx: number, dy: number): void {
+    if (!this.ready || !this.crescentTex || !this.glowTex || !this.sparkTex) return;
+    const c = getFlurrySwingConfig();
+    const p = c.power;
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len, uy = dy / len;
+    const dir = Math.atan2(uy, ux);
+    const CRESCENT_W = 80, GLOW_D = 80, SPARK_D = 16;
+
+    // soft glow puff at contact
+    if (c.glowSize > 0 && c.glowAlpha > 0) {
+      this.spawn(this.glowTex, {
+        x, y, vx: 0, vy: 0, drag: 1, life: 260,
+        fromScale: (c.glowSize * 0.45) / GLOW_D, toScale: (c.glowSize * p) / GLOW_D, spin: 0,
+        tint: hexNum(c.glowColor), blend: 'add', peakAlpha: c.glowAlpha,
+      });
+    }
+    // crescent wind-blades — slashes flung out along the blow, each rotated to cut across its travel
+    const nSlash = Math.round(c.slashCount);
+    const sspread = (c.slashSpread * Math.PI) / 180;
+    for (let i = 0; i < nSlash; i++) {
+      const a = dir + (Math.random() - 0.5) * sspread;
+      const speed = c.slashSpeed * (0.7 + Math.random() * 0.6) * (0.85 + 0.15 * p);
+      const rot = a + Math.PI / 2 + (Math.random() - 0.5) * 0.5; // face along travel → the blade cuts crosswise
+      this.spawn(this.crescentTex, {
+        x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.12,
+        life: c.slashLife * (0.75 + Math.random() * 0.5),
+        fromScale: (c.slashSize * 0.5) / CRESCENT_W, toScale: (c.slashSize * p) / CRESCENT_W,
+        spin: (Math.random() - 0.5) * 3, rotation: rot,
+        tint: hexNum(c.slashColor), blend: 'add', stretchX: 1.15, peakAlpha: 0.95,
+      });
+    }
+    // sparkle motes — a cone of bright sparks flung along the blow
+    const nSpark = Math.round(c.sparkCount);
+    const kspread = (c.sparkSpread * Math.PI) / 180;
+    for (let i = 0; i < nSpark; i++) {
+      const a = dir + (Math.random() - 0.5) * kspread;
+      const speed = c.sparkSpeed * (0.5 + Math.random() * 0.8) * (0.85 + 0.15 * p);
+      this.spawn(this.sparkTex, {
+        x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.08,
+        life: c.sparkLife * (0.6 + Math.random() * 0.7),
+        fromScale: (c.sparkSize / SPARK_D) * (0.8 + Math.random() * 0.6), toScale: 0.04,
+        spin: (Math.random() - 0.5) * 6, rotation: a,
+        tint: hexNum(c.sparkColor), blend: 'add', stretchX: 1.8, peakAlpha: 0.95,
+      });
+    }
   }
 
   /**
@@ -1710,6 +1768,13 @@ class FxController {
     const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
     const w = 150, h = 210; // a stand-in defender card rect centred on the burst
     this.critImpact(cx, cy, 1, 0, { x: cx - w / 2, y: cy - h / 2, w, h });
+  }
+
+  /** DEV: fire the Flurry-swing wind-slash at screen centre (dev menu "Test Flurry" / console) so it can be
+   *  tuned without a real Flurry fight. Blows rightward, like a swing into an enemy on the right. */
+  testFlurry(): void {
+    if (!this.ready) { console.warn('[pixiFx.testFlurry] not ready — refresh the page.'); return; }
+    this.windSlash(window.innerWidth / 2, window.innerHeight / 2, 1, 0);
   }
 
   /** Pull a sprite from the pool (or make one), configure it as a live particle. */
@@ -2754,6 +2819,20 @@ class FxController {
     g.ellipse(0, 0, 26, 5).fill({ color: 0xffffff, alpha: 0.10 }); // outer haze
     g.ellipse(0, 0, 22, 3.2).fill({ color: 0xffffff, alpha: 0.18 });
     g.ellipse(-2, 0, 16, 1.8).fill({ color: 0xffffff, alpha: 0.30 }); // brighter core, biased to the tail
+    const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
+    g.destroy();
+    return tex;
+  }
+
+  /** A thin curved WIND-BLADE crescent (glow baked in) — the Flurry-swing slash. Drawn as three stacked arcs
+   *  (soft wide haze → mid → bright thin core) bowing across the top, so it reads as a curved sliver of wind.
+   *  Natural width ≈ 80px (CRESCENT_W in `windSlash`); the sprite scales from there. */
+  private makeCrescentTexture(app: Application): Texture {
+    const g = new Graphics();
+    const R = 34, cy = 11;
+    g.arc(0, cy, R, Math.PI * 1.14, Math.PI * 1.86).stroke({ width: 13, color: 0xffffff, alpha: 0.10, cap: 'round' });
+    g.arc(0, cy, R, Math.PI * 1.20, Math.PI * 1.80).stroke({ width: 6.5, color: 0xffffff, alpha: 0.34, cap: 'round' });
+    g.arc(0, cy, R, Math.PI * 1.26, Math.PI * 1.74).stroke({ width: 2.4, color: 0xffffff, alpha: 0.95, cap: 'round' });
     const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
     g.destroy();
     return tex;

@@ -2848,8 +2848,8 @@ export const pixiFx = new FxController();
  *  canvas; attached when Discover opens, its canvas re-appended on each subsequent open. */
 export const discoverFx = new FxController();
 
-// DEV: expose for live effect tuning + manual firing from the console (mirrors the LungeTuner /
-// SfxMixer dev affordances). Stripped from production by the static env check.
+// DEV: expose for live effect tuning + manual firing from the console (mirrors the SfxMixer dev
+// affordance). Stripped from production by the static env check.
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   const w = window as unknown as { __pixiFx: FxController; __discoverFx: FxController; __shieldDemo: (loops?: number) => void };
   w.__pixiFx = pixiFx;

@@ -208,14 +208,16 @@ the replay is complete), and skips any uid the fold has brought back alive (a re
 timer fires the ghost drops and the slot collapses normally. No sim/fold change; `computeFrame` tests
 untouched.
 
-**The tuner.** Removed the live DEV Choreography tuner (`ChoreographyPanel` + `ChoreoPreviewStage` +
-`ChoreoTimeline` + `choreoLabels`, its DevMenu entry, and `choreoConfig`'s `setChoreoValue`/
-`resetChoreoConfig`/`CHOREO_RANGES`/`localStorage` plumbing). It persisted slider overrides to
-`localStorage['ascent.pacing']` that `getChoreoConfig()` merged over the defaults at load — so a single
-accidental nudge could silently skew every future combat's timing (amplifying exactly this class of
-fade/lunge cut) with no visible cause. Pacing is now fixed at the tuned `DEFAULTS`; retune by editing them
-(reviewed + committed). Not the root cause here (the profiled tab had no override and still blinked) but a
-real footgun eliminated. Verified: typecheck + lint + test (1143) + build:web all green.
+**The tuners.** Removed BOTH live DEV combat-timing tuners — Choreography (`ChoreographyPanel` +
+`ChoreoPreviewStage` + `ChoreoTimeline` + `choreoLabels`, `choreoConfig`'s `setChoreoValue`/
+`resetChoreoConfig`/`CHOREO_RANGES`/`localStorage`) and Lunge (`LungeTuner`, `lungeConfig`'s
+`setLungeValue`/`resetLungeConfig`/`LUNGE_RANGES`/`localStorage`), plus their DevMenu entries. Each
+persisted slider overrides (`localStorage['ascent.pacing']` / `['ascent.lunge']`) that `getChoreoConfig()`
+/ `getLungeConfig()` merged over the defaults at load — so a single accidental nudge could silently skew
+every future combat's timing (the lunge tuner drives wind-up/strike/contact, which sets the beat hold —
+exactly this class of fade/lunge cut) with no visible cause. Both are now fixed at their tuned `DEFAULTS`;
+retune by editing them (reviewed + committed). Not the root cause here (the profiled tab had no override
+and still blinked) but two real footguns eliminated. Verified: typecheck + lint + test + build:web green.
 
 ### chore(ui): re-bake the owner's tuned Aura Wave defaults (v2 tuning)
 

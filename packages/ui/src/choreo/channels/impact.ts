@@ -19,7 +19,7 @@ export const hitPower = (swing: number): number => Math.max(0.9, Math.min(2, 0.8
  * amplified crimson-gold crit flourish (`pixiFx.critImpact` — bold ring, "CRIT!" pop, red card flash), plus a
  * heftier knockback. No-op FX/recoil when there's no defender (still fires the hit/crit sound).
  */
-export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, contact?: { x: number; y: number }, spinDeg = 0, crit = false): void {
+export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, contact?: { x: number; y: number }, spinDeg = 0, crit = false, flurry = false): void {
   if (crit) sfx.critHit(); else sfx.hit();
   if (!defender) return;
   const r = defender.getBoundingClientRect();
@@ -33,6 +33,8 @@ export function playContactImpact(defender: Element | null, dx: number, dy: numb
     pixiFx.impactDust(fx.x, fx.y, power); // card-drop-style tan billow from the strike point
     pixiFx.impactPulse(fx.x, fx.y, power); // expanding energy ring(s) from the strike point
   }
+  // Flurry's EXTRA swing lays a wind-slash gust OVER the normal/crit hit (the bonus attack reads as wind).
+  if (flurry) pixiFx.windSlash(fx.x, fx.y, dx, dy);
   gsap.killTweensOf(defender);
   const kb = 0.14 * (0.75 + 0.25 * power) * (crit ? 1.4 : 1); // a crit knocks the defender harder
   gsap.fromTo(defender, { x: 0, y: 0, rotation: 0 }, {

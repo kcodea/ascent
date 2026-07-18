@@ -1015,6 +1015,32 @@ describe('Rune of Mastery (batch 7b) — Improve steps apply twice', () => {
     expect(s.cardBuffs?.['fred']).toEqual({ attack: 4, health: 2 });
   });
 
+  it('Spirit Worgen: the per-spell Improve contribution doubles (base per-play grant unchanged)', () => {
+    const gain = (mastery: boolean): number => {
+      let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10,
+        runeMastery: mastery || undefined, spellsThisTurn: 2,
+        board: [mk('w', 'spiritworgen', 'beast', 4, 6)],
+        hand: [mk('b1', 'pack', 'beast', 3, 2)] };
+      s = reduce(s, { type: 'play', uid: 'b1' });
+      return s.board.find((c) => c.uid === 'w')!.attack - 4;
+    };
+    expect(gain(false)).toBe(3 * (1 + 2)); // base 3 × (1 + 2 spells) = 9
+    expect(gain(true)).toBe(3 * (1 + 4));  // the 2 spells count twice = 15
+  });
+
+  it('Archmagus Guel: each cast ticks his Improve tally twice under Mastery', () => {
+    const prog = (mastery: boolean): number => {
+      let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10,
+        runeMastery: mastery || undefined,
+        board: [mk('g', 'guel', 'neutral', 3, 6), mk('m', 'stray', 'beast', 1, 1)],
+        hand: [mk('sp', 'growth', 'neutral', 0, 1)] };
+      s = reduce(s, { type: 'play', uid: 'sp' });
+      return s.board.find((c) => c.uid === 'g')!.spellProgress ?? 0;
+    };
+    expect(prog(false)).toBe(1);
+    expect(prog(true)).toBe(2);
+  });
+
   it('Rune of Summoning stacked with Mastery: each spell improves your Imps +2/+2', () => {
     let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10,
       runeMastery: true, runeSummoning: true,

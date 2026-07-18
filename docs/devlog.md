@@ -40,7 +40,7 @@ across ~18 card/rune texts — so the rune is a per-site ×2 on each improvement
 `CombatContext.improveRepsFor(side)` (from `QuestCombatMods.runeMastery`) in combat and
 `improveReps(state)` in the recruit engine.
 
-Sites wired (16): **Karthus** (Slaughter accrual), **Crypt Drake** (every-4-attacks step), **Runescale**
+Sites wired (18 — the full Improve-text family): **Karthus** (Slaughter accrual), **Crypt Drake** (every-4-attacks step), **Runescale**
 (per-spell tick, both halves — Spirit Pup's transform tick is a cast COUNT, deliberately untouched),
 **Kennelmaster** (Avenge improve), **Trophy Stalker** (per-attack rally growth), **Den Mother**
 (per-play step, both halves), **the dragon on-gain-Attack improver**, **Flowing Monk / overflow Engrave**
@@ -51,17 +51,21 @@ and the enchant-verb family: **Rune of Consumption** (+4/+2 per Consume), **Rune
 Imps per spell), **Rune of Appraisal** (Avenge spells +2/+2), **Reconfigured Combinator's Rally**
 (Attachments +8/+8).
 
-**Excluded (documented):** the two per-spell DERIVED improvers (Wildwood-line "improves per spell this
-turn", the neutral "per 4 spells" 3-minion buffer) — their printed live text derives from raw tallies, so
-doubling the magnitude without threading their text helpers would violate the card-text hard rule. Queued
-as a follow-up with their helpers.
+**The two derived improvers are threaded too** (owner ask, same day): **Archmagus Guel** doubles his
+Improve TICK (spellProgress += 2 per cast, both halves) — the "per 4 casts" countdown + step derive from
+the tally, so all printed text stays accurate with zero helper edits (the Runescale treatment). **Spirit
+Worgen** doubles the per-spell contribution (base per-play grant unchanged) in both halves, with
+`improveReps` threaded through the live-text chain (`instView`'s live bag → `summonScalingText`) so the
+shop's printed per-play grant matches what the sim adds. Noted in passing: Worgen's combat half computes
+`base + spells` where the recruit half computes `base × (1 + spells)` — a pre-existing divergence,
+flagged for a balance look, not touched here.
 
 Because every accrual is stored ×2 (not re-derived), all live card text stays accurate automatically, and
 the improve/spellProgress combat events carry the doubled amounts so replays fold correctly.
 
-Verified: 6 new tests (purchase; Den Mother +4 vs +2 control; Ritualist +6 vs +3; Consumption +4/+2;
-Summoning +2/+2 Imps; Karthus improve event 6 vs 3 control) + full suite (1164) + typecheck + lint +
-build:web green.
+Verified: 8 new tests (purchase; Den Mother +4 vs +2 control; Ritualist +6 vs +3; Consumption +4/+2;
+Summoning +2/+2 Imps; Karthus improve event 6 vs 3 control; Worgen per-play gain 15 vs 9; Guel tick 2
+vs 1) + full suite (1166) + typecheck + lint + build:web green.
 
 ## 2026-07-17
 

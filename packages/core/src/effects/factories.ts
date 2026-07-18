@@ -227,7 +227,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.dead || side !== self.side || minion === self) return;
     const tribes = Array.isArray(params.tribes) ? (params.tribes as Tribe[]) : [];
     if (!tribes.includes(minion.tribe) && !(minion.tribe2 && tribes.includes(minion.tribe2)) && !ctx.getCard(minion.cardId)?.universalTribe) return;
-    const spells = ctx.spellsThisTurnFor(self.side);
+    // Rune of Mastery: the per-spell Improve contribution counts twice. (NB: this combat half's formula
+    // (base + spells) predates the recruit half's base×(1+spells) — a pre-existing divergence, flagged.)
+    const spells = ctx.spellsThisTurnFor(self.side) * ctx.improveRepsFor(self.side);
     const x = (num(params.attack, 1) + spells) * mul(self);
     const y = (num(params.health, 1) + spells) * mul(self);
     ctx.buff(self, x, y, self.name);
@@ -918,7 +920,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     // count" 2026-07-12): tick THIS Guel's on-board tally (the cast counts — tick first), improve +1/+1 per 4,
     // emit a `spellProgress` event so the live countdown updates, and carry the tally back at settle so it's
     // permanent. The run-wide `spellsCast` payload count is no longer used here.
-    self.spellProgress = (self.spellProgress ?? 0) + 1;
+    // Rune of Mastery: each cast's Improve tick applies twice (countdown + step derive from this tally).
+    self.spellProgress = (self.spellProgress ?? 0) + ctx.improveRepsFor(self.side);
     ctx.log({ type: 'spellProgress', target: self.uid, amount: self.spellProgress });
     const step = Math.floor(self.spellProgress / 4);
     const a = (num(params.attack, 1) + step) * mul(self);

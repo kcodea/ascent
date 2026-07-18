@@ -103,9 +103,9 @@ The depth layer that answers *"what kind of run did I author?"* — comes after 
 ### Rune build-out
 Basic + Epic Runeforges ship with 30 basic + 31 Epic runes wired (batches 7a + 7b landed 2026-07-17/18).
 Remaining:
-- **Mastery follow-up** — wire the two excluded per-spell DERIVED improvers (Wildwood-line "improves per
-  spell this turn"; the neutral "per 4 spells" 3-minion buffer): their doubling needs their live-text
-  helpers threaded with the rune so the printed values stay accurate (the card-text hard rule).
+- **Spirit Worgen formula divergence** (spotted during Mastery threading): its combat half grants
+  `base + spellsThisTurn` while the recruit half grants `base × (1 + spells)` — reconcile with the owner
+  which is intended, then align the other half + its combat text.
 - **Art:** Epic runes + the batch 7 runes fall back to the sigil glyph — author art.
 
 ### New mechanics (depth, later within Next)

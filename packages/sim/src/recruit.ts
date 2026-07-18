@@ -1110,8 +1110,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tribes = Array.isArray(params.tribes) ? (params.tribes as string[]) : [];
     const def = CARD_INDEX[minion.cardId];
     if (!tribes.includes(minion.tribe) && !(def?.tribe2 && tribes.includes(def.tribe2)) && !def?.universalTribe) return;
-    const x = num(params.attack, 3) * gold(self) * (1 + ctx.state.spellsThisTurn);
-    const y = num(params.health, 3) * gold(self) * (1 + ctx.state.spellsThisTurn);
+    // Rune of Mastery: the per-spell Improve contribution counts twice (the base per-play grant is unchanged).
+    const spells = ctx.state.spellsThisTurn * improveReps(ctx.state);
+    const x = num(params.attack, 3) * gold(self) * (1 + spells);
+    const y = num(params.health, 3) * gold(self) * (1 + spells);
     addBuff(self, nameOf(self), x, y);
   },
 
@@ -1147,7 +1149,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // grows +1/+1 (golden +2/+2) per 4 spells cast while THIS Guel is on the board — tracked on the
     // instance's `spellProgress` (the Spirit Pup counter), so a fresh copy starts at base. This cast counts
     // (tick first), so the 4th on-board cast gives the first step. Combat casts tick it at settle.
-    self.spellProgress = (self.spellProgress ?? 0) + 1;
+    // Rune of Mastery: each cast's Improve tick applies twice (the countdown + step derive from this tally).
+    self.spellProgress = (self.spellProgress ?? 0) + improveReps(ctx.state);
     const step = Math.floor(self.spellProgress / 4);
     const a = (num(params.attack, 1) + step) * gold(self);
     const h = (num(params.health, 1) + step) * gold(self);

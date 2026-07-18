@@ -15,6 +15,9 @@ export interface LiveTextParams {
   golden: boolean;
   spellBonus: number; spellBonusH: number; frontToBackBonus: number; frontToBackBonusH?: number;
   spellsThisTurn: number; spellsCast: number; deathrattlesTriggered: number;
+  /** Rune of Mastery: how many times an Improve step applies (2 with the rune, else 1). Spirit Worgen's
+   *  per-spell scaling folds it so the printed per-play grant matches what the sim actually adds. */
+  improveReps?: number;
   clingEnchant?: { attack: number; health: number };
   fodderConsumed?: { attack: number; health: number };
   undeadBuyAtk: number; soulsmanGold: number; cardBuffs?: Record<string, { attack: number; health: number }>;
@@ -58,7 +61,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             engraveTallyText(c.id, p.permaGain) ?? // combat-only: null in the shop (no permaGain)
             watcherText(c.id, p.golden, p.spellBonus, p.spellBonusH) ?? // Watcher: live Lantern buff +x/+y (base + spell power, both stats)
             abhorrentHorrorText(c.id, p.fodderConsumed, p.golden) ??
-            summonScalingText(c.id, p.spellsThisTurn, p.golden) ?? // Spirit Worgen: recruit-only per-play scaling
+            summonScalingText(c.id, p.spellsThisTurn * (p.improveReps ?? 1), p.golden) ?? // Spirit Worgen: recruit-only per-play scaling (per-spell part ×2 under Rune of Mastery)
             runescaleText(c.id, p.golden, p.spellProgress ?? 0) ??
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
             packLeaderText(c.id, p.summonBonus ?? 0, p.golden) ??
@@ -111,7 +114,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -129,7 +132,7 @@ export function instView(
     overflowBonus: inst.overflowBonus,
     hpGrantBonus: inst.hpGrantBonus, eotTick: eotTickShown, eotBonus: inst.eotBonus, sellBonus: inst.sellBonus,
     playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff,
-    lastSpellName: live?.lastSpellName, grantedTier: inst.grantedTier,
+    lastSpellName: live?.lastSpellName, grantedTier: inst.grantedTier, improveReps: live?.improveReps,
   });
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.
@@ -171,6 +174,6 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
     m, run.tier, undefined, spellAttackBonus(run), spellHealthBonus(run), run.spellsThisTurn,
     run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus,
     run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn,
-    { undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: run.cardBuffs },
+    { undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: run.cardBuffs, improveReps: run.runeMastery ? 2 : 1 },
   );
 }

@@ -14,10 +14,14 @@ first, auto-welds just play at their own timing; "yellow/glow/fizz/spark shot as
   new render loop, one-shot, never touches the beat clock): a gold core bloom, one tight ring snapping
   outward, a radial spark fizz, and motes shot UPWARD off the card (`riseGravity` negative = they keep
   climbing — that's the "ascension" read, vs. a plain radial burst).
-- **Sim signal**: `stampWeldFx(state, uid, kind)` fires from inside `weldMagnetic` — the ONE chokepoint,
-  so all 7 weld call sites (+ Beatboxer's mimic welds) animate with zero per-site wiring. Only the
-  reducer's hand-play site passes `'play'`; everything else defaults to `'auto'`. Monotonic seq like the
-  other FX signals — no reducer clear, no snapshot change.
+- **Sim signal**: `stampWeldFx(state, uids, kind)` fires from inside `weldMagnetic` — the ONE chokepoint,
+  so all 7 weld call sites animate with zero per-site wiring. Only the reducer's hand-play site passes
+  `'play'`; everything else defaults to `'auto'`. Monotonic seq like the other FX signals — no reducer
+  clear, no snapshot change. The payload is **plural**: one weld can land on several minions, because a
+  **Beatbot mirrors every weld onto itself** — the first cut stamped only the host and could carry a single
+  uid, so Beatbots visibly gained the attachment with no pulse (owner report). The stamp now runs AFTER the
+  mirror loop and collects every minion the weld touched; 5 regression tests pin it (host-only, host + N
+  Beatbots, a weld ONTO a Beatbot not double-reporting, hand-play kind, and EoT welds surfacing on the beat).
 - **Hand-play timing is free**: the existing `magslide` (the drag overlay shrinking into the host,
   `magSlideMs` in DragTuner) already runs BEFORE the dispatch, so the pulse lands exactly as the card
   merges — no new motion code.

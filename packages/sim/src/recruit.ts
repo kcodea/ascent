@@ -356,13 +356,15 @@ export function auraFxTargets(state: RunState, tribe: AuraFxTribe): string[] {
 
 /** Stamp the one-shot Fodder Infusion FX signal: `uid` = the SOURCE card queuing Fodder for the tavern —
  *  the UI reaches tendrils from that unit up to the shop line. */
-/** Stamp the one-shot WELD FX signal: `uid` = the HOST that just gained an Attachment; `kind` marks a
- *  hand-PLAYED Magnetic (the card slides in first, so the UI fires the pulse as it merges) vs an AUTO weld
- *  (Banksly/Beatbot, Combinator, Cling Drones, Money Bots — the pulse plays at the weld's own moment).
- *  Monotonic seq like the other FX signals — never cleared; the UI dedupes against its last-seen value. */
-export function stampWeldFx(state: RunState, uid: string, kind: 'play' | 'auto'): void {
+/** Stamp the one-shot WELD FX signal: `uids` = EVERY minion that just gained an Attachment (the host, plus
+ *  each Beatbot that mirrored the weld onto itself); `kind` marks a hand-PLAYED Magnetic (the card slides in
+ *  first, so the UI fires the pulse as it merges) vs an AUTO weld (Banksly, Combinator, Cling Drones, Money
+ *  Bots — the pulse plays at the weld's own moment). Monotonic seq like the other FX signals — never cleared;
+ *  the UI dedupes against its last-seen value. */
+export function stampWeldFx(state: RunState, uids: string[], kind: 'play' | 'auto'): void {
+  if (uids.length === 0) return;
   state.weldFxSeq = (state.weldFxSeq ?? 0) + 1;
-  state.weldFxUid = uid;
+  state.weldFxUids = [...new Set(uids)];
   state.weldFxKind = kind;
 }
 
@@ -552,10 +554,10 @@ function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
  * magnetized — onto the host AND each copy Beatboxer mimics onto itself — stacks the Cling improvement.
  */
 export function weldMagnetic(state: RunState, host: BoardCard, mag: MagnetPayload, clings = 0, kind: 'play' | 'auto' = 'auto'): void {
-  stampWeldFx(state, host.uid, kind); // weld FX cue — one chokepoint, so every weld path animates
   applyWeld(host, mag, 1);
   host.attachments = (host.attachments ?? 0) + 1; // one Attachment welded on — drives Blueprint Cache
   bakeAttachmentAura(state, host);
+  const welded = [host.uid]; // every minion this weld lands on — ALL of them pulse (owner report: Beatbot didn't)
   let totalClings = clings; // Clings welded onto the host
   for (const bb of state.board) {
     if (bb.cardId === 'beatboxer' && bb.uid !== host.uid) {
@@ -563,10 +565,12 @@ export function weldMagnetic(state: RunState, host: BoardCard, mag: MagnetPayloa
       applyWeld(bb, mag, mult);
       bb.attachments = (bb.attachments ?? 0) + mult; // Beatboxer mirrors the weld onto itself
       bakeAttachmentAura(state, bb);
+      welded.push(bb.uid);
       totalClings += clings * mult; // Beatboxer magnetizes Cling copies onto itself — those stack too
     }
   }
   if (totalClings > 0) improveClingDrones(state, totalClings);
+  stampWeldFx(state, welded, kind); // weld FX cue — stamped AFTER the mirror loop so Beatbots are included
 }
 
 /** A minion that RECEIVES an attachment inherits the run-wide Attachment aura (Scrap Herald's

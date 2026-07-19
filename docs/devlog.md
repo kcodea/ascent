@@ -101,6 +101,28 @@ Full guide: `docs/card-sets.md`.
 
 ## 2026-07-19 (later)
 
+### fix(ui): scale the damage-float animations with combatSpeed
+
+Found while re-reading the timing tables after the pacing pass. The float's React cleanup timers divide by
+`combatSpeed` (`floatMs` 1500 / `deathFloatMs` 1000 in `useCombatReplay`), but the CSS animation durations
+were **fixed** — `--float-dur` is only ever pushed by the DEV Float tuner, so production fell through to the
+`1.4s` CSS fallback, and `.deathfloat .float` was a hardcoded `0.9s`.
+
+`floatup` holds **opacity 1 until 80%** and only fades over the last 20%. So above ~1.07× the cleanup fired
+while the number was still fully bright and it **popped out of existence instead of fading**. At the owner's
+1.6× that's a removal at 937ms into a 1400ms animation (67% — still opacity 1); at 5× it vanished at 21%.
+
+`applyFloatSpeed(combatSpeed)` now divides both durations by the live speed and re-pushes the vars, wired to a
+`combatSpeed` effect in Recruit; `.deathfloat .float` reads a new `--death-float-dur`. At 1× everything is
+byte-identical to the shipped fallbacks. Extracted `floatDurations()` as a pure helper so the invariant —
+*the fade must finish before the cleanup removes the node* — is unit-tested across the store's full 0.5–5×
+clamp without needing a DOM (3 new tests).
+
+Note this is one instance of the broader roadmap item "CSS combat animations are fixed seconds and ignore
+combatSpeed while holds ÷ and Pixi/GSAP × it"; the death/lunge CSS still has the same mismatch.
+
+Verified: typecheck + lint + test (1221) + build:web green.
+
 ### tweak(ui): size the plain attacker-death hold to its float (850 → 550)
 
 Owner asked what a lunging attacker's death actually costs end to end. Writing it out exposed an error in the

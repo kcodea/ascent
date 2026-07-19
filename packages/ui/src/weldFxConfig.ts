@@ -54,20 +54,19 @@ export interface WeldFxConfig {
   wiggleScale: number;   // × — the bounce (1 = none; 1.06 = a 6% pop at the peak)
 }
 
-// Owner-tuned 2026-07-18: a spinning PENTAGON (5 sides, oriented 90°, spinning 65° as it closes) ringed by
-// 22 inward spokes, converging fast (290ms) over a SHORT travel — 170 → 110px, so it settles as a ring
-// encircling the card rather than collapsing onto it. Soft ring (α 0.6), a big landing flash (98), fast
-// wide-spread sparks (450 speed / 115 spread), and a punchy wiggle (510ms, 5.5px, 2.2°, 1.12 bounce).
-// Ease bars 0.5 / 0.14 — an even departure into a near-linear arrival.
+// Owner-tuned 2026-07-18 (v2): a spinning PENTAGON (5 sides, oriented 90°, spinning 125° as it closes)
+// inside a corona of 24 long inward spokes (51px, 19px gap, full alpha), converging in 290ms all the way
+// down onto the card (210 → 42px). Soft ring (α 0.6) under a big bright landing flash (100 / 480ms / α 1),
+// then 60 small sparks that FALL (gravity +180) rather than rise. Ease bars 0.56 / 0.24.
 const DEFAULTS: WeldFxConfig = {
-  ringStart: 170, ringEnd: 110, ringMs: 290, ringWidth: 6, ringAlpha: 0.6, ringGlowWidth: 6,
-  ringSides: 5, ringAspect: 1, ringRotation: 90, ringSpin: 65,
-  easeStart: 0.5, easeFinish: 0.14,
-  spokeCount: 22, spokeLen: 16, spokeWidth: 2, spokeAlpha: 0.8, spokeGap: 4,
-  flashSize: 98, flashMs: 300, flashAlpha: 0.85,
-  sparkCount: 18, sparkSpeed: 450, sparkSpread: 115, sparkSize: 5, sparkLife: 700, sparkGravity: -30,
+  ringStart: 210, ringEnd: 42, ringMs: 290, ringWidth: 6, ringAlpha: 0.6, ringGlowWidth: 6,
+  ringSides: 5, ringAspect: 1, ringRotation: 90, ringSpin: 125,
+  easeStart: 0.56, easeFinish: 0.24,
+  spokeCount: 24, spokeLen: 51, spokeWidth: 3, spokeAlpha: 1, spokeGap: 19,
+  flashSize: 100, flashMs: 480, flashAlpha: 1,
+  sparkCount: 60, sparkSpeed: 250, sparkSpread: 100, sparkSize: 3, sparkLife: 700, sparkGravity: 180,
   playScale: 1.1, autoScale: 1.05,
-  wiggleMs: 510, wigglePx: 5.5, wiggleDeg: 2.2, wiggleScale: 1.12,
+  wiggleMs: 510, wigglePx: 3, wiggleDeg: 2.2, wiggleScale: 1.12,
 };
 
 export const WELDFX_KEYS = [

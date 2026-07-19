@@ -212,7 +212,10 @@ export const NEUTRAL: CardDef[] = [
     tier: 4,
     attack: 6,
     health: 4,
-    keywords: ['DS', 'W'],
+    // RL: its text says **Rally:** but the keyword was missing — so the rally quest tally, the Rally
+    // doublers, and Rune of Rallying's SoC pass all skipped it (owner bug 2026-07-18). The strip factory
+    // itself is target-guarded, so doubler/SoC re-fires without a target no-op safely.
+    keywords: ['DS', 'W', 'RL'],
     effects: [{ on: 'onAttack', do: 'onAttackStripKeywords', params: { keywords: ['T', 'R'] } }],
     text: '**Rally:** Remove **Taunt** and **Rise** from the target before striking.',
   },

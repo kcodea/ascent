@@ -14,6 +14,15 @@ unambiguous 1:1; flagged for owner veto). The Special Rune Rewards subfolder's c
 name match: Feasting Bogrot + Reconfigured Combinator. `npm run optimize-art` → 63 files, 154.5MB →
 3.04MB WebP. Every rune now shows real art (no more sigil-glyph fallback); build:web green.
 
+### fix(content): Tauntbreaker's Rally counts for Rally quests (missing RL keyword)
+
+Owner bug: Tauntbreaker's text says **Rally:** but its def lacked the `RL` keyword — and the combat
+rally tally (`bumpRally`), the Rally doublers (Law of Teeth / Rallying Offensive / Spark Permit), and
+Rune of Rallying's SoC pass all key on `keywords.includes('RL')`, so its attacks never counted. Added
+`RL` to the def; the strip factory is target-guarded, so doubler / SoC re-fires without a target no-op
+safely. 1 regression test (its swings produce playerRallies) + full suite (1167) + typecheck + lint +
+build:web green.
+
 ### fix(core): Start-of-Combat triggers get their own beats + badge pulses (audit follow-up)
 
 First fixes out of the combat-pacing audit — SoC-time run modifiers that applied silently (or pulsed

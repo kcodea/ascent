@@ -184,6 +184,17 @@ export function synthesizeWaveFromCurve(
   seed: number,
   opts: CurveSynthOptions,
 ): BoardSnapshot[] {
+  // Fail LOUDLY on an empty set. Without this the tribe pools are empty, `buildTribeBoard` indexes into
+  // nothing, and the bake dies ~40 frames later with "Cannot read properties of undefined (reading
+  // 'attack')" — which says nothing about the actual cause. You hit this by baking a set before its cards
+  // land, which is exactly what happens while a new set is being authored.
+  const setId = opts.setId ?? 'set1';
+  if (poolFor(setId).buyable.length === 0) {
+    throw new Error(
+      `Cannot synthesize opponent boards: set '${setId}' has no buyable minions. ` +
+      `Add cards to SETS.${setId}.own (or give it an \`inherits\`) before baking its pool — see docs/card-sets.md.`,
+    );
+  }
   const rng = makeRng(seed);
   const procSeeds = opts.proceduralSeeds ?? 4;
   // The tuned enemy curve at this wave: 5 archetypes × procSeeds, spanning width + power weak→strong.

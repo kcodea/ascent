@@ -3,6 +3,31 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-19 (set 2 empty)
+
+### chore(content): set 2 starts EMPTY (opt-in), + a loud guard for baking an empty set
+
+Owner call: set 2 is being authored externally (a sheet, dropped in), so an explicit `own` list is the
+manifest. Dropped `inherits: 'set1'` — set 2 was previously resolving to an exact clone of set 1 (119
+buyable / 37 spells), which is a fine default when the overlap is large but wrong when you intend to opt
+cards in one at a time. Both styles still compose; `own` always appends last.
+
+Two guards came out of it, because "empty set" is now a real state the code can be in:
+
+- **The bake refuses an empty set with a message that names it.** Previously `SET=set2 npm run pool` on an
+  empty set died ~40 frames deep with `Cannot read properties of undefined (reading 'attack')` — the tribe
+  pools were empty and `buildTribeBoard` indexed into nothing. That is exactly the error you'd hit while
+  authoring a set, so it now throws `set 'set2' has no buyable minions` up front.
+- **`sets.test.ts` fails if the ACTIVE set has no buyable minions**, so an empty set can be defined but not
+  shipped live — enabling set 2 before its cards land breaks the suite rather than the game.
+
+Also made the resolution test derive its expectation from the registry instead of hardcoding set 2's shape,
+so it keeps testing the resolution LOGIC as the sets change (it had assumed set 2 was a set-1 clone, and
+would have gone green-but-meaningless the moment that changed).
+
+Set 1 unchanged and re-verified: 119 buyable / 37 spells, byte-identical ordering to the pre-sets flat pool.
+1218 tests + typecheck + lint + build:web green.
+
 ## 2026-07-19 (card sets)
 
 ### feat(content): card sets — parallel authoring + a one-line live flip

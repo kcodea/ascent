@@ -28,16 +28,23 @@ the right question when starting a new run. Everything else wants `poolOf(state)
 set3: {
   id: 'set3', name: 'Set 3', blurb: '…',
   enabled: false,
-  inherits: 'set2',                 // the overlap — start from another set's pool
-  excludes: ['oldcard', 'retired'], // …minus what you don't want
-  own: [...SET3_BEASTS, ...SET3_MECHS],
+  own: [...SET3_BEASTS, ...SET3_MECHS],   // opt cards IN — this is how set 2 is configured
+  // …or start from another set and trim, if the overlap is large:
+  // inherits: 'set2',
+  // excludes: ['oldcard', 'retired'],
 },
 ```
+
+Both styles compose, and `own` always appends last. **Set 2 currently starts empty and opts in**, because it's
+being authored externally and dropped in — an explicit `own` list is the manifest.
 
 3. Flip `enabled: true` (and `false` on the outgoing set) when it goes live.
 
 Resolution is `inherits − excludes + own`, **in that order**. `own` appends at the end, so adding cards to a
-set never disturbs the prefix it inherited.
+set never disturbs the prefix it inherited. With no `inherits`, the set is just `own`.
+
+An **empty** set is legal to define but not to ship: `sets.test.ts` fails if the *active* set has no buyable
+minions, and the pool bake refuses with a message naming the set rather than crashing deep in the synth loop.
 
 ## Determinism — the part to internalise
 

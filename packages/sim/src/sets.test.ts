@@ -28,11 +28,23 @@ describe('card sets — registry', () => {
   });
 
   it('resolves inherits − excludes + own, in that order', () => {
-    const base = poolFor('set1').all.map((c) => c.id);
-    // set 2 currently inherits set 1 wholesale, so it should be a prefix-preserving superset.
-    const two = poolFor('set2').all.map((c) => c.id);
-    const excluded = new Set(SETS.set2.excludes ?? []);
-    expect(two.slice(0, base.length - excluded.size)).toEqual(base.filter((id) => !excluded.has(id)));
+    // Derived from the registry rather than hardcoded, so this keeps testing the RESOLUTION LOGIC as the
+    // sets themselves change shape (set 2 started as a set-1 clone, then became empty-and-opt-in).
+    for (const def of Object.values(SETS)) {
+      const inherited = def.inherits
+        ? poolFor(def.inherits).all.map((c) => c.id).filter((id) => !(def.excludes ?? []).includes(id))
+        : [];
+      const expected = [...inherited, ...def.own.map((c) => c.id)]
+        .filter((id, i, arr) => arr.indexOf(id) === i); // first occurrence wins, order preserved
+      expect(poolFor(def.id).all.map((c) => c.id), `${def.id} resolution`).toEqual(expected);
+    }
+  });
+
+  it('the ACTIVE set is never empty — an empty set live means an empty shop', () => {
+    // The footgun this guards: set 2 starts empty by design, so enabling it before its cards land would
+    // ship a game with nothing to buy. Failing here is the intended way to find that out.
+    expect(poolFor(activeSet().id).buyable.length,
+      `the active set (${activeSet().id}) has no buyable minions`).toBeGreaterThan(0);
   });
 
   it('a set never contains the same card twice, even if it inherits and redeclares it', () => {
@@ -122,9 +134,18 @@ describe('card sets — synthesized boards carry their set', () => {
   const ladders = buildWaveLadders([], [], [], { proceduralWaves: 3, proceduralSeeds: 2 });
 
   it('stamps the set it built from', () => {
-    const boards = synthesizeWaveFromCurve(2, ladders, 99, { perWave: 3, proceduralSeeds: 2, setId: 'set2' });
+    // set 2 ships empty, so build the case out of set 1's cards and assert the STAMP, which is the property
+    // under test. (The empty-set path is covered below.)
+    const boards = synthesizeWaveFromCurve(2, ladders, 99, { perWave: 3, proceduralSeeds: 2, setId: 'set1' });
     expect(boards.length).toBeGreaterThan(0);
-    expect(boards.every((b) => b.setId === 'set2')).toBe(true);
+    expect(boards.every((b) => b.setId === 'set1')).toBe(true);
+  });
+
+  it('refuses to bake an EMPTY set with a message that names the cause', () => {
+    // Baking a set before its cards land is the normal state of affairs while authoring one. Without the
+    // guard this died deep in the synth loop with "Cannot read properties of undefined (reading 'attack')".
+    expect(() => synthesizeWaveFromCurve(2, ladders, 99, { perWave: 3, proceduralSeeds: 2, setId: 'set2' }))
+      .toThrow(/set 'set2' has no buyable minions/);
   });
 
   it('defaults to set1 when unspecified, so existing bakes keep their meaning', () => {

@@ -16,7 +16,7 @@ export interface CombatQuestDelta {
 import { sfx } from './sfx';
 import { liveBoardView } from './instView';
 import { loadStoredBoards, saveRunBoards } from './boardLibrary';
-import { fetchAndRegisterPool, recordFightResult, uploadBoards, uploadPlayerProfile, uploadRunTelemetry, uploadVictory } from './remoteBoards';
+import { fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, refreshOpponentPoolAndRecords, uploadBoards, uploadPlayerProfile, uploadRunTelemetry, uploadVictory } from './remoteBoards';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, saveRunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
 import { turnClock } from './turnClock';
@@ -33,6 +33,8 @@ if (OPPONENT_POOL.length === 0) registerOpponents([...OPPONENT_POOL_DATA, ...loa
 // pool, so replays stay faithful. Matches by version prefix (`<version>+`) so per-commit SHA churn doesn't hide
 // boards. No-ops entirely when no backend is configured; the committed OPPONENT_POOL_DATA is the offline floor.
 void fetchAndRegisterPool(`${__APP_VERSION__}+`);
+// Board win-rate records for matchmaking weighting — same startup moment, same session-static contract.
+void fetchAndRegisterBoardRecords();
 
 /** How many heroes the pre-run picker offers (or all of them, if fewer exist). */
 const HERO_SELECT_COUNT = 3;
@@ -430,6 +432,10 @@ export const useGame = create<GameStore>((set, get) => ({
           const fresh = saveRunBoards(replay, author);
           set({ lastRunBoards: fresh.length }); // A6: surface "you contributed N boards" on the end screen
           void uploadBoards(fresh);
+          // Between-runs pool + win-rate refresh (owner ask 2026-07-18): the NEXT run in this session sees
+          // fresh remote boards (registerOpponents dedupes) + fresh ledger weights. Delayed a beat so this
+          // run's own uploads above land first and can flow back in. Never mid-run — the run just ended.
+          setTimeout(() => refreshOpponentPoolAndRecords(`${__APP_VERSION__}+`), 4000);
           // The final board shown on the leaderboard + Career: the END-STATE board (the post-combat run.board,
           // with combat carry-backs baked in), enriched with the SAME live view the end screen renders — final
           // stats incl. run-wide auras + live scaling text (a maxed-out Sergeant reads its real grant, not the

@@ -15,4 +15,5 @@ export * from './synthesize';
 export * from './balanceReport';
 export * from './runTelemetry';
 export * from './opponentPool.data';
+export { MATCHMAKING, adjustedWinRate, bandWeight, boardRecord, clearBoardRecords, registerBoardRecords, selectionWeight, type BoardRecord } from './matchmaking';
 export { addBuff, boardManaBonus, cardBuff, dragonTamerCostOf, endOfTurnRepeats, isTribe, magnetizeTargets, offerBuyStats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellCasts, spellCostReduction, implosionCasts, spellDisplayText, spellStatBonus, spellAttackBonus, spellHealthBonus, undeadBuyBonus, type EotStepFx } from './recruit';

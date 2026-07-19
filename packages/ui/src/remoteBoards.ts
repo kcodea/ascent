@@ -14,7 +14,7 @@
  * seeds should still pin to the committed pool only (see docs/board-pool.md).
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { CONFIG, registerOpponents, type BoardSnapshot, type RunTelemetry } from '@game/sim';
+import { CONFIG, registerBoardRecords, registerOpponents, type BoardSnapshot, type RunTelemetry } from '@game/sim';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -398,4 +398,43 @@ export async function fetchBoardStats(boardIds: string[], round?: number): Promi
   } catch {
     return new Map();
   }
+}
+
+// ── Board win-rate records (matchmaking weighting) ─────────────────────────────────────────────────────────
+// One bounded pull of the fight ledger, aggregated client-side into per-board {wins, fights} and registered
+// with the sim (matchmaking.ts). Fetched at startup and REFRESHED BETWEEN RUNS (owner ask 2026-07-18) —
+// never mid-run, so a run's weights stay static (same determinism scope as the pool). Best-effort like the
+// rest of this seam: no backend / un-migrated table → no records → every board sits at the neutral prior.
+const RECORDS_FETCH_LIMIT = 8000;
+export async function fetchAndRegisterBoardRecords(): Promise<number> {
+  const c = client();
+  if (!c) return 0;
+  try {
+    const request = Promise.resolve(
+      c.from('board_results').select('board_id, outcome').order('created_at', { ascending: false }).limit(RECORDS_FETCH_LIMIT),
+    );
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+    const result = await Promise.race([request, timeout]);
+    if (!result || result.error || !result.data) return 0;
+    const agg = new Map<string, { wins: number; fights: number }>();
+    for (const r of result.data as { board_id: string; outcome: string }[]) {
+      const rec = agg.get(r.board_id) ?? { wins: 0, fights: 0 };
+      rec.fights += 1;
+      if (r.outcome === 'win') rec.wins += 1;      // board-perspective: 'win' = the served board beat the player
+      else if (r.outcome === 'tie') rec.wins += 0.5; // a draw counts half, both sides
+      agg.set(r.board_id, rec);
+    }
+    registerBoardRecords(agg);
+    return agg.size;
+  } catch {
+    return 0;
+  }
+}
+
+/** Between-runs refresh (owner ask 2026-07-18): re-pull the shared pool (registerOpponents dedupes, so only
+ *  NEW boards append) + the fight-ledger records, so consecutive runs in one session see fresh opponents and
+ *  fresh win-rates. Fire-and-forget from the run-end boundary — never called mid-run. */
+export function refreshOpponentPoolAndRecords(patchPrefix?: string): void {
+  void fetchAndRegisterPool(patchPrefix);
+  void fetchAndRegisterBoardRecords();
 }

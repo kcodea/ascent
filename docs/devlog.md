@@ -5,6 +5,35 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-18
 
+### feat(sim): win-rate matchmaking — ledger-weighted opponents + loss-streak softener + revived pinning
+
+The owner-designed matchmaking v1 (built to be ITERATED OR TURNED OFF — every dial in `matchmaking.ts`,
+master switch `winrateWeighting`):
+- **Weighted pick, last pipeline stage.** Each candidate's chance ∝ its band weight from the fight
+  ledger's Bayesian-adjusted BOARD win-rate ((wins+5)/(fights+10) — a 4–0 board reads 64%). Owner bands:
+  1.0 / 1.0 / 0.75 / 0.35 / 0.15 / 0.09 across <30 / 30–55 / 55–65 / 65–75 / 75–90 / 90%+. Bosses stay
+  in the pool (0.09 — never quarantined). Weighting sits AFTER the wave filter, the live-over-forged
+  source cascade, and the no-repeat exclusion, so it can never override them. Unproven/synthetic boards
+  sit at the neutral prior (full weight) — the system phases itself in as the ledger grows.
+- **Loss-streak softener, once per streak.** 2 straight losses: >65% boards ×0.3; 3+: the 30–50% band
+  additionally ×2. Weight-shifts, never exclusions. The softener SPENDS when it influences a pick (at the
+  pin) and re-arms only when a win breaks the streak. Draws neither extend nor break the streak.
+- **Opponent pinning revived** (died with the scrapped #542): the wave's pick is stamped into
+  `servedBoards` on the first recruit action, `nextOpponent` prefers the pin (key-presence; NULL pins stay
+  procedural) — preview, fight, and a reloaded session always agree. Matters MORE now: weights drift
+  between sessions as the ledger grows.
+- **Between-runs pool + records refresh** (owner ask): run-end re-pulls the shared pool
+  (`registerOpponents` now dedupes by `oppKey` — idempotent) + the ledger records, so consecutive runs in
+  one session see fresh boards and fresh weights. Never mid-run — a run's pool + weights stay static.
+- Data: one bounded `board_results` pull aggregated client-side (board perspective: 'win' = the board beat
+  the player; ties count half), registered at startup + run-end.
+
+Verified: 10 new tests (prior math, owner band weights, boss ≈8% share over 400 seeds vs 50% uniform,
+cascade/no-repeat precedence over weighting, master-switch legacy path byte-identical, pin beats pool
+drift, NULL-pin stays procedural, once-per-streak spend, dedupe idempotence) + full suite (1177) +
+typecheck + lint + build:web green. NB: expect Renown/Oath calibration drift as weighting shifts average
+opponent strength — re-tune after real data accrues.
+
 ### chore(art): full rune art pass — all 61 runes + 2 reward cards wired
 
 Wired the owner's new master drop (`C:/Game Assets/Ascent Art/Runes`, 155MB) — name-mapped all 60

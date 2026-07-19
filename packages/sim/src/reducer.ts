@@ -10,6 +10,7 @@ import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
 import { addBuff, addOfferBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
+import { MATCHMAKING } from './matchmaking';
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
  *  for buys, rerolls, tier-ups and hero powers. */
@@ -158,7 +159,19 @@ export function refreshCostOf(s: RunState): number {
 /** No-repeat window: the player never faces the same opponent within this many rounds (owner rule 2026-07-15). */
 const NO_REPEAT_ROUNDS = 4;
 
+/** The loss-streak softener is armed for the NEXT pick iff the streak is long enough AND it hasn't already
+ *  influenced a pick this streak (once per streak — owner call 2026-07-18). Spent at the boundary pin. */
+function streakSoftenerLosses(s: RunState): number {
+  const losses = s.lossStreak ?? 0;
+  return losses >= MATCHMAKING.streak.after && !s.streakSoftened ? losses : 0;
+}
+
 export function nextOpponent(s: RunState): BoardSnapshot | null {
+  // THE PIN WINS (reload-divergence fix, revived 2026-07-18): once this wave's opponent is stamped into
+  // `servedBoards` (on the first recruit action of the turn — see the reduce() boundary — or at faceOmen),
+  // every reader serves it verbatim: the recruit preview, the fight, and a reloaded session. Key-presence
+  // check, not truthiness — a NULL pin means "this wave fought the procedural threat" and stays procedural.
+  if (s.servedBoards && s.wave in s.servedBoards) return s.servedBoards[s.wave] ?? null;
   // Match on WAVE (same development stage — see pickOpponent). Power (captured at TURN START, so the
   // telegraphed foe stays fixed as you shop) is the fairness tiebreak among same-wave boards.
   // No-repeat: exclude the identities of the boards fought in the last NO_REPEAT_ROUNDS waves (recorded in
@@ -169,7 +182,7 @@ export function nextOpponent(s: RunState): BoardSnapshot | null {
     const b = s.servedBoards?.[w];
     if (b) exclude.add(oppKey(b));
   }
-  return pickOpponent(s.wave, s.turnStartPower, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)), undefined, exclude);
+  return pickOpponent(s.wave, s.turnStartPower, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)), undefined, exclude, streakSoftenerLosses(s));
 }
 
 /** Loss-damage cap by round — the most Resolve a single loss can cost, ramping up as the course escalates:
@@ -228,6 +241,20 @@ export function reduce(state: RunState, action: Action): RunState {
   state.recruitBuffFx = [];
   state.auraFx = undefined; // same per-action scratch contract as recruitBuffFx (auraFxSeq stays monotonic)
   stampImproveReps(state); // Rune of Mastery: mirror the state's Improve multiplier for the stateless addBuff hook
+  // Pin this wave's opponent on the FIRST recruit action of the turn (reload-divergence fix, revived
+  // 2026-07-18): the pick is stamped into `servedBoards` as soon as the turn is played, so the telegraphed
+  // foe survives a reload instead of being re-picked from a session-variable pool (Supabase drift / fetch
+  // timing — and now ledger-weight drift too). faceOmen's own pinning stays as the fallback for a turn with
+  // zero prior actions. A null pick (empty pool → procedural fallback) is never pinned — later actions
+  // retry as the pool fills. Pinning while the loss-streak softener is armed SPENDS it (once per streak).
+  if (state.phase === 'recruit' && !(state.wave in (state.servedBoards ?? {}))) {
+    const softening = streakSoftenerLosses(state) > 0;
+    const preview = nextOpponent(state);
+    if (preview) {
+      state.servedBoards = { ...(state.servedBoards ?? {}), [state.wave]: preview };
+      if (softening) state.streakSoftened = true;
+    }
+  }
   const next = reduceCore(state, action);
   // onGainAttack reactors (Hunter — "when this gains Attack, give your minions +Health") fire whenever a
   // recruit action raises a BOARD minion's Attack, from ANY source (Fortify, spells, tribe Battlecries,
@@ -1576,6 +1603,10 @@ function combineIntoGolden(s: RunState, tripleId: string, combined: BoardCard[])
 function settleCombat(s: RunState, result: CombatResult): void {
   // Record this wave's result for the end-screen W-L-W summary (every combat, win or lose).
   s.history.push(result.result);
+  // Loss-streak tracking (matchmaking softener): a loss extends the streak; a WIN breaks it and re-arms the
+  // once-per-streak softener. A draw neither extends nor breaks — it just doesn't stop the bleeding.
+  if (result.result === 'lose') s.lossStreak = (s.lossStreak ?? 0) + 1;
+  else if (result.result === 'win') { s.lossStreak = 0; s.streakSoftened = undefined; }
   // Dupes: "Win N rounds" advances on a won combat.
   if (result.result === 'win') advanceQuests(s, (o) => o.event === 'winRound');
   // The Author's Hand compound objective: its Echo + Rally halves accrue from this combat's tallies (its Shout

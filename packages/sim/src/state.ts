@@ -579,6 +579,10 @@ export interface RunState {
   consumesThisTurn?: number;
   /** The FIRST spell cast this turn (Rune of Recurrence recasts it at End of Turn). Reset each wave. */
   firstSpellThisTurnId?: string;
+  /** Consecutive combat losses (a win resets; a draw preserves) — the matchmaking loss-streak softener input. */
+  lossStreak?: number;
+  /** The once-per-streak softener already influenced a pick this streak — disarmed until a win re-arms it. */
+  streakSoftened?: boolean;
   /** Food for Gold (Demon greater): armed reward — every `per` Gold spent adds a Fodder to the next shop and
    *  bumps the run-wide Fodder aura by +attack/+health. `foodForGoldTick` carries the sub-`per` Gold remainder. */
   foodForGold?: { per: number; attack: number; health: number };

@@ -48,9 +48,12 @@ Engine + UI + all six tribes' quest content shipped. What's left is polish + cov
 
 ### Rating & matchmaking quality
 Per-wave ratings are now trustworthy (synthetic all-wave pool); the run's par Line is rating-driven.
-- **Rating-aware matchmaking** is intentionally off (rating is expectation, not difficulty). Revisit once the
-  board pool is larger. Path: **early** wave-first (today) → **mid** wave + strength/rating band → **late**
-  wave + rating band + record-similarity. Invariant: *any legal board may be served at combat time.*
+- **Win-rate weighted matchmaking v1 SHIPPED 2026-07-18** (ledger-weighted bands + loss-streak softener +
+  pinning + between-runs refresh; all dials + master switch in `matchmaking.ts` — expect iteration).
+  Watch for: Renown/Oath calibration drift as average opponent strength shifts; self-play bias while the
+  ledger is small; consider a back-to-back guard (never two 75%+ boards consecutively). The old
+  rating-aware path (wave + rating band + record-similarity) remains the LATER evolution.
+  Invariant kept: *any legal board may be served at combat time* (boss floor 0.09, no quarantine).
 - **New-Line grace** — soften the first misses after a promotion (`lineGrace` field reserved).
 - **Seed veterans' rating from history** — optional backfill for players with pre-rating runs. (Surfacing the
   per-run Renown Δ on Career match cards shipped 2026-07-17 in the Standout Stats panel.)

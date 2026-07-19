@@ -16,6 +16,7 @@
 import type { BoardMinion, Rng } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import type { BoardSnapshot } from './snapshot';
+import { MATCHMAKING, selectionWeight } from './matchmaking';
 
 /**
  * The served-opponent pool. Starts empty and is filled ONCE at startup via `registerOpponents` (committed
@@ -53,6 +54,9 @@ export function pickOpponent(
   /** Identities (`oppKey`) of boards the player faced too recently to serve again (the last N rounds). Excluded
    *  from the pick unless doing so would leave nothing to serve, in which case a repeat beats no opponent. */
   exclude: Set<string> = new Set(),
+  /** Loss-streak softener input: the CURRENT loss streak when the softener is armed + unspent for this pick,
+   *  else 0 (the caller — `nextOpponent` — gates the once-per-streak rule). See matchmaking.ts. */
+  streakLosses = 0,
 ): BoardSnapshot | null {
   void power; // no longer weights the pick — kept so the call signature (and the recruit preview) stays stable
   if (pool.length === 0) return null;
@@ -84,8 +88,20 @@ export function pickOpponent(
   const remote = candidates.filter((s) => s.remote);
   const real = candidates.filter((s) => s.origin === 'self' || s.origin === 'friend');
   const tier = remote.length ? remote : real.length ? real : candidates;
-  // 4) Fully random within the chosen tier (uniform — no similar-power bias).
-  return tier[rng.int(tier.length)] ?? null;
+  // 4) Pick within the chosen tier. With win-rate weighting ON (matchmaking.ts — the LAST pipeline stage,
+  //    so it can never override the wave filter / source cascade / no-repeat above), each candidate's chance
+  //    is proportional to its ledger-derived band weight × the loss-streak softener. OFF = the exact legacy
+  //    uniform pick. Both paths consume one rng draw — deterministic for a given (pool, records, seed).
+  if (!MATCHMAKING.winrateWeighting) return tier[rng.int(tier.length)] ?? null;
+  const weights = tier.map((s) => selectionWeight(s, streakLosses));
+  const total = weights.reduce((a, b) => a + b, 0);
+  if (total <= 0) return tier[rng.int(tier.length)] ?? null; // degenerate all-zero → uniform, never empty
+  let roll = (rng.int(1_000_000) / 1_000_000) * total;
+  for (let i = 0; i < tier.length; i++) {
+    roll -= weights[i]!;
+    if (roll <= 0) return tier[i]!;
+  }
+  return tier[tier.length - 1] ?? null;
 }
 
 /** A fresh, mutation-safe clone of a snapshot's board for handing to `simulate` (protects the static pool). */
@@ -157,5 +173,15 @@ export function isServableBoard(snap: BoardSnapshot): boolean {
  * can poison the pool with an unfightable board.
  */
 export function registerOpponents(snaps: BoardSnapshot[]): void {
-  OPPONENT_POOL.push(...snaps.filter(isServableBoard));
+  // Dedupe by identity (`oppKey`): the between-runs pool refresh (owner ask 2026-07-18) re-fetches the full
+  // remote pool, so registration must be idempotent — only genuinely NEW boards append. Within a run the
+  // pool still never mutates (the refresh runs at run END), so replays stay byte-identical in-session.
+  const seen = new Set(OPPONENT_POOL.map(oppKey));
+  for (const s of snaps) {
+    if (!isServableBoard(s)) continue;
+    const k = oppKey(s);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    OPPONENT_POOL.push(s);
+  }
 }

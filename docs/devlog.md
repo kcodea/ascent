@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-18
 
+### fix(content): Tauntbreaker's Rally counts for Rally quests (missing RL keyword)
+
+Owner bug: Tauntbreaker's text says **Rally:** but its def lacked the `RL` keyword — and the combat
+rally tally (`bumpRally`), the Rally doublers (Law of Teeth / Rallying Offensive / Spark Permit), and
+Rune of Rallying's SoC pass all key on `keywords.includes('RL')`, so its attacks never counted. Added
+`RL` to the def; the strip factory is target-guarded, so doubler / SoC re-fires without a target no-op
+safely. 1 regression test (its swings produce playerRallies) + full suite (1167) + typecheck + lint +
+build:web green.
+
 ### fix(core): Start-of-Combat triggers get their own beats + badge pulses (audit follow-up)
 
 First fixes out of the combat-pacing audit — SoC-time run modifiers that applied silently (or pulsed

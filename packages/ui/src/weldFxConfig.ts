@@ -54,15 +54,20 @@ export interface WeldFxConfig {
   wiggleScale: number;   // × — the bounce (1 = none; 1.06 = a 6% pop at the peak)
 }
 
+// Owner-tuned 2026-07-18: a spinning PENTAGON (5 sides, oriented 90°, spinning 65° as it closes) ringed by
+// 22 inward spokes, converging fast (290ms) over a SHORT travel — 170 → 110px, so it settles as a ring
+// encircling the card rather than collapsing onto it. Soft ring (α 0.6), a big landing flash (98), fast
+// wide-spread sparks (450 speed / 115 spread), and a punchy wiggle (510ms, 5.5px, 2.2°, 1.12 bounce).
+// Ease bars 0.5 / 0.14 — an even departure into a near-linear arrival.
 const DEFAULTS: WeldFxConfig = {
-  ringStart: 190, ringEnd: 54, ringMs: 340, ringWidth: 3, ringAlpha: 0.95, ringGlowWidth: 7,
-  ringSides: 0, ringAspect: 1, ringRotation: 0, ringSpin: 0,
-  easeStart: 0.7, easeFinish: 0.1,
-  spokeCount: 8, spokeLen: 16, spokeWidth: 2, spokeAlpha: 0.8, spokeGap: 4,
-  flashSize: 70, flashMs: 260, flashAlpha: 0.85,
-  sparkCount: 18, sparkSpeed: 240, sparkSpread: 80, sparkSize: 7, sparkLife: 700, sparkGravity: -30,
-  playScale: 1, autoScale: 0.85,
-  wiggleMs: 420, wigglePx: 3, wiggleDeg: 1.6, wiggleScale: 1.04,
+  ringStart: 170, ringEnd: 110, ringMs: 290, ringWidth: 6, ringAlpha: 0.6, ringGlowWidth: 6,
+  ringSides: 5, ringAspect: 1, ringRotation: 90, ringSpin: 65,
+  easeStart: 0.5, easeFinish: 0.14,
+  spokeCount: 22, spokeLen: 16, spokeWidth: 2, spokeAlpha: 0.8, spokeGap: 4,
+  flashSize: 98, flashMs: 300, flashAlpha: 0.85,
+  sparkCount: 18, sparkSpeed: 450, sparkSpread: 115, sparkSize: 5, sparkLife: 700, sparkGravity: -30,
+  playScale: 1.1, autoScale: 1.05,
+  wiggleMs: 510, wigglePx: 5.5, wiggleDeg: 2.2, wiggleScale: 1.12,
 };
 
 export const WELDFX_KEYS = [

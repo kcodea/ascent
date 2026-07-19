@@ -41,10 +41,17 @@ rising** off it, while the card wiggles on the impact.
   Shape + easing are IDENTITY across play/auto — an auto weld is a smaller version of the same motion,
   not a different one; only sizes and counts take the magnitude scale.
 
+**Owner-tuned defaults baked** (same day): a spinning PENTAGON (5 sides, oriented 90°, spinning 65° as it
+closes) ringed by 22 inward spokes, converging fast (290ms) over a SHORT travel — 170 → 110px, so it
+settles as a ring encircling the card rather than collapsing onto it. Soft ring (α 0.6), a big landing
+flash (98), fast wide sparks (450 / 115 spread), punchy wiggle (510ms / 5.5px / 2.2° / 1.12), ease bars
+0.5 / 0.14. (Stale v1 keys in the handed-back JSON — core*/fizz*/rise* from the rejected radial-burst
+config still in localStorage — were dropped.)
+
 Verified live with a host + Beatbot: mid-converge = 2 rings / 0 particles, after landing = 0 rings /
 38 particles (the sequencing is real, not simultaneous); green burst false, 0 stat floats, 1 wiggle each;
-screenshot shows both rings mid-flight. 5 regression tests + full suite (1182) + typecheck + lint +
-build:web green.
+screenshots show both rings mid-flight and a circle + hexagon proving the shape dial. 5 regression tests +
+full suite (1182) + typecheck + lint + build:web green.
 
 ### feat(sim): win-rate matchmaking — ledger-weighted opponents + loss-streak softener + revived pinning
 

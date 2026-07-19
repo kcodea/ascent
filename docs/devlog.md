@@ -321,12 +321,35 @@ Three violations remained:
 **Verified:** `npm run typecheck`, `npm run lint`, `npm test` (1201 tests / 65 files), and `npm run build:web`
 all green. Not visually driven — owner eyeballs FX changes himself.
 
-**Follow-ups (filed to roadmap, NOT fixed here):** the audit surfaced a bigger shop-phase cost than any of the
-above — `ChargeGlyph`'s per-frame `--charge` write drives a `mask-image` gradient on three ~1144px layers,
-which is a full repaint every frame for the entire shop phase, plus a second continuous canvas particle loop
-(`ChargeMotes`). Both are per-frame and both quadruple at 240Hz. Also noted: `Card` uses default shallow memo
-(unlike `Unit`'s value comparator), so the per-rAF drag re-render of `Recruit` stays cheap only as long as the
-parent keeps props referentially stable.
+**Follow-up, since MEASURED and CLOSED — the charge glyph is fine.** From reading the source I claimed
+`ChargeGlyph`'s per-frame `--charge` write drove a `mask-image` repaint on "three ~1144px layers" and was the
+biggest remaining shop cost. **That was wrong on both counts, and the profile killed it.**
+
+Two corrections came out of a closer read, before any measurement. (1) The layer count: only **one** layer
+normally paints — `.charge-base` is `opacity: var(--cg-base-a, 0)` (zero by default) and `.charge-core` holds
+`opacity: 0` until `charge > bloomAt`. (2) The construction is heavier per-layer than described: the mask is a
+two-source composite (`url(turn-glyph.svg)` ∩ the gradient, `mask-composite: intersect`), and `.charge-fill`
+carries `filter: drop-shadow(0 0 40px …) drop-shadow(0 0 80px …)` — which the CSS comment itself already
+fingered: *"the drop-shadow glow is the heaviest bit — move it to the Pixi bloom layer if it costs frames."*
+
+Then it was profiled with a standalone harness reproducing the real construction (real SVG, real 1144×449
+geometry, real mask composite, real drop-shadows), four variants interleaved and run twice each. **Every
+variant — including the do-nothing control — sat at a 2.8ms median with ~360fps and zero frames over the
+4.16ms 240Hz budget.** Removing the drop-shadows changed nothing, so the CSS comment's hypothesis is disproven
+too; the proposed transform rewrite was the worst variant on outlier frames. Full table in the roadmap.
+
+Two honest limits: the harness is refresh-capped (it proves nothing here threatens the budget, not that the
+variants cost the *same* — it can't resolve sub-2.8ms deltas), and it isolates the glyph from the live card
+tree. But the isolated cost is far enough under budget that it isn't a plausible dominant term.
+
+**Method note worth keeping:** this could not be measured from any automated browser surface — the preview
+pane reports `hidden` with a 0×0 viewport, and even a real Chrome tab under automation returned **0 rAF frames
+in 2 seconds**. rAF is suspended in background tabs, so an rAF-driven effect can only be profiled in a tab the
+owner has focused. Any "measurement" taken otherwise is noise.
+
+Still open (unmeasured): `ChargeMotes`' continuous canvas loop, and `Card`'s default shallow memo (unlike
+`Unit`'s value comparator) under the per-rAF drag re-render of `Recruit`. Given how this one turned out,
+measure both before touching either.
 
 ## 2026-07-19 (later)
 

@@ -196,14 +196,29 @@ trigger"; avoid true undo until the rules are sturdier).
   in Settings.
 
 ### UI performance sweep (violates our own banned pattern)
-- **The turn-charge glyph repaints a large area every frame, for the whole shop phase.** `ChargeGlyph`'s rAF
-  writes `--charge`/`--feather` per frame, and those feed a `mask-image: linear-gradient(...)` on three
-  `.masked` layers (~1144px wide) — a mask-gradient recompute is a PAINT, not a composite, despite the
-  comment calling it compositor-friendly. Continuous, and it scales linearly with refresh rate (a 240Hz
-  target runs it 4× as often). Look at driving the wipe with a `transform` on a clip layer instead.
-  Confirm first with DevTools **Paint flashing**: sit in the shop doing nothing and watch the glyph region.
-- `ChargeMotes` runs a second continuous per-frame canvas particle loop for the whole charge session. Well
-  built (rects measured once at start), but it's real per-frame cost that also quadruples at 240Hz.
+- ~~The turn-charge glyph repaints a large area every frame.~~ **MEASURED 2026-07-19 — NOT a problem. Do not
+  "optimize" it.** The suspicion (per-frame `--charge` → `mask-image` recompute = a paint, plus the two
+  40px/80px `drop-shadow`s the CSS comment already fingered as "the heaviest bit") was tested with an isolated
+  A/B/C harness reproducing the real construction: the actual `turn-glyph.svg`, real 1144×449 geometry,
+  SVG∩gradient `mask-composite: intersect`, and the real drop-shadows. Four variants, interleaved, twice each,
+  on a 360Hz display:
+
+  | variant | median frame | frames >4.16ms |
+  |---|---|---|
+  | idle (control, nothing animating) | 2.8ms | 0 |
+  | **shipped** (SVG∩gradient + both drop-shadows) | **2.8ms** | 0 |
+  | noGlow (same, drop-shadows removed) | 2.8ms | 0 |
+  | transform (static mask, transform-only — the proposed "fix") | 2.8ms | 4 |
+
+  Every variant pins to the refresh interval (2.8ms ≈ 1000/360). The glyph sustains ~360fps with **zero**
+  frames over the 240Hz budget, and removing the drop-shadows changes nothing — so the CSS comment's
+  hypothesis is also disproven. The proposed transform rewrite was, if anything, the *worst* variant on
+  outliers. **Caveat:** the harness is refresh-capped, so it proves "none of these threaten the budget," not
+  "they cost the same" — it cannot resolve sub-2.8ms differences. It also isolates the glyph from the card
+  tree. But the isolated cost is so far under budget that it is not a plausible dominant term.
+  Harness: `fx/` — rebuild from the devlog entry if needed.
+- `ChargeMotes` runs a second continuous per-frame canvas loop for the whole charge session. Untested; but
+  given the glyph result, measure before assuming it costs anything.
 - Drag re-renders all of `Recruit` (3,582 lines) once per rAF via `setDrag`/`setOverZone`. Correctly
   throttled and rect-cached, but `Card` uses **default shallow memo** (unlike `Unit`'s value comparator), so
   it depends on the parent keeping every prop referentially stable — silent to regress. Consider a value

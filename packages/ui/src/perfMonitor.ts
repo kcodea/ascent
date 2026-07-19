@@ -10,8 +10,8 @@
  *
  * 1. **It must not be the thing that's slow.** Disabled is genuinely zero cost: no rAF loop, no observers,
  *    no allocation, nothing registered. Enabled, the per-frame work is one `performance.now()` and a push
- *    onto a pre-sized ring buffer; everything else (percentiles, counters, DOM/heap reads) happens once per
- *    1s bucket, off the frame path.
+ *    onto a pre-sized ring buffer. Counters are peak-sampled at 20Hz (a few `.length` reads — see
+ *    `sampleCounters`); percentiles and DOM/heap reads happen once per 1s bucket, off the frame path.
  * 2. **It must run in the PRODUCTION build.** `CLAUDE.md` is explicit that a slowness report is only
  *    trustworthy against the prod build — dev + StrictMode are far slower than what players run. So this is
  *    NOT `import.meta.env.DEV`-gated like the tuners; it ships, dormant, and is opted into with `?perf=1`
@@ -19,7 +19,7 @@
  * 3. **The log outlives the hitch.** Buckets accumulate for the length of a run and export as JSON.
  *
  * Sampling model: one rAF loop timestamps every frame. Frames are aggregated into **1-second buckets**
- * holding fps, median/p95/worst frame time, jank counts, the game context at the time, live FX counts, and
+ * holding fps, median/p95/worst frame time, jank counts, the game context at the time, PEAK live FX counts, and
  * the marks that fired. The HUD reads the newest bucket; the log keeps them all (capped).
  *
  * A note on what the numbers mean: `requestAnimationFrame` is capped by the display's refresh rate, so 60
@@ -37,6 +37,8 @@ const JANK_MS = 50;
 const BUCKET_MS = 1000;
 /** ~40 min of buckets. Ring-buffered, so a long session drops its oldest rather than growing forever. */
 const MAX_BUCKETS = 2400;
+/** How often counters are sampled for their per-bucket PEAK. See `sampleCounters` for why not per bucket. */
+const COUNTER_SAMPLE_MS = 50;
 /** Frame timestamps per bucket. 1s at 120fps = 120; the cap only matters if rAF misbehaves. */
 const MAX_FRAMES_PER_BUCKET = 256;
 
@@ -56,7 +58,8 @@ export interface PerfBucket {
   /** Game context when the bucket closed — what makes a spike triageable. */
   phase?: string;
   wave?: number;
-  /** Live FX counts, from whatever registered a counter (pixiFx). */
+  /** PEAK live FX counts across the bucket, from whatever registered a counter (pixiFx). Peak, not a
+   *  closing sample: short-lived objects (a 330ms weld ring) are invisible to a 1Hz sample. */
   counts: Record<string, number>;
   /** JS heap in MB (Chrome only; 0 elsewhere). */
   heapMb: number;
@@ -150,6 +153,9 @@ class PerfMonitor {
 
   private readonly pendingMarks = new Map<string, number>();
   private readonly counters = new Map<string, CounterFn>();
+  /** PEAK of each counter since the bucket opened — see `sampleCounters`. */
+  private readonly counterPeak = new Map<string, number>();
+  private lastCounterSample = 0;
   private context: ContextFn = () => ({});
   private readonly buckets: PerfBucket[] = [];
   private observer: PerformanceObserver | null = null;
@@ -214,14 +220,41 @@ class PerfMonitor {
 
   private readonly onVisibility = (): void => { if (document.hidden) this.hiddenDuringBucket = true; };
 
-  /** The ONLY per-frame work: one clock read, one store. Everything else waits for the bucket to close. */
+  /** Per-frame work: one clock read and one store, plus a counter sample at most every COUNTER_SAMPLE_MS. */
   private readonly tick = (now: number): void => {
     if (!this.running) return;
     if (this.nFrames < MAX_FRAMES_PER_BUCKET) this.frames[this.nFrames++] = now - this.lastFrame;
     this.lastFrame = now;
+    if (now - this.lastCounterSample >= COUNTER_SAMPLE_MS) {
+      this.lastCounterSample = now;
+      this.sampleCounters();
+    }
     if (now - this.bucketStart >= BUCKET_MS) this.closeBucket(now);
     this.raf = requestAnimationFrame(this.tick);
   };
+
+  /**
+   * Record each counter's PEAK across the bucket rather than its value at bucket close.
+   *
+   * Sampling once per second was worse than useless for anything short-lived: a weld ring lives 330ms, so
+   * a 1Hz sample almost always lands between rings and reports 0. The first real capture showed
+   * `weld rings: 0` in all 116 buckets — including ones where the weld FX fired six times — which reads as
+   * "the effect never ran" when it ran constantly. A counter that confidently reports zero is worse than
+   * no counter at all.
+   *
+   * 50ms gives ~20 samples/sec: enough to catch a 330ms effect several times over, while keeping this off
+   * the true per-frame path (at 240Hz it runs on roughly 1 frame in 12). Counters are cheap `.length`
+   * reads, so the cost is a rounding error either way — the sub-rate is about honesty, not expense.
+   */
+  private sampleCounters(): void {
+    for (const [name, fn] of this.counters) {
+      try {
+        const v = fn();
+        const prev = this.counterPeak.get(name);
+        if (prev === undefined || v > prev) this.counterPeak.set(name, v);
+      } catch { /* a counter must never break sampling */ }
+    }
+  }
 
   private closeBucket(now: number): void {
     const n = this.nFrames;
@@ -241,10 +274,11 @@ class PerfMonitor {
 
     // Percentiles over n <= 256 samples, once per second: negligible, and off the frame path.
     const stats = aggregateFrames(Array.from(this.frames.subarray(0, n)), elapsed);
+    // PEAK across the bucket, not the value at close — see `sampleCounters`.
+    this.sampleCounters(); // one final sample so a bucket is never empty
     const counts: Record<string, number> = {};
-    for (const [name, fn] of this.counters) {
-      try { counts[name] = fn(); } catch { /* a counter must never break sampling */ }
-    }
+    for (const [name, v] of this.counterPeak) counts[name] = v;
+    this.counterPeak.clear();
     const mem = (performance as { memory?: { usedJSHeapSize: number } }).memory;
     const ctx = this.context();
 

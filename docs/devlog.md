@@ -39,6 +39,20 @@ HUD mounts, the flag sticks, the sampler runs, and the detail panel renders ever
 viewport. **The numbers themselves have not been seen with real frames** -- that needs a normal browser.
 Full suite 1191 + typecheck + lint + build:web green.
 
+**Follow-up, same day — counters are now PEAK-sampled.** The first real capture (116 buckets, 115s) exposed a
+defect in the tool: `weld rings` read **0 in every bucket**, including ones where the weld FX fired six
+times. Counters were sampled once per second at bucket close, but a weld ring lives 330ms, so the sample
+almost always landed between rings. A counter that confidently reports zero is worse than no counter, so
+counters are now sampled at 20Hz and the bucket records the PEAK.
+
+**What that first capture actually said** (the session was healthy: median 195fps on a 240Hz display, 16
+long frames and 4 janks in 115s, no heap or DOM-node leak): the hitches are **phase transitions, not FX**.
+`fx:weld` fired 49 times — the most of any mark — and never appears in a bad bucket. The worst frame of the
+run (175ms, a 181ms single task) carries **no FX marks at all**, with the sprite pool collapsing 539 to 0 and
+heap dropping 109 to 97.6MB: an allocation + GC signature, most likely the shop roll and board re-render on
+entering recruit. The other two bad buckets are the recruit→combat and combat→recruit boundaries. Filed on
+the roadmap as the next thing to profile — the renderer looks fine.
+
 ### fix(ui): weld FX perf under batched welds + Chorus Engine's hand-grants arrive at their real stats
 
 Three things, all from owner reports on 2026-07-19.

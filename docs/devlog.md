@@ -76,6 +76,59 @@ Full guide: `docs/card-sets.md`.
 
 ## 2026-07-19 (later)
 
+### tweak(ui): size the plain attacker-death hold to its float (850 → 550)
+
+Owner asked what a lunging attacker's death actually costs end to end. Writing it out exposed an error in the
+earlier pass: `PULL_HOME_HOLD_PLAIN` was set to 850 to "cover the 800ms collapse", but **leads are ADDED to the
+base hold**, so the real coverage was `500 + 850 = 1350ms` for an animation finishing at 800ms.
+
+Checking what else runs in that window: a **plain** attacker death fires no Pixi FX at all — `burstDeathAuras`
+is gated on `isRise` and the skull on `hasDR` — so unlike the Rise/DR cases (420–780ms of shards, ~600ms skull)
+there is no debris to outlive the fade. The only thing still on screen is the killing-blow `deathFloat` at
+**1000ms**. So the binding constraint is the float, not the collapse: 550 ⇒ `500 + 550 = 1050ms`, covering the
+float with 50ms to spare. A plain attacker death goes **2225 → 1925ms**; `PULL_HOME_HOLD_DR` stays at 1050
+because its skull genuinely needs the time.
+
+Verified: typecheck + lint + test (1201) + build:web green.
+
+### tweak(ui): second tightening pass — post-impact hold to its floor (500ms)
+
+Owner after the first pass: *"I want the combat to feel even tighter."* `attackGap` **0.22 → 0.14** and
+`attack` **300 → 240** ⇒ post-impact hold **670 → 500ms**, non-impact → attack **450 → 360ms**. Cumulative
+across both passes: **869.5 → 500ms** after every impact. A plain swing is now **1375ms** (was 1745 before
+this work), a Windfury pair **2750ms** (was 3490), an Echo trade **2865ms** (was 3375).
+
+**This is the floor for the gap.** The attacker's elastic settle is 340ms (fire-and-forget after contact), so
+only ~160ms of the 500ms hold is now free. Below this the next wind-up begins while the previous attacker is
+still visibly settling — overlap, not speed. Recorded in the reference.
+
+**What's left is the wind-up.** At 700ms it's now **51%** of a plain swing. It was deliberately set ~50%
+longer by the owner in #481, so it's a design choice rather than fat — and unlike the gap, cutting it moves
+time-to-contact, which the damage float and impact FX are welded to. That changes how a swing *feels*, not
+just the pause after it, so it's flagged in the reference rather than tuned here.
+
+Verified: typecheck + lint + test (1201) + build:web green.
+
+### tweak(ui): close the dead time between swings (`attackGap` + attack lead)
+
+Owner, after the death-timing pass landed: *"there's a tiny bit of dead time overall between units attacking."*
+The timing reference had already isolated it — the clock holds **869.5ms after every impact** (`attackGap` 340
++ `beatDelay('attack')` 353 × 1.5 = 529.5), while a defender's death animation is only **320ms**, so ~550ms of
+each exchange was silent. This hold applies after *every* impact, kill or not, so it was the single biggest
+recurring cost in a fight.
+
+Trimmed both halves: `attackGap` **0.34 → 0.22** (the explicit inter-swing breather) and `attack`
+**353 → 300** (the lead-in before the next wind-up) ⇒ post-impact hold **869.5 → 670ms**, and the
+non-impact → attack hold **529.5 → 450ms**. Every interaction gets ~200ms shorter: a plain swing
+**1745 → 1545ms**, a Windfury pair **3490 → 3090ms**, an Echo trade **3035 → 2955ms**.
+
+Deliberately not cut further: the attacker's elastic **settle** (340ms) plays *after* contact as
+fire-and-forget, so it now fills most of the remaining ~350ms. Cutting more would start the next wind-up while
+the previous attacker is still settling — overlap rather than snappiness. The reference's "where the fat is"
+section now says to tune against the settle, not against zero. Reference tables + totals updated throughout.
+
+Verified: typecheck + lint + test (1201) + build:web green; owner confirmed the feel live.
+
 ### tweak(ui): tighten death timing + a full combat-timing reference
 
 Follow-up to the blink fix (#537), driven by an owner question: now that the double-advance is gone, how much

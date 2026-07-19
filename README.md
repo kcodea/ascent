@@ -40,9 +40,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
-
 - **Card sets** — cards now live in switchable sets (`sets.ts`), flipped live like rifts. A run pins its
   set at creation, so flipping never disturbs an in-flight or replayed run. See `docs/card-sets.md`.
+- **Snappier combat pacing.** The clock held 869.5ms after *every* impact against a 320ms death animation — trimmed across two passes to **500ms** (`attackGap` 0.34 → 0.14, attack lead 353 → 240). A plain swing is now **1375ms** (was 1745), a Windfury pair **2750ms** (was 3490), and an attacker that dies mid-lunge **1925ms** (was 2595). That's the floor: the attacker's 340ms elastic settle fills most of what remains.
 - **Snappier deaths + a combat-timing reference.** Death animations drop 0.42s → 0.32s and a plain attacker's
   return-home death now starts fading *as it lands* instead of idling ~260ms first — an ordinary trade resolves
   ~340ms sooner, with #503's "dies at home" read intact. The Deathrattle variant keeps its longer delay (the

@@ -57,7 +57,9 @@ const DEFAULTS: LungeConfig = {
   maxStrikeDur: 0.44,
   smackLead: 0.005,  // smack ~5ms before the strike lands (near-on-contact)
   settleDur: 0.34,   // a snappier elastic return to rest
-  attackGap: 0.34,   // breather between swings (the inter-attack pause)
+  attackGap: 0.14,   // breather between swings (the inter-attack pause). 0.34 -> 0.22 -> 0.14 across two
+                     // tightening passes. With the attack lead below this puts the post-impact hold at 500ms,
+                     // which still fully covers the 340ms elastic settle; see combat-timing-reference.md.
 };
 
 export const LUNGE_KEYS = Object.keys(DEFAULTS) as (keyof LungeConfig)[];

@@ -1,5 +1,6 @@
 import { makeRng, type CardDef, type Rng, type Tribe } from '@game/core';
-import { BUYABLE_CARDS, CARD_INDEX, SPELL_CARDS } from '@game/content';
+import { CARD_INDEX } from '@game/content';
+import { poolOf } from './cardPool';
 import { POOL_QUANTITIES } from './config';
 import type { RunState } from './state';
 
@@ -16,9 +17,9 @@ export const tierSlots = (tier: number): number =>
  * are never pooled (and so are ignored by the return/take helpers). This is what makes copies a
  * contested resource — the shop draws from it and sell/reroll return to it.
  */
-export function stockPool(tribes: Tribe[]): Record<string, number> {
+export function stockPool(tribes: Tribe[], buyable: readonly CardDef[]): Record<string, number> {
   const pool: Record<string, number> = {};
-  for (const card of BUYABLE_CARDS) {
+  for (const card of buyable) {
     if (card.tribe === 'neutral' || tribes.includes(card.tribe)) {
       pool[card.id] = POOL_QUANTITIES[card.tier] ?? POOL_FALLBACK;
     }
@@ -28,7 +29,7 @@ export function stockPool(tribes: Tribe[]): Record<string, number> {
 
 /** Buyable cards at/below tier, of an active (or neutral) tribe, that still have copies left. */
 const availableOffers = (state: RunState): CardDef[] =>
-  BUYABLE_CARDS.filter(
+  poolOf(state).buyable.filter(
     (card) =>
       card.tier <= state.tier &&
       (card.tribe === 'neutral' || state.tribes.includes(card.tribe)) &&
@@ -46,8 +47,8 @@ function drawOfferId(rng: Rng, pool: CardDef[], _tier: number): string | null {
 
 /** A spell offer respects the tavern tier — like minions, a spell can only appear once you're at least
  *  its tier. Uniform among the eligible spells. */
-const drawSpellId = (rng: Rng, tier: number): string | null => {
-  const eligible = SPELL_CARDS.filter((c) => c.tier <= tier);
+const drawSpellId = (rng: Rng, tier: number, state: RunState): string | null => {
+  const eligible = poolOf(state).spells.filter((c) => c.tier <= tier);
   return eligible.length > 0 ? eligible[rng.int(eligible.length)]!.id : null;
 };
 
@@ -110,7 +111,7 @@ export function rollShop(state: RunState): void {
   state.shop = offers;
   // Always offer one spell on the right (handoff). Spells are unlimited — not part of the pool — but
   // still gated by tavern tier (a T5 spell can't appear at T2).
-  const spellId = drawSpellId(rng, state.tier);
+  const spellId = drawSpellId(rng, state.tier, state);
   state.spell = spellId ? { uid: `s${state.uidSeq++}`, cardId: spellId } : null;
   state.rngCursor = rng.state();
 }
@@ -124,7 +125,7 @@ export function rollSpellShop(state: RunState): void {
   for (const offer of state.shop) returnToPool(state, offer.cardId);
   const rng = makeRng(state.rngCursor);
   const slots = tierSlots(state.tier);
-  const eligible = SPELL_CARDS.filter((c) => c.tier <= state.tier).map((c) => c.id);
+  const eligible = poolOf(state).spells.filter((c) => c.tier <= state.tier).map((c) => c.id);
   for (let i = eligible.length - 1; i > 0; i--) { // Fisher–Yates shuffle (seeded) → distinct picks
     const j = rng.int(i + 1);
     [eligible[i], eligible[j]] = [eligible[j]!, eligible[i]!];
@@ -148,7 +149,7 @@ export function topUpTavern(state: RunState): void {
     state.shop.push({ uid: `s${state.uidSeq++}`, cardId: id });
   }
   if (!state.spell) {
-    const spellId = drawSpellId(rng, state.tier);
+    const spellId = drawSpellId(rng, state.tier, state);
     if (spellId) state.spell = { uid: `s${state.uidSeq++}`, cardId: spellId };
   }
   state.rngCursor = rng.state();

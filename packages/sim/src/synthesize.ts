@@ -14,7 +14,7 @@
  * Deterministic (seeded rng). Tool-time only (used by `npm run pool`); not on any runtime path.
  */
 import { makeRng, type BoardMinion, type CardDef, type Rng, type Tribe } from '@game/core';
-import { BUYABLE_CARDS, CARD_INDEX } from '@game/content';
+import { CARD_INDEX, poolFor, type SetId } from '@game/content';
 import type { BoardSnapshot } from './snapshot';
 import { HEROES } from './heroes';
 import { opponentBoard } from './opponents';
@@ -112,10 +112,25 @@ export function synthesizeForWave(
 // right STRENGTH, not buildability — so this is principled, deterministic, and covers waves 1–20.
 
 const SYNTH_TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
-/** Per-tribe buyable minion pools (a card counts for either of its tribes). Built once. */
-const TRIBE_POOL: Record<string, CardDef[]> = Object.fromEntries(
-  SYNTH_TRIBES.map((t) => [t, BUYABLE_CARDS.filter((c) => c.tribe === t || c.tribe2 === t)]),
-);
+/**
+ * Per-tribe buyable minion pools for a SET (a card counts for either of its tribes), memoized per set.
+ *
+ * This used to be a module-level const over the flat pool — the exact shape that silently ignores which set
+ * is live. Synthetic opponent boards are built from real cardIds, so a board baked from set 1 is unservable
+ * in a set-2 run (`isServableBoard` drops any board naming a card the index doesn't have). The bake has to
+ * know its set; see `npm run pool`.
+ */
+const tribePools = new Map<SetId, Record<string, CardDef[]>>();
+function tribePoolFor(setId: SetId): Record<string, CardDef[]> {
+  const hit = tribePools.get(setId);
+  if (hit) return hit;
+  const buyable = poolFor(setId).buyable;
+  const byTribe: Record<string, CardDef[]> = Object.fromEntries(
+    SYNTH_TRIBES.map((t) => [t, buyable.filter((c) => c.tribe === t || c.tribe2 === t)]),
+  );
+  tribePools.set(setId, byTribe);
+  return byTribe;
+}
 /** A plausible tavern tier for a wave — opponent-frame intel + a soft cap on which cards a board draws from. */
 const tierForWave = (wave: number): number => Math.max(1, Math.min(6, Math.round(wave / 3) + 1));
 
@@ -130,9 +145,10 @@ function spreadByPowerMinions(list: BoardMinion[][], cap: number): BoardMinion[]
 
 /** Build one coherent tribe board of `n` minions, stat-scaled uniformly to hit `targetPower`. Real cardIds
  *  (so keywords/effects are real); cards are drawn from the tribe's pool at/under `maxTier` for era-fit. */
-function buildTribeBoard(tribe: Tribe, n: number, targetPower: number, maxTier: number, rng: Rng): BoardMinion[] {
-  let pool = TRIBE_POOL[tribe]!.filter((c) => c.tier <= maxTier);
-  if (pool.length < 2) pool = TRIBE_POOL[tribe]!;
+function buildTribeBoard(tribe: Tribe, n: number, targetPower: number, maxTier: number, rng: Rng, setId: SetId): BoardMinion[] {
+  const byTribe = tribePoolFor(setId);
+  let pool = byTribe[tribe]!.filter((c) => c.tier <= maxTier);
+  if (pool.length < 2) pool = byTribe[tribe]!;
   const picks: CardDef[] = [];
   for (let i = 0; i < n; i++) picks.push(pool[rng.int(pool.length)]!);
   const base = picks.reduce((s, c) => s + c.attack + c.health, 0) || 1;
@@ -152,6 +168,8 @@ export interface CurveSynthOptions {
   proceduralSeeds?: number;
   patch?: string;
   capturedAt?: string;
+  /** Which set's cards to build boards from. Defaults to `set1` so existing bakes are byte-identical. */
+  setId?: SetId;
 }
 
 /**
@@ -181,7 +199,7 @@ export function synthesizeWaveFromCurve(
     const ref = chosen[i]!;
     const targetPower = Math.max(2, Math.round(power(ref) * (0.9 + rng.next() * 0.3))); // ×0.9–1.2 band jitter
     const tribe = SYNTH_TRIBES[(wave + i) % SYNTH_TRIBES.length]!; // cycle tribes for synergy variety
-    const minions = buildTribeBoard(tribe, ref.length, targetPower, tier, rng);
+    const minions = buildTribeBoard(tribe, ref.length, targetPower, tier, rng, opts.setId ?? 'set1');
     const sig = signature(minions);
     if (seen.has(sig)) continue;
     seen.add(sig);

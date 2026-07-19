@@ -1,6 +1,6 @@
 import { makeRng } from '@game/core';
 import type { CombatOutcome, CombatResult, EffectDef, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, activeSet, poolFor, type SetId } from '@game/content';
 import { CONFIG, activeRift, type RiftId } from './config';
 import { DEFAULT_HERO_ID, getHero } from './heroes';
 import { queueDiscover } from './recruit';
@@ -652,6 +652,12 @@ export interface RunState {
    *  so a saved/replayed run keeps its rules even after we flip the global switch off. `undefined`/`null` =
    *  no rift. See `RIFTS` in config.ts. */
   rift?: RiftId | null;
+  /** The card SET this run was created under, snapshotted from `activeSet()` at `createRun` — the same
+   *  "pin what actually happened" rule as `rift`, and load-bearing for a different reason: shop draws index
+   *  into this set's pool, so a run resumed or replayed after the active set flips MUST keep drawing from
+   *  the pool it was played under or every subsequent roll diverges. Read it via `poolOf(state)`, never
+   *  `activeSet()`. Absent on saves written before sets existed → treated as `set1`. See `SETS` in content. */
+  setId?: SetId;
   /** `'freedom'` rift: the first minion bought each turn is free — set once that freebie is spent this
    *  turn, cleared at the start of the next turn. */
   freeBuyUsedThisTurn?: boolean;
@@ -847,7 +853,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     threat: selectThreat(1, makeRng(mixSeed(seed, 1, TAG.THREAT))),
     tribes,
     rngCursor: mixSeed(seed, 0, TAG.SHOP),
-    pool: stockPool(tribes),
+    pool: stockPool(tribes, poolFor(activeSet().id).buyable),
     uidSeq: 0,
     pendingTavern: [],
     cardBuffs: {},
@@ -856,6 +862,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     recruitFxSeq: 0,
     karwindFlashSeq: 0,
     rift: activeRift()?.id ?? null, // pin the live rift so replays keep it after the switch flips off
+    setId: activeSet().id, // …and the live card set, for the same reason (see RunState.setId)
   };
   rollShop(state);
   // Guardian (Runeguard): schedule the Epic Runeforge for turn 10 — advanceCombat's start-of-turn
@@ -904,7 +911,8 @@ export function deserialize(json: string): RunState {
   // Fields whose heal is deliberately NOT the fresh-run default:
   state.armor = parsed.armor ?? 0; // Armor shipped later — a pre-Armor in-progress run gets none, not the hero's
   state.maxArmor = parsed.maxArmor ?? 0;
-  if (!parsed.pool) state.pool = stockPool(state.tribes); // pre-pool saves: stock for the run's own tribes
+  // pre-pool saves: stock for the run's own tribes, from the set the run is pinned to (not the live one)
+  if (!parsed.pool) state.pool = stockPool(state.tribes, poolFor(state.setId ?? 'set1').buyable);
   // createRun seeds hero run-START Discovers into the defaults skeleton (Disco Dan's Setlist opens a Tier 6
   // Discover + queues Tier 4 / Tier 2 behind it). Those are a fresh-run ACTION, not a field default — but
   // JSON.stringify drops `undefined`, so a save that already resolved them omits the `discover` /

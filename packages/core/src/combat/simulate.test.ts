@@ -3568,3 +3568,14 @@ describe('Rune of Mastery (batch 7b) — combat Improve steps apply twice', () =
     expect(r0.events.some((ev) => ev.type === 'improve' && ev.amount === 6)).toBe(false);
   });
 });
+
+describe('Tauntbreaker Rally tally (owner bug 2026-07-18)', () => {
+  it("its attacks count as Rally triggers for quests (RL keyword was missing from the def)", () => {
+    expect(CARD_INDEX['tauntbreaker']!.keywords).toContain('RL');
+    const r = simulate(
+      [{ cardId: 'tauntbreaker', attack: 6, health: 30 }],
+      [{ cardId: 'sandbag', attack: 0, health: 40 }],
+      makeRng(1), CARD_INDEX);
+    expect(r.playerRallies ?? 0).toBeGreaterThan(0); // each swing rallies (W = two per attack turn)
+  });
+});

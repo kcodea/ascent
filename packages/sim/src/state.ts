@@ -232,6 +232,11 @@ export interface BuffFxEvent {
   sourceCardId: string;     // for buffPreset (tendril tribe look)
   sourceTribe: Tribe;
   kind: 'minion' | 'spell' | 'deathrattle';
+  /** Itemized per-z rewards (Blueprint Cache's "+2/+2 per Attachment") group their events into WAVES — one
+   *  wave per unit of the scaler, each wave hitting EVERY eligible minion at once. The UI staggers between
+   *  waves (never within one), so all the Mechs pulse together and the steps read one at a time. Absent for
+   *  ordinary one-shot buffs. */
+  fxWave?: number;
 }
 
 export interface RunState {

@@ -71,6 +71,10 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
+- **Set 2 content.** Foundation is in (`docs/card-sets.md`): author cards in `packages/content/src/cards/set2/`,
+  list them in `SETS.set2.own`, trim the inherited set-1 pool with `excludes`. Before flipping it live, run
+  `SET=set2 npm run pool` — an unbaked set has no captured opponents and falls back to procedural boards.
+- **Set-scope quests / runes / heroes** if a set needs its own. `SetDef` has room; the wiring doesn't exist.
 - **Profile the PHASE TRANSITIONS, not the FX.** The first perf capture (2026-07-19) puts every bad frame at
   a phase boundary: the worst of the run was 175ms with a 181ms single task, **no FX marks**, sprite pool
   539→0 and heap 109→97.6MB — an allocation + GC signature pointing at the shop roll / board re-render on

@@ -21,6 +21,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
 import { buildWaveLadders, isServableBoard, opponentBoard, rateBoardForWave, ratingBand, synthesizeWaveFromCurve, BAND_COUNT, type BoardSnapshot } from '@game/sim';
+import type { SetId } from '@game/content';
 
 const EXPORTS_DIR = join(process.cwd(), 'docs', 'board-exports');
 const OUT_FILE = join(process.cwd(), 'packages', 'sim', 'src', 'opponentPool.data.ts');
@@ -33,6 +34,8 @@ const TODAY = new Date().toISOString().slice(0, 10);
 const PKG_VERSION = (JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as { version: string }).version;
 const GIT_SHA = (() => { try { return execSync('git rev-parse --short HEAD').toString().trim(); } catch { return 'dev'; } })();
 const PATCH = `${PKG_VERSION}+${GIT_SHA}`;
+/** Which set to bake boards from. `SET=set2 npm run pool` bakes the other one. */
+const SET_ID = (process.env.SET ?? 'set1') as SetId;
 
 /** A stable identity for a board, so identical captures (same wave/hero/minions) collapse to one. */
 const signature = (s: BoardSnapshot): string =>
@@ -100,13 +103,14 @@ const ladders = buildWaveLadders([], [], imported, { proceduralWaves: MAX_WAVE, 
 const synthetic: BoardSnapshot[] = [];
 for (let wave = 1; wave <= MAX_WAVE; wave++) {
   synthetic.push(...synthesizeWaveFromCurve(wave, ladders, 7919 * wave + 13, {
-    perWave: SYNTH_PER_WAVE, proceduralSeeds: PROC_SEEDS, patch: PATCH, capturedAt: TODAY,
+    perWave: SYNTH_PER_WAVE, proceduralSeeds: PROC_SEEDS, patch: PATCH, capturedAt: TODAY, setId: SET_ID,
   }));
 }
 console.log(`  synthesized ${synthetic.length} boards across waves 1–${MAX_WAVE} (${SYNTH_PER_WAVE}/wave, curve-banded)`);
 
 // Merge → keep only servable, non-empty boards → dedupe.
-const merged = [...imported, ...synthetic].filter((s) => s.minions.length > 0 && isServableBoard(s));
+const merged = [...imported.map((b) => ({ ...b, setId: b.setId ?? SET_ID })), ...synthetic]
+  .filter((s) => s.minions.length > 0 && isServableBoard(s));
 const seen = new Set<string>();
 const deduped = merged.filter((s) => {
   const k = signature(s);

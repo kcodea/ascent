@@ -3,6 +3,59 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-19 (card sets)
+
+### feat(content): card sets — parallel authoring + a one-line live flip
+
+Owner ask: build set 2 alongside set 1, with overlapping and brand-new cards, and flip which is live the
+same way quests/runes/rifts are toggled. Design decisions taken up front (owner): **one shared definition
+per card** (sets are membership, not versions) and **one active set at a time**.
+
+Modelled directly on the `RIFTS` registry, which already had the right shape: an `enabled` flag per entry,
+first-enabled-wins, and — the load-bearing part — the active value SNAPSHOTTED onto each run at creation so
+a saved or replayed run keeps what it was played under after the switch flips. For sets that pin is not a
+nicety: shop draws are `rng.int(pool.length)`, so a run whose pool changed mid-flight would diverge on its
+very next roll.
+
+**Phase 1 — foundation.** `packages/content/src/sets.ts`: `SetDef` / `SETS` / `activeSet()` / `poolFor()`.
+A set resolves as `inherits - excludes + own`, in that order, so `own` appends at the END and a set adding
+cards never disturbs the prefix it inherited. Cards moved to `cards/set1/**`; set 2 gets `cards/set2/**`, so
+two authors never touch the same file (the old shape appended to the tail of the same tribe array - the
+worst case for git). `RunState.setId` is pinned at `createRun`, and `sim/cardPool.ts` exposes `poolOf(state)`
+as the single seam between "which set is on" and "which set this run plays". ~20 draw sites in `shop.ts`,
+`recruit.ts` and `reducer.ts` now go through it. `synthesize.ts` had a MODULE-LEVEL per-tribe pool built off
+the flat list - exactly the shape that silently ignores sets - now memoized per set.
+
+**Crucially, `CARD_INDEX` and `ALL_CARDS` stay GLOBAL** (the union of every card ever). They are pure id->def
+lookups used at ~500 sites that do not care which set is live, and leaving them alone is what kept this a
+~20-site change instead of a ~500-site one. Tokens resolve globally too, so summons work regardless of set;
+gating happens at the DRAW sites, where `buyable`/`spells` exclude tokens exactly as before.
+
+**Phase 2 — persistence.** `BoardSnapshot.setId` rides alongside the existing `patch` field; boards are
+stamped at local capture (from the RUN's set, not the live one) and at bake time (`SET=set2 npm run pool`),
+and `pickOpponent` filters to the asking run's set. Filtered at PICK time rather than registration, because
+the registry is shared across every run in a session. Two `deserialize` fixes: `setId` heals to `set1`
+explicitly rather than to the fresh-run default (the merge over `createRun` would otherwise silently re-home
+every pre-sets save onto set 2 the day it goes live), and a new `missingCardIds(state)` lets the UI refuse a
+save with dangling card ids instead of crashing on the first `CARD_INDEX[id]` deref.
+
+**Phase 3 — the flip.** Verified by actually doing it: flipping `enabled` re-homed new runs to set 2 and the
+7 tests that failed were precisely the opponent-board ones, because those boards are stamped set 1. That is
+the intended behaviour and it surfaced the one real operational gotcha, now documented: **flipping to a set
+you have not baked leaves it with no captured opponents** and it falls back to procedural threat boards. It
+degrades, it does not crash.
+
+Also: the Compendium now shows the pool of the set the RUN is playing rather than a hardcoded list.
+
+Verified: 1214 tests (13 new in `sets.test.ts`, covering single-active-set, set-1 order equality against the
+pre-sets flat pool, inherits/excludes resolution, no duplicate ids, tokens excluded from drawable views, run
+pinning, the pre-sets-save heal, cross-set board rejection, and `missingCardIds`) + typecheck + lint +
+build:web green. One test caught a genuine error in my own model - I had claimed tokens live outside every
+set, but they are declared in tribe files (Fodder sits in `demons.ts`), so token-ness is a FLAG not a file;
+the doc and the assertion were corrected rather than the code.
+
+Full guide: `docs/card-sets.md`.
+
 ## 2026-07-19 (later)
 
 ### tweak(ui): tighten death timing + a full combat-timing reference

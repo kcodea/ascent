@@ -14,7 +14,7 @@
  * record at faceOmen — see the roadmap's async-PvP hardening note.
  */
 import type { BoardMinion, Rng } from '@game/core';
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX , type SetId } from '@game/content';
 import type { BoardSnapshot } from './snapshot';
 import { MATCHMAKING, selectionWeight } from './matchmaking';
 
@@ -57,8 +57,13 @@ export function pickOpponent(
   /** Loss-streak softener input: the CURRENT loss streak when the softener is armed + unspent for this pick,
    *  else 0 (the caller — `nextOpponent` — gates the once-per-streak rule). See matchmaking.ts. */
   streakLosses = 0,
+  /** The SET the asking run is pinned to. Boards built under a different set are excluded outright — their
+   *  minions are that set's cards. Filtered HERE rather than at `registerOpponents` because the registry is
+   *  shared across every run in the session, and two runs on different sets must both find their own boards. */
+  setId: SetId = 'set1',
 ): BoardSnapshot | null {
   void power; // no longer weights the pick — kept so the call signature (and the recruit preview) stays stable
+  pool = pool.filter((s) => (s.setId ?? 'set1') === setId); // legacy boards predate sets → they are set 1
   if (pool.length === 0) return null;
   // 1) Same WAVE (same development stage); widen to the closest available wave if none match exactly.
   const closestByWave = (set: BoardSnapshot[]): BoardSnapshot[] => {

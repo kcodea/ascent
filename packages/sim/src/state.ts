@@ -911,6 +911,11 @@ export function deserialize(json: string): RunState {
   // Fields whose heal is deliberately NOT the fresh-run default:
   state.armor = parsed.armor ?? 0; // Armor shipped later — a pre-Armor in-progress run gets none, not the hero's
   state.maxArmor = parsed.maxArmor ?? 0;
+  // The SET is healed to `set1`, NOT to the fresh-run default — `createRun` pins whatever set is live right
+  // now, so the `{...defaults, ...parsed}` merge would silently re-home a pre-sets save onto set 2 the day
+  // set 2 goes live, and every subsequent shop roll would draw from a pool that run never played. Any save
+  // written before sets existed was played on set 1, by definition.
+  state.setId = parsed.setId ?? 'set1';
   // pre-pool saves: stock for the run's own tribes, from the set the run is pinned to (not the live one)
   if (!parsed.pool) state.pool = stockPool(state.tribes, poolFor(state.setId ?? 'set1').buyable);
   // createRun seeds hero run-START Discovers into the defaults skeleton (Disco Dan's Setlist opens a Tier 6
@@ -933,4 +938,22 @@ export function deserialize(json: string): RunState {
   }
   delete state.pendingSpellDiscovers;
   return state;
+}
+
+/**
+ * Card ids a saved run references that this build no longer has — non-empty means the save is unplayable
+ * and Continue should be refused rather than crashing on the first `CARD_INDEX[id]` deref.
+ *
+ * `deserialize` deliberately does NOT throw: healing a save is best-effort and a partially-broken save is
+ * still worth inspecting. The caller decides. This exists because a set whose cards get deleted (or a save
+ * carried between branches mid-development) would otherwise surface as an undefined-property crash in the
+ * HUD, with nothing pointing at the real cause.
+ */
+export function missingCardIds(state: RunState): string[] {
+  const ids = new Set<string>();
+  for (const c of [...state.board, ...state.hand, ...state.shop]) {
+    if (!CARD_INDEX[c.cardId]) ids.add(c.cardId);
+  }
+  if (state.spell && !CARD_INDEX[state.spell.cardId]) ids.add(state.spell.cardId);
+  return [...ids];
 }

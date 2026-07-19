@@ -1,6 +1,6 @@
 import { combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type PendingCombatQuest, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES } from '@game/content';
-import { poolOf } from './cardPool';
+import { poolOf, setIdOf } from './cardPool';
 import { CONFIG } from './config';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
@@ -183,7 +183,7 @@ export function nextOpponent(s: RunState): BoardSnapshot | null {
     const b = s.servedBoards?.[w];
     if (b) exclude.add(oppKey(b));
   }
-  return pickOpponent(s.wave, s.turnStartPower, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)), undefined, exclude, streakSoftenerLosses(s));
+  return pickOpponent(s.wave, s.turnStartPower, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)), undefined, exclude, streakSoftenerLosses(s), setIdOf(s));
 }
 
 /** Loss-damage cap by round — the most Resolve a single loss can cost, ramping up as the course escalates:

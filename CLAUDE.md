@@ -48,6 +48,11 @@ The game is a **deterministic simulation, fully decoupled from the UI.**
 - **One seeded RNG** (mulberry32) threaded through everything via `fork()`. **`Math.random` is banned** in
   `core`/`content`/`sim` (ESLint-enforced). This buys replays, shareable seeds, daily runs, and cheap exact
   balance sims.
+- **Cards live in SETS.** A set is the pool a run draws from, flipped live like rifts
+  (`packages/content/src/sets.ts`); a run PINS its set at creation and reads it via `poolOf(state)` forever
+  after, so flipping the switch never changes an in-flight or replayed run. `activeSet()` belongs to
+  `createRun` and nowhere else; `CARD_INDEX` stays global (id→def needs no set). New cards go in that set's
+  own `cards/<set>/` directory. See [`docs/card-sets.md`](docs/card-sets.md).
 - **Cards are data + effect subscriptions**, never bespoke classes. New cards = data only unless they need a
   genuinely new effect primitive (add it to the factories + whitelist it in the content schema + the
   `EffectFactoryId` union).

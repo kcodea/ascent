@@ -5,6 +5,35 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-18
 
+### feat(ui): Attachment weld FX — a gold "shot ascension" pulse when a Magnetic fuses on
+
+Owner ask: an animation when an Attachment welds onto a minion — hand-played ones slide into the card
+first, auto-welds just play at their own timing; "yellow/glow/fizz/spark shot ascension quick pulse".
+
+- **Renderer** `pixiFx.weldPulse(x, y, cfg)` — composed entirely from the pooled particle primitives (no
+  new render loop, one-shot, never touches the beat clock): a gold core bloom, one tight ring snapping
+  outward, a radial spark fizz, and motes shot UPWARD off the card (`riseGravity` negative = they keep
+  climbing — that's the "ascension" read, vs. a plain radial burst).
+- **Sim signal**: `stampWeldFx(state, uid, kind)` fires from inside `weldMagnetic` — the ONE chokepoint,
+  so all 7 weld call sites (+ Beatboxer's mimic welds) animate with zero per-site wiring. Only the
+  reducer's hand-play site passes `'play'`; everything else defaults to `'auto'`. Monotonic seq like the
+  other FX signals — no reducer clear, no snapshot change.
+- **Hand-play timing is free**: the existing `magslide` (the drag overlay shrinking into the host,
+  `magSlideMs` in DragTuner) already runs BEFORE the dispatch, so the pulse lands exactly as the card
+  merges — no new motion code.
+- **EoT auto-welds** (Combinator, Cling Drones, Money Bots) stamp after the phase flips, so they fire from
+  the EoT BEAT instead: `EotStepFx` gained `welds: string[]`, diffed by host `attachments` count in the
+  beat projection — catches every current AND future EoT welder without per-effect wiring. (Previously
+  Banksly/Cling/MoneyBot welds had NO visual at all; only Combinator's electrify flash existed.)
+- **Tunable**: `weldFxConfig.ts` (19 dials incl. `playScale`/`autoScale` so a deliberate play can hit
+  harder than an incidental weld) + the 🔩 Weld FX tuner with a play/auto toggle + ▶ Test.
+
+Verified live: staged a real Cling→Drone weld — `weldFxSeq` bumped with `kind: 'play'`, host uid correct,
+42 particles spawned, host went 2/3 → 3/4 with the buff readout showing "Cling Drone +1/+1"; screenshot
+confirms the gold bloom on the host. Caught + fixed a TDZ crash in the process (the fire callback sat
+above `findEl`'s declaration — now queries the DOM directly, like `fireFodderInfusion`). Full suite
+(1177) + typecheck + lint + build:web green.
+
 ### feat(sim): win-rate matchmaking — ledger-weighted opponents + loss-streak softener + revived pinning
 
 The owner-designed matchmaking v1 (built to be ITERATED OR TURNED OFF — every dial in `matchmaking.ts`,

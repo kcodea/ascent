@@ -40,6 +40,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
+- **Attachment weld FX.** Welding a Magnetic onto a minion now fires a gold "shot ascension" pulse — core
+  bloom, tight ring, spark fizz, and motes shooting up off the card. A hand-played Attachment slides into
+  the host first (existing motion) and the pulse lands as it merges; auto-welds (Banksly/Beatbot,
+  Combinator, Cling Drones, Money Bots — several of which had no visual at all) pulse at their own moment.
+  Owner-tunable via the 🔩 dev tuner.
 - **Runes batch 7a — 12 new runes.** Five Basic (Rebirth: Rise with full Health; Tempering: first Attachment
   each turn Wards its minion; Aftershocks: Echo summons +4/+4; Refrain: your 3rd Shout returns the turn's
   first Shout to hand; the Trophy: first Slaughter each combat → a copy next shop) and seven Epic

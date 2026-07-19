@@ -15,6 +15,7 @@ import { pixiFx, discoverFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
+import { weldCfgFor } from './weldFxConfig';
 import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { fireBuffFx } from './buffFxRender';
@@ -667,6 +668,30 @@ export function Recruit() {
     const raf = requestAnimationFrame(() => fireFodderInfusion(uid));
     return () => cancelAnimationFrame(raf);
   }, [run.fodderSendSeq, run.fodderSendUid, run.phase, fireFodderInfusion]);
+  // WELD FX: an Attachment just fused onto a host minion — a quick gold shot-ascension pulse at the host
+  // card's centre. For a HAND-PLAYED Magnetic the card's slide-in (`magSlideMs`) has already finished by the
+  // time the sim dispatch lands, so the pulse reads as the moment it merges; auto-welds (Banksly/Beatbot)
+  // simply pulse when they happen. EoT welds (Combinator / Cling / Money Bot) stamp after the phase flips —
+  // those fire from the EoT BEAT instead (see playBeat), while the shop is still on screen.
+  // NB: queries the DOM directly rather than via `findEl` — this lives ABOVE findEl's declaration, and a
+  // `[findEl]` dep would read it in the temporal dead zone (crashes the screen on the first weld). A weld
+  // host is always a board minion, so the warband-scoped selector is sufficient. Mirrors fireFodderInfusion.
+  const fireWeldPulse = useCallback((uid: string, kind: 'play' | 'auto'): void => {
+    const el = document.querySelector(`[data-zone="warband"] [data-uid="${uid}"]`);
+    if (!el) return;
+    const r = (el.querySelector('.archbox') ?? el).getBoundingClientRect();
+    pixiFx.weldPulse(r.left + r.width / 2, r.top + r.height / 2, weldCfgFor(kind));
+  }, []);
+  const prevWeldFxSeq = useRef(run.weldFxSeq);
+  useEffect(() => {
+    const seq = run.weldFxSeq;
+    if (seq === undefined || seq === prevWeldFxSeq.current) return;
+    prevWeldFxSeq.current = seq; // inits to the current value, so a restored save never re-fires
+    const uid = run.weldFxUid;
+    if (!uid || run.phase !== 'recruit') return;
+    const raf = requestAnimationFrame(() => fireWeldPulse(uid, run.weldFxKind ?? 'auto'));
+    return () => cancelAnimationFrame(raf);
+  }, [run.weldFxSeq, run.weldFxUid, run.weldFxKind, run.phase, fireWeldPulse]);
   // Immediate (mid-shop) triggers arrive via the `buffGustSeq` stamp (one-shot, the swapFxSeq pattern;
   // inits to the current value so a restored save doesn't fire). End-of-Turn triggers (Maw / Ritualist)
   // stamp inside `faceOmen` — by then the phase is combat, so the watcher skips them; their gust fires
@@ -2690,6 +2715,8 @@ export function Recruit() {
         // stagger shrinks as the event count grows so the whole run always fits inside the beat window.
         if (bfx.buffFx.length > 0) replayBuffFxEvents(bfx.buffFx, Math.min(110, Math.floor((BEAT - 140) / bfx.buffFx.length)));
         if (bfx.eaten.length > 0) playFodderEat(bfx.eaten, ++eotEatKey.current);
+        // Auto-welds on this beat (Combinator / Cling Drones / Money Bots) — pulse each host as it fuses.
+        for (const uid of bfx.welds) fireWeldPulse(uid, 'auto');
       }
       // Tick the affected minions' stats up to this proc's values + flash whoever just gained.
       const cur = steps[i];

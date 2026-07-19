@@ -393,6 +393,17 @@ export interface AimLineCfg {
 }
 
 /** Renderer-facing pulse config (structural match of PulsePresetCfg — pixiFx stays import-light). */
+/** Renderer-facing WELD config (structural mirror of WeldFxConfig — pixiFx stays import-light). The
+ *  "an Attachment just welded on" cue: a gold core bloom + a tight expanding ring + a radial fizz of
+ *  sparks + motes shooting UP off the card (the "shot ascension" read). See `weldPulse`. */
+export interface WeldCfg {
+  coreSize: number; coreMs: number; coreAlpha: number;
+  ringSize: number; ringWidth: number; ringMs: number; ringAlpha: number;
+  fizzCount: number; fizzSpeed: number; fizzSize: number; fizzLife: number;
+  riseCount: number; riseSpeed: number; riseSpread: number; riseSize: number; riseLife: number; riseGravity: number;
+  colorCore: string; colorSpark: string; colorRise: string;
+}
+
 export interface PulseCfg {
   style: 'ring' | 'shard' | 'nova';
   blend: 'add' | 'normal' | 'screen';
@@ -1034,6 +1045,63 @@ class FxController {
    * `sparkCount` outward sparks. Sizes are px radii → ÷ the texture radius gives the sprite scale (1:1 with the
    * rig). Every dial lives in `cfg` (a structural mirror of PulsePresetCfg) so any preset drives it.
    */
+  /**
+   * WELD PULSE — an Attachment just fused onto a host minion (a hand-played Magnetic landing after its
+   * slide-in, or an auto-weld: Banksly/Beatbot, Combinator, Cling Drones, Money Bots). A quick gold
+   * "shot ascension": a core bloom + one tight expanding ring + a radial spark fizz + motes shooting
+   * UPWARD off the card. Composed entirely from the pooled particle primitives (no new render loop) —
+   * one-shot and fire-and-forget, so it never touches the beat clock. Config-driven (🔩 tuner).
+   */
+  weldPulse(x: number, y: number, cfg: WeldCfg): void {
+    if (!this.ready || !this.glowTex || !this.pulseTex || !this.layer) return;
+    // Core bloom — the fuse flash at the card's centre.
+    if (cfg.coreMs > 0 && cfg.coreSize > 0) {
+      const s = cfg.coreSize / TENDRIL_GLOW_R;
+      this.spawn(this.glowTex, {
+        x, y, vx: 0, vy: 0, drag: 1, life: cfg.coreMs,
+        fromScale: s * 0.25, toScale: s, spin: 0,
+        tint: hexNum(cfg.colorCore), blend: 'add', peakAlpha: cfg.coreAlpha,
+      });
+    }
+    // One tight ring snapping outward (the "shot").
+    if (cfg.ringMs > 0 && cfg.ringSize > 0) {
+      this.spawn(this.pulseTex, {
+        x, y, vx: 0, vy: 0, drag: 1, life: cfg.ringMs,
+        fromScale: 0.1, toScale: cfg.ringSize / PULSE_TEX_R, spin: 0,
+        tint: hexNum(cfg.colorCore), blend: 'add', peakAlpha: cfg.ringAlpha,
+      });
+    }
+    // Radial fizz — many small, fast, short-lived sparks (fizz, not a heavy burst).
+    if (cfg.fizzCount > 0 && cfg.fizzSpeed > 0) {
+      const fs = cfg.fizzSize / TENDRIL_GLOW_R;
+      for (let i = 0; i < cfg.fizzCount; i++) {
+        const ang = (i / cfg.fizzCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
+        const sp = cfg.fizzSpeed * (0.5 + Math.random() * 0.9);
+        this.spawn(this.glowTex, {
+          x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, drag: TENDRIL_MOTE_DRAG,
+          life: cfg.fizzLife * (0.6 + Math.random() * 0.7),
+          fromScale: fs, toScale: fs * 0.15, spin: 0,
+          tint: hexNum(cfg.colorSpark), blend: 'add', peakAlpha: 0.95,
+        });
+      }
+    }
+    // ASCENSION motes — shot upward off the card, fanned by `riseSpread`, pulled back by `riseGravity`
+    // (negative = keeps climbing). This is what makes it read as "ascension" rather than a plain burst.
+    if (cfg.riseCount > 0 && cfg.riseSpeed > 0) {
+      const rs = cfg.riseSize / TENDRIL_GLOW_R;
+      for (let i = 0; i < cfg.riseCount; i++) {
+        const spread = (Math.random() - 0.5) * cfg.riseSpread;
+        const sp = cfg.riseSpeed * (0.65 + Math.random() * 0.7);
+        this.spawn(this.glowTex, {
+          x: x + spread * 0.5, y, vx: spread, vy: -sp, drag: 0.995,
+          life: cfg.riseLife * (0.7 + Math.random() * 0.6),
+          fromScale: rs, toScale: rs * 0.2, spin: 0, gravity: cfg.riseGravity,
+          tint: hexNum(Math.random() < 0.5 ? cfg.colorRise : cfg.colorCore), blend: 'add', peakAlpha: 0.9,
+        });
+      }
+    }
+  }
+
   pulse(x: number, y: number, cfg: PulseCfg): void {
     if (!this.ready || !this.glowTex || !this.pulseTex || !this.layer) return;
 

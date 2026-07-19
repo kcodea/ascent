@@ -5,6 +5,40 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-19
 
+### feat(ui): in-game perf HUD + an exportable frame-health timeline
+
+Owner ask: a tracker in the bottom right showing FPS and whatever else helps find slowdowns, ideally
+logging over a game's length so it can be triaged after the fact. Motivated directly by the previous item --
+the batched-weld slowdown was diagnosed by reading code, and the fix could not be measured end to end.
+
+**`perfMonitor.ts`** -- a sampler. One rAF loop timestamps frames; they aggregate into 1-second buckets
+holding fps, med/p95/worst frame time, long (>33ms) and jank (>50ms) counts, the longest main-thread task
+(`PerformanceObserver('longtask')`), live FX counts from pixiFx, JS heap, DOM node count, the phase + wave
+at the time, and every FX mark that fired. Buckets ring-buffer for ~40 min and export as JSON.
+
+**It ships in the production build**, dormant, opted into with `?perf=1` / `localStorage.ascent.perf` / the
+dev menu. That is the point rather than an oversight: `docs/performance.md` requires confirming any
+slowness against the prod build, so a DEV-gated HUD would measure the wrong binary. Disabled costs nothing.
+
+Kept off its own critical path: the per-frame work is one clock read and one store into a pre-sized
+Float32Array; percentiles, counters and DOM/heap reads happen once per bucket. The HUD re-renders 1x/sec,
+the live fps digit is a `textContent` write on a ref, and the sparkline is a small canvas rather than 60
+animated divs.
+
+**Attribution** is the part that makes it more than a frame counter: `perfMonitor.mark()` is called at all
+9 pixiFx entry points, so each logged second knows which effects ran. The summary ranks `suspects` by jank
+that co-occurred with each mark. That is CORRELATION, not attribution -- a bucket is a whole second and
+several marks share it -- so it is named and documented as a "look here first" list, not a verdict.
+
+Verified: the sampler is rAF- and DOM-bound and CANNOT run headlessly (the preview pane reports
+`visibilityState: 'hidden'`, which suspends rAF entirely -- 0 frames in 1500ms), so the parts that could
+silently be wrong were extracted as pure functions (`aggregateFrames`, `summarize`) and unit-tested: 9
+tests covering fps-from-count, long/jank thresholds, a catastrophic frame surviving into `worst` without
+moving the median, empty/tiny buckets, hidden-bucket exclusion, and suspect ranking. Live in-browser: the
+HUD mounts, the flag sticks, the sampler runs, and the detail panel renders every row and button inside the
+viewport. **The numbers themselves have not been seen with real frames** -- that needs a normal browser.
+Full suite 1191 + typecheck + lint + build:web green.
+
 ### fix(ui): weld FX perf under batched welds + Chorus Engine's hand-grants arrive at their real stats
 
 Three things, all from owner reports on 2026-07-19.
@@ -14,10 +48,9 @@ converging pentagon (250ms) landing in a soft wide flash (112px, alpha 0.55, 330
 top came back out: the spark burst to 0, then the corona (24 thin spokes -> 4 heavy ones -> none). The
 convergence alone carries the read; each extra layer competed with it rather than reinforcing, and welds
 arrive in batches where noise compounds. It is now also the cheapest the effect has ever been -- one polygon
-and one flash sprite per weld, no spoke geometry and no particles. All dials remain — the ring's convergence carries the whole read, and the sparks were both noisy
-over it and the effect's main per-weld cost. The wiggle came down to a nudge (350ms / 2px / 1.8 deg / 1.05x):
-welds fire in clusters, so a big bounce on every host read as the whole board shaking. The dials all stay,
-so the sparks can come back without code.
+and one flash sprite per weld, no spoke geometry and no particles. The wiggle came down to a nudge in the
+same pass (350ms / 2px / 1.8 deg / 1.05x): welds fire in clusters, so a big bounce on every host read as
+the whole board shaking. All the dials remain, so any of it can come back without code.
 
 **2. Slowdown when several Attachments weld at once** (golden Banksly + Beatbot mirrors + Cling Drones can
 land a warband's worth of welds in one frame). Audited the whole weld path; four fixes, cheapest first:

@@ -9,6 +9,38 @@ This doc is how we keep it honest — half of it I can automate, half we do toge
 
 ---
 
+
+## The in-game perf HUD (measuring a real session)
+
+`?perf=1` (sticky, or `localStorage.ascent.perf = '1'`, or 📊 Perf HUD in the dev menu) turns on a
+bottom-right frame-health readout. **It ships in the production build on purpose** — this doc's own rule is
+that a slowness report only counts against the prod build, so a dev-only HUD would measure the wrong thing.
+Disabled it costs nothing: no rAF loop, no observers, nothing registered.
+
+What it records, once per second, into an exportable timeline:
+
+| | |
+|---|---|
+| `fps` | frames actually presented. A **ceiling**, not a score — rAF is capped at the display refresh, so 60 means "nothing dropped", not "fast". |
+| `med / p95 / worst` | frame times. **`worst` is the number that finds hitches** — a 500ms stall inside an otherwise smooth second is invisible in an average. |
+| `long` / `jank` | frames over 33ms (dropped one) / over 50ms (a visible hitch). |
+| `longest task` | longest main-thread block, from `PerformanceObserver('longtask')`. Attributed by the browser, not inferred. |
+| counters | live particles, sprite pool, weld rings, shields (from `pixiFx`). |
+| `heap`, `dom nodes` | leak detection — a climbing node count shows up as slow style recalc. |
+| context | phase + wave, so a spike is tied to where in the run it happened. |
+| marks | which FX fired that second (`fx:weld`, `fx:aura`, …). |
+
+**⬇ log** downloads the whole timeline as JSON; **⧉ summary** copies the roll-up (worst buckets, mark
+totals, and `suspects` — marks ranked by the jank that co-occurred with them). `suspects` is **correlation,
+not attribution**: a bucket is a whole second and several marks share it, so it ranks what to profile
+first, it does not name a culprit. Confirm with DevTools.
+
+From the console: `__perf.summary()`, `__perf.exportLog()`, `__perfHud(true)`.
+
+Add a mark anywhere with `perfMonitor.mark('label')` — it's a no-op when the monitor is off, so call sites
+don't need a guard.
+
+
 ## 1. The two kinds of cost (and who can measure them)
 
 | Cost | Where | Who measures |

@@ -3981,3 +3981,31 @@ svg { width: 18px; height: 18px; }
   82% { opacity: 1; }  /* hold to ~2.46s */
   100% { opacity: 0; } /* faded out by 3s */
 }
+
+/* ── PERF HUD ────────────────────────────────────────────────────────────────────────────────────────
+   Bottom-right frame-health readout (see PerfHud.tsx). Ships in prod, dormant until opted in.
+   Deliberately cheap to render: no blur, no animated paint properties, no per-frame DOM. The face is a
+   fixed-size row so the sparkline never reflows the panel as numbers change width. */
+.perfhud {
+  position: fixed; right: 8px; bottom: 8px; z-index: 400;
+  font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #cfd6e4; background: rgba(12, 14, 20, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px;
+  user-select: none; pointer-events: auto;
+}
+.perfhud-face { display: flex; align-items: center; gap: 7px; padding: 5px 8px; cursor: pointer; }
+.perfhud-fps { font-size: 15px; font-weight: 700; color: #fff; min-width: 26px; text-align: right; font-variant-numeric: tabular-nums; }
+.perfhud-unit { opacity: 0.5; margin-left: -4px; }
+.perfhud-spark { display: block; width: 132px; height: 30px; opacity: 0.95; }
+.perfhud-worst { min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.perfhud-detail { border-top: 1px solid rgba(255, 255, 255, 0.1); padding: 6px 8px; min-width: 250px; }
+.perfhud-row { display: flex; justify-content: space-between; gap: 12px; padding: 1px 0; }
+.perfhud-row > span { opacity: 0.6; }
+.perfhud-row > b { font-variant-numeric: tabular-nums; color: #fff; font-weight: 600; text-align: right; }
+.perfhud-row.warn > b { color: #ffbd2e; }
+.perfhud-btns { display: flex; gap: 4px; margin-top: 6px; }
+.perfhud-btns button {
+  flex: 1; font: inherit; color: #cfd6e4; cursor: pointer; padding: 3px 5px;
+  background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 4px;
+}
+.perfhud-btns button:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }

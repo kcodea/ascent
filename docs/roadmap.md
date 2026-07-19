@@ -71,6 +71,10 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
+- **Confirm the batched-weld perf fixes with the new HUD**, against a prod build: play to a Banksly/Beatbot
+  turn with `?perf=1`, then read `worst`/`jank` and the `fx:weld` suspect line. The 2026-07-19 weld fixes
+  were never measured end to end (rAF is suspended in the headless preview).
+
 - **Weld FX: pool the ring `Graphics` + give them their own sub-container.** They're allocated and destroyed
   per weld (unpooled, unlike the particle sprites), and they sit mid-layer between sprite batches, which
   breaks batching. Real but smaller than the fixes already landed (2026-07-19 audit); pooling Graphics would

@@ -15,6 +15,8 @@ import { MinionBook } from './MinionBook';
 import { EscMenu } from './EscMenu';
 import { DevMenu } from './DevMenu';
 import { BalancePanel } from './BalancePanel';
+import { PerfHud } from './PerfHud';
+import { perfMonitor, perfEnabledByFlag } from './perfMonitor';
 import { Icon } from './Icon';
 import { ErrorBoundary } from './ErrorBoundary';
 import { PixiFxLayer } from './PixiFxLayer';
@@ -36,6 +38,28 @@ export function Game() {
   // heroId never change mid-run), so it only remounts when the run itself changes.
   const runKey = useGame((s) => `${s.run.seed}:${s.run.heroId}`);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [perfOn, setPerfOn] = useState(perfEnabledByFlag);
+
+  // Perf HUD: start/stop the sampler with the toggle, and feed it the game context so every logged second
+  // carries what was happening (a spike is only actionable if you know the phase + wave it landed in).
+  useEffect(() => {
+    if (!perfOn) { perfMonitor.stop(); return; }
+    perfMonitor.registerContext(() => {
+      const s = useGame.getState().run;
+      return { phase: s.phase, wave: s.wave };
+    });
+    perfMonitor.start();
+    return () => perfMonitor.stop();
+  }, [perfOn]);
+  // Console handles: toggle the HUD from anywhere (dev menu, devtools) without threading state through the
+  // tree, and reach the monitor itself for triage — `__perf.summary()` / `__perf.exportLog()` are the two
+  // you actually want when someone reports a hitch and the HUD isn't already up.
+  useEffect(() => {
+    const w = window as unknown as { __perfHud?: (on?: boolean) => void; __perf?: typeof perfMonitor };
+    w.__perfHud = (on = true) => setPerfOn(on);
+    w.__perf = perfMonitor;
+    return () => { delete w.__perfHud; delete w.__perf; };
+  }, []);
 
   // Preload all card/hero art once, on idle, so the first shop renders with art already cached — kills the
   // cold-load "pop-in" (esp. the itch CDN, where each webp is a separate first-appearance round-trip).
@@ -146,6 +170,9 @@ export function Game() {
       {menuOpen && <EscMenu onClose={() => setMenuOpen(false)} />}
       {/* DEV-only tuning menu — one 🛠️ button opening every live tuner (stripped from production). */}
       {import.meta.env.DEV && <DevMenu />}
+      {/* Frame-health HUD. Ships in production but stays dormant unless opted into (?perf=1 /
+          localStorage / the dev menu) — a slowness report is only trustworthy against the prod build. */}
+      {perfOn && <PerfHud onClose={() => setPerfOn(false)} />}
       <BalancePanel />
 
       {/* Topmost layers: the pre-run hero picker (self-gates on heroChoices), and above it the title

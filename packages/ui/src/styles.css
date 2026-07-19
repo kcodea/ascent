@@ -2688,7 +2688,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    (the unit itself collapses), centred there; the inner .float rides the floatup rise from the anchor.
    It clears FASTER than a normal float (≈0.9s) so a lone number over a vanished unit doesn't hang. */
 .deathfloat { position: fixed; z-index: 26; pointer-events: none; transform: translate(-50%, -50%); }
-.deathfloat .float { position: static; right: auto; bottom: auto; display: inline-block; animation-name: floatstickc; animation-duration: 0.9s; }
+.deathfloat .float { position: static; right: auto; bottom: auto; display: inline-block; animation-name: floatstickc; animation-duration: var(--death-float-dur, 0.9s); }
 .float.dmg { color: #fff; background: var(--threat); padding: 3px 13px; border-radius: 12px; font-size: var(--float-dmg-size, 42px); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.38); }
 /* An in-unit damage number sits in the CENTRE of the struck card (not the corner) so it reads as the hit
    landing on the minion. Centred via top/left 50% + a translate(-50%,-50%) baked into `floatupc` (a plain

@@ -28,6 +28,7 @@ import { getLayout } from './layoutConfig';
 import { getFlipConfig } from './flipConfig';
 import { getShieldConfig } from './shieldConfig';
 import { getTrailConfig } from './trailConfig';
+import { applyFloatSpeed } from './floatConfig';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { useGame } from './store';
@@ -465,6 +466,11 @@ export function Recruit() {
   const setCombatBuffs = useGame((s) => s.setCombatBuffs);
   const combatSpeed = useGame((s) => s.combatSpeed);
   const setCombatSpeed = useGame((s) => s.setCombatSpeed);
+  // Keep the float CSS animations in step with the speed slider. Their cleanup timers already divide by
+  // combatSpeed, but the CSS durations were fixed — and `floatup` holds opacity 1 until 80%, so above ~1.07×
+  // the number was yanked from the DOM while still fully bright instead of fading (at 1.6×: removed at 937ms
+  // into a 1400ms animation). Pushing the scaled durations keeps the fade finishing before the cleanup.
+  useEffect(() => { applyFloatSpeed(combatSpeed); }, [combatSpeed]);
   // The pre-run hero picker is open while this is set — freeze the round clock until a hero's chosen.
   const heroSelecting = useGame((s) => s.heroChoices !== null);
   // Recruit stays mounted under the title / leaderboard overlays (see Game.tsx), so the round clock must also

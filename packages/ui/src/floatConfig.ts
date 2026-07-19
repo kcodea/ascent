@@ -60,14 +60,40 @@ let cfg: FloatConfig = (() => {
   }
 })();
 
+/** The `.deathfloat .float` (killing-blow number) CSS animation length — mirrors `floatstickc`'s shipped
+ *  0.9s, kept here so it can be speed-scaled alongside the main float. */
+const DEATH_FLOAT_DUR_MS = 900;
+
+/** Live combat speed, so the float ANIMATIONS shrink with it. The React cleanup timers divide by combatSpeed
+ *  (`floatMs`/`deathFloatMs` in useCombatReplay) but the CSS durations were FIXED, and `floatup` holds
+ *  opacity 1 until 80% — so above ~1.07× the number was removed from the DOM while still fully bright
+ *  (at 1.6×: cleanup 937ms vs a 1400ms animation still at opacity 1). It popped out instead of fading. */
+let speed = 1;
+
+/** Set the live combat speed and re-push the vars. Call whenever `combatSpeed` changes. */
+export function applyFloatSpeed(combatSpeed: number): void {
+  speed = combatSpeed > 0 ? combatSpeed : 1;
+  applyFloatConfig();
+}
+
+/** The speed-scaled CSS animation lengths (ms). Pure, so the "fade finishes before the cleanup timer removes
+ *  the node" invariant is testable without a DOM — that invariant is exactly what broke above ~1.07×. */
+export function floatDurations(combatSpeed: number): { floatDur: number; deathFloatDur: number } {
+  const sp = combatSpeed > 0 ? combatSpeed : 1;
+  return { floatDur: Math.round(cfg.durMs / sp), deathFloatDur: Math.round(DEATH_FLOAT_DUR_MS / sp) };
+}
+
 /** Push the config into the CSS custom properties on :root that `.float` + the `floatup` keyframe read.
- *  Values map 1:1 to the CSS fallbacks, so applying the defaults is a no-op visually. */
+ *  Values map 1:1 to the CSS fallbacks, so applying the defaults at 1× is a no-op visually. Durations are
+ *  divided by the live combat speed so the fade always completes before the cleanup timer removes the node. */
 export function applyFloatConfig(): void {
   if (typeof document === 'undefined') return;
   const s = document.documentElement.style;
   s.setProperty('--float-size', `${cfg.size}px`);
   s.setProperty('--float-dmg-size', `${cfg.dmgSize}px`);
-  s.setProperty('--float-dur', `${cfg.durMs}ms`);
+  const { floatDur, deathFloatDur } = floatDurations(speed);
+  s.setProperty('--float-dur', `${floatDur}ms`);
+  s.setProperty('--death-float-dur', `${deathFloatDur}ms`);
   s.setProperty('--float-pop', `${cfg.pop}`);
   // Damage-only rise (its own var, so non-damage floats keep drifting up via base `floatup`'s --float-rise).
   s.setProperty('--float-dmg-rise', `${-cfg.rise}px`); // stored positive (drift up); CSS translateY is negative

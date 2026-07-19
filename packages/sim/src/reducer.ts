@@ -8,7 +8,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, addOfferBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, addOfferBuff, applyBattlecryTarget, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -1163,8 +1163,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           cardId: def.id,
           tribe: def.tribe,
           // A discovered Undead carries the run-wide Undead Attack bonus too (undeadBuyAtk), like a buy.
-          attack: def.attack + dcb.attack + undeadBuyBonus(s, def),
-          health: def.health + dcb.health + buyHealthAura(s, def),
+          ...conjuredStats(s, def, dcb),
           keywords: [...def.keywords],
           golden: false,
           // Disco Dan's Setlist: this pick is locked in hand until you reach its shop tier (T2/T4/T6).
@@ -1694,8 +1693,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
         uid: `b${s.uidSeq++}`,
         cardId: def.id,
         tribe: def.tribe,
-        attack: def.attack + cb.attack + undeadBuyBonus(s, def),
-        health: def.health + cb.health + buyHealthAura(s, def),
+        ...conjuredStats(s, def, cb),
         keywords: [...def.keywords],
         golden: false,
       });
@@ -1713,8 +1711,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
         uid: `b${s.uidSeq++}`,
         cardId: def.id,
         tribe: def.tribe,
-        attack: def.attack + cb.attack + undeadBuyBonus(s, def),
-        health: def.health + cb.health + buyHealthAura(s, def),
+        ...conjuredStats(s, def, cb),
         keywords: [...def.keywords],
         golden: false,
       });
@@ -1999,8 +1996,7 @@ function advanceCombat(s: RunState): void {
         uid: grantUid,
         cardId: 'symbioticattachment',
         tribe: def.tribe,
-        attack: def.attack + cb.attack + undeadBuyBonus(s, def),
-        health: def.health + cb.health + buyHealthAura(s, def),
+        ...conjuredStats(s, def, cb),
         keywords: [...def.keywords],
         golden: false,
       });

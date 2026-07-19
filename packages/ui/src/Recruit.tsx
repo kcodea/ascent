@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { CONFIG, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
+import { CONFIG, conjuredStats, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
@@ -275,6 +275,24 @@ function tokenRefView(
     keywords: c.keywords, text: c.text, tier: c.tier, spell: c.spell,
     baseAttack: c.attack, baseHealth: c.health,
   };
+}
+
+/**
+ * The view for a card a combat effect is CONJURING into your hand — the previews that play during the
+ * replay (the fly-in card and the growing hand). Stats come from `conjuredStats`, the same sim helper the
+ * reducer settles the real card with, so what flies to your hand is what lands in it.
+ *
+ * It used to build these previews from base stats + the per-card enchant only, while the reducer also
+ * added the creation-time tribe auras — so a Chorus Engine Attachment flew in looking base and then
+ * visibly jumped once combat ended (owner report 2026-07-19). Don't recompute these by hand.
+ */
+function conjuredView(cardId: string, run: RunState): CardView | null {
+  const def = CARD_INDEX[cardId];
+  if (!def) return null;
+  const base = tokenRefView(cardId, run.cardBuffs, run.impBuff);
+  // Spells have no stats to aura — tokenRefView's view is already right for them.
+  if (def.spell) return base;
+  return { ...base, ...conjuredStats(run, def) };
 }
 
 interface ShopViewOpts {
@@ -679,12 +697,27 @@ export function Recruit() {
   // stamp after the phase flips — those fire from the EoT BEAT instead (see playBeat).
   // NB: queries the DOM directly rather than via `findEl` — this lives ABOVE findEl's declaration, and a
   // `[findEl]` dep would read it in the temporal dead zone (crashes the screen on the first weld).
-  const fireWeldFx = useCallback((uid: string, kind: 'play' | 'auto'): void => {
-    const el = document.querySelector(`[data-zone="warband"] [data-uid="${uid}"]`);
-    if (!el) return;
-    const r = (el.querySelector('.archbox') ?? el).getBoundingClientRect();
-    pixiFx.weldPulse(r.left + r.width / 2, r.top + r.height / 2, weldCfgFor(kind));
-    applyWeldWiggle([el], weldLandMs()); // the card reacts to the IMPACT, not to the ring appearing
+  //
+  // BATCHED, and it has to stay that way: a single weld can land on up to a warband's worth of hosts at
+  // once (golden Banksly + Beatbot mirrors + Cling Drones), and the naive shape — measure a card, animate
+  // it, measure the next — interleaves a layout READ with a style WRITE per host, forcing a synchronous
+  // reflow every iteration (`docs/performance.md`: cache the reads). So: measure ALL of them, then fire
+  // ALL of them. One reflow per batch instead of N. `weldCfgFor` is hoisted for the same reason — it
+  // rebuilds a 30-field object and is identical for every host in the batch.
+  const fireWeldFxBatch = useCallback((uids: readonly string[], kind: 'play' | 'auto'): void => {
+    if (uids.length === 0) return;
+    const hosts: { el: Element; x: number; y: number }[] = [];
+    for (const uid of uids) {
+      const el = document.querySelector(`[data-zone="warband"] [data-uid="${uid}"]`);
+      if (!el) continue;
+      const r = (el.querySelector('.archbox') ?? el).getBoundingClientRect(); // READ pass — no writes yet
+      hosts.push({ el, x: r.left + r.width / 2, y: r.top + r.height / 2 });
+    }
+    if (hosts.length === 0) return;
+    const cfg = weldCfgFor(kind);
+    const land = weldLandMs();
+    for (const h of hosts) pixiFx.weldPulse(h.x, h.y, cfg); // WRITE pass
+    applyWeldWiggle(hosts.map((h) => h.el), land); // the card reacts to the IMPACT, not the ring appearing
   }, []);
   const prevWeldFxSeq = useRef(run.weldFxSeq);
   useEffect(() => {
@@ -694,9 +727,9 @@ export function Recruit() {
     const uids = run.weldFxUids;
     if (!uids?.length || run.phase !== 'recruit') return;
     // One weld can land on several minions (a Beatbot mirrors it onto itself) — animate every one.
-    const raf = requestAnimationFrame(() => { for (const uid of uids) fireWeldFx(uid, run.weldFxKind ?? 'auto'); });
+    const raf = requestAnimationFrame(() => fireWeldFxBatch(uids, run.weldFxKind ?? 'auto'));
     return () => cancelAnimationFrame(raf);
-  }, [run.weldFxSeq, run.weldFxUids, run.weldFxKind, run.phase, fireWeldFx]);
+  }, [run.weldFxSeq, run.weldFxUids, run.weldFxKind, run.phase, fireWeldFxBatch]);
   // Immediate (mid-shop) triggers arrive via the `buffGustSeq` stamp (one-shot, the swapFxSeq pattern;
   // inits to the current value so a restored save doesn't fire). End-of-Turn triggers (Maw / Ritualist)
   // stamp inside `faceOmen` — by then the phase is combat, so the watcher skips them; their gust fires
@@ -2745,7 +2778,7 @@ export function Recruit() {
         }
         if (bfx.eaten.length > 0) playFodderEat(bfx.eaten, ++eotEatKey.current);
         // Auto-welds on this beat (Combinator / Cling Drones / Money Bots) — ring each host as it fuses.
-        for (const uid of bfx.welds) fireWeldFx(uid, 'auto');
+        fireWeldFxBatch(bfx.welds, 'auto');
       }
       // Tick the affected minions' stats up to this proc's values + flash whoever just gained.
       const cur = steps[i];
@@ -3263,7 +3296,7 @@ export function Recruit() {
           {/* Cards a combat effect just granted, so the hand visibly grows during the fight (they get
               committed to the real hand at `resolveCombat`). */}
           {inCombat && !run.combatSettled && replay.handGrantsShown.map((cardId, i) => (
-            <Card key={`grant-${i}`} card={tokenRefView(cardId, run.cardBuffs, run.impBuff)} suppressPop forceFull />
+            <Card key={`grant-${i}`} card={conjuredView(cardId, run) ?? tokenRefView(cardId, run.cardBuffs, run.impBuff)} suppressPop forceFull />
           ))}
         </div>
       </div>
@@ -3320,13 +3353,10 @@ export function Recruit() {
 
       {/* A card a combat effect just granted (Arcane Weaver → Spirit Fire) flies into your hand. */}
       {fighting && replay.handGrant && (() => {
-        const def = CARD_INDEX[replay.handGrant.cardId];
-        if (!def) return null;
-        const view: CardView = {
-          name: def.name, cardId: def.id, tribe: def.tribe, tribe2: def.tribe2,
-          attack: def.attack, health: def.health, keywords: [...def.keywords], text: def.text,
-          tier: def.tier, spell: def.spell, baseAttack: def.attack, baseHealth: def.health,
-        };
+        // Same helper as the hand preview and the reducer's settle — the card that flies in must carry the
+        // stats it will actually have (it previously showed raw base stats, so it visibly jumped at settle).
+        const view = conjuredView(replay.handGrant.cardId, run);
+        if (!view) return null;
         return (
           <div className="handgrant" key={replay.handGrant.key} aria-hidden="true">
             <span className="hg-label">To your hand</span>

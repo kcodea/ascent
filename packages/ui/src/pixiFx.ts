@@ -535,9 +535,12 @@ const auraKey = (kind: AuraKind, uid: string): string => `${kind}|${uid}`;
 const auraMargin = (kind: AuraKind): number => AURA[kind].margin;
 
 /**
- * A CSS-style `cubic-bezier(x1, 0, x2, 1)` timing function, solved per call (binary search on x, ~20
- * iterations — cheap enough for one evaluation per ring per frame). The weld ring exposes this as two
- * "ease bars": `easeStart` slows the departure, `easeFinish` slows the arrival. 0/0 = linear.
+ * A CSS-style `cubic-bezier(x1, 0, x2, 1)` timing function, solved by binary search on x (~20 iterations).
+ * The weld ring exposes this as two "ease bars": `easeStart` slows the departure, `easeFinish` slows the
+ * arrival. 0/0 = linear.
+ *
+ * Not called per frame — see `easeLut`. A ring's easing is fixed for its whole life, so we solve it once
+ * into a lookup table at fire time rather than re-solving every frame for every concurrent ring.
  */
 function cubicBezierEase(x1: number, x2: number, t: number): number {
   if (t <= 0) return 0;
@@ -554,6 +557,28 @@ function cubicBezierEase(x1: number, x2: number, t: number): number {
     u = (lo + hi) / 2;
   }
   return by(u);
+}
+
+/** Scratch buffer for the weld ring's polygon points — reused across every ring and every frame so the
+ *  draw path allocates nothing. Only ever touched synchronously inside `drawWeldRing`. */
+const ringPts: number[] = [];
+
+const EASE_LUT_N = 32;
+
+/** Pre-solve an ease curve into a 33-entry table, sampled + linearly interpolated at draw time. Built once
+ *  per ring (its ease bars never change mid-flight); turns a 20-iteration solve per ring per frame into
+ *  two array reads — the cost stops scaling with concurrent welds. */
+function easeLut(x1: number, x2: number): Float32Array {
+  const lut = new Float32Array(EASE_LUT_N + 1);
+  for (let i = 0; i <= EASE_LUT_N; i++) lut[i] = cubicBezierEase(x1, x2, i / EASE_LUT_N);
+  return lut;
+}
+
+function sampleLut(lut: Float32Array, t: number): number {
+  const f = Math.min(EASE_LUT_N, Math.max(0, t * EASE_LUT_N));
+  const i = Math.floor(f);
+  const a = lut[i]!;
+  return i >= EASE_LUT_N ? a : a + (lut[i + 1]! - a) * (f - i);
 }
 
 class FxController {
@@ -581,7 +606,7 @@ class FxController {
   private readonly gusts: { g: Graphics; box: GustBox; cfg: BuffGustCfg; age: number; struck?: boolean }[] = []; // buff gusts — redrawn per frame
   // Weld rings — one per weld, redrawn per frame while the ring converges; retires once the ring lands and
   // its flash/sparks have been emitted (those finish on their own in the particle pool).
-  private readonly weldRings: { g: Graphics; x: number; y: number; cfg: WeldCfg; age: number; landed?: boolean }[] = [];
+  private readonly weldRings: { g: Graphics; x: number; y: number; cfg: WeldCfg; age: number; ease: Float32Array; landed?: boolean }[] = [];
   private readonly waves: { g: Graphics; region: WaveRegion; cfg: AuraWaveCfg; age: number; lastWake: number; motes: { off: number; spawned: boolean }[] }[] = []; // aura waves — one per rise, a centre→edge board wave redrawn per frame
   /** The live hero-power targeting line (null = not aiming). `side`/`amp` are rolled once per AIM — each
    *  new arm gets a fresh random arch (owner ask: never the same static curve) — then held stable. */
@@ -1087,17 +1112,20 @@ class FxController {
     const g = new Graphics();
     g.blendMode = 'add';
     this.layer.addChild(g);
-    this.weldRings.push({ g, x, y, cfg, age: 0 });
+    // The ease curve is fixed for this ring's whole flight — solve it into a LUT now, once, instead of per
+    // frame. A batch of welds all share the same cfg object, so this is one small table per weld.
+    this.weldRings.push({ g, x, y, cfg, age: 0, ease: easeLut(cfg.easeStart, 1 - cfg.easeFinish) });
   }
 
   /** Redraw one converging weld ring; emits its flash + rising sparks on arrival. False once complete. */
-  private drawWeldRing(w: { g: Graphics; x: number; y: number; cfg: WeldCfg; age: number; landed?: boolean }): boolean {
+  private drawWeldRing(w: { g: Graphics; x: number; y: number; cfg: WeldCfg; age: number; ease: Float32Array; landed?: boolean }): boolean {
     const { g, x, y, cfg } = w;
     const t = Math.min(1, w.age / Math.max(1, cfg.ringMs));
     g.clear();
     if (t < 1) {
-      // The convergence curve — two tunable "ease bars" (slow departure / slow arrival). See cubicBezierEase.
-      const e = cubicBezierEase(cfg.easeStart, 1 - cfg.easeFinish, t);
+      // The convergence curve — two tunable "ease bars" (slow departure / slow arrival), pre-solved into
+      // this ring's LUT at fire time so N concurrent rings don't each run a bezier solve every frame.
+      const e = sampleLut(w.ease, t);
       const r = cfg.ringStart + (cfg.ringEnd - cfg.ringStart) * e;
       const rx = r * (cfg.ringAspect || 1); // aspect < 1 = tall (matches the card), > 1 = wide
       const ry = r;
@@ -1105,29 +1133,42 @@ class FxController {
       // Brightens as it closes, so the arrival is the peak rather than a fade-out.
       const a = cfg.ringAlpha * (0.35 + 0.65 * t);
       const sides = Math.round(cfg.ringSides);
+      const ringCol = hexNum(cfg.colorRing);
       // SHAPE: < 3 sides = a circle/ellipse; 3+ = a regular polygon (4 = diamond, 6 = hex, …).
-      const trace = (): void => {
-        if (sides < 3) { g.ellipse(x, y, rx, ry); return; }
-        for (let i = 0; i <= sides; i++) {
-          const ang = rot + (i / sides) * Math.PI * 2;
-          const px = x + Math.cos(ang) * rx;
-          const py = y + Math.sin(ang) * ry;
-          if (i === 0) g.moveTo(px, py); else g.lineTo(px, py);
+      //
+      // The polygon's points are computed ONCE into a scratch buffer and replayed via `g.poly()` for each
+      // stroke pass, rather than re-running the trig loop per pass. (The glow halo and the ring proper are
+      // separate strokes because they differ in width AND alpha — they can't be merged — but they are the
+      // same path, so the path should only be built once.) The buffer is module-level and reused across
+      // rings and frames: no per-frame allocation.
+      if (sides < 3) {
+        if (cfg.ringGlowWidth > 0) {
+          g.ellipse(x, y, rx, ry);
+          g.stroke({ width: cfg.ringWidth + cfg.ringGlowWidth, color: ringCol, alpha: a * 0.45, cap: 'round', join: 'round' });
         }
-        g.closePath();
-      };
-      if (cfg.ringGlowWidth > 0) {
-        trace();
-        g.stroke({ width: cfg.ringWidth + cfg.ringGlowWidth, color: hexNum(cfg.colorRing), alpha: a * 0.45, cap: 'round', join: 'round' });
+        g.ellipse(x, y, rx, ry);
+        g.stroke({ width: cfg.ringWidth, color: ringCol, alpha: a, cap: 'round', join: 'round' });
+      } else {
+        const pts = ringPts;
+        pts.length = 0;
+        for (let i = 0; i < sides; i++) {
+          const ang = rot + (i / sides) * Math.PI * 2;
+          pts.push(x + Math.cos(ang) * rx, y + Math.sin(ang) * ry);
+        }
+        if (cfg.ringGlowWidth > 0) {
+          g.poly(pts, true);
+          g.stroke({ width: cfg.ringWidth + cfg.ringGlowWidth, color: ringCol, alpha: a * 0.45, cap: 'round', join: 'round' });
+        }
+        g.poly(pts, true);
+        g.stroke({ width: cfg.ringWidth, color: ringCol, alpha: a, cap: 'round', join: 'round' });
       }
-      trace();
-      g.stroke({ width: cfg.ringWidth, color: hexNum(cfg.colorRing), alpha: a, cap: 'round', join: 'round' });
       // SPOKES: short lines OUTSIDE the ring pointing inward at it, riding it as it closes — the
       // "being drawn in" read. `spokeGap` is the space between the ring and a spoke's inner tip.
       const spokes = Math.round(cfg.spokeCount);
       if (spokes > 0 && cfg.spokeLen > 0) {
+        const step = (Math.PI * 2) / spokes;
         for (let i = 0; i < spokes; i++) {
-          const ang = rot + (i / spokes) * Math.PI * 2;
+          const ang = rot + i * step;
           const c = Math.cos(ang);
           const sn = Math.sin(ang);
           const innerX = x + c * (rx + cfg.spokeGap);
@@ -1135,7 +1176,7 @@ class FxController {
           g.moveTo(innerX, innerY);
           g.lineTo(innerX + c * cfg.spokeLen, innerY + sn * cfg.spokeLen);
         }
-        g.stroke({ width: cfg.spokeWidth, color: hexNum(cfg.colorRing), alpha: cfg.spokeAlpha * a, cap: 'round' });
+        g.stroke({ width: cfg.spokeWidth, color: ringCol, alpha: cfg.spokeAlpha * a, cap: 'round' });
       }
     }
     // Arrival: one-shot the flash + the rising sparks the moment the ring lands.

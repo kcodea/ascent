@@ -50,7 +50,7 @@ import {
 } from './index';
 import { magnetizesTo } from './reducer';
 import type { BoardMinion } from '@game/core';
-import { applyEndOfTurn, applyGoldSpent, implosionCasts, spellCasts, spellCostReduction, weldMagnetic } from './recruit';
+import { applyEndOfTurn, applyGoldSpent, conjuredStats, implosionCasts, spellCasts, spellCostReduction, weldMagnetic } from './recruit';
 import { rollShop } from './shop';
 
 /** Play greedily until the run ends (game over OR victory at maxWave): buy, play, else face omen. */
@@ -1451,6 +1451,29 @@ describe('run loop (@game/sim)', () => {
     expect(host.keywords).not.toContain('M'); // the host does NOT become an Attachment itself
     // …but STILL inherits the aura (decoupled from the keyword): 5/5 host + Cling 2/2 (weld) + aura +2/+3 = 9/10.
     expect([host.attack, host.health]).toEqual([9, 10]);
+  });
+
+  it('a combat hand-grant carries the run-wide Attachment aura, and conjuredStats is what settles it (Chorus Engine, 2026-07-19)', () => {
+    // Chorus Engine grants Attachments to hand mid-combat. The reducer settled them WITH the aura while
+    // the replay previewed them without it, so the card visibly jumped at the end of combat. Both sides now
+    // go through `conjuredStats` — this pins the value that must appear in BOTH.
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [], hand: [], phase: 'combat',
+      magneticBuyAtk: 2, magneticBuyHp: 3, // Scrap Herald's run-wide Attachment aura is active
+      cardBuffs: { cling: { attack: 1, health: 1 } }, // …plus a per-card enchant, to prove both stack
+      lastCombat: {
+        events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0,
+        initial: { player: [], enemy: [] }, playerHandGrants: ['cling'],
+      },
+    };
+    // base 2/2 + enchant 1/1 + aura 2/3 = 5/6. The UI preview calls this exact function.
+    expect(conjuredStats(s, CARD_INDEX.cling!)).toEqual({ attack: 5, health: 6 });
+
+    // …and settling the real grant produces exactly that card — preview and settle can't drift.
+    s = reduce(s, { type: 'resolveCombat' });
+    const granted = s.hand.find((c) => c.cardId === 'cling');
+    expect(granted).toBeDefined();
+    expect([granted!.attack, granted!.health]).toEqual([5, 6]);
   });
 
   it('Ancient Runes ("spells cast twice") now doubles a Discover-spell too (bug fix 2026-07-09)', () => {

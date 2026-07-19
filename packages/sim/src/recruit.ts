@@ -226,6 +226,29 @@ export function buyHealthAura(state: RunState, def: CardDef): number {
   return bonus;
 }
 
+/**
+ * The stats a card gets when it's CONJURED into your hand mid-run — a combat hand-grant (Chorus Engine's
+ * Attachments, Arcane Weaver's Spirit Fire, Mechanical Jouster), a Rune of the Trophy copy, and any future
+ * conjure site. Base def + the run's per-card enchant + the creation-time tribe auras (Scrap Herald's
+ * Attachment aura, the Undead/Beast bonds).
+ *
+ * **This is the single source of truth, and the UI must render its previews through it too.** It exists
+ * because it drifted: the reducer settled a granted Attachment WITH `magneticBuyAtk/Hp`, while the combat
+ * replay previewed the same card with only its per-card enchant — so a Chorus Engine Attachment flew to
+ * hand looking base and then visibly jumped at the end of combat (owner report 2026-07-19). Any conjure
+ * preview that recomputes these stats by hand will drift again; call this instead.
+ */
+export function conjuredStats(
+  state: RunState,
+  def: CardDef,
+  cb: { attack: number; health: number } = cardBuff(state, def.id),
+): { attack: number; health: number } {
+  return {
+    attack: def.attack + cb.attack + undeadBuyBonus(state, def),
+    health: def.health + cb.health + buyHealthAura(state, def),
+  };
+}
+
 /** Tiff's Dragon Tamer cost: 5 Gold, dropping 1 per Dragon/spell bought since the last use (floor 0 —
  *  the `tiffDiscount` bank, reset when the power fires). Shared by the reducer's charge, the StatusBar's
  *  live cost coin, and canHero's affordability gate so the three never drift. */

@@ -195,11 +195,22 @@ trigger"; avoid true undo until the rules are sturdier).
 - Two infinite `box-shadow` keyframe loops break the looping-paint rule: `endpulse` (`.heropowerbtn.ready` +
   `.endturn-side.urgent`, running most of every shop turn) and `discpulse`. Convert to the approved static-
   shadow `::before` + opacity pattern (`kwglow` / `tripready`).
-- Autosave is O(n²) (serializes the whole action log every dispatch) — debounce.
-- Combat replay: 55–86ms synchronous-React-render freezes on some summon/death beats (FX/Pixi/GPU/layout/GC
-  all ruled ~0 — it's per-beat render/reconciliation). Profile the flame chart, memoize `computeFrame` + the
-  growing per-beat event-log scans. Cheap adjacent win: `syncShields` calls `getBoundingClientRect` per aura
-  bubble every frame (~100k calls/combat) — cache the rects, re-measure only on layout change.
+- ~~Autosave is O(n²) (serializes the whole action log every dispatch) — debounce.~~ **DONE** — autosave is now
+  trailing-debounced (`store.ts`, `scheduleSave`), coalescing a burst of shop clicks into one write; flushed on
+  finish + page-hide. (Deeper win still open: cache the serialized `lastCombat` so it isn't re-stringified each
+  write — the per-write constant is still O(run size).)
+- **Combat replay — O(events²) fold + per-beat rect volume (handed off).** The per-beat freeze is
+  `computeFrame` re-folding the entire event log from index 0 every beat (`useCombatReplay.ts:127`), squared
+  over the beats, inflated by attachment/Beatbot buff-event volume; plus `fireBuffCasts` reading 2 rects per
+  buff-cast (~100k `getBoundingClientRect`/combat). Fixes (incremental fold; cache rects per beat) are speced
+  in **`docs/combat-replay-perf-handoff.md`** — owner asked combat replay be left untouched for now.
+- **Weld beat cadence (deferred — owner feel call).** Multi-weld End-of-Turn welds drip out ~930ms apart
+  (`Recruit.tsx:2738` shared `BEAT`/`GAP`). Tightening weld-only beats needs a per-beat-kind hold threaded
+  through the tuned End-of-Turn clock (#533/#550/2026-07-18) — not a blind constant change.
+- **Blueprint Cache / Beatbot End-Turn compute (deferred — owner feel + balance).** O(attachments × mechs)
+  per End Turn (`recruit.ts:3165`), driven by Beatbot's uncapped mirrored `attachments` count
+  (`recruit.ts:584`). The per-wave itemization is the 2026-07-18 attachment-major FX ruling; capping Beatbot is
+  a balance change. Needs an owner decision, not a silent perf edit.
 
 ### Combat timing clashes (per `combat-timing-audit.md`)
 > Full current numbers — every event's hold, every keyword's cost, 36 interactions end to end — are in

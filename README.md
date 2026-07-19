@@ -40,6 +40,12 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+- **Weld feel + late-game perf (attachment/Beatbot).** Hand-played welds resolve snappier (drag pre-roll
+  390ms → 200ms), and autosave is now trailing-debounced so a burst of shop clicks no longer re-serializes the
+  whole run on every click (the late-game shop hitch). Diagnosis also traced the Beatbot combat bog to an
+  O(events²) replay fold + per-beat rect volume — speced for a follow-up in
+  [`docs/combat-replay-perf-handoff.md`](docs/combat-replay-perf-handoff.md); the weld-beat cadence and
+  Blueprint Cache/Beatbot compute are held for an owner feel/balance call.
 - **Snappier deaths + a combat-timing reference.** Death animations drop 0.42s → 0.32s and a plain attacker's
   return-home death now starts fading *as it lands* instead of idling ~260ms first — an ordinary trade resolves
   ~340ms sooner, with #503's "dies at home" read intact. The Deathrattle variant keeps its longer delay (the

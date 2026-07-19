@@ -69,7 +69,7 @@ const DEFAULTS: DragFeel = {
   recenter: 0.18,   // glide speed onto the cursor
   recenterAfter: 400,// only begin recentring after a longer drag from the grab point
   snapMs: 110,
-  magSlideMs: 390,
+  magSlideMs: 200,  // slide-to-host before a weld merges; also gates how long the play waits pre-weld — kept snappy so hand-welds don't feel laggy (was 390)
   collapseY: 20,    // lift only a little before the row fills the gap
   handFloor: 0.82,  // bottom-anchored pop: every hovered card lands its bottom on the same line (tuned by eye)
   shGrow: 1.08,     // owner-tuned: shadow a touch bigger than the card face while lifted

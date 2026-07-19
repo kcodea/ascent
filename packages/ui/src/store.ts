@@ -283,6 +283,36 @@ function writeSave(run: RunState, actions: Action[]): void {
 function clearSave(): void {
   try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
 }
+
+// Autosave is DEBOUNCED. `writeSave` serializes the entire run (incl. the big `lastCombat` event log)
+// on every changed dispatch — synchronous and O(run size), so a burst of rapid shop clicks used to pay
+// that stringify on every single click (the late-game shop hitch). We now coalesce a burst into one
+// trailing write ~AUTOSAVE_DEBOUNCE_MS after it starts, always persisting the latest state. The in-memory
+// `savedRun` mirror still updates synchronously (Continue keeps working); only the localStorage write is
+// deferred. A pending write is flushed on finish and on page-hide so it's never lost.
+const AUTOSAVE_DEBOUNCE_MS = 400;
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingSave: { run: RunState; actions: Action[] } | null = null;
+function flushSave(): void {
+  if (saveTimer !== null) { clearTimeout(saveTimer); saveTimer = null; }
+  if (!pendingSave) return;
+  const { run, actions } = pendingSave;
+  pendingSave = null;
+  perfMonitor.measure('autosave', () => writeSave(run, actions));
+}
+function scheduleSave(run: RunState, actions: Action[]): void {
+  pendingSave = { run, actions };
+  if (saveTimer !== null) return; // a trailing write is already scheduled; it will pick up the latest
+  saveTimer = setTimeout(flushSave, AUTOSAVE_DEBOUNCE_MS);
+}
+function cancelSave(): void {
+  if (saveTimer !== null) { clearTimeout(saveTimer); saveTimer = null; }
+  pendingSave = null;
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', flushSave);
+  window.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushSave(); });
+}
 const BOOT_SAVE = loadSave();
 
 /** Build the run's END-STATE board for the leaderboard / Career: a snapshot of the post-combat `run.board`
@@ -511,10 +541,10 @@ export const useGame = create<GameStore>((set, get) => ({
       // finished run isn't resumable). `savedRun` mirrors the persisted state so the title's Continue works.
       let savedRun = s.savedRun;
       if (changed) {
-        if (finished) { clearSave(); savedRun = null; }
-        // MEASURED: this serializes the ENTIRE run to JSON on every single state change, synchronously,
-        // inside the dispatch. A prime suspect for an unattributed stall — and it scales with board size.
-        else { perfMonitor.measure('autosave', () => writeSave(next, replayActions)); savedRun = next; }
+        if (finished) { cancelSave(); clearSave(); savedRun = null; }
+        // Debounced (see scheduleSave): the full-run serialize no longer runs synchronously on every
+        // dispatch. `savedRun` mirrors the latest state immediately; the localStorage write coalesces.
+        else { scheduleSave(next, replayActions); savedRun = next; }
       }
       return {
         run: next,

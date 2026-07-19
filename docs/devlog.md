@@ -3,6 +3,46 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-19 (later still)
+
+### fix(ui): snappier hand-welds + debounced autosave (attachment/Beatbot perf diagnosis)
+
+Owner reports: the magnetic/attachment weld animation feels clunky, and attachments + Beatbot bog down late
+game. Three read-only investigations (weld FX, attachment mechanics + Beatbot, late-game perf path) split the
+problem into a **pacing** cause (the animation) and an **event-log-inflation** cause (the perf), and this
+commit ships the two fixes that carry no feel/determinism risk. The rest is deferred to the owner or handed off.
+
+**What the investigation found.** The weld *renderer* is already cheap (PRs #549/#551: LUT-eased, one cfg per
+batch). The clunk is timing: (a) a ~390ms pre-merge dead time before a hand-dropped Magnetic even welds
+(`magSlideMs`), and (b) auto-welds serialized by the 930ms End-of-Turn beat clock. The late-game bog is **not**
+serialization-per-attachment — welds bake into a merge-by-source buff + a single integer `attachments` count,
+so even 1000 welds serialize to ~constant size. The real driver is combat **event-log inflation**: Better Bot
+(`rallyMechAtk`) buffs every friendly Mech on every swing, and Beatbot (`beatboxer`) mirrors every weld onto
+itself uncapped — which then gets re-paid by an O(events²) replay fold, the every-dispatch autosave, and
+attacks×Mechs rect reads.
+
+**Shipped (low risk):**
+- **Debounced autosave** (`store.ts`). `writeSave` serialized the entire run (incl. the big `lastCombat` event
+  log) synchronously on *every* changed dispatch — the shop-phase hitch after a big fight. Now a trailing
+  debounce (`scheduleSave`, 400ms) coalesces a burst of clicks into one write; `savedRun` still mirrors state
+  synchronously (Continue unaffected), and a pending write flushes on finish + `pagehide` / `visibilitychange`
+  so it's never lost.
+- **Drag pre-roll 390 → 200ms** (`dragFeel.ts` `magSlideMs`). Halves the dead time before a hand-played weld
+  resolves. It's a dev-tuner constant, so it can be nudged by eye.
+
+**Deferred / handed off (all touch tuned feel, balance, or the combat-replay code the owner asked to leave):**
+- **Weld beat cadence** — welds aren't a separable beat type; they ride the shared `BEAT`/`GAP` clock
+  (`Recruit.tsx:2738`) the End-of-Turn choreography is tuned around. Needs a per-beat-kind hold — an owner call.
+- **Blueprint Cache / Beatbot compute** — O(attachments × mechs) each End Turn (`recruit.ts:3165`), driven by
+  Beatbot's uncapped mirror. The per-wave itemization is the 2026-07-18 attachment-major ruling; capping
+  Beatbot is a balance change.
+- **Combat-replay O(events²) fold + per-beat rect caching** — speced for Mike in
+  [`docs/combat-replay-perf-handoff.md`](combat-replay-perf-handoff.md).
+
+Verified: typecheck + lint + test + build:web green (see commit). Autosave debounce preserves the save format
+(`serialize`/`deserialize` unchanged), so existing saves load untouched; feel changes to be confirmed live
+against a prod build with `?perf=1`.
+
 ## 2026-07-19 (later)
 
 ### tweak(ui): tighten death timing + a full combat-timing reference

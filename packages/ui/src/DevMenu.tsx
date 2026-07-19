@@ -7,6 +7,7 @@ import { SwapFxTuner } from './SwapFxTuner';
 import { GustFxTuner } from './GustFxTuner';
 import { AuraFxTuner } from './AuraFxTuner';
 import { WeldFxTuner } from './WeldFxTuner';
+import { BuffFxTuner } from './BuffFxTuner';
 import { InfuseFxTuner } from './InfuseFxTuner';
 import { AimFxTuner } from './AimFxTuner';
 import { DragTuner } from './DragTuner';
@@ -44,6 +45,7 @@ const TUNERS = [
   { key: 'gustfx', label: '💨 Buff Gust FX', C: GustFxTuner },
   { key: 'aurafx', label: '🌀 Aura Wave FX', C: AuraFxTuner },
   { key: 'weldfx', label: '🔩 Weld FX', C: WeldFxTuner },
+  { key: 'bufffx', label: '✨ Buff FX (stat gain)', C: BuffFxTuner },
   { key: 'infusefx', label: '🍖 Fodder Infusion FX', C: InfuseFxTuner },
   { key: 'aimfx', label: '🎯 Hero Aim FX', C: AimFxTuner },
   { key: 'drag', label: '🎴 Drag Feel', C: DragTuner },

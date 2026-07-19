@@ -1050,3 +1050,39 @@ describe('Rune of Mastery (batch 7b) — Improve steps apply twice', () => {
     expect(s.impBuff).toEqual({ attack: 2, health: 2 });
   });
 });
+
+describe('Blueprint Cache wave grouping (owner 2026-07-18)', () => {
+  const mkMech = (uid: string, attachments: number): RunState['board'][number] =>
+    ({ uid, cardId: 'drone', tribe: 'mech', attack: 2, health: 3, keywords: [], golden: false, attachments });
+
+  it('is ATTACHMENT-major: wave i hits every Mech with an i-th Attachment, all at once', () => {
+    // 3 Mechs with 3 / 2 / 1 Attachments → 3 waves, sized 3 / 2 / 1 (not 6 mech-major singles).
+    const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
+      questRecurringEndOfTurn: ['buffMechsPerAttachment'],
+      board: [mkMech('a', 3), mkMech('b', 2), mkMech('c', 1)] };
+    const { steps, fx } = projectEndOfTurnSteps(s);
+    const evs = fx.flatMap((f) => f.buffFx);
+    const waves = new Map<number, string[]>();
+    for (const e of evs) {
+      const w = e.fxWave ?? -1;
+      waves.set(w, [...(waves.get(w) ?? []), e.targetUid]);
+    }
+    expect([...waves.keys()].sort()).toEqual([0, 1, 2]);           // one wave per attachment index
+    expect(waves.get(0)!.sort()).toEqual(['a', 'b', 'c']);          // wave 0 = ALL three Mechs together
+    expect(waves.get(1)!.sort()).toEqual(['a', 'b']);
+    expect(waves.get(2)!).toEqual(['a']);
+    // Totals unchanged: +2/+2 per Attachment.
+    expect(steps[0]!['a']).toEqual({ attack: 2 + 6, health: 3 + 6 });
+    expect(steps[0]!['b']).toEqual({ attack: 2 + 4, health: 3 + 4 });
+    expect(steps[0]!['c']).toEqual({ attack: 2 + 2, health: 3 + 2 });
+  });
+
+  it('every event carries its wave tag so the UI can group them', () => {
+    const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
+      questRecurringEndOfTurn: ['buffMechsPerAttachment'], board: [mkMech('a', 2)] };
+    const { fx } = projectEndOfTurnSteps(s);
+    const evs = fx.flatMap((f) => f.buffFx);
+    expect(evs).toHaveLength(2);
+    expect(evs.every((e) => e.fxWave !== undefined)).toBe(true);
+  });
+});

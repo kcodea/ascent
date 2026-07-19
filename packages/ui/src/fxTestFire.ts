@@ -13,6 +13,8 @@ import { getSwapFxConfig } from './swapFxConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
 import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
+import { waveGapFor } from './buffFxConfig';
+import { fireBuffFx } from './buffFxRender';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { getAimFxConfig } from './aimFxConfig';
 import { BUFF_PRESETS, buffPreset } from './buffPresets';
@@ -136,4 +138,26 @@ export function testWeldFx(kind: 'play' | 'auto'): void {
   const r = (el.querySelector('.archbox') ?? el).getBoundingClientRect();
   pixiFx.weldPulse(r.left + r.width / 2, r.top + r.height / 2, weldCfgFor(kind));
   applyWeldWiggle([el], weldLandMs());
+}
+
+/** ✨ Buff FX: fire an ITEMIZED buff run across the whole board — `waves` waves, each hitting every board
+ *  minion at once, spaced by the tuner's minimum wave gap. This is the exact shape Blueprint Cache
+ *  produces ("+2/+2 per Attachment"), so the pacing can be judged without staging Mechs + Attachments. */
+export function testBuffFx(waves = 3): void {
+  const run = useGame.getState().run;
+  const uids = (run?.board ?? []).map((c) => c.uid);
+  if (uids.length === 0) return;
+  const gap = waveGapFor(waves);
+  for (let w = 0; w < waves; w++) {
+    const go = (): void => {
+      for (const uid of uids) {
+        const el = document.querySelector(`[data-zone="warband"] [data-uid="${uid}"]`);
+        if (!el) continue;
+        const r = (el.querySelector('.archbox') ?? el).getBoundingClientRect();
+        fireBuffFx({ target: { x: r.left + r.width / 2, y: r.top + r.height / 2 }, cardId: '', tribe: 'neutral', sourceless: true });
+      }
+    };
+    if (w === 0 || gap === 0) go();
+    else window.setTimeout(go, w * gap);
+  }
 }

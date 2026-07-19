@@ -16,6 +16,7 @@ import { getSwapFxConfig } from './swapFxConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
 import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
+import { waveGapFor } from './buffFxConfig';
 import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { fireBuffFx } from './buffFxRender';
@@ -2088,6 +2089,9 @@ export function Recruit() {
   // not one simultaneous burst. Rects are measured at fire time (inside the timeout) so a late strike
   // still lands on the card's current position.
   const replayBuffFxEvents = useCallback((events: RunState['recruitBuffFx'], staggerMs = 0): void => {
+    // Itemized per-z rewards tag their events with `fxWave` — every event in a wave fires TOGETHER (so all
+    // the Mechs pulse at once) and the stagger applies only BETWEEN waves. Untagged events keep the old
+    // per-event behaviour.
     const fireOne = (ev: RunState['recruitBuffFx'][number]): void => {
       const tEl = findEl(ev.targetUid);
       if (!tEl) return;
@@ -2102,9 +2106,18 @@ export function Recruit() {
         sourceless: ev.kind !== 'minion' || !sEl,
       });
     };
+    const waves = new Map<number, RunState['recruitBuffFx']>();
     events.forEach((ev, i) => {
-      if (staggerMs > 0 && i > 0) window.setTimeout(() => fireOne(ev), i * staggerMs);
-      else fireOne(ev);
+      const key = ev.fxWave ?? -1 - i; // untagged → its own wave, preserving per-event stagger
+      const list = waves.get(key) ?? [];
+      list.push(ev);
+      waves.set(key, list);
+    });
+    const ordered = [...waves.keys()].sort((a, b) => a - b).map((k) => waves.get(k)!);
+    ordered.forEach((wave, w) => {
+      const go = (): void => { for (const ev of wave) fireOne(ev); };
+      if (staggerMs > 0 && w > 0) window.setTimeout(go, w * staggerMs);
+      else go();
     });
   }, [findEl]);
 
@@ -2723,9 +2736,13 @@ export function Recruit() {
       // Feasting Bogrot) as the full ghost-crumble eat choreography.
       const bfx = beatFx[i];
       if (bfx) {
-        // Sequential strikes within the beat: itemized per-z rewards land one descend per step. The
-        // stagger shrinks as the event count grows so the whole run always fits inside the beat window.
-        if (bfx.buffFx.length > 0) replayBuffFxEvents(bfx.buffFx, Math.min(110, Math.floor((BEAT - 140) / bfx.buffFx.length)));
+        // Itemized per-z rewards land one WAVE per step (every eligible minion inside a wave fires
+        // together), paced by the ✨ Buff FX tuner's minimum wave gap rather than beat ÷ event-count —
+        // the old formula compressed a big board into an unreadable smear (owner 2026-07-18).
+        if (bfx.buffFx.length > 0) {
+          const waveCount = new Set(bfx.buffFx.map((e, k) => e.fxWave ?? -1 - k)).size;
+          replayBuffFxEvents(bfx.buffFx, waveGapFor(waveCount));
+        }
         if (bfx.eaten.length > 0) playFodderEat(bfx.eaten, ++eotEatKey.current);
         // Auto-welds on this beat (Combinator / Cling Drones / Money Bots) — ring each host as it fuses.
         for (const uid of bfx.welds) fireWeldFx(uid, 'auto');
@@ -2735,7 +2752,12 @@ export function Recruit() {
       if (cur) {
         setEotAnimStats(cur);
         const prev = i > 0 ? steps[i - 1]! : baseStats;
-        const gained = Object.keys(cur).filter((uid) => total(cur[uid]) > total(prev[uid] ?? baseStats[uid]));
+        // The green burst is the GENERIC stat-gain cue — skip it for any minion this beat already animates
+        // with its own descend/pulse, or the two stack into the overlapping mess the owner reported.
+        const fxCovered = new Set((beatFx[i]?.buffFx ?? []).map((e) => e.targetUid));
+        const gained = Object.keys(cur)
+          .filter((uid) => total(cur[uid]) > total(prev[uid] ?? baseStats[uid]))
+          .filter((uid) => !fxCovered.has(uid));
         if (gained.length) {
           setBuffedUids((s) => new Set([...s, ...gained]));
           window.setTimeout(() => setBuffedUids((s) => {

@@ -5,6 +5,33 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-18
 
+### fix(ui): Blueprint Cache buff pacing — waves fire together, paced by a floor; + a ✨ Buff FX tuner
+
+Owner report: Blueprint Cache procced the old green stat-gain burst as one lump AND then a sequential
+self-buff per Attachment, overlapping into an unreadable smear. Three separate causes, all fixed:
+
+- **Mech-major → ATTACHMENT-major.** The per-z loop ran all of one Mech's steps, then the next Mech's, so
+  a 3-Mech board fired 6 staggered singles. Wave `i` now buffs EVERY Mech that has an i-th Attachment, so
+  all the Mechs pulse together and the waves read one step at a time. Totals identical.
+- **Stagger had no floor.** The old spacing was `beat ÷ event-count`, which collapsed toward 0 as the board
+  grew — the smear. Events now carry an `fxWave` tag; the replay fires everything inside a wave
+  simultaneously and staggers only BETWEEN waves, at a tunable MINIMUM gap (`waveGapMs`, default 150ms),
+  with `waveMaxTotalMs` capping the whole run so a huge board still finishes inside its beat.
+- **The green burst double-covered.** The EoT beat set `buffedUids` for every minion whose stats rose —
+  including the ones already animating their own descend. It now skips anything covered by this beat's
+  buffFx (the same rule the mid-shop watcher already used).
+
+**New ✨ Buff FX tuner** (owner ask): the animation that plays when a minion is buffed — the descend ribbon
+(height / fall / retract / widths / α) and its landing pulse (rings, flash, sparks) — plus the wave pacing
+above. ▶ Test 3 waves fires the exact Blueprint Cache shape across your board, so the pacing can be judged
+without staging Mechs and Attachments. `tunedDescend` folds the dials over the descend preset at fire time,
+so per-tribe looks still work later.
+
+Verified: 2 new sim tests pin the wave membership exactly (3 Mechs of 3/2/1 Attachments → waves of 3/2/1,
+not 6 singles; every event carries its tag) + live — concurrent descends step 3 → 6 as the spaced waves
+stack, confirming simultaneous-within-wave and gapped-between. Full suite (1184) + typecheck + lint +
+build:web green.
+
 ### feat(ui): Attachment weld FX — a ring converges on the card, then sparks rise
 
 Owner design (v2, after v1's radial burst was rejected): when an Attachment fuses onto a minion, a gold

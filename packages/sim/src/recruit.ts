@@ -3119,9 +3119,15 @@ export function applyEndOfTurn(state: RunState): void {
  *  sequentially, not one +20/+20 lump (owner ruling 2026-07-17; End-of-Turn only — Start-of-Combat lumps like
  *  Umbral Energy stay one-shot). Identical stat outcome either way. */
 function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['questRecurringEndOfTurn']>[number], itemizeFx = false): void {
+  // Each `step` is one WAVE of the itemized reward — tagged so the UI can stagger BETWEEN waves while
+  // firing everything inside a wave simultaneously.
+  let wave = 0;
   const step = (run: () => void): void => {
-    if (itemizeFx) captureBuffFx(state, undefined, 'spell', run);
-    else run();
+    if (!itemizeFx) { run(); return; }
+    const before = state.recruitBuffFx.length;
+    captureBuffFx(state, undefined, 'spell', run);
+    for (let i = before; i < state.recruitBuffFx.length; i++) state.recruitBuffFx[i]!.fxWave = wave;
+    wave++;
   };
   if (effect === 'triggerLeftmostShout') {
     const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
@@ -3130,12 +3136,13 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     conjureToHand(state, BUYABLE_CARDS.filter((c) => c.tier <= state.tier && c.keywords.includes('M')), 2);
   } else if (effect === 'buffMechsPerAttachment') {
     // Blueprint Cache: give each friendly Mech +2/+2 for every Attachment (Magnetic minion) welded onto it.
-    // Per-z: one +2/+2 step per Attachment (itemized in the projection).
-    for (const c of state.board) {
-      const n = c.attachments ?? 0;
-      if (n > 0 && isTribe(c, 'mech')) {
-        for (let i = 0; i < n; i++) step(() => addBuff(c, 'Blueprint Cache', 2, 2));
-      }
+    // Per-z, ATTACHMENT-MAJOR (owner 2026-07-18): wave `i` buffs EVERY Mech that has an i-th Attachment, so
+    // all the Mechs pulse together and the waves read one at a time. (Mech-major — all of one Mech's steps,
+    // then the next Mech's — produced a long overlapping smear.) Totals are identical either way.
+    const mechs = state.board.filter((c) => (c.attachments ?? 0) > 0 && isTribe(c, 'mech'));
+    const maxAttach = mechs.reduce((m, c) => Math.max(m, c.attachments ?? 0), 0);
+    for (let i = 0; i < maxAttach; i++) {
+      step(() => { for (const c of mechs) if ((c.attachments ?? 0) > i) addBuff(c, 'Blueprint Cache', 2, 2); });
     }
   } else if (effect === 'runeSpending') {
     // Rune of Spending: +1 max Gold, and grant your leftmost minion +1/+1 PER Gold you spent this turn.

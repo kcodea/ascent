@@ -15,6 +15,7 @@ import { pixiFx, discoverFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
+import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
 import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { fireBuffFx } from './buffFxRender';
@@ -496,6 +497,9 @@ export function Recruit() {
   const [magTargetUid, setMagTargetUid] = useState<string | null>(null); // the Mech being merged into (crackles)
   const [aim, setAim] = useState<{ ox: number; oy: number; tx: number; ty: number; onTarget: boolean; targetUid: string | null } | null>(null);
   const [buffedUids, setBuffedUids] = useState<Set<string>>(new Set());
+  // Last weld seq the stat-diff watcher has seen — lets it suppress the generic buff cues for the minions a
+  // FRESH weld just landed on (the weld has its own ring + wiggle), without touching any other buff.
+  const weldStatSeqRef = useRef<number | undefined>(undefined);
   // Fire the green buff-burst on a specific card for ~0.7s. Used to guarantee the Hero Power (Fortify)
   // always animates its target, independent of the passive stat-diff flash.
   const flashBuffed = useCallback((uid: string): void => {
@@ -667,6 +671,31 @@ export function Recruit() {
     const raf = requestAnimationFrame(() => fireFodderInfusion(uid));
     return () => cancelAnimationFrame(raf);
   }, [run.fodderSendSeq, run.fodderSendUid, run.phase, fireFodderInfusion]);
+  // WELD FX: an Attachment fusing onto a host — a ring eases in and converges on the card, then lands with
+  // a flash + rising sparks, and the card wiggles ON the landing. For a HAND-PLAYED Magnetic the card's
+  // slide-in has already finished by the time the sim dispatch lands, so the ring converges as it merges;
+  // auto-welds (Banksly/Beatbot) just play at their own moment. EoT welds (Combinator / Cling / Money Bot)
+  // stamp after the phase flips — those fire from the EoT BEAT instead (see playBeat).
+  // NB: queries the DOM directly rather than via `findEl` — this lives ABOVE findEl's declaration, and a
+  // `[findEl]` dep would read it in the temporal dead zone (crashes the screen on the first weld).
+  const fireWeldFx = useCallback((uid: string, kind: 'play' | 'auto'): void => {
+    const el = document.querySelector(`[data-zone="warband"] [data-uid="${uid}"]`);
+    if (!el) return;
+    const r = (el.querySelector('.archbox') ?? el).getBoundingClientRect();
+    pixiFx.weldPulse(r.left + r.width / 2, r.top + r.height / 2, weldCfgFor(kind));
+    applyWeldWiggle([el], weldLandMs()); // the card reacts to the IMPACT, not to the ring appearing
+  }, []);
+  const prevWeldFxSeq = useRef(run.weldFxSeq);
+  useEffect(() => {
+    const seq = run.weldFxSeq;
+    if (seq === undefined || seq === prevWeldFxSeq.current) return;
+    prevWeldFxSeq.current = seq; // inits to the current value, so a restored save never re-fires
+    const uids = run.weldFxUids;
+    if (!uids?.length || run.phase !== 'recruit') return;
+    // One weld can land on several minions (a Beatbot mirrors it onto itself) — animate every one.
+    const raf = requestAnimationFrame(() => { for (const uid of uids) fireWeldFx(uid, run.weldFxKind ?? 'auto'); });
+    return () => cancelAnimationFrame(raf);
+  }, [run.weldFxSeq, run.weldFxUids, run.weldFxKind, run.phase, fireWeldFx]);
   // Immediate (mid-shop) triggers arrive via the `buffGustSeq` stamp (one-shot, the swapFxSeq pattern;
   // inits to the current value so a restored save doesn't fire). End-of-Turn triggers (Maw / Ritualist)
   // stamp inside `faceOmen` — by then the phase is combat, so the watcher skips them; their gust fires
@@ -2011,11 +2040,19 @@ export function Recruit() {
     // action — skip the green burst-ring for those so it doesn't double up with the FX; the +X/+X float below
     // still shows on every buffed card regardless.
     const fxTargets = new Set(run.recruitBuffFx.map((e) => e.targetUid));
-    const burstable = newly.filter((u) => !fxTargets.has(u));
+    // WELD (owner 2026-07-18): an Attachment fusing on gets its OWN cue — the converging ring + wiggle — so
+    // the generic stat-gain cues (the green burst AND the "+X/+Y" float) are suppressed for the minions this
+    // weld just landed on. Self-contained seq check: only the render carrying a FRESH weld stamp suppresses,
+    // so a LATER buff on the same minion still bursts/floats normally.
+    const freshWeld = run.weldFxSeq !== undefined && run.weldFxSeq !== weldStatSeqRef.current;
+    weldStatSeqRef.current = run.weldFxSeq;
+    const weldedNow = freshWeld ? new Set(run.weldFxUids ?? []) : new Set<string>();
+    const burstable = newly.filter((u) => !fxTargets.has(u) && !weldedNow.has(u));
     if (burstable.length > 0) setBuffedUids((s) => new Set([...s, ...burstable]));
     // Float the +X/+X over the buffed board/hand minions (like combat). Keyed so a repeat buff remounts.
-    if (gained.length > 0) {
-      const keyed = gained.map((g) => ({ ...g, key: ++statFloatKey.current }));
+    const floatable = gained.filter((g) => !weldedNow.has(g.uid));
+    if (floatable.length > 0) {
+      const keyed = floatable.map((g) => ({ ...g, key: ++statFloatKey.current }));
       setStatFloats((m) => {
         const n = { ...m };
         for (const g of keyed) n[g.uid] = { attack: g.attack, health: g.health, key: g.key };
@@ -2690,6 +2727,8 @@ export function Recruit() {
         // stagger shrinks as the event count grows so the whole run always fits inside the beat window.
         if (bfx.buffFx.length > 0) replayBuffFxEvents(bfx.buffFx, Math.min(110, Math.floor((BEAT - 140) / bfx.buffFx.length)));
         if (bfx.eaten.length > 0) playFodderEat(bfx.eaten, ++eotEatKey.current);
+        // Auto-welds on this beat (Combinator / Cling Drones / Money Bots) — ring each host as it fuses.
+        for (const uid of bfx.welds) fireWeldFx(uid, 'auto');
       }
       // Tick the affected minions' stats up to this proc's values + flash whoever just gained.
       const cur = steps[i];

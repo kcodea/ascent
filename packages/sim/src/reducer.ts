@@ -709,7 +709,7 @@ function reduceCore(state: RunState, action: Action): RunState {
                 }
               : undefined,
           };
-          weldMagnetic(s, target, weldPayload, card.cardId === 'cling' ? 1 : 0); // a magnetized Cling stacks the improvement (via weldMagnetic)
+          weldMagnetic(s, target, weldPayload, card.cardId === 'cling' ? 1 : 0, 'play'); // 'play' = the card slid in from hand
           // The FIRST Attachment played each turn (this weld counts; a standalone Magnetic play counts at its
           // own site below): Rune of Tempering also gives the minion it attached to Ward; Rune of Replication
           // also welds a copy of the same payload onto your leftmost Mech (which may be this same host — the

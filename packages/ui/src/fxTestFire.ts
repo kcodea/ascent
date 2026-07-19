@@ -12,6 +12,7 @@ import { pixiFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
+import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { getAimFxConfig } from './aimFxConfig';
 import { BUFF_PRESETS, buffPreset } from './buffPresets';
@@ -121,4 +122,18 @@ export function testInfuseFx(): void {
     if (i === 0 || cfg.staggerMs === 0) launch();
     else window.setTimeout(launch, i * cfg.staggerMs);
   }
+}
+
+/** 🔩 Weld FX: the full Attachment-weld effect on your LEFT-MOST board minion (no Attachment needed) —
+ *  the converging ring, its landing flash + rising sparks, and the card's wiggle on impact. `play` (a
+ *  hand-played Attachment, post slide-in) vs `auto` (Banksly / Beatbot / Combinator / Cling / Money Bot). */
+export function testWeldFx(kind: 'play' | 'auto'): void {
+  const run = useGame.getState().run;
+  const uid = run?.board[0]?.uid;
+  if (!uid) return;
+  const el = document.querySelector(`[data-zone="warband"] [data-uid="${uid}"]`);
+  if (!el) return;
+  const r = (el.querySelector('.archbox') ?? el).getBoundingClientRect();
+  pixiFx.weldPulse(r.left + r.width / 2, r.top + r.height / 2, weldCfgFor(kind));
+  applyWeldWiggle([el], weldLandMs());
 }

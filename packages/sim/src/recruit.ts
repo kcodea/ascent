@@ -356,6 +356,17 @@ export function auraFxTargets(state: RunState, tribe: AuraFxTribe): string[] {
 
 /** Stamp the one-shot Fodder Infusion FX signal: `uid` = the SOURCE card queuing Fodder for the tavern —
  *  the UI reaches tendrils from that unit up to the shop line. */
+/** Stamp the one-shot WELD FX signal: `uids` = EVERY minion that just gained an Attachment (the host, plus
+ *  each Beatbot that mirrored the weld onto itself); `kind` marks a hand-PLAYED Magnetic (the card slides in
+ *  first, so the ring converges as it merges) vs an AUTO weld (Banksly, Combinator, Cling Drones, Money
+ *  Bots). Monotonic seq like the other FX signals — never cleared; the UI dedupes against its last-seen. */
+export function stampWeldFx(state: RunState, uids: string[], kind: 'play' | 'auto'): void {
+  if (uids.length === 0) return;
+  state.weldFxSeq = (state.weldFxSeq ?? 0) + 1;
+  state.weldFxUids = [...new Set(uids)];
+  state.weldFxKind = kind;
+}
+
 export function stampFodderSend(state: RunState, uid: string | undefined): void {
   if (!uid) return;
   state.fodderSendSeq = (state.fodderSendSeq ?? 0) + 1;
@@ -541,10 +552,11 @@ function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
  * `clings` = how many Cling Drones this weld represents (0 if the magnetic isn't a Cling). Each Cling
  * magnetized — onto the host AND each copy Beatboxer mimics onto itself — stacks the Cling improvement.
  */
-export function weldMagnetic(state: RunState, host: BoardCard, mag: MagnetPayload, clings = 0): void {
+export function weldMagnetic(state: RunState, host: BoardCard, mag: MagnetPayload, clings = 0, kind: 'play' | 'auto' = 'auto'): void {
   applyWeld(host, mag, 1);
   host.attachments = (host.attachments ?? 0) + 1; // one Attachment welded on — drives Blueprint Cache
   bakeAttachmentAura(state, host);
+  const welded = [host.uid]; // every minion this weld lands on — ALL of them animate (a Beatbot mirrors it)
   let totalClings = clings; // Clings welded onto the host
   for (const bb of state.board) {
     if (bb.cardId === 'beatboxer' && bb.uid !== host.uid) {
@@ -552,10 +564,12 @@ export function weldMagnetic(state: RunState, host: BoardCard, mag: MagnetPayloa
       applyWeld(bb, mag, mult);
       bb.attachments = (bb.attachments ?? 0) + mult; // Beatboxer mirrors the weld onto itself
       bakeAttachmentAura(state, bb);
+      welded.push(bb.uid);
       totalClings += clings * mult; // Beatboxer magnetizes Cling copies onto itself — those stack too
     }
   }
   if (totalClings > 0) improveClingDrones(state, totalClings);
+  stampWeldFx(state, welded, kind); // FX cue — stamped AFTER the mirror loop so Beatbots are included
 }
 
 /** A minion that RECEIVES an attachment inherits the run-wide Attachment aura (Scrap Herald's
@@ -3216,6 +3230,9 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
 export interface EotStepFx {
   buffFx: BuffFxEvent[];
   eaten: NonNullable<RunState['fodderEaten']>;
+  /** Host uids that gained an Attachment on this beat (Combinator, Cling Drones, Money Bots) — the UI plays
+   *  the weld ring on them as the beat runs, since the real weld's stamp lands after the phase flips. */
+  welds: string[];
 }
 
 /**
@@ -3256,6 +3273,7 @@ export function projectEndOfTurnSteps(state: RunState): {
     const fxStart = clone.recruitBuffFx.length;
     const eatenStart = (clone.fodderEaten ?? []).length;
     const atkBefore = new Map(clone.board.map((c) => [c.uid, c.attack]));
+    const attachBefore = new Map(clone.board.map((c) => [c.uid, c.attachments ?? 0]));
     captureBuffFx(clone, source, 'minion', run); // sourceless (quest/rune beat) → sourceUid stays unset → the UI descends
     for (const c of clone.board) {
       const prev = atkBefore.get(c.uid);
@@ -3264,8 +3282,15 @@ export function projectEndOfTurnSteps(state: RunState): {
         captureBuffFx(clone, c, 'minion', () => fireOnGainAttack(clone, c));
       }
     }
+    // Welds this beat produced — diffed by host `attachments`, so EVERY auto-weld path is caught
+    // (Combinator, Cling Drones, Money Bots, and any future EoT welder) without per-effect wiring.
+    const welds: string[] = [];
+    for (const c of clone.board) {
+      const before = attachBefore.get(c.uid);
+      if (before !== undefined && (c.attachments ?? 0) > before) welds.push(c.uid);
+    }
     steps.push(snap());
-    fx.push({ buffFx: clone.recruitBuffFx.slice(fxStart), eaten: (clone.fodderEaten ?? []).slice(eatenStart) });
+    fx.push({ buffFx: clone.recruitBuffFx.slice(fxStart), eaten: (clone.fodderEaten ?? []).slice(eatenStart), welds });
   };
   for (const card of [...clone.board]) {
     const def = CARD_INDEX[card.cardId];

@@ -5,6 +5,54 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-18
 
+### feat(ui): Attachment weld FX — a ring converges on the card, then sparks rise
+
+Owner design (v2, after v1's radial burst was rejected): when an Attachment fuses onto a minion, a gold
+ring starts WIDE and **eases in**, converging onto the host card — then lands with a flash and **sparks
+rising** off it, while the card wiggles on the impact.
+
+- **Renderer** `pixiFx.weldPulse(x, y, cfg)` — the ring is one per-frame Graphics (the auraWave pattern):
+  radius eases in CUBIC (hangs wide, then rushes closed — the "drawn in" read) and BRIGHTENS as it closes,
+  so the arrival is the peak rather than a fade. On arrival it one-shots the flash + rising sparks as
+  pooled particles, then retires. Fire-and-forget — never touches the beat clock.
+- **Sim signal**: `stampWeldFx(state, uids, kind)` fires from inside `weldMagnetic` — the ONE chokepoint,
+  so all 7 weld call sites animate with no per-site wiring. The payload is **plural**: a Beatbot mirrors
+  every weld onto itself, so one weld can land on several minions and each gets its own ring. Only the
+  reducer's hand-play site passes `'play'`. Monotonic seq; no reducer clear, no snapshot change.
+- **Hand-play timing is free**: the existing `magslide` runs BEFORE the dispatch, so the ring converges as
+  the card merges. The wiggle is delayed by `ringMs` so the card reacts to the IMPACT, not to the ring
+  appearing.
+- **EoT auto-welds** (Combinator, Cling Drones, Money Bots) stamp after the phase flips, so they fire from
+  the EoT BEAT: `EotStepFx` gained `welds: string[]`, diffed by host `attachments` — catches every current
+  and future EoT welder generically. (Cling/MoneyBot/Banksly welds previously had NO visual at all.)
+- **The old cue is gone**: a weld used to fall through the generic stat-gain watcher and get the green
+  buff-burst + a "+X/+Y" float. Both are suppressed for the minions a FRESH weld landed on (self-contained
+  seq check, so a LATER buff on the same minion still bursts/floats normally).
+- **Tunable**: `weldFxConfig.ts` (32 dials) + the 🔩 Weld FX tuner with a play/auto toggle + ▶ Test.
+  Owner ask (same day) added three families on top of the base ring/flash/spark/wiggle dials:
+  - **SHAPE** — `ringSides` (0–2 = circle/ellipse, 3+ = a regular polygon: 4 diamond, 6 hex, 8 octagon),
+    `ringAspect` (width ÷ height, so the ring can match the card's tall proportions), `ringRotation`
+    (starting orientation) and `ringSpin` (degrees rotated over the whole convergence, ± for direction).
+  - **INWARD SPOKES** — short lines outside the ring pointing in at it, riding it closed: `spokeCount`,
+    `spokeLen`, `spokeWidth`, `spokeAlpha`, `spokeGap` (the gap between ring and spoke tip).
+  - **EASE BARS** — `easeStart` / `easeFinish` (0..1) drive a real `cubic-bezier(easeStart, 0,
+    1−easeFinish, 1)` timing function solved per frame, so the departure and the arrival are tuned
+    independently (0/0 = linear; the old hardcoded cubic ease-in is ≈ 0.7 / 0.1, the shipped default).
+  Shape + easing are IDENTITY across play/auto — an auto weld is a smaller version of the same motion,
+  not a different one; only sizes and counts take the magnitude scale.
+
+**Owner-tuned defaults baked** (same day): a spinning PENTAGON (5 sides, oriented 90°, spinning 65° as it
+closes) ringed by 22 inward spokes, converging fast (290ms) over a SHORT travel — 170 → 110px, so it
+settles as a ring encircling the card rather than collapsing onto it. Soft ring (α 0.6), a big landing
+flash (98), fast wide sparks (450 / 115 spread), punchy wiggle (510ms / 5.5px / 2.2° / 1.12), ease bars
+0.5 / 0.14. (Stale v1 keys in the handed-back JSON — core*/fizz*/rise* from the rejected radial-burst
+config still in localStorage — were dropped.)
+
+Verified live with a host + Beatbot: mid-converge = 2 rings / 0 particles, after landing = 0 rings /
+38 particles (the sequencing is real, not simultaneous); green burst false, 0 stat floats, 1 wiggle each;
+screenshots show both rings mid-flight and a circle + hexagon proving the shape dial. 5 regression tests +
+full suite (1182) + typecheck + lint + build:web green.
+
 ### feat(sim): win-rate matchmaking — ledger-weighted opponents + loss-streak softener + revived pinning
 
 The owner-designed matchmaking v1 (built to be ITERATED OR TURNED OFF — every dial in `matchmaking.ts`,

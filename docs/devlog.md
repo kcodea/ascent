@@ -5,6 +5,41 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-19 (later)
 
+### tweak(ui): tighten death timing + a full combat-timing reference
+
+Follow-up to the blink fix (#537), driven by an owner question: now that the double-advance is gone, how much
+of the accumulated death padding is still load-bearing? Answer, from reading the actual timelines: some, but
+not all — and the fat was in a different place than expected.
+
+**What was cut.** A plain attacker's return-home death held its fade until 0.6s, but the pull-home tween lands
+at **0.34s** — so the card sat fully-arrived and fully-opaque for ~260ms of dead air before starting to fade.
+The fade now starts AS IT LANDS (0.36s) and the slot collapses at 0.48s. The Deathrattle variant is left at
+0.6s/0.72s deliberately: that delay is not padding, it lets the skull pop+burst (~0.38s after landing) before
+the slot reflows. To keep those separable, `pulledHomeAttackerHold` is now variant-aware —
+`PULL_HOME_HOLD_PLAIN` 850 vs `PULL_HOME_HOLD_DR` 1050 (was a single 1150) — keyed off the dying attacker
+having any `onDeath` effect. Every death animation also drops **0.42s → 0.32s**, which speeds up defender
+deaths (the common case, previously untouched) as well as attacker ones. The end-of-fight floor now uses that
+death's own hold + 100ms instead of a flat 1250ms. Net: an ordinary attacker trade resolves **~340ms sooner**,
+every defender death is **100ms crisper**, and #503's "dies at home" read is unchanged.
+
+**What was deliberately NOT cut.** The 1150/800 `DR_SUMMON_LEAD` / `REBORN_LEAD` figures look oversized against
+the death *fade* (620ms for a rise attacker) — but they cover the death *FX*, which runs far longer:
+`burstDeathAuras` shatter shards live `420 + random×360` = **420–780ms**, and the DR skull ≈600ms (embers
+≈800ms), both starting only once the body lands. Real slack is ~240–270ms in all four cases and the shard life
+is randomised, so trimming would clip the longest-lived debris on some deaths. Left alone.
+
+**New: [`docs/combat-timing-reference.md`](combat-timing-reference.md).** Derived from the `CombatEvent` union
+and the `Keyword` type (not sampled), it documents the three timing mechanisms (engine-driven attack beat,
+clock-driven everything else, leads ADDED on top), every event type's hold, every keyword's cost, all seven
+death variants, and 36 end-to-end interactions with totals. Findings worth carrying forward: `death: 400` is
+dead config (deaths collapse into the preceding `dmg` moment, so the dial never fires); `hpGrant` holds 0ms and
+seven event types silently take a 300ms fallback; Ward/Toxin/Cleave/Stealth are free (they collapse or absorb);
+Windfury is two full 1745ms cycles; and a *defender's* buffing Deathrattle holds **210ms** for FX that run
+**700–1140ms** — the one case where a beat is far too SHORT for its animation (queued in roadmap).
+
+Verified: typecheck + lint + test (1201) + build:web green; owner confirmed the feel live across both tuning
+rounds ("this feels great", "this looks great").
+
 ### feat(ui): measured perf attribution + the HUD as a real ASCENT panel
 
 Two owner asks off the back of the first two captures.

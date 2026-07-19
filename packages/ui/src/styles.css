@@ -2779,8 +2779,8 @@ body.aiming, body.aiming * { cursor: none !important; }
    place, then slide". The card is pinned to its full width so the collapsing slot under it can't squash
    the pop; the -22px end margin swallows one row gap so there's no snap when the unit is finally
    dropped. CSS flex animates the neighbours for free, and composes cleanly with the GSAP lunge. */
-.unit.dying { animation: dyingcollapse 0.42s ease forwards; z-index: 1; }
-.unit.dying .card { width: var(--cw); animation: dyingpop 0.42s ease forwards; }
+.unit.dying { animation: dyingcollapse 0.32s ease forwards; z-index: 1; }
+.unit.dying .card { width: var(--cw); animation: dyingpop 0.32s ease forwards; }
 @keyframes dyingcollapse {
   from { width: var(--cw); margin-right: 0; }
   to { width: 0; margin-right: -22px; }
@@ -2794,27 +2794,28 @@ body.aiming, body.aiming * { cursor: none !important; }
    flex slot is HELD (no collapse) since the body re-forms right there on the reborn beat. Its blue spirit
    burst (fired by the aura tracker at this same moment) carries the drama instead. */
 .unit.dying.rising { animation: none; }
-.unit.dying.rising .card { width: var(--cw); animation: dyingfade 0.42s ease forwards; }
+.unit.dying.rising .card { width: var(--cw); animation: dyingfade 0.32s ease forwards; }
 /* A Rise ATTACKER dying to retaliation: hold the fade while GSAP pulls the unit back to its slot
    (~0.34s: 0.1s contact hold + 0.24s pull, see useCombatReplay), so it fades at HOME, not mid-lunge. */
-.unit.dying.rising.returning .card { animation: dyingfade 0.42s ease 0.3s both; }
+.unit.dying.rising.returning .card { animation: dyingfade 0.32s ease 0.3s both; }
 /* Deathrattle death: the card fades IN PLACE (no dyingpop bounce) while the bone-skull FX pops + shatters
    over it (pixiFx.deathrattle). Reuses the Rise fade. The slot collapse (board reflow) is DELAYED until the
    skull BURSTS (~0.38s = pixiFx's pop + hold) so neighbours don't slide in to fill the gap until the
    explosion — the slot holds full width while the skull pops, then collapses on the burst. */
-.unit.dying.dr .card { width: var(--cw); animation: dyingfade 0.42s ease forwards; }
+.unit.dying.dr .card { width: var(--cw); animation: dyingfade 0.32s ease forwards; }
 .unit.dying.dr { animation-delay: 0.38s; }
 /* A Deathrattle ATTACKER that died mid-lunge (`dying dr returning`): GSAP pulls it home (~0.34s), THEN the
    skull fires at `landed` and pops+bursts (~another 0.38s). Hold the card's fade AND the slot reflow through
    all of that, so the skull plays in the unit's OWN slot and neighbours don't slide in until it bursts. */
-.unit.dying.dr.returning .card { width: var(--cw); animation: dyingfade 0.42s ease 0.6s both; }
+.unit.dying.dr.returning .card { width: var(--cw); animation: dyingfade 0.32s ease 0.6s both; }
 .unit.dying.dr.returning { animation-delay: 0.72s; }
 /* A PLAIN ATTACKER (no Rise, no Deathrattle — e.g. a REBORN unit's true death) that died mid-lunge
-   (`dying returning`): identical timing to the Deathrattle attacker (`dying dr returning`) but with no skull —
-   GSAP pulls it home (~0.34s), then it SOFT-FADES in its own slot (dyingfade, no bouncy pop), and the slot
-   reflow is held so neighbours don't slide in until it's home. "Like the deathrattle timing" (owner). */
-.unit.dying.returning .card { width: var(--cw); animation: dyingfade 0.42s ease 0.6s both; }
-.unit.dying.returning { animation-delay: 0.72s; }
+   (`dying returning`): GSAP pulls it home (~0.34s), then it SOFT-FADES in its own slot (dyingfade, no bouncy
+   pop), and the slot reflow is held so neighbours don't slide in until it's home. Unlike the Deathrattle
+   variant above there is NO skull to read after landing, so the fade starts AS IT LANDS (0.36s) instead of
+   waiting the DR skull's ~0.38s — that idle pause was ~260ms of dead air on every attacker trade. */
+.unit.dying.returning .card { width: var(--cw); animation: dyingfade 0.32s ease 0.36s both; }
+.unit.dying.returning { animation-delay: 0.48s; }
 @keyframes dyingfade {
   from { opacity: 1; }
   to { opacity: 0; }

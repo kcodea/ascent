@@ -202,13 +202,23 @@ trigger"; avoid true undo until the rules are sturdier).
   bubble every frame (~100k calls/combat) — cache the rects, re-measure only on layout change.
 
 ### Combat timing clashes (per `combat-timing-audit.md`)
-Remaining: (1) standalone buff waves — 210ms hold vs a 600ms pulse + 350–780ms tendril, so the +N lands
-outside its beat; fold the tendril travel into the hold. (2) CSS combat animations are fixed seconds and
-ignore `combatSpeed` while holds ÷ and Pixi/GSAP × it — drive combat CSS durations off a `--combat-speed`
-var. (3) overlap tails (`risepop 700`, re-form glow @+460) bleed past their 240ms ride. (4) poison mist
-clipped 50ms. (5) the death→consequence 240ms `overlapMs` ride unmounts the dying card ~55% into its 420ms
+> Full current numbers — every event's hold, every keyword's cost, 36 interactions end to end — are in
+> [`combat-timing-reference.md`](combat-timing-reference.md). Read it before tuning any of these.
+
+Remaining: (1) standalone buff waves — 210ms hold vs 700–1140ms of FX (descend `dropMs` 340 / tendril
+`travelMs` 350–780, **plus** a 360ms badge flash), so the +N lands 490–930ms outside its beat. Worst case is a
+**defender's buffing Deathrattle**, which gets NO lead at all (`deathConsequenceLead` only fires for `summon`
+/`reborn`) — the one place a beat is far too SHORT for its animation; fold the strike time into the hold.
+(2) CSS combat animations are fixed seconds and ignore `combatSpeed` while holds ÷ and Pixi/GSAP × it — drive
+combat CSS durations off a `--combat-speed` var (this also worsens every ⚠ overhang at higher speeds).
+(3) overlap tails (`risepop 700`, re-form glow @+460) bleed past their 240ms ride. (4) poison mist
+clipped 50ms. (5) the death→consequence 240ms `overlapMs` ride unmounts the dying card partway into its
 collapse when a Deathrattle summon/reborn follows (measured live during the blink root-cause hunt — reads
-OK in play, but the collapse tail is technically cut; tune overlap vs collapse if it ever reads abrupt).
+OK in play; tune overlap vs collapse if it ever reads abrupt). (6) config gaps: `hpGrant` holds **0ms**, and
+seven event types (`keyword`, `keywordLost`, `ascend`, `reveal`, `spellProgress`, `questTrigger`,
+`questComplete`) have no configured hold and silently take the 300→450ms fallback; `ascend`'s `KIND_TO_KEY →
+improve` mapping is dead code because `holdMs` keys on the raw event type. (7) crit text runs 1520ms and
+outlives its beat by ~650ms.
 Also: a dying unit should begin leaving the board in tandem with the other units' Echo/Reborn
 effects (the `.dr` collapse hold can trail them) — tune live against the skull-in-own-slot hold.
 

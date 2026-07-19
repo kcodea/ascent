@@ -431,17 +431,24 @@ export interface CombatReplay {
 
 /** Death read-lead (ms, at 1× speed) held BEFORE a death's on-screen CONSEQUENCE so the death reads FIRST and
  *  there's a breath of empty slot before the consequence lands — instead of the token/returned body appearing
- *  the instant the body clears (which reads as rushed). Two consequences get a lead:
+ *  the instant the body clears (which reads as rushed). Three consequences get a lead:
  *   - **Deathrattle → summon** (`DR_SUMMON_LEAD`): the bone-skull pops (`DR_POP_MS` 320) + holds + poofs
  *     (~600ms; embers ~800ms) before its tokens appear.
- *   - **Rise → reborn** (`REBORN_LEAD`): the `.dying.rising` body fully fades (dyingfade 0.42s) before it
- *     re-forms.
+ *   - **Rise → reborn** (`REBORN_LEAD`): the `.dying.rising` body fully fades before it re-forms.
+ *   - **Deathrattle → buff** (`DR_BUFF_LEAD`): the OPPOSITE problem to the two above. A buffing Deathrattle's
+ *     beat is a `buffWave`, whose base hold is only `beatDelay('buff')` 140 × 1.5 = **210ms** — but a dead
+ *     buffer is `sourceless` (see `isDeathrattleBufferCard`) so its FX is a DESCEND: `dropMs` 340 to land,
+ *     then the stat-hold releases and the badge flashes 360ms ⇒ **~700ms of read**. Without a lead the beat
+ *     tore down mid-flight, dropping the stat holds so the target's numbers SNAPPED instead of landing with
+ *     the descend. Note this is the one lead that makes a beat LONGER than its animation would otherwise get,
+ *     rather than holding a consequence back.
  *  An ATTACKER that died mid-lunge is first pulled home (~0.34s, see runRiseReturn / `.dr.returning`), so its
  *  skull/fade starts later — hence the higher `attacker` figure. The lead is layered ON TOP of the generic
  *  `overlapMs` (which alone measured the consequence from the IMPACT's start, landing it on top of the FX).
- *  Returns 0 for any transition that isn't a Deathrattle summon or a Rise return. */
+ *  Returns 0 for any other transition. */
 const DR_SUMMON_LEAD = { defender: 800, attacker: 1150 }; // Deathrattle death → its summoned tokens
 const REBORN_LEAD = { defender: 800, attacker: 1150 };    // Rise death → the body returning
+const DR_BUFF_LEAD = { defender: 500, attacker: 500 };    // Deathrattle death → its buff descend (+210 base ⇒ ~710ms)
 function deathConsequenceLead(
   shown: Moment | undefined,
   next: Moment,
@@ -452,20 +459,23 @@ function deathConsequenceLead(
   if (!shown) return 0;
   const summon = next.primary.type === 'summon';
   const reborn = next.primary.type === 'reborn';
-  if (!summon && !reborn) return 0;
+  const buff = next.primary.type === 'buff';
+  if (!summon && !reborn && !buff) return 0;
   let lead = 0;
   for (let i = shown.start; i < shown.end; i++) {
     const e = events[i];
     if (e?.type !== 'death') continue;
-    if (summon) {
-      // Only a Deathrattle's OWN summon waits on its skull — a plain summon (a SoC token) doesn't.
-      if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some((f) => f.on === 'onDeath')) continue;
-      lead = Math.max(lead, e.target === attackerUid ? DR_SUMMON_LEAD.attacker : DR_SUMMON_LEAD.defender);
-    } else {
+    if (reborn) {
       // A Rise's death (`rise:true`) → hold the body's return until its fade has read.
       if (!e.rise) continue;
       lead = Math.max(lead, e.target === attackerUid ? REBORN_LEAD.attacker : REBORN_LEAD.defender);
+      continue;
     }
+    // summon | buff — only a Deathrattle's OWN consequence waits on its skull/descend. A plain summon (a SoC
+    // token) or an unrelated buff wave that merely follows a death doesn't.
+    if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some((f) => f.on === 'onDeath')) continue;
+    const table = summon ? DR_SUMMON_LEAD : DR_BUFF_LEAD;
+    lead = Math.max(lead, e.target === attackerUid ? table.attacker : table.defender);
   }
   return lead;
 }
@@ -473,14 +483,30 @@ function deathConsequenceLead(
 /** A PLAIN attacker death (no Rise / Deathrattle consequence to lead the hold) still gets pulled back to its
  *  slot before it dies (`runRiseReturn` + `.dying.returning`), so hold this beat long enough for the ~0.34s
  *  pull-home + the collapse to read in the unit's own slot — otherwise the base beat hold unmounts the body
- *  mid-pull and the return is cut. Only when the SHOWN beat contains the impact attacker's death; the Rise/DR
- *  cases already get a (larger) consequence lead, so the caller takes the max. */
-const PULL_HOME_HOLD = 1150; // ms (pre-speed): matches the Deathrattle attacker lead — pull-home + the soft fade read at home
-function pulledHomeAttackerHold(shown: Moment | undefined, attackerUid: string | null, events: CombatEvent[]): number {
+ *  mid-pull and the return is cut. Only when the SHOWN beat contains the impact attacker's death; the Rise
+ *  case already gets a (larger) consequence lead, so the caller takes the max.
+ *
+ *  Two figures, because the two `returning` variants have different CSS timelines (see styles.css):
+ *   - **Deathrattle** (`.dying.dr.returning`): the skull fires at `landed` and needs ~0.38s to pop+burst before
+ *     the slot may reflow → fade 0.6s→0.92s, collapse 0.72s→1.04s. Hold must cover 1.04s.
+ *   - **Plain** (`.dying.returning`): nothing to read after landing, so the fade starts AS IT LANDS →
+ *     fade 0.36s→0.68s, collapse 0.48s→0.80s. Holding the DR figure here parked a landed, fully-faded card
+ *     for ~250ms of dead air on every ordinary trade. */
+const PULL_HOME_HOLD_DR = 1050;   // ms (pre-speed): pull-home + skull read + the soft fade at home (collapse ends ~1.04s)
+const PULL_HOME_HOLD_PLAIN = 850; // ms (pre-speed): pull-home + the immediate fade (collapse ends ~0.80s)
+function pulledHomeAttackerHold(
+  shown: Moment | undefined,
+  attackerUid: string | null,
+  events: CombatEvent[],
+  cardIds: Map<string, string>,
+): number {
   if (!shown || !attackerUid) return 0;
   for (let i = shown.start; i < shown.end; i++) {
     const e = events[i];
-    if (e?.type === 'death' && e.target === attackerUid) return PULL_HOME_HOLD;
+    if (e?.type === 'death' && e.target === attackerUid) {
+      const hasDR = !!CARD_INDEX[cardIds.get(attackerUid) ?? '']?.effects?.some((f) => f.on === 'onDeath');
+      return hasDR ? PULL_HOME_HOLD_DR : PULL_HOME_HOLD_PLAIN;
+    }
   }
   return 0;
 }
@@ -711,7 +737,7 @@ export function useCombatReplay(
     const atkUid = attackerOfImpact(beats, beatIdx - 1);
     // Hold for the death cascade's consequence (DR summon / Rise return), OR — with no consequence — for a plain
     // attacker being pulled home to die in its slot. The max: a Rise/DR consequence lead already covers its pull.
-    const lead = Math.max(deathConsequenceLead(shown, next, events, cardIds, atkUid), pulledHomeAttackerHold(shown, atkUid, events));
+    const lead = Math.max(deathConsequenceLead(shown, next, events, cardIds, atkUid), pulledHomeAttackerHold(shown, atkUid, events, cardIds));
     if (lead) d += lead / combatSpeed;
     const id = window.setTimeout(() => setBeatIdx((k) => k + 1), d);
     return () => window.clearTimeout(id);
@@ -726,12 +752,13 @@ export function useCombatReplay(
   useEffect(() => {
     if (!active || !replayComplete) return;
     const last = beats[beats.length - 1];
-    const returningDeath = !!last && !!attackerOfImpact(beats, beats.length - 1)
-      && pulledHomeAttackerHold(last, attackerOfImpact(beats, beats.length - 1), events) > 0;
-    const hold = Math.max(getChoreoConfig().finalHold / combatSpeed, returningDeath ? 1250 : 0);
+    // The floor is that death's OWN pull-home hold + a small buffer for the fade's tail — so a plain trade
+    // settles ~200ms sooner than a Deathrattle one instead of everything paying the DR figure.
+    const pull = last ? pulledHomeAttackerHold(last, attackerOfImpact(beats, beats.length - 1), events, cardIds) : 0;
+    const hold = Math.max(getChoreoConfig().finalHold / combatSpeed, pull > 0 ? pull + 100 : 0);
     const t = window.setTimeout(() => setFinished(true), hold);
     return () => window.clearTimeout(t);
-  }, [active, replayComplete, combatSpeed, beats, events]);
+  }, [active, replayComplete, combatSpeed, beats, events, cardIds]);
 
   // Trigger-medallion pulse — when a unit's EFFECT fires this beat (Start-of-Combat, Deathrattle/summon,
   // buff/aura, Rally, Avenge, Sergeant's HP-grant, Reborn), its trigger icon releases a ring of energy.

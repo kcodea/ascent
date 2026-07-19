@@ -40,6 +40,12 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+- **Snappier deaths + a combat-timing reference.** Death animations drop 0.42s → 0.32s and a plain attacker's
+  return-home death now starts fading *as it lands* instead of idling ~260ms first — an ordinary trade resolves
+  ~340ms sooner, with #503's "dies at home" read intact. The Deathrattle variant keeps its longer delay (the
+  skull needs to burst first), so the pull-home hold is now variant-aware. New
+  [`docs/combat-timing-reference.md`](docs/combat-timing-reference.md) documents every event's hold, every
+  keyword's cost, and 36 interactions end to end.
 - **Perf HUD v2** — measured `hotspots` (real attribution, not correlation) for the reducer and autosave,
   plus the HUD restyled as a proper ASCENT panel that drags and resizes like the tuners.
 - **Perf HUD** — `?perf=1` turns on a bottom-right frame-health readout (fps, worst-frame, jank, live FX

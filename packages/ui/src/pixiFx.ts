@@ -393,6 +393,17 @@ export interface AimLineCfg {
 }
 
 /** Renderer-facing pulse config (structural match of PulsePresetCfg — pixiFx stays import-light). */
+/** Renderer-facing WELD config (structural mirror of WeldFxConfig — pixiFx stays import-light). The
+ *  "an Attachment just welded on" cue: a ring that EASES IN and converges onto the card, then a flash and
+ *  rising sparks once it lands. See `weldPulse`. */
+export interface WeldCfg {
+  ringStart: number; ringEnd: number; ringMs: number; ringWidth: number; ringAlpha: number; ringGlowWidth: number;
+  flashSize: number; flashMs: number; flashAlpha: number;
+  sparkCount: number; sparkSpeed: number; sparkSpread: number; sparkSize: number; sparkLife: number;
+  sparkGravity: number; sparkDelayMs: number;
+  colorRing: string; colorFlash: string; colorSpark: string;
+}
+
 export interface PulseCfg {
   style: 'ring' | 'shard' | 'nova';
   blend: 'add' | 'normal' | 'screen';
@@ -543,6 +554,9 @@ class FxController {
   private readonly skullPops: SkullPop[] = [];
   private readonly tendrils: Tendril[] = []; // live buff tendrils — tapered ribbons advanced in `update`
   private readonly gusts: { g: Graphics; box: GustBox; cfg: BuffGustCfg; age: number; struck?: boolean }[] = []; // buff gusts — redrawn per frame
+  // Weld rings — one per weld, redrawn per frame while the ring converges; retires once the ring lands and
+  // its flash/sparks have been emitted (those finish on their own in the particle pool).
+  private readonly weldRings: { g: Graphics; x: number; y: number; cfg: WeldCfg; age: number; landed?: boolean }[] = [];
   private readonly waves: { g: Graphics; region: WaveRegion; cfg: AuraWaveCfg; age: number; lastWake: number; motes: { off: number; spawned: boolean }[] }[] = []; // aura waves — one per rise, a centre→edge board wave redrawn per frame
   /** The live hero-power targeting line (null = not aiming). `side`/`amp` are rolled once per AIM — each
    *  new arm gets a fresh random arch (owner ask: never the same static curve) — then held stable. */
@@ -682,6 +696,8 @@ class FxController {
     this.descends.length = 0;
     for (const w of this.gusts) { w.g.destroy(); }
     this.gusts.length = 0;
+    for (const w of this.weldRings) { w.g.destroy(); }
+    this.weldRings.length = 0;
     for (const w of this.waves) { w.g.destroy(); }
     this.waves.length = 0; // stale entries would otherwise survive a detach/re-init and tick on an orphaned layer
     this.skullTex?.destroy(true);
@@ -1034,6 +1050,65 @@ class FxController {
    * `sparkCount` outward sparks. Sizes are px radii → ÷ the texture radius gives the sprite scale (1:1 with the
    * rig). Every dial lives in `cfg` (a structural mirror of PulsePresetCfg) so any preset drives it.
    */
+  /**
+   * WELD — an Attachment fusing onto a host minion. A ring starts WIDE and **eases in**, converging onto
+   * the card (accelerating as it closes — the "being drawn in" read), then lands: a soft flash, and sparks
+   * rising off the card. One Graphics for the ring (redrawn per frame, the auraWave pattern); the flash +
+   * sparks are pooled particles that finish on their own. Fire-and-forget — never touches the beat clock.
+   * Config-driven (🔩 tuner).
+   */
+  weldPulse(x: number, y: number, cfg: WeldCfg): void {
+    if (!this.ready || !this.layer) return;
+    const g = new Graphics();
+    g.blendMode = 'add';
+    this.layer.addChild(g);
+    this.weldRings.push({ g, x, y, cfg, age: 0 });
+  }
+
+  /** Redraw one converging weld ring; emits its flash + rising sparks on arrival. False once complete. */
+  private drawWeldRing(w: { g: Graphics; x: number; y: number; cfg: WeldCfg; age: number; landed?: boolean }): boolean {
+    const { g, x, y, cfg } = w;
+    const t = Math.min(1, w.age / Math.max(1, cfg.ringMs));
+    g.clear();
+    if (t < 1) {
+      // EASE IN (cubic): the ring hangs wide, then rushes inward — converging, not expanding.
+      const e = t * t * t;
+      const r = cfg.ringStart + (cfg.ringEnd - cfg.ringStart) * e;
+      // Brightens as it closes, so the arrival is the peak rather than a fade-out.
+      const a = cfg.ringAlpha * (0.35 + 0.65 * t);
+      if (cfg.ringGlowWidth > 0) {
+        g.circle(x, y, r).stroke({ width: cfg.ringWidth + cfg.ringGlowWidth, color: hexNum(cfg.colorRing), alpha: a * 0.45 });
+      }
+      g.circle(x, y, r).stroke({ width: cfg.ringWidth, color: hexNum(cfg.colorRing), alpha: a });
+    }
+    // Arrival: one-shot the flash + the rising sparks the moment the ring lands.
+    if (!w.landed && t >= 1) {
+      w.landed = true;
+      if (this.glowTex && cfg.flashMs > 0 && cfg.flashSize > 0) {
+        const fs = cfg.flashSize / TENDRIL_GLOW_R;
+        this.spawn(this.glowTex, {
+          x, y, vx: 0, vy: 0, drag: 1, life: cfg.flashMs,
+          fromScale: fs * 0.35, toScale: fs, spin: 0,
+          tint: hexNum(cfg.colorFlash), blend: 'add', peakAlpha: cfg.flashAlpha,
+        });
+      }
+      if (this.glowTex && cfg.sparkCount > 0) {
+        const ss = cfg.sparkSize / TENDRIL_GLOW_R;
+        for (let i = 0; i < cfg.sparkCount; i++) {
+          const spread = (Math.random() - 0.5) * cfg.sparkSpread;
+          const sp = cfg.sparkSpeed * (0.6 + Math.random() * 0.8);
+          this.spawn(this.glowTex, {
+            x: x + spread * 0.4, y, vx: spread, vy: -sp, drag: 0.995,
+            life: cfg.sparkLife * (0.7 + Math.random() * 0.6),
+            fromScale: ss, toScale: ss * 0.2, spin: 0, gravity: cfg.sparkGravity,
+            tint: hexNum(Math.random() < 0.5 ? cfg.colorSpark : cfg.colorFlash), blend: 'add', peakAlpha: 0.9,
+          });
+        }
+      }
+    }
+    return w.age < cfg.ringMs + 40; // a beat past arrival, then retire (particles live on in the pool)
+  }
+
   pulse(x: number, y: number, cfg: PulseCfg): void {
     if (!this.ready || !this.glowTex || !this.pulseTex || !this.layer) return;
 
@@ -1567,6 +1642,8 @@ class FxController {
     this.descends.length = 0;
     for (const w of this.gusts) { this.layer?.removeChild(w.g); w.g.destroy(); }
     this.gusts.length = 0;
+    for (const w of this.weldRings) { this.layer?.removeChild(w.g); w.g.destroy(); }
+    this.weldRings.length = 0;
     for (const w of this.waves) { this.layer?.removeChild(w.g); w.g.destroy(); }
     this.waves.length = 0;
   }
@@ -2564,6 +2641,17 @@ class FxController {
         this.layer?.removeChild(w.g);
         w.g.destroy();
         this.gusts.splice(i, 1);
+      }
+    }
+
+    // Weld rings: advance + redraw each converging ring; retire once it lands.
+    for (let i = this.weldRings.length - 1; i >= 0; i--) {
+      const w = this.weldRings[i]!;
+      w.age += dtMs;
+      if (!this.drawWeldRing(w)) {
+        this.layer?.removeChild(w.g);
+        w.g.destroy();
+        this.weldRings.splice(i, 1);
       }
     }
 

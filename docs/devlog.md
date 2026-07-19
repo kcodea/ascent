@@ -5,6 +5,37 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-18
 
+### feat(ui): Attachment weld FX — a ring converges on the card, then sparks rise
+
+Owner design (v2, after v1's radial burst was rejected): when an Attachment fuses onto a minion, a gold
+ring starts WIDE and **eases in**, converging onto the host card — then lands with a flash and **sparks
+rising** off it, while the card wiggles on the impact.
+
+- **Renderer** `pixiFx.weldPulse(x, y, cfg)` — the ring is one per-frame Graphics (the auraWave pattern):
+  radius eases in CUBIC (hangs wide, then rushes closed — the "drawn in" read) and BRIGHTENS as it closes,
+  so the arrival is the peak rather than a fade. On arrival it one-shots the flash + rising sparks as
+  pooled particles, then retires. Fire-and-forget — never touches the beat clock.
+- **Sim signal**: `stampWeldFx(state, uids, kind)` fires from inside `weldMagnetic` — the ONE chokepoint,
+  so all 7 weld call sites animate with no per-site wiring. The payload is **plural**: a Beatbot mirrors
+  every weld onto itself, so one weld can land on several minions and each gets its own ring. Only the
+  reducer's hand-play site passes `'play'`. Monotonic seq; no reducer clear, no snapshot change.
+- **Hand-play timing is free**: the existing `magslide` runs BEFORE the dispatch, so the ring converges as
+  the card merges. The wiggle is delayed by `ringMs` so the card reacts to the IMPACT, not to the ring
+  appearing.
+- **EoT auto-welds** (Combinator, Cling Drones, Money Bots) stamp after the phase flips, so they fire from
+  the EoT BEAT: `EotStepFx` gained `welds: string[]`, diffed by host `attachments` — catches every current
+  and future EoT welder generically. (Cling/MoneyBot/Banksly welds previously had NO visual at all.)
+- **The old cue is gone**: a weld used to fall through the generic stat-gain watcher and get the green
+  buff-burst + a "+X/+Y" float. Both are suppressed for the minions a FRESH weld landed on (self-contained
+  seq check, so a LATER buff on the same minion still bursts/floats normally).
+- **Tunable**: `weldFxConfig.ts` (21 dials — ring start/end/converge-ms/width/α/halo, flash, sparks,
+  play/auto scale, wiggle) + the 🔩 Weld FX tuner with a play/auto toggle + ▶ Test.
+
+Verified live with a host + Beatbot: mid-converge = 2 rings / 0 particles, after landing = 0 rings /
+38 particles (the sequencing is real, not simultaneous); green burst false, 0 stat floats, 1 wiggle each;
+screenshot shows both rings mid-flight. 5 regression tests + full suite (1182) + typecheck + lint +
+build:web green.
+
 ### feat(sim): win-rate matchmaking — ledger-weighted opponents + loss-streak softener + revived pinning
 
 The owner-designed matchmaking v1 (built to be ITERATED OR TURNED OFF — every dial in `matchmaking.ts`,

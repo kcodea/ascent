@@ -579,6 +579,14 @@ export interface RunState {
   consumesThisTurn?: number;
   /** The FIRST spell cast this turn (Rune of Recurrence recasts it at End of Turn). Reset each wave. */
   firstSpellThisTurnId?: string;
+  /** Weld FX signal (2026-07-18): monotonic seq + EVERY uid that gained an Attachment on this weld, and
+   *  whether it came from a hand-PLAYED Magnetic (the card slides in first) or an AUTO effect (Banksly,
+   *  Combinator, Cling Drones, Money Bots). Plural because ONE weld can land on several minions: a Beatbot
+   *  MIRRORS every weld onto itself, so the host and every Beatbot must all animate. Pure display metadata —
+   *  never read by the sim. Never cleared; the UI dedupes against a ref of the last-seen seq. */
+  weldFxSeq?: number;
+  weldFxUids?: string[];
+  weldFxKind?: 'play' | 'auto';
   /** Consecutive combat losses (a win resets; a draw preserves) — the matchmaking loss-streak softener input. */
   lossStreak?: number;
   /** The once-per-streak softener already influenced a pick this streak — disarmed until a win re-arms it. */

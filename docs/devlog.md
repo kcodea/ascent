@@ -183,30 +183,42 @@ CSS for the persistent aura, Pixi reserved for one-shot sparkle later — persis
   size, blur, spin/dir, colour), box-level size/y/squash/breathe, and a Load-JSON box. Values baked from it.
 - **Verified:** live in-game (7 rings, flips + dim masks match config, no console errors) on a full board;
   typecheck + lint + 1123 tests + build:web green. Pixi one-shot swing sparkle is a queued follow-up.
-### fix(ui): stop return-home deaths blinking out unfaded + remove the pacing tuner
 
-**The blink.** Live-profiled the long-standing "cards blink and die without animation" regression by
-instrumenting every dying card's real timeline (class applied → fade animationstart → DOM removal) on a
-6-Reborn-footman fight. Smoking gun: two footmen with **identical** `dying rising returning` choreo — one
-faded (start 1406ms, removed 2263ms), the other's fade **never fired** and it was yanked from the DOM at
-3096ms. A race, exactly as reported (1 skip the first run, many the second).
+### fix(ui): combat blink root-caused — a dying attacker's pull-home double-fired the beat advance
 
-Root cause is structural, not speed/paint: a dying unit lives in the DOM for **one beat** (`computeFrame`
-drops it once `beatStart` passes its death). Ordinary deaths fade *immediately* (8–26ms) so they always
-finish inside that beat. The #503 **`returning`** (pull-home) death deliberately **delays** its fade
-0.3–0.6s so the card arrives home before dying — and that delay is only safe while the beat clock *holds*
-the beat (`pulledHomeAttackerHold`/`deathConsequenceLead`). But **attack beats are advanced by the choreo
-engine, bypassing that hold** (`useCombatReplay.ts` scheduler early-return). So when a returning death is
-followed by another attack (back-to-back trades — common on any board, turn 1–2 included), the card is
-unmounted *before its delayed fade starts* → it vanishes unfaded.
+**The bug.** The long-standing "cards blink and die without animation" regression (which #503 made much
+worse). Root-caused by live instrumentation in the real browser, in three passes: (1) a per-element death
+tracker (dying class → `animationstart`/`end`/`cancel` → DOM removal, distinguishing true unmounts from
+React node MOVES via `isConnected`); (2) a beat-advance log tagging every `setBeatIdx` with its source
+(clock / engine / skip); (3) a per-lunge **build id** stamped on each advance. The data ruled out, in
+turn: perf spikes, combat speed, `localStorage` tuner overrides, Pixi FX touching the DOM, node moves,
+animation cancels, and double-built lunge timelines. What remained was unambiguous — every blink showed
+the **same lunge timeline firing its contact advance TWICE, ~8ms apart** (`engine#3@b8 → +1` at contact,
+then `engine#3@b8 → +1` again).
 
-Fix keeps #503's feel exactly: a **death latch**. When a unit is dying with a `returning` class, snapshot
-it and keep it mounted with its death class for `RETURN_FADE_MS` (1200ms — the longest CSS fade, fixed
-wall-clock) via a one-shot `gsap.delayedCall` expiry that shares the animation clock. The render re-injects
-the ghost at its old slot only into the **rendered** frame (never `frameRef`/survivor logic, and never once
-the replay is complete), and skips any uid the fold has brought back alive (a reborn re-form wins). Once the
-timer fires the ghost drops and the slot collapses normally. No sim/fold change; `computeFrame` tests
-untouched.
+**Mechanism.** The beat-clock advance rides the lunge timeline's contact callback (`.add(onContact,
+'-=smackLead')`, 5ms before the strike tween ends). When the ATTACKER dies in its own clash, the death
+beat's layout effect immediately runs the pull-home (`runRiseReturn` → `gsap.killTweensOf(attacker)`),
+which guts the still-live lunge timeline's tweens while the playhead sits on that callback — GSAP's
+re-render of the mutilated timeline then RE-FIRES it. The second advance skips the death beat entirely, so
+every card that died in that clash unmounted in ~5ms with no fade — the blink. #503 extended the pull-home
+from Rise attackers to **every** dying attacker, which is exactly why the blinking exploded after it
+shipped, on any board, at any speed, worst in trade-heavy (FX-heavy) fights. Double advances also skipped
+impact beats and doubled smack sfx — the reported "other weirdness."
+
+**Fix** (`choreo/channels/lunge.ts`): every lunge cue callback (`onContact`, `onImpact`, `onImpactAuras`,
+`onRallyPulse`, `onWindupBuffs`) is wrapped in a `once()` guard — the advance is semantically once-only,
+so no GSAP internal behavior can double-fire it. Also (`useCombatReplay.ts`): the end-of-fight hold now
+has a **wall-clock floor** (~1.25s, NOT divided by combatSpeed) when the final clash kills the attacker —
+the pull-home fade is fixed CSS (~1.14s), and `finalHold/speed` (900ms at 1×) settled the fight mid-fade,
+clipping the last card. An intermediate render-layer "death latch" fix (keeping returning-death ghosts
+mounted) shipped briefly on this branch and is fully REMOVED — treating the symptom, and its ghost
+re-injection caused reflow weirdness of its own.
+
+**Verified** live with the tracker still armed: across 37 deaths — **0 double-fires, 0 unmounts before the
+fade completed**; the only flagged rows were user-invoked Skip fades (masked by design) and the
+pre-existing death→consequence 240ms overlap (see roadmap note). Owner confirmed in play. All
+instrumentation removed before commit. typecheck + lint + test (1143) + build:web green.
 
 **The tuners.** Removed BOTH live DEV combat-timing tuners — Choreography (`ChoreographyPanel` +
 `ChoreoPreviewStage` + `ChoreoTimeline` + `choreoLabels`, `choreoConfig`'s `setChoreoValue`/

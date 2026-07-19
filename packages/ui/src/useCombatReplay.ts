@@ -476,12 +476,6 @@ function deathConsequenceLead(
  *  mid-pull and the return is cut. Only when the SHOWN beat contains the impact attacker's death; the Rise/DR
  *  cases already get a (larger) consequence lead, so the caller takes the max. */
 const PULL_HOME_HOLD = 1150; // ms (pre-speed): matches the Deathrattle attacker lead — pull-home + the soft fade read at home
-// How long a `returning` (#503 pull-home) death is kept MOUNTED with its death class after the fold would drop
-// it — long enough for the delayed fade to finish (the longest is `.dr.returning`: 0.72s delay + 0.42s fade ≈
-// 1.14s, see styles.css). FIXED wall-clock (CSS animation durations don't scale with combatSpeed), so it isn't
-// divided by the speed. This is the latch that stops a returning death being unmounted mid-fade when the next
-// beat is an engine-driven attack (which bypasses the clock's pull-home hold) — the blink.
-const RETURN_FADE_MS = 1200;
 function pulledHomeAttackerHold(shown: Moment | undefined, attackerUid: string | null, events: CombatEvent[]): number {
   if (!shown || !attackerUid) return 0;
   for (let i = shown.start; i < shown.end; i++) {
@@ -564,15 +558,6 @@ export function useCombatReplay(
   const [hidden, setHidden] = useState(() => typeof document !== 'undefined' && document.hidden);
   const replayComplete = beatIdx >= beats.length;
   const done = finished;
-  // Death latch (the return-home blink fix): a `returning` dying unit is kept mounted with its death class for
-  // RETURN_FADE_MS so its delayed fade always finishes, even when the beat clock advances (an engine-driven
-  // back-to-back attack) before the fade starts. `latchRef` is the live ghost set (uid → snapshot + slot);
-  // `pendingLatchRef` hands this render's returning-deaths to the arming effect; `latchTimersRef` holds each
-  // ghost's one-shot expiry; `latchTick` forces a re-render when a ghost expires so its slot collapses.
-  const latchRef = useRef<Map<string, { unit: UnitFrame; side: 'player' | 'enemy'; index: number; cls: string }>>(new Map());
-  const pendingLatchRef = useRef<{ uid: string; side: 'player' | 'enemy'; index: number; cls: string; unit: UnitFrame }[]>([]);
-  const latchTimersRef = useRef<Map<string, gsap.core.Tween>>(new Map());
-  const [, setLatchTick] = useState(0);
 
   // A fresh combat resets the replay to the top (the hook persists across fights).
   useEffect(() => {
@@ -584,9 +569,6 @@ export function useCombatReplay(
     setFinished(false);
     setAttackUid(null);
     gsap.killTweensOf('[data-zone] .unit'); // stop any lunge left mid-flight by the previous fight
-    for (const c of latchTimersRef.current.values()) c.kill(); // drop any return-home death ghosts from the last fight
-    latchTimersRef.current.clear();
-    latchRef.current.clear();
     setProjectiles([]);
     setShake(0);
     setHandGrant(null);
@@ -737,11 +719,19 @@ export function useCombatReplay(
 
   // Hold on the final beat: once the clock reaches the end, wait FINAL_HOLD_MS before reporting `done` — so
   // the last kill's death collapse + damage float fully play before cleanup + the round-end UI take over.
+  // A `returning` death in the LAST beat needs a longer, WALL-CLOCK floor: the pull-home fade is fixed CSS
+  // (`.dying.dr.returning` ends ≈ 0.72s delay + 0.42s fade = 1.14s regardless of combatSpeed), while finalHold
+  // divides by speed — without the floor the fight settles at ~900ms (or less at higher speed) and rips the
+  // last clash's returning card out mid-fade (the end-of-fight blink).
   useEffect(() => {
     if (!active || !replayComplete) return;
-    const t = window.setTimeout(() => setFinished(true), getChoreoConfig().finalHold / combatSpeed);
+    const last = beats[beats.length - 1];
+    const returningDeath = !!last && !!attackerOfImpact(beats, beats.length - 1)
+      && pulledHomeAttackerHold(last, attackerOfImpact(beats, beats.length - 1), events) > 0;
+    const hold = Math.max(getChoreoConfig().finalHold / combatSpeed, returningDeath ? 1250 : 0);
+    const t = window.setTimeout(() => setFinished(true), hold);
     return () => window.clearTimeout(t);
-  }, [active, replayComplete, combatSpeed]);
+  }, [active, replayComplete, combatSpeed, beats, events]);
 
   // Trigger-medallion pulse — when a unit's EFFECT fires this beat (Start-of-Combat, Deathrattle/summon,
   // buff/aura, Rally, Avenge, Sergeant's HP-grant, Reborn), its trigger icon releases a ring of energy.
@@ -1221,41 +1211,6 @@ export function useCombatReplay(
     anims[lungeUid] = atk?.keywords.includes('C') ? 'attacking cleaving' : 'attacking';
   }
 
-  // Death-latch capture: note every unit that is dying with a `returning` class THIS render (it's still in the
-  // frame — it died this beat). The arming effect below keeps it mounted for the fade; the render merge re-injects
-  // it if the fold drops it before RETURN_FADE_MS elapses. Skipped once the replay is complete — the final death
-  // is covered by finalHold, and ghosts must never leak into the end-of-combat survivor reads.
-  const pendingLatch: { uid: string; side: 'player' | 'enemy'; index: number; cls: string; unit: UnitFrame }[] = [];
-  if (!replayComplete) {
-    for (const [uid, cls] of Object.entries(anims)) {
-      if (!cls.includes('returning') || !cls.includes('dying')) continue;
-      let idx = frame.player.findIndex((u) => u.uid === uid);
-      if (idx >= 0) { pendingLatch.push({ uid, side: 'player', index: idx, cls, unit: frame.player[idx]! }); continue; }
-      idx = frame.enemy.findIndex((u) => u.uid === uid);
-      if (idx >= 0) pendingLatch.push({ uid, side: 'enemy', index: idx, cls, unit: frame.enemy[idx]! });
-    }
-  }
-  pendingLatchRef.current = pendingLatch;
-  // Arm the latch each beat: register this render's returning-deaths and start a ONE-SHOT expiry per ghost. The
-  // timer must survive beat advances (the fade outlives its beat), so it's armed once per uid and never killed on
-  // a beat change — only on expiry, combat reset, or unmount. gsap.delayedCall shares the animations' clock, so a
-  // throttled/backgrounded tab pauses the expiry in lock-step with the (also-paused) fade.
-  useEffect(() => {
-    for (const p of pendingLatchRef.current) {
-      latchRef.current.set(p.uid, { unit: p.unit, side: p.side, index: p.index, cls: p.cls });
-      if (!latchTimersRef.current.has(p.uid)) {
-        const call = gsap.delayedCall(RETURN_FADE_MS / 1000, () => {
-          latchRef.current.delete(p.uid);
-          latchTimersRef.current.delete(p.uid);
-          setLatchTick((t) => t + 1); // re-render so the ghost's slot collapses + survivors settle
-        });
-        latchTimersRef.current.set(p.uid, call);
-      }
-    }
-  }, [beatIdx]);
-  // Final unmount: kill any live ghost timers (reset between fights is handled in the combat-reset effect above).
-  useEffect(() => () => { for (const c of latchTimersRef.current.values()) c.kill(); latchTimersRef.current.clear(); }, []);
-
   let log = 'The boards take their positions…';
   for (let i = processedEnd - 1; i >= 0; i--) {
     const line = narrate(events[i]!, names);
@@ -1287,27 +1242,8 @@ export function useCombatReplay(
     return events.slice(0, before).flatMap((e) => (e.type === 'toHand' ? [e.cardId] : []));
   }, [beatIdx, beats, events]);
 
-  // Merge active death ghosts into the RENDERED frame only (not `frameRef`/logic): re-inject any latched
-  // returning-death unit the fold has already dropped, at its old slot, with its death class — so its fade plays
-  // to completion instead of the card blinking out. A ghost whose uid is back in the live frame (a reborn body
-  // re-formed) is skipped — the live frame wins.
-  let renderFrame = frame;
-  let renderAnims = anims;
-  if (latchRef.current.size) {
-    const player = [...frame.player];
-    const enemy = [...frame.enemy];
-    renderAnims = { ...anims };
-    for (const [uid, g] of latchRef.current) {
-      const arr = g.side === 'player' ? player : enemy;
-      if (arr.some((u) => u.uid === uid)) continue; // still present (reborn re-form / not yet dropped)
-      arr.splice(Math.min(g.index, arr.length), 0, g.unit);
-      renderAnims[uid] = g.cls;
-    }
-    renderFrame = { player, enemy };
-  }
-
   return {
-    frame: renderFrame, anims: renderAnims, lungeUid, projectiles, floatsFor, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,
+    frame, anims, lungeUid, projectiles, floatsFor, deathFloats, log, fullLog, procs, handGrant, handGrantsShown,
     triggerUids: triggers,
     rallyPulseUids: rallyPulse,
     statHoldFor: (uid: string) => statHold.get(uid),

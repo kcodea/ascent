@@ -55,8 +55,26 @@ export interface LungeCtx {
  * The contact FX/sfx/recoil live in `channels/impact.ts`, invoked via `onContact` at the exact GSAP position.
  * Returns the built timeline (seekable via `.progress()` in tests, without needing real time to pass).
  */
+/** Wrap a cue callback so it can only ever fire ONCE. Load-bearing for `onContact`: the beat-clock advance
+ *  rides it, and a dying ATTACKER's pull-home (`runRiseReturn` → `gsap.killTweensOf(attacker)`) guts this
+ *  timeline's tweens mid-playhead — GSAP's re-render of the mutilated timeline then RE-FIRES callbacks at the
+ *  endpoint, double-advancing the clock ~8ms after contact and skipping the death beat entirely (cards blinked
+ *  out with no fade). Advance/impact cues are semantically once-only, so enforce it here at the source. */
+function once(fn: () => void): () => void;
+function once(fn?: (() => void) | undefined): (() => void) | undefined;
+function once(fn?: () => void): (() => void) | undefined {
+  if (!fn) return undefined;
+  let fired = false;
+  return () => { if (!fired) { fired = true; fn(); } };
+}
+
 export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
-  const { attacker, dx, dy, speed, strike, strikeDur, leadTilt, attackerRebound, onContact, onImpact, impactOffsetMs = 0, onRallyPulse, onWindupBuffs, onImpactAuras, rallyPauseMs = 0, flurry = false } = ctx;
+  const { attacker, dx, dy, speed, strike, strikeDur, leadTilt, attackerRebound, impactOffsetMs = 0, rallyPauseMs = 0, flurry = false } = ctx;
+  const onContact = once(ctx.onContact);
+  const onImpact = once(ctx.onImpact);
+  const onImpactAuras = once(ctx.onImpactAuras);
+  const onRallyPulse = once(ctx.onRallyPulse);
+  const onWindupBuffs = once(ctx.onWindupBuffs);
   const c = getLungeConfig();
   const rest = attacker.getBoundingClientRect();
   const cx0 = rest.left + rest.width / 2;

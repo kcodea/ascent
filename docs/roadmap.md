@@ -193,7 +193,10 @@ Remaining: (1) standalone buff waves — 210ms hold vs a 600ms pulse + 350–780
 outside its beat; fold the tendril travel into the hold. (2) CSS combat animations are fixed seconds and
 ignore `combatSpeed` while holds ÷ and Pixi/GSAP × it — drive combat CSS durations off a `--combat-speed`
 var. (3) overlap tails (`risepop 700`, re-form glow @+460) bleed past their 240ms ride. (4) poison mist
-clipped 50ms. Also: a dying unit should begin leaving the board in tandem with the other units' Echo/Reborn
+clipped 50ms. (5) the death→consequence 240ms `overlapMs` ride unmounts the dying card ~55% into its 420ms
+collapse when a Deathrattle summon/reborn follows (measured live during the blink root-cause hunt — reads
+OK in play, but the collapse tail is technically cut; tune overlap vs collapse if it ever reads abrupt).
+Also: a dying unit should begin leaving the board in tandem with the other units' Echo/Reborn
 effects (the `.dr` collapse hold can trail them) — tune live against the skull-in-own-slot hold.
 
 ### Dev tooling

@@ -38,6 +38,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+
+- **Weld FX perf + Chorus Engine hand-grants** — batched weld measurement (one reflow, not N),
+  a pre-solved ease LUT, and a single `conjuredStats` helper so a conjured card's preview matches what
+  actually lands in your hand.
 _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
 
 - **Runes batch 7a — 12 new runes.** Five Basic (Rebirth: Rise with full Health; Tempering: first Attachment

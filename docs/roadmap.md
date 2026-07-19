@@ -71,6 +71,10 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
+- **Weld FX: pool the ring `Graphics` + give them their own sub-container.** They're allocated and destroyed
+  per weld (unpooled, unlike the particle sprites), and they sit mid-layer between sprite batches, which
+  breaks batching. Real but smaller than the fixes already landed (2026-07-19 audit); pooling Graphics would
+  be a new pattern for `pixiFx.ts`.
 ### Combat replay pacing (2026-07-18 audit — the "skipped beats" report)
 **PINNED by owner 2026-07-18.** Full findings + handoff:
 [`docs/superpowers/specs/2026-07-18-combat-pacing-handoff.md`](superpowers/specs/2026-07-18-combat-pacing-handoff.md)

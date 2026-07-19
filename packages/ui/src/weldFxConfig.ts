@@ -1,7 +1,8 @@
 /**
  * Tunable parameters for the WELD FX — the "an Attachment just fused onto a minion" cue (owner design
- * 2026-07-18): a ring that **eases in and converges** onto the host card, then lands with a flash and
- * **sparks rising** off it.
+ * 2026-07-18): a ring that **eases in and converges** onto the host card and lands with a soft flash.
+ * (The spark burst the design started with is dialled to 0 in the shipped defaults — see DEFAULTS — but
+ * the dials stay, so it can come back without code.)
  *
  * Fires on every weld (`weldMagnetic`, the single sim chokepoint):
  * - **hand-played** Attachment — the card's existing slide-in (`magSlideMs`, DragTuner) plays FIRST, and
@@ -54,19 +55,29 @@ export interface WeldFxConfig {
   wiggleScale: number;   // × — the bounce (1 = none; 1.06 = a 6% pop at the peak)
 }
 
-// Owner-tuned 2026-07-18 (v2): a spinning PENTAGON (5 sides, oriented 90°, spinning 125° as it closes)
-// inside a corona of 24 long inward spokes (51px, 19px gap, full alpha), converging in 290ms all the way
-// down onto the card (210 → 42px). Soft ring (α 0.6) under a big bright landing flash (100 / 480ms / α 1),
-// then 60 small sparks that FALL (gravity +180) rather than rise. Ease bars 0.56 / 0.24.
+// Owner-tuned 2026-07-19 (v2, final): a spinning PENTAGON (5 sides, oriented 90°, spinning 125° as it
+// closes) converging in 250ms all the way down onto the card (210 → 42px), landing in a soft wide flash
+// (112px, α 0.55, 330ms). Ease bars 0.56 / 0.24. That is the WHOLE effect.
+//
+// Everything else was dialled out over successive tuning passes — the spark burst to 0, then the corona
+// (24 thin spokes → 4 heavy ones → none). The convergence alone carries the read; each layer added on top
+// of it competed rather than reinforced, and welds arrive in batches where any extra noise compounds.
+// Conveniently this is also the cheapest the effect has ever been: one polygon and one flash sprite per
+// weld, no spoke geometry and no particles. The dials all remain, so any of it can come back without code.
+//
+// The landing is now carried by a WIDER, SOFTER flash (112px, α 0.55) with **no sparks at all** — the ring's
+// convergence is the whole read, and the spark burst was both noisy over it and the effect's main per-weld
+// cost when several Attachments weld at once. The wiggle came down to a nudge to match (350ms / 2px / 1.8°
+// / 1.05×) — welds fire in clusters, so a big bounce on every host read as the board shaking.
 const DEFAULTS: WeldFxConfig = {
-  ringStart: 210, ringEnd: 42, ringMs: 290, ringWidth: 6, ringAlpha: 0.6, ringGlowWidth: 6,
+  ringStart: 210, ringEnd: 42, ringMs: 250, ringWidth: 6, ringAlpha: 0.6, ringGlowWidth: 6,
   ringSides: 5, ringAspect: 1, ringRotation: 90, ringSpin: 125,
   easeStart: 0.56, easeFinish: 0.24,
-  spokeCount: 24, spokeLen: 51, spokeWidth: 3, spokeAlpha: 1, spokeGap: 19,
-  flashSize: 100, flashMs: 480, flashAlpha: 1,
-  sparkCount: 60, sparkSpeed: 250, sparkSpread: 100, sparkSize: 3, sparkLife: 700, sparkGravity: 180,
+  spokeCount: 0, spokeLen: 64, spokeWidth: 5.5, spokeAlpha: 0.85, spokeGap: 19,
+  flashSize: 112, flashMs: 330, flashAlpha: 0.55,
+  sparkCount: 0, sparkSpeed: 250, sparkSpread: 100, sparkSize: 3, sparkLife: 700, sparkGravity: 180,
   playScale: 1.1, autoScale: 1.05,
-  wiggleMs: 510, wigglePx: 3, wiggleDeg: 2.2, wiggleScale: 1.12,
+  wiggleMs: 350, wigglePx: 2, wiggleDeg: 1.8, wiggleScale: 1.05,
 };
 
 export const WELDFX_KEYS = [

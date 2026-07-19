@@ -3,6 +3,56 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-19
+
+### fix(ui): weld FX perf under batched welds + Chorus Engine's hand-grants arrive at their real stats
+
+Three things, all from owner reports on 2026-07-19.
+
+**1. Owner-tuned weld values baked.** Across successive tuning passes the effect reduced to just the
+converging pentagon (250ms) landing in a soft wide flash (112px, alpha 0.55, 330ms). Everything layered on
+top came back out: the spark burst to 0, then the corona (24 thin spokes -> 4 heavy ones -> none). The
+convergence alone carries the read; each extra layer competed with it rather than reinforcing, and welds
+arrive in batches where noise compounds. It is now also the cheapest the effect has ever been -- one polygon
+and one flash sprite per weld, no spoke geometry and no particles. All dials remain — the ring's convergence carries the whole read, and the sparks were both noisy
+over it and the effect's main per-weld cost. The wiggle came down to a nudge (350ms / 2px / 1.8 deg / 1.05x):
+welds fire in clusters, so a big bounce on every host read as the whole board shaking. The dials all stay,
+so the sparks can come back without code.
+
+**2. Slowdown when several Attachments weld at once** (golden Banksly + Beatbot mirrors + Cling Drones can
+land a warband's worth of welds in one frame). Audited the whole weld path; four fixes, cheapest first:
+
+- **Forced reflow per weld.** `fireWeldFx` measured a card, started its wiggle (a style write), then measured
+  the next -- a synchronous layout flush per host, straight against `docs/performance.md`'s "cache the reads".
+  Replaced with `fireWeldFxBatch`: one READ pass over every host, then one WRITE pass. One reflow per batch
+  instead of N.
+- **`weldCfgFor` per host.** Rebuilt a 30-field object inside the loop, identical every iteration. Hoisted.
+- **The ease solve ran per ring per frame** -- a 20-iteration bezier binary search. A ring's easing is fixed
+  for its whole flight, so it's now pre-solved into a 33-entry LUT at fire time and sampled. Measured 4.7x
+  faster on the same work, max deviation 0.23px over the ring's 168px travel (visually identical).
+- **The ring path was built twice per frame** -- the glow halo and the ring proper are separate strokes (they
+  differ in width AND alpha) but they are the SAME path, and the trig loop ran once for each. Now computed
+  once into a module-level scratch buffer and replayed via `g.poly()`. The draw path allocates nothing.
+
+Not done, noted as a follow-up: weld `Graphics` are allocated + destroyed per weld rather than pooled, and
+they sit in the same layer as the pooled particle sprites, which breaks the sprite batch. Both are real but
+smaller, and pooling Graphics would be a new pattern for this file.
+
+**3. Chorus Engine's Attachments popped at the end of combat.** Its Rally grants Attachments to hand
+mid-fight; they flew in looking base-statted and then visibly jumped once combat settled. The sim was right
+all along -- the **preview** was wrong. The reducer settled a grant with base + per-card enchant + the
+creation-time tribe auras, while the replay previewed it with base + enchant only, and the fly-in card used
+raw def stats with no buffs at all. The gap the player saw was exactly Scrap Herald's Attachment aura, which
+an Attachment deck almost always runs -- so Chorus Engine surfaced it loudly (2 grants per attack, 4 golden).
+
+Fixed by extracting **one** helper, `conjuredStats(state, def)`, in sim: the four copies of the formula in
+the reducer and both UI previews now call it, so preview and settle cannot drift again. Pinned with a test
+asserting the helper and the settled card agree exactly (base 2/2 + enchant 1/1 + aura 2/3 = 5/6).
+
+Verified: full suite 1183 + typecheck + lint + build:web green; the ease LUT measured in-page. **Frame-time
+verification is outstanding** -- requestAnimationFrame is throttled in the headless preview pane, so the
+end-to-end win on a real batched weld still needs a look against the prod build.
+
 ## 2026-07-18
 
 ### fix(ui): Blueprint Cache buff pacing — waves fire together, paced by a floor; + a ✨ Buff FX tuner

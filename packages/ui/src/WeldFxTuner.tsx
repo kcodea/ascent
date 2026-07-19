@@ -7,9 +7,10 @@ import { testWeldFx } from './fxTestFire';
 
 /**
  * DEV-only "Weld FX" tuner — the Attachment-fuses-onto-a-minion pulse (`weldFxConfig` →
- * `pixiFx.weldPulse`): the gold core bloom, the tight ring, the spark fizz, and the motes shot upward
- * ("shot ascension"). Persists to localStorage; edits apply to the NEXT weld — drop a Magnetic onto a
- * Mech to judge, or ▶ Test on the picked kind. `play` (a hand-played Attachment, after its slide-in) and
+ * `pixiFx.weldPulse`): the gold core bloom, the tight ring, the spark fizz, the motes shot upward
+ * ("shot ascension"), and the host card's WIGGLE (shake / rotate / bounce — this replaced the old generic
+ * green buff-burst + "+X/+X" float, which are now suppressed on a weld). Persists to localStorage; edits
+ * apply to the NEXT weld — drop a Magnetic onto a Mech to judge, or ▶ Test on the picked kind. `play` (a hand-played Attachment, after its slide-in) and
  * `auto` (Banksly/Beatbot, Combinator, Cling Drones, Money Bots) share these dials, scaled by
  * playScale/autoScale. Dev-only — stripped from production.
  */
@@ -33,6 +34,10 @@ const WELD_LABELS: Partial<Record<keyof WeldFxConfig, string>> = {
   riseGravity: 'rise gravity',
   playScale: 'play ×',
   autoScale: 'auto ×',
+  wiggleMs: 'wiggle ms',
+  wigglePx: 'wiggle shake px',
+  wiggleDeg: 'wiggle rotate°',
+  wiggleScale: 'wiggle bounce ×',
 };
 
 const TEST_KINDS: ('play' | 'auto')[] = ['play', 'auto'];

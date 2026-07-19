@@ -12,7 +12,7 @@ import { pixiFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
-import { weldCfgFor } from './weldFxConfig';
+import { applyWeldWiggle, weldCfgFor } from './weldFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { getAimFxConfig } from './aimFxConfig';
 import { BUFF_PRESETS, buffPreset } from './buffPresets';
@@ -136,4 +136,5 @@ export function testWeldFx(kind: 'play' | 'auto'): void {
   const box = el.querySelector('.archbox') ?? el;
   const r = box.getBoundingClientRect();
   pixiFx.weldPulse(r.left + r.width / 2, r.top + r.height / 2, weldCfgFor(kind));
+  applyWeldWiggle([el]); // the full effect — pulse + the host's wobble
 }

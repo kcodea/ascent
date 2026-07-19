@@ -15,7 +15,7 @@ import { pixiFx, discoverFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
-import { weldCfgFor } from './weldFxConfig';
+import { applyWeldWiggle, weldCfgFor } from './weldFxConfig';
 import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { fireBuffFx } from './buffFxRender';
@@ -497,6 +497,9 @@ export function Recruit() {
   const [magTargetUid, setMagTargetUid] = useState<string | null>(null); // the Mech being merged into (crackles)
   const [aim, setAim] = useState<{ ox: number; oy: number; tx: number; ty: number; onTarget: boolean; targetUid: string | null } | null>(null);
   const [buffedUids, setBuffedUids] = useState<Set<string>>(new Set());
+  // Last weld seq the stat-diff watcher has seen — lets it suppress the generic buff cues for the minions a
+  // FRESH weld just landed on (the weld has its own pulse + wiggle), without touching any other buff.
+  const weldStatSeqRef = useRef<number | undefined>(undefined);
   // Fire the green buff-burst on a specific card for ~0.7s. Used to guarantee the Hero Power (Fortify)
   // always animates its target, independent of the passive stat-diff flash.
   const flashBuffed = useCallback((uid: string): void => {
@@ -681,6 +684,7 @@ export function Recruit() {
     if (!el) return;
     const r = (el.querySelector('.archbox') ?? el).getBoundingClientRect();
     pixiFx.weldPulse(r.left + r.width / 2, r.top + r.height / 2, weldCfgFor(kind));
+    applyWeldWiggle([el]); // the host's physical reaction — replaces the old green buff-burst (🔩 tuner)
   }, []);
   const prevWeldFxSeq = useRef(run.weldFxSeq);
   useEffect(() => {
@@ -2037,11 +2041,19 @@ export function Recruit() {
     // action — skip the green burst-ring for those so it doesn't double up with the FX; the +X/+X float below
     // still shows on every buffed card regardless.
     const fxTargets = new Set(run.recruitBuffFx.map((e) => e.targetUid));
-    const burstable = newly.filter((u) => !fxTargets.has(u));
+    // WELD (owner 2026-07-18): an Attachment fusing on gets its OWN cue — the gold pulse + the tunable
+    // wiggle — so the generic stat-gain cues (the green burst AND the "+X/+X" float) are suppressed for the
+    // minions this weld just landed on. Self-contained seq check: only the render that carries a FRESH weld
+    // stamp suppresses, so a later buff on the same minion still floats normally.
+    const freshWeld = run.weldFxSeq !== undefined && run.weldFxSeq !== weldStatSeqRef.current;
+    weldStatSeqRef.current = run.weldFxSeq;
+    const weldedNow = freshWeld ? new Set(run.weldFxUids ?? []) : new Set<string>();
+    const burstable = newly.filter((u) => !fxTargets.has(u) && !weldedNow.has(u));
     if (burstable.length > 0) setBuffedUids((s) => new Set([...s, ...burstable]));
     // Float the +X/+X over the buffed board/hand minions (like combat). Keyed so a repeat buff remounts.
-    if (gained.length > 0) {
-      const keyed = gained.map((g) => ({ ...g, key: ++statFloatKey.current }));
+    const floatable = gained.filter((g) => !weldedNow.has(g.uid));
+    if (floatable.length > 0) {
+      const keyed = floatable.map((g) => ({ ...g, key: ++statFloatKey.current }));
       setStatFloats((m) => {
         const n = { ...m };
         for (const g of keyed) n[g.uid] = { attack: g.attack, health: g.health, key: g.key };

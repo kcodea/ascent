@@ -29,8 +29,16 @@ first, auto-welds just play at their own timing; "yellow/glow/fizz/spark shot as
   the EoT BEAT instead: `EotStepFx` gained `welds: string[]`, diffed by host `attachments` count in the
   beat projection — catches every current AND future EoT welder without per-effect wiring. (Previously
   Banksly/Cling/MoneyBot welds had NO visual at all; only Combinator's electrify flash existed.)
-- **Tunable**: `weldFxConfig.ts` (19 dials incl. `playScale`/`autoScale` so a deliberate play can hit
-  harder than an incidental weld) + the 🔩 Weld FX tuner with a play/auto toggle + ▶ Test.
+- **The old cue is gone** (owner 2026-07-18): a weld used to fall through the generic stat-gain watcher and
+  get the green buff-burst bounce (`cardbuff`) + a "+X/+Y" float — the wrong language for fusing an
+  Attachment. Both are now suppressed for the minions a FRESH weld landed on (a self-contained seq check, so
+  any LATER buff on the same minion still bursts/floats normally). In their place: a tunable **wiggle** on
+  the host — a damped shake + rotate + bounce, one-shot and TRANSFORM-ONLY via WAAPI `composite: 'add'` so it
+  stacks on the card's existing transform (drag lean / FLIP / hover) instead of clobbering it, exactly like
+  `applyAuraLift`.
+- **Tunable**: `weldFxConfig.ts` (23 dials incl. `playScale`/`autoScale` so a deliberate play can hit
+  harder than an incidental weld, plus wiggle ms/shake/rotate/bounce) + the 🔩 Weld FX tuner with a
+  play/auto toggle + ▶ Test (which fires the full effect — pulse AND wiggle).
 
 Verified live: staged a real Cling→Drone weld — `weldFxSeq` bumped with `kind: 'play'`, host uid correct,
 42 particles spawned, host went 2/3 → 3/4 with the buff readout showing "Cling Drone +1/+1"; screenshot

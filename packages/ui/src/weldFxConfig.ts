@@ -37,6 +37,10 @@ export interface WeldFxConfig {
   riseGravity: number; // px/s² — pull on the rising motes (negative = they keep accelerating up)
   playScale: number;   // × — magnitude multiplier for a HAND-PLAYED attachment (counts + speeds + sizes)
   autoScale: number;   // × — magnitude multiplier for an AUTO weld (Banksly/Combinator/Cling/MoneyBot)
+  wiggleMs: number;    // ms — the host card's wobble as the Attachment fuses (0 = no wiggle)
+  wigglePx: number;    // px — horizontal shake amplitude
+  wiggleDeg: number;   // deg — rotation amplitude
+  wiggleScale: number; // × — the bounce (1 = none; 1.06 = a 6% pop at the peak)
 }
 
 const DEFAULTS: WeldFxConfig = {
@@ -45,6 +49,7 @@ const DEFAULTS: WeldFxConfig = {
   fizzCount: 26, fizzSpeed: 340, fizzSize: 7, fizzLife: 420,
   riseCount: 14, riseSpeed: 260, riseSpread: 90, riseSize: 8, riseLife: 620, riseGravity: -40,
   playScale: 1, autoScale: 0.8,
+  wiggleMs: 420, wigglePx: 3, wiggleDeg: 1.6, wiggleScale: 1.04,
 };
 
 export const WELDFX_KEYS = [
@@ -53,6 +58,7 @@ export const WELDFX_KEYS = [
   'fizzCount', 'fizzSpeed', 'fizzSize', 'fizzLife',
   'riseCount', 'riseSpeed', 'riseSpread', 'riseSize', 'riseLife', 'riseGravity',
   'playScale', 'autoScale',
+  'wiggleMs', 'wigglePx', 'wiggleDeg', 'wiggleScale',
 ] as const satisfies readonly (keyof WeldFxConfig)[];
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -63,6 +69,7 @@ export const WELDFX_RANGES: Partial<Record<keyof WeldFxConfig, [number, number, 
   riseCount: [0, 60, 1], riseSpeed: [0, 700, 10], riseSpread: [0, 300, 5], riseSize: [2, 24, 1],
   riseLife: [100, 1800, 10], riseGravity: [-300, 300, 10],
   playScale: [0.2, 2, 0.05], autoScale: [0.2, 2, 0.05],
+  wiggleMs: [0, 1200, 10], wigglePx: [0, 20, 0.5], wiggleDeg: [0, 12, 0.2], wiggleScale: [1, 1.3, 0.01],
 };
 
 /** The tribe-agnostic gold palette — weld reads as forge-work, not as a tribe buff, so the colors are
@@ -107,4 +114,32 @@ export function weldCfgFor(kind: 'play' | 'auto'): WeldCfg {
     riseSize: c.riseSize, riseLife: c.riseLife, riseGravity: c.riseGravity,
     ...WELD_COLORS,
   };
+}
+
+/**
+ * WELD WIGGLE — the host card's physical reaction as the Attachment fuses into it: a damped shake
+ * (translate + rotate) with an optional bounce (scale). Replaces the generic green buff-burst + "+X/+X"
+ * float that used to fire on a weld (owner 2026-07-18: that's the old stat-gain cue, wrong for this).
+ *
+ * One-shot, TRANSFORM-ONLY via the Web Animations API with `composite: 'add'`, so it stacks on whatever
+ * transform the card already carries (drag lean, FLIP, hover) instead of clobbering it — the same
+ * technique as `applyAuraLift`, and it honours the perf rule (never animate paint properties).
+ */
+export function applyWeldWiggle(els: Element[]): void {
+  const c = cfg;
+  if (c.wiggleMs <= 0) return;
+  const px = c.wigglePx;
+  const dg = c.wiggleDeg;
+  const sc = c.wiggleScale;
+  for (const el of els) {
+    try {
+      el.animate([
+        { transform: 'translateX(0) rotate(0deg) scale(1)' },
+        { transform: `translateX(${px}px) rotate(${dg}deg) scale(${sc})`, offset: 0.18 },
+        { transform: `translateX(${-px * 0.7}px) rotate(${-dg * 0.7}deg) scale(${1 + (sc - 1) * 0.6})`, offset: 0.42 },
+        { transform: `translateX(${px * 0.35}px) rotate(${dg * 0.35}deg) scale(${1 + (sc - 1) * 0.25})`, offset: 0.68 },
+        { transform: 'translateX(0) rotate(0deg) scale(1)' },
+      ], { duration: c.wiggleMs, easing: 'ease-out', composite: 'add' });
+    } catch { /* WAAPI composite unsupported: skip rather than clobber the card transform */ }
+  }
 }

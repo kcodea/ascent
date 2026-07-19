@@ -288,6 +288,45 @@ set 1 — which is exactly what they are — so nothing needed re-stamping.
 
 
 Full guide: `docs/card-sets.md`.
+## 2026-07-19 (later still)
+
+### fix(ui): kill the three looping paint-property animations (shop-phase frame budget)
+
+Owner is targeting a **steady 240fps, with the SHOP phase as the priority** (not combat). At 240Hz the frame
+budget is **4.16ms**, a quarter of the 16.6ms the perf docs are written against — and every per-frame cost
+scales *linearly* with refresh rate, so 60→240 both shrinks the budget 4× and runs the work 4× more often.
+That double-squeeze makes our own banned looping-paint pattern much more expensive than it looks at 60Hz.
+
+An audit of every `infinite` keyframe in `styles.css` found the resting shop in good shape overall — `kwglow`,
+`wardpulse`, `rebornpulse`, `rebornwisp`, `triparrow`, `flspin`, `etbsheen`/`tvbsheen` and `cardreffloat` are
+all transform/opacity with `will-change`, i.e. compositor-only and effectively free at any refresh rate.
+Three violations remained:
+
+- **`discpulse`** (Discover slots) animated `box-shadow` between two non-zero states on an infinite loop.
+  Converted to the house pattern (`kwglow` / `tripready`): the resting/weakest glow is now a STATIC shadow on
+  `.disc-slot`, and the brighter crest moved to a `::before` whose **opacity** breathes via `kwglow` at the
+  same 2s cadence. `.disc-slot` gained `position: relative` for the `::before`; this cannot capture any
+  descendant because `.card` already sets `position: relative` itself (styles.css:972). One deliberate
+  fidelity note: at the crest the static base and the `::before` now stack, where the original swapped one
+  shadow for the other, so the peak reads a touch brighter — exactly how `tripready` already behaves.
+- **`venomdrip`** (Venomous cards, 4 globs each) animated `border-radius` on an infinite loop — a teardrop
+  wobble repainting every glob every frame for the whole shop phase, multiplied by each Venomous card on
+  board or in the shop. Dropped the radius steps; the existing `scaleY` already carries the elongation, so
+  the keyframe is now transform/opacity only.
+- **`endpulse`** turned out to be a **dead keyframe** — the roadmap listed it as a live offender on
+  `.heropowerbtn.ready` / `.endturn-side.urgent`, but a repo-wide grep found zero users (it was orphaned when
+  the amber End Combat variant was retired 2026-07-16). Deleted rather than left around to be copied, and the
+  stale roadmap bullet corrected.
+
+**Verified:** `npm run typecheck`, `npm run lint`, `npm test` (1201 tests / 65 files), and `npm run build:web`
+all green. Not visually driven — owner eyeballs FX changes himself.
+
+**Follow-ups (filed to roadmap, NOT fixed here):** the audit surfaced a bigger shop-phase cost than any of the
+above — `ChargeGlyph`'s per-frame `--charge` write drives a `mask-image` gradient on three ~1144px layers,
+which is a full repaint every frame for the entire shop phase, plus a second continuous canvas particle loop
+(`ChargeMotes`). Both are per-frame and both quadruple at 240Hz. Also noted: `Card` uses default shallow memo
+(unlike `Unit`'s value comparator), so the per-rAF drag re-render of `Recruit` stays cheap only as long as the
+parent keeps props referentially stable.
 
 ## 2026-07-19 (later)
 

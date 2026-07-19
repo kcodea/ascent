@@ -196,9 +196,18 @@ trigger"; avoid true undo until the rules are sturdier).
   in Settings.
 
 ### UI performance sweep (violates our own banned pattern)
-- Two infinite `box-shadow` keyframe loops break the looping-paint rule: `endpulse` (`.heropowerbtn.ready` +
-  `.endturn-side.urgent`, running most of every shop turn) and `discpulse`. Convert to the approved static-
-  shadow `::before` + opacity pattern (`kwglow` / `tripready`).
+- **The turn-charge glyph repaints a large area every frame, for the whole shop phase.** `ChargeGlyph`'s rAF
+  writes `--charge`/`--feather` per frame, and those feed a `mask-image: linear-gradient(...)` on three
+  `.masked` layers (~1144px wide) — a mask-gradient recompute is a PAINT, not a composite, despite the
+  comment calling it compositor-friendly. Continuous, and it scales linearly with refresh rate (a 240Hz
+  target runs it 4× as often). Look at driving the wipe with a `transform` on a clip layer instead.
+  Confirm first with DevTools **Paint flashing**: sit in the shop doing nothing and watch the glyph region.
+- `ChargeMotes` runs a second continuous per-frame canvas particle loop for the whole charge session. Well
+  built (rects measured once at start), but it's real per-frame cost that also quadruples at 240Hz.
+- Drag re-renders all of `Recruit` (3,582 lines) once per rAF via `setDrag`/`setOverZone`. Correctly
+  throttled and rect-cached, but `Card` uses **default shallow memo** (unlike `Unit`'s value comparator), so
+  it depends on the parent keeping every prop referentially stable — silent to regress. Consider a value
+  comparator if a profile shows cards reconciling mid-drag.
 - Autosave is O(n²) (serializes the whole action log every dispatch) — debounce.
 - Combat replay: 55–86ms synchronous-React-render freezes on some summon/death beats (FX/Pixi/GPU/layout/GC
   all ruled ~0 — it's per-beat render/reconciliation). Profile the flame chart, memoize `computeFrame` + the

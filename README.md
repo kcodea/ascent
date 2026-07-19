@@ -54,6 +54,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
   skull needs to burst first), so the pull-home hold is now variant-aware. New
   [`docs/combat-timing-reference.md`](docs/combat-timing-reference.md) documents every event's hold, every
   keyword's cost, and 36 interactions end to end.
+- **Looping paint-property sweep** — the last three `infinite` keyframes that repainted every frame
+  (`discpulse`, `venomdrip`, and the dead `endpulse`) are now transform/opacity only, so the resting shop is
+  fully compositor-driven. Groundwork for a 240fps shop phase, where the frame budget is 4.16ms.
 - **Perf HUD v2** — measured `hotspots` (real attribution, not correlation) for the reducer and autosave,
   plus the HUD restyled as a proper ASCENT panel that drags and resizes like the tuners.
 - **Perf HUD** — `?perf=1` turns on a bottom-right frame-health readout (fps, worst-frame, jank, live FX

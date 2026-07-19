@@ -56,6 +56,14 @@ Flipping `enabled` is one line, but two things follow from it:
   were built under, and a run is only served boards from its own set — a set-2 board is made of set-2 cards.
   **Until you bake, a set-2 run has no captured opponents** and falls back to procedural threat boards. It
   degrades, it doesn't crash, but the matchmaking is gone until the bake exists.
+
+  The bake writes one committed file and **preserves boards from other sets**, replacing only the set being
+  baked — so `SET=set2 npm run pool` will not wipe set 1's pool. Note that re-baking a set also regenerates
+  *its* boards from current card data, which changes who you fight; that's a deliberate gameplay change, so
+  do it in its own commit rather than as a side effect.
+
+  The boards committed before sets existed carry no `setId` and are treated as set 1, which is what they
+  are. They don't need re-stamping.
 - **In-progress runs keep playing set 1.** They pinned it. Saves written before sets existed heal to `set1`
   explicitly (*not* to whatever is live), so the flip can't re-home someone mid-run.
 

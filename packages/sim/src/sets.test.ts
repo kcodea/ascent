@@ -3,6 +3,8 @@ import { BUYABLE_CARDS, CARD_INDEX, SETS, activeSet, poolFor } from '@game/conte
 import { createRun, deserialize, missingCardIds, serialize, type RunState } from './state';
 import { poolOf, setIdOf } from './cardPool';
 import { pickOpponent } from './opponents';
+import { synthesizeWaveFromCurve } from './synthesize';
+import { buildWaveLadders } from './rating';
 import type { BoardSnapshot } from './snapshot';
 
 /**
@@ -110,5 +112,23 @@ describe('card sets — save integrity', () => {
 
   it('is clean for a normal run', () => {
     expect(missingCardIds(createRun(3, 'warden'))).toEqual([]);
+  });
+});
+
+describe('card sets — synthesized boards carry their set', () => {
+  // The bug this guards against, found while wiring the bake: `setId` was threaded into card SELECTION but
+  // not stamped on the emitted board. A set-2 bake would then emit unstamped boards, which default to set1
+  // at pick time and get served into set-1 runs — made of cards that run cannot have.
+  const ladders = buildWaveLadders([], [], [], { proceduralWaves: 3, proceduralSeeds: 2 });
+
+  it('stamps the set it built from', () => {
+    const boards = synthesizeWaveFromCurve(2, ladders, 99, { perWave: 3, proceduralSeeds: 2, setId: 'set2' });
+    expect(boards.length).toBeGreaterThan(0);
+    expect(boards.every((b) => b.setId === 'set2')).toBe(true);
+  });
+
+  it('defaults to set1 when unspecified, so existing bakes keep their meaning', () => {
+    const boards = synthesizeWaveFromCurve(2, ladders, 99, { perWave: 3, proceduralSeeds: 2 });
+    expect(boards.every((b) => b.setId === 'set1')).toBe(true);
   });
 });

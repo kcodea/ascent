@@ -220,6 +220,9 @@ export function synthesizeWaveFromCurve(
       author: undefined,
       capturedAt: opts.capturedAt,
       patch: opts.patch,
+      // Stamp the set the board was BUILT from. Without this a set-2 bake emits unstamped boards, which
+      // default to set1 at pick time and get served into set-1 runs made of cards that run cannot have.
+      setId: opts.setId ?? 'set1',
       rating,
     });
   }

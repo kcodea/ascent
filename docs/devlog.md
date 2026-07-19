@@ -54,6 +54,24 @@ build:web green. One test caught a genuine error in my own model - I had claimed
 set, but they are declared in tribe files (Fodder sits in `demons.ts`), so token-ness is a FLAG not a file;
 the doc and the assertion were corrected rather than the code.
 
+**Follow-up, same session — two gaps found by exercising the bake.** Documenting `SET=set2 npm run pool` is
+not the same as it working, so I ran it:
+
+1. **The bake writes ONE committed file**, so `SET=set2 npm run pool` would have wiped set 1's pool. It now
+   preserves boards from every other set and replaces only the set being baked — they coexist in one array
+   because each board is setId-stamped and filtered at pick time.
+2. **`setId` was threaded into card SELECTION but never stamped on the emitted board.** A set-2 bake would
+   have produced unstamped boards, which default to set1 at pick time and get served into set-1 runs made of
+   cards those runs cannot have. Fixed, and pinned with two tests.
+
+Also reverted the pool regeneration itself: re-baking produces different boards (the committed pool was baked
+under an older sha, before content changed), and changing who players fight is a deliberate gameplay decision
+that does not belong smuggled inside a refactor. The committed boards carry no `setId` and are treated as
+set 1 — which is exactly what they are — so nothing needed re-stamping.
+
+`cards/set2/` is scaffolded with a README covering the wiring.
+
+
 Full guide: `docs/card-sets.md`.
 
 ## 2026-07-19 (later)

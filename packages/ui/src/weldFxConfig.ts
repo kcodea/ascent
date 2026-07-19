@@ -56,8 +56,11 @@ export interface WeldFxConfig {
 }
 
 // Owner-tuned 2026-07-19 (v2, final): a spinning PENTAGON (5 sides, oriented 90°, spinning 125° as it
-// closes) inside a corona of 24 long inward spokes (51px, 19px gap, full alpha), converging in 290ms all
-// the way down onto the card (210 → 42px). Ease bars 0.56 / 0.24.
+// closes) converging in 290ms all the way down onto the card (210 → 42px). Ease bars 0.56 / 0.24.
+//
+// The corona went from 24 thin spokes to **4 long heavy ones** (64px, 5.5px wide, α 0.85) — four reads as
+// deliberate machinery closing on the card, where two dozen read as a blur. It's also 6× less spoke
+// geometry per ring per frame, which matters because welds arrive in batches.
 //
 // The landing is now carried by a WIDER, SOFTER flash (112px, α 0.55) with **no sparks at all** — the ring's
 // convergence is the whole read, and the spark burst was both noisy over it and the effect's main per-weld
@@ -67,7 +70,7 @@ const DEFAULTS: WeldFxConfig = {
   ringStart: 210, ringEnd: 42, ringMs: 290, ringWidth: 6, ringAlpha: 0.6, ringGlowWidth: 6,
   ringSides: 5, ringAspect: 1, ringRotation: 90, ringSpin: 125,
   easeStart: 0.56, easeFinish: 0.24,
-  spokeCount: 24, spokeLen: 51, spokeWidth: 3, spokeAlpha: 1, spokeGap: 19,
+  spokeCount: 4, spokeLen: 64, spokeWidth: 5.5, spokeAlpha: 0.85, spokeGap: 19,
   flashSize: 112, flashMs: 480, flashAlpha: 0.55,
   sparkCount: 0, sparkSpeed: 250, sparkSpread: 100, sparkSize: 3, sparkLife: 700, sparkGravity: 180,
   playScale: 1.1, autoScale: 1.05,

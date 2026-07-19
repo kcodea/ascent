@@ -26,6 +26,17 @@ export interface WeldFxConfig {
   ringWidth: number;     // px — ring stroke weight
   ringAlpha: number;     // 0..1 — ring peak opacity (it brightens as it closes)
   ringGlowWidth: number; // px — a softer, wider halo stroke under the ring (0 = off)
+  ringSides: number;     // SHAPE: 0-2 = circle/ellipse; 3+ = a regular polygon (4 = diamond, 6 = hex, 8 = octagon)
+  ringAspect: number;    // × — width ÷ height (1 = round; < 1 = tall, matching the card; > 1 = wide)
+  ringRotation: number;  // deg — the shape's / spokes' starting orientation
+  ringSpin: number;      // deg — how far it rotates over the whole convergence (± for direction)
+  easeStart: number;     // 0..1 — EASE BAR: how much the departure is slowed (0 = leaves at full speed)
+  easeFinish: number;    // 0..1 — EASE BAR: how much the arrival is slowed (0 = slams in at full speed)
+  spokeCount: number;    // lines OUTSIDE the ring pointing inward at it, riding it in (0 = off)
+  spokeLen: number;      // px — spoke length
+  spokeWidth: number;    // px — spoke stroke weight
+  spokeAlpha: number;    // 0..1 — spoke opacity (relative to the ring's own fade)
+  spokeGap: number;      // px — gap between the ring and a spoke's inner tip
   flashSize: number;     // px radius — the flash when the ring lands (0 = off)
   flashMs: number;       // ms — flash lifetime
   flashAlpha: number;    // 0..1 — flash peak opacity
@@ -45,6 +56,9 @@ export interface WeldFxConfig {
 
 const DEFAULTS: WeldFxConfig = {
   ringStart: 190, ringEnd: 54, ringMs: 340, ringWidth: 3, ringAlpha: 0.95, ringGlowWidth: 7,
+  ringSides: 0, ringAspect: 1, ringRotation: 0, ringSpin: 0,
+  easeStart: 0.7, easeFinish: 0.1,
+  spokeCount: 8, spokeLen: 16, spokeWidth: 2, spokeAlpha: 0.8, spokeGap: 4,
   flashSize: 70, flashMs: 260, flashAlpha: 0.85,
   sparkCount: 18, sparkSpeed: 240, sparkSpread: 80, sparkSize: 7, sparkLife: 700, sparkGravity: -30,
   playScale: 1, autoScale: 0.85,
@@ -53,6 +67,9 @@ const DEFAULTS: WeldFxConfig = {
 
 export const WELDFX_KEYS = [
   'ringStart', 'ringEnd', 'ringMs', 'ringWidth', 'ringAlpha', 'ringGlowWidth',
+  'ringSides', 'ringAspect', 'ringRotation', 'ringSpin',
+  'easeStart', 'easeFinish',
+  'spokeCount', 'spokeLen', 'spokeWidth', 'spokeAlpha', 'spokeGap',
   'flashSize', 'flashMs', 'flashAlpha',
   'sparkCount', 'sparkSpeed', 'sparkSpread', 'sparkSize', 'sparkLife', 'sparkGravity',
   'playScale', 'autoScale',
@@ -63,6 +80,9 @@ export const WELDFX_KEYS = [
 export const WELDFX_RANGES: Partial<Record<keyof WeldFxConfig, [number, number, number]>> = {
   ringStart: [40, 500, 5], ringEnd: [0, 200, 2], ringMs: [80, 1200, 10],
   ringWidth: [1, 24, 0.5], ringAlpha: [0, 1, 0.05], ringGlowWidth: [0, 40, 1],
+  ringSides: [0, 12, 1], ringAspect: [0.3, 2.5, 0.05], ringRotation: [0, 360, 5], ringSpin: [-360, 360, 5],
+  easeStart: [0, 1, 0.02], easeFinish: [0, 1, 0.02],
+  spokeCount: [0, 24, 1], spokeLen: [0, 80, 1], spokeWidth: [0.5, 12, 0.5], spokeAlpha: [0, 1, 0.05], spokeGap: [0, 40, 1],
   flashSize: [0, 220, 2], flashMs: [0, 900, 10], flashAlpha: [0, 1, 0.05],
   sparkCount: [0, 60, 1], sparkSpeed: [0, 700, 10], sparkSpread: [0, 300, 5],
   sparkSize: [2, 24, 1], sparkLife: [100, 1800, 10], sparkGravity: [-300, 300, 10],
@@ -105,6 +125,12 @@ export function weldCfgFor(kind: 'play' | 'auto'): WeldCfg {
   return {
     ringStart: c.ringStart * k, ringEnd: c.ringEnd * k, ringMs: c.ringMs,
     ringWidth: c.ringWidth, ringAlpha: c.ringAlpha, ringGlowWidth: c.ringGlowWidth,
+    // Shape + easing are IDENTITY across kinds — an auto weld should be a smaller version of the same
+    // motion, not a different one. Only sizes/counts take the magnitude scale.
+    ringSides: c.ringSides, ringAspect: c.ringAspect, ringRotation: c.ringRotation, ringSpin: c.ringSpin,
+    easeStart: c.easeStart, easeFinish: c.easeFinish,
+    spokeCount: Math.round(c.spokeCount), spokeLen: c.spokeLen * k, spokeWidth: c.spokeWidth,
+    spokeAlpha: c.spokeAlpha, spokeGap: c.spokeGap,
     flashSize: c.flashSize * k, flashMs: c.flashMs, flashAlpha: c.flashAlpha,
     sparkCount: Math.round(c.sparkCount * k), sparkSpeed: c.sparkSpeed * k, sparkSpread: c.sparkSpread,
     sparkSize: c.sparkSize, sparkLife: c.sparkLife, sparkGravity: c.sparkGravity, sparkDelayMs: 0,

@@ -28,8 +28,18 @@ rising** off it, while the card wiggles on the impact.
 - **The old cue is gone**: a weld used to fall through the generic stat-gain watcher and get the green
   buff-burst + a "+X/+Y" float. Both are suppressed for the minions a FRESH weld landed on (self-contained
   seq check, so a LATER buff on the same minion still bursts/floats normally).
-- **Tunable**: `weldFxConfig.ts` (21 dials — ring start/end/converge-ms/width/α/halo, flash, sparks,
-  play/auto scale, wiggle) + the 🔩 Weld FX tuner with a play/auto toggle + ▶ Test.
+- **Tunable**: `weldFxConfig.ts` (32 dials) + the 🔩 Weld FX tuner with a play/auto toggle + ▶ Test.
+  Owner ask (same day) added three families on top of the base ring/flash/spark/wiggle dials:
+  - **SHAPE** — `ringSides` (0–2 = circle/ellipse, 3+ = a regular polygon: 4 diamond, 6 hex, 8 octagon),
+    `ringAspect` (width ÷ height, so the ring can match the card's tall proportions), `ringRotation`
+    (starting orientation) and `ringSpin` (degrees rotated over the whole convergence, ± for direction).
+  - **INWARD SPOKES** — short lines outside the ring pointing in at it, riding it closed: `spokeCount`,
+    `spokeLen`, `spokeWidth`, `spokeAlpha`, `spokeGap` (the gap between ring and spoke tip).
+  - **EASE BARS** — `easeStart` / `easeFinish` (0..1) drive a real `cubic-bezier(easeStart, 0,
+    1−easeFinish, 1)` timing function solved per frame, so the departure and the arrival are tuned
+    independently (0/0 = linear; the old hardcoded cubic ease-in is ≈ 0.7 / 0.1, the shipped default).
+  Shape + easing are IDENTITY across play/auto — an auto weld is a smaller version of the same motion,
+  not a different one; only sizes and counts take the magnitude scale.
 
 Verified live with a host + Beatbot: mid-converge = 2 rings / 0 particles, after landing = 0 rings /
 38 particles (the sequencing is real, not simultaneous); green burst false, 0 stat floats, 1 wiggle each;

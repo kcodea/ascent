@@ -398,6 +398,9 @@ export interface AimLineCfg {
  *  rising sparks once it lands. See `weldPulse`. */
 export interface WeldCfg {
   ringStart: number; ringEnd: number; ringMs: number; ringWidth: number; ringAlpha: number; ringGlowWidth: number;
+  ringSides: number; ringAspect: number; ringRotation: number; ringSpin: number;
+  easeStart: number; easeFinish: number;
+  spokeCount: number; spokeLen: number; spokeWidth: number; spokeAlpha: number; spokeGap: number;
   flashSize: number; flashMs: number; flashAlpha: number;
   sparkCount: number; sparkSpeed: number; sparkSpread: number; sparkSize: number; sparkLife: number;
   sparkGravity: number; sparkDelayMs: number;
@@ -530,6 +533,28 @@ const AURA: Record<AuraKind, { frag: string; rgb: number[]; tint: number; rimTin
 };
 const auraKey = (kind: AuraKind, uid: string): string => `${kind}|${uid}`;
 const auraMargin = (kind: AuraKind): number => AURA[kind].margin;
+
+/**
+ * A CSS-style `cubic-bezier(x1, 0, x2, 1)` timing function, solved per call (binary search on x, ~20
+ * iterations — cheap enough for one evaluation per ring per frame). The weld ring exposes this as two
+ * "ease bars": `easeStart` slows the departure, `easeFinish` slows the arrival. 0/0 = linear.
+ */
+function cubicBezierEase(x1: number, x2: number, t: number): number {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  const bx = (u: number): number => 3 * (1 - u) * (1 - u) * u * x1 + 3 * (1 - u) * u * u * x2 + u * u * u;
+  const by = (u: number): number => 3 * (1 - u) * u * u * 1 + u * u * u; // y1 = 0, y2 = 1
+  let lo = 0;
+  let hi = 1;
+  let u = t;
+  for (let i = 0; i < 20; i++) {
+    const x = bx(u);
+    if (Math.abs(x - t) < 1e-4) break;
+    if (x < t) lo = u; else hi = u;
+    u = (lo + hi) / 2;
+  }
+  return by(u);
+}
 
 class FxController {
   private app: Application | null = null;
@@ -1071,15 +1096,47 @@ class FxController {
     const t = Math.min(1, w.age / Math.max(1, cfg.ringMs));
     g.clear();
     if (t < 1) {
-      // EASE IN (cubic): the ring hangs wide, then rushes inward — converging, not expanding.
-      const e = t * t * t;
+      // The convergence curve — two tunable "ease bars" (slow departure / slow arrival). See cubicBezierEase.
+      const e = cubicBezierEase(cfg.easeStart, 1 - cfg.easeFinish, t);
       const r = cfg.ringStart + (cfg.ringEnd - cfg.ringStart) * e;
+      const rx = r * (cfg.ringAspect || 1); // aspect < 1 = tall (matches the card), > 1 = wide
+      const ry = r;
+      const rot = ((cfg.ringRotation + cfg.ringSpin * e) * Math.PI) / 180; // spins as it closes
       // Brightens as it closes, so the arrival is the peak rather than a fade-out.
       const a = cfg.ringAlpha * (0.35 + 0.65 * t);
+      const sides = Math.round(cfg.ringSides);
+      // SHAPE: < 3 sides = a circle/ellipse; 3+ = a regular polygon (4 = diamond, 6 = hex, …).
+      const trace = (): void => {
+        if (sides < 3) { g.ellipse(x, y, rx, ry); return; }
+        for (let i = 0; i <= sides; i++) {
+          const ang = rot + (i / sides) * Math.PI * 2;
+          const px = x + Math.cos(ang) * rx;
+          const py = y + Math.sin(ang) * ry;
+          if (i === 0) g.moveTo(px, py); else g.lineTo(px, py);
+        }
+        g.closePath();
+      };
       if (cfg.ringGlowWidth > 0) {
-        g.circle(x, y, r).stroke({ width: cfg.ringWidth + cfg.ringGlowWidth, color: hexNum(cfg.colorRing), alpha: a * 0.45 });
+        trace();
+        g.stroke({ width: cfg.ringWidth + cfg.ringGlowWidth, color: hexNum(cfg.colorRing), alpha: a * 0.45, cap: 'round', join: 'round' });
       }
-      g.circle(x, y, r).stroke({ width: cfg.ringWidth, color: hexNum(cfg.colorRing), alpha: a });
+      trace();
+      g.stroke({ width: cfg.ringWidth, color: hexNum(cfg.colorRing), alpha: a, cap: 'round', join: 'round' });
+      // SPOKES: short lines OUTSIDE the ring pointing inward at it, riding it as it closes — the
+      // "being drawn in" read. `spokeGap` is the space between the ring and a spoke's inner tip.
+      const spokes = Math.round(cfg.spokeCount);
+      if (spokes > 0 && cfg.spokeLen > 0) {
+        for (let i = 0; i < spokes; i++) {
+          const ang = rot + (i / spokes) * Math.PI * 2;
+          const c = Math.cos(ang);
+          const sn = Math.sin(ang);
+          const innerX = x + c * (rx + cfg.spokeGap);
+          const innerY = y + sn * (ry + cfg.spokeGap);
+          g.moveTo(innerX, innerY);
+          g.lineTo(innerX + c * cfg.spokeLen, innerY + sn * cfg.spokeLen);
+        }
+        g.stroke({ width: cfg.spokeWidth, color: hexNum(cfg.colorRing), alpha: cfg.spokeAlpha * a, cap: 'round' });
+      }
     }
     // Arrival: one-shot the flash + the rising sparks the moment the ring lands.
     if (!w.landed && t >= 1) {

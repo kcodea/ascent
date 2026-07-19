@@ -30,10 +30,26 @@ What it records, once per second, into an exportable timeline:
 | context | phase + wave, so a spike is tied to where in the run it happened. |
 | marks | which FX fired that second (`fx:weld`, `fx:aura`, …). |
 
-**⬇ log** downloads the whole timeline as JSON; **⧉ summary** copies the roll-up (worst buckets, mark
-totals, and `suspects` — marks ranked by the jank that co-occurred with them). `suspects` is **correlation,
-not attribution**: a bucket is a whole second and several marks share it, so it ranks what to profile
-first, it does not name a culprit. Confirm with DevTools.
+### marks vs hotspots — correlation vs attribution
+
+Two layers, and the difference matters:
+
+- **`marks`** are cheap annotations — "this happened in this second". `suspects` ranks them by jank that
+  co-occurred. That is **correlation**: a bucket is a whole second and several marks share it, so it ranks
+  what to profile first, it does not name a culprit.
+- **`hotspots`** are *measured* spans from `perfMonitor.measure(label, fn)` — the milliseconds are on the
+  clock for that named block. Ranked by the **worst single call**, not total, because a hitch is one slow
+  call and a cheap thing called 10,000 times will out-total the 58ms stall that actually dropped the frame.
+  **Read hotspots before suspects.**
+
+Currently measured: `reduce:<action>` (every run-logic dispatch — shop rolls, combat resolution, end of
+turn) and `autosave` (the whole run serialized to JSON on every state change). Wrap anything else with
+`perfMonitor.measure()`; it's a transparent passthrough when the monitor is off.
+
+**If the frame is slow but no hotspot is:** the time is not in instrumented JS. Check `task` — a long frame
+with `task: 0` means the main thread never blocked, so it went to style/layout/paint/decode/GC, which the
+Long Tasks API does not attribute. That combination showed up at phase transitions in the 2026-07-19
+captures, alongside the DOM node count roughly doubling as the shop opens.
 
 From the console: `__perf.summary()`, `__perf.exportLog()`, `__perfHud(true)`.
 

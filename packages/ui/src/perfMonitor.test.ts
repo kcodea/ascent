@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aggregateFrames, summarize, type PerfBucket } from './perfMonitor';
+import { aggregateFrames, perfMonitor, summarize, type PerfBucket } from './perfMonitor';
 
 /**
  * The sampler itself is rAF- + DOM-bound and can't run headlessly (a hidden tab suspends rAF entirely), so
@@ -8,7 +8,7 @@ import { aggregateFrames, summarize, type PerfBucket } from './perfMonitor';
  */
 const bucket = (over: Partial<PerfBucket> = {}): PerfBucket => ({
   t: 0, fps: 60, med: 16, p95: 17, worst: 18, long: 0, jank: 0, task: 0,
-  counts: {}, heapMb: 0, nodes: 0, marks: {}, ...over,
+  counts: {}, heapMb: 0, nodes: 0, marks: {}, timings: {}, ...over,
 });
 
 describe('perf monitor — frame aggregation', () => {
@@ -88,5 +88,63 @@ describe('perf monitor — triage summary', () => {
   it('is safe on an empty log', () => {
     const s = summarize([]);
     expect(s).toMatchObject({ buckets: 0, spanSec: 0, fpsMed: 0, worstFrame: 0 });
+  });
+});
+
+describe('perf monitor — measured hotspots', () => {
+  it('ranks by the WORST single call, not by total time', () => {
+    // The distinction that matters for a hitch: a cheap thing called constantly can out-total the one slow
+    // call that actually dropped the frame. `autosave` here totals far less than `reduce:hover` but is the
+    // only thing capable of causing a visible stall.
+    const s = summarize([
+      bucket({ t: 1000, timings: { 'reduce:hover': { n: 900, total: 450, max: 0.9 } } }),
+      bucket({ t: 2000, timings: { autosave: { n: 3, total: 62, max: 58 } } }),
+    ]);
+    expect(s.hotspots[0]).toMatchObject({ label: 'autosave', max: 58 });
+    expect(s.hotspots[1]!.label).toBe('reduce:hover');
+    expect(s.hotspots[1]!.total).toBeGreaterThan(s.hotspots[0]!.total); // …despite totalling more
+  });
+
+  it('accumulates one label across buckets (n and total add, max is the peak)', () => {
+    const s = summarize([
+      bucket({ t: 1000, timings: { autosave: { n: 2, total: 10, max: 7 } } }),
+      bucket({ t: 2000, timings: { autosave: { n: 3, total: 20, max: 12 } } }),
+    ]);
+    expect(s.hotspots[0]).toEqual({ label: 'autosave', n: 5, total: 30, max: 12 });
+    expect(s.measuredMs).toBe(30);
+  });
+
+  it('excludes measurements from backgrounded buckets', () => {
+    const s = summarize([
+      bucket({ t: 1000, hidden: true, timings: { autosave: { n: 1, total: 900, max: 900 } } }),
+      bucket({ t: 2000, timings: { autosave: { n: 1, total: 5, max: 5 } } }),
+    ]);
+    expect(s.hotspots[0]!.max).toBe(5); // not the 900ms recorded while throttled
+  });
+
+  it('tolerates buckets with no timings at all (logs from before measure() existed)', () => {
+    const legacy = { ...bucket({ t: 1000 }) } as PerfBucket & { timings?: unknown };
+    delete legacy.timings;
+    const s = summarize([legacy as PerfBucket]);
+    expect(s.hotspots).toEqual([]);
+    expect(s.measuredMs).toBe(0);
+  });
+});
+
+describe('perf monitor — measure() as a wrapper', () => {
+  // measure() sits in the dispatch hot path, so its contract when the monitor is OFF matters as much as
+  // its timing: it must be a transparent passthrough that changes nothing about the call it wraps.
+  it('returns the wrapped value', () => {
+    expect(perfMonitor.measure('x', () => 42)).toBe(42);
+  });
+
+  it('propagates a throw instead of swallowing it', () => {
+    expect(() => perfMonitor.measure('x', () => { throw new Error('boom'); })).toThrow('boom');
+  });
+
+  it('records nothing while stopped (no clock reads on a cold path)', () => {
+    perfMonitor.measure('x', () => 1);
+    expect(perfMonitor.isRunning).toBe(false);
+    expect(summarize(perfMonitor.history()).hotspots).toEqual([]);
   });
 });

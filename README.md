@@ -39,6 +39,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 ## Recent changes
 
 
+
+- **Perf HUD v2** — measured `hotspots` (real attribution, not correlation) for the reducer and autosave,
+  plus the HUD restyled as a proper ASCENT panel that drags and resizes like the tuners.
 - **Perf HUD** — `?perf=1` turns on a bottom-right frame-health readout (fps, worst-frame, jank, live FX
   counts) that logs a full session to exportable JSON for triage. Ships in prod builds, dormant by default.
 

@@ -65,8 +65,13 @@ export interface PerfBucket {
   heapMb: number;
   /** DOM element count — catches leaks that show up as slow style recalc. */
   nodes: number;
-  /** Marks fired during this bucket, `label` → count. The attribution layer. */
+  /** Marks fired during this bucket, `label` → count. Cheap annotation: "this happened here". */
   marks: Record<string, number>;
+  /**
+   * MEASURED work in this bucket, `label` → how long it actually took. Unlike `marks` (correlation), this
+   * is direct attribution — the milliseconds are on the clock for that specific block of code.
+   */
+  timings: Record<string, { n: number; total: number; max: number }>;
   /** True if the tab was backgrounded (rAF throttled) — excluded from summaries. */
   hidden?: boolean;
 }
@@ -101,6 +106,11 @@ export interface PerfSummary {
   buckets: number; spanSec: number; fpsMed: number; fpsMin: number;
   longFrames: number; jankFrames: number; worstFrame: number;
   worst: PerfBucket[]; markTotals: Record<string, number>; suspects: { mark: string; jank: number }[];
+  /** MEASURED work, ranked by the single worst call — real attribution. Read this before `suspects`. */
+  hotspots: { label: string; n: number; total: number; max: number }[];
+  /** Total measured ms vs the wall clock. A LOW share means the time is going somewhere unmeasured —
+   *  rendering, paint, GC — not to any instrumented block. That is a finding, not a gap. */
+  measuredMs: number;
 }
 
 /**
@@ -118,12 +128,24 @@ export function summarize(all: readonly PerfBucket[]): PerfSummary {
   // several marks share a bucket and a bucket is a whole second — so it ranks what to look at first, it
   // does not identify a culprit. Named `suspects` for exactly that reason.
   const markJank: Record<string, number> = {};
+  const acc = new Map<string, { n: number; total: number; max: number }>();
   for (const b of live) {
     for (const [k, v] of Object.entries(b.marks)) {
       markTotals[k] = (markTotals[k] ?? 0) + v;
       if (b.jank > 0) markJank[k] = (markJank[k] ?? 0) + b.jank;
     }
+    for (const [k, v] of Object.entries(b.timings ?? {})) {
+      const cur = acc.get(k);
+      if (cur) { cur.n += v.n; cur.total += v.total; cur.max = Math.max(cur.max, v.max); }
+      else acc.set(k, { n: v.n, total: v.total, max: v.max });
+    }
   }
+  // Ranked by MAX, not total: a hitch is one slow call, and a cheap thing called 10,000 times can out-total
+  // the 58ms stall that actually dropped the frame.
+  const hotspots = [...acc.entries()]
+    .map(([label, v]) => ({ label, n: v.n, total: +v.total.toFixed(1), max: +v.max.toFixed(1) }))
+    .sort((a, b) => b.max - a.max)
+    .slice(0, 12);
   return {
     buckets: live.length,
     spanSec: live.length ? Math.round((live[live.length - 1]!.t - live[0]!.t) / 1000) : 0,
@@ -135,6 +157,8 @@ export function summarize(all: readonly PerfBucket[]): PerfSummary {
     worst: [...live].sort((a, b) => b.worst - a.worst).slice(0, 10),
     markTotals,
     suspects: Object.entries(markJank).map(([mark, jank]) => ({ mark, jank })).sort((a, b) => b.jank - a.jank).slice(0, 8),
+    hotspots,
+    measuredMs: +[...acc.values()].reduce((a, v) => a + v.total, 0).toFixed(1),
   };
 }
 
@@ -152,6 +176,7 @@ class PerfMonitor {
   private longestTask = 0;
 
   private readonly pendingMarks = new Map<string, number>();
+  private readonly pendingTimings = new Map<string, { n: number; total: number; max: number }>();
   private readonly counters = new Map<string, CounterFn>();
   /** PEAK of each counter since the bucket opened — see `sampleCounters`. */
   private readonly counterPeak = new Map<string, number>();
@@ -184,6 +209,35 @@ class PerfMonitor {
   mark(label: string): void {
     if (!this.running) return;
     this.pendingMarks.set(label, (this.pendingMarks.get(label) ?? 0) + 1);
+  }
+
+  /**
+   * Time a synchronous block and attribute its milliseconds to `label`. Returns whatever `fn` returns, so
+   * it wraps an existing call without restructuring: `const next = perfMonitor.measure('reduce', () => …)`.
+   *
+   * This is the difference between knowing something happened and knowing what it cost. `mark()` only gives
+   * correlation — and the first two real captures both put their worst frame in a bucket with NO marks at
+   * all, because the only instrumented code was the FX layer, which kept turning out to be innocent.
+   * Measured spans put the milliseconds directly on a named piece of code.
+   *
+   * When the monitor is off this is a bare passthrough (no clock reads), so hot paths can call it freely.
+   */
+  measure<T>(label: string, fn: () => T): T {
+    if (!this.running) return fn();
+    const t0 = performance.now();
+    try {
+      return fn();
+    } finally {
+      const dt = performance.now() - t0;
+      const prev = this.pendingTimings.get(label);
+      if (prev) {
+        prev.n++;
+        prev.total += dt;
+        if (dt > prev.max) prev.max = dt;
+      } else {
+        this.pendingTimings.set(label, { n: 1, total: dt, max: dt });
+      }
+    }
   }
 
   subscribe(fn: (b: PerfBucket) => void): () => void {
@@ -269,6 +323,11 @@ class PerfMonitor {
     const marks: Record<string, number> = {};
     for (const [k, v] of this.pendingMarks) marks[k] = v;
     this.pendingMarks.clear();
+    const timings: Record<string, { n: number; total: number; max: number }> = {};
+    for (const [k, v] of this.pendingTimings) {
+      timings[k] = { n: v.n, total: +v.total.toFixed(2), max: +v.max.toFixed(2) };
+    }
+    this.pendingTimings.clear();
 
     if (n === 0) return; // no frames at all (fully throttled) — nothing meaningful to record
 
@@ -292,6 +351,7 @@ class PerfMonitor {
       heapMb: mem ? +(mem.usedJSHeapSize / 1048576).toFixed(1) : 0,
       nodes: document.getElementsByTagName('*').length,
       marks,
+      timings,
       ...(hidden ? { hidden: true } : {}),
     };
 

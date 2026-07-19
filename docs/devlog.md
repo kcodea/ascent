@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-18
 
+### chore(art): full rune art pass — all 61 runes + 2 reward cards wired
+
+Wired the owner's new master drop (`C:/Game Assets/Ascent Art/Runes`, 155MB) — name-mapped all 60
+direct matches to rune ids (incl. `RuneOTheMenagerie` via fuzzy match), plus `SpellOfPillaging.png` →
+**Rune of Pillaging** (the artist's title for the only remaining artless rune — 61 files ↔ 61 runes,
+unambiguous 1:1; flagged for owner veto). The Special Rune Rewards subfolder's card art wired by exact
+name match: Feasting Bogrot + Reconfigured Combinator. `npm run optimize-art` → 63 files, 154.5MB →
+3.04MB WebP. Every rune now shows real art (no more sigil-glyph fallback); build:web green.
+
 ### fix(core): Start-of-Combat triggers get their own beats + badge pulses (audit follow-up)
 
 First fixes out of the combat-pacing audit — SoC-time run modifiers that applied silently (or pulsed

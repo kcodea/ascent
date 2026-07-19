@@ -16,6 +16,7 @@ export interface CombatQuestDelta {
 import { sfx } from './sfx';
 import { liveBoardView } from './instView';
 import { loadStoredBoards, saveRunBoards } from './boardLibrary';
+import { perfMonitor } from './perfMonitor';
 import { fetchAndRegisterBoardRecords, fetchAndRegisterPool, recordFightResult, refreshOpponentPoolAndRecords, uploadBoards, uploadPlayerProfile, uploadRunTelemetry, uploadVictory } from './remoteBoards';
 import { buildRunHistoryEntry, careerStats, clearRunHistory, saveRunHistoryEntry } from './runHistory';
 import { clearProfile, loadProfile, saveProfile } from './profileStore';
@@ -394,8 +395,14 @@ export const useGame = create<GameStore>((set, get) => ({
   exportReplay: () => ({ seed: get().run.seed, heroId: get().run.heroId, actions: get().replayActions }),
   dispatch: (action) =>
     set((s) => {
-      const next = reduce(s.run, action);
+      // MEASURED for the perf HUD, keyed by action type: `reduce` is the single chokepoint for all run
+      // logic (shop rolls, combat resolution, end-of-turn), so if a hitch is game logic it shows up here
+      // with the action that caused it. No-op passthrough when the monitor is off.
+      const next = perfMonitor.measure(`reduce:${action.type}`, () => reduce(s.run, action));
       actionSfx(action, s.run, next);
+      // Phase flips are where both real captures put their bad frames — annotate them so a spike in the
+      // log can be read as "this was the shop opening" rather than an unexplained gap.
+      if (next.phase !== s.run.phase) perfMonitor.mark(`phase:${s.run.phase}->${next.phase}`);
       // Fight-result ledger: on each combat (faceOmen resolves it), attribute the outcome to the SERVED opponent
       // board, so leaderboard slots + the Career per-round log can show how a board fares when others face it.
       // The served board is recomputed deterministically from the pre-faceOmen state — the exact input faceOmen
@@ -505,7 +512,9 @@ export const useGame = create<GameStore>((set, get) => ({
       let savedRun = s.savedRun;
       if (changed) {
         if (finished) { clearSave(); savedRun = null; }
-        else { writeSave(next, replayActions); savedRun = next; }
+        // MEASURED: this serializes the ENTIRE run to JSON on every single state change, synchronously,
+        // inside the dispatch. A prime suspect for an unattributed stall — and it scales with board size.
+        else { perfMonitor.measure('autosave', () => writeSave(next, replayActions)); savedRun = next; }
       }
       return {
         run: next,

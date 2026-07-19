@@ -3,6 +3,51 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-19 (later)
+
+### feat(ui): measured perf attribution + the HUD as a real ASCENT panel
+
+Two owner asks off the back of the first two captures.
+
+**1. Instrument the NON-FX path.** Both captures put their worst frame in a bucket with `marks: {}` -- the
+only instrumented code was the nine pixiFx entry points, which kept turning out to be innocent. The tool was
+blind exactly where the problem was.
+
+Added `perfMonitor.measure(label, fn)`: times a synchronous block and attributes its milliseconds to a name,
+returning whatever `fn` returns so it wraps an existing call without restructuring. Transparent passthrough
+(no clock reads) when the monitor is off, so it is safe in a hot path. Buckets gained a `timings` map and the
+summary a `hotspots` list, **ranked by the worst single call rather than by total** -- a hitch is one slow
+call, and something cheap called 10,000 times will out-total the 58ms stall that actually dropped the frame.
+
+Wired at the two chokepoints that matter: `reduce:<action.type>` in the store dispatch (all run logic --
+shop rolls, combat resolution, end of turn -- flows through it, so a logic hitch names its own action) and
+`autosave`, which serializes the ENTIRE run to JSON synchronously on every single state change and scales
+with board size. Phase flips are marked now too (`phase:recruit->combat`).
+
+The docs now state the distinction explicitly: `marks`/`suspects` are CORRELATION, `hotspots` are
+ATTRIBUTION -- read hotspots first. And a slow frame with NO hot spot and `task: 0` is itself a finding: the
+time went to style/layout/paint/GC, which the Long Tasks API does not attribute.
+
+**2. The HUD is now a real ASCENT panel.** Restyled from the generic dark overlay into the game's own
+floating-panel language (`.sfxmix`): parchment `--card`, 2px `--line` border, 14px radius, `--acc` orange
+section heads, Outfit for chrome with tabular mono for numbers so digits do not jitter. Drag + resize now
+come from the shared `useDraggablePanel` hook, so position and size persist per-panel exactly like every
+tuner. The sparkline became full-bleed and sizes to the panel, so widening it literally widens the time
+window (one column per pixel, newest at the right edge).
+
+Wiring resize exposed a real layout bug: the panel had no flex column, so shrinking it would have clipped
+the body under `overflow: hidden` rather than scrolling it -- resizable in name only. Header and sparkline
+are now `flex: 0 0 auto` with the body taking the remainder at `min-height: 0`.
+
+Verified: 1201 tests (7 new -- hotspot ranking by max-not-total, cross-bucket accumulation, hidden-bucket
+exclusion, tolerance of pre-`timings` logs, and measure()'s passthrough/throw contract) + typecheck + lint +
+build:web green. Live in-browser: the panel renders in the ASCENT palette (computed styles checked), drags
+to an exact offset and persists its position, and at 150px tall its children fit with the body scrolling.
+**Two things remain unverifiable in the headless pane**, both for the same reason -- it reports
+`visibilityState: "hidden"`, which suspends the frame lifecycle: ResizeObserver never delivers (so
+size-persistence is untested, though it is the same hook every tuner already uses), and no buckets ever
+close, so the new hotspot numbers have not been seen with real data.
+
 ## 2026-07-19
 
 ### feat(ui): in-game perf HUD + an exportable frame-health timeline

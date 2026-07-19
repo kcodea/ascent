@@ -45,7 +45,9 @@ const DEFAULTS: BuffFxConfig = {
   baseWidth: D.baseWidth, tipWidth: D.tipWidth, coreAlpha: D.coreAlpha,
   ringCount: D.pulse.ringCount, ringSize: D.pulse.ringSize, ringWidth: D.pulse.ringWidth, ringMs: D.pulse.ringMs,
   coreFlashSize: D.pulse.coreFlashSize, coreFlashMs: D.pulse.coreFlashMs,
-  sparkCount: D.pulse.sparkCount, sparkSpeed: D.pulse.sparkSpeed, sparkSize: D.pulse.sparkSize, sparkLife: D.pulse.sparkLife,
+  // Owner-tuned 2026-07-19: a denser but much FINER spark burst than the descend preset's (46 x 3px, vs
+  // 60 x 7px) - the big sparks read as debris at wave scale, where three waves can overlap.
+  sparkCount: 46, sparkSpeed: D.pulse.sparkSpeed, sparkSize: 3, sparkLife: D.pulse.sparkLife,
 };
 
 export const BUFFFX_KEYS = [

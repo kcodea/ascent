@@ -115,29 +115,35 @@ dead code and `ascend` silently takes the 300 fallback.
 
 ## 6. Deathrattle: summon vs buff — completely different costs
 
-This is the asymmetry the leads create. `deathConsequenceLead` **only fires when the next beat is `summon` or
-`reborn`** — a Deathrattle that *buffs* gets **no lead at all**.
+A Deathrattle's cost depends entirely on *what it does*. `deathConsequenceLead` covers all three consequences:
 
 | DR consequence | Hold | Lead | Total after contact |
 |---|---:|---:|---:|
 | Summons a token (attacker) | 240 | **+1150** | **1390** |
 | Summons a token (defender) | 240 | +800 | 1040 |
 | **Buffs allies** (attacker) | 210 | +1050 * | 1260 |
-| **Buffs allies** (defender) | **210** | **0** | **210** |
+| **Buffs allies** (defender) | 210 | **+500** | **710** |
 
 \* via `PULL_HOME_HOLD_DR`, which keys off the dying attacker having *any* `onDeath` effect — not off the
-consequence type. So a *defender's* buffing Deathrattle gets **210ms**, while its FX runs 3–5× longer:
+consequence type, so it already dominated `DR_BUFF_LEAD` for attackers.
+
+`DR_BUFF_LEAD` (500) exists because the buff case is the **inverse** of the other two: instead of holding a
+consequence back so the death reads first, it makes the beat long enough for its own FX. The base `buffWave`
+hold is only 210ms, but a dead buffer is `sourceless` (`isDeathrattleBufferCard`) so its FX is a **descend**:
 
 | Buff FX | ms |
 |---|---:|
-| Descend (dead source → `sourceless`) `dropMs` | **340** (+180 retract) |
-| Tendril (live source) `travelMs` | **350 / 430 / 620 / 780** (per preset) |
+| **Descend** (dead source → `sourceless`) `dropMs` | **340** (+180 retract) |
+| Tendril (live source) `travelMs` | 350 / 430 / 620 / 780 (per preset) |
 | Stat-badge flash after landing | +360 |
-| **Total read** | **700 – 1140** |
+| **DR buff total read (descend path)** | **≈700** |
 
-→ A defender's buffing Deathrattle holds **210ms** for FX that take **700–1140ms**. The buff lands
-**~500–930ms after its beat already advanced.** (Roadmap: "standalone buff waves — 210ms hold vs a 600ms
-pulse + 350–780ms tendril.")
+→ `210 + 500 = 710ms` now covers the descend landing **and** its badge flash. Before the lead, the beat tore
+down at 210ms — mid-descend — which dropped the `statHold` entries early, so the target's numbers **snapped**
+to their new values instead of landing with the FX (the roadmap's "buff-tendril stat snap").
+
+**Still open:** a buff wave from a *living* source (not a Deathrattle) takes the **tendril** path at up to
+780ms + 360ms flash and gets **no lead** — only the 210ms base hold. That case is unchanged here.
 
 ## 7. FX that outlive their beat
 
@@ -147,7 +153,8 @@ pulse + 350–780ms tendril.")
 | Crit ring / card flash / shake | 380 / 470 / 280 | rides contact | fits |
 | Damage float | 1500 | 690–870 | ~630–810 |
 | Death float | 1000 | 690–870 | ~130–310 |
-| Buff tendril + flash | 700–1140 | 210 | **490–930** |
+| Buff tendril + flash (living source) | 700–1140 | 210 | **490–930** |
+| Buff descend + flash (Deathrattle) | ≈700 | 710 | *covered* |
 | Reborn `risepop` | 700 | 240 (overlap) | 460 |
 | Summon `summonpop` | 340 | 240 (overlap) | 100 |
 | Lunge settle | 340 | ends at contact | 340 (by design) |
@@ -166,8 +173,8 @@ Wind-up start → next beat start. **Bold** = dominant cost.
 | 5 | Swing, **attacker** dies (plain) | 875 | 869.5 | **+850** | — | **2595** |
 | 6 | Mutual kill (both plain) | 875 | 869.5 | **+850** | — | **2595** |
 | 7 | Attacker dies, DR summons nothing | 875 | 869.5 | **+1050** | — | **2795** |
-| 8 | **Defender** DR → **buff** allies | 875 | **210** | 0 | — | **1085** ⚠ FX 700–1140 |
-| 9 | **Attacker** DR → **buff** allies | 875 | 210 | +1050 | — | **2135** |
+| 8 | **Defender** DR → **buff** allies | 875 | 210 | **+500** | 529.5 | **2115** |
+| 9 | **Attacker** DR → **buff** allies | 875 | 210 | +1050 | 529.5 | **2665** |
 | 10 | Defender DR/Echo → **summon** | 875 | 240 | +800 | 529.5 | **2445** |
 | 11 | **Attacker** DR/Echo → **summon** | 875 | 240 | **+1150** | 529.5 | **2795** |
 | 12 | Defender dies → **Reborn** | 875 | 240 | +800 | 529.5 | **2445** |
@@ -212,6 +219,7 @@ screen is a `summon`.) A Windfury version of the same trade would add another ~1
 2. **Windfury doubles everything** — two full 1745ms cycles. Nothing is shared between the swings.
 3. **`attackGap` 340 + attack lead 529.5 = 869.5ms** after every impact. A defender death (320ms) leaves
    ~550ms of quiet. That's *swing rhythm*, not death timing.
-4. **Buff Deathrattles are the inverse problem** — 210ms hold for 700–1140ms of FX. The only case where the
-   beat is far too **short** for its animation.
+4. ~~Buff Deathrattles are the inverse problem~~ — **fixed** by `DR_BUFF_LEAD` (500). Still open for a buff
+   wave from a **living** source, which takes the tendril path (up to 780ms + 360ms flash) on a 210ms hold.
 5. **`hpGrant` holds 0ms** and **7 event types** silently use the 300ms fallback (§3).
+6. **Crit text runs 1520ms** and outlives its beat by ~650ms.

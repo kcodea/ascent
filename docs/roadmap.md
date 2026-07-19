@@ -205,10 +205,10 @@ trigger"; avoid true undo until the rules are sturdier).
 > Full current numbers — every event's hold, every keyword's cost, 36 interactions end to end — are in
 > [`combat-timing-reference.md`](combat-timing-reference.md). Read it before tuning any of these.
 
-Remaining: (1) standalone buff waves — 210ms hold vs 700–1140ms of FX (descend `dropMs` 340 / tendril
-`travelMs` 350–780, **plus** a 360ms badge flash), so the +N lands 490–930ms outside its beat. Worst case is a
-**defender's buffing Deathrattle**, which gets NO lead at all (`deathConsequenceLead` only fires for `summon`
-/`reborn`) — the one place a beat is far too SHORT for its animation; fold the strike time into the hold.
+Remaining: (1) standalone buff waves from a **living** source — the tendril path (`travelMs` 350–780 **plus** a
+360ms badge flash) still rides a 210ms hold, so the +N can land ~500–930ms outside its beat; fold the strike
+time into the hold. (The *Deathrattle* buff case — which takes the sourceless **descend** path, 340ms + 360ms
+flash — was fixed 2026-07-19 by `DR_BUFF_LEAD` 500 ⇒ a 710ms beat.)
 (2) CSS combat animations are fixed seconds and ignore `combatSpeed` while holds ÷ and Pixi/GSAP × it — drive
 combat CSS durations off a `--combat-speed` var (this also worsens every ⚠ overhang at higher speeds).
 (3) overlap tails (`risepop 700`, re-form glow @+460) bleed past their 240ms ride. (4) poison mist

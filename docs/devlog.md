@@ -28,6 +28,18 @@ the death *fade* (620ms for a rise attacker) — but they cover the death *FX*, 
 ≈800ms), both starting only once the body lands. Real slack is ~240–270ms in all four cases and the shard life
 is randomised, so trimming would clip the longest-lived debris on some deaths. Left alone.
 
+**The inverse fix — buffing Deathrattles (`DR_BUFF_LEAD`).** Every other tuning here made a beat shorter; this
+one makes one longer. A Deathrattle that BUFFS (rather than summons) lands on a `buffWave` beat whose base hold
+is `beatDelay('buff')` 140 × 1.5 = **210ms** — but a dead buffer is `sourceless` (`isDeathrattleBufferCard`) so
+its FX is a **descend**: 340ms to land, then the stat-hold releases and the badge flashes 360ms ⇒ **~700ms**.
+`deathConsequenceLead` only fired for `summon`/`reborn`, so a *defender's* buffing DR got no lead at all and
+the beat tore down mid-descend — dropping the `statHold` entries early, so the target's numbers **snapped**
+instead of landing with the FX (the roadmap's "buff-tendril stat snap"). `deathConsequenceLead` now covers
+`buff` too, gated on the dying unit actually having an `onDeath` effect (so an unrelated buff wave that merely
+follows a death is untouched), with `DR_BUFF_LEAD` 500 ⇒ a **710ms** beat. Attackers already got 1050 via
+`PULL_HOME_HOLD_DR`, which `Math.max` keeps. Still open (roadmap): a buff wave from a *living* source takes the
+tendril path (up to 780ms + flash) on the same 210ms hold.
+
 **New: [`docs/combat-timing-reference.md`](combat-timing-reference.md).** Derived from the `CombatEvent` union
 and the `Keyword` type (not sampled), it documents the three timing mechanisms (engine-driven attack beat,
 clock-driven everything else, leads ADDED on top), every event type's hold, every keyword's cost, all seven

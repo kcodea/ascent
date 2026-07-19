@@ -431,17 +431,24 @@ export interface CombatReplay {
 
 /** Death read-lead (ms, at 1× speed) held BEFORE a death's on-screen CONSEQUENCE so the death reads FIRST and
  *  there's a breath of empty slot before the consequence lands — instead of the token/returned body appearing
- *  the instant the body clears (which reads as rushed). Two consequences get a lead:
+ *  the instant the body clears (which reads as rushed). Three consequences get a lead:
  *   - **Deathrattle → summon** (`DR_SUMMON_LEAD`): the bone-skull pops (`DR_POP_MS` 320) + holds + poofs
  *     (~600ms; embers ~800ms) before its tokens appear.
- *   - **Rise → reborn** (`REBORN_LEAD`): the `.dying.rising` body fully fades (dyingfade 0.42s) before it
- *     re-forms.
+ *   - **Rise → reborn** (`REBORN_LEAD`): the `.dying.rising` body fully fades before it re-forms.
+ *   - **Deathrattle → buff** (`DR_BUFF_LEAD`): the OPPOSITE problem to the two above. A buffing Deathrattle's
+ *     beat is a `buffWave`, whose base hold is only `beatDelay('buff')` 140 × 1.5 = **210ms** — but a dead
+ *     buffer is `sourceless` (see `isDeathrattleBufferCard`) so its FX is a DESCEND: `dropMs` 340 to land,
+ *     then the stat-hold releases and the badge flashes 360ms ⇒ **~700ms of read**. Without a lead the beat
+ *     tore down mid-flight, dropping the stat holds so the target's numbers SNAPPED instead of landing with
+ *     the descend. Note this is the one lead that makes a beat LONGER than its animation would otherwise get,
+ *     rather than holding a consequence back.
  *  An ATTACKER that died mid-lunge is first pulled home (~0.34s, see runRiseReturn / `.dr.returning`), so its
  *  skull/fade starts later — hence the higher `attacker` figure. The lead is layered ON TOP of the generic
  *  `overlapMs` (which alone measured the consequence from the IMPACT's start, landing it on top of the FX).
- *  Returns 0 for any transition that isn't a Deathrattle summon or a Rise return. */
+ *  Returns 0 for any other transition. */
 const DR_SUMMON_LEAD = { defender: 800, attacker: 1150 }; // Deathrattle death → its summoned tokens
 const REBORN_LEAD = { defender: 800, attacker: 1150 };    // Rise death → the body returning
+const DR_BUFF_LEAD = { defender: 500, attacker: 500 };    // Deathrattle death → its buff descend (+210 base ⇒ ~710ms)
 function deathConsequenceLead(
   shown: Moment | undefined,
   next: Moment,
@@ -452,20 +459,23 @@ function deathConsequenceLead(
   if (!shown) return 0;
   const summon = next.primary.type === 'summon';
   const reborn = next.primary.type === 'reborn';
-  if (!summon && !reborn) return 0;
+  const buff = next.primary.type === 'buff';
+  if (!summon && !reborn && !buff) return 0;
   let lead = 0;
   for (let i = shown.start; i < shown.end; i++) {
     const e = events[i];
     if (e?.type !== 'death') continue;
-    if (summon) {
-      // Only a Deathrattle's OWN summon waits on its skull — a plain summon (a SoC token) doesn't.
-      if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some((f) => f.on === 'onDeath')) continue;
-      lead = Math.max(lead, e.target === attackerUid ? DR_SUMMON_LEAD.attacker : DR_SUMMON_LEAD.defender);
-    } else {
+    if (reborn) {
       // A Rise's death (`rise:true`) → hold the body's return until its fade has read.
       if (!e.rise) continue;
       lead = Math.max(lead, e.target === attackerUid ? REBORN_LEAD.attacker : REBORN_LEAD.defender);
+      continue;
     }
+    // summon | buff — only a Deathrattle's OWN consequence waits on its skull/descend. A plain summon (a SoC
+    // token) or an unrelated buff wave that merely follows a death doesn't.
+    if (!CARD_INDEX[cardIds.get(e.target) ?? '']?.effects?.some((f) => f.on === 'onDeath')) continue;
+    const table = summon ? DR_SUMMON_LEAD : DR_BUFF_LEAD;
+    lead = Math.max(lead, e.target === attackerUid ? table.attacker : table.defender);
   }
   return lead;
 }

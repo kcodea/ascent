@@ -26,6 +26,7 @@ import { HeroPowerTuner } from './HeroPowerTuner';
 import { TavernUpTuner } from './TavernUpTuner';
 import { HeroPanelTuner } from './HeroPanelTuner';
 import { pixiFx } from './pixiFx';
+import { perfMonitor } from './perfMonitor';
 
 /**
  * DEV-only Dev Tuning Menu — the single 🛠️ button that replaces the old row of floating tuner buttons.
@@ -85,6 +86,11 @@ export function DevMenu() {
               {label} <span>{shown.has(key) ? '✓' : ''}</span>
             </button>
           ))}
+          <button
+            className="devmenu-item"
+            onClick={() => (window as unknown as { __perfHud?: (on?: boolean) => void }).__perfHud?.(!perfMonitor.isRunning)}
+            title="Frame-health HUD (also available in the prod build via ?perf=1)"
+          >📊 Perf HUD <span>{perfMonitor.isRunning ? '✓' : ''}</span></button>
           <button className="devmenu-item" onClick={() => pixiFx.test()}>✨ Test FX <span>▸</span></button>
           <button className="devmenu-item" onClick={() => pixiFx.testCrit()}>⚡ Test Crit <span>▸</span></button>
           <button className="devmenu-item" onClick={() => pixiFx.testFlurry()}>🌬️ Test Flurry <span>▸</span></button>

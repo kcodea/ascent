@@ -39,6 +39,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 ## Recent changes
 
 
+- **Perf HUD** — `?perf=1` turns on a bottom-right frame-health readout (fps, worst-frame, jank, live FX
+  counts) that logs a full session to exportable JSON for triage. Ships in prod builds, dormant by default.
+
 - **Weld FX perf + Chorus Engine hand-grants** — batched weld measurement (one reflow, not N),
   a pre-solved ease LUT, and a single `conjuredStats` helper so a conjured card's preview matches what
   actually lands in your hand.

@@ -71,6 +71,15 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
+- **Profile the PHASE TRANSITIONS, not the FX.** The first perf capture (2026-07-19) puts every bad frame at
+  a phase boundary: the worst of the run was 175ms with a 181ms single task, **no FX marks**, sprite pool
+  539→0 and heap 109→97.6MB — an allocation + GC signature pointing at the shop roll / board re-render on
+  entering recruit. The renderer looks healthy (median 195fps, 4 janks in 115s); `fx:weld` fired 49 times
+  and never landed in a bad bucket.
+- **Confirm the batched-weld perf fixes with the new HUD**, against a prod build: play to a Banksly/Beatbot
+  turn with `?perf=1`, then read `worst`/`jank` and the `fx:weld` suspect line. The 2026-07-19 weld fixes
+  were never measured end to end (rAF is suspended in the headless preview).
+
 - **Weld FX: pool the ring `Graphics` + give them their own sub-container.** They're allocated and destroyed
   per weld (unpooled, unlike the particle sprites), and they sit mid-layer between sprite batches, which
   breaks batching. Real but smaller than the fixes already landed (2026-07-19 audit); pooling Graphics would

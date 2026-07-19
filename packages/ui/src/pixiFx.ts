@@ -1,5 +1,6 @@
 import { Application, Container, Graphics, Mesh, MeshGeometry, Shader, Sprite, Texture, type BLEND_MODES, type Ticker } from 'pixi.js';
 import { getSmokeConfig } from './smokeConfig';
+import { perfMonitor } from './perfMonitor';
 import { getStrikeFxConfig } from './strikeFxConfig';
 import { getCritFxConfig, type CritFxConfig } from './critFxConfig';
 import { getFlurrySwingConfig } from './flurrySwingConfig';
@@ -724,6 +725,13 @@ class FxController {
     this.crescentTex = this.makeCrescentTexture(app);
     this.buildSkullTex(); // the Echo skull: ☠ rendered purple with its glow baked into the texture
     app.ticker.add(this.update);
+    // Expose the live FX counts to the perf HUD. Read once per 1s bucket, never per frame — these are the
+    // numbers that explain a spike ("400 particles alive" / "7 rings converging"), so a hitch in the log
+    // can be tied to what the renderer was actually carrying.
+    perfMonitor.registerCounter('particles', () => this.live.length);
+    perfMonitor.registerCounter('sprite pool', () => this.pool.length);
+    perfMonitor.registerCounter('weld rings', () => this.weldRings.length);
+    perfMonitor.registerCounter('shields', () => this.shields.size);
     this.ready = true;
   }
 
@@ -988,6 +996,7 @@ class FxController {
    * flash. Sizes follow the rig's px→scale mapping (glow 80px Ø, ring tex 50px R), so tuned values transfer 1:1.
    */
   critImpact(x: number, y: number, dx: number, dy: number, defRect?: { x: number; y: number; w: number; h: number }): void {
+    perfMonitor.mark('fx:crit');
     if (!this.ready || !this.glowTex || !this.layer) return;
     const c = { ...getCritFxConfig() };
     const p = c.critPower;
@@ -1108,6 +1117,7 @@ class FxController {
    * Config-driven (🔩 tuner).
    */
   weldPulse(x: number, y: number, cfg: WeldCfg): void {
+    perfMonitor.mark('fx:weld');
     if (!this.ready || !this.layer) return;
     const g = new Graphics();
     g.blendMode = 'add';
@@ -1208,6 +1218,7 @@ class FxController {
   }
 
   pulse(x: number, y: number, cfg: PulseCfg): void {
+    perfMonitor.mark('fx:pulse');
     if (!this.ready || !this.glowTex || !this.pulseTex || !this.layer) return;
 
     // Core flash — a soft glow disc that pops and fades.
@@ -1273,6 +1284,7 @@ class FxController {
    * no source unit is needed (the buffing Deathrattle is gone). Every dial lives in `cfg`.
    */
   descend(x: number, y: number, cfg: DescendCfg): void {
+    perfMonitor.mark('fx:descend');
     if (!this.ready || !this.glowTex || !this.layer) return;
     const from = { x, y: y - cfg.startHeight };
     const to = { x, y };
@@ -2089,6 +2101,7 @@ class FxController {
    * (glowTex natural radius) is the sprite scale, so the owner's pasted preview JSON needs NO bake conversion.
    */
   buffTendril(from: { x: number; y: number }, to: { x: number; y: number }, cfg: TendrilCfg): void {
+    perfMonitor.mark('fx:tendril');
     if (!this.ready || !this.glowTex || !this.layer) return;
 
     // Caster pulse at the source, once per launch — an additive glow that blooms and fades (preview `pulse`).
@@ -2131,6 +2144,7 @@ class FxController {
    * fully config-driven (`SwapArcCfg` mirrors swapFxConfig 1:1 — the 🔀 tuner drives it live).
    */
   swapArc(board: { x: number; y: number }, shop: { x: number; y: number }, cfg: SwapArcCfg): void {
+    perfMonitor.mark('fx:swap');
     if (!this.ready || !this.glowTex || !this.layer) return;
 
     // The two card halos — soft glow discs held for the whole ride (travel + retract), each in its arc's colour.
@@ -2195,6 +2209,7 @@ class FxController {
    * values transfer verbatim.
    */
   buffGust(box: GustBox, cfg: BuffGustCfg): void {
+    perfMonitor.mark('fx:gust');
     if (!this.ready || !this.layer) return;
     const g = new Graphics();
     g.blendMode = 'add';
@@ -2337,6 +2352,7 @@ class FxController {
    * particles (self-animating); the only per-frame Graphics is the low-alpha board fill. 🌀-tuned.
    */
   auraWave(region: WaveRegion, cfg: AuraWaveCfg): void {
+    perfMonitor.mark('fx:aura');
     if (!this.ready || !this.layer) return;
     // Size the wave inside the measured zone (fit-to-board dials; centred, then offset).
     const w = region.w * cfg.widthScale;
@@ -2507,6 +2523,7 @@ class FxController {
   /** HERO POWER ACTIVATION: a simple radial spray of sparks in all directions from the diamond
    *  (owner ask 2026-07-16). One-shot; the pooled particles animate on their own. */
   heroPowerBurst(x: number, y: number, cfg: { burstCount: number; burstSpeed: number; burstSize: number; burstLife: number; colorBurst: string }): void {
+    perfMonitor.mark('fx:heroPower');
     if (!this.ready || !this.glowTex) return;
     const scale = cfg.burstSize / TENDRIL_GLOW_R;
     for (let i = 0; i < cfg.burstCount; i++) {

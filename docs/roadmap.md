@@ -72,7 +72,11 @@ The career surface exists; deepen what a finished run *remembers*.
 ## Next
 
 ### Combat replay pacing (2026-07-18 audit — the "skipped beats" report)
-Root causes found; SoC badge fixes shipped. Remaining, in impact order:
+**PINNED by owner 2026-07-18.** Full findings + handoff:
+[`docs/superpowers/specs/2026-07-18-combat-pacing-handoff.md`](superpowers/specs/2026-07-18-combat-pacing-handoff.md)
+— read that before picking this up (the first attempt, PR #542, was scrapped on feel; the doc explains the
+confound and why the ROLLOUT, not the approach, was the mistake — ship dark behind zeroed dials + tune live).
+SoC badge beats shipped (#541). Remaining, in impact order:
 - **Contact-anchored advance** — an attack's next beat fires at the GSAP `contact` position; everything
   after contact (crit flourish, flurry wind-slash, rebound/settle) is fire-and-forget and never extends
   the schedule → beats resolve "underneath" long FX then visually catch up. Fix: gate `ctx.advance()` on

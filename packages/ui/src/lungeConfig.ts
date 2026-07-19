@@ -1,8 +1,8 @@
 /**
- * Tunable parameters for the combat attack lunge (`playAttackLunge` in useCombatReplay.ts). Held in one
- * mutable, localStorage-persisted config so the feel can be dialed in by eye via the DEV Lunge tuner
- * (`LungeTuner.tsx`) without a code round-trip — set a value here as the shipped default. The lunge reads
- * `getLungeConfig()` at call time, so changes apply to the next attack.
+ * Parameters for the combat attack lunge (`playAttackLunge` in useCombatReplay.ts), fixed at the tuned
+ * `DEFAULTS` below (retune by editing them — a reviewed code change). The lunge reads `getLungeConfig()` at
+ * call time. The live DEV Lunge tuner that once wrote these to `localStorage` was removed — a stray slider
+ * nudge persisted silently and skewed every later attack's timing (cutting death fades / lunges) unseen.
  *
  * Note the windup + strike durations are GSAP seconds (NOT scaled by the beat-clock SPEED). The attack
  * RESULT beat (damage floats / recoil) is timed to land at the lunge's connection — the scheduler derives
@@ -60,51 +60,14 @@ const DEFAULTS: LungeConfig = {
   attackGap: 0.34,   // breather between swings (the inter-attack pause)
 };
 
-/** Slider bounds for the DEV tuner — [min, max, step] per key. */
-export const LUNGE_RANGES: Record<keyof LungeConfig, [number, number, number]> = {
-  windupDur: [0.05, 0.9, 0.01],
-  windupDepth: [0, 0.4, 0.01],
-  windupScale: [1, 1.5, 0.01],
-  strikeDur: [0.04, 0.3, 0.01],
-  bite: [0, 24, 1],
-  leadTilt: [0, 20, 0.5],
-  defenderSpin: [0, 20, 0.5],
-  attackerRebound: [0, 20, 0.5],
-  targetSpeed: [600, 3000, 50],
-  minStrikeDur: [0.05, 0.2, 0.01],
-  maxStrikeDur: [0.15, 0.45, 0.01],
-  smackLead: [0, 0.12, 0.005],
-  settleDur: [0.2, 1.2, 0.01],
-  attackGap: [0, 0.7, 0.02],
-};
 export const LUNGE_KEYS = Object.keys(DEFAULTS) as (keyof LungeConfig)[];
 
-const KEY = 'ascent.lunge';
-let cfg: LungeConfig = (() => {
-  try {
-    const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? '{}');
-    return { ...DEFAULTS, ...(saved && typeof saved === 'object' ? (saved as Partial<LungeConfig>) : {}) };
-  } catch {
-    return { ...DEFAULTS };
-  }
-})();
+// Lunge feel is FIXED at the tuned defaults. The live DEV Lunge tuner (and its `ascent.lunge` localStorage
+// override) was removed — a stray slider nudge persisted silently and skewed every later attack's wind-up /
+// strike / contact timing (which drives the beat hold, so it could cut death fades + lunges) with no visible
+// cause. Retune by editing DEFAULTS above: a reviewed, committed code change, not a runtime side effect.
+const cfg: LungeConfig = DEFAULTS;
 
 export function getLungeConfig(): LungeConfig {
   return cfg;
-}
-export function setLungeValue(key: keyof LungeConfig, value: number): void {
-  cfg = { ...cfg, [key]: value };
-  try {
-    localStorage.setItem(KEY, JSON.stringify(cfg));
-  } catch {
-    /* ignore */
-  }
-}
-export function resetLungeConfig(): void {
-  cfg = { ...DEFAULTS };
-  try {
-    localStorage.removeItem(KEY);
-  } catch {
-    /* ignore */
-  }
 }

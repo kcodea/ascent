@@ -719,11 +719,19 @@ export function useCombatReplay(
 
   // Hold on the final beat: once the clock reaches the end, wait FINAL_HOLD_MS before reporting `done` — so
   // the last kill's death collapse + damage float fully play before cleanup + the round-end UI take over.
+  // A `returning` death in the LAST beat needs a longer, WALL-CLOCK floor: the pull-home fade is fixed CSS
+  // (`.dying.dr.returning` ends ≈ 0.72s delay + 0.42s fade = 1.14s regardless of combatSpeed), while finalHold
+  // divides by speed — without the floor the fight settles at ~900ms (or less at higher speed) and rips the
+  // last clash's returning card out mid-fade (the end-of-fight blink).
   useEffect(() => {
     if (!active || !replayComplete) return;
-    const t = window.setTimeout(() => setFinished(true), getChoreoConfig().finalHold / combatSpeed);
+    const last = beats[beats.length - 1];
+    const returningDeath = !!last && !!attackerOfImpact(beats, beats.length - 1)
+      && pulledHomeAttackerHold(last, attackerOfImpact(beats, beats.length - 1), events) > 0;
+    const hold = Math.max(getChoreoConfig().finalHold / combatSpeed, returningDeath ? 1250 : 0);
+    const t = window.setTimeout(() => setFinished(true), hold);
     return () => window.clearTimeout(t);
-  }, [active, replayComplete, combatSpeed]);
+  }, [active, replayComplete, combatSpeed, beats, events]);
 
   // Trigger-medallion pulse — when a unit's EFFECT fires this beat (Start-of-Combat, Deathrattle/summon,
   // buff/aura, Rally, Avenge, Sergeant's HP-grant, Reborn), its trigger icon releases a ring of energy.

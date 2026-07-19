@@ -55,6 +55,13 @@ _(Latest few — the full history is in [`docs/devlog.md`](docs/devlog.md).)_
   multi-ring CSS aura (spinning comet arcs, per-ring squash/flip + top-middle dim, a slow 100%→20% breathe),
   owner-tuned via a standalone preview rig. Pure CSS so it rides drag + the combat lunge; Pixi swing sparkle
   is a queued follow-up.
+- **The combat blink is dead — root-caused and fixed at the source.** When an attacker died in its own
+  clash, its pull-home (`killTweensOf`) gutted the still-live lunge timeline and made GSAP **re-fire the
+  contact callback that advances the beat clock** — the double advance skipped the death beat, so every
+  card in that clash vanished with no animation (and impact beats/sfx occasionally doubled). All lunge cue
+  callbacks are now once-guarded, and the end-of-fight hold gained a wall-clock floor so the final trade's
+  fade completes. Also removed both live DEV combat-timing tuners (**Choreography pacing** and **Lunge**),
+  whose `localStorage` overrides could silently skew combat timing from one accidental slider nudge.
 - **Per-z End-of-Turn rewards land one hit per step.** Blueprint Cache (+2/+2 per Attachment), Rune of
   Spending, Rune of Action, and Forsaken Speed now strike their targets once per unit of the scaler,
   sequentially on their beat — ten Attachments read as ten +2/+2 hits, not one +20/+20 lump. (End-of-Turn

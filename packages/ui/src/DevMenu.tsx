@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { SfxMixer } from './SfxMixer';
-import { LungeTuner } from './LungeTuner';
 import { StrikeFxTuner } from './StrikeFxTuner';
 import { CritFxTuner } from './CritFxTuner';
 import { FlurrySwingTuner } from './FlurrySwingTuner';
@@ -14,7 +13,6 @@ import { FlipTuner } from './FlipTuner';
 import { ShieldTuner } from './ShieldTuner';
 import { TrailTuner } from './TrailTuner';
 import { SmokeTuner } from './SmokeTuner';
-import { ChoreographyPanel } from './ChoreographyPanel';
 import { FloatTuner } from './FloatTuner';
 import { StepCounterTuner } from './StepCounterTuner';
 import { LayoutTuner } from './LayoutTuner';
@@ -38,7 +36,6 @@ const TUNERS = [
   { key: 'frame', label: '🖼️ Card Frames', C: FrameTuner },
   { key: 'glow', label: '🔆 Hover Glow', C: GlowTuner },
   { key: 'sfx', label: '🎛️ Mixing Desk', C: SfxMixer },
-  { key: 'lunge', label: '🗡️ Lunge', C: LungeTuner },
   { key: 'strikefx', label: '💥 Lunge Strike Effects', C: StrikeFxTuner },
   { key: 'critfx', label: '⚡ Critical Strike FX', C: CritFxTuner },
   { key: 'flurryswing', label: '🌬️ Flurry Swing FX', C: FlurrySwingTuner },
@@ -52,7 +49,6 @@ const TUNERS = [
   { key: 'shield', label: '🛡 Shield Place', C: ShieldTuner },
   { key: 'trail', label: '💨 Trail', C: TrailTuner },
   { key: 'smoke', label: '🌫️ Smoke & Dust', C: SmokeTuner },
-  { key: 'choreo', label: '🎬 Choreography', C: ChoreographyPanel },
   { key: 'float', label: '🔢 Damage Float', C: FloatTuner },
   { key: 'stepcounter', label: '📈 Step Counter', C: StepCounterTuner },
   { key: 'chargeglyph', label: '⚡ Charge Glyph', C: ChargeGlyphTuner },

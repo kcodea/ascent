@@ -24,7 +24,7 @@ describe('choreoConfig', () => {
     expect(holdMsForKind('death')).toBe(beatDelay('death'));
     expect(holdMsForKind('scCast')).toBe(beatDelay('sc'));
   });
-  it('CHOREO_KEYS still enumerates every tunable field (Pacing tuner contract)', () => {
+  it('CHOREO_KEYS still enumerates every pacing field', () => {
     expect(CHOREO_KEYS).toContain('speed');
     expect(CHOREO_KEYS).toContain('finalHold');
   });

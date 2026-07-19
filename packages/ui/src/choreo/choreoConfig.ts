@@ -72,10 +72,12 @@ export interface ChoreoConfig {
 
 const DEFAULTS: ChoreoConfig = {
   speed: 1.5,
-  // action beats (ms). `attack` is the lead-in before the next swing's wind-up: 300 × speed 1.5 = 450ms, plus
-  // `attackGap` (lungeConfig) after an impact. Was 353 (=529.5ms) — with the old gap that put 869.5ms of hold
-  // after EVERY impact against a 320ms death animation, so ~550ms of each exchange was silent.
-  attack: 300, sc: 720, summon: 440, buff: 140, reborn: 640, improve: 520, rally: 720, toHand: 820,
+  // action beats (ms). `attack` is the lead-in before the next swing's wind-up: 240 × speed 1.5 = 360ms, plus
+  // `attackGap` (lungeConfig) after an impact => a 500ms post-impact hold. Was 353 (=529.5ms, hold 869.5) then
+  // 300 (=450ms, hold 670) — two passes closing the dead time between swings. The floor here is the attacker's
+  // 340ms elastic settle, which plays after contact fire-and-forget: hold below that and the next wind-up
+  // starts while the previous attacker is still visibly settling.
+  attack: 240, sc: 720, summon: 440, buff: 140, reborn: 640, improve: 520, rally: 720, toHand: 820,
   maxGold: 560, hpGrant: 0,
   // result beats (ms)
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,

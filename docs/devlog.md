@@ -76,6 +76,24 @@ Full guide: `docs/card-sets.md`.
 
 ## 2026-07-19 (later)
 
+### tweak(ui): second tightening pass — post-impact hold to its floor (500ms)
+
+Owner after the first pass: *"I want the combat to feel even tighter."* `attackGap` **0.22 → 0.14** and
+`attack` **300 → 240** ⇒ post-impact hold **670 → 500ms**, non-impact → attack **450 → 360ms**. Cumulative
+across both passes: **869.5 → 500ms** after every impact. A plain swing is now **1375ms** (was 1745 before
+this work), a Windfury pair **2750ms** (was 3490), an Echo trade **2865ms** (was 3375).
+
+**This is the floor for the gap.** The attacker's elastic settle is 340ms (fire-and-forget after contact), so
+only ~160ms of the 500ms hold is now free. Below this the next wind-up begins while the previous attacker is
+still visibly settling — overlap, not speed. Recorded in the reference.
+
+**What's left is the wind-up.** At 700ms it's now **51%** of a plain swing. It was deliberately set ~50%
+longer by the owner in #481, so it's a design choice rather than fat — and unlike the gap, cutting it moves
+time-to-contact, which the damage float and impact FX are welded to. That changes how a swing *feels*, not
+just the pause after it, so it's flagged in the reference rather than tuned here.
+
+Verified: typecheck + lint + test (1201) + build:web green.
+
 ### tweak(ui): close the dead time between swings (`attackGap` + attack lead)
 
 Owner, after the death-timing pass landed: *"there's a tiny bit of dead time overall between units attacking."*

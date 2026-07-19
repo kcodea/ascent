@@ -15,7 +15,7 @@ Every timing that governs a combat beat, every keyword's cost, and what each **i
 Mixing these up is the usual source of confusion:
 
 1. **The attack beat is ENGINE-driven.** It ends at the lunge's `contact` position, *not* by the clock.
-2. **Every other beat is CLOCK-driven:** `beatDelay(next.primary.type) × 1.5`, plus `attackGap` (220ms) when an
+2. **Every other beat is CLOCK-driven:** `beatDelay(next.primary.type) × 1.5`, plus `attackGap` (140ms) when an
    impact is followed by an attack. Overlap kinds (`summon`/`reborn`/`improve`) use a flat `overlapMs` 240ms.
 3. **Leads are ADDED on top** (`d += lead`), not max'd with the hold. A 1150ms lead really does add 1150ms.
 
@@ -76,7 +76,7 @@ dead code and `ascend` silently takes the 300 fallback.
 
 | Keyword | Combat effect | Timing cost |
 |---|---|---|
-| **W** Windfury | `swings = 2` — emits **two `attack` events** | **2 full lunge cycles** (~3090ms for two plain swings) |
+| **W** Windfury | `swings = 2` — emits **two `attack` events** | **2 full lunge cycles** (~2750ms for two plain swings) |
 | **R** Reborn / Rise | death (`rise:true`) → `reborn` | +240 hold **+1150 lead** (attacker) / +800 (defender) |
 | **DS** Ward | `shield` on break, `shieldUp` on gain | **free** — collapses into the impact moment |
 | **V** Toxin | `poison` + `venomLost` | **free** — collapses into the impact moment |
@@ -166,27 +166,27 @@ Wind-up start → next beat start. **Bold** = dominant cost.
 
 | # | Interaction | →contact | Hold | Lead | Consequence | **Total** |
 |---|---|---:|---:|---:|---:|---:|
-| 1 | Swing, nobody dies | 875 | 670 | — | — | **1545** |
-| 2 | Swing, **defender** dies (plain) | 875 | 670 | — | — | **1545** |
-| 3 | Ward break (no death) | 875 | 670 | — | — | **1545** |
-| 4 | Toxin kill / Cleave multi-kill | 875 | 670 | — | — | **1545** |
-| 5 | Swing, **attacker** dies (plain) | 875 | 670 | **+850** | — | **2395** |
-| 6 | Mutual kill (both plain) | 875 | 670 | **+850** | — | **2395** |
-| 7 | Attacker dies, DR summons nothing | 875 | 670 | **+1050** | — | **2595** |
-| 8 | **Defender** DR → **buff** allies | 875 | 210 | **+500** | 450 | **2035** |
-| 9 | **Attacker** DR → **buff** allies | 875 | 210 | +1050 | 450 | **2585** |
-| 10 | Defender DR/Echo → **summon** | 875 | 240 | +800 | 450 | **2365** |
-| 11 | **Attacker** DR/Echo → **summon** | 875 | 240 | **+1150** | 450 | **2715** |
-| 12 | Defender dies → **Reborn** | 875 | 240 | +800 | 450 | **2365** |
-| 13 | **Attacker** dies → **Reborn** | 875 | 240 | **+1150** | 450 | **2715** |
-| 14 | **Windfury**, no deaths | 875×2 | 670×2 | — | — | **3090** |
-| 15 | **Windfury**, kills on 2nd swing | 875×2 | 670×2 | — | — | **3090** |
-| 16 | Swing with a **Rally** | 1315 | 670 | — | — | **1985** |
+| 1 | Swing, nobody dies | 875 | 500 | — | — | **1375** |
+| 2 | Swing, **defender** dies (plain) | 875 | 500 | — | — | **1375** |
+| 3 | Ward break (no death) | 875 | 500 | — | — | **1375** |
+| 4 | Toxin kill / Cleave multi-kill | 875 | 500 | — | — | **1375** |
+| 5 | Swing, **attacker** dies (plain) | 875 | 500 | **+850** | — | **2225** |
+| 6 | Mutual kill (both plain) | 875 | 500 | **+850** | — | **2225** |
+| 7 | Attacker dies, DR summons nothing | 875 | 500 | **+1050** | — | **2425** |
+| 8 | **Defender** DR → **buff** allies | 875 | 210 | **+500** | 360 | **1945** |
+| 9 | **Attacker** DR → **buff** allies | 875 | 210 | +1050 | 360 | **2495** |
+| 10 | Defender DR/Echo → **summon** | 875 | 240 | +800 | 360 | **2275** |
+| 11 | **Attacker** DR/Echo → **summon** | 875 | 240 | **+1150** | 360 | **2625** |
+| 12 | Defender dies → **Reborn** | 875 | 240 | +800 | 360 | **2275** |
+| 13 | **Attacker** dies → **Reborn** | 875 | 240 | **+1150** | 360 | **2625** |
+| 14 | **Windfury**, no deaths | 875×2 | 500×2 | — | — | **2750** |
+| 15 | **Windfury**, kills on 2nd swing | 875×2 | 500×2 | — | — | **2750** |
+| 16 | Swing with a **Rally** | 1315 | 500 | — | — | **1815** |
 | 17 | **Avenge** → buff payoff | — | 210 | — | — | **+210** |
-| 18 | **Avenge** → summon payoff | — | 240 | — | 450 | **+690** |
+| 18 | **Avenge** → summon payoff | — | 240 | — | 360 | **+600** |
 | 19 | Each **extra** summoned token | — | 240 | — | — | **+240** |
 | 20 | Start-of-Combat cast (per beat) | — | 1080 | — | — | **1080** |
-| 21 | Stealth attacker (reveal) | 875 | 670 | — | — | **1545** (reveal free) |
+| 21 | Stealth attacker (reveal) | 875 | 500 | — | — | **1375** (reveal free) |
 | 22 | Keyword granted mid-combat | — | *free* | — | — | **0** (collapses) |
 | 23 | Keyword **stripped** (Tauntbreaker) | — | 450 | — | — | **450** |
 | 24 | `ascend` transform | — | 450 | — | — | **450** |
@@ -203,10 +203,10 @@ Wind-up start → next beat start. **Bold** = dominant cost.
  875 ── [pull-home 340 · skull ≈600 · fade 600→920 · slot 720→1040]
         hold 240 + DR lead 1150 = 1390 ─────── 2265   ← token 1 (summonpop 340)
 2265 ── overlap 240 ─────────────────────────── 2505   ← token 2
-2505 ── hold → next attack 450 ─────────────── 2955   ← next swing
+2505 ── hold → next attack 360 ─────────────── 2865   ← next swing
 ```
 **≈3.0s.** (No `attackGap` here: it's only added when a *result* moment precedes an attack, and the moment on
-screen is a `summon`.) A Windfury version of the same trade would add another ~1545ms.
+screen is a `summon`.) A Windfury version of the same trade would add another ~1375ms.
 
 ## 9. Where the fat is
 
@@ -216,13 +216,16 @@ screen is a `summon`.) A Windfury version of the same trade would add another ~1
    once the body *lands* (+340ms for an attacker). Real slack is only ~240–270ms in all four cases, and the
    shard life is randomized — trimming would clip the longest-lived debris on some deaths. This is the opposite
    of `PULL_HOME_HOLD`, where the delay sat *after* everything had already finished.
-2. **Windfury doubles everything** — two full 1545ms cycles. Nothing is shared between the swings.
-3. **`attackGap` 220 + attack lead 450 = 670ms** after every impact (was 340 + 529.5 = 869.5 — trimmed
-   2026-07-19 for the "dead time between units attacking"). A defender death (320ms) still leaves ~350ms of
-   quiet, and the attacker's elastic **settle** (340ms, fire-and-forget after contact) now fills most of it.
-   Further cuts risk the next wind-up starting while the previous attacker is still settling — that reads as
-   overlap, not snappiness. Tune against the settle, not against zero.
+2. **Windfury doubles everything** — two full 1375ms cycles. Nothing is shared between the swings.
+3. **`attackGap` 140 + attack lead 360 = 500ms** after every impact (869.5 → 670 → 500 across two passes).
+   This is now at the **floor**: the attacker's elastic **settle** is 340ms (fire-and-forget after contact), so
+   only ~160ms of the hold is free. Cutting further starts the next wind-up while the previous attacker is
+   still visibly settling. To go faster from here you must shorten the motion itself, not the gap — see below.
 4. ~~Buff Deathrattles are the inverse problem~~ — **fixed** by `DR_BUFF_LEAD` (500). Still open for a buff
    wave from a **living** source, which takes the tendril path (up to 780ms + 360ms flash) on a 210ms hold.
 5. **`hpGrant` holds 0ms** and **7 event types** silently use the 300ms fallback (§3).
 6. **Crit text runs 1520ms** and outlives its beat by ~650ms.
+7. **The wind-up is now the dominant cost.** At 700ms it is **51%** of a plain 1375ms swing (700 wind-up + ~175
+   strike + 500 hold). It was deliberately set ~50% longer by the owner in #481, so it is a design choice, not
+   fat — but it is the only large lever left. Reducing it also shortens time-to-contact, which the damage float
+   and impact FX are welded to, so it changes the whole feel of a swing rather than just the pause after it.

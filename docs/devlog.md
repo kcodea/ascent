@@ -76,6 +76,21 @@ Full guide: `docs/card-sets.md`.
 
 ## 2026-07-19 (later)
 
+### tweak(ui): size the plain attacker-death hold to its float (850 → 550)
+
+Owner asked what a lunging attacker's death actually costs end to end. Writing it out exposed an error in the
+earlier pass: `PULL_HOME_HOLD_PLAIN` was set to 850 to "cover the 800ms collapse", but **leads are ADDED to the
+base hold**, so the real coverage was `500 + 850 = 1350ms` for an animation finishing at 800ms.
+
+Checking what else runs in that window: a **plain** attacker death fires no Pixi FX at all — `burstDeathAuras`
+is gated on `isRise` and the skull on `hasDR` — so unlike the Rise/DR cases (420–780ms of shards, ~600ms skull)
+there is no debris to outlive the fade. The only thing still on screen is the killing-blow `deathFloat` at
+**1000ms**. So the binding constraint is the float, not the collapse: 550 ⇒ `500 + 550 = 1050ms`, covering the
+float with 50ms to spare. A plain attacker death goes **2225 → 1925ms**; `PULL_HOME_HOLD_DR` stays at 1050
+because its skull genuinely needs the time.
+
+Verified: typecheck + lint + test (1201) + build:web green.
+
 ### tweak(ui): second tightening pass — post-impact hold to its floor (500ms)
 
 Owner after the first pass: *"I want the combat to feel even tighter."* `attackGap` **0.22 → 0.14** and

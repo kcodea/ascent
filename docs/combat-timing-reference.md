@@ -170,8 +170,8 @@ Wind-up start → next beat start. **Bold** = dominant cost.
 | 2 | Swing, **defender** dies (plain) | 875 | 500 | — | — | **1375** |
 | 3 | Ward break (no death) | 875 | 500 | — | — | **1375** |
 | 4 | Toxin kill / Cleave multi-kill | 875 | 500 | — | — | **1375** |
-| 5 | Swing, **attacker** dies (plain) | 875 | 500 | **+850** | — | **2225** |
-| 6 | Mutual kill (both plain) | 875 | 500 | **+850** | — | **2225** |
+| 5 | Swing, **attacker** dies (plain) | 875 | 500 | **+550** | — | **1925** |
+| 6 | Mutual kill (both plain) | 875 | 500 | **+550** | — | **1925** |
 | 7 | Attacker dies, DR summons nothing | 875 | 500 | **+1050** | — | **2425** |
 | 8 | **Defender** DR → **buff** allies | 875 | 210 | **+500** | 360 | **1945** |
 | 9 | **Attacker** DR → **buff** allies | 875 | 210 | +1050 | 360 | **2495** |
@@ -225,7 +225,11 @@ screen is a `summon`.) A Windfury version of the same trade would add another ~1
    wave from a **living** source, which takes the tendril path (up to 780ms + 360ms flash) on a 210ms hold.
 5. **`hpGrant` holds 0ms** and **7 event types** silently use the 300ms fallback (§3).
 6. **Crit text runs 1520ms** and outlives its beat by ~650ms.
-7. **The wind-up is now the dominant cost.** At 700ms it is **51%** of a plain 1375ms swing (700 wind-up + ~175
+7. **A plain attacker death is bounded by its FLOAT, not its animation.** Unlike Rise/DR deaths it fires no
+   Pixi FX at all (`burstDeathAuras` is gated on `isRise`, the skull on `hasDR`), so nothing outlives the
+   800ms collapse — but the killing-blow `deathFloat` runs **1000ms**. `PULL_HOME_HOLD_PLAIN` is therefore
+   sized to the float: 550 ⇒ `500 + 550 = 1050ms` after contact. It was 850 (⇒1350ms), ~350ms past the float.
+8. **The wind-up is now the dominant cost.** At 700ms it is **51%** of a plain 1375ms swing (700 wind-up + ~175
    strike + 500 hold). It was deliberately set ~50% longer by the owner in #481, so it is a design choice, not
    fat — but it is the only large lever left. Reducing it also shortens time-to-contact, which the damage float
    and impact FX are welded to, so it changes the whole feel of a swing rather than just the pause after it.

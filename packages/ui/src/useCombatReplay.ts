@@ -493,7 +493,11 @@ function deathConsequenceLead(
  *     fade 0.36s→0.68s, collapse 0.48s→0.80s. Holding the DR figure here parked a landed, fully-faded card
  *     for ~250ms of dead air on every ordinary trade. */
 const PULL_HOME_HOLD_DR = 1050;   // ms (pre-speed): pull-home + skull read + the soft fade at home (collapse ends ~1.04s)
-const PULL_HOME_HOLD_PLAIN = 850; // ms (pre-speed): pull-home + the immediate fade (collapse ends ~0.80s)
+// NB leads are ADDED to the base hold, so this is 500 + 550 = 1050ms after contact. A plain attacker death
+// fires NO Pixi FX (burstDeathAuras is gated on isRise, the skull on hasDR) — unlike the Rise/DR cases there
+// is no debris to outlive the fade. Its collapse ends at 800ms, so the binding constraint is the 1000ms
+// deathFloat over the body, not the animation. Was 850 (⇒1350ms, ~350ms of dead air past the float).
+const PULL_HOME_HOLD_PLAIN = 550;
 function pulledHomeAttackerHold(
   shown: Moment | undefined,
   attackerUid: string | null,

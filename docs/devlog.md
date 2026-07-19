@@ -76,6 +76,26 @@ Full guide: `docs/card-sets.md`.
 
 ## 2026-07-19 (later)
 
+### tweak(ui): close the dead time between swings (`attackGap` + attack lead)
+
+Owner, after the death-timing pass landed: *"there's a tiny bit of dead time overall between units attacking."*
+The timing reference had already isolated it — the clock holds **869.5ms after every impact** (`attackGap` 340
++ `beatDelay('attack')` 353 × 1.5 = 529.5), while a defender's death animation is only **320ms**, so ~550ms of
+each exchange was silent. This hold applies after *every* impact, kill or not, so it was the single biggest
+recurring cost in a fight.
+
+Trimmed both halves: `attackGap` **0.34 → 0.22** (the explicit inter-swing breather) and `attack`
+**353 → 300** (the lead-in before the next wind-up) ⇒ post-impact hold **869.5 → 670ms**, and the
+non-impact → attack hold **529.5 → 450ms**. Every interaction gets ~200ms shorter: a plain swing
+**1745 → 1545ms**, a Windfury pair **3490 → 3090ms**, an Echo trade **3035 → 2955ms**.
+
+Deliberately not cut further: the attacker's elastic **settle** (340ms) plays *after* contact as
+fire-and-forget, so it now fills most of the remaining ~350ms. Cutting more would start the next wind-up while
+the previous attacker is still settling — overlap rather than snappiness. The reference's "where the fat is"
+section now says to tune against the settle, not against zero. Reference tables + totals updated throughout.
+
+Verified: typecheck + lint + test (1201) + build:web green; owner confirmed the feel live.
+
 ### tweak(ui): tighten death timing + a full combat-timing reference
 
 Follow-up to the blink fix (#537), driven by an owner question: now that the double-advance is gone, how much

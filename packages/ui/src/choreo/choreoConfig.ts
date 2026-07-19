@@ -72,8 +72,10 @@ export interface ChoreoConfig {
 
 const DEFAULTS: ChoreoConfig = {
   speed: 1.5,
-  // action beats (ms) — mirror the former DELAY table exactly, so defaults = current behaviour.
-  attack: 353, sc: 720, summon: 440, buff: 140, reborn: 640, improve: 520, rally: 720, toHand: 820,
+  // action beats (ms). `attack` is the lead-in before the next swing's wind-up: 300 × speed 1.5 = 450ms, plus
+  // `attackGap` (lungeConfig) after an impact. Was 353 (=529.5ms) — with the old gap that put 869.5ms of hold
+  // after EVERY impact against a 320ms death animation, so ~550ms of each exchange was silent.
+  attack: 300, sc: 720, summon: 440, buff: 140, reborn: 640, improve: 520, rally: 720, toHand: 820,
   maxGold: 560, hpGrant: 0,
   // result beats (ms)
   dmg: 460, shield: 460, shieldUp: 460, poison: 500, venomLost: 500, death: 400,

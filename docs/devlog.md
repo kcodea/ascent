@@ -9,10 +9,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 Three things, all from owner reports on 2026-07-19.
 
-**1. Owner-tuned weld values baked.** The corona dropped from 24 thin spokes to **4 long heavy ones** (64px,
-5.5px wide, alpha 0.85) -- four reads as deliberate machinery closing on the card where two dozen read as a
-blur, and it's 6x less spoke geometry per ring per frame. The landing is a wider, softer flash (112px,
-alpha 0.55) with the spark burst dialled to **0** — the ring's convergence carries the whole read, and the sparks were both noisy
+**1. Owner-tuned weld values baked.** Across successive tuning passes the effect reduced to just the
+converging pentagon (250ms) landing in a soft wide flash (112px, alpha 0.55, 330ms). Everything layered on
+top came back out: the spark burst to 0, then the corona (24 thin spokes -> 4 heavy ones -> none). The
+convergence alone carries the read; each extra layer competed with it rather than reinforcing, and welds
+arrive in batches where noise compounds. It is now also the cheapest the effect has ever been -- one polygon
+and one flash sprite per weld, no spoke geometry and no particles. All dials remain — the ring's convergence carries the whole read, and the sparks were both noisy
 over it and the effect's main per-weld cost. The wiggle came down to a nudge (350ms / 2px / 1.8 deg / 1.05x):
 welds fire in clusters, so a big bounce on every host read as the whole board shaking. The dials all stay,
 so the sparks can come back without code.

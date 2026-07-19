@@ -1,5 +1,6 @@
 import { combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type PendingCombatQuest, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
-import { BUYABLE_CARDS, CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES, SPELL_CARDS } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES } from '@game/content';
+import { poolOf, setIdOf } from './cardPool';
 import { CONFIG } from './config';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
@@ -39,7 +40,7 @@ function spendGold(s: RunState, amount: number): void {
     s.spellDripTick = (s.spellDripTick ?? 0) + amount;
     while (s.spellDripTick >= s.spellDripPer) {
       s.spellDripTick -= s.spellDripPer;
-      conjureToHand(s, SPELL_CARDS.filter((c) => c.tier <= s.tier), 1);
+      conjureToHand(s, poolOf(s).spells.filter((c) => c.tier <= s.tier), 1);
     }
   }
   // Rune of Scale (Epic): each Gold-spend gives `count` random board minions +atk/+hp. Once per spend transaction
@@ -182,7 +183,7 @@ export function nextOpponent(s: RunState): BoardSnapshot | null {
     const b = s.servedBoards?.[w];
     if (b) exclude.add(oppKey(b));
   }
-  return pickOpponent(s.wave, s.turnStartPower, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)), undefined, exclude, streakSoftenerLosses(s));
+  return pickOpponent(s.wave, s.turnStartPower, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)), undefined, exclude, streakSoftenerLosses(s), setIdOf(s));
 }
 
 /** Loss-damage cap by round — the most Resolve a single loss can cost, ramping up as the course escalates:
@@ -350,7 +351,7 @@ export function reduce(state: RunState, action: Action): RunState {
       if (pdef?.keywords.includes('M')) {
         advanceQuests(next, (o) => o.event === 'playAttachment');
         // Rune of Structure: each Attachment you play from hand also conjures a random spell.
-        if (next.runeStructure) conjureToHand(next, SPELL_CARDS.filter((c) => c.tier <= next.tier), 1);
+        if (next.runeStructure) conjureToHand(next, poolOf(next).spells.filter((c) => c.tier <= next.tier), 1);
       }
       // Trail Forager: each Beast you play raises every OTHER Trail Forager's sell value (+1, ×2 golden).
       if (pdef && (pdef.tribe === 'beast' || pdef.tribe2 === 'beast')) {
@@ -2147,20 +2148,20 @@ function resolveQuestThreshold(s: RunState, aq: ActiveQuest, def: QuestDef): voi
 /** Conjure `reps` random minions of `tribe` (≤ current tier) into the hand — the quest-reward draw (Grave
  *  Toll's "random Undead", Trail Rations' "random Beast"). Shares `conjureToHand`'s seeded pick + hand cap. */
 function grantRandomTribeMinion(s: RunState, tribe: Tribe, reps: number, overflow = false): void {
-  const pool = BUYABLE_CARDS.filter((c) => (c.tribe === tribe || c.tribe2 === tribe) && c.tier <= s.tier);
+  const pool = poolOf(s).buyable.filter((c) => (c.tribe === tribe || c.tribe2 === tribe) && c.tier <= s.tier);
   conjureToHand(s, pool, reps, overflow);
 }
 
 /** Conjure `reps` random buyable minions of EXACTLY `tier` (in your tribes / neutral) — Rune of the Pair's
  *  "2 random Tier 4 minions". */
 function grantRandomTierMinion(s: RunState, tier: number, reps: number, overflow = false): void {
-  const pool = BUYABLE_CARDS.filter((c) => c.tier === tier && (c.tribe === 'neutral' || s.tribes.includes(c.tribe)));
+  const pool = poolOf(s).buyable.filter((c) => c.tier === tier && (c.tribe === 'neutral' || s.tribes.includes(c.tribe)));
   conjureToHand(s, pool, reps, overflow);
 }
 
 /** Whether a card matches a reward's minion "class" filter (a Shout=Battlecry, an End-of-Turn, an Echo=Deathrattle,
  *  a Rally=RL keyword, or an Attachment=Magnetic). Shared by the filtered grant + the recurring-attachment EoT. */
-function matchesFilter(c: (typeof BUYABLE_CARDS)[number], filter: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'): boolean {
+function matchesFilter(c: CardDef, filter: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment'): boolean {
   switch (filter) {
     case 'shout': return hasBattlecry(c);
     case 'endOfTurn': return c.effects.some((e) => e.on === 'endOfTurn');
@@ -2174,7 +2175,7 @@ function matchesFilter(c: (typeof BUYABLE_CARDS)[number], filter: 'shout' | 'end
  *  CURRENT tavern tier (fallback ≤ tier if none there); otherwise ≤ current tier. Powers the "get a random
  *  Shout / End-of-Turn / Echo / Rally / Attachment minion" rewards. */
 function grantRandomFilterMinion(s: RunState, filter: 'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment', reps: number, exactTier = false, overflow = false): void {
-  const base = BUYABLE_CARDS.filter((c) => matchesFilter(c, filter));
+  const base = poolOf(s).buyable.filter((c) => matchesFilter(c, filter));
   let pool = base.filter((c) => (exactTier ? c.tier === s.tier : c.tier <= s.tier));
   if (pool.length === 0) pool = base.filter((c) => c.tier <= s.tier); // exact-tier gap → fall back to ≤ tier
   conjureToHand(s, pool, reps, overflow);
@@ -2291,7 +2292,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       // Quest / rune reward cards are guaranteed delivery — they OVERFLOW the hand cap rather than being dropped
       // when hand + board are full (owner ruling: never lose an earned reward). `overflow = true` on every grant.
       if (r.randomTribe && (r.randomCount ?? 0) > 0) grantRandomTribeMinion(s, r.randomTribe, r.randomCount!, true);
-      if ((r.randomSpell ?? 0) > 0) conjureToHand(s, SPELL_CARDS.filter((c) => c.tier <= s.tier), r.randomSpell!, true); // Hoard Spark's random spell
+      if ((r.randomSpell ?? 0) > 0) conjureToHand(s, poolOf(s).spells.filter((c) => c.tier <= s.tier), r.randomSpell!, true); // Hoard Spark's random spell
       if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, r.randomFilterCount ?? 1, r.randomFilterExactTier, true); // "N random Shout/Echo/Rally/Attachment minions"
       if (r.randomTier) grantRandomTierMinion(s, r.randomTier, r.randomCount ?? 1, true); // Rune of the Pair — N random Tier-K minions
       for (const id of r.grantGolden ?? []) { // Leader of the Pack / Stormcalling — a GILDED copy (board-overflow safe)

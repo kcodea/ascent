@@ -61,7 +61,10 @@ export function saveRunBoards(replay: Replay, author?: string): BoardSnapshot[] 
       // Stamp a stable id per captured board — the key the fight-result ledger attributes wins/losses to once
       // this board is served as someone's opponent. crypto.randomUUID is fine here (UI layer, not the
       // Math.random-banned sim). Each wave's board is its own trackable entity.
-      .map((s) => ({ ...s, id: crypto.randomUUID(), origin: 'self' as const, ...(author ? { author } : {}), capturedAt, patch }));
+      .map((s) => ({ ...s, id: crypto.randomUUID(), origin: 'self' as const, ...(author ? { author } : {}), capturedAt, patch,
+        // The set the RUN was played under, not the live one — a run finishing after a set flip captured
+        // boards made of its own set's cards, and that is what makes them servable later.
+        setId: final.setId ?? 'set1' }));
     if (fresh.length === 0) return [];
     // localStorage write is its own best-effort step, so a quota/availability failure still returns the fresh
     // boards (the remote upload in store.ts must run even when local persistence is unavailable).

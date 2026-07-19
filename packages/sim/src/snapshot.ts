@@ -11,6 +11,7 @@
  * no need to store each board live. `replayRun` turns a replay into the per-wave snapshots.
  */
 import { makeRng, type BoardMinion, type CombatOutcome, type CombatResult, type Keyword, type QuestCombatMods, type Rng, type Tribe } from '@game/core';
+import type { SetId } from '@game/content';
 import { CARD_INDEX } from '@game/content';
 import { HEROES } from './heroes';
 import { createRun, type Action, type RunState, type ShopCard } from './state';
@@ -75,6 +76,11 @@ export interface BoardSnapshot {
    *  Lets us identify + prune boards from old patches once the meta shifts. Stamped by the UI/tool layer (the
    *  pure `snapshotBoard` stays deterministic). Optional for back-compat (legacy boards lack it). */
   patch?: string;
+  /** The card SET this board was built under. A board is only servable to a run playing the SAME set — its
+   *  minions are that set's cards, so serving a set-2 board into a set-1 run would inject cards that run
+   *  can't have. Stamped by the UI/tool layer alongside `patch`; legacy boards without it are treated as
+   *  `set1` (every board that existed before sets did was built from set 1). */
+  setId?: SetId;
   /** Wave-relative strength rating (0..1) — fraction of THIS WAVE's calibration ladder the board beats (see
    *  `rateBoardForWave`). Keyword/synergy-aware AND wave-relative (a strong wave-3 board ≠ a strong wave-15
    *  board), unlike `power`. Baked by `npm run pool`; the basis for pool curation / pruning weak boards.

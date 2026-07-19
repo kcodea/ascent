@@ -40,6 +40,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+
+- **Card sets** — cards now live in switchable sets (`sets.ts`), flipped live like rifts. A run pins its
+  set at creation, so flipping never disturbs an in-flight or replayed run. See `docs/card-sets.md`.
 - **Snappier deaths + a combat-timing reference.** Death animations drop 0.42s → 0.32s and a plain attacker's
   return-home death now starts fading *as it lands* instead of idling ~260ms first — an ordinary trade resolves
   ~340ms sooner, with #503's "dies at home" read intact. The Deathrattle variant keeps its longer delay (the

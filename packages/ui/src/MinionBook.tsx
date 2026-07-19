@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { CardDef, Keyword, QuestReward, Tribe } from '@game/core';
-import { BUYABLE_CARDS, CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, SPELL_CARDS } from '@game/content';
+import { CARD_INDEX, EPIC_RUNES, QUEST_DEFS, RUNES, poolFor } from '@game/content';
 import { HEROES } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { QuestCard } from './QuestCard';
@@ -70,8 +70,20 @@ const RUNE_REWARD_IDS = new Set(RUNE_REWARD_CARDS.map((c) => c.id));
 /** Cards that belong in the MINION gallery: buyable minions + evolution units. A card can *also* be a quest
  *  reward (Badgington is a normal Tier-4 Beast that Apex Hunt grants) — it then shows in BOTH its tribe and the
  *  Quest Rewards category. Membership sets keep those overlaps correct instead of hiding a real minion. */
-const MINION_POOL_IDS = new Set([...BUYABLE_CARDS, ...EVOLUTION_CARDS].map((c) => c.id));
-const SPELL_POOL_IDS = new Set(SPELL_CARDS.map((c) => c.id));
+/** Which gallery a card belongs to, per SET — the Compendium shows the pool of the set the player is
+ *  actually in (title screen = the live set), not a hardcoded one. Memoized; sets are immutable at runtime. */
+const poolIdsBySet = new Map<string, { minions: Set<string>; spells: Set<string> }>();
+function poolIds(setId: Parameters<typeof poolFor>[0]): { minions: Set<string>; spells: Set<string> } {
+  const hit = poolIdsBySet.get(setId);
+  if (hit) return hit;
+  const p = poolFor(setId);
+  const ids = {
+    minions: new Set([...p.buyable, ...EVOLUTION_CARDS].map((c) => c.id)),
+    spells: new Set(p.spells.map((c) => c.id)),
+  };
+  poolIdsBySet.set(setId, ids);
+  return ids;
+}
 
 /** Left-rail category: a real tribe, the tribe-less "spells" bucket, the "rewards" (quest-reward cards) bucket,
  *  or the "quests" bucket (the quest DEFINITIONS themselves — objective + art, rendered as QuestCards). */
@@ -233,6 +245,9 @@ function toView(c: CardDef, gilded = false): CardView {
  */
 export function MinionBook() {
   const run = useGame((s) => s.run);
+  const setId = run.setId ?? 'set1'; // the Compendium shows the pool of the set this run is playing
+  const pool = poolFor(setId);
+  const { minions: MINION_POOL_IDS, spells: SPELL_POOL_IDS } = poolIds(setId);
   const showTitle = useGame((s) => s.showTitle);
   const closeBook = useGame((s) => s.closeBook);
 
@@ -286,7 +301,7 @@ export function MinionBook() {
   // quest-reward tokens are re-added here (they're the whole point of the Quest Rewards category).
   const allCards = useMemo(() => {
     const inScope = (c: CardDef): boolean => c.tribe === 'neutral' || tribes.includes(c.tribe);
-    const minions = BUYABLE_CARDS.filter(inScope);
+    const minions = pool.buyable.filter(inScope);
     // Evolution units (Spirit Worgen, Taragosa) — shown alongside their tribe's minions though never buyable.
     const evolutions = EVOLUTION_CARDS.filter(inScope);
     const rewards = QUEST_REWARD_CARDS.filter((x) => x.tribe === 'neutral' || tribes.includes(x.tribe)).map((x) => x.card);
@@ -295,11 +310,12 @@ export function MinionBook() {
     const seen = new Set<string>();
     const out: CardDef[] = [];
     // Rune rewards are un-scoped (the Runeforge isn't tribe-bound) — added unconditionally, like spells.
-    for (const c of [...minions, ...evolutions, ...SPELL_CARDS, ...rewards, ...RUNE_REWARD_CARDS]) {
+    for (const c of [...minions, ...evolutions, ...pool.spells, ...rewards, ...RUNE_REWARD_CARDS]) {
       if (!seen.has(c.id)) { seen.add(c.id); out.push(c); }
     }
     return out;
-  }, [tribes]);
+  }, [tribes, pool]); // `pool` changes only when the run's set does — but it IS an input now
+
 
   const query = search.trim().toLowerCase();
   // Free-text match over a card's name + printed text (and golden text) — powers the search box. Quote the query

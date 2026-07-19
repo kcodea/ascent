@@ -1,5 +1,6 @@
 import { makeRng, COMBAT_REPLAYABLE_BATTLECRIES, type CardDef, type EffectDef, type Keyword, type Tribe } from '@game/core';
-import { BUYABLE_CARDS, CARD_INDEX, SPELL_CARDS } from '@game/content';
+import { CARD_INDEX } from '@game/content';
+import { poolOf } from './cardPool';
 import { CONFIG } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
 import { mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type DiscoverSpec, type RunState, type ShopCard } from './state';
@@ -773,7 +774,7 @@ function uncontrolledTribes(state: RunState): Tribe[] {
 export function grantTopTypeMinion(state: RunState): boolean {
   const tribe = dominantBoardTribe(state);
   if (!tribe) return false;
-  const pool = BUYABLE_CARDS.filter(
+  const pool = poolOf(state).buyable.filter(
     (c) =>
       (c.tribe === tribe || c.tribe2 === tribe) &&
       (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) &&
@@ -895,7 +896,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tier = num(params.tier, 0); // 0 = any tier ≤ the current tavern tier
     const tribe = (str(params.tribe) || undefined) as Tribe | undefined;
     const reps = num(params.count, 1) * gold(self);
-    const pool = BUYABLE_CARDS.filter(
+    const pool = poolOf(ctx.state).buyable.filter(
       (c) =>
         (tier > 0 ? c.tier === tier : c.tier <= ctx.state.tier) &&
         (tribe
@@ -1257,7 +1258,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!due) return;
     const tribe = str(params.tribe) as Tribe;
     const count = num(params.count, 1) * gold(self);
-    const pool = BUYABLE_CARDS.filter(
+    const pool = poolOf(ctx.state).buyable.filter(
       (c) =>
         (c.tribe === tribe || c.tribe2 === tribe) &&
         (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)) &&
@@ -1491,7 +1492,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const idx = ctx.state.board.indexOf(target);
     if (idx >= 0) ctx.state.board.splice(idx, 1); // destroy it (frees the slot for any Deathrattle summons)
     fireRecruitDeathrattles(ctx, target); // its Deathrattle(s) resolve out of combat, doubled by Sylus + ticked into the tally
-    const pool = SPELL_CARDS.filter((c) => c.tier === tier);
+    const pool = poolOf(ctx.state).spells.filter((c) => c.tier === tier);
     if (pool.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
     for (let i = 0; i < gold(self) && ctx.state.hand.length < CONFIG.handMax; i++) {
@@ -1529,7 +1530,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  immediately trigger its Echo out of combat (fireRecruitDeathrattles: summons/buffs bake in, Sylus-doubled +
    *  tallied). Golden gets + triggers two. Fired by the play path's onPlay Battlecry loop. */
   getEchoAndTrigger: (ctx, self) => {
-    const pool = BUYABLE_CARDS.filter((c) => c.tier <= ctx.state.tier && c.effects.some((e) => e.on === 'onDeath'));
+    const pool = poolOf(ctx.state).buyable.filter((c) => c.tier <= ctx.state.tier && c.effects.some((e) => e.on === 'onDeath'));
     if (pool.length === 0) return;
     for (let i = 0; i < gold(self); i++) {
       if (ctx.state.hand.length >= CONFIG.handMax) break;
@@ -1650,8 +1651,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  so the pick is uniform across both. */
   endOfTurnGrantRandomTierCard: (ctx, self, params) => {
     const tier = num(params.tier, 1);
-    const spells = SPELL_CARDS.filter((c) => c.tier === tier);
-    const minions = BUYABLE_CARDS.filter(
+    const spells = poolOf(ctx.state).spells.filter((c) => c.tier === tier);
+    const minions = poolOf(ctx.state).buyable.filter(
       (c) => c.tier === tier && !c.spell && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
     );
     conjureToHand(ctx.state, [...spells, ...minions], num(params.count, 1) * gold(self));
@@ -1663,12 +1664,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const ok = params.exactTier != null
       ? (c: CardDef) => c.tier === num(params.exactTier)
       : (c: CardDef) => c.tier <= ctx.state.tier;
-    conjureToHand(ctx.state, SPELL_CARDS.filter(ok), num(params.count, 1) * gold(self));
+    conjureToHand(ctx.state, poolOf(ctx.state).spells.filter(ok), num(params.count, 1) * gold(self));
   },
 
   /** (recruit half) — add a random Magnetic minion to hand; golden adds two. */
   deathrattleGrantMagnetic: (ctx, self) => {
-    conjureToHand(ctx.state, BUYABLE_CARDS.filter((c) => c.keywords.includes('M')), gold(self));
+    conjureToHand(ctx.state, poolOf(ctx.state).buyable.filter((c) => c.keywords.includes('M')), gold(self));
   },
 
   /** Grave Knit / Eternal Knight (recruit half) — permanently buff a card TYPE run-wide (board + hand + future). */
@@ -1761,7 +1762,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellGainOfTargetTribe: (ctx, self) => {
     const tribe = self.tribe;
     if (tribe === 'neutral') return; // neutral isn't a type — no type-roll result
-    const pool = BUYABLE_CARDS.filter(
+    const pool = poolOf(ctx.state).buyable.filter(
       (c) =>
         c.tier <= ctx.state.tier &&
         (c.tribe === tribe || c.tribe2 === tribe) &&
@@ -1774,7 +1775,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  left) into the hand. */
   spellGainRandomMinion: (ctx, _self, params) => {
     const tier = num(params.tier, 1);
-    const pool = BUYABLE_CARDS.filter(
+    const pool = poolOf(ctx.state).buyable.filter(
       (c) =>
         c.tier === tier &&
         (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)) &&
@@ -1788,7 +1789,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   conjureTribeArmy: (ctx, _self, params) => {
     const tribe = str(params.tribe);
     const count = num(params.count, 2);
-    const pool = BUYABLE_CARDS.filter(
+    const pool = poolOf(ctx.state).buyable.filter(
       (c) =>
         (c.tribe === tribe || c.tribe2 === tribe) &&
         (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)) &&
@@ -2105,7 +2106,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const count = num(params.count, 2) * gold(self);
     const rng = makeRng(ctx.state.rngCursor);
     for (let i = 0; i < count && ctx.state.hand.length < CONFIG.handMax; i++) {
-      const def = SPELL_CARDS[rng.int(SPELL_CARDS.length)]!;
+      const def = poolOf(ctx.state).spells[rng.int(poolOf(ctx.state).spells.length)]!;
       ctx.state.hand.push({
         uid: `b${ctx.state.uidSeq++}`,
         cardId: def.id,
@@ -2255,7 +2256,7 @@ export function applyGoldSpent(state: RunState, amount: number): void {
  *  reducer's `discover` case resolves the pick into the hand and opens the next queued spec, if any. */
 export function offerSpellDiscover(state: RunState): void {
   const rng = makeRng(state.rngCursor);
-  const avail = SPELL_CARDS.filter((c) => c.tier <= state.tier);
+  const avail = poolOf(state).spells.filter((c) => c.tier <= state.tier);
   const picks: string[] = [];
   for (let i = 0; i < 3 && avail.length > 0; i++) picks.push(avail.splice(rng.int(avail.length), 1)[0]!.id);
   state.rngCursor = rng.state();
@@ -2264,18 +2265,18 @@ export function offerSpellDiscover(state: RunState): void {
 
 /** Whether a card has a Battlecry (an onPlay effect). Choose One is its OWN keyword, not a Battlecry —
  *  so it doesn't count for Drakko's quest or Help Wanted's Discover-a-Battlecry filter. */
-export function hasBattlecry(c: (typeof BUYABLE_CARDS)[number]): boolean {
+export function hasBattlecry(c: CardDef): boolean {
   return c.effects.some((e) => e.on === 'onPlay');
 }
 
 /** Whether a card has a Deathrattle (an `onDeath` effect whose factory is a `deathrattle*`). Mirrors the
  *  combat-side check — friend-death watchers (Brood Matron) don't count as Deathrattles. */
-export function hasDeathrattle(c: (typeof BUYABLE_CARDS)[number]): boolean {
+export function hasDeathrattle(c: CardDef): boolean {
   return c.effects.some((e) => e.on === 'onDeath' && e.do.startsWith('deathrattle'));
 }
 
 /** Resolve a `DiscoverSpec`'s string filter id back to a card predicate (closures aren't serializable). */
-function discoverFilter(id: 'battlecry' | 'deathrattle'): (c: (typeof BUYABLE_CARDS)[number]) => boolean {
+function discoverFilter(id: 'battlecry' | 'deathrattle'): (c: CardDef) => boolean {
   if (id === 'battlecry') return hasBattlecry;
   if (id === 'deathrattle') return hasDeathrattle;
   return () => true;
@@ -2294,7 +2295,7 @@ function discoverFilter(id: 'battlecry' | 'deathrattle'): (c: (typeof BUYABLE_CA
 export function offerDiscover(
   state: RunState,
   discoverTier: number,
-  opts?: { tier?: number; filter?: (c: (typeof BUYABLE_CARDS)[number]) => boolean; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean },
+  opts?: { tier?: number; filter?: (c: CardDef) => boolean; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean },
 ): void {
   const baseFilter = opts?.filter ?? (() => true);
   const tribe = opts?.tribe;
@@ -2303,14 +2304,14 @@ export function offerDiscover(
   // Tribe-filtered Discover (Sea Urchin → Beasts only): AND the tribe check into the card filter so both
   // the fixed-tier and tiered pool branches below pick it up (dual-types count). `tribes` (plural) admits a
   // card matching ANY of the listed tribes. `exclude` drops the source card (Sea Urchin can't Discover itself).
-  const filter = (c: (typeof BUYABLE_CARDS)[number]): boolean =>
+  const filter = (c: CardDef): boolean =>
     baseFilter(c) && c.id !== exclude &&
     (!tribe || c.tribe === tribe || c.tribe2 === tribe) &&
     (!tribes || tribes.length === 0 || tribes.some((t) => c.tribe === t || c.tribe2 === t));
-  let pool: typeof BUYABLE_CARDS = [];
+  let pool: readonly CardDef[] = [];
   if (opts?.tier !== undefined) {
     // Fixed-tier Discover (Sprout): exactly that tier, no floor-walking.
-    pool = BUYABLE_CARDS.filter(
+    pool = poolOf(state).buyable.filter(
       (c) =>
         c.tier === opts.tier &&
         (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) &&
@@ -2323,7 +2324,7 @@ export function offerDiscover(
     const target = Math.min(CONFIG.maxTier, discoverTier);
     let floor = target;
     while (pool.length < 3 && floor >= 1) {
-      pool = BUYABLE_CARDS.filter(
+      pool = poolOf(state).buyable.filter(
         (c) =>
           c.tier <= target &&
           c.tier >= floor &&
@@ -2337,7 +2338,7 @@ export function offerDiscover(
     // Card-driven Discover up to the tavern tier (Sea Urchin, Help Wanted): EVERY eligible card at or below
     // the target tier, weighed EVENLY — no high-tier bias (same rule as the shop + spell Discover).
     const target = Math.min(CONFIG.maxTier, discoverTier);
-    pool = BUYABLE_CARDS.filter(
+    pool = poolOf(state).buyable.filter(
       (c) =>
         c.tier <= target &&
         (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) &&
@@ -3156,7 +3157,7 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
     const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
     if (leftmost) replayBattlecry(state, leftmost);
   } else if (effect === 'grantRandomAttachments') {
-    conjureToHand(state, BUYABLE_CARDS.filter((c) => c.tier <= state.tier && c.keywords.includes('M')), 2);
+    conjureToHand(state, poolOf(state).buyable.filter((c) => c.tier <= state.tier && c.keywords.includes('M')), 2);
   } else if (effect === 'buffMechsPerAttachment') {
     // Blueprint Cache: give each friendly Mech +2/+2 for every Attachment (Magnetic minion) welded onto it.
     // Per-z, ATTACHMENT-MAJOR (owner 2026-07-18): wave `i` buffs EVERY Mech that has an i-th Attachment, so
@@ -3248,7 +3249,7 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
       }
     }
   } else {
-    conjureToHand(state, BUYABLE_CARDS.filter((c) => c.tier <= state.tier && hasBattlecry(c)), 1);
+    conjureToHand(state, poolOf(state).buyable.filter((c) => c.tier <= state.tier && hasBattlecry(c)), 1);
   }
 }
 

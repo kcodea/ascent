@@ -1,38 +1,47 @@
 import type { CardDef } from '@game/core';
 import { CardDefSchema } from './schema';
-import { NEUTRAL } from './cards/neutral';
-import { BEASTS } from './cards/beasts';
-import { DRAGONS } from './cards/dragons';
-import { UNDEAD } from './cards/undead';
-import { MECHS } from './cards/mechs';
-import { DEMONS } from './cards/demons';
-import { TOKENS } from './cards/tokens';
-import { SPELLS } from './cards/spells';
-import { ENEMY } from './cards/enemy';
+import { TOKENS } from './cards/set1/tokens';
+import { ENEMY } from './cards/set1/enemy';
+import { SETS, poolFor } from './sets';
 
+export * from './sets';
+
+/**
+ * Every card that has ever existed, across every set — the union, NOT the playable pool.
+ *
+ * This stays global on purpose. `CARD_INDEX` is a pure id→def lookup used at ~500 sites (rendering a card,
+ * resolving a summoned token, healing a save), and none of those care which set is live: an id resolves to
+ * the same card regardless. Only the ~20 sites that *draw* from a pool are set-aware, and they go through
+ * `poolFor(setId)` / sim's `poolOf(state)`.
+ *
+ * Tokens and enemy filler live here and in no set: they are never drawn, only reached through a card that
+ * names them, so they can't leak across sets.
+ */
 export const ALL_CARDS: CardDef[] = [
-  ...NEUTRAL,
-  ...BEASTS,
-  ...DRAGONS,
-  ...UNDEAD,
-  ...MECHS,
-  ...DEMONS,
+  ...Object.values(SETS).flatMap((s) => s.own),
   ...TOKENS,
-  ...SPELLS,
   ...ENEMY,
-];
+].filter((card, i, arr) => arr.findIndex((c) => c.id === card.id) === i); // a shared card appears once
 
 export const CARD_INDEX: Record<string, CardDef> = Object.fromEntries(
   ALL_CARDS.map((card) => [card.id, card]),
 );
 
-/** Minions offered in the shop (excludes tokens, spells, and enemy filler). */
-export const BUYABLE_CARDS: CardDef[] = ALL_CARDS.filter((card) => !card.token && !card.spell);
+/**
+ * The ACTIVE set's shop-offerable minions.
+ *
+ * @deprecated for new code — prefer `poolOf(state).buyable` (sim) or `poolFor(setId).buyable`, which honour
+ * the set the RUN was pinned to rather than whichever set happens to be enabled right now. Kept because a
+ * handful of set-agnostic consumers (the Compendium's "browse everything" mode, balance tooling) legitimately
+ * want the live default.
+ */
+export const BUYABLE_CARDS: CardDef[] = [...poolFor(SETS.set1.id).buyable];
 
 /** Tavern spells — the pool the always-offered right-hand spell slot draws from. Excludes `token` spells
  *  (reward-exclusive, e.g. Feed the Alpha), so quest rewards never roll into the regular shop / spell Discover /
- *  Graverobber's grant. Combat's random-spell grant filters the same way. */
-export const SPELL_CARDS: CardDef[] = ALL_CARDS.filter((card) => card.spell && !card.token);
+ *  Graverobber's grant. Combat's random-spell grant filters the same way.
+ *  @deprecated for new code — see BUYABLE_CARDS. */
+export const SPELL_CARDS: CardDef[] = [...poolFor(SETS.set1.id).spells];
 
 /** Effect ids whose params carry a token id (a summoned token that must exist in the pool). */
 const TOKEN_REF_EFFECTS = new Set(['deathrattleSummon', 'battlecrySummon', 'onFriendDeathSummon', 'deathrattleSummonOverflowBuff']);
@@ -106,12 +115,12 @@ export { CardDefSchema, QuestDefSchema, RuneDefSchema } from './schema';
 export { QUEST_DEFS, QUEST_INDEX, validateQuests } from './quests';
 export { RUNES, EPIC_RUNES, RUNE_INDEX, validateRunes } from './runes';
 export { badgeIdForCombatFlag } from './questFlags';
-export { NEUTRAL } from './cards/neutral';
-export { BEASTS } from './cards/beasts';
-export { DRAGONS } from './cards/dragons';
-export { UNDEAD } from './cards/undead';
-export { MECHS } from './cards/mechs';
-export { DEMONS } from './cards/demons';
-export { TOKENS } from './cards/tokens';
-export { SPELLS } from './cards/spells';
-export { ENEMY } from './cards/enemy';
+export { NEUTRAL } from './cards/set1/neutral';
+export { BEASTS } from './cards/set1/beasts';
+export { DRAGONS } from './cards/set1/dragons';
+export { UNDEAD } from './cards/set1/undead';
+export { MECHS } from './cards/set1/mechs';
+export { DEMONS } from './cards/set1/demons';
+export { TOKENS } from './cards/set1/tokens';
+export { SPELLS } from './cards/set1/spells';
+export { ENEMY } from './cards/set1/enemy';

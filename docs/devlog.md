@@ -3,6 +3,54 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-20 (trigger multipliers + Uron)
+
+### refactor(core)!: one data-driven trigger-multiplier system, and Uron, Oathbringer
+
+Every trigger multiplier used to be a hardcoded `cardId === '…'` check in a DIFFERENT subsystem, with
+stacking rules that disagreed and no single place to read them — the tech debt `docs/roadmap.md` flagged.
+Uron multiplies SIX families at once, which made generalising cheaper than adding six more branches.
+
+`CardDef.triggerMultiplier` now declares `{ families, extra, stacks? }`, and `extraTriggerFires(family,
+minions, getCard)` in `@game/core` is the single resolver. Migrated, **preserving each card's existing
+semantics exactly**:
+
+| Card | Families | Stacks |
+|---|---|---|
+| Sylus the Reaper | deathrattle | **yes** (sums across copies) |
+| Drakko the Drummer | battlecry | no (best copy) |
+| Chronos | endOfTurn | no |
+| **Uron, Oathbringer** (T7) | all six | no |
+
+Four call sites moved onto it: `playerEchoExtras` (simulate), `drakkoRepeats` (factories), and
+`drummerRepeats` / `chronosRepeats` + the Graverobber Echo path (sim's recruit). `bestCopyRepeats` became
+`familyRepeats`. The suite stayed green at 1245 across the whole migration, which is the evidence the
+refactor is behaviour-preserving.
+
+Stacking and non-stacking contributions combine **additively with each other** (a Sylus and a Uron both
+grant +1 on Deathrattles = +2) while keeping their own rule internally.
+
+**Three families had no machinery at all** — Rally, Slaughter and Start of Combat — so Uron needed them
+wired. They deliberately do NOT re-emit on the bus: a second `bus.emit` would also re-tick quest tallies
+and re-notify broadcast watchers. Only the minion's OWN effects repeat.
+
+**A real bug the tests caught.** The Rally repeat first keyed on `effect.on === 'onAttack'`, which covers
+both true Rallies AND broadcast ally-attack watchers — so Uron was inflating **Crypt Drake's** every-2-
+attacks counter, a card it has no business touching. It now gates on the `'RL'` keyword. The test that
+found it asserts Crypt Drake's payout count is *unchanged* with Uron on board.
+
+**A test-methodology note.** That same test initially failed for a bogus reason: adding Uron changes board
+SIZE, which changes fight length, which changes how many ally attacks Crypt Drake sees. The control now
+swaps in Mysterious Joker — a same-tier neutral whose only effect is an onPlay Discover, so it is inert in
+combat — keeping board size identical. Without that, the comparison measured board size, not Uron.
+
+**Not migrated: Yazzus.** Its "targeted spells cast twice" is a spell-CAST count (`spellCasts(def)`), not a
+minion trigger family, so folding it in would have conflated two different things. Left as-is, deliberately.
+
+Verified: 1255 tests (10 new — 6 resolver unit tests pinning the stacking rules, 4 end-to-end combat),
+typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline. Live: Uron reads +1 on all six
+families, two Urons still +1, Sylus×2 = +2, Sylus+Uron = +2 (additive), Drakko+Uron = +1 (best only).
+
 ## 2026-07-20 (Tier 7 minions)
 
 ### feat(content): the seven Tier 7 (Summit) minions

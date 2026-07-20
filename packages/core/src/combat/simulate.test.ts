@@ -3672,3 +3672,74 @@ describe('Tier 7 (Summit) minions — combat effects', () => {
     }
   });
 });
+
+describe('Uron, Oathbringer — multiplies six trigger families', () => {
+  it('doubles Start of Combat effects (a family with no prior multiplier)', () => {
+    // Kennelmaster carries a real Start-of-Combat Beast aura; count the sc narrations it emits.
+    const withUron = (uron: boolean) => run(
+      [
+        { cardId: 'kennel', attack: 5, health: 60 },
+        { cardId: 'alley', attack: 2, health: 60 },
+        ...(uron ? [{ cardId: 'uron', attack: 7, health: 60 }] : []),
+      ],
+      [{ cardId: 'omen', attack: 1, health: 400, keywords: [] }],
+      5,
+    );
+    const scEvents = (r: ReturnType<typeof run>) => r.events.filter((e) => e.type === 'sc').length;
+    expect(scEvents(withUron(true))).toBeGreaterThan(scEvents(withUron(false)));
+  });
+
+  it('doubles Deathrattles — and STACKS additively with Sylus', () => {
+    // Grim's Echo buffs Beasts by the tally; count its buff events as the proc count.
+    const procs = (extra: { cardId: string; attack: number; health: number }[]): number =>
+      run(
+        [
+          { cardId: 'grim', attack: 1, health: 1 },
+          { cardId: 'alley', attack: 2, health: 80 },
+          ...extra,
+        ],
+        [{ cardId: 'omen', attack: 1, health: 300 }],
+        6,
+      ).events.filter((e) => e.type === 'buff' && e.attack === 2).length;
+    const none = procs([]);
+    const uron = procs([{ cardId: 'uron', attack: 7, health: 80 }]);
+    const both = procs([{ cardId: 'uron', attack: 7, health: 80 }, { cardId: 'sylus', attack: 1, health: 80 }]);
+    expect(uron).toBe(none + 1); // +1 fire
+    expect(both).toBe(none + 2); // Sylus stacks on top of Uron
+  });
+
+  it('does NOT stack with itself (two Urons are still +1)', () => {
+    const procs = (n: number): number =>
+      run(
+        [
+          { cardId: 'grim', attack: 1, health: 1 },
+          { cardId: 'alley', attack: 2, health: 80 },
+          ...Array.from({ length: n }, () => ({ cardId: 'uron', attack: 7, health: 80 })),
+        ],
+        [{ cardId: 'omen', attack: 1, health: 300 }],
+        6,
+      ).events.filter((e) => e.type === 'buff' && e.attack === 2).length;
+    expect(procs(2)).toBe(procs(1));
+  });
+
+  it('doubles RALLIES without double-counting the ally-attack broadcast', () => {
+    // Supporter's Rally buffs 2 friendly Dragons (+1/+2). Uron must repeat THAT, while Crypt Drake's
+    // broadcast ally-attack counter (which drives its every-2-attacks payout) must be untouched.
+    // The control must keep the BOARD SIZE identical — an extra body changes fight length, which changes
+    // how many ally attacks Crypt Drake sees. Mysterious Joker is a same-tier neutral whose only effect is
+    // an onPlay Discover, so it is completely inert in combat: a true placebo.
+    const r = (uron: boolean) => run(
+      [
+        { cardId: 'supporter', attack: 2, health: 80 },
+        { cardId: 'cryptdrake', attack: 6, health: 80 },
+        { cardId: uron ? 'uron' : 'joker', attack: 7, health: 80 },
+      ],
+      [{ cardId: 'omen', attack: 1, health: 400, keywords: [] }],
+      7,
+    );
+    const rallyBuffs = (x: ReturnType<typeof run>) => x.events.filter((e) => e.type === 'buff' && e.attack === 1 && e.health === 2).length;
+    const drakePayouts = (x: ReturnType<typeof run>) => x.events.filter((e) => e.type === 'buff' && e.attack === 2 && e.health === 2).length;
+    expect(rallyBuffs(r(true))).toBeGreaterThan(rallyBuffs(r(false))); // the Rally repeated
+    expect(drakePayouts(r(true))).toBe(drakePayouts(r(false))); // the broadcast counter did NOT
+  });
+});

@@ -108,6 +108,26 @@ export const TIER7: CardDef[] = [
     goldenText: 'When you sell this, **Discover** 2 **golden** Tier 6 minions.',
   },
   {
+    // The multiplier capstone: SIX trigger families at once, through the shared `triggerMultiplier` system
+    // (there is no bespoke Uron code anywhere). Non-stacking, matching Drakko and Chronos — two Urons do
+    // not silently 3x. It does NOT touch Yazzus's targeted-spell doubling, which is a spell-cast count
+    // rather than a trigger family.
+    id: 'uron',
+    name: 'Uron, Oathbringer',
+    tribe: 'neutral',
+    tier: 7,
+    attack: 7,
+    health: 7,
+    keywords: [],
+    effects: [],
+    triggerMultiplier: {
+      families: ['battlecry', 'deathrattle', 'rally', 'slaughter', 'endOfTurn', 'startOfCombat'],
+      extra: 1,
+    },
+    text: 'Your **Battlecries**, **Deathrattles**, **Rallies**, **Slaughters**, **End of Turns** and **Start of Combats** trigger an additional time.',
+    goldenText: 'Your **Battlecries**, **Deathrattles**, **Rallies**, **Slaughters**, **End of Turns** and **Start of Combats** trigger **2** additional times.',
+  },
+  {
     // Counts as EVERY tribe (`universalTribe`), so it slots into any tribal build — and pays out twice: a
     // Tier 6 minion when played and a Tier 5 when it dies. Venomous makes the 12/10 body trade up.
     id: 'labexperiment',

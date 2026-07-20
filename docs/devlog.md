@@ -26,6 +26,14 @@ repeated in three places, and the store gains `startRift`.
 The picker reads the LIVE registry via `activeRift()` — correct here precisely because this is a pre-run
 choice, not a pinned run; every in-run surface still reads `run.rift`.
 
+**Two leaks the opt-in switch created, both fixed.** `HeroSelect` telegraphed the rift from the live
+registry unconditionally, so an **Ascent** run still showed "Rift: Summit" on the hero screen — promising a
+modifier the run would never get. It now gates on `mode === 'rift'`. And auditing every mode check turned up
+the mirror problem: the Renown/Oath telegraph was gated on `mode === 'ascent'`, so a **rift** run hid its
+Oath despite being fully scored. Every other mode check in the codebase is `!== 'practice'` (damage on loss,
+course completion, telemetry, the shop timer), which means a rift run already behaved like Ascent
+everywhere else — so that gate now matches at `!== 'practice'` too.
+
 **Styled in the HERO-SELECT idiom** (owner request): a full-screen view over the title art rather than a
 modal, with big framed cards in a row — a 245px gold-framed tile, a name pill eclipsing its TOP edge, a tag
 pill eclipsing its BOTTOM edge, and the description fading in on hover. Metrics deliberately mirror

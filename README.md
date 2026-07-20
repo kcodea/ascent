@@ -40,6 +40,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+- **Seven Tier 7 minions** — Thundeer, Amun Rab, Attachment Conductor, Mauron, Anubis, Salvatore McKlusky
+  and Lab Experiment, reachable only while the Summit rift is active.
 - **Tier 7 + the Summit rift** — Summit grants every hero +10 Armor and unlocks a Tier 7 shop; triples at
   Tier 6/7 discover Tier 7 minions. A purple Rift button now sits above Play whenever a rift is active.
   (Tier 7 minions themselves land next.)

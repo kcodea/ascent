@@ -198,7 +198,7 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  */
 export type DiscoverSpec =
   | { kind: 'spell' }
-  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number }
+  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; golden?: boolean }
   // A Discover from an EXPLICIT card-id pool (Rune of the Second Path's Greater-Quest reward minions).
   | { kind: 'pool'; ids: string[] };
 
@@ -697,6 +697,10 @@ export interface RunState {
    *  `lockedUntilTier`). Set by `openDiscover` from the spec's `lockTier`, read + cleared when the pick
    *  resolves. Undefined for every normal Discover. */
   discoverLockTier?: number;
+  /** The OPEN Discover hands its pick over GILDED (a golden Salvatore McKlusky). Set by `openDiscover` from
+   *  the spec and consumed when the pick is taken — exactly the `discoverLockTier` lifecycle, so a queued
+   *  mix of gilded and normal Discovers can't leak into each other. */
+  discoverGolden?: boolean;
   /** Discovers queued behind the open one (`discover`). When a pick resolves, the next spec is shifted
    *  off and opened; `discover` only clears when this is empty. Fed by `queueDiscover` — e.g. a golden
    *  Black Belt Brian queues a 2nd spell Discover, Yazzus multiplies Help Wanted / Sprout, and a

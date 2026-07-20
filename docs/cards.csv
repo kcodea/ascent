@@ -2,7 +2,7 @@
 # atk/hp are blank for spells (they use cost). Dual-type minions show both tribes. golden_text = the tripled text.
 id,name,tier,atk,hp,cost,keywords,text,golden_text
 
-# === BEAST (21) ===
+# === BEAST (22) ===
 alley,Pennycat,1,1,1,,,**Battlecry:** summon a 1/1 Stray next to it.,**Battlecry:** summon two 1/1 Strays next to it.
 manasaber,Void Panther,1,4,1,,,**Deathrattle:** summon two 0/2 Void Cubs with **Taunt**.,**Deathrattle:** summon two 0/4 Void Cubs with **Taunt**.
 pack,Mama Pup,2,3,2,,,**Deathrattle:** summon two 1/1 Pups.,**Deathrattle:** summon four 1/1 Pups.
@@ -24,8 +24,9 @@ gnash,"Gnasher, the Overrun",6,7,6,,SL,**Slaughter:** your spells permanently ga
 grim,Grim,6,7,1,,,**Deathrattle:** give your Beasts **+2/+2** wherever they are for each Deathrattle triggered this game.,**Deathrattle:** give your Beasts **+4/+4** wherever they are for each Deathrattle triggered this game.
 mirrorrhino,Mirrorhide Rhino,6,6,6,,,**Start of Combat:** Summon a copy of this minion.,**Start of Combat:** Summon **two** copies of this minion.
 packleader,Pack Leader,6,2,4,,,**Start of Combat:** Give your **Beasts** **+3/+3** for each **Beast** played while Pack Leader is on the board.,**Start of Combat:** Give your **Beasts** **+6/+6** for each **Beast** played while Pack Leader is on the board.
+thundeer,Thundeer,7,10,10,,Engraved,"When your Beasts attack, gain **+10/+10** permanently. Improve this.","When your Beasts attack, gain **+20/+20** permanently. Improve this."
 
-# === DRAGON (17) ===
+# === DRAGON (18) ===
 frontdrake,Bard,1,2,1,,,"**Every 3 turns,** get a random Dragon.","**Every 3 turns,** get **2** random Dragons."
 twilightwhelp,Violet Whelp,1,1,1,,,**Deathrattle:** summon a 3/2 Whelp that attacks immediately.,**Deathrattle:** summon two 3/2 Whelps that attack immediately.
 supporter,Supporter,2,2,4,,Rally,**Rally:** give 2 friendly Dragons **+1/+2**.,**Rally:** give 2 friendly Dragons **+2/+4**.
@@ -43,8 +44,9 @@ karwind,Karwind,5,5,10,,,"Whenever a **Battlecry** triggers, give your Dragons *
 stuntdrake,Obsidian Drake,5,3,7,,,**Avenge (3):** give this minion's Attack to 2 other friendly minions.,**Avenge (3):** give this minion's Attack to 2 other friendly minions **twice**.
 bane,Bane (dragon/demon),6,7,9,,,"After you trigger a Battlecry, give Fodder and Imps **+2/+2** this run.","After you trigger a Battlecry, give Fodder and Imps **+4/+4** this run."
 cryptdrake,Crypt Drake (dragon/undead),6,6,6,,,"Every **2** ally attacks, give your minions **+2/+2**. Improves **+2/+2** every **4** attacks.","Every **2** ally attacks, give your minions **+4/+4**. Improves **+4/+4** every **4** attacks."
+mauron,Mauron,7,9,3,,Cleave,Immune while attacking.,Immune while attacking.
 
-# === UNDEAD (20) ===
+# === UNDEAD (21) ===
 spore,Sporeling,1,2,1,,,**Deathrattle:** Give your minions **+1/+1**. Triggers each time you play a **Battlecry**.,**Deathrattle:** Give your minions **+2/+2**. Triggers each time you play a **Battlecry**.
 deathswarmer,Deathswarmer,2,1,4,,,**Battlecry:** Give your Undead **+1 Attack** wherever they are.,**Battlecry:** Give your Undead **+2 Attack** wherever they are.
 mumi,Mumi,2,3,1,,,**Deathrattle:** give a friendly **Undead** **Rise**.,**Deathrattle:** give **two** friendly **Undead** **Rise**.
@@ -65,8 +67,9 @@ sergeant,Sergeant,5,6,6,,,**Deathrattle:** Give your minions **+2 Health**. Impr
 steadfast,Steadfast Champion,5,4,7,,,**Avenge (4):** summon a **Spear Warden**. It attacks immediately.,**Avenge (4):** summon a **Golden Spear Warden**. It attacks immediately.
 forsakenweaver,Forsaken Mage,6,5,8,,,"When you cast a spell, give your Undead **+4 Attack** wherever they are.","When you cast a spell, give your Undead **+8 Attack** wherever they are."
 watcher,Watcher,6,8,3,,Rally,**Rally:** cast **Lantern of Souls** — your Undead get **+3/+0** for the rest of the run.,**Rally:** cast **Lantern of Souls** twice — your Undead get **+6/+0** for the rest of the run.
+anubis,Anubis,7,8,5,,Reborn,**Deathrattle:** Give your minions **Reborn**. Cast **Lantern of Souls**.,**Deathrattle:** Give your minions **Reborn**. Cast **Lantern of Souls** twice.
 
-# === MECH (19) ===
+# === MECH (20) ===
 moneymaker,Money Maker,1,1,1,,,**Every 2 turns:** get a **Gold Pouch** or **Safety Deposit Box**.,**Every 2 turns:** get **2** — each a **Gold Pouch** or **Safety Deposit Box**.
 drone,Warding Drone,1,2,1,,Divine Shield,,
 cling,Cling Drone,2,2,2,,Magnetic,"Each time a Cling Drone is magnetized, your Cling Drones get **+1/+1**.",
@@ -86,8 +89,9 @@ combinator,Combinator,5,6,7,,,**End of Turn:** magnetize a random **Magnetic** M
 banksly,Banksly,6,5,6,,,"When you spend **10 Gold**, magnetize a random **Magnetic** onto this.","When you spend **10 Gold**, magnetize **2** random **Magnetics** onto this."
 beatboxer,Beatbot,6,8,8,,,"Whenever a **Magnetic** attaches to another friendly minion, **copy** it onto this too.","Whenever a **Magnetic** attaches to another friendly minion, **copy it twice** onto this."
 nanon,Nanon,6,6,6,,,"**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+2/+2**.","**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+4/+4**."
+attachmentconductor,Attachment Conductor,7,7,10,,,Your **Magnetics** magnetize **twice**.,Your **Magnetics** magnetize **three times**.
 
-# === DEMON (18) ===
+# === DEMON (19) ===
 feed,Soulfeeder,1,2,2,,,**Shout:** add a Fodder to the next **2** shops.,**Shout:** add **2** Fodder to the next **2** shops.
 swordbored,Sword and Bored,1,2,1,,SL,**Slaughter:** give your **Fodder** **+1/+1**.,**Slaughter:** give your **Fodder** **+2/+2**.
 burialimp,Burial Imp,2,3,3,,,**Echo:** give your Fodder **+1/+1** and summon an **Imp**.,**Echo:** give your Fodder **+2/+2** and summon **2 Imps**.
@@ -106,8 +110,9 @@ ritualist,Ritualist,5,5,6,,,**End of Turn:** give your Imps and Fodder **+3/+3**
 abhorrenthorror,Abhorrent Horror,6,1,1,,Start of Combat,**Start of Combat:** Gain +Attack/+Health equal to the Fodder consumed this turn.,**Start of Combat:** Gain **double** the Attack/Health of Fodder consumed this turn.
 abyssalfeeder,Abyssal Feeder,6,7,6,,,**End of Turn:** adjacent minions each **Consume** a Fodder.,**End of Turn:** adjacent minions each **Consume** 2 Fodder.
 acid,"Korok, the Hungerer",6,8,8,,,"When you spend **7 Gold**, give your Fodder **+1/+1** and add **1 Fodder** to your next tavern.","When you spend **7 Gold**, give your Fodder **+2/+2** and add **2 Fodder** to your next tavern."
+amunrab,Amun Rab,7,15,3,,,**Deathrattle:** Summon **7** Imps with **Divine Shield** and give your Imps **+10/+10**. Improve this.,**Deathrattle:** Summon **7** Imps with **Divine Shield** and give your Imps **+20/+20**. Improve this.
 
-# === NEUTRAL (23) ===
+# === NEUTRAL (25) ===
 sandbag,Target Dummy,1,0,4,,Taunt,"**Taunt.** When this takes damage, it gains **+1 Attack** permanently.","**Taunt.** When this takes damage, it gains **+2 Attack** permanently."
 broker,Brightwing Broker,2,3,3,,,"When you buy a minion, give your minions **+1/+1**.","When you buy a minion, give your minions **+2/+2**."
 hoarder,Hoarder,2,3,3,,,**Battlecry:** get **1** extra Gold next turn. Sells for **2 Gold**.,**Battlecry:** get **2** extra Gold next turn. Sells for **4 Gold**.
@@ -131,6 +136,8 @@ sylus,Sylus the Reaper,5,1,7,,,"**In combat,** your Deathrattles proc **1 more**
 joker,Mysterious Joker,6,4,4,,,**Battlecry:** Discover a **Tier 5** minion.,**Battlecry:** Discover **2 Tier 5** minions.
 taurus,Taurus,6,6,8,,Start of Combat,**Start of Combat:** adjacent units are **Engraved**.,**Start of Combat:** adjacent units are **Engraved** and gain **2× stats** in combat.
 yazzus,Yazzus,6,5,7,,,Your **targeted** spells cast **twice**.,Your **targeted** spells cast **three times**.
+labexperiment,Lab Experiment,7,12,10,,Venomous,**Battlecry:** get a Tier 6 minion. **Deathrattle:** get a Tier 5 minion.,**Battlecry:** get **2** Tier 6 minions. **Deathrattle:** get **2** Tier 5 minions.
+salvatore,Salvatore McKlusky,7,5,5,,,"When you sell this, **Discover** 2 Tier 6 minions.","When you sell this, **Discover** 2 **golden** Tier 6 minions."
 
 # === SPELLS (44) — cost, not stats ===
 apples,Apples,1,,,1,,"**Choose One:** Give the shop **+1/+3**, or the next shop **+2/+4**.",

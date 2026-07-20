@@ -278,6 +278,11 @@ export const CardDefSchema = z.object({
   goldenText: z.string().optional(),
   universalTribe: z.boolean().optional(),
   attackImmuneAlways: z.boolean().optional(),
+  triggerMultiplier: z.object({
+    families: z.array(z.enum(['battlecry', 'deathrattle', 'rally', 'slaughter', 'endOfTurn', 'startOfCombat'])),
+    extra: z.number().int().positive(),
+    stacks: z.boolean().optional(),
+  }).strict().optional(),
   imp: z.boolean().optional(),
   token: z.boolean().optional(),
   ascendAt: z.number().int().positive().optional(),

@@ -40,6 +40,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+- **Card info panel detached** — the name/keywords/text/tribe drawer now floats beneath the card as a rounded
+  dark-glass panel (matching the hero/quest panels) instead of welding onto the frame; the right-click inspect's
+  Buffs panel matches. Same info, new housing.
 - **Card sets** — cards now live in switchable sets (`sets.ts`), flipped live like rifts. A run pins its
   set at creation, so flipping never disturbs an in-flight or replayed run. See `docs/card-sets.md`.
 - **The blink can't come back at high combat speed.** Beat holds divide by the speed slider but the death CSS was fixed seconds, so above ~1.31× a dying card was unmounted mid-animation — the same symptom as the old blink, by a different route. Death durations now divide by a `--combat-speed` var, making the ratio speed-invariant (identical at 1×).

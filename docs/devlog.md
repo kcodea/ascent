@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-19 (set 2 empty)
 
+### tweak(ui): card info panel — detached dark-glass drawer (+ matching inspect Buffs panel)
+
+**What:** the card's text drawer (name → keyword pills → rules text → tribe) no longer welds onto the card frame —
+it's now a **detached panel floating beneath the card**, rounded on all four corners, in the established dark
+pill/glass theme (the hero/opponent/quest-panel recipe: `linear-gradient(180deg,#241a13,#17110c)` + gold-mix
+border + inset top highlight). The old attachment (`border-top:none`, square top corners, negative-margin tuck)
+was shaped for the arch silhouette and misaligned against the authored oval/spell frames. Same information,
+untouched order/content — owner spec: "same exact information, just detached."
+
+**How:** restyled `.card.compact.showtext .drawer` (positive gap margin instead of the tuck, 4-corner radius,
+dark fill + gold border); lightened the inner text for the dark fill (`.cn` #f4ecdb, `.desc` #d8ccb6, a scoped
+`.desc b { #fff }` override — base bold is dark ink and vanished on dark, tribe line mixes the tribe hue with
+cream). Keyword pills unchanged (already colored chips). The inspect overlay's **Buffs** side panel
+(`.inspect-buffs` + rows) got the same dark glass so the right-click view is coherent. Every full-card surface
+inherits automatically: hover reveal, hand, Discover, right-click inspect, always-on-text.
+
+**Verified:** typecheck + lint + 1221 tests + `build:web` all green; owner eyeballing the live look (dev server)
+before PR.
+
 ### chore(content): set 2 starts EMPTY (opt-in), + a loud guard for baking an empty set
 
 Owner call: set 2 is being authored externally (a sheet, dropped in), so an explicit `own` list is the

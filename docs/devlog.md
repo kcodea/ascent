@@ -3,6 +3,49 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-20 (discover pre-warm)
+
+### perf(ui): pre-build the Discover overlay's Pixi app + mark its burst
+
+The 2026-07-20 capture's worst frame was **108.2ms with a 108ms long task, and hotspots summing to 1.4ms** —
+~107ms of main-thread work that nothing instrumented could see. It was no longer `reduce:faceOmen` (which
+appeared once at 53.6ms in the same capture, half the size).
+
+Two clues pinned it: the sprite pool dropped 244 → 123 (≈120 sprites spawned) in a bucket whose `marks` were
+**empty** — a large particle burst that no FX mark accounted for. That combination is only possible for
+`discoverBurst`, the one pixiFx entry point missed when the other nine were marked, and it runs on
+`discoverFx` — a **second Pixi Application** with its own WebGL context, textures and ticker, attached
+lazily at the moment the Discover overlay opened.
+
+Measured directly in the browser rather than inferred:
+
+```
+cold attach of the second Pixi app   59.4ms
+the burst itself                      0.5ms
+reduce:discover (the sim)             0.4ms
+```
+
+So the stall was never the burst or the reducer — it was building a WebGL context mid-shop. The capture's
+108ms is that same cost on a colder path (plus the overlay's React mount).
+
+**`warmDiscoverFx()`** now creates the app on idle at startup, alongside `warmArt`, attaching it to a
+detached offscreen host. `attach()` already had a fast path that re-parents an existing canvas instead of
+rebuilding, so the real attach on first Discover becomes free. Verified after the change:
+
+```
+prewarmed at startup                  true
+attach on first Discover              0ms   (was 59.4ms)
+```
+
+**`discoverBurst` is now marked** (`fx:discoverBurst`) — verified appearing in a live bucket. That gap is why
+this took detective work instead of showing up as a label; it was my omission when wiring the other nine.
+
+Verified: 1226 tests, lint and build:web green; `typecheck:web` unchanged at its 48-error baseline; the game
+renders with no error boundary and exactly one hidden warm-up host in the DOM.
+
+Still outstanding: `reduce:faceOmen` (53.6ms here, 80-92ms at higher waves) — the Worker migration, its own
+PR. And a residual ~0.33 renders-per-pointermove worth one more look after the drag fix in #565.
+
 ## 2026-07-20
 
 ### perf(ui): drag no longer re-renders at the monitor's refresh rate

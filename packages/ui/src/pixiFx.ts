@@ -1561,6 +1561,7 @@ class FxController {
    * the discover overlay's own burst layer — behind the cards/UI, above the dark backdrop.
    */
   discoverBurst(cx: number, cy: number): void {
+    perfMonitor.mark('fx:discoverBurst');
     if (!this.ready) return;
     // central bloom — a big white-gold flash at the origin
     this.spawn(this.glowTex!, {
@@ -3050,6 +3051,35 @@ export const pixiFx = new FxController();
  *  backdrop) — so the discover burst reads white-hot over the dim without covering the UI. Its own app +
  *  canvas; attached when Discover opens, its canvas re-appended on each subsequent open. */
 export const discoverFx = new FxController();
+
+/**
+ * Create the Discover overlay's Pixi app AHEAD of time, on idle, so opening a Discover doesn't pay for it.
+ *
+ * `discoverFx` is a SECOND Pixi Application (its own WebGL context, textures and ticker), and it was only
+ * attached at the moment the overlay opened. Measured cold on a machine with the main app already running:
+ * **59ms** to attach, vs **0.5ms** for the burst itself — and the 2026-07-20 capture caught it in the wild as
+ * a **108ms** stall whose only measured hotspots summed to 1.4ms (`reduce:discover` is 0.4ms; the sim was
+ * never the problem).
+ *
+ * The warm-up attaches to a detached host. `attach()` re-parents an existing canvas rather than rebuilding
+ * (see its `if (this.app)` fast path), so the real attach later is effectively free. Safe to call repeatedly.
+ */
+export function warmDiscoverFx(): void {
+  if (typeof window === 'undefined' || discoverFxWarmed) return;
+  discoverFxWarmed = true;
+  const run = (): void => {
+    // Offscreen and inert: the canvas lives here until the overlay claims it on first open.
+    const host = document.createElement('div');
+    host.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;pointer-events:none;';
+    host.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(host);
+    void discoverFx.attach(host);
+  };
+  const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback;
+  if (typeof ric === 'function') ric(run);
+  else window.setTimeout(run, 1200); // after the first shop has settled
+}
+let discoverFxWarmed = false;
 
 // DEV: expose for live effect tuning + manual firing from the console (mirrors the SfxMixer dev
 // affordance). Stripped from production by the static env check.

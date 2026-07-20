@@ -20,7 +20,7 @@ import { perfMonitor, perfEnabledByFlag } from './perfMonitor';
 import { Icon } from './Icon';
 import { ErrorBoundary } from './ErrorBoundary';
 import { PixiFxLayer } from './PixiFxLayer';
-import { pixiFx } from './pixiFx';
+import { pixiFx, warmDiscoverFx } from './pixiFx';
 import { warmArt } from './art';
 import { useGame } from './store';
 
@@ -68,6 +68,9 @@ export function Game() {
   // Preload all card/hero art once, on idle, so the first shop renders with art already cached — kills the
   // cold-load "pop-in" (esp. the itch CDN, where each webp is a separate first-appearance round-trip).
   useEffect(() => { warmArt(); }, []);
+  // …and build the Discover overlay's separate Pixi app on idle, so the first Discover doesn't pay a ~60-108ms
+  // WebGL-context stall mid-shop (see `warmDiscoverFx`).
+  useEffect(() => { warmDiscoverFx(); }, []);
   // The game now fills the window at a fixed 16:9 (no resolution picker → no `data-res`), draws one board
   // (`--board` = the CSS default), and applies no readability dim — so there's no res/scrim/board state to persist.
 

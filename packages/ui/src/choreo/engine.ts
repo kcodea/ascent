@@ -6,6 +6,7 @@ import { hitPower, playContactImpact } from './channels/impact';
 import { getLungeConfig, strikeBandFor, strikeEaseFor } from '../lungeConfig';
 import { contactGeometry } from './contactGeometry';
 import { recordLunge } from '../lungeProbe';
+import { probeLog, pt } from '../strikeProbe';
 
 export interface AttackCueCtx {
   combatSpeed: number;
@@ -116,6 +117,7 @@ export function runAttackExchangeCues(
         if (!Number.isFinite(a.x) || !Number.isFinite(d.x)) return strikeOffset;
         // Fresh layout vector, build-time pose: the corner offset was committed when the wind-up tilted the
         // card, so only the TRANSLATION re-solves — the posed corner still lands exactly on the centre.
+        probeLog({ ev: 'solve', aL: pt(a.x, a.y), dL: pt(d.x, d.y), aConn: attacker.isConnected, dConn: defender.isConnected });
         return { x: d.x - a.x - posedCorner.x, y: d.y - a.y - posedCorner.y };
       }
     : undefined;
@@ -131,12 +133,26 @@ export function runAttackExchangeCues(
     approachDeg: geo.approachDeg, leadTilt: geo.leadTilt,
     band: strikeBandFor(geo.travel), ease: strikeEaseFor(geo.travel),
   });
+  probeLog({
+    ev: 'build', atk: moment.primary.attacker, def: moment.primary.defender,
+    ld: pt(ldx, ldy), atkCur: pt(atkCur.x, atkCur.y), defCur: pt(defCur.x, defCur.y),
+    impactAt: pt(impactAt.x, impactAt.y), strike: pt(strikeOffset.x, strikeOffset.y),
+  });
   return playLunge({
     // The layout-frame vector everywhere: the wind-up leans back along it, the blow direction rides it, and
     // the strike target was solved from it — one frame, no mixed-measurement drift.
     attacker, dx: ldx, dy: ldy, speed: ctx.combatSpeed, flurry: hasFlurry,
     strike: strikeOffset, resolveStrike, strikeDur: geo.strikeDur, travel: geo.travel, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
-    onContact: () => ctx.advance(),
+    onContact: () => {
+      // DEV probe: where is the ATTACKER ACTUALLY at contact? If its visual centre is far from the defender
+      // (or it's no longer connected), the lunge itself was gutted/detached — hypothesis (c). The rect read
+      // is DEV-gated so prod contacts stay measurement-free.
+      if (import.meta.env.DEV) {
+        const ar = attacker.getBoundingClientRect();
+        probeLog({ ev: 'contact', aVis: pt(ar.left + ar.width / 2, ar.top + ar.height / 2), aW: Math.round(ar.width), aConn: attacker.isConnected });
+      }
+      ctx.advance();
+    },
     onImpact: impact ? () => { playContactImpact(defender, ldx, ldy, power, ctx.combatSpeed, liveImpactAt(), spinDeg, crit, hasFlurry, flurrySlash); if (crit) ctx.onCritImpact?.(); } : undefined,
     impactOffsetMs: impact?.offset ?? 0,
     onRallyPulse: ctx.onRallyPulse,

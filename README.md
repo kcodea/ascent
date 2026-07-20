@@ -40,6 +40,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+- **Art for all eight Tier 7 minions.**
 - **One trigger-multiplier system** — Sylus, Drakko and Chronos now declare what they multiply as card
   data instead of hardcoded id checks, and **Uron, Oathbringer** (T7) multiplies all six trigger families.
 - **Seven Tier 7 minions** — Thundeer, Amun Rab, Attachment Conductor, Mauron, Anubis, Salvatore McKlusky

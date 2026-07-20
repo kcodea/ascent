@@ -3,6 +3,28 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-20 (Tier 7 art)
+
+### art: wire all eight Tier 7 minion arts
+
+Thundeer, Amun Rab, Attachment Conductor, Mauron, Anubis, Salvatore McKlusky, Lab Experiment and Uron,
+Oathbringer, through the standard pipeline (512px cap, WebP q85, source PNG deleted).
+
+```
+amunrab              2250KB ->  53KB     mauron        2287KB ->  58KB
+anubis               2171KB ->  57KB     salvatore     2032KB ->  41KB
+attachmentconductor  2779KB ->  89KB     thundeer      2098KB ->  51KB
+labexperiment        2410KB ->  75KB     uron          2101KB ->  44KB
+```
+
+17.7MB -> 0.46MB. Every source filename matched its card, so nothing was inferred from an un-attributed
+file. **One spelling note:** the master is `SalvatoreMcKluskey.png` while the card is "Salvatore
+McKlusky" (no second `e`) — unmistakably the same character, so it was wired, but flagging in case the
+card name should follow the art.
+
+Verified in the browser after a dev-server restart: all eight serve as `image/webp` at 512x512 and render
+correctly.
+
 ## 2026-07-20 (trigger multipliers + Uron)
 
 ### refactor(core)!: one data-driven trigger-multiplier system, and Uron, Oathbringer

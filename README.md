@@ -40,6 +40,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+- **Strikes are solved in the layout frame.** Attacks measured while a card was still mid-motion (a defender
+  recovering from the last knockback, a Windfury attacker mid-settle) used the displaced position and landed
+  off-centre — the strike now subtracts in-flight transforms and always targets the defender's true rest
+  centre.
 - **Straight-across attacks slam flat.** A defender directly ahead is now hit with a straight frontal drive —
   leading-edge midpoint to centre, no tilt — instead of the corner rule's sideways sidestep; the corner + tilt
   blend in over a tunable `faceOnRamp` (90px) of horizontal offset.

@@ -81,9 +81,12 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
   const onRallyPulse = once(ctx.onRallyPulse);
   const onWindupBuffs = once(ctx.onWindupBuffs);
   const c = getLungeConfig();
+  // The trail's origin is the attacker's LAYOUT centre: the measured rect includes any residual transform
+  // (a killed settle / knockback-recover still in flight), and `onUpdate` adds the live GSAP x/y on top —
+  // without subtracting the residual here it would be counted twice and the trail would ride offset.
   const rest = attacker.getBoundingClientRect();
-  const cx0 = rest.left + rest.width / 2;
-  const cy0 = rest.top + rest.height / 2;
+  const cx0 = rest.left + rest.width / 2 - (Number(gsap.getProperty(attacker, 'x')) || 0);
+  const cy0 = rest.top + rest.height / 2 - (Number(gsap.getProperty(attacker, 'y')) || 0);
   // NB: in combat `findEl` resolves the `.unit` WRAPPER (its data-uid matches first), so the marker classes
   // live on the `.card` DESCENDANT — the querySelector is the live path, not a dead fallback.
   const variant = attacker.classList.contains('dscard') || attacker.querySelector('.dscard')

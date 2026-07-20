@@ -63,14 +63,33 @@ export function runAttackExchangeCues(
   const cfg = getLungeConfig();
   const atkRect = attacker.getBoundingClientRect();
   const defRect = defender?.getBoundingClientRect();
-  const geo = contactGeometry(dx, dy, atkRect, defRect ?? { width: 0, height: 0 }, cfg);
+  // LAYOUT-FRAME COMPENSATION (owner report 2026-07-21: "some attacks land dead centre, others go off
+  // early"): the caller's dx/dy come from live rects, which include any IN-FLIGHT transform — a defender
+  // still recovering from the previous exchange's knockback, or an attacker still mid-elastic-settle
+  // (Windfury's second swing; attacking right after being hit). GSAP's x/y drive relative to LAYOUT rest,
+  // and the defender recovers to rest during the ~700ms wind-up, so a strike solved against displaced rects
+  // lands where the card USED to be. Subtract both cards' current GSAP offsets so the strike is solved in
+  // the layout frame — the defender's TRUE rest centre — regardless of what's still moving when we measure.
+  // (The tightened attackGap makes overlapping motion the common case, which is why this surfaced now.)
+  const curOf = (el: Element | null | undefined): { x: number; y: number } => ({
+    x: el ? Number(gsap.getProperty(el, 'x')) || 0 : 0,
+    y: el ? Number(gsap.getProperty(el, 'y')) || 0 : 0,
+  });
+  const atkCur = curOf(attacker);
+  const defCur = curOf(defender);
+  const ldx = dx - defCur.x + atkCur.x;
+  const ldy = dy - defCur.y + atkCur.y;
+  // The measured rect also inflates under a mid-wind-up scale — divide the attacker's dims back to rest size.
+  const atkScale = Number(gsap.getProperty(attacker, 'scaleX')) || 1;
+  const atkSize = { width: atkRect.width / atkScale, height: atkRect.height / atkScale };
+  const geo = contactGeometry(ldx, ldy, atkSize, defRect ?? { width: 0, height: 0 }, cfg);
   // The geometry places the attacker so its FIXED leading corner (top corner for a player swing, mirrored
   // bottom corner for an enemy swing, right/left picked by dx) lands on the DEFENDER'S CENTRE — `geo.strike`
   // is the card-centre offset that achieves it, `geo.contact` is that centre, where the impact FX originate.
   // (The former `strikePoint` surface↔centre blend is retired: centre impact is the spec, not a dial.)
-  const atkC = { x: atkRect.left + atkRect.width / 2, y: atkRect.top + atkRect.height / 2 };
+  const atkLayoutC = { x: atkRect.left + atkRect.width / 2 - atkCur.x, y: atkRect.top + atkRect.height / 2 - atkCur.y };
   const strikeOffset = geo.strike;
-  const impactAt = { x: atkC.x + geo.contact.x, y: atkC.y + geo.contact.y };
+  const impactAt = { x: atkLayoutC.x + geo.contact.x, y: atkLayoutC.y + geo.contact.y };
   const spinDeg = -Math.sign(geo.leadTilt || 1) * cfg.defenderSpin;
   // DEV probe (no-op unless the Lunge tuner is open): record what the distance→duration / distance→ease /
   // angle→tilt functions produced for THIS vector. There is no stable per-pairing key to inspect instead —
@@ -81,10 +100,12 @@ export function runAttackExchangeCues(
     band: strikeBandFor(geo.travel), ease: strikeEaseFor(geo.travel),
   });
   return playLunge({
-    attacker, dx, dy, speed: ctx.combatSpeed, flurry: hasFlurry,
+    // The layout-frame vector everywhere: the wind-up leans back along it, the blow direction rides it, and
+    // the strike target was solved from it — one frame, no mixed-measurement drift.
+    attacker, dx: ldx, dy: ldy, speed: ctx.combatSpeed, flurry: hasFlurry,
     strike: strikeOffset, strikeDur: geo.strikeDur, travel: geo.travel, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
     onContact: () => ctx.advance(),
-    onImpact: impact ? () => { playContactImpact(defender, dx, dy, power, ctx.combatSpeed, impactAt, spinDeg, crit, hasFlurry, flurrySlash); if (crit) ctx.onCritImpact?.(); } : undefined,
+    onImpact: impact ? () => { playContactImpact(defender, ldx, ldy, power, ctx.combatSpeed, impactAt, spinDeg, crit, hasFlurry, flurrySlash); if (crit) ctx.onCritImpact?.(); } : undefined,
     impactOffsetMs: impact?.offset ?? 0,
     onRallyPulse: ctx.onRallyPulse,
     onWindupBuffs: ctx.onWindupBuffs,

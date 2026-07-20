@@ -3,6 +3,35 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (layout-frame strikes)
+
+### fix(ui): solve the strike in the layout frame — displaced cards no longer skew the target
+
+Owner playtest: "some attacks land perfectly dead center while other attacks go off too early." The
+inconsistency was the tell: the strike was solved from `getBoundingClientRect()` at swing start, and that
+rect includes any IN-FLIGHT transform. Two common cases:
+
+- the **defender still recovering from the previous exchange's knockback** — we aimed at its displaced
+  position, it recovered to rest during the ~700ms wind-up, and the corner landed where the card *used* to
+  be;
+- the **attacker still mid-elastic-settle** (Windfury's second swing; attacking right after being hit) — its
+  measured centre was displaced, but GSAP drives x/y relative to *layout* rest, so the strike fell short by
+  the residual.
+
+Both cards at rest → perfect; either mid-motion → off. The tightened `attackGap` (0.14s) made overlapping
+motion the *common* case, which is why it surfaced now.
+
+Fix (`engine.ts`): subtract both cards' current GSAP `x/y` offsets from the measured vector before
+`contactGeometry`, so the strike is solved in the **layout frame** — the defender's true rest centre —
+regardless of what's still moving at measure time. The attacker's rect dims are also divided by its current
+scale (a mid-wind-up measurement would otherwise inflate the corner half-extents), and the impact-FX point
+is anchored to the layout centre too. The same layout vector now feeds the wind-up lean and the blow
+direction — one frame throughout. `lunge.ts` gets the matching fix for the trail origin, which was
+double-counting the residual (rect included it AND `onUpdate` added live x/y on top).
+
+Verified: typecheck + lint + 1241 tests + `build:web`, all green. (Pure measurement-frame correction — no
+timing or geometry rules changed, so no new unit surface; the fix lives where DOM/GSAP state does.)
+
 ## 2026-07-21 (face-on fade)
 
 ### fix(ui): straight-across attacks slam flat instead of sidestepping to land a corner

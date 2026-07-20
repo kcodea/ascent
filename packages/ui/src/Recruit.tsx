@@ -17,6 +17,7 @@ import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
 import { perfMonitor } from './perfMonitor';
 import { getSwapFxConfig } from './swapFxConfig';
+import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
 import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
@@ -647,6 +648,28 @@ export function Recruit() {
     });
     return () => cancelAnimationFrame(raf);
   }, [run.swapFxSeq, run.swapFxBoardUid, run.swapFxShopUid]);
+  // Spell Power — a spell just resolved in the SHOP: rising pink/purple/gold arrows + a mote blast at the
+  // caster, and the run's current spell power floats up once they land. Keyed off `spellPowerFxSeq`, the same
+  // one-shot dedupe as swapFx; inits to the current value so a restored save never fires on load.
+  // Origin: the spell card that was just cast if it's still on screen, else the shop row's centre — a spell
+  // usually LEAVES play as it resolves, so the fallback is the common path, not the edge case.
+  const prevSpellPowerSeq = useRef(run.spellPowerFxSeq);
+  useEffect(() => {
+    const seq = run.spellPowerFxSeq;
+    if (seq === undefined || seq === prevSpellPowerSeq.current) return;
+    prevSpellPowerSeq.current = seq;
+    const power = run.spellPowerFxValue ?? 0;
+    const raf = requestAnimationFrame(() => {
+      const row = document.querySelector('.row.shop') ?? document.querySelector('[data-zone="tavern"]');
+      if (!row) return;
+      const r = row.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+      pixiFx.spellPower(x, y, getSpellPowerFxConfig());
+      floatSpellPowerNumber(x, y - r.height * 0.15, power);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [run.spellPowerFxSeq, run.spellPowerFxValue]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the

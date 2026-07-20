@@ -3,6 +3,40 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21o (spell power FX — shop half)
+
+### feat(ui): the spell-power flourish — rising arrows, origin blast, floating power number
+
+New FX fired when a spell RESOLVES: a fan of pink/purple/gold arrows rises from the shop row, a mote blast
+pops at the origin, and the run's current spell power floats up as a number once the arrows land. Full trio
+pattern — `spellPowerFxConfig.ts` (DEV-persisted config) + `SpellPowerFxTuner.tsx` ("✨ Spell Power", with a
+▶ Test that fires over the shop row so you needn't stage a cast) + `pixiFx.spellPower`.
+
+**The signal is derived, not scratch.** `spellPowerFxSeq` is stamped in the reducer from the before/after
+`spellsCast` delta — the same place the quest tick reads — rather than a per-action scratch field. That's
+deliberate: the weld-FX bug was a scratch payload cleared before React committed, and a derived delta can't
+be swallowed by batching. `spellPowerFxValue` captures the power at stamp time so the number shows what THAT
+cast produced.
+
+**Perf.** Arrows are one Graphics each, redrawn only while rising and retired on completion (the weld-ring
+pattern, with a `perfMonitor` counter). The blast reuses the shared glow texture + particle pool. The number
+is a one-shot DOM element animated by WAAPI on transform/opacity and removed on finish. Nothing loops, so
+nothing repaints once a cast has played out.
+
+**Live testing caught a real one:** every cast in a fresh run printed "+0", since a run with no spell-power
+sources still casts plenty of spells. A zero tells the player nothing while still pulling the eye, so the
+number is now suppressed at 0 — the arrows and blast already say "a spell resolved".
+
+**NOT DONE — combat.** The ask was shop AND combat, and only the shop half is wired. Combat FX are driven by
+the choreo beat pipeline (`packages/ui/src/choreo/`), which has no `cast` channel: firing there means adding
+a new event kind through `compile` → `engine` → `channels` and extending the beat-golden / badge-coverage
+enforcement tests. That's its own PR, not a tail-end addition to this one. Flagged rather than half-wired.
+
+Verified: typecheck + lint + **1270** tests + `build:web` green, `typecheck:web` at its 48 baseline. New
+`run.test.ts` case pins both halves of the signal — a cast bumps the seq exactly once and captures a numeric
+power, and a non-casting action (`roll`) does NOT bump it. Live DOM: casting Deposit Box took the seq 1 → 2
+and floated the number.
+
 ## 2026-07-21n (quest panel → quest nodes)
 
 ### feat(ui): every taken quest is a node — dim while pending, lit once it activates

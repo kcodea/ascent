@@ -2375,6 +2375,25 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 4); // 11
   });
 
+  it('casting a spell bumps spellPowerFxSeq once and captures the power', () => {
+    // The FX signal is derived from the before/after `spellsCast` delta, NOT a per-action scratch field —
+    // that's what makes it survive React batching (the weld-FX bug). Pin both halves: the seq advances once
+    // per casting action, and the captured value is the spell power that cast produced.
+    let s: RunState = {
+      ...createRun(1), embers: 20, shop: [],
+      board: [], hand: [{ uid: 'sp', cardId: 'depositbox', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    const before = s.spellPowerFxSeq ?? 0;
+    s = reduce(s, { type: 'play', uid: 'sp' }); // untargeted spell → casts immediately
+    expect(s.hand.some((c) => c.uid === 'sp')).toBe(false); // it really resolved
+    expect(s.spellPowerFxSeq ?? 0).toBe(before + 1);
+    expect(typeof s.spellPowerFxValue).toBe('number');
+    // A non-casting action must NOT bump it — otherwise the flourish would fire on every click.
+    const afterCast = s.spellPowerFxSeq;
+    s = reduce(s, { type: 'roll' });
+    expect(s.spellPowerFxSeq).toBe(afterCast);
+  });
+
   it('an "All" type (Lab Experiment) counts as every tribe, incl. a Beast played', () => {
     // Owner report: Lab Experiment read as NEUTRAL and looked like it took no tribal buffs. `isTribe` already
     // honoured `universalTribe`, but several paths compared `tribe`/`tribe2` directly and skipped it — one of

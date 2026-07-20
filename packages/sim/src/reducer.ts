@@ -311,6 +311,13 @@ export function reduce(state: RunState, action: Action): RunState {
     // Spell Thesis: "Cast N spells" advances by the run-wide spellsCast delta this action.
     const spellCastDelta = (next.spellsCast ?? 0) - (state.spellsCast ?? 0);
     if (spellCastDelta > 0) advanceQuestsBy(next, (o) => o.event === 'castSpell', spellCastDelta);
+    // Spell Power FX: one bump per action in which a spell resolved. Derived from the same before/after delta
+    // as the quest tick — NOT a per-action scratch field — so React batching can never swallow it (the weld-FX
+    // bug). The value is captured now so the floating number shows what THIS cast produced.
+    if (spellCastDelta > 0) {
+      next.spellPowerFxSeq = (next.spellPowerFxSeq ?? 0) + 1;
+      next.spellPowerFxValue = spellAttackBonus(next);
+    }
     // Forsaken Will: each spell cast permanently buffs your Undead's Attack — exactly like the Forsaken Weaver
     // (bakes +N into every current Undead + `undeadBuyAtk` so future buys inherit it), so the quest reward feels
     // identical to the minion instead of a separate Lantern-style aura.

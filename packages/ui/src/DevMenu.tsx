@@ -5,6 +5,7 @@ import { CritFxTuner } from './CritFxTuner';
 import { FlurrySwingTuner } from './FlurrySwingTuner';
 import { SwapFxTuner } from './SwapFxTuner';
 import { GustFxTuner } from './GustFxTuner';
+import { SpellPowerFxTuner } from './SpellPowerFxTuner';
 import { AuraFxTuner } from './AuraFxTuner';
 import { WeldFxTuner } from './WeldFxTuner';
 import { BuffFxTuner } from './BuffFxTuner';
@@ -52,6 +53,7 @@ const TUNERS = [
   { key: 'flurryswing', label: '🌬️ Flurry Swing FX', C: FlurrySwingTuner },
   { key: 'swapfx', label: '🔀 Swap FX (Displacement)', C: SwapFxTuner },
   { key: 'gustfx', label: '💨 Buff Gust FX', C: GustFxTuner },
+  { key: 'spellpowerfx', label: '✨ Spell Power FX', C: SpellPowerFxTuner },
   { key: 'aurafx', label: '🌀 Aura Wave FX', C: AuraFxTuner },
   { key: 'weldfx', label: '🔩 Weld FX', C: WeldFxTuner },
   { key: 'bufffx', label: '✨ Buff FX (stat gain)', C: BuffFxTuner },

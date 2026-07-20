@@ -8,6 +8,7 @@
  * Dev-only (only reachable from the DEV tuners) — never imported by production paths.
  */
 import { useGame } from './store';
+import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
 import { pixiFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
@@ -64,6 +65,22 @@ export function testGustFx(): void {
     bottom: Math.max(...rects.map((r) => r.bottom)),
   }, getGustFxConfig());
   applyGustLift(els);
+}
+
+/** ✨ Spell Power: the rising arrow fan + blast + floating number, fired over the shop row's centre so the
+ *  look can be judged without staging an actual spell cast. Uses a sample power of 3. */
+export function testSpellPowerFx(): void {
+  const els = shopEls();
+  if (els.length === 0) return;
+  const rects = els.map((el) => el.getBoundingClientRect());
+  const left = Math.min(...rects.map((r) => r.left));
+  const right = Math.max(...rects.map((r) => r.right));
+  const top = Math.min(...rects.map((r) => r.top));
+  const bottom = Math.max(...rects.map((r) => r.bottom));
+  const x = (left + right) / 2;
+  const y = (top + bottom) / 2;
+  pixiFx.spellPower(x, y, getSpellPowerFxConfig());
+  floatSpellPowerNumber(x, y - (bottom - top) * 0.15, 3);
 }
 
 export type AuraTestTribe = 'beast' | 'demon' | 'mech' | 'undead';

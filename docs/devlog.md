@@ -309,6 +309,14 @@ boots clean in the browser with no error boundary and both new counters reportin
 
 ## 2026-07-19 (set 2 empty)
 
+### tweak(ui): legacy hover glow (drawer + art) — teal → white
+
+The white hover-glow pass (#570) covered the frame rim (`.cglow`), but the LEGACY `--hglow-*` box-shadow glow —
+which lights the detached text drawer and the `.art` silhouette (hand/arch cards) on hover — still had teal
+hardcoded per layer (`#5CDFF0` ring + `rgba(95,221,231,.6)` bloom, in two rules). Both swapped to white so every
+hover surface matches the white edge-light (owner report: "the hover glow on the description panels is still
+teal"). Verified: typecheck + lint + build green.
+
 ### tweak(ui): frame overlay re-tuned — brighter steel oval (#636363 @ 0.95)
 
 Owner's second overlay pass: the minion oval's tint goes dark-slate `#272a35 @ 0.75` → mid-grey **`#636363 @

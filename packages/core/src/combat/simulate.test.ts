@@ -11,6 +11,27 @@ const run = (p: BoardMinion[], e: BoardMinion[], seed: number, enemyTier = 1, pl
   simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: playerTier, tribes: playerTribes }), combatSide({ tier: enemyTier }));
 
 describe('simulate (handoff A.3)', () => {
+
+  it("Anubis's Echo TELEGRAPHS its Rise grant and its Lantern cast", () => {
+    // Owner report 2026-07-21: "none of my minions got Rise, and I couldn't tell if Lantern was cast."
+    // Both effects were firing correctly in sim state — they were just invisible. The Rise grant logged
+    // narration but no `keyword` event, which is what puts the PILL on the unit (every other Rise grant
+    // emits one), and the Lantern cast emitted buffs with no narration at all.
+    const p: BoardMinion[] = [
+      { cardId: 'anubis', attack: 8, health: 5 },
+      { cardId: 'sandbag', attack: 0, health: 50 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 40, health: 60 }];
+    const r = simulate(p, e, makeRng(3), CARD_INDEX,
+      combatSide({ tier: 7, tribes: ALL_TRIBES }), combatSide({ tier: 7 }));
+    // The Rise PILL — a `keyword` event, not just log text.
+    const riseGrants = r.events.filter((ev) => ev.type === 'keyword' && ev.keyword === 'R');
+    expect(riseGrants.length).toBeGreaterThan(0);
+    // The Lantern cast names itself, so the player can see WHICH spell fired.
+    const lantern = r.events.some((ev) => ev.type === 'sc' && /casts Lantern of Souls/.test(ev.text));
+    expect(lantern).toBe(true);
+  });
+
   it('is deterministic for the same seed', () => {
     const p: BoardMinion[] = [
       { cardId: 'pack', attack: 2, health: 2 },

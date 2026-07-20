@@ -77,13 +77,13 @@ export function RefreshButton({
       {/* The click SHINE — a one-shot radial flare blooming out of the crystal. Mounts, animates, unmounts,
           so nothing animates at rest. Replaced the press spin + shockwave rings (owner 2026-07-21). */}
       {shining && <span className="rfb-shine" aria-hidden="true" />}
-      {/* Cost coin — hidden when the roll is free, so a free reroll reads as free at a glance. */}
-      {cost > 0 && (
-        <span className="rfb-cost" aria-hidden="true">
-          <Icon name="mana" />
-          <b>{cost}</b>
-        </span>
-      )}
+      {/* Cost coin — ALWAYS shown. A free roll keeps the coin and turns it GREEN with a 0, rather than
+          removing it (owner 2026-07-21): a vanishing badge made the button's shape shift and left the player
+          reading absence, where a green 0 states the free roll outright. */}
+      <span className={`rfb-cost${cost > 0 ? '' : ' free'}`} aria-hidden="true">
+        <Icon name="mana" />
+        <b>{cost}</b>
+      </span>
       <span className="rfb-tip">{cost > 0 ? `Refresh — ${cost} Gold` : 'Refresh — free'}</span>
     </button>
   );

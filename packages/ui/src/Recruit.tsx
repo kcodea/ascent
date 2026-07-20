@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { CONFIG, RIFTS, maxTierFor, conjuredStats, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
+import { CONFIG, RIFTS, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
@@ -1521,10 +1521,25 @@ export function Recruit() {
   // Stable per-card view objects, keyed by uid. Recompute only when the underlying run data
   // changes — during a drag nothing dispatches, so `run.*` refs are stable and these stay
   // cached, which is what lets the memoized Card skip re-render on every pointermove.
+  // Heckbinder's Fodder aura is LIVE (it applies while the card is on board), so it sits OUTSIDE the
+  // permanent `run.cardBuffs` enchant map. The sim folds the two together in `cardBuff()`, but the UI was
+  // passing the RAW map straight through — so a Fodder card whose only buff came from Heckbinder displayed
+  // its base stats with no highlight (owner report). Rebuild the map through `cardBuff()` itself rather than
+  // re-deriving the aura here, so the display can't drift from what the card is actually created with.
+  const cardBuffsLive = useMemo(() => {
+    const out: Record<string, { attack: number; health: number }> = { ...(run.cardBuffs ?? {}) };
+    for (const def of Object.values(CARD_INDEX)) {
+      if (!def?.keywords.includes('FD')) continue;
+      const b = cardBuff(run, def.id);
+      if (b.attack !== 0 || b.health !== 0) out[def.id] = b;
+    }
+    return out;
+  }, [run]);
+
   const shopViews = useMemo(
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
-    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, castMult: CARD_INDEX[o.cardId]?.spell ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const)),
+    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, castMult: CARD_INDEX[o.cardId]?.spell ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const)),
     [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellMult, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff],
   );
   const spellView = useMemo(

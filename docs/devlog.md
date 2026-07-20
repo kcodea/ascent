@@ -3,6 +3,27 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21d (Fodder aura display)
+
+### fix(ui): Fodder buffs from Heckbinder never showed in the tavern
+
+Owner report, with the right diagnosis attached: the Fodder highlight was missing *when the only buff source
+was Heckbinder*.
+
+**Two different channels feed a Fodder card's stats.** `run.cardBuffs` is the PERMANENT run-wide enchant
+(Ritualist, Bane); Heckbinder's `fodderAura` is a LIVE aura that applies only while it is on the board. The
+sim folds the two together in `cardBuff()` — but the UI passed the **raw `run.cardBuffs` map** straight into
+`shopView`, so anything coming from the live aura was invisible. A permanent enchant displayed fine, which
+is exactly why the bug only showed up on a Heckbinder-only board.
+
+The fix rebuilds the display map **through `cardBuff()` itself** rather than re-deriving the aura in the UI,
+so the tavern can't drift from the stats the card is actually created with.
+
+Verified live on a board with no permanent enchants at all: Fred reads **1/1** with no Heckbinder and
+**4/4** with one (+3/+3 aura) — the value it will really be bought at.
+
+1267 tests, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
 ## 2026-07-21c (Discover chrome)
 
 ### tweak(ui): dark-glass Discover banner + Minimize, and the toggle raised

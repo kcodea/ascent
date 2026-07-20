@@ -3,6 +3,29 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-20 (art)
+
+### art: new card art for Sylus, Brightwing Broker, Combinator, Aeon Guard
+
+Four new masters landed in `C:\Game Assets\Ascent Art\Minions\` (timestamped this evening, replacing
+in-repo copies from 2026-07-13). Wired through the standard pipeline — drop `<card-id>.png` into
+`packages/ui/src/art/minions/`, run `npm run optimize-art` (512px cap, WebP q85, source PNG deleted;
+the high-res master stays out-of-repo).
+
+```
+aeonguard   2220KB ->  56KB
+broker      2258KB ->  65KB
+combinator  2326KB ->  63KB
+sylus       2049KB ->  43KB
+```
+
+Every filename matched its card exactly (`Sylus.png` -> `sylus`, `BrightwingBroker.png` -> `broker`,
+`Combinator.png` -> `combinator`, `AeonGuard.png` -> `aeonguard`), so nothing was inferred from an
+un-attributed file.
+
+Verified in the browser after a dev-server **restart** (a reload does not re-evaluate the eager
+`import.meta.glob`): all four serve as `image/webp` at 512x512 with the new byte sizes, and render
+correctly side by side.
 ## 2026-07-20 (balance batch)
 
 ### tweak(content): Ryme / Brightwing Broker / Combinator / Grim / Guardian Drake + retire Vineweaver Drake

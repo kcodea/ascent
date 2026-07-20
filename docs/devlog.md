@@ -3,6 +3,18 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (probe removed — owner confirmed)
+
+### chore(ui): strip the strike probe — the transform-transition fix is confirmed ("it worked amazingly")
+
+The owner replayed on the fixed build and confirmed strikes now travel the full path and land on the
+defender's centre at contact. The temporary instrumentation (strikeProbe.ts: IMP/DEF/DFX crosshair markers +
+the `ascent.strikeProbe` localStorage log, added in #ba8e6752 to break the failed-fix loop) is deleted with
+all call sites, per its own DELETE-when-closed note. The layout-frame correction in `onDamageFx` and the
+`setTransition` suspend/restore stay — those are the fixes; the probe was only the evidence-gatherer.
+
+Verified: typecheck + lint + 1241 tests + `build:web`, all green; `grep` confirms zero probe references.
+
 ## 2026-07-21 (THE root cause: the CSS transform-transition fought GSAP)
 
 ### fix(ui): suspend the `.unit` transform-transition while GSAP owns the element — strikes never visually reached the target

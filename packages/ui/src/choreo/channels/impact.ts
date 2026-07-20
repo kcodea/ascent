@@ -1,7 +1,6 @@
 import gsap from 'gsap';
 import { sfx } from '../../sfx';
 import { pixiFx } from '../../pixiFx';
-import { probeLog, probeMark, pt } from '../../strikeProbe';
 import { setTransition } from './lunge';
 
 /** Map an attack's swing damage → the impact's `power` scale (1 = baseline). Ramps gently: a 1-3 dmg chip
@@ -27,12 +26,6 @@ export function playContactImpact(defender: Element | null, dx: number, dy: numb
   if (!defender) return;
   const r = defender.getBoundingClientRect();
   const fx = contact ?? { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-  // DEV probe (strikeProbe.ts — temporary, off-target-ring hunt): mark where OUR impact package fires (IMP)
-  // and where the defender's live rect is at that instant (DEF). If a stray ring appears with neither marker
-  // on it, the ring is a DIFFERENT effect entirely; if IMP sits off DEF, our coords are wrong.
-  probeMark(fx.x, fx.y, '#ff00ff', crit ? 'IMP·crit' : flurrySlash ? 'IMP·flurry' : 'IMP');
-  probeMark(r.left + r.width / 2, r.top + r.height / 2, '#00e5ff', 'DEF');
-  probeLog({ ev: 'impact', fx: pt(fx.x, fx.y), defC: pt(r.left + r.width / 2, r.top + r.height / 2), defW: Math.round(r.width), connected: defender.isConnected, crit, flurrySlash, power: Math.round(power * 100) / 100 });
   if (flurrySlash) {
     // Flurry REPLACES the standard strike VFX with the wind-slash gust so a Flurry attacker's hits read as
     // wind — and it WINS even on a CRIT (a Flurry crit shows the wind-slash, not the crimson flourish; owner

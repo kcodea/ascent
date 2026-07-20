@@ -6,7 +6,6 @@ import { pixiFx } from './pixiFx';
 import { sfx } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
 import { attackerOfImpact } from './combatBeats';
-import { probeLog, probeMark, pt } from './strikeProbe';
 import { holdMs } from './choreo/clock';
 import { compileMoments, type Moment } from './choreo/compile';
 import { deferClashBuffs } from './choreo/clashOrder';
@@ -887,8 +886,6 @@ export function useCombatReplay(
           // the in-flight GSAP offset so the burst lands at the unit's SLOT, where the death actually reads.
           const cx = r.left + r.width / 2 - (Number(gsap.getProperty(el, 'x')) || 0);
           const cy = r.top + r.height / 2 - (Number(gsap.getProperty(el, 'y')) || 0);
-          probeMark(cx, cy, '#ffa500', 'DFX');
-          probeLog({ ev: 'damageFx', uid, at: pt(cx, cy), raw: pt(r.left + r.width / 2, r.top + r.height / 2) });
           pixiFx.damageBurst(cx, cy);
           pixiFx.impactPulse(cx, cy);
         }

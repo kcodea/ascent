@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { CombatResult } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNES, RUNE_INDEX, validateRunes } from '@game/content';
 import { createRun, type RunState } from './state';
+import { HEROES } from './heroes';
 import { openEpicRuneforge, questCombatMods, reduce } from './reducer';
 import { buffFodderRunWide, buffImpsRunWide, dragonTamerCostOf, sellValueOf, spellDisplayText } from './recruit';
 import { questBucketFor } from './quests';
@@ -254,7 +255,7 @@ describe('New heroes — Coran (Pathfinder) + Jenkins (Dynamite Dig)', () => {
   });
 });
 
-describe('New heroes — Re-Pete, Gorr, Atrius', () => {
+describe('New heroes — Re-Pete, Gorr', () => {
   it("Re-Pete: Second Hand conjures a PLAIN copy of the left-most hand card at the END of turns 3, 6, 9, …", () => {
     // A buffed GOLDEN card leads the hand — the copy must come back plain (base stats, not golden).
     const buffed: RunState['hand'][number] = { uid: 'h1', cardId: 'alley', tribe: 'beast', attack: 9, health: 9, keywords: ['T' as never], golden: true };
@@ -307,9 +308,10 @@ describe('New heroes — Re-Pete, Gorr, Atrius', () => {
     expect(s.gorrBuys).toBeUndefined();
   });
 
-  it("Atrius: `questCombatMods` arms the possession Start-of-Combat mod (and only for Atrius)", () => {
-    expect(questCombatMods(createRun(1, 'atrius')).possession).toBe(true);
-    expect(questCombatMods(createRun(1, 'soren')).possession).toBeUndefined();
+  // Atrius was retired 2026-07-20. Its `possession` mod is no longer armed by any hero; the Start-of-Combat
+  // machinery stays as an unused primitive so old saves/replays still resolve. Assert nothing arms it.
+  it('possession is armed by NO live hero (Atrius retired)', () => {
+    for (const h of HEROES) expect(questCombatMods(createRun(1, h.id)).possession, h.id).toBeUndefined();
   });
 });
 

@@ -53,7 +53,9 @@ export function instantiate(
     eotBonus: board.eotBonus, // Ritualist: seed the End-of-Turn grant accrual so the live combat text shows its per-tick value
     sellBonus: board.sellBonus, // Trail Forager: seed the accrued sell value for the live combat text (no combat effect)
     eotTick: board.eotTick, // Frontdrake / Money Maker / Vineweaver: seed the cadence counter for the live combat text
-    attackImmuneLeft: card.attackImmuneTurns, // Bounty Bot: fresh each combat — immune for its first N swings, spent per attack
+    // Bounty Bot: fresh each combat — immune for its first N swings, spent per attack. Mauron
+    // (attackImmuneAlways) seeds 1 and never spends it (see the swing site in simulate).
+    attackImmuneLeft: card.attackImmuneAlways ? 1 : card.attackImmuneTurns,
 
     overflowBonus: board.overflowBonus, // Flowing Monk: flat grant bonus from the triple combine
     hpGrantBonus: board.hpGrantBonus, // Sergeant: seed the Deathrattle HP-grant accrual from the run board

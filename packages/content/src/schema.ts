@@ -237,6 +237,13 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleBuffAllByImpAura',
   'buffFodderImpsImproving',
   'onAttackStripKeywords',
+  // Tier 7 (Summit)
+  'onAllyTribeAttackBuffSelf',
+  'deathrattleGrantRebornAll',
+  'deathrattleCastTribeAttack',
+  'onSellDiscover',
+  'deathrattleGainRandomMinion',
+  'deathrattleBuffImpsImproving',
 ]);
 
 export const EffectDefSchema = z.object({
@@ -270,6 +277,7 @@ export const CardDefSchema = z.object({
   text: z.string(),
   goldenText: z.string().optional(),
   universalTribe: z.boolean().optional(),
+  attackImmuneAlways: z.boolean().optional(),
   imp: z.boolean().optional(),
   token: z.boolean().optional(),
   ascendAt: z.number().int().positive().optional(),

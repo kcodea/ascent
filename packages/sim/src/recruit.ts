@@ -584,15 +584,25 @@ function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
  * `clings` = how many Cling Drones this weld represents (0 if the magnetic isn't a Cling). Each Cling
  * magnetized — onto the host AND each copy Beatboxer mimics onto itself — stacks the Cling improvement.
  */
+/** Attachment Conductor (Tier 7): "your attachments attach twice" (gilded: three times). Like Drakko, the
+ *  BEST single copy counts rather than stacking, so two Conductors don't silently 4x. Returns the number of
+ *  times each weld lands — 1 with no Conductor. */
+function conductorWelds(state: RunState): number {
+  let best = 1;
+  for (const c of state.board) if (c.cardId === 'attachmentconductor') best = Math.max(best, c.golden ? 3 : 2);
+  return best;
+}
+
 export function weldMagnetic(state: RunState, host: BoardCard, mag: MagnetPayload, clings = 0, kind: 'play' | 'auto' = 'auto'): void {
-  applyWeld(host, mag, 1);
-  host.attachments = (host.attachments ?? 0) + 1; // one Attachment welded on — drives Blueprint Cache
+  const reps = conductorWelds(state); // Attachment Conductor multiplies EVERY weld, the host's and the mirrors'
+  applyWeld(host, mag, reps);
+  host.attachments = (host.attachments ?? 0) + reps; // Attachments welded on — drives Blueprint Cache
   bakeAttachmentAura(state, host);
   const welded = [host.uid]; // every minion this weld lands on — ALL of them animate (a Beatbot mirrors it)
-  let totalClings = clings; // Clings welded onto the host
+  let totalClings = clings * reps; // Clings welded onto the host
   for (const bb of state.board) {
     if (bb.cardId === 'beatboxer' && bb.uid !== host.uid) {
-      const mult = bb.golden ? 2 : 1;
+      const mult = (bb.golden ? 2 : 1) * reps;
       applyWeld(bb, mag, mult);
       bb.attachments = (bb.attachments ?? 0) + mult; // Beatboxer mirrors the weld onto itself
       bakeAttachmentAura(state, bb);
@@ -1177,6 +1187,26 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Hoard Whelp — Sell: gain `amount` Gold (golden doubles). Fired by the reducer's sell case via `fireOnSell`. */
   onSellGainGold: (ctx, self, params) => {
     ctx.state.embers += num(params.amount, 6) * gold(self);
+  },
+
+  /** Salvatore McKlusky (Tier 7) — selling this opens `count` back-to-back minion Discovers at `tier`
+   *  (golden: the offered cards are GILDED). Only one Discover overlay can be open at a time, so the extras
+   *  queue through the standard `pendingDiscovers` channel the same way multi-Discover heroes do. */
+  onSellDiscover: (ctx, self, params) => {
+    const tier = num(params.tier, 6);
+    const count = num(params.count, 2);
+    const spec = { kind: 'minion' as const, tier, exactTier: tier, golden: !!self.golden };
+    for (let i = 0; i < count; i++) queueDiscover(ctx.state, spec);
+  },
+
+  /** Lab Experiment (Tier 7) — the RECRUIT half of its Echo: conjure `count` random MINIONS of `tier` to
+   *  hand (minions only — unlike `endOfTurnGrantRandomTierCard`, which also draws spells). Golden doubles. */
+  deathrattleGainRandomMinion: (ctx, self, params) => {
+    const tier = num(params.tier, 5);
+    const pool = poolOf(ctx.state).buyable.filter(
+      (c) => c.tier === tier && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
+    );
+    conjureToHand(ctx.state, pool, num(params.count, 1) * gold(self));
   },
 
   /** Scrap Vendor — End of Turn: bank `amount` Gold into your next shop (golden doubles). Uses the standard
@@ -2392,6 +2422,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     state.rngCursor = rng.state();
     state.discover = picks;
     state.discoverLockTier = undefined;
+    state.discoverGolden = undefined;
   } else {
     offerDiscover(state, spec.tier, {
       tier: spec.exactTier,
@@ -2403,8 +2434,8 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     });
     // Disco Dan's Setlist: carry the lock tier onto the open offer so the resolved pick becomes a
     // locked hand card (only set if the offer actually opened).
-    if (state.discover) state.discoverLockTier = spec.lockTier;
-    else state.discoverLockTier = undefined;
+    if (state.discover) { state.discoverLockTier = spec.lockTier; state.discoverGolden = spec.golden; }
+    else { state.discoverLockTier = undefined; state.discoverGolden = undefined; }
   }
 }
 

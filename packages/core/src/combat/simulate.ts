@@ -1263,7 +1263,8 @@ export function simulate(
       // Bounty Bot: "immune while attacking" for its first N swings this combat — take no retaliation, and
       // spend one charge of immunity per swing (so it protects the first N attacks, not the first N combats).
       if ((attacker.attackImmuneLeft ?? 0) > 0) {
-        attacker.attackImmuneLeft = attacker.attackImmuneLeft! - 1;
+        // Mauron's immunity never depletes — it is "while attacking", not a charge count.
+        if (!cards[attacker.cardId]?.attackImmuneAlways) attacker.attackImmuneLeft = attacker.attackImmuneLeft! - 1;
       } else {
         victims.push({ m: attacker, killer: target, couldReborn: attacker.rebornAvailable });
         applyDamage(attacker, counterAttack, counterVenom, false, target); // retaliation

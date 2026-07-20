@@ -22,7 +22,9 @@ export type Keyword =
   | 'CR' // Critical Strike — a chance (see CardDef.critChance) to deal double damage on attack
   | 'EG'; // Engraved — stat gains during combat carry back to the run board (permanent)
 
-export type Tier = 1 | 2 | 3 | 4 | 5 | 6;
+/** Shop tiers. 7 exists ONLY under the Summit rift — see `maxTierFor` in @game/sim, which is the
+ *  single gate on whether a run can ever reach it. */
+export type Tier = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export type Side = 'player' | 'enemy';
 
@@ -269,7 +271,14 @@ export type EffectFactoryId =
   | 'buffFodderImpsImproving' // Ritualist: End of Turn — buff Imps + Fodder, escalating each trigger (recruit)
   | 'spellAddTribe' // Anomaly Reactor: cast — give the target minion an extra tribe (a Mech type) for the run (recruit)
   | 'spellAddAllTribes' // Anomaly Reactor: cast — give the target minion ALL types for the run (recruit)
-  | 'onAttackStripKeywords'; // Tauntbreaker: on-attack — strip listed keywords (Taunt / Rise) off the enemy it hits (combat)
+  | 'onAttackStripKeywords'
+  // --- Tier 7 (Summit) minions, 2026-07-20 ---
+  | 'onAllyTribeAttackBuffSelf' // Thundeer: an ally of a tribe attacks -> buff self, improving
+  | 'deathrattleGrantRebornAll' // Anubis: Echo grants Rise to your whole board
+  | 'deathrattleCastTribeAttack' // Anubis: Echo casts Lantern of Souls
+  | 'onSellDiscover' // Salvatore McKlusky: selling this opens Discovers
+  | 'deathrattleGainRandomMinion' // Lab Experiment: Echo conjures a random minion of a tier
+  | 'deathrattleBuffImpsImproving' // Amun Rab: Echo buffs Imps, improving each proc; // Tauntbreaker: on-attack — strip listed keywords (Taunt / Rise) off the enemy it hits (combat)
 
 export interface EffectDef {
   on: GameEvent;
@@ -312,6 +321,11 @@ export interface CardDef {
   /** Bounty Bot: "immune while attacking" for this many combats after it enters play — the attacker takes no
    *  retaliation on its own swings. Tracked per-instance via `BoardMinion.attackImmuneLeft`. */
   attackImmuneTurns?: number;
+  /** Mauron: "Immune while attacking" with NO charge limit — it never takes retaliation on its own swings.
+   *  `attackImmuneTurns` is a DEPLETING counter (Bounty Bot spends one per swing), so an always-on version
+   *  needs its own flag rather than a large sentinel number. Seeds `attackImmuneLeft` to 1 and the swing
+   *  site skips the decrement, which keeps the per-instance value JSON-safe (no Infinity in a save). */
+  attackImmuneAlways?: boolean;
   ascendInto?: string;
   /** Combat: this minion attacks immediately when summoned mid-fight, out of turn order — then joins the
    *  normal rotation (Twilight Whelp's 3/3 Whelp). Drained by the immediate-attack queue in `simulate`. */

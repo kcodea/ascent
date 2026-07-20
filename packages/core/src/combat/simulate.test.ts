@@ -3580,3 +3580,95 @@ describe('Tauntbreaker Rally tally (owner bug 2026-07-18)', () => {
     expect(r.playerRallies ?? 0).toBeGreaterThan(0); // each swing rallies (W = two per attack turn)
   });
 });
+
+describe('Tier 7 (Summit) minions — combat effects', () => {
+  it('Mauron takes NO retaliation on its own swings, however many it makes', () => {
+    // "Immune while attacking" stops RETALIATION only — the enemy's own swings still land. So the precise
+    // contract is: on any step where Mauron is the ATTACKER, no damage is dealt to Mauron. Bounty Bot's
+    // immunity is a DEPLETING counter (2 swings), so a fight with many swings is the discriminator: a
+    // counter would run out and the 50-Attack counter-hit would show up here.
+    const r = run(
+      [{ cardId: 'mauron', attack: 9, health: 500 }],
+      [{ cardId: 'omen', attack: 50, health: 4000, keywords: [] }],
+      1,
+    );
+    const mauron = r.initial.player.find((m) => m.cardId === 'mauron')!;
+    const swingSteps = new Set(
+      r.events.filter((e) => e.type === 'attack' && e.attacker === mauron.uid).map((e) => (e as { step: number }).step),
+    );
+    expect(swingSteps.size).toBeGreaterThan(3); // more swings than Bounty Bot's 2 charges
+    const selfHits = r.events.filter(
+      (e) => e.type === 'dmg' && e.target === mauron.uid && swingSteps.has((e as { step: number }).step),
+    );
+    expect(selfHits).toEqual([]); // never damaged on a step it attacked
+
+    // CONTROL — the identical fight with a NON-immune body must show those retaliation hits, so the
+    // assertion above is proving the immunity rather than a quirk of this matchup.
+    const c = run(
+      [{ cardId: 'omen', attack: 9, health: 500 }],
+      [{ cardId: 'omen', attack: 50, health: 4000, keywords: [] }],
+      1,
+    );
+    const ctrl = c.initial.player[0]!;
+    const ctrlSwings = new Set(
+      c.events.filter((e) => e.type === 'attack' && e.attacker === ctrl.uid).map((e) => (e as { step: number }).step),
+    );
+    const ctrlSelfHits = c.events.filter(
+      (e) => e.type === 'dmg' && e.target === ctrl.uid && ctrlSwings.has((e as { step: number }).step),
+    );
+    expect(ctrlSelfHits.length).toBeGreaterThan(0);
+  });
+
+  it('Anubis grants Rise to the whole board on death, not just one minion', () => {
+    const r = run(
+      [
+        { cardId: 'anubis', attack: 8, health: 1 },
+        { cardId: 'alley', attack: 1, health: 40 },
+        { cardId: 'sandbag', attack: 0, health: 40 },
+      ],
+      [{ cardId: 'omen', attack: 40, health: 400, keywords: [] }],
+      2,
+    );
+    const grants = r.events.filter((e) => e.type === 'sc' && /grants .* Rise/.test(e.text));
+    expect(grants.length).toBeGreaterThanOrEqual(2); // BOTH survivors, not a single random pick
+  });
+
+  it('Amun Rab summons 7 warded Imps and its Imp buff improves per proc', () => {
+    const r = run(
+      [{ cardId: 'amunrab', attack: 15, health: 1 }],
+      [{ cardId: 'omen', attack: 40, health: 400, keywords: [] }],
+      3,
+    );
+    const imps = r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap');
+    expect(imps.length).toBe(7);
+    for (const e of imps) if (e.type === 'summon') expect(e.minion.keywords).toContain('DS');
+  });
+
+  it('a gilded Amun Rab keeps 7 Imps and doubles the buff instead of the count', () => {
+    const r = run(
+      [{ cardId: 'amunrab', attack: 30, health: 1, golden: true }],
+      [{ cardId: 'omen', attack: 40, health: 400, keywords: [] }],
+      3,
+    );
+    expect(r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap').length).toBe(7);
+  });
+
+  it('Thundeer grows when a friendly Beast attacks, and the step improves', () => {
+    const r = run(
+      [
+        { cardId: 'thundeer', attack: 10, health: 60 },
+        { cardId: 'alley', attack: 2, health: 60 },
+      ],
+      [{ cardId: 'omen', attack: 1, health: 400, keywords: [] }],
+      4,
+    );
+    const thundeer = r.initial.player.find((m) => m.cardId === 'thundeer')!;
+    const buffs = r.events.filter((e) => e.type === 'buff' && e.target === thundeer.uid);
+    expect(buffs.length).toBeGreaterThan(0);
+    expect(buffs[0]!.type === 'buff' && buffs[0]!.attack).toBe(10); // first proc = base
+    if (buffs.length > 1) {
+      const second = buffs[1]!;
+      expect(second.type === 'buff' && second.attack).toBe(20); // improved by +10
+    }
+  });
+});

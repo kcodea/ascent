@@ -3,6 +3,59 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-20 (Tier 7 minions)
+
+### feat(content): the seven Tier 7 (Summit) minions
+
+Thundeer, Amun Rab, Attachment Conductor, Mauron, Anubis, Salvatore McKlusky and Lab Experiment — the
+capstone minions for the Summit rift, in a new `cards/set1/tier7.ts`.
+
+**Gating is the tier and nothing else.** `availableOffers` already filters `card.tier <= state.tier`, and
+only Summit lifts the ceiling to 7, so no new "not in shop" flag was needed. Verified live: 40 rolls at
+tier 6 offered **zero** Tier 7 cards, while 40 rolls at tier 7 offered 6 of the 7 (Mauron is a Dragon and
+that run's tribes excluded it). They still arrive through anything naming a tier explicitly — a quest/rune
+Discover, a hero grant, a rift — which is the intended back door.
+
+`TIER7` is appended **last** in `sets.ts`: declaration order drives seeded pool picks, and every Tier 7
+card filters out of any `tier <= state.tier` pool below 7, so existing seeds replay identically (the full
+suite stayed green through the content addition, which is the proof).
+
+**Engine work this needed** — every one of the seven required a new primitive:
+
+- `onAllyTribeAttackBuffSelf` (Thundeer) — an ally of a tribe attacks -> buff self, improving per proc via
+  the standard `summonBonus` channel. `'EG'` (Engraved) is what makes the gain permanent; the factory only
+  supplies the growth.
+- `deathrattleBuffImpsImproving` (Amun Rab) — `deathrattleBuffImps` with an improve step.
+- `deathrattleGrantRebornAll` + `deathrattleCastTribeAttack` (Anubis) — the existing Reborn grant hits ONE
+  candidate per rep, and the Lantern cast only existed as Watcher's Rally.
+- `onSellDiscover` (Salvatore) — `onSell` existed only as `onSellGainGold`.
+- `deathrattleGainRandomMinion` (Lab Experiment) — minions only, unlike `endOfTurnGrantRandomTierCard`,
+  which also draws spells.
+- **`attackImmuneAlways`** (Mauron) — a new `CardDef` field. `attackImmuneTurns` is a **depleting counter**
+  (Bounty Bot spends one per swing), so "Immune while attacking" could not be expressed by it. The flag
+  seeds `attackImmuneLeft` to 1 and the swing site skips the decrement, which keeps the per-instance value
+  **JSON-safe** — an `Infinity` sentinel would not survive a save round-trip.
+- **Gilded Discover** — `DiscoverSpec` gains `golden`, carried by a new `RunState.discoverGolden` that
+  mirrors the `discoverLockTier` lifecycle exactly (set by `openDiscover`, consumed on take), so a queued
+  mix of gilded and normal Discovers cannot leak into each other. The pick is gilded through the existing
+  `gildMinion`, the same transform a triple applies.
+- **Attachment Conductor** multiplies welds inside `weldMagnetic`, covering the host, the Cling improve and
+  the Beatbot mirror. Best-copy-counts (Drakko's rule) so two Conductors do not silently 4x.
+
+`Tier` in `@game/core` was still `1..6` — a ceiling the earlier tier-7 survey missed, since the zod schema
+had been the only thing rejecting a 7.
+
+**On the Mauron test.** My first two attempts asserted "Mauron never dies", which is simply false — immunity
+stops retaliation, not the enemy's own swings, and a Taunt wall soaking those eventually died. The test now
+asserts the real contract (no damage on any step where Mauron is the attacker) and carries a **control**: the
+identical fight with a non-immune body, which must show those hits. Without the control the assertion could
+have passed vacuously.
+
+Verified: 1245 tests (13 new), typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+`dump-cards` (125 minions) and `pool` regenerated — confirmed **no Tier 7 card entered the opponent pool**.
+Live: Conductor doubled a weld (host 2/2 -> 4/4, `attachments=2`), Salvatore sold into a Tier 6 Discover with
+the second queued behind it, no error boundary.
+
 ## 2026-07-20 (tier 7 + Summit rift)
 
 ### feat(sim/ui): Tier 7 behind the Summit rift, +10 Armor, and a Rift button

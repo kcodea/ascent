@@ -1535,6 +1535,61 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Thundeer (Tier 7) — whenever a friendly minion of `tribe` ATTACKS, this gains +N/+N, where N starts at
+   *  `attack` and IMPROVES by `step` after every proc (the accrual rides `summonBonus`, the standard
+   *  per-instance improve channel, so a triple sums the two highest accruals). Thundeer carries `'EG'`
+   *  (Engraved), which is what makes the gain permanent across the run — this factory only does the growth.
+   *  Golden doubles both the grant and the improve step. */
+  onAllyTribeAttackBuffSelf: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion.side !== self.side) return;
+    const tribe = str(params.tribe);
+    if (tribe && tribe !== 'any') {
+      const def = ctx.getCard(minion.cardId);
+      if (minion.tribe !== tribe && minion.tribe2 !== tribe && !def?.universalTribe) return;
+    }
+    const base = num(params.attack, 10) * mul(self);
+    const step = num(params.step, base) * mul(self);
+    const mag = base + (self.summonBonus ?? 0);
+    ctx.buff(self, mag, mag, self.uid);
+    self.summonBonus = (self.summonBonus ?? 0) + step; // Improve this
+  },
+
+  /** Anubis (Tier 7) — Deathrattle: grant Rise to EVERY other living friendly minion that doesn't already
+   *  have it. `deathrattleGrantReborn` picks ONE candidate per rep; this is the board-wide version. */
+  deathrattleGrantRebornAll: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const tribe = str(params.tribe);
+    for (const m of ctx.living(self.side)) {
+      if (m === self || m.rebornAvailable || m.keywords.includes('R')) continue;
+      if (tribe) {
+        const def = ctx.getCard(m.cardId);
+        if (m.tribe !== tribe && m.tribe2 !== tribe && !def?.universalTribe) continue;
+      }
+      m.keywords = [...m.keywords, 'R'];
+      m.rebornAvailable = true;
+      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} grants ${m.name} Rise` });
+    }
+  },
+
+  /** Anubis (Tier 7) — Deathrattle: cast Lantern of Souls (your `tribe` get +Attack everywhere, permanently).
+   *  The Deathrattle mirror of Watcher's `rallyCastTribeAttack`: same spell-power folding, same permanent
+   *  grant channel, same "counts as a real spell cast". Golden casts it twice. */
+  deathrattleCastTribeAttack: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const tribe = (str(params.tribe) || 'undead') as Tribe;
+    const sp = ctx.spellPowerFor(self.side);
+    const a = num(params.amount, 3) + sp.attack;
+    const h = sp.health;
+    for (let i = 0; i < mul(self); i++) {
+      ctx.castSpell(self.side); // a real cast — Spirit Pup / Guel / Forsaken Weaver all see it
+      ctx.addTribeAura(self.side, tribe, a, h, self.uid);
+      for (const m of ctx.living(self.side)) {
+        if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+      }
+    }
+  },
+
   /** Buff every living friendly Imp (the 1/1 Imp token) +atk/+hp, AND raise the run-wide Imp buff so the
    *  gain is PERMANENT (future Imps inherit it). Shared by Imp King (Deathrattle) and Brood Matron (Avenge).
    *  Golden doubles the per-proc amount. */
@@ -1544,6 +1599,20 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const h = num(params.health, 3) * mul(self);
     for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
     ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
+  },
+
+  /** Amun Rab (Tier 7) — the improving Imp buff: like `deathrattleBuffImps`, but the magnitude IMPROVES by
+   *  `step` after each proc (rides `summonBonus`, the standard per-instance improve channel). Golden doubles
+   *  both the grant and the step. The buff is permanent — it raises the run-wide Imp buff, so Imps summoned
+   *  later inherit it. */
+  deathrattleBuffImpsImproving: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const base = num(params.attack, 10) * mul(self);
+    const step = num(params.step, base) * mul(self);
+    const mag = base + (self.summonBonus ?? 0);
+    for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, mag, mag, self.uid);
+    ctx.grantImpBuff(mag, mag, self.side); // permanent — carried back to RunState.impBuff
+    self.summonBonus = (self.summonBonus ?? 0) + step; // Improve this
   },
 
   /** Brood Matron — Avenge (X): every X friendly deaths, buff your Imps +atk/+hp (permanent, carried back).

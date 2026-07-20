@@ -1184,7 +1184,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // The hand is a hard 10-card cap: a Discover into a full hand adds nothing (the pick is forfeit rather
       // than over-capping). Only claim a pool copy when the card is actually taken.
       if (s.hand.length < CONFIG.handMax) {
-        s.hand.push({
+        const taken: BoardCard = {
           uid: `b${s.uidSeq++}`,
           cardId: def.id,
           tribe: def.tribe,
@@ -1194,10 +1194,15 @@ function reduceCore(state: RunState, action: Action): RunState {
           golden: false,
           // Disco Dan's Setlist: this pick is locked in hand until you reach its shop tier (T2/T4/T6).
           ...(s.discoverLockTier ? { lockedUntilTier: s.discoverLockTier } : {}),
-        });
+        };
+        // A GILDED Discover (a golden Salvatore McKlusky) hands the pick over already gilded — the same
+        // transform a triple applies, so the stats/keywords stay consistent with every other golden.
+        if (s.discoverGolden) gildMinion(taken);
+        s.hand.push(taken);
         takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
       }
       s.discoverLockTier = undefined; // consumed — the next queued Discover sets its own (or none)
+      s.discoverGolden = undefined;
       // Open the next queued Discover (golden / Drakko-doubled Brian, Yazzus-multiplied Help Wanted /
       // Sprout); only clear the offer once the queue is empty. A spec whose pool is empty opens nothing
       // (offerDiscover/offerSpellDiscover leave `discover` unset) — keep draining the rest so the queue

@@ -3,6 +3,24 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21x (Dupes quest art)
+
+### chore(ui): wire the refreshed art for the Dupes quest
+
+`Dupes.png` was repainted in the art folder (newest file there) but the wired copy was still the old image.
+Re-encoded to 512×512 webp (`sharp`, q82) like the rest of the set: 65KB → 54KB, and the bytes confirmed
+changed rather than a no-op re-encode.
+
+**Note on the earlier confusion, so it doesn't repeat:** "wire the dupes quest art" meant the quest literally
+NAMED *Dupes* (`q_dupes`). I read it as "the quests with duplicate art" and spent a pass hunting byte-identical
+images (there were none), then wired four unrelated name/id mismatches on 2026-07-21w. Those four were real
+drift and worth fixing, but they were not the ask.
+
+Also swept every source PNG that name-matches a quest for a modification time newer than its wired copy —
+zero others are stale, so the folder and the repo are in sync.
+
+Verified: typecheck + lint + 1277 tests + `build:web` green; `git status` shows only `q_dupes.webp` changed.
+
 ## 2026-07-21w (quest art rewire)
 
 ### chore(ui): rewire the four mismatched quest arts

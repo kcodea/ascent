@@ -36,6 +36,7 @@ const LABELS: Record<keyof RefreshConfig, string> = {
   costX: 'cost coin · x',
   costY: 'cost coin · y',
   costS: 'cost coin · size',
+  costColor: 'cost coin · colour',
   glowW: 'glow · width fit',
   glowH: 'glow · height fit',
   glowBlur: 'glow · blur',
@@ -54,6 +55,12 @@ const LABELS: Record<keyof RefreshConfig, string> = {
   dustCount: 'click · dust amount',
   dustSize: 'click · dust size',
   dustLife: 'click · dust life',
+  blastCount: 'blast · shards',
+  blastSpeed: 'blast · speed',
+  blastSpread: 'blast · spread (rng)',
+  blastLife: 'blast · life',
+  blastSize: 'blast · size',
+  blastColor: 'blast · colour',
   artDim: 'disabled · art dim',
 };
 

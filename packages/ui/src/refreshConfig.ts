@@ -8,7 +8,7 @@
  * the refresh art is a single button image, so there is no hole to seat anything into.
  *
  * Dial groups (🔄 tuner): POSITION/SCALE · COST badge seat · GLOW (hover halo, breath = opacity only) ·
- * SHEEN sweep · CLICK (dust + shine flare) · disabled ART DIM. The press SPIN and the shockwave rings were
+ * SHEEN sweep · CLICK (dust + shine flare + sprite blast) · disabled ART DIM. The press SPIN and the shockwave rings were
  * dropped 2026-07-21 (owner): clicking now emits dust and a shine, nothing else. Config is
  * localStorage-persisted in DEV only; production always renders DEFAULTS (Layout Lab convention). Values
  * reflect to `--rfb-*` CSS vars — the styles.css fallbacks MUST mirror DEFAULTS (update both when baking
@@ -27,6 +27,8 @@ export interface RefreshConfig {
   costY: number;
   /** Cost badge size (×). */
   costS: number;
+  /** Cost badge — text/coin colour. */
+  costColor: string;
   /** Label pill — nudge y (design px × --u); the glass "Refresh" pill sits ABOVE the button. */
   labelY: number;
   /** Label pill size (×). */
@@ -68,6 +70,19 @@ export interface RefreshConfig {
   dustSize: number;
   /** Click DUST — LIFETIME (×). */
   dustLife: number;
+  /** Click BLAST — sprite shard COUNT. 0 disables it. */
+  blastCount: number;
+  /** Click BLAST — outward SPEED (px/s before per-shard jitter). */
+  blastSpeed: number;
+  /** Click BLAST — angular SPREAD (radians of random jitter per shard). 0 = a clean even ring; higher
+   *  scatters it. This is what makes every press look different. */
+  blastSpread: number;
+  /** Click BLAST — shard LIFETIME (ms before jitter). */
+  blastLife: number;
+  /** Click BLAST — shard SIZE (× before jitter). */
+  blastSize: number;
+  /** Click BLAST — shard colour (hex). */
+  blastColor: string;
   /** Disabled (can't afford / frozen) — the button art's brightness while dimmed. */
   artDim: number;
 }
@@ -82,6 +97,7 @@ const DEFAULTS: RefreshConfig = {
   costX: 34,
   costY: 32,
   costS: 0.84,
+  costColor: '#f4ecdb',
   labelY: -46,
   labelS: 1,
   glowBlur: 10,
@@ -102,11 +118,17 @@ const DEFAULTS: RefreshConfig = {
   dustCount: 0.8,
   dustSize: 2,
   dustLife: 1.4,
+  blastCount: 14,
+  blastSpeed: 420,
+  blastSpread: 0.5,
+  blastLife: 420,
+  blastSize: 0.7,
+  blastColor: '#8fe4ff',
   artDim: 0.5,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */
-export const RFB_RANGES: Record<Exclude<keyof RefreshConfig, 'glowColor' | 'shineColor'>, [number, number, number]> = {
+export const RFB_RANGES: Record<Exclude<keyof RefreshConfig, 'glowColor' | 'shineColor' | 'costColor' | 'blastColor'>, [number, number, number]> = {
   x: [-800, 800, 1],
   y: [-400, 600, 1],
   scale: [0.4, 2.5, 0.01],
@@ -131,6 +153,11 @@ export const RFB_RANGES: Record<Exclude<keyof RefreshConfig, 'glowColor' | 'shin
   dustCount: [0, 4, 0.05],
   dustSize: [0.2, 3, 0.05],
   dustLife: [0.2, 3, 0.05],
+  blastCount: [0, 60, 1],
+  blastSpeed: [0, 1400, 10],
+  blastSpread: [0, 3.2, 0.05],
+  blastLife: [80, 1600, 10],
+  blastSize: [0.1, 3, 0.05],
   artDim: [0.3, 1, 0.01],
 };
 
@@ -142,6 +169,7 @@ export const RFB_DESC: Record<keyof RefreshConfig, string> = {
   costX: 'Cost coin — nudge horizontally (design px) from the button centre.',
   costY: 'Cost coin — nudge vertically (design px).',
   costS: 'Cost coin size (×).',
+  costColor: 'Cost coin — text + icon colour.',
   labelY: 'Refresh label — how far ABOVE the button the glass pill sits (design px).',
   labelS: 'Refresh label — pill size (×).',
   glowBlur: 'Hover glow softness — blur radius (px) of each shadow pass.',
@@ -162,6 +190,12 @@ export const RFB_DESC: Record<keyof RefreshConfig, string> = {
   dustCount: 'Click — dust billow amount (× the combat impact dust). 0 = no dust.',
   dustSize: 'Click — dust puff size (×).',
   dustLife: 'Click — dust lifetime (×).',
+  blastCount: 'Click blast — how many sprite shards fly out. 0 = no blast.',
+  blastSpeed: 'Click blast — outward speed. Each shard is jittered around this, so they never fly as one.',
+  blastSpread: 'Click blast — angular randomness per shard. 0 = a clean even ring; higher = a scattered puff.',
+  blastLife: 'Click blast — how long shards live (ms), jittered per shard.',
+  blastSize: 'Click blast — shard size (×), jittered per shard.',
+  blastColor: 'Click blast — shard colour.',
   artDim: 'Disabled (can’t afford) — the button art’s brightness while dimmed.',
 };
 
@@ -174,9 +208,10 @@ export const RFB_NUM_KEYS = [
   'sheenCycle', 'sheenAlpha',
   'shineMs', 'shineAlpha', 'shineSize', 'shineBlur',
   'dustCount', 'dustSize', 'dustLife',
+  'blastCount', 'blastSpeed', 'blastSpread', 'blastLife', 'blastSize',
   'artDim',
 ] as const;
-export const RFB_COLOR_KEYS = ['glowColor', 'shineColor'] as const;
+export const RFB_COLOR_KEYS = ['glowColor', 'shineColor', 'costColor', 'blastColor'] as const;
 
 const KEY = 'ascent.refreshbtn';
 // Dev-only persistence: production always renders the shipped DEFAULTS (Layout Lab convention).
@@ -214,6 +249,7 @@ export function applyRefreshVars(): void {
   root.setProperty('--rfb-cost-x', String(cfg.costX));
   root.setProperty('--rfb-cost-y', String(cfg.costY));
   root.setProperty('--rfb-cost-s', String(cfg.costS));
+  root.setProperty('--rfb-cost-color', cfg.costColor);
   root.setProperty('--rfb-label-y', String(cfg.labelY));
   root.setProperty('--rfb-label-s', String(cfg.labelS));
   root.setProperty('--rfb-glow-w', String(cfg.glowW));

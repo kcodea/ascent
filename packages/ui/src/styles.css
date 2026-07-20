@@ -4364,10 +4364,10 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
   position: absolute; left: 50%; top: 100%; z-index: 4;
   transform: translate(calc(-50% + var(--rfb-cost-x, 34) * var(--u)), calc(-50% + var(--rfb-cost-y, 32) * var(--u))) scale(var(--rfb-cost-s, 0.84));
   display: inline-flex; align-items: center; gap: calc(4 * var(--u));
-  font-family: var(--font-ui); font-weight: 900; font-size: calc(17 * var(--u)); color: #f4ecdb;
+  font-family: var(--font-ui); font-weight: 900; font-size: calc(17 * var(--u)); color: var(--rfb-cost-color, #f4ecdb);
   text-shadow: 0 2px 5px rgba(0, 0, 0, 0.85); pointer-events: none;
 }
-.rfb-cost svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
+.rfb-cost svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); color: var(--rfb-cost-color, #f4ecdb); }
 
 /* The glass "Refresh" pill floating ABOVE the crystal (owner request) — the dark-glass treatment the
    Discover banner and the Rift button use, so the board's chrome stays one family. */

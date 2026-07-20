@@ -3,6 +3,31 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21g (Refresh blast + cost colour)
+
+### feat(ui): a jittered sprite blast on Refresh click, and a cost-colour dial
+
+Two owner additions to the 🔄 tuner.
+
+**Cost colour** — the coin's text and its icon now both read `--rfb-cost-color`, so one picker drives the
+whole badge rather than leaving the icon stranded on the old hard-coded cream.
+
+**Sprite blast** — a new `pixiFx.refreshBlast(x, y, cfg)`, modelled on `damageBurst`, with dials for
+**shards / speed / spread / life / size / colour**. The requirement was that it look different every time,
+so the randomness is deliberate and layered: each shard takes an evenly-spaced base angle (so the ring never
+clumps) which is then jittered by `spread`, and its speed, lifetime, size and spin are each jittered
+independently. `spread: 0` gives a clean even ring; higher scatters it.
+
+`Math.random` is correct here — this is `packages/ui`, presentation only. The ban is on core/content/sim,
+where a stray roll would break determinism; FX never feed the simulation.
+
+Verified live by spying on `pixiFx.spawn` and capturing each shard's velocity across two presses: **32
+spawns each, and the two sets are NOT identical** — which is the actual claim ("different every time"),
+rather than just checking that something appeared. The cost picker was driven end to end too: cream ->
+`rgb(255, 59, 167)` on both the text and the coin icon, then restored by Reset.
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
 ## 2026-07-21f (Refresh click FX)
 
 ### tweak(ui): the Refresh crystal no longer spins — dust + a shine flare on click

@@ -19,8 +19,8 @@ import { getRefreshConfig } from './refreshConfig';
  *   - `.rfb-cost` (z4) — the live Gold cost coin.
  *   - `.rfb-label` — the glass "Refresh" pill floating ABOVE the crystal (owner request).
  *
- * The click dust comes from the same Pixi helper the Tavern stone uses, read from `cfg` at click time
- * (no CSS var needed for it).
+ * The click dust + sprite blast come from Pixi helpers, read from `cfg` at click time (no CSS vars needed):
+ * `impactDust` is the Tavern stone's billow, `refreshBlast` is this button's own jittered shard burst.
  */
 export function RefreshButton({
   cost,
@@ -41,6 +41,14 @@ export function RefreshButton({
     if (r) {
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
       if (cfg.dustCount > 0) pixiFx.impactDust(cx, cy, 1, { count: cfg.dustCount, size: cfg.dustSize, life: cfg.dustLife });
+      // Sprite blast — every shard's angle/speed/life/size/spin is jittered inside `refreshBlast`, so no
+      // two presses look alike (owner request). Fired from the button's centre, like the dust.
+      if (cfg.blastCount > 0) {
+        pixiFx.refreshBlast(cx, cy, {
+          count: cfg.blastCount, speed: cfg.blastSpeed, spread: cfg.blastSpread,
+          life: cfg.blastLife, size: cfg.blastSize, color: cfg.blastColor,
+        });
+      }
     }
     if (cfg.shineMs > 0) {
       setShining(true);

@@ -19,6 +19,7 @@ import { DESCEND_PRESETS } from './descendPresets';
 export interface BuffFxConfig {
   waveGapMs: number;       // ms — MINIMUM gap between itemized waves (the readability floor)
   waveMaxTotalMs: number;  // ms — cap on the whole wave run; past this, the rest land together
+  waveMaxCount: number;    // MAX distinct waves; beyond this they coalesce (see coalesceWaves)
   startHeight: number;     // px — how far above the card the descend ribbon starts
   dropMs: number;          // ms — the fall
   retractMs: number;       // ms — the ribbon withdrawing after it lands
@@ -40,7 +41,7 @@ export interface BuffFxConfig {
 const D = DESCEND_PRESETS.default!;
 
 const DEFAULTS: BuffFxConfig = {
-  waveGapMs: 150, waveMaxTotalMs: 900,
+  waveGapMs: 150, waveMaxTotalMs: 900, waveMaxCount: 6,
   startHeight: D.startHeight, dropMs: D.dropMs, retractMs: D.retractMs,
   baseWidth: D.baseWidth, tipWidth: D.tipWidth, coreAlpha: D.coreAlpha,
   ringCount: D.pulse.ringCount, ringSize: D.pulse.ringSize, ringWidth: D.pulse.ringWidth, ringMs: D.pulse.ringMs,
@@ -51,7 +52,7 @@ const DEFAULTS: BuffFxConfig = {
 };
 
 export const BUFFFX_KEYS = [
-  'waveGapMs', 'waveMaxTotalMs',
+  'waveGapMs', 'waveMaxTotalMs', 'waveMaxCount',
   'startHeight', 'dropMs', 'retractMs', 'baseWidth', 'tipWidth', 'coreAlpha',
   'ringCount', 'ringSize', 'ringWidth', 'ringMs',
   'coreFlashSize', 'coreFlashMs',
@@ -60,7 +61,7 @@ export const BUFFFX_KEYS = [
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const BUFFFX_RANGES: Partial<Record<keyof BuffFxConfig, [number, number, number]>> = {
-  waveGapMs: [0, 600, 10], waveMaxTotalMs: [200, 3000, 50],
+  waveGapMs: [0, 600, 10], waveMaxTotalMs: [200, 3000, 50], waveMaxCount: [1, 20, 1],
   startHeight: [0, 300, 5], dropMs: [40, 1200, 10], retractMs: [0, 800, 10],
   baseWidth: [0, 200, 1], tipWidth: [0, 200, 1], coreAlpha: [0, 1, 0.01],
   ringCount: [0, 6, 1], ringSize: [0, 300, 5], ringWidth: [0, 30, 1], ringMs: [0, 1200, 10],
@@ -115,4 +116,29 @@ export function waveGapFor(waveCount: number): number {
   if (waveCount <= 1) return 0;
   const c = cfg;
   return Math.min(c.waveGapMs, Math.floor(c.waveMaxTotalMs / (waveCount - 1)));
+}
+
+/**
+ * Collapse a wave list down to at most `waveMaxCount` groups.
+ *
+ * Capping the total DURATION was not enough. `waveGapFor` divides the budget by the wave count, so the gap
+ * collapses as the count climbs — and an Attachment build reaches counts nobody designed for: a Beatbot
+ * mirrors every weld onto itself, so it can carry ~28 attachments while its neighbours have 4, and
+ * "+2/+2 per Attachment" then emits one wave per attachment level:
+ *
+ * ```
+ * waves=4  -> gap 150ms   (designed for)
+ * waves=30 -> gap  31ms   (a strobe — the exact smear the pacing was added to fix)
+ * ```
+ *
+ * So the COUNT is capped too: beyond `waveMaxCount` the remaining waves are merged into the last group and
+ * land together. The totals are identical (this is presentation only) — you just stop seeing 30 separate
+ * pulses on one card. Returns groups of the original wave indices, in order.
+ */
+export function coalesceWaves<T>(waves: T[][]): T[][] {
+  const max = Math.max(1, Math.round(cfg.waveMaxCount));
+  if (waves.length <= max) return waves;
+  const out = waves.slice(0, max - 1);
+  out.push(waves.slice(max - 1).flat()); // everything past the cap pulses as one final wave
+  return out;
 }

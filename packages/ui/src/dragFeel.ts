@@ -35,6 +35,7 @@ export interface DragFeel {
   snapMs: number;
   /** Duration of the Mech 'absorb' slide on a magnetic merge (ms). */
   magSlideMs: number;
+  magWeldLeadMs: number;
   /** Vertical drag distance (px) before the row closes up behind a lifted card — when you pull a board
    *  minion (or shop offer) up/down out of its slot this far, the others slide in to fill the gap. */
   collapseY: number;
@@ -70,6 +71,7 @@ const DEFAULTS: DragFeel = {
   recenterAfter: 400,// only begin recentring after a longer drag from the grab point
   snapMs: 110,
   magSlideMs: 390,
+  magWeldLeadMs: 130,
   collapseY: 20,    // lift only a little before the row fills the gap
   handFloor: 0.82,  // bottom-anchored pop: every hovered card lands its bottom on the same line (tuned by eye)
   shGrow: 1.08,     // owner-tuned: shadow a touch bigger than the card face while lifted
@@ -93,6 +95,7 @@ export const DRAG_RANGES: Record<keyof DragFeel, [number, number, number]> = {
   recenterAfter: [0, 500, 5],
   snapMs: [40, 400, 10],
   magSlideMs: [100, 600, 10],
+  magWeldLeadMs: [0, 300, 10],
   collapseY: [0, 200, 5],
   handFloor: [0, 1.5, 0.01],
   shGrow: [0.8, 1.6, 0.01],
@@ -116,6 +119,7 @@ export const DRAG_DESC: Record<keyof DragFeel, string> = {
   recenterAfter: 'Pixels you must drag from the grab point before the card starts recentring onto the cursor.',
   snapMs: 'How fast an invalid drop springs back to its slot (milliseconds).',
   magSlideMs: 'Duration of the Mech “absorb” slide when a Magnetic minion merges (milliseconds).',
+  magWeldLeadMs: 'How early (ms before the slide ends) the weld commits, so the ring OVERLAPS the tail of the slide instead of starting after it. 0 = the old back-to-back timing.',
   collapseY: 'Vertical distance (px) you must lift a card out of its row before the others slide in to fill the gap.',
   handFloor: 'Where a hovered hand card’s BOTTOM lands (× card height). Because the pop lifts each card by its own height, ALL cards — spell or minion — land on the same line. Higher = the card sits lower.',
   shGrow: 'Drag shadow SIZE while a card is lifted (scale). Bigger = the card reads as higher off the table.',

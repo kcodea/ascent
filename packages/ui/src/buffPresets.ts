@@ -78,3 +78,43 @@ export function buffPreset(cardId: string, tribe: Tribe): string {
   if (byTribe && BUFF_PRESETS[byTribe]) return byTribe;
   return 'default';
 }
+
+/**
+ * Aura-WAVE colours per tribe — deliberately separate from the tendril presets above.
+ *
+ * The tendril presets are authored for `blend: 'normal'`, where a deep colour like the Demon core
+ * (`#54006b`) reads as rich. The aura wave draws with **`blend: 'add'`**, where the visible contribution is
+ * the colour's LUMINANCE — so those same values nearly vanish. Measured against the beast palette the wave
+ * borrowed from before this existed:
+ *
+ * ```
+ *            core    glow    mote
+ * demon      0.207   0.524   0.091   ← motes 6.4x dimmer than beast, core 4x
+ * beast      0.821   0.863   0.586
+ * ```
+ *
+ * The motes are the CONTINUOUS element that rides the expanding front; the wake puffs are dropped at
+ * discrete `glowSpacing` intervals. So when the motes don't render, all that's left is the stepped wake —
+ * which reads as a stuttering, frame-bound animation even though the wave is purely time-based (owner
+ * report 2026-07-19: "the demon aura wash isn't as smooth as the others"). It was a luminance problem, not
+ * a timing one.
+ *
+ * Rule for adding a tribe here: keep every channel above ~0.45 relative luminance. Hue carries the tribe;
+ * brightness carries the motion.
+ */
+export interface WavePaletteCfg { colorCore: string; colorGlow: string; colorMote: string }
+
+export const WAVE_PALETTES: Record<string, WavePaletteCfg> = {
+  // Demon — the same violet identity, lifted into the range additive blending can actually show.
+  'imp-tribe': { colorCore: '#c98bff', colorGlow: '#b78dff', colorMote: '#9d6bff' },
+  'beast-tribe': { colorCore: '#71fe34', colorGlow: '#8bfe7c', colorMote: '#3ebd0f' },
+};
+
+/** The wave palette for a tribe — its dedicated entry if one exists, else the tendril preset's colours
+ *  (fine for the already-bright tribes; see WAVE_PALETTES for why Demon needed its own). */
+export function wavePalette(presetName: string): WavePaletteCfg {
+  const p = WAVE_PALETTES[presetName];
+  if (p) return p;
+  const t = BUFF_PRESETS[presetName] ?? BUFF_PRESETS.default!;
+  return { colorCore: t.colorFlash, colorGlow: t.colorGlow, colorMote: t.colorMote };
+}

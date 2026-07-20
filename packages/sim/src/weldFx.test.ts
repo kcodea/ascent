@@ -55,3 +55,25 @@ describe('weld FX signal', () => {
     expect(welded).toContain('m2');
   });
 });
+
+describe('weld FX signal — multiple welds in ONE action', () => {
+  it('accumulates every welded uid instead of overwriting', () => {
+    // The bug: `stampWeldFx` replaced `weldFxUids`, and the UI only reads the FINAL state after a dispatch.
+    // A golden Banksly (two magnetizes) or a big Gold spend therefore animated only the LAST weld.
+    const s: RunState = { ...createRun(1, 'warden'), phase: 'recruit',
+      board: [mk('A', 'drone', 'mech'), mk('B', 'drone', 'mech')] };
+    weldMagnetic(s, s.board[0]!, payload, 0, 'auto');
+    weldMagnetic(s, s.board[1]!, payload, 0, 'auto');
+    expect(s.weldFxUids?.slice().sort()).toEqual(['A', 'B']);
+    expect(s.weldFxSeq).toBe(2);
+  });
+
+  it('does not leak across actions — reduce() clears the scratch', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10,
+      board: [mk('h', 'drone', 'mech')], hand: [mk('m', 'cling', 'mech', 1, 1, ['M'])] };
+    s = reduce(s, { type: 'play', uid: 'm', toIndex: 0 });
+    expect(s.weldFxUids).toContain('h');
+    s = reduce(s, { type: 'roll' }); // an unrelated action must not re-fire the weld
+    expect(s.weldFxUids ?? []).toEqual([]);
+  });
+});

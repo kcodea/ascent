@@ -387,7 +387,12 @@ export function auraFxTargets(state: RunState, tribe: AuraFxTribe): string[] {
 export function stampWeldFx(state: RunState, uids: string[], kind: 'play' | 'auto'): void {
   if (uids.length === 0) return;
   state.weldFxSeq = (state.weldFxSeq ?? 0) + 1;
-  state.weldFxUids = [...new Set(uids)];
+  // ACCUMULATE across this action, don't overwrite. Several welds can land in ONE dispatch — a golden
+  // Banksly magnetizes twice, and spending enough Gold procs it repeatedly — and the UI only reads the
+  // FINAL state after the dispatch, so overwriting meant every weld but the last silently lost its ring
+  // (verified: two welds in one action left `['B']` with seq 2). `reduce` clears this per action, so the
+  // list can never leak into the next one.
+  state.weldFxUids = [...new Set([...(state.weldFxUids ?? []), ...uids])];
   state.weldFxKind = kind;
 }
 

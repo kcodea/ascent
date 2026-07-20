@@ -329,6 +329,68 @@ set 1 — which is exactly what they are — so nothing needed re-stamping.
 
 
 Full guide: `docs/card-sets.md`.
+## 2026-07-19 (later still)
+
+### fix(ui): kill the three looping paint-property animations (shop-phase frame budget)
+
+Owner is targeting a **steady 240fps, with the SHOP phase as the priority** (not combat). At 240Hz the frame
+budget is **4.16ms**, a quarter of the 16.6ms the perf docs are written against — and every per-frame cost
+scales *linearly* with refresh rate, so 60→240 both shrinks the budget 4× and runs the work 4× more often.
+That double-squeeze makes our own banned looping-paint pattern much more expensive than it looks at 60Hz.
+
+An audit of every `infinite` keyframe in `styles.css` found the resting shop in good shape overall — `kwglow`,
+`wardpulse`, `rebornpulse`, `rebornwisp`, `triparrow`, `flspin`, `etbsheen`/`tvbsheen` and `cardreffloat` are
+all transform/opacity with `will-change`, i.e. compositor-only and effectively free at any refresh rate.
+Three violations remained:
+
+- **`discpulse`** (Discover slots) animated `box-shadow` between two non-zero states on an infinite loop.
+  Converted to the house pattern (`kwglow` / `tripready`): the resting/weakest glow is now a STATIC shadow on
+  `.disc-slot`, and the brighter crest moved to a `::before` whose **opacity** breathes via `kwglow` at the
+  same 2s cadence. `.disc-slot` gained `position: relative` for the `::before`; this cannot capture any
+  descendant because `.card` already sets `position: relative` itself (styles.css:972). One deliberate
+  fidelity note: at the crest the static base and the `::before` now stack, where the original swapped one
+  shadow for the other, so the peak reads a touch brighter — exactly how `tripready` already behaves.
+- **`venomdrip`** (Venomous cards, 4 globs each) animated `border-radius` on an infinite loop — a teardrop
+  wobble repainting every glob every frame for the whole shop phase, multiplied by each Venomous card on
+  board or in the shop. Dropped the radius steps; the existing `scaleY` already carries the elongation, so
+  the keyframe is now transform/opacity only.
+- **`endpulse`** turned out to be a **dead keyframe** — the roadmap listed it as a live offender on
+  `.heropowerbtn.ready` / `.endturn-side.urgent`, but a repo-wide grep found zero users (it was orphaned when
+  the amber End Combat variant was retired 2026-07-16). Deleted rather than left around to be copied, and the
+  stale roadmap bullet corrected.
+
+**Verified:** `npm run typecheck`, `npm run lint`, `npm test` (1201 tests / 65 files), and `npm run build:web`
+all green. Not visually driven — owner eyeballs FX changes himself.
+
+**Follow-up, since MEASURED and CLOSED — the charge glyph is fine.** From reading the source I claimed
+`ChargeGlyph`'s per-frame `--charge` write drove a `mask-image` repaint on "three ~1144px layers" and was the
+biggest remaining shop cost. **That was wrong on both counts, and the profile killed it.**
+
+Two corrections came out of a closer read, before any measurement. (1) The layer count: only **one** layer
+normally paints — `.charge-base` is `opacity: var(--cg-base-a, 0)` (zero by default) and `.charge-core` holds
+`opacity: 0` until `charge > bloomAt`. (2) The construction is heavier per-layer than described: the mask is a
+two-source composite (`url(turn-glyph.svg)` ∩ the gradient, `mask-composite: intersect`), and `.charge-fill`
+carries `filter: drop-shadow(0 0 40px …) drop-shadow(0 0 80px …)` — which the CSS comment itself already
+fingered: *"the drop-shadow glow is the heaviest bit — move it to the Pixi bloom layer if it costs frames."*
+
+Then it was profiled with a standalone harness reproducing the real construction (real SVG, real 1144×449
+geometry, real mask composite, real drop-shadows), four variants interleaved and run twice each. **Every
+variant — including the do-nothing control — sat at a 2.8ms median with ~360fps and zero frames over the
+4.16ms 240Hz budget.** Removing the drop-shadows changed nothing, so the CSS comment's hypothesis is disproven
+too; the proposed transform rewrite was the worst variant on outlier frames. Full table in the roadmap.
+
+Two honest limits: the harness is refresh-capped (it proves nothing here threatens the budget, not that the
+variants cost the *same* — it can't resolve sub-2.8ms deltas), and it isolates the glyph from the live card
+tree. But the isolated cost is far enough under budget that it isn't a plausible dominant term.
+
+**Method note worth keeping:** this could not be measured from any automated browser surface — the preview
+pane reports `hidden` with a 0×0 viewport, and even a real Chrome tab under automation returned **0 rAF frames
+in 2 seconds**. rAF is suspended in background tabs, so an rAF-driven effect can only be profiled in a tab the
+owner has focused. Any "measurement" taken otherwise is noise.
+
+Still open (unmeasured): `ChargeMotes`' continuous canvas loop, and `Card`'s default shallow memo (unlike
+`Unit`'s value comparator) under the per-rAF drag re-render of `Recruit`. Given how this one turned out,
+measure both before touching either.
 
 ## 2026-07-19 (later)
 

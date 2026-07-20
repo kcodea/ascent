@@ -904,8 +904,9 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
    Pixel Arena mockup). Costs are teal Mana; the Tavern's next-tier number is tangerine. */
 .btn.big .c { font-size: 22px; font-weight: 800; display: inline-flex; align-items: center; gap: calc(3 * var(--u)); }
 .btn.big .c svg { width: 21px; height: 21px; color: var(--mana-dk); }
-/* (The amber End Combat variant retired 2026-07-16 — the pressed diamond IS the End Combat button now.) */
-@keyframes endpulse { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--acc) 45%, transparent); } }
+/* (The amber End Combat variant retired 2026-07-16 — the pressed diamond IS the End Combat button now.
+   Its `endpulse` keyframe went with it: it was an infinite box-shadow loop — a banned looping-paint
+   pattern — left with no users, so it's deleted rather than kept around to be copied.) */
 .btn .c { color: var(--mana-dk); font-weight: 800; } /* button costs are Mana (teal) */
 .btn.frozen { background: var(--acc); color: #fff; border-color: var(--acc-dk); }
 .btn.frozen svg { color: #fff; }
@@ -1207,12 +1208,15 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   filter: drop-shadow(0 1px 3px rgba(18, 120, 86, 0.7));
   animation: venomdrip 3s ease-in infinite;
 }
+/* transform/opacity ONLY — the glob's elongation comes from scaleY. An earlier pass also animated
+   `border-radius` (a teardrop wobble), which repainted all 4 globs on every Venomous card every frame
+   for the whole shop phase; scaleY already reads as the stretch, so the radius stays a static 50%. */
 @keyframes venomdrip {
   0% { opacity: 0; transform: translateY(0) scaleY(0.5); }
   14% { opacity: 1; transform: translateY(0) scaleY(1); }
-  34% { opacity: 1; transform: translateY(0) scaleY(1.15); border-radius: 50%; } /* glob swells at the source */
-  60% { opacity: 1; transform: translateY(16px) scaleY(1.5); border-radius: 46% 46% 56% 56%; } /* droplet elongates + falls */
-  88% { opacity: 0.45; transform: translateY(40px) scaleY(1); border-radius: 50%; }
+  34% { opacity: 1; transform: translateY(0) scaleY(1.15); } /* glob swells at the source */
+  60% { opacity: 1; transform: translateY(16px) scaleY(1.5); } /* droplet elongates + falls */
+  88% { opacity: 0.45; transform: translateY(40px) scaleY(1); }
   100% { opacity: 0; transform: translateY(52px) scaleY(0.85); }
 }
 /* cost badge — a teal Mana circle overhanging the top-left corner */
@@ -1664,11 +1668,15 @@ body.modalup .statusbar .questbadges {
 .questbadge.runebadge { border-color: #6a707c; background: linear-gradient(180deg, #3a3e46, #2a2d33); }
 .questbadge.runebadge .questbadge-emblem { color: #cfe4ea; }
 .questbadge-tip-reward b { color: var(--acc); }
-/* the slot's "pick me" pulse now follows the card's arched silhouette (no squared outline) */
-.disc-slot { display: inline-flex; border-radius: var(--arch-radius); animation: discpulse 2s ease-in-out infinite; }
-@keyframes discpulse {
-  0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 45%, transparent), 0 0 26px 4px color-mix(in srgb, var(--c) 50%, transparent); }
-  50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 68%, transparent), 0 0 40px 9px color-mix(in srgb, var(--c) 72%, transparent); }
+/* the slot's "pick me" pulse now follows the card's arched silhouette (no squared outline).
+   The resting (weakest) glow sits STATICALLY on the slot; the brighter crest lives on a ::before whose
+   OPACITY breathes via kwglow — an animated box-shadow repainted the slot every frame (see performance.md). */
+.disc-slot { position: relative; display: inline-flex; border-radius: var(--arch-radius);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 45%, transparent), 0 0 26px 4px color-mix(in srgb, var(--c) 50%, transparent); }
+.disc-slot::before {
+  content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 68%, transparent), 0 0 40px 9px color-mix(in srgb, var(--c) 72%, transparent);
+  animation: kwglow 2s ease-in-out infinite; will-change: opacity;
 }
 /* Referenced-card hover popup (e.g. Combinator → Cling Drone, Ritualist → current Fodder). Portalled
    to <body>, so it floats above neighbouring cards / spells. Position (left/top) is set inline. It

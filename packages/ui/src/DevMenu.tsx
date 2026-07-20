@@ -83,19 +83,23 @@ export function DevMenu() {
       {open && (
         <div className="devmenu">
           <div className="devmenu-h">Dev Tuning</div>
-          {TUNERS.map(({ key, label }) => (
-            <button key={key} className={`devmenu-item${shown.has(key) ? ' on' : ''}`} onClick={() => toggle(key)}>
-              {label} <span>{shown.has(key) ? '✓' : ''}</span>
-            </button>
-          ))}
-          <button
-            className="devmenu-item"
-            onClick={() => (window as unknown as { __perfHud?: (on?: boolean) => void }).__perfHud?.(!perfMonitor.isRunning)}
-            title="Frame-health HUD (also available in the prod build via ?perf=1)"
-          >📊 Perf HUD <span>{perfMonitor.isRunning ? '✓' : ''}</span></button>
-          <button className="devmenu-item" onClick={() => pixiFx.test()}>✨ Test FX <span>▸</span></button>
-          <button className="devmenu-item" onClick={() => pixiFx.testCrit()}>⚡ Test Crit <span>▸</span></button>
-          <button className="devmenu-item" onClick={() => pixiFx.testFlurry()}>🌬️ Test Flurry <span>▸</span></button>
+          {/* the items grid wraps into a NEW COLUMN every 15 rows (grid-auto-flow: column) — overflow columns
+              grow to the RIGHT of the first, while the right-anchored panel extends LEFT (see .devmenu-items). */}
+          <div className="devmenu-items">
+            {TUNERS.map(({ key, label }) => (
+              <button key={key} className={`devmenu-item${shown.has(key) ? ' on' : ''}`} onClick={() => toggle(key)}>
+                {label} <span>{shown.has(key) ? '✓' : ''}</span>
+              </button>
+            ))}
+            <button
+              className="devmenu-item"
+              onClick={() => (window as unknown as { __perfHud?: (on?: boolean) => void }).__perfHud?.(!perfMonitor.isRunning)}
+              title="Frame-health HUD (also available in the prod build via ?perf=1)"
+            >📊 Perf HUD <span>{perfMonitor.isRunning ? '✓' : ''}</span></button>
+            <button className="devmenu-item" onClick={() => pixiFx.test()}>✨ Test FX <span>▸</span></button>
+            <button className="devmenu-item" onClick={() => pixiFx.testCrit()}>⚡ Test Crit <span>▸</span></button>
+            <button className="devmenu-item" onClick={() => pixiFx.testFlurry()}>🌬️ Test Flurry <span>▸</span></button>
+          </div>
         </div>
       )}
       {TUNERS.map(({ key, C }) => (shown.has(key) ? <C key={key} /> : null))}

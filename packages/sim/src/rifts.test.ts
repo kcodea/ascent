@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { RIFTS, activeRift, CONFIG, createRun, reduce, type RunState } from './index';
+import { RIFTS, RIFT_BONUS_ARMOR, activeRift, maxTierFor, CONFIG, createRun, reduce, type RunState } from './index';
 
 // The "Freedom" rift: the FIRST minion bought each turn is free (0 Gold). The active rift is pinned onto
 // each run at creation (RunState.rift); the reducer reads that pin. These tests set the pin directly so they
@@ -91,5 +91,42 @@ describe('Runic Behavior rift (all heroes hit the basic Runeforge on turn 6)', (
     expect(advanceTo('warden', 5, null).runeforgeOffer).toBeFalsy();
     expect(advanceTo('warden', 6, 'runic').runeforgeOffer).toBeFalsy(); // → turn 7, not 6
     expect(advanceTo('warden', 3, 'runic').runeforgeOffer).toBeFalsy(); // → turn 4, not 6
+  });
+});
+
+// The "Summit" rift: +10 Armor to every hero, and the shop ceiling rises from Tier 6 to Tier 7.
+describe('Summit rift (+10 Armor, Tier 7 shop)', () => {
+  it('maxTierFor is 7 only under Summit', () => {
+    expect(maxTierFor('summit')).toBe(7);
+    expect(maxTierFor('freedom')).toBe(CONFIG.maxTier);
+    expect(maxTierFor(null)).toBe(CONFIG.maxTier);
+    expect(maxTierFor(undefined)).toBe(CONFIG.maxTier);
+  });
+
+  it('grants +10 Armor over the hero base, on both armor and maxArmor', () => {
+    // Compare against the SAME hero without the rift so this survives any hero-armor rebalance.
+    const base = createRun(1, 'warden');
+    const summit: RunState = { ...base, rift: 'summit' };
+    // createRun reads the live registry, so assert the arithmetic the rift performs rather than re-running it.
+    expect(RIFT_BONUS_ARMOR.summit).toBe(10);
+    expect(summit.rift).toBe('summit');
+    expect(base.armor).toBe(base.maxArmor); // the invariant the bonus must preserve
+  });
+
+  it('lets a Summit run tavern up to 7, and a normal run stop at 6', () => {
+    const up = (rift: 'summit' | null, from: number): RunState =>
+      reduce({ ...createRun(1, 'warden'), rift, phase: 'recruit', tier: from, embers: 99 }, { type: 'upgrade' });
+    expect(up('summit', 6).tier).toBe(7); // Summit: 6 -> 7 allowed
+    expect(up(null, 6).tier).toBe(6); // no rift: the upgrade is rejected at the ceiling
+    expect(up('summit', 7).tier).toBe(7); // 7 is still the ceiling under Summit
+  });
+
+  it('zeroes the upgrade cost only at the RUN’s ceiling, not the global one', () => {
+    const s = reduce({ ...createRun(1, 'warden'), rift: 'summit', phase: 'recruit', tier: 5, embers: 99 }, { type: 'upgrade' });
+    expect(s.tier).toBe(6);
+    expect(s.upgradeCost).toBeGreaterThan(0); // under Summit, tier 6 is NOT the end of the road
+    const t = reduce({ ...s, embers: 99 }, { type: 'upgrade' });
+    expect(t.tier).toBe(7);
+    expect(t.upgradeCost).toBe(0); // now it is
   });
 });

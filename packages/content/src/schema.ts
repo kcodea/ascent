@@ -259,6 +259,7 @@ export const CardDefSchema = z.object({
     z.literal(4),
     z.literal(5),
     z.literal(6),
+    z.literal(7), // Tier 7 — reachable only under the Summit rift (see maxTierFor)
   ]),
   attack: z.number().int().nonnegative(),
   health: z.number().int().positive(),
@@ -362,7 +363,7 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('rallyRepeat'), scope: z.enum(['always', 'firstEachCombat']) }).strict(),
   z.object({ kind: z.literal('fodderReward'), fodder: z.number().int().nonnegative().optional(), attack: z.number().int().nonnegative().optional(), health: z.number().int().nonnegative().optional() }).strict(),
   z.object({ kind: z.literal('gainMaxGold'), amount: z.number().int().positive() }).strict(),
-  z.object({ kind: z.literal('discover'), tier: z.number().int().min(1).max(6).optional() }).strict(),
+  z.object({ kind: z.literal('discover'), tier: z.number().int().min(1).max(7).optional() }).strict(),
   z.object({ kind: z.literal('discoverGreaterQuest') }).strict(),
   z.object({ kind: z.literal('dupeFirstBuy') }).strict(),
   z.object({ kind: z.literal('spellRepeat'), scope: z.enum(['always', 'firstEachTurn']) }).strict(),

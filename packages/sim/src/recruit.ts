@@ -1,7 +1,7 @@
 import { makeRng, COMBAT_REPLAYABLE_BATTLECRIES, type CardDef, type EffectDef, type Keyword, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { poolOf } from './cardPool';
-import { CONFIG } from './config';
+import { CONFIG, maxTierFor } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
 import { mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type DiscoverSpec, type RunState, type ShopCard } from './state';
 import { returnToPool, rollSpellShop, takeFromPool } from './shop';
@@ -1768,7 +1768,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  card tier is ≤ the spell's `targetMaxTier`. Doubles the BASE stats via a tracked 'Gild' buff (accrued
    *  buffs are NOT doubled — see `gildMinion`) + flips golden. Cap read from the spell def via `_maxTier`. */
   spellGildTarget: (ctx, self, params) => {
-    const limit = num(params._maxTier, CONFIG.maxTier);
+    const limit = num(params._maxTier, maxTierFor(ctx.state.rift));
     const targetTier = CARD_INDEX[self.cardId]?.tier ?? 1;
     if (self.golden || targetTier > limit) return;
     gildMinion(self);
@@ -2340,7 +2340,7 @@ export function offerDiscover(
   } else if (opts?.topTierFirst) {
     // Golden/triple reward only ("peek one tier up"): bias to the highest tier — fill from the top tier
     // down, walking the floor down only if the top tier can't supply 3. The single high-tier exception.
-    const target = Math.min(CONFIG.maxTier, discoverTier);
+    const target = Math.min(maxTierFor(state.rift), discoverTier); // Summit: ceiling is 7
     let floor = target;
     while (pool.length < 3 && floor >= 1) {
       pool = poolOf(state).buyable.filter(
@@ -2356,7 +2356,7 @@ export function offerDiscover(
   } else {
     // Card-driven Discover up to the tavern tier (Sea Urchin, Help Wanted): EVERY eligible card at or below
     // the target tier, weighed EVENLY — no high-tier bias (same rule as the shop + spell Discover).
-    const target = Math.min(CONFIG.maxTier, discoverTier);
+    const target = Math.min(maxTierFor(state.rift), discoverTier); // Summit: ceiling is 7
     pool = poolOf(state).buyable.filter(
       (c) =>
         c.tier <= target &&

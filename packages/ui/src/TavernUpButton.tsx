@@ -14,9 +14,9 @@ import { Icon } from './Icon';
  *     the gold ring overlaps its rim (the forgiving seat — same trick as card art under the frame). Holds the
  *     lit gem, the BROKEN gem (the max-tier "complete" state; CSS flips them, both stay mounted so there's no
  *     src-swap flash), and the sheen sweep clipped to the gem's circle.
- *   - `.tvb-base` (z1) — the stone housing; `.tvb-pips` (z2) — the CURRENT tavern tier as 1–6 lit slot pips
- *     (all six variants mounted, CSS shows one; they share one centroid-aligned canvas so a single seat
- *     positions every tier).
+ *   - `.tvb-base` (z1) — the stone housing; `.tvb-pips` (z2) — the CURRENT tavern tier as 1–7 lit slot pips
+ *     (all seven variants mounted, CSS shows one; they share one centroid-aligned canvas so a single seat
+ *     positions every tier; tier 7 is Summit-only and currently a placeholder copy of tier 6).
  *   - `.tvb-glow` (z3) — the gem-silhouette hover halo (stacked drop-shadow of the gem art, source pixels
  *     masked back out so ONLY the halo paints); breathing animates opacity only.
  *   - `.tvb-flash` (z4) — the one-shot warm press pop masking the pip advance; mounts → animates → unmounts.
@@ -74,9 +74,11 @@ export function TavernUpButton({ tier, maxTier, cost, disabled, combat, onUpgrad
         <span className="tvb-sheen"><span className="tvb-sheen-bar" /></span>
       </span>
       <img className="tvb-base" src="/frames/tavernup_base.webp" alt="" draggable={false} />
-      {/* Tier pips — the current tavern tier lit into the stone's slot arc. All six stay mounted (they share
-          one aligned canvas); CSS shows the active one, and the press flash masks the advance. */}
-      {[1, 2, 3, 4, 5, 6].map((n) => (
+      {/* Tier pips — the current tavern tier lit into the stone's slot arc. All seven stay mounted (they
+          share one aligned canvas); CSS shows the active one, and the press flash masks the advance.
+          NOTE: tavernup_tier7.webp is a PLACEHOLDER (a copy of tier 6) — Tier 7 only appears under the
+          Summit rift, and the real badge art is still to come. */}
+      {[1, 2, 3, 4, 5, 6, 7].map((n) => (
         <img key={n} className={`tvb-pips${n === pipTier ? ' on' : ''}`} src={`/frames/tavernup_tier${n}.webp`} alt="" draggable={false} aria-hidden="true" />
       ))}
       {/* Hover glow — a circular halo hugging the gem. NOT the diamond's drop-shadow-of-the-art trick: a

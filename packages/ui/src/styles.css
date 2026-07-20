@@ -944,13 +944,14 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow {
 .row.hand .card { --hand-tuck: calc(var(--ch) * 0.16); --fan-rot: 0deg; margin-left: calc(var(--ccw) * var(--z-hand-gap, -0.15)); transform-origin: center 42%; transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1), margin 0.12s ease; }
 .row.hand .card:first-child { margin-left: 0; }
 /* Hover pops the in-hand card ITSELF up out of the fan — straightened, scaled a touch, and lifted to reveal its
-   full text. UNIFORM POP: the lift is `translateY(-100% + --ch·--hand-floor)` — the `-100%` raises each card by
-   its OWN height, so every card (spell or minion, short or long text) lands its BOTTOM on the SAME line, and
-   `--hand-floor` (a fraction of --ch, a LIVE DEV LEVER — Drag Feel tuner → "hand pop floor") sets where that
-   line sits. Replaces the old per-card fraction lift (which made taller cards float higher). A soft dark
-   drop-shadow (follows the card's alpha, so it hugs the arch) reads as "lifted above the fan" — NOT the bright
+   full text. UNIFORM POP: the lift is `translateY(--ch · (--hand-floor − --hand-pop))` — both LIVE DEV LEVERS
+   (Drag Feel tuner → "hand pop floor" / "hand pop lift"). The lift used to be `-100%` (the card's own height),
+   but the detached info panel going absolute (out of flow, #570-era) shrank the card element — `-100%` stopped
+   clearing the fan and the pop went DOWNWARD. A fixed multiple of --ch is height-independent (every compact
+   card is the same height anyway, and the panel hangs below at a fixed offset). A soft dark drop-shadow
+   (follows the card's alpha, so it hugs the frame) reads as "lifted above the fan" — NOT the bright
    `.card:hover` box-shadow glow, which looks harsh blown up over the popped card. */
-.row.hand .card:hover { transform: translateY(calc(-100% + var(--ch) * var(--hand-floor, 0.94))) rotate(0deg) scale(1.06); z-index: 50; box-shadow: none !important; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
+.row.hand .card:hover { transform: translateY(calc(var(--ch) * (var(--hand-floor, 0) - var(--hand-pop, 0.22)))) rotate(0deg) scale(1.06); z-index: 50; box-shadow: none !important; filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
 /* While a drag is live, the hand stops reacting to the cursor passing over it (the dragcard is
    pointer-events:none, so the cursor still "hovers" hand cards underneath) — no hover-bob, no jitter. */
 body.dragging .row.hand .card:hover { transform: translateY(var(--hand-tuck)) rotate(var(--fan-rot)); z-index: auto; }

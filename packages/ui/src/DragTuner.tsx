@@ -27,6 +27,7 @@ const LABELS: Record<keyof DragFeel, string> = {
   magWeldLeadMs: 'weld lead ms',
   collapseY: 'row collapse px',
   handFloor: 'hand pop floor',
+  handPop: 'hand pop lift',
   shGrow: 'drag shadow · grow',
   shLift: 'drag shadow · lift',
   shBlur: 'drag shadow · blur',

@@ -23,6 +23,9 @@ import { useDraggablePanel } from './useDraggablePanel';
  * holding hover — one pointer can't do both. Values persist to localStorage (dev only); "Copy values" grabs
  * the JSON to bake into DEFAULTS + the styles.css fallbacks. Opened from the Dev Tuning Menu; dev-only, so
  * it's stripped from production.
+ *
+ * Click FX are dust + a shine flare only — the press spin and the shockwave rings were dropped 2026-07-21
+ * (owner), so those dials are gone rather than left sitting at 0.
  */
 const LABELS: Record<keyof RefreshConfig, string> = {
   x: 'position · x',
@@ -43,14 +46,14 @@ const LABELS: Record<keyof RefreshConfig, string> = {
   glowColor: 'glow · colour',
   sheenCycle: 'sheen · cycle',
   sheenAlpha: 'sheen · strength',
-  spinMs: 'press · spin',
-  flashMs: 'press · flash',
-  dustCount: 'press · dust amount',
-  dustSize: 'press · dust size',
-  dustLife: 'press · dust life',
-  rings: 'press · rings',
-  ringRadius: 'press · ring radius',
-  ringLife: 'press · ring life',
+  shineMs: 'click · shine time',
+  shineAlpha: 'click · shine opacity',
+  shineSize: 'click · shine spread',
+  shineBlur: 'click · shine blur',
+  shineColor: 'click · shine colour',
+  dustCount: 'click · dust amount',
+  dustSize: 'click · dust size',
+  dustLife: 'click · dust life',
   artDim: 'disabled · art dim',
 };
 

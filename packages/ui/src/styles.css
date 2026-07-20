@@ -4304,10 +4304,8 @@ body.dragging .rfbwrap { pointer-events: none; } /* a card dragged across it dro
 .rfbwrap:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 .rfbwrap.off .rfb-artbox { filter: brightness(var(--rfb-art-dim, 0.5)) saturate(0.7); }
 
-/* The crystal. `.rfb-artbox` owns the press SPIN so the sheen (a child) turns with it. */
+/* The crystal. It no longer rotates on press (owner 2026-07-21) — clicking emits dust + a shine only. */
 .rfb-artbox { position: absolute; inset: 0; display: block; }
-.rfb-artbox.spin { animation: rfbspin var(--rfb-spin-ms, 420ms) cubic-bezier(0.3, 0, 0.2, 1) 1; }
-@keyframes rfbspin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .rfb-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; -webkit-user-drag: none; }
 
 /* Hover halo — a stacked BOX-SHADOW on a rounded span (paints outside the element; a filter drop-shadow
@@ -4341,13 +4339,25 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
 }
 @keyframes rfbsheen { 0% { transform: translateX(-120%) rotate(8deg); } 34%, 100% { transform: translateX(420%) rotate(8deg); } }
 
-/* One-shot press pop — a brightened copy of the crystal fading out over it. */
-.rfb-flash {
-  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; z-index: 3;
-  pointer-events: none; filter: brightness(2.1) saturate(1.3);
-  animation: rfbflash var(--rfb-flash-ms, 320ms) ease-out 1 both;
+/* One-shot CLICK shine — a radial flare blooming out of the crystal and fading. Mounts only while playing,
+   so nothing animates at rest; scale + opacity only, both compositor-friendly. */
+.rfb-shine {
+  position: absolute; left: 50%; top: 50%;
+  width: 100%; height: 100%;
+  transform: translate(-50%, -50%) scale(0.6);
+  border-radius: 50%; z-index: 3; pointer-events: none;
+  background: radial-gradient(circle,
+    var(--rfb-shine-color, #8fe4ff) 0%,
+    color-mix(in srgb, var(--rfb-shine-color, #8fe4ff) 55%, transparent) 42%,
+    transparent 70%);
+  filter: blur(var(--rfb-shine-blur, 18px));
+  animation: rfbshine var(--rfb-shine-ms, 420ms) cubic-bezier(0.2, 0.7, 0.3, 1) 1 both;
 }
-@keyframes rfbflash { from { opacity: 0.9; transform: scale(1); } to { opacity: 0; transform: scale(1.18); } }
+@keyframes rfbshine {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  22% { opacity: var(--rfb-shine-alpha, 0.85); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(var(--rfb-shine-size, 1.5)); }
+}
 
 /* Live Gold cost coin. */
 .rfb-cost {

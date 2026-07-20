@@ -8,7 +8,8 @@
  * the refresh art is a single button image, so there is no hole to seat anything into.
  *
  * Dial groups (🔄 tuner): POSITION/SCALE · COST badge seat · GLOW (hover halo, breath = opacity only) ·
- * SHEEN sweep · STRIKE (press flash + dust + shockwave ring) · disabled ART DIM. Config is
+ * SHEEN sweep · CLICK (dust + shine flare) · disabled ART DIM. The press SPIN and the shockwave rings were
+ * dropped 2026-07-21 (owner): clicking now emits dust and a shine, nothing else. Config is
  * localStorage-persisted in DEV only; production always renders DEFAULTS (Layout Lab convention). Values
  * reflect to `--rfb-*` CSS vars — the styles.css fallbacks MUST mirror DEFAULTS (update both when baking
  * tuned values).
@@ -50,22 +51,23 @@ export interface RefreshConfig {
   sheenCycle: number;
   /** Sheen — glare strength (0–1). 0 disables the sweep. */
   sheenAlpha: number;
-  /** Strike — the press SPIN duration (ms). The refresh art rotates on press. 0 disables it. */
-  spinMs: number;
-  /** Strike — press flash duration (ms). 0 disables it. */
-  flashMs: number;
-  /** Strike — dust billow AMOUNT (× the combat impact dust). 0 disables. */
+  /** Click SHINE — how long the burst lasts (ms). 0 disables it. Replaced the press spin (owner
+   *  2026-07-21): the button no longer rotates, it just puffs dust and flares. */
+  shineMs: number;
+  /** Click SHINE — peak opacity (0–1). */
+  shineAlpha: number;
+  /** Click SHINE — how far the flare expands past the button (×). */
+  shineSize: number;
+  /** Click SHINE — blur softness (px). */
+  shineBlur: number;
+  /** Click SHINE — colour (hex). */
+  shineColor: string;
+  /** Click DUST — billow AMOUNT (× the combat impact dust). 0 disables. */
   dustCount: number;
-  /** Strike — dust puff SIZE (×). */
+  /** Click DUST — puff SIZE (×). */
   dustSize: number;
-  /** Strike — dust LIFETIME (×). */
+  /** Click DUST — LIFETIME (×). */
   dustLife: number;
-  /** Strike — shockwave ring COUNT (0–2). 0 disables. */
-  rings: number;
-  /** Strike — shockwave ring RADIUS (×). */
-  ringRadius: number;
-  /** Strike — shockwave ring LIFETIME (×). */
-  ringLife: number;
   /** Disabled (can't afford / frozen) — the button art's brightness while dimmed. */
   artDim: number;
 }
@@ -92,19 +94,19 @@ const DEFAULTS: RefreshConfig = {
   glowColor: '#4bc0ff',
   sheenCycle: 5.2,
   sheenAlpha: 0.55,
-  spinMs: 420,
-  flashMs: 320,
+  shineMs: 420,
+  shineAlpha: 0.85,
+  shineSize: 1.5,
+  shineBlur: 18,
+  shineColor: '#8fe4ff',
   dustCount: 0.8,
   dustSize: 2,
   dustLife: 1.4,
-  rings: 1,
-  ringRadius: 2.6,
-  ringLife: 1.7,
   artDim: 0.5,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */
-export const RFB_RANGES: Record<Exclude<keyof RefreshConfig, 'glowColor'>, [number, number, number]> = {
+export const RFB_RANGES: Record<Exclude<keyof RefreshConfig, 'glowColor' | 'shineColor'>, [number, number, number]> = {
   x: [-800, 800, 1],
   y: [-400, 600, 1],
   scale: [0.4, 2.5, 0.01],
@@ -122,14 +124,13 @@ export const RFB_RANGES: Record<Exclude<keyof RefreshConfig, 'glowColor'>, [numb
   glowH: [0.85, 1.15, 0.005],
   sheenCycle: [1, 12, 0.1],
   sheenAlpha: [0, 1, 0.01],
-  spinMs: [0, 1200, 10],
-  flashMs: [0, 900, 10],
+  shineMs: [0, 1200, 10],
+  shineAlpha: [0, 1, 0.01],
+  shineSize: [1, 3, 0.05],
+  shineBlur: [0, 60, 1],
   dustCount: [0, 4, 0.05],
   dustSize: [0.2, 3, 0.05],
   dustLife: [0.2, 3, 0.05],
-  rings: [0, 2, 1],
-  ringRadius: [0, 4, 0.05],
-  ringLife: [0.2, 3, 0.05],
   artDim: [0.3, 1, 0.01],
 };
 
@@ -153,14 +154,14 @@ export const RFB_DESC: Record<keyof RefreshConfig, string> = {
   glowColor: 'Hover glow colour.',
   sheenCycle: 'Sheen — seconds per glare sweep cycle (one sweep, then a rest). Lower = livelier.',
   sheenAlpha: 'Sheen — glare strength. 0 = no sweep.',
-  spinMs: 'Press — how long the refresh art spins (ms). 0 = no spin.',
-  flashMs: 'Press flash duration (ms). 0 = no flash.',
-  dustCount: 'Press — dust billow amount (× the combat impact dust). 0 = no dust.',
-  dustSize: 'Press — dust puff size (×).',
-  dustLife: 'Press — dust lifetime (×).',
-  rings: 'Press — shockwave ring count (0–2). 0 = no ripple.',
-  ringRadius: 'Press — shockwave radius (×).',
-  ringLife: 'Press — shockwave lifetime (×).',
+  shineMs: 'Click shine — how long the flare lasts (ms). 0 = no shine.',
+  shineAlpha: 'Click shine — peak opacity.',
+  shineSize: 'Click shine — how far the flare expands past the button (×).',
+  shineBlur: 'Click shine — blur softness (px). Higher = a softer bloom.',
+  shineColor: 'Click shine — colour.',
+  dustCount: 'Click — dust billow amount (× the combat impact dust). 0 = no dust.',
+  dustSize: 'Click — dust puff size (×).',
+  dustLife: 'Click — dust lifetime (×).',
   artDim: 'Disabled (can’t afford) — the button art’s brightness while dimmed.',
 };
 
@@ -171,11 +172,11 @@ export const RFB_NUM_KEYS = [
   'costX', 'costY', 'costS',
   'glowW', 'glowH', 'glowBlur', 'glowAlpha', 'glowStrength', 'glowPulse', 'glowPulseDepth',
   'sheenCycle', 'sheenAlpha',
-  'spinMs', 'flashMs', 'dustCount', 'dustSize', 'dustLife',
-  'rings', 'ringRadius', 'ringLife',
+  'shineMs', 'shineAlpha', 'shineSize', 'shineBlur',
+  'dustCount', 'dustSize', 'dustLife',
   'artDim',
 ] as const;
-export const RFB_COLOR_KEYS = ['glowColor'] as const;
+export const RFB_COLOR_KEYS = ['glowColor', 'shineColor'] as const;
 
 const KEY = 'ascent.refreshbtn';
 // Dev-only persistence: production always renders the shipped DEFAULTS (Layout Lab convention).
@@ -228,8 +229,11 @@ export function applyRefreshVars(): void {
   root.setProperty('--rfb-glow-shadow', Array(Math.max(1, Math.round(cfg.glowStrength))).fill(one).join(', '));
   root.setProperty('--rfb-sheen-cycle', `${Math.max(0.5, cfg.sheenCycle)}s`);
   root.setProperty('--rfb-sheen-alpha', String(cfg.sheenAlpha));
-  root.setProperty('--rfb-spin-ms', `${Math.max(1, cfg.spinMs)}ms`);
-  root.setProperty('--rfb-flash-ms', `${Math.max(1, cfg.flashMs)}ms`);
+  root.setProperty('--rfb-shine-ms', `${Math.max(1, cfg.shineMs)}ms`);
+  root.setProperty('--rfb-shine-alpha', String(cfg.shineAlpha));
+  root.setProperty('--rfb-shine-size', String(cfg.shineSize));
+  root.setProperty('--rfb-shine-blur', `${cfg.shineBlur}px`);
+  root.setProperty('--rfb-shine-color', cfg.shineColor);
   root.setProperty('--rfb-art-dim', String(cfg.artDim));
 }
 

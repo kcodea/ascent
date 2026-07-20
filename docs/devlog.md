@@ -3,6 +3,29 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21f (Refresh click FX)
+
+### tweak(ui): the Refresh crystal no longer spins — dust + a shine flare on click
+
+Owner call. The press SPIN and the shockwave RINGS are gone; clicking now emits **dust and a shine**, and
+nothing else. The removed dials were **deleted rather than defaulted to 0** — a tuner full of sliders that
+do nothing is worse than a smaller one.
+
+The shine is a new one-shot radial flare that blooms out of the crystal and fades, with its own dials:
+**time / opacity / spread / blur / colour**. It mounts only while playing, so nothing animates at rest, and
+it animates **scale + opacity only** (compositor-friendly, per `docs/performance.md`) rather than the
+brightness-filter pop the old press flash used.
+
+Verified live on cleared settings: the shine mounts with `animation: rfbshine` and unmounts after; the art's
+transform is `none` before AND during the click (it genuinely doesn't rotate); the `.spin` class is gone;
+and `impactDust` fires once at the button centre with the configured opts.
+
+**A measurement note.** My first dust check read 0 and looked like a regression — it was a bad accessor
+(`__pixiFx.particles`), not a missing effect. Spying on `impactDust` itself showed the real call. Worth
+remembering: verify an FX by intercepting the call, not by guessing at an internal array.
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
 ## 2026-07-21e (Refresh crystal)
 
 ### feat(ui): the standalone REFRESH crystal + its dev tuner, replacing the Reroll plaque

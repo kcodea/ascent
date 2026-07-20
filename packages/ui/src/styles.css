@@ -2045,6 +2045,28 @@ body.modalup .statusbar .questbadges {
    they don't drift with resolution. `transform-origin: left center` grows the row rightward from its left anchor. */
 .questbadges { align-self: flex-start; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(var(--qb-gap, 2) * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; transform: translate(calc(var(--qb-x, -12px) * var(--scale)), calc(var(--qb-y, -256px) * var(--scale))) scale(var(--qb-s, 1.32)); transform-origin: left center; }
 .questbadge { position: relative; width: calc(53 * var(--u)); height: calc(53 * var(--u)); border-radius: 50%; border: 2px solid var(--c, var(--gold)); background: var(--card); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
+/* ---- PENDING quest node — taken but not yet activated (QuestBadges).
+   The owner rework (2026-07-21) replaced the QuestPanel text window with nodes: a quest appears as a bubble the
+   moment it's taken and sits DIM until it activates, then lights up as a trophy in the same slot. The dim
+   treatment mirrors Disco Dan's tier-locked cards (desaturated + dropped opacity) so "not yet" reads the same
+   way everywhere. Static filter — set once per state, never animated, so it costs no per-frame paint. */
+.questbadge.pending {
+  border-color: color-mix(in srgb, var(--c, var(--gold)) 30%, #2a2622);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 calc(2 * var(--u)) calc(5 * var(--u)) -2px var(--shadow);
+}
+.questbadge.pending .questbadge-art, .questbadge.pending .questbadge-emblem {
+  filter: grayscale(0.85) brightness(0.62);
+  opacity: 0.72;
+}
+/* Hovering a pending node brings it to full colour — a peek at what it becomes, and confirmation of what the
+   pointer is on while the tip is open. */
+.questbadge.pending:hover .questbadge-art, .questbadge.pending:hover .questbadge-emblem {
+  filter: grayscale(0.15) brightness(0.95);
+  opacity: 1;
+}
+/* Its x/y counter is the live objective progress, so it stays legible rather than dimming with the art. */
+.questbadge.pending .questbadge-step { opacity: 0.95; }
+
 .questbadge.ongoing { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 0 calc(2 * var(--u)) color-mix(in srgb, var(--c) 45%, transparent), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 /* A completed quest / owned rune's COMBAT effect just fired this replay — ONE bright, larger pulse, then dormant
    until the NEXT trigger (the element is re-keyed by the fire count in QuestBadges, so a fresh pulse plays each

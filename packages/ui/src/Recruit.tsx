@@ -1061,7 +1061,7 @@ export function Recruit() {
   useEffect(() => {
     setCombatEnemyDeaths(inCombat && !run.combatSettled ? replay.enemyDeaths : 0);
   }, [inCombat, run.combatSettled, replay.enemyDeaths, setCombatEnemyDeaths]);
-  // Bridge this fight's live combat quest progress to the store so the QuestPanel ticks combat objectives up as
+  // Bridge this fight's live combat quest progress to the store so quest NODES tick combat objectives up as
   // the replay plays. Cleared to `null` once SETTLED — settleCombat folds the tally into the run's quest
   // progress, so the panel then reads it from there (adding the live delta too would briefly double-count).
   useEffect(() => {

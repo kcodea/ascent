@@ -4577,3 +4577,28 @@ button.frzwrap.frzwrap:focus-visible {
 .herobuffs-body .buff-val { color: #f4ecdb; font-weight: 900; }
 /* Mid-drag the drawer must not eat a drop aimed at the corner (mirrors the hero/Embers rule above). */
 body.dragging .herobuffs { pointer-events: none; }
+
+/* ---- SPELL POWER floating number (`floatSpellPowerNumber`, spellPowerFxConfig.ts).
+   One-shot element appended to <body> for a single cast, animated by WAAPI (transform + opacity only) and
+   removed on finish — so there is never a persistent node or a looping animation here. `position: fixed`
+   because the caller passes VIEWPORT coords straight from getBoundingClientRect. */
+.spellpower-float {
+  position: fixed;
+  z-index: 120;
+  pointer-events: none;
+  font-family: var(--font-ui);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--spf-text, #fff);
+  /* Outline drawn with -webkit-text-stroke where supported (crisp at any size) plus a shadow ring as the
+     universal fallback + glow. Both colours come from the tuner's pickers. Static — set once on a one-shot
+     element, never animated, so it costs one paint rather than a per-frame repaint. */
+  -webkit-text-stroke: calc(0.5 * var(--u)) var(--spf-outline, #7a2bd0);
+  paint-order: stroke fill;
+  text-shadow: 0 0 calc(6 * var(--u)) var(--spf-outline, #7a2bd0), 0 0 calc(14 * var(--u)) var(--spf-outline, #7a2bd0), 0 2px 3px rgba(0, 0, 0, 0.75);
+  will-change: transform, opacity;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spellpower-float { transition: none; }
+}

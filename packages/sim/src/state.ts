@@ -604,6 +604,28 @@ export interface RunState {
    *  MIRRORS every weld onto itself, so the host and every Beatbot must all animate. Pure display metadata —
    *  never read by the sim. Never cleared; the UI dedupes against a ref of the last-seen seq. */
   weldFxSeq?: number;
+  /** Bumped whenever SPELL POWER GOES UP this action, by any source and any amount (Cinderwing Matron's
+   *  Shout, a quest reward, a rune, the hero's amplify …) — the UI fires the Spell Power FX (rising arrows +
+   *  blast + the floating gain) once per bump. One-shot, like `swapFxSeq`. Stamped from the before/after
+   *  state delta rather than a per-action scratch field, so a batch of dispatches can't drop it the way the
+   *  weld FX once did. */
+  spellPowerFxSeq?: number;
+  /** The spell-power INCREASE to print alongside that FX (Attack / Health), captured at stamp time so the
+   *  number is the gain this action produced rather than whatever the run drifts to before the UI reads it.
+   *  Two stats because spell power is a PAIR — Cinderwing Matron grants Health only. */
+  spellPowerFxAtk?: number;
+  spellPowerFxHp?: number;
+  /** The uid of the card that drove the gain, so the flourish plays OVER it rather than over the row
+   *  (owner ask 2026-07-21). Absent when the source isn't a card the player acted on — a quest reward or a
+   *  rune tick — and the UI falls back to the shop row for those. */
+  spellPowerFxUid?: string;
+  /** Quest/rune End-of-Turn rewards that TRIGGERED a specific unit this action — one entry per proc, in fire
+   *  order. The UI draws a gold tendril from that quest's node to the unit it hit (owner ask 2026-07-21).
+   *  Source is the effect id (the node is looked up from it), not the quest id, because runes grant these too
+   *  and a rune has its own badge in the same row. Cleared per action like the other transient FX fields. */
+  questTendrilFx?: { effect: string; uid: string }[];
+  /** Bumped when `questTendrilFx` is refilled, so the UI fires once per action even if the list repeats. */
+  questTendrilSeq?: number;
   weldFxUids?: string[];
   weldFxKind?: 'play' | 'auto';
   /** `weldFxSeq` as of the start of the current action — lets `stampWeldFx` tell its first stamp of an

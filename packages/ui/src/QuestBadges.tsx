@@ -59,7 +59,9 @@ export function QuestBadges() {
         const rune = RUNE_INDEX[id]!;
         const art = runeArt(rune.id);
         return (
-          <div className="questbadge runebadge" key={id}>
+          // `data-eot-effect` anchors the quest-tendril FX: a recurring End-of-Turn reward that triggers a
+          // unit draws its tendril from THIS node. Runes grant those too, so both node kinds carry it.
+          <div className="questbadge runebadge" key={id} data-eot-effect={rune.reward?.kind === 'recurringEndOfTurn' ? rune.reward.effect : undefined}>
             {/* Keyed on the trigger count → remounts and replays the scale-punch bounce (like a unit's self-buff)
                 each time this rune's combat effect fires. The glow ring rides inside so it replays in lockstep. */}
             <div className="questbadge-inner" key={triggered[id] ?? 0} data-pulse={triggered[id] ?? 0}>
@@ -120,7 +122,14 @@ export function QuestBadges() {
         }
         // One-shot pulse count: a recruit-phase completion / repeatable re-fire (completionCount, e.g. Hoard Spark
         // buying its 4th Dragon) OR a combat trigger (combatTriggeredQuests, beat-synced). Keyed → fresh pulse per bump.
-        const pulse = (aq.completionCount ?? 0) + (aq.completed ? 1 : 0) + (triggered[aq.questId] ?? 0) + (completedNow.includes(aq.questId) ? 1 : 0);
+        // A RECURRING reward firing in the recruit phase (Echoing Roar at End of Turn) is a trigger too, and
+        // wasn't pulsing: `triggered` is combat-only, and `completionCount` doesn't move on a re-fire. Fold in
+        // this action's tendril procs for THIS reward — `questTendrilSeq` changes per action, so the key
+        // changes and the bounce replays on every proc (owner report 2026-07-21).
+        const procced = r.kind === 'recurringEndOfTurn'
+          && (run.questTendrilFx ?? []).some((t) => t.effect === r.effect)
+          ? (run.questTendrilSeq ?? 0) : 0;
+        const pulse = (aq.completionCount ?? 0) + (aq.completed ? 1 : 0) + (triggered[aq.questId] ?? 0) + (completedNow.includes(aq.questId) ? 1 : 0) + procced;
         const c = def.tribe === 'neutral' ? 'var(--t-neutral)' : `var(--t-${def.tribe})`;
         // The live ongoing chip: Shouts used, repeat countdown, else nothing.
         const charges = run.shoutDoubleCharges ?? 0;
@@ -148,7 +157,7 @@ export function QuestBadges() {
         };
         const liveTxt = questRewardLiveText(r, live);
         return (
-          <div className={`questbadge${ongoing ? ' ongoing' : ''}`} style={{ '--c': c } as CSSProperties} key={aq.questId}>
+          <div className={`questbadge${ongoing ? ' ongoing' : ''}`} style={{ '--c': c } as CSSProperties} key={aq.questId} data-eot-effect={r.kind === 'recurringEndOfTurn' ? r.effect : undefined}>
             {/* Keyed on the pulse count → remounts + replays the scale-punch bounce (a quest's own "self-buff")
                 each time it completes / re-fires / triggers in combat. The glow ring rides inside, in lockstep. */}
             <div className="questbadge-inner" key={pulse} data-pulse={pulse}>

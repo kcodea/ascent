@@ -49,6 +49,7 @@ import {
   isTribe,
 } from './index';
 import { magnetizesTo } from './reducer';
+import { replayBattlecry } from './recruit'; // not re-exported from the package index — internal on purpose
 import type { BoardMinion } from '@game/core';
 import { applyEndOfTurn, applyGoldSpent, conjuredStats, implosionCasts, spellCasts, spellCostReduction, weldMagnetic } from './recruit';
 import { rollShop } from './shop';
@@ -2373,6 +2374,83 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'b1')!.attack).toBe(2 + 2); // 4
     s = reduce(s, { type: 'play', uid: 'b2' }); // next Beast → buff improved to +4/+4
     expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 4); // 11
+  });
+
+  it('a quest End-of-Turn reward that triggers a unit stamps a tendril proc (Echoing Roar)', () => {
+    // The gold tendril is drawn from the reward's NODE to the unit it hit, so the sim must record which unit
+    // each proc triggered — one entry PER PROC, so a repeated End of Turn draws one ribbon per fire rather
+    // than one for the group.
+    const s: RunState = {
+      ...createRun(1), embers: 0, shop: [], hand: [],
+      board: [{ uid: 'cw', cardId: 'cinder', tribe: 'dragon', attack: 4, health: 5, keywords: [], golden: false }],
+      questRecurringEndOfTurn: ['triggerLeftmostShout'],
+    };
+    s.questTendrilFx = [];
+    applyEndOfTurn(s);
+    expect(s.questTendrilFx!.length).toBeGreaterThanOrEqual(1);
+    expect(s.questTendrilFx![0]).toEqual({ effect: 'triggerLeftmostShout', uid: 'cw' });
+    expect(s.questTendrilSeq ?? 0).toBeGreaterThan(0);
+  });
+
+  it('a RE-TRIGGERED Shout counts toward the Shout tally (Echoing Roar / Resonance / Myra)', () => {
+    // Owner report 2026-07-21: Echoing Roar's reward re-fires your leftmost Shout at End of Turn, but that
+    // trigger never advanced `shout` objectives — so the quest could not advance itself. Every re-trigger path
+    // routes through `replayBattlecry` (Echoing Roar's reward, the Resonance spell, Myra's hero power) and none
+    // of them touched the tally the reducer reads. Same class as the Uron rally fix (#594): the effect
+    // re-fired, the tally never saw it. Asserted at the tally, which is where the bug lived.
+    const s: RunState = {
+      ...createRun(1), embers: 0, shop: [], hand: [],
+      board: [{ uid: 'cw', cardId: 'cinder', tribe: 'dragon', attack: 4, health: 5, keywords: [], golden: false }],
+    };
+    s.lastShoutFires = 0; // the reducer zeroes this at the start of every action
+    const fired = replayBattlecry(s, s.board[0]!);
+    expect(fired).toBe(true);
+    expect(s.lastShoutFires).toBe(1); // was 0 before the fix — the replay never counted
+  });
+
+  it('a play and a re-trigger in the SAME action both count (the tally accumulates)', () => {
+    // The tally used to be ASSIGNED by the play path, so a later writer in the same action clobbered it.
+    // Accumulating is what lets a played Shout and an Echoing Roar re-fire both land.
+    const s: RunState = {
+      ...createRun(1), embers: 0, shop: [], hand: [],
+      board: [{ uid: 'cw', cardId: 'cinder', tribe: 'dragon', attack: 4, health: 5, keywords: [], golden: false }],
+    };
+    s.lastShoutFires = 1;                 // pretend a play already counted one this action
+    replayBattlecry(s, s.board[0]!);      // …then a re-trigger fires
+    expect(s.lastShoutFires).toBe(2);     // both counted, rather than the second overwriting the first
+  });
+
+  it('spellPowerFxSeq fires when SPELL POWER rises — incl. Health-only (Cinderwing Matron)', () => {
+    // Owner correction 2026-07-21: the flourish is for spell power going UP by any amount from any source,
+    // NOT for casting a spell. Cinderwing grants Health only, so the original Attack-only check missed it
+    // entirely — that's the exact regression this pins.
+    let s: RunState = {
+      ...createRun(1), embers: 20, shop: [],
+      board: [], hand: [{ uid: 'cw', cardId: 'cinder', tribe: 'dragon', attack: 4, health: 5, keywords: [], golden: false }],
+    };
+    const before = s.spellPowerFxSeq ?? 0;
+    s = reduce(s, { type: 'play', uid: 'cw' }); // Shout: your spells get +1 Health
+    expect(s.spellPowerFxSeq ?? 0).toBe(before + 1);
+    expect(s.spellPowerFxHp).toBe(1); // the Health-only gain is what fired it
+    expect(s.spellPowerFxAtk ?? 0).toBe(0);
+
+    // An action that does NOT move spell power must not bump it — otherwise the FX fires on every click.
+    const after = s.spellPowerFxSeq;
+    s = reduce(s, { type: 'roll' });
+    expect(s.spellPowerFxSeq).toBe(after);
+  });
+
+  it('casting a spell does NOT fire the spell-power FX on its own', () => {
+    // The inverse of the correction: a cast in a run with no spell-power source moves nothing, so it must
+    // stay silent. (The old implementation fired here — and printed "+0".)
+    let s: RunState = {
+      ...createRun(1), embers: 20, shop: [],
+      board: [], hand: [{ uid: 'sp', cardId: 'depositbox', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    const before = s.spellPowerFxSeq ?? 0;
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    expect(s.hand.some((c) => c.uid === 'sp')).toBe(false); // it really resolved
+    expect(s.spellPowerFxSeq ?? 0).toBe(before);           // …and fired nothing
   });
 
   it('an "All" type (Lab Experiment) counts as every tribe, incl. a Beast played', () => {

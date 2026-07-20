@@ -3,6 +3,293 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21w (quest art rewire)
+
+### chore(ui): rewire the four mismatched quest arts
+
+Four quests whose source art matched by ID or by an obvious filename typo rather than by their current
+NAME, so they'd been left on stale/mismatched images:
+
+| Source | Quest | Why it didn't match by name |
+|---|---|---|
+| `BoneThrone.png` | `q_the_bone_throne` | quest is "The Bone Throne" |
+| `TrohpyDen.png` | `q_trophy_den` | typo in the filename |
+| `MawOfTheRun.png` | `q_maw_of_the_run` | quest renamed to "Track and Fodder" |
+| `TheImpossibleShop.png` | `q_impossible_shop` | quest renamed to "Taurus Ascension" |
+
+Converted to 512×512 webp (`sharp`, q82) to match every other quest art — the source PNGs are ~2.5MB each,
+so copying them verbatim would have added ~10MB to the bundle for four images. Result: 27–70KB each, in line
+with the existing set.
+
+NOT touched: the 7 UUID-named files in that folder (un-attributed — the standing rule is to wire art only on
+a filename match, never a guess), and the stale files matching no current quest (`Bloodlust`, `GraveToll`,
+`FirstTracks`, `EpicCommission`, `ShieldCalibration`, `ToothAndTempo`, `TrailRations`, `TaragosasInheritence`
+— the last a spelling twin of the already-wired `TaragosasInheritance`).
+
+Verified: all 80 quests have art, zero byte-duplicate images in the folder, and typecheck + lint + 1277 tests
++ `build:web` green.
+
+## 2026-07-21v (Aeon Guard: spell power on the beat)
+
+### fix(ui): the spell-power flourish fires per End-of-Turn proc, not at Start of Combat
+
+Same root cause as the quest tendril, now applied to spell power. `spellPowerFxSeq` is stamped when the
+End-of-Turn commit lands (`faceOmen`) — which is dispatched AFTER every beat has played and the phase has
+flipped — so Aeon Guard's flourish played once, at Start of Combat, instead of on each proc.
+
+Now fired from the beat loop: the beat carries the source uid, so the FX reads that card's `endOfTurn`
+`battlecryBuffSpellPower` params (golden-doubled) and pops on the unit, at its moment, once PER PROC. A
+Chronos/Parliament-repeated End of Turn gets one flourish per beat, matching the tendril.
+
+The committed signal is NOT removed — it still covers the shop paths (casting a spell, a buy that moves
+spell power). It's suppressed only for the sourceless, out-of-recruit bump, which is exactly the late
+`faceOmen` one that produced the Start-of-Combat pop.
+
+**Still open:** the combat-side hook (`useCombatReplay`'s `sc` narration) remains, and still anchors to
+whichever unit sourced it, enemy included — the TODO from 2026-07-21t. That path is for spell power gained
+DURING a fight (Skullblade), which is a genuinely different moment from this one; it needs the replay's
+player/enemy uid sets to stop drawing on the opponent's half.
+
+Verified: typecheck + lint + 1277 tests + `build:web` green, `typecheck:web` at its 48 baseline. Not
+exercised end-to-end for the same harness reason as the tendril — but the tendril fix, which the owner
+confirmed working, validates the seam this reuses.
+
+## 2026-07-21u (End-of-Turn FX must ride the BEAT, not reducer state)
+
+### fix(ui): fire the quest tendril from the End-of-Turn beat loop
+
+▶ Test worked, the real proc never showed. The cause is architectural and explains the Aeon Guard timing
+complaint too.
+
+**End-of-Turn effects animate as BEATS in `Recruit.endTurn`, and the reducer commit (`faceOmen`) is
+dispatched only AFTER every beat has played and the phase has flipped.** So any FX keyed off committed run
+state (`questTendrilFx`/`questTendrilSeq`, and equally `spellPowerFxSeq`) fires once, late, when the board is
+already gone — my own "unit already left the board, skip" guard then swallowed it silently. That is why the
+tendril was invisible at End of Turn while the tuner's Test — which fires against the live board — looked
+perfect.
+
+The ribbon now fires inside the beat loop, on the beat that represents that reward's proc. Two things fall
+out for free: it draws while the board is still on screen, and it is inherently PER PROC — a repeated End of
+Turn (Chronos/Parliament) gets one ribbon per beat, which is what the owner asked for. The target is
+resolved UI-side mirroring `runRecurringEndOfTurn`'s pick (leftmost Shout / leftmost Echo).
+
+The sim signal stays: it still drives the node PULSE in QuestBadges, which is correctly keyed off committed
+state. Only the ribbon moved.
+
+**This is the same root cause as Aeon Guard's spell power showing at Start of Combat** — that FX is also
+keyed off committed state, so it lands after the phase flip. The fix is the same shape (fire from the beat),
+and is the per-proc work still outstanding.
+
+**NOT VERIFIED END-TO-END.** A real `endTurn` runs combat, which my synthetic harness state can't survive
+(`reduce` throws on the incomplete state), so I could not watch the beat fire the ribbon. The reasoning is
+solid and the wiring typechecks, but the owner should confirm before trusting it. Everything else green:
+typecheck + lint + 1277 tests + `build:web`, `typecheck:web` at its 48 baseline.
+
+## 2026-07-21t (the tendril's curve was a MULTIPLIER, not pixels)
+
+### fix(ui): quest tendril arc units — the actual cause of the off-screen ribbon
+
+Four diagnoses deep, the cause was a UNIT error in my own config, not selectors, not layout, not rendering.
+
+`pixiFx` computes the quadratic control point as `off = len * cfg.curve * 0.5` — `curve` is a FRACTION OF
+THE TENDRIL'S LENGTH. I documented it as "arc bulge (px)", shipped a default of **46**, and gave the tuner a
+±200 range. On a ~700px tendril that puts the control point **~16,000px** off screen, which is exactly the
+straight spike toward the corner the owner kept reporting. The sibling configs had the answer in plain sight
+the whole time: Infusion uses `0.3`, Swap uses `0.94`, both ranged `[0, 1]`.
+
+Now `0.28`, with the range clamped to ±1 so the tuner cannot reproduce it.
+
+**Three wrong diagnoses before this, all from reasoning past the evidence rather than reading it:**
+1. "Layout — the `--qb-*` pin pushes the node off screen" → shipped a viewport clamp for a node that was
+   never off screen. The clamp is harmless but it was treating a symptom I'd invented.
+2. "Wrong element — the opponent's `.questbadge`" → real latent bug, correctly fixed, but NOT this one.
+3. "It isn't rendering at all" → based on a `Graphics` measuring 0x0, whose bounds simply don't reflect drawn
+   geometry. An owner screenshot disproved it. That is the third wrong-accessor probe this session, after
+   `window.__pixiFx` and the refresh dust.
+
+The owner's screenshots were better evidence than every measurement I took. The tell was there from the
+first one: a ribbon whose NODE end is correct and whose far end runs to a screen corner is geometry, not
+lookup — a wrong element gives you a wrong but plausible endpoint, never a 16,000px one.
+
+**Aeon Guard — NOT fixed, deliberately.** The flourish draws on the opponent's half because the combat path
+anchors to whichever unit sourced the `sc` narration, enemy included. `sc` carries no `side`, so the guard
+needs the replay's player/enemy uid sets. I tried `e.side`, it didn't typecheck, and I reverted it rather
+than ship a fourth guess. Marked with a TODO at the site. The TIMING complaint (fires at Start of Combat
+rather than per End-of-Turn proc) is the per-proc work still queued — the narration I hooked genuinely fires
+at SoC, so that hook is wrong for this, not just mis-anchored.
+
+Verified: typecheck + lint + 1277 tests + `build:web` green, `typecheck:web` back at its 48 baseline.
+
+## 2026-07-21s (tendril anchored to the wrong panel; node pulse)
+
+### fix(ui): scope the quest tendril to the PLAYER's badge row + pulse on a recruit-phase proc
+
+Owner: the tendril came out of the OPPONENT's quest panel, stayed off screen, and the active node never
+pulsed when it fired. Two real bugs, and the first is mine from the previous pass.
+
+**1. Wrong panel.** `OpponentFrame` renders the opponent's quests/runes with the SAME `.questbadge` class,
+inside `.oppbadges`. Both the ▶ Test (`document.querySelector('.questbadge')`) and the anchor lookup were
+UNSCOPED, so they could resolve to the opponent's badge — which sits in the top-right frame, hence a ribbon
+launching from off-screen. Every lookup is now scoped to `.questbadges`, the player's row, which excludes
+`.oppbadges` by construction.
+
+*This is why the previous clamp "fix" didn't help:* I treated an off-screen launch point as a layout problem
+with the `--qb-*` pin, when the launch point was simply the wrong element. The clamp is still correct as a
+guard, but it was bandaging the symptom of a selector bug. I should have checked whether anything ELSE
+renders `.questbadge` before assuming the coordinate was right and the layout wrong.
+
+**2. No pulse on a recruit-phase proc.** The node's bounce keys off `pulse`, built from `completionCount` +
+`completed` + `combatTriggeredQuests` + `combatCompletedQuests` — all COMBAT signals. A recurring reward
+firing at End of Turn (Echoing Roar) moves none of them: `triggered` is combat-only and `completionCount`
+doesn't budge on a re-fire. Now folds in this action's tendril procs for that reward, so the key changes per
+proc and the bounce replays each time.
+
+Verified: typecheck + lint + 1277 tests + `build:web` green. Live DOM: the scoped and unscoped lookups agree
+on a board with no opponent quests (so the scope doesn't break the normal case), and firing a proc moves the
+node's `data-pulse` 2 → 3, replaying the bounce.
+
+**Still unverified:** a board that actually HAS opponent quest badges. The scope is correct by construction
+(`.oppbadges` is not `.questbadges`) but I could not stage an opponent with quests to watch it, so the case
+that was actually broken is fixed-by-reasoning, not fixed-by-observation.
+
+## 2026-07-21r (tendril clamp + blast dials)
+
+### fix(ui): keep the quest tendril on screen; expand the blast/shrapnel tuner
+
+**Off-screen tendril.** Owner saw the ribbon fly in from the corner, and the ▶ Test did it too. The quest
+node row is stage-pinned with a large negative `--qb-y` (−256 × scale), so on a tall/zoomed layout the node
+sits ABOVE the viewport — and a tendril launched from an off-screen point reads as a stray line rather than
+as coming from the node.
+
+Not reproducible at my viewport (the node measured a healthy 50,814 there), so it was reproduced by forcing
+the row off-screen: at a raw centre of **−350,67** the launch now clamps to **12,67**, keeping the ribbon
+coming from the node's DIRECTION while staying visible. The target end is checked too — if the UNIT is
+off-screen the proc is skipped rather than slinging a ribbon at a point the player can't see. The ▶ Test now
+picks the first ON-SCREEN node and unit, so it exercises the same geometry the real fire does.
+
+NB: the clamp treats the symptom. That the node row can leave the viewport at all is a LAYOUT issue with the
+`--qb-*` pin worth its own look — the tendril just made it visible.
+
+**Blast/shrapnel dials** (owner ask): the spell-power blast had 5 knobs, now 13 — `blastSpread` (360 = ring,
+less = a cone), `blastAngle` (where the cone aims, 0 = up), `blastDrag`, `blastJitter` (speed variance),
+`blastRise` (upward kick), `blastSpin`, `blastStagger` (0 = one pop, >0 = a sputtering spray), and
+`blastShrink` (end scale). The previously hardcoded drag/rise/shrink are now dials, so the old look is
+reproducible from the defaults. Stagger only schedules timers when non-zero, so the default stays a single
+synchronous burst with no scheduling cost.
+
+Verified: typecheck + lint + 1277 tests + `build:web` green; the clamp confirmed against a forced off-screen
+node with no console errors.
+
+## 2026-07-21q (quest tendril)
+
+### feat(ui): a gold tendril from a quest node to the unit it triggers
+
+Owner ask: when a quest procs a unit — Echoing Roar re-firing your leftmost Shout — a gold ribbon should
+reach out of the quest's NODE and strike the unit it triggered.
+
+Built on the existing `pixiFx.buffTendril` (the Fodder Infusion's primitive), so this is a signal + anchor
+job rather than new rendering: `questTendrilConfig.ts` is that primitive's `TendrilCfg` in a gold palette
+plus an arc dial and a stagger, with the "🏆 Quest Tendril" tuner and a ▶ Test that fires one from the first
+node to the first board minion.
+
+**Signal.** `runRecurringEndOfTurn` stamps `{ effect, uid }` for the two rewards that target a UNIT —
+Echoing Roar's `triggerLeftmostShout` and Rune of the Reliquary's `triggerLeftmostEcho`. One entry PER PROC,
+so a repeated End of Turn (Chronos / Parliament of Flame) draws one ribbon per fire rather than one for the
+group, and the arc alternates sides so they read as separate strikes.
+
+**Anchor.** Nodes carry `data-eot-effect`, keyed on the reward EFFECT rather than the quest id — runes grant
+these too and have their own badge in the same row, so one attribute covers both. Absent for non-recurring
+rewards, so only the nodes that can actually throw a tendril are addressable. If either end is missing (node
+off-screen, unit already gone) the proc is skipped rather than throwing.
+
+Verified: typecheck + lint + **1277** tests + `build:web` green. New test pins the stamp (effect + uid, seq
+bumped). Live DOM: the node resolves at (50,814) and the target unit at (767,741), and firing the signal —
+including the two-proc stagger path — runs clean with no console errors.
+
+**Caveat:** verified by wiring and geometry, not by watching the ribbon. The draw is the shipped Infusion
+primitive, so the risk sat in the signal and the anchors; still worth an eye on the gold and the arc.
+
+## 2026-07-21p (re-triggered Shouts count)
+
+### fix(sim): a REPLAYED Shout advances Shout objectives; tallies accumulate
+
+Owner report: Echoing Roar wasn't counting toward Shout triggers. Its own reward re-fires your leftmost
+Shout at End of Turn, so the quest could not advance itself.
+
+**Cause — the same class as the Uron rally fix (#594): the effect re-fired, the tally never saw it.**
+`lastShoutFires` (which the reducer reads to advance `shout` objectives) was written ONLY by the play path.
+Every re-trigger path routes through `replayBattlecry` — Echoing Roar's End-of-Turn reward, the Resonance
+spell, Myra's hero power — and none of them touched it. All three were silently uncounted, not just
+Echoing Roar.
+
+**Second, latent bug found while fixing it:** the play path ASSIGNED (`= isShout ? n : 0`) rather than
+accumulating. The reducer already zeroes the field at the start of every action, so assignment bought
+nothing and meant the LAST writer in an action won — a played Shout plus a re-triggered one recorded one,
+not two. `lastEchoFires` already accumulated (`+= 1 + reaper`); Shout and End-of-Turn were the odd ones out.
+Both now accumulate, matching Echo.
+
+Tests assert at the tally, which is where the bug lived, and **both were confirmed to fail on the pre-fix
+code** (`expected +0 to be 1`, `expected 1 to be 2`) — regression guards, not restatements.
+
+**Audit status — PARTIAL, and the owner asked for a full one.** This pass covered the recruit-phase TRIGGER
+tallies (Shout / Echo / End-of-Turn) and the three `replayBattlecry` callers. NOT yet swept: the remaining
+~17 objective events (`buy`, `spendGold`, `summonCombat`, `playAttachment`, `consumeFodder`, …) against every
+quest and rune reward that could fire them indirectly. That's a systematic content-wide audit and is queued
+rather than half-claimed.
+
+Verified: typecheck + lint + **1276** tests + `build:web` green.
+
+## 2026-07-21o (spell power FX — shop half)
+
+### feat(ui): the spell-power flourish — rising arrows, origin blast, floating power number
+
+New FX fired when a spell RESOLVES: a fan of pink/purple/gold arrows rises from the shop row, a mote blast
+pops at the origin, and the run's current spell power floats up as a number once the arrows land. Full trio
+pattern — `spellPowerFxConfig.ts` (DEV-persisted config) + `SpellPowerFxTuner.tsx` ("✨ Spell Power", with a
+▶ Test that fires over the shop row so you needn't stage a cast) + `pixiFx.spellPower`.
+
+**The signal is derived, not scratch.** `spellPowerFxSeq` is stamped in the reducer from the before/after
+`spellsCast` delta — the same place the quest tick reads — rather than a per-action scratch field. That's
+deliberate: the weld-FX bug was a scratch payload cleared before React committed, and a derived delta can't
+be swallowed by batching. `spellPowerFxValue` captures the power at stamp time so the number shows what THAT
+cast produced.
+
+**Perf.** Arrows are one Graphics each, redrawn only while rising and retired on completion (the weld-ring
+pattern, with a `perfMonitor` counter). The blast reuses the shared glow texture + particle pool. The number
+is a one-shot DOM element animated by WAAPI on transform/opacity and removed on finish. Nothing loops, so
+nothing repaints once a cast has played out.
+
+**Live testing caught a real one:** every cast in a fresh run printed "+0", since a run with no spell-power
+sources still casts plenty of spells. A zero tells the player nothing while still pulling the eye, so the
+number is now suppressed at 0 — the arrows and blast already say "a spell resolved".
+
+**Trigger corrected (owner report, same day).** The first cut fired on the `spellsCast` delta — i.e. on
+CASTING a spell. That's the wrong event: the flourish is for spell power going UP, by any source and any
+amount. Worse, it read `spellAttackBonus` alone, and Cinderwing Matron grants spells **+1 Health** — so the
+card the owner tested with could never have fired it, on either count. Now stamped from the before/after
+delta of BOTH stats, and the float prints what actually moved (`+1 HP`, `+2 Atk`, or the pair `+2/+1`) rather
+than a merged number. The "+0" suppression from the first cut is now structural: a cast that moves nothing
+never stamps at all.
+
+**Combat wired — without a new choreo channel.** My first read said this needed a `cast` channel threaded
+through `compile` → `engine` → `channels`. It didn't: `grantSpellPower` ALREADY emits an `sc` narration
+carrying the source uid and a `+A/+H Spell Power` text, so the replay fires the flourish off that, over the
+unit that caused it. Much smaller and it reuses a path that's already beat-synced. The cost is a STRING
+COUPLING across the package boundary, so `spellPowerFx.test.ts` pins the narration shape from the UI side —
+if core reformats it, that test fails instead of the FX silently dying in a playtest.
+
+**Anchored to the source card** (owner ask): the reducer stamps `spellPowerFxUid` from the acting action, and
+the UI anchors to that card's rect. Sourceless gains (quest reward, rune tick) and cards that leave play as
+they resolve fall back to the shop row rather than firing nowhere.
+
+**Text + outline colour pickers** added to the tuner (`colorText`, `colorOutline`), driving the float's fill
+and its `-webkit-text-stroke` + shadow ring. Static per element, never animated.
+
+Verified: typecheck + lint + **1270** tests + `build:web` green, `typecheck:web` at its 48 baseline. New
+`run.test.ts` case pins both halves of the signal — a cast bumps the seq exactly once and captures a numeric
+power, and a non-casting action (`roll`) does NOT bump it. Live DOM: casting Deposit Box took the seq 1 → 2
+and floated the number.
+
 ## 2026-07-21n (quest panel → quest nodes)
 
 ### feat(ui): every taken quest is a node — dim while pending, lit once it activates

@@ -17,6 +17,8 @@ import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
 import { perfMonitor } from './perfMonitor';
 import { getSwapFxConfig } from './swapFxConfig';
+import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
+import { getQuestTendrilConfig, tendrilCfgFor } from './questTendrilConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
 import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
@@ -647,6 +649,43 @@ export function Recruit() {
     });
     return () => cancelAnimationFrame(raf);
   }, [run.swapFxSeq, run.swapFxBoardUid, run.swapFxShopUid]);
+  // NB: the quest tendril is fired from the END-OF-TURN BEAT LOOP (see `endTurn` below), NOT from a reducer
+  // signal. `questTendrilFx` is still stamped in the sim and still drives the NODE PULSE in QuestBadges, but
+  // the ribbon itself has to be drawn while the board is still on screen: the End-of-Turn commit (`faceOmen`)
+  // only lands after every beat has played and the phase has flipped, so an effect keyed off the committed
+  // state ran too late to find its target and drew nothing.
+  // Spell Power — SPELL POWER JUST WENT UP in the shop, from any source and by any amount (Cinderwing
+  // Matron's Shout, a quest reward, a rune…): rising pink/purple/gold arrows + a mote blast, and the GAIN
+  // floats up once they land. Keyed off `spellPowerFxSeq`, the same one-shot dedupe as swapFx; inits to the
+  // current value so a restored save never fires on load. Anchored to the shop row — the cue means "your
+  // spells got stronger", which is a tavern-wide fact rather than one card's.
+  const prevSpellPowerSeq = useRef(run.spellPowerFxSeq);
+  useEffect(() => {
+    const seq = run.spellPowerFxSeq;
+    if (seq === undefined || seq === prevSpellPowerSeq.current) return;
+    prevSpellPowerSeq.current = seq;
+    const gainA = run.spellPowerFxAtk ?? 0;
+    const gainH = run.spellPowerFxHp ?? 0;
+    // The End-of-Turn commit (`faceOmen`) bumps this too, AFTER the beats have already played the per-proc
+    // flourish — that late bump is the Start-of-Combat pop the owner saw. The beats own End of Turn now, so
+    // skip the committed signal for that action and let the shop paths (a cast, a buy) keep it.
+    if (run.spellPowerFxUid === undefined && run.phase !== 'recruit') return;
+    const uid = run.spellPowerFxUid;
+    const raf = requestAnimationFrame(() => {
+      // Over the CARD that caused the gain (owner ask 2026-07-21) — read a frame late so React has committed
+      // it to the board. A sourceless gain (quest reward, rune tick) has no uid, and a card that LEAVES play
+      // as it resolves won't be found, so both fall back to the shop row rather than firing nowhere.
+      const el = (uid && document.querySelector(`[data-uid="${uid}"]`))
+        ?? document.querySelector('[data-zone="tavern"]');
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+      pixiFx.spellPower(x, y, getSpellPowerFxConfig());
+      floatSpellPowerNumber(x, y - r.height * 0.3, gainA, gainH);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [run.spellPowerFxSeq, run.spellPowerFxAtk, run.spellPowerFxHp, run.spellPowerFxUid]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the
@@ -2819,7 +2858,7 @@ export function Recruit() {
   const endTurn = (): void => {
     if (inCombat || endTurnPendingRef.current) return;
     const repeats = endOfTurnRepeats(run);
-    type Beat = { uid: string; kind: 'combinator' | 'generic'; targets: string[]; completes: boolean; label?: string; gust?: boolean; infuse?: boolean };
+    type Beat = { uid: string; kind: 'combinator' | 'generic'; targets: string[]; completes: boolean; label?: string; gust?: boolean; infuse?: boolean; eotEffect?: string };
     const beats: Beat[] = [];
     for (const card of run.board) {
       const def = CARD_INDEX[card.cardId];
@@ -2855,7 +2894,7 @@ export function Recruit() {
     // (effect × repeat) — the stat climb is auto-derived from the projection diff below, so no source card is
     // needed; the beat just anchors the flourish/label on whatever minion(s) actually gain.
     for (const qb of questEndOfTurnBeats(run)) {
-      beats.push({ uid: '', kind: 'generic', targets: [], completes: true, label: qb.label });
+      beats.push({ uid: '', kind: 'generic', targets: [], completes: true, label: qb.label, eotEffect: qb.effect });
     }
     if (beats.length === 0) {
       dispatch({ type: 'faceOmen' });
@@ -2902,6 +2941,49 @@ export function Recruit() {
       // didn't fire, e.g. Frontdrake's countdown) → the softer glow cue.
       if (b.completes) sfx.triggerPulse();
       else sfx.triggerGlow();
+      // SPELL POWER — fired from the BEAT, for the same reason as the tendril below: the End-of-Turn commit
+      // lands after the phase flips, so the reducer-keyed signal played at Start of Combat instead of on the
+      // proc (owner report 2026-07-21 — Aeon Guard). Driving it here puts the flourish on the unit, at its
+      // moment, once PER PROC — a Chronos-repeated End of Turn now pops once per beat.
+      if (b.uid) {
+        const bd = CARD_INDEX[run.board.find((c) => c.uid === b.uid)?.cardId ?? ''];
+        const gold = run.board.find((c) => c.uid === b.uid)?.golden ? 2 : 1;
+        for (const eff of bd?.effects ?? []) {
+          if (eff.on !== 'endOfTurn' || eff.do !== 'battlecryBuffSpellPower') continue;
+          const gA = Number(eff.params?.attack ?? 0) * gold;
+          const gH = Number(eff.params?.health ?? 0) * gold;
+          if (gA <= 0 && gH <= 0) continue;
+          const el = document.querySelector(`[data-uid="${b.uid}"]`);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
+          floatSpellPowerNumber(cx, cy - r.height * 0.3, gA, gH);
+        }
+      }
+      // QUEST TENDRIL — fired from the BEAT, not from reducer state. The End-of-Turn commit (`faceOmen`)
+      // lands only after every beat has played and the phase has flipped, so a reducer-driven signal arrives
+      // when the board is already gone — which is why this never showed at End of Turn while ▶ Test worked
+      // (owner report 2026-07-21). Driving it here also gives the per-proc timing: one ribbon per beat.
+      if (b.eotEffect && getQuestTendrilConfig().enabled) {
+        // Resolve the unit this reward hits, mirroring `runRecurringEndOfTurn`'s pick.
+        const targetUid = b.eotEffect === 'triggerLeftmostShout'
+          ? run.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && d.effects.some((e) => e.on === 'onPlay'); })?.uid
+          : b.eotEffect === 'triggerLeftmostEcho'
+            ? run.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'))?.uid
+            : undefined;
+        const nodeEl = document.querySelector(`.questbadges [data-eot-effect="${b.eotEffect}"]`);
+        const unitEl = targetUid ? document.querySelector(`[data-uid="${targetUid}"]`) : null;
+        if (nodeEl && unitEl) {
+          const nr = nodeEl.getBoundingClientRect();
+          const ur = unitEl.getBoundingClientRect();
+          pixiFx.buffTendril(
+            { x: nr.left + nr.width / 2, y: nr.top + nr.height / 2 },
+            { x: ur.left + ur.width / 2, y: ur.top + ur.height / 2 },
+            tendrilCfgFor(i % 2 === 0 ? 1 : -1),
+          );
+        }
+      }
       if (b.gust) fireTavernGust(); // Maw / Ritualist: the tavern-buffed rush, timed to the beat (replaced Ritualist's old purple shop-wash)
       if (b.infuse && b.uid) fireFodderInfusion(b.uid); // Maw: send-Fodder tendrils reach the shop on the beat
       if (b.kind === 'combinator') setElectrifyUids(new Set(b.targets));

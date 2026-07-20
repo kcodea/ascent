@@ -365,6 +365,18 @@ export interface BuffGustCfg {
   colorCore: string; colorGlow: string;
 }
 
+/** Renderer-facing Spell Power config (structural mirror of the arrow/blast half of SpellPowerFxConfig —
+ *  pixiFx stays import-light). A fan of pink/purple/gold arrows rising from the caster plus a mote blast at
+ *  the origin; the floating NUMBER is DOM and lives in spellPowerFxConfig. See `spellPower`. */
+export interface SpellPowerCfg {
+  arrowCount: number; arrowRise: number; arrowSpread: number; arrowLen: number; arrowWidth: number;
+  arrowHead: number; arrowMs: number; arrowStagger: number; arrowDrift: number; arrowFadeAt: number;
+  blastCount: number; blastSpeed: number; blastSize: number; blastLife: number; blastGravity: number;
+  blastSpread: number; blastAngle: number; blastDrag: number; blastJitter: number; blastRise: number;
+  blastSpin: number; blastStagger: number; blastShrink: number;
+  colorA: string; colorB: string; colorC: string; glowAlpha: number; glowWidth: number;
+}
+
 /** A card row's bounding box (screen px) — the gust anchors to its flanks. */
 export interface GustBox { left: number; right: number; top: number; bottom: number }
 
@@ -608,6 +620,7 @@ class FxController {
   // Weld rings — one per weld, redrawn per frame while the ring converges; retires once the ring lands and
   // its flash/sparks have been emitted (those finish on their own in the particle pool).
   private readonly weldRings: { g: Graphics; x: number; y: number; cfg: WeldCfg; age: number; ease: Float32Array; landed?: boolean }[] = [];
+  private readonly spellArrows: { g: Graphics; x: number; y: number; drift: number; delay: number; tint: number; cfg: SpellPowerCfg; age: number }[] = [];
   private readonly waves: { g: Graphics; region: WaveRegion; cfg: AuraWaveCfg; age: number; lastWake: number; motes: { off: number; spawned: boolean }[] }[] = []; // aura waves — one per rise, a centre→edge board wave redrawn per frame
   /** The live hero-power targeting line (null = not aiming). `side`/`amp` are rolled once per AIM — each
    *  new arm gets a fresh random arch (owner ask: never the same static curve) — then held stable. */
@@ -731,6 +744,7 @@ class FxController {
     perfMonitor.registerCounter('particles', () => this.live.length);
     perfMonitor.registerCounter('sprite pool', () => this.pool.length);
     perfMonitor.registerCounter('weld rings', () => this.weldRings.length);
+    perfMonitor.registerCounter('spell arrows', () => this.spellArrows.length);
     perfMonitor.registerCounter('shields', () => this.shields.size);
     this.ready = true;
   }
@@ -756,6 +770,8 @@ class FxController {
     this.gusts.length = 0;
     for (const w of this.weldRings) { w.g.destroy(); }
     this.weldRings.length = 0;
+    for (const a of this.spellArrows) { a.g.destroy(); }
+    this.spellArrows.length = 0;
     for (const w of this.waves) { w.g.destroy(); }
     this.waves.length = 0; // stale entries would otherwise survive a detach/re-init and tick on an orphaned layer
     this.skullTex?.destroy(true);
@@ -1786,6 +1802,8 @@ class FxController {
     this.gusts.length = 0;
     for (const w of this.weldRings) { this.layer?.removeChild(w.g); w.g.destroy(); }
     this.weldRings.length = 0;
+    for (const a of this.spellArrows) { this.layer?.removeChild(a.g); a.g.destroy(); }
+    this.spellArrows.length = 0;
     for (const w of this.waves) { this.layer?.removeChild(w.g); w.g.destroy(); }
     this.waves.length = 0;
   }
@@ -2570,6 +2588,98 @@ class FxController {
     }
   }
 
+  /**
+   * SPELL POWER: a fan of arrows rising from (x, y) plus a mote blast at the origin — fired when a spell
+   * resolves, in the shop and in combat alike. The floating power NUMBER is DOM (`floatSpellPowerNumber`)
+   * and is fired by the caller alongside this, so the two can be positioned independently.
+   *
+   * Arrows alternate through the pink/purple/gold palette and drift to alternating sides, so a 7-arrow fan
+   * reads as a spread rather than a column. Each is one Graphics redrawn per frame while it lives, matching
+   * the weld-ring pattern; they retire themselves once risen.
+   */
+  spellPower(x: number, y: number, cfg: SpellPowerCfg): void {
+    perfMonitor.mark('fx:spellPower');
+    if (!this.ready || !this.layer) return;
+    const palette = [hexNum(cfg.colorA), hexNum(cfg.colorB), hexNum(cfg.colorC)];
+    for (let i = 0; i < cfg.arrowCount; i++) {
+      const g = new Graphics();
+      g.blendMode = 'add';
+      this.layer.addChild(g);
+      // Fan the launch points across the spread, and alternate the drift side so the fan opens outward.
+      const frac = cfg.arrowCount > 1 ? i / (cfg.arrowCount - 1) - 0.5 : 0;
+      const side = i % 2 === 0 ? 1 : -1;
+      this.spellArrows.push({
+        g,
+        x: x + frac * cfg.arrowSpread,
+        y,
+        drift: side * cfg.arrowDrift * (0.5 + Math.random()),
+        delay: i * cfg.arrowStagger,
+        tint: palette[i % palette.length]!,
+        cfg,
+        age: 0,
+      });
+    }
+    // The origin blast — reuses the shared glow texture + particle pool, like heroPowerBurst.
+    if (cfg.blastCount > 0 && this.glowTex) {
+      const scale = cfg.blastSize / TENDRIL_GLOW_R;
+      const spreadRad = (cfg.blastSpread * Math.PI) / 180;
+      // `blastAngle` 0 points UP (−90° in screen space, where +y is down), so a cone aims where it reads.
+      const aimRad = ((cfg.blastAngle - 90) * Math.PI) / 180;
+      const emit = (i: number): void => {
+        // Fan across the cone. A full 360 spread wraps into a ring; anything less is a directional burst
+        // centred on `aimRad`. The ±half-step jitter keeps the fan from looking like clock hands.
+        const frac = cfg.blastCount > 1 ? i / (cfg.blastCount - 1) - 0.5 : 0;
+        const step = spreadRad / Math.max(1, cfg.blastCount);
+        const ang = aimRad + frac * spreadRad + (Math.random() - 0.5) * step;
+        const sp = cfg.blastSpeed * (1 - cfg.blastJitter / 2 + Math.random() * cfg.blastJitter);
+        this.spawn(this.glowTex!, {
+          x, y,
+          vx: Math.cos(ang) * sp,
+          vy: Math.sin(ang) * sp - cfg.blastRise,
+          drag: cfg.blastDrag, gravity: cfg.blastGravity,
+          life: cfg.blastLife * (1 - cfg.blastJitter / 3 + Math.random() * (cfg.blastJitter / 1.5)),
+          fromScale: scale, toScale: scale * cfg.blastShrink,
+          spin: cfg.blastSpin ? (cfg.blastSpin * Math.PI) / 180 * (Math.random() < 0.5 ? 1 : -1) : 0,
+          tint: palette[i % palette.length]!, blend: 'add', peakAlpha: 1,
+        });
+      };
+      for (let i = 0; i < cfg.blastCount; i++) {
+        // Stagger spawns a sputtering spray instead of one pop. Timers only when asked for — the default
+        // (0) stays a single synchronous burst with no scheduling cost.
+        if (cfg.blastStagger > 0) window.setTimeout(() => emit(i), i * cfg.blastStagger);
+        else emit(i);
+      }
+    }
+  }
+
+  /** Redraw one rising spell-power arrow. False once it has finished its rise (or never started). */
+  private drawSpellArrow(a: { g: Graphics; x: number; y: number; drift: number; delay: number; tint: number; cfg: SpellPowerCfg; age: number }): boolean {
+    const { g, cfg } = a;
+    const t = (a.age - a.delay) / Math.max(1, cfg.arrowMs);
+    g.clear();
+    if (t >= 1) return false;
+    if (t < 0) return true; // still staggered — alive, but nothing drawn yet
+    // Ease out so an arrow leaps away and settles, rather than tracking linearly.
+    const e = 1 - (1 - t) * (1 - t);
+    const cx = a.x + a.drift * e;
+    const cy = a.y - cfg.arrowRise * e;
+    // Fade only after `arrowFadeAt` — full brightness for the expressive part of the rise.
+    const alpha = t < cfg.arrowFadeAt ? 1 : 1 - (t - cfg.arrowFadeAt) / Math.max(0.001, 1 - cfg.arrowFadeAt);
+    const half = cfg.arrowLen / 2;
+    const head = cfg.arrowHead;
+    // Soft underlay first, then the core — the same two-pass stroke the tendrils/gust use.
+    if (cfg.glowAlpha > 0 && cfg.glowWidth > 0) {
+      g.moveTo(cx, cy + half).lineTo(cx, cy - half);
+      g.stroke({ width: cfg.arrowWidth + cfg.glowWidth, color: a.tint, alpha: alpha * cfg.glowAlpha, cap: 'round' });
+    }
+    g.moveTo(cx, cy + half).lineTo(cx, cy - half);
+    g.stroke({ width: cfg.arrowWidth, color: a.tint, alpha, cap: 'round' });
+    // The head — a simple chevron at the tip, scaled with the shaft.
+    g.moveTo(cx - head * 0.5, cy - half + head * 0.55).lineTo(cx, cy - half).lineTo(cx + head * 0.5, cy - half + head * 0.55);
+    g.stroke({ width: cfg.arrowWidth, color: a.tint, alpha, cap: 'round', join: 'round' });
+    return true;
+  }
+
   /** Sample ~24 points along the tendril's quadratic curve, up to head fraction `head` (0..1). The sine wobble
    *  is enveloped by sin(π·t) so both ends pin. Mirrors the preview's `samplePath`/`tendrilPoint`. */
   private sampleTendril(td: Tendril, head: number): { x: number; y: number; t: number }[] {
@@ -2799,6 +2909,17 @@ class FxController {
         this.layer?.removeChild(w.g);
         w.g.destroy();
         this.weldRings.splice(i, 1);
+      }
+    }
+
+    // Spell-power arrows: advance + redraw each rising arrow; retire once risen.
+    for (let i = this.spellArrows.length - 1; i >= 0; i--) {
+      const a = this.spellArrows[i]!;
+      a.age += dtMs;
+      if (!this.drawSpellArrow(a)) {
+        this.layer?.removeChild(a.g);
+        a.g.destroy();
+        this.spellArrows.splice(i, 1);
       }
     }
 

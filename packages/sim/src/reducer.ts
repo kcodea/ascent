@@ -311,6 +311,22 @@ export function reduce(state: RunState, action: Action): RunState {
     // Spell Thesis: "Cast N spells" advances by the run-wide spellsCast delta this action.
     const spellCastDelta = (next.spellsCast ?? 0) - (state.spellsCast ?? 0);
     if (spellCastDelta > 0) advanceQuestsBy(next, (o) => o.event === 'castSpell', spellCastDelta);
+    // Spell Power FX: one bump per action in which SPELL POWER WENT UP, by any source and any amount — not
+    // per spell CAST (owner correction 2026-07-21: Cinderwing Matron's Shout buffs spell power and must fire
+    // this, while casting a spell in a run with no spell-power sources must not). Both stats are watched:
+    // spell power is a PAIR, and Cinderwing grants Health only, so an Attack-only check missed it entirely.
+    // Derived from the before/after delta — NOT a per-action scratch field — so React batching can never
+    // swallow it (the weld-FX bug).
+    const spDeltaA = spellAttackBonus(next) - spellAttackBonus(state);
+    const spDeltaH = spellHealthBonus(next) - spellHealthBonus(state);
+    if (spDeltaA > 0 || spDeltaH > 0) {
+      next.spellPowerFxSeq = (next.spellPowerFxSeq ?? 0) + 1;
+      next.spellPowerFxAtk = Math.max(0, spDeltaA);
+      next.spellPowerFxHp = Math.max(0, spDeltaH);
+      // The acting card, when there is one — `play`/`buy`/`sell` all carry the uid, so the UI can anchor the
+      // flourish to the minion that caused it. Left undefined for sourceless gains (quest/rune ticks).
+      next.spellPowerFxUid = 'uid' in action && typeof action.uid === 'string' ? action.uid : undefined;
+    }
     // Forsaken Will: each spell cast permanently buffs your Undead's Attack — exactly like the Forsaken Weaver
     // (bakes +N into every current Undead + `undeadBuyAtk` so future buys inherit it), so the quest reward feels
     // identical to the minion instead of a separate Lantern-style aura.
@@ -476,6 +492,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   s.lastCombat = lastCombat;
   s.lastShoutFires = 0; // transient per-action Shout-fire count (set by a Battlecry play → read by the Shout quest tick)
   s.lastEchoFires = 0; // transient per-action out-of-combat Echo-fire count (set by fireRecruitDeathrattles → read by the deathrattle quest tick)
+  s.questTendrilFx = []; // transient per-action list of quest-triggered units (read by the tendril FX)
   s.lastEotFires = 0; // transient per-action End-of-Turn-fire count (set by applyEndOfTurn → read by the EoT quest tick)
 
   switch (action.type) {

@@ -5,21 +5,29 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-20 (compendium palette + scale)
 
-### tweak(ui): a soft-blue Compendium, 10% larger
+### tweak(ui): a deep-navy Compendium (#004c8a), larger window + 10% larger cards
 
 Owner call — the cream reading surface was bright and tiring at full size.
 
-**Palette.** The recolour is done by re-declaring the shared `--card` / `--line` / `--ink` / `--ink2` /
-`--ink3` / `--bg` vars **scoped to `.book`**, so every descendant rule picks it up without editing them one
-by one. Cards and hero panels inside state their own explicit colours (the dark-glass drawer), so they are
-unaffected.
+**Palette — `#004c8a` (owner pick).** That is a DEEP navy, so the panel INVERTS: the surface goes dark and
+the text goes light with it. Done by re-declaring the shared `--card` / `--line` / `--ink` / `--ink2` /
+`--ink3` / `--bg` / `--bg2` vars **scoped to `.book`**, so every descendant rule picks it up without editing
+them one by one. Cards and hero panels state their own explicit colours (the dark-glass drawer), so they sit
+on the navy unchanged — the inversion cost nothing there.
 
-One thing that needed a second pass: the panel and header originally mixed the **gold accent** into the
-surface (`color-mix(… var(--acc) …)`), which desaturated the new blue straight back to grey — the var was
-correct but the rendered colour was not. Both surfaces are now stated in blue directly. Gold is kept for
-icons, the active tab and the inset ring, where it reads as trim rather than a wash.
+Two things needed a second pass, both caught by looking rather than by reading the CSS:
+1. The panel and header mixed the **gold accent** into the surface (`color-mix(… var(--acc) …)`), which
+   desaturated the blue straight back to grey — the var was right, the rendered colour was not. Both
+   surfaces are now stated in blue directly; gold stays on icons, the active tab and the inset ring.
+2. On the inverted palette the **control chrome went invisible** — rail buttons, tier tabs, Glossary/Gilded,
+   close and search all read `--bg2`, which was still light, so a pale button carried the new pale text.
+   `--bg2`/`--bg3` are now dark too. Sampled after the fix: rail button `#0f5f7a` bg on `#eef5fd` text.
 
-**Scale.** `--ch` (the card metric that drives the whole grid) `clamp(212px, 26vh, 276px)` →
+**Window size.** The `1700x1000` caps were what actually limited it on a large display, not the viewport
+percentages — raised to `2300x1450`, so it now fills **95% x 93%** of the viewport (measured) as in the
+owner's mock.
+
+**Card scale.** `--ch` (the card metric that drives the whole grid) `clamp(212px, 26vh, 276px)` →
 `clamp(233px, 28.6vh, 304px)`, plus the header title/sub sized to match. The panel box is already
 viewport-capped, so scaling the card metric is what actually reads as "bigger".
 

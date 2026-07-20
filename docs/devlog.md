@@ -27,6 +27,14 @@ nothing repaints once a cast has played out.
 sources still casts plenty of spells. A zero tells the player nothing while still pulling the eye, so the
 number is now suppressed at 0 — the arrows and blast already say "a spell resolved".
 
+**Trigger corrected (owner report, same day).** The first cut fired on the `spellsCast` delta — i.e. on
+CASTING a spell. That's the wrong event: the flourish is for spell power going UP, by any source and any
+amount. Worse, it read `spellAttackBonus` alone, and Cinderwing Matron grants spells **+1 Health** — so the
+card the owner tested with could never have fired it, on either count. Now stamped from the before/after
+delta of BOTH stats, and the float prints what actually moved (`+1 HP`, `+2 Atk`, or the pair `+2/+1`) rather
+than a merged number. The "+0" suppression from the first cut is now structural: a cast that moves nothing
+never stamps at all.
+
 **NOT DONE — combat.** The ask was shop AND combat, and only the shop half is wired. Combat FX are driven by
 the choreo beat pipeline (`packages/ui/src/choreo/`), which has no `cast` channel: firing there means adding
 a new event kind through `compile` → `engine` → `channels` and extending the beat-golden / badge-coverage

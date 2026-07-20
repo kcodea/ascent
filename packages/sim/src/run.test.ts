@@ -2375,23 +2375,37 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 4); // 11
   });
 
-  it('casting a spell bumps spellPowerFxSeq once and captures the power', () => {
-    // The FX signal is derived from the before/after `spellsCast` delta, NOT a per-action scratch field —
-    // that's what makes it survive React batching (the weld-FX bug). Pin both halves: the seq advances once
-    // per casting action, and the captured value is the spell power that cast produced.
+  it('spellPowerFxSeq fires when SPELL POWER rises — incl. Health-only (Cinderwing Matron)', () => {
+    // Owner correction 2026-07-21: the flourish is for spell power going UP by any amount from any source,
+    // NOT for casting a spell. Cinderwing grants Health only, so the original Attack-only check missed it
+    // entirely — that's the exact regression this pins.
+    let s: RunState = {
+      ...createRun(1), embers: 20, shop: [],
+      board: [], hand: [{ uid: 'cw', cardId: 'cinder', tribe: 'dragon', attack: 4, health: 5, keywords: [], golden: false }],
+    };
+    const before = s.spellPowerFxSeq ?? 0;
+    s = reduce(s, { type: 'play', uid: 'cw' }); // Shout: your spells get +1 Health
+    expect(s.spellPowerFxSeq ?? 0).toBe(before + 1);
+    expect(s.spellPowerFxHp).toBe(1); // the Health-only gain is what fired it
+    expect(s.spellPowerFxAtk ?? 0).toBe(0);
+
+    // An action that does NOT move spell power must not bump it — otherwise the FX fires on every click.
+    const after = s.spellPowerFxSeq;
+    s = reduce(s, { type: 'roll' });
+    expect(s.spellPowerFxSeq).toBe(after);
+  });
+
+  it('casting a spell does NOT fire the spell-power FX on its own', () => {
+    // The inverse of the correction: a cast in a run with no spell-power source moves nothing, so it must
+    // stay silent. (The old implementation fired here — and printed "+0".)
     let s: RunState = {
       ...createRun(1), embers: 20, shop: [],
       board: [], hand: [{ uid: 'sp', cardId: 'depositbox', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     const before = s.spellPowerFxSeq ?? 0;
-    s = reduce(s, { type: 'play', uid: 'sp' }); // untargeted spell → casts immediately
+    s = reduce(s, { type: 'play', uid: 'sp' });
     expect(s.hand.some((c) => c.uid === 'sp')).toBe(false); // it really resolved
-    expect(s.spellPowerFxSeq ?? 0).toBe(before + 1);
-    expect(typeof s.spellPowerFxValue).toBe('number');
-    // A non-casting action must NOT bump it — otherwise the flourish would fire on every click.
-    const afterCast = s.spellPowerFxSeq;
-    s = reduce(s, { type: 'roll' });
-    expect(s.spellPowerFxSeq).toBe(afterCast);
+    expect(s.spellPowerFxSeq ?? 0).toBe(before);           // …and fired nothing
   });
 
   it('an "All" type (Lab Experiment) counts as every tribe, incl. a Beast played', () => {

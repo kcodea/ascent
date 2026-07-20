@@ -68,7 +68,7 @@ export function testGustFx(): void {
 }
 
 /** ✨ Spell Power: the rising arrow fan + blast + floating number, fired over the shop row's centre so the
- *  look can be judged without staging an actual spell cast. Uses a sample power of 3. */
+ *  look can be judged without staging a real spell-power gain. Uses a sample +2/+1. */
 export function testSpellPowerFx(): void {
   const els = shopEls();
   if (els.length === 0) return;
@@ -80,7 +80,7 @@ export function testSpellPowerFx(): void {
   const x = (left + right) / 2;
   const y = (top + bottom) / 2;
   pixiFx.spellPower(x, y, getSpellPowerFxConfig());
-  floatSpellPowerNumber(x, y - (bottom - top) * 0.15, 3);
+  floatSpellPowerNumber(x, y - (bottom - top) * 0.15, 2, 1);
 }
 
 export type AuraTestTribe = 'beast' | 'demon' | 'mech' | 'undead';

@@ -39,7 +39,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 ## Recent changes
 
 - **Spell-power FX** — rising pink/purple/gold arrows, a mote blast, and the floating power number when a
-  spell resolves in the shop, with a full dev tuner. (Combat wiring still to come.)
+  spell power goes up in the shop, with a full dev tuner. (Combat wiring still to come.)
 
 - **Quest nodes** — every taken quest shows as a bubble with a live `x/y` counter, dim until it activates,
   then lit in the same slot. Replaces the old quest text panel.

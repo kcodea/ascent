@@ -143,18 +143,20 @@ export function resetSpellPowerFxConfig(): void {
  * crisp UI font as the rest of the HUD. Animated with the Web Animations API — transform + opacity only, so
  * it stays compositor-side — and removes itself on finish, leaving no node behind.
  *
- * Shared by the shop fire, the combat fire, and the tuner's ▶ Test, so all three read identically.
+ * Shared by the shop fire and the tuner's ▶ Test, so both read identically.
  */
-export function floatSpellPowerNumber(x: number, y: number, power: number): void {
+export function floatSpellPowerNumber(x: number, y: number, atk: number, hp: number): void {
   const c = cfg;
   if (!c.numShow || typeof document === 'undefined') return;
-  // Never float a "+0". A run with no spell-power sources casts plenty of spells, and a zero tells the player
-  // nothing while still stealing the eye — the arrows and blast already say "a spell resolved". Caught in live
-  // testing, where every cast in a fresh run printed +0.
-  if (power <= 0) return;
+  // Nothing gained → nothing to say. (Guards the case where a caller fires the arrows for a non-gain.)
+  if (atk <= 0 && hp <= 0) return;
+  // Spell power is a PAIR, and a source can move one stat alone — Cinderwing Matron grants Health only. Print
+  // the game's established stat-pair form when both moved, and the single stat when only one did, so the
+  // player reads exactly what changed instead of a merged number.
+  const label = atk > 0 && hp > 0 ? `+${atk}/+${hp}` : atk > 0 ? `+${atk} Atk` : `+${hp} HP`;
   const el = document.createElement('div');
   el.className = 'spellpower-float';
-  el.textContent = `+${power}`;
+  el.textContent = label;
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
   el.style.fontSize = `${c.numSize}px`;

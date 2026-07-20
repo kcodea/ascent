@@ -604,14 +604,17 @@ export interface RunState {
    *  MIRRORS every weld onto itself, so the host and every Beatbot must all animate. Pure display metadata —
    *  never read by the sim. Never cleared; the UI dedupes against a ref of the last-seen seq. */
   weldFxSeq?: number;
-  /** Bumped whenever a spell RESOLVES this action (the `spellsCast` delta) — the UI fires the Spell Power FX
-   *  (rising arrows + blast + the floating power number) once per bump. One-shot, like `swapFxSeq`.
-   *  Stamped from the before/after state delta rather than a per-action scratch field, so a batch of
-   *  dispatches can't drop it the way the weld FX once did. */
+  /** Bumped whenever SPELL POWER GOES UP this action, by any source and any amount (Cinderwing Matron's
+   *  Shout, a quest reward, a rune, the hero's amplify …) — the UI fires the Spell Power FX (rising arrows +
+   *  blast + the floating gain) once per bump. One-shot, like `swapFxSeq`. Stamped from the before/after
+   *  state delta rather than a per-action scratch field, so a batch of dispatches can't drop it the way the
+   *  weld FX once did. */
   spellPowerFxSeq?: number;
-  /** The spell power to PRINT alongside that FX — captured at stamp time so the number the player sees is the
-   *  value the cast actually produced, not whatever the run drifts to before the UI reads it. */
-  spellPowerFxValue?: number;
+  /** The spell-power INCREASE to print alongside that FX (Attack / Health), captured at stamp time so the
+   *  number is the gain this action produced rather than whatever the run drifts to before the UI reads it.
+   *  Two stats because spell power is a PAIR — Cinderwing Matron grants Health only. */
+  spellPowerFxAtk?: number;
+  spellPowerFxHp?: number;
   weldFxUids?: string[];
   weldFxKind?: 'play' | 'auto';
   /** `weldFxSeq` as of the start of the current action — lets `stampWeldFx` tell its first stamp of an

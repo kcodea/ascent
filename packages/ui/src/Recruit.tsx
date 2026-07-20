@@ -648,17 +648,18 @@ export function Recruit() {
     });
     return () => cancelAnimationFrame(raf);
   }, [run.swapFxSeq, run.swapFxBoardUid, run.swapFxShopUid]);
-  // Spell Power — a spell just resolved in the SHOP: rising pink/purple/gold arrows + a mote blast at the
-  // caster, and the run's current spell power floats up once they land. Keyed off `spellPowerFxSeq`, the same
-  // one-shot dedupe as swapFx; inits to the current value so a restored save never fires on load.
-  // Origin: the spell card that was just cast if it's still on screen, else the shop row's centre — a spell
-  // usually LEAVES play as it resolves, so the fallback is the common path, not the edge case.
+  // Spell Power — SPELL POWER JUST WENT UP in the shop, from any source and by any amount (Cinderwing
+  // Matron's Shout, a quest reward, a rune…): rising pink/purple/gold arrows + a mote blast, and the GAIN
+  // floats up once they land. Keyed off `spellPowerFxSeq`, the same one-shot dedupe as swapFx; inits to the
+  // current value so a restored save never fires on load. Anchored to the shop row — the cue means "your
+  // spells got stronger", which is a tavern-wide fact rather than one card's.
   const prevSpellPowerSeq = useRef(run.spellPowerFxSeq);
   useEffect(() => {
     const seq = run.spellPowerFxSeq;
     if (seq === undefined || seq === prevSpellPowerSeq.current) return;
     prevSpellPowerSeq.current = seq;
-    const power = run.spellPowerFxValue ?? 0;
+    const gainA = run.spellPowerFxAtk ?? 0;
+    const gainH = run.spellPowerFxHp ?? 0;
     const raf = requestAnimationFrame(() => {
       const row = document.querySelector('.row.shop') ?? document.querySelector('[data-zone="tavern"]');
       if (!row) return;
@@ -666,10 +667,10 @@ export function Recruit() {
       const x = r.left + r.width / 2;
       const y = r.top + r.height / 2;
       pixiFx.spellPower(x, y, getSpellPowerFxConfig());
-      floatSpellPowerNumber(x, y - r.height * 0.15, power);
+      floatSpellPowerNumber(x, y - r.height * 0.15, gainA, gainH);
     });
     return () => cancelAnimationFrame(raf);
-  }, [run.spellPowerFxSeq, run.spellPowerFxValue]);
+  }, [run.spellPowerFxSeq, run.spellPowerFxAtk, run.spellPowerFxHp]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the

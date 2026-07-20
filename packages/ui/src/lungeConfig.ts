@@ -54,6 +54,11 @@ export interface LungeConfig {
   easeLongIdx: number;
   /** Lead tilt (deg) — the base tilt used to lead with a corner (sign chosen from dx). */
   leadTilt: number;
+  /** Face-on ramp (px) — the horizontal offset over which the corner + tilt fade IN. A defender directly
+   *  ahead (|dx| = 0) is struck flat — leading-edge midpoint to centre, no tilt (owner note 2026-07-21: the
+   *  corner rule's sideways shimmy looked wrong straight-across); at |dx| ≥ this, the full corner-strike.
+   *  A blend, so adjacent pairings can't pop between looks. 0 disables the fade (always full corner). */
+  faceOnRamp: number;
   /** Lead-tilt ANGLE SCALE (0–1) — how much of the approach's slope off horizontal is added to the tilt.
    *  0 = the shipped behaviour (tilt reads only `sign(dx)`, so a steep diagonal leads with the same corner
    *  as a flat sideways swing); 1 = the card fully aligns to the line it travels along. The vector-driven
@@ -98,6 +103,7 @@ const DEFAULTS: LungeConfig = {
   easeMidIdx: 3,
   easeLongIdx: 3,
   leadTilt: 7.5,
+  faceOnRamp: 90,    // straight-across attacks slam flat; the corner-strike is fully in by 90px of sideways offset
   tiltAngleScale: 0, // 0 = the shipped sign(dx)-only tilt; raise to let the approach slope steer the corner
   defenderSpin: 15,
   attackerRebound: 2.5,
@@ -123,6 +129,7 @@ export const LUNGE_RANGES: Record<keyof LungeConfig, [number, number, number]> =
   easeMidIdx: [0, 7, 1],
   easeLongIdx: [0, 7, 1],
   leadTilt: [0, 20, 0.5],
+  faceOnRamp: [0, 300, 5],
   tiltAngleScale: [0, 1, 0.05],
   defenderSpin: [0, 30, 0.5],
   attackerRebound: [0, 20, 0.5],
@@ -160,7 +167,7 @@ export const LUNGE_GROUPS: { title: string; keys: (keyof LungeConfig)[] }[] = [
   { title: 'Wind-up', keys: ['windupDur', 'windupDepth', 'windupScale'] },
   { title: 'Strike · distance → duration', keys: ['targetSpeed', 'minStrikeDur', 'maxStrikeDur', 'strikeDur'] },
   { title: 'Strike · distance → ease', keys: ['bandShortPx', 'bandLongPx', 'easeShortIdx', 'easeMidIdx', 'easeLongIdx'] },
-  { title: 'Contact · angle → tilt', keys: ['leadTilt', 'tiltAngleScale', 'defenderSpin', 'attackerRebound', 'smackLead'] },
+  { title: 'Contact · angle → tilt', keys: ['leadTilt', 'faceOnRamp', 'tiltAngleScale', 'defenderSpin', 'attackerRebound', 'smackLead'] },
   { title: 'Recovery', keys: ['settleDur', 'attackGap'] },
 ];
 

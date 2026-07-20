@@ -3,6 +3,29 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (face-on fade)
+
+### fix(ui): straight-across attacks slam flat instead of sidestepping to land a corner
+
+Owner playtest of the corner-to-centre strikes: "looks amazing except for when units attack another unit
+that is directly across from them." That's the corner rule's degenerate case — at `dx ≈ 0` it still picked
+the right corner and full tilt, so the card shuffled ~40px sideways to land that corner on the centre: a
+shimmy where a straight-ahead slam should be.
+
+Fix: the corner + tilt now FADE with horizontal offset. `faceOnRamp` (new dial, default 90px) sets the |dx|
+over which they ramp in — dead-ahead the card drives perfectly straight and its leading-EDGE-MIDPOINT hits
+the defender's centre, flat (no tilt); a slight offset gets a slight lean; past the ramp, the full
+corner-strike. A linear blend, not a threshold, so adjacent pairings can't pop between two looks. The fade
+also mutes `tiltAngleScale`, which would otherwise blow up near ±90° approaches (a dead-ahead swing's
+`approachDeg` is −90 — unfaded, `scale 1` would have added −90° of tilt exactly where the card should be
+flattest). `faceOnRamp: 0` disables the fade (always the full corner). Corner-on-centre exactness is
+preserved at every blend point — the faded strike point is re-posed and re-solved per swing.
+
+Verified: typecheck + lint + **1241 tests** (1237 → 1241: dead-ahead flat both directions, linear ramp-in
+with centre-exactness at the midpoint, the tiltAngleScale mute, and the ramp-0 escape hatch) + `build:web`,
+all green. NB: one intermediate gate run silently executed in the primary checkout (the shell cwd reset) and
+reported a stale count — re-ran in the worktree before trusting it.
+
 ## 2026-07-21 (corner-to-centre strikes)
 
 ### tweak(ui): the leading corner always strikes the defender's dead centre

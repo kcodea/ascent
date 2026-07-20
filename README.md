@@ -40,6 +40,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+- **Straight-across attacks slam flat.** A defender directly ahead is now hit with a straight frontal drive —
+  leading-edge midpoint to centre, no tilt — instead of the corner rule's sideways sidestep; the corner + tilt
+  blend in over a tunable `faceOnRamp` (90px) of horizontal offset.
 - **Strikes land corner-to-centre.** The attacker's leading corner (top-right travelling left→right,
   top-left right→left; mirrored to the bottom corners for enemy swings coming down the board) now impacts the
   defender's dead centre on every attack — lunges can no longer stop short of the target. Strike *durations*

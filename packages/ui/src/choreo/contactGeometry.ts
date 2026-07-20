@@ -11,6 +11,7 @@ export interface ContactCfg {
   maxStrikeDur: number;
   leadTilt: number;
   tiltAngleScale: number;
+  faceOnRamp: number;
 }
 
 export interface Contact {
@@ -53,7 +54,9 @@ export interface Contact {
  *                 BOTTOM corners when travelling downward (an enemy attack) — the forward corner either way.
  * So a player card attacking left→right strikes with its top-right corner; the enemy card coming back
  * right→left strikes with its bottom-left. The corner is rotated by the lead-tilt before placement, so what
- * lands on the centre is the corner as posed, not as at rest.
+ * lands on the centre is the corner as posed, not as at rest. A defender DIRECTLY AHEAD is the degenerate
+ * case: the corner + tilt fade out over `faceOnRamp` px of horizontal offset, so a straight-across attack is
+ * a flat frontal slam — leading-edge midpoint to centre — instead of a sideways shimmy to land a corner.
  *
  * This is the whole reason per-pairing lunge config isn't a thing: the vector is the only stable coordinate
  * (rows re-centre as units die), so everything the lunge needs is a function of it, resolved per swing.
@@ -73,13 +76,21 @@ export function contactGeometry(dx: number, dy: number, atk: RectSize, def: Rect
   // Approach slope off horizontal, measured along the direction of travel (hence |dx|), so a rightward-down
   // and a leftward-down swing both report the slope of the line the card actually rides.
   const approachDeg = (Math.atan2(dy, Math.abs(dx)) * 180) / Math.PI;
+  // FACE-ON fade (owner note 2026-07-21: straight-across attacks looked wrong): a defender directly ahead
+  // (dx ≈ 0) must be hit with a straight frontal drive — leading-EDGE-MIDPOINT to centre, no tilt — not a
+  // sideways shimmy to land a corner. `t` ramps the corner + tilt in over `faceOnRamp` px of horizontal
+  // offset, so dead-ahead is a flat slam, a slight offset a slight lean, and past the ramp the full
+  // corner-strike. A blend, not a threshold — adjacent pairings can't pop between two looks.
+  const t = c.faceOnRamp > 0 ? Math.min(1, Math.abs(dx) / c.faceOnRamp) : 1;
   // The lead tilt has two halves: a fixed base that just picks the tilt direction (sign of dx — the shipped
   // behaviour), plus an optional angle term that rotates the card toward the line it travels along, so a
   // steep diagonal doesn't pose identically to a flat sideways swing. `tiltAngleScale: 0` keeps the
-  // base-only behaviour exactly.
-  const leadTilt = (dx >= 0 ? 1 : -1) * c.leadTilt + c.tiltAngleScale * approachDeg;
-  // The FIXED leading corner in the attacker's local frame (screen coords: -y is up, so TOP = -hh).
-  const cxo = (dx >= 0 ? 1 : -1) * (atk.width / 2);
+  // base-only behaviour exactly. Both halves ride the face-on fade — near-vertical, `approachDeg` tends to
+  // ±90°, so an unfaded angle term would slam the card sideways exactly where it should be flattest.
+  const leadTilt = t * ((dx >= 0 ? 1 : -1) * c.leadTilt + c.tiltAngleScale * approachDeg);
+  // The leading STRIKE POINT in the attacker's local frame (screen coords: -y is up, so TOP = -hh): the
+  // fixed corner faded toward the leading edge's midpoint as the approach goes vertical.
+  const cxo = t * (dx >= 0 ? 1 : -1) * (atk.width / 2);
   const cyo = (dy > 0 ? 1 : -1) * (atk.height / 2);
   // Rotate it by the lead-tilt — the corner strikes as POSED, so the tilt can't pull it off the centre.
   const rad = (leadTilt * Math.PI) / 180;

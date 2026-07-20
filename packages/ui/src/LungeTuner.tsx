@@ -45,6 +45,7 @@ const LABELS: Record<keyof LungeConfig, string> = {
   easeMidIdx: 'mid ease',
   easeLongIdx: 'long ease',
   leadTilt: 'base tilt',
+  faceOnRamp: 'face-on ramp',
   tiltAngleScale: 'angle scale',
   defenderSpin: 'defender spin',
   attackerRebound: 'atk rebound',

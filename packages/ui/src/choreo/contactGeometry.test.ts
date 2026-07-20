@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { contactGeometry, type RectSize } from './contactGeometry';
 
-const cfg = { targetSpeed: 1600, minStrikeDur: 0.1, maxStrikeDur: 0.28, leadTilt: 7, tiltAngleScale: 0 };
+const cfg = { targetSpeed: 1600, minStrikeDur: 0.1, maxStrikeDur: 0.28, leadTilt: 7, tiltAngleScale: 0, faceOnRamp: 90 };
 const card = (): RectSize => ({ width: 80, height: 100 });
 
 /** Rotate a local point by `deg` (screen coords, clockwise-positive) — mirrors the geometry's corner pose. */
@@ -34,8 +34,42 @@ describe('contactGeometry — fixed corner to dead centre', () => {
       expect(g.leadTilt).toBeCloseTo(tilt, 5);
     });
   }
-  it('a vertical swing still picks the dx≥0 (right) corner, matching the tilt-sign convention', () => {
+});
+
+// A defender DIRECTLY AHEAD is the degenerate case of the corner rule (owner note 2026-07-21: the sideways
+// shimmy to land a corner looked wrong straight-across). The corner + tilt fade out over `faceOnRamp` px of
+// horizontal offset: dead-ahead is a flat frontal slam, leading-edge MIDPOINT to centre.
+describe('face-on fade', () => {
+  it('a dead-ahead swing slams flat: no tilt, no sideways shift, top-edge midpoint on centre', () => {
     const g = contactGeometry(0, -300, card(), card(), cfg);
+    expect(g.leadTilt).toBeCloseTo(0, 9);
+    expect(g.strike.x).toBeCloseTo(0, 5);           // drives perfectly straight
+    expect(g.strike.y).toBeCloseTo(-250, 5);        // -300 - (top edge midpoint at -50) → edge lands on centre
+  });
+  it('an enemy dead-ahead swing slams flat downward, bottom-edge midpoint on centre', () => {
+    const g = contactGeometry(0, 300, card(), card(), cfg);
+    expect(g.leadTilt).toBeCloseTo(0, 9);
+    expect(g.strike.x).toBeCloseTo(0, 5);
+    expect(g.strike.y).toBeCloseTo(250, 5);
+  });
+  it('the corner + tilt ramp in linearly with horizontal offset and are fully in past the ramp', () => {
+    const half = contactGeometry(45, -300, card(), card(), cfg); // |dx| = ramp/2 → t = 0.5
+    expect(half.leadTilt).toBeCloseTo(3.5, 5);                   // half the base tilt
+    const posedHalf = rot(20, -50, 3.5);                         // half the corner x, posed at half tilt
+    expect(half.strike.x + posedHalf.x).toBeCloseTo(45, 5);      // still lands exactly on centre
+    expect(half.strike.y + posedHalf.y).toBeCloseTo(-300, 5);
+    const full = contactGeometry(90, -300, card(), card(), cfg); // |dx| = ramp → t = 1, the full corner-strike
+    expect(full.leadTilt).toBeCloseTo(7, 5);
+    const posedFull = rot(40, -50, 7);
+    expect(full.strike.x + posedFull.x).toBeCloseTo(90, 5);
+  });
+  it('the fade also mutes tiltAngleScale, which would otherwise blow up near ±90° approaches', () => {
+    const g = contactGeometry(0, -300, card(), card(), { ...cfg, tiltAngleScale: 1 });
+    expect(g.leadTilt).toBeCloseTo(0, 9); // approachDeg is -90 here; unfaded this would be 7 - 90 = -83°
+  });
+  it('faceOnRamp 0 disables the fade — even a vertical swing takes the full corner', () => {
+    const g = contactGeometry(0, -300, card(), card(), { ...cfg, faceOnRamp: 0 });
+    expect(g.leadTilt).toBeCloseTo(7, 5);
     const posed = rot(40, -50, 7);
     expect(g.strike.x + posed.x).toBeCloseTo(0, 5);
     expect(g.strike.y + posed.y).toBeCloseTo(-300, 5);

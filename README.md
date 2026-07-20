@@ -40,6 +40,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+- **Balance pass** — Ryme gains Taunt and triggers both neighbours; Brightwing Broker now buffs your whole
+  board on a buy; Combinator welds 2; Grim scales +2/+2 and gains a Gilded form; Guardian Drake gains
+  Critical Strike. Vineweaver Drake retired.
 - **Weld rings fire again.** A recent change cleared the weld FX payload on every action, which raced React’s
   dispatch batching — a weld plus any other click in the same frame lost its ring (and its stat flash). The
   payload now survives until the UI reads it.

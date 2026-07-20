@@ -124,8 +124,9 @@ export const BEASTS: CardDef[] = [
     attack: 7,
     health: 1,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffTribeByTally', params: { tribe: 'beast', per: 1 } }],
-    text: '**Deathrattle:** give your Beasts **+1/+1** wherever they are for each Deathrattle triggered this game.',
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffTribeByTally', params: { tribe: 'beast', per: 2 } }],
+    text: '**Deathrattle:** give your Beasts **+2/+2** wherever they are for each Deathrattle triggered this game.',
+    goldenText: '**Deathrattle:** give your Beasts **+4/+4** wherever they are for each Deathrattle triggered this game.',
   },
   {
     id: 'shaper',

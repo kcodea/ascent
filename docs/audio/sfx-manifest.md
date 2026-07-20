@@ -385,9 +385,6 @@ Each hook is additive and guarded by "clip present?", so it stays silent until y
 | `cards/twilightwhelp.death.mp3` | Dies in combat (over the death bed) | Violet Whelp — death cue (~0.4s). | ⬜ |
 | `cards/twilightwhelp.effect.mp3` | Deathrattle procs (shop or combat) | Violet Whelp — Deathrattle proc cue (~0.4s). | ⬜ |
 | `cards/twilightwhelp.mp3` | Played to the board (over the landing bed) | Violet Whelp — play cue (~0.4s). | ⬜ |
-| `cards/vineweaver.death.mp3` | Dies in combat (over the death bed) | Vineweaver Drake — death cue (~0.4s). | ⬜ |
-| `cards/vineweaver.effect.mp3` | endOfTurn procs (shop or combat) | Vineweaver Drake — endOfTurn proc cue (~0.4s). | ⬜ |
-| `cards/vineweaver.mp3` | Played to the board (over the landing bed) | Vineweaver Drake — play cue (~0.4s). | ⬜ |
 | `cards/weaver.death.mp3` | Dies in combat (over the death bed) | Arcane Weaver — death cue (~0.4s). | ⬜ |
 | `cards/weaver.effect.mp3` | avenge procs (shop or combat) | Arcane Weaver — avenge proc cue (~0.4s). | ⬜ |
 | `cards/weaver.mp3` | Played to the board (over the landing bed) | Arcane Weaver — play cue (~0.4s). | ⬜ |

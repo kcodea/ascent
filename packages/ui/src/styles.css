@@ -4293,16 +4293,16 @@ svg { width: 18px; height: 18px; }
    PERF: the two LOOPING animations (glow breath, sheen sweep) animate opacity/transform ONLY. */
 .rfbwrap {
   position: fixed;
-  left: calc(var(--bar-x) + 0.5 * var(--gw) + var(--rfb-x, 0px) * var(--scale));
-  top: calc(var(--bar-y) + var(--rfb-y, 168px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--rfb-s, 1));
+  left: calc(var(--bar-x) + 0.5 * var(--gw) + var(--rfb-x, 3px) * var(--scale));
+  top: calc(var(--bar-y) + var(--rfb-y, 294px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--rfb-s, 0.75));
   width: calc(66 * var(--u)); height: calc(111 * var(--u)); /* the art's 516×868 aspect */
   background: none; border: none; padding: 0; z-index: 41;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
 }
 body.dragging .rfbwrap { pointer-events: none; } /* a card dragged across it drops through */
 .rfbwrap:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
-.rfbwrap.off .rfb-artbox { filter: brightness(var(--rfb-art-dim, 0.5)) saturate(0.7); }
+.rfbwrap.off .rfb-artbox { filter: brightness(var(--rfb-art-dim, 0.61)) saturate(0.7); }
 
 /* The crystal. It no longer rotates on press (owner 2026-07-21) — clicking emits dust + a shine only. */
 .rfb-artbox { position: absolute; inset: 0; display: block; }
@@ -4312,29 +4312,29 @@ body.dragging .rfbwrap { pointer-events: none; } /* a card dragged across it dro
    would clip square at the box). STATIC shadow: only this layer's OPACITY animates. */
 .rfb-glow {
   position: absolute; left: 50%; top: 50%;
-  width: calc(100% * var(--rfb-glow-w, 0.9)); height: calc(100% * var(--rfb-glow-h, 0.9));
+  width: calc(100% * var(--rfb-glow-w, 0.85)); height: calc(100% * var(--rfb-glow-h, 0.85));
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  box-shadow: var(--rfb-glow-shadow, 0 0 10px rgba(75, 192, 255, 1));
+  box-shadow: var(--rfb-glow-shadow, 0 0 9px rgba(255, 255, 255, 1));
   opacity: 0; transition: opacity 0.16s ease; z-index: 0; pointer-events: none;
 }
 .rfbwrap:hover:not(:disabled) .rfb-glow,
 body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one pointer can't hover AND drag a slider */
-  animation: rfbbreath var(--rfb-glow-pulse, 3.2s) ease-in-out infinite;
-  opacity: var(--rfb-glow-alpha, 0.9);
+  animation: rfbbreath var(--rfb-glow-pulse, 2.3s) ease-in-out infinite;
+  opacity: var(--rfb-glow-alpha, 1);
 }
 @keyframes rfbbreath {
-  0%, 100% { opacity: var(--rfb-glow-alpha, 0.9); }
-  50% { opacity: var(--rfb-glow-dim, 0.36); }
+  0%, 100% { opacity: var(--rfb-glow-alpha, 1); }
+  50% { opacity: var(--rfb-glow-dim, 0.35); }
 }
 
 /* Ambient sheen — a glare bar sweeping the crystal, clipped to its box. Transform-only. */
 .rfb-sheen { position: absolute; inset: 0; overflow: hidden; z-index: 2; pointer-events: none; }
 .rfb-sheen-bar {
   position: absolute; top: -30%; left: -60%; width: 40%; height: 160%;
-  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, var(--rfb-sheen-alpha, 0.55)), transparent);
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, var(--rfb-sheen-alpha, 0)), transparent);
   transform: translateX(-120%) rotate(8deg);
-  animation: rfbsheen var(--rfb-sheen-cycle, 5.2s) linear infinite;
+  animation: rfbsheen var(--rfb-sheen-cycle, 1s) linear infinite;
   will-change: transform;
 }
 @keyframes rfbsheen { 0% { transform: translateX(-120%) rotate(8deg); } 34%, 100% { transform: translateX(420%) rotate(8deg); } }
@@ -4347,27 +4347,40 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
   transform: translate(-50%, -50%) scale(0.6);
   border-radius: 50%; z-index: 3; pointer-events: none;
   background: radial-gradient(circle,
-    var(--rfb-shine-color, #8fe4ff) 0%,
-    color-mix(in srgb, var(--rfb-shine-color, #8fe4ff) 55%, transparent) 42%,
+    var(--rfb-shine-color, #ffffff) 0%,
+    color-mix(in srgb, var(--rfb-shine-color, #ffffff) 55%, transparent) 42%,
     transparent 70%);
-  filter: blur(var(--rfb-shine-blur, 18px));
-  animation: rfbshine var(--rfb-shine-ms, 420ms) cubic-bezier(0.2, 0.7, 0.3, 1) 1 both;
+  filter: blur(var(--rfb-shine-blur, 24px));
+  animation: rfbshine var(--rfb-shine-ms, 980ms) cubic-bezier(0.2, 0.7, 0.3, 1) 1 both;
 }
 @keyframes rfbshine {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
-  22% { opacity: var(--rfb-shine-alpha, 0.85); }
+  22% { opacity: var(--rfb-shine-alpha, 0.77); }
   100% { opacity: 0; transform: translate(-50%, -50%) scale(var(--rfb-shine-size, 1.5)); }
 }
 
-/* Live Gold cost coin. */
+/* Live Gold cost — the SAME gold coin pill the Tavern stone wears (owner request), so the two board
+   buttons read as one family: radial gold fill, dark outline, dark ink. `--rfb-cost-color` drives the fill's
+   mid-stop, so the picker still recolours the whole pill rather than just the text. */
 .rfb-cost {
   position: absolute; left: 50%; top: 100%; z-index: 4;
-  transform: translate(calc(-50% + var(--rfb-cost-x, 34) * var(--u)), calc(-50% + var(--rfb-cost-y, 32) * var(--u))) scale(var(--rfb-cost-s, 0.84));
+  transform: translate(calc(-50% + var(--rfb-cost-x, 72) * var(--u)), calc(-50% + var(--rfb-cost-y, -90) * var(--u))) scale(var(--rfb-cost-s, 2));
   display: inline-flex; align-items: center; gap: calc(4 * var(--u));
-  font-family: var(--font-ui); font-weight: 900; font-size: calc(17 * var(--u)); color: var(--rfb-cost-color, #f4ecdb);
-  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.85); pointer-events: none;
+  padding: calc(4 * var(--u)) calc(10 * var(--u)); border-radius: 999px;
+  background: radial-gradient(circle at 38% 30%, color-mix(in srgb, var(--rfb-cost-color, #f4be35) 55%, #fff),
+              var(--rfb-cost-color, #f4be35) 58%, color-mix(in srgb, var(--rfb-cost-color, #f4be35) 62%, #000));
+  border: calc(2.5 * var(--u)) solid #1b1d22;
+  font-family: var(--font-ui); font-weight: 900; font-size: calc(17 * var(--u)); color: #241a08;
+  box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.55);
+  pointer-events: none;
 }
-.rfb-cost svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); color: var(--rfb-cost-color, #f4ecdb); }
+.rfb-cost svg { width: calc(14 * var(--u)); height: calc(14 * var(--u)); color: #241a08; }
+/* Can't afford — the coin flushes RED, matching the Tavern stone's "too expensive" cue. */
+.rfbwrap:disabled .rfb-cost {
+  background: radial-gradient(circle at 38% 30%, #ff9f8a, #e5533b 58%, #9c2c1a);
+  color: #2a0d06;
+}
+.rfbwrap:disabled .rfb-cost svg { color: #2a0d06; }
 
 /* The glass "Refresh" pill floating ABOVE the crystal (owner request) — the dark-glass treatment the
    Discover banner and the Rift button use, so the board's chrome stays one family. */
@@ -4396,3 +4409,24 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
 }
 .rfbwrap:hover:not(:disabled) .rfb-tip { display: block; }
 @media (prefers-reduced-motion: reduce) { .rfb-sheen-bar, .rfbwrap:hover .rfb-glow { animation: none; } }
+
+/* ---- HAND HOVER BRIDGE — the gap between a card's arch and its detached text drawer was a DEAD ZONE.
+   The drawer is absolutely positioned at `top: --ccw * 1.15` while the card element's own box ends at the
+   archbox (--ccw), so the 0.15·--ccw strip between them belonged to neither: the cursor crossing it left
+   the card, which dropped, which moved the drawer, which re-entered the card… the "weird dropping and
+   popping" (owner report). The drawer itself was always fine — it's a CHILD of `.card`, so hovering it
+   counts; only the gap was missing.
+   This bridges it with a transparent ::after spanning exactly that strip. It's a child of the card, so it
+   extends the HOVER target without changing layout, and it sits BELOW the drawer (z-index) so it can never
+   intercept a click meant for the card. Hand only — the board/shop cards have no detached drawer to span. */
+.row.hand .card.compact.showtext::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  top: var(--ccw);                       /* the archbox's bottom edge */
+  height: calc(var(--ccw) * 0.15);       /* … up to the drawer's top (the tuned 0.15 gap) */
+  z-index: 3;                            /* under the drawer (z4), above nothing else */
+  pointer-events: auto;                  /* the whole point: make the strip part of the card */
+}
+/* While dragging, the bridge must not keep a card "hovered" under the floating drag card. */
+body.dragging .row.hand .card.compact.showtext::after { pointer-events: none; }

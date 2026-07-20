@@ -3,6 +3,40 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21h (tuned bakes + hand hover bridge)
+
+### tweak(ui): bake the tuned Scale/Drag/Refresh values, tavern-style Refresh cost, and fix the hand hover gap
+
+**Baked three tuner passes** as the shipped defaults (+ the mirrored `styles.css` fallbacks, which are what
+production actually renders):
+- **Scale/Layout** — only 3 values had actually moved (`shopY 23 -> 46`, `shopUiY -67 -> -72`,
+  `wbY -71 -> -79`); the rest already matched, so they were left alone rather than churned.
+- **Drag feel** — `handPop 0.22 -> 0.08` (a gentler hand pop). Everything else already matched.
+- **Refresh** — 25 values, including a white glow, the sheen switched OFF (`sheenAlpha 0`), a longer
+  980ms shine, and the button moved down + scaled to 0.75.
+
+The submitted Refresh JSON still carried `spinMs` / `flashMs` / `rings` / `ringRadius` / `ringLife` from
+before those dials were removed. They were **dropped, not resurrected** — the tuner exports whatever the
+browser had persisted, so a stale key in the paste is not a request to bring the feature back.
+
+**The Refresh cost now wears the Tavern stone's gold coin pill** (owner request) — radial gold fill, dark
+outline, dark ink, and the same red "can't afford" flush. `--rfb-cost-color` drives the fill's mid-stop, so
+the picker still recolours the whole pill rather than only the text.
+
+**The hand hover gap is fixed.** The text drawer is absolutely positioned at `top: --ccw * 1.15` while the
+card element's own box ends at the archbox (`--ccw`), so the 0.15·--ccw strip between them belonged to
+NEITHER: crossing it left the card, which dropped, which moved the drawer, which re-entered the card — the
+"weird dropping and popping". The drawer was never the problem (it's a child of `.card`, so hovering it
+counts); only the gap was missing. A transparent `::after` now bridges exactly that strip — a child of the
+card, so it extends the HOVER target without changing layout, sitting below the drawer so it can never
+intercept a click, and disabled while dragging.
+
+Verified by asking `elementFromPoint` who owns each pixel across the gap's full width: every sample inside
+the box resolves to the card. (My first sweep reported one "dead spot" at 100% — that was the sample landing
+one pixel PAST the element, not a real hole; at `right - 1` it's owned.)
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
 ## 2026-07-21g (Refresh blast + cost colour)
 
 ### feat(ui): a jittered sprite blast on Refresh click, and a cost-colour dial

@@ -38,7 +38,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
-
+- **Three UI fixes** — the Freeze button now sits still on click (a CSS specificity loss, not a missing
+  rule), the Fodder reference popup folds in Heckbinder's live aura, and the run-buffs drawer slides
+  out instead of appearing.
 
 - **Mode picker behind PLAY** — Ascent / Rift / Practice. **Rifts are now opt-in**: a plain Ascent run is
   unmodified, and the Rift mode is where the active modifier lives.

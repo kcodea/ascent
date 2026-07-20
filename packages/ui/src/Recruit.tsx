@@ -1560,13 +1560,17 @@ export function Recruit() {
       const refs = [...new Set([...(CARD_REFERENCES[cardId] ?? []), ...(def ? referencedCardIds(def) : [])])]
         .filter((id) => CARD_INDEX[id]);
       const spellLive = { a: spellBonus, h: spellBonusH, ftb: run.frontToBackBonus, ftbH: run.frontToBackBonusH ?? run.frontToBackBonus, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue };
-      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, run.cardBuffs, run.impBuff, spellLive)));
+      // `cardBuffsLive`, NOT `run.cardBuffs` — the raw map holds only the PERMANENT enchants, so a Fodder
+      // token previewed here printed 3/3 while the shop card next to it showed 6/6, dropping Heckbinder's
+      // live `fodderAura` (owner report 2026-07-21). Every surface that prints a buffed stat routes through
+      // `cardBuff()`; this popup was the last raw reader.
+      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, cardBuffsLive, run.impBuff, spellLive)));
     };
     for (const c of run.board) add(c.uid, c.cardId);
     for (const c of run.hand) add(c.uid, c.cardId);
     for (const o of run.shop) add(o.uid, o.cardId);
     return m;
-  }, [run.board, run.hand, run.shop, run.cardBuffs, run.impBuff, spellBonus, spellBonusH, run.frontToBackBonus, run.frontToBackBonusH, run.goldSpentThisTurn]);
+  }, [run.board, run.hand, run.shop, cardBuffsLive, run.impBuff, spellBonus, spellBonusH, run.frontToBackBonus, run.frontToBackBonusH, run.goldSpentThisTurn]);
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(
@@ -3451,7 +3455,7 @@ export function Recruit() {
           {/* Cards a combat effect just granted, so the hand visibly grows during the fight (they get
               committed to the real hand at `resolveCombat`). */}
           {inCombat && !run.combatSettled && replay.handGrantsShown.map((cardId, i) => (
-            <Card key={`grant-${i}`} card={conjuredView(cardId, run) ?? tokenRefView(cardId, run.cardBuffs, run.impBuff)} suppressPop forceFull />
+            <Card key={`grant-${i}`} card={conjuredView(cardId, run) ?? tokenRefView(cardId, cardBuffsLive, run.impBuff)} suppressPop forceFull />
           ))}
         </div>
       </div>

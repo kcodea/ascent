@@ -35,21 +35,21 @@ export function BuffsFrame() {
         {!open && <span className="herobuffs-count">{rows.length}</span>}
         <span className="herobuffs-chev">{open ? '◂' : '▸'}</span>
       </button>
-      {/* The drawer, mounted only while open. NOTE: a slide-out animation is NOT wired — see the devlog;
-          two attempts (keyframes, then a CSS transition on a persistent element) both left the panel stuck
-          at its start frame in this container, and shipping a drawer that never appears is far worse than
-          shipping one that simply appears. Reverted to the working reveal until it's understood. */}
-      {open && (
-        <div className="herobuffs-body">
-          <div className="herobuffs-title">Buffs</div>
-          {rows.map((r) => (
-            <div className="buff-row" key={r.key}>
-              <span className="buff-label">{r.label}</span>
-              <span className="buff-val">{r.value}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* ALWAYS mounted — this is what makes the slide work. The two earlier attempts mounted the body only
+          while open, so React created it with `.open` already on the parent: its FIRST computed style was the
+          final one, leaving the transition nothing to animate from (it reported `running` at `currentTime: 0`,
+          which read like a stuck animation but was really a no-op). Kept in the tree and toggled by class, the
+          browser has a previous style to interpolate from. Hidden via visibility + pointer-events so the closed
+          drawer neither shows nor swallows clicks; `visibility` is delayed to the end of the slide on close. */}
+      <div className="herobuffs-body" aria-hidden={!open}>
+        <div className="herobuffs-title">Buffs</div>
+        {rows.map((r) => (
+          <div className="buff-row" key={r.key}>
+            <span className="buff-label">{r.label}</span>
+            <span className="buff-val">{r.value}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -666,6 +666,10 @@ export function Recruit() {
     prevSpellPowerSeq.current = seq;
     const gainA = run.spellPowerFxAtk ?? 0;
     const gainH = run.spellPowerFxHp ?? 0;
+    // The End-of-Turn commit (`faceOmen`) bumps this too, AFTER the beats have already played the per-proc
+    // flourish — that late bump is the Start-of-Combat pop the owner saw. The beats own End of Turn now, so
+    // skip the committed signal for that action and let the shop paths (a cast, a buy) keep it.
+    if (run.spellPowerFxUid === undefined && run.phase !== 'recruit') return;
     const uid = run.spellPowerFxUid;
     const raf = requestAnimationFrame(() => {
       // Over the CARD that caused the gain (owner ask 2026-07-21) — read a frame late so React has committed
@@ -2937,6 +2941,26 @@ export function Recruit() {
       // didn't fire, e.g. Frontdrake's countdown) → the softer glow cue.
       if (b.completes) sfx.triggerPulse();
       else sfx.triggerGlow();
+      // SPELL POWER — fired from the BEAT, for the same reason as the tendril below: the End-of-Turn commit
+      // lands after the phase flips, so the reducer-keyed signal played at Start of Combat instead of on the
+      // proc (owner report 2026-07-21 — Aeon Guard). Driving it here puts the flourish on the unit, at its
+      // moment, once PER PROC — a Chronos-repeated End of Turn now pops once per beat.
+      if (b.uid) {
+        const bd = CARD_INDEX[run.board.find((c) => c.uid === b.uid)?.cardId ?? ''];
+        const gold = run.board.find((c) => c.uid === b.uid)?.golden ? 2 : 1;
+        for (const eff of bd?.effects ?? []) {
+          if (eff.on !== 'endOfTurn' || eff.do !== 'battlecryBuffSpellPower') continue;
+          const gA = Number(eff.params?.attack ?? 0) * gold;
+          const gH = Number(eff.params?.health ?? 0) * gold;
+          if (gA <= 0 && gH <= 0) continue;
+          const el = document.querySelector(`[data-uid="${b.uid}"]`);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
+          floatSpellPowerNumber(cx, cy - r.height * 0.3, gA, gH);
+        }
+      }
       // QUEST TENDRIL — fired from the BEAT, not from reducer state. The End-of-Turn commit (`faceOmen`)
       // lands only after every beat has played and the phase has flipped, so a reducer-driven signal arrives
       // when the board is already gone — which is why this never showed at End of Turn while ▶ Test worked

@@ -3,6 +3,31 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21v (Aeon Guard: spell power on the beat)
+
+### fix(ui): the spell-power flourish fires per End-of-Turn proc, not at Start of Combat
+
+Same root cause as the quest tendril, now applied to spell power. `spellPowerFxSeq` is stamped when the
+End-of-Turn commit lands (`faceOmen`) — which is dispatched AFTER every beat has played and the phase has
+flipped — so Aeon Guard's flourish played once, at Start of Combat, instead of on each proc.
+
+Now fired from the beat loop: the beat carries the source uid, so the FX reads that card's `endOfTurn`
+`battlecryBuffSpellPower` params (golden-doubled) and pops on the unit, at its moment, once PER PROC. A
+Chronos/Parliament-repeated End of Turn gets one flourish per beat, matching the tendril.
+
+The committed signal is NOT removed — it still covers the shop paths (casting a spell, a buy that moves
+spell power). It's suppressed only for the sourceless, out-of-recruit bump, which is exactly the late
+`faceOmen` one that produced the Start-of-Combat pop.
+
+**Still open:** the combat-side hook (`useCombatReplay`'s `sc` narration) remains, and still anchors to
+whichever unit sourced it, enemy included — the TODO from 2026-07-21t. That path is for spell power gained
+DURING a fight (Skullblade), which is a genuinely different moment from this one; it needs the replay's
+player/enemy uid sets to stop drawing on the opponent's half.
+
+Verified: typecheck + lint + 1277 tests + `build:web` green, `typecheck:web` at its 48 baseline. Not
+exercised end-to-end for the same harness reason as the tendril — but the tendril fix, which the owner
+confirmed working, validates the seam this reuses.
+
 ## 2026-07-21u (End-of-Turn FX must ride the BEAT, not reducer state)
 
 ### fix(ui): fire the quest tendril from the End-of-Turn beat loop

@@ -9,7 +9,8 @@ export interface LungeCtx {
   /** Full attacker→defender vector (not normalized). */
   dx: number;
   dy: number;
-  /** Strike target offset (surface contact + bite) from contactGeometry — replaces the center-overshoot. */
+  /** Strike target offset from contactGeometry — places the attacker so its leading corner lands on the
+   *  defender's dead centre. */
   strike: { x: number; y: number };
   /** Distance-scaled strike duration (s) from contactGeometry — replaces the fixed config value. */
   strikeDur: number;

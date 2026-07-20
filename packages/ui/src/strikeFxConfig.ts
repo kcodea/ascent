@@ -1,20 +1,17 @@
 /**
  * Tunable parameters for the combat LUNGE STRIKE effects — the melee-impact burst fired at contact
- * (`pixiFx.impact`) plus where the whole strike-impact package originates (`strikePoint`). Same pattern as
+ * (`pixiFx.impact`). Same pattern as
  * `lungeConfig.ts` / `smokeConfig.ts`: one mutable, localStorage-persisted config dialed by eye via the DEV
  * "Lunge Strike Effects" tuner (`StrikeFxTuner.tsx`); `getStrikeFxConfig()` is read at spawn/engine time, so
  * changes apply to the next strike. The DEFAULTS reproduce the previously-hardcoded flash/shockwave/spark
- * look. The attacker always leads with its tilted corner (magnitude = `lungeConfig.leadTilt`); `strikePoint`
- * sets how DEEP that corner drives.
+ * look. WHERE the package originates is no longer a dial: the attacker's leading corner always strikes the
+ * defender's dead centre (the former `strikePoint` surface↔centre blend retired with it — owner spec
+ * 2026-07-21; see `contactGeometry.ts`), and the FX fire from that centre.
  *
  * The smoke / dust billow / energy pulse of a strike live in `smokeConfig.ts` (shared with the card-drop
  * dust); the Lunge Strike Effects tuner surfaces those keys too so the whole package is dialed in one panel.
  */
 export interface StrikeFxConfig {
-  /** How deep the attacker's leading corner drives: 0 = it meets the defender's NEAR SURFACE (a shallow
-   *  corner-clack), 1 = it lands on the defender's TRUE CENTRE (both axes). The impact FX originate wherever
-   *  that corner lands. Default 1 (centre). */
-  strikePoint: number;
   /** Hot-core flash size (the additive white-hot glint) — base `toScale`, ×the hit's power. */
   flashSize: number;
   /** Coloured shockwave size (the orange flash that paints over the cream board) — base `toScale`, ×power. */
@@ -32,7 +29,6 @@ export interface StrikeFxConfig {
 }
 
 const DEFAULTS: StrikeFxConfig = {
-  strikePoint: 0,   // owner-tuned (2026-07-10): corner meets the defender's near surface (the shallow clack)
   flashSize: 4.5,
   shockwaveSize: 4.4,
   ringScale: 2.5,
@@ -44,7 +40,6 @@ const DEFAULTS: StrikeFxConfig = {
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const STRIKEFX_RANGES: Record<keyof StrikeFxConfig, [number, number, number]> = {
-  strikePoint: [0, 1, 0.05],
   flashSize: [0, 5, 0.1],
   shockwaveSize: [0, 5, 0.1],
   ringScale: [0, 3, 0.1],

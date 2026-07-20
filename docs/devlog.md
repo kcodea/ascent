@@ -3,6 +3,36 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (corner-to-centre strikes)
+
+### tweak(ui): the leading corner always strikes the defender's dead centre
+
+Owner spec: attacking left→right, the attacker's TOP-RIGHT corner must impact the defender's exact centre
+(both axes); right→left, the TOP-LEFT corner. Enemy swings travel downward, so the rule mirrors to the
+BOTTOM corners (owner call: "mirror it" — the forward corner either way). Previously certain lunges stopped
+visibly short: `strikePoint` shipped at 0 (owner-tuned 2026-07-10 to a shallow surface clack) and the
+leading corner was picked by projection, not fixed by rule.
+
+`contactGeometry` rebuilt around the spec:
+
+- **Fixed corner by direction** — right/left from `sign(dx)`, top/bottom from the vertical travel direction
+  — replacing the pick-the-furthest-projecting-corner search. The corner is rotated by the lead tilt before
+  placement, so it lands on the centre *as posed*; the tilt (and `tiltAngleScale`) can never pull it off
+  target.
+- **Strike offset = defender centre − posed corner.** Exact, per swing, whatever the vector — the
+  "too short depending on distance" class is gone by construction.
+- **Timing unchanged (owner requirement).** The strike *duration* still derives from the surface-to-surface
+  gap at `targetSpeed`, same clamps — so contact fires when it always did and every hold welded to it is
+  untouched. The extra depth to centre is absorbed into speed: a hotter final drive within the same clock.
+- **`bite` and `strikePoint` retired** (config, ranges, groups, both tuners). Bite meant "drive past the
+  surface" and strikePoint blended surface↔centre — both are meaningless when centre impact is the spec, and
+  a dial that no longer does anything is a lying dial. Impact FX now always originate at the defender's
+  centre. The engine's blend/corner-local block collapsed to `strikeOffset = geo.strike`.
+
+Verified: typecheck + lint + **1237 tests** (1235 → 1237; the geometry suite rewritten — corner-on-centre
+exactness in all four direction quadrants plus a vertical swing, duration-from-gap invariance, and
+tilt-can't-miss under `tiltAngleScale`) + `build:web`, all green.
+
 ## 2026-07-21 (lunge tuner rebuild)
 
 ### tweak(ui): rebuild the Lunge tuner around the approach VECTOR, not the slot

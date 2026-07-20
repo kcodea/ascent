@@ -4,7 +4,6 @@ import { getScore } from './score';
 import { playLunge } from './channels/lunge';
 import { hitPower, playContactImpact } from './channels/impact';
 import { getLungeConfig, strikeBandFor, strikeEaseFor } from '../lungeConfig';
-import { getStrikeFxConfig } from '../strikeFxConfig';
 import { contactGeometry } from './contactGeometry';
 import { recordLunge } from '../lungeProbe';
 
@@ -62,20 +61,16 @@ export function runAttackExchangeCues(
   // contact + the impact cue's offset — negative fires it BEFORE contact (the smack-lead), positive after.
   // playLunge places it on its own timeline, so it stays killed/seekable with the lunge and scales with speed.
   const cfg = getLungeConfig();
-  const sp = getStrikeFxConfig().strikePoint; // 0 = corner meets defender surface, 1 = corner drives to defender CENTRE
   const atkRect = attacker.getBoundingClientRect();
   const defRect = defender?.getBoundingClientRect();
   const geo = contactGeometry(dx, dy, atkRect, defRect ?? { width: 0, height: 0 }, cfg);
-  // The attacker always leads with its tilted corner; `strikePoint` sets how DEEP that corner drives — from
-  // the defender's near SURFACE (geo.contact, 0) to the defender's TRUE CENTRE (the full attacker→defender
-  // vector dx/dy, 1). We translate the attacker so its leading corner lands on that target, and fire the
-  // impact FX there. `cornerLocal` is the tilted corner's offset from the attacker's own centre, so
-  // `strike = target − cornerLocal` puts the corner (not the card centre) on the target.
+  // The geometry places the attacker so its FIXED leading corner (top corner for a player swing, mirrored
+  // bottom corner for an enemy swing, right/left picked by dx) lands on the DEFENDER'S CENTRE — `geo.strike`
+  // is the card-centre offset that achieves it, `geo.contact` is that centre, where the impact FX originate.
+  // (The former `strikePoint` surface↔centre blend is retired: centre impact is the spec, not a dial.)
   const atkC = { x: atkRect.left + atkRect.width / 2, y: atkRect.top + atkRect.height / 2 };
-  const cornerLocal = { x: geo.contact.x - geo.strike.x, y: geo.contact.y - geo.strike.y };
-  const targetOffset = { x: geo.contact.x + (dx - geo.contact.x) * sp, y: geo.contact.y + (dy - geo.contact.y) * sp };
-  const strikeOffset = { x: targetOffset.x - cornerLocal.x, y: targetOffset.y - cornerLocal.y };
-  const impactAt = { x: atkC.x + targetOffset.x, y: atkC.y + targetOffset.y };
+  const strikeOffset = geo.strike;
+  const impactAt = { x: atkC.x + geo.contact.x, y: atkC.y + geo.contact.y };
   const spinDeg = -Math.sign(geo.leadTilt || 1) * cfg.defenderSpin;
   // DEV probe (no-op unless the Lunge tuner is open): record what the distance→duration / distance→ease /
   // angle→tilt functions produced for THIS vector. There is no stable per-pairing key to inspect instead —

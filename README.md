@@ -40,6 +40,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+- **Strikes land corner-to-centre.** The attacker's leading corner (top-right travelling left→right,
+  top-left right→left; mirrored to the bottom corners for enemy swings coming down the board) now impacts the
+  defender's dead centre on every attack — lunges can no longer stop short of the target. Strike *durations*
+  still derive from the old surface gap, so the contact beat and all combat timing are unchanged; the extra
+  depth just makes the final drive hotter. The now-meaningless `bite` + `strikePoint` dials are retired.
 - **Lunge tuner rebuilt around the approach vector.** There's no stable per-slot lunge to tune: the board row
   is centre-justified (a 6-card side seats differently from a 7-card side) and re-centres mid-combat as units
   die, so "slot 3 → slot 5" is a different vector before and after a death. Every dial is now a function of the

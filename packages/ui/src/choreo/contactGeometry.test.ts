@@ -1,41 +1,60 @@
 import { describe, expect, it } from 'vitest';
 import { contactGeometry, type RectSize } from './contactGeometry';
 
-const cfg = { bite: 6, targetSpeed: 1600, minStrikeDur: 0.1, maxStrikeDur: 0.28, leadTilt: 7, tiltAngleScale: 0 };
+const cfg = { targetSpeed: 1600, minStrikeDur: 0.1, maxStrikeDur: 0.28, leadTilt: 7, tiltAngleScale: 0 };
 const card = (): RectSize => ({ width: 80, height: 100 });
 
-describe('contactGeometry', () => {
-  it('strike stops at the surface (center distance minus both half-extents, plus bite)', () => {
-    // straight up: dy = -300, cards 100 tall → travel = 300 - 50 - 50 + 6 = 206
+/** Rotate a local point by `deg` (screen coords, clockwise-positive) — mirrors the geometry's corner pose. */
+const rot = (x: number, y: number, deg: number): { x: number; y: number } => {
+  const r = (deg * Math.PI) / 180;
+  return { x: x * Math.cos(r) - y * Math.sin(r), y: x * Math.sin(r) + y * Math.cos(r) };
+};
+
+// Owner spec 2026-07-21: the attacker's FIXED leading corner lands exactly on the defender's dead centre
+// (both axes). The corner is picked by direction — right corners when travelling left→right, left when
+// right→left; top corners travelling upward (player swings), mirrored to bottom travelling downward (enemy
+// swings) — and it strikes as POSED (rotated by the lead tilt), so the tilt can't pull it off the centre.
+describe('contactGeometry — fixed corner to dead centre', () => {
+  const cases: { name: string; dx: number; dy: number; corner: [number, number]; tilt: number }[] = [
+    { name: 'player swing left→right leads TOP-RIGHT', dx: 200, dy: -300, corner: [40, -50], tilt: 7 },
+    { name: 'player swing right→left leads TOP-LEFT', dx: -200, dy: -300, corner: [-40, -50], tilt: -7 },
+    { name: 'enemy swing left→right mirrors to BOTTOM-RIGHT', dx: 200, dy: 300, corner: [40, 50], tilt: 7 },
+    { name: 'enemy swing right→left mirrors to BOTTOM-LEFT', dx: -200, dy: 300, corner: [-40, 50], tilt: -7 },
+  ];
+  for (const { name, dx, dy, corner, tilt } of cases) {
+    it(name, () => {
+      const g = contactGeometry(dx, dy, card(), card(), cfg);
+      const posed = rot(corner[0], corner[1], tilt);
+      // card placed so the POSED corner lands exactly on the defender's centre (dx, dy)…
+      expect(g.strike.x + posed.x).toBeCloseTo(dx, 5);
+      expect(g.strike.y + posed.y).toBeCloseTo(dy, 5);
+      // …and the impact point IS that centre.
+      expect(g.contact.x).toBeCloseTo(dx, 5);
+      expect(g.contact.y).toBeCloseTo(dy, 5);
+      expect(g.leadTilt).toBeCloseTo(tilt, 5);
+    });
+  }
+  it('a vertical swing still picks the dx≥0 (right) corner, matching the tilt-sign convention', () => {
     const g = contactGeometry(0, -300, card(), card(), cfg);
-    expect(g.strike.x).toBeCloseTo(0, 5);
-    expect(g.strike.y).toBeCloseTo(-206, 5);
+    const posed = rot(40, -50, 7);
+    expect(g.strike.x + posed.x).toBeCloseTo(0, 5);
+    expect(g.strike.y + posed.y).toBeCloseTo(-300, 5);
   });
-  it('scales strike duration with travel, clamped to [min, max]', () => {
-    const near = contactGeometry(0, -120, card(), card(), cfg); // travel small → clamps to min
-    const far = contactGeometry(0, -3000, card(), card(), cfg);  // travel huge → clamps to max
+});
+
+// The strike DURATION still derives from the surface-to-surface gap (not the deeper corner-to-centre drive):
+// that is what it derived from in the surface-clack era, so the contact beat — and every hold welded to it —
+// lands exactly when it always has. The extra depth is absorbed into speed.
+describe('strike duration — unchanged timing', () => {
+  it('derives from the surface gap at constant px/s, clamped to [min, max]', () => {
+    const near = contactGeometry(0, -120, card(), card(), cfg); // gap 20 → clamps to min
+    const far = contactGeometry(0, -3000, card(), card(), cfg); // gap 2900 → clamps to max
     expect(near.strikeDur).toBeCloseTo(0.1, 5);
     expect(far.strikeDur).toBeCloseTo(0.28, 5);
-    // a mid distance lands strictly between the clamps and equals travel / targetSpeed
-    const mid = contactGeometry(0, -450, card(), card(), cfg); // travel = 450-100+6 = 356
-    expect(mid.strikeDur).toBeCloseTo(356 / 1600, 4);
+    const mid = contactGeometry(0, -450, card(), card(), cfg); // gap = 450 - 50 - 50 = 350
+    expect(mid.strikeDur).toBeCloseTo(350 / 1600, 4);
     expect(mid.strikeDur).toBeGreaterThan(near.strikeDur);
     expect(mid.strikeDur).toBeLessThan(far.strikeDur);
-  });
-  it('lead tilt sign follows the horizontal offset', () => {
-    expect(contactGeometry(200, -300, card(), card(), cfg).leadTilt).toBe(7);
-    expect(contactGeometry(-200, -300, card(), card(), cfg).leadTilt).toBe(-7);
-  });
-  it('contact point is the leading corner — it projects past the strike center toward the defender', () => {
-    const g = contactGeometry(0, -300, card(), card(), cfg);
-    const nx = 0;
-    const ny = -1; // straight-up approach axis
-    const strikeProj = g.strike.x * nx + g.strike.y * ny;
-    const contactProj = g.contact.x * nx + g.contact.y * ny;
-    // the tilted leading corner pokes further along the axis than the card center's strike stop
-    expect(contactProj).toBeGreaterThan(strikeProj);
-    // and it's laterally offset from the center line (a corner, not the face midpoint)
-    expect(Math.abs(g.contact.x - g.strike.x)).toBeGreaterThan(0);
   });
 });
 
@@ -48,10 +67,10 @@ describe('vector-driven behaviour', () => {
     expect(contactGeometry(0, -3000, card(), card(), cfg).clamped).toBe('max');
     expect(contactGeometry(0, -450, card(), card(), cfg).clamped).toBeNull();
   });
-  it('reports travel and centre distance', () => {
+  it('reports the surface gap and centre distance', () => {
     const g = contactGeometry(0, -300, card(), card(), cfg);
     expect(g.dist).toBeCloseTo(300, 5);
-    expect(g.travel).toBeCloseTo(206, 5); // 300 - 50 - 50 + 6
+    expect(g.travel).toBeCloseTo(200, 5); // 300 - 50 - 50
   });
   it('measures approach slope along the direction of travel, so mirrored swings agree', () => {
     expect(contactGeometry(300, 0, card(), card(), cfg).approachDeg).toBeCloseTo(0, 5);
@@ -59,13 +78,18 @@ describe('vector-driven behaviour', () => {
     expect(contactGeometry(300, 300, card(), card(), cfg).approachDeg).toBeCloseTo(45, 5);
     expect(contactGeometry(-300, 300, card(), card(), cfg).approachDeg).toBeCloseTo(45, 5);
   });
-  it('tiltAngleScale 0 keeps the shipped sign-only tilt; raising it steers the corner by the approach', () => {
+  it('tiltAngleScale 0 keeps the shipped sign-only tilt; raising it steers the pose by the approach', () => {
     const flat = contactGeometry(300, 0, card(), card(), { ...cfg, tiltAngleScale: 1 });
     const steep = contactGeometry(300, 300, card(), card(), { ...cfg, tiltAngleScale: 1 });
     expect(flat.leadTilt).toBeCloseTo(7, 5);        // no slope → base tilt only, same as scale 0
     expect(steep.leadTilt).toBeCloseTo(7 + 45, 5);  // full slope folded in
-    // and at scale 0 a steep diagonal leads with exactly the same corner as a flat swing (the shipped
-    // behaviour this dial exists to fix)
+    // and at scale 0 a steep diagonal poses exactly like a flat swing (the shipped behaviour this dial
+    // exists to change)
     expect(contactGeometry(300, 300, card(), card(), cfg).leadTilt).toBe(7);
+    // whatever the tilt, the posed corner still lands on the centre — the two dials can't fight
+    const g = contactGeometry(300, 300, card(), card(), { ...cfg, tiltAngleScale: 1 });
+    const posed = rot(40, 50, g.leadTilt);
+    expect(g.strike.x + posed.x).toBeCloseTo(300, 5);
+    expect(g.strike.y + posed.y).toBeCloseTo(300, 5);
   });
 });

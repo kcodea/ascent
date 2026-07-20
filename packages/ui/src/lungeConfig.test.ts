@@ -7,7 +7,6 @@ import {
 describe('lungeConfig corner-clack dials', () => {
   it('exposes the contact + distance dials with defaults', () => {
     const c = getLungeConfig();
-    expect(c.bite).toBeGreaterThan(0);
     expect(c.leadTilt).toBeGreaterThan(0);
     expect(c.defenderSpin).toBeGreaterThan(0);
     expect(c.attackerRebound).toBeGreaterThan(0);

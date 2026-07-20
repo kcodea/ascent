@@ -52,8 +52,6 @@ export interface LungeConfig {
   easeMidIdx: number;
   /** Strike ease for the LONG band, indexed into `STRIKE_EASES`. */
   easeLongIdx: number;
-  /** Bite (px) — how far the leading corner drives past surface contact, so it visibly bites in. */
-  bite: number;
   /** Lead tilt (deg) — the base tilt used to lead with a corner (sign chosen from dx). */
   leadTilt: number;
   /** Lead-tilt ANGLE SCALE (0–1) — how much of the approach's slope off horizontal is added to the tilt.
@@ -99,7 +97,6 @@ const DEFAULTS: LungeConfig = {
   easeShortIdx: 3,   // all three bands default to the shipped 'power3.in', so banding is opt-in per band
   easeMidIdx: 3,
   easeLongIdx: 3,
-  bite: 16,
   leadTilt: 7.5,
   tiltAngleScale: 0, // 0 = the shipped sign(dx)-only tilt; raise to let the approach slope steer the corner
   defenderSpin: 15,
@@ -125,7 +122,6 @@ export const LUNGE_RANGES: Record<keyof LungeConfig, [number, number, number]> =
   easeShortIdx: [0, 7, 1],
   easeMidIdx: [0, 7, 1],
   easeLongIdx: [0, 7, 1],
-  bite: [0, 40, 1],
   leadTilt: [0, 20, 0.5],
   tiltAngleScale: [0, 1, 0.05],
   defenderSpin: [0, 30, 0.5],
@@ -164,7 +160,7 @@ export const LUNGE_GROUPS: { title: string; keys: (keyof LungeConfig)[] }[] = [
   { title: 'Wind-up', keys: ['windupDur', 'windupDepth', 'windupScale'] },
   { title: 'Strike · distance → duration', keys: ['targetSpeed', 'minStrikeDur', 'maxStrikeDur', 'strikeDur'] },
   { title: 'Strike · distance → ease', keys: ['bandShortPx', 'bandLongPx', 'easeShortIdx', 'easeMidIdx', 'easeLongIdx'] },
-  { title: 'Contact · angle → tilt', keys: ['bite', 'leadTilt', 'tiltAngleScale', 'defenderSpin', 'attackerRebound', 'smackLead'] },
+  { title: 'Contact · angle → tilt', keys: ['leadTilt', 'tiltAngleScale', 'defenderSpin', 'attackerRebound', 'smackLead'] },
   { title: 'Recovery', keys: ['settleDur', 'attackGap'] },
 ];
 

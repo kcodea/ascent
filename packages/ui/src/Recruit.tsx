@@ -277,7 +277,7 @@ function tokenRefView(
   const c = CARD_INDEX[id];
   if (c.spell && spellLive) {
     return {
-      name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
+      name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
       attack: c.attack, health: c.health, keywords: c.keywords,
       text: spellDisplayText(c.id, spellLive.a, spellLive.ftb, spellLive.h, spellLive.goldSpent, spellLive.ftbH, spellLive.goldPouchValue ?? 0),
       tier: c.tier, spell: c.spell, target: c.target,
@@ -286,7 +286,7 @@ function tokenRefView(
   }
   const cb = id === 'impscrap' ? (impBuff ?? { attack: 0, health: 0 }) : (cardBuffs?.[id] ?? { attack: 0, health: 0 });
   return {
-    name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
+    name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
     attack: c.attack + cb.attack, health: c.health + cb.health,
     keywords: c.keywords, text: c.text, tier: c.tier, spell: c.spell,
     baseAttack: c.attack, baseHealth: c.health,
@@ -390,7 +390,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     const h = card.held;
     const lt = liveCardText(c.id, offerLiveTextParams(!!h.golden, opts));
     return {
-      name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
+      name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
       attack: h.attack, health: h.health, keywords: h.keywords,
       text: lt.text, goldenText: lt.goldenText ?? c.goldenText, cost: CONFIG.minionCost, tier: c.tier, golden: h.golden,
       baseAttack: c.attack, baseHealth: c.health,
@@ -437,7 +437,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     (undead ? opts.undeadHp ?? 0 : 0) + (beast ? opts.beastBuyHp ?? 0 : 0) + (magnetic ? opts.magneticBuyHp ?? 0 : 0));
   if (card.golden) pushBuff('Golden Touch', c.attack, c.health); // gilded doubles the base stats
   return {
-    name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
+    name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
     attack: (c.attack + addAtk) * goldMul, health: (c.health + addHp) * goldMul,
     keywords: [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))],
     text: lt.text,
@@ -3739,7 +3739,7 @@ export function Recruit() {
                 return (
                   <div className="disc-slot" key={`${id}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
                     <Card
-                      card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier }}
+                      card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier }}
                       onClick={() => dispatch({ type: 'discover', index: i })}
                     />
                   </div>

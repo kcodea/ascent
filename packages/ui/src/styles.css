@@ -4428,6 +4428,29 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
   z-index: 3;                            /* under the drawer (z4), above nothing else */
   pointer-events: auto;                  /* the whole point: make the strip part of the card */
 }
+/* ---- HAND hover hysteresis (`.handpad`, rendered by Card.tsx).
+   A hand card RESTS tucked down (`--hand-tuck`, +0.16·ch) and POPS UP on hover
+   (`--hand-floor − --hand-pop`, −0.22·ch) — a ~0.38·ch jump. So hovering the lower third moved the card out
+   from under the pointer, which unhovered it, which dropped it back under the pointer, which re-hovered it…
+   the "mouseover glitching" (owner report 2026-07-21). The card that wouldn't open was simply the one whose
+   lower body you were pointing at.
+   The pad matches the card at rest, then extends DOWNWARD while hovered, so the pointer that triggered the
+   pop is still inside the card afterwards and the hover latches instead of oscillating. Rest bounds are
+   untouched, so it never steals hover from a neighbour, and it sits at z0 under every real layer, so it can
+   never intercept a click. Hit-testing only — no layout, no paint. */
+.row.hand .card .handpad {
+  position: absolute;
+  left: 0; right: 0; top: 0; bottom: 0;
+  z-index: 0;
+  pointer-events: auto;
+}
+.row.hand .card:hover .handpad { bottom: calc(var(--ch) * -0.45); }
+/* Never let the pad hold a card "hovered" beneath the floating drag card. */
+body.dragging .row.hand .card .handpad { pointer-events: none; }
+/* Outside the hand the pad is inert — board/shop cards don't pop, so they need no hysteresis. */
+.card .handpad { pointer-events: none; }
+.row.hand .card .handpad { pointer-events: auto; }
+
 /* While dragging, the bridge must not keep a card "hovered" under the floating drag card. */
 body.dragging .row.hand .card.compact.showtext::after { pointer-events: none; }
 

@@ -1227,7 +1227,7 @@ export function simulate(
       // magnetize). Fires per hit alongside the onAttack rallies (rallyBuff / rallyProcDeathrattle) above.
       if (attacker.rallyMechAtk && attacker.rallyMechAtk > 0) {
         for (const m of boards[attacker.side]) { // iterate the board directly — no living() array per swing
-          if (!m.dead && m.health > 0 && m !== attacker && (m.tribe === 'mech' || m.tribe2 === 'mech')) {
+          if (!m.dead && m.health > 0 && m !== attacker && (m.tribe === 'mech' || m.tribe2 === 'mech' || !!m.universalTribe)) {
             ctx.buff(m, attacker.rallyMechAtk, 0, 'Better Bot');
           }
         }
@@ -1627,7 +1627,7 @@ export function simulate(
         const { minion, side } = payload as { minion: Minion; side: Side };
         if (side !== tSide || transfers <= 0) return;
         if (minion.tribe !== 'mech' && minion.tribe2 !== 'mech') return;
-        const next = boards[tSide].find((m) => !m.dead && m.health > 0 && !m.divineShield && (m.tribe === 'mech' || m.tribe2 === 'mech'));
+        const next = boards[tSide].find((m) => !m.dead && m.health > 0 && !m.divineShield && (m.tribe === 'mech' || m.tribe2 === 'mech' || !!m.universalTribe));
         if (!next) return;
         transfers--;
         nextStep();
@@ -1679,7 +1679,7 @@ export function simulate(
         }
         if (mechRally) {
           for (const m of boards[rside]) {
-            if (!m.dead && m.health > 0 && m !== minion && (m.tribe === 'mech' || m.tribe2 === 'mech')) ctx.buff(m, minion.rallyMechAtk!, 0, 'Better Bot');
+            if (!m.dead && m.health > 0 && m !== minion && (m.tribe === 'mech' || m.tribe2 === 'mech' || !!m.universalTribe)) ctx.buff(m, minion.rallyMechAtk!, 0, 'Better Bot');
           }
         }
         if (spellRally) { // Perfect Core → spell to hand: player-only (grantToHand is a no-op for the enemy)
@@ -1773,7 +1773,7 @@ export function simulate(
     if (magnetics.length > 0) {
       bus.on('onLoseDivineShield', (payload) => {
         const { minion, side } = payload as { minion: Minion; side: Side };
-        if (side !== 'player' || !(minion.tribe === 'mech' || minion.tribe2 === 'mech')) return;
+        if (side !== 'player' || !(minion.tribe === 'mech' || minion.tribe2 === 'mech' || !!minion.universalTribe)) return;
         ctx.grantToHand(magnetics[rng.int(magnetics.length)]!.id, 'player', minion.uid);
       });
     }

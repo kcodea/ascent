@@ -2375,6 +2375,29 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 4); // 11
   });
 
+  it('an "All" type (Lab Experiment) counts as every tribe, incl. a Beast played', () => {
+    // Owner report: Lab Experiment read as NEUTRAL and looked like it took no tribal buffs. `isTribe` already
+    // honoured `universalTribe`, but several paths compared `tribe`/`tribe2` directly and skipped it — one of
+    // them player-visible here: Trail Forager's "each Beast you play".
+    const lab = CARD_INDEX['labexperiment']!;
+    expect(lab.universalTribe).toBe(true);
+    expect(lab.tribe).toBe('neutral'); // printed tribe stays neutral — universality is the override
+
+    const card = { uid: 'lx', cardId: 'labexperiment', tribe: 'neutral' as const, attack: 12, health: 10, keywords: ['V' as const], golden: false };
+    for (const t of ['beast', 'dragon', 'mech', 'undead', 'demon'] as const) {
+      expect(isTribe(card, t)).toBe(true); // every tribal effect sees it
+    }
+
+    // Trail Forager: playing an "All" type counts as playing a Beast.
+    let t: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [{ uid: 'tf', cardId: 'trailforager', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }],
+      hand: [card],
+    };
+    t = reduce(t, { type: 'play', uid: 'lx' });
+    expect(t.board.find((c) => c.uid === 'tf')!.sellBonus ?? 0).toBe(1); // +1 sell value, as a Beast would give
+  });
+
   it('a universalTribe token (Chaos Attachment) receives a tribe summon-buff (Mama Bear)', () => {
     // Regression: the Chaos hero-power token counts as EVERY tribe, so playing it must trigger
     // tribe-gated summon buffs. Before the fix the recruit factories only matched tribe/tribe2, so the

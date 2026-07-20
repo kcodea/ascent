@@ -38,6 +38,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **"All" types read correctly** — Lab Experiment's footer shows ALL and it now takes tribal buffs from
+  every source, in the shop and in combat.
+- **Hand hover fixed** — pointing at the lower half of a card no longer makes it flicker instead of opening.
+
 - **Three UI fixes** — the Freeze button now sits still on click (a CSS specificity loss, not a missing
   rule), the Fodder reference popup folds in Heckbinder's live aura, and the run-buffs drawer slides
   out instead of appearing.

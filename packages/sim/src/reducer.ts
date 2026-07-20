@@ -378,7 +378,7 @@ export function reduce(state: RunState, action: Action): RunState {
         if (next.runeStructure) conjureToHand(next, poolOf(next).spells.filter((c) => c.tier <= next.tier), 1);
       }
       // Trail Forager: each Beast you play raises every OTHER Trail Forager's sell value (+1, ×2 golden).
-      if (pdef && (pdef.tribe === 'beast' || pdef.tribe2 === 'beast')) {
+      if (pdef && (pdef.tribe === 'beast' || pdef.tribe2 === 'beast' || pdef.universalTribe)) {
         for (const c of next.board) {
           if (c.cardId === 'trailforager' && c.uid !== action.uid) c.sellBonus = (c.sellBonus ?? 0) + (c.golden ? 2 : 1);
         }
@@ -548,7 +548,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const aHp = (s.friedCircuitsStepHp ?? 0) * s.friedCircuitsBuys;
         for (const o of s.shop) {
           const d = CARD_INDEX[o.cardId];
-          if (d && (d.tribe === 'mech' || d.tribe2 === 'mech')) addOfferBuff(o, 'Fried Circuits', aAtk, aHp);
+          if (d && (d.tribe === 'mech' || d.tribe2 === 'mech' || d.universalTribe)) addOfferBuff(o, 'Fried Circuits', aAtk, aHp);
         }
       }
       const cb = cardBuff(s, card.id); // persistent run buff (Ritualist's Fodder enchantment)

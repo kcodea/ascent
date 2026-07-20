@@ -1339,14 +1339,21 @@ export function simulate(
         // the target, not this exchange's `attacker`). So gate on `killer === attacker`.
         if ((m.dead || m.health <= 0 || (couldReborn && !m.rebornAvailable)) && killer === attacker) {
           bus.emit('onKill', { attacker: killer, victim: m });
-          // Uron: your SLAUGHTERS trigger extra times — the killer's own on-kill effects only, so the
-          // Slaughter quest tally below still counts one real kill.
+          // Uron: your SLAUGHTERS trigger extra times — the killer's own on-kill effects only. The KILL
+          // count (`slaughter`) still counts one, but each re-trigger bumps the "Trigger N Slaughters" tally.
           const killExtra = extraTriggerFires('slaughter', boards[killer.side].filter((x) => !x.dead && x.health > 0), (id) => cards[id]);
+          const killerHasSlaughter = killer.effects.some((e) => e.on === 'onKill');
           for (let i = 0; i < killExtra; i++) {
             for (const effect of killer.effects) {
               if (effect.on !== 'onKill') continue;
               FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m });
             }
+          }
+          // Each Uron re-fire that actually re-triggers a Slaughter EFFECT counts toward "Trigger N Slaughters"
+          // (`slaughterKeyword`) — the kill count (`slaughter`) stays one, owner ruling 2026-07-21: a Slaughter
+          // is a kill, but a Slaughter EFFECT can trigger multiple times. Matches the Rally treatment (#594).
+          if (killExtra > 0 && killerHasSlaughter && killer.side === 'player' && m.side !== killer.side) {
+            for (let i = 0; i < killExtra; i++) bumpSlaughterKeyword();
           }
           // A player minion felling an enemy by attacking is a "Slaughter" — tally it for the Slaughter quests
           // (credited to the KILLER's tribe for "with Beasts").
@@ -1368,22 +1375,29 @@ export function simulate(
             // Law of Teeth: a Beast's Slaughter triggers one extra time — re-run only this killer's own on-kill
             // effects once more (direct call, not via the bus, so other minions' on-kills don't double-fire). Per side.
             if (kmods.lawOfTeeth && killerAlive && isBeast(killer)) {
+              let refired = false;
               for (const effect of killer.effects) {
                 if (effect.on !== 'onKill') continue;
                 FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m });
+                refired = true;
               }
+              // The extra Slaughter EFFECT trigger counts toward "Trigger N Slaughters" (player only).
+              if (refired && killer.side === 'player') bumpSlaughterKeyword();
             }
             // Author's Hand: the FIRST Slaughter each combat fires an extra time (any tribe; additive with Law of
             // Teeth). Re-runs only this killer's own on-kill effects, once per combat. Per side.
             const slfe = kmods.slaughterFirstEachCombat ?? 0;
             if (slfe > 0 && killerAlive && !firstSlaughterDone[killer.side]) {
               firstSlaughterDone[killer.side] = true;
+              const authorsHasSlaughter = killer.effects.some((e) => e.on === 'onKill');
               for (let r = 0; r < slfe; r++) {
                 for (const effect of killer.effects) {
                   if (effect.on !== 'onKill') continue;
                   FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m });
                 }
               }
+              // Each extra Slaughter EFFECT trigger counts toward "Trigger N Slaughters" (player only).
+              if (authorsHasSlaughter && killer.side === 'player') for (let r = 0; r < slfe; r++) bumpSlaughterKeyword();
             }
             // Feeding Line (Beast capstone): a Beast's Slaughter gives your NEXT living Beast (in board order,
             // after the killer) an immediate out-of-turn attack — queued like a Twilight Whelp strike and drained

@@ -1992,6 +1992,28 @@ describe('simulate (handoff A.3)', () => {
     expect(a.playerQuestTally?.slaughterKeyword).toBe(1); // …but only Karthus's for "Trigger N Slaughters"
   });
 
+  it('a Slaughter doubler (Law of Teeth) counts the extra TRIGGER but not the kill (owner ruling 2026-07-21)', () => {
+    // A Slaughter is a kill (one per kill), but a Slaughter EFFECT can trigger multiple times. Law of Teeth
+    // fires a Beast's on-kill an extra time; that extra trigger counts toward "Trigger N Slaughters"
+    // (`slaughterKeyword`), NOT toward "Kill N enemies" (`slaughter`). No card feeds the Uron slaughter
+    // multiplier today, so Law of Teeth is the live path.
+    const sim = (mods = {}) => simulate(
+      [
+        { cardId: 'gnash', attack: 10, health: 50 }, // Beast with an on-kill (Slaughter) effect
+        { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] as Keyword[] },
+      ],
+      [{ cardId: 'omen', attack: 0, health: 1 }],
+      makeRng(1), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide(),
+    );
+    const withLaw = sim({ lawOfTeeth: true });
+    const without = sim({});
+    // One kill either way — the kill count is unchanged.
+    expect(withLaw.playerQuestTally?.slaughter).toBe(without.playerQuestTally?.slaughter);
+    // …but the extra Slaughter EFFECT trigger bumps the "Trigger N Slaughters" tally.
+    expect((withLaw.playerQuestTally?.slaughterKeyword ?? 0)).toBe((without.playerQuestTally?.slaughterKeyword ?? 0) + 1);
+  });
+
   it('Bloodlust: a marked minion takes an immediate immune attack at Start of Combat', () => {
     const a = simulate(
       [

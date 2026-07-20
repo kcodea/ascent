@@ -3201,6 +3201,14 @@ export function applyEndOfTurn(state: RunState): void {
   state.lastEotFires = (state.lastEotFires ?? 0) + fires;
 }
 
+/** Record that a quest/rune End-of-Turn reward TRIGGERED a specific unit, so the UI can draw a gold tendril
+ *  from that reward's node to the unit. One entry PER PROC — a repeated End of Turn (Chronos/Parliament)
+ *  stamps once per repeat, so the player sees a tendril for each fire rather than one for the group. */
+function stampQuestTendril(state: RunState, effect: string, uid: string): void {
+  (state.questTendrilFx ??= []).push({ effect, uid });
+  state.questTendrilSeq = (state.questTendrilSeq ?? 0) + 1;
+}
+
 /** One quest-granted recurring End-of-Turn effect. `triggerLeftmostShout`: re-fire your leftmost Battlecry
  *  minion's Battlecry (Echoing Roar). `grantRandomShout`: conjure a random Battlecry minion (≤ tavern tier) to
  *  hand (The Hoard Wakes). `grantRandomAttachments`: conjure 2 random Magnetic minions to hand (Blueprint Cache).
@@ -3223,7 +3231,7 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
   };
   if (effect === 'triggerLeftmostShout') {
     const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
-    if (leftmost) replayBattlecry(state, leftmost);
+    if (leftmost) { stampQuestTendril(state, effect, leftmost.uid); replayBattlecry(state, leftmost); }
   } else if (effect === 'grantRandomAttachments') {
     conjureToHand(state, poolOf(state).buyable.filter((c) => c.tier <= state.tier && c.keywords.includes('M')), 2);
   } else if (effect === 'buffMechsPerAttachment') {
@@ -3252,7 +3260,7 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
   } else if (effect === 'triggerLeftmostEcho') {
     // Rune of the Reliquary: fire your leftmost minion's Echo (Deathrattle) out of combat.
     const leftmost = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
-    if (leftmost) fireRecruitDeathrattles(makeContext(state), leftmost);
+    if (leftmost) { stampQuestTendril(state, effect, leftmost.uid); fireRecruitDeathrattles(makeContext(state), leftmost); }
   } else if (effect === 'recastFirstSpell') {
     // Rune of Recurrence: cast the FIRST spell you cast this turn again, free. An AIMED spell re-targets a
     // seeded-random friendly board minion (owner call 2026-07-17); untargeted spells just resolve. Skipped

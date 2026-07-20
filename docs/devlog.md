@@ -3,6 +3,35 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21q (quest tendril)
+
+### feat(ui): a gold tendril from a quest node to the unit it triggers
+
+Owner ask: when a quest procs a unit — Echoing Roar re-firing your leftmost Shout — a gold ribbon should
+reach out of the quest's NODE and strike the unit it triggered.
+
+Built on the existing `pixiFx.buffTendril` (the Fodder Infusion's primitive), so this is a signal + anchor
+job rather than new rendering: `questTendrilConfig.ts` is that primitive's `TendrilCfg` in a gold palette
+plus an arc dial and a stagger, with the "🏆 Quest Tendril" tuner and a ▶ Test that fires one from the first
+node to the first board minion.
+
+**Signal.** `runRecurringEndOfTurn` stamps `{ effect, uid }` for the two rewards that target a UNIT —
+Echoing Roar's `triggerLeftmostShout` and Rune of the Reliquary's `triggerLeftmostEcho`. One entry PER PROC,
+so a repeated End of Turn (Chronos / Parliament of Flame) draws one ribbon per fire rather than one for the
+group, and the arc alternates sides so they read as separate strikes.
+
+**Anchor.** Nodes carry `data-eot-effect`, keyed on the reward EFFECT rather than the quest id — runes grant
+these too and have their own badge in the same row, so one attribute covers both. Absent for non-recurring
+rewards, so only the nodes that can actually throw a tendril are addressable. If either end is missing (node
+off-screen, unit already gone) the proc is skipped rather than throwing.
+
+Verified: typecheck + lint + **1277** tests + `build:web` green. New test pins the stamp (effect + uid, seq
+bumped). Live DOM: the node resolves at (50,814) and the target unit at (767,741), and firing the signal —
+including the two-proc stagger path — runs clean with no console errors.
+
+**Caveat:** verified by wiring and geometry, not by watching the ribbon. The draw is the shipped Infusion
+primitive, so the risk sat in the signal and the anchors; still worth an eye on the gold and the arc.
+
 ## 2026-07-21p (re-triggered Shouts count)
 
 ### fix(sim): a REPLAYED Shout advances Shout objectives; tallies accumulate

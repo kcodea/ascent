@@ -619,6 +619,13 @@ export interface RunState {
    *  (owner ask 2026-07-21). Absent when the source isn't a card the player acted on — a quest reward or a
    *  rune tick — and the UI falls back to the shop row for those. */
   spellPowerFxUid?: string;
+  /** Quest/rune End-of-Turn rewards that TRIGGERED a specific unit this action — one entry per proc, in fire
+   *  order. The UI draws a gold tendril from that quest's node to the unit it hit (owner ask 2026-07-21).
+   *  Source is the effect id (the node is looked up from it), not the quest id, because runes grant these too
+   *  and a rune has its own badge in the same row. Cleared per action like the other transient FX fields. */
+  questTendrilFx?: { effect: string; uid: string }[];
+  /** Bumped when `questTendrilFx` is refilled, so the UI fires once per action even if the list repeats. */
+  questTendrilSeq?: number;
   weldFxUids?: string[];
   weldFxKind?: 'play' | 'auto';
   /** `weldFxSeq` as of the start of the current action — lets `stampWeldFx` tell its first stamp of an

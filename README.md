@@ -38,6 +38,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Quest tendrils** — a gold ribbon reaches from a quest's node to the unit it triggers (Echoing Roar
+  re-firing a Shout), with its own dev tuner.
+
 - **Spell-power FX** — rising pink/purple/gold arrows, a mote blast, and the floating power number when a
   spell power goes up in the shop, with a full dev tuner. (Combat wiring still to come.)
 

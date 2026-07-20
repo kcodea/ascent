@@ -59,7 +59,9 @@ export function QuestBadges() {
         const rune = RUNE_INDEX[id]!;
         const art = runeArt(rune.id);
         return (
-          <div className="questbadge runebadge" key={id}>
+          // `data-eot-effect` anchors the quest-tendril FX: a recurring End-of-Turn reward that triggers a
+          // unit draws its tendril from THIS node. Runes grant those too, so both node kinds carry it.
+          <div className="questbadge runebadge" key={id} data-eot-effect={rune.reward?.kind === 'recurringEndOfTurn' ? rune.reward.effect : undefined}>
             {/* Keyed on the trigger count → remounts and replays the scale-punch bounce (like a unit's self-buff)
                 each time this rune's combat effect fires. The glow ring rides inside so it replays in lockstep. */}
             <div className="questbadge-inner" key={triggered[id] ?? 0} data-pulse={triggered[id] ?? 0}>
@@ -148,7 +150,7 @@ export function QuestBadges() {
         };
         const liveTxt = questRewardLiveText(r, live);
         return (
-          <div className={`questbadge${ongoing ? ' ongoing' : ''}`} style={{ '--c': c } as CSSProperties} key={aq.questId}>
+          <div className={`questbadge${ongoing ? ' ongoing' : ''}`} style={{ '--c': c } as CSSProperties} key={aq.questId} data-eot-effect={r.kind === 'recurringEndOfTurn' ? r.effect : undefined}>
             {/* Keyed on the pulse count → remounts + replays the scale-punch bounce (a quest's own "self-buff")
                 each time it completes / re-fires / triggers in combat. The glow ring rides inside, in lockstep. */}
             <div className="questbadge-inner" key={pulse} data-pulse={pulse}>

@@ -9,6 +9,7 @@
  */
 import { useGame } from './store';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
+import { tendrilCfgFor } from './questTendrilConfig';
 import { pixiFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
@@ -81,6 +82,21 @@ export function testSpellPowerFx(): void {
   const y = (top + bottom) / 2;
   pixiFx.spellPower(x, y, getSpellPowerFxConfig());
   floatSpellPowerNumber(x, y - (bottom - top) * 0.15, 2, 1);
+}
+
+/** 🏆 Quest Tendril: fire one gold ribbon from the first quest node to the first board minion, so the look
+ *  can be judged without staging an Echoing Roar proc. No-op if either end isn't on screen. */
+export function testQuestTendril(): void {
+  const node = document.querySelector('.questbadge');
+  const unit = document.querySelector('[data-zone="warband"] .card');
+  if (!node || !unit) return;
+  const nr = node.getBoundingClientRect();
+  const ur = unit.getBoundingClientRect();
+  pixiFx.buffTendril(
+    { x: nr.left + nr.width / 2, y: nr.top + nr.height / 2 },
+    { x: ur.left + ur.width / 2, y: ur.top + ur.height / 2 },
+    tendrilCfgFor(1),
+  );
 }
 
 export type AuraTestTribe = 'beast' | 'demon' | 'mech' | 'undead';

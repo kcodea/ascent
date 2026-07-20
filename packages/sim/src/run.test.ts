@@ -2376,6 +2376,22 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 4); // 11
   });
 
+  it('a quest End-of-Turn reward that triggers a unit stamps a tendril proc (Echoing Roar)', () => {
+    // The gold tendril is drawn from the reward's NODE to the unit it hit, so the sim must record which unit
+    // each proc triggered — one entry PER PROC, so a repeated End of Turn draws one ribbon per fire rather
+    // than one for the group.
+    const s: RunState = {
+      ...createRun(1), embers: 0, shop: [], hand: [],
+      board: [{ uid: 'cw', cardId: 'cinder', tribe: 'dragon', attack: 4, health: 5, keywords: [], golden: false }],
+      questRecurringEndOfTurn: ['triggerLeftmostShout'],
+    };
+    s.questTendrilFx = [];
+    applyEndOfTurn(s);
+    expect(s.questTendrilFx!.length).toBeGreaterThanOrEqual(1);
+    expect(s.questTendrilFx![0]).toEqual({ effect: 'triggerLeftmostShout', uid: 'cw' });
+    expect(s.questTendrilSeq ?? 0).toBeGreaterThan(0);
+  });
+
   it('a RE-TRIGGERED Shout counts toward the Shout tally (Echoing Roar / Resonance / Myra)', () => {
     // Owner report 2026-07-21: Echoing Roar's reward re-fires your leftmost Shout at End of Turn, but that
     // trigger never advanced `shout` objectives — so the quest could not advance itself. Every re-trigger path

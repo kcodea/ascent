@@ -18,6 +18,7 @@ import { pixiFx, discoverFx } from './pixiFx';
 import { perfMonitor } from './perfMonitor';
 import { getSwapFxConfig } from './swapFxConfig';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
+import { getQuestTendrilConfig, tendrilCfgFor } from './questTendrilConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
 import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
@@ -648,6 +649,38 @@ export function Recruit() {
     });
     return () => cancelAnimationFrame(raf);
   }, [run.swapFxSeq, run.swapFxBoardUid, run.swapFxShopUid]);
+  // Quest Tendril — a quest/rune End-of-Turn reward just TRIGGERED a unit (Echoing Roar re-firing a Shout,
+  // Rune of the Reliquary firing an Echo): a gold ribbon reaches from that reward's node in the badge row to
+  // the unit it hit. One tendril PER PROC, staggered, with the arc alternating sides so repeats (Chronos /
+  // Parliament of Flame multiplying the End of Turn) read as separate strikes rather than one thick line.
+  // Keyed off `questTendrilSeq`, the same one-shot dedupe as the other FX signals.
+  const prevQuestTendrilSeq = useRef(run.questTendrilSeq);
+  useEffect(() => {
+    const seq = run.questTendrilSeq;
+    if (seq === undefined || seq === prevQuestTendrilSeq.current) return;
+    prevQuestTendrilSeq.current = seq;
+    const procs = run.questTendrilFx ?? [];
+    if (procs.length === 0) return;
+    const timers: number[] = [];
+    // One frame late so React has committed both the node row and the target unit.
+    const raf = requestAnimationFrame(() => {
+      procs.forEach((proc, i) => {
+        const node = document.querySelector(`[data-eot-effect="${proc.effect}"]`);
+        const unit = document.querySelector(`[data-uid="${proc.uid}"]`);
+        if (!node || !unit) return; // node scrolled out or unit already left the board — skip, never throw
+        const nr = node.getBoundingClientRect();
+        const ur = unit.getBoundingClientRect();
+        const fire = (): void => pixiFx.buffTendril(
+          { x: nr.left + nr.width / 2, y: nr.top + nr.height / 2 },
+          { x: ur.left + ur.width / 2, y: ur.top + ur.height / 2 },
+          tendrilCfgFor(i % 2 === 0 ? 1 : -1),
+        );
+        if (i === 0) fire();
+        else timers.push(window.setTimeout(fire, i * getQuestTendrilConfig().staggerMs));
+      });
+    });
+    return () => { cancelAnimationFrame(raf); for (const t of timers) window.clearTimeout(t); };
+  }, [run.questTendrilSeq, run.questTendrilFx]);
   // Spell Power — SPELL POWER JUST WENT UP in the shop, from any source and by any amount (Cinderwing
   // Matron's Shout, a quest reward, a rune…): rising pink/purple/gold arrows + a mote blast, and the GAIN
   // floats up once they land. Keyed off `spellPowerFxSeq`, the same one-shot dedupe as swapFx; inits to the

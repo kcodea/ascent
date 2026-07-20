@@ -3944,7 +3944,16 @@ svg { width: 18px; height: 18px; }
 /* Columns never squeeze below a full card width (auto-fill drops a column instead of overlapping), and the
    row gap reserves space for the text plate hanging under each oval (owner report 2026-07-16: cards were
    stacking on top of each other). */
-.book-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--cw) + 16px), 1fr)); gap: calc(var(--ch) * 0.45) 18px; padding: 20px; overflow-y: auto; align-content: start; justify-items: center; --ch: clamp(212px, 26vh, 276px); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
+.book-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--cw) + 16px), 1fr)); gap: 30px 22px; padding: 24px 20px 32px; overflow-y: auto; align-content: start; align-items: start; justify-items: center; --ch: clamp(212px, 26vh, 276px); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
+/* The Compendium is a BROWSING grid, so the text drawer must sit IN FLOW here: rows then size to the real
+   panel height and can never collide, however long a card's text runs (Uron and Amun Rab overflowed the old
+   fixed `--ch * 0.45` row gap and crashed into the row below). Everywhere else the drawer stays absolutely
+   positioned on purpose — in centered contexts (Discover, inspect, rows) in-flow growth moved the frame
+   itself, which is the owner call from 2026-07-19 that this rule deliberately does NOT undo. */
+.book-grid .card.compact.showtext .drawer { position: static; margin-top: calc(var(--ccw) * 0.15); }
+/* With the drawer in flow the cell owns its full height, so the hover scale needs a transform origin that
+   doesn't push a tall card under its neighbour. */
+.book-grid .book-cell { display: flex; justify-content: center; width: 100%; }
 /* (Book scroll areas hide the native scrollbar — see the shared rule near the top; a styled webkit
    scrollbar can't keep the custom cursor, so we hide it and scroll by wheel/trackpad.) */
 .book-cell { transition: transform 0.12s ease; }

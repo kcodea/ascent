@@ -3,6 +3,34 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-20 (compendium spacing)
+
+### fix(ui): the Compendium grid collided with itself — put the text drawer in flow there
+
+Owner report: the Compendium was "pretty busted". Tier 7 was the worst case — cards' text panels crashed
+straight through the row below them.
+
+**Cause.** The card's text drawer is `position: absolute` (owner call 2026-07-19: in centered contexts —
+Discover, inspect, rows — an in-flow drawer grew the card element and moved the *frame*, which had to stop).
+The Compendium compensated with a fixed row gap of `--ch * 0.45` — a guess at the panel's height. Any card
+whose text ran longer than that guess overflowed into the next row, which is why Tier 7 looked worst: Uron,
+Amun Rab and Anubis carry the longest text in the game.
+
+**Fix, scoped to the Compendium only.** It is a BROWSING grid, not a centered context, so the drawer sits
+**in flow** there — rows then size to the real panel height and can never collide, however long the text.
+The absolute positioning everywhere else is untouched, so the 2026-07-19 behaviour this rule deliberately
+does not undo stays intact. With the guess gone, the row gap drops to a normal `30px` and cells align to
+`start`.
+
+Verified in the browser by measuring, not by eye: for every pair of cells, do their boxes intersect?
+
+```
+tier 7 (the reported case)   8 cells, 0 overlaps   (heights 325-391px, genuinely varying)
+all tiers                  128 cells, 0 overlaps
+```
+
+The varying heights are the point — rows now measure their content instead of assuming one number.
+
 ## 2026-07-20 (mode picker)
 
 ### feat(ui): a mode screen behind PLAY — Ascent / Rift / Practice, and rifts become OPT-IN

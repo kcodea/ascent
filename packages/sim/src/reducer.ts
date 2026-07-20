@@ -323,6 +323,9 @@ export function reduce(state: RunState, action: Action): RunState {
       next.spellPowerFxSeq = (next.spellPowerFxSeq ?? 0) + 1;
       next.spellPowerFxAtk = Math.max(0, spDeltaA);
       next.spellPowerFxHp = Math.max(0, spDeltaH);
+      // The acting card, when there is one — `play`/`buy`/`sell` all carry the uid, so the UI can anchor the
+      // flourish to the minion that caused it. Left undefined for sourceless gains (quest/rune ticks).
+      next.spellPowerFxUid = 'uid' in action && typeof action.uid === 'string' ? action.uid : undefined;
     }
     // Forsaken Will: each spell cast permanently buffs your Undead's Attack — exactly like the Forsaken Weaver
     // (bakes +N into every current Undead + `undeadBuyAtk` so future buys inherit it), so the quest reward feels

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import gsap from 'gsap';
 import type { CombatEvent, CombatResult, Keyword, MinionBuff, MinionSnapshot, Tribe } from '@game/core';
 import { CARD_INDEX, badgeIdForCombatFlag } from '@game/content';
+import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
 import { pixiFx } from './pixiFx';
 import { sfx } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
@@ -787,6 +788,23 @@ export function useCombatReplay(
         const effs = CARD_INDEX[cardIds.get(e.target) ?? '']?.effects;
         if (effs?.some((f) => f.on === 'onDeath' || f.on === 'avenge')) trig.add(e.target);
       }
+    }
+    // SPELL POWER gained mid-combat: `grantSpellPower` already emits an `sc` narration carrying the SOURCE
+    // unit and a "+A/+H Spell Power" text, so the flourish rides that rather than needing a new choreo
+    // channel. Fired over the unit that caused it, matching the shop behaviour (owner ask 2026-07-21).
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (!e || e.type !== 'sc' || !e.source || !e.text) continue;
+      const m = /^\+(-?\d+)\/\+(-?\d+) Spell Power$/.exec(e.text);
+      if (!m) continue;
+      const gA = Number(m[1]), gH = Number(m[2]);
+      if (gA <= 0 && gH <= 0) continue;
+      const el = findEl(e.source);
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
+      floatSpellPowerNumber(cx, cy - r.height * 0.3, gA, gH);
     }
     if (trig.size === 0) return;
     sfx.triggerPulse(); // once per beat regardless of how many units pulse (the dedupe is built in too)

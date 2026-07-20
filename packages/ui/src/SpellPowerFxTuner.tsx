@@ -40,6 +40,8 @@ const SP_LABELS: Partial<Record<keyof SpellPowerFxConfig, string>> = {
   colorA: 'pink',
   colorB: 'purple',
   colorC: 'gold',
+  colorText: 'number fill',
+  colorOutline: 'number outline',
 };
 
 export function SpellPowerFxTuner() {

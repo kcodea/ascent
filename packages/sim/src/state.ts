@@ -615,6 +615,10 @@ export interface RunState {
    *  Two stats because spell power is a PAIR — Cinderwing Matron grants Health only. */
   spellPowerFxAtk?: number;
   spellPowerFxHp?: number;
+  /** The uid of the card that drove the gain, so the flourish plays OVER it rather than over the row
+   *  (owner ask 2026-07-21). Absent when the source isn't a card the player acted on — a quest reward or a
+   *  rune tick — and the UI falls back to the shop row for those. */
+  spellPowerFxUid?: string;
   weldFxUids?: string[];
   weldFxKind?: 'play' | 'auto';
   /** `weldFxSeq` as of the start of the current action — lets `stampWeldFx` tell its first stamp of an

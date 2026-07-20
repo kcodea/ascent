@@ -76,9 +76,6 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
-- **Spell-power FX in COMBAT.** The shop half shipped (2026-07-21o); combat needs a new `cast`
-  channel through the choreo pipeline (`compile` → `engine` → `channels`) plus beat-golden / badge-coverage
-  test updates. The FX primitive, config and tuner already exist — this is purely the trigger path.
 
 - **Set 2 content.** Foundation is in (`docs/card-sets.md`): author cards in `packages/content/src/cards/set2/`,
   list them in `SETS.set2.own`, trim the inherited set-1 pool with `excludes`. Before flipping it live, run

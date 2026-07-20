@@ -45,6 +45,8 @@ export interface SpellPowerFxConfig {
   colorA: string;       // arrow core — pink
   colorB: string;       // arrow alt — purple
   colorC: string;       // accent / blast — gold
+  colorText: string;    // the floating number's fill
+  colorOutline: string; // the floating number's outline / glow ring
   glowAlpha: number;    // 0..1 — soft underlay around each arrow stroke
   glowWidth: number;    // px — that underlay's extra width
 }
@@ -79,6 +81,8 @@ const DEFAULTS: SpellPowerFxConfig = {
   colorA: '#ff5fc8',
   colorB: '#a45cff',
   colorC: '#ffcf5a',
+  colorText: '#ffffff',
+  colorOutline: '#7a2bd0',
   glowAlpha: 0.5,
   glowWidth: 5,
 };
@@ -89,10 +93,10 @@ export const SPELLPOWERFX_KEYS = [
   'blastCount', 'blastSpeed', 'blastSize', 'blastLife', 'blastGravity',
   'numShow', 'numSize', 'numRise', 'numDelay', 'numHoldMs', 'numFadeMs',
   'glowAlpha', 'glowWidth',
-  'colorA', 'colorB', 'colorC',
+  'colorA', 'colorB', 'colorC', 'colorText', 'colorOutline',
 ] as const satisfies readonly (keyof SpellPowerFxConfig)[];
 
-export const SPELLPOWERFX_COLOR_KEYS: (keyof SpellPowerFxConfig)[] = ['colorA', 'colorB', 'colorC'];
+export const SPELLPOWERFX_COLOR_KEYS: (keyof SpellPowerFxConfig)[] = ['colorA', 'colorB', 'colorC', 'colorText', 'colorOutline'];
 
 export const SPELLPOWERFX_RANGES: Partial<Record<keyof SpellPowerFxConfig, [number, number, number]>> = {
   arrowCount: [1, 20, 1], arrowRise: [20, 320, 2], arrowSpread: [0, 260, 2], arrowLen: [6, 80, 1],
@@ -160,8 +164,8 @@ export function floatSpellPowerNumber(x: number, y: number, atk: number, hp: num
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
   el.style.fontSize = `${c.numSize}px`;
-  el.style.setProperty('--spf-a', c.colorA);
-  el.style.setProperty('--spf-c', c.colorC);
+  el.style.setProperty('--spf-text', c.colorText);
+  el.style.setProperty('--spf-outline', c.colorOutline);
   document.body.appendChild(el);
   const total = c.numHoldMs + c.numFadeMs;
   try {

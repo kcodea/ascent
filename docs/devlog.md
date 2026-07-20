@@ -35,10 +35,19 @@ delta of BOTH stats, and the float prints what actually moved (`+1 HP`, `+2 Atk`
 than a merged number. The "+0" suppression from the first cut is now structural: a cast that moves nothing
 never stamps at all.
 
-**NOT DONE — combat.** The ask was shop AND combat, and only the shop half is wired. Combat FX are driven by
-the choreo beat pipeline (`packages/ui/src/choreo/`), which has no `cast` channel: firing there means adding
-a new event kind through `compile` → `engine` → `channels` and extending the beat-golden / badge-coverage
-enforcement tests. That's its own PR, not a tail-end addition to this one. Flagged rather than half-wired.
+**Combat wired — without a new choreo channel.** My first read said this needed a `cast` channel threaded
+through `compile` → `engine` → `channels`. It didn't: `grantSpellPower` ALREADY emits an `sc` narration
+carrying the source uid and a `+A/+H Spell Power` text, so the replay fires the flourish off that, over the
+unit that caused it. Much smaller and it reuses a path that's already beat-synced. The cost is a STRING
+COUPLING across the package boundary, so `spellPowerFx.test.ts` pins the narration shape from the UI side —
+if core reformats it, that test fails instead of the FX silently dying in a playtest.
+
+**Anchored to the source card** (owner ask): the reducer stamps `spellPowerFxUid` from the acting action, and
+the UI anchors to that card's rect. Sourceless gains (quest reward, rune tick) and cards that leave play as
+they resolve fall back to the shop row rather than firing nowhere.
+
+**Text + outline colour pickers** added to the tuner (`colorText`, `colorOutline`), driving the float's fill
+and its `-webkit-text-stroke` + shadow ring. Static per element, never animated.
 
 Verified: typecheck + lint + **1270** tests + `build:web` green, `typecheck:web` at its 48 baseline. New
 `run.test.ts` case pins both halves of the signal — a cast bumps the seq exactly once and captures a numeric

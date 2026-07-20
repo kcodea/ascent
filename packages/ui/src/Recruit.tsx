@@ -660,17 +660,22 @@ export function Recruit() {
     prevSpellPowerSeq.current = seq;
     const gainA = run.spellPowerFxAtk ?? 0;
     const gainH = run.spellPowerFxHp ?? 0;
+    const uid = run.spellPowerFxUid;
     const raf = requestAnimationFrame(() => {
-      const row = document.querySelector('.row.shop') ?? document.querySelector('[data-zone="tavern"]');
-      if (!row) return;
-      const r = row.getBoundingClientRect();
+      // Over the CARD that caused the gain (owner ask 2026-07-21) — read a frame late so React has committed
+      // it to the board. A sourceless gain (quest reward, rune tick) has no uid, and a card that LEAVES play
+      // as it resolves won't be found, so both fall back to the shop row rather than firing nowhere.
+      const el = (uid && document.querySelector(`[data-uid="${uid}"]`))
+        ?? document.querySelector('[data-zone="tavern"]');
+      if (!el) return;
+      const r = el.getBoundingClientRect();
       const x = r.left + r.width / 2;
       const y = r.top + r.height / 2;
       pixiFx.spellPower(x, y, getSpellPowerFxConfig());
-      floatSpellPowerNumber(x, y - r.height * 0.15, gainA, gainH);
+      floatSpellPowerNumber(x, y - r.height * 0.3, gainA, gainH);
     });
     return () => cancelAnimationFrame(raf);
-  }, [run.spellPowerFxSeq, run.spellPowerFxAtk, run.spellPowerFxHp]);
+  }, [run.spellPowerFxSeq, run.spellPowerFxAtk, run.spellPowerFxHp, run.spellPowerFxUid]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the

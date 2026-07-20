@@ -2043,7 +2043,7 @@ body.modalup .statusbar .questbadges {
    escape the circle (the art is clipped to the circle on its own element). */
 /* Active-quest / rune nodes — dev-movable (scale / x / y / separation), pinned to the stage via px × --scale so
    they don't drift with resolution. `transform-origin: left center` grows the row rightward from its left anchor. */
-.questbadges { align-self: flex-start; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(var(--qb-gap, 2) * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; transform: translate(calc(var(--qb-x, -12px) * var(--scale)), calc(var(--qb-y, -746px) * var(--scale))) scale(var(--qb-s, 1.32)); transform-origin: left center; }
+.questbadges { align-self: flex-start; margin-left: calc(5 * var(--u)); display: flex; flex-wrap: wrap; gap: calc(var(--qb-gap, 2) * var(--u)); max-width: calc(320 * var(--u)); pointer-events: auto; transform: translate(calc(var(--qb-x, -12px) * var(--scale)), calc(var(--qb-y, -256px) * var(--scale))) scale(var(--qb-s, 1.32)); transform-origin: left center; }
 .questbadge { position: relative; width: calc(53 * var(--u)); height: calc(53 * var(--u)); border-radius: 50%; border: 2px solid var(--c, var(--gold)); background: var(--card); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 .questbadge.ongoing { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 0 calc(2 * var(--u)) color-mix(in srgb, var(--c) 45%, transparent), 0 calc(2 * var(--u)) calc(7 * var(--u)) -2px var(--shadow); }
 /* A completed quest / owned rune's COMBAT effect just fired this replay — ONE bright, larger pulse, then dormant
@@ -4469,16 +4469,22 @@ body.dragging .frzwrap { pointer-events: none; } /* a card dragged across it dro
 }
 .herobuffs-tab:hover { border-color: var(--acc); color: #fff; }
 .herobuffs-tab svg { width: calc(10 * var(--u)); height: calc(10 * var(--u)); color: #e8c877; flex: none; }
+/* The count sits directly above the chevron in the narrow vertical tab, so it's sized DOWN to sit with it
+   rather than dominate (owner 2026-07-21). */
 .herobuffs-count {
-  min-width: calc(12 * var(--u)); text-align: center;
-  padding: 0 calc(2 * var(--u)); border-radius: 999px;
-  background: color-mix(in srgb, var(--acc) 30%, transparent); color: #ffeec2;
+  min-width: 0; text-align: center; line-height: 1;
+  padding: 0; border-radius: 999px;
+  font-size: calc(9 * var(--u)); color: #ffeec2;
 }
 .herobuffs-chev { opacity: 0.75; font-size: calc(8 * var(--u)); }
 /* The drawer body — slides out to the right of the tab. */
 .herobuffs-body {
+  position: relative; z-index: 1;   /* under the tab (z2), so the slide emerges from behind it */
   margin-left: calc(var(--bfd-body-x, 4) * var(--u));
-  transform: translateY(calc(var(--bfd-body-y, 0) * var(--u))) scale(var(--bfd-body-s, 1));
+  /* Tuner offset rides the INDEPENDENT translate/scale properties, NOT `transform` — the slide
+     animation owns `transform`, and the two compose instead of one clobbering the other. */
+  translate: 0 calc(var(--bfd-body-y, 0) * var(--u));
+  scale: var(--bfd-body-s, 1);
   padding: calc(8 * var(--u)) calc(12 * var(--u));
   display: flex; flex-direction: column; gap: calc(3 * var(--u));
   min-width: calc(var(--bfd-min-w, 132) * var(--u));
@@ -4486,9 +4492,10 @@ body.dragging .frzwrap { pointer-events: none; } /* a card dragged across it dro
   border: 2px solid color-mix(in srgb, var(--gold) 45%, #000);
   border-radius: calc(12 * var(--u));
   box-shadow: 0 calc(6 * var(--u)) calc(18 * var(--u)) -6px rgba(0, 0, 0, 0.7);
-  animation: herobuffsin 0.16s ease both;
+  transform-origin: left center;
 }
-@keyframes herobuffsin { from { opacity: 0; transform: translateX(calc(-6 * var(--u))); } to { opacity: 1; } }
+
+
 .herobuffs-title { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--bfd-title-s, 11) * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: #c9b79a; margin: 0; }
 .herobuffs-body .buff-row { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10 * var(--u)); font-size: calc(var(--bfd-text-s, 12) * var(--u)); }
 .herobuffs-body .buff-label { color: #d8ccb6; font-weight: 600; }

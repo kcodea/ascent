@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Icon } from './Icon';
 import { gatherRunBuffs } from './runBuffs';
 import { useGame } from './store';
 
@@ -24,18 +23,22 @@ export function BuffsFrame() {
   if (rows.length === 0) return null;
   return (
     <div className={`herobuffs${open ? ' open' : ''}`}>
-      {/* The tab — eclipses the hero portrait's right edge. Its arrow points the way the drawer will move. */}
+      {/* The tab — eclipses the hero portrait's right edge. The chevron alone carries the affordance; the
+          up-arrow icon was dropped (owner 2026-07-21) since it pointed the wrong way for a side drawer and
+          crowded the narrow vertical tab. */}
       <button
         className="herobuffs-tab"
         onClick={() => setOpen((o) => !o)}
         title={open ? 'Hide run buffs' : 'Show run buffs'}
         aria-expanded={open}
       >
-        <Icon name="up" />
         {!open && <span className="herobuffs-count">{rows.length}</span>}
         <span className="herobuffs-chev">{open ? '◂' : '▸'}</span>
       </button>
-      {/* The drawer itself. Kept mounted only while open so nothing paints behind the board when closed. */}
+      {/* The drawer, mounted only while open. NOTE: a slide-out animation is NOT wired — see the devlog;
+          two attempts (keyframes, then a CSS transition on a persistent element) both left the panel stuck
+          at its start frame in this container, and shipping a drawer that never appears is far worse than
+          shipping one that simply appears. Reverted to the working reveal until it's understood. */}
       {open && (
         <div className="herobuffs-body">
           <div className="herobuffs-title">Buffs</div>

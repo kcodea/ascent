@@ -3,6 +3,42 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21n (bakes + drawer tab polish)
+
+### tweak(ui): bake qbY + hero panel, drop the tab arrow, shrink the count — slide-out NOT shipped
+
+**Bakes.** `qbY -746 -> -256` was the only Scale/Layout value that had moved; the hero-panel paste already
+matched its defaults exactly (0 changes). The fallback audit caught `qbY`'s `styles.css` value **still at
+-746** — the same double-source drift as last time, in a fresh spot. Fixed; both audits now clean.
+
+**Tab polish.** The up-arrow icon is gone (it pointed the wrong way for a side drawer and crowded the
+narrow vertical tab), and the count is sized down to sit with the chevron rather than dominate it — the tab
+now reads simply "2 ▸".
+
+### The slide-out animation is NOT shipped, deliberately
+
+Two attempts, both of which left the drawer **stuck at its first frame**:
+1. **Keyframes** restating the tuner's var-based transform. Suspected the vars; they weren't the cause.
+2. **A CSS transition on a persistent element**, driven by the parent's `.open` class — the standard fix for
+   mount-timing problems. `.open` was verifiably on the wrapper and the rule was well-formed and unduplicated,
+   yet the computed style never changed.
+
+Ruled out along the way: reduced-motion (false), stale CSS (survived a hard reload AND a dev-server restart),
+duplicate/ malformed rules (one `.herobuffs-body` rule, override immediately after, correct specificity).
+`getAnimations()` reported the keyframe animation `running` with `currentTime: 0` — the timeline simply
+wasn't advancing for this element in this container.
+
+I reverted to the working mount-on-open reveal rather than ship it. **A drawer that never appears is far
+worse than one that appears instantly**, and my second attempt had left it in exactly that state. The cause
+is real and not yet understood — it wants a fresh look, not another guess.
+
+(The revert also briefly broke the build: my slice left a stray `</div>`. Caught by `build:web`, fixed.)
+
+Verified after the revert: tab reads "2 ▸" with no arrow, drawer opens and closes, and shows
+"Fodder Aura +3/+3" + "Attachment Aura +4/+2".
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
 ## 2026-07-21m (buff panel coverage + vertical tab)
 
 ### fix(ui): the buff panel was missing Heckbinder, Attachments and Beasts — plus a vertical tab + tuner

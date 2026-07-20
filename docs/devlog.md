@@ -165,6 +165,15 @@ boots clean in the browser with no error boundary and both new counters reportin
 
 ## 2026-07-19 (set 2 empty)
 
+### fix(ui): card info panel top is ANCHORED — longer text grows the panel downward only
+
+The detached drawer was in normal flow, so a longer rules text grew the whole card element — and centered
+contexts (the inspect overlay, Discover slots, shop/warband rows) split that growth both ways: the frame crept UP
+and the panel top shifted with it, so panel tops misaligned across cards with different text lengths. Fix: the
+drawer is now `position: absolute; top: calc(var(--ccw) * 1.15)` (archbox height + the tuned 0.15 gap), out of
+flow — the frame never moves, the panel top sits at the same spot on every card, and growth extends downward
+only (owner spec). Verified: typecheck + build green; owner eyeballing over HMR.
+
 ### fix(ui): kill the legacy purple spell-card box behind the authored gold frame
 
 Spells still painted the pre-PNG spell look — `.card.spellcard`'s purple ring + purple glow box-shadow on the

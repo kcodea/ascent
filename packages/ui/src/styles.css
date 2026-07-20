@@ -1451,7 +1451,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .card.compact .drawer { display: none; }
 .card.compact.showtext .drawer {
   display: flex; flex-direction: column; align-items: center;
-  margin: calc(var(--ccw) * 0.15) 0 0; position: relative; z-index: 4;
+  /* OUT of flow, top ANCHORED at a fixed offset below the (square, --ccw-tall) archbox: in flow, a longer text
+     grew the card element and centered contexts (inspect, Discover, rows) split that growth both ways — the
+     frame crept UP and the panel top moved. Absolute = the frame never moves; the panel only grows DOWNWARD
+     (owner call 2026-07-19). 1.15 = archbox height + the tuned 0.15 gap. */
+  position: absolute; top: calc(var(--ccw) * 1.15); left: 0; right: 0; z-index: 4;
   padding: calc(var(--ccw) * 0.065) calc(var(--ccw) * 0.08) calc(var(--ccw) * 0.07);
   background: linear-gradient(180deg, #241a13, #17110c);
   border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);

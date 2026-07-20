@@ -3,6 +3,40 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21n (quest panel → quest nodes)
+
+### feat(ui): every taken quest is a node — dim while pending, lit once it activates
+
+Replaces the QuestPanel text window (top-left) with NODES in the existing `QuestBadges` row above the hero
+panel. A quest now appears as a bubble the moment it's taken, sits DIM with a live `x/y` counter above it,
+and lights up in the SAME SLOT when it activates — instead of living in a text panel and then jumping to a
+separate trophy row.
+
+`QuestBadges` already had the two pieces this needed: `.questbadge-step` (the x/y counter above the circle,
+shared with the combat avenge tally) and `.questbadge-tip` (the hover pill). So this is mostly a selection
+change — iterate ALL of `activeQuests` in ACQUISITION order and branch pending vs activated — rather than new
+UI machinery. It also inherits the row's existing `--qb-*` layout tuner for free.
+
+The dim treatment (grayscale + dropped opacity) mirrors Disco Dan's tier-locked cards, so "not yet" reads the
+same way across the game. Hovering a pending node brings it to full colour — a peek at what it becomes, and
+confirmation of what the pointer is on. Both filters are STATIC per state, never animated, so they cost no
+per-frame paint.
+
+`combatDeltaFor` moved over from the retired panel: a pending node's x/y ticks up live during a replay exactly
+as the old text row did. Compound objectives (The Author's Hand) have no single count, so they show no
+counter and their tip lists each part's own progress line.
+
+**Judgement calls, flagged for the owner:** (1) nodes sit in acquisition order, so a node never jumps position
+when it completes — the alternative (pending first, completed after) re-sorts the row mid-run. (2) The
+QuestPanel component is DELETED rather than left dormant, since it was the thing being replaced.
+
+`QuestPanel.tsx` removed; its stale references in `store.ts` / `questText.ts` / `Recruit.tsx` comments updated.
+
+Verified: typecheck + lint + 1269 tests + `build:web` green, `typecheck:web` at its 48 baseline. Live DOM with
+two pending quests and one activated: `.questframe` gone, three nodes, counters `3/9` / `12/30` / `1/4`,
+pending art `grayscale(0.85) brightness(0.62)` at 0.72 opacity vs `none`/1.0 for the activated one, and the
+pending tip reads "Blood Trail · Kill 9 enemies → … · 3 / 9".
+
 ## 2026-07-21m ("All" types + hand hover hysteresis)
 
 ### fix(ui/core/sim): Lab Experiment reads ALL and takes every tribal buff; hand hover stops oscillating

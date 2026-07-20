@@ -1,32 +1,57 @@
 import type { CSSProperties } from 'react';
-import type { Tribe } from '@game/core';
+import type { QuestObjective, Tribe } from '@game/core';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { questArt, runeArt } from './art';
-import { questRewardText, questRewardLiveText, type QuestRewardLive } from './questText';
-import { useGame } from './store';
+import { questObjectiveLines, questObjectiveText, questProgressText, questRewardText, questRewardLiveText, type QuestRewardLive } from './questText';
+import { useGame, type CombatQuestDelta } from './store';
 
 /** Each tribe's emblem glyph — the fallback when a quest has no art yet (mirrors QuestCard). */
 const TRIBE_ICON: Record<Tribe, string> = { beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star' };
 
+
+/** Live combat progress for a quest objective during the replay, mirroring the reducer's `combatEventCount`.
+ *  Moved here from the retired QuestPanel — a PENDING node must tick its x/y up in real time as the fight
+ *  plays, exactly as the old text panel did. */
+function combatDeltaFor(o: QuestObjective, d: CombatQuestDelta | null): number {
+  if (!d) return 0;
+  switch (o.event) {
+    case 'deathrattle': return d.deathrattle;
+    case 'friendlyDeath': return d.friendlyDeath;
+    case 'rally': return d.rally;
+    case 'summonImp': return d.summonImp;
+    case 'attack': return o.tribe ? (d.attackByTribe[o.tribe] ?? 0) : d.attack;
+    case 'summonCombat': return o.tribe ? (d.summonCombatByTribe[o.tribe] ?? 0) : d.summonCombat;
+    case 'slaughter': return o.tribe ? (d.slaughterByTribe[o.tribe] ?? 0) : d.slaughter;
+    case 'slaughterKeyword': return d.slaughterKeyword;
+    default: return 0;
+  }
+}
+
 /**
- * Completed-quest trophies — a horizontal row of circular badges sitting ABOVE the hero panel (in the
- * StatusBar). A quest moves here from the QuestPanel the moment it completes; the circle shows its art
+ * Quest nodes — a horizontal row of circular badges sitting ABOVE the hero panel (in the
+ * StatusBar). Every taken quest has a node here — dim while pending, lit once it activates; the circle shows its art
  * (or its tribe emblem as a fallback), and hovering floats the reward's LIVE ongoing state — Warm Embers'
  * Shouts remaining, Trail Rations' repeat countdown, else the reward it granted.
  */
 export function QuestBadges() {
   const run = useGame((s) => s.run);
   const triggered = useGame((s) => s.combatTriggeredQuests); // ids pulsing this replay beat
-  const completedNow = useGame((s) => s.combatCompletedQuests); // ids that JUST completed mid-replay (pre-settle)
+  const completedNow = useGame((s) => s.combatCompletedQuests);
+  const combatQuestDelta = useGame((s) => s.combatQuestDelta); // live combat progress during the replay (null otherwise) // ids that JUST completed mid-replay (pre-settle)
   // Show a badge once a quest has activated — a one-shot flips `completed`; a REPEATABLE (Hoard Spark, Imp Census,
   // …) never does but bumps `completionCount` on each re-fire, so include those too (they pulse on every re-fire).
   // Also surface quests that complete MID-COMBAT this replay (`completedNow`) — their node appears + lights up the
   // instant the objective crosses, before the quest formally settles as completed.
-  const done = (run.activeQuests ?? []).filter((aq) => (aq.completed || (aq.completionCount ?? 0) > 0 || completedNow.includes(aq.questId)) && QUEST_INDEX[aq.questId]);
+  // EVERY taken quest gets a node, in ACQUISITION order — a quest keeps its slot as it completes rather than
+  // jumping between a text panel and a trophy row (owner rework 2026-07-21, replacing the QuestPanel window).
+  // A node is PENDING (dim, showing objective progress) until it activates, then lights up as a trophy.
+  const nodes = (run.activeQuests ?? []).filter((aq) => QUEST_INDEX[aq.questId]);
   const runes = (run.ownedRunes ?? []).filter((id) => RUNE_INDEX[id]);
-  if (done.length === 0 && runes.length === 0) return null;
+  if (nodes.length === 0 && runes.length === 0) return null;
+  const isDone = (aq: (typeof nodes)[number]): boolean =>
+    aq.completed || (aq.completionCount ?? 0) > 0 || completedNow.includes(aq.questId);
   return (
     <div className="questbadges">
       {/* Runes bought in the Runeforge — a stone-toned badge sitting alongside completed quests. */}
@@ -51,15 +76,53 @@ export function QuestBadges() {
           </div>
         );
       })}
-      {done.map((aq) => {
+      {nodes.map((aq) => {
         const def = QUEST_INDEX[aq.questId]!;
         const r = def.reward;
         const art = questArt(def.id);
+        // ---- PENDING: taken but not yet activated. Dim node + live x/y + the full objective on hover. ----
+        if (!isDone(aq)) {
+          const cP = def.tribe === 'neutral' ? 'var(--t-neutral)' : `var(--t-${def.tribe})`;
+          // Fold in the live combat delta so combat objectives tick during the replay, exactly as the old panel did.
+          const liveProgress = aq.progress + combatDeltaFor(def.objective, combatQuestDelta);
+          const total = typeof def.objective.count === 'number' ? def.objective.count : 0;
+          const cur = total ? Math.min(total, liveProgress) : 0;
+          // Compound objectives (The Author's Hand) have no single count — the tip lists each part's own line.
+          const compound = def.objective.event === 'authorsHand' || def.objective.event === 'compound';
+          return (
+            <div className="questbadge pending" style={{ '--c': cP } as CSSProperties} key={aq.questId}>
+              <div className="questbadge-inner">
+                {art ? (
+                  <img className="questbadge-art" src={art} alt="" aria-hidden />
+                ) : (
+                  <span className="questbadge-emblem" aria-hidden><Icon name={TRIBE_ICON[def.tribe]} /></span>
+                )}
+              </div>
+              {total > 0 && (
+                <span className="stepcounter questbadge-step" aria-label={`Quest progress ${cur} of ${total}`}>{cur}/{total}</span>
+              )}
+              <div className="questbadge-tip" role="tooltip">
+                <b>{def.name}</b>
+                {compound ? (
+                  questObjectiveLines(def.objective, aq.subProgress, aq.partProgress).map((l, i) => (
+                    <span className="questbadge-tip-reward" key={i}>{l}</span>
+                  ))
+                ) : (
+                  <span className="questbadge-tip-reward">{questObjectiveText(def.objective)}</span>
+                )}
+                <span className="questbadge-tip-state">
+                  → {questRewardText(r, { completed: false, shoutCharges: 0, repeatTurns: 0 })}{def.repeatable ? ' · Repeatable' : ''}
+                </span>
+                {!compound && <span className="questbadge-tip-state">{questProgressText(liveProgress, def.objective, false)}</span>}
+              </div>
+            </div>
+          );
+        }
         // One-shot pulse count: a recruit-phase completion / repeatable re-fire (completionCount, e.g. Hoard Spark
         // buying its 4th Dragon) OR a combat trigger (combatTriggeredQuests, beat-synced). Keyed → fresh pulse per bump.
         const pulse = (aq.completionCount ?? 0) + (aq.completed ? 1 : 0) + (triggered[aq.questId] ?? 0) + (completedNow.includes(aq.questId) ? 1 : 0);
         const c = def.tribe === 'neutral' ? 'var(--t-neutral)' : `var(--t-${def.tribe})`;
-        // The live ongoing chip, mirroring the QuestPanel: Shouts used, repeat countdown, else nothing.
+        // The live ongoing chip: Shouts used, repeat countdown, else nothing.
         const charges = run.shoutDoubleCharges ?? 0;
         const repeatTurns = run.pendingQuestRewards?.find((p) => p.questId === aq.questId)?.turnsLeft ?? 0;
         let chip = '';

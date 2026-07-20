@@ -6,7 +6,7 @@ import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
 
 /** Combat quest-objective progress landed so far in the live replay (same shape as `CombatResult.playerQuestTally`
- *  plus a Deathrattle/Echo total). Drives the QuestPanel's live-tick. */
+ *  plus a Deathrattle/Echo total). Drives the quest nodes' live-tick. */
 export interface CombatQuestDelta {
   attack: number; summonCombat: number; slaughter: number; slaughterKeyword: number; deathrattle: number; friendlyDeath: number; rally: number; summonImp: number;
   attackByTribe: Partial<Record<Tribe, number>>;
@@ -127,7 +127,7 @@ interface GameStore {
    *  Buffs window so it ticks up in sync with the replay. `null` outside combat (the row reads the run state). */
   combatBuffs: CombatBuffDelta | null;
   setCombatBuffs: (b: CombatBuffDelta | null) => void;
-  /** Combat quest-objective progress landed so far this fight — bridges useCombatReplay → the QuestPanel so
+  /** Combat quest-objective progress landed so far this fight — bridges useCombatReplay → QuestBadges so
    *  combat objectives (attack / summonCombat / slaughter / Echo) LIVE-TICK during the replay. `null` outside
    *  combat (the panel reads only the run state's progress). */
   combatQuestDelta: CombatQuestDelta | null;

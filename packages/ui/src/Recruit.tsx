@@ -466,11 +466,16 @@ export function Recruit() {
   const setCombatBuffs = useGame((s) => s.setCombatBuffs);
   const combatSpeed = useGame((s) => s.combatSpeed);
   const setCombatSpeed = useGame((s) => s.setCombatSpeed);
-  // Keep the float CSS animations in step with the speed slider. Their cleanup timers already divide by
-  // combatSpeed, but the CSS durations were fixed — and `floatup` holds opacity 1 until 80%, so above ~1.07×
-  // the number was yanked from the DOM while still fully bright instead of fading (at 1.6×: removed at 937ms
-  // into a 1400ms animation). Pushing the scaled durations keeps the fade finishing before the cleanup.
-  useEffect(() => { applyFloatSpeed(combatSpeed); }, [combatSpeed]);
+  // Keep the combat CSS animations in step with the speed slider. Beat holds divide by combatSpeed but CSS
+  // durations are fixed seconds, so at higher speeds an animation outlived the beat that gates it:
+  //  - floats were yanked while still fully bright (`floatup` holds opacity 1 until 80%) above ~1.07×;
+  //  - DEATH animations were cut mid-fade above ~1.31× (the dying unit unmounts when its beat advances) —
+  //    i.e. the blink returned at speed. `--combat-speed` divides every `.unit.dying*` duration + delay
+  //    (see styles.css), so the animation and its hold shrink together and the ratio is speed-invariant.
+  useEffect(() => {
+    applyFloatSpeed(combatSpeed);
+    document.documentElement.style.setProperty('--combat-speed', String(combatSpeed > 0 ? combatSpeed : 1));
+  }, [combatSpeed]);
   // The pre-run hero picker is open while this is set — freeze the round clock until a hero's chosen.
   const heroSelecting = useGame((s) => s.heroChoices !== null);
   // Recruit stays mounted under the title / leaderboard overlays (see Game.tsx), so the round clock must also

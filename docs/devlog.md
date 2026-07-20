@@ -691,7 +691,10 @@ the fan, and the pop netted DOWNWARD (owner report). The lift is now a fixed mul
 `translateY(--ch · (--hand-floor − --hand-pop))`, height-independent (every compact card is the same height; the
 panel hangs below at a fixed offset). New **`handPop`** lever in dragFeel (default 1.5, reflected to
 `--hand-pop`, 🎴 Drag Feel tuner → "hand pop lift") beside the existing "hand pop floor" — dial the pop height
-live and bake. Verified: typecheck + lint + build green; owner tuning the default by eye.
+live and bake. **Owner-tuned + baked:** `handFloor 0`, `handPop 0.22` (a modest upward pop), in both homes
+(dragFeel DEFAULTS + the CSS fallbacks). The owner's tuner export also carried `recenter 0.84` /
+`recenterAfter 0` (drag-glide feel, unrelated to the pop) — deliberately NOT baked pending an explicit call.
+Verified: typecheck + lint + build green.
 
 ### tweak(ui): Dev Tuning menu wraps into columns of 15
 

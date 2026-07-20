@@ -77,8 +77,8 @@ const DEFAULTS: DragFeel = {
   magSlideMs: 390,
   magWeldLeadMs: 130,
   collapseY: 20,    // lift only a little before the row fills the gap
-  handFloor: 0.82,  // bottom-anchored pop: every hovered card lands its bottom on the same line (tuned by eye)
-  handPop: 1.5,     // pop lift (× --ch) — replaces the old -100% self-height term (see the interface note)
+  handFloor: 0,     // owner-tuned 2026-07-20: no floor offset — the pop lift alone places the card
+  handPop: 0.22,    // owner-tuned 2026-07-20: a modest upward pop (× --ch); replaces the old -100% self-height term
   shGrow: 1.08,     // owner-tuned: shadow a touch bigger than the card face while lifted
   shLift: 18,       // owner-tuned: shadow drops below the lifted card
   shBlur: 11,       // owner-tuned: softer than the resting 9px, but still tight

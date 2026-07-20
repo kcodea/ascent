@@ -3,6 +3,34 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (late-solved strikes)
+
+### fix(ui): re-solve the strike target and impact point LATE, not at swing start
+
+Owner screenshot: an impact ring firing near mid-board, "wayyyy before" the defender it should have landed
+on (a long top-left → bottom-right attack into the Target Dummy; the ward's gold shatter landed correctly ON
+the dummy). The tell is in that pairing: the ward shatter resolves its position **at contact time** from the
+live rect, while the strike target + impact point were computed at **swing start** — then fired ~0.9s later
+(700ms wind-up + strike, +440ms more under a rally pause). The board keeps moving through that window, and
+the previous layout-frame fix can't see all of it: a neighbour's death collapse is a **layout** slide
+(`dyingcollapse` shrinks the dying card's width over 320ms, re-centring the whole flex row), invisible to
+GSAP-offset compensation.
+
+Fix: measure-early-fire-late is retired for positions. Build time now commits only what MUST be fixed early
+— the strike duration (the beat clock is welded to it), the lead tilt (already animating in the wind-up),
+the ease band. The positions re-solve late:
+
+- **Strike target** — `resolveStrike` re-measures both cards' layout centres when the strike TWEEN starts
+  (after the wind-up + any rally pause), via GSAP function-based `x/y` values (one measure, cached; the
+  strike tween asks for its target at its own start). The posed-corner offset from build keeps
+  corner-on-centre exact; only the translation refreshes. Exposure drops from ~0.9s to the ~180ms flight.
+- **Impact FX point** — resolved when the impact FIRES, from the defender's live rect (its visual centre —
+  the ring lands on the card wherever it actually is), exactly like the ward shatter. Falls back to the
+  build-time point if the defender has unmounted.
+
+Verified: typecheck + lint + 1241 tests + `build:web`, all green. If any off-centre ring survives this,
+next step is the localStorage probe (record solved-vs-live points per impact and replay in the owner's tab).
+
 ## 2026-07-21 (layout-frame strikes)
 
 ### fix(ui): solve the strike in the layout frame — displaced cards no longer skew the target

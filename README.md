@@ -40,6 +40,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+- **Strike targets re-solve late.** The strike's landing point and the impact FX position were computed at
+  swing start and fired ~0.9s later — a neighbour dying mid-wind-up re-centres the row (a layout slide) and
+  the ring landed where the defender *used* to be. The strike target now re-measures when the strike launches,
+  and the impact FX resolve from the defender's live rect at the moment they fire.
 - **Strikes are solved in the layout frame.** Attacks measured while a card was still mid-motion (a defender
   recovering from the last knockback, a Windfury attacker mid-settle) used the displaced position and landed
   off-centre — the strike now subtracts in-flight transforms and always targets the defender's true rest

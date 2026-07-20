@@ -10,8 +10,14 @@ export interface LungeCtx {
   dx: number;
   dy: number;
   /** Strike target offset from contactGeometry — places the attacker so its leading corner lands on the
-   *  defender's dead centre. */
+   *  defender's dead centre. Used directly, OR as the fallback when `resolveStrike` is provided. */
   strike: { x: number; y: number };
+  /** LATE-SOLVED strike target: called once when the STRIKE tween starts (after the ~700ms wind-up and any
+   *  rally pause), re-measuring the world as it is THEN. The board shifts during the wind-up — a neighbour's
+   *  death collapse re-centres the row (layout, 320ms), a knockback recovers — and a target solved at swing
+   *  START lands where the defender USED to be (owner report 2026-07-21: rings firing "wayyyy before" the
+   *  defender). GSAP function-based values make the re-solve free: the tween asks for x/y at its own start. */
+  resolveStrike?: () => { x: number; y: number };
   /** Distance-scaled strike duration (s) from contactGeometry — replaces the fixed config value. */
   strikeDur: number;
   /** Surface-to-surface travel (px) from contactGeometry — selects the strike's EASE BAND, so a short jab
@@ -123,7 +129,11 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
   }
   // Flurry (W) extra swing: the wind-up has ended and the strike is about to drive → whoosh the gust here.
   if (flurry) tl.call(() => sfx.flurryLunge());
-  tl.to(attacker, { x: strike.x, y: strike.y, rotation: leadTilt, scale: 1, duration: strikeDur, ease: strikeEaseFor(travel) })                                     // strike to the surface, corner leading
+  // The strike target: late-solved at TWEEN START when the caller provides `resolveStrike` (one measure,
+  // cached — GSAP invokes the x and y functions separately), else the build-time offset.
+  let solved: { x: number; y: number } | null = null;
+  const strikeAt = (): { x: number; y: number } => (solved ??= ctx.resolveStrike?.() ?? strike);
+  tl.to(attacker, { x: () => strikeAt().x, y: () => strikeAt().y, rotation: leadTilt, scale: 1, duration: strikeDur, ease: strikeEaseFor(travel) })                 // strike, corner leading, target solved at strike start
     .add(onContact, `-=${c.smackLead}`)                                                                                                                      // contact — the beat advance, smackLead before the strike completes
     .to(attacker, { rotation: -Math.sign(leadTilt) * attackerRebound, duration: 0.06, ease: 'power2.out' })                                                 // rotational rebound off the clack (leadTilt 0 → no lead, no rebound)
     .to(attacker, { x: 0, y: 0, rotation: 0, duration: c.settleDur, ease: 'elastic.out(1, 0.45)' });                                                        // settle

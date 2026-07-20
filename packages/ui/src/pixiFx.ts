@@ -372,6 +372,8 @@ export interface SpellPowerCfg {
   arrowCount: number; arrowRise: number; arrowSpread: number; arrowLen: number; arrowWidth: number;
   arrowHead: number; arrowMs: number; arrowStagger: number; arrowDrift: number; arrowFadeAt: number;
   blastCount: number; blastSpeed: number; blastSize: number; blastLife: number; blastGravity: number;
+  blastSpread: number; blastAngle: number; blastDrag: number; blastJitter: number; blastRise: number;
+  blastSpin: number; blastStagger: number; blastShrink: number;
   colorA: string; colorB: string; colorC: string; glowAlpha: number; glowWidth: number;
 }
 
@@ -2620,16 +2622,32 @@ class FxController {
     // The origin blast — reuses the shared glow texture + particle pool, like heroPowerBurst.
     if (cfg.blastCount > 0 && this.glowTex) {
       const scale = cfg.blastSize / TENDRIL_GLOW_R;
-      for (let i = 0; i < cfg.blastCount; i++) {
-        const ang = (i / Math.max(1, cfg.blastCount)) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
-        const sp = cfg.blastSpeed * (0.5 + Math.random());
-        this.spawn(this.glowTex, {
-          x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - cfg.blastSpeed * 0.25,
-          drag: TENDRIL_MOTE_DRAG, gravity: cfg.blastGravity,
-          life: cfg.blastLife * (0.7 + Math.random() * 0.6),
-          fromScale: scale, toScale: scale * 0.12, spin: 0,
+      const spreadRad = (cfg.blastSpread * Math.PI) / 180;
+      // `blastAngle` 0 points UP (−90° in screen space, where +y is down), so a cone aims where it reads.
+      const aimRad = ((cfg.blastAngle - 90) * Math.PI) / 180;
+      const emit = (i: number): void => {
+        // Fan across the cone. A full 360 spread wraps into a ring; anything less is a directional burst
+        // centred on `aimRad`. The ±half-step jitter keeps the fan from looking like clock hands.
+        const frac = cfg.blastCount > 1 ? i / (cfg.blastCount - 1) - 0.5 : 0;
+        const step = spreadRad / Math.max(1, cfg.blastCount);
+        const ang = aimRad + frac * spreadRad + (Math.random() - 0.5) * step;
+        const sp = cfg.blastSpeed * (1 - cfg.blastJitter / 2 + Math.random() * cfg.blastJitter);
+        this.spawn(this.glowTex!, {
+          x, y,
+          vx: Math.cos(ang) * sp,
+          vy: Math.sin(ang) * sp - cfg.blastRise,
+          drag: cfg.blastDrag, gravity: cfg.blastGravity,
+          life: cfg.blastLife * (1 - cfg.blastJitter / 3 + Math.random() * (cfg.blastJitter / 1.5)),
+          fromScale: scale, toScale: scale * cfg.blastShrink,
+          spin: cfg.blastSpin ? (cfg.blastSpin * Math.PI) / 180 * (Math.random() < 0.5 ? 1 : -1) : 0,
           tint: palette[i % palette.length]!, blend: 'add', peakAlpha: 1,
         });
+      };
+      for (let i = 0; i < cfg.blastCount; i++) {
+        // Stagger spawns a sputtering spray instead of one pop. Timers only when asked for — the default
+        // (0) stays a single synchronous burst with no scheduling cost.
+        if (cfg.blastStagger > 0) window.setTimeout(() => emit(i), i * cfg.blastStagger);
+        else emit(i);
       }
     }
   }

@@ -3,6 +3,34 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21r (tendril clamp + blast dials)
+
+### fix(ui): keep the quest tendril on screen; expand the blast/shrapnel tuner
+
+**Off-screen tendril.** Owner saw the ribbon fly in from the corner, and the ▶ Test did it too. The quest
+node row is stage-pinned with a large negative `--qb-y` (−256 × scale), so on a tall/zoomed layout the node
+sits ABOVE the viewport — and a tendril launched from an off-screen point reads as a stray line rather than
+as coming from the node.
+
+Not reproducible at my viewport (the node measured a healthy 50,814 there), so it was reproduced by forcing
+the row off-screen: at a raw centre of **−350,67** the launch now clamps to **12,67**, keeping the ribbon
+coming from the node's DIRECTION while staying visible. The target end is checked too — if the UNIT is
+off-screen the proc is skipped rather than slinging a ribbon at a point the player can't see. The ▶ Test now
+picks the first ON-SCREEN node and unit, so it exercises the same geometry the real fire does.
+
+NB: the clamp treats the symptom. That the node row can leave the viewport at all is a LAYOUT issue with the
+`--qb-*` pin worth its own look — the tendril just made it visible.
+
+**Blast/shrapnel dials** (owner ask): the spell-power blast had 5 knobs, now 13 — `blastSpread` (360 = ring,
+less = a cone), `blastAngle` (where the cone aims, 0 = up), `blastDrag`, `blastJitter` (speed variance),
+`blastRise` (upward kick), `blastSpin`, `blastStagger` (0 = one pop, >0 = a sputtering spray), and
+`blastShrink` (end scale). The previously hardcoded drag/rise/shrink are now dials, so the old look is
+reproducible from the defaults. Stagger only schedules timers when non-zero, so the default stays a single
+synchronous burst with no scheduling cost.
+
+Verified: typecheck + lint + 1277 tests + `build:web` green; the clamp confirmed against a forced off-screen
+node with no console errors.
+
 ## 2026-07-21q (quest tendril)
 
 ### feat(ui): a gold tendril from a quest node to the unit it triggers

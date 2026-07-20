@@ -87,8 +87,13 @@ export function testSpellPowerFx(): void {
 /** 🏆 Quest Tendril: fire one gold ribbon from the first quest node to the first board minion, so the look
  *  can be judged without staging an Echoing Roar proc. No-op if either end isn't on screen. */
 export function testQuestTendril(): void {
-  const node = document.querySelector('.questbadge');
-  const unit = document.querySelector('[data-zone="warband"] .card');
+  // Pick a node that's actually ON SCREEN. The row is stage-pinned with a large negative offset, so the
+  // first `.questbadge` can be outside the viewport on a tall layout — testing from it drew a ribbon flying
+  // in from off-screen, which read as a bug in the FX rather than in the pick (owner report 2026-07-21).
+  const onScreen = (r: DOMRect): boolean =>
+    r.width > 0 && r.left >= 0 && r.top >= 0 && r.right <= window.innerWidth && r.bottom <= window.innerHeight;
+  const node = [...document.querySelectorAll('.questbadge')].find((n) => onScreen(n.getBoundingClientRect()));
+  const unit = [...document.querySelectorAll('[data-zone="warband"] .card')].find((n) => onScreen(n.getBoundingClientRect()));
   if (!node || !unit) return;
   const nr = node.getBoundingClientRect();
   const ur = unit.getBoundingClientRect();

@@ -32,6 +32,14 @@ export interface SpellPowerFxConfig {
   blastSize: number;    // px — mote size
   blastLife: number;    // ms — mote lifetime
   blastGravity: number; // px/s² — downward pull on the motes (0 = float free)
+  blastSpread: number;  // degrees — arc the shrapnel is thrown across (360 = full ring, 90 = a cone)
+  blastAngle: number;   // degrees — which way that cone points (0 = up, 90 = right)
+  blastDrag: number;    // 0..1 per frame — how fast the motes slow (0 = coast, 1 = stop dead)
+  blastJitter: number;  // 0..1 — random speed variance per mote (0 = every mote identical)
+  blastRise: number;    // px/s — extra upward kick at spawn, on top of the cone direction
+  blastSpin: number;    // deg/s — mote rotation (visible on non-round sprites; keeps a burst from feeling static)
+  blastStagger: number; // ms — delay between motes (0 = all at once; >0 = a sputtering spray)
+  blastShrink: number;  // 0..1 — end scale as a fraction of start (0 = shrink to nothing, 1 = hold size)
 
   // ---- the floating spell-power number ----
   numShow: number;      // 1 = show the number, 0 = arrows + blast only
@@ -70,6 +78,14 @@ const DEFAULTS: SpellPowerFxConfig = {
   blastSize: 4,
   blastLife: 520,
   blastGravity: 220,
+  blastSpread: 360,
+  blastAngle: 0,
+  blastDrag: 0.06,
+  blastJitter: 0.5,
+  blastRise: 48,
+  blastSpin: 0,
+  blastStagger: 0,
+  blastShrink: 0.12,
 
   numShow: 1,
   numSize: 30,
@@ -91,6 +107,7 @@ export const SPELLPOWERFX_KEYS = [
   'arrowCount', 'arrowRise', 'arrowSpread', 'arrowLen', 'arrowWidth', 'arrowHead', 'arrowMs', 'arrowStagger',
   'arrowDrift', 'arrowFadeAt',
   'blastCount', 'blastSpeed', 'blastSize', 'blastLife', 'blastGravity',
+  'blastSpread', 'blastAngle', 'blastDrag', 'blastJitter', 'blastRise', 'blastSpin', 'blastStagger', 'blastShrink',
   'numShow', 'numSize', 'numRise', 'numDelay', 'numHoldMs', 'numFadeMs',
   'glowAlpha', 'glowWidth',
   'colorA', 'colorB', 'colorC', 'colorText', 'colorOutline',
@@ -104,6 +121,8 @@ export const SPELLPOWERFX_RANGES: Partial<Record<keyof SpellPowerFxConfig, [numb
   arrowDrift: [0, 90, 1], arrowFadeAt: [0, 1, 0.02],
   blastCount: [0, 60, 1], blastSpeed: [0, 600, 5], blastSize: [1, 20, 0.5], blastLife: [80, 1600, 20],
   blastGravity: [0, 900, 10],
+  blastSpread: [0, 360, 5], blastAngle: [0, 360, 5], blastDrag: [0, 0.5, 0.01], blastJitter: [0, 1, 0.02],
+  blastRise: [0, 400, 5], blastSpin: [0, 720, 10], blastStagger: [0, 120, 1], blastShrink: [0, 1, 0.02],
   numShow: [0, 1, 1], numSize: [10, 80, 1], numRise: [0, 180, 2], numDelay: [0, 1200, 10],
   numHoldMs: [0, 1600, 20], numFadeMs: [40, 1600, 20],
   glowAlpha: [0, 1, 0.02], glowWidth: [0, 24, 0.5],

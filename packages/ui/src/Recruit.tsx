@@ -670,11 +670,21 @@ export function Recruit() {
         if (!node || !unit) return; // node scrolled out or unit already left the board — skip, never throw
         const nr = node.getBoundingClientRect();
         const ur = unit.getBoundingClientRect();
-        const fire = (): void => pixiFx.buffTendril(
-          { x: nr.left + nr.width / 2, y: nr.top + nr.height / 2 },
-          { x: ur.left + ur.width / 2, y: ur.top + ur.height / 2 },
-          tendrilCfgFor(i % 2 === 0 ? 1 : -1),
-        );
+        // CLAMP the launch point into the viewport. The node row is stage-pinned with a large negative
+        // `--qb-y` (−256 × scale), so on a tall/zoomed layout it can sit ABOVE the top edge — and a tendril
+        // launched from off-screen reads as a stray line flying in from the corner (owner report, with the
+        // ▶ Test showing it too). Clamping keeps the ribbon coming from the node's DIRECTION while staying
+        // visible. A margin keeps the launch flash fully on screen rather than half-clipped.
+        const M = 12;
+        const from = {
+          x: Math.min(Math.max(nr.left + nr.width / 2, M), window.innerWidth - M),
+          y: Math.min(Math.max(nr.top + nr.height / 2, M), window.innerHeight - M),
+        };
+        const to = { x: ur.left + ur.width / 2, y: ur.top + ur.height / 2 };
+        // If the TARGET is off-screen there's nothing meaningful to draw — skip rather than sling a ribbon
+        // at a point the player can't see.
+        if (to.x < 0 || to.y < 0 || to.x > window.innerWidth || to.y > window.innerHeight) return;
+        const fire = (): void => pixiFx.buffTendril(from, to, tendrilCfgFor(i % 2 === 0 ? 1 : -1));
         if (i === 0) fire();
         else timers.push(window.setTimeout(fire, i * getQuestTendrilConfig().staggerMs));
       });

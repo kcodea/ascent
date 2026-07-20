@@ -20,7 +20,7 @@ import { perfMonitor, perfEnabledByFlag } from './perfMonitor';
 import { Icon } from './Icon';
 import { ErrorBoundary } from './ErrorBoundary';
 import { PixiFxLayer } from './PixiFxLayer';
-import { pixiFx } from './pixiFx';
+import { pixiFx, warmDiscoverFx } from './pixiFx';
 import { warmArt } from './art';
 import { useGame } from './store';
 
@@ -48,8 +48,12 @@ export function Game() {
       const s = useGame.getState().run;
       return { phase: s.phase, wave: s.wave };
     });
+    // Input RATE. A high-polling-rate mouse delivers pointermove far above the frame rate; when a handler
+    // turns each one into a state update, the render cost is invisible without this number next to it.
+    const onMove = (): void => perfMonitor.count('pointermoves');
+    window.addEventListener('pointermove', onMove, { passive: true });
     perfMonitor.start();
-    return () => perfMonitor.stop();
+    return () => { window.removeEventListener('pointermove', onMove); perfMonitor.stop(); };
   }, [perfOn]);
   // Console handles: toggle the HUD from anywhere (dev menu, devtools) without threading state through the
   // tree, and reach the monitor itself for triage — `__perf.summary()` / `__perf.exportLog()` are the two
@@ -64,6 +68,9 @@ export function Game() {
   // Preload all card/hero art once, on idle, so the first shop renders with art already cached — kills the
   // cold-load "pop-in" (esp. the itch CDN, where each webp is a separate first-appearance round-trip).
   useEffect(() => { warmArt(); }, []);
+  // …and build the Discover overlay's separate Pixi app on idle, so the first Discover doesn't pay a ~60-108ms
+  // WebGL-context stall mid-shop (see `warmDiscoverFx`).
+  useEffect(() => { warmDiscoverFx(); }, []);
   // The game now fills the window at a fixed 16:9 (no resolution picker → no `data-res`), draws one board
   // (`--board` = the CSS default), and applies no readability dim — so there's no res/scrim/board state to persist.
 

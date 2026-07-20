@@ -17,7 +17,7 @@ import { waveGapFor } from './buffFxConfig';
 import { fireBuffFx } from './buffFxRender';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { getAimFxConfig } from './aimFxConfig';
-import { BUFF_PRESETS, buffPreset } from './buffPresets';
+import { buffPreset, wavePalette } from './buffPresets';
 
 const rectOf = (uid: string): DOMRect | null =>
   document.querySelector(`[data-uid="${uid}"]`)?.getBoundingClientRect() ?? null;
@@ -78,11 +78,7 @@ export function testAuraFx(tribe: AuraTestTribe): void {
   const rr = zoneEl.querySelector('.row.warband')?.getBoundingClientRect();
   const y = rr && rr.height > 4 ? rr.top : z.top;
   const h = rr && rr.height > 4 ? rr.height : z.height;
-  const p = BUFF_PRESETS[buffPreset('', tribe)] ?? BUFF_PRESETS.default!;
-  pixiFx.auraWave(
-    { x: z.left, y, w: z.width, h },
-    { ...getAuraFxConfig(), colorCore: p.colorFlash, colorGlow: p.colorGlow, colorMote: p.colorMote },
-  );
+  pixiFx.auraWave({ x: z.left, y, w: z.width, h }, { ...getAuraFxConfig(), ...wavePalette(buffPreset('', tribe)) });
 }
 
 /** 🎯 Hero Aim: the activation spark burst at the power diamond. */

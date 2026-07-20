@@ -180,6 +180,8 @@ class PerfMonitor {
   private readonly counters = new Map<string, CounterFn>();
   /** PEAK of each counter since the bucket opened — see `sampleCounters`. */
   private readonly counterPeak = new Map<string, number>();
+  /** Per-bucket occurrence tallies from `count()` — rates, folded into `counts` when the bucket closes. */
+  private readonly tallies = new Map<string, number>();
   private lastCounterSample = 0;
   private context: ContextFn = () => ({});
   private readonly buckets: PerfBucket[] = [];
@@ -200,6 +202,21 @@ class PerfMonitor {
 
   /** Register a live-count source, e.g. pixiFx's particle count. Read once per bucket, never per frame. */
   registerCounter(name: string, fn: CounterFn): void { this.counters.set(name, fn); }
+
+  /**
+   * Count an occurrence of `name` this bucket — for RATES rather than levels (React commits, input events).
+   *
+   * The gap this closes: every counter was a Pixi level and every measured span was sim work, so the whole
+   * RENDERER was invisible. Two of the worst frames in the 2026-07-19 full-run capture had a long task and
+   * no hotspot at all, because the cost was React — which nothing instrumented. A component re-rendering at
+   * pointer rate now shows up as a number instead of requiring a code read.
+   *
+   * No-op when the monitor is off, so call sites need no guard.
+   */
+  count(name: string, n = 1): void {
+    if (!this.running) return;
+    this.tallies.set(name, (this.tallies.get(name) ?? 0) + n);
+  }
 
   /** Register the game-context provider (phase / wave), so buckets carry what was happening. */
   registerContext(fn: ContextFn): void { this.context = fn; }
@@ -338,6 +355,8 @@ class PerfMonitor {
     const counts: Record<string, number> = {};
     for (const [name, v] of this.counterPeak) counts[name] = v;
     this.counterPeak.clear();
+    for (const [name, v] of this.tallies) counts[name] = v; // rates (per bucket), alongside the peak levels
+    this.tallies.clear();
     const mem = (performance as { memory?: { usedJSHeapSize: number } }).memory;
     const ctx = this.context();
 

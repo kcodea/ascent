@@ -24,6 +24,7 @@ const LABELS: Record<keyof DragFeel, string> = {
   recenterAfter: 'recenter after px',
   snapMs: 'snap-back ms',
   magSlideMs: 'magnet-slide ms',
+  magWeldLeadMs: 'weld lead ms',
   collapseY: 'row collapse px',
   handFloor: 'hand pop floor',
   shGrow: 'drag shadow · grow',

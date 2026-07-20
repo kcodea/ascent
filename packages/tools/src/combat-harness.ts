@@ -38,6 +38,8 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
   switch (ev.type) {
     case 'sc':
       return `  ⚡ ${ev.text}`;
+    case 'tribeAura':
+      return `  🌊 ${ev.side} ${ev.tribe} aura rises`;
     case 'attack':
       return `→ ${n(ev.attacker)} attacks ${n(ev.defender)}${ev.swing > 0 ? ' (windfury)' : ''}`;
     case 'dmg':

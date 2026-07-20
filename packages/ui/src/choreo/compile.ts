@@ -31,7 +31,7 @@ export interface GroupingRules {
 export const DEFAULT_RULES: GroupingRules = {
   collapse: RESULT_TYPES,
   collapseRuns: new Set(['buff']),
-  absorbIntoWindup: new Set(['buff', 'rally', 'summon', 'reveal', 'improve']),
+  absorbIntoWindup: new Set(['buff', 'rally', 'summon', 'reveal', 'improve', 'tribeAura']),
 };
 
 /** A presentation moment — `Beat`-shaped (start/end/primary) so every existing consumer

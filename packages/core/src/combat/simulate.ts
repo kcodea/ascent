@@ -491,6 +491,10 @@ export function simulate(
     },
     addTribeAura: (side, tribe, attack, health, source) => {
       tribeAuras.push({ side, tribe, attack, health, source });
+      // Telegraph the wash — the run-wide aura is a board-wide event, so it gets the same bloom the recruit
+      // phase shows off `auraFxSeq` (owner ask 2026-07-21: Ryme + Deathswarmer, Anubis's Lantern, …). Only a
+      // real gain is worth a wave; a 0/0 aura (shouldn't happen) draws nothing.
+      if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe });
     },
     damage: (target, amount, poison = false, bypassShield = false) =>
       dealDamage(target, amount, poison, bypassShield),
@@ -1165,8 +1169,16 @@ export function simulate(
       emit({ type: 'reveal', target: attacker.uid });
     }
     const swings = attacker.keywords.includes('W') ? 2 : 1; // Windfury (A.3 step 5)
+    // A Flurry minion that DIES on its first swing and RISES does not get the second swing (owner ruling
+    // 2026-07-21). Rise sets `dead = false` and restores Health mid-exchange, so the plain liveness guard
+    // below saw a healthy attacker and let swing 2 through — the minion appeared to attack twice after dying.
+    // The risen body is a fresh body: its turn is over, the next minion attacks, and it swings again on a
+    // later turn like anything else. (Granted Flurry is already shed by the Rise itself, which rebuilds
+    // `keywords` from the card def; an INNATE Flurry survives but still doesn't re-swing this exchange.)
+    const rebornAtStart = attacker.rebornAvailable;
     for (let s = 0; s < swings; s++) {
       if (attacker.dead || attacker.health <= 0) break;
+      if (rebornAtStart && !attacker.rebornAvailable) break; // it died and rose during this exchange
       const target = chooseTarget(defenderSide);
       if (!target) break;
       if (s > 0) nextStep(); // each Windfury swing is its own exchange

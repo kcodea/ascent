@@ -75,6 +75,7 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   maxGold: [...BASE, { ch: 'coins', at: 'start', offset: 0 }],
   improve: [...BASE, { ch: 'improveSelf', at: 'start', offset: 0 }],
   keyword: [...BASE], keywordLost: [...BASE], hpGrant: [...BASE], spellProgress: [...BASE], reveal: [...BASE],
+  tribeAura: [...BASE], // the wash itself is fired from the per-beat scan in useCombatReplay (like spell power), not a choreo channel
 };
 
 const KEY = 'ascent.choreoScore';

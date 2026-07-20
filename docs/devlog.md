@@ -3,6 +3,25 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21c (Discover chrome)
+
+### tweak(ui): dark-glass Discover banner + Minimize, and the toggle raised
+
+Owner call: the ornate cream/gold plaque and button fought the art-forward cards.
+
+**Rather than adding a third variant, this promotes one that already existed.** The QUEST overlay had
+already moved its banner to dark glass, scoped as `.quest-ov .disc-banner`; that treatment is now the base
+`.disc-banner` rule, so Discover, the quest shop and the Runeforge share one look — and the quest-scoped
+override was deleted rather than left as a duplicate of the thing it now inherits.
+
+`.disc-toggle` gets the same glass (light text, gold-tinted icon, accent border on hover) and moves up
+`66% → 61%`: the +30% card bump pushed the row down, leaving the button stranded well below it. Measured
+after: 58px below the card row, instead of floating in open space.
+
+Verified live: banner and toggle both render `linear-gradient(#241a13, #17110c)` with `#f4ecdb` text, and
+the toggle sits 58px under the cards. 1267 tests, lint, build:web green; `typecheck:web` at its 48-error
+baseline. CSS-only.
+
 ## 2026-07-21b (Discover size, Mauron/Amun Rab/Rope Wrangler, Brackus power art)
 
 ### tweak: a bigger Discover panel, Mauron's splash, Amun Rab trim, gilded Rope Wrangler

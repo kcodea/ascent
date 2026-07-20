@@ -3,6 +3,33 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21k (rally quest tally)
+
+### fix(core): Uron's extra Rally fires now count toward Rally quests
+
+Owner report: with Uron out, two rallying minions read as **2** toward Infinite Assembly's "Trigger 7
+Rallies" instead of **4**.
+
+**This was mine, from the Uron split.** Combat has TWO rally-extra paths. The older additive doublers
+(Law of Teeth / Rallying Offensive / Infinite Assembly / Spark Permit) re-fire the attacker's on-attack
+effects AND call `bumpRally(extras)`. The Uron block I added re-fired the effects and **never bumped the
+tally** — so the effects doubled but the quest didn't see it.
+
+Fixed with the matching `bumpRally(rallyExtra)`, player-only like every other quest tally.
+
+**Checked the other families for the same gap, since the ask was full synergy.** Echo already had parity —
+`playerEchoExtras` (Sylus + Zyff + Funeral Engine + the first-echo bonus) feeds `bumpDeathrattles(extra)`,
+per the 2026-07-08 ruling that TRIGGER-based counts scale with doublers. Shout counts through
+`drummerRepeats`, which is deliberately non-consuming so the reducer's Shout tick reads the fire count.
+Rally was the only family missing it.
+
+**A test-methodology note.** My first test asserted the raw tally doubles — it read 81 vs 118 and failed.
+That wasn't the fix falling short: Uron ALSO multiplies End of Turn and Start of Combat, so it changes how
+the fight plays out and therefore how many swings happen. A raw total measures fight length as much as the
+rule. The test now asserts the real invariant — Rallies **per rally swing**: exactly 1 normally, exactly 2
+with Uron.
+
+1268 tests, typecheck, lint, build:web green.
 ## 2026-07-21o (Heckbinder, third pass + freeze jitter)
 
 ### fix(ui): the Fodder aura was missed in TWO more display paths; Freeze sits still

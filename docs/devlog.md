@@ -3,6 +3,47 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21l (three stale-looking bugs, all real)
+
+### fix(ui): Freeze cascade loss, Fodder ref-popup aura, buff-drawer slide
+
+Owner re-reported three bugs I had twice "verified" as fixed. All three were real; every one of my
+checks had measured the wrong thing. Root causes were unrelated:
+
+**1. Freeze jumped on click — a CSS specificity loss.** The pin rule was written as
+`.frzwrap.frzwrap:active` (0,3,0), which loses to `button.shopbtn:not(:disabled):active` (0,3,1) — the
+leading element selector is worth exactly the point that decided it. The rule sat in the stylesheet
+looking correct and never applied. My probe asserted the rule EXISTED, which it did. Now
+`button.frzwrap.frzwrap:not(:disabled):active` (0,4,1).
+
+*While fixing it I broke the stylesheet:* the new comment tail landed after the existing `*/`, orphaning
+text and silently dropping every `.frzwrap` state rule. Caught only because the verification enumerated
+the loaded `cssRules` and the selectors were absent. A CSS parse error is invisible to typecheck, lint,
+tests, AND `build:web` — only the live sheet shows it.
+
+**2. Fodder ref-popup printed 3/3 while the shop card showed 6/6.** `refViewsByUid` built token previews
+from raw `run.cardBuffs` (permanent enchants only), dropping Heckbinder's live `fodderAura`. This is the
+FIFTH surface in this class — tavern (#589), buff panel, board/hand text, Discover, now the popup. The
+standing lesson held: when the fix is a shared accessor, grep every reader of the raw source. I had
+grepped `fodderAura`, but this reader names `cardBuffs`, so it never appeared.
+
+**3. Buff-drawer slide — mount-on-open defeated the transition.** Two earlier attempts left it at frame 0.
+Cause: the body mounted only while open, so React created it with `.open` already applied — its first
+computed style was the final one, leaving nothing to interpolate from. `getAnimations()` reporting
+`running` at `currentTime: 0` read like a stuck animation but was a no-op. Now always mounted and toggled
+by class, hidden via `visibility`/`pointer-events` with the visibility delayed to the end of the close.
+
+**Also baked** the owner's hero-panel `panelY` (−569 → −79) and drawer tuner values (`tabS` 0.71,
+`bodyX` 2, `bodyS` 0.48) into BOTH sources. The scale-tuner payload already matched.
+
+**Process note.** The prior session also mis-diagnosed a stale dev server: `preview_stop` reported
+success while both node processes survived, so a Vite instance kept serving modules across branch
+switches. Verified dead by port/PID this time, not by the tool's return value.
+
+Verified: typecheck + lint + 1268 tests + `build:web` green, `typecheck:web` at its 48 baseline; live DOM
+— ref popup reads `Fred Fodder TIER 1 6 6`, drawer transform interpolates (−109 → −100.9 → 0), and the
+Freeze pin rule is present in the loaded sheet and out-specifies the `.shopbtn` nudge.
+
 ## 2026-07-21k (rally quest tally)
 
 ### fix(core): Uron's extra Rally fires now count toward Rally quests

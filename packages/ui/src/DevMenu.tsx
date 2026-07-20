@@ -8,6 +8,7 @@ import { GustFxTuner } from './GustFxTuner';
 import { SpellPowerFxTuner } from './SpellPowerFxTuner';
 import { QuestTendrilTuner } from './QuestTendrilTuner';
 import { HeroBuffFxTuner } from './HeroBuffFxTuner';
+import { SceneBuilder } from './SceneBuilder';
 import { AuraFxTuner } from './AuraFxTuner';
 import { WeldFxTuner } from './WeldFxTuner';
 import { BuffFxTuner } from './BuffFxTuner';
@@ -42,6 +43,7 @@ import { perfMonitor } from './perfMonitor';
  * menu — and every tuner — is stripped from production.
  */
 const TUNERS = [
+  { key: 'scenebuilder', label: '🧩 Scene Builder', C: SceneBuilder },
   { key: 'layout', label: '📐 Scale & Layout', C: LayoutTuner },
   { key: 'frame', label: '🖼️ Card Frames', C: FrameTuner },
   { key: 'book', label: '📖 Compendium Palette', C: BookTuner },

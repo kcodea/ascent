@@ -4673,3 +4673,22 @@ body.dragging .herobuffs { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
   .herobuff-blast::before, .herobuff-blast::after { animation-duration: 1ms; opacity: 0; }
 }
+
+/* ---- SCENE BUILDER (SceneBuilder.tsx) — dev sandbox panel. Reuses the `.sfxmix`/`.lunge` tuner chrome; the
+   `.sb-*` rules add the card search + quick-lever layout. Dev-only, stripped from production. */
+.scenebuilder { width: calc(300 * var(--u)); max-width: 92vw; }
+.sb-quick { display: flex; align-items: center; gap: calc(5 * var(--u)); flex-wrap: wrap; margin: calc(4 * var(--u)) 0; }
+.sb-quick .sfxmix-name { min-width: auto; }
+.sb-toggle { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); font-size: calc(12 * var(--u)); color: #cbb894; cursor: pointer; }
+.sb-tier { width: calc(22 * var(--u)); height: calc(22 * var(--u)); border-radius: calc(5 * var(--u)); border: 1px solid #6a5c3a; background: #2a2415; color: #d8c8a2; font-weight: 800; cursor: pointer; }
+.sb-tier.on { background: var(--acc, #f4be35); color: #241a08; border-color: var(--acc, #f4be35); }
+.sb-num { display: inline-flex; align-items: center; gap: calc(2 * var(--u)); font-size: calc(11 * var(--u)); color: #cbb894; }
+.sb-num input { width: calc(42 * var(--u)); background: #1c1810; border: 1px solid #6a5c3a; color: #f0e6cf; border-radius: calc(4 * var(--u)); padding: calc(2 * var(--u)) calc(4 * var(--u)); font-size: calc(12 * var(--u)); }
+.sb-search { width: 100%; box-sizing: border-box; margin: calc(6 * var(--u)) 0 calc(4 * var(--u)); background: #1c1810; border: 1px solid #6a5c3a; color: #f0e6cf; border-radius: calc(6 * var(--u)); padding: calc(5 * var(--u)) calc(8 * var(--u)); font-size: calc(13 * var(--u)); }
+.sb-results { max-height: calc(260 * var(--u)); overflow-y: auto; display: flex; flex-direction: column; gap: calc(2 * var(--u)); }
+.sb-card { display: flex; align-items: center; gap: calc(6 * var(--u)); width: 100%; text-align: left; background: #241f13; border: 1px solid #453b24; border-radius: calc(5 * var(--u)); padding: calc(3 * var(--u)) calc(6 * var(--u)); color: #e6dcc2; font-size: calc(12 * var(--u)); cursor: pointer; }
+.sb-card:hover { background: #322a19; border-color: var(--acc, #f4be35); }
+.sb-t { display: inline-grid; place-items: center; width: calc(16 * var(--u)); height: calc(16 * var(--u)); border-radius: 50%; font-size: calc(10 * var(--u)); font-weight: 900; color: #150f06; background: #b9a26a; flex: none; }
+.sb-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-spell { font-size: calc(9 * var(--u)); color: #b98fe0; text-transform: uppercase; letter-spacing: 0.04em; }
+.sb-empty { color: #8a7d5e; font-size: calc(12 * var(--u)); padding: calc(6 * var(--u)); text-align: center; }

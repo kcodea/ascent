@@ -755,11 +755,12 @@ export function Recruit() {
     if (seq === undefined || seq === prevWeldFxSeq.current) return;
     prevWeldFxSeq.current = seq; // inits to the current value, so a restored save never re-fires
     const uids = run.weldFxUids;
+    const kind = run.weldFxKind ?? 'auto';
     if (!uids?.length || run.phase !== 'recruit') return;
     // One weld can land on several minions (a Beatbot mirrors it onto itself) — animate every one.
-    const raf = requestAnimationFrame(() => fireWeldFxBatch(uids, run.weldFxKind ?? 'auto'));
+    const raf = requestAnimationFrame(() => fireWeldFxBatch(uids, kind));
     return () => cancelAnimationFrame(raf);
-  }, [run.weldFxSeq, run.weldFxUids, run.weldFxKind, run.phase, fireWeldFxBatch]);
+  }, [run.weldFxSeq, run.phase, fireWeldFxBatch]);
   // Immediate (mid-shop) triggers arrive via the `buffGustSeq` stamp (one-shot, the swapFxSeq pattern;
   // inits to the current value so a restored save doesn't fire). End-of-Turn triggers (Maw / Ritualist)
   // stamp inside `faceOmen` — by then the phase is combat, so the watcher skips them; their gust fires

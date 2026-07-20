@@ -258,7 +258,13 @@ export function reduce(state: RunState, action: Action): RunState {
   // across dispatches). For a rejected no-op reduceCore returns `state` itself → `next.recruitBuffFx` stays [].
   state.recruitBuffFx = [];
   state.auraFx = undefined; // same per-action scratch contract as recruitBuffFx (auraFxSeq stays monotonic)
-  state.weldFxUids = undefined; // ditto — `stampWeldFx` ACCUMULATES within one action (see below)
+  // Weld FX does NOT use the per-action scratch contract above, and must not: React BATCHES dispatches, so
+  // clearing the payload here destroyed welds that had not been rendered yet. A weld followed by any other
+  // click in the same frame (in real play, almost always) coalesced into ONE render whose `weldFxUids` the
+  // second action had already wiped — the ring never fired. Instead, record where this action starts;
+  // `stampWeldFx` replaces on its first stamp of an action and accumulates after, so the payload survives
+  // until the UI reads it and still never leaks between actions.
+  state.weldFxBaseSeq = state.weldFxSeq ?? 0;
   stampImproveReps(state); // Rune of Mastery: mirror the state's Improve multiplier for the stateless addBuff hook
   // Pin this wave's opponent on the FIRST recruit action of the turn (reload-divergence fix, revived
   // 2026-07-18): the pick is stamped into `servedBoards` as soon as the turn is played, so the telegraphed

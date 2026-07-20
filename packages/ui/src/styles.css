@@ -3915,14 +3915,33 @@ svg { width: 18px; height: 18px; }
 /* ── Compendium (Tab) — a filterable codex of minions + spells. Blurred overlay styled like an open tome:
    tier filters across the top, tribe/Spells filters down the left, a single scrolling gallery. ── */
 .book-ov { position: fixed; inset: 0; z-index: 480; background: rgba(26, 16, 6, 0.62); backdrop-filter: blur(3px); display: grid; place-items: center; animation: fadein 0.16s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+/* Compendium palette + scale (owner call): a SOFT BLUE reading surface instead of the cream one, and
+   everything 10% larger. The recolour is done by re-declaring the shared ink/card/line vars SCOPED to
+   `.book`, so every descendant rule picks it up without touching them one by one. Cards and hero panels
+   inside set their own explicit colours (the dark-glass drawer), so they are unaffected by this override. */
+.book {
+  --card: #d6e2f1;      /* the panel surface — soft blue, replacing the cream (deliberately not near-white:
+                           the point is to take the glare off a big bright reading surface) */
+  --line: #a8bcd6;      /* borders / dividers */
+  --ink: #1a2740;       /* primary text — deep navy rather than near-black */
+  --ink2: #33455f;
+  --ink3: #55688a;      /* secondary text (counts, power blurbs) */
+  --bg: #c3d3e7;        /* recessed wells (the rail, art placeholders) */
+}
 .book { width: min(1700px, 96vw); height: min(1000px, 92vh); display: flex; flex-direction: column; background: linear-gradient(180deg, color-mix(in srgb, var(--card) 94%, var(--acc)) 0%, var(--card) 16%); border: 3px solid var(--line); border-radius: 22px; box-shadow: 0 24px 70px -20px rgba(0, 0, 0, 0.7), inset 0 0 0 2px color-mix(in srgb, var(--acc) 18%, transparent); overflow: hidden; animation: bookpop 0.18s cubic-bezier(0.34, 1.2, 0.64, 1); cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+/* The panel + header originally mixed the GOLD accent into the surface, which desaturated the new blue
+   straight back to grey. Both surfaces are now stated in blue directly; the gold accent is kept for icons,
+   the active tab and the inset ring, where it reads as trim rather than a wash. */
+.book { background: linear-gradient(180deg, #c9d8ec 0%, var(--card) 16%); }
+.book-head { background: #c6d6ea; }
+.book-rail { background: #cfdcee; }
 /* Gentle fade + slight pop (NOT inspectpop — that scales 1.45→1.9 for the inspect card, which rests at 1.9;
    the book rests at scale 1, so inspectpop made it balloon then snap down). */
 @keyframes bookpop { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
 .book-head { display: flex; align-items: center; gap: 16px; padding: 15px 22px; border-bottom: 2px solid var(--line); background: color-mix(in srgb, var(--acc) 10%, var(--card)); flex: none; }
-.book-title { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-ui); font-weight: 800; font-size: 25px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink); }
-.book-title svg { width: 25px; height: 25px; color: var(--acc); }
-.book-sub { font-family: var(--font-body), sans-serif; font-weight: 600; font-size: 14px; color: var(--ink3); }
+.book-title { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-ui); font-weight: 800; font-size: 27.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink); }
+.book-title svg { width: 27.5px; height: 27.5px; color: var(--acc); }
+.book-sub { font-family: var(--font-body), sans-serif; font-weight: 600; font-size: 15.4px; color: var(--ink3); }
 /* Gilded toggle — show every card's tripled form. Pushed to the right, beside the close button. */
 .book-gilded { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 15px; border-radius: 11px; border: 2px solid var(--line); background: var(--bg2); color: var(--ink2); font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; text-transform: uppercase; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; transition: transform 0.1s, border-color 0.1s, background 0.1s; }
 .book-gilded svg { width: 17px; height: 17px; }
@@ -3944,7 +3963,7 @@ svg { width: 18px; height: 18px; }
 /* Columns never squeeze below a full card width (auto-fill drops a column instead of overlapping), and the
    row gap reserves space for the text plate hanging under each oval (owner report 2026-07-16: cards were
    stacking on top of each other). */
-.book-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--cw) + 16px), 1fr)); gap: 42px 22px; padding: calc(var(--ccw) * 0.17) 20px 36px; overflow-y: auto; align-content: start; align-items: start; justify-items: center; --ch: clamp(212px, 26vh, 276px); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
+.book-grid { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--cw) + 16px), 1fr)); gap: 42px 22px; padding: calc(var(--ccw) * 0.17) 20px 36px; overflow-y: auto; align-content: start; align-items: start; justify-items: center; --ch: clamp(233px, 28.6vh, 304px); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
 /* The Compendium is a BROWSING grid, so the text drawer must sit IN FLOW here: rows then size to the real
    panel height and can never collide, however long a card's text runs (Uron and Amun Rab overflowed the old
    fixed `--ch * 0.45` row gap and crashed into the row below). Everywhere else the drawer stays absolutely

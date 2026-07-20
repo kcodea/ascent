@@ -3,6 +3,29 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-20 (compendium palette + scale)
+
+### tweak(ui): a soft-blue Compendium, 10% larger
+
+Owner call — the cream reading surface was bright and tiring at full size.
+
+**Palette.** The recolour is done by re-declaring the shared `--card` / `--line` / `--ink` / `--ink2` /
+`--ink3` / `--bg` vars **scoped to `.book`**, so every descendant rule picks it up without editing them one
+by one. Cards and hero panels inside state their own explicit colours (the dark-glass drawer), so they are
+unaffected.
+
+One thing that needed a second pass: the panel and header originally mixed the **gold accent** into the
+surface (`color-mix(… var(--acc) …)`), which desaturated the new blue straight back to grey — the var was
+correct but the rendered colour was not. Both surfaces are now stated in blue directly. Gold is kept for
+icons, the active tab and the inset ring, where it reads as trim rather than a wash.
+
+**Scale.** `--ch` (the card metric that drives the whole grid) `clamp(212px, 26vh, 276px)` →
+`clamp(233px, 28.6vh, 304px)`, plus the header title/sub sized to match. The panel box is already
+viewport-capped, so scaling the card metric is what actually reads as "bigger".
+
+Verified live: 0 overlapping cells at the new size (the spacing fix holds), `--card` resolves to `#d6e2f1`,
+surfaces render blue rather than grey.
+
 ## 2026-07-20 (compendium polish + Zyff)
 
 ### tweak(ui/content): Compendium polish, the Uron/Zyff multiplier split, and Zyff the Betrayer

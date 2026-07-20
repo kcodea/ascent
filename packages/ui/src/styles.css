@@ -4619,9 +4619,10 @@ body.dragging .herobuffs { pointer-events: none; }
 }
 
 /* ---- HERO-PORTRAIT BUFF FLASH (`.herobuff-blast`, StatusBar.tsx) — a shard/blast pop with a small eased
-   ripple, replayed (via a remount key) whenever any run buff grows. Owner ask 2026-07-21.
-   ONE-SHOT only: it mounts, plays once, and is unmounted, so the paint-touching shards never repaint at rest
-   (the load-bearing perf rule bans paint props in LOOPING animations; a profiled one-shot is sanctioned). */
+   ripple, replayed (via a remount key) whenever any run buff grows. Owner ask 2026-07-21; dialed by the
+   "💥 Hero Buff Flash" tuner via the `--hbf-*` vars (fallbacks below MIRROR heroBuffFxConfig DEFAULTS).
+   ONE-SHOT only: it mounts, plays once, unmounts — so the paint-touching shards never repaint at rest
+   (the perf rule bans paint props in LOOPING animations; a profiled one-shot is sanctioned). */
 .herobuff-blast {
   position: absolute; inset: 0; z-index: 3;
   pointer-events: none;
@@ -4632,42 +4633,42 @@ body.dragging .herobuffs { pointer-events: none; }
   content: ''; position: absolute; left: 50%; top: 50%;
   width: 60%; height: 60%; margin: -30% 0 0 -30%;
   border-radius: 50%;
-  border: calc(3 * var(--u)) solid color-mix(in srgb, var(--acc, #f4be35) 80%, #fff);
-  box-shadow: 0 0 calc(10 * var(--u)) color-mix(in srgb, var(--acc, #f4be35) 60%, transparent);
+  border: calc(var(--hbf-ripple-width, 3) * var(--u)) solid color-mix(in srgb, var(--hbf-color, #f4be35) 80%, #fff);
+  box-shadow: 0 0 calc(10 * var(--u)) color-mix(in srgb, var(--hbf-color, #f4be35) 60%, transparent);
   transform: scale(0.2);
   opacity: 0;
-  animation: herobuffripple 620ms cubic-bezier(0.22, 0.85, 0.3, 1) both;
+  animation: herobuffripple var(--hbf-ripple-ms, 620ms) cubic-bezier(0.22, 0.85, 0.3, 1) both;
 }
-/* The SHARDS — a conic burst of gold spokes that flashes outward and fades. A single element, so it's one
-   node rather than N shard divs; the conic-gradient gives the shard read, and it only ever animates transform
-   + opacity. */
+/* The SHARDS — a conic burst of spokes that flashes outward and fades. The gradient itself is rebuilt inline
+   in StatusBar from the spoke-count dial (a CSS var can't parameterise the number of gradient stops); the
+   scale / rotate / timing / peak alpha all come from vars here. A single element → one node, not N divs. */
 .herobuff-blast::after {
   content: ''; position: absolute; left: 50%; top: 50%;
   width: 120%; height: 120%; margin: -60% 0 0 -60%;
-  background: conic-gradient(from 0deg,
-    color-mix(in srgb, var(--acc, #f4be35) 90%, #fff) 0deg 6deg, transparent 6deg 45deg,
-    color-mix(in srgb, var(--acc, #f4be35) 90%, #fff) 45deg 51deg, transparent 51deg 90deg,
-    color-mix(in srgb, var(--acc, #f4be35) 90%, #fff) 90deg 96deg, transparent 96deg 135deg,
-    color-mix(in srgb, var(--acc, #f4be35) 90%, #fff) 135deg 141deg, transparent 141deg 180deg,
-    color-mix(in srgb, var(--acc, #f4be35) 90%, #fff) 180deg 186deg, transparent 186deg 225deg,
-    color-mix(in srgb, var(--acc, #f4be35) 90%, #fff) 225deg 231deg, transparent 231deg 270deg,
-    color-mix(in srgb, var(--acc, #f4be35) 90%, #fff) 270deg 276deg, transparent 276deg 315deg,
-    color-mix(in srgb, var(--acc, #f4be35) 90%, #fff) 315deg 321deg, transparent 321deg 360deg);
+  background: var(--hbf-shard-gradient, conic-gradient(from 0deg,
+    color-mix(in srgb, var(--hbf-color, #f4be35) 90%, #fff) 0deg 6deg, transparent 6deg 45deg,
+    color-mix(in srgb, var(--hbf-color, #f4be35) 90%, #fff) 45deg 51deg, transparent 51deg 90deg,
+    color-mix(in srgb, var(--hbf-color, #f4be35) 90%, #fff) 90deg 96deg, transparent 96deg 135deg,
+    color-mix(in srgb, var(--hbf-color, #f4be35) 90%, #fff) 135deg 141deg, transparent 141deg 180deg,
+    color-mix(in srgb, var(--hbf-color, #f4be35) 90%, #fff) 180deg 186deg, transparent 186deg 225deg,
+    color-mix(in srgb, var(--hbf-color, #f4be35) 90%, #fff) 225deg 231deg, transparent 231deg 270deg,
+    color-mix(in srgb, var(--hbf-color, #f4be35) 90%, #fff) 270deg 276deg, transparent 276deg 315deg,
+    color-mix(in srgb, var(--hbf-color, #f4be35) 90%, #fff) 315deg 321deg, transparent 321deg 360deg));
   -webkit-mask: radial-gradient(circle, #000 30%, transparent 62%);
           mask: radial-gradient(circle, #000 30%, transparent 62%);
   transform: scale(0.3) rotate(0deg);
   opacity: 0;
-  animation: herobuffshards 460ms cubic-bezier(0.2, 0.8, 0.35, 1) both;
+  animation: herobuffshards var(--hbf-shard-ms, 460ms) cubic-bezier(0.2, 0.8, 0.35, 1) both;
 }
 @keyframes herobuffripple {
   0%   { transform: scale(0.2); opacity: 0; }
   25%  { opacity: 0.9; }
-  100% { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(var(--hbf-ripple-scale, 1.5)); opacity: 0; }
 }
 @keyframes herobuffshards {
-  0%   { transform: scale(0.3) rotate(-14deg); opacity: 0; }
-  30%  { opacity: 1; }
-  100% { transform: scale(1.15) rotate(10deg); opacity: 0; }
+  0%   { transform: scale(0.3) rotate(calc(var(--hbf-shard-rotate, 24deg) * -0.6)); opacity: 0; }
+  30%  { opacity: var(--hbf-peak-alpha, 1); }
+  100% { transform: scale(var(--hbf-shard-scale, 1.15)) rotate(calc(var(--hbf-shard-rotate, 24deg) * 0.4)); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .herobuff-blast::before, .herobuff-blast::after { animation-duration: 1ms; opacity: 0; }

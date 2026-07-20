@@ -73,9 +73,9 @@ const DEFAULTS: WeldFxConfig = {
   ringStart: 210, ringEnd: 42, ringMs: 250, ringWidth: 6, ringAlpha: 0.6, ringGlowWidth: 6,
   ringSides: 5, ringAspect: 1, ringRotation: 90, ringSpin: 125,
   easeStart: 0.56, easeFinish: 0.24,
-  spokeCount: 0, spokeLen: 64, spokeWidth: 5.5, spokeAlpha: 0.85, spokeGap: 19,
+  spokeCount: 0, spokeLen: 17, spokeWidth: 2, spokeAlpha: 0.85, spokeGap: 19,
   flashSize: 112, flashMs: 330, flashAlpha: 0.55,
-  sparkCount: 0, sparkSpeed: 250, sparkSpread: 100, sparkSize: 3, sparkLife: 700, sparkGravity: 180,
+  sparkCount: 26, sparkSpeed: 250, sparkSpread: 100, sparkSize: 3, sparkLife: 700, sparkGravity: 180,
   playScale: 1.1, autoScale: 1.05,
   wiggleMs: 350, wigglePx: 2, wiggleDeg: 1.8, wiggleScale: 1.05,
 };

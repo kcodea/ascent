@@ -790,6 +790,11 @@ export function useCombatReplay(
     const beat = beats[beatIdx - 1];
     if (!beat) return;
     const trig = new Set<string>();
+    // The player's uids: the initial player board + every player-side summon in the whole log. Enemy-sourced
+    // narrations (spell power, auras) are filtered against this so they never draw on the player's board and
+    // vice-versa. Cheap — a Set built once per beat effect from data already in scope.
+    const playerUids = new Set<string>((combat?.initial.player ?? []).map((u) => u.uid));
+    for (const ev of events) if (ev.type === 'summon' && ev.side === 'player') playerUids.add(ev.minion.uid);
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
       if (!e) continue;
@@ -815,9 +820,11 @@ export function useCombatReplay(
       if (!m) continue;
       const gA = Number(m[1]), gH = Number(m[2]);
       if (gA <= 0 && gH <= 0) continue;
-      // TODO(side): this draws on whichever unit sourced the narration, including an ENEMY one — the owner
-      // sees Aeon Guard's flourish on the opponent's half. The `sc` event carries no `side`, so the fix needs
-      // the replay's player/enemy uid sets rather than a field on the event. Not guessed at here.
+      // PLAYER-SIDE ONLY. The `sc` narration carries no `side`, and an ENEMY spell-power source (an enemy
+      // Aeon Guard) resolved to an enemy unit — so the flourish drew on the opponent's half of the board
+      // (owner report). Gate on a set of the player's uids: the initial player board plus everything the
+      // player summoned this fight. An enemy source isn't in the set, so it's skipped.
+      if (!playerUids.has(e.source)) continue;
       const el = findEl(e.source);
       if (!el) continue;
       const r = el.getBoundingClientRect();

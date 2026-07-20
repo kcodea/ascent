@@ -165,6 +165,13 @@ boots clean in the browser with no error boundary and both new counters reportin
 
 ## 2026-07-19 (set 2 empty)
 
+### feat(ui): Card Frames tuner — overlay BLEND modes (multiply / overlay / screen / color)
+
+Follow-up to the colour overlay below: a per-section **overlay blend** dropdown (`--fovl-blend` →
+`mix-blend-mode` on `.cframe-tint`). normal = flat wash · multiply = darkens, keeps engraving shadows · overlay
+= recolours preserving highlights/depth · screen = brightens · color = swaps hue/sat keeping luminosity (the
+truest "different metal"). Exported by Copy CSS with the rest. Verified: typecheck + lint + build green.
+
 ### feat(ui): Card Frames tuner — colour overlay + opacity knobs
 
 The 🖼️ Card Frames tuner gains a **colour-overlay experiment layer** per section (oval + spell): a new

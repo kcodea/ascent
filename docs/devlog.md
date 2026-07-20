@@ -3,6 +3,47 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-20 (odds sims)
+
+### perf(sim): cut the pre-combat odds sims 1000 → 200
+
+`reduce:faceOmen` had been the top hotspot in every capture (80–92ms at high waves) and the plan was to move
+`simulate()` to a Web Worker. **That would have fixed almost nothing.** Reading the loop rather than trusting
+the hotspot label:
+
+```js
+const combat = simulate(...);          // the REAL fight
+const ODDS_SIMS = 1000;
+for (let i = 0; i < ODDS_SIMS; i++) simulate(...);   // 1000 more, purely for the odds bar
+```
+
+Measured on a 7-minion wave-14 board:
+
+```
+faceOmen total     11.06ms
+the real combat     0.011ms
+the odds sims      11.05ms   ->  99.9% of the cost
+```
+
+One combat is effectively free. The stall was a thousand extra simulations run synchronously to render
+"73% win · 4% draw · 23% loss". A Worker migration would have moved 0.011ms off the main thread.
+
+`COMBAT_ODDS_SIMS` is now a documented module-level constant at **200** (owner call). It is a sampling
+problem and the display rounds to whole percent: the 95% confidence interval on a proportion is ±3.1% at
+n=1000 and ±3.5% at n=200 — invisible in a rounded number. The odds are computed off their own RNG tag
+(`TAG.ODDS`), consume no game randomness and feed nothing but the bar, so this cannot affect outcomes,
+replays or seeds.
+
+Verified: `faceOmen` **11.06ms → 3.56ms**; odds still deterministic for a given seed and still sum to 1;
+1226 tests, lint, build:web green, `typecheck:web` at its 48-error baseline.
+
+**One thing I could not verify.** I tried three times to construct a genuinely close matchup to measure real
+sampling noise, and every one came out decisive (0% or 100%) — a scan across enemy stats 6–12 found nothing
+between 15% and 85%. That suggests 1000 samples was wildly oversampled, but those boards were vanilla
+minions with no keywords; real boards carry Divine Shield, Venom, Rally and deathrattles, which branch more.
+So the empirical noise on real boards is **unmeasured**; only the mathematical bound above is established.
+If the bar ever looks jittery in play, raising this constant is a one-line, linear-cost dial.
+
 ## 2026-07-20 (discover pre-warm)
 
 ### perf(ui): pre-build the Discover overlay's Pixi app + mark its burst

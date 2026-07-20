@@ -3,6 +3,51 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-20
+
+### perf(ui): drag no longer re-renders at the monitor's refresh rate
+
+Found by the render counter added in #564, on its first real capture: buckets of **100–388 `recruit renders`
+per second**, and a jank frame (`t=79595`) with a **74ms long task whose only measured hotspot was a 0.4ms
+reducer call** — i.e. 74ms of React that nothing instrumented could see.
+
+The cause is `flushMove` calling `setDrag(...)` with a fresh object once per animation frame. It was already
+rAF-coalesced, and the existing comment concluded that was the end of it — *"the live insertion gap + spell
+line read drag.x/y, so we can't ref them out"*. But rAF fires at the **refresh rate**, so the same drag costs
+60 re-renders/sec on a 60Hz panel and **240/sec on a 240Hz one**. That is the owner's report that the game
+feels worse on a high-refresh monitor, and it is real — though not for the reason it looked like: nothing is
+fixed-timestep (verified separately when chasing the demon aura), it is that per-frame React state updates
+scale with refresh rate.
+
+**The fix separates the two rates.** Visuals stay frame-exact off a new `dragPosRef` (written on every raw
+pointermove): the floating card's transform, the spell aim line, and the motion trail all read it, and none
+of them need a render. React state only advances once the pointer has travelled `DRAG_STATE_QUANTUM_PX`
+(8px), or when a DISCRETE signal flips — going active, or crossing into another drop zone — since those must
+never be delayed.
+
+8px is safe because every position-derived value the render computes changes at **card-scale** distances
+(~100px): the insertion slot, the magnet hover target, the cast target, the lift threshold, the shop gap. A
+worst-case 8px lag is ~3ms of travel.
+
+**Drops are unaffected.** The whole drop path (`zone`, `magIdx`, `applyDrop`) reads `e.clientX/e.clientY`
+from the pointerup event, never the quantised state — so a card can never land in the wrong slot because of
+this. That was the property worth checking before shipping it.
+
+Measured in the browser, driving a real drag through the actual handlers:
+
+```
+slow drag, 1px per frame, 120 frames:
+  commits before (one per frame)  120
+  commits now                      16     -> 7.5x fewer
+300 pointermoves over 300px:        29 commits
+```
+
+Verified: 1226 tests, lint, build:web green; `typecheck:web` unchanged at its 48-error baseline; the app
+boots with no console errors and the board survives a full simulated drag intact.
+
+Still outstanding and unchanged: `reduce:faceOmen` (80ms peak, 5 of 13 jank frames in the last capture) —
+that needs the Worker migration and its own PR.
+
 ## 2026-07-19 (perf + FX pass)
 
 ### perf(ui): aim throttling, wave-count cap, weld stamp accumulation, attachment overlap, demon aura, render counters

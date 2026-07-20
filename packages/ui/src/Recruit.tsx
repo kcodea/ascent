@@ -67,6 +67,17 @@ const unkey = (k: string): { kind: AuraK; uid: string } => {
 };
 
 type DragSource = 'shop' | 'hand' | 'board';
+/**
+ * How far (px) the pointer must travel before a drag commits a new position to React state.
+ *
+ * Every commit re-renders Recruit. rAF-coalescing caps that at the REFRESH rate, which means a 240Hz
+ * monitor does 4x the React work of a 60Hz one for the same drag — measured at up to 388 renders/sec.
+ * Layout decisions (insertion slot, magnet target, cast target, lift threshold) change at card-scale
+ * distances, so 8px is far below anything visible (~3ms of travel) and cuts the render count several-fold.
+ * The card, aim line and trail are NOT throttled by this — they read `dragPosRef` and stay frame-exact.
+ */
+const DRAG_STATE_QUANTUM_PX = 8;
+
 type Zone = 'tavern' | 'warband' | 'hand';
 
 // px the pointer must move before a click becomes a drag — live-tunable via the DEV Drag tuner (dragFeel.ts).
@@ -1286,6 +1297,18 @@ export function Recruit() {
   const playFloorRef = useRef(Infinity);
   const dragRef = useRef<DragState | null>(null);
   dragRef.current = drag;
+  /**
+   * The EXACT live pointer position during a drag, updated on every pointermove.
+   *
+   * `drag.x/y` in React state is deliberately COARSE (see `DRAG_STATE_QUANTUM_PX` in the move handler): it
+   * only advances far enough to move a layout decision, because every update re-renders this component.
+   * Anything that must track the cursor smoothly — the floating card's transform, the spell aim line, the
+   * motion trail — reads this ref instead, so it stays frame-exact without costing a render.
+   */
+  const dragPosRef = useRef<{ x: number; y: number } | null>(null);
+  /** Mirrors the render's `castingSpell` / `castTargetUid` so `flushMove` can keep the spell aim line exact
+   *  (it runs every frame; the render now only runs on the quantum). Written during render, read per frame. */
+  const castAimRef = useRef<{ casting: boolean; onTarget: boolean }>({ casting: false, onTarget: false });
   // Weighted-drag motion: the floating .dragcard lags slightly behind the cursor and tilts toward its
   // motion. Driven by a per-frame rAF that writes the card's transform directly (no React re-render), so it
   // stays compositor-only. `dragCardRef` is the floating node; `dragMotionRef` holds its smoothed position.
@@ -1343,8 +1366,11 @@ export function Recruit() {
         m.ax += (d.w / 2 - m.ax) * kc;
         m.ay += (d.h / 2 - m.ay) * kc;
       }
-      const gx = d.x - m.rx;
-      const gy = d.y - m.ry;
+      // Chase the EXACT pointer, not the coarse committed state — `drag.x/y` only advances in quantum steps
+      // (each one is a re-render), so following it here would make the card visibly stair-step.
+      const live = dragPosRef.current ?? d;
+      const gx = live.x - m.rx;
+      const gy = live.y - m.ry;
       m.rx += gx * k;
       m.ry += gy * k;
       const clamp = (v: number): number => Math.max(-f.tiltMax, Math.min(f.tiltMax, v));
@@ -1702,25 +1728,50 @@ export function Recruit() {
     // Buying: a shop card released BELOW the board's midline (the background divider) buys it — the whole lower
     // half (warband row + hand). Above the line it snaps back, so a card hovered up by the offers won't buy.
     const inBuyRegion = (y: number): boolean => drag.source === 'shop' && y > midlineY;
-    // rAF-throttle the move: a high-Hz pointer (120/144Hz mice, trackpads) fires pointermove far more
-    // often than the screen repaints, and each event re-renders Recruit (the live insertion gap + spell
-    // line read drag.x/y, so we can't ref them out). Coalesce — keep only the latest position and apply
-    // it once per frame, capping re-renders at the refresh rate.
+    // Move handling has TWO rates, deliberately.
+    //
+    // rAF-coalescing alone caps re-renders at the REFRESH rate — which is 60/s on a 60Hz panel but 240/s on
+    // a 240Hz one, so a high-refresh monitor quadruples React's work for the identical drag. That showed up
+    // in the 2026-07-19 capture as buckets of 100-388 `recruit renders`/sec, and a 74ms long task whose only
+    // measured hotspot was a 0.4ms reducer call (i.e. it was all React).
+    //
+    // So: VISUALS run frame-exact off `dragPosRef` (card transform, aim line, trail — none of them need a
+    // render), while the React STATE only advances once the pointer has moved far enough to change a layout
+    // decision. Every derived value the render computes from the position — the insertion slot, the magnet
+    // hover target, the cast target, the lift threshold, the drop zone — changes at CARD-scale distances
+    // (~100px), so an 8px quantum is imperceptible (~3ms of travel) while cutting renders several-fold.
     // Motion-trail bookkeeping: the viewport point of the last wisp emit (null until the drag goes active).
     let trailLast: { x: number; y: number } | null = null;
     let moveRaf = 0;
     let lastMove: PointerEvent | null = null;
+    // The position/zone last pushed into React state — the baseline the quantum is measured against.
+    let committed: { x: number; y: number } | null = null;
+    let lastZone: Zone | null = null;
     const flushMove = (): void => {
       moveRaf = 0;
       const e = lastMove;
       if (!e) return;
       lastMove = null;
-      setDrag((d) => {
-        if (!d) return d;
-        const active = d.active || Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > getDragFeel().threshold;
-        return { ...d, x: e.clientX, y: e.clientY, active };
-      });
-      setOverZone(inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAtCached(e.clientX, e.clientY));
+      const d0 = dragRef.current;
+      const willBeActive = !!d0 && (d0.active || Math.hypot(e.clientX - d0.startX, e.clientY - d0.startY) > getDragFeel().threshold);
+      // Commit to React only when the position has moved a layout-relevant distance, or when a DISCRETE
+      // signal flips (going active, or crossing into another drop zone) — those must never be delayed.
+      const movedEnough =
+        !committed ||
+        Math.abs(e.clientX - committed.x) >= DRAG_STATE_QUANTUM_PX ||
+        Math.abs(e.clientY - committed.y) >= DRAG_STATE_QUANTUM_PX;
+      // The spell aim line follows the cursor EXACTLY (every frame), even though the state behind it only
+      // advances on the quantum — otherwise the line would visibly step in 8px jumps.
+      if (castAimRef.current.casting && d0) {
+        pixiFx.setAimLine({ x: d0.startX, y: d0.startY }, { x: e.clientX, y: e.clientY }, castAimRef.current.onTarget, getAimFxConfig());
+      }
+      const zone = inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAtCached(e.clientX, e.clientY);
+      if (movedEnough || willBeActive !== (d0?.active ?? false) || zone !== lastZone) {
+        committed = { x: e.clientX, y: e.clientY };
+        lastZone = zone;
+        setDrag((d) => (d ? { ...d, x: e.clientX, y: e.clientY, active: willBeActive } : d));
+        setOverZone(zone);
+      }
       // Wind-whoosh trail: distance-gated wisps behind the dragged card (gold for Divine Shield, blue for Reborn).
       const dNow = dragRef.current;
       if (dNow?.active) {
@@ -1740,10 +1791,12 @@ export function Recruit() {
       }
     };
     const onMove = (e: PointerEvent): void => {
+      dragPosRef.current = { x: e.clientX, y: e.clientY }; // exact, every event — the visual layers read this
       lastMove = e;
       if (!moveRaf) moveRaf = requestAnimationFrame(flushMove);
     };
     const onUp = (e: PointerEvent): void => {
+      dragPosRef.current = null; // this drag is over — never let its last point bleed into the next one
       const d = dragRef.current;
       // Recompute "did it move" from the up event too: with the rAF-throttle a flick completed inside one
       // frame may not have flushed `active` yet, but it's still a drag if the pointer cleared the threshold.
@@ -2345,7 +2398,10 @@ export function Recruit() {
   const aimingNow = !!((heroArmed || pendingTarget) || (castingSpell && drag));
   useEffect(() => {
     if (castingSpell && drag) {
-      pixiFx.setAimLine({ x: drag.startX, y: drag.startY }, { x: drag.x, y: drag.y }, !!castTargetUid, getAimFxConfig());
+      // Use the exact live position, not the quantised state, so this render-time placement agrees with the
+      // per-frame update in `flushMove` (otherwise the line would flick back 8px on every commit).
+      const lp = dragPosRef.current ?? { x: drag.x, y: drag.y };
+      pixiFx.setAimLine({ x: drag.startX, y: drag.startY }, lp, !!castTargetUid, getAimFxConfig());
     } else if (!heroArmed && !pendingTarget) {
       pixiFx.clearAimLine(); // no targeting gesture of any kind is live
     }
@@ -2489,6 +2545,7 @@ export function Recruit() {
   const castTargetUid = castingSpell
     ? boardUidAt(drag!.x, drag!.y) ?? (drag!.view.target === 'any' ? shopUidAt(drag!.x, drag!.y) : null)
     : null;
+  castAimRef.current = { casting: castingSpell, onTarget: !!castTargetUid };
   const draggingBoard = !!drag?.active && drag.source === 'board';
   const overWarband =
     !!drag?.active &&

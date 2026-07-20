@@ -40,6 +40,9 @@ export interface LiveTextParams {
   /** Triple-reward Discover spell: the tier captured when it was granted, so its "peek one tier up" text stays
    *  frozen (falls back to the live run tier when absent). */
   grantedTier?: number;
+  /** The run's tier ceiling (`maxTierFor(run.rift)`) — Summit raises it to 7, so the Discover spell's printed
+   *  "Tier N" must clamp to the RUN's ceiling, not the global one. Falls back to CONFIG.maxTier. */
+  maxTier?: number;
 }
 
 /**
@@ -51,7 +54,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
   const c = CARD_INDEX[cardId];
   const text =
     c.id === 'discoverspell'
-      ? `**Discover** a **Tier ${Math.min(CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
+      ? `**Discover** a **Tier ${Math.min(p.maxTier ?? CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
       : c.spell
         ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0)
         : transformProgressText(c.id, p.spellProgress ?? 0) ??

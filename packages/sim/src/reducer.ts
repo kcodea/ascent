@@ -1,7 +1,7 @@
 import { combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type PendingCombatQuest, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES } from '@game/content';
 import { poolOf, setIdOf } from './cardPool';
-import { CONFIG } from './config';
+import { CONFIG, maxTierFor } from './config';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
@@ -949,10 +949,11 @@ function reduceCore(state: RunState, action: Action): RunState {
 
     case 'upgrade': {
       const cost = upgradeCostOf(s); // includes Hermit Hank's +2 surcharge
-      if (s.tier >= CONFIG.maxTier || s.embers < cost) return state;
+      const ceiling = maxTierFor(s.rift); // Summit raises it to 7
+      if (s.tier >= ceiling || s.embers < cost) return state;
       spendGold(s, cost);
       s.tier += 1;
-      s.upgradeCost = s.tier >= CONFIG.maxTier ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
+      s.upgradeCost = s.tier >= ceiling ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
       return s;
     }
 
@@ -1944,7 +1945,7 @@ function advanceCombat(s: RunState): void {
   for (const c of s.board) {
     c.resummon = false; // The Reclaimer's mark is a per-turn choice
   }
-  if (s.tier < CONFIG.maxTier) {
+  if (s.tier < maxTierFor(s.rift)) {
     s.upgradeCost = Math.max(CONFIG.upgradeCostFloor, s.upgradeCost - CONFIG.upgradeDiscountPerWave);
   }
   const previous = s.threat;
@@ -2416,7 +2417,7 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
     case 'discover': {
       // Reward-kind 'discover' — open a minion Discover at your CURRENT tier, or at `r.tier` when the reward pins
       // one (Rune of the Scout → Tier 5, Rune of the Champion → Tier 6). Clamped to the engine's max tier.
-      const t = Math.min(r.tier ?? s.tier, CONFIG.maxTier);
+      const t = Math.min(r.tier ?? s.tier, maxTierFor(s.rift));
       openDiscover(s, { kind: 'minion', tier: t, exactTier: t });
       break;
     }

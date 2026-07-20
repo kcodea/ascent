@@ -40,6 +40,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+- **Tier 7 + the Summit rift** — Summit grants every hero +10 Armor and unlocks a Tier 7 shop; triples at
+  Tier 6/7 discover Tier 7 minions. A purple Rift button now sits above Play whenever a rift is active.
+  (Tier 7 minions themselves land next.)
 - **New card art** for Sylus, Brightwing Broker, Combinator and Aeon Guard.
 - **Balance pass** — Ryme gains Taunt and triggers both neighbours; Brightwing Broker now buffs your whole
   board on a buy; Combinator welds 2; Grim scales +2/+2 and gains a Gilded form; Guardian Drake gains

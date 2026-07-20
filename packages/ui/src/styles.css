@@ -17,6 +17,8 @@
   --gold: #c8922e; --gold-lt: #e6b45a; /* HUD plaque trim (matches the shopbutton frame) */
   /* Tier palette — one source of truth for the card tier badges + the SHOP TIER label. */
   --tier-1: #74809a; --tier-2: #1f9d6b; --tier-3: #2b82d4; --tier-4: #7b54c8; --tier-5: #ef8a25; --tier-6: #e0395f;
+  /* Tier 7 — Summit rift only. Rift-purple, deliberately outside the 1-6 ramp so it reads as "beyond the ladder". */
+  --tier-7: #9b4dff;
   --mana: #f4be35; --mana-dk: #a8780f; /* Gold (the economy / cost color). --mana var kept internally */
   /* The game renders into a centred "stage" box, LOCKED to 16:9 — the design aspect. Everything sizes off the box
      (--gw/--gh), not the raw viewport, so the UI never reflows with screen size; a wider/taller window just adds
@@ -488,6 +490,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .statcell.tier[data-tier='4'] .sc-v { color: var(--tier-4); }
 .statcell.tier[data-tier='5'] .sc-v { color: var(--tier-5); }
 .statcell.tier[data-tier='6'] .sc-v { color: var(--tier-6); }
+.statcell.tier[data-tier='7'] .sc-v { color: var(--tier-7); }
 /* Time cell — smaller tabular digits; fills red-tinted in the final 5s. */
 .statcell.time .sc-v { font-size: calc(21 * var(--u)); }
 .statcell.time.low { background: color-mix(in srgb, var(--threat) 14%, var(--card)); }
@@ -1237,6 +1240,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .tierbadge[data-tier="4"] { background: var(--tier-4); }
 .tierbadge[data-tier="5"] { background: var(--tier-5); }
 .tierbadge[data-tier="6"] { background: var(--tier-6); }
+.tierbadge[data-tier="7"] { background: var(--tier-7); }
 /* Disco Dan's Setlist lock — a greyed, desaturated card with a padlock ribbon + the tier it unlocks at. */
 .card.locked { filter: grayscale(0.72) brightness(0.82); cursor: not-allowed; }
 .cardlock { position: absolute; inset: 0; z-index: 8; display: grid; place-content: center; gap: 4px; justify-items: center;
@@ -4103,3 +4107,53 @@ svg { width: 18px; height: 18px; }
   border: 1px solid var(--line); border-radius: 7px; background: var(--bg2); color: var(--ink2);
 }
 .perfhud-btns button:hover { background: color-mix(in srgb, var(--acc) 14%, var(--card)); color: var(--acc-dk); border-color: var(--acc); }
+
+/* ---- RIFT button (RiftButton.tsx) — the purple swirling plaque above the End Turn diamond, mounted only
+   while a rift is active. Shares the diamond's stage anchor (--etb-x/y) like the combat Summary pill, one
+   slot further up. PERF: the swirl animates TRANSFORM ONLY (a rotating conic layer clipped by the radius) —
+   never filter / box-shadow / background-position, which repaint every frame in a loop. */
+.riftbtn {
+  position: fixed;
+  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 140px) * var(--scale));
+  top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--etb-y, 32px) - 142px) * var(--scale));
+  transform: translate(-50%, -50%);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.08em; color: #f3e9ff;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #2a1442, #180b28);
+  border: 2px solid color-mix(in srgb, var(--tier-7) 60%, #000);
+  border-radius: 12px; padding: 8px 20px;
+  box-shadow: 0 3px 10px -3px rgba(0, 0, 0, 0.65), 0 0 14px -4px var(--tier-7);
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+  z-index: 41;
+  overflow: hidden; /* clips the swirl layer to the plaque's rounded box */
+  isolation: isolate;
+}
+.riftbtn-swirl {
+  position: absolute; inset: -60%;
+  background: conic-gradient(from 0deg, transparent 0deg, color-mix(in srgb, var(--tier-7) 70%, transparent) 60deg,
+              transparent 140deg, color-mix(in srgb, #4bc0ff 55%, transparent) 220deg, transparent 300deg);
+  opacity: 0.5;
+  animation: riftswirl 9s linear infinite;
+  will-change: transform;
+  z-index: -1;
+}
+@keyframes riftswirl { to { transform: rotate(360deg); } }
+.riftbtn-label { position: relative; }
+.riftbtn:hover { border-color: var(--tier-7); color: #fff; }
+.riftbtn:hover .riftbtn-swirl,
+.riftbtn.pinned .riftbtn-swirl { opacity: 0.75; }
+.riftbtn-tip {
+  position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%);
+  display: none; flex-direction: column; gap: 3px;
+  min-width: 190px; max-width: 260px; padding: 9px 12px;
+  background: linear-gradient(180deg, #1b1410f2, #120d09f2);
+  border: 1px solid color-mix(in srgb, var(--tier-7) 45%, #000);
+  border-radius: 9px; box-shadow: 0 6px 18px -6px rgba(0, 0, 0, 0.8);
+  font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: none; color: #f4ecdb;
+  pointer-events: none; z-index: 60;
+}
+.riftbtn:hover .riftbtn-tip,
+.riftbtn.pinned .riftbtn-tip { display: flex; } /* .pinned = the click/touch path (no hover) */
+.riftbtn-tip-body { font-weight: 600; color: #cfc4b4; line-height: 1.35; }
+@media (prefers-reduced-motion: reduce) { .riftbtn-swirl { animation: none; } }

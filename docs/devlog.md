@@ -3,6 +3,50 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-20 (tier 7 + Summit rift)
+
+### feat(sim/ui): Tier 7 behind the Summit rift, +10 Armor, and a Rift button
+
+**Summit** is a new rift: every hero gains **+10 Armor**, and the shop ceiling rises from Tier 6 to **Tier 7**.
+It is `enabled: true`, so new runs adopt it — see the caveat at the bottom.
+
+**The ceiling is per-run, not global.** `CONFIG.maxTier` stays 6. A new `maxTierFor(rift)` returns 7 only for
+Summit, and every ceiling now routes through it: the tavern-up gate, the "cost is 0 at max" rule, the
+per-wave upgrade-cost decay, the rune-granted Discover clamp, both `offerDiscover` clamps, and the gild cap.
+Bumping the global constant instead would have let *every* run reach Tier 7. It reads the RUN's pinned
+`rift`, never the live registry, so a replayed Summit run keeps its ceiling after the switch flips off.
+
+`upgradeCost` gains `7: 12`. Without it, `?? 0` at the upgrade site would have made Tier 7 **free** — the
+single nastiest trap in this change.
+
+**Triples fall out for free.** The triple's Discover reward is `tierOffset: 1` clamped to the ceiling, so
+under Summit a triple at Tier 6 *or* 7 discovers a Tier 7 minion, exactly as specced, with no new branch.
+
+`POOL_QUANTITIES` already carried `7: 6`, so the "6 copies" requirement needed no change.
+
+**UI.** `--tier-7` (rift-purple `#9b4dff`, deliberately outside the 1-6 ramp), tier-7 badge + statcell rules,
+`MinionBook` tiers, `BalancePanel` MAX_TIER, and a 7th tavern-up pip. The Tier 7 pip art is a **PLACEHOLDER**
+(a copy of tier 6) pending real art. `Recruit` passes `maxTierFor(run.rift)` to the tavern stone, and the
+Discover spell's printed "Tier N" now clamps to the run ceiling via a new optional `maxTier` live-text param.
+
+**The Rift button** (`RiftButton.tsx`) is a purple swirling plaque above the End Turn diamond, mounted only
+in the shop phase when the run has a pinned rift; hover shows the rules, click pins them (the touch path).
+It shares the diamond's `--etb-x/y` anchor like the combat Summary pill (which is combat-only, so they never
+co-exist). Per `docs/performance.md` the swirl is a LOOPING animation and therefore animates **transform
+only** — a rotating conic layer clipped by the radius, never `filter`/`box-shadow`/`background-position`.
+It owns its own open state rather than threading another `useState` through `Recruit.tsx`, a declared
+conflict chokepoint.
+
+Verified: 1232 tests (4 new), typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+Live on a throwaway run: Summit pinned, Warden 12 -> **22** Armor on both `armor` and `maxArmor`, tavern up
+1 -> 7 with costs `7/8/11/10/12/0` and the upgrade correctly rejected at 7, the tier-7 pip lit, the stone in
+its `maxed` state, 6 shop slots, the RIFT button rendering, and no error boundary.
+
+**Two caveats.** (1) Summit ships **enabled**, so it is the default experience for new runs — flip
+`enabled: false` in `RIFTS` to park it. (2) **There are no Tier 7 cards yet** (verified: zero cards at tier
+7), so reaching Tier 7 today unlocks an empty tier — the shop simply keeps offering Tiers 1-6. The 8 Tier 7
+minions are the next PR; until they land, Summit is +10 Armor and an expensive dead-end tavern-up.
+
 ## 2026-07-20 (art)
 
 ### art: new card art for Sylus, Brightwing Broker, Combinator, Aeon Guard

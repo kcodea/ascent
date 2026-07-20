@@ -1,7 +1,7 @@
 import { makeRng } from '@game/core';
 import type { CombatOutcome, CombatResult, EffectDef, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
 import { CARD_INDEX, activeSet, poolFor, type SetId } from '@game/content';
-import { CONFIG, activeRift, type RiftId } from './config';
+import { CONFIG, RIFT_BONUS_ARMOR, activeRift, type RiftId } from './config';
 import { DEFAULT_HERO_ID, getHero } from './heroes';
 import { queueDiscover } from './recruit';
 import { rollShop, stockPool } from './shop';
@@ -805,6 +805,10 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
   // The hero's Resolve is the run's starting (and max) HP; Armor is extra effective HP layered on top.
   const hero = getHero(heroId);
   const startResolve = hero.resolve;
+  // Pin the rift ONCE and derive from that same value, so the Armor bonus and `state.rift` can never
+  // disagree (calling activeRift() twice would also read the registry twice).
+  const pinnedRift = activeRift()?.id ?? null;
+  const riftArmor = RIFT_BONUS_ARMOR[pinnedRift as RiftId] ?? 0; // Summit: +10 to every hero
   const state: RunState = {
     seed,
     mode,
@@ -816,8 +820,8 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     maxEmbers: CONFIG.startEmbers,
     resolve: startResolve,
     maxResolve: startResolve,
-    armor: hero.armor,
-    maxArmor: hero.armor,
+    armor: hero.armor + riftArmor,
+    maxArmor: hero.armor + riftArmor,
     tier: 1,
     upgradeCost: CONFIG.upgradeCost[2] ?? 5,
     frozen: false,
@@ -865,7 +869,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     recruitBuffFx: [],
     recruitFxSeq: 0,
     karwindFlashSeq: 0,
-    rift: activeRift()?.id ?? null, // pin the live rift so replays keep it after the switch flips off
+    rift: pinnedRift, // pin the live rift so replays keep it after the switch flips off
     setId: activeSet().id, // …and the live card set, for the same reason (see RunState.setId)
   };
   rollShop(state);

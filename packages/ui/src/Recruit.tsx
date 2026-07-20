@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { CONFIG, conjuredStats, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
+import { CONFIG, RIFTS, maxTierFor, conjuredStats, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
@@ -8,6 +8,7 @@ import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
 import { HudBar } from './HudBar';
 import { EndTurnButton } from './EndTurnButton';
+import { RiftButton } from './RiftButton';
 import { TavernUpButton } from './TavernUpButton';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
@@ -3213,6 +3214,12 @@ export function Recruit() {
           Summary
         </button>
       )}
+      {/* RIFT — the purple swirling plaque directly above the diamond, mounted only while this run has a
+          pinned rift and only in the SHOP phase (in combat that slot belongs to the Summary pill). Reads
+          run.rift, never the live registry, so a replayed run still shows the rift it was played under. */}
+      {!inCombat && run.rift && RIFTS[run.rift] && (
+        <RiftButton rift={RIFTS[run.rift]} />
+      )}
       <EndTurnButton
         onEndTurn={endTurn}
         onEndCombat={endCombat}
@@ -3230,7 +3237,7 @@ export function Recruit() {
           art at full strength. The max-tier condition lives in the component (the broken "complete" gem). */}
       <TavernUpButton
         tier={run.tier}
-        maxTier={CONFIG.maxTier}
+        maxTier={maxTierFor(run.rift)} // Summit raises the ceiling to 7
         cost={upgradeCostOf(run)}
         disabled={run.embers < upgradeCostOf(run) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
         combat={inCombat}

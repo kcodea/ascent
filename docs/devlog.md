@@ -3,6 +3,32 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21w (quest art rewire)
+
+### chore(ui): rewire the four mismatched quest arts
+
+Four quests whose source art matched by ID or by an obvious filename typo rather than by their current
+NAME, so they'd been left on stale/mismatched images:
+
+| Source | Quest | Why it didn't match by name |
+|---|---|---|
+| `BoneThrone.png` | `q_the_bone_throne` | quest is "The Bone Throne" |
+| `TrohpyDen.png` | `q_trophy_den` | typo in the filename |
+| `MawOfTheRun.png` | `q_maw_of_the_run` | quest renamed to "Track and Fodder" |
+| `TheImpossibleShop.png` | `q_impossible_shop` | quest renamed to "Taurus Ascension" |
+
+Converted to 512×512 webp (`sharp`, q82) to match every other quest art — the source PNGs are ~2.5MB each,
+so copying them verbatim would have added ~10MB to the bundle for four images. Result: 27–70KB each, in line
+with the existing set.
+
+NOT touched: the 7 UUID-named files in that folder (un-attributed — the standing rule is to wire art only on
+a filename match, never a guess), and the stale files matching no current quest (`Bloodlust`, `GraveToll`,
+`FirstTracks`, `EpicCommission`, `ShieldCalibration`, `ToothAndTempo`, `TrailRations`, `TaragosasInheritence`
+— the last a spelling twin of the already-wired `TaragosasInheritance`).
+
+Verified: all 80 quests have art, zero byte-duplicate images in the folder, and typecheck + lint + 1277 tests
++ `build:web` green.
+
 ## 2026-07-21v (Aeon Guard: spell power on the beat)
 
 ### fix(ui): the spell-power flourish fires per End-of-Turn proc, not at Start of Combat

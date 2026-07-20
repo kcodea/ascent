@@ -3807,3 +3807,33 @@ describe("Mauron's adjacent splash (not Cleave)", () => {
     expect(CARD_INDEX['mauron']!.splashAdjacent).toBe(true);
   });
 });
+
+describe('Rally quest tally counts EXTRA fires (Uron)', () => {
+  // Owner bug 2026-07-21: with Uron out, two rallying minions read as 2 toward "Trigger 7 Rallies" instead
+  // of 4. Uron's extra rally fires re-ran the effects but never bumped the tally, while the older additive
+  // doublers always had.
+  //
+  // The invariant is tally PER RALLY ATTACK, not a raw total: Uron also multiplies End of Turn and Start of
+  // Combat, so it changes how the fight plays out and therefore how many swings happen. Comparing raw totals
+  // measured fight length as much as the fix (81 vs 118 — increasing, but not the 2x the rule implies).
+  const perAttack = (withUron: boolean): number => {
+    const r = run(
+      [
+        { cardId: 'supporter', attack: 2, health: 300 }, // RL
+        { cardId: 'supporter', attack: 2, health: 300 }, // RL
+        { cardId: withUron ? 'uron' : 'joker', attack: 7, health: 300 }, // placebo keeps board size fixed
+      ],
+      [{ cardId: 'omen', attack: 1, health: 4000, keywords: [] }],
+      9,
+    );
+    const rlUids = new Set(r.initial.player.filter((m) => m.cardId === 'supporter').map((m) => m.uid));
+    const swings = r.events.filter((e) => e.type === 'attack' && rlUids.has(e.attacker)).length;
+    expect(swings).toBeGreaterThan(0);
+    return (r.playerRallies ?? 0) / swings;
+  };
+
+  it('one Rally per swing normally, TWO per swing with Uron', () => {
+    expect(perAttack(false)).toBe(1);
+    expect(perAttack(true)).toBe(2);
+  });
+});

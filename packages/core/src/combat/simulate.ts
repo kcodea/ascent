@@ -1192,6 +1192,11 @@ export function simulate(
           FACTORIES[effect.do]?.(ctx, attacker, effect.params ?? {}, { minion: attacker, side: attacker.side, target });
         }
       }
+      // …and each of those extra fires COUNTS as a Rally trigger, exactly like the additive doublers below
+      // (Law of Teeth / Rallying Offensive / Infinite Assembly / Spark Permit) already do. Missing this was
+      // a real bug: with Uron out, two rallying minions read as 2 toward "Trigger 7 Rallies" instead of 4
+      // (owner report). Player-only, matching every other quest tally.
+      if (attacker.side === 'player') bumpRally(rallyExtra);
       // The Old Hunt: each Beast attack pumps that SIDE's run-wide Beast Attack aura by `oldHuntStep` — live
       // (every current Beast gains it; later summons inherit via the grown aura). A served enemy pumps its own
       // captured aura; the player also carries the gain back (the enemy has no run to persist to).

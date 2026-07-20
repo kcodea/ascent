@@ -3673,7 +3673,7 @@ describe('Tier 7 (Summit) minions — combat effects', () => {
   });
 });
 
-describe('Uron, Oathbringer — multiplies six trigger families', () => {
+describe('Uron / Zyff — the split trigger multipliers', () => {
   it('doubles Start of Combat effects (a family with no prior multiplier)', () => {
     // Kennelmaster carries a real Start-of-Combat Beast aura; count the sc narrations it emits.
     const withUron = (uron: boolean) => run(
@@ -3689,7 +3689,7 @@ describe('Uron, Oathbringer — multiplies six trigger families', () => {
     expect(scEvents(withUron(true))).toBeGreaterThan(scEvents(withUron(false)));
   });
 
-  it('doubles Deathrattles — and STACKS additively with Sylus', () => {
+  it('ZYFF doubles Deathrattles — and STACKS additively with Sylus', () => {
     // Grim's Echo buffs Beasts by the tally; count its buff events as the proc count.
     const procs = (extra: { cardId: string; attack: number; health: number }[]): number =>
       run(
@@ -3702,19 +3702,21 @@ describe('Uron, Oathbringer — multiplies six trigger families', () => {
         6,
       ).events.filter((e) => e.type === 'buff' && e.attack === 2).length;
     const none = procs([]);
-    const uron = procs([{ cardId: 'uron', attack: 7, health: 80 }]);
-    const both = procs([{ cardId: 'uron', attack: 7, health: 80 }, { cardId: 'sylus', attack: 1, health: 80 }]);
-    expect(uron).toBe(none + 1); // +1 fire
-    expect(both).toBe(none + 2); // Sylus stacks on top of Uron
+    const zyff = procs([{ cardId: 'zyff', attack: 6, health: 80 }]);
+    const both = procs([{ cardId: 'zyff', attack: 6, health: 80 }, { cardId: 'sylus', attack: 1, health: 80 }]);
+    expect(zyff).toBe(none + 1); // +1 fire
+    expect(both).toBe(none + 2); // Sylus stacks on top of Zyff
+    // Uron no longer touches Echoes at all — that half is Zyff's.
+    expect(procs([{ cardId: 'uron', attack: 7, health: 80 }])).toBe(none);
   });
 
-  it('does NOT stack with itself (two Urons are still +1)', () => {
+  it('does NOT stack with itself (two Zyffs are still +1)', () => {
     const procs = (n: number): number =>
       run(
         [
           { cardId: 'grim', attack: 1, health: 1 },
           { cardId: 'alley', attack: 2, health: 80 },
-          ...Array.from({ length: n }, () => ({ cardId: 'uron', attack: 7, health: 80 })),
+          ...Array.from({ length: n }, () => ({ cardId: 'zyff', attack: 6, health: 80 })),
         ],
         [{ cardId: 'omen', attack: 1, health: 300 }],
         6,

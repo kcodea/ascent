@@ -31,22 +31,46 @@ describe('extraTriggerFires — the shared multiplier resolver', () => {
     expect(extraTriggerFires('rally', board(['chronos']), get)).toBe(0);
   });
 
-  it('Uron covers all six families, and does not stack with itself', () => {
-    const families: TriggerFamily[] = ['battlecry', 'deathrattle', 'rally', 'slaughter', 'endOfTurn', 'startOfCombat'];
-    for (const f of families) {
+  it('Uron covers the COMBAT families, and does not stack with itself', () => {
+    const mine: TriggerFamily[] = ['rally', 'endOfTurn', 'startOfCombat'];
+    for (const f of mine) {
       expect(extraTriggerFires(f, board(['uron']), get), f).toBe(1);
       expect(extraTriggerFires(f, board(['uron'], ['uron']), get), f).toBe(1); // best copy only
       expect(extraTriggerFires(f, board(['uron', true]), get), f).toBe(2); // golden
     }
+    // Shouts and Echoes are Zyff's half of the pair — Uron must NOT touch them.
+    for (const f of ['battlecry', 'deathrattle'] as TriggerFamily[]) {
+      expect(extraTriggerFires(f, board(['uron']), get), f).toBe(0);
+    }
+  });
+
+  it('Zyff covers Shouts + Echoes only, and does not stack with itself', () => {
+    for (const f of ['battlecry', 'deathrattle'] as TriggerFamily[]) {
+      expect(extraTriggerFires(f, board(['zyff']), get), f).toBe(1);
+      expect(extraTriggerFires(f, board(['zyff'], ['zyff']), get), f).toBe(1);
+      expect(extraTriggerFires(f, board(['zyff', true]), get), f).toBe(2);
+    }
+    for (const f of ['rally', 'endOfTurn', 'startOfCombat'] as TriggerFamily[]) {
+      expect(extraTriggerFires(f, board(['zyff']), get), f).toBe(0);
+    }
+  });
+
+  it('Uron + Zyff together cover five families, neither treading on the other', () => {
+    const both = board(['uron'], ['zyff']);
+    for (const f of ['battlecry', 'deathrattle', 'rally', 'endOfTurn', 'startOfCombat'] as TriggerFamily[]) {
+      expect(extraTriggerFires(f, both, get), f).toBe(1);
+    }
+    // Slaughter now has NO multiplier at all — the family stays supported, nothing declares it.
+    expect(extraTriggerFires('slaughter', both, get)).toBe(0);
   });
 
   it('stacking and non-stacking multipliers combine ADDITIVELY', () => {
-    // Sylus (stacking, +1) + Uron (best-copy, +1) on Deathrattles = +2.
-    expect(extraTriggerFires('deathrattle', board(['sylus'], ['uron']), get)).toBe(2);
-    expect(extraTriggerFires('deathrattle', board(['sylus'], ['sylus'], ['uron', true]), get)).toBe(4);
-    // Drakko + Uron both non-stacking on Battlecries → the single best contribution, not the sum.
-    expect(extraTriggerFires('battlecry', board(['drummer'], ['uron']), get)).toBe(1);
-    expect(extraTriggerFires('battlecry', board(['drummer', true], ['uron']), get)).toBe(2);
+    // Sylus (stacking, +1) + Zyff (best-copy, +1) on Deathrattles = +2.
+    expect(extraTriggerFires('deathrattle', board(['sylus'], ['zyff']), get)).toBe(2);
+    expect(extraTriggerFires('deathrattle', board(['sylus'], ['sylus'], ['zyff', true]), get)).toBe(4);
+    // Drakko + Zyff both non-stacking on Battlecries → the single best contribution, not the sum.
+    expect(extraTriggerFires('battlecry', board(['drummer'], ['zyff']), get)).toBe(1);
+    expect(extraTriggerFires('battlecry', board(['drummer', true], ['zyff']), get)).toBe(2);
   });
 
   it('an empty board and unknown ids contribute nothing', () => {

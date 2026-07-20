@@ -3,6 +3,143 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-20 (compendium palette reverted)
+
+### revert(ui): the Compendium goes back to the original cream
+
+Owner call after seeing both attempts — the soft blue and then `#004c8a` — neither landed, so the palette
+reverts to the game's standard cream (`--card`/`--ink`/`--line` from `:root`). The scoped `.book` var block
+and the explicit surface overrides are removed entirely; the original accent-mixed header/rail gradients
+come back with them.
+
+**Kept deliberately** — these were separate, approved asks, not part of the colour experiment:
+- the overlap fix (the text drawer sits in flow inside the Compendium)
+- the top-line headroom, so the first row's TIER pill clears the frame
+- heroes on the dark-glass panel
+- the larger window + 10% larger cards
+
+**The tuner stays, with its defaults re-pointed at the cream.** Left on the navy values, `Reset` would have
+snapped the book to a scheme that no longer ships, and opening the panel would have silently re-tinted it —
+the tuner is now a no-op until you actually move something.
+
+Verified after the revert: `--card` resolves to `#fffdf8` with dark ink, no `booktuner` style leaking into
+the page, the window still fills 92% x 90% of the viewport, and 129 cells with **0 overlaps** — the spacing
+fix survives the palette going back.
+
+## 2026-07-20 (compendium tuner)
+
+### feat(ui): a dev tuner for the Compendium palette, with a gradient option
+
+I picked `#004c8a` badly and hand-iterating a palette through me is slow — so the palette is now a **dev
+tuner** (`📖 Compendium Palette` in the dev menu) rather than a value I guess at. Standard tuner pattern:
+a draggable panel writing a specificity-bumped override `<style>`, live on the open Compendium, with
+**Copy CSS** to bake the result into `styles.css` and **Reset** back to shipped.
+
+Seven pickers — surface, header bar, side rail, buttons/tabs, borders, text, dim text — plus a **gradient**
+section: an on/off toggle, a top colour, and a falloff % (how far the top colour reaches before landing on
+the surface). Falloff at 0 is visually identical to flat, so the gradient only ever *adds* depth to the
+flat pick rather than replacing it.
+
+The knob set is deliberate, not arbitrary — each one is a trap already hit while hand-picking the navy:
+- **the surface is stated directly**, because the panel used to mix the gold accent in and render grey from
+  a correct colour var;
+- **buttons/tabs (`--bg2`) is its own knob**, because inverting to a dark surface left the rail, tier tabs,
+  Glossary/Gilded, close and search pale-on-pale.
+
+Verified live rather than assumed: the panel mounts with 8 colour inputs and the gradient toggle; driving
+the surface picker repainted the book (`rgb(0,76,138)` → `rgb(122,31,61)` in the computed background);
+toggling the gradient off produced a genuinely flat fill (`background-image: none`); Reset restored the
+shipped palette.
+
+Dev-only — mounted from `DevMenu`, stripped from production.
+
+## 2026-07-20 (compendium palette + scale)
+
+### tweak(ui): Compendium scale — larger window + 10% larger cards (the blue palette was REVERTED)
+
+Owner call — the cream reading surface was bright and tiring at full size.
+
+**Palette — `#004c8a` (owner pick).** That is a DEEP navy, so the panel INVERTS: the surface goes dark and
+the text goes light with it. Done by re-declaring the shared `--card` / `--line` / `--ink` / `--ink2` /
+`--ink3` / `--bg` / `--bg2` vars **scoped to `.book`**, so every descendant rule picks it up without editing
+them one by one. Cards and hero panels state their own explicit colours (the dark-glass drawer), so they sit
+on the navy unchanged — the inversion cost nothing there.
+
+Two things needed a second pass, both caught by looking rather than by reading the CSS:
+1. The panel and header mixed the **gold accent** into the surface (`color-mix(… var(--acc) …)`), which
+   desaturated the blue straight back to grey — the var was right, the rendered colour was not. Both
+   surfaces are now stated in blue directly; gold stays on icons, the active tab and the inset ring.
+2. On the inverted palette the **control chrome went invisible** — rail buttons, tier tabs, Glossary/Gilded,
+   close and search all read `--bg2`, which was still light, so a pale button carried the new pale text.
+   `--bg2`/`--bg3` are now dark too. Sampled after the fix: rail button `#0f5f7a` bg on `#eef5fd` text.
+
+**Window size.** The `1700x1000` caps were what actually limited it on a large display, not the viewport
+percentages — raised to `2300x1450`, so it now fills **95% x 93%** of the viewport (measured) as in the
+owner's mock.
+
+**Card scale.** `--ch` (the card metric that drives the whole grid) `clamp(212px, 26vh, 276px)` →
+`clamp(233px, 28.6vh, 304px)`, plus the header title/sub sized to match. The panel box is already
+viewport-capped, so scaling the card metric is what actually reads as "bigger".
+
+Verified live: 0 overlapping cells at the new size (the spacing fix holds), `--card` resolves to `#d6e2f1`,
+surfaces render blue rather than grey.
+
+## 2026-07-20 (compendium polish + Zyff)
+
+### tweak(ui/content): Compendium polish, the Uron/Zyff multiplier split, and Zyff the Betrayer
+
+**Compendium** (three owner notes):
+- The first row's TIER pill was clipped — it rides ABOVE the archbox, so the grid's flat `24px` top padding
+  never accounted for it. Top padding is now `--ccw * 0.17`, derived from the card metric so it scales with
+  the cards instead of being a magic number.
+- **Heroes wear the dark-glass panel** now, matching the minion text drawer. The cream `--card` panel read
+  as a different component sitting in the same grid; colours mirror `.card.compact.showtext .drawer`.
+- Row gap `30px -> 42px` for the cards that were still tight.
+
+**The multiplier split.** Uron gave up Shouts, Echoes and Slaughters, keeping Rally / End of Turn / Start of
+Combat — the combat-side families. **Zyff, the Betrayer** (T7 neutral 6/6) takes Shouts + Echoes. Both are
+non-stacking, so a Uron and a Zyff cover five families between them without treading on each other, and
+Slaughter now has NO multiplier at all — the family stays supported, nothing declares it. Because the
+system is data-driven, this was a `families` edit on two cards and zero engine changes.
+
+Zyff stacks with the existing multipliers exactly as any pair does: Sylus (stacking) sums with it for +2
+Echoes, Drakko (non-stacking) takes the best single contribution on Shouts.
+
+**Stats note:** Zyff's tier/tribe/stats were not specified — T7 neutral 6/6 is my call, sized just under
+Uron's 7/7 since its two families are the higher-frequency ones. Flagged for the owner to re-price.
+
+Verified: 1257 tests (3 new — Zyff's coverage, Uron's narrowed coverage, and the pair together), typecheck,
+lint, build:web green; `typecheck:web` at its 48-error baseline. Live: no tier pill clipped above the grid,
+heroes render on dark glass, Brackus reads correctly in the hero list.
+
+## 2026-07-20 (compendium spacing)
+
+### fix(ui): the Compendium grid collided with itself — put the text drawer in flow there
+
+Owner report: the Compendium was "pretty busted". Tier 7 was the worst case — cards' text panels crashed
+straight through the row below them.
+
+**Cause.** The card's text drawer is `position: absolute` (owner call 2026-07-19: in centered contexts —
+Discover, inspect, rows — an in-flow drawer grew the card element and moved the *frame*, which had to stop).
+The Compendium compensated with a fixed row gap of `--ch * 0.45` — a guess at the panel's height. Any card
+whose text ran longer than that guess overflowed into the next row, which is why Tier 7 looked worst: Uron,
+Amun Rab and Anubis carry the longest text in the game.
+
+**Fix, scoped to the Compendium only.** It is a BROWSING grid, not a centered context, so the drawer sits
+**in flow** there — rows then size to the real panel height and can never collide, however long the text.
+The absolute positioning everywhere else is untouched, so the 2026-07-19 behaviour this rule deliberately
+does not undo stays intact. With the guess gone, the row gap drops to a normal `30px` and cells align to
+`start`.
+
+Verified in the browser by measuring, not by eye: for every pair of cells, do their boxes intersect?
+
+```
+tier 7 (the reported case)   8 cells, 0 overlaps   (heights 325-391px, genuinely varying)
+all tiers                  128 cells, 0 overlaps
+```
+
+The varying heights are the point — rows now measure their content instead of assuming one number.
+
 ## 2026-07-20 (mode picker)
 
 ### feat(ui): a mode screen behind PLAY — Ascent / Rift / Practice, and rifts become OPT-IN

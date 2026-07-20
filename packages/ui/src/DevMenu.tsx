@@ -19,6 +19,7 @@ import { FloatTuner } from './FloatTuner';
 import { StepCounterTuner } from './StepCounterTuner';
 import { LayoutTuner } from './LayoutTuner';
 import { FrameTuner } from './FrameTuner';
+import { BookTuner } from './BookTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { GlowTuner } from './GlowTuner';
 import { EndTurnTuner } from './EndTurnTuner';
@@ -37,6 +38,7 @@ import { perfMonitor } from './perfMonitor';
 const TUNERS = [
   { key: 'layout', label: '📐 Scale & Layout', C: LayoutTuner },
   { key: 'frame', label: '🖼️ Card Frames', C: FrameTuner },
+  { key: 'book', label: '📖 Compendium Palette', C: BookTuner },
   { key: 'glow', label: '🔆 Hover Glow', C: GlowTuner },
   { key: 'sfx', label: '🎛️ Mixing Desk', C: SfxMixer },
   { key: 'strikefx', label: '💥 Lunge Strike Effects', C: StrikeFxTuner },

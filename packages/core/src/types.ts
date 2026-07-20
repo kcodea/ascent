@@ -375,6 +375,9 @@ export interface CardDef {
    *  needs its own flag rather than a large sentinel number. Seeds `attackImmuneLeft` to 1 and the swing
    *  site skips the decrement, which keeps the per-instance value JSON-safe (no Infinity in a save). */
   attackImmuneAlways?: boolean;
+  /** Mauron: when this attacks it also damages an ADJACENT enemy — ONE of them, or BOTH when gilded. Not
+   *  Cleave, which always hits both and is a player-facing keyword; this is a per-card splash. */
+  splashAdjacent?: boolean;
   /** This card makes whole FAMILIES of trigger fire extra times (Sylus, Drakko, Chronos, Uron). Resolved
    *  through `extraTriggerFires` — never by a hardcoded card-id check. */
   triggerMultiplier?: TriggerMultiplierDef;

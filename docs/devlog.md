@@ -165,6 +165,47 @@ boots clean in the browser with no error boundary and both new counters reportin
 
 ## 2026-07-19 (set 2 empty)
 
+### tweak(ui): bake owner's frame overlay — dark-slate steel oval
+
+Owner's Card-Frames-tuner export baked as shipped: the **minion oval** carries a dark-slate overlay tint
+(`--fovl: #272a35`, `--fovl-a: 0.75`, `--fovl-blend: overlay`) — the gold frame reads as dark steel while the
+engraving highlights/depth survive (overlay blend). The **spell square is a no-op** (opacity 0, unchanged
+purple/gold). Baked in both homes: the shipped `.card.compact.stdframe` / `.spellframe` knob lines in styles.css
++ the FrameTuner per-section defaults (split `DEF_TINT_STD/SPELL`, `DEF_BLEND_STD/SPELL` so Reset matches).
+All other frame knobs unchanged. Verified: typecheck + lint + build green.
+
+### feat(ui): Card Frames tuner — overlay BLEND modes (multiply / overlay / screen / color)
+
+Follow-up to the colour overlay below: a per-section **overlay blend** dropdown (`--fovl-blend` →
+`mix-blend-mode` on `.cframe-tint`). normal = flat wash · multiply = darkens, keeps engraving shadows · overlay
+= recolours preserving highlights/depth · screen = brightens · color = swaps hue/sat keeping luminosity (the
+truest "different metal"). Exported by Copy CSS with the rest. Verified: typecheck + lint + build green.
+
+### feat(ui): Card Frames tuner — colour overlay + opacity knobs
+
+The 🖼️ Card Frames tuner gains a **colour-overlay experiment layer** per section (oval + spell): a new
+`.cframe-tint` span painted directly OVER the frame img — a solid colour masked to the frame's own PNG
+silhouette (same geometry as `.cglow`) — driven by `--fovl` (a colour picker) + `--fovl-a` (an opacity slider,
+default **0 = production no-op**). Lets the frame be re-tinted live (e.g. try silver/bronze/coloured variants)
+without new art; "Copy CSS" exports both vars for baking. Taunt is outside the tuner → no tint span. Verified:
+typecheck + lint + build green.
+
+### tweak(ui): hover glow re-tuned — crisp white rim + tight white bloom (was teal)
+
+Owner's 🔆 Glow-tuner export baked as the shipped defaults, in BOTH homes (`glowConfig.ts` `DEFAULTS` + the
+`--hg-*` CSS fallbacks in styles.css, which production renders from): line blur 12→**0** (crisp rim), line colour
+teal `#00ffd5`→**white**; bloom 4px@0.4 ×6 → **3px@0.89 ×3, white**; shape 1.03/1.015 → **1.045/1.03**. Reads as
+a clean white edge-light hugging the frame silhouette instead of the teal halo. Verified: typecheck + build green.
+
+### fix(ui): card info panel top is ANCHORED — longer text grows the panel downward only
+
+The detached drawer was in normal flow, so a longer rules text grew the whole card element — and centered
+contexts (the inspect overlay, Discover slots, shop/warband rows) split that growth both ways: the frame crept UP
+and the panel top shifted with it, so panel tops misaligned across cards with different text lengths. Fix: the
+drawer is now `position: absolute; top: calc(var(--ccw) * 1.15)` (archbox height + the tuned 0.15 gap), out of
+flow — the frame never moves, the panel top sits at the same spot on every card, and growth extends downward
+only (owner spec). Verified: typecheck + build green; owner eyeballing over HMR.
+
 ### fix(ui): kill the legacy purple spell-card box behind the authored gold frame
 
 Spells still painted the pre-PNG spell look — `.card.spellcard`'s purple ring + purple glow box-shadow on the

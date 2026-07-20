@@ -1455,7 +1455,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .card.compact .drawer { display: none; }
 .card.compact.showtext .drawer {
   display: flex; flex-direction: column; align-items: center;
-  margin: calc(var(--ccw) * 0.15) 0 0; position: relative; z-index: 4;
+  /* OUT of flow, top ANCHORED at a fixed offset below the (square, --ccw-tall) archbox: in flow, a longer text
+     grew the card element and centered contexts (inspect, Discover, rows) split that growth both ways — the
+     frame crept UP and the panel top moved. Absolute = the frame never moves; the panel only grows DOWNWARD
+     (owner call 2026-07-19). 1.15 = archbox height + the tuned 0.15 gap. */
+  position: absolute; top: calc(var(--ccw) * 1.15); left: 0; right: 0; z-index: 4;
   padding: calc(var(--ccw) * 0.065) calc(var(--ccw) * 0.08) calc(var(--ccw) * 0.07);
   background: linear-gradient(180deg, #241a13, #17110c);
   border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
@@ -2344,28 +2348,28 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
 .card.compact.spellframe .cglow,
 .card.compact.taunt .cglow {
   position: absolute; overflow: visible; pointer-events: none; z-index: 0;
-  transform: scale(var(--hg-w, 1.03), var(--hg-h, 1.015)); transform-origin: center;
+  transform: scale(var(--hg-w, 1.045), var(--hg-h, 1.03)); transform-origin: center;
   /* Bloom = the bloom drop-shadow STACKED `bloomStrength` times (composed in glowConfig.ts → `--hg-bloom-filter`);
      a single shadow reads soft even at opacity 1, stacking compounds it into a hot glow. Fallback = the shipped
-     6× stack so production (no JS) matches the tuned look. */
+     3× WHITE stack (owner-tuned 2026-07-19) so production (no JS) matches the tuned look. */
   filter: var(--hg-bloom-filter,
-    drop-shadow(0 0 4px rgba(0, 251, 255, 0.4)) drop-shadow(0 0 4px rgba(0, 251, 255, 0.4))
-    drop-shadow(0 0 4px rgba(0, 251, 255, 0.4)) drop-shadow(0 0 4px rgba(0, 251, 255, 0.4))
-    drop-shadow(0 0 4px rgba(0, 251, 255, 0.4)) drop-shadow(0 0 4px rgba(0, 251, 255, 0.4)));
+    drop-shadow(0 0 3px rgba(255, 255, 255, 0.89)) drop-shadow(0 0 3px rgba(255, 255, 255, 0.89))
+    drop-shadow(0 0 3px rgba(255, 255, 255, 0.89)));
   opacity: 0;
   transition: opacity 0.14s ease;
 }
-/* RIM child — a solid teal fill masked to the frame's silhouette = a pure-colour outline of the card. At W/H=1
+/* RIM child — a solid fill masked to the frame's silhouette = a pure-colour outline of the card. At W/H=1
    it sits exactly behind the real frame (hidden); scaling W/H pushes it out past the frame edge, revealing a
-   bright teal rim (the "inner line"). Always teal — never the gold/silver frame art. `--hg-line-blur` softens it
-   (its own filter; the mask keeps it crisp regardless, which reads as the line). Colour = `--hg-line-col`. */
+   bright rim (the "inner line"). Owner-tuned WHITE (2026-07-19, was teal) — never the gold/silver frame art.
+   `--hg-line-blur` softens it (its own filter; the mask keeps it crisp regardless, which reads as the line).
+   Colour = `--hg-line-col`. */
 .cglow-rim {
   position: absolute; inset: 0;
-  background: var(--hg-line-col, #00ffd5);
+  background: var(--hg-line-col, #ffffff);
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
   -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
   -webkit-mask-position: center; mask-position: center;
-  filter: blur(var(--hg-line-blur, 12px));
+  filter: blur(var(--hg-line-blur, 0px));
 }
 /* per-frame geometry (mirrors the frame-img rules) + the mask silhouette (the card's own frame PNG alpha). */
 .card.compact.stdframe .cglow {
@@ -2386,6 +2390,33 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
   top: calc(var(--ccw) * (0.5 - 1.086 * var(--sh)));
 }
 .card.compact.taunt .cglow-rim { -webkit-mask-image: url('/frames/taunt-shield.png'); mask-image: url('/frames/taunt-shield.png'); }
+/* COLOR OVERLAY layer (🖼️ Card Frames tuner): a solid tint masked to the frame's own PNG silhouette, laid
+   directly OVER the frame img (same geometry as .cglow, later sibling at the same z). `--fovl` (colour) +
+   `--fovl-a` (opacity) are per-frame-class knobs from the tuner; the opacity-0 default makes this a no-op in
+   production until values are baked here. (Taunt is outside the Card Frames tuner → no tint span.) */
+.cframe-tint {
+  position: absolute; pointer-events: none; z-index: 3;
+  background: var(--fovl, #ffffff); opacity: var(--fovl-a, 0);
+  /* blend against the frame pixels beneath: normal = flat wash · multiply = darkens (keeps engraving shadows) ·
+     overlay = recolours while preserving highlights/depth · screen = brightens · color = swaps hue/sat, keeps
+     luminosity (truest "different metal"). Tuner knob → --fovl-blend. */
+  mix-blend-mode: var(--fovl-blend, normal);
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  -webkit-mask-position: center; mask-position: center;
+}
+.card.compact.stdframe .cframe-tint {
+  width: calc(var(--ccw) * 1.481 * var(--sh)); aspect-ratio: 1059 / 1427;
+  left: calc(var(--ccw) * (0.5 - 0.737 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh) + var(--dy) + var(--frameY)));
+  -webkit-mask-image: url('/frames/standard-oval-v2.png'); mask-image: url('/frames/standard-oval-v2.png');
+}
+.card.compact.spellframe .cframe-tint {
+  width: calc(var(--ccw) * 1.387 * var(--sh)); aspect-ratio: 1122 / 1346;
+  left: calc(var(--ccw) * (0.5 - 0.6928 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 0.9009 * var(--sh) + var(--dy) + var(--frameY)));
+  -webkit-mask-image: url('/frames/spell-frame-v2.png'); mask-image: url('/frames/spell-frame-v2.png');
+}
 /* Light on hover — or when the tuner pins `body.hglow-preview`. Scoped to the frame class so they out-specify
    the scoped `opacity:0` default above (an unscoped `.card:hover .cglow` would LOSE to it). */
 .card.compact.stdframe:hover .cglow,
@@ -2437,7 +2468,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
      --frameY   shift ONLY the gold frame (+ its banner + tier) DOWN by ×ccw, leaving the art window put. Big
                 shifts expose the art oval's top edge above the frame — raise --artZoom / --fill to compensate.
    `--dy` moves EVERYTHING together; `--frameY` moves just the frame relative to the art. */
-.card.compact.stdframe { --sh: 0.73; --fill: 1.28; --dy: 0; --frameY: 0.03; --tier: 0.83; --artY: 60%; --artZoom: 1.12; --wardsize: 1.2; --wardy: 46%; }
+.card.compact.stdframe { --sh: 0.73; --fill: 1.28; --dy: 0; --frameY: 0.03; --tier: 0.83; --artY: 60%; --artZoom: 1.12; --wardsize: 1.2; --wardy: 46%; --fovl-a: 0.75; --fovl: #272a35; --fovl-blend: overlay; }
 .card.compact.stdframe .art {
   clip-path: ellipse(50% 50% at 50% 50%);                          /* the elliptical window */
   width: calc(var(--ccw) * var(--sh) * var(--fill));
@@ -2470,7 +2501,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 /* WINDOW = the frame's real opening (measured), with a small --fill overfill to tuck the art under the gold so
    there's no gap ring. Keep --artAR≈0.963 / --artW≈1.0 (that IS the opening) so it can't poke out; shape the
    ART itself with --artZoom (crop tighter) + --artY (vertical framing), NOT by resizing the window past the hole. */
-.card.compact.spellframe { --sh: 0.78; --fill: 1.22; --dy: -0.02; --frameY: 0.02; --tier: 0.67; --artY: 48%; --artZoom: 1.02; --artRound: 13%; --artAR: 1.06; --artW: 0.97; }
+.card.compact.spellframe { --sh: 0.78; --fill: 1.22; --dy: -0.02; --frameY: 0.02; --tier: 0.67; --artY: 48%; --artZoom: 1.02; --artRound: 13%; --artAR: 1.06; --artW: 0.97; --fovl-a: 0; --fovl: #ffffff; --fovl-blend: normal; }
 .card.compact.spellframe .art {
   clip-path: inset(0 round var(--artRound));                       /* the rounded-rectangle window */
   width: calc(var(--ccw) * var(--sh) * var(--fill) * var(--artW));

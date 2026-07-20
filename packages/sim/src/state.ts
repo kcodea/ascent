@@ -718,6 +718,11 @@ export interface RunState {
   /** The OPEN Discover hands its pick over locked until this much Gold has been spent this RUN (Brackus).
    *  Mirrors `discoverLockTier`'s lifecycle: set by `openDiscover` from the spec, consumed on take. */
   discoverLockGold?: number;
+  /** Rune of the Summit: armed on purchase; `runeSummitTick` counts shops opened since, and every 2nd one
+   *  opens a Tier 7 Discover. A COUNTER rather than a per-turn flag because the cadence is every-other-turn
+   *  — `recurringEndOfTurn` fires every turn and could not express it. */
+  runeSummit?: boolean;
+  runeSummitTick?: number;
 
   /** Discovers queued behind the open one (`discover`). When a pick resolves, the next spec is shifted
    *  off and opened; `discover` only clears when this is empty. Fed by `queueDiscover` — e.g. a golden

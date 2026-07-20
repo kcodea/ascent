@@ -1601,6 +1601,8 @@ export function Recruit() {
         const liveRun = useGame.getState().run;
         const hc = liveRun.hand.find((c) => c.uid === uid);
         if (hc?.lockedUntilTier && liveRun.tier < hc.lockedUntilTier) return;
+        // Brackus's Summit pick: same guard on the GOLD meter (the reducer also rejects it, this stops the drag).
+        if (hc?.lockedUntilGoldSpent && (liveRun.goldSpent ?? 0) < hc.lockedUntilGoldSpent) return;
       }
       // When the timer's up you can still REORDER your board, but not play / buy / sell — so allow a board
       // drag through, block hand + shop drags.
@@ -3395,8 +3397,18 @@ export function Recruit() {
             // `--fan-rot` var (see `.row.hand .card` in styles.css); it stays fanned through drags.
             const n = run.hand.length;
             const fanRot = n <= 1 ? 0 : Math.max(-7, Math.min(7, (i - (n - 1) / 2) * 1.8));
-            // Disco Dan's Setlist: a card locked until its shop tier is greyed + shows a padlock (and can't be played).
-            const locked = !!m.lockedUntilTier && run.tier < m.lockedUntilTier;
+            // Locked cards are greyed + padlocked (and can't be played). TWO meters feed this:
+            // Disco Dan's Setlist locks until a SHOP TIER, Brackus's Summit until a run GOLD SPEND — the
+            // label shows whichever applies, with the gold one counting down so the wait is legible.
+            const goldSpent = run.goldSpent ?? 0;
+            const tierLocked = !!m.lockedUntilTier && run.tier < m.lockedUntilTier;
+            const goldLocked = !!m.lockedUntilGoldSpent && goldSpent < m.lockedUntilGoldSpent;
+            const locked = tierLocked || goldLocked;
+            const lockLabel = tierLocked
+              ? `Tier ${m.lockedUntilTier}`
+              : goldLocked
+                ? `${m.lockedUntilGoldSpent! - goldSpent} Gold`
+                : undefined;
             return (
               <Card
                 key={m.uid}
@@ -3412,7 +3424,7 @@ export function Recruit() {
                 fanRot={fanRot}
                 onPointerDown={onCardPointerDown}
                 locked={locked}
-                lockLabel={locked ? `Tier ${m.lockedUntilTier}` : undefined}
+                lockLabel={lockLabel}
                 forceFull
               />
             );

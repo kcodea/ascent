@@ -1251,9 +1251,18 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const foe: Side = self.side === 'player' ? 'enemy' : 'player';
     const targets = ctx.living(foe);
     if (targets.length === 0) return;
+    // The minion OPPOSITE this one — the enemy at the same board index (owner change 2026-07-21; it used to
+    // take the enemy's rightmost). Clamped, so a shorter enemy line still resolves to its last minion.
+    // Golden also taunts an ADJACENT minion: the one to the right, falling back to the left at the end.
+    const own = ctx.boards[self.side].filter((m) => !m.dead && m.health > 0);
+    const idx = Math.min(Math.max(own.indexOf(self), 0), targets.length - 1);
+    const picks = [targets[idx]!];
+    if (self.golden) {
+      const neighbour = targets[idx + 1] ?? targets[idx - 1];
+      if (neighbour) picks.push(neighbour);
+    }
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} works the crowd` });
-    for (let i = 0; i < mul(self) && i < targets.length; i++) {
-      const victim = targets[targets.length - 1 - i]!;
+    for (const victim of picks) {
       if (victim.keywords.includes('T')) continue;
       victim.keywords.push('T');
       ctx.log({ type: 'keyword', target: victim.uid, keyword: 'T', source: self.uid });

@@ -591,6 +591,9 @@ export type QuestReward =
   | { kind: 'runeEndlessAppetite' }
   // Rune of the Conductor (Epic): at the start of every shop, trigger all your End of Turn effects.
   | { kind: 'runeConductor' }
+  /** Rune of the Summit: every 2nd shop opens a Tier 7 Discover (a counter, not a per-turn flag — the
+   *  every-other-turn cadence is not expressible with `recurringEndOfTurn`, which fires every turn). */
+  | { kind: 'runeSummit' }
   // Rune of Mastery (Epic): whenever one of your effects Improves, it improves an additional time.
   | { kind: 'runeMastery' }
   // Rune of Empowerment (Epic): your hero power's effect triggers twice (only offered to heroes whose power

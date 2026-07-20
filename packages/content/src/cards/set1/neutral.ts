@@ -274,8 +274,8 @@ export const NEUTRAL: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'startOfCombat', do: 'scGrantEnemyTaunt' }],
-    text: "**Start of Combat:** Give the enemy's rightmost minion **Taunt**.",
-    goldenText: "**Start of Combat:** Give the enemy's **two** rightmost minions **Taunt**.",
+    text: '**Start of Combat:** Give the minion **opposite** this **Taunt**.',
+    goldenText: '**Start of Combat:** Give the minion **opposite** this **Taunt**, and an **adjacent** minion too.',
   },
   {
     // End of Turn: cast Lasso (steal a random tavern minion into hand) via the shared castSpell factory — a

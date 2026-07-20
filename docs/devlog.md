@@ -5,6 +5,17 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-19 (set 2 empty)
 
+### fix(ui): kill the legacy purple spell-card box behind the authored gold frame
+
+Spells still painted the pre-PNG spell look — `.card.spellcard`'s purple ring + purple glow box-shadow on the
+card RECT — behind the authored gold spell frame. The card box is wider than the frame's waist, so a purple
+rounded box + glow bled out at the sides ("purple object with a purple glow/drop shadow… removed from all
+spells", owner report). Same bug class as the golden-arch bleed (fixed earlier for `.golden` but never for the
+base spell card): the legacy rule sits later in the file than the compact reset, so it won. Fix: a
+`.card.compact.spellframe { box-shadow: none; }` reconciliation in the AUTHORED FRAMES section — the frame + its
+`cshadow` carry the presentation; non-framed fallback spells keep the old look. Verified: typecheck + build green;
+owner eyeballing over HMR.
+
 ### tweak(ui): card info panel — detached dark-glass drawer (+ matching inspect Buffs panel)
 
 **What:** the card's text drawer (name → keyword pills → rules text → tribe) no longer welds onto the card frame —

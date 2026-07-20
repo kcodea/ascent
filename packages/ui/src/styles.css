@@ -2556,6 +2556,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    silhouette behind the unit — the "gold arch glowing behind a golden minion" bug. Excluding it lets the shadow
    keep its `brightness(0) blur` black silhouette (the resting `.cshadow` rule), so a golden unit casts a normal
    contact shadow, not a gold arch. */
+/* The LEGACY spell-card box — a purple ring + purple glow box-shadow on the card RECT (`.card.spellcard`, the
+   pre-PNG spell look) — still painted behind the authored gold frame: the card box is wider than the frame's
+   waist, so a purple rounded box + glow bled out at the sides ("purple object with a purple glow behind all
+   spells", owner report 2026-07-19). Same bug class as the golden-arch bleed below; kill it whenever the PNG
+   frame is on (the frame + its cshadow carry the presentation). Non-framed fallback spells keep the old look. */
+.card.compact.spellframe { box-shadow: none; }
 .card.compact.stdframe.golden,
 .card.compact.spellframe.golden,
 .card.compact.taunt.golden {

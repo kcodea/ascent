@@ -1556,6 +1556,37 @@ class FxController {
   }
 
   /**
+   * The REFRESH crystal's click blast — sprite shards flung outward from the button. Every knob is passed
+   * in (the 🔄 tuner owns them), and every shard's angle, speed, life, size and spin are JITTERED, so no
+   * two blasts look alike — which is the point: a button pressed dozens of times a run must not read as a
+   * canned loop.
+   *
+   * `Math.random` is fine here: this is `packages/ui`, presentation only. The ban is on core/content/sim,
+   * where a stray roll would break determinism — FX never feed the simulation.
+   */
+  refreshBlast(
+    x: number, y: number,
+    cfg: { count: number; speed: number; spread: number; life: number; size: number; color: string },
+  ): void {
+    if (!this.ready) return;
+    const tint = Number.parseInt(cfg.color.replace('#', ''), 16);
+    const n = Math.max(1, Math.round(cfg.count));
+    for (let i = 0; i < n; i++) {
+      // Evenly spaced base angle so the ring never clumps, then jittered by `spread` (0 = a clean ring,
+      // higher = a scattered puff). The jitter is what makes each press different.
+      const a = (i / n) * Math.PI * 2 + (Math.random() - 0.5) * cfg.spread;
+      const speed = cfg.speed * (0.55 + Math.random() * 0.9);
+      const tex = Math.random() < 0.5 ? this.shardRectTex! : this.sparkTex!;
+      this.spawn(tex, {
+        x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.12,
+        life: cfg.life * (0.7 + Math.random() * 0.6),
+        fromScale: cfg.size * (0.6 + Math.random() * 0.8), toScale: 0.05,
+        spin: (Math.random() - 0.5) * 12, rotation: a, tint, blend: 'add',
+      });
+    }
+  }
+
+  /**
    * The Discover flourish: golden, white-hot magic + sparkles erupt from screen center (cx, cy) and
    * shoot outward off every edge. Additive (reads white-hot over the dimmed board), ≤3s. Rendered on
    * the discover overlay's own burst layer — behind the cards/UI, above the dark backdrop.

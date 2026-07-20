@@ -41,6 +41,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const showTitle = useGame((s) => s.showTitle);
   const startAscent = useGame((s) => s.startAscent);
   const startPractice = useGame((s) => s.startPractice);
+  const startRift = useGame((s) => s.startRift);
   const openLeaderboard = useGame((s) => s.openLeaderboard);
   const openRankings = useGame((s) => s.openRankings);
   const openBalance = useGame((s) => s.openBalance);
@@ -57,9 +58,11 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [confirmClear, setConfirmClear] = useState(false); // two-step guard on the destructive Clear Run
+  const [modePick, setModePick] = useState(false); // PLAY opens the mode picker rather than starting straight away
 
   if (!showTitle) return null;
 
+  const rift = activeRift(); // the live registry is correct HERE — this is a pre-run choice, not a pinned run
   const beginEdit = () => { setDraft(playerName); setEditing(true); };
   const commit = () => { setPlayerName(draft); setEditing(false); };
 
@@ -121,7 +124,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               </button>
             </div>
           )}
-          <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => { sfx.pulse(); startAscent(); }} title={savedRun ? 'Start a new run (replaces your saved run)' : undefined}>
+          <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => { sfx.pulse(); setModePick(true); }} title={savedRun ? 'Start a new run (replaces your saved run)' : undefined}>
             <span className="mbicon"><Crest /></span>
             <span className="mblabel">Play</span>
           </button>
@@ -145,13 +148,42 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
         {/* Preserved secondary modes (not in the mockup, kept so nothing is lost). */}
         <div className="titlesecondary">
-          <button onClick={() => { sfx.pulse(); startPractice(); }} title="Practice — any hero, unlimited Resolve">Practice</button>
-          <span className="tsdot">·</span>
           <button onClick={() => { sfx.pulse(); toggleBook(); }} title="Compendium — browse every card">Compendium</button>
           <span className="tsdot">·</span>
           <button onClick={() => { sfx.pulse(); openBalance(); }} title="Balance Report — real player offer / pick / win rates">Balance Report</button>
         </div>
       </div>
+
+      {/* MODE PICKER — opens behind PLAY. Ascent is the clean scored climb; Rift is the SAME climb with the
+          active rift's rules (opt-in as of this screen — a plain Ascent run is no longer modified); Practice
+          is unscored. The Rift option only appears while a rift is actually live. */}
+      {modePick && (
+        <div className="modepick" role="dialog" aria-label="Choose a mode" onClick={() => setModePick(false)}>
+          <div className="modepick-panel" onClick={(e) => e.stopPropagation()}>
+            <h2 className="disp modepick-title">Choose your climb</h2>
+            <div className="modepick-list">
+              <button className="modecard" onClick={() => { sfx.pulse(); startAscent(); }}>
+                <span className="modecard-icon"><Crest /></span>
+                <span className="modecard-name">Ascent</span>
+                <span className="modecard-desc">The scored 17-round climb. Cover the Oath, chase the summit.</span>
+              </button>
+              {rift && (
+                <button className="modecard modecard-rift" onClick={() => { sfx.pulse(); startRift(); }}>
+                  <span className="modecard-icon"><span className="modecard-swirl" aria-hidden="true" /></span>
+                  <span className="modecard-name">Rift<span className="modecard-tag">{rift.name}</span></span>
+                  <span className="modecard-desc">{rift.blurb}</span>
+                </button>
+              )}
+              <button className="modecard" onClick={() => { sfx.pulse(); startPractice(); }}>
+                <span className="modecard-icon"><IconHelm /></span>
+                <span className="modecard-name">Practice</span>
+                <span className="modecard-desc">Any hero, unlimited Resolve, a longer shop. Unscored.</span>
+              </button>
+            </div>
+            <button className="modepick-back" onClick={() => setModePick(false)}>Back</button>
+          </div>
+        </div>
+      )}
 
       {/* The little note on the right — currently a thank-you as the rift window closes. */}
       <aside className="titlebanner" role="note">

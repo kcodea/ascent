@@ -3,6 +3,47 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-20 (mode picker)
+
+### feat(ui): a mode screen behind PLAY — Ascent / Rift / Practice, and rifts become OPT-IN
+
+PLAY no longer starts a run directly; it opens a three-card picker.
+
+- **Ascent** — the scored 17-round climb, **unmodified**
+- **Rift** — the same climb WITH the active rift's rules (the card shows its live name + blurb, and is
+  mounted only while a rift is actually enabled)
+- **Practice** — any hero, unlimited Resolve, longer shop; unscored. Promoted out of the secondary link row.
+
+**The behavioural change: rifts are now opt-in** (owner call). `createRun` used to pin `activeRift()` onto
+*every* run; it now pins only for `mode === 'rift'`. So a plain Ascent run no longer receives Summit's +10
+Armor or the Tier 7 shop — that is a deliberate change to what #575 shipped, and the reason the mode
+picker exists. Rift runs still PIN at creation, so a saved or replayed rift run keeps its rules after the
+global switch flips off.
+
+`RunMode` (`'ascent' | 'rift' | 'practice'`) is now a named type in `@game/sim` rather than an inline union
+repeated in three places, and the store gains `startRift`.
+
+The picker reads the LIVE registry via `activeRift()` — correct here precisely because this is a pre-run
+choice, not a pinned run; every in-run surface still reads `run.rift`.
+
+PERF: the rift card's swirl is a looping animation, so per `docs/performance.md` it animates **transform
+only** (a rotating conic layer clipped by a border-radius), reusing the Rift button's `riftswirl` keyframes.
+
+**A pre-existing test caught the change**, as intended: `createRun pins the active rift` asserted the old
+always-pin behaviour. It now asserts the real contract — the pin needs BOTH an enabled entry AND `rift`
+mode. Three new tests pin the opt-in rule, and drive the registry explicitly (`withSummit`) so they do not
+depend on which rift happens to ship enabled.
+
+Verified: 1235 tests (3 new), typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+Live, driving the real UI: PLAY opens the picker, the Rift card shows "SUMMIT" with its blurb, and each
+mode creates the right run —
+
+```
+Ascent    mode ascent    rift null      armor 8
+Rift      mode rift      rift summit    armor 18
+Practice  mode practice  rift null      armor 12
+```
+
 ## 2026-07-20 (Tier 7 art)
 
 ### art: wire all eight Tier 7 minion arts

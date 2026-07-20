@@ -60,11 +60,13 @@ describe('Freedom rift (first minion each turn is free)', () => {
       RIFTS.freedom.enabled = true;
       RIFTS.runic.enabled = false;
       expect(activeRift()?.id).toBe('freedom');
-      expect(createRun(1, 'warden').rift).toBe('freedom');
+      // Rifts are OPT-IN: the pin needs BOTH an enabled entry and a run started in `rift` mode.
+      expect(createRun(1, 'warden', 'rift').rift).toBe('freedom');
+      expect(createRun(1, 'warden', 'ascent').rift).toBeNull();
 
       RIFTS.freedom.enabled = false;
       expect(activeRift()).toBeNull();
-      expect(createRun(1, 'warden').rift).toBeNull();
+      expect(createRun(1, 'warden', 'rift').rift).toBeNull();
     } finally {
       RIFTS.freedom.enabled = prev;
       RIFTS.runic.enabled = prevRunic;
@@ -128,5 +130,44 @@ describe('Summit rift (+10 Armor, Tier 7 shop)', () => {
     const t = reduce({ ...s, embers: 99 }, { type: 'upgrade' });
     expect(t.tier).toBe(7);
     expect(t.upgradeCost).toBe(0); // now it is
+  });
+});
+
+// Rifts became OPT-IN with the mode picker: only a `rift` run adopts the active rift, so a plain Ascent
+// climb is unmodified. These pin that contract, since it is the one thing a mis-wired mode would silently
+// break (every run would quietly get the modifier back).
+describe('rifts are OPT-IN — only a rift-mode run adopts the active rift', () => {
+  /** Drive the registry explicitly so these don't depend on which rift happens to ship enabled. */
+  const withSummit = <T,>(fn: () => T): T => {
+    const prev = { f: RIFTS.freedom.enabled, r: RIFTS.runic.enabled, s: RIFTS.summit.enabled };
+    RIFTS.freedom.enabled = false; RIFTS.runic.enabled = false; RIFTS.summit.enabled = true;
+    try { return fn(); } finally {
+      RIFTS.freedom.enabled = prev.f; RIFTS.runic.enabled = prev.r; RIFTS.summit.enabled = prev.s;
+    }
+  };
+
+  it('pins the active rift for mode rift, and null for ascent / practice', () => {
+    withSummit(() => {
+      expect(createRun(1, 'warden', 'rift').rift).toBe('summit');
+      expect(createRun(1, 'warden', 'ascent').rift).toBeNull();
+      expect(createRun(1, 'warden', 'practice').rift).toBeNull();
+      expect(createRun(1, 'warden').rift).toBeNull(); // the DEFAULT mode is ascent — unmodified
+    });
+  });
+
+  it('an ascent run gets no rift Armor and cannot pass Tier 6', () => {
+    withSummit(() => {
+      const ascent = createRun(1, 'warden', 'ascent');
+      const rift = createRun(1, 'warden', 'rift');
+      expect(rift.armor).toBe(ascent.armor + (RIFT_BONUS_ARMOR.summit ?? 0));
+      expect(rift.maxArmor).toBe(ascent.maxArmor + (RIFT_BONUS_ARMOR.summit ?? 0));
+      expect(maxTierFor(ascent.rift)).toBe(CONFIG.maxTier);
+      expect(maxTierFor(rift.rift)).toBe(7);
+    });
+  });
+
+  it('the run records its mode, so a reload restores the same one', () => {
+    expect(createRun(1, 'warden', 'rift').mode).toBe('rift');
+    expect(createRun(1, 'warden', 'practice').mode).toBe('practice');
   });
 });

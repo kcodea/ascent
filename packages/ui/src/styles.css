@@ -4443,6 +4443,15 @@ body.dragging .row.hand .card.compact.showtext::after { pointer-events: none; }
   z-index: 41;
 }
 body.dragging .frzwrap { pointer-events: none; } /* a card dragged across it drops through */
+/* The Freeze button inherits `.shopbtn`, whose hover/active rules NUDGE the button. That reads fine in a
+   tray of buttons but wrong for stage-pinned board furniture, which jumped on click (owner 2026-07-21).
+   Re-assert the pin transform on every state so it sits perfectly still; the `.on` tint still shows state. */
+.frzwrap.frzwrap:hover,
+.frzwrap.frzwrap:active,
+.frzwrap.frzwrap:focus,
+.frzwrap.frzwrap:focus-visible {
+  transform: translate(-50%, -50%) scale(var(--frz-s, 1));
+}
 
 /* ---- RUN BUFFS drawer (BuffsFrame.tsx) — extends RIGHT out of the hero portrait, its tab eclipsing the
    portrait's right edge. Owner rework 2026-07-21; the tab is VERTICAL so it covers as little of the art as
@@ -4456,8 +4465,8 @@ body.dragging .frzwrap { pointer-events: none; } /* a card dragged across it dro
   position: relative; z-index: 2;
   margin-left: calc(var(--bfd-tab-x, -6) * var(--u));
   transform: translateY(calc(var(--bfd-tab-y, 0) * var(--u))) scale(var(--bfd-tab-s, 1));
-  width: calc(var(--bfd-tab-w, 16) * var(--u));
-  height: calc(var(--bfd-tab-h, 54) * var(--u));
+  width: calc(var(--bfd-tab-w, 18) * var(--u));
+  height: calc(var(--bfd-tab-h, 35) * var(--u));
   display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
   gap: calc(3 * var(--u)); padding: calc(4 * var(--u)) 0;
   background: linear-gradient(180deg, #241a13, #17110c);
@@ -4480,14 +4489,14 @@ body.dragging .frzwrap { pointer-events: none; } /* a card dragged across it dro
 /* The drawer body — slides out to the right of the tab. */
 .herobuffs-body {
   position: relative; z-index: 1;   /* under the tab (z2), so the slide emerges from behind it */
-  margin-left: calc(var(--bfd-body-x, 4) * var(--u));
+  margin-left: calc(var(--bfd-body-x, -1) * var(--u));
   /* Tuner offset rides the INDEPENDENT translate/scale properties, NOT `transform` — the slide
      animation owns `transform`, and the two compose instead of one clobbering the other. */
   translate: 0 calc(var(--bfd-body-y, 0) * var(--u));
-  scale: var(--bfd-body-s, 1);
+  scale: var(--bfd-body-s, 0.58);
   padding: calc(8 * var(--u)) calc(12 * var(--u));
   display: flex; flex-direction: column; gap: calc(3 * var(--u));
-  min-width: calc(var(--bfd-min-w, 132) * var(--u));
+  min-width: calc(var(--bfd-min-w, 122) * var(--u));
   background: linear-gradient(180deg, #241a13f2, #17110cf2);
   border: 2px solid color-mix(in srgb, var(--gold) 45%, #000);
   border-radius: calc(12 * var(--u));
@@ -4497,7 +4506,7 @@ body.dragging .frzwrap { pointer-events: none; } /* a card dragged across it dro
 
 
 .herobuffs-title { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--bfd-title-s, 11) * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: #c9b79a; margin: 0; }
-.herobuffs-body .buff-row { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10 * var(--u)); font-size: calc(var(--bfd-text-s, 12) * var(--u)); }
+.herobuffs-body .buff-row { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10 * var(--u)); font-size: calc(var(--bfd-text-s, 11) * var(--u)); }
 .herobuffs-body .buff-label { color: #d8ccb6; font-weight: 600; }
 .herobuffs-body .buff-val { color: #f4ecdb; font-weight: 900; }
 /* Mid-drag the drawer must not eat a drop aimed at the corner (mirrors the hero/Embers rule above). */

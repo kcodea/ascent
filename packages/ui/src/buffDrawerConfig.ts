@@ -38,14 +38,14 @@ const DEFAULTS: BuffDrawerConfig = {
   tabX: -6,
   tabY: 0,
   tabS: 1,
-  tabH: 54,
-  tabW: 16,
-  bodyX: 4,
+  tabH: 35,
+  tabW: 18,
+  bodyX: -1,
   bodyY: 0,
-  bodyS: 1,
-  textS: 12,
+  bodyS: 0.58,
+  textS: 11,
   titleS: 11,
-  minW: 132,
+  minW: 122,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

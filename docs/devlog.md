@@ -3,6 +3,34 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21o (Heckbinder, third pass + freeze jitter)
+
+### fix(ui): the Fodder aura was missed in TWO more display paths; Freeze sits still
+
+**The Heckbinder aura, a third time.** `run.cardBuffs` is the permanent enchant; Heckbinder's `fodderAura`
+is live, and `cardBuff()` folds them. I fixed the tavern path in #589 and the buff panel in this branch —
+and both times fixed only the site that was reported. Grepping for the raw map turned up **two more
+consumers**: the board/hand live-text params and the Discover overlay. All now route through the same
+`cardBuffsLive` map.
+
+That's three separate reports for one root cause, because each fix was scoped to the symptom. The lesson is
+cheap and worth writing down: **when a shared accessor is the fix, grep for every reader of the raw source
+in the same pass.** Verified: a shop Fred with a +2/+2 enchant and a Heckbinder on board now reads **6/6**
+(it read 3/3 — base + enchant, no aura).
+
+*(A hand/board Fodder still shows its own baked stats — correct: the aura applies at creation, so an
+existing card keeps what it was made with. Only OFFERS recompute.)*
+
+**Freeze no longer jumps on click.** It inherits `.shopbtn`, whose hover/active rules nudge the button —
+fine in a tray, wrong for stage-pinned board furniture. The pin transform is now re-asserted on hover,
+active and focus, so it sits still; the `.on` tint still carries the state. Verified: the computed transform
+is byte-identical before and during a click.
+
+**Baked**: buff drawer (6 values — a shorter/wider tab, drawer scaled to 0.58) plus the mirrored CSS
+fallbacks, and drag feel `handPop 0.08 -> 0.2`.
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
 ## 2026-07-21n (bakes + drawer tab polish)
 
 ### tweak(ui): bake qbY + hero panel, drop the tab arrow, shrink the count — slide-out NOT shipped

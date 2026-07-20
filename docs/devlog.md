@@ -3,6 +3,101 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21c (Discover chrome)
+
+### tweak(ui): dark-glass Discover banner + Minimize, and the toggle raised
+
+Owner call: the ornate cream/gold plaque and button fought the art-forward cards.
+
+**Rather than adding a third variant, this promotes one that already existed.** The QUEST overlay had
+already moved its banner to dark glass, scoped as `.quest-ov .disc-banner`; that treatment is now the base
+`.disc-banner` rule, so Discover, the quest shop and the Runeforge share one look — and the quest-scoped
+override was deleted rather than left as a duplicate of the thing it now inherits.
+
+`.disc-toggle` gets the same glass (light text, gold-tinted icon, accent border on hover) and moves up
+`66% → 61%`: the +30% card bump pushed the row down, leaving the button stranded well below it. Measured
+after: 58px below the card row, instead of floating in open space.
+
+Verified live: banner and toggle both render `linear-gradient(#241a13, #17110c)` with `#f4ecdb` text, and
+the toggle sits 58px under the cards. 1267 tests, lint, build:web green; `typecheck:web` at its 48-error
+baseline. CSS-only.
+
+## 2026-07-21b (Discover size, Mauron/Amun Rab/Rope Wrangler, Brackus power art)
+
+### tweak: a bigger Discover panel, Mauron's splash, Amun Rab trim, gilded Rope Wrangler
+
+**Discover cards +30%** (owner: the panel read strangely small, most obviously on the turn-1 hero Discovers
+where it is the only thing on screen). The quest overlay already solved this by redeclaring `--ch`/`--cw`,
+so the same lever was used — **but that alone was a no-op**: a compact card sizes off **`--ccw`**, not
+`--cw`, so the bump measured 113px before and 113px after. Redeclaring `--ccw` too took it to 147px. Worth
+remembering: `--ch`/`--cw` size the SLOT, `--ccw` sizes the CARD.
+
+**Mauron** loses Cleave for a narrower splash (owner): *Immune while attacking. Damages an adjacent unit
+when attacking*, both adjacent when gilded. Cleave always hits both and carries the player-facing `C`
+badge, so this is a per-card `splashAdjacent` flag with its own branch beside the cleave block, reusing the
+same living-order neighbour lookup (which is what makes it skip a fallen unit correctly).
+
+**Amun Rab** — Ward and the Improve step both dropped; now a flat *Summon 7 Imps and give your Imps +5/+5*
+(+10/+10 gilded, via the factory's existing `mul(self)`). Moved off `deathrattleBuffImpsImproving` back to
+the plain `deathrattleBuffImps`.
+
+**Rope Wrangler** — a gilded caster now casts twice. The `castSpell` factory ignored `gold(self)` entirely,
+so the gild did nothing; each cast re-picks its target and counts as a real cast, so spell payoffs (Guel,
+Spirit Pup, Forsaken Weaver) see both. The card also had no `goldenText` at all.
+
+**Brackus's hero-power art** wired (`powers/brackus.webp`, 2331KB -> 61KB).
+
+**Two test-measurement traps, both mine.** The Mauron splash test first counted damage across the WHOLE
+fight — Mauron retargets each swing, so every enemy eventually takes splash and the count read 3-of-3
+whether or not the change worked. Narrowed to a single swing, it then measured the *enemy's* first attack,
+because I picked the first `attack` event without filtering by attacker. Fixed, it now reads 2 ungilded vs
+3 gilded — the actual difference between the splash and Cleave.
+
+Verified: 1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline. Live
+(dev-server RESTART, not a reload): Discover card 113px -> 147px, Brackus's power art resolving to
+`brackus.webp`.
+
+## 2026-07-21 (content batch + Summit sources finished)
+
+### feat/tweak: Attachment vocabulary fix, Arena Heckler, Nanon, Brackus lock UI, Rune of the Summit
+
+**The "pure text change" was a renamer bug, not a card.** Attachment Conductor read "Your **Magnetics**
+magnetize twice" because `terms.ts` only handled the two CAPITALISED SINGULARS (`Magnetize`, `Magnetic`) —
+plurals, lowercase and past tense all slipped through. Fixed at the source rather than on the one card, so
+**Cling Drone** ("is magnetized" -> "is attached") and **Combinator** / **Banksly** ("magnetize" ->
+"attach") were silently wrong too and are now correct. Longer forms are ordered first so `Magnetize` can't
+shadow `Magnetized`.
+
+**Arena Heckler** now taunts the minion **opposite** it (same board index, clamped for a shorter enemy
+line) instead of the enemy's rightmost; golden also taunts an adjacent one. `scGrantEnemyTaunt` had exactly
+one consumer, so it was retargeted rather than forked.
+
+**Nanon** summons 5 Nanobots (was 6). The factory keeps the count FIXED for goldens — the gild scales the
+overflow buff — so the golden text had to move to 5 as well; it still said 6.
+
+**Brackus's gold lock is now visible.** The reducer already blocked the play, but `Recruit.tsx` only knew
+about `lockedUntilTier`, so the card didn't LOOK locked. Both the hand render and the drag guard now honour
+`lockedUntilGoldSpent`, and the label counts DOWN ("🔒70 Gold" -> "🔒30 Gold") so the wait is legible.
+
+**Rune of the Summit** (basic, 4 Gold): in 2 turns, Discover a Tier 7 minion; repeats every 2 turns. The
+cadence is why this was deferred — `recurringEndOfTurn` fires EVERY turn and takes a fixed effect enum, so
+an every-other-turn payout needed its own counter (`runeSummitTick`, incremented at shop open). The Discover
+is `exactTier: 7`, a fixed-tier offer, so it resolves with **no rift active** — the whole point, since Tier 7
+is otherwise unreachable.
+
+**Amun Rab** art re-wired (2275KB -> 56KB).
+
+**A test-harness trap worth recording.** The rune's cadence test silently froze at tick 2: wave 5 is a QUEST
+turn, and the parked `questOffer` blocks every later action, so `resolveCombat` no-op'd and the counter
+stopped. The helper now clears the modals a real player would have dismissed. The first symptom looked like
+a cadence bug in the rune — it was the harness.
+
+Verified: 1264 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline. Live
+(after a dev-server RESTART — a reload served stale modules and showed all the old text): every card's
+displayed text confirmed through `renameTerms`, and Brackus driven end to end — 15 Armor, turn-1 Tier 7
+Discover (all three offers tier 7), pick locked at 70 Gold, play REJECTED at 40 with the label reading
+"🔒30 Gold", then unlocked and played at 70.
+
 ## 2026-07-20 (compendium palette reverted)
 
 ### revert(ui): the Compendium goes back to the original cream

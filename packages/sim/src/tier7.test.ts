@@ -32,7 +32,8 @@ describe('Tier 7 content + gating', () => {
   it('Lab Experiment counts as every tribe; Mauron is immune while attacking', () => {
     expect(CARD_INDEX['labexperiment']!.universalTribe).toBe(true);
     expect(CARD_INDEX['mauron']!.attackImmuneAlways).toBe(true);
-    expect(CARD_INDEX['mauron']!.keywords).toContain('C'); // Cleave
+    expect(CARD_INDEX['mauron']!.splashAdjacent).toBe(true); // Cleave was replaced by the narrower splash
+    expect(CARD_INDEX['mauron']!.keywords).not.toContain('C');
   });
 
   it('every Tier 7 card carries 6 pool copies, like Tier 6', () => {

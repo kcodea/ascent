@@ -154,6 +154,16 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'grant', randomSpell: 3 },
   },
   {
+    // The BASIC route to Tier 7 (Summit is parked, so no rift grants it). Every 2nd shop, Discover a Tier 7
+    // minion — the reward's tier is AUTHORED, so the reducer honours it rather than clamping to the run's
+    // ceiling. Repeats for the rest of the run.
+    id: 'rune_summit',
+    name: 'Rune of the Summit',
+    cost: 4,
+    text: '**In 2 turns:** **Discover** a **Tier 7** minion. Repeats every **2 turns**.',
+    reward: { kind: 'runeSummit' },
+  },
+  {
     id: 'rune_scout',
     name: 'Rune of the Scout',
     cost: 3,

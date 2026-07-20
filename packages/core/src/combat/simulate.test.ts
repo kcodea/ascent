@@ -139,15 +139,39 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'R' && ev.target === soulsmanUid)).toBe(true);
   });
 
-  it("Arena Heckler Start of Combat gives the enemy's rightmost minion Taunt", () => {
-    const p: BoardMinion[] = [{ cardId: 'arenaheckler', attack: 2, health: 40 }];
+  it('Arena Heckler Start of Combat taunts the minion OPPOSITE it (same index), not the rightmost', () => {
+    // Heckler sits at index 1, so the enemy at index 1 is taunted and index 0 (the old "rightmost"-style
+    // pick would have hit index 2) is left alone.
+    const p: BoardMinion[] = [
+      { cardId: 'omen', attack: 1, health: 40 },
+      { cardId: 'arenaheckler', attack: 2, health: 40 },
+    ];
     const e: BoardMinion[] = [
       { cardId: 'sandbag', attack: 1, health: 40 },
-      { cardId: 'omen', attack: 1, health: 40 }, // rightmost → gets Taunt
+      { cardId: 'omen', attack: 1, health: 40 }, // index 1 -> opposite the Heckler
+      { cardId: 'omen', attack: 1, health: 40 }, // index 2 -> rightmost, must NOT be taunted
     ];
     const r = run(p, e, 3);
-    const rightmost = r.initial.enemy[r.initial.enemy.length - 1]!.uid;
-    expect(r.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'T' && ev.target === rightmost)).toBe(true);
+    const tauntedT = (i: number) => {
+      const uid = r.initial.enemy[i]!.uid;
+      return r.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'T' && ev.target === uid);
+    };
+    expect(tauntedT(1)).toBe(true);
+    expect(tauntedT(2)).toBe(false); // the rightmost is no longer the target
+    expect(tauntedT(0)).toBe(false);
+  });
+
+  it('a golden Arena Heckler also taunts an ADJACENT minion', () => {
+    const p: BoardMinion[] = [{ cardId: 'arenaheckler', attack: 2, health: 40, golden: true }];
+    // NOT Target Dummy — it already carries Taunt, so it would be skipped and the count would read 1.
+    const e: BoardMinion[] = [
+      { cardId: 'omen', attack: 1, health: 40 }, // index 0 -> opposite
+      { cardId: 'omen', attack: 1, health: 40 }, // index 1 -> the adjacent one
+      { cardId: 'omen', attack: 1, health: 40 },
+    ];
+    const r = run(p, e, 3);
+    const taunts = r.events.filter((ev) => ev.type === 'keyword' && ev.keyword === 'T');
+    expect(taunts.length).toBe(2);
   });
 
   it('Gravetwin: its copied Echo procs when it DIES in combat (owner bug 2026-07-13)', () => {
@@ -680,38 +704,38 @@ describe('simulate (handoff A.3)', () => {
     expect(packCopies).toBe(0); // board stayed full → the deferred copy never reclaims a slot
   });
 
-  it('Nanon Deathrattle: with room, all 6 Nanobots summon and no overflow buff fires', () => {
-    // Nanon alone → its death leaves an empty board, so all 6 Nanobots fit (0 overflow → no buff).
+  it('Nanon Deathrattle: with room, all 5 Nanobots summon and no overflow buff fires', () => {
+    // Nanon alone → its death leaves an empty board, so all 5 Nanobots fit (0 overflow → no buff).
     const p: BoardMinion[] = [{ cardId: 'nanon', attack: 1, health: 1 }];
     const r = run(p, [{ cardId: 'sandbag', attack: 5, health: 50 }], 1);
-    expect(r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'nanobot').length).toBe(6);
+    expect(r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'nanobot').length).toBe(5);
     expect(r.events.filter((ev) => ev.type === 'buff' && ev.source === 'Nanon').length).toBe(0);
   });
 
   it('Nanon Deathrattle: on a full board the overflow Nanobots pump your Mechs (+2/+2 each)', () => {
     // Nanon (front, 1 hp) dies first; 6 tanky Mechs remain → only 1 Nanobot fits the freed slot, the other
-    // 5 overflow → every Mech gets +10/+10 (5 overflow × +2/+2).
+    // 4 overflow → every Mech gets +8/+8 (4 overflow × +2/+2). Count is 5 as of the 2026-07-21 trim.
     const p: BoardMinion[] = [
       { cardId: 'nanon', attack: 1, health: 1 },
       ...Array.from({ length: 6 }, () => ({ cardId: 'drone', attack: 1, health: 50 })),
     ];
     const r = run(p, [{ cardId: 'sandbag', attack: 5, health: 300 }], 1);
     expect(r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'nanobot').length).toBe(1);
-    // 5 overflow × +2/+2 = +10/+10 to each Mech (the only buffs this fight).
-    const buffs = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 10 && ev.health === 10);
+    // 4 overflow × +2/+2 = +8/+8 to each Mech (the only buffs this fight).
+    const buffs = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 8 && ev.health === 8);
     expect(buffs.length).toBeGreaterThan(0);
   });
 
   it('a golden Nanon doubles the overflow buff (+4/+4 each), summon count unchanged', () => {
-    // Same full board → still 5 overflow (golden does NOT summon more), but each Mech gets +20/+20 (5 × +4/+4).
+    // Same full board → still 4 overflow (golden does NOT summon more), but each Mech gets +16/+16 (4 × +4/+4).
     const p: BoardMinion[] = [
       { cardId: 'nanon', attack: 1, health: 1, golden: true },
       ...Array.from({ length: 6 }, () => ({ cardId: 'drone', attack: 1, health: 50 })),
     ];
     const r = run(p, [{ cardId: 'sandbag', attack: 5, health: 300 }], 1);
     expect(r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'nanobot').length).toBe(1);
-    const buffs = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 20 && ev.health === 20);
-    expect(buffs.length).toBeGreaterThan(0); // +20/+20 confirms golden keeps 6 summons (5 overflow × +4/+4)
+    const buffs = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 16 && ev.health === 16);
+    expect(buffs.length).toBeGreaterThan(0); // +16/+16 confirms golden keeps 5 summons (4 overflow × +4/+4)
   });
 
 
@@ -3633,7 +3657,7 @@ describe('Tier 7 (Summit) minions — combat effects', () => {
     expect(grants.length).toBeGreaterThanOrEqual(2); // BOTH survivors, not a single random pick
   });
 
-  it('Amun Rab summons 7 warded Imps and its Imp buff improves per proc', () => {
+  it('Amun Rab summons 7 Imps (no Ward as of 2026-07-21) and buffs your Imps', () => {
     const r = run(
       [{ cardId: 'amunrab', attack: 15, health: 1 }],
       [{ cardId: 'omen', attack: 40, health: 400, keywords: [] }],
@@ -3641,7 +3665,7 @@ describe('Tier 7 (Summit) minions — combat effects', () => {
     );
     const imps = r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap');
     expect(imps.length).toBe(7);
-    for (const e of imps) if (e.type === 'summon') expect(e.minion.keywords).toContain('DS');
+    for (const e of imps) if (e.type === 'summon') expect(e.minion.keywords).not.toContain('DS'); // Ward dropped
   });
 
   it('a gilded Amun Rab keeps 7 Imps and doubles the buff instead of the count', () => {
@@ -3743,5 +3767,43 @@ describe('Uron / Zyff — the split trigger multipliers', () => {
     const drakePayouts = (x: ReturnType<typeof run>) => x.events.filter((e) => e.type === 'buff' && e.attack === 2 && e.health === 2).length;
     expect(rallyBuffs(r(true))).toBeGreaterThan(rallyBuffs(r(false))); // the Rally repeated
     expect(drakePayouts(r(true))).toBe(drakePayouts(r(false))); // the broadcast counter did NOT
+  });
+});
+
+describe("Mauron's adjacent splash (not Cleave)", () => {
+  // Cleave always hits BOTH neighbours; Mauron hits ONE, and both only when gilded.
+  // Measure a SINGLE swing: across a whole fight Mauron retargets each attack, so every enemy eventually
+  // takes splash and a fight-wide count can't tell the two apart (it read 3-of-3 either way).
+  const hitsOnFirstSwing = (golden: boolean): number => {
+    const r = run(
+      [{ cardId: 'mauron', attack: 9, health: 300, golden }],
+      [
+        { cardId: 'omen', attack: 1, health: 300 },
+        { cardId: 'omen', attack: 1, health: 300 },
+        { cardId: 'omen', attack: 1, health: 300 },
+      ],
+      11,
+    );
+    // MAURON's own first swing — the enemy is wider so it attacks first, and picking the first `attack`
+    // event blindly measured the enemy's step instead.
+    const mauron = r.initial.player[0]!.uid;
+    const first = r.events.find((e) => e.type === 'attack' && e.attacker === mauron);
+    const step = (first as { step: number }).step;
+    return r.events.filter(
+      (e) => e.type === 'dmg' && (e as { step: number }).step === step && e.amount === 9,
+    ).length;
+  };
+
+  it('hits the target plus exactly ONE neighbour ungilded', () => {
+    expect(hitsOnFirstSwing(false)).toBe(2);
+  });
+
+  it('a gilded Mauron hits the target plus BOTH neighbours', () => {
+    expect(hitsOnFirstSwing(true)).toBe(3);
+  });
+
+  it('carries no Cleave keyword — the splash is a card flag, not the badge', () => {
+    expect(CARD_INDEX['mauron']!.keywords).not.toContain('C');
+    expect(CARD_INDEX['mauron']!.splashAdjacent).toBe(true);
   });
 });

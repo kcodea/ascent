@@ -2125,11 +2125,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   castSpell: (ctx, self, params) => {
     const spellDef = CARD_INDEX[str(params.spellId)];
     if (!spellDef || spellDef.singleCast) return; // singleCast spells (Devourer) never multi-fire
-    const friends = ctx.state.board.filter((c) => c !== self);
-    const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
-    applyCastEffects(ctx, spellDef, target);
-    ctx.state.spellsCast += 1;
-    ctx.state.spellsThisTurn += 1;
+    // A GILDED caster casts twice (owner 2026-07-21, Rope Wrangler) — each cast re-picks its target and
+    // counts as a real cast, so spell-cast payoffs (Guel, Spirit Pup, Forsaken Weaver) see both.
+    for (let i = 0; i < gold(self); i++) {
+      const friends = ctx.state.board.filter((c) => c !== self);
+      const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
+      applyCastEffects(ctx, spellDef, target);
+      ctx.state.spellsCast += 1;
+      ctx.state.spellsThisTurn += 1;
+    }
   },
 
   /** Vineweaver Drake — End of Turn: cast `spellId` (Growth) once, plus one more cast for each prior End of

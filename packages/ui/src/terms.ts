@@ -20,8 +20,20 @@ const TERMS: [RegExp, string][] = [
   [/\bWindfury\b/g, 'Flurry'],
   [/\bVenomous\b/g, 'Toxin'],
   [/\bReborn\b/g, 'Rise'],
+  // Magnetic/Magnetize needs its PLURAL, LOWERCASE and PAST-TENSE forms too. Only the two capitalised
+  // singulars were handled, so "your Magnetics magnetize twice" rendered untranslated on Attachment
+  // Conductor, and "magnetized" / "magnetize" leaked on Cling Drone, Combinator and Banksly. Longer forms
+  // first so `Magnetize` can't shadow `Magnetized`.
+  [/\bMagnetized\b/g, 'Attached'],
+  [/\bmagnetized\b/g, 'attached'],
+  [/\bMagnetizes\b/g, 'Attaches'],
+  [/\bmagnetizes\b/g, 'attaches'],
   [/\bMagnetize\b/g, 'Attach'],
+  [/\bmagnetize\b/g, 'attach'],
+  [/\bMagnetics\b/g, 'Attachments'],
+  [/\bmagnetics\b/g, 'attachments'],
   [/\bMagnetic\b/g, 'Attachment'],
+  [/\bmagnetic\b/g, 'attachment'],
   [/\bGolden\b/g, 'Gilded'],
   [/\bgolden\b/g, 'gilded'],
 ];

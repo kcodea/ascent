@@ -30,9 +30,10 @@ export const TIER7: CardDef[] = [
     goldenText: 'When your Beasts attack, gain **+20/+20** permanently. Improve this.',
   },
   {
-    // Demon finisher: a 15/3 glass cannon whose death floods the board with warded Imps and permanently
-    // enchants every Imp you will ever summon. `fixed: true` keeps the summon count at 7 when gilded —
-    // the gild lifts the Imp BUFF instead (the Imp King pattern).
+    // Demon finisher: a 15/3 glass cannon whose death floods the board with Imps and permanently enchants
+    // every Imp you will ever summon. `fixed: true` keeps the summon count at 7 when gilded — the gild lifts
+    // the Imp BUFF instead, via the factory's `mul(self)` (the Imp King pattern). Ward + the Improve step
+    // were both dropped 2026-07-21 (owner).
     id: 'amunrab',
     name: 'Amun Rab',
     tribe: 'demon',
@@ -41,11 +42,11 @@ export const TIER7: CardDef[] = [
     health: 3,
     keywords: [],
     effects: [
-      { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 7, fixed: true, keyword: 'DS' } },
-      { on: 'onDeath', do: 'deathrattleBuffImpsImproving', params: { attack: 10, step: 10 } },
+      { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 7, fixed: true } },
+      { on: 'onDeath', do: 'deathrattleBuffImps', params: { attack: 5, health: 5 } },
     ],
-    text: '**Deathrattle:** Summon **7** Imps with **Divine Shield** and give your Imps **+10/+10**. Improve this.',
-    goldenText: '**Deathrattle:** Summon **7** Imps with **Divine Shield** and give your Imps **+20/+20**. Improve this.',
+    text: '**Deathrattle:** Summon **7** Imps and give your Imps **+5/+5**.',
+    goldenText: '**Deathrattle:** Summon **7** Imps and give your Imps **+10/+10**.',
   },
   {
     // The Mech capstone: every Attachment in the run lands twice. Multiplies Banksly, Combinator, Cling
@@ -62,19 +63,21 @@ export const TIER7: CardDef[] = [
     goldenText: 'Your **Magnetics** magnetize **three times**.',
   },
   {
-    // Dragon capstone: a 9/3 that sweeps the enemy line and never takes retaliation. Keyword-only — the
-    // Cleave badge plus `attackImmuneAlways` carry the whole card, so the gild is pure stats.
+    // Dragon capstone: a 9/3 that never takes retaliation and chips the line beside its target. NOT Cleave
+    // (owner change 2026-07-21) — Cleave always hits both neighbours; Mauron's splash hits ONE, and both
+    // only when gilded. Keyword-free: `attackImmuneAlways` + `splashAdjacent` carry the whole card.
     id: 'mauron',
     name: 'Mauron',
     tribe: 'dragon',
     tier: 7,
     attack: 9,
     health: 3,
-    keywords: ['C'],
+    keywords: [],
     attackImmuneAlways: true,
+    splashAdjacent: true,
     effects: [],
-    text: 'Immune while attacking.',
-    goldenText: 'Immune while attacking.',
+    text: 'Immune while attacking. Damages an **adjacent** unit when attacking.',
+    goldenText: 'Immune while attacking. Damages **both adjacent** units when attacking.',
   },
   {
     // Undead capstone: Rise itself, hand Rise to the whole board on death, and cast Lantern of Souls for a

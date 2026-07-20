@@ -1570,35 +1570,54 @@ body.modalup .statusbar .questbadges {
 }
 /* B2: minimize the Discover to inspect the board, then return — ONE orange button, pinned to the same fixed
    spot just below the cards for both states, so the player flips between them without moving the mouse. */
-.disc-toggle { position: fixed; left: 50%; top: 66%; transform: translateX(-50%); z-index: 200; display: inline-flex; align-items: center; gap: calc(7 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.03em; color: #5a3d12; background: linear-gradient(180deg, #f8edd2, #e7cf9f); border: 2px solid #c8922e; padding: calc(10 * var(--u)) calc(22 * var(--u)); border-radius: calc(13 * var(--u)); box-shadow: 0 calc(6 * var(--u)) calc(16 * var(--u)) -6px rgba(0, 0, 0, 0.5), inset 0 0 0 2px rgba(255, 255, 255, 0.45), inset 0 -3px 6px rgba(150, 100, 30, 0.2); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; animation: fadein 0.2s ease; }
-.disc-toggle svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
-.disc-toggle:hover { filter: brightness(1.04); }
+.disc-toggle {
+  position: fixed; left: 50%; top: 61%; transform: translateX(-50%); z-index: 200;
+  display: inline-flex; align-items: center; gap: calc(7 * var(--u));
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); letter-spacing: 0.03em;
+  color: #f4ecdb; background: linear-gradient(180deg, #241a13, #17110c);
+  border: 2px solid color-mix(in srgb, var(--gold) 58%, #000);
+  padding: calc(10 * var(--u)) calc(22 * var(--u)); border-radius: calc(13 * var(--u));
+  box-shadow: 0 calc(7 * var(--u)) calc(20 * var(--u)) -8px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; animation: fadein 0.2s ease;
+}
+.disc-toggle svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); color: #e8c877; }
+.disc-toggle:hover { border-color: var(--acc); color: #fff; }
 /* The Discover burst FX layer — fills the overlay behind the panel/cards (above the dark backdrop), so the
    golden magic erupts behind the UI. The Pixi canvas inside is absolute/full-cover + pointer-events:none. */
 .disc-burst { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+/* Dark GLASS banner (owner 2026-07-21) — the ornate cream/gold plaque fought the art-forward cards. This is
+   the treatment the quest overlay already used, promoted to the base rule so Discover, the quest shop and the
+   Runeforge share one look instead of maintaining two. */
 .disc-banner {
   position: absolute; top: calc(-22 * var(--u)); left: 50%; transform: translateX(-50%);
-  background: linear-gradient(180deg, #f8edd2, #e7cf9f); border: 3px solid #c8922e; border-radius: calc(13 * var(--u));
-  padding: calc(7 * var(--u)) calc(46 * var(--u)); white-space: nowrap;
-  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.5), inset 0 0 0 2px rgba(255, 255, 255, 0.45), inset 0 -3px 6px rgba(150, 100, 30, 0.2);
+  background: linear-gradient(180deg, #241a13, #17110c); border: 2px solid color-mix(in srgb, var(--gold) 58%, #000);
+  border-radius: calc(15 * var(--u));
+  padding: calc(8 * var(--u)) calc(46 * var(--u)); white-space: nowrap;
+  box-shadow: 0 calc(7 * var(--u)) calc(20 * var(--u)) -8px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
-.disc-banner .disp { font-weight: 900; font-size: calc(30 * var(--u)); color: #5a3d12; letter-spacing: 0.03em; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5); }
+.disc-banner .disp { font-weight: 900; font-size: calc(30 * var(--u)); color: #f4ecdb; letter-spacing: 0.03em; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7); }
 .disc-gem { display: none; }   /* panel decorations — dropped now the panel is transparent */
-.disc-cards { display: flex; gap: calc(22 * var(--u)); justify-content: center; margin-top: calc(20 * var(--u)); }
+/* Discover cards are bumped ~30% over a normal card (owner: the panel read strangely small, most obviously
+   on the turn-1 hero Discovers where it is the only thing on screen). Same lever the quest overlay uses —
+   `--ch` drives both the card height and its width (`--cw`) — so the whole panel, banner and burst scale
+   with it rather than needing separate numbers. */
+.disc-cards {
+  display: flex; gap: calc(26 * var(--u)); justify-content: center; margin-top: calc(24 * var(--u));
+  --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * 1.3);
+  --cw: calc(var(--ch) * 0.752);
+  /* `--ccw` is what a compact card actually sizes off (`.card.compact` reads it, not --cw), so redeclaring
+     only --ch/--cw left the cards at their inherited size — the bump measured as a no-op until this line. */
+  --ccw: calc(var(--cw) * 0.85);
+}
 /* Quest overlay: reuses the Discover chrome (blur backdrop, floating transparent panel, gold banner, fixed
    toggle). A subtitle under the banner + a little breathing room for the taller art-forward QuestCards. */
 .disc-sub { font-family: var(--font-ui); font-weight: 700; font-size: calc(13 * var(--u)); color: #ece1c8; text-align: center; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
 /* Chunkier, more exciting quest cards (owner) — the quest offer is a big turn-opening choice, so bump the cards
    ~22% over a normal card + a bit more gap. `--ch` drives both the card width (`--cw`) and its height. */
 .quest-ov-cards { margin-top: calc(18 * var(--u)); align-items: stretch; gap: calc(28 * var(--u)); --ch: calc(var(--ch-base) * var(--card-scale, 0.77) * 1.22); --cw: calc(var(--ch) * 0.752); }
-/* Quest-shop chrome: cleaner + flatter, matching the dark art-forward quest frames rather than the ornate cream/
-   gold Discover banner. Scoped to the quest overlay so Discover + the Runeforge keep their own look. */
-.quest-ov .disc-banner {
-  background: linear-gradient(180deg, #211812, #16100b); border: 2px solid color-mix(in srgb, var(--gold) 58%, #000);
-  border-radius: calc(15 * var(--u)); padding: calc(8 * var(--u)) calc(42 * var(--u));
-  box-shadow: 0 calc(7 * var(--u)) calc(20 * var(--u)) -8px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-}
-.quest-ov .disc-banner .disp { color: #f4ecdb; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7); }
+/* (The quest overlay's dark-glass banner override was folded into the base `.disc-banner` rule above — all
+   three overlays now share it, so there is nothing left to scope here.) */
 /* The taller art-forward quest cards reach lower than a Discover row, so drop the toggle clear of them (it stays
    pinned across minimize/return). Sits below the cards, above the player panel. Restyled dark/clean to match. */
 .quest-toggle {

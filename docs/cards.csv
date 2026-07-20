@@ -44,7 +44,7 @@ karwind,Karwind,5,5,10,,,"Whenever a **Battlecry** triggers, give your Dragons *
 stuntdrake,Obsidian Drake,5,3,7,,,**Avenge (3):** give this minion's Attack to 2 other friendly minions.,**Avenge (3):** give this minion's Attack to 2 other friendly minions **twice**.
 bane,Bane (dragon/demon),6,7,9,,,"After you trigger a Battlecry, give Fodder and Imps **+2/+2** this run.","After you trigger a Battlecry, give Fodder and Imps **+4/+4** this run."
 cryptdrake,Crypt Drake (dragon/undead),6,6,6,,,"Every **2** ally attacks, give your minions **+2/+2**. Improves **+2/+2** every **4** attacks.","Every **2** ally attacks, give your minions **+4/+4**. Improves **+4/+4** every **4** attacks."
-mauron,Mauron,7,9,3,,Cleave,Immune while attacking.,Immune while attacking.
+mauron,Mauron,7,9,3,,,Immune while attacking. Damages an **adjacent** unit when attacking.,Immune while attacking. Damages **both adjacent** units when attacking.
 
 # === UNDEAD (21) ===
 spore,Sporeling,1,2,1,,,**Deathrattle:** Give your minions **+1/+1**. Triggers each time you play a **Battlecry**.,**Deathrattle:** Give your minions **+2/+2**. Triggers each time you play a **Battlecry**.
@@ -88,7 +88,7 @@ bountybot,Bounty Bot,5,7,3,,SL,Immune while attacking (first **2** attacks each 
 combinator,Combinator,5,6,7,,,**End of Turn:** magnetize a random **Magnetic** Mech onto **2** friendly Mechs.,**End of Turn:** magnetize a random **Magnetic** Mech onto **4** friendly Mechs.
 banksly,Banksly,6,5,6,,,"When you spend **10 Gold**, magnetize a random **Magnetic** onto this.","When you spend **10 Gold**, magnetize **2** random **Magnetics** onto this."
 beatboxer,Beatbot,6,8,8,,,"Whenever a **Magnetic** attaches to another friendly minion, **copy** it onto this too.","Whenever a **Magnetic** attaches to another friendly minion, **copy it twice** onto this."
-nanon,Nanon,6,6,6,,,"**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+2/+2**.","**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+4/+4**."
+nanon,Nanon,6,6,6,,,"**Deathrattle:** summon 5 Nanobots. For each one that can't fit, give your Mechs **+2/+2**.","**Deathrattle:** summon 5 Nanobots. For each one that can't fit, give your Mechs **+4/+4**."
 attachmentconductor,Attachment Conductor,7,7,10,,,Your **Magnetics** magnetize **twice**.,Your **Magnetics** magnetize **three times**.
 
 # === DEMON (19) ===
@@ -110,7 +110,7 @@ ritualist,Ritualist,5,5,6,,,**End of Turn:** give your Imps and Fodder **+3/+3**
 abhorrenthorror,Abhorrent Horror,6,1,1,,Start of Combat,**Start of Combat:** Gain +Attack/+Health equal to the Fodder consumed this turn.,**Start of Combat:** Gain **double** the Attack/Health of Fodder consumed this turn.
 abyssalfeeder,Abyssal Feeder,6,7,6,,,**End of Turn:** adjacent minions each **Consume** a Fodder.,**End of Turn:** adjacent minions each **Consume** 2 Fodder.
 acid,"Korok, the Hungerer",6,8,8,,,"When you spend **7 Gold**, give your Fodder **+1/+1** and add **1 Fodder** to your next tavern.","When you spend **7 Gold**, give your Fodder **+2/+2** and add **2 Fodder** to your next tavern."
-amunrab,Amun Rab,7,15,3,,,**Deathrattle:** Summon **7** Imps with **Divine Shield** and give your Imps **+10/+10**. Improve this.,**Deathrattle:** Summon **7** Imps with **Divine Shield** and give your Imps **+20/+20**. Improve this.
+amunrab,Amun Rab,7,15,3,,,**Deathrattle:** Summon **7** Imps and give your Imps **+5/+5**.,**Deathrattle:** Summon **7** Imps and give your Imps **+10/+10**.
 
 # === NEUTRAL (27) ===
 sandbag,Target Dummy,1,0,4,,Taunt,"**Taunt.** When this takes damage, it gains **+1 Attack** permanently.","**Taunt.** When this takes damage, it gains **+2 Attack** permanently."
@@ -119,11 +119,11 @@ hoarder,Hoarder,2,3,3,,,**Battlecry:** get **1** extra Gold next turn. Sells for
 buddy,Buddy Buddy,3,2,2,,,**Shout:** get a random **Tier 1** minion.,**Shout:** get **two** random **Tier 1** minions.
 venom,Venom,3,1,1,,Venomous,,
 guel,Archmagus Guel,4,4,4,,,"After **a spell is cast** (shop or combat), give 3 friendly minions **+1/+1**, improving by **+1/+1** per 4 spells cast with this on board.","After **a spell is cast** (shop or combat), give 3 friendly minions **+2/+2**, improving by **+2/+2** per 4 spells cast with this on board."
-arenaheckler,Arena Heckler,4,2,5,,,**Start of Combat:** Give the enemy's rightmost minion **Taunt**.,**Start of Combat:** Give the enemy's **two** rightmost minions **Taunt**.
+arenaheckler,Arena Heckler,4,2,5,,,**Start of Combat:** Give the minion **opposite** this **Taunt**.,"**Start of Combat:** Give the minion **opposite** this **Taunt**, and an **adjacent** minion too."
 blaster,Blaster,4,5,3,,Taunt,**Deathrattle:** deal **3** damage to ALL minions.,**Deathrattle:** deal **6** damage to ALL minions.
 monk,Flowing Monk,4,4,5,,,"When you summon a minion that doesn't fit, Engrave 2 friendly minions **+2/+2**. Improves by **+2/+2** every 5 overflows.","When you summon a minion that doesn't fit, Engrave 2 friendly minions **+4/+4**. Improves by **+4/+4** every 5 overflows."
 nimbus,Nimbus,4,4,3,,,**Battlecry:** your next spell played from hand casts **twice**.,**Battlecry:** your next spell played from hand casts **three times**.
-ropewrangler,Rope Wrangler,4,5,4,,,**End of Turn:** Cast **Lasso**.,
+ropewrangler,Rope Wrangler,4,5,4,,,**End of Turn:** Cast **Lasso**.,**End of Turn:** Cast **Lasso** twice.
 spellappraiser,Spell Appraiser,4,1,10,,,**Avenge (4):** your Tavern spells have **+1 Attack** this run.,**Avenge (4):** your Tavern spells have **+2 Attack** this run.
 tauntbreaker,Tauntbreaker,4,6,4,,Divine Shield | Windfury | Rally,**Rally:** Remove **Taunt** and **Rise** from the target before striking.,
 wayfinder,Wayfinder,4,4,2,,,**Battlecry:** Discover a minion from a tribe you don't control.,

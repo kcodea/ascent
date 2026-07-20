@@ -278,6 +278,7 @@ export const CardDefSchema = z.object({
   goldenText: z.string().optional(),
   universalTribe: z.boolean().optional(),
   attackImmuneAlways: z.boolean().optional(),
+  splashAdjacent: z.boolean().optional(),
   triggerMultiplier: z.object({
     families: z.array(z.enum(['battlecry', 'deathrattle', 'rally', 'slaughter', 'endOfTurn', 'startOfCombat'])),
     extra: z.number().int().positive(),
@@ -407,6 +408,7 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('runeTransfusion') }).strict(),
   z.object({ kind: z.literal('runeEndlessAppetite') }).strict(),
   z.object({ kind: z.literal('runeConductor') }).strict(),
+  z.object({ kind: z.literal('runeSummit') }).strict(),
   z.object({ kind: z.literal('runeMastery') }).strict(),
   z.object({ kind: z.literal('runeEmpowerment') }).strict(),
   z.object({ kind: z.literal('openEpicRuneforge') }).strict(),

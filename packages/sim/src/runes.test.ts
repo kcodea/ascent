@@ -27,7 +27,7 @@ const buyRune = (runeId: string, embers = 10, over: Partial<RunState> = {}): Run
 describe('Runeforge — framework', () => {
   it('every rune validates + is Runeforge-only (never a card/quest id)', () => {
     validateRunes();
-    expect(RUNES.length).toBe(30); // + batch 7a (Rebirth / Tempering / Aftershocks / Refrain / Trophy)
+    expect(RUNES.length).toBe(31); // + batch 7a (Rebirth / Tempering / Aftershocks / Refrain / Trophy) + Summit
     for (const r of RUNES) expect(r.id.startsWith('rune_')).toBe(true);
   });
 
@@ -1089,5 +1089,47 @@ describe('Blueprint Cache wave grouping (owner 2026-07-18)', () => {
     const evs = fx.flatMap((f) => f.buffFx);
     expect(evs).toHaveLength(2);
     expect(evs.every((e) => e.fxWave !== undefined)).toBe(true);
+  });
+});
+
+// Rune of the Summit — the BASIC route to Tier 7 now that the Summit rift is parked. The cadence is the
+// interesting part: `recurringEndOfTurn` fires EVERY turn, so an every-other-turn payout needed its own
+// counter. These pin that it lands on the 2nd shop and repeats, not every shop.
+describe('Rune of the Summit (every 2nd shop → a Tier 7 Discover)', () => {
+  const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
+  // Clears the modals a real player would have dismissed first: a quest turn (wave 5/11) parks a
+  // `questOffer` that blocks EVERY later action, which silently froze the cadence mid-test.
+  const openShop = (s: RunState): RunState => reduce(
+    { ...s, phase: 'combat', lastCombat: win, discover: undefined, discoverQueue: undefined,
+      questOffer: undefined, runeforgeOffer: undefined },
+    { type: 'resolveCombat' },
+  );
+
+  it('arms on purchase with a zeroed tick', () => {
+    const s = buyRune('rune_summit');
+    expect(s.runeSummit).toBe(true);
+    expect(s.runeSummitTick ?? 0).toBe(0);
+  });
+
+  it('fires on the SECOND shop, not the first, then repeats every 2nd', () => {
+    let s: RunState = { ...buyRune('rune_summit'), wave: 3, hand: [], board: [] };
+    s = openShop(s); // shop 1 — nothing yet
+    expect(s.runeSummitTick).toBe(1);
+    expect(s.discover).toBeFalsy();
+    s = openShop(s); // shop 2 — fires
+    expect(s.runeSummitTick).toBe(2);
+    expect(s.discover?.length).toBeGreaterThan(0);
+    for (const id of s.discover!) expect(CARD_INDEX[id]!.tier).toBe(7); // honoured at Tier 7 with NO rift
+    s = openShop(s); // shop 3 — quiet again
+    expect(s.discover).toBeFalsy();
+    s = openShop(s); // shop 4 — fires again
+    expect(s.runeSummitTick).toBe(4);
+    expect(s.discover?.length).toBeGreaterThan(0);
+  });
+
+  it('does nothing without the rune', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 3, hand: [], board: [] };
+    s = openShop(s); s = openShop(s);
+    expect(s.discover).toBeFalsy();
   });
 });

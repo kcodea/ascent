@@ -206,6 +206,12 @@ boots clean in the browser with no error boundary and both new counters reportin
 
 ## 2026-07-19 (set 2 empty)
 
+### tweak(ui): frame overlay re-tuned — brighter steel oval (#636363 @ 0.95)
+
+Owner's second overlay pass: the minion oval's tint goes dark-slate `#272a35 @ 0.75` → mid-grey **`#636363 @
+0.95`** (still `overlay` blend) — a brighter, stronger steel. Spell square stays a no-op. Baked in both homes
+(styles.css knob line + FrameTuner `DEF_TINT_STD` / `fovl-a` default). Verified: typecheck + lint + build green.
+
 ### tweak(ui): bake owner's frame overlay — dark-slate steel oval
 
 Owner's Card-Frames-tuner export baked as shipped: the **minion oval** carries a dark-slate overlay tint

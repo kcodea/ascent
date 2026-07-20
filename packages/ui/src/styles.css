@@ -2468,7 +2468,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
      --frameY   shift ONLY the gold frame (+ its banner + tier) DOWN by ×ccw, leaving the art window put. Big
                 shifts expose the art oval's top edge above the frame — raise --artZoom / --fill to compensate.
    `--dy` moves EVERYTHING together; `--frameY` moves just the frame relative to the art. */
-.card.compact.stdframe { --sh: 0.73; --fill: 1.28; --dy: 0; --frameY: 0.03; --tier: 0.83; --artY: 60%; --artZoom: 1.12; --wardsize: 1.2; --wardy: 46%; --fovl-a: 0.75; --fovl: #272a35; --fovl-blend: overlay; }
+.card.compact.stdframe { --sh: 0.73; --fill: 1.28; --dy: 0; --frameY: 0.03; --tier: 0.83; --artY: 60%; --artZoom: 1.12; --wardsize: 1.2; --wardy: 46%; --fovl-a: 0.95; --fovl: #636363; --fovl-blend: overlay; }
 .card.compact.stdframe .art {
   clip-path: ellipse(50% 50% at 50% 50%);                          /* the elliptical window */
   width: calc(var(--ccw) * var(--sh) * var(--fill));

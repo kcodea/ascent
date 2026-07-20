@@ -5,6 +5,16 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-20 (tier 7 + Summit rift)
 
+### fix(ui): no blue-rectangle flash as the end-of-turn charge glyph starts
+
+The charge glyph's three layers are masked by `/fx/turn-glyph.svg`, but that asset was never preloaded — so on
+its first use the mask hadn't been fetched yet and the layers painted UNMASKED for a frame: the fill's blue
+gradient flashed as a full RECTANGLE (its box edges) as the charge began (owner report). Added the SVG to
+`PUBLIC_ART_URLS` so the boot preloader fetches + caches it alongside the backdrops/cursors (which are CSS
+`url()` references too — same pattern; the JS URL is BASE_URL-relative to match Vite's build-time rewrite of the
+CSS `url(/…)`). Verified: the SVG now 200s at boot on the title screen, long before any glyph mounts.
+typecheck + lint + 1232 tests + build:web green.
+
 ### feat(sim/ui): Tier 7 behind the Summit rift, +10 Armor, and a Rift button
 
 **Summit** is a new rift: every hero gains **+10 Armor**, and the shop ceiling rises from Tier 6 to **Tier 7**.

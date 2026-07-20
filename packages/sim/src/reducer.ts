@@ -241,6 +241,7 @@ export function reduce(state: RunState, action: Action): RunState {
   // across dispatches). For a rejected no-op reduceCore returns `state` itself → `next.recruitBuffFx` stays [].
   state.recruitBuffFx = [];
   state.auraFx = undefined; // same per-action scratch contract as recruitBuffFx (auraFxSeq stays monotonic)
+  state.weldFxUids = undefined; // ditto — `stampWeldFx` ACCUMULATES within one action (see below)
   stampImproveReps(state); // Rune of Mastery: mirror the state's Improve multiplier for the stateless addBuff hook
   // Pin this wave's opponent on the FIRST recruit action of the turn (reload-divergence fix, revived
   // 2026-07-18): the pick is stamped into `servedBoards` as soon as the turn is played, so the telegraphed

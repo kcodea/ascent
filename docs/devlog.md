@@ -3,6 +3,78 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-19 (perf + FX pass)
+
+### perf(ui): aim throttling, wave-count cap, weld stamp accumulation, attachment overlap, demon aura, render counters
+
+A pass at everything the 645-second full-run capture and the mech/attachment investigation turned up.
+
+**The capture settled two long-running arguments.** `reduce:faceOmen` is the dominant cost: 11 calls,
+522.7ms total, **92.2ms peak at wave 13**, scaling steadily with wave (25.7ms at w4 to 92.2ms at w13), and it
+accounts for 8 of the 14 jank frames. Meanwhile **autosave is conclusively cleared** — 605 calls across a
+complete run, max **0.7ms**. The quadratic concern never materialises; nobody should debounce it. Every other
+reducer path is at or below 0.8ms. The sim is not slow; one function is. (`simulate()` off-thread is its own
+PR.)
+
+**Hero-power targeting.** `setAim()` fired on every pointermove with a fresh object, re-rendering the largest
+component in the app at pointer rate (well above 60Hz on a gaming mouse). Measured, the DOM reads were
+innocent — 0.0029ms per move — so this was never layout thrash, it was React. Fixed by splitting the state:
+the aim line is drawn by Pixi, so the cursor coordinates never needed to be React state at all. They now go
+straight to `pixiFx.setAimLine` from an rAF-coalesced handler, the anchor rect is measured ONCE per aim (the
+button cannot move while you aim — the same "cache the reads" rule the drag path already followed), and React
+state is touched only when the hovered target actually changes. The aim-line effect also had NO dependency
+array, so it ran on every render and re-wrote `document.body.classList` each time; it has one now. Both aim
+paths (hero power and targeted Battlecry) got the same treatment.
+
+**Blueprint Cache wave strobe.** Capping the total DURATION was not enough: `waveGapFor` divides the budget
+by the wave count, so a Beatbot carrying ~28 attachments (it mirrors every weld onto itself) produced ~30
+waves and the gap collapsed to 31ms — the exact smear the pacing was added to fix. `coalesceWaves` now caps
+the COUNT (default 6); everything past the cap lands as one final pulse. Totals are unchanged — it is purely
+presentation.
+
+**Weld stamp overwrite (real bug).** `stampWeldFx` REPLACED `weldFxUids`, and the UI only reads the final
+state after a dispatch — so when several welds landed in one action (a golden Banksly magnetizes twice; a big
+Gold spend procs it repeatedly) every weld but the last silently lost its ring. Verified: two welds in one
+action left only the second uid, with seq 2. It now accumulates, with `reduce` clearing the scratch per
+action so it cannot leak across dispatches. Two tests pin both halves.
+
+**Attachment play jank.** The sequence was: 390ms slide (card shrinks to opacity 0), then dispatch plus React
+commit plus rAF, then the 250ms ring — about 640ms with a dead beat in the middle where the card had already
+vanished and nothing had started. New `magWeldLeadMs` (default 130) commits the weld that much BEFORE the
+slide ends, so the ring overlaps the tail instead of queueing behind it.
+
+**The demon aura wash was never a framerate problem.** Nothing in the FX path is frame-count coupled — no
+`deltaTime`, no fixed increments; the wave advances on `deltaMS` and its front is derived from
+`t / travelMs`. The cause is LUMINANCE under additive blending. The wave borrowed colours from the tendril
+presets, which are authored for `blend: 'normal'`:
+
+```
+           core    glow    mote
+demon      0.207   0.524   0.091     <- motes 6.4x dimmer than beast
+beast      0.821   0.863   0.586
+```
+
+The motes are the CONTINUOUS element riding the expanding front; the wake puffs are dropped at discrete
+`glowSpacing` intervals. With the motes invisible, only the stepped wake renders — which reads as a
+stuttering, frame-bound animation. New `WAVE_PALETTES` gives the wave its own colours (demon motes 0.091 to
+0.503), leaving the tendril presets untouched.
+
+**Render + input counters.** `perfMonitor.count()` records per-bucket RATES alongside the existing peak
+levels, wired to `recruit renders` and `pointermoves`. Two of the worst frames in the capture had a long task
+and NO hotspot, because everything instrumented was sim or Pixi and the whole renderer was invisible — the
+same blind spot that made the aiming bug require a code read instead of showing up as a number.
+
+**Process finding worth acting on: `packages/ui` is not typechecked by `npm run typecheck`.** The root
+tsconfig excludes it (UI goes through `npm run typecheck:web`), and CI deliberately does not gate that yet —
+there is a documented backlog of ~48 pre-existing UI type errors. This refactor left five
+`Cannot find name 'aim'` references that the root typecheck passed cleanly and `build:web` stripped without
+complaint; they would have been a white-screen ReferenceError on first render. Only `typecheck:web` caught
+them. The error count was verified unchanged at 48 before and after this branch. Worth gating on a baseline
+count so new UI errors cannot merge even while the backlog is outstanding.
+
+Verified: 1220 tests, lint and build:web green; `typecheck:web` back to its 48-error baseline; and the app
+boots clean in the browser with no error boundary and both new counters reporting.
+
 ## 2026-07-19 (set 2 empty)
 
 ### tweak(ui): card info panel — detached dark-glass drawer (+ matching inspect Buffs panel)

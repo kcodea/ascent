@@ -12,15 +12,16 @@ import { TavernUpButton } from './TavernUpButton';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
+import { perfMonitor } from './perfMonitor';
 import { getSwapFxConfig } from './swapFxConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
 import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
-import { waveGapFor } from './buffFxConfig';
+import { waveGapFor, coalesceWaves, getBuffFxConfig } from './buffFxConfig';
 import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { fireBuffFx } from './buffFxRender';
-import { BUFF_PRESETS, buffPreset } from './buffPresets';
+import { buffPreset, wavePalette } from './buffPresets';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
 import { ASCEND_PRESETS, ascendPreset } from './ascendPresets';
 import { getDragFeel } from './dragFeel';
@@ -451,6 +452,11 @@ interface DragState {
 }
 
 export function Recruit() {
+  // Render RATE of the biggest component in the app, surfaced to the perf HUD. This is the instrument that
+  // was missing when hero-power aiming turned out to re-render the whole tree on every pointermove: the
+  // capture showed a long task with no hotspot, because nothing measured React. A number here makes that
+  // class of bug self-evident instead of requiring a code read.
+  perfMonitor.count('recruit renders');
   const run = useGame((s) => s.run);
   const dispatch = useGame((s) => s.dispatch);
   const heroArmed = useGame((s) => s.heroArmed);
@@ -525,7 +531,9 @@ export function Recruit() {
   const [snapping, setSnapping] = useState(false);
   const [magSlide, setMagSlide] = useState(false); // a Magnetic card sliding into its Mech
   const [magTargetUid, setMagTargetUid] = useState<string | null>(null); // the Mech being merged into (crackles)
-  const [aim, setAim] = useState<{ ox: number; oy: number; tx: number; ty: number; onTarget: boolean; targetUid: string | null } | null>(null);
+  // Only the hovered TARGET is React state — the aim line's coordinates are pushed straight into Pixi by
+  // the rAF-coalesced move handlers, so pointer movement no longer re-renders this component.
+  const [aimTargetUid, setAimTargetUid] = useState<string | null>(null);
   const [buffedUids, setBuffedUids] = useState<Set<string>>(new Set());
   // Last weld seq the stat-diff watcher has seen — lets it suppress the generic buff cues for the minions a
   // FRESH weld just landed on (the weld has its own ring + wiggle), without touching any other buff.
@@ -1809,7 +1817,11 @@ export function Recruit() {
           setOverZone(null);
           // let the Mech keep crackling a beat past the merge, then settle on the green buff flash
           window.setTimeout(() => setMagTargetUid(null), 120);
-        }, el ? getDragFeel().magSlideMs : 0);
+          // Commit `magWeldLeadMs` BEFORE the slide ends so the weld ring starts while the card is still
+          // finishing its shrink. Previously the dispatch waited for the full slide, so the card vanished,
+          // then nothing happened for a dispatch + commit + rAF, and only THEN did the ring appear — a dead
+          // beat in the middle of a ~640ms sequence, which is what read as janky when playing Attachments.
+        }, el ? Math.max(0, getDragFeel().magSlideMs - getDragFeel().magWeldLeadMs) : 0);
         return;
       }
 
@@ -1894,7 +1906,7 @@ export function Recruit() {
   // cancel; a plain click stays armed for a follow-up click.
   useEffect(() => {
     if (!heroArmed || inCombat) {
-      setAim(null);
+      setAimTargetUid(null);
       return;
     }
     let moved = false;
@@ -1911,23 +1923,41 @@ export function Recruit() {
       if (heroTargetsNoGolden && run.board.find((c) => c.uid === uid)?.golden) return null;
       return { uid };
     };
+    // ANCHOR: measured ONCE per aim. The hero-power button cannot move while you're aiming, so re-reading
+    // its rect on every pointermove was pure waste (and the same "cache the reads" rule the drag path
+    // already follows via `insertRectsRef`).
+    const anchorEl = document.querySelector('.statusbar .heropowerbtn') ?? document.querySelector('.statusbar .hero .f');
+    if (!anchorEl) return;
+    const ar = anchorEl.getBoundingClientRect();
+    const ox = ar.left + ar.width / 2;
+    const oy = ar.top + ar.height / 2;
+
+    // The aim line is drawn by PIXI, not React — so the cursor coordinates never need to be React state.
+    // Only `targetUid` does (it drives the `targeted` highlight on a card). Previously every pointermove
+    // called setAim() with a fresh object, re-rendering the largest component in the app at pointer rate
+    // (well above 60Hz on a gaming mouse). Now: coordinates go straight to pixiFx, and we setState ONLY
+    // when the hovered target actually changes — which is a handful of times per aim instead of hundreds.
+    let raf = 0;
+    let pending: { x: number; y: number } | null = null;
+    let lastUid: string | null = null;
+    const flush = (): void => {
+      raf = 0;
+      const pt = pending;
+      pending = null;
+      if (!pt) return;
+      const target = minionAt(pt.x, pt.y);
+      const uid = target?.uid ?? null;
+      pixiFx.setAimLine({ x: ox, y: oy }, { x: pt.x, y: pt.y }, !!target, getAimFxConfig());
+      if (uid !== lastUid) {
+        lastUid = uid;
+        setAimTargetUid(uid); // rare — only when you cross onto/off a different minion
+      }
+    };
     const move = (e: PointerEvent): void => {
       moved = true;
-      // Anchor the aim line at the hero-power BUTTON (the thing you pressed to arm), not the hero frame.
-      const f = document.querySelector('.statusbar .heropowerbtn') ?? document.querySelector('.statusbar .hero .f');
-      if (!f) return;
-      const r = f.getBoundingClientRect();
-      // The aim point follows the cursor exactly — you can target anywhere on a
-      // minion's card (no snap to centre); the hovered minion lights up.
-      const target = minionAt(e.clientX, e.clientY);
-      setAim({
-        ox: r.left + r.width / 2,
-        oy: r.top + r.height / 2,
-        tx: e.clientX,
-        ty: e.clientY,
-        onTarget: !!target,
-        targetUid: target?.uid ?? null,
-      });
+      // rAF-coalesced: a 1000Hz mouse still produces at most one update per frame.
+      pending = { x: e.clientX, y: e.clientY };
+      if (!raf) raf = requestAnimationFrame(flush);
     };
     const up = (e: PointerEvent): void => {
       if (!moved) return; // a plain click — stays armed for a follow-up click
@@ -1940,6 +1970,7 @@ export function Recruit() {
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
     return () => {
+      if (raf) cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
     };
@@ -1963,7 +1994,7 @@ export function Recruit() {
   };
   useEffect(() => {
     if (!pendingTarget || inCombat) {
-      setAim(null);
+      setAimTargetUid(null);
       return;
     }
     // A tribe-restricted Battlecry (Toxin Tender → a friendly Undead, never self) only accepts matching
@@ -1980,19 +2011,29 @@ export function Recruit() {
       const uid = el?.getAttribute('data-uid');
       return uid && valid(uid) ? { uid } : null;
     };
+    // Same treatment as the hero-power aim: anchor measured once (the source card can't move while you
+    // aim), coordinates driven straight into Pixi, and React state touched only when the target changes.
+    const originEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${pendingTarget.uid}"]`);
+    if (!originEl) return;
+    const orr = originEl.getBoundingClientRect();
+    const ox = orr.left + orr.width / 2;
+    const oy = orr.top + orr.height / 2;
+    let raf = 0;
+    let pending: { x: number; y: number } | null = null;
+    let lastUid: string | null = null;
+    const flush = (): void => {
+      raf = 0;
+      const pt = pending;
+      pending = null;
+      if (!pt) return;
+      const target = minionAt(pt.x, pt.y);
+      const uid = target?.uid ?? null;
+      pixiFx.setAimLine({ x: ox, y: oy }, { x: pt.x, y: pt.y }, !!target, getAimFxConfig());
+      if (uid !== lastUid) { lastUid = uid; setAimTargetUid(uid); }
+    };
     const move = (e: PointerEvent): void => {
-      const origin = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${pendingTarget.uid}"]`);
-      if (!origin) return;
-      const r = origin.getBoundingClientRect();
-      const target = minionAt(e.clientX, e.clientY);
-      setAim({
-        ox: r.left + r.width / 2,
-        oy: r.top + r.height / 2,
-        tx: e.clientX,
-        ty: e.clientY,
-        onTarget: !!target,
-        targetUid: target?.uid ?? null,
-      });
+      pending = { x: e.clientX, y: e.clientY };
+      if (!raf) raf = requestAnimationFrame(flush);
     };
     const pick = (e: PointerEvent): void => {
       if (e.button !== 0 || timeUp) return;
@@ -2002,6 +2043,7 @@ export function Recruit() {
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerdown', pick);
     return () => {
+      if (raf) cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerdown', pick);
     };
@@ -2157,7 +2199,9 @@ export function Recruit() {
       list.push(ev);
       waves.set(key, list);
     });
-    const ordered = [...waves.keys()].sort((a, b) => a - b).map((k) => waves.get(k)!);
+    // Cap the wave COUNT, not just the total duration — an Attachment build can produce ~30 waves, at which
+    // point the per-wave gap collapses to a strobe (see coalesceWaves).
+    const ordered = coalesceWaves([...waves.keys()].sort((a, b) => a - b).map((k) => waves.get(k)!));
     ordered.forEach((wave, w) => {
       const go = (): void => { for (const ev of wave) fireOne(ev); };
       if (staggerMs > 0 && w > 0) window.setTimeout(go, w * staggerMs);
@@ -2186,11 +2230,9 @@ export function Recruit() {
     const rr = zoneEl.querySelector('.row.warband')?.getBoundingClientRect();
     const y = rr && rr.height > 4 ? rr.top : z.top;
     const h = rr && rr.height > 4 ? rr.height : z.height;
-    const p = BUFF_PRESETS[buffPreset('', tribe)] ?? BUFF_PRESETS.default!;
-    pixiFx.auraWave(
-      { x: z.left, y, w: z.width, h },
-      { ...getAuraFxConfig(), colorCore: p.colorFlash, colorGlow: p.colorGlow, colorMote: p.colorMote },
-    );
+    // Wave colours come from WAVE_PALETTES, not the tendril preset: the wave blends ADDITIVELY, where a
+    // dark tendril colour contributes almost no light (see buffPresets.ts).
+    pixiFx.auraWave({ x: z.left, y, w: z.width, h }, { ...getAuraFxConfig(), ...wavePalette(buffPreset('', tribe)) });
   }, []);
   useEffect(() => {
     if ((run.auraFxSeq ?? 0) === prevAuraSeq.current) return;
@@ -2296,18 +2338,24 @@ export function Recruit() {
   // gesture is live — the armed hero power / a pending targeted Battlecry (the `aim` state), or a
   // targeted spell being cast from hand (the drag). Replaces the old dotted SVG line; the arch is rolled
   // fresh inside pixiFx each time an aim STARTS.
+  // The hero-power / Battlecry paths now push their own coordinates straight into Pixi from their
+  // rAF-coalesced move handlers, so this effect no longer drives them — it only owns the SPELL-drag line
+  // and the teardown, and it carries a dep array (it previously ran on EVERY render, re-writing
+  // `document.body.classList` each time).
+  const aimingNow = !!((heroArmed || pendingTarget) || (castingSpell && drag));
   useEffect(() => {
-    if ((heroArmed || pendingTarget) && aim) {
-      pixiFx.setAimLine({ x: aim.ox, y: aim.oy }, { x: aim.tx, y: aim.ty }, aim.onTarget, getAimFxConfig());
-    } else if (castingSpell && drag) {
+    if (castingSpell && drag) {
       pixiFx.setAimLine({ x: drag.startX, y: drag.startY }, { x: drag.x, y: drag.y }, !!castTargetUid, getAimFxConfig());
-    } else {
-      pixiFx.clearAimLine();
+    } else if (!heroArmed && !pendingTarget) {
+      pixiFx.clearAimLine(); // no targeting gesture of any kind is live
     }
     // While the targeter is live, the aim line IS the pointer — hide the OS cursor (restored the moment
     // the aim ends; see styles.css `body.aiming`).
-    document.body.classList.toggle('aiming', !!(((heroArmed || pendingTarget) && aim) || (castingSpell && drag)));
-  });
+    document.body.classList.toggle('aiming', aimingNow);
+    // `castTargetUid` is deliberately NOT a dep: it's declared further down the component, so naming it here
+    // would evaluate it during render and hit the TDZ (the effect BODY reads it fine — that runs after).
+    // It's derived from `drag` anyway, which is a dep, so every change that matters already re-runs this.
+  }, [aimingNow, heroArmed, pendingTarget, castingSpell, drag]);
   useEffect(() => () => { pixiFx.clearAimLine(); document.body.classList.remove('aiming'); }, []); // never strand the line/cursor on unmount
 
   // The Fodder-eat choreography (owner redesign 2026-07-16): the ghost card POPS IN hovering above the
@@ -2785,7 +2833,7 @@ export function Recruit() {
         // the old formula compressed a big board into an unreadable smear (owner 2026-07-18).
         if (bfx.buffFx.length > 0) {
           const waveCount = new Set(bfx.buffFx.map((e, k) => e.fxWave ?? -1 - k)).size;
-          replayBuffFxEvents(bfx.buffFx, waveGapFor(waveCount));
+          replayBuffFxEvents(bfx.buffFx, waveGapFor(Math.min(waveCount, getBuffFxConfig().waveMaxCount)));
         }
         if (bfx.eaten.length > 0) playFodderEat(bfx.eaten, ++eotEatKey.current);
         // Auto-welds on this beat (Combinator / Cling Drones / Money Bots) — ring each host as it fuses.
@@ -3196,7 +3244,7 @@ export function Recruit() {
                 refCards={refViewsByUid.get(o.uid)}
                 dragging={!!drag?.active}
                 highlight={(heroArmed && heroTargetsTavern) || (castingSpell && drag?.view.target === 'any')}
-                targeted={(heroArmed && heroTargetsTavern && aim?.targetUid === o.uid) || castTargetUid === o.uid}
+                targeted={(heroArmed && heroTargetsTavern && aimTargetUid === o.uid) || castTargetUid === o.uid}
                 buffed={buffedUids.has(o.uid)}
                 tripleReady={tripleReadyUids.has(o.uid)}
                 suppressPop={returningFromCombat}
@@ -3250,7 +3298,7 @@ export function Recruit() {
                     refCards={refViewsByUid.get(m.uid)}
                     dragging={!!drag?.active}
                     highlight={heroArmed || castingSpell || isPendingTarget(m.uid)}
-                    targeted={((heroArmed || isPendingTarget(m.uid)) && aim?.targetUid === m.uid) || castTargetUid === m.uid}
+                    targeted={((heroArmed || isPendingTarget(m.uid)) && aimTargetUid === m.uid) || castTargetUid === m.uid}
                     buffed={buffedUids.has(m.uid)}
                     battlecry={battlecryUids.has(m.uid) || eotProcUids.has(m.uid)}
                     // Medallion: a Battlecry / an officially-firing End-of-Turn pulses (ring); a cadence

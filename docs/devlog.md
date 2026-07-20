@@ -120,6 +120,41 @@ Full guide: `docs/card-sets.md`.
 
 ## 2026-07-19 (later)
 
+### fix(ui): scale the death CSS with combatSpeed — the blink can't return at speed
+
+Owner: *"I still want to make sure the blinking doesn't happen at higher speeds."* Correct instinct — the
+blink root-caused in #537 was a double beat-advance, but a SECOND, independent path to the same symptom was
+still live: beat holds divide by `combatSpeed` while the `.unit.dying*` CSS was fixed seconds, and a dying
+unit is unmounted the moment its beat advances. So above a threshold the animation is simply cut.
+
+Measured break-even per variant (hold at 1× ÷ fixed animation ms):
+
+| variant | hold@1× | anim | breaks above |
+|---|---:|---:|---:|
+| plain attacker (return-home) | 1050 | 800 | **1.31×** |
+| DR attacker (return-home) | 1550 | 1040 | 1.49× |
+| DR defender | 1040 | 700 | 1.49× |
+| defender / plain | 500 | 320 | 1.56× |
+| rise attacker (return-home) | 1390 | 620 | 2.24× |
+| rise body (defender) | 1040 | 320 | 3.25× |
+
+The pacing pass (#558) lowered the worst threshold from ~2.7× to ~1.31× as a side effect of tightening the
+holds, so this was getting closer rather than further away.
+
+Fix is the roadmap's prescribed one: a `--combat-speed` custom property (pushed from the speed-slider effect
+in Recruit, alongside the float scaling from #561) with every death duration + delay expressed as
+`calc(X / var(--combat-speed, 1))`. `--death-dur` is defined once on `.unit.dying` and inherits to the `.card`
+rules. Animation and hold now shrink together, so the ratio is **speed-invariant** — the break-even disappears
+rather than moving. At 1× the computed values are identical to what shipped (the var defaults to 1), so
+nothing changes for default-speed play.
+
+Guarded by a test that greps `styles.css` for any `.unit.dying*` rule carrying a bare time literal outside a
+`--combat-speed` calc — verified it FAILS when a rule is reverted to a fixed duration (a test that can't fail
+is worthless). Summon/reborn pops are deliberately untouched: those units persist, so nothing unmounts
+mid-animation and they only overlap the next beat, which is by design.
+
+Verified: typecheck + lint + test (1224, 3 new) + build:web green.
+
 ### fix(ui): scale the damage-float animations with combatSpeed
 
 Found while re-reading the timing tables after the pacing pass. The float's React cleanup timers divide by

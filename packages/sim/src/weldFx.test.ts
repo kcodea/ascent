@@ -68,12 +68,28 @@ describe('weld FX signal — multiple welds in ONE action', () => {
     expect(s.weldFxSeq).toBe(2);
   });
 
-  it('does not leak across actions — reduce() clears the scratch', () => {
+  it('survives an unrelated follow-up action (React batches dispatches)', () => {
+    // The regression this file exists for: `reduce` used to null `weldFxUids` on EVERY action. React batches
+    // dispatches, so a weld plus any other click in the same frame coalesced into ONE render — by which time
+    // the second action had wiped the payload and the ring never fired. The seq must not advance (so the UI
+    // still won't re-fire), but the uids must still be there for a render that hasn't happened yet.
     let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10,
       board: [mk('h', 'drone', 'mech')], hand: [mk('m', 'cling', 'mech', 1, 1, ['M'])] };
     s = reduce(s, { type: 'play', uid: 'm', toIndex: 0 });
+    const seq = s.weldFxSeq;
     expect(s.weldFxUids).toContain('h');
-    s = reduce(s, { type: 'roll' }); // an unrelated action must not re-fire the weld
-    expect(s.weldFxUids ?? []).toEqual([]);
+    s = reduce(s, { type: 'roll' });
+    expect(s.weldFxUids).toContain('h'); // payload preserved …
+    expect(s.weldFxSeq).toBe(seq); //       … but not re-announced, so the UI's dedupe still holds
+  });
+
+  it('does not leak across actions — a new weld replaces the previous action\'s uids', () => {
+    let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10,
+      board: [mk('h', 'drone', 'mech'), mk('h2', 'drone', 'mech')],
+      hand: [mk('m', 'cling', 'mech', 1, 1, ['M']), mk('m2', 'cling', 'mech', 1, 1, ['M'])] };
+    s = reduce(s, { type: 'play', uid: 'm', toIndex: 0 });
+    expect(s.weldFxUids).toEqual(['h']);
+    s = reduce(s, { type: 'play', uid: 'm2', toIndex: 1 });
+    expect(s.weldFxUids).toEqual(['h2']); // the first action's host must NOT ride along
   });
 });

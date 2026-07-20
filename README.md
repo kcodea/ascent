@@ -40,6 +40,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+- **Weld rings fire again.** A recent change cleared the weld FX payload on every action, which raced React’s
+  dispatch batching — a weld plus any other click in the same frame lost its ring (and its stat flash). The
+  payload now survives until the UI reads it.
 - **Card info panel detached** — the name/keywords/text/tribe drawer now floats beneath the card as a rounded
   dark-glass panel (matching the hero/quest panels) instead of welding onto the frame; the right-click inspect's
   Buffs panel matches. Same info, new housing.

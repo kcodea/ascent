@@ -649,53 +649,11 @@ export function Recruit() {
     });
     return () => cancelAnimationFrame(raf);
   }, [run.swapFxSeq, run.swapFxBoardUid, run.swapFxShopUid]);
-  // Quest Tendril — a quest/rune End-of-Turn reward just TRIGGERED a unit (Echoing Roar re-firing a Shout,
-  // Rune of the Reliquary firing an Echo): a gold ribbon reaches from that reward's node in the badge row to
-  // the unit it hit. One tendril PER PROC, staggered, with the arc alternating sides so repeats (Chronos /
-  // Parliament of Flame multiplying the End of Turn) read as separate strikes rather than one thick line.
-  // Keyed off `questTendrilSeq`, the same one-shot dedupe as the other FX signals.
-  const prevQuestTendrilSeq = useRef(run.questTendrilSeq);
-  useEffect(() => {
-    const seq = run.questTendrilSeq;
-    if (seq === undefined || seq === prevQuestTendrilSeq.current) return;
-    prevQuestTendrilSeq.current = seq;
-    const procs = run.questTendrilFx ?? [];
-    // Gated OFF by default — see `enabled` in questTendrilConfig. The ribbon isn't rendering correctly yet and
-    // a stray line on the board is worse than no effect; flip it in the 🏆 tuner to keep iterating.
-    if (procs.length === 0 || !getQuestTendrilConfig().enabled) return;
-    const timers: number[] = [];
-    // One frame late so React has committed both the node row and the target unit.
-    const raf = requestAnimationFrame(() => {
-      procs.forEach((proc, i) => {
-        // Scoped to `.questbadges` — the PLAYER's row. OpponentFrame renders `.questbadge` elements of its
-        // own for the opponent's quests/runes, so an unscoped lookup could anchor the ribbon to the OPPONENT's
-        // panel, which is why it appeared to fly in from off-screen (owner report 2026-07-21).
-        const node = document.querySelector(`.questbadges [data-eot-effect="${proc.effect}"]`);
-        const unit = document.querySelector(`[data-uid="${proc.uid}"]`);
-        if (!node || !unit) return; // node scrolled out or unit already left the board — skip, never throw
-        const nr = node.getBoundingClientRect();
-        const ur = unit.getBoundingClientRect();
-        // CLAMP the launch point into the viewport. The node row is stage-pinned with a large negative
-        // `--qb-y` (−256 × scale), so on a tall/zoomed layout it can sit ABOVE the top edge — and a tendril
-        // launched from off-screen reads as a stray line flying in from the corner (owner report, with the
-        // ▶ Test showing it too). Clamping keeps the ribbon coming from the node's DIRECTION while staying
-        // visible. A margin keeps the launch flash fully on screen rather than half-clipped.
-        const M = 12;
-        const from = {
-          x: Math.min(Math.max(nr.left + nr.width / 2, M), window.innerWidth - M),
-          y: Math.min(Math.max(nr.top + nr.height / 2, M), window.innerHeight - M),
-        };
-        const to = { x: ur.left + ur.width / 2, y: ur.top + ur.height / 2 };
-        // If the TARGET is off-screen there's nothing meaningful to draw — skip rather than sling a ribbon
-        // at a point the player can't see.
-        if (to.x < 0 || to.y < 0 || to.x > window.innerWidth || to.y > window.innerHeight) return;
-        const fire = (): void => pixiFx.buffTendril(from, to, tendrilCfgFor(i % 2 === 0 ? 1 : -1));
-        if (i === 0) fire();
-        else timers.push(window.setTimeout(fire, i * getQuestTendrilConfig().staggerMs));
-      });
-    });
-    return () => { cancelAnimationFrame(raf); for (const t of timers) window.clearTimeout(t); };
-  }, [run.questTendrilSeq, run.questTendrilFx]);
+  // NB: the quest tendril is fired from the END-OF-TURN BEAT LOOP (see `endTurn` below), NOT from a reducer
+  // signal. `questTendrilFx` is still stamped in the sim and still drives the NODE PULSE in QuestBadges, but
+  // the ribbon itself has to be drawn while the board is still on screen: the End-of-Turn commit (`faceOmen`)
+  // only lands after every beat has played and the phase has flipped, so an effect keyed off the committed
+  // state ran too late to find its target and drew nothing.
   // Spell Power — SPELL POWER JUST WENT UP in the shop, from any source and by any amount (Cinderwing
   // Matron's Shout, a quest reward, a rune…): rising pink/purple/gold arrows + a mote blast, and the GAIN
   // floats up once they land. Keyed off `spellPowerFxSeq`, the same one-shot dedupe as swapFx; inits to the
@@ -2896,7 +2854,7 @@ export function Recruit() {
   const endTurn = (): void => {
     if (inCombat || endTurnPendingRef.current) return;
     const repeats = endOfTurnRepeats(run);
-    type Beat = { uid: string; kind: 'combinator' | 'generic'; targets: string[]; completes: boolean; label?: string; gust?: boolean; infuse?: boolean };
+    type Beat = { uid: string; kind: 'combinator' | 'generic'; targets: string[]; completes: boolean; label?: string; gust?: boolean; infuse?: boolean; eotEffect?: string };
     const beats: Beat[] = [];
     for (const card of run.board) {
       const def = CARD_INDEX[card.cardId];
@@ -2932,7 +2890,7 @@ export function Recruit() {
     // (effect × repeat) — the stat climb is auto-derived from the projection diff below, so no source card is
     // needed; the beat just anchors the flourish/label on whatever minion(s) actually gain.
     for (const qb of questEndOfTurnBeats(run)) {
-      beats.push({ uid: '', kind: 'generic', targets: [], completes: true, label: qb.label });
+      beats.push({ uid: '', kind: 'generic', targets: [], completes: true, label: qb.label, eotEffect: qb.effect });
     }
     if (beats.length === 0) {
       dispatch({ type: 'faceOmen' });
@@ -2979,6 +2937,29 @@ export function Recruit() {
       // didn't fire, e.g. Frontdrake's countdown) → the softer glow cue.
       if (b.completes) sfx.triggerPulse();
       else sfx.triggerGlow();
+      // QUEST TENDRIL — fired from the BEAT, not from reducer state. The End-of-Turn commit (`faceOmen`)
+      // lands only after every beat has played and the phase has flipped, so a reducer-driven signal arrives
+      // when the board is already gone — which is why this never showed at End of Turn while ▶ Test worked
+      // (owner report 2026-07-21). Driving it here also gives the per-proc timing: one ribbon per beat.
+      if (b.eotEffect && getQuestTendrilConfig().enabled) {
+        // Resolve the unit this reward hits, mirroring `runRecurringEndOfTurn`'s pick.
+        const targetUid = b.eotEffect === 'triggerLeftmostShout'
+          ? run.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && d.effects.some((e) => e.on === 'onPlay'); })?.uid
+          : b.eotEffect === 'triggerLeftmostEcho'
+            ? run.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'))?.uid
+            : undefined;
+        const nodeEl = document.querySelector(`.questbadges [data-eot-effect="${b.eotEffect}"]`);
+        const unitEl = targetUid ? document.querySelector(`[data-uid="${targetUid}"]`) : null;
+        if (nodeEl && unitEl) {
+          const nr = nodeEl.getBoundingClientRect();
+          const ur = unitEl.getBoundingClientRect();
+          pixiFx.buffTendril(
+            { x: nr.left + nr.width / 2, y: nr.top + nr.height / 2 },
+            { x: ur.left + ur.width / 2, y: ur.top + ur.height / 2 },
+            tendrilCfgFor(i % 2 === 0 ? 1 : -1),
+          );
+        }
+      }
       if (b.gust) fireTavernGust(); // Maw / Ritualist: the tavern-buffed rush, timed to the beat (replaced Ritualist's old purple shop-wash)
       if (b.infuse && b.uid) fireFodderInfusion(b.uid); // Maw: send-Fodder tendrils reach the shop on the beat
       if (b.kind === 'combinator') setElectrifyUids(new Set(b.targets));

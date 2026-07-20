@@ -3,6 +3,37 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21u (End-of-Turn FX must ride the BEAT, not reducer state)
+
+### fix(ui): fire the quest tendril from the End-of-Turn beat loop
+
+▶ Test worked, the real proc never showed. The cause is architectural and explains the Aeon Guard timing
+complaint too.
+
+**End-of-Turn effects animate as BEATS in `Recruit.endTurn`, and the reducer commit (`faceOmen`) is
+dispatched only AFTER every beat has played and the phase has flipped.** So any FX keyed off committed run
+state (`questTendrilFx`/`questTendrilSeq`, and equally `spellPowerFxSeq`) fires once, late, when the board is
+already gone — my own "unit already left the board, skip" guard then swallowed it silently. That is why the
+tendril was invisible at End of Turn while the tuner's Test — which fires against the live board — looked
+perfect.
+
+The ribbon now fires inside the beat loop, on the beat that represents that reward's proc. Two things fall
+out for free: it draws while the board is still on screen, and it is inherently PER PROC — a repeated End of
+Turn (Chronos/Parliament) gets one ribbon per beat, which is what the owner asked for. The target is
+resolved UI-side mirroring `runRecurringEndOfTurn`'s pick (leftmost Shout / leftmost Echo).
+
+The sim signal stays: it still drives the node PULSE in QuestBadges, which is correctly keyed off committed
+state. Only the ribbon moved.
+
+**This is the same root cause as Aeon Guard's spell power showing at Start of Combat** — that FX is also
+keyed off committed state, so it lands after the phase flip. The fix is the same shape (fire from the beat),
+and is the per-proc work still outstanding.
+
+**NOT VERIFIED END-TO-END.** A real `endTurn` runs combat, which my synthetic harness state can't survive
+(`reduce` throws on the incomplete state), so I could not watch the beat fire the ribbon. The reasoning is
+solid and the wiring typechecks, but the owner should confirm before trusting it. Everything else green:
+typecheck + lint + 1277 tests + `build:web`, `typecheck:web` at its 48 baseline.
+
 ## 2026-07-21t (the tendril's curve was a MULTIPLIER, not pixels)
 
 ### fix(ui): quest tendril arc units — the actual cause of the off-screen ribbon

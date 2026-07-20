@@ -4445,43 +4445,52 @@ body.dragging .row.hand .card.compact.showtext::after { pointer-events: none; }
 body.dragging .frzwrap { pointer-events: none; } /* a card dragged across it drops through */
 
 /* ---- RUN BUFFS drawer (BuffsFrame.tsx) — extends RIGHT out of the hero portrait, its tab eclipsing the
-   portrait's right edge. Owner rework 2026-07-21: this replaced a separate boxed window in the top-left.
-   Anchored to `.statusbar .hero` (position: relative already), so it rides the portrait wherever the
-   layout tuner puts it rather than needing its own stage pin. */
+   portrait's right edge. Owner rework 2026-07-21; the tab is VERTICAL so it covers as little of the art as
+   possible (a horizontal pill ate a visible bite). Every knob reads a `--bfd-*` var the 🧪 tuner sets live,
+   and the fallbacks here MIRROR the DEFAULTS in buffDrawerConfig.ts — update both when baking.
+   Anchored to `.statusbar .hero` (already positioned), so it rides the portrait wherever the layout tuner
+   puts it rather than needing its own stage pin. */
 .herobuffs { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); z-index: 12; display: flex; align-items: center; pointer-events: auto; }
-/* The tab — a dark-glass pill straddling the portrait's edge, matching the name pills' language. */
+/* The VERTICAL tab — a narrow dark-glass sliver straddling the portrait's edge. */
 .herobuffs-tab {
-  position: relative; z-index: 2; margin-left: calc(-10 * var(--u));
-  display: inline-flex; align-items: center; gap: calc(4 * var(--u));
-  padding: calc(5 * var(--u)) calc(9 * var(--u));
+  position: relative; z-index: 2;
+  margin-left: calc(var(--bfd-tab-x, -6) * var(--u));
+  transform: translateY(calc(var(--bfd-tab-y, 0) * var(--u))) scale(var(--bfd-tab-s, 1));
+  width: calc(var(--bfd-tab-w, 16) * var(--u));
+  height: calc(var(--bfd-tab-h, 54) * var(--u));
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: calc(3 * var(--u)); padding: calc(4 * var(--u)) 0;
   background: linear-gradient(180deg, #241a13, #17110c);
   border: 2px solid color-mix(in srgb, var(--gold) 58%, #000);
-  border-radius: 999px;
-  font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); color: #f4ecdb;
+  border-radius: calc(9 * var(--u));
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(10 * var(--u)); color: #f4ecdb;
   box-shadow: 0 calc(4 * var(--u)) calc(12 * var(--u)) -5px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
 }
 .herobuffs-tab:hover { border-color: var(--acc); color: #fff; }
-.herobuffs-tab svg { width: calc(11 * var(--u)); height: calc(11 * var(--u)); color: #e8c877; }
+.herobuffs-tab svg { width: calc(10 * var(--u)); height: calc(10 * var(--u)); color: #e8c877; flex: none; }
 .herobuffs-count {
-  min-width: calc(13 * var(--u)); text-align: center;
-  padding: 0 calc(3 * var(--u)); border-radius: 999px;
+  min-width: calc(12 * var(--u)); text-align: center;
+  padding: 0 calc(2 * var(--u)); border-radius: 999px;
   background: color-mix(in srgb, var(--acc) 30%, transparent); color: #ffeec2;
 }
-.herobuffs-chev { opacity: 0.75; font-size: calc(9 * var(--u)); }
+.herobuffs-chev { opacity: 0.75; font-size: calc(8 * var(--u)); }
 /* The drawer body — slides out to the right of the tab. */
 .herobuffs-body {
-  margin-left: calc(-8 * var(--u)); padding: calc(8 * var(--u)) calc(12 * var(--u)) calc(8 * var(--u)) calc(16 * var(--u));
-  display: flex; flex-direction: column; gap: calc(3 * var(--u)); min-width: calc(132 * var(--u));
+  margin-left: calc(var(--bfd-body-x, 4) * var(--u));
+  transform: translateY(calc(var(--bfd-body-y, 0) * var(--u))) scale(var(--bfd-body-s, 1));
+  padding: calc(8 * var(--u)) calc(12 * var(--u));
+  display: flex; flex-direction: column; gap: calc(3 * var(--u));
+  min-width: calc(var(--bfd-min-w, 132) * var(--u));
   background: linear-gradient(180deg, #241a13f2, #17110cf2);
   border: 2px solid color-mix(in srgb, var(--gold) 45%, #000);
   border-radius: calc(12 * var(--u));
   box-shadow: 0 calc(6 * var(--u)) calc(18 * var(--u)) -6px rgba(0, 0, 0, 0.7);
   animation: herobuffsin 0.16s ease both;
 }
-@keyframes herobuffsin { from { opacity: 0; transform: translateX(calc(-6 * var(--u))); } to { opacity: 1; transform: none; } }
-.herobuffs-title { font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: #c9b79a; margin: 0; }
-.herobuffs-body .buff-row { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10 * var(--u)); font-size: calc(12 * var(--u)); }
+@keyframes herobuffsin { from { opacity: 0; transform: translateX(calc(-6 * var(--u))); } to { opacity: 1; } }
+.herobuffs-title { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--bfd-title-s, 11) * var(--u)); letter-spacing: 0.08em; text-transform: uppercase; color: #c9b79a; margin: 0; }
+.herobuffs-body .buff-row { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10 * var(--u)); font-size: calc(var(--bfd-text-s, 12) * var(--u)); }
 .herobuffs-body .buff-label { color: #d8ccb6; font-weight: 600; }
 .herobuffs-body .buff-val { color: #f4ecdb; font-weight: 900; }
 /* Mid-drag the drawer must not eat a drop aimed at the corner (mirrors the hero/Embers rule above). */

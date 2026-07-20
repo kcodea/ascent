@@ -3,6 +3,34 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21m (buff panel coverage + vertical tab)
+
+### fix(ui): the buff panel was missing Heckbinder, Attachments and Beasts — plus a vertical tab + tuner
+
+Three owner reports, and the second one turned into an audit.
+
+**Heckbinder's Fodder aura wasn't counted.** The row read `run.cardBuffs.fred` — the PERMANENT enchant only
+(Ritualist / Bane). Heckbinder's `fodderAura` is a LIVE aura applying while it's on board, and `cardBuff()`
+is what folds the two together. This is the **same class of bug, in a second place**: the tavern display had
+it too (fixed in #589), and I fixed that one without checking whether anything else read the raw map. It
+now goes through `cardBuff()`.
+
+**Two run-wide auras had no row at all** — found by auditing every buff field in `RunState` against what the
+panel renders, since "if we're going to have a buff panel it needs to include all current buffs":
+- **Attachment Aura** (`magneticBuyAtk/Hp`, Scrap Herald) — the owner's report
+- **Beast Aura** (`beastBuyAtk/Hp`) — the same omission, unreported
+
+**The tab is now VERTICAL**, so it eclipses far less of the portrait art — a horizontal pill ate a visible
+bite. Position, scale, tab width/height, drawer offset/scale/min-width and BOTH type sizes are now dials in
+a new 🧪 Buffs Drawer tuner, because how much overlap reads as "attached" rather than "covering" is a
+judgement call, not a number I should be picking.
+
+Verified live: with NO permanent enchant and a lone Heckbinder on board the panel reads "Fodder Aura +3/+3"
+(it read nothing before), "Attachment Aura +4/+2" appears, the tab measures 28x94 (taller than wide), and
+driving `tabH` moves it 94 -> 174 with Reset restoring 94.
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
 ## 2026-07-21l (run-buffs drawer)
 
 ### tweak(ui): run buffs become a collapsible drawer off the hero portrait

@@ -660,7 +660,9 @@ export function Recruit() {
     if (seq === undefined || seq === prevQuestTendrilSeq.current) return;
     prevQuestTendrilSeq.current = seq;
     const procs = run.questTendrilFx ?? [];
-    if (procs.length === 0) return;
+    // Gated OFF by default — see `enabled` in questTendrilConfig. The ribbon isn't rendering correctly yet and
+    // a stray line on the board is worse than no effect; flip it in the 🏆 tuner to keep iterating.
+    if (procs.length === 0 || !getQuestTendrilConfig().enabled) return;
     const timers: number[] = [];
     // One frame late so React has committed both the node row and the target unit.
     const raf = requestAnimationFrame(() => {

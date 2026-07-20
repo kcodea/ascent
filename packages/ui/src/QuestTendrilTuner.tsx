@@ -13,6 +13,7 @@ import { testQuestTendril } from './fxTestFire';
  * up an Echoing Roar. "Copy" grabs the JSON to bake as the shipped defaults; "Reset" clears.
  */
 const QT_LABELS: Partial<Record<keyof QuestTendrilConfig, string>> = {
+  enabled: 'ENABLED (0/1)',
   curve: 'arc bulge',
   staggerMs: 'stagger ms',
   travelMs: 'travel ms',

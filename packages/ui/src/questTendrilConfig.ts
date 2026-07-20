@@ -13,6 +13,10 @@ import type { TendrilCfg } from './pixiFx';
  * applies to the next proc.
  */
 export interface QuestTendrilConfig {
+  /** 1 = fire on a real proc, 0 = OFF. Defaults OFF: the effect is not rendering correctly yet (the ribbon's
+   *  Graphics measures 0x0 for its whole flight while the launch pulse draws fine), and a half-working FX on
+   *  the board is worse than none. The ▶ Test button ignores this so the look can still be iterated. */
+  enabled: number;
   curve: number;        // arc bulge — alternates sides per tendril so repeats don't overlap exactly
   staggerMs: number;    // ms between successive tendrils when one End of Turn procs several times
   travelMs: number;     // ms — the ribbon head's travel from node to unit
@@ -41,6 +45,7 @@ export interface QuestTendrilConfig {
 // Gold, per the ask — warm core, paler glow, a bright landing flash. Fast (340ms) because this fires inside
 // the End-of-Turn beat sequence: it must read as punctuation on the proc, not delay it.
 const DEFAULTS: QuestTendrilConfig = {
+  enabled: 0,
   curve: 46,
   staggerMs: 90,
   travelMs: 340,
@@ -67,7 +72,7 @@ const DEFAULTS: QuestTendrilConfig = {
 };
 
 export const QUESTTENDRIL_KEYS = [
-  'curve', 'staggerMs', 'travelMs', 'retractMs', 'wobbleAmp', 'wobbleFreq',
+  'enabled', 'curve', 'staggerMs', 'travelMs', 'retractMs', 'wobbleAmp', 'wobbleFreq',
   'baseWidth', 'tipWidth', 'coreAlpha', 'glowWidth', 'glowAlpha',
   'flashSize', 'flashMs', 'moteCount', 'moteSpeed', 'moteLife',
   'pulseSize', 'pulseAlpha', 'pulseMs',
@@ -77,7 +82,7 @@ export const QUESTTENDRIL_KEYS = [
 export const QUESTTENDRIL_COLOR_KEYS: (keyof QuestTendrilConfig)[] = ['colorCore', 'colorGlow', 'colorFlash', 'colorMote'];
 
 export const QUESTTENDRIL_RANGES: Partial<Record<keyof QuestTendrilConfig, [number, number, number]>> = {
-  curve: [-200, 200, 2], staggerMs: [0, 400, 5], travelMs: [80, 1400, 10], retractMs: [40, 1200, 10],
+  enabled: [0, 1, 1], curve: [-200, 200, 2], staggerMs: [0, 400, 5], travelMs: [80, 1400, 10], retractMs: [40, 1200, 10],
   wobbleAmp: [0, 40, 0.5], wobbleFreq: [0, 6, 0.1],
   baseWidth: [1, 24, 0.5], tipWidth: [0, 16, 0.5], coreAlpha: [0, 1, 0.02],
   glowWidth: [0, 30, 0.5], glowAlpha: [0, 1, 0.02],

@@ -21,7 +21,7 @@ const STD_KNOBS: Knob[] = [
   { key: 'artZoom', label: 'art zoom', min: 0.8, max: 1.8, step: 0.01, def: 1.12 },
   { key: 'wardsize', label: 'ward size (DS)', min: 0.4, max: 1.2, step: 0.01, def: 1.2 },
   { key: 'wardy', label: 'ward Y % (DS)', min: 30, max: 80, step: 1, def: 46, pct: true },
-  { key: 'fovl-a', label: 'overlay opacity', min: 0, max: 1, step: 0.01, def: 0 },
+  { key: 'fovl-a', label: 'overlay opacity', min: 0, max: 1, step: 0.01, def: 0.75 },
 ];
 const SPELL_KNOBS: Knob[] = [
   { key: 'sh', label: 'frame size', min: 0.5, max: 1.0, step: 0.01, def: 0.78 },
@@ -37,12 +37,16 @@ const SPELL_KNOBS: Knob[] = [
   { key: 'fovl-a', label: 'overlay opacity', min: 0, max: 1, step: 0.01, def: 0 },
 ];
 // Colour-overlay tint (`.cframe-tint`, masked to the frame PNG) — colour per section; opacity is the knob above.
-const DEF_TINT = '#ffffff';
 // Blend of the tint against the frame pixels: multiply darkens (keeps engraving shadows), overlay recolours
 // preserving highlights, screen brightens, color swaps hue/sat keeping luminosity (truest "different metal").
 const BLENDS = ['normal', 'multiply', 'overlay', 'screen', 'color'] as const;
 type Blend = (typeof BLENDS)[number];
-const DEF_BLEND: Blend = 'normal';
+// Per-section shipped defaults (owner bake 2026-07-19): the minion oval carries a dark-slate overlay tint
+// (steel look); the spell square is a no-op. Mirror styles.css — keep in sync when new values are baked.
+const DEF_TINT_STD = '#272a35';
+const DEF_BLEND_STD: Blend = 'overlay';
+const DEF_TINT_SPELL = '#ffffff';
+const DEF_BLEND_SPELL: Blend = 'normal';
 
 type Vals = Record<string, number>;
 const defaults = (knobs: Knob[]): Vals => Object.fromEntries(knobs.map((k) => [k.key, k.def]));
@@ -56,10 +60,10 @@ const cssText = (std: Vals, spell: Vals, stdTint: string, spellTint: string, std
 export function FrameTuner() {
   const [std, setStd] = useState<Vals>(() => defaults(STD_KNOBS));
   const [spell, setSpell] = useState<Vals>(() => defaults(SPELL_KNOBS));
-  const [stdTint, setStdTint] = useState(DEF_TINT);
-  const [spellTint, setSpellTint] = useState(DEF_TINT);
-  const [stdBlend, setStdBlend] = useState<Blend>(DEF_BLEND);
-  const [spellBlend, setSpellBlend] = useState<Blend>(DEF_BLEND);
+  const [stdTint, setStdTint] = useState(DEF_TINT_STD);
+  const [spellTint, setSpellTint] = useState(DEF_TINT_SPELL);
+  const [stdBlend, setStdBlend] = useState<Blend>(DEF_BLEND_STD);
+  const [spellBlend, setSpellBlend] = useState<Blend>(DEF_BLEND_SPELL);
   const [copied, setCopied] = useState(false);
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('frame');
 
@@ -92,7 +96,7 @@ export function FrameTuner() {
   };
   const reset = (): void => {
     setStd(defaults(STD_KNOBS)); setSpell(defaults(SPELL_KNOBS));
-    setStdTint(DEF_TINT); setSpellTint(DEF_TINT); setStdBlend(DEF_BLEND); setSpellBlend(DEF_BLEND);
+    setStdTint(DEF_TINT_STD); setSpellTint(DEF_TINT_SPELL); setStdBlend(DEF_BLEND_STD); setSpellBlend(DEF_BLEND_SPELL);
   };
 
   const tintRow = (label: string, tint: string, setTint: (v: string) => void) => (

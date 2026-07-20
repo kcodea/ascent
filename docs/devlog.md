@@ -165,6 +165,15 @@ boots clean in the browser with no error boundary and both new counters reportin
 
 ## 2026-07-19 (set 2 empty)
 
+### tweak(ui): bake owner's frame overlay — dark-slate steel oval
+
+Owner's Card-Frames-tuner export baked as shipped: the **minion oval** carries a dark-slate overlay tint
+(`--fovl: #272a35`, `--fovl-a: 0.75`, `--fovl-blend: overlay`) — the gold frame reads as dark steel while the
+engraving highlights/depth survive (overlay blend). The **spell square is a no-op** (opacity 0, unchanged
+purple/gold). Baked in both homes: the shipped `.card.compact.stdframe` / `.spellframe` knob lines in styles.css
++ the FrameTuner per-section defaults (split `DEF_TINT_STD/SPELL`, `DEF_BLEND_STD/SPELL` so Reset matches).
+All other frame knobs unchanged. Verified: typecheck + lint + build green.
+
 ### feat(ui): Card Frames tuner — overlay BLEND modes (multiply / overlay / screen / color)
 
 Follow-up to the colour overlay below: a per-section **overlay blend** dropdown (`--fovl-blend` →

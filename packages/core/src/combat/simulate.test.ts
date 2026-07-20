@@ -3229,6 +3229,18 @@ describe('Rune of Rallying (Start of Combat: trigger your rallies)', () => {
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 1 }];
     expect(simMods(p, e, 1, { runeRallying: true }).events.some((ev) => ev.type === 'sc' && ev.text === 'Rally')).toBe(false);
   });
+
+  it('counts the free rally toward the Rally quest tally (audit 2026-07-21)', () => {
+    // Rune of Rallying fires a free rally at Start of Combat; that fire must advance Rally quests (Spark
+    // Permit, Machine Chorus, …) exactly like an attack-path rally. It emitted the pip + effect but never
+    // bumped `playerRallies` — the Echo sibling in the same block already bumped its tally.
+    const p: BoardMinion[] = [{ cardId: 'philippe', attack: 4, health: 20 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }];
+    const withRune = simMods(p, e, 2, { runeRallying: true });
+    const without = simMods(p, e, 2, {});
+    // Rally surfaces as `playerRallies`. The rune adds exactly one extra (the free SoC fire) over baseline.
+    expect((withRune.playerRallies ?? 0)).toBe((without.playerRallies ?? 0) + 1);
+  });
 });
 
 describe('Epic combat runes (Rising Graves / Broodpit / Spearline / Appraisal)', () => {

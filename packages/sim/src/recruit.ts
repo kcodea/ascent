@@ -2953,11 +2953,17 @@ export function replayEndOfTurn(state: RunState, card: BoardCard): boolean {
   if (eot.length === 0) return false;
   const ctx = makeContext(state);
   const repeats = chronosRepeats(state);
+  let fires = 0;
   for (const effect of eot) {
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
-    for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card, proc: r, replay: true });
+    for (let r = 0; r < repeats; r++) { fn(ctx, card, effect.params ?? {}, { minion: card, proc: r, replay: true }); fires++; }
   }
+  // A REPLAYED End of Turn is still an End-of-Turn TRIGGER — it must advance the `endOfTurn` objective
+  // (Parliament of Flame), exactly as `applyEndOfTurn` does. Accumulate (the reducer zeroes it per action), so
+  // Djinn's Cadence firing every minion's EoT counts each one (audit 2026-07-21, the same class as Myra's
+  // replayBattlecry → lastShoutFires and the Uron rally fix). The reducer's heroPower path then reads it.
+  state.lastEotFires = (state.lastEotFires ?? 0) + fires;
   return true;
 }
 

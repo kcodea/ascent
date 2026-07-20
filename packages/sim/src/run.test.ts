@@ -2392,6 +2392,25 @@ describe('run loop (@game/sim)', () => {
     expect(s.questTendrilSeq ?? 0).toBeGreaterThan(0);
   });
 
+  it("Djinn's Cadence advances Parliament of Flame (endOfTurn objective) — audit 2026-07-21", () => {
+    // Djinn's hero power replays every minion's End of Turn. Those replayed fires are End-of-Turn TRIGGERS and
+    // must advance `q_parliament_of_flame` — but `replayEndOfTurn` never bumped `lastEotFires`, and the
+    // heroPower action reaches neither the endTurn nor the Conductor read. So the effects fired and the quest
+    // sat still. Same class as the Uron rally / Echoing Roar shout fixes.
+    let s: RunState = {
+      ...createRun(1, 'djinn'), embers: 0, shop: [], hand: [],
+      board: [
+        { uid: 'a1', cardId: 'aeonguard', tribe: 'mech', attack: 5, health: 6, keywords: [], golden: false },
+        { uid: 'a2', cardId: 'aeonguard', tribe: 'mech', attack: 5, health: 6, keywords: [], golden: false },
+      ],
+      activeQuests: [{ questId: 'q_parliament_of_flame', progress: 0, completed: false }],
+    } as RunState;
+    const before = s.activeQuests![0]!.progress;
+    s = reduce(s, { type: 'heroPower', uid: 'a1' });
+    // Two Aeon Guards, each an End-of-Turn effect → two triggers → +2.
+    expect(s.activeQuests![0]!.progress).toBe(before + 2);
+  });
+
   it('a RE-TRIGGERED Shout counts toward the Shout tally (Echoing Roar / Resonance / Myra)', () => {
     // Owner report 2026-07-21: Echoing Roar's reward re-fires your leftmost Shout at End of Turn, but that
     // trigger never advanced `shout` objectives — so the quest could not advance itself. Every re-trigger path

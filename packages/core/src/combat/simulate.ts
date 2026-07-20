@@ -1683,6 +1683,11 @@ export function simulate(
         nextStep();
         if (!rallyFired) { fireTrigger('runeRallying', rside); rallyFired = true; }
         emit({ type: 'sc', source: minion.uid, text: 'Rally' });
+        // A free rally is still a Rally trigger — count it toward Rally quests (Spark Permit, Machine Chorus,
+        // Overclocked Core, Infinite Assembly) and the Author's Hand rally half, exactly like an attack-path
+        // rally does. The Echo sibling above already bumps its tally (`bumpDeathrattles`); this block was the
+        // odd one out (audit 2026-07-21, same class as the Uron rally fix #594). Player-only, like every tally.
+        if (rside === 'player') bumpRally(1);
         if (cardRally) {
           for (const effect of minion.effects) {
             if (effect.on !== 'onAttack') continue;

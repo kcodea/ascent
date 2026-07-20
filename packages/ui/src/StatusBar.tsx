@@ -6,6 +6,7 @@ import { heroArt, heroPowerArt } from './art';
 import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
 import { QuestBadges } from './QuestBadges';
+import { gatherRunBuffs } from './runBuffs';
 import { sfx } from './sfx';
 import { useGame } from './store';
 import { getHeroPowerBtnConfig } from './heroPowerBtnConfig';
@@ -185,6 +186,22 @@ export function StatusBar() {
     return undefined;
   }, [run.resolve, run.armor]);
 
+  // Hero-portrait buff FLASH — a blast/shard pop with a small eased ripple whenever ANY run buff grows (spell
+  // power, a tribe aura, max Gold, …). Keyed off the SUMMED magnitude of the run-buff rows, so a buff of any
+  // kind rising bumps the key and replays the one-shot. Recruit-phase only source (run state, not the combat
+  // delta) — combat has its own per-unit FX, and flashing the portrait every beat would be noise. (owner ask
+  // 2026-07-21.) One-shot transform/opacity animation, so it never repaints at rest.
+  const buffMag = gatherRunBuffs(run).reduce((sum, r) => {
+    for (const m of r.value.matchAll(/-?\d+/g)) sum += Math.abs(Number(m[0]));
+    return sum;
+  }, 0);
+  const prevBuffMag = useRef(buffMag);
+  const [buffFlash, setBuffFlash] = useState(0);
+  useEffect(() => {
+    if (buffMag > prevBuffMag.current) setBuffFlash((n) => n + 1);
+    prevBuffMag.current = buffMag;
+  }, [buffMag]);
+
   return (
     <div className="statusbar">
       {/* Completed-quest trophies — a horizontal row of art circles sitting directly above the hero panel. */}
@@ -201,6 +218,9 @@ export function StatusBar() {
           {/* The portrait holds ONLY the hero art; the hero name rides a pill eclipsing its bottom edge (mirrors
               the player-name pill at the top). Health/Armor sits to its right (see `.hpbox` CSS). */}
           <div className="f">
+            {/* Buff flash — remounts on `buffFlash` so the one-shot shard+ripple replays each time a run buff
+                grows. `aria-hidden`, pointer-events none; sits over the art, under the name pill. */}
+            {buffFlash > 0 && <span key={buffFlash} className="herobuff-blast" aria-hidden="true" />}
             {heroArt(hero.id) ? (
               <img className="heroimg" src={heroArt(hero.id)} alt={hero.name} draggable={false} />
             ) : (

@@ -4,6 +4,8 @@ import type { CombatEvent, CombatResult, Keyword, MinionBuff, MinionSnapshot, Tr
 import { CARD_INDEX, badgeIdForCombatFlag } from '@game/content';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
 import { pixiFx } from './pixiFx';
+import { getAuraFxConfig } from './auraFxConfig';
+import { buffPreset, wavePalette } from './buffPresets';
 import { sfx } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
 import { attackerOfImpact } from './combatBeats';
@@ -529,6 +531,20 @@ export function useCombatReplay(
   opts: { active: boolean; findEl: (uid: string) => Element | null; combatSpeed?: number; paused?: boolean },
 ): CombatReplay {
   const { active, findEl, paused = false } = opts;
+  // Bloom the board aura-wash for a run-wide tribe aura that rose mid-combat — the same cue the recruit phase
+  // shows off `auraFxSeq`, anchored to the player's board region. `'any'` (a board-wide aura) uses the neutral
+  // palette. Mirrors Recruit.fireAuraWave 1:1 so the two phases read identically (owner ask 2026-07-21).
+  const fireCombatAuraWave = (tribe: string): void => {
+    const zoneEl = document.querySelector('[data-zone="warband"]');
+    if (!zoneEl) return;
+    const z = zoneEl.getBoundingClientRect();
+    if (z.width < 8 || z.height < 8) return;
+    const rr = zoneEl.querySelector('.row.warband')?.getBoundingClientRect();
+    const y = rr && rr.height > 4 ? rr.top : z.top;
+    const h = rr && rr.height > 4 ? rr.height : z.height;
+    const paletteTribe = (tribe === 'any' ? 'neutral' : tribe) as Parameters<typeof buffPreset>[1];
+    pixiFx.auraWave({ x: z.left, y, w: z.width, h }, { ...getAuraFxConfig(), ...wavePalette(buffPreset('', paletteTribe)) });
+  };
   // User-controlled replay speed (in-combat slider). 1 = the tuned default; >1 faster, <1 slower. Every
   // beat delay / float lifetime / final hold is divided by it, and each lunge is timeScaled to match.
   const combatSpeed = opts.combatSpeed && opts.combatSpeed > 0 ? opts.combatSpeed : 1;
@@ -774,6 +790,11 @@ export function useCombatReplay(
     const beat = beats[beatIdx - 1];
     if (!beat) return;
     const trig = new Set<string>();
+    // The player's uids: the initial player board + every player-side summon in the whole log. Enemy-sourced
+    // narrations (spell power, auras) are filtered against this so they never draw on the player's board and
+    // vice-versa. Cheap — a Set built once per beat effect from data already in scope.
+    const playerUids = new Set<string>((combat?.initial.player ?? []).map((u) => u.uid));
+    for (const ev of events) if (ev.type === 'summon' && ev.side === 'player') playerUids.add(ev.minion.uid);
     for (let i = beat.start; i < beat.end; i++) {
       const e = events[i];
       if (!e) continue;
@@ -799,15 +820,29 @@ export function useCombatReplay(
       if (!m) continue;
       const gA = Number(m[1]), gH = Number(m[2]);
       if (gA <= 0 && gH <= 0) continue;
-      // TODO(side): this draws on whichever unit sourced the narration, including an ENEMY one — the owner
-      // sees Aeon Guard's flourish on the opponent's half. The `sc` event carries no `side`, so the fix needs
-      // the replay's player/enemy uid sets rather than a field on the event. Not guessed at here.
+      // PLAYER-SIDE ONLY. The `sc` narration carries no `side`, and an ENEMY spell-power source (an enemy
+      // Aeon Guard) resolved to an enemy unit — so the flourish drew on the opponent's half of the board
+      // (owner report). Gate on a set of the player's uids: the initial player board plus everything the
+      // player summoned this fight. An enemy source isn't in the set, so it's skipped.
+      if (!playerUids.has(e.source)) continue;
       const el = findEl(e.source);
       if (!el) continue;
       const r = el.getBoundingClientRect();
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
       pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
       floatSpellPowerNumber(cx, cy - r.height * 0.3, gA, gH);
+    }
+    // RUN-WIDE TRIBE AURA rose this beat (Ryme, Anubis's Lantern of Souls, Deathswarmer, …): bloom the board
+    // aura-wash, the SAME cue the recruit phase shows off `auraFxSeq`. Player side only — the wash is a
+    // "your board got stronger" read, and the recruit version is player-only too. Deduped per (tribe) so a
+    // multi-source beat washes each tribe once. (owner ask 2026-07-21.)
+    const washedTribes = new Set<string>();
+    for (let i = beat.start; i < beat.end; i++) {
+      const e = events[i];
+      if (!e || e.type !== 'tribeAura' || e.side !== 'player') continue;
+      if (washedTribes.has(e.tribe)) continue;
+      washedTribes.add(e.tribe);
+      fireCombatAuraWave(e.tribe);
     }
     if (trig.size === 0) return;
     sfx.triggerPulse(); // once per beat regardless of how many units pulse (the dedupe is built in too)

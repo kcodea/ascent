@@ -1102,6 +1102,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         // (legacy) proc a single friendly board minion's End of Turn now. No-op on a missing target or a
         // minion with no End-of-Turn effect.
         if (!card || !replayEndOfTurn(s, card)) return state;
+        // Same endOfTurn advance as Djinn below — not on a live hero today, but it carries the identical bug.
+        if ((s.lastEotFires ?? 0) > 0) advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires);
       } else if (power.kind === 'replayAllEndOfTurn') {
         // Djinn's Cadence: trigger EVERY friendly board minion's End of Turn now (untargeted). Fires on a
         // snapshot of the board so a minion an EoT summons doesn't also proc this activation. No-op (no charge
@@ -1109,6 +1111,11 @@ function reduceCore(state: RunState, action: Action): RunState {
         let any = false;
         for (const c of [...s.board]) if (replayEndOfTurn(s, c)) any = true;
         if (!any) return state;
+        // Advance Parliament of Flame here, at the source. `replayEndOfTurn` accumulated its fires into
+        // `lastEotFires` (zeroed at action start), and this is the ONLY writer this action — the natural
+        // end-of-turn (1268) and Conductor (2100) reads live on different dispatches, so advancing here can't
+        // double-count them. Without this a heroPower action reaches neither read (audit 2026-07-21).
+        if ((s.lastEotFires ?? 0) > 0) advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires);
       } else if (power.kind === 'grantWard') {
         // Warden's Aegis: give a friendly board minion a PERMANENT Ward (Divine Shield) for 4 Gold. No-op (no
         // charge/gold spent) on a missing target or one that already has a Ward.

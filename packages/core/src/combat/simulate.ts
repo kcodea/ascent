@@ -491,6 +491,10 @@ export function simulate(
     },
     addTribeAura: (side, tribe, attack, health, source) => {
       tribeAuras.push({ side, tribe, attack, health, source });
+      // Telegraph the wash — the run-wide aura is a board-wide event, so it gets the same bloom the recruit
+      // phase shows off `auraFxSeq` (owner ask 2026-07-21: Ryme + Deathswarmer, Anubis's Lantern, …). Only a
+      // real gain is worth a wave; a 0/0 aura (shouldn't happen) draws nothing.
+      if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe });
     },
     damage: (target, amount, poison = false, bypassShield = false) =>
       dealDamage(target, amount, poison, bypassShield),
@@ -1165,8 +1169,16 @@ export function simulate(
       emit({ type: 'reveal', target: attacker.uid });
     }
     const swings = attacker.keywords.includes('W') ? 2 : 1; // Windfury (A.3 step 5)
+    // A Flurry minion that DIES on its first swing and RISES does not get the second swing (owner ruling
+    // 2026-07-21). Rise sets `dead = false` and restores Health mid-exchange, so the plain liveness guard
+    // below saw a healthy attacker and let swing 2 through — the minion appeared to attack twice after dying.
+    // The risen body is a fresh body: its turn is over, the next minion attacks, and it swings again on a
+    // later turn like anything else. (Granted Flurry is already shed by the Rise itself, which rebuilds
+    // `keywords` from the card def; an INNATE Flurry survives but still doesn't re-swing this exchange.)
+    const rebornAtStart = attacker.rebornAvailable;
     for (let s = 0; s < swings; s++) {
       if (attacker.dead || attacker.health <= 0) break;
+      if (rebornAtStart && !attacker.rebornAvailable) break; // it died and rose during this exchange
       const target = chooseTarget(defenderSide);
       if (!target) break;
       if (s > 0) nextStep(); // each Windfury swing is its own exchange
@@ -1327,14 +1339,21 @@ export function simulate(
         // the target, not this exchange's `attacker`). So gate on `killer === attacker`.
         if ((m.dead || m.health <= 0 || (couldReborn && !m.rebornAvailable)) && killer === attacker) {
           bus.emit('onKill', { attacker: killer, victim: m });
-          // Uron: your SLAUGHTERS trigger extra times — the killer's own on-kill effects only, so the
-          // Slaughter quest tally below still counts one real kill.
+          // Uron: your SLAUGHTERS trigger extra times — the killer's own on-kill effects only. The KILL
+          // count (`slaughter`) still counts one, but each re-trigger bumps the "Trigger N Slaughters" tally.
           const killExtra = extraTriggerFires('slaughter', boards[killer.side].filter((x) => !x.dead && x.health > 0), (id) => cards[id]);
+          const killerHasSlaughter = killer.effects.some((e) => e.on === 'onKill');
           for (let i = 0; i < killExtra; i++) {
             for (const effect of killer.effects) {
               if (effect.on !== 'onKill') continue;
               FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m });
             }
+          }
+          // Each Uron re-fire that actually re-triggers a Slaughter EFFECT counts toward "Trigger N Slaughters"
+          // (`slaughterKeyword`) — the kill count (`slaughter`) stays one, owner ruling 2026-07-21: a Slaughter
+          // is a kill, but a Slaughter EFFECT can trigger multiple times. Matches the Rally treatment (#594).
+          if (killExtra > 0 && killerHasSlaughter && killer.side === 'player' && m.side !== killer.side) {
+            for (let i = 0; i < killExtra; i++) bumpSlaughterKeyword();
           }
           // A player minion felling an enemy by attacking is a "Slaughter" — tally it for the Slaughter quests
           // (credited to the KILLER's tribe for "with Beasts").
@@ -1356,22 +1375,29 @@ export function simulate(
             // Law of Teeth: a Beast's Slaughter triggers one extra time — re-run only this killer's own on-kill
             // effects once more (direct call, not via the bus, so other minions' on-kills don't double-fire). Per side.
             if (kmods.lawOfTeeth && killerAlive && isBeast(killer)) {
+              let refired = false;
               for (const effect of killer.effects) {
                 if (effect.on !== 'onKill') continue;
                 FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m });
+                refired = true;
               }
+              // The extra Slaughter EFFECT trigger counts toward "Trigger N Slaughters" (player only).
+              if (refired && killer.side === 'player') bumpSlaughterKeyword();
             }
             // Author's Hand: the FIRST Slaughter each combat fires an extra time (any tribe; additive with Law of
             // Teeth). Re-runs only this killer's own on-kill effects, once per combat. Per side.
             const slfe = kmods.slaughterFirstEachCombat ?? 0;
             if (slfe > 0 && killerAlive && !firstSlaughterDone[killer.side]) {
               firstSlaughterDone[killer.side] = true;
+              const authorsHasSlaughter = killer.effects.some((e) => e.on === 'onKill');
               for (let r = 0; r < slfe; r++) {
                 for (const effect of killer.effects) {
                   if (effect.on !== 'onKill') continue;
                   FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m });
                 }
               }
+              // Each extra Slaughter EFFECT trigger counts toward "Trigger N Slaughters" (player only).
+              if (authorsHasSlaughter && killer.side === 'player') for (let r = 0; r < slfe; r++) bumpSlaughterKeyword();
             }
             // Feeding Line (Beast capstone): a Beast's Slaughter gives your NEXT living Beast (in board order,
             // after the killer) an immediate out-of-turn attack — queued like a Twilight Whelp strike and drained
@@ -1671,6 +1697,11 @@ export function simulate(
         nextStep();
         if (!rallyFired) { fireTrigger('runeRallying', rside); rallyFired = true; }
         emit({ type: 'sc', source: minion.uid, text: 'Rally' });
+        // A free rally is still a Rally trigger — count it toward Rally quests (Spark Permit, Machine Chorus,
+        // Overclocked Core, Infinite Assembly) and the Author's Hand rally half, exactly like an attack-path
+        // rally does. The Echo sibling above already bumps its tally (`bumpDeathrattles`); this block was the
+        // odd one out (audit 2026-07-21, same class as the Uron rally fix #594). Player-only, like every tally.
+        if (rside === 'player') bumpRally(1);
         if (cardRally) {
           for (const effect of minion.effects) {
             if (effect.on !== 'onAttack') continue;

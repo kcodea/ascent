@@ -13,7 +13,7 @@ export type MomentKind =
   | 'riseDeath'
   | 'scCast'
   | 'summon' | 'buffWave' | 'reborn' | 'ascend' | 'rally' | 'toHand' | 'maxGold' | 'improve'
-  | 'keyword' | 'keywordLost' | 'hpGrant' | 'spellProgress' | 'reveal';
+  | 'keyword' | 'keywordLost' | 'hpGrant' | 'spellProgress' | 'reveal' | 'tribeAura';
 
 export function momentKind(primary: CombatEvent): MomentKind {
   switch (primary.type) {
@@ -36,6 +36,7 @@ export function momentKind(primary: CombatEvent): MomentKind {
     case 'hpGrant': return 'hpGrant';
     case 'spellProgress': return 'spellProgress'; // Archmagus Guel's on-board spell tally tick
     case 'reveal': return 'reveal';
+    case 'tribeAura': return 'tribeAura'; // a run-wide combat aura → the board aura-wash
     // Defensive: any future event type falls back to a quiet damage-style moment instead of crashing the replay
     // (momentKind must NEVER return undefined — `getScore()[undefined]` is not iterable).
     default: return 'damage';

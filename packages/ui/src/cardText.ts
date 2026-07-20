@@ -463,18 +463,22 @@ export function cardTypeTallyText(cardId: string, enchant: { attack: number; hea
 }
 
 /**
- * Grim's Deathrattle ("+1/+1 per Deathrattle triggered this game") shows its *current* magnitude from
- * the live run tally — the printed "+1/+1" becomes the real "+N/+N" (N = tally × per), highlighted
- * green. Returns null for non-tally cards or a zero tally (falls back to the printed "+1/+1").
+ * Grim's Deathrattle ("+2/+2 per Deathrattle triggered this game") shows its *current* magnitude from
+ * the live run tally — the printed "+2/+2" becomes the real "+N/+N" (N = tally × per × golden), highlighted
+ * green. Returns null for non-tally cards or a zero tally (falls back to the printed value).
+ *
+ * `golden` matters because the factory multiplies by `mul(self)` — a Gilded Grim really does grant double,
+ * and rewriting the GOLDEN text keeps the live number honest on a gilded copy (the hard live-text rule).
  */
-export function tallyBuffText(cardId: string, deathrattlesTriggered: number): string | null {
+export function tallyBuffText(cardId: string, deathrattlesTriggered: number, golden = false): string | null {
   if (deathrattlesTriggered <= 0) return null;
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'deathrattleBuffTribeByTally');
   if (!def || !eff) return null;
   const per = Number((eff.params as { per?: number })?.per ?? 1);
-  const n = deathrattlesTriggered * per;
-  return def.text.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${n}/+${n}}}`);
+  const n = deathrattlesTriggered * per * (golden ? 2 : 1);
+  const base = (golden && def.goldenText) || def.text;
+  return base.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${n}/+${n}}}`);
 }
 
 export interface StepProgress {

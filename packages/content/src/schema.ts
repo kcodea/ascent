@@ -83,6 +83,7 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryBuffTribe',
   'battlecrySummon',
   'buffOnBuy',
+  'buffBoardOnBuy',
   'battlecryGrantKeyword',
   'battlecryGainRandomMinion',
   'battlecryDiscoverSpell',

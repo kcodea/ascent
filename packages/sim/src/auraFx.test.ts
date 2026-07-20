@@ -89,11 +89,13 @@ describe('projectEndOfTurnSteps per-beat FX capture', () => {
   });
 
   it('Hunter reacting to an EoT Attack gain is captured as a Hunter-sourced buff on that beat', () => {
-    // Vineweaver's End of Turn casts Growth (board-wide +atk/+hp) → Hunter's Attack rises → Hunter's
-    // onGainAttack gives the board +Health, captured sourced from the Hunter (a tendril at beat time).
+    // Skybound's End of Turn buffs the weakest friendly Dragon (here the Hunter) → Hunter's Attack rises →
+    // Hunter's onGainAttack gives the board +Health, captured sourced from the Hunter (a tendril at beat
+    // time). Was driven by Vineweaver's EoT Growth cast before that card was retired; any EoT source that
+    // raises Hunter's Attack exercises the same capture path.
     const s: RunState = {
       ...createRun(1), phase: 'recruit',
-      board: [card('v', 'vineweaver', 'dragon', 3, 5), card('hu', 'hunter', 'dragon', 5, 7), card('st', 'stray', 'beast')],
+      board: [card('sk', 'skybound', 'dragon', 5, 4), card('hu', 'hunter', 'dragon', 1, 7), card('st', 'stray', 'beast')],
     };
     const { fx } = projectEndOfTurnSteps(s);
     const all = fx.flatMap((f) => f.buffFx);

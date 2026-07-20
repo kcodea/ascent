@@ -800,10 +800,21 @@ export function grantTopTypeMinion(state: RunState): boolean {
 const recruitHuntGuard = new WeakSet<object>();
 
 const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
-  /** Brightwing Broker: every minion you buy gets +atk/+hp (not itself). */
+  /** Legacy single-target buy buff: the minion you bought gets +atk/+hp (not itself). Kept as a primitive —
+   *  Brightwing Broker moved to `buffBoardOnBuy`, but the factory stays available to content. */
   buffOnBuy: (_ctx, self, params, { minion }) => {
     if (minion === self) return;
     addBuff(minion, nameOf(self), num(params.attack) * gold(self), num(params.health) * gold(self));
+  },
+
+  /** Brightwing Broker: buying ANY minion buffs your whole board +atk/+hp (golden doubles). The bought
+   *  minion is in hand at this point, so it is not included — this rewards a board you have already
+   *  built, rather than the purchase itself (which is what `buffOnBuy` did). */
+  buffBoardOnBuy: (ctx, self, params) => {
+    const a = num(params.attack) * gold(self);
+    const h = num(params.health) * gold(self);
+    if (a === 0 && h === 0) return;
+    for (const m of ctx.state.board) addBuff(m, nameOf(self), a, h);
   },
 
   /** Kennelmaster / Bristleback Matron: buff each summoned friend of `tribe`. The magnitude is

@@ -73,7 +73,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             sergeantText(c.id, p.golden, p.hpGrantBonus ?? 0) ??
             ritualistText(c.id, p.golden, p.eotBonus ?? 0) ?? // Ritualist: live per-tick Fodder/Imp grant (climbs each End of Turn)
             stewardText(c.id, p.golden, p.lastSpellName) ??
-            tallyBuffText(c.id, p.deathrattlesTriggered) ??
+            tallyBuffText(c.id, p.deathrattlesTriggered, p.golden) ??
             guelProgressText(c.id, p.golden, p.spellProgress ?? 0) ?? // per-instance: a shop/hand Guel reads at base
             monkProgressText(c.id, p.golden, p.summonBonus ?? 0, p.overflowBonus ?? 0) ??
             clingProgressText(c.id, p.clingEnchant) ??

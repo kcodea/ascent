@@ -1452,7 +1452,7 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((e) => e.type === 'summon' && e.minion.cardId === 'stray')).toBe(true);
   });
 
-  it('a golden Ryme re-fires BOTH adjacent Battlecries', () => {
+  it('a golden Ryme re-fires BOTH adjacent Battlecries TWICE each', () => {
     const r = run(
       [
         { cardId: 'alley', attack: 0, health: 100 },
@@ -1462,7 +1462,7 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 50, health: 400, keywords: [] }],
       1,
     );
-    expect(r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'stray').length).toBe(2);
+    expect(r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'stray').length).toBe(4); // 2 neighbours x golden 2
   });
 
   it("Ryme's Deathrattle fires battlecryTriggered → Karwind buffs the Dragons (+1/+2), with an sc narration", () => {
@@ -1480,7 +1480,8 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true); // Karwind procced (+2/+2)
   });
 
-  it('a golden Ryme + Drakko triggers both neighbours twice each (4 triggers → Karwind 4×)', () => {
+
+  it('a golden Ryme + Drakko triggers both neighbours 4x each (8 triggers → Karwind 8×)', () => {
     const r = run(
       [
         { cardId: 'alley', attack: 0, health: 100 },
@@ -1493,10 +1494,10 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 50, health: 4000, keywords: [] }],
       1,
     );
-    // 2 neighbours × 2 (Drakko) = 4 triggers — one sc narration each.
-    expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(4);
-    // Karwind procs once per trigger → +2/+2 to both Dragons (Karwind + Hoard Cleric), 4× = 8 buff events.
-    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 2 && e.health === 2).length).toBe(8);
+    // 2 neighbours × 2 (golden Ryme) × 2 (Drakko) = 8 triggers — one sc narration each.
+    expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(8);
+    // Karwind procs once per trigger → +2/+2 to both Dragons (Karwind + Hoard Cleric), 8× = 16 buff events.
+    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 2 && e.health === 2).length).toBe(16);
   });
 
   it("Bane reacting to Ryme's battlecry trigger carries the Fodder enchant back to the run", () => {
@@ -1694,14 +1695,14 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('a golden Sylus procs a Deathrattle two extra times, and Sylus stacks', () => {
-    // Use a buff Deathrattle (Grim: Beasts +1/+1 per Deathrattle this game — here just Grim itself, so
-    // +1) so the proc count is the number of buff events — no board-cap interference. Only the Alleycat
+    // Use a buff Deathrattle (Grim: Beasts +2/+2 per Deathrattle this game — here just Grim itself, so
+    // +2) so the proc count is the number of buff events — no board-cap interference. Only the Alleycat
     // is a living Beast to buff.
     const procs = (board: BoardMinion[]): number =>
       run(board, [{ cardId: 'omen', attack: 1, health: 200 }], 1).events.filter(
-        (e) => e.type === 'buff' && e.attack === 1,
+        (e) => e.type === 'buff' && e.attack === 2,
       ).length;
-    const grim = { cardId: 'grim', attack: 1, health: 1 }; // Deathrattle: Beasts +1/+1 per Deathrattle this game
+    const grim = { cardId: 'grim', attack: 1, health: 1 }; // Deathrattle: Beasts +2/+2 per Deathrattle this game
     const carry = { cardId: 'alley', attack: 2, health: 50 }; // surviving Beast
     expect(procs([grim, carry, { cardId: 'sylus', attack: 1, health: 50, golden: true }])).toBe(3); // 1 + 2 golden
     expect(
@@ -1736,7 +1737,7 @@ describe('simulate (handoff A.3)', () => {
 
   it('Grim buffs Beasts summoned *after* it dies — a persistent aura, not a one-time buff', () => {
     // Grim dies on its first swing (1 HP → retaliation) and registers a Beast aura sized to its tally
-    // (here +1/+1: just Grim's own Deathrattle counts so far). Mama Pup outlives it, then dies and summons
+    // (here +2/+2: just Grim's own Deathrattle counts so far, at +2/+2 per). Mama Pup outlives it, then dies and summons
     // 2 Pups — and though they're summoned *after* Grim is gone, the aura still catches them. Isolates the
     // aura: a one-time "buff living Beasts" could never reach a minion that didn't exist yet.
     const p: BoardMinion[] = [
@@ -1754,14 +1755,14 @@ describe('simulate (handoff A.3)', () => {
     expect(latePups.length).toBeGreaterThan(0); // Pups summoned strictly after Grim died
     for (const { ev } of latePups) {
       const uid = ev.type === 'summon' ? ev.minion.uid : '';
-      const gotAura = a.events.some((b) => b.type === 'buff' && b.target === uid && b.attack === 1 && b.health === 1);
+      const gotAura = a.events.some((b) => b.type === 'buff' && b.target === uid && b.attack === 2 && b.health === 2);
       expect(gotAura).toBe(true);
     }
   });
 
-  it('Grim scales +1/+1 per Deathrattle triggered this game (run-wide base + this combat)', () => {
+  it('Grim scales +2/+2 per Deathrattle triggered this game (run-wide base + this combat)', () => {
     // A run that has already seen 5 Deathrattles (the run-wide base); this fight Grim dies (1 more) →
-    // tally 6 → the surviving Beast gets +6/+6.
+    // tally 6 at +2/+2 per → the surviving Beast gets +12/+12.
     const p: BoardMinion[] = [
       { cardId: 'grim', attack: 1, health: 1, sourceUid: 'G' },
       { cardId: 'alley', attack: 2, health: 80, sourceUid: 'C' }, // surviving Beast (no Deathrattle)
@@ -1769,7 +1770,7 @@ describe('simulate (handoff A.3)', () => {
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 300 }];
     const a = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ deathrattles: 5 })); // deathrattles = run-wide Deathrattle base
     const allyUid = a.initial.player.find((m) => m.cardId === 'alley')!.uid;
-    expect(a.events.some((ev) => ev.type === 'buff' && ev.target === allyUid && ev.attack === 6 && ev.health === 6)).toBe(true);
+    expect(a.events.some((ev) => ev.type === 'buff' && ev.target === allyUid && ev.attack === 12 && ev.health === 12)).toBe(true);
   });
 
   it('Gnasher: each kill permanently raises run-wide spell power (+1/+1)', () => {

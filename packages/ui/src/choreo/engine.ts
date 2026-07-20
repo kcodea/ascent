@@ -3,9 +3,10 @@ import type { Moment } from './compile';
 import { getScore } from './score';
 import { playLunge } from './channels/lunge';
 import { hitPower, playContactImpact } from './channels/impact';
-import { getLungeConfig } from '../lungeConfig';
+import { getLungeConfig, strikeBandFor, strikeEaseFor } from '../lungeConfig';
 import { getStrikeFxConfig } from '../strikeFxConfig';
 import { contactGeometry } from './contactGeometry';
+import { recordLunge } from '../lungeProbe';
 
 export interface AttackCueCtx {
   combatSpeed: number;
@@ -76,9 +77,17 @@ export function runAttackExchangeCues(
   const strikeOffset = { x: targetOffset.x - cornerLocal.x, y: targetOffset.y - cornerLocal.y };
   const impactAt = { x: atkC.x + targetOffset.x, y: atkC.y + targetOffset.y };
   const spinDeg = -Math.sign(geo.leadTilt || 1) * cfg.defenderSpin;
+  // DEV probe (no-op unless the Lunge tuner is open): record what the distance→duration / distance→ease /
+  // angle→tilt functions produced for THIS vector. There is no stable per-pairing key to inspect instead —
+  // the rows re-centre as units die — so the tuner reads the functions' real outputs.
+  recordLunge({
+    dist: geo.dist, travel: geo.travel, strikeDur: geo.strikeDur, clamped: geo.clamped,
+    approachDeg: geo.approachDeg, leadTilt: geo.leadTilt,
+    band: strikeBandFor(geo.travel), ease: strikeEaseFor(geo.travel),
+  });
   return playLunge({
     attacker, dx, dy, speed: ctx.combatSpeed, flurry: hasFlurry,
-    strike: strikeOffset, strikeDur: geo.strikeDur, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
+    strike: strikeOffset, strikeDur: geo.strikeDur, travel: geo.travel, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
     onContact: () => ctx.advance(),
     onImpact: impact ? () => { playContactImpact(defender, dx, dy, power, ctx.combatSpeed, impactAt, spinDeg, crit, hasFlurry, flurrySlash); if (crit) ctx.onCritImpact?.(); } : undefined,
     impactOffsetMs: impact?.offset ?? 0,

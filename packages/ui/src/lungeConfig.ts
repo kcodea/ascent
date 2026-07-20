@@ -3,6 +3,22 @@
  * SHIPS; the DEV Lunge tuner may override them for the current tab only (sessionStorage — see the note above
  * `KEY`, which explains why it is no longer localStorage). The lunge reads `getLungeConfig()` at call time.
  *
+ * ## Every dial here is a property of the VECTOR, never of a seat
+ *
+ * The board `.row` is `justify-content: center`, so a 6-card side seats at different x positions than a
+ * 7-card side, and the rows RE-CENTER mid-combat as units die. A distinct seating is a (count, index) pair
+ * — 28 per side, 784 attacker→defender vectors — and even that undercounts, because the same nominal
+ * "slot 3 → slot 5" is a different vector before and after a death reflows the row. There is no stable
+ * per-pairing key to hang config on.
+ *
+ * So the lunge is tuned as FUNCTIONS OF THE APPROACH VECTOR, resolved live from the two rects:
+ *   - distance → strike duration (constant px/s via `targetSpeed`, bounded by the clamps)
+ *   - distance → strike EASE (three bands, see `strikeEaseFor`) — a curve that reads as a snap over 180ms
+ *     reads as a drift-then-lurch over 440ms, so short and long strikes get their own curve
+ *   - approach angle → lead tilt (`tiltAngleScale`) — the tilt used to read only `sign(dx)`, so a steep
+ *     diagonal led with the same corner as a flat sideways swing
+ * If a knob would need to know "which slot", it can't ship. That constraint is the point of this file.
+ *
  * Note the windup + strike durations are GSAP seconds (NOT scaled by the beat-clock SPEED). The attack
  * RESULT beat (damage floats / recoil) is timed to land at the lunge's connection — the scheduler derives
  * that hold live from `windupDur + strikeDur - smackLead` (see useCombatReplay.ts), so the damage always
@@ -15,24 +31,40 @@ export interface LungeConfig {
   windupDepth: number;
   /** Wind-up scale — how much the attacker swells during the anticipation lean-back (1.2 = +20%). */
   windupScale: number;
-  /** Strike duration (s). Task 3 makes this a fallback (used only when elements are unresolved) once
-   *  live strikes derive duration from travel distance via contactGeometry; until then it still drives
-   *  every strike. */
+  /** Target speed (px/s) — strike travel speed that sets the (distance-scaled) strike duration. */
+  targetSpeed: number;
+  /** Strike duration clamp floor (s). Travel shorter than `targetSpeed * minStrikeDur` takes this long
+   *  regardless — i.e. the shortest strikes all run SLOWER than `targetSpeed`. */
+  minStrikeDur: number;
+  /** Strike duration clamp ceiling (s). Travel longer than `targetSpeed * maxStrikeDur` takes this long
+   *  regardless — the long cross-board lunges flatten to one speed here. The tuner counts how often each
+   *  bound is hit, because a high `max` tally is the usual cause of "the far strikes read wrong". */
+  maxStrikeDur: number;
+  /** Strike duration (s) — FALLBACK only, used when elements are unresolved and there is no geometry. */
   strikeDur: number;
+  /** Travel (px) at or below which a strike uses the SHORT band's ease. */
+  bandShortPx: number;
+  /** Travel (px) above which a strike uses the LONG band's ease. Between the two = the MID band. */
+  bandLongPx: number;
+  /** Strike ease for the SHORT band, indexed into `STRIKE_EASES`. */
+  easeShortIdx: number;
+  /** Strike ease for the MID band, indexed into `STRIKE_EASES`. */
+  easeMidIdx: number;
+  /** Strike ease for the LONG band, indexed into `STRIKE_EASES`. */
+  easeLongIdx: number;
   /** Bite (px) — how far the leading corner drives past surface contact, so it visibly bites in. */
   bite: number;
-  /** Lead tilt (deg) — the attacker tilts this much to lead with a corner (sign chosen from dx). */
+  /** Lead tilt (deg) — the base tilt used to lead with a corner (sign chosen from dx). */
   leadTilt: number;
+  /** Lead-tilt ANGLE SCALE (0–1) — how much of the approach's slope off horizontal is added to the tilt.
+   *  0 = the shipped behaviour (tilt reads only `sign(dx)`, so a steep diagonal leads with the same corner
+   *  as a flat sideways swing); 1 = the card fully aligns to the line it travels along. The vector-driven
+   *  half of the lead tilt. */
+  tiltAngleScale: number;
   /** Defender spin (deg) — the defender counter-rotates this much on impact (opposite the lead). */
   defenderSpin: number;
   /** Attacker rebound (deg) — the attacker's rotational kick-back at contact before the settle. */
   attackerRebound: number;
-  /** Target speed (px/s) — strike travel speed that sets the (distance-scaled) strike duration. */
-  targetSpeed: number;
-  /** Strike duration clamp floor (s). */
-  minStrikeDur: number;
-  /** Strike duration clamp ceiling (s). */
-  maxStrikeDur: number;
   /** Smack lead (s) — fire the impact sound + knockback this many seconds BEFORE the strike completes. */
   smackLead: number;
   /** Settle duration (s) — the elastic return to rest. */
@@ -40,15 +72,9 @@ export interface LungeConfig {
   /** Attack gap (s) — a breather held AFTER an impact, before the next swing, so back-to-back attacks
    *  don't blur together (the damage lands on contact, then this pause, then the next lunge). */
   attackGap: number;
-  /** Strike EASE — the acceleration curve into contact, indexed into `STRIKE_EASES`. This is what makes a
-   *  strike read as a snap vs a shove: `power3.in` sits still then rockets, `power1.in` is nearly linear,
-   *  `back.in` winds back a touch first. It was hardcoded until the strike-feel pass, so it could never be
-   *  dialled — the most likely lever when "the strike reads wrong". Stored as an INDEX so it stays a number
-   *  (the tuner + ranges are numeric) and the shipped default is greppable. */
-  strikeEaseIdx: number;
 }
 
-/** Selectable strike curves, slowest-to-snappiest acceleration. Index into this via `strikeEaseIdx`. */
+/** Selectable strike curves, slowest-to-snappiest acceleration. Index into this via the band ease keys. */
 export const STRIKE_EASES = [
   'none',        // 0 — linear: constant speed, no acceleration
   'power1.in',   // 1
@@ -64,20 +90,25 @@ const DEFAULTS: LungeConfig = {
   windupDur: 0.70,   // owner: ~50% longer wind-up (was 0.47); the beat hold derives from this so damage still lands on contact
   windupDepth: 0.1,
   windupScale: 1.28, // swell during the wind-up, then return to 1 on the strike
-  strikeDur: 0.17,   // fallback only (used when elements are unresolved); live strikes derive from distance
-  bite: 16,
-  leadTilt: 7.5,
-  defenderSpin: 15,
-  attackerRebound: 2.5,
   targetSpeed: 1100,
   minStrikeDur: 0.13,
   maxStrikeDur: 0.44,
+  strikeDur: 0.17,   // fallback only (used when elements are unresolved); live strikes derive from distance
+  bandShortPx: 220,
+  bandLongPx: 460,
+  easeShortIdx: 3,   // all three bands default to the shipped 'power3.in', so banding is opt-in per band
+  easeMidIdx: 3,
+  easeLongIdx: 3,
+  bite: 16,
+  leadTilt: 7.5,
+  tiltAngleScale: 0, // 0 = the shipped sign(dx)-only tilt; raise to let the approach slope steer the corner
+  defenderSpin: 15,
+  attackerRebound: 2.5,
   smackLead: 0.005,  // smack ~5ms before the strike lands (near-on-contact)
   settleDur: 0.34,   // a snappier elastic return to rest
   attackGap: 0.14,   // breather between swings (the inter-attack pause). 0.34 -> 0.22 -> 0.14 across two
                      // tightening passes. With the attack lead below this puts the post-impact hold at 500ms,
                      // which still fully covers the 340ms elastic settle; see combat-timing-reference.md.
-  strikeEaseIdx: 3,  // 'power3.in' — the shipped curve (index into STRIKE_EASES)
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -85,21 +116,60 @@ export const LUNGE_RANGES: Record<keyof LungeConfig, [number, number, number]> =
   windupDur: [0.05, 1.2, 0.01],
   windupDepth: [0, 0.4, 0.01],
   windupScale: [1, 1.5, 0.01],
-  strikeDur: [0.04, 0.3, 0.01],
-  bite: [0, 40, 1],
-  leadTilt: [0, 20, 0.5],
-  defenderSpin: [0, 30, 0.5],
-  attackerRebound: [0, 20, 0.5],
   targetSpeed: [400, 3000, 25],
   minStrikeDur: [0.05, 0.3, 0.01],
-  maxStrikeDur: [0.15, 0.6, 0.01],
+  maxStrikeDur: [0.15, 0.8, 0.01],
+  strikeDur: [0.04, 0.3, 0.01],
+  bandShortPx: [60, 400, 10],
+  bandLongPx: [200, 900, 10],
+  easeShortIdx: [0, 7, 1],
+  easeMidIdx: [0, 7, 1],
+  easeLongIdx: [0, 7, 1],
+  bite: [0, 40, 1],
+  leadTilt: [0, 20, 0.5],
+  tiltAngleScale: [0, 1, 0.05],
+  defenderSpin: [0, 30, 0.5],
+  attackerRebound: [0, 20, 0.5],
   smackLead: [0, 0.12, 0.005],
   settleDur: [0.1, 1.2, 0.01],
   attackGap: [0, 0.7, 0.02],
-  strikeEaseIdx: [0, 7, 1],
 };
 
 export const LUNGE_KEYS = Object.keys(DEFAULTS) as (keyof LungeConfig)[];
+
+/** Which strike-ease band a travel distance falls in. */
+export type StrikeBand = 'short' | 'mid' | 'long';
+
+export function strikeBandFor(travelPx: number): StrikeBand {
+  if (travelPx <= cfg.bandShortPx) return 'short';
+  return travelPx > cfg.bandLongPx ? 'long' : 'mid';
+}
+
+const EASE_KEY: Record<StrikeBand, keyof LungeConfig> = {
+  short: 'easeShortIdx',
+  mid: 'easeMidIdx',
+  long: 'easeLongIdx',
+};
+
+/** The GSAP ease string for a strike of this travel distance — the distance→curve function. Clamped, so a
+ *  bad index can't break a swing. */
+export function strikeEaseFor(travelPx: number): string {
+  const idx = cfg[EASE_KEY[strikeBandFor(travelPx)]];
+  return STRIKE_EASES[Math.min(STRIKE_EASES.length - 1, Math.max(0, Math.round(idx)))] ?? 'power3.in';
+}
+
+/** The DEV tuner renders one section per group — grouping only, no behaviour. Every key must appear in
+ *  exactly one group (enforced by test), so a newly-added dial can't be silently unreachable. */
+export const LUNGE_GROUPS: { title: string; keys: (keyof LungeConfig)[] }[] = [
+  { title: 'Wind-up', keys: ['windupDur', 'windupDepth', 'windupScale'] },
+  { title: 'Strike · distance → duration', keys: ['targetSpeed', 'minStrikeDur', 'maxStrikeDur', 'strikeDur'] },
+  { title: 'Strike · distance → ease', keys: ['bandShortPx', 'bandLongPx', 'easeShortIdx', 'easeMidIdx', 'easeLongIdx'] },
+  { title: 'Contact · angle → tilt', keys: ['bite', 'leadTilt', 'tiltAngleScale', 'defenderSpin', 'attackerRebound', 'smackLead'] },
+  { title: 'Recovery', keys: ['settleDur', 'attackGap'] },
+];
+
+/** Keys whose value is an index into `STRIKE_EASES` — the tuner shows the curve NAME for these. */
+export const EASE_KEYS: (keyof LungeConfig)[] = ['easeShortIdx', 'easeMidIdx', 'easeLongIdx'];
 
 // The DEV Lunge tuner writes here. It was previously backed by localStorage and that was REMOVED, because a
 // stray slider nudge persisted silently — forever, across sessions — and skewed every later attack's timing
@@ -123,10 +193,6 @@ let cfg: LungeConfig = (() => {
 
 export function getLungeConfig(): LungeConfig {
   return cfg;
-}
-/** The GSAP ease string for the strike, resolved from the index (clamped, so a bad value can't break a swing). */
-export function strikeEase(): string {
-  return STRIKE_EASES[Math.min(STRIKE_EASES.length - 1, Math.max(0, Math.round(cfg.strikeEaseIdx)))] ?? 'power3.in';
 }
 /** Keys currently differing from the shipped DEFAULTS — drives the tuner's "modified" banner so an override
  *  is never silent (the exact failure mode that got the old tuner deleted). */

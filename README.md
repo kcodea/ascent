@@ -40,6 +40,13 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+- **Lunge tuner rebuilt around the approach vector.** There's no stable per-slot lunge to tune: the board row
+  is centre-justified (a 6-card side seats differently from a 7-card side) and re-centres mid-combat as units
+  die, so "slot 3 → slot 5" is a different vector before and after a death. Every dial is now a function of the
+  vector — strike ease splits into three *distance* bands, and lead tilt can fold in the *approach angle*
+  (it previously read only the sign of dx, so a steep diagonal led with the same corner as a flat swing). The
+  panel shows what those functions produced for the swings you just watched, including how often the duration
+  clamps flattened a strike. Defaults are unchanged, so the shipped lunge is untouched pending tuning.
 - **Card info panel detached** — the name/keywords/text/tribe drawer now floats beneath the card as a rounded
   dark-glass panel (matching the hero/quest panels) instead of welding onto the frame; the right-click inspect's
   Buffs panel matches. Same info, new housing.

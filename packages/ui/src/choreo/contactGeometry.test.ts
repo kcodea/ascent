@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { contactGeometry, type RectSize } from './contactGeometry';
 
-const cfg = { bite: 6, targetSpeed: 1600, minStrikeDur: 0.1, maxStrikeDur: 0.28, leadTilt: 7 };
+const cfg = { bite: 6, targetSpeed: 1600, minStrikeDur: 0.1, maxStrikeDur: 0.28, leadTilt: 7, tiltAngleScale: 0 };
 const card = (): RectSize => ({ width: 80, height: 100 });
 
 describe('contactGeometry', () => {
@@ -36,5 +36,36 @@ describe('contactGeometry', () => {
     expect(contactProj).toBeGreaterThan(strikeProj);
     // and it's laterally offset from the center line (a corner, not the face midpoint)
     expect(Math.abs(g.contact.x - g.strike.x)).toBeGreaterThan(0);
+  });
+});
+
+// The lunge is tuned as functions of the approach VECTOR because there is no stable per-pairing key: the
+// board row is centre-justified and re-centres mid-combat as units die. These cover the two vector-driven
+// functions and the diagnostics the DEV tuner reads back.
+describe('vector-driven behaviour', () => {
+  it('reports the clamp bound it hit, so a flattened strike is visible rather than silent', () => {
+    expect(contactGeometry(0, -120, card(), card(), cfg).clamped).toBe('min');
+    expect(contactGeometry(0, -3000, card(), card(), cfg).clamped).toBe('max');
+    expect(contactGeometry(0, -450, card(), card(), cfg).clamped).toBeNull();
+  });
+  it('reports travel and centre distance', () => {
+    const g = contactGeometry(0, -300, card(), card(), cfg);
+    expect(g.dist).toBeCloseTo(300, 5);
+    expect(g.travel).toBeCloseTo(206, 5); // 300 - 50 - 50 + 6
+  });
+  it('measures approach slope along the direction of travel, so mirrored swings agree', () => {
+    expect(contactGeometry(300, 0, card(), card(), cfg).approachDeg).toBeCloseTo(0, 5);
+    // same downward slope whether travelling right or left
+    expect(contactGeometry(300, 300, card(), card(), cfg).approachDeg).toBeCloseTo(45, 5);
+    expect(contactGeometry(-300, 300, card(), card(), cfg).approachDeg).toBeCloseTo(45, 5);
+  });
+  it('tiltAngleScale 0 keeps the shipped sign-only tilt; raising it steers the corner by the approach', () => {
+    const flat = contactGeometry(300, 0, card(), card(), { ...cfg, tiltAngleScale: 1 });
+    const steep = contactGeometry(300, 300, card(), card(), { ...cfg, tiltAngleScale: 1 });
+    expect(flat.leadTilt).toBeCloseTo(7, 5);        // no slope → base tilt only, same as scale 0
+    expect(steep.leadTilt).toBeCloseTo(7 + 45, 5);  // full slope folded in
+    // and at scale 0 a steep diagonal leads with exactly the same corner as a flat swing (the shipped
+    // behaviour this dial exists to fix)
+    expect(contactGeometry(300, 300, card(), card(), cfg).leadTilt).toBe(7);
   });
 });

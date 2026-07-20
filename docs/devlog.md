@@ -3,6 +3,50 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (lunge tuner rebuild)
+
+### tweak(ui): rebuild the Lunge tuner around the approach VECTOR, not the slot
+
+Re-approaching the attack lunge ("the strike reads wrong"), the first plan was a per-pairing tuner — a dial
+per attacker-slot → defender-slot. The owner caught why that can't work: `.row` is `justify-content: center`,
+so a 6-card side seats at different x positions than a 7-card side, **and both rows re-centre mid-combat as
+units die**. A distinct seating is a (count, index) pair — 28 per side, 784 vectors — and even that
+undercounts, because the same nominal "slot 3 → slot 5" is a *different vector* before and after a death
+reflows the row. There is no stable per-pairing key to hang config on.
+
+So the tuner is rebuilt around the rule that **every dial is a property of the approach vector, never of a
+seat.** If a knob would need to know "which slot", it can't ship.
+
+**Two dials became vector functions** (both default to the shipped feel exactly — this commit is a no-op on
+the animation until something is dialled):
+
+- **distance → strike ease.** The curve was hardcoded `power3.in`, then briefly one global dial. It is now
+  three distance bands (`bandShortPx` 220 / `bandLongPx` 460) with an ease each, because the same curve reads
+  as a *snap* over 180ms and as a *drift-then-lurch* over 440ms. All three bands default to `power3.in`.
+- **angle → lead tilt.** `leadTilt` read only `sign(dx)`, so a steep diagonal led with the same corner as a
+  flat sideways swing. `tiltAngleScale` (0–1) folds in the approach slope, measured along the direction of
+  travel (hence `|dx|`), so mirrored swings agree. Default `0` = the shipped sign-only behaviour.
+
+**`contactGeometry` now reports its derived numbers** — `dist`, `travel`, `approachDeg`, and `clamped`
+(`'min' | 'max' | null`). Nothing in the animation reads them; the tuner does. The clamp report is the
+load-bearing one: a `max` means that strike ran *slower* than `targetSpeed` and reads identically to every
+other clamped strike, which is the prime suspect for the long cross-board lunges feeling wrong.
+
+**The panel** (`LungeTuner.tsx`) is grouped by which function each slider shapes (`LUNGE_GROUPS`), and leads
+with a live readout of what the functions produced for the swings just watched — travel, resolved duration,
+ease band, tilt — plus a running **clamp tally**. Fed by `lungeProbe.ts`, a 60-entry ring buffer that
+`engine.ts` pushes to; recording is **off unless the tuner is open**, so the shipped path costs one boolean
+test per swing. This replaces the synthetic 7×7 preview grid that the seating problem ruled out: the only
+thing worth judging is the function's output over the vectors combat actually serves.
+
+The sessionStorage backing + loud MODIFIED banner from the tuner's return are unchanged — the footgun that
+got the original deleted in #537 (localStorage overrides persisting silently forever) stays designed out.
+
+Verified: `typecheck` + `lint` + **1235 tests** (1226 → 1235; +9 covering band splits, clamp reporting,
+approach-slope symmetry, the `tiltAngleScale` identity at 0, and that every config key appears in exactly one
+tuner group so a dial can't be silently unreachable) + `build:web`, all green. No `DEFAULTS` changed, so the
+shipped lunge is byte-identical pending the owner's tuning pass.
+
 ## 2026-07-20 (discover pre-warm)
 
 ### perf(ui): pre-build the Discover overlay's Pixi app + mark its burst

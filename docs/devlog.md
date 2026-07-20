@@ -5,6 +5,18 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-19 (later still)
 
+### docs: bot-sims handoff — better bots as our balance instrument
+
+Wrote [`docs/bot-sims-handoff.md`](bot-sims-handoff.md) off the back of running `npm run report` and finding
+the greedy bot is a "first legal option" policy (`balanceReport.ts:69-99`) with a ~2–3% win rate — so `pick`
+is "was it in slot 0", `win` is n=1 co-occurrence noise, and every synergy archetype (attachments, Consume,
+Deathrattle, spells) is invisible because the bot can't assemble them. The handoff makes the case that for a
+two-person team, bot sims are the *only* realistic balance lens, and lays out why a good bot is cheap here
+(no engine work — the full `Action` move set already exists; combat is a pure deterministic fn; opponents are
+pinned, so `simulate()` can be the bot's own eval function; the report harness already runs any policy). Plan:
+pluggable policies → heuristic bot → combat-rollout bot → archetype panel → per-archetype + ablation reporting,
+to get 10–20× legitimate game data on demand. Queued under Dev tooling in the roadmap. No code yet — spec only.
+
 ### fix(ui): snappier hand-welds + debounced autosave (attachment/Beatbot perf diagnosis)
 
 Owner reports: the magnetic/attachment weld animation feels clunky, and attachments + Beatbot bog down late

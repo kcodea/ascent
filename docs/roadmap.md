@@ -234,6 +234,13 @@ Also: a dying unit should begin leaving the board in tandem with the other units
 effects (the `.dr` collapse hold can trail them) — tune live against the skull-in-own-slot hold.
 
 ### Dev tooling
+- **Better bots → our balance instrument (see [`bot-sims-handoff.md`](bot-sims-handoff.md)).** The greedy bot
+  is "first legal option" (~2–3% win rate), so `pick`/`win` are noise and every synergy archetype is invisible.
+  Goal: a pluggable-policy toolchain — a competent heuristic bot, a **combat-rollout** bot (uses the pure
+  `simulate()` + pinned opponents as its eval fn), and an **archetype panel** (one pilot per package) — to get
+  10–20× legitimate game data on demand. No engine work needed: every action a smart bot needs already exists
+  in the `Action` union. ~2–3 days for a first legitimate bot; ~1 week for the full per-archetype + ablation
+  instrument.
 - **Layout Lab extensions:** a shop-row position offset (the tavern zone is `position: static` and hosts
   combat units — needs a combat-safe hook) + per-element movers (individual buttons/badges/panels).
 - **Dev stats tracker (tabled):** replay-driven analytics — a headless `npm run track` aggregator over

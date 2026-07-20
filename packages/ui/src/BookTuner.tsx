@@ -8,6 +8,10 @@ import { useDraggablePanel } from './useDraggablePanel';
  * rule follows — which means the whole palette is tunable from one place. This panel writes an override
  * `<style>` (specificity-bumped so it always wins) and every picker updates the open Compendium LIVE.
  *
+ * The SHIPPED look is the game's standard cream (a blue scheme was tried and reverted, owner call), so the
+ * defaults below mirror `:root`'s `--card`/`--ink`/`--line`/`--bg2` — Reset returns you to what ships, and
+ * the panel starts as a no-op rather than silently re-tinting the book the moment it is opened.
+ *
  * Two traps this exists to avoid, both hit while hand-picking the navy:
  *  - The panel/header used to mix the GOLD accent into the surface, so a correct colour var still rendered
  *    grey. The overrides here state each surface directly — what you pick is what paints.
@@ -21,13 +25,13 @@ type Swatch = { key: string; label: string; def: string; hint?: string };
 
 // Defaults MIRROR the shipped values in styles.css — keep in sync when you bake in new numbers.
 const SWATCHES: Swatch[] = [
-  { key: 'card', label: 'surface', def: '#004c8a', hint: 'the panel body behind the cards' },
-  { key: 'head', label: 'header bar', def: '#003f74' },
-  { key: 'rail', label: 'side rail', def: '#003a6a' },
-  { key: 'bg2', label: 'buttons / tabs', def: '#013f73', hint: 'rail buttons, tier tabs, Glossary, close' },
-  { key: 'line', label: 'borders', def: '#1d6fb8' },
-  { key: 'ink', label: 'text', def: '#eef5fd' },
-  { key: 'ink3', label: 'text (dim)', def: '#9dbfdf', hint: 'counts, power blurbs' },
+  { key: 'card', label: 'surface', def: '#fffdf8', hint: 'the panel body behind the cards' },
+  { key: 'head', label: 'header bar', def: '#fdf3e2' },
+  { key: 'rail', label: 'side rail', def: '#f6efe2' },
+  { key: 'bg2', label: 'buttons / tabs', def: '#efe5d4', hint: 'rail buttons, tier tabs, Glossary, close' },
+  { key: 'line', label: 'borders', def: '#e7dcc7' },
+  { key: 'ink', label: 'text', def: '#2a2017' },
+  { key: 'ink3', label: 'text (dim)', def: '#9c8b71', hint: 'counts, power blurbs' },
 ];
 
 type Vals = Record<string, string>;
@@ -39,7 +43,7 @@ const defaults = (): Vals => Object.fromEntries(SWATCHES.map((s) => [s.key, s.de
  * the top edge — dialling `depth` to 0 makes it visually identical to flat.
  */
 const DEF_GRAD = true;
-const DEF_TOP = '#005ea8';
+const DEF_TOP = '#fdf6ea'; // the shipped cream panel's subtly warmer top edge
 const DEF_DEPTH = 16; // % of the panel height the top colour occupies before it lands on the surface
 
 const cssText = (v: Vals, grad: boolean, top: string, depth: number): string =>

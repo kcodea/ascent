@@ -3,6 +3,29 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-20 (compendium palette reverted)
+
+### revert(ui): the Compendium goes back to the original cream
+
+Owner call after seeing both attempts — the soft blue and then `#004c8a` — neither landed, so the palette
+reverts to the game's standard cream (`--card`/`--ink`/`--line` from `:root`). The scoped `.book` var block
+and the explicit surface overrides are removed entirely; the original accent-mixed header/rail gradients
+come back with them.
+
+**Kept deliberately** — these were separate, approved asks, not part of the colour experiment:
+- the overlap fix (the text drawer sits in flow inside the Compendium)
+- the top-line headroom, so the first row's TIER pill clears the frame
+- heroes on the dark-glass panel
+- the larger window + 10% larger cards
+
+**The tuner stays, with its defaults re-pointed at the cream.** Left on the navy values, `Reset` would have
+snapped the book to a scheme that no longer ships, and opening the panel would have silently re-tinted it —
+the tuner is now a no-op until you actually move something.
+
+Verified after the revert: `--card` resolves to `#fffdf8` with dark ink, no `booktuner` style leaking into
+the page, the window still fills 92% x 90% of the viewport, and 129 cells with **0 overlaps** — the spacing
+fix survives the palette going back.
+
 ## 2026-07-20 (compendium tuner)
 
 ### feat(ui): a dev tuner for the Compendium palette, with a gradient option
@@ -32,7 +55,7 @@ Dev-only — mounted from `DevMenu`, stripped from production.
 
 ## 2026-07-20 (compendium palette + scale)
 
-### tweak(ui): a deep-navy Compendium (#004c8a), larger window + 10% larger cards
+### tweak(ui): Compendium scale — larger window + 10% larger cards (the blue palette was REVERTED)
 
 Owner call — the cream reading surface was bright and tiring at full size.
 

@@ -3915,32 +3915,11 @@ svg { width: 18px; height: 18px; }
 /* ── Compendium (Tab) — a filterable codex of minions + spells. Blurred overlay styled like an open tome:
    tier filters across the top, tribe/Spells filters down the left, a single scrolling gallery. ── */
 .book-ov { position: fixed; inset: 0; z-index: 480; background: rgba(26, 16, 6, 0.62); backdrop-filter: blur(3px); display: grid; place-items: center; animation: fadein 0.16s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
-/* Compendium palette + scale (owner call): a SOFT BLUE reading surface instead of the cream one, and
-   everything 10% larger. The recolour is done by re-declaring the shared ink/card/line vars SCOPED to
-   `.book`, so every descendant rule picks it up without touching them one by one. Cards and hero panels
-   inside set their own explicit colours (the dark-glass drawer), so they are unaffected by this override. */
-.book {
-  /* Owner palette: #004c8a. That is a DEEP navy, so the panel inverts — the surface goes dark and the text
-     goes light with it. Declared as the shared card/ink/line vars scoped to `.book`, so every descendant
-     rule follows without being edited one by one. */
-  --card: #004c8a;      /* the panel surface */
-  --line: #1d6fb8;      /* borders / dividers — a lighter blue so edges stay legible on the dark surface */
-  --ink: #eef5fd;       /* primary text — near-white ON the navy (was near-black on cream) */
-  --ink2: #cfe1f4;
-  --ink3: #9dbfdf;      /* secondary text (counts, power blurbs) */
-  --bg: #00365f;        /* recessed wells (the rail, art placeholders) — deeper than the surface */
-  /* Control chrome (rail buttons, tier tabs, Glossary/Gilded, close, search) reads `--bg2`. Left light it
-     paired a pale button with the new pale text and the whole row washed out — so it goes dark too. */
-  --bg2: #013f73;
-  --bg3: #01345e;
-}
+/* Compendium scale (owner call): the window fills the viewport and the cards are 10% larger. The palette
+   is deliberately NOT overridden here — the book uses the game's standard cream surface (`--card`/`--ink`/
+   `--line` from `:root`). A blue scheme was tried and reverted (owner call); the `📖 Compendium Palette` dev
+   tuner is the way to explore another one, and its defaults mirror these shipped values. */
 .book { width: min(2300px, 95vw); height: min(1450px, 93vh); display: flex; flex-direction: column; background: linear-gradient(180deg, color-mix(in srgb, var(--card) 94%, var(--acc)) 0%, var(--card) 16%); border: 3px solid var(--line); border-radius: 22px; box-shadow: 0 24px 70px -20px rgba(0, 0, 0, 0.7), inset 0 0 0 2px color-mix(in srgb, var(--acc) 18%, transparent); overflow: hidden; animation: bookpop 0.18s cubic-bezier(0.34, 1.2, 0.64, 1); cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
-/* The panel + header originally mixed the GOLD accent into the surface, which desaturated the new blue
-   straight back to grey. Both surfaces are now stated in blue directly; the gold accent is kept for icons,
-   the active tab and the inset ring, where it reads as trim rather than a wash. */
-.book { background: linear-gradient(180deg, #005ea8 0%, var(--card) 16%); }
-.book-head { background: #003f74; }
-.book-rail { background: #003a6a; }
 /* Gentle fade + slight pop (NOT inspectpop — that scales 1.45→1.9 for the inspect card, which rests at 1.9;
    the book rests at scale 1, so inspectpop made it balloon then snap down). */
 @keyframes bookpop { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }

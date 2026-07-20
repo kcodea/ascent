@@ -3,6 +3,120 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21o (Heckbinder, third pass + freeze jitter)
+
+### fix(ui): the Fodder aura was missed in TWO more display paths; Freeze sits still
+
+**The Heckbinder aura, a third time.** `run.cardBuffs` is the permanent enchant; Heckbinder's `fodderAura`
+is live, and `cardBuff()` folds them. I fixed the tavern path in #589 and the buff panel in this branch —
+and both times fixed only the site that was reported. Grepping for the raw map turned up **two more
+consumers**: the board/hand live-text params and the Discover overlay. All now route through the same
+`cardBuffsLive` map.
+
+That's three separate reports for one root cause, because each fix was scoped to the symptom. The lesson is
+cheap and worth writing down: **when a shared accessor is the fix, grep for every reader of the raw source
+in the same pass.** Verified: a shop Fred with a +2/+2 enchant and a Heckbinder on board now reads **6/6**
+(it read 3/3 — base + enchant, no aura).
+
+*(A hand/board Fodder still shows its own baked stats — correct: the aura applies at creation, so an
+existing card keeps what it was made with. Only OFFERS recompute.)*
+
+**Freeze no longer jumps on click.** It inherits `.shopbtn`, whose hover/active rules nudge the button —
+fine in a tray, wrong for stage-pinned board furniture. The pin transform is now re-asserted on hover,
+active and focus, so it sits still; the `.on` tint still carries the state. Verified: the computed transform
+is byte-identical before and during a click.
+
+**Baked**: buff drawer (6 values — a shorter/wider tab, drawer scaled to 0.58) plus the mirrored CSS
+fallbacks, and drag feel `handPop 0.08 -> 0.2`.
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
+## 2026-07-21n (bakes + drawer tab polish)
+
+### tweak(ui): bake qbY + hero panel, drop the tab arrow, shrink the count — slide-out NOT shipped
+
+**Bakes.** `qbY -746 -> -256` was the only Scale/Layout value that had moved; the hero-panel paste already
+matched its defaults exactly (0 changes). The fallback audit caught `qbY`'s `styles.css` value **still at
+-746** — the same double-source drift as last time, in a fresh spot. Fixed; both audits now clean.
+
+**Tab polish.** The up-arrow icon is gone (it pointed the wrong way for a side drawer and crowded the
+narrow vertical tab), and the count is sized down to sit with the chevron rather than dominate it — the tab
+now reads simply "2 ▸".
+
+### The slide-out animation is NOT shipped, deliberately
+
+Two attempts, both of which left the drawer **stuck at its first frame**:
+1. **Keyframes** restating the tuner's var-based transform. Suspected the vars; they weren't the cause.
+2. **A CSS transition on a persistent element**, driven by the parent's `.open` class — the standard fix for
+   mount-timing problems. `.open` was verifiably on the wrapper and the rule was well-formed and unduplicated,
+   yet the computed style never changed.
+
+Ruled out along the way: reduced-motion (false), stale CSS (survived a hard reload AND a dev-server restart),
+duplicate/ malformed rules (one `.herobuffs-body` rule, override immediately after, correct specificity).
+`getAnimations()` reported the keyframe animation `running` with `currentTime: 0` — the timeline simply
+wasn't advancing for this element in this container.
+
+I reverted to the working mount-on-open reveal rather than ship it. **A drawer that never appears is far
+worse than one that appears instantly**, and my second attempt had left it in exactly that state. The cause
+is real and not yet understood — it wants a fresh look, not another guess.
+
+(The revert also briefly broke the build: my slice left a stray `</div>`. Caught by `build:web`, fixed.)
+
+Verified after the revert: tab reads "2 ▸" with no arrow, drawer opens and closes, and shows
+"Fodder Aura +3/+3" + "Attachment Aura +4/+2".
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
+## 2026-07-21m (buff panel coverage + vertical tab)
+
+### fix(ui): the buff panel was missing Heckbinder, Attachments and Beasts — plus a vertical tab + tuner
+
+Three owner reports, and the second one turned into an audit.
+
+**Heckbinder's Fodder aura wasn't counted.** The row read `run.cardBuffs.fred` — the PERMANENT enchant only
+(Ritualist / Bane). Heckbinder's `fodderAura` is a LIVE aura applying while it's on board, and `cardBuff()`
+is what folds the two together. This is the **same class of bug, in a second place**: the tavern display had
+it too (fixed in #589), and I fixed that one without checking whether anything else read the raw map. It
+now goes through `cardBuff()`.
+
+**Two run-wide auras had no row at all** — found by auditing every buff field in `RunState` against what the
+panel renders, since "if we're going to have a buff panel it needs to include all current buffs":
+- **Attachment Aura** (`magneticBuyAtk/Hp`, Scrap Herald) — the owner's report
+- **Beast Aura** (`beastBuyAtk/Hp`) — the same omission, unreported
+
+**The tab is now VERTICAL**, so it eclipses far less of the portrait art — a horizontal pill ate a visible
+bite. Position, scale, tab width/height, drawer offset/scale/min-width and BOTH type sizes are now dials in
+a new 🧪 Buffs Drawer tuner, because how much overlap reads as "attached" rather than "covering" is a
+judgement call, not a number I should be picking.
+
+Verified live: with NO permanent enchant and a lone Heckbinder on board the panel reads "Fodder Aura +3/+3"
+(it read nothing before), "Attachment Aura +4/+2" appears, the tab measures 28x94 (taller than wide), and
+driving `tabH` moves it 94 -> 174 with Reset restoring 94.
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
+## 2026-07-21l (run-buffs drawer)
+
+### tweak(ui): run buffs become a collapsible drawer off the hero portrait
+
+Owner rework: the buffs used to be a separate boxed window in the top-left. They are now a DRAWER extending
+right out of the hero portrait, opened by a tab that ECLIPSES the portrait's right edge — the same
+"pill straddling an edge" language the player-name and hero-name pills already use, so it reads as part of
+the hero panel instead of another floating box.
+
+**Collapsed by default** (it never covers the board unasked), and the tab carries the buff COUNT while
+closed so you can see there's something to open without opening it. The body only mounts while open, so
+nothing paints behind the board when it isn't.
+
+Anchored to `.statusbar .hero` rather than stage-pinned, so it rides the portrait wherever the layout tuner
+puts it — one less position to keep in sync. Mount moved out of `HudBar` into `StatusBar`.
+
+Verified live: tab straddles the portrait's right edge (its box spans that boundary), collapsed initially
+with the count reading 1, opens on click into a drawer sitting 34px right of the portrait showing
+"Spell power +3/+2", and the old `.buffsframe` window is gone.
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
 ## 2026-07-21j (layout re-bake + a stale-fallback audit)
 
 ### fix(ui): bake shopUiY, and re-sync three layout CSS fallbacks the earlier bake missed

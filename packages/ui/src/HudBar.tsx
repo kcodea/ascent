@@ -1,6 +1,5 @@
 import { RIFTS, CONFIG, isCalibrationRound, lossDamageCap, runRecord } from '@game/sim';
 import { RiftPill } from './RiftPill';
-import { BuffsFrame } from './BuffsFrame';
 import { QuestPanel } from './QuestPanel';
 import { Icon } from './Icon';
 import { OpponentFrame } from './OpponentFrame';
@@ -70,7 +69,6 @@ export function HudBar() {
         {/* Active-rift pill — sits directly under the round plaque, above the run buffs. Only when a run is
             pinned to a rift (see RIFTS / RunState.rift). */}
         {rift && <RiftPill rift={rift} variant="hud" />}
-        <BuffsFrame />
         <QuestPanel />
       </div>
       {/* Top-right: the next-enemy frame (recruit only). */}

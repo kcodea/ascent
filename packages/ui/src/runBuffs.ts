@@ -1,5 +1,5 @@
 import { CARD_INDEX } from '@game/content';
-import { spellAttackBonus, spellHealthBonus, type RunState } from '@game/sim';
+import { spellAttackBonus, spellHealthBonus, type RunState, cardBuff } from '@game/sim';
 import type { CombatEvent } from '@game/core';
 
 export interface BuffRow {
@@ -71,9 +71,12 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
   const undH = run.undeadHealthBonus ?? 0;
   if (undA > 0 || undH > 0) rows.push({ key: 'undead', label: 'Undead Aura', value: `+${undA}/+${undH}` });
 
-  // Permanent Fodder enchant (Ritualist / Bane) — applies to every Fodder, board/hand/future.
-  const fod = run.cardBuffs?.fred;
-  if (fod && (fod.attack > 0 || fod.health > 0)) rows.push({ key: 'fodder', label: 'Fodder Aura', value: `+${fod.attack}/+${fod.health}` });
+  // Fodder buff — BOTH channels. `cardBuffs.fred` is the permanent enchant (Ritualist / Bane); Heckbinder's
+  // `fodderAura` is a LIVE aura that applies while it's on the board. `cardBuff()` folds the two together,
+  // which is exactly what a Fodder is created with — reading the raw map missed every Heckbinder (owner
+  // report 2026-07-21; the same class of bug the tavern display had, in a second place).
+  const fod = cardBuff(run, 'fred');
+  if (fod.attack > 0 || fod.health > 0) rows.push({ key: 'fodder', label: 'Fodder Aura', value: `+${fod.attack}/+${fod.health}` });
 
   // Permanent Imp buff (Fodder Feeder / Imp King / Brood / Bane) — applied to combat Imps.
   const imp = run.impBuff;
@@ -87,6 +90,15 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
   // the 'knit' card-type buff.
   const knit = run.cardBuffs?.knit;
   if (knit && (knit.attack > 0 || knit.health > 0)) rows.push({ key: 'knit', label: 'Spear Warden Aura', value: `+${knit.attack}/+${knit.health}` });
+
+  // Run-wide ATTACHMENT aura (Scrap Herald): your Magnetics get +atk/+hp wherever they are. Had no row at
+  // all until the 2026-07-21 audit — the panel has to list every live buff or it can't be trusted.
+  const magA = run.magneticBuyAtk ?? 0, magH = run.magneticBuyHp ?? 0;
+  if (magA > 0 || magH > 0) rows.push({ key: 'magnetic', label: 'Attachment Aura', value: `+${magA}/+${magH}` });
+
+  // Run-wide BEAST creation aura (The Old Hunt / beast-buy sources) — same omission.
+  const bstA = run.beastBuyAtk ?? 0, bstH = run.beastBuyHp ?? 0;
+  if (bstA > 0 || bstH > 0) rows.push({ key: 'beast', label: 'Beast Aura', value: `+${bstA}/+${bstH}` });
 
   // Permanent tavern buy bonus (Staff of Guel / Demonic Anomaly) — every minion you buy enters at +atk/+hp.
   const tav = run.tavernBuyBonus;

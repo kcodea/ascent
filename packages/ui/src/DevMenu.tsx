@@ -22,6 +22,7 @@ import { FrameTuner } from './FrameTuner';
 import { BookTuner } from './BookTuner';
 import { RefreshTuner } from './RefreshTuner';
 import { FreezeTuner } from './FreezeTuner';
+import { BuffDrawerTuner } from './BuffDrawerTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { GlowTuner } from './GlowTuner';
 import { EndTurnTuner } from './EndTurnTuner';
@@ -43,6 +44,7 @@ const TUNERS = [
   { key: 'book', label: '📖 Compendium Palette', C: BookTuner },
   { key: 'refreshbtn', label: '🔄 Refresh Button', C: RefreshTuner },
   { key: 'freezebtn', label: '❄️ Freeze Button', C: FreezeTuner },
+  { key: 'buffdrawer', label: '🧪 Buffs Drawer', C: BuffDrawerTuner },
   { key: 'glow', label: '🔆 Hover Glow', C: GlowTuner },
   { key: 'sfx', label: '🎛️ Mixing Desk', C: SfxMixer },
   { key: 'strikefx', label: '💥 Lunge Strike Effects', C: StrikeFxTuner },

@@ -3,6 +3,41 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21b (Discover size, Mauron/Amun Rab/Rope Wrangler, Brackus power art)
+
+### tweak: a bigger Discover panel, Mauron's splash, Amun Rab trim, gilded Rope Wrangler
+
+**Discover cards +30%** (owner: the panel read strangely small, most obviously on the turn-1 hero Discovers
+where it is the only thing on screen). The quest overlay already solved this by redeclaring `--ch`/`--cw`,
+so the same lever was used — **but that alone was a no-op**: a compact card sizes off **`--ccw`**, not
+`--cw`, so the bump measured 113px before and 113px after. Redeclaring `--ccw` too took it to 147px. Worth
+remembering: `--ch`/`--cw` size the SLOT, `--ccw` sizes the CARD.
+
+**Mauron** loses Cleave for a narrower splash (owner): *Immune while attacking. Damages an adjacent unit
+when attacking*, both adjacent when gilded. Cleave always hits both and carries the player-facing `C`
+badge, so this is a per-card `splashAdjacent` flag with its own branch beside the cleave block, reusing the
+same living-order neighbour lookup (which is what makes it skip a fallen unit correctly).
+
+**Amun Rab** — Ward and the Improve step both dropped; now a flat *Summon 7 Imps and give your Imps +5/+5*
+(+10/+10 gilded, via the factory's existing `mul(self)`). Moved off `deathrattleBuffImpsImproving` back to
+the plain `deathrattleBuffImps`.
+
+**Rope Wrangler** — a gilded caster now casts twice. The `castSpell` factory ignored `gold(self)` entirely,
+so the gild did nothing; each cast re-picks its target and counts as a real cast, so spell payoffs (Guel,
+Spirit Pup, Forsaken Weaver) see both. The card also had no `goldenText` at all.
+
+**Brackus's hero-power art** wired (`powers/brackus.webp`, 2331KB -> 61KB).
+
+**Two test-measurement traps, both mine.** The Mauron splash test first counted damage across the WHOLE
+fight — Mauron retargets each swing, so every enemy eventually takes splash and the count read 3-of-3
+whether or not the change worked. Narrowed to a single swing, it then measured the *enemy's* first attack,
+because I picked the first `attack` event without filtering by attacker. Fixed, it now reads 2 ungilded vs
+3 gilded — the actual difference between the splash and Cleave.
+
+Verified: 1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline. Live
+(dev-server RESTART, not a reload): Discover card 113px -> 147px, Brackus's power art resolving to
+`brackus.webp`.
+
 ## 2026-07-21 (content batch + Summit sources finished)
 
 ### feat/tweak: Attachment vocabulary fix, Arena Heckler, Nanon, Brackus lock UI, Rune of the Summit

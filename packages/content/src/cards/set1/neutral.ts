@@ -289,6 +289,7 @@ export const NEUTRAL: CardDef[] = [
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'castSpell', params: { spellId: 'lasso' } }],
     text: '**End of Turn:** Cast **Lasso**.',
+    goldenText: '**End of Turn:** Cast **Lasso** twice.',
   },
   {
     // Avenge (4): every 4 friendly deaths, permanently raise your spell power +1 Attack (stat spells give +1

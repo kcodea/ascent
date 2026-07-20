@@ -3657,7 +3657,7 @@ describe('Tier 7 (Summit) minions — combat effects', () => {
     expect(grants.length).toBeGreaterThanOrEqual(2); // BOTH survivors, not a single random pick
   });
 
-  it('Amun Rab summons 7 warded Imps and its Imp buff improves per proc', () => {
+  it('Amun Rab summons 7 Imps (no Ward as of 2026-07-21) and buffs your Imps', () => {
     const r = run(
       [{ cardId: 'amunrab', attack: 15, health: 1 }],
       [{ cardId: 'omen', attack: 40, health: 400, keywords: [] }],
@@ -3665,7 +3665,7 @@ describe('Tier 7 (Summit) minions — combat effects', () => {
     );
     const imps = r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap');
     expect(imps.length).toBe(7);
-    for (const e of imps) if (e.type === 'summon') expect(e.minion.keywords).toContain('DS');
+    for (const e of imps) if (e.type === 'summon') expect(e.minion.keywords).not.toContain('DS'); // Ward dropped
   });
 
   it('a gilded Amun Rab keeps 7 Imps and doubles the buff instead of the count', () => {
@@ -3767,5 +3767,43 @@ describe('Uron / Zyff — the split trigger multipliers', () => {
     const drakePayouts = (x: ReturnType<typeof run>) => x.events.filter((e) => e.type === 'buff' && e.attack === 2 && e.health === 2).length;
     expect(rallyBuffs(r(true))).toBeGreaterThan(rallyBuffs(r(false))); // the Rally repeated
     expect(drakePayouts(r(true))).toBe(drakePayouts(r(false))); // the broadcast counter did NOT
+  });
+});
+
+describe("Mauron's adjacent splash (not Cleave)", () => {
+  // Cleave always hits BOTH neighbours; Mauron hits ONE, and both only when gilded.
+  // Measure a SINGLE swing: across a whole fight Mauron retargets each attack, so every enemy eventually
+  // takes splash and a fight-wide count can't tell the two apart (it read 3-of-3 either way).
+  const hitsOnFirstSwing = (golden: boolean): number => {
+    const r = run(
+      [{ cardId: 'mauron', attack: 9, health: 300, golden }],
+      [
+        { cardId: 'omen', attack: 1, health: 300 },
+        { cardId: 'omen', attack: 1, health: 300 },
+        { cardId: 'omen', attack: 1, health: 300 },
+      ],
+      11,
+    );
+    // MAURON's own first swing — the enemy is wider so it attacks first, and picking the first `attack`
+    // event blindly measured the enemy's step instead.
+    const mauron = r.initial.player[0]!.uid;
+    const first = r.events.find((e) => e.type === 'attack' && e.attacker === mauron);
+    const step = (first as { step: number }).step;
+    return r.events.filter(
+      (e) => e.type === 'dmg' && (e as { step: number }).step === step && e.amount === 9,
+    ).length;
+  };
+
+  it('hits the target plus exactly ONE neighbour ungilded', () => {
+    expect(hitsOnFirstSwing(false)).toBe(2);
+  });
+
+  it('a gilded Mauron hits the target plus BOTH neighbours', () => {
+    expect(hitsOnFirstSwing(true)).toBe(3);
+  });
+
+  it('carries no Cleave keyword — the splash is a card flag, not the badge', () => {
+    expect(CARD_INDEX['mauron']!.keywords).not.toContain('C');
+    expect(CARD_INDEX['mauron']!.splashAdjacent).toBe(true);
   });
 });

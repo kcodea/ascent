@@ -1271,6 +1271,18 @@ export function simulate(
           applyDamage(n, attacker.attack * critMult, poison, false, attacker);
         }
       }
+      // Mauron's splash — ONE adjacent enemy, or BOTH when gilded. Deliberately separate from Cleave (which
+      // always hits both and carries the C badge): same living-order neighbour lookup, narrower by default.
+      if (cards[attacker.cardId]?.splashAdjacent) {
+        const live = boards[defenderSide].filter((m) => !m.dead && m.health > 0);
+        const di = live.indexOf(target);
+        const both = [live[di - 1], live[di + 1]].filter((n): n is Minion => !!n);
+        const hit = attacker.golden ? both : both.slice(0, 1); // ungilded: the first available side
+        for (const n of hit) {
+          victims.push({ m: n, killer: attacker, couldReborn: n.rebornAvailable });
+          applyDamage(n, attacker.attack * critMult, poison, false, attacker);
+        }
+      }
 
       // Snapshot the defender's counter-attack BEFORE the hit. (With two-phase damage a Rise can no longer
       // reset stats mid-exchange — deaths wait for phase 2 — but the snapshot stays as belt-and-braces

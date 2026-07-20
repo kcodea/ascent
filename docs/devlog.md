@@ -3,6 +3,28 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21l (run-buffs drawer)
+
+### tweak(ui): run buffs become a collapsible drawer off the hero portrait
+
+Owner rework: the buffs used to be a separate boxed window in the top-left. They are now a DRAWER extending
+right out of the hero portrait, opened by a tab that ECLIPSES the portrait's right edge — the same
+"pill straddling an edge" language the player-name and hero-name pills already use, so it reads as part of
+the hero panel instead of another floating box.
+
+**Collapsed by default** (it never covers the board unasked), and the tab carries the buff COUNT while
+closed so you can see there's something to open without opening it. The body only mounts while open, so
+nothing paints behind the board when it isn't.
+
+Anchored to `.statusbar .hero` rather than stage-pinned, so it rides the portrait wherever the layout tuner
+puts it — one less position to keep in sync. Mount moved out of `HudBar` into `StatusBar`.
+
+Verified live: tab straddles the portrait's right edge (its box spans that boundary), collapsed initially
+with the count reading 1, opens on click into a drawer sitting 34px right of the portrait showing
+"Spell power +3/+2", and the old `.buffsframe` window is gone.
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
 ## 2026-07-21j (layout re-bake + a stale-fallback audit)
 
 ### fix(ui): bake shopUiY, and re-sync three layout CSS fallbacks the earlier bake missed

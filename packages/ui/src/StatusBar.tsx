@@ -4,6 +4,7 @@ import { mdBold } from './Card';
 import { dragonTamerCostOf, getHero, spellAmplifyBonus } from '@game/sim';
 import { heroArt, heroPowerArt } from './art';
 import { Icon } from './Icon';
+import { BuffsFrame } from './BuffsFrame';
 import { QuestBadges } from './QuestBadges';
 import { sfx } from './sfx';
 import { useGame } from './store';
@@ -194,6 +195,9 @@ export function StatusBar() {
         >
           {/* Player name — a pill eclipsing the top of the hero box (mirrors the opponent name on its frame). */}
           {playerName && <div className="playername" ref={playerNameRef}>{playerName}</div>}
+          {/* Run buffs — a collapsible drawer extending RIGHT from the portrait, its tab eclipsing this
+              box's right edge (owner rework 2026-07-21; it used to be a separate top-left window). */}
+          <BuffsFrame />
           {/* The portrait holds ONLY the hero art; the hero name rides a pill eclipsing its bottom edge (mirrors
               the player-name pill at the top). Health/Armor sits to its right (see `.hpbox` CSS). */}
           <div className="f">

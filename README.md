@@ -40,6 +40,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+- **New card art** for Sylus, Brightwing Broker, Combinator and Aeon Guard.
 - **Balance pass** — Ryme gains Taunt and triggers both neighbours; Brightwing Broker now buffs your whole
   board on a buy; Combinator welds 2; Grim scales +2/+2 and gains a Gilded form; Guardian Drake gains
   Critical Strike. Vineweaver Drake retired.

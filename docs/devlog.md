@@ -778,6 +778,14 @@ boots clean in the browser with no error boundary and both new counters reportin
 
 ## 2026-07-19 (set 2 empty)
 
+### tweak(ui): hand hover gets the white hover glow
+
+Hovering a hand card now lights the same white hover glow as board/shop cards (frame rim + panel/art layers).
+Both suppressors — the `--hglow-*` zeroing and the `.cglow { opacity: 0 }` kill — previously excluded ALL hand
+hovers ("pop up instead of glowing"); they're now scoped to `body.dragging` only, so FAKE hand hovers (the
+cursor passing under the pointer-events:none drag card mid-drag) stay glow-free while a real hover glows.
+Verified: typecheck + lint + build green.
+
 ### fix(ui): hand hover-pop went DOWNWARD — height-independent lift + a new "hand pop lift" lever
 
 Regression from the anchored info panel (#570-era): the hand pop lifted a hovered card by `translateY(-100%)`

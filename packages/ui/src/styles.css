@@ -968,8 +968,9 @@ body.dragging .zone[data-zone='tavern'] .card { transition: transform 0.36s cubi
    stays centred on each card), which is what keeps a pickup from jiggling the hand. */
 body.dragging .row.hand .card { transition: transform 0.26s cubic-bezier(0.12, 0.82, 0.12, 1); }
 /* Zero the hover glow where it isn't wanted: on cards the cursor "hovers" under the (pointer-events:none)
-   floating drag card, and on hand cards (which pop up instead of glowing). */
-.row.hand .card:hover,
+   floating drag card — including hand cards mid-drag. A REAL hand hover keeps the glow now (owner call
+   2026-07-20: the popped hand card gets the white hover glow, same as board/shop). */
+body.dragging .row.hand .card:hover,
 body.dragging .zone[data-zone='warband'] .card:hover,
 body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow-blur: 0px; --hglow-spread: 0px; --hglow-a: 0; }
 
@@ -2457,9 +2458,10 @@ body.hglow-preview .card.compact.taunt .cglow { opacity: 1; }
 body.hglow-preview .card.compact.stdframe .cframe.cshadow,
 body.hglow-preview .card.compact.spellframe .cframe.cshadow,
 body.hglow-preview .card.compact.taunt .tframe.cshadow { opacity: 0; }
-/* Kill the glow where hover isn't real (hand cards the cursor only "hovers" under a pointer-events:none layer;
-   the card being dragged / merged) — mirrors the existing `--hglow-*` suppressors. Placed last to win the tie. */
-.row.hand .card:hover .cglow,
+/* Kill the glow where hover isn't real (any card the cursor only "hovers" under the pointer-events:none drag
+   layer — including hand cards mid-drag) — mirrors the `--hglow-*` suppressors. A REAL hand hover keeps the
+   frame-rim glow (owner call 2026-07-20). Placed last to win the tie. */
+body.dragging .row.hand .card:hover .cglow,
 body.dragging .zone[data-zone='warband'] .card:hover .cglow,
 body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 

@@ -223,7 +223,9 @@ trigger"; avoid true undo until the rules are sturdier).
   throttled and rect-cached, but `Card` uses **default shallow memo** (unlike `Unit`'s value comparator), so
   it depends on the parent keeping every prop referentially stable — silent to regress. Consider a value
   comparator if a profile shows cards reconciling mid-drag.
-- Autosave is O(n²) (serializes the whole action log every dispatch) — debounce.
+- ~~Autosave is O(n²) (serializes the whole action log every dispatch) — debounce.~~ Shipped: it now writes
+  at turn boundaries only, with a `flushSave` on quit-to-title + tab hide/close. NOT debounced — a timer
+  would only have guessed at the commitment point the phase flip already marks exactly.
 - Combat replay: 55–86ms synchronous-React-render freezes on some summon/death beats (FX/Pixi/GPU/layout/GC
   all ruled ~0 — it's per-beat render/reconciliation). Profile the flame chart, memoize `computeFrame` + the
   growing per-beat event-log scans. Cheap adjacent win: `syncShields` calls `getBoundingClientRect` per aura

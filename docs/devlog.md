@@ -432,6 +432,55 @@ owner has focused. Any "measurement" taken otherwise is noise.
 Still open (unmeasured): `ChargeMotes`' continuous canvas loop, and `Card`'s default shallow memo (unlike
 `Unit`'s value comparator) under the per-rAF drag re-render of `Recruit`. Given how this one turned out,
 measure both before touching either.
+### fix(ui): autosave at turn boundaries, not on every shop action
+
+Shop-phase snappiness, off the back of the 240fps goal. Autosave ran on **every state change**: each buy,
+sell, roll, reorder and freeze synchronously `JSON.stringify`d the entire run *and* the entire action log,
+then pushed it through `localStorage` — main-thread disk I/O landing on exactly the interactions that decide
+whether the shop feels responsive, and growing as the action log grew.
+
+**Not a debounce** (the roadmap's suggestion). A timer would only be guessing at a commitment point the game
+already marks precisely: the phase flip. The write now happens when `next.phase !== s.run.phase` —
+recruit→combat (board committed) and combat→recruit (next turn settled). A shop turn is a scratchpad until
+you commit it.
+
+The shorter cadence would have cost durability on its own, so it's paired with **`flushSave`**, an explicit
+persist for the two ways a player leaves a run mid-turn:
+- **Quit to main menu** — `openTitle` flushes *before* setting `showTitle` (so `flushSave`'s guard still lets
+  it through). The Esc menu already promises "your run stays saved"; mid-turn, that's now actually true.
+- **Tab hide/close** — `pagehide` (close, navigation, bfcache) *and* `visibilitychange`→hidden (tab switch,
+  minimise, mobile backgrounding, which is the one iOS reliably fires). Both may fire for one departure; a
+  duplicate write is harmless and only happens on the way out. `beforeunload` was deliberately not used — it
+  blocks bfcache and is unreliable on mobile.
+
+`flushSave` no-ops at the title, because the `run` held there is a dormant throwaway (see `clearRun`) and
+persisting it would resurrect a phantom Continue. Neither path survives a hard crash or power loss — that
+remains a rollback to the last turn boundary, which is a coherent resume point, not corruption.
+
+**Design note (owner call):** saving only at turn boundaries technically lets a player rewind a turn by
+force-closing. The `flushSave` on tab-hide closes most of that, since leaving normally persists.
+
+**Verified** — typecheck, lint, 1201 tests, build:web all green, plus an end-to-end run against a **prod
+build of this branch** (served standalone; `preview_start` reads the primary checkout's launch.json and would
+have served the wrong code — confirmed it was serving stale code before switching). Instrumented
+`localStorage.setItem` and counted writes across a real run:
+- recruit→combat: **exactly 1** write.
+- Combat's own dispatches (`resolveCombat`/`settleCombat`) — state-changing, no phase flip: **0** writes.
+  This is the negative case; under the old code each of these wrote.
+- combat→recruit: **exactly 1** write. Two writes for a full turn cycle.
+- `pagehide` → 1 write; `visibilitychange`(hidden) → 1 write.
+- Quit to title → 1 write; then `pagehide`/`visibilitychange` **at the title** → **0** (guard holds, no
+  phantom save). Title showed "CONTINUE · Round 2", and Continue restored Round 2 / Tier 2 / Gold 4 exactly.
+
+A shop reroll was NOT exercised directly — the button is gated during the round's setup animation and
+wouldn't fire through the automation harness. The combat-dispatch result above covers the same code path:
+the write is gated purely on the phase comparison and is indifferent to which action caused the change.
+
+**Deliberately NOT done:** the `[...s.replayActions, action]` copy per dispatch. I'd called it O(n²) when
+proposing this work; that was overstated. At a realistic few-hundred actions per run it's a pointer copy
+costing microseconds — invisible next to the JSON serialization this PR actually removes. It also has a
+reactive subscriber (`EndScreen`), so mutating a shared array in place would trade a real correctness hazard
+for an unmeasurable win. Left alone.
 
 ## 2026-07-19 (later)
 

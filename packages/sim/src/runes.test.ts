@@ -958,13 +958,16 @@ describe('Batch 7a runes (Rebirth / Tempering / Aftershocks / Refrain / Trophy +
     expect([u.board[0]!.attack, u.board[0]!.health]).toEqual([1, 1]);
   });
 
-  it('Rune of the Conductor: the shop OPENS by triggering your End of Turn effects (Vineweaver casts Growth)', () => {
+  it('Rune of the Conductor: the shop OPENS by triggering your End of Turn effects (Skybound buffs a Dragon)', () => {
+    // Was driven by Vineweaver's EoT Growth cast before that card was retired; Skybound's End of Turn
+    // (buff the weakest friendly Dragon by 50% of the strongest's stats) is the same observable proof
+    // that the End-of-Turn pass ran as the shop opened.
     let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'combat', embers: 10, runeConductor: true,
-      board: [mkCard('v', 'vineweaver', 'dragon', 2, 2), mkAlley('m')], lastCombat: win };
+      board: [mkCard('sk', 'skybound', 'dragon', 10, 10), mkCard('d', 'supporter', 'dragon', 2, 2)], lastCombat: win };
     s = reduce(s, { type: 'resolveCombat' });
-    const m = s.board.find((c) => c.uid === 'm')!;
-    expect(m.attack).toBeGreaterThanOrEqual(1 + 3); // Growth landed at shop open
-    expect(m.health).toBeGreaterThanOrEqual(1 + 4);
+    const d = s.board.find((c) => c.uid === 'd')!;
+    expect(d.attack).toBeGreaterThan(2); // the weakest Dragon grew at shop open
+    expect(d.health).toBeGreaterThan(2);
   });
 
   it('Rune of the Trophy: settleCombat conjures a plain copy of the recorded slaughterer to hand', () => {

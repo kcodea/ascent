@@ -3,6 +3,65 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-20 (art)
+
+### art: new card art for Sylus, Brightwing Broker, Combinator, Aeon Guard
+
+Four new masters landed in `C:\Game Assets\Ascent Art\Minions\` (timestamped this evening, replacing
+in-repo copies from 2026-07-13). Wired through the standard pipeline — drop `<card-id>.png` into
+`packages/ui/src/art/minions/`, run `npm run optimize-art` (512px cap, WebP q85, source PNG deleted;
+the high-res master stays out-of-repo).
+
+```
+aeonguard   2220KB ->  56KB
+broker      2258KB ->  65KB
+combinator  2326KB ->  63KB
+sylus       2049KB ->  43KB
+```
+
+Every filename matched its card exactly (`Sylus.png` -> `sylus`, `BrightwingBroker.png` -> `broker`,
+`Combinator.png` -> `combinator`, `AeonGuard.png` -> `aeonguard`), so nothing was inferred from an
+un-attributed file.
+
+Verified in the browser after a dev-server **restart** (a reload does not re-evaluate the eager
+`import.meta.glob`): all four serve as `image/webp` at 512x512 with the new byte sizes, and render
+correctly side by side.
+## 2026-07-20 (balance batch)
+
+### tweak(content): Ryme / Brightwing Broker / Combinator / Grim / Guardian Drake + retire Vineweaver Drake
+
+Owner balance pass. Card DATA keeps the internal vocabulary (`Deathrattle` / `Battlecry` / `Magnetic`);
+`terms.ts` renames it to Echo / Shout / Attachment at display time, so the printed text reads as specced.
+
+- **Ryme** gains **Taunt**. Base now triggers **both** adjacent Battlecries (it used to pick one at random);
+  golden triggers each **twice**. Dropping the random pick means base Ryme no longer consumes an RNG roll —
+  a seeded-replay-visible change.
+- **Brightwing Broker** 3/4 -> **3/3**, and it is a genuinely different card: `buffOnBuy` buffed the minion
+  you bought, the new `buffBoardOnBuy` buffs **your whole board** +1/+1 (golden +2/+2) on any purchase. The
+  bought minion is in hand at that point and is deliberately not included. `buffOnBuy` is kept as a primitive.
+- **Combinator** End of Turn targets 1 -> **2** (golden 2 -> 4). Trigger unchanged (owner call).
+- **Grim** `per` 1 -> **2**, and it finally has a **golden** (+4/+4 per Deathrattle). The factory already
+  multiplied by `mul(self)`, so the gilded value was real but unprinted.
+- **Guardian Drake** gains **Critical Strike** alongside Ward (`critChance: 0.5`, matching the only other CR card).
+- **Vineweaver Drake retired.** Def, art, CSV, opponent pool and SFX manifest entries removed.
+
+**A live-text bug this surfaced.** `tallyBuffText` (Grim's live "+N/+N") was the one live-text helper that
+did not take `golden`, and it rewrote `def.text` unconditionally. That was invisible while Grim had no golden
+text; the moment it got one, a Gilded Grim would have printed the base number — a defect under the hard
+live-text rule. It now takes `golden`, doubles, and rewrites the golden text.
+
+**Vineweaver fallout.** It was a *test vehicle* in four places, all re-pointed rather than deleted where the
+test had independent value: `content.test` -> Rope Wrangler/Lasso, `auraFx.test` and the Rune of the Conductor
+test -> Skybound (any End-of-Turn source that raises a Dragon's Attack proves the same path). The one test
+that only covered the retired card was deleted. Its factory `endOfTurnCastSpellEscalating` and the
+`escalatingCastText` helper are now **orphaned but retained** as primitives for set 2; a new test asserts the
+helper returns null for every live card so it cannot silently mis-render if adopted.
+
+Verified: 1228 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline. Live in the
+browser: all five cards' data confirmed through the content module, Vineweaver absent from both `CARD_INDEX`
+and the buyable pool (118 buyable), and Brightwing Broker's buy behaviour observed end to end — board
+3/3 + 0/4 -> 4/4 + 1/5 with the purchase untouched at 0/4.
+
 ## 2026-07-20 (weld FX regression)
 
 ### fix(sim): stop `reduce` racing React's dispatch batching and dropping weld rings

@@ -14,7 +14,7 @@ describe('content', () => {
       expect(referencedCardIds(CARD_INDEX['hoardbreaker']!)).toContain('growth'); // rallyCastSpell + onKillCastSpell
       expect(referencedCardIds(CARD_INDEX['taragosa']!)).toContain('growth'); // onAllyAttackCastGrowth (reference-only spellId)
       expect(referencedCardIds(CARD_INDEX['watcher']!)).toContain('lanternofsouls'); // rallyCastTribeAttack
-      expect(referencedCardIds(CARD_INDEX['vineweaver']!)).toContain('growth'); // endOfTurnCastSpellEscalating
+      expect(referencedCardIds(CARD_INDEX['ropewrangler']!)).toContain('lasso'); // castSpell (EoT)
     });
     it('every referenced id resolves to a real card, and never lists the card itself', () => {
       for (const c of ALL_CARDS) {

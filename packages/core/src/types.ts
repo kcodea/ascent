@@ -110,6 +110,7 @@ export type EffectFactoryId =
   | 'battlecryBuffTribe'
   | 'battlecrySummon'
   | 'buffOnBuy'
+  | 'buffBoardOnBuy' // On buy: buff your whole board (Brightwing Broker)
   | 'battlecryGrantKeyword'
   | 'battlecryGainRandomMinion' // Battlecry: add a random minion of a tier to your hand (Buddy Buddy)
   | 'battlecryDiscoverSpell' // Battlecry: Discover a spell (golden: grants the pick + a second random spell) (Black Belt Brian)

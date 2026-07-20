@@ -101,11 +101,11 @@ export const MECHS: CardDef[] = [
       {
         on: 'endOfTurn',
         do: 'endOfTurnMagnetizeMechs',
-        params: { targets: 1 },
+        params: { targets: 2 },
       },
     ],
-    text: '**End of Turn:** magnetize a random **Magnetic** Mech onto a friendly Mech.',
-    goldenText: '**End of Turn:** magnetize a random **Magnetic** Mech onto **2** friendly Mechs.',
+    text: '**End of Turn:** magnetize a random **Magnetic** Mech onto **2** friendly Mechs.',
+    goldenText: '**End of Turn:** magnetize a random **Magnetic** Mech onto **4** friendly Mechs.',
   },
   {
     // Rune of Reconfiguration's signature Mech — grant-only (token). A Combinator re-tuned to fire on Shout plays

@@ -63,19 +63,19 @@ export const UNDEAD: CardDef[] = [
     goldenText: '**Slaughter:** give your Undead **+6 Attack** permanently. Improves **+6** each Slaughter.',
   },
   {
-    // Deathrattle (combat): re-fire an adjacent minion's Battlecry — only combat-meaningful battlecries
+    // Deathrattle (combat): re-fire BOTH adjacent minions' Battlecries — only combat-meaningful battlecries
     // (summon / tribe buff / undead-attack / grant-keyword) do anything; economy battlecries no-op. Golden
-    // re-fires BOTH neighbours; non-golden picks one at random when both have a replayable battlecry.
+    // fires each neighbour TWICE. Taunt makes the body do work before the payoff lands.
     id: 'ryme',
     name: 'Ryme',
     tribe: 'undead',
     tier: 4,
     attack: 5,
     health: 3,
-    keywords: [],
+    keywords: ['T'],
     effects: [{ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry', params: {} }],
-    text: "**Deathrattle:** Trigger an adjacent minion's **Battlecry**.",
-    goldenText: "**Deathrattle:** Trigger **both** adjacent minions' **Battlecries**.",
+    text: "**Deathrattle:** Trigger adjacent minions' **Battlecries**.",
+    goldenText: "**Deathrattle:** Trigger adjacent minions' **Battlecries** twice.",
   },
   {
     // Deathrattle: summon a Footman (T1 1/1 Reborn Undead token). Golden summons 2.

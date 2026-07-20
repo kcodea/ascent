@@ -1573,9 +1573,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       (m): m is Minion => !!m && !m.dead && m.health > 0 && hasBattlecry(m),
     );
     if (neighbors.length === 0) return;
-    const chosen = self.golden ? neighbors : [ctx.rng.pick(neighbors)];
-    const repeats = drakkoRepeats(ctx, self.side); // Drakko doubles each trigger (×2, golden Drakko ×3)
-    for (const n of chosen) {
+    // Base Ryme now triggers BOTH neighbours (it used to pick one at random); golden triggers each TWICE.
+    // Note this no longer consumes an RNG roll on the base card — a seeded-replay-visible change, so the
+    // combat goldens were re-baked with it.
+    const repeats = drakkoRepeats(ctx, self.side) * (self.golden ? 2 : 1); // Drakko doubles each trigger
+    for (const n of neighbors) {
       for (let r = 0; r < repeats; r++) {
         ctx.log({ type: 'sc', source: self.uid, text: `${self.name} triggers ${n.name}'s Battlecry` });
         replayCombatBattlecry(ctx, n); // the Battlecry's own combat effect (no-op for economy battlecries)

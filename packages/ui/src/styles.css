@@ -4397,12 +4397,27 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
   pointer-events: none;
 }
 .rfb-cost svg { width: calc(14 * var(--u)); height: calc(14 * var(--u)); color: #241a08; }
+/* FREE roll — the coin stays put and goes GREEN with a 0 (owner 2026-07-21). Same geometry as the paid coin,
+   so the button never changes shape; only the fill reads differently. Its own colour var so the ✨ tuner's
+   cost picker still drives the PAID state independently. */
+.rfb-cost.free {
+  background: radial-gradient(circle at 38% 30%, color-mix(in srgb, var(--rfb-free-color, #47d17c) 55%, #fff),
+              var(--rfb-free-color, #47d17c) 58%, color-mix(in srgb, var(--rfb-free-color, #47d17c) 62%, #000));
+}
 /* Can't afford — the coin flushes RED, matching the Tavern stone's "too expensive" cue. */
 .rfbwrap:disabled .rfb-cost {
   background: radial-gradient(circle at 38% 30%, #ff9f8a, #e5533b 58%, #9c2c1a);
   color: #2a0d06;
 }
 .rfbwrap:disabled .rfb-cost svg { color: #2a0d06; }
+/* …but a FREE roll is never "can't afford" — keep it green even while the button is disabled (mid-animation),
+   or a 0-cost coin would flash the red too-expensive cue. Out-specifies the disabled rule. */
+.rfbwrap:disabled .rfb-cost.free {
+  background: radial-gradient(circle at 38% 30%, color-mix(in srgb, var(--rfb-free-color, #47d17c) 55%, #fff),
+              var(--rfb-free-color, #47d17c) 58%, color-mix(in srgb, var(--rfb-free-color, #47d17c) 62%, #000));
+  color: #241a08;
+}
+.rfbwrap:disabled .rfb-cost.free svg { color: #241a08; }
 
 /* The glass "Refresh" pill floating ABOVE the crystal (owner request) — the dark-glass treatment the
    Discover banner and the Rift button use, so the board's chrome stays one family. */

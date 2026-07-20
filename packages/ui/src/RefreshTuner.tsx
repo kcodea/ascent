@@ -37,6 +37,7 @@ const LABELS: Record<keyof RefreshConfig, string> = {
   costY: 'cost coin · y',
   costS: 'cost coin · size',
   costColor: 'cost coin · colour',
+  costFreeColor: 'cost coin · FREE colour',
   glowW: 'glow · width fit',
   glowH: 'glow · height fit',
   glowBlur: 'glow · blur',

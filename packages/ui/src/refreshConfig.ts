@@ -29,6 +29,8 @@ export interface RefreshConfig {
   costS: number;
   /** Cost badge — text/coin colour. */
   costColor: string;
+  /** The coin's fill when the roll is FREE — it stays visible and turns green with a 0 (owner 2026-07-21). */
+  costFreeColor: string;
   /** Label pill — nudge y (design px × --u); the glass "Refresh" pill sits ABOVE the button. */
   labelY: number;
   /** Label pill size (×). */
@@ -98,6 +100,7 @@ const DEFAULTS: RefreshConfig = {
   costY: -90,
   costS: 1.42,
   costColor: '#f4be35',
+  costFreeColor: '#47d17c',
   labelY: -46,
   labelS: 1,
   glowBlur: 22,
@@ -128,7 +131,7 @@ const DEFAULTS: RefreshConfig = {
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */
-export const RFB_RANGES: Record<Exclude<keyof RefreshConfig, 'glowColor' | 'shineColor' | 'costColor' | 'blastColor'>, [number, number, number]> = {
+export const RFB_RANGES: Record<Exclude<keyof RefreshConfig, 'glowColor' | 'shineColor' | 'costColor' | 'costFreeColor' | 'blastColor'>, [number, number, number]> = {
   x: [-800, 800, 1],
   y: [-400, 600, 1],
   scale: [0.4, 2.5, 0.01],
@@ -170,6 +173,7 @@ export const RFB_DESC: Record<keyof RefreshConfig, string> = {
   costY: 'Cost coin — nudge vertically (design px).',
   costS: 'Cost coin size (×).',
   costColor: 'Cost coin — text + icon colour.',
+  costFreeColor: 'Cost coin — colour when the roll is FREE (shows a 0).',
   labelY: 'Refresh label — how far ABOVE the button the glass pill sits (design px).',
   labelS: 'Refresh label — pill size (×).',
   glowBlur: 'Hover glow softness — blur radius (px) of each shadow pass.',
@@ -211,7 +215,7 @@ export const RFB_NUM_KEYS = [
   'blastCount', 'blastSpeed', 'blastSpread', 'blastLife', 'blastSize',
   'artDim',
 ] as const;
-export const RFB_COLOR_KEYS = ['glowColor', 'shineColor', 'costColor', 'blastColor'] as const;
+export const RFB_COLOR_KEYS = ['glowColor', 'shineColor', 'costColor', 'costFreeColor', 'blastColor'] as const;
 
 const KEY = 'ascent.refreshbtn';
 // Dev-only persistence: production always renders the shipped DEFAULTS (Layout Lab convention).
@@ -250,6 +254,7 @@ export function applyRefreshVars(): void {
   root.setProperty('--rfb-cost-y', String(cfg.costY));
   root.setProperty('--rfb-cost-s', String(cfg.costS));
   root.setProperty('--rfb-cost-color', cfg.costColor);
+  root.setProperty('--rfb-free-color', cfg.costFreeColor);
   root.setProperty('--rfb-label-y', String(cfg.labelY));
   root.setProperty('--rfb-label-s', String(cfg.labelS));
   root.setProperty('--rfb-glow-w', String(cfg.glowW));

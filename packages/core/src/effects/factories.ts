@@ -1575,6 +1575,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       }
       m.keywords = [...m.keywords, 'R'];
       m.rebornAvailable = true;
+      // A `keyword` event, not just narration — that's what makes the Rise PILL appear on the unit. Every
+      // other Rise grant (Mumi, the Avenge grant) emits one; this logged `sc` text only, so the grant landed
+      // in sim state but was invisible on the board, and the owner reported "none of my minions got Rise"
+      // (2026-07-21). The narration stays for the combat log.
+      ctx.log({ type: 'keyword', target: m.uid, keyword: 'R', source: self.uid });
       ctx.log({ type: 'sc', source: self.uid, text: `${self.name} grants ${m.name} Rise` });
     }
   },
@@ -1591,6 +1596,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < mul(self); i++) {
       ctx.castSpell(self.side); // a real cast — Spirit Pup / Guel / Forsaken Weaver all see it
       ctx.addTribeAura(self.side, tribe, a, h, self.uid);
+      // Narrate the cast. The buffs alone read as "some numbers moved"; the owner couldn't tell Lantern of
+      // Souls had fired at all (2026-07-21). Names the spell and its live value, spell power folded in.
+      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts Lantern of Souls (+${a}/+${h} to your ${tribe})` });
       for (const m of ctx.living(self.side)) {
         if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
       }

@@ -10,6 +10,7 @@ import { HudBar } from './HudBar';
 import { EndTurnButton } from './EndTurnButton';
 import { RiftButton } from './RiftButton';
 import { RefreshButton } from './RefreshButton';
+import { FreezeButton } from './FreezeButton';
 import { TavernUpButton } from './TavernUpButton';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
@@ -3186,16 +3187,8 @@ export function Recruit() {
         <div className="shoprow actiontray">
           {/* The Reroll tray plaque was replaced by the standalone REFRESH crystal, stage-pinned top-centre
               (see <RefreshButton/> below) — same reducer wiring, so nothing about rolling changed. */}
-          {/* Freeze — toggle; tinted blue, filling solid blue while the tavern is frozen. */}
-          <button
-            className={`shopbtn freeze${run.frozen ? ' on' : ''}`}
-            disabled={timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
-            onClick={() => dispatch({ type: 'freeze' })}
-          >
-            <span className="sb-l">Freeze</span>
-            <span className="sb-ic"><Icon name="freeze" /></span>
-            <span className="sbtip">{run.frozen ? 'Frozen — click to unfreeze' : 'Freeze the tavern'}</span>
-          </button>
+          {/* Freeze moved out of the tray to the board's TOP-RIGHT, opposite the Tavern stone — see
+              <FreezeButton/> below. Same reducer wiring; only the placement changed. */}
         </div>
       </div>
       </>
@@ -3244,6 +3237,16 @@ export function Recruit() {
           reducer wiring + disabled conditions — a re-skin, not a behavior change). Mounted through BOTH
           phases (owner note 2026-07-16): in combat it's a passive TIER INDICATOR — inert, cost coin hidden,
           art at full strength. The max-tier condition lives in the component (the broken "complete" gem). */}
+      {/* Freeze — pinned TOP-RIGHT, opposite the Tavern stone. NOT gated on `timeUp` (owner 2026-07-21):
+          freezing after the clock runs out is a legitimate last action — the shop is still on screen until
+          the End-of-Turn animation starts, and the reducer never gated it, only this button did. */}
+      {!inCombat && (
+        <FreezeButton
+          frozen={!!run.frozen}
+          disabled={eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+          onFreeze={() => dispatch({ type: 'freeze' })}
+        />
+      )}
       {/* Refresh — the standalone crystal pinned TOP-CENTRE, replacing the tray's Reroll plaque. Recruit
           phase only (rolling is a shop action); free rolls hide the cost coin so "free" reads at a glance. */}
       {!inCombat && (

@@ -3,6 +3,33 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21i (Freeze relocation + late freeze)
+
+### tweak(ui): Freeze moves to the board's top-right, can be used after the clock runs out
+
+**Freeze after time-up is now allowed** (owner). The reducer never gated it — `case 'freeze'` is an
+unconditional toggle — so this was purely the button's own `disabled={timeUp || …}`. Dropping `timeUp`
+makes it a legitimate last action: the shop is still on screen until the End-of-Turn animation begins.
+
+**Freeze moved out of the shop tray** to the board's TOP-RIGHT, opposite the Tavern Up stone, stage-pinned
+like the other board buttons with a ❄️ dev tuner for position/scale.
+
+The tuner is **position + scale only, deliberately.** The freeze art isn't in yet, so glow/sheen/press dials
+would have nothing to act on — and the button keeps the tray's `shopbtn freeze` skin rather than my
+inventing a look that gets thrown away when the art lands. The new CSS rule overrides positioning and
+nothing visual.
+
+**Refresh re-baked** with the second tuning pass (16 values: softer wider glow at 0.57/22px, a longer 1050ms
+shine spreading to 1.9, much lighter dust, and a bigger 21-shard blast at 0.8 spread), plus the mirrored
+`styles.css` fallbacks. As before, the paste's stale `spinMs`/`flashMs`/`rings` keys were dropped rather
+than resurrected.
+
+Verified live: Freeze sits at x 1286 against the Tavern stone's 241 either side of a 764 centre — 522 vs
+523px, a matched pair; it is gone from the tray; and with the clock forced past zero the button stays
+ENABLED and toggling it actually flips `run.frozen` false -> true.
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
 ## 2026-07-21h (tuned bakes + hand hover bridge)
 
 ### tweak(ui): bake the tuned Scale/Drag/Refresh values, tavern-style Refresh cost, and fix the hand hover gap

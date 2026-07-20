@@ -4315,17 +4315,17 @@ body.dragging .rfbwrap { pointer-events: none; } /* a card dragged across it dro
   width: calc(100% * var(--rfb-glow-w, 0.85)); height: calc(100% * var(--rfb-glow-h, 0.85));
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  box-shadow: var(--rfb-glow-shadow, 0 0 9px rgba(255, 255, 255, 1));
+  box-shadow: var(--rfb-glow-shadow, 0 0 22px rgba(255, 255, 255, 1));
   opacity: 0; transition: opacity 0.16s ease; z-index: 0; pointer-events: none;
 }
 .rfbwrap:hover:not(:disabled) .rfb-glow,
 body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one pointer can't hover AND drag a slider */
-  animation: rfbbreath var(--rfb-glow-pulse, 2.3s) ease-in-out infinite;
-  opacity: var(--rfb-glow-alpha, 1);
+  animation: rfbbreath var(--rfb-glow-pulse, 4s) ease-in-out infinite;
+  opacity: var(--rfb-glow-alpha, 0.57);
 }
 @keyframes rfbbreath {
-  0%, 100% { opacity: var(--rfb-glow-alpha, 1); }
-  50% { opacity: var(--rfb-glow-dim, 0.35); }
+  0%, 100% { opacity: var(--rfb-glow-alpha, 0.57); }
+  50% { opacity: var(--rfb-glow-dim, 0.32); }
 }
 
 /* Ambient sheen — a glare bar sweeping the crystal, clipped to its box. Transform-only. */
@@ -4351,12 +4351,12 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
     color-mix(in srgb, var(--rfb-shine-color, #ffffff) 55%, transparent) 42%,
     transparent 70%);
   filter: blur(var(--rfb-shine-blur, 24px));
-  animation: rfbshine var(--rfb-shine-ms, 980ms) cubic-bezier(0.2, 0.7, 0.3, 1) 1 both;
+  animation: rfbshine var(--rfb-shine-ms, 1050ms) cubic-bezier(0.2, 0.7, 0.3, 1) 1 both;
 }
 @keyframes rfbshine {
   0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
-  22% { opacity: var(--rfb-shine-alpha, 0.77); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(var(--rfb-shine-size, 1.5)); }
+  22% { opacity: var(--rfb-shine-alpha, 0.7); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(var(--rfb-shine-size, 1.9)); }
 }
 
 /* Live Gold cost — the SAME gold coin pill the Tavern stone wears (owner request), so the two board
@@ -4364,7 +4364,7 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
    mid-stop, so the picker still recolours the whole pill rather than just the text. */
 .rfb-cost {
   position: absolute; left: 50%; top: 100%; z-index: 4;
-  transform: translate(calc(-50% + var(--rfb-cost-x, 72) * var(--u)), calc(-50% + var(--rfb-cost-y, -90) * var(--u))) scale(var(--rfb-cost-s, 2));
+  transform: translate(calc(-50% + var(--rfb-cost-x, 87) * var(--u)), calc(-50% + var(--rfb-cost-y, -90) * var(--u))) scale(var(--rfb-cost-s, 1.42));
   display: inline-flex; align-items: center; gap: calc(4 * var(--u));
   padding: calc(4 * var(--u)) calc(10 * var(--u)); border-radius: 999px;
   background: radial-gradient(circle at 38% 30%, color-mix(in srgb, var(--rfb-cost-color, #f4be35) 55%, #fff),
@@ -4430,3 +4430,16 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
 }
 /* While dragging, the bridge must not keep a card "hovered" under the floating drag card. */
 body.dragging .row.hand .card.compact.showtext::after { pointer-events: none; }
+
+/* ---- FREEZE button (FreezeButton.tsx) — moved out of the shop tray to the board's TOP-RIGHT, opposite the
+   Tavern Up stone. Stage-pinned like the other board buttons; the ❄️ tuner sets `--frz-*` and the fallbacks
+   here MIRROR the DEFAULTS in freezeConfig.ts. It keeps the tray's `shopbtn freeze` skin for now — the
+   freeze art isn't in yet, so this rule only OVERRIDES the positioning, nothing visual. */
+.frzwrap.frzwrap {
+  position: fixed;
+  left: calc(var(--bar-x) + 0.845 * var(--gw) + var(--frz-x, -8px) * var(--scale));
+  top: calc(var(--bar-y) + 0.42 * var(--gh) + var(--frz-y, -287px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--frz-s, 1));
+  z-index: 41;
+}
+body.dragging .frzwrap { pointer-events: none; } /* a card dragged across it drops through */

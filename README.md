@@ -40,6 +40,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+- **The phantom mid-board ring is fixed.** The "impact ring firing off-target" was never the strike (the
+  probe proved the strike lands dead-on) — it was the death moment's damage burst + ring firing at a dying
+  attacker's mid-pull-home position, over empty board. It now fires at the unit's slot, where the death reads.
 - **Strike targets re-solve late.** The strike's landing point and the impact FX position were computed at
   swing start and fired ~0.9s later — a neighbour dying mid-wind-up re-centres the row (a layout slide) and
   the ring landed where the defender *used* to be. The strike target now re-measures when the strike launches,

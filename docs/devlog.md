@@ -3,6 +3,38 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (phantom ring root cause)
+
+### fix(ui): the "off-target impact ring" was never the strike — it was the death moment's damageFx firing at a mid-flight attacker
+
+The probe closed the hunt in one clip. Frame-by-frame of the owner's capture (whelp → taunted Stray, ~3s):
+at the impact instant the `IMP` + `DEF` markers sat exactly ON the Stray with the strike's ring — our impact
+package was firing at the right place all along. 200ms later a SECOND, identical expanding ring appeared at
+mid-board with **no marker on it**, hovering over empty felt along the whelp's return path.
+
+The chain: the whelp died to retaliation → the dying attacker gets pulled home (GSAP flight) → its `death`
+moment carries a `damageFx` cue (score: `death: [...BASE, { ch: 'damageFx' }]`) → `onDamageFx` measured
+`getBoundingClientRect()` at the cue fire — **mid-pull-home** — and fired `damageBurst` + `impactPulse` (an
+expanding ring visually identical to the strike ring) at the whelp's mid-flight position. A phantom ring
+along the attack path, reading exactly like "the strike's ring went off too early."
+
+Three prior strike-side fixes (layout-frame compensation #f7ad6617, face-on fade, late-solved targets
+#e289c11f) were real correctness hardening but couldn't touch this — they fixed the strike, and the strike
+was innocent. The lesson is the probe: after the third failed fix we stopped guessing and instrumented
+(strikeProbe #ba8e6752), and the first instrumented clip discriminated the hypotheses conclusively.
+
+Fix: `onDamageFx` measures in the LAYOUT frame (rect centre minus the element's in-flight GSAP x/y), so a
+dying attacker's death burst + ring land at its **slot** — where the card is headed and visibly dies — never
+at a mid-flight position. An orange `DFX` probe marker now labels this channel too, so the confirming clip
+can show the burst landing on the slot.
+
+Follow-ups queued: the sibling cue handlers (`coins`, `summonFx`, `improveSelf`, `buffSelf`) measure live
+rects the same way and could mis-fire on mid-motion units — same one-line layout correction if ever
+observed. Delete `strikeProbe.ts` + its call sites once the owner confirms.
+
+Verified: typecheck + lint + 1241 tests + `build:web`, all green; root cause proven by the instrumented
+clip's frames (marked strike ring on the Stray, unmarked phantom at the whelp's mid-return position).
+
 ## 2026-07-21 (late-solved strikes)
 
 ### fix(ui): re-solve the strike target and impact point LATE, not at swing start

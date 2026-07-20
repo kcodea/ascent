@@ -386,13 +386,16 @@ export function auraFxTargets(state: RunState, tribe: AuraFxTribe): string[] {
  *  Bots). Monotonic seq like the other FX signals — never cleared; the UI dedupes against its last-seen. */
 export function stampWeldFx(state: RunState, uids: string[], kind: 'play' | 'auto'): void {
   if (uids.length === 0) return;
+  const base = state.weldFxBaseSeq ?? 0;
+  const first = (state.weldFxSeq ?? 0) === base; // nothing stamped yet in THIS action
   state.weldFxSeq = (state.weldFxSeq ?? 0) + 1;
   // ACCUMULATE across this action, don't overwrite. Several welds can land in ONE dispatch — a golden
   // Banksly magnetizes twice, and spending enough Gold procs it repeatedly — and the UI only reads the
   // FINAL state after the dispatch, so overwriting meant every weld but the last silently lost its ring
-  // (verified: two welds in one action left `['B']` with seq 2). `reduce` clears this per action, so the
-  // list can never leak into the next one.
-  state.weldFxUids = [...new Set([...(state.weldFxUids ?? []), ...uids])];
+  // (verified: two welds in one action left `['B']` with seq 2). The FIRST stamp of an action replaces
+  // instead, which is what keeps the previous action's uids from leaking in — `reduce` no longer clears
+  // them, because clearing raced React's dispatch batching and dropped the ring entirely.
+  state.weldFxUids = first ? [...new Set(uids)] : [...new Set([...(state.weldFxUids ?? []), ...uids])];
   state.weldFxKind = kind;
 }
 

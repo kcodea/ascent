@@ -3,6 +3,50 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-20 (weld FX regression)
+
+### fix(sim): stop `reduce` racing React's dispatch batching and dropping weld rings
+
+Owner report: *"beatbot isn't animating when it welds, like it's not triggering the weld fx."*
+
+**This was self-inflicted in #564.** That PR added `state.weldFxUids = undefined` to `reduce`, on the same
+"per-action scratch" contract as `recruitBuffFx` and `auraFx`. That contract is wrong for weld, because
+**React batches dispatches.** A weld followed by any other click in the same frame coalesces into ONE
+render — and by then the second action had already nulled the payload. The effect ran, saw a fresh
+`weldFxSeq` but `weldFxUids: undefined`, and early-returned. In real play a weld is almost always
+accompanied by another action, so the ring effectively never fired.
+
+Reproduced deterministically in the browser before touching anything:
+
+```
+weld alone                          -> 2 weldPulse calls   ok
+weld + another dispatch same frame  -> 0 calls             BUG
+```
+
+and confirmed at the source — the effect ran exactly once, seeing `seq: 24, prev: 23, uids: undefined`.
+
+**A wrong fix first, recorded because the process matters.** My first read was that the changing `uids`
+dependency ran the effect's cleanup and cancelled the pending `requestAnimationFrame`. I wrote that fix,
+and the reproduction was **unchanged** — cancellation was never involved. Only instrumenting the effect
+body showed the payload was already gone before React rendered at all. Two rounds of all-zero results in
+between were separate artifacts (stale HMR after a hook-order change, then a dangling `weldRafRef` I left
+behind while reverting) — both caught only because every step was re-verified in the browser rather than
+reasoned about.
+
+**The fix.** `reduce` no longer clears the payload; it records `weldFxBaseSeq` (the seq as the action
+starts). `stampWeldFx` replaces `weldFxUids` on its first stamp of an action and accumulates after. Both
+properties #564 wanted are kept — several welds in one dispatch still all animate, and one action's uids
+still can't leak into the next — without destroying a payload the UI hasn't rendered yet. The UI watcher
+is reverted to its pre-#564 shape.
+
+This also fixes a second, quieter consumer on the same signal: the welded-stat flash (`Recruit.tsx`),
+which read `weldFxUids` the same way and was losing its highlight in exactly the same cases.
+
+Verified: the four-case browser trial now gives **2 weld pulses in all four cases**, wiggle applied, no
+error boundary; two new tests pin the batching behaviour (payload survives an unrelated follow-up action
+without re-announcing the seq; a new weld replaces the previous action's uids); 1227 tests, typecheck,
+lint and build:web green; `typecheck:web` at its 48-error baseline.
+
 ## 2026-07-20 (odds sims)
 
 ### perf(sim): cut the pre-combat odds sims 1000 → 200

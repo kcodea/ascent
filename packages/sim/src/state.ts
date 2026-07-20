@@ -592,6 +592,10 @@ export interface RunState {
   weldFxSeq?: number;
   weldFxUids?: string[];
   weldFxKind?: 'play' | 'auto';
+  /** `weldFxSeq` as of the start of the current action — lets `stampWeldFx` tell its first stamp of an
+   *  action (replace `weldFxUids`) from later ones (accumulate) without `reduce` clearing the payload,
+   *  which raced React's dispatch batching. Bookkeeping only; never read by the sim or the UI. */
+  weldFxBaseSeq?: number;
   /** Consecutive combat losses (a win resets; a draw preserves) — the matchmaking loss-streak softener input. */
   lossStreak?: number;
   /** The once-per-streak softener already influenced a pick this streak — disarmed until a win re-arms it. */

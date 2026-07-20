@@ -88,7 +88,7 @@ bountybot,Bounty Bot,5,7,3,,SL,Immune while attacking (first **2** attacks each 
 combinator,Combinator,5,6,7,,,**End of Turn:** magnetize a random **Magnetic** Mech onto **2** friendly Mechs.,**End of Turn:** magnetize a random **Magnetic** Mech onto **4** friendly Mechs.
 banksly,Banksly,6,5,6,,,"When you spend **10 Gold**, magnetize a random **Magnetic** onto this.","When you spend **10 Gold**, magnetize **2** random **Magnetics** onto this."
 beatboxer,Beatbot,6,8,8,,,"Whenever a **Magnetic** attaches to another friendly minion, **copy** it onto this too.","Whenever a **Magnetic** attaches to another friendly minion, **copy it twice** onto this."
-nanon,Nanon,6,6,6,,,"**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+2/+2**.","**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+4/+4**."
+nanon,Nanon,6,6,6,,,"**Deathrattle:** summon 5 Nanobots. For each one that can't fit, give your Mechs **+2/+2**.","**Deathrattle:** summon 5 Nanobots. For each one that can't fit, give your Mechs **+4/+4**."
 attachmentconductor,Attachment Conductor,7,7,10,,,Your **Magnetics** magnetize **twice**.,Your **Magnetics** magnetize **three times**.
 
 # === DEMON (19) ===
@@ -119,7 +119,7 @@ hoarder,Hoarder,2,3,3,,,**Battlecry:** get **1** extra Gold next turn. Sells for
 buddy,Buddy Buddy,3,2,2,,,**Shout:** get a random **Tier 1** minion.,**Shout:** get **two** random **Tier 1** minions.
 venom,Venom,3,1,1,,Venomous,,
 guel,Archmagus Guel,4,4,4,,,"After **a spell is cast** (shop or combat), give 3 friendly minions **+1/+1**, improving by **+1/+1** per 4 spells cast with this on board.","After **a spell is cast** (shop or combat), give 3 friendly minions **+2/+2**, improving by **+2/+2** per 4 spells cast with this on board."
-arenaheckler,Arena Heckler,4,2,5,,,**Start of Combat:** Give the enemy's rightmost minion **Taunt**.,**Start of Combat:** Give the enemy's **two** rightmost minions **Taunt**.
+arenaheckler,Arena Heckler,4,2,5,,,**Start of Combat:** Give the minion **opposite** this **Taunt**.,"**Start of Combat:** Give the minion **opposite** this **Taunt**, and an **adjacent** minion too."
 blaster,Blaster,4,5,3,,Taunt,**Deathrattle:** deal **3** damage to ALL minions.,**Deathrattle:** deal **6** damage to ALL minions.
 monk,Flowing Monk,4,4,5,,,"When you summon a minion that doesn't fit, Engrave 2 friendly minions **+2/+2**. Improves by **+2/+2** every 5 overflows.","When you summon a minion that doesn't fit, Engrave 2 friendly minions **+4/+4**. Improves by **+4/+4** every 5 overflows."
 nimbus,Nimbus,4,4,3,,,**Battlecry:** your next spell played from hand casts **twice**.,**Battlecry:** your next spell played from hand casts **three times**.

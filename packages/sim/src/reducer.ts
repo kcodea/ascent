@@ -2078,6 +2078,12 @@ function advanceCombat(s: RunState): void {
     captureBuffFx(s, undefined, 'spell', () => applyEndOfTurn(s));
     advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires ?? 0);
   }
+  // Rune of the Summit: every 2nd shop opens a Tier 7 Discover. `exactTier: 7` is a FIXED-tier offer, so it
+  // resolves with no rift active — which is the entire point (Tier 7 is otherwise unreachable outside one).
+  if (s.runeSummit) {
+    s.runeSummitTick = (s.runeSummitTick ?? 0) + 1;
+    if (s.runeSummitTick % 2 === 0) queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 });
+  }
   // Triples can be completed by a combat carry-back that lands a 3rd copy in the hand (e.g. a
   // Deathrattle-granted minion) AFTER the last recruit action that would have checked. Every other
   // path checks on the mutation; this is the one entry the player never triggers, so check once here
@@ -2540,6 +2546,12 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'runeEndlessAppetite':
       s.runeEndlessAppetite = true; // Rune of Endless Appetite: the first Consume each turn fans out to all other Demons
+      break;
+    case 'runeSummit':
+      // Rune of the Summit: every 2nd shop from here opens a Tier 7 Discover. Tick starts at 0, so the
+      // first payout lands on the SECOND shop after purchase — "in 2 turns", as written.
+      s.runeSummit = true;
+      s.runeSummitTick = 0;
       break;
     case 'runeConductor':
       s.runeConductor = true; // Rune of the Conductor: start of every shop triggers your End of Turn effects

@@ -3,6 +3,47 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (content batch + Summit sources finished)
+
+### feat/tweak: Attachment vocabulary fix, Arena Heckler, Nanon, Brackus lock UI, Rune of the Summit
+
+**The "pure text change" was a renamer bug, not a card.** Attachment Conductor read "Your **Magnetics**
+magnetize twice" because `terms.ts` only handled the two CAPITALISED SINGULARS (`Magnetize`, `Magnetic`) —
+plurals, lowercase and past tense all slipped through. Fixed at the source rather than on the one card, so
+**Cling Drone** ("is magnetized" -> "is attached") and **Combinator** / **Banksly** ("magnetize" ->
+"attach") were silently wrong too and are now correct. Longer forms are ordered first so `Magnetize` can't
+shadow `Magnetized`.
+
+**Arena Heckler** now taunts the minion **opposite** it (same board index, clamped for a shorter enemy
+line) instead of the enemy's rightmost; golden also taunts an adjacent one. `scGrantEnemyTaunt` had exactly
+one consumer, so it was retargeted rather than forked.
+
+**Nanon** summons 5 Nanobots (was 6). The factory keeps the count FIXED for goldens — the gild scales the
+overflow buff — so the golden text had to move to 5 as well; it still said 6.
+
+**Brackus's gold lock is now visible.** The reducer already blocked the play, but `Recruit.tsx` only knew
+about `lockedUntilTier`, so the card didn't LOOK locked. Both the hand render and the drag guard now honour
+`lockedUntilGoldSpent`, and the label counts DOWN ("🔒70 Gold" -> "🔒30 Gold") so the wait is legible.
+
+**Rune of the Summit** (basic, 4 Gold): in 2 turns, Discover a Tier 7 minion; repeats every 2 turns. The
+cadence is why this was deferred — `recurringEndOfTurn` fires EVERY turn and takes a fixed effect enum, so
+an every-other-turn payout needed its own counter (`runeSummitTick`, incremented at shop open). The Discover
+is `exactTier: 7`, a fixed-tier offer, so it resolves with **no rift active** — the whole point, since Tier 7
+is otherwise unreachable.
+
+**Amun Rab** art re-wired (2275KB -> 56KB).
+
+**A test-harness trap worth recording.** The rune's cadence test silently froze at tick 2: wave 5 is a QUEST
+turn, and the parked `questOffer` blocks every later action, so `resolveCombat` no-op'd and the counter
+stopped. The helper now clears the modals a real player would have dismissed. The first symptom looked like
+a cadence bug in the rune — it was the harness.
+
+Verified: 1264 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline. Live
+(after a dev-server RESTART — a reload served stale modules and showed all the old text): every card's
+displayed text confirmed through `renameTerms`, and Brackus driven end to end — 15 Armor, turn-1 Tier 7
+Discover (all three offers tier 7), pick locked at 70 Gold, play REJECTED at 40 with the label reading
+"🔒30 Gold", then unlocked and played at 70.
+
 ## 2026-07-20 (compendium palette reverted)
 
 ### revert(ui): the Compendium goes back to the original cream

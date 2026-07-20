@@ -3,6 +3,36 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21e (Refresh crystal)
+
+### feat(ui): the standalone REFRESH crystal + its dev tuner, replacing the Reroll plaque
+
+The blue crystal (`frames/refresh_button.webp`, 516x868 -> 33KB) is now a stage-pinned board button at
+TOP-CENTRE, with a glass **Refresh** pill above it. The old "Reroll" tray plaque is gone; the reducer wiring
+is untouched (`{type:'roll'}`), so nothing about rolling changed — only where you click.
+
+**`refreshConfig.ts` + `RefreshTuner.tsx` mirror the Tavern stone dial-for-dial** (owner request) MINUS the
+gem/pip seats: those exist because the tavern art is layered around a hole, and the refresh art is a single
+piece — I checked the source before building, which is why there is no dead seat group here. What is kept:
+position/scale, the label + cost-coin seats, the hover glow (blur / opacity / stack / breath / fit /
+colour), the sheen sweep, the press effects, and the disabled dim. Plus one dial the stone has no use for:
+**press SPIN**, since a refresh icon turning over is the natural affordance.
+
+Dev-persisted to localStorage, production always renders DEFAULTS (Layout Lab convention), `--rfb-*` vars
+with mirrored styles.css fallbacks, and "glow always on" for dialing the glow without holding hover.
+
+PERF: the two LOOPING animations (glow breath, sheen sweep) animate **opacity/transform only** — the glow's
+box-shadow stack is static, per `docs/performance.md`.
+
+Verified live: crystal mounts at the exact horizontal centre (764 = viewport centre), label reads "Refresh",
+cost coin shows the live roll cost (hidden when free), the old Reroll button is gone, and clicking it rolled
+the shop and spent 1 Gold. 1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error
+baseline.
+
+**Not yet dialed.** The shipped defaults are a sensible starting position, not a tuned one — the label pill
+still grazes the HUD row at the default `y`. That is a slider in the 🔄 tuner, which is the point of
+building it; the owner bakes the tuned values the way the Tavern stone's were.
+
 ## 2026-07-21d (Fodder aura display)
 
 ### fix(ui): Fodder buffs from Heckbinder never showed in the tavern

@@ -9,6 +9,7 @@ import { instView, liveCardText, type LiveTextParams } from './instView';
 import { HudBar } from './HudBar';
 import { EndTurnButton } from './EndTurnButton';
 import { RiftButton } from './RiftButton';
+import { RefreshButton } from './RefreshButton';
 import { TavernUpButton } from './TavernUpButton';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
@@ -3183,17 +3184,8 @@ export function Recruit() {
             shopbutton.webp. Tavern Up moved onto the board as the standalone STONE button (TavernUpButton,
             mounted below with the End Turn diamond); Reroll/Freeze are queued for the same treatment. */}
         <div className="shoprow actiontray">
-          {/* Reroll — free rolls show 0. */}
-          <button
-            className="shopbtn"
-            disabled={(run.freeRolls <= 0 && run.embers < refreshCostOf(run)) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
-            onClick={() => dispatch({ type: 'roll' })}
-          >
-            <span className="sb-l">Reroll</span>
-            <span className="sb-ic"><Icon name="refresh" /></span>
-            <span className="sb-v">{run.freeRolls > 0 ? 0 : refreshCostOf(run)}</span>
-            <span className="sbtip">{run.freeRolls > 0 ? `Refresh — free (${run.freeRolls} left)` : 'Refresh the tavern'}</span>
-          </button>
+          {/* The Reroll tray plaque was replaced by the standalone REFRESH crystal, stage-pinned top-centre
+              (see <RefreshButton/> below) — same reducer wiring, so nothing about rolling changed. */}
           {/* Freeze — toggle; tinted blue, filling solid blue while the tavern is frozen. */}
           <button
             className={`shopbtn freeze${run.frozen ? ' on' : ''}`}
@@ -3252,6 +3244,15 @@ export function Recruit() {
           reducer wiring + disabled conditions — a re-skin, not a behavior change). Mounted through BOTH
           phases (owner note 2026-07-16): in combat it's a passive TIER INDICATOR — inert, cost coin hidden,
           art at full strength. The max-tier condition lives in the component (the broken "complete" gem). */}
+      {/* Refresh — the standalone crystal pinned TOP-CENTRE, replacing the tray's Reroll plaque. Recruit
+          phase only (rolling is a shop action); free rolls hide the cost coin so "free" reads at a glance. */}
+      {!inCombat && (
+        <RefreshButton
+          cost={run.freeRolls > 0 ? 0 : refreshCostOf(run)}
+          disabled={(run.freeRolls <= 0 && run.embers < refreshCostOf(run)) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+          onRefresh={() => dispatch({ type: 'roll' })}
+        />
+      )}
       <TavernUpButton
         tier={run.tier}
         maxTier={maxTierFor(run.rift)} // Summit raises the ceiling to 7

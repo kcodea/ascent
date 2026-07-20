@@ -4284,3 +4284,105 @@ svg { width: 18px; height: 18px; }
 }
 .modecard:hover .mcdesc { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .mcswirl { animation: none; } }
+
+/* ---- REFRESH CRYSTAL (RefreshButton.tsx) — the blue crystal pinned TOP-CENTRE of the board, replacing the
+   old "Reroll" tray plaque. Stage-pinned the same way as the End Turn diamond and the Tavern stone (base
+   point + tuner px offsets × --scale); every knob below reads a `--rfb-*` var the 🔄 dev tuner sets live,
+   and the fallbacks here MIRROR the DEFAULTS in refreshConfig.ts — update both when baking tuned values.
+   Layer order: glow (z0, behind) → art (z1) → sheen (z2) → press flash (z3) → cost coin (z4).
+   PERF: the two LOOPING animations (glow breath, sheen sweep) animate opacity/transform ONLY. */
+.rfbwrap {
+  position: fixed;
+  left: calc(var(--bar-x) + 0.5 * var(--gw) + var(--rfb-x, 0px) * var(--scale));
+  top: calc(var(--bar-y) + var(--rfb-y, 168px) * var(--scale));
+  transform: translate(-50%, -50%) scale(var(--rfb-s, 1));
+  width: calc(66 * var(--u)); height: calc(111 * var(--u)); /* the art's 516×868 aspect */
+  background: none; border: none; padding: 0; z-index: 41;
+  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+}
+body.dragging .rfbwrap { pointer-events: none; } /* a card dragged across it drops through */
+.rfbwrap:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.rfbwrap.off .rfb-artbox { filter: brightness(var(--rfb-art-dim, 0.5)) saturate(0.7); }
+
+/* The crystal. `.rfb-artbox` owns the press SPIN so the sheen (a child) turns with it. */
+.rfb-artbox { position: absolute; inset: 0; display: block; }
+.rfb-artbox.spin { animation: rfbspin var(--rfb-spin-ms, 420ms) cubic-bezier(0.3, 0, 0.2, 1) 1; }
+@keyframes rfbspin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.rfb-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; -webkit-user-drag: none; }
+
+/* Hover halo — a stacked BOX-SHADOW on a rounded span (paints outside the element; a filter drop-shadow
+   would clip square at the box). STATIC shadow: only this layer's OPACITY animates. */
+.rfb-glow {
+  position: absolute; left: 50%; top: 50%;
+  width: calc(100% * var(--rfb-glow-w, 0.9)); height: calc(100% * var(--rfb-glow-h, 0.9));
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  box-shadow: var(--rfb-glow-shadow, 0 0 10px rgba(75, 192, 255, 1));
+  opacity: 0; transition: opacity 0.16s ease; z-index: 0; pointer-events: none;
+}
+.rfbwrap:hover:not(:disabled) .rfb-glow,
+body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one pointer can't hover AND drag a slider */
+  animation: rfbbreath var(--rfb-glow-pulse, 3.2s) ease-in-out infinite;
+  opacity: var(--rfb-glow-alpha, 0.9);
+}
+@keyframes rfbbreath {
+  0%, 100% { opacity: var(--rfb-glow-alpha, 0.9); }
+  50% { opacity: var(--rfb-glow-dim, 0.36); }
+}
+
+/* Ambient sheen — a glare bar sweeping the crystal, clipped to its box. Transform-only. */
+.rfb-sheen { position: absolute; inset: 0; overflow: hidden; z-index: 2; pointer-events: none; }
+.rfb-sheen-bar {
+  position: absolute; top: -30%; left: -60%; width: 40%; height: 160%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, var(--rfb-sheen-alpha, 0.55)), transparent);
+  transform: translateX(-120%) rotate(8deg);
+  animation: rfbsheen var(--rfb-sheen-cycle, 5.2s) linear infinite;
+  will-change: transform;
+}
+@keyframes rfbsheen { 0% { transform: translateX(-120%) rotate(8deg); } 34%, 100% { transform: translateX(420%) rotate(8deg); } }
+
+/* One-shot press pop — a brightened copy of the crystal fading out over it. */
+.rfb-flash {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; z-index: 3;
+  pointer-events: none; filter: brightness(2.1) saturate(1.3);
+  animation: rfbflash var(--rfb-flash-ms, 320ms) ease-out 1 both;
+}
+@keyframes rfbflash { from { opacity: 0.9; transform: scale(1); } to { opacity: 0; transform: scale(1.18); } }
+
+/* Live Gold cost coin. */
+.rfb-cost {
+  position: absolute; left: 50%; top: 100%; z-index: 4;
+  transform: translate(calc(-50% + var(--rfb-cost-x, 34) * var(--u)), calc(-50% + var(--rfb-cost-y, 32) * var(--u))) scale(var(--rfb-cost-s, 0.84));
+  display: inline-flex; align-items: center; gap: calc(4 * var(--u));
+  font-family: var(--font-ui); font-weight: 900; font-size: calc(17 * var(--u)); color: #f4ecdb;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.85); pointer-events: none;
+}
+.rfb-cost svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
+
+/* The glass "Refresh" pill floating ABOVE the crystal (owner request) — the dark-glass treatment the
+   Discover banner and the Rift button use, so the board's chrome stays one family. */
+.rfb-label {
+  position: absolute; left: 50%; top: 0;
+  transform: translate(-50%, calc(var(--rfb-label-y, -46) * var(--u))) scale(var(--rfb-label-s, 1));
+  white-space: nowrap; pointer-events: none;
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.08em;
+  text-transform: uppercase; color: #f4ecdb;
+  background: linear-gradient(180deg, #241a13, #17110c);
+  border: 2px solid color-mix(in srgb, var(--gold) 58%, #000);
+  border-radius: 999px; padding: calc(4 * var(--u)) calc(14 * var(--u));
+  box-shadow: 0 calc(5 * var(--u)) calc(14 * var(--u)) -6px rgba(0, 0, 0, 0.65), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+}
+.rfbwrap:hover:not(:disabled) .rfb-label { border-color: var(--acc); }
+
+/* Hover tip — same clean floating tip the other board buttons use. */
+.rfb-tip {
+  position: absolute; left: 50%; bottom: calc(-38 * var(--u)); transform: translateX(-50%);
+  display: none; white-space: nowrap; pointer-events: none;
+  font-family: var(--font-ui); font-weight: 700; font-size: calc(12 * var(--u)); color: #f4ecdb;
+  background: linear-gradient(180deg, #1b1410f2, #120d09f2);
+  border: 1px solid color-mix(in srgb, var(--gold) 45%, #000);
+  border-radius: calc(8 * var(--u)); padding: calc(5 * var(--u)) calc(10 * var(--u)); z-index: 60;
+}
+.rfbwrap:hover:not(:disabled) .rfb-tip { display: block; }
+@media (prefers-reduced-motion: reduce) { .rfb-sheen-bar, .rfbwrap:hover .rfb-glow { animation: none; } }

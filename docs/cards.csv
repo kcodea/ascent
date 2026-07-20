@@ -112,7 +112,7 @@ abyssalfeeder,Abyssal Feeder,6,7,6,,,**End of Turn:** adjacent minions each **Co
 acid,"Korok, the Hungerer",6,8,8,,,"When you spend **7 Gold**, give your Fodder **+1/+1** and add **1 Fodder** to your next tavern.","When you spend **7 Gold**, give your Fodder **+2/+2** and add **2 Fodder** to your next tavern."
 amunrab,Amun Rab,7,15,3,,,**Deathrattle:** Summon **7** Imps with **Divine Shield** and give your Imps **+10/+10**. Improve this.,**Deathrattle:** Summon **7** Imps with **Divine Shield** and give your Imps **+20/+20**. Improve this.
 
-# === NEUTRAL (26) ===
+# === NEUTRAL (27) ===
 sandbag,Target Dummy,1,0,4,,Taunt,"**Taunt.** When this takes damage, it gains **+1 Attack** permanently.","**Taunt.** When this takes damage, it gains **+2 Attack** permanently."
 broker,Brightwing Broker,2,3,3,,,"When you buy a minion, give your minions **+1/+1**.","When you buy a minion, give your minions **+2/+2**."
 hoarder,Hoarder,2,3,3,,,**Battlecry:** get **1** extra Gold next turn. Sells for **2 Gold**.,**Battlecry:** get **2** extra Gold next turn. Sells for **4 Gold**.
@@ -138,7 +138,8 @@ taurus,Taurus,6,6,8,,Start of Combat,**Start of Combat:** adjacent units are **E
 yazzus,Yazzus,6,5,7,,,Your **targeted** spells cast **twice**.,Your **targeted** spells cast **three times**.
 labexperiment,Lab Experiment,7,12,10,,Venomous,**Battlecry:** get a Tier 6 minion. **Deathrattle:** get a Tier 5 minion.,**Battlecry:** get **2** Tier 6 minions. **Deathrattle:** get **2** Tier 5 minions.
 salvatore,Salvatore McKlusky,7,5,5,,,"When you sell this, **Discover** 2 Tier 6 minions.","When you sell this, **Discover** 2 **golden** Tier 6 minions."
-uron,"Uron, Oathbringer",7,7,7,,,"Your **Battlecries**, **Deathrattles**, **Rallies**, **Slaughters**, **End of Turns** and **Start of Combats** trigger an additional time.","Your **Battlecries**, **Deathrattles**, **Rallies**, **Slaughters**, **End of Turns** and **Start of Combats** trigger **2** additional times."
+uron,"Uron, Oathbringer",7,7,7,,,"Your **Rallies**, **End of Turns** and **Start of Combats** trigger an additional time.","Your **Rallies**, **End of Turns** and **Start of Combats** trigger **2** additional times."
+zyff,"Zyff, the Betrayer",7,6,6,,,Your **Battlecries** and **Deathrattles** trigger an additional time.,Your **Battlecries** and **Deathrattles** trigger **2** additional times.
 
 # === SPELLS (44) — cost, not stats ===
 apples,Apples,1,,,1,,"**Choose One:** Give the shop **+1/+3**, or the next shop **+2/+4**.",

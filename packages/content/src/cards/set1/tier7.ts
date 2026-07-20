@@ -120,12 +120,25 @@ export const TIER7: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [],
-    triggerMultiplier: {
-      families: ['battlecry', 'deathrattle', 'rally', 'slaughter', 'endOfTurn', 'startOfCombat'],
-      extra: 1,
-    },
-    text: 'Your **Battlecries**, **Deathrattles**, **Rallies**, **Slaughters**, **End of Turns** and **Start of Combats** trigger an additional time.',
-    goldenText: 'Your **Battlecries**, **Deathrattles**, **Rallies**, **Slaughters**, **End of Turns** and **Start of Combats** trigger **2** additional times.',
+    triggerMultiplier: { families: ['rally', 'endOfTurn', 'startOfCombat'], extra: 1 },
+    text: 'Your **Rallies**, **End of Turns** and **Start of Combats** trigger an additional time.',
+    goldenText: 'Your **Rallies**, **End of Turns** and **Start of Combats** trigger **2** additional times.',
+  },
+  {
+    // The RECRUIT-side multiplier and Uron's counterpart: Shouts + Echoes, the two families Uron gave up.
+    // Stacks with Drakko (battlecry) and Sylus (deathrattle) the same way any two multipliers do — Sylus
+    // sums, Zyff takes the best copy — so a Sylus + Zyff board is +2 Echoes.
+    id: 'zyff',
+    name: 'Zyff, the Betrayer',
+    tribe: 'neutral',
+    tier: 7,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    effects: [],
+    triggerMultiplier: { families: ['battlecry', 'deathrattle'], extra: 1 },
+    text: 'Your **Battlecries** and **Deathrattles** trigger an additional time.',
+    goldenText: 'Your **Battlecries** and **Deathrattles** trigger **2** additional times.',
   },
   {
     // Counts as EVERY tribe (`universalTribe`), so it slots into any tribal build — and pays out twice: a

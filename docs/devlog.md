@@ -3,6 +3,34 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-20 (compendium polish + Zyff)
+
+### tweak(ui/content): Compendium polish, the Uron/Zyff multiplier split, and Zyff the Betrayer
+
+**Compendium** (three owner notes):
+- The first row's TIER pill was clipped — it rides ABOVE the archbox, so the grid's flat `24px` top padding
+  never accounted for it. Top padding is now `--ccw * 0.17`, derived from the card metric so it scales with
+  the cards instead of being a magic number.
+- **Heroes wear the dark-glass panel** now, matching the minion text drawer. The cream `--card` panel read
+  as a different component sitting in the same grid; colours mirror `.card.compact.showtext .drawer`.
+- Row gap `30px -> 42px` for the cards that were still tight.
+
+**The multiplier split.** Uron gave up Shouts, Echoes and Slaughters, keeping Rally / End of Turn / Start of
+Combat — the combat-side families. **Zyff, the Betrayer** (T7 neutral 6/6) takes Shouts + Echoes. Both are
+non-stacking, so a Uron and a Zyff cover five families between them without treading on each other, and
+Slaughter now has NO multiplier at all — the family stays supported, nothing declares it. Because the
+system is data-driven, this was a `families` edit on two cards and zero engine changes.
+
+Zyff stacks with the existing multipliers exactly as any pair does: Sylus (stacking) sums with it for +2
+Echoes, Drakko (non-stacking) takes the best single contribution on Shouts.
+
+**Stats note:** Zyff's tier/tribe/stats were not specified — T7 neutral 6/6 is my call, sized just under
+Uron's 7/7 since its two families are the higher-frequency ones. Flagged for the owner to re-price.
+
+Verified: 1257 tests (3 new — Zyff's coverage, Uron's narrowed coverage, and the pair together), typecheck,
+lint, build:web green; `typecheck:web` at its 48-error baseline. Live: no tier pill clipped above the grid,
+heroes render on dark glass, Brackus reads correctly in the hero list.
+
 ## 2026-07-20 (compendium spacing)
 
 ### fix(ui): the Compendium grid collided with itself — put the text drawer in flow there

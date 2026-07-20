@@ -3,6 +3,41 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21t (the tendril's curve was a MULTIPLIER, not pixels)
+
+### fix(ui): quest tendril arc units — the actual cause of the off-screen ribbon
+
+Four diagnoses deep, the cause was a UNIT error in my own config, not selectors, not layout, not rendering.
+
+`pixiFx` computes the quadratic control point as `off = len * cfg.curve * 0.5` — `curve` is a FRACTION OF
+THE TENDRIL'S LENGTH. I documented it as "arc bulge (px)", shipped a default of **46**, and gave the tuner a
+±200 range. On a ~700px tendril that puts the control point **~16,000px** off screen, which is exactly the
+straight spike toward the corner the owner kept reporting. The sibling configs had the answer in plain sight
+the whole time: Infusion uses `0.3`, Swap uses `0.94`, both ranged `[0, 1]`.
+
+Now `0.28`, with the range clamped to ±1 so the tuner cannot reproduce it.
+
+**Three wrong diagnoses before this, all from reasoning past the evidence rather than reading it:**
+1. "Layout — the `--qb-*` pin pushes the node off screen" → shipped a viewport clamp for a node that was
+   never off screen. The clamp is harmless but it was treating a symptom I'd invented.
+2. "Wrong element — the opponent's `.questbadge`" → real latent bug, correctly fixed, but NOT this one.
+3. "It isn't rendering at all" → based on a `Graphics` measuring 0x0, whose bounds simply don't reflect drawn
+   geometry. An owner screenshot disproved it. That is the third wrong-accessor probe this session, after
+   `window.__pixiFx` and the refresh dust.
+
+The owner's screenshots were better evidence than every measurement I took. The tell was there from the
+first one: a ribbon whose NODE end is correct and whose far end runs to a screen corner is geometry, not
+lookup — a wrong element gives you a wrong but plausible endpoint, never a 16,000px one.
+
+**Aeon Guard — NOT fixed, deliberately.** The flourish draws on the opponent's half because the combat path
+anchors to whichever unit sourced the `sc` narration, enemy included. `sc` carries no `side`, so the guard
+needs the replay's player/enemy uid sets. I tried `e.side`, it didn't typecheck, and I reverted it rather
+than ship a fourth guess. Marked with a TODO at the site. The TIMING complaint (fires at Start of Combat
+rather than per End-of-Turn proc) is the per-proc work still queued — the narration I hooked genuinely fires
+at SoC, so that hook is wrong for this, not just mis-anchored.
+
+Verified: typecheck + lint + 1277 tests + `build:web` green, `typecheck:web` back at its 48 baseline.
+
 ## 2026-07-21s (tendril anchored to the wrong panel; node pulse)
 
 ### fix(ui): scope the quest tendril to the PLAYER's badge row + pulse on a recruit-phase proc

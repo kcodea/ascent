@@ -799,6 +799,9 @@ export function useCombatReplay(
       if (!m) continue;
       const gA = Number(m[1]), gH = Number(m[2]);
       if (gA <= 0 && gH <= 0) continue;
+      // TODO(side): this draws on whichever unit sourced the narration, including an ENEMY one — the owner
+      // sees Aeon Guard's flourish on the opponent's half. The `sc` event carries no `side`, so the fix needs
+      // the replay's player/enemy uid sets rather than a field on the event. Not guessed at here.
       const el = findEl(e.source);
       if (!el) continue;
       const r = el.getBoundingClientRect();

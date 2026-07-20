@@ -17,7 +17,11 @@ export interface QuestTendrilConfig {
    *  the ribbon's `Graphics` measures 0x0 because its bounds don't reflect the drawn geometry, which I
    *  mistook for "not rendering" — an owner screenshot then clearly showed the ribbon landing on the unit.) */
   enabled: number;
-  curve: number;        // arc bulge — alternates sides per tendril so repeats don't overlap exactly
+  /** Arc bulge as a FRACTION OF THE TENDRIL'S LENGTH — pixiFx computes `off = len * curve * 0.5`, so this is
+   *  a multiplier, NOT pixels. Shipping it as "px" with a default of 46 put the control point ~16,000px away
+   *  and threw the ribbon off screen (owner report 2026-07-21, three failed diagnoses deep). Siblings use
+   *  0.3 (Infusion) and 0.94 (Swap); the range is clamped to ±1 so this can't happen again from the tuner. */
+  curve: number;
   staggerMs: number;    // ms between successive tendrils when one End of Turn procs several times
   travelMs: number;     // ms — the ribbon head's travel from node to unit
   retractMs: number;    // ms — tail retract + fade after the strike
@@ -46,7 +50,7 @@ export interface QuestTendrilConfig {
 // the End-of-Turn beat sequence: it must read as punctuation on the proc, not delay it.
 const DEFAULTS: QuestTendrilConfig = {
   enabled: 1,
-  curve: 46,
+  curve: 0.28,
   staggerMs: 90,
   travelMs: 340,
   retractMs: 260,
@@ -82,7 +86,7 @@ export const QUESTTENDRIL_KEYS = [
 export const QUESTTENDRIL_COLOR_KEYS: (keyof QuestTendrilConfig)[] = ['colorCore', 'colorGlow', 'colorFlash', 'colorMote'];
 
 export const QUESTTENDRIL_RANGES: Partial<Record<keyof QuestTendrilConfig, [number, number, number]>> = {
-  enabled: [0, 1, 1], curve: [-200, 200, 2], staggerMs: [0, 400, 5], travelMs: [80, 1400, 10], retractMs: [40, 1200, 10],
+  enabled: [0, 1, 1], curve: [-1, 1, 0.02], staggerMs: [0, 400, 5], travelMs: [80, 1400, 10], retractMs: [40, 1200, 10],
   wobbleAmp: [0, 40, 0.5], wobbleFreq: [0, 6, 0.1],
   baseWidth: [1, 24, 0.5], tipWidth: [0, 16, 0.5], coreAlpha: [0, 1, 0.02],
   glowWidth: [0, 30, 0.5], glowAlpha: [0, 1, 0.02],

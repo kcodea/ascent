@@ -14,7 +14,7 @@ import { testQuestTendril } from './fxTestFire';
  */
 const QT_LABELS: Partial<Record<keyof QuestTendrilConfig, string>> = {
   enabled: 'ENABLED (0/1)',
-  curve: 'arc bulge',
+  curve: 'arc bulge (×len)',
   staggerMs: 'stagger ms',
   travelMs: 'travel ms',
   retractMs: 'retract ms',

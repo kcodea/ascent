@@ -1,5 +1,5 @@
 import gsap from 'gsap';
-import { getLungeConfig } from '../../lungeConfig';
+import { getLungeConfig, strikeEase } from '../../lungeConfig';
 import { getTrailConfig } from '../../trailConfig';
 import { pixiFx } from '../../pixiFx';
 import { sfx } from '../../sfx';
@@ -48,7 +48,7 @@ export interface LungeCtx {
 
 /**
  * The attack lunge motion (choreographer phase 3b) — wind up (lean back + tilt to lead a corner), strike to
- * the defender's surface contact point with that corner leading (power3.in), contact, then a short rotational
+ * the defender's surface contact point with that corner leading (curve from `strikeEase()`), contact, then a rotational
  * rebound off the clack before an elastic settle. The strike offset + duration + lead-tilt come in from
  * `contactGeometry` (the attacker stops at the surface rather than overshooting center). GSAP owns the
  * attacker's transform for the whole lunge — React renders no transform on combat units, so they never fight.
@@ -115,7 +115,7 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
   }
   // Flurry (W) extra swing: the wind-up has ended and the strike is about to drive → whoosh the gust here.
   if (flurry) tl.call(() => sfx.flurryLunge());
-  tl.to(attacker, { x: strike.x, y: strike.y, rotation: leadTilt, scale: 1, duration: strikeDur, ease: 'power3.in' })                                       // strike to the surface, corner leading
+  tl.to(attacker, { x: strike.x, y: strike.y, rotation: leadTilt, scale: 1, duration: strikeDur, ease: strikeEase() })                                       // strike to the surface, corner leading
     .add(onContact, `-=${c.smackLead}`)                                                                                                                      // contact — the beat advance, smackLead before the strike completes
     .to(attacker, { rotation: -Math.sign(leadTilt) * attackerRebound, duration: 0.06, ease: 'power2.out' })                                                 // rotational rebound off the clack (leadTilt 0 → no lead, no rebound)
     .to(attacker, { x: 0, y: 0, rotation: 0, duration: c.settleDur, ease: 'elastic.out(1, 0.45)' });                                                        // settle

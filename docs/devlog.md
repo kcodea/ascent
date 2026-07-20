@@ -353,6 +353,15 @@ boots clean in the browser with no error boundary and both new counters reportin
 
 ## 2026-07-19 (set 2 empty)
 
+### tweak(ui): Dev Tuning menu wraps into columns of 15
+
+The 🛠️ menu's one-column list (26 tuners + Perf HUD + 3 test actions = 30 rows) had outgrown the viewport.
+The items now live in a `.devmenu-items` grid (`grid-auto-flow: column`, `grid-template-rows: repeat(15,
+min-content)`): every 15 rows start a NEW column to the right of the first, and since the panel is
+right-anchored with `width: max-content` (was fixed 190px), each extra column extends the panel to the LEFT
+(owner spec). Each column keeps the old usable width (174px) so a ≤15-item menu renders identically;
+`max-width: calc(100vw − 24px)` guards tiny windows. Verified: typecheck + lint + build green.
+
 ### tweak(ui): legacy hover glow (drawer + art) — teal → white
 
 The white hover-glow pass (#570) covered the frame rim (`.cglow`), but the LEGACY `--hglow-*` box-shadow glow —

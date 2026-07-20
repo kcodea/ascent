@@ -22,6 +22,55 @@ export type Keyword =
   | 'CR' // Critical Strike — a chance (see CardDef.critChance) to deal double damage on attack
   | 'EG'; // Engraved — stat gains during combat carry back to the run board (permanent)
 
+/**
+ * ── Trigger multipliers ────────────────────────────────────────────────────────────────────────────────
+ * The families of trigger a card can make fire extra times. Before this existed, every multiplier
+ * (Sylus, Drakko, Chronos) was a hardcoded `cardId === '…'` check in a DIFFERENT subsystem, with
+ * inconsistent stacking rules and no single place to read them — the tech debt `docs/roadmap.md` flagged.
+ * Uron, Oathbringer multiplies SIX families at once, which is what forced the generalisation.
+ */
+export type TriggerFamily =
+  | 'battlecry' // Shout — onPlay
+  | 'deathrattle' // Echo — onDeath
+  | 'rally' // onAttack (RL)
+  | 'slaughter' // onKill (SL)
+  | 'endOfTurn'
+  | 'startOfCombat';
+
+/** A card's declared trigger multiplication. `extra` is the ADDITIONAL fires this copy grants (golden
+ *  doubles it), so the total for a family is `1 + <contribution>`. `stacks` picks the combination rule:
+ *  true sums every copy (Sylus), false takes the single best copy (Drakko, Chronos, Uron). */
+export interface TriggerMultiplierDef {
+  families: readonly TriggerFamily[];
+  extra: number;
+  stacks?: boolean;
+}
+
+/**
+ * Extra fires contributed by the multiplier cards among `minions`, for one trigger family. Returns the
+ * ADDITIONAL count (0 = no multiplier), so callers use `1 + extraTriggerFires(...)`.
+ *
+ * Stacking and non-stacking contributions combine ADDITIVELY with each other — a Sylus (stacking) plus a
+ * Uron (non-stacking) grant +1 each. Within each rule the pre-existing semantics are preserved exactly:
+ * stacking cards sum across copies, non-stacking cards contribute only their best single copy.
+ */
+export function extraTriggerFires(
+  family: TriggerFamily,
+  minions: readonly { cardId: string; golden?: boolean }[],
+  getCard: (id: string) => CardDef | undefined,
+): number {
+  let summed = 0; // stacking cards (Sylus): every copy counts
+  let best = 0; // non-stacking cards (Drakko / Chronos / Uron): the single best copy counts
+  for (const m of minions) {
+    const mult = getCard(m.cardId)?.triggerMultiplier;
+    if (!mult || !mult.families.includes(family)) continue;
+    const contribution = mult.extra * (m.golden ? 2 : 1);
+    if (mult.stacks) summed += contribution;
+    else best = Math.max(best, contribution);
+  }
+  return summed + best;
+}
+
 /** Shop tiers. 7 exists ONLY under the Summit rift — see `maxTierFor` in @game/sim, which is the
  *  single gate on whether a run can ever reach it. */
 export type Tier = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -326,6 +375,9 @@ export interface CardDef {
    *  needs its own flag rather than a large sentinel number. Seeds `attackImmuneLeft` to 1 and the swing
    *  site skips the decrement, which keeps the per-instance value JSON-safe (no Infinity in a save). */
   attackImmuneAlways?: boolean;
+  /** This card makes whole FAMILIES of trigger fire extra times (Sylus, Drakko, Chronos, Uron). Resolved
+   *  through `extraTriggerFires` — never by a hardcoded card-id check. */
+  triggerMultiplier?: TriggerMultiplierDef;
   ascendInto?: string;
   /** Combat: this minion attacks immediately when summoned mid-fight, out of turn order — then joins the
    *  normal rotation (Twilight Whelp's 3/3 Whelp). Drained by the immediate-attack queue in `simulate`. */

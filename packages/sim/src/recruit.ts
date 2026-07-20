@@ -1,4 +1,4 @@
-import { makeRng, COMBAT_REPLAYABLE_BATTLECRIES, type CardDef, type EffectDef, type Keyword, type Tribe } from '@game/core';
+import { makeRng, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { poolOf } from './cardPool';
 import { CONFIG, maxTierFor } from './config';
@@ -717,8 +717,9 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
   };
   if (hasDR) ctx.state.deathrattlesTriggered += 1; // base trigger, before firing (Grim counts its own death)
   fireOnce();
-  let reaper = 0;
-  for (const c of ctx.state.board) if (c.cardId === 'sylus' && c.uid !== minion.uid) reaper += c.golden ? 2 : 1;
+  // Sylus (stacking) + Uron (best-copy), from card data. The dying minion is excluded — a Sylus that is
+  // itself the one dying doesn't re-fire its own Echo.
+  const reaper = extraTriggerFires('deathrattle', ctx.state.board.filter((c) => c.uid !== minion.uid), (id) => CARD_INDEX[id]);
   for (let r = 0; r < reaper; r++) fireOnce(); // Sylus re-fires read the same tally (value at death)
   if (hasDR) {
     ctx.state.deathrattlesTriggered += reaper; // …then the extra triggers count for the quest/Grim tally
@@ -2692,16 +2693,17 @@ function makeContext(state: RunState): RecruitContext {
 
 /** "Best single copy, no stacking, golden = +2" repeat count, shared by Drakko (Battlecries) and Chronos
  *  (End-of-Turn). Returns 1 + (2 if any golden copy of `cardId`, else 1 if any copy, else 0). */
-function bestCopyRepeats(state: RunState, cardId: string): number {
-  const copies = state.board.filter((c) => c.cardId === cardId);
-  return 1 + (copies.some((c) => c.golden) ? 2 : copies.length > 0 ? 1 : 0);
+/** Fire-count for a trigger FAMILY on the current board, resolved from card data (`triggerMultiplier`)
+ *  rather than a hardcoded card id — so Drakko, Chronos and Uron all flow through one place. */
+function familyRepeats(state: RunState, family: TriggerFamily): number {
+  return 1 + extraTriggerFires(family, state.board, (id) => CARD_INDEX[id]);
 }
 
 /** Drakko the Drummer: your Battlecries fire extra times (golden Drakko +2; best one only, no stacking).
  *  Non-consuming (unlike `playedShoutRepeats`, which also spends a Warm Embers charge) — so it's safe for the
  *  reducer's Shout quest tick to read the battlecry FIRE count (each Drakko re-fire is another Shout trigger). */
 export function drummerRepeats(state: RunState): number {
-  return bestCopyRepeats(state, 'drummer');
+  return familyRepeats(state, 'battlecry');
 }
 
 /** Fire-count for a freshly PLAYED Battlecry ("shout"): Drakko's repeats PLUS Warm Embers' one-shot double
@@ -2729,7 +2731,7 @@ function playedShoutRepeats(state: RunState, def: CardDef): number {
  *  adds 2, no stacking). Internal — external callers (the UI's End-Turn beats) use `endOfTurnRepeats`,
  *  which folds in Chrono Staff's one-shot extra. */
 function chronosRepeats(state: RunState): number {
-  return bestCopyRepeats(state, 'chronos');
+  return familyRepeats(state, 'endOfTurn');
 }
 
 /** How many times End-of-Turn effects fire this turn: Chronos's repeats PLUS Chrono Staff's one-shot extra

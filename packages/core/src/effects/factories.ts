@@ -1,4 +1,5 @@
 import type { CombatContext, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
+import { extraTriggerFires } from '../types';
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
  *  minion object + always cleared in `finally`, so it never pollutes a shared card across combats/turns. */
@@ -45,11 +46,8 @@ const hasBattlecry = (m: Minion): boolean => m.effects.some((e) => e.on === 'onP
 /** Drakko the Drummer's doubling for Ryme's re-fired Battlecries (combat mirror of recruit's `bestCopyRepeats`):
  *  count living Drakkos on `side`, golden → +2 else any → +1 (best single copy, NO stacking). Total = 1 + that,
  *  so one Drakko makes each trigger fire twice, a golden Drakko three times. */
-const drakkoRepeats = (ctx: CombatContext, side: Side): number => {
-  let bonus = 0;
-  for (const m of ctx.living(side)) if (m.cardId === 'drummer') bonus = Math.max(bonus, m.golden ? 2 : 1);
-  return 1 + bonus;
-};
+const drakkoRepeats = (ctx: CombatContext, side: Side): number =>
+  1 + extraTriggerFires('battlecry', ctx.living(side), (id) => ctx.getCard(id));
 
 /** The Battlecry `do` ids `replayCombatBattlecry` runs IN COMBAT (they affect the live fight). Every other
  *  onPlay `do` is an economy/recruit battlecry — deferred to settle and replayed through its recruit factory.

@@ -16,6 +16,7 @@ import type {
   Side,
   Tribe,
 } from '../types';
+import { extraTriggerFires } from '../types';
 import type { Rng } from '../rng';
 import { CombatBus } from '../events';
 import { FACTORIES } from '../effects/factories';
@@ -868,7 +869,9 @@ export function simulate(
   // combat), so call ONLY for a minion that actually has a Deathrattle.
   function playerEchoExtras(minion: Minion): number {
     let bonus = 0;
-    for (const m of boards[minion.side]) if (!m.dead && m.health > 0 && m.cardId === 'sylus') bonus += m.golden ? 2 : 1;
+    // Sylus (stacking) + Uron (best-copy) both live here now — resolved from card DATA rather than a
+    // hardcoded id, so a new multiplier is a card field and not another branch in this function.
+    bonus += extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]);
     const mods = modsFor(minion.side); // per-side: a served enemy's Funeral Engine / Grave Contract doublers apply too
     bonus += mods.echoExtraAlways ?? 0;
     const first = mods.echoFirstEachCombat ?? 0;
@@ -1173,6 +1176,22 @@ export function simulate(
       const critMult = crit ? 2 : 1;
       emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s, ...(crit ? { crit: true } : {}) });
       bus.emit('onAttack', { minion: attacker, side: attacker.side, target }); // Rally + on-attack effects (target = the enemy being hit this swing)
+      // Uron: your RALLIES trigger extra times. Deliberately NOT a second bus.emit — that would also
+      // re-tick Rally quests and re-notify broadcast ally-attack watchers (Crypt Drake). Only the
+      // attacker's own on-attack effects repeat.
+      // Gate on the RL keyword: `on: 'onAttack'` covers BOTH true Rallies and broadcast ally-attack
+      // watchers (Crypt Drake counts every ally swing). Only the former are "Rallies" — repeating the
+      // latter would inflate a counter Uron has no business touching. Caught by a test that asserts
+      // Crypt Drake's payout count is unchanged with Uron on board.
+      const rallyExtra = attacker.keywords.includes('RL')
+        ? extraTriggerFires('rally', boards[attacker.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id])
+        : 0;
+      for (let i = 0; i < rallyExtra; i++) {
+        for (const effect of attacker.effects) {
+          if (effect.on !== 'onAttack') continue;
+          FACTORIES[effect.do]?.(ctx, attacker, effect.params ?? {}, { minion: attacker, side: attacker.side, target });
+        }
+      }
       // The Old Hunt: each Beast attack pumps that SIDE's run-wide Beast Attack aura by `oldHuntStep` — live
       // (every current Beast gains it; later summons inherit via the grown aura). A served enemy pumps its own
       // captured aura; the player also carries the gain back (the enemy has no run to persist to).
@@ -1291,6 +1310,15 @@ export function simulate(
         // the target, not this exchange's `attacker`). So gate on `killer === attacker`.
         if ((m.dead || m.health <= 0 || (couldReborn && !m.rebornAvailable)) && killer === attacker) {
           bus.emit('onKill', { attacker: killer, victim: m });
+          // Uron: your SLAUGHTERS trigger extra times — the killer's own on-kill effects only, so the
+          // Slaughter quest tally below still counts one real kill.
+          const killExtra = extraTriggerFires('slaughter', boards[killer.side].filter((x) => !x.dead && x.health > 0), (id) => cards[id]);
+          for (let i = 0; i < killExtra; i++) {
+            for (const effect of killer.effects) {
+              if (effect.on !== 'onKill') continue;
+              FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m });
+            }
+          }
           // A player minion felling an enemy by attacking is a "Slaughter" — tally it for the Slaughter quests
           // (credited to the KILLER's tribe for "with Beasts").
           if (m.side !== killer.side) { // this attacker felled an OPPONENT minion — a Slaughter, for whichever side
@@ -1505,13 +1533,17 @@ export function simulate(
     }
   }
   for (const side of ['player', 'enemy'] as const) {
-    for (const minion of [...boards[side]]) {
-      if (minion.dead || minion.health <= 0) continue;
-      for (const effect of minion.effects) {
-        if (effect.do === 'scEngraveAll') continue; // already ran in the priority pass above
-        if (effect.on !== 'startOfCombat') continue;
-        const fn = FACTORIES[effect.do];
-        if (fn) { nextStep(); fn(ctx, minion, effect.params ?? {}, {}); }
+    // Uron: Start-of-Combat effects fire extra times. Resolved per SIDE from that side's own board.
+    const scReps = 1 + extraTriggerFires('startOfCombat', boards[side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]);
+    for (let rep = 0; rep < scReps; rep++) {
+      for (const minion of [...boards[side]]) {
+        if (minion.dead || minion.health <= 0) continue;
+        for (const effect of minion.effects) {
+          if (effect.do === 'scEngraveAll') continue; // already ran in the priority pass above
+          if (effect.on !== 'startOfCombat') continue;
+          const fn = FACTORIES[effect.do];
+          if (fn) { nextStep(); fn(ctx, minion, effect.params ?? {}, {}); }
+        }
       }
     }
   }

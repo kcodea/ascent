@@ -3,6 +3,33 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-20 (compendium tuner)
+
+### feat(ui): a dev tuner for the Compendium palette, with a gradient option
+
+I picked `#004c8a` badly and hand-iterating a palette through me is slow — so the palette is now a **dev
+tuner** (`📖 Compendium Palette` in the dev menu) rather than a value I guess at. Standard tuner pattern:
+a draggable panel writing a specificity-bumped override `<style>`, live on the open Compendium, with
+**Copy CSS** to bake the result into `styles.css` and **Reset** back to shipped.
+
+Seven pickers — surface, header bar, side rail, buttons/tabs, borders, text, dim text — plus a **gradient**
+section: an on/off toggle, a top colour, and a falloff % (how far the top colour reaches before landing on
+the surface). Falloff at 0 is visually identical to flat, so the gradient only ever *adds* depth to the
+flat pick rather than replacing it.
+
+The knob set is deliberate, not arbitrary — each one is a trap already hit while hand-picking the navy:
+- **the surface is stated directly**, because the panel used to mix the gold accent in and render grey from
+  a correct colour var;
+- **buttons/tabs (`--bg2`) is its own knob**, because inverting to a dark surface left the rail, tier tabs,
+  Glossary/Gilded, close and search pale-on-pale.
+
+Verified live rather than assumed: the panel mounts with 8 colour inputs and the gradient toggle; driving
+the surface picker repainted the book (`rgb(0,76,138)` → `rgb(122,31,61)` in the computed background);
+toggling the gradient off produced a genuinely flat fill (`background-image: none`); Reset restored the
+shipped palette.
+
+Dev-only — mounted from `DevMenu`, stripped from production.
+
 ## 2026-07-20 (compendium palette + scale)
 
 ### tweak(ui): a deep-navy Compendium (#004c8a), larger window + 10% larger cards

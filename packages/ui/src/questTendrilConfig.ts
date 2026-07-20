@@ -13,9 +13,9 @@ import type { TendrilCfg } from './pixiFx';
  * applies to the next proc.
  */
 export interface QuestTendrilConfig {
-  /** 1 = fire on a real proc, 0 = OFF. Defaults OFF: the effect is not rendering correctly yet (the ribbon's
-   *  Graphics measures 0x0 for its whole flight while the launch pulse draws fine), and a half-working FX on
-   *  the board is worse than none. The ▶ Test button ignores this so the look can still be iterated. */
+  /** 1 = fire on a real proc, 0 = OFF. Kept as a kill switch. (It was briefly defaulted OFF on a bad read:
+   *  the ribbon's `Graphics` measures 0x0 because its bounds don't reflect the drawn geometry, which I
+   *  mistook for "not rendering" — an owner screenshot then clearly showed the ribbon landing on the unit.) */
   enabled: number;
   curve: number;        // arc bulge — alternates sides per tendril so repeats don't overlap exactly
   staggerMs: number;    // ms between successive tendrils when one End of Turn procs several times
@@ -45,7 +45,7 @@ export interface QuestTendrilConfig {
 // Gold, per the ask — warm core, paler glow, a bright landing flash. Fast (340ms) because this fires inside
 // the End-of-Turn beat sequence: it must read as punctuation on the proc, not delay it.
 const DEFAULTS: QuestTendrilConfig = {
-  enabled: 0,
+  enabled: 1,
   curve: 46,
   staggerMs: 90,
   travelMs: 340,

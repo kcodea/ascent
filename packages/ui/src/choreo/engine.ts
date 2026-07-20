@@ -1,7 +1,7 @@
 import gsap from 'gsap';
 import type { Moment } from './compile';
 import { getScore } from './score';
-import { playLunge } from './channels/lunge';
+import { playLunge, setTransition } from './channels/lunge';
 import { hitPower, playContactImpact } from './channels/impact';
 import { getLungeConfig, strikeBandFor, strikeEaseFor } from '../lungeConfig';
 import { contactGeometry } from './contactGeometry';
@@ -171,11 +171,17 @@ export function runAttackExchangeCues(
  */
 export function runRiseReturn(el: Element, combatSpeed: number, onLanded: () => void): ReturnType<typeof gsap.timeline> {
   gsap.killTweensOf(el);
+  // Suspend the `.unit` transform-transition for the pull-home (see the lunge.ts note) — killing the lunge
+  // above also skipped its restore, so set-and-restore here keeps the element clean either way.
+  setTransition(el, 'none');
   const tl = gsap.timeline();
   tl.to(el, {
     x: 0, y: 0, rotation: 0, scale: 1,
     delay: 0.1 / combatSpeed, duration: 0.24 / combatSpeed, ease: 'power2.out',
-    onComplete: () => gsap.set(el, { clearProps: 'transform,zIndex' }),
+    onComplete: () => {
+      setTransition(el, '');
+      gsap.set(el, { clearProps: 'transform,zIndex' });
+    },
   });
   tl.add(onLanded); // landed → fire the spirit burst in the unit's own slot
   return tl;

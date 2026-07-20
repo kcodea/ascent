@@ -2,6 +2,7 @@ import gsap from 'gsap';
 import { sfx } from '../../sfx';
 import { pixiFx } from '../../pixiFx';
 import { probeLog, probeMark, pt } from '../../strikeProbe';
+import { setTransition } from './lunge';
 
 /** Map an attack's swing damage → the impact's `power` scale (1 = baseline). Ramps gently: a 1-3 dmg chip
  *  stays at the familiar burst, ~8 dmg reads clearly heavier, and it caps at 2× so a 40-damage finisher
@@ -49,8 +50,15 @@ export function playContactImpact(defender: Element | null, dx: number, dy: numb
   }
   gsap.killTweensOf(defender);
   const kb = 0.14 * (0.75 + 0.25 * power) * (crit ? 1.4 : 1); // a crit knocks the defender harder
+  // Suspend the `.unit` CSS transform-transition for the knockback (same probe finding as the lunge — see
+  // lunge.ts): it re-interpolates every GSAP write over 160ms, which smeared this 100ms-per-leg snap into a
+  // soft drift. Restored on completion so reposition slides keep their transition.
+  setTransition(defender, 'none');
   gsap.fromTo(defender, { x: 0, y: 0, rotation: 0 }, {
     x: dx * kb, y: dy * kb, rotation: spinDeg, duration: 0.1 / speed, yoyo: true, repeat: 1, ease: 'power2.out',
-    onComplete: () => gsap.set(defender, { clearProps: 'transform' }),
+    onComplete: () => {
+      setTransition(defender, '');
+      gsap.set(defender, { clearProps: 'transform' });
+    },
   });
 }

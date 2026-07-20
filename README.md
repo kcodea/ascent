@@ -40,6 +40,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+- **Strikes actually reach the target now.** The probe proved every swing's card was only ~20–40% of the way
+  to the defender when contact fired: the `.unit` CSS `transition: transform` re-interpolated every per-frame
+  GSAP write over 160ms, so the rendered card rubber-banded behind the tween — invisible on the slow wind-up,
+  fatal on a 130–190ms strike. The transition is now suspended while GSAP owns the element (lunge, knockback,
+  pull-home) and restored after, so the corner visibly lands on the defender's centre at contact.
 - **The phantom mid-board ring is fixed.** The "impact ring firing off-target" was never the strike (the
   probe proved the strike lands dead-on) — it was the death moment's damage burst + ring firing at a dying
   attacker's mid-pull-home position, over empty board. It now fires at the unit's slot, where the death reads.

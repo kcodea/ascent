@@ -3,6 +3,47 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (THE root cause: the CSS transform-transition fought GSAP)
+
+### fix(ui): suspend the `.unit` transform-transition while GSAP owns the element — strikes never visually reached the target
+
+The owner's correction cut through: "IT'S NOT THE RING — they're not reaching the center point." The probe
+logs then made the real defect undeniable. On **every logged swing**, the attacker's VISUAL centre at the
+contact instant had covered only a fraction of the strike path:
+
+| swing | strike target (px) | moved by contact | share |
+|---|---|---:|---:|
+| m8→m4 (long) | (251, 182) | (96, 67) | ~38% |
+| m0→m6 (long) | (234, −200) | (88, −77) | ~38% |
+| m1→m7 (short) | (13, −197) | (−1, −42) | ~21% |
+| m4→m6 (short) | (−13, −197) | (2, −42) | ~21% |
+
+Build, late-solve, and impact coordinates all agreed perfectly — the math was right; the RENDERED card
+trailed it. The culprit: `.unit { transition: transform 0.16s cubic-bezier(0.34,1.25,0.64,1) }`. GSAP writes
+the transform every frame, and the CSS transition **re-interpolates every write over 160ms** — a rubber-band
+lag between the tween's value and what's on screen. Invisible on the 700ms wind-up (it converges), fatal on
+a 130–190ms strike with a late-loaded ease: contact fires on schedule (the beat clock is welded to the
+timeline, not the pixels), the impact lands on the defender, but the card is ~20–40% of the way there — then
+the settle pulls it home before it ever arrives. Longer max-clamped strikes (440ms) mostly catch up, which
+is exactly the owner's "some attacks land perfectly dead center while others go off too early".
+
+This also retro-explains the whole hunt: every "the strike doesn't connect / goes off early" report since
+the corner-to-centre work was this one lag. (The three measurement-frame fixes and the damageFx phantom-ring
+fix remain real, verified defects — they were just not THIS defect.)
+
+Fix: the transition is load-bearing for reposition slides, so it is not removed — it's **suspended while
+GSAP owns the element** and restored on completion: `setTransition(el, 'none')` at the start of the lunge
+(`playLunge`), the defender knockback (`playContactImpact`), and the dying-attacker pull-home
+(`runRiseReturn` — which also covers the killed-lunge path skipping the lunge's own restore), each restoring
+`''` in its `onComplete`. Guarded no-op for test stubs without `.style`.
+
+Side effect to expect: strikes and knockbacks read MUCH sharper now — the card actually arrives at the
+defender's centre at contact for the first time. Feel dials (ease bands, target px/s) should be re-judged
+in the tuner now that the animation being tuned is actually the one on screen.
+
+Verified: typecheck + lint + 1241 tests + `build:web`, all green. Probe left in for the owner's confirming
+run (IMP/DEF/DFX markers + `ascent.strikeProbe` log — the contact `aVis` should now sit ON the defender).
+
 ## 2026-07-21 (phantom ring root cause)
 
 ### fix(ui): the "off-target impact ring" was never the strike — it was the death moment's damageFx firing at a mid-flight attacker

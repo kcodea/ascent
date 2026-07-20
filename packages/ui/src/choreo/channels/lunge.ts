@@ -79,6 +79,12 @@ function once(fn?: () => void): (() => void) | undefined {
   return () => { if (!fired) { fired = true; fn(); } };
 }
 
+/** Set an element's inline CSS `transition` (no-op for test stubs without a `.style`). '' restores the CSS. */
+export function setTransition(el: Element, value: string): void {
+  const st = (el as HTMLElement).style;
+  if (st) st.transition = value;
+}
+
 export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
   const { attacker, dx, dy, speed, strike, strikeDur, travel = 0, leadTilt, attackerRebound, impactOffsetMs = 0, rallyPauseMs = 0, flurry = false } = ctx;
   const onContact = once(ctx.onContact);
@@ -107,8 +113,18 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
   const trailCutoff = c.windupDur + windupPauseS + strikeDur;
   gsap.killTweensOf(attacker); // a re-attacker (Windfury / Gnasher swinging again) restarts clean
   gsap.set(attacker, { zIndex: 12 }); // ride above its neighbours for the duration
+  // SUSPEND the `.unit` CSS `transition: transform 0.16s` while GSAP owns this element (probe finding
+  // 2026-07-21): the transition re-interpolates EVERY per-frame GSAP write over 160ms, so the rendered card
+  // perpetually trails the tween — at contact the card had covered only ~20-40% of the strike path on every
+  // logged swing (the "attacks don't reach the centre" report; invisible on the slow wind-up, fatal on a
+  // 130-190ms strike). The transition is load-bearing for reposition slides, so it's restored on completion
+  // rather than removed from the CSS.
+  setTransition(attacker, 'none');
   const tl = gsap.timeline({
-    onComplete: () => gsap.set(attacker, { clearProps: 'transform,zIndex' }),
+    onComplete: () => {
+      setTransition(attacker, '');
+      gsap.set(attacker, { clearProps: 'transform,zIndex' });
+    },
     onUpdate: () => {
       if (tl.time() > trailCutoff) return; // no trail on the elastic settle
       const cx = cx0 + Number(gsap.getProperty(attacker, 'x'));

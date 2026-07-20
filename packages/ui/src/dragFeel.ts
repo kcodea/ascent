@@ -39,11 +39,15 @@ export interface DragFeel {
   /** Vertical drag distance (px) before the row closes up behind a lifted card — when you pull a board
    *  minion (or shop offer) up/down out of its slot this far, the others slide in to fill the gap. */
   collapseY: number;
-  /** Hand hover-pop FLOOR, as a fraction of the card height (--ch). The pop lifts a hovered hand card by its
-   *  OWN height (`translateY(-100%)`) plus this offset, so every card — spell or minion, short or long text —
-   *  lands its BOTTOM on the SAME line (uniform), and this one value sets where that line is. Reflected to the
-   *  `--hand-floor` CSS var. Higher = the card sits lower (bottom nearer the play-field floor). */
+  /** Hand hover-pop FLOOR, as a fraction of the card height (--ch). Together with `handPop` it sets the pop:
+   *  `translateY(--ch · (handFloor − handPop))`. This value is the resting line; higher = the card sits lower
+   *  (bottom nearer the play-field floor). Reflected to the `--hand-floor` CSS var. */
   handFloor: number;
+  /** Hand hover-pop LIFT, as a fraction of the card height (--ch). Replaces the old `-100%` self-height term:
+   *  since the info panel went absolute (out of flow), the card element's height no longer includes it, so a
+   *  `-100%` lift shrank and the pop went DOWNWARD — this fixed multiple of --ch is height-independent (every
+   *  card is the same compact height anyway). Higher = pops further UP. Reflected to `--hand-pop`. */
+  handPop: number;
   /** DRAG SHADOW — while a card is lifted (`.dragcard`), its grounding shadow (`.cshadow`) grows/softens/drops
    *  to read as further OFF the table (a higher object casts a bigger, softer, more-offset, lighter shadow).
    *  Reflected to `--dsh-*` CSS vars; applied by `.dragcard .cshadow` in styles.css. */
@@ -74,6 +78,7 @@ const DEFAULTS: DragFeel = {
   magWeldLeadMs: 130,
   collapseY: 20,    // lift only a little before the row fills the gap
   handFloor: 0.82,  // bottom-anchored pop: every hovered card lands its bottom on the same line (tuned by eye)
+  handPop: 1.5,     // pop lift (× --ch) — replaces the old -100% self-height term (see the interface note)
   shGrow: 1.08,     // owner-tuned: shadow a touch bigger than the card face while lifted
   shLift: 18,       // owner-tuned: shadow drops below the lifted card
   shBlur: 11,       // owner-tuned: softer than the resting 9px, but still tight
@@ -98,6 +103,7 @@ export const DRAG_RANGES: Record<keyof DragFeel, [number, number, number]> = {
   magWeldLeadMs: [0, 300, 10],
   collapseY: [0, 200, 5],
   handFloor: [0, 1.5, 0.01],
+  handPop: [0, 3, 0.01],
   shGrow: [0.8, 1.6, 0.01],
   shLift: [0, 80, 1],
   shBlur: [0, 50, 1],
@@ -121,7 +127,8 @@ export const DRAG_DESC: Record<keyof DragFeel, string> = {
   magSlideMs: 'Duration of the Mech “absorb” slide when a Magnetic minion merges (milliseconds).',
   magWeldLeadMs: 'How early (ms before the slide ends) the weld commits, so the ring OVERLAPS the tail of the slide instead of starting after it. 0 = the old back-to-back timing.',
   collapseY: 'Vertical distance (px) you must lift a card out of its row before the others slide in to fill the gap.',
-  handFloor: 'Where a hovered hand card’s BOTTOM lands (× card height). Because the pop lifts each card by its own height, ALL cards — spell or minion — land on the same line. Higher = the card sits lower.',
+  handFloor: 'Where a hovered hand card’s BOTTOM lands (× card height). Works against the pop lift. Higher = the card sits lower.',
+  handPop: 'How far a hovered hand card POPS UP (× card height). Height-independent lift (replaces the old -100% self-height term). Higher = pops further up.',
   shGrow: 'Drag shadow SIZE while a card is lifted (scale). Bigger = the card reads as higher off the table.',
   shLift: 'Drag shadow OFFSET below the lifted card (px). Further = higher off the table.',
   shBlur: 'Drag shadow SOFTNESS while lifted (blur px). Softer = higher off the table.',
@@ -148,6 +155,7 @@ export function applyDragFeelVars(): void {
   if (typeof document === 'undefined') return;
   const root = document.documentElement.style;
   root.setProperty('--hand-floor', String(cfg.handFloor));
+  root.setProperty('--hand-pop', String(cfg.handPop));
   // Drag shadow — consumed by `.dragcard .cshadow` (and the dev preview) in styles.css.
   root.setProperty('--dsh-grow', String(cfg.shGrow));
   root.setProperty('--dsh-lift', `${cfg.shLift}px`);

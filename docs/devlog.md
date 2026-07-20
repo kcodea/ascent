@@ -683,6 +683,16 @@ boots clean in the browser with no error boundary and both new counters reportin
 
 ## 2026-07-19 (set 2 empty)
 
+### fix(ui): hand hover-pop went DOWNWARD — height-independent lift + a new "hand pop lift" lever
+
+Regression from the anchored info panel (#570-era): the hand pop lifted a hovered card by `translateY(-100%)`
+(its own height) — when the panel went absolute (out of flow) the card element shrank, `-100%` stopped clearing
+the fan, and the pop netted DOWNWARD (owner report). The lift is now a fixed multiple of `--ch`:
+`translateY(--ch · (--hand-floor − --hand-pop))`, height-independent (every compact card is the same height; the
+panel hangs below at a fixed offset). New **`handPop`** lever in dragFeel (default 1.5, reflected to
+`--hand-pop`, 🎴 Drag Feel tuner → "hand pop lift") beside the existing "hand pop floor" — dial the pop height
+live and bake. Verified: typecheck + lint + build green; owner tuning the default by eye.
+
 ### tweak(ui): Dev Tuning menu wraps into columns of 15
 
 The 🛠️ menu's one-column list (26 tuners + Perf HUD + 3 test actions = 30 rows) had outgrown the viewport.

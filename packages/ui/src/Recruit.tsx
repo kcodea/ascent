@@ -665,7 +665,10 @@ export function Recruit() {
     // One frame late so React has committed both the node row and the target unit.
     const raf = requestAnimationFrame(() => {
       procs.forEach((proc, i) => {
-        const node = document.querySelector(`[data-eot-effect="${proc.effect}"]`);
+        // Scoped to `.questbadges` — the PLAYER's row. OpponentFrame renders `.questbadge` elements of its
+        // own for the opponent's quests/runes, so an unscoped lookup could anchor the ribbon to the OPPONENT's
+        // panel, which is why it appeared to fly in from off-screen (owner report 2026-07-21).
+        const node = document.querySelector(`.questbadges [data-eot-effect="${proc.effect}"]`);
         const unit = document.querySelector(`[data-uid="${proc.uid}"]`);
         if (!node || !unit) return; // node scrolled out or unit already left the board — skip, never throw
         const nr = node.getBoundingClientRect();

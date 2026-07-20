@@ -3,6 +3,38 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21s (tendril anchored to the wrong panel; node pulse)
+
+### fix(ui): scope the quest tendril to the PLAYER's badge row + pulse on a recruit-phase proc
+
+Owner: the tendril came out of the OPPONENT's quest panel, stayed off screen, and the active node never
+pulsed when it fired. Two real bugs, and the first is mine from the previous pass.
+
+**1. Wrong panel.** `OpponentFrame` renders the opponent's quests/runes with the SAME `.questbadge` class,
+inside `.oppbadges`. Both the ▶ Test (`document.querySelector('.questbadge')`) and the anchor lookup were
+UNSCOPED, so they could resolve to the opponent's badge — which sits in the top-right frame, hence a ribbon
+launching from off-screen. Every lookup is now scoped to `.questbadges`, the player's row, which excludes
+`.oppbadges` by construction.
+
+*This is why the previous clamp "fix" didn't help:* I treated an off-screen launch point as a layout problem
+with the `--qb-*` pin, when the launch point was simply the wrong element. The clamp is still correct as a
+guard, but it was bandaging the symptom of a selector bug. I should have checked whether anything ELSE
+renders `.questbadge` before assuming the coordinate was right and the layout wrong.
+
+**2. No pulse on a recruit-phase proc.** The node's bounce keys off `pulse`, built from `completionCount` +
+`completed` + `combatTriggeredQuests` + `combatCompletedQuests` — all COMBAT signals. A recurring reward
+firing at End of Turn (Echoing Roar) moves none of them: `triggered` is combat-only and `completionCount`
+doesn't budge on a re-fire. Now folds in this action's tendril procs for that reward, so the key changes per
+proc and the bounce replays each time.
+
+Verified: typecheck + lint + 1277 tests + `build:web` green. Live DOM: the scoped and unscoped lookups agree
+on a board with no opponent quests (so the scope doesn't break the normal case), and firing a proc moves the
+node's `data-pulse` 2 → 3, replaying the bounce.
+
+**Still unverified:** a board that actually HAS opponent quest badges. The scope is correct by construction
+(`.oppbadges` is not `.questbadges`) but I could not stage an opponent with quests to watch it, so the case
+that was actually broken is fixed-by-reasoning, not fixed-by-observation.
+
 ## 2026-07-21r (tendril clamp + blast dials)
 
 ### fix(ui): keep the quest tendril on screen; expand the blast/shrapnel tuner

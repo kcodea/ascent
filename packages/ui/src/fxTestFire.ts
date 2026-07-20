@@ -92,7 +92,8 @@ export function testQuestTendril(): void {
   // in from off-screen, which read as a bug in the FX rather than in the pick (owner report 2026-07-21).
   const onScreen = (r: DOMRect): boolean =>
     r.width > 0 && r.left >= 0 && r.top >= 0 && r.right <= window.innerWidth && r.bottom <= window.innerHeight;
-  const node = [...document.querySelectorAll('.questbadge')].find((n) => onScreen(n.getBoundingClientRect()));
+  // `.questbadges` scopes this to the PLAYER's row — OpponentFrame renders `.questbadge` too.
+  const node = [...document.querySelectorAll('.questbadges .questbadge')].find((n) => onScreen(n.getBoundingClientRect()));
   const unit = [...document.querySelectorAll('[data-zone="warband"] .card')].find((n) => onScreen(n.getBoundingClientRect()));
   if (!node || !unit) return;
   const nr = node.getBoundingClientRect();

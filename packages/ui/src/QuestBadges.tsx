@@ -122,7 +122,14 @@ export function QuestBadges() {
         }
         // One-shot pulse count: a recruit-phase completion / repeatable re-fire (completionCount, e.g. Hoard Spark
         // buying its 4th Dragon) OR a combat trigger (combatTriggeredQuests, beat-synced). Keyed → fresh pulse per bump.
-        const pulse = (aq.completionCount ?? 0) + (aq.completed ? 1 : 0) + (triggered[aq.questId] ?? 0) + (completedNow.includes(aq.questId) ? 1 : 0);
+        // A RECURRING reward firing in the recruit phase (Echoing Roar at End of Turn) is a trigger too, and
+        // wasn't pulsing: `triggered` is combat-only, and `completionCount` doesn't move on a re-fire. Fold in
+        // this action's tendril procs for THIS reward — `questTendrilSeq` changes per action, so the key
+        // changes and the bounce replays on every proc (owner report 2026-07-21).
+        const procced = r.kind === 'recurringEndOfTurn'
+          && (run.questTendrilFx ?? []).some((t) => t.effect === r.effect)
+          ? (run.questTendrilSeq ?? 0) : 0;
+        const pulse = (aq.completionCount ?? 0) + (aq.completed ? 1 : 0) + (triggered[aq.questId] ?? 0) + (completedNow.includes(aq.questId) ? 1 : 0) + procced;
         const c = def.tribe === 'neutral' ? 'var(--t-neutral)' : `var(--t-${def.tribe})`;
         // The live ongoing chip: Shouts used, repeat countdown, else nothing.
         const charges = run.shoutDoubleCharges ?? 0;

@@ -42,6 +42,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 - **Card sets** — cards now live in switchable sets (`sets.ts`), flipped live like rifts. A run pins its
   set at creation, so flipping never disturbs an in-flight or replayed run. See `docs/card-sets.md`.
+- **The blink can't come back at high combat speed.** Beat holds divide by the speed slider but the death CSS was fixed seconds, so above ~1.31× a dying card was unmounted mid-animation — the same symptom as the old blink, by a different route. Death durations now divide by a `--combat-speed` var, making the ratio speed-invariant (identical at 1×).
 - **Damage numbers fade properly at speed.** Their cleanup divided by combat speed but the CSS animation didn't — above ~1.07× the number was removed while still fully opaque, popping out instead of fading (at 1.6×, gone 67% into its animation). Float animations now scale with the speed slider.
 - **Snappier combat pacing.** The clock held 869.5ms after *every* impact against a 320ms death animation — trimmed across two passes to **500ms** (`attackGap` 0.34 → 0.14, attack lead 353 → 240). A plain swing is now **1375ms** (was 1745), a Windfury pair **2750ms** (was 3490), and an attacker that dies mid-lunge **1925ms** (was 2595). That's the floor: the attacker's 340ms elastic settle fills most of what remains.
 - **Snappier deaths + a combat-timing reference.** Death animations drop 0.42s → 0.32s and a plain attacker's

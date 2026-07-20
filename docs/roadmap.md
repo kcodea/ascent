@@ -213,8 +213,11 @@ Remaining: (1) standalone buff waves from a **living** source — the tendril pa
 360ms badge flash) still rides a 210ms hold, so the +N can land ~500–930ms outside its beat; fold the strike
 time into the hold. (The *Deathrattle* buff case — which takes the sourceless **descend** path, 340ms + 360ms
 flash — was fixed 2026-07-19 by `DR_BUFF_LEAD` 500 ⇒ a 710ms beat.)
-(2) CSS combat animations are fixed seconds and ignore `combatSpeed` while holds ÷ and Pixi/GSAP × it — drive
-combat CSS durations off a `--combat-speed` var (this also worsens every ⚠ overhang at higher speeds).
+(2) CSS combat animations are fixed seconds and ignore `combatSpeed` while holds ÷ and Pixi/GSAP × it. The
+`--combat-speed` var now exists and covers the DEATH animations + the floats (2026-07-19) — i.e. every case
+that could actually be CUT, since a dying unit unmounts when its beat advances (it was blinking above ~1.31×).
+Remaining unscaled CSS (summon/reborn pops, badge/trigger pulses) only OVERLAPS the next beat rather than
+being cut, because those units persist — scale them off the same var if the overlap ever reads badly.
 (3) overlap tails (`risepop 700`, re-form glow @+460) bleed past their 240ms ride. (4) poison mist
 clipped 50ms. (5) the death→consequence 240ms `overlapMs` ride unmounts the dying card partway into its
 collapse when a Deathrattle summon/reborn follows (measured live during the blink root-cause hunt — reads

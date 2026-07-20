@@ -1442,21 +1442,28 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* spell label — a readable white banner over the arch base (spells have no stat badges) */
 .card.compact.spellcard .ctype.spell { position: absolute; bottom: calc(var(--ccw) * -0.05); left: 50%; transform: translateX(-50%); z-index: 6; background: color-mix(in srgb, var(--t-demon) 88%, #000); color: #fff; padding: calc(var(--ccw) * 0.02) calc(var(--ccw) * 0.08); border-radius: 999px; border: 2px solid #f6e3ad; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45); font-size: calc(var(--ccw) * 0.075); white-space: nowrap; }
 
-/* --- Text drawer: drops down from the arch on a "full" card. Hidden on a resting tile. --- */
+/* --- Text drawer: a DETACHED dark-glass info panel floating beneath the card — rounded on all four corners,
+   the hero/quest-panel dark pill/glass recipe (owner call 2026-07-19). No longer welded to the frame (the old
+   border-top:none + negative-margin tuck was shaped for the arch and fought the authored oval/spell PNGs).
+   Same info, same order: name → keyword pills → rules text → tribe; text lightened to read on the dark fill.
+   Every full-card surface inherits it (hover reveal, hand, Discover, right-click inspect). Hidden on a
+   resting tile. --- */
 .card.compact .drawer { display: none; }
 .card.compact.showtext .drawer {
   display: flex; flex-direction: column; align-items: center;
-  margin: calc(var(--ccw) * -0.05) 0 0; position: relative; z-index: 4;
-  padding: calc(var(--ccw) * 0.14) calc(var(--ccw) * 0.08) calc(var(--ccw) * 0.07);
-  background: var(--card); border: 2px solid color-mix(in srgb, var(--c) 40%, var(--line));
-  border-top: none; border-radius: 0 0 calc(16 * var(--u)) calc(16 * var(--u));
-  box-shadow: 0 8px 18px -6px rgba(0, 0, 0, 0.4),
+  margin: calc(var(--ccw) * 0.05) 0 0; position: relative; z-index: 4;
+  padding: calc(var(--ccw) * 0.065) calc(var(--ccw) * 0.08) calc(var(--ccw) * 0.07);
+  background: linear-gradient(180deg, #241a13, #17110c);
+  border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
+  border-radius: calc(14 * var(--u));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 18px -6px rgba(0, 0, 0, 0.45),
               0 0 0 var(--hglow-ring, 0) #5CDFF0, 0 0 var(--hglow-blur, 0) var(--hglow-spread, 0) rgba(95, 221, 231, 0.6);
 }
-.card.compact.showtext .drawer .cn { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.088); color: var(--ink); background: none; box-shadow: none; padding: 0; margin: 0 0 calc(var(--ccw) * 0.03); white-space: normal; text-align: center; line-height: 1.1; }
+.card.compact.showtext .drawer .cn { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.088); color: #f4ecdb; background: none; box-shadow: none; padding: 0; margin: 0 0 calc(var(--ccw) * 0.03); white-space: normal; text-align: center; line-height: 1.1; }
 .card.compact.showtext .drawer .kws { min-height: 0; margin: 0 0 calc(var(--ccw) * 0.035); }
-.card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072); line-height: 1.32; color: var(--ink2); text-align: center; background: none; box-shadow: none; padding: 0; flex: none; display: block; }
-.card.compact.showtext .drawer .dtribe { display: flex; align-items: center; gap: calc(var(--ccw) * 0.02); margin-top: calc(var(--ccw) * 0.05); font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.062); letter-spacing: 0.05em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 64%, var(--ink)); }
+.card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072); line-height: 1.32; color: #d8ccb6; text-align: center; background: none; box-shadow: none; padding: 0; flex: none; display: block; }
+.card.compact.showtext .drawer .desc b { color: #fff; } /* bold numbers/keywords pop white on the dark glass (base .desc b is dark ink) */
+.card.compact.showtext .drawer .dtribe { display: flex; align-items: center; gap: calc(var(--ccw) * 0.02); margin-top: calc(var(--ccw) * 0.05); font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.062); letter-spacing: 0.05em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 60%, #f4ecdb); }
 .card.compact.showtext .drawer .dtribe svg { width: calc(var(--ccw) * 0.075); height: calc(var(--ccw) * 0.075); color: var(--c); }
 .card.compact.showtext .drawer .dtribe svg:last-of-type { color: var(--c2); }   /* 2nd tribe in its own hue */
 
@@ -1695,13 +1702,14 @@ body.modalup .statusbar .questbadges {
 .inspect-card .card { animation: none; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 .inspect-card .card:hover { transform: none; border-color: var(--line); }
 /* buff breakdown ("Spirit Fire ×2  +6/+6"), shown left of the card when a minion is buffed */
-.inspect-buffs { align-self: center; min-width: 92px; max-width: min(252px, 44vw); max-height: min(72vh, 560px); overflow-y: auto; background: color-mix(in srgb, var(--card) 95%, transparent); border: 2px solid var(--line); border-radius: 9px; padding: 6px 8px; box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.45); display: flex; flex-direction: column; gap: 3px; }
-.ib-title { font-family: var(--font-ui); font-weight: 800; font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink3); text-align: center; margin-bottom: 2px; }
+/* Buffs breakdown beside the inspected card — same dark pill/glass as the detached text drawer. */
+.inspect-buffs { align-self: center; min-width: 92px; max-width: min(252px, 44vw); max-height: min(72vh, 560px); overflow-y: auto; background: linear-gradient(180deg, #241a13, #17110c); border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: 9px; padding: 6px 8px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px -6px rgba(0, 0, 0, 0.45); display: flex; flex-direction: column; gap: 3px; }
+.ib-title { font-family: var(--font-ui); font-weight: 800; font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase; color: #b7a98f; text-align: center; margin-bottom: 2px; }
 .ib-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 10px; white-space: nowrap; }
 /* The source name flexes + ellipsizes if a name is unusually long; the +atk/+hp amount never clips. */
-.ib-src { font-family: var(--font-ui); font-weight: 700; color: var(--ink); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.ib-src em { color: var(--ink3); font-style: normal; font-weight: 600; font-size: 8.5px; }
-.ib-amt { font-family: var(--font-ui); font-weight: 800; color: #1aa86f; flex: 0 0 auto; }
+.ib-src { font-family: var(--font-ui); font-weight: 700; color: #f4ecdb; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ib-src em { color: #b7a98f; font-style: normal; font-weight: 600; font-size: 8.5px; }
+.ib-amt { font-family: var(--font-ui); font-weight: 800; color: #3fd68f; flex: 0 0 auto; } /* buff green, lightened for the dark fill */
 @keyframes inspectpop { from { opacity: 0; transform: scale(1.45); } to { opacity: 1; transform: scale(1.9); } }
 
 /* custom drag: a solid card pinned to the cursor; the source dims; invalid drops snap back.

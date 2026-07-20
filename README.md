@@ -40,6 +40,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+- **Card info panel detached** — the name/keywords/text/tribe drawer now floats beneath the card as a rounded
+  dark-glass panel (matching the hero/quest panels) instead of welding onto the frame; the right-click inspect's
+  Buffs panel matches. Same info, new housing.
 - **Card sets** — cards now live in switchable sets (`sets.ts`), flipped live like rifts. A run pins its
   set at creation, so flipping never disturbs an in-flight or replayed run. See `docs/card-sets.md`.
 - **Damage numbers fade properly at speed.** Their cleanup divided by combat speed but the CSS animation didn't — above ~1.07× the number was removed while still fully opaque, popping out instead of fading (at 1.6×, gone 67% into its animation). Float animations now scale with the speed slider.

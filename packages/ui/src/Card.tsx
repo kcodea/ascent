@@ -543,6 +543,9 @@ export const Card = memo(function Card({
                 setSframeOk(false);
               }}
             />
+            {/* colour-overlay layer (🖼️ Card Frames tuner) — a tint masked to the frame silhouette, painted OVER
+                the frame img (later sibling, same z); opacity-0 no-op until --fovl-a is set/baked. */}
+            <span className="cframe-tint" aria-hidden="true" />
           </>
         )}
         {/* SPELL SQUARE frame (regular spells) — the authored purple square. No tint layer: spells have no tribe,
@@ -566,6 +569,9 @@ export const Card = memo(function Card({
                 setPframeOk(false);
               }}
             />
+            {/* colour-overlay layer (🖼️ Card Frames tuner) — a tint masked to the frame silhouette, painted OVER
+                the frame img (later sibling, same z); opacity-0 no-op until --fovl-a is set/baked. */}
+            <span className="cframe-tint" aria-hidden="true" />
           </>
         )}
         {/* Golden (tripled) marker — a gold crown emblem; pairs with the gold arch frame so a tripled

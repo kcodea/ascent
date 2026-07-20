@@ -2382,6 +2382,29 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
   top: calc(var(--ccw) * (0.5 - 1.086 * var(--sh)));
 }
 .card.compact.taunt .cglow-rim { -webkit-mask-image: url('/frames/taunt-shield.png'); mask-image: url('/frames/taunt-shield.png'); }
+/* COLOR OVERLAY layer (🖼️ Card Frames tuner): a solid tint masked to the frame's own PNG silhouette, laid
+   directly OVER the frame img (same geometry as .cglow, later sibling at the same z). `--fovl` (colour) +
+   `--fovl-a` (opacity) are per-frame-class knobs from the tuner; the opacity-0 default makes this a no-op in
+   production until values are baked here. (Taunt is outside the Card Frames tuner → no tint span.) */
+.cframe-tint {
+  position: absolute; pointer-events: none; z-index: 3;
+  background: var(--fovl, #ffffff); opacity: var(--fovl-a, 0);
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  -webkit-mask-position: center; mask-position: center;
+}
+.card.compact.stdframe .cframe-tint {
+  width: calc(var(--ccw) * 1.481 * var(--sh)); aspect-ratio: 1059 / 1427;
+  left: calc(var(--ccw) * (0.5 - 0.737 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh) + var(--dy) + var(--frameY)));
+  -webkit-mask-image: url('/frames/standard-oval-v2.png'); mask-image: url('/frames/standard-oval-v2.png');
+}
+.card.compact.spellframe .cframe-tint {
+  width: calc(var(--ccw) * 1.387 * var(--sh)); aspect-ratio: 1122 / 1346;
+  left: calc(var(--ccw) * (0.5 - 0.6928 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 0.9009 * var(--sh) + var(--dy) + var(--frameY)));
+  -webkit-mask-image: url('/frames/spell-frame-v2.png'); mask-image: url('/frames/spell-frame-v2.png');
+}
 /* Light on hover — or when the tuner pins `body.hglow-preview`. Scoped to the frame class so they out-specify
    the scoped `opacity:0` default above (an unscoped `.card:hover .cglow` would LOSE to it). */
 .card.compact.stdframe:hover .cglow,

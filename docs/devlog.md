@@ -165,6 +165,15 @@ boots clean in the browser with no error boundary and both new counters reportin
 
 ## 2026-07-19 (set 2 empty)
 
+### feat(ui): Card Frames tuner — colour overlay + opacity knobs
+
+The 🖼️ Card Frames tuner gains a **colour-overlay experiment layer** per section (oval + spell): a new
+`.cframe-tint` span painted directly OVER the frame img — a solid colour masked to the frame's own PNG
+silhouette (same geometry as `.cglow`) — driven by `--fovl` (a colour picker) + `--fovl-a` (an opacity slider,
+default **0 = production no-op**). Lets the frame be re-tinted live (e.g. try silver/bronze/coloured variants)
+without new art; "Copy CSS" exports both vars for baking. Taunt is outside the tuner → no tint span. Verified:
+typecheck + lint + build green.
+
 ### tweak(ui): hover glow re-tuned — crisp white rim + tight white bloom (was teal)
 
 Owner's 🔆 Glow-tuner export baked as the shipped defaults, in BOTH homes (`glowConfig.ts` `DEFAULTS` + the

@@ -154,33 +154,47 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         </div>
       </div>
 
-      {/* MODE PICKER — opens behind PLAY. Ascent is the clean scored climb; Rift is the SAME climb with the
-          active rift's rules (opt-in as of this screen — a plain Ascent run is no longer modified); Practice
-          is unscored. The Rift option only appears while a rift is actually live. */}
+      {/* MODE PICKER — a full-screen view in the HERO-SELECT idiom (owner request): big framed cards in a
+          row, each with a name pill eclipsing the frame's top edge, a tag pill eclipsing the bottom, and the
+          description fading in on hover. Ascent is the clean scored climb; Rift is the SAME climb with the
+          active rift's rules (opt-in as of this screen); Practice is unscored. The Rift card is mounted only
+          while a rift is actually live. */}
       {modePick && (
-        <div className="modepick" role="dialog" aria-label="Choose a mode" onClick={() => setModePick(false)}>
-          <div className="modepick-panel" onClick={(e) => e.stopPropagation()}>
-            <h2 className="disp modepick-title">Choose your climb</h2>
-            <div className="modepick-list">
+        <div className="modepick" role="dialog" aria-label="Choose a mode">
+          <button className="hsback" onClick={() => { sfx.pulse(); setModePick(false); }}>← Back</button>
+          <div className="mpbox">
+            <div className="mpeyebrow">Choose your climb</div>
+            <h1 className="disp mptitle">MODE</h1>
+            <div className="mprow">
               <button className="modecard" onClick={() => { sfx.pulse(); startAscent(); }}>
-                <span className="modecard-icon"><Crest /></span>
-                <span className="modecard-name">Ascent</span>
-                <span className="modecard-desc">The scored 17-round climb. Cover the Oath, chase the summit.</span>
+                <div className="mcframe" data-mode="ascent">
+                  <div className="mcname">Ascent</div>
+                  <span className="mcemblem"><Crest /></span>
+                  <div className="mctag">Scored</div>
+                </div>
+                <div className="mcdesc">The scored 17-round climb. Cover your Oath, then chase the summit.</div>
               </button>
+
               {rift && (
-                <button className="modecard modecard-rift" onClick={() => { sfx.pulse(); startRift(); }}>
-                  <span className="modecard-icon"><span className="modecard-swirl" aria-hidden="true" /></span>
-                  <span className="modecard-name">Rift<span className="modecard-tag">{rift.name}</span></span>
-                  <span className="modecard-desc">{rift.blurb}</span>
+                <button className="modecard" onClick={() => { sfx.pulse(); startRift(); }}>
+                  <div className="mcframe" data-mode="rift">
+                    <div className="mcname">Rift</div>
+                    <span className="mcemblem mcswirl" aria-hidden="true" />
+                    <div className="mctag">{rift.name}</div>
+                  </div>
+                  <div className="mcdesc">{rift.blurb}</div>
                 </button>
               )}
+
               <button className="modecard" onClick={() => { sfx.pulse(); startPractice(); }}>
-                <span className="modecard-icon"><IconHelm /></span>
-                <span className="modecard-name">Practice</span>
-                <span className="modecard-desc">Any hero, unlimited Resolve, a longer shop. Unscored.</span>
+                <div className="mcframe" data-mode="practice">
+                  <div className="mcname">Practice</div>
+                  <span className="mcemblem"><IconHelm /></span>
+                  <div className="mctag">Unscored</div>
+                </div>
+                <div className="mcdesc">Any hero, unlimited Resolve and a longer shop. Nothing is recorded.</div>
               </button>
             </div>
-            <button className="modepick-back" onClick={() => setModePick(false)}>Back</button>
           </div>
         </div>
       )}

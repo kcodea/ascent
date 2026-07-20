@@ -4158,65 +4158,86 @@ svg { width: 18px; height: 18px; }
 .riftbtn-tip-body { font-weight: 600; color: #cfc4b4; line-height: 1.35; }
 @media (prefers-reduced-motion: reduce) { .riftbtn-swirl { animation: none; } }
 
-/* ---- MODE PICKER (Title.tsx) — the Ascent / Rift / Practice choice behind PLAY. Full-screen scrim over the
-   title art with a centred panel of three cards. PERF: the rift card's swirl animates TRANSFORM only (see
-   the Rift button); everything else is static. */
+/* ---- MODE PICKER (Title.tsx) — the Ascent / Rift / Practice choice behind PLAY. Built in the HERO-SELECT
+   idiom (owner request): a full-screen view over the title art with big framed cards in a row, a name pill
+   eclipsing each frame's TOP edge and a tag pill its BOTTOM edge, and the description fading in on hover.
+   Metrics deliberately mirror `.herocard.big` (245px frame, 3px gold border, pill radii) so the two screens
+   read as one system. The modes have no art, so each frame carries a themed gradient + a large emblem.
+   PERF: the only looping animation is the rift emblem's swirl, which animates TRANSFORM only. */
 .modepick {
-  position: fixed; inset: 0; z-index: 90;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(6, 9, 16, 0.72);
-  animation: mpfade 0.18s ease both;
+  position: fixed; inset: 0; z-index: 400;
+  display: grid; place-items: safe center; overflow-y: auto; padding: 24px 0;
+  background: linear-gradient(rgba(6, 11, 22, 0.86), rgba(6, 11, 22, 0.92)), url('/homescreen.webp') center / cover no-repeat, var(--bg);
+  animation: fadein 0.3s ease;
+  cursor: url('/cursors/gauntlet_default.svg') 6 2, auto;
 }
-@keyframes mpfade { from { opacity: 0; } to { opacity: 1; } }
-.modepick-panel {
-  display: flex; flex-direction: column; align-items: stretch; gap: 16px;
-  width: min(560px, 92vw); padding: 26px 26px 20px;
-  background: linear-gradient(180deg, #16203a, #0d1424);
-  border: 2px solid color-mix(in srgb, var(--gold) 45%, #000);
-  border-radius: 16px;
-  box-shadow: 0 18px 50px -14px rgba(0, 0, 0, 0.85);
-}
-.modepick-title { margin: 0; text-align: center; font-size: 26px; letter-spacing: 0.06em; color: #f2e6cd; }
-.modepick-list { display: flex; flex-direction: column; gap: 10px; }
+/* Match hero select's zoom so the cards are the same physical size on the same screen. */
+.modepick { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * var(--mobile-boost, 1)); }
+.mpbox { display: flex; flex-direction: column; align-items: center; text-align: center; zoom: var(--hs-zoom); max-width: calc(96vw / var(--hs-zoom)); }
+.mpeyebrow { font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.3em; color: var(--acc); text-transform: uppercase; }
+.mptitle { font-family: var(--font-title); font-weight: 900; font-size: 68px; letter-spacing: 0.06em; color: #f6efe2; margin: 8px 0 22px; }
+.mprow { display: flex; gap: 29px; align-items: stretch; justify-content: center; flex-wrap: wrap; }
+
 .modecard {
-  display: grid; grid-template-columns: 44px 1fr; grid-template-rows: auto auto; gap: 2px 14px;
-  align-items: center; text-align: left;
-  padding: 13px 16px;
-  background: linear-gradient(180deg, #1d2a42, #141c30);
-  border: 1px solid #2c3a5c; border-radius: 11px;
+  width: 300px; gap: 10px; padding: 26px 10px 10px;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  background: none; border: none; box-shadow: none; color: var(--ink);
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
-  transition: border-color 0.14s ease, transform 0.14s ease;
+  transition: transform 0.16s ease;
 }
-.modecard:hover { border-color: var(--acc); transform: translateY(-1px); }
-.modecard-icon { grid-row: 1 / span 2; display: flex; align-items: center; justify-content: center; }
-.modecard-icon svg { width: 30px; height: 30px; color: #cdd8ee; }
-.modecard-name {
-  font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.04em; color: #f4ecdb;
-  display: flex; align-items: center; gap: 9px;
+.modecard:hover { transform: translateY(-6px); }
+
+/* The framed tile — same box as `.herocard.big .hcframe`. */
+.mcframe {
+  position: relative; width: 245px; height: 245px; flex: none; margin-bottom: 10px;
+  border-radius: 22px; border: 3px solid var(--gold); background: var(--ink);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35), 0 8px 22px -10px rgba(0, 0, 0, 0.5);
+  display: grid; place-items: center;
+  /* NO `overflow: hidden` — the name/tag pills are positioned to ECLIPSE the frame's top and bottom edges
+     (the hero card's trick), and clipping here cut them in half. The gradient already respects the radius. */
 }
-.modecard-tag {
-  font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-  padding: 2px 7px; border-radius: 999px;
-  background: color-mix(in srgb, var(--tier-7) 26%, transparent);
-  border: 1px solid color-mix(in srgb, var(--tier-7) 55%, #000);
-  color: #e6d6ff;
-}
-.modecard-desc { font-size: 12.5px; font-weight: 600; color: #9fb0cc; line-height: 1.35; }
-.modecard-rift { border-color: color-mix(in srgb, var(--tier-7) 45%, #000); }
-.modecard-rift:hover { border-color: var(--tier-7); }
-/* The rift card's icon: the same transform-only conic swirl as the in-run Rift button. */
-.modecard-swirl {
-  width: 26px; height: 26px; border-radius: 50%; overflow: hidden; position: relative;
-  background: conic-gradient(from 0deg, transparent 0deg, var(--tier-7) 70deg, transparent 150deg,
-              #4bc0ff 240deg, transparent 320deg);
+/* Per-mode tint, standing in for card art. */
+.mcframe[data-mode='ascent'] { background: radial-gradient(120% 100% at 50% 0%, #1e3a63 0%, #101c33 60%, #0a1220 100%); }
+.mcframe[data-mode='rift'] { background: radial-gradient(120% 100% at 50% 0%, #3a1c63 0%, #1e1033 60%, #120a20 100%); border-color: var(--tier-7); }
+.mcframe[data-mode='practice'] { background: radial-gradient(120% 100% at 50% 0%, #3a3226 0%, #221d16 60%, #14110c 100%); }
+
+.mcemblem { display: grid; place-items: center; width: 108px; height: 108px; }
+.mcemblem svg { width: 100%; height: 100%; color: #cfe0ff; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.55)); }
+.mcframe[data-mode='practice'] .mcemblem svg { color: #e6d6b4; }
+/* The rift emblem: the same transform-only conic swirl as the in-run Rift button. */
+.mcswirl {
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg, var(--tier-7) 70deg, transparent 150deg, #4bc0ff 240deg, transparent 320deg);
   animation: riftswirl 7s linear infinite;
   will-change: transform;
+  box-shadow: 0 0 26px -6px var(--tier-7);
 }
-.modepick-back {
-  align-self: center; padding: 7px 22px;
-  font-family: var(--font-ui); font-weight: 700; font-size: 13px; letter-spacing: 0.06em;
-  color: #9fb0cc; background: none; border: 1px solid #2c3a5c; border-radius: 9px;
-  cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
+
+/* Name pill — eclipsing the frame's TOP edge (the hero card's `.hcname`). */
+.mcname {
+  position: absolute; left: 50%; top: 0; transform: translate(-50%, -55%); z-index: 3;
+  max-width: 118%; white-space: nowrap;
+  font-family: var(--font-ui); font-weight: 900; font-size: 23px; letter-spacing: 0.02em;
+  padding: 3px 20px; background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink);
+  border: 2px solid var(--gold); border-radius: 999px; box-shadow: 0 2px 6px -2px var(--shadow);
 }
-.modepick-back:hover { color: #f4ecdb; border-color: var(--acc); }
-@media (prefers-reduced-motion: reduce) { .modecard-swirl { animation: none; } }
+/* Tag pill — eclipsing the frame's BOTTOM edge (the hero card's `.hchp`). */
+.mctag {
+  position: absolute; left: 50%; bottom: 0; transform: translate(-50%, 52%); z-index: 3;
+  white-space: nowrap;
+  font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 3px 18px; background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink);
+  border: 2px solid var(--gold); border-radius: 999px; box-shadow: 0 2px 6px -2px var(--shadow);
+}
+.mcframe[data-mode='rift'] .mcname, .mcframe[data-mode='rift'] .mctag { border-color: var(--tier-7); }
+
+/* Description — light on the bare background, fading in on hover like the hero power text. Reserved
+   height so the row never jumps. */
+.mcdesc {
+  min-height: 72px; max-width: 270px;
+  font-size: 17.5px; font-weight: 600; line-height: 1.35; color: #efe6d4;
+  opacity: 0; transition: opacity 0.28s ease;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.9);
+}
+.modecard:hover .mcdesc { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .mcswirl { animation: none; } }

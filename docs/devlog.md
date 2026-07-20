@@ -26,8 +26,19 @@ repeated in three places, and the store gains `startRift`.
 The picker reads the LIVE registry via `activeRift()` — correct here precisely because this is a pre-run
 choice, not a pinned run; every in-run surface still reads `run.rift`.
 
-PERF: the rift card's swirl is a looping animation, so per `docs/performance.md` it animates **transform
-only** (a rotating conic layer clipped by a border-radius), reusing the Rift button's `riftswirl` keyframes.
+**Styled in the HERO-SELECT idiom** (owner request): a full-screen view over the title art rather than a
+modal, with big framed cards in a row — a 245px gold-framed tile, a name pill eclipsing its TOP edge, a tag
+pill eclipsing its BOTTOM edge, and the description fading in on hover. Metrics deliberately mirror
+`.herocard.big` (frame size, 3px gold border, pill radii, the `translateY(-6px)` hover lift, the shared
+`--hs-zoom`) so the two screens read as one system. The modes have no art, so each frame carries a themed
+radial gradient plus a large emblem: the crest for Ascent, the conic swirl for Rift, the helm for Practice.
+
+One defect caught in the browser rather than in code review: the frame initially carried `overflow: hidden`,
+which **clipped the pills in half** — they are positioned to overhang the frame's edges, which is the whole
+trick. The hero card's frame has no such clip, and the gradient respects the border-radius anyway.
+
+PERF: the rift emblem's swirl is a looping animation, so per `docs/performance.md` it animates **transform
+only** (a rotating conic layer), reusing the Rift button's `riftswirl` keyframes.
 
 **A pre-existing test caught the change**, as intended: `createRun pins the active rift` asserted the old
 always-pin behaviour. It now asserts the real contract — the pin needs BOTH an enabled entry AND `rift`

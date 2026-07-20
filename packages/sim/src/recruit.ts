@@ -1,4 +1,4 @@
-import { makeRng, COMBAT_REPLAYABLE_BATTLECRIES, type CardDef, type EffectDef, type Keyword, type Tribe } from '@game/core';
+import { makeRng, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { poolOf } from './cardPool';
 import { CONFIG, maxTierFor } from './config';
@@ -584,15 +584,25 @@ function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
  * `clings` = how many Cling Drones this weld represents (0 if the magnetic isn't a Cling). Each Cling
  * magnetized — onto the host AND each copy Beatboxer mimics onto itself — stacks the Cling improvement.
  */
+/** Attachment Conductor (Tier 7): "your attachments attach twice" (gilded: three times). Like Drakko, the
+ *  BEST single copy counts rather than stacking, so two Conductors don't silently 4x. Returns the number of
+ *  times each weld lands — 1 with no Conductor. */
+function conductorWelds(state: RunState): number {
+  let best = 1;
+  for (const c of state.board) if (c.cardId === 'attachmentconductor') best = Math.max(best, c.golden ? 3 : 2);
+  return best;
+}
+
 export function weldMagnetic(state: RunState, host: BoardCard, mag: MagnetPayload, clings = 0, kind: 'play' | 'auto' = 'auto'): void {
-  applyWeld(host, mag, 1);
-  host.attachments = (host.attachments ?? 0) + 1; // one Attachment welded on — drives Blueprint Cache
+  const reps = conductorWelds(state); // Attachment Conductor multiplies EVERY weld, the host's and the mirrors'
+  applyWeld(host, mag, reps);
+  host.attachments = (host.attachments ?? 0) + reps; // Attachments welded on — drives Blueprint Cache
   bakeAttachmentAura(state, host);
   const welded = [host.uid]; // every minion this weld lands on — ALL of them animate (a Beatbot mirrors it)
-  let totalClings = clings; // Clings welded onto the host
+  let totalClings = clings * reps; // Clings welded onto the host
   for (const bb of state.board) {
     if (bb.cardId === 'beatboxer' && bb.uid !== host.uid) {
-      const mult = bb.golden ? 2 : 1;
+      const mult = (bb.golden ? 2 : 1) * reps;
       applyWeld(bb, mag, mult);
       bb.attachments = (bb.attachments ?? 0) + mult; // Beatboxer mirrors the weld onto itself
       bakeAttachmentAura(state, bb);
@@ -707,8 +717,9 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
   };
   if (hasDR) ctx.state.deathrattlesTriggered += 1; // base trigger, before firing (Grim counts its own death)
   fireOnce();
-  let reaper = 0;
-  for (const c of ctx.state.board) if (c.cardId === 'sylus' && c.uid !== minion.uid) reaper += c.golden ? 2 : 1;
+  // Sylus (stacking) + Uron (best-copy), from card data. The dying minion is excluded — a Sylus that is
+  // itself the one dying doesn't re-fire its own Echo.
+  const reaper = extraTriggerFires('deathrattle', ctx.state.board.filter((c) => c.uid !== minion.uid), (id) => CARD_INDEX[id]);
   for (let r = 0; r < reaper; r++) fireOnce(); // Sylus re-fires read the same tally (value at death)
   if (hasDR) {
     ctx.state.deathrattlesTriggered += reaper; // …then the extra triggers count for the quest/Grim tally
@@ -1177,6 +1188,26 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Hoard Whelp — Sell: gain `amount` Gold (golden doubles). Fired by the reducer's sell case via `fireOnSell`. */
   onSellGainGold: (ctx, self, params) => {
     ctx.state.embers += num(params.amount, 6) * gold(self);
+  },
+
+  /** Salvatore McKlusky (Tier 7) — selling this opens `count` back-to-back minion Discovers at `tier`
+   *  (golden: the offered cards are GILDED). Only one Discover overlay can be open at a time, so the extras
+   *  queue through the standard `pendingDiscovers` channel the same way multi-Discover heroes do. */
+  onSellDiscover: (ctx, self, params) => {
+    const tier = num(params.tier, 6);
+    const count = num(params.count, 2);
+    const spec = { kind: 'minion' as const, tier, exactTier: tier, golden: !!self.golden };
+    for (let i = 0; i < count; i++) queueDiscover(ctx.state, spec);
+  },
+
+  /** Lab Experiment (Tier 7) — the RECRUIT half of its Echo: conjure `count` random MINIONS of `tier` to
+   *  hand (minions only — unlike `endOfTurnGrantRandomTierCard`, which also draws spells). Golden doubles. */
+  deathrattleGainRandomMinion: (ctx, self, params) => {
+    const tier = num(params.tier, 5);
+    const pool = poolOf(ctx.state).buyable.filter(
+      (c) => c.tier === tier && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
+    );
+    conjureToHand(ctx.state, pool, num(params.count, 1) * gold(self));
   },
 
   /** Scrap Vendor — End of Turn: bank `amount` Gold into your next shop (golden doubles). Uses the standard
@@ -2392,6 +2423,8 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     state.rngCursor = rng.state();
     state.discover = picks;
     state.discoverLockTier = undefined;
+    state.discoverGolden = undefined;
+    state.discoverLockGold = undefined;
   } else {
     offerDiscover(state, spec.tier, {
       tier: spec.exactTier,
@@ -2403,8 +2436,8 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     });
     // Disco Dan's Setlist: carry the lock tier onto the open offer so the resolved pick becomes a
     // locked hand card (only set if the offer actually opened).
-    if (state.discover) state.discoverLockTier = spec.lockTier;
-    else state.discoverLockTier = undefined;
+    if (state.discover) { state.discoverLockTier = spec.lockTier; state.discoverGolden = spec.golden; state.discoverLockGold = spec.lockGold; }
+    else { state.discoverLockTier = undefined; state.discoverGolden = undefined; state.discoverLockGold = undefined; }
   }
 }
 
@@ -2661,16 +2694,17 @@ function makeContext(state: RunState): RecruitContext {
 
 /** "Best single copy, no stacking, golden = +2" repeat count, shared by Drakko (Battlecries) and Chronos
  *  (End-of-Turn). Returns 1 + (2 if any golden copy of `cardId`, else 1 if any copy, else 0). */
-function bestCopyRepeats(state: RunState, cardId: string): number {
-  const copies = state.board.filter((c) => c.cardId === cardId);
-  return 1 + (copies.some((c) => c.golden) ? 2 : copies.length > 0 ? 1 : 0);
+/** Fire-count for a trigger FAMILY on the current board, resolved from card data (`triggerMultiplier`)
+ *  rather than a hardcoded card id — so Drakko, Chronos and Uron all flow through one place. */
+function familyRepeats(state: RunState, family: TriggerFamily): number {
+  return 1 + extraTriggerFires(family, state.board, (id) => CARD_INDEX[id]);
 }
 
 /** Drakko the Drummer: your Battlecries fire extra times (golden Drakko +2; best one only, no stacking).
  *  Non-consuming (unlike `playedShoutRepeats`, which also spends a Warm Embers charge) — so it's safe for the
  *  reducer's Shout quest tick to read the battlecry FIRE count (each Drakko re-fire is another Shout trigger). */
 export function drummerRepeats(state: RunState): number {
-  return bestCopyRepeats(state, 'drummer');
+  return familyRepeats(state, 'battlecry');
 }
 
 /** Fire-count for a freshly PLAYED Battlecry ("shout"): Drakko's repeats PLUS Warm Embers' one-shot double
@@ -2698,7 +2732,7 @@ function playedShoutRepeats(state: RunState, def: CardDef): number {
  *  adds 2, no stacking). Internal — external callers (the UI's End-Turn beats) use `endOfTurnRepeats`,
  *  which folds in Chrono Staff's one-shot extra. */
 function chronosRepeats(state: RunState): number {
-  return bestCopyRepeats(state, 'chronos');
+  return familyRepeats(state, 'endOfTurn');
 }
 
 /** How many times End-of-Turn effects fire this turn: Chronos's repeats PLUS Chrono Staff's one-shot extra

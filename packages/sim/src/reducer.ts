@@ -605,6 +605,8 @@ function reduceCore(state: RunState, action: Action): RunState {
       const card = s.hand[i]!;
       // Disco Dan: a Setlist minion is locked until you reach its shop tier — unplayable before then.
       if (card.lockedUntilTier && s.tier < card.lockedUntilTier) return state;
+      // Brackus's Summit pick — locked until the run has spent enough Gold.
+      if (card.lockedUntilGoldSpent && (s.goldSpent ?? 0) < card.lockedUntilGoldSpent) return state;
 
       const def = CARD_INDEX[card.cardId];
 
@@ -1184,7 +1186,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // The hand is a hard 10-card cap: a Discover into a full hand adds nothing (the pick is forfeit rather
       // than over-capping). Only claim a pool copy when the card is actually taken.
       if (s.hand.length < CONFIG.handMax) {
-        s.hand.push({
+        const taken: BoardCard = {
           uid: `b${s.uidSeq++}`,
           cardId: def.id,
           tribe: def.tribe,
@@ -1194,10 +1196,17 @@ function reduceCore(state: RunState, action: Action): RunState {
           golden: false,
           // Disco Dan's Setlist: this pick is locked in hand until you reach its shop tier (T2/T4/T6).
           ...(s.discoverLockTier ? { lockedUntilTier: s.discoverLockTier } : {}),
-        });
+          ...(s.discoverLockGold ? { lockedUntilGoldSpent: s.discoverLockGold } : {}),
+        };
+        // A GILDED Discover (a golden Salvatore McKlusky) hands the pick over already gilded — the same
+        // transform a triple applies, so the stats/keywords stay consistent with every other golden.
+        if (s.discoverGolden) gildMinion(taken);
+        s.hand.push(taken);
         takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
       }
       s.discoverLockTier = undefined; // consumed — the next queued Discover sets its own (or none)
+      s.discoverLockGold = undefined;
+      s.discoverGolden = undefined;
       // Open the next queued Discover (golden / Drakko-doubled Brian, Yazzus-multiplied Help Wanted /
       // Sprout); only clear the offer once the queue is empty. A spec whose pool is empty opens nothing
       // (offerDiscover/offerSpellDiscover leave `discover` unset) — keep draining the rest so the queue
@@ -2415,9 +2424,13 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.embers += r.amount; // reflect the raised max in THIS turn's spendable Gold too
       break;
     case 'discover': {
-      // Reward-kind 'discover' — open a minion Discover at your CURRENT tier, or at `r.tier` when the reward pins
-      // one (Rune of the Scout → Tier 5, Rune of the Champion → Tier 6). Clamped to the engine's max tier.
-      const t = Math.min(r.tier ?? s.tier, maxTierFor(s.rift));
+      // Reward-kind 'discover' — open a minion Discover at your CURRENT tier, or at `r.tier` when the reward
+      // PINS one (Rune of the Scout → Tier 5, Rune of the Champion → Tier 6, Rune of the Summit → Tier 7).
+      // An AUTHORED tier is honoured as written: it is deliberate content, and clamping it to the run's
+      // ceiling would silently downgrade a Tier 7 reward to Tier 6 whenever the Summit rift is off — which
+      // is exactly when those rewards are the ONLY way to reach Tier 7. Only a DERIVED tier (falling back to
+      // the live shop tier) is clamped, since that one can legitimately overshoot.
+      const t = r.tier ?? Math.min(s.tier, maxTierFor(s.rift));
       openDiscover(s, { kind: 'minion', tier: t, exactTier: t });
       break;
     }

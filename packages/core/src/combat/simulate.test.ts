@@ -3580,3 +3580,168 @@ describe('Tauntbreaker Rally tally (owner bug 2026-07-18)', () => {
     expect(r.playerRallies ?? 0).toBeGreaterThan(0); // each swing rallies (W = two per attack turn)
   });
 });
+
+describe('Tier 7 (Summit) minions — combat effects', () => {
+  it('Mauron takes NO retaliation on its own swings, however many it makes', () => {
+    // "Immune while attacking" stops RETALIATION only — the enemy's own swings still land. So the precise
+    // contract is: on any step where Mauron is the ATTACKER, no damage is dealt to Mauron. Bounty Bot's
+    // immunity is a DEPLETING counter (2 swings), so a fight with many swings is the discriminator: a
+    // counter would run out and the 50-Attack counter-hit would show up here.
+    const r = run(
+      [{ cardId: 'mauron', attack: 9, health: 500 }],
+      [{ cardId: 'omen', attack: 50, health: 4000, keywords: [] }],
+      1,
+    );
+    const mauron = r.initial.player.find((m) => m.cardId === 'mauron')!;
+    const swingSteps = new Set(
+      r.events.filter((e) => e.type === 'attack' && e.attacker === mauron.uid).map((e) => (e as { step: number }).step),
+    );
+    expect(swingSteps.size).toBeGreaterThan(3); // more swings than Bounty Bot's 2 charges
+    const selfHits = r.events.filter(
+      (e) => e.type === 'dmg' && e.target === mauron.uid && swingSteps.has((e as { step: number }).step),
+    );
+    expect(selfHits).toEqual([]); // never damaged on a step it attacked
+
+    // CONTROL — the identical fight with a NON-immune body must show those retaliation hits, so the
+    // assertion above is proving the immunity rather than a quirk of this matchup.
+    const c = run(
+      [{ cardId: 'omen', attack: 9, health: 500 }],
+      [{ cardId: 'omen', attack: 50, health: 4000, keywords: [] }],
+      1,
+    );
+    const ctrl = c.initial.player[0]!;
+    const ctrlSwings = new Set(
+      c.events.filter((e) => e.type === 'attack' && e.attacker === ctrl.uid).map((e) => (e as { step: number }).step),
+    );
+    const ctrlSelfHits = c.events.filter(
+      (e) => e.type === 'dmg' && e.target === ctrl.uid && ctrlSwings.has((e as { step: number }).step),
+    );
+    expect(ctrlSelfHits.length).toBeGreaterThan(0);
+  });
+
+  it('Anubis grants Rise to the whole board on death, not just one minion', () => {
+    const r = run(
+      [
+        { cardId: 'anubis', attack: 8, health: 1 },
+        { cardId: 'alley', attack: 1, health: 40 },
+        { cardId: 'sandbag', attack: 0, health: 40 },
+      ],
+      [{ cardId: 'omen', attack: 40, health: 400, keywords: [] }],
+      2,
+    );
+    const grants = r.events.filter((e) => e.type === 'sc' && /grants .* Rise/.test(e.text));
+    expect(grants.length).toBeGreaterThanOrEqual(2); // BOTH survivors, not a single random pick
+  });
+
+  it('Amun Rab summons 7 warded Imps and its Imp buff improves per proc', () => {
+    const r = run(
+      [{ cardId: 'amunrab', attack: 15, health: 1 }],
+      [{ cardId: 'omen', attack: 40, health: 400, keywords: [] }],
+      3,
+    );
+    const imps = r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap');
+    expect(imps.length).toBe(7);
+    for (const e of imps) if (e.type === 'summon') expect(e.minion.keywords).toContain('DS');
+  });
+
+  it('a gilded Amun Rab keeps 7 Imps and doubles the buff instead of the count', () => {
+    const r = run(
+      [{ cardId: 'amunrab', attack: 30, health: 1, golden: true }],
+      [{ cardId: 'omen', attack: 40, health: 400, keywords: [] }],
+      3,
+    );
+    expect(r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap').length).toBe(7);
+  });
+
+  it('Thundeer grows when a friendly Beast attacks, and the step improves', () => {
+    const r = run(
+      [
+        { cardId: 'thundeer', attack: 10, health: 60 },
+        { cardId: 'alley', attack: 2, health: 60 },
+      ],
+      [{ cardId: 'omen', attack: 1, health: 400, keywords: [] }],
+      4,
+    );
+    const thundeer = r.initial.player.find((m) => m.cardId === 'thundeer')!;
+    const buffs = r.events.filter((e) => e.type === 'buff' && e.target === thundeer.uid);
+    expect(buffs.length).toBeGreaterThan(0);
+    expect(buffs[0]!.type === 'buff' && buffs[0]!.attack).toBe(10); // first proc = base
+    if (buffs.length > 1) {
+      const second = buffs[1]!;
+      expect(second.type === 'buff' && second.attack).toBe(20); // improved by +10
+    }
+  });
+});
+
+describe('Uron / Zyff — the split trigger multipliers', () => {
+  it('doubles Start of Combat effects (a family with no prior multiplier)', () => {
+    // Kennelmaster carries a real Start-of-Combat Beast aura; count the sc narrations it emits.
+    const withUron = (uron: boolean) => run(
+      [
+        { cardId: 'kennel', attack: 5, health: 60 },
+        { cardId: 'alley', attack: 2, health: 60 },
+        ...(uron ? [{ cardId: 'uron', attack: 7, health: 60 }] : []),
+      ],
+      [{ cardId: 'omen', attack: 1, health: 400, keywords: [] }],
+      5,
+    );
+    const scEvents = (r: ReturnType<typeof run>) => r.events.filter((e) => e.type === 'sc').length;
+    expect(scEvents(withUron(true))).toBeGreaterThan(scEvents(withUron(false)));
+  });
+
+  it('ZYFF doubles Deathrattles — and STACKS additively with Sylus', () => {
+    // Grim's Echo buffs Beasts by the tally; count its buff events as the proc count.
+    const procs = (extra: { cardId: string; attack: number; health: number }[]): number =>
+      run(
+        [
+          { cardId: 'grim', attack: 1, health: 1 },
+          { cardId: 'alley', attack: 2, health: 80 },
+          ...extra,
+        ],
+        [{ cardId: 'omen', attack: 1, health: 300 }],
+        6,
+      ).events.filter((e) => e.type === 'buff' && e.attack === 2).length;
+    const none = procs([]);
+    const zyff = procs([{ cardId: 'zyff', attack: 6, health: 80 }]);
+    const both = procs([{ cardId: 'zyff', attack: 6, health: 80 }, { cardId: 'sylus', attack: 1, health: 80 }]);
+    expect(zyff).toBe(none + 1); // +1 fire
+    expect(both).toBe(none + 2); // Sylus stacks on top of Zyff
+    // Uron no longer touches Echoes at all — that half is Zyff's.
+    expect(procs([{ cardId: 'uron', attack: 7, health: 80 }])).toBe(none);
+  });
+
+  it('does NOT stack with itself (two Zyffs are still +1)', () => {
+    const procs = (n: number): number =>
+      run(
+        [
+          { cardId: 'grim', attack: 1, health: 1 },
+          { cardId: 'alley', attack: 2, health: 80 },
+          ...Array.from({ length: n }, () => ({ cardId: 'zyff', attack: 6, health: 80 })),
+        ],
+        [{ cardId: 'omen', attack: 1, health: 300 }],
+        6,
+      ).events.filter((e) => e.type === 'buff' && e.attack === 2).length;
+    expect(procs(2)).toBe(procs(1));
+  });
+
+  it('doubles RALLIES without double-counting the ally-attack broadcast', () => {
+    // Supporter's Rally buffs 2 friendly Dragons (+1/+2). Uron must repeat THAT, while Crypt Drake's
+    // broadcast ally-attack counter (which drives its every-2-attacks payout) must be untouched.
+    // The control must keep the BOARD SIZE identical — an extra body changes fight length, which changes
+    // how many ally attacks Crypt Drake sees. Mysterious Joker is a same-tier neutral whose only effect is
+    // an onPlay Discover, so it is completely inert in combat: a true placebo.
+    const r = (uron: boolean) => run(
+      [
+        { cardId: 'supporter', attack: 2, health: 80 },
+        { cardId: 'cryptdrake', attack: 6, health: 80 },
+        { cardId: uron ? 'uron' : 'joker', attack: 7, health: 80 },
+      ],
+      [{ cardId: 'omen', attack: 1, health: 400, keywords: [] }],
+      7,
+    );
+    const rallyBuffs = (x: ReturnType<typeof run>) => x.events.filter((e) => e.type === 'buff' && e.attack === 1 && e.health === 2).length;
+    const drakePayouts = (x: ReturnType<typeof run>) => x.events.filter((e) => e.type === 'buff' && e.attack === 2 && e.health === 2).length;
+    expect(rallyBuffs(r(true))).toBeGreaterThan(rallyBuffs(r(false))); // the Rally repeated
+    expect(drakePayouts(r(true))).toBe(drakePayouts(r(false))); // the broadcast counter did NOT
+  });
+});

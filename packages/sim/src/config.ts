@@ -105,7 +105,7 @@ export const RIFTS: Record<RiftId, RiftDef> = {
     id: 'summit',
     name: 'Summit',
     blurb: 'All heroes gain +10 Armor, and the shop unlocks Tier 7.',
-    enabled: true,
+    enabled: false, // parked 2026-07-20 (owner) — Tier 7 now arrives via Brackus / Teleport Summit / Rune of the Summit
     runsThrough: 'a limited-time celebration patch',
   },
 };

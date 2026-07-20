@@ -19,6 +19,7 @@ export type HeroPowerKind =
   | 'grantWard' // Warden: spend Gold — give a friendly minion a permanent Ward (Divine Shield) (active, targeted)
   | 'scalingGold' // Bagger Ben: gain Gold now, the payout climbing +1 each turn (active, untargeted, once/game)
   | 'cheapMinions' // Hermit Hank (passive): shop minions cost 2 Gold, but tavern-ups cost 2 more
+  | 'summitLock' // Brackus (passive): turn-1 Tier 7 Discover, locked until 70 Gold is spent this run
   | 'discoLock' // Disco Dan (passive): turn-1 sequential Discover T6→T4→T2, each locked in hand until that shop tier
   | 'questChronos' // Chronos (passive): buy 4 End-of-Turn minions → get a Chronos (resolved in the buy case)
   | 'lesserQuest' // Fi (passive): an extra, lower-tier quest shop on turn 4
@@ -35,7 +36,8 @@ export type HeroPowerKind =
   | 'dynamiteDig' // Jensen: Discover a minion of your tier — free first, +1 Gold each later use (active, untargeted)
   | 'dragonTamer' // Tiff: 5 Gold Discover a Dragon — the cost drops 1 per Dragon/spell bought, resetting on use
   | 'secondHand' // Re-Pete (passive): at the END of every 3rd turn, a plain copy of the left-most card in hand (conjured, no pool take)
-  | 'possession' // Atrius (passive): SoC — leftmost gains rightmost's Attack; rightmost gains leftmost's Health
+  | 'possession' // RETIRED with Atrius (2026-07-20). Kept so saves/replays of old runs still resolve;
+  //                the Start-of-Combat machinery in simulate.ts remains as an unused primitive.
   | 'fourPeat'; // Gorr (passive): buy 3 minions in one turn → a plain copy of one of them at random (once/turn)
 
 export interface HeroPower {
@@ -274,6 +276,21 @@ export const HEROES: HeroDef[] = [
     },
   },
   {
+    // The Tier 7 door, opened early but paid for late: a Summit pick on turn 1 that you cannot play until
+    // the run has spent 70 Gold. High armour prices in the tempo you give up sitting on a dead card.
+    id: 'brackus',
+    name: 'Brackus',
+    blurb: 'He shows you the summit on day one. Climbing it is your problem.',
+    resolve: 30,
+    armor: 15,
+    power: {
+      name: 'Summit',
+      kind: 'summitLock',
+      passive: true, // resolved at run start (the locked Tier 7 Discover) + the play-gate on the locked card
+      text: 'At the start of the game, **Discover** a **Tier 7** minion. It is locked until you spend **70 Gold**.',
+    },
+  },
+  {
     id: 'baggerben',
     name: 'Rascal',
     blurb: 'The tip jar only ever grows — a little more set aside each turn.',
@@ -407,19 +424,6 @@ export const HEROES: HeroDef[] = [
       kind: 'secondHand',
       passive: true, // resolved at the END of every 3rd turn (turns 3, 6, 9, …) — in the faceOmen case
       text: 'At the end of every 3rd turn, get a plain copy of the left-most card in your hand.',
-    },
-  },
-  {
-    id: 'atrius',
-    name: 'Atrius',
-    blurb: 'Two bodies, one will — what one carries, the other wields.',
-    resolve: 30,
-    armor: 13,
-    power: {
-      name: 'Possession',
-      kind: 'possession',
-      passive: true, // a combat-time Start-of-Combat effect (rides the quest-mods channel into simulate)
-      text: "**Start of Combat**: your left-most minion gains your right-most minion's Attack, and your right-most minion gains your left-most minion's Health.",
     },
   },
   {

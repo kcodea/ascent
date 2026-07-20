@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX } from '@game/content';
-import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, nextOpponent, reconstructRunTelemetry, reduce, resolveRunRating, runRecord, serialize, snapshotBoard, socBoard, type Action, type BoardMinion, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunState } from '@game/sim';
+import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, nextOpponent, reconstructRunTelemetry, reduce, resolveRunRating, runRecord, serialize, snapshotBoard, socBoard, type Action, type BoardMinion, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState } from '@game/sim';
 import type { Tribe } from '@game/core';
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
@@ -218,11 +218,13 @@ interface GameStore {
   /** The title screen is shown at boot + after a run ends — the front door to the modes. */
   showTitle: boolean;
   /** The mode the next run will start in (set by startAscent/startPractice, read by pickHero). */
-  pendingMode: 'ascent' | 'practice';
+  pendingMode: RunMode;
   /** Title → Ascent: open the 3-hero picker for a scored run. */
   startAscent: () => void;
   /** Title → Practice: open an ALL-hero picker for a practice run (Ascent's full course, unlimited health). */
   startPractice: () => void;
+  /** Start a RIFT run — the same climb, with the active rift's rules. */
+  startRift: () => void;
   /** Return to the title screen (from the end screen). */
   openTitle: () => void;
   /** The Hall of Champions overlay (latest victory runs + their warbands) is open. */
@@ -575,6 +577,7 @@ export const useGame = create<GameStore>((set, get) => ({
     }),
   startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
   startPractice: () => set({ showTitle: false, pendingMode: 'practice', heroChoices: HEROES.map((h) => h.id), avatarPickerOpen: false }),
+  startRift: () => set({ showTitle: false, pendingMode: 'rift', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
   // Quitting mid-turn: persist first (while `showTitle` is still false, so flushSave's guard lets it through),
   // otherwise the turn in progress would roll back to the last phase boundary on Continue.
   openTitle: () => { get().flushSave(); set({ showTitle: true, heroChoices: null }); },

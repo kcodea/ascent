@@ -18,7 +18,10 @@ export function HeroSelect() {
   const openTitle = useGame((s) => s.openTitle);
   const mode = useGame((s) => s.pendingMode);
   const profile = useGame((s) => s.profile);
-  const rift = activeRift(); // the limited-time global modifier a new run will adopt (null when none)
+  // Rifts are OPT-IN (the mode picker): only a RIFT run adopts the active rift, so only a rift run may
+  // telegraph one here. Reading the live registry unconditionally would have promised Ascent players a
+  // modifier their run will not actually get.
+  const rift = mode === 'rift' ? activeRift() : null;
   if (!choices) return null;
 
   // The "dense" grid (Practice — every hero) balances the roster into as few rows as read well, then sizes each
@@ -35,9 +38,11 @@ export function HeroSelect() {
       <div className="hsbox">
         <div className="eyebrow">Choose your champion</div>
         <h1 className="disp hstitle">THE ASCENT</h1>
-        {/* Run-start telegraph (ascent only): your rating-derived Line — the wins this run is expected to
-            cover. Practice is unscored, so it's hidden there. */}
-        {mode === 'ascent' && (
+        {/* Run-start telegraph: your rating-derived Line — the wins this run is expected to cover. Shown for
+            every SCORED mode, which is Ascent AND Rift (a rift run still takes damage, still records a
+            result — every other mode check in the codebase is `!== 'practice'`, so this one matches). Only
+            Practice is unscored. */}
+        {mode !== 'practice' && (
           <div className="hsline" aria-label="Your Oath for this run">
             <span className="hsline-rat">Renown {profile.rating}</span>
             <span className="hsline-line">Oath {profile.currentLine}</span>

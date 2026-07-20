@@ -3,6 +3,326 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-20 (compendium palette reverted)
+
+### revert(ui): the Compendium goes back to the original cream
+
+Owner call after seeing both attempts — the soft blue and then `#004c8a` — neither landed, so the palette
+reverts to the game's standard cream (`--card`/`--ink`/`--line` from `:root`). The scoped `.book` var block
+and the explicit surface overrides are removed entirely; the original accent-mixed header/rail gradients
+come back with them.
+
+**Kept deliberately** — these were separate, approved asks, not part of the colour experiment:
+- the overlap fix (the text drawer sits in flow inside the Compendium)
+- the top-line headroom, so the first row's TIER pill clears the frame
+- heroes on the dark-glass panel
+- the larger window + 10% larger cards
+
+**The tuner stays, with its defaults re-pointed at the cream.** Left on the navy values, `Reset` would have
+snapped the book to a scheme that no longer ships, and opening the panel would have silently re-tinted it —
+the tuner is now a no-op until you actually move something.
+
+Verified after the revert: `--card` resolves to `#fffdf8` with dark ink, no `booktuner` style leaking into
+the page, the window still fills 92% x 90% of the viewport, and 129 cells with **0 overlaps** — the spacing
+fix survives the palette going back.
+
+## 2026-07-20 (compendium tuner)
+
+### feat(ui): a dev tuner for the Compendium palette, with a gradient option
+
+I picked `#004c8a` badly and hand-iterating a palette through me is slow — so the palette is now a **dev
+tuner** (`📖 Compendium Palette` in the dev menu) rather than a value I guess at. Standard tuner pattern:
+a draggable panel writing a specificity-bumped override `<style>`, live on the open Compendium, with
+**Copy CSS** to bake the result into `styles.css` and **Reset** back to shipped.
+
+Seven pickers — surface, header bar, side rail, buttons/tabs, borders, text, dim text — plus a **gradient**
+section: an on/off toggle, a top colour, and a falloff % (how far the top colour reaches before landing on
+the surface). Falloff at 0 is visually identical to flat, so the gradient only ever *adds* depth to the
+flat pick rather than replacing it.
+
+The knob set is deliberate, not arbitrary — each one is a trap already hit while hand-picking the navy:
+- **the surface is stated directly**, because the panel used to mix the gold accent in and render grey from
+  a correct colour var;
+- **buttons/tabs (`--bg2`) is its own knob**, because inverting to a dark surface left the rail, tier tabs,
+  Glossary/Gilded, close and search pale-on-pale.
+
+Verified live rather than assumed: the panel mounts with 8 colour inputs and the gradient toggle; driving
+the surface picker repainted the book (`rgb(0,76,138)` → `rgb(122,31,61)` in the computed background);
+toggling the gradient off produced a genuinely flat fill (`background-image: none`); Reset restored the
+shipped palette.
+
+Dev-only — mounted from `DevMenu`, stripped from production.
+
+## 2026-07-20 (compendium palette + scale)
+
+### tweak(ui): Compendium scale — larger window + 10% larger cards (the blue palette was REVERTED)
+
+Owner call — the cream reading surface was bright and tiring at full size.
+
+**Palette — `#004c8a` (owner pick).** That is a DEEP navy, so the panel INVERTS: the surface goes dark and
+the text goes light with it. Done by re-declaring the shared `--card` / `--line` / `--ink` / `--ink2` /
+`--ink3` / `--bg` / `--bg2` vars **scoped to `.book`**, so every descendant rule picks it up without editing
+them one by one. Cards and hero panels state their own explicit colours (the dark-glass drawer), so they sit
+on the navy unchanged — the inversion cost nothing there.
+
+Two things needed a second pass, both caught by looking rather than by reading the CSS:
+1. The panel and header mixed the **gold accent** into the surface (`color-mix(… var(--acc) …)`), which
+   desaturated the blue straight back to grey — the var was right, the rendered colour was not. Both
+   surfaces are now stated in blue directly; gold stays on icons, the active tab and the inset ring.
+2. On the inverted palette the **control chrome went invisible** — rail buttons, tier tabs, Glossary/Gilded,
+   close and search all read `--bg2`, which was still light, so a pale button carried the new pale text.
+   `--bg2`/`--bg3` are now dark too. Sampled after the fix: rail button `#0f5f7a` bg on `#eef5fd` text.
+
+**Window size.** The `1700x1000` caps were what actually limited it on a large display, not the viewport
+percentages — raised to `2300x1450`, so it now fills **95% x 93%** of the viewport (measured) as in the
+owner's mock.
+
+**Card scale.** `--ch` (the card metric that drives the whole grid) `clamp(212px, 26vh, 276px)` →
+`clamp(233px, 28.6vh, 304px)`, plus the header title/sub sized to match. The panel box is already
+viewport-capped, so scaling the card metric is what actually reads as "bigger".
+
+Verified live: 0 overlapping cells at the new size (the spacing fix holds), `--card` resolves to `#d6e2f1`,
+surfaces render blue rather than grey.
+
+## 2026-07-20 (compendium polish + Zyff)
+
+### tweak(ui/content): Compendium polish, the Uron/Zyff multiplier split, and Zyff the Betrayer
+
+**Compendium** (three owner notes):
+- The first row's TIER pill was clipped — it rides ABOVE the archbox, so the grid's flat `24px` top padding
+  never accounted for it. Top padding is now `--ccw * 0.17`, derived from the card metric so it scales with
+  the cards instead of being a magic number.
+- **Heroes wear the dark-glass panel** now, matching the minion text drawer. The cream `--card` panel read
+  as a different component sitting in the same grid; colours mirror `.card.compact.showtext .drawer`.
+- Row gap `30px -> 42px` for the cards that were still tight.
+
+**The multiplier split.** Uron gave up Shouts, Echoes and Slaughters, keeping Rally / End of Turn / Start of
+Combat — the combat-side families. **Zyff, the Betrayer** (T7 neutral 6/6) takes Shouts + Echoes. Both are
+non-stacking, so a Uron and a Zyff cover five families between them without treading on each other, and
+Slaughter now has NO multiplier at all — the family stays supported, nothing declares it. Because the
+system is data-driven, this was a `families` edit on two cards and zero engine changes.
+
+Zyff stacks with the existing multipliers exactly as any pair does: Sylus (stacking) sums with it for +2
+Echoes, Drakko (non-stacking) takes the best single contribution on Shouts.
+
+**Stats note:** Zyff's tier/tribe/stats were not specified — T7 neutral 6/6 is my call, sized just under
+Uron's 7/7 since its two families are the higher-frequency ones. Flagged for the owner to re-price.
+
+Verified: 1257 tests (3 new — Zyff's coverage, Uron's narrowed coverage, and the pair together), typecheck,
+lint, build:web green; `typecheck:web` at its 48-error baseline. Live: no tier pill clipped above the grid,
+heroes render on dark glass, Brackus reads correctly in the hero list.
+
+## 2026-07-20 (compendium spacing)
+
+### fix(ui): the Compendium grid collided with itself — put the text drawer in flow there
+
+Owner report: the Compendium was "pretty busted". Tier 7 was the worst case — cards' text panels crashed
+straight through the row below them.
+
+**Cause.** The card's text drawer is `position: absolute` (owner call 2026-07-19: in centered contexts —
+Discover, inspect, rows — an in-flow drawer grew the card element and moved the *frame*, which had to stop).
+The Compendium compensated with a fixed row gap of `--ch * 0.45` — a guess at the panel's height. Any card
+whose text ran longer than that guess overflowed into the next row, which is why Tier 7 looked worst: Uron,
+Amun Rab and Anubis carry the longest text in the game.
+
+**Fix, scoped to the Compendium only.** It is a BROWSING grid, not a centered context, so the drawer sits
+**in flow** there — rows then size to the real panel height and can never collide, however long the text.
+The absolute positioning everywhere else is untouched, so the 2026-07-19 behaviour this rule deliberately
+does not undo stays intact. With the guess gone, the row gap drops to a normal `30px` and cells align to
+`start`.
+
+Verified in the browser by measuring, not by eye: for every pair of cells, do their boxes intersect?
+
+```
+tier 7 (the reported case)   8 cells, 0 overlaps   (heights 325-391px, genuinely varying)
+all tiers                  128 cells, 0 overlaps
+```
+
+The varying heights are the point — rows now measure their content instead of assuming one number.
+
+## 2026-07-20 (mode picker)
+
+### feat(ui): a mode screen behind PLAY — Ascent / Rift / Practice, and rifts become OPT-IN
+
+PLAY no longer starts a run directly; it opens a three-card picker.
+
+- **Ascent** — the scored 17-round climb, **unmodified**
+- **Rift** — the same climb WITH the active rift's rules (the card shows its live name + blurb, and is
+  mounted only while a rift is actually enabled)
+- **Practice** — any hero, unlimited Resolve, longer shop; unscored. Promoted out of the secondary link row.
+
+**The behavioural change: rifts are now opt-in** (owner call). `createRun` used to pin `activeRift()` onto
+*every* run; it now pins only for `mode === 'rift'`. So a plain Ascent run no longer receives Summit's +10
+Armor or the Tier 7 shop — that is a deliberate change to what #575 shipped, and the reason the mode
+picker exists. Rift runs still PIN at creation, so a saved or replayed rift run keeps its rules after the
+global switch flips off.
+
+`RunMode` (`'ascent' | 'rift' | 'practice'`) is now a named type in `@game/sim` rather than an inline union
+repeated in three places, and the store gains `startRift`.
+
+The picker reads the LIVE registry via `activeRift()` — correct here precisely because this is a pre-run
+choice, not a pinned run; every in-run surface still reads `run.rift`.
+
+**Two leaks the opt-in switch created, both fixed.** `HeroSelect` telegraphed the rift from the live
+registry unconditionally, so an **Ascent** run still showed "Rift: Summit" on the hero screen — promising a
+modifier the run would never get. It now gates on `mode === 'rift'`. And auditing every mode check turned up
+the mirror problem: the Renown/Oath telegraph was gated on `mode === 'ascent'`, so a **rift** run hid its
+Oath despite being fully scored. Every other mode check in the codebase is `!== 'practice'` (damage on loss,
+course completion, telemetry, the shop timer), which means a rift run already behaved like Ascent
+everywhere else — so that gate now matches at `!== 'practice'` too.
+
+**Styled in the HERO-SELECT idiom** (owner request): a full-screen view over the title art rather than a
+modal, with big framed cards in a row — a 245px gold-framed tile, a name pill eclipsing its TOP edge, a tag
+pill eclipsing its BOTTOM edge, and the description fading in on hover. Metrics deliberately mirror
+`.herocard.big` (frame size, 3px gold border, pill radii, the `translateY(-6px)` hover lift, the shared
+`--hs-zoom`) so the two screens read as one system. The modes have no art, so each frame carries a themed
+radial gradient plus a large emblem: the crest for Ascent, the conic swirl for Rift, the helm for Practice.
+
+One defect caught in the browser rather than in code review: the frame initially carried `overflow: hidden`,
+which **clipped the pills in half** — they are positioned to overhang the frame's edges, which is the whole
+trick. The hero card's frame has no such clip, and the gradient respects the border-radius anyway.
+
+PERF: the rift emblem's swirl is a looping animation, so per `docs/performance.md` it animates **transform
+only** (a rotating conic layer), reusing the Rift button's `riftswirl` keyframes.
+
+**A pre-existing test caught the change**, as intended: `createRun pins the active rift` asserted the old
+always-pin behaviour. It now asserts the real contract — the pin needs BOTH an enabled entry AND `rift`
+mode. Three new tests pin the opt-in rule, and drive the registry explicitly (`withSummit`) so they do not
+depend on which rift happens to ship enabled.
+
+Verified: 1235 tests (3 new), typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+Live, driving the real UI: PLAY opens the picker, the Rift card shows "SUMMIT" with its blurb, and each
+mode creates the right run —
+
+```
+Ascent    mode ascent    rift null      armor 8
+Rift      mode rift      rift summit    armor 18
+Practice  mode practice  rift null      armor 12
+```
+
+## 2026-07-20 (Tier 7 art)
+
+### art: wire all eight Tier 7 minion arts
+
+Thundeer, Amun Rab, Attachment Conductor, Mauron, Anubis, Salvatore McKlusky, Lab Experiment and Uron,
+Oathbringer, through the standard pipeline (512px cap, WebP q85, source PNG deleted).
+
+```
+amunrab              2250KB ->  53KB     mauron        2287KB ->  58KB
+anubis               2171KB ->  57KB     salvatore     2032KB ->  41KB
+attachmentconductor  2779KB ->  89KB     thundeer      2098KB ->  51KB
+labexperiment        2410KB ->  75KB     uron          2101KB ->  44KB
+```
+
+17.7MB -> 0.46MB. Every source filename matched its card, so nothing was inferred from an un-attributed
+file. **One spelling note:** the master is `SalvatoreMcKluskey.png` while the card is "Salvatore
+McKlusky" (no second `e`) — unmistakably the same character, so it was wired, but flagging in case the
+card name should follow the art.
+
+Verified in the browser after a dev-server restart: all eight serve as `image/webp` at 512x512 and render
+correctly.
+
+## 2026-07-20 (trigger multipliers + Uron)
+
+### refactor(core)!: one data-driven trigger-multiplier system, and Uron, Oathbringer
+
+Every trigger multiplier used to be a hardcoded `cardId === '…'` check in a DIFFERENT subsystem, with
+stacking rules that disagreed and no single place to read them — the tech debt `docs/roadmap.md` flagged.
+Uron multiplies SIX families at once, which made generalising cheaper than adding six more branches.
+
+`CardDef.triggerMultiplier` now declares `{ families, extra, stacks? }`, and `extraTriggerFires(family,
+minions, getCard)` in `@game/core` is the single resolver. Migrated, **preserving each card's existing
+semantics exactly**:
+
+| Card | Families | Stacks |
+|---|---|---|
+| Sylus the Reaper | deathrattle | **yes** (sums across copies) |
+| Drakko the Drummer | battlecry | no (best copy) |
+| Chronos | endOfTurn | no |
+| **Uron, Oathbringer** (T7) | all six | no |
+
+Four call sites moved onto it: `playerEchoExtras` (simulate), `drakkoRepeats` (factories), and
+`drummerRepeats` / `chronosRepeats` + the Graverobber Echo path (sim's recruit). `bestCopyRepeats` became
+`familyRepeats`. The suite stayed green at 1245 across the whole migration, which is the evidence the
+refactor is behaviour-preserving.
+
+Stacking and non-stacking contributions combine **additively with each other** (a Sylus and a Uron both
+grant +1 on Deathrattles = +2) while keeping their own rule internally.
+
+**Three families had no machinery at all** — Rally, Slaughter and Start of Combat — so Uron needed them
+wired. They deliberately do NOT re-emit on the bus: a second `bus.emit` would also re-tick quest tallies
+and re-notify broadcast watchers. Only the minion's OWN effects repeat.
+
+**A real bug the tests caught.** The Rally repeat first keyed on `effect.on === 'onAttack'`, which covers
+both true Rallies AND broadcast ally-attack watchers — so Uron was inflating **Crypt Drake's** every-2-
+attacks counter, a card it has no business touching. It now gates on the `'RL'` keyword. The test that
+found it asserts Crypt Drake's payout count is *unchanged* with Uron on board.
+
+**A test-methodology note.** That same test initially failed for a bogus reason: adding Uron changes board
+SIZE, which changes fight length, which changes how many ally attacks Crypt Drake sees. The control now
+swaps in Mysterious Joker — a same-tier neutral whose only effect is an onPlay Discover, so it is inert in
+combat — keeping board size identical. Without that, the comparison measured board size, not Uron.
+
+**Not migrated: Yazzus.** Its "targeted spells cast twice" is a spell-CAST count (`spellCasts(def)`), not a
+minion trigger family, so folding it in would have conflated two different things. Left as-is, deliberately.
+
+Verified: 1255 tests (10 new — 6 resolver unit tests pinning the stacking rules, 4 end-to-end combat),
+typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline. Live: Uron reads +1 on all six
+families, two Urons still +1, Sylus×2 = +2, Sylus+Uron = +2 (additive), Drakko+Uron = +1 (best only).
+
+## 2026-07-20 (Tier 7 minions)
+
+### feat(content): the seven Tier 7 (Summit) minions
+
+Thundeer, Amun Rab, Attachment Conductor, Mauron, Anubis, Salvatore McKlusky and Lab Experiment — the
+capstone minions for the Summit rift, in a new `cards/set1/tier7.ts`.
+
+**Gating is the tier and nothing else.** `availableOffers` already filters `card.tier <= state.tier`, and
+only Summit lifts the ceiling to 7, so no new "not in shop" flag was needed. Verified live: 40 rolls at
+tier 6 offered **zero** Tier 7 cards, while 40 rolls at tier 7 offered 6 of the 7 (Mauron is a Dragon and
+that run's tribes excluded it). They still arrive through anything naming a tier explicitly — a quest/rune
+Discover, a hero grant, a rift — which is the intended back door.
+
+`TIER7` is appended **last** in `sets.ts`: declaration order drives seeded pool picks, and every Tier 7
+card filters out of any `tier <= state.tier` pool below 7, so existing seeds replay identically (the full
+suite stayed green through the content addition, which is the proof).
+
+**Engine work this needed** — every one of the seven required a new primitive:
+
+- `onAllyTribeAttackBuffSelf` (Thundeer) — an ally of a tribe attacks -> buff self, improving per proc via
+  the standard `summonBonus` channel. `'EG'` (Engraved) is what makes the gain permanent; the factory only
+  supplies the growth.
+- `deathrattleBuffImpsImproving` (Amun Rab) — `deathrattleBuffImps` with an improve step.
+- `deathrattleGrantRebornAll` + `deathrattleCastTribeAttack` (Anubis) — the existing Reborn grant hits ONE
+  candidate per rep, and the Lantern cast only existed as Watcher's Rally.
+- `onSellDiscover` (Salvatore) — `onSell` existed only as `onSellGainGold`.
+- `deathrattleGainRandomMinion` (Lab Experiment) — minions only, unlike `endOfTurnGrantRandomTierCard`,
+  which also draws spells.
+- **`attackImmuneAlways`** (Mauron) — a new `CardDef` field. `attackImmuneTurns` is a **depleting counter**
+  (Bounty Bot spends one per swing), so "Immune while attacking" could not be expressed by it. The flag
+  seeds `attackImmuneLeft` to 1 and the swing site skips the decrement, which keeps the per-instance value
+  **JSON-safe** — an `Infinity` sentinel would not survive a save round-trip.
+- **Gilded Discover** — `DiscoverSpec` gains `golden`, carried by a new `RunState.discoverGolden` that
+  mirrors the `discoverLockTier` lifecycle exactly (set by `openDiscover`, consumed on take), so a queued
+  mix of gilded and normal Discovers cannot leak into each other. The pick is gilded through the existing
+  `gildMinion`, the same transform a triple applies.
+- **Attachment Conductor** multiplies welds inside `weldMagnetic`, covering the host, the Cling improve and
+  the Beatbot mirror. Best-copy-counts (Drakko's rule) so two Conductors do not silently 4x.
+
+`Tier` in `@game/core` was still `1..6` — a ceiling the earlier tier-7 survey missed, since the zod schema
+had been the only thing rejecting a 7.
+
+**On the Mauron test.** My first two attempts asserted "Mauron never dies", which is simply false — immunity
+stops retaliation, not the enemy's own swings, and a Taunt wall soaking those eventually died. The test now
+asserts the real contract (no damage on any step where Mauron is the attacker) and carries a **control**: the
+identical fight with a non-immune body, which must show those hits. Without the control the assertion could
+have passed vacuously.
+
+Verified: 1245 tests (13 new), typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+`dump-cards` (125 minions) and `pool` regenerated — confirmed **no Tier 7 card entered the opponent pool**.
+Live: Conductor doubled a weld (host 2/2 -> 4/4, `attachments=2`), Salvatore sold into a Tier 6 Discover with
+the second queued behind it, no error boundary.
+
 ## 2026-07-20 (tier 7 + Summit rift)
 
 ### feat(sim/ui): Tier 7 behind the Summit rift, +10 Armor, and a Rift button

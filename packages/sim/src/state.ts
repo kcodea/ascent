@@ -157,6 +157,10 @@ export interface BoardCard {
    *  Setlist Discovers on turn 1). Only THIS card is gated — the rest of the hand plays normally. The play
    *  action no-ops while `state.tier < lockedUntilTier`; the UI shows it locked. Cleared once it unlocks. */
   lockedUntilTier?: number;
+  /** Brackus's Summit pick: unplayable until the run's cumulative `goldSpent` reaches this. The `play`
+   *  action no-ops below it and the UI shows it locked — the same contract as `lockedUntilTier`, on a
+   *  different meter. Reuses the existing run-cumulative `goldSpent` (no new counter needed). */
+  lockedUntilGoldSpent?: number;
   /** Ritualist: the accrued +A/+H its escalating End-of-Turn buff currently grants (grows by its `step` each
    *  trigger). Per-instance; drives `buffFodderImpsImproving`. Default/absent = 0. */
   eotBonus?: number;
@@ -196,9 +200,18 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  *      `topTierFirst` — the ONE high-tier exception, set only by the golden/triple reward ("peek one tier
  *      up"), which fills from the top tier down.
  */
+/**
+ * How a run was started, chosen on the mode screen behind PLAY.
+ *  - `ascent`   the scored climb, UNMODIFIED (no rift)
+ *  - `rift`     the same climb WITH the currently active rift's rules (opt-in as of the mode picker)
+ *  - `practice` the same course, any hero, unlimited Resolve, longer shop timer — unscored
+ * Pinned onto the run at creation; `createRun` reads it to decide whether to adopt `activeRift()`.
+ */
+export type RunMode = 'ascent' | 'rift' | 'practice';
+
 export type DiscoverSpec =
   | { kind: 'spell' }
-  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number }
+  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean }
   // A Discover from an EXPLICIT card-id pool (Rune of the Second Path's Greater-Quest reward minions).
   | { kind: 'pool'; ids: string[] };
 
@@ -241,10 +254,11 @@ export interface BuffFxEvent {
 
 export interface RunState {
   seed: number;
-  /** Game mode: 'ascent' (the scored climb) or 'practice' (the SAME course — any hero, unlimited health,
+  /** Game mode — see `RunMode`.
+   *  'ascent' (the scored climb) or 'practice' (the SAME course — any hero, unlimited health,
    *  3× shop timer — so it reads identically to Ascent; ends at `courseRounds` regardless of W/L, unscored).
    *  Absent = 'ascent'. */
-  mode?: 'ascent' | 'practice';
+  mode?: RunMode;
   /** Current wave (Altitude). Score = waves survived. */
   wave: number;
   /** Result of each combat resolved this run, in order — drives the end-screen W-L-W summary. */
@@ -697,6 +711,14 @@ export interface RunState {
    *  `lockedUntilTier`). Set by `openDiscover` from the spec's `lockTier`, read + cleared when the pick
    *  resolves. Undefined for every normal Discover. */
   discoverLockTier?: number;
+  /** The OPEN Discover hands its pick over GILDED (a golden Salvatore McKlusky). Set by `openDiscover` from
+   *  the spec and consumed when the pick is taken — exactly the `discoverLockTier` lifecycle, so a queued
+   *  mix of gilded and normal Discovers can't leak into each other. */
+  discoverGolden?: boolean;
+  /** The OPEN Discover hands its pick over locked until this much Gold has been spent this RUN (Brackus).
+   *  Mirrors `discoverLockTier`'s lifecycle: set by `openDiscover` from the spec, consumed on take. */
+  discoverLockGold?: number;
+
   /** Discovers queued behind the open one (`discover`). When a pick resolves, the next spec is shifted
    *  off and opened; `discover` only clears when this is empty. Fed by `queueDiscover` — e.g. a golden
    *  Black Belt Brian queues a 2nd spell Discover, Yazzus multiplies Help Wanted / Sprout, and a
@@ -800,14 +822,17 @@ export const metLine = (status: LineStatus): boolean =>
 /** Create a fresh run from a seed. Deterministic: same seed → same opening. `line` is the run's par (the
  *  rating system passes the player's rating-derived Line; defaults to CONFIG.defaultLine so callers that
  *  don't track rating — tests, tools, the boot throwaway — keep the historic mid-tier Line 9). */
-export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 'ascent' | 'practice' = 'ascent', line: number = CONFIG.defaultLine): RunState {
+export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: RunMode = 'ascent', line: number = CONFIG.defaultLine): RunState {
   const tribes = selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)));
   // The hero's Resolve is the run's starting (and max) HP; Armor is extra effective HP layered on top.
   const hero = getHero(heroId);
   const startResolve = hero.resolve;
   // Pin the rift ONCE and derive from that same value, so the Armor bonus and `state.rift` can never
   // disagree (calling activeRift() twice would also read the registry twice).
-  const pinnedRift = activeRift()?.id ?? null;
+  // Rifts are OPT-IN as of the mode picker: only a RIFT run adopts the active rift, so a plain Ascent
+  // (or Practice) climb is unmodified. Still pinned at creation, so a saved/replayed rift run keeps its
+  // rules after the global switch flips off.
+  const pinnedRift = mode === 'rift' ? (activeRift()?.id ?? null) : null;
   const riftArmor = RIFT_BONUS_ARMOR[pinnedRift as RiftId] ?? 0; // Summit: +10 to every hero
   const state: RunState = {
     seed,
@@ -897,6 +922,12 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     for (const tier of [6, 4, 2]) {
       queueDiscover(state, { kind: 'minion', tier, exactTier: tier, lockTier: tier });
     }
+  }
+  // Brackus's Summit: one Tier 7 Discover at run start, locked in hand until 70 Gold has been spent this
+  // run. `exactTier: 7` is a FIXED-tier Discover, so it is honoured with no rift active — that back door is
+  // the whole point of the card (Tier 7 is otherwise unreachable outside a rift).
+  if (heroId === 'brackus') {
+    queueDiscover(state, { kind: 'minion', tier: 7, exactTier: 7, lockGold: 70 });
   }
   return state;
 }

@@ -35,15 +35,15 @@ export interface GlowConfig {
 }
 
 const DEFAULTS: GlowConfig = {
-  lineBlur: 12,
+  lineBlur: 0,
   lineAlpha: 1,
-  lineColor: '#00ffd5', // owner-tuned bright line
-  bloomBlur: 4,
-  bloomAlpha: 0.4,
-  bloomColor: '#00fbff', // owner-tuned bloom
-  bloomStrength: 6,
-  width: 1.03,
-  height: 1.015,
+  lineColor: '#ffffff', // owner-tuned bright line (white, 2026-07-19 — was teal #00ffd5)
+  bloomBlur: 3,
+  bloomAlpha: 0.89,
+  bloomColor: '#ffffff', // owner-tuned bloom (white — was cyan #00fbff)
+  bloomStrength: 3,
+  width: 1.045,
+  height: 1.03,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */

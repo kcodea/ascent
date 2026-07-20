@@ -165,6 +165,13 @@ boots clean in the browser with no error boundary and both new counters reportin
 
 ## 2026-07-19 (set 2 empty)
 
+### tweak(ui): hover glow re-tuned — crisp white rim + tight white bloom (was teal)
+
+Owner's 🔆 Glow-tuner export baked as the shipped defaults, in BOTH homes (`glowConfig.ts` `DEFAULTS` + the
+`--hg-*` CSS fallbacks in styles.css, which production renders from): line blur 12→**0** (crisp rim), line colour
+teal `#00ffd5`→**white**; bloom 4px@0.4 ×6 → **3px@0.89 ×3, white**; shape 1.03/1.015 → **1.045/1.03**. Reads as
+a clean white edge-light hugging the frame silhouette instead of the teal halo. Verified: typecheck + build green.
+
 ### fix(ui): card info panel top is ANCHORED — longer text grows the panel downward only
 
 The detached drawer was in normal flow, so a longer rules text grew the whole card element — and centered

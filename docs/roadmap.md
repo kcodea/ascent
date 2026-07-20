@@ -76,6 +76,11 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
+- **Finish the quest/rune objective-wiring audit.** 2026-07-21p fixed the recruit-phase TRIGGER
+  tallies (Shout/Echo/EoT) and the `replayBattlecry` callers. Still to sweep: the other ~17 objective events
+  (`buy`, `spendGold`, `summonCombat`, `playAttachment`, `consumeFodder`, …) against every quest/rune reward
+  that can fire them INDIRECTLY — the failure mode is always "the effect fired, the tally didn't see it".
+
 
 - **Set 2 content.** Foundation is in (`docs/card-sets.md`): author cards in `packages/content/src/cards/set2/`,
   list them in `SETS.set2.own`, trim the inherited set-1 pool with `excludes`. Before flipping it live, run

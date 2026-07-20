@@ -2728,7 +2728,10 @@ function playedShoutRepeats(state: RunState, def: CardDef): number {
     // Legacy Warm Embers charge (the `shoutDouble` reward), while any remain.
     if ((state.shoutDoubleCharges ?? 0) > 0) { state.shoutDoubleCharges! -= 1; n += 1; }
   }
-  state.lastShoutFires = isShout ? n : 0; // record for the reducer's Shout quest tick (counts triggers)
+  // ACCUMULATE, don't assign: the reducer zeroes this at the start of every action, and a single action can
+  // fire Shouts from more than one path (a play PLUS an Echoing Roar re-trigger). Assigning meant the last
+  // writer won and the rest vanished from the tally.
+  if (isShout) state.lastShoutFires = (state.lastShoutFires ?? 0) + n;
   return n;
 }
 
@@ -2898,6 +2901,12 @@ export function replayBattlecry(state: RunState, card: BoardCard): boolean {
   state.karwindFlash = [];
   const ctx = makeContext(state);
   const repeats = drummerRepeats(state);
+  // A REPLAYED Shout is still a Shout trigger — it must advance `shout` objectives (Echoing Roar, Tooth and
+  // Tempo, The Author's Hand) exactly like a played one. Every re-trigger path routes through here — Echoing
+  // Roar's End-of-Turn reward, the Resonance spell, Myra's hero power — and none of them counted, so a quest
+  // whose own reward re-fires Shouts couldn't advance itself (owner report 2026-07-21). Same class as the
+  // Uron rally fix in #594: the effect re-fired but the tally never saw it.
+  state.lastShoutFires = (state.lastShoutFires ?? 0) + repeats;
   for (const effect of onPlay) {
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
@@ -3187,7 +3196,9 @@ export function applyEndOfTurn(state: RunState): void {
   for (const eff of state.questRecurringEndOfTurn ?? []) {
     for (let r = 0; r < repeats; r++) { runRecurringEndOfTurn(state, eff); fires++; }
   }
-  state.lastEotFires = fires;
+  // Accumulate for the same reason as `lastShoutFires` — the reducer zeroes it per action, and an action can
+  // reach applyEndOfTurn more than once (a hero power that procs an End of Turn, then the turn's own).
+  state.lastEotFires = (state.lastEotFires ?? 0) + fires;
 }
 
 /** One quest-granted recurring End-of-Turn effect. `triggerLeftmostShout`: re-fire your leftmost Battlecry

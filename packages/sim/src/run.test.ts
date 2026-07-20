@@ -49,6 +49,7 @@ import {
   isTribe,
 } from './index';
 import { magnetizesTo } from './reducer';
+import { replayBattlecry } from './recruit'; // not re-exported from the package index — internal on purpose
 import type { BoardMinion } from '@game/core';
 import { applyEndOfTurn, applyGoldSpent, conjuredStats, implosionCasts, spellCasts, spellCostReduction, weldMagnetic } from './recruit';
 import { rollShop } from './shop';
@@ -2373,6 +2374,34 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'b1')!.attack).toBe(2 + 2); // 4
     s = reduce(s, { type: 'play', uid: 'b2' }); // next Beast → buff improved to +4/+4
     expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 4); // 11
+  });
+
+  it('a RE-TRIGGERED Shout counts toward the Shout tally (Echoing Roar / Resonance / Myra)', () => {
+    // Owner report 2026-07-21: Echoing Roar's reward re-fires your leftmost Shout at End of Turn, but that
+    // trigger never advanced `shout` objectives — so the quest could not advance itself. Every re-trigger path
+    // routes through `replayBattlecry` (Echoing Roar's reward, the Resonance spell, Myra's hero power) and none
+    // of them touched the tally the reducer reads. Same class as the Uron rally fix (#594): the effect
+    // re-fired, the tally never saw it. Asserted at the tally, which is where the bug lived.
+    const s: RunState = {
+      ...createRun(1), embers: 0, shop: [], hand: [],
+      board: [{ uid: 'cw', cardId: 'cinder', tribe: 'dragon', attack: 4, health: 5, keywords: [], golden: false }],
+    };
+    s.lastShoutFires = 0; // the reducer zeroes this at the start of every action
+    const fired = replayBattlecry(s, s.board[0]!);
+    expect(fired).toBe(true);
+    expect(s.lastShoutFires).toBe(1); // was 0 before the fix — the replay never counted
+  });
+
+  it('a play and a re-trigger in the SAME action both count (the tally accumulates)', () => {
+    // The tally used to be ASSIGNED by the play path, so a later writer in the same action clobbered it.
+    // Accumulating is what lets a played Shout and an Echoing Roar re-fire both land.
+    const s: RunState = {
+      ...createRun(1), embers: 0, shop: [], hand: [],
+      board: [{ uid: 'cw', cardId: 'cinder', tribe: 'dragon', attack: 4, health: 5, keywords: [], golden: false }],
+    };
+    s.lastShoutFires = 1;                 // pretend a play already counted one this action
+    replayBattlecry(s, s.board[0]!);      // …then a re-trigger fires
+    expect(s.lastShoutFires).toBe(2);     // both counted, rather than the second overwriting the first
   });
 
   it('spellPowerFxSeq fires when SPELL POWER rises — incl. Health-only (Cinderwing Matron)', () => {

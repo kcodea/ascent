@@ -3,6 +3,36 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21p (re-triggered Shouts count)
+
+### fix(sim): a REPLAYED Shout advances Shout objectives; tallies accumulate
+
+Owner report: Echoing Roar wasn't counting toward Shout triggers. Its own reward re-fires your leftmost
+Shout at End of Turn, so the quest could not advance itself.
+
+**Cause — the same class as the Uron rally fix (#594): the effect re-fired, the tally never saw it.**
+`lastShoutFires` (which the reducer reads to advance `shout` objectives) was written ONLY by the play path.
+Every re-trigger path routes through `replayBattlecry` — Echoing Roar's End-of-Turn reward, the Resonance
+spell, Myra's hero power — and none of them touched it. All three were silently uncounted, not just
+Echoing Roar.
+
+**Second, latent bug found while fixing it:** the play path ASSIGNED (`= isShout ? n : 0`) rather than
+accumulating. The reducer already zeroes the field at the start of every action, so assignment bought
+nothing and meant the LAST writer in an action won — a played Shout plus a re-triggered one recorded one,
+not two. `lastEchoFires` already accumulated (`+= 1 + reaper`); Shout and End-of-Turn were the odd ones out.
+Both now accumulate, matching Echo.
+
+Tests assert at the tally, which is where the bug lived, and **both were confirmed to fail on the pre-fix
+code** (`expected +0 to be 1`, `expected 1 to be 2`) — regression guards, not restatements.
+
+**Audit status — PARTIAL, and the owner asked for a full one.** This pass covered the recruit-phase TRIGGER
+tallies (Shout / Echo / End-of-Turn) and the three `replayBattlecry` callers. NOT yet swept: the remaining
+~17 objective events (`buy`, `spendGold`, `summonCombat`, `playAttachment`, `consumeFodder`, …) against every
+quest and rune reward that could fire them indirectly. That's a systematic content-wide audit and is queued
+rather than half-claimed.
+
+Verified: typecheck + lint + **1276** tests + `build:web` green.
+
 ## 2026-07-21o (spell power FX — shop half)
 
 ### feat(ui): the spell-power flourish — rising arrows, origin blast, floating power number

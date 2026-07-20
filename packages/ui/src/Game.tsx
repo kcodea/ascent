@@ -14,6 +14,7 @@ import { Inspect } from './Inspect';
 import { MinionBook } from './MinionBook';
 import { EscMenu } from './EscMenu';
 import { DevMenu } from './DevMenu';
+import { SceneBuilder } from './SceneBuilder';
 import { BalancePanel } from './BalancePanel';
 import { PerfHud } from './PerfHud';
 import { perfMonitor, perfEnabledByFlag } from './perfMonitor';
@@ -30,6 +31,7 @@ import { useGame } from './store';
  *  game-over overlay layer on top. The Esc menu drives the display-resolution scaler. */
 export function Game() {
   const phase = useGame((s) => s.run.phase);
+  const sandbox = useGame((s) => s.run.sandbox);
   const showBook = useGame((s) => s.showBook);
   // Recruit stays mounted across phases (combat plays out in place), so its closures/refs live for the whole
   // run. Starting a NEW run (pickHero / newRun → a fresh seed+hero) must give it a clean slate — otherwise a
@@ -177,6 +179,8 @@ export function Game() {
       {menuOpen && <EscMenu onClose={() => setMenuOpen(false)} />}
       {/* DEV-only tuning menu — one 🛠️ button opening every live tuner (stripped from production). */}
       {import.meta.env.DEV && <DevMenu />}
+      {/* Scene Builder control panel — mounts alongside the live sandbox run (its own title-launched mode). */}
+      {import.meta.env.DEV && sandbox && <SceneBuilder />}
       {/* Frame-health HUD. Ships in production but stays dormant unless opted into (?perf=1 /
           localStorage / the dev menu) — a slowness report is only trustworthy against the prod build. */}
       {perfOn && <PerfHud onClose={() => setPerfOn(false)} />}

@@ -42,6 +42,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const startAscent = useGame((s) => s.startAscent);
   const startPractice = useGame((s) => s.startPractice);
   const startRift = useGame((s) => s.startRift);
+  const startSceneBuilder = useGame((s) => s.startSceneBuilder);
   const openLeaderboard = useGame((s) => s.openLeaderboard);
   const openRankings = useGame((s) => s.openRankings);
   const openBalance = useGame((s) => s.openBalance);
@@ -151,6 +152,12 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           <button onClick={() => { sfx.pulse(); toggleBook(); }} title="Compendium — browse every card">Compendium</button>
           <span className="tsdot">·</span>
           <button onClick={() => { sfx.pulse(); openBalance(); }} title="Balance Report — real player offer / pick / win rates">Balance Report</button>
+          {import.meta.env.DEV && (
+            <>
+              <span className="tsdot">·</span>
+              <button onClick={() => { sfx.pulse(); startSceneBuilder(); }} title="Scene Builder — dev sandbox: any board, any enemy, unlimited gold">Scene Builder</button>
+            </>
+          )}
         </div>
       </div>
 

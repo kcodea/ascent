@@ -525,7 +525,8 @@ export function Recruit() {
   // at 21s instead). Only wave 1 changes: wave 2+ (22s+) and practice (×3) already start above the window.
   // Rounds 6+ get a flat +6s on top of the +4s/wave ramp, and rounds 12–17 a further +12s ON TOP OF the
   // 80s cap (owner 2026-07-16 ×2): late boards have the most to think about. w12 80s, w13 84s … w15+ 92s.
-  const turnSeconds = Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' ? 3 : 1));
+  // Sandbox (Scene Builder): a huge fixed clock so the turn never times out while you build.
+  const turnSeconds = run.sandbox ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' ? 3 : 1));
 
   // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).

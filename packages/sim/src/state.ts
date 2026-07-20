@@ -259,6 +259,10 @@ export interface RunState {
    *  3× shop timer — so it reads identically to Ascent; ends at `courseRounds` regardless of W/L, unscored).
    *  Absent = 'ascent'. */
   mode?: RunMode;
+  /** Scene Builder sandbox (dev). Runs on the `practice` mode mechanics (unscored, generous timer) but is
+   *  launched as its own thing from the title, and mounts the Scene Builder control panel. Additive flag so
+   *  it needs no new RunMode + no mode-switch audit. Absent = a normal run. */
+  sandbox?: boolean;
   /** Current wave (Altitude). Score = waves survived. */
   wave: number;
   /** Result of each combat resolved this run, in order — drives the end-screen W-L-W summary. */

@@ -225,6 +225,10 @@ interface GameStore {
   startPractice: () => void;
   /** Start a RIFT run — the same climb, with the active rift's rules. */
   startRift: () => void;
+  /** Launch the Scene Builder sandbox (dev) — a fresh run flagged `sandbox`, bypassing the hero picker, with
+   *  a big Gold float. Its own entry from the title, not a mode in the picker. Optionally pick the hero (the
+   *  panel's hero dropdown re-launches to swap, so the hero's createRun setup runs). */
+  startSceneBuilder: (heroId?: string) => void;
   /** Return to the title screen (from the end screen). */
   openTitle: () => void;
   /** The Hall of Champions overlay (latest victory runs + their warbands) is open. */
@@ -578,6 +582,14 @@ export const useGame = create<GameStore>((set, get) => ({
   startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
   startPractice: () => set({ showTitle: false, pendingMode: 'practice', heroChoices: HEROES.map((h) => h.id), avatarPickerOpen: false }),
   startRift: () => set({ showTitle: false, pendingMode: 'rift', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
+  startSceneBuilder: (heroId = 'warden') =>
+    set(() => {
+      // Sandbox runs on `practice` mechanics (unscored, generous timer) but is flagged `sandbox` and skips the
+      // hero picker — it's a testing rig, not a scored climb. Re-creating the run per hero runs that hero's
+      // own createRun setup (Chaos / Disco Dan / Brackus openers). 999 Gold to start.
+      const run: RunState = { ...createRun(randomSeed(), heroId, 'practice'), sandbox: true, embers: 999, tier: 1 };
+      return { run, savedRun: null, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [] };
+    }),
   // Quitting mid-turn: persist first (while `showTitle` is still false, so flushSave's guard lets it through),
   // otherwise the turn in progress would roll back to the last phase boundary on Continue.
   openTitle: () => { get().flushSave(); set({ showTitle: true, heroChoices: null }); },

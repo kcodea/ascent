@@ -2424,6 +2424,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     state.discover = picks;
     state.discoverLockTier = undefined;
     state.discoverGolden = undefined;
+    state.discoverLockGold = undefined;
   } else {
     offerDiscover(state, spec.tier, {
       tier: spec.exactTier,
@@ -2435,8 +2436,8 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     });
     // Disco Dan's Setlist: carry the lock tier onto the open offer so the resolved pick becomes a
     // locked hand card (only set if the offer actually opened).
-    if (state.discover) { state.discoverLockTier = spec.lockTier; state.discoverGolden = spec.golden; }
-    else { state.discoverLockTier = undefined; state.discoverGolden = undefined; }
+    if (state.discover) { state.discoverLockTier = spec.lockTier; state.discoverGolden = spec.golden; state.discoverLockGold = spec.lockGold; }
+    else { state.discoverLockTier = undefined; state.discoverGolden = undefined; state.discoverLockGold = undefined; }
   }
 }
 

@@ -45,6 +45,10 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_spark_permit', name: 'Spark Permit', tribe: 'neutral', tier: 'lesser', objective: { event: 'rally', count: 3 }, reward: { kind: 'rallyRepeat', scope: 'firstEachCombat' } },
   // NEUTRAL "Rulebreaker" set (owner spec 2026-07-08): economy / spell / rule-bending payoffs.
   { id: 'q_shop_license', name: 'Shop License', tribe: 'neutral', tier: 'lesser', objective: { event: 'spendGold', count: 20 }, reward: { kind: 'gainMaxGold', amount: 4 } },
+  // Teleport Summit — the quest door to Tier 7. `reward.tier` is AUTHORED, so the reducer honours it as
+  // written rather than clamping to the run's ceiling; that is what lets it reach Tier 7 with no rift active
+  // (see the discover clamp in reducer.ts). Repeatable, so a buy-heavy run keeps opening the door.
+  { id: 'q_teleport_summit', name: 'Teleport Summit', tribe: 'neutral', tier: 'greater', objective: { event: 'buy', count: 14 }, reward: { kind: 'discover', tier: 7 }, repeatable: true },
   { id: 'q_gilded_chance', name: 'Gilded Chance', tribe: 'neutral', tier: 'lesser', objective: { event: 'buy', count: 9 }, reward: { kind: 'grant', cards: ['goldcrafter'] } },
   { id: 'q_key_findings', name: 'Key Findings', tribe: 'neutral', tier: 'lesser', objective: { event: 'attack', count: 7 }, reward: { kind: 'grant', cards: ['keyfindings', 'keyfindings'] } },
   { id: 'q_odd_jobs', name: 'Odd Jobs', tribe: 'neutral', tier: 'lesser', objective: { event: 'buy', count: 6 }, reward: { kind: 'gainGold', amount: 10 } },

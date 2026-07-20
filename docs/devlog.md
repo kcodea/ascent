@@ -3,6 +3,27 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21j (layout re-bake + a stale-fallback audit)
+
+### fix(ui): bake shopUiY, and re-sync three layout CSS fallbacks the earlier bake missed
+
+`shopUiY -72 -> 18` from the owner's latest Scale/Layout pass — the only value that had moved.
+
+**The interesting part is what that exposed.** Layout values live in TWO places: the `def:` in
+`layoutConfig.ts` (what the tuner and dev builds read) and a `var(--z-…, <fallback>)` in `styles.css`
+(what PRODUCTION renders when no tuner value is set). Going to bake `shopUiY` I found its fallback still
+reading `-67px` — the value from *before* the previous bake. That bake had updated the def and left the
+fallback behind, so **production was rendering a different layout from the one that was tuned**, silently.
+
+An audit across every layout key turned up two more in the same state: `shopY` (css 23 vs def 46) and
+`wbY` (css -71 vs def -79, in two rules). All four are now synced, and the audit re-run is clean.
+
+This is a standing trap in the Layout Lab convention, not a one-off — a bake that touches only the def
+looks correct in dev and ships the old number. Worth a lint rule or a test that diffs the two, which is
+noted in the roadmap.
+
+1267 tests, build:web green.
+
 ## 2026-07-21i (Freeze relocation + late freeze)
 
 ### tweak(ui): Freeze moves to the board's top-right, can be used after the clock runs out

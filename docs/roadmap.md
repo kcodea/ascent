@@ -69,6 +69,11 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ---
 
+- **Guard the Layout Lab double-source.** Layout values live both as `def:` in `layoutConfig.ts` and as a
+  `var(--z-…, <fallback>)` in `styles.css`; a bake that updates only the def ships the OLD number to
+  production while looking right in dev. Three had silently drifted (`shopUiY`, `shopY`, `wbY`) before an
+  audit caught them on 2026-07-21. A test that parses both and asserts they match would make it impossible.
+
 ## Next
 
 - **Set 2 content.** Foundation is in (`docs/card-sets.md`): author cards in `packages/content/src/cards/set2/`,

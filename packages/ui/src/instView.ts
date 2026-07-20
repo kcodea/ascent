@@ -146,6 +146,7 @@ export function instView(
   const auraHp = undead ? undeadHpBonus : 0;
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,
+    universalTribe: !!c.universalTribe || !!(inst as { allTribes?: boolean }).allTribes,
     attack: (override?.attack ?? inst.attack) + auraAtk, health: (override?.health ?? inst.health) + auraHp,
     keywords: inst.keywords, text,
     goldenText,

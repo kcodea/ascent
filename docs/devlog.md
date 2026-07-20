@@ -3,6 +3,41 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21m ("All" types + hand hover hysteresis)
+
+### fix(ui/core/sim): Lab Experiment reads ALL and takes every tribal buff; hand hover stops oscillating
+
+**1. Lab Experiment showed NEUTRAL and missed tribal buffs.** The def already carried `universalTribe` and
+`isTribe()` honoured it, but a handful of paths compared `tribe`/`tribe2` directly and skipped it. Two were
+player-visible in recruit — Fried Circuits' Mech shop buff and Trail Forager's "each Beast you play" — and
+four were in combat: the Mech on-attack trigger, the shield-target scan, Better Bot's Rally-Mech buff, and
+the Magnetic host check. Combat's `factories.ts` was already thorough; these were the stragglers in
+`simulate.ts`. Pool filters (which DEFS can be offered/summoned) were deliberately left alone — that's a
+different question from which minions RECEIVE a buff.
+
+The footer now prints **ALL** for a universal type instead of its printed tribe. `tribe: 'neutral'` stays as
+authored — universality is the override, not a re-typing — but showing NEUTRAL made the card look like it
+took no tribal buffs, which was the whole confusion. `CardView` gains `universalTribe`, fed from the def or
+from an Anomaly-Reactor'd instance's `allTribes`.
+
+**2. Hand hover "glitching" — a hover/lift oscillation.** A hand card rests TUCKED DOWN (`--hand-tuck`,
++0.16·ch) and POPS UP on hover (`--hand-floor − --hand-pop`, −0.22·ch): a ~0.38·ch jump, ~42px at the
+current scale. Hovering the lower third moved the card out from under the pointer → unhover → drop back
+under the pointer → re-hover, forever. The card the owner "couldn't open" was just the one whose lower body
+they were pointing at; nothing was wrong with that card.
+
+Fixed with a `.handpad` hit-pad: matches the card at rest, extends 0.45·ch DOWNWARD while hovered, so the
+pointer that triggered the pop is still inside afterwards and the hover latches. Rest bounds are untouched
+(never steals a neighbour's hover) and it sits at z0 under every real layer (never intercepts a click).
+A real element, not a pseudo-element — `::before` is the keyword-glow layer on Venomous/Reborn/triple-ready
+cards and `::after` is the existing drawer bridge from #592. Hit-testing only: no layout, no paint.
+
+Verified: typecheck + lint + **1269** tests + `build:web` green, `typecheck:web` at its 48 baseline. New
+`run.test.ts` case pins the rule (Lab Experiment answers `isTribe` for all five tribes, and Trail Forager
+scores it as a Beast played — that assertion fails on the pre-fix code). Live DOM: footer reads ALL while
+Cinderwing still reads DRAGON; pad rest-bottom equals card rest-bottom (1047), lift 42px vs pad reach 53px,
+board pads `pointer-events: none`.
+
 ## 2026-07-21l (three stale-looking bugs, all real)
 
 ### fix(ui): Freeze cascade loss, Fodder ref-popup aura, buff-drawer slide

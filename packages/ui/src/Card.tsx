@@ -84,6 +84,9 @@ export interface CardView {
   tribe: Tribe;
   /** Second tribe for dual-type minions — splits the card into both hues. */
   tribe2?: Tribe;
+  /** "All" types — Lab Experiment (printed `universalTribe`) or an Anomaly-Reactor'd instance (`allTribes`).
+   *  The footer prints ALL instead of the primary tribe, since every tribal effect counts it. */
+  universalTribe?: boolean;
   attack: number;
   health: number;
   keywords: Keyword[];
@@ -388,6 +391,11 @@ export const Card = memo(function Card({
           {card.stepProgress.label ?? `${card.stepProgress.current}/${card.stepProgress.total}`}
         </span>
       )}
+      {/* Hover hit-pad — FIRST child so every real element paints over it. Styled only inside `.row.hand`,
+          where it extends the hover area downward once the card pops up (see `.handpad` in styles.css).
+          A plain element rather than a pseudo-element: `::before` is already the keyword-glow layer on
+          Venomous / Reborn / triple-ready cards, and `::after` is the drawer bridge. */}
+      <span className="handpad" aria-hidden="true" />
       {card.tier !== undefined && <span className="tierbadge" data-tier={card.tier}>Tier {card.tier}</span>}
       {/* Disco Dan's Setlist lock — a padlock ribbon across a greyed card, captioned with the tier it unlocks at. */}
       {locked && (
@@ -610,9 +618,17 @@ export const Card = memo(function Card({
         )}
         {!card.spell && (
           <div className="dtribe">
-            <Icon name={TRIBE_ICON[card.tribe]} /> {TRIBE_LABEL[card.tribe]}
-            {card.tribe2 && (
-              <> <span className="ctype-sep">/</span> <Icon name={TRIBE_ICON[card.tribe2]} /> {TRIBE_LABEL[card.tribe2]}</>
+            {/* An "All" type prints ALL rather than its printed tribe — Lab Experiment reads `neutral` in data
+                but counts as every tribe, and showing NEUTRAL made it look like it took no tribal buffs. */}
+            {card.universalTribe ? (
+              <><Icon name="star" /> All</>
+            ) : (
+              <>
+                <Icon name={TRIBE_ICON[card.tribe]} /> {TRIBE_LABEL[card.tribe]}
+                {card.tribe2 && (
+                  <> <span className="ctype-sep">/</span> <Icon name={TRIBE_ICON[card.tribe2]} /> {TRIBE_LABEL[card.tribe2]}</>
+                )}
+              </>
             )}
           </div>
         )}

@@ -20,24 +20,31 @@ import { useDraggablePanel } from './useDraggablePanel';
  * Panel-only: opened from the Dev Tuning Menu; dev-only, so it's stripped from production.
  */
 const LABELS: Record<keyof WardConfig, string> = {
-  bodyAlpha: 'ring peak',
-  pulseMin: 'ring trough',
-  pulseSec: 'breath sec',
-  auraBlur: 'aura blur',
-  auraSpread: 'aura spread',
-  auraAlpha: 'aura alpha',
-  breathAlpha: 'gold breath',
-  glassAlpha: 'glass opacity',
   domeW: 'width ×',
   domeH: 'height ×',
   domeX: 'X nudge',
   domeY: 'Y nudge',
-  glassSpot: 'glass shine',
-  facetW: 'facet width %',
-  facetH: 'facet height %',
-  facetX: 'facet X %',
-  facetY: 'facet Y %',
-  facetAlpha: 'facet opacity',
+  rimW: 'thickness',
+  rimA: 'brightness',
+  rimIn: 'inner glow',
+  rimInA: 'inner α',
+  rimOut: 'outer glow',
+  rimOutA: 'outer α',
+  halo: 'blur',
+  haloSpread: 'spread',
+  haloA: 'opacity',
+  facetW: 'width %',
+  facetH: 'height %',
+  facetX: 'X %',
+  facetY: 'Y %',
+  facetAlpha: 'opacity',
+  facetEdge: 'clear centre %',
+  fillCore: 'core tint',
+  fillEdge: 'edge tint',
+  fillStop: 'falloff %',
+  sheen: 'sheen',
+  pulseMin: 'trough',
+  pulseSec: 'period s',
 };
 
 export function WardTuner() {
@@ -60,7 +67,7 @@ export function WardTuner() {
 
   return (
     <div className="sfxmix lunge" ref={panelRef} style={panelStyle}>
-      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Ward Dome <span>dev · live · drag</span></div>
+      <div className="sfxmix-h drag" onPointerDown={headerPointerDown}>Ward Shell <span>dev · live · drag</span></div>
 
       {overrides.length > 0 && (
         <div className="lunge-mod">

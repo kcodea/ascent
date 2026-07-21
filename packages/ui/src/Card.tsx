@@ -465,9 +465,10 @@ export const Card = memo(function Card({
             so it tracks the frame at any card scale with no measuring — see styles.css "WARD GLASS". */}
         {card.keywords.includes('DS') && (
           <div className="wardglass" aria-hidden="true">
-            <div className="wg-body" />
+            <div className="wg-fill" />
             <div className="wg-hex" />
-            <div className="wg-spot" />
+            <div className="wg-sheen" />
+            <div className="wg-rim" />
           </div>
         )}
         {/* Flurry (W) — wind blades swirling the card: a CSS ring stack (styles.css `.flurrycard .flurry`).

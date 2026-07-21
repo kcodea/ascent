@@ -1009,63 +1009,72 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    portrait window) was REMOVED 2026-07-21: with the frame-wide `.wardglass` shell below, the two stacked into
    a doubled honeycomb and two competing blues (owner). The card-level outer aura + breathing bloom stay (they
    read as the shell's halo); only the art-window dome is gone. */
-/* ============================ WARD GLASS — "engulf the frame" (owner approach B) ============================
-   The `.ward` dome above is trimmed to the ART window by design (the per-frame rules seat an oversized dome and
-   let `.art`'s clip cut it), so it can never reach the gold. This is a SECOND dome painted OVER the frame
-   (z4 vs the frame's z3) and clipped to the frame's own silhouette, so the whole card reads as sealed in glass.
+/* ============================ WARD GLASS — the energy shell (owner concept, 2026-07-21) =====================
+   A light-blue hexagonal shell encasing the WHOLE card: painted OVER the frame (z4 vs the frame's z3) and
+   sized to it, so the gold sits inside the glass too. Layers paint fill -> hex -> sheen -> rim, with the halo
+   cast by the container. Look dialled by the owner on `fx/ward-bubble-preview.html`; every `--wg-*` fallback
+   here IS that shipped value (the DEV Ward tuner only overrides them at runtime).
 
-   Geometry mirrors `.cframe-tint` / `.tframe-img` per frame type and is expressed CENTRE-anchored, so the
-   `--wg-w`/`--wg-h` size dials grow symmetrically instead of dragging a corner. Derived from each asset's real
-   pixel aspect (standard-oval-v2 1059×1427 → 1.3475; taunt-shield 1086×1448 → 1.3333), so the glass tracks the
-   frame at any `--ccw`/`--sh` with no JS measuring. Spell frames are not covered: spells can't carry DS.
-   `--wg-*` fallbacks below ARE the shipped values (the Ward tuner only overrides them at runtime). */
+   The box is derived from each frame asset's real pixel aspect (standard-oval-v2 1059x1427 -> 1.3475;
+   taunt-shield 1086x1448 -> 1.3333) and expressed CENTRE-anchored, so it tracks the frame at any --ccw/--sh
+   with no JS measuring and the size dials grow symmetrically. Spell frames aren't covered: spells can't
+   carry DS. NOTE `border-radius: 50%` (not a clip-path) is load-bearing — the halo is a box-shadow, and a
+   clip-path would cut it away entirely. */
 .card.compact.dscard .wardglass {
-  position: absolute; z-index: 4; pointer-events: none; overflow: hidden;
-  width: calc(var(--wg-base) * var(--wg-w, 1));
-  height: calc(var(--wg-base) * var(--wg-ar) * var(--wg-h, 1));
-  transform: translate(calc(-50% + var(--wg-x, 0px)), calc(-50% + var(--wg-y, 0px)));
-  opacity: var(--wg-alpha, 0.55);
+  position: absolute; z-index: 4; pointer-events: none; border-radius: 50%;
+  width: calc(var(--wg-base) * var(--wg-w, 1.04));
+  height: calc(var(--wg-base) * var(--wg-ar) * var(--wg-h, 1.01));
+  transform: translate(calc(-50% + var(--wg-x, 0px)), calc(-50% + var(--wg-y, 6px)));
+  box-shadow: 0 0 var(--wg-halo, 10px) var(--wg-halo-spread, 1px) rgba(77, 163, 254, var(--wg-halo-a, 0.6));
+  animation: wardbreathe var(--wg-pulse-s, 2.4s) ease-in-out infinite; will-change: opacity;
 }
-.card.compact.dscard .wardglass > * { position: absolute; inset: 0; }
-/* OVAL minion frame — clipped to the frame's outer ellipse. */
+@keyframes wardbreathe { 0%, 100% { opacity: var(--wg-pulse-min, 0.63); } 50% { opacity: 1; } }
+.card.compact.dscard .wardglass > * { position: absolute; inset: 0; border-radius: 50%; }
+/* OVAL minion frame. */
 .card.compact.stdframe.dscard .wardglass {
   --wg-base: calc(var(--ccw) * 1.481 * var(--sh));
   --wg-ar: 1.3475;
   left: calc(var(--ccw) * (0.5 + 0.0035 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 0.12815 * var(--sh) + var(--dy) + var(--frameY)));
-  clip-path: ellipse(50% 50% at 50% 50%);
 }
-/* TAUNT heater frame — same idea, clipped to the shield silhouette instead of an oval. */
+/* TAUNT heater frame — same shell, seated on the shield's box. */
 .card.compact.taunt.dscard .wardglass {
   --wg-base: calc(var(--ccw) * 1.527 * var(--sh));
   --wg-ar: 1.3333;
   left: calc(var(--ccw) * (0.5 + 0.0055 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 0.068 * var(--sh)));
-  clip-path: var(--heater);
 }
-.card.compact.dscard .wg-body {   /* the glass body — same energy gradient as the inner dome */
-  background: radial-gradient(120% 88% at 50% 44%,
-    rgba(0, 64, 255, 0) 0%, rgba(0, 64, 255, 0) 28%, rgba(0, 64, 255, 1) 56%, rgba(0, 30, 255, 1) 78%, rgba(0, 30, 255, 0) 100%);
-  animation: wardpulse var(--wd-pulse-sec, 3.8s) ease-in-out infinite; will-change: opacity;
+/* 1 - FILL: light at the core so the art still reads, denser toward the rim. */
+.card.compact.dscard .wg-fill {
+  background: radial-gradient(ellipse 50% 50% at 50% 47%,
+    rgba(77, 163, 254, var(--wg-fill-core, 0)) 0%,
+    rgba(77, 163, 254, var(--wg-fill-core, 0)) var(--wg-fill-stop, 35%),
+    rgba(0, 88, 204, var(--wg-fill-edge, 1)) 100%);
 }
-/* The FACETS live HERE, not in the inner dome (owner 2026-07-21): one sphere at the FRAME's size means the hex
-   must map to that sphere, not a smaller one inside the art. Independent size + position so the sphere can be
-   stretched to the oval and seated by eye. */
+/* 2 - HEX: the honeycomb. Masked so the centre stays clearer and the pattern densens at the rim, which is
+   what reads as a curved surface rather than a flat texture. The SVG carries `preserveAspectRatio='none'`,
+   so width/height warp independently. */
 .card.compact.dscard .wg-hex {
   background-image: url("/fx/ward-hexsphere.svg"); background-repeat: no-repeat;
-  background-size: var(--wg-hex-w, 118%) var(--wg-hex-h, 118%);
-  background-position: var(--wg-hex-x, 50%) var(--wg-hex-y, 50%);
-  opacity: var(--wg-hex-a, 0.6); mix-blend-mode: screen;
+  background-size: var(--wg-hex-w, 103%) var(--wg-hex-h, 103%);
+  background-position: var(--wg-hex-x, 59%) var(--wg-hex-y, 50%);
+  opacity: var(--wg-hex-a, 0.81); mix-blend-mode: screen;
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.35) var(--wg-hex-edge, 80%), #000 88%, #000 100%);
+          mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.35) var(--wg-hex-edge, 80%), #000 88%, #000 100%);
 }
-.card.compact.dscard .wg-spot {   /* glass reflection, upper-left */
-  background: radial-gradient(ellipse 20% 56% at 35% 9%,
-    rgba(255, 255, 255, var(--wg-spot-a, 1)) 0%, rgba(220, 240, 255, calc(var(--wg-spot-a, 1) * 0.5)) 42%, rgba(200, 232, 255, 0) 72%);
+/* 3 - SHEEN: the broad glass highlight, upper-left. */
+.card.compact.dscard .wg-sheen {
+  background: radial-gradient(ellipse 26% 34% at 33% 16%,
+    rgba(255, 255, 255, var(--wg-sheen-a, 1)) 0%, rgba(220, 240, 255, calc(var(--wg-sheen-a, 1) * 0.45)) 45%, rgba(200, 232, 255, 0) 74%);
+}
+/* 4 - RIM: the crisp white-hot edge with its own inward + outward glow. This is what makes it read as a
+   shell SURFACE; a soft gradient alone never does. */
+.card.compact.dscard .wg-rim {
+  border: var(--wg-rim-w, 2.2px) solid rgba(234, 247, 255, var(--wg-rim-a, 0.95));
+  box-shadow: inset 0 0 var(--wg-rim-in, 60px) rgba(77, 163, 254, var(--wg-rim-in-a, 0.66)),
+              0 0 var(--wg-rim-out, 9px) rgba(234, 247, 255, var(--wg-rim-out-a, 1));
 }
 /* ========================================================================================================== */
-.card.compact.dscard::before {  /* breathing bloom — opacity-only pulse of a static shadow (kwglow: 0→1), arched */
-  content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none;
-  box-shadow: 0 0 27px 8px rgba(255, 224, 120, var(--wd-breath-alpha, 0.9)); animation: kwglow 6s ease-in-out infinite; will-change: opacity;
-}
 /* Reborn — wispy ethereal AQUA-GREEN aura (tuned on fx/reborn-css-preview.html), replacing the old Pixi wisp.
    A faint ghost DOME + N rising RANDOMIZED wisps, seated on the oval window inside the ellipse-clipped art
    (Card.tsx spawns the `.wisp` children each with random left/bottom/delay/--wisp-size/--wisp-rise/--wx). The

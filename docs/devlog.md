@@ -3,6 +3,35 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (ship the concept ward shell)
+
+### feat(ui): the Ward is now the tuned energy shell from the bubble rig
+
+The owner dialled the concept look on `fx/ward-bubble-preview.html` and handed over the resolved `:root`
+block. Ported verbatim into the game as the shipped defaults, and the shell's layer stack rebuilt to match the
+rig: **fill → hex → sheen → rim**, with the halo cast by the container.
+
+The rim is the layer that does the work — a crisp white-hot edge with independent inward (60px) and outward
+(9px) glow. The previous `.wardglass` had only a soft radial body, which never reads as a shell *surface*.
+
+Two consequences of matching the rig faithfully, both deliberate:
+- **`border-radius: 50%` replaces the `clip-path: ellipse()`.** The halo is a `box-shadow`, and a clip-path
+  would cut it away entirely — the shell would have had no outer bleed at all.
+- **The card-level gold aura and `::before` breathing bloom are retired.** The shell casts its own blue halo,
+  and a warm gold pulse under a cold blue shell reads as a second, clashing effect. The concept render has
+  neither. (Easy to restore if wanted — one rule each.)
+
+Tuner rebuilt to the rig's dial set (25 dials, six groups: bubble box · rim · halo · hex shell · fill & sheen ·
+breath), so what's on screen and what's in the panel are now the same vocabulary. Renamed "Ward Dome" →
+"Ward Shell". Colours are baked in the CSS rather than dialled — say the word if pickers are wanted.
+
+Per-frame geometry is unchanged: still derived from each asset's true pixel aspect, centre-anchored, covering
+the oval and the Taunt heater; spells can't carry DS so they're not covered.
+
+Verified in-browser against the SHIPPED stylesheet: all 8 shell rules present, and all 23 tuned values resolve
+on `:root` with **zero mismatches** against the owner's block. typecheck + lint (0 errors) + 1324 tests +
+`build:web` green.
+
 ## 2026-07-21 (retire the inner ward dome)
 
 ### fix(ui): remove the art-window dome — it was doubling the honeycomb under the new shell

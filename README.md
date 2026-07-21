@@ -38,10 +38,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
-- **Ward Dome tuner** — 11 live dials for the Divine Shield dome's *look* (energy ring, glass, outer glow),
-  updating on screen as you drag. Its geometry stays where it already lived: `ward size`/`ward Y` in the Card
-  Frames tuner. (Making the dome cover the gold frame itself is still open — the dome is trimmed to the art
-  window by design, so that needs a frame-alpha mask, not a dial.)
+- **New Ward look** — Divine Shield is now a light-blue hexagonal **energy shell** encasing the whole card,
+  gold frame included: a white-hot rim with inner/outer glow, a honeycomb that densens toward the edge, and a
+  soft cyan halo. Dialled against a concept render on a preview rig, with a 25-dial live **Ward Shell** tuner.
 - **Combat FX land on the unit's slot, not mid-flight.** Every effect that marks a unit — death bursts, the
   bone skull, self-buff pulses, coins, summon dust, ascend blooms — now measures through one shared
   layout-frame helper, so none can paint over empty board while its card is mid-lunge or being pulled home.

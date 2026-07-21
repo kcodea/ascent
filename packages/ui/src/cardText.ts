@@ -177,6 +177,25 @@ export function packLeaderText(cardId: string, summonBonus: number, golden: bool
 }
 
 /**
+ * Chef Raag's Echo buffs your whole board by your run-wide **Imp Aura**, FLOORED at +1/+1 (so a fresh Raag with
+ * no Imp buffs still pays a baseline) and doubled when golden. Surface the CURRENT grant (green) in place of the
+ * first printed "+N/+N"; the "Improve your Imps by +2/+2" clause that follows is left alone. Mirrors the
+ * `deathrattleBuffAllByImpAura` factory exactly — keep the two in step. Returns null for other cards, or when the
+ * live value already equals the printed base (no aura yet), so the printed text stands.
+ */
+export function chefRaagText(cardId: string, golden: boolean, impAura?: { attack: number; health: number }): string | null {
+  const def = CARD_INDEX[cardId];
+  if (!def?.effects.some((e) => e.do === 'deathrattleBuffAllByImpAura')) return null;
+  const mult = golden ? 2 : 1;
+  const a = Math.max(1, impAura?.attack ?? 0) * mult;
+  const h = Math.max(1, impAura?.health ?? 0) * mult;
+  if (a === mult && h === mult) return null; // still the floor → the printed +1/+1 (golden +2/+2) is accurate
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  let done = false;
+  return src.replace(/\*\*\+\d+\/\+\d+\*\*/g, (m) => (done ? m : ((done = true), `{{+${a}/+${h}}}`)));
+}
+
+/**
  * Runescale Drake's Start-of-Combat Dragon buff is a PER-SPELL rate applied to every spell cast this turn. The
  * rate = base + `step` for every `every` (4) spells cast while THIS instance has been on the board (per-instance
  * `spellProgress`). Surface the CURRENT per-spell rate (green) — (base + step·⌊progress/every⌋) × golden — by

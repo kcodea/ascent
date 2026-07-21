@@ -244,8 +244,8 @@ export const DRAGONS: CardDef[] = [
       { on: 'spellCast', do: 'spellCastImproveSelf' },
       { on: 'startOfCombat', do: 'scTribeBuffPerSpellImproving', params: { tribe: 'dragon', attack: 2, health: 2, step: 1, every: 4 } },
     ],
-    text: '**Start of Combat:** give your **Dragons** **+2/+2** for every spell cast this turn. Improve this by **+1/+1** every **4** spells cast.',
-    goldenText: '**Start of Combat:** give your **Dragons** **+4/+4** for every spell cast this turn. Improve this by **+2/+2** every **4** spells cast.',
+    text: '**Start of Combat:** give your **Dragons** **+2/+2** for every spell cast this turn (at least **+2/+2**). Improve this by **+1/+1** every **4** spells cast.',
+    goldenText: '**Start of Combat:** give your **Dragons** **+4/+4** for every spell cast this turn (at least **+4/+4**). Improve this by **+2/+2** every **4** spells cast.',
   },
   {
     // Rally: on attacking, "cast Growth" — buff all your minions +3/+4 (+ combat spell power). A Dragon

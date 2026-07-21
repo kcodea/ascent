@@ -351,9 +351,21 @@ describe('simulate (handoff A.3)', () => {
     // base rate 2 × 3 spells cast this turn = +6/+6.
     const r = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, spellsThisTurn: 3 }), combatSide({ tier: 1 }));
     expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 6 && ev.health === 6)).toBe(true);
-    // No spells this turn → no grant (the multiplier is 0). Runescale's grant is the only SYMMETRIC (+X/+X) buff here.
+    // No spells this turn → the multiplier FLOORS at 1, so it still pays the base rate +2/+2 (owner 2026-07-21;
+    // it used to grant nothing). Runescale's grant is the only SYMMETRIC (+X/+X) buff here.
     const none = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, spellsThisTurn: 0 }), combatSide({ tier: 1 }));
-    expect(none.events.some((ev) => ev.type === 'buff' && ev.attack > 0 && ev.health > 0)).toBe(false);
+    expect(none.events.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 2)).toBe(true);
+  });
+
+  it("Chef Raag: its Echo buffs your board by the Imp Aura, floored at +1/+1", () => {
+    const p: BoardMinion[] = [{ cardId: 'chefraag', attack: 1, health: 1 }, { cardId: 'sandbag', attack: 0, health: 50 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 50 }];
+    // No Imp Aura built up → FLOORS at +1/+1 (owner 2026-07-21; it used to grant nothing at all).
+    const none = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES }), combatSide({ tier: 1 }));
+    expect(none.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true);
+    // With an aura → grants exactly the aura (each half floored independently).
+    const aura = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, impAtk: 3, impHp: 2 }), combatSide({ tier: 1 }));
+    expect(aura.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 2)).toBe(true);
   });
 
   it('Runescale Drake per-spell rate improves +1/+1 every 4 on-board spells (spellProgress 4 → +3 per spell)', () => {
@@ -3447,7 +3459,7 @@ describe('enemy run-level scalers (per-side)', () => {
     const g = (enemySpells: number, playerSpells: number) =>
       runVs(wall, enemy, { spellsThisTurn: enemySpells }, { spellsThisTurn: playerSpells }).events
         .reduce((mx, ev) => (ev.type === 'buff' && ev.health > 0 && ev.attack > mx ? ev.attack : mx), 0);
-    expect(g(0, 5)).toBe(0); // no spells on ITS side this turn → no grant (the player's 5 spells don't leech in)
+    expect(g(0, 5)).toBe(3); // no spells on ITS side → the floored ×1 grant, NOT the player's 5 spells leaking in
     expect(g(2, 0)).toBe(3 * 2); // its own rate 3 × its own 2 spells = +6/+6
   });
 });

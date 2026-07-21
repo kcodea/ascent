@@ -655,9 +655,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleBuffAllByImpAura: (ctx, self, _params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const imp = ctx.impAura(self.side);
-    const a = imp.attack * mul(self);
-    const h = imp.health * mul(self);
-    if (a <= 0 && h <= 0) return;
+    // FLOORED at +1/+1 (owner 2026-07-21): with no Imp Aura built up yet it still pays a baseline rather than
+    // nothing. `impAuraGrant` mirrors this exactly for the card text — keep the two in step.
+    const a = Math.max(1, imp.attack) * mul(self);
+    const h = Math.max(1, imp.health) * mul(self);
     for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);
   },
 
@@ -1337,7 +1338,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const step = num(params.step, 1);
     const every = Math.max(1, num(params.every, 4));
     const improve = step * Math.floor((self.spellProgress ?? 0) / every);
-    const spells = ctx.spellsThisTurnFor(self.side); // per-side: enemy Runescale reads the OPPONENT's spells this turn
+    // Per-side: an enemy Runescale reads the OPPONENT's spells this turn. FLOORED at 1 (owner 2026-07-21) so a
+    // turn with no spells still pays the base rate rather than nothing at all.
+    const spells = Math.max(1, ctx.spellsThisTurnFor(self.side));
     const a = (num(params.attack, 2) + improve) * spells * mul(self);
     const h = (num(params.health, 2) + improve) * spells * mul(self);
     if (a <= 0 && h <= 0) return;

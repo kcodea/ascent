@@ -70,6 +70,7 @@ function UnitInner({ u, side, anim, floats, triggered, rallyPulse, statHold, sta
         clingEnchant: foe ? undefined : run.cardBuffs?.cling,
         fodderConsumed: foe ? undefined : run.fodderConsumedThisTurn,
         undeadBuyAtk: foe ? 0 : run.undeadBuyAtk, soulsmanGold: foe ? 0 : (run.soulsmanGold ?? 0),
+        impAura: foe ? undefined : run.impBuff, // enemyScalers carries no Imp Aura → an enemy Raag reads its printed text
         cardBuffs: foe ? undefined : run.cardBuffs,
         spellProgress: u.spellProgress, ascendProgress: u.ascendProgress, summonBonus: u.summonBonus,
         overflowBonus: u.overflowBonus, hpGrantBonus: u.hpGrantBonus, eotBonus: u.eotBonus, eotTick: u.eotTick,

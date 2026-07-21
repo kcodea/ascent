@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { BOTS } from './index';
+import { BOTS, BOT_BY_ID } from './index';
+import { createRun, type RunState, type BoardCard } from '../state';
 import { createReportAccumulator, playAndRecordInto, computeBalanceReport, finalizeReport } from '../balanceReport';
 
 /**
@@ -27,6 +28,54 @@ describe('balance bots', () => {
       for (const h of report.heroes) expect(h.winRate).toBeGreaterThanOrEqual(-1);
     });
   }
+
+  // ---- Spell usage (owner ask 2026-07-21: "bots should use spells"). The root cause wasn't valuation — the
+  //      tavern's spell offer lives in `state.spell`, a dedicated slot SEPARATE from `state.shop`, and the turn
+  //      engine only ever read `state.shop`. Bots literally never saw a spell and bought ~0.00 per run.
+  const mk = (over: Partial<RunState>): RunState => ({
+    ...createRun(1), phase: 'recruit', heroReady: false, shop: [], hand: [], ...over,
+  } as RunState);
+  const body = (uid: string): BoardCard =>
+    ({ uid, cardId: 'alley', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false });
+
+  it('buys the tavern SPELL-SLOT offer (state.spell), not just state.shop', () => {
+    const s = mk({
+      embers: 10,
+      board: [body('b1'), body('b2'), body('b3'), body('b4')],
+      spell: { uid: 'sp1', cardId: 'growth' }, // Growth: +3/+4 to your whole board — strong with 4 bodies out
+    });
+    const midrange = BOT_BY_ID['midrange']!;
+    expect(midrange.act(s)).toEqual({ type: 'buy', uid: 'sp1' });
+  });
+
+  it('does NOT buy a board-wide spell into an empty board (it would be a dead card)', () => {
+    const s = mk({ embers: 10, board: [], spell: { uid: 'sp1', cardId: 'growth' } });
+    expect(BOT_BY_ID['midrange']!.act(s)).not.toEqual({ type: 'buy', uid: 'sp1' });
+  });
+
+  it('casts a spell from hand even when the BOARD is full (a spell needs no board slot)', () => {
+    // The play step used to sit entirely behind `board.length < boardMax`, so a full-board bot stopped casting.
+    const full = Array.from({ length: 7 }, (_, i) => body(`f${i}`));
+    const s = mk({
+      embers: 0, board: full,
+      hand: [{ uid: 'h1', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    });
+    expect(BOT_BY_ID['midrange']!.act(s)).toEqual({ type: 'play', uid: 'h1' });
+  });
+
+  it("Darah's Swap trades away the WORST body, not the best", () => {
+    // `displace` swaps a friendly minion for a random shop minion, so aiming it at your keeper destroys value.
+    // The engine used to point every targeted power at the highest-scoring minion — actively harmful here.
+    const strong: BoardCard = { uid: 'keep', cardId: 'gnash', tribe: 'beast', attack: 9, health: 9, keywords: [], golden: false };
+    const weak: BoardCard = { uid: 'chaff', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false };
+    // Needs a shop minion to swap INTO, and 0 Gold so the bot reaches the late-power step without buying.
+    const s = mk({
+      heroId: 'darah', heroReady: true, wave: 3, embers: 0, tier: 2,
+      board: [strong, weak], shop: [{ uid: 'o1', cardId: 'pack' }],
+    });
+    const a = BOT_BY_ID['midrange']!.act(s);
+    expect(a).toEqual({ type: 'heroPower', uid: 'chaff' });
+  });
 
   it('is deterministic — the same games reproduce the same report', () => {
     const a = computeBalanceReport(2, BOTS[0]);

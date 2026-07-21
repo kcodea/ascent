@@ -33,7 +33,7 @@ const GREEDY = make('greedy', 'Greedy', {
   statValue: 1, taunt: 1, divineShield: 2, windfury: 1, venom: 1, reborn: 1, cleave: 1, stealth: 0.5,
   tribeSynergy: 0.2, tripleProgress: 1, tripleComplete: 6, costPenalty: 0, tierValue: 0.5, effectWeight: 0.5,
 }, {
-  buyThreshold: -Infinity, goldReserve: 0, upgradeBias: 1, reroll: false, sellForUpgrade: false, rollout: false,
+  buyThreshold: -Infinity, spellThreshold: 18, goldReserve: 0, upgradeBias: 1, reroll: false, sellForUpgrade: false, rollout: false,
 });
 
 // ---- TEMPO — conservative, survivability-first, disciplined economy. ----
@@ -43,7 +43,7 @@ const TEMPO = make('tempo', 'Tempo', {
 }, {
   // Conservative ≠ passive: it still FILLS its board (a modest threshold + reroll to find a safe body), it
   // just leans on survivability keywords, keeps a small reserve, and upgrades sparingly (low econ risk).
-  buyThreshold: 4, goldReserve: 1, upgradeBias: 0.3, reroll: true, sellForUpgrade: true, rollout: false,
+  buyThreshold: 4, spellThreshold: 18, goldReserve: 1, upgradeBias: 0.3, reroll: true, sellForUpgrade: true, rollout: false,
 });
 
 // ---- MIDRANGE — balanced value + economy, rerolls, triple/synergy aware. ----
@@ -51,14 +51,14 @@ const MIDRANGE = make('midrange', 'Midrange', {
   statValue: 1, taunt: 3, divineShield: 4, windfury: 2, venom: 3, reborn: 3, cleave: 1.5, stealth: 1,
   tribeSynergy: 1, tripleProgress: 2.5, tripleComplete: 8, costPenalty: 0.2, tierValue: 0.8, effectWeight: 0.5,
 }, {
-  buyThreshold: 5, goldReserve: 0, upgradeBias: 0.7, reroll: true, sellForUpgrade: true, rollout: false,
+  buyThreshold: 5, spellThreshold: 18, goldReserve: 0, upgradeBias: 0.7, reroll: true, sellForUpgrade: true, rollout: false,
 });
 
 // ---- META — the midrange brain + combat rollout. Plays to WIN. ----
 const META = make('meta', 'Meta', {
   ...MIDRANGE.weights, tribeSynergy: 1.4, tripleProgress: 3, tripleComplete: 9,
 }, {
-  buyThreshold: 4, goldReserve: 0, upgradeBias: 0.7, reroll: true, sellForUpgrade: true, rollout: true,
+  buyThreshold: 4, spellThreshold: 18, goldReserve: 0, upgradeBias: 0.7, reroll: true, sellForUpgrade: true, rollout: true,
 });
 
 // ---- EXPLORER — commits to ONE synergy package per run (rotated by seed) and builds toward it. Purpose-
@@ -68,7 +68,7 @@ const EXPLORER: BotPolicy = (() => {
     ...MIDRANGE.weights, tribeSynergy: 2.2, tripleProgress: 3, tripleComplete: 9, effectWeight: 0.7,
   };
   const behaviour: BotBehaviour = {
-    buyThreshold: 4, goldReserve: 0, upgradeBias: 0.7, reroll: true, sellForUpgrade: true, rollout: true,
+    buyThreshold: 4, spellThreshold: 18, goldReserve: 0, upgradeBias: 0.7, reroll: true, sellForUpgrade: true, rollout: true,
   };
   return {
     id: 'explorer', name: 'Explorer', weights, behaviour,

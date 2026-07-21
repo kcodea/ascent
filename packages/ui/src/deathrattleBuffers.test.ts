@@ -8,8 +8,7 @@ describe('isDeathrattleBufferCard', () => {
     expect(isDeathrattleBufferCard('impking')).toBe(true);   // onDeath deathrattleSummon + deathrattleBuffImps
     expect(isDeathrattleBufferCard('trickster')).toBe(true); // onDeath deathrattleGiveHealth
     expect(isDeathrattleBufferCard('nanon')).toBe(true);     // onDeath deathrattleSummonOverflowBuff
-    expect(isDeathrattleBufferCard('burialimp')).toBe(true); // onDeath deathrattleBuffFodder
-    expect(isDeathrattleBufferCard('chefraag')).toBe(true);  // onDeath deathrattleBuffAllByImpAura
+    expect(isDeathrattleBufferCard('chefraag')).toBe(true);  // onDeath deathrattleBuffAllByImpAura + deathrattleBuffImps
   });
   it('false — Spear Warden (deathrattleBuffCardTypeRunWide) is deliberately excluded (future echo-aura)', () => {
     expect(isDeathrattleBufferCard('knit')).toBe(false);     // onDeath deathrattleBuffCardTypeRunWide — NOT descend
@@ -19,6 +18,7 @@ describe('isDeathrattleBufferCard', () => {
   });
   it('false — an onDeath that only SUMMONS (no buff)', () => {
     expect(isDeathrattleBufferCard('broodmother')).toBe(false); // onDeath deathrattleSummon only
+    expect(isDeathrattleBufferCard('burialimp')).toBe(false);   // Echo now only summons an Imp (no buff)
   });
   it('false — an unknown card id', () => {
     expect(isDeathrattleBufferCard('no-such-card')).toBe(false);

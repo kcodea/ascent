@@ -3,6 +3,30 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (balance patch — chunk 1: Demon minions)
+
+### balance(content): Demon minion rebalance — Soulfeeder, Sword & Bored, Burial Imp, Godfodder, Pit Supplier, Ritualist, Chef Raag
+
+First slice of the owner's 2026-07-21 balance patch (branch `balance/patch-2026-07-21`). Demon minion data
+only — no new engine primitives, so it lands as a clean, fully-tested chunk ahead of the runes/quests/
+new-mechanic slices. Changes:
+
+- **Soulfeeder** — Shout now feeds the **next shop** (was next 2), gilded 2. Toned the Fodder faucet down.
+- **Sword and Bored** — moved to **T2**, stats **3/1** (was T1 2/1). Slaughter payoff pushed up a tier.
+- **Burial Imp** — moved to **T1**, stats **2/1**, Echo simplified to **summon an Imp** (dropped the Fodder buff).
+- **Godfodder** — Choose One reworked to **give your Imps +2/+2 OR your Fodder +2/+2** (was add-Fodder / Fodder +3/+3).
+- **Pit Supplier** — Avenge (3) now adds **1 Fodder** to each of the next 2 shops (was 2), gilded 2.
+- **Ritualist** — End-of-Turn escalation step **+1/+1** (was +3/+3); slower, less explosive ramp.
+- **Chef Raag** — Echo now also **improves your Imps by +2/+2** on top of the Imp-Aura board buff.
+
+Verified: full suite green (1304 passed) + typecheck + lint clean. Updated the pinned assertions that used
+these cards as generic probes (Ritualist for Chronos/Djinn/Rune-of-Mastery End-of-Turn escalation; Soulfeeder
+for Drummer/Ryme Battlecry replay; Burial Imp for the deathrattle-buffer classifier; Godfodder's tavern-Fodder
+FX stamp repointed to Maw of the Pit). Follow-ups (later chunks): rune cost/effect pass, quest number pass +
+removals (Last Rites, The Author's Hand, The Hoard Wakes), and the new-mechanic minions (Korok/Banksly
+buy-count trigger, Thundeer Engraved on-attack, Kennelmaster Avenge-improve, Hunter on-gain-attack rework,
+Attachment Mechanic → T4 3/5, Hoard Cleric self-exclusion).
+
 ## 2026-07-21 (owner feel pass — lunge defaults)
 
 ### tweak(ui): bake owner's Layout Lab pass — shop controls up, charge glyph nudged

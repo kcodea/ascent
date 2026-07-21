@@ -174,11 +174,11 @@ describe('cardText helpers', () => {
   it('ritualistText shows the live per-tick Imp/Fodder grant = accrued eotBonus + next step (golden-aware)', () => {
     // eotBonus rides the run board (climbs by `step` each End of Turn, then grants the new total). The live text
     // shows the NEXT grant = current accrual + one more step. Only the FIRST magnitude (the grant) is greened;
-    // the "improves by +3/+3" step stays printed.
-    expect(ritualistText('ritualist', false, 0)).toBeNull(); // never triggered → printed base (+3/+3) is accurate
-    expect(ritualistText('ritualist', false, 3)).toContain('{{+6/+6}}'); // accrued 3 + step 3 = next grant +6
-    expect(ritualistText('ritualist', false, 3)).toContain('**+3/+3**'); // the step magnitude is left printed
-    expect(ritualistText('ritualist', true, 6)).toContain('{{+12/+12}}'); // golden step 6: accrued 6 + 6 = +12
+    // the "improves by +1/+1" step stays printed.
+    expect(ritualistText('ritualist', false, 0)).toBeNull(); // never triggered → printed base (+1/+1) is accurate
+    expect(ritualistText('ritualist', false, 3)).toContain('{{+4/+4}}'); // accrued 3 + step 1 = next grant +4
+    expect(ritualistText('ritualist', false, 3)).toContain('**+1/+1**'); // the step magnitude is left printed
+    expect(ritualistText('ritualist', true, 6)).toContain('{{+8/+8}}'); // golden step 2: accrued 6 + 2 = +8
     expect(ritualistText('sandbag', false, 3)).toBeNull(); // not Ritualist
   });
 

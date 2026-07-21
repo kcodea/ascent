@@ -329,8 +329,8 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerBonusGold).toBe(2);
   });
 
-  it('Pit Supplier Avenge (3) schedules 2 Fodder into each of the next 2 shops (carried back)', () => {
-    // Three 1/1 Strays die (attacking into the omen's retaliation) → the 3rd death procs Avenge (3) → 2 Fodder
+  it('Pit Supplier Avenge (3) schedules 1 Fodder into each of the next 2 shops (carried back)', () => {
+    // Three 1/1 Strays die (attacking into the omen's retaliation) → the 3rd death procs Avenge (3) → 1 Fodder
     // to each of the next 2 shops.
     const p: BoardMinion[] = [
       { cardId: 'pitsupplier', attack: 4, health: 40 },
@@ -340,7 +340,7 @@ describe('simulate (handoff A.3)', () => {
     ];
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 60 }];
     const r = run(p, e, 3);
-    expect(r.playerFodderSchedule).toEqual([2, 2]);
+    expect(r.playerFodderSchedule).toEqual([1, 1]);
     expect(r.playerFodderGrants).toBeUndefined();
   });
 
@@ -2311,13 +2311,12 @@ describe('simulate (handoff A.3)', () => {
     expect(a.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2 && e.source === a.initial.player[0]!.uid)).toBe(true);
   });
 
-  it('Burial Imp: its Echo buffs your Fodder +1/+1 (carried back) and summons an Imp', () => {
+  it('Burial Imp: its Echo summons an Imp', () => {
     const a = run(
-      [{ cardId: 'burialimp', attack: 3, health: 1 }],
+      [{ cardId: 'burialimp', attack: 2, health: 1 }],
       [{ cardId: 'omen', attack: 5, health: 50 }],
       3,
     );
-    expect(a.playerFodderBuffGain).toEqual({ attack: 1, health: 1 }); // Fodder aura +1/+1 carried back
     expect(a.events.some((e) => e.type === 'summon' && e.minion.cardId === 'impscrap')).toBe(true); // summoned an Imp
   });
 

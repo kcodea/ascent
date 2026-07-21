@@ -21,6 +21,20 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+### Balance patch 2026-07-21 (owner spec — landing in chunks on `balance/patch-2026-07-21`)
+Large hand-authored balance pass, sliced so each chunk lands green + tested on its own:
+- **✅ Chunk 1 — Demon minions** (shipped to branch): Soulfeeder, Sword & Bored, Burial Imp, Godfodder, Pit
+  Supplier, Ritualist, Chef Raag. Data-only.
+- **Chunk 2 — Rune pass** (~33 items): mostly cost tweaks, plus effect reworks (Aftershocks +4/+4, Consumption
+  random improve, Packcraft, Rebirth 2× Rise, Refrain 20%, Slaying max-gold, Spare Parts 5, Trophy plain copy,
+  Broodpit 2× taunt imps).
+- **Chunk 3 — Quest numbers** (~45 items): objective count + reward retunes across all tribes.
+- **Chunk 4 — Quest removals + reworks**: remove Last Rites, The Author's Hand, The Hoard Wakes; rework Empty
+  Graves, Forsaken Will, Anomalous Reactor, Deep Hunger, Pit Without End, Blueprint Cache, Feeding Line.
+- **Chunk 5 — New-mechanic minions**: Korok/Banksly (new **buy-count** trigger, "when you buy 4 cards"),
+  Thundeer (Engraved on-ally-attack self-improve), Kennelmaster (SoC Beast aura + Avenge-improve), Hunter
+  (on-gain-attack board buff, improve every 3), Hoard Cleric (exclude self), Attachment Mechanic → T4 3/5.
+
 ### Human-playtest balance
 The counter matrix is balance *truth*; stat numbers are dials. With all six tribes + the quest content in,
 the game wants a real tuning pass driven by human play (not just the bot).

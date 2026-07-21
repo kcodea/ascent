@@ -343,15 +343,12 @@ describe('Buff Gust FX signal', () => {
 });
 
 describe('Fodder Infusion FX signal', () => {
-  it("Godfodder's Fodder pick stamps the sender's uid (and queues the Fodder)", () => {
-    let s: RunState = { ...createRun(1, 'warden'), phase: 'recruit', embers: 10, board: [],
-      hand: [{ uid: 'gf', cardId: 'godfodder', tribe: 'demon', attack: 3, health: 2, keywords: [], golden: false }] };
-    s = reduce(s, { type: 'play', uid: 'gf' });
-    expect(s.chooseOne).toBeDefined();
-    s = reduce(s, { type: 'chooseOne', index: 0 }); // "Add 2 Fodder to your next shop"
-    expect(s.pendingTavern?.length).toBe(2);
+  it("Maw of the Pit's End-of-Turn Fodder add stamps the sender's uid (and queues the Fodder)", () => {
+    let s: RunState = { ...createRun(1, 'warden'), phase: 'recruit', embers: 10, shop: [],
+      board: [{ uid: 'mw', cardId: 'maw', tribe: 'demon', attack: 4, health: 5, keywords: ['T'], golden: false }] };
+    s = reduce(s, { type: 'faceOmen' }); // End of Turn: Maw adds a Fodder to the next shop
     expect(s.fodderSendSeq).toBe(1);
-    expect(s.fodderSendUid).toBe('gf'); // the Godfodder itself is the sender (played to the board, uid kept)
+    expect(s.fodderSendUid).toBe('mw'); // Maw is the sender (the tavern-Fodder add stamps its uid)
   });
 
   it("Soulfeeder's Shout stamps too (addFodderNextShops)", () => {
@@ -1001,7 +998,7 @@ describe('Rune of Mastery (batch 7b) — Improve steps apply twice', () => {
     expect(play(true)).toBe(4);
   });
 
-  it('Ritualist: the End-of-Turn escalation step doubles (+6 instead of +3)', () => {
+  it('Ritualist: the End-of-Turn escalation step doubles (+2 instead of +1)', () => {
     const eot = (mastery: boolean): number => {
       const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
         runeMastery: mastery || undefined,
@@ -1009,8 +1006,8 @@ describe('Rune of Mastery (batch 7b) — Improve steps apply twice', () => {
       applyEndOfTurn(s);
       return s.board[0]!.eotBonus ?? 0;
     };
-    expect(eot(false)).toBe(3);
-    expect(eot(true)).toBe(6);
+    expect(eot(false)).toBe(1);
+    expect(eot(true)).toBe(2);
   });
 
   it('Rune of Consumption stacked with Mastery: each Consume improves future Fodder twice (+4/+2)', () => {

@@ -85,7 +85,7 @@ describe('Cratering Missive — Hulk overflow buffs ALL tribes with the flag', (
 describe('The Godfodder — golden chooseOne text', () => {
   it('both Choose One options carry a goldenText (so a golden Godfodder shows the doubled values)', () => {
     const co = CARD_INDEX['godfodder']!.chooseOne!;
-    expect(co[0]!.goldenText).toContain('4'); // add 4 Fodder
-    expect(co[1]!.goldenText).toContain('+6/+6'); // Fodder +6/+6
+    expect(co[0]!.goldenText).toContain('+4/+4'); // Imps +4/+4
+    expect(co[1]!.goldenText).toContain('+4/+4'); // Fodder +4/+4
   });
 });

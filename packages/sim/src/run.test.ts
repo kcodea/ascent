@@ -929,11 +929,11 @@ describe('run loop (@game/sim)', () => {
       hand: [{ uid: 'f2', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: ['FD'], golden: false }],
     };
     s = reduce(s, { type: 'faceOmen' }); // End of Turn fires Ritualist before combat
-    expect(s.cardBuffs.fred).toEqual({ attack: 3, health: 3 }); // first trigger → +3/+3 persists for the run
+    expect(s.cardBuffs.fred).toEqual({ attack: 1, health: 1 }); // first trigger → +1/+1 persists for the run
     const f1 = s.board.find((c) => c.uid === 'f1');
-    expect([f1?.attack, f1?.health]).toEqual([4, 4]); // Fodder on the board buffed now (1/1 + 3/3)
+    expect([f1?.attack, f1?.health]).toEqual([2, 2]); // Fodder on the board buffed now (1/1 + 1/1)
     const f2 = s.hand.find((c) => c.uid === 'f2');
-    expect([f2?.attack, f2?.health]).toEqual([4, 4]); // Fodder in the hand too
+    expect([f2?.attack, f2?.health]).toEqual([2, 2]); // Fodder in the hand too
   });
 
   it('Fodder found after a Ritualist proc carries the run buff — bought from the tavern', () => {
@@ -1126,13 +1126,13 @@ describe('run loop (@game/sim)', () => {
     };
     const goldBefore = s.bonusEmbersNextTurn ?? 0;
     s = reduce(s, { type: 'settleCombat' }); // settle WITHOUT advancing, so the queued Fodder isn't injected/cleared yet
-    // Soulfeeder schedules Fodder for the next 2 shops: 1 (non-golden) + 2 (golden) = 3 per shop.
-    expect(s.fodderSchedule).toEqual([3, 3]);
+    // Soulfeeder schedules Fodder for the next shop: 1 (non-golden) + 2 (golden) = 3 in that shop.
+    expect(s.fodderSchedule).toEqual([3]);
     // Hoarder grants +1 Gold next turn (its recruit factory ran with full RunState access).
     expect((s.bonusEmbersNextTurn ?? 0) - goldBefore).toBe(1);
   });
 
-  it('Soulfeeder feeds Fodder to the next 2 shops (not every round after) — a Demon eats one per refresh', () => {
+  it('Soulfeeder feeds Fodder to the next shop (not every round after) — a Demon eats one per refresh', () => {
     let s: RunState = {
       ...createRun(1),
       resolve: 999, maxResolve: 999,
@@ -1149,8 +1149,8 @@ describe('run loop (@game/sim)', () => {
       s = reduce(s, { type: 'resolveCombat' });
       seen.push(atk());
     }
-    // ate a Fred on refresh 1 (2 → 3) and refresh 2 (3 → 4), then no more — the schedule covers exactly 2 shops.
-    expect(seen).toEqual([3, 4, 4, 4]);
+    // ate a Fred on refresh 1 (2 → 3), then no more — the schedule covers exactly 1 shop.
+    expect(seen).toEqual([3, 3, 3, 3]);
     expect(s.pendingTavern).toEqual([]);
     expect(s.fodderSchedule).toBeUndefined();
   });
@@ -1377,9 +1377,9 @@ describe('run loop (@game/sim)', () => {
       ],
     };
     s = reduce(s, { type: 'faceOmen' }); // End of Turn fires Ritualist twice (Chronos +1); it escalates each fire
-    expect(s.cardBuffs.fred).toEqual({ attack: 9, health: 9 }); // escalating: +3 then +6 = +9/+9 this turn
+    expect(s.cardBuffs.fred).toEqual({ attack: 3, health: 3 }); // escalating: +1 then +2 = +3/+3 this turn
     const f = s.board.find((c) => c.uid === 'f')!;
-    expect([f.attack, f.health]).toEqual([10, 10]); // the on-board Fred: 1/1 + 9/9
+    expect([f.attack, f.health]).toEqual([4, 4]); // the on-board Fred: 1/1 + 3/3
   });
 
   it('Magnetic merges a Cling Drone onto a friendly Mech (no new slot)', () => {
@@ -1590,7 +1590,7 @@ describe('run loop (@game/sim)', () => {
     expect(BUYABLE_CARDS.some((c) => c.id === 'fred')).toBe(false);
   });
 
-  it('Soulfeeder Shout schedules Fodder for the next 2 shops', () => {
+  it('Soulfeeder Shout schedules Fodder for the next shop', () => {
     let s: RunState = {
       ...createRun(1),
       embers: 3,
@@ -1601,7 +1601,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'buy', uid: 'x' });
     s = reduce(s, { type: 'play', uid: s.hand[0]!.uid }); // Soulfeeder Shout
-    expect(s.fodderSchedule).toEqual([1, 1]); // 1 Fodder to each of the next 2 shops (not placed now)
+    expect(s.fodderSchedule).toEqual([1]); // 1 Fodder to the next shop (not placed now)
     expect(s.pendingTavern ?? []).toEqual([]); // nothing in the immediate queue yet
     expect(s.board.some((c) => c.cardId === 'fred')).toBe(false);
   });
@@ -3172,7 +3172,7 @@ describe('run loop (@game/sim)', () => {
       pendingTavern: [],
     };
     s = reduce(s, { type: 'play', uid: 'sf' });
-    expect(s.fodderSchedule).toEqual([2, 2]); // fired twice → 1 Fodder ×2 for each of the next 2 shops
+    expect(s.fodderSchedule).toEqual([2]); // fired twice → 1 Fodder ×2 for the next shop
   });
 
   it('Yazzus does NOT multiply Help Wanted — Discover spells are untargeted (one Discover, nothing queued)', () => {
@@ -3721,7 +3721,7 @@ describe('hero powers (@game/sim)', () => {
   });
 
   it("Djinn's Cadence procs a friendly minion's End of Turn now (once per turn)", () => {
-    // Ritualist's End of Turn buffs every Fodder (first trigger +3/+3); Fred is Fodder.
+    // Ritualist's End of Turn buffs every Fodder (first trigger +1/+1); Fred is Fodder.
     const board = (): BoardCard[] => [
       { uid: 'r', cardId: 'ritualist', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false },
       { uid: 'f', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false },
@@ -3729,8 +3729,8 @@ describe('hero powers (@game/sim)', () => {
     let s: RunState = { ...createRun(1, 'djinn'), board: board() };
     s = reduce(s, { type: 'heroPower', uid: 'r' });
     const fred = s.board.find((c) => c.uid === 'f')!;
-    expect(fred.attack).toBe(4); // 1 + 3
-    expect(fred.health).toBe(4);
+    expect(fred.attack).toBe(2); // 1 + 1
+    expect(fred.health).toBe(2);
     expect(s.heroReady).toBe(false);
     expect(reduce(s, { type: 'heroPower', uid: 'r' })).toBe(s); // once per turn
   });
@@ -3870,7 +3870,7 @@ describe('hero powers (@game/sim)', () => {
   // --- New heroes (owner batch 2026-07-09) ---
 
   it("Djinn's Cadence triggers EVERY friendly minion's End of Turn (untargeted)", () => {
-    // Two Ritualists (EoT: Fodder +3/+3 run-wide, first trigger each). Cadence fires BOTH → the Fred enchant climbs +6/+6.
+    // Two Ritualists (EoT: Fodder +1/+1 run-wide, first trigger each). Cadence fires BOTH → the Fred enchant climbs +2/+2.
     let s: RunState = {
       ...createRun(1, 'djinn'), heroReady: true,
       board: [
@@ -3879,7 +3879,7 @@ describe('hero powers (@game/sim)', () => {
       ],
     };
     s = reduce(s, { type: 'heroPower' });
-    expect(cardBuff(s, 'fred')).toEqual({ attack: 6, health: 6 }); // both Ritualists' EoT fired (+3 each)
+    expect(cardBuff(s, 'fred')).toEqual({ attack: 2, health: 2 }); // both Ritualists' EoT fired (+1 each)
     expect(s.heroReady).toBe(false);
     // A board with no End-of-Turn minion → no-op, charge preserved.
     const none: RunState = { ...createRun(1, 'djinn'), heroReady: true, board: [{ uid: 'a', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: ['T'], golden: false }] };

@@ -6,6 +6,7 @@ import { UNDEAD } from './cards/set1/undead';
 import { MECHS } from './cards/set1/mechs';
 import { DEMONS } from './cards/set1/demons';
 import { SPELLS } from './cards/set1/spells';
+import { TIER7 } from './cards/set1/tier7';
 
 /**
  * ── Card sets ──────────────────────────────────────────────────────────────────────────────────────────
@@ -80,7 +81,9 @@ export const SETS: Record<SetId, SetDef> = {
     enabled: true,
     // Declaration order is preserved EXACTLY as the pre-sets flat pool was assembled (neutral, beasts,
     // dragons, undead, mechs, demons, spells), so every existing seed replays identically.
-    own: [...NEUTRAL, ...BEASTS, ...DRAGONS, ...UNDEAD, ...MECHS, ...DEMONS, ...SPELLS],
+    // TIER7 is APPENDED last on purpose: declaration order drives seeded pool picks, and every Tier 7 card
+    // filters out of any `tier <= state.tier` pool below 7, so appending leaves existing seeds identical.
+    own: [...NEUTRAL, ...BEASTS, ...DRAGONS, ...UNDEAD, ...MECHS, ...DEMONS, ...SPELLS, ...TIER7],
   },
   set2: {
     id: 'set2',

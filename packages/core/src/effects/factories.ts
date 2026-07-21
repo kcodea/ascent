@@ -1,4 +1,5 @@
 import type { CombatContext, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
+import { extraTriggerFires } from '../types';
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
  *  minion object + always cleared in `finally`, so it never pollutes a shared card across combats/turns. */
@@ -45,11 +46,8 @@ const hasBattlecry = (m: Minion): boolean => m.effects.some((e) => e.on === 'onP
 /** Drakko the Drummer's doubling for Ryme's re-fired Battlecries (combat mirror of recruit's `bestCopyRepeats`):
  *  count living Drakkos on `side`, golden → +2 else any → +1 (best single copy, NO stacking). Total = 1 + that,
  *  so one Drakko makes each trigger fire twice, a golden Drakko three times. */
-const drakkoRepeats = (ctx: CombatContext, side: Side): number => {
-  let bonus = 0;
-  for (const m of ctx.living(side)) if (m.cardId === 'drummer') bonus = Math.max(bonus, m.golden ? 2 : 1);
-  return 1 + bonus;
-};
+const drakkoRepeats = (ctx: CombatContext, side: Side): number =>
+  1 + extraTriggerFires('battlecry', ctx.living(side), (id) => ctx.getCard(id));
 
 /** The Battlecry `do` ids `replayCombatBattlecry` runs IN COMBAT (they affect the live fight). Every other
  *  onPlay `do` is an economy/recruit battlecry — deferred to settle and replayed through its recruit factory.
@@ -107,6 +105,14 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
       // Cinderwing Matron — permanently raise run-wide spell power; carried back via playerSpellPower (the
       // same channel Skullblade/Gnasher use), so re-firing it in combat actually grants the spell power.
       ctx.grantSpellPower(num(p.attack) * g, num(p.health) * g, m.side, m.uid);
+    } else if (eff.do === 'battlecryBuffImps') {
+      // Imp Overseer — the run-wide Imp buff is an AURA, so a combat re-fire (Ryme/Drakko) must grant it IN
+      // combat (not defer to settle): buff the live Imps now AND carry it back via grantImpBuff, which also
+      // emits the tribeAura wash. Without this branch it fell to `economy` → deferred → no combat buff/wash,
+      // the owner-reported "Imp Overseer + Ryme needs Bane" gap (Bane's own effect calls grantImpBuff).
+      const a = num(p.attack) * g, h = num(p.health) * g;
+      for (const t of ctx.living(m.side)) if (ctx.getCard(t.cardId)?.imp) ctx.buff(t, a, h, m.uid);
+      ctx.grantImpBuff(a, h, m.side);
     } else {
       economy = true; // Fodder / Gold / shop / gain-minion — no combat surface; replayed at settle
     }
@@ -1253,9 +1259,18 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const foe: Side = self.side === 'player' ? 'enemy' : 'player';
     const targets = ctx.living(foe);
     if (targets.length === 0) return;
+    // The minion OPPOSITE this one — the enemy at the same board index (owner change 2026-07-21; it used to
+    // take the enemy's rightmost). Clamped, so a shorter enemy line still resolves to its last minion.
+    // Golden also taunts an ADJACENT minion: the one to the right, falling back to the left at the end.
+    const own = ctx.boards[self.side].filter((m) => !m.dead && m.health > 0);
+    const idx = Math.min(Math.max(own.indexOf(self), 0), targets.length - 1);
+    const picks = [targets[idx]!];
+    if (self.golden) {
+      const neighbour = targets[idx + 1] ?? targets[idx - 1];
+      if (neighbour) picks.push(neighbour);
+    }
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} works the crowd` });
-    for (let i = 0; i < mul(self) && i < targets.length; i++) {
-      const victim = targets[targets.length - 1 - i]!;
+    for (const victim of picks) {
       if (victim.keywords.includes('T')) continue;
       victim.keywords.push('T');
       ctx.log({ type: 'keyword', target: victim.uid, keyword: 'T', source: self.uid });
@@ -1535,6 +1550,69 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Thundeer (Tier 7) — whenever a friendly minion of `tribe` ATTACKS, this gains +N/+N, where N starts at
+   *  `attack` and IMPROVES by `step` after every proc (the accrual rides `summonBonus`, the standard
+   *  per-instance improve channel, so a triple sums the two highest accruals). Thundeer carries `'EG'`
+   *  (Engraved), which is what makes the gain permanent across the run — this factory only does the growth.
+   *  Golden doubles both the grant and the improve step. */
+  onAllyTribeAttackBuffSelf: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || !minion || minion.side !== self.side) return;
+    const tribe = str(params.tribe);
+    if (tribe && tribe !== 'any') {
+      const def = ctx.getCard(minion.cardId);
+      if (minion.tribe !== tribe && minion.tribe2 !== tribe && !def?.universalTribe) return;
+    }
+    const base = num(params.attack, 10) * mul(self);
+    const step = num(params.step, base) * mul(self);
+    const mag = base + (self.summonBonus ?? 0);
+    ctx.buff(self, mag, mag, self.uid);
+    self.summonBonus = (self.summonBonus ?? 0) + step; // Improve this
+  },
+
+  /** Anubis (Tier 7) — Deathrattle: grant Rise to EVERY other living friendly minion that doesn't already
+   *  have it. `deathrattleGrantReborn` picks ONE candidate per rep; this is the board-wide version. */
+  deathrattleGrantRebornAll: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const tribe = str(params.tribe);
+    for (const m of ctx.living(self.side)) {
+      if (m === self || m.rebornAvailable || m.keywords.includes('R')) continue;
+      if (tribe) {
+        const def = ctx.getCard(m.cardId);
+        if (m.tribe !== tribe && m.tribe2 !== tribe && !def?.universalTribe) continue;
+      }
+      m.keywords = [...m.keywords, 'R'];
+      m.rebornAvailable = true;
+      // A `keyword` event, not just narration — that's what makes the Rise PILL appear on the unit. Every
+      // other Rise grant (Mumi, the Avenge grant) emits one; this logged `sc` text only, so the grant landed
+      // in sim state but was invisible on the board, and the owner reported "none of my minions got Rise"
+      // (2026-07-21). The narration stays for the combat log.
+      ctx.log({ type: 'keyword', target: m.uid, keyword: 'R', source: self.uid });
+      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} grants ${m.name} Rise` });
+    }
+  },
+
+  /** Anubis (Tier 7) — Deathrattle: cast Lantern of Souls (your `tribe` get +Attack everywhere, permanently).
+   *  The Deathrattle mirror of Watcher's `rallyCastTribeAttack`: same spell-power folding, same permanent
+   *  grant channel, same "counts as a real spell cast". Golden casts it twice. */
+  deathrattleCastTribeAttack: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const tribe = (str(params.tribe) || 'undead') as Tribe;
+    const sp = ctx.spellPowerFor(self.side);
+    const a = num(params.amount, 3) + sp.attack;
+    const h = sp.health;
+    for (let i = 0; i < mul(self); i++) {
+      ctx.castSpell(self.side); // a real cast — Spirit Pup / Guel / Forsaken Weaver all see it
+      ctx.addTribeAura(self.side, tribe, a, h, self.uid);
+      // Narrate the cast. The buffs alone read as "some numbers moved"; the owner couldn't tell Lantern of
+      // Souls had fired at all (2026-07-21). Names the spell and its live value, spell power folded in.
+      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts Lantern of Souls (+${a}/+${h} to your ${tribe})` });
+      for (const m of ctx.living(self.side)) {
+        if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+      }
+    }
+  },
+
   /** Buff every living friendly Imp (the 1/1 Imp token) +atk/+hp, AND raise the run-wide Imp buff so the
    *  gain is PERMANENT (future Imps inherit it). Shared by Imp King (Deathrattle) and Brood Matron (Avenge).
    *  Golden doubles the per-proc amount. */
@@ -1544,6 +1622,20 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const h = num(params.health, 3) * mul(self);
     for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, a, h, self.uid);
     ctx.grantImpBuff(a, h, self.side); // permanent — carried back to RunState.impBuff
+  },
+
+  /** Amun Rab (Tier 7) — the improving Imp buff: like `deathrattleBuffImps`, but the magnitude IMPROVES by
+   *  `step` after each proc (rides `summonBonus`, the standard per-instance improve channel). Golden doubles
+   *  both the grant and the step. The buff is permanent — it raises the run-wide Imp buff, so Imps summoned
+   *  later inherit it. */
+  deathrattleBuffImpsImproving: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const base = num(params.attack, 10) * mul(self);
+    const step = num(params.step, base) * mul(self);
+    const mag = base + (self.summonBonus ?? 0);
+    for (const m of ctx.living(self.side)) if (ctx.getCard(m.cardId)?.imp) ctx.buff(m, mag, mag, self.uid);
+    ctx.grantImpBuff(mag, mag, self.side); // permanent — carried back to RunState.impBuff
+    self.summonBonus = (self.summonBonus ?? 0) + step; // Improve this
   },
 
   /** Brood Matron — Avenge (X): every X friendly deaths, buff your Imps +atk/+hp (permanent, carried back).
@@ -1573,9 +1665,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
       (m): m is Minion => !!m && !m.dead && m.health > 0 && hasBattlecry(m),
     );
     if (neighbors.length === 0) return;
-    const chosen = self.golden ? neighbors : [ctx.rng.pick(neighbors)];
-    const repeats = drakkoRepeats(ctx, self.side); // Drakko doubles each trigger (×2, golden Drakko ×3)
-    for (const n of chosen) {
+    // Base Ryme now triggers BOTH neighbours (it used to pick one at random); golden triggers each TWICE.
+    // Note this no longer consumes an RNG roll on the base card — a seeded-replay-visible change, so the
+    // combat goldens were re-baked with it.
+    const repeats = drakkoRepeats(ctx, self.side) * (self.golden ? 2 : 1); // Drakko doubles each trigger
+    for (const n of neighbors) {
       for (let r = 0; r < repeats; r++) {
         ctx.log({ type: 'sc', source: self.uid, text: `${self.name} triggers ${n.name}'s Battlecry` });
         replayCombatBattlecry(ctx, n); // the Battlecry's own combat effect (no-op for economy battlecries)

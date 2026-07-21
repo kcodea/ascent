@@ -317,6 +317,1375 @@ approach-slope symmetry, the `tiltAngleScale` identity at 0, and that every conf
 tuner group so a dial can't be silently unreachable) + `build:web`, all green. No `DEFAULTS` changed, so the
 shipped lunge is byte-identical pending the owner's tuning pass.
 
+## 2026-07-21ag (Ryme replays Imp Overseer's Battlecry in combat)
+
+### fix(core): Imp Overseer + Ryme grants the Imp buff (+ aura wash) in combat — no Bane needed
+
+Owner report: the Imp aura wash plays for some setups but not Imp Overseer + Ryme alone — it "needs Bane."
+
+Root cause, a real gameplay gap (not just FX): Ryme's Deathrattle replays adjacent Battlecries via
+`replayCombatBattlecry`, a hardcoded switch over battlecry `do` ids. `battlecryBuffImps` (Imp Overseer) had no
+branch, so it fell to the `economy` default — DEFERRED to settle instead of running in combat. The Imp buff
+landed after the fight (no combat wash; Imps summoned mid-fight missed it). Bane worked only because its OWN
+`onBattlecryBuffFodder` effect calls `grantImpBuff` directly.
+
+Added the missing branch, mirroring `battlecryBuffSpellPower` / `battlecryBuffUndeadAttack`: a combat re-fire
+buffs the live Imps now AND carries the aura back via `grantImpBuff`, which emits the `tribeAura` wash. So Imp
+Overseer + Ryme (or Drakko) buffs Imps in combat and washes, per Ryme's text.
+
+Verified: harness emits `tribeAura{tribe:demon, +2/+2, aura:imp}` with no Bane; 1288 tests green, no golden
+shifted.
+
+## 2026-07-21x (Dupes quest art)
+
+### chore(ui): wire the refreshed art for the Dupes quest
+
+`Dupes.png` was repainted in the art folder (newest file there) but the wired copy was still the old image.
+Re-encoded to 512×512 webp (`sharp`, q82) like the rest of the set: 65KB → 54KB, and the bytes confirmed
+changed rather than a no-op re-encode.
+
+**Note on the earlier confusion, so it doesn't repeat:** "wire the dupes quest art" meant the quest literally
+NAMED *Dupes* (`q_dupes`). I read it as "the quests with duplicate art" and spent a pass hunting byte-identical
+images (there were none), then wired four unrelated name/id mismatches on 2026-07-21w. Those four were real
+drift and worth fixing, but they were not the ask.
+
+Also swept every source PNG that name-matches a quest for a modification time newer than its wired copy —
+zero others are stale, so the folder and the repo are in sync.
+
+Verified: typecheck + lint + 1277 tests + `build:web` green; `git status` shows only `q_dupes.webp` changed.
+
+## 2026-07-21w (quest art rewire)
+
+### chore(ui): rewire the four mismatched quest arts
+
+Four quests whose source art matched by ID or by an obvious filename typo rather than by their current
+NAME, so they'd been left on stale/mismatched images:
+
+| Source | Quest | Why it didn't match by name |
+|---|---|---|
+| `BoneThrone.png` | `q_the_bone_throne` | quest is "The Bone Throne" |
+| `TrohpyDen.png` | `q_trophy_den` | typo in the filename |
+| `MawOfTheRun.png` | `q_maw_of_the_run` | quest renamed to "Track and Fodder" |
+| `TheImpossibleShop.png` | `q_impossible_shop` | quest renamed to "Taurus Ascension" |
+
+Converted to 512×512 webp (`sharp`, q82) to match every other quest art — the source PNGs are ~2.5MB each,
+so copying them verbatim would have added ~10MB to the bundle for four images. Result: 27–70KB each, in line
+with the existing set.
+
+NOT touched: the 7 UUID-named files in that folder (un-attributed — the standing rule is to wire art only on
+a filename match, never a guess), and the stale files matching no current quest (`Bloodlust`, `GraveToll`,
+`FirstTracks`, `EpicCommission`, `ShieldCalibration`, `ToothAndTempo`, `TrailRations`, `TaragosasInheritence`
+— the last a spelling twin of the already-wired `TaragosasInheritance`).
+
+Verified: all 80 quests have art, zero byte-duplicate images in the folder, and typecheck + lint + 1277 tests
++ `build:web` green.
+
+## 2026-07-21v (Aeon Guard: spell power on the beat)
+
+### fix(ui): the spell-power flourish fires per End-of-Turn proc, not at Start of Combat
+
+Same root cause as the quest tendril, now applied to spell power. `spellPowerFxSeq` is stamped when the
+End-of-Turn commit lands (`faceOmen`) — which is dispatched AFTER every beat has played and the phase has
+flipped — so Aeon Guard's flourish played once, at Start of Combat, instead of on each proc.
+
+Now fired from the beat loop: the beat carries the source uid, so the FX reads that card's `endOfTurn`
+`battlecryBuffSpellPower` params (golden-doubled) and pops on the unit, at its moment, once PER PROC. A
+Chronos/Parliament-repeated End of Turn gets one flourish per beat, matching the tendril.
+
+The committed signal is NOT removed — it still covers the shop paths (casting a spell, a buy that moves
+spell power). It's suppressed only for the sourceless, out-of-recruit bump, which is exactly the late
+`faceOmen` one that produced the Start-of-Combat pop.
+
+**Still open:** the combat-side hook (`useCombatReplay`'s `sc` narration) remains, and still anchors to
+whichever unit sourced it, enemy included — the TODO from 2026-07-21t. That path is for spell power gained
+DURING a fight (Skullblade), which is a genuinely different moment from this one; it needs the replay's
+player/enemy uid sets to stop drawing on the opponent's half.
+
+Verified: typecheck + lint + 1277 tests + `build:web` green, `typecheck:web` at its 48 baseline. Not
+exercised end-to-end for the same harness reason as the tendril — but the tendril fix, which the owner
+confirmed working, validates the seam this reuses.
+
+## 2026-07-21u (End-of-Turn FX must ride the BEAT, not reducer state)
+
+### fix(ui): fire the quest tendril from the End-of-Turn beat loop
+
+▶ Test worked, the real proc never showed. The cause is architectural and explains the Aeon Guard timing
+complaint too.
+
+**End-of-Turn effects animate as BEATS in `Recruit.endTurn`, and the reducer commit (`faceOmen`) is
+dispatched only AFTER every beat has played and the phase has flipped.** So any FX keyed off committed run
+state (`questTendrilFx`/`questTendrilSeq`, and equally `spellPowerFxSeq`) fires once, late, when the board is
+already gone — my own "unit already left the board, skip" guard then swallowed it silently. That is why the
+tendril was invisible at End of Turn while the tuner's Test — which fires against the live board — looked
+perfect.
+
+The ribbon now fires inside the beat loop, on the beat that represents that reward's proc. Two things fall
+out for free: it draws while the board is still on screen, and it is inherently PER PROC — a repeated End of
+Turn (Chronos/Parliament) gets one ribbon per beat, which is what the owner asked for. The target is
+resolved UI-side mirroring `runRecurringEndOfTurn`'s pick (leftmost Shout / leftmost Echo).
+
+The sim signal stays: it still drives the node PULSE in QuestBadges, which is correctly keyed off committed
+state. Only the ribbon moved.
+
+**This is the same root cause as Aeon Guard's spell power showing at Start of Combat** — that FX is also
+keyed off committed state, so it lands after the phase flip. The fix is the same shape (fire from the beat),
+and is the per-proc work still outstanding.
+
+**NOT VERIFIED END-TO-END.** A real `endTurn` runs combat, which my synthetic harness state can't survive
+(`reduce` throws on the incomplete state), so I could not watch the beat fire the ribbon. The reasoning is
+solid and the wiring typechecks, but the owner should confirm before trusting it. Everything else green:
+typecheck + lint + 1277 tests + `build:web`, `typecheck:web` at its 48 baseline.
+
+## 2026-07-21t (the tendril's curve was a MULTIPLIER, not pixels)
+
+### fix(ui): quest tendril arc units — the actual cause of the off-screen ribbon
+
+Four diagnoses deep, the cause was a UNIT error in my own config, not selectors, not layout, not rendering.
+
+`pixiFx` computes the quadratic control point as `off = len * cfg.curve * 0.5` — `curve` is a FRACTION OF
+THE TENDRIL'S LENGTH. I documented it as "arc bulge (px)", shipped a default of **46**, and gave the tuner a
+±200 range. On a ~700px tendril that puts the control point **~16,000px** off screen, which is exactly the
+straight spike toward the corner the owner kept reporting. The sibling configs had the answer in plain sight
+the whole time: Infusion uses `0.3`, Swap uses `0.94`, both ranged `[0, 1]`.
+
+Now `0.28`, with the range clamped to ±1 so the tuner cannot reproduce it.
+
+**Three wrong diagnoses before this, all from reasoning past the evidence rather than reading it:**
+1. "Layout — the `--qb-*` pin pushes the node off screen" → shipped a viewport clamp for a node that was
+   never off screen. The clamp is harmless but it was treating a symptom I'd invented.
+2. "Wrong element — the opponent's `.questbadge`" → real latent bug, correctly fixed, but NOT this one.
+3. "It isn't rendering at all" → based on a `Graphics` measuring 0x0, whose bounds simply don't reflect drawn
+   geometry. An owner screenshot disproved it. That is the third wrong-accessor probe this session, after
+   `window.__pixiFx` and the refresh dust.
+
+The owner's screenshots were better evidence than every measurement I took. The tell was there from the
+first one: a ribbon whose NODE end is correct and whose far end runs to a screen corner is geometry, not
+lookup — a wrong element gives you a wrong but plausible endpoint, never a 16,000px one.
+
+**Aeon Guard — NOT fixed, deliberately.** The flourish draws on the opponent's half because the combat path
+anchors to whichever unit sourced the `sc` narration, enemy included. `sc` carries no `side`, so the guard
+needs the replay's player/enemy uid sets. I tried `e.side`, it didn't typecheck, and I reverted it rather
+than ship a fourth guess. Marked with a TODO at the site. The TIMING complaint (fires at Start of Combat
+rather than per End-of-Turn proc) is the per-proc work still queued — the narration I hooked genuinely fires
+at SoC, so that hook is wrong for this, not just mis-anchored.
+
+Verified: typecheck + lint + 1277 tests + `build:web` green, `typecheck:web` back at its 48 baseline.
+
+## 2026-07-21s (tendril anchored to the wrong panel; node pulse)
+
+### fix(ui): scope the quest tendril to the PLAYER's badge row + pulse on a recruit-phase proc
+
+Owner: the tendril came out of the OPPONENT's quest panel, stayed off screen, and the active node never
+pulsed when it fired. Two real bugs, and the first is mine from the previous pass.
+
+**1. Wrong panel.** `OpponentFrame` renders the opponent's quests/runes with the SAME `.questbadge` class,
+inside `.oppbadges`. Both the ▶ Test (`document.querySelector('.questbadge')`) and the anchor lookup were
+UNSCOPED, so they could resolve to the opponent's badge — which sits in the top-right frame, hence a ribbon
+launching from off-screen. Every lookup is now scoped to `.questbadges`, the player's row, which excludes
+`.oppbadges` by construction.
+
+*This is why the previous clamp "fix" didn't help:* I treated an off-screen launch point as a layout problem
+with the `--qb-*` pin, when the launch point was simply the wrong element. The clamp is still correct as a
+guard, but it was bandaging the symptom of a selector bug. I should have checked whether anything ELSE
+renders `.questbadge` before assuming the coordinate was right and the layout wrong.
+
+**2. No pulse on a recruit-phase proc.** The node's bounce keys off `pulse`, built from `completionCount` +
+`completed` + `combatTriggeredQuests` + `combatCompletedQuests` — all COMBAT signals. A recurring reward
+firing at End of Turn (Echoing Roar) moves none of them: `triggered` is combat-only and `completionCount`
+doesn't budge on a re-fire. Now folds in this action's tendril procs for that reward, so the key changes per
+proc and the bounce replays each time.
+
+Verified: typecheck + lint + 1277 tests + `build:web` green. Live DOM: the scoped and unscoped lookups agree
+on a board with no opponent quests (so the scope doesn't break the normal case), and firing a proc moves the
+node's `data-pulse` 2 → 3, replaying the bounce.
+
+**Still unverified:** a board that actually HAS opponent quest badges. The scope is correct by construction
+(`.oppbadges` is not `.questbadges`) but I could not stage an opponent with quests to watch it, so the case
+that was actually broken is fixed-by-reasoning, not fixed-by-observation.
+
+## 2026-07-21r (tendril clamp + blast dials)
+
+### fix(ui): keep the quest tendril on screen; expand the blast/shrapnel tuner
+
+**Off-screen tendril.** Owner saw the ribbon fly in from the corner, and the ▶ Test did it too. The quest
+node row is stage-pinned with a large negative `--qb-y` (−256 × scale), so on a tall/zoomed layout the node
+sits ABOVE the viewport — and a tendril launched from an off-screen point reads as a stray line rather than
+as coming from the node.
+
+Not reproducible at my viewport (the node measured a healthy 50,814 there), so it was reproduced by forcing
+the row off-screen: at a raw centre of **−350,67** the launch now clamps to **12,67**, keeping the ribbon
+coming from the node's DIRECTION while staying visible. The target end is checked too — if the UNIT is
+off-screen the proc is skipped rather than slinging a ribbon at a point the player can't see. The ▶ Test now
+picks the first ON-SCREEN node and unit, so it exercises the same geometry the real fire does.
+
+NB: the clamp treats the symptom. That the node row can leave the viewport at all is a LAYOUT issue with the
+`--qb-*` pin worth its own look — the tendril just made it visible.
+
+**Blast/shrapnel dials** (owner ask): the spell-power blast had 5 knobs, now 13 — `blastSpread` (360 = ring,
+less = a cone), `blastAngle` (where the cone aims, 0 = up), `blastDrag`, `blastJitter` (speed variance),
+`blastRise` (upward kick), `blastSpin`, `blastStagger` (0 = one pop, >0 = a sputtering spray), and
+`blastShrink` (end scale). The previously hardcoded drag/rise/shrink are now dials, so the old look is
+reproducible from the defaults. Stagger only schedules timers when non-zero, so the default stays a single
+synchronous burst with no scheduling cost.
+
+Verified: typecheck + lint + 1277 tests + `build:web` green; the clamp confirmed against a forced off-screen
+node with no console errors.
+
+## 2026-07-21q (quest tendril)
+
+### feat(ui): a gold tendril from a quest node to the unit it triggers
+
+Owner ask: when a quest procs a unit — Echoing Roar re-firing your leftmost Shout — a gold ribbon should
+reach out of the quest's NODE and strike the unit it triggered.
+
+Built on the existing `pixiFx.buffTendril` (the Fodder Infusion's primitive), so this is a signal + anchor
+job rather than new rendering: `questTendrilConfig.ts` is that primitive's `TendrilCfg` in a gold palette
+plus an arc dial and a stagger, with the "🏆 Quest Tendril" tuner and a ▶ Test that fires one from the first
+node to the first board minion.
+
+**Signal.** `runRecurringEndOfTurn` stamps `{ effect, uid }` for the two rewards that target a UNIT —
+Echoing Roar's `triggerLeftmostShout` and Rune of the Reliquary's `triggerLeftmostEcho`. One entry PER PROC,
+so a repeated End of Turn (Chronos / Parliament of Flame) draws one ribbon per fire rather than one for the
+group, and the arc alternates sides so they read as separate strikes.
+
+**Anchor.** Nodes carry `data-eot-effect`, keyed on the reward EFFECT rather than the quest id — runes grant
+these too and have their own badge in the same row, so one attribute covers both. Absent for non-recurring
+rewards, so only the nodes that can actually throw a tendril are addressable. If either end is missing (node
+off-screen, unit already gone) the proc is skipped rather than throwing.
+
+Verified: typecheck + lint + **1277** tests + `build:web` green. New test pins the stamp (effect + uid, seq
+bumped). Live DOM: the node resolves at (50,814) and the target unit at (767,741), and firing the signal —
+including the two-proc stagger path — runs clean with no console errors.
+
+**Caveat:** verified by wiring and geometry, not by watching the ribbon. The draw is the shipped Infusion
+primitive, so the risk sat in the signal and the anchors; still worth an eye on the gold and the arc.
+
+## 2026-07-21p (re-triggered Shouts count)
+
+### fix(sim): a REPLAYED Shout advances Shout objectives; tallies accumulate
+
+Owner report: Echoing Roar wasn't counting toward Shout triggers. Its own reward re-fires your leftmost
+Shout at End of Turn, so the quest could not advance itself.
+
+**Cause — the same class as the Uron rally fix (#594): the effect re-fired, the tally never saw it.**
+`lastShoutFires` (which the reducer reads to advance `shout` objectives) was written ONLY by the play path.
+Every re-trigger path routes through `replayBattlecry` — Echoing Roar's End-of-Turn reward, the Resonance
+spell, Myra's hero power — and none of them touched it. All three were silently uncounted, not just
+Echoing Roar.
+
+**Second, latent bug found while fixing it:** the play path ASSIGNED (`= isShout ? n : 0`) rather than
+accumulating. The reducer already zeroes the field at the start of every action, so assignment bought
+nothing and meant the LAST writer in an action won — a played Shout plus a re-triggered one recorded one,
+not two. `lastEchoFires` already accumulated (`+= 1 + reaper`); Shout and End-of-Turn were the odd ones out.
+Both now accumulate, matching Echo.
+
+Tests assert at the tally, which is where the bug lived, and **both were confirmed to fail on the pre-fix
+code** (`expected +0 to be 1`, `expected 1 to be 2`) — regression guards, not restatements.
+
+**Audit status — PARTIAL, and the owner asked for a full one.** This pass covered the recruit-phase TRIGGER
+tallies (Shout / Echo / End-of-Turn) and the three `replayBattlecry` callers. NOT yet swept: the remaining
+~17 objective events (`buy`, `spendGold`, `summonCombat`, `playAttachment`, `consumeFodder`, …) against every
+quest and rune reward that could fire them indirectly. That's a systematic content-wide audit and is queued
+rather than half-claimed.
+
+Verified: typecheck + lint + **1276** tests + `build:web` green.
+
+## 2026-07-21o (spell power FX — shop half)
+
+### feat(ui): the spell-power flourish — rising arrows, origin blast, floating power number
+
+New FX fired when a spell RESOLVES: a fan of pink/purple/gold arrows rises from the shop row, a mote blast
+pops at the origin, and the run's current spell power floats up as a number once the arrows land. Full trio
+pattern — `spellPowerFxConfig.ts` (DEV-persisted config) + `SpellPowerFxTuner.tsx` ("✨ Spell Power", with a
+▶ Test that fires over the shop row so you needn't stage a cast) + `pixiFx.spellPower`.
+
+**The signal is derived, not scratch.** `spellPowerFxSeq` is stamped in the reducer from the before/after
+`spellsCast` delta — the same place the quest tick reads — rather than a per-action scratch field. That's
+deliberate: the weld-FX bug was a scratch payload cleared before React committed, and a derived delta can't
+be swallowed by batching. `spellPowerFxValue` captures the power at stamp time so the number shows what THAT
+cast produced.
+
+**Perf.** Arrows are one Graphics each, redrawn only while rising and retired on completion (the weld-ring
+pattern, with a `perfMonitor` counter). The blast reuses the shared glow texture + particle pool. The number
+is a one-shot DOM element animated by WAAPI on transform/opacity and removed on finish. Nothing loops, so
+nothing repaints once a cast has played out.
+
+**Live testing caught a real one:** every cast in a fresh run printed "+0", since a run with no spell-power
+sources still casts plenty of spells. A zero tells the player nothing while still pulling the eye, so the
+number is now suppressed at 0 — the arrows and blast already say "a spell resolved".
+
+**Trigger corrected (owner report, same day).** The first cut fired on the `spellsCast` delta — i.e. on
+CASTING a spell. That's the wrong event: the flourish is for spell power going UP, by any source and any
+amount. Worse, it read `spellAttackBonus` alone, and Cinderwing Matron grants spells **+1 Health** — so the
+card the owner tested with could never have fired it, on either count. Now stamped from the before/after
+delta of BOTH stats, and the float prints what actually moved (`+1 HP`, `+2 Atk`, or the pair `+2/+1`) rather
+than a merged number. The "+0" suppression from the first cut is now structural: a cast that moves nothing
+never stamps at all.
+
+**Combat wired — without a new choreo channel.** My first read said this needed a `cast` channel threaded
+through `compile` → `engine` → `channels`. It didn't: `grantSpellPower` ALREADY emits an `sc` narration
+carrying the source uid and a `+A/+H Spell Power` text, so the replay fires the flourish off that, over the
+unit that caused it. Much smaller and it reuses a path that's already beat-synced. The cost is a STRING
+COUPLING across the package boundary, so `spellPowerFx.test.ts` pins the narration shape from the UI side —
+if core reformats it, that test fails instead of the FX silently dying in a playtest.
+
+**Anchored to the source card** (owner ask): the reducer stamps `spellPowerFxUid` from the acting action, and
+the UI anchors to that card's rect. Sourceless gains (quest reward, rune tick) and cards that leave play as
+they resolve fall back to the shop row rather than firing nowhere.
+
+**Text + outline colour pickers** added to the tuner (`colorText`, `colorOutline`), driving the float's fill
+and its `-webkit-text-stroke` + shadow ring. Static per element, never animated.
+
+Verified: typecheck + lint + **1270** tests + `build:web` green, `typecheck:web` at its 48 baseline. New
+`run.test.ts` case pins both halves of the signal — a cast bumps the seq exactly once and captures a numeric
+power, and a non-casting action (`roll`) does NOT bump it. Live DOM: casting Deposit Box took the seq 1 → 2
+and floated the number.
+
+## 2026-07-21n (quest panel → quest nodes)
+
+### feat(ui): every taken quest is a node — dim while pending, lit once it activates
+
+Replaces the QuestPanel text window (top-left) with NODES in the existing `QuestBadges` row above the hero
+panel. A quest now appears as a bubble the moment it's taken, sits DIM with a live `x/y` counter above it,
+and lights up in the SAME SLOT when it activates — instead of living in a text panel and then jumping to a
+separate trophy row.
+
+`QuestBadges` already had the two pieces this needed: `.questbadge-step` (the x/y counter above the circle,
+shared with the combat avenge tally) and `.questbadge-tip` (the hover pill). So this is mostly a selection
+change — iterate ALL of `activeQuests` in ACQUISITION order and branch pending vs activated — rather than new
+UI machinery. It also inherits the row's existing `--qb-*` layout tuner for free.
+
+The dim treatment (grayscale + dropped opacity) mirrors Disco Dan's tier-locked cards, so "not yet" reads the
+same way across the game. Hovering a pending node brings it to full colour — a peek at what it becomes, and
+confirmation of what the pointer is on. Both filters are STATIC per state, never animated, so they cost no
+per-frame paint.
+
+`combatDeltaFor` moved over from the retired panel: a pending node's x/y ticks up live during a replay exactly
+as the old text row did. Compound objectives (The Author's Hand) have no single count, so they show no
+counter and their tip lists each part's own progress line.
+
+**Judgement calls, flagged for the owner:** (1) nodes sit in acquisition order, so a node never jumps position
+when it completes — the alternative (pending first, completed after) re-sorts the row mid-run. (2) The
+QuestPanel component is DELETED rather than left dormant, since it was the thing being replaced.
+
+`QuestPanel.tsx` removed; its stale references in `store.ts` / `questText.ts` / `Recruit.tsx` comments updated.
+
+Verified: typecheck + lint + 1269 tests + `build:web` green, `typecheck:web` at its 48 baseline. Live DOM with
+two pending quests and one activated: `.questframe` gone, three nodes, counters `3/9` / `12/30` / `1/4`,
+pending art `grayscale(0.85) brightness(0.62)` at 0.72 opacity vs `none`/1.0 for the activated one, and the
+pending tip reads "Blood Trail · Kill 9 enemies → … · 3 / 9".
+
+## 2026-07-21m ("All" types + hand hover hysteresis)
+
+### fix(ui/core/sim): Lab Experiment reads ALL and takes every tribal buff; hand hover stops oscillating
+
+**1. Lab Experiment showed NEUTRAL and missed tribal buffs.** The def already carried `universalTribe` and
+`isTribe()` honoured it, but a handful of paths compared `tribe`/`tribe2` directly and skipped it. Two were
+player-visible in recruit — Fried Circuits' Mech shop buff and Trail Forager's "each Beast you play" — and
+four were in combat: the Mech on-attack trigger, the shield-target scan, Better Bot's Rally-Mech buff, and
+the Magnetic host check. Combat's `factories.ts` was already thorough; these were the stragglers in
+`simulate.ts`. Pool filters (which DEFS can be offered/summoned) were deliberately left alone — that's a
+different question from which minions RECEIVE a buff.
+
+The footer now prints **ALL** for a universal type instead of its printed tribe. `tribe: 'neutral'` stays as
+authored — universality is the override, not a re-typing — but showing NEUTRAL made the card look like it
+took no tribal buffs, which was the whole confusion. `CardView` gains `universalTribe`, fed from the def or
+from an Anomaly-Reactor'd instance's `allTribes`.
+
+**2. Hand hover "glitching" — a hover/lift oscillation.** A hand card rests TUCKED DOWN (`--hand-tuck`,
++0.16·ch) and POPS UP on hover (`--hand-floor − --hand-pop`, −0.22·ch): a ~0.38·ch jump, ~42px at the
+current scale. Hovering the lower third moved the card out from under the pointer → unhover → drop back
+under the pointer → re-hover, forever. The card the owner "couldn't open" was just the one whose lower body
+they were pointing at; nothing was wrong with that card.
+
+Fixed with a `.handpad` hit-pad: matches the card at rest, extends 0.45·ch DOWNWARD while hovered, so the
+pointer that triggered the pop is still inside afterwards and the hover latches. Rest bounds are untouched
+(never steals a neighbour's hover) and it sits at z0 under every real layer (never intercepts a click).
+A real element, not a pseudo-element — `::before` is the keyword-glow layer on Venomous/Reborn/triple-ready
+cards and `::after` is the existing drawer bridge from #592. Hit-testing only: no layout, no paint.
+
+Verified: typecheck + lint + **1269** tests + `build:web` green, `typecheck:web` at its 48 baseline. New
+`run.test.ts` case pins the rule (Lab Experiment answers `isTribe` for all five tribes, and Trail Forager
+scores it as a Beast played — that assertion fails on the pre-fix code). Live DOM: footer reads ALL while
+Cinderwing still reads DRAGON; pad rest-bottom equals card rest-bottom (1047), lift 42px vs pad reach 53px,
+board pads `pointer-events: none`.
+
+## 2026-07-21l (three stale-looking bugs, all real)
+
+### fix(ui): Freeze cascade loss, Fodder ref-popup aura, buff-drawer slide
+
+Owner re-reported three bugs I had twice "verified" as fixed. All three were real; every one of my
+checks had measured the wrong thing. Root causes were unrelated:
+
+**1. Freeze jumped on click — a CSS specificity loss.** The pin rule was written as
+`.frzwrap.frzwrap:active` (0,3,0), which loses to `button.shopbtn:not(:disabled):active` (0,3,1) — the
+leading element selector is worth exactly the point that decided it. The rule sat in the stylesheet
+looking correct and never applied. My probe asserted the rule EXISTED, which it did. Now
+`button.frzwrap.frzwrap:not(:disabled):active` (0,4,1).
+
+*While fixing it I broke the stylesheet:* the new comment tail landed after the existing `*/`, orphaning
+text and silently dropping every `.frzwrap` state rule. Caught only because the verification enumerated
+the loaded `cssRules` and the selectors were absent. A CSS parse error is invisible to typecheck, lint,
+tests, AND `build:web` — only the live sheet shows it.
+
+**2. Fodder ref-popup printed 3/3 while the shop card showed 6/6.** `refViewsByUid` built token previews
+from raw `run.cardBuffs` (permanent enchants only), dropping Heckbinder's live `fodderAura`. This is the
+FIFTH surface in this class — tavern (#589), buff panel, board/hand text, Discover, now the popup. The
+standing lesson held: when the fix is a shared accessor, grep every reader of the raw source. I had
+grepped `fodderAura`, but this reader names `cardBuffs`, so it never appeared.
+
+**3. Buff-drawer slide — mount-on-open defeated the transition.** Two earlier attempts left it at frame 0.
+Cause: the body mounted only while open, so React created it with `.open` already applied — its first
+computed style was the final one, leaving nothing to interpolate from. `getAnimations()` reporting
+`running` at `currentTime: 0` read like a stuck animation but was a no-op. Now always mounted and toggled
+by class, hidden via `visibility`/`pointer-events` with the visibility delayed to the end of the close.
+
+**Also baked** the owner's hero-panel `panelY` (−569 → −79) and drawer tuner values (`tabS` 0.71,
+`bodyX` 2, `bodyS` 0.48) into BOTH sources. The scale-tuner payload already matched.
+
+**Process note.** The prior session also mis-diagnosed a stale dev server: `preview_stop` reported
+success while both node processes survived, so a Vite instance kept serving modules across branch
+switches. Verified dead by port/PID this time, not by the tool's return value.
+
+Verified: typecheck + lint + 1268 tests + `build:web` green, `typecheck:web` at its 48 baseline; live DOM
+— ref popup reads `Fred Fodder TIER 1 6 6`, drawer transform interpolates (−109 → −100.9 → 0), and the
+Freeze pin rule is present in the loaded sheet and out-specifies the `.shopbtn` nudge.
+
+## 2026-07-21k (rally quest tally)
+
+### fix(core): Uron's extra Rally fires now count toward Rally quests
+
+Owner report: with Uron out, two rallying minions read as **2** toward Infinite Assembly's "Trigger 7
+Rallies" instead of **4**.
+
+**This was mine, from the Uron split.** Combat has TWO rally-extra paths. The older additive doublers
+(Law of Teeth / Rallying Offensive / Infinite Assembly / Spark Permit) re-fire the attacker's on-attack
+effects AND call `bumpRally(extras)`. The Uron block I added re-fired the effects and **never bumped the
+tally** — so the effects doubled but the quest didn't see it.
+
+Fixed with the matching `bumpRally(rallyExtra)`, player-only like every other quest tally.
+
+**Checked the other families for the same gap, since the ask was full synergy.** Echo already had parity —
+`playerEchoExtras` (Sylus + Zyff + Funeral Engine + the first-echo bonus) feeds `bumpDeathrattles(extra)`,
+per the 2026-07-08 ruling that TRIGGER-based counts scale with doublers. Shout counts through
+`drummerRepeats`, which is deliberately non-consuming so the reducer's Shout tick reads the fire count.
+Rally was the only family missing it.
+
+**A test-methodology note.** My first test asserted the raw tally doubles — it read 81 vs 118 and failed.
+That wasn't the fix falling short: Uron ALSO multiplies End of Turn and Start of Combat, so it changes how
+the fight plays out and therefore how many swings happen. A raw total measures fight length as much as the
+rule. The test now asserts the real invariant — Rallies **per rally swing**: exactly 1 normally, exactly 2
+with Uron.
+
+1268 tests, typecheck, lint, build:web green.
+## 2026-07-21o (Heckbinder, third pass + freeze jitter)
+
+### fix(ui): the Fodder aura was missed in TWO more display paths; Freeze sits still
+
+**The Heckbinder aura, a third time.** `run.cardBuffs` is the permanent enchant; Heckbinder's `fodderAura`
+is live, and `cardBuff()` folds them. I fixed the tavern path in #589 and the buff panel in this branch —
+and both times fixed only the site that was reported. Grepping for the raw map turned up **two more
+consumers**: the board/hand live-text params and the Discover overlay. All now route through the same
+`cardBuffsLive` map.
+
+That's three separate reports for one root cause, because each fix was scoped to the symptom. The lesson is
+cheap and worth writing down: **when a shared accessor is the fix, grep for every reader of the raw source
+in the same pass.** Verified: a shop Fred with a +2/+2 enchant and a Heckbinder on board now reads **6/6**
+(it read 3/3 — base + enchant, no aura).
+
+*(A hand/board Fodder still shows its own baked stats — correct: the aura applies at creation, so an
+existing card keeps what it was made with. Only OFFERS recompute.)*
+
+**Freeze no longer jumps on click.** It inherits `.shopbtn`, whose hover/active rules nudge the button —
+fine in a tray, wrong for stage-pinned board furniture. The pin transform is now re-asserted on hover,
+active and focus, so it sits still; the `.on` tint still carries the state. Verified: the computed transform
+is byte-identical before and during a click.
+
+**Baked**: buff drawer (6 values — a shorter/wider tab, drawer scaled to 0.58) plus the mirrored CSS
+fallbacks, and drag feel `handPop 0.08 -> 0.2`.
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
+## 2026-07-21n (bakes + drawer tab polish)
+
+### tweak(ui): bake qbY + hero panel, drop the tab arrow, shrink the count — slide-out NOT shipped
+
+**Bakes.** `qbY -746 -> -256` was the only Scale/Layout value that had moved; the hero-panel paste already
+matched its defaults exactly (0 changes). The fallback audit caught `qbY`'s `styles.css` value **still at
+-746** — the same double-source drift as last time, in a fresh spot. Fixed; both audits now clean.
+
+**Tab polish.** The up-arrow icon is gone (it pointed the wrong way for a side drawer and crowded the
+narrow vertical tab), and the count is sized down to sit with the chevron rather than dominate it — the tab
+now reads simply "2 ▸".
+
+### The slide-out animation is NOT shipped, deliberately
+
+Two attempts, both of which left the drawer **stuck at its first frame**:
+1. **Keyframes** restating the tuner's var-based transform. Suspected the vars; they weren't the cause.
+2. **A CSS transition on a persistent element**, driven by the parent's `.open` class — the standard fix for
+   mount-timing problems. `.open` was verifiably on the wrapper and the rule was well-formed and unduplicated,
+   yet the computed style never changed.
+
+Ruled out along the way: reduced-motion (false), stale CSS (survived a hard reload AND a dev-server restart),
+duplicate/ malformed rules (one `.herobuffs-body` rule, override immediately after, correct specificity).
+`getAnimations()` reported the keyframe animation `running` with `currentTime: 0` — the timeline simply
+wasn't advancing for this element in this container.
+
+I reverted to the working mount-on-open reveal rather than ship it. **A drawer that never appears is far
+worse than one that appears instantly**, and my second attempt had left it in exactly that state. The cause
+is real and not yet understood — it wants a fresh look, not another guess.
+
+(The revert also briefly broke the build: my slice left a stray `</div>`. Caught by `build:web`, fixed.)
+
+Verified after the revert: tab reads "2 ▸" with no arrow, drawer opens and closes, and shows
+"Fodder Aura +3/+3" + "Attachment Aura +4/+2".
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
+## 2026-07-21m (buff panel coverage + vertical tab)
+
+### fix(ui): the buff panel was missing Heckbinder, Attachments and Beasts — plus a vertical tab + tuner
+
+Three owner reports, and the second one turned into an audit.
+
+**Heckbinder's Fodder aura wasn't counted.** The row read `run.cardBuffs.fred` — the PERMANENT enchant only
+(Ritualist / Bane). Heckbinder's `fodderAura` is a LIVE aura applying while it's on board, and `cardBuff()`
+is what folds the two together. This is the **same class of bug, in a second place**: the tavern display had
+it too (fixed in #589), and I fixed that one without checking whether anything else read the raw map. It
+now goes through `cardBuff()`.
+
+**Two run-wide auras had no row at all** — found by auditing every buff field in `RunState` against what the
+panel renders, since "if we're going to have a buff panel it needs to include all current buffs":
+- **Attachment Aura** (`magneticBuyAtk/Hp`, Scrap Herald) — the owner's report
+- **Beast Aura** (`beastBuyAtk/Hp`) — the same omission, unreported
+
+**The tab is now VERTICAL**, so it eclipses far less of the portrait art — a horizontal pill ate a visible
+bite. Position, scale, tab width/height, drawer offset/scale/min-width and BOTH type sizes are now dials in
+a new 🧪 Buffs Drawer tuner, because how much overlap reads as "attached" rather than "covering" is a
+judgement call, not a number I should be picking.
+
+Verified live: with NO permanent enchant and a lone Heckbinder on board the panel reads "Fodder Aura +3/+3"
+(it read nothing before), "Attachment Aura +4/+2" appears, the tab measures 28x94 (taller than wide), and
+driving `tabH` moves it 94 -> 174 with Reset restoring 94.
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
+## 2026-07-21l (run-buffs drawer)
+
+### tweak(ui): run buffs become a collapsible drawer off the hero portrait
+
+Owner rework: the buffs used to be a separate boxed window in the top-left. They are now a DRAWER extending
+right out of the hero portrait, opened by a tab that ECLIPSES the portrait's right edge — the same
+"pill straddling an edge" language the player-name and hero-name pills already use, so it reads as part of
+the hero panel instead of another floating box.
+
+**Collapsed by default** (it never covers the board unasked), and the tab carries the buff COUNT while
+closed so you can see there's something to open without opening it. The body only mounts while open, so
+nothing paints behind the board when it isn't.
+
+Anchored to `.statusbar .hero` rather than stage-pinned, so it rides the portrait wherever the layout tuner
+puts it — one less position to keep in sync. Mount moved out of `HudBar` into `StatusBar`.
+
+Verified live: tab straddles the portrait's right edge (its box spans that boundary), collapsed initially
+with the count reading 1, opens on click into a drawer sitting 34px right of the portrait showing
+"Spell power +3/+2", and the old `.buffsframe` window is gone.
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
+## 2026-07-21j (layout re-bake + a stale-fallback audit)
+
+### fix(ui): bake shopUiY, and re-sync three layout CSS fallbacks the earlier bake missed
+
+`shopUiY -72 -> 18` from the owner's latest Scale/Layout pass — the only value that had moved.
+
+**The interesting part is what that exposed.** Layout values live in TWO places: the `def:` in
+`layoutConfig.ts` (what the tuner and dev builds read) and a `var(--z-…, <fallback>)` in `styles.css`
+(what PRODUCTION renders when no tuner value is set). Going to bake `shopUiY` I found its fallback still
+reading `-67px` — the value from *before* the previous bake. That bake had updated the def and left the
+fallback behind, so **production was rendering a different layout from the one that was tuned**, silently.
+
+An audit across every layout key turned up two more in the same state: `shopY` (css 23 vs def 46) and
+`wbY` (css -71 vs def -79, in two rules). All four are now synced, and the audit re-run is clean.
+
+This is a standing trap in the Layout Lab convention, not a one-off — a bake that touches only the def
+looks correct in dev and ships the old number. Worth a lint rule or a test that diffs the two, which is
+noted in the roadmap.
+
+1267 tests, build:web green.
+
+## 2026-07-21i (Freeze relocation + late freeze)
+
+### tweak(ui): Freeze moves to the board's top-right, can be used after the clock runs out
+
+**Freeze after time-up is now allowed** (owner). The reducer never gated it — `case 'freeze'` is an
+unconditional toggle — so this was purely the button's own `disabled={timeUp || …}`. Dropping `timeUp`
+makes it a legitimate last action: the shop is still on screen until the End-of-Turn animation begins.
+
+**Freeze moved out of the shop tray** to the board's TOP-RIGHT, opposite the Tavern Up stone, stage-pinned
+like the other board buttons with a ❄️ dev tuner for position/scale.
+
+The tuner is **position + scale only, deliberately.** The freeze art isn't in yet, so glow/sheen/press dials
+would have nothing to act on — and the button keeps the tray's `shopbtn freeze` skin rather than my
+inventing a look that gets thrown away when the art lands. The new CSS rule overrides positioning and
+nothing visual.
+
+**Refresh re-baked** with the second tuning pass (16 values: softer wider glow at 0.57/22px, a longer 1050ms
+shine spreading to 1.9, much lighter dust, and a bigger 21-shard blast at 0.8 spread), plus the mirrored
+`styles.css` fallbacks. As before, the paste's stale `spinMs`/`flashMs`/`rings` keys were dropped rather
+than resurrected.
+
+Verified live: Freeze sits at x 1286 against the Tavern stone's 241 either side of a 764 centre — 522 vs
+523px, a matched pair; it is gone from the tray; and with the clock forced past zero the button stays
+ENABLED and toggling it actually flips `run.frozen` false -> true.
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
+## 2026-07-21h (tuned bakes + hand hover bridge)
+
+### tweak(ui): bake the tuned Scale/Drag/Refresh values, tavern-style Refresh cost, and fix the hand hover gap
+
+**Baked three tuner passes** as the shipped defaults (+ the mirrored `styles.css` fallbacks, which are what
+production actually renders):
+- **Scale/Layout** — only 3 values had actually moved (`shopY 23 -> 46`, `shopUiY -67 -> -72`,
+  `wbY -71 -> -79`); the rest already matched, so they were left alone rather than churned.
+- **Drag feel** — `handPop 0.22 -> 0.08` (a gentler hand pop). Everything else already matched.
+- **Refresh** — 25 values, including a white glow, the sheen switched OFF (`sheenAlpha 0`), a longer
+  980ms shine, and the button moved down + scaled to 0.75.
+
+The submitted Refresh JSON still carried `spinMs` / `flashMs` / `rings` / `ringRadius` / `ringLife` from
+before those dials were removed. They were **dropped, not resurrected** — the tuner exports whatever the
+browser had persisted, so a stale key in the paste is not a request to bring the feature back.
+
+**The Refresh cost now wears the Tavern stone's gold coin pill** (owner request) — radial gold fill, dark
+outline, dark ink, and the same red "can't afford" flush. `--rfb-cost-color` drives the fill's mid-stop, so
+the picker still recolours the whole pill rather than only the text.
+
+**The hand hover gap is fixed.** The text drawer is absolutely positioned at `top: --ccw * 1.15` while the
+card element's own box ends at the archbox (`--ccw`), so the 0.15·--ccw strip between them belonged to
+NEITHER: crossing it left the card, which dropped, which moved the drawer, which re-entered the card — the
+"weird dropping and popping". The drawer was never the problem (it's a child of `.card`, so hovering it
+counts); only the gap was missing. A transparent `::after` now bridges exactly that strip — a child of the
+card, so it extends the HOVER target without changing layout, sitting below the drawer so it can never
+intercept a click, and disabled while dragging.
+
+Verified by asking `elementFromPoint` who owns each pixel across the gap's full width: every sample inside
+the box resolves to the card. (My first sweep reported one "dead spot" at 100% — that was the sample landing
+one pixel PAST the element, not a real hole; at `right - 1` it's owned.)
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
+## 2026-07-21g (Refresh blast + cost colour)
+
+### feat(ui): a jittered sprite blast on Refresh click, and a cost-colour dial
+
+Two owner additions to the 🔄 tuner.
+
+**Cost colour** — the coin's text and its icon now both read `--rfb-cost-color`, so one picker drives the
+whole badge rather than leaving the icon stranded on the old hard-coded cream.
+
+**Sprite blast** — a new `pixiFx.refreshBlast(x, y, cfg)`, modelled on `damageBurst`, with dials for
+**shards / speed / spread / life / size / colour**. The requirement was that it look different every time,
+so the randomness is deliberate and layered: each shard takes an evenly-spaced base angle (so the ring never
+clumps) which is then jittered by `spread`, and its speed, lifetime, size and spin are each jittered
+independently. `spread: 0` gives a clean even ring; higher scatters it.
+
+`Math.random` is correct here — this is `packages/ui`, presentation only. The ban is on core/content/sim,
+where a stray roll would break determinism; FX never feed the simulation.
+
+Verified live by spying on `pixiFx.spawn` and capturing each shard's velocity across two presses: **32
+spawns each, and the two sets are NOT identical** — which is the actual claim ("different every time"),
+rather than just checking that something appeared. The cost picker was driven end to end too: cream ->
+`rgb(255, 59, 167)` on both the text and the coin icon, then restored by Reset.
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
+## 2026-07-21f (Refresh click FX)
+
+### tweak(ui): the Refresh crystal no longer spins — dust + a shine flare on click
+
+Owner call. The press SPIN and the shockwave RINGS are gone; clicking now emits **dust and a shine**, and
+nothing else. The removed dials were **deleted rather than defaulted to 0** — a tuner full of sliders that
+do nothing is worse than a smaller one.
+
+The shine is a new one-shot radial flare that blooms out of the crystal and fades, with its own dials:
+**time / opacity / spread / blur / colour**. It mounts only while playing, so nothing animates at rest, and
+it animates **scale + opacity only** (compositor-friendly, per `docs/performance.md`) rather than the
+brightness-filter pop the old press flash used.
+
+Verified live on cleared settings: the shine mounts with `animation: rfbshine` and unmounts after; the art's
+transform is `none` before AND during the click (it genuinely doesn't rotate); the `.spin` class is gone;
+and `impactDust` fires once at the button centre with the configured opts.
+
+**A measurement note.** My first dust check read 0 and looked like a regression — it was a bad accessor
+(`__pixiFx.particles`), not a missing effect. Spying on `impactDust` itself showed the real call. Worth
+remembering: verify an FX by intercepting the call, not by guessing at an internal array.
+
+1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
+## 2026-07-21e (Refresh crystal)
+
+### feat(ui): the standalone REFRESH crystal + its dev tuner, replacing the Reroll plaque
+
+The blue crystal (`frames/refresh_button.webp`, 516x868 -> 33KB) is now a stage-pinned board button at
+TOP-CENTRE, with a glass **Refresh** pill above it. The old "Reroll" tray plaque is gone; the reducer wiring
+is untouched (`{type:'roll'}`), so nothing about rolling changed — only where you click.
+
+**`refreshConfig.ts` + `RefreshTuner.tsx` mirror the Tavern stone dial-for-dial** (owner request) MINUS the
+gem/pip seats: those exist because the tavern art is layered around a hole, and the refresh art is a single
+piece — I checked the source before building, which is why there is no dead seat group here. What is kept:
+position/scale, the label + cost-coin seats, the hover glow (blur / opacity / stack / breath / fit /
+colour), the sheen sweep, the press effects, and the disabled dim. Plus one dial the stone has no use for:
+**press SPIN**, since a refresh icon turning over is the natural affordance.
+
+Dev-persisted to localStorage, production always renders DEFAULTS (Layout Lab convention), `--rfb-*` vars
+with mirrored styles.css fallbacks, and "glow always on" for dialing the glow without holding hover.
+
+PERF: the two LOOPING animations (glow breath, sheen sweep) animate **opacity/transform only** — the glow's
+box-shadow stack is static, per `docs/performance.md`.
+
+Verified live: crystal mounts at the exact horizontal centre (764 = viewport centre), label reads "Refresh",
+cost coin shows the live roll cost (hidden when free), the old Reroll button is gone, and clicking it rolled
+the shop and spent 1 Gold. 1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error
+baseline.
+
+**Not yet dialed.** The shipped defaults are a sensible starting position, not a tuned one — the label pill
+still grazes the HUD row at the default `y`. That is a slider in the 🔄 tuner, which is the point of
+building it; the owner bakes the tuned values the way the Tavern stone's were.
+
+## 2026-07-21d (Fodder aura display)
+
+### fix(ui): Fodder buffs from Heckbinder never showed in the tavern
+
+Owner report, with the right diagnosis attached: the Fodder highlight was missing *when the only buff source
+was Heckbinder*.
+
+**Two different channels feed a Fodder card's stats.** `run.cardBuffs` is the PERMANENT run-wide enchant
+(Ritualist, Bane); Heckbinder's `fodderAura` is a LIVE aura that applies only while it is on the board. The
+sim folds the two together in `cardBuff()` — but the UI passed the **raw `run.cardBuffs` map** straight into
+`shopView`, so anything coming from the live aura was invisible. A permanent enchant displayed fine, which
+is exactly why the bug only showed up on a Heckbinder-only board.
+
+The fix rebuilds the display map **through `cardBuff()` itself** rather than re-deriving the aura in the UI,
+so the tavern can't drift from the stats the card is actually created with.
+
+Verified live on a board with no permanent enchants at all: Fred reads **1/1** with no Heckbinder and
+**4/4** with one (+3/+3 aura) — the value it will really be bought at.
+
+1267 tests, lint, build:web green; `typecheck:web` at its 48-error baseline.
+
+## 2026-07-21c (Discover chrome)
+
+### tweak(ui): dark-glass Discover banner + Minimize, and the toggle raised
+
+Owner call: the ornate cream/gold plaque and button fought the art-forward cards.
+
+**Rather than adding a third variant, this promotes one that already existed.** The QUEST overlay had
+already moved its banner to dark glass, scoped as `.quest-ov .disc-banner`; that treatment is now the base
+`.disc-banner` rule, so Discover, the quest shop and the Runeforge share one look — and the quest-scoped
+override was deleted rather than left as a duplicate of the thing it now inherits.
+
+`.disc-toggle` gets the same glass (light text, gold-tinted icon, accent border on hover) and moves up
+`66% → 61%`: the +30% card bump pushed the row down, leaving the button stranded well below it. Measured
+after: 58px below the card row, instead of floating in open space.
+
+Verified live: banner and toggle both render `linear-gradient(#241a13, #17110c)` with `#f4ecdb` text, and
+the toggle sits 58px under the cards. 1267 tests, lint, build:web green; `typecheck:web` at its 48-error
+baseline. CSS-only.
+
+## 2026-07-21b (Discover size, Mauron/Amun Rab/Rope Wrangler, Brackus power art)
+
+### tweak: a bigger Discover panel, Mauron's splash, Amun Rab trim, gilded Rope Wrangler
+
+**Discover cards +30%** (owner: the panel read strangely small, most obviously on the turn-1 hero Discovers
+where it is the only thing on screen). The quest overlay already solved this by redeclaring `--ch`/`--cw`,
+so the same lever was used — **but that alone was a no-op**: a compact card sizes off **`--ccw`**, not
+`--cw`, so the bump measured 113px before and 113px after. Redeclaring `--ccw` too took it to 147px. Worth
+remembering: `--ch`/`--cw` size the SLOT, `--ccw` sizes the CARD.
+
+**Mauron** loses Cleave for a narrower splash (owner): *Immune while attacking. Damages an adjacent unit
+when attacking*, both adjacent when gilded. Cleave always hits both and carries the player-facing `C`
+badge, so this is a per-card `splashAdjacent` flag with its own branch beside the cleave block, reusing the
+same living-order neighbour lookup (which is what makes it skip a fallen unit correctly).
+
+**Amun Rab** — Ward and the Improve step both dropped; now a flat *Summon 7 Imps and give your Imps +5/+5*
+(+10/+10 gilded, via the factory's existing `mul(self)`). Moved off `deathrattleBuffImpsImproving` back to
+the plain `deathrattleBuffImps`.
+
+**Rope Wrangler** — a gilded caster now casts twice. The `castSpell` factory ignored `gold(self)` entirely,
+so the gild did nothing; each cast re-picks its target and counts as a real cast, so spell payoffs (Guel,
+Spirit Pup, Forsaken Weaver) see both. The card also had no `goldenText` at all.
+
+**Brackus's hero-power art** wired (`powers/brackus.webp`, 2331KB -> 61KB).
+
+**Two test-measurement traps, both mine.** The Mauron splash test first counted damage across the WHOLE
+fight — Mauron retargets each swing, so every enemy eventually takes splash and the count read 3-of-3
+whether or not the change worked. Narrowed to a single swing, it then measured the *enemy's* first attack,
+because I picked the first `attack` event without filtering by attacker. Fixed, it now reads 2 ungilded vs
+3 gilded — the actual difference between the splash and Cleave.
+
+Verified: 1267 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline. Live
+(dev-server RESTART, not a reload): Discover card 113px -> 147px, Brackus's power art resolving to
+`brackus.webp`.
+
+## 2026-07-21 (content batch + Summit sources finished)
+
+### feat/tweak: Attachment vocabulary fix, Arena Heckler, Nanon, Brackus lock UI, Rune of the Summit
+
+**The "pure text change" was a renamer bug, not a card.** Attachment Conductor read "Your **Magnetics**
+magnetize twice" because `terms.ts` only handled the two CAPITALISED SINGULARS (`Magnetize`, `Magnetic`) —
+plurals, lowercase and past tense all slipped through. Fixed at the source rather than on the one card, so
+**Cling Drone** ("is magnetized" -> "is attached") and **Combinator** / **Banksly** ("magnetize" ->
+"attach") were silently wrong too and are now correct. Longer forms are ordered first so `Magnetize` can't
+shadow `Magnetized`.
+
+**Arena Heckler** now taunts the minion **opposite** it (same board index, clamped for a shorter enemy
+line) instead of the enemy's rightmost; golden also taunts an adjacent one. `scGrantEnemyTaunt` had exactly
+one consumer, so it was retargeted rather than forked.
+
+**Nanon** summons 5 Nanobots (was 6). The factory keeps the count FIXED for goldens — the gild scales the
+overflow buff — so the golden text had to move to 5 as well; it still said 6.
+
+**Brackus's gold lock is now visible.** The reducer already blocked the play, but `Recruit.tsx` only knew
+about `lockedUntilTier`, so the card didn't LOOK locked. Both the hand render and the drag guard now honour
+`lockedUntilGoldSpent`, and the label counts DOWN ("🔒70 Gold" -> "🔒30 Gold") so the wait is legible.
+
+**Rune of the Summit** (basic, 4 Gold): in 2 turns, Discover a Tier 7 minion; repeats every 2 turns. The
+cadence is why this was deferred — `recurringEndOfTurn` fires EVERY turn and takes a fixed effect enum, so
+an every-other-turn payout needed its own counter (`runeSummitTick`, incremented at shop open). The Discover
+is `exactTier: 7`, a fixed-tier offer, so it resolves with **no rift active** — the whole point, since Tier 7
+is otherwise unreachable.
+
+**Amun Rab** art re-wired (2275KB -> 56KB).
+
+**A test-harness trap worth recording.** The rune's cadence test silently froze at tick 2: wave 5 is a QUEST
+turn, and the parked `questOffer` blocks every later action, so `resolveCombat` no-op'd and the counter
+stopped. The helper now clears the modals a real player would have dismissed. The first symptom looked like
+a cadence bug in the rune — it was the harness.
+
+Verified: 1264 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline. Live
+(after a dev-server RESTART — a reload served stale modules and showed all the old text): every card's
+displayed text confirmed through `renameTerms`, and Brackus driven end to end — 15 Armor, turn-1 Tier 7
+Discover (all three offers tier 7), pick locked at 70 Gold, play REJECTED at 40 with the label reading
+"🔒30 Gold", then unlocked and played at 70.
+
+## 2026-07-20 (compendium palette reverted)
+
+### revert(ui): the Compendium goes back to the original cream
+
+Owner call after seeing both attempts — the soft blue and then `#004c8a` — neither landed, so the palette
+reverts to the game's standard cream (`--card`/`--ink`/`--line` from `:root`). The scoped `.book` var block
+and the explicit surface overrides are removed entirely; the original accent-mixed header/rail gradients
+come back with them.
+
+**Kept deliberately** — these were separate, approved asks, not part of the colour experiment:
+- the overlap fix (the text drawer sits in flow inside the Compendium)
+- the top-line headroom, so the first row's TIER pill clears the frame
+- heroes on the dark-glass panel
+- the larger window + 10% larger cards
+
+**The tuner stays, with its defaults re-pointed at the cream.** Left on the navy values, `Reset` would have
+snapped the book to a scheme that no longer ships, and opening the panel would have silently re-tinted it —
+the tuner is now a no-op until you actually move something.
+
+Verified after the revert: `--card` resolves to `#fffdf8` with dark ink, no `booktuner` style leaking into
+the page, the window still fills 92% x 90% of the viewport, and 129 cells with **0 overlaps** — the spacing
+fix survives the palette going back.
+
+## 2026-07-20 (compendium tuner)
+
+### feat(ui): a dev tuner for the Compendium palette, with a gradient option
+
+I picked `#004c8a` badly and hand-iterating a palette through me is slow — so the palette is now a **dev
+tuner** (`📖 Compendium Palette` in the dev menu) rather than a value I guess at. Standard tuner pattern:
+a draggable panel writing a specificity-bumped override `<style>`, live on the open Compendium, with
+**Copy CSS** to bake the result into `styles.css` and **Reset** back to shipped.
+
+Seven pickers — surface, header bar, side rail, buttons/tabs, borders, text, dim text — plus a **gradient**
+section: an on/off toggle, a top colour, and a falloff % (how far the top colour reaches before landing on
+the surface). Falloff at 0 is visually identical to flat, so the gradient only ever *adds* depth to the
+flat pick rather than replacing it.
+
+The knob set is deliberate, not arbitrary — each one is a trap already hit while hand-picking the navy:
+- **the surface is stated directly**, because the panel used to mix the gold accent in and render grey from
+  a correct colour var;
+- **buttons/tabs (`--bg2`) is its own knob**, because inverting to a dark surface left the rail, tier tabs,
+  Glossary/Gilded, close and search pale-on-pale.
+
+Verified live rather than assumed: the panel mounts with 8 colour inputs and the gradient toggle; driving
+the surface picker repainted the book (`rgb(0,76,138)` → `rgb(122,31,61)` in the computed background);
+toggling the gradient off produced a genuinely flat fill (`background-image: none`); Reset restored the
+shipped palette.
+
+Dev-only — mounted from `DevMenu`, stripped from production.
+
+## 2026-07-20 (compendium palette + scale)
+
+### tweak(ui): Compendium scale — larger window + 10% larger cards (the blue palette was REVERTED)
+
+Owner call — the cream reading surface was bright and tiring at full size.
+
+**Palette — `#004c8a` (owner pick).** That is a DEEP navy, so the panel INVERTS: the surface goes dark and
+the text goes light with it. Done by re-declaring the shared `--card` / `--line` / `--ink` / `--ink2` /
+`--ink3` / `--bg` / `--bg2` vars **scoped to `.book`**, so every descendant rule picks it up without editing
+them one by one. Cards and hero panels state their own explicit colours (the dark-glass drawer), so they sit
+on the navy unchanged — the inversion cost nothing there.
+
+Two things needed a second pass, both caught by looking rather than by reading the CSS:
+1. The panel and header mixed the **gold accent** into the surface (`color-mix(… var(--acc) …)`), which
+   desaturated the blue straight back to grey — the var was right, the rendered colour was not. Both
+   surfaces are now stated in blue directly; gold stays on icons, the active tab and the inset ring.
+2. On the inverted palette the **control chrome went invisible** — rail buttons, tier tabs, Glossary/Gilded,
+   close and search all read `--bg2`, which was still light, so a pale button carried the new pale text.
+   `--bg2`/`--bg3` are now dark too. Sampled after the fix: rail button `#0f5f7a` bg on `#eef5fd` text.
+
+**Window size.** The `1700x1000` caps were what actually limited it on a large display, not the viewport
+percentages — raised to `2300x1450`, so it now fills **95% x 93%** of the viewport (measured) as in the
+owner's mock.
+
+**Card scale.** `--ch` (the card metric that drives the whole grid) `clamp(212px, 26vh, 276px)` →
+`clamp(233px, 28.6vh, 304px)`, plus the header title/sub sized to match. The panel box is already
+viewport-capped, so scaling the card metric is what actually reads as "bigger".
+
+Verified live: 0 overlapping cells at the new size (the spacing fix holds), `--card` resolves to `#d6e2f1`,
+surfaces render blue rather than grey.
+
+## 2026-07-20 (compendium polish + Zyff)
+
+### tweak(ui/content): Compendium polish, the Uron/Zyff multiplier split, and Zyff the Betrayer
+
+**Compendium** (three owner notes):
+- The first row's TIER pill was clipped — it rides ABOVE the archbox, so the grid's flat `24px` top padding
+  never accounted for it. Top padding is now `--ccw * 0.17`, derived from the card metric so it scales with
+  the cards instead of being a magic number.
+- **Heroes wear the dark-glass panel** now, matching the minion text drawer. The cream `--card` panel read
+  as a different component sitting in the same grid; colours mirror `.card.compact.showtext .drawer`.
+- Row gap `30px -> 42px` for the cards that were still tight.
+
+**The multiplier split.** Uron gave up Shouts, Echoes and Slaughters, keeping Rally / End of Turn / Start of
+Combat — the combat-side families. **Zyff, the Betrayer** (T7 neutral 6/6) takes Shouts + Echoes. Both are
+non-stacking, so a Uron and a Zyff cover five families between them without treading on each other, and
+Slaughter now has NO multiplier at all — the family stays supported, nothing declares it. Because the
+system is data-driven, this was a `families` edit on two cards and zero engine changes.
+
+Zyff stacks with the existing multipliers exactly as any pair does: Sylus (stacking) sums with it for +2
+Echoes, Drakko (non-stacking) takes the best single contribution on Shouts.
+
+**Stats note:** Zyff's tier/tribe/stats were not specified — T7 neutral 6/6 is my call, sized just under
+Uron's 7/7 since its two families are the higher-frequency ones. Flagged for the owner to re-price.
+
+Verified: 1257 tests (3 new — Zyff's coverage, Uron's narrowed coverage, and the pair together), typecheck,
+lint, build:web green; `typecheck:web` at its 48-error baseline. Live: no tier pill clipped above the grid,
+heroes render on dark glass, Brackus reads correctly in the hero list.
+
+## 2026-07-20 (compendium spacing)
+
+### fix(ui): the Compendium grid collided with itself — put the text drawer in flow there
+
+Owner report: the Compendium was "pretty busted". Tier 7 was the worst case — cards' text panels crashed
+straight through the row below them.
+
+**Cause.** The card's text drawer is `position: absolute` (owner call 2026-07-19: in centered contexts —
+Discover, inspect, rows — an in-flow drawer grew the card element and moved the *frame*, which had to stop).
+The Compendium compensated with a fixed row gap of `--ch * 0.45` — a guess at the panel's height. Any card
+whose text ran longer than that guess overflowed into the next row, which is why Tier 7 looked worst: Uron,
+Amun Rab and Anubis carry the longest text in the game.
+
+**Fix, scoped to the Compendium only.** It is a BROWSING grid, not a centered context, so the drawer sits
+**in flow** there — rows then size to the real panel height and can never collide, however long the text.
+The absolute positioning everywhere else is untouched, so the 2026-07-19 behaviour this rule deliberately
+does not undo stays intact. With the guess gone, the row gap drops to a normal `30px` and cells align to
+`start`.
+
+Verified in the browser by measuring, not by eye: for every pair of cells, do their boxes intersect?
+
+```
+tier 7 (the reported case)   8 cells, 0 overlaps   (heights 325-391px, genuinely varying)
+all tiers                  128 cells, 0 overlaps
+```
+
+The varying heights are the point — rows now measure their content instead of assuming one number.
+
+## 2026-07-20 (mode picker)
+
+### feat(ui): a mode screen behind PLAY — Ascent / Rift / Practice, and rifts become OPT-IN
+
+PLAY no longer starts a run directly; it opens a three-card picker.
+
+- **Ascent** — the scored 17-round climb, **unmodified**
+- **Rift** — the same climb WITH the active rift's rules (the card shows its live name + blurb, and is
+  mounted only while a rift is actually enabled)
+- **Practice** — any hero, unlimited Resolve, longer shop; unscored. Promoted out of the secondary link row.
+
+**The behavioural change: rifts are now opt-in** (owner call). `createRun` used to pin `activeRift()` onto
+*every* run; it now pins only for `mode === 'rift'`. So a plain Ascent run no longer receives Summit's +10
+Armor or the Tier 7 shop — that is a deliberate change to what #575 shipped, and the reason the mode
+picker exists. Rift runs still PIN at creation, so a saved or replayed rift run keeps its rules after the
+global switch flips off.
+
+`RunMode` (`'ascent' | 'rift' | 'practice'`) is now a named type in `@game/sim` rather than an inline union
+repeated in three places, and the store gains `startRift`.
+
+The picker reads the LIVE registry via `activeRift()` — correct here precisely because this is a pre-run
+choice, not a pinned run; every in-run surface still reads `run.rift`.
+
+**Two leaks the opt-in switch created, both fixed.** `HeroSelect` telegraphed the rift from the live
+registry unconditionally, so an **Ascent** run still showed "Rift: Summit" on the hero screen — promising a
+modifier the run would never get. It now gates on `mode === 'rift'`. And auditing every mode check turned up
+the mirror problem: the Renown/Oath telegraph was gated on `mode === 'ascent'`, so a **rift** run hid its
+Oath despite being fully scored. Every other mode check in the codebase is `!== 'practice'` (damage on loss,
+course completion, telemetry, the shop timer), which means a rift run already behaved like Ascent
+everywhere else — so that gate now matches at `!== 'practice'` too.
+
+**Styled in the HERO-SELECT idiom** (owner request): a full-screen view over the title art rather than a
+modal, with big framed cards in a row — a 245px gold-framed tile, a name pill eclipsing its TOP edge, a tag
+pill eclipsing its BOTTOM edge, and the description fading in on hover. Metrics deliberately mirror
+`.herocard.big` (frame size, 3px gold border, pill radii, the `translateY(-6px)` hover lift, the shared
+`--hs-zoom`) so the two screens read as one system. The modes have no art, so each frame carries a themed
+radial gradient plus a large emblem: the crest for Ascent, the conic swirl for Rift, the helm for Practice.
+
+One defect caught in the browser rather than in code review: the frame initially carried `overflow: hidden`,
+which **clipped the pills in half** — they are positioned to overhang the frame's edges, which is the whole
+trick. The hero card's frame has no such clip, and the gradient respects the border-radius anyway.
+
+PERF: the rift emblem's swirl is a looping animation, so per `docs/performance.md` it animates **transform
+only** (a rotating conic layer), reusing the Rift button's `riftswirl` keyframes.
+
+**A pre-existing test caught the change**, as intended: `createRun pins the active rift` asserted the old
+always-pin behaviour. It now asserts the real contract — the pin needs BOTH an enabled entry AND `rift`
+mode. Three new tests pin the opt-in rule, and drive the registry explicitly (`withSummit`) so they do not
+depend on which rift happens to ship enabled.
+
+Verified: 1235 tests (3 new), typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+Live, driving the real UI: PLAY opens the picker, the Rift card shows "SUMMIT" with its blurb, and each
+mode creates the right run —
+
+```
+Ascent    mode ascent    rift null      armor 8
+Rift      mode rift      rift summit    armor 18
+Practice  mode practice  rift null      armor 12
+```
+
+## 2026-07-20 (Tier 7 art)
+
+### art: wire all eight Tier 7 minion arts
+
+Thundeer, Amun Rab, Attachment Conductor, Mauron, Anubis, Salvatore McKlusky, Lab Experiment and Uron,
+Oathbringer, through the standard pipeline (512px cap, WebP q85, source PNG deleted).
+
+```
+amunrab              2250KB ->  53KB     mauron        2287KB ->  58KB
+anubis               2171KB ->  57KB     salvatore     2032KB ->  41KB
+attachmentconductor  2779KB ->  89KB     thundeer      2098KB ->  51KB
+labexperiment        2410KB ->  75KB     uron          2101KB ->  44KB
+```
+
+17.7MB -> 0.46MB. Every source filename matched its card, so nothing was inferred from an un-attributed
+file. **One spelling note:** the master is `SalvatoreMcKluskey.png` while the card is "Salvatore
+McKlusky" (no second `e`) — unmistakably the same character, so it was wired, but flagging in case the
+card name should follow the art.
+
+Verified in the browser after a dev-server restart: all eight serve as `image/webp` at 512x512 and render
+correctly.
+
+## 2026-07-20 (trigger multipliers + Uron)
+
+### refactor(core)!: one data-driven trigger-multiplier system, and Uron, Oathbringer
+
+Every trigger multiplier used to be a hardcoded `cardId === '…'` check in a DIFFERENT subsystem, with
+stacking rules that disagreed and no single place to read them — the tech debt `docs/roadmap.md` flagged.
+Uron multiplies SIX families at once, which made generalising cheaper than adding six more branches.
+
+`CardDef.triggerMultiplier` now declares `{ families, extra, stacks? }`, and `extraTriggerFires(family,
+minions, getCard)` in `@game/core` is the single resolver. Migrated, **preserving each card's existing
+semantics exactly**:
+
+| Card | Families | Stacks |
+|---|---|---|
+| Sylus the Reaper | deathrattle | **yes** (sums across copies) |
+| Drakko the Drummer | battlecry | no (best copy) |
+| Chronos | endOfTurn | no |
+| **Uron, Oathbringer** (T7) | all six | no |
+
+Four call sites moved onto it: `playerEchoExtras` (simulate), `drakkoRepeats` (factories), and
+`drummerRepeats` / `chronosRepeats` + the Graverobber Echo path (sim's recruit). `bestCopyRepeats` became
+`familyRepeats`. The suite stayed green at 1245 across the whole migration, which is the evidence the
+refactor is behaviour-preserving.
+
+Stacking and non-stacking contributions combine **additively with each other** (a Sylus and a Uron both
+grant +1 on Deathrattles = +2) while keeping their own rule internally.
+
+**Three families had no machinery at all** — Rally, Slaughter and Start of Combat — so Uron needed them
+wired. They deliberately do NOT re-emit on the bus: a second `bus.emit` would also re-tick quest tallies
+and re-notify broadcast watchers. Only the minion's OWN effects repeat.
+
+**A real bug the tests caught.** The Rally repeat first keyed on `effect.on === 'onAttack'`, which covers
+both true Rallies AND broadcast ally-attack watchers — so Uron was inflating **Crypt Drake's** every-2-
+attacks counter, a card it has no business touching. It now gates on the `'RL'` keyword. The test that
+found it asserts Crypt Drake's payout count is *unchanged* with Uron on board.
+
+**A test-methodology note.** That same test initially failed for a bogus reason: adding Uron changes board
+SIZE, which changes fight length, which changes how many ally attacks Crypt Drake sees. The control now
+swaps in Mysterious Joker — a same-tier neutral whose only effect is an onPlay Discover, so it is inert in
+combat — keeping board size identical. Without that, the comparison measured board size, not Uron.
+
+**Not migrated: Yazzus.** Its "targeted spells cast twice" is a spell-CAST count (`spellCasts(def)`), not a
+minion trigger family, so folding it in would have conflated two different things. Left as-is, deliberately.
+
+Verified: 1255 tests (10 new — 6 resolver unit tests pinning the stacking rules, 4 end-to-end combat),
+typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline. Live: Uron reads +1 on all six
+families, two Urons still +1, Sylus×2 = +2, Sylus+Uron = +2 (additive), Drakko+Uron = +1 (best only).
+
+## 2026-07-20 (Tier 7 minions)
+
+### feat(content): the seven Tier 7 (Summit) minions
+
+Thundeer, Amun Rab, Attachment Conductor, Mauron, Anubis, Salvatore McKlusky and Lab Experiment — the
+capstone minions for the Summit rift, in a new `cards/set1/tier7.ts`.
+
+**Gating is the tier and nothing else.** `availableOffers` already filters `card.tier <= state.tier`, and
+only Summit lifts the ceiling to 7, so no new "not in shop" flag was needed. Verified live: 40 rolls at
+tier 6 offered **zero** Tier 7 cards, while 40 rolls at tier 7 offered 6 of the 7 (Mauron is a Dragon and
+that run's tribes excluded it). They still arrive through anything naming a tier explicitly — a quest/rune
+Discover, a hero grant, a rift — which is the intended back door.
+
+`TIER7` is appended **last** in `sets.ts`: declaration order drives seeded pool picks, and every Tier 7
+card filters out of any `tier <= state.tier` pool below 7, so existing seeds replay identically (the full
+suite stayed green through the content addition, which is the proof).
+
+**Engine work this needed** — every one of the seven required a new primitive:
+
+- `onAllyTribeAttackBuffSelf` (Thundeer) — an ally of a tribe attacks -> buff self, improving per proc via
+  the standard `summonBonus` channel. `'EG'` (Engraved) is what makes the gain permanent; the factory only
+  supplies the growth.
+- `deathrattleBuffImpsImproving` (Amun Rab) — `deathrattleBuffImps` with an improve step.
+- `deathrattleGrantRebornAll` + `deathrattleCastTribeAttack` (Anubis) — the existing Reborn grant hits ONE
+  candidate per rep, and the Lantern cast only existed as Watcher's Rally.
+- `onSellDiscover` (Salvatore) — `onSell` existed only as `onSellGainGold`.
+- `deathrattleGainRandomMinion` (Lab Experiment) — minions only, unlike `endOfTurnGrantRandomTierCard`,
+  which also draws spells.
+- **`attackImmuneAlways`** (Mauron) — a new `CardDef` field. `attackImmuneTurns` is a **depleting counter**
+  (Bounty Bot spends one per swing), so "Immune while attacking" could not be expressed by it. The flag
+  seeds `attackImmuneLeft` to 1 and the swing site skips the decrement, which keeps the per-instance value
+  **JSON-safe** — an `Infinity` sentinel would not survive a save round-trip.
+- **Gilded Discover** — `DiscoverSpec` gains `golden`, carried by a new `RunState.discoverGolden` that
+  mirrors the `discoverLockTier` lifecycle exactly (set by `openDiscover`, consumed on take), so a queued
+  mix of gilded and normal Discovers cannot leak into each other. The pick is gilded through the existing
+  `gildMinion`, the same transform a triple applies.
+- **Attachment Conductor** multiplies welds inside `weldMagnetic`, covering the host, the Cling improve and
+  the Beatbot mirror. Best-copy-counts (Drakko's rule) so two Conductors do not silently 4x.
+
+`Tier` in `@game/core` was still `1..6` — a ceiling the earlier tier-7 survey missed, since the zod schema
+had been the only thing rejecting a 7.
+
+**On the Mauron test.** My first two attempts asserted "Mauron never dies", which is simply false — immunity
+stops retaliation, not the enemy's own swings, and a Taunt wall soaking those eventually died. The test now
+asserts the real contract (no damage on any step where Mauron is the attacker) and carries a **control**: the
+identical fight with a non-immune body, which must show those hits. Without the control the assertion could
+have passed vacuously.
+
+Verified: 1245 tests (13 new), typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+`dump-cards` (125 minions) and `pool` regenerated — confirmed **no Tier 7 card entered the opponent pool**.
+Live: Conductor doubled a weld (host 2/2 -> 4/4, `attachments=2`), Salvatore sold into a Tier 6 Discover with
+the second queued behind it, no error boundary.
+
+## 2026-07-20 (tier 7 + Summit rift)
+
+### fix(ui): no blue-rectangle flash as the end-of-turn charge glyph starts
+
+The charge glyph's three layers are masked by `/fx/turn-glyph.svg`, but that asset was never preloaded — so on
+its first use the mask hadn't been fetched yet and the layers painted UNMASKED for a frame: the fill's blue
+gradient flashed as a full RECTANGLE (its box edges) as the charge began (owner report). Added the SVG to
+`PUBLIC_ART_URLS` so the boot preloader fetches + caches it alongside the backdrops/cursors (which are CSS
+`url()` references too — same pattern; the JS URL is BASE_URL-relative to match Vite's build-time rewrite of the
+CSS `url(/…)`). Verified: the SVG now 200s at boot on the title screen, long before any glyph mounts.
+typecheck + lint + 1232 tests + build:web green.
+
+### feat(sim/ui): Tier 7 behind the Summit rift, +10 Armor, and a Rift button
+
+**Summit** is a new rift: every hero gains **+10 Armor**, and the shop ceiling rises from Tier 6 to **Tier 7**.
+It is `enabled: true`, so new runs adopt it — see the caveat at the bottom.
+
+**The ceiling is per-run, not global.** `CONFIG.maxTier` stays 6. A new `maxTierFor(rift)` returns 7 only for
+Summit, and every ceiling now routes through it: the tavern-up gate, the "cost is 0 at max" rule, the
+per-wave upgrade-cost decay, the rune-granted Discover clamp, both `offerDiscover` clamps, and the gild cap.
+Bumping the global constant instead would have let *every* run reach Tier 7. It reads the RUN's pinned
+`rift`, never the live registry, so a replayed Summit run keeps its ceiling after the switch flips off.
+
+`upgradeCost` gains `7: 12`. Without it, `?? 0` at the upgrade site would have made Tier 7 **free** — the
+single nastiest trap in this change.
+
+**Triples fall out for free.** The triple's Discover reward is `tierOffset: 1` clamped to the ceiling, so
+under Summit a triple at Tier 6 *or* 7 discovers a Tier 7 minion, exactly as specced, with no new branch.
+
+`POOL_QUANTITIES` already carried `7: 6`, so the "6 copies" requirement needed no change.
+
+**UI.** `--tier-7` (rift-purple `#9b4dff`, deliberately outside the 1-6 ramp), tier-7 badge + statcell rules,
+`MinionBook` tiers, `BalancePanel` MAX_TIER, and a 7th tavern-up pip. The Tier 7 pip art is a **PLACEHOLDER**
+(a copy of tier 6) pending real art. `Recruit` passes `maxTierFor(run.rift)` to the tavern stone, and the
+Discover spell's printed "Tier N" now clamps to the run ceiling via a new optional `maxTier` live-text param.
+
+**The Rift button** (`RiftButton.tsx`) is a purple swirling plaque above the End Turn diamond, mounted only
+in the shop phase when the run has a pinned rift; hover shows the rules, click pins them (the touch path).
+It shares the diamond's `--etb-x/y` anchor like the combat Summary pill (which is combat-only, so they never
+co-exist). Per `docs/performance.md` the swirl is a LOOPING animation and therefore animates **transform
+only** — a rotating conic layer clipped by the radius, never `filter`/`box-shadow`/`background-position`.
+It owns its own open state rather than threading another `useState` through `Recruit.tsx`, a declared
+conflict chokepoint.
+
+Verified: 1232 tests (4 new), typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline.
+Live on a throwaway run: Summit pinned, Warden 12 -> **22** Armor on both `armor` and `maxArmor`, tavern up
+1 -> 7 with costs `7/8/11/10/12/0` and the upgrade correctly rejected at 7, the tier-7 pip lit, the stone in
+its `maxed` state, 6 shop slots, the RIFT button rendering, and no error boundary.
+
+**Two caveats.** (1) Summit ships **enabled**, so it is the default experience for new runs — flip
+`enabled: false` in `RIFTS` to park it. (2) **There are no Tier 7 cards yet** (verified: zero cards at tier
+7), so reaching Tier 7 today unlocks an empty tier — the shop simply keeps offering Tiers 1-6. The 8 Tier 7
+minions are the next PR; until they land, Summit is +10 Armor and an expensive dead-end tavern-up.
+
+## 2026-07-20 (art)
+
+### art: new card art for Sylus, Brightwing Broker, Combinator, Aeon Guard
+
+Four new masters landed in `C:\Game Assets\Ascent Art\Minions\` (timestamped this evening, replacing
+in-repo copies from 2026-07-13). Wired through the standard pipeline — drop `<card-id>.png` into
+`packages/ui/src/art/minions/`, run `npm run optimize-art` (512px cap, WebP q85, source PNG deleted;
+the high-res master stays out-of-repo).
+
+```
+aeonguard   2220KB ->  56KB
+broker      2258KB ->  65KB
+combinator  2326KB ->  63KB
+sylus       2049KB ->  43KB
+```
+
+Every filename matched its card exactly (`Sylus.png` -> `sylus`, `BrightwingBroker.png` -> `broker`,
+`Combinator.png` -> `combinator`, `AeonGuard.png` -> `aeonguard`), so nothing was inferred from an
+un-attributed file.
+
+Verified in the browser after a dev-server **restart** (a reload does not re-evaluate the eager
+`import.meta.glob`): all four serve as `image/webp` at 512x512 with the new byte sizes, and render
+correctly side by side.
+## 2026-07-20 (balance batch)
+
+### tweak(content): Ryme / Brightwing Broker / Combinator / Grim / Guardian Drake + retire Vineweaver Drake
+
+Owner balance pass. Card DATA keeps the internal vocabulary (`Deathrattle` / `Battlecry` / `Magnetic`);
+`terms.ts` renames it to Echo / Shout / Attachment at display time, so the printed text reads as specced.
+
+- **Ryme** gains **Taunt**. Base now triggers **both** adjacent Battlecries (it used to pick one at random);
+  golden triggers each **twice**. Dropping the random pick means base Ryme no longer consumes an RNG roll —
+  a seeded-replay-visible change.
+- **Brightwing Broker** 3/4 -> **3/3**, and it is a genuinely different card: `buffOnBuy` buffed the minion
+  you bought, the new `buffBoardOnBuy` buffs **your whole board** +1/+1 (golden +2/+2) on any purchase. The
+  bought minion is in hand at that point and is deliberately not included. `buffOnBuy` is kept as a primitive.
+- **Combinator** End of Turn targets 1 -> **2** (golden 2 -> 4). Trigger unchanged (owner call).
+- **Grim** `per` 1 -> **2**, and it finally has a **golden** (+4/+4 per Deathrattle). The factory already
+  multiplied by `mul(self)`, so the gilded value was real but unprinted.
+- **Guardian Drake** gains **Critical Strike** alongside Ward (`critChance: 0.5`, matching the only other CR card).
+- **Vineweaver Drake retired.** Def, art, CSV, opponent pool and SFX manifest entries removed.
+
+**A live-text bug this surfaced.** `tallyBuffText` (Grim's live "+N/+N") was the one live-text helper that
+did not take `golden`, and it rewrote `def.text` unconditionally. That was invisible while Grim had no golden
+text; the moment it got one, a Gilded Grim would have printed the base number — a defect under the hard
+live-text rule. It now takes `golden`, doubles, and rewrites the golden text.
+
+**Vineweaver fallout.** It was a *test vehicle* in four places, all re-pointed rather than deleted where the
+test had independent value: `content.test` -> Rope Wrangler/Lasso, `auraFx.test` and the Rune of the Conductor
+test -> Skybound (any End-of-Turn source that raises a Dragon's Attack proves the same path). The one test
+that only covered the retired card was deleted. Its factory `endOfTurnCastSpellEscalating` and the
+`escalatingCastText` helper are now **orphaned but retained** as primitives for set 2; a new test asserts the
+helper returns null for every live card so it cannot silently mis-render if adopted.
+
+Verified: 1228 tests, typecheck, lint, build:web green; `typecheck:web` at its 48-error baseline. Live in the
+browser: all five cards' data confirmed through the content module, Vineweaver absent from both `CARD_INDEX`
+and the buyable pool (118 buyable), and Brightwing Broker's buy behaviour observed end to end — board
+3/3 + 0/4 -> 4/4 + 1/5 with the purchase untouched at 0/4.
+
+## 2026-07-20 (weld FX regression)
+
+### fix(sim): stop `reduce` racing React's dispatch batching and dropping weld rings
+
+Owner report: *"beatbot isn't animating when it welds, like it's not triggering the weld fx."*
+
+**This was self-inflicted in #564.** That PR added `state.weldFxUids = undefined` to `reduce`, on the same
+"per-action scratch" contract as `recruitBuffFx` and `auraFx`. That contract is wrong for weld, because
+**React batches dispatches.** A weld followed by any other click in the same frame coalesces into ONE
+render — and by then the second action had already nulled the payload. The effect ran, saw a fresh
+`weldFxSeq` but `weldFxUids: undefined`, and early-returned. In real play a weld is almost always
+accompanied by another action, so the ring effectively never fired.
+
+Reproduced deterministically in the browser before touching anything:
+
+```
+weld alone                          -> 2 weldPulse calls   ok
+weld + another dispatch same frame  -> 0 calls             BUG
+```
+
+and confirmed at the source — the effect ran exactly once, seeing `seq: 24, prev: 23, uids: undefined`.
+
+**A wrong fix first, recorded because the process matters.** My first read was that the changing `uids`
+dependency ran the effect's cleanup and cancelled the pending `requestAnimationFrame`. I wrote that fix,
+and the reproduction was **unchanged** — cancellation was never involved. Only instrumenting the effect
+body showed the payload was already gone before React rendered at all. Two rounds of all-zero results in
+between were separate artifacts (stale HMR after a hook-order change, then a dangling `weldRafRef` I left
+behind while reverting) — both caught only because every step was re-verified in the browser rather than
+reasoned about.
+
+**The fix.** `reduce` no longer clears the payload; it records `weldFxBaseSeq` (the seq as the action
+starts). `stampWeldFx` replaces `weldFxUids` on its first stamp of an action and accumulates after. Both
+properties #564 wanted are kept — several welds in one dispatch still all animate, and one action's uids
+still can't leak into the next — without destroying a payload the UI hasn't rendered yet. The UI watcher
+is reverted to its pre-#564 shape.
+
+This also fixes a second, quieter consumer on the same signal: the welded-stat flash (`Recruit.tsx`),
+which read `weldFxUids` the same way and was losing its highlight in exactly the same cases.
+
+Verified: the four-case browser trial now gives **2 weld pulses in all four cases**, wiggle applied, no
+error boundary; two new tests pin the batching behaviour (payload survives an unrelated follow-up action
+without re-announcing the seq; a new weld replaces the previous action's uids); 1227 tests, typecheck,
+lint and build:web green; `typecheck:web` at its 48-error baseline.
+
+## 2026-07-20 (odds sims)
+
+### perf(sim): cut the pre-combat odds sims 1000 → 200
+
+`reduce:faceOmen` had been the top hotspot in every capture (80–92ms at high waves) and the plan was to move
+`simulate()` to a Web Worker. **That would have fixed almost nothing.** Reading the loop rather than trusting
+the hotspot label:
+
+```js
+const combat = simulate(...);          // the REAL fight
+const ODDS_SIMS = 1000;
+for (let i = 0; i < ODDS_SIMS; i++) simulate(...);   // 1000 more, purely for the odds bar
+```
+
+Measured on a 7-minion wave-14 board:
+
+```
+faceOmen total     11.06ms
+the real combat     0.011ms
+the odds sims      11.05ms   ->  99.9% of the cost
+```
+
+One combat is effectively free. The stall was a thousand extra simulations run synchronously to render
+"73% win · 4% draw · 23% loss". A Worker migration would have moved 0.011ms off the main thread.
+
+`COMBAT_ODDS_SIMS` is now a documented module-level constant at **200** (owner call). It is a sampling
+problem and the display rounds to whole percent: the 95% confidence interval on a proportion is ±3.1% at
+n=1000 and ±3.5% at n=200 — invisible in a rounded number. The odds are computed off their own RNG tag
+(`TAG.ODDS`), consume no game randomness and feed nothing but the bar, so this cannot affect outcomes,
+replays or seeds.
+
+Verified: `faceOmen` **11.06ms → 3.56ms**; odds still deterministic for a given seed and still sum to 1;
+1226 tests, lint, build:web green, `typecheck:web` at its 48-error baseline.
+
+**One thing I could not verify.** I tried three times to construct a genuinely close matchup to measure real
+sampling noise, and every one came out decisive (0% or 100%) — a scan across enemy stats 6–12 found nothing
+between 15% and 85%. That suggests 1000 samples was wildly oversampled, but those boards were vanilla
+minions with no keywords; real boards carry Divine Shield, Venom, Rally and deathrattles, which branch more.
+So the empirical noise on real boards is **unmeasured**; only the mathematical bound above is established.
+If the bar ever looks jittery in play, raising this constant is a one-line, linear-cost dial.
+
 ## 2026-07-20 (discover pre-warm)
 
 ### perf(ui): pre-build the Discover overlay's Pixi app + mark its burst
@@ -479,6 +1848,91 @@ boots clean in the browser with no error boundary and both new counters reportin
 
 ## 2026-07-19 (set 2 empty)
 
+### tweak(ui): hand hover gets the white hover glow
+
+Hovering a hand card now lights the same white hover glow as board/shop cards (frame rim + panel/art layers).
+Both suppressors — the `--hglow-*` zeroing and the `.cglow { opacity: 0 }` kill — previously excluded ALL hand
+hovers ("pop up instead of glowing"); they're now scoped to `body.dragging` only, so FAKE hand hovers (the
+cursor passing under the pointer-events:none drag card mid-drag) stay glow-free while a real hover glows.
+Verified: typecheck + lint + build green.
+
+### fix(ui): hand hover-pop went DOWNWARD — height-independent lift + a new "hand pop lift" lever
+
+Regression from the anchored info panel (#570-era): the hand pop lifted a hovered card by `translateY(-100%)`
+(its own height) — when the panel went absolute (out of flow) the card element shrank, `-100%` stopped clearing
+the fan, and the pop netted DOWNWARD (owner report). The lift is now a fixed multiple of `--ch`:
+`translateY(--ch · (--hand-floor − --hand-pop))`, height-independent (every compact card is the same height; the
+panel hangs below at a fixed offset). New **`handPop`** lever in dragFeel (default 1.5, reflected to
+`--hand-pop`, 🎴 Drag Feel tuner → "hand pop lift") beside the existing "hand pop floor" — dial the pop height
+live and bake. **Owner-tuned + baked:** `handFloor 0`, `handPop 0.22` (a modest upward pop), in both homes
+(dragFeel DEFAULTS + the CSS fallbacks). The owner's tuner export also carried `recenter 0.84` /
+`recenterAfter 0` (drag-glide feel, unrelated to the pop) — deliberately NOT baked pending an explicit call.
+Verified: typecheck + lint + build green.
+
+### tweak(ui): Dev Tuning menu wraps into columns of 15
+
+The 🛠️ menu's one-column list (26 tuners + Perf HUD + 3 test actions = 30 rows) had outgrown the viewport.
+The items now live in a `.devmenu-items` grid (`grid-auto-flow: column`, `grid-template-rows: repeat(15,
+min-content)`): every 15 rows start a NEW column to the right of the first, and since the panel is
+right-anchored with `width: max-content` (was fixed 190px), each extra column extends the panel to the LEFT
+(owner spec). Each column keeps the old usable width (174px) so a ≤15-item menu renders identically;
+`max-width: calc(100vw − 24px)` guards tiny windows. Verified: typecheck + lint + build green.
+
+### tweak(ui): legacy hover glow (drawer + art) — teal → white
+
+The white hover-glow pass (#570) covered the frame rim (`.cglow`), but the LEGACY `--hglow-*` box-shadow glow —
+which lights the detached text drawer and the `.art` silhouette (hand/arch cards) on hover — still had teal
+hardcoded per layer (`#5CDFF0` ring + `rgba(95,221,231,.6)` bloom, in two rules). Both swapped to white so every
+hover surface matches the white edge-light (owner report: "the hover glow on the description panels is still
+teal"). Verified: typecheck + lint + build green.
+
+### tweak(ui): frame overlay re-tuned — brighter steel oval (#636363 @ 0.95)
+
+Owner's second overlay pass: the minion oval's tint goes dark-slate `#272a35 @ 0.75` → mid-grey **`#636363 @
+0.95`** (still `overlay` blend) — a brighter, stronger steel. Spell square stays a no-op. Baked in both homes
+(styles.css knob line + FrameTuner `DEF_TINT_STD` / `fovl-a` default). Verified: typecheck + lint + build green.
+
+### tweak(ui): bake owner's frame overlay — dark-slate steel oval
+
+Owner's Card-Frames-tuner export baked as shipped: the **minion oval** carries a dark-slate overlay tint
+(`--fovl: #272a35`, `--fovl-a: 0.75`, `--fovl-blend: overlay`) — the gold frame reads as dark steel while the
+engraving highlights/depth survive (overlay blend). The **spell square is a no-op** (opacity 0, unchanged
+purple/gold). Baked in both homes: the shipped `.card.compact.stdframe` / `.spellframe` knob lines in styles.css
++ the FrameTuner per-section defaults (split `DEF_TINT_STD/SPELL`, `DEF_BLEND_STD/SPELL` so Reset matches).
+All other frame knobs unchanged. Verified: typecheck + lint + build green.
+
+### feat(ui): Card Frames tuner — overlay BLEND modes (multiply / overlay / screen / color)
+
+Follow-up to the colour overlay below: a per-section **overlay blend** dropdown (`--fovl-blend` →
+`mix-blend-mode` on `.cframe-tint`). normal = flat wash · multiply = darkens, keeps engraving shadows · overlay
+= recolours preserving highlights/depth · screen = brightens · color = swaps hue/sat keeping luminosity (the
+truest "different metal"). Exported by Copy CSS with the rest. Verified: typecheck + lint + build green.
+
+### feat(ui): Card Frames tuner — colour overlay + opacity knobs
+
+The 🖼️ Card Frames tuner gains a **colour-overlay experiment layer** per section (oval + spell): a new
+`.cframe-tint` span painted directly OVER the frame img — a solid colour masked to the frame's own PNG
+silhouette (same geometry as `.cglow`) — driven by `--fovl` (a colour picker) + `--fovl-a` (an opacity slider,
+default **0 = production no-op**). Lets the frame be re-tinted live (e.g. try silver/bronze/coloured variants)
+without new art; "Copy CSS" exports both vars for baking. Taunt is outside the tuner → no tint span. Verified:
+typecheck + lint + build green.
+
+### tweak(ui): hover glow re-tuned — crisp white rim + tight white bloom (was teal)
+
+Owner's 🔆 Glow-tuner export baked as the shipped defaults, in BOTH homes (`glowConfig.ts` `DEFAULTS` + the
+`--hg-*` CSS fallbacks in styles.css, which production renders from): line blur 12→**0** (crisp rim), line colour
+teal `#00ffd5`→**white**; bloom 4px@0.4 ×6 → **3px@0.89 ×3, white**; shape 1.03/1.015 → **1.045/1.03**. Reads as
+a clean white edge-light hugging the frame silhouette instead of the teal halo. Verified: typecheck + build green.
+
+### fix(ui): card info panel top is ANCHORED — longer text grows the panel downward only
+
+The detached drawer was in normal flow, so a longer rules text grew the whole card element — and centered
+contexts (the inspect overlay, Discover slots, shop/warband rows) split that growth both ways: the frame crept UP
+and the panel top shifted with it, so panel tops misaligned across cards with different text lengths. Fix: the
+drawer is now `position: absolute; top: calc(var(--ccw) * 1.15)` (archbox height + the tuned 0.15 gap), out of
+flow — the frame never moves, the panel top sits at the same spot on every card, and growth extends downward
+only (owner spec). Verified: typecheck + build green; owner eyeballing over HMR.
+
 ### fix(ui): kill the legacy purple spell-card box behind the authored gold frame
 
 Spells still painted the pre-PNG spell look — `.card.spellcard`'s purple ring + purple glow box-shadow on the
@@ -602,6 +2056,117 @@ set 1 — which is exactly what they are — so nothing needed re-stamping.
 
 
 Full guide: `docs/card-sets.md`.
+## 2026-07-19 (later still)
+
+### fix(ui): kill the three looping paint-property animations (shop-phase frame budget)
+
+Owner is targeting a **steady 240fps, with the SHOP phase as the priority** (not combat). At 240Hz the frame
+budget is **4.16ms**, a quarter of the 16.6ms the perf docs are written against — and every per-frame cost
+scales *linearly* with refresh rate, so 60→240 both shrinks the budget 4× and runs the work 4× more often.
+That double-squeeze makes our own banned looping-paint pattern much more expensive than it looks at 60Hz.
+
+An audit of every `infinite` keyframe in `styles.css` found the resting shop in good shape overall — `kwglow`,
+`wardpulse`, `rebornpulse`, `rebornwisp`, `triparrow`, `flspin`, `etbsheen`/`tvbsheen` and `cardreffloat` are
+all transform/opacity with `will-change`, i.e. compositor-only and effectively free at any refresh rate.
+Three violations remained:
+
+- **`discpulse`** (Discover slots) animated `box-shadow` between two non-zero states on an infinite loop.
+  Converted to the house pattern (`kwglow` / `tripready`): the resting/weakest glow is now a STATIC shadow on
+  `.disc-slot`, and the brighter crest moved to a `::before` whose **opacity** breathes via `kwglow` at the
+  same 2s cadence. `.disc-slot` gained `position: relative` for the `::before`; this cannot capture any
+  descendant because `.card` already sets `position: relative` itself (styles.css:972). One deliberate
+  fidelity note: at the crest the static base and the `::before` now stack, where the original swapped one
+  shadow for the other, so the peak reads a touch brighter — exactly how `tripready` already behaves.
+- **`venomdrip`** (Venomous cards, 4 globs each) animated `border-radius` on an infinite loop — a teardrop
+  wobble repainting every glob every frame for the whole shop phase, multiplied by each Venomous card on
+  board or in the shop. Dropped the radius steps; the existing `scaleY` already carries the elongation, so
+  the keyframe is now transform/opacity only.
+- **`endpulse`** turned out to be a **dead keyframe** — the roadmap listed it as a live offender on
+  `.heropowerbtn.ready` / `.endturn-side.urgent`, but a repo-wide grep found zero users (it was orphaned when
+  the amber End Combat variant was retired 2026-07-16). Deleted rather than left around to be copied, and the
+  stale roadmap bullet corrected.
+
+**Verified:** `npm run typecheck`, `npm run lint`, `npm test` (1201 tests / 65 files), and `npm run build:web`
+all green. Not visually driven — owner eyeballs FX changes himself.
+
+**Follow-up, since MEASURED and CLOSED — the charge glyph is fine.** From reading the source I claimed
+`ChargeGlyph`'s per-frame `--charge` write drove a `mask-image` repaint on "three ~1144px layers" and was the
+biggest remaining shop cost. **That was wrong on both counts, and the profile killed it.**
+
+Two corrections came out of a closer read, before any measurement. (1) The layer count: only **one** layer
+normally paints — `.charge-base` is `opacity: var(--cg-base-a, 0)` (zero by default) and `.charge-core` holds
+`opacity: 0` until `charge > bloomAt`. (2) The construction is heavier per-layer than described: the mask is a
+two-source composite (`url(turn-glyph.svg)` ∩ the gradient, `mask-composite: intersect`), and `.charge-fill`
+carries `filter: drop-shadow(0 0 40px …) drop-shadow(0 0 80px …)` — which the CSS comment itself already
+fingered: *"the drop-shadow glow is the heaviest bit — move it to the Pixi bloom layer if it costs frames."*
+
+Then it was profiled with a standalone harness reproducing the real construction (real SVG, real 1144×449
+geometry, real mask composite, real drop-shadows), four variants interleaved and run twice each. **Every
+variant — including the do-nothing control — sat at a 2.8ms median with ~360fps and zero frames over the
+4.16ms 240Hz budget.** Removing the drop-shadows changed nothing, so the CSS comment's hypothesis is disproven
+too; the proposed transform rewrite was the worst variant on outlier frames. Full table in the roadmap.
+
+Two honest limits: the harness is refresh-capped (it proves nothing here threatens the budget, not that the
+variants cost the *same* — it can't resolve sub-2.8ms deltas), and it isolates the glyph from the live card
+tree. But the isolated cost is far enough under budget that it isn't a plausible dominant term.
+
+**Method note worth keeping:** this could not be measured from any automated browser surface — the preview
+pane reports `hidden` with a 0×0 viewport, and even a real Chrome tab under automation returned **0 rAF frames
+in 2 seconds**. rAF is suspended in background tabs, so an rAF-driven effect can only be profiled in a tab the
+owner has focused. Any "measurement" taken otherwise is noise.
+
+Still open (unmeasured): `ChargeMotes`' continuous canvas loop, and `Card`'s default shallow memo (unlike
+`Unit`'s value comparator) under the per-rAF drag re-render of `Recruit`. Given how this one turned out,
+measure both before touching either.
+### fix(ui): autosave at turn boundaries, not on every shop action
+
+Shop-phase snappiness, off the back of the 240fps goal. Autosave ran on **every state change**: each buy,
+sell, roll, reorder and freeze synchronously `JSON.stringify`d the entire run *and* the entire action log,
+then pushed it through `localStorage` — main-thread disk I/O landing on exactly the interactions that decide
+whether the shop feels responsive, and growing as the action log grew.
+
+**Not a debounce** (the roadmap's suggestion). A timer would only be guessing at a commitment point the game
+already marks precisely: the phase flip. The write now happens when `next.phase !== s.run.phase` —
+recruit→combat (board committed) and combat→recruit (next turn settled). A shop turn is a scratchpad until
+you commit it.
+
+The shorter cadence would have cost durability on its own, so it's paired with **`flushSave`**, an explicit
+persist for the two ways a player leaves a run mid-turn:
+- **Quit to main menu** — `openTitle` flushes *before* setting `showTitle` (so `flushSave`'s guard still lets
+  it through). The Esc menu already promises "your run stays saved"; mid-turn, that's now actually true.
+- **Tab hide/close** — `pagehide` (close, navigation, bfcache) *and* `visibilitychange`→hidden (tab switch,
+  minimise, mobile backgrounding, which is the one iOS reliably fires). Both may fire for one departure; a
+  duplicate write is harmless and only happens on the way out. `beforeunload` was deliberately not used — it
+  blocks bfcache and is unreliable on mobile.
+
+`flushSave` no-ops at the title, because the `run` held there is a dormant throwaway (see `clearRun`) and
+persisting it would resurrect a phantom Continue. Neither path survives a hard crash or power loss — that
+remains a rollback to the last turn boundary, which is a coherent resume point, not corruption.
+
+**Design note (owner call):** saving only at turn boundaries technically lets a player rewind a turn by
+force-closing. The `flushSave` on tab-hide closes most of that, since leaving normally persists.
+
+**Verified** — typecheck, lint, 1201 tests, build:web all green, plus an end-to-end run against a **prod
+build of this branch** (served standalone; `preview_start` reads the primary checkout's launch.json and would
+have served the wrong code — confirmed it was serving stale code before switching). Instrumented
+`localStorage.setItem` and counted writes across a real run:
+- recruit→combat: **exactly 1** write.
+- Combat's own dispatches (`resolveCombat`/`settleCombat`) — state-changing, no phase flip: **0** writes.
+  This is the negative case; under the old code each of these wrote.
+- combat→recruit: **exactly 1** write. Two writes for a full turn cycle.
+- `pagehide` → 1 write; `visibilitychange`(hidden) → 1 write.
+- Quit to title → 1 write; then `pagehide`/`visibilitychange` **at the title** → **0** (guard holds, no
+  phantom save). Title showed "CONTINUE · Round 2", and Continue restored Round 2 / Tier 2 / Gold 4 exactly.
+
+A shop reroll was NOT exercised directly — the button is gated during the round's setup animation and
+wouldn't fire through the automation harness. The combat-dispatch result above covers the same code path:
+the write is gated purely on the phase comparison and is indifferent to which action caused the change.
+
+**Deliberately NOT done:** the `[...s.replayActions, action]` copy per dispatch. I'd called it O(n²) when
+proposing this work; that was overstated. At a realistic few-hundred actions per run it's a pointer copy
+costing microseconds — invisible next to the JSON serialization this PR actually removes. It also has a
+reactive subscriber (`EndScreen`), so mutating a shared array in place would trade a real correctness hazard
+for an unmeasurable win. Left alone.
 
 ## 2026-07-19 (later)
 

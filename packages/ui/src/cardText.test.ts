@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { ALL_CARDS } from '@game/content';
 import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, undeadBuyAtkText, watcherText } from './cardText';
 
 describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
@@ -40,11 +41,11 @@ describe('cardText helpers', () => {
     expect(packLeaderText('packleader', 6, true)).toContain('{{+12/+12}}'); // golden doubles the grant
     expect(packLeaderText('packleader', 6, true)).toContain('+6/+6'); // golden per-Beast rate
   });
-  it('escalatingCastText shows Vineweaver Drake’s live Growth grant + next-turn cast count', () => {
-    expect(escalatingCastText('vineweaver', false, 0, 0, 0)).toContain('+3/+4'); // base grant, 1 cast next End of Turn
-    expect(escalatingCastText('vineweaver', false, 2, 0, 0)).toContain('{{3×}}'); // eotTick 2 → next End of Turn casts 3×
-    expect(escalatingCastText('vineweaver', true, 1, 0, 0)).toContain('{{4×}}'); // golden doubles: (1+1)×2 = 4
-    expect(escalatingCastText('vineweaver', false, 0, 2, 2)).toContain('{{+5/+6}}'); // spell power lifts the grant
+  it('escalatingCastText is DORMANT — no live card uses endOfTurnCastSpellEscalating', () => {
+    // Vineweaver Drake was its only consumer and was retired 2026-07-20. The helper (and the factory it
+    // reads) are kept as primitives for future content; until a card adopts one, this must return null for
+    // every card rather than silently mis-render. Re-point this test at the new card when one adopts it.
+    for (const c of ALL_CARDS) expect(escalatingCastText(c.id, false, 3, 0, 0)).toBeNull();
     expect(escalatingCastText('sandbag', false, 3, 0, 0)).toBeNull();
   });
   it("monkProgressText shows Flowing Monk's live grant + countdown to the next step (golden-aware)", () => {
@@ -79,10 +80,17 @@ describe('cardText helpers', () => {
 
 
   it('tallyBuffText shows Grim’s live +N/+N from the run Deathrattle tally', () => {
-    // Grim: "give your Beasts **+1/+1** for each Deathrattle triggered this game" — with 4 triggered,
-    // the printed +1/+1 becomes a green {{+4/+4}}.
-    expect(tallyBuffText('grim', 4)).toContain('{{+4/+4}}');
-    expect(tallyBuffText('grim', 4)).not.toContain('**+1/+1**'); // the printed value was replaced
+    // Grim: "give your Beasts **+2/+2** for each Deathrattle triggered this game" — with 4 triggered,
+    // the printed +2/+2 becomes a green {{+8/+8}}.
+    expect(tallyBuffText('grim', 4)).toContain('{{+8/+8}}');
+    expect(tallyBuffText('grim', 4)).not.toContain('**+2/+2**'); // the printed value was replaced
+  });
+
+  it('tallyBuffText doubles for a GILDED Grim and rewrites the golden text', () => {
+    // The factory multiplies by mul(self), so a gilded Grim really grants double — the live number has to
+    // follow, and it must rewrite the GOLDEN text, not the base one.
+    expect(tallyBuffText('grim', 4, true)).toContain('{{+16/+16}}');
+    expect(tallyBuffText('grim', 4, false)).toContain('{{+8/+8}}');
   });
 
   it('tallyBuffText falls back (null) at a zero tally or on a non-tally card', () => {

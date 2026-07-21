@@ -101,11 +101,11 @@ export const MECHS: CardDef[] = [
       {
         on: 'endOfTurn',
         do: 'endOfTurnMagnetizeMechs',
-        params: { targets: 1 },
+        params: { targets: 2 },
       },
     ],
-    text: '**End of Turn:** magnetize a random **Magnetic** Mech onto a friendly Mech.',
-    goldenText: '**End of Turn:** magnetize a random **Magnetic** Mech onto **2** friendly Mechs.',
+    text: '**End of Turn:** magnetize a random **Magnetic** Mech onto **2** friendly Mechs.',
+    goldenText: '**End of Turn:** magnetize a random **Magnetic** Mech onto **4** friendly Mechs.',
   },
   {
     // Rune of Reconfiguration's signature Mech — grant-only (token). A Combinator re-tuned to fire on Shout plays
@@ -179,8 +179,9 @@ export const MECHS: CardDef[] = [
     text: '**Rally:** give your other Mechs **+5 Attack**. **Magnetic** — welds onto a Mech, which then grants the buff (stacks).',
   },
   {
-    // T6 flood-or-pump finisher: its Deathrattle dumps 6 Nanobots, and any that can't fit a full board are
-    // converted into a board-wide Mech buff (+2/+2 each, golden +4/+4 — owner trim 2026-07-16; the count stays 6, so a packed board
+    // T6 flood-or-pump finisher: its Deathrattle dumps 5 Nanobots (owner trim 2026-07-21, was 6), and any that
+    // can't fit a full board are converted into a board-wide Mech buff (+2/+2 each, golden +4/+4 — the count is
+    // FIXED, so a golden summons 5 too and scales the buff instead; a packed board
     // turns the wasted bodies into a big pump instead). Pairs with go-wide Mech boards. Nanobot is a 1/1 token.
     id: 'nanon',
     name: 'Nanon',
@@ -189,9 +190,9 @@ export const MECHS: CardDef[] = [
     attack: 6,
     health: 6,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleSummonOverflowBuff', params: { tokenId: 'nanobot', count: 6, tribe: 'mech', attack: 2, health: 2 } }],
-    text: "**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+2/+2**.",
-    goldenText: "**Deathrattle:** summon 6 Nanobots. For each one that can't fit, give your Mechs **+4/+4**.",
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonOverflowBuff', params: { tokenId: 'nanobot', count: 5, tribe: 'mech', attack: 2, health: 2 } }],
+    text: "**Deathrattle:** summon 5 Nanobots. For each one that can't fit, give your Mechs **+2/+2**.",
+    goldenText: "**Deathrattle:** summon 5 Nanobots. For each one that can't fit, give your Mechs **+4/+4**.",
   },
   {
     // Spend-gold payoff (the gold meter shared with Acid): every 10 Gold you spend, weld a RANDOM Magnetic

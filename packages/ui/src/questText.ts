@@ -3,7 +3,7 @@ import { CARD_INDEX } from '@game/content';
 
 /**
  * Display strings for quests, DERIVED from the quest data (no authored text on `QuestDef`). Used by the quest
- * shop cards (QuestCard) and the active-quest panel (QuestPanel), and kept here so both read identically.
+ * shop cards (QuestCard) and the active-quest nodes (QuestBadges), and kept here so both read identically.
  * Scaling rewards (Warm Embers' remaining Shouts, Trail Rations' repeat countdown) take a live-state hook so a
  * taken quest never prints a stale number — the card-text live-accuracy rule.
  */

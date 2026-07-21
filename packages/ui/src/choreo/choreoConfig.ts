@@ -122,6 +122,7 @@ const KIND_TO_KEY: Record<MomentKind, keyof ChoreoConfig> = {
   summon: 'summon', buffWave: 'buff', reborn: 'reborn', ascend: 'improve', rally: 'rally',
   toHand: 'toHand', maxGold: 'maxGold', improve: 'improve', keyword: 'buff', keywordLost: 'buff',
   hpGrant: 'hpGrant', spellProgress: 'hpGrant', reveal: 'summon',
+  tribeAura: 'buff', // hold-times like a buff wave — an aura is a buff cue
 };
 export function holdMsForKind(kind: MomentKind): number {
   return beatDelay(KIND_TO_KEY[kind]);

@@ -22,7 +22,58 @@ export type Keyword =
   | 'CR' // Critical Strike — a chance (see CardDef.critChance) to deal double damage on attack
   | 'EG'; // Engraved — stat gains during combat carry back to the run board (permanent)
 
-export type Tier = 1 | 2 | 3 | 4 | 5 | 6;
+/**
+ * ── Trigger multipliers ────────────────────────────────────────────────────────────────────────────────
+ * The families of trigger a card can make fire extra times. Before this existed, every multiplier
+ * (Sylus, Drakko, Chronos) was a hardcoded `cardId === '…'` check in a DIFFERENT subsystem, with
+ * inconsistent stacking rules and no single place to read them — the tech debt `docs/roadmap.md` flagged.
+ * Uron, Oathbringer multiplies SIX families at once, which is what forced the generalisation.
+ */
+export type TriggerFamily =
+  | 'battlecry' // Shout — onPlay
+  | 'deathrattle' // Echo — onDeath
+  | 'rally' // onAttack (RL)
+  | 'slaughter' // onKill (SL)
+  | 'endOfTurn'
+  | 'startOfCombat';
+
+/** A card's declared trigger multiplication. `extra` is the ADDITIONAL fires this copy grants (golden
+ *  doubles it), so the total for a family is `1 + <contribution>`. `stacks` picks the combination rule:
+ *  true sums every copy (Sylus), false takes the single best copy (Drakko, Chronos, Uron). */
+export interface TriggerMultiplierDef {
+  families: readonly TriggerFamily[];
+  extra: number;
+  stacks?: boolean;
+}
+
+/**
+ * Extra fires contributed by the multiplier cards among `minions`, for one trigger family. Returns the
+ * ADDITIONAL count (0 = no multiplier), so callers use `1 + extraTriggerFires(...)`.
+ *
+ * Stacking and non-stacking contributions combine ADDITIVELY with each other — a Sylus (stacking) plus a
+ * Uron (non-stacking) grant +1 each. Within each rule the pre-existing semantics are preserved exactly:
+ * stacking cards sum across copies, non-stacking cards contribute only their best single copy.
+ */
+export function extraTriggerFires(
+  family: TriggerFamily,
+  minions: readonly { cardId: string; golden?: boolean }[],
+  getCard: (id: string) => CardDef | undefined,
+): number {
+  let summed = 0; // stacking cards (Sylus): every copy counts
+  let best = 0; // non-stacking cards (Drakko / Chronos / Uron): the single best copy counts
+  for (const m of minions) {
+    const mult = getCard(m.cardId)?.triggerMultiplier;
+    if (!mult || !mult.families.includes(family)) continue;
+    const contribution = mult.extra * (m.golden ? 2 : 1);
+    if (mult.stacks) summed += contribution;
+    else best = Math.max(best, contribution);
+  }
+  return summed + best;
+}
+
+/** Shop tiers. 7 exists ONLY under the Summit rift — see `maxTierFor` in @game/sim, which is the
+ *  single gate on whether a run can ever reach it. */
+export type Tier = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export type Side = 'player' | 'enemy';
 
@@ -110,6 +161,7 @@ export type EffectFactoryId =
   | 'battlecryBuffTribe'
   | 'battlecrySummon'
   | 'buffOnBuy'
+  | 'buffBoardOnBuy' // On buy: buff your whole board (Brightwing Broker)
   | 'battlecryGrantKeyword'
   | 'battlecryGainRandomMinion' // Battlecry: add a random minion of a tier to your hand (Buddy Buddy)
   | 'battlecryDiscoverSpell' // Battlecry: Discover a spell (golden: grants the pick + a second random spell) (Black Belt Brian)
@@ -268,7 +320,14 @@ export type EffectFactoryId =
   | 'buffFodderImpsImproving' // Ritualist: End of Turn — buff Imps + Fodder, escalating each trigger (recruit)
   | 'spellAddTribe' // Anomaly Reactor: cast — give the target minion an extra tribe (a Mech type) for the run (recruit)
   | 'spellAddAllTribes' // Anomaly Reactor: cast — give the target minion ALL types for the run (recruit)
-  | 'onAttackStripKeywords'; // Tauntbreaker: on-attack — strip listed keywords (Taunt / Rise) off the enemy it hits (combat)
+  | 'onAttackStripKeywords'
+  // --- Tier 7 (Summit) minions, 2026-07-20 ---
+  | 'onAllyTribeAttackBuffSelf' // Thundeer: an ally of a tribe attacks -> buff self, improving
+  | 'deathrattleGrantRebornAll' // Anubis: Echo grants Rise to your whole board
+  | 'deathrattleCastTribeAttack' // Anubis: Echo casts Lantern of Souls
+  | 'onSellDiscover' // Salvatore McKlusky: selling this opens Discovers
+  | 'deathrattleGainRandomMinion' // Lab Experiment: Echo conjures a random minion of a tier
+  | 'deathrattleBuffImpsImproving' // Amun Rab: Echo buffs Imps, improving each proc; // Tauntbreaker: on-attack — strip listed keywords (Taunt / Rise) off the enemy it hits (combat)
 
 export interface EffectDef {
   on: GameEvent;
@@ -311,6 +370,17 @@ export interface CardDef {
   /** Bounty Bot: "immune while attacking" for this many combats after it enters play — the attacker takes no
    *  retaliation on its own swings. Tracked per-instance via `BoardMinion.attackImmuneLeft`. */
   attackImmuneTurns?: number;
+  /** Mauron: "Immune while attacking" with NO charge limit — it never takes retaliation on its own swings.
+   *  `attackImmuneTurns` is a DEPLETING counter (Bounty Bot spends one per swing), so an always-on version
+   *  needs its own flag rather than a large sentinel number. Seeds `attackImmuneLeft` to 1 and the swing
+   *  site skips the decrement, which keeps the per-instance value JSON-safe (no Infinity in a save). */
+  attackImmuneAlways?: boolean;
+  /** Mauron: when this attacks it also damages an ADJACENT enemy — ONE of them, or BOTH when gilded. Not
+   *  Cleave, which always hits both and is a player-facing keyword; this is a per-card splash. */
+  splashAdjacent?: boolean;
+  /** This card makes whole FAMILIES of trigger fire extra times (Sylus, Drakko, Chronos, Uron). Resolved
+   *  through `extraTriggerFires` — never by a hardcoded card-id check. */
+  triggerMultiplier?: TriggerMultiplierDef;
   ascendInto?: string;
   /** Combat: this minion attacks immediately when summoned mid-fight, out of turn order — then joins the
    *  normal rotation (Twilight Whelp's 3/3 Whelp). Drained by the immediate-attack queue in `simulate`. */
@@ -524,6 +594,9 @@ export type QuestReward =
   | { kind: 'runeEndlessAppetite' }
   // Rune of the Conductor (Epic): at the start of every shop, trigger all your End of Turn effects.
   | { kind: 'runeConductor' }
+  /** Rune of the Summit: every 2nd shop opens a Tier 7 Discover (a counter, not a per-turn flag — the
+   *  every-other-turn cadence is not expressible with `recurringEndOfTurn`, which fires every turn). */
+  | { kind: 'runeSummit' }
   // Rune of Mastery (Epic): whenever one of your effects Improves, it improves an additional time.
   | { kind: 'runeMastery' }
   // Rune of Empowerment (Epic): your hero power's effect triggers twice (only offered to heroes whose power
@@ -986,6 +1059,7 @@ export type CombatEvent = (
   | { type: 'reborn'; target: string; hp: number; attack: number; keywords: Keyword[]; after?: string } // returns at base stats; `after` = the uid the Rise re-slots to the RIGHT of (a Rise whose Deathrattle summoned tokens into its old slot)
   | { type: 'death'; target: string; side: Side; rise?: true } // `side` lets the UI count enemy kills (Cassen) without uid-matching; `rise` marks a Rise's FIRST death — shown (the body vacates its slot) but NOT counted as a kill, since it returns
   | { type: 'reveal'; target: string } // a Stealth minion attacked and lost Stealth
+  | { type: 'tribeAura'; side: Side; tribe: Tribe | 'any'; attack?: number; health?: number; aura?: string } // a run-wide aura rose in combat (Ryme / Lantern / Imp King / Fodder Feeder …). UI blooms the board wash (by `tribe`) AND ticks the matching Buffs-panel row live (by `aura` key + amounts), mirroring recruit-phase `auraFxSeq`
   | { type: 'keyword'; target: string; keyword: Keyword; source?: string } // a combat effect grants a keyword (Mumi → Rise, Ryme-replayed keyword battlecries) — the UI folds it into the unit's pills
   | { type: 'keywordLost'; target: string; keyword: Keyword; source?: string } // a combat effect STRIPS a keyword (Tauntbreaker → Taunt/Rise off the enemy it hit) — the UI drops that pill
   | { type: 'venomLost'; target: string } // a Venomous minion procced and lost Venomous

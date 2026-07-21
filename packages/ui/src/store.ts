@@ -1,12 +1,12 @@
 import { create } from 'zustand';
 import { CARD_INDEX } from '@game/content';
-import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, nextOpponent, reconstructRunTelemetry, reduce, resolveRunRating, runRecord, serialize, snapshotBoard, socBoard, type Action, type BoardMinion, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunState } from '@game/sim';
+import { HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, nextOpponent, reconstructRunTelemetry, reduce, resolveRunRating, runRecord, serialize, snapshotBoard, socBoard, type Action, type BoardMinion, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState } from '@game/sim';
 import type { Tribe } from '@game/core';
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
 
 /** Combat quest-objective progress landed so far in the live replay (same shape as `CombatResult.playerQuestTally`
- *  plus a Deathrattle/Echo total). Drives the QuestPanel's live-tick. */
+ *  plus a Deathrattle/Echo total). Drives the quest nodes' live-tick. */
 export interface CombatQuestDelta {
   attack: number; summonCombat: number; slaughter: number; slaughterKeyword: number; deathrattle: number; friendlyDeath: number; rally: number; summonImp: number;
   attackByTribe: Partial<Record<Tribe, number>>;
@@ -127,7 +127,7 @@ interface GameStore {
    *  Buffs window so it ticks up in sync with the replay. `null` outside combat (the row reads the run state). */
   combatBuffs: CombatBuffDelta | null;
   setCombatBuffs: (b: CombatBuffDelta | null) => void;
-  /** Combat quest-objective progress landed so far this fight — bridges useCombatReplay → the QuestPanel so
+  /** Combat quest-objective progress landed so far this fight — bridges useCombatReplay → QuestBadges so
    *  combat objectives (attack / summonCombat / slaughter / Echo) LIVE-TICK during the replay. `null` outside
    *  combat (the panel reads only the run state's progress). */
   combatQuestDelta: CombatQuestDelta | null;
@@ -207,17 +207,28 @@ interface GameStore {
   savedRun: RunState | null;
   /** Resume the saved in-progress run (from the title). */
   continueRun: () => void;
+  /** Persist the live run NOW, outside the normal turn-boundary autosave (see `writeSave`). Called when the
+   *  player leaves the run mid-turn — quitting to the title, or the tab being hidden/closed — so an
+   *  interrupted shop turn is never lost. No-op at the title (the dormant `run` there is a throwaway) and
+   *  once a run has finished (a finished run isn't resumable). */
+  flushSave: () => void;
   /** Discard the saved in-progress run (from the title) — clears the autosave + `savedRun` so Continue
    *  disappears. Destructive + irreversible; the caller confirms first. */
   clearRun: () => void;
   /** The title screen is shown at boot + after a run ends — the front door to the modes. */
   showTitle: boolean;
   /** The mode the next run will start in (set by startAscent/startPractice, read by pickHero). */
-  pendingMode: 'ascent' | 'practice';
+  pendingMode: RunMode;
   /** Title → Ascent: open the 3-hero picker for a scored run. */
   startAscent: () => void;
   /** Title → Practice: open an ALL-hero picker for a practice run (Ascent's full course, unlimited health). */
   startPractice: () => void;
+  /** Start a RIFT run — the same climb, with the active rift's rules. */
+  startRift: () => void;
+  /** Launch the Scene Builder sandbox (dev) — a fresh run flagged `sandbox`, bypassing the hero picker, with
+   *  a big Gold float. Its own entry from the title, not a mode in the picker. Optionally pick the hero (the
+   *  panel's hero dropdown re-launches to swap, so the hero's createRun setup runs). */
+  startSceneBuilder: (heroId?: string) => void;
   /** Return to the title screen (from the end screen). */
   openTitle: () => void;
   /** The Hall of Champions overlay (latest victory runs + their warbands) is open. */
@@ -353,6 +364,14 @@ export const useGame = create<GameStore>((set, get) => ({
   // Discard the saved run: wipe the autosave + `savedRun`, and reset the dormant `run` to a fresh throwaway so
   // state mirrors a boot with no save (Play/Practice will replace it). Stays on the title. Irreversible.
   clearRun: () => { clearSave(); set({ savedRun: null, run: createRun(randomSeed()) }); },
+  // Mid-turn durability for the turn-boundary autosave. Guarded on `showTitle` because the `run` held while
+  // the title is up is a dormant throwaway (see clearRun) — persisting it would resurrect a phantom Continue.
+  flushSave: () => {
+    const s = get();
+    if (s.showTitle || s.run.phase === 'gameover' || s.run.phase === 'victory') return;
+    writeSave(s.run, s.replayActions);
+    set({ savedRun: s.run });
+  },
   heroArmed: false,
   endTurnAnimating: false,
   combatEnemyDeaths: 0,
@@ -507,14 +526,25 @@ export const useGame = create<GameStore>((set, get) => ({
       const changed = next !== s.run;
       const replayActions = changed ? [...s.replayActions, action] : s.replayActions;
       const finished = next.phase === 'gameover' || next.phase === 'victory';
-      // Autosave (A3): persist an in-progress run on every change; clear it once the run finishes (a
-      // finished run isn't resumable). `savedRun` mirrors the persisted state so the title's Continue works.
+      // Autosave (A3): persist an in-progress run, and clear it once the run finishes (a finished run isn't
+      // resumable). `savedRun` mirrors the persisted state so the title's Continue works.
+      //
+      // This used to write on EVERY state change, which meant each buy/sell/roll/reorder synchronously
+      // serialized the whole run AND the whole action log to JSON and pushed it through localStorage —
+      // main-thread disk I/O on the interactions that decide whether the shop feels snappy, growing as the
+      // action log grew. Now it writes at PHASE BOUNDARIES only (recruit→combat when the board is committed,
+      // combat→recruit when the next turn's state has settled): the points where something worth resuming
+      // from actually happened. A shop turn is a scratchpad until you commit it.
+      //
+      // Leaving a run mid-turn is covered separately by `flushSave` (quit-to-title + tab hide/close), so the
+      // shorter save cadence costs no durability — see the listeners at the bottom of this file.
       let savedRun = s.savedRun;
       if (changed) {
         if (finished) { clearSave(); savedRun = null; }
-        // MEASURED: this serializes the ENTIRE run to JSON on every single state change, synchronously,
-        // inside the dispatch. A prime suspect for an unattributed stall — and it scales with board size.
-        else { perfMonitor.measure('autosave', () => writeSave(next, replayActions)); savedRun = next; }
+        else if (next.phase !== s.run.phase) {
+          perfMonitor.measure('autosave', () => writeSave(next, replayActions));
+          savedRun = next;
+        }
       }
       return {
         run: next,
@@ -551,7 +581,18 @@ export const useGame = create<GameStore>((set, get) => ({
     }),
   startAscent: () => set({ showTitle: false, pendingMode: 'ascent', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
   startPractice: () => set({ showTitle: false, pendingMode: 'practice', heroChoices: HEROES.map((h) => h.id), avatarPickerOpen: false }),
-  openTitle: () => set({ showTitle: true, heroChoices: null }),
+  startRift: () => set({ showTitle: false, pendingMode: 'rift', heroChoices: rollHeroChoices(), avatarPickerOpen: false }),
+  startSceneBuilder: (heroId = 'warden') =>
+    set(() => {
+      // Sandbox runs on `practice` mechanics (unscored, generous timer) but is flagged `sandbox` and skips the
+      // hero picker — it's a testing rig, not a scored climb. Re-creating the run per hero runs that hero's
+      // own createRun setup (Chaos / Disco Dan / Brackus openers). 999 Gold to start.
+      const run: RunState = { ...createRun(randomSeed(), heroId, 'practice'), sandbox: true, embers: 999, tier: 1 };
+      return { run, savedRun: null, lastRunBoards: 0, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, showTitle: false, avatarPickerOpen: false, replayActions: [] };
+    }),
+  // Quitting mid-turn: persist first (while `showTitle` is still false, so flushSave's guard lets it through),
+  // otherwise the turn in progress would roll back to the last phase boundary on Continue.
+  openTitle: () => { get().flushSave(); set({ showTitle: true, heroChoices: null }); },
   openLeaderboard: () => set({ showLeaderboard: true }),
   closeLeaderboard: () => set({ showLeaderboard: false }),
   showRankings: false,
@@ -567,6 +608,20 @@ export const useGame = create<GameStore>((set, get) => ({
   openBalance: () => set({ showBalance: true }),
   closeBalance: () => set({ showBalance: false }),
 }));
+
+// The autosave writes at turn boundaries (see `dispatch`), so leaving mid-turn needs an explicit flush or the
+// shop turn in progress would roll back on Continue. Two events, deliberately both:
+//   `pagehide`        — tab close, navigation, and bfcache entry. The reliable "the page is going away" signal.
+//   `visibilitychange` (→ hidden) — tab switch, window minimise, and mobile backgrounding, where a browser may
+//                       kill the page later without ever firing pagehide. This is the one iOS actually honours.
+// Both can fire for a single departure; a duplicate write is harmless (same bytes) and only happens on the way
+// out, never during play. Neither survives a hard crash or power loss — that remains a turn-boundary rollback.
+// `beforeunload` is deliberately NOT used: it blocks bfcache and is unreliable on mobile.
+if (typeof window !== 'undefined') {
+  const flush = (): void => useGame.getState().flushSave();
+  window.addEventListener('pagehide', flush);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
+}
 
 // DEV-only debug handle: stage arbitrary state from the console (e.g. useGame.setState to preview the
 // Discover / game-over / End-of-Turn UI). Stripped from production builds.

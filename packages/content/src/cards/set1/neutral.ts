@@ -41,11 +41,11 @@ export const NEUTRAL: CardDef[] = [
     tribe: 'neutral',
     tier: 2,
     attack: 3,
-    health: 4,
+    health: 3,
     keywords: [],
-    effects: [{ on: 'onBuy', do: 'buffOnBuy', params: { attack: 1, health: 2 } }],
-    text: 'Every minion you buy gets **+1/+2**.',
-    goldenText: 'Every minion you buy gets **+2/+4**.',
+    effects: [{ on: 'onBuy', do: 'buffBoardOnBuy', params: { attack: 1, health: 1 } }],
+    text: 'When you buy a minion, give your minions **+1/+1**.',
+    goldenText: 'When you buy a minion, give your minions **+2/+2**.',
   },
   {
     id: 'buddy',
@@ -101,6 +101,7 @@ export const NEUTRAL: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [],
+    triggerMultiplier: { families: ['battlecry'], extra: 1 },
     text: 'Your **Battlecries** fire **1 more** time.',
     goldenText: 'Your **Battlecries** fire **2 more** times.',
   },
@@ -114,6 +115,7 @@ export const NEUTRAL: CardDef[] = [
     health: 7,
     keywords: [],
     effects: [],
+    triggerMultiplier: { families: ['deathrattle'], extra: 1, stacks: true },
     text: '**In combat,** your Deathrattles proc **1 more** time.',
     goldenText: '**In combat,** your Deathrattles proc **2 more** times.',
   },
@@ -128,6 +130,7 @@ export const NEUTRAL: CardDef[] = [
     health: 6,
     keywords: [],
     effects: [],
+    triggerMultiplier: { families: ['endOfTurn'], extra: 1 },
     text: 'Your **End of Turn** effects trigger **1 more** time.',
     goldenText: 'Your **End of Turn** effects trigger **2 more** times.',
   },
@@ -271,8 +274,8 @@ export const NEUTRAL: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'startOfCombat', do: 'scGrantEnemyTaunt' }],
-    text: "**Start of Combat:** Give the enemy's rightmost minion **Taunt**.",
-    goldenText: "**Start of Combat:** Give the enemy's **two** rightmost minions **Taunt**.",
+    text: '**Start of Combat:** Give the minion **opposite** this **Taunt**.',
+    goldenText: '**Start of Combat:** Give the minion **opposite** this **Taunt**, and an **adjacent** minion too.',
   },
   {
     // End of Turn: cast Lasso (steal a random tavern minion into hand) via the shared castSpell factory — a
@@ -286,6 +289,7 @@ export const NEUTRAL: CardDef[] = [
     keywords: [],
     effects: [{ on: 'endOfTurn', do: 'castSpell', params: { spellId: 'lasso' } }],
     text: '**End of Turn:** Cast **Lasso**.',
+    goldenText: '**End of Turn:** Cast **Lasso** twice.',
   },
   {
     // Avenge (4): every 4 friendly deaths, permanently raise your spell power +1 Attack (stat spells give +1

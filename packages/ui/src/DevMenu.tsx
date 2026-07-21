@@ -6,6 +6,9 @@ import { CritFxTuner } from './CritFxTuner';
 import { FlurrySwingTuner } from './FlurrySwingTuner';
 import { SwapFxTuner } from './SwapFxTuner';
 import { GustFxTuner } from './GustFxTuner';
+import { SpellPowerFxTuner } from './SpellPowerFxTuner';
+import { QuestTendrilTuner } from './QuestTendrilTuner';
+import { HeroBuffFxTuner } from './HeroBuffFxTuner';
 import { AuraFxTuner } from './AuraFxTuner';
 import { WeldFxTuner } from './WeldFxTuner';
 import { BuffFxTuner } from './BuffFxTuner';
@@ -20,6 +23,10 @@ import { FloatTuner } from './FloatTuner';
 import { StepCounterTuner } from './StepCounterTuner';
 import { LayoutTuner } from './LayoutTuner';
 import { FrameTuner } from './FrameTuner';
+import { BookTuner } from './BookTuner';
+import { RefreshTuner } from './RefreshTuner';
+import { FreezeTuner } from './FreezeTuner';
+import { BuffDrawerTuner } from './BuffDrawerTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { GlowTuner } from './GlowTuner';
 import { EndTurnTuner } from './EndTurnTuner';
@@ -38,6 +45,10 @@ import { perfMonitor } from './perfMonitor';
 const TUNERS = [
   { key: 'layout', label: '📐 Scale & Layout', C: LayoutTuner },
   { key: 'frame', label: '🖼️ Card Frames', C: FrameTuner },
+  { key: 'book', label: '📖 Compendium Palette', C: BookTuner },
+  { key: 'refreshbtn', label: '🔄 Refresh Button', C: RefreshTuner },
+  { key: 'freezebtn', label: '❄️ Freeze Button', C: FreezeTuner },
+  { key: 'buffdrawer', label: '🧪 Buffs Drawer', C: BuffDrawerTuner },
   { key: 'glow', label: '🔆 Hover Glow', C: GlowTuner },
   { key: 'sfx', label: '🎛️ Mixing Desk', C: SfxMixer },
   { key: 'lunge', label: '🗡️ Lunge', C: LungeTuner },
@@ -46,6 +57,9 @@ const TUNERS = [
   { key: 'flurryswing', label: '🌬️ Flurry Swing FX', C: FlurrySwingTuner },
   { key: 'swapfx', label: '🔀 Swap FX (Displacement)', C: SwapFxTuner },
   { key: 'gustfx', label: '💨 Buff Gust FX', C: GustFxTuner },
+  { key: 'spellpowerfx', label: '✨ Spell Power FX', C: SpellPowerFxTuner },
+  { key: 'questtendril', label: '🏆 Quest Tendril', C: QuestTendrilTuner },
+  { key: 'herobufffx', label: '💥 Hero Buff Flash', C: HeroBuffFxTuner },
   { key: 'aurafx', label: '🌀 Aura Wave FX', C: AuraFxTuner },
   { key: 'weldfx', label: '🔩 Weld FX', C: WeldFxTuner },
   { key: 'bufffx', label: '✨ Buff FX (stat gain)', C: BuffFxTuner },
@@ -83,19 +97,23 @@ export function DevMenu() {
       {open && (
         <div className="devmenu">
           <div className="devmenu-h">Dev Tuning</div>
-          {TUNERS.map(({ key, label }) => (
-            <button key={key} className={`devmenu-item${shown.has(key) ? ' on' : ''}`} onClick={() => toggle(key)}>
-              {label} <span>{shown.has(key) ? '✓' : ''}</span>
-            </button>
-          ))}
-          <button
-            className="devmenu-item"
-            onClick={() => (window as unknown as { __perfHud?: (on?: boolean) => void }).__perfHud?.(!perfMonitor.isRunning)}
-            title="Frame-health HUD (also available in the prod build via ?perf=1)"
-          >📊 Perf HUD <span>{perfMonitor.isRunning ? '✓' : ''}</span></button>
-          <button className="devmenu-item" onClick={() => pixiFx.test()}>✨ Test FX <span>▸</span></button>
-          <button className="devmenu-item" onClick={() => pixiFx.testCrit()}>⚡ Test Crit <span>▸</span></button>
-          <button className="devmenu-item" onClick={() => pixiFx.testFlurry()}>🌬️ Test Flurry <span>▸</span></button>
+          {/* the items grid wraps into a NEW COLUMN every 15 rows (grid-auto-flow: column) — overflow columns
+              grow to the RIGHT of the first, while the right-anchored panel extends LEFT (see .devmenu-items). */}
+          <div className="devmenu-items">
+            {TUNERS.map(({ key, label }) => (
+              <button key={key} className={`devmenu-item${shown.has(key) ? ' on' : ''}`} onClick={() => toggle(key)}>
+                {label} <span>{shown.has(key) ? '✓' : ''}</span>
+              </button>
+            ))}
+            <button
+              className="devmenu-item"
+              onClick={() => (window as unknown as { __perfHud?: (on?: boolean) => void }).__perfHud?.(!perfMonitor.isRunning)}
+              title="Frame-health HUD (also available in the prod build via ?perf=1)"
+            >📊 Perf HUD <span>{perfMonitor.isRunning ? '✓' : ''}</span></button>
+            <button className="devmenu-item" onClick={() => pixiFx.test()}>✨ Test FX <span>▸</span></button>
+            <button className="devmenu-item" onClick={() => pixiFx.testCrit()}>⚡ Test Crit <span>▸</span></button>
+            <button className="devmenu-item" onClick={() => pixiFx.testFlurry()}>🌬️ Test Flurry <span>▸</span></button>
+          </div>
         </div>
       )}
       {TUNERS.map(({ key, C }) => (shown.has(key) ? <C key={key} /> : null))}

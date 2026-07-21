@@ -1,7 +1,7 @@
 import { combatSide, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type PendingCombatQuest, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type Tribe } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, QUEST_INDEX, RUNE_INDEX, RUNES } from '@game/content';
 import { poolOf, setIdOf } from './cardPool';
-import { CONFIG } from './config';
+import { CONFIG, maxTierFor } from './config';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
@@ -235,13 +235,36 @@ const QUEST_TICK_EVENTS: Partial<Record<Action['type'], QuestObjectiveEvent>> = 
   play: 'play', roll: 'roll', // `buy` + `sell` are handled separately (tribe-narrowed: "Buy N Beasts" / "Sell N Mechs")
 };
 
+/**
+ * How many Monte Carlo runs back the pre-combat odds bar ("73% win · 4% draw · 23% loss").
+ *
+ * This is the single most expensive thing the reducer does, by a wide margin. `faceOmen` runs `simulate()`
+ * once for the REAL fight and then `COMBAT_ODDS_SIMS` more purely to estimate the display — measured on a
+ * 7-minion wave-14 board, that split was **0.011ms for the combat and 11.05ms for the odds: 99.9% of the
+ * cost**. In the wild it was the largest stall in the game (80-92ms at high waves).
+ *
+ * 200 rather than the original 1000 (owner call 2026-07-20). It is a sampling problem, and the display
+ * rounds to whole percent: the 95% confidence interval on a proportion is ±3.1% at n=1000 and ±3.5% at
+ * n=200 — a difference you cannot see in a rounded number — for a 5x cut in cost.
+ *
+ * Raising this is a direct, linear cost on End Turn. It is safe to change: the odds are computed off their
+ * own RNG tag (`TAG.ODDS`), consume no game randomness, and feed nothing but the bar.
+ */
+const COMBAT_ODDS_SIMS = 200;
+
 export function reduce(state: RunState, action: Action): RunState {
   // Shop-buff FX are per-ACTION: reset the scratch buffer on the INPUT state BEFORE reduceCore's clone, so the
   // clone (`next`) starts empty and, after the action, holds EXACTLY this action's captures (never accumulated
   // across dispatches). For a rejected no-op reduceCore returns `state` itself → `next.recruitBuffFx` stays [].
   state.recruitBuffFx = [];
   state.auraFx = undefined; // same per-action scratch contract as recruitBuffFx (auraFxSeq stays monotonic)
-  state.weldFxUids = undefined; // ditto — `stampWeldFx` ACCUMULATES within one action (see below)
+  // Weld FX does NOT use the per-action scratch contract above, and must not: React BATCHES dispatches, so
+  // clearing the payload here destroyed welds that had not been rendered yet. A weld followed by any other
+  // click in the same frame (in real play, almost always) coalesced into ONE render whose `weldFxUids` the
+  // second action had already wiped — the ring never fired. Instead, record where this action starts;
+  // `stampWeldFx` replaces on its first stamp of an action and accumulates after, so the payload survives
+  // until the UI reads it and still never leaks between actions.
+  state.weldFxBaseSeq = state.weldFxSeq ?? 0;
   stampImproveReps(state); // Rune of Mastery: mirror the state's Improve multiplier for the stateless addBuff hook
   // Pin this wave's opponent on the FIRST recruit action of the turn (reload-divergence fix, revived
   // 2026-07-18): the pick is stamped into `servedBoards` as soon as the turn is played, so the telegraphed
@@ -288,6 +311,22 @@ export function reduce(state: RunState, action: Action): RunState {
     // Spell Thesis: "Cast N spells" advances by the run-wide spellsCast delta this action.
     const spellCastDelta = (next.spellsCast ?? 0) - (state.spellsCast ?? 0);
     if (spellCastDelta > 0) advanceQuestsBy(next, (o) => o.event === 'castSpell', spellCastDelta);
+    // Spell Power FX: one bump per action in which SPELL POWER WENT UP, by any source and any amount — not
+    // per spell CAST (owner correction 2026-07-21: Cinderwing Matron's Shout buffs spell power and must fire
+    // this, while casting a spell in a run with no spell-power sources must not). Both stats are watched:
+    // spell power is a PAIR, and Cinderwing grants Health only, so an Attack-only check missed it entirely.
+    // Derived from the before/after delta — NOT a per-action scratch field — so React batching can never
+    // swallow it (the weld-FX bug).
+    const spDeltaA = spellAttackBonus(next) - spellAttackBonus(state);
+    const spDeltaH = spellHealthBonus(next) - spellHealthBonus(state);
+    if (spDeltaA > 0 || spDeltaH > 0) {
+      next.spellPowerFxSeq = (next.spellPowerFxSeq ?? 0) + 1;
+      next.spellPowerFxAtk = Math.max(0, spDeltaA);
+      next.spellPowerFxHp = Math.max(0, spDeltaH);
+      // The acting card, when there is one — `play`/`buy`/`sell` all carry the uid, so the UI can anchor the
+      // flourish to the minion that caused it. Left undefined for sourceless gains (quest/rune ticks).
+      next.spellPowerFxUid = 'uid' in action && typeof action.uid === 'string' ? action.uid : undefined;
+    }
     // Forsaken Will: each spell cast permanently buffs your Undead's Attack — exactly like the Forsaken Weaver
     // (bakes +N into every current Undead + `undeadBuyAtk` so future buys inherit it), so the quest reward feels
     // identical to the minion instead of a separate Lantern-style aura.
@@ -355,7 +394,7 @@ export function reduce(state: RunState, action: Action): RunState {
         if (next.runeStructure) conjureToHand(next, poolOf(next).spells.filter((c) => c.tier <= next.tier), 1);
       }
       // Trail Forager: each Beast you play raises every OTHER Trail Forager's sell value (+1, ×2 golden).
-      if (pdef && (pdef.tribe === 'beast' || pdef.tribe2 === 'beast')) {
+      if (pdef && (pdef.tribe === 'beast' || pdef.tribe2 === 'beast' || pdef.universalTribe)) {
         for (const c of next.board) {
           if (c.cardId === 'trailforager' && c.uid !== action.uid) c.sellBonus = (c.sellBonus ?? 0) + (c.golden ? 2 : 1);
         }
@@ -453,6 +492,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   s.lastCombat = lastCombat;
   s.lastShoutFires = 0; // transient per-action Shout-fire count (set by a Battlecry play → read by the Shout quest tick)
   s.lastEchoFires = 0; // transient per-action out-of-combat Echo-fire count (set by fireRecruitDeathrattles → read by the deathrattle quest tick)
+  s.questTendrilFx = []; // transient per-action list of quest-triggered units (read by the tendril FX)
   s.lastEotFires = 0; // transient per-action End-of-Turn-fire count (set by applyEndOfTurn → read by the EoT quest tick)
 
   switch (action.type) {
@@ -525,7 +565,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const aHp = (s.friedCircuitsStepHp ?? 0) * s.friedCircuitsBuys;
         for (const o of s.shop) {
           const d = CARD_INDEX[o.cardId];
-          if (d && (d.tribe === 'mech' || d.tribe2 === 'mech')) addOfferBuff(o, 'Fried Circuits', aAtk, aHp);
+          if (d && (d.tribe === 'mech' || d.tribe2 === 'mech' || d.universalTribe)) addOfferBuff(o, 'Fried Circuits', aAtk, aHp);
         }
       }
       const cb = cardBuff(s, card.id); // persistent run buff (Ritualist's Fodder enchantment)
@@ -582,6 +622,8 @@ function reduceCore(state: RunState, action: Action): RunState {
       const card = s.hand[i]!;
       // Disco Dan: a Setlist minion is locked until you reach its shop tier — unplayable before then.
       if (card.lockedUntilTier && s.tier < card.lockedUntilTier) return state;
+      // Brackus's Summit pick — locked until the run has spent enough Gold.
+      if (card.lockedUntilGoldSpent && (s.goldSpent ?? 0) < card.lockedUntilGoldSpent) return state;
 
       const def = CARD_INDEX[card.cardId];
 
@@ -926,10 +968,11 @@ function reduceCore(state: RunState, action: Action): RunState {
 
     case 'upgrade': {
       const cost = upgradeCostOf(s); // includes Hermit Hank's +2 surcharge
-      if (s.tier >= CONFIG.maxTier || s.embers < cost) return state;
+      const ceiling = maxTierFor(s.rift); // Summit raises it to 7
+      if (s.tier >= ceiling || s.embers < cost) return state;
       spendGold(s, cost);
       s.tier += 1;
-      s.upgradeCost = s.tier >= CONFIG.maxTier ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
+      s.upgradeCost = s.tier >= ceiling ? 0 : (CONFIG.upgradeCost[s.tier + 1] ?? 0);
       return s;
     }
 
@@ -1059,6 +1102,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         // (legacy) proc a single friendly board minion's End of Turn now. No-op on a missing target or a
         // minion with no End-of-Turn effect.
         if (!card || !replayEndOfTurn(s, card)) return state;
+        // Same endOfTurn advance as Djinn below — not on a live hero today, but it carries the identical bug.
+        if ((s.lastEotFires ?? 0) > 0) advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires);
       } else if (power.kind === 'replayAllEndOfTurn') {
         // Djinn's Cadence: trigger EVERY friendly board minion's End of Turn now (untargeted). Fires on a
         // snapshot of the board so a minion an EoT summons doesn't also proc this activation. No-op (no charge
@@ -1066,6 +1111,11 @@ function reduceCore(state: RunState, action: Action): RunState {
         let any = false;
         for (const c of [...s.board]) if (replayEndOfTurn(s, c)) any = true;
         if (!any) return state;
+        // Advance Parliament of Flame here, at the source. `replayEndOfTurn` accumulated its fires into
+        // `lastEotFires` (zeroed at action start), and this is the ONLY writer this action — the natural
+        // end-of-turn (1268) and Conductor (2100) reads live on different dispatches, so advancing here can't
+        // double-count them. Without this a heroPower action reaches neither read (audit 2026-07-21).
+        if ((s.lastEotFires ?? 0) > 0) advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires);
       } else if (power.kind === 'grantWard') {
         // Warden's Aegis: give a friendly board minion a PERMANENT Ward (Divine Shield) for 4 Gold. No-op (no
         // charge/gold spent) on a missing target or one that already has a Ward.
@@ -1160,7 +1210,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // The hand is a hard 10-card cap: a Discover into a full hand adds nothing (the pick is forfeit rather
       // than over-capping). Only claim a pool copy when the card is actually taken.
       if (s.hand.length < CONFIG.handMax) {
-        s.hand.push({
+        const taken: BoardCard = {
           uid: `b${s.uidSeq++}`,
           cardId: def.id,
           tribe: def.tribe,
@@ -1170,10 +1220,17 @@ function reduceCore(state: RunState, action: Action): RunState {
           golden: false,
           // Disco Dan's Setlist: this pick is locked in hand until you reach its shop tier (T2/T4/T6).
           ...(s.discoverLockTier ? { lockedUntilTier: s.discoverLockTier } : {}),
-        });
+          ...(s.discoverLockGold ? { lockedUntilGoldSpent: s.discoverLockGold } : {}),
+        };
+        // A GILDED Discover (a golden Salvatore McKlusky) hands the pick over already gilded — the same
+        // transform a triple applies, so the stats/keywords stay consistent with every other golden.
+        if (s.discoverGolden) gildMinion(taken);
+        s.hand.push(taken);
         takeFromPool(s, def.id); // a discovered copy leaves the shared pool (so selling it returns)
       }
       s.discoverLockTier = undefined; // consumed — the next queued Discover sets its own (or none)
+      s.discoverLockGold = undefined;
+      s.discoverGolden = undefined;
       // Open the next queued Discover (golden / Drakko-doubled Brian, Yazzus-multiplied Help Wanted /
       // Sprout); only clear the offer once the queue is empty. A spec whose pool is empty opens nothing
       // (offerDiscover/offerSpellDiscover leave `discover` unset) — keep draining the rest so the queue
@@ -1317,7 +1374,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
         let win = 0, draw = 0, lose = 0, lossDamageTotal = 0;
         const cap = lossDamageCap(s.wave);
-        const ODDS_SIMS = 1000;
+        const ODDS_SIMS = COMBAT_ODDS_SIMS;
         for (let i = 0; i < ODDS_SIMS; i++) {
           const r = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.ODDS, i)), CARD_INDEX, playerState, enemyState, config);
           if (r.result === 'win') win++;
@@ -1921,7 +1978,7 @@ function advanceCombat(s: RunState): void {
   for (const c of s.board) {
     c.resummon = false; // The Reclaimer's mark is a per-turn choice
   }
-  if (s.tier < CONFIG.maxTier) {
+  if (s.tier < maxTierFor(s.rift)) {
     s.upgradeCost = Math.max(CONFIG.upgradeCostFloor, s.upgradeCost - CONFIG.upgradeDiscountPerWave);
   }
   const previous = s.threat;
@@ -2044,6 +2101,12 @@ function advanceCombat(s: RunState): void {
   if (s.runeConductor) {
     captureBuffFx(s, undefined, 'spell', () => applyEndOfTurn(s));
     advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires ?? 0);
+  }
+  // Rune of the Summit: every 2nd shop opens a Tier 7 Discover. `exactTier: 7` is a FIXED-tier offer, so it
+  // resolves with no rift active — which is the entire point (Tier 7 is otherwise unreachable outside one).
+  if (s.runeSummit) {
+    s.runeSummitTick = (s.runeSummitTick ?? 0) + 1;
+    if (s.runeSummitTick % 2 === 0) queueDiscover(s, { kind: 'minion', tier: 7, exactTier: 7 });
   }
   // Triples can be completed by a combat carry-back that lands a 3rd copy in the hand (e.g. a
   // Deathrattle-granted minion) AFTER the last recruit action that would have checked. Every other
@@ -2391,9 +2454,13 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       s.embers += r.amount; // reflect the raised max in THIS turn's spendable Gold too
       break;
     case 'discover': {
-      // Reward-kind 'discover' — open a minion Discover at your CURRENT tier, or at `r.tier` when the reward pins
-      // one (Rune of the Scout → Tier 5, Rune of the Champion → Tier 6). Clamped to the engine's max tier.
-      const t = Math.min(r.tier ?? s.tier, CONFIG.maxTier);
+      // Reward-kind 'discover' — open a minion Discover at your CURRENT tier, or at `r.tier` when the reward
+      // PINS one (Rune of the Scout → Tier 5, Rune of the Champion → Tier 6, Rune of the Summit → Tier 7).
+      // An AUTHORED tier is honoured as written: it is deliberate content, and clamping it to the run's
+      // ceiling would silently downgrade a Tier 7 reward to Tier 6 whenever the Summit rift is off — which
+      // is exactly when those rewards are the ONLY way to reach Tier 7. Only a DERIVED tier (falling back to
+      // the live shop tier) is clamped, since that one can legitimately overshoot.
+      const t = r.tier ?? Math.min(s.tier, maxTierFor(s.rift));
       openDiscover(s, { kind: 'minion', tier: t, exactTier: t });
       break;
     }
@@ -2503,6 +2570,12 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       break;
     case 'runeEndlessAppetite':
       s.runeEndlessAppetite = true; // Rune of Endless Appetite: the first Consume each turn fans out to all other Demons
+      break;
+    case 'runeSummit':
+      // Rune of the Summit: every 2nd shop from here opens a Tier 7 Discover. Tick starts at 0, so the
+      // first payout lands on the SECOND shop after purchase — "in 2 turns", as written.
+      s.runeSummit = true;
+      s.runeSummitTick = 0;
       break;
     case 'runeConductor':
       s.runeConductor = true; // Rune of the Conductor: start of every shop triggers your End of Turn effects

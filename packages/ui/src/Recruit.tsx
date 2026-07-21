@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
-import { CONFIG, conjuredStats, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
+import { CONFIG, RIFTS, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
@@ -8,12 +8,17 @@ import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
 import { HudBar } from './HudBar';
 import { EndTurnButton } from './EndTurnButton';
+import { RiftButton } from './RiftButton';
+import { RefreshButton } from './RefreshButton';
+import { FreezeButton } from './FreezeButton';
 import { TavernUpButton } from './TavernUpButton';
 import { Icon } from './Icon';
 import { sfx, stopAllAudio, resumeAudio, stopTurnCharge } from './sfx';
 import { pixiFx, discoverFx } from './pixiFx';
 import { perfMonitor } from './perfMonitor';
 import { getSwapFxConfig } from './swapFxConfig';
+import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
+import { getQuestTendrilConfig, tendrilCfgFor } from './questTendrilConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
 import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
@@ -274,7 +279,7 @@ function tokenRefView(
   const c = CARD_INDEX[id];
   if (c.spell && spellLive) {
     return {
-      name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
+      name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
       attack: c.attack, health: c.health, keywords: c.keywords,
       text: spellDisplayText(c.id, spellLive.a, spellLive.ftb, spellLive.h, spellLive.goldSpent, spellLive.ftbH, spellLive.goldPouchValue ?? 0),
       tier: c.tier, spell: c.spell, target: c.target,
@@ -283,7 +288,7 @@ function tokenRefView(
   }
   const cb = id === 'impscrap' ? (impBuff ?? { attack: 0, health: 0 }) : (cardBuffs?.[id] ?? { attack: 0, health: 0 });
   return {
-    name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
+    name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
     attack: c.attack + cb.attack, health: c.health + cb.health,
     keywords: c.keywords, text: c.text, tier: c.tier, spell: c.spell,
     baseAttack: c.attack, baseHealth: c.health,
@@ -387,7 +392,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     const h = card.held;
     const lt = liveCardText(c.id, offerLiveTextParams(!!h.golden, opts));
     return {
-      name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
+      name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
       attack: h.attack, health: h.health, keywords: h.keywords,
       text: lt.text, goldenText: lt.goldenText ?? c.goldenText, cost: CONFIG.minionCost, tier: c.tier, golden: h.golden,
       baseAttack: c.attack, baseHealth: c.health,
@@ -434,7 +439,7 @@ function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView {
     (undead ? opts.undeadHp ?? 0 : 0) + (beast ? opts.beastBuyHp ?? 0 : 0) + (magnetic ? opts.magneticBuyHp ?? 0 : 0));
   if (card.golden) pushBuff('Golden Touch', c.attack, c.health); // gilded doubles the base stats
   return {
-    name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2,
+    name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe,
     attack: (c.attack + addAtk) * goldMul, health: (c.health + addHp) * goldMul,
     keywords: [...c.keywords, ...(card.keywords ?? []).filter((k) => !c.keywords.includes(k))],
     text: lt.text,
@@ -520,7 +525,8 @@ export function Recruit() {
   // at 21s instead). Only wave 1 changes: wave 2+ (22s+) and practice (×3) already start above the window.
   // Rounds 6+ get a flat +6s on top of the +4s/wave ramp, and rounds 12–17 a further +12s ON TOP OF the
   // 80s cap (owner 2026-07-16 ×2): late boards have the most to think about. w12 80s, w13 84s … w15+ 92s.
-  const turnSeconds = Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' ? 3 : 1));
+  // Sandbox (Scene Builder): a huge fixed clock so the turn never times out while you build.
+  const turnSeconds = run.sandbox ? 99999 : Math.max(CHARGE_SECONDS + 1, (Math.min(80, TURN_SECONDS + (run.wave - 1) * 4 + (run.wave >= 6 ? 6 : 0)) + (run.wave >= 12 ? 12 : 0)) * (run.mode === 'practice' ? 3 : 1));
 
   // Projected STARTING Gold for the next two waves (the Gold-cell hover) — cap-aware, folding in board mana
   // income (Money Bot) and the one-turn Hoarder/Robin bank (into Wave+1 only, since it's consumed then).
@@ -644,6 +650,43 @@ export function Recruit() {
     });
     return () => cancelAnimationFrame(raf);
   }, [run.swapFxSeq, run.swapFxBoardUid, run.swapFxShopUid]);
+  // NB: the quest tendril is fired from the END-OF-TURN BEAT LOOP (see `endTurn` below), NOT from a reducer
+  // signal. `questTendrilFx` is still stamped in the sim and still drives the NODE PULSE in QuestBadges, but
+  // the ribbon itself has to be drawn while the board is still on screen: the End-of-Turn commit (`faceOmen`)
+  // only lands after every beat has played and the phase has flipped, so an effect keyed off the committed
+  // state ran too late to find its target and drew nothing.
+  // Spell Power — SPELL POWER JUST WENT UP in the shop, from any source and by any amount (Cinderwing
+  // Matron's Shout, a quest reward, a rune…): rising pink/purple/gold arrows + a mote blast, and the GAIN
+  // floats up once they land. Keyed off `spellPowerFxSeq`, the same one-shot dedupe as swapFx; inits to the
+  // current value so a restored save never fires on load. Anchored to the shop row — the cue means "your
+  // spells got stronger", which is a tavern-wide fact rather than one card's.
+  const prevSpellPowerSeq = useRef(run.spellPowerFxSeq);
+  useEffect(() => {
+    const seq = run.spellPowerFxSeq;
+    if (seq === undefined || seq === prevSpellPowerSeq.current) return;
+    prevSpellPowerSeq.current = seq;
+    const gainA = run.spellPowerFxAtk ?? 0;
+    const gainH = run.spellPowerFxHp ?? 0;
+    // The End-of-Turn commit (`faceOmen`) bumps this too, AFTER the beats have already played the per-proc
+    // flourish — that late bump is the Start-of-Combat pop the owner saw. The beats own End of Turn now, so
+    // skip the committed signal for that action and let the shop paths (a cast, a buy) keep it.
+    if (run.spellPowerFxUid === undefined && run.phase !== 'recruit') return;
+    const uid = run.spellPowerFxUid;
+    const raf = requestAnimationFrame(() => {
+      // Over the CARD that caused the gain (owner ask 2026-07-21) — read a frame late so React has committed
+      // it to the board. A sourceless gain (quest reward, rune tick) has no uid, and a card that LEAVES play
+      // as it resolves won't be found, so both fall back to the shop row rather than firing nowhere.
+      const el = (uid && document.querySelector(`[data-uid="${uid}"]`))
+        ?? document.querySelector('[data-zone="tavern"]');
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+      pixiFx.spellPower(x, y, getSpellPowerFxConfig());
+      floatSpellPowerNumber(x, y - r.height * 0.3, gainA, gainH);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [run.spellPowerFxSeq, run.spellPowerFxAtk, run.spellPowerFxHp, run.spellPowerFxUid]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the
@@ -755,11 +798,12 @@ export function Recruit() {
     if (seq === undefined || seq === prevWeldFxSeq.current) return;
     prevWeldFxSeq.current = seq; // inits to the current value, so a restored save never re-fires
     const uids = run.weldFxUids;
+    const kind = run.weldFxKind ?? 'auto';
     if (!uids?.length || run.phase !== 'recruit') return;
     // One weld can land on several minions (a Beatbot mirrors it onto itself) — animate every one.
-    const raf = requestAnimationFrame(() => fireWeldFxBatch(uids, run.weldFxKind ?? 'auto'));
+    const raf = requestAnimationFrame(() => fireWeldFxBatch(uids, kind));
     return () => cancelAnimationFrame(raf);
-  }, [run.weldFxSeq, run.weldFxUids, run.weldFxKind, run.phase, fireWeldFxBatch]);
+  }, [run.weldFxSeq, run.phase, fireWeldFxBatch]);
   // Immediate (mid-shop) triggers arrive via the `buffGustSeq` stamp (one-shot, the swapFxSeq pattern;
   // inits to the current value so a restored save doesn't fire). End-of-Turn triggers (Maw / Ritualist)
   // stamp inside `faceOmen` — by then the phase is combat, so the watcher skips them; their gust fires
@@ -1057,7 +1101,7 @@ export function Recruit() {
   useEffect(() => {
     setCombatEnemyDeaths(inCombat && !run.combatSettled ? replay.enemyDeaths : 0);
   }, [inCombat, run.combatSettled, replay.enemyDeaths, setCombatEnemyDeaths]);
-  // Bridge this fight's live combat quest progress to the store so the QuestPanel ticks combat objectives up as
+  // Bridge this fight's live combat quest progress to the store so quest NODES tick combat objectives up as
   // the replay plays. Cleared to `null` once SETTLED — settleCombat folds the tally into the run's quest
   // progress, so the panel then reads it from there (adding the live delta too would briefly double-count).
   useEffect(() => {
@@ -1075,10 +1119,13 @@ export function Recruit() {
   // Bridge this fight's live run-buff gains (spell power, max Gold) to the store so the Buffs window ticks up
   // in sync with the replay. Cleared to `null` once combat is SETTLED — settleCombat folds the gains into the
   // run state, so the row then reads them from there (adding the live delta too would briefly double-count).
-  const { spellAttack: cbA, spellHealth: cbH, gold: cbGold } = replay.combatBuffs;
+  const { spellAttack: cbA, spellHealth: cbH, gold: cbGold, auras: cbAuras } = replay.combatBuffs;
+  // A compact signature of the per-aura map so the effect re-runs when ANY aura row ticks (the map is a fresh
+  // object each beat, so we key on its contents, not its reference).
+  const cbAuraSig = JSON.stringify(cbAuras);
   useEffect(() => {
-    setCombatBuffs(inCombat && !run.combatSettled ? { spellAttack: cbA, spellHealth: cbH, gold: cbGold } : null);
-  }, [inCombat, run.combatSettled, cbA, cbH, cbGold, setCombatBuffs]);
+    setCombatBuffs(inCombat && !run.combatSettled ? { spellAttack: cbA, spellHealth: cbH, gold: cbGold, auras: cbAuras } : null);
+  }, [inCombat, run.combatSettled, cbA, cbH, cbGold, cbAuraSig, setCombatBuffs]);
 
   // Entering combat: hold on the "shop closing" intro, then let the enemies arrive
   // and the replay begin. Also flash the "End of Turn" banner (end-of-turn effects just
@@ -1519,10 +1566,25 @@ export function Recruit() {
   // Stable per-card view objects, keyed by uid. Recompute only when the underlying run data
   // changes — during a drag nothing dispatches, so `run.*` refs are stable and these stay
   // cached, which is what lets the memoized Card skip re-render on every pointermove.
+  // Heckbinder's Fodder aura is LIVE (it applies while the card is on board), so it sits OUTSIDE the
+  // permanent `run.cardBuffs` enchant map. The sim folds the two together in `cardBuff()`, but the UI was
+  // passing the RAW map straight through — so a Fodder card whose only buff came from Heckbinder displayed
+  // its base stats with no highlight (owner report). Rebuild the map through `cardBuff()` itself rather than
+  // re-deriving the aura here, so the display can't drift from what the card is actually created with.
+  const cardBuffsLive = useMemo(() => {
+    const out: Record<string, { attack: number; health: number }> = { ...(run.cardBuffs ?? {}) };
+    for (const def of Object.values(CARD_INDEX)) {
+      if (!def?.keywords.includes('FD')) continue;
+      const b = cardBuff(run, def.id);
+      if (b.attack !== 0 || b.health !== 0) out[def.id] = b;
+    }
+    return out;
+  }, [run]);
+
   const shopViews = useMemo(
     // The spell-display opts (cost mod + bonuses) ride along too, so Spell Cart's spell offers in the minion
     // row read their right cost + value, like the spell slot.
-    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: run.cardBuffs, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, castMult: CARD_INDEX[o.cardId]?.spell ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const)),
+    () => new Map(run.shop.map((o) => [o.uid, shopView(o, { freeFirstBuy: run.rift === 'freedom' && !run.freeBuyUsedThisTurn && !o.held && !CARD_INDEX[o.cardId]?.spell, cardBuffs: cardBuffsLive, tavernAtk: run.tavernBuyBonus.atk, tavernHp: run.tavernBuyBonus.hp, undeadAtk: run.undeadAttackBonus, undeadHp: run.undeadHealthBonus, undeadBuyAtk: run.undeadBuyAtk, beastBuyAtk: run.beastBuyAtk, beastBuyHp: run.beastBuyHp, magneticBuyAtk: run.magneticBuyAtk, magneticBuyHp: run.magneticBuyHp, deathrattlesTriggered: run.deathrattlesTriggered, spellsCast: run.spellsCast, spellsThisTurn: run.spellsThisTurn, soulsmanGold: run.soulsmanGold, fodderConsumed: run.fodderConsumedThisTurn, spellCostMod: spellCostReduction(run), spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH, goldSpent: run.goldSpentThisTurn, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, castMult: CARD_INDEX[o.cardId]?.spell ? spellCastCount(run, CARD_INDEX[o.cardId]!) : undefined })] as const)),
     [run.shop, run.rift, run.freeBuyUsedThisTurn, run.cardBuffs, run.tavernBuyBonus, run.undeadAttackBonus, run.undeadHealthBonus, run.undeadBuyAtk, run.beastBuyAtk, run.beastBuyHp, run.magneticBuyAtk, run.magneticBuyHp, run.deathrattlesTriggered, run.spellsCast, run.spellsThisTurn, run.soulsmanGold, run.fodderConsumedThisTurn, run.spellCostMod, spellBonus, spellBonusH, run.frontToBackBonus, run.board, run.nextSpellMult, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff],
   );
   const spellView = useMemo(
@@ -1541,17 +1603,21 @@ export function Recruit() {
       const refs = [...new Set([...(CARD_REFERENCES[cardId] ?? []), ...(def ? referencedCardIds(def) : [])])]
         .filter((id) => CARD_INDEX[id]);
       const spellLive = { a: spellBonus, h: spellBonusH, ftb: run.frontToBackBonus, ftbH: run.frontToBackBonusH ?? run.frontToBackBonus, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue };
-      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, run.cardBuffs, run.impBuff, spellLive)));
+      // `cardBuffsLive`, NOT `run.cardBuffs` — the raw map holds only the PERMANENT enchants, so a Fodder
+      // token previewed here printed 3/3 while the shop card next to it showed 6/6, dropping Heckbinder's
+      // live `fodderAura` (owner report 2026-07-21). Every surface that prints a buffed stat routes through
+      // `cardBuff()`; this popup was the last raw reader.
+      if (refs.length) m.set(uid, refs.map((id) => tokenRefView(id, cardBuffsLive, run.impBuff, spellLive)));
     };
     for (const c of run.board) add(c.uid, c.cardId);
     for (const c of run.hand) add(c.uid, c.cardId);
     for (const o of run.shop) add(o.uid, o.cardId);
     return m;
-  }, [run.board, run.hand, run.shop, run.cardBuffs, run.impBuff, spellBonus, spellBonusH, run.frontToBackBonus, run.frontToBackBonusH, run.goldSpentThisTurn]);
+  }, [run.board, run.hand, run.shop, cardBuffsLive, run.impBuff, spellBonus, spellBonusH, run.frontToBackBonus, run.frontToBackBonusH, run.goldSpentThisTurn]);
   // During the End-of-Turn animation the board shows each minion's per-proc stats (`eotAnimStats`),
   // so the numbers visibly tick up as each effect fires; otherwise the real stats.
   const live = useMemo(
-    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: run.cardBuffs, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1 }),
+    () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1 }),
     [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.frontToBackBonusH, run.runeMastery],
   );
   const boardViews = useMemo(
@@ -1599,6 +1665,8 @@ export function Recruit() {
         const liveRun = useGame.getState().run;
         const hc = liveRun.hand.find((c) => c.uid === uid);
         if (hc?.lockedUntilTier && liveRun.tier < hc.lockedUntilTier) return;
+        // Brackus's Summit pick: same guard on the GOLD meter (the reducer also rejects it, this stops the drag).
+        if (hc?.lockedUntilGoldSpent && (liveRun.goldSpent ?? 0) < hc.lockedUntilGoldSpent) return;
       }
       // When the timer's up you can still REORDER your board, but not play / buy / sell — so allow a board
       // drag through, block hand + shop drags.
@@ -2794,7 +2862,7 @@ export function Recruit() {
   const endTurn = (): void => {
     if (inCombat || endTurnPendingRef.current) return;
     const repeats = endOfTurnRepeats(run);
-    type Beat = { uid: string; kind: 'combinator' | 'generic'; targets: string[]; completes: boolean; label?: string; gust?: boolean; infuse?: boolean };
+    type Beat = { uid: string; kind: 'combinator' | 'generic'; targets: string[]; completes: boolean; label?: string; gust?: boolean; infuse?: boolean; eotEffect?: string };
     const beats: Beat[] = [];
     for (const card of run.board) {
       const def = CARD_INDEX[card.cardId];
@@ -2830,7 +2898,7 @@ export function Recruit() {
     // (effect × repeat) — the stat climb is auto-derived from the projection diff below, so no source card is
     // needed; the beat just anchors the flourish/label on whatever minion(s) actually gain.
     for (const qb of questEndOfTurnBeats(run)) {
-      beats.push({ uid: '', kind: 'generic', targets: [], completes: true, label: qb.label });
+      beats.push({ uid: '', kind: 'generic', targets: [], completes: true, label: qb.label, eotEffect: qb.effect });
     }
     if (beats.length === 0) {
       dispatch({ type: 'faceOmen' });
@@ -2877,6 +2945,49 @@ export function Recruit() {
       // didn't fire, e.g. Frontdrake's countdown) → the softer glow cue.
       if (b.completes) sfx.triggerPulse();
       else sfx.triggerGlow();
+      // SPELL POWER — fired from the BEAT, for the same reason as the tendril below: the End-of-Turn commit
+      // lands after the phase flips, so the reducer-keyed signal played at Start of Combat instead of on the
+      // proc (owner report 2026-07-21 — Aeon Guard). Driving it here puts the flourish on the unit, at its
+      // moment, once PER PROC — a Chronos-repeated End of Turn now pops once per beat.
+      if (b.uid) {
+        const bd = CARD_INDEX[run.board.find((c) => c.uid === b.uid)?.cardId ?? ''];
+        const gold = run.board.find((c) => c.uid === b.uid)?.golden ? 2 : 1;
+        for (const eff of bd?.effects ?? []) {
+          if (eff.on !== 'endOfTurn' || eff.do !== 'battlecryBuffSpellPower') continue;
+          const gA = Number(eff.params?.attack ?? 0) * gold;
+          const gH = Number(eff.params?.health ?? 0) * gold;
+          if (gA <= 0 && gH <= 0) continue;
+          const el = document.querySelector(`[data-uid="${b.uid}"]`);
+          if (!el) continue;
+          const r = el.getBoundingClientRect();
+          const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
+          floatSpellPowerNumber(cx, cy - r.height * 0.3, gA, gH);
+        }
+      }
+      // QUEST TENDRIL — fired from the BEAT, not from reducer state. The End-of-Turn commit (`faceOmen`)
+      // lands only after every beat has played and the phase has flipped, so a reducer-driven signal arrives
+      // when the board is already gone — which is why this never showed at End of Turn while ▶ Test worked
+      // (owner report 2026-07-21). Driving it here also gives the per-proc timing: one ribbon per beat.
+      if (b.eotEffect && getQuestTendrilConfig().enabled) {
+        // Resolve the unit this reward hits, mirroring `runRecurringEndOfTurn`'s pick.
+        const targetUid = b.eotEffect === 'triggerLeftmostShout'
+          ? run.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && d.effects.some((e) => e.on === 'onPlay'); })?.uid
+          : b.eotEffect === 'triggerLeftmostEcho'
+            ? run.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'))?.uid
+            : undefined;
+        const nodeEl = document.querySelector(`.questbadges [data-eot-effect="${b.eotEffect}"]`);
+        const unitEl = targetUid ? document.querySelector(`[data-uid="${targetUid}"]`) : null;
+        if (nodeEl && unitEl) {
+          const nr = nodeEl.getBoundingClientRect();
+          const ur = unitEl.getBoundingClientRect();
+          pixiFx.buffTendril(
+            { x: nr.left + nr.width / 2, y: nr.top + nr.height / 2 },
+            { x: ur.left + ur.width / 2, y: ur.top + ur.height / 2 },
+            tendrilCfgFor(i % 2 === 0 ? 1 : -1),
+          );
+        }
+      }
       if (b.gust) fireTavernGust(); // Maw / Ritualist: the tavern-buffed rush, timed to the beat (replaced Ritualist's old purple shop-wash)
       if (b.infuse && b.uid) fireFodderInfusion(b.uid); // Maw: send-Fodder tendrils reach the shop on the beat
       if (b.kind === 'combinator') setElectrifyUids(new Set(b.targets));
@@ -3164,27 +3275,10 @@ export function Recruit() {
             shopbutton.webp. Tavern Up moved onto the board as the standalone STONE button (TavernUpButton,
             mounted below with the End Turn diamond); Reroll/Freeze are queued for the same treatment. */}
         <div className="shoprow actiontray">
-          {/* Reroll — free rolls show 0. */}
-          <button
-            className="shopbtn"
-            disabled={(run.freeRolls <= 0 && run.embers < refreshCostOf(run)) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
-            onClick={() => dispatch({ type: 'roll' })}
-          >
-            <span className="sb-l">Reroll</span>
-            <span className="sb-ic"><Icon name="refresh" /></span>
-            <span className="sb-v">{run.freeRolls > 0 ? 0 : refreshCostOf(run)}</span>
-            <span className="sbtip">{run.freeRolls > 0 ? `Refresh — free (${run.freeRolls} left)` : 'Refresh the tavern'}</span>
-          </button>
-          {/* Freeze — toggle; tinted blue, filling solid blue while the tavern is frozen. */}
-          <button
-            className={`shopbtn freeze${run.frozen ? ' on' : ''}`}
-            disabled={timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
-            onClick={() => dispatch({ type: 'freeze' })}
-          >
-            <span className="sb-l">Freeze</span>
-            <span className="sb-ic"><Icon name="freeze" /></span>
-            <span className="sbtip">{run.frozen ? 'Frozen — click to unfreeze' : 'Freeze the tavern'}</span>
-          </button>
+          {/* The Reroll tray plaque was replaced by the standalone REFRESH crystal, stage-pinned top-centre
+              (see <RefreshButton/> below) — same reducer wiring, so nothing about rolling changed. */}
+          {/* Freeze moved out of the tray to the board's TOP-RIGHT, opposite the Tavern stone — see
+              <FreezeButton/> below. Same reducer wiring; only the placement changed. */}
         </div>
       </div>
       </>
@@ -3212,6 +3306,12 @@ export function Recruit() {
           Summary
         </button>
       )}
+      {/* RIFT — the purple swirling plaque directly above the diamond, mounted only while this run has a
+          pinned rift and only in the SHOP phase (in combat that slot belongs to the Summary pill). Reads
+          run.rift, never the live registry, so a replayed run still shows the rift it was played under. */}
+      {!inCombat && run.rift && RIFTS[run.rift] && (
+        <RiftButton rift={RIFTS[run.rift]} />
+      )}
       <EndTurnButton
         onEndTurn={endTurn}
         onEndCombat={endCombat}
@@ -3227,9 +3327,28 @@ export function Recruit() {
           reducer wiring + disabled conditions — a re-skin, not a behavior change). Mounted through BOTH
           phases (owner note 2026-07-16): in combat it's a passive TIER INDICATOR — inert, cost coin hidden,
           art at full strength. The max-tier condition lives in the component (the broken "complete" gem). */}
+      {/* Freeze — pinned TOP-RIGHT, opposite the Tavern stone. NOT gated on `timeUp` (owner 2026-07-21):
+          freezing after the clock runs out is a legitimate last action — the shop is still on screen until
+          the End-of-Turn animation starts, and the reducer never gated it, only this button did. */}
+      {!inCombat && (
+        <FreezeButton
+          frozen={!!run.frozen}
+          disabled={eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+          onFreeze={() => dispatch({ type: 'freeze' })}
+        />
+      )}
+      {/* Refresh — the standalone crystal pinned TOP-CENTRE, replacing the tray's Reroll plaque. Recruit
+          phase only (rolling is a shop action); free rolls hide the cost coin so "free" reads at a glance. */}
+      {!inCombat && (
+        <RefreshButton
+          cost={run.freeRolls > 0 ? 0 : refreshCostOf(run)}
+          disabled={(run.freeRolls <= 0 && run.embers < refreshCostOf(run)) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
+          onRefresh={() => dispatch({ type: 'roll' })}
+        />
+      )}
       <TavernUpButton
         tier={run.tier}
-        maxTier={CONFIG.maxTier}
+        maxTier={maxTierFor(run.rift)} // Summit raises the ceiling to 7
         cost={upgradeCostOf(run)}
         disabled={run.embers < upgradeCostOf(run) || timeUp || eotAnimating || !!run.questOffer || !!run.runeforgeOffer}
         combat={inCombat}
@@ -3387,8 +3506,18 @@ export function Recruit() {
             // `--fan-rot` var (see `.row.hand .card` in styles.css); it stays fanned through drags.
             const n = run.hand.length;
             const fanRot = n <= 1 ? 0 : Math.max(-7, Math.min(7, (i - (n - 1) / 2) * 1.8));
-            // Disco Dan's Setlist: a card locked until its shop tier is greyed + shows a padlock (and can't be played).
-            const locked = !!m.lockedUntilTier && run.tier < m.lockedUntilTier;
+            // Locked cards are greyed + padlocked (and can't be played). TWO meters feed this:
+            // Disco Dan's Setlist locks until a SHOP TIER, Brackus's Summit until a run GOLD SPEND — the
+            // label shows whichever applies, with the gold one counting down so the wait is legible.
+            const goldSpent = run.goldSpent ?? 0;
+            const tierLocked = !!m.lockedUntilTier && run.tier < m.lockedUntilTier;
+            const goldLocked = !!m.lockedUntilGoldSpent && goldSpent < m.lockedUntilGoldSpent;
+            const locked = tierLocked || goldLocked;
+            const lockLabel = tierLocked
+              ? `Tier ${m.lockedUntilTier}`
+              : goldLocked
+                ? `${m.lockedUntilGoldSpent! - goldSpent} Gold`
+                : undefined;
             return (
               <Card
                 key={m.uid}
@@ -3404,7 +3533,7 @@ export function Recruit() {
                 fanRot={fanRot}
                 onPointerDown={onCardPointerDown}
                 locked={locked}
-                lockLabel={locked ? `Tier ${m.lockedUntilTier}` : undefined}
+                lockLabel={lockLabel}
                 forceFull
               />
             );
@@ -3412,7 +3541,7 @@ export function Recruit() {
           {/* Cards a combat effect just granted, so the hand visibly grows during the fight (they get
               committed to the real hand at `resolveCombat`). */}
           {inCombat && !run.combatSettled && replay.handGrantsShown.map((cardId, i) => (
-            <Card key={`grant-${i}`} card={conjuredView(cardId, run) ?? tokenRefView(cardId, run.cardBuffs, run.impBuff)} suppressPop forceFull />
+            <Card key={`grant-${i}`} card={conjuredView(cardId, run) ?? tokenRefView(cardId, cardBuffsLive, run.impBuff)} suppressPop forceFull />
           ))}
         </div>
       </div>
@@ -3691,12 +3820,12 @@ export function Recruit() {
                   tier: run.tier, golden: false, spellBonus, spellBonusH, frontToBackBonus: run.frontToBackBonus, frontToBackBonusH: run.frontToBackBonusH,
                   spellsThisTurn: run.spellsThisTurn, spellsCast: run.spellsCast, deathrattlesTriggered: run.deathrattlesTriggered,
                   clingEnchant: run.cardBuffs?.cling, fodderConsumed: run.fodderConsumedThisTurn,
-                  undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: run.cardBuffs,
+                  undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive,
                 });
                 return (
                   <div className="disc-slot" key={`${id}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
                     <Card
-                      card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier }}
+                      card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier }}
                       onClick={() => dispatch({ type: 'discover', index: i })}
                     />
                   </div>

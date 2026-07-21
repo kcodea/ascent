@@ -229,7 +229,7 @@ export function BalancePanel() {
 function ShopCurveChart({ curve }: { curve: ShopCurve }) {
   const { maxWave, won, lost, wonRuns, lostRuns, avgWaveToTier } = curve;
   if (maxWave < 1) return <div className="balempty">No shop-leveling data yet.</div>;
-  const MAX_TIER = 6;
+  const MAX_TIER = 7;
   const W = 760, H = 420, padL = 82, padR = 22, padT = 22, padB = 46;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const x = (wave: number): number => padL + (maxWave === 1 ? plotW / 2 : ((wave - 1) / (maxWave - 1)) * plotW);

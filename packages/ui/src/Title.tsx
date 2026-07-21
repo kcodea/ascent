@@ -41,6 +41,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const showTitle = useGame((s) => s.showTitle);
   const startAscent = useGame((s) => s.startAscent);
   const startPractice = useGame((s) => s.startPractice);
+  const startRift = useGame((s) => s.startRift);
+  const startSceneBuilder = useGame((s) => s.startSceneBuilder);
   const openLeaderboard = useGame((s) => s.openLeaderboard);
   const openRankings = useGame((s) => s.openRankings);
   const openBalance = useGame((s) => s.openBalance);
@@ -57,9 +59,11 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [confirmClear, setConfirmClear] = useState(false); // two-step guard on the destructive Clear Run
+  const [modePick, setModePick] = useState(false); // PLAY opens the mode picker rather than starting straight away
 
   if (!showTitle) return null;
 
+  const rift = activeRift(); // the live registry is correct HERE — this is a pre-run choice, not a pinned run
   const beginEdit = () => { setDraft(playerName); setEditing(true); };
   const commit = () => { setPlayerName(draft); setEditing(false); };
 
@@ -121,7 +125,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               </button>
             </div>
           )}
-          <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => { sfx.pulse(); startAscent(); }} title={savedRun ? 'Start a new run (replaces your saved run)' : undefined}>
+          <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => { sfx.pulse(); setModePick(true); }} title={savedRun ? 'Start a new run (replaces your saved run)' : undefined}>
             <span className="mbicon"><Crest /></span>
             <span className="mblabel">Play</span>
           </button>
@@ -145,13 +149,62 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
         {/* Preserved secondary modes (not in the mockup, kept so nothing is lost). */}
         <div className="titlesecondary">
-          <button onClick={() => { sfx.pulse(); startPractice(); }} title="Practice — any hero, unlimited Resolve">Practice</button>
-          <span className="tsdot">·</span>
           <button onClick={() => { sfx.pulse(); toggleBook(); }} title="Compendium — browse every card">Compendium</button>
           <span className="tsdot">·</span>
           <button onClick={() => { sfx.pulse(); openBalance(); }} title="Balance Report — real player offer / pick / win rates">Balance Report</button>
+          {import.meta.env.DEV && (
+            <>
+              <span className="tsdot">·</span>
+              <button onClick={() => { sfx.pulse(); startSceneBuilder(); }} title="Scene Builder — dev sandbox: any board, any enemy, unlimited gold">Scene Builder</button>
+            </>
+          )}
         </div>
       </div>
+
+      {/* MODE PICKER — a full-screen view in the HERO-SELECT idiom (owner request): big framed cards in a
+          row, each with a name pill eclipsing the frame's top edge, a tag pill eclipsing the bottom, and the
+          description fading in on hover. Ascent is the clean scored climb; Rift is the SAME climb with the
+          active rift's rules (opt-in as of this screen); Practice is unscored. The Rift card is mounted only
+          while a rift is actually live. */}
+      {modePick && (
+        <div className="modepick" role="dialog" aria-label="Choose a mode">
+          <button className="hsback" onClick={() => { sfx.pulse(); setModePick(false); }}>← Back</button>
+          <div className="mpbox">
+            <div className="mpeyebrow">Choose your climb</div>
+            <h1 className="disp mptitle">MODE</h1>
+            <div className="mprow">
+              <button className="modecard" onClick={() => { sfx.pulse(); startAscent(); }}>
+                <div className="mcframe" data-mode="ascent">
+                  <div className="mcname">Ascent</div>
+                  <span className="mcemblem"><Crest /></span>
+                  <div className="mctag">Scored</div>
+                </div>
+                <div className="mcdesc">The scored 17-round climb. Cover your Oath, then chase the summit.</div>
+              </button>
+
+              {rift && (
+                <button className="modecard" onClick={() => { sfx.pulse(); startRift(); }}>
+                  <div className="mcframe" data-mode="rift">
+                    <div className="mcname">Rift</div>
+                    <span className="mcemblem mcswirl" aria-hidden="true" />
+                    <div className="mctag">{rift.name}</div>
+                  </div>
+                  <div className="mcdesc">{rift.blurb}</div>
+                </button>
+              )}
+
+              <button className="modecard" onClick={() => { sfx.pulse(); startPractice(); }}>
+                <div className="mcframe" data-mode="practice">
+                  <div className="mcname">Practice</div>
+                  <span className="mcemblem"><IconHelm /></span>
+                  <div className="mctag">Unscored</div>
+                </div>
+                <div className="mcdesc">Any hero, unlimited Resolve and a longer shop. Nothing is recorded.</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* The little note on the right — currently a thank-you as the rift window closes. */}
       <aside className="titlebanner" role="note">

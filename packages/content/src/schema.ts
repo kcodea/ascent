@@ -83,6 +83,7 @@ export const EffectFactoryIdSchema = z.enum([
   'battlecryBuffTribe',
   'battlecrySummon',
   'buffOnBuy',
+  'buffBoardOnBuy',
   'battlecryGrantKeyword',
   'battlecryGainRandomMinion',
   'battlecryDiscoverSpell',
@@ -236,6 +237,13 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleBuffAllByImpAura',
   'buffFodderImpsImproving',
   'onAttackStripKeywords',
+  // Tier 7 (Summit)
+  'onAllyTribeAttackBuffSelf',
+  'deathrattleGrantRebornAll',
+  'deathrattleCastTribeAttack',
+  'onSellDiscover',
+  'deathrattleGainRandomMinion',
+  'deathrattleBuffImpsImproving',
 ]);
 
 export const EffectDefSchema = z.object({
@@ -258,6 +266,7 @@ export const CardDefSchema = z.object({
     z.literal(4),
     z.literal(5),
     z.literal(6),
+    z.literal(7), // Tier 7 — reachable only under the Summit rift (see maxTierFor)
   ]),
   attack: z.number().int().nonnegative(),
   health: z.number().int().positive(),
@@ -268,6 +277,13 @@ export const CardDefSchema = z.object({
   text: z.string(),
   goldenText: z.string().optional(),
   universalTribe: z.boolean().optional(),
+  attackImmuneAlways: z.boolean().optional(),
+  splashAdjacent: z.boolean().optional(),
+  triggerMultiplier: z.object({
+    families: z.array(z.enum(['battlecry', 'deathrattle', 'rally', 'slaughter', 'endOfTurn', 'startOfCombat'])),
+    extra: z.number().int().positive(),
+    stacks: z.boolean().optional(),
+  }).strict().optional(),
   imp: z.boolean().optional(),
   token: z.boolean().optional(),
   ascendAt: z.number().int().positive().optional(),
@@ -361,7 +377,7 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('rallyRepeat'), scope: z.enum(['always', 'firstEachCombat']) }).strict(),
   z.object({ kind: z.literal('fodderReward'), fodder: z.number().int().nonnegative().optional(), attack: z.number().int().nonnegative().optional(), health: z.number().int().nonnegative().optional() }).strict(),
   z.object({ kind: z.literal('gainMaxGold'), amount: z.number().int().positive() }).strict(),
-  z.object({ kind: z.literal('discover'), tier: z.number().int().min(1).max(6).optional() }).strict(),
+  z.object({ kind: z.literal('discover'), tier: z.number().int().min(1).max(7).optional() }).strict(),
   z.object({ kind: z.literal('discoverGreaterQuest') }).strict(),
   z.object({ kind: z.literal('dupeFirstBuy') }).strict(),
   z.object({ kind: z.literal('spellRepeat'), scope: z.enum(['always', 'firstEachTurn']) }).strict(),
@@ -392,6 +408,7 @@ export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('k
   z.object({ kind: z.literal('runeTransfusion') }).strict(),
   z.object({ kind: z.literal('runeEndlessAppetite') }).strict(),
   z.object({ kind: z.literal('runeConductor') }).strict(),
+  z.object({ kind: z.literal('runeSummit') }).strict(),
   z.object({ kind: z.literal('runeMastery') }).strict(),
   z.object({ kind: z.literal('runeEmpowerment') }).strict(),
   z.object({ kind: z.literal('openEpicRuneforge') }).strict(),

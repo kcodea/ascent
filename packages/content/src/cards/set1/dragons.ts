@@ -121,14 +121,16 @@ export const DRAGONS: CardDef[] = [
     goldenText: '**Rally:** give 2 friendly Dragons **+2/+4**.',
   },
   {
-    // A plain Divine-Shield wall — soaks the first hit. Keyword-only (the DS badge carries the meaning).
+    // A Divine-Shield wall that also threatens back — the shield buys a swing, Critical Strike makes that
+    // swing matter. Keyword-only (the DS + CR badges carry the meaning); `critChance` is the per-swing roll.
     id: 'bronzewarden',
     name: 'Guardian Drake',
     tribe: 'dragon',
     tier: 3,
     attack: 3,
     health: 3,
-    keywords: ['DS'],
+    keywords: ['DS', 'CR'],
+    critChance: 0.5,
     effects: [],
     text: '',
   },
@@ -243,21 +245,6 @@ export const DRAGONS: CardDef[] = [
     ],
     text: '**Start of Combat:** Give your **Dragons** **+1/+1**. Improve this by **+1/+1** for every spell you cast.',
     goldenText: '**Start of Combat:** Give your **Dragons** **+2/+2**. Improve this by **+2/+2** for every spell you cast.',
-  },
-  {
-    // Escalating End-of-Turn engine: casts Growth once on its first End of Turn, twice on its second, and so
-    // on (per-instance eotTick counts turns on board, like Bard). A slow-burn spell-payoff Dragon that snowballs
-    // the longer it survives. Golden doubles the number of casts each turn.
-    id: 'vineweaver',
-    name: 'Vineweaver Drake',
-    tribe: 'dragon',
-    tier: 6,
-    attack: 2,
-    health: 2,
-    keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnCastSpellEscalating', params: { spellId: 'growth' } }],
-    text: '**End of Turn:** Cast **Growth**. Repeat for each End of Turn triggered before this.',
-    goldenText: '**End of Turn:** Cast **Growth** twice. Repeat twice for each End of Turn before this.',
   },
   {
     // Slaughter: on a kill, "cast Growth" — buff all your minions +3/+4 (+ combat spell power). A Dragon

@@ -42,17 +42,17 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   // Offsets the shop CARDS only (the tavern zone) — not the shop buttons (a separate `.shopbar`). The enemy
   // warband renders in this same tavern zone during combat, so these also place the opponent's board.
   { key: 'shopX', cssVar: '--z-shop-x', label: 'X offset', group: 'Shop row', min: -400, max: 400, step: 1, def: 6, fmt: 'px' },
-  { key: 'shopY', cssVar: '--z-shop-y', label: 'Y offset', group: 'Shop row', min: -400, max: 400, step: 1, def: 23, fmt: 'px' },
+  { key: 'shopY', cssVar: '--z-shop-y', label: 'Y offset', group: 'Shop row', min: -400, max: 400, step: 1, def: 46, fmt: 'px' },
 
   // The shop CONTROLS tray (round plaque + Upgrade/Reroll/Freeze/End Turn + info strip), scaled via its local --u.
   { key: 'shopUiS', cssVar: '--z-shopui-s', label: 'Scale', group: 'Shop controls', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   { key: 'shopUiX', cssVar: '--z-shopui-x', label: 'X offset', group: 'Shop controls', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
-  { key: 'shopUiY', cssVar: '--z-shopui-y', label: 'Y offset', group: 'Shop controls', min: -400, max: 400, step: 1, def: -67, fmt: 'px' },
+  { key: 'shopUiY', cssVar: '--z-shopui-y', label: 'Y offset', group: 'Shop controls', min: -400, max: 400, step: 1, def: 18, fmt: 'px' },
 
   { key: 'wbS', cssVar: '--z-wb-s', label: 'Card size', group: 'Warband', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   { key: 'wbGap', cssVar: '--z-wb-gap', label: 'Card gap', group: 'Warband', min: 0, max: 80, step: 1, def: 22, fmt: 'px' },
   { key: 'wbX', cssVar: '--z-wb-x', label: 'X offset', group: 'Warband', min: -400, max: 400, step: 1, def: 6, fmt: 'px' },
-  { key: 'wbY', cssVar: '--z-wb-y', label: 'Y offset', group: 'Warband', min: -400, max: 400, step: 1, def: -71, fmt: 'px' },
+  { key: 'wbY', cssVar: '--z-wb-y', label: 'Y offset', group: 'Warband', min: -400, max: 400, step: 1, def: -79, fmt: 'px' },
 
   { key: 'handS', cssVar: '--z-hand-s', label: 'Card size', group: 'Hand', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   // Hand cards fan + overlap via a NEGATIVE margin that's a fraction of the (compact) card width, so it stays
@@ -72,7 +72,7 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   // Active-quest / rune nodes (the badge row above the hero panel). X/Y px nudges × --scale; separation = the gap.
   { key: 'qbS', cssVar: '--qb-s', label: 'Scale', group: 'Quest nodes', min: 0.5, max: 2, step: 0.01, def: 1.32, fmt: 'mul' },
   { key: 'qbX', cssVar: '--qb-x', label: 'X offset', group: 'Quest nodes', min: -800, max: 800, step: 1, def: -12, fmt: 'px' },
-  { key: 'qbY', cssVar: '--qb-y', label: 'Y offset', group: 'Quest nodes', min: -1400, max: 400, step: 1, def: -746, fmt: 'px' },
+  { key: 'qbY', cssVar: '--qb-y', label: 'Y offset', group: 'Quest nodes', min: -1400, max: 400, step: 1, def: -256, fmt: 'px' },
   { key: 'qbGap', cssVar: '--qb-gap', label: 'Separation', group: 'Quest nodes', min: 0, max: 30, step: 0.5, def: 2, fmt: 'mul' },
 
   // The end-of-turn CHARGE GLYPH (replaces the rope). STATIC px scaled by --scale, anchored to the measured board

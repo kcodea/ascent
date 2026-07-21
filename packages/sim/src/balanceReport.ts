@@ -4,9 +4,10 @@
  * hero and tallies OFFER / PICK / WIN rates for heroes, quests, runes, minions, and spells.
  *
  * Method + caveats (the same ones the CLI header prints):
- *  - The bot is the greedy naive policy (`npm run bot`): it plays/buys the FIRST legal option and takes quest /
- *    rune / Discover index 0. So OFFER + WIN are meaningful; PICK reflects the BOT's (dumb) policy, not human
- *    choice — read it as "how often the greedy bot grabbed it when shown".
+ *  - The bot is PLUGGABLE (`docs/bot-sims-handoff.md`): one of the roster pilots in `./bots` drives every
+ *    decision (greedy | tempo | midrange | meta). OFFER + WIN are meaningful; PICK reflects THAT pilot's
+ *    policy, not human choice — read it as "how often this pilot grabbed it when shown". The default is the
+ *    greedy pilot; the CLI takes a bot name (`npm run report -- 30 meta`).
  *  - Minion/spell WIN rate is CORRELATIONAL: a card is one of up to 7 on a winning board, so it credits the
  *    whole board, not the card alone — a soft co-occurrence signal.
  *  - Everything is seeded + deterministic: the same game count reproduces the report exactly.
@@ -15,11 +16,11 @@
  * panel and the CLI. The panel drives it hero-by-hero (yielding to the event loop between heroes) via
  * {@link pickableReportHeroes} + {@link playAndRecordInto}; the CLI runs the whole thing synchronously.
  */
-import { CONFIG } from './config';
 import { HEROES, type HeroDef } from './heroes';
 import { createRun } from './state';
 import { reduce } from './reducer';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX } from '@game/content';
+import { DEFAULT_BOT, type BotPolicy } from './bots';
 
 export interface Tally {
   offered: number;
@@ -53,9 +54,11 @@ export const pickableReportHeroes = (): HeroDef[] => HEROES.filter((h) => !h.wip
 /** Seed mixer — the exact hash the CLI uses so the panel and `npm run report` produce identical numbers. */
 export const mixReportSeed = (h: number, g: number): number => ((h * 73856093) ^ (g * 19349663)) >>> 0;
 
-/** Play one full greedy-bot run with a fixed hero, recording every offer + pick into `acc`, then credit the
- *  win/loss. Pure aside from mutating `acc`. Identical logic to the CLI's `playAndRecord`. */
-export function playAndRecordInto(acc: ReportAccumulator, seed: number, heroId: string): void {
+/** Play one full run under `policy`, recording every offer + pick into `acc`, then credit the win/loss. Pure
+ *  aside from mutating `acc`. The policy drives EVERY decision (buy/play/roll/sell/reposition/discover/…); this
+ *  loop only records what was offered/picked and applies the action, with a safety net that force-progresses
+ *  if a policy ever returns a no-op so the run can't stall. */
+export function playAndRecordInto(acc: ReportAccumulator, seed: number, heroId: string, policy: BotPolicy = DEFAULT_BOT): void {
   let s = createRun(seed, heroId);
   // Per-run sets: a card/quest/rune counts as "offered this run" at most once (offer RATE = runs it appeared in).
   const offeredCards = new Set<string>();
@@ -67,36 +70,24 @@ export function playAndRecordInto(acc: ReportAccumulator, seed: number, heroId: 
 
   let steps = 0;
   while (s.phase !== 'gameover' && s.phase !== 'victory' && steps++ < 100000) {
-    if (s.questOffer) {
-      for (const id of s.questOffer) offeredQuests.add(id);
-      pickedQuests.add(s.questOffer[0]!);
-      s = reduce(s, { type: 'buyQuest', index: 0 });
-    } else if (s.runeforgeOffer) {
-      for (const id of s.runeforgeOffer) offeredRunes.add(id);
-      pickedRunes.add(s.runeforgeOffer[0]!);
-      s = reduce(s, { type: 'buyRune', index: 0 });
-    } else if (s.discover) {
-      s = reduce(s, { type: 'discover', index: 0 });
-    } else if (s.chooseOne) {
-      s = reduce(s, { type: 'chooseOne', index: 0 });
-    } else if (s.pendingTarget) {
-      s = reduce(s, { type: 'battlecryTarget', targetUid: s.board[0]?.uid ?? s.pendingTarget.uid });
-    } else if (s.phase === 'combat') {
-      s = reduce(s, { type: 'resolveCombat' });
-    } else {
-      // Recruit: snapshot the shop offers, then take one greedy action.
-      for (const o of s.shop) offeredCards.add(o.cardId);
-      if (s.hand.length > 0 && s.board.length < CONFIG.boardMax) {
-        const n = reduce(s, { type: 'play', uid: s.hand[0]!.uid }); if (n !== s) { s = n; continue; }
-      }
-      if (s.embers >= CONFIG.minionCost && s.shop.length > 0 && s.board.length + s.hand.length < CONFIG.boardMax) {
-        boughtCards.add(s.shop[0]!.cardId);
-        const n = reduce(s, { type: 'buy', uid: s.shop[0]!.uid }); if (n !== s) { s = n; continue; }
-      }
-      if (s.tier < CONFIG.maxTier && s.embers >= s.upgradeCost) { const n = reduce(s, { type: 'upgrade' }); if (n !== s) { s = n; continue; } }
-      if (s.heroReady && s.board[0]) { const n = reduce(s, { type: 'heroPower', uid: s.board[0].uid }); if (n !== s) { s = n; continue; } }
-      s = reduce(s, { type: 'faceOmen' });
-    }
+    // Observe offers in the CURRENT state (before acting).
+    if (s.questOffer) for (const id of s.questOffer) offeredQuests.add(id);
+    if (s.runeforgeOffer) for (const id of s.runeforgeOffer) offeredRunes.add(id);
+    if (s.phase === 'recruit' && !s.discover && !s.chooseOne && !s.pendingTarget) for (const o of s.shop) offeredCards.add(o.cardId);
+
+    const action = policy.act(s);
+
+    // Record the pick implied by this action.
+    if (action.type === 'buyQuest' && s.questOffer?.[action.index]) pickedQuests.add(s.questOffer[action.index]!);
+    else if (action.type === 'buyRune' && s.runeforgeOffer?.[action.index]) pickedRunes.add(s.runeforgeOffer[action.index]!);
+    else if (action.type === 'buy') { const o = s.shop.find((x) => x.uid === action.uid); if (o) boughtCards.add(o.cardId); }
+
+    const n = reduce(s, action);
+    if (n !== s) { s = n; continue; }
+    // No-op safety net: never let a bad policy stall the run.
+    if (s.phase === 'combat') s = reduce(s, { type: 'resolveCombat' });
+    else if (s.phase === 'recruit') s = reduce(s, { type: 'faceOmen' });
+    else break;
   }
 
   const won = s.phase === 'victory';
@@ -178,11 +169,11 @@ export function finalizeReport(acc: ReportAccumulator, gamesPerHero: number): Ba
 
 /** Run the whole report synchronously (the CLI path). The dev panel instead loops heroes itself so it can
  *  yield to the event loop + drive a progress bar. */
-export function computeBalanceReport(gamesPerHero: number): BalanceReport {
+export function computeBalanceReport(gamesPerHero: number, policy: BotPolicy = DEFAULT_BOT): BalanceReport {
   const acc = createReportAccumulator();
   const heroes = pickableReportHeroes();
   for (let h = 0; h < heroes.length; h++) {
-    for (let g = 0; g < gamesPerHero; g++) playAndRecordInto(acc, mixReportSeed(h + 1, g + 1), heroes[h]!.id);
+    for (let g = 0; g < gamesPerHero; g++) playAndRecordInto(acc, mixReportSeed(h + 1, g + 1), heroes[h]!.id, policy);
   }
   return finalizeReport(acc, gamesPerHero);
 }

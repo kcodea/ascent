@@ -38,7 +38,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Quest tendrils** — a gold ribbon reaches from a quest's node to the unit it triggers (Echoing Roar
+  re-firing a Shout), with its own dev tuner.
 
+- **Spell-power FX** — rising pink/purple/gold arrows, a mote blast, and the floating power number when a
+  spell power goes up in the shop, with a full dev tuner. (Combat wiring still to come.)
 
 - **Lunge feel pass shipped.** First tuning done against a strike that actually renders: slower travel
   (400px/s), a shorter wind-up with a deeper lean, an `expo.in` strike curve that hangs then blurs into
@@ -74,6 +78,34 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
   (it previously read only the sign of dx, so a steep diagonal led with the same corner as a flat swing). The
   panel shows what those functions produced for the swings you just watched, including how often the duration
   clamps flattened a strike. Defaults are unchanged, so the shipped lunge is untouched pending tuning.
+- **Quest nodes** — every taken quest shows as a bubble with a live `x/y` counter, dim until it activates,
+  then lit in the same slot. Replaces the old quest text panel.
+
+- **"All" types read correctly** — Lab Experiment's footer shows ALL and it now takes tribal buffs from
+  every source, in the shop and in combat.
+- **Hand hover fixed** — pointing at the lower half of a card no longer makes it flicker instead of opening.
+
+- **Three UI fixes** — the Freeze button now sits still on click (a CSS specificity loss, not a missing
+  rule), the Fodder reference popup folds in Heckbinder's live aura, and the run-buffs drawer slides
+  out instead of appearing.
+
+- **Mode picker behind PLAY** — Ascent / Rift / Practice. **Rifts are now opt-in**: a plain Ascent run is
+  unmodified, and the Rift mode is where the active modifier lives.
+- **Art for all eight Tier 7 minions.**
+- **One trigger-multiplier system** — Sylus, Drakko and Chronos now declare what they multiply as card
+  data instead of hardcoded id checks, and **Uron, Oathbringer** (T7) multiplies all six trigger families.
+- **Seven Tier 7 minions** — Thundeer, Amun Rab, Attachment Conductor, Mauron, Anubis, Salvatore McKlusky
+  and Lab Experiment, reachable only while the Summit rift is active.
+- **Tier 7 + the Summit rift** — Summit grants every hero +10 Armor and unlocks a Tier 7 shop; triples at
+  Tier 6/7 discover Tier 7 minions. A purple Rift button now sits above Play whenever a rift is active.
+  (Tier 7 minions themselves land next.)
+- **New card art** for Sylus, Brightwing Broker, Combinator and Aeon Guard.
+- **Balance pass** — Ryme gains Taunt and triggers both neighbours; Brightwing Broker now buffs your whole
+  board on a buy; Combinator welds 2; Grim scales +2/+2 and gains a Gilded form; Guardian Drake gains
+  Critical Strike. Vineweaver Drake retired.
+- **Weld rings fire again.** A recent change cleared the weld FX payload on every action, which raced React’s
+  dispatch batching — a weld plus any other click in the same frame lost its ring (and its stat flash). The
+  payload now survives until the UI reads it.
 - **Card info panel detached** — the name/keywords/text/tribe drawer now floats beneath the card as a rounded
   dark-glass panel (matching the hero/quest panels) instead of welding onto the frame; the right-click inspect's
   Buffs panel matches. Same info, new housing.
@@ -82,12 +114,18 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 - **The blink can't come back at high combat speed.** Beat holds divide by the speed slider but the death CSS was fixed seconds, so above ~1.31× a dying card was unmounted mid-animation — the same symptom as the old blink, by a different route. Death durations now divide by a `--combat-speed` var, making the ratio speed-invariant (identical at 1×).
 - **Damage numbers fade properly at speed.** Their cleanup divided by combat speed but the CSS animation didn't — above ~1.07× the number was removed while still fully opaque, popping out instead of fading (at 1.6×, gone 67% into its animation). Float animations now scale with the speed slider.
 - **Snappier combat pacing.** The clock held 869.5ms after *every* impact against a 320ms death animation — trimmed across two passes to **500ms** (`attackGap` 0.34 → 0.14, attack lead 353 → 240). A plain swing is now **1375ms** (was 1745), a Windfury pair **2750ms** (was 3490), and an attacker that dies mid-lunge **1925ms** (was 2595). That's the floor: the attacker's 340ms elastic settle fills most of what remains.
+- **Autosave moved off the shop's hot path.** It used to serialize the whole run + action log to
+  `localStorage` on *every* buy, sell, roll and reorder; it now writes at turn boundaries, with an explicit
+  flush when you quit to the title or the tab is hidden/closed, so nothing is lost.
 - **Snappier deaths + a combat-timing reference.** Death animations drop 0.42s → 0.32s and a plain attacker's
   return-home death now starts fading *as it lands* instead of idling ~260ms first — an ordinary trade resolves
   ~340ms sooner, with #503's "dies at home" read intact. The Deathrattle variant keeps its longer delay (the
   skull needs to burst first), so the pull-home hold is now variant-aware. New
   [`docs/combat-timing-reference.md`](docs/combat-timing-reference.md) documents every event's hold, every
   keyword's cost, and 36 interactions end to end.
+- **Looping paint-property sweep** — the last three `infinite` keyframes that repainted every frame
+  (`discpulse`, `venomdrip`, and the dead `endpulse`) are now transform/opacity only, so the resting shop is
+  fully compositor-driven. Groundwork for a 240fps shop phase, where the frame budget is 4.16ms.
 - **Perf HUD v2** — measured `hotspots` (real attribution, not correlation) for the reducer and autosave,
   plus the HUD restyled as a proper ASCENT panel that drags and resizes like the tuners.
 - **Perf HUD** — `?perf=1` turns on a bottom-right frame-health readout (fps, worst-frame, jank, live FX

@@ -1,7 +1,7 @@
 import { makeRng } from '@game/core';
 import type { CombatOutcome, CombatResult, EffectDef, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
 import { CARD_INDEX, activeSet, poolFor, type SetId } from '@game/content';
-import { CONFIG, activeRift, type RiftId } from './config';
+import { CONFIG, RIFT_BONUS_ARMOR, activeRift, type RiftId } from './config';
 import { DEFAULT_HERO_ID, getHero } from './heroes';
 import { queueDiscover } from './recruit';
 import { rollShop, stockPool } from './shop';
@@ -157,6 +157,10 @@ export interface BoardCard {
    *  Setlist Discovers on turn 1). Only THIS card is gated — the rest of the hand plays normally. The play
    *  action no-ops while `state.tier < lockedUntilTier`; the UI shows it locked. Cleared once it unlocks. */
   lockedUntilTier?: number;
+  /** Brackus's Summit pick: unplayable until the run's cumulative `goldSpent` reaches this. The `play`
+   *  action no-ops below it and the UI shows it locked — the same contract as `lockedUntilTier`, on a
+   *  different meter. Reuses the existing run-cumulative `goldSpent` (no new counter needed). */
+  lockedUntilGoldSpent?: number;
   /** Ritualist: the accrued +A/+H its escalating End-of-Turn buff currently grants (grows by its `step` each
    *  trigger). Per-instance; drives `buffFodderImpsImproving`. Default/absent = 0. */
   eotBonus?: number;
@@ -196,9 +200,18 @@ export type Phase = 'recruit' | 'combat' | 'gameover' | 'victory';
  *      `topTierFirst` — the ONE high-tier exception, set only by the golden/triple reward ("peek one tier
  *      up"), which fills from the top tier down.
  */
+/**
+ * How a run was started, chosen on the mode screen behind PLAY.
+ *  - `ascent`   the scored climb, UNMODIFIED (no rift)
+ *  - `rift`     the same climb WITH the currently active rift's rules (opt-in as of the mode picker)
+ *  - `practice` the same course, any hero, unlimited Resolve, longer shop timer — unscored
+ * Pinned onto the run at creation; `createRun` reads it to decide whether to adopt `activeRift()`.
+ */
+export type RunMode = 'ascent' | 'rift' | 'practice';
+
 export type DiscoverSpec =
   | { kind: 'spell' }
-  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number }
+  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean }
   // A Discover from an EXPLICIT card-id pool (Rune of the Second Path's Greater-Quest reward minions).
   | { kind: 'pool'; ids: string[] };
 
@@ -241,10 +254,15 @@ export interface BuffFxEvent {
 
 export interface RunState {
   seed: number;
-  /** Game mode: 'ascent' (the scored climb) or 'practice' (the SAME course — any hero, unlimited health,
+  /** Game mode — see `RunMode`.
+   *  'ascent' (the scored climb) or 'practice' (the SAME course — any hero, unlimited health,
    *  3× shop timer — so it reads identically to Ascent; ends at `courseRounds` regardless of W/L, unscored).
    *  Absent = 'ascent'. */
-  mode?: 'ascent' | 'practice';
+  mode?: RunMode;
+  /** Scene Builder sandbox (dev). Runs on the `practice` mode mechanics (unscored, generous timer) but is
+   *  launched as its own thing from the title, and mounts the Scene Builder control panel. Additive flag so
+   *  it needs no new RunMode + no mode-switch audit. Absent = a normal run. */
+  sandbox?: boolean;
   /** Current wave (Altitude). Score = waves survived. */
   wave: number;
   /** Result of each combat resolved this run, in order — drives the end-screen W-L-W summary. */
@@ -590,8 +608,34 @@ export interface RunState {
    *  MIRRORS every weld onto itself, so the host and every Beatbot must all animate. Pure display metadata —
    *  never read by the sim. Never cleared; the UI dedupes against a ref of the last-seen seq. */
   weldFxSeq?: number;
+  /** Bumped whenever SPELL POWER GOES UP this action, by any source and any amount (Cinderwing Matron's
+   *  Shout, a quest reward, a rune, the hero's amplify …) — the UI fires the Spell Power FX (rising arrows +
+   *  blast + the floating gain) once per bump. One-shot, like `swapFxSeq`. Stamped from the before/after
+   *  state delta rather than a per-action scratch field, so a batch of dispatches can't drop it the way the
+   *  weld FX once did. */
+  spellPowerFxSeq?: number;
+  /** The spell-power INCREASE to print alongside that FX (Attack / Health), captured at stamp time so the
+   *  number is the gain this action produced rather than whatever the run drifts to before the UI reads it.
+   *  Two stats because spell power is a PAIR — Cinderwing Matron grants Health only. */
+  spellPowerFxAtk?: number;
+  spellPowerFxHp?: number;
+  /** The uid of the card that drove the gain, so the flourish plays OVER it rather than over the row
+   *  (owner ask 2026-07-21). Absent when the source isn't a card the player acted on — a quest reward or a
+   *  rune tick — and the UI falls back to the shop row for those. */
+  spellPowerFxUid?: string;
+  /** Quest/rune End-of-Turn rewards that TRIGGERED a specific unit this action — one entry per proc, in fire
+   *  order. The UI draws a gold tendril from that quest's node to the unit it hit (owner ask 2026-07-21).
+   *  Source is the effect id (the node is looked up from it), not the quest id, because runes grant these too
+   *  and a rune has its own badge in the same row. Cleared per action like the other transient FX fields. */
+  questTendrilFx?: { effect: string; uid: string }[];
+  /** Bumped when `questTendrilFx` is refilled, so the UI fires once per action even if the list repeats. */
+  questTendrilSeq?: number;
   weldFxUids?: string[];
   weldFxKind?: 'play' | 'auto';
+  /** `weldFxSeq` as of the start of the current action — lets `stampWeldFx` tell its first stamp of an
+   *  action (replace `weldFxUids`) from later ones (accumulate) without `reduce` clearing the payload,
+   *  which raced React's dispatch batching. Bookkeeping only; never read by the sim or the UI. */
+  weldFxBaseSeq?: number;
   /** Consecutive combat losses (a win resets; a draw preserves) — the matchmaking loss-streak softener input. */
   lossStreak?: number;
   /** The once-per-streak softener already influenced a pick this streak — disarmed until a win re-arms it. */
@@ -693,6 +737,19 @@ export interface RunState {
    *  `lockedUntilTier`). Set by `openDiscover` from the spec's `lockTier`, read + cleared when the pick
    *  resolves. Undefined for every normal Discover. */
   discoverLockTier?: number;
+  /** The OPEN Discover hands its pick over GILDED (a golden Salvatore McKlusky). Set by `openDiscover` from
+   *  the spec and consumed when the pick is taken — exactly the `discoverLockTier` lifecycle, so a queued
+   *  mix of gilded and normal Discovers can't leak into each other. */
+  discoverGolden?: boolean;
+  /** The OPEN Discover hands its pick over locked until this much Gold has been spent this RUN (Brackus).
+   *  Mirrors `discoverLockTier`'s lifecycle: set by `openDiscover` from the spec, consumed on take. */
+  discoverLockGold?: number;
+  /** Rune of the Summit: armed on purchase; `runeSummitTick` counts shops opened since, and every 2nd one
+   *  opens a Tier 7 Discover. A COUNTER rather than a per-turn flag because the cadence is every-other-turn
+   *  — `recurringEndOfTurn` fires every turn and could not express it. */
+  runeSummit?: boolean;
+  runeSummitTick?: number;
+
   /** Discovers queued behind the open one (`discover`). When a pick resolves, the next spec is shifted
    *  off and opened; `discover` only clears when this is empty. Fed by `queueDiscover` — e.g. a golden
    *  Black Belt Brian queues a 2nd spell Discover, Yazzus multiplies Help Wanted / Sprout, and a
@@ -796,11 +853,18 @@ export const metLine = (status: LineStatus): boolean =>
 /** Create a fresh run from a seed. Deterministic: same seed → same opening. `line` is the run's par (the
  *  rating system passes the player's rating-derived Line; defaults to CONFIG.defaultLine so callers that
  *  don't track rating — tests, tools, the boot throwaway — keep the historic mid-tier Line 9). */
-export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 'ascent' | 'practice' = 'ascent', line: number = CONFIG.defaultLine): RunState {
+export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: RunMode = 'ascent', line: number = CONFIG.defaultLine): RunState {
   const tribes = selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)));
   // The hero's Resolve is the run's starting (and max) HP; Armor is extra effective HP layered on top.
   const hero = getHero(heroId);
   const startResolve = hero.resolve;
+  // Pin the rift ONCE and derive from that same value, so the Armor bonus and `state.rift` can never
+  // disagree (calling activeRift() twice would also read the registry twice).
+  // Rifts are OPT-IN as of the mode picker: only a RIFT run adopts the active rift, so a plain Ascent
+  // (or Practice) climb is unmodified. Still pinned at creation, so a saved/replayed rift run keeps its
+  // rules after the global switch flips off.
+  const pinnedRift = mode === 'rift' ? (activeRift()?.id ?? null) : null;
+  const riftArmor = RIFT_BONUS_ARMOR[pinnedRift as RiftId] ?? 0; // Summit: +10 to every hero
   const state: RunState = {
     seed,
     mode,
@@ -812,8 +876,8 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     maxEmbers: CONFIG.startEmbers,
     resolve: startResolve,
     maxResolve: startResolve,
-    armor: hero.armor,
-    maxArmor: hero.armor,
+    armor: hero.armor + riftArmor,
+    maxArmor: hero.armor + riftArmor,
     tier: 1,
     upgradeCost: CONFIG.upgradeCost[2] ?? 5,
     frozen: false,
@@ -861,7 +925,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     recruitBuffFx: [],
     recruitFxSeq: 0,
     karwindFlashSeq: 0,
-    rift: activeRift()?.id ?? null, // pin the live rift so replays keep it after the switch flips off
+    rift: pinnedRift, // pin the live rift so replays keep it after the switch flips off
     setId: activeSet().id, // …and the live card set, for the same reason (see RunState.setId)
   };
   rollShop(state);
@@ -889,6 +953,12 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     for (const tier of [6, 4, 2]) {
       queueDiscover(state, { kind: 'minion', tier, exactTier: tier, lockTier: tier });
     }
+  }
+  // Brackus's Summit: one Tier 7 Discover at run start, locked in hand until 70 Gold has been spent this
+  // run. `exactTier: 7` is a FIXED-tier Discover, so it is honoured with no rift active — that back door is
+  // the whole point of the card (Tier 7 is otherwise unreachable outside a rift).
+  if (heroId === 'brackus') {
+    queueDiscover(state, { kind: 'minion', tier: 7, exactTier: 7, lockGold: 70 });
   }
   return state;
 }

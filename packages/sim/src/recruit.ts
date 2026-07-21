@@ -1,7 +1,7 @@
-import { makeRng, COMBAT_REPLAYABLE_BATTLECRIES, type CardDef, type EffectDef, type Keyword, type Tribe } from '@game/core';
+import { makeRng, COMBAT_REPLAYABLE_BATTLECRIES, extraTriggerFires, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { poolOf } from './cardPool';
-import { CONFIG } from './config';
+import { CONFIG, maxTierFor } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
 import { mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type DiscoverSpec, type RunState, type ShopCard } from './state';
 import { returnToPool, rollSpellShop, takeFromPool } from './shop';
@@ -386,13 +386,16 @@ export function auraFxTargets(state: RunState, tribe: AuraFxTribe): string[] {
  *  Bots). Monotonic seq like the other FX signals — never cleared; the UI dedupes against its last-seen. */
 export function stampWeldFx(state: RunState, uids: string[], kind: 'play' | 'auto'): void {
   if (uids.length === 0) return;
+  const base = state.weldFxBaseSeq ?? 0;
+  const first = (state.weldFxSeq ?? 0) === base; // nothing stamped yet in THIS action
   state.weldFxSeq = (state.weldFxSeq ?? 0) + 1;
   // ACCUMULATE across this action, don't overwrite. Several welds can land in ONE dispatch — a golden
   // Banksly magnetizes twice, and spending enough Gold procs it repeatedly — and the UI only reads the
   // FINAL state after the dispatch, so overwriting meant every weld but the last silently lost its ring
-  // (verified: two welds in one action left `['B']` with seq 2). `reduce` clears this per action, so the
-  // list can never leak into the next one.
-  state.weldFxUids = [...new Set([...(state.weldFxUids ?? []), ...uids])];
+  // (verified: two welds in one action left `['B']` with seq 2). The FIRST stamp of an action replaces
+  // instead, which is what keeps the previous action's uids from leaking in — `reduce` no longer clears
+  // them, because clearing raced React's dispatch batching and dropped the ring entirely.
+  state.weldFxUids = first ? [...new Set(uids)] : [...new Set([...(state.weldFxUids ?? []), ...uids])];
   state.weldFxKind = kind;
 }
 
@@ -581,15 +584,25 @@ function applyWeld(host: BoardCard, mag: MagnetPayload, mult: number): void {
  * `clings` = how many Cling Drones this weld represents (0 if the magnetic isn't a Cling). Each Cling
  * magnetized — onto the host AND each copy Beatboxer mimics onto itself — stacks the Cling improvement.
  */
+/** Attachment Conductor (Tier 7): "your attachments attach twice" (gilded: three times). Like Drakko, the
+ *  BEST single copy counts rather than stacking, so two Conductors don't silently 4x. Returns the number of
+ *  times each weld lands — 1 with no Conductor. */
+function conductorWelds(state: RunState): number {
+  let best = 1;
+  for (const c of state.board) if (c.cardId === 'attachmentconductor') best = Math.max(best, c.golden ? 3 : 2);
+  return best;
+}
+
 export function weldMagnetic(state: RunState, host: BoardCard, mag: MagnetPayload, clings = 0, kind: 'play' | 'auto' = 'auto'): void {
-  applyWeld(host, mag, 1);
-  host.attachments = (host.attachments ?? 0) + 1; // one Attachment welded on — drives Blueprint Cache
+  const reps = conductorWelds(state); // Attachment Conductor multiplies EVERY weld, the host's and the mirrors'
+  applyWeld(host, mag, reps);
+  host.attachments = (host.attachments ?? 0) + reps; // Attachments welded on — drives Blueprint Cache
   bakeAttachmentAura(state, host);
   const welded = [host.uid]; // every minion this weld lands on — ALL of them animate (a Beatbot mirrors it)
-  let totalClings = clings; // Clings welded onto the host
+  let totalClings = clings * reps; // Clings welded onto the host
   for (const bb of state.board) {
     if (bb.cardId === 'beatboxer' && bb.uid !== host.uid) {
-      const mult = bb.golden ? 2 : 1;
+      const mult = (bb.golden ? 2 : 1) * reps;
       applyWeld(bb, mag, mult);
       bb.attachments = (bb.attachments ?? 0) + mult; // Beatboxer mirrors the weld onto itself
       bakeAttachmentAura(state, bb);
@@ -704,8 +717,9 @@ function fireRecruitDeathrattles(ctx: RecruitContext, minion: BoardCard, effects
   };
   if (hasDR) ctx.state.deathrattlesTriggered += 1; // base trigger, before firing (Grim counts its own death)
   fireOnce();
-  let reaper = 0;
-  for (const c of ctx.state.board) if (c.cardId === 'sylus' && c.uid !== minion.uid) reaper += c.golden ? 2 : 1;
+  // Sylus (stacking) + Uron (best-copy), from card data. The dying minion is excluded — a Sylus that is
+  // itself the one dying doesn't re-fire its own Echo.
+  const reaper = extraTriggerFires('deathrattle', ctx.state.board.filter((c) => c.uid !== minion.uid), (id) => CARD_INDEX[id]);
   for (let r = 0; r < reaper; r++) fireOnce(); // Sylus re-fires read the same tally (value at death)
   if (hasDR) {
     ctx.state.deathrattlesTriggered += reaper; // …then the extra triggers count for the quest/Grim tally
@@ -797,10 +811,21 @@ export function grantTopTypeMinion(state: RunState): boolean {
 const recruitHuntGuard = new WeakSet<object>();
 
 const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
-  /** Brightwing Broker: every minion you buy gets +atk/+hp (not itself). */
+  /** Legacy single-target buy buff: the minion you bought gets +atk/+hp (not itself). Kept as a primitive —
+   *  Brightwing Broker moved to `buffBoardOnBuy`, but the factory stays available to content. */
   buffOnBuy: (_ctx, self, params, { minion }) => {
     if (minion === self) return;
     addBuff(minion, nameOf(self), num(params.attack) * gold(self), num(params.health) * gold(self));
+  },
+
+  /** Brightwing Broker: buying ANY minion buffs your whole board +atk/+hp (golden doubles). The bought
+   *  minion is in hand at this point, so it is not included — this rewards a board you have already
+   *  built, rather than the purchase itself (which is what `buffOnBuy` did). */
+  buffBoardOnBuy: (ctx, self, params) => {
+    const a = num(params.attack) * gold(self);
+    const h = num(params.health) * gold(self);
+    if (a === 0 && h === 0) return;
+    for (const m of ctx.state.board) addBuff(m, nameOf(self), a, h);
   },
 
   /** Kennelmaster / Bristleback Matron: buff each summoned friend of `tribe`. The magnitude is
@@ -1163,6 +1188,26 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Hoard Whelp — Sell: gain `amount` Gold (golden doubles). Fired by the reducer's sell case via `fireOnSell`. */
   onSellGainGold: (ctx, self, params) => {
     ctx.state.embers += num(params.amount, 6) * gold(self);
+  },
+
+  /** Salvatore McKlusky (Tier 7) — selling this opens `count` back-to-back minion Discovers at `tier`
+   *  (golden: the offered cards are GILDED). Only one Discover overlay can be open at a time, so the extras
+   *  queue through the standard `pendingDiscovers` channel the same way multi-Discover heroes do. */
+  onSellDiscover: (ctx, self, params) => {
+    const tier = num(params.tier, 6);
+    const count = num(params.count, 2);
+    const spec = { kind: 'minion' as const, tier, exactTier: tier, golden: !!self.golden };
+    for (let i = 0; i < count; i++) queueDiscover(ctx.state, spec);
+  },
+
+  /** Lab Experiment (Tier 7) — the RECRUIT half of its Echo: conjure `count` random MINIONS of `tier` to
+   *  hand (minions only — unlike `endOfTurnGrantRandomTierCard`, which also draws spells). Golden doubles. */
+  deathrattleGainRandomMinion: (ctx, self, params) => {
+    const tier = num(params.tier, 5);
+    const pool = poolOf(ctx.state).buyable.filter(
+      (c) => c.tier === tier && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
+    );
+    conjureToHand(ctx.state, pool, num(params.count, 1) * gold(self));
   },
 
   /** Scrap Vendor — End of Turn: bank `amount` Gold into your next shop (golden doubles). Uses the standard
@@ -1754,7 +1799,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  card tier is ≤ the spell's `targetMaxTier`. Doubles the BASE stats via a tracked 'Gild' buff (accrued
    *  buffs are NOT doubled — see `gildMinion`) + flips golden. Cap read from the spell def via `_maxTier`. */
   spellGildTarget: (ctx, self, params) => {
-    const limit = num(params._maxTier, CONFIG.maxTier);
+    const limit = num(params._maxTier, maxTierFor(ctx.state.rift));
     const targetTier = CARD_INDEX[self.cardId]?.tier ?? 1;
     if (self.golden || targetTier > limit) return;
     gildMinion(self);
@@ -2080,11 +2125,15 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   castSpell: (ctx, self, params) => {
     const spellDef = CARD_INDEX[str(params.spellId)];
     if (!spellDef || spellDef.singleCast) return; // singleCast spells (Devourer) never multi-fire
-    const friends = ctx.state.board.filter((c) => c !== self);
-    const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
-    applyCastEffects(ctx, spellDef, target);
-    ctx.state.spellsCast += 1;
-    ctx.state.spellsThisTurn += 1;
+    // A GILDED caster casts twice (owner 2026-07-21, Rope Wrangler) — each cast re-picks its target and
+    // counts as a real cast, so spell-cast payoffs (Guel, Spirit Pup, Forsaken Weaver) see both.
+    for (let i = 0; i < gold(self); i++) {
+      const friends = ctx.state.board.filter((c) => c !== self);
+      const target = friends.length ? friends.reduce((a, b) => (b.attack > a.attack ? b : a)) : self;
+      applyCastEffects(ctx, spellDef, target);
+      ctx.state.spellsCast += 1;
+      ctx.state.spellsThisTurn += 1;
+    }
   },
 
   /** Vineweaver Drake — End of Turn: cast `spellId` (Growth) once, plus one more cast for each prior End of
@@ -2326,7 +2375,7 @@ export function offerDiscover(
   } else if (opts?.topTierFirst) {
     // Golden/triple reward only ("peek one tier up"): bias to the highest tier — fill from the top tier
     // down, walking the floor down only if the top tier can't supply 3. The single high-tier exception.
-    const target = Math.min(CONFIG.maxTier, discoverTier);
+    const target = Math.min(maxTierFor(state.rift), discoverTier); // Summit: ceiling is 7
     let floor = target;
     while (pool.length < 3 && floor >= 1) {
       pool = poolOf(state).buyable.filter(
@@ -2342,7 +2391,7 @@ export function offerDiscover(
   } else {
     // Card-driven Discover up to the tavern tier (Sea Urchin, Help Wanted): EVERY eligible card at or below
     // the target tier, weighed EVENLY — no high-tier bias (same rule as the shop + spell Discover).
-    const target = Math.min(CONFIG.maxTier, discoverTier);
+    const target = Math.min(maxTierFor(state.rift), discoverTier); // Summit: ceiling is 7
     pool = poolOf(state).buyable.filter(
       (c) =>
         c.tier <= target &&
@@ -2378,6 +2427,8 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     state.rngCursor = rng.state();
     state.discover = picks;
     state.discoverLockTier = undefined;
+    state.discoverGolden = undefined;
+    state.discoverLockGold = undefined;
   } else {
     offerDiscover(state, spec.tier, {
       tier: spec.exactTier,
@@ -2389,8 +2440,8 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     });
     // Disco Dan's Setlist: carry the lock tier onto the open offer so the resolved pick becomes a
     // locked hand card (only set if the offer actually opened).
-    if (state.discover) state.discoverLockTier = spec.lockTier;
-    else state.discoverLockTier = undefined;
+    if (state.discover) { state.discoverLockTier = spec.lockTier; state.discoverGolden = spec.golden; state.discoverLockGold = spec.lockGold; }
+    else { state.discoverLockTier = undefined; state.discoverGolden = undefined; state.discoverLockGold = undefined; }
   }
 }
 
@@ -2647,16 +2698,17 @@ function makeContext(state: RunState): RecruitContext {
 
 /** "Best single copy, no stacking, golden = +2" repeat count, shared by Drakko (Battlecries) and Chronos
  *  (End-of-Turn). Returns 1 + (2 if any golden copy of `cardId`, else 1 if any copy, else 0). */
-function bestCopyRepeats(state: RunState, cardId: string): number {
-  const copies = state.board.filter((c) => c.cardId === cardId);
-  return 1 + (copies.some((c) => c.golden) ? 2 : copies.length > 0 ? 1 : 0);
+/** Fire-count for a trigger FAMILY on the current board, resolved from card data (`triggerMultiplier`)
+ *  rather than a hardcoded card id — so Drakko, Chronos and Uron all flow through one place. */
+function familyRepeats(state: RunState, family: TriggerFamily): number {
+  return 1 + extraTriggerFires(family, state.board, (id) => CARD_INDEX[id]);
 }
 
 /** Drakko the Drummer: your Battlecries fire extra times (golden Drakko +2; best one only, no stacking).
  *  Non-consuming (unlike `playedShoutRepeats`, which also spends a Warm Embers charge) — so it's safe for the
  *  reducer's Shout quest tick to read the battlecry FIRE count (each Drakko re-fire is another Shout trigger). */
 export function drummerRepeats(state: RunState): number {
-  return bestCopyRepeats(state, 'drummer');
+  return familyRepeats(state, 'battlecry');
 }
 
 /** Fire-count for a freshly PLAYED Battlecry ("shout"): Drakko's repeats PLUS Warm Embers' one-shot double
@@ -2676,7 +2728,10 @@ function playedShoutRepeats(state: RunState, def: CardDef): number {
     // Legacy Warm Embers charge (the `shoutDouble` reward), while any remain.
     if ((state.shoutDoubleCharges ?? 0) > 0) { state.shoutDoubleCharges! -= 1; n += 1; }
   }
-  state.lastShoutFires = isShout ? n : 0; // record for the reducer's Shout quest tick (counts triggers)
+  // ACCUMULATE, don't assign: the reducer zeroes this at the start of every action, and a single action can
+  // fire Shouts from more than one path (a play PLUS an Echoing Roar re-trigger). Assigning meant the last
+  // writer won and the rest vanished from the tally.
+  if (isShout) state.lastShoutFires = (state.lastShoutFires ?? 0) + n;
   return n;
 }
 
@@ -2684,7 +2739,7 @@ function playedShoutRepeats(state: RunState, def: CardDef): number {
  *  adds 2, no stacking). Internal — external callers (the UI's End-Turn beats) use `endOfTurnRepeats`,
  *  which folds in Chrono Staff's one-shot extra. */
 function chronosRepeats(state: RunState): number {
-  return bestCopyRepeats(state, 'chronos');
+  return familyRepeats(state, 'endOfTurn');
 }
 
 /** How many times End-of-Turn effects fire this turn: Chronos's repeats PLUS Chrono Staff's one-shot extra
@@ -2846,6 +2901,12 @@ export function replayBattlecry(state: RunState, card: BoardCard): boolean {
   state.karwindFlash = [];
   const ctx = makeContext(state);
   const repeats = drummerRepeats(state);
+  // A REPLAYED Shout is still a Shout trigger — it must advance `shout` objectives (Echoing Roar, Tooth and
+  // Tempo, The Author's Hand) exactly like a played one. Every re-trigger path routes through here — Echoing
+  // Roar's End-of-Turn reward, the Resonance spell, Myra's hero power — and none of them counted, so a quest
+  // whose own reward re-fires Shouts couldn't advance itself (owner report 2026-07-21). Same class as the
+  // Uron rally fix in #594: the effect re-fired but the tally never saw it.
+  state.lastShoutFires = (state.lastShoutFires ?? 0) + repeats;
   for (const effect of onPlay) {
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
@@ -2892,11 +2953,17 @@ export function replayEndOfTurn(state: RunState, card: BoardCard): boolean {
   if (eot.length === 0) return false;
   const ctx = makeContext(state);
   const repeats = chronosRepeats(state);
+  let fires = 0;
   for (const effect of eot) {
     const fn = RECRUIT_FACTORIES[effect.do];
     if (!fn) continue;
-    for (let r = 0; r < repeats; r++) fn(ctx, card, effect.params ?? {}, { minion: card, proc: r, replay: true });
+    for (let r = 0; r < repeats; r++) { fn(ctx, card, effect.params ?? {}, { minion: card, proc: r, replay: true }); fires++; }
   }
+  // A REPLAYED End of Turn is still an End-of-Turn TRIGGER — it must advance the `endOfTurn` objective
+  // (Parliament of Flame), exactly as `applyEndOfTurn` does. Accumulate (the reducer zeroes it per action), so
+  // Djinn's Cadence firing every minion's EoT counts each one (audit 2026-07-21, the same class as Myra's
+  // replayBattlecry → lastShoutFires and the Uron rally fix). The reducer's heroPower path then reads it.
+  state.lastEotFires = (state.lastEotFires ?? 0) + fires;
   return true;
 }
 
@@ -3135,7 +3202,17 @@ export function applyEndOfTurn(state: RunState): void {
   for (const eff of state.questRecurringEndOfTurn ?? []) {
     for (let r = 0; r < repeats; r++) { runRecurringEndOfTurn(state, eff); fires++; }
   }
-  state.lastEotFires = fires;
+  // Accumulate for the same reason as `lastShoutFires` — the reducer zeroes it per action, and an action can
+  // reach applyEndOfTurn more than once (a hero power that procs an End of Turn, then the turn's own).
+  state.lastEotFires = (state.lastEotFires ?? 0) + fires;
+}
+
+/** Record that a quest/rune End-of-Turn reward TRIGGERED a specific unit, so the UI can draw a gold tendril
+ *  from that reward's node to the unit. One entry PER PROC — a repeated End of Turn (Chronos/Parliament)
+ *  stamps once per repeat, so the player sees a tendril for each fire rather than one for the group. */
+function stampQuestTendril(state: RunState, effect: string, uid: string): void {
+  (state.questTendrilFx ??= []).push({ effect, uid });
+  state.questTendrilSeq = (state.questTendrilSeq ?? 0) + 1;
 }
 
 /** One quest-granted recurring End-of-Turn effect. `triggerLeftmostShout`: re-fire your leftmost Battlecry
@@ -3160,7 +3237,7 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
   };
   if (effect === 'triggerLeftmostShout') {
     const leftmost = state.board.find((c) => { const d = CARD_INDEX[c.cardId]; return !!d && hasBattlecry(d); });
-    if (leftmost) replayBattlecry(state, leftmost);
+    if (leftmost) { stampQuestTendril(state, effect, leftmost.uid); replayBattlecry(state, leftmost); }
   } else if (effect === 'grantRandomAttachments') {
     conjureToHand(state, poolOf(state).buyable.filter((c) => c.tier <= state.tier && c.keywords.includes('M')), 2);
   } else if (effect === 'buffMechsPerAttachment') {
@@ -3189,7 +3266,7 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
   } else if (effect === 'triggerLeftmostEcho') {
     // Rune of the Reliquary: fire your leftmost minion's Echo (Deathrattle) out of combat.
     const leftmost = state.board.find((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.on === 'onDeath'));
-    if (leftmost) fireRecruitDeathrattles(makeContext(state), leftmost);
+    if (leftmost) { stampQuestTendril(state, effect, leftmost.uid); fireRecruitDeathrattles(makeContext(state), leftmost); }
   } else if (effect === 'recastFirstSpell') {
     // Rune of Recurrence: cast the FIRST spell you cast this turn again, free. An AIMED spell re-targets a
     // seeded-random friendly board minion (owner call 2026-07-17); untargeted spells just resolve. Skipped

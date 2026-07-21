@@ -16,6 +16,7 @@ import type {
   Side,
   Tribe,
 } from '../types';
+import { extraTriggerFires } from '../types';
 import type { Rng } from '../rng';
 import { CombatBus } from '../events';
 import { FACTORIES } from '../effects/factories';
@@ -490,6 +491,13 @@ export function simulate(
     },
     addTribeAura: (side, tribe, attack, health, source) => {
       tribeAuras.push({ side, tribe, attack, health, source });
+      // Telegraph the wash — the run-wide aura is a board-wide event, so it gets the same bloom the recruit
+      // phase shows off `auraFxSeq` (owner ask 2026-07-21: Ryme + Deathswarmer, Anubis's Lantern, …). Only a
+      // real gain is worth a wave; a 0/0 aura (shouldn't happen) draws nothing.
+      // Carry the amounts + the Buffs-panel row this feeds ('undead' Lantern, 'beast' Old Hunt, 'attachment'
+      // Scrap Herald) so the UI both washes the board AND ticks that row live. `neutral`/`any` still washes.
+      const auraKey = tribe === 'undead' ? 'undead' : tribe === 'beast' ? 'beast' : tribe === 'mech' ? 'attachment' : undefined;
+      if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe, attack, health, aura: auraKey });
     },
     damage: (target, amount, poison = false, bypassShield = false) =>
       dealDamage(target, amount, poison, bypassShield),
@@ -613,13 +621,19 @@ export function simulate(
       impAura[side].attack += attack;
       impAura[side].health += health;
       // Only the player carries the buff back into run state (the enemy is regenerated each wave).
-      if (side === 'player') { impBuffGain.attack += attack; impBuffGain.health += health; }
+      if (side === 'player') {
+        impBuffGain.attack += attack; impBuffGain.health += health;
+        // Imps are Demons — a demon board-wash + a live 'imp' row tick (owner report 2026-07-21: neither played
+        // in combat because this granted the buff silently).
+        if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe: 'demon', attack, health, aura: 'imp' });
+      }
     },
     impAura: (side) => ({ ...impAura[side] }), // Chef Raag reads the live Imp Aura to buff your minions by it
     grantFodderBuff: (attack, health, side) => {
       if (side !== 'player') return; // enemies have no run state
       fodderBuffGain.attack += attack;
       fodderBuffGain.health += health;
+      if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe: 'demon', attack, health, aura: 'fodder' });
     },
     grantUndeadBuyAtk: (amount, side) => {
       // Advance the granting SIDE's live Undead buy-aura so Undead summoned / Reborn LATER this fight inherit it
@@ -868,7 +882,9 @@ export function simulate(
   // combat), so call ONLY for a minion that actually has a Deathrattle.
   function playerEchoExtras(minion: Minion): number {
     let bonus = 0;
-    for (const m of boards[minion.side]) if (!m.dead && m.health > 0 && m.cardId === 'sylus') bonus += m.golden ? 2 : 1;
+    // Sylus (stacking) + Uron (best-copy) both live here now — resolved from card DATA rather than a
+    // hardcoded id, so a new multiplier is a card field and not another branch in this function.
+    bonus += extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]);
     const mods = modsFor(minion.side); // per-side: a served enemy's Funeral Engine / Grave Contract doublers apply too
     bonus += mods.echoExtraAlways ?? 0;
     const first = mods.echoFirstEachCombat ?? 0;
@@ -1162,8 +1178,16 @@ export function simulate(
       emit({ type: 'reveal', target: attacker.uid });
     }
     const swings = attacker.keywords.includes('W') ? 2 : 1; // Windfury (A.3 step 5)
+    // A Flurry minion that DIES on its first swing and RISES does not get the second swing (owner ruling
+    // 2026-07-21). Rise sets `dead = false` and restores Health mid-exchange, so the plain liveness guard
+    // below saw a healthy attacker and let swing 2 through — the minion appeared to attack twice after dying.
+    // The risen body is a fresh body: its turn is over, the next minion attacks, and it swings again on a
+    // later turn like anything else. (Granted Flurry is already shed by the Rise itself, which rebuilds
+    // `keywords` from the card def; an INNATE Flurry survives but still doesn't re-swing this exchange.)
+    const rebornAtStart = attacker.rebornAvailable;
     for (let s = 0; s < swings; s++) {
       if (attacker.dead || attacker.health <= 0) break;
+      if (rebornAtStart && !attacker.rebornAvailable) break; // it died and rose during this exchange
       const target = chooseTarget(defenderSide);
       if (!target) break;
       if (s > 0) nextStep(); // each Windfury swing is its own exchange
@@ -1173,6 +1197,27 @@ export function simulate(
       const critMult = crit ? 2 : 1;
       emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s, ...(crit ? { crit: true } : {}) });
       bus.emit('onAttack', { minion: attacker, side: attacker.side, target }); // Rally + on-attack effects (target = the enemy being hit this swing)
+      // Uron: your RALLIES trigger extra times. Deliberately NOT a second bus.emit — that would also
+      // re-tick Rally quests and re-notify broadcast ally-attack watchers (Crypt Drake). Only the
+      // attacker's own on-attack effects repeat.
+      // Gate on the RL keyword: `on: 'onAttack'` covers BOTH true Rallies and broadcast ally-attack
+      // watchers (Crypt Drake counts every ally swing). Only the former are "Rallies" — repeating the
+      // latter would inflate a counter Uron has no business touching. Caught by a test that asserts
+      // Crypt Drake's payout count is unchanged with Uron on board.
+      const rallyExtra = attacker.keywords.includes('RL')
+        ? extraTriggerFires('rally', boards[attacker.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id])
+        : 0;
+      for (let i = 0; i < rallyExtra; i++) {
+        for (const effect of attacker.effects) {
+          if (effect.on !== 'onAttack') continue;
+          FACTORIES[effect.do]?.(ctx, attacker, effect.params ?? {}, { minion: attacker, side: attacker.side, target });
+        }
+      }
+      // …and each of those extra fires COUNTS as a Rally trigger, exactly like the additive doublers below
+      // (Law of Teeth / Rallying Offensive / Infinite Assembly / Spark Permit) already do. Missing this was
+      // a real bug: with Uron out, two rallying minions read as 2 toward "Trigger 7 Rallies" instead of 4
+      // (owner report). Player-only, matching every other quest tally.
+      if (attacker.side === 'player') bumpRally(rallyExtra);
       // The Old Hunt: each Beast attack pumps that SIDE's run-wide Beast Attack aura by `oldHuntStep` — live
       // (every current Beast gains it; later summons inherit via the grown aura). A served enemy pumps its own
       // captured aura; the player also carries the gain back (the enemy has no run to persist to).
@@ -1203,7 +1248,7 @@ export function simulate(
       // magnetize). Fires per hit alongside the onAttack rallies (rallyBuff / rallyProcDeathrattle) above.
       if (attacker.rallyMechAtk && attacker.rallyMechAtk > 0) {
         for (const m of boards[attacker.side]) { // iterate the board directly — no living() array per swing
-          if (!m.dead && m.health > 0 && m !== attacker && (m.tribe === 'mech' || m.tribe2 === 'mech')) {
+          if (!m.dead && m.health > 0 && m !== attacker && (m.tribe === 'mech' || m.tribe2 === 'mech' || !!m.universalTribe)) {
             ctx.buff(m, attacker.rallyMechAtk, 0, 'Better Bot');
           }
         }
@@ -1252,6 +1297,18 @@ export function simulate(
           applyDamage(n, attacker.attack * critMult, poison, false, attacker);
         }
       }
+      // Mauron's splash — ONE adjacent enemy, or BOTH when gilded. Deliberately separate from Cleave (which
+      // always hits both and carries the C badge): same living-order neighbour lookup, narrower by default.
+      if (cards[attacker.cardId]?.splashAdjacent) {
+        const live = boards[defenderSide].filter((m) => !m.dead && m.health > 0);
+        const di = live.indexOf(target);
+        const both = [live[di - 1], live[di + 1]].filter((n): n is Minion => !!n);
+        const hit = attacker.golden ? both : both.slice(0, 1); // ungilded: the first available side
+        for (const n of hit) {
+          victims.push({ m: n, killer: attacker, couldReborn: n.rebornAvailable });
+          applyDamage(n, attacker.attack * critMult, poison, false, attacker);
+        }
+      }
 
       // Snapshot the defender's counter-attack BEFORE the hit. (With two-phase damage a Rise can no longer
       // reset stats mid-exchange — deaths wait for phase 2 — but the snapshot stays as belt-and-braces
@@ -1263,7 +1320,8 @@ export function simulate(
       // Bounty Bot: "immune while attacking" for its first N swings this combat — take no retaliation, and
       // spend one charge of immunity per swing (so it protects the first N attacks, not the first N combats).
       if ((attacker.attackImmuneLeft ?? 0) > 0) {
-        attacker.attackImmuneLeft = attacker.attackImmuneLeft! - 1;
+        // Mauron's immunity never depletes — it is "while attacking", not a charge count.
+        if (!cards[attacker.cardId]?.attackImmuneAlways) attacker.attackImmuneLeft = attacker.attackImmuneLeft! - 1;
       } else {
         victims.push({ m: attacker, killer: target, couldReborn: attacker.rebornAvailable });
         applyDamage(attacker, counterAttack, counterVenom, false, target); // retaliation
@@ -1290,6 +1348,22 @@ export function simulate(
         // the target, not this exchange's `attacker`). So gate on `killer === attacker`.
         if ((m.dead || m.health <= 0 || (couldReborn && !m.rebornAvailable)) && killer === attacker) {
           bus.emit('onKill', { attacker: killer, victim: m });
+          // Uron: your SLAUGHTERS trigger extra times — the killer's own on-kill effects only. The KILL
+          // count (`slaughter`) still counts one, but each re-trigger bumps the "Trigger N Slaughters" tally.
+          const killExtra = extraTriggerFires('slaughter', boards[killer.side].filter((x) => !x.dead && x.health > 0), (id) => cards[id]);
+          const killerHasSlaughter = killer.effects.some((e) => e.on === 'onKill');
+          for (let i = 0; i < killExtra; i++) {
+            for (const effect of killer.effects) {
+              if (effect.on !== 'onKill') continue;
+              FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m });
+            }
+          }
+          // Each Uron re-fire that actually re-triggers a Slaughter EFFECT counts toward "Trigger N Slaughters"
+          // (`slaughterKeyword`) — the kill count (`slaughter`) stays one, owner ruling 2026-07-21: a Slaughter
+          // is a kill, but a Slaughter EFFECT can trigger multiple times. Matches the Rally treatment (#594).
+          if (killExtra > 0 && killerHasSlaughter && killer.side === 'player' && m.side !== killer.side) {
+            for (let i = 0; i < killExtra; i++) bumpSlaughterKeyword();
+          }
           // A player minion felling an enemy by attacking is a "Slaughter" — tally it for the Slaughter quests
           // (credited to the KILLER's tribe for "with Beasts").
           if (m.side !== killer.side) { // this attacker felled an OPPONENT minion — a Slaughter, for whichever side
@@ -1310,22 +1384,29 @@ export function simulate(
             // Law of Teeth: a Beast's Slaughter triggers one extra time — re-run only this killer's own on-kill
             // effects once more (direct call, not via the bus, so other minions' on-kills don't double-fire). Per side.
             if (kmods.lawOfTeeth && killerAlive && isBeast(killer)) {
+              let refired = false;
               for (const effect of killer.effects) {
                 if (effect.on !== 'onKill') continue;
                 FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m });
+                refired = true;
               }
+              // The extra Slaughter EFFECT trigger counts toward "Trigger N Slaughters" (player only).
+              if (refired && killer.side === 'player') bumpSlaughterKeyword();
             }
             // Author's Hand: the FIRST Slaughter each combat fires an extra time (any tribe; additive with Law of
             // Teeth). Re-runs only this killer's own on-kill effects, once per combat. Per side.
             const slfe = kmods.slaughterFirstEachCombat ?? 0;
             if (slfe > 0 && killerAlive && !firstSlaughterDone[killer.side]) {
               firstSlaughterDone[killer.side] = true;
+              const authorsHasSlaughter = killer.effects.some((e) => e.on === 'onKill');
               for (let r = 0; r < slfe; r++) {
                 for (const effect of killer.effects) {
                   if (effect.on !== 'onKill') continue;
                   FACTORIES[effect.do]?.(ctx, killer, effect.params ?? {}, { attacker: killer, victim: m });
                 }
               }
+              // Each extra Slaughter EFFECT trigger counts toward "Trigger N Slaughters" (player only).
+              if (authorsHasSlaughter && killer.side === 'player') for (let r = 0; r < slfe; r++) bumpSlaughterKeyword();
             }
             // Feeding Line (Beast capstone): a Beast's Slaughter gives your NEXT living Beast (in board order,
             // after the killer) an immediate out-of-turn attack — queued like a Twilight Whelp strike and drained
@@ -1504,13 +1585,17 @@ export function simulate(
     }
   }
   for (const side of ['player', 'enemy'] as const) {
-    for (const minion of [...boards[side]]) {
-      if (minion.dead || minion.health <= 0) continue;
-      for (const effect of minion.effects) {
-        if (effect.do === 'scEngraveAll') continue; // already ran in the priority pass above
-        if (effect.on !== 'startOfCombat') continue;
-        const fn = FACTORIES[effect.do];
-        if (fn) { nextStep(); fn(ctx, minion, effect.params ?? {}, {}); }
+    // Uron: Start-of-Combat effects fire extra times. Resolved per SIDE from that side's own board.
+    const scReps = 1 + extraTriggerFires('startOfCombat', boards[side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]);
+    for (let rep = 0; rep < scReps; rep++) {
+      for (const minion of [...boards[side]]) {
+        if (minion.dead || minion.health <= 0) continue;
+        for (const effect of minion.effects) {
+          if (effect.do === 'scEngraveAll') continue; // already ran in the priority pass above
+          if (effect.on !== 'startOfCombat') continue;
+          const fn = FACTORIES[effect.do];
+          if (fn) { nextStep(); fn(ctx, minion, effect.params ?? {}, {}); }
+        }
       }
     }
   }
@@ -1577,7 +1662,7 @@ export function simulate(
         const { minion, side } = payload as { minion: Minion; side: Side };
         if (side !== tSide || transfers <= 0) return;
         if (minion.tribe !== 'mech' && minion.tribe2 !== 'mech') return;
-        const next = boards[tSide].find((m) => !m.dead && m.health > 0 && !m.divineShield && (m.tribe === 'mech' || m.tribe2 === 'mech'));
+        const next = boards[tSide].find((m) => !m.dead && m.health > 0 && !m.divineShield && (m.tribe === 'mech' || m.tribe2 === 'mech' || !!m.universalTribe));
         if (!next) return;
         transfers--;
         nextStep();
@@ -1621,6 +1706,11 @@ export function simulate(
         nextStep();
         if (!rallyFired) { fireTrigger('runeRallying', rside); rallyFired = true; }
         emit({ type: 'sc', source: minion.uid, text: 'Rally' });
+        // A free rally is still a Rally trigger — count it toward Rally quests (Spark Permit, Machine Chorus,
+        // Overclocked Core, Infinite Assembly) and the Author's Hand rally half, exactly like an attack-path
+        // rally does. The Echo sibling above already bumps its tally (`bumpDeathrattles`); this block was the
+        // odd one out (audit 2026-07-21, same class as the Uron rally fix #594). Player-only, like every tally.
+        if (rside === 'player') bumpRally(1);
         if (cardRally) {
           for (const effect of minion.effects) {
             if (effect.on !== 'onAttack') continue;
@@ -1629,7 +1719,7 @@ export function simulate(
         }
         if (mechRally) {
           for (const m of boards[rside]) {
-            if (!m.dead && m.health > 0 && m !== minion && (m.tribe === 'mech' || m.tribe2 === 'mech')) ctx.buff(m, minion.rallyMechAtk!, 0, 'Better Bot');
+            if (!m.dead && m.health > 0 && m !== minion && (m.tribe === 'mech' || m.tribe2 === 'mech' || !!m.universalTribe)) ctx.buff(m, minion.rallyMechAtk!, 0, 'Better Bot');
           }
         }
         if (spellRally) { // Perfect Core → spell to hand: player-only (grantToHand is a no-op for the enemy)
@@ -1723,7 +1813,7 @@ export function simulate(
     if (magnetics.length > 0) {
       bus.on('onLoseDivineShield', (payload) => {
         const { minion, side } = payload as { minion: Minion; side: Side };
-        if (side !== 'player' || !(minion.tribe === 'mech' || minion.tribe2 === 'mech')) return;
+        if (side !== 'player' || !(minion.tribe === 'mech' || minion.tribe2 === 'mech' || !!minion.universalTribe)) return;
         ctx.grantToHand(magnetics[rng.int(magnetics.length)]!.id, 'player', minion.uid);
       });
     }

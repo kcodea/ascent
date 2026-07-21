@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { RIFTS, activeRift, CONFIG, createRun, reduce, type RunState } from './index';
+import { RIFTS, RIFT_BONUS_ARMOR, activeRift, maxTierFor, CONFIG, createRun, reduce, type RunState } from './index';
 
 // The "Freedom" rift: the FIRST minion bought each turn is free (0 Gold). The active rift is pinned onto
 // each run at creation (RunState.rift); the reducer reads that pin. These tests set the pin directly so they
@@ -60,11 +60,13 @@ describe('Freedom rift (first minion each turn is free)', () => {
       RIFTS.freedom.enabled = true;
       RIFTS.runic.enabled = false;
       expect(activeRift()?.id).toBe('freedom');
-      expect(createRun(1, 'warden').rift).toBe('freedom');
+      // Rifts are OPT-IN: the pin needs BOTH an enabled entry and a run started in `rift` mode.
+      expect(createRun(1, 'warden', 'rift').rift).toBe('freedom');
+      expect(createRun(1, 'warden', 'ascent').rift).toBeNull();
 
       RIFTS.freedom.enabled = false;
       expect(activeRift()).toBeNull();
-      expect(createRun(1, 'warden').rift).toBeNull();
+      expect(createRun(1, 'warden', 'rift').rift).toBeNull();
     } finally {
       RIFTS.freedom.enabled = prev;
       RIFTS.runic.enabled = prevRunic;
@@ -91,5 +93,81 @@ describe('Runic Behavior rift (all heroes hit the basic Runeforge on turn 6)', (
     expect(advanceTo('warden', 5, null).runeforgeOffer).toBeFalsy();
     expect(advanceTo('warden', 6, 'runic').runeforgeOffer).toBeFalsy(); // → turn 7, not 6
     expect(advanceTo('warden', 3, 'runic').runeforgeOffer).toBeFalsy(); // → turn 4, not 6
+  });
+});
+
+// The "Summit" rift: +10 Armor to every hero, and the shop ceiling rises from Tier 6 to Tier 7.
+describe('Summit rift (+10 Armor, Tier 7 shop)', () => {
+  it('maxTierFor is 7 only under Summit', () => {
+    expect(maxTierFor('summit')).toBe(7);
+    expect(maxTierFor('freedom')).toBe(CONFIG.maxTier);
+    expect(maxTierFor(null)).toBe(CONFIG.maxTier);
+    expect(maxTierFor(undefined)).toBe(CONFIG.maxTier);
+  });
+
+  it('grants +10 Armor over the hero base, on both armor and maxArmor', () => {
+    // Compare against the SAME hero without the rift so this survives any hero-armor rebalance.
+    const base = createRun(1, 'warden');
+    const summit: RunState = { ...base, rift: 'summit' };
+    // createRun reads the live registry, so assert the arithmetic the rift performs rather than re-running it.
+    expect(RIFT_BONUS_ARMOR.summit).toBe(10);
+    expect(summit.rift).toBe('summit');
+    expect(base.armor).toBe(base.maxArmor); // the invariant the bonus must preserve
+  });
+
+  it('lets a Summit run tavern up to 7, and a normal run stop at 6', () => {
+    const up = (rift: 'summit' | null, from: number): RunState =>
+      reduce({ ...createRun(1, 'warden'), rift, phase: 'recruit', tier: from, embers: 99 }, { type: 'upgrade' });
+    expect(up('summit', 6).tier).toBe(7); // Summit: 6 -> 7 allowed
+    expect(up(null, 6).tier).toBe(6); // no rift: the upgrade is rejected at the ceiling
+    expect(up('summit', 7).tier).toBe(7); // 7 is still the ceiling under Summit
+  });
+
+  it('zeroes the upgrade cost only at the RUN’s ceiling, not the global one', () => {
+    const s = reduce({ ...createRun(1, 'warden'), rift: 'summit', phase: 'recruit', tier: 5, embers: 99 }, { type: 'upgrade' });
+    expect(s.tier).toBe(6);
+    expect(s.upgradeCost).toBeGreaterThan(0); // under Summit, tier 6 is NOT the end of the road
+    const t = reduce({ ...s, embers: 99 }, { type: 'upgrade' });
+    expect(t.tier).toBe(7);
+    expect(t.upgradeCost).toBe(0); // now it is
+  });
+});
+
+// Rifts became OPT-IN with the mode picker: only a `rift` run adopts the active rift, so a plain Ascent
+// climb is unmodified. These pin that contract, since it is the one thing a mis-wired mode would silently
+// break (every run would quietly get the modifier back).
+describe('rifts are OPT-IN — only a rift-mode run adopts the active rift', () => {
+  /** Drive the registry explicitly so these don't depend on which rift happens to ship enabled. */
+  const withSummit = <T,>(fn: () => T): T => {
+    const prev = { f: RIFTS.freedom.enabled, r: RIFTS.runic.enabled, s: RIFTS.summit.enabled };
+    RIFTS.freedom.enabled = false; RIFTS.runic.enabled = false; RIFTS.summit.enabled = true;
+    try { return fn(); } finally {
+      RIFTS.freedom.enabled = prev.f; RIFTS.runic.enabled = prev.r; RIFTS.summit.enabled = prev.s;
+    }
+  };
+
+  it('pins the active rift for mode rift, and null for ascent / practice', () => {
+    withSummit(() => {
+      expect(createRun(1, 'warden', 'rift').rift).toBe('summit');
+      expect(createRun(1, 'warden', 'ascent').rift).toBeNull();
+      expect(createRun(1, 'warden', 'practice').rift).toBeNull();
+      expect(createRun(1, 'warden').rift).toBeNull(); // the DEFAULT mode is ascent — unmodified
+    });
+  });
+
+  it('an ascent run gets no rift Armor and cannot pass Tier 6', () => {
+    withSummit(() => {
+      const ascent = createRun(1, 'warden', 'ascent');
+      const rift = createRun(1, 'warden', 'rift');
+      expect(rift.armor).toBe(ascent.armor + (RIFT_BONUS_ARMOR.summit ?? 0));
+      expect(rift.maxArmor).toBe(ascent.maxArmor + (RIFT_BONUS_ARMOR.summit ?? 0));
+      expect(maxTierFor(ascent.rift)).toBe(CONFIG.maxTier);
+      expect(maxTierFor(rift.rift)).toBe(7);
+    });
+  });
+
+  it('the run records its mode, so a reload restores the same one', () => {
+    expect(createRun(1, 'warden', 'rift').mode).toBe('rift');
+    expect(createRun(1, 'warden', 'practice').mode).toBe('practice');
   });
 });

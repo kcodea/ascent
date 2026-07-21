@@ -69,7 +69,22 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ---
 
+- **Guard the Layout Lab double-source.** Layout values live both as `def:` in `layoutConfig.ts` and as a
+  `var(--z-…, <fallback>)` in `styles.css`; a bake that updates only the def ships the OLD number to
+  production while looking right in dev. Three had silently drifted (`shopUiY`, `shopY`, `wbY`) before an
+  audit caught them on 2026-07-21. A test that parses both and asserts they match would make it impossible.
+
 ## Next
+
+- **Quest-node row can leave the viewport.** The `--qb-*` stage pin uses a large negative Y (−256 ×
+  scale); on a tall/zoomed layout the nodes sit above the top edge. 2026-07-21r clamped the TENDRIL so it
+  still reads, but the nodes themselves being off-screen is the real bug.
+
+- **Finish the quest/rune objective-wiring audit.** 2026-07-21p fixed the recruit-phase TRIGGER
+  tallies (Shout/Echo/EoT) and the `replayBattlecry` callers. Still to sweep: the other ~17 objective events
+  (`buy`, `spendGold`, `summonCombat`, `playAttachment`, `consumeFodder`, …) against every quest/rune reward
+  that can fire them INDIRECTLY — the failure mode is always "the effect fired, the tally didn't see it".
+
 
 - **Set 2 content.** Foundation is in (`docs/card-sets.md`): author cards in `packages/content/src/cards/set2/`,
   list them in `SETS.set2.own`, trim the inherited set-1 pool with `excludes`. Before flipping it live, run
@@ -196,10 +211,36 @@ trigger"; avoid true undo until the rules are sturdier).
   in Settings.
 
 ### UI performance sweep (violates our own banned pattern)
-- Two infinite `box-shadow` keyframe loops break the looping-paint rule: `endpulse` (`.heropowerbtn.ready` +
-  `.endturn-side.urgent`, running most of every shop turn) and `discpulse`. Convert to the approved static-
-  shadow `::before` + opacity pattern (`kwglow` / `tripready`).
-- Autosave is O(n²) (serializes the whole action log every dispatch) — debounce.
+- ~~The turn-charge glyph repaints a large area every frame.~~ **MEASURED 2026-07-19 — NOT a problem. Do not
+  "optimize" it.** The suspicion (per-frame `--charge` → `mask-image` recompute = a paint, plus the two
+  40px/80px `drop-shadow`s the CSS comment already fingered as "the heaviest bit") was tested with an isolated
+  A/B/C harness reproducing the real construction: the actual `turn-glyph.svg`, real 1144×449 geometry,
+  SVG∩gradient `mask-composite: intersect`, and the real drop-shadows. Four variants, interleaved, twice each,
+  on a 360Hz display:
+
+  | variant | median frame | frames >4.16ms |
+  |---|---|---|
+  | idle (control, nothing animating) | 2.8ms | 0 |
+  | **shipped** (SVG∩gradient + both drop-shadows) | **2.8ms** | 0 |
+  | noGlow (same, drop-shadows removed) | 2.8ms | 0 |
+  | transform (static mask, transform-only — the proposed "fix") | 2.8ms | 4 |
+
+  Every variant pins to the refresh interval (2.8ms ≈ 1000/360). The glyph sustains ~360fps with **zero**
+  frames over the 240Hz budget, and removing the drop-shadows changes nothing — so the CSS comment's
+  hypothesis is also disproven. The proposed transform rewrite was, if anything, the *worst* variant on
+  outliers. **Caveat:** the harness is refresh-capped, so it proves "none of these threaten the budget," not
+  "they cost the same" — it cannot resolve sub-2.8ms differences. It also isolates the glyph from the card
+  tree. But the isolated cost is so far under budget that it is not a plausible dominant term.
+  Harness: `fx/` — rebuild from the devlog entry if needed.
+- `ChargeMotes` runs a second continuous per-frame canvas loop for the whole charge session. Untested; but
+  given the glyph result, measure before assuming it costs anything.
+- Drag re-renders all of `Recruit` (3,582 lines) once per rAF via `setDrag`/`setOverZone`. Correctly
+  throttled and rect-cached, but `Card` uses **default shallow memo** (unlike `Unit`'s value comparator), so
+  it depends on the parent keeping every prop referentially stable — silent to regress. Consider a value
+  comparator if a profile shows cards reconciling mid-drag.
+- ~~Autosave is O(n²) (serializes the whole action log every dispatch) — debounce.~~ Shipped: it now writes
+  at turn boundaries only, with a `flushSave` on quit-to-title + tab hide/close. NOT debounced — a timer
+  would only have guessed at the commitment point the phase flip already marks exactly.
 - Combat replay: 55–86ms synchronous-React-render freezes on some summon/death beats (FX/Pixi/GPU/layout/GC
   all ruled ~0 — it's per-beat render/reconciliation). Profile the flame chart, memoize `computeFrame` + the
   growing per-beat event-log scans. Cheap adjacent win: `syncShields` calls `getBoundingClientRect` per aura

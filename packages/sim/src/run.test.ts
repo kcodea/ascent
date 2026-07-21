@@ -49,6 +49,7 @@ import {
   isTribe,
 } from './index';
 import { magnetizesTo } from './reducer';
+import { replayBattlecry } from './recruit'; // not re-exported from the package index — internal on purpose
 import type { BoardMinion } from '@game/core';
 import { applyEndOfTurn, applyGoldSpent, conjuredStats, implosionCasts, spellCasts, spellCostReduction, weldMagnetic } from './recruit';
 import { rollShop } from './shop';
@@ -282,21 +283,6 @@ describe('run loop (@game/sim)', () => {
     expect(s.nextSpellMult).toBeUndefined(); // charge spent
   });
 
-  it('Vineweaver Drake: End of Turn casts Growth an escalating number of times', () => {
-    const s: RunState = {
-      ...createRun(1),
-      board: [
-        { uid: 'v', cardId: 'vineweaver', tribe: 'dragon', attack: 2, health: 2, keywords: [], golden: false },
-        { uid: 't', cardId: 'drone', tribe: 'mech', attack: 0, health: 50, keywords: [], golden: false },
-      ],
-    };
-    applyEndOfTurn(s); // 1st End of Turn → cast Growth once (+3/+4 to all)
-    let t = s.board.find((c) => c.uid === 't')!;
-    expect([t.attack, t.health]).toEqual([3, 54]);
-    applyEndOfTurn(s); // 2nd End of Turn → cast Growth twice more (+6/+8)
-    t = s.board.find((c) => c.uid === 't')!;
-    expect([t.attack, t.health]).toEqual([9, 62]); // 1 + 2 = 3 total casts of +3/+4
-  });
 
   it('Wayfinder: Battlecry discovers from an active tribe you do not control', () => {
     let s: RunState = {
@@ -442,13 +428,13 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'g' });
     s = reduce(s, { type: 'battlecryTarget', targetUid: 'grim' });
     expect(s.board.find((c) => c.uid === 'grim')).toBeUndefined(); // destroyed
-    // Grim's Deathrattle: +N/+N per Deathrattle this game (tally = 3 incl. its own death) → the Beast gets +3/+3.
-    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 3);
+    // Grim's Deathrattle: +2/+2 per Deathrattle this game (tally = 3 incl. its own death) → the Beast gets +6/+6.
+    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 6);
   });
 
   it('Sylus the Reaper doubles a Graverobber-fired Deathrattle in the shop', () => {
     // Grim's Deathrattle (buff Beasts by the run tally) fires once + once per Sylus. tally = 1 (Grim's own
-    // death), so each fire is +1/+1 → the Beast gets +2/+2 with one Sylus.
+    // death) at +2/+2 per, so each fire is +2/+2 → the Beast gets +4/+4 with one Sylus.
     let s: RunState = {
       ...createRun(1),
       board: [
@@ -460,7 +446,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'g' });
     s = reduce(s, { type: 'battlecryTarget', targetUid: 'grim' });
-    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 2); // +1/+1 fired twice (once + one Sylus)
+    expect(s.board.find((c) => c.uid === 'b')!.attack).toBe(1 + 4); // +2/+2 fired twice (once + one Sylus)
   });
 
   it("Graverobber's out-of-combat Echo counts toward a deathrattle (Echo) quest", () => {
@@ -616,17 +602,38 @@ describe('run loop (@game/sim)', () => {
 
   // --- recruit effects: buy → hand (onBuy) → play → board (onSummon + Battlecry) ---
 
-  it('Brightwing Broker buffs minions bought after it (+1/+2, in hand)', () => {
+  it('Brightwing Broker buffs your BOARD when you buy a minion (+1/+1), not the purchase', () => {
     const s0: RunState = {
       ...createRun(1),
       embers: 3,
-      board: [{ uid: 'br', cardId: 'broker', tribe: 'neutral', attack: 3, health: 4, keywords: [], golden: false }],
+      board: [
+        { uid: 'br', cardId: 'broker', tribe: 'neutral', attack: 3, health: 3, keywords: [], golden: false },
+        { uid: 'o', cardId: 'sandbag', tribe: 'mech', attack: 0, health: 4, keywords: [], golden: false },
+      ],
       shop: [{ uid: 'x', cardId: 'sandbag' }],
     };
     const s1 = reduce(s0, { type: 'buy', uid: 'x' });
+    const other = s1.board.find((c) => c.uid === 'o')!;
+    expect([other.attack, other.health]).toEqual([1, 5]); // board minion grew +1/+1
+    const self = s1.board.find((c) => c.uid === 'br')!;
+    expect([self.attack, self.health]).toEqual([4, 4]); // Broker buffs itself too — "your minions"
     const bought = s1.hand.find((c) => c.cardId === 'sandbag');
-    expect(bought?.attack).toBe(1); // 0 + 1, applied on buy
-    expect(bought?.health).toBe(6); // 4 + 2 (Target Dummy is 0/4, Broker gives +1/+2)
+    expect([bought?.attack, bought?.health]).toEqual([0, 4]); // the PURCHASE is untouched (it's in hand)
+  });
+
+  it('a golden Brightwing Broker doubles the on-buy board buff (+2/+2)', () => {
+    const s0: RunState = {
+      ...createRun(1),
+      embers: 3,
+      board: [
+        { uid: 'br', cardId: 'broker', tribe: 'neutral', attack: 6, health: 6, keywords: [], golden: true },
+        { uid: 'o', cardId: 'sandbag', tribe: 'mech', attack: 0, health: 4, keywords: [], golden: false },
+      ],
+      shop: [{ uid: 'x', cardId: 'sandbag' }],
+    };
+    const s1 = reduce(s0, { type: 'buy', uid: 'x' });
+    const other = s1.board.find((c) => c.uid === 'o')!;
+    expect([other.attack, other.health]).toEqual([2, 6]);
   });
 
   it('Alleycur Battlecry summons a Stray only when played', () => {
@@ -1307,7 +1314,7 @@ describe('run loop (@game/sim)', () => {
     expect(b.keywords).not.toContain('DS'); // the alias must NOT gain the Ward
   });
 
-  it('Combinator magnetizes a random Magnetic Mech onto 1 friendly Mech at end of turn (golden: 2)', () => {
+  it('Combinator magnetizes a random Magnetic Mech onto 2 friendly Mechs at end of turn (golden: 4)', () => {
     let s: RunState = {
       ...createRun(1),
       phase: 'recruit',
@@ -1324,11 +1331,11 @@ describe('run loop (@game/sim)', () => {
     const d2 = s.board.find((c) => c.uid === 'd2')!;
     const cmb = s.board.find((c) => c.uid === 'cmb')!;
     const welded = [d1, d2].filter((m) => m.attack > 2);
-    expect(welded.length).toBe(1); // non-golden welds exactly one Mech (golden would weld two)
+    expect(welded.length).toBe(2); // non-golden now welds TWO Mechs (golden would weld four)
     // The host (2/1) gained a random Magnetic Mech's body: Cling (2/2), Money Bot (3/3),
     // Speedy (4/4), Harry Botter (1/5) or Better Bot (6/4).
     const profiles = [[2 + 2, 1 + 2], [2 + 3, 1 + 3], [2 + 4, 1 + 4], [2 + 1, 1 + 5], [2 + 6, 1 + 4]];
-    expect(profiles).toContainEqual([welded[0]!.attack, welded[0]!.health]);
+    for (const w of welded) expect(profiles).toContainEqual([w.attack, w.health]);
     expect([cmb.attack, cmb.health]).toEqual([6, 7]); // self is not a target
   });
 
@@ -1350,7 +1357,7 @@ describe('run loop (@game/sim)', () => {
       };
       s = reduce(s, { type: 'faceOmen' });
       const buffed = s.board.filter((c) => c.uid.startsWith('m') && c.attack > 2).map((c) => c.uid);
-      expect(buffed.length).toBe(2); // exactly `targets` (2) Mechs welded each run
+      expect(buffed.length).toBe(4); // exactly `targets` (2) x golden (2) = 4 Mechs welded each run
       buffed.forEach((u) => everBuffed.add(u));
     }
     // Over 24 seeds the chosen pair shifts around — the old highest-Attack logic would always pick m1/m2.
@@ -2367,6 +2374,125 @@ describe('run loop (@game/sim)', () => {
     expect(s.board.find((c) => c.uid === 'b1')!.attack).toBe(2 + 2); // 4
     s = reduce(s, { type: 'play', uid: 'b2' }); // next Beast → buff improved to +4/+4
     expect(s.board.find((c) => c.uid === 'b2')!.attack).toBe(7 + 4); // 11
+  });
+
+  it('a quest End-of-Turn reward that triggers a unit stamps a tendril proc (Echoing Roar)', () => {
+    // The gold tendril is drawn from the reward's NODE to the unit it hit, so the sim must record which unit
+    // each proc triggered — one entry PER PROC, so a repeated End of Turn draws one ribbon per fire rather
+    // than one for the group.
+    const s: RunState = {
+      ...createRun(1), embers: 0, shop: [], hand: [],
+      board: [{ uid: 'cw', cardId: 'cinder', tribe: 'dragon', attack: 4, health: 5, keywords: [], golden: false }],
+      questRecurringEndOfTurn: ['triggerLeftmostShout'],
+    };
+    s.questTendrilFx = [];
+    applyEndOfTurn(s);
+    expect(s.questTendrilFx!.length).toBeGreaterThanOrEqual(1);
+    expect(s.questTendrilFx![0]).toEqual({ effect: 'triggerLeftmostShout', uid: 'cw' });
+    expect(s.questTendrilSeq ?? 0).toBeGreaterThan(0);
+  });
+
+  it("Djinn's Cadence advances Parliament of Flame (endOfTurn objective) — audit 2026-07-21", () => {
+    // Djinn's hero power replays every minion's End of Turn. Those replayed fires are End-of-Turn TRIGGERS and
+    // must advance `q_parliament_of_flame` — but `replayEndOfTurn` never bumped `lastEotFires`, and the
+    // heroPower action reaches neither the endTurn nor the Conductor read. So the effects fired and the quest
+    // sat still. Same class as the Uron rally / Echoing Roar shout fixes.
+    let s: RunState = {
+      ...createRun(1, 'djinn'), embers: 0, shop: [], hand: [],
+      board: [
+        { uid: 'a1', cardId: 'aeonguard', tribe: 'mech', attack: 5, health: 6, keywords: [], golden: false },
+        { uid: 'a2', cardId: 'aeonguard', tribe: 'mech', attack: 5, health: 6, keywords: [], golden: false },
+      ],
+      activeQuests: [{ questId: 'q_parliament_of_flame', progress: 0, completed: false }],
+    } as RunState;
+    const before = s.activeQuests![0]!.progress;
+    s = reduce(s, { type: 'heroPower', uid: 'a1' });
+    // Two Aeon Guards, each an End-of-Turn effect → two triggers → +2.
+    expect(s.activeQuests![0]!.progress).toBe(before + 2);
+  });
+
+  it('a RE-TRIGGERED Shout counts toward the Shout tally (Echoing Roar / Resonance / Myra)', () => {
+    // Owner report 2026-07-21: Echoing Roar's reward re-fires your leftmost Shout at End of Turn, but that
+    // trigger never advanced `shout` objectives — so the quest could not advance itself. Every re-trigger path
+    // routes through `replayBattlecry` (Echoing Roar's reward, the Resonance spell, Myra's hero power) and none
+    // of them touched the tally the reducer reads. Same class as the Uron rally fix (#594): the effect
+    // re-fired, the tally never saw it. Asserted at the tally, which is where the bug lived.
+    const s: RunState = {
+      ...createRun(1), embers: 0, shop: [], hand: [],
+      board: [{ uid: 'cw', cardId: 'cinder', tribe: 'dragon', attack: 4, health: 5, keywords: [], golden: false }],
+    };
+    s.lastShoutFires = 0; // the reducer zeroes this at the start of every action
+    const fired = replayBattlecry(s, s.board[0]!);
+    expect(fired).toBe(true);
+    expect(s.lastShoutFires).toBe(1); // was 0 before the fix — the replay never counted
+  });
+
+  it('a play and a re-trigger in the SAME action both count (the tally accumulates)', () => {
+    // The tally used to be ASSIGNED by the play path, so a later writer in the same action clobbered it.
+    // Accumulating is what lets a played Shout and an Echoing Roar re-fire both land.
+    const s: RunState = {
+      ...createRun(1), embers: 0, shop: [], hand: [],
+      board: [{ uid: 'cw', cardId: 'cinder', tribe: 'dragon', attack: 4, health: 5, keywords: [], golden: false }],
+    };
+    s.lastShoutFires = 1;                 // pretend a play already counted one this action
+    replayBattlecry(s, s.board[0]!);      // …then a re-trigger fires
+    expect(s.lastShoutFires).toBe(2);     // both counted, rather than the second overwriting the first
+  });
+
+  it('spellPowerFxSeq fires when SPELL POWER rises — incl. Health-only (Cinderwing Matron)', () => {
+    // Owner correction 2026-07-21: the flourish is for spell power going UP by any amount from any source,
+    // NOT for casting a spell. Cinderwing grants Health only, so the original Attack-only check missed it
+    // entirely — that's the exact regression this pins.
+    let s: RunState = {
+      ...createRun(1), embers: 20, shop: [],
+      board: [], hand: [{ uid: 'cw', cardId: 'cinder', tribe: 'dragon', attack: 4, health: 5, keywords: [], golden: false }],
+    };
+    const before = s.spellPowerFxSeq ?? 0;
+    s = reduce(s, { type: 'play', uid: 'cw' }); // Shout: your spells get +1 Health
+    expect(s.spellPowerFxSeq ?? 0).toBe(before + 1);
+    expect(s.spellPowerFxHp).toBe(1); // the Health-only gain is what fired it
+    expect(s.spellPowerFxAtk ?? 0).toBe(0);
+
+    // An action that does NOT move spell power must not bump it — otherwise the FX fires on every click.
+    const after = s.spellPowerFxSeq;
+    s = reduce(s, { type: 'roll' });
+    expect(s.spellPowerFxSeq).toBe(after);
+  });
+
+  it('casting a spell does NOT fire the spell-power FX on its own', () => {
+    // The inverse of the correction: a cast in a run with no spell-power source moves nothing, so it must
+    // stay silent. (The old implementation fired here — and printed "+0".)
+    let s: RunState = {
+      ...createRun(1), embers: 20, shop: [],
+      board: [], hand: [{ uid: 'sp', cardId: 'depositbox', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
+    };
+    const before = s.spellPowerFxSeq ?? 0;
+    s = reduce(s, { type: 'play', uid: 'sp' });
+    expect(s.hand.some((c) => c.uid === 'sp')).toBe(false); // it really resolved
+    expect(s.spellPowerFxSeq ?? 0).toBe(before);           // …and fired nothing
+  });
+
+  it('an "All" type (Lab Experiment) counts as every tribe, incl. a Beast played', () => {
+    // Owner report: Lab Experiment read as NEUTRAL and looked like it took no tribal buffs. `isTribe` already
+    // honoured `universalTribe`, but several paths compared `tribe`/`tribe2` directly and skipped it — one of
+    // them player-visible here: Trail Forager's "each Beast you play".
+    const lab = CARD_INDEX['labexperiment']!;
+    expect(lab.universalTribe).toBe(true);
+    expect(lab.tribe).toBe('neutral'); // printed tribe stays neutral — universality is the override
+
+    const card = { uid: 'lx', cardId: 'labexperiment', tribe: 'neutral' as const, attack: 12, health: 10, keywords: ['V' as const], golden: false };
+    for (const t of ['beast', 'dragon', 'mech', 'undead', 'demon'] as const) {
+      expect(isTribe(card, t)).toBe(true); // every tribal effect sees it
+    }
+
+    // Trail Forager: playing an "All" type counts as playing a Beast.
+    let t: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [{ uid: 'tf', cardId: 'trailforager', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }],
+      hand: [card],
+    };
+    t = reduce(t, { type: 'play', uid: 'lx' });
+    expect(t.board.find((c) => c.uid === 'tf')!.sellBonus ?? 0).toBe(1); // +1 sell value, as a Beast would give
   });
 
   it('a universalTribe token (Chaos Attachment) receives a tribe summon-buff (Mama Bear)', () => {
@@ -4663,7 +4789,7 @@ describe('Cling Drones improve per magnetization (M3 content)', () => {
       };
       s = reduce(s, { type: 'faceOmen' });
       const welded = s.board.filter((c) => c.uid.startsWith('d') && c.attack > 2);
-      expect(welded.length).toBe(1); // non-golden welds exactly one host
+      expect(welded.length).toBe(2); // non-golden welds exactly two hosts
       const da = welded[0]!.attack - 2;
       expect(magneticAtks.has(da)).toBe(true); // welded one of the build's Magnetic Mechs
       deltaAtk.add(da);

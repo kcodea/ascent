@@ -11,6 +11,27 @@ const run = (p: BoardMinion[], e: BoardMinion[], seed: number, enemyTier = 1, pl
   simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: playerTier, tribes: playerTribes }), combatSide({ tier: enemyTier }));
 
 describe('simulate (handoff A.3)', () => {
+
+  it("Anubis's Echo TELEGRAPHS its Rise grant and its Lantern cast", () => {
+    // Owner report 2026-07-21: "none of my minions got Rise, and I couldn't tell if Lantern was cast."
+    // Both effects were firing correctly in sim state — they were just invisible. The Rise grant logged
+    // narration but no `keyword` event, which is what puts the PILL on the unit (every other Rise grant
+    // emits one), and the Lantern cast emitted buffs with no narration at all.
+    const p: BoardMinion[] = [
+      { cardId: 'anubis', attack: 8, health: 5 },
+      { cardId: 'sandbag', attack: 0, health: 50 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 40, health: 60 }];
+    const r = simulate(p, e, makeRng(3), CARD_INDEX,
+      combatSide({ tier: 7, tribes: ALL_TRIBES }), combatSide({ tier: 7 }));
+    // The Rise PILL — a `keyword` event, not just log text.
+    const riseGrants = r.events.filter((ev) => ev.type === 'keyword' && ev.keyword === 'R');
+    expect(riseGrants.length).toBeGreaterThan(0);
+    // The Lantern cast names itself, so the player can see WHICH spell fired.
+    const lantern = r.events.some((ev) => ev.type === 'sc' && /casts Lantern of Souls/.test(ev.text));
+    expect(lantern).toBe(true);
+  });
+
   it('is deterministic for the same seed', () => {
     const p: BoardMinion[] = [
       { cardId: 'pack', attack: 2, health: 2 },
@@ -139,15 +160,39 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'R' && ev.target === soulsmanUid)).toBe(true);
   });
 
-  it("Arena Heckler Start of Combat gives the enemy's rightmost minion Taunt", () => {
-    const p: BoardMinion[] = [{ cardId: 'arenaheckler', attack: 2, health: 40 }];
+  it('Arena Heckler Start of Combat taunts the minion OPPOSITE it (same index), not the rightmost', () => {
+    // Heckler sits at index 1, so the enemy at index 1 is taunted and index 0 (the old "rightmost"-style
+    // pick would have hit index 2) is left alone.
+    const p: BoardMinion[] = [
+      { cardId: 'omen', attack: 1, health: 40 },
+      { cardId: 'arenaheckler', attack: 2, health: 40 },
+    ];
     const e: BoardMinion[] = [
       { cardId: 'sandbag', attack: 1, health: 40 },
-      { cardId: 'omen', attack: 1, health: 40 }, // rightmost → gets Taunt
+      { cardId: 'omen', attack: 1, health: 40 }, // index 1 -> opposite the Heckler
+      { cardId: 'omen', attack: 1, health: 40 }, // index 2 -> rightmost, must NOT be taunted
     ];
     const r = run(p, e, 3);
-    const rightmost = r.initial.enemy[r.initial.enemy.length - 1]!.uid;
-    expect(r.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'T' && ev.target === rightmost)).toBe(true);
+    const tauntedT = (i: number) => {
+      const uid = r.initial.enemy[i]!.uid;
+      return r.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'T' && ev.target === uid);
+    };
+    expect(tauntedT(1)).toBe(true);
+    expect(tauntedT(2)).toBe(false); // the rightmost is no longer the target
+    expect(tauntedT(0)).toBe(false);
+  });
+
+  it('a golden Arena Heckler also taunts an ADJACENT minion', () => {
+    const p: BoardMinion[] = [{ cardId: 'arenaheckler', attack: 2, health: 40, golden: true }];
+    // NOT Target Dummy — it already carries Taunt, so it would be skipped and the count would read 1.
+    const e: BoardMinion[] = [
+      { cardId: 'omen', attack: 1, health: 40 }, // index 0 -> opposite
+      { cardId: 'omen', attack: 1, health: 40 }, // index 1 -> the adjacent one
+      { cardId: 'omen', attack: 1, health: 40 },
+    ];
+    const r = run(p, e, 3);
+    const taunts = r.events.filter((ev) => ev.type === 'keyword' && ev.keyword === 'T');
+    expect(taunts.length).toBe(2);
   });
 
   it('Gravetwin: its copied Echo procs when it DIES in combat (owner bug 2026-07-13)', () => {
@@ -680,38 +725,38 @@ describe('simulate (handoff A.3)', () => {
     expect(packCopies).toBe(0); // board stayed full → the deferred copy never reclaims a slot
   });
 
-  it('Nanon Deathrattle: with room, all 6 Nanobots summon and no overflow buff fires', () => {
-    // Nanon alone → its death leaves an empty board, so all 6 Nanobots fit (0 overflow → no buff).
+  it('Nanon Deathrattle: with room, all 5 Nanobots summon and no overflow buff fires', () => {
+    // Nanon alone → its death leaves an empty board, so all 5 Nanobots fit (0 overflow → no buff).
     const p: BoardMinion[] = [{ cardId: 'nanon', attack: 1, health: 1 }];
     const r = run(p, [{ cardId: 'sandbag', attack: 5, health: 50 }], 1);
-    expect(r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'nanobot').length).toBe(6);
+    expect(r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'nanobot').length).toBe(5);
     expect(r.events.filter((ev) => ev.type === 'buff' && ev.source === 'Nanon').length).toBe(0);
   });
 
   it('Nanon Deathrattle: on a full board the overflow Nanobots pump your Mechs (+2/+2 each)', () => {
     // Nanon (front, 1 hp) dies first; 6 tanky Mechs remain → only 1 Nanobot fits the freed slot, the other
-    // 5 overflow → every Mech gets +10/+10 (5 overflow × +2/+2).
+    // 4 overflow → every Mech gets +8/+8 (4 overflow × +2/+2). Count is 5 as of the 2026-07-21 trim.
     const p: BoardMinion[] = [
       { cardId: 'nanon', attack: 1, health: 1 },
       ...Array.from({ length: 6 }, () => ({ cardId: 'drone', attack: 1, health: 50 })),
     ];
     const r = run(p, [{ cardId: 'sandbag', attack: 5, health: 300 }], 1);
     expect(r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'nanobot').length).toBe(1);
-    // 5 overflow × +2/+2 = +10/+10 to each Mech (the only buffs this fight).
-    const buffs = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 10 && ev.health === 10);
+    // 4 overflow × +2/+2 = +8/+8 to each Mech (the only buffs this fight).
+    const buffs = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 8 && ev.health === 8);
     expect(buffs.length).toBeGreaterThan(0);
   });
 
   it('a golden Nanon doubles the overflow buff (+4/+4 each), summon count unchanged', () => {
-    // Same full board → still 5 overflow (golden does NOT summon more), but each Mech gets +20/+20 (5 × +4/+4).
+    // Same full board → still 4 overflow (golden does NOT summon more), but each Mech gets +16/+16 (4 × +4/+4).
     const p: BoardMinion[] = [
       { cardId: 'nanon', attack: 1, health: 1, golden: true },
       ...Array.from({ length: 6 }, () => ({ cardId: 'drone', attack: 1, health: 50 })),
     ];
     const r = run(p, [{ cardId: 'sandbag', attack: 5, health: 300 }], 1);
     expect(r.events.filter((ev) => ev.type === 'summon' && ev.minion.cardId === 'nanobot').length).toBe(1);
-    const buffs = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 20 && ev.health === 20);
-    expect(buffs.length).toBeGreaterThan(0); // +20/+20 confirms golden keeps 6 summons (5 overflow × +4/+4)
+    const buffs = r.events.filter((ev) => ev.type === 'buff' && ev.attack === 16 && ev.health === 16);
+    expect(buffs.length).toBeGreaterThan(0); // +16/+16 confirms golden keeps 5 summons (4 overflow × +4/+4)
   });
 
 
@@ -1452,7 +1497,7 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((e) => e.type === 'summon' && e.minion.cardId === 'stray')).toBe(true);
   });
 
-  it('a golden Ryme re-fires BOTH adjacent Battlecries', () => {
+  it('a golden Ryme re-fires BOTH adjacent Battlecries TWICE each', () => {
     const r = run(
       [
         { cardId: 'alley', attack: 0, health: 100 },
@@ -1462,7 +1507,7 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 50, health: 400, keywords: [] }],
       1,
     );
-    expect(r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'stray').length).toBe(2);
+    expect(r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'stray').length).toBe(4); // 2 neighbours x golden 2
   });
 
   it("Ryme's Deathrattle fires battlecryTriggered → Karwind buffs the Dragons (+1/+2), with an sc narration", () => {
@@ -1480,7 +1525,8 @@ describe('simulate (handoff A.3)', () => {
     expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true); // Karwind procced (+2/+2)
   });
 
-  it('a golden Ryme + Drakko triggers both neighbours twice each (4 triggers → Karwind 4×)', () => {
+
+  it('a golden Ryme + Drakko triggers both neighbours 4x each (8 triggers → Karwind 8×)', () => {
     const r = run(
       [
         { cardId: 'alley', attack: 0, health: 100 },
@@ -1493,10 +1539,10 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 50, health: 4000, keywords: [] }],
       1,
     );
-    // 2 neighbours × 2 (Drakko) = 4 triggers — one sc narration each.
-    expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(4);
-    // Karwind procs once per trigger → +2/+2 to both Dragons (Karwind + Hoard Cleric), 4× = 8 buff events.
-    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 2 && e.health === 2).length).toBe(8);
+    // 2 neighbours × 2 (golden Ryme) × 2 (Drakko) = 8 triggers — one sc narration each.
+    expect(r.events.filter((e) => e.type === 'sc' && /triggers/.test(e.text)).length).toBe(8);
+    // Karwind procs once per trigger → +2/+2 to both Dragons (Karwind + Hoard Cleric), 8× = 16 buff events.
+    expect(r.events.filter((e) => e.type === 'buff' && e.attack === 2 && e.health === 2).length).toBe(16);
   });
 
   it("Bane reacting to Ryme's battlecry trigger carries the Fodder enchant back to the run", () => {
@@ -1694,14 +1740,14 @@ describe('simulate (handoff A.3)', () => {
   });
 
   it('a golden Sylus procs a Deathrattle two extra times, and Sylus stacks', () => {
-    // Use a buff Deathrattle (Grim: Beasts +1/+1 per Deathrattle this game — here just Grim itself, so
-    // +1) so the proc count is the number of buff events — no board-cap interference. Only the Alleycat
+    // Use a buff Deathrattle (Grim: Beasts +2/+2 per Deathrattle this game — here just Grim itself, so
+    // +2) so the proc count is the number of buff events — no board-cap interference. Only the Alleycat
     // is a living Beast to buff.
     const procs = (board: BoardMinion[]): number =>
       run(board, [{ cardId: 'omen', attack: 1, health: 200 }], 1).events.filter(
-        (e) => e.type === 'buff' && e.attack === 1,
+        (e) => e.type === 'buff' && e.attack === 2,
       ).length;
-    const grim = { cardId: 'grim', attack: 1, health: 1 }; // Deathrattle: Beasts +1/+1 per Deathrattle this game
+    const grim = { cardId: 'grim', attack: 1, health: 1 }; // Deathrattle: Beasts +2/+2 per Deathrattle this game
     const carry = { cardId: 'alley', attack: 2, health: 50 }; // surviving Beast
     expect(procs([grim, carry, { cardId: 'sylus', attack: 1, health: 50, golden: true }])).toBe(3); // 1 + 2 golden
     expect(
@@ -1736,7 +1782,7 @@ describe('simulate (handoff A.3)', () => {
 
   it('Grim buffs Beasts summoned *after* it dies — a persistent aura, not a one-time buff', () => {
     // Grim dies on its first swing (1 HP → retaliation) and registers a Beast aura sized to its tally
-    // (here +1/+1: just Grim's own Deathrattle counts so far). Mama Pup outlives it, then dies and summons
+    // (here +2/+2: just Grim's own Deathrattle counts so far, at +2/+2 per). Mama Pup outlives it, then dies and summons
     // 2 Pups — and though they're summoned *after* Grim is gone, the aura still catches them. Isolates the
     // aura: a one-time "buff living Beasts" could never reach a minion that didn't exist yet.
     const p: BoardMinion[] = [
@@ -1754,14 +1800,14 @@ describe('simulate (handoff A.3)', () => {
     expect(latePups.length).toBeGreaterThan(0); // Pups summoned strictly after Grim died
     for (const { ev } of latePups) {
       const uid = ev.type === 'summon' ? ev.minion.uid : '';
-      const gotAura = a.events.some((b) => b.type === 'buff' && b.target === uid && b.attack === 1 && b.health === 1);
+      const gotAura = a.events.some((b) => b.type === 'buff' && b.target === uid && b.attack === 2 && b.health === 2);
       expect(gotAura).toBe(true);
     }
   });
 
-  it('Grim scales +1/+1 per Deathrattle triggered this game (run-wide base + this combat)', () => {
+  it('Grim scales +2/+2 per Deathrattle triggered this game (run-wide base + this combat)', () => {
     // A run that has already seen 5 Deathrattles (the run-wide base); this fight Grim dies (1 more) →
-    // tally 6 → the surviving Beast gets +6/+6.
+    // tally 6 at +2/+2 per → the surviving Beast gets +12/+12.
     const p: BoardMinion[] = [
       { cardId: 'grim', attack: 1, health: 1, sourceUid: 'G' },
       { cardId: 'alley', attack: 2, health: 80, sourceUid: 'C' }, // surviving Beast (no Deathrattle)
@@ -1769,7 +1815,7 @@ describe('simulate (handoff A.3)', () => {
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 300 }];
     const a = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ deathrattles: 5 })); // deathrattles = run-wide Deathrattle base
     const allyUid = a.initial.player.find((m) => m.cardId === 'alley')!.uid;
-    expect(a.events.some((ev) => ev.type === 'buff' && ev.target === allyUid && ev.attack === 6 && ev.health === 6)).toBe(true);
+    expect(a.events.some((ev) => ev.type === 'buff' && ev.target === allyUid && ev.attack === 12 && ev.health === 12)).toBe(true);
   });
 
   it('Gnasher: each kill permanently raises run-wide spell power (+1/+1)', () => {
@@ -1944,6 +1990,28 @@ describe('simulate (handoff A.3)', () => {
     );
     expect(a.playerQuestTally?.slaughter).toBe(2); // both kills count for the "Kill N enemies" objective…
     expect(a.playerQuestTally?.slaughterKeyword).toBe(1); // …but only Karthus's for "Trigger N Slaughters"
+  });
+
+  it('a Slaughter doubler (Law of Teeth) counts the extra TRIGGER but not the kill (owner ruling 2026-07-21)', () => {
+    // A Slaughter is a kill (one per kill), but a Slaughter EFFECT can trigger multiple times. Law of Teeth
+    // fires a Beast's on-kill an extra time; that extra trigger counts toward "Trigger N Slaughters"
+    // (`slaughterKeyword`), NOT toward "Kill N enemies" (`slaughter`). No card feeds the Uron slaughter
+    // multiplier today, so Law of Teeth is the live path.
+    const sim = (mods = {}) => simulate(
+      [
+        { cardId: 'gnash', attack: 10, health: 50 }, // Beast with an on-kill (Slaughter) effect
+        { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] as Keyword[] },
+      ],
+      [{ cardId: 'omen', attack: 0, health: 1 }],
+      makeRng(1), CARD_INDEX,
+      combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide(),
+    );
+    const withLaw = sim({ lawOfTeeth: true });
+    const without = sim({});
+    // One kill either way — the kill count is unchanged.
+    expect(withLaw.playerQuestTally?.slaughter).toBe(without.playerQuestTally?.slaughter);
+    // …but the extra Slaughter EFFECT trigger bumps the "Trigger N Slaughters" tally.
+    expect((withLaw.playerQuestTally?.slaughterKeyword ?? 0)).toBe((without.playerQuestTally?.slaughterKeyword ?? 0) + 1);
   });
 
   it('Bloodlust: a marked minion takes an immediate immune attack at Start of Combat', () => {
@@ -3183,6 +3251,18 @@ describe('Rune of Rallying (Start of Combat: trigger your rallies)', () => {
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 1 }];
     expect(simMods(p, e, 1, { runeRallying: true }).events.some((ev) => ev.type === 'sc' && ev.text === 'Rally')).toBe(false);
   });
+
+  it('counts the free rally toward the Rally quest tally (audit 2026-07-21)', () => {
+    // Rune of Rallying fires a free rally at Start of Combat; that fire must advance Rally quests (Spark
+    // Permit, Machine Chorus, …) exactly like an attack-path rally. It emitted the pip + effect but never
+    // bumped `playerRallies` — the Echo sibling in the same block already bumped its tally.
+    const p: BoardMinion[] = [{ cardId: 'philippe', attack: 4, health: 20 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }];
+    const withRune = simMods(p, e, 2, { runeRallying: true });
+    const without = simMods(p, e, 2, {});
+    // Rally surfaces as `playerRallies`. The rune adds exactly one extra (the free SoC fire) over baseline.
+    expect((withRune.playerRallies ?? 0)).toBe((without.playerRallies ?? 0) + 1);
+  });
 });
 
 describe('Epic combat runes (Rising Graves / Broodpit / Spearline / Appraisal)', () => {
@@ -3577,5 +3657,238 @@ describe('Tauntbreaker Rally tally (owner bug 2026-07-18)', () => {
       [{ cardId: 'sandbag', attack: 0, health: 40 }],
       makeRng(1), CARD_INDEX);
     expect(r.playerRallies ?? 0).toBeGreaterThan(0); // each swing rallies (W = two per attack turn)
+  });
+});
+
+describe('Tier 7 (Summit) minions — combat effects', () => {
+  it('Mauron takes NO retaliation on its own swings, however many it makes', () => {
+    // "Immune while attacking" stops RETALIATION only — the enemy's own swings still land. So the precise
+    // contract is: on any step where Mauron is the ATTACKER, no damage is dealt to Mauron. Bounty Bot's
+    // immunity is a DEPLETING counter (2 swings), so a fight with many swings is the discriminator: a
+    // counter would run out and the 50-Attack counter-hit would show up here.
+    const r = run(
+      [{ cardId: 'mauron', attack: 9, health: 500 }],
+      [{ cardId: 'omen', attack: 50, health: 4000, keywords: [] }],
+      1,
+    );
+    const mauron = r.initial.player.find((m) => m.cardId === 'mauron')!;
+    const swingSteps = new Set(
+      r.events.filter((e) => e.type === 'attack' && e.attacker === mauron.uid).map((e) => (e as { step: number }).step),
+    );
+    expect(swingSteps.size).toBeGreaterThan(3); // more swings than Bounty Bot's 2 charges
+    const selfHits = r.events.filter(
+      (e) => e.type === 'dmg' && e.target === mauron.uid && swingSteps.has((e as { step: number }).step),
+    );
+    expect(selfHits).toEqual([]); // never damaged on a step it attacked
+
+    // CONTROL — the identical fight with a NON-immune body must show those retaliation hits, so the
+    // assertion above is proving the immunity rather than a quirk of this matchup.
+    const c = run(
+      [{ cardId: 'omen', attack: 9, health: 500 }],
+      [{ cardId: 'omen', attack: 50, health: 4000, keywords: [] }],
+      1,
+    );
+    const ctrl = c.initial.player[0]!;
+    const ctrlSwings = new Set(
+      c.events.filter((e) => e.type === 'attack' && e.attacker === ctrl.uid).map((e) => (e as { step: number }).step),
+    );
+    const ctrlSelfHits = c.events.filter(
+      (e) => e.type === 'dmg' && e.target === ctrl.uid && ctrlSwings.has((e as { step: number }).step),
+    );
+    expect(ctrlSelfHits.length).toBeGreaterThan(0);
+  });
+
+  it('Anubis grants Rise to the whole board on death, not just one minion', () => {
+    const r = run(
+      [
+        { cardId: 'anubis', attack: 8, health: 1 },
+        { cardId: 'alley', attack: 1, health: 40 },
+        { cardId: 'sandbag', attack: 0, health: 40 },
+      ],
+      [{ cardId: 'omen', attack: 40, health: 400, keywords: [] }],
+      2,
+    );
+    const grants = r.events.filter((e) => e.type === 'sc' && /grants .* Rise/.test(e.text));
+    expect(grants.length).toBeGreaterThanOrEqual(2); // BOTH survivors, not a single random pick
+  });
+
+  it('Amun Rab summons 7 Imps (no Ward as of 2026-07-21) and buffs your Imps', () => {
+    const r = run(
+      [{ cardId: 'amunrab', attack: 15, health: 1 }],
+      [{ cardId: 'omen', attack: 40, health: 400, keywords: [] }],
+      3,
+    );
+    const imps = r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap');
+    expect(imps.length).toBe(7);
+    for (const e of imps) if (e.type === 'summon') expect(e.minion.keywords).not.toContain('DS'); // Ward dropped
+  });
+
+  it('a gilded Amun Rab keeps 7 Imps and doubles the buff instead of the count', () => {
+    const r = run(
+      [{ cardId: 'amunrab', attack: 30, health: 1, golden: true }],
+      [{ cardId: 'omen', attack: 40, health: 400, keywords: [] }],
+      3,
+    );
+    expect(r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'impscrap').length).toBe(7);
+  });
+
+  it('Thundeer grows when a friendly Beast attacks, and the step improves', () => {
+    const r = run(
+      [
+        { cardId: 'thundeer', attack: 10, health: 60 },
+        { cardId: 'alley', attack: 2, health: 60 },
+      ],
+      [{ cardId: 'omen', attack: 1, health: 400, keywords: [] }],
+      4,
+    );
+    const thundeer = r.initial.player.find((m) => m.cardId === 'thundeer')!;
+    const buffs = r.events.filter((e) => e.type === 'buff' && e.target === thundeer.uid);
+    expect(buffs.length).toBeGreaterThan(0);
+    expect(buffs[0]!.type === 'buff' && buffs[0]!.attack).toBe(10); // first proc = base
+    if (buffs.length > 1) {
+      const second = buffs[1]!;
+      expect(second.type === 'buff' && second.attack).toBe(20); // improved by +10
+    }
+  });
+});
+
+describe('Uron / Zyff — the split trigger multipliers', () => {
+  it('doubles Start of Combat effects (a family with no prior multiplier)', () => {
+    // Kennelmaster carries a real Start-of-Combat Beast aura; count the sc narrations it emits.
+    const withUron = (uron: boolean) => run(
+      [
+        { cardId: 'kennel', attack: 5, health: 60 },
+        { cardId: 'alley', attack: 2, health: 60 },
+        ...(uron ? [{ cardId: 'uron', attack: 7, health: 60 }] : []),
+      ],
+      [{ cardId: 'omen', attack: 1, health: 400, keywords: [] }],
+      5,
+    );
+    const scEvents = (r: ReturnType<typeof run>) => r.events.filter((e) => e.type === 'sc').length;
+    expect(scEvents(withUron(true))).toBeGreaterThan(scEvents(withUron(false)));
+  });
+
+  it('ZYFF doubles Deathrattles — and STACKS additively with Sylus', () => {
+    // Grim's Echo buffs Beasts by the tally; count its buff events as the proc count.
+    const procs = (extra: { cardId: string; attack: number; health: number }[]): number =>
+      run(
+        [
+          { cardId: 'grim', attack: 1, health: 1 },
+          { cardId: 'alley', attack: 2, health: 80 },
+          ...extra,
+        ],
+        [{ cardId: 'omen', attack: 1, health: 300 }],
+        6,
+      ).events.filter((e) => e.type === 'buff' && e.attack === 2).length;
+    const none = procs([]);
+    const zyff = procs([{ cardId: 'zyff', attack: 6, health: 80 }]);
+    const both = procs([{ cardId: 'zyff', attack: 6, health: 80 }, { cardId: 'sylus', attack: 1, health: 80 }]);
+    expect(zyff).toBe(none + 1); // +1 fire
+    expect(both).toBe(none + 2); // Sylus stacks on top of Zyff
+    // Uron no longer touches Echoes at all — that half is Zyff's.
+    expect(procs([{ cardId: 'uron', attack: 7, health: 80 }])).toBe(none);
+  });
+
+  it('does NOT stack with itself (two Zyffs are still +1)', () => {
+    const procs = (n: number): number =>
+      run(
+        [
+          { cardId: 'grim', attack: 1, health: 1 },
+          { cardId: 'alley', attack: 2, health: 80 },
+          ...Array.from({ length: n }, () => ({ cardId: 'zyff', attack: 6, health: 80 })),
+        ],
+        [{ cardId: 'omen', attack: 1, health: 300 }],
+        6,
+      ).events.filter((e) => e.type === 'buff' && e.attack === 2).length;
+    expect(procs(2)).toBe(procs(1));
+  });
+
+  it('doubles RALLIES without double-counting the ally-attack broadcast', () => {
+    // Supporter's Rally buffs 2 friendly Dragons (+1/+2). Uron must repeat THAT, while Crypt Drake's
+    // broadcast ally-attack counter (which drives its every-2-attacks payout) must be untouched.
+    // The control must keep the BOARD SIZE identical — an extra body changes fight length, which changes
+    // how many ally attacks Crypt Drake sees. Mysterious Joker is a same-tier neutral whose only effect is
+    // an onPlay Discover, so it is completely inert in combat: a true placebo.
+    const r = (uron: boolean) => run(
+      [
+        { cardId: 'supporter', attack: 2, health: 80 },
+        { cardId: 'cryptdrake', attack: 6, health: 80 },
+        { cardId: uron ? 'uron' : 'joker', attack: 7, health: 80 },
+      ],
+      [{ cardId: 'omen', attack: 1, health: 400, keywords: [] }],
+      7,
+    );
+    const rallyBuffs = (x: ReturnType<typeof run>) => x.events.filter((e) => e.type === 'buff' && e.attack === 1 && e.health === 2).length;
+    const drakePayouts = (x: ReturnType<typeof run>) => x.events.filter((e) => e.type === 'buff' && e.attack === 2 && e.health === 2).length;
+    expect(rallyBuffs(r(true))).toBeGreaterThan(rallyBuffs(r(false))); // the Rally repeated
+    expect(drakePayouts(r(true))).toBe(drakePayouts(r(false))); // the broadcast counter did NOT
+  });
+});
+
+describe("Mauron's adjacent splash (not Cleave)", () => {
+  // Cleave always hits BOTH neighbours; Mauron hits ONE, and both only when gilded.
+  // Measure a SINGLE swing: across a whole fight Mauron retargets each attack, so every enemy eventually
+  // takes splash and a fight-wide count can't tell the two apart (it read 3-of-3 either way).
+  const hitsOnFirstSwing = (golden: boolean): number => {
+    const r = run(
+      [{ cardId: 'mauron', attack: 9, health: 300, golden }],
+      [
+        { cardId: 'omen', attack: 1, health: 300 },
+        { cardId: 'omen', attack: 1, health: 300 },
+        { cardId: 'omen', attack: 1, health: 300 },
+      ],
+      11,
+    );
+    // MAURON's own first swing — the enemy is wider so it attacks first, and picking the first `attack`
+    // event blindly measured the enemy's step instead.
+    const mauron = r.initial.player[0]!.uid;
+    const first = r.events.find((e) => e.type === 'attack' && e.attacker === mauron);
+    const step = (first as { step: number }).step;
+    return r.events.filter(
+      (e) => e.type === 'dmg' && (e as { step: number }).step === step && e.amount === 9,
+    ).length;
+  };
+
+  it('hits the target plus exactly ONE neighbour ungilded', () => {
+    expect(hitsOnFirstSwing(false)).toBe(2);
+  });
+
+  it('a gilded Mauron hits the target plus BOTH neighbours', () => {
+    expect(hitsOnFirstSwing(true)).toBe(3);
+  });
+
+  it('carries no Cleave keyword — the splash is a card flag, not the badge', () => {
+    expect(CARD_INDEX['mauron']!.keywords).not.toContain('C');
+    expect(CARD_INDEX['mauron']!.splashAdjacent).toBe(true);
+  });
+});
+
+describe('Rally quest tally counts EXTRA fires (Uron)', () => {
+  // Owner bug 2026-07-21: with Uron out, two rallying minions read as 2 toward "Trigger 7 Rallies" instead
+  // of 4. Uron's extra rally fires re-ran the effects but never bumped the tally, while the older additive
+  // doublers always had.
+  //
+  // The invariant is tally PER RALLY ATTACK, not a raw total: Uron also multiplies End of Turn and Start of
+  // Combat, so it changes how the fight plays out and therefore how many swings happen. Comparing raw totals
+  // measured fight length as much as the fix (81 vs 118 — increasing, but not the 2x the rule implies).
+  const perAttack = (withUron: boolean): number => {
+    const r = run(
+      [
+        { cardId: 'supporter', attack: 2, health: 300 }, // RL
+        { cardId: 'supporter', attack: 2, health: 300 }, // RL
+        { cardId: withUron ? 'uron' : 'joker', attack: 7, health: 300 }, // placebo keeps board size fixed
+      ],
+      [{ cardId: 'omen', attack: 1, health: 4000, keywords: [] }],
+      9,
+    );
+    const rlUids = new Set(r.initial.player.filter((m) => m.cardId === 'supporter').map((m) => m.uid));
+    const swings = r.events.filter((e) => e.type === 'attack' && rlUids.has(e.attacker)).length;
+    expect(swings).toBeGreaterThan(0);
+    return (r.playerRallies ?? 0) / swings;
+  };
+
+  it('one Rally per swing normally, TWO per swing with Uron', () => {
+    expect(perAttack(false)).toBe(1);
+    expect(perAttack(true)).toBe(2);
   });
 });

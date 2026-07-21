@@ -35,7 +35,7 @@ export const CONFIG = {
   // Tiers — cost to reach a target tier (handoff A.2). Decreases by 1 each wave
   // the player doesn't upgrade, down to the floor.
   maxTier: 6,
-  upgradeCost: { 2: 5, 3: 7, 4: 8, 5: 11, 6: 10 } as Record<number, number>,
+  upgradeCost: { 2: 5, 3: 7, 4: 8, 5: 11, 6: 10, 7: 12 } as Record<number, number>,
   upgradeDiscountPerWave: 1,
   upgradeCostFloor: 0,
 
@@ -71,7 +71,7 @@ export const CONFIG = {
  * it was played under even after we flip the global switch off (same "pin what actually happened" philosophy
  * as pinned opponents). Runtime code should read `RunState.rift` / `run.rift`, never the live registry.
  */
-export type RiftId = 'freedom' | 'runic';
+export type RiftId = 'freedom' | 'runic' | 'summit';
 
 export interface RiftDef {
   id: RiftId;
@@ -101,7 +101,29 @@ export const RIFTS: Record<RiftId, RiftDef> = {
     enabled: false, // retired 2026-07-16 (owner) — in-flight runs keep their pinned copy
     runsThrough: 'a limited-time celebration patch',
   },
+  summit: {
+    id: 'summit',
+    name: 'Summit',
+    blurb: 'All heroes gain +10 Armor, and the shop unlocks Tier 7.',
+    enabled: false, // parked 2026-07-20 (owner) — Tier 7 now arrives via Brackus / Teleport Summit / Rune of the Summit
+    runsThrough: 'a limited-time celebration patch',
+  },
 };
+
+/** Extra Armor a rift grants every hero at run creation (Summit: +10). Applied to BOTH `armor` and
+ *  `maxArmor` in `createRun`, and pinned with the run like every other rift effect. */
+export const RIFT_BONUS_ARMOR: Partial<Record<RiftId, number>> = { summit: 10 };
+
+/**
+ * The highest shop tier a run can reach. `CONFIG.maxTier` (6) is the standard ceiling; the **Summit**
+ * rift raises it to 7. Every tier ceiling — the tavern-up gate, Discover clamps, the triple's "one tier
+ * up" peek — must go through this rather than reading `CONFIG.maxTier` directly, or Tier 7 becomes
+ * either unreachable or reachable outside Summit. Takes the RUN's pinned rift, never the live registry,
+ * so a replayed Summit run keeps its ceiling after the switch flips off.
+ */
+export function maxTierFor(rift: RiftId | null | undefined): number {
+  return rift === 'summit' ? 7 : CONFIG.maxTier;
+}
 
 /** The rift a NEW run should adopt — the first enabled entry, or `null` if none. Deterministic (depends
  *  only on the registry's `enabled` flags), so it's safe to call from `createRun`. */

@@ -107,7 +107,7 @@ const CAT_META: Record<Category, { label: string; icon: string }> = {
 /** Left-rail categories that are NOT tribes — used to derive the selected-tribe subset from `cats`. */
 const NON_TRIBE_CATS = new Set<Category>(['spells', 'rewards', 'quests', 'runes', 'runeRewards', 'heroes']);
 
-const TIERS = [1, 2, 3, 4, 5, 6] as const;
+const TIERS = [1, 2, 3, 4, 5, 6, 7] as const;
 /** Every non-neutral tribe — the left-rail set when browsing the full game (from the title, pre-run). */
 const ALL_TRIBES: Tribe[] = ['beast', 'dragon', 'mech', 'undead', 'demon'];
 

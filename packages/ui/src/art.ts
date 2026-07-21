@@ -108,6 +108,11 @@ const PUBLIC_ART_URLS: string[] = [
   `${import.meta.env.BASE_URL}cursors/gauntlet_default.svg`,
   `${import.meta.env.BASE_URL}cursors/gauntlet_open.svg`,
   `${import.meta.env.BASE_URL}cursors/hand_closed.svg`,
+  // The end-of-turn charge glyph's SHAPE — used as a CSS mask on `.chargeglyph .masked` (and sampled by
+  // chargeMotes). Preloaded because an unfetched mask means the layers paint UNMASKED for the first frame:
+  // the fill's blue gradient flashed as a full RECTANGLE as the charge began (owner report). Cached at boot
+  // → the mask applies on the glyph's first paint.
+  `${import.meta.env.BASE_URL}fx/turn-glyph.svg`,
 ];
 
 /** Every bundled art URL (minions + heroes + powers) + the public backdrops/cursors, deduped — the warm-up set. */

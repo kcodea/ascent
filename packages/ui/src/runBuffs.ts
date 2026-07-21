@@ -19,6 +19,10 @@ export interface CombatBuffDelta {
   spellAttack: number;
   spellHealth: number;
   gold: number;
+  /** Per-row run-aura gains landed so far this fight, keyed by the Buffs-panel row ('imp' / 'fodder' /
+   *  'undead' / 'beast' / 'attachment'). Carried on `tribeAura` events (with amounts), so the rows tick up
+   *  live in combat instead of only at settle. */
+  auras: Record<string, { attack: number; health: number }>;
 }
 
 const SPELL_POWER_RE = /^\+(\d+)\/\+(\d+) Spell Power$/;
@@ -28,6 +32,7 @@ export function combatBuffDelta(events: readonly CombatEvent[], upto: number): C
   let spellAttack = 0;
   let spellHealth = 0;
   let gold = 0;
+  const auras: Record<string, { attack: number; health: number }> = {};
   const n = Math.min(upto, events.length);
   for (let i = 0; i < n; i++) {
     const e = events[i];
@@ -39,9 +44,13 @@ export function combatBuffDelta(events: readonly CombatEvent[], upto: number): C
       }
     } else if (e.type === 'maxGold' && e.side === 'player') {
       gold += e.amount;
+    } else if (e.type === 'tribeAura' && e.side === 'player' && e.aura) {
+      const a = (auras[e.aura] ??= { attack: 0, health: 0 });
+      a.attack += e.attack ?? 0;
+      a.health += e.health ?? 0;
     }
   }
-  return { spellAttack, spellHealth, gold };
+  return { spellAttack, spellHealth, gold, auras };
 }
 
 /** Read a card def's first effect of a given `do` id and pull a numeric param (for live magnitudes). */
@@ -67,8 +76,8 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
 
   // Permanent Undead buff everywhere: the "+Attack wherever they are" creation bonus (Deathswarmer / Forsaken
   // Weaver / Karthus) plus the run-wide Undead aura (Lantern of Souls).
-  const undA = (run.undeadBuyAtk ?? 0) + (run.undeadAttackBonus ?? 0);
-  const undH = run.undeadHealthBonus ?? 0;
+  const undA = (run.undeadBuyAtk ?? 0) + (run.undeadAttackBonus ?? 0) + (combat?.auras.undead?.attack ?? 0);
+  const undH = (run.undeadHealthBonus ?? 0) + (combat?.auras.undead?.health ?? 0);
   if (undA > 0 || undH > 0) rows.push({ key: 'undead', label: 'Undead Aura', value: `+${undA}/+${undH}` });
 
   // Fodder buff — BOTH channels. `cardBuffs.fred` is the permanent enchant (Ritualist / Bane); Heckbinder's
@@ -76,11 +85,14 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
   // which is exactly what a Fodder is created with — reading the raw map missed every Heckbinder (owner
   // report 2026-07-21; the same class of bug the tavern display had, in a second place).
   const fod = cardBuff(run, 'fred');
-  if (fod.attack > 0 || fod.health > 0) rows.push({ key: 'fodder', label: 'Fodder Aura', value: `+${fod.attack}/+${fod.health}` });
+  const fodA = fod.attack + (combat?.auras.fodder?.attack ?? 0);
+  const fodH = fod.health + (combat?.auras.fodder?.health ?? 0);
+  if (fodA > 0 || fodH > 0) rows.push({ key: 'fodder', label: 'Fodder Aura', value: `+${fodA}/+${fodH}` });
 
   // Permanent Imp buff (Fodder Feeder / Imp King / Brood / Bane) — applied to combat Imps.
-  const imp = run.impBuff;
-  if (imp && (imp.attack > 0 || imp.health > 0)) rows.push({ key: 'imp', label: 'Imp Aura', value: `+${imp.attack}/+${imp.health}` });
+  const impA = (run.impBuff?.attack ?? 0) + (combat?.auras.imp?.attack ?? 0);
+  const impH = (run.impBuff?.health ?? 0) + (combat?.auras.imp?.health ?? 0);
+  if (impA > 0 || impH > 0) rows.push({ key: 'imp', label: 'Imp Aura', value: `+${impA}/+${impH}` });
 
   // Cling Drone run-wide enchant (each Cling magnetized grows all Clings).
   const cling = run.cardBuffs?.cling;
@@ -93,11 +105,11 @@ export function gatherRunBuffs(run: RunState, combat?: CombatBuffDelta | null): 
 
   // Run-wide ATTACHMENT aura (Scrap Herald): your Magnetics get +atk/+hp wherever they are. Had no row at
   // all until the 2026-07-21 audit — the panel has to list every live buff or it can't be trusted.
-  const magA = run.magneticBuyAtk ?? 0, magH = run.magneticBuyHp ?? 0;
+  const magA = (run.magneticBuyAtk ?? 0) + (combat?.auras.attachment?.attack ?? 0), magH = (run.magneticBuyHp ?? 0) + (combat?.auras.attachment?.health ?? 0);
   if (magA > 0 || magH > 0) rows.push({ key: 'magnetic', label: 'Attachment Aura', value: `+${magA}/+${magH}` });
 
   // Run-wide BEAST creation aura (The Old Hunt / beast-buy sources) — same omission.
-  const bstA = run.beastBuyAtk ?? 0, bstH = run.beastBuyHp ?? 0;
+  const bstA = (run.beastBuyAtk ?? 0) + (combat?.auras.beast?.attack ?? 0), bstH = (run.beastBuyHp ?? 0) + (combat?.auras.beast?.health ?? 0);
   if (bstA > 0 || bstH > 0) rows.push({ key: 'beast', label: 'Beast Aura', value: `+${bstA}/+${bstH}` });
 
   // Permanent tavern buy bonus (Staff of Guel / Demonic Anomaly) — every minion you buy enters at +atk/+hp.

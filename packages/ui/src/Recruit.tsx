@@ -1119,10 +1119,13 @@ export function Recruit() {
   // Bridge this fight's live run-buff gains (spell power, max Gold) to the store so the Buffs window ticks up
   // in sync with the replay. Cleared to `null` once combat is SETTLED — settleCombat folds the gains into the
   // run state, so the row then reads them from there (adding the live delta too would briefly double-count).
-  const { spellAttack: cbA, spellHealth: cbH, gold: cbGold } = replay.combatBuffs;
+  const { spellAttack: cbA, spellHealth: cbH, gold: cbGold, auras: cbAuras } = replay.combatBuffs;
+  // A compact signature of the per-aura map so the effect re-runs when ANY aura row ticks (the map is a fresh
+  // object each beat, so we key on its contents, not its reference).
+  const cbAuraSig = JSON.stringify(cbAuras);
   useEffect(() => {
-    setCombatBuffs(inCombat && !run.combatSettled ? { spellAttack: cbA, spellHealth: cbH, gold: cbGold } : null);
-  }, [inCombat, run.combatSettled, cbA, cbH, cbGold, setCombatBuffs]);
+    setCombatBuffs(inCombat && !run.combatSettled ? { spellAttack: cbA, spellHealth: cbH, gold: cbGold, auras: cbAuras } : null);
+  }, [inCombat, run.combatSettled, cbA, cbH, cbGold, cbAuraSig, setCombatBuffs]);
 
   // Entering combat: hold on the "shop closing" intro, then let the enemies arrive
   // and the replay begin. Also flash the "End of Turn" banner (end-of-turn effects just

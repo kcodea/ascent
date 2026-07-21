@@ -23,14 +23,15 @@ describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
 });
 
 describe('cardText helpers', () => {
-  it('runescaleText shows Runescale Drake’s live Dragon grant (base + on-board spell tally, golden-aware)', () => {
-    expect(runescaleText('runescale', false, 0)).toBeNull(); // no on-board spells → printed base is accurate
-    // spellProgress 3 → base 1 + 3 = +4/+4 (first group only; the "+1/+1" improve rate is left alone).
-    expect(runescaleText('runescale', false, 3)).toContain('{{+4/+4}}');
-    expect(runescaleText('runescale', false, 3)).toContain('**+1/+1**');
-    // Golden doubles the grant: (1 + 3) × 2 = +8/+8.
-    expect(runescaleText('runescale', true, 3)).toContain('{{+8/+8}}');
-    expect(runescaleText('sandbag', false, 3)).toBeNull();
+  it('runescaleText shows Runescale Drake’s live per-spell rate (base + every-4 improve, golden-aware)', () => {
+    expect(runescaleText('runescale', false, 0)).toBeNull(); // rate still base → printed base is accurate
+    expect(runescaleText('runescale', false, 3)).toBeNull(); // 3 < 4 → not improved yet
+    // spellProgress 4 → base 2 + 1 = +3/+3 per-spell rate (first group only; the "+1/+1" improve clause stays).
+    expect(runescaleText('runescale', false, 4)).toContain('{{+3/+3}}');
+    expect(runescaleText('runescale', false, 4)).toContain('**+1/+1**');
+    // Golden doubles the rate: (2 + 1) × 2 = +6/+6.
+    expect(runescaleText('runescale', true, 4)).toContain('{{+6/+6}}');
+    expect(runescaleText('sandbag', false, 4)).toBeNull();
   });
   it('packLeaderText shows the live total grant from the on-board Beast tally (summonBonus), golden-aware', () => {
     // Pack Leader accrues +3/+3 into summonBonus per Beast played WHILE on board; SoC spends the whole tally.

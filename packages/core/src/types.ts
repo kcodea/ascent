@@ -154,7 +154,8 @@ export type EffectFactoryId =
   | 'scGrantEnemyTaunt' // Arena Heckler: Start of Combat — give the enemy's rightmost minion Taunt; golden the two rightmost
   | 'scSummonCopy' // Mirrorhide Rhino: Start of Combat — summon a copy of this minion's current body; golden two
   | 'scTribeBuffPerSpell' // (legacy) Start of Combat — buff a tribe +N/+N, +M per spell cast this turn
-  | 'scTribeBuffPerProgress' // Runescale Drake: Start of Combat — buff a tribe +N/+N, +1 per spell cast while this was on board
+  | 'scTribeBuffPerProgress' // Runescale Drake (legacy): Start of Combat — buff a tribe +N/+N, +1 per spell cast while this was on board
+  | 'scTribeBuffPerSpellImproving' // Runescale Drake: Start of Combat — buff a tribe by (rate × spells cast this turn), rate improves every N spells on board
   | 'scTribeBuffPerPlayed' // (retired dial) Start of Combat — buff Beasts +N/+N, +M per Beast played this turn
   | 'scTribeBuffImproving' // Pack Leader: Start of Combat — buff Beasts +M/+M (base + accrued), improve permanently
   // recruit-time (resolved by @game/sim, baked into stats before combat)

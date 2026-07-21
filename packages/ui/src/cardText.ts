@@ -174,21 +174,26 @@ export function packLeaderText(cardId: string, summonBonus: number, golden: bool
 }
 
 /**
- * Runescale Drake's Start-of-Combat Dragon buff = base + the spells cast while THIS instance has been on the
- * board (per-instance `spellProgress`; non-retroactive, persistent). Surface the CURRENT grant (green) —
- * (base + spellProgress) × golden — by replacing ONLY the first "+A/+B" group (the grant), leaving the "+1/+1"
- * improve rate that follows. Returns null before any spell has been cast on board (the printed base is accurate).
+ * Runescale Drake's Start-of-Combat Dragon buff is a PER-SPELL rate applied to every spell cast this turn. The
+ * rate = base + `step` for every `every` (4) spells cast while THIS instance has been on the board (per-instance
+ * `spellProgress`). Surface the CURRENT per-spell rate (green) — (base + step·⌊progress/every⌋) × golden — by
+ * replacing ONLY the first "+A/+B" group (the per-spell rate), leaving the "+1/+1 every 4" improve clause. Returns
+ * null until the rate has actually improved (before then the printed base rate is already accurate).
  */
 export function runescaleText(cardId: string, golden: boolean, spellProgress: number): string | null {
-  if (spellProgress <= 0) return null;
   const def = CARD_INDEX[cardId];
-  const eff = def?.effects.find((e) => e.do === 'scTribeBuffPerProgress');
+  const eff = def?.effects.find((e) => e.do === 'scTribeBuffPerSpellImproving');
   if (!def || !eff) return null;
-  const base = Number((eff.params as { attack?: number })?.attack ?? 1);
-  const x = (base + spellProgress) * (golden ? 2 : 1);
+  const p = eff.params as { attack?: number; step?: number; every?: number };
+  const base = Number(p?.attack ?? 2);
+  const step = Number(p?.step ?? 1);
+  const every = Math.max(1, Number(p?.every ?? 4));
+  const mult = golden ? 2 : 1;
+  const rate = (base + step * Math.floor(Math.max(0, spellProgress) / every)) * mult;
+  if (rate === base * mult) return null; // no improvement yet → printed base rate is accurate
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   let done = false;
-  return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${x}/+${x}}}`)));
+  return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${rate}/+${rate}}}`)));
 }
 
 /**

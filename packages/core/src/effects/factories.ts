@@ -1325,6 +1325,26 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Runescale Drake (reworked 2026-07-21) — Start of Combat: give your `tribe` (Dragons) a PER-SPELL rate for
+   *  every spell cast THIS TURN (`ctx.spellsThisTurnFor`, per-side). The per-spell rate is `attack`/`health`
+   *  base, improved by `step` for every `every` spells cast while THIS instance has been on the board
+   *  (`self.spellProgress`, ticked by `spellCastImproveSelf`). Grant = rate × spells-this-turn. Golden doubles
+   *  the whole grant. No spells this turn → no grant (the multiplier is 0). */
+  scTribeBuffPerSpellImproving: (ctx, self, params) => {
+    const tribe = (str(params.tribe) || 'dragon') as Tribe;
+    const step = num(params.step, 1);
+    const every = Math.max(1, num(params.every, 4));
+    const improve = step * Math.floor((self.spellProgress ?? 0) / every);
+    const spells = ctx.spellsThisTurnFor(self.side); // per-side: enemy Runescale reads the OPPONENT's spells this turn
+    const a = (num(params.attack, 2) + improve) * spells * mul(self);
+    const h = (num(params.health, 2) + improve) * spells * mul(self);
+    if (a <= 0 && h <= 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} channels the runes` });
+    for (const m of ctx.living(self.side)) {
+      if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+    }
+  },
+
   /** Pack Leader — Start of Combat: buff your `tribe` (Beasts) +atk/+hp, improved by `perPlayed` for each of
    *  that tribe you PLAYED this recruit turn (`ctx.beastsPlayedThisTurn`, threaded from the run). Golden
    *  doubles the whole grant. Sibling of scTribeBuffPerSpell, keyed on the play counter instead of spells. */

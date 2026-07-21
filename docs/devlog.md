@@ -3,6 +3,22 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (balance patch — chunk 7: Runescale Drake rework)
+
+### balance(core+content): Runescale Drake — per-spell-this-turn Dragon buff
+
+Reworked Runescale's Start of Combat from the old per-instance-progress flat buff to: **give your Dragons
++2/+2 for every spell cast this turn** (grant scales with the turn's spell count), the per-spell rate
+**improving +1/+1 for every 4 spells cast** while this instance has been on the board. New pure combat factory
+`scTribeBuffPerSpellImproving` (grant = (base + step·⌊spellProgress/every⌋) × spells-this-turn × golden), keyed
+per-side off `ctx.spellsThisTurnFor` so an enemy Runescale reads the opponent's spell count, not the player's.
+`spellCastImproveSelf` still ticks `spellProgress`; triples still SUM progress. Cast no spells this turn → no
+grant. Whitelisted in the schema + `EffectFactoryId` union; the legacy `scTribeBuffPerProgress` factory is kept
+(now unused). `runescaleText` updated to surface the live per-spell rate (green) with the every-4 improve
+clause left printed. Verified: full suite green (1304) — 3 combat tests + the cardText test re-driven to the
+new formula (a helper now scopes to symmetric +X/+X buffs so the wall's incidental +1/+0 self-buff is ignored);
+typecheck + lint clean.
+
 ## 2026-07-21 (balance patch — chunk 6: misc card tweaks)
 
 ### balance(content): Spell Appraiser / Nimbus / Displacement / Hoardbreaker (owner add-on 2026-07-21)

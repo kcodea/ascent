@@ -4326,7 +4326,7 @@ describe('Runescale Drake (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'r3' }); // 3rd copy → triple → golden in hand
     const golden = s.hand.find((c) => c.cardId === 'runescale' && c.golden);
     expect(golden).toBeDefined();
-    expect(golden!.spellProgress).toBe(7); // 5 + 2 + 0 summed (a +20 + fresh +1 → +21), NOT max(5, 2, 0)
+    expect(golden!.spellProgress).toBe(7); // 5 + 2 + 0 summed (rate improves to +3/+3 per spell at ⌊7/4⌋), NOT max(5, 2, 0)
     expect(s.triplesMade).toBe(1);
   });
 });

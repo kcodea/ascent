@@ -344,18 +344,23 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerFodderGrants).toBeUndefined();
   });
 
-  it('Runescale Drake Start of Combat buffs your Dragons +1/+1 (base, no on-board spells)', () => {
+  it('Runescale Drake Start of Combat buffs your Dragons +2/+2 per spell cast this turn', () => {
     const p: BoardMinion[] = [{ cardId: 'runescale', attack: 4, health: 20 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }];
-    const r = run(p, e, 3);
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true);
+    // base rate 2 × 3 spells cast this turn = +6/+6.
+    const r = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, spellsThisTurn: 3 }), combatSide({ tier: 1 }));
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 6 && ev.health === 6)).toBe(true);
+    // No spells this turn → no grant (the multiplier is 0). Runescale's grant is the only SYMMETRIC (+X/+X) buff here.
+    const none = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, spellsThisTurn: 0 }), combatSide({ tier: 1 }));
+    expect(none.events.some((ev) => ev.type === 'buff' && ev.attack > 0 && ev.health > 0)).toBe(false);
   });
 
-  it('Runescale Drake scales with its per-instance spell tally (spellProgress 4 → +5/+5)', () => {
+  it('Runescale Drake per-spell rate improves +1/+1 every 4 on-board spells (spellProgress 4 → +3 per spell)', () => {
     const p: BoardMinion[] = [{ cardId: 'runescale', attack: 4, health: 20, spellProgress: 4 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }];
-    const r = run(p, e, 3); // base 1 + 4 spells cast while on board = +5/+5
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 5 && ev.health === 5)).toBe(true);
+    // rate = base 2 + ⌊4/4⌋ = 3; × 2 spells this turn = +6/+6.
+    const r = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, spellsThisTurn: 2 }), combatSide({ tier: 1 }));
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 6 && ev.health === 6)).toBe(true);
   });
 
   it('Spell Appraiser Avenge (4) raises run-wide spell power +1 Attack (carried back)', () => {
@@ -3411,12 +3416,14 @@ describe('enemy run-level scalers (per-side)', () => {
     expect(g(6, 5)).toBe(g(6, 0)); // and the current player's Beasts-played is irrelevant to it
   });
 
-  it('enemy Runescale Drake scales with its OWN per-instance spell tally, ignoring spells-this-turn', () => {
-    const enemy: BoardMinion[] = [{ cardId: 'runescale', attack: 6, health: 6, keywords: [], spellProgress: 3 }];
+  it('enemy Runescale Drake scales with its OWN spells-this-turn (per-side); rate improved by its spellProgress', () => {
+    const enemy: BoardMinion[] = [{ cardId: 'runescale', attack: 6, health: 6, keywords: [], spellProgress: 4 }]; // rate = 2 + ⌊4/4⌋ = 3
+    // Runescale's grant is the only SYMMETRIC (+X/+X) buff; ignore the wall's incidental +1/+0 self-buffs.
     const g = (enemySpells: number, playerSpells: number) =>
-      maxBuffAtk(runVs(wall, enemy, { spellsThisTurn: enemySpells }, { spellsThisTurn: playerSpells }).events);
-    expect(g(0, 0)).toBe(1 + 3); // base 1 + its carried spellProgress 3 = +4/+4
-    expect(g(9, 9)).toBe(g(0, 0)); // neither side's spells-this-turn leeches into the grant anymore
+      runVs(wall, enemy, { spellsThisTurn: enemySpells }, { spellsThisTurn: playerSpells }).events
+        .reduce((mx, ev) => (ev.type === 'buff' && ev.health > 0 && ev.attack > mx ? ev.attack : mx), 0);
+    expect(g(0, 5)).toBe(0); // no spells on ITS side this turn → no grant (the player's 5 spells don't leech in)
+    expect(g(2, 0)).toBe(3 * 2); // its own rate 3 × its own 2 spells = +6/+6
   });
 });
 

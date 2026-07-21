@@ -38,10 +38,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
-- **The Ward dome engulfs the whole card frame** — it used to render inside the art window, which is
-  `overflow: hidden`, so it was clipped to the portrait no matter what. It now sits in the archbox (under the
-  badges, so the numbers stay crisp) and comes with a live **Ward Dome** tuner: 14 dials for geometry, the
-  energy ring, the glass and the outer glow, updating on screen as you drag.
+- **Ward Dome tuner** — 11 live dials for the Divine Shield dome's *look* (energy ring, glass, outer glow),
+  updating on screen as you drag. Its geometry stays where it already lived: `ward size`/`ward Y` in the Card
+  Frames tuner. (Making the dome cover the gold frame itself is still open — the dome is trimmed to the art
+  window by design, so that needs a frame-alpha mask, not a dial.)
 - **Combat FX land on the unit's slot, not mid-flight.** Every effect that marks a unit — death bursts, the
   bone skull, self-buff pulses, coins, summon dust, ascend blooms — now measures through one shared
   layout-frame helper, so none can paint over empty board while its card is mid-lunge or being pulled home.

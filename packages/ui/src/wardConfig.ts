@@ -2,11 +2,15 @@
  * Tunable geometry + look for the WARD (Divine Shield) dome — the glassy energy shell over a DS card.
  *
  * The dome is pure CSS (`.card.compact.dscard .ward-*` in styles.css), a stack of layers rendered by
- * `Card.tsx`. It lives in the **archbox**, not `.art`: `.art` is `overflow: hidden` and only ~60% of the
- * card, so while the dome lived there it was hard-clipped to the portrait window and no CSS value could
- * make it reach the frame (owner 2026-07-21 — "I want the ward effect to engulf the card's frame as well").
- * Seated in the archbox at z3 it covers the whole frame, with the corner badges (z6) and keyword medallion
- * (z9) still painting on top so the numbers stay readable.
+ * `Card.tsx` INSIDE `.art` — the per-frame rules seat an oversized round dome and rely on `.art`'s ellipse /
+ * `--heater` clip to trim it to the window, so it must stay there (moving it out was tried 2026-07-21 and
+ * reverted: the untrimmed dome rendered as a blob).
+ *
+ * SCOPE — this owns the dome's LOOK only. Its GEOMETRY (size + vertical seat) is per-frame and already
+ * live-tunable as `--wardsize` / `--wardy` in the **Card Frames** tuner: `.card.compact.stdframe.dscard .ward`
+ * and `.taunt.dscard .ward` seat an oversized round dome and let `.art`'s ellipse / `--heater` clip trim it to
+ * the window. Those rules set their own `inset`/`transform`, so any geometry dial here would be silently
+ * overridden — which is why this config deliberately has none.
  *
  * Same pattern as `glowConfig.ts` / `flurryConfig.ts`: one mutable, localStorage-persisted config dialed by
  * eye via the DEV Ward tuner, reflected to `--wd-*` CSS vars on `:root`. **The shipped defaults live BOTH
@@ -15,14 +19,6 @@
  * fallbacks are updated to match.
  */
 export interface WardConfig {
-  /** Dome INSET from the card frame (px). 0 = exactly the arched frame box. NEGATIVE bleeds the dome OUT
-   *  past the frame edge (nothing above it clips), positive pulls it in toward the portrait. */
-  inset: number;
-  /** Overall dome SCALE (×), applied after the inset — a cheap way to swell the glass without re-insetting. */
-  scale: number;
-  /** Corner rounding as a multiple of the card's `--arch-radius`. 1 = follow the frame exactly; higher
-   *  rounds the dome toward an oval, lower squares it off. */
-  radius: number;
   /** Energy-ring body opacity at the pulse PEAK (0–1). */
   bodyAlpha: number;
   /** Energy-ring opacity at the pulse TROUGH (0–1) — the low point of the slow breath. */
@@ -48,9 +44,6 @@ export interface WardConfig {
 }
 
 const DEFAULTS: WardConfig = {
-  inset: 0,
-  scale: 1,
-  radius: 1,
   bodyAlpha: 1,
   pulseMin: 0.78,
   pulseSec: 3.8,
@@ -66,9 +59,6 @@ const DEFAULTS: WardConfig = {
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
 export const WARD_RANGES: Record<keyof WardConfig, [number, number, number]> = {
-  inset: [-60, 40, 1],
-  scale: [0.6, 1.6, 0.01],
-  radius: [0, 3, 0.05],
   bodyAlpha: [0, 1, 0.01],
   pulseMin: [0, 1, 0.01],
   pulseSec: [0.5, 10, 0.1],
@@ -87,7 +77,6 @@ export const WARD_KEYS = Object.keys(DEFAULTS) as (keyof WardConfig)[];
 /** Tuner grouping — every key must appear in exactly one group (enforced by test) so a new dial can't be
  *  silently unreachable in the panel. */
 export const WARD_GROUPS: { title: string; keys: (keyof WardConfig)[] }[] = [
-  { title: 'Geometry · reach over the frame', keys: ['inset', 'scale', 'radius'] },
   { title: 'Energy ring', keys: ['bodyAlpha', 'pulseMin', 'pulseSec'] },
   { title: 'Glass', keys: ['hexAlpha', 'hexSize', 'shadowAlpha', 'spotAlpha'] },
   { title: 'Outer glow', keys: ['auraBlur', 'auraSpread', 'auraAlpha', 'breathAlpha'] },
@@ -117,9 +106,6 @@ export function wardOverrides(): (keyof WardConfig)[] {
 export function applyWardVars(): void {
   if (typeof document === 'undefined') return;
   const s = document.documentElement.style;
-  s.setProperty('--wd-inset', `${cfg.inset}px`);
-  s.setProperty('--wd-scale', String(cfg.scale));
-  s.setProperty('--wd-radius', String(cfg.radius));
   s.setProperty('--wd-body-alpha', String(cfg.bodyAlpha));
   s.setProperty('--wd-pulse-min', String(cfg.pulseMin));
   s.setProperty('--wd-pulse-sec', `${cfg.pulseSec}s`);

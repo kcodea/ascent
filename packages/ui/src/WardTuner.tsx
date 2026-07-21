@@ -13,16 +13,13 @@ import { useDraggablePanel } from './useDraggablePanel';
  * into `DEFAULTS` in `wardConfig.ts`, and the CSS fallbacks in styles.css must be updated to match (they are
  * what production renders — see the note in wardConfig.ts).
  *
- * Note the geometry group: the dome now lives in the archbox rather than the clipped `.art`, so a NEGATIVE
- * "inset" genuinely bleeds it out past the card frame. That was impossible before — `.art`'s `overflow:
- * hidden` cut it to the portrait window regardless of any value here.
+ * LOOK only. The dome's SIZE and vertical SEAT are per-frame CSS (`--wardsize` / `--wardy`) and already live
+ * in the **Card Frames** tuner — those rules override any geometry set here, so this panel deliberately has
+ * no geometry dials.
  *
  * Panel-only: opened from the Dev Tuning Menu; dev-only, so it's stripped from production.
  */
 const LABELS: Record<keyof WardConfig, string> = {
-  inset: 'inset px (− = out)',
-  scale: 'scale ×',
-  radius: 'corner ×',
   bodyAlpha: 'ring peak',
   pulseMin: 'ring trough',
   pulseSec: 'breath sec',

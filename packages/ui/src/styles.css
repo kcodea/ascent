@@ -1016,8 +1016,13 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    window. A NEGATIVE `--wd-inset` bleeds it out past the frame edge (nothing above clips it); z3 keeps it
    under the corner badges (z6) and the keyword medallion (z9). Every `--wd-*` fallback below IS the shipped
    value — the DEV Ward tuner only overrides them at runtime, so prod renders correctly without it. */
-.card.compact.dscard .ward { position: absolute; inset: var(--wd-inset, 0px); border-radius: calc(var(--arch-radius) * var(--wd-radius, 1)); overflow: hidden; pointer-events: none; z-index: 3; transform: scale(var(--wd-scale, 1)); }
-.card.compact.dscard .ward > * { position: absolute; inset: 0; border-radius: inherit; }
+/* NB: `border-radius` must be the BARE `var(--arch-radius)` — it's a multi-value shorthand
+   (`48% 48% 20% 20% / 35% 35% 14% 14%`) and `calc()` cannot multiply a shorthand list. Wrapping it makes the
+   declaration INVALID, so it falls back to 0 and the dome renders as a hard RECTANGLE (tried + verified
+   in-browser 2026-07-21). Dome GEOMETRY is per-frame below (`--wardsize`/`--wardy`, Card Frames tuner); only
+   the LOOK is `--wd-*` (Ward Dome tuner). */
+.card.compact.dscard .ward { position: absolute; inset: 0; border-radius: var(--arch-radius); overflow: hidden; pointer-events: none; z-index: 2; }
+.card.compact.dscard .ward > * { position: absolute; inset: 0; border-radius: var(--arch-radius); }
 /* Ward stack tuned on `fx/ward-css-preview.html` (the oval-frame rig) — a glassy ENERGY-BLUE energy dome. */
 .card.compact.dscard .ward-body {   /* translucent energy-blue ring, CLEAR centre, SLOW-pulsing */
   background: radial-gradient(120% 88% at 50% 44%,

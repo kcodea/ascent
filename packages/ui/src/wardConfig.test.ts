@@ -23,11 +23,12 @@ describe('wardConfig', () => {
     }
   });
 
-  // The dome now covers the whole arched frame, so inset must be able to go NEGATIVE — that is what lets it
-  // bleed out past the card edge, which was impossible while it lived inside the clipped `.art`.
-  it('inset can reach past the frame in both directions', () => {
-    const [min, max] = WARD_RANGES.inset;
-    expect(min).toBeLessThan(0);
-    expect(max).toBeGreaterThan(0);
+  // This config owns the dome's LOOK only. Geometry (size + vertical seat) is per-frame CSS
+  // (`--wardsize`/`--wardy`, Card Frames tuner) and those rules set their own inset/transform — a geometry
+  // dial here would be silently overridden, i.e. a dial that lies. Keep them out.
+  it('has no geometry dials — the per-frame rules own dome size/seat and would override them', () => {
+    for (const k of ['inset', 'scale', 'radius'] as const) {
+      expect(WARD_KEYS, k).not.toContain(k);
+    }
   });
 });

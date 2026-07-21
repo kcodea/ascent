@@ -22,6 +22,10 @@ import { bestFinalArrangement } from './rollout';
 export interface BotBehaviour {
   /** Buy nothing scoring below this. A low bar = grab everything (greedy); a high bar = hold out (tempo). */
   buyThreshold: number;
+  /** The bar a SPELL must clear to be bought (its own lane — see the buy loop). Separate from `buyThreshold`
+   *  because spells are scored on a different basis (one-shot effect magnitude vs a permanent body), so one
+   *  shared bar can't tune both. Higher = a bot that only takes clearly-strong spells. */
+  spellThreshold: number;
   /** Gold to keep in reserve rather than spend (economy discipline). */
   goldReserve: number;
   /** 0..1 eagerness to upgrade the tavern when affordable (past the reserve). */
@@ -87,20 +91,44 @@ const EARLY_POWERS = new Set<string>([
   'quest', 'lesserQuest', 'questChronos', 'runeforge', 'epicRuneforge',
 ]);
 
-/** Build the hero-power action: untargeted powers take no uid; targeted ones aim at the HIGHEST-value board
- *  minion (a buff/ward/gild wants your keeper, not `board[0]`). Returns the action, or null if it isn't
- *  legal right now (no charge / no valid target). */
+/** Powers whose target should be your WORST body, not your best — they TRADE the minion away, so aiming them
+ *  at your keeper actively destroys value. Just Darah's Swap ("swap a friendly minion with a random minion in
+ *  the Shop") today; every other targeted power (Ward, Gild, resummon, replays) wants the BEST body. Checked
+ *  against the actual power texts — `sellGold` and `dynamiteDig` read like sacrifices but aren't (they're a
+ *  sell-payoff passive and an untargeted Discover). */
+const TARGETS_WORST = new Set<string>(['displace']);
+
+/** Build the hero-power action: untargeted powers take no uid; targeted ones aim at the best (or, for the
+ *  sacrifice-style powers above, the worst) board minion. Crucially it walks EVERY candidate in preference
+ *  order until one is legal — the old version tried only the single top-scoring minion and gave up if that
+ *  one happened to be an invalid target for the power (wrong tribe, already golden, already Warded, …),
+ *  which silently skipped the power for the whole turn. Returns null only if nothing at all is legal. */
 function heroPowerAction(state: RunState, w: BotWeights, pkg?: BotPackage): Action | null {
   const power = getHero(state.heroId).power;
   if (power.untargeted) {
     const a: Action = { type: 'heroPower' };
     return reduce(state, a) !== state ? a : null;
   }
-  let best: BoardCard | undefined; let bestV = -Infinity;
-  for (const c of state.board) { const d = CARD_INDEX[c.cardId]; const v = d ? cardScore(d, state, w, pkg) : 0; if (v > bestV) { bestV = v; best = c; } }
-  if (!best) return null;
-  const a: Action = { type: 'heroPower', uid: best.uid };
-  return reduce(state, a) !== state ? a : null;
+  const worstFirst = TARGETS_WORST.has(power.kind);
+  let candidates = state.board;
+  // Gild is a PERMANENT, target-locked upgrade on a charge you rarely get back (Indy: once, recharging only
+  // every 40 Gold spent). Burning it on a turn-1 T1 body is close to wasting the hero. Hold it until there's
+  // something worth doubling; if the board never gets there, the guard lifts late so the charge isn't wasted.
+  if (power.kind === 'gild' && state.wave < 8) {
+    const worthy = state.board.filter((c) => (CARD_INDEX[c.cardId]?.tier ?? 1) >= 3);
+    if (worthy.length === 0) return null; // nothing worth gilding yet — wait
+    candidates = worthy;
+  }
+  const ranked = candidates
+    .map((c) => { const d = CARD_INDEX[c.cardId]; return { c, v: d ? cardScore(d, state, w, pkg) : 0 }; })
+    .sort((a, z) => (worstFirst ? a.v - z.v : z.v - a.v));
+  for (const { c } of ranked) {
+    const a: Action = { type: 'heroPower', uid: c.uid };
+    if (reduce(state, a) !== state) return a;
+  }
+  // Some targeted powers also resolve with no uid (the engine picks) — try that before giving up.
+  const bare: Action = { type: 'heroPower' };
+  return reduce(state, bare) !== state ? bare : null;
 }
 
 /** The shared turn engine. Every bot calls this; `w`/`b` are its personality. Returns ONE action — the loop
@@ -140,7 +168,15 @@ export function decide(state: RunState, w: BotWeights, b: BotBehaviour, pkg?: Bo
   if (state.phase !== 'recruit') return { type: 'faceOmen' };
 
   // ---- Recruit turn ----
-  // 1. Play a hand card when there's board room (free value; holding cards is almost never right for a bot).
+  // 1. Play from hand (free value; holding cards is almost never right for a bot). SPELLS first and WITHOUT a
+  //    board-room gate — they're consumed on cast, so a full board must not strand them in hand (it used to:
+  //    the whole step sat behind `board.length < boardMax`, which is why a full-board bot stopped casting).
+  //    Cast the best-scoring spell rather than the first one in hand.
+  const castable = state.hand
+    .filter((c) => CARD_INDEX[c.cardId]?.spell && legal(state, { type: 'play', uid: c.uid }))
+    .map((c) => ({ c, v: cardScore(CARD_INDEX[c.cardId]!, state, w, pkg) }))
+    .sort((a, z) => z.v - a.v)[0];
+  if (castable) return { type: 'play', uid: castable.c.uid };
   if (state.board.length < CONFIG.boardMax) {
     const playable = state.hand.find((c) => legal(state, { type: 'play', uid: c.uid }));
     if (playable) return { type: 'play', uid: playable.uid };
@@ -160,8 +196,26 @@ export function decide(state: RunState, w: BotWeights, b: BotBehaviour, pkg?: Bo
   const scored = offers
     .map((x) => ({ ...x, v: cardScore(x.def!, state, w, pkg) }))
     .sort((a, z) => z.v - a.v);
-  const top = scored[0];
+  // Spells get their OWN lane, for two reasons. FIRST: the tavern's spell offer lives in `state.spell` — a
+  // dedicated right-hand slot, NOT in `state.shop` — so a bot reading only `state.shop` never even saw it and
+  // bought ~0 spells per run regardless of how well it valued them. SECOND: ranked against bodies head-to-head
+  // a spell rarely wins (a body carries stats AND effects AND tribe AND triple progress). A spell also doesn't
+  // compete for board space — it's cast and gone — so it's gated on HAND room and judged against its own bar.
+  const topMinion = scored.find((x) => !x.def!.spell);
+  const slotSpell = state.spell && CARD_INDEX[state.spell.cardId]
+    ? { o: state.spell, def: CARD_INDEX[state.spell.cardId]!, v: cardScore(CARD_INDEX[state.spell.cardId]!, state, w, pkg) }
+    : undefined;
+  const shopSpell = scored.find((x) => x.def!.spell); // Spell Cart can also put spells in the minion row
+  const topSpell = slotSpell && (!shopSpell || slotSpell.v >= shopSpell.v) ? slotSpell : shopSpell;
+  const handRoom = state.hand.length < CONFIG.boardMax;
 
+  if (topSpell && handRoom && topSpell.v >= b.spellThreshold && spendable >= (topSpell.def!.cost ?? CONFIG.minionCost)) {
+    const buy: Action = { type: 'buy', uid: topSpell.o.uid };
+    // Only if it beats the body we'd otherwise buy — a strong body still takes priority at equal value.
+    if ((!topMinion || topSpell.v > topMinion.v || !roomOnBoard) && legal(state, buy)) return buy;
+  }
+
+  const top = topMinion;
   if (top && roomOnBoard && top.v >= b.buyThreshold && spendable >= CONFIG.minionCost) {
     const buy: Action = { type: 'buy', uid: top.o.uid };
     if (legal(state, buy)) return buy;

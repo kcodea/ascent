@@ -38,6 +38,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Balance bots can use spells.** The tavern's spell offer lives in a slot the bot turn engine never read, so
+  every pilot bought 0.00 spells/run; the engine now reads it, values spells by what they do, and casts them
+  from a full board. Win rate up for 3 of 5 pilots — and `npm run analyze`'s spell tables finally have data.
+
 - **New Dragon: Twilight Emissary** (T2 2/3, Taunt) — *Battlecry: give a friendly Dragon +2/+2*, a targeted
   buff on a new `battlecryBuffTarget` factory. Plus Deathswarmer → T1 1/3 and **+5 starting Armor for every
   hero**.

@@ -24,9 +24,19 @@
     --peak: 1;          /* dome opacity peak */
     --pulse-min: 0.6;
     --pulse-s: 4s;
+    /* FACETS — independent width/height + x/y, so the hex sphere can be sized and seated on its own,
+       separately from the glass shape it sits inside. */
     --hex-alpha: 0.6;
-    --hex-size: 118%;
-    --outer-scale: 1;   /* B/C: how far the outer glass reaches vs the frame box */
+    --hex-w: 118%;
+    --hex-h: 118%;
+    --hex-x: 50%;
+    --hex-y: 50%;
+    /* OUTER GLASS (the dome) — multipliers of the measured FRAME box, plus a px nudge. 1/1/0/0 = exactly
+       the frame. Independent w/h so the oval can be stretched to match the frame's proportions. */
+    --dome-w: 1;
+    --dome-h: 1;
+    --dome-x: 0px;
+    --dome-y: 0px;
     --outer-alpha: 0.55;
     --rim-alpha: 0.9;   /* C: brightness of the glass sitting on the gold rim */
   }
@@ -55,7 +65,9 @@
               rgba(0,0,0,0) 0%, rgba(0,0,0,0) 28%,
               var(--deep) 56%, var(--bright) 78%, rgba(0,0,0,0) 100%);
             animation: pulse var(--pulse-s) ease-in-out infinite; }
-  .d-hex  { background: url('/fx/ward-hexsphere.svg') center / var(--hex-size) no-repeat; opacity: var(--hex-alpha); mix-blend-mode: screen;
+  .d-hex  { background-image: url('/fx/ward-hexsphere.svg'); background-repeat: no-repeat;
+            background-size: var(--hex-w) var(--hex-h); background-position: var(--hex-x) var(--hex-y);
+            opacity: var(--hex-alpha); mix-blend-mode: screen;
             -webkit-mask-image: radial-gradient(circle at 50% 46%, transparent 39%, #000 51%, #000 88%, transparent 99%);
                     mask-image: radial-gradient(circle at 50% 46%, transparent 39%, #000 51%, #000 88%, transparent 99%); }
   .d-spot { background: radial-gradient(ellipse 20% 56% at 35% 9%, rgba(255,255,255,1) 0%, rgba(220,240,255,.5) 42%, rgba(200,232,255,0) 72%); }
@@ -67,14 +79,20 @@
 
   /* B · OVER THE FRAME — a second dome ABOVE the frame img (z4), boxed to the FRAME and clipped to its
      outer oval, so the whole card reads as sealed inside glass (gold included). */
-  .v-over .outer { position: absolute; z-index: 4; pointer-events: none;
-                   clip-path: ellipse(50% 50% at 50% 50%); opacity: var(--outer-alpha);
-                   transform: scale(var(--outer-scale)); }
+  /* Seated on the MEASURED frame box (--frame-w/h set by JS), then sized by independent w/h multipliers and
+     nudged by --dome-x/y. Anchored from its centre so resizing grows symmetrically instead of dragging a
+     corner. The ellipse clip is what makes the facets inside take the frame's oval shape. */
+  .v-over .outer, .v-rim .outer {
+    position: absolute; z-index: 4; pointer-events: none;
+    width: calc(var(--frame-w) * var(--dome-w));
+    height: calc(var(--frame-h) * var(--dome-h));
+    transform: translate(calc(-50% + var(--dome-x)), calc(-50% + var(--dome-y)));
+  }
+  .v-over .outer { clip-path: ellipse(50% 50% at 50% 50%); opacity: var(--outer-alpha); }
 
   /* C · GLASS ON THE GOLD — the outer layer is MASKED BY THE FRAME PNG's own alpha, so glass appears only
      where the frame's pixels are: the gold ring itself turns glassy, the art keeps the inner dome. */
-  .v-rim .outer { position: absolute; z-index: 4; pointer-events: none; opacity: var(--rim-alpha);
-                  transform: scale(var(--outer-scale));
+  .v-rim .outer { opacity: var(--rim-alpha);
                   -webkit-mask-image: url('/frames/standard-oval.png'); mask-image: url('/frames/standard-oval.png');
                   -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
                   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
@@ -110,13 +128,16 @@
     <div class="slot">
       <div class="card v-over">
         <div class="art"><span class="sprite">🤖</span>
-          <div class="dome"><div class="d-body"></div><div class="d-hex"></div><div class="d-spot"></div></div>
+          <!-- inner: body + spot only. The FACETS moved out to the frame-sized oval (owner 2026-07-21) —
+               one sphere at the frame's size, so its facets must map to THAT sphere, not a smaller one
+               sitting inside the art window. -->
+          <div class="dome"><div class="d-body"></div><div class="d-spot"></div></div>
         </div>
         <img class="cframe-img" src="/frames/standard-oval.png" alt="" />
-        <div class="outer dome"><div class="d-body"></div><div class="d-spot"></div></div>
+        <div class="outer dome"><div class="d-body"></div><div class="d-hex"></div><div class="d-spot"></div></div>
       </div>
-      <div class="cap">B · over the frame</div>
-      <div class="note">A second dome above the frame, clipped to its outer oval — the whole card, gold included, sits inside the glass.</div>
+      <div class="cap">B · over the frame ★</div>
+      <div class="note">Chosen. A second dome above the frame, clipped to its outer oval — the whole card, gold included, inside the glass. <b>Facets follow the frame oval</b>, not the art.</div>
     </div>
 
     <div class="slot">
@@ -140,11 +161,14 @@
     <div class="colorrow"><label>bright (rim / core)</label><input type="color" id="c-bright" value="#78a6ff" /></div>
     <div class="colorrow"><label>deep (outer ring)</label><input type="color" id="c-deep" value="#2f57c0" /></div>
 
-    <h2>Inner dome (all three)</h2>
+    <h2>Inner dome (in the art)</h2>
     <div id="inner"></div>
 
-    <h2>Outer glass (B &amp; C)</h2>
-    <div id="outer"></div>
+    <h2>Dome — the outer glass (B &amp; C)</h2>
+    <div id="dome"></div>
+
+    <h2>Facets — the hex sphere</h2>
+    <div id="facets"></div>
 
     <button id="toggle">◐ toggle floor</button>
     <button id="reset">Reset</button>
@@ -152,18 +176,26 @@
 
 <script>
   const DIALS_INNER = [
-    ['--wardsize', 'dome size ×', 0.5, 1.6, 0.01],
-    ['--wardy', 'dome seat %', 20, 80, 1, '%'],
+    ['--wardsize', 'size ×', 0.5, 1.6, 0.01],
+    ['--wardy', 'seat %', 20, 80, 1, '%'],
     ['--peak', 'peak opacity', 0, 1, 0.01],
     ['--pulse-min', 'trough opacity', 0, 1, 0.01],
     ['--pulse-s', 'breath sec', 0.5, 10, 0.1, 's'],
-    ['--hex-alpha', 'facets', 0, 1, 0.01],
-    ['--hex-size', 'facet size %', 60, 200, 1, '%'],
   ];
-  const DIALS_OUTER = [
-    ['--outer-scale', 'reach ×', 0.8, 1.5, 0.01],
+  const DIALS_DOME = [
+    ['--dome-w', 'width ×', 0.5, 2, 0.01],
+    ['--dome-h', 'height ×', 0.5, 2, 0.01],
+    ['--dome-x', 'X nudge', -80, 80, 1, 'px'],
+    ['--dome-y', 'Y nudge', -80, 80, 1, 'px'],
     ['--outer-alpha', 'B opacity', 0, 1, 0.01],
     ['--rim-alpha', 'C opacity', 0, 1, 0.01],
+  ];
+  const DIALS_FACETS = [
+    ['--hex-w', 'width %', 20, 260, 1, '%'],
+    ['--hex-h', 'height %', 20, 260, 1, '%'],
+    ['--hex-x', 'X %', -50, 150, 1, '%'],
+    ['--hex-y', 'Y %', -50, 150, 1, '%'],
+    ['--hex-alpha', 'opacity', 0, 1, 0.01],
   ];
   const root = document.documentElement;
   const DEFAULTS = {};
@@ -180,7 +212,8 @@
       host.appendChild(row);
     }
   }
-  build('inner', DIALS_INNER); build('outer', DIALS_OUTER);
+  const ALL_DIALS = [...DIALS_INNER, ...DIALS_DOME, ...DIALS_FACETS];
+  build('inner', DIALS_INNER); build('dome', DIALS_DOME); build('facets', DIALS_FACETS);
 
   // The outer glass must sit exactly on the FRAME's box — measure it rather than hardcode the asset aspect.
   function seatOuter() {
@@ -188,10 +221,12 @@
       const outer = card.querySelector('.outer');
       const img = card.querySelector('.cframe-img');
       if (!outer || !img || !img.naturalWidth) return;
-      outer.style.width = img.offsetWidth + 'px';
-      outer.style.height = img.offsetHeight + 'px';
-      outer.style.left = img.offsetLeft + 'px';
-      outer.style.top = img.offsetTop + 'px';
+      // Publish the frame's measured box; CSS scales off it via --dome-w/h. Anchor at the frame's CENTRE
+      // (the layer translates -50%/-50%) so width/height dials grow symmetrically rather than from a corner.
+      outer.style.setProperty('--frame-w', img.offsetWidth + 'px');
+      outer.style.setProperty('--frame-h', img.offsetHeight + 'px');
+      outer.style.left = (img.offsetLeft + img.offsetWidth / 2) + 'px';
+      outer.style.top = (img.offsetTop + img.offsetHeight / 2) + 'px';
     });
   }
   window.addEventListener('load', seatOuter);
@@ -208,7 +243,7 @@
   document.getElementById('reset').addEventListener('click', () => {
     for (const [v, [val, unit]] of Object.entries(DEFAULTS)) root.style.setProperty(v, val + unit);
     document.querySelectorAll('#panel input[type=range]').forEach((inp, i) => {
-      const v = [...DIALS_INNER, ...DIALS_OUTER][i][0];
+      const v = ALL_DIALS[i][0];
       inp.value = DEFAULTS[v][0]; inp.nextElementSibling.textContent = DEFAULTS[v][0];
     });
   });

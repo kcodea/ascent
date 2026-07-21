@@ -3,6 +3,27 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (balance patch — chunk 5a: minion mechanics)
+
+### balance(core+content): Hoard Cleric / Attachment Mechanic / Kennelmaster / Thundeer / Hunter
+
+Five of the seven chunk-5 minions. Four were data-only once the existing primitives were checked:
+**Hoard Cleric** now excludes itself (`includeSelf: false` — the param already existed) → *"give your other
+Dragons +3/+3"*; **Attachment Mechanic** T3 1/1 → **T4 3/5**; **Kennelmaster** Avenge (3) → **(4)**;
+**Thundeer**'s on-ally-attack Engraved self-improve already matched the spec, so only its printed text was
+updated to state the **+10/+10** improve magnitude (live-text rule).
+
+**Hunter** needed a real change: it now improves **every 3 fires** instead of every fire. Added an `every`
+param to `onGainAttackBuffImproving` and redefined its per-instance `summonBonus` to count FIRES rather than
+accumulate the grant — grant = base × (1 + ⌊fires/every⌋). That reuses the field's existing snapshot +
+carry-back plumbing, so no new per-instance field was needed (and `every: 1` is numerically identical to the
+old behaviour, so no other card shifts). `hunterText` updated to the stepped formula.
+
+Verified: full suite green (1304) + typecheck + lint. The Hunter combat test previously passed *incidentally*
+(it only checked +1 and +2 appeared somewhere); it now pins the cadence properly — 3 fires of +1/+1 (×2 allies
+per fire) before the step to +2/+2. Hoard Cleric's self-exclusion also rippled into the Drakko/Myra Battlecry
+probes, which now observe the replay on a second Dragon.
+
 ## 2026-07-21 (balance patch — chunk 7: Runescale Drake rework)
 
 ### balance(core+content): Runescale Drake — per-spell-this-turn Dragon buff

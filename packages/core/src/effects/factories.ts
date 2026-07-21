@@ -989,9 +989,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     huntGuard.add(self);
     try {
       const base = num(params.attack, 1);
-      const m = (base + (self.summonBonus ?? 0)) * mul(self); // ?? 0 — recruit BoardCards may not have it seeded
+      const every = Math.max(1, num(params.every, 1)); // improve once per `every` fires (Hunter: every 3)
+      const fires = self.summonBonus ?? 0; // ?? 0 — recruit BoardCards may not have it seeded; counts FIRES, carried back
+      const m = base * (1 + Math.floor(fires / every)) * mul(self);
       if (m > 0) for (const t of ctx.living(self.side)) if (t !== self) ctx.buff(t, m, m, self.uid);
-      self.summonBonus = (self.summonBonus ?? 0) + base * ctx.improveRepsFor(self.side); // permanent improve (×2 under Mastery), carried back
+      self.summonBonus = fires + ctx.improveRepsFor(self.side); // count this fire (×2 under Mastery), carried back
     } finally {
       huntGuard.delete(self);
     }

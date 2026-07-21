@@ -912,8 +912,8 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
     expect(s.board.find((c) => c.cardId === 'frontdrake')?.attack).toBe(5); // 2 + 3
     const cleric = s.board.find((c) => c.cardId === 'cleric');
-    expect(cleric?.attack).toBe(5); // 2 + 3 (Battlecry includes self)
-    expect(cleric?.health).toBe(5); // 2 base + 3
+    expect(cleric?.attack).toBe(2); // unchanged — the Battlecry buffs your OTHER Dragons
+    expect(cleric?.health).toBe(2);
   });
 
   it("Ritualist's End of Turn buffs all Fodder — existing copies and the run-level card buff", () => {
@@ -3292,15 +3292,19 @@ describe('run loop (@game/sim)', () => {
   });
 
   it('a golden Drakko triples Battlecries', () => {
-    // Hoard Cleric (+3/+3 to Dragons, incl. self) — avoids token triples. Golden Drakko fires it 3×.
+    // Hoard Cleric (+3/+3 to your OTHER Dragons) — avoids token triples. Golden Drakko fires it 3×, observed
+    // on a second Dragon (the Cleric no longer buffs itself).
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
-      board: [{ uid: 'dr', cardId: 'drummer', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: true }],
+      board: [
+        { uid: 'dr', cardId: 'drummer', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: true },
+        { uid: 'd2', cardId: 'frontdrake', tribe: 'dragon', attack: 1, health: 3, keywords: ['SC'], golden: false },
+      ],
       hand: [{ uid: 'c', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'c' });
-    const cleric = s.board.find((c) => c.cardId === 'cleric');
-    expect([cleric?.attack, cleric?.health]).toEqual([10, 12]); // 1/3 + 3×(+3/+3)
+    const other = s.board.find((c) => c.uid === 'd2');
+    expect([other?.attack, other?.health]).toEqual([10, 12]); // 1/3 + 3×(+3/+3)
   });
 
   it('multiple Drakkos do NOT stack (still fires twice)', () => {
@@ -3654,15 +3658,18 @@ describe('hero powers (@game/sim)', () => {
   });
 
   it("Myra's Pulse re-fires a friendly minion's Battlecry, once per turn (from turn 3)", () => {
-    // Hoard Cleric's Battlecry buffs all your Dragons +3/+3 (includes itself).
+    // Hoard Cleric's Battlecry buffs your OTHER Dragons +3/+3 — observed on a second Dragon beside it.
     const cleric = (): BoardCard => ({
       uid: 'c', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false,
     });
-    let s: RunState = { ...createRun(1, 'myra'), wave: 3, board: [cleric()] }; // Pulse unlocks turn 3
+    const other = (): BoardCard => ({
+      uid: 'd2', cardId: 'frontdrake', tribe: 'dragon', attack: 1, health: 3, keywords: ['SC'], golden: false,
+    });
+    let s: RunState = { ...createRun(1, 'myra'), wave: 3, board: [cleric(), other()] }; // Pulse unlocks turn 3
     s = reduce(s, { type: 'heroPower', uid: 'c' });
-    expect(s.board[0]!.attack).toBe(4); // 1 + 3
-    expect(s.board[0]!.health).toBe(6); // 3 + 3
-    expect(s.board[0]!.buffs).toEqual([{ source: 'Hoard Cleric', attack: 3, health: 3, count: 1 }]);
+    expect(s.board[1]!.attack).toBe(4); // 1 + 3
+    expect(s.board[1]!.health).toBe(6); // 3 + 3
+    expect(s.board[1]!.buffs).toEqual([{ source: 'Hoard Cleric', attack: 3, health: 3, count: 1 }]);
     expect(s.heroReady).toBe(false);
     // Once per turn: a second use this wave is rejected.
     expect(reduce(s, { type: 'heroPower', uid: 'c' })).toBe(s);
@@ -3679,13 +3686,16 @@ describe('hero powers (@game/sim)', () => {
     const cleric = (): BoardCard => ({
       uid: 'c', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false,
     });
+    const other = (): BoardCard => ({
+      uid: 'd2', cardId: 'frontdrake', tribe: 'dragon', attack: 1, health: 3, keywords: ['SC'], golden: false,
+    });
     // Turn 1: locked — the power is rejected (no charge spent, no Battlecry replay).
-    const w1: RunState = { ...createRun(1, 'myra'), wave: 1, board: [cleric()] };
+    const w1: RunState = { ...createRun(1, 'myra'), wave: 1, board: [cleric(), other()] };
     expect(reduce(w1, { type: 'heroPower', uid: 'c' })).toBe(w1);
-    // Turn 3: unlocked — the Battlecry re-fires (+3/+3).
-    let w3: RunState = { ...createRun(1, 'myra'), wave: 3, board: [cleric()] };
+    // Turn 3: unlocked — the Battlecry re-fires (+3/+3 onto the OTHER Dragon).
+    let w3: RunState = { ...createRun(1, 'myra'), wave: 3, board: [cleric(), other()] };
     w3 = reduce(w3, { type: 'heroPower', uid: 'c' });
-    expect(w3.board[0]!.attack).toBe(4);
+    expect(w3.board[1]!.attack).toBe(4);
     expect(w3.heroReady).toBe(false);
   });
 
@@ -4876,7 +4886,7 @@ describe('content batch: new minions (@game/sim)', () => {
     expect(s.spellsCast).toBe(11); // the run-wide counter still advances (8 + 3)
   });
 
-  it('Hoard Cleric (cleric) Battlecry gives your Dragons +3/+3', () => {
+  it('Hoard Cleric (cleric) Battlecry gives your OTHER Dragons +3/+3', () => {
     let s: RunState = {
       ...createRun(1),
       board: [
@@ -4889,7 +4899,7 @@ describe('content batch: new minions (@game/sim)', () => {
     const dragon = s.board.find((c) => c.uid === 'd')!;
     expect([dragon.attack, dragon.health]).toEqual([5, 4]); // 2/1 → 5/4
     const cleric = s.board.find((c) => c.uid === 'hc')!;
-    expect([cleric.attack, cleric.health]).toEqual([6, 7]); // includes self: 3/4 → 6/7
+    expect([cleric.attack, cleric.health]).toEqual([3, 4]); // excludes self: unchanged 3/4
     const neutral = s.board.find((c) => c.uid === 'n')!;
     expect([neutral.attack, neutral.health]).toEqual([0, 4]); // non-Dragon untouched
   });

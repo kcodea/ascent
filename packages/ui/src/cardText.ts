@@ -53,18 +53,21 @@ export function summonImproveText(cardId: string, summonBonus: number, golden: b
 }
 
 /**
- * Hunter (`onGainAttackBuffImproving`) — its board-wide grant GROWS: each Attack gain gives your minions
- * (base + accrued `summonBonus`) × golden, then the accrual climbs by base. Surface the CURRENT grant (green) in
- * place of the first printed "+N/+N"; the "+step/+step" improve rate stays. Null with no accrual yet (printed base
- * is accurate), matching the sibling contracts.
+ * Hunter (`onGainAttackBuffImproving`) — its board-wide grant GROWS in steps: each Attack gain gives your minions
+ * base × (1 + ⌊fires/every⌋) × golden, where `summonBonus` counts how many times it has FIRED (every = 3 for
+ * Hunter). Surface the CURRENT grant (green) in place of the first printed "+N/+N"; the "+step/+step every N"
+ * improve clause stays. Null until the grant has actually stepped up (printed base is accurate until then).
  */
 export function hunterText(cardId: string, summonBonus: number, golden: boolean): string | null {
-  if (summonBonus <= 0) return null;
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'onGainAttackBuffImproving');
   if (!def || !eff) return null;
-  const base = Number((eff.params as { attack?: number })?.attack ?? 1);
-  const m = (base + summonBonus) * (golden ? 2 : 1);
+  const p = eff.params as { attack?: number; every?: number };
+  const base = Number(p?.attack ?? 1);
+  const every = Math.max(1, Number(p?.every ?? 1));
+  const steps = Math.floor(Math.max(0, summonBonus) / every);
+  if (steps <= 0) return null; // not stepped up yet → the printed base grant is accurate
+  const m = base * (1 + steps) * (golden ? 2 : 1);
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   let done = false;
   return src.replace(/\+\d+\/\+\d+/g, (mt) => (done ? mt : ((done = true), `{{+${m}/+${m}}}`)));

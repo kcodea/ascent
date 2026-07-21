@@ -72,12 +72,13 @@ describe('simulate (handoff A.3)', () => {
     expect(r.initial.enemy[0]!.buffs).toBeUndefined();
   });
 
-  it('Kennelmaster Avenge (3) improves its summon buff and reports the bonus to carry back', () => {
-    // 3 Taunt sandbags are killed first (forced targets) while the no-Taunt Kennelmaster
-    // chips the tanky enemy — so all 3 friends die with Kennelmaster alive → Avenge (3)
+  it('Kennelmaster Avenge (4) improves its summon buff and reports the bonus to carry back', () => {
+    // 4 Taunt sandbags are killed first (forced targets) while the no-Taunt Kennelmaster
+    // chips the tanky enemy — so all 4 friends die with Kennelmaster alive → Avenge (4)
     // fires once → summonBonus 1, reported in playerSummonBonus (deterministic: Taunts go first).
     const p: BoardMinion[] = [
       { cardId: 'kennel', attack: 2, health: 50, sourceUid: 'K' },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
@@ -2301,7 +2302,7 @@ describe('simulate (handoff A.3)', () => {
     expect(tara?.count).toBeGreaterThan(0); // Tara was granted stats and counted them toward ascension
   });
 
-  it('Hunter buffs your board +M/+M whenever its Attack rises, scaling +1 each time (driven by Crypt Drake)', () => {
+  it('Hunter buffs your board +M/+M whenever its Attack rises, stepping up every 3 fires (driven by Crypt Drake)', () => {
     const a = run(
       [
         { cardId: 'hunter', attack: 5, health: 60 },
@@ -2311,9 +2312,15 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 0, health: 200 }],
       3,
     );
-    // First Attack-gain → +1/+1 to the board; the next → +2/+2 (scaling per-instance accrual).
-    expect(a.events.some((e) => e.type === 'buff' && e.attack === 1 && e.health === 1)).toBe(true);
-    expect(a.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2 && e.source === a.initial.player[0]!.uid)).toBe(true);
+    // Hunter's own grants, in order: it improves +1/+1 only every 3rd fire, so the first three are +1/+1
+    // and the fourth steps to +2/+2 (it was "+1 every time" before the 2026-07-21 rework).
+    // Each fire emits one buff per OTHER living ally (2 here: Crypt Drake + the sandbag, nothing dies to the
+    // 0-Attack omen), so 3 fires = 6 grants of +1/+1 before the rate steps to +2/+2 on the 4th.
+    const hunterUid = a.initial.player[0]!.uid;
+    const grants = a.events.flatMap((e) => (e.type === 'buff' && e.source === hunterUid ? [e.attack] : []));
+    expect(grants.length).toBeGreaterThanOrEqual(7);
+    expect(grants.slice(0, 6)).toEqual([1, 1, 1, 1, 1, 1]);
+    expect(grants[6]).toBe(2);
   });
 
   it('Burial Imp: its Echo summons an Imp', () => {

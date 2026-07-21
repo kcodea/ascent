@@ -286,9 +286,9 @@ export const MECHS: CardDef[] = [
     id: 'scrapherald',
     name: 'Attachment Mechanic',
     tribe: 'mech',
-    tier: 3,
-    attack: 1,
-    health: 1,
+    tier: 4,
+    attack: 3,
+    health: 5,
     keywords: [],
     effects: [
       { on: 'onPlay', do: 'battlecryBuffMagnetics', params: { attack: 2, health: 2 } },

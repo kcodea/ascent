@@ -44,13 +44,13 @@ export const BEASTS: CardDef[] = [
     keywords: ['SC'],
     effects: [
       { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'beast', attack: 1, health: 1 } },
-      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 3 } },
+      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 4 } },
     ],
     // Start of Combat: a Beast aura +N/+N that lasts the fight — current Beasts + any summoned later inherit
     // it (the "wherever they are" aura). N = 1 + its Avenge-grown summonBonus (carried across combats). The
     // live value + Avenge countdown surface via cardText's kennelmaster helper on every surface.
-    text: '**Start of Combat:** give your Beasts **+1/+1** wherever they are. **Avenge (3):** Improve this.',
-    goldenText: '**Start of Combat:** give your Beasts **+2/+2** wherever they are. **Avenge (3):** Improve this.',
+    text: '**Start of Combat:** give your Beasts **+1/+1** wherever they are. **Avenge (4):** Improve this.',
+    goldenText: '**Start of Combat:** give your Beasts **+2/+2** wherever they are. **Avenge (4):** Improve this.',
   },
   {
     id: 'gnash',

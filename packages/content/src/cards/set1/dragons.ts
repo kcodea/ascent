@@ -16,8 +16,8 @@ export const DRAGONS: CardDef[] = [
     attack: 2,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryBuffTribe', params: { tribe: 'dragon', attack: 3, health: 3 } }],
-    text: '**Battlecry:** give your Dragons **+3/+3**.',
+    effects: [{ on: 'onPlay', do: 'battlecryBuffTribe', params: { tribe: 'dragon', attack: 3, health: 3, includeSelf: false } }],
+    text: '**Battlecry:** give your **other** Dragons **+3/+3**.',
   },
   {
     id: 'cinder',
@@ -161,9 +161,9 @@ export const DRAGONS: CardDef[] = [
     attack: 5,
     health: 7,
     keywords: [],
-    effects: [{ on: 'onGainAttack', do: 'onGainAttackBuffImproving', params: { attack: 1 } }],
-    text: 'When this gains Attack, give your minions **+1/+1** and improve this by **+1/+1**.',
-    goldenText: 'When this gains Attack, give your minions **+2/+2** and improve this by **+2/+2**.',
+    effects: [{ on: 'onGainAttack', do: 'onGainAttackBuffImproving', params: { attack: 1, every: 3 } }],
+    text: 'When this gains Attack, give your minions **+1/+1**. Improve this by **+1/+1** every **3** times.',
+    goldenText: 'When this gains Attack, give your minions **+2/+2**. Improve this by **+2/+2** every **3** times.',
   },
   {
     // Undead/Dragon snowball: every 2 ally attacks, buff your whole board +2/+2 — improving +2/+2 every

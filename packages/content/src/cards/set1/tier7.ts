@@ -26,8 +26,8 @@ export const TIER7: CardDef[] = [
     health: 10,
     keywords: ['EG'],
     effects: [{ on: 'onAttack', do: 'onAllyTribeAttackBuffSelf', params: { tribe: 'beast', attack: 10, step: 10 } }],
-    text: 'When your Beasts attack, gain **+10/+10** permanently. Improve this.',
-    goldenText: 'When your Beasts attack, gain **+20/+20** permanently. Improve this.',
+    text: 'When your Beasts attack, gain **+10/+10** permanently. Improve this by **+10/+10**.',
+    goldenText: 'When your Beasts attack, gain **+20/+20** permanently. Improve this by **+20/+20**.',
   },
   {
     // Demon finisher: a 15/3 glass cannon whose death floods the board with Imps and permanently enchants

@@ -51,6 +51,16 @@ export function attackerOfImpact(beats: Beat[], resultIndex: number): string | n
   return self?.type === 'attack' ? self.attacker : null;
 }
 
+/** The two units of the melee exchange this RESULT moment resolves, or null when it isn't one. Both already
+ *  received the clash's hit FX from the lunge's impact channel (fired once at contact, on the DEFENDER), so
+ *  the `damageFx` cue must skip them or the strike reads twice — see the guard in `score.ts`. Deliberately a
+ *  sibling of `attackerOfImpact` rather than an extension of it: that function answers "whose damage NUMBER
+ *  is suppressed", this one answers "whose hit FX is already covered", and the two must stay free to diverge. */
+export function meleePairOfImpact(beats: Beat[], resultIndex: number): { attacker: string; defender: string } | null {
+  const prev = beats[resultIndex - 1]?.primary;
+  return prev?.type === 'attack' ? { attacker: prev.attacker, defender: prev.defender } : null;
+}
+
 export function buildBeats(events: CombatEvent[]): Beat[] {
   const beats: Beat[] = [];
   let i = 0;

@@ -7,7 +7,7 @@ import { momentKind } from './kinds';
 
 const moment = (kind: Moment['kind'], events: CombatEvent[]): Moment => ({ start: 0, end: events.length, primary: events[0]!, stepGroups: [[0]], kind });
 const baseCtx = (events: CombatEvent[], overrides: Partial<Parameters<typeof runMomentCues>[1]> = {}) => ({
-  events, combatSpeed: 1, onShake: vi.fn(), findEl: () => null, attackerUid: null,
+  events, combatSpeed: 1, onShake: vi.fn(), findEl: () => null, attackerUid: null, meleePair: null,
   onFloats: vi.fn(), onDeathFloats: vi.fn(),
   onAuraBurst: vi.fn(), onShieldBreak: vi.fn(), onReborn: vi.fn(), onBuffCasts: vi.fn(), onSelfBuffs: vi.fn(), onImprove: vi.fn(), onMaxGold: vi.fn(), onDamageFx: vi.fn(), onSummonFx: vi.fn(), onAscend: vi.fn(), ...overrides,
 });
@@ -176,6 +176,30 @@ describe('score', () => {
     const c = ctx([{ type: 'attack', attacker: 'a', defender: 'b', swing: 0 }, { type: 'dmg', target: 'b', amount: 3, remainingHp: 0 }]);
     runMomentCues(moment('attackExchange', c.events), c);
     expect(c.onDamageFx).not.toHaveBeenCalled();
+  });
+
+  // The test above only proves the ATTACK moment has no damageFx cue — trivially true, and it is NOT where
+  // melee damage lives. A clash's `dmg` events collapse into the SEPARATE `damage` moment that follows, and
+  // that moment DOES carry the cue. Nothing filtered the melee pair there, so the strike played a second
+  // time on the defender and a third on the attacker (which takes retaliation damage in the same moment) —
+  // the owner's "two strike animations" (2026-07-21). These cover the real path.
+  it('the damage moment FOLLOWING an attack skips both clash units — their FX rode the impact channel', () => {
+    const c = ctx([
+      { type: 'dmg', target: 'b', amount: 3, remainingHp: 0 }, // the defender's hit
+      { type: 'dmg', target: 'a', amount: 2, remainingHp: 1 }, // the attacker's retaliation
+    ], { meleePair: { attacker: 'a', defender: 'b' } });
+    runMomentCues(moment('damage', c.events), c);
+    expect(c.onDamageFx).not.toHaveBeenCalled();
+  });
+
+  it('Cleave splash still bursts — only the clash pair is covered by the impact channel', () => {
+    const c = ctx([
+      { type: 'dmg', target: 'b', amount: 3, remainingHp: 0 },     // defender
+      { type: 'dmg', target: 'a', amount: 2, remainingHp: 1 },     // attacker retaliation
+      { type: 'dmg', target: 'nbr', amount: 3, remainingHp: 2 },   // Cleave neighbour — no impact FX of its own
+    ], { meleePair: { attacker: 'a', defender: 'b' } });
+    runMomentCues(moment('damage', c.events), c);
+    expect(c.onDamageFx).toHaveBeenCalledWith(['nbr']);
   });
 
   it('an ascend moment → onAscend with the transforming unit', () => {

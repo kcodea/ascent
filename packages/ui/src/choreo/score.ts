@@ -161,9 +161,14 @@ export interface CueContext {
    *  bursts coins at each, on top of the "+N max gold" float. */
   onMaxGold: (uids: string[]) => void;
   /** This moment's NON-melee `dmg` targets — a unit hit by a Start-of-Combat nuke / split damage / Blaster's
-   *  Deathrattle AoE (melee dmg rides the attack's own impact FX and never reaches here). The replay pops a
-   *  damage burst + impact ring at each, so a cast hit reads like a hit, not just a number. */
+   *  Deathrattle AoE. The replay pops a damage burst + impact ring at each, so a cast hit reads like a hit,
+   *  not just a number. The melee pair is filtered out before this fires (see `meleePair`). */
   onDamageFx: (uids: string[]) => void;
+  /** The attacker+defender of the attack this moment resolves, if any (`meleePairOfImpact`). Their hit FX
+   *  already fired on the lunge's impact channel, so the `damageFx` cue drops them — without this the strike
+   *  played twice (again on the defender, and once more on the attacker, which takes retaliation damage in
+   *  the same collapsed moment). Null for non-melee damage, which bursts at every target. */
+  meleePair: { attacker: string; defender: string } | null;
   /** This moment's summoned unit uids (the `minion.uid` of each `summon` event). The replay poofs dust at each
    *  arrival — a stone-into-dust land under the new unit. Fires late (see the cue offset) so the unit is grown. */
   onSummonFx: (uids: string[]) => void;
@@ -227,6 +232,13 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     else if (cue.ch === 'damageFx') at(cue, () => {
       const uids = new Set<string>();
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'dmg') uids.add(e.target); }
+      // A melee clash is TWO-WAY: the defender's hit and the attacker's retaliation are both `dmg` events in
+      // this one collapsed moment. Both units' hit FX were already fired by the lunge's impact channel (once,
+      // at contact, on the defender), so bursting them again here doubled the strike on the defender AND put
+      // a second one on the attacker — the "two strike animations" (owner report 2026-07-21). Skip exactly
+      // that pair. Splash targets (Cleave neighbours, AoE) are NOT covered by the impact channel and keep
+      // their burst, which is the whole point of this cue.
+      if (ctx.meleePair) { uids.delete(ctx.meleePair.attacker); uids.delete(ctx.meleePair.defender); }
       if (uids.size) ctx.onDamageFx([...uids]);
     });
     else if (cue.ch === 'summonFx') at(cue, () => {

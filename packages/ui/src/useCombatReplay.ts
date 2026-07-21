@@ -8,7 +8,7 @@ import { getAuraFxConfig } from './auraFxConfig';
 import { buffPreset, wavePalette } from './buffPresets';
 import { sfx } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
-import { attackerOfImpact } from './combatBeats';
+import { attackerOfImpact, meleePairOfImpact } from './combatBeats';
 import { holdMs } from './choreo/clock';
 import { compileMoments, type Moment } from './choreo/compile';
 import { deferClashBuffs } from './choreo/clashOrder';
@@ -891,6 +891,7 @@ export function useCombatReplay(
       onShake: () => setShake((n) => n + 1),
       findEl,
       attackerUid: attackerOfImpact(beats, beatIdx - 1),
+      meleePair: meleePairOfImpact(beats, beatIdx - 1),
       onFloats: (spawned) => {
         setFloats((arr) => [...arr, ...spawned.filter((s) => !arr.some((x) => x.id === s.id))]);
         const ids = new Set(spawned.map((s) => s.id));
@@ -929,7 +930,8 @@ export function useCombatReplay(
         }
       },
       // A NON-melee hit (SC nuke / split damage / Blaster AoE) → a damage burst + impact ring at each target, so a
-      // cast hit reads like a hit and not just a number. Melee dmg rides its attack's own impact FX (never here).
+      // cast hit reads like a hit and not just a number. The melee pair is filtered out upstream (see `meleePair`
+      // in score.ts): their hit FX rides the attack's own impact channel, fired once at contact on the defender.
       onDamageFx: (uids) => {
         for (const uid of uids) {
           const el = findEl(uid);

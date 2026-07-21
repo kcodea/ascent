@@ -338,6 +338,35 @@ with the guard removed and pass with it), plus three unit tests for `meleePairOf
 
 Verified: typecheck + lint (0 errors) + **1309 tests** (1304 → 1309) + `build:web`, all green.
 
+## 2026-07-21 (art — new in-game board backdrop)
+
+### feat(ui): wire the new board art (ascentboardnostuff)
+
+Swapped the in-game board backdrop to the owner's new master, `Game Boards/ascentboardnostuff.jpg`. Converted
+to WebP at **3440×1459** — the same raster as the outgoing `testboard2`, which is the widest supported stage
+(`r3440`), so it's 1:1 at max resolution and downsamples cleanly below. **7.37 MB → 0.30 MB**, and it comes in
+*under* the old board's 0.39 MB, so the shipped payload drops.
+
+The source is 6336×2688 (aspect 2.357) against the old board's 3440×1459 (2.358) — effectively identical, so
+it's a drop-in for the existing `.boardbg` treatment (one wide art scaled to stage height and centred; the
+ornate frame stays locked to the 16:9 stage while the floor extends into the margins on wider windows). No
+layout or CSS-geometry change was needed. Wired in the two places the board is referenced: the `--board` CSS
+var in `styles.css` and the preload warm-up list in `art.ts`.
+
+Also removed `testboard2.webp`, which this change orphans — it lives in `apps/web/public/`, so it would
+otherwise keep shipping to players despite nothing referencing it.
+
+Verified in the running app, not just at build time: `--board` resolves to the new URL, `.boardbg`'s computed
+`background-image` points at it, the file loads (probe: 3440×1459, no 404), and it renders correctly in-game.
+Also checked the wide-aspect case the 21:9 source exists for — at 1720×730 `.boardbg` reports
+`coversViewport: true` with `background-size: auto 730px` centred, i.e. the art fills the side margins as
+intended. (Black edges in the pane screenshot were letterboxing, not a rendering gap — measured to confirm.)
+Green: typecheck + lint + 1317 tests + `build:web`.
+
+Follow-up, NOT done here (pre-existing, unrelated to this change): `apps/web/public/` still carries ~1.1 MB of
+already-orphaned board art — `board.jpg`, `board1.webp`, `board169.webp`, `board219.webp`, `board2b.webp`.
+Nothing references any of them and there is no runtime board picker; they ship to players for nothing.
+
 ## 2026-07-21 (bots — spell usage + hero-power targeting)
 
 ### feat(sim): balance bots can actually use spells; sharper hero-power targeting

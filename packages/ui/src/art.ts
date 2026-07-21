@@ -103,7 +103,7 @@ export const avatarSrc = (id?: string | null): string | undefined => (id ? AVATA
 // BASE_URL-relative (not root-absolute): itch serves the game from a CDN sub-path, where '/x.webp' 404s and the
 // warm-up silently skipped these (BASE_URL is '/' in dev, './' in the build — resolved against index.html).
 const PUBLIC_ART_URLS: string[] = [
-  `${import.meta.env.BASE_URL}testboard2.webp`, // the primary board (all resolutions); the July board (board219) loads on demand if selected
+  `${import.meta.env.BASE_URL}ascentboardnostuff.webp`, // the primary board (all resolutions)
   `${import.meta.env.BASE_URL}homescreen.webp`,
   `${import.meta.env.BASE_URL}cursors/gauntlet_default.svg`,
   `${import.meta.env.BASE_URL}cursors/gauntlet_open.svg`,

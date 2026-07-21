@@ -32,7 +32,7 @@
      the 16:9 stage): scaled to the stage height + centred, so the ornate frame stays locked to the 16:9 UI and
      the surrounding floor art just extends into the side margins on wider monitors (cropped to 16:9 at standard
      aspect). No aspect swap — the same wide art serves every screen. */
-  --board: url('/testboard2.webp');
+  --board: url('/ascentboardnostuff.webp');
   /* ONE uniform scale factor for the whole board: the stage height ÷ the 1440px design reference, as a UNITLESS
      number set from JS (`applyStageScale` in Game.tsx) — CSS can't derive a unitless ratio from a length. Everything
      the layout is authored at (card size, chrome, rope, per-region offsets — all in reference px) is multiplied by
@@ -68,8 +68,8 @@
 :root[data-res="r1920"] { --gw: min(100vw, calc(100vh * 1920 / 1080), 1920px); --gh: min(100vh, calc(100vw * 1080 / 1920), 1080px); }
 :root[data-res="r2560"] { --gw: min(100vw, calc(100vh * 2560 / 1440), 2560px); --gh: min(100vh, calc(100vw * 1440 / 2560), 1440px); }
 :root[data-res="r3440"] { --gw: min(100vw, calc(100vh * 3440 / 1440), 3440px); --gh: min(100vh, calc(100vw * 1440 / 3440), 1440px); }
-/* One board art (testboard2) serves every resolution now — drawn on `.boardbg`, cropped to 16:9 at standard aspect
-   and extending into the margins on wider windows. No per-aspect --board swap. */
+/* One board art (ascentboardnostuff) serves every resolution now — drawn on `.boardbg`, cropped to 16:9 at standard
+   aspect and extending into the margins on wider windows. No per-aspect --board swap. */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
 /* Mobile: no rubber-band overscroll / pull-to-refresh, and kill the 300ms double-tap-zoom (the board handles

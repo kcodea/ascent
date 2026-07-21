@@ -25,9 +25,10 @@ The five buckets below are ordered by when we intend to act, not by size:
 Large hand-authored balance pass, sliced so each chunk lands green + tested on its own:
 - **✅ Chunk 1 — Demon minions** (shipped to branch): Soulfeeder, Sword & Bored, Burial Imp, Godfodder, Pit
   Supplier, Ritualist, Chef Raag. Data-only.
-- **Chunk 2 — Rune pass** (~33 items): mostly cost tweaks, plus effect reworks (Aftershocks +4/+4, Consumption
-  random improve, Packcraft, Rebirth 2× Rise, Refrain 20%, Slaying max-gold, Spare Parts 5, Trophy plain copy,
-  Broodpit 2× taunt imps).
+- **✅ Chunk 2a — Rune costs** (shipped to branch): 23 cost tweaks + Spare Parts → 5 Attachments. Data-only.
+- **Chunk 2b — Rune effect reworks**: Aftershocks (echoes → all minions +4/+4), Consumption (random +1 atk/hp),
+  Packcraft (6g, summon Beast → Beasts +1/+1), Rebirth (SoC 2 random Rise), Refrain (20% return to hand),
+  Slaying (Slaughter → +1 max Gold), Trophy (plain copy of first KILL), Broodpit (2g, Avenge (4) 2 taunt Imps).
 - **Chunk 3 — Quest numbers** (~45 items): objective count + reward retunes across all tribes.
 - **Chunk 4 — Quest removals + reworks**: remove Last Rites, The Author's Hand, The Hoard Wakes; rework Empty
   Graves, Forsaken Will, Anomalous Reactor, Deep Hunger, Pit Without End, Blueprint Cache, Feeding Line.

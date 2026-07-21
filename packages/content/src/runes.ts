@@ -15,14 +15,14 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_spellslinging',
     name: 'Rune of Spellslinging',
-    cost: 5,
+    cost: 4,
     text: 'Every **5 Gold** spent, get a random spell.',
     reward: { kind: 'runeSpellDrip', per: 5 },
   },
   {
     id: 'rune_warding',
     name: 'Rune of Warding',
-    cost: 4,
+    cost: 1,
     text: '**Start of Combat:** give your left-most minion **Ward**.',
     reward: { kind: 'combatFlag', flag: 'runeWarding' },
   },
@@ -64,7 +64,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_fury',
     name: 'Rune of Fury',
-    cost: 5,
+    cost: 2,
     text: 'Your **Avenge** effects trigger twice.',
     reward: { kind: 'combatFlag', flag: 'runeFury' },
   },
@@ -78,7 +78,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_forthcoming',
     name: 'Rune of Forthcoming',
-    cost: 6,
+    cost: 1,
     text: 'You **always attack first**.',
     reward: { kind: 'combatFlag', flag: 'runeForthcoming' },
   },
@@ -86,7 +86,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_rallying',
     name: 'Rune of Rallying',
-    cost: 6,
+    cost: 5,
     text: '**Start of Combat:** trigger your **Rally** effects.',
     reward: { kind: 'combatFlag', flag: 'runeRallying' },
   },
@@ -173,9 +173,9 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_spare_parts',
     name: 'Rune of Spare Parts',
-    cost: 1,
-    text: 'Get **4 random Attachments**.',
-    reward: { kind: 'grant', randomFilter: 'attachment', randomFilterCount: 4 },
+    cost: 2,
+    text: 'Get **5 random Attachments**.',
+    reward: { kind: 'grant', randomFilter: 'attachment', randomFilterCount: 5 },
   },
   {
     id: 'rune_bartering',
@@ -194,7 +194,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_salvage',
     name: 'Rune of Salvage',
-    cost: 5,
+    cost: 1,
     text: 'Whenever a friendly **Mech loses Ward**, get a random **Attachment** next shop.',
     reward: { kind: 'combatFlag', flag: 'runeSalvage' },
   },
@@ -265,7 +265,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_reliquary',
     name: 'Rune of the Reliquary',
-    cost: 7,
+    cost: 4,
     epic: true,
     text: '**End of Turn:** trigger your left-most **Echo**.',
     reward: { kind: 'recurringEndOfTurn', effect: 'triggerLeftmostEcho' },
@@ -274,7 +274,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_rising_graves',
     name: 'Rune of Rising Graves',
-    cost: 5,
+    cost: 1,
     epic: true,
     text: '**Start of Combat:** give two friendly **Undead Rise**.',
     reward: { kind: 'combatFlag', flag: 'runeRisingGraves' },
@@ -298,7 +298,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_appraisal',
     name: 'Rune of Appraisal',
-    cost: 6,
+    cost: 5,
     epic: true,
     text: '**Avenge (4):** improve your spells by **+1/+1**.',
     reward: { kind: 'combatFlag', flag: 'runeAppraisal' },
@@ -331,7 +331,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_soul_taxes',
     name: 'Rune of Soul Taxes',
-    cost: 8,
+    cost: 4,
     epic: true,
     text: '**Avenge (4):** gain **+1 max Gold**. Get **Souls Man**.',
     reward: { kind: 'multi', rewards: [{ kind: 'combatFlag', flag: 'runeSoulTaxes' }, { kind: 'grant', cards: ['soulsman'] }] },
@@ -340,7 +340,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_scales',
     name: 'Rune of Scales',
-    cost: 6,
+    cost: 1,
     epic: true,
     text: 'Whenever you cast a spell, give your **Dragons +1/+1**.',
     reward: { kind: 'runeScales' },
@@ -348,7 +348,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_twin_gilding',
     name: 'Rune of Twin Gilding',
-    cost: 8,
+    cost: 5,
     epic: true,
     text: 'You only need **2 copies** of cards to **Gild** them.',
     reward: { kind: 'runeTwinGilding' },
@@ -364,7 +364,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_banking',
     name: 'Rune of Banking',
-    cost: 8,
+    cost: 7,
     epic: true,
     text: '**End of Turn:** attach **Money Bots** to your left-most and right-most Mechs.',
     reward: { kind: 'recurringEndOfTurn', effect: 'weldMoneyBotsEdgeMechs' },
@@ -373,7 +373,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_first_claws',
     name: 'Rune of First Claws',
-    cost: 8,
+    cost: 5,
     epic: true,
     text: '**Start of Combat:** your left-most and right-most **Beasts** attack immediately.',
     reward: { kind: 'combatFlag', flag: 'runeFirstClaws' },
@@ -389,7 +389,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_second_path',
     name: 'Rune of the Second Path',
-    cost: 6,
+    cost: 3,
     epic: true,
     text: '**Discover** a **Greater Quest** reward minion.',
     reward: { kind: 'discoverGreaterQuest' },
@@ -397,7 +397,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_twilight',
     name: 'Rune of Twilight',
-    cost: 8,
+    cost: 4,
     epic: true,
     text: 'Your **Start-of-Combat** effects trigger an **additional time**.',
     reward: { kind: 'combatFlag', flag: 'runeTwilight' },
@@ -406,7 +406,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_feast',
     name: 'Rune of the Feast',
-    cost: 6,
+    cost: 5,
     epic: true,
     text: 'Get **Feasting Bogrot**.',
     reward: { kind: 'grant', cards: ['feastingbogrot'] },
@@ -414,7 +414,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_reconfiguration',
     name: 'Rune of Reconfiguration',
-    cost: 8,
+    cost: 6,
     epic: true,
     text: 'Get **Reconfigured Combinator**.',
     reward: { kind: 'grant', cards: ['reconfiguredcombinator'] },
@@ -423,7 +423,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_champion',
     name: 'Rune of the Champion',
-    cost: 4,
+    cost: 1,
     epic: true,
     text: '**Discover** a **Tier 6** minion.',
     reward: { kind: 'discover', tier: 6 },
@@ -448,7 +448,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_transfusion',
     name: 'Rune of Transfusion',
-    cost: 7,
+    cost: 6,
     epic: true,
     text: 'Whenever a **Demon Consumes** Fodder, your **left-most minion** also gains its stats.',
     reward: { kind: 'runeTransfusion' },
@@ -464,7 +464,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_recurrence',
     name: 'Rune of Recurrence',
-    cost: 7,
+    cost: 3,
     epic: true,
     text: '**End of Turn:** cast the **first spell** you cast this turn again.',
     reward: { kind: 'recurringEndOfTurn', effect: 'recastFirstSpell' },
@@ -472,7 +472,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_replication',
     name: 'Rune of Replication',
-    cost: 7,
+    cost: 1,
     epic: true,
     text: 'The first **Attachment** you play each turn also attaches a **copy** to your left-most Mech.',
     reward: { kind: 'runeReplication' },
@@ -488,7 +488,7 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_undertow',
     name: 'Rune of the Undertow',
-    cost: 7,
+    cost: 3,
     epic: true,
     text: 'Minions summoned by an **Echo** attack immediately.',
     reward: { kind: 'combatFlag', flag: 'runeUndertow' },

@@ -71,8 +71,8 @@ describe('Runeforge — framework', () => {
   });
 
   it('buyRune spends the cost, applies the reward, records the rune, and closes the forge (once per game)', () => {
-    const s = buyRune('rune_warding', 10); // cost 4
-    expect(s.embers).toBe(6);
+    const s = buyRune('rune_warding', 10); // cost 1
+    expect(s.embers).toBe(9);
     expect(s.questFlags?.runeWarding).toBe(true);
     expect(s.ownedRunes).toEqual(['rune_warding']);
     expect(s.runeforgeOffer).toBeUndefined();
@@ -548,10 +548,10 @@ describe('Runes batch 1 — grants / discovers / economy', () => {
     expect(spells.length).toBe(3);
   });
 
-  it('Rune of Spare Parts: conjures 4 random Attachments to hand', () => {
+  it('Rune of Spare Parts: conjures 5 random Attachments to hand', () => {
     const s = buyRune('rune_spare_parts', 10, { tier: 4, hand: [] });
     const attachments = s.hand.filter((c) => CARD_INDEX[c.cardId]?.keywords.includes('M'));
-    expect(attachments.length).toBe(4);
+    expect(attachments.length).toBe(5);
   });
 
   it('Rune of the Scout: opens a Discover of Tier-5 minions', () => {

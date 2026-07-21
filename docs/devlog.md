@@ -3,6 +3,19 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (balance patch — chunk 2a: rune costs)
+
+### balance(content): rune cost pass — 23 cost tweaks + Spare Parts count
+
+Data-only cost retune across the Basic + Epic forges (owner spec 2026-07-21). Cheaper: Forthcoming 6→1,
+Fury 5→2, Rallying 6→5, Salvage 5→1, Warding 4→1, Spellslinging 5→4, Appraisal 6→5, Banking 8→7, First
+Claws 8→5, Reconfiguration 8→6, Recurrence 7→3, Replication 7→1, Rising Graves 5→1, Scales 6→1, Soul Taxes
+8→4, Champion 4→1, Feast 6→5, Reliquary 7→4, Second Path 6→3, Undertow 7→3, Transfusion 7→6, Twilight 8→4,
+Twin Gilding 8→5. Spare Parts 1→2 Gold and now grants **5** Attachments (was 4). Effect reworks
+(Aftershocks/Consumption/Packcraft/Rebirth/Refrain/Slaying/Trophy/Broodpit) land in a later chunk since they
+need engine changes. Verified: full suite green + typecheck + lint. Updated the two pinned assertions
+(buyRune spend = 10−1, Spare Parts count = 5).
+
 ## 2026-07-21 (balance patch — chunk 1: Demon minions)
 
 ### balance(content): Demon minion rebalance — Soulfeeder, Sword & Bored, Burial Imp, Godfodder, Pit Supplier, Ritualist, Chef Raag

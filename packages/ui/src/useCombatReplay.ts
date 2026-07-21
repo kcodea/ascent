@@ -452,6 +452,36 @@ export interface CombatReplay {
 const DR_SUMMON_LEAD = { defender: 800, attacker: 1150 }; // Deathrattle death → its summoned tokens
 const REBORN_LEAD = { defender: 800, attacker: 1150 };    // Rise death → the body returning
 const DR_BUFF_LEAD = { defender: 500, attacker: 500 };    // Deathrattle death → its buff descend (+210 base ⇒ ~710ms)
+/**
+ * A unit's LAYOUT-frame centre + footprint: its live rect with any in-flight GSAP transform divided back out.
+ *
+ * `getBoundingClientRect()` reports where a card is *right now* — including a lunge, a knockback recover, or a
+ * dying attacker's pull-home. FX that MARK a unit (a burst, a pulse, a dust poof, a shatter) must land at the
+ * unit's SLOT, because that is where the card lives and returns to; anchoring them to a mid-flight position
+ * paints them over empty board. That was the proven root cause of the "phantom mid-board ring" (owner clip
+ * 2026-07-21): the death moment's damage burst fired at a dying attacker's mid-pull-home rect and masqueraded
+ * as a misplaced strike ring through three wrong fixes. Every unit-marking FX now measures through here so the
+ * next one can't regress the same way.
+ *
+ * `w`/`h` are de-scaled too — a card measured mid-wind-up is inflated by `windupScale`, which would otherwise
+ * over-size footprint-driven FX (the summon dust, the aura shatter).
+ *
+ * NOT for: the attack vector in `runAttackExchangeCues` (the engine does its own layout-frame correction —
+ * correcting here too would double it), and not for the buff tendril's endpoints (a *travelling* FX drawn
+ * between two cards, where anchoring to the visible card is defensible — left as its own call).
+ */
+export function layoutRectOf(el: Element): { cx: number; cy: number; w: number; h: number } {
+  const r = el.getBoundingClientRect();
+  const sx = Number(gsap.getProperty(el, 'scaleX')) || 1;
+  const sy = Number(gsap.getProperty(el, 'scaleY')) || 1;
+  return {
+    cx: r.left + r.width / 2 - (Number(gsap.getProperty(el, 'x')) || 0),
+    cy: r.top + r.height / 2 - (Number(gsap.getProperty(el, 'y')) || 0),
+    w: r.width / sx,
+    h: r.height / sy,
+  };
+}
+
 function deathConsequenceLead(
   shown: Moment | undefined,
   next: Moment,
@@ -689,10 +719,12 @@ export function useCombatReplay(
     for (const s of selfBuffs) {
       const el = findEl(s.uid);
       if (!el) continue;
-      const r = el.getBoundingClientRect();
+      // SLOT, not mid-flight: an ON-ATTACK self-buff is absorbed into the wind-up, so this fires while the
+      // unit is leaning back — and the pulse marks the unit, so it belongs where the unit lives.
+      const { cx, cy } = layoutRectOf(el);
       const cardId = cardIds.get(s.uid) ?? '';
       const cfg = PULSE_PRESETS[pulsePreset(cardId, (CARD_INDEX[cardId]?.tribe ?? 'neutral') as Tribe)];
-      pixiFx.pulse(r.left + r.width / 2, r.top + r.height / 2, cfg);
+      pixiFx.pulse(cx, cy, cfg);
 
       const tgt = unitOf(s.uid);
       if (!tgt) continue; // no frame entry → fall back to normal display (no negative held value)
@@ -827,10 +859,9 @@ export function useCombatReplay(
       if (!playerUids.has(e.source)) continue;
       const el = findEl(e.source);
       if (!el) continue;
-      const r = el.getBoundingClientRect();
-      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      const { cx, cy, h } = layoutRectOf(el); // SLOT — the source can be mid-lunge when its spell power rises
       pixiFx.spellPower(cx, cy, getSpellPowerFxConfig());
-      floatSpellPowerNumber(cx, cy - r.height * 0.3, gA, gH);
+      floatSpellPowerNumber(cx, cy - h * 0.3, gA, gH);
     }
     // RUN-WIDE TRIBE AURA rose this beat (Ryme, Anubis's Lantern of Souls, Deathswarmer, …): bloom the board
     // aura-wash, the SAME cue the recruit phase shows off `auraFxSeq`. Player side only — the wash is a
@@ -875,8 +906,8 @@ export function useCombatReplay(
     // A unit's live VIEWPORT center+footprint (for the taunt death-burst + the reborn re-form glow, both of
     // which draw on the viewport-fixed FX layer). null when the unit isn't currently measurable.
     const rectOf = (uid: string): { cx: number; cy: number; w: number; h: number } | null => {
-      const r = findEl(uid)?.getBoundingClientRect();
-      return r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : null;
+      const el = findEl(uid);
+      return el ? layoutRectOf(el) : null; // SLOT, not mid-flight — see layoutRectOf
     };
     // The reborn re-form glow is scheduled +460ms (the auraReform cue offset), but its FOOTPRINT must be the
     // unit's rect at BEAT-START — not at fire time, when the `risepop` CSS has scaled the card up to full size
@@ -914,10 +945,10 @@ export function useCombatReplay(
         for (const uid of uids) {
           const el = findEl(uid);
           if (!el) continue;
-          const r = el.getBoundingClientRect();
+          const { cx, cy } = layoutRectOf(el);
           const cardId = cardIds.get(uid) ?? '';
           const cfg = PULSE_PRESETS[pulsePreset(cardId, (CARD_INDEX[cardId]?.tribe ?? 'neutral') as Tribe)];
-          pixiFx.pulse(r.left + r.width / 2, r.top + r.height / 2, cfg);
+          pixiFx.pulse(cx, cy, cfg);
         }
       },
       // A max-Gold gain (Soulsman / Bone Taxer Avenge) → a coins burst at the unit, on top of the "+N max gold" float.
@@ -925,8 +956,8 @@ export function useCombatReplay(
         for (const uid of uids) {
           const el = findEl(uid);
           if (!el) continue;
-          const r = el.getBoundingClientRect();
-          pixiFx.coins(r.left + r.width / 2, r.top + r.height / 2);
+          const { cx, cy } = layoutRectOf(el);
+          pixiFx.coins(cx, cy);
         }
       },
       // A NON-melee hit (SC nuke / split damage / Blaster AoE) → a damage burst + impact ring at each target, so a
@@ -936,14 +967,9 @@ export function useCombatReplay(
         for (const uid of uids) {
           const el = findEl(uid);
           if (!el) continue;
-          const r = el.getBoundingClientRect();
-          // LAYOUT frame, not the live rect (root cause of the "phantom mid-board ring", owner clip
-          // 2026-07-21): a `death` moment also carries this cue, and a dying ATTACKER is mid-pull-home when
-          // it fires — its rect is mid-flight, so the burst + ring appeared over empty board along the
-          // attack path (masquerading as a misplaced strike ring through three strike-side fixes). Subtract
-          // the in-flight GSAP offset so the burst lands at the unit's SLOT, where the death actually reads.
-          const cx = r.left + r.width / 2 - (Number(gsap.getProperty(el, 'x')) || 0);
-          const cy = r.top + r.height / 2 - (Number(gsap.getProperty(el, 'y')) || 0);
+          // SLOT, not the mid-flight rect — this cue also rides `death` moments, where a dying ATTACKER is
+          // mid-pull-home. See layoutRectOf: this exact site was the phantom mid-board ring.
+          const { cx, cy } = layoutRectOf(el);
           pixiFx.damageBurst(cx, cy);
           pixiFx.impactPulse(cx, cy);
         }
@@ -954,9 +980,9 @@ export function useCombatReplay(
         for (const uid of uids) {
           const el = findEl(uid);
           if (!el) continue;
-          const r = el.getBoundingClientRect();
-          if (r.width < 1 || r.height < 1) continue; // not laid out yet → no valid spawn rect
-          pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
+          const { cx, cy, w, h } = layoutRectOf(el);
+          if (w < 1 || h < 1) continue; // not laid out yet → no valid spawn rect
+          pixiFx.dust(cx, cy, w, h);
         }
       },
       // A transform (Tara→Taragosa, Spirit Pup→Worgen) → bloom a flash over the unit, masking the card swap
@@ -965,10 +991,10 @@ export function useCombatReplay(
         for (const uid of uids) {
           const el = findEl(uid);
           if (!el) continue;
-          const r = el.getBoundingClientRect();
+          const { cx, cy } = layoutRectOf(el);
           const cardId = cardIds.get(uid) ?? '';
           const cfg = ASCEND_PRESETS[ascendPreset(cardId, (CARD_INDEX[cardId]?.tribe ?? 'neutral') as Tribe)];
-          pixiFx.flashBloom(r.left + r.width / 2, r.top + r.height / 2, {
+          pixiFx.flashBloom(cx, cy, {
             flashSize: cfg.flashSize, flashMs: cfg.flashMs, flashAlpha: cfg.flashAlpha, colorGlow: cfg.colorGlow, blend: 'screen',
           });
         }
@@ -1052,11 +1078,13 @@ export function useCombatReplay(
           // pull-back's `onLanded` fires, so re-finding it there returns null and the skull/burst was LOST.
           // Fall back to this captured rect so the FX always fire — at home when the unit survives the
           // pull-back, at its last-known spot otherwise.
-          const capR = el.getBoundingClientRect();
-          const capRect = { cx: capR.left + capR.width / 2, cy: capR.top + capR.height / 2, w: capR.width, h: capR.height };
+          // Captured in the LAYOUT frame: this runs while the attacker is still mid-lunge, so its live rect is
+          // in flight. As a fallback for the FX below it must be the unit's SLOT — the pull-home is heading
+          // there, and a mid-flight fallback would drop the skull/burst over empty board.
+          const capRect = layoutRectOf(el);
           runRiseReturn(el, combatSpeed, () => {
-            const r = findEl(impactAtk)?.getBoundingClientRect();
-            const rect = r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : capRect;
+            const rEl = findEl(impactAtk);
+            const rect = rEl ? layoutRectOf(rEl) : capRect;
             if (isRise) burstDeathAuras(impactAtk, rect);                       // spirit release, at home
             if (hasDR) pixiFx.deathrattle(rect.cx, rect.cy, rect.w);            // bone-skull shatter — always fires
           });
@@ -1077,6 +1105,9 @@ export function useCombatReplay(
       // ward is CSS now, so the shatter fires at the unit's live rect (no Pixi bubble to read coords from).
       const wardTargets: string[] = [];
       for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'shield') wardTargets.push(e.target); }
+      // DELIBERATELY the LIVE rect, not `layoutRectOf`: the Ward dome is CSS drawn ON the card, so it rides the
+      // lunge — the gold shatter has to pop where the bubble visibly is (mid-strike, at contact), not back at
+      // the unit's empty slot. The opposite call from the unit-marking FX; don't "fix" this to match them.
       const rectFor = (uid: string) => { const r = findEl(uid)?.getBoundingClientRect(); return r ? { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, h: r.height } : null; };
       const breakWards = wardTargets.length ? () => { for (const t of wardTargets) breakShieldAura(rectFor(t)); } : undefined;
       if (atkEl && a && d) {

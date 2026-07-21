@@ -38,6 +38,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Combat FX land on the unit's slot, not mid-flight.** Every effect that marks a unit — death bursts, the
+  bone skull, self-buff pulses, coins, summon dust, ascend blooms — now measures through one shared
+  layout-frame helper, so none can paint over empty board while its card is mid-lunge or being pulled home.
+  (The Ward shatter deliberately still tracks the visible card: its dome is drawn *on* the card.)
 - **One strike per attack.** A clash is two-way, so the damage moment following an attack was re-bursting
   *both* units — a second strike FX on the defender and a third on the attacker, which was never struck. The
   clash pair is now skipped there (their FX rides the lunge's impact channel); Cleave/AoE splash still bursts.

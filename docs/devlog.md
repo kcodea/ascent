@@ -3,6 +3,44 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (layout-frame FX, everywhere)
+
+### fix(ui): every unit-marking FX measures the SLOT, not a mid-flight rect
+
+Closing the follow-up logged with the phantom-ring fix. `onDamageFx` had been corrected in isolation; its
+siblings still measured `getBoundingClientRect()` raw, so any of them could paint over empty board when its
+unit happened to be mid-lunge, mid-knockback or mid-pull-home.
+
+Rather than paste the same two lines seven times, added **`layoutRectOf(el)`** — the live rect with the
+in-flight GSAP translate subtracted and the footprint de-scaled (a card measured mid-wind-up is inflated by
+`windupScale`, which would over-size footprint-driven FX like the summon dust). Everything that MARKS a unit
+now goes through it:
+
+| Site | FX | Realistic exposure |
+|---|---|---|
+| `rectOf` → `onAuraBurst` / `onShieldBreak` / `onReborn` | death burst, shatter, re-form glow | **real** — a dying unit can be mid-pull-home |
+| `onDamageFx` | damage burst + ring | **real** — the proven phantom-ring case (now via the helper) |
+| death-FX `capRect` (Rise/DR attacker) | spirit burst, bone skull | **real** — captured *while mid-lunge*, used as fallback |
+| `fireSelfBuffs` | self-buff pulse | **real** — on-attack self-buffs fire inside the wind-up |
+| spell-power gain | arrows + float | plausible |
+| `onImprove` / `onMaxGold` / `onSummonFx` / `onAscend` | pulse, coins, dust, bloom | defensive — these fire on their own beats |
+
+Honest framing: four of those are genuinely reachable, the rest are consistency/defence. The point is the
+single chokepoint — the next FX added can't reintroduce the bug by copying the old pattern.
+
+**Three sites deliberately NOT converted**, each commented in place so nobody "fixes" them to match:
+1. `center()` (the attack vector) — `runAttackExchangeCues` already does its own layout-frame correction;
+   correcting here too would double it.
+2. `fireBuffCasts` source/target — a *travelling* tendril drawn between two cards, where anchoring to the
+   visible card is defensible. Its own design call, not this change.
+3. The Ward shatter's `rectFor` — the **opposite** call: the Ward dome is CSS drawn ON the card, so it rides
+   the lunge, and the gold break must pop where the bubble visibly is at contact. Slot would be wrong.
+
+`layoutRectOf` is exported and unit-tested (rest, in-flight offset, de-scale) — verified to fail with the
+subtraction removed, which is the check the earlier `damageFx` test gap didn't have.
+
+Verified: typecheck + lint (0 errors) + **1320 tests** (1317 → 1320) + `build:web`, all green.
+
 ## 2026-07-21 (one strike per attack)
 
 ### fix(ui): the strike FX played twice — the damage moment re-burst both clash units

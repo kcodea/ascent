@@ -3,6 +3,15 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (balance patch — chunk 6: misc card tweaks)
+
+### balance(content): Spell Appraiser / Nimbus / Displacement / Hoardbreaker (owner add-on 2026-07-21)
+
+Data-only tweaks: **Spell Appraiser** Avenge (4)→**(3)**; **Nimbus** T4→**T5**; **Displacement** T4→**T5**;
+**Hoardbreaker Drake** loses its Slaughter clause — now just **Rally: Cast Growth** (dropped the `onKill`
+cast + `SL` keyword). Runescale Drake's rework (per-spell-this-turn scaling) needs a new Start-of-Combat
+factory and lands separately. Verified: full suite green (1304) + typecheck + lint.
+
 ## 2026-07-21 (balance patch — chunk 3: quest objectives)
 
 ### balance(content): quest objective + reward retune — 40 quests

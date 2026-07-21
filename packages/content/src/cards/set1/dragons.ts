@@ -247,21 +247,20 @@ export const DRAGONS: CardDef[] = [
     goldenText: '**Start of Combat:** Give your **Dragons** **+2/+2**. Improve this by **+2/+2** for every spell you cast.',
   },
   {
-    // Slaughter: on a kill, "cast Growth" — buff all your minions +3/+4 (+ combat spell power). A Dragon
-    // finisher that snowballs a winning fight; extra kills re-cast it. Golden → +6/+8. (Art pending.)
+    // Rally: on attacking, "cast Growth" — buff all your minions +3/+4 (+ combat spell power). A Dragon
+    // finisher that snowballs a winning fight; every attack re-casts it. Golden → +6/+8. (Art pending.)
     id: 'hoardbreaker',
     name: 'Hoardbreaker Drake',
     tribe: 'dragon',
     tier: 4,
     attack: 6,
     health: 4,
-    keywords: ['RL', 'SL'],
+    keywords: ['RL'],
     effects: [
       { on: 'onAttack', do: 'rallyCastSpell', params: { spellId: 'growth' } },
-      { on: 'onKill', do: 'onKillCastSpell', params: { spellId: 'growth' } },
     ],
-    text: '**Rally:** Cast **Growth**. **Slaughter:** Cast **Growth**.',
-    goldenText: '**Rally:** Cast **Growth twice**. **Slaughter:** Cast **Growth twice**.',
+    text: '**Rally:** Cast **Growth**.',
+    goldenText: '**Rally:** Cast **Growth twice**.',
   },
 
   // ── Dragon quest reward minions (owner spec 2026-07-08) — `token: true` = reward-exclusive (never in the shop

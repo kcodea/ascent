@@ -438,18 +438,6 @@ export const Card = memo(function Card({
           ) : (
             <Sprite name={spriteForTribe(card.tribe)} scale={5} />
           )}
-          {/* Ward (Divine Shield): the layered glassy gold dome — a CSS stack glued to the card (styles.css
-              `.card.compact.dscard .ward-*`). Living inside `.art` means it rides drag + the combat lunge for
-              free and vanishes exactly when the sim clears the `DS` keyword. Clipped to the arched art. */}
-          {card.keywords.includes('DS') && (
-            <div className="ward" aria-hidden="true">
-              <div className="ward-body" />
-              <div className="ward-hex" />
-              <div className="ward-shadow" />
-              <div className="ward-spot" />
-              <div className="ward-gloss" />
-            </div>
-          )}
           {/* Reborn — a faint ethereal aqua-green dome + rising randomized wisps (CSS, replacing the old Pixi
               wisp), clipped to the oval window. Each wisp carries its own random position/size/rise/drift. */}
           {card.keywords.includes('R') && (
@@ -467,6 +455,22 @@ export const Card = memo(function Card({
             </div>
           )}
         </div>
+        {/* Ward (Divine Shield): the layered glassy energy dome — a CSS stack (styles.css
+            `.card.compact.dscard .ward-*`). Lives in the ARCHBOX, not `.art` (owner 2026-07-21): `.art` is
+            `overflow: hidden` and only ~60% of the card, which hard-clipped the dome to the portrait window —
+            no CSS on `.ward` could escape it. Seated here at z3 it engulfs the whole frame while the badges
+            (z6) and keyword medallion (z9) still render on top, so the numbers stay crisp. Same reasoning as
+            the Flurry ring stack below. Still rides drag + the combat lunge for free, and vanishes exactly
+            when the sim clears the `DS` keyword. Geometry/look are live-tunable — see `wardConfig.ts`. */}
+        {card.keywords.includes('DS') && (
+          <div className="ward" aria-hidden="true">
+            <div className="ward-body" />
+            <div className="ward-hex" />
+            <div className="ward-shadow" />
+            <div className="ward-spot" />
+            <div className="ward-gloss" />
+          </div>
+        )}
         {/* Flurry (W) — wind blades swirling the card: a CSS ring stack (styles.css `.flurrycard .flurry`).
             Lives in the archbox (NOT `.art`, which clips) at z2 — above the art, below the frame — so the
             swirl orbits AROUND the card like the preview. Static gradient/mask paint from flurryConfig; only

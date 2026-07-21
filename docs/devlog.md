@@ -3,6 +3,43 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (Ward dome engulfs the frame + a live tuner)
+
+### feat(ui): move the Ward dome out of the clipped art, and give it a real tuner
+
+Owner: *"does the ward effect have a live tuner? … i want the ward effect to engulf the card's frame as
+well, not just the unit art."*
+
+Answer to the first half was **no**. The dev menu's "🛡 Shield Place" panel sounds like it but tunes exactly
+one thing — `recruitDy`, a vertical nudge for the shop-card bubble. Nothing for the dome.
+
+The second half turned out to be structural, not a dial. `<div class="ward">` was rendered **inside `.art`**,
+and `.art` is `overflow: hidden` at `flex: 0 0 60%` — so the dome was hard-clipped to the portrait window.
+No value on `.ward` could ever have reached the frame.
+
+Fix: the dome moves up to the **archbox**, exactly like the Flurry ring stack already does (its comment even
+says why: *"Lives in the archbox (NOT `.art`, which clips)"*). Seated there at `z-index: 3` it covers the
+whole arched frame, while the corner badges (z6) and keyword medallion (z9) still paint on top — the owner
+picked *"behind badges + text"* so the numbers stay crisp mid-combat. It still rides drag + the lunge for
+free (it's inside the card either way) and still vanishes when the sim clears `DS`.
+
+New **Ward Dome tuner** (`wardConfig.ts` + `WardTuner.tsx`, dev menu 🔵), following the `glowConfig` idiom:
+14 dials reflected to `--wd-*` CSS vars on `:root`, so the dome updates **live** while dragging — no
+re-render or card re-mount, the CSS reads the vars. Grouped as geometry (inset / scale / corner) · energy
+ring (peak / trough / breath period) · glass (facets, facet size, inner shade, shine) · outer glow (aura
+blur/spread/alpha, gold breath).
+
+Note the geometry group is only meaningful *because* of the move: **`inset` can now go negative**, bleeding
+the dome out past the card edge — impossible while `.art` clipped it. A test pins that the range spans both
+directions.
+
+Every `--wd-*` has a CSS fallback equal to the shipped default, so production renders identically without
+importing the config (the tuner module is dev-only, imported via DevMenu) — same contract as `glowConfig`.
+
+Verified: typecheck + lint (0 errors) + **1324 tests** (1320 → 1324) + `build:web`, all green; live DOM check
+in the browser confirms the `--wd-*` vars land on `:root` and the shipped `.ward` rule reads them. The
+*look* is the owner's to judge — dials are live, defaults unchanged from what shipped.
+
 ## 2026-07-21 (layout-frame FX, everywhere)
 
 ### fix(ui): every unit-marking FX measures the SLOT, not a mid-flight rect

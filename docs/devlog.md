@@ -3,6 +3,320 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (owner feel pass — lunge defaults)
+
+### tweak(ui): ship the owner's tuned lunge values
+
+First feel pass dialled against a strike that actually renders (the `.unit` transform-transition had been
+eating ~60–80% of every strike's travel until earlier today, so every previous value was chosen against a
+smeared motion). Owner-tuned by eye at 1× in the DEV Lunge tuner:
+
+| Dial | Was | Now | Effect |
+|---|---:|---:|---|
+| `windupDur` | 0.70 | **0.54** | shorter anticipation |
+| `windupDepth` | 0.1 | **0.13** | deeper lean-back |
+| `windupScale` | 1.28 | **1.32** | bigger swell |
+| `targetSpeed` | 1100 | **400** | much slower travel |
+| `minStrikeDur` | 0.13 | **0.16** | |
+| `maxStrikeDur` | 0.44 | **0.35** | |
+| ease (all 3 bands) | `power3.in` | **`expo.in`** | hangs, then blurs into contact |
+| `leadTilt` | 7.5 | **8** | |
+| `faceOnRamp` | 90 | **150** | a one-slot-over attack now reads ~half-flat |
+| `settleDur` | 0.34 | **1.11** | long, lazy elastic drift home |
+
+Two consequences worth recording, both deliberate but non-obvious:
+
+1. **The clamp window is now narrow.** At 400px/s the free (distance-paced) window is travel ≈64–140px.
+   Below it strikes sit at `minStrikeDur`, above it at `maxStrikeDur` — and this board's diagonals run
+   ~213px, so long attacks are fixed-duration and therefore *faster* than 400px/s. Short and straight-across
+   attacks (~100–125px travel) land inside the window, so distance does pace the common cases. The previous
+   1100px/s had the opposite problem (nearly everything pinned to the `min` floor).
+2. **The settle now outlives its beat.** 1110ms against a ~500ms post-impact hold means a settle visibly runs
+   on through the following beats. That is fine — the settle is a decorative tail the beat clock never waits
+   on, and a re-attacker kills its own tweens in `playLunge` — but it retires the old
+   `combat-timing-reference.md` claim that `attackGap` was at its floor because of the 340ms settle. The gap
+   and the settle are now independent; that doc section is updated.
+
+Two tests moved with the values rather than being deleted: the band-ease lock now asserts `expo.in`, and the
+distance-scaling test was comparing 200px vs 3000px — both past the new ceiling, i.e. two clamps — so it now
+asserts scaling *inside* the live window (80 vs 130) and a new sibling test pins the clamping behaviour at
+both ends explicitly.
+
+Verified: typecheck + lint + **1242 tests** (1241 → 1242) + `build:web`, all green.
+
+## 2026-07-21 (clamp semantics corrected)
+
+### docs(ui): fix the strike-duration clamp comments — a `max` clamp is FASTER than targetSpeed, not slower
+
+Explaining the tuner's CLAMPED readout to the owner surfaced an error propagated through the clamp's own
+doc comments (and the devlog entry that introduced it). The arithmetic:
+
+```
+strikeDur = clamp(travel / targetSpeed, minStrikeDur, maxStrikeDur)
+```
+
+- **min clamp** — travel short, duration forced UP → the strike covers less ground in more time →
+  **slower** than `targetSpeed`. (This half was documented correctly.)
+- **max clamp** — travel long, duration forced DOWN → more ground in less time → **FASTER** than
+  `targetSpeed`. The comments claimed slower.
+
+Also corrected: "clamped strikes flatten to one speed" / "read identically to every other clamped strike."
+They flatten to one **duration**, and therefore to *different* speeds — a 500px and a 900px max-clamped
+strike both take `maxStrikeDur` and look markedly different from each other.
+
+The real significance of the flag, now documented in its place: **a clamped strike ignores `targetSpeed`**,
+which is the usual reason dragging that slider changes nothing. On the current board, cards are large
+relative to the row gaps (travel measured at 43–174px against a `targetSpeed × minStrikeDur` floor of
+~143px), so most swings are min-clamped and `minStrikeDur` — not `targetSpeed` — is the dial that actually
+paces them. That is the answer to the owner's "the lunge is a bit too fast" after the transform-transition
+fix made the full strike visible for the first time.
+
+Comment-only change across `contactGeometry.ts`, `lungeConfig.ts`, `lungeProbe.ts`, plus a correction note
+on the original devlog entry. No behaviour change.
+
+Verified: typecheck + lint + 1241 tests + `build:web`, all green.
+
+## 2026-07-21 (probe removed — owner confirmed)
+
+### chore(ui): strip the strike probe — the transform-transition fix is confirmed ("it worked amazingly")
+
+The owner replayed on the fixed build and confirmed strikes now travel the full path and land on the
+defender's centre at contact. The temporary instrumentation (strikeProbe.ts: IMP/DEF/DFX crosshair markers +
+the `ascent.strikeProbe` localStorage log, added in #ba8e6752 to break the failed-fix loop) is deleted with
+all call sites, per its own DELETE-when-closed note. The layout-frame correction in `onDamageFx` and the
+`setTransition` suspend/restore stay — those are the fixes; the probe was only the evidence-gatherer.
+
+Verified: typecheck + lint + 1241 tests + `build:web`, all green; `grep` confirms zero probe references.
+
+## 2026-07-21 (THE root cause: the CSS transform-transition fought GSAP)
+
+### fix(ui): suspend the `.unit` transform-transition while GSAP owns the element — strikes never visually reached the target
+
+The owner's correction cut through: "IT'S NOT THE RING — they're not reaching the center point." The probe
+logs then made the real defect undeniable. On **every logged swing**, the attacker's VISUAL centre at the
+contact instant had covered only a fraction of the strike path:
+
+| swing | strike target (px) | moved by contact | share |
+|---|---|---:|---:|
+| m8→m4 (long) | (251, 182) | (96, 67) | ~38% |
+| m0→m6 (long) | (234, −200) | (88, −77) | ~38% |
+| m1→m7 (short) | (13, −197) | (−1, −42) | ~21% |
+| m4→m6 (short) | (−13, −197) | (2, −42) | ~21% |
+
+Build, late-solve, and impact coordinates all agreed perfectly — the math was right; the RENDERED card
+trailed it. The culprit: `.unit { transition: transform 0.16s cubic-bezier(0.34,1.25,0.64,1) }`. GSAP writes
+the transform every frame, and the CSS transition **re-interpolates every write over 160ms** — a rubber-band
+lag between the tween's value and what's on screen. Invisible on the 700ms wind-up (it converges), fatal on
+a 130–190ms strike with a late-loaded ease: contact fires on schedule (the beat clock is welded to the
+timeline, not the pixels), the impact lands on the defender, but the card is ~20–40% of the way there — then
+the settle pulls it home before it ever arrives. Longer max-clamped strikes (440ms) mostly catch up, which
+is exactly the owner's "some attacks land perfectly dead center while others go off too early".
+
+This also retro-explains the whole hunt: every "the strike doesn't connect / goes off early" report since
+the corner-to-centre work was this one lag. (The three measurement-frame fixes and the damageFx phantom-ring
+fix remain real, verified defects — they were just not THIS defect.)
+
+Fix: the transition is load-bearing for reposition slides, so it is not removed — it's **suspended while
+GSAP owns the element** and restored on completion: `setTransition(el, 'none')` at the start of the lunge
+(`playLunge`), the defender knockback (`playContactImpact`), and the dying-attacker pull-home
+(`runRiseReturn` — which also covers the killed-lunge path skipping the lunge's own restore), each restoring
+`''` in its `onComplete`. Guarded no-op for test stubs without `.style`.
+
+Side effect to expect: strikes and knockbacks read MUCH sharper now — the card actually arrives at the
+defender's centre at contact for the first time. Feel dials (ease bands, target px/s) should be re-judged
+in the tuner now that the animation being tuned is actually the one on screen.
+
+Verified: typecheck + lint + 1241 tests + `build:web`, all green. Probe left in for the owner's confirming
+run (IMP/DEF/DFX markers + `ascent.strikeProbe` log — the contact `aVis` should now sit ON the defender).
+
+## 2026-07-21 (phantom ring root cause)
+
+### fix(ui): the "off-target impact ring" was never the strike — it was the death moment's damageFx firing at a mid-flight attacker
+
+The probe closed the hunt in one clip. Frame-by-frame of the owner's capture (whelp → taunted Stray, ~3s):
+at the impact instant the `IMP` + `DEF` markers sat exactly ON the Stray with the strike's ring — our impact
+package was firing at the right place all along. 200ms later a SECOND, identical expanding ring appeared at
+mid-board with **no marker on it**, hovering over empty felt along the whelp's return path.
+
+The chain: the whelp died to retaliation → the dying attacker gets pulled home (GSAP flight) → its `death`
+moment carries a `damageFx` cue (score: `death: [...BASE, { ch: 'damageFx' }]`) → `onDamageFx` measured
+`getBoundingClientRect()` at the cue fire — **mid-pull-home** — and fired `damageBurst` + `impactPulse` (an
+expanding ring visually identical to the strike ring) at the whelp's mid-flight position. A phantom ring
+along the attack path, reading exactly like "the strike's ring went off too early."
+
+Three prior strike-side fixes (layout-frame compensation #f7ad6617, face-on fade, late-solved targets
+#e289c11f) were real correctness hardening but couldn't touch this — they fixed the strike, and the strike
+was innocent. The lesson is the probe: after the third failed fix we stopped guessing and instrumented
+(strikeProbe #ba8e6752), and the first instrumented clip discriminated the hypotheses conclusively.
+
+Fix: `onDamageFx` measures in the LAYOUT frame (rect centre minus the element's in-flight GSAP x/y), so a
+dying attacker's death burst + ring land at its **slot** — where the card is headed and visibly dies — never
+at a mid-flight position. An orange `DFX` probe marker now labels this channel too, so the confirming clip
+can show the burst landing on the slot.
+
+Follow-ups queued: the sibling cue handlers (`coins`, `summonFx`, `improveSelf`, `buffSelf`) measure live
+rects the same way and could mis-fire on mid-motion units — same one-line layout correction if ever
+observed. Delete `strikeProbe.ts` + its call sites once the owner confirms.
+
+Verified: typecheck + lint + 1241 tests + `build:web`, all green; root cause proven by the instrumented
+clip's frames (marked strike ring on the Stray, unmarked phantom at the whelp's mid-return position).
+
+## 2026-07-21 (late-solved strikes)
+
+### fix(ui): re-solve the strike target and impact point LATE, not at swing start
+
+Owner screenshot: an impact ring firing near mid-board, "wayyyy before" the defender it should have landed
+on (a long top-left → bottom-right attack into the Target Dummy; the ward's gold shatter landed correctly ON
+the dummy). The tell is in that pairing: the ward shatter resolves its position **at contact time** from the
+live rect, while the strike target + impact point were computed at **swing start** — then fired ~0.9s later
+(700ms wind-up + strike, +440ms more under a rally pause). The board keeps moving through that window, and
+the previous layout-frame fix can't see all of it: a neighbour's death collapse is a **layout** slide
+(`dyingcollapse` shrinks the dying card's width over 320ms, re-centring the whole flex row), invisible to
+GSAP-offset compensation.
+
+Fix: measure-early-fire-late is retired for positions. Build time now commits only what MUST be fixed early
+— the strike duration (the beat clock is welded to it), the lead tilt (already animating in the wind-up),
+the ease band. The positions re-solve late:
+
+- **Strike target** — `resolveStrike` re-measures both cards' layout centres when the strike TWEEN starts
+  (after the wind-up + any rally pause), via GSAP function-based `x/y` values (one measure, cached; the
+  strike tween asks for its target at its own start). The posed-corner offset from build keeps
+  corner-on-centre exact; only the translation refreshes. Exposure drops from ~0.9s to the ~180ms flight.
+- **Impact FX point** — resolved when the impact FIRES, from the defender's live rect (its visual centre —
+  the ring lands on the card wherever it actually is), exactly like the ward shatter. Falls back to the
+  build-time point if the defender has unmounted.
+
+Verified: typecheck + lint + 1241 tests + `build:web`, all green. If any off-centre ring survives this,
+next step is the localStorage probe (record solved-vs-live points per impact and replay in the owner's tab).
+
+## 2026-07-21 (layout-frame strikes)
+
+### fix(ui): solve the strike in the layout frame — displaced cards no longer skew the target
+
+Owner playtest: "some attacks land perfectly dead center while other attacks go off too early." The
+inconsistency was the tell: the strike was solved from `getBoundingClientRect()` at swing start, and that
+rect includes any IN-FLIGHT transform. Two common cases:
+
+- the **defender still recovering from the previous exchange's knockback** — we aimed at its displaced
+  position, it recovered to rest during the ~700ms wind-up, and the corner landed where the card *used* to
+  be;
+- the **attacker still mid-elastic-settle** (Windfury's second swing; attacking right after being hit) — its
+  measured centre was displaced, but GSAP drives x/y relative to *layout* rest, so the strike fell short by
+  the residual.
+
+Both cards at rest → perfect; either mid-motion → off. The tightened `attackGap` (0.14s) made overlapping
+motion the *common* case, which is why it surfaced now.
+
+Fix (`engine.ts`): subtract both cards' current GSAP `x/y` offsets from the measured vector before
+`contactGeometry`, so the strike is solved in the **layout frame** — the defender's true rest centre —
+regardless of what's still moving at measure time. The attacker's rect dims are also divided by its current
+scale (a mid-wind-up measurement would otherwise inflate the corner half-extents), and the impact-FX point
+is anchored to the layout centre too. The same layout vector now feeds the wind-up lean and the blow
+direction — one frame throughout. `lunge.ts` gets the matching fix for the trail origin, which was
+double-counting the residual (rect included it AND `onUpdate` added live x/y on top).
+
+Verified: typecheck + lint + 1241 tests + `build:web`, all green. (Pure measurement-frame correction — no
+timing or geometry rules changed, so no new unit surface; the fix lives where DOM/GSAP state does.)
+
+## 2026-07-21 (face-on fade)
+
+### fix(ui): straight-across attacks slam flat instead of sidestepping to land a corner
+
+Owner playtest of the corner-to-centre strikes: "looks amazing except for when units attack another unit
+that is directly across from them." That's the corner rule's degenerate case — at `dx ≈ 0` it still picked
+the right corner and full tilt, so the card shuffled ~40px sideways to land that corner on the centre: a
+shimmy where a straight-ahead slam should be.
+
+Fix: the corner + tilt now FADE with horizontal offset. `faceOnRamp` (new dial, default 90px) sets the |dx|
+over which they ramp in — dead-ahead the card drives perfectly straight and its leading-EDGE-MIDPOINT hits
+the defender's centre, flat (no tilt); a slight offset gets a slight lean; past the ramp, the full
+corner-strike. A linear blend, not a threshold, so adjacent pairings can't pop between two looks. The fade
+also mutes `tiltAngleScale`, which would otherwise blow up near ±90° approaches (a dead-ahead swing's
+`approachDeg` is −90 — unfaded, `scale 1` would have added −90° of tilt exactly where the card should be
+flattest). `faceOnRamp: 0` disables the fade (always the full corner). Corner-on-centre exactness is
+preserved at every blend point — the faded strike point is re-posed and re-solved per swing.
+
+Verified: typecheck + lint + **1241 tests** (1237 → 1241: dead-ahead flat both directions, linear ramp-in
+with centre-exactness at the midpoint, the tiltAngleScale mute, and the ramp-0 escape hatch) + `build:web`,
+all green. NB: one intermediate gate run silently executed in the primary checkout (the shell cwd reset) and
+reported a stale count — re-ran in the worktree before trusting it.
+
+## 2026-07-21 (corner-to-centre strikes)
+
+### tweak(ui): the leading corner always strikes the defender's dead centre
+
+Owner spec: attacking left→right, the attacker's TOP-RIGHT corner must impact the defender's exact centre
+(both axes); right→left, the TOP-LEFT corner. Enemy swings travel downward, so the rule mirrors to the
+BOTTOM corners (owner call: "mirror it" — the forward corner either way). Previously certain lunges stopped
+visibly short: `strikePoint` shipped at 0 (owner-tuned 2026-07-10 to a shallow surface clack) and the
+leading corner was picked by projection, not fixed by rule.
+
+`contactGeometry` rebuilt around the spec:
+
+- **Fixed corner by direction** — right/left from `sign(dx)`, top/bottom from the vertical travel direction
+  — replacing the pick-the-furthest-projecting-corner search. The corner is rotated by the lead tilt before
+  placement, so it lands on the centre *as posed*; the tilt (and `tiltAngleScale`) can never pull it off
+  target.
+- **Strike offset = defender centre − posed corner.** Exact, per swing, whatever the vector — the
+  "too short depending on distance" class is gone by construction.
+- **Timing unchanged (owner requirement).** The strike *duration* still derives from the surface-to-surface
+  gap at `targetSpeed`, same clamps — so contact fires when it always did and every hold welded to it is
+  untouched. The extra depth to centre is absorbed into speed: a hotter final drive within the same clock.
+- **`bite` and `strikePoint` retired** (config, ranges, groups, both tuners). Bite meant "drive past the
+  surface" and strikePoint blended surface↔centre — both are meaningless when centre impact is the spec, and
+  a dial that no longer does anything is a lying dial. Impact FX now always originate at the defender's
+  centre. The engine's blend/corner-local block collapsed to `strikeOffset = geo.strike`.
+
+Verified: typecheck + lint + **1237 tests** (1235 → 1237; the geometry suite rewritten — corner-on-centre
+exactness in all four direction quadrants plus a vertical swing, duration-from-gap invariance, and
+tilt-can't-miss under `tiltAngleScale`) + `build:web`, all green.
+
+## 2026-07-21 (lunge tuner rebuild)
+
+### tweak(ui): rebuild the Lunge tuner around the approach VECTOR, not the slot
+
+Re-approaching the attack lunge ("the strike reads wrong"), the first plan was a per-pairing tuner — a dial
+per attacker-slot → defender-slot. The owner caught why that can't work: `.row` is `justify-content: center`,
+so a 6-card side seats at different x positions than a 7-card side, **and both rows re-centre mid-combat as
+units die**. A distinct seating is a (count, index) pair — 28 per side, 784 vectors — and even that
+undercounts, because the same nominal "slot 3 → slot 5" is a *different vector* before and after a death
+reflows the row. There is no stable per-pairing key to hang config on.
+
+So the tuner is rebuilt around the rule that **every dial is a property of the approach vector, never of a
+seat.** If a knob would need to know "which slot", it can't ship.
+
+**Two dials became vector functions** (both default to the shipped feel exactly — this commit is a no-op on
+the animation until something is dialled):
+
+- **distance → strike ease.** The curve was hardcoded `power3.in`, then briefly one global dial. It is now
+  three distance bands (`bandShortPx` 220 / `bandLongPx` 460) with an ease each, because the same curve reads
+  as a *snap* over 180ms and as a *drift-then-lurch* over 440ms. All three bands default to `power3.in`.
+- **angle → lead tilt.** `leadTilt` read only `sign(dx)`, so a steep diagonal led with the same corner as a
+  flat sideways swing. `tiltAngleScale` (0–1) folds in the approach slope, measured along the direction of
+  travel (hence `|dx|`), so mirrored swings agree. Default `0` = the shipped sign-only behaviour.
+
+**`contactGeometry` now reports its derived numbers** — `dist`, `travel`, `approachDeg`, and `clamped`
+(`'min' | 'max' | null`). Nothing in the animation reads them; the tuner does. The clamp report is the
+load-bearing one: a clamped strike is not obeying `targetSpeed` at all, so it flags when that slider has
+stopped being the dial in charge. (This paragraph originally claimed a `max` clamp meant the strike ran
+*slower* than `targetSpeed` and that clamped strikes read identically — both wrong; corrected 2026-07-21,
+see that day's clamp-semantics entry.)
+
+**The panel** (`LungeTuner.tsx`) is grouped by which function each slider shapes (`LUNGE_GROUPS`), and leads
+with a live readout of what the functions produced for the swings just watched — travel, resolved duration,
+ease band, tilt — plus a running **clamp tally**. Fed by `lungeProbe.ts`, a 60-entry ring buffer that
+`engine.ts` pushes to; recording is **off unless the tuner is open**, so the shipped path costs one boolean
+test per swing. This replaces the synthetic 7×7 preview grid that the seating problem ruled out: the only
+thing worth judging is the function's output over the vectors combat actually serves.
+
+The sessionStorage backing + loud MODIFIED banner from the tuner's return are unchanged — the footgun that
+got the original deleted in #537 (localStorage overrides persisting silently forever) stays designed out.
+
+Verified: `typecheck` + `lint` + **1235 tests** (1226 → 1235; +9 covering band splits, clamp reporting,
+approach-slope symmetry, the `tiltAngleScale` identity at 0, and that every config key appears in exactly one
+tuner group so a dial can't be silently unreachable) + `build:web`, all green. No `DEFAULTS` changed, so the
+shipped lunge is byte-identical pending the owner's tuning pass.
+
 ## 2026-07-21ag (Ryme replays Imp Overseer's Battlecry in combat)
 
 ### fix(core): Imp Overseer + Ryme grants the Imp buff (+ aura wash) in combat — no Bane needed

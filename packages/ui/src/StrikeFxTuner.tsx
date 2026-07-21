@@ -4,8 +4,8 @@ import { SMOKE_RANGES, getSmokeConfig, setSmokeValue, type SmokeConfig } from '.
 import { useDraggablePanel } from './useDraggablePanel';
 
 /**
- * DEV-only "Lunge Strike Effects" tuner — the whole combat strike-impact package in one panel: the strike
- * point (center ↔ corner), the melee flash / shockwave / heavy ring / sparks (`strikeFxConfig` → `pixiFx.impact`),
+ * DEV-only "Lunge Strike Effects" tuner — the whole combat strike-impact package in one panel: the melee
+ * flash / shockwave / heavy ring / sparks (`strikeFxConfig` → `pixiFx.impact`),
  * plus the impact smoke + dust billow + energy pulse (which live in `smokeConfig` alongside the card-drop dust,
  * surfaced here so it's all dialed together). Drag the sliders to tune by eye — values persist to localStorage
  * and apply to the NEXT strike (watch a fight to judge). "Copy" grabs the merged JSON to paste back as the
@@ -13,7 +13,6 @@ import { useDraggablePanel } from './useDraggablePanel';
  * only: opened from the Dev Tuning Menu; dev-only, so it's stripped from production.
  */
 const STRIKE_LABELS: Record<keyof StrikeFxConfig, string> = {
-  strikePoint: 'corner depth',
   flashSize: 'flash size',
   shockwaveSize: 'shockwave size',
   ringScale: 'heavy ring',

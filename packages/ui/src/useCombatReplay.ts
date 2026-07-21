@@ -935,7 +935,13 @@ export function useCombatReplay(
           const el = findEl(uid);
           if (!el) continue;
           const r = el.getBoundingClientRect();
-          const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          // LAYOUT frame, not the live rect (root cause of the "phantom mid-board ring", owner clip
+          // 2026-07-21): a `death` moment also carries this cue, and a dying ATTACKER is mid-pull-home when
+          // it fires — its rect is mid-flight, so the burst + ring appeared over empty board along the
+          // attack path (masquerading as a misplaced strike ring through three strike-side fixes). Subtract
+          // the in-flight GSAP offset so the burst lands at the unit's SLOT, where the death actually reads.
+          const cx = r.left + r.width / 2 - (Number(gsap.getProperty(el, 'x')) || 0);
+          const cy = r.top + r.height / 2 - (Number(gsap.getProperty(el, 'y')) || 0);
           pixiFx.damageBurst(cx, cy);
           pixiFx.impactPulse(cx, cy);
         }

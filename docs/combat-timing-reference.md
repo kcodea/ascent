@@ -157,7 +157,7 @@ to their new values instead of landing with the FX (the roadmap's "buff-tendril 
 | Buff descend + flash (Deathrattle) | ≈700 | 710 | *covered* |
 | Reborn `risepop` | 700 | 240 (overlap) | 460 |
 | Summon `summonpop` | 340 | 240 (overlap) | 100 |
-| Lunge settle | 340 | ends at contact | 340 (by design) |
+| Lunge settle | **1110** | ends at contact | **1110 (by design)** |
 | DR skull (pop + poof) | ≈600 (embers 800) | covered by the 1150 lead | fits |
 
 ## 8. Interactions, end to end
@@ -213,14 +213,16 @@ screen is a `summon`.) A Windfury version of the same trade would add another ~1
 1. **The 1150/800 leads are NOT fat — leave them.** They look oversized against the death *fade* (620ms), but
    they're covering the **death FX**, which runs much longer: `burstDeathAuras` shatter shards live
    `420 + random×360` = **420–780ms**, and the Deathrattle skull ≈600ms (embers ≈800ms), both starting only
-   once the body *lands* (+340ms for an attacker). Real slack is only ~240–270ms in all four cases, and the
+   once the body *lands* (the attacker's pull-home, not its settle). Real slack is only ~240–270ms in all four cases, and the
    shard life is randomized — trimming would clip the longest-lived debris on some deaths. This is the opposite
    of `PULL_HOME_HOLD`, where the delay sat *after* everything had already finished.
 2. **Windfury doubles everything** — two full 1375ms cycles. Nothing is shared between the swings.
 3. **`attackGap` 140 + attack lead 360 = 500ms** after every impact (869.5 → 670 → 500 across two passes).
-   This is now at the **floor**: the attacker's elastic **settle** is 340ms (fire-and-forget after contact), so
-   only ~160ms of the hold is free. Cutting further starts the next wind-up while the previous attacker is
-   still visibly settling. To go faster from here you must shorten the motion itself, not the gap — see below.
+   **Superseded 2026-07-21:** the settle is no longer the constraint it was. The owner's feel pass took it
+   0.34 → **1.11s**, so it now runs *through* the following beats by ~610ms. That is deliberate — the settle
+   is a decorative tail the beat clock never waits on, and a re-attacker kills its own tweens before swinging
+   again (`playLunge`). So the "only ~160ms of the hold is free" reasoning no longer applies: the gap and the
+   settle are now independent, and `attackGap` can be judged purely on inter-swing rhythm.
 4. ~~Buff Deathrattles are the inverse problem~~ — **fixed** by `DR_BUFF_LEAD` (500). Still open for a buff
    wave from a **living** source, which takes the tendril path (up to 780ms + 360ms flash) on a 210ms hold.
 5. **`hpGrant` holds 0ms** and **7 event types** silently use the 300ms fallback (§3).

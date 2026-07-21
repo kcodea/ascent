@@ -1,5 +1,5 @@
 import gsap from 'gsap';
-import { getLungeConfig } from '../../lungeConfig';
+import { getLungeConfig, strikeEaseFor } from '../../lungeConfig';
 import { getTrailConfig } from '../../trailConfig';
 import { pixiFx } from '../../pixiFx';
 import { sfx } from '../../sfx';
@@ -9,10 +9,20 @@ export interface LungeCtx {
   /** Full attacker→defender vector (not normalized). */
   dx: number;
   dy: number;
-  /** Strike target offset (surface contact + bite) from contactGeometry — replaces the center-overshoot. */
+  /** Strike target offset from contactGeometry — places the attacker so its leading corner lands on the
+   *  defender's dead centre. Used directly, OR as the fallback when `resolveStrike` is provided. */
   strike: { x: number; y: number };
+  /** LATE-SOLVED strike target: called once when the STRIKE tween starts (after the ~700ms wind-up and any
+   *  rally pause), re-measuring the world as it is THEN. The board shifts during the wind-up — a neighbour's
+   *  death collapse re-centres the row (layout, 320ms), a knockback recovers — and a target solved at swing
+   *  START lands where the defender USED to be (owner report 2026-07-21: rings firing "wayyyy before" the
+   *  defender). GSAP function-based values make the re-solve free: the tween asks for x/y at its own start. */
+  resolveStrike?: () => { x: number; y: number };
   /** Distance-scaled strike duration (s) from contactGeometry — replaces the fixed config value. */
   strikeDur: number;
+  /** Surface-to-surface travel (px) from contactGeometry — selects the strike's EASE BAND, so a short jab
+   *  and a long cross-board drive can carry different curves. Defaults to 0 (the short band). */
+  travel?: number;
   /** Signed lead-tilt (deg) — the attacker rotates this to lead with a corner. */
   leadTilt: number;
   /** Attacker rotational rebound (deg) at contact, before the settle. */
@@ -48,7 +58,8 @@ export interface LungeCtx {
 
 /**
  * The attack lunge motion (choreographer phase 3b) — wind up (lean back + tilt to lead a corner), strike to
- * the defender's surface contact point with that corner leading (power3.in), contact, then a short rotational
+ * the defender's surface contact point with that corner leading (curve from `strikeEaseFor(travel)` — the strike's
+ * ease is a function of how far it travels), contact, then a rotational
  * rebound off the clack before an elastic settle. The strike offset + duration + lead-tilt come in from
  * `contactGeometry` (the attacker stops at the surface rather than overshooting center). GSAP owns the
  * attacker's transform for the whole lunge — React renders no transform on combat units, so they never fight.
@@ -68,17 +79,26 @@ function once(fn?: () => void): (() => void) | undefined {
   return () => { if (!fired) { fired = true; fn(); } };
 }
 
+/** Set an element's inline CSS `transition` (no-op for test stubs without a `.style`). '' restores the CSS. */
+export function setTransition(el: Element, value: string): void {
+  const st = (el as HTMLElement).style;
+  if (st) st.transition = value;
+}
+
 export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
-  const { attacker, dx, dy, speed, strike, strikeDur, leadTilt, attackerRebound, impactOffsetMs = 0, rallyPauseMs = 0, flurry = false } = ctx;
+  const { attacker, dx, dy, speed, strike, strikeDur, travel = 0, leadTilt, attackerRebound, impactOffsetMs = 0, rallyPauseMs = 0, flurry = false } = ctx;
   const onContact = once(ctx.onContact);
   const onImpact = once(ctx.onImpact);
   const onImpactAuras = once(ctx.onImpactAuras);
   const onRallyPulse = once(ctx.onRallyPulse);
   const onWindupBuffs = once(ctx.onWindupBuffs);
   const c = getLungeConfig();
+  // The trail's origin is the attacker's LAYOUT centre: the measured rect includes any residual transform
+  // (a killed settle / knockback-recover still in flight), and `onUpdate` adds the live GSAP x/y on top —
+  // without subtracting the residual here it would be counted twice and the trail would ride offset.
   const rest = attacker.getBoundingClientRect();
-  const cx0 = rest.left + rest.width / 2;
-  const cy0 = rest.top + rest.height / 2;
+  const cx0 = rest.left + rest.width / 2 - (Number(gsap.getProperty(attacker, 'x')) || 0);
+  const cy0 = rest.top + rest.height / 2 - (Number(gsap.getProperty(attacker, 'y')) || 0);
   // NB: in combat `findEl` resolves the `.unit` WRAPPER (its data-uid matches first), so the marker classes
   // live on the `.card` DESCENDANT — the querySelector is the live path, not a dead fallback.
   const variant = attacker.classList.contains('dscard') || attacker.querySelector('.dscard')
@@ -93,8 +113,18 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
   const trailCutoff = c.windupDur + windupPauseS + strikeDur;
   gsap.killTweensOf(attacker); // a re-attacker (Windfury / Gnasher swinging again) restarts clean
   gsap.set(attacker, { zIndex: 12 }); // ride above its neighbours for the duration
+  // SUSPEND the `.unit` CSS `transition: transform 0.16s` while GSAP owns this element (probe finding
+  // 2026-07-21): the transition re-interpolates EVERY per-frame GSAP write over 160ms, so the rendered card
+  // perpetually trails the tween — at contact the card had covered only ~20-40% of the strike path on every
+  // logged swing (the "attacks don't reach the centre" report; invisible on the slow wind-up, fatal on a
+  // 130-190ms strike). The transition is load-bearing for reposition slides, so it's restored on completion
+  // rather than removed from the CSS.
+  setTransition(attacker, 'none');
   const tl = gsap.timeline({
-    onComplete: () => gsap.set(attacker, { clearProps: 'transform,zIndex' }),
+    onComplete: () => {
+      setTransition(attacker, '');
+      gsap.set(attacker, { clearProps: 'transform,zIndex' });
+    },
     onUpdate: () => {
       if (tl.time() > trailCutoff) return; // no trail on the elastic settle
       const cx = cx0 + Number(gsap.getProperty(attacker, 'x'));
@@ -115,7 +145,11 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
   }
   // Flurry (W) extra swing: the wind-up has ended and the strike is about to drive → whoosh the gust here.
   if (flurry) tl.call(() => sfx.flurryLunge());
-  tl.to(attacker, { x: strike.x, y: strike.y, rotation: leadTilt, scale: 1, duration: strikeDur, ease: 'power3.in' })                                       // strike to the surface, corner leading
+  // The strike target: late-solved at TWEEN START when the caller provides `resolveStrike` (one measure,
+  // cached — GSAP invokes the x and y functions separately), else the build-time offset.
+  let solved: { x: number; y: number } | null = null;
+  const strikeAt = (): { x: number; y: number } => (solved ??= ctx.resolveStrike?.() ?? strike);
+  tl.to(attacker, { x: () => strikeAt().x, y: () => strikeAt().y, rotation: leadTilt, scale: 1, duration: strikeDur, ease: strikeEaseFor(travel) })                 // strike, corner leading, target solved at strike start
     .add(onContact, `-=${c.smackLead}`)                                                                                                                      // contact — the beat advance, smackLead before the strike completes
     .to(attacker, { rotation: -Math.sign(leadTilt) * attackerRebound, duration: 0.06, ease: 'power2.out' })                                                 // rotational rebound off the clack (leadTilt 0 → no lead, no rebound)
     .to(attacker, { x: 0, y: 0, rotation: 0, duration: c.settleDur, ease: 'elastic.out(1, 0.45)' });                                                        // settle

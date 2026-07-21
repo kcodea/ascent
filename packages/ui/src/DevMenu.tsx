@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { SfxMixer } from './SfxMixer';
+import { LungeTuner } from './LungeTuner';
 import { StrikeFxTuner } from './StrikeFxTuner';
 import { CritFxTuner } from './CritFxTuner';
 import { FlurrySwingTuner } from './FlurrySwingTuner';
@@ -50,6 +51,7 @@ const TUNERS = [
   { key: 'buffdrawer', label: '🧪 Buffs Drawer', C: BuffDrawerTuner },
   { key: 'glow', label: '🔆 Hover Glow', C: GlowTuner },
   { key: 'sfx', label: '🎛️ Mixing Desk', C: SfxMixer },
+  { key: 'lunge', label: '🗡️ Lunge', C: LungeTuner },
   { key: 'strikefx', label: '💥 Lunge Strike Effects', C: StrikeFxTuner },
   { key: 'critfx', label: '⚡ Critical Strike FX', C: CritFxTuner },
   { key: 'flurryswing', label: '🌬️ Flurry Swing FX', C: FlurrySwingTuner },

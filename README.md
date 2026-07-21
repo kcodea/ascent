@@ -44,6 +44,40 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 - **Spell-power FX** — rising pink/purple/gold arrows, a mote blast, and the floating power number when a
   spell power goes up in the shop, with a full dev tuner. (Combat wiring still to come.)
 
+- **Lunge feel pass shipped.** First tuning done against a strike that actually renders: slower travel
+  (400px/s), a shorter wind-up with a deeper lean, an `expo.in` strike curve that hangs then blurs into
+  contact, and a long lazy 1.11s settle home.
+- **Strikes actually reach the target now.** The probe proved every swing's card was only ~20–40% of the way
+  to the defender when contact fired: the `.unit` CSS `transition: transform` re-interpolated every per-frame
+  GSAP write over 160ms, so the rendered card rubber-banded behind the tween — invisible on the slow wind-up,
+  fatal on a 130–190ms strike. The transition is now suspended while GSAP owns the element (lunge, knockback,
+  pull-home) and restored after, so the corner visibly lands on the defender's centre at contact.
+- **The phantom mid-board ring is fixed.** The "impact ring firing off-target" was never the strike (the
+  probe proved the strike lands dead-on) — it was the death moment's damage burst + ring firing at a dying
+  attacker's mid-pull-home position, over empty board. It now fires at the unit's slot, where the death reads.
+- **Strike targets re-solve late.** The strike's landing point and the impact FX position were computed at
+  swing start and fired ~0.9s later — a neighbour dying mid-wind-up re-centres the row (a layout slide) and
+  the ring landed where the defender *used* to be. The strike target now re-measures when the strike launches,
+  and the impact FX resolve from the defender's live rect at the moment they fire.
+- **Strikes are solved in the layout frame.** Attacks measured while a card was still mid-motion (a defender
+  recovering from the last knockback, a Windfury attacker mid-settle) used the displaced position and landed
+  off-centre — the strike now subtracts in-flight transforms and always targets the defender's true rest
+  centre.
+- **Straight-across attacks slam flat.** A defender directly ahead is now hit with a straight frontal drive —
+  leading-edge midpoint to centre, no tilt — instead of the corner rule's sideways sidestep; the corner + tilt
+  blend in over a tunable `faceOnRamp` (90px) of horizontal offset.
+- **Strikes land corner-to-centre.** The attacker's leading corner (top-right travelling left→right,
+  top-left right→left; mirrored to the bottom corners for enemy swings coming down the board) now impacts the
+  defender's dead centre on every attack — lunges can no longer stop short of the target. Strike *durations*
+  still derive from the old surface gap, so the contact beat and all combat timing are unchanged; the extra
+  depth just makes the final drive hotter. The now-meaningless `bite` + `strikePoint` dials are retired.
+- **Lunge tuner rebuilt around the approach vector.** There's no stable per-slot lunge to tune: the board row
+  is centre-justified (a 6-card side seats differently from a 7-card side) and re-centres mid-combat as units
+  die, so "slot 3 → slot 5" is a different vector before and after a death. Every dial is now a function of the
+  vector — strike ease splits into three *distance* bands, and lead tilt can fold in the *approach angle*
+  (it previously read only the sign of dx, so a steep diagonal led with the same corner as a flat swing). The
+  panel shows what those functions produced for the swings you just watched, including how often the duration
+  clamps flattened a strike. Defaults are unchanged, so the shipped lunge is untouched pending tuning.
 - **Quest nodes** — every taken quest shows as a bubble with a live `x/y` counter, dim until it activates,
   then lit in the same slot. Replaces the old quest text panel.
 

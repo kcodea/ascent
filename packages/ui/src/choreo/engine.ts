@@ -1,11 +1,11 @@
 import gsap from 'gsap';
 import type { Moment } from './compile';
 import { getScore } from './score';
-import { playLunge } from './channels/lunge';
+import { playLunge, setTransition } from './channels/lunge';
 import { hitPower, playContactImpact } from './channels/impact';
-import { getLungeConfig } from '../lungeConfig';
-import { getStrikeFxConfig } from '../strikeFxConfig';
+import { getLungeConfig, strikeBandFor, strikeEaseFor } from '../lungeConfig';
 import { contactGeometry } from './contactGeometry';
+import { recordLunge } from '../lungeProbe';
 
 export interface AttackCueCtx {
   combatSpeed: number;
@@ -61,26 +61,83 @@ export function runAttackExchangeCues(
   // contact + the impact cue's offset — negative fires it BEFORE contact (the smack-lead), positive after.
   // playLunge places it on its own timeline, so it stays killed/seekable with the lunge and scales with speed.
   const cfg = getLungeConfig();
-  const sp = getStrikeFxConfig().strikePoint; // 0 = corner meets defender surface, 1 = corner drives to defender CENTRE
   const atkRect = attacker.getBoundingClientRect();
   const defRect = defender?.getBoundingClientRect();
-  const geo = contactGeometry(dx, dy, atkRect, defRect ?? { width: 0, height: 0 }, cfg);
-  // The attacker always leads with its tilted corner; `strikePoint` sets how DEEP that corner drives — from
-  // the defender's near SURFACE (geo.contact, 0) to the defender's TRUE CENTRE (the full attacker→defender
-  // vector dx/dy, 1). We translate the attacker so its leading corner lands on that target, and fire the
-  // impact FX there. `cornerLocal` is the tilted corner's offset from the attacker's own centre, so
-  // `strike = target − cornerLocal` puts the corner (not the card centre) on the target.
-  const atkC = { x: atkRect.left + atkRect.width / 2, y: atkRect.top + atkRect.height / 2 };
-  const cornerLocal = { x: geo.contact.x - geo.strike.x, y: geo.contact.y - geo.strike.y };
-  const targetOffset = { x: geo.contact.x + (dx - geo.contact.x) * sp, y: geo.contact.y + (dy - geo.contact.y) * sp };
-  const strikeOffset = { x: targetOffset.x - cornerLocal.x, y: targetOffset.y - cornerLocal.y };
-  const impactAt = { x: atkC.x + targetOffset.x, y: atkC.y + targetOffset.y };
+  // LAYOUT-FRAME COMPENSATION (owner report 2026-07-21: "some attacks land dead centre, others go off
+  // early"): the caller's dx/dy come from live rects, which include any IN-FLIGHT transform — a defender
+  // still recovering from the previous exchange's knockback, or an attacker still mid-elastic-settle
+  // (Windfury's second swing; attacking right after being hit). GSAP's x/y drive relative to LAYOUT rest,
+  // and the defender recovers to rest during the ~700ms wind-up, so a strike solved against displaced rects
+  // lands where the card USED to be. Subtract both cards' current GSAP offsets so the strike is solved in
+  // the layout frame — the defender's TRUE rest centre — regardless of what's still moving when we measure.
+  // (The tightened attackGap makes overlapping motion the common case, which is why this surfaced now.)
+  const curOf = (el: Element | null | undefined): { x: number; y: number } => ({
+    x: el ? Number(gsap.getProperty(el, 'x')) || 0 : 0,
+    y: el ? Number(gsap.getProperty(el, 'y')) || 0 : 0,
+  });
+  const atkCur = curOf(attacker);
+  const defCur = curOf(defender);
+  const ldx = dx - defCur.x + atkCur.x;
+  const ldy = dy - defCur.y + atkCur.y;
+  // The measured rect also inflates under a mid-wind-up scale — divide the attacker's dims back to rest size.
+  const atkScale = Number(gsap.getProperty(attacker, 'scaleX')) || 1;
+  const atkSize = { width: atkRect.width / atkScale, height: atkRect.height / atkScale };
+  const geo = contactGeometry(ldx, ldy, atkSize, defRect ?? { width: 0, height: 0 }, cfg);
+  // The geometry places the attacker so its FIXED leading corner (top corner for a player swing, mirrored
+  // bottom corner for an enemy swing, right/left picked by dx) lands on the DEFENDER'S CENTRE — `geo.strike`
+  // is the card-centre offset that achieves it, `geo.contact` is that centre, where the impact FX originate.
+  // (The former `strikePoint` surface↔centre blend is retired: centre impact is the spec, not a dial.)
+  const atkLayoutC = { x: atkRect.left + atkRect.width / 2 - atkCur.x, y: atkRect.top + atkRect.height / 2 - atkCur.y };
+  const strikeOffset = geo.strike;
+  const impactAt = { x: atkLayoutC.x + geo.contact.x, y: atkLayoutC.y + geo.contact.y };
   const spinDeg = -Math.sign(geo.leadTilt || 1) * cfg.defenderSpin;
+  // LATE RESOLUTION (owner report 2026-07-21: impact rings firing "wayyyy before" the defender): everything
+  // above measures at SWING START, but the strike lands ~0.9s later (700ms wind-up + strike, +440ms more
+  // under a rally pause) — and the board keeps moving through that window. A neighbour's death collapse is a
+  // LAYOUT slide (`dyingcollapse` shrinks its width over 320ms, re-centring the whole row), invisible to the
+  // GSAP-offset compensation above. So the build-time numbers keep only what must be committed early (the
+  // duration the beat clock is welded to, the tilt already animating in the wind-up, the ease band), and the
+  // POSITIONS re-solve late, the same way the ward shatter already does:
+  //   - the strike target re-measures both cards when the strike TWEEN starts (see `resolveStrike`);
+  //   - the impact FX point re-measures the defender when the impact FIRES (its visual centre — the ring
+  //     lands on the card wherever it actually is).
+  const posedCorner = { x: geo.contact.x - geo.strike.x, y: geo.contact.y - geo.strike.y };
+  const layoutC = (el: Element): { x: number; y: number } => {
+    const r = el.getBoundingClientRect();
+    return {
+      x: r.left + r.width / 2 - (Number(gsap.getProperty(el, 'x')) || 0),
+      y: r.top + r.height / 2 - (Number(gsap.getProperty(el, 'y')) || 0),
+    };
+  };
+  const resolveStrike = defender
+    ? (): { x: number; y: number } => {
+        const a = layoutC(attacker);
+        const d = layoutC(defender);
+        if (!Number.isFinite(a.x) || !Number.isFinite(d.x)) return strikeOffset;
+        // Fresh layout vector, build-time pose: the corner offset was committed when the wind-up tilted the
+        // card, so only the TRANSLATION re-solves — the posed corner still lands exactly on the centre.
+        return { x: d.x - a.x - posedCorner.x, y: d.y - a.y - posedCorner.y };
+      }
+    : undefined;
+  const liveImpactAt = (): { x: number; y: number } => {
+    const r = defender?.getBoundingClientRect();
+    return r && r.width > 0 ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : impactAt;
+  };
+  // DEV probe (no-op unless the Lunge tuner is open): record what the distance→duration / distance→ease /
+  // angle→tilt functions produced for THIS vector. There is no stable per-pairing key to inspect instead —
+  // the rows re-centre as units die — so the tuner reads the functions' real outputs.
+  recordLunge({
+    dist: geo.dist, travel: geo.travel, strikeDur: geo.strikeDur, clamped: geo.clamped,
+    approachDeg: geo.approachDeg, leadTilt: geo.leadTilt,
+    band: strikeBandFor(geo.travel), ease: strikeEaseFor(geo.travel),
+  });
   return playLunge({
-    attacker, dx, dy, speed: ctx.combatSpeed, flurry: hasFlurry,
-    strike: strikeOffset, strikeDur: geo.strikeDur, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
+    // The layout-frame vector everywhere: the wind-up leans back along it, the blow direction rides it, and
+    // the strike target was solved from it — one frame, no mixed-measurement drift.
+    attacker, dx: ldx, dy: ldy, speed: ctx.combatSpeed, flurry: hasFlurry,
+    strike: strikeOffset, resolveStrike, strikeDur: geo.strikeDur, travel: geo.travel, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
     onContact: () => ctx.advance(),
-    onImpact: impact ? () => { playContactImpact(defender, dx, dy, power, ctx.combatSpeed, impactAt, spinDeg, crit, hasFlurry, flurrySlash); if (crit) ctx.onCritImpact?.(); } : undefined,
+    onImpact: impact ? () => { playContactImpact(defender, ldx, ldy, power, ctx.combatSpeed, liveImpactAt(), spinDeg, crit, hasFlurry, flurrySlash); if (crit) ctx.onCritImpact?.(); } : undefined,
     impactOffsetMs: impact?.offset ?? 0,
     onRallyPulse: ctx.onRallyPulse,
     onWindupBuffs: ctx.onWindupBuffs,
@@ -98,11 +155,17 @@ export function runAttackExchangeCues(
  */
 export function runRiseReturn(el: Element, combatSpeed: number, onLanded: () => void): ReturnType<typeof gsap.timeline> {
   gsap.killTweensOf(el);
+  // Suspend the `.unit` transform-transition for the pull-home (see the lunge.ts note) — killing the lunge
+  // above also skipped its restore, so set-and-restore here keeps the element clean either way.
+  setTransition(el, 'none');
   const tl = gsap.timeline();
   tl.to(el, {
     x: 0, y: 0, rotation: 0, scale: 1,
     delay: 0.1 / combatSpeed, duration: 0.24 / combatSpeed, ease: 'power2.out',
-    onComplete: () => gsap.set(el, { clearProps: 'transform,zIndex' }),
+    onComplete: () => {
+      setTransition(el, '');
+      gsap.set(el, { clearProps: 'transform,zIndex' });
+    },
   });
   tl.add(onLanded); // landed → fire the spirit burst in the unit's own slot
   return tl;

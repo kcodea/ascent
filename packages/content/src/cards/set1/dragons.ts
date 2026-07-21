@@ -9,6 +9,25 @@ import type { CardDef } from '@game/core';
  */
 export const DRAGONS: CardDef[] = [
   {
+    // Early Dragon glue: a Taunt body that hands a single friendly Dragon a real stat bump. `target: 'friendly'`
+    // + `targetTribe: 'dragon'` drive the player's pick; `battlecryBuffTarget` applies it. Follows the standing
+    // tribe-restricted-target convention (Toxin Tender): with no OTHER friendly Dragon on board there's no
+    // viable target, so the Battlecry doesn't fire and the body plays as-is (no prompt). A Myra / face-Omen
+    // re-fire with no explicit target auto-picks the highest-Attack friendly Dragon. Golden doubles the grant.
+    id: 'emissary',
+    name: 'Twilight Emissary',
+    tribe: 'dragon',
+    tier: 2,
+    attack: 2,
+    health: 3,
+    keywords: ['T'],
+    target: 'friendly',
+    targetTribe: 'dragon',
+    effects: [{ on: 'onPlay', do: 'battlecryBuffTarget', params: { attack: 2, health: 2 } }],
+    text: '**Taunt.** **Battlecry:** give a friendly **Dragon** **+2/+2**.',
+    goldenText: '**Taunt.** **Battlecry:** give a friendly **Dragon** **+4/+4**.',
+  },
+  {
     id: 'cleric',
     name: 'Hoard Cleric',
     tribe: 'dragon',

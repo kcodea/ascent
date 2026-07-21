@@ -923,6 +923,27 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const k of kws) if (!target.keywords.includes(k)) target.keywords.push(k);
   },
 
+  /** Twilight Emissary: Battlecry — buff a chosen friendly minion +atk/+hp (golden doubles). The stat sibling
+   *  of `battlecryGrantKeyword`, with the SAME target resolution: `payload.target` when the player picked one,
+   *  otherwise an auto-pick (a Myra / face-Omen re-fire with no explicit target) of the highest-Attack friend,
+   *  restricted by the card's `targetTribe` (Twilight Emissary → friendly Dragons only; dual-types count). It
+   *  falls back to buffing ITSELF when no other eligible friend is on board, and no-ops if even that fails. */
+  battlecryBuffTarget: (ctx, self, params, payload) => {
+    const attack = num(params.attack) * gold(self);
+    const health = num(params.health) * gold(self);
+    if (attack <= 0 && health <= 0) return;
+    let target = payload.target;
+    if (!target) {
+      const restrict = CARD_INDEX[self.cardId]?.targetTribe;
+      const ok = (c: BoardCard): boolean => !restrict || isTribe(c, restrict);
+      const others = ctx.state.board.filter((c) => c !== self && ok(c));
+      const pool = others.length > 0 ? others : ok(self) ? [self] : [];
+      if (pool.length === 0) return; // no eligible friend
+      target = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
+    }
+    addBuff(target, nameOf(self), attack, health);
+  },
+
   /** Buddy Buddy / Haven Drake: Battlecry — add `count` random minions to your hand (golden doubles
    *  the count). Drawn from the run's buyable pool (active tribes + neutral). A `tier` param pins the
    *  pick to exactly that tier (Buddy Buddy → 1); absent, any tier up to the CURRENT tavern tier

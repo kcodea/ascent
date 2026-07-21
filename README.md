@@ -38,6 +38,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **New Dragon: Twilight Emissary** (T2 2/3, Taunt) — *Battlecry: give a friendly Dragon +2/+2*, a targeted
+  buff on a new `battlecryBuffTarget` factory. Plus Deathswarmer → T1 1/3 and **+5 starting Armor for every
+  hero**.
+
 - **Balance patch (2026-07-21) — complete**, on `balance/patch-2026-07-21` across 12 tested commits: Demon
   minion rebalance, 23 rune costs + 8 rune effect reworks, 40 quest objective retunes, 3 quest removals + 6
   quest flag reworks, and the new-mechanic minions (a new **buy-count** trigger for Korok/Banksly, Hunter's

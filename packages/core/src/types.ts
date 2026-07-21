@@ -161,6 +161,7 @@ export type EffectFactoryId =
   | 'scTribeBuffImproving' // Pack Leader: Start of Combat — buff Beasts +M/+M (base + accrued), improve permanently
   // recruit-time (resolved by @game/sim, baked into stats before combat)
   | 'battlecryBuffTribe'
+  | 'battlecryBuffTarget' // Twilight Emissary: Battlecry — buff a CHOSEN friendly minion +atk/+hp (targetTribe-restricted)
   | 'battlecrySummon'
   | 'buffOnBuy'
   | 'buffBoardOnBuy' // On buy: buff your whole board (Brightwing Broker)

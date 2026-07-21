@@ -22,7 +22,7 @@ non-token). "Shop" counts below **exclude** `token: true` cards and the enemy-on
 
 | Content | Count | Source |
 | --- | ---: | --- |
-| Shop minions (`BUYABLE_CARDS`) | **119** | `cards/{beasts,dragons,undead,mechs,demons,neutral}.ts` |
+| Shop minions (`BUYABLE_CARDS`) | **128** | `cards/{beasts,dragons,undead,mechs,demons,neutral}.ts` |
 | Shop spells (`SPELL_CARDS`) | **37** | `cards/spells.ts` |
 | Quests (`QUEST_DEFS`) | **77** | `quests.ts` |
 | Basic runes (`RUNES`) | **30** | `runes.ts` |
@@ -35,7 +35,7 @@ non-token). "Shop" counts below **exclude** `token: true` cards and the enemy-on
 Shop-minion breakdown by tribe file (non-token, non-spell): Beasts 21 · Dragons 18 · Undead 20 ·
 Mechs 19 · Demons 18 · Neutral 23 = **119**.
 
-Full card pool (`ALL_CARDS`, everything incl. tokens/spells/enemy) = **198**.
+Full card pool (`ALL_CARDS`, everything incl. tokens/spells/enemy) = **207**.
 
 Three heroes are withheld from the picker via `wip: true` (Warden, Myra, Chaos), leaving **24 of 27**
 selectable.

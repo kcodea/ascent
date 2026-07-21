@@ -808,6 +808,42 @@ describe('run loop (@game/sim)', () => {
     expect(stray?.health).toBe(1); // aura is Attack-only
   });
 
+  it('Twilight Emissary: Battlecry buffs the CHOSEN friendly Dragon +2/+2 (Dragons only)', () => {
+    const setup = (): RunState => ({
+      ...createRun(1), embers: 0, shop: [],
+      board: [
+        { uid: 'd1', cardId: 'cleric', tribe: 'dragon', attack: 5, health: 5, keywords: [], golden: false }, // highest Attack
+        { uid: 'd2', cardId: 'whelp', tribe: 'dragon', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'nb', cardId: 'alley', tribe: 'beast', attack: 9, health: 9, keywords: [], golden: false },   // not a Dragon
+      ],
+      hand: [{ uid: 'te', cardId: 'emissary', tribe: 'dragon', attack: 2, health: 3, keywords: ['T'], golden: false }],
+    });
+    let s = setup();
+    s = reduce(s, { type: 'play', uid: 'te' });
+    expect(s.pendingTarget).toBeDefined(); // waits for the player to pick a Dragon
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'd2' }); // the SMALL Dragon, not the auto-pick
+    expect(s.pendingTarget).toBeUndefined();
+    const d2 = s.board.find((c) => c.uid === 'd2')!;
+    expect([d2.attack, d2.health]).toEqual([3, 3]); // 1/1 + 2/2
+    expect(s.board.find((c) => c.uid === 'd1')!.attack).toBe(5); // the higher-Attack Dragon untouched
+    expect(s.board.find((c) => c.uid === 'nb')!.attack).toBe(9); // the non-Dragon untouched
+  });
+
+  it('Twilight Emissary: with no OTHER Dragon there is no viable target — no prompt, no fire', () => {
+    // The standing tribe-restricted-target convention (Toxin Tender): the Battlecry simply doesn't fire and the
+    // body plays as-is, rather than stranding the player on an unanswerable prompt or buffing off-tribe.
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [{ uid: 'nb', cardId: 'alley', tribe: 'beast', attack: 9, health: 9, keywords: [], golden: false }],
+      hand: [{ uid: 'te', cardId: 'emissary', tribe: 'dragon', attack: 2, health: 3, keywords: ['T'], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'te' });
+    expect(s.pendingTarget).toBeUndefined(); // no prompt
+    const te = s.board.find((c) => c.uid === 'te')!;
+    expect([te.attack, te.health]).toEqual([2, 3]); // played as-is
+    expect(s.board.find((c) => c.uid === 'nb')!.attack).toBe(9); // the Beast is never eligible
+  });
+
   it('Runic Beetle: Choose One, then pick a friendly Beast to give it Rise or Flurry', () => {
     const setup = (): RunState => ({
       ...createRun(1), embers: 0, shop: [],
@@ -4036,18 +4072,18 @@ describe('PvE course + record (@game/sim)', () => {
   });
 
   it('Armor: per-hero starting values (a balance dial) carry into the run', () => {
-    // A strong power tends to carry less armor. Values as of the 2026-07-09 tuning pass.
-    expect(getHero('warden').armor).toBe(12);
-    expect(getHero('soren').armor).toBe(8);
-    expect(getHero('cassen').armor).toBe(8);
-    expect(getHero('darah').armor).toBe(12);
-    expect(getHero('hermithank').armor).toBe(8); // Tradesman
-    expect(getHero('nadja').armor).toBe(19);
-    expect(getHero('robin').armor).toBe(8);
-    expect(getHero('indy').armor).toBe(15);
+    // A strong power tends to carry less armor. Values as of the 2026-07-21 across-the-board +5 armor pass.
+    expect(getHero('warden').armor).toBe(17);
+    expect(getHero('soren').armor).toBe(13);
+    expect(getHero('cassen').armor).toBe(13);
+    expect(getHero('darah').armor).toBe(17);
+    expect(getHero('hermithank').armor).toBe(13); // Tradesman
+    expect(getHero('nadja').armor).toBe(24);
+    expect(getHero('robin').armor).toBe(13);
+    expect(getHero('indy').armor).toBe(20);
     const s = createRun(1, 'indy');
-    expect(s.armor).toBe(15);
-    expect(s.maxArmor).toBe(15);
+    expect(s.armor).toBe(20);
+    expect(s.maxArmor).toBe(20);
   });
 
   it('Armor absorbs a loss before Resolve; overflow chips Resolve', () => {

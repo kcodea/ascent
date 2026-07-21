@@ -33,11 +33,13 @@ Large hand-authored balance pass, sliced so each chunk lands green + tested on i
 - **✅ Add-on (owner 2026-07-21, shipped to branch):** Spell Appraiser Avenge (3), Nimbus/Displacement → T5,
   Hoardbreaker Drake → Rally-only, and **Runescale Drake** reworked to per-spell-this-turn scaling (new
   `scTribeBuffPerSpellImproving` factory).
-- **Chunk 4 — Quest removals + flag reworks + the 2 deferred objectives**: remove Last Rites, The Author's
-  Hand, The Hoard Wakes; rework Empty Graves (SoC Rally→leftmost-Echo), Deep Hunger (slaughter 13 + Avenge (3)
-  add 2 Fodder), Pit Without End (last-death → 7 Imps), The Old Hunt (+3/+3 on Beast attack), Blueprint Cache
-  (+3/+3 per attachment), Feeding Line (text); apply the deferred Parliament of Flame (spend 33) + Track and
-  Fodder (kill 14) with new mechanic-coverage vehicles for the orphaned Djinn/consume tests.
+- **✅ Chunk 4 — Quest removals + flag reworks** (shipped to branch): removed Last Rites / The Author's Hand /
+  The Hoard Wakes; reworked Empty Graves, Deep Hunger, Pit Without End, The Old Hunt, Blueprint Cache; applied
+  the deferred Parliament of Flame + Track and Fodder with new vehicles for the orphaned regressions.
+
+**The 2026-07-21 balance patch is now COMPLETE** — every spec item is on `balance/patch-2026-07-21`, awaiting
+review + merge. Follow-up worth tracking: the `authorsHand` objective event and `slaughterRepeat` reward kind
+now have no content using them (kept deliberately for a future quest — remove them if none materialises).
 - **✅ Chunk 5 — New-mechanic minions** (shipped to branch): Hoard Cleric (exclude self), Attachment Mechanic
   → T4 3/5, Kennelmaster Avenge (4), Thundeer text, Hunter (improve every 3 — new `every` param), and
   Korok/Banksly on a new **`cardsBought`** trigger + `buyTick` meter (the buy-count sibling of `goldSpent`).

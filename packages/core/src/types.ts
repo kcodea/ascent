@@ -970,6 +970,9 @@ export interface Minion {
   /** Perfect Core (welded): number of random spells granted when this attacks. Standalone Perfect Core
    *  grants via its own onAttack effect instead, so a host never double-counts. */
   rallySpellWeld?: number;
+  /** Empty Graves: granted at Start of Combat to your left-most minion — each time it attacks (Rally) it
+   *  triggers your left-most living Echo. Combat-only (never persisted to a run board card). */
+  emptyGravesRally?: boolean;
   /** Bloodlust: at Start of Combat, take an immediate out-of-turn attack, immune to retaliation for that swing. */
   bloodlust?: boolean;
   /** Bloodlust weld: on each of its own attacks, give a random friendly minion Attack equal to this minion's

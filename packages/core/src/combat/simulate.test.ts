@@ -1969,16 +1969,28 @@ describe('simulate (handoff A.3)', () => {
     expect(die.playerMaxGoldGain).toBe(1);
   });
 
-  it('Empty Graves: the first friendly death each combat summons a Gravebody', () => {
-    const a = simulate(
+  it('Empty Graves: Start of Combat gives your left-most minion "Rally: trigger your left-most Echo"', () => {
+    // Leftmost is a plain attacker; Mama Pup (behind it) is the leftmost ECHO — each attack re-fires its
+    // Deathrattle, summoning Pups WITHOUT Mama Pup ever dying.
+    const run = (mods: object) => simulate(
       [
-        { cardId: 'alley', attack: 1, health: 1 }, // dies to the 20-Attack retaliation → first friendly death
-        { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] },
+        { cardId: 'gnash', attack: 4, health: 60 },        // leftmost → gets the Rally grant
+        { cardId: 'pack', attack: 0, health: 60 },         // leftmost Echo: Deathrattle summons 2 Pups
       ],
-      [{ cardId: 'omen', attack: 20, health: 50 }],
-      makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: { emptyGraves: true } }),
+      [{ cardId: 'sandbag', attack: 0, health: 200 }],
+      makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }),
     );
-    expect(a.events.some((e) => e.type === 'summon' && e.minion.cardId === 'gravebody')).toBe(true);
+    const pups = (r: { events: CombatEvent[] }): number =>
+      r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length;
+    const a = run({ emptyGraves: true });
+    const b = run({});
+    // The grant is announced as an RL keyword on the leftmost body — and only with the quest armed.
+    expect(a.events.some((e) => e.type === 'keyword' && e.keyword === 'RL' && e.target === a.initial.player[0]!.uid)).toBe(true);
+    expect(b.events.some((e) => e.type === 'keyword' && e.keyword === 'RL')).toBe(false);
+    // Mama Pup eventually dies either way (its own Deathrattle = 2 Pups, the baseline). With Empty Graves the
+    // leftmost body ALSO re-triggers that Echo on every attack, so the Pup count multiplies well past the baseline.
+    expect(pups(b)).toBe(2);
+    expect(pups(a)).toBeGreaterThan(pups(b));
   });
 
   it('The Red Trail (slaughterKeyword): only kills by an on-kill (Slaughter) minion count', () => {

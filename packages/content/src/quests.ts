@@ -2,7 +2,7 @@ import type { QuestDef } from '@game/core';
 import { QuestDefSchema } from './schema';
 
 /**
- * QUEST DATA — the full quest set (79 quests). Two quest turns per run — wave 5 (the "early" bucket: Lesser +
+ * QUEST DATA — the full quest set (77 quests). Two quest turns per run — wave 5 (the "early" bucket: Lesser +
  * most Greater) and wave 11 (the "late" bucket: Capstones + a couple promoted Greater neutrals). Each quest
  * turn offers 4 (a neutral slot + 3 distinct-tribe slots, tier-bucketed); the player buys one. Objectives run
  * from simple recruit-action counters (buy / play / sell / roll / summon / shout) up to compound multi-part
@@ -55,7 +55,7 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_the_runeforge', name: 'The Runeforge', tribe: 'neutral', tier: 'lesser', objective: { event: 'buy', count: 9 }, reward: { kind: 'scheduleRuneforge', forge: 'basic', gold: 4 } },
   { id: 'q_spell_thesis', name: 'Spell Thesis', tribe: 'neutral', tier: 'lesser', objective: { event: 'buy', count: 7 }, reward: { kind: 'spellRepeat', scope: 'firstEachTurn' } },
 
-  // ── Greater tier — turn-5 bucket (except Ancient Runes + Last Rites, promoted to the turn-11 bucket) ──
+  // ── Greater tier — turn-5 bucket (except Ancient Runes, promoted to the turn-11 bucket) ──
   // NEUTRAL greater slot — build-agnostic: spend Gold to earn a trip to the Epic Runeforge (opens next turn).
   { id: 'q_epic_commission', name: 'The Epic Runeforge', tribe: 'neutral', tier: 'greater', wave: 11, objective: { event: 'castSpell', count: 15 }, reward: { kind: 'multi', rewards: [{ kind: 'openEpicRuneforge' }, { kind: 'gainGold', amount: 8 }] } },
   { id: 'q_apex_hunt', name: 'Apex Hunt', tribe: 'beast', tier: 'greater', objective: { event: 'slaughter', count: 6, tribe: 'beast' }, reward: { kind: 'grant', cards: ['badgington'], grantKeywords: ['W', 'DS'] } },
@@ -72,13 +72,12 @@ export const QUEST_DEFS: QuestDef[] = [
   { id: 'q_perfect_machine', name: 'Perfect Machine', tribe: 'mech', tier: 'greater', objective: { event: 'buy', count: 7 }, reward: { kind: 'grant', cards: ['perfectcore'] } },
   { id: 'q_machine_chorus', name: 'Machine Chorus', tribe: 'mech', tier: 'greater', objective: { event: 'attack', count: 7 }, reward: { kind: 'grant', cards: ['chorusengine'] } },
   { id: 'q_blueprint_cache', name: 'Blueprint Cache', tribe: 'mech', tier: 'greater', objective: { event: 'playAttachment', count: 6 }, reward: { kind: 'recurringEndOfTurn', effect: 'buffMechsPerAttachment' } },
-  { id: 'q_deep_hunger', name: 'Deep Hunger', tribe: 'demon', tier: 'greater', objective: { event: 'consumeFodder', count: 11 }, reward: { kind: 'combatFlag', flag: 'deepHunger' } },
+  { id: 'q_deep_hunger', name: 'Deep Hunger', tribe: 'demon', tier: 'greater', objective: { event: 'slaughter', count: 13 }, reward: { kind: 'combatFlag', flag: 'deepHunger' } },
   { id: 'q_food_for_gold', name: 'Food for Gold', tribe: 'demon', tier: 'greater', objective: { event: 'buy', count: 11, tribe: 'demon' }, reward: { kind: 'goldFodder', per: 7, attack: 1, health: 1 } },
   { id: 'q_contract_rewrite', name: 'Contract Rewrite', tribe: 'demon', tier: 'greater', objective: { event: 'spendGold', count: 25 }, reward: { kind: 'combatFlag', flag: 'contractRewrite' } },
   { id: 'q_implosion', name: 'Implosion', tribe: 'demon', tier: 'greater', objective: { event: 'summonImp', count: 10 }, reward: { kind: 'recurringGrant', cards: ['implosion'] } },
   // NEUTRAL greater: "get a random <keyword> minion" + the keyword doubler (owner spec 2026-07-08).
   { id: 'q_hoardwake_ritual', name: 'Hoardwake Ritual', tribe: 'neutral', tier: 'greater', objective: { event: 'shout', count: 12 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomFilter: 'shout' }, { kind: 'shoutRepeat', scope: 'always' }] } },
-  { id: 'q_last_rites', name: 'Last Rites', tribe: 'neutral', tier: 'capstone', objective: { event: 'deathrattle', count: 9 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomFilter: 'echo' }, { kind: 'echoRepeat', scope: 'firstEachCombat' }] } },
   { id: 'q_echo_chamber', name: 'Echo Chamber', tribe: 'neutral', tier: 'greater', objective: { event: 'summonCombat', count: 9 }, reward: { kind: 'grant', cards: ['echowarden'] } },
   { id: 'q_overclocked_core', name: 'Overclocked Core', tribe: 'neutral', tier: 'greater', objective: { event: 'rally', count: 9 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomFilter: 'rally' }, { kind: 'rallyRepeat', scope: 'firstEachCombat' }] } },
   { id: 'q_dupes', name: 'Dupes', tribe: 'neutral', tier: 'greater', objective: { event: 'winRound', count: 2 }, reward: { kind: 'dupeFirstBuy' } },
@@ -89,29 +88,27 @@ export const QUEST_DEFS: QuestDef[] = [
   // ── Capstone tier — turn-11 bucket ──
   { id: 'q_leader_of_the_pack', name: 'Leader of the Pack', tribe: 'beast', tier: 'capstone', objective: { event: 'attack', count: 18, tribe: 'beast' }, reward: { kind: 'multi', rewards: [{ kind: 'grant', grantGolden: ['packleader'] }, { kind: 'gainGold', amount: 10 }] } },
   { id: 'q_law_of_teeth', name: 'Law of Teeth', tribe: 'beast', tier: 'capstone', objective: { event: 'slaughter', count: 8, tribe: 'beast' }, reward: { kind: 'combatFlag', flag: 'lawOfTeeth' } },
-  { id: 'q_the_old_hunt', name: 'The Old Hunt', tribe: 'beast', tier: 'capstone', objective: { event: 'attack', count: 20, tribe: 'beast' }, reward: { kind: 'combatFlag', flag: 'oldHunt', amount: 10 } },
+  { id: 'q_the_old_hunt', name: 'The Old Hunt', tribe: 'beast', tier: 'capstone', objective: { event: 'attack', count: 20, tribe: 'beast' }, reward: { kind: 'combatFlag', flag: 'oldHunt', amount: 3 } },
   { id: 'q_feeding_line', name: 'Feeding Line', tribe: 'beast', tier: 'capstone', objective: { event: 'slaughter', count: 18, tribe: 'beast' }, reward: { kind: 'combatFlag', flag: 'feedingLine' } },
   { id: 'q_taragosas_inheritance', name: "Taragosa's Inheritance", tribe: 'dragon', tier: 'capstone', objective: { event: 'tribeStats', count: 250, tribe: 'dragon' }, reward: { kind: 'grant', cards: ['taragosaheir'] } },
   { id: 'q_chimerus', name: 'Chimerus', tribe: 'dragon', tier: 'capstone', objective: { event: 'castSpell', count: 10 }, reward: { kind: 'grant', cards: ['chimerus'] } },
   { id: 'q_twin_sun_oath', name: 'Twin Sun Oath', tribe: 'dragon', tier: 'capstone', objective: { event: 'shout', count: 15 }, reward: { kind: 'shoutEdgeBuff', attack: 5, health: 5 } },
   { id: 'q_the_bone_throne', name: 'The Bone Throne', tribe: 'undead', tier: 'greater', objective: { event: 'spendGold', count: 35 }, reward: { kind: 'boneThrone', every: 4 } },
   { id: 'q_death_writes_twice', name: 'Death Writes Twice', tribe: 'undead', tier: 'capstone', objective: { event: 'deathrattle', count: 12 }, reward: { kind: 'grant', cards: ['gravetwin'] } },
-  { id: 'q_empty_graves', name: 'Empty Graves', tribe: 'undead', tier: 'greater', objective: { event: 'friendlyDeath', count: 20 }, reward: { kind: 'combatFlag', flag: 'emptyGraves' } },
+  { id: 'q_empty_graves', name: 'Empty Graves', tribe: 'undead', tier: 'greater', objective: { event: 'friendlyDeath', count: 13 }, reward: { kind: 'combatFlag', flag: 'emptyGraves' } },
   { id: 'q_shared_circuit', name: 'Shared Circuit', tribe: 'mech', tier: 'capstone', objective: { event: 'playAttachment', count: 16 }, reward: { kind: 'combatFlag', flag: 'sharedCircuit', amount: 3 } },
   { id: 'q_anomalous_reactor', name: 'Anomalous Reactor', tribe: 'mech', tier: 'greater', objective: { event: 'spendGold', count: 15 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['anomalyreactor'] }, { kind: 'grant', randomTier: 5, randomCount: 1 }] } },
   { id: 'q_attachment_issues', name: 'Attachment Issues', tribe: 'mech', tier: 'capstone', objective: { event: 'castSpell', count: 14 }, reward: { kind: 'attachmentDeal', cost: 1 } },
   { id: 'q_fried_circuits', name: 'Fried Circuits', tribe: 'mech', tier: 'capstone', objective: { event: 'spendGold', count: 40 }, reward: { kind: 'friedCircuits', stepAttack: 4, stepHealth: 5 } },
   { id: 'q_true_contract', name: 'The True Contract', tribe: 'demon', tier: 'capstone', objective: { event: 'spendGold', count: 38 }, reward: { kind: 'grant', cards: ['heraldapoc'] } },
-  { id: 'q_pit_without_end', name: 'Pit Without End', tribe: 'demon', tier: 'capstone', objective: { event: 'summonImp', count: 12 }, reward: { kind: 'combatFlag', flag: 'pitWithoutEnd', amount: 3 } },
-  { id: 'q_maw_of_the_run', name: 'Track and Fodder', tribe: 'demon', tier: 'capstone', objective: { event: 'consumeStats', count: 70 }, reward: { kind: 'grant', cards: ['runmaw'] } },
+  { id: 'q_pit_without_end', name: 'Pit Without End', tribe: 'demon', tier: 'capstone', objective: { event: 'summonImp', count: 12 }, reward: { kind: 'combatFlag', flag: 'pitWithoutEnd', amount: 7 } },
+  { id: 'q_maw_of_the_run', name: 'Track and Fodder', tribe: 'demon', tier: 'capstone', objective: { event: 'slaughter', count: 14 }, reward: { kind: 'grant', cards: ['runmaw'] } },
   // NEUTRAL capstone: the keyword-doubler + random-keyword-minion payoffs (owner spec 2026-07-08).
   { id: 'q_echoing_coop', name: 'Echoing Coop', tribe: 'neutral', tier: 'capstone', objective: { event: 'buy', count: 18 }, reward: { kind: 'combatFlag', flag: 'echoingCoop' } },
-  { id: 'q_the_hoard_wakes', name: 'The Hoard Wakes', tribe: 'neutral', tier: 'capstone', objective: { event: 'shout', count: 10 }, reward: { kind: 'multi', rewards: [{ kind: 'shoutRepeat', scope: 'always' }, { kind: 'grant', randomFilter: 'shout' }] } },
-  { id: 'q_parliament_of_flame', name: 'Parliament of Flame', tribe: 'neutral', tier: 'capstone', objective: { event: 'endOfTurn', count: 7 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomFilter: 'endOfTurn' }, { kind: 'endOfTurnRepeat' }] } },
+  { id: 'q_parliament_of_flame', name: 'Parliament of Flame', tribe: 'neutral', tier: 'capstone', objective: { event: 'spendGold', count: 33 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomFilter: 'endOfTurn' }, { kind: 'endOfTurnRepeat' }] } },
   { id: 'q_funeral_engine', name: 'Funeral Engine', tribe: 'neutral', tier: 'capstone', objective: { event: 'deathrattle', count: 12 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomFilter: 'echo', randomFilterExactTier: true }, { kind: 'echoRepeat', scope: 'always' }] } },
   { id: 'q_infinite_assembly', name: 'Infinite Assembly', tribe: 'neutral', tier: 'capstone', objective: { event: 'slaughter', count: 13 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', randomFilter: 'rally' }, { kind: 'rallyRepeat', scope: 'always' }] } },
   { id: 'q_rulebreakers_crown', name: "Rulebreaker's Crown", tribe: 'neutral', tier: 'capstone', objective: { event: 'attack', count: 14 }, reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['goldcrafter'] }, { kind: 'combatFlag', flag: 'doubleLeftmostAttack' }] } },
-  { id: 'q_authors_hand', name: "The Author's Hand", tribe: 'neutral', tier: 'capstone', objective: { event: 'authorsHand', count: 5 }, reward: { kind: 'multi', rewards: [{ kind: 'shoutRepeat', scope: 'firstEachRound' }, { kind: 'echoRepeat', scope: 'firstEachCombat' }, { kind: 'rallyRepeat', scope: 'firstEachCombat' }, { kind: 'slaughterRepeat', scope: 'firstEachCombat' }] } },
   { id: 'q_impossible_shop', name: 'Taurus Ascension', tribe: 'neutral', tier: 'greater', objective: { event: 'spendGold', count: 40 }, reward: { kind: 'grant', grantGolden: ['taurustruth'] } },
 
   // ── Turn-11 capstone additions (owner batch 2026-07-13). Each hangs a NEW recurring End-of-Turn / widen

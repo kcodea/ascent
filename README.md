@@ -38,10 +38,11 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
-- **Balance patch (2026-07-21)** landing in tested chunks on `balance/patch-2026-07-21`: Demon minions, 23
-  rune costs, 40 quest objectives, plus an owner add-on (Spell Appraiser, Nimbus/Displacement → T5, Hoardbreaker
-  → Rally-only, and **Runescale Drake** reworked to scale with spells cast this turn). Rune-effect reworks,
-  quest removals, and new-mechanic minions still to come.
+- **Balance patch (2026-07-21) — complete**, on `balance/patch-2026-07-21` across 12 tested commits: Demon
+  minion rebalance, 23 rune costs + 8 rune effect reworks, 40 quest objective retunes, 3 quest removals + 6
+  quest flag reworks, and the new-mechanic minions (a new **buy-count** trigger for Korok/Banksly, Hunter's
+  every-3 improve, **Runescale Drake** rescaled to spells-cast-this-turn, plus Hoard Cleric, Kennelmaster,
+  Thundeer, Attachment Mechanic, Spell Appraiser, Nimbus, Displacement and Hoardbreaker).
 
 - **Quest tendrils** — a gold ribbon reaches from a quest's node to the unit it triggers (Echoing Roar
   re-firing a Shout), with its own dev tuner.

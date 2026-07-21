@@ -3,6 +3,43 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (balance patch — chunk 4: quest removals + flag reworks)
+
+### balance(core+sim+content): 3 quest removals, 6 flag reworks, 2 deferred objectives
+
+The final slice of the 2026-07-21 balance patch. **Removed** three quests — Last Rites, The Author's Hand,
+The Hoard Wakes (79 → **77**; `docs/CONTENT.md` updated). **Reworked:**
+
+| Quest | Was | Now |
+|---|---|---|
+| **Empty Graves** | 20 deaths; first friendly death summons a Gravebody | **13 deaths**; **SoC: your left-most minion gains "Rally: trigger your left-most Echo"** |
+| **Deep Hunger** | consume 11; leftmost Demon gains "Slaughter: +3 Fodder" | **kill 13**; **Avenge (3): add 2 Fodder to your next shop** |
+| **The Old Hunt** | Beast attack → Beasts +10 Attack | Beast attack → Beasts **+3/+3** (symmetric) |
+| **Pit Without End** | last death summons 3 Imps | **7 Imps** |
+| **Blueprint Cache** | Mechs +2/+2 per Attachment | **+3/+3** per Attachment |
+| **Feeding Line** | — | no change: the shipped behaviour already matched the spec text |
+| **Parliament of Flame** | trigger 7 End-of-Turns | **spend 33 Gold** |
+| **Track and Fodder** | 70 Consumed stats | **kill 14** |
+
+Empty Graves is the notable build: a new combat-only `Minion.emptyGravesRally` marker set at Start of Combat
+on the left-most body (announced as an `RL` keyword event), read in the attack path to fire the left-most
+living Echo through `asEcho` — so it counts as a real Echo trigger and composes with Runes of Aftershocks /
+Undertow. The grant rides the BODY, not the position, so it dies with that minion. Deep Hunger now reuses the
+generic `runeAvenge` helper (it is keyed on any `QuestCombatMods` flag, not just rune flags), and The Old Hunt
+pumps both Beast aura channels so the symmetric grant carries back.
+
+The two objectives deferred out of chunk 3 landed here with fresh vehicles for the regressions they orphaned:
+the **Djinn End-of-Turn-replay audit** now asserts `lastEotFires` (the tally every `endOfTurn` objective reads)
+instead of routing through Parliament, and the **start-of-turn consume** test moved onto Small Offering
+(`consumeFodder`). Both are better tests — they pin the engine contract rather than one quest's wiring.
+
+Scope note: removing The Author's Hand leaves the `authorsHand` objective event and the `slaughterRepeat`
+reward kind with no content using them. Left in place deliberately (working machinery, ready for a future
+quest) rather than pulled in a drive-by refactor — flagged here so it is a decision, not a leak.
+
+Verified: full suite green (1303) + typecheck + lint + `build:web`. Lint caught the dead `emptyGravesDone`
+gate left by the rework, which was removed.
+
 ## 2026-07-21 (balance patch — chunk 2b: rune effect reworks)
 
 ### balance(core+sim+content): 8 rune effect reworks

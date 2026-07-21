@@ -2404,23 +2404,23 @@ describe('run loop (@game/sim)', () => {
     expect(s.questTendrilSeq ?? 0).toBeGreaterThan(0);
   });
 
-  it("Djinn's Cadence advances Parliament of Flame (endOfTurn objective) — audit 2026-07-21", () => {
+  it("Djinn's Cadence counts its replayed End-of-Turn fires in the tally — audit 2026-07-21", () => {
     // Djinn's hero power replays every minion's End of Turn. Those replayed fires are End-of-Turn TRIGGERS and
-    // must advance `q_parliament_of_flame` — but `replayEndOfTurn` never bumped `lastEotFires`, and the
-    // heroPower action reaches neither the endTurn nor the Conductor read. So the effects fired and the quest
-    // sat still. Same class as the Uron rally / Echoing Roar shout fixes.
+    // must be COUNTED — `replayEndOfTurn` never bumped `lastEotFires`, and the heroPower action reaches neither
+    // the endTurn nor the Conductor read, so the effects fired and the tally sat still. Same class as the Uron
+    // rally / Echoing Roar shout fixes. Asserted at `lastEotFires` (the tally every endOfTurn objective reads)
+    // rather than through a quest: Parliament of Flame moved to a spendGold objective in the 2026-07-21 balance
+    // patch, so no quest carries an `endOfTurn` objective right now — the underlying tally is the real contract.
     let s: RunState = {
       ...createRun(1, 'djinn'), embers: 0, shop: [], hand: [],
       board: [
         { uid: 'a1', cardId: 'aeonguard', tribe: 'mech', attack: 5, health: 6, keywords: [], golden: false },
         { uid: 'a2', cardId: 'aeonguard', tribe: 'mech', attack: 5, health: 6, keywords: [], golden: false },
       ],
-      activeQuests: [{ questId: 'q_parliament_of_flame', progress: 0, completed: false }],
     } as RunState;
-    const before = s.activeQuests![0]!.progress;
     s = reduce(s, { type: 'heroPower', uid: 'a1' });
-    // Two Aeon Guards, each an End-of-Turn effect → two triggers → +2.
-    expect(s.activeQuests![0]!.progress).toBe(before + 2);
+    // Two Aeon Guards, each an End-of-Turn effect → two replayed triggers → the tally reads 2.
+    expect(s.lastEotFires).toBe(2);
   });
 
   it('a RE-TRIGGERED Shout counts toward the Shout tally (Echoing Roar / Resonance / Myra)', () => {
@@ -5066,7 +5066,6 @@ describe('quests (M3 framework)', () => {
     expect(questBucketFor(QUEST_INDEX['q_apex_hunt']!)).toBe(5); // Greater
     expect(questBucketFor(QUEST_INDEX['q_law_of_teeth']!)).toBe(11); // Capstone
     expect(questBucketFor(QUEST_INDEX['q_ancient_runes']!)).toBe(11); // Greater, promoted
-    expect(questBucketFor(QUEST_INDEX['q_last_rites']!)).toBe(11); // Greater, promoted
   });
 
   it('CONFIG.questsEnabled = false → the whole quest system goes dark (5 & 11 become normal shop turns)', () => {
@@ -5752,13 +5751,6 @@ describe('Mech/neutral quests — objectives, filtered grants, new rewards, card
     expect(s.hand.some((c) => c.cardId === 'scrapvendor')).toBe(true);
   });
 
-  it('Last Rites (multi) grants a random ECHO minion + arms the first-Echo bonus', () => {
-    const s = settleWith({ ...createRun(1), tier: 6, hand: [], activeQuests: [{ questId: 'q_last_rites', progress: 0, completed: false }] }, { playerDeathrattles: 14 });
-    expect(s.echoFirstEachCombat).toBe(1);
-    expect(s.hand.length).toBe(1);
-    expect(CARD_INDEX[s.hand[0]!.cardId]!.effects.some((e) => e.on === 'onDeath')).toBe(true); // it IS an Echo minion
-  });
-
   it('castSpell objective + rallyRepeat reward (Spark Permit): 10 spells → first-Rally bonus armed', () => {
     let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 10,
       activeQuests: [{ questId: 'q_spark_permit', progress: 9, completed: false }],
@@ -5800,20 +5792,22 @@ describe('Demon quests — consume/imp objectives, fodder reward, flags, cards',
     expect((s.pendingTavern ?? []).filter((id) => id === 'fred').length).toBe(1); // reward queued 1 Fodder
   });
 
-  it('consumeStats objective (Maw of the Run) counts total Consumed stats → grants Run Maw', () => {
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_maw_of_the_run', progress: 96, completed: false }], board: [demon('d1', 'feed')], hand: [demon('h1', 'heraldapoc')] };
-    s = reduce(s, { type: 'play', uid: 'h1' }); // 2 Fodder Consumed = 4 stats → 96 + 4 = 100
+  it('Track and Fodder (slaughter 14) completes off the combat kill tally → grants Run Maw', () => {
+    const s = settleWith({ ...createRun(1), tier: 6, hand: [], activeQuests: [{ questId: 'q_maw_of_the_run', progress: 0, completed: false }] },
+      { playerQuestTally: { attack: 0, summonCombat: 0, slaughter: 14, slaughterKeyword: 0, attackByTribe: {}, summonCombatByTribe: {}, slaughterByTribe: {}, statGainByTribe: {} } });
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.hand.some((c) => c.cardId === 'runmaw')).toBe(true);
   });
 
-  it('Track and Fodder: a START-OF-TURN consume advances the quest immediately (not deferred to a roll)', () => {
-    // A Consume Demon eats the Fodder injected at turn setup; the consumeStats tally must tick right then — not
+  it('a START-OF-TURN consume advances a Consume quest immediately (not deferred to a roll)', () => {
+    // A Consume Demon eats the Fodder injected at turn setup; the consume tally must tick right then — not
     // wait for the player's first refresh (owner bug 2026-07-13). wave 1 → 2 is a normal (non-quest) turn.
+    // Vehicle is Small Offering (consumeFodder): Track and Fodder moved to a `slaughter` objective in the
+    // 2026-07-21 balance patch, so it can no longer carry this coverage.
     const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
     let s: RunState = {
       ...createRun(1), phase: 'combat',
-      activeQuests: [{ questId: 'q_maw_of_the_run', progress: 0, completed: false }],
+      activeQuests: [{ questId: 'q_small_offering', progress: 0, completed: false }],
       board: [{ uid: 'd', cardId: 'maw', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }],
       cardBuffs: { fred: { attack: 2, health: 2 } }, // the injected Fred is a 3/3
       pendingTavern: ['fred'],
@@ -5821,7 +5815,7 @@ describe('Demon quests — consume/imp objectives, fodder reward, flags, cards',
     };
     s = reduce(s, { type: 'resolveCombat' }); // turn setup injects + the Demon eats the 3/3 Fred
     expect(s.wave).toBe(2);
-    expect(s.activeQuests![0]!.progress).toBe(6); // 3/3 = 6 stats consumed, counted at turn setup (not on a later roll)
+    expect(s.activeQuests![0]!.progress).toBe(1); // 1 Fodder consumed, counted at turn setup (not on a later roll)
   });
 
   it('summonImp objective (Imp Census) reads the combat imp tally → grants a random Demon + improves Imps +1/+1', () => {
@@ -5832,12 +5826,12 @@ describe('Demon quests — consume/imp objectives, fodder reward, flags, cards',
     expect(s.impBuff).toEqual({ attack: 1, health: 1 }); // run-wide Imp aura bumped
   });
 
-  it('Blueprint Cache (buffMechsPerAttachment): End of Turn buffs each Mech +2/+2 per Attachment welded on it', () => {
+  it('Blueprint Cache (buffMechsPerAttachment): End of Turn buffs each Mech +3/+3 per Attachment welded on it', () => {
     const mech = (uid: string, attachments: number): BoardCard => ({ uid, cardId: 'drone', tribe: 'mech', attack: 3, health: 3, keywords: [], golden: false, attachments });
     const s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', questRecurringEndOfTurn: ['buffMechsPerAttachment'],
       board: [mech('m1', 2), mech('m2', 0)] };
     applyEndOfTurn(s);
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([7, 7]); // 3 + 2×2 attachments
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([9, 9]); // 3 + 2 attachments × +3
     expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([3, 3]); // no attachments → untouched
   });
 
@@ -5851,7 +5845,7 @@ describe('Demon quests — consume/imp objectives, fodder reward, flags, cards',
   it('Pit Without End (summonImp) arms its board-wipe Imp count; new cards are reward-only tokens', () => {
     const s = settleWith({ ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_pit_without_end', progress: 39, completed: false }] }, { playerImpsSummoned: 1 });
     expect(s.activeQuests![0]!.completed).toBe(true); // 39 + 1 = 40
-    expect(s.pitWithoutEndImps).toBe(3);
+    expect(s.pitWithoutEndImps).toBe(7);
     for (const id of ['contractimp', 'heraldapoc', 'runmaw', 'implosion']) {
       expect(BUYABLE_CARDS.some((c) => c.id === id)).toBe(false);
     }
@@ -5874,16 +5868,6 @@ describe('Rulebreaker quests — dupes, spell doubling, compound objective, cost
     expect(s.hand.filter((c) => c.cardId === 'pack').length).toBe(2); // bought + dupe
     s = reduce(s, { type: 'buy', uid: 's2' });
     expect(s.hand.filter((c) => c.cardId === 'alley').length).toBe(1); // second buy is NOT duped
-  });
-
-  it('The Author\'s Hand compound objective completes when Shout, Echo, AND Rally each reach the count', () => {
-    // Pre-loaded to 6/6/5 — one more Rally (from combat) tips it over and arms all four first-each doublers.
-    const s = settleWith({ ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_authors_hand', progress: 5, completed: false, subProgress: { shout: 6, echo: 6, rally: 5 } }] }, { playerRallies: 1 });
-    expect(s.activeQuests![0]!.completed).toBe(true);
-    expect(s.shoutFirstDoubleEachRound).toBe(true);
-    expect(s.echoFirstEachCombat).toBe(1);
-    expect(s.rallyFirstEachCombat).toBe(1);
-    expect(s.slaughterFirstEachCombat).toBe(1);
   });
 
   it('spell-doubling rewards fold into the cast count', () => {

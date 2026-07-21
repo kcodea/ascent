@@ -256,7 +256,7 @@ export function simulate(
   // this flips true the first time a player Echo actually triggers so the bonus is spent exactly once.
   // These "first each combat" one-shots are now PER SIDE (a served enemy runs its own quest/rune doublers):
   // `firstEchoDone`/`firstRallyDone`/`firstSlaughterDone` gate the "first Echo/Rally/Slaughter each combat fires
-  // extra" bonuses; `pitDone`/`emptyGravesDone` gate their once-per-fight summons.
+  // extra" bonuses; `pitDone` gates Pit Without End's once-per-fight summon.
   const firstEchoDone: Record<Side, boolean> = { player: false, enemy: false };
   // Player Rally (on-attack) triggers this combat — the `rally` quest objective.
   let playerRallies = 0;
@@ -264,7 +264,6 @@ export function simulate(
   // Imps the player summoned this combat — the `summonImp` objective.
   let playerImpsSummoned = 0;
   const pitDone: Record<Side, boolean> = { player: false, enemy: false };
-  const emptyGravesDone: Record<Side, boolean> = { player: false, enemy: false };
   const firstSlaughterDone: Record<Side, boolean> = { player: false, enemy: false };
 
   // Enemy-side deaths this combat — Cassen's Collision banks these toward its 5-kill payoff (carried back).
@@ -375,9 +374,6 @@ export function simulate(
   // Blood Trail: the leftmost living player minion, captured at Start of Combat, "gains Slaughter: get a random
   // Beast" for this fight — each enemy it kills conjures a random Beast to hand (via ctx.grantRandomMinion).
   let bloodTrailMinion: Minion | undefined;
-  // Deep Hunger: the leftmost living Demon, captured at Start of Combat, "gains Slaughter: add 3 Fodder to your
-  // next shop" for this fight — each enemy it kills queues Fodder (fodderGrants carry-back).
-  let deepHungerMinion: Minion | undefined;
 
   const snapshot = (m: Minion): MinionSnapshot => ({
     uid: m.uid,
@@ -1052,13 +1048,6 @@ export function simulate(
       const imp = cards['impscrap'];
       if (imp) { nextStep(); for (let i = 0; i < pitImps; i++) summonMinion(side, imp, undefined); }
     }
-    // Empty Graves: the FIRST friendly death each combat summons a 1/1 Gravebody (which copies your leftmost Echo
-    // on summon via its onSummon `copyLeftmostEcho`). Once per fight.
-    if (modsFor(side).emptyGraves && !emptyGravesDone[side]) {
-      emptyGravesDone[side] = true;
-      const gb = cards['gravebody'];
-      if (gb) { nextStep(); fireTrigger('emptyGraves', side); summonMinion(side, gb, undefined); }
-    }
   }
 
   // The Reclaimer's pending resummons. A marked minion is destroyed at Start of Combat (its
@@ -1222,9 +1211,25 @@ export function simulate(
       // captured aura; the player also carries the gain back (the enemy has no run to persist to).
       const oldHuntStep = modsFor(attacker.side).oldHuntStep ?? 0;
       if (oldHuntStep > 0 && isBeast(attacker)) {
+        // Reworked 2026-07-21: the grant is now SYMMETRIC (+N/+N, was Attack-only), so it pumps both aura
+        // channels and carries both halves back for the player.
         beastAtkAuraFor[attacker.side] += oldHuntStep;
-        if (attacker.side === 'player') beastBuyAtkGain += oldHuntStep;
-        for (const m of boards[attacker.side]) if (!m.dead && m.health > 0 && isBeast(m)) ctx.buff(m, oldHuntStep, 0, 'The Old Hunt');
+        beastHpAuraFor[attacker.side] += oldHuntStep;
+        if (attacker.side === 'player') { beastBuyAtkGain += oldHuntStep; beastBuyHpGain += oldHuntStep; }
+        for (const m of boards[attacker.side]) if (!m.dead && m.health > 0 && isBeast(m)) ctx.buff(m, oldHuntStep, oldHuntStep, 'The Old Hunt');
+      }
+      // Empty Graves: the Start-of-Combat-marked body triggers your LEFT-MOST living Echo each time it attacks.
+      // Fired through `asEcho`, so it counts as a real Echo trigger (Rune of Aftershocks/Undertow see it too).
+      if (attacker.emptyGravesRally && !attacker.dead && attacker.health > 0) {
+        const echo = boards[attacker.side].find((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onDeath'));
+        if (echo) {
+          nextStep();
+          fireTrigger('emptyGraves', attacker.side);
+          for (const effect of echo.effects) {
+            if (effect.on !== 'onDeath') continue;
+            asEcho(attacker.side, () => FACTORIES[effect.do]?.(ctx, echo, effect.params ?? {}, { minion: echo, side: attacker.side }));
+          }
+        }
       }
       // A Rally (RL minion attacking) re-runs this attacker's OWN on-attack effects once per additive doubler
       // (Law of Teeth / Rallying Offensive / Infinite Assembly / Spark Permit — see playerRallyExtras), PER SIDE.
@@ -1379,7 +1384,6 @@ export function simulate(
               // Blood Trail (Beast → hand) + Deep Hunger (Fodder → next shop) are ECONOMY/HAND — player-only (a
               // served enemy has no hand or shop). Their SoC marks are also only set on the player board.
               if (playerState.questMods.bloodTrail && killer === bloodTrailMinion && killerAlive) ctx.grantRandomMinion(1, 'beast', 'player', undefined, killer.uid);
-              if (killer === deepHungerMinion && killerAlive) fodderGrants += 3;
             }
             // Law of Teeth: a Beast's Slaughter triggers one extra time — re-run only this killer's own on-kill
             // effects once more (direct call, not via the bus, so other minions' on-kills don't double-fire). Per side.
@@ -1527,8 +1531,6 @@ export function simulate(
   //     tally) side-gate themselves, since an enemy snapshot carries no run state. ---
   // Blood Trail: mark the leftmost living player minion — its kills this fight conjure a random Beast (above).
   if (playerState.questMods.bloodTrail) bloodTrailMinion = boards.player.find((m) => !m.dead && m.health > 0);
-  // Deep Hunger: mark the leftmost living Demon — its kills queue 3 Fodder into the next shop (below).
-  if (playerState.questMods.deepHunger) deepHungerMinion = boards.player.find((m) => !m.dead && m.health > 0 && isDemon(m));
   // Run-level SoC quest/rune grants, PER SIDE (a served enemy runs its own): Rulebreaker's Crown, Umbral Energy,
   // Contract Rewrite. Enemy values come from the captured mods / scalers.
   for (const scSide of ['player', 'enemy'] as const) {
@@ -1728,6 +1730,19 @@ export function simulate(
         }
       }
     }
+    // Empty Graves (reworked 2026-07-21): give your LEFT-MOST minion "Rally: trigger your left-most Echo".
+    // Previously the first friendly death summoned a Gravebody. The grant rides the body (not the position),
+    // so it dies with that minion rather than sliding onto whoever is leftmost later.
+    if (rmods.emptyGraves) {
+      const lm = boards[rside].find((m) => !m.dead && m.health > 0);
+      if (lm) {
+        nextStep();
+        fireTrigger('emptyGraves', rside);
+        lm.emptyGravesRally = true;
+        if (!lm.keywords.includes('RL')) lm.keywords.push('RL');
+        emit({ type: 'keyword', target: lm.uid, keyword: 'RL', source: lm.uid });
+      }
+    }
     // Rune of Rebirth (reworked 2026-07-21): give 2 RANDOM friendly minions Rise (any tribe). Previously it
     // made every Rise return at full Health instead. Random pick is drawn off the seeded combat rng, so it
     // replays identically. Sibling of Rising Graves below (which is Undead-only + left-most).
@@ -1785,6 +1800,9 @@ export function simulate(
   // Economy avenge runes — PLAYER-ONLY (grant to the run's spell power / max Gold; no enemy meaning).
   runeAvenge(4, 'runeAppraisal', (m, side) => side === 'player' && !!m.runeAppraisal, () => { const r = ctx.improveRepsFor('player'); ctx.grantSpellPower(r, r, 'player', undefined); }); // "improve your spells +1/+1" — ×2 under Rune of Mastery
   runeAvenge(4, 'runeSoulTaxes', (m, side) => side === 'player' && !!m.runeSoulTaxes, () => ctx.grantMaxGold(1, 'player')); // +1 max Gold
+  // Deep Hunger (Demon capstone, reworked 2026-07-21): Avenge (3) → add 2 Fodder to your next shop. Was "the
+  // leftmost Demon gains Slaughter: add 3 Fodder". Player-only — a served enemy has no shop to stock.
+  runeAvenge(3, 'deepHunger', (m, side) => side === 'player' && !!m.deepHunger, () => { fodderGrants += 2; });
 
   // Rune of Packcraft (reworked 2026-07-21): whenever you summon a BEAST in combat, your Beasts gain +1/+1.
   // A pure in-combat buff now — the old version fired on ANY summon for +1 Attack and carried the aura back.

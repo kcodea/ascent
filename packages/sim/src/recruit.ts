@@ -3271,14 +3271,14 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
   } else if (effect === 'grantRandomAttachments') {
     conjureToHand(state, poolOf(state).buyable.filter((c) => c.tier <= state.tier && c.keywords.includes('M')), 2);
   } else if (effect === 'buffMechsPerAttachment') {
-    // Blueprint Cache: give each friendly Mech +2/+2 for every Attachment (Magnetic minion) welded onto it.
+    // Blueprint Cache: give each friendly Mech +3/+3 for every Attachment (Magnetic minion) welded onto it.
     // Per-z, ATTACHMENT-MAJOR (owner 2026-07-18): wave `i` buffs EVERY Mech that has an i-th Attachment, so
     // all the Mechs pulse together and the waves read one at a time. (Mech-major — all of one Mech's steps,
     // then the next Mech's — produced a long overlapping smear.) Totals are identical either way.
     const mechs = state.board.filter((c) => (c.attachments ?? 0) > 0 && isTribe(c, 'mech'));
     const maxAttach = mechs.reduce((m, c) => Math.max(m, c.attachments ?? 0), 0);
     for (let i = 0; i < maxAttach; i++) {
-      step(() => { for (const c of mechs) if ((c.attachments ?? 0) > i) addBuff(c, 'Blueprint Cache', 2, 2); });
+      step(() => { for (const c of mechs) if ((c.attachments ?? 0) > i) addBuff(c, 'Blueprint Cache', 3, 3); });
     }
   } else if (effect === 'runeSpending') {
     // Rune of Spending: +1 max Gold, and grant your leftmost minion +1/+1 PER Gold you spent this turn.

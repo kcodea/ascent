@@ -3,6 +3,30 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (content + balance — Twilight Emissary, Deathswarmer, hero armor)
+
+### feat(content+sim): Twilight Emissary; Deathswarmer → T1 1/3; +5 Armor to every hero
+
+**New minion — Twilight Emissary** (`emissary`), Dragon **T2 2/3, Taunt**: *"Battlecry: give a friendly Dragon
++2/+2"*, a player-targeted buff. Needed a new recruit factory, `battlecryBuffTarget` — the stat sibling of
+`battlecryGrantKeyword`, reusing its exact target resolution (`payload.target` when the player picked one,
+otherwise an auto-pick of the highest-Attack friend, restricted by the card's `targetTribe`). Whitelisted in the
+content schema + the `EffectFactoryId` union. Art wired from the matching master (`TwilightEmissary.png` →
+`emissary.webp` via `npm run optimize-art`, 2.5 MB → 48 KB).
+
+**Behaviour note:** it follows the standing tribe-restricted-target convention (Toxin Tender) — with no OTHER
+friendly Dragon on board there is no viable target, so the Battlecry doesn't fire and the body plays as-is
+(no prompt). That's the shared reducer rule, deliberately not special-cased for this card.
+
+**Balance:** Deathswarmer **T2 1/4 → T1 1/3**. Every hero's starting Armor **+5 across the board** (27 heroes;
+the 8–19 spread becomes 13–24) — the doc comment describing the range was updated with it.
+
+Verified: full suite green (**1308**, +2 tests) + typecheck + lint + `build:web`. The new minion is covered
+both ways (the chosen Dragon gets the buff and neither the higher-Attack Dragon nor the off-tribe Beast does;
+and the no-viable-target path plays as-is). Art wiring confirmed at the BUILD level — `emissary-*.webp` is
+present in `apps/web/dist`, proving the `import.meta.glob` picked it up rather than assuming it did.
+`docs/CONTENT.md` card counts corrected to 128 shop minions / 207 total (they had drifted 8 stale before this).
+
 ## 2026-07-21 (balance follow-up — Runescale floor + Chef Raag live text)
 
 ### balance(core+ui+content): Runescale floors at its base rate; Chef Raag floors at +1/+1 and prints its live grant

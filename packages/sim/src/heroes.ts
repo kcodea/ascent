@@ -68,7 +68,7 @@ export interface HeroDef {
   /** Starting + max Resolve (the hero's HP). All 30 today; will diverge per hero over time. */
   resolve: number;
   /** Starting Armor — extra effective HP that sits ON TOP of Resolve. Functionally identical to health: loss
-   *  damage chips Armor first, then Resolve; it just doesn't regenerate (no max/heal). Varies per hero (8–19
+   *  damage chips Armor first, then Resolve; it just doesn't regenerate (no max/heal). Varies per hero (13–24
    *  today) as a balance dial — a strong power tends to carry less armor. */
   armor: number;
   power: HeroPower;
@@ -83,7 +83,7 @@ export const HEROES: HeroDef[] = [
     name: 'Warden',
     blurb: 'A shield for the one who needs it — bought and paid for in Gold.',
     resolve: 30,
-    armor: 12,
+    armor: 17,
     wip: true, // temporarily withheld from the picker (owner 2026-07-13)
     power: {
       name: 'Aegis',
@@ -97,7 +97,7 @@ export const HEROES: HeroDef[] = [
     name: 'Indy',
     blurb: 'One perfect moment — gild a single minion and make it count.',
     resolve: 30,
-    armor: 15,
+    armor: 20,
     power: {
       name: 'Masterwork',
       kind: 'gild',
@@ -110,7 +110,7 @@ export const HEROES: HeroDef[] = [
     name: 'Myra',
     blurb: 'A conductor of entrances — call a minion to take its bow again.',
     resolve: 30,
-    armor: 15,
+    armor: 20,
     wip: true, // temporarily withheld from the picker (owner 2026-07-13)
     power: {
       name: 'Pulse',
@@ -124,7 +124,7 @@ export const HEROES: HeroDef[] = [
     name: 'Soren',
     blurb: 'Death is a doorway — send a minion through it and it blooms back.',
     resolve: 30,
-    armor: 8,
+    armor: 13,
     power: {
       name: 'Reclaim',
       kind: 'resummon',
@@ -136,7 +136,7 @@ export const HEROES: HeroDef[] = [
     name: 'Yirin',
     blurb: 'Words sharpen in skilled hands — and sharpen further the more you speak them.',
     resolve: 30,
-    armor: 15,
+    armor: 20,
     power: {
       name: 'Attunement',
       kind: 'spellAmplify',
@@ -149,7 +149,7 @@ export const HEROES: HeroDef[] = [
     name: 'Djinni',
     blurb: 'Calls the whole board to its close early — once a turn, on your terms.',
     resolve: 30,
-    armor: 15,
+    armor: 20,
     power: {
       name: 'Cadence',
       kind: 'replayAllEndOfTurn',
@@ -162,7 +162,7 @@ export const HEROES: HeroDef[] = [
     name: 'Nadja',
     blurb: 'The well runs deeper each turn — more Gold, more room to scheme.',
     resolve: 30,
-    armor: 19,
+    armor: 24,
     power: {
       name: 'Goldspring',
       kind: 'gainMaxMana',
@@ -176,7 +176,7 @@ export const HEROES: HeroDef[] = [
     name: 'Cassen',
     blurb: 'Every clash leaves a mark — break enough of them and the spoils find you.',
     resolve: 30,
-    armor: 8,
+    armor: 13,
     power: {
       name: 'Collision',
       kind: 'collision',
@@ -189,7 +189,7 @@ export const HEROES: HeroDef[] = [
     name: 'Drakko',
     blurb: 'Every entrance is a downbeat — buy enough, and he joins the band.',
     resolve: 30,
-    armor: 8,
+    armor: 13,
     power: {
       name: 'Drumline',
       kind: 'quest',
@@ -203,7 +203,7 @@ export const HEROES: HeroDef[] = [
     name: 'Chaos',
     blurb: 'A bond that transcends all tribes — every kind bends to the connection.',
     resolve: 30,
-    armor: 8,
+    armor: 13,
     wip: true, // temporarily withheld from the picker (owner 2026-07-13)
     power: {
       name: 'Chaos Bond',
@@ -217,7 +217,7 @@ export const HEROES: HeroDef[] = [
     name: 'Robin',
     blurb: 'Patience pays — every minion sold lines next turn\'s purse.',
     resolve: 30,
-    armor: 8,
+    armor: 13,
     power: {
       name: 'Spoils',
       kind: 'sellGold',
@@ -230,7 +230,7 @@ export const HEROES: HeroDef[] = [
     name: 'Darah',
     blurb: 'A sleight of fate — trade a piece on your board for a stranger from the tavern.',
     resolve: 30,
-    armor: 12,
+    armor: 17,
     power: {
       name: 'Swap',
       kind: 'displace',
@@ -242,7 +242,7 @@ export const HEROES: HeroDef[] = [
     name: 'Lord of the Risen',
     blurb: 'Death is a rehearsal — each turn, one soldier returns for an encore.',
     resolve: 30,
-    armor: 8,
+    armor: 13,
     power: {
       name: 'Undying',
       kind: 'grantReborn',
@@ -254,7 +254,7 @@ export const HEROES: HeroDef[] = [
     name: 'Gildmaster',
     blurb: 'The gold never stops coming — a fresh crafter arrives like clockwork.',
     resolve: 30,
-    armor: 15,
+    armor: 20,
     power: {
       name: 'Goldcrafter',
       kind: 'recurringGoldcrafter',
@@ -267,7 +267,7 @@ export const HEROES: HeroDef[] = [
     name: 'Disco Dan',
     blurb: 'All the hits, none of them ready yet — a hand of tomorrows.',
     resolve: 30,
-    armor: 15,
+    armor: 20,
     power: {
       name: 'Setlist',
       kind: 'discoLock',
@@ -282,7 +282,7 @@ export const HEROES: HeroDef[] = [
     name: 'Brackus',
     blurb: 'He shows you the summit on day one. Climbing it is your problem.',
     resolve: 30,
-    armor: 15,
+    armor: 20,
     power: {
       name: 'Summit',
       kind: 'summitLock',
@@ -295,7 +295,7 @@ export const HEROES: HeroDef[] = [
     name: 'Rascal',
     blurb: 'The tip jar only ever grows — a little more set aside each turn.',
     resolve: 30,
-    armor: 15,
+    armor: 20,
     power: {
       name: 'All In',
       kind: 'scalingGold',
@@ -309,7 +309,7 @@ export const HEROES: HeroDef[] = [
     name: 'Tradesman',
     blurb: 'Cheap to shop, dear to climb — the trader hoards his tiers.',
     resolve: 30,
-    armor: 8,
+    armor: 13,
     power: {
       name: 'Frugal',
       kind: 'cheapMinions',
@@ -322,7 +322,7 @@ export const HEROES: HeroDef[] = [
     name: 'Fi',
     blurb: 'An early errand for an early edge — a small quest, ahead of schedule.',
     resolve: 30,
-    armor: 8,
+    armor: 13,
     power: {
       name: 'Errand',
       kind: 'lesserQuest',
@@ -335,7 +335,7 @@ export const HEROES: HeroDef[] = [
     name: 'Chronos',
     blurb: 'Buy enough endings and time itself enlists.',
     resolve: 30,
-    armor: 8,
+    armor: 13,
     power: {
       name: 'Timelapse',
       kind: 'questChronos',
@@ -349,7 +349,7 @@ export const HEROES: HeroDef[] = [
     name: 'Runesmith',
     blurb: 'The forge fires once — spend well, for its rune lasts the whole climb.',
     resolve: 30,
-    armor: 8,
+    armor: 13,
     power: {
       name: 'Forgemaster',
       kind: 'runeforge',
@@ -363,7 +363,7 @@ export const HEROES: HeroDef[] = [
     name: 'Guardian',
     blurb: 'Sworn to the forge — its greater runes answer only to those who hold the line.',
     resolve: 30,
-    armor: 8,
+    armor: 13,
     power: {
       name: 'Runeguard',
       kind: 'epicRuneforge',
@@ -376,7 +376,7 @@ export const HEROES: HeroDef[] = [
     name: 'Coran',
     blurb: 'Reads the trail ahead — and calls down an extra great trial before the summit.',
     resolve: 30,
-    armor: 10,
+    armor: 15,
     power: {
       name: 'Pathfinder',
       kind: 'pathfinder',
@@ -389,7 +389,7 @@ export const HEROES: HeroDef[] = [
     name: 'Tiff',
     blurb: 'Every wyrm answers her whistle — and the tavern picks up the tab.',
     resolve: 30,
-    armor: 14,
+    armor: 19,
     power: {
       name: 'Dragon Tamer',
       kind: 'dragonTamer',
@@ -405,7 +405,7 @@ export const HEROES: HeroDef[] = [
     name: 'Jensen',
     blurb: 'Every dig turns up something — for a price that only ever climbs.',
     resolve: 30,
-    armor: 10,
+    armor: 15,
     power: {
       name: 'Dynamite Dig',
       kind: 'dynamiteDig',
@@ -418,7 +418,7 @@ export const HEROES: HeroDef[] = [
     name: 'Re-Pete',
     blurb: 'Anything worth having is worth having twice.',
     resolve: 30,
-    armor: 9,
+    armor: 14,
     power: {
       name: 'Second Hand',
       kind: 'secondHand',
@@ -431,7 +431,7 @@ export const HEROES: HeroDef[] = [
     name: 'Gorr',
     blurb: 'Buy three, and a fourth walks itself home.',
     resolve: 30,
-    armor: 10,
+    armor: 15,
     power: {
       name: 'Four Peat',
       kind: 'fourPeat',

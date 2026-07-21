@@ -30,7 +30,7 @@ function make(id: string, name: string, weights: BotWeights, behaviour: BotBehav
 // ---- GREEDY — raw stats, spend everything, no patience. ----
 const GREEDY = make('greedy', 'Greedy', {
   statValue: 1, taunt: 1, divineShield: 2, windfury: 1, venom: 1, reborn: 1, cleave: 1, stealth: 0.5,
-  tribeSynergy: 0.2, tripleProgress: 1, tripleComplete: 6, costPenalty: 0, tierValue: 0.5,
+  tribeSynergy: 0.2, tripleProgress: 1, tripleComplete: 6, costPenalty: 0, tierValue: 0.5, effectWeight: 0.5,
 }, {
   buyThreshold: -Infinity, goldReserve: 0, upgradeBias: 1, reroll: false, sellForUpgrade: false, rollout: false,
 });
@@ -38,7 +38,7 @@ const GREEDY = make('greedy', 'Greedy', {
 // ---- TEMPO — conservative, survivability-first, disciplined economy. ----
 const TEMPO = make('tempo', 'Tempo', {
   statValue: 1, taunt: 5, divineShield: 6, windfury: 2, venom: 4, reborn: 4, cleave: 2, stealth: 1,
-  tribeSynergy: 0.5, tripleProgress: 1.5, tripleComplete: 7, costPenalty: 0.3, tierValue: 1,
+  tribeSynergy: 0.5, tripleProgress: 1.5, tripleComplete: 7, costPenalty: 0.3, tierValue: 1, effectWeight: 0.5,
 }, {
   // Conservative ≠ passive: it still FILLS its board (a modest threshold + reroll to find a safe body), it
   // just leans on survivability keywords, keeps a small reserve, and upgrades sparingly (low econ risk).
@@ -48,7 +48,7 @@ const TEMPO = make('tempo', 'Tempo', {
 // ---- MIDRANGE — balanced value + economy, rerolls, triple/synergy aware. ----
 const MIDRANGE = make('midrange', 'Midrange', {
   statValue: 1, taunt: 3, divineShield: 4, windfury: 2, venom: 3, reborn: 3, cleave: 1.5, stealth: 1,
-  tribeSynergy: 1, tripleProgress: 2.5, tripleComplete: 8, costPenalty: 0.2, tierValue: 0.8,
+  tribeSynergy: 1, tripleProgress: 2.5, tripleComplete: 8, costPenalty: 0.2, tierValue: 0.8, effectWeight: 0.5,
 }, {
   buyThreshold: 5, goldReserve: 0, upgradeBias: 0.7, reroll: true, sellForUpgrade: true, rollout: false,
 });

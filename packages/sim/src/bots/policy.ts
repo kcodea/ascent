@@ -13,8 +13,9 @@ import { CONFIG } from '../config';
 import { reduce } from '../reducer';
 import { refreshCostOf, upgradeCostOf } from '../reducer';
 import { getHero } from '../heroes';
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { cardScore, type BotWeights } from './scoring';
+import { effectsValue } from './effects';
 import { bestFinalArrangement } from './rollout';
 
 export interface BotBehaviour {
@@ -38,6 +39,36 @@ export interface BotPolicy {
   weights: BotWeights;
   behaviour: BotBehaviour;
   act(state: RunState): Action;
+}
+
+/** Score a quest offer for the bot: an easier objective (lower count, matching a tribe I'm already on) with a
+ *  bigger reward is better. Rough, but far better than always taking index 0 — quests are build-defining, so a
+ *  random pick was the worst of the index-0 defaults. */
+function questScore(id: string, state: RunState): number {
+  const q = QUEST_INDEX[id];
+  if (!q) return -Infinity;
+  const obj = q.objective as { count?: number; tribe?: string };
+  const count = obj.count ?? 6;
+  let v = 20 - count; // easier objective = better (a 4-count quest completes; a 12-count often doesn't)
+  // Tribe fit: if the objective wants a tribe I already field, it's far more completable.
+  if (obj.tribe) {
+    const onTribe = state.board.filter((c) => { const d = CARD_INDEX[c.cardId]; return c.tribe === obj.tribe || d?.tribe2 === obj.tribe || d?.universalTribe; }).length;
+    v += onTribe * 3;
+  }
+  // Reward heft — a recurring/scaling reward is worth more than a one-shot grant.
+  const r = q.reward as { kind?: string };
+  if (r.kind === 'recurringEndOfTurn' || r.kind === 'recurringGrant' || r.kind === 'scalingTribeAura') v += 6;
+  else if (r.kind === 'multi') v += 5;
+  else if (r.kind === 'grant') v += 3;
+  return v;
+}
+
+/** Score a rune offer: its reward heft against its Gold cost, only if affordable. */
+function runeScore(id: string, state: RunState): number {
+  const r = RUNE_INDEX[id];
+  if (!r) return -Infinity;
+  if ((r.cost ?? 0) > state.embers) return -Infinity; // can't afford
+  return 8 - (r.cost ?? 0) * 0.5; // cheaper = better, all roughly good value at their price
 }
 
 /** Does applying `action` actually change the state? (guards against returning a no-op that stalls the loop). */
@@ -82,15 +113,28 @@ export function decide(state: RunState, w: BotWeights, b: BotBehaviour): Action 
     opts.forEach((id, i) => { const d = CARD_INDEX[id]; const v = d ? cardScore(d, state, w) : -Infinity; if (v > bestV) { bestV = v; bestI = i; } });
     return { type: 'discover', index: bestI };
   }
-  if (state.chooseOne) return { type: 'chooseOne', index: 0 }; // valuing Choose One options is future work
+  if (state.chooseOne) {
+    const opts = CARD_INDEX[state.chooseOne.cardId]?.chooseOne ?? [];
+    let bestI = 0, bestV = -Infinity;
+    opts.forEach((o, i) => { const v = effectsValue(o.effects); if (v > bestV) { bestV = v; bestI = i; } });
+    return { type: 'chooseOne', index: bestI };
+  }
   if (state.pendingTarget) {
     // Target the highest-value friendly (most buff-worthy body); fall back to the pending default.
     let best: BoardCard | undefined; let bestV = -Infinity;
     for (const c of state.board) { const d = CARD_INDEX[c.cardId]; const v = d ? cardScore(d, state, w) : 0; if (v > bestV) { bestV = v; best = c; } }
     return { type: 'battlecryTarget', targetUid: best?.uid ?? state.pendingTarget.uid };
   }
-  if (state.questOffer) return { type: 'buyQuest', index: 0 };     // quest valuation is future work — take one
-  if (state.runeforgeOffer) return { type: 'buyRune', index: 0 };  // rune valuation is future work — take one
+  if (state.questOffer) {
+    let bestI = 0, bestV = -Infinity;
+    state.questOffer.forEach((id, i) => { const v = questScore(id, state); if (v > bestV) { bestV = v; bestI = i; } });
+    return { type: 'buyQuest', index: bestI };
+  }
+  if (state.runeforgeOffer) {
+    let bestI = -1, bestV = 0;
+    state.runeforgeOffer.forEach((id, i) => { const v = runeScore(id, state); if (v > bestV) { bestV = v; bestI = i; } });
+    return bestI >= 0 ? { type: 'buyRune', index: bestI } : { type: 'skipRuneforge' };
+  }
   if (state.phase === 'combat') return { type: 'resolveCombat' };
   if (state.phase !== 'recruit') return { type: 'faceOmen' };
 

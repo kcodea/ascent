@@ -10,6 +10,7 @@
 import type { RunState } from '../state';
 import type { CardDef } from '@game/core';
 import { CARD_INDEX } from '@game/content';
+import { effectsValue } from './effects';
 
 /** A bot's valuation personality. Every field is a multiplier/weight the shared scorer folds together, so a
  *  bot is (mostly) a Weights preset + a couple of behaviour flags. */
@@ -33,6 +34,8 @@ export interface BotWeights {
   costPenalty: number;
   /** Reward higher-tier bodies slightly (a T5 is usually a better keep than a T1 at equal stats). */
   tierValue: number;
+  /** Weight on the estimated value of a card's EFFECTS (magnitude-aware — see effects.ts). */
+  effectWeight: number;
 }
 
 /** Count board minions of a given tribe (dual-type via the def), for the synergy term. */
@@ -69,9 +72,10 @@ export function cardScore(def: CardDef, state: RunState, w: BotWeights): number 
   if (kw.includes('C')) v += w.cleave;
   if (kw.includes('ST')) v += w.stealth;
 
-  // A card with a Battlecry / Deathrattle / on-attack effect is doing more than its stats — a flat nudge so
-  // effect cards aren't undervalued vs vanilla beaters of the same size.
-  if (def.effects.length > 0) v += 1.5 * w.statValue;
+  // Effect value — magnitude-aware (a +5/+5 Deathrattle outscores a +1/+1 one, a big summon outscores a
+  // small buff), trigger-weighted. Replaces the old flat per-effect nudge, so buys stop treating all effect
+  // cards alike.
+  if (def.effects.length > 0) v += effectsValue(def.effects) * w.effectWeight;
 
   // Tribe commitment.
   const syn = def.tribe && def.tribe !== 'neutral' ? tribeCount(state, def.tribe) : 0;

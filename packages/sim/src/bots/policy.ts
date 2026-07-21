@@ -12,6 +12,7 @@ import type { RunState, BoardCard } from '../state';
 import { CONFIG } from '../config';
 import { reduce } from '../reducer';
 import { refreshCostOf, upgradeCostOf } from '../reducer';
+import { getHero } from '../heroes';
 import { CARD_INDEX } from '@game/content';
 import { cardScore, type BotWeights } from './scoring';
 import { bestFinalArrangement } from './rollout';
@@ -44,6 +45,32 @@ function legal(state: RunState, action: Action): boolean {
   return reduce(state, action) !== state;
 }
 
+/** Hero powers whose value is ENABLING THIS TURN's economy — gold, cheap minions, a Discover, tier/quest
+ *  access — so they should fire EARLY, before the buy loop, while there's still gold/board to use them on.
+ *  Everything else (buffs, keyword grants, resummons, replays) fires LATE, after the board is built, so it
+ *  lands on the finished board / a keeper rather than a random early minion. */
+const EARLY_POWERS = new Set<string>([
+  'scalingGold', 'sellGold', 'recurringGoldcrafter', 'gainMaxMana', 'cheapMinions', 'secondHand',
+  'dynamiteDig', 'pathfinder', 'dragonTamer', 'discoLock', 'summitLock', 'chaos', 'spellAmplify',
+  'quest', 'lesserQuest', 'questChronos', 'runeforge', 'epicRuneforge',
+]);
+
+/** Build the hero-power action: untargeted powers take no uid; targeted ones aim at the HIGHEST-value board
+ *  minion (a buff/ward/gild wants your keeper, not `board[0]`). Returns the action, or null if it isn't
+ *  legal right now (no charge / no valid target). */
+function heroPowerAction(state: RunState, w: BotWeights): Action | null {
+  const power = getHero(state.heroId).power;
+  if (power.untargeted) {
+    const a: Action = { type: 'heroPower' };
+    return reduce(state, a) !== state ? a : null;
+  }
+  let best: BoardCard | undefined; let bestV = -Infinity;
+  for (const c of state.board) { const d = CARD_INDEX[c.cardId]; const v = d ? cardScore(d, state, w) : 0; if (v > bestV) { bestV = v; best = c; } }
+  if (!best) return null;
+  const a: Action = { type: 'heroPower', uid: best.uid };
+  return reduce(state, a) !== state ? a : null;
+}
+
 /** The shared turn engine. Every bot calls this; `w`/`b` are its personality. Returns ONE action — the loop
  *  calls repeatedly, so a turn is a sequence of these until `faceOmen`. */
 export function decide(state: RunState, w: BotWeights, b: BotBehaviour): Action {
@@ -74,10 +101,11 @@ export function decide(state: RunState, w: BotWeights, b: BotBehaviour): Action 
     if (playable) return { type: 'play', uid: playable.uid };
   }
 
-  // 2. Hero power, when ready and it takes a target we have (most powers are pure value).
-  if (state.heroReady) {
-    const hp: Action = state.board[0] ? { type: 'heroPower', uid: state.board[0].uid } : { type: 'heroPower' };
-    if (legal(state, hp)) return hp;
+  // 2. EARLY hero power — only the economy/enabling kinds, so their gold/cards fuel THIS turn's buys. Buff
+  //    powers wait for step 5b (a built board / a keeper to land on).
+  if (state.heroReady && EARLY_POWERS.has(getHero(state.heroId).power.kind)) {
+    const hp = heroPowerAction(state, w);
+    if (hp) return hp;
   }
 
   // 3. Buy the best shop offer above threshold, if there's room + gold (past the reserve).
@@ -109,6 +137,12 @@ export function decide(state: RunState, w: BotWeights, b: BotBehaviour): Action 
     if (b.upgradeBias >= 1 || !worthBuying) {
       if (legal(state, { type: 'upgrade' })) return { type: 'upgrade' };
     }
+  }
+
+  // 5a. LATE hero power — buff/board kinds fire now, after buying, on the best keeper (targeting fixed).
+  if (state.heroReady && !EARLY_POWERS.has(getHero(state.heroId).power.kind)) {
+    const hp = heroPowerAction(state, w);
+    if (hp) return hp;
   }
 
   // 5. Reroll to dig for something better, if the bot rerolls and gold allows past the reserve.

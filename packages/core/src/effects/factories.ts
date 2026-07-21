@@ -105,6 +105,14 @@ function replayCombatBattlecry(ctx: CombatContext, m: Minion): void {
       // Cinderwing Matron — permanently raise run-wide spell power; carried back via playerSpellPower (the
       // same channel Skullblade/Gnasher use), so re-firing it in combat actually grants the spell power.
       ctx.grantSpellPower(num(p.attack) * g, num(p.health) * g, m.side, m.uid);
+    } else if (eff.do === 'battlecryBuffImps') {
+      // Imp Overseer — the run-wide Imp buff is an AURA, so a combat re-fire (Ryme/Drakko) must grant it IN
+      // combat (not defer to settle): buff the live Imps now AND carry it back via grantImpBuff, which also
+      // emits the tribeAura wash. Without this branch it fell to `economy` → deferred → no combat buff/wash,
+      // the owner-reported "Imp Overseer + Ryme needs Bane" gap (Bane's own effect calls grantImpBuff).
+      const a = num(p.attack) * g, h = num(p.health) * g;
+      for (const t of ctx.living(m.side)) if (ctx.getCard(t.cardId)?.imp) ctx.buff(t, a, h, m.uid);
+      ctx.grantImpBuff(a, h, m.side);
     } else {
       economy = true; // Fodder / Gold / shop / gain-minion — no combat surface; replayed at settle
     }

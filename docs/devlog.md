@@ -3,6 +3,25 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21ag (Ryme replays Imp Overseer's Battlecry in combat)
+
+### fix(core): Imp Overseer + Ryme grants the Imp buff (+ aura wash) in combat — no Bane needed
+
+Owner report: the Imp aura wash plays for some setups but not Imp Overseer + Ryme alone — it "needs Bane."
+
+Root cause, a real gameplay gap (not just FX): Ryme's Deathrattle replays adjacent Battlecries via
+`replayCombatBattlecry`, a hardcoded switch over battlecry `do` ids. `battlecryBuffImps` (Imp Overseer) had no
+branch, so it fell to the `economy` default — DEFERRED to settle instead of running in combat. The Imp buff
+landed after the fight (no combat wash; Imps summoned mid-fight missed it). Bane worked only because its OWN
+`onBattlecryBuffFodder` effect calls `grantImpBuff` directly.
+
+Added the missing branch, mirroring `battlecryBuffSpellPower` / `battlecryBuffUndeadAttack`: a combat re-fire
+buffs the live Imps now AND carries the aura back via `grantImpBuff`, which emits the `tribeAura` wash. So Imp
+Overseer + Ryme (or Drakko) buffs Imps in combat and washes, per Ryme's text.
+
+Verified: harness emits `tribeAura{tribe:demon, +2/+2, aura:imp}` with no Bane; 1288 tests green, no golden
+shifted.
+
 ## 2026-07-21x (Dupes quest art)
 
 ### chore(ui): wire the refreshed art for the Dupes quest

@@ -35,9 +35,11 @@ export interface Contact {
   dist: number;
   /** Surface-to-surface gap (px) — what the strike duration + ease band derive from. */
   travel: number;
-  /** Which duration clamp this vector hit, if any. A `max` here means the strike ran SLOWER than
-   *  `targetSpeed` and reads identically to every other clamped strike — the usual cause of long
-   *  cross-board lunges feeling wrong. */
+  /** Which duration clamp this vector hit, if any — i.e. this strike is NOT running at `targetSpeed`.
+   *  `min` = travel too short, forced to take longer → moves SLOWER than `targetSpeed`.
+   *  `max` = travel too long, forced to take less time → moves FASTER than `targetSpeed`.
+   *  (Clamped strikes share a DURATION, not a speed — a 500px and a 900px max-clamped strike both take
+   *  `maxStrikeDur` and so look markedly different from each other.) */
   clamped: 'min' | 'max' | null;
   /** Signed approach angle off horizontal (deg): 0 = straight across the board, ± = diagonal. */
   approachDeg: number;

@@ -3,6 +3,38 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (clamp semantics corrected)
+
+### docs(ui): fix the strike-duration clamp comments — a `max` clamp is FASTER than targetSpeed, not slower
+
+Explaining the tuner's CLAMPED readout to the owner surfaced an error propagated through the clamp's own
+doc comments (and the devlog entry that introduced it). The arithmetic:
+
+```
+strikeDur = clamp(travel / targetSpeed, minStrikeDur, maxStrikeDur)
+```
+
+- **min clamp** — travel short, duration forced UP → the strike covers less ground in more time →
+  **slower** than `targetSpeed`. (This half was documented correctly.)
+- **max clamp** — travel long, duration forced DOWN → more ground in less time → **FASTER** than
+  `targetSpeed`. The comments claimed slower.
+
+Also corrected: "clamped strikes flatten to one speed" / "read identically to every other clamped strike."
+They flatten to one **duration**, and therefore to *different* speeds — a 500px and a 900px max-clamped
+strike both take `maxStrikeDur` and look markedly different from each other.
+
+The real significance of the flag, now documented in its place: **a clamped strike ignores `targetSpeed`**,
+which is the usual reason dragging that slider changes nothing. On the current board, cards are large
+relative to the row gaps (travel measured at 43–174px against a `targetSpeed × minStrikeDur` floor of
+~143px), so most swings are min-clamped and `minStrikeDur` — not `targetSpeed` — is the dial that actually
+paces them. That is the answer to the owner's "the lunge is a bit too fast" after the transform-transition
+fix made the full strike visible for the first time.
+
+Comment-only change across `contactGeometry.ts`, `lungeConfig.ts`, `lungeProbe.ts`, plus a correction note
+on the original devlog entry. No behaviour change.
+
+Verified: typecheck + lint + 1241 tests + `build:web`, all green.
+
 ## 2026-07-21 (probe removed — owner confirmed)
 
 ### chore(ui): strip the strike probe — the transform-transition fix is confirmed ("it worked amazingly")
@@ -224,8 +256,10 @@ the animation until something is dialled):
 
 **`contactGeometry` now reports its derived numbers** — `dist`, `travel`, `approachDeg`, and `clamped`
 (`'min' | 'max' | null`). Nothing in the animation reads them; the tuner does. The clamp report is the
-load-bearing one: a `max` means that strike ran *slower* than `targetSpeed` and reads identically to every
-other clamped strike, which is the prime suspect for the long cross-board lunges feeling wrong.
+load-bearing one: a clamped strike is not obeying `targetSpeed` at all, so it flags when that slider has
+stopped being the dial in charge. (This paragraph originally claimed a `max` clamp meant the strike ran
+*slower* than `targetSpeed` and that clamped strikes read identically — both wrong; corrected 2026-07-21,
+see that day's clamp-semantics entry.)
 
 **The panel** (`LungeTuner.tsx`) is grouped by which function each slider shapes (`LUNGE_GROUPS`), and leads
 with a live readout of what the functions produced for the swings just watched — travel, resolved duration,

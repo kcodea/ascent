@@ -37,8 +37,9 @@ export interface LungeConfig {
    *  regardless — i.e. the shortest strikes all run SLOWER than `targetSpeed`. */
   minStrikeDur: number;
   /** Strike duration clamp ceiling (s). Travel longer than `targetSpeed * maxStrikeDur` takes this long
-   *  regardless — the long cross-board lunges flatten to one speed here. The tuner counts how often each
-   *  bound is hit, because a high `max` tally is the usual cause of "the far strikes read wrong". */
+   *  regardless, so those strikes move FASTER than `targetSpeed` (same duration over a longer distance).
+   *  They flatten to one DURATION, not one speed. The tuner counts how often each bound is hit, because a
+   *  clamped strike ignores `targetSpeed` — the usual reason dragging that slider changes nothing. */
   maxStrikeDur: number;
   /** Strike duration (s) — FALLBACK only, used when elements are unresolved and there is no geometry. */
   strikeDur: number;

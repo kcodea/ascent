@@ -70,8 +70,10 @@ export function subscribeLungeProbe(fn: () => void): () => void {
   return () => listeners.delete(fn);
 }
 
-/** Tally of how often each duration clamp bound was hit across the buffer. A high `max` count is the signal
- *  that `maxStrikeDur` is flattening the long strikes to one speed. */
+/** Tally of how often each duration clamp bound was hit across the buffer. Every clamped strike ignores
+ *  `targetSpeed` — a high `min` count means `minStrikeDur` is setting the pace of most swings (short travel),
+ *  a high `max` count means `maxStrikeDur` is capping the long ones. Either way, that bound is the dial that
+ *  actually controls those strikes. */
 export function lungeClampTally(): { min: number; max: number; total: number } {
   let min = 0;
   let max = 0;

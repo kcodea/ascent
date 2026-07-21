@@ -38,6 +38,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **New board backdrop** — the in-game board art is now `ascentboardnostuff` (3440×1459 WebP, 0.30 MB;
+  the orphaned `testboard2` was removed, so the shipped payload actually drops).
+
 - **One strike per attack.** A clash is two-way, so the damage moment following an attack was re-bursting
   *both* units — a second strike FX on the defender and a third on the attacker, which was never struck. The
   clash pair is now skipped there (their FX rides the lunge's impact channel); Cleave/AoE splash still bursts.

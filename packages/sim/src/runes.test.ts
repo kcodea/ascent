@@ -615,12 +615,12 @@ describe('Runes batch 2 — Kindling / Pair / Menagerie / Reliquary + forge sche
     expect(s.board.length).toBeGreaterThanOrEqual(before); // fired without error (may summon tokens)
   });
 
-  it('The Runeforge quest: buying 7 minions arms a next-turn BASIC forge visit + 4 Gold', () => {
+  it('The Runeforge quest: buying 9 cards arms a next-turn BASIC forge visit + 4 Gold', () => {
     // Complete via the reward directly (buy-count objective drives it live in play).
     const q = QUEST_INDEX['q_the_runeforge']!;
     expect(q.tribe).toBe('neutral');
     expect(q.tier).toBe('lesser');
-    expect(q.objective).toEqual({ event: 'buy', count: 7 });
+    expect(q.objective).toEqual({ event: 'buy', count: 9 });
     expect(q.reward).toEqual({ kind: 'scheduleRuneforge', forge: 'basic', gold: 4 });
   });
 
@@ -794,20 +794,21 @@ describe('Runes batch 4b — new cards (Feasting Bogrot / Reconfigured Combinato
 describe('The Epic Runeforge — the greater quest that opens the Epic Runeforge next turn', () => {
   const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
 
-  it('is a neutral greater quest named "The Epic Runeforge" (buy 9) whose reward opens the Epic Runeforge + gives 8 Gold', () => {
+  it('is a neutral greater quest named "The Epic Runeforge" (cast 15 spells) whose reward opens the Epic Runeforge + gives 8 Gold', () => {
     const q = QUEST_INDEX['q_epic_commission']!;
     expect(q).toBeDefined();
     expect(q.name).toBe('The Epic Runeforge');
     expect(q.tribe).toBe('neutral');
     expect(q.tier).toBe('greater');
-    expect(q.objective).toEqual({ event: 'buy', count: 9 });
+    expect(q.objective).toEqual({ event: 'castSpell', count: 15 });
     expect(q.reward).toEqual({ kind: 'multi', rewards: [{ kind: 'openEpicRuneforge' }, { kind: 'gainGold', amount: 8 }] });
   });
 
-  it('completing it (the 9th buy) ARMS the forge for next turn + grants 8 Gold — it does not open on the completing turn', () => {
+  it('completing it (the 15th spell) ARMS the forge for next turn + grants 8 Gold — it does not open on the completing turn', () => {
     let s: RunState = { ...createRun(1, 'warden'), wave: 7, phase: 'recruit', tier: 6, embers: 5, freeRolls: 0,
-      activeQuests: [{ questId: 'q_epic_commission', progress: 8, completed: false }] };
-    s = reduce(s, { type: 'buy', uid: s.shop[0]!.uid }); // 9th buy → completes
+      activeQuests: [{ questId: 'q_epic_commission', progress: 14, completed: false }],
+      hand: [{ uid: 'sp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'sp' }); // 15th spell → completes
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.pendingEpicRuneforge).toBe(true); // armed…
     expect(s.runeforgeOffer).toBeUndefined(); // …but NOT opened this turn
@@ -827,8 +828,8 @@ describe('The Epic Runeforge — the greater quest that opens the Epic Runeforge
   it('The Runeforge quest: the basic forge is DEFERRED — opens NEXT turn, not mid-turn (owner bug 2026-07-13)', () => {
     let s: RunState = { ...createRun(1, 'warden'), wave: 5, phase: 'recruit', tier: 6, embers: 20, freeRolls: 0,
       resolve: 999, maxResolve: 999, armor: 999,
-      activeQuests: [{ questId: 'q_the_runeforge', progress: 6, completed: false }] };
-    s = reduce(s, { type: 'buy', uid: s.shop[0]!.uid }); // 7th buy → completes The Runeforge
+      activeQuests: [{ questId: 'q_the_runeforge', progress: 8, completed: false }] };
+    s = reduce(s, { type: 'buy', uid: s.shop[0]!.uid }); // 9th buy → completes The Runeforge
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.pendingBasicForge?.deferred).toBe(true); // armed, but deferred…
     expect(s.runeforgeOffer).toBeUndefined(); // …so it does NOT open on the completing turn

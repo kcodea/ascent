@@ -29,9 +29,13 @@ Large hand-authored balance pass, sliced so each chunk lands green + tested on i
 - **Chunk 2b — Rune effect reworks**: Aftershocks (echoes → all minions +4/+4), Consumption (random +1 atk/hp),
   Packcraft (6g, summon Beast → Beasts +1/+1), Rebirth (SoC 2 random Rise), Refrain (20% return to hand),
   Slaying (Slaughter → +1 max Gold), Trophy (plain copy of first KILL), Broodpit (2g, Avenge (4) 2 taunt Imps).
-- **Chunk 3 — Quest numbers** (~45 items): objective count + reward retunes across all tribes.
-- **Chunk 4 — Quest removals + reworks**: remove Last Rites, The Author's Hand, The Hoard Wakes; rework Empty
-  Graves, Forsaken Will, Anomalous Reactor, Deep Hunger, Pit Without End, Blueprint Cache, Feeding Line.
+- **✅ Chunk 3 — Quest objectives** (shipped to branch): 40 quests retuned (objective count/event/tribe + 3
+  reward tweaks). Data-only.
+- **Chunk 4 — Quest removals + flag reworks + the 2 deferred objectives**: remove Last Rites, The Author's
+  Hand, The Hoard Wakes; rework Empty Graves (SoC Rally→leftmost-Echo), Deep Hunger (slaughter 13 + Avenge (3)
+  add 2 Fodder), Pit Without End (last-death → 7 Imps), The Old Hunt (+3/+3 on Beast attack), Blueprint Cache
+  (+3/+3 per attachment), Feeding Line (text); apply the deferred Parliament of Flame (spend 33) + Track and
+  Fodder (kill 14) with new mechanic-coverage vehicles for the orphaned Djinn/consume tests.
 - **Chunk 5 — New-mechanic minions**: Korok/Banksly (new **buy-count** trigger, "when you buy 4 cards"),
   Thundeer (Engraved on-ally-attack self-improve), Kennelmaster (SoC Beast aura + Avenge-improve), Hunter
   (on-gain-attack board buff, improve every 3), Hoard Cleric (exclude self), Attachment Mechanic → T4 3/5.

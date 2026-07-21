@@ -3,6 +3,23 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (balance patch — chunk 3: quest objectives)
+
+### balance(content): quest objective + reward retune — 40 quests
+
+Data-only quest pass (owner spec 2026-07-21). Objective count / event / tribe retunes across every tribe,
+plus three reward tweaks: **Forsaken Will** now spend-26-Gold → Undead spell aura **+3 Attack** (was summon-6
+→ +2), **Anomalous Reactor** grants the reactor **+ a random Tier-5 minion**, **Taurus Ascension** grants a
+**gilded** Taurus. Representative objective changes: Apex Hunt kill 6 w/ Beasts, Den Marker spend 27, Blood
+Trail buy 5 Beasts, Skybound Pact 40 Dragon stats, Chimerus cast 10, Scrap Contract sell 5 Mechs, Perfect
+Machine buy 7, Fried Circuits spend 40 (compound→single), Kingdom of Bones summon 9, The Bone Throne spend 35,
+Small Offering consume 8, Food for Gold buy 11 Demons, Shop License win 2, Spell Thesis buy 7, The Runeforge
+buy 9, The Epic Runeforge cast 15, Echoing Coop buy 18, Infinite Assembly kill 13. Two spec items DEFERRED to
+chunk 4 because they'd remove the only quest exercising a mechanic a regression test depends on: **Parliament
+of Flame** (endOfTurn→spendGold — Djinn End-of-Turn-replay audit) and **Track and Fodder** (consumeStats→
+slaughter — start-of-turn consume tally). Verified: full suite green (1304) + typecheck + lint clean. ~20
+quest tests re-driven to the new objectives (buy/sell/spend/cast flows in place of the old combat tallies).
+
 ## 2026-07-21 (balance patch — chunk 2a: rune costs)
 
 ### balance(content): rune cost pass — 23 cost tweaks + Spare Parts count

@@ -103,37 +103,40 @@ export function getCardToHandFxConfig(): CardToHandFxConfig {
 }
 export function setCardToHandFxValue(key: keyof CardToHandFxConfig, value: number | string): void {
   cfg = { ...cfg, [key]: value };
+  reflect();
   try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch { /* ignore */ }
 }
 export function resetCardToHandFxConfig(): void {
   cfg = { ...DEFAULTS };
+  reflect();
   try { localStorage.removeItem(KEY); } catch { /* ignore */ }
 }
 
-// Motion + shine are read live from `cfg` at fire time (WAAPI + pixiFx.cardShine), so there's nothing to
-// reflect to CSS — the tuner's edits apply to the NEXT grant automatically.
+/** Push the motion knobs to the `--c2h-*` CSS vars the `.handgrant` keyframe reads. The MOTION is a CSS
+ *  animation (WAAPI proved unreliable in-app — it froze at t=0), so the card motion lives in styles.css and
+ *  reads these; only the Pixi shine is fired from JS. Called at boot + on every tuner edit. */
+export function reflect(): void {
+  if (typeof document === 'undefined') return;
+  const r = document.documentElement.style;
+  const total = cfg.popMs + cfg.settleMs + cfg.holdMs + cfg.slideMs;
+  r.setProperty('--c2h-total-ms', `${total}ms`);
+  r.setProperty('--c2h-start-scale', String(cfg.startScale));
+  r.setProperty('--c2h-pop-scale', String(cfg.popScale));
+  r.setProperty('--c2h-rise-vh', `${cfg.riseVh}vh`);
+  r.setProperty('--c2h-slide-vh', `${cfg.slideVh}vh`);
+  r.setProperty('--c2h-slide-end-scale', String(cfg.slideEndScale));
+}
+
+reflect();
 
 /**
- * Run the full card-to-hand flourish on a mounted `.handgrant` element: the WAAPI motion (snap/pop + rise →
- * ease to rest → hold → quick slide down) plus the Pixi shine sweep + sparkles, fired at the pop peak over the
- * card's live rect. Shared by the combat grant and the recruit grant so both read identically.
+ * Fire the Pixi shine sweep + sparkles over a mounted `.handgrant` element — the CARD MOTION is the CSS
+ * `tohandfly` animation (see styles.css); this just adds the flair, delayed to land on the pop peak. Shared by
+ * the combat + recruit grants.
  */
-export function animateCardToHand(el: HTMLElement, fireShine: (cx: number, cy: number, w: number, h: number) => void): void {
-  const c = cfg;
-  const total = c.popMs + c.settleMs + c.holdMs + c.slideMs;
-  const off = (ms: number): number => ms / total;
-  try {
-    el.animate([
-      { opacity: 0, transform: `translate(-50%, -50%) scale(${c.startScale})`, offset: 0 },
-      { opacity: 1, transform: `translate(-50%, calc(-50% - ${c.riseVh}vh)) scale(${c.popScale})`, offset: off(c.popMs) },
-      { opacity: 1, transform: 'translate(-50%, -50%) scale(1)', offset: off(c.popMs + c.settleMs) },
-      { opacity: 1, transform: 'translate(-50%, -50%) scale(1)', offset: off(c.popMs + c.settleMs + c.holdMs) },
-      { opacity: 0, transform: `translate(-50%, calc(-50% + ${c.slideVh}vh)) scale(${c.slideEndScale})`, offset: 1 },
-    ], { duration: total, easing: 'cubic-bezier(0.34, 1.3, 0.5, 1)', fill: 'forwards' });
-  } catch { /* WAAPI unavailable — the card just stays hidden rather than flashing */ }
-  // Fire the shine over the card at the pop peak (delay so it lands on the snap, not the spawn).
+export function fireCardShine(el: HTMLElement, shine: (cx: number, cy: number, w: number, h: number) => void): void {
   window.setTimeout(() => {
     const r = el.getBoundingClientRect();
-    if (r.width > 0) fireShine(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
-  }, c.shineDelayMs);
+    if (r.width > 0) shine(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height);
+  }, cfg.shineDelayMs);
 }

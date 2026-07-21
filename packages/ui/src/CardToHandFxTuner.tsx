@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   C2H_KEYS, C2H_COLOR_KEYS, C2H_RANGES,
-  getCardToHandFxConfig, resetCardToHandFxConfig, setCardToHandFxValue, animateCardToHand, type CardToHandFxConfig,
+  getCardToHandFxConfig, resetCardToHandFxConfig, setCardToHandFxValue, fireCardShine, type CardToHandFxConfig,
 } from './cardToHandFxConfig';
 import { useDraggablePanel } from './useDraggablePanel';
 import { pixiFx } from './pixiFx';
@@ -24,17 +24,16 @@ const C2H_LABELS: Partial<Record<keyof CardToHandFxConfig, string>> = {
 
 /** Spawn a throwaway granted card (the first shop card, or a fallback) and run the full flourish on it. */
 function fireTest(): void {
+  // A throwaway `.handgrant` wrapper (so the CSS `tohandfly` animation runs) holding a Card. Retriggering the
+  // CSS animation needs a fresh element each time, which a remount gives us.
   const host = document.createElement('div');
+  host.className = 'handgrant';
   document.body.appendChild(host);
   const root = createRoot(host);
-  const cardId = document.querySelector('[data-zone="tavern"] .card')?.getAttribute('data-cardid') ?? 'depositbox';
-  root.render(<Card card={{ name: 'Test', cardId, tribe: 'neutral', attack: 3, health: 4, keywords: [], tier: 1, text: '' }} suppressPop />);
-  const el = host.firstElementChild as HTMLElement | null;
-  if (el) {
-    el.className = 'handgrant';
-    animateCardToHand(el, (cx, cy, w, h) => pixiFx.cardShine(cx, cy, w, h, getCardToHandFxConfig()));
-  }
-  window.setTimeout(() => { root.unmount(); host.remove(); }, 2000);
+  const cardId = document.querySelector('[data-zone="tavern"] .card')?.getAttribute('data-cardid') ?? 'karwind';
+  root.render(<Card card={{ name: 'Test', cardId, tribe: 'dragon', attack: 3, health: 4, keywords: [], tier: 1, text: '' }} suppressPop />);
+  fireCardShine(host, (cx, cy, w, h) => pixiFx.cardShine(cx, cy, w, h, getCardToHandFxConfig()));
+  window.setTimeout(() => { root.unmount(); host.remove(); }, 2200);
 }
 
 export function CardToHandFxTuner() {

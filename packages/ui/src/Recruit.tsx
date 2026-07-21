@@ -637,9 +637,7 @@ export function Recruit() {
     if (seq === undefined || seq === prevHandGrantSeq.current) return;
     prevHandGrantSeq.current = seq;
     if (!run.handGrantFxCardId || run.phase === 'combat') return; // combat grants use the replay's handGrant path
-    setRecruitGrant({ cardId: run.handGrantFxCardId, key: seq });
-    const t = window.setTimeout(() => setRecruitGrant((g) => (g?.key === seq ? null : g)), 1400);
-    return () => window.clearTimeout(t);
+    setRecruitGrant({ cardId: run.handGrantFxCardId, key: seq }); // HandGrantCard self-clears via onDone
   }, [run.handGrantFxSeq, run.handGrantFxCardId, run.phase]);
   // Displacement swap (Darah's power / the spell): fire the circular swap-arrows FX between the two NEW
   // cards (the arrival on the board, the displaced offer in the tavern). Keyed off `swapFxSeq` (one-shot,
@@ -3616,10 +3614,10 @@ export function Recruit() {
         const view = conjuredView(replay.handGrant.cardId, run);
         return view ? <HandGrantCard key={replay.handGrant.key} view={view} /> : null;
       })()}
-      {/* A card a RECRUIT-phase effect just conjured to hand — same flourish. */}
+      {/* A card a RECRUIT-phase effect just conjured to hand — same flourish. Self-clears on animationend. */}
       {recruitGrant && (() => {
         const view = conjuredView(recruitGrant.cardId, run);
-        return view ? <HandGrantCard key={recruitGrant.key} view={view} /> : null;
+        return view ? <HandGrantCard key={recruitGrant.key} view={view} onDone={() => setRecruitGrant((g) => (g?.key === recruitGrant.key ? null : g))} /> : null;
       })()}
 
       {/* A clear "End of Turn" beat as the turn ends (end-of-turn effects have resolved). */}

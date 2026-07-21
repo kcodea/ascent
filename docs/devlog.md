@@ -3,6 +3,35 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (hex sphere warps independently)
+
+### fix(fx): the facet sphere was aspect-locked — `preserveAspectRatio='none'`
+
+Owner: *"the hex sphere width and height adjustments are scale locked. the hex should warp to the adjustments
+to height and width separately."*
+
+Cause was in the asset, not the CSS. `ward-hexsphere.svg` declares `viewBox='0 0 100 100'` with **no**
+`preserveAspectRatio`, so it defaults to `xMidYMid meet`: the sphere keeps its 1:1 aspect and *letterboxes*
+inside whatever box it's given. The `--wg-hex-w` / `--wg-hex-h` dials were correctly setting a non-proportional
+`background-size`, and the SVG was refusing to fill it. Added `preserveAspectRatio='none'`.
+
+Safe for the asset's other users: they pass a SINGLE `background-size` value (height `auto`), which still
+derives from the intrinsic ratio — only an explicit two-value size warps. So the inner `.ward-hex` and both
+preview rigs are unchanged.
+
+Two process notes worth recording, both self-inflicted:
+- The edit first landed in the **primary checkout** rather than this worktree — the shell cwd had reset
+  between commands (again). Restored primary to clean, re-applied in the worktree. Any gate run in the wrong
+  tree is meaningless: it reported 72 files / 1312 tests because `wardConfig.test.ts` doesn't exist on old
+  `main`. Re-ran in the worktree: 73 / 1324.
+- The first verification was **invalid**. It drew the SVG into a canvas via `ctx.drawImage(img, 0, 0, 300,
+  100)` and concluded "it warps" — but `drawImage` with explicit destination dimensions always stretches the
+  raster, regardless of `preserveAspectRatio`. It would have passed before the fix too. Replaced with a direct
+  check that the **served** asset carries the attribute.
+
+Verified: served asset from the dev server contains `preserveAspectRatio='none'`; typecheck + lint (0 errors)
++ 1324 tests + `build:web` green in the worktree.
+
 ## 2026-07-21 (ward glass over the frame — live in-game)
 
 ### feat(ui): wire approach B as a real layer with a working live tuner

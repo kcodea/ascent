@@ -31,6 +31,9 @@ Large hand-authored balance pass, sliced so each chunk lands green + tested on i
   Slaying (Slaughter → +1 max Gold), Trophy (plain copy of first KILL), Broodpit (2g, Avenge (4) 2 taunt Imps).
 - **✅ Chunk 3 — Quest objectives** (shipped to branch): 40 quests retuned (objective count/event/tribe + 3
   reward tweaks). Data-only.
+- **✅ Add-on (owner 2026-07-21, shipped to branch):** Spell Appraiser Avenge (3), Nimbus/Displacement → T5,
+  Hoardbreaker Drake → Rally-only, and **Runescale Drake** reworked to per-spell-this-turn scaling (new
+  `scTribeBuffPerSpellImproving` factory).
 - **Chunk 4 — Quest removals + flag reworks + the 2 deferred objectives**: remove Last Rites, The Author's
   Hand, The Hoard Wakes; rework Empty Graves (SoC Rally→leftmost-Echo), Deep Hunger (slaughter 13 + Avenge (3)
   add 2 Fodder), Pit Without End (last-death → 7 Imps), The Old Hunt (+3/+3 on Beast attack), Blueprint Cache

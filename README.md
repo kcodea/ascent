@@ -38,9 +38,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
-- **Balance patch (2026-07-21), chunk 1 — Demon minions.** Soulfeeder, Sword & Bored, Burial Imp, Godfodder,
-  Pit Supplier, Ritualist and Chef Raag retuned; first slice of a larger hand-authored balance pass landing in
-  tested chunks (runes, quests, and new-mechanic minions to follow).
+- **Balance patch (2026-07-21)** landing in tested chunks on `balance/patch-2026-07-21`: Demon minions, 23
+  rune costs, 40 quest objectives, plus an owner add-on (Spell Appraiser, Nimbus/Displacement → T5, Hoardbreaker
+  → Rally-only, and **Runescale Drake** reworked to scale with spells cast this turn). Rune-effect reworks,
+  quest removals, and new-mechanic minions still to come.
 
 - **Quest tendrils** — a gold ribbon reaches from a quest's node to the unit it triggers (Echoing Roar
   re-firing a Shout), with its own dev tuner.

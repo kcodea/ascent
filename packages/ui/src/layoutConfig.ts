@@ -47,7 +47,7 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   // The shop CONTROLS tray (round plaque + Upgrade/Reroll/Freeze/End Turn + info strip), scaled via its local --u.
   { key: 'shopUiS', cssVar: '--z-shopui-s', label: 'Scale', group: 'Shop controls', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   { key: 'shopUiX', cssVar: '--z-shopui-x', label: 'X offset', group: 'Shop controls', min: -400, max: 400, step: 1, def: 0, fmt: 'px' },
-  { key: 'shopUiY', cssVar: '--z-shopui-y', label: 'Y offset', group: 'Shop controls', min: -400, max: 400, step: 1, def: 18, fmt: 'px' },
+  { key: 'shopUiY', cssVar: '--z-shopui-y', label: 'Y offset', group: 'Shop controls', min: -400, max: 400, step: 1, def: -49, fmt: 'px' },
 
   { key: 'wbS', cssVar: '--z-wb-s', label: 'Card size', group: 'Warband', min: 0.5, max: 1.6, step: 0.01, def: 1, fmt: 'mul' },
   { key: 'wbGap', cssVar: '--z-wb-gap', label: 'Card gap', group: 'Warband', min: 0, max: 80, step: 1, def: 22, fmt: 'px' },
@@ -79,8 +79,8 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   // midline (--charge-y auto-aligns to the art divider at any aspect); Size scales the whole glyph (aspect-locked),
   // X/Y nudge it off the midline. Defaults are the CSS fallbacks in styles.css `.chargeglyph` — keep the two in
   // sync so production (no tuner) matches a Reset. (Look — colours/glow/timing — is tuned in fx/turn-glyph-preview.html.)
-  { key: 'glyphW', cssVar: '--charge-w', label: 'Size', group: 'Charge Glyph', min: 200, max: 1600, step: 4, def: 1144, fmt: 'px' },
-  { key: 'glyphX', cssVar: '--charge-x', label: 'X offset', group: 'Charge Glyph', min: -600, max: 600, step: 1, def: -5, fmt: 'px' },
+  { key: 'glyphW', cssVar: '--charge-w', label: 'Size', group: 'Charge Glyph', min: 200, max: 1600, step: 4, def: 1148, fmt: 'px' },
+  { key: 'glyphX', cssVar: '--charge-x', label: 'X offset', group: 'Charge Glyph', min: -600, max: 600, step: 1, def: 3, fmt: 'px' },
   { key: 'glyphY', cssVar: '--charge-yoff', label: 'Y offset', group: 'Charge Glyph', min: -400, max: 400, step: 1, def: -19, fmt: 'px' },
 
   // The drag-to-BUY / drag-to-SELL drop regions. Unlike the other groups these aren't pure CSS — the boundary is

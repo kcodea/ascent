@@ -173,8 +173,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
    move it to the Pixi bloom layer if it costs frames on a full board (see docs/performance.md). */
 .chargeglyph {
   position: absolute; left: 50%; top: var(--charge-y, 50%);
-  width: calc(var(--charge-w, 1144px) * var(--scale)); aspect-ratio: 1385 / 544;
-  transform: translate(calc(-50% + var(--charge-x, -5px) * var(--scale)), calc(-50% + var(--charge-yoff, -19px) * var(--scale)));
+  width: calc(var(--charge-w, 1148px) * var(--scale)); aspect-ratio: 1385 / 544;
+  transform: translate(calc(-50% + var(--charge-x, 3px) * var(--scale)), calc(-50% + var(--charge-yoff, -19px) * var(--scale)));
   /* z-index 0 (NOT -1): .app is transparent over an opaque dark wrapper, so a NEGATIVE-z child paints behind
      .app's content and gets covered (invisible). z:0 keeps the glyph painted above the board backdrop while
      sitting in .app's paint group with the cards (position:relative / z:auto) — tree order then decides, and the
@@ -232,8 +232,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
    chargeMotes.ts (spawns white-hot motes on the lit shape → gather into the mandala + flash). pointer-events off. */
 .charge-motes {
   position: absolute; left: 50%; top: var(--charge-y, 50%);
-  width: calc(var(--charge-w, 1144px) * var(--scale) * 1.5); aspect-ratio: 1 / 1;
-  transform: translate(calc(-50% + var(--charge-x, -5px) * var(--scale)), calc(-50% + var(--charge-yoff, -19px) * var(--scale)));
+  width: calc(var(--charge-w, 1148px) * var(--scale) * 1.5); aspect-ratio: 1 / 1;
+  transform: translate(calc(-50% + var(--charge-x, 3px) * var(--scale)), calc(-50% + var(--charge-yoff, -19px) * var(--scale)));
   z-index: 0; pointer-events: none;
 }
 
@@ -461,7 +461,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* Shop controls tray (round plaque + Upgrade/Reroll/Freeze/End Turn + info strip). Scales via a LOCAL --u
    (like the HUD .bar) so the whole tray grows/shrinks proportionally, with X/Y offsets — dev Layout Lab "Shop
    controls" group. Defaults are a no-op (×1 / 0px). */
-.shopbar { position: relative; --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--z-shopui-s, 1)); top: calc(var(--z-shopui-y, 18px) * var(--scale)); left: calc(var(--z-shopui-x, 0px) * var(--scale)); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); min-height: calc(111 * var(--u)); margin-top: calc(10 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
+.shopbar { position: relative; --u: calc(var(--u-base) * var(--ui-scale, 0.96) * var(--z-shopui-s, 1)); top: calc(var(--z-shopui-y, -49px) * var(--scale)); left: calc(var(--z-shopui-x, 0px) * var(--scale)); align-self: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(5 * var(--u)); min-height: calc(111 * var(--u)); margin-top: calc(10 * var(--u)); margin-bottom: calc(10 * var(--u)); flex: none; z-index: 6; }
 .shopbar.closing { animation: shopclose 0.45s ease forwards; pointer-events: none; }
 .shoprow { display: flex; align-items: center; gap: calc(13 * var(--u)); }
 /* Info strip — the turn's read-only stats (Gold · Tier · Setup Time) in ONE segmented cream plaque, gold-

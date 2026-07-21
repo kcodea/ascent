@@ -5,6 +5,15 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-21 (owner feel pass — lunge defaults)
 
+### tweak(ui): bake owner's Layout Lab pass — shop controls up, charge glyph nudged
+
+Owner's Layout Lab export baked as shipped defaults. Only three values differ from current:
+**`shopUiY` 18 → −49** (the shop controls tray rides higher), **`glyphW` 1144 → 1148**, **`glyphX` −5 → 3**
+(charge glyph a touch wider + right). Updated in BOTH homes per the double-source guard (roadmap 2026-07-21):
+the `def:`s in `layoutConfig.ts` AND the CSS fallbacks (`--z-shopui-y` on `.shopbar`; `--charge-w`/`--charge-x`
+on `.chargeglyph` + the `.charge-motes` canvas). Everything else in the export already matched. Verified:
+typecheck + lint + build green.
+
 ### tweak(ui): ship the owner's tuned lunge values
 
 First feel pass dialled against a strike that actually renders (the `.unit` transform-transition had been

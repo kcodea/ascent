@@ -1,10 +1,10 @@
 /**
  * Tunable geometry + look for the WARD (Divine Shield) dome — the glassy energy shell over a DS card.
  *
- * The dome is pure CSS (`.card.compact.dscard .ward-*` in styles.css), a stack of layers rendered by
- * `Card.tsx` INSIDE `.art` — the per-frame rules seat an oversized round dome and rely on `.art`'s ellipse /
- * `--heater` clip to trim it to the window, so it must stay there (moving it out was tried 2026-07-21 and
- * reverted: the untrimmed dome rendered as a blob).
+ * The shell is `.wardglass` (styles.css "WARD GLASS") — a layer painted OVER the frame and clipped to its
+ * silhouette. The OLD inner dome (a `.ward` stack inside the art window) was removed 2026-07-21: with the
+ * frame-wide shell it stacked into a doubled honeycomb and two competing blues (owner). Dials that drove only
+ * that dome went with it; `bodyAlpha`/`pulseMin`/`pulseSec` stay because the glass body shares its keyframes.
  *
  * SCOPE — this owns the dome's LOOK only. Its GEOMETRY (size + vertical seat) is per-frame and already
  * live-tunable as `--wardsize` / `--wardy` in the **Card Frames** tuner: `.card.compact.stdframe.dscard .ward`
@@ -25,14 +25,6 @@ export interface WardConfig {
   pulseMin: number;
   /** Pulse period (seconds) — one full breath of the energy ring. */
   pulseSec: number;
-  /** Hex-facet layer opacity (0–1) — the blue-white sphere facets. */
-  hexAlpha: number;
-  /** Hex-facet sphere SIZE (% of the dome box). ~100 fills it; lower shrinks the facet ball inside the dome. */
-  hexSize: number;
-  /** Inner vignette strength (0–1) — the deep-blue shading that gives the glass depth. */
-  shadowAlpha: number;
-  /** Glass reflection (upper-left shine) opacity (0–1). */
-  spotAlpha: number;
   /** Outer blue aura BLUR (px) — the halo bleeding off the card. */
   auraBlur: number;
   /** Outer blue aura SPREAD (px). */
@@ -72,10 +64,6 @@ const DEFAULTS: WardConfig = {
   bodyAlpha: 1,
   pulseMin: 0.78,
   pulseSec: 3.8,
-  hexAlpha: 0,     // inner facets OFF — they moved to the glass layer (owner 2026-07-21)
-  hexSize: 99,
-  shadowAlpha: 0.8,
-  spotAlpha: 1,
   auraBlur: 16,
   auraSpread: 4,
   auraAlpha: 1,
@@ -98,10 +86,6 @@ export const WARD_RANGES: Record<keyof WardConfig, [number, number, number]> = {
   bodyAlpha: [0, 1, 0.01],
   pulseMin: [0, 1, 0.01],
   pulseSec: [0.5, 10, 0.1],
-  hexAlpha: [0, 1, 0.01],
-  hexSize: [40, 160, 1],
-  shadowAlpha: [0, 1, 0.01],
-  spotAlpha: [0, 1, 0.01],
   auraBlur: [0, 60, 1],
   auraSpread: [0, 30, 1],
   auraAlpha: [0, 1, 0.01],
@@ -124,8 +108,7 @@ export const WARD_KEYS = Object.keys(DEFAULTS) as (keyof WardConfig)[];
 /** Tuner grouping — every key must appear in exactly one group (enforced by test) so a new dial can't be
  *  silently unreachable in the panel. */
 export const WARD_GROUPS: { title: string; keys: (keyof WardConfig)[] }[] = [
-  { title: 'Energy ring', keys: ['bodyAlpha', 'pulseMin', 'pulseSec'] },
-  { title: 'Glass', keys: ['hexAlpha', 'hexSize', 'shadowAlpha', 'spotAlpha'] },
+  { title: 'Energy pulse', keys: ['bodyAlpha', 'pulseMin', 'pulseSec'] },
   { title: 'Glass over the frame', keys: ['glassAlpha', 'domeW', 'domeH', 'domeX', 'domeY', 'glassSpot'] },
   { title: 'Glass facets', keys: ['facetW', 'facetH', 'facetX', 'facetY', 'facetAlpha'] },
   { title: 'Outer glow', keys: ['auraBlur', 'auraSpread', 'auraAlpha', 'breathAlpha'] },
@@ -158,10 +141,6 @@ export function applyWardVars(): void {
   s.setProperty('--wd-body-alpha', String(cfg.bodyAlpha));
   s.setProperty('--wd-pulse-min', String(cfg.pulseMin));
   s.setProperty('--wd-pulse-sec', `${cfg.pulseSec}s`);
-  s.setProperty('--wd-hex-alpha', String(cfg.hexAlpha));
-  s.setProperty('--wd-hex-size', `${cfg.hexSize}%`);
-  s.setProperty('--wd-shadow-alpha', String(cfg.shadowAlpha));
-  s.setProperty('--wd-spot-alpha', String(cfg.spotAlpha));
   s.setProperty('--wd-aura-blur', `${cfg.auraBlur}px`);
   s.setProperty('--wd-aura-spread', `${cfg.auraSpread}px`);
   s.setProperty('--wd-aura-alpha', String(cfg.auraAlpha));

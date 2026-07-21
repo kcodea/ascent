@@ -3,6 +3,35 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (retire the inner ward dome)
+
+### fix(ui): remove the art-window dome — it was doubling the honeycomb under the new shell
+
+Owner, on the live game: *"the old ward effect is still showing underneath. so there are two honeycomb
+patterns, two blue hues happening at once. remove the ward on the unit art. keep the new one."*
+
+Correct — the frame-wide `.wardglass` shell was added ON TOP of the existing `.ward` dome rather than
+replacing it, so both painted at once: two hex layers and two blues. (Setting the inner facets' default alpha
+to 0 didn't help anyone carrying a persisted `ascent.ward` config from earlier in the session — and the
+inner *body* tint was still there regardless.)
+
+Removed outright: the `.ward` element from `Card.tsx` and every `.ward*` rule from styles.css — the base
+stack, all five layers, and the per-frame `.stdframe.dscard .ward` / `.taunt.dscard .ward` variants that
+existed only to seat it. Verified against the live stylesheet that **zero** `.ward*` selectors remain.
+
+Kept deliberately: the card-level outer aura and the `::before` breathing bloom. Those ride the CARD, not the
+art window, and read as the shell's halo — which the concept render also has.
+
+Dials retired with the dome: `hexAlpha`, `hexSize`, `shadowAlpha`, `spotAlpha` drove only `.ward-*`.
+`bodyAlpha` / `pulseMin` / `pulseSec` stay — the glass body animates on the same `wardpulse` keyframes.
+
+Process note (third time this session): the first attempt at this edit landed in the **primary checkout**
+because the shell cwd reset between commands. Restored primary to clean and re-applied in the worktree, this
+time with `os.chdir()` pinned inside the script itself rather than trusting the shell's cwd.
+
+Verified: no dangling `--wd-*` vars for removed dials, zero `.ward*` selectors in the served stylesheet,
+typecheck + lint (0 errors) + **1324 tests** + `build:web` green in the worktree.
+
 ## 2026-07-21 (ward energy-bubble concept rig)
 
 ### chore(fx): a second rig aimed at the owner's concept render

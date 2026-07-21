@@ -415,7 +415,7 @@ export const Card = memo(function Card({
       {card.castMult !== undefined && card.castMult > 1 && (
         <span className="castmult" aria-hidden="true">×{card.castMult}</span>
       )}
-      {/* Divine Shield signifies via the CSS `.ward` dome stack inside `.art` (below); Reborn via its Pixi AURA
+      {/* Divine Shield signifies via the CSS `.wardglass` energy shell OVER the frame (below); Reborn via its Pixi AURA
           (driven from `.card.reborncard` in Recruit); Taunt via the static grey `.card.taunt` border — no badge here. */}
       {card.keywords.includes('V') && (
         <span className="kwward venom" aria-hidden="true"><Icon name="poison" /></span>
@@ -437,22 +437,6 @@ export const Card = memo(function Card({
             <img className="artimg" src={artUrl} alt="" draggable={false} decoding="sync" />
           ) : (
             <Sprite name={spriteForTribe(card.tribe)} scale={5} />
-          )}
-          {/* Ward (Divine Shield): the layered glassy dome — a CSS stack glued to the card (styles.css
-              `.card.compact.dscard .ward-*`). Lives INSIDE `.art` on purpose: the per-frame rules
-              (`.stdframe.dscard .ward`, `.taunt.dscard .ward`) seat an oversized round dome here and rely on
-              `.art`'s ellipse / `--heater` clip to TRIM it to the window — moving it out removes that trim and
-              the dome renders as an untrimmed blob (tried 2026-07-21, reverted). It also rides drag + the
-              combat lunge for free and vanishes exactly when the sim clears the `DS` keyword. Geometry knobs
-              are `--wardsize`/`--wardy` in the Card Frames tuner; the LOOK is `wardConfig.ts`. */}
-          {card.keywords.includes('DS') && (
-            <div className="ward" aria-hidden="true">
-              <div className="ward-body" />
-              <div className="ward-hex" />
-              <div className="ward-shadow" />
-              <div className="ward-spot" />
-              <div className="ward-gloss" />
-            </div>
           )}
           {/* Reborn — a faint ethereal aqua-green dome + rising randomized wisps (CSS, replacing the old Pixi
               wisp), clipped to the oval window. Each wisp carries its own random position/size/rise/drift. */}

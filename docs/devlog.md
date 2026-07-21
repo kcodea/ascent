@@ -3,6 +3,304 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (final ward values + colour dials)
+
+### feat(ui): bake the owner's final Ward values and add a colour swatch per tinted layer
+
+Owner handed over the final tuned block and asked for colour selectors on every coloured component.
+
+**Values.** The pasted JSON carried 39 keys, but 14 of them (`bodyAlpha`, `hexAlpha`, `hexSize`,
+`shadowAlpha`, `spotAlpha`, `aura*`, `breathAlpha`, `glassAlpha`, `glassSpot`, `inset`, `scale`, `radius`)
+are **stale** — dials retired earlier in the session that still sit in the browser's persisted
+`ascent.ward`, and `getWardConfig()` returns `{...DEFAULTS, ...saved}`, so Copy dumps them too. Only the 25
+live keys were baked; the dead ones were deliberately not resurrected. (Worth knowing when reading a future
+Copy dump: it reflects the *stored* object, not the current schema.)
+
+**Colours.** Eight new swatches — rim edge, rim outer glow, rim inner glow, halo, honeycomb, fill core, fill
+edge, sheen. Stored as hex and reflected as `r, g, b` **triplets**, so each layer's alpha stays its own
+numeric dial (`rgba(var(--wg-rim-rgb), var(--wg-rim-a))`) rather than being folded into the colour. Same
+string-alongside-numbers shape `glowConfig` already uses, so `setWardValue` now takes `number | string` and
+the tuner renders a swatch for colour keys.
+
+The honeycomb needed a rendering change to become colourable: it was a *coloured image* screen-blended, which
+CSS can't recolour. It's now a **solid colour painted through the SVG as a mask**, with the edge-fade mask
+composited alongside it (`mask-composite: intersect`, verified supported). The SVG's own alpha — faint cell
+fills, bright strokes — carries the pattern, so the look is preserved while `--wg-hex-color` drives the hue.
+Default `#dff2ff` matches the asset's stroke colour, i.e. what it rendered as before.
+
+Verified in-browser against the SHIPPED stylesheet: every one of the 20 spot-checked values *and* colour
+triplets resolves on `:root` with zero mismatches; the hex layer resolves both mask layers with
+`mask-composite: intersect` and a `rgb(223, 242, 255)` paint. Tests +3 (colour keys reachable in a group,
+excluded from the numeric ranges, and all valid `#rrggbb`). typecheck + lint (0 errors) + **1327 tests** +
+`build:web` green.
+
+## 2026-07-21 (ship the concept ward shell)
+
+### feat(ui): the Ward is now the tuned energy shell from the bubble rig
+
+The owner dialled the concept look on `fx/ward-bubble-preview.html` and handed over the resolved `:root`
+block. Ported verbatim into the game as the shipped defaults, and the shell's layer stack rebuilt to match the
+rig: **fill → hex → sheen → rim**, with the halo cast by the container.
+
+The rim is the layer that does the work — a crisp white-hot edge with independent inward (60px) and outward
+(9px) glow. The previous `.wardglass` had only a soft radial body, which never reads as a shell *surface*.
+
+Two consequences of matching the rig faithfully, both deliberate:
+- **`border-radius: 50%` replaces the `clip-path: ellipse()`.** The halo is a `box-shadow`, and a clip-path
+  would cut it away entirely — the shell would have had no outer bleed at all.
+- **The card-level gold aura and `::before` breathing bloom are retired.** The shell casts its own blue halo,
+  and a warm gold pulse under a cold blue shell reads as a second, clashing effect. The concept render has
+  neither. (Easy to restore if wanted — one rule each.)
+
+Tuner rebuilt to the rig's dial set (25 dials, six groups: bubble box · rim · halo · hex shell · fill & sheen ·
+breath), so what's on screen and what's in the panel are now the same vocabulary. Renamed "Ward Dome" →
+"Ward Shell". Colours are baked in the CSS rather than dialled — say the word if pickers are wanted.
+
+Per-frame geometry is unchanged: still derived from each asset's true pixel aspect, centre-anchored, covering
+the oval and the Taunt heater; spells can't carry DS so they're not covered.
+
+Verified in-browser against the SHIPPED stylesheet: all 8 shell rules present, and all 23 tuned values resolve
+on `:root` with **zero mismatches** against the owner's block. typecheck + lint (0 errors) + 1324 tests +
+`build:web` green.
+
+## 2026-07-21 (retire the inner ward dome)
+
+### fix(ui): remove the art-window dome — it was doubling the honeycomb under the new shell
+
+Owner, on the live game: *"the old ward effect is still showing underneath. so there are two honeycomb
+patterns, two blue hues happening at once. remove the ward on the unit art. keep the new one."*
+
+Correct — the frame-wide `.wardglass` shell was added ON TOP of the existing `.ward` dome rather than
+replacing it, so both painted at once: two hex layers and two blues. (Setting the inner facets' default alpha
+to 0 didn't help anyone carrying a persisted `ascent.ward` config from earlier in the session — and the
+inner *body* tint was still there regardless.)
+
+Removed outright: the `.ward` element from `Card.tsx` and every `.ward*` rule from styles.css — the base
+stack, all five layers, and the per-frame `.stdframe.dscard .ward` / `.taunt.dscard .ward` variants that
+existed only to seat it. Verified against the live stylesheet that **zero** `.ward*` selectors remain.
+
+Kept deliberately: the card-level outer aura and the `::before` breathing bloom. Those ride the CARD, not the
+art window, and read as the shell's halo — which the concept render also has.
+
+Dials retired with the dome: `hexAlpha`, `hexSize`, `shadowAlpha`, `spotAlpha` drove only `.ward-*`.
+`bodyAlpha` / `pulseMin` / `pulseSec` stay — the glass body animates on the same `wardpulse` keyframes.
+
+Process note (third time this session): the first attempt at this edit landed in the **primary checkout**
+because the shell cwd reset between commands. Restored primary to clean and re-applied in the worktree, this
+time with `os.chdir()` pinned inside the script itself rather than trusting the shell's cwd.
+
+Verified: no dangling `--wd-*` vars for removed dials, zero `.ward*` selectors in the served stylesheet,
+typecheck + lint (0 errors) + **1324 tests** + `build:web` green in the worktree.
+
+## 2026-07-21 (ward energy-bubble concept rig)
+
+### chore(fx): a second rig aimed at the owner's concept render
+
+The owner shared a concept render of the Ward they actually want — a light-blue **hexagonal energy shell**
+encasing the whole card, with a crisp **white-hot rim**, a soft **cyan halo** bleeding outward, and an even
+honeycomb over art *and* gold. Explicitly *"separately… I don't want to undo anything we've done."*
+
+So this is a **new, independent rig** (`apps/web/public/fx/ward-bubble-preview.html`) rather than a change to
+the shipped `.wardglass` or to `ward-frame-preview.html` — neither is touched, and the two can be compared.
+
+Four things the concept has that the current effect doesn't, each its own layer + dial group:
+1. **rim** — a crisp white-hot edge with independent inner *and* outer glow. The shipped dome uses a soft
+   radial gradient, which never reads as a shell *surface*; this is the layer the concept leans on hardest.
+2. **hex shell** — honeycomb across the whole oval, masked to stay clearer at the centre and densen toward
+   the rim, so it reads as curvature rather than flat texture. Independent w/h/x/y.
+3. **halo** — a wide soft cyan bleed *outside* the shell (blur / spread / opacity).
+4. **fill** — a light overall tint, low at the core so the art still reads, denser at the edge.
+Plus a glass sheen and the breath pulse. 25 dials, three colour pickers (white-hot / energy / deep edge), a
+light-dark floor toggle, and a **Copy values** export of the resolved `:root` block.
+
+Shown at game size *and* at 1.9× side by side, since rim thickness and hex density are the details that decide
+whether it matches — and they're unjudgeable at 210px.
+
+Two gotchas hit and recorded: card art is bundled from `packages/ui/src/art/`, not `public/`, and Vite's SPA
+fallback returns **HTTP 200 with `text/html`** for those paths — a `curl -o /dev/null -w "%{http_code}"` check
+"passed" while the browser got no image. Content-type is the real check. Resolved by copying one art file to
+`public/fx/preview-art.webp` so the rig renders over real art.
+
+Verified in-browser: art loads (512×512), the bubble measures 236×318 against the frame's 227×306 (extends
+past it) and is centred on it, all four layers present, 25 dials wired, the copy-export populates.
+`build:web` green. No shipped CSS or component touched.
+
+## 2026-07-21 (hex sphere warps independently)
+
+### fix(fx): the facet sphere was aspect-locked — `preserveAspectRatio='none'`
+
+Owner: *"the hex sphere width and height adjustments are scale locked. the hex should warp to the adjustments
+to height and width separately."*
+
+Cause was in the asset, not the CSS. `ward-hexsphere.svg` declares `viewBox='0 0 100 100'` with **no**
+`preserveAspectRatio`, so it defaults to `xMidYMid meet`: the sphere keeps its 1:1 aspect and *letterboxes*
+inside whatever box it's given. The `--wg-hex-w` / `--wg-hex-h` dials were correctly setting a non-proportional
+`background-size`, and the SVG was refusing to fill it. Added `preserveAspectRatio='none'`.
+
+Safe for the asset's other users: they pass a SINGLE `background-size` value (height `auto`), which still
+derives from the intrinsic ratio — only an explicit two-value size warps. So the inner `.ward-hex` and both
+preview rigs are unchanged.
+
+Two process notes worth recording, both self-inflicted:
+- The edit first landed in the **primary checkout** rather than this worktree — the shell cwd had reset
+  between commands (again). Restored primary to clean, re-applied in the worktree. Any gate run in the wrong
+  tree is meaningless: it reported 72 files / 1312 tests because `wardConfig.test.ts` doesn't exist on old
+  `main`. Re-ran in the worktree: 73 / 1324.
+- The first verification was **invalid**. It drew the SVG into a canvas via `ctx.drawImage(img, 0, 0, 300,
+  100)` and concluded "it warps" — but `drawImage` with explicit destination dimensions always stretches the
+  raster, regardless of `preserveAspectRatio`. It would have passed before the fix too. Replaced with a direct
+  check that the **served** asset carries the attribute.
+
+Verified: served asset from the dev server contains `preserveAspectRatio='none'`; typecheck + lint (0 errors)
++ 1324 tests + `build:web` green in the worktree.
+
+## 2026-07-21 (ward glass over the frame — live in-game)
+
+### feat(ui): wire approach B as a real layer with a working live tuner
+
+Owner picked **B** (glass over the frame), with two refinements: the **facets must take the shape of the oval
+over the frame**, not the card art underneath; and both the dome and the facets need independent **width,
+height, X and Y**. Then: make it a live in-game tuner, B only.
+
+New `.wardglass` element (Card.tsx, DS cards) painted at **z4 — above the frame's z3** — and clipped to the
+frame's own silhouette. The `.ward` dome stays exactly where it is, trimmed to the art window; this is a
+second, larger dome, so the earlier regression (moving the inner dome and destroying the clip the per-frame
+rules rely on) cannot recur. **The facets moved onto this layer**: one sphere at the frame's size means the
+hex must map to *that* sphere, so `.wg-hex` carries them and the inner `--wd-hex-alpha` now defaults to 0.
+
+Geometry is pure CSS per frame type, mirroring `.cframe-tint` / `.tframe-img` and derived from each asset's
+real pixel aspect (standard-oval-v2 1059×1427 → 1.3475; taunt-shield 1086×1448 → 1.3333), so it tracks the
+frame at any `--ccw`/`--sh` with **no JS measuring**. Expressed **centre-anchored** so the size dials grow
+symmetrically instead of dragging a corner. Spell frames are skipped — spells can't carry DS.
+
+**Why these dials are genuinely live, unlike last time:** the failed attempt tried to drive the *inner* dome,
+which `.stdframe.dscard .ward` / `.taunt.dscard .ward` already style with their own `inset`/`transform` — they
+won on specificity and the dials did nothing ("the tuner doesn't seem to be doing much"). Nothing else styles
+`.wardglass`, so its 11 `--wg-*` vars are unopposed.
+
+Tuner gains two groups: **Glass over the frame** (opacity, width ×, height ×, X/Y nudge, shine) and **Glass
+facets** (width %, height %, X %, Y %, opacity) — width/height independent on both, so the sphere can be
+stretched to the oval rather than only scaled.
+
+The preview rig is reduced to this one approach and relabelled as a reference (A/C markup, CSS and dials
+removed) now that the real dials live in-game.
+
+Verified in-browser against the SHIPPED stylesheet: all four `.wardglass` rules present, all 11 `--wg-*` vars
+on `:root`, and a synthetic warded oval card measures the glass at **116×157 against the frame's 116×157 with
+centres offset (0, 0)** — i.e. the derived geometry lands exactly on the frame box — plus a width-dial change
+verified to actually resize it. Gate: typecheck + lint (0 errors) + 1324 tests + `build:web`.
+
+## 2026-07-21 (ward frame-engulf: approach preview)
+
+### chore(fx): a preview rig for "engulf the frame" — judge the look before wiring
+
+Follow-up to the reverted move. Rather than guess at the design a second time, the three viable approaches
+are now side by side on a standalone rig, `apps/web/public/fx/ward-frame-preview.html` (same pattern as the
+existing `ward-css-preview.html` the current look was tuned on):
+
+- **A · today** — dome trimmed to the ellipse art window; the gold frame paints on top, untouched. Baseline.
+- **B · over the frame** — a second dome layer ABOVE the frame img (z4 vs the frame's z3), boxed to the frame
+  and clipped to its outer oval: the whole card, gold included, sits inside the glass.
+- **C · glass on the gold** — that outer layer masked by the **frame PNG's own alpha**, so glass appears only
+  where the frame's pixels are: the gold ring itself turns glassy while the art keeps the inner dome and stays
+  fully readable. (Same trick the Taunt card's halo already uses to trace the shield silhouette.)
+
+All three share one look stack, so the only difference on screen is *where the glass lands*. Live dials for
+the inner dome (size, seat, peak/trough, breath, facets) and the outer glass (reach, per-variant opacity),
+plus the two energy colours and a light/dark floor toggle.
+
+Geometry mirrors the game exactly — card 210×210, art 199×256 @ (5, −23) ellipse-clipped, frame 227×306 @
+(−8, −61) — so what reads well here transfers. The outer layer is **measured** off the frame img at runtime
+rather than hardcoding the asset's aspect.
+
+Verified in-browser: all three variants render, the frame asset loads (227×306), the outer glass seats
+exactly on the frame box in B and C, B's layer resolves above the frame (z4 > z3) with the oval clip, and C's
+mask resolves to the frame PNG at `100% 100%`. Nothing in the game is touched — this is a `public/fx` rig
+only, no shipped CSS or component changed.
+
+## 2026-07-21 (Ward LOOK tuner; the frame-engulf attempt reverted)
+
+### feat(ui): a Ward Dome look tuner — and an honest revert of the "engulf the frame" move
+
+Owner: *"does the ward effect have a live tuner? … i want the ward effect to engulf the card's frame as
+well."* Both halves of my first answer were wrong, and the fix shipped a regression. Recording it properly.
+
+**Wrong #1 — "there is no live tuner."** There is. The **Card Frames** tuner already carries `ward size (DS)`
+(`--wardsize`) and `ward Y % (DS)` (`--wardy`), which are exactly the dome's geometry knobs. I grepped
+`\.ward` with `| head -20`, the output truncated before the per-frame rules, and I answered from a partial
+read.
+
+**Wrong #2 — moving the dome out of `.art`.** The reasoning ("`.art` is `overflow: hidden`, so the dome is
+clipped and no dial can escape") was factually right and completely missed the point: **that clip is
+load-bearing.** `.card.compact.stdframe.dscard .ward` and `.taunt.dscard .ward` deliberately seat an
+*oversized* round dome and let `.art`'s ellipse / `--heater` clip **trim** it to the window — their own
+comments say so. Moving it to the archbox removed the trim, so the dome rendered untrimmed. Two further
+consequences the owner saw immediately:
+
+- **The dome went rectangular.** I added a `corner ×` dial as `calc(var(--arch-radius) * n)`, but
+  `--arch-radius` is a multi-value shorthand (`48% 48% 20% 20% / 35% 35% 14% 14%`) and `calc()` cannot
+  multiply a shorthand list — the declaration is INVALID and silently falls back to `0`. Confirmed in-browser
+  (`calc(var(--arch-radius) * 1)` → `0px`). A rounded dome became a hard box.
+- **"The tuner doesn't seem to be doing much."** Exactly right: the per-frame rules set their own
+  `inset`/`transform` and come later with higher specificity, so my `--wd-inset` / `--wd-scale` were dead on
+  every authored-frame card — i.e. every card. Two dials that did nothing.
+
+**Reverted** the DOM move and both geometry dials. `Card.tsx` is byte-identical to before apart from a
+comment that now records *why* the dome must stay inside `.art`, so the next person doesn't repeat the move.
+
+**Kept** the genuinely additive part: a **Ward Dome** tuner (dev menu 🔵) owning the dome's *look* — energy
+ring peak/trough/breath period, glass facets + facet size + inner shade + shine, outer aura blur/spread/alpha,
+gold breath. 11 dials → `--wd-*` CSS vars on `:root`, live while dragging, every var with a CSS fallback
+equal to the shipped value so production is unchanged. Clean split: **Card Frames owns dome geometry, Ward
+Dome owns dome look.** A test asserts this config has *no* geometry key, so a dial that would be silently
+overridden can't be added back.
+
+"Engulf the frame" is therefore still **open** — and it is a real design task, not a dial: the dome is
+trimmed to the art window by design, while the frame gold is painted on top of it. Doing it properly means
+either masking the dome with the frame PNG's alpha (the way `.taunt.dscard .tframe`'s halo already traces the
+shield silhouette) or authoring a second dome layer above the frame. Queued rather than guessed at.
+
+Verified: typecheck + lint (0 errors) + **1324 tests** + `build:web`, all green; in-browser checks confirmed
+both the `calc()` failure and the restored arch radius.
+
+## 2026-07-21 (layout-frame FX, everywhere)
+
+### fix(ui): every unit-marking FX measures the SLOT, not a mid-flight rect
+
+Closing the follow-up logged with the phantom-ring fix. `onDamageFx` had been corrected in isolation; its
+siblings still measured `getBoundingClientRect()` raw, so any of them could paint over empty board when its
+unit happened to be mid-lunge, mid-knockback or mid-pull-home.
+
+Rather than paste the same two lines seven times, added **`layoutRectOf(el)`** — the live rect with the
+in-flight GSAP translate subtracted and the footprint de-scaled (a card measured mid-wind-up is inflated by
+`windupScale`, which would over-size footprint-driven FX like the summon dust). Everything that MARKS a unit
+now goes through it:
+
+| Site | FX | Realistic exposure |
+|---|---|---|
+| `rectOf` → `onAuraBurst` / `onShieldBreak` / `onReborn` | death burst, shatter, re-form glow | **real** — a dying unit can be mid-pull-home |
+| `onDamageFx` | damage burst + ring | **real** — the proven phantom-ring case (now via the helper) |
+| death-FX `capRect` (Rise/DR attacker) | spirit burst, bone skull | **real** — captured *while mid-lunge*, used as fallback |
+| `fireSelfBuffs` | self-buff pulse | **real** — on-attack self-buffs fire inside the wind-up |
+| spell-power gain | arrows + float | plausible |
+| `onImprove` / `onMaxGold` / `onSummonFx` / `onAscend` | pulse, coins, dust, bloom | defensive — these fire on their own beats |
+
+Honest framing: four of those are genuinely reachable, the rest are consistency/defence. The point is the
+single chokepoint — the next FX added can't reintroduce the bug by copying the old pattern.
+
+**Three sites deliberately NOT converted**, each commented in place so nobody "fixes" them to match:
+1. `center()` (the attack vector) — `runAttackExchangeCues` already does its own layout-frame correction;
+   correcting here too would double it.
+2. `fireBuffCasts` source/target — a *travelling* tendril drawn between two cards, where anchoring to the
+   visible card is defensible. Its own design call, not this change.
+3. The Ward shatter's `rectFor` — the **opposite** call: the Ward dome is CSS drawn ON the card, so it rides
+   the lunge, and the gold break must pop where the bubble visibly is at contact. Slot would be wrong.
+
+`layoutRectOf` is exported and unit-tested (rest, in-flight offset, de-scale) — verified to fail with the
+subtraction removed, which is the check the earlier `damageFx` test gap didn't have.
+
+Verified: typecheck + lint (0 errors) + **1320 tests** (1317 → 1320) + `build:web`, all green.
+
 ## 2026-07-21 (one strike per attack)
 
 ### fix(ui): the strike FX played twice — the damage moment re-burst both clash units

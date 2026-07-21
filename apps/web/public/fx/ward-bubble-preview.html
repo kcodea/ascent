@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ward · energy bubble (concept match)</title>
+<style>
+  /* ------------------------------------------------------------------------------------------------
+     WARD ENERGY BUBBLE — a rig aimed at the owner's concept render (2026-07-21): a light-blue hexagonal
+     energy shell encasing the WHOLE card, with a bright white-hot rim and a soft cyan halo bleeding out.
+
+     Deliberately a SEPARATE rig from ward-frame-preview.html — that one tunes the shipped `.wardglass`
+     approach; this one is a from-scratch attempt at the concept's look, so neither disturbs the other.
+
+     What the concept has that the current effect doesn't:
+       1. a crisp WHITE-HOT rim right at the bubble edge (not a soft gradient ring)
+       2. an even honeycomb across the whole oval, densening toward the rim
+       3. a soft cyan halo OUTSIDE the bubble, plus an inner edge-glow
+       4. a light overall blue tint over the art AND the gold frame
+     Each of those is its own layer + dial group below.
+
+     Card geometry mirrors the game: card 210x210 · art 199x256 @ (5,-23) ellipse-clipped ·
+     frame 227w @ (-8,-61) z3. The bubble sits above the frame (z4).
+     ------------------------------------------------------------------------------------------------ */
+  :root {
+    --hot: #eaf7ff;      /* white-hot rim */
+    --energy: #43b0ff;   /* light energy blue */
+    --deep: #1b5fd0;     /* deeper blue for the edge falloff */
+
+    /* bubble box (× the frame box, + px nudge) */
+    --bw: 1.04; --bh: 1.04; --bx: 0px; --by: 0px;
+
+    /* fill */
+    --fill-core: 0.10;   /* tint at the centre (keep low so art reads) */
+    --fill-edge: 0.42;   /* tint at the rim */
+    --fill-stop: 62%;    /* where the falloff starts */
+
+    /* rim */
+    --rim-w: 2.2px;
+    --rim-a: 0.95;
+    --rim-in: 16px;      /* inner glow blur */
+    --rim-in-a: 0.55;
+    --rim-out: 18px;     /* outer glow blur */
+    --rim-out-a: 0.75;
+
+    /* halo (the wide soft bleed) */
+    --halo: 34px;
+    --halo-spread: 2px;
+    --halo-a: 0.45;
+
+    /* hex */
+    --hex-w: 116%; --hex-h: 116%; --hex-x: 50%; --hex-y: 50%;
+    --hex-a: 0.55;
+    --hex-edge: 34%;     /* mask: how much of the centre stays clear */
+
+    /* sheen + breath */
+    --sheen-a: 0.5;
+    --pulse-min: 0.82;
+    --pulse-s: 4.2s;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 13px/1.5 ui-sans-serif, system-ui, sans-serif; background: #171a21; color: #e8ecf5; display: flex; min-height: 100vh; }
+  #stage { flex: 1; display: flex; align-items: center; justify-content: center; gap: 70px; flex-wrap: wrap; padding: 40px;
+           background: radial-gradient(circle at 50% 40%, #cdb99b, #ad9a7c 70%); }
+  #stage.dark { background: radial-gradient(circle at 50% 40%, #2a3040, #12151c 70%); }
+  .slot { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .cap { font-weight: 700; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: #1d2330; background: rgba(255,255,255,.75); padding: 4px 10px; border-radius: 99px; }
+  #stage.dark .cap { color: #dfe6f5; background: rgba(255,255,255,.10); }
+
+  /* ---- card (game geometry) ---- */
+  .card { position: relative; width: 210px; height: 210px; }
+  .card.big { zoom: 1.9; }              /* a large copy for judging rim/hex detail */
+  .art { position: absolute; z-index: 1; overflow: hidden; clip-path: ellipse(50% 50% at 50% 50%);
+         width: 199px; height: 256px; left: 5px; top: -23px; background: #2b3752; }
+  .art img { width: 100%; height: 100%; object-fit: cover; }
+  .cframe-img { position: absolute; z-index: 3; width: 227px; height: auto; left: -8px; top: -61px; pointer-events: none; }
+
+  /* ---- the bubble: everything above the frame ---- */
+  .bubble { position: absolute; z-index: 4; pointer-events: none; border-radius: 50%;
+            /* the wide soft halo bleeding outward from the shell */
+            box-shadow: 0 0 var(--halo) var(--halo-spread) rgba(67, 176, 255, var(--halo-a));
+            animation: breathe var(--pulse-s) ease-in-out infinite; will-change: opacity; }
+  @keyframes breathe { 0%,100% { opacity: var(--pulse-min); } 50% { opacity: 1; } }
+  .bubble > * { position: absolute; inset: 0; border-radius: 50%; }
+
+  /* 1 · FILL — light at the core so the art reads, denser toward the rim. */
+  .b-fill { background: radial-gradient(ellipse 50% 50% at 50% 47%,
+              rgba(67,176,255, var(--fill-core)) 0%,
+              rgba(67,176,255, var(--fill-core)) var(--fill-stop),
+              rgba(27,95,208, var(--fill-edge)) 100%); }
+
+  /* 2 · HEX — the honeycomb shell. Masked so the centre stays clearer and the pattern densens at the rim,
+     which is what makes it read as a curved surface rather than a flat texture. */
+  .b-hex { background-image: url('/fx/ward-hexsphere.svg'); background-repeat: no-repeat;
+           background-size: var(--hex-w) var(--hex-h); background-position: var(--hex-x) var(--hex-y);
+           opacity: var(--hex-a); mix-blend-mode: screen;
+           -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,.35) 0%, rgba(0,0,0,.35) var(--hex-edge), #000 88%, #000 100%);
+                   mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,.35) 0%, rgba(0,0,0,.35) var(--hex-edge), #000 88%, #000 100%); }
+
+  /* 3 · RIM — the crisp white-hot edge, with its own glow inward and outward. This is the layer the concept
+     leans on hardest; a soft gradient alone never reads as a shell surface. */
+  .b-rim { border: var(--rim-w) solid rgba(234,247,255, var(--rim-a));
+           box-shadow: inset 0 0 var(--rim-in) rgba(67,176,255, var(--rim-in-a)),
+                       0 0 var(--rim-out) rgba(234,247,255, var(--rim-out-a)); }
+
+  /* 4 · SHEEN — the broad glass highlight, upper-left. */
+  .b-sheen { background: radial-gradient(ellipse 26% 34% at 33% 16%,
+               rgba(255,255,255, var(--sheen-a)) 0%, rgba(220,240,255, calc(var(--sheen-a) * .45)) 45%, rgba(200,232,255,0) 74%); }
+
+  /* ---- panel ---- */
+  #panel { width: 310px; flex: none; background: #10131a; border-left: 1px solid #262c38; padding: 18px 16px 60px; overflow-y: auto; height: 100vh; }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  .sub { font-size: 11.5px; color: #8b99b3; margin-bottom: 10px; }
+  h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: #7d8ba5; margin: 16px 0 6px; border-bottom: 1px solid #262c38; padding-bottom: 4px; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+  .row label { flex: 0 0 104px; font-size: 11.5px; }
+  .row input[type=range] { flex: 1; min-width: 0; }
+  .row .v { flex: 0 0 46px; text-align: right; font-variant-numeric: tabular-nums; font-size: 11.5px; color: #9fb0cc; }
+  .colorrow { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+  .colorrow label { flex: 1; font-size: 11.5px; }
+  button { width: 100%; margin-top: 10px; padding: 8px; border-radius: 7px; border: 1px solid #33405a; background: #1a2130; color: #dbe4f5; cursor: pointer; font: inherit; }
+  button:hover { background: #222b3d; }
+  textarea { width: 100%; height: 150px; margin-top: 8px; background: #0b0e14; color: #cfe0ff; border: 1px solid #262c38; border-radius: 6px; font: 11px/1.45 ui-monospace, monospace; padding: 8px; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div class="slot">
+      <div class="card" id="card-sm">
+        <div class="art"><img src="/fx/preview-art.webp" alt="" /></div>
+        <img class="cframe-img" src="/frames/standard-oval-v2.png" alt="" />
+        <div class="bubble"><div class="b-fill"></div><div class="b-hex"></div><div class="b-sheen"></div><div class="b-rim"></div></div>
+      </div>
+      <div class="cap">game size</div>
+    </div>
+    <div class="slot">
+      <div class="card big" id="card-lg">
+        <div class="art"><img src="/fx/preview-art.webp" alt="" /></div>
+        <img class="cframe-img" src="/frames/standard-oval-v2.png" alt="" />
+        <div class="bubble"><div class="b-fill"></div><div class="b-hex"></div><div class="b-sheen"></div><div class="b-rim"></div></div>
+      </div>
+      <div class="cap">1.9× — judge rim &amp; hex</div>
+    </div>
+  </div>
+
+  <div id="panel">
+    <h1>Ward · energy bubble</h1>
+    <div class="sub">Aimed at the concept render: white-hot rim, honeycomb shell, cyan halo. Separate from the shipped <code>.wardglass</code> rig so neither disturbs the other.</div>
+
+    <h2>Colour</h2>
+    <div class="colorrow"><label>white-hot rim</label><input type="color" id="c-hot" value="#eaf7ff" /></div>
+    <div class="colorrow"><label>energy blue</label><input type="color" id="c-energy" value="#43b0ff" /></div>
+    <div class="colorrow"><label>deep edge</label><input type="color" id="c-deep" value="#1b5fd0" /></div>
+
+    <h2>Bubble box</h2><div id="g-box"></div>
+    <h2>Rim (white-hot edge)</h2><div id="g-rim"></div>
+    <h2>Halo (outer bleed)</h2><div id="g-halo"></div>
+    <h2>Hex shell</h2><div id="g-hex"></div>
+    <h2>Fill &amp; sheen</h2><div id="g-fill"></div>
+    <h2>Breath</h2><div id="g-breath"></div>
+
+    <button id="toggle">◐ toggle floor</button>
+    <button id="copy">Copy values 📋</button>
+    <textarea id="out" readonly></textarea>
+    <button id="reset" class="ghost">Reset</button>
+  </div>
+
+<script>
+  const GROUPS = {
+    'g-box':   [['--bw','width ×',0.8,1.5,0.01], ['--bh','height ×',0.8,1.5,0.01], ['--bx','X nudge',-40,40,1,'px'], ['--by','Y nudge',-40,40,1,'px']],
+    'g-rim':   [['--rim-w','thickness',0,8,0.1,'px'], ['--rim-a','brightness',0,1,0.01], ['--rim-in','inner glow',0,60,1,'px'], ['--rim-in-a','inner α',0,1,0.01], ['--rim-out','outer glow',0,60,1,'px'], ['--rim-out-a','outer α',0,1,0.01]],
+    'g-halo':  [['--halo','blur',0,90,1,'px'], ['--halo-spread','spread',-10,30,1,'px'], ['--halo-a','opacity',0,1,0.01]],
+    'g-hex':   [['--hex-w','width %',20,260,1,'%'], ['--hex-h','height %',20,260,1,'%'], ['--hex-x','X %',-50,150,1,'%'], ['--hex-y','Y %',-50,150,1,'%'], ['--hex-a','opacity',0,1,0.01], ['--hex-edge','clear centre %',0,80,1,'%']],
+    'g-fill':  [['--fill-core','core tint',0,1,0.01], ['--fill-edge','edge tint',0,1,0.01], ['--fill-stop','falloff %',0,100,1,'%'], ['--sheen-a','sheen',0,1,0.01]],
+    'g-breath':[['--pulse-min','trough',0,1,0.01], ['--pulse-s','period s',0.5,10,0.1,'s']],
+  };
+  const root = document.documentElement, DEF = {}, ALL = [];
+  for (const [host, dials] of Object.entries(GROUPS)) {
+    const el = document.getElementById(host);
+    for (const d of dials) {
+      const [v, label, min, max, step, unit] = d;
+      ALL.push(d);
+      const cur = parseFloat(getComputedStyle(root).getPropertyValue(v));
+      DEF[v] = [cur, unit || ''];
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = `<label>${label}</label><input type="range" min="${min}" max="${max}" step="${step}" value="${cur}"><span class="v">${cur}</span>`;
+      const inp = row.querySelector('input'), out = row.querySelector('.v');
+      inp.addEventListener('input', () => { root.style.setProperty(v, inp.value + (unit || '')); out.textContent = inp.value; dump(); });
+      el.appendChild(row);
+    }
+  }
+  // The bubble is sized off the FRAME box (measured, so the asset's aspect is never hardcoded), then scaled
+  // by --bw/--bh and nudged by --bx/--by, anchored from its centre.
+  function seat() {
+    document.querySelectorAll('.card').forEach((card) => {
+      const img = card.querySelector('.cframe-img'), b = card.querySelector('.bubble');
+      if (!img.naturalWidth) return;
+      const w = img.offsetWidth, h = img.offsetHeight;
+      b.style.width = `calc(${w}px * var(--bw))`;
+      b.style.height = `calc(${h}px * var(--bh))`;
+      b.style.left = (img.offsetLeft + w / 2) + 'px';
+      b.style.top = (img.offsetTop + h / 2) + 'px';
+      b.style.transform = 'translate(calc(-50% + var(--bx)), calc(-50% + var(--by)))';
+    });
+  }
+  addEventListener('load', seat); addEventListener('resize', seat);
+  document.querySelectorAll('.cframe-img').forEach((i) => i.addEventListener('load', seat));
+
+  function recolor() {
+    root.style.setProperty('--hot', document.getElementById('c-hot').value);
+    root.style.setProperty('--energy', document.getElementById('c-energy').value);
+    root.style.setProperty('--deep', document.getElementById('c-deep').value);
+    dump();
+  }
+  ['c-hot','c-energy','c-deep'].forEach((id) => document.getElementById(id).addEventListener('input', recolor));
+
+  function dump() {
+    const cs = getComputedStyle(root);
+    const lines = ALL.map(([v]) => `  ${v}: ${cs.getPropertyValue(v).trim()};`);
+    lines.unshift(`  --hot: ${document.getElementById('c-hot').value};`,
+                  `  --energy: ${document.getElementById('c-energy').value};`,
+                  `  --deep: ${document.getElementById('c-deep').value};`);
+    document.getElementById('out').value = ':root {\n' + lines.join('\n') + '\n}';
+  }
+  dump();
+  document.getElementById('copy').addEventListener('click', () => navigator.clipboard?.writeText(document.getElementById('out').value));
+  document.getElementById('toggle').addEventListener('click', () => document.getElementById('stage').classList.toggle('dark'));
+  document.getElementById('reset').addEventListener('click', () => {
+    for (const [v, [val, unit]] of Object.entries(DEF)) root.style.setProperty(v, val + unit);
+    document.querySelectorAll('#panel input[type=range]').forEach((inp, i) => {
+      const v = ALL[i][0]; inp.value = DEF[v][0]; inp.nextElementSibling.textContent = DEF[v][0];
+    });
+    dump();
+  });
+</script>
+</body>
+</html>

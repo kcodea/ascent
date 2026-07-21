@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ward · engulf the frame — approach preview</title>
+<style>
+  /* ------------------------------------------------------------------------------------------------
+     WARD "ENGULF THE FRAME" — the CHOSEN approach (owner 2026-07-21), kept as an isolated reference rig.
+     The real dials are now in-game: DevMenu -> Ward Dome, against real cards. This page is for look work on
+     a clean floor without spinning up a run.
+
+     Why it exists: in game the `.ward` dome is trimmed to the ART window — `.art` is ellipse-clipped and the
+     gold frame PNG paints ON TOP of it at a LARGER box — so it can never reach the gold. The fix is a SECOND
+     dome above the frame, clipped to the frame's own silhouette. Facets live on THAT sphere, not the art's.
+
+     Geometry mirrors the game/`ward-css-preview.html` exactly:
+       card 210×210 · art 199×256 @ (5, −23) ellipse-clipped · frame img 227w @ (−8, −61), z3
+     ------------------------------------------------------------------------------------------------ */
+  :root {
+    --bright: #78a6ff;
+    --deep: #2f57c0;
+    --wardsize: 0.95;   /* inner dome diameter × card width */
+    --wardy: 49%;       /* inner dome vertical seat */
+    --peak: 1;          /* dome opacity peak */
+    --pulse-min: 0.6;
+    --pulse-s: 4s;
+    /* FACETS — independent width/height + x/y, so the hex sphere can be sized and seated on its own,
+       separately from the glass shape it sits inside. */
+    --hex-alpha: 0.6;
+    --hex-w: 118%;
+    --hex-h: 118%;
+    --hex-x: 50%;
+    --hex-y: 50%;
+    /* OUTER GLASS (the dome) — multipliers of the measured FRAME box, plus a px nudge. 1/1/0/0 = exactly
+       the frame. Independent w/h so the oval can be stretched to match the frame's proportions. */
+    --dome-w: 1;
+    --dome-h: 1;
+    --dome-x: 0px;
+    --dome-y: 0px;
+    --outer-alpha: 0.55;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 13px/1.5 ui-sans-serif, system-ui, sans-serif; background: #171a21; color: #e8ecf5; display: flex; min-height: 100vh; }
+  #stage { flex: 1; display: flex; align-items: center; justify-content: center; gap: 56px; flex-wrap: wrap; padding: 40px;
+           background: radial-gradient(circle at 50% 40%, #d9cbb0, #b9a888 70%); }
+  #stage.dark { background: radial-gradient(circle at 50% 40%, #2a3040, #12151c 70%); }
+
+  .slot { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .cap { font-weight: 700; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: #1d2330; background: rgba(255,255,255,.75); padding: 4px 10px; border-radius: 99px; }
+  #stage.dark .cap { color: #dfe6f5; background: rgba(255,255,255,.10); }
+  .note { max-width: 230px; text-align: center; font-size: 11.5px; color: #2a3040; }
+  #stage.dark .note { color: #9fb0cc; }
+
+  .card { position: relative; width: 210px; height: 210px; }
+  .art { position: absolute; z-index: 1; overflow: hidden; clip-path: ellipse(50% 50% at 50% 50%);
+         width: 199px; height: 256px; left: 5px; top: -23px;
+         background: linear-gradient(165deg, #7d93b5, #2b3752); display: grid; place-items: center; }
+  .art .sprite { font-size: 78px; filter: drop-shadow(0 3px 5px rgba(0,0,0,.4)); transform: translateY(-6px); }
+  .cframe-img { position: absolute; z-index: 3; width: 227px; height: auto; left: -8px; top: -61px; pointer-events: none; }
+
+  /* ---- the shared dome layer stack (same look as the game's .ward-*) ---- */
+  .dome > * { position: absolute; inset: 0; }
+  .d-body { background: radial-gradient(120% 88% at 50% 44%,
+              rgba(0,0,0,0) 0%, rgba(0,0,0,0) 28%,
+              var(--deep) 56%, var(--bright) 78%, rgba(0,0,0,0) 100%);
+            animation: pulse var(--pulse-s) ease-in-out infinite; }
+  .d-hex  { background-image: url('/fx/ward-hexsphere.svg'); background-repeat: no-repeat;
+            background-size: var(--hex-w) var(--hex-h); background-position: var(--hex-x) var(--hex-y);
+            opacity: var(--hex-alpha); mix-blend-mode: screen;
+            -webkit-mask-image: radial-gradient(circle at 50% 46%, transparent 39%, #000 51%, #000 88%, transparent 99%);
+                    mask-image: radial-gradient(circle at 50% 46%, transparent 39%, #000 51%, #000 88%, transparent 99%); }
+  .d-spot { background: radial-gradient(ellipse 20% 56% at 35% 9%, rgba(255,255,255,1) 0%, rgba(220,240,255,.5) 42%, rgba(200,232,255,0) 72%); }
+  @keyframes pulse { 0%,100% { opacity: var(--pulse-min); } 50% { opacity: var(--peak); } }
+
+  /* The INNER dome — body + spot only, inside the ellipse-clipped art (the facets live on the outer glass). */
+  .v-over .dome:not(.outer) { position: absolute; z-index: 2; top: var(--wardy); left: 50%; transform: translate(-50%,-50%);
+                   width: calc(210px * var(--wardsize)); height: calc(210px * var(--wardsize)); }
+
+  /* THE GLASS — a second dome ABOVE the frame img (z4), boxed to the FRAME and clipped to its outer oval, so
+     the whole card reads as sealed inside glass (gold included). */
+  /* Seated on the MEASURED frame box (--frame-w/h set by JS), then sized by independent w/h multipliers and
+     nudged by --dome-x/y. Anchored from its centre so resizing grows symmetrically instead of dragging a
+     corner. The ellipse clip is what makes the facets inside take the frame's oval shape. */
+  .v-over .outer {
+    position: absolute; z-index: 4; pointer-events: none;
+    width: calc(var(--frame-w) * var(--dome-w));
+    height: calc(var(--frame-h) * var(--dome-h));
+    transform: translate(calc(-50% + var(--dome-x)), calc(-50% + var(--dome-y)));
+  }
+  .v-over .outer { clip-path: ellipse(50% 50% at 50% 50%); opacity: var(--outer-alpha); }
+
+  /* ---- panel ---- */
+  #panel { width: 300px; flex: none; background: #10131a; border-left: 1px solid #262c38; padding: 18px 16px 40px; overflow-y: auto; height: 100vh; }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  .sub { font-size: 11.5px; color: #8b99b3; margin-bottom: 14px; }
+  h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: #7d8ba5; margin: 18px 0 6px; border-bottom: 1px solid #262c38; padding-bottom: 4px; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+  .row label { flex: 0 0 108px; font-size: 11.5px; }
+  .row input[type=range] { flex: 1; }
+  .row .v { flex: 0 0 44px; text-align: right; font-variant-numeric: tabular-nums; font-size: 11.5px; color: #9fb0cc; }
+  .colorrow { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+  .colorrow label { flex: 1; font-size: 11.5px; }
+  button { width: 100%; margin-top: 12px; padding: 8px; border-radius: 7px; border: 1px solid #33405a; background: #1a2130; color: #dbe4f5; cursor: pointer; font: inherit; }
+  button:hover { background: #222b3d; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div class="slot">
+      <div class="card v-over">
+        <div class="art"><span class="sprite">🤖</span>
+          <!-- inner: body + spot only. The FACETS moved out to the frame-sized oval (owner 2026-07-21) —
+               one sphere at the frame's size, so its facets must map to THAT sphere, not a smaller one
+               sitting inside the art window. -->
+          <div class="dome"><div class="d-body"></div><div class="d-spot"></div></div>
+        </div>
+        <img class="cframe-img" src="/frames/standard-oval.png" alt="" />
+        <div class="outer dome"><div class="d-body"></div><div class="d-hex"></div><div class="d-spot"></div></div>
+      </div>
+      <div class="cap">Ward glass · over the frame</div>
+      <div class="note">A second dome above the frame, clipped to its outer oval — the whole card, gold included, inside the glass. Facets follow the frame oval, not the art. <b>This is now wired in-game</b>; the live tuner is 🛠️ → 🔵 Ward Dome.</div>
+    </div>
+
+  </div>
+
+  <div id="panel">
+    <h1>Ward · engulf the frame</h1>
+    <div class="sub">Reference rig for the chosen approach. The real dials now live in-game (🛠️ → 🔵 Ward Dome) against real cards — this page is kept for isolated look work on a clean floor.</div>
+
+    <h2>Energy colour</h2>
+    <div class="colorrow"><label>bright (rim / core)</label><input type="color" id="c-bright" value="#78a6ff" /></div>
+    <div class="colorrow"><label>deep (outer ring)</label><input type="color" id="c-deep" value="#2f57c0" /></div>
+
+    <h2>Inner dome (in the art)</h2>
+    <div id="inner"></div>
+
+    <h2>Dome — the glass over the frame</h2>
+    <div id="dome"></div>
+
+    <h2>Facets — the hex sphere</h2>
+    <div id="facets"></div>
+
+    <button id="toggle">◐ toggle floor</button>
+    <button id="reset">Reset</button>
+  </div>
+
+<script>
+  const DIALS_INNER = [
+    ['--wardsize', 'size ×', 0.5, 1.6, 0.01],
+    ['--wardy', 'seat %', 20, 80, 1, '%'],
+    ['--peak', 'peak opacity', 0, 1, 0.01],
+    ['--pulse-min', 'trough opacity', 0, 1, 0.01],
+    ['--pulse-s', 'breath sec', 0.5, 10, 0.1, 's'],
+  ];
+  const DIALS_DOME = [
+    ['--dome-w', 'width ×', 0.5, 2, 0.01],
+    ['--dome-h', 'height ×', 0.5, 2, 0.01],
+    ['--dome-x', 'X nudge', -80, 80, 1, 'px'],
+    ['--dome-y', 'Y nudge', -80, 80, 1, 'px'],
+    ['--outer-alpha', 'opacity', 0, 1, 0.01],
+  ];
+  const DIALS_FACETS = [
+    ['--hex-w', 'width %', 20, 260, 1, '%'],
+    ['--hex-h', 'height %', 20, 260, 1, '%'],
+    ['--hex-x', 'X %', -50, 150, 1, '%'],
+    ['--hex-y', 'Y %', -50, 150, 1, '%'],
+    ['--hex-alpha', 'opacity', 0, 1, 0.01],
+  ];
+  const root = document.documentElement;
+  const DEFAULTS = {};
+  function build(hostId, dials) {
+    const host = document.getElementById(hostId);
+    for (const [v, label, min, max, step, unit] of dials) {
+      const cur = parseFloat(getComputedStyle(root).getPropertyValue(v));
+      DEFAULTS[v] = [cur, unit || ''];
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = `<label>${label}</label><input type="range" min="${min}" max="${max}" step="${step}" value="${cur}"><span class="v">${cur}</span>`;
+      const [inp, out] = [row.querySelector('input'), row.querySelector('.v')];
+      inp.addEventListener('input', () => { root.style.setProperty(v, inp.value + (unit || '')); out.textContent = inp.value; });
+      host.appendChild(row);
+    }
+  }
+  const ALL_DIALS = [...DIALS_INNER, ...DIALS_DOME, ...DIALS_FACETS];
+  build('inner', DIALS_INNER); build('dome', DIALS_DOME); build('facets', DIALS_FACETS);
+
+  // The outer glass must sit exactly on the FRAME's box — measure it rather than hardcode the asset aspect.
+  function seatOuter() {
+    document.querySelectorAll('.card').forEach((card) => {
+      const outer = card.querySelector('.outer');
+      const img = card.querySelector('.cframe-img');
+      if (!outer || !img || !img.naturalWidth) return;
+      // Publish the frame's measured box; CSS scales off it via --dome-w/h. Anchor at the frame's CENTRE
+      // (the layer translates -50%/-50%) so width/height dials grow symmetrically rather than from a corner.
+      outer.style.setProperty('--frame-w', img.offsetWidth + 'px');
+      outer.style.setProperty('--frame-h', img.offsetHeight + 'px');
+      outer.style.left = (img.offsetLeft + img.offsetWidth / 2) + 'px';
+      outer.style.top = (img.offsetTop + img.offsetHeight / 2) + 'px';
+    });
+  }
+  window.addEventListener('load', seatOuter);
+  window.addEventListener('resize', seatOuter);
+  document.querySelectorAll('.cframe-img').forEach((i) => i.addEventListener('load', seatOuter));
+
+  function recolor() {
+    root.style.setProperty('--bright', document.getElementById('c-bright').value);
+    root.style.setProperty('--deep', document.getElementById('c-deep').value);
+  }
+  document.getElementById('c-bright').addEventListener('input', recolor);
+  document.getElementById('c-deep').addEventListener('input', recolor);
+  document.getElementById('toggle').addEventListener('click', () => document.getElementById('stage').classList.toggle('dark'));
+  document.getElementById('reset').addEventListener('click', () => {
+    for (const [v, [val, unit]] of Object.entries(DEFAULTS)) root.style.setProperty(v, val + unit);
+    document.querySelectorAll('#panel input[type=range]').forEach((inp, i) => {
+      const v = ALL_DIALS[i][0];
+      inp.value = DEFAULTS[v][0]; inp.nextElementSibling.textContent = DEFAULTS[v][0];
+    });
+  });
+</script>
+</body>
+</html>

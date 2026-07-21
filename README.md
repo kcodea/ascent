@@ -38,6 +38,13 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **New Ward look** — Divine Shield is now a light-blue hexagonal **energy shell** encasing the whole card,
+  gold frame included: a white-hot rim with inner/outer glow, a honeycomb that densens toward the edge, and a
+  soft cyan halo. Dialled against a concept render on a preview rig, with a 25-dial live **Ward Shell** tuner.
+- **Combat FX land on the unit's slot, not mid-flight.** Every effect that marks a unit — death bursts, the
+  bone skull, self-buff pulses, coins, summon dust, ascend blooms — now measures through one shared
+  layout-frame helper, so none can paint over empty board while its card is mid-lunge or being pulled home.
+  (The Ward shatter deliberately still tracks the visible card: its dome is drawn *on* the card.)
 - **New board backdrop** — the in-game board art is now `ascentboardnostuff` (3440×1459 WebP, 0.30 MB;
   the orphaned `testboard2` was removed, so the shipped payload actually drops).
 

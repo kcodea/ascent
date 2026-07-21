@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent, type MinionSnapshot } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { computeFrame } from './useCombatReplay';
+import { computeFrame, layoutRectOf } from './useCombatReplay';
 import { deferClashBuffs } from './choreo/clashOrder';
 
 const snap = (over: Partial<MinionSnapshot> & { uid: string; cardId: string }): MinionSnapshot => ({
@@ -54,5 +54,34 @@ describe('computeFrame — Kennelmaster aura on multi-summon Deathrattles', () =
       expect(pup.attack).toBe(2); // base 1 + Kennelmaster +1
       expect(pup.health).toBe(2);
     }
+  });
+});
+
+// The layout-frame rule. A unit-marking FX (burst, pulse, dust, shatter) must land at the unit's SLOT, not
+// wherever a lunge/knockback/pull-home has the card at that instant — anchoring to the live rect painted the
+// "phantom mid-board ring" over empty board (owner clip 2026-07-21). gsap reads plain-object targets'
+// properties directly, so a stub can stand in for a mid-flight element.
+describe('layoutRectOf', () => {
+  const stub = (over: Record<string, number> = {}) => ({
+    getBoundingClientRect: () => ({ left: 100, top: 200, width: 134, height: 134 }),
+    ...over,
+  }) as unknown as Element;
+
+  it('at rest, reports the plain centre', () => {
+    const r = layoutRectOf(stub());
+    expect(r.cx).toBe(167); // 100 + 134/2
+    expect(r.cy).toBe(267); // 200 + 134/2
+  });
+
+  it('subtracts an in-flight GSAP offset — a lunging card still marks its slot', () => {
+    const r = layoutRectOf(stub({ x: 40, y: -60 }));
+    expect(r.cx).toBe(127); // 167 - 40
+    expect(r.cy).toBe(327); // 267 + 60
+  });
+
+  it('de-scales the footprint so a mid-wind-up card does not over-size footprint FX', () => {
+    const r = layoutRectOf(stub({ scaleX: 2, scaleY: 2 }));
+    expect(r.w).toBe(67);
+    expect(r.h).toBe(67);
   });
 });

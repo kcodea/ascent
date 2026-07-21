@@ -1005,42 +1005,80 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* illustrated art (art/minions/<id>.png) fills the panel exactly (absolute so the grid can't
    size it to the square's width-driven height and overflow onto the text below) */
 .artimg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; -webkit-user-drag: none; user-select: none; -webkit-touch-callout: none; }
-/* Ward (Divine Shield): a layered glassy GOLD DOME in pure CSS, glued to the card via a `.ward` stack of child
-   els inside the arched art (rendered by Card.tsx for DS cards) — so it persists through drag + the combat lunge
-   and vanishes exactly when the sim clears `.dscard` (retires the old per-frame-tracked Pixi bubble; Pixi now only
-   fires the break shatter + drag/drop sparkles). Compositor-only: static gradients/shadows; only the gold body's
-   opacity pulse + the breath's opacity animate. Look tuned on `fx/ward-css-preview.html`. The dome layers ride the
-   arch-clipped `.ward` stack; the outer aura + breath ride the CARD (bleed past the art, follow the arch). */
-.card.compact.dscard { z-index: 4; box-shadow: 0 0 16px 4px rgba(60, 180, 235, 1), 0 0 32px 9px rgba(39, 169, 221, 0.6); }   /* intense outer BLUE aura (2-layer) */
-.card.compact.dscard .ward { position: absolute; inset: 0; border-radius: var(--arch-radius); overflow: hidden; pointer-events: none; z-index: 2; }
-.card.compact.dscard .ward > * { position: absolute; inset: 0; border-radius: var(--arch-radius); }
-/* Ward stack tuned on `fx/ward-css-preview.html` (the oval-frame rig) — a glassy ENERGY-BLUE energy dome. */
-.card.compact.dscard .ward-body {   /* translucent energy-blue ring, CLEAR centre, SLOW-pulsing */
-  background: radial-gradient(120% 88% at 50% 44%,
-    rgba(0, 64, 255, 0) 0%, rgba(0, 64, 255, 0) 28%, rgba(0, 64, 255, 1) 56%, rgba(0, 30, 255, 1) 78%, rgba(0, 30, 255, 0) 100%);
-  animation: wardpulse 3.8s ease-in-out infinite; will-change: opacity;
+/* Ward (Divine Shield) — the energy shell. The old INNER dome (a `.ward` stack inside `.art`, trimmed to the
+   portrait window) was REMOVED 2026-07-21: with the frame-wide `.wardglass` shell below, the two stacked into
+   a doubled honeycomb and two competing blues (owner). The card-level outer aura + breathing bloom stay (they
+   read as the shell's halo); only the art-window dome is gone. */
+/* ============================ WARD GLASS — the energy shell (owner concept, 2026-07-21) =====================
+   A light-blue hexagonal shell encasing the WHOLE card: painted OVER the frame (z4 vs the frame's z3) and
+   sized to it, so the gold sits inside the glass too. Layers paint fill -> hex -> sheen -> rim, with the halo
+   cast by the container. Look dialled by the owner on `fx/ward-bubble-preview.html`; every `--wg-*` fallback
+   here IS that shipped value (the DEV Ward tuner only overrides them at runtime).
+
+   The box is derived from each frame asset's real pixel aspect (standard-oval-v2 1059x1427 -> 1.3475;
+   taunt-shield 1086x1448 -> 1.3333) and expressed CENTRE-anchored, so it tracks the frame at any --ccw/--sh
+   with no JS measuring and the size dials grow symmetrically. Spell frames aren't covered: spells can't
+   carry DS. NOTE `border-radius: 50%` (not a clip-path) is load-bearing — the halo is a box-shadow, and a
+   clip-path would cut it away entirely. */
+.card.compact.dscard .wardglass {
+  position: absolute; z-index: 4; pointer-events: none; border-radius: 50%;
+  width: calc(var(--wg-base) * var(--wg-w, 1.05));
+  height: calc(var(--wg-base) * var(--wg-ar) * var(--wg-h, 1));
+  transform: translate(calc(-50% + var(--wg-x, 0px)), calc(-50% + var(--wg-y, 3px)));
+  box-shadow: 0 0 var(--wg-halo, 4px) var(--wg-halo-spread, 1px) rgba(var(--wg-halo-rgb, 77, 163, 254), var(--wg-halo-a, 0.6));
+  animation: wardbreathe var(--wg-pulse-s, 2.6s) ease-in-out infinite; will-change: opacity;
 }
-@keyframes wardpulse { 0%, 100% { opacity: 0.78; } 50% { opacity: 1; } }
-.card.compact.dscard .ward-hex {   /* dense blue-white hex facets projected onto a sphere; rim-masked */
-  background: url("/fx/ward-hexsphere.svg") center / 99% no-repeat; opacity: 0.79; mix-blend-mode: screen;
-  -webkit-mask-image: radial-gradient(circle at 50% 46%, transparent 39%, #000 calc(39% + 12%), #000 88%, transparent 99%);
-          mask-image: radial-gradient(circle at 50% 46%, transparent 39%, #000 calc(39% + 12%), #000 88%, transparent 99%);
+@keyframes wardbreathe { 0%, 100% { opacity: var(--wg-pulse-min, 0.82); } 50% { opacity: 1; } }
+.card.compact.dscard .wardglass > * { position: absolute; inset: 0; border-radius: 50%; }
+/* OVAL minion frame. */
+.card.compact.stdframe.dscard .wardglass {
+  --wg-base: calc(var(--ccw) * 1.481 * var(--sh));
+  --wg-ar: 1.3475;
+  left: calc(var(--ccw) * (0.5 + 0.0035 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 0.12815 * var(--sh) + var(--dy) + var(--frameY)));
 }
-.card.compact.dscard .ward-shadow { box-shadow: inset 0 0 27px 8px rgba(0, 11, 89, 0.8); }   /* deep-blue inner vignette → depth */
-.card.compact.dscard .ward-spot {   /* the big soft GLASS reflection (the shine, upper-left) */
-  background: radial-gradient(ellipse 20% 56% at 35% 9%,
-    rgba(255, 255, 255, 1) 0%, rgba(220, 240, 255, 0.5) 42%, rgba(200, 232, 255, 0) 72%);
+/* TAUNT heater frame — same shell, seated on the shield's box. */
+.card.compact.taunt.dscard .wardglass {
+  --wg-base: calc(var(--ccw) * 1.527 * var(--sh));
+  --wg-ar: 1.3333;
+  left: calc(var(--ccw) * (0.5 + 0.0055 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 0.068 * var(--sh)));
 }
-.card.compact.dscard .ward-gloss {   /* diagonal gloss streak — tuned OFF (the spot carries the shine) */
-  background: linear-gradient(0deg, transparent calc(0% - 0.5%), rgba(255, 255, 255, 0) 0%, transparent calc(0% + 0.5%));
-  -webkit-mask-image: radial-gradient(ellipse 20% 20% at 50% 0%, #000 45%, transparent 100%);
-          mask-image: radial-gradient(ellipse 20% 20% at 50% 0%, #000 45%, transparent 100%);
-  mix-blend-mode: screen;
+/* 1 - FILL: light at the core so the art still reads, denser toward the rim. */
+.card.compact.dscard .wg-fill {
+  background: radial-gradient(ellipse 50% 50% at 50% 47%,
+    rgba(var(--wg-fill-core-rgb, 77, 163, 254), var(--wg-fill-core, 0)) 0%,
+    rgba(var(--wg-fill-core-rgb, 77, 163, 254), var(--wg-fill-core, 0)) var(--wg-fill-stop, 68%),
+    rgba(var(--wg-fill-edge-rgb, 0, 88, 204), var(--wg-fill-edge, 1)) 100%);
 }
-.card.compact.dscard::before {  /* breathing bloom — opacity-only pulse of a static shadow (kwglow: 0→1), arched */
-  content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none;
-  box-shadow: 0 0 27px 8px rgba(255, 224, 120, 0.9); animation: kwglow 6s ease-in-out infinite; will-change: opacity;
+/* 2 - HEX: the honeycomb. Masked so the centre stays clearer and the pattern densens at the rim, which is
+   what reads as a curved surface rather than a flat texture. The SVG carries `preserveAspectRatio='none'`,
+   so width/height warp independently. */
+.card.compact.dscard .wg-hex {
+  background: var(--wg-hex-color, #dff2ff);
+  opacity: var(--wg-hex-a, 1); mix-blend-mode: screen;
+  -webkit-mask-image: url("/fx/ward-hexsphere.svg"), radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.35) var(--wg-hex-edge, 72%), #000 88%, #000 100%);
+          mask-image: url("/fx/ward-hexsphere.svg"), radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.35) var(--wg-hex-edge, 72%), #000 88%, #000 100%);
+  -webkit-mask-size: var(--wg-hex-w, 101%) var(--wg-hex-h, 102%), 100% 100%;
+          mask-size: var(--wg-hex-w, 101%) var(--wg-hex-h, 102%), 100% 100%;
+  -webkit-mask-position: var(--wg-hex-x, 7%) var(--wg-hex-y, 50%), 50% 50%;
+          mask-position: var(--wg-hex-x, 7%) var(--wg-hex-y, 50%), 50% 50%;
+  -webkit-mask-repeat: no-repeat, no-repeat; mask-repeat: no-repeat, no-repeat;
+  -webkit-mask-composite: source-in; mask-composite: intersect;
 }
+/* 3 - SHEEN: the broad glass highlight, upper-left. */
+.card.compact.dscard .wg-sheen {
+  background: radial-gradient(ellipse 26% 34% at 33% 16%,
+    rgba(var(--wg-sheen-rgb, 255, 255, 255), var(--wg-sheen-a, 1)) 0%, rgba(var(--wg-sheen-rgb, 255, 255, 255), calc(var(--wg-sheen-a, 1) * 0.45)) 45%, rgba(var(--wg-sheen-rgb, 255, 255, 255), 0) 74%);
+}
+/* 4 - RIM: the crisp white-hot edge with its own inward + outward glow. This is what makes it read as a
+   shell SURFACE; a soft gradient alone never does. */
+.card.compact.dscard .wg-rim {
+  border: var(--wg-rim-w, 1.7px) solid rgba(var(--wg-rim-rgb, 234, 247, 255), var(--wg-rim-a, 1));
+  box-shadow: inset 0 0 var(--wg-rim-in, 90px) rgba(var(--wg-rim-in-rgb, 77, 163, 254), var(--wg-rim-in-a, 0.66)),
+              0 0 var(--wg-rim-out, 9px) rgba(var(--wg-rim-out-rgb, 234, 247, 255), var(--wg-rim-out-a, 1));
+}
+/* ========================================================================================================== */
 /* Reborn — wispy ethereal AQUA-GREEN aura (tuned on fx/reborn-css-preview.html), replacing the old Pixi wisp.
    A faint ghost DOME + N rising RANDOMIZED wisps, seated on the oval window inside the ellipse-clipped art
    (Card.tsx spawns the `.wisp` children each with random left/bottom/delay/--wisp-size/--wisp-rise/--wx). The
@@ -1180,13 +1218,6 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
           drop-shadow(0 0 2px rgba(0, 64, 255, 0.9))
           drop-shadow(0 0 10px rgba(0, 30, 255, 0.35));
 }
-.card.compact.taunt.dscard .ward {
-  --wardsq: calc(var(--ccw) * var(--sh) * 1.4);   /* dome size — tuned on the ward preview (sq-mul 1.4) */
-  inset: auto; left: 50%; transform: translateX(-50%);
-  top: calc(var(--ccw) * -0.08);                  /* dome vertical seat — tuned (ward-top −0.08) */
-  width: var(--wardsq); height: var(--wardsq); border-radius: 0;
-}
-.card.compact.taunt.dscard .ward > * { border-radius: 0; }   /* no arch rounding inside the heater clip */
 /* One shared opacity-only pulse for every keyword/triple glow ::before layer (compositor-only — no repaint). */
 @keyframes kwglow { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
 
@@ -2623,11 +2654,6 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 /* The dome is a centred round bubble seated on the oval WINDOW (not the .art centre): `--wardy` drops it onto
    the window centre (the frame sits lower than the art box) and `--wardsize` (×ccw) fills the oval's width. The
    `.art` ellipse clip + the frame gold on top trim it to the oval. Both are live knobs (FrameTuner). */
-.card.compact.stdframe.dscard .ward {
-  inset: auto; top: var(--wardy); left: 50%; transform: translate(-50%, -50%);
-  width: calc(var(--ccw) * var(--wardsize)); height: calc(var(--ccw) * var(--wardsize)); border-radius: 0;
-}
-.card.compact.stdframe.dscard .ward > * { border-radius: 0; }
 /* Venomous: same treatment in toxic lime. The inner `.art::after` ring survives (it lives inside the ellipse-
    clipped art, so it reads as an oval lime vignette); only the outer square wash is reshaped. */
 .card.compact.stdframe.venomcard { box-shadow: 0 3px 0 var(--shadow); }

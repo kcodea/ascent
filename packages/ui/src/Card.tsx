@@ -415,7 +415,7 @@ export const Card = memo(function Card({
       {card.castMult !== undefined && card.castMult > 1 && (
         <span className="castmult" aria-hidden="true">×{card.castMult}</span>
       )}
-      {/* Divine Shield signifies via the CSS `.ward` dome stack inside `.art` (below); Reborn via its Pixi AURA
+      {/* Divine Shield signifies via the CSS `.wardglass` energy shell OVER the frame (below); Reborn via its Pixi AURA
           (driven from `.card.reborncard` in Recruit); Taunt via the static grey `.card.taunt` border — no badge here. */}
       {card.keywords.includes('V') && (
         <span className="kwward venom" aria-hidden="true"><Icon name="poison" /></span>
@@ -438,18 +438,6 @@ export const Card = memo(function Card({
           ) : (
             <Sprite name={spriteForTribe(card.tribe)} scale={5} />
           )}
-          {/* Ward (Divine Shield): the layered glassy gold dome — a CSS stack glued to the card (styles.css
-              `.card.compact.dscard .ward-*`). Living inside `.art` means it rides drag + the combat lunge for
-              free and vanishes exactly when the sim clears the `DS` keyword. Clipped to the arched art. */}
-          {card.keywords.includes('DS') && (
-            <div className="ward" aria-hidden="true">
-              <div className="ward-body" />
-              <div className="ward-hex" />
-              <div className="ward-shadow" />
-              <div className="ward-spot" />
-              <div className="ward-gloss" />
-            </div>
-          )}
           {/* Reborn — a faint ethereal aqua-green dome + rising randomized wisps (CSS, replacing the old Pixi
               wisp), clipped to the oval window. Each wisp carries its own random position/size/rise/drift. */}
           {card.keywords.includes('R') && (
@@ -467,6 +455,22 @@ export const Card = memo(function Card({
             </div>
           )}
         </div>
+        {/* WARD GLASS (Divine Shield) — the "engulf the frame" layer (owner-chosen approach B, 2026-07-21).
+            The `.ward` dome above is trimmed to the ART window by design, so it can never reach the gold.
+            This is a SECOND dome painted OVER the frame (z4 vs the frame's z3) and clipped to the frame's own
+            silhouette, so the whole card — gold included — reads as sealed inside the glass. Its FACETS live
+            here rather than in the inner dome: one sphere at the frame's size means the hex must map to THAT
+            sphere, not a smaller one inside the art (owner note).
+            Geometry is pure CSS per frame type (oval / spell square / taunt heater), mirroring `.cframe-tint`
+            so it tracks the frame at any card scale with no measuring — see styles.css "WARD GLASS". */}
+        {card.keywords.includes('DS') && (
+          <div className="wardglass" aria-hidden="true">
+            <div className="wg-fill" />
+            <div className="wg-hex" />
+            <div className="wg-sheen" />
+            <div className="wg-rim" />
+          </div>
+        )}
         {/* Flurry (W) — wind blades swirling the card: a CSS ring stack (styles.css `.flurrycard .flurry`).
             Lives in the archbox (NOT `.art`, which clips) at z2 — above the art, below the frame — so the
             swirl orbits AROUND the card like the preview. Static gradient/mask paint from flurryConfig; only

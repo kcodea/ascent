@@ -300,11 +300,17 @@ export function noteFodderConsumed(state: RunState, fa: number, fh: number, eate
   state.runFodderConsumed ??= { count: 0, stats: 0 };
   state.runFodderConsumed.count += 1;
   state.runFodderConsumed.stats += fa + fh;
-  // Rune of Consumption: every Fodder Consumed permanently bumps your run-wide Fodder aura ("improve future
-  // Fodder" — the enchant applies twice under Rune of Mastery).
+  // Rune of Consumption (reworked 2026-07-21): every Fodder Consumed permanently improves your run-wide Fodder
+  // aura by +1 Attack OR +1 Health, chosen at RANDOM (was a flat +2/+1). One coin flip per improve, so Rune of
+  // Mastery's extra rep is its own independent flip. Seeded off the run cursor — deterministic for replays.
   if (state.runeConsume) {
     const reps = improveReps(state);
-    buffFodderRunWide(state, state.runeConsume.attack * reps, state.runeConsume.health * reps, 'Rune of Consumption');
+    const rng = makeRng(state.rngCursor);
+    for (let i = 0; i < reps; i++) {
+      const toAttack = rng.int(2) === 0;
+      buffFodderRunWide(state, toAttack ? state.runeConsume.attack : 0, toAttack ? 0 : state.runeConsume.health, 'Rune of Consumption');
+    }
+    state.rngCursor = rng.state();
   }
   // Endless Appetite's "first each turn" gate — incremented BEFORE the fan-out below, so the fanned-out
   // consumes (which re-enter here as real consumes: tallies, Rune of Consumption, Transfusion) never re-fan.
@@ -915,6 +921,27 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       target = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
     }
     for (const k of kws) if (!target.keywords.includes(k)) target.keywords.push(k);
+  },
+
+  /** Twilight Emissary: Battlecry — buff a chosen friendly minion +atk/+hp (golden doubles). The stat sibling
+   *  of `battlecryGrantKeyword`, with the SAME target resolution: `payload.target` when the player picked one,
+   *  otherwise an auto-pick (a Myra / face-Omen re-fire with no explicit target) of the highest-Attack friend,
+   *  restricted by the card's `targetTribe` (Twilight Emissary → friendly Dragons only; dual-types count). It
+   *  falls back to buffing ITSELF when no other eligible friend is on board, and no-ops if even that fails. */
+  battlecryBuffTarget: (ctx, self, params, payload) => {
+    const attack = num(params.attack) * gold(self);
+    const health = num(params.health) * gold(self);
+    if (attack <= 0 && health <= 0) return;
+    let target = payload.target;
+    if (!target) {
+      const restrict = CARD_INDEX[self.cardId]?.targetTribe;
+      const ok = (c: BoardCard): boolean => !restrict || isTribe(c, restrict);
+      const others = ctx.state.board.filter((c) => c !== self && ok(c));
+      const pool = others.length > 0 ? others : ok(self) ? [self] : [];
+      if (pool.length === 0) return; // no eligible friend
+      target = pool.reduce((a, b) => (b.attack > a.attack ? b : a));
+    }
+    addBuff(target, nameOf(self), attack, health);
   },
 
   /** Buddy Buddy / Haven Drake: Battlecry — add `count` random minions to your hand (golden doubles
@@ -2306,6 +2333,30 @@ export function applyGoldSpent(state: RunState, amount: number): void {
   }
 }
 
+/**
+ * Fire `cardsBought` effects (Korok, Banksly) when the player buys a card. The buy-count sibling of
+ * `applyGoldSpent`: each board card with a `cardsBought` effect keeps a continuous per-instance meter
+ * (`buyTick`), and each time it crosses the effect's `every` threshold the factory fires once (the remainder
+ * carries to the next buy). Called by the reducer on every `buy`.
+ */
+export function applyCardsBought(state: RunState, count: number): void {
+  if (count <= 0) return;
+  const ctx = makeContext(state);
+  for (const card of [...state.board]) {
+    const def = CARD_INDEX[card.cardId];
+    const effect = def?.effects.find((e) => e.on === 'cardsBought');
+    if (!effect) continue;
+    const fn = RECRUIT_FACTORIES[effect.do];
+    if (!fn) continue;
+    const every = Math.max(1, num(effect.params?.every, 4));
+    card.buyTick = (card.buyTick ?? 0) + count;
+    while (card.buyTick >= every) {
+      card.buyTick -= every;
+      fn(ctx, card, effect.params ?? {}, { minion: card });
+    }
+  }
+}
+
 /** Open a Discover of up to 3 distinct random spells (Black Belt Brian). Sets `state.discover`; the
  *  reducer's `discover` case resolves the pick into the hand and opens the next queued spec, if any. */
 export function offerSpellDiscover(state: RunState): void {
@@ -3241,14 +3292,14 @@ function runRecurringEndOfTurn(state: RunState, effect: NonNullable<RunState['qu
   } else if (effect === 'grantRandomAttachments') {
     conjureToHand(state, poolOf(state).buyable.filter((c) => c.tier <= state.tier && c.keywords.includes('M')), 2);
   } else if (effect === 'buffMechsPerAttachment') {
-    // Blueprint Cache: give each friendly Mech +2/+2 for every Attachment (Magnetic minion) welded onto it.
+    // Blueprint Cache: give each friendly Mech +3/+3 for every Attachment (Magnetic minion) welded onto it.
     // Per-z, ATTACHMENT-MAJOR (owner 2026-07-18): wave `i` buffs EVERY Mech that has an i-th Attachment, so
     // all the Mechs pulse together and the waves read one at a time. (Mech-major — all of one Mech's steps,
     // then the next Mech's — produced a long overlapping smear.) Totals are identical either way.
     const mechs = state.board.filter((c) => (c.attachments ?? 0) > 0 && isTribe(c, 'mech'));
     const maxAttach = mechs.reduce((m, c) => Math.max(m, c.attachments ?? 0), 0);
     for (let i = 0; i < maxAttach; i++) {
-      step(() => { for (const c of mechs) if ((c.attachments ?? 0) > i) addBuff(c, 'Blueprint Cache', 2, 2); });
+      step(() => { for (const c of mechs) if ((c.attachments ?? 0) > i) addBuff(c, 'Blueprint Cache', 3, 3); });
     }
   } else if (effect === 'runeSpending') {
     // Rune of Spending: +1 max Gold, and grant your leftmost minion +1/+1 PER Gold you spent this turn.

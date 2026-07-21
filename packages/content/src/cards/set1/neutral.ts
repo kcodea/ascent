@@ -301,9 +301,9 @@ export const NEUTRAL: CardDef[] = [
     attack: 1,
     health: 10,
     keywords: [],
-    effects: [{ on: 'avenge', do: 'avengeGrantSpellPower', params: { count: 4, attack: 1 } }],
-    text: '**Avenge (4):** your Tavern spells have **+1 Attack** this run.',
-    goldenText: '**Avenge (4):** your Tavern spells have **+2 Attack** this run.',
+    effects: [{ on: 'avenge', do: 'avengeGrantSpellPower', params: { count: 3, attack: 1 } }],
+    text: '**Avenge (3):** your Tavern spells have **+1 Attack** this run.',
+    goldenText: '**Avenge (3):** your Tavern spells have **+2 Attack** this run.',
   },
   {
     // Battlecry arms the next Tavern spell you cast to resolve twice (golden: three times) — a spell-value
@@ -312,7 +312,7 @@ export const NEUTRAL: CardDef[] = [
     id: 'nimbus',
     name: 'Nimbus',
     tribe: 'neutral',
-    tier: 4,
+    tier: 5,
     attack: 4,
     health: 3,
     keywords: [],

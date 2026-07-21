@@ -21,6 +21,29 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+### Balance patch 2026-07-21 (owner spec — landing in chunks on `balance/patch-2026-07-21`)
+Large hand-authored balance pass, sliced so each chunk lands green + tested on its own:
+- **✅ Chunk 1 — Demon minions** (shipped to branch): Soulfeeder, Sword & Bored, Burial Imp, Godfodder, Pit
+  Supplier, Ritualist, Chef Raag. Data-only.
+- **✅ Chunk 2a — Rune costs** (shipped to branch): 23 cost tweaks + Spare Parts → 5 Attachments. Data-only.
+- **✅ Chunk 2b — Rune effect reworks** (shipped to branch): all 8 — Aftershocks, Consumption, Packcraft,
+  Rebirth, Refrain, Slaying, Trophy, Broodpit.
+- **✅ Chunk 3 — Quest objectives** (shipped to branch): 40 quests retuned (objective count/event/tribe + 3
+  reward tweaks). Data-only.
+- **✅ Add-on (owner 2026-07-21, shipped to branch):** Spell Appraiser Avenge (3), Nimbus/Displacement → T5,
+  Hoardbreaker Drake → Rally-only, and **Runescale Drake** reworked to per-spell-this-turn scaling (new
+  `scTribeBuffPerSpellImproving` factory).
+- **✅ Chunk 4 — Quest removals + flag reworks** (shipped to branch): removed Last Rites / The Author's Hand /
+  The Hoard Wakes; reworked Empty Graves, Deep Hunger, Pit Without End, The Old Hunt, Blueprint Cache; applied
+  the deferred Parliament of Flame + Track and Fodder with new vehicles for the orphaned regressions.
+
+**The 2026-07-21 balance patch is now COMPLETE** — every spec item is on `balance/patch-2026-07-21`, awaiting
+review + merge. Follow-up worth tracking: the `authorsHand` objective event and `slaughterRepeat` reward kind
+now have no content using them (kept deliberately for a future quest — remove them if none materialises).
+- **✅ Chunk 5 — New-mechanic minions** (shipped to branch): Hoard Cleric (exclude self), Attachment Mechanic
+  → T4 3/5, Kennelmaster Avenge (4), Thundeer text, Hunter (improve every 3 — new `every` param), and
+  Korok/Banksly on a new **`cardsBought`** trigger + `buyTick` meter (the buy-count sibling of `goldSpent`).
+
 ### Human-playtest balance
 The counter matrix is balance *truth*; stat numbers are dials. With all six tribes + the quest content in,
 the game wants a real tuning pass driven by human play (not just the bot).

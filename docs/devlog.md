@@ -40,6 +40,247 @@ with the guard removed and pass with it), plus three unit tests for `meleePairOf
 
 Verified: typecheck + lint (0 errors) + **1309 tests** (1304 → 1309) + `build:web`, all green.
 
+## 2026-07-21 (content + balance — Twilight Emissary, Deathswarmer, hero armor)
+
+### feat(content+sim): Twilight Emissary; Deathswarmer → T1 1/3; +5 Armor to every hero
+
+**New minion — Twilight Emissary** (`emissary`), Dragon **T2 2/3, Taunt**: *"Battlecry: give a friendly Dragon
++2/+2"*, a player-targeted buff. Needed a new recruit factory, `battlecryBuffTarget` — the stat sibling of
+`battlecryGrantKeyword`, reusing its exact target resolution (`payload.target` when the player picked one,
+otherwise an auto-pick of the highest-Attack friend, restricted by the card's `targetTribe`). Whitelisted in the
+content schema + the `EffectFactoryId` union. Art wired from the matching master (`TwilightEmissary.png` →
+`emissary.webp` via `npm run optimize-art`, 2.5 MB → 48 KB).
+
+**Behaviour note:** it follows the standing tribe-restricted-target convention (Toxin Tender) — with no OTHER
+friendly Dragon on board there is no viable target, so the Battlecry doesn't fire and the body plays as-is
+(no prompt). That's the shared reducer rule, deliberately not special-cased for this card.
+
+**Balance:** Deathswarmer **T2 1/4 → T1 1/3**. Every hero's starting Armor **+5 across the board** (27 heroes;
+the 8–19 spread becomes 13–24) — the doc comment describing the range was updated with it.
+
+Verified: full suite green (**1308**, +2 tests) + typecheck + lint + `build:web`. The new minion is covered
+both ways (the chosen Dragon gets the buff and neither the higher-Attack Dragon nor the off-tribe Beast does;
+and the no-viable-target path plays as-is). Art wiring confirmed at the BUILD level — `emissary-*.webp` is
+present in `apps/web/dist`, proving the `import.meta.glob` picked it up rather than assuming it did.
+`docs/CONTENT.md` card counts corrected to 128 shop minions / 207 total (they had drifted 8 stale before this).
+
+## 2026-07-21 (balance follow-up — Runescale floor + Chef Raag live text)
+
+### balance(core+ui+content): Runescale floors at its base rate; Chef Raag floors at +1/+1 and prints its live grant
+
+Owner follow-up to the balance patch, fixing the two "does nothing at zero" cases it introduced:
+
+- **Runescale Drake** — the spells-this-turn multiplier now **floors at 1**, so a turn with no spells still pays
+  the base **+2/+2** (previously it granted nothing at all). Text states the floor.
+- **Chef Raag** — the Imp-Aura grant now **floors at +1/+1** (each half independently), so a fresh Raag with no
+  Imp buffs still pays a baseline instead of zero.
+- **Chef Raag's card text is now live.** Its printed grant was a static "stats equal to your Imp Aura", which
+  the live-accuracy rule forbids. Restructured the text to carry a real magnitude (`+1/+1, equal to your Imp
+  Aura`) and added a `chefRaagText` helper that folds in the current value, greened, with the "Improve your
+  Imps by +2/+2" clause left alone. Threaded a new `impAura` through `LiveTextParams` → `instView` → both
+  chains (Recruit's shop/board/Discover **and** Unit's combat text), sourced from `run.impBuff` — the exact
+  field that seeds combat's `impAtk`, so the printed number and the combat math cannot drift.
+
+Player-only, deliberately: `enemyScalers` carries no Imp Aura, so an enemy Chef Raag falls back to its printed
+text — the same treatment `soulsmanGold` / `cardBuffs` / `clingEnchant` already get.
+
+Verified: full suite green (**1306**, +3 tests) + typecheck + lint + `build:web`. New coverage pins the factory
+floor in combat (with and without an aura), the text helper (including each half flooring on its own and the
+golden doubling), and — deliberately — the **plumbing** through `liveCardText`, since a correct helper that is
+never called would otherwise pass silently. The two Runescale tests that asserted the old "no spells → nothing"
+behaviour now pin the floor instead.
+
+## 2026-07-21 (balance patch — chunk 4: quest removals + flag reworks)
+
+### balance(core+sim+content): 3 quest removals, 6 flag reworks, 2 deferred objectives
+
+The final slice of the 2026-07-21 balance patch. **Removed** three quests — Last Rites, The Author's Hand,
+The Hoard Wakes (79 → **77**; `docs/CONTENT.md` updated). **Reworked:**
+
+| Quest | Was | Now |
+|---|---|---|
+| **Empty Graves** | 20 deaths; first friendly death summons a Gravebody | **13 deaths**; **SoC: your left-most minion gains "Rally: trigger your left-most Echo"** |
+| **Deep Hunger** | consume 11; leftmost Demon gains "Slaughter: +3 Fodder" | **kill 13**; **Avenge (3): add 2 Fodder to your next shop** |
+| **The Old Hunt** | Beast attack → Beasts +10 Attack | Beast attack → Beasts **+3/+3** (symmetric) |
+| **Pit Without End** | last death summons 3 Imps | **7 Imps** |
+| **Blueprint Cache** | Mechs +2/+2 per Attachment | **+3/+3** per Attachment |
+| **Feeding Line** | — | no change: the shipped behaviour already matched the spec text |
+| **Parliament of Flame** | trigger 7 End-of-Turns | **spend 33 Gold** |
+| **Track and Fodder** | 70 Consumed stats | **kill 14** |
+
+Empty Graves is the notable build: a new combat-only `Minion.emptyGravesRally` marker set at Start of Combat
+on the left-most body (announced as an `RL` keyword event), read in the attack path to fire the left-most
+living Echo through `asEcho` — so it counts as a real Echo trigger and composes with Runes of Aftershocks /
+Undertow. The grant rides the BODY, not the position, so it dies with that minion. Deep Hunger now reuses the
+generic `runeAvenge` helper (it is keyed on any `QuestCombatMods` flag, not just rune flags), and The Old Hunt
+pumps both Beast aura channels so the symmetric grant carries back.
+
+The two objectives deferred out of chunk 3 landed here with fresh vehicles for the regressions they orphaned:
+the **Djinn End-of-Turn-replay audit** now asserts `lastEotFires` (the tally every `endOfTurn` objective reads)
+instead of routing through Parliament, and the **start-of-turn consume** test moved onto Small Offering
+(`consumeFodder`). Both are better tests — they pin the engine contract rather than one quest's wiring.
+
+Scope note: removing The Author's Hand leaves the `authorsHand` objective event and the `slaughterRepeat`
+reward kind with no content using them. Left in place deliberately (working machinery, ready for a future
+quest) rather than pulled in a drive-by refactor — flagged here so it is a decision, not a leak.
+
+Verified: full suite green (1303) + typecheck + lint + `build:web`. Lint caught the dead `emptyGravesDone`
+gate left by the rework, which was removed.
+
+## 2026-07-21 (balance patch — chunk 2b: rune effect reworks)
+
+### balance(core+sim+content): 8 rune effect reworks
+
+The engine half of the rune pass (2a shipped the costs). Each rune's mechanic changed, not just its numbers:
+
+| Rune | Was | Now |
+|---|---|---|
+| **Broodpit** | Avenge (6), 7g | **Avenge (4)**, 2g |
+| **Packcraft** | any combat summon → Beasts +1 Attack (carried back), 5g | **summon a BEAST** → Beasts **+1/+1** (in-combat only), 6g |
+| **Slaying** | each Slaughter banks +2 Gold next shop | each Slaughter → **+1 max Gold** |
+| **Consumption** | Consume → Fodder +2/+1 | Consume → **+1 Attack OR +1 Health, at random** |
+| **Aftershocks** | Echo-*summoned* bodies land with +4/+4 | **triggering an Echo** → your minions **+4/+4** |
+| **Rebirth** | Rises return at full Health | **Start of Combat: 2 random allies gain Rise** |
+| **Refrain** | 3rd Shout each turn returned that turn's first | each Shout has a **20% chance** to return to hand |
+| **Trophy** | copy of the first friendly *slaughterer* | plain copy of the **first minion you KILL** (the victim) |
+
+Notable implementation points: **Aftershocks** moved from the summon path into `asEcho`, which now takes the
+side and fires the board buff after the Echo resolves (so a body the Echo summoned shares the grant; a nested
+Echo is its own trigger). **Rebirth** became a Start-of-Combat keyword grant modelled on its Rising Graves
+sibling. **Slaying** raises `maxEmbers` at settle rather than routing through `ctx.grantMaxGold`, which is
+Soulsman-only and would have polluted that run tally. The two **random** effects (Consumption, Refrain) draw
+off the run/combat RNG cursor, never `Math.random`, so replays and reloads resolve identically.
+
+Verified: full suite green (1305) + typecheck + lint + `build:web`. Test notes: the randomised effects are
+asserted by SHAPE rather than a single outcome — Consumption checks the improve *total* (2 reps = +2 of stats,
+split seed-dependent), and Refrain runs 60 seeded trials to prove it fires, stays the minority case, never
+fires without the rune, and is deterministic per seed. Packcraft's test now also pins the *negative* (a
+non-Beast Spearline summon must NOT fire it), and Trophy's failure confirmed the victim/killer swap directly.
+
+## 2026-07-21 (balance patch — chunk 5b: the buy-count trigger)
+
+### balance(core+sim+content): new `cardsBought` trigger — Korok + Banksly
+
+The last two chunk-5 minions needed a mechanic the engine didn't have: **"when you buy N cards."** Added a
+`cardsBought` trigger as the buy-count sibling of `goldSpent`, deliberately mirroring that design rather than
+inventing a second pattern:
+
+- **`BoardCard.buyTick`** (`state.ts`) — a continuous per-instance meter beside `goldTick`, carrying its
+  remainder across turns. Like `goldTick` it is a RECRUIT-phase accrual (never entering the combat snapshot),
+  so it needed no snapshot / opponent carry-back plumbing.
+- **`applyCardsBought(state, count)`** (`recruit.ts`) — mirrors `applyGoldSpent`: accrue onto `buyTick`, fire
+  the factory once per threshold crossing.
+- Wired into the reducer's `buy` case; whitelisted in the content schema + the `EffectTrigger` union.
+- Both cards reuse the EXISTING factories (`goldSpentBuffFodder` / `goldSpentMagnetize`) — they never read the
+  meter, only fire — so no new effect factories were needed. **Korok, the Hungerer**: *when you buy 4 cards,
+  give your Fodder +1/+1 and add 1 Fodder to your next tavern* (was every 7 Gold). **Banksly**: *when you buy
+  4 cards, magnetize a random Magnetic onto this* (was every 10 Gold).
+- `stepProgress` gained a `buyTick` branch so the shop-board counter reads N/4 live.
+
+Verified: full suite green (**1305** — one new test added) + typecheck + lint (back to the pre-existing single
+warning) + `build:web`. Coverage includes both a direct `applyCardsBought` unit test AND a new test driving
+four real `buy` actions through the reducer, so the wiring itself is pinned, not just the helper.
+
+## 2026-07-21 (balance patch — chunk 5a: minion mechanics)
+
+### balance(core+content): Hoard Cleric / Attachment Mechanic / Kennelmaster / Thundeer / Hunter
+
+Five of the seven chunk-5 minions. Four were data-only once the existing primitives were checked:
+**Hoard Cleric** now excludes itself (`includeSelf: false` — the param already existed) → *"give your other
+Dragons +3/+3"*; **Attachment Mechanic** T3 1/1 → **T4 3/5**; **Kennelmaster** Avenge (3) → **(4)**;
+**Thundeer**'s on-ally-attack Engraved self-improve already matched the spec, so only its printed text was
+updated to state the **+10/+10** improve magnitude (live-text rule).
+
+**Hunter** needed a real change: it now improves **every 3 fires** instead of every fire. Added an `every`
+param to `onGainAttackBuffImproving` and redefined its per-instance `summonBonus` to count FIRES rather than
+accumulate the grant — grant = base × (1 + ⌊fires/every⌋). That reuses the field's existing snapshot +
+carry-back plumbing, so no new per-instance field was needed (and `every: 1` is numerically identical to the
+old behaviour, so no other card shifts). `hunterText` updated to the stepped formula.
+
+Verified: full suite green (1304) + typecheck + lint. The Hunter combat test previously passed *incidentally*
+(it only checked +1 and +2 appeared somewhere); it now pins the cadence properly — 3 fires of +1/+1 (×2 allies
+per fire) before the step to +2/+2. Hoard Cleric's self-exclusion also rippled into the Drakko/Myra Battlecry
+probes, which now observe the replay on a second Dragon.
+
+## 2026-07-21 (balance patch — chunk 7: Runescale Drake rework)
+
+### balance(core+content): Runescale Drake — per-spell-this-turn Dragon buff
+
+Reworked Runescale's Start of Combat from the old per-instance-progress flat buff to: **give your Dragons
++2/+2 for every spell cast this turn** (grant scales with the turn's spell count), the per-spell rate
+**improving +1/+1 for every 4 spells cast** while this instance has been on the board. New pure combat factory
+`scTribeBuffPerSpellImproving` (grant = (base + step·⌊spellProgress/every⌋) × spells-this-turn × golden), keyed
+per-side off `ctx.spellsThisTurnFor` so an enemy Runescale reads the opponent's spell count, not the player's.
+`spellCastImproveSelf` still ticks `spellProgress`; triples still SUM progress. Cast no spells this turn → no
+grant. Whitelisted in the schema + `EffectFactoryId` union; the legacy `scTribeBuffPerProgress` factory is kept
+(now unused). `runescaleText` updated to surface the live per-spell rate (green) with the every-4 improve
+clause left printed. Verified: full suite green (1304) — 3 combat tests + the cardText test re-driven to the
+new formula (a helper now scopes to symmetric +X/+X buffs so the wall's incidental +1/+0 self-buff is ignored);
+typecheck + lint clean.
+
+## 2026-07-21 (balance patch — chunk 6: misc card tweaks)
+
+### balance(content): Spell Appraiser / Nimbus / Displacement / Hoardbreaker (owner add-on 2026-07-21)
+
+Data-only tweaks: **Spell Appraiser** Avenge (4)→**(3)**; **Nimbus** T4→**T5**; **Displacement** T4→**T5**;
+**Hoardbreaker Drake** loses its Slaughter clause — now just **Rally: Cast Growth** (dropped the `onKill`
+cast + `SL` keyword). Runescale Drake's rework (per-spell-this-turn scaling) needs a new Start-of-Combat
+factory and lands separately. Verified: full suite green (1304) + typecheck + lint.
+
+## 2026-07-21 (balance patch — chunk 3: quest objectives)
+
+### balance(content): quest objective + reward retune — 40 quests
+
+Data-only quest pass (owner spec 2026-07-21). Objective count / event / tribe retunes across every tribe,
+plus three reward tweaks: **Forsaken Will** now spend-26-Gold → Undead spell aura **+3 Attack** (was summon-6
+→ +2), **Anomalous Reactor** grants the reactor **+ a random Tier-5 minion**, **Taurus Ascension** grants a
+**gilded** Taurus. Representative objective changes: Apex Hunt kill 6 w/ Beasts, Den Marker spend 27, Blood
+Trail buy 5 Beasts, Skybound Pact 40 Dragon stats, Chimerus cast 10, Scrap Contract sell 5 Mechs, Perfect
+Machine buy 7, Fried Circuits spend 40 (compound→single), Kingdom of Bones summon 9, The Bone Throne spend 35,
+Small Offering consume 8, Food for Gold buy 11 Demons, Shop License win 2, Spell Thesis buy 7, The Runeforge
+buy 9, The Epic Runeforge cast 15, Echoing Coop buy 18, Infinite Assembly kill 13. Two spec items DEFERRED to
+chunk 4 because they'd remove the only quest exercising a mechanic a regression test depends on: **Parliament
+of Flame** (endOfTurn→spendGold — Djinn End-of-Turn-replay audit) and **Track and Fodder** (consumeStats→
+slaughter — start-of-turn consume tally). Verified: full suite green (1304) + typecheck + lint clean. ~20
+quest tests re-driven to the new objectives (buy/sell/spend/cast flows in place of the old combat tallies).
+
+## 2026-07-21 (balance patch — chunk 2a: rune costs)
+
+### balance(content): rune cost pass — 23 cost tweaks + Spare Parts count
+
+Data-only cost retune across the Basic + Epic forges (owner spec 2026-07-21). Cheaper: Forthcoming 6→1,
+Fury 5→2, Rallying 6→5, Salvage 5→1, Warding 4→1, Spellslinging 5→4, Appraisal 6→5, Banking 8→7, First
+Claws 8→5, Reconfiguration 8→6, Recurrence 7→3, Replication 7→1, Rising Graves 5→1, Scales 6→1, Soul Taxes
+8→4, Champion 4→1, Feast 6→5, Reliquary 7→4, Second Path 6→3, Undertow 7→3, Transfusion 7→6, Twilight 8→4,
+Twin Gilding 8→5. Spare Parts 1→2 Gold and now grants **5** Attachments (was 4). Effect reworks
+(Aftershocks/Consumption/Packcraft/Rebirth/Refrain/Slaying/Trophy/Broodpit) land in a later chunk since they
+need engine changes. Verified: full suite green + typecheck + lint. Updated the two pinned assertions
+(buyRune spend = 10−1, Spare Parts count = 5).
+
+## 2026-07-21 (balance patch — chunk 1: Demon minions)
+
+### balance(content): Demon minion rebalance — Soulfeeder, Sword & Bored, Burial Imp, Godfodder, Pit Supplier, Ritualist, Chef Raag
+
+First slice of the owner's 2026-07-21 balance patch (branch `balance/patch-2026-07-21`). Demon minion data
+only — no new engine primitives, so it lands as a clean, fully-tested chunk ahead of the runes/quests/
+new-mechanic slices. Changes:
+
+- **Soulfeeder** — Shout now feeds the **next shop** (was next 2), gilded 2. Toned the Fodder faucet down.
+- **Sword and Bored** — moved to **T2**, stats **3/1** (was T1 2/1). Slaughter payoff pushed up a tier.
+- **Burial Imp** — moved to **T1**, stats **2/1**, Echo simplified to **summon an Imp** (dropped the Fodder buff).
+- **Godfodder** — Choose One reworked to **give your Imps +2/+2 OR your Fodder +2/+2** (was add-Fodder / Fodder +3/+3).
+- **Pit Supplier** — Avenge (3) now adds **1 Fodder** to each of the next 2 shops (was 2), gilded 2.
+- **Ritualist** — End-of-Turn escalation step **+1/+1** (was +3/+3); slower, less explosive ramp.
+- **Chef Raag** — Echo now also **improves your Imps by +2/+2** on top of the Imp-Aura board buff.
+
+Verified: full suite green (1304 passed) + typecheck + lint clean. Updated the pinned assertions that used
+these cards as generic probes (Ritualist for Chronos/Djinn/Rune-of-Mastery End-of-Turn escalation; Soulfeeder
+for Drummer/Ryme Battlecry replay; Burial Imp for the deathrattle-buffer classifier; Godfodder's tavern-Fodder
+FX stamp repointed to Maw of the Pit). Follow-ups (later chunks): rune cost/effect pass, quest number pass +
+removals (Last Rites, The Author's Hand, The Hoard Wakes), and the new-mechanic minions (Korok/Banksly
+buy-count trigger, Thundeer Engraved on-attack, Kennelmaster Avenge-improve, Hunter on-gain-attack rework,
+Attachment Mechanic → T4 3/5, Hoard Cleric self-exclusion).
+
 ## 2026-07-21 (owner feel pass — lunge defaults)
 
 ### tweak(ui): bake owner's Layout Lab pass — shop controls up, charge glyph nudged

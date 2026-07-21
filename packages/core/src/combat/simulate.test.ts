@@ -72,12 +72,13 @@ describe('simulate (handoff A.3)', () => {
     expect(r.initial.enemy[0]!.buffs).toBeUndefined();
   });
 
-  it('Kennelmaster Avenge (3) improves its summon buff and reports the bonus to carry back', () => {
-    // 3 Taunt sandbags are killed first (forced targets) while the no-Taunt Kennelmaster
-    // chips the tanky enemy — so all 3 friends die with Kennelmaster alive → Avenge (3)
+  it('Kennelmaster Avenge (4) improves its summon buff and reports the bonus to carry back', () => {
+    // 4 Taunt sandbags are killed first (forced targets) while the no-Taunt Kennelmaster
+    // chips the tanky enemy — so all 4 friends die with Kennelmaster alive → Avenge (4)
     // fires once → summonBonus 1, reported in playerSummonBonus (deterministic: Taunts go first).
     const p: BoardMinion[] = [
       { cardId: 'kennel', attack: 2, health: 50, sourceUid: 'K' },
+      { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
       { cardId: 'sandbag', attack: 0, health: 1, keywords: ['T'] },
@@ -329,8 +330,8 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerBonusGold).toBe(2);
   });
 
-  it('Pit Supplier Avenge (3) schedules 2 Fodder into each of the next 2 shops (carried back)', () => {
-    // Three 1/1 Strays die (attacking into the omen's retaliation) → the 3rd death procs Avenge (3) → 2 Fodder
+  it('Pit Supplier Avenge (3) schedules 1 Fodder into each of the next 2 shops (carried back)', () => {
+    // Three 1/1 Strays die (attacking into the omen's retaliation) → the 3rd death procs Avenge (3) → 1 Fodder
     // to each of the next 2 shops.
     const p: BoardMinion[] = [
       { cardId: 'pitsupplier', attack: 4, health: 40 },
@@ -340,22 +341,39 @@ describe('simulate (handoff A.3)', () => {
     ];
     const e: BoardMinion[] = [{ cardId: 'omen', attack: 1, health: 60 }];
     const r = run(p, e, 3);
-    expect(r.playerFodderSchedule).toEqual([2, 2]);
+    expect(r.playerFodderSchedule).toEqual([1, 1]);
     expect(r.playerFodderGrants).toBeUndefined();
   });
 
-  it('Runescale Drake Start of Combat buffs your Dragons +1/+1 (base, no on-board spells)', () => {
+  it('Runescale Drake Start of Combat buffs your Dragons +2/+2 per spell cast this turn', () => {
     const p: BoardMinion[] = [{ cardId: 'runescale', attack: 4, health: 20 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }];
-    const r = run(p, e, 3);
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true);
+    // base rate 2 × 3 spells cast this turn = +6/+6.
+    const r = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, spellsThisTurn: 3 }), combatSide({ tier: 1 }));
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 6 && ev.health === 6)).toBe(true);
+    // No spells this turn → the multiplier FLOORS at 1, so it still pays the base rate +2/+2 (owner 2026-07-21;
+    // it used to grant nothing). Runescale's grant is the only SYMMETRIC (+X/+X) buff here.
+    const none = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, spellsThisTurn: 0 }), combatSide({ tier: 1 }));
+    expect(none.events.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 2)).toBe(true);
   });
 
-  it('Runescale Drake scales with its per-instance spell tally (spellProgress 4 → +5/+5)', () => {
+  it("Chef Raag: its Echo buffs your board by the Imp Aura, floored at +1/+1", () => {
+    const p: BoardMinion[] = [{ cardId: 'chefraag', attack: 1, health: 1 }, { cardId: 'sandbag', attack: 0, health: 50 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 50 }];
+    // No Imp Aura built up → FLOORS at +1/+1 (owner 2026-07-21; it used to grant nothing at all).
+    const none = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES }), combatSide({ tier: 1 }));
+    expect(none.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true);
+    // With an aura → grants exactly the aura (each half floored independently).
+    const aura = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, impAtk: 3, impHp: 2 }), combatSide({ tier: 1 }));
+    expect(aura.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 2)).toBe(true);
+  });
+
+  it('Runescale Drake per-spell rate improves +1/+1 every 4 on-board spells (spellProgress 4 → +3 per spell)', () => {
     const p: BoardMinion[] = [{ cardId: 'runescale', attack: 4, health: 20, spellProgress: 4 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 50 }];
-    const r = run(p, e, 3); // base 1 + 4 spells cast while on board = +5/+5
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 5 && ev.health === 5)).toBe(true);
+    // rate = base 2 + ⌊4/4⌋ = 3; × 2 spells this turn = +6/+6.
+    const r = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, spellsThisTurn: 2 }), combatSide({ tier: 1 }));
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 6 && ev.health === 6)).toBe(true);
   });
 
   it('Spell Appraiser Avenge (4) raises run-wide spell power +1 Attack (carried back)', () => {
@@ -1963,16 +1981,28 @@ describe('simulate (handoff A.3)', () => {
     expect(die.playerMaxGoldGain).toBe(1);
   });
 
-  it('Empty Graves: the first friendly death each combat summons a Gravebody', () => {
-    const a = simulate(
+  it('Empty Graves: Start of Combat gives your left-most minion "Rally: trigger your left-most Echo"', () => {
+    // Leftmost is a plain attacker; Mama Pup (behind it) is the leftmost ECHO — each attack re-fires its
+    // Deathrattle, summoning Pups WITHOUT Mama Pup ever dying.
+    const run = (mods: object) => simulate(
       [
-        { cardId: 'alley', attack: 1, health: 1 }, // dies to the 20-Attack retaliation → first friendly death
-        { cardId: 'sandbag', attack: 0, health: 50, keywords: ['T'] },
+        { cardId: 'gnash', attack: 4, health: 60 },        // leftmost → gets the Rally grant
+        { cardId: 'pack', attack: 0, health: 60 },         // leftmost Echo: Deathrattle summons 2 Pups
       ],
-      [{ cardId: 'omen', attack: 20, health: 50 }],
-      makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: { emptyGraves: true } }),
+      [{ cardId: 'sandbag', attack: 0, health: 200 }],
+      makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }),
     );
-    expect(a.events.some((e) => e.type === 'summon' && e.minion.cardId === 'gravebody')).toBe(true);
+    const pups = (r: { events: CombatEvent[] }): number =>
+      r.events.filter((e) => e.type === 'summon' && e.minion.cardId === 'pup').length;
+    const a = run({ emptyGraves: true });
+    const b = run({});
+    // The grant is announced as an RL keyword on the leftmost body — and only with the quest armed.
+    expect(a.events.some((e) => e.type === 'keyword' && e.keyword === 'RL' && e.target === a.initial.player[0]!.uid)).toBe(true);
+    expect(b.events.some((e) => e.type === 'keyword' && e.keyword === 'RL')).toBe(false);
+    // Mama Pup eventually dies either way (its own Deathrattle = 2 Pups, the baseline). With Empty Graves the
+    // leftmost body ALSO re-triggers that Echo on every attack, so the Pup count multiplies well past the baseline.
+    expect(pups(b)).toBe(2);
+    expect(pups(a)).toBeGreaterThan(pups(b));
   });
 
   it('The Red Trail (slaughterKeyword): only kills by an on-kill (Slaughter) minion count', () => {
@@ -2296,7 +2326,7 @@ describe('simulate (handoff A.3)', () => {
     expect(tara?.count).toBeGreaterThan(0); // Tara was granted stats and counted them toward ascension
   });
 
-  it('Hunter buffs your board +M/+M whenever its Attack rises, scaling +1 each time (driven by Crypt Drake)', () => {
+  it('Hunter buffs your board +M/+M whenever its Attack rises, stepping up every 3 fires (driven by Crypt Drake)', () => {
     const a = run(
       [
         { cardId: 'hunter', attack: 5, health: 60 },
@@ -2306,18 +2336,23 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 0, health: 200 }],
       3,
     );
-    // First Attack-gain → +1/+1 to the board; the next → +2/+2 (scaling per-instance accrual).
-    expect(a.events.some((e) => e.type === 'buff' && e.attack === 1 && e.health === 1)).toBe(true);
-    expect(a.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2 && e.source === a.initial.player[0]!.uid)).toBe(true);
+    // Hunter's own grants, in order: it improves +1/+1 only every 3rd fire, so the first three are +1/+1
+    // and the fourth steps to +2/+2 (it was "+1 every time" before the 2026-07-21 rework).
+    // Each fire emits one buff per OTHER living ally (2 here: Crypt Drake + the sandbag, nothing dies to the
+    // 0-Attack omen), so 3 fires = 6 grants of +1/+1 before the rate steps to +2/+2 on the 4th.
+    const hunterUid = a.initial.player[0]!.uid;
+    const grants = a.events.flatMap((e) => (e.type === 'buff' && e.source === hunterUid ? [e.attack] : []));
+    expect(grants.length).toBeGreaterThanOrEqual(7);
+    expect(grants.slice(0, 6)).toEqual([1, 1, 1, 1, 1, 1]);
+    expect(grants[6]).toBe(2);
   });
 
-  it('Burial Imp: its Echo buffs your Fodder +1/+1 (carried back) and summons an Imp', () => {
+  it('Burial Imp: its Echo summons an Imp', () => {
     const a = run(
-      [{ cardId: 'burialimp', attack: 3, health: 1 }],
+      [{ cardId: 'burialimp', attack: 2, health: 1 }],
       [{ cardId: 'omen', attack: 5, health: 50 }],
       3,
     );
-    expect(a.playerFodderBuffGain).toEqual({ attack: 1, health: 1 }); // Fodder aura +1/+1 carried back
     expect(a.events.some((e) => e.type === 'summon' && e.minion.cardId === 'impscrap')).toBe(true); // summoned an Imp
   });
 
@@ -3331,12 +3366,18 @@ describe('Combat runes batch 6 (First Claws / Packcraft / Inheritance / Salvage)
     expect(withFC.events.some((ev) => ev.type === 'attack')).toBe(true);
   });
 
-  it('Packcraft: a combat summon buffs your Beasts (+1 Attack) — via a Spearline summon', () => {
-    // 4 sandbags die → Spearline summons a Spear Warden → Packcraft fires → the Gnash (Beast) gets +1 Attack.
-    const p: BoardMinion[] = [{ cardId: 'gnash', attack: 8, health: 40 }, ...Array.from({ length: 4 }, () => ({ cardId: 'sandbag', attack: 1, health: 1 }))];
+  it('Packcraft: summoning a BEAST buffs your Beasts +1/+1 — and a non-Beast summon does not', () => {
+    // Mama Pup dies → its Deathrattle summons 2 Pups (Beasts) → Packcraft fires → Beasts get +1/+1.
+    const p: BoardMinion[] = [{ cardId: 'gnash', attack: 8, health: 40 }, { cardId: 'pack', attack: 1, health: 1 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 60 }];
-    const r = simMods(p, e, 1, { runeSpearline: true, runePackcraft: true });
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.source === 'Rune of Packcraft')).toBe(true);
+    const r = simMods(p, e, 1, { runePackcraft: true });
+    const packBuffs = r.events.filter((ev) => ev.type === 'buff' && ev.source === 'Rune of Packcraft');
+    expect(packBuffs.length).toBeGreaterThan(0);
+    expect(packBuffs.every((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true); // +1/+1, not +1/+0
+    // Spearline summons a Spear Warden (NOT a Beast) — that summon alone must not fire Packcraft.
+    const p2: BoardMinion[] = [{ cardId: 'gnash', attack: 8, health: 40 }, ...Array.from({ length: 4 }, () => ({ cardId: 'sandbag', attack: 1, health: 1 }))];
+    const r2 = simMods(p2, e, 1, { runeSpearline: true, runePackcraft: true });
+    expect(r2.events.some((ev) => ev.type === 'buff' && ev.source === 'Rune of Packcraft')).toBe(false);
   });
 
   it('Inheritance: when the leftmost minion dies, the rightmost gains its stats', () => {
@@ -3412,12 +3453,14 @@ describe('enemy run-level scalers (per-side)', () => {
     expect(g(6, 5)).toBe(g(6, 0)); // and the current player's Beasts-played is irrelevant to it
   });
 
-  it('enemy Runescale Drake scales with its OWN per-instance spell tally, ignoring spells-this-turn', () => {
-    const enemy: BoardMinion[] = [{ cardId: 'runescale', attack: 6, health: 6, keywords: [], spellProgress: 3 }];
+  it('enemy Runescale Drake scales with its OWN spells-this-turn (per-side); rate improved by its spellProgress', () => {
+    const enemy: BoardMinion[] = [{ cardId: 'runescale', attack: 6, health: 6, keywords: [], spellProgress: 4 }]; // rate = 2 + ⌊4/4⌋ = 3
+    // Runescale's grant is the only SYMMETRIC (+X/+X) buff; ignore the wall's incidental +1/+0 self-buffs.
     const g = (enemySpells: number, playerSpells: number) =>
-      maxBuffAtk(runVs(wall, enemy, { spellsThisTurn: enemySpells }, { spellsThisTurn: playerSpells }).events);
-    expect(g(0, 0)).toBe(1 + 3); // base 1 + its carried spellProgress 3 = +4/+4
-    expect(g(9, 9)).toBe(g(0, 0)); // neither side's spells-this-turn leeches into the grant anymore
+      runVs(wall, enemy, { spellsThisTurn: enemySpells }, { spellsThisTurn: playerSpells }).events
+        .reduce((mx, ev) => (ev.type === 'buff' && ev.health > 0 && ev.attack > mx ? ev.attack : mx), 0);
+    expect(g(0, 5)).toBe(3); // no spells on ITS side → the floored ×1 grant, NOT the player's 5 spells leaking in
+    expect(g(2, 0)).toBe(3 * 2); // its own rate 3 × its own 2 spells = +6/+6
   });
 });
 
@@ -3564,30 +3607,39 @@ describe('Batch 7a combat runes (Rebirth / Aftershocks / Undertow / Mirror March
   const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
     simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide());
 
-  it('Rune of Rebirth: a Rise returns at FULL base Health (golden-doubled), not 1', () => {
-    const p: BoardMinion[] = [{ cardId: 'pack', attack: 2, health: 2, keywords: ['R'] }];
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 40 }];
-    const base = CARD_INDEX['pack']!.health;
-    const withRune = simMods(p, e, 1, { runeRebirth: true });
-    const rb = withRune.events.find((ev) => ev.type === 'reborn');
-    expect(rb && rb.type === 'reborn' ? rb.hp : 0).toBe(base);
+  it('Rune of Rebirth: Start of Combat grants Rise to 2 random friendly minions', () => {
+    // Three vanilla bodies, none with Rise; the rune hands exactly two of them the R keyword up front.
+    const p: BoardMinion[] = [
+      { cardId: 'sandbag', attack: 1, health: 20 },
+      { cardId: 'sandbag', attack: 1, health: 20 },
+      { cardId: 'sandbag', attack: 1, health: 20 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 40 }];
+    const r = simMods(p, e, 1, { runeRebirth: true });
+    const grants = r.events.filter((ev) => ev.type === 'keyword' && ev.keyword === 'R');
+    expect(grants.length).toBe(2); // exactly 2, and to distinct bodies
+    expect(new Set(grants.map((ev) => (ev.type === 'keyword' ? ev.target : ''))).size).toBe(2);
     const without = simMods(p, e, 1, {});
-    const rb0 = without.events.find((ev) => ev.type === 'reborn');
-    expect(rb0 && rb0.type === 'reborn' ? rb0.hp : 0).toBe(1);
+    expect(without.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'R')).toBe(false);
   });
 
-  it('Rune of Aftershocks: Echo-summoned tokens land with +4/+4 baked in', () => {
-    // Pack's Deathrattle summons two 1/1 Pups — with the rune they land as 5/5s.
-    const p: BoardMinion[] = [{ cardId: 'pack', attack: 2, health: 2 }];
+  it('Rune of Aftershocks: TRIGGERING an Echo buffs your board +4/+4', () => {
+    // Pack's Deathrattle (an Echo) fires → the rune grants +4/+4 to the side's living minions.
+    const p: BoardMinion[] = [{ cardId: 'pack', attack: 2, health: 2 }, { cardId: 'sandbag', attack: 1, health: 40 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 40 }];
     const r = simMods(p, e, 1, { runeAftershocks: true });
+    const shocks = r.events.filter((ev) => ev.type === 'buff' && ev.source === 'Rune of Aftershocks');
+    expect(shocks.length).toBeGreaterThan(0);
+    expect(shocks.every((ev) => ev.type === 'buff' && ev.attack === 4 && ev.health === 4)).toBe(true);
+    // …and the Echo-summoned Pups are NOT pre-baked with +4/+4 any more (they land as vanilla 1/1s).
     const pups = r.events.filter((ev) => ev.type === 'summon' && ev.minion?.cardId === 'pup');
     expect(pups.length).toBeGreaterThanOrEqual(2);
     for (const ev of pups) {
       if (ev.type !== 'summon') continue;
-      expect(ev.minion.attack).toBe(1 + 4);
-      expect(ev.minion.health).toBe(1 + 4);
+      expect(ev.minion.attack).toBe(1);
     }
+    const without = simMods(p, e, 1, {});
+    expect(without.events.some((ev) => ev.type === 'buff' && ev.source === 'Rune of Aftershocks')).toBe(false);
   });
 
   it('Rune of Aftershocks: a NON-Echo summon (SoC Warden) is not buffed', () => {
@@ -3624,11 +3676,12 @@ describe('Batch 7a combat runes (Rebirth / Aftershocks / Undertow / Mirror March
     expect(r2.events.filter((ev) => ev.type === 'summon').length).toBe(0);
   });
 
-  it('Rune of the Trophy: records the FIRST friendly slaughterer as playerSlaughterCopy (once)', () => {
+  it('Rune of the Trophy: records the FIRST minion you KILL as playerSlaughterCopy (the victim, once)', () => {
+    // Two distinct victims: the copy must be the FIRST one felled, not the killer and not the later victim.
     const p: BoardMinion[] = [{ cardId: 'gnash', attack: 9, health: 30 }, { cardId: 'alley', attack: 9, health: 30 }];
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'sandbag', attack: 0, health: 1 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'pack', attack: 0, health: 1 }];
     const r = simMods(p, e, 1, { runeTrophy: true });
-    expect(r.playerSlaughterCopy).toBe('gnash'); // the first killer, not the second
+    expect(r.playerSlaughterCopy).toBe('sandbag'); // the first VICTIM (was: the killer, 'gnash')
     const r0 = simMods(p, e, 1, {});
     expect(r0.playerSlaughterCopy).toBeUndefined();
   });

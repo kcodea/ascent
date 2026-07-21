@@ -27,8 +27,8 @@ export const DEMONS: CardDef[] = [
     id: 'swordbored',
     name: 'Sword and Bored',
     tribe: 'demon',
-    tier: 1,
-    attack: 2,
+    tier: 2,
+    attack: 3,
     health: 1,
     keywords: ['SL'],
     effects: [{ on: 'onKill', do: 'onKillBuffFodder', params: { attack: 1, health: 1 } }],
@@ -59,9 +59,9 @@ export const DEMONS: CardDef[] = [
     attack: 2,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'addFodderNextShops', params: { count: 1, shops: 2 } }],
-    text: '**Shout:** add a Fodder to the next **2** shops.',
-    goldenText: '**Shout:** add **2** Fodder to the next **2** shops.',
+    effects: [{ on: 'onPlay', do: 'addFodderNextShops', params: { count: 1, shops: 1 } }],
+    text: '**Shout:** add a Fodder to your next shop.',
+    goldenText: '**Shout:** add **2** Fodder to your next shop.',
   },
   {
     id: 'brood',
@@ -118,12 +118,12 @@ export const DEMONS: CardDef[] = [
     attack: 5,
     health: 6,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'buffFodderImpsImproving', params: { step: 3 } }],
-    text: '**End of Turn:** give your Imps and Fodder **+3/+3**. This improves by **+3/+3** each time it triggers.',
-    goldenText: '**End of Turn:** give your Imps and Fodder **+6/+6**. This improves by **+6/+6** each time it triggers.',
+    effects: [{ on: 'endOfTurn', do: 'buffFodderImpsImproving', params: { step: 1 } }],
+    text: '**End of Turn:** give your Imps and Fodder **+1/+1**. This improves by **+1/+1** each time it triggers.',
+    goldenText: '**End of Turn:** give your Imps and Fodder **+2/+2**. This improves by **+2/+2** each time it triggers.',
   },
   {
-    // Spend-gold payoff: every 7 Gold you spend (a continuous per-instance meter, carried across turns)
+    // Buy-count payoff: every 4 cards you buy (a continuous per-instance meter, carried across turns)
     // permanently buffs your Fodder run-wide (like Bane) AND queues a Fodder into the next tavern.
     // Golden doubles both the grant and the Fodder count. (No longer affects Imps.)
     id: 'acid',
@@ -133,9 +133,9 @@ export const DEMONS: CardDef[] = [
     attack: 8,
     health: 8,
     keywords: [],
-    effects: [{ on: 'goldSpent', do: 'goldSpentBuffFodder', params: { every: 7, attack: 1, health: 1, fodder: 1 } }],
-    text: 'When you spend **7 Gold**, give your Fodder **+1/+1** and add **1 Fodder** to your next tavern.',
-    goldenText: 'When you spend **7 Gold**, give your Fodder **+2/+2** and add **2 Fodder** to your next tavern.',
+    effects: [{ on: 'cardsBought', do: 'goldSpentBuffFodder', params: { every: 4, attack: 1, health: 1, fodder: 1 } }],
+    text: 'When you buy **4 cards**, give your Fodder **+1/+1** and add **1 Fodder** to your next tavern.',
+    goldenText: 'When you buy **4 cards**, give your Fodder **+2/+2** and add **2 Fodder** to your next tavern.',
   },
   {
     // Battlecry (targeted): create a Fodder and feed it to a chosen friendly minion — it gains the
@@ -151,11 +151,11 @@ export const DEMONS: CardDef[] = [
     keywords: [],
     effects: [],
     chooseOne: [
-      { text: 'Add **2** Fodder to your next shop.', goldenText: 'Add **4** Fodder to your next shop.', effects: [{ on: 'onPlay', do: 'addTavernFodder', params: { count: 2 } }] },
-      { text: 'Give your **Fodder** **+3/+3**.', goldenText: 'Give your **Fodder** **+6/+6**.', effects: [{ on: 'onPlay', do: 'battlecryBuffFodder', params: { attack: 3, health: 3 } }] },
+      { text: 'Give your **Imps** **+2/+2**.', goldenText: 'Give your **Imps** **+4/+4**.', effects: [{ on: 'onPlay', do: 'battlecryBuffImps', params: { attack: 2, health: 2 } }] },
+      { text: 'Give your **Fodder** **+2/+2**.', goldenText: 'Give your **Fodder** **+4/+4**.', effects: [{ on: 'onPlay', do: 'battlecryBuffFodder', params: { attack: 2, health: 2 } }] },
     ],
-    text: '**Choose One:** add **2** Fodder to your next shop, or give your **Fodder** **+3/+3**.',
-    goldenText: '**Choose One:** add **4** Fodder to your next shop, or give your **Fodder** **+6/+6**.',
+    text: '**Choose One:** give your **Imps** **+2/+2**, or your **Fodder** **+2/+2**.',
+    goldenText: '**Choose One:** give your **Imps** **+4/+4**, or your **Fodder** **+4/+4**.',
   },
   {
     // Imp-payoff engine: converts your run-wide Imp Aura into a board-wide buff. On death (Echo) it fires in
@@ -167,9 +167,12 @@ export const DEMONS: CardDef[] = [
     attack: 4,
     health: 5,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffAllByImpAura' }],
-    text: '**Echo:** give your minions stats equal to your **Imp Aura**.',
-    goldenText: '**Echo:** give your minions **double** your **Imp Aura**.',
+    effects: [
+      { on: 'onDeath', do: 'deathrattleBuffAllByImpAura' },
+      { on: 'onDeath', do: 'deathrattleBuffImps', params: { attack: 2, health: 2 } },
+    ],
+    text: '**Echo:** give your minions **+1/+1**, equal to your **Imp Aura**. Improve your Imps by **+2/+2**.',
+    goldenText: '**Echo:** give your minions **+2/+2**, equal to **double** your **Imp Aura**. Improve your Imps by **+4/+4**.',
   },
   {
     id: 'trickster',
@@ -204,16 +207,15 @@ export const DEMONS: CardDef[] = [
     id: 'burialimp',
     name: 'Burial Imp',
     tribe: 'demon',
-    tier: 2,
-    attack: 3,
-    health: 3,
+    tier: 1,
+    attack: 2,
+    health: 1,
     keywords: [],
     effects: [
-      { on: 'onDeath', do: 'deathrattleBuffFodder', params: { attack: 1, health: 1 } },
       { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 1 } },
     ],
-    text: '**Echo:** give your Fodder **+1/+1** and summon an **Imp**.',
-    goldenText: '**Echo:** give your Fodder **+2/+2** and summon **2 Imps**.',
+    text: '**Echo:** summon an **Imp**.',
+    goldenText: '**Echo:** summon **2 Imps**.',
   },
   {
     // Critical Strike bruiser: Flurry (two swings) + Ward, each swing a 50% chance to deal double damage
@@ -270,9 +272,9 @@ export const DEMONS: CardDef[] = [
     attack: 4,
     health: 2,
     keywords: [],
-    effects: [{ on: 'avenge', do: 'avengeAddFodder', params: { count: 3, fodder: 2, shops: 2 } }],
-    text: '**Avenge (3):** add **2 Fodder** to your next **2** shops.',
-    goldenText: '**Avenge (3):** add **4 Fodder** to your next **2** shops.',
+    effects: [{ on: 'avenge', do: 'avengeAddFodder', params: { count: 3, fodder: 1, shops: 2 } }],
+    text: '**Avenge (3):** add **1 Fodder** to your next **2** shops.',
+    goldenText: '**Avenge (3):** add **2 Fodder** to your next **2** shops.',
   },
   {
     // End of Turn: both board-adjacent minions Consume a Fodder (gain its enchanted stats + fire the consume

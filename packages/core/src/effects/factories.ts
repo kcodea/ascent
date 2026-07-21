@@ -655,9 +655,10 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleBuffAllByImpAura: (ctx, self, _params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const imp = ctx.impAura(self.side);
-    const a = imp.attack * mul(self);
-    const h = imp.health * mul(self);
-    if (a <= 0 && h <= 0) return;
+    // FLOORED at +1/+1 (owner 2026-07-21): with no Imp Aura built up yet it still pays a baseline rather than
+    // nothing. `impAuraGrant` mirrors this exactly for the card text — keep the two in step.
+    const a = Math.max(1, imp.attack) * mul(self);
+    const h = Math.max(1, imp.health) * mul(self);
     for (const m of ctx.living(self.side)) ctx.buff(m, a, h, self.uid);
   },
 
@@ -989,9 +990,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     huntGuard.add(self);
     try {
       const base = num(params.attack, 1);
-      const m = (base + (self.summonBonus ?? 0)) * mul(self); // ?? 0 — recruit BoardCards may not have it seeded
+      const every = Math.max(1, num(params.every, 1)); // improve once per `every` fires (Hunter: every 3)
+      const fires = self.summonBonus ?? 0; // ?? 0 — recruit BoardCards may not have it seeded; counts FIRES, carried back
+      const m = base * (1 + Math.floor(fires / every)) * mul(self);
       if (m > 0) for (const t of ctx.living(self.side)) if (t !== self) ctx.buff(t, m, m, self.uid);
-      self.summonBonus = (self.summonBonus ?? 0) + base * ctx.improveRepsFor(self.side); // permanent improve (×2 under Mastery), carried back
+      self.summonBonus = fires + ctx.improveRepsFor(self.side); // count this fire (×2 under Mastery), carried back
     } finally {
       huntGuard.delete(self);
     }
@@ -1318,6 +1321,28 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const prog = self.spellProgress ?? 0;
     const a = (num(params.attack, 1) + prog) * mul(self);
     const h = (num(params.health, 1) + prog) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} channels the runes` });
+    for (const m of ctx.living(self.side)) {
+      if (m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+    }
+  },
+
+  /** Runescale Drake (reworked 2026-07-21) — Start of Combat: give your `tribe` (Dragons) a PER-SPELL rate for
+   *  every spell cast THIS TURN (`ctx.spellsThisTurnFor`, per-side). The per-spell rate is `attack`/`health`
+   *  base, improved by `step` for every `every` spells cast while THIS instance has been on the board
+   *  (`self.spellProgress`, ticked by `spellCastImproveSelf`). Grant = rate × spells-this-turn. Golden doubles
+   *  the whole grant. No spells this turn → no grant (the multiplier is 0). */
+  scTribeBuffPerSpellImproving: (ctx, self, params) => {
+    const tribe = (str(params.tribe) || 'dragon') as Tribe;
+    const step = num(params.step, 1);
+    const every = Math.max(1, num(params.every, 4));
+    const improve = step * Math.floor((self.spellProgress ?? 0) / every);
+    // Per-side: an enemy Runescale reads the OPPONENT's spells this turn. FLOORED at 1 (owner 2026-07-21) so a
+    // turn with no spells still pays the base rate rather than nothing at all.
+    const spells = Math.max(1, ctx.spellsThisTurnFor(self.side));
+    const a = (num(params.attack, 2) + improve) * spells * mul(self);
+    const h = (num(params.health, 2) + improve) * spells * mul(self);
     if (a <= 0 && h <= 0) return;
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} channels the runes` });
     for (const m of ctx.living(self.side)) {

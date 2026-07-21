@@ -53,18 +53,21 @@ export function summonImproveText(cardId: string, summonBonus: number, golden: b
 }
 
 /**
- * Hunter (`onGainAttackBuffImproving`) — its board-wide grant GROWS: each Attack gain gives your minions
- * (base + accrued `summonBonus`) × golden, then the accrual climbs by base. Surface the CURRENT grant (green) in
- * place of the first printed "+N/+N"; the "+step/+step" improve rate stays. Null with no accrual yet (printed base
- * is accurate), matching the sibling contracts.
+ * Hunter (`onGainAttackBuffImproving`) — its board-wide grant GROWS in steps: each Attack gain gives your minions
+ * base × (1 + ⌊fires/every⌋) × golden, where `summonBonus` counts how many times it has FIRED (every = 3 for
+ * Hunter). Surface the CURRENT grant (green) in place of the first printed "+N/+N"; the "+step/+step every N"
+ * improve clause stays. Null until the grant has actually stepped up (printed base is accurate until then).
  */
 export function hunterText(cardId: string, summonBonus: number, golden: boolean): string | null {
-  if (summonBonus <= 0) return null;
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'onGainAttackBuffImproving');
   if (!def || !eff) return null;
-  const base = Number((eff.params as { attack?: number })?.attack ?? 1);
-  const m = (base + summonBonus) * (golden ? 2 : 1);
+  const p = eff.params as { attack?: number; every?: number };
+  const base = Number(p?.attack ?? 1);
+  const every = Math.max(1, Number(p?.every ?? 1));
+  const steps = Math.floor(Math.max(0, summonBonus) / every);
+  if (steps <= 0) return null; // not stepped up yet → the printed base grant is accurate
+  const m = base * (1 + steps) * (golden ? 2 : 1);
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   let done = false;
   return src.replace(/\+\d+\/\+\d+/g, (mt) => (done ? mt : ((done = true), `{{+${m}/+${m}}}`)));
@@ -174,21 +177,45 @@ export function packLeaderText(cardId: string, summonBonus: number, golden: bool
 }
 
 /**
- * Runescale Drake's Start-of-Combat Dragon buff = base + the spells cast while THIS instance has been on the
- * board (per-instance `spellProgress`; non-retroactive, persistent). Surface the CURRENT grant (green) —
- * (base + spellProgress) × golden — by replacing ONLY the first "+A/+B" group (the grant), leaving the "+1/+1"
- * improve rate that follows. Returns null before any spell has been cast on board (the printed base is accurate).
+ * Chef Raag's Echo buffs your whole board by your run-wide **Imp Aura**, FLOORED at +1/+1 (so a fresh Raag with
+ * no Imp buffs still pays a baseline) and doubled when golden. Surface the CURRENT grant (green) in place of the
+ * first printed "+N/+N"; the "Improve your Imps by +2/+2" clause that follows is left alone. Mirrors the
+ * `deathrattleBuffAllByImpAura` factory exactly — keep the two in step. Returns null for other cards, or when the
+ * live value already equals the printed base (no aura yet), so the printed text stands.
  */
-export function runescaleText(cardId: string, golden: boolean, spellProgress: number): string | null {
-  if (spellProgress <= 0) return null;
+export function chefRaagText(cardId: string, golden: boolean, impAura?: { attack: number; health: number }): string | null {
   const def = CARD_INDEX[cardId];
-  const eff = def?.effects.find((e) => e.do === 'scTribeBuffPerProgress');
-  if (!def || !eff) return null;
-  const base = Number((eff.params as { attack?: number })?.attack ?? 1);
-  const x = (base + spellProgress) * (golden ? 2 : 1);
+  if (!def?.effects.some((e) => e.do === 'deathrattleBuffAllByImpAura')) return null;
+  const mult = golden ? 2 : 1;
+  const a = Math.max(1, impAura?.attack ?? 0) * mult;
+  const h = Math.max(1, impAura?.health ?? 0) * mult;
+  if (a === mult && h === mult) return null; // still the floor → the printed +1/+1 (golden +2/+2) is accurate
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   let done = false;
-  return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${x}/+${x}}}`)));
+  return src.replace(/\*\*\+\d+\/\+\d+\*\*/g, (m) => (done ? m : ((done = true), `{{+${a}/+${h}}}`)));
+}
+
+/**
+ * Runescale Drake's Start-of-Combat Dragon buff is a PER-SPELL rate applied to every spell cast this turn. The
+ * rate = base + `step` for every `every` (4) spells cast while THIS instance has been on the board (per-instance
+ * `spellProgress`). Surface the CURRENT per-spell rate (green) — (base + step·⌊progress/every⌋) × golden — by
+ * replacing ONLY the first "+A/+B" group (the per-spell rate), leaving the "+1/+1 every 4" improve clause. Returns
+ * null until the rate has actually improved (before then the printed base rate is already accurate).
+ */
+export function runescaleText(cardId: string, golden: boolean, spellProgress: number): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'scTribeBuffPerSpellImproving');
+  if (!def || !eff) return null;
+  const p = eff.params as { attack?: number; step?: number; every?: number };
+  const base = Number(p?.attack ?? 2);
+  const step = Number(p?.step ?? 1);
+  const every = Math.max(1, Number(p?.every ?? 4));
+  const mult = golden ? 2 : 1;
+  const rate = (base + step * Math.floor(Math.max(0, spellProgress) / every)) * mult;
+  if (rate === base * mult) return null; // no improvement yet → printed base rate is accurate
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  let done = false;
+  return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${rate}/+${rate}}}`)));
 }
 
 /**
@@ -500,7 +527,7 @@ export interface StepProgress {
  */
 export function stepProgress(
   cardId: string,
-  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number },
+  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number },
 ): StepProgress | null {
   const def = CARD_INDEX[cardId];
   if (!def) return null;
@@ -534,10 +561,14 @@ export function stepProgress(
   // Bloodbinder: the armed Bleed fires every N GLOBAL combat attack swings (either side). Shows 0/N on the board, ticks in combat.
   const bleed = def.effects.find((e) => e.do === 'scArmBleed');
   if (bleed) return cyc(p.bleedAttacks ?? 0, Math.max(1, n((bleed.params as { every?: number })?.every, 4)));
-  // Koron / Banksly: their payoff re-fires every N Gold SPENT while on the board (the `goldTick` meter). SHOP-phase —
+  // Gold-meter payoffs re-fire every N Gold SPENT while on the board (the `goldTick` meter). SHOP-phase —
   // `goldTick` is a recruit accrual (undefined in combat, where no Gold is spent), so it shows on the shop board.
   const goldSpent = def.effects.find((e) => e.on === 'goldSpent' && (e.params as { every?: number } | undefined)?.every !== undefined);
   if (goldSpent) return p.goldTick === undefined ? null : cyc(p.goldTick, Math.max(1, n((goldSpent.params as { every?: number })?.every, 7)));
+  // Korok / Banksly: their payoff re-fires every N cards BOUGHT while on the board (the `buyTick` meter) —
+  // the buy-count sibling of the Gold meter, likewise a shop-phase accrual (undefined in combat).
+  const bought = def.effects.find((e) => e.on === 'cardsBought' && (e.params as { every?: number } | undefined)?.every !== undefined);
+  if (bought) return p.buyTick === undefined ? null : cyc(p.buyTick, Math.max(1, n((bought.params as { every?: number })?.every, 4)));
   const pup = def.effects.find((e) => e.do === 'spellCastTransform');
   if (pup) { const at = Math.max(1, n((pup.params as { at?: number })?.at, 10)); return { current: Math.min(p.spellProgress ?? 0, at), total: at }; }
   if (def.ascendAt && def.ascendInto) { const at = def.ascendAt; return { current: Math.min(p.ascendProgress ?? 0, at), total: at }; }

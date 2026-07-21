@@ -97,6 +97,7 @@ export type GameEvent =
   | 'spellCast' // recruit phase: any spell was cast (for spell-tracking minions)
   | 'summonOverflow' // recruit phase: a summon couldn't fit on the full board (Flowing Monk)
   | 'goldSpent' // recruit phase: the player spent Gold — fires per threshold (Acid, Banksly)
+  | 'cardsBought' // recruit phase: the player bought a card — fires per threshold (Korok, Banksly)
   | 'onSell'; // recruit phase: this minion is sold (Hoard Whelp — get Gold)
 
 /**
@@ -154,11 +155,13 @@ export type EffectFactoryId =
   | 'scGrantEnemyTaunt' // Arena Heckler: Start of Combat — give the enemy's rightmost minion Taunt; golden the two rightmost
   | 'scSummonCopy' // Mirrorhide Rhino: Start of Combat — summon a copy of this minion's current body; golden two
   | 'scTribeBuffPerSpell' // (legacy) Start of Combat — buff a tribe +N/+N, +M per spell cast this turn
-  | 'scTribeBuffPerProgress' // Runescale Drake: Start of Combat — buff a tribe +N/+N, +1 per spell cast while this was on board
+  | 'scTribeBuffPerProgress' // Runescale Drake (legacy): Start of Combat — buff a tribe +N/+N, +1 per spell cast while this was on board
+  | 'scTribeBuffPerSpellImproving' // Runescale Drake: Start of Combat — buff a tribe by (rate × spells cast this turn), rate improves every N spells on board
   | 'scTribeBuffPerPlayed' // (retired dial) Start of Combat — buff Beasts +N/+N, +M per Beast played this turn
   | 'scTribeBuffImproving' // Pack Leader: Start of Combat — buff Beasts +M/+M (base + accrued), improve permanently
   // recruit-time (resolved by @game/sim, baked into stats before combat)
   | 'battlecryBuffTribe'
+  | 'battlecryBuffTarget' // Twilight Emissary: Battlecry — buff a CHOSEN friendly minion +atk/+hp (targetTribe-restricted)
   | 'battlecrySummon'
   | 'buffOnBuy'
   | 'buffBoardOnBuy' // On buy: buff your whole board (Brightwing Broker)
@@ -968,6 +971,9 @@ export interface Minion {
   /** Perfect Core (welded): number of random spells granted when this attacks. Standalone Perfect Core
    *  grants via its own onAttack effect instead, so a host never double-counts. */
   rallySpellWeld?: number;
+  /** Empty Graves: granted at Start of Combat to your left-most minion — each time it attacks (Rally) it
+   *  triggers your left-most living Echo. Combat-only (never persisted to a run board card). */
+  emptyGravesRally?: boolean;
   /** Bloodlust: at Start of Combat, take an immediate out-of-turn attack, immune to retaliation for that swing. */
   bloodlust?: boolean;
   /** Bloodlust weld: on each of its own attacks, give a random friendly minion Attack equal to this minion's

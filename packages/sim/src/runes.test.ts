@@ -71,8 +71,8 @@ describe('Runeforge — framework', () => {
   });
 
   it('buyRune spends the cost, applies the reward, records the rune, and closes the forge (once per game)', () => {
-    const s = buyRune('rune_warding', 10); // cost 4
-    expect(s.embers).toBe(6);
+    const s = buyRune('rune_warding', 10); // cost 1
+    expect(s.embers).toBe(9);
     expect(s.questFlags?.runeWarding).toBe(true);
     expect(s.ownedRunes).toEqual(['rune_warding']);
     expect(s.runeforgeOffer).toBeUndefined();
@@ -109,8 +109,8 @@ describe('Runeforge — each rune applies its effect on purchase', () => {
   it('Spending arms the recurring End-of-Turn effect', () => {
     expect(buyRune('rune_spending').questRecurringEndOfTurn).toContain('runeSpending');
   });
-  it('Consumption arms the +2/+1 Fodder-on-Consume bump', () => {
-    expect(buyRune('rune_consumption').runeConsume).toEqual({ attack: 2, health: 1 });
+  it('Consumption arms the random +1 Attack / +1 Health Fodder-on-Consume improve', () => {
+    expect(buyRune('rune_consumption').runeConsume).toEqual({ attack: 1, health: 1 });
   });
   it('Pillaging grants a Pillager to hand AND makes Gold Pouches worth 2', () => {
     const s = buyRune('rune_pillaging'); // cost 8
@@ -162,15 +162,16 @@ describe('Runeforge — rune effects fire in play', () => {
     expect(spellDisplayText('emberpouch', 0, 0, 0, 0, 0, 0)).toBe('Gain **1 Gold**.');
   });
 
-  it('Slaying: each Slaughter this combat banks +2 Gold for next turn', () => {
+  it('Slaying: each Slaughter this combat raises your max Gold by 1', () => {
+    const before = createRun(1, 'runesmith').maxEmbers;
     const s = reduce({
       ...createRun(1, 'runesmith'), phase: 'combat', questFlags: { runeSlaying: true },
       lastCombat: {
         events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 3, initial: { player: [], enemy: [] },
         playerQuestTally: { attack: 0, summonCombat: 0, slaughter: 3, slaughterKeyword: 0, attackByTribe: {}, summonCombatByTribe: {}, slaughterByTribe: {}, statGainByTribe: {} },
       } as CombatResult,
-    }, { type: 'settleCombat' }); // settle WITHOUT advancing, so bonusEmbersNextTurn isn't yet spent into next turn
-    expect(s.bonusEmbersNextTurn).toBe(6); // 3 slaughters × 2
+    }, { type: 'settleCombat' }); // settle WITHOUT advancing, so the raise is observable on this state
+    expect(s.maxEmbers).toBe(before + 3); // 3 slaughters × +1 max Gold
   });
 
   it('Summoning: casting a spell improves your Imps +1/+1 (run-wide)', () => {
@@ -343,15 +344,12 @@ describe('Buff Gust FX signal', () => {
 });
 
 describe('Fodder Infusion FX signal', () => {
-  it("Godfodder's Fodder pick stamps the sender's uid (and queues the Fodder)", () => {
-    let s: RunState = { ...createRun(1, 'warden'), phase: 'recruit', embers: 10, board: [],
-      hand: [{ uid: 'gf', cardId: 'godfodder', tribe: 'demon', attack: 3, health: 2, keywords: [], golden: false }] };
-    s = reduce(s, { type: 'play', uid: 'gf' });
-    expect(s.chooseOne).toBeDefined();
-    s = reduce(s, { type: 'chooseOne', index: 0 }); // "Add 2 Fodder to your next shop"
-    expect(s.pendingTavern?.length).toBe(2);
+  it("Maw of the Pit's End-of-Turn Fodder add stamps the sender's uid (and queues the Fodder)", () => {
+    let s: RunState = { ...createRun(1, 'warden'), phase: 'recruit', embers: 10, shop: [],
+      board: [{ uid: 'mw', cardId: 'maw', tribe: 'demon', attack: 4, health: 5, keywords: ['T'], golden: false }] };
+    s = reduce(s, { type: 'faceOmen' }); // End of Turn: Maw adds a Fodder to the next shop
     expect(s.fodderSendSeq).toBe(1);
-    expect(s.fodderSendUid).toBe('gf'); // the Godfodder itself is the sender (played to the board, uid kept)
+    expect(s.fodderSendUid).toBe('mw'); // Maw is the sender (the tavern-Fodder add stamps its uid)
   });
 
   it("Soulfeeder's Shout stamps too (addFodderNextShops)", () => {
@@ -501,7 +499,7 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
   // Per-z FX itemization (owner ruling 2026-07-17): "+x/+y per z" EoT rewards project one sourceless FX
   // event PER UNIT of the scaler (10 Attachments → ten +2/+2 hits, not one +20/+20 lump), while the real
   // commit (applyEndOfTurn) applies identical totals with no events (its stamps land after the phase flip).
-  it('Blueprint Cache: the projection itemizes one +2/+2 event per Attachment; the commit matches in total', () => {
+  it('Blueprint Cache: the projection itemizes one +3/+3 event per Attachment; the commit matches in total', () => {
     const mk = (): RunState => ({ ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
       questRecurringEndOfTurn: ['buffMechsPerAttachment'],
       board: [{ uid: 'm', cardId: 'drone', tribe: 'mech', attack: 2, health: 3, keywords: [], golden: false, attachments: 3 }, mkAlley('b')] });
@@ -509,12 +507,12 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
     expect(fx).toHaveLength(1);
     const evs = fx[0]!.buffFx.filter((e) => e.targetUid === 'm');
     expect(evs).toHaveLength(3); // one event per Attachment…
-    expect(evs.every((e) => e.sourceUid === undefined && e.attack === 2 && e.health === 2)).toBe(true); // …each +2/+2
-    expect(steps[0]!['m']).toEqual({ attack: 8, health: 9 }); // total still +6/+6
+    expect(evs.every((e) => e.sourceUid === undefined && e.attack === 3 && e.health === 3)).toBe(true); // …each +3/+3
+    expect(steps[0]!['m']).toEqual({ attack: 11, health: 12 }); // total +9/+9 (3 Attachments × +3/+3)
     const commit = mk();
     applyEndOfTurn(commit);
     const m = commit.board.find((c) => c.uid === 'm')!;
-    expect([m.attack, m.health]).toEqual([8, 9]); // commit total identical
+    expect([m.attack, m.health]).toEqual([11, 12]); // commit total identical
     expect(commit.recruitBuffFx).toHaveLength(0); // …and emits NO events (itemizeFx is projection-only)
   });
 
@@ -551,10 +549,10 @@ describe('Runes batch 1 — grants / discovers / economy', () => {
     expect(spells.length).toBe(3);
   });
 
-  it('Rune of Spare Parts: conjures 4 random Attachments to hand', () => {
+  it('Rune of Spare Parts: conjures 5 random Attachments to hand', () => {
     const s = buyRune('rune_spare_parts', 10, { tier: 4, hand: [] });
     const attachments = s.hand.filter((c) => CARD_INDEX[c.cardId]?.keywords.includes('M'));
-    expect(attachments.length).toBe(4);
+    expect(attachments.length).toBe(5);
   });
 
   it('Rune of the Scout: opens a Discover of Tier-5 minions', () => {
@@ -618,12 +616,12 @@ describe('Runes batch 2 — Kindling / Pair / Menagerie / Reliquary + forge sche
     expect(s.board.length).toBeGreaterThanOrEqual(before); // fired without error (may summon tokens)
   });
 
-  it('The Runeforge quest: buying 7 minions arms a next-turn BASIC forge visit + 4 Gold', () => {
+  it('The Runeforge quest: buying 9 cards arms a next-turn BASIC forge visit + 4 Gold', () => {
     // Complete via the reward directly (buy-count objective drives it live in play).
     const q = QUEST_INDEX['q_the_runeforge']!;
     expect(q.tribe).toBe('neutral');
     expect(q.tier).toBe('lesser');
-    expect(q.objective).toEqual({ event: 'buy', count: 7 });
+    expect(q.objective).toEqual({ event: 'buy', count: 9 });
     expect(q.reward).toEqual({ kind: 'scheduleRuneforge', forge: 'basic', gold: 4 });
   });
 
@@ -762,9 +760,9 @@ describe('Runes batch 4b — new cards (Feasting Bogrot / Reconfigured Combinato
   const buyEpic = (runeId: string): RunState =>
     reduce({ ...createRun(1, 'warden'), wave: 6, phase: 'recruit', embers: 10, hand: [], runeforgeOffer: [runeId], runeforgeEpic: true }, { type: 'buyRune', index: 0 });
 
-  it('Guardian: Runeguard — 8 armor + schedules the Epic Runeforge for turn 10', () => {
+  it('Guardian: Runeguard — 13 armor + schedules the Epic Runeforge for turn 10', () => {
     const s = createRun(1, 'runeguard');
-    expect(s.armor).toBe(8);
+    expect(s.armor).toBe(13);
     expect(s.epicForgeWave).toBe(10);
     const next = reduce({ ...s, wave: 9, phase: 'combat', epicForgeWave: 10, lastCombat: win }, { type: 'resolveCombat' });
     expect(next.wave).toBe(10);
@@ -797,20 +795,21 @@ describe('Runes batch 4b — new cards (Feasting Bogrot / Reconfigured Combinato
 describe('The Epic Runeforge — the greater quest that opens the Epic Runeforge next turn', () => {
   const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
 
-  it('is a neutral greater quest named "The Epic Runeforge" (buy 9) whose reward opens the Epic Runeforge + gives 8 Gold', () => {
+  it('is a neutral greater quest named "The Epic Runeforge" (cast 15 spells) whose reward opens the Epic Runeforge + gives 8 Gold', () => {
     const q = QUEST_INDEX['q_epic_commission']!;
     expect(q).toBeDefined();
     expect(q.name).toBe('The Epic Runeforge');
     expect(q.tribe).toBe('neutral');
     expect(q.tier).toBe('greater');
-    expect(q.objective).toEqual({ event: 'buy', count: 9 });
+    expect(q.objective).toEqual({ event: 'castSpell', count: 15 });
     expect(q.reward).toEqual({ kind: 'multi', rewards: [{ kind: 'openEpicRuneforge' }, { kind: 'gainGold', amount: 8 }] });
   });
 
-  it('completing it (the 9th buy) ARMS the forge for next turn + grants 8 Gold — it does not open on the completing turn', () => {
+  it('completing it (the 15th spell) ARMS the forge for next turn + grants 8 Gold — it does not open on the completing turn', () => {
     let s: RunState = { ...createRun(1, 'warden'), wave: 7, phase: 'recruit', tier: 6, embers: 5, freeRolls: 0,
-      activeQuests: [{ questId: 'q_epic_commission', progress: 8, completed: false }] };
-    s = reduce(s, { type: 'buy', uid: s.shop[0]!.uid }); // 9th buy → completes
+      activeQuests: [{ questId: 'q_epic_commission', progress: 14, completed: false }],
+      hand: [{ uid: 'sp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'sp' }); // 15th spell → completes
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.pendingEpicRuneforge).toBe(true); // armed…
     expect(s.runeforgeOffer).toBeUndefined(); // …but NOT opened this turn
@@ -830,8 +829,8 @@ describe('The Epic Runeforge — the greater quest that opens the Epic Runeforge
   it('The Runeforge quest: the basic forge is DEFERRED — opens NEXT turn, not mid-turn (owner bug 2026-07-13)', () => {
     let s: RunState = { ...createRun(1, 'warden'), wave: 5, phase: 'recruit', tier: 6, embers: 20, freeRolls: 0,
       resolve: 999, maxResolve: 999, armor: 999,
-      activeQuests: [{ questId: 'q_the_runeforge', progress: 6, completed: false }] };
-    s = reduce(s, { type: 'buy', uid: s.shop[0]!.uid }); // 7th buy → completes The Runeforge
+      activeQuests: [{ questId: 'q_the_runeforge', progress: 8, completed: false }] };
+    s = reduce(s, { type: 'buy', uid: s.shop[0]!.uid }); // 9th buy → completes The Runeforge
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.pendingBasicForge?.deferred).toBe(true); // armed, but deferred…
     expect(s.runeforgeOffer).toBeUndefined(); // …so it does NOT open on the completing turn
@@ -901,18 +900,23 @@ describe('Batch 7a runes (Rebirth / Tempering / Aftershocks / Refrain / Trophy +
     expect(left.attachments ?? 0).toBe(1);
   });
 
-  it("Rune of Refrain: the 3rd Shout played returns the turn's FIRST Shout (the actual minion) to hand", () => {
-    let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10, runeRefrain: true,
-      // Three DISTINCT simple Shout minions (three copies of one card would triple into a golden mid-test;
-      // Discover-battlecries would open a modal and block the later plays).
-      hand: [mkCard('a1', 'alley', 'beast', 1, 1), mkCard('a2', 'cleric', 'dragon', 1, 1), mkCard('a3', 'deathswarmer', 'undead', 1, 1)] };
-    s = reduce(s, { type: 'play', uid: 'a1' });
-    s = reduce(s, { type: 'play', uid: 'a2' });
-    expect(s.board.some((c) => c.uid === 'a1')).toBe(true); // still down after two
-    s = reduce(s, { type: 'play', uid: 'a3' });
-    expect(s.board.some((c) => c.uid === 'a1')).toBe(false); // the first Shout left the board…
-    expect(s.hand.some((c) => c.uid === 'a1')).toBe(true);   // …into the hand, same instance
-    expect(s.shoutsThisTurn).toBe(3);
+  it('Rune of Refrain: a played Shout minion has a ~20% chance to return to hand (seeded, rune-gated)', () => {
+    // Probabilistic, so assert the SHAPE across many seeded trials rather than one outcome: it happens, it is
+    // not the common case, it never happens without the rune, and a given seed always resolves the same way.
+    const trial = (seed: number, rune: boolean): boolean => {
+      let s: RunState = { ...createRun(seed, 'warden'), wave: 3, phase: 'recruit', embers: 10,
+        ...(rune ? { runeRefrain: true } : {}),
+        hand: [mkCard('a1', 'alley', 'beast', 1, 1)] };
+      s = reduce(s, { type: 'play', uid: 'a1' });
+      return s.hand.some((c) => c.uid === 'a1');
+    };
+    const N = 60;
+    let returned = 0;
+    for (let i = 1; i <= N; i++) if (trial(i, true)) returned++;
+    expect(returned).toBeGreaterThan(0);   // it does fire…
+    expect(returned).toBeLessThan(N / 2);  // …but it's the minority case (20%, not a coin flip)
+    for (let i = 1; i <= N; i++) expect(trial(i, false)).toBe(false); // never without the rune
+    expect(trial(7, true)).toBe(trial(7, true)); // deterministic for a given seed (replay-safe)
   });
 
   it("Rune of Transfusion: a Demon Consume also feeds the leftmost minion the Fodder's stats", () => {
@@ -1001,7 +1005,7 @@ describe('Rune of Mastery (batch 7b) — Improve steps apply twice', () => {
     expect(play(true)).toBe(4);
   });
 
-  it('Ritualist: the End-of-Turn escalation step doubles (+6 instead of +3)', () => {
+  it('Ritualist: the End-of-Turn escalation step doubles (+2 instead of +1)', () => {
     const eot = (mastery: boolean): number => {
       const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
         runeMastery: mastery || undefined,
@@ -1009,15 +1013,24 @@ describe('Rune of Mastery (batch 7b) — Improve steps apply twice', () => {
       applyEndOfTurn(s);
       return s.board[0]!.eotBonus ?? 0;
     };
-    expect(eot(false)).toBe(3);
-    expect(eot(true)).toBe(6);
+    expect(eot(false)).toBe(1);
+    expect(eot(true)).toBe(2);
   });
 
-  it('Rune of Consumption stacked with Mastery: each Consume improves future Fodder twice (+4/+2)', () => {
+  it('Rune of Consumption stacked with Mastery: each Consume improves future Fodder TWICE', () => {
+    // The improve now picks Attack OR Health at random per rep, so the SPLIT is seed-dependent — assert the
+    // total instead: 2 reps × +1 = +2 of stats, all of it on the Fodder enchant.
     const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
-      runeMastery: true, runeConsume: { attack: 2, health: 1 }, board: [] };
+      runeMastery: true, runeConsume: { attack: 1, health: 1 }, board: [] };
     noteFodderConsumed(s, 1, 1);
-    expect(s.cardBuffs?.['fred']).toEqual({ attack: 4, health: 2 });
+    const fred = s.cardBuffs?.['fred'] ?? { attack: 0, health: 0 };
+    expect(fred.attack + fred.health).toBe(2); // two independent improves landed
+    // …and without Mastery it lands exactly one.
+    const one: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
+      runeConsume: { attack: 1, health: 1 }, board: [] };
+    noteFodderConsumed(one, 1, 1);
+    const f1 = one.cardBuffs?.['fred'] ?? { attack: 0, health: 0 };
+    expect(f1.attack + f1.health).toBe(1);
   });
 
   it('Spirit Worgen: the per-spell Improve contribution doubles (base per-play grant unchanged)', () => {
@@ -1076,10 +1089,10 @@ describe('Blueprint Cache wave grouping (owner 2026-07-18)', () => {
     expect(waves.get(0)!.sort()).toEqual(['a', 'b', 'c']);          // wave 0 = ALL three Mechs together
     expect(waves.get(1)!.sort()).toEqual(['a', 'b']);
     expect(waves.get(2)!).toEqual(['a']);
-    // Totals unchanged: +2/+2 per Attachment.
-    expect(steps[0]!['a']).toEqual({ attack: 2 + 6, health: 3 + 6 });
-    expect(steps[0]!['b']).toEqual({ attack: 2 + 4, health: 3 + 4 });
-    expect(steps[0]!['c']).toEqual({ attack: 2 + 2, health: 3 + 2 });
+    // Totals: +3/+3 per Attachment.
+    expect(steps[0]!['a']).toEqual({ attack: 2 + 9, health: 3 + 9 });
+    expect(steps[0]!['b']).toEqual({ attack: 2 + 6, health: 3 + 6 });
+    expect(steps[0]!['c']).toEqual({ attack: 2 + 3, health: 3 + 3 });
   });
 
   it('every event carries its wave tag so the UI can group them', () => {

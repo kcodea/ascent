@@ -41,6 +41,16 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 - **One strike per attack.** A clash is two-way, so the damage moment following an attack was re-bursting
   *both* units — a second strike FX on the defender and a third on the attacker, which was never struck. The
   clash pair is now skipped there (their FX rides the lunge's impact channel); Cleave/AoE splash still bursts.
+- **New Dragon: Twilight Emissary** (T2 2/3, Taunt) — *Battlecry: give a friendly Dragon +2/+2*, a targeted
+  buff on a new `battlecryBuffTarget` factory. Plus Deathswarmer → T1 1/3 and **+5 starting Armor for every
+  hero**.
+
+- **Balance patch (2026-07-21) — complete**, on `balance/patch-2026-07-21` across 12 tested commits: Demon
+  minion rebalance, 23 rune costs + 8 rune effect reworks, 40 quest objective retunes, 3 quest removals + 6
+  quest flag reworks, and the new-mechanic minions (a new **buy-count** trigger for Korok/Banksly, Hunter's
+  every-3 improve, **Runescale Drake** rescaled to spells-cast-this-turn, plus Hoard Cleric, Kennelmaster,
+  Thundeer, Attachment Mechanic, Spell Appraiser, Nimbus, Displacement and Hoardbreaker).
+
 - **Quest tendrils** — a gold ribbon reaches from a quest's node to the unit it triggers (Echoing Roar
   re-firing a Shout), with its own dev tuner.
 

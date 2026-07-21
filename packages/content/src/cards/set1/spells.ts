@@ -487,7 +487,7 @@ export const SPELLS: CardDef[] = [
     id: 'displacement',
     name: 'Displacement',
     tribe: 'neutral',
-    tier: 4,
+    tier: 5,
     attack: 0,
     health: 1,
     keywords: [],

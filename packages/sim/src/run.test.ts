@@ -51,7 +51,7 @@ import {
 import { magnetizesTo } from './reducer';
 import { replayBattlecry } from './recruit'; // not re-exported from the package index — internal on purpose
 import type { BoardMinion } from '@game/core';
-import { applyEndOfTurn, applyGoldSpent, conjuredStats, implosionCasts, spellCasts, spellCostReduction, weldMagnetic } from './recruit';
+import { applyCardsBought, applyEndOfTurn, conjuredStats, implosionCasts, spellCasts, spellCostReduction, weldMagnetic } from './recruit';
 import { rollShop } from './shop';
 
 /** Play greedily until the run ends (game over OR victory at maxWave): buy, play, else face omen. */
@@ -808,6 +808,42 @@ describe('run loop (@game/sim)', () => {
     expect(stray?.health).toBe(1); // aura is Attack-only
   });
 
+  it('Twilight Emissary: Battlecry buffs the CHOSEN friendly Dragon +2/+2 (Dragons only)', () => {
+    const setup = (): RunState => ({
+      ...createRun(1), embers: 0, shop: [],
+      board: [
+        { uid: 'd1', cardId: 'cleric', tribe: 'dragon', attack: 5, health: 5, keywords: [], golden: false }, // highest Attack
+        { uid: 'd2', cardId: 'whelp', tribe: 'dragon', attack: 1, health: 1, keywords: [], golden: false },
+        { uid: 'nb', cardId: 'alley', tribe: 'beast', attack: 9, health: 9, keywords: [], golden: false },   // not a Dragon
+      ],
+      hand: [{ uid: 'te', cardId: 'emissary', tribe: 'dragon', attack: 2, health: 3, keywords: ['T'], golden: false }],
+    });
+    let s = setup();
+    s = reduce(s, { type: 'play', uid: 'te' });
+    expect(s.pendingTarget).toBeDefined(); // waits for the player to pick a Dragon
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'd2' }); // the SMALL Dragon, not the auto-pick
+    expect(s.pendingTarget).toBeUndefined();
+    const d2 = s.board.find((c) => c.uid === 'd2')!;
+    expect([d2.attack, d2.health]).toEqual([3, 3]); // 1/1 + 2/2
+    expect(s.board.find((c) => c.uid === 'd1')!.attack).toBe(5); // the higher-Attack Dragon untouched
+    expect(s.board.find((c) => c.uid === 'nb')!.attack).toBe(9); // the non-Dragon untouched
+  });
+
+  it('Twilight Emissary: with no OTHER Dragon there is no viable target — no prompt, no fire', () => {
+    // The standing tribe-restricted-target convention (Toxin Tender): the Battlecry simply doesn't fire and the
+    // body plays as-is, rather than stranding the player on an unanswerable prompt or buffing off-tribe.
+    let s: RunState = {
+      ...createRun(1), embers: 0, shop: [],
+      board: [{ uid: 'nb', cardId: 'alley', tribe: 'beast', attack: 9, health: 9, keywords: [], golden: false }],
+      hand: [{ uid: 'te', cardId: 'emissary', tribe: 'dragon', attack: 2, health: 3, keywords: ['T'], golden: false }],
+    };
+    s = reduce(s, { type: 'play', uid: 'te' });
+    expect(s.pendingTarget).toBeUndefined(); // no prompt
+    const te = s.board.find((c) => c.uid === 'te')!;
+    expect([te.attack, te.health]).toEqual([2, 3]); // played as-is
+    expect(s.board.find((c) => c.uid === 'nb')!.attack).toBe(9); // the Beast is never eligible
+  });
+
   it('Runic Beetle: Choose One, then pick a friendly Beast to give it Rise or Flurry', () => {
     const setup = (): RunState => ({
       ...createRun(1), embers: 0, shop: [],
@@ -912,8 +948,8 @@ describe('run loop (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: s.hand[0]!.uid });
     expect(s.board.find((c) => c.cardId === 'frontdrake')?.attack).toBe(5); // 2 + 3
     const cleric = s.board.find((c) => c.cardId === 'cleric');
-    expect(cleric?.attack).toBe(5); // 2 + 3 (Battlecry includes self)
-    expect(cleric?.health).toBe(5); // 2 base + 3
+    expect(cleric?.attack).toBe(2); // unchanged — the Battlecry buffs your OTHER Dragons
+    expect(cleric?.health).toBe(2);
   });
 
   it("Ritualist's End of Turn buffs all Fodder — existing copies and the run-level card buff", () => {
@@ -929,11 +965,11 @@ describe('run loop (@game/sim)', () => {
       hand: [{ uid: 'f2', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: ['FD'], golden: false }],
     };
     s = reduce(s, { type: 'faceOmen' }); // End of Turn fires Ritualist before combat
-    expect(s.cardBuffs.fred).toEqual({ attack: 3, health: 3 }); // first trigger → +3/+3 persists for the run
+    expect(s.cardBuffs.fred).toEqual({ attack: 1, health: 1 }); // first trigger → +1/+1 persists for the run
     const f1 = s.board.find((c) => c.uid === 'f1');
-    expect([f1?.attack, f1?.health]).toEqual([4, 4]); // Fodder on the board buffed now (1/1 + 3/3)
+    expect([f1?.attack, f1?.health]).toEqual([2, 2]); // Fodder on the board buffed now (1/1 + 1/1)
     const f2 = s.hand.find((c) => c.uid === 'f2');
-    expect([f2?.attack, f2?.health]).toEqual([4, 4]); // Fodder in the hand too
+    expect([f2?.attack, f2?.health]).toEqual([2, 2]); // Fodder in the hand too
   });
 
   it('Fodder found after a Ritualist proc carries the run buff — bought from the tavern', () => {
@@ -960,20 +996,32 @@ describe('run loop (@game/sim)', () => {
     expect(s.fodderEaten?.[0]).toMatchObject({ fodderId: 'fred', attack: 3, health: 3 });
   });
 
-  it('Koron — every 7 Gold spent, buffs Fodder +1/+1 and queues a Fodder (no longer touches Imps)', () => {
-    // Drive applyGoldSpent directly: the reducer's roll path would refresh the tavern (draining
-    // pendingTavern into the shop, where the on-board Koron eats it), hiding the queued Fodder.
+  it('Korok — every 4 cards bought, buffs Fodder +1/+1 and queues a Fodder (no longer touches Imps)', () => {
+    // Drive applyCardsBought directly: the reducer's buy path would refresh the tavern (draining
+    // pendingTavern into the shop, where the on-board Korok eats it), hiding the queued Fodder.
     const s: RunState = {
       ...createRun(1),
       pendingTavern: [],
       board: [{ uid: 'ac', cardId: 'acid', tribe: 'demon', attack: 8, health: 8, keywords: [], golden: false }],
     };
-    applyGoldSpent(s, 6); // 6 Gold — under the 7-Gold threshold
+    applyCardsBought(s, 3); // 3 cards — under the 4-card threshold
     expect(s.cardBuffs?.fred ?? { attack: 0, health: 0 }).toEqual({ attack: 0, health: 0 }); // not yet
-    applyGoldSpent(s, 1); // crosses 7 → Koron procs once
+    applyCardsBought(s, 1); // crosses 4 → Korok procs once
     expect(s.cardBuffs?.fred).toEqual({ attack: 1, health: 1 }); // Fodder enchant run-wide
     expect(s.pendingTavern).toEqual(['fred']); // a Fodder queued into the next tavern
     expect(s.impBuff ?? { attack: 0, health: 0 }).toEqual({ attack: 0, health: 0 }); // Imps NOT affected
+  });
+
+  it('Korok fires from a real `buy` action through the reducer (the buy-count meter is wired)', () => {
+    let s: RunState = {
+      ...createRun(1), tier: 6, phase: 'recruit', embers: 50, pendingTavern: [],
+      board: [{ uid: 'ac', cardId: 'acid', tribe: 'demon', attack: 8, health: 8, keywords: [], golden: false }],
+      shop: [{ uid: 'b1', cardId: 'pack' }, { uid: 'b2', cardId: 'pack' }, { uid: 'b3', cardId: 'pack' }, { uid: 'b4', cardId: 'pack' }],
+    };
+    for (const uid of ['b1', 'b2', 'b3']) s = reduce(s, { type: 'buy', uid });
+    expect(s.cardBuffs?.fred ?? { attack: 0, health: 0 }).toEqual({ attack: 0, health: 0 }); // 3 buys — not yet
+    s = reduce(s, { type: 'buy', uid: 'b4' }); // 4th buy → procs
+    expect(s.cardBuffs?.fred).toEqual({ attack: 1, health: 1 });
   });
 
   it('Imp Overseer Battlecry gives your Imps +2/+2 run-wide (board Imps + the impBuff carry for future ones)', () => {
@@ -1126,13 +1174,13 @@ describe('run loop (@game/sim)', () => {
     };
     const goldBefore = s.bonusEmbersNextTurn ?? 0;
     s = reduce(s, { type: 'settleCombat' }); // settle WITHOUT advancing, so the queued Fodder isn't injected/cleared yet
-    // Soulfeeder schedules Fodder for the next 2 shops: 1 (non-golden) + 2 (golden) = 3 per shop.
-    expect(s.fodderSchedule).toEqual([3, 3]);
+    // Soulfeeder schedules Fodder for the next shop: 1 (non-golden) + 2 (golden) = 3 in that shop.
+    expect(s.fodderSchedule).toEqual([3]);
     // Hoarder grants +1 Gold next turn (its recruit factory ran with full RunState access).
     expect((s.bonusEmbersNextTurn ?? 0) - goldBefore).toBe(1);
   });
 
-  it('Soulfeeder feeds Fodder to the next 2 shops (not every round after) — a Demon eats one per refresh', () => {
+  it('Soulfeeder feeds Fodder to the next shop (not every round after) — a Demon eats one per refresh', () => {
     let s: RunState = {
       ...createRun(1),
       resolve: 999, maxResolve: 999,
@@ -1149,8 +1197,8 @@ describe('run loop (@game/sim)', () => {
       s = reduce(s, { type: 'resolveCombat' });
       seen.push(atk());
     }
-    // ate a Fred on refresh 1 (2 → 3) and refresh 2 (3 → 4), then no more — the schedule covers exactly 2 shops.
-    expect(seen).toEqual([3, 4, 4, 4]);
+    // ate a Fred on refresh 1 (2 → 3), then no more — the schedule covers exactly 1 shop.
+    expect(seen).toEqual([3, 3, 3, 3]);
     expect(s.pendingTavern).toEqual([]);
     expect(s.fodderSchedule).toBeUndefined();
   });
@@ -1377,9 +1425,9 @@ describe('run loop (@game/sim)', () => {
       ],
     };
     s = reduce(s, { type: 'faceOmen' }); // End of Turn fires Ritualist twice (Chronos +1); it escalates each fire
-    expect(s.cardBuffs.fred).toEqual({ attack: 9, health: 9 }); // escalating: +3 then +6 = +9/+9 this turn
+    expect(s.cardBuffs.fred).toEqual({ attack: 3, health: 3 }); // escalating: +1 then +2 = +3/+3 this turn
     const f = s.board.find((c) => c.uid === 'f')!;
-    expect([f.attack, f.health]).toEqual([10, 10]); // the on-board Fred: 1/1 + 9/9
+    expect([f.attack, f.health]).toEqual([4, 4]); // the on-board Fred: 1/1 + 3/3
   });
 
   it('Magnetic merges a Cling Drone onto a friendly Mech (no new slot)', () => {
@@ -1590,7 +1638,7 @@ describe('run loop (@game/sim)', () => {
     expect(BUYABLE_CARDS.some((c) => c.id === 'fred')).toBe(false);
   });
 
-  it('Soulfeeder Shout schedules Fodder for the next 2 shops', () => {
+  it('Soulfeeder Shout schedules Fodder for the next shop', () => {
     let s: RunState = {
       ...createRun(1),
       embers: 3,
@@ -1601,7 +1649,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'buy', uid: 'x' });
     s = reduce(s, { type: 'play', uid: s.hand[0]!.uid }); // Soulfeeder Shout
-    expect(s.fodderSchedule).toEqual([1, 1]); // 1 Fodder to each of the next 2 shops (not placed now)
+    expect(s.fodderSchedule).toEqual([1]); // 1 Fodder to the next shop (not placed now)
     expect(s.pendingTavern ?? []).toEqual([]); // nothing in the immediate queue yet
     expect(s.board.some((c) => c.cardId === 'fred')).toBe(false);
   });
@@ -2392,23 +2440,23 @@ describe('run loop (@game/sim)', () => {
     expect(s.questTendrilSeq ?? 0).toBeGreaterThan(0);
   });
 
-  it("Djinn's Cadence advances Parliament of Flame (endOfTurn objective) — audit 2026-07-21", () => {
+  it("Djinn's Cadence counts its replayed End-of-Turn fires in the tally — audit 2026-07-21", () => {
     // Djinn's hero power replays every minion's End of Turn. Those replayed fires are End-of-Turn TRIGGERS and
-    // must advance `q_parliament_of_flame` — but `replayEndOfTurn` never bumped `lastEotFires`, and the
-    // heroPower action reaches neither the endTurn nor the Conductor read. So the effects fired and the quest
-    // sat still. Same class as the Uron rally / Echoing Roar shout fixes.
+    // must be COUNTED — `replayEndOfTurn` never bumped `lastEotFires`, and the heroPower action reaches neither
+    // the endTurn nor the Conductor read, so the effects fired and the tally sat still. Same class as the Uron
+    // rally / Echoing Roar shout fixes. Asserted at `lastEotFires` (the tally every endOfTurn objective reads)
+    // rather than through a quest: Parliament of Flame moved to a spendGold objective in the 2026-07-21 balance
+    // patch, so no quest carries an `endOfTurn` objective right now — the underlying tally is the real contract.
     let s: RunState = {
       ...createRun(1, 'djinn'), embers: 0, shop: [], hand: [],
       board: [
         { uid: 'a1', cardId: 'aeonguard', tribe: 'mech', attack: 5, health: 6, keywords: [], golden: false },
         { uid: 'a2', cardId: 'aeonguard', tribe: 'mech', attack: 5, health: 6, keywords: [], golden: false },
       ],
-      activeQuests: [{ questId: 'q_parliament_of_flame', progress: 0, completed: false }],
     } as RunState;
-    const before = s.activeQuests![0]!.progress;
     s = reduce(s, { type: 'heroPower', uid: 'a1' });
-    // Two Aeon Guards, each an End-of-Turn effect → two triggers → +2.
-    expect(s.activeQuests![0]!.progress).toBe(before + 2);
+    // Two Aeon Guards, each an End-of-Turn effect → two replayed triggers → the tally reads 2.
+    expect(s.lastEotFires).toBe(2);
   });
 
   it('a RE-TRIGGERED Shout counts toward the Shout tally (Echoing Roar / Resonance / Myra)', () => {
@@ -3172,7 +3220,7 @@ describe('run loop (@game/sim)', () => {
       pendingTavern: [],
     };
     s = reduce(s, { type: 'play', uid: 'sf' });
-    expect(s.fodderSchedule).toEqual([2, 2]); // fired twice → 1 Fodder ×2 for each of the next 2 shops
+    expect(s.fodderSchedule).toEqual([2]); // fired twice → 1 Fodder ×2 for the next shop
   });
 
   it('Yazzus does NOT multiply Help Wanted — Discover spells are untargeted (one Discover, nothing queued)', () => {
@@ -3292,15 +3340,19 @@ describe('run loop (@game/sim)', () => {
   });
 
   it('a golden Drakko triples Battlecries', () => {
-    // Hoard Cleric (+3/+3 to Dragons, incl. self) — avoids token triples. Golden Drakko fires it 3×.
+    // Hoard Cleric (+3/+3 to your OTHER Dragons) — avoids token triples. Golden Drakko fires it 3×, observed
+    // on a second Dragon (the Cleric no longer buffs itself).
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
-      board: [{ uid: 'dr', cardId: 'drummer', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: true }],
+      board: [
+        { uid: 'dr', cardId: 'drummer', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: true },
+        { uid: 'd2', cardId: 'frontdrake', tribe: 'dragon', attack: 1, health: 3, keywords: ['SC'], golden: false },
+      ],
       hand: [{ uid: 'c', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'c' });
-    const cleric = s.board.find((c) => c.cardId === 'cleric');
-    expect([cleric?.attack, cleric?.health]).toEqual([10, 12]); // 1/3 + 3×(+3/+3)
+    const other = s.board.find((c) => c.uid === 'd2');
+    expect([other?.attack, other?.health]).toEqual([10, 12]); // 1/3 + 3×(+3/+3)
   });
 
   it('multiple Drakkos do NOT stack (still fires twice)', () => {
@@ -3654,15 +3706,18 @@ describe('hero powers (@game/sim)', () => {
   });
 
   it("Myra's Pulse re-fires a friendly minion's Battlecry, once per turn (from turn 3)", () => {
-    // Hoard Cleric's Battlecry buffs all your Dragons +3/+3 (includes itself).
+    // Hoard Cleric's Battlecry buffs your OTHER Dragons +3/+3 — observed on a second Dragon beside it.
     const cleric = (): BoardCard => ({
       uid: 'c', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false,
     });
-    let s: RunState = { ...createRun(1, 'myra'), wave: 3, board: [cleric()] }; // Pulse unlocks turn 3
+    const other = (): BoardCard => ({
+      uid: 'd2', cardId: 'frontdrake', tribe: 'dragon', attack: 1, health: 3, keywords: ['SC'], golden: false,
+    });
+    let s: RunState = { ...createRun(1, 'myra'), wave: 3, board: [cleric(), other()] }; // Pulse unlocks turn 3
     s = reduce(s, { type: 'heroPower', uid: 'c' });
-    expect(s.board[0]!.attack).toBe(4); // 1 + 3
-    expect(s.board[0]!.health).toBe(6); // 3 + 3
-    expect(s.board[0]!.buffs).toEqual([{ source: 'Hoard Cleric', attack: 3, health: 3, count: 1 }]);
+    expect(s.board[1]!.attack).toBe(4); // 1 + 3
+    expect(s.board[1]!.health).toBe(6); // 3 + 3
+    expect(s.board[1]!.buffs).toEqual([{ source: 'Hoard Cleric', attack: 3, health: 3, count: 1 }]);
     expect(s.heroReady).toBe(false);
     // Once per turn: a second use this wave is rejected.
     expect(reduce(s, { type: 'heroPower', uid: 'c' })).toBe(s);
@@ -3679,13 +3734,16 @@ describe('hero powers (@game/sim)', () => {
     const cleric = (): BoardCard => ({
       uid: 'c', cardId: 'cleric', tribe: 'dragon', attack: 1, health: 3, keywords: [], golden: false,
     });
+    const other = (): BoardCard => ({
+      uid: 'd2', cardId: 'frontdrake', tribe: 'dragon', attack: 1, health: 3, keywords: ['SC'], golden: false,
+    });
     // Turn 1: locked — the power is rejected (no charge spent, no Battlecry replay).
-    const w1: RunState = { ...createRun(1, 'myra'), wave: 1, board: [cleric()] };
+    const w1: RunState = { ...createRun(1, 'myra'), wave: 1, board: [cleric(), other()] };
     expect(reduce(w1, { type: 'heroPower', uid: 'c' })).toBe(w1);
-    // Turn 3: unlocked — the Battlecry re-fires (+3/+3).
-    let w3: RunState = { ...createRun(1, 'myra'), wave: 3, board: [cleric()] };
+    // Turn 3: unlocked — the Battlecry re-fires (+3/+3 onto the OTHER Dragon).
+    let w3: RunState = { ...createRun(1, 'myra'), wave: 3, board: [cleric(), other()] };
     w3 = reduce(w3, { type: 'heroPower', uid: 'c' });
-    expect(w3.board[0]!.attack).toBe(4);
+    expect(w3.board[1]!.attack).toBe(4);
     expect(w3.heroReady).toBe(false);
   });
 
@@ -3721,7 +3779,7 @@ describe('hero powers (@game/sim)', () => {
   });
 
   it("Djinn's Cadence procs a friendly minion's End of Turn now (once per turn)", () => {
-    // Ritualist's End of Turn buffs every Fodder (first trigger +3/+3); Fred is Fodder.
+    // Ritualist's End of Turn buffs every Fodder (first trigger +1/+1); Fred is Fodder.
     const board = (): BoardCard[] => [
       { uid: 'r', cardId: 'ritualist', tribe: 'demon', attack: 2, health: 2, keywords: [], golden: false },
       { uid: 'f', cardId: 'fred', tribe: 'demon', attack: 1, health: 1, keywords: [], golden: false },
@@ -3729,8 +3787,8 @@ describe('hero powers (@game/sim)', () => {
     let s: RunState = { ...createRun(1, 'djinn'), board: board() };
     s = reduce(s, { type: 'heroPower', uid: 'r' });
     const fred = s.board.find((c) => c.uid === 'f')!;
-    expect(fred.attack).toBe(4); // 1 + 3
-    expect(fred.health).toBe(4);
+    expect(fred.attack).toBe(2); // 1 + 1
+    expect(fred.health).toBe(2);
     expect(s.heroReady).toBe(false);
     expect(reduce(s, { type: 'heroPower', uid: 'r' })).toBe(s); // once per turn
   });
@@ -3870,7 +3928,7 @@ describe('hero powers (@game/sim)', () => {
   // --- New heroes (owner batch 2026-07-09) ---
 
   it("Djinn's Cadence triggers EVERY friendly minion's End of Turn (untargeted)", () => {
-    // Two Ritualists (EoT: Fodder +3/+3 run-wide, first trigger each). Cadence fires BOTH → the Fred enchant climbs +6/+6.
+    // Two Ritualists (EoT: Fodder +1/+1 run-wide, first trigger each). Cadence fires BOTH → the Fred enchant climbs +2/+2.
     let s: RunState = {
       ...createRun(1, 'djinn'), heroReady: true,
       board: [
@@ -3879,7 +3937,7 @@ describe('hero powers (@game/sim)', () => {
       ],
     };
     s = reduce(s, { type: 'heroPower' });
-    expect(cardBuff(s, 'fred')).toEqual({ attack: 6, health: 6 }); // both Ritualists' EoT fired (+3 each)
+    expect(cardBuff(s, 'fred')).toEqual({ attack: 2, health: 2 }); // both Ritualists' EoT fired (+1 each)
     expect(s.heroReady).toBe(false);
     // A board with no End-of-Turn minion → no-op, charge preserved.
     const none: RunState = { ...createRun(1, 'djinn'), heroReady: true, board: [{ uid: 'a', cardId: 'sandbag', tribe: 'neutral', attack: 0, health: 4, keywords: ['T'], golden: false }] };
@@ -4014,18 +4072,18 @@ describe('PvE course + record (@game/sim)', () => {
   });
 
   it('Armor: per-hero starting values (a balance dial) carry into the run', () => {
-    // A strong power tends to carry less armor. Values as of the 2026-07-09 tuning pass.
-    expect(getHero('warden').armor).toBe(12);
-    expect(getHero('soren').armor).toBe(8);
-    expect(getHero('cassen').armor).toBe(8);
-    expect(getHero('darah').armor).toBe(12);
-    expect(getHero('hermithank').armor).toBe(8); // Tradesman
-    expect(getHero('nadja').armor).toBe(19);
-    expect(getHero('robin').armor).toBe(8);
-    expect(getHero('indy').armor).toBe(15);
+    // A strong power tends to carry less armor. Values as of the 2026-07-21 across-the-board +5 armor pass.
+    expect(getHero('warden').armor).toBe(17);
+    expect(getHero('soren').armor).toBe(13);
+    expect(getHero('cassen').armor).toBe(13);
+    expect(getHero('darah').armor).toBe(17);
+    expect(getHero('hermithank').armor).toBe(13); // Tradesman
+    expect(getHero('nadja').armor).toBe(24);
+    expect(getHero('robin').armor).toBe(13);
+    expect(getHero('indy').armor).toBe(20);
     const s = createRun(1, 'indy');
-    expect(s.armor).toBe(15);
-    expect(s.maxArmor).toBe(15);
+    expect(s.armor).toBe(20);
+    expect(s.maxArmor).toBe(20);
   });
 
   it('Armor absorbs a loss before Resolve; overflow chips Resolve', () => {
@@ -4326,7 +4384,7 @@ describe('Runescale Drake (@game/sim)', () => {
     s = reduce(s, { type: 'play', uid: 'r3' }); // 3rd copy → triple → golden in hand
     const golden = s.hand.find((c) => c.cardId === 'runescale' && c.golden);
     expect(golden).toBeDefined();
-    expect(golden!.spellProgress).toBe(7); // 5 + 2 + 0 summed (a +20 + fresh +1 → +21), NOT max(5, 2, 0)
+    expect(golden!.spellProgress).toBe(7); // 5 + 2 + 0 summed (rate improves to +3/+3 per spell at ⌊7/4⌋), NOT max(5, 2, 0)
     expect(s.triplesMade).toBe(1);
   });
 });
@@ -4876,7 +4934,7 @@ describe('content batch: new minions (@game/sim)', () => {
     expect(s.spellsCast).toBe(11); // the run-wide counter still advances (8 + 3)
   });
 
-  it('Hoard Cleric (cleric) Battlecry gives your Dragons +3/+3', () => {
+  it('Hoard Cleric (cleric) Battlecry gives your OTHER Dragons +3/+3', () => {
     let s: RunState = {
       ...createRun(1),
       board: [
@@ -4889,7 +4947,7 @@ describe('content batch: new minions (@game/sim)', () => {
     const dragon = s.board.find((c) => c.uid === 'd')!;
     expect([dragon.attack, dragon.health]).toEqual([5, 4]); // 2/1 → 5/4
     const cleric = s.board.find((c) => c.uid === 'hc')!;
-    expect([cleric.attack, cleric.health]).toEqual([6, 7]); // includes self: 3/4 → 6/7
+    expect([cleric.attack, cleric.health]).toEqual([3, 4]); // excludes self: unchanged 3/4
     const neutral = s.board.find((c) => c.uid === 'n')!;
     expect([neutral.attack, neutral.health]).toEqual([0, 4]); // non-Dragon untouched
   });
@@ -5044,7 +5102,6 @@ describe('quests (M3 framework)', () => {
     expect(questBucketFor(QUEST_INDEX['q_apex_hunt']!)).toBe(5); // Greater
     expect(questBucketFor(QUEST_INDEX['q_law_of_teeth']!)).toBe(11); // Capstone
     expect(questBucketFor(QUEST_INDEX['q_ancient_runes']!)).toBe(11); // Greater, promoted
-    expect(questBucketFor(QUEST_INDEX['q_last_rites']!)).toBe(11); // Greater, promoted
   });
 
   it('CONFIG.questsEnabled = false → the whole quest system goes dark (5 & 11 become normal shop turns)', () => {
@@ -5377,17 +5434,20 @@ describe('Beast quests (combat objectives + rewards)', () => {
   const settle = (quest: string, over: Partial<CombatResult>, extra?: Partial<RunState>): RunState =>
     reduce({ ...createRun(1), phase: 'combat', combatSettled: false, lastCombat: combatWith(over), activeQuests: [{ questId: quest, progress: 0, completed: false }], ...extra }, { type: 'resolveCombat' });
 
-  it('Blood Trail (slaughter, any tribe) advances by the tally and arms the combat flag', () => {
-    const s = settle('q_blood_trail', { enemyDeaths: 9, playerQuestTally: { ...zeroTally(), slaughter: 9, slaughterByTribe: { beast: 9 } } });
+  it('Blood Trail (buy 5 Beasts) completes on the 5th Beast buy and arms the combat flag', () => {
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 10,
+      activeQuests: [{ questId: 'q_blood_trail', progress: 4, completed: false }],
+      shop: [{ uid: 'x', cardId: 'pack' }] };
+    s = reduce(s, { type: 'buy', uid: 'x' }); // 5th Beast buy → completes
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.questFlags?.bloodTrail).toBe(true);
   });
 
   it('Skybound Pact (tribeStats, Dragons) counts COMBAT stat gains — buffs to Dragons in the fight advance it', () => {
-    const s = settle('q_skybound_pact', { playerQuestTally: { ...zeroTally(), statGainByTribe: { dragon: 25 } } });
+    const s = settle('q_skybound_pact', { playerQuestTally: { ...zeroTally(), statGainByTribe: { dragon: 40 } } });
     expect(s.activeQuests![0]!.completed).toBe(true);
     // Non-dragon combat stat gains don't count toward the Dragon objective.
-    const other = settle('q_skybound_pact', { playerQuestTally: { ...zeroTally(), statGainByTribe: { beast: 25 } } });
+    const other = settle('q_skybound_pact', { playerQuestTally: { ...zeroTally(), statGainByTribe: { beast: 40 } } });
     expect(other.activeQuests![0]!.completed).toBe(false);
   });
 
@@ -5446,8 +5506,11 @@ describe('Beast quests (combat objectives + rewards)', () => {
     expect(magnetizesTo('cling', 'alley')).toBe(false);
   });
 
-  it('Attachment Issues arms a permanent 1-Gold Attachment in every shop', () => {
-    const s = settle('q_attachment_issues', { playerQuestTally: { ...zeroTally(), slaughter: 20 } });
+  it('Attachment Issues (cast 14 spells) arms a permanent 1-Gold Attachment in every shop', () => {
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 10,
+      activeQuests: [{ questId: 'q_attachment_issues', progress: 13, completed: false }],
+      board: [], hand: [{ uid: 'sp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'sp' }); // 14th spell cast → completes
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.attachmentCost).toBe(1);
     expect(s.alwaysAttachmentShop).toBe(true);
@@ -5461,11 +5524,11 @@ describe('Beast quests (combat objectives + rewards)', () => {
     }
   });
 
-  it('Fried Circuits (compound): completes only when BOTH parts fill; buys escalate the shop-Mech buff', () => {
-    // Pre-fill the spendGold part (20); the combat supplies the slaughter part (10) → both done → complete.
-    const s = settle('q_fried_circuits', { playerQuestTally: { ...zeroTally(), slaughter: 10 } }, {
-      activeQuests: [{ questId: 'q_fried_circuits', progress: 20, completed: false, partProgress: [0, 20] }],
-    });
+  it('Fried Circuits (spendGold 40): completes on the 40th Gold and arms the escalating shop-Mech buff', () => {
+    // Spend the last Gold to reach 40 → completes → arms the escalating step.
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 10, freeRolls: 0,
+      activeQuests: [{ questId: 'q_fried_circuits', progress: 39, completed: false }] };
+    s = reduce(s, { type: 'roll' }); // 40th Gold spent → completes
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.friedCircuitsStepAtk).toBe(4);
     expect(s.friedCircuitsStepHp).toBe(5);
@@ -5480,29 +5543,33 @@ describe('Beast quests (combat objectives + rewards)', () => {
     expect(t.shop.find((o) => o.uid === 'm3')!.hp).toBe(15); // +5 + 10 = 15
   });
 
-  it('Fried Circuits (compound): the spendGold part alone does NOT complete it', () => {
+  it('Fried Circuits (spendGold 40): 20 Gold alone does NOT complete it', () => {
     let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 50, freeRolls: 0, activeQuests: [{ questId: 'q_fried_circuits', progress: 0, completed: false }] };
-    for (let i = 0; i < 20; i++) s = reduce(s, { type: 'roll' }); // spend 20 Gold
-    expect(s.activeQuests![0]!.partProgress).toEqual([0, 20]);
-    expect(s.activeQuests![0]!.completed).toBe(false); // slaughter part still empty
+    for (let i = 0; i < 20; i++) s = reduce(s, { type: 'roll' }); // spend 20 Gold (short of 40)
+    expect(s.activeQuests![0]!.progress).toBe(20);
+    expect(s.activeQuests![0]!.completed).toBe(false); // 20 < 40
   });
 
-  it('Forsaken Will (summon 6 Undead in combat): completes, then spells buff Undead like the Weaver', () => {
-    const s = settle('q_forsaken_will', { playerQuestTally: { ...zeroTally(), summonCombat: 6, summonCombatByTribe: { undead: 6 } } });
+  it('Forsaken Will (spend 26 Gold): completes, then spells buff Undead +3 like the Weaver', () => {
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 10, freeRolls: 0,
+      activeQuests: [{ questId: 'q_forsaken_will', progress: 25, completed: false }] };
+    s = reduce(s, { type: 'roll' }); // 26th Gold spent → completes
     expect(s.activeQuests![0]!.completed).toBe(true);
-    expect(s.forsakenWillAttack).toBe(2);
-    // Casting a spell now behaves EXACTLY like the Forsaken Weaver: +2 baked into every current Undead AND
+    expect(s.forsakenWillAttack).toBe(3);
+    // Casting a spell now behaves EXACTLY like the Forsaken Weaver: +3 baked into every current Undead AND
     // stacked into undeadBuyAtk so future undead buys inherit it.
-    let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 20, forsakenWillAttack: 2,
+    let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 20, forsakenWillAttack: 3,
       board: [{ uid: 'u', cardId: 'soulsman', tribe: 'undead', attack: 3, health: 3, keywords: [], golden: false }],
       hand: [{ uid: 'sp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
     t = reduce(t, { type: 'play', uid: 'sp' });
-    expect(t.board.find((c) => c.uid === 'u')!.attack).toBe(5); // +2 baked into the Undead's stats
-    expect(t.undeadBuyAtk).toBe(2); // and future Undead buys inherit it
+    expect(t.board.find((c) => c.uid === 'u')!.attack).toBe(6); // +3 baked into the Undead's stats
+    expect(t.undeadBuyAtk).toBe(3); // and future Undead buys inherit it
   });
 
-  it('The Red Trail (slaughterKeyword) completes at 5 and schedules the recurring Bloodlust grant', () => {
-    const s = settle('q_the_red_trail', { playerQuestTally: { ...zeroTally(), slaughterKeyword: 5 } });
+  it('The Red Trail (spend 18 Gold) completes and schedules the recurring Bloodlust grant', () => {
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 10, freeRolls: 0,
+      activeQuests: [{ questId: 'q_the_red_trail', progress: 17, completed: false }] };
+    s = reduce(s, { type: 'roll' }); // 18th Gold spent → completes
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.questRecurringGrants).toContain('bloodlust');
   });
@@ -5544,8 +5611,11 @@ describe('Beast quests (combat objectives + rewards)', () => {
     expect(s.denMarker).toMatchObject({ attack: 2, health: 2, step: 2, per: 3 });
   });
 
-  it('Echoing Coop (deathrattle/Echo objective) reads the combat Deathrattle tally', () => {
-    const s = settle('q_echoing_coop', { playerDeathrattles: 18 });
+  it('Echoing Coop (buy 18 cards) completes on the 18th buy and arms the combat flag', () => {
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 10,
+      activeQuests: [{ questId: 'q_echoing_coop', progress: 17, completed: false }],
+      shop: [{ uid: 'x', cardId: 'pack' }] };
+    s = reduce(s, { type: 'buy', uid: 'x' }); // 18th buy → completes
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.questFlags?.echoingCoop).toBe(true);
   });
@@ -5629,8 +5699,10 @@ describe('Undead quests — combat-objective completion + reward application', (
     expect(s.echoFirstEachCombat).toBe(1);
   });
 
-  it('boneThrone reward (The Bone Throne) records its death step', () => {
-    const s = settleWith({ ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_the_bone_throne', progress: 0, completed: false }] }, { playerDeaths: 30 });
+  it('boneThrone reward (The Bone Throne, spend 35 Gold) records its death step', () => {
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 10, freeRolls: 0,
+      activeQuests: [{ questId: 'q_the_bone_throne', progress: 34, completed: false }] };
+    s = reduce(s, { type: 'roll' }); // 35th Gold spent → completes
     expect(s.boneThroneStep).toBe(4); // Avenge (4)
   });
 
@@ -5650,9 +5722,9 @@ describe('Undead quests — combat-objective completion + reward application', (
     expect(s.hand.filter((c) => c.cardId === 'ossuaryrite').length).toBeLessThanOrEqual(1);
   });
 
-  it('Grave Robber (sell 5) grants Crypt Broker — a reward-only token, never in the shop', () => {
+  it('Grave Robber (sell 6) grants Crypt Broker — a reward-only token, never in the shop', () => {
     const mk = (uid: string) => ({ uid, cardId: 'pack', tribe: 'beast' as const, attack: 2, health: 2, keywords: [], golden: false });
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_grave_robber', progress: 4, completed: false }], board: [mk('b1')], hand: [] };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_grave_robber', progress: 5, completed: false }], board: [mk('b1')], hand: [] };
     s = reduce(s, { type: 'sell', uid: 'b1' });
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.hand.some((c) => c.cardId === 'cryptbroker')).toBe(true);
@@ -5692,9 +5764,9 @@ describe('Mech/neutral quests — objectives, filtered grants, new rewards, card
     reduce({ ...s, phase: 'combat', lastCombat: { events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] }, ...over } as CombatResult }, { type: 'resolveCombat' });
   const mag = (uid: string) => ({ uid, cardId: 'moneybot', tribe: 'mech' as const, attack: 3, health: 3, keywords: ['M'] as Keyword[], golden: false });
 
-  it('playAttachment ticks on playing a Magnetic; Perfect Machine grants Perfect Core', () => {
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_perfect_machine', progress: 4, completed: false }], board: [], hand: [mag('h1')] };
-    s = reduce(s, { type: 'play', uid: 'h1' }); // 5th attachment → completes (count 5)
+  it('Perfect Machine (buy 7 cards) completes on the 7th buy and grants Perfect Core', () => {
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 10, activeQuests: [{ questId: 'q_perfect_machine', progress: 6, completed: false }], board: [], hand: [], shop: [{ uid: 'x', cardId: 'drone' }] };
+    s = reduce(s, { type: 'buy', uid: 'x' }); // 7th buy → completes (count 7)
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.hand.some((c) => c.cardId === 'perfectcore')).toBe(true);
   });
@@ -5702,40 +5774,38 @@ describe('Mech/neutral quests — objectives, filtered grants, new rewards, card
   it('Scrap Contract counts only Mech sells → grants Scrap Vendor', () => {
     // A non-Mech sell does NOT advance it; a Mech sell does.
     let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_scrap_contract', progress: 0, completed: false }],
-      board: [{ uid: 'beast', cardId: 'pack', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }, mag('m1'), mag('m2'), mag('m3')], hand: [] };
+      board: [{ uid: 'beast', cardId: 'pack', tribe: 'beast', attack: 2, health: 2, keywords: [], golden: false }, mag('m1'), mag('m2'), mag('m3'), mag('m4'), mag('m5')], hand: [] };
     s = reduce(s, { type: 'sell', uid: 'beast' });
     expect(s.activeQuests![0]!.progress).toBe(0); // a Beast sale doesn't count
     s = reduce(s, { type: 'sell', uid: 'm1' });
     s = reduce(s, { type: 'sell', uid: 'm2' });
     s = reduce(s, { type: 'sell', uid: 'm3' });
-    expect(s.activeQuests![0]!.progress).toBe(0); // 3 Mech sales → repeatable fires + re-arms (not completed)
+    s = reduce(s, { type: 'sell', uid: 'm4' });
+    s = reduce(s, { type: 'sell', uid: 'm5' });
+    expect(s.activeQuests![0]!.progress).toBe(0); // 5 Mech sales → repeatable fires + re-arms (not completed)
     expect(s.activeQuests![0]!.completed).toBe(false);
     expect(s.hand.some((c) => c.cardId === 'scrapvendor')).toBe(true);
   });
 
-  it('Last Rites (multi) grants a random ECHO minion + arms the first-Echo bonus', () => {
-    const s = settleWith({ ...createRun(1), tier: 6, hand: [], activeQuests: [{ questId: 'q_last_rites', progress: 0, completed: false }] }, { playerDeathrattles: 14 });
-    expect(s.echoFirstEachCombat).toBe(1);
-    expect(s.hand.length).toBe(1);
-    expect(CARD_INDEX[s.hand[0]!.cardId]!.effects.some((e) => e.on === 'onDeath')).toBe(true); // it IS an Echo minion
-  });
-
-  it('rally objective + rallyRepeat reward (Spark Permit): 3 Rallies → first-Rally bonus armed', () => {
-    const s = settleWith({ ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_spark_permit', progress: 0, completed: false }] }, { playerRallies: 3 });
+  it('castSpell objective + rallyRepeat reward (Spark Permit): 10 spells → first-Rally bonus armed', () => {
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 10,
+      activeQuests: [{ questId: 'q_spark_permit', progress: 9, completed: false }],
+      board: [], hand: [{ uid: 'sp', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'sp' }); // 10th spell cast → completes
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.rallyFirstEachCombat).toBe(1);
   });
 
-  it('Infinite Assembly (multi): 30 Rallies → a random Rally minion + permanent Rally doubler', () => {
-    const s = settleWith({ ...createRun(1), tier: 6, hand: [], activeQuests: [{ questId: 'q_infinite_assembly', progress: 0, completed: false }] }, { playerRallies: 30 });
+  it('Infinite Assembly (multi): 13 kills → a random Rally minion + permanent Rally doubler', () => {
+    const s = settleWith({ ...createRun(1), tier: 6, hand: [], activeQuests: [{ questId: 'q_infinite_assembly', progress: 0, completed: false }] }, { playerQuestTally: { attack: 0, summonCombat: 0, slaughter: 13, slaughterKeyword: 0, attackByTribe: {}, summonCombatByTribe: {}, slaughterByTribe: {}, statGainByTribe: {} } });
     expect(s.rallyExtraAlways).toBe(1);
     expect(s.hand.length).toBe(1);
     expect(CARD_INDEX[s.hand[0]!.cardId]!.keywords.includes('RL')).toBe(true); // it IS a Rally minion
   });
 
   it('Shared Circuit reward records its SoC Ward count; new reward cards are reward-only tokens', () => {
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_shared_circuit', progress: 13, completed: false }], board: [], hand: [mag('h1')] };
-    s = reduce(s, { type: 'play', uid: 'h1' }); // 14th attachment
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_shared_circuit', progress: 15, completed: false }], board: [], hand: [mag('h1')] };
+    s = reduce(s, { type: 'play', uid: 'h1' }); // 16th attachment
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.sharedCircuitWard).toBe(3);
     for (const id of ['scrapvendor', 'chorusengine', 'perfectcore']) {
@@ -5751,27 +5821,29 @@ describe('Demon quests — consume/imp objectives, fodder reward, flags, cards',
 
   it('consumeFodder objective + fodderReward (Small Offering): Herald feeds every Demon', () => {
     // Board Demon + Herald (played) = 2 Demons each Consume a Fodder → +2 Consumed.
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_small_offering', progress: 1, completed: false }], board: [demon('d1', 'feed')], hand: [demon('h1', 'heraldapoc')] };
+    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_small_offering', progress: 6, completed: false }], board: [demon('d1', 'feed')], hand: [demon('h1', 'heraldapoc')] };
     s = reduce(s, { type: 'play', uid: 'h1' });
-    expect(s.activeQuests![0]!.progress).toBe(0); // 1 + 2 Consumed = 3 → repeatable fires + re-arms
+    expect(s.activeQuests![0]!.progress).toBe(0); // 6 + 2 Consumed = 8 → repeatable fires + re-arms
     expect(s.activeQuests![0]!.completed).toBe(false);
     expect((s.pendingTavern ?? []).filter((id) => id === 'fred').length).toBe(1); // reward queued 1 Fodder
   });
 
-  it('consumeStats objective (Maw of the Run) counts total Consumed stats → grants Run Maw', () => {
-    let s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', activeQuests: [{ questId: 'q_maw_of_the_run', progress: 96, completed: false }], board: [demon('d1', 'feed')], hand: [demon('h1', 'heraldapoc')] };
-    s = reduce(s, { type: 'play', uid: 'h1' }); // 2 Fodder Consumed = 4 stats → 96 + 4 = 100
+  it('Track and Fodder (slaughter 14) completes off the combat kill tally → grants Run Maw', () => {
+    const s = settleWith({ ...createRun(1), tier: 6, hand: [], activeQuests: [{ questId: 'q_maw_of_the_run', progress: 0, completed: false }] },
+      { playerQuestTally: { attack: 0, summonCombat: 0, slaughter: 14, slaughterKeyword: 0, attackByTribe: {}, summonCombatByTribe: {}, slaughterByTribe: {}, statGainByTribe: {} } });
     expect(s.activeQuests![0]!.completed).toBe(true);
     expect(s.hand.some((c) => c.cardId === 'runmaw')).toBe(true);
   });
 
-  it('Track and Fodder: a START-OF-TURN consume advances the quest immediately (not deferred to a roll)', () => {
-    // A Consume Demon eats the Fodder injected at turn setup; the consumeStats tally must tick right then — not
+  it('a START-OF-TURN consume advances a Consume quest immediately (not deferred to a roll)', () => {
+    // A Consume Demon eats the Fodder injected at turn setup; the consume tally must tick right then — not
     // wait for the player's first refresh (owner bug 2026-07-13). wave 1 → 2 is a normal (non-quest) turn.
+    // Vehicle is Small Offering (consumeFodder): Track and Fodder moved to a `slaughter` objective in the
+    // 2026-07-21 balance patch, so it can no longer carry this coverage.
     const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
     let s: RunState = {
       ...createRun(1), phase: 'combat',
-      activeQuests: [{ questId: 'q_maw_of_the_run', progress: 0, completed: false }],
+      activeQuests: [{ questId: 'q_small_offering', progress: 0, completed: false }],
       board: [{ uid: 'd', cardId: 'maw', tribe: 'demon', attack: 2, health: 2, keywords: ['CN'], golden: false }],
       cardBuffs: { fred: { attack: 2, health: 2 } }, // the injected Fred is a 3/3
       pendingTavern: ['fred'],
@@ -5779,7 +5851,7 @@ describe('Demon quests — consume/imp objectives, fodder reward, flags, cards',
     };
     s = reduce(s, { type: 'resolveCombat' }); // turn setup injects + the Demon eats the 3/3 Fred
     expect(s.wave).toBe(2);
-    expect(s.activeQuests![0]!.progress).toBe(6); // 3/3 = 6 stats consumed, counted at turn setup (not on a later roll)
+    expect(s.activeQuests![0]!.progress).toBe(1); // 1 Fodder consumed, counted at turn setup (not on a later roll)
   });
 
   it('summonImp objective (Imp Census) reads the combat imp tally → grants a random Demon + improves Imps +1/+1', () => {
@@ -5790,12 +5862,12 @@ describe('Demon quests — consume/imp objectives, fodder reward, flags, cards',
     expect(s.impBuff).toEqual({ attack: 1, health: 1 }); // run-wide Imp aura bumped
   });
 
-  it('Blueprint Cache (buffMechsPerAttachment): End of Turn buffs each Mech +2/+2 per Attachment welded on it', () => {
+  it('Blueprint Cache (buffMechsPerAttachment): End of Turn buffs each Mech +3/+3 per Attachment welded on it', () => {
     const mech = (uid: string, attachments: number): BoardCard => ({ uid, cardId: 'drone', tribe: 'mech', attack: 3, health: 3, keywords: [], golden: false, attachments });
     const s: RunState = { ...createRun(1), tier: 6, phase: 'recruit', questRecurringEndOfTurn: ['buffMechsPerAttachment'],
       board: [mech('m1', 2), mech('m2', 0)] };
     applyEndOfTurn(s);
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([7, 7]); // 3 + 2×2 attachments
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([9, 9]); // 3 + 2 attachments × +3
     expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([3, 3]); // no attachments → untouched
   });
 
@@ -5809,7 +5881,7 @@ describe('Demon quests — consume/imp objectives, fodder reward, flags, cards',
   it('Pit Without End (summonImp) arms its board-wipe Imp count; new cards are reward-only tokens', () => {
     const s = settleWith({ ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_pit_without_end', progress: 39, completed: false }] }, { playerImpsSummoned: 1 });
     expect(s.activeQuests![0]!.completed).toBe(true); // 39 + 1 = 40
-    expect(s.pitWithoutEndImps).toBe(3);
+    expect(s.pitWithoutEndImps).toBe(7);
     for (const id of ['contractimp', 'heraldapoc', 'runmaw', 'implosion']) {
       expect(BUYABLE_CARDS.some((c) => c.id === id)).toBe(false);
     }
@@ -5832,16 +5904,6 @@ describe('Rulebreaker quests — dupes, spell doubling, compound objective, cost
     expect(s.hand.filter((c) => c.cardId === 'pack').length).toBe(2); // bought + dupe
     s = reduce(s, { type: 'buy', uid: 's2' });
     expect(s.hand.filter((c) => c.cardId === 'alley').length).toBe(1); // second buy is NOT duped
-  });
-
-  it('The Author\'s Hand compound objective completes when Shout, Echo, AND Rally each reach the count', () => {
-    // Pre-loaded to 6/6/5 — one more Rally (from combat) tips it over and arms all four first-each doublers.
-    const s = settleWith({ ...createRun(1), tier: 6, activeQuests: [{ questId: 'q_authors_hand', progress: 5, completed: false, subProgress: { shout: 6, echo: 6, rally: 5 } }] }, { playerRallies: 1 });
-    expect(s.activeQuests![0]!.completed).toBe(true);
-    expect(s.shoutFirstDoubleEachRound).toBe(true);
-    expect(s.echoFirstEachCombat).toBe(1);
-    expect(s.rallyFirstEachCombat).toBe(1);
-    expect(s.slaughterFirstEachCombat).toBe(1);
   });
 
   it('spell-doubling rewards fold into the cast count', () => {

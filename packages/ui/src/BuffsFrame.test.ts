@@ -68,7 +68,7 @@ describe('gatherRunBuffs', () => {
   it('folds the live combat delta into the spell-power + Max Gold rows', () => {
     const run: RunState = { ...createRun(1), spellBonus: { attack: 0, health: 2 }, soulsmanGold: 1 };
     const byKey = Object.fromEntries(
-      gatherRunBuffs(run, { spellAttack: 1, spellHealth: 5, gold: 2 }).map((r) => [r.key, r.value]),
+      gatherRunBuffs(run, { spellAttack: 1, spellHealth: 5, gold: 2, auras: {} }).map((r) => [r.key, r.value]),
     );
     expect(byKey.spell).toBe('+1/+7'); // base 0/2 + combat 1/5
     expect(byKey.gold).toBe('+3'); // base 1 + combat 2
@@ -76,7 +76,7 @@ describe('gatherRunBuffs', () => {
 
   it('surfaces a spell-power row from the combat delta alone (zero base)', () => {
     const byKey = Object.fromEntries(
-      gatherRunBuffs(createRun(1), { spellAttack: 0, spellHealth: 4, gold: 0 }).map((r) => [r.key, r.value]),
+      gatherRunBuffs(createRun(1), { spellAttack: 0, spellHealth: 4, gold: 0, auras: {} }).map((r) => [r.key, r.value]),
     );
     expect(byKey.spell).toBe('+0/+4'); // a Bladesmith firing mid-combat lights the row up from nothing
   });
@@ -91,9 +91,9 @@ describe('combatBuffDelta', () => {
       { type: 'sc', source: 'b', text: '+1/+0 Spell Power' },
       { type: 'maxGold', target: 's', side: 'player', amount: 1 },
     ];
-    expect(combatBuffDelta(events, 0)).toEqual({ spellAttack: 0, spellHealth: 0, gold: 0 }); // nothing played
-    expect(combatBuffDelta(events, 3)).toEqual({ spellAttack: 0, spellHealth: 3, gold: 1 }); // first sc + first gold
-    expect(combatBuffDelta(events, events.length)).toEqual({ spellAttack: 1, spellHealth: 3, gold: 2 }); // all
+    expect(combatBuffDelta(events, 0)).toEqual({ spellAttack: 0, spellHealth: 0, gold: 0, auras: {} }); // nothing played
+    expect(combatBuffDelta(events, 3)).toEqual({ spellAttack: 0, spellHealth: 3, gold: 1, auras: {} }); // first sc + first gold
+    expect(combatBuffDelta(events, events.length)).toEqual({ spellAttack: 1, spellHealth: 3, gold: 2, auras: {} }); // all
   });
 
   it('ignores enemy-side max-Gold procs (only your economy counts)', () => {

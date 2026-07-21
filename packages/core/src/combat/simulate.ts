@@ -494,7 +494,10 @@ export function simulate(
       // Telegraph the wash — the run-wide aura is a board-wide event, so it gets the same bloom the recruit
       // phase shows off `auraFxSeq` (owner ask 2026-07-21: Ryme + Deathswarmer, Anubis's Lantern, …). Only a
       // real gain is worth a wave; a 0/0 aura (shouldn't happen) draws nothing.
-      if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe });
+      // Carry the amounts + the Buffs-panel row this feeds ('undead' Lantern, 'beast' Old Hunt, 'attachment'
+      // Scrap Herald) so the UI both washes the board AND ticks that row live. `neutral`/`any` still washes.
+      const auraKey = tribe === 'undead' ? 'undead' : tribe === 'beast' ? 'beast' : tribe === 'mech' ? 'attachment' : undefined;
+      if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe, attack, health, aura: auraKey });
     },
     damage: (target, amount, poison = false, bypassShield = false) =>
       dealDamage(target, amount, poison, bypassShield),
@@ -618,13 +621,19 @@ export function simulate(
       impAura[side].attack += attack;
       impAura[side].health += health;
       // Only the player carries the buff back into run state (the enemy is regenerated each wave).
-      if (side === 'player') { impBuffGain.attack += attack; impBuffGain.health += health; }
+      if (side === 'player') {
+        impBuffGain.attack += attack; impBuffGain.health += health;
+        // Imps are Demons — a demon board-wash + a live 'imp' row tick (owner report 2026-07-21: neither played
+        // in combat because this granted the buff silently).
+        if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe: 'demon', attack, health, aura: 'imp' });
+      }
     },
     impAura: (side) => ({ ...impAura[side] }), // Chef Raag reads the live Imp Aura to buff your minions by it
     grantFodderBuff: (attack, health, side) => {
       if (side !== 'player') return; // enemies have no run state
       fodderBuffGain.attack += attack;
       fodderBuffGain.health += health;
+      if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe: 'demon', attack, health, aura: 'fodder' });
     },
     grantUndeadBuyAtk: (amount, side) => {
       // Advance the granting SIDE's live Undead buy-aura so Undead summoned / Reborn LATER this fight inherit it

@@ -9,13 +9,15 @@
  *   npm run analyze            (default 30 games/hero/bot)
  *   npm run analyze -- 20      (20 games/hero/bot)
  *
- * KNOWN LIMITATION: the bots barely buy spells (their spell valuation is crude), so the spell tables come up
- * empty — spell balance can't be read from this until the bot spell heuristic improves. Rune n is also small
+ * SPELL TABLES: usable as of 2026-07-21. They were empty because the tavern's spell offer lives in
+ * `state.spell` (a dedicated slot) and the bot turn engine only read `state.shop` — so bots never saw a spell
+ * to buy. The engine now reads both and values spells by what they DO; spell n is still smaller than minion n
+ * (one offer per shop vs several), so treat thin rows with the usual care. Rune n is also small
  * (turn-6 only). And every win% credits the whole final board (co-occurrence), so read it as a package signal,
  * not isolated card power (ablation would be cleaner). The data also reflects what the BOTS can pilot — the
  * Demon-Consume package tops everything partly because it's the most mechanical for a bot to assemble.
  */
-import { createRun, reduce, pickableReportHeroes, mixReportSeed, BOTS, type BotPolicy, type RunState } from '@game/sim';
+import { createRun, reduce, pickableReportHeroes, mixReportSeed, BOTS, type BotPolicy } from '@game/sim';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX } from '@game/content';
 
 const GAMES = Math.max(1, Number(process.argv[2] ?? 30) | 0);

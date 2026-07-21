@@ -94,8 +94,47 @@ export function cardScore(def: CardDef, state: RunState, w: BotWeights, pkg?: Bo
   return v;
 }
 
-/** Spells are one-shot — valued by their tier as a rough proxy (a proper per-spell model is future work). A
- *  bot with `statValue` still keeps them comparable to minions so it doesn't ignore a strong spell package. */
-function scoreSpell(def: CardDef, _state: RunState, w: BotWeights): number {
-  return (def.tier ?? 1) * (w.tierValue + w.statValue * 1.5);
+/** Spell factories that hit your WHOLE board — their value multiplies by how many bodies are out to receive
+ *  it, which is the single biggest thing the old tier-only model missed (Growth's +3/+4 across five minions is
+ *  a ~35-stat swing, not a "tier 4" shrug). */
+const BOARD_WIDE_SPELL = new Set<string>(['spellBuffAll', 'spellGrantTribeAttack', 'spellPendingSCBuff']);
+
+/**
+ * Score a SPELL. Spells were previously valued by tier alone — `tier × (tierValue + statValue×1.5)` — which
+ * made every T4 spell identical and left them structurally unable to out-score a body, so bots bought ~0 per
+ * run. This reads what the spell actually DOES:
+ *   - its effect magnitude (the same estimator minions use),
+ *   - multiplied by the board it lands on when it's a board-wide effect,
+ *   - plus the run's spell power, which pumps every stat-granting spell,
+ *   - minus its real Gold cost (spells carry `cost`; minions' cost just tracks tier).
+ * Kept on the same scale as `cardScore` so the two remain directly comparable in the buy loop.
+ */
+function scoreSpell(def: CardDef, state: RunState, w: BotWeights): number {
+  const boardN = state.board.length;
+  let magnitude = 0;
+  for (const e of def.effects) {
+    const p = (e.params ?? {}) as Record<string, number | undefined>;
+    const stats = (p.attack ?? 0) + (p.health ?? 0);
+    if (BOARD_WIDE_SPELL.has(e.do)) {
+      // Lands on every body — scale by the board, and fold in spell power (it applies per target too).
+      const perTarget = stats + spellPowerBonus(state);
+      magnitude += perTarget * Math.max(1, boardN);
+    } else {
+      magnitude += effectsValue([e]) + (stats > 0 ? spellPowerBonus(state) : 0);
+    }
+  }
+  // An empty-param utility spell (Discover, refresh, steal) still does something — floor it.
+  if (magnitude <= 0) magnitude = 3;
+  let v = magnitude * (w.effectWeight + 0.9) + (def.tier ?? 1) * w.tierValue;
+  v -= (def.cost ?? 0) * (w.costPenalty + 0.6); // a real Gold cost, unlike a minion's tier-tracked price
+  // A board-wide buff with nothing on board is a dead card — don't buy it into an empty board.
+  if (boardN === 0) v -= 4;
+  return v;
+}
+
+/** The run's accumulated spell power (both halves) — every stat-granting spell gets this much bigger, so a
+ *  Spellbinder-style run should value spells more highly than a run with none. */
+function spellPowerBonus(state: RunState): number {
+  const sp = state.spellBonus;
+  return (sp?.attack ?? 0) + (sp?.health ?? 0);
 }

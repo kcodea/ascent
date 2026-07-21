@@ -40,6 +40,57 @@ with the guard removed and pass with it), plus three unit tests for `meleePairOf
 
 Verified: typecheck + lint (0 errors) + **1309 tests** (1304 → 1309) + `build:web`, all green.
 
+## 2026-07-21 (bots — spell usage + hero-power targeting)
+
+### feat(sim): balance bots can actually use spells; sharper hero-power targeting
+
+Owner ask: "take a pass at bot improvement so our bots can use spells and drive heroes better."
+
+**The root cause was not valuation — it was blindness.** The tavern's spell offer lives in `state.spell`, a
+dedicated right-hand slot SEPARATE from `state.shop`, and the bot turn engine only ever read `state.shop`. A
+probe over 457 shop views found **zero** spells, because there never were any there. Every pilot bought
+**0.00 spells per run** no matter how well it valued them. The engine now reads both surfaces (the Spell Cart
+can also push spells into the minion row, so both paths are handled).
+
+Three supporting fixes, each a real defect on its own:
+- **Spells were gated on BOARD room.** The whole play-from-hand step sat behind `board.length < boardMax`, so
+  a full-board bot stopped casting entirely — even though a spell needs no board slot. Spells now cast from a
+  full board, and the bot casts its BEST-scoring spell rather than the first one in hand.
+- **Spells were scored by tier alone** (`tier × (tierValue + statValue×1.5)`), making every T4 spell identical
+  and structurally unable to out-score a body. `scoreSpell` now reads what the spell DOES: effect magnitude,
+  multiplied by the board when the effect is board-wide (Growth's +3/+4 across five bodies is a ~35-stat
+  swing), plus the run's spell power, minus its real Gold cost — and it won't buy a board-wide buff into an
+  empty board. Spells also get their own `spellThreshold` lane, since a body wins every head-to-head.
+- **Darah's Swap was aimed at the player's BEST minion** — `displace` trades a body to the shop, so the engine's
+  "always target the highest-scoring minion" rule was actively destroying her best card each use. Now
+  worst-first. (Checked against the actual power texts: `sellGold` and `dynamiteDig` read like sacrifices but
+  are a sell-payoff passive and an untargeted Discover, so they stay best-first.)
+
+Also: targeted powers now walk EVERY candidate until one is legal (the old code tried only the top-scoring
+minion and silently skipped the power for the turn if that one was an invalid target), and Gild is held until
+there's a Tier-3+ body worth doubling instead of being burned on a turn-1 minion.
+
+**Measured, not assumed** (identical seeds, 324 runs/pilot; a paired A/B at bar 18 over 108 runs/config drove
+the threshold choice — 18 was tested, not guessed):
+
+| pilot | win% before → after | spells bought/run | spells cast/run |
+|---|---|---|---|
+| greedy | 4 → **8** | 0.00 → 0.40 | 0.30 → 1.31 |
+| tempo | 10 → 9 | 0.00 → 0.29 | 1.17 → 1.47 |
+| midrange | 20 → **25** | 0.00 → 0.56 | 1.50 → 2.31 |
+| meta | 23 → 23 | 0.00 → 0.60 | 1.88 → 2.55 |
+| explorer | 21 → **26** | 0.00 → 0.56 | 2.09 → 2.78 |
+
+**Honest negative result:** hero-power FREQUENCY barely moved (4.8→4.9, 5.4→5.4, 5.5→5.6). The hypothesis that
+powers were being silently skipped by invalid targets was largely wrong — the top-scoring minion was usually a
+valid target already. The targeting changes are correctness fixes (Darah, Gild) rather than a throughput win,
+and they should not be described as one. Bot win rate is also a RELATIVE signal only (per CLAUDE.md), so read
+these as deltas, not absolutes.
+
+Knock-on: `balance-analysis.ts`'s "KNOWN LIMITATION: the spell tables come up empty" note is retired — spell
+balance data is now obtainable from `npm run analyze`, which was the practical point of the exercise. Verified:
+full suite green (1312, +4 bot tests) + typecheck + lint (now ZERO warnings) + `build:web`.
+
 ## 2026-07-21 (content + balance — Twilight Emissary, Deathswarmer, hero armor)
 
 ### feat(content+sim): Twilight Emissary; Deathswarmer → T1 1/3; +5 Armor to every hero

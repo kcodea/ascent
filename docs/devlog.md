@@ -3,6 +3,34 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (ward frame-engulf: approach preview)
+
+### chore(fx): a preview rig for "engulf the frame" — judge the look before wiring
+
+Follow-up to the reverted move. Rather than guess at the design a second time, the three viable approaches
+are now side by side on a standalone rig, `apps/web/public/fx/ward-frame-preview.html` (same pattern as the
+existing `ward-css-preview.html` the current look was tuned on):
+
+- **A · today** — dome trimmed to the ellipse art window; the gold frame paints on top, untouched. Baseline.
+- **B · over the frame** — a second dome layer ABOVE the frame img (z4 vs the frame's z3), boxed to the frame
+  and clipped to its outer oval: the whole card, gold included, sits inside the glass.
+- **C · glass on the gold** — that outer layer masked by the **frame PNG's own alpha**, so glass appears only
+  where the frame's pixels are: the gold ring itself turns glassy while the art keeps the inner dome and stays
+  fully readable. (Same trick the Taunt card's halo already uses to trace the shield silhouette.)
+
+All three share one look stack, so the only difference on screen is *where the glass lands*. Live dials for
+the inner dome (size, seat, peak/trough, breath, facets) and the outer glass (reach, per-variant opacity),
+plus the two energy colours and a light/dark floor toggle.
+
+Geometry mirrors the game exactly — card 210×210, art 199×256 @ (5, −23) ellipse-clipped, frame 227×306 @
+(−8, −61) — so what reads well here transfers. The outer layer is **measured** off the frame img at runtime
+rather than hardcoding the asset's aspect.
+
+Verified in-browser: all three variants render, the frame asset loads (227×306), the outer glass seats
+exactly on the frame box in B and C, B's layer resolves above the frame (z4 > z3) with the oval clip, and C's
+mask resolves to the frame PNG at `100% 100%`. Nothing in the game is touched — this is a `public/fx` rig
+only, no shipped CSS or component changed.
+
 ## 2026-07-21 (Ward LOOK tuner; the frame-engulf attempt reverted)
 
 ### feat(ui): a Ward Dome look tuner — and an honest revert of the "engulf the frame" move

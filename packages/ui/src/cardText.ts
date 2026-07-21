@@ -508,7 +508,7 @@ export interface StepProgress {
  */
 export function stepProgress(
   cardId: string,
-  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number },
+  p: { spellProgress?: number; summonBonus?: number; ascendProgress?: number; eotTick?: number; attackSeen?: number; avengeSeen?: number; bleedAttacks?: number; goldTick?: number; buyTick?: number },
 ): StepProgress | null {
   const def = CARD_INDEX[cardId];
   if (!def) return null;
@@ -542,10 +542,14 @@ export function stepProgress(
   // Bloodbinder: the armed Bleed fires every N GLOBAL combat attack swings (either side). Shows 0/N on the board, ticks in combat.
   const bleed = def.effects.find((e) => e.do === 'scArmBleed');
   if (bleed) return cyc(p.bleedAttacks ?? 0, Math.max(1, n((bleed.params as { every?: number })?.every, 4)));
-  // Koron / Banksly: their payoff re-fires every N Gold SPENT while on the board (the `goldTick` meter). SHOP-phase —
+  // Gold-meter payoffs re-fire every N Gold SPENT while on the board (the `goldTick` meter). SHOP-phase —
   // `goldTick` is a recruit accrual (undefined in combat, where no Gold is spent), so it shows on the shop board.
   const goldSpent = def.effects.find((e) => e.on === 'goldSpent' && (e.params as { every?: number } | undefined)?.every !== undefined);
   if (goldSpent) return p.goldTick === undefined ? null : cyc(p.goldTick, Math.max(1, n((goldSpent.params as { every?: number })?.every, 7)));
+  // Korok / Banksly: their payoff re-fires every N cards BOUGHT while on the board (the `buyTick` meter) —
+  // the buy-count sibling of the Gold meter, likewise a shop-phase accrual (undefined in combat).
+  const bought = def.effects.find((e) => e.on === 'cardsBought' && (e.params as { every?: number } | undefined)?.every !== undefined);
+  if (bought) return p.buyTick === undefined ? null : cyc(p.buyTick, Math.max(1, n((bought.params as { every?: number })?.every, 4)));
   const pup = def.effects.find((e) => e.do === 'spellCastTransform');
   if (pup) { const at = Math.max(1, n((pup.params as { at?: number })?.at, 10)); return { current: Math.min(p.spellProgress ?? 0, at), total: at }; }
   if (def.ascendAt && def.ascendInto) { const at = def.ascendAt; return { current: Math.min(p.ascendProgress ?? 0, at), total: at }; }

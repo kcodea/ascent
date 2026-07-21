@@ -10,10 +10,10 @@ describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
     expect(stepProgress('soulsman', { avengeSeen: 5 })).toEqual({ current: 1, total: 4 }); // …then wraps
     expect(stepProgress('solaris', { avengeSeen: 5 })).toEqual({ current: 5, total: 5 });  // Avenge (5)
   });
-  it('Koron / Banksly count Gold spent (the goldTick meter), cyclic', () => {
-    expect(stepProgress('acid', {})).toBeNull();                       // Koron — no meter passed
-    expect(stepProgress('acid', { goldTick: 3 })).toEqual({ current: 3, total: 7 });   // every 7
-    expect(stepProgress('banksly', { goldTick: 12 })).toEqual({ current: 2, total: 10 }); // every 10, wrapped
+  it('Korok / Banksly count cards bought (the buyTick meter), cyclic', () => {
+    expect(stepProgress('acid', {})).toBeNull();                        // Korok — no meter passed
+    expect(stepProgress('acid', { buyTick: 3 })).toEqual({ current: 3, total: 4 });    // every 4
+    expect(stepProgress('banksly', { buyTick: 6 })).toEqual({ current: 2, total: 4 }); // every 4, wrapped
   });
   it('Bloodbinder counts GLOBAL combat attacks (bleedAttacks), cyclic; 0/N on the board', () => {
     expect(stepProgress('bloodbinder', {})).toEqual({ current: 0, total: 4 });

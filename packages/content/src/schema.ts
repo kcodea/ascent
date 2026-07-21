@@ -28,6 +28,7 @@ export const GameEventSchema = z.enum([
   'spellCast',
   'summonOverflow',
   'goldSpent',
+  'cardsBought',
   'onSell',
 ]);
 

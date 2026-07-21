@@ -39,9 +39,9 @@ Large hand-authored balance pass, sliced so each chunk lands green + tested on i
   add 2 Fodder), Pit Without End (last-death → 7 Imps), The Old Hunt (+3/+3 on Beast attack), Blueprint Cache
   (+3/+3 per attachment), Feeding Line (text); apply the deferred Parliament of Flame (spend 33) + Track and
   Fodder (kill 14) with new mechanic-coverage vehicles for the orphaned Djinn/consume tests.
-- **Chunk 5 — New-mechanic minions**: Korok/Banksly (new **buy-count** trigger, "when you buy 4 cards"),
-  Thundeer (Engraved on-ally-attack self-improve), Kennelmaster (SoC Beast aura + Avenge-improve), Hunter
-  (on-gain-attack board buff, improve every 3), Hoard Cleric (exclude self), Attachment Mechanic → T4 3/5.
+- **✅ Chunk 5 — New-mechanic minions** (shipped to branch): Hoard Cleric (exclude self), Attachment Mechanic
+  → T4 3/5, Kennelmaster Avenge (4), Thundeer text, Hunter (improve every 3 — new `every` param), and
+  Korok/Banksly on a new **`cardsBought`** trigger + `buyTick` meter (the buy-count sibling of `goldSpent`).
 
 ### Human-playtest balance
 The counter matrix is balance *truth*; stat numbers are dials. With all six tribes + the quest content in,

@@ -51,7 +51,7 @@ import {
 import { magnetizesTo } from './reducer';
 import { replayBattlecry } from './recruit'; // not re-exported from the package index — internal on purpose
 import type { BoardMinion } from '@game/core';
-import { applyEndOfTurn, applyGoldSpent, conjuredStats, implosionCasts, spellCasts, spellCostReduction, weldMagnetic } from './recruit';
+import { applyCardsBought, applyEndOfTurn, conjuredStats, implosionCasts, spellCasts, spellCostReduction, weldMagnetic } from './recruit';
 import { rollShop } from './shop';
 
 /** Play greedily until the run ends (game over OR victory at maxWave): buy, play, else face omen. */
@@ -960,20 +960,32 @@ describe('run loop (@game/sim)', () => {
     expect(s.fodderEaten?.[0]).toMatchObject({ fodderId: 'fred', attack: 3, health: 3 });
   });
 
-  it('Koron — every 7 Gold spent, buffs Fodder +1/+1 and queues a Fodder (no longer touches Imps)', () => {
-    // Drive applyGoldSpent directly: the reducer's roll path would refresh the tavern (draining
-    // pendingTavern into the shop, where the on-board Koron eats it), hiding the queued Fodder.
+  it('Korok — every 4 cards bought, buffs Fodder +1/+1 and queues a Fodder (no longer touches Imps)', () => {
+    // Drive applyCardsBought directly: the reducer's buy path would refresh the tavern (draining
+    // pendingTavern into the shop, where the on-board Korok eats it), hiding the queued Fodder.
     const s: RunState = {
       ...createRun(1),
       pendingTavern: [],
       board: [{ uid: 'ac', cardId: 'acid', tribe: 'demon', attack: 8, health: 8, keywords: [], golden: false }],
     };
-    applyGoldSpent(s, 6); // 6 Gold — under the 7-Gold threshold
+    applyCardsBought(s, 3); // 3 cards — under the 4-card threshold
     expect(s.cardBuffs?.fred ?? { attack: 0, health: 0 }).toEqual({ attack: 0, health: 0 }); // not yet
-    applyGoldSpent(s, 1); // crosses 7 → Koron procs once
+    applyCardsBought(s, 1); // crosses 4 → Korok procs once
     expect(s.cardBuffs?.fred).toEqual({ attack: 1, health: 1 }); // Fodder enchant run-wide
     expect(s.pendingTavern).toEqual(['fred']); // a Fodder queued into the next tavern
     expect(s.impBuff ?? { attack: 0, health: 0 }).toEqual({ attack: 0, health: 0 }); // Imps NOT affected
+  });
+
+  it('Korok fires from a real `buy` action through the reducer (the buy-count meter is wired)', () => {
+    let s: RunState = {
+      ...createRun(1), tier: 6, phase: 'recruit', embers: 50, pendingTavern: [],
+      board: [{ uid: 'ac', cardId: 'acid', tribe: 'demon', attack: 8, health: 8, keywords: [], golden: false }],
+      shop: [{ uid: 'b1', cardId: 'pack' }, { uid: 'b2', cardId: 'pack' }, { uid: 'b3', cardId: 'pack' }, { uid: 'b4', cardId: 'pack' }],
+    };
+    for (const uid of ['b1', 'b2', 'b3']) s = reduce(s, { type: 'buy', uid });
+    expect(s.cardBuffs?.fred ?? { attack: 0, health: 0 }).toEqual({ attack: 0, health: 0 }); // 3 buys — not yet
+    s = reduce(s, { type: 'buy', uid: 'b4' }); // 4th buy → procs
+    expect(s.cardBuffs?.fred).toEqual({ attack: 1, health: 1 });
   });
 
   it('Imp Overseer Battlecry gives your Imps +2/+2 run-wide (board Imps + the impBuff carry for future ones)', () => {

@@ -195,7 +195,7 @@ export const MECHS: CardDef[] = [
     goldenText: "**Deathrattle:** summon 5 Nanobots. For each one that can't fit, give your Mechs **+4/+4**.",
   },
   {
-    // Spend-gold payoff (the gold meter shared with Acid): every 10 Gold you spend, weld a RANDOM Magnetic
+    // Buy-count payoff (the buy meter shared with Korok): every 4 cards you buy, weld a RANDOM Magnetic
     // minion's stats + keywords onto Banksly himself (like Combinator, but onto self). Golden welds 2.
     id: 'banksly',
     name: 'Banksly',
@@ -204,9 +204,9 @@ export const MECHS: CardDef[] = [
     attack: 5,
     health: 6,
     keywords: [],
-    effects: [{ on: 'goldSpent', do: 'goldSpentMagnetize', params: { every: 10, count: 1 } }],
-    text: 'When you spend **10 Gold**, magnetize a random **Magnetic** onto this.',
-    goldenText: 'When you spend **10 Gold**, magnetize **2** random **Magnetics** onto this.',
+    effects: [{ on: 'cardsBought', do: 'goldSpentMagnetize', params: { every: 4, count: 1 } }],
+    text: 'When you buy **4 cards**, magnetize a random **Magnetic** onto this.',
+    goldenText: 'When you buy **4 cards**, magnetize **2** random **Magnetics** onto this.',
   },
   {
     // Rally engine: each time it attacks in combat, add a random Magnetic Mech to your hand (carried back

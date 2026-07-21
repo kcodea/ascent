@@ -2306,6 +2306,30 @@ export function applyGoldSpent(state: RunState, amount: number): void {
   }
 }
 
+/**
+ * Fire `cardsBought` effects (Korok, Banksly) when the player buys a card. The buy-count sibling of
+ * `applyGoldSpent`: each board card with a `cardsBought` effect keeps a continuous per-instance meter
+ * (`buyTick`), and each time it crosses the effect's `every` threshold the factory fires once (the remainder
+ * carries to the next buy). Called by the reducer on every `buy`.
+ */
+export function applyCardsBought(state: RunState, count: number): void {
+  if (count <= 0) return;
+  const ctx = makeContext(state);
+  for (const card of [...state.board]) {
+    const def = CARD_INDEX[card.cardId];
+    const effect = def?.effects.find((e) => e.on === 'cardsBought');
+    if (!effect) continue;
+    const fn = RECRUIT_FACTORIES[effect.do];
+    if (!fn) continue;
+    const every = Math.max(1, num(effect.params?.every, 4));
+    card.buyTick = (card.buyTick ?? 0) + count;
+    while (card.buyTick >= every) {
+      card.buyTick -= every;
+      fn(ctx, card, effect.params ?? {}, { minion: card });
+    }
+  }
+}
+
 /** Open a Discover of up to 3 distinct random spells (Black Belt Brian). Sets `state.discover`; the
  *  reducer's `discover` case resolves the pick into the hand and opens the next queued spec, if any. */
 export function offerSpellDiscover(state: RunState): void {

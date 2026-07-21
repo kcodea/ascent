@@ -3,6 +3,30 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (balance patch — chunk 5b: the buy-count trigger)
+
+### balance(core+sim+content): new `cardsBought` trigger — Korok + Banksly
+
+The last two chunk-5 minions needed a mechanic the engine didn't have: **"when you buy N cards."** Added a
+`cardsBought` trigger as the buy-count sibling of `goldSpent`, deliberately mirroring that design rather than
+inventing a second pattern:
+
+- **`BoardCard.buyTick`** (`state.ts`) — a continuous per-instance meter beside `goldTick`, carrying its
+  remainder across turns. Like `goldTick` it is a RECRUIT-phase accrual (never entering the combat snapshot),
+  so it needed no snapshot / opponent carry-back plumbing.
+- **`applyCardsBought(state, count)`** (`recruit.ts`) — mirrors `applyGoldSpent`: accrue onto `buyTick`, fire
+  the factory once per threshold crossing.
+- Wired into the reducer's `buy` case; whitelisted in the content schema + the `EffectTrigger` union.
+- Both cards reuse the EXISTING factories (`goldSpentBuffFodder` / `goldSpentMagnetize`) — they never read the
+  meter, only fire — so no new effect factories were needed. **Korok, the Hungerer**: *when you buy 4 cards,
+  give your Fodder +1/+1 and add 1 Fodder to your next tavern* (was every 7 Gold). **Banksly**: *when you buy
+  4 cards, magnetize a random Magnetic onto this* (was every 10 Gold).
+- `stepProgress` gained a `buyTick` branch so the shop-board counter reads N/4 live.
+
+Verified: full suite green (**1305** — one new test added) + typecheck + lint (back to the pre-existing single
+warning) + `build:web`. Coverage includes both a direct `applyCardsBought` unit test AND a new test driving
+four real `buy` actions through the reducer, so the wiring itself is pinned, not just the helper.
+
 ## 2026-07-21 (balance patch — chunk 5a: minion mechanics)
 
 ### balance(core+content): Hoard Cleric / Attachment Mechanic / Kennelmaster / Thundeer / Hunter

@@ -97,6 +97,7 @@ export type GameEvent =
   | 'spellCast' // recruit phase: any spell was cast (for spell-tracking minions)
   | 'summonOverflow' // recruit phase: a summon couldn't fit on the full board (Flowing Monk)
   | 'goldSpent' // recruit phase: the player spent Gold — fires per threshold (Acid, Banksly)
+  | 'cardsBought' // recruit phase: the player bought a card — fires per threshold (Korok, Banksly)
   | 'onSell'; // recruit phase: this minion is sold (Hoard Whelp — get Gold)
 
 /**

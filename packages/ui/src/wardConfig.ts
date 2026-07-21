@@ -41,13 +41,38 @@ export interface WardConfig {
   auraAlpha: number;
   /** Breathing gold bloom opacity (0–1) — the slow `kwglow` pulse behind the card. */
   breathAlpha: number;
+
+  // ---- WARD GLASS: the layer painted OVER the frame (approach B). These geometry dials are genuinely live —
+  // unlike the inner dome, nothing else styles this element, so nothing can override them. ----
+  /** Whole-glass opacity (0–1). 0 = frame untouched (inner dome only). */
+  glassAlpha: number;
+  /** Glass WIDTH × the frame box. 1 = exactly the frame; independent of height so the oval can be stretched. */
+  domeW: number;
+  /** Glass HEIGHT × the frame box. */
+  domeH: number;
+  /** Glass X nudge (px) from the frame centre. */
+  domeX: number;
+  /** Glass Y nudge (px) from the frame centre. */
+  domeY: number;
+  /** Facet sphere WIDTH (% of the glass box). */
+  facetW: number;
+  /** Facet sphere HEIGHT (% of the glass box) — independent, so it can be stretched to the oval. */
+  facetH: number;
+  /** Facet sphere X position (%). 50 = centred. */
+  facetX: number;
+  /** Facet sphere Y position (%). 50 = centred. */
+  facetY: number;
+  /** Facet opacity (0–1). */
+  facetAlpha: number;
+  /** Glass reflection (upper-left shine) opacity (0–1). */
+  glassSpot: number;
 }
 
 const DEFAULTS: WardConfig = {
   bodyAlpha: 1,
   pulseMin: 0.78,
   pulseSec: 3.8,
-  hexAlpha: 0.79,
+  hexAlpha: 0,     // inner facets OFF — they moved to the glass layer (owner 2026-07-21)
   hexSize: 99,
   shadowAlpha: 0.8,
   spotAlpha: 1,
@@ -55,6 +80,17 @@ const DEFAULTS: WardConfig = {
   auraSpread: 4,
   auraAlpha: 1,
   breathAlpha: 0.9,
+  glassAlpha: 0.55,
+  domeW: 1,
+  domeH: 1,
+  domeX: 0,
+  domeY: 0,
+  facetW: 118,
+  facetH: 118,
+  facetX: 50,
+  facetY: 50,
+  facetAlpha: 0.6,
+  glassSpot: 1,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -70,6 +106,17 @@ export const WARD_RANGES: Record<keyof WardConfig, [number, number, number]> = {
   auraSpread: [0, 30, 1],
   auraAlpha: [0, 1, 0.01],
   breathAlpha: [0, 1, 0.01],
+  glassAlpha: [0, 1, 0.01],
+  domeW: [0.5, 2, 0.01],
+  domeH: [0.5, 2, 0.01],
+  domeX: [-80, 80, 1],
+  domeY: [-80, 80, 1],
+  facetW: [20, 260, 1],
+  facetH: [20, 260, 1],
+  facetX: [-50, 150, 1],
+  facetY: [-50, 150, 1],
+  facetAlpha: [0, 1, 0.01],
+  glassSpot: [0, 1, 0.01],
 };
 
 export const WARD_KEYS = Object.keys(DEFAULTS) as (keyof WardConfig)[];
@@ -79,6 +126,8 @@ export const WARD_KEYS = Object.keys(DEFAULTS) as (keyof WardConfig)[];
 export const WARD_GROUPS: { title: string; keys: (keyof WardConfig)[] }[] = [
   { title: 'Energy ring', keys: ['bodyAlpha', 'pulseMin', 'pulseSec'] },
   { title: 'Glass', keys: ['hexAlpha', 'hexSize', 'shadowAlpha', 'spotAlpha'] },
+  { title: 'Glass over the frame', keys: ['glassAlpha', 'domeW', 'domeH', 'domeX', 'domeY', 'glassSpot'] },
+  { title: 'Glass facets', keys: ['facetW', 'facetH', 'facetX', 'facetY', 'facetAlpha'] },
   { title: 'Outer glow', keys: ['auraBlur', 'auraSpread', 'auraAlpha', 'breathAlpha'] },
 ];
 
@@ -117,6 +166,18 @@ export function applyWardVars(): void {
   s.setProperty('--wd-aura-spread', `${cfg.auraSpread}px`);
   s.setProperty('--wd-aura-alpha', String(cfg.auraAlpha));
   s.setProperty('--wd-breath-alpha', String(cfg.breathAlpha));
+  // ---- ward glass (over the frame) ----
+  s.setProperty('--wg-alpha', String(cfg.glassAlpha));
+  s.setProperty('--wg-w', String(cfg.domeW));
+  s.setProperty('--wg-h', String(cfg.domeH));
+  s.setProperty('--wg-x', `${cfg.domeX}px`);
+  s.setProperty('--wg-y', `${cfg.domeY}px`);
+  s.setProperty('--wg-hex-w', `${cfg.facetW}%`);
+  s.setProperty('--wg-hex-h', `${cfg.facetH}%`);
+  s.setProperty('--wg-hex-x', `${cfg.facetX}%`);
+  s.setProperty('--wg-hex-y', `${cfg.facetY}%`);
+  s.setProperty('--wg-hex-a', String(cfg.facetAlpha));
+  s.setProperty('--wg-spot-a', String(cfg.glassSpot));
 }
 
 export function setWardValue(key: keyof WardConfig, value: number): void {

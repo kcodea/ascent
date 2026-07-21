@@ -5,13 +5,13 @@
 <title>Ward · engulf the frame — approach preview</title>
 <style>
   /* ------------------------------------------------------------------------------------------------
-     WARD "ENGULF THE FRAME" — three approaches, side by side, so the LOOK can be judged before any of
-     it is wired into the game (owner ask 2026-07-21: "I want the ward effect to engulf the card's frame
-     as well, not just the unit art").
+     WARD "ENGULF THE FRAME" — the CHOSEN approach (owner 2026-07-21), kept as an isolated reference rig.
+     The real dials are now in-game: DevMenu -> Ward Dome, against real cards. This page is for look work on
+     a clean floor without spinning up a run.
 
-     Why a rig: in game the dome is deliberately trimmed to the ART window — `.art` is ellipse-clipped and
-     the gold frame PNG paints ON TOP of it at a LARGER box. So the dome physically cannot reach the gold.
-     Getting past that is a design choice, not a dial, and each option below looks quite different.
+     Why it exists: in game the `.ward` dome is trimmed to the ART window — `.art` is ellipse-clipped and the
+     gold frame PNG paints ON TOP of it at a LARGER box — so it can never reach the gold. The fix is a SECOND
+     dome above the frame, clipped to the frame's own silhouette. Facets live on THAT sphere, not the art's.
 
      Geometry mirrors the game/`ward-css-preview.html` exactly:
        card 210×210 · art 199×256 @ (5, −23) ellipse-clipped · frame img 227w @ (−8, −61), z3
@@ -38,7 +38,6 @@
     --dome-x: 0px;
     --dome-y: 0px;
     --outer-alpha: 0.55;
-    --rim-alpha: 0.9;   /* C: brightness of the glass sitting on the gold rim */
   }
   * { box-sizing: border-box; }
   body { margin: 0; font: 13px/1.5 ui-sans-serif, system-ui, sans-serif; background: #171a21; color: #e8ecf5; display: flex; min-height: 100vh; }
@@ -73,29 +72,22 @@
   .d-spot { background: radial-gradient(ellipse 20% 56% at 35% 9%, rgba(255,255,255,1) 0%, rgba(220,240,255,.5) 42%, rgba(200,232,255,0) 72%); }
   @keyframes pulse { 0%,100% { opacity: var(--pulse-min); } 50% { opacity: var(--peak); } }
 
-  /* A · TODAY — dome inside the ellipse-clipped art, trimmed to the window; gold frame sits on top of it. */
-  .v-today .dome { position: absolute; z-index: 2; top: var(--wardy); left: 50%; transform: translate(-50%,-50%);
+  /* The INNER dome — body + spot only, inside the ellipse-clipped art (the facets live on the outer glass). */
+  .v-over .dome:not(.outer) { position: absolute; z-index: 2; top: var(--wardy); left: 50%; transform: translate(-50%,-50%);
                    width: calc(210px * var(--wardsize)); height: calc(210px * var(--wardsize)); }
 
-  /* B · OVER THE FRAME — a second dome ABOVE the frame img (z4), boxed to the FRAME and clipped to its
-     outer oval, so the whole card reads as sealed inside glass (gold included). */
+  /* THE GLASS — a second dome ABOVE the frame img (z4), boxed to the FRAME and clipped to its outer oval, so
+     the whole card reads as sealed inside glass (gold included). */
   /* Seated on the MEASURED frame box (--frame-w/h set by JS), then sized by independent w/h multipliers and
      nudged by --dome-x/y. Anchored from its centre so resizing grows symmetrically instead of dragging a
      corner. The ellipse clip is what makes the facets inside take the frame's oval shape. */
-  .v-over .outer, .v-rim .outer {
+  .v-over .outer {
     position: absolute; z-index: 4; pointer-events: none;
     width: calc(var(--frame-w) * var(--dome-w));
     height: calc(var(--frame-h) * var(--dome-h));
     transform: translate(calc(-50% + var(--dome-x)), calc(-50% + var(--dome-y)));
   }
   .v-over .outer { clip-path: ellipse(50% 50% at 50% 50%); opacity: var(--outer-alpha); }
-
-  /* C · GLASS ON THE GOLD — the outer layer is MASKED BY THE FRAME PNG's own alpha, so glass appears only
-     where the frame's pixels are: the gold ring itself turns glassy, the art keeps the inner dome. */
-  .v-rim .outer { opacity: var(--rim-alpha);
-                  -webkit-mask-image: url('/frames/standard-oval.png'); mask-image: url('/frames/standard-oval.png');
-                  -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
-                  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
 
   /* ---- panel ---- */
   #panel { width: 300px; flex: none; background: #10131a; border-left: 1px solid #262c38; padding: 18px 16px 40px; overflow-y: auto; height: 100vh; }
@@ -115,17 +107,6 @@
 <body>
   <div id="stage">
     <div class="slot">
-      <div class="card v-today">
-        <div class="art"><span class="sprite">🤖</span>
-          <div class="dome"><div class="d-body"></div><div class="d-hex"></div><div class="d-spot"></div></div>
-        </div>
-        <img class="cframe-img" src="/frames/standard-oval.png" alt="" />
-      </div>
-      <div class="cap">A · today</div>
-      <div class="note">Dome trimmed to the art window. The gold frame paints on top and stays untouched.</div>
-    </div>
-
-    <div class="slot">
       <div class="card v-over">
         <div class="art"><span class="sprite">🤖</span>
           <!-- inner: body + spot only. The FACETS moved out to the frame-sized oval (owner 2026-07-21) —
@@ -136,26 +117,15 @@
         <img class="cframe-img" src="/frames/standard-oval.png" alt="" />
         <div class="outer dome"><div class="d-body"></div><div class="d-hex"></div><div class="d-spot"></div></div>
       </div>
-      <div class="cap">B · over the frame ★</div>
-      <div class="note">Chosen. A second dome above the frame, clipped to its outer oval — the whole card, gold included, inside the glass. <b>Facets follow the frame oval</b>, not the art.</div>
+      <div class="cap">Ward glass · over the frame</div>
+      <div class="note">A second dome above the frame, clipped to its outer oval — the whole card, gold included, inside the glass. Facets follow the frame oval, not the art. <b>This is now wired in-game</b>; the live tuner is 🛠️ → 🔵 Ward Dome.</div>
     </div>
 
-    <div class="slot">
-      <div class="card v-rim">
-        <div class="art"><span class="sprite">🤖</span>
-          <div class="dome"><div class="d-body"></div><div class="d-hex"></div><div class="d-spot"></div></div>
-        </div>
-        <img class="cframe-img" src="/frames/standard-oval.png" alt="" />
-        <div class="outer dome"><div class="d-body"></div><div class="d-spot"></div></div>
-      </div>
-      <div class="cap">C · glass on the gold</div>
-      <div class="note">Outer layer masked by the frame PNG's own alpha — only the gold ring turns glassy. Keeps the art fully readable.</div>
-    </div>
   </div>
 
   <div id="panel">
     <h1>Ward · engulf the frame</h1>
-    <div class="sub">Three ways to get the dome past the art window. All three share one look stack, so differences are purely <em>where the glass lands</em>. Judge, then I wire the winner.</div>
+    <div class="sub">Reference rig for the chosen approach. The real dials now live in-game (🛠️ → 🔵 Ward Dome) against real cards — this page is kept for isolated look work on a clean floor.</div>
 
     <h2>Energy colour</h2>
     <div class="colorrow"><label>bright (rim / core)</label><input type="color" id="c-bright" value="#78a6ff" /></div>
@@ -164,7 +134,7 @@
     <h2>Inner dome (in the art)</h2>
     <div id="inner"></div>
 
-    <h2>Dome — the outer glass (B &amp; C)</h2>
+    <h2>Dome — the glass over the frame</h2>
     <div id="dome"></div>
 
     <h2>Facets — the hex sphere</h2>
@@ -187,8 +157,7 @@
     ['--dome-h', 'height ×', 0.5, 2, 0.01],
     ['--dome-x', 'X nudge', -80, 80, 1, 'px'],
     ['--dome-y', 'Y nudge', -80, 80, 1, 'px'],
-    ['--outer-alpha', 'B opacity', 0, 1, 0.01],
-    ['--rim-alpha', 'C opacity', 0, 1, 0.01],
+    ['--outer-alpha', 'opacity', 0, 1, 0.01],
   ];
   const DIALS_FACETS = [
     ['--hex-w', 'width %', 20, 260, 1, '%'],

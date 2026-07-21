@@ -471,6 +471,21 @@ export const Card = memo(function Card({
             </div>
           )}
         </div>
+        {/* WARD GLASS (Divine Shield) — the "engulf the frame" layer (owner-chosen approach B, 2026-07-21).
+            The `.ward` dome above is trimmed to the ART window by design, so it can never reach the gold.
+            This is a SECOND dome painted OVER the frame (z4 vs the frame's z3) and clipped to the frame's own
+            silhouette, so the whole card — gold included — reads as sealed inside the glass. Its FACETS live
+            here rather than in the inner dome: one sphere at the frame's size means the hex must map to THAT
+            sphere, not a smaller one inside the art (owner note).
+            Geometry is pure CSS per frame type (oval / spell square / taunt heater), mirroring `.cframe-tint`
+            so it tracks the frame at any card scale with no measuring — see styles.css "WARD GLASS". */}
+        {card.keywords.includes('DS') && (
+          <div className="wardglass" aria-hidden="true">
+            <div className="wg-body" />
+            <div className="wg-hex" />
+            <div className="wg-spot" />
+          </div>
+        )}
         {/* Flurry (W) — wind blades swirling the card: a CSS ring stack (styles.css `.flurrycard .flurry`).
             Lives in the archbox (NOT `.art`, which clips) at z2 — above the art, below the frame — so the
             swirl orbits AROUND the card like the preview. Static gradient/mask paint from flurryConfig; only

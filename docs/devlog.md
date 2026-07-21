@@ -3,6 +3,42 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (ward glass over the frame — live in-game)
+
+### feat(ui): wire approach B as a real layer with a working live tuner
+
+Owner picked **B** (glass over the frame), with two refinements: the **facets must take the shape of the oval
+over the frame**, not the card art underneath; and both the dome and the facets need independent **width,
+height, X and Y**. Then: make it a live in-game tuner, B only.
+
+New `.wardglass` element (Card.tsx, DS cards) painted at **z4 — above the frame's z3** — and clipped to the
+frame's own silhouette. The `.ward` dome stays exactly where it is, trimmed to the art window; this is a
+second, larger dome, so the earlier regression (moving the inner dome and destroying the clip the per-frame
+rules rely on) cannot recur. **The facets moved onto this layer**: one sphere at the frame's size means the
+hex must map to *that* sphere, so `.wg-hex` carries them and the inner `--wd-hex-alpha` now defaults to 0.
+
+Geometry is pure CSS per frame type, mirroring `.cframe-tint` / `.tframe-img` and derived from each asset's
+real pixel aspect (standard-oval-v2 1059×1427 → 1.3475; taunt-shield 1086×1448 → 1.3333), so it tracks the
+frame at any `--ccw`/`--sh` with **no JS measuring**. Expressed **centre-anchored** so the size dials grow
+symmetrically instead of dragging a corner. Spell frames are skipped — spells can't carry DS.
+
+**Why these dials are genuinely live, unlike last time:** the failed attempt tried to drive the *inner* dome,
+which `.stdframe.dscard .ward` / `.taunt.dscard .ward` already style with their own `inset`/`transform` — they
+won on specificity and the dials did nothing ("the tuner doesn't seem to be doing much"). Nothing else styles
+`.wardglass`, so its 11 `--wg-*` vars are unopposed.
+
+Tuner gains two groups: **Glass over the frame** (opacity, width ×, height ×, X/Y nudge, shine) and **Glass
+facets** (width %, height %, X %, Y %, opacity) — width/height independent on both, so the sphere can be
+stretched to the oval rather than only scaled.
+
+The preview rig is reduced to this one approach and relabelled as a reference (A/C markup, CSS and dials
+removed) now that the real dials live in-game.
+
+Verified in-browser against the SHIPPED stylesheet: all four `.wardglass` rules present, all 11 `--wg-*` vars
+on `:root`, and a synthetic warded oval card measures the glass at **116×157 against the frame's 116×157 with
+centres offset (0, 0)** — i.e. the derived geometry lands exactly on the frame box — plus a width-dial change
+verified to actually resize it. Gate: typecheck + lint (0 errors) + 1324 tests + `build:web`.
+
 ## 2026-07-21 (ward frame-engulf: approach preview)
 
 ### chore(fx): a preview rig for "engulf the frame" — judge the look before wiring

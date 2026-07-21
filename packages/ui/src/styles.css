@@ -1031,7 +1031,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 }
 @keyframes wardpulse { 0%, 100% { opacity: var(--wd-pulse-min, 0.78); } 50% { opacity: var(--wd-body-alpha, 1); } }
 .card.compact.dscard .ward-hex {   /* dense blue-white hex facets projected onto a sphere; rim-masked */
-  background: url("/fx/ward-hexsphere.svg") center / var(--wd-hex-size, 99%) no-repeat; opacity: var(--wd-hex-alpha, 0.79); mix-blend-mode: screen;
+  background: url("/fx/ward-hexsphere.svg") center / var(--wd-hex-size, 99%) no-repeat; opacity: var(--wd-hex-alpha, 0); mix-blend-mode: screen;
   -webkit-mask-image: radial-gradient(circle at 50% 46%, transparent 39%, #000 calc(39% + 12%), #000 88%, transparent 99%);
           mask-image: radial-gradient(circle at 50% 46%, transparent 39%, #000 calc(39% + 12%), #000 88%, transparent 99%);
 }
@@ -1040,6 +1040,59 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   background: radial-gradient(ellipse 20% 56% at 35% 9%,
     rgba(255, 255, 255, var(--wd-spot-alpha, 1)) 0%, rgba(220, 240, 255, calc(var(--wd-spot-alpha, 1) * 0.5)) 42%, rgba(200, 232, 255, 0) 72%);
 }
+/* ============================ WARD GLASS — "engulf the frame" (owner approach B) ============================
+   The `.ward` dome above is trimmed to the ART window by design (the per-frame rules seat an oversized dome and
+   let `.art`'s clip cut it), so it can never reach the gold. This is a SECOND dome painted OVER the frame
+   (z4 vs the frame's z3) and clipped to the frame's own silhouette, so the whole card reads as sealed in glass.
+
+   Geometry mirrors `.cframe-tint` / `.tframe-img` per frame type and is expressed CENTRE-anchored, so the
+   `--wg-w`/`--wg-h` size dials grow symmetrically instead of dragging a corner. Derived from each asset's real
+   pixel aspect (standard-oval-v2 1059×1427 → 1.3475; taunt-shield 1086×1448 → 1.3333), so the glass tracks the
+   frame at any `--ccw`/`--sh` with no JS measuring. Spell frames are not covered: spells can't carry DS.
+   `--wg-*` fallbacks below ARE the shipped values (the Ward tuner only overrides them at runtime). */
+.card.compact.dscard .wardglass {
+  position: absolute; z-index: 4; pointer-events: none; overflow: hidden;
+  width: calc(var(--wg-base) * var(--wg-w, 1));
+  height: calc(var(--wg-base) * var(--wg-ar) * var(--wg-h, 1));
+  transform: translate(calc(-50% + var(--wg-x, 0px)), calc(-50% + var(--wg-y, 0px)));
+  opacity: var(--wg-alpha, 0.55);
+}
+.card.compact.dscard .wardglass > * { position: absolute; inset: 0; }
+/* OVAL minion frame — clipped to the frame's outer ellipse. */
+.card.compact.stdframe.dscard .wardglass {
+  --wg-base: calc(var(--ccw) * 1.481 * var(--sh));
+  --wg-ar: 1.3475;
+  left: calc(var(--ccw) * (0.5 + 0.0035 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 0.12815 * var(--sh) + var(--dy) + var(--frameY)));
+  clip-path: ellipse(50% 50% at 50% 50%);
+}
+/* TAUNT heater frame — same idea, clipped to the shield silhouette instead of an oval. */
+.card.compact.taunt.dscard .wardglass {
+  --wg-base: calc(var(--ccw) * 1.527 * var(--sh));
+  --wg-ar: 1.3333;
+  left: calc(var(--ccw) * (0.5 + 0.0055 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 0.068 * var(--sh)));
+  clip-path: var(--heater);
+}
+.card.compact.dscard .wg-body {   /* the glass body — same energy gradient as the inner dome */
+  background: radial-gradient(120% 88% at 50% 44%,
+    rgba(0, 64, 255, 0) 0%, rgba(0, 64, 255, 0) 28%, rgba(0, 64, 255, 1) 56%, rgba(0, 30, 255, 1) 78%, rgba(0, 30, 255, 0) 100%);
+  animation: wardpulse var(--wd-pulse-sec, 3.8s) ease-in-out infinite; will-change: opacity;
+}
+/* The FACETS live HERE, not in the inner dome (owner 2026-07-21): one sphere at the FRAME's size means the hex
+   must map to that sphere, not a smaller one inside the art. Independent size + position so the sphere can be
+   stretched to the oval and seated by eye. */
+.card.compact.dscard .wg-hex {
+  background-image: url("/fx/ward-hexsphere.svg"); background-repeat: no-repeat;
+  background-size: var(--wg-hex-w, 118%) var(--wg-hex-h, 118%);
+  background-position: var(--wg-hex-x, 50%) var(--wg-hex-y, 50%);
+  opacity: var(--wg-hex-a, 0.6); mix-blend-mode: screen;
+}
+.card.compact.dscard .wg-spot {   /* glass reflection, upper-left */
+  background: radial-gradient(ellipse 20% 56% at 35% 9%,
+    rgba(255, 255, 255, var(--wg-spot-a, 1)) 0%, rgba(220, 240, 255, calc(var(--wg-spot-a, 1) * 0.5)) 42%, rgba(200, 232, 255, 0) 72%);
+}
+/* ========================================================================================================== */
 .card.compact.dscard .ward-gloss {   /* diagonal gloss streak — tuned OFF (the spot carries the shine) */
   background: linear-gradient(0deg, transparent calc(0% - 0.5%), rgba(255, 255, 255, 0) 0%, transparent calc(0% + 0.5%));
   -webkit-mask-image: radial-gradient(ellipse 20% 20% at 50% 0%, #000 45%, transparent 100%);

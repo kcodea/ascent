@@ -31,6 +31,17 @@ const LABELS: Record<keyof WardConfig, string> = {
   auraSpread: 'aura spread',
   auraAlpha: 'aura alpha',
   breathAlpha: 'gold breath',
+  glassAlpha: 'glass opacity',
+  domeW: 'width ×',
+  domeH: 'height ×',
+  domeX: 'X nudge',
+  domeY: 'Y nudge',
+  glassSpot: 'glass shine',
+  facetW: 'facet width %',
+  facetH: 'facet height %',
+  facetX: 'facet X %',
+  facetY: 'facet Y %',
+  facetAlpha: 'facet opacity',
 };
 
 export function WardTuner() {

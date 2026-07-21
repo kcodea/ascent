@@ -14,6 +14,7 @@ export * from './rating';
 export * from './playerRating';
 export * from './synthesize';
 export * from './balanceReport';
+export { BOTS, BOT_BY_ID, DEFAULT_BOT, type BotPolicy, type BotWeights } from './bots';
 export * from './runTelemetry';
 export * from './opponentPool.data';
 export { MATCHMAKING, adjustedWinRate, bandWeight, boardRecord, clearBoardRecords, registerBoardRecords, selectionWeight, type BoardRecord } from './matchmaking';

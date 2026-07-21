@@ -3,6 +3,39 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (ward energy-bubble concept rig)
+
+### chore(fx): a second rig aimed at the owner's concept render
+
+The owner shared a concept render of the Ward they actually want — a light-blue **hexagonal energy shell**
+encasing the whole card, with a crisp **white-hot rim**, a soft **cyan halo** bleeding outward, and an even
+honeycomb over art *and* gold. Explicitly *"separately… I don't want to undo anything we've done."*
+
+So this is a **new, independent rig** (`apps/web/public/fx/ward-bubble-preview.html`) rather than a change to
+the shipped `.wardglass` or to `ward-frame-preview.html` — neither is touched, and the two can be compared.
+
+Four things the concept has that the current effect doesn't, each its own layer + dial group:
+1. **rim** — a crisp white-hot edge with independent inner *and* outer glow. The shipped dome uses a soft
+   radial gradient, which never reads as a shell *surface*; this is the layer the concept leans on hardest.
+2. **hex shell** — honeycomb across the whole oval, masked to stay clearer at the centre and densen toward
+   the rim, so it reads as curvature rather than flat texture. Independent w/h/x/y.
+3. **halo** — a wide soft cyan bleed *outside* the shell (blur / spread / opacity).
+4. **fill** — a light overall tint, low at the core so the art still reads, denser at the edge.
+Plus a glass sheen and the breath pulse. 25 dials, three colour pickers (white-hot / energy / deep edge), a
+light-dark floor toggle, and a **Copy values** export of the resolved `:root` block.
+
+Shown at game size *and* at 1.9× side by side, since rim thickness and hex density are the details that decide
+whether it matches — and they're unjudgeable at 210px.
+
+Two gotchas hit and recorded: card art is bundled from `packages/ui/src/art/`, not `public/`, and Vite's SPA
+fallback returns **HTTP 200 with `text/html`** for those paths — a `curl -o /dev/null -w "%{http_code}"` check
+"passed" while the browser got no image. Content-type is the real check. Resolved by copying one art file to
+`public/fx/preview-art.webp` so the rig renders over real art.
+
+Verified in-browser: art loads (512×512), the bubble measures 236×318 against the frame's 227×306 (extends
+past it) and is centred on it, all four layers present, 25 dials wired, the copy-export populates.
+`build:web` green. No shipped CSS or component touched.
+
 ## 2026-07-21 (hex sphere warps independently)
 
 ### fix(fx): the facet sphere was aspect-locked — `preserveAspectRatio='none'`

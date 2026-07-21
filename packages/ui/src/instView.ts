@@ -2,7 +2,7 @@ import { CARD_INDEX } from '@game/content';
 import { CONFIG, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState } from '@game/sim';
 import type { CardView } from './Card';
 import {
-  abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, clingProgressText,
+  abhorrentHorrorText, ascendProgressText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, monkProgressText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
   ritualistText, sergeantText, soulsmanText, squirlScoutText, stepProgress, stewardText, summonBuffText, summonImproveText, summonScalingText, tallyBuffText,
   trailForagerText, transformProgressText, undeadBuyAtkText, watcherText,
@@ -21,6 +21,9 @@ export interface LiveTextParams {
   clingEnchant?: { attack: number; health: number };
   fodderConsumed?: { attack: number; health: number };
   undeadBuyAtk: number; soulsmanGold: number; cardBuffs?: Record<string, { attack: number; health: number }>;
+  /** The run-wide Imp Aura — Chef Raag's Echo grants your board this much (floored at +1/+1). Player-only:
+   *  `enemyScalers` doesn't carry it, so an enemy Raag falls back to its printed text. */
+  impAura?: { attack: number; health: number };
   spellProgress?: number; ascendProgress?: number; summonBonus?: number; overflowBonus?: number; hpGrantBonus?: number; eotTick?: number; eotBonus?: number; sellBonus?: number;
   /** Card ids you've played this recruit turn — Pack Leader / Spirit Worgen show their live per-play scaling. In
    *  COMBAT an enemy passes a pre-counted NUMBER instead (its snapshot doesn't carry the played ids). */
@@ -65,6 +68,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
             watcherText(c.id, p.golden, p.spellBonus, p.spellBonusH) ?? // Watcher: live Lantern buff +x/+y (base + spell power, both stats)
             abhorrentHorrorText(c.id, p.fodderConsumed, p.golden) ??
             summonScalingText(c.id, p.spellsThisTurn * (p.improveReps ?? 1), p.golden) ?? // Spirit Worgen: recruit-only per-play scaling (per-spell part ×2 under Rune of Mastery)
+            chefRaagText(c.id, p.golden, p.impAura) ?? // Chef Raag: live Imp-Aura grant (floored at +1/+1)
             runescaleText(c.id, p.golden, p.spellProgress ?? 0) ??
             scTribeBuffPerPlayedText(c.id, p.golden, p.playedThisTurn) ??
             packLeaderText(c.id, p.summonBonus ?? 0, p.golden) ??
@@ -117,7 +121,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -129,7 +133,7 @@ export function instView(
   const { text, goldenText } = liveCardText(inst.cardId, {
     tier, golden: !!inst.golden, spellBonus, spellBonusH, frontToBackBonus, frontToBackBonusH: live?.frontToBackBonusH ?? frontToBackBonus, spellsThisTurn, spellsCast,
     deathrattlesTriggered, clingEnchant, fodderConsumed,
-    undeadBuyAtk: live?.undeadBuyAtk ?? 0, soulsmanGold: live?.soulsmanGold ?? 0, cardBuffs: live?.cardBuffs,
+    undeadBuyAtk: live?.undeadBuyAtk ?? 0, soulsmanGold: live?.soulsmanGold ?? 0, cardBuffs: live?.cardBuffs, impAura: live?.impAura,
     goldSpent: live?.goldSpent ?? 0, goldPouchValue: live?.goldPouchValue ?? 0,
     spellProgress: inst.spellProgress, ascendProgress: inst.ascendProgress, summonBonus: inst.summonBonus,
     overflowBonus: inst.overflowBonus,

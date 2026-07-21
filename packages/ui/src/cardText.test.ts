@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ALL_CARDS } from '@game/content';
-import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, undeadBuyAtkText, watcherText } from './cardText';
+import { abhorrentHorrorText, cadenceProgressText, cardTypeTallyText, chefRaagText, escalatingCastText, guelProgressText, monkProgressText, packLeaderText, ritualistText, runescaleText, sergeantText, soulsmanText, stepProgress, summonBuffText, summonImproveText, summonScalingText, tallyBuffText, undeadBuyAtkText, watcherText } from './cardText';
 
 describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
   it('Avenge units show 0/N on the board and tick with the death tally in combat, cyclic', () => {
@@ -23,6 +23,15 @@ describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
 });
 
 describe('cardText helpers', () => {
+  it('chefRaagText shows the live Imp-Aura grant, floored at +1/+1 (golden-aware)', () => {
+    expect(chefRaagText('chefraag', false, undefined)).toBeNull();                       // no aura → printed +1/+1 stands
+    expect(chefRaagText('chefraag', false, { attack: 0, health: 0 })).toBeNull();        // still the floor
+    expect(chefRaagText('chefraag', false, { attack: 3, health: 2 })).toContain('{{+3/+2}}');
+    expect(chefRaagText('chefraag', false, { attack: 3, health: 2 })).toContain('**+2/+2**'); // the Imps clause is left alone
+    expect(chefRaagText('chefraag', true, { attack: 3, health: 2 })).toContain('{{+6/+4}}');  // golden doubles the grant
+    expect(chefRaagText('chefraag', false, { attack: 5, health: 0 })).toContain('{{+5/+1}}'); // each half floors on its own
+    expect(chefRaagText('sandbag', false, { attack: 3, health: 2 })).toBeNull();
+  });
   it('runescaleText shows Runescale Drake’s live per-spell rate (base + every-4 improve, golden-aware)', () => {
     expect(runescaleText('runescale', false, 0)).toBeNull(); // rate still base → printed base is accurate
     expect(runescaleText('runescale', false, 3)).toBeNull(); // 3 < 4 → not improved yet

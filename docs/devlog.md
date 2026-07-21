@@ -3,6 +3,32 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (balance follow-up — Runescale floor + Chef Raag live text)
+
+### balance(core+ui+content): Runescale floors at its base rate; Chef Raag floors at +1/+1 and prints its live grant
+
+Owner follow-up to the balance patch, fixing the two "does nothing at zero" cases it introduced:
+
+- **Runescale Drake** — the spells-this-turn multiplier now **floors at 1**, so a turn with no spells still pays
+  the base **+2/+2** (previously it granted nothing at all). Text states the floor.
+- **Chef Raag** — the Imp-Aura grant now **floors at +1/+1** (each half independently), so a fresh Raag with no
+  Imp buffs still pays a baseline instead of zero.
+- **Chef Raag's card text is now live.** Its printed grant was a static "stats equal to your Imp Aura", which
+  the live-accuracy rule forbids. Restructured the text to carry a real magnitude (`+1/+1, equal to your Imp
+  Aura`) and added a `chefRaagText` helper that folds in the current value, greened, with the "Improve your
+  Imps by +2/+2" clause left alone. Threaded a new `impAura` through `LiveTextParams` → `instView` → both
+  chains (Recruit's shop/board/Discover **and** Unit's combat text), sourced from `run.impBuff` — the exact
+  field that seeds combat's `impAtk`, so the printed number and the combat math cannot drift.
+
+Player-only, deliberately: `enemyScalers` carries no Imp Aura, so an enemy Chef Raag falls back to its printed
+text — the same treatment `soulsmanGold` / `cardBuffs` / `clingEnchant` already get.
+
+Verified: full suite green (**1306**, +3 tests) + typecheck + lint + `build:web`. New coverage pins the factory
+floor in combat (with and without an aura), the text helper (including each half flooring on its own and the
+golden doubling), and — deliberately — the **plumbing** through `liveCardText`, since a correct helper that is
+never called would otherwise pass silently. The two Runescale tests that asserted the old "no spells → nothing"
+behaviour now pin the floor instead.
+
 ## 2026-07-21 (balance patch — chunk 4: quest removals + flag reworks)
 
 ### balance(core+sim+content): 3 quest removals, 6 flag reworks, 2 deferred objectives

@@ -171,8 +171,8 @@ export const DEMONS: CardDef[] = [
       { on: 'onDeath', do: 'deathrattleBuffAllByImpAura' },
       { on: 'onDeath', do: 'deathrattleBuffImps', params: { attack: 2, health: 2 } },
     ],
-    text: '**Echo:** give your minions stats equal to your **Imp Aura**. Improve your Imps by **+2/+2**.',
-    goldenText: '**Echo:** give your minions **double** your **Imp Aura**. Improve your Imps by **+4/+4**.',
+    text: '**Echo:** give your minions **+1/+1**, equal to your **Imp Aura**. Improve your Imps by **+2/+2**.',
+    goldenText: '**Echo:** give your minions **+2/+2**, equal to **double** your **Imp Aura**. Improve your Imps by **+4/+4**.',
   },
   {
     id: 'trickster',

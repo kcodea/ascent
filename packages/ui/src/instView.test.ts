@@ -27,6 +27,14 @@ describe('liveCardText — the single source of truth shared by shop + combat', 
     expect(liveCardText('cryptdrake', base).text).toBe(CARD_INDEX['cryptdrake']!.text); // shop: no attacks seen → base
   });
 
+  it('resolves Chef Raag’s Imp-Aura grant from the threaded run aura (and floors it without one)', () => {
+    // Guards the PLUMBING, not just the helper: `impAura` has to survive the run → instView → liveCardText hop,
+    // which is what actually breaks when a new live value is added (the helper can be right and never called).
+    expect(liveCardText('chefraag', { ...base, impAura: { attack: 4, health: 3 } }).text).toContain('{{+4/+3}}');
+    // No aura threaded (a fresh run, or a combat ENEMY Raag — enemyScalers carries none) → printed +1/+1 floor.
+    expect(liveCardText('chefraag', base).text).toBe(CARD_INDEX['chefraag']!.text);
+  });
+
   it('folds in Ritualist’s per-tick grant + the run-wide Eternal Knight tally (metric append) in one call', () => {
     expect(liveCardText('ritualist', { ...base, eotBonus: 6 }).text).toContain('{{+7/+7}}'); // accrued 6 + step 1 (non-golden)
     // Eternal Knight (knit): run-wide card-type enchant shows as an appended metric, now available in combat too.

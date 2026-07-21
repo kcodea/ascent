@@ -1022,13 +1022,13 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
    clip-path would cut it away entirely. */
 .card.compact.dscard .wardglass {
   position: absolute; z-index: 4; pointer-events: none; border-radius: 50%;
-  width: calc(var(--wg-base) * var(--wg-w, 1.04));
-  height: calc(var(--wg-base) * var(--wg-ar) * var(--wg-h, 1.01));
-  transform: translate(calc(-50% + var(--wg-x, 0px)), calc(-50% + var(--wg-y, 6px)));
-  box-shadow: 0 0 var(--wg-halo, 10px) var(--wg-halo-spread, 1px) rgba(77, 163, 254, var(--wg-halo-a, 0.6));
-  animation: wardbreathe var(--wg-pulse-s, 2.4s) ease-in-out infinite; will-change: opacity;
+  width: calc(var(--wg-base) * var(--wg-w, 1.05));
+  height: calc(var(--wg-base) * var(--wg-ar) * var(--wg-h, 1));
+  transform: translate(calc(-50% + var(--wg-x, 0px)), calc(-50% + var(--wg-y, 3px)));
+  box-shadow: 0 0 var(--wg-halo, 4px) var(--wg-halo-spread, 1px) rgba(var(--wg-halo-rgb, 77, 163, 254), var(--wg-halo-a, 0.6));
+  animation: wardbreathe var(--wg-pulse-s, 2.6s) ease-in-out infinite; will-change: opacity;
 }
-@keyframes wardbreathe { 0%, 100% { opacity: var(--wg-pulse-min, 0.63); } 50% { opacity: 1; } }
+@keyframes wardbreathe { 0%, 100% { opacity: var(--wg-pulse-min, 0.82); } 50% { opacity: 1; } }
 .card.compact.dscard .wardglass > * { position: absolute; inset: 0; border-radius: 50%; }
 /* OVAL minion frame. */
 .card.compact.stdframe.dscard .wardglass {
@@ -1047,32 +1047,36 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* 1 - FILL: light at the core so the art still reads, denser toward the rim. */
 .card.compact.dscard .wg-fill {
   background: radial-gradient(ellipse 50% 50% at 50% 47%,
-    rgba(77, 163, 254, var(--wg-fill-core, 0)) 0%,
-    rgba(77, 163, 254, var(--wg-fill-core, 0)) var(--wg-fill-stop, 35%),
-    rgba(0, 88, 204, var(--wg-fill-edge, 1)) 100%);
+    rgba(var(--wg-fill-core-rgb, 77, 163, 254), var(--wg-fill-core, 0)) 0%,
+    rgba(var(--wg-fill-core-rgb, 77, 163, 254), var(--wg-fill-core, 0)) var(--wg-fill-stop, 68%),
+    rgba(var(--wg-fill-edge-rgb, 0, 88, 204), var(--wg-fill-edge, 1)) 100%);
 }
 /* 2 - HEX: the honeycomb. Masked so the centre stays clearer and the pattern densens at the rim, which is
    what reads as a curved surface rather than a flat texture. The SVG carries `preserveAspectRatio='none'`,
    so width/height warp independently. */
 .card.compact.dscard .wg-hex {
-  background-image: url("/fx/ward-hexsphere.svg"); background-repeat: no-repeat;
-  background-size: var(--wg-hex-w, 103%) var(--wg-hex-h, 103%);
-  background-position: var(--wg-hex-x, 59%) var(--wg-hex-y, 50%);
-  opacity: var(--wg-hex-a, 0.81); mix-blend-mode: screen;
-  -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.35) var(--wg-hex-edge, 80%), #000 88%, #000 100%);
-          mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.35) var(--wg-hex-edge, 80%), #000 88%, #000 100%);
+  background: var(--wg-hex-color, #dff2ff);
+  opacity: var(--wg-hex-a, 1); mix-blend-mode: screen;
+  -webkit-mask-image: url("/fx/ward-hexsphere.svg"), radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.35) var(--wg-hex-edge, 72%), #000 88%, #000 100%);
+          mask-image: url("/fx/ward-hexsphere.svg"), radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.35) var(--wg-hex-edge, 72%), #000 88%, #000 100%);
+  -webkit-mask-size: var(--wg-hex-w, 101%) var(--wg-hex-h, 102%), 100% 100%;
+          mask-size: var(--wg-hex-w, 101%) var(--wg-hex-h, 102%), 100% 100%;
+  -webkit-mask-position: var(--wg-hex-x, 7%) var(--wg-hex-y, 50%), 50% 50%;
+          mask-position: var(--wg-hex-x, 7%) var(--wg-hex-y, 50%), 50% 50%;
+  -webkit-mask-repeat: no-repeat, no-repeat; mask-repeat: no-repeat, no-repeat;
+  -webkit-mask-composite: source-in; mask-composite: intersect;
 }
 /* 3 - SHEEN: the broad glass highlight, upper-left. */
 .card.compact.dscard .wg-sheen {
   background: radial-gradient(ellipse 26% 34% at 33% 16%,
-    rgba(255, 255, 255, var(--wg-sheen-a, 1)) 0%, rgba(220, 240, 255, calc(var(--wg-sheen-a, 1) * 0.45)) 45%, rgba(200, 232, 255, 0) 74%);
+    rgba(var(--wg-sheen-rgb, 255, 255, 255), var(--wg-sheen-a, 1)) 0%, rgba(var(--wg-sheen-rgb, 255, 255, 255), calc(var(--wg-sheen-a, 1) * 0.45)) 45%, rgba(var(--wg-sheen-rgb, 255, 255, 255), 0) 74%);
 }
 /* 4 - RIM: the crisp white-hot edge with its own inward + outward glow. This is what makes it read as a
    shell SURFACE; a soft gradient alone never does. */
 .card.compact.dscard .wg-rim {
-  border: var(--wg-rim-w, 2.2px) solid rgba(234, 247, 255, var(--wg-rim-a, 0.95));
-  box-shadow: inset 0 0 var(--wg-rim-in, 60px) rgba(77, 163, 254, var(--wg-rim-in-a, 0.66)),
-              0 0 var(--wg-rim-out, 9px) rgba(234, 247, 255, var(--wg-rim-out-a, 1));
+  border: var(--wg-rim-w, 1.7px) solid rgba(var(--wg-rim-rgb, 234, 247, 255), var(--wg-rim-a, 1));
+  box-shadow: inset 0 0 var(--wg-rim-in, 90px) rgba(var(--wg-rim-in-rgb, 77, 163, 254), var(--wg-rim-in-a, 0.66)),
+              0 0 var(--wg-rim-out, 9px) rgba(var(--wg-rim-out-rgb, 234, 247, 255), var(--wg-rim-out-a, 1));
 }
 /* ========================================================================================================== */
 /* Reborn — wispy ethereal AQUA-GREEN aura (tuned on fx/reborn-css-preview.html), replacing the old Pixi wisp.

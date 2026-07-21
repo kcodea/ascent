@@ -3,6 +3,37 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (final ward values + colour dials)
+
+### feat(ui): bake the owner's final Ward values and add a colour swatch per tinted layer
+
+Owner handed over the final tuned block and asked for colour selectors on every coloured component.
+
+**Values.** The pasted JSON carried 39 keys, but 14 of them (`bodyAlpha`, `hexAlpha`, `hexSize`,
+`shadowAlpha`, `spotAlpha`, `aura*`, `breathAlpha`, `glassAlpha`, `glassSpot`, `inset`, `scale`, `radius`)
+are **stale** — dials retired earlier in the session that still sit in the browser's persisted
+`ascent.ward`, and `getWardConfig()` returns `{...DEFAULTS, ...saved}`, so Copy dumps them too. Only the 25
+live keys were baked; the dead ones were deliberately not resurrected. (Worth knowing when reading a future
+Copy dump: it reflects the *stored* object, not the current schema.)
+
+**Colours.** Eight new swatches — rim edge, rim outer glow, rim inner glow, halo, honeycomb, fill core, fill
+edge, sheen. Stored as hex and reflected as `r, g, b` **triplets**, so each layer's alpha stays its own
+numeric dial (`rgba(var(--wg-rim-rgb), var(--wg-rim-a))`) rather than being folded into the colour. Same
+string-alongside-numbers shape `glowConfig` already uses, so `setWardValue` now takes `number | string` and
+the tuner renders a swatch for colour keys.
+
+The honeycomb needed a rendering change to become colourable: it was a *coloured image* screen-blended, which
+CSS can't recolour. It's now a **solid colour painted through the SVG as a mask**, with the edge-fade mask
+composited alongside it (`mask-composite: intersect`, verified supported). The SVG's own alpha — faint cell
+fills, bright strokes — carries the pattern, so the look is preserved while `--wg-hex-color` drives the hue.
+Default `#dff2ff` matches the asset's stroke colour, i.e. what it rendered as before.
+
+Verified in-browser against the SHIPPED stylesheet: every one of the 20 spot-checked values *and* colour
+triplets resolves on `:root` with zero mismatches; the hex layer resolves both mask layers with
+`mask-composite: intersect` and a `rgb(223, 242, 255)` paint. Tests +3 (colour keys reachable in a group,
+excluded from the numeric ranges, and all valid `#rrggbb`). typecheck + lint (0 errors) + **1327 tests** +
+`build:web` green.
+
 ## 2026-07-21 (ship the concept ward shell)
 
 ### feat(ui): the Ward is now the tuned energy shell from the bubble rig

@@ -79,39 +79,77 @@ export interface WardConfig {
   pulseMin: number;
   /** Breath period (seconds). */
   pulseSec: number;
+
+  // ---- colours. Stored as hex and reflected as `r, g, b` triplets, so each layer's ALPHA stays its own
+  // numeric dial (`rgba(var(--wg-rim-rgb), var(--wg-rim-a))`). The hex shell is the exception: it's painted
+  // as a solid colour through an SVG mask, so it takes the hex string directly. ----
+  /** Rim edge colour (the white-hot line). */
+  rimColor: string;
+  /** Rim INNER glow colour — the energy bleeding inward. */
+  rimInColor: string;
+  /** Rim OUTER glow colour — the hot line just outside the edge. */
+  rimOutColor: string;
+  /** Halo colour — the wide soft bleed. */
+  haloColor: string;
+  /** Fill colour at the CORE. */
+  fillCoreColor: string;
+  /** Fill colour at the RIM. */
+  fillEdgeColor: string;
+  /** Glass sheen colour. */
+  sheenColor: string;
+  /** Honeycomb colour. */
+  hexColor: string;
 }
 
 /** Owner-dialled on `fx/ward-bubble-preview.html`, 2026-07-21. */
 const DEFAULTS: WardConfig = {
-  domeW: 1.04,
-  domeH: 1.01,
+  domeW: 1.05,
+  domeH: 1,
   domeX: 0,
-  domeY: 6,
-  rimW: 2.2,
-  rimA: 0.95,
-  rimIn: 60,
+  domeY: 3,
+  rimW: 1.7,
+  rimA: 1,
+  rimIn: 90,
   rimInA: 0.66,
   rimOut: 9,
   rimOutA: 1,
-  halo: 10,
+  halo: 4,
   haloSpread: 1,
   haloA: 0.6,
-  facetW: 103,
-  facetH: 103,
-  facetX: 59,
+  facetW: 101,
+  facetH: 102,
+  facetX: 7,
   facetY: 50,
-  facetAlpha: 0.81,
-  facetEdge: 80,
+  facetAlpha: 1,
+  facetEdge: 72,
   fillCore: 0,
   fillEdge: 1,
-  fillStop: 35,
+  fillStop: 68,
   sheen: 1,
-  pulseMin: 0.63,
-  pulseSec: 2.4,
+  pulseMin: 0.82,
+  pulseSec: 2.6,
+  rimColor: '#eaf7ff',
+  rimInColor: '#4da3fe',
+  rimOutColor: '#eaf7ff',
+  haloColor: '#4da3fe',
+  fillCoreColor: '#4da3fe',
+  fillEdgeColor: '#0058cc',
+  sheenColor: '#ffffff',
+  hexColor: '#dff2ff',
 };
 
+/** Colour keys — rendered as swatches by the tuner, and excluded from the numeric slider ranges. */
+export const WARD_COLOR_KEYS = ['rimColor', 'rimInColor', 'rimOutColor', 'haloColor', 'fillCoreColor', 'fillEdgeColor', 'sheenColor', 'hexColor'] as const;
+
+/** '#rrggbb' -> 'r, g, b' so CSS can pair it with a separate alpha var. */
+function rgbTriplet(hex: string): string {
+  const h = hex.replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
+  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
+}
+
 /** Slider bounds for the DEV tuner — [min, max, step] per key. Mirrors the preview rig's ranges. */
-export const WARD_RANGES: Record<keyof WardConfig, [number, number, number]> = {
+export const WARD_RANGES: Record<WardNumKey, [number, number, number]> = {
   domeW: [0.8, 1.5, 0.01],
   domeH: [0.8, 1.5, 0.01],
   domeX: [-40, 40, 1],
@@ -139,17 +177,24 @@ export const WARD_RANGES: Record<keyof WardConfig, [number, number, number]> = {
   pulseSec: [0.5, 10, 0.1],
 };
 
-export const WARD_KEYS = Object.keys(DEFAULTS) as (keyof WardConfig)[];
+/** Every numeric (slider) key. */
+export type WardNumKey = Exclude<keyof WardConfig, (typeof WARD_COLOR_KEYS)[number]>;
+export const WARD_KEYS = Object.keys(DEFAULTS).filter((k) => !(WARD_COLOR_KEYS as readonly string[]).includes(k)) as WardNumKey[];
 
 /** Tuner grouping — every key must appear in exactly one group (enforced by test), so a new dial can't be
  *  silently unreachable in the panel. Mirrors the preview rig's groups. */
-export const WARD_GROUPS: { title: string; keys: (keyof WardConfig)[] }[] = [
+export const WARD_GROUPS: { title: string; keys: WardNumKey[] }[] = [
   { title: 'Bubble box', keys: ['domeW', 'domeH', 'domeX', 'domeY'] },
   { title: 'Rim · white-hot edge', keys: ['rimW', 'rimA', 'rimIn', 'rimInA', 'rimOut', 'rimOutA'] },
   { title: 'Halo · outer bleed', keys: ['halo', 'haloSpread', 'haloA'] },
   { title: 'Hex shell', keys: ['facetW', 'facetH', 'facetX', 'facetY', 'facetAlpha', 'facetEdge'] },
   { title: 'Fill & sheen', keys: ['fillCore', 'fillEdge', 'fillStop', 'sheen'] },
   { title: 'Breath', keys: ['pulseMin', 'pulseSec'] },
+];
+
+/** Colour swatches, grouped for the panel. */
+export const WARD_COLOR_GROUPS: { title: string; keys: (typeof WARD_COLOR_KEYS)[number][] }[] = [
+  { title: 'Colours', keys: ['rimColor', 'rimOutColor', 'rimInColor', 'haloColor', 'hexColor', 'fillCoreColor', 'fillEdgeColor', 'sheenColor'] },
 ];
 
 const KEY = 'ascent.ward';
@@ -201,9 +246,17 @@ export function applyWardVars(): void {
   s.setProperty('--wg-sheen-a', String(cfg.sheen));
   s.setProperty('--wg-pulse-min', String(cfg.pulseMin));
   s.setProperty('--wg-pulse-s', `${cfg.pulseSec}s`);
+  s.setProperty('--wg-rim-rgb', rgbTriplet(cfg.rimColor));
+  s.setProperty('--wg-rim-in-rgb', rgbTriplet(cfg.rimInColor));
+  s.setProperty('--wg-rim-out-rgb', rgbTriplet(cfg.rimOutColor));
+  s.setProperty('--wg-halo-rgb', rgbTriplet(cfg.haloColor));
+  s.setProperty('--wg-fill-core-rgb', rgbTriplet(cfg.fillCoreColor));
+  s.setProperty('--wg-fill-edge-rgb', rgbTriplet(cfg.fillEdgeColor));
+  s.setProperty('--wg-sheen-rgb', rgbTriplet(cfg.sheenColor));
+  s.setProperty('--wg-hex-color', cfg.hexColor);
 }
 
-export function setWardValue(key: keyof WardConfig, value: number): void {
+export function setWardValue(key: keyof WardConfig, value: number | string): void {
   cfg = { ...cfg, [key]: value };
   try {
     localStorage.setItem(KEY, JSON.stringify(cfg));

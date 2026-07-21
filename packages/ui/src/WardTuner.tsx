@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  WARD_GROUPS, WARD_RANGES, getWardConfig, resetWardConfig, setWardValue, wardOverrides,
+  WARD_COLOR_GROUPS, WARD_GROUPS, WARD_RANGES, getWardConfig, resetWardConfig, setWardValue, wardOverrides,
   type WardConfig,
 } from './wardConfig';
 import { useDraggablePanel } from './useDraggablePanel';
@@ -45,6 +45,14 @@ const LABELS: Record<keyof WardConfig, string> = {
   sheen: 'sheen',
   pulseMin: 'trough',
   pulseSec: 'period s',
+  rimColor: 'rim edge',
+  rimOutColor: 'rim outer glow',
+  rimInColor: 'rim inner glow',
+  haloColor: 'halo',
+  hexColor: 'honeycomb',
+  fillCoreColor: 'fill · core',
+  fillEdgeColor: 'fill · edge',
+  sheenColor: 'sheen',
 };
 
 export function WardTuner() {
@@ -52,7 +60,7 @@ export function WardTuner() {
   const [copied, setCopied] = useState(false);
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('ward');
 
-  const set = (k: keyof WardConfig, v: number): void => {
+  const set = (k: keyof WardConfig, v: number | string): void => {
     setWardValue(k, v); // writes the CSS var → the dome updates live
     setCfg({ ...getWardConfig() });
   };
@@ -88,6 +96,19 @@ export function WardTuner() {
               </div>
             );
           })}
+        </div>
+      ))}
+
+      {WARD_COLOR_GROUPS.map((g) => (
+        <div className="lunge-sec" key={g.title}>
+          <div className="lunge-sec-h">{g.title}</div>
+          {g.keys.map((k) => (
+            <div className="sfxmix-row" key={k}>
+              <span className="sfxmix-name">{LABELS[k]}</span>
+              <input type="color" value={cfg[k]} onChange={(e) => set(k, e.target.value)} />
+              <span className="sfxmix-val">{cfg[k]}</span>
+            </div>
+          ))}
         </div>
       ))}
 

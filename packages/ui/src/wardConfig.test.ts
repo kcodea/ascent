@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WARD_GROUPS, WARD_KEYS, WARD_RANGES, getWardConfig } from './wardConfig';
+import { WARD_COLOR_GROUPS, WARD_COLOR_KEYS, WARD_GROUPS, WARD_KEYS, WARD_RANGES, getWardConfig } from './wardConfig';
 
 describe('wardConfig', () => {
   it('every key has a slider range (the tuner renders one row per key)', () => {
@@ -30,5 +30,23 @@ describe('wardConfig', () => {
     for (const k of ['inset', 'scale', 'radius'] as const) {
       expect(WARD_KEYS, k).not.toContain(k);
     }
+  });
+});
+
+// Colours are STRING dials rendered as swatches, so they're excluded from the numeric slider ranges — but
+// they still have to be reachable in the panel, same guard as the sliders.
+describe('ward colours', () => {
+  it('every colour key appears in exactly one colour group', () => {
+    const grouped = WARD_COLOR_GROUPS.flatMap((g) => g.keys);
+    expect([...grouped].sort()).toEqual([...WARD_COLOR_KEYS].sort());
+    expect(new Set(grouped).size).toBe(grouped.length);
+  });
+  it('colour keys are excluded from the numeric keys (they have no slider range)', () => {
+    for (const k of WARD_COLOR_KEYS) expect(WARD_KEYS, k).not.toContain(k);
+    expect(Object.keys(WARD_RANGES).sort()).toEqual([...WARD_KEYS].sort());
+  });
+  it('every colour default is a #rrggbb string', () => {
+    const cfg = getWardConfig() as unknown as Record<string, string>;
+    for (const k of WARD_COLOR_KEYS) expect(cfg[k], k).toMatch(/^#[0-9a-f]{6}$/i);
   });
 });

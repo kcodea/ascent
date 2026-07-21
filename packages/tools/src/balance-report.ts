@@ -8,13 +8,22 @@
  * share ONE implementation and produce identical numbers. This file is just argv + formatting; see
  * `balanceReport.ts` for the method + caveats.
  */
-import { computeBalanceReport, type ReportRow } from '@game/sim';
+import { computeBalanceReport, BOT_BY_ID, BOTS, DEFAULT_BOT, type ReportRow } from '@game/sim';
 
+// Usage: npm run report [games] [bot]  e.g.  npm run report -- 30 meta
+// `bot` is one of the roster ids (greedy | tempo | midrange | meta); omitted = the default greedy bot.
 const GAMES = Math.max(1, Number(process.argv[2] ?? 30) | 0);
-const report = computeBalanceReport(GAMES);
+const BOT_ARG = process.argv[3];
+const bot = BOT_ARG ? BOT_BY_ID[BOT_ARG] : DEFAULT_BOT;
+if (BOT_ARG && !bot) {
+  console.error(`Unknown bot "${BOT_ARG}". Available: ${BOTS.map((b) => b.id).join(', ')}`);
+  process.exit(1);
+}
+const policy = bot ?? DEFAULT_BOT;
+const report = computeBalanceReport(GAMES, policy);
 
 console.log(`\n=== ASCENT — dev balance report ===`);
-console.log(`${GAMES} games/hero × ${report.heroes.length} heroes = ${report.totalRuns} runs (greedy bot; see header caveats)\n`);
+console.log(`${GAMES} games/hero × ${report.heroes.length} heroes = ${report.totalRuns} runs · pilot: ${policy.name} (see header caveats)\n`);
 
 const pct = (n: number): string => (n < 0 ? '  –  ' : `${String(n).padStart(3)}%`);
 

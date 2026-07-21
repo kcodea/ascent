@@ -28,6 +28,7 @@ export const GameEventSchema = z.enum([
   'spellCast',
   'summonOverflow',
   'goldSpent',
+  'cardsBought',
   'onSell',
 ]);
 
@@ -78,6 +79,7 @@ export const EffectFactoryIdSchema = z.enum([
   'scSummonCopy',
   'scTribeBuffPerSpell',
   'scTribeBuffPerProgress',
+  'scTribeBuffPerSpellImproving',
   'scTribeBuffPerPlayed',
   'scTribeBuffImproving',
   'battlecryBuffTribe',

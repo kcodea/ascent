@@ -10,10 +10,10 @@ describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
     expect(stepProgress('soulsman', { avengeSeen: 5 })).toEqual({ current: 1, total: 4 }); // …then wraps
     expect(stepProgress('solaris', { avengeSeen: 5 })).toEqual({ current: 5, total: 5 });  // Avenge (5)
   });
-  it('Koron / Banksly count Gold spent (the goldTick meter), cyclic', () => {
-    expect(stepProgress('acid', {})).toBeNull();                       // Koron — no meter passed
-    expect(stepProgress('acid', { goldTick: 3 })).toEqual({ current: 3, total: 7 });   // every 7
-    expect(stepProgress('banksly', { goldTick: 12 })).toEqual({ current: 2, total: 10 }); // every 10, wrapped
+  it('Korok / Banksly count cards bought (the buyTick meter), cyclic', () => {
+    expect(stepProgress('acid', {})).toBeNull();                        // Korok — no meter passed
+    expect(stepProgress('acid', { buyTick: 3 })).toEqual({ current: 3, total: 4 });    // every 4
+    expect(stepProgress('banksly', { buyTick: 6 })).toEqual({ current: 2, total: 4 }); // every 4, wrapped
   });
   it('Bloodbinder counts GLOBAL combat attacks (bleedAttacks), cyclic; 0/N on the board', () => {
     expect(stepProgress('bloodbinder', {})).toEqual({ current: 0, total: 4 });
@@ -23,14 +23,15 @@ describe('stepProgress — Avenge / gold-spent / Bleed counters', () => {
 });
 
 describe('cardText helpers', () => {
-  it('runescaleText shows Runescale Drake’s live Dragon grant (base + on-board spell tally, golden-aware)', () => {
-    expect(runescaleText('runescale', false, 0)).toBeNull(); // no on-board spells → printed base is accurate
-    // spellProgress 3 → base 1 + 3 = +4/+4 (first group only; the "+1/+1" improve rate is left alone).
-    expect(runescaleText('runescale', false, 3)).toContain('{{+4/+4}}');
-    expect(runescaleText('runescale', false, 3)).toContain('**+1/+1**');
-    // Golden doubles the grant: (1 + 3) × 2 = +8/+8.
-    expect(runescaleText('runescale', true, 3)).toContain('{{+8/+8}}');
-    expect(runescaleText('sandbag', false, 3)).toBeNull();
+  it('runescaleText shows Runescale Drake’s live per-spell rate (base + every-4 improve, golden-aware)', () => {
+    expect(runescaleText('runescale', false, 0)).toBeNull(); // rate still base → printed base is accurate
+    expect(runescaleText('runescale', false, 3)).toBeNull(); // 3 < 4 → not improved yet
+    // spellProgress 4 → base 2 + 1 = +3/+3 per-spell rate (first group only; the "+1/+1" improve clause stays).
+    expect(runescaleText('runescale', false, 4)).toContain('{{+3/+3}}');
+    expect(runescaleText('runescale', false, 4)).toContain('**+1/+1**');
+    // Golden doubles the rate: (2 + 1) × 2 = +6/+6.
+    expect(runescaleText('runescale', true, 4)).toContain('{{+6/+6}}');
+    expect(runescaleText('sandbag', false, 4)).toBeNull();
   });
   it('packLeaderText shows the live total grant from the on-board Beast tally (summonBonus), golden-aware', () => {
     // Pack Leader accrues +3/+3 into summonBonus per Beast played WHILE on board; SoC spends the whole tally.
@@ -174,11 +175,11 @@ describe('cardText helpers', () => {
   it('ritualistText shows the live per-tick Imp/Fodder grant = accrued eotBonus + next step (golden-aware)', () => {
     // eotBonus rides the run board (climbs by `step` each End of Turn, then grants the new total). The live text
     // shows the NEXT grant = current accrual + one more step. Only the FIRST magnitude (the grant) is greened;
-    // the "improves by +3/+3" step stays printed.
-    expect(ritualistText('ritualist', false, 0)).toBeNull(); // never triggered → printed base (+3/+3) is accurate
-    expect(ritualistText('ritualist', false, 3)).toContain('{{+6/+6}}'); // accrued 3 + step 3 = next grant +6
-    expect(ritualistText('ritualist', false, 3)).toContain('**+3/+3**'); // the step magnitude is left printed
-    expect(ritualistText('ritualist', true, 6)).toContain('{{+12/+12}}'); // golden step 6: accrued 6 + 6 = +12
+    // the "improves by +1/+1" step stays printed.
+    expect(ritualistText('ritualist', false, 0)).toBeNull(); // never triggered → printed base (+1/+1) is accurate
+    expect(ritualistText('ritualist', false, 3)).toContain('{{+4/+4}}'); // accrued 3 + step 1 = next grant +4
+    expect(ritualistText('ritualist', false, 3)).toContain('**+1/+1**'); // the step magnitude is left printed
+    expect(ritualistText('ritualist', true, 6)).toContain('{{+8/+8}}'); // golden step 2: accrued 6 + 2 = +8
     expect(ritualistText('sandbag', false, 3)).toBeNull(); // not Ritualist
   });
 

@@ -16,8 +16,8 @@ export const DRAGONS: CardDef[] = [
     attack: 2,
     health: 2,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryBuffTribe', params: { tribe: 'dragon', attack: 3, health: 3 } }],
-    text: '**Battlecry:** give your Dragons **+3/+3**.',
+    effects: [{ on: 'onPlay', do: 'battlecryBuffTribe', params: { tribe: 'dragon', attack: 3, health: 3, includeSelf: false } }],
+    text: '**Battlecry:** give your **other** Dragons **+3/+3**.',
   },
   {
     id: 'cinder',
@@ -161,9 +161,9 @@ export const DRAGONS: CardDef[] = [
     attack: 5,
     health: 7,
     keywords: [],
-    effects: [{ on: 'onGainAttack', do: 'onGainAttackBuffImproving', params: { attack: 1 } }],
-    text: 'When this gains Attack, give your minions **+1/+1** and improve this by **+1/+1**.',
-    goldenText: 'When this gains Attack, give your minions **+2/+2** and improve this by **+2/+2**.',
+    effects: [{ on: 'onGainAttack', do: 'onGainAttackBuffImproving', params: { attack: 1, every: 3 } }],
+    text: 'When this gains Attack, give your minions **+1/+1**. Improve this by **+1/+1** every **3** times.',
+    goldenText: 'When this gains Attack, give your minions **+2/+2**. Improve this by **+2/+2** every **3** times.',
   },
   {
     // Undead/Dragon snowball: every 2 ally attacks, buff your whole board +2/+2 — improving +2/+2 every
@@ -229,9 +229,10 @@ export const DRAGONS: CardDef[] = [
     goldenText: '**Deathrattle:** summon 4 **Violet Whelps** with **Taunt**.',
   },
   {
-    // Start of Combat: buff your Dragons +1/+1, improved +1/+1 for every spell cast while THIS Runescale has
-    // been on the board (per-instance `spellProgress` — persistent, non-retroactive, NOT this-turn-only). A
-    // fresh copy starts at +1/+1 and grows every spell; tripling SUMS the copies' progress. Golden doubles the grant.
+    // Start of Combat: give your Dragons +2/+2 for EVERY spell cast this turn (grant scales with the turn's spell
+    // count). The per-spell rate improves by +1/+1 for every 4 spells cast while THIS Runescale has been on the
+    // board (per-instance `spellProgress`, ticked by spellCastImproveSelf; tripling SUMS the copies' progress).
+    // Golden doubles the whole grant. Cast no spells this turn → no grant.
     id: 'runescale',
     name: 'Runescale Drake',
     tribe: 'dragon',
@@ -241,27 +242,26 @@ export const DRAGONS: CardDef[] = [
     keywords: [],
     effects: [
       { on: 'spellCast', do: 'spellCastImproveSelf' },
-      { on: 'startOfCombat', do: 'scTribeBuffPerProgress', params: { tribe: 'dragon', attack: 1, health: 1 } },
+      { on: 'startOfCombat', do: 'scTribeBuffPerSpellImproving', params: { tribe: 'dragon', attack: 2, health: 2, step: 1, every: 4 } },
     ],
-    text: '**Start of Combat:** Give your **Dragons** **+1/+1**. Improve this by **+1/+1** for every spell you cast.',
-    goldenText: '**Start of Combat:** Give your **Dragons** **+2/+2**. Improve this by **+2/+2** for every spell you cast.',
+    text: '**Start of Combat:** give your **Dragons** **+2/+2** for every spell cast this turn. Improve this by **+1/+1** every **4** spells cast.',
+    goldenText: '**Start of Combat:** give your **Dragons** **+4/+4** for every spell cast this turn. Improve this by **+2/+2** every **4** spells cast.',
   },
   {
-    // Slaughter: on a kill, "cast Growth" — buff all your minions +3/+4 (+ combat spell power). A Dragon
-    // finisher that snowballs a winning fight; extra kills re-cast it. Golden → +6/+8. (Art pending.)
+    // Rally: on attacking, "cast Growth" — buff all your minions +3/+4 (+ combat spell power). A Dragon
+    // finisher that snowballs a winning fight; every attack re-casts it. Golden → +6/+8. (Art pending.)
     id: 'hoardbreaker',
     name: 'Hoardbreaker Drake',
     tribe: 'dragon',
     tier: 4,
     attack: 6,
     health: 4,
-    keywords: ['RL', 'SL'],
+    keywords: ['RL'],
     effects: [
       { on: 'onAttack', do: 'rallyCastSpell', params: { spellId: 'growth' } },
-      { on: 'onKill', do: 'onKillCastSpell', params: { spellId: 'growth' } },
     ],
-    text: '**Rally:** Cast **Growth**. **Slaughter:** Cast **Growth**.',
-    goldenText: '**Rally:** Cast **Growth twice**. **Slaughter:** Cast **Growth twice**.',
+    text: '**Rally:** Cast **Growth**.',
+    goldenText: '**Rally:** Cast **Growth twice**.',
   },
 
   // ── Dragon quest reward minions (owner spec 2026-07-08) — `token: true` = reward-exclusive (never in the shop

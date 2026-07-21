@@ -161,7 +161,7 @@ export function instView(
       ? ((): ReturnType<typeof stepProgress> => {
           const sp = stepProgress(inst.cardId, {
             spellProgress: inst.spellProgress, summonBonus: inst.summonBonus,
-            ascendProgress: inst.ascendProgress, eotTick: eotTickShown, goldTick: inst.goldTick,
+            ascendProgress: inst.ascendProgress, eotTick: eotTickShown, goldTick: inst.goldTick, buyTick: inst.buyTick,
           });
           return sp && sp.current > 0 ? sp : null;
         })() ?? undefined

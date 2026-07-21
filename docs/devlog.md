@@ -334,6 +334,24 @@ Attachment Mechanic → T4 3/5, Hoard Cleric self-exclusion).
 
 ## 2026-07-21 (owner feel pass — lunge defaults)
 
+### fix(ui): tuner localStorage can no longer beat main in PROD + bake owner's drag feel
+
+**The leak (owner report):** the Drag Feel and Layout Lab tuners persist to localStorage — and those saved
+tweaks applied in **production builds too**, silently overriding whatever is baked on main. `dragFeel.ts`
+merged `ascent.dragfeel` into its config at module load unconditionally (Recruit's drag physics read
+`getDragFeel()` in prod → stale localStorage won); `layoutConfig.ts` dev-gated the CSS application but
+`loadLayout()` still merged `ascent.layoutlab` unconditionally, so `getLayout()`'s JS reads (the buy/sell zone
+edges in Recruit — whose comment even claimed "defaults in prod") saw localStorage. **Fix:** both localStorage
+merges are now `import.meta.env.DEV`-only; prod always runs the baked defaults. (`applyDragFeelVars()` still
+runs at load in prod — it now reflects DEFAULTS, keeping the `--hand-*`/`--dsh-*` vars correct.) Other tuner
+configs (glow etc.) are safe by import — only DevMenu-loaded modules touch them.
+
+**Baked (owner's Drag Feel export):** `follow 0.6→0.54`, `tiltMax 20→11`, `hLean 0.3→0.5`,
+`recenter 0.18→0.28`, `recenterAfter 400→0` (rest already matched). Also synced the drifted `--hand-pop` CSS
+fallback (0.22 → the shipped 0.2) per the double-source guard.
+
+**Verified:** typecheck + lint + 1317 tests + build green.
+
 ### tweak(ui): bake owner's Layout Lab pass — shop controls up, charge glyph nudged
 
 Owner's Layout Lab export baked as shipped defaults. Only three values differ from current:

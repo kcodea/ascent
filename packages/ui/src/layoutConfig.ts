@@ -103,6 +103,10 @@ export function defaultLayout(): LayoutConfig {
 
 export function loadLayout(): LayoutConfig {
   const cfg = defaultLayout();
+  // DEV-ONLY localStorage override: the Layout Lab's saved tweaks must never beat the shipped defaults in a
+  // production build. The CSS side was already guarded (applyLayout at boot is dev-gated), but getLayout()'s
+  // JS reads (the buy/sell zone edges in Recruit) still saw localStorage in prod (owner report 2026-07-21).
+  if (!import.meta.env.DEV) return cfg;
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') as Partial<LayoutConfig>;
     for (const v of LAYOUT_VARS) {

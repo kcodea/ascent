@@ -3342,12 +3342,18 @@ describe('Combat runes batch 6 (First Claws / Packcraft / Inheritance / Salvage)
     expect(withFC.events.some((ev) => ev.type === 'attack')).toBe(true);
   });
 
-  it('Packcraft: a combat summon buffs your Beasts (+1 Attack) — via a Spearline summon', () => {
-    // 4 sandbags die → Spearline summons a Spear Warden → Packcraft fires → the Gnash (Beast) gets +1 Attack.
-    const p: BoardMinion[] = [{ cardId: 'gnash', attack: 8, health: 40 }, ...Array.from({ length: 4 }, () => ({ cardId: 'sandbag', attack: 1, health: 1 }))];
+  it('Packcraft: summoning a BEAST buffs your Beasts +1/+1 — and a non-Beast summon does not', () => {
+    // Mama Pup dies → its Deathrattle summons 2 Pups (Beasts) → Packcraft fires → Beasts get +1/+1.
+    const p: BoardMinion[] = [{ cardId: 'gnash', attack: 8, health: 40 }, { cardId: 'pack', attack: 1, health: 1 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 60 }];
-    const r = simMods(p, e, 1, { runeSpearline: true, runePackcraft: true });
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.source === 'Rune of Packcraft')).toBe(true);
+    const r = simMods(p, e, 1, { runePackcraft: true });
+    const packBuffs = r.events.filter((ev) => ev.type === 'buff' && ev.source === 'Rune of Packcraft');
+    expect(packBuffs.length).toBeGreaterThan(0);
+    expect(packBuffs.every((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true); // +1/+1, not +1/+0
+    // Spearline summons a Spear Warden (NOT a Beast) — that summon alone must not fire Packcraft.
+    const p2: BoardMinion[] = [{ cardId: 'gnash', attack: 8, health: 40 }, ...Array.from({ length: 4 }, () => ({ cardId: 'sandbag', attack: 1, health: 1 }))];
+    const r2 = simMods(p2, e, 1, { runeSpearline: true, runePackcraft: true });
+    expect(r2.events.some((ev) => ev.type === 'buff' && ev.source === 'Rune of Packcraft')).toBe(false);
   });
 
   it('Inheritance: when the leftmost minion dies, the rightmost gains its stats', () => {
@@ -3577,30 +3583,39 @@ describe('Batch 7a combat runes (Rebirth / Aftershocks / Undertow / Mirror March
   const simMods = (p: BoardMinion[], e: BoardMinion[], seed: number, mods = {}) =>
     simulate(p, e, makeRng(seed), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods }), combatSide());
 
-  it('Rune of Rebirth: a Rise returns at FULL base Health (golden-doubled), not 1', () => {
-    const p: BoardMinion[] = [{ cardId: 'pack', attack: 2, health: 2, keywords: ['R'] }];
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 40 }];
-    const base = CARD_INDEX['pack']!.health;
-    const withRune = simMods(p, e, 1, { runeRebirth: true });
-    const rb = withRune.events.find((ev) => ev.type === 'reborn');
-    expect(rb && rb.type === 'reborn' ? rb.hp : 0).toBe(base);
+  it('Rune of Rebirth: Start of Combat grants Rise to 2 random friendly minions', () => {
+    // Three vanilla bodies, none with Rise; the rune hands exactly two of them the R keyword up front.
+    const p: BoardMinion[] = [
+      { cardId: 'sandbag', attack: 1, health: 20 },
+      { cardId: 'sandbag', attack: 1, health: 20 },
+      { cardId: 'sandbag', attack: 1, health: 20 },
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 40 }];
+    const r = simMods(p, e, 1, { runeRebirth: true });
+    const grants = r.events.filter((ev) => ev.type === 'keyword' && ev.keyword === 'R');
+    expect(grants.length).toBe(2); // exactly 2, and to distinct bodies
+    expect(new Set(grants.map((ev) => (ev.type === 'keyword' ? ev.target : ''))).size).toBe(2);
     const without = simMods(p, e, 1, {});
-    const rb0 = without.events.find((ev) => ev.type === 'reborn');
-    expect(rb0 && rb0.type === 'reborn' ? rb0.hp : 0).toBe(1);
+    expect(without.events.some((ev) => ev.type === 'keyword' && ev.keyword === 'R')).toBe(false);
   });
 
-  it('Rune of Aftershocks: Echo-summoned tokens land with +4/+4 baked in', () => {
-    // Pack's Deathrattle summons two 1/1 Pups — with the rune they land as 5/5s.
-    const p: BoardMinion[] = [{ cardId: 'pack', attack: 2, health: 2 }];
+  it('Rune of Aftershocks: TRIGGERING an Echo buffs your board +4/+4', () => {
+    // Pack's Deathrattle (an Echo) fires → the rune grants +4/+4 to the side's living minions.
+    const p: BoardMinion[] = [{ cardId: 'pack', attack: 2, health: 2 }, { cardId: 'sandbag', attack: 1, health: 40 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 40 }];
     const r = simMods(p, e, 1, { runeAftershocks: true });
+    const shocks = r.events.filter((ev) => ev.type === 'buff' && ev.source === 'Rune of Aftershocks');
+    expect(shocks.length).toBeGreaterThan(0);
+    expect(shocks.every((ev) => ev.type === 'buff' && ev.attack === 4 && ev.health === 4)).toBe(true);
+    // …and the Echo-summoned Pups are NOT pre-baked with +4/+4 any more (they land as vanilla 1/1s).
     const pups = r.events.filter((ev) => ev.type === 'summon' && ev.minion?.cardId === 'pup');
     expect(pups.length).toBeGreaterThanOrEqual(2);
     for (const ev of pups) {
       if (ev.type !== 'summon') continue;
-      expect(ev.minion.attack).toBe(1 + 4);
-      expect(ev.minion.health).toBe(1 + 4);
+      expect(ev.minion.attack).toBe(1);
     }
+    const without = simMods(p, e, 1, {});
+    expect(without.events.some((ev) => ev.type === 'buff' && ev.source === 'Rune of Aftershocks')).toBe(false);
   });
 
   it('Rune of Aftershocks: a NON-Echo summon (SoC Warden) is not buffed', () => {
@@ -3637,11 +3652,12 @@ describe('Batch 7a combat runes (Rebirth / Aftershocks / Undertow / Mirror March
     expect(r2.events.filter((ev) => ev.type === 'summon').length).toBe(0);
   });
 
-  it('Rune of the Trophy: records the FIRST friendly slaughterer as playerSlaughterCopy (once)', () => {
+  it('Rune of the Trophy: records the FIRST minion you KILL as playerSlaughterCopy (the victim, once)', () => {
+    // Two distinct victims: the copy must be the FIRST one felled, not the killer and not the later victim.
     const p: BoardMinion[] = [{ cardId: 'gnash', attack: 9, health: 30 }, { cardId: 'alley', attack: 9, health: 30 }];
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'sandbag', attack: 0, health: 1 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'pack', attack: 0, health: 1 }];
     const r = simMods(p, e, 1, { runeTrophy: true });
-    expect(r.playerSlaughterCopy).toBe('gnash'); // the first killer, not the second
+    expect(r.playerSlaughterCopy).toBe('sandbag'); // the first VICTIM (was: the killer, 'gnash')
     const r0 = simMods(p, e, 1, {});
     expect(r0.playerSlaughterCopy).toBeUndefined();
   });

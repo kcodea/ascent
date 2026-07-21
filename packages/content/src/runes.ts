@@ -37,8 +37,8 @@ export const RUNES: RuneDef[] = [
     id: 'rune_slaying',
     name: 'Rune of Slaying',
     cost: 3,
-    text: 'Whenever you trigger **Slaughter**, gain **+2 Gold** next shop.',
-    reward: { kind: 'combatFlag', flag: 'runeSlaying', amount: 2 },
+    text: 'Whenever you trigger **Slaughter**, gain **+1 max Gold**.',
+    reward: { kind: 'combatFlag', flag: 'runeSlaying' },
   },
   {
     id: 'rune_spending',
@@ -51,8 +51,8 @@ export const RUNES: RuneDef[] = [
     id: 'rune_consumption',
     name: 'Rune of Consumption',
     cost: 4,
-    text: 'Whenever you **Consume** Fodder, improve future Fodder by **+2/+1**.',
-    reward: { kind: 'runeConsume', attack: 2, health: 1 },
+    text: 'Whenever you **Consume** Fodder, improve future Fodder by **+1 Attack** or **+1 Health** (random).',
+    reward: { kind: 'runeConsume', attack: 1, health: 1 },
   },
   {
     id: 'rune_pillaging',
@@ -187,8 +187,8 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_packcraft',
     name: 'Rune of Packcraft',
-    cost: 5,
-    text: 'Whenever you summon a minion in combat, give your **Beasts +1 Attack** wherever they are.',
+    cost: 6,
+    text: 'Whenever you summon a **Beast** in combat, give your **Beasts +1/+1**.',
     reward: { kind: 'combatFlag', flag: 'runePackcraft' },
   },
   {
@@ -210,7 +210,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_rebirth',
     name: 'Rune of Rebirth',
     cost: 5,
-    text: 'Your minions **Rise with full Health**.',
+    text: '**Start of Combat:** give **2 random** friendly minions **Rise**.',
     reward: { kind: 'combatFlag', flag: 'runeRebirth' },
   },
   {
@@ -224,14 +224,14 @@ export const RUNES: RuneDef[] = [
     id: 'rune_aftershocks',
     name: 'Rune of Aftershocks',
     cost: 4,
-    text: 'Minions summoned by your **Echoes** gain **+4/+4**.',
+    text: 'Triggering an **Echo** gives your minions **+4/+4**.',
     reward: { kind: 'combatFlag', flag: 'runeAftershocks' },
   },
   {
     id: 'rune_refrain',
     name: 'Rune of Refrain',
     cost: 5,
-    text: 'After you play your third **Shout** minion each turn, return the first Shout minion you played that turn to your hand.',
+    text: 'Your **Shout** minions have a **20%** chance to return to your hand after you play them.',
     reward: { kind: 'runeRefrain' },
   },
   {
@@ -282,9 +282,9 @@ export const EPIC_RUNES: RuneDef[] = [
   {
     id: 'rune_broodpit',
     name: 'Rune of the Broodpit',
-    cost: 7,
+    cost: 2,
     epic: true,
-    text: '**Avenge (6):** summon **2 Imps with Taunt**.',
+    text: '**Avenge (4):** summon **2 Imps with Taunt**.',
     reward: { kind: 'combatFlag', flag: 'runeBroodpit' },
   },
   {

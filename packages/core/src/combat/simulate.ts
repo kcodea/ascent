@@ -691,18 +691,10 @@ export function simulate(
       if (copyStats.divineShield) minion.divineShield = true;
       if (copyStats.rebornAvailable) minion.rebornAvailable = true;
     }
-    // Echo summons (a Deathrattle is resolving right now): Rune of Aftershocks bakes +4/+4 into the body
-    // before it lands (the summon snapshot shows the buffed stats, like a golden token); Rune of the
-    // Undertow routes it onto the immediate-attack queue so it lands + strikes as one beat (the Whelp path).
-    if (echoDepth > 0) {
-      const em = modsFor(side);
-      if (em.runeAftershocks) {
-        minion.attack += 4;
-        minion.health += 4;
-        minion.maxHealth += 4;
-      }
-      if (em.runeUndertow) attackNow = true;
-    }
+    // Echo summons (a Deathrattle is resolving right now): Rune of the Undertow routes the body onto the
+    // immediate-attack queue so it lands + strikes as one beat (the Whelp path). Rune of Aftershocks no
+    // longer touches the summon — as of 2026-07-21 it buffs your whole board when an Echo TRIGGERS (see asEcho).
+    if (echoDepth > 0 && modsFor(side).runeUndertow) attackNow = true;
     // Attack-on-summon tokens (Whelp; Steadfast Champion's Spear Warden via `attackNow`) DEFER their whole
     // summon: rather than land + announce here, they queue onto the immediate-attack queue and are placed at
     // the next flushImmediateAttacks — i.e. AFTER the current clash's death cascade fully resolves. So the
@@ -774,9 +766,17 @@ export function simulate(
   // inside it are Echo summons (Rune of Aftershocks buffs them +4/+4; Rune of the Undertow makes them attack
   // immediately). A DEPTH (not a boolean) because a summoned token's own death mid-rattle can nest.
   let echoDepth = 0;
-  const asEcho = (run: () => void): void => {
+  const asEcho = (side: Side, run: () => void): void => {
     echoDepth++;
-    try { run(); } finally { echoDepth--; }
+    try {
+      run();
+      // Rune of Aftershocks (reworked 2026-07-21): TRIGGERING an Echo gives your minions +4/+4 (it used to
+      // bake +4/+4 into Echo-summoned bodies instead). Fires after the Echo resolves, so a body it summoned is
+      // already on the board and shares the grant. Per side; a nested Echo is its own trigger.
+      if (modsFor(side).runeAftershocks) {
+        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, 4, 4, 'Rune of Aftershocks');
+      }
+    } finally { echoDepth--; }
   };
 
   function registerEffect(minion: Minion, effect: EffectDef): void {
@@ -800,7 +800,7 @@ export function simulate(
           ? { ...(effect.params ?? {}), tribe: '' }
           : effect.params ?? {};
       // An Echo (onDeath) effect resolving marks its summons as Echo summons (Aftershocks / Undertow).
-      if (effect.on === 'onDeath') asEcho(() => fn(ctx, minion, params, payload));
+      if (effect.on === 'onDeath') asEcho(minion.side, () => fn(ctx, minion, params, payload));
       else fn(ctx, minion, params, payload);
       // Rune of Fury: your Avenges trigger twice — re-run the avenge effect once more. Per side (a served enemy's
       // Fury doubles its own minions' Avenges too).
@@ -911,7 +911,7 @@ export function simulate(
     const fireOnce = (): void => {
       for (const effect of minion.effects) {
         if (effect.on !== 'onDeath') continue;
-        asEcho(() => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
+        asEcho(minion.side, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
       }
     };
     fireOnce();
@@ -968,12 +968,11 @@ export function simulate(
       minion.dead = false;
       const def = cards[minion.cardId];
       const mul = minion.golden ? 2 : 1;
-      // Rune of Rebirth: the side's minions Rise with FULL (base, golden-doubled) Health instead of 1 —
-      // run-wide auras still re-apply on top below, exactly like the 1-HP path.
-      const fullRise = !!modsFor(minion.side).runeRebirth;
+      // (Rune of Rebirth no longer alters this path — as of 2026-07-21 it GRANTS Rise to 2 random allies at
+      // Start of Combat instead of changing the Health a Rise returns at.)
       if (def) {
         minion.attack = Math.max(0, def.attack * mul);
-        minion.health = fullRise ? def.health * mul : 1; // Rise returns at 1 Health unless Rune of Rebirth
+        minion.health = 1; // Rise always returns at 1 Health
         minion.maxHealth = minion.health;
         minion.keywords = def.keywords.filter((k) => k !== 'R');
         minion.divineShield = def.keywords.includes('DS');
@@ -1023,7 +1022,7 @@ export function simulate(
     for (let r = 0; r < extra; r++) {
       for (const effect of minion.effects) {
         if (effect.on !== 'onDeath') continue;
-        asEcho(() => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
+        asEcho(minion.side, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, { minion, side: minion.side }));
       }
     }
     // Each RE-TRIGGER is another Echo "triggered" (owner ruling 2026-07-08: TRIGGER-based counts — the Echo
@@ -1372,10 +1371,11 @@ export function simulate(
             if (killer.side === 'player') {
               bumpQuestTally('slaughter', killer);
               if (killer.effects.some((e) => e.on === 'onKill')) bumpSlaughterKeyword(); // The Red Trail: a Slaughter-keyword trigger
-              // Rune of the Trophy: record the FIRST friendly minion to Slaughter this combat — a plain copy
-              // is conjured to hand at settle ("get a copy of it next Shop"). Player-only (a served enemy has
-              // no run to receive it); dying in the same clash still counts (the Slaughter fired).
-              if (kmods.runeTrophy && slaughterCopyId === undefined) slaughterCopyId = killer.cardId;
+              // Rune of the Trophy (reworked 2026-07-21): record the FIRST enemy minion you KILL this combat —
+              // a plain copy of the VICTIM (was: of the killer) is conjured to hand at settle ("get a plain copy
+              // of the first minion you kill each combat"). Player-only (a served enemy has no run to receive it).
+              // Conjured fresh from the card def at settle, so the copy is plain — none of the victim's buffs.
+              if (kmods.runeTrophy && slaughterCopyId === undefined) slaughterCopyId = m.cardId;
               // Blood Trail (Beast → hand) + Deep Hunger (Fodder → next shop) are ECONOMY/HAND — player-only (a
               // served enemy has no hand or shop). Their SoC marks are also only set on the player board.
               if (playerState.questMods.bloodTrail && killer === bloodTrailMinion && killerAlive) ctx.grantRandomMinion(1, 'beast', 'player', undefined, killer.uid);
@@ -1728,6 +1728,22 @@ export function simulate(
         }
       }
     }
+    // Rune of Rebirth (reworked 2026-07-21): give 2 RANDOM friendly minions Rise (any tribe). Previously it
+    // made every Rise return at full Health instead. Random pick is drawn off the seeded combat rng, so it
+    // replays identically. Sibling of Rising Graves below (which is Undead-only + left-most).
+    if (rmods.runeRebirth) {
+      const eligible = boards[rside].filter((m) => !m.dead && m.health > 0 && !m.rebornAvailable);
+      let given = 0;
+      while (given < 2 && eligible.length > 0) {
+        const m = eligible.splice(ctx.rng.int(eligible.length), 1)[0]!;
+        nextStep(); // step FIRST so the badge pulse lands on the grant's own beat
+        if (given === 0) fireTrigger('runeRebirth', rside);
+        m.rebornAvailable = true;
+        if (!m.keywords.includes('R')) m.keywords.push('R');
+        emit({ type: 'keyword', target: m.uid, keyword: 'R', source: m.uid });
+        given++;
+      }
+    }
     // Rune of Rising Graves: give the two left-most Undead Rise (Reborn) — a foldable `keyword` R grant.
     if (rmods.runeRisingGraves) {
       let given = 0;
@@ -1758,7 +1774,7 @@ export function simulate(
     });
   };
   // Combat avenge runes — PER SIDE (a served enemy runs its own): Broodpit + Spearline summon to their own side.
-  runeAvenge(6, 'runeBroodpit', (m) => !!m.runeBroodpit, (side) => { // summon 2 Imps with Taunt
+  runeAvenge(4, 'runeBroodpit', (m) => !!m.runeBroodpit, (side) => { // summon 2 Imps with Taunt
     const imp = cards['impscrap'];
     if (imp) { nextStep(); for (let i = 0; i < 2; i++) summonMinion(side, imp, undefined, ['T']); }
   });
@@ -1770,15 +1786,14 @@ export function simulate(
   runeAvenge(4, 'runeAppraisal', (m, side) => side === 'player' && !!m.runeAppraisal, () => { const r = ctx.improveRepsFor('player'); ctx.grantSpellPower(r, r, 'player', undefined); }); // "improve your spells +1/+1" — ×2 under Rune of Mastery
   runeAvenge(4, 'runeSoulTaxes', (m, side) => side === 'player' && !!m.runeSoulTaxes, () => ctx.grantMaxGold(1, 'player')); // +1 max Gold
 
-  // Rune of Packcraft: whenever you summon a minion in combat, your Beasts gain +1 Attack (aura — current Beasts
-  // now + carried back so future bought Beasts inherit it, like The Old Hunt). Per side; carry-back player-only.
+  // Rune of Packcraft (reworked 2026-07-21): whenever you summon a BEAST in combat, your Beasts gain +1/+1.
+  // A pure in-combat buff now — the old version fired on ANY summon for +1 Attack and carried the aura back.
   if (playerState.questMods.runePackcraft || enemyState.questMods.runePackcraft) {
     bus.on('onSummon', (payload) => {
-      const { side } = payload as { minion: Minion; side: Side };
+      const { minion, side } = payload as { minion: Minion; side: Side };
       if (!modsFor(side).runePackcraft) return;
-      beastAtkAuraFor[side] += 1;
-      if (side === 'player') beastBuyAtkGain += 1;
-      for (const m of boards[side]) if (!m.dead && m.health > 0 && isBeast(m)) ctx.buff(m, 1, 0, 'Rune of Packcraft');
+      if (!isBeast(minion)) return; // Beast summons only
+      for (const m of boards[side]) if (!m.dead && m.health > 0 && isBeast(m)) ctx.buff(m, 1, 1, 'Rune of Packcraft');
     });
   }
   // Rune of Inheritance: when your LEFT-MOST living minion dies, your right-most living minion gains its stats. Per side.

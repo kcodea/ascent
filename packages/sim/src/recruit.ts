@@ -300,11 +300,17 @@ export function noteFodderConsumed(state: RunState, fa: number, fh: number, eate
   state.runFodderConsumed ??= { count: 0, stats: 0 };
   state.runFodderConsumed.count += 1;
   state.runFodderConsumed.stats += fa + fh;
-  // Rune of Consumption: every Fodder Consumed permanently bumps your run-wide Fodder aura ("improve future
-  // Fodder" — the enchant applies twice under Rune of Mastery).
+  // Rune of Consumption (reworked 2026-07-21): every Fodder Consumed permanently improves your run-wide Fodder
+  // aura by +1 Attack OR +1 Health, chosen at RANDOM (was a flat +2/+1). One coin flip per improve, so Rune of
+  // Mastery's extra rep is its own independent flip. Seeded off the run cursor — deterministic for replays.
   if (state.runeConsume) {
     const reps = improveReps(state);
-    buffFodderRunWide(state, state.runeConsume.attack * reps, state.runeConsume.health * reps, 'Rune of Consumption');
+    const rng = makeRng(state.rngCursor);
+    for (let i = 0; i < reps; i++) {
+      const toAttack = rng.int(2) === 0;
+      buffFodderRunWide(state, toAttack ? state.runeConsume.attack : 0, toAttack ? 0 : state.runeConsume.health, 'Rune of Consumption');
+    }
+    state.rngCursor = rng.state();
   }
   // Endless Appetite's "first each turn" gate — incremented BEFORE the fan-out below, so the fanned-out
   // consumes (which re-enter here as real consumes: tallies, Rune of Consumption, Transfusion) never re-fan.

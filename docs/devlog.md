@@ -3,6 +3,36 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (balance patch — chunk 2b: rune effect reworks)
+
+### balance(core+sim+content): 8 rune effect reworks
+
+The engine half of the rune pass (2a shipped the costs). Each rune's mechanic changed, not just its numbers:
+
+| Rune | Was | Now |
+|---|---|---|
+| **Broodpit** | Avenge (6), 7g | **Avenge (4)**, 2g |
+| **Packcraft** | any combat summon → Beasts +1 Attack (carried back), 5g | **summon a BEAST** → Beasts **+1/+1** (in-combat only), 6g |
+| **Slaying** | each Slaughter banks +2 Gold next shop | each Slaughter → **+1 max Gold** |
+| **Consumption** | Consume → Fodder +2/+1 | Consume → **+1 Attack OR +1 Health, at random** |
+| **Aftershocks** | Echo-*summoned* bodies land with +4/+4 | **triggering an Echo** → your minions **+4/+4** |
+| **Rebirth** | Rises return at full Health | **Start of Combat: 2 random allies gain Rise** |
+| **Refrain** | 3rd Shout each turn returned that turn's first | each Shout has a **20% chance** to return to hand |
+| **Trophy** | copy of the first friendly *slaughterer* | plain copy of the **first minion you KILL** (the victim) |
+
+Notable implementation points: **Aftershocks** moved from the summon path into `asEcho`, which now takes the
+side and fires the board buff after the Echo resolves (so a body the Echo summoned shares the grant; a nested
+Echo is its own trigger). **Rebirth** became a Start-of-Combat keyword grant modelled on its Rising Graves
+sibling. **Slaying** raises `maxEmbers` at settle rather than routing through `ctx.grantMaxGold`, which is
+Soulsman-only and would have polluted that run tally. The two **random** effects (Consumption, Refrain) draw
+off the run/combat RNG cursor, never `Math.random`, so replays and reloads resolve identically.
+
+Verified: full suite green (1305) + typecheck + lint + `build:web`. Test notes: the randomised effects are
+asserted by SHAPE rather than a single outcome — Consumption checks the improve *total* (2 reps = +2 of stats,
+split seed-dependent), and Refrain runs 60 seeded trials to prove it fires, stays the minority case, never
+fires without the rune, and is deterministic per seed. Packcraft's test now also pins the *negative* (a
+non-Beast Spearline summon must NOT fire it), and Trophy's failure confirmed the victim/killer swap directly.
+
 ## 2026-07-21 (balance patch — chunk 5b: the buy-count trigger)
 
 ### balance(core+sim+content): new `cardsBought` trigger — Korok + Banksly

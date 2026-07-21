@@ -812,19 +812,25 @@ function reduceCore(state: RunState, action: Action): RunState {
           }
         }
       }
-      // Rune of Refrain: track Shout (Battlecry) minions played this turn; the THIRD play returns the FIRST
-      // Shout you played that turn to your hand — the actual instance, buffs/golden intact (replay its Shout
-      // by playing it again). Nothing happens if it left the board (sold/consumed) or your hand is full.
+      // Rune of Refrain (reworked 2026-07-21): each Shout (Battlecry) minion you play has a 20% chance to
+      // return to your hand right after — the actual instance, buffs/golden intact, its Shout already fired,
+      // so replaying it fires again. (Was: the 3rd Shout each turn returned that turn's first.) The roll is
+      // drawn off the run cursor so a reloaded/replayed run resolves it identically. No-op if the hand is full.
       {
         const playedDef = CARD_INDEX[card.cardId];
         if (playedDef && hasBattlecry(playedDef)) {
           s.shoutsThisTurn = (s.shoutsThisTurn ?? 0) + 1;
           if (s.shoutsThisTurn === 1) s.firstShoutUid = card.uid;
-          else if (s.shoutsThisTurn === 3 && s.runeRefrain && s.firstShoutUid) {
-            const idx = s.board.findIndex((c) => c.uid === s.firstShoutUid);
-            if (idx >= 0 && s.hand.length < CONFIG.handMax) {
-              const [ret] = s.board.splice(idx, 1);
-              if (ret) s.hand.push(ret);
+          if (s.runeRefrain) {
+            const rrng = makeRng(s.rngCursor);
+            const returns = rrng.int(100) < 20;
+            s.rngCursor = rrng.state();
+            if (returns && s.hand.length < CONFIG.handMax) {
+              const idx = s.board.findIndex((c) => c.uid === card.uid);
+              if (idx >= 0) {
+                const [ret] = s.board.splice(idx, 1);
+                if (ret) s.hand.push(ret);
+              }
             }
           }
         }
@@ -1874,9 +1880,10 @@ function settleCombat(s: RunState, result: CombatResult): void {
   advanceCombatQuests(s, result);
   // A combat-completed quest may have granted a card to hand — if so, check for a triple (your 3rd copy → golden).
   if (s.hand.length > handBeforeQuests) checkTriples(s);
-  // Rune of Slaying: every Slaughter (enemy felled) this combat banks +2 Gold for next turn's shop.
+  // Rune of Slaying (reworked 2026-07-21): every Slaughter (enemy felled) this combat raises your max Gold by 1.
+  // Applied at settle rather than via ctx.grantMaxGold, which is Soulsman-only and would pollute its run tally.
   if (s.questFlags?.runeSlaying && result.playerQuestTally?.slaughter) {
-    s.bonusEmbersNextTurn = (s.bonusEmbersNextTurn ?? 0) + 2 * result.playerQuestTally.slaughter;
+    s.maxEmbers += result.playerQuestTally.slaughter;
   }
   // The Old Hunt: the Beast Attack aura pumped this combat is permanent — fold it into the run + apply to
   // current run-board/hand Beasts (so they keep the gain without re-buying).

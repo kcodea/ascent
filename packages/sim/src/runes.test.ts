@@ -109,8 +109,8 @@ describe('Runeforge — each rune applies its effect on purchase', () => {
   it('Spending arms the recurring End-of-Turn effect', () => {
     expect(buyRune('rune_spending').questRecurringEndOfTurn).toContain('runeSpending');
   });
-  it('Consumption arms the +2/+1 Fodder-on-Consume bump', () => {
-    expect(buyRune('rune_consumption').runeConsume).toEqual({ attack: 2, health: 1 });
+  it('Consumption arms the random +1 Attack / +1 Health Fodder-on-Consume improve', () => {
+    expect(buyRune('rune_consumption').runeConsume).toEqual({ attack: 1, health: 1 });
   });
   it('Pillaging grants a Pillager to hand AND makes Gold Pouches worth 2', () => {
     const s = buyRune('rune_pillaging'); // cost 8
@@ -162,15 +162,16 @@ describe('Runeforge — rune effects fire in play', () => {
     expect(spellDisplayText('emberpouch', 0, 0, 0, 0, 0, 0)).toBe('Gain **1 Gold**.');
   });
 
-  it('Slaying: each Slaughter this combat banks +2 Gold for next turn', () => {
+  it('Slaying: each Slaughter this combat raises your max Gold by 1', () => {
+    const before = createRun(1, 'runesmith').maxEmbers;
     const s = reduce({
       ...createRun(1, 'runesmith'), phase: 'combat', questFlags: { runeSlaying: true },
       lastCombat: {
         events: [], result: 'win', playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 3, initial: { player: [], enemy: [] },
         playerQuestTally: { attack: 0, summonCombat: 0, slaughter: 3, slaughterKeyword: 0, attackByTribe: {}, summonCombatByTribe: {}, slaughterByTribe: {}, statGainByTribe: {} },
       } as CombatResult,
-    }, { type: 'settleCombat' }); // settle WITHOUT advancing, so bonusEmbersNextTurn isn't yet spent into next turn
-    expect(s.bonusEmbersNextTurn).toBe(6); // 3 slaughters × 2
+    }, { type: 'settleCombat' }); // settle WITHOUT advancing, so the raise is observable on this state
+    expect(s.maxEmbers).toBe(before + 3); // 3 slaughters × +1 max Gold
   });
 
   it('Summoning: casting a spell improves your Imps +1/+1 (run-wide)', () => {
@@ -899,18 +900,23 @@ describe('Batch 7a runes (Rebirth / Tempering / Aftershocks / Refrain / Trophy +
     expect(left.attachments ?? 0).toBe(1);
   });
 
-  it("Rune of Refrain: the 3rd Shout played returns the turn's FIRST Shout (the actual minion) to hand", () => {
-    let s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit', embers: 10, runeRefrain: true,
-      // Three DISTINCT simple Shout minions (three copies of one card would triple into a golden mid-test;
-      // Discover-battlecries would open a modal and block the later plays).
-      hand: [mkCard('a1', 'alley', 'beast', 1, 1), mkCard('a2', 'cleric', 'dragon', 1, 1), mkCard('a3', 'deathswarmer', 'undead', 1, 1)] };
-    s = reduce(s, { type: 'play', uid: 'a1' });
-    s = reduce(s, { type: 'play', uid: 'a2' });
-    expect(s.board.some((c) => c.uid === 'a1')).toBe(true); // still down after two
-    s = reduce(s, { type: 'play', uid: 'a3' });
-    expect(s.board.some((c) => c.uid === 'a1')).toBe(false); // the first Shout left the board…
-    expect(s.hand.some((c) => c.uid === 'a1')).toBe(true);   // …into the hand, same instance
-    expect(s.shoutsThisTurn).toBe(3);
+  it('Rune of Refrain: a played Shout minion has a ~20% chance to return to hand (seeded, rune-gated)', () => {
+    // Probabilistic, so assert the SHAPE across many seeded trials rather than one outcome: it happens, it is
+    // not the common case, it never happens without the rune, and a given seed always resolves the same way.
+    const trial = (seed: number, rune: boolean): boolean => {
+      let s: RunState = { ...createRun(seed, 'warden'), wave: 3, phase: 'recruit', embers: 10,
+        ...(rune ? { runeRefrain: true } : {}),
+        hand: [mkCard('a1', 'alley', 'beast', 1, 1)] };
+      s = reduce(s, { type: 'play', uid: 'a1' });
+      return s.hand.some((c) => c.uid === 'a1');
+    };
+    const N = 60;
+    let returned = 0;
+    for (let i = 1; i <= N; i++) if (trial(i, true)) returned++;
+    expect(returned).toBeGreaterThan(0);   // it does fire…
+    expect(returned).toBeLessThan(N / 2);  // …but it's the minority case (20%, not a coin flip)
+    for (let i = 1; i <= N; i++) expect(trial(i, false)).toBe(false); // never without the rune
+    expect(trial(7, true)).toBe(trial(7, true)); // deterministic for a given seed (replay-safe)
   });
 
   it("Rune of Transfusion: a Demon Consume also feeds the leftmost minion the Fodder's stats", () => {
@@ -1011,11 +1017,20 @@ describe('Rune of Mastery (batch 7b) — Improve steps apply twice', () => {
     expect(eot(true)).toBe(2);
   });
 
-  it('Rune of Consumption stacked with Mastery: each Consume improves future Fodder twice (+4/+2)', () => {
+  it('Rune of Consumption stacked with Mastery: each Consume improves future Fodder TWICE', () => {
+    // The improve now picks Attack OR Health at random per rep, so the SPLIT is seed-dependent — assert the
+    // total instead: 2 reps × +1 = +2 of stats, all of it on the Fodder enchant.
     const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
-      runeMastery: true, runeConsume: { attack: 2, health: 1 }, board: [] };
+      runeMastery: true, runeConsume: { attack: 1, health: 1 }, board: [] };
     noteFodderConsumed(s, 1, 1);
-    expect(s.cardBuffs?.['fred']).toEqual({ attack: 4, health: 2 });
+    const fred = s.cardBuffs?.['fred'] ?? { attack: 0, health: 0 };
+    expect(fred.attack + fred.health).toBe(2); // two independent improves landed
+    // …and without Mastery it lands exactly one.
+    const one: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
+      runeConsume: { attack: 1, health: 1 }, board: [] };
+    noteFodderConsumed(one, 1, 1);
+    const f1 = one.cardBuffs?.['fred'] ?? { attack: 0, health: 0 };
+    expect(f1.attack + f1.health).toBe(1);
   });
 
   it('Spirit Worgen: the per-spell Improve contribution doubles (base per-play grant unchanged)', () => {

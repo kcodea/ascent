@@ -26,9 +26,8 @@ Large hand-authored balance pass, sliced so each chunk lands green + tested on i
 - **✅ Chunk 1 — Demon minions** (shipped to branch): Soulfeeder, Sword & Bored, Burial Imp, Godfodder, Pit
   Supplier, Ritualist, Chef Raag. Data-only.
 - **✅ Chunk 2a — Rune costs** (shipped to branch): 23 cost tweaks + Spare Parts → 5 Attachments. Data-only.
-- **Chunk 2b — Rune effect reworks**: Aftershocks (echoes → all minions +4/+4), Consumption (random +1 atk/hp),
-  Packcraft (6g, summon Beast → Beasts +1/+1), Rebirth (SoC 2 random Rise), Refrain (20% return to hand),
-  Slaying (Slaughter → +1 max Gold), Trophy (plain copy of first KILL), Broodpit (2g, Avenge (4) 2 taunt Imps).
+- **✅ Chunk 2b — Rune effect reworks** (shipped to branch): all 8 — Aftershocks, Consumption, Packcraft,
+  Rebirth, Refrain, Slaying, Trophy, Broodpit.
 - **✅ Chunk 3 — Quest objectives** (shipped to branch): 40 quests retuned (objective count/event/tribe + 3
   reward tweaks). Data-only.
 - **✅ Add-on (owner 2026-07-21, shipped to branch):** Spell Appraiser Avenge (3), Nimbus/Displacement → T5,

@@ -8,6 +8,7 @@ import { GustFxTuner } from './GustFxTuner';
 import { SpellPowerFxTuner } from './SpellPowerFxTuner';
 import { QuestTendrilTuner } from './QuestTendrilTuner';
 import { HeroBuffFxTuner } from './HeroBuffFxTuner';
+import { CardToHandFxTuner } from './CardToHandFxTuner';
 import { AuraFxTuner } from './AuraFxTuner';
 import { WeldFxTuner } from './WeldFxTuner';
 import { BuffFxTuner } from './BuffFxTuner';
@@ -58,6 +59,7 @@ const TUNERS = [
   { key: 'spellpowerfx', label: '✨ Spell Power FX', C: SpellPowerFxTuner },
   { key: 'questtendril', label: '🏆 Quest Tendril', C: QuestTendrilTuner },
   { key: 'herobufffx', label: '💥 Hero Buff Flash', C: HeroBuffFxTuner },
+  { key: 'cardtohandfx', label: '🃏 Card To Hand', C: CardToHandFxTuner },
   { key: 'aurafx', label: '🌀 Aura Wave FX', C: AuraFxTuner },
   { key: 'weldfx', label: '🔩 Weld FX', C: WeldFxTuner },
   { key: 'bufffx', label: '✨ Buff FX (stat gain)', C: BuffFxTuner },

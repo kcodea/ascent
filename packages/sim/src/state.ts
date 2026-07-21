@@ -469,6 +469,11 @@ export interface RunState {
   /** Chaos hero power: bumps each time a Chaos Attachment is granted (every 5th turn), with the new token's
    *  uid — the UI flies it in from the hero portrait. Transient; absent until the first grant. */
   chaosGrantSeq?: number;
+  /** Bumped when a card is CONJURED to hand in the recruit phase (Steward of Spells, Crypt Scribe, Mechanical
+   *  Jouster, Money Maker, quest/rune grants, …) — the UI plays the card-to-hand flourish. One-shot, like
+   *  `chaosGrantSeq`. `handGrantFxCardId` is the card to show (the most recent when several land at once). */
+  handGrantFxSeq?: number;
+  handGrantFxCardId?: string;
   chaosGrantUid?: string;
   /** Displacement swap FX signal (Darah's power + the Displacement spell): bumped by `swapWithTavern` with
    *  the uids of the two NEW cards (the arrival on the board, the displaced offer in the tavern) so the UI

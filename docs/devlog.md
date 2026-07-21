@@ -3,6 +3,35 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21ah (card-to-hand flourish + tuner)
+
+### feat(ui): the card-to-hand flourish — snap/pop, Pixi shine, slide to hand + tuner
+
+Owner ask: when a card is sent to hand from ANY source (combat grants AND shop/End-of-Turn conjures —
+Mechanical Jouster, Crypt Scribe, Steward of Spells, Badgington, Money Maker, Buddy Buddy, Arcane Weaver, …),
+the card quick snap/pops up and SHINES while it eases its momentum, then slides down into the hand.
+
+- **Motion** — a Web Animations API keyframe on `.handgrant` (snap/pop + rise → ease to rest → hold → quick
+  slide down). WAAPI, not CSS: keyframe stop offsets can't be CSS vars, and WAAPI lets the tuner control every
+  phase's duration + magnitude at fire time. (The old fixed `tohandfly` CSS keyframe is retired.)
+- **Shine (Pixi)** — `pixiFx.cardShine`: a bright light BAND sweeps across the card + a sparkle burst, add-
+  blended on the shared particle pool (Pixi reads better than CSS for the flair, per the ask).
+- **Both phases** — the combat grant (existing `handGrant` beat) and a NEW recruit-phase signal
+  (`handGrantFxSeq`, bumped by `conjureToHand`) render the same shared `HandGrantCard`, so they read
+  identically. Combat timing rides its existing beat; the finer "show before the next trigger" precision is
+  the triage-as-we-go part.
+- **Tuner** — "🃏 Card To Hand": every motion phase, the shine (delay/ms/width/α/angle), the sparkle burst,
+  and colour, with a ▶ Test that runs the flourish on a throwaway card.
+
+Verified: typecheck + lint + 1288 tests + `build:web` green, `typecheck:web` at its 48 baseline. Live DOM
+confirms the element mounts, renders the card + "To your hand" label, attaches the WAAPI animation with valid
+keyframes, and the Pixi `cardShine` fires.
+
+**NOT visually verified:** the Browser-pane automation context doesn't run Web Animations at wall-clock time
+(an isolated WAAPI probe reports `currentTime` jumping straight to the end), so the actual MOTION timing/feel
+can only be confirmed in a real browser. Worth a playthrough — trigger a grant (Steward of Spells / a combat
+Arcane Weaver) and dial the tuner to taste.
+
 ## 2026-07-21ag (Ryme replays Imp Overseer's Battlecry in combat)
 
 ### fix(core): Imp Overseer + Ryme grants the Imp buff (+ aura wash) in combat — no Bane needed

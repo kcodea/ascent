@@ -1270,6 +1270,47 @@ class FxController {
    * (Tara→Taragosa, Spirit Pup→Worgen). `flashSize` is a px RADIUS (÷ TENDRIL_GLOW_R → sprite scale), 1:1 with
    * the transform-morph rig. Owner-tuned per `AscendPresetCfg`; the new-card pop rides a CSS `ascendpop` alongside.
    */
+  /**
+   * CARD SHINE — the Pixi flair for a card sent to hand: a bright light BAND sweeps diagonally across the
+   * card, and a spray of sparkles pops from its centre. Read at fire time from `cardToHandFxConfig`, so it
+   * tunes live. All particles are add-blended glows on the shared pool — one-shot, nothing loops. (cx,cy) is
+   * the card centre; (w,h) its size.
+   */
+  cardShine(cx: number, cy: number, w: number, h: number, cfg: {
+    shineMs: number; shineWidth: number; shineAlpha: number; shineAngle: number;
+    sparkCount: number; sparkSpeed: number; sparkSize: number; sparkLife: number; sparkSpread: number;
+    colorShine: string;
+  }): void {
+    if (!this.ready || !this.glowTex || !this.layer) return;
+    const tint = hexNum(cfg.colorShine);
+    // The sweep — a wide, bright glow travelling across the card along `shineAngle`.
+    if (cfg.shineMs > 0 && cfg.shineAlpha > 0) {
+      const ang = (cfg.shineAngle * Math.PI) / 180;
+      const dx = Math.cos(ang), dy = Math.sin(ang);
+      const dist = w * 1.5;
+      const sx = cx - dx * dist * 0.5, sy = cy - dy * dist * 0.5;
+      const speed = dist / Math.max(1, cfg.shineMs / 1000);
+      const band = cfg.shineWidth / TENDRIL_GLOW_R;
+      this.spawn(this.glowTex, {
+        x: sx, y: sy, vx: dx * speed, vy: dy * speed, drag: 1, life: cfg.shineMs,
+        fromScale: band, toScale: band, spin: 0, tint, blend: 'add', peakAlpha: cfg.shineAlpha,
+      });
+    }
+    // The sparkle burst from card centre.
+    const ss = cfg.sparkSize / TENDRIL_GLOW_R;
+    for (let i = 0; i < cfg.sparkCount; i++) {
+      const a = (i / Math.max(1, cfg.sparkCount)) * Math.PI * 2 + (Math.random() - 0.5) * 0.7;
+      const sp = cfg.sparkSpeed * (0.5 + Math.random());
+      const r0 = Math.random() * cfg.sparkSpread;
+      this.spawn(this.glowTex, {
+        x: cx + Math.cos(a) * r0 * 0.4, y: cy + Math.sin(a) * r0 * 0.4,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - cfg.sparkSpeed * 0.25,
+        drag: TENDRIL_MOTE_DRAG, gravity: 140, life: cfg.sparkLife * (0.7 + Math.random() * 0.6),
+        fromScale: ss, toScale: ss * 0.12, spin: 0, tint, blend: 'add', peakAlpha: 1,
+      });
+    }
+  }
+
   flashBloom(x: number, y: number, cfg: { flashSize: number; flashMs: number; flashAlpha: number; colorGlow: string; blend: 'add' | 'normal' | 'screen' }): void {
     if (!this.ready || !this.glowTex || !this.layer) return;
     if (cfg.flashMs <= 0 || cfg.flashSize <= 0) return;

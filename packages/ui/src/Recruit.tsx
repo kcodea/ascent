@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
 import { CONFIG, RIFTS, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
+import { HandGrantCard } from './HandGrantCard';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
 import { combatGains } from './combatGains';
@@ -626,6 +627,20 @@ export function Recruit() {
     });
     return () => { tween.kill(); };
   }, [run.chaosGrantSeq, run.chaosGrantUid]);
+  // Card-to-hand flourish for a RECRUIT-phase grant (Steward of Spells, Crypt Scribe, Mechanical Jouster,
+  // Money Maker, quest/rune grants…). The sim bumps `handGrantFxSeq` when a card is conjured to hand; show the
+  // flying card, then clear it after the animation's full length (motion + a margin) so it doesn't linger.
+  const [recruitGrant, setRecruitGrant] = useState<{ cardId: string; key: number } | null>(null);
+  const prevHandGrantSeq = useRef(run.handGrantFxSeq);
+  useEffect(() => {
+    const seq = run.handGrantFxSeq;
+    if (seq === undefined || seq === prevHandGrantSeq.current) return;
+    prevHandGrantSeq.current = seq;
+    if (!run.handGrantFxCardId || run.phase === 'combat') return; // combat grants use the replay's handGrant path
+    setRecruitGrant({ cardId: run.handGrantFxCardId, key: seq });
+    const t = window.setTimeout(() => setRecruitGrant((g) => (g?.key === seq ? null : g)), 1400);
+    return () => window.clearTimeout(t);
+  }, [run.handGrantFxSeq, run.handGrantFxCardId, run.phase]);
   // Displacement swap (Darah's power / the spell): fire the circular swap-arrows FX between the two NEW
   // cards (the arrival on the board, the displaced offer in the tavern). Keyed off `swapFxSeq` (one-shot,
   // the chaosGrantSeq pattern; inits to the current value so a restored save doesn't fire). The rects are
@@ -3598,16 +3613,13 @@ export function Recruit() {
 
       {/* A card a combat effect just granted (Arcane Weaver → Spirit Fire) flies into your hand. */}
       {fighting && replay.handGrant && (() => {
-        // Same helper as the hand preview and the reducer's settle — the card that flies in must carry the
-        // stats it will actually have (it previously showed raw base stats, so it visibly jumped at settle).
         const view = conjuredView(replay.handGrant.cardId, run);
-        if (!view) return null;
-        return (
-          <div className="handgrant" key={replay.handGrant.key} aria-hidden="true">
-            <span className="hg-label">To your hand</span>
-            <Card card={view} suppressPop />
-          </div>
-        );
+        return view ? <HandGrantCard key={replay.handGrant.key} view={view} /> : null;
+      })()}
+      {/* A card a RECRUIT-phase effect just conjured to hand — same flourish. */}
+      {recruitGrant && (() => {
+        const view = conjuredView(recruitGrant.cardId, run);
+        return view ? <HandGrantCard key={recruitGrant.key} view={view} /> : null;
       })()}
 
       {/* A clear "End of Turn" beat as the turn ends (end-of-turn effects have resolved). */}

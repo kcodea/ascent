@@ -692,6 +692,9 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number, ov
       golden: false,
     });
     takeFromPool(state, def.id);
+    // Signal the UI to play the card-to-hand flourish (last card shown when several land at once).
+    state.handGrantFxSeq = (state.handGrantFxSeq ?? 0) + 1;
+    state.handGrantFxCardId = def.id;
   }
   state.rngCursor = rng.state();
 }

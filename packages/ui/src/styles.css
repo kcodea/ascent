@@ -2760,15 +2760,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 @keyframes resulttint { from { opacity: 0; } to { opacity: 1; } }
 /* A combat-granted card (Arcane Weaver → Spirit Fire) pops in centre-screen, then flies down + fades
    toward the hand, so the player sees it being added. */
-.handgrant { position: fixed; left: 50%; top: 46%; z-index: 33; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); width: var(--cw); pointer-events: none; animation: tohandfly 1.15s cubic-bezier(0.4, 0, 0.5, 1) forwards; }
+.handgrant { position: fixed; left: 50%; top: 46%; z-index: 33; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); width: var(--cw); pointer-events: none; opacity: 0; transform: translate(-50%, -50%); will-change: transform, opacity; }
 .hg-label { font-family: var(--font-ui); font-weight: 900; font-size: calc(16 * var(--u)); color: #fbf4e6; background: color-mix(in srgb, var(--ink) 90%, transparent); padding: calc(4 * var(--u)) calc(13 * var(--u)); border-radius: 999px; border: 2px solid var(--acc); white-space: nowrap; box-shadow: 0 4px 14px -4px rgba(0, 0, 0, 0.5); }
-@keyframes tohandfly {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.55); }
-  16% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); }
-  34% { transform: translate(-50%, -50%) scale(1); }
-  72% { opacity: 1; transform: translate(-50%, calc(-50% + 22vh)) scale(0.78); }
-  100% { opacity: 0; transform: translate(-50%, calc(-50% + 52vh)) scale(0.42); }
-}
+/* Card-to-hand motion is driven by the Web Animations API (`animateCardToHand` in cardToHandFxConfig.ts),
+   NOT a CSS keyframe — keyframe stop offsets can't be CSS vars, and WAAPI lets the 🃏 tuner control every
+   phase's duration + magnitude at fire time. The Pixi shine (`pixiFx.cardShine`) fires alongside. */
 /* NOTE: we intentionally do NOT gate animations on `prefers-reduced-motion`. ASCENT's animations carry
    essential gameplay INFORMATION — damage numbers, death pops, the Fodder-consume swirl, buff flashes — not
    just decoration. The old `@media (prefers-reduced-motion: reduce)` rule near-instant'd every animation,

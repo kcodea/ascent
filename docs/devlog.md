@@ -3,6 +3,43 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (one strike per attack)
+
+### fix(ui): the strike FX played twice — the damage moment re-burst both clash units
+
+Owner: "when units attack, there are still two strike animations that fire. we only want the strike
+animation to fire on the defending unit." Traced with the harness rather than guessed:
+
+```
+→ Mama Pup attacks Hoard Cleric
+   Hoard Cleric takes 3     ← the defender's hit
+   Mama Pup takes 4         ← the ATTACKER's retaliation
+```
+
+A clash is two-way, and both `dmg` events collapse into the **`damage` moment that follows the attack**
+(`compile.ts`: an `attack` forms its own moment absorbing only wind-up flashes; `RESULT_TYPES` collapse into
+the next one). That damage moment carries the `damageFx` cue, which loops **every** dmg target and fires
+`damageBurst` + `impactPulse` at each. So a single swing produced three bursts: the lunge's impact package on
+the defender (wanted), a second on the defender, and a third on the *attacker* — visually a strike FX on a
+unit that was never struck.
+
+The `onDamageFx` comment already claimed "melee dmg rides its attack's own impact FX (never here)", but
+nothing enforced it. The signal existed and was unused: `attackerOfImpact` already looks back at the previous
+beat. Added a sibling `meleePairOfImpact` (deliberately separate — one answers "whose damage NUMBER is
+suppressed", the other "whose hit FX is already covered"; they must stay free to diverge), threaded as
+`meleePair` through the cue context, and the `damageFx` cue now deletes exactly those two uids.
+
+**Splash damage is untouched** — Cleave neighbours and AoE targets get no impact-channel FX of their own, so
+they keep their burst. That is the cue's actual purpose, and a test pins it.
+
+Test-gap note worth recording: a test named *"melee dmg (attackExchange) does NOT route to onDamageFx"*
+already existed and passed throughout — it asserts on the **attackExchange** moment, which trivially has no
+`damageFx` cue, and never touched the `damage` moment where melee damage actually lives. A green test named
+for the exact behaviour that was broken. Replaced with two that exercise the real path (both verified to fail
+with the guard removed and pass with it), plus three unit tests for `meleePairOfImpact`.
+
+Verified: typecheck + lint (0 errors) + **1309 tests** (1304 → 1309) + `build:web`, all green.
+
 ## 2026-07-21 (owner feel pass — lunge defaults)
 
 ### tweak(ui): bake owner's Layout Lab pass — shop controls up, charge glyph nudged

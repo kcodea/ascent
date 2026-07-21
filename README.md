@@ -38,6 +38,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **One strike per attack.** A clash is two-way, so the damage moment following an attack was re-bursting
+  *both* units — a second strike FX on the defender and a third on the attacker, which was never struck. The
+  clash pair is now skipped there (their FX rides the lunge's impact channel); Cleave/AoE splash still bursts.
 - **Quest tendrils** — a gold ribbon reaches from a quest's node to the unit it triggers (Echoing Roar
   re-firing a Shout), with its own dev tuner.
 

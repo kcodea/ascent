@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { makeRng, simulate, type CombatEvent } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { buildBeats, attackerOfImpact } from './combatBeats';
+import { buildBeats, attackerOfImpact, meleePairOfImpact, type Beat } from './combatBeats';
 
 describe('buildBeats', () => {
   it('a REAL exchange shows dealt + taken damage in the SAME impact beat — even through a Deathrattle kill', () => {
@@ -142,5 +142,22 @@ describe('buildBeats', () => {
       { start: 0, end: 1, primary: ev[0] },
       { start: 1, end: 2, primary: ev[1] },
     ]);
+  });
+});
+
+// `meleePairOfImpact` — the "whose hit FX is already covered" lookup that keeps the strike from playing
+// twice (see the guard in score.ts). Sibling of `attackerOfImpact`, deliberately separate.
+describe('meleePairOfImpact', () => {
+  const attack = (a: string, d: string): Beat => ({ start: 0, end: 1, primary: { type: 'attack', attacker: a, defender: d, swing: 0 } as CombatEvent });
+  const dmg = (t: string): Beat => ({ start: 1, end: 2, primary: { type: 'dmg', target: t, amount: 1, remainingHp: 0 } as CombatEvent });
+
+  it('returns both clash units for a result moment that follows an attack', () => {
+    expect(meleePairOfImpact([attack('a', 'b'), dmg('b')], 1)).toEqual({ attacker: 'a', defender: 'b' });
+  });
+  it('is null for damage with no attack before it (SC nuke, Deathrattle AoE) so those still burst', () => {
+    expect(meleePairOfImpact([dmg('x'), dmg('y')], 1)).toBeNull();
+  });
+  it('is null at index 0 (no preceding beat)', () => {
+    expect(meleePairOfImpact([dmg('x')], 0)).toBeNull();
   });
 });

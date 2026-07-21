@@ -62,17 +62,17 @@ export interface DragFeel {
 }
 
 const DEFAULTS: DragFeel = {
-  follow: 0.6,      // catch-up per frame (tuned by eye)
+  follow: 0.54,     // owner-tuned 2026-07-21: a touch heavier catch-up
   tiltPerPx: 0.6,   // strong lean per px of lag
-  tiltMax: 20,      // generous tilt ceiling
-  hLean: 0.3,       // lean into horizontal motion
+  tiltMax: 11,      // owner-tuned 2026-07-21: tighter tilt ceiling (was 20)
+  hLean: 0.5,       // owner-tuned 2026-07-21: stronger lean into horizontal motion (was 0.3)
   vLean: -0.2,      // lean into vertical motion
   perspective: 1550,// gentle 3D depth
   scale: 1.21,      // clearly lifted off the table
   staticRotate: -1.5,// a slight fixed tilt while held
   threshold: 0,     // drag engages immediately
-  recenter: 0.18,   // glide speed onto the cursor
-  recenterAfter: 400,// only begin recentring after a longer drag from the grab point
+  recenter: 0.28,   // owner-tuned 2026-07-21: quicker glide onto the cursor (was 0.18)
+  recenterAfter: 0, // owner-tuned 2026-07-21: recentre immediately (was 400ms)
   snapMs: 110,
   magSlideMs: 390,
   magWeldLeadMs: 130,
@@ -138,6 +138,10 @@ export const DRAG_KEYS = Object.keys(DEFAULTS) as (keyof DragFeel)[];
 
 const KEY = 'ascent.dragfeel';
 let cfg: DragFeel = (() => {
+  // DEV-ONLY localStorage override: the tuner's saved tweaks must never beat the shipped DEFAULTS in a
+  // production build (they did — a player/dev with stale 'ascent.dragfeel' got old drag physics over what's
+  // on main; owner report 2026-07-21). Prod always runs the baked defaults.
+  if (!import.meta.env.DEV) return { ...DEFAULTS };
   try {
     const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? '{}');
     return { ...DEFAULTS, ...(saved && typeof saved === 'object' ? (saved as Partial<DragFeel>) : {}) };

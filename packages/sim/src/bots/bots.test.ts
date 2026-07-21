@@ -9,8 +9,8 @@ import { createReportAccumulator, playAndRecordInto, computeBalanceReport, final
  * the loop alive, but a run that never reaches gameover/victory would blow the step cap and surface here.
  */
 describe('balance bots', () => {
-  it('exposes the four expected pilots', () => {
-    expect(BOTS.map((b) => b.id).sort()).toEqual(['greedy', 'meta', 'midrange', 'tempo']);
+  it('exposes the five expected pilots', () => {
+    expect(BOTS.map((b) => b.id).sort()).toEqual(['explorer', 'greedy', 'meta', 'midrange', 'tempo']);
   });
 
   for (const bot of BOTS) {

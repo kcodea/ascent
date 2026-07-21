@@ -19,6 +19,7 @@
 import type { RunState, Action } from '../state';
 import { decide, type BotPolicy, type BotBehaviour } from './policy';
 import type { BotWeights } from './scoring';
+import { pickPackage } from './packages';
 
 export type { BotPolicy } from './policy';
 export type { BotWeights } from './scoring';
@@ -60,6 +61,23 @@ const META = make('meta', 'Meta', {
   buyThreshold: 4, goldReserve: 0, upgradeBias: 0.7, reroll: true, sellForUpgrade: true, rollout: true,
 });
 
-export const BOTS: readonly BotPolicy[] = [GREEDY, TEMPO, MIDRANGE, META];
+// ---- EXPLORER — commits to ONE synergy package per run (rotated by seed) and builds toward it. Purpose-
+//      built to exercise build-arounds: every card gets piloted by something that WANTS its archetype. ----
+const EXPLORER: BotPolicy = (() => {
+  const weights: BotWeights = {
+    ...MIDRANGE.weights, tribeSynergy: 2.2, tripleProgress: 3, tripleComplete: 9, effectWeight: 0.7,
+  };
+  const behaviour: BotBehaviour = {
+    buyThreshold: 4, goldReserve: 0, upgradeBias: 0.7, reroll: true, sellForUpgrade: true, rollout: true,
+  };
+  return {
+    id: 'explorer', name: 'Explorer', weights, behaviour,
+    // Pick the run's package fresh each call (stable — it's derived from the run seed) and bias every decision
+    // toward it. That commitment is what makes synergy cards get bought, kept, and rerolled for.
+    act: (state: RunState): Action => decide(state, weights, behaviour, pickPackage(state)),
+  };
+})();
+
+export const BOTS: readonly BotPolicy[] = [GREEDY, TEMPO, MIDRANGE, META, EXPLORER];
 export const BOT_BY_ID: Record<string, BotPolicy> = Object.fromEntries(BOTS.map((b) => [b.id, b]));
 export const DEFAULT_BOT = GREEDY;

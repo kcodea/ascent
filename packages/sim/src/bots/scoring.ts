@@ -11,6 +11,7 @@ import type { RunState } from '../state';
 import type { CardDef } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { effectsValue } from './effects';
+import type { BotPackage } from './packages';
 
 /** A bot's valuation personality. Every field is a multiplier/weight the shared scorer folds together, so a
  *  bot is (mostly) a Weights preset + a couple of behaviour flags. */
@@ -59,8 +60,8 @@ function copiesOwned(state: RunState, cardId: string): number {
  * Score a card DEF in the context of the current run + a bot's weights. Higher = a better buy/keep. Used for
  * both shop offers (what to buy) and board cards (what to sell — the weakest scorer goes).
  */
-export function cardScore(def: CardDef, state: RunState, w: BotWeights): number {
-  if (def.spell) return scoreSpell(def, state, w);
+export function cardScore(def: CardDef, state: RunState, w: BotWeights, pkg?: BotPackage): number {
+  if (def.spell) return scoreSpell(def, state, w) + (pkg?.fits(def) ?? 0);
   let v = (def.attack + def.health) * w.statValue;
 
   const kw = def.keywords;
@@ -88,6 +89,8 @@ export function cardScore(def: CardDef, state: RunState, w: BotWeights): number 
 
   v += (def.tier ?? 1) * w.tierValue;
   v -= (def.tier ?? 1) * w.costPenalty; // cost tracks tier for buyable cards
+  // EXPLORER package commitment — a big nudge toward the archetype this run is building.
+  v += pkg?.fits(def) ?? 0;
   return v;
 }
 

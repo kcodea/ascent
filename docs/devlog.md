@@ -3,6 +3,30 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (ward: second final pass)
+
+### tweak(ui): the owner's second tuned pass on the Ward shell
+
+A further pass now that the colour dials existed. The shell reads noticeably differently:
+
+- **Halo off** — `halo` 4→0, `haloA` 0.6→0, spread 1→−10. The outer bleed is gone; the rim's own outer glow
+  carries the edge now.
+- **Rim retuned** — inner glow 90→56px but stronger (0.66→0.84), outer glow 9→4px at 0.97.
+- **Colours went cooler and more varied** — the inner glow is now **violet** (`#aa9ffe`, was blue) and the
+  fill edge is **bright cyan** (`#3ddfff`, was deep blue `#0058cc`), with the rim/outer/honeycomb nudged
+  toward white-cyan. That's the biggest visual change of the pass, and only possible because the colour
+  swatches shipped in the previous commit.
+- **Softer glass** — `fillEdge` 1→0.86, `fillStop` 68→74% (the tint holds clear further out), `facetEdge`
+  72→47% (honeycomb reaches further into the centre), `pulseMin` 0.82→0.75 (deeper breath).
+
+Both the `DEFAULTS` and the CSS fallbacks were updated (production renders from the fallbacks), and each
+replacement is asserted in the edit script rather than best-effort — a silently-missed fallback would leave
+prod rendering the old look while the tuner showed the new one.
+
+Verified in-browser on the SHIPPED defaults with `localStorage` cleared first, so a stale saved config
+couldn't mask a wrong default: 21 spot-checked vars + colour triplets, zero mismatches. typecheck + lint
+(0 errors) + 1327 tests + `build:web` green.
+
 ## 2026-07-21 (final ward values + colour dials)
 
 ### feat(ui): bake the owner's final Ward values and add a colour swatch per tinted layer

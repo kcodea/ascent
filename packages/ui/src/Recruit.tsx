@@ -1125,7 +1125,6 @@ export function Recruit() {
   const cbAuraSig = JSON.stringify(cbAuras);
   useEffect(() => {
     setCombatBuffs(inCombat && !run.combatSettled ? { spellAttack: cbA, spellHealth: cbH, gold: cbGold, auras: cbAuras } : null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- cbAuraSig stands in for the cbAuras object identity
   }, [inCombat, run.combatSettled, cbA, cbH, cbGold, cbAuraSig, setCombatBuffs]);
 
   // Entering combat: hold on the "shop closing" intro, then let the enemies arrive

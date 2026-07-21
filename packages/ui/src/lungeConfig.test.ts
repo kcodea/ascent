@@ -32,8 +32,10 @@ describe('lungeConfig corner-clack dials', () => {
 // now a FUNCTION OF TRAVEL DISTANCE (three bands), because the same curve reads as a snap over 180ms and as a
 // drift-then-lurch over 440ms. These lock the shipped feel: all bands default to the original curve.
 describe('strike ease is a function of travel', () => {
-  it('every band defaults to the shipped power3.in', () => {
-    for (const px of [0, 100, 300, 700, 5000]) expect(strikeEaseFor(px), `${px}px`).toBe('power3.in');
+  // Owner feel pass 2026-07-21 moved every band from 'power3.in' to 'expo.in'. All three still agree, so
+  // banding stays opt-in — this locks the shipped curve and catches an accidental single-band edit.
+  it('every band ships the same curve, expo.in', () => {
+    for (const px of [0, 100, 300, 700, 5000]) expect(strikeEaseFor(px), `${px}px`).toBe('expo.in');
   });
   it('bands split on the configured thresholds', () => {
     const c = getLungeConfig();

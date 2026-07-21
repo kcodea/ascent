@@ -3,6 +3,47 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (owner feel pass — lunge defaults)
+
+### tweak(ui): ship the owner's tuned lunge values
+
+First feel pass dialled against a strike that actually renders (the `.unit` transform-transition had been
+eating ~60–80% of every strike's travel until earlier today, so every previous value was chosen against a
+smeared motion). Owner-tuned by eye at 1× in the DEV Lunge tuner:
+
+| Dial | Was | Now | Effect |
+|---|---:|---:|---|
+| `windupDur` | 0.70 | **0.54** | shorter anticipation |
+| `windupDepth` | 0.1 | **0.13** | deeper lean-back |
+| `windupScale` | 1.28 | **1.32** | bigger swell |
+| `targetSpeed` | 1100 | **400** | much slower travel |
+| `minStrikeDur` | 0.13 | **0.16** | |
+| `maxStrikeDur` | 0.44 | **0.35** | |
+| ease (all 3 bands) | `power3.in` | **`expo.in`** | hangs, then blurs into contact |
+| `leadTilt` | 7.5 | **8** | |
+| `faceOnRamp` | 90 | **150** | a one-slot-over attack now reads ~half-flat |
+| `settleDur` | 0.34 | **1.11** | long, lazy elastic drift home |
+
+Two consequences worth recording, both deliberate but non-obvious:
+
+1. **The clamp window is now narrow.** At 400px/s the free (distance-paced) window is travel ≈64–140px.
+   Below it strikes sit at `minStrikeDur`, above it at `maxStrikeDur` — and this board's diagonals run
+   ~213px, so long attacks are fixed-duration and therefore *faster* than 400px/s. Short and straight-across
+   attacks (~100–125px travel) land inside the window, so distance does pace the common cases. The previous
+   1100px/s had the opposite problem (nearly everything pinned to the `min` floor).
+2. **The settle now outlives its beat.** 1110ms against a ~500ms post-impact hold means a settle visibly runs
+   on through the following beats. That is fine — the settle is a decorative tail the beat clock never waits
+   on, and a re-attacker kills its own tweens in `playLunge` — but it retires the old
+   `combat-timing-reference.md` claim that `attackGap` was at its floor because of the 340ms settle. The gap
+   and the settle are now independent; that doc section is updated.
+
+Two tests moved with the values rather than being deleted: the band-ease lock now asserts `expo.in`, and the
+distance-scaling test was comparing 200px vs 3000px — both past the new ceiling, i.e. two clamps — so it now
+asserts scaling *inside* the live window (80 vs 130) and a new sibling test pins the clamping behaviour at
+both ends explicitly.
+
+Verified: typecheck + lint + **1242 tests** (1241 → 1242) + `build:web`, all green.
+
 ## 2026-07-21 (clamp semantics corrected)
 
 ### docs(ui): fix the strike-duration clamp comments — a `max` clamp is FASTER than targetSpeed, not slower

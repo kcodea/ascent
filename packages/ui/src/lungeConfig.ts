@@ -90,29 +90,38 @@ export const STRIKE_EASES = [
   'circ.in',     // 7 — smooth ramp with a hard finish
 ] as const;
 
+// Owner-tuned 2026-07-21, in the first pass where the strike was actually RENDERING its full travel (the
+// `.unit` transform-transition had been eating ~60-80% of every strike until that fix — see the devlog).
+// Everything here was dialled by eye at 1x in the DEV Lunge tuner against that corrected motion.
 const DEFAULTS: LungeConfig = {
-  windupDur: 0.70,   // owner: ~50% longer wind-up (was 0.47); the beat hold derives from this so damage still lands on contact
-  windupDepth: 0.1,
-  windupScale: 1.28, // swell during the wind-up, then return to 1 on the strike
-  targetSpeed: 1100,
-  minStrikeDur: 0.13,
-  maxStrikeDur: 0.44,
+  windupDur: 0.54,   // owner 2026-07-21 (0.70 -> 0.54); the beat hold derives from this so damage still lands on contact
+  windupDepth: 0.13,
+  windupScale: 1.32, // swell during the wind-up, then return to 1 on the strike
+  targetSpeed: 400,  // owner-tuned SLOW + deliberate. At this speed the board's typical 100-215px travels
+                     // compute to ~0.25-0.31s — inside the clamps — so distance genuinely paces the strike
+                     // again (at the old 1100 nearly every swing hit the `min` floor and ran fixed-duration).
+  minStrikeDur: 0.16,
+  maxStrikeDur: 0.35, // only the longest cross-board diagonals reach this
   strikeDur: 0.17,   // fallback only (used when elements are unresolved); live strikes derive from distance
   bandShortPx: 220,
   bandLongPx: 460,
-  easeShortIdx: 3,   // all three bands default to the shipped 'power3.in', so banding is opt-in per band
-  easeMidIdx: 3,
-  easeLongIdx: 3,
-  leadTilt: 7.5,
-  faceOnRamp: 90,    // straight-across attacks slam flat; the corner-strike is fully in by 90px of sideways offset
+  easeShortIdx: 5,   // 'expo.in' on every band (owner 2026-07-21): hangs almost still, then blurs into contact
+  easeMidIdx: 5,
+  easeLongIdx: 5,
+  leadTilt: 8,
+  faceOnRamp: 150,   // straight-across attacks slam flat; the corner-strike is fully in by 150px of sideways
+                     // offset — i.e. a ONE-slot-over attack (77px here) still reads about half-flat.
   tiltAngleScale: 0, // 0 = the shipped sign(dx)-only tilt; raise to let the approach slope steer the corner
   defenderSpin: 15,
   attackerRebound: 2.5,
   smackLead: 0.005,  // smack ~5ms before the strike lands (near-on-contact)
-  settleDur: 0.34,   // a snappier elastic return to rest
+  settleDur: 1.11,   // owner 2026-07-21 (0.34 -> 1.11): a long, lazy elastic drift back to rest. NOTE this is
+                     // far longer than the ~500ms post-impact hold, so a settle now visibly runs on THROUGH
+                     // the following beats — deliberate (it reads as weight, and the settle is a decorative
+                     // tail the clock never waits on). A re-attacker restarts clean: playLunge kills its tweens.
   attackGap: 0.14,   // breather between swings (the inter-attack pause). 0.34 -> 0.22 -> 0.14 across two
-                     // tightening passes. With the attack lead below this puts the post-impact hold at 500ms,
-                     // which still fully covers the 340ms elastic settle; see combat-timing-reference.md.
+                     // tightening passes; with the attack lead this puts the post-impact hold at ~500ms.
+                     // See combat-timing-reference.md.
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

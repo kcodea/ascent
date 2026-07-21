@@ -40,6 +40,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 
 
+- **Lunge feel pass shipped.** First tuning done against a strike that actually renders: slower travel
+  (400px/s), a shorter wind-up with a deeper lean, an `expo.in` strike curve that hangs then blurs into
+  contact, and a long lazy 1.11s settle home.
 - **Strikes actually reach the target now.** The probe proved every swing's card was only ~20–40% of the way
   to the defender when contact fired: the `.unit` CSS `transition: transform` re-interpolated every per-frame
   GSAP write over 160ms, so the rendered card rubber-banded behind the tween — invisible on the slow wind-up,

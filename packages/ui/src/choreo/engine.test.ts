@@ -58,11 +58,22 @@ describe('runAttackExchangeCues', () => {
     } finally { sc.offset = prev; }
   });
 
-  it('scales the timeline duration with attack distance (far strike takes longer)', () => {
+  // Distance scaling is only LIVE between the clamps: at the shipped `targetSpeed` 400 with
+  // `minStrikeDur` 0.16 / `maxStrikeDur` 0.35, that window is travel ~64px to ~140px. Outside it a strike is
+  // clamped to a fixed duration BY DESIGN, so this asserts the property where it actually operates (the old
+  // 200 vs 3000 both sat past the ceiling once the owner's slower speed shipped, and compared two clamps).
+  it('scales the timeline duration with attack distance, inside the clamp window', () => {
     vi.spyOn(sfx, 'hit').mockImplementation(() => {});
-    const near = runAttackExchangeCues(attackMoment(5), fakeEl(), null, 0, 200, { combatSpeed: 1, advance: vi.fn() });
-    const far = runAttackExchangeCues(attackMoment(5), fakeEl(), null, 0, 3000, { combatSpeed: 1, advance: vi.fn() });
+    const near = runAttackExchangeCues(attackMoment(5), fakeEl(), null, 0, 80, { combatSpeed: 1, advance: vi.fn() });
+    const far = runAttackExchangeCues(attackMoment(5), fakeEl(), null, 0, 130, { combatSpeed: 1, advance: vi.fn() });
     expect(far!.duration()).toBeGreaterThan(near!.duration());
+  });
+
+  it('clamps both ends: travel past the ceiling shares one duration, and so does travel below the floor', () => {
+    vi.spyOn(sfx, 'hit').mockImplementation(() => {});
+    const run = (d: number) => runAttackExchangeCues(attackMoment(5), fakeEl(), null, 0, d, { combatSpeed: 1, advance: vi.fn() })!.duration();
+    expect(run(600)).toBeCloseTo(run(3000), 5); // both at maxStrikeDur
+    expect(run(5)).toBeCloseTo(run(40), 5);     // both at minStrikeDur
   });
 });
 

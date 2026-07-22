@@ -3538,6 +3538,7 @@ export function Recruit() {
                 locked={locked}
                 lockLabel={lockLabel}
                 forceFull
+                plated
               />
             );
           })}
@@ -3642,7 +3643,7 @@ export function Recruit() {
             opacity: magSlide ? 0 : 1,
           }}
         >
-          <Card card={drag.view} forceFull={drag.source === 'hand'} />
+          <Card card={drag.view} forceFull={drag.source === 'hand'} plated={drag.source === 'hand'} />
         </div>
       )}
 

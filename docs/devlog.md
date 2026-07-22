@@ -362,6 +362,11 @@ With the plate in, the panel's contents got a pass:
   ever show outside its silhouette. The frame's `.cglow` and the info panel's box-shadow rim are both
   suppressed on plated cards (4-class selector so it wins on specificity, not source order). Colours still
   come from the `--hg-*` vars, so the 🔆 Hover Glow tuner drives plate and frame as one look.
+- **The drop-target glow follows the plate too.** Dragging a hand minion over the board lit `.cglow` — the
+  frame silhouette — which on a plated card is a halo sitting inside the plate, mid-card: the same artifact
+  the hover glow was moved off the frame to fix. Plated drag cards now light `.plateglow` instead, keeping
+  the rule's original promise that "playing a card reads identically to hovering it". Unplated drag cards
+  (shop/board) still light `.cglow`, having no plate to ring.
 - **The inspect overlay is plated too.** It's the other place you read a card as a whole object rather than a
   board token. Safe for `isolation: isolate` — the overlay never renders during combat.
 

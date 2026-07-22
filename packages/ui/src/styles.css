@@ -1882,6 +1882,13 @@ body.modalup .statusbar .questbadges {
    drawer; `.cglow` instead hugs just the frame silhouette, tight, like hover.) Scoped `.card.compact` so it
    out-specifies the `.card.compact.stdframe .cglow { opacity: 0 }` default. */
 .dragcard.willplay .card.compact .cglow { opacity: 1; }
+/* …and on a PLATED drag card that hover glow is the PLATE's, not the frame's — the same swap hover got
+   (owner 2026-07-21). The plate is the card's outer edge, so a frame halo here sits inside it, mid-card:
+   exactly the artifact the hover glow was moved off the frame to fix. Unplated drag cards (from the shop or
+   board) still light `.cglow`, since they have no plate to ring. FIVE classes so both rules beat the
+   4-class `.dragcard.willplay .card.compact .cglow` above on specificity rather than source order. */
+.dragcard.willplay .card.compact.plated .plateglow { opacity: 1; }
+.dragcard.willplay .card.compact.plated .cglow { opacity: 0; }
 /* Magnetic: an electric crackle while a Magnetic card hovers a friendly Mech (.electric, the floating drag
    card) and on the host Mech as it's welded (.electrify — drop + Combinator's End of Turn). PERF: a STATIC
    cyan halo on a ::before whose OPACITY breathes — compositor-only, zero per-frame paint. This was an animated

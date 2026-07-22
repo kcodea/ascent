@@ -73,6 +73,46 @@ faster and bigger with a touch of stagger — `spd` 25 → 50, `spdVar` → 1, `
 `stag` 0 → 0.14. The wireframe timing was already right and did not move.
 
 **Verified:** typecheck + lint + 1385 tests + `build:web` all green; mask confirmed in `dist` at 42 KB.
+## 2026-07-22 (sets: play an unreleased set in the Scene Builder)
+
+### feat(sim/ui): a set toggle in the Scene Builder, so set 2 can be built without disrupting set 1
+
+Owner ask: start authoring set 2 and playtest it in the Scene Builder, without touching live set-1 runs.
+
+**Authoring was already isolated — the gap was PLAYING it.** `activeSet()` (the first `enabled` entry) was the
+only input to the pin in `createRun`, so the only way to play set 2 was to flip `enabled` globally, which moves
+every new real run onto it and pins `set2` into the player's save.
+
+`createRun` now takes an optional 5th parameter, `setId`, defaulting to `activeSet().id`. Everything downstream
+already reads `RunState.setId` through `poolOf(state)`, so **nothing else changed** — the two lines in
+`createRun` that called `activeSet()` now read the parameter. `startSceneBuilder(heroId, setId)` passes it, and
+the panel gained a **Card set** dropdown listing every set INCLUDING disabled ones (that's the point), each with
+its live pool counts.
+
+Details worth knowing:
+- **The card library is scoped to the run's pinned set**, so the toggle visibly changes what you can add and a
+  3-card set 2 reads honestly. `CARD_INDEX` stays the global id→def map.
+- **Hero and Set each carry the other's current value** when they re-create the run, so switching hero can't
+  silently drop you back to the live set.
+- **An empty set degrades gracefully** — verified a set-2 run creates, rolls an empty shop and advances turns
+  without throwing. The panel says "this set has no cards yet" so it reads as content-not-written, not a bug.
+
+**Verified the whole authoring loop end to end**, not just the plumbing: temporarily added one card to
+`cards/set2/_probe.ts` and listed it in `own`, and the Scene Builder immediately showed "Set 2 — 1 minions",
+scoped its library to that one card, and rolled it into the shop (`s2probe ×3`). With that card present, set 1's
+seed-12345 opening shop was **still `moneymaker, moneymaker, spore`** and still 128 buyable — the
+non-disruption guarantee demonstrated rather than assumed. Probe then reverted.
+
+New `setOverride.test.ts` pins the contract: the default is unchanged (implicit and explicit `set1` roll an
+identical shop), a pinned run reads its own pool through `poolOf`, everything the shop offers is drawable from
+the pinned set, and an empty set doesn't throw.
+
+Still NOT set-scoped (unchanged, and the next thing set 2 will want): quests, runes, heroes, and the run's
+tribe roster. Also note a set-2 run has no opponent boards — `pickOpponent` filters by `setId`, so it falls back
+to procedural threat boards until `SET=set2 npm run pool` is run.
+
+typecheck + lint + **1412 tests** + `build:web` green.
+
 ## 2026-07-22 (Djinn: Cadence covers the whole End-of-Turn engine)
 
 ### fix(sim): Cadence skipped quest- and rune-granted End of Turn effects

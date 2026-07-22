@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CARD_INDEX, QUEST_DEFS, RUNES, EPIC_RUNES } from '@game/content';
+import { CARD_INDEX, QUEST_DEFS, RUNES, EPIC_RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { HEROES, type BoardSnapshot, type RunState, type ShopCard } from '@game/sim';
 import type { Keyword } from '@game/core';
 import { useGame } from './store';
@@ -40,6 +40,15 @@ const uid = (): string => `sb${uidN++}`;
 
 const HERO_OPTIONS = HEROES.map((h) => ({ id: h.id, name: h.name })).sort((a, b) => a.name.localeCompare(b.name));
 
+/** Every set in the registry — INCLUDING disabled ones, which is the point: the rig is how you play a set
+ *  that is still in development (`enabled: false`) without flipping the global switch and moving real runs
+ *  onto it. Pool sizes are shown because an empty set draws an empty shop, and that should read as
+ *  "set 2 has no cards yet", not as a bug. */
+const SET_OPTIONS = Object.values(SETS).map((s) => {
+  const p = poolFor(s.id);
+  return { id: s.id, name: s.name, enabled: s.enabled, minions: p.buyable.length, spells: p.spells.length };
+});
+
 export function SceneBuilder() {
   const run = useGame((s) => s.run);
   const startSceneBuilder = useGame((s) => s.startSceneBuilder);
@@ -52,8 +61,14 @@ export function SceneBuilder() {
   const [collapsed, setCollapsed] = useState(false);
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('scenebuilder');
 
+  // The card library is scoped to the run's PINNED set, so the Set toggle visibly changes what you can add and
+  // "set 2 has 3 cards" reads honestly. `CARD_INDEX` stays the global id→def map (tokens included) — this is
+  // only about what this set can DRAW. Switch sets to reach another set's cards.
+  const setId: SetId = run?.setId ?? activeSet().id;
+  const pool = useMemo(() => poolFor(setId), [setId]);
+
   const all = useMemo<CardRow[]>(() =>
-    Object.values(CARD_INDEX)
+    pool.all
       .filter((c) => !c.token)
       .map((c) => ({
         id: c.id, name: c.name, tier: c.tier ?? 0, spell: !!c.spell, tribe: c.tribe ?? 'neutral',
@@ -62,7 +77,7 @@ export function SceneBuilder() {
           (c.effects ?? []).map((e) => `${e.on} ${e.do}`).join(' ')),
       }))
       .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name)),
-  []);
+  [pool]);
 
   const allQuests = useMemo<QuestRow[]>(() =>
     QUEST_DEFS
@@ -127,17 +142,38 @@ export function SceneBuilder() {
 
       {!collapsed && (
         <div className="sb-body">
-          {/* HERO */}
+          {/* HERO + SET — both restart the sandbox, and each carries the OTHER's current value so switching
+              hero can't silently drop you back to the live set (or vice versa). */}
           <div className="sb-sec">
             <div className="sb-label">Hero</div>
             <select
               className="sb-select"
               value={run?.heroId ?? 'warden'}
-              onChange={(e) => startSceneBuilder(e.target.value)}
+              onChange={(e) => startSceneBuilder(e.target.value, setId)}
               title="Switch hero (restarts the sandbox so the hero's opener runs)"
             >
               {HERO_OPTIONS.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
             </select>
+          </div>
+
+          {/* SET */}
+          <div className="sb-sec">
+            <div className="sb-label">Card set</div>
+            <select
+              className="sb-select"
+              value={setId}
+              onChange={(e) => startSceneBuilder(run?.heroId ?? 'warden', e.target.value as SetId)}
+              title="Play an unreleased set here without flipping the global switch — real runs are unaffected"
+            >
+              {SET_OPTIONS.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}{s.enabled ? ' (live)' : ''} — {s.minions} minions, {s.spells} spells
+                </option>
+              ))}
+            </select>
+            {pool.buyable.length === 0 && (
+              <div className="sb-mini sb-warn">this set has no cards yet — the shop will be empty</div>
+            )}
           </div>
 
           {/* ECONOMY */}

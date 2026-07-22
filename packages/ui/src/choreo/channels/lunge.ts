@@ -34,6 +34,10 @@ export interface LungeCtx {
   /** The impact FX/sfx/recoil, fired at `contact + impactOffsetMs`. Separate from `onContact` so the smack
    *  can be retimed (incl. NEGATIVE — fire before contact — the smack-lead) without moving the advance. */
   onImpact?: () => void;
+  /** ms the lunge FREEZES at the contact pose before recoiling — the CLEAVE hit-stop. The impact (FX +
+   *  defender recoil) is pushed to the END of the freeze, so the beat reads connect -> freeze -> gash.
+   *  Rides the speed-scaled timeline like everything else here. 0 (default) = no hit-stop. */
+  hitStopMs?: number;
   /** ms the impact fires relative to contact; negative = earlier (before connection), positive = later.
    *  Rides the lunge timeline, so it scales with `speed` like the rest of the lunge. Default 0 (on contact). */
   impactOffsetMs?: number;
@@ -86,7 +90,7 @@ export function setTransition(el: Element, value: string): void {
 }
 
 export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
-  const { attacker, dx, dy, speed, strike, strikeDur, travel = 0, leadTilt, attackerRebound, impactOffsetMs = 0, rallyPauseMs = 0, flurry = false } = ctx;
+  const { attacker, dx, dy, speed, strike, strikeDur, travel = 0, leadTilt, attackerRebound, impactOffsetMs = 0, rallyPauseMs = 0, hitStopMs = 0, flurry = false } = ctx;
   const onContact = once(ctx.onContact);
   const onImpact = once(ctx.onImpact);
   const onImpactAuras = once(ctx.onImpactAuras);
@@ -150,15 +154,21 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
   let solved: { x: number; y: number } | null = null;
   const strikeAt = (): { x: number; y: number } => (solved ??= ctx.resolveStrike?.() ?? strike);
   tl.to(attacker, { x: () => strikeAt().x, y: () => strikeAt().y, rotation: leadTilt, scale: 1, duration: strikeDur, ease: strikeEaseFor(travel) })                 // strike, corner leading, target solved at strike start
-    .add(onContact, `-=${c.smackLead}`)                                                                                                                      // contact — the beat advance, smackLead before the strike completes
-    .to(attacker, { rotation: -Math.sign(leadTilt) * attackerRebound, duration: 0.06, ease: 'power2.out' })                                                 // rotational rebound off the clack (leadTilt 0 → no lead, no rebound)
+    .add(onContact, `-=${c.smackLead}`);                                                                                                                      // contact — the beat advance, smackLead before the strike completes
+  // CLEAVE hit-stop: hold the attacker frozen at the contact pose before it recoils, so the blow lands
+  // with weight and the gash erupts out of a held frame. An empty tween is the same mechanism the
+  // wind-up's rally pause uses — it stays inside this timeline, so it is killed/seekable/speed-scaled
+  // with the rest of the swing.
+  const hitStopS = Math.max(0, hitStopMs) / 1000;
+  if (hitStopS > 0) tl.to({}, { duration: hitStopS });
+  tl.to(attacker, { rotation: -Math.sign(leadTilt) * attackerRebound, duration: 0.06, ease: 'power2.out' })                                                 // rotational rebound off the clack (leadTilt 0 → no lead, no rebound)
     .to(attacker, { x: 0, y: 0, rotation: 0, duration: c.settleDur, ease: 'elastic.out(1, 0.45)' });                                                        // settle
   // The impact (smack/FX/recoil) fires at contact + its offset — an ABSOLUTE timeline position so a negative
   // offset lands EARLIER than contact (the smack-lead), clamped to ≥ 0 (can't precede the timeline). It rides
   // this (speed-timeScaled) timeline, so the smack stays killed/seekable with the lunge and scales with speed.
   const contactAt = c.windupDur + windupPauseS + strikeDur - c.smackLead;
   if (onImpact) {
-    tl.add(onImpact, Math.max(0, contactAt + impactOffsetMs / 1000));
+    tl.add(onImpact, Math.max(0, contactAt + hitStopS + impactOffsetMs / 1000)); // waits out the hit-stop
   }
   // The Ward shatter for this exchange fires AT contact (offset 0) so the gold break lands with the smack — the
   // bubble tracks the lunge until here, then pops at the hit instead of drifting off mid-recoil.

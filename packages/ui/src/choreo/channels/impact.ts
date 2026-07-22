@@ -20,13 +20,19 @@ export const hitPower = (swing: number): number => Math.max(0.9, Math.min(2, 0.8
  * amplified crimson-gold crit flourish (`pixiFx.critImpact` — bold ring, "CRIT!" pop, red card flash), plus a
  * heftier knockback. No-op FX/recoil when there's no defender (still fires the hit/crit sound).
  */
-export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, contact?: { x: number; y: number }, spinDeg = 0, crit = false, flurryHit = false, flurrySlash = false): void {
+export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, contact?: { x: number; y: number }, spinDeg = 0, crit = false, flurryHit = false, flurrySlash = false, cleave = false): void {
   if (crit) sfx.critHit(); else sfx.hit();
   if (flurryHit) sfx.flurryHit(); // the Flurry hit layers OVER the smack on EVERY swing (owner note 2026-07-17)
   if (!defender) return;
   const r = defender.getBoundingClientRect();
   const fx = contact ?? { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-  if (flurrySlash) {
+  if (cleave) {
+    // CLEAVE replaces the standard strike VFX with the red gash — the same rule as the Flurry wind-slash
+    // below, and it WINS over both Flurry and a crit (a Cleave crit shows the gash). The smack/crit SOUND
+    // and the crit board-shake still fire, so a Cleave crit is still audibly a crit.
+    pixiFx.cleaveGash(fx.x, fx.y, dx, dy);
+    pixiFx.impactDust(fx.x, fx.y, power);
+  } else if (flurrySlash) {
     // Flurry REPLACES the standard strike VFX with the wind-slash gust so a Flurry attacker's hits read as
     // wind — and it WINS even on a CRIT (a Flurry crit shows the wind-slash, not the crimson flourish; owner
     // note 2026-07-17). Non-Flurry crits fall through to the standard crit effect below. The smack/crit SOUND

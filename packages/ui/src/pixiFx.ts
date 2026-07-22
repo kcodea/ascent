@@ -4,6 +4,7 @@ import { perfMonitor } from './perfMonitor';
 import { getStrikeFxConfig } from './strikeFxConfig';
 import { getCritFxConfig, type CritFxConfig } from './critFxConfig';
 import { getFlurrySwingConfig } from './flurrySwingConfig';
+import { getCleaveFxConfig, type CleaveFxConfig } from './cleaveFxConfig';
 import { getTrailConfig } from './trailConfig';
 import { sfx } from './sfx';
 
@@ -397,6 +398,17 @@ export interface AuraWaveCfg {
  *  `auraWave` applies the cfg's widthScale/heightScale/offsets to size the wave inside it. */
 export interface WaveRegion { x: number; y: number; w: number; h: number }
 
+/** One live Cleave gash (see `cleaveGash`) — a set of crescent arcs sweeping through the struck unit. */
+interface CleaveGashFx {
+  g: Graphics;
+  cfg: CleaveFxConfig;
+  age: number;
+  /** Contact point the arcs are centred on. */
+  x: number;
+  y: number;
+  arcs: { cx: number; cy: number; rot: number; delay: number; shardsDone: boolean }[];
+}
+
 /** Renderer-facing aim-line config (structural mirror of AimFxConfig's line half — pixiFx stays
  *  import-light). The living hero-power targeting line; see `setAimLine`. */
 export interface AimLineCfg {
@@ -622,6 +634,7 @@ class FxController {
   private readonly weldRings: { g: Graphics; x: number; y: number; cfg: WeldCfg; age: number; ease: Float32Array; landed?: boolean }[] = [];
   private readonly spellArrows: { g: Graphics; x: number; y: number; drift: number; delay: number; tint: number; cfg: SpellPowerCfg; age: number }[] = [];
   private readonly waves: { g: Graphics; region: WaveRegion; cfg: AuraWaveCfg; age: number; lastWake: number; motes: { off: number; spawned: boolean }[] }[] = []; // aura waves — one per rise, a centre→edge board wave redrawn per frame
+  private readonly gashes: CleaveGashFx[] = []; // Cleave gashes — one per Cleave connection
   /** The live hero-power targeting line (null = not aiming). `side`/`amp` are rolled once per AIM — each
    *  new arm gets a fresh random arch (owner ask: never the same static curve) — then held stable. */
   private aim: { g: Graphics; from: { x: number; y: number }; to: { x: number; y: number }; onTarget: boolean; cfg: AimLineCfg; side: number; amp: number; seed: number } | null = null;
@@ -772,6 +785,8 @@ class FxController {
     this.weldRings.length = 0;
     for (const a of this.spellArrows) { a.g.destroy(); }
     this.spellArrows.length = 0;
+    for (const f of this.gashes) { f.g.destroy(); }
+    this.gashes.length = 0;
     for (const w of this.waves) { w.g.destroy(); }
     this.waves.length = 0; // stale entries would otherwise survive a detach/re-init and tick on an orphaned layer
     this.skullTex?.destroy(true);
@@ -1804,6 +1819,8 @@ class FxController {
     this.weldRings.length = 0;
     for (const a of this.spellArrows) { this.layer?.removeChild(a.g); a.g.destroy(); }
     this.spellArrows.length = 0;
+    for (const f of this.gashes) { this.layer?.removeChild(f.g); f.g.destroy(); }
+    this.gashes.length = 0;
     for (const w of this.waves) { this.layer?.removeChild(w.g); w.g.destroy(); }
     this.waves.length = 0;
   }
@@ -2423,6 +2440,131 @@ class FxController {
     this.waves.push({ g, region: sized, cfg, age: 0, lastWake: -1, motes });
   }
 
+
+  /**
+   * CLEAVE GASH — the red tear a Cleave attacker opens when it connects, fired from the impact channel at the
+   * contact point (`x`,`y`) along the blow (`dx`,`dy`). It REPLACES the standard strike burst, the same rule
+   * as Flurry's wind-slash. The lunge has already frozen for `hitStopMs` by the time this fires (see
+   * `playLunge`), so the gash erupts out of a held pose rather than during the follow-through.
+   *
+   * Built from `arcCount` crescent arcs: each sweeps itself on over `sweepMs`, holds, then fades while
+   * growing (`arcGrow`) so the cut reads as opening. Each arc is a tapered stroke — fat at the middle,
+   * needling at both ends — with a white-hot core over a deep red glow. A hot flash marks the contact point
+   * and red shards fling along the cut. One `Graphics` redrawn per frame; shards + flash are pooled
+   * particles. Fire-and-forget. Config-driven (🩸 tuner).
+   */
+  cleaveGash(x: number, y: number, dx: number, dy: number): void {
+    perfMonitor.mark('fx:cleave');
+    if (!this.ready || !this.layer) return;
+    const cfg = getCleaveFxConfig();
+    if (cfg.arcCount <= 0) return;
+    const g = new Graphics();
+    g.blendMode = 'add';
+    this.layer.addChild(g);
+    const dir = Math.atan2(dy, dx) + (cfg.arcAngle * Math.PI) / 180;
+    const px = x + cfg.offsetX;
+    const py = y + cfg.offsetY;
+    const n = Math.max(1, Math.round(cfg.arcCount));
+    const arcs = Array.from({ length: n }, (_, i) => {
+      // Offset the arcs PERPENDICULAR to the cut, so they lie side by side as parallel claw strokes. Stacking
+      // them ALONG the blow just fattened one arc into a banana (owner review 2026-07-21).
+      const off = (i - (n - 1) / 2) * cfg.arcSpacing;
+      const perp = dir + Math.PI / 2;
+      const jitter = ((Math.random() - 0.5) * cfg.arcJitter * Math.PI) / 180;
+      return {
+        cx: px + Math.cos(perp) * off,
+        cy: py + Math.sin(perp) * off,
+        rot: dir + jitter,
+        delay: i * cfg.arcStagger,
+        shardsDone: false,
+      };
+    });
+    this.gashes.push({ g, cfg, age: 0, x: px, y: py, arcs });
+    // The hot flash at the contact point — the "connection" read, fired once with the first arc.
+    if (cfg.flashSize > 0 && cfg.flashAlpha > 0 && this.glowTex) {
+      this.spawn(this.glowTex, {
+        x: px, y: py, vx: 0, vy: 0, drag: 1, life: cfg.flashMs,
+        fromScale: (cfg.flashSize * cfg.scale * 0.35) / 80, toScale: (cfg.flashSize * cfg.scale) / 80, spin: 0,
+        tint: hexNum(cfg.colorFlash), blend: 'add', peakAlpha: cfg.flashAlpha,
+      });
+    }
+  }
+
+  /** Advance + redraw one Cleave gash. Returns false once every arc has faded (→ retire). */
+  private drawGash(f: CleaveGashFx): boolean {
+    const { g, cfg } = f;
+    const total = (f.arcs.length - 1) * cfg.arcStagger + cfg.sweepMs + cfg.holdMs + cfg.fadeMs;
+    if (f.age > total) return false;
+    const core = hexNum(cfg.colorCore);
+    const glow = hexNum(cfg.colorGlow);
+    const sweep = (cfg.arcSweep * Math.PI) / 180;
+    g.clear();
+    for (const arc of f.arcs) {
+      const t = f.age - arc.delay;
+      if (t < 0) continue;
+      const on = Math.min(1, t / Math.max(1, cfg.sweepMs));        // how much of the arc has swept in
+      const fadeT = t - cfg.sweepMs - cfg.holdMs;
+      const alpha = fadeT <= 0 ? 1 : Math.max(0, 1 - fadeT / Math.max(1, cfg.fadeMs));
+      if (alpha <= 0) continue;
+      const fade = fadeT <= 0 ? 0 : Math.min(1, fadeT / Math.max(1, cfg.fadeMs));
+      const r = cfg.arcRadius * cfg.scale * (1 + (cfg.arcGrow - 1) * fade); // the cut opens as it fades
+      // Sample the arc in tapered segments: width peaks mid-sweep and needles at both tips.
+      const segs = 20;
+      const drawn = segs * on;
+      // The arc is centred on its own rotation, bowed AWAY from the contact point so it reads as a slash
+      // curving through the unit rather than a ring around it.
+      const bow = arc.rot + Math.PI / 2;
+      const ox = arc.cx - Math.cos(bow) * r;
+      const oy = arc.cy - Math.sin(bow) * r;
+      let px = 0, py = 0;
+      for (let i = 0; i <= segs; i++) {
+        if (i > drawn) break;
+        const a = i / segs;
+        const ang = bow - sweep / 2 + sweep * a;
+        const nx = ox + Math.cos(ang) * r;
+        const ny = oy + Math.sin(ang) * r;
+        if (i === 0) { px = nx; py = ny; continue; }
+        const mid = (a + (i - 1) / segs) / 2;
+        const w = cfg.arcWidth * cfg.scale * (1 - cfg.arcTaper * Math.abs(mid - 0.5) * 2);
+        if (w > 0.05) {
+          if (cfg.glowAlpha > 0) {
+            g.moveTo(px, py); g.lineTo(nx, ny);
+            g.stroke({ width: w * cfg.glowWidth, color: glow, alpha: cfg.glowAlpha * alpha, cap: 'round' });
+          }
+          g.moveTo(px, py); g.lineTo(nx, ny);
+          g.stroke({ width: w, color: core, alpha: cfg.coreAlpha * alpha, cap: 'round' });
+        }
+        px = nx; py = ny;
+      }
+      if (!arc.shardsDone && on >= 1) {
+        arc.shardsDone = true;
+        this.gashShards(f.x, f.y, arc.rot, cfg);
+      }
+    }
+    return true;
+  }
+
+  /** Red shards flung along the cut once an arc has fully swept. */
+  private gashShards(x: number, y: number, dir: number, cfg: CleaveFxConfig): void {
+    if (!this.shardRectTex || cfg.shardCount <= 0) return;
+    const spread = (cfg.shardSpread * Math.PI) / 180;
+    const tint = hexNum(cfg.colorShard);
+    for (let i = 0; i < Math.round(cfg.shardCount); i++) {
+      // Fling along the cut, both ways, within the fan.
+      const side = Math.random() < 0.5 ? 0 : Math.PI;
+      const a = dir + side + (Math.random() - 0.5) * spread;
+      const speed = (170 + Math.random() * 340) * cfg.shardSpeed;
+      this.spawn(this.shardRectTex, {
+        x: x + (Math.random() - 0.5) * 24, y: y + (Math.random() - 0.5) * 24,
+        vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.12,
+        life: cfg.shardLife * (0.6 + Math.random() * 0.7),
+        fromScale: (cfg.shardSize * cfg.scale * (0.5 + Math.random() * 0.6)) / 10, toScale: 0.02,
+        spin: (Math.random() - 0.5) * 5, rotation: a,
+        tint, blend: 'add', stretchX: 1.7, peakAlpha: 0.95, gravity: cfg.shardGravity,
+      });
+    }
+  }
+
   /** Mixed mote palette: the tribe's core/mote/glow plus white + warm gold accents (owner ask — varied,
    *  noticeable sparkles). */
   private static readonly WAVE_MOTE_ACCENTS = ['#ffffff', '#ffd77a'];
@@ -2920,6 +3062,17 @@ class FxController {
         this.layer?.removeChild(a.g);
         a.g.destroy();
         this.spellArrows.splice(i, 1);
+      }
+    }
+
+    // Cleave gashes: advance + redraw, retire when the last arc has faded.
+    for (let i = this.gashes.length - 1; i >= 0; i--) {
+      const f = this.gashes[i]!;
+      f.age += dtMs;
+      if (!this.drawGash(f)) {
+        this.layer?.removeChild(f.g);
+        f.g.destroy();
+        this.gashes.splice(i, 1);
       }
     }
 

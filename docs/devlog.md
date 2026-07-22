@@ -3,6 +3,43 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (FX: cleave hit-stop + red gash)
+
+### feat(ui): Cleave hit-stop + red gash, with a tuner and a preview rig
+
+A Cleave attacker now lands with weight: the strike connects, the lunge **freezes** at the contact pose for
+`hitStopMs`, and then a **red gash** tears open — three tapered claw arcs with white-hot cores over a deep
+crimson glow, a hot flash at the contact point, and red shards flung along the cut.
+
+**How it hooks in.** Far simpler than the scrapped first attempt (PR #624): it rides the ordinary impact
+channel and REPLACES the standard strike burst, exactly the way Flurry's wind-slash already does. No choreo
+score routing, no bounding-box volley across the splashed group, no new combat event. The `cleave` flag is
+read from the attacker's LIVE keywords at the same site `flurry` already is (so a mid-combat grant or strip
+is honoured for free), and the hit-stop is an empty GSAP tween inside the existing lunge timeline — the same
+mechanism the wind-up's `rallyPauseMs` uses, so it stays killable, seekable and speed-scaled with the swing.
+The impact (FX + defender recoil) is pushed to the END of the freeze, so the beat reads connect → freeze →
+gash.
+
+**A preview rig, this time.** `apps/web/public/fx/cleave-gash-preview.html` renders the arc geometry in
+canvas 2D as a static frame ladder. The screenshot tool cannot capture the app while the Pixi ticker runs —
+that is what forced the previous FX PR to ship unseen — but a static page captures fine. The rig is a
+hand-kept MIRROR of `drawGash`, not shared code; if the two drift it stops being evidence, which is noted in
+the file.
+
+That rig immediately earned its keep. The first pass rendered as a fat symmetric **smile**, not a slash:
+`arcSweep` was far too wide for the radius and the arcs were offset ALONG the blow, which just fattened one
+banana instead of layering strokes. Fixed by offsetting perpendicular to the cut (so they lie side by side as
+parallel claw strokes) and re-tuning to a flat, thin, diagonal blade — then re-rendered and re-judged twice
+more, once to stop the cut overrunning the whole board.
+
+**Tuner.** `🩸 Cleave Gash FX` — 29 sliders + 4 colour swatches, hit-stop first, then placement (offset X/Y +
+overall scale), the arc geometry, and the flash/shards. **Test** fires a gash standalone; the hit-stop can
+only be felt in a real fight, since it lives in the lunge timeline rather than the FX. Saved config is
+DEV-gated (the `dragFeel.ts` pattern from #615) so nothing dialled can beat the baked defaults in prod.
+
+**Verified.** typecheck + typecheck:web (clean in every touched file) + lint + **1338 tests** + `build:web`
+green, and the gash was **actually looked at** across five frames of its life before shipping.
+
 ## 2026-07-21 (balance: nine-card owner pass)
 
 ### tweak(ui): rename the Toxin keyword to EXECUTE

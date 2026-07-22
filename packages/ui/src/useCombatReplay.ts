@@ -1143,6 +1143,8 @@ export function useCombatReplay(
           // Flurry (W): the engine fires the wind-slash gust on the EXTRA swing (swing ≥ 1). Check the unit's
           // LIVE keywords (covers Flurry granted mid-combat), then the printed keyword off the card index.
           flurry: !!atkUnit?.keywords.includes('W') || !!CARD_INDEX[cardIds.get(atkUid) ?? '']?.keywords?.includes('W'),
+          // Cleave -> hit-stop + red gash. Live keywords first so a mid-combat grant/strip is honoured.
+          cleave: !!atkUnit?.keywords.includes('C') || !!CARD_INDEX[cardIds.get(atkUid) ?? '']?.keywords?.includes('C'),
         });
         engineAdvancingRef.current = tl !== null; // engine owns the advance; if it couldn't build, the scheduler falls back
         if (tl === null) breakWards?.(); // lunge cue dropped → no contact anchor to ride; shatter now so it isn't lost

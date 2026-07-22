@@ -52,6 +52,13 @@ Solaris Fang (Rally halves cut), Money Maker (Gold Pouch only), and the **Graver
 - **Follow-up:** `rallyGrantRandomSpell` + `rallyTribeAura` are now unused by any card. Kept as primitives for
   set 2 — remove in their own PR if nothing picks them up.
 
+### Taste the Cleave gash (`feat/cleave-gash`)
+Built, wired and tuner-backed, and unlike the scrapped #624 the look WAS reviewed (via the static frame-ladder
+rig at `apps/web/public/fx/cleave-gash-preview.html`). Still wants a pass in a live fight for the thing the rig
+can't show: how the **hit-stop** feels at real combat speed. Open `🩸 Cleave Gash FX`, watch a Cleave attacker
+swing, dial `HIT-STOP ms`, then "Copy values" back into `DEFAULTS` in `cleaveFxConfig.ts`.
+- **NB:** the preview rig is a hand-kept mirror of `drawGash`. Change one, change the other.
+
 ### Human-playtest balance
 The counter matrix is balance *truth*; stat numbers are dials. With all six tribes + the quest content in,
 the game wants a real tuning pass driven by human play (not just the bot).

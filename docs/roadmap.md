@@ -21,6 +21,17 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+### Two Discovers at start of turn render stacked (owner report 2026-07-22)
+When a turn opens with two Discover prompts they overlay each other instead of queueing. They need to resolve
+**sequentially** — one prompt, pick, then the next.
+
+### Drag feel is not scale-invariant (owner report 2026-07-22 — decision needed)
+The drag maths works on raw pixel deltas (`tiltPerPx * hLean * gx`) without dividing by `--scale`, so the same
+hand movement produces the same tilt in degrees over a card that may be 50% larger. A fullscreen exe (`--scale`
+1.0) therefore feels different from a windowed browser (0.67–0.92) — confirmed: F11 in the browser matches the
+exe. The dialled values are *not* drifting; only the stage scale differs. Fix would be to divide the drag pixel
+deltas by `--scale`, but that changes the feel at the size it was tuned at, so it needs an owner call.
+
 ### Balance patch 2026-07-21 (owner spec — landing in chunks on `balance/patch-2026-07-21`)
 Large hand-authored balance pass, sliced so each chunk lands green + tested on its own:
 - **✅ Chunk 1 — Demon minions** (shipped to branch): Soulfeeder, Sword & Bored, Burial Imp, Godfodder, Pit

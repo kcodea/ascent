@@ -37,6 +37,10 @@
   /* The board art's own aspect (3440x1459). `.boardbg` needs it to compute the art's WIDTH from the
      stage height, so it can guarantee full coverage on a window wider than 16:9. Update if the art does. */
   --board-aspect: 2.3578;
+  /* Constant overscan on the board art so it covers a 21:9 window without the size ever depending on the
+     viewport — see `.boardbg`. 1.0132 = 2.389/2.3578, i.e. exactly the art size a 3440x1440 fullscreen used to
+     produce, which is what the button offsets are tuned against. */
+  --board-fill: 1.0132;
   /* ONE uniform scale factor for the whole board: the stage height ÷ the 1440px design reference, as a UNITLESS
      number set from JS (`applyStageScale` in Game.tsx) — CSS can't derive a unitless ratio from a length. Everything
      the layout is authored at (card size, chrome, rope, per-region offsets — all in reference px) is multiplied by
@@ -140,15 +144,19 @@ canvas.spr { image-rendering: pixelated; display: block; }
    the width floor below takes over so no background gap can show. Board dimming was removed
    (owner 2026-07-14) — `--scrim` defaults to 0 (no dim); the fallback colour + `--board-zoom` frame-fit remain. */
 .boardbg { position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  /* Sized by WIDTH (height auto) so the art can never be narrower than the window. The width is normally the
-     art's natural width at the stage height — identical to the old `auto <height>` sizing — but `max()` floors
-     it at 100vw. On a 21:9 display that floor is what bites: the art is 2.358:1 and the screen 2.389:1, so
-     height-fitting left a ~22px grey band down each edge (owner report, 3440x1440 fullscreen). Now the art
-     overflows vertically by that much instead, which is invisible — the frame is centred and the overflow is
-     floor. */
+  /* Sized by WIDTH (height auto) from the STAGE HEIGHT ALONE — never from the viewport. That is load-bearing:
+     the whole UI sizes off `--gh`, so the art must too, or the frame drifts against the buttons that are pinned
+     to it. This previously floored the width at `max(100vw, …)` to kill a ~22px grey band down each edge on 21:9
+     (the art is 2.358:1, the screen 2.389:1). But that floor made the art's size depend on window WIDTH while the
+     UI depended on HEIGHT — so the art ran 1.32% larger at 3440x1440 fullscreen than at every other window size,
+     and buttons dialled in fullscreen sat ~45px out of the frame everywhere else (owner report 2026-07-22).
+     `--board-fill` replaces it with that same 1.32% as a CONSTANT overscan: identical art at 3440x1440, and now
+     identical everywhere else too, so art and UI scale as one unit at any window size. The overflow is floor, so
+     it is invisible. Caveat: this covers up to 2.389:1; a wider screen (32:9) would show the band again — bump
+     `--board-fill`, and re-check the four button offsets, which are tuned against this exact art size. */
   background:
     linear-gradient(rgb(28 22 16 / calc(0.34 * var(--scrim, 0))), rgb(28 22 16 / calc(0.46 * var(--scrim, 0)))),
-    var(--board) center / max(100vw, calc(var(--gh) * var(--board-zoom, 1) * var(--board-mobile-zoom, 1) * var(--board-aspect))) auto no-repeat,
+    var(--board) center / calc(var(--gh) * var(--board-zoom, 1) * var(--board-mobile-zoom, 1) * var(--board-aspect) * var(--board-fill, 1.0132)) auto no-repeat,
     var(--bg);
 }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the
@@ -551,9 +559,9 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
    💎 End Turn Button dev tuner sets live — the fallbacks here mirror the shipped defaults in endTurnConfig.ts. */
 .etbwrap {
   position: fixed;
-  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 140px) * var(--scale));
+  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 150px) * var(--scale));
   top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--etb-y, 32px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--etb-s, 1.14));
+  transform: translate(-50%, -50%) scale(var(--etb-s, 1.19));
   width: calc(128 * var(--u)); height: calc(140 * var(--u)); /* the trimmed art's 468×512 aspect */
   background: none; border: none; padding: 0; z-index: 41;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
@@ -656,7 +664,7 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
    matching the diamond's tooltip feel. */
 .combatsummary {
   position: fixed;
-  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 140px) * var(--scale));
+  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 150px) * var(--scale));
   top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--etb-y, 32px) - 142px) * var(--scale));
   transform: translate(-50%, -50%);
   display: inline-flex; align-items: center; gap: 8px;
@@ -683,9 +691,9 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
    overlaps its rim) → base (z1) → tier pips (z2) → gem-halo glow (z3) → press flash (z4) → cost coin (z5). */
 .tvbwrap {
   position: fixed;
-  left: calc(var(--bar-x) + 0.155 * var(--gw) + var(--tvb-x, 8px) * var(--scale));
+  left: calc(var(--bar-x) + 0.155 * var(--gw) + var(--tvb-x, -9px) * var(--scale));
   top: calc(var(--bar-y) + 0.42 * var(--gh) + var(--tvb-y, -287px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--tvb-s, 1.46));
+  transform: translate(-50%, -50%) scale(var(--tvb-s, 1.55));
   width: calc(128 * var(--u)); height: calc(125.5 * var(--u)); /* the trimmed base art's 512×502 aspect */
   background: none; border: none; padding: 0; z-index: 41;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
@@ -2338,9 +2346,9 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
      The dev mover then nudges it via px × --scale, staying resolution-independent. */
   /* Mirrors the End Turn diamond across the board's centre line (owner direction 2026-07-16): base
      0.19/0.45 of the stage + the 💠 tuner's px offsets × --scale. */
-  left: calc(var(--bar-x) + 0.19 * var(--gw) + var(--hpb-x, -99px) * var(--scale));
+  left: calc(var(--bar-x) + 0.19 * var(--gw) + var(--hpb-x, -118px) * var(--scale));
   top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--hpb-y, 53px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--hpb-s, 1.13));
+  transform: translate(-50%, -50%) scale(var(--hpb-s, 1.28));
   align-self: auto; pointer-events: auto; z-index: 41;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(7 * var(--u));
 }
@@ -4409,7 +4417,7 @@ svg { width: 18px; height: 18px; }
    never filter / box-shadow / background-position, which repaint every frame in a loop. */
 .riftbtn {
   position: fixed;
-  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 140px) * var(--scale));
+  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 150px) * var(--scale));
   top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--etb-y, 32px) - 142px) * var(--scale));
   transform: translate(-50%, -50%);
   display: inline-flex; align-items: center; justify-content: center;
@@ -4547,7 +4555,7 @@ svg { width: 18px; height: 18px; }
   position: fixed;
   left: calc(var(--bar-x) + 0.5 * var(--gw) + var(--rfb-x, 3px) * var(--scale));
   top: calc(var(--bar-y) + var(--rfb-y, 294px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--rfb-s, 0.75));
+  transform: translate(-50%, -50%) scale(var(--rfb-s, 0.73));
   width: calc(66 * var(--u)); height: calc(111 * var(--u)); /* the art's 516×868 aspect */
   background: none; border: none; padding: 0; z-index: 41;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;

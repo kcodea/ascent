@@ -62,9 +62,9 @@ export interface HeroPowerBtnConfig {
 // ready cue), and a deep 0.39 used-state fade. Mirror changes into the styles.css `var(--hpb-*, …)`
 // fallbacks.
 const DEFAULTS: HeroPowerBtnConfig = {
-  x: -99,
+  x: -118,
   y: 53,
-  scale: 1.13,
+  scale: 1.28,
   artX: 0,
   artY: 0,
   artScale: 0.71,

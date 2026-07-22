@@ -23,7 +23,7 @@
  */
 export interface StepProcFxConfig {
   // ---- the rising arrows ----
-  arrowCount: number;   // arrows per proc, fanned across the spread
+  arrowCount: number;   // arrows per proc, fanned across the spread (0 = off — blast only)
   arrowRise: number;    // px — how far an arrow travels upward
   arrowSpread: number;  // px — horizontal fan width the arrows launch across
   arrowLen: number;     // px — an arrow's shaft length
@@ -105,7 +105,7 @@ export const STEPPROCFX_KEYS = [
 export const STEPPROCFX_COLOR_KEYS: (keyof StepProcFxConfig)[] = ['colorA', 'colorB', 'colorC'];
 
 export const STEPPROCFX_RANGES: Partial<Record<keyof StepProcFxConfig, [number, number, number]>> = {
-  arrowCount: [1, 20, 1], arrowRise: [20, 320, 2], arrowSpread: [0, 260, 2], arrowLen: [6, 80, 1],
+  arrowCount: [0, 20, 1], arrowRise: [20, 320, 2], arrowSpread: [0, 260, 2], arrowLen: [6, 80, 1],
   arrowWidth: [1, 12, 0.5], arrowHead: [0, 28, 0.5], arrowMs: [120, 1600, 10], arrowStagger: [0, 160, 2],
   arrowDrift: [0, 90, 1], arrowFadeAt: [0, 1, 0.02],
   blastCount: [0, 60, 1], blastSpeed: [0, 600, 5], blastSize: [1, 20, 0.5], blastLife: [80, 1600, 20],

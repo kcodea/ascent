@@ -33,6 +33,7 @@ import { FreezeTuner } from './FreezeTuner';
 import { BuffDrawerTuner } from './BuffDrawerTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { GlowTuner } from './GlowTuner';
+import { CardPlateTuner } from './CardPlateTuner';
 import { EndTurnTuner } from './EndTurnTuner';
 import { HeroPowerTuner } from './HeroPowerTuner';
 import { TavernUpTuner } from './TavernUpTuner';
@@ -54,6 +55,7 @@ const TUNERS = [
   { key: 'freezebtn', label: '❄️ Freeze Button', C: FreezeTuner },
   { key: 'buffdrawer', label: '🧪 Buffs Drawer', C: BuffDrawerTuner },
   { key: 'glow', label: '🔆 Hover Glow', C: GlowTuner },
+  { key: 'cardplate', label: '🂠 Card Plate', C: CardPlateTuner },
   { key: 'sfx', label: '🎛️ Mixing Desk', C: SfxMixer },
   { key: 'lunge', label: '🗡️ Lunge', C: LungeTuner },
   { key: 'strikefx', label: '💥 Lunge Strike Effects', C: StrikeFxTuner },

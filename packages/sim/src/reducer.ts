@@ -9,7 +9,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -471,7 +471,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // Modal recruit states — a pending Discover / Choose One / targeted Battlecry — block every other board
   // action until they resolve. The player can still inspect (a UI-only concern), so a Discover can be
   // minimized to read the board without any action invalidating the pending pick.
-  if ((state.discover || state.chooseOne || state.pendingTarget || state.questOffer || state.runeforgeOffer) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge') {
+  if (modalOpen(state) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge') {
     return state;
   }
 
@@ -910,6 +910,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.chooseOne = undefined;
       checkTriples(s);
       if (card.golden) grantGoldenDiscover(s);
+      openNextStartOfTurnModal(s); // this modal owned the screen — open whatever queued behind it
       return s;
     }
 
@@ -931,6 +932,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.pendingTarget = undefined;
       checkTriples(s);
       if (card.golden) grantGoldenDiscover(s);
+      openNextStartOfTurnModal(s); // this modal owned the screen — open whatever queued behind it
       return s;
     }
 
@@ -1147,10 +1149,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.embers < digCost) return state; // can't afford this use → no charge spent
         spendGold(s, digCost);
         s.heroPowerUses = heroUses + 1; // escalate the next use's cost
-        for (let r = 0; r < reps; r++) { // Empowerment: two Discovers (the 2nd queues behind the 1st)
-          if (r === 0) openDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
-          else queueDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
-        }
+        // Empowerment: two Discovers. queueDiscover opens the first and queues the rest on its own.
+        for (let r = 0; r < reps; r++) queueDiscover(s, { kind: 'minion', tier: s.tier, exactTier: s.tier });
       } else if (power.kind === 'dragonTamer') {
         // Tiff: Discover a Dragon for 5 Gold, reduced 1 per Dragon/spell bought since the last use
         // (`tiffDiscount` via dragonTamerCostOf, floor 0). Untargeted; the shrinking cost is charged here
@@ -1159,10 +1159,8 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.embers < tamerCost) return state; // can't afford → no charge spent
         spendGold(s, tamerCost);
         s.tiffDiscount = 0;
-        for (let r = 0; r < reps; r++) { // Empowerment: two Discovers (the 2nd queues behind the 1st)
-          if (r === 0) openDiscover(s, { kind: 'minion', tier: s.tier, tribe: 'dragon' });
-          else queueDiscover(s, { kind: 'minion', tier: s.tier, tribe: 'dragon' });
-        }
+        // Empowerment: two Discovers. queueDiscover opens the first and queues the rest on its own.
+        for (let r = 0; r < reps; r++) queueDiscover(s, { kind: 'minion', tier: s.tier, tribe: 'dragon' });
       } else if (power.kind === 'resummon') {
         // The Reclaimer: mark a friendly board minion to be destroyed + resummoned at start of
         // combat (the combat sim does the work). Mark exactly one (clear any previous mark).
@@ -2477,12 +2475,14 @@ function applyQuestReward(s: RunState, def: QuestDef, allowRepeat: boolean): voi
       // is exactly when those rewards are the ONLY way to reach Tier 7. Only a DERIVED tier (falling back to
       // the live shop tier) is clamped, since that one can legitimately overshoot.
       const t = r.tier ?? Math.min(s.tier, maxTierFor(s.rift));
-      openDiscover(s, { kind: 'minion', tier: t, exactTier: t });
+      // queueDiscover, NOT openDiscover: a quest can complete on the same turn the Runeforge opens, and two
+      // quests can pay out together — a direct open would draw this offer on top of the other modal.
+      queueDiscover(s, { kind: 'minion', tier: t, exactTier: t });
       break;
     }
     case 'discoverGreaterQuest':
       // Rune of the Second Path: Discover one of the minions Greater Quests grant as rewards.
-      openDiscover(s, { kind: 'pool', ids: greaterQuestRewardMinions() });
+      queueDiscover(s, { kind: 'pool', ids: greaterQuestRewardMinions() });
       break;
     case 'dupeFirstBuy':
       s.dupeFirstBuyEachTurn = true; // Dupes: the first minion bought each turn is copied to hand

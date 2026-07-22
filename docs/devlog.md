@@ -3,6 +3,52 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-22 (Discovers: never open a modal on top of another)
+
+### fix(sim): two start-of-turn Discovers drew stacked on top of each other
+
+Owner report with a screenshot: two Discovers at the start of a turn render **on top of each other** instead
+of one at a time.
+
+**The mechanism.** Every recruit-phase modal renders as its own overlay in `Recruit.tsx` behind an
+INDEPENDENT guard — `{run.discover && …}`, `{run.questOffer && …}`, `{run.runeforgeOffer && …}`,
+`{run.chooseOne && …}` — with no mutual exclusion anywhere in the view. Two modal states set at once are
+therefore literally drawn over one another. The sim already had the right primitive (`queueDiscover` +
+`discoverQueue`), but it only deferred to an open **Discover**:
+
+```ts
+if (state.discover) { queue it } else { openDiscover(...) }
+```
+
+so a Discover raised while a *quest offer* or the *Runeforge* owned the screen opened straight over it. Three
+paths hit that:
+
+1. **Quest / rune reward payouts.** `applyQuestReward`'s `discover` and `discoverGreaterQuest` cases called
+   `openDiscover` **directly**, bypassing the queue entirely. `openDiscover` assigns `state.discover`
+   unconditionally, so a second payout in the same tick also silently ate the offer it replaced.
+2. **Wave 5 / 11 quest turns.** A quest offer opens at shop start, and any Discover raised later in the same
+   turn setup — e.g. **Rune of the Summit**'s every-2nd-shop Tier 7 payout — stacked on it. This is the most
+   likely thing in the owner's screenshot.
+3. **Choose One / targeted Battlecry.** Both close their modal and `return s` without draining, so a Discover
+   queued behind them was stranded until something else happened to drain the queue.
+
+**The fix.** One predicate, `modalOpen(state)`, is now the single source of truth for "is the screen already
+owned" — `state.discover || chooseOne || pendingTarget || questOffer || runeforgeOffer`. `queueDiscover`
+defers to *any* of them, the two reward cases route through `queueDiscover` instead of `openDiscover`, and the
+Choose One / Battlecry close paths call `openNextStartOfTurnModal` so nothing strands. The reducer's action
+gate reads the same predicate, so the list can't drift out of sync. The two `openDiscover` calls that remain
+are the queue-drain sites themselves, both already guarded. Also folded the two hero powers (Dig Deep, Tiff)
+that hand-rolled "first opens, rest queue" into plain `queueDiscover` loops now that it owns that logic.
+
+**A test encoded the old bug.** `runes.test.ts`'s Summit cadence test walks from wave 3, so its second shop
+lands on wave 5 — a quest turn — and it asserted the Tier 7 Discover was *open*, which only held because it
+was stacking over that turn's quest offer. Retargeted it at what it actually cares about (the every-2nd-shop
+cadence) by reading the payout from either the open offer or the queue.
+
+Verified: new `discoverStacking.test.ts` pins the contract for all four blocking modals — confirmed it
+**fails on all four** when the guard is reverted to `state.discover`, then passes restored. typecheck + lint +
+**1396 tests** + `build:web` green.
+
 ## 2026-07-22 (board art: pin it to the stage so the buttons stop drifting)
 
 ### fix(ui): the board art's size depended on window WIDTH while the whole UI depended on HEIGHT

@@ -21,10 +21,6 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
-### Two Discovers at start of turn render stacked (owner report 2026-07-22)
-When a turn opens with two Discover prompts they overlay each other instead of queueing. They need to resolve
-**sequentially** — one prompt, pick, then the next.
-
 ### Drag feel is not scale-invariant (owner report 2026-07-22 — decision needed)
 The drag maths works on raw pixel deltas (`tiltPerPx * hLean * gx`) without dividing by `--scale`, so the same
 hand movement produces the same tilt in degrees over a card that may be 50% larger. A fullscreen exe (`--scale`

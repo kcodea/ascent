@@ -1124,20 +1124,33 @@ describe('Rune of the Summit (every 2nd shop → a Tier 7 Discover)', () => {
     expect(s.runeSummitTick ?? 0).toBe(0);
   });
 
+  /**
+   * "Was a Tier 7 Discover raised this shop?" — read from EITHER the open offer or the queue.
+   *
+   * A payout cannot always OPEN: this walk starts at wave 3, so its second shop lands on wave 5, a quest
+   * turn, which parks a `questOffer` at shop open. A Discover must QUEUE behind an open modal instead of
+   * opening over it — every overlay has an independent render guard, so two at once are drawn stacked
+   * (owner report 2026-07-22; pinned in `discoverStacking.test.ts`). This test is about the every-2nd-shop
+   * CADENCE, so it reads the payout wherever it landed rather than asserting the old stacking behaviour.
+   */
+  const raisedT7 = (s: RunState): boolean => {
+    if (s.discover?.length) return s.discover.every((id) => CARD_INDEX[id]!.tier === 7); // honoured at Tier 7 with NO rift
+    return (s.discoverQueue ?? []).some((q) => q.kind === 'minion' && q.exactTier === 7);
+  };
+
   it('fires on the SECOND shop, not the first, then repeats every 2nd', () => {
     let s: RunState = { ...buyRune('rune_summit'), wave: 3, hand: [], board: [] };
     s = openShop(s); // shop 1 — nothing yet
     expect(s.runeSummitTick).toBe(1);
-    expect(s.discover).toBeFalsy();
-    s = openShop(s); // shop 2 — fires
+    expect(raisedT7(s)).toBe(false);
+    s = openShop(s); // shop 2 — fires (wave 5: queues behind that turn's quest offer)
     expect(s.runeSummitTick).toBe(2);
-    expect(s.discover?.length).toBeGreaterThan(0);
-    for (const id of s.discover!) expect(CARD_INDEX[id]!.tier).toBe(7); // honoured at Tier 7 with NO rift
+    expect(raisedT7(s)).toBe(true);
     s = openShop(s); // shop 3 — quiet again
-    expect(s.discover).toBeFalsy();
+    expect(raisedT7(s)).toBe(false);
     s = openShop(s); // shop 4 — fires again
     expect(s.runeSummitTick).toBe(4);
-    expect(s.discover?.length).toBeGreaterThan(0);
+    expect(raisedT7(s)).toBe(true);
   });
 
   it('does nothing without the rune', () => {

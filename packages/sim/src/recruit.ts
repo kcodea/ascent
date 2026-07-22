@@ -2501,13 +2501,31 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
 }
 
 /**
- * Open a Discover for `spec` now, or queue it if one is already open. The backbone for stacking
+ * Every recruit-phase modal that OWNS the screen. Each renders as its own overlay behind an INDEPENDENT
+ * guard in `Recruit.tsx` (`{run.discover && …}`, `{run.questOffer && …}`, …) with no mutual exclusion, so
+ * two open at once are literally drawn on top of each other — which is exactly what the owner hit on
+ * 2026-07-22 (two start-of-turn Discovers stacked). Anything that raises a Discover must therefore QUEUE
+ * behind an open modal rather than opening over it. This is the single source of truth for "is the screen
+ * already owned"; the reducer's action gate reads it too.
+ */
+export function modalOpen(state: RunState): boolean {
+  return !!(state.discover || state.chooseOne || state.pendingTarget || state.questOffer || state.runeforgeOffer);
+}
+
+/**
+ * Open a Discover for `spec` now, or queue it if a modal is already open. The backbone for stacking
  * Discovers: a Drakko-doubled Black Belt Brian, a golden Brian, and Yazzus-multiplied Help Wanted /
  * Sprout all route every extra Discover through here. The `discover` case shifts the queue forward
  * as each pick resolves, so the offers appear one at a time in order.
+ *
+ * It defers to ANY open modal, not just an open Discover: a quest reward or rune reward can raise a
+ * Discover while the Runeforge or a quest offer still owns the screen, and opening on top of one stacks
+ * two overlays. **Every path that raises a Discover must come through here** — a direct `openDiscover`
+ * overwrites `state.discover` unconditionally, which either stacks the overlay or silently eats the offer
+ * it replaced.
  */
 export function queueDiscover(state: RunState, spec: DiscoverSpec): void {
-  if (state.discover) {
+  if (modalOpen(state)) {
     (state.discoverQueue ??= []).push(spec);
   } else {
     openDiscover(state, spec);

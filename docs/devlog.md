@@ -365,6 +365,23 @@ With the plate in, the panel's contents got a pass:
 - **The inspect overlay is plated too.** It's the other place you read a card as a whole object rather than a
   board token. Safe for `isolation: isolate` — the overlay never renders during combat.
 
+- **Description panel restyled.** The bronze border is gone; the dark backing moved onto a `::before` layer
+  that **multiplies** into the plate behind it at **0.7 opacity**, so the panel now tints the card body rather
+  than sitting on it as a solid slab. The backing had to be its own layer because a blend mode applies to the
+  whole element — text included — which would have crushed the rules copy.
+- **The frame now laps OVER the panel.** Its art overflows the archbox down to ~1.37×`--ccw` while the panel
+  starts at 1.09, so they really do overlap; previously the panel cut the frame off.
+
+  Getting both required dropping `z-index: 4` from `.drawer` — a z-index on a positioned element creates a
+  stacking context, which is an isolation boundary for `mix-blend-mode`, so the multiply would have had only
+  the drawer's own transparent background to blend against. With it gone the drawer paints by tree order, and
+  the two things previously ordered against that z4 were re-pinned: `.archbox` to **z1** (the smallest value
+  that beats the panel, chosen so tierbadge/cost/castmult/triparrows all keep their existing relationship to
+  the frame) and the hand hover-bridge to **z-1** (it's the card's last child, so any non-negative value would
+  have put it over the panel — violating its own contract of never intercepting a card click).
+- **Fixed a stale gap.** The hover-bridge strip was still `0.15 × --ccw` tall after the panel gap was
+  tightened to `0.09` earlier in this branch, so it had been overhanging into the drawer.
+
 #### Included cleanup (from final review)
 
 1. **Deleted dead CSS.** `.card.plated .cardplate.dissolving` and `@keyframes platepuff` in `styles.css` were

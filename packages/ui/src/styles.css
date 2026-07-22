@@ -8,7 +8,8 @@
      Undead dark slate-blue · Demon purple · Neutral light greige. Dual-type cards split the
      card into both hues (see .card.dual / --c2). */
   --t-beast: #4ea83b; --t-dragon: #ff6a3c; --t-mech: #27a9dd; --t-undead: #5c6f8c; --t-demon: #b15cf0; --t-neutral: #9a8d79;
-  --poison: #22be86; /* combat poison green — decoupled from the Undead tribe hue */
+  --poison: #e8283f; /* EXECUTE red (was poison green, retheme 2026-07-22). Drives the ☠ float, the combat-log
+                        rule and the enemy-preview pip; the var name still tracks the engine's `poison` event. */
   --atk: #f0a32a; --hpc: #ff5a4f;
   /* Sunward */
   --bg: #8c857a; --bg2: #efe5d4; --card: #fffdf8; --line: #e7dcc7;
@@ -2715,8 +2716,6 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 /* The dome is a centred round bubble seated on the oval WINDOW (not the .art centre): `--wardy` drops it onto
    the window centre (the frame sits lower than the art box) and `--wardsize` (×ccw) fills the oval's width. The
    `.art` ellipse clip + the frame gold on top trim it to the oval. Both are live knobs (FrameTuner). */
-/* Venomous: same treatment in toxic lime. The inner `.art::after` ring survives (it lives inside the ellipse-
-   clipped art, so it reads as an oval lime vignette); only the outer square wash is reshaped. */
 /* EXECUTE keeps the plain frame — the swirling rage aura (z4, above) IS the signifier, so the frame carries no
    keyword rim of its own. The old lime drop-shadow rim went with the Toxin -> Execute retheme (2026-07-21):
    stacked under the red aura it read as two competing keyword glows. */
@@ -2794,11 +2793,16 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 /* Divine Shield gain + break are now the Pixi shield bubble's form-in / break burst (pixiFx) — the old
    CSS shield-gain pulse + shatter ring were removed. */
 
-/* Poison: a vivid green flash + mist surging up over the unit — a clear "destroyed by Venomous" beat. */
+/* EXECUTE proc — the victim's own reaction to being cut down. Retheme 2026-07-22: this used to be a vivid
+   GREEN flash (`hue-rotate(85deg)`) plus a green mist wash, which is the old poison read — and it fired at
+   exactly the point the new Pixi crescent lands, so the strike was cutting through a green cloud.
+   Now: a hard red-hot blanch as the blow lands, and a dark blood wash that drains DOWN the card (the old mist
+   surged upward, which read as gas rather than a wound). Deliberately restrained — the crescent is the star,
+   this is just the body reacting under it. */
 .unit.poisoned { z-index: 13; }
 .unit.poisoned .card { animation: poisonpop 0.7s ease; }
-@keyframes poisonpop { 0%, 100% { filter: none; } 45% { filter: hue-rotate(85deg) brightness(1.3) saturate(1.5) drop-shadow(0 0 16px rgba(40, 220, 140, 0.95)); } }
-.unit.poisoned::after { content: ''; position: absolute; inset: 0; border-radius: 13px; background: linear-gradient(180deg, transparent 8%, rgba(34, 210, 140, 0.72)); pointer-events: none; z-index: 8; animation: mist 0.8s ease forwards; }
+@keyframes poisonpop { 0%, 100% { filter: none; } 45% { filter: brightness(1.35) saturate(1.45) drop-shadow(0 0 16px rgba(255, 60, 70, 0.95)); } }
+.unit.poisoned::after { content: ''; position: absolute; inset: 0; border-radius: 13px; background: linear-gradient(180deg, rgba(150, 12, 26, 0.78) 4%, rgba(90, 6, 16, 0.28) 68%, transparent); pointer-events: none; z-index: 8; animation: mist 0.8s ease forwards; }
 @keyframes mist { 0% { opacity: 0; transform: translateY(-35%); } 35% { opacity: 1; } 100% { opacity: 0; transform: translateY(0); } }
 
 /* Start of Combat: a golden cast pulse on the source */
@@ -2899,7 +2903,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    the −N damage number (0.26s delay), so the two never collide and the proc reads as its own dramatic
    moment. Total (delay + 1.15s) stays under FLOAT_MS so it finishes before the float is cleared. */
 .float.sym { top: 38%; left: 50%; bottom: auto; right: auto; font-size: 64px; z-index: 28; opacity: 0; animation: floatsym 1.15s ease 0.26s forwards; }
-.float.poison.sym { color: #46e6a0; text-shadow: 0 0 20px rgba(40, 230, 150, 0.95), 0 0 42px rgba(40, 230, 150, 0.7), 0 2px 6px rgba(0, 0, 0, 0.6); }
+.float.poison.sym { color: #ff5a6b; text-shadow: 0 0 20px rgba(255, 60, 76, 0.95), 0 0 42px rgba(255, 60, 76, 0.7), 0 2px 6px rgba(0, 0, 0, 0.6); }
 .float.reborn.sym { color: #a6dcff; text-shadow: 0 0 22px rgba(120, 200, 255, 1), 0 0 52px rgba(120, 200, 255, 0.85), 0 2px 6px rgba(0, 0, 0, 0.6); }
 .float.shield.sym, .float.shieldup.sym { color: #ffe08a; text-shadow: 0 0 20px rgba(255, 210, 110, 0.95), 0 0 42px rgba(255, 200, 90, 0.6), 0 2px 6px rgba(0, 0, 0, 0.6); }
 .float.rally.sym { color: #cba6f0; text-shadow: 0 0 20px rgba(180, 120, 240, 0.95), 0 0 44px rgba(160, 100, 230, 0.7), 0 2px 6px rgba(0, 0, 0, 0.6); }

@@ -45,7 +45,7 @@ const KW_LABEL: Record<Keyword, string> = {
   FD: 'Fodder', IMM: 'Immune', ST: 'Stealth', RL: 'Rally', SL: 'Slaughter', CR: 'Critical Strike', EG: 'Engraved',
 };
 const KW_ICON: Record<Keyword, string> = {
-  T: 'taunt', DS: 'shield', V: 'poison', W: 'windfury', R: 'rise', C: 'cleave', M: 'magnetic', SC: 'fist',
+  T: 'taunt', DS: 'shield', V: 'execute', W: 'windfury', R: 'rise', C: 'cleave', M: 'magnetic', SC: 'fist',
   CN: 'consume', FD: 'fodder', IMM: 'immune', ST: 'eye', RL: 'sword', SL: 'slaughter', CR: 'target', EG: 'anvil',
 };
 const TRIBE_LABEL: Record<Tribe, string> = {
@@ -459,7 +459,7 @@ export const Card = memo(function Card({
       {/* Divine Shield signifies via the CSS `.wardglass` energy shell OVER the frame (below); Reborn via its Pixi AURA
           (driven from `.card.reborncard` in Recruit); Taunt via the static grey `.card.taunt` border — no badge here. */}
       {card.keywords.includes('V') && (
-        <span className="kwward venom" aria-hidden="true"><Icon name="poison" /></span>
+        <span className="kwward venom" aria-hidden="true"><Icon name="execute" /></span>
       )}
       {/* Triple-ready: this tavern offer completes a triple if bought — gold arrows float up around it. */}
       {tripleReady && (

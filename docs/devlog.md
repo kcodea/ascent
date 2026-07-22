@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-21 (balance: nine-card owner pass)
 
+### tweak(ui): purge the last of the poison green from Execute
+
+Owner report: "we need to remove the old green poison effect". The card-level lime went with the aura PR, but
+several *proc-time* greens survived — and the worst of them fired at exactly the point the new crescent lands:
+
+- **`.unit.poisoned`** — the victim's reaction: a `hue-rotate(85deg)` green flash plus a green mist wash surging
+  UPWARD over the card. The Pixi strike was literally cutting through a green cloud. Now a red-hot blanch (no
+  hue-rotate — it was tinting the card art itself) and a dark blood wash that drains DOWN; upward read as gas,
+  which is the poison idea we're retiring. Kept restrained: the crescent is the star.
+- **`--poison`** (`#22be86` → `#e8283f`). Every live consumer is Execute — the ☠ float, the combat-log rule,
+  the enemy-preview pip — so retheming the variable fixed all three at once. Verified there was no non-Execute
+  consumer before changing it; the var NAME still tracks the engine's `poison` event.
+- **`.float.poison.sym`** — the big centre ☠ bloom, hardcoded green past the variable.
+
+Also finally gave Execute **its own icon**. It had been riding the `poison` droplet — the last poison
+signifier, and a shape no amount of recolouring fixes. The new `execute` glyph is a tapered crescent cut
+echoing the strike's blade. Deliberately not a sword: `sword`/`slaughter` are taken by Rally/Slaughter, and a
+duplicate silhouette costs the at-a-glance read that keyword medallions exist for. `poison` stays in the icon
+set — **Bleed** still uses it, and that one really is poison-flavoured.
+
+Verified: typecheck · lint · 1369 tests · build:web. The glyph was additionally rendered offscreen and measured
+for inked coverage (16.4%, well-centred in the viewBox) — a malformed SVG path draws nothing and no test would
+have caught it.
+
 ### feat(ui): the EXECUTION STRIKE — Execute's Pixi proc FX
 
 The moment half of the Execute retheme, completing it alongside the rename (#625) and the rage aura (#627).

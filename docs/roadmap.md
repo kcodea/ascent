@@ -56,8 +56,6 @@ Solaris Fang (Rally halves cut), Money Maker (Gold Pouch only), and the **Graver
 The rename (#625), the CSS rage aura (#627) and the Pixi strike have all shipped. Remaining:
 - **Owner-dial the strike.** The Execution Strike's shipped values are a considered first pass, not owner-tuned
   — dial them via the 🩸 Execute Strike tuner's Test button and bake the JSON.
-- **Its own icon glyph.** Execute still shows the `poison` droplet — `sword` and `slaughter` are taken by
-  Rally/Slaughter, so it wants an authored bladed glyph rather than a reused one.
 - **Render-profile the aura.** The shipped values build ~101 nodes / ~98 animations per Execute card (26 shards
   × 3 nodes dominates) plus 6 `mix-blend-mode: screen` arcs. All static paint, nothing repaints per frame — but
   the layer count is high and hasn't had a DevTools pass on a full board. Cheapest levers: shard count, tails.

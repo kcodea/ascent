@@ -27,12 +27,6 @@ export interface CardPlateConfig {
   bucketM: number;
   bucketL: number;
   bucketXl: number;
-  /** Placeholder dissolve — duration (ms). */
-  puffMs: number;
-  /** Placeholder dissolve — how much the plate scales up as it fades (1 = no growth). */
-  puffScale: number;
-  /** Placeholder dissolve — density multiplier passed to pixiFx.dust(). */
-  puffDust: number;
 }
 
 const DEFAULTS: CardPlateConfig = {
@@ -45,9 +39,6 @@ const DEFAULTS: CardPlateConfig = {
   bucketM: 89,
   bucketL: 90,
   bucketXl: 150,
-  puffMs: 120,
-  puffScale: 1.03,
-  puffDust: 3.2,
 };
 
 /** Font-size buckets, LARGEST first. `id` is appended to a `.plate-txt-` class on the card. */
@@ -67,9 +58,6 @@ export const PLATE_RANGES: Record<keyof CardPlateConfig, [number, number, number
   bucketM: [20, 140, 1],
   bucketL: [40, 200, 1],
   bucketXl: [60, 280, 1],
-  puffMs: [80, 1200, 10],
-  puffScale: [1, 1.5, 0.01],
-  puffDust: [0, 4, 0.1],
 };
 
 export const PLATE_DESC: Record<keyof CardPlateConfig, string> = {
@@ -83,9 +71,6 @@ export const PLATE_DESC: Record<keyof CardPlateConfig, string> = {
     'on screen — see bucketM.',
   bucketXl: 'Character count at which rules text steps down to the SMALLEST font size. NOT live on cards ' +
     'already on screen — see bucketM.',
-  puffMs: 'Placeholder dissolve duration (ms).',
-  puffScale: 'How much the plate grows as it fades. 1 = fades in place.',
-  puffDust: 'Dust density multiplier for the dissolve puff.',
 };
 
 export const PLATE_KEYS = Object.keys(DEFAULTS) as (keyof CardPlateConfig)[];
@@ -132,8 +117,6 @@ export function applyCardPlateVars(): void {
   root.setProperty('--plate-scale', String(cfg.scale));
   root.setProperty('--plate-top', `${cfg.top}px`);
   root.setProperty('--plate-radius', `${cfg.radius}px`);
-  root.setProperty('--plate-puff-ms', `${cfg.puffMs}ms`);
-  root.setProperty('--plate-puff-scale', String(cfg.puffScale));
 }
 
 export function setCardPlateValue(key: keyof CardPlateConfig, value: number): void {

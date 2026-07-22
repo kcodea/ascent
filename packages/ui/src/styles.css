@@ -2895,16 +2895,6 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
 .card.compact.plated.plate-txt-l  .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 0.84); }
 .card.compact.plated.plate-txt-xl .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 0.76); }
 
-/* Detached dissolving plate — cloned out of the drag card at release so it survives `.dragcard` unmounting.
-   It lives on <body>, so it can't use the `.card.plated` selector above, and it is positioned by inline
-   left/top — hence NO translateX(-50%) in this keyframe (unlike `platepuff`, which centres on the card). */
-.cardplate.plateghost {
-  animation: platepuffghost var(--plate-puff-ms, 120ms) ease-out forwards;
-}
-@keyframes platepuffghost {
-  from { opacity: 1; transform: scale(1); }
-  to   { opacity: 0; transform: scale(var(--plate-puff-scale, 1.03)); }
-}
 
 .unit.struck .card { animation: struck 0.34s ease; }
 @keyframes struck { 0%, 100% { transform: none; filter: none; } 45% { transform: translateY(5px) scale(0.94); filter: brightness(1.15) drop-shadow(0 0 8px var(--threat)); } }

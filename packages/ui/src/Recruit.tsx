@@ -25,7 +25,7 @@ import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
 import { waveGapFor, coalesceWaves, getBuffFxConfig } from './buffFxConfig';
 import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
-import { getCardPlateConfig } from './cardPlateConfig';
+import { playPlateDissolve } from './plateDissolve';
 import { fireBuffFx } from './buffFxRender';
 import { buffPreset, wavePalette } from './buffPresets';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
@@ -3060,23 +3060,19 @@ export function Recruit() {
     for (let i = 1; i < n; i++) window.setTimeout(fn, i * 200);
   };
 
-  // PLACEHOLDER dissolve for the hand-card backplate (phase 1). Starts on RELEASE and runs on its own clock,
-  // deliberately NOT bounded by the ~200ms FLIP flight — a dissolve clamped to the flight reads as a blink.
-  // The plate lives on `.dragcard`, which React unmounts as soon as `setDrag(null)` runs, so we clone it out
-  // and let the copy dissolve detached on <body>. (Board cards render WITHOUT `plated`, so there is no plate
-  // on the destination card to tag — hence the ghost.) Phase 2 replaces this body and the `.plateghost` CSS
-  // with the authored effect; nothing else depends on either.
+  // The hand-card backplate's exit: it imprints as a glowing arcane WIREFRAME of itself, then burns off to
+  // blue dust. Fires on RELEASE and runs on its own clock, deliberately NOT bounded by the ~200ms FLIP
+  // flight — a dissolve clamped to the flight reads as a blink. The effect itself lives in `plateDissolve.ts`
+  // (owner-authored in fx/plate-dissolve-preview.html); this is only the trigger.
   const platePuff = (): void => {
-    const cfg = getCardPlateConfig();
+    // Measure the plate on the LIVE drag card — `applyDrop` runs before `setDrag(null)`, so it is still
+    // mounted here. `playPlateDissolve` then builds its own detached layers on <body> at that rect, so the
+    // effect survives React unmounting the drag card underneath it.
+    // No `pixiFx.dust` any more: the plate's exit is arcane now, and a tan dirt puff from the same instant
+    // muddied it. `puffOnBoard` still throws that dust when the MINION seats, which is what it was for.
     const src = document.querySelector<HTMLElement>('.dragcard .cardplate');
     if (!src) return;
-    const r = src.getBoundingClientRect();
-    const ghost = src.cloneNode(true) as HTMLElement;
-    ghost.classList.add('plateghost');
-    ghost.style.cssText += `position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;transform:none;z-index:114;pointer-events:none;border-radius:var(--plate-radius, 10px);`;
-    document.body.appendChild(ghost);
-    pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1, cfg.puffDust);
-    window.setTimeout(() => ghost.remove(), cfg.puffMs + 60);
+    playPlateDissolve(src.getBoundingClientRect());
   };
 
   // A puff of dry-dirt dust ringing a card that just landed on / moved across the board. We wait for the

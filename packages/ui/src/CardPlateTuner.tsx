@@ -38,9 +38,6 @@ const LABELS: Record<keyof CardPlateConfig, string> = {
   bucketM: 'text · shrink at (m)',
   bucketL: 'text · shrink at (l)',
   bucketXl: 'text · shrink at (xl)',
-  puffMs: 'dissolve · duration',
-  puffScale: 'dissolve · growth',
-  puffDust: 'dissolve · dust',
 };
 
 export function CardPlateTuner() {

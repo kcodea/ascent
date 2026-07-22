@@ -60,6 +60,53 @@ worth removing in their own PR if nothing picks them up.
 
 ## 2026-07-21 (ward: second final pass)
 
+### tweak(ui): Ward breath — shallower + quicker (owner's third pass)
+
+Owner sent a fresh Ward Shell export; everything matched the shipped defaults except the **Breath** group, so
+this is a two-dial change: `pulseMin` 0.75 → **0.8** (a shallower dip, so the shell holds nearer full opacity)
+and `pulseSec` 2.6 → **2.3** (a slightly quicker cycle). Baked into `wardConfig` DEFAULTS *and* the mirrored
+`--wg-pulse-min` / `--wg-pulse-s` fallbacks in `styles.css`, so production matches with no JS. Still an
+opacity-only loop (compositor-safe). typecheck + lint + 1336 tests + build:web green.
+
+### fix(ui): step-proc FX missed AVENGE — a multi-death beat skips the full reading
+
+Owner report: the counter burst wasn't firing for Avenge units. The tick rule only fired on the transition
+INTO `current === total`, which assumes the tally advances one at a time. Avenge ticks per FRIENDLY DEATH, and
+an AoE / cleave / death cascade kills two in a single beat — so a 4-threshold steps `3/4 → 1/4` and never
+displays `4/4`, even though the Avenge really did fire. (Guel-style spell counters tick singly, so they
+rarely skip — which is why it looked fine everywhere else.)
+
+The rule now also fires on a WRAP (`current < prev`) when the counter wasn't full last time; the `prev !== total`
+guard keeps the ordinary post-proc `4/4 → 1/4` reset from double-firing. Count-up counters (Spirit Pup, Tara)
+clamp and never wrap, and the cadence counter counts down then resets UP to `total`, so both still ride the
+"landed" branch. Extracted as a pure `isStepProcTick(prev, cur, total)` in `stepProcFxConfig` with 9 tests
+covering land / partial / reset / skip / count-up / cadence — the multi-tick case is impractical to stage live
+but trivial to lock down. typecheck + lint + 1336 tests + build:web green.
+
+### feat(ui): step-proc FX — a spark burst from a unit's step counter (`feat/step-proc-fx`)
+
+Owner ask: apply the spell-power flourish to **any** unit with a step counter, fired from the counter itself,
+on its own tuner so it can be sized independently.
+
+- **One hook covers every step card.** `cardText.stepProgress()` already derives the same counter for all of
+  them — Avenge (Solaris / Soulsman / Bone Taxer / Brood Matron…), Guel, Flowing Monk, Crypt Drake, Bloodbinder,
+  the gold-spent + buy-count meters, cadence cards ("2 Turns"), Spirit Pup's transform, Tara's ascend — and it
+  renders as one `.stepcounter` pill in `Card.tsx`, which is used in BOTH phases. So the FX hangs off that one
+  element and fires in the shop and in combat off a single signal, with no sim changes.
+- **Fires on the proc, from the pill.** The counters are cyclic (1/4 → 4/4 → 1/4) or count up to a threshold,
+  and the effect fires exactly as the counter REACHES `total` — so it triggers on the TRANSITION into
+  `current === total`, measuring the pill's live rect for the origin. Transition-only (never on mount) so a card
+  entering play already full doesn't burst; the cadence counter counts DOWN and resets to `total` on the turn it
+  fires, which the same rule catches.
+- **Its own config + tuner** (`stepProcFxConfig` / 🔢 Step Proc FX), feeding the SAME fully config-driven
+  `pixiFx.spellPower` primitive as the ✨ spell-power cue — no duplicated Pixi code, but independently tunable
+  (owner ask). Arrow count can go to 0 (the primitive's loop no-ops), matching `blastCount`'s "0 = off".
+- **Baked look:** arrows OFF — a pure WHITE spark burst (60 motes, heavy gravity so it arcs and falls, full
+  jitter, no glow), deliberately distinct from spell power's pink/purple/gold fan. No floating number (owner
+  call): a step proc has no natural stat gain to print.
+- **Verified:** primitive fires with the step-proc config (16 particles pre-bake), no console errors;
+  typecheck + lint + 1327 tests + build:web green.
+
 ### tweak(ui): the owner's second tuned pass on the Ward shell
 
 A further pass now that the colour dials existed. The shell reads noticeably differently:

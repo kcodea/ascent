@@ -7,6 +7,7 @@ import { FlurrySwingTuner } from './FlurrySwingTuner';
 import { SwapFxTuner } from './SwapFxTuner';
 import { GustFxTuner } from './GustFxTuner';
 import { SpellPowerFxTuner } from './SpellPowerFxTuner';
+import { StepProcFxTuner } from './StepProcFxTuner';
 import { QuestTendrilTuner } from './QuestTendrilTuner';
 import { HeroBuffFxTuner } from './HeroBuffFxTuner';
 import { AuraFxTuner } from './AuraFxTuner';
@@ -59,6 +60,7 @@ const TUNERS = [
   { key: 'swapfx', label: '🔀 Swap FX (Displacement)', C: SwapFxTuner },
   { key: 'gustfx', label: '💨 Buff Gust FX', C: GustFxTuner },
   { key: 'spellpowerfx', label: '✨ Spell Power FX', C: SpellPowerFxTuner },
+  { key: 'stepprocfx', label: '🔢 Step Proc FX', C: StepProcFxTuner },
   { key: 'questtendril', label: '🏆 Quest Tendril', C: QuestTendrilTuner },
   { key: 'herobufffx', label: '💥 Hero Buff Flash', C: HeroBuffFxTuner },
   { key: 'aurafx', label: '🌀 Aura Wave FX', C: AuraFxTuner },

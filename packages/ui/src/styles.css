@@ -1026,9 +1026,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   height: calc(var(--wg-base) * var(--wg-ar) * var(--wg-h, 1));
   transform: translate(calc(-50% + var(--wg-x, 0px)), calc(-50% + var(--wg-y, 3px)));
   box-shadow: 0 0 var(--wg-halo, 0px) var(--wg-halo-spread, -10px) rgba(var(--wg-halo-rgb, 77, 154, 254), var(--wg-halo-a, 0));
-  animation: wardbreathe var(--wg-pulse-s, 2.6s) ease-in-out infinite; will-change: opacity;
+  animation: wardbreathe var(--wg-pulse-s, 2.3s) ease-in-out infinite; will-change: opacity;
 }
-@keyframes wardbreathe { 0%, 100% { opacity: var(--wg-pulse-min, 0.75); } 50% { opacity: 1; } }
+@keyframes wardbreathe { 0%, 100% { opacity: var(--wg-pulse-min, 0.8); } 50% { opacity: 1; } }
 .card.compact.dscard .wardglass > * { position: absolute; inset: 0; border-radius: 50%; }
 /* OVAL minion frame. */
 .card.compact.stdframe.dscard .wardglass {

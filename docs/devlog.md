@@ -3,6 +3,19 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-22 (Ryme + Wayfinder: a Discover Shout re-fired in combat granted nothing)
+
+### fix(core): resolve Wayfinder's `uncontrolled` tribe sentinel when its Shout re-fires in combat
+
+Owner report (tester): "wayfinder's shout did not proc from ryme." Ryme's Deathrattle re-triggers an adjacent
+minion's Battlecry in combat, and Wayfinder's is a Discover ("a minion from a tribe you don't control"). A
+Discover can't open its 1-of-3 peek mid-combat, so it grants a random matching minion to hand instead — but it
+granted NOTHING, because Wayfinder passes the sentinel `tribe: 'uncontrolled'` and the combat grant filtered
+for a card whose literal tribe equals `'uncontrolled'` (no card has that → empty pool). The recruit factory
+resolves the sentinel; the combat path never did. Fixed: `grantRandomMinion` now resolves `'uncontrolled'` to
+the active tribes absent from your board (counting DEAD board minions, since Ryme is dead when its own
+Deathrattle fires), and falls back to any minion when you control every tribe. New `rymeWayfinder.test.ts`.
+
 ## 2026-07-22 (plate dissolve — first-play fix)
 
 ### fix(ui): the first plate dissolve of a run played with no dust

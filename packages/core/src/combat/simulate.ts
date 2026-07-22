@@ -599,12 +599,35 @@ export function simulate(
     },
     grantRandomMinion: (count, tribe, side, exclude, sourceUid) => {
       if (side !== 'player') return; // enemies have no hand
+      // Wayfinder's `tribe: 'uncontrolled'` is a SENTINEL, not a real tribe — "a minion from a tribe you don't
+      // control". Resolve it here to the active tribes absent from your board, mirroring `uncontrolledTribes`
+      // in the recruit factory. Without this, a combat re-fire (Ryme / Drakko) filtered for a literal tribe
+      // `'uncontrolled'`, matched no card, and granted nothing — Wayfinder's Shout silently failed to proc off
+      // Ryme (owner report 2026-07-22). Controlling every active tribe (or a single-tribe run) → fall back to any.
+      let uncontrolled: Set<string> | null = null;
+      if (tribe === 'uncontrolled') {
+        // "Controlled" tribes = every tribe on your board, counting DEAD minions too. Ryme is itself dead when
+        // its Deathrattle fires this, so skipping the dead would wrongly re-open Ryme's own Undead as
+        // "uncontrolled". The recruit `uncontrolledTribes` reads the whole persistent board; match that.
+        const onBoard = new Set<string>();
+        for (const m of boards.player) {
+          const def = cards[m.cardId];
+          if (!def) continue;
+          for (const t of [def.tribe, def.tribe2]) if (t && t !== 'neutral') onBoard.add(t);
+        }
+        const missing = playerState.tribes.filter((t) => t !== 'neutral' && !onBoard.has(t));
+        uncontrolled = missing.length > 0 ? new Set(missing) : null;
+      }
+      const inTribe = (c: (typeof cards)[string]): boolean =>
+        uncontrolled
+          ? uncontrolled.has(c.tribe) || (!!c.tribe2 && uncontrolled.has(c.tribe2)) || !!c.universalTribe
+          : !tribe || tribe === 'uncontrolled' || c.tribe === tribe || c.tribe2 === tribe || !!c.universalTribe;
       // Same as spells but for the buyable-minion pool (tribe-filtered, ≤ tavern tier, active tribes only).
       const pool = Object.values(cards).filter(
         (c) =>
           !c.token && !c.spell && c.tier <= playerState.tier && c.id !== exclude &&
           (c.tribe === 'neutral' || playerState.tribes.includes(c.tribe)) &&
-          (!tribe || c.tribe === tribe || c.tribe2 === tribe || !!c.universalTribe),
+          inTribe(c),
       );
       for (let i = 0; i < count && pool.length > 0; i++) {
         const pick = pool[Math.floor(rng.next() * pool.length)]!;

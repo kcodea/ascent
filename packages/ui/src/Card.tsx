@@ -13,6 +13,7 @@ import { FLURRY_RINGS, flurryBoxStyle, flurryWrapStyle, flurryRingStyle } from '
 import { pixiFx } from './pixiFx';
 import { getStepProcFxConfig, isStepProcTick } from './stepProcFxConfig';
 import { getExecuteSnapshot, subscribeExecute } from './executeConfig';
+import { plateTextBucket } from './cardPlateConfig';
 
 // TAUNT frame — pipeline layer 2 (the authored shield). Prefer an authored raster PNG (painterly, drops into
 // `apps/web/public/frames/`); until it exists the SVG placeholder renders instead. `tauntFrameAvailable` flips
@@ -39,6 +40,11 @@ let stdFrameAvailable = true;
 // grayscale tone to `.spellframe` if a silver spell frame is wanted (to match the minion oval).
 const SPELL_FRAME_SRC = `${import.meta.env.BASE_URL}frames/spell-frame-v2.png`;
 let spellFrameAvailable = true;
+// HAND CARD BACKPLATE — the ornate stone/gold card body behind a card in hand (and on the dragged copy).
+// Same load pattern as the frames above: BASE_URL-relative (root-absolute 404s on itch's CDN sub-path) with a
+// module-level availability flag flipped on the first 404, so a missing asset degrades to today's look.
+const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
+let cardPlateAvailable = true;
 
 const KW_LABEL: Record<Keyword, string> = {
   T: 'Taunt', DS: 'Ward', V: 'Execute', W: 'Flurry', R: 'Rise', C: 'Cleave', M: 'Attachment', SC: 'Start', CN: 'Consume',
@@ -193,6 +199,7 @@ export const Card = memo(function Card({
   fanRot,
   locked,
   lockLabel,
+  plated,
 }: {
   card: CardView;
   /** Instance id, exposed as data-uid so layout (FLIP) animations can track the card. */
@@ -263,6 +270,9 @@ export const Card = memo(function Card({
   locked?: boolean;
   /** Short lock caption for the badge (e.g. "Tier 4"). */
   lockLabel?: string;
+  /** Render the ornate card BACKPLATE behind this card — the full card body used in hand and on the card
+   *  dragged out of hand. Board / shop / combat cards are never plated. */
+  plated?: boolean;
 }) {
   const inspectCard = useGame((s) => s.inspectCard);
   // The arched frame is universal now. `showText` = also render the drop-down text drawer (the "full"
@@ -376,12 +386,16 @@ export const Card = memo(function Card({
   // minion gets the oval. On 404 the flag flips and the card renders its original arch/spell look.
   const [sframeOk, setSframeOk] = useState(stdFrameAvailable);
   const [pframeOk, setPframeOk] = useState(spellFrameAvailable);
+  const [plateOk, setPlateOk] = useState(cardPlateAvailable);
+  const usePlate = !!plated && plateOk;
+  // Size the rules text from the LIVE text string (values already folded in), never by measuring the DOM.
+  const txtBucket = plateTextBucket(shownText);
   const isTaunt = card.keywords.includes('T');
   const useSpellFrame = !!card.spell && card.cardId !== 'discoverspell' && pframeOk;
   const useStdFrame = !card.spell && !isTaunt && sframeOk;
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
@@ -414,6 +428,19 @@ export const Card = memo(function Card({
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
+      {/* Backplate — the ornate card body behind everything, on hand + dragged-from-hand cards only. FIRST
+          child so tree order paints it behind every sibling; `.card.plated` isolates so its z-index can't
+          escape into neighbouring cards. `<img>` rather than a CSS background so a 404 is detectable. */}
+      {usePlate && (
+        <img
+          className="cardplate"
+          src={CARD_PLATE_SRC}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          onError={() => { cardPlateAvailable = false; setPlateOk(false); }}
+        />
+      )}
       {/* Recruit-phase buff: float the +atk/+hp above the card, exactly like a combat buff (`.float.buff`).
           Keyed so a fresh buff remounts it and replays the rise. */}
       {buffFloat && (
@@ -432,7 +459,9 @@ export const Card = memo(function Card({
           {card.stepProgress.label ?? `${card.stepProgress.current}/${card.stepProgress.total}`}
         </span>
       )}
-      {/* Hover hit-pad — FIRST child so every real element paints over it. Styled only inside `.row.hand`,
+      {/* Hover hit-pad — sits ahead of every real element so they all paint over it. (The decorative
+          backplate is the only thing before it; that's inert — same z-index 0, but `pointer-events: none`,
+          so it neither paints over this pad nor competes for the hover.) Styled only inside `.row.hand`,
           where it extends the hover area downward once the card pops up (see `.handpad` in styles.css).
           A plain element rather than a pseudo-element: `::before` is already the keyword-glow layer on
           Venomous / Reborn / triple-ready cards, and `::after` is the drawer bridge. */}

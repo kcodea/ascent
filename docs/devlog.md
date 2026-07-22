@@ -47,6 +47,36 @@ faster and bigger with a touch of stagger — `spd` 25 → 50, `spdVar` → 1, `
 `stag` 0 → 0.14. The wireframe timing was already right and did not move.
 
 **Verified:** typecheck + lint + 1385 tests + `build:web` all green; mask confirmed in `dist` at 42 KB.
+## 2026-07-22 (Djinn: Cadence covers the whole End-of-Turn engine)
+
+### fix(sim): Cadence skipped quest- and rune-granted End of Turn effects
+
+Owner ruling: *"djinni's cadence should trigger quest and rune end of turns as well."*
+
+Cadence reads **"Trigger all friendly End of Turn effects"**, but a player's End-of-Turn engine has TWO halves
+and the natural end of turn (`applyEndOfTurn`) fires both:
+
+1. every board minion's `endOfTurn` effects, and
+2. `questRecurringEndOfTurn` — the quest/rune-granted recurring rewards (Echoing Roar, The Hoard Wakes,
+   Blueprint Cache, Rune of Spending, Rune of Action, …).
+
+The hero power only looped the board (`for (const c of [...s.board]) replayEndOfTurn(s, c)`), so it silently
+skipped whatever the player had built out of quests and runes — the half that is often the *whole point* of a
+Djinn run. Worse, with an empty board every `replayEndOfTurn` returned false and the action bailed out
+entirely, so a player whose End-of-Turn value lived purely in quests/runes got a dead button.
+
+Added `replayRecurringEndOfTurn(state)` in `recruit.ts` as the sibling of `replayEndOfTurn`: it fires each
+entry in `questRecurringEndOfTurn`, honours Chronos repeats, and accumulates every proc into `lastEotFires`
+so Parliament of Flame's "Trigger N End-of-Turn effects" counts them exactly as the natural path does. The
+reducer now ORs both halves into the `any` guard, so the charge is spent when *either* fires and the power is
+still a clean no-op when the player has no End-of-Turn effects at all.
+
+No text change — the printed "Trigger all friendly **End of Turn** effects" was already describing this
+behaviour; the code just wasn't delivering it.
+
+Verified: new `djinnCadence.test.ts` (4 cases) — confirmed **3 of 4 fail** with the new call removed, then
+pass restored. typecheck + lint + **1408 tests** + `build:web` green.
+
 ## 2026-07-22 (Scene Builder: quests, runes, and keyword search)
 
 ### feat(ui/sim): drop completed quests + runes into the sandbox, and search by keyword

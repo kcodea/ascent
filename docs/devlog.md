@@ -5,6 +5,21 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-21 (ward: second final pass)
 
+### fix(ui): step-proc FX missed AVENGE — a multi-death beat skips the full reading
+
+Owner report: the counter burst wasn't firing for Avenge units. The tick rule only fired on the transition
+INTO `current === total`, which assumes the tally advances one at a time. Avenge ticks per FRIENDLY DEATH, and
+an AoE / cleave / death cascade kills two in a single beat — so a 4-threshold steps `3/4 → 1/4` and never
+displays `4/4`, even though the Avenge really did fire. (Guel-style spell counters tick singly, so they
+rarely skip — which is why it looked fine everywhere else.)
+
+The rule now also fires on a WRAP (`current < prev`) when the counter wasn't full last time; the `prev !== total`
+guard keeps the ordinary post-proc `4/4 → 1/4` reset from double-firing. Count-up counters (Spirit Pup, Tara)
+clamp and never wrap, and the cadence counter counts down then resets UP to `total`, so both still ride the
+"landed" branch. Extracted as a pure `isStepProcTick(prev, cur, total)` in `stepProcFxConfig` with 9 tests
+covering land / partial / reset / skip / count-up / cadence — the multi-tick case is impractical to stage live
+but trivial to lock down. typecheck + lint + 1336 tests + build:web green.
+
 ### feat(ui): step-proc FX — a spark burst from a unit's step counter (`feat/step-proc-fx`)
 
 Owner ask: apply the spell-power flourish to **any** unit with a step counter, fired from the counter itself,

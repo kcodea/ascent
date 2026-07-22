@@ -133,6 +133,27 @@ function load(): StepProcFxConfig {
   }
 }
 
+/**
+ * Did this counter tick just PROC? Pure predicate so the (fiddly) rule is testable away from the component.
+ *
+ * A step counter reaches `total` when its effect fires, but a tally can advance by MORE THAN ONE in a single
+ * beat and skip the full reading entirely — so there are two ways to see a proc:
+ *   1. it LANDS on `total` (3/4 → 4/4): the ordinary tick. Also covers count-up counters (Spirit Pup, Tara),
+ *      which clamp at `total`, and the cadence counter, which counts DOWN and resets UP to `total` on the turn
+ *      it fires.
+ *   2. it WRAPPED (`cur < prev`) without having been full last time: AVENGE ticks per FRIENDLY DEATH, and an
+ *      AoE / cleave / death cascade kills two at once — a 4-threshold goes 3/4 → 1/4 and never shows 4/4, yet
+ *      the Avenge really did fire (owner report 2026-07-21).
+ * The `prev !== total` guard on (2) prevents a double-fire: the ordinary 4/4 → 1/4 reset after a proc is a wrap
+ * too, but that proc already fired when it landed.
+ *
+ * `prev === null` (first sight of this counter) is never a proc — a card entering play already full must not burst.
+ */
+export function isStepProcTick(prev: number | null, cur: number, total: number): boolean {
+  if (prev === null || prev === cur) return false;
+  return cur === total || (cur < prev && prev !== total);
+}
+
 export function getStepProcFxConfig(): StepProcFxConfig {
   return cfg;
 }

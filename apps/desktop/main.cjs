@@ -16,7 +16,7 @@
  * The build's `base: './'` (see apps/web/vite.config.ts, set for itch.io's CDN sub-path) is what makes this
  * work unchanged — every asset resolves relative to `app://ascent/`.
  */
-const { app, BrowserWindow, protocol, net, shell } = require('electron');
+const { Menu, app, BrowserWindow, ipcMain, protocol, net, shell } = require('electron');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
@@ -40,20 +40,43 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 
+// No application menu at all. `autoHideMenuBar` still reserves the strip and pops it on Alt — which a game
+// does not want, least of all mid-alt-tab — and the default menu binds Ctrl+W / Ctrl+R, both of which are
+// hostile in a game window. F11/F12 below replace the only two entries worth keeping.
+Menu.setApplicationMenu(null);
+
 function createWindow() {
   const win = new BrowserWindow({
+    // BORDERLESS FULLSCREEN by default. Electron's `fullscreen` on Windows is the borderless kind (it does not
+    // take an exclusive display mode), which is what a game wants: no chrome, instant alt-tab. The width/height
+    // below are the WINDOWED size — what you get after F11 or the Fullscreen toggle, never the initial state.
+    fullscreen: true,
     width: 1600,
     height: 950,
     minWidth: 1024,
     minHeight: 640,
     backgroundColor: '#211d27', // the board's dark surround, so the first paint isn't a white flash
-    autoHideMenuBar: true,
     show: false, // revealed on ready-to-show to avoid a blank window while the bundle boots
     webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false, // the game is pure web code — it needs no Node, so don't hand it any
       backgroundThrottling: false, // pairs with the switches above
     },
+  });
+
+  // F11 escapes fullscreen — without it a borderless-fullscreen default is a trap (no title bar to click, and
+  // Esc belongs to the in-game menu). F12 opens DevTools, which the removed menu used to provide and which a
+  // test build genuinely wants. Handled before the page sees the key so nothing can swallow them.
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return;
+    if (input.key === 'F11') {
+      win.setFullScreen(!win.isFullScreen());
+      event.preventDefault();
+    } else if (input.key === 'F12') {
+      win.webContents.toggleDevTools();
+      event.preventDefault();
+    }
   });
 
   win.once('ready-to-show', () => win.show());
@@ -65,6 +88,14 @@ function createWindow() {
   void win.loadURL('app://ascent/index.html');
   return win;
 }
+
+// The renderer's only two levers (see preload.cjs). `quit` is what Settings → Quit game calls; the UI owns
+// the confirmation, so by the time this fires the player has already double-tapped.
+ipcMain.on('ascent:quit', () => app.quit());
+ipcMain.on('ascent:toggle-fullscreen', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  win?.setFullScreen(!win.isFullScreen());
+});
 
 app.whenReady().then(() => {
   protocol.handle('app', (request) => {

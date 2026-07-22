@@ -1,5 +1,6 @@
 /** Pause / settings overlay (Esc). Trimmed to what players actually need: audio (master volume + mute), the
- *  local-data resets (captured boards + career), and Quit back to the main menu. Resolution, board picker, board
+ *  local-data resets (captured boards + career), Quit back to the main menu, and — in the Electron shell only
+ *  — a fullscreen toggle + Quit game (see `desktop.ts`; the web build has no shell to close). Resolution, board picker, board
  *  dimming, and combat speed were removed (2026-07-14) — the game now fills the window at a fixed 16:9 with one
  *  board, and combat runs at a single speed. The HUD's quick-mute sits behind the enemy frame, so the dependable
  *  audio controls live here, in a modal nothing can obscure. */
@@ -7,6 +8,7 @@
 import { useState } from 'react';
 import { clearStoredBoards, loadStoredBoards } from './boardLibrary';
 import { loadRunHistory } from './runHistory';
+import { isDesktop, quitGame, toggleFullscreen } from './desktop';
 import { getVolume, isMuted, setVolume, sfx, toggleMute } from './sfx';
 import { useGame } from './store';
 
@@ -24,6 +26,9 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   const [boardCount, setBoardCount] = useState(() => loadStoredBoards().length);
   const [boardMsg, setBoardMsg] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  // Desktop only (see desktop.ts): the browser build has no shell to close. Two-tap confirm like the
+  // resets above — closing the app mid-run is the most destructive button in here.
+  const [confirmQuit, setConfirmQuit] = useState(false);
   const clearBoards = (): void => {
     if (!boardCount) { setBoardMsg('No boards to clear.'); return; }
     if (!confirmClear) { setConfirmClear(true); setBoardMsg(`Clear all ${boardCount} captured boards? Tap again to confirm.`); return; }
@@ -101,6 +106,27 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           <span className="ebl">Quit back to main menu</span>
           <span className="ebs">Your run stays saved — Continue resumes it</span>
         </button>
+        {/* Desktop shell only. The run is saved continuously, so closing the app loses nothing — but it is
+            still the one button that ends the session, hence the confirm. */}
+        {isDesktop() && (
+          <>
+            <div className="escsec">Game</div>
+            <button
+              className="escbtn"
+              onPointerDown={() => { toggleFullscreen(); }}
+            >
+              <span className="ebl">Toggle fullscreen</span>
+              <span className="ebs">Borderless fullscreen by default — F11 does the same</span>
+            </button>
+            <button
+              className={`escbtn${confirmQuit ? ' danger' : ''}`}
+              onPointerDown={() => { if (!confirmQuit) { setConfirmQuit(true); return; } quitGame(); }}
+            >
+              <span className="ebl">{confirmQuit ? 'Tap again to quit' : 'Quit game'}</span>
+              <span className="ebs">Closes ASCENT — your run stays saved</span>
+            </button>
+          </>
+        )}
         <button className="escclose" onPointerDown={onClose}>Resume</button>
       </div>
     </div>

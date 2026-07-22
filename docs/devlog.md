@@ -36,6 +36,29 @@ varies with Windows updates — bad for a project that treats a frame drop as a 
 `backgroundThrottling: false` plus `--disable-renderer-backgrounding` / `--disable-background-timer-throttling`
 so the Pixi ticker and GSAP keep full rate when the window is unfocused, and lifts the autoplay gate.
 
+**Borderless fullscreen by default, and a way out of it.** The window opens `fullscreen: true` — on Windows
+that is the borderless kind (no exclusive display mode), which is what a game wants: no chrome, instant
+alt-tab. The width/height in the config are the WINDOWED size, i.e. what you get after toggling, never the
+initial state. **F11** toggles it, because a borderless-fullscreen default with no escape is a trap: there is
+no title bar to click and Esc belongs to the in-game menu. **F12** opens DevTools.
+
+The application menu is removed outright (`Menu.setApplicationMenu(null)`) rather than auto-hidden.
+`autoHideMenuBar` still reserves the strip — a probe measured the viewport at 1414px inside a 1440px window,
+a 26px band of dead space — and pops the bar on Alt, which is hostile mid-alt-tab. It also binds Ctrl+W and
+Ctrl+R, neither of which belongs in a game window. F11/F12 replace the only two entries worth keeping. After
+removal the viewport measures exactly 3440×1440 on a 3440×1440 screen.
+
+**Quit game, desktop only.** `packages/ui/src/desktop.ts` is the UI's only knowledge of the shell: the
+preload exposes a frozen `window.ascentDesktop` (`isDesktop` / `quit` / `toggleFullscreen`) and its PRESENCE
+is the feature flag — nothing sniffs the user agent for "Electron", which lies and would match anything
+embedding Chromium. Settings grows a **Game** section with *Toggle fullscreen* and *Quit game* only when that
+object exists; in the browser the helpers are no-ops and the section never renders. Quit is a two-tap confirm,
+matching the destructive resets above it. The run is saved continuously, so quitting loses nothing — but it
+is the one button that ends the session.
+
+Verified in the packaged shell: bridge present and frozen with exactly the three expected keys, `isDesktop`
+true, window fullscreen at the full screen bounds, and the `ascent:quit` IPC received by the main process.
+
 **Scripts:** `npm run desktop` (build + run, fast iteration) and `npm run package:desktop` (build + exe).
 `apps/desktop/release/` is gitignored — it is ~300 MB (177 MB exe + runtime + the 34 MB game).
 

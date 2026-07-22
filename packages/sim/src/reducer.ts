@@ -752,7 +752,12 @@ function reduceCore(state: RunState, action: Action): RunState {
             keywords: card.keywords,
             mana,
             // Better Bot: weld its Rally (+5 Attack to other Mechs on attack, golden ×2) onto the host — stacks.
-            rallyMechAtk: (mDef?.rallyMechAtk ?? 0) * (card.golden ? 2 : 1) || undefined,
+            // `card.rallyMechAtk` is added too: a magnetic can ITSELF be carrying an accrued Better Bot rally (a
+            // host welded onto, then bounced to hand by Rune of Refrain), and re-welding it must pass that along —
+            // exactly as `spellAura`/`fodderAura` below fold in their `card.*Bonus`. Dropping it silently lost the
+            // rally when a carrier magnetic was re-welded (owner report 2026-07-22). A freshly-bought Better Bot
+            // has no instance value (its base lives on the def), so def×golden + accrued never double-counts.
+            rallyMechAtk: (mDef?.rallyMechAtk ?? 0) * (card.golden ? 2 : 1) + (card.rallyMechAtk ?? 0) || undefined,
             // Perfect Core: weld its "Rally: get a random spell" onto the host (golden grants 2) — stacks.
             rallySpell:
               (mDef?.effects?.some((e) => e.do === 'rallyGrantSpell') ? (card.golden ? 2 : 1) : 0) || undefined,

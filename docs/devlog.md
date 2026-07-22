@@ -3,6 +3,39 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-22 (desktop: the exe wears its own icon)
+
+### feat(desktop): stamp the icon + version info into ASCENT.exe (via rcedit, no AV exclusion needed)
+
+The window/taskbar icon shipped earlier, but the icon **Explorer** shows lives in the executable's own PE
+resources — a `.png` beside it can never set that. Stamping it needs `rcedit`, which is the one job
+electron-builder was doing that a copy-and-rename cannot.
+
+**No electron-builder, and no antivirus exclusion required.** electron-builder's blocker was `app-builder.exe`
+being quarantined; `rcedit` is a *different, much smaller* binary and Defender leaves it alone (verified:
+`node_modules/rcedit/bin/rcedit-x64.exe` survives an install). So `scripts/package-desktop.mjs` now calls
+rcedit directly — the same tool electron-builder would have shelled out to — and none of the rest of
+electron-builder comes back.
+
+**`scripts/make-icon.mjs` builds the .ico.** Windows wants a multi-resolution `.ico`, not a PNG. Rather than
+add an image library for one build step, this uses GDI+ via PowerShell to resize (HighQualityBicubic — the
+default scaler turns a detailed 1254px logo to mush at 16px) and assembles the ICO container by hand: since
+Vista an ICO entry may hold a PNG payload verbatim, so there is no BMP/AND-mask encoding to get wrong. Seven
+sizes (16/24/32/48/64/128/256, 130 KB). The .ico is **committed**, so an ordinary build needs neither
+PowerShell nor the script; re-run `npm run desktop:icon` only when the source logo changes.
+
+Version info is stamped in the same pass, so the exe's Details tab reads ASCENT rather than Electron.
+
+**Verified on the built exe** rather than assumed: an icon resource extracts, `ProductName`/`FileDescription`
+are `ASCENT` (they were `Electron`), `FileVersion` 0.1.0, `CompanyName` kcodea — and an average-pixel
+signature of the embedded icon differs from stock `electron.exe`'s, confirming it is the game's logo and not
+merely *an* icon.
+
+Still not done (unchanged): no installer, no code signing, no auto-update. Unsigned means SmartScreen will
+still warn on a machine that has not seen the binary before — an icon does not change that.
+
+typecheck + lint + 1385 tests + `build:web` green.
+
 ## 2026-07-22 (desktop icon, Font Lab removal, ultrawide board gap)
 
 ### fix(ui): fill the board on ultrawide + drop the Font Lab; feat(desktop): window icon

@@ -22,6 +22,7 @@ npm run build:web    # production build (the CI gate + what players run)
 npm run package:itch # build + zip ascent-itch.zip for itch.io (HTML, "play in browser")
 npm run desktop      # build + run the game in an Electron window (fast desktop iteration)
 npm run package:desktop # build + produce apps/desktop/release/ASCENT-win32-x64/ASCENT.exe
+npm run desktop:icon # regenerate apps/desktop/icon.ico from icon.png (only when the logo changes)
 ```
 
 New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → verify → the collaboration rules).

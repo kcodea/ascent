@@ -37,6 +37,7 @@
     "dev": "npm run dev -w apps/web",
     "build:web": "npm run build -w apps/web",
     "desktop": "npm run build:web && npm --workspace @game/desktop run start",
+    "desktop:icon": "node scripts/make-icon.mjs",
     "package:desktop": "npm run build:web && node scripts/package-desktop.mjs",
     "package:itch": "npm run build:web && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-itch.ps1",
     "typecheck:web": "tsc -p apps/web/tsconfig.json --noEmit",

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, QUEST_DEFS, RUNES, EPIC_RUNES } from '@game/content';
 import { HEROES, type BoardSnapshot, type RunState, type ShopCard } from '@game/sim';
 import type { Keyword } from '@game/core';
 import { useGame } from './store';
@@ -15,7 +15,19 @@ import { turnClock } from './turnClock';
  * the whole rig reads at a glance. Collapsible so it can tuck out of the way while you watch a fight.
  * Stripped from production with the rest of the dev tooling.
  */
-type CardRow = { id: string; name: string; tier: number; spell: boolean; tribe: string };
+type CardRow = { id: string; name: string; tier: number; spell: boolean; tribe: string; hay: string };
+type QuestRow = { id: string; name: string; tribe: string; tier: string; hay: string };
+type RuneRow = { id: string; name: string; cost: number; epic: boolean; hay: string };
+
+/** Everything a row can be matched on, lowercased once at module load. Searching the card's TEXT (not just
+ *  its name/tribe) is what makes keyword queries work — "avenge", "deathrattle", "taunt", "magnetic" all live
+ *  in the rules text or the keyword list rather than the title. Effect trigger/factory ids go in too, so a
+ *  mechanic can be found even when the printed text words it differently. */
+const hay = (...parts: (string | undefined)[]): string => parts.filter(Boolean).join(' ').toLowerCase();
+
+/** Split a query on whitespace and require EVERY term to match (AND), so "avenge beast" narrows instead of
+ *  widening. Each term is a plain substring test against the row's haystack. */
+const matches = (haystack: string, terms: string[]): boolean => terms.every((t) => haystack.includes(t));
 
 function mutate(fn: (r: RunState) => RunState): void {
   const run = useGame.getState().run;
@@ -31,6 +43,7 @@ const HERO_OPTIONS = HEROES.map((h) => ({ id: h.id, name: h.name })).sort((a, b)
 export function SceneBuilder() {
   const run = useGame((s) => s.run);
   const startSceneBuilder = useGame((s) => s.startSceneBuilder);
+  const dispatch = useGame((s) => s.dispatch);
   const [query, setQuery] = useState('');
   const [enemyHp, setEnemyHp] = useState(5);
   const [enemyAtk, setEnemyAtk] = useState(0);
@@ -42,15 +55,37 @@ export function SceneBuilder() {
   const all = useMemo<CardRow[]>(() =>
     Object.values(CARD_INDEX)
       .filter((c) => !c.token)
-      .map((c) => ({ id: c.id, name: c.name, tier: c.tier ?? 0, spell: !!c.spell, tribe: c.tribe ?? 'neutral' }))
+      .map((c) => ({
+        id: c.id, name: c.name, tier: c.tier ?? 0, spell: !!c.spell, tribe: c.tribe ?? 'neutral',
+        // Keywords + rules text + effect ids, so "avenge" / "deathrattle" / "magnetic" find their cards.
+        hay: hay(c.name, c.id, c.tribe, c.tribe2, c.text, (c.keywords ?? []).join(' '),
+          (c.effects ?? []).map((e) => `${e.on} ${e.do}`).join(' ')),
+      }))
       .sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name)),
   []);
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const pool = q ? all.filter((c) => c.name.toLowerCase().includes(q) || c.id.includes(q) || c.tribe.includes(q)) : all;
-    return pool.slice(0, 80);
-  }, [all, query]);
+  const allQuests = useMemo<QuestRow[]>(() =>
+    QUEST_DEFS
+      .map((q) => ({
+        id: q.id, name: q.name, tribe: q.tribe ?? 'neutral', tier: String(q.tier),
+        hay: hay(q.name, q.id, q.tribe, String(q.tier), q.objective?.event, q.reward?.kind),
+      }))
+      .sort((a, b) => a.tier.localeCompare(b.tier) || a.name.localeCompare(b.name)),
+  []);
+
+  const allRunes = useMemo<RuneRow[]>(() =>
+    [...RUNES, ...EPIC_RUNES]
+      .map((r) => ({
+        id: r.id, name: r.name, cost: r.cost, epic: !!r.epic,
+        hay: hay(r.name, r.id, r.text, r.reward?.kind, r.epic ? 'epic' : 'basic'),
+      }))
+      .sort((a, b) => Number(a.epic) - Number(b.epic) || a.name.localeCompare(b.name)),
+  []);
+
+  const terms = useMemo(() => query.trim().toLowerCase().split(/\s+/).filter(Boolean), [query]);
+  const results = useMemo(() => all.filter((c) => matches(c.hay, terms)).slice(0, 80), [all, terms]);
+  const questResults = useMemo(() => allQuests.filter((q) => matches(q.hay, terms)), [allQuests, terms]);
+  const runeResults = useMemo(() => allRunes.filter((r) => matches(r.hay, terms)), [allRunes, terms]);
 
   // ∞ gold — top the pool back up whenever it dips (default on). Cheap: a subscribe on `run.embers`.
   if (refill && run && (run.embers ?? 0) < 900) {
@@ -58,6 +93,11 @@ export function SceneBuilder() {
   }
 
   const addToShop = (cardId: string): void => mutate((r) => ({ ...r, shop: [...r.shop, { uid: uid(), cardId } as ShopCard] }));
+  // Quests / runes go through the REAL reducer (not `mutate`), so the reward engine, triple checks and modal
+  // queueing all run exactly as they would in a played run — which is the only way the interaction under test
+  // is the real one. Clicking a quest completes it (pays the reward); "◷" adds it un-started to watch it fill.
+  const grantQuest = (id: string, completed: boolean): void => dispatch({ type: 'devGrant', kind: 'quest', id, completed });
+  const grantRune = (id: string): void => dispatch({ type: 'devGrant', kind: 'rune', id });
   const setTier = (tier: number): void => mutate((r) => ({ ...r, tier }));
   const giveGold = (): void => mutate((r) => ({ ...r, embers: (r.embers ?? 0) + 1000 }));
   const freezeTime = (): void => turnClock.set(9999);
@@ -144,10 +184,21 @@ export function SceneBuilder() {
             </div>
           </div>
 
+          {/* SEARCH — one box filters the three libraries below (cards, quests, runes). */}
+          <div className="sb-sec">
+            <div className="sb-label">Search</div>
+            <input
+              className="sb-search"
+              placeholder="name, id, tribe, or keyword (e.g. avenge, deathrattle)…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              title="Matches name, id, tribe, keywords, rules text and effect ids. Space-separated terms must ALL match."
+            />
+          </div>
+
           {/* CARDS */}
           <div className="sb-sec">
             <div className="sb-label">Cards → shop <span className="sb-count">{results.length}</span></div>
-            <input className="sb-search" placeholder="search by name, id, or tribe…" value={query} onChange={(e) => setQuery(e.target.value)} />
             <div className="sb-results">
               {results.map((c) => (
                 <button key={c.id} className="sb-card" onClick={() => addToShop(c.id)} title={`Add ${c.name} (Tier ${c.tier}) to the shop`}>
@@ -157,6 +208,37 @@ export function SceneBuilder() {
                 </button>
               ))}
               {results.length === 0 && <div className="sb-empty">no matches</div>}
+            </div>
+          </div>
+
+          {/* QUESTS — click completes it (reward pays out now); ◷ adds it un-started to watch the bar fill. */}
+          <div className="sb-sec">
+            <div className="sb-label">Quests → completed <span className="sb-count">{questResults.length}</span></div>
+            <div className="sb-results">
+              {questResults.map((q) => (
+                <div key={q.id} className="sb-card sb-qrow">
+                  <button className="sb-qmain" onClick={() => grantQuest(q.id, true)} title={`Complete ${q.name} now — its reward pays out immediately`}>
+                    <span className="sb-name">{q.name}</span>
+                    <span className="sb-tag">{q.tribe}</span>
+                  </button>
+                  <button className="sb-qadd" onClick={() => grantQuest(q.id, false)} title={`Add ${q.name} un-started, to watch it progress`}>◷</button>
+                </div>
+              ))}
+              {questResults.length === 0 && <div className="sb-empty">no matches</div>}
+            </div>
+          </div>
+
+          {/* RUNES — granting one applies its reward for the run, exactly like buying it in the Runeforge. */}
+          <div className="sb-sec">
+            <div className="sb-label">Runes → owned <span className="sb-count">{runeResults.length}</span></div>
+            <div className="sb-results">
+              {runeResults.map((r) => (
+                <button key={r.id} className="sb-card" onClick={() => grantRune(r.id)} title={`Grant ${r.name} — its reward applies for the run (free here)`}>
+                  <span className="sb-name">{r.name}</span>
+                  {r.epic && <span className="sb-tag">epic</span>}
+                </button>
+              ))}
+              {runeResults.length === 0 && <div className="sb-empty">no matches</div>}
             </div>
           </div>
         </div>

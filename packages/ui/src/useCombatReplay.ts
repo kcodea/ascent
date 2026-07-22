@@ -1113,6 +1113,11 @@ export function useCombatReplay(
       // ward is CSS now, so the shatter fires at the unit's live rect (no Pixi bubble to read coords from).
       const wardTargets: string[] = [];
       for (let i = cur.start; i < cur.end; i++) { const e = events[i]; if (e?.type === 'shield') wardTargets.push(e.target); }
+      // EXECUTE proc inside this exchange → the strike REPLACES the standard hit FX at contact (see impact.ts).
+      // Gated on a `poison` EVENT, not on the attacker carrying `V`: the keyword is spent after one kill, so a
+      // keyword check would keep slashing on later swings that no longer execute anything.
+      let executeSlash = false;
+      for (let i = cur.start; i < cur.end; i++) { if (events[i]?.type === 'poison') { executeSlash = true; break; } }
       // DELIBERATELY the LIVE rect, not `layoutRectOf`: the Ward dome is CSS drawn ON the card, so it rides the
       // lunge — the gold shatter has to pop where the bubble visibly is (mid-strike, at contact), not back at
       // the unit's empty slot. The opposite call from the unit-marking FX; don't "fix" this to match them.
@@ -1151,6 +1156,7 @@ export function useCombatReplay(
           // Flurry (W): the engine fires the wind-slash gust on the EXTRA swing (swing ≥ 1). Check the unit's
           // LIVE keywords (covers Flurry granted mid-combat), then the printed keyword off the card index.
           flurry: !!atkUnit?.keywords.includes('W') || !!CARD_INDEX[cardIds.get(atkUid) ?? '']?.keywords?.includes('W'),
+          execute: executeSlash,
         });
         engineAdvancingRef.current = tl !== null; // engine owns the advance; if it couldn't build, the scheduler falls back
         if (tl === null) breakWards?.(); // lunge cue dropped → no contact anchor to ride; shatter now so it isn't lost

@@ -5,6 +5,35 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-21 (balance: nine-card owner pass)
 
+### fix(ui): the Execution Strike never fired on an attack — and now replaces the standard strike
+
+Owner report: "i don't see the execute strike effect happening, i only see the original strike effect."
+
+**The bug.** `poison` is a **RESULT_TYPE** (`combatBeats.ts`), so it collapses into whatever moment it lands
+in. An Execute kill on an attack compiles to one moment — `attack → dmg → poison → death` — whose PRIMARY event
+is `attack`, so `momentKind` returns `attackExchange`, never `poisonTick`. Scoring the `executeFx` cue on
+`poisonTick` alone meant it fired for essentially nothing: that kind only occurs when a `poison` event *starts*
+a moment, which an attack kill never does. This is the exact trap the comment above `BASE` documents for the
+aura channels ("`death`/`shield` are RESULT_TYPES that collapse into another kind's moment") — I wired the new
+channel without heeding it.
+
+**The fix, which also answers the second half of the ask** (make it *replace* the standard strike): route the
+melee case through the impact channel, exactly like the Flurry slash. `playContactImpact` takes an
+`executeSlash` flag and fires `pixiFx.executeStrike` at the lunge's real contact point INSTEAD of the standard
+burst/dust/pulse. It's checked FIRST, so it outranks both Flurry and crit — an Execute proc is a kill, the
+biggest beat available. The smack/crit sound and the crit board-shake still fire.
+
+The flag is gated on a `poison` EVENT in the exchange, not on the attacker carrying `V` — the keyword is spent
+after one kill, so a keyword check would keep slashing on later swings that execute nothing.
+
+`executeFx` also moved into `BASE` (every kind) so non-melee procs — a Start-of-Combat nuke or split damage
+from an Execute minion, which have no lunge to anchor to — still get their strike. The runner SKIPS it on
+`attackExchange` so the two paths can't double-slash, once at the victim's slot and once at contact.
+
+Verified: typecheck · lint · 1374 tests · build:web. Five new, including a regression test that compiles the
+real `attack → dmg → poison → death` shape and asserts the melee path stands down while the non-melee path
+fires — it fails against the old scoring.
+
 ### tweak(ui): purge the last of the poison green from Execute
 
 Owner report: "we need to remove the old green poison effect". The card-level lime went with the aura PR, but

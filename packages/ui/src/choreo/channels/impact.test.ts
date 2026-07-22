@@ -55,3 +55,54 @@ describe('playContactImpact', () => {
     expect(tween.vars.rotation).toBe(-6);
   });
 });
+
+/**
+ * EXECUTE replaces the standard strike VFX (owner 2026-07-22: "i only see the original strike effect"). It is
+ * checked FIRST, so it outranks both Flurry and crit — an Execute proc is a kill, the biggest beat available.
+ */
+describe('playContactImpact — Execute', () => {
+  const spies = () => ({
+    exec: vi.spyOn(pixiFx, 'executeStrike').mockImplementation(() => {}),
+    wind: vi.spyOn(pixiFx, 'windSlash').mockImplementation(() => {}),
+    crit: vi.spyOn(pixiFx, 'critImpact').mockImplementation(() => {}),
+    impact: vi.spyOn(pixiFx, 'impact').mockImplementation(() => {}),
+    dust: vi.spyOn(pixiFx, 'impactDust').mockImplementation(() => {}),
+    pulse: vi.spyOn(pixiFx, 'impactPulse').mockImplementation(() => {}),
+  });
+
+  it('replaces the standard burst with the execution strike', () => {
+    const s = spies();
+    vi.spyOn(sfx, 'hit').mockImplementation(() => {});
+    playContactImpact(fakeDefender(), 10, 0, 1, 1, undefined, 0, false, false, false, true);
+    expect(s.exec).toHaveBeenCalledTimes(1);
+    expect(s.impact).not.toHaveBeenCalled();
+    expect(s.pulse).not.toHaveBeenCalled();
+    expect(s.dust).not.toHaveBeenCalled();
+  });
+
+  it('wins over a Flurry slash and over a crit', () => {
+    const s = spies();
+    vi.spyOn(sfx, 'hit').mockImplementation(() => {});
+    vi.spyOn(sfx, 'critHit').mockImplementation(() => {});
+    vi.spyOn(sfx, 'flurryHit').mockImplementation(() => {});
+    playContactImpact(fakeDefender(), 10, 0, 1, 1, undefined, 0, true, true, true, true);
+    expect(s.exec).toHaveBeenCalledTimes(1);
+    expect(s.wind).not.toHaveBeenCalled();
+    expect(s.crit).not.toHaveBeenCalled();
+  });
+
+  it('still plays the crit SOUND on an Execute crit (it is still a crit)', () => {
+    spies();
+    const critHit = vi.spyOn(sfx, 'critHit').mockImplementation(() => {});
+    playContactImpact(fakeDefender(), 10, 0, 1, 1, undefined, 0, true, false, false, true);
+    expect(critHit).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves a normal hit untouched', () => {
+    const s = spies();
+    vi.spyOn(sfx, 'hit').mockImplementation(() => {});
+    playContactImpact(fakeDefender(), 10, 0, 1, 1);
+    expect(s.exec).not.toHaveBeenCalled();
+    expect(s.impact).toHaveBeenCalledTimes(1);
+  });
+});

@@ -36,6 +36,12 @@ const BASE: Cue[] = [
   { ch: 'float', at: 'start' },
   { ch: 'auraBurst', at: 'start', offset: 0 },
   { ch: 'auraBreak', at: 'start', offset: 300, scaled: true },
+  // `executeFx` is on EVERY kind for the same reason the aura channels are: `poison` is a RESULT_TYPE, so it
+  // collapses into whatever moment it lands in (an Execute kill on an attack is an `attackExchange` moment,
+  // NOT a `poisonTick` one). Scoring it on `poisonTick` alone meant it never fired for the common case —
+  // owner report 2026-07-22. The runner SKIPS it on `attackExchange`, where the impact channel fires the
+  // strike at the lunge's real contact point instead (and replaces the standard hit FX doing it).
+  { ch: 'executeFx', at: 'start', offset: 0 },
 ];
 const withReform = (): Cue[] => [...BASE, { ch: 'auraReform', at: 'start', offset: 460, scaled: false }];
 /** Every kind runs sfx + float + auraBurst + auraBreak at start (all adapters no-op for moments with nothing
@@ -65,11 +71,7 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   // split damage) and `death` (Blaster's Deathrattle AoE lands in its death moment). Melee dmg stays in
   // `attackExchange` (already has the full lunge/impact FX), so it never double-bursts; the handler no-ops on a
   // plain death that carries no dmg events.
-  damage: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }], shieldPop: [...BASE],
-  // `executeFx` = the Execution Strike crescent at each destroyed target. `poisonTick` also covers `venomLost`
-  // (the keyword being spent), which carries no `poison` event — the handler scans for `poison` specifically,
-  // so a spend-only moment fires nothing.
-  poisonTick: [...BASE, { ch: 'executeFx', at: 'start', offset: 0 }],
+  damage: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }], shieldPop: [...BASE], poisonTick: [...BASE],
   death: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }], riseDeath: [...BASE], scCast: [...BASE],
   // `summonFx` = a dust poof at the arriving unit, at +250ms (scaled) to land on the `summonpop` overshoot (the
   // "bounce") — by then the scale-in has grown the unit to a measurable, full size.
@@ -215,7 +217,12 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     else if (cue.ch === 'auraBreak') at(cue, () => {  // DS consumed: delayed gold shatter
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'shield') ctx.onShieldBreak(e.target); }
     });
-    else if (cue.ch === 'executeFx') at(cue, () => {  // Execute proc: the crescent strike at each victim
+    // Execute proc: the crescent strike at each victim. SKIPPED on `attackExchange` — there the impact channel
+    // fires it at the lunge's real contact point (and replaces the standard hit FX), so running it here too
+    // would double-slash, once at the victim's slot and once at contact. This path covers the non-melee procs
+    // (a Start-of-Combat nuke or split damage from an Execute minion), which have no lunge to anchor to.
+    else if (cue.ch === 'executeFx') at(cue, () => {
+      if (moment.kind === 'attackExchange') return;
       const uids: string[] = [];
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'poison') uids.push(e.target); }
       if (uids.length) ctx.onExecuteFx(uids);

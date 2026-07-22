@@ -184,13 +184,13 @@ const DEFAULTS: ExecuteConfig = {
   shardBlur: 3,
   shardOut: 78,
   shardSweep: 4,
-  shardAlpha: 0.4,
-  shardSpin: 2.5,
+  shardAlpha: 0.52,
+  shardSpin: 2,
   smokeHot: '#ff2b3f',
-  smokeMid: '#7d0d1c',
-  arcColor: '#ff3346',
+  smokeMid: '#ff2e2e',
+  arcColor: '#ff0a23',
   glintColor: '#ffd9de',
-  shardColor: '#ff4258',
+  shardColor: '#bc061b',
 };
 
 /** Colour keys — rendered as swatches by the tuner, and excluded from the numeric slider ranges. */

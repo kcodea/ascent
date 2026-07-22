@@ -107,10 +107,11 @@ export interface ExecuteFxConfig {
 /**
  * Owner-dialled, 2026-07-22, via the 🩸 Execute Strike tuner's Test button.
  *
- * Landed heavier and slower than the first pass: a big long-lived crescent (215px, 740ms) that expands 2.5×
- * while barely travelling (`arcSpeed` 520 → 70 — the dial is there, but the read is the SWEEP, not flight),
- * a full-strength white core flash, fatter embers, and a lot more blood (16 → 52 droplets, faster and much
- * longer-lived, in a tight 45° cone). `power: 0.7` scales the whole thing back down.
+ * Landed heavier than the first pass: a big crescent (215px, 680ms) that expands 2.9× while barely travelling
+ * (`arcSpeed` 520 → 70 — the dial is there, but the read is the SWEEP, not flight), a full-strength white core
+ * flash, fatter embers, and a LOT more blood — 16 → 60 droplets, big and long-lived, thrown in a full 360°
+ * ring under heavy gravity so they burst outward and rain down rather than spraying one way.
+ * `power: 0.7` scales the whole thing back down.
  *
  * NOTE `arcTilt: -92`. Tilt is relative to the blow, where 0 = the blade cutting SQUARE across the line of
  * attack; -92 rotates it back roughly parallel to the blow, so the cut runs ALONG the strike. That's a
@@ -120,8 +121,8 @@ const DEFAULTS: ExecuteFxConfig = {
   power: 0.7,
   arcCount: 2,
   arcSize: 215,
-  arcGrow: 2.5,
-  arcLife: 740,
+  arcGrow: 2.9,
+  arcLife: 680,
   arcSpeed: 70,
   arcDrag: 0.12,
   arcBack: 0,
@@ -140,12 +141,12 @@ const DEFAULTS: ExecuteFxConfig = {
   emberLife: 860,
   emberSpread: 120,
   emberGravity: 260,
-  bloodCount: 52,
-  bloodSpeed: 900,
-  bloodSize: 11.5,
+  bloodCount: 60,
+  bloodSpeed: 430,
+  bloodSize: 14,
   bloodLife: 2000,
-  bloodSpread: 45,
-  bloodGravity: 640,
+  bloodSpread: 360,
+  bloodGravity: 1280,
   tailColor: '#8e0b18',
   midColor: '#ff1f1f',
   tipColor: '#fdfcfc',

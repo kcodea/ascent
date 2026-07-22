@@ -1833,6 +1833,11 @@ body.modalup .statusbar .questbadges {
    is readable on a small screen (owner request). `zoom` (not transform — that's owned by the float animation);
    showRefTip folds the same factor into its placement so the bigger popup still lands on-screen. */
 .cardref-inner { display: flex; gap: calc(8 * var(--u)); animation: cardreffloat 3.6s ease-in-out infinite; zoom: var(--inspect-zoom, 1); }
+/* The plate overhangs the card box by half its extra width on each side, and that overhang is invisible to
+   flex — so with a referenced card trailing alongside, the two plates ate straight through the gap and
+   overlapped. Reserve the overhang as margin: footprint becomes exactly --ccw × --plate-scale, the flex gap
+   goes back to meaning real separation, and it matches the `cardW` estimate showRefTip places the popup by. */
+.cardref .card.plated { margin-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2); }
 @keyframes cardrefin { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes cardreffloat {
   0%, 100% { transform: translateY(0); }

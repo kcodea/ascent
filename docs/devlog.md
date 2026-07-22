@@ -367,6 +367,15 @@ With the plate in, the panel's contents got a pass:
   the hover glow was moved off the frame to fix. Plated drag cards now light `.plateglow` instead, keeping
   the rule's original promise that "playing a card reads identically to hovering it". Unplated drag cards
   (shop/board) still light `.cglow`, having no plate to ring.
+- **The hover reveal is plated.** Hovering a shop or warband tile pops a portalled full-size card (the
+  card itself in compact mode, plus any cards it references); that popup is the "read the whole card"
+  surface for those zones, so it now wears the plate instead of floating as bare text over the board.
+  Two knock-ons had to be fixed with it, since the plate is 1.5× the tile's width and ~2.3× its height:
+  `showRefTip`'s placement math estimated off the bare tile, which put wide popups off the right edge and
+  let tall ones run off the bottom (now folds in `--plate-scale` and the plate's own aspect); and the plate's
+  overhang is invisible to flex, so a trailing referenced card's plate ate through the gap and overlapped —
+  now reserved as `margin-inline`, which also makes the rendered footprint match what the placement math
+  assumes.
 - **The inspect overlay is plated too.** It's the other place you read a card as a whole object rather than a
   board token. Safe for `isolation: isolate` — the overlay never renders during combat.
 

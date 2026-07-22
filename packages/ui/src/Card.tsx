@@ -13,7 +13,7 @@ import { FLURRY_RINGS, flurryBoxStyle, flurryWrapStyle, flurryRingStyle } from '
 import { pixiFx } from './pixiFx';
 import { getStepProcFxConfig, isStepProcTick } from './stepProcFxConfig';
 import { getExecuteSnapshot, subscribeExecute } from './executeConfig';
-import { plateTextBucket } from './cardPlateConfig';
+import { getCardPlateConfig, plateTextBucket } from './cardPlateConfig';
 
 // TAUNT frame — pipeline layer 2 (the authored shield). Prefer an authored raster PNG (painterly, drops into
 // `apps/web/public/frames/`); until it exists the SVG placeholder renders instead. `tauntFrameAvailable` flips
@@ -358,11 +358,15 @@ export const Card = memo(function Card({
       // The popup is `zoom`ed by --inspect-zoom (1.3 on mobile) for readability, so its rendered footprint is that
       // much bigger than a natural card — fold the same factor into the width/height estimates so it stays on-screen.
       const zoom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--inspect-zoom')) || 1;
-      const cardW = r.width * zoom;
+      // Popup cards are PLATED, so the plate — not the tile — is the real footprint: `plate.scale` times the
+      // card width, and `× 1.5550` tall (the art's locked aspect). Estimating off the bare tile put wide
+      // popups off the right edge and let tall ones run off the bottom.
+      const plateScale = getCardPlateConfig().scale;
+      const cardW = r.width * zoom * plateScale;
       const tipW = cardW * n + (n - 1) * gap; // full-size cards, laid left→right
       const flip = r.right + gap + tipW > window.innerWidth - 6; // off the right edge → show on the left
       const left = flip ? Math.max(6, r.left - gap - tipW) : r.right + gap;
-      const estH = cardW * 1.34; // a full card is ~1.34× its width tall — clamp so it stays on-screen
+      const estH = cardW * 1.5550; // plate aspect (800×1244) — clamp so it stays on-screen
       const top = Math.max(6, Math.min(r.top, window.innerHeight - estH - 6));
       setRefPos({ left, top, origin: flip ? 'right' : 'left' });
     }, showText ? 250 : 100);
@@ -747,12 +751,16 @@ export const Card = memo(function Card({
         </span>
       )}
       {/* Hover reveal — portalled to <body> so it floats above neighbouring cards. The full card first
-          (in compact mode), then any referenced cards trailing to its right. All forced full-size. */}
+          (in compact mode), then any referenced cards trailing to its right. All forced full-size, and
+          PLATED (owner 2026-07-21): this popup is the "read the whole card" surface for shop and warband
+          tiles, so it wears the same body as a hand card rather than floating as bare text over the board.
+          Safe for `.card.plated`'s `isolation: isolate` — the popup is portalled to <body>, so it's never
+          the element a combat lunge is transforming. */}
       {refPos && hasPopup && createPortal(
         <div className="cardref" style={{ left: refPos.left, top: refPos.top } as CSSProperties}>
           <div className="cardref-inner" style={{ transformOrigin: `${refPos.origin} center` } as CSSProperties}>
             {popupCards.map((rc, i) => (
-              <Card key={`${rc.cardId ?? i}-${i}`} card={rc} forceFull />
+              <Card key={`${rc.cardId ?? i}-${i}`} card={rc} forceFull plated />
             ))}
           </div>
         </div>,

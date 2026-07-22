@@ -3,6 +3,31 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-22 (End Turn softlock: a battlecry aim could trap the player)
+
+### fix(sim/ui): the round timer expiring mid-aim permanently softlocked the run
+
+Owner report (tester): "turn ended before I could use the shout target and now I cant do anything, end turn
+doesnt work either" / "reloading doesnt fix it." The round timer pauses for the Discover / quest / Runeforge
+overlays but NOT for a targeted Battlecry aim (`pendingTarget`), so it could expire mid-aim — and the UI then
+blocks the target pick (`timeUp`) AND the reducer's modal gate rejected `faceOmen` (End Turn). Nothing left to
+do, and `pendingTarget` is serialized so a reload landed back in it. Fixed: `faceOmen` is exempt from the modal
+gate specifically when `pendingTarget` is the blocker (it already auto-resolves the aim onto the highest-Attack
+legal carry — a safe escape), and the recruit timer now pauses for `pendingTarget` + `chooseOne` too so it can't
+recur. New `endTurnSoftlock.test.ts`. (Devlog entry restored 2026-07-22 — lost in a concurrent merge; #639.)
+
+## 2026-07-22 (Better Bot: a carrier magnetic dropped its accrued Rally when re-welded)
+
+### fix(sim): re-welding a magnetic that carries a Better Bot rally lost the rally
+
+Owner question (Mike): confirm Better Bot stacking transfers when stacked. It does directly (Better Bot → Mech,
++5, stacks to +10). But a magnetic that had ITSELF absorbed a Better Bot (accrued `card.rallyMechAtk`),
+re-welded onto another host, silently DROPPED it: the hand-play weld built its payload's `rallyMechAtk` from the
+card DEF only (`mDef.rallyMechAtk * golden`), so a carrier like Speedy (def has no rally) contributed 0. Its
+sibling welded auras (`spellAura`, `fodderAura`) already fold in the instance-accrued value; `rallyMechAtk` was
+the lone def-only outlier. Fixed to `def×golden + (card.rallyMechAtk ?? 0)` — no double-count (a bought Better
+Bot's instance value is undefined). Reachable via Rune of Refrain. New `betterBotTransfer.test.ts`.
+
 ## 2026-07-22 (Ryme + Wayfinder: a Discover Shout re-fired in combat granted nothing)
 
 ### fix(core): resolve Wayfinder's `uncontrolled` tribe sentinel when its Shout re-fires in combat

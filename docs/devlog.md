@@ -374,6 +374,17 @@ With the plate in, the panel's contents got a pass:
   a multiplied, heavily feathered wash → nothing at all. The end state is **pure text sitting directly on the
   plate**: no background, no border, no radius, no mask. The plate art is the card's surface, so a second
   surface drawn on top of it was always going to fight it.
+- **Baked the owner's tuned plate values** — scale 1.5, y -37, radius 10, buckets 89/90/150, puff 120ms /
+  1.03 / dust 3.2 — into BOTH the TS `DEFAULTS` and the CSS `var(--plate-*, …)` fallbacks, per the
+  double-source rule. Note the tuned `bucketM: 89` / `bucketL: 90` leave the MEDIUM text size a
+  one-character window (only a 89-char string lands in it), so `m` is effectively unused — flagged to the
+  owner rather than silently widened.
+- **Made the bucket test bake-proof.** It asserted fixed lengths (80/130/200), so the bake broke it — which
+  was the test doing its job, but the failure said nothing useful. It now derives from the live thresholds
+  and asserts each one is the floor of its bucket, so future bakes can't produce a meaningless red.
+- **Lightened the panel text-shadow to two layers.** At rules-text size the stack of three near-opaque halos
+  merged into a continuous dark mass behind the line, reading as a pill — the same visual signature as the
+  (differently-caused) clip on the name. A hard 1px edge plus one short, lighter halo keeps the definition.
 - **Killed a pill behind the card name.** The base `.cn` (the compact tile's name chip) is a pill —
   background, radius, padding, `overflow: hidden`, ellipsis. The full-card override had always dropped the
   background/shadow/padding but left the radius and the overflow clip, which was invisible until the name

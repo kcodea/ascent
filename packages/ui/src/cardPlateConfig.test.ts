@@ -7,12 +7,17 @@ describe('plateTextBucket', () => {
     expect(plateTextBucket('')).toBe('s');
   });
 
-  it('steps down as text lengthens', () => {
-    const short = plateTextBucket('Taunt.');                          // 6
-    const med = plateTextBucket('x'.repeat(80));                      // between s and l
-    const long = plateTextBucket('x'.repeat(130));
-    const xlong = plateTextBucket('x'.repeat(200));
-    expect([short, med, long, xlong]).toEqual(['s', 'm', 'l', 'xl']);
+  // Derived from the live thresholds, not hardcoded lengths. The owner bakes tuned values into DEFAULTS
+  // periodically, and fixed magic lengths break on every bake without saying anything useful — what actually
+  // needs guarding is that each threshold is the first length landing in its bucket.
+  it('steps down as text lengthens — each threshold is its bucket floor', () => {
+    const c = getCardPlateConfig();
+    const at = (n: number): string => plateTextBucket('x'.repeat(n));
+    expect(at(0)).toBe('s');
+    expect(at(c.bucketM - 1)).toBe('s');
+    expect(at(c.bucketM)).toBe('m');
+    expect(at(c.bucketL)).toBe('l');
+    expect(at(c.bucketXl)).toBe('xl');
   });
 
   it('is monotonic — longer text never gets a LARGER font bucket', () => {

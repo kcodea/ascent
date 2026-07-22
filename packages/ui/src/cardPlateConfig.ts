@@ -36,18 +36,18 @@ export interface CardPlateConfig {
 }
 
 const DEFAULTS: CardPlateConfig = {
-  scale: 1.18,
-  top: -14,
+  scale: 1.5,
+  top: -37,
   radius: 10,
   // Derived from the measured corpus (median 59 / p90 96 / max 187 static, ~230 with live values folded in).
   // Conservative by design: character count is a proxy for WRAPPED height, and long-word text wraps taller
   // than short-word text at the same length. Dial these in the tuner if a specific card lands wrong.
-  bucketM: 70,
-  bucketL: 110,
-  bucketXl: 160,
-  puffMs: 320,
-  puffScale: 1.06,
-  puffDust: 1.5,
+  bucketM: 89,
+  bucketL: 90,
+  bucketXl: 150,
+  puffMs: 120,
+  puffScale: 1.03,
+  puffDust: 3.2,
 };
 
 /** Font-size buckets, LARGEST first. `id` is appended to a `.plate-txt-` class on the card. */

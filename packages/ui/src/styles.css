@@ -1569,8 +1569,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .card.compact.showtext .drawer .cn,
 .card.compact.showtext .drawer .desc,
 .card.compact.showtext .drawer .dtribe {
+  /* TWO shadows, not three. At rules-text size the glyphs sit close enough that a stack of near-opaque
+     halos merged into one continuous dark mass behind the line — it read as a pill, the same signature as
+     the (differently-caused) clip on the name (owner 2026-07-21). A hard 1px edge plus ONE short, lighter
+     halo keeps the definition without the blot. */
   text-shadow: var(--panel-text-shadow,
-    0 1px 1px rgba(0, 0, 0, 1), 0 0 3px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.85));
+    0 1px 1px rgba(0, 0, 0, 0.95), 0 0 2px rgba(0, 0, 0, 0.7));
 }
 /* The FRAME rides above the panel (owner 2026-07-21). The oval art overflows its archbox down to ~1.37×--ccw
    while the panel starts at 1.09, so they genuinely overlap — the frame now laps over the panel's top edge
@@ -2817,10 +2821,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   position: absolute;
   z-index: 0;                       /* behind every sibling; tree order already puts it first */
   left: 50%;
-  top: var(--plate-top, -14px);
-  width: calc(var(--ccw) * var(--plate-scale, 1.18));
+  top: var(--plate-top, -37px);
+  width: calc(var(--ccw) * var(--plate-scale, 1.5));
   /* Shipped art is 800x1244 → height = width x 1.5550. Locked, never stretched. */
-  height: calc(var(--ccw) * var(--plate-scale, 1.18) * 1.5550);
+  height: calc(var(--ccw) * var(--plate-scale, 1.5) * 1.5550);
   transform: translateX(-50%);
   pointer-events: none;             /* MUST stay — see .handpad, which sits after this in the DOM */
   user-select: none;
@@ -2872,11 +2876,11 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
    It lives on <body>, so it can't use the `.card.plated` selector above, and it is positioned by inline
    left/top — hence NO translateX(-50%) in this keyframe (unlike `platepuff`, which centres on the card). */
 .cardplate.plateghost {
-  animation: platepuffghost var(--plate-puff-ms, 320ms) ease-out forwards;
+  animation: platepuffghost var(--plate-puff-ms, 120ms) ease-out forwards;
 }
 @keyframes platepuffghost {
   from { opacity: 1; transform: scale(1); }
-  to   { opacity: 0; transform: scale(var(--plate-puff-scale, 1.06)); }
+  to   { opacity: 0; transform: scale(var(--plate-puff-scale, 1.03)); }
 }
 
 .unit.struck .card { animation: struck 0.34s ease; }

@@ -3,6 +3,40 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-22 (buttons: bake the owner's positions + guard the mirror)
+
+### fix(ui): the board buttons shipped different positions than the tuner showed
+
+Owner report: the buttons "shifted" in the packaged exe. They had not moved — they had **never matched** what
+the tuner showed, and fullscreen only made it obvious.
+
+**The mechanism.** The four board buttons are positioned by pure CSS reading `var(--<prefix>-x/-y/-s,
+<fallback>)`. Nothing calls the config modules' `apply*Vars()` outside their DEV tuners, so in a PRODUCTION
+build those custom properties are never set and **the CSS fallback is what renders**. The TS `DEFAULTS` only
+decide what the tuner opens showing. Every one of the four config files says this in its header ("the
+styles.css fallbacks MUST mirror DEFAULTS") — and nothing enforced it, so they drifted.
+
+Baked the owner's four exports into BOTH places. Seven values were genuinely stale in the fallbacks —
+`--etb-x` 140→150, `--etb-s` 1.14→1.19, `--hpb-x` −99→−118, `--hpb-s` 1.13→1.28, `--rfb-s` 0.75→0.73,
+`--tvb-x` 8→−9, `--tvb-s` 1.46→1.55 — which is exactly the visible shift.
+
+**These were never a resolution bug.** The CSS already anchors each button to the stage and multiplies its
+offset by `--scale`: `calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x) * var(--scale))`. They were already
+pinned; they were pinned to the *wrong numbers* in production.
+
+**Added a guard** (`buttonFallbacks.test.ts`) asserting the x/y/scale fallbacks equal their `DEFAULTS` for all
+four buttons — verified it fails on drift by reverting one value and watching it catch. Limited to the values
+that visibly move a button rather than every glow dial, so it stays cheap to keep true.
+
+**Two notes on the export itself.** A first pass at baking stripped CSS units (`0.7s` → `0.7`, `1050ms` →
+`1050`), which is invalid CSS time and would have silently killed those animations — caught before commit and
+the tooling now preserves whatever unit the fallback carries. And the refresh export still carries five dead
+keys (`spinMs`, `flashMs`, `rings`, `ringRadius`, `ringLife`) from dials **dropped 2026-07-21**; they have no
+`DEFAULTS` entry and were correctly ignored rather than forced back in. A stale tuner localStorage will keep
+exporting them.
+
+typecheck + lint + 1389 tests + `build:web` green.
+
 ## 2026-07-22 (desktop: itch upload zip)
 
 ### feat(desktop): `npm run package:itch:win` — zip the Windows build for itch

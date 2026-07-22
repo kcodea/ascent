@@ -551,9 +551,9 @@ button.shopbtn:disabled { opacity: 0.5; cursor: url('/cursors/gauntlet_default.s
    💎 End Turn Button dev tuner sets live — the fallbacks here mirror the shipped defaults in endTurnConfig.ts. */
 .etbwrap {
   position: fixed;
-  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 140px) * var(--scale));
+  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 150px) * var(--scale));
   top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--etb-y, 32px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--etb-s, 1.14));
+  transform: translate(-50%, -50%) scale(var(--etb-s, 1.19));
   width: calc(128 * var(--u)); height: calc(140 * var(--u)); /* the trimmed art's 468×512 aspect */
   background: none; border: none; padding: 0; z-index: 41;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
@@ -656,7 +656,7 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
    matching the diamond's tooltip feel. */
 .combatsummary {
   position: fixed;
-  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 140px) * var(--scale));
+  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 150px) * var(--scale));
   top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--etb-y, 32px) - 142px) * var(--scale));
   transform: translate(-50%, -50%);
   display: inline-flex; align-items: center; gap: 8px;
@@ -683,9 +683,9 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-glow { opacity:
    overlaps its rim) → base (z1) → tier pips (z2) → gem-halo glow (z3) → press flash (z4) → cost coin (z5). */
 .tvbwrap {
   position: fixed;
-  left: calc(var(--bar-x) + 0.155 * var(--gw) + var(--tvb-x, 8px) * var(--scale));
+  left: calc(var(--bar-x) + 0.155 * var(--gw) + var(--tvb-x, -9px) * var(--scale));
   top: calc(var(--bar-y) + 0.42 * var(--gh) + var(--tvb-y, -287px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--tvb-s, 1.46));
+  transform: translate(-50%, -50%) scale(var(--tvb-s, 1.55));
   width: calc(128 * var(--u)); height: calc(125.5 * var(--u)); /* the trimmed base art's 512×502 aspect */
   background: none; border: none; padding: 0; z-index: 41;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;
@@ -2338,9 +2338,9 @@ body.dragging .statusbar .hero, body.dragging .statusbar .chip.g { pointer-event
      The dev mover then nudges it via px × --scale, staying resolution-independent. */
   /* Mirrors the End Turn diamond across the board's centre line (owner direction 2026-07-16): base
      0.19/0.45 of the stage + the 💠 tuner's px offsets × --scale. */
-  left: calc(var(--bar-x) + 0.19 * var(--gw) + var(--hpb-x, -99px) * var(--scale));
+  left: calc(var(--bar-x) + 0.19 * var(--gw) + var(--hpb-x, -118px) * var(--scale));
   top: calc(var(--bar-y) + 0.45 * var(--gh) + var(--hpb-y, 53px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--hpb-s, 1.13));
+  transform: translate(-50%, -50%) scale(var(--hpb-s, 1.28));
   align-self: auto; pointer-events: auto; z-index: 41;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: calc(7 * var(--u));
 }
@@ -4409,7 +4409,7 @@ svg { width: 18px; height: 18px; }
    never filter / box-shadow / background-position, which repaint every frame in a loop. */
 .riftbtn {
   position: fixed;
-  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 140px) * var(--scale));
+  left: calc(var(--bar-x) + 0.81 * var(--gw) + var(--etb-x, 150px) * var(--scale));
   top: calc(var(--bar-y) + 0.45 * var(--gh) + (var(--etb-y, 32px) - 142px) * var(--scale));
   transform: translate(-50%, -50%);
   display: inline-flex; align-items: center; justify-content: center;
@@ -4547,7 +4547,7 @@ svg { width: 18px; height: 18px; }
   position: fixed;
   left: calc(var(--bar-x) + 0.5 * var(--gw) + var(--rfb-x, 3px) * var(--scale));
   top: calc(var(--bar-y) + var(--rfb-y, 294px) * var(--scale));
-  transform: translate(-50%, -50%) scale(var(--rfb-s, 0.75));
+  transform: translate(-50%, -50%) scale(var(--rfb-s, 0.73));
   width: calc(66 * var(--u)); height: calc(111 * var(--u)); /* the art's 516×868 aspect */
   background: none; border: none; padding: 0; z-index: 41;
   cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer;

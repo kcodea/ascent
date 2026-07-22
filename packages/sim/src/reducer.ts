@@ -1240,9 +1240,15 @@ function reduceCore(state: RunState, action: Action): RunState {
         // settleCombat, the turn-advance quest/discover/Goldcrafter hooks). Nothing to do on a power click.
         return state;
       } else if (power.kind === 'gainMaxMana') {
-        // Nadja: +1 max Mana permanently, UNCAPPED (may exceed the normal cap). Untargeted — ignores
-        // action.uid. Doesn't return, so the shared spend logic below charges the once-per-turn charge.
-        s.maxEmbers += reps;
+        // Nadja: +1 max Gold permanently, ABOVE the cap and PERSISTENT. Routes through `maxGoldBonus` (the
+        // Shop-License channel that stacks on top of the natural curve) — NOT `s.maxEmbers`. The old
+        // `s.maxEmbers += reps` looked uncapped while she powered every turn, but the natural-growth line
+        // (`Math.max(maxEmbers, min(cap, maxEmbers+1))`) can never push maxEmbers past the cap — so reaching 10
+        // early just pre-spent the natural growth she'd have gotten anyway, and her lead evaporated the moment
+        // she stopped (owner report 2026-07-22: powered turns 1–4 → stuck at 10, a normal player catches up).
+        // `maxGoldBonus` sits above the base 10 that maxEmbers still climbs to on its own, so powering turns 1–4
+        // reads 11/12/13/14 across turns 5–8 — the lead persists. Untargeted; falls through to the shared spend.
+        s.maxGoldBonus = (s.maxGoldBonus ?? 0) + reps;
       } else {
         // Warden's Fortify: +Tier/+Tier (scales with Tavern Tier). Targets "a minion" — a
         // warband minion directly, or a tavern offer (the buff bakes in when it's bought).

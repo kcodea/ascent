@@ -2300,33 +2300,41 @@ describe('run loop (@game/sim)', () => {
       hand: [{ uid: 'sp', cardId: 'manafont', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sp' });
-    expect(s.maxEmbers).toBe(5); // +1 permanent
-    expect(s.embers).toBe(2); // current Mana untouched — no top-up this turn
+    // +1 permanent max Gold rides on `maxGoldBonus` (above the cap, persists as the natural curve climbs) —
+    // NOT `maxEmbers`, which would cap out at 10 and lose the gain when reached early (fix 2026-07-22).
+    expect(s.maxGoldBonus).toBe(1);
+    expect(s.maxEmbers).toBe(4); // the base curve is untouched
+    expect(s.embers).toBe(2); // current Gold untouched — no top-up this turn
   });
 
-  it('Nadja Mana Font (hero power): untargeted, +1 max Mana, costs 3 Mana', () => {
+  it('Nadja Mana Font (hero power): untargeted, +1 max Gold, costs 3 Gold', () => {
     let s: RunState = { ...createRun(1, 'nadja'), embers: 5, maxEmbers: 5 };
     expect(s.heroReady).toBe(true);
     s = reduce(s, { type: 'heroPower' }); // no uid — the power is untargeted
-    expect(s.maxEmbers).toBe(6); // +1 permanent max
+    expect(s.maxGoldBonus).toBe(1); // +1 permanent max Gold, above the cap (persists — see gainMaxMana)
+    expect(s.maxEmbers).toBe(5); // base unchanged
     expect(s.embers).toBe(2); // spent 3 to use it
     expect(s.heroReady).toBe(false); // once per turn
   });
 
-  it('Nadja Mana Font (hero power): no-op when you cannot afford 3 Mana', () => {
+  it('Nadja Mana Font (hero power): no-op when you cannot afford 3 Gold', () => {
     const s: RunState = { ...createRun(1, 'nadja'), embers: 2, maxEmbers: 5 };
     const after = reduce(s, { type: 'heroPower' });
-    expect(after.maxEmbers).toBe(5); // unchanged — couldn't afford the cost
+    expect(after.maxGoldBonus ?? 0).toBe(0); // unchanged — couldn't afford the cost
+    expect(after.maxEmbers).toBe(5);
     expect(after.embers).toBe(2);
   });
 
-  it('Mana Font pushes max Mana PAST the cap (uncapped scaling)', () => {
+  it('Mana Font pushes max Gold PAST the cap (uncapped, above-cap scaling)', () => {
     let s: RunState = {
       ...createRun(1), embers: 0, maxEmbers: CONFIG.embersCap, shop: [],
       hand: [{ uid: 'sp', cardId: 'manafont', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'sp' });
-    expect(s.maxEmbers).toBe(CONFIG.embersCap + 1); // no cap on Mana Font — it scales past the normal ceiling
+    // The +1 lives on `maxGoldBonus` above the base cap, so it persists as the natural curve holds at the cap —
+    // effective max Gold = embersCap + 1 (fix 2026-07-22; maxEmbers itself stays at the cap).
+    expect(s.maxGoldBonus).toBe(1);
+    expect(s.maxEmbers).toBe(CONFIG.embersCap);
   });
 
   it('Refreshing Texts banks 2 free rerolls, spent before Mana on a roll', () => {
@@ -3894,17 +3902,19 @@ describe('hero powers (@game/sim)', () => {
     expect(ev.some((e) => e.type === 'summon' && e.minion.cardId === 'pack')).toBe(true); // copy resummoned
   });
 
-  it("Nadja's Mana Font raises max Mana by 1 (uncapped), spending the once-per-turn charge", () => {
+  it("Nadja's Mana Font raises max Gold by 1 (above the cap), spending the once-per-turn charge", () => {
     let s: RunState = { ...createRun(1, 'nadja'), maxEmbers: 4, heroReady: true };
     s = reduce(s, { type: 'heroPower', uid: 'x' }); // untargeted — uid is ignored
-    expect(s.maxEmbers).toBe(5); // +1 permanent
+    expect(s.maxGoldBonus).toBe(1); // +1 permanent, on the above-cap channel
+    expect(s.maxEmbers).toBe(4); // base curve untouched
     expect(s.heroReady).toBe(false); // charge spent (not once-per-game)
     // A second use this turn is rejected (charge spent).
     expect(reduce(s, { type: 'heroPower', uid: 'x' })).toBe(s);
-    // Scales PAST the Mana cap — Nadja's Mana Font is uncapped.
+    // Scales PAST the Gold cap — the bonus stacks above the ceiling and the natural curve keeps climbing under it.
     let capped: RunState = { ...createRun(1, 'nadja'), maxEmbers: CONFIG.embersCap, heroReady: true };
     capped = reduce(capped, { type: 'heroPower', uid: 'x' });
-    expect(capped.maxEmbers).toBe(CONFIG.embersCap + 1); // no cap — exceeds the normal ceiling
+    expect(capped.maxGoldBonus).toBe(1); // effective max = embersCap + 1
+    expect(capped.maxEmbers).toBe(CONFIG.embersCap);
   });
 
   it("Cassen's Collision banks enemy kills and grants a top-type minion at 5 (neutral isn't a type)", () => {

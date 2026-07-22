@@ -16,6 +16,19 @@ gate specifically when `pendingTarget` is the blocker (it already auto-resolves 
 legal carry — a safe escape), and the recruit timer now pauses for `pendingTarget` + `chooseOne` too so it can't
 recur. New `endTurnSoftlock.test.ts`. (Devlog entry restored 2026-07-22 — lost in a concurrent merge; #639.)
 
+## 2026-07-22 (Nadja / Gold Font: "+1 max Gold" now persists above the cap)
+
+### fix(sim): gaining max Gold reached the cap early then evaporated, instead of holding a lead
+
+Owner report: Nadja who hero-powered turns 1–4 reached 10 Gold early, then stopped growing — a normal player
+caught up by ~turn 8 and the investment evaporated. Both Goldspring and the Gold Font spell did
+`s.maxEmbers += 1`, but the per-wave growth line (`Math.max(maxEmbers, min(cap, maxEmbers+1))`) can never push
+`maxEmbers` above the cap — it only preserves an already-above-cap value. So reaching 10 early just pre-spent
+the natural growth. Fixed by routing both through `maxGoldBonus` (the Shop-License above-cap channel, added to
+spendable Gold at refill) while `maxEmbers` keeps climbing to 10 underneath. Powering turns 1–4 then coasting
+now reads 11/12/13/14 across turns 5–8 and persists. Four existing tests updated to the `maxGoldBonus`
+semantics; new `nadjaGoldspring.test.ts`.
+
 ## 2026-07-22 (Better Bot: a carrier magnetic dropped its accrued Rally when re-welded)
 
 ### fix(sim): re-welding a magnetic that carries a Better Bot rally lost the rally

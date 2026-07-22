@@ -9,7 +9,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -1153,11 +1153,15 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Same endOfTurn advance as Djinn below — not on a live hero today, but it carries the identical bug.
         if ((s.lastEotFires ?? 0) > 0) advanceQuestsBy(s, (o) => o.event === 'endOfTurn', s.lastEotFires);
       } else if (power.kind === 'replayAllEndOfTurn') {
-        // Djinn's Cadence: trigger EVERY friendly board minion's End of Turn now (untargeted). Fires on a
-        // snapshot of the board so a minion an EoT summons doesn't also proc this activation. No-op (no charge
-        // spent) if nothing on board had an End-of-Turn effect to trigger.
+        // Djinn's Cadence: trigger EVERY friendly End of Turn now (untargeted) — BOTH halves of the player's
+        // End-of-Turn engine, exactly as the natural end of turn (`applyEndOfTurn`) does: every board minion's
+        // `endOfTurn` effects, AND the quest/rune-granted recurring rewards (Echoing Roar, The Hoard Wakes,
+        // Rune of Spending/Action, …). Covering only the board silently skipped half of what the player built
+        // (owner ruling 2026-07-22). Fires on a snapshot of the board so a minion an EoT summons doesn't also
+        // proc this activation. No-op (no charge spent) if there was nothing at all to trigger.
         let any = false;
         for (const c of [...s.board]) if (replayEndOfTurn(s, c)) any = true;
+        if (replayRecurringEndOfTurn(s)) any = true;
         if (!any) return state;
         // Advance Parliament of Flame here, at the source. `replayEndOfTurn` accumulated its fires into
         // `lastEotFires` (zeroed at action start), and this is the ONLY writer this action — the natural

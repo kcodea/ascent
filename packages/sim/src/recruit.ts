@@ -3050,6 +3050,31 @@ export function replayEndOfTurn(state: RunState, card: BoardCard): boolean {
   return true;
 }
 
+/**
+ * Djinn's Cadence: proc the QUEST/RUNE-granted recurring End-of-Turn rewards now — the sibling of
+ * `replayEndOfTurn`, which covers board minions.
+ *
+ * A player's End-of-Turn engine has TWO halves, and `applyEndOfTurn` fires both at the natural end of turn:
+ * each board minion's `endOfTurn` effects, and `questRecurringEndOfTurn` (Echoing Roar, The Hoard Wakes,
+ * Blueprint Cache, Rune of Spending/Action, …). A power that reads "trigger all friendly End of Turn effects"
+ * must therefore cover both, or it silently skips half of what the player built (owner ruling 2026-07-22).
+ *
+ * Honors Chronos repeats and counts every proc into `lastEotFires`, exactly as the natural path and
+ * `replayEndOfTurn` do, so Parliament of Flame's "Trigger N End-of-Turn effects" sees these fires too.
+ * Returns whether anything fired (the charge is only spent when something did).
+ */
+export function replayRecurringEndOfTurn(state: RunState): boolean {
+  const effects = state.questRecurringEndOfTurn ?? [];
+  if (effects.length === 0) return false;
+  const repeats = chronosRepeats(state);
+  let fires = 0;
+  for (const eff of effects) {
+    for (let r = 0; r < repeats; r++) { runRecurringEndOfTurn(state, eff); fires++; }
+  }
+  state.lastEotFires = (state.lastEotFires ?? 0) + fires;
+  return true;
+}
+
 /** Buy-triggers (Brightwing Broker) — fire when a card is purchased into the hand. */
 export function applyOnBuy(state: RunState, bought: BoardCard): void {
   const ctx = makeContext(state);

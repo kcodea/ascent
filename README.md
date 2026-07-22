@@ -42,6 +42,12 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **The board frame is pinned to the UI at every window size.** The board art used to size off window *width*
+  while the whole UI sized off *height*, so a 21:9 fullscreen rendered the frame 1.32% larger than any other
+  window — and the board buttons, dialled in fullscreen, sat ~45px out of the frame everywhere else. The art
+  now takes a constant overscan instead, so frame and UI scale as one unit. Also: the four board buttons'
+  tuned positions are baked into the CSS fallbacks that production actually renders, with a test guarding the
+  mirror.
 - **Hand cards have a card body now.** Cards in hand render an ornate stone/gold **backplate** framing the
   portrait and rules text, which travels with the card as you drag it and dissolves when you play a minion to
   the board. The plate is a fixed size, so long rules text shrinks to fit rather than the plate growing —

@@ -3,6 +3,42 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-22 (board art: pin it to the stage so the buttons stop drifting)
+
+### fix(ui): the board art's size depended on window WIDTH while the whole UI depended on HEIGHT
+
+Owner report, after the button bake below: the buttons were still off "when I'm in the browser" — "we need to
+pin them so they scale with size of the window". The buttons were not the problem this time; the **board art**
+was, and the cause was the ultrawide grey-gap fix from 2026-07-21.
+
+**The mechanism.** Everything in the UI sizes off the 16:9 stage height `--gh` (`--scale = gh/1440`, and each
+button sits at `calc(var(--bar-x) + <frac> * var(--gw) + var(--<p>-x) * var(--scale))`). `--gw`/`--gh` are
+always locked at exactly 16:9, so the buttons are rigorously proportional at any window size. But `.boardbg`
+sized the art `max(100vw, calc(var(--gh) * … * var(--board-aspect)))` — that `100vw` floor made the **art**
+track window *width* while the **UI** tracked *height*. On a 21:9 fullscreen the floor bit and the art rendered
+1.32% larger; at every other window size it did not. Measured against the packaged build:
+
+| viewport | gh | art width | art ÷ gh |
+|---|---|---|---|
+| 3440×1440 (21:9) | 1440 | 3440 | **2.3889** |
+| 2560×1440 | 1440 | 3395 | 2.3578 |
+| 1920×1080 | 1080 | 2546 | 2.3578 |
+
+The owner dialled the four button offsets in 3440×1440 fullscreen — i.e. against the *inflated* art — so
+everywhere else the frame shrank 1.32% underneath them, putting the buttons ~45px out at the frame edge.
+
+**The fix.** Replaced the viewport-dependent floor with a constant overscan, `--board-fill: 1.0132`
+(= 2.389/2.3578 — exactly the art size a 3440×1440 fullscreen used to produce, so the existing tuned offsets
+stay correct). The art's size now has no viewport term at all: art and UI scale as one unit at every window
+size. Re-measured after the change: **art ÷ gh = 2.3889 at every size**, and the art still covers the window
+everywhere, so the grey band stays fixed.
+
+Caveat recorded in the CSS: this covers up to 2.389:1; a 32:9 screen would show the band again, and bumping
+`--board-fill` means re-checking the four button offsets, which are tuned against this exact art size.
+
+Verified: typecheck + lint clean, 1389 tests pass, `build:web` green, and the art/stage ratio measured across
+five window sizes in the packaged Electron build before and after.
+
 ## 2026-07-22 (buttons: bake the owner's positions + guard the mirror)
 
 ### fix(ui): the board buttons shipped different positions than the tuner showed

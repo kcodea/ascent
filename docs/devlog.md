@@ -374,6 +374,12 @@ With the plate in, the panel's contents got a pass:
   a multiplied, heavily feathered wash → nothing at all. The end state is **pure text sitting directly on the
   plate**: no background, no border, no radius, no mask. The plate art is the card's surface, so a second
   surface drawn on top of it was always going to fight it.
+- **Killed a pill behind the card name.** The base `.cn` (the compact tile's name chip) is a pill —
+  background, radius, padding, `overflow: hidden`, ellipsis. The full-card override had always dropped the
+  background/shadow/padding but left the radius and the overflow clip, which was invisible until the name
+  gained a text-shadow: the shadow was then cropped to a hard rounded rectangle that read as a dark pill and
+  nipped the glyph edges. Now unsets the clip, the ellipsis and the radius as well. (`.desc` has no overflow
+  clip and `.dtribe` no base rule, so `.cn` was the only one carrying this.)
 - **A text-shadow carries legibility instead**, and is now load-bearing rather than decorative — a hard 1px
   dark edge plus two short halos that stop well before they'd read as a glow (`--panel-text-shadow`). Applied
   to the name and tribe line as well as the rules text, since all three sit on bare stone. Static, so the

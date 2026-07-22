@@ -1580,7 +1580,13 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .card.compact.showtext .archbox { z-index: 1; }
 /* Card NAME. 0.1056 = the old 0.088 +20% (owner 2026-07-21), taking back some of the height freed by the
    removed pill row and giving the name the weight it lost sitting alone above the rules text. */
-.card.compact.showtext .drawer .cn { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.1056); color: #f4ecdb; background: none; box-shadow: none; padding: 0; margin: 0 0 calc(var(--ccw) * 0.03); white-space: normal; text-align: center; line-height: 1.1; }
+/* The base `.cn` (see the compact-tile rule above) is a PILL — background, radius, padding, and `overflow:
+   hidden` with an ellipsis. This override already dropped the background/shadow/padding, but the radius and
+   the overflow clip survived, which was invisible until the name gained a text-shadow: the shadow was then
+   cropped to a hard rounded rectangle that read as a dark pill and nipped the glyph edges (owner 2026-07-21).
+   Unset the clip and the radius too — on the full card the name wraps instead of ellipsing, so neither the
+   overflow nor the ellipsis has anything left to do. */
+.card.compact.showtext .drawer .cn { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.1056); color: #f4ecdb; background: none; box-shadow: none; padding: 0; margin: 0 0 calc(var(--ccw) * 0.03); white-space: normal; text-align: center; line-height: 1.1; overflow: visible; text-overflow: clip; border-radius: 0; }
 .card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072); line-height: 1.32; color: #d8ccb6; text-align: center; background: none; box-shadow: none; padding: 0; flex: none; display: block; }
 .card.compact.showtext .drawer .desc b { color: #fff; } /* bold numbers/keywords pop white on the dark glass (base .desc b is dark ink) */
 .card.compact.showtext .drawer .dtribe { display: flex; align-items: center; gap: calc(var(--ccw) * 0.02); margin-top: calc(var(--ccw) * 0.05); font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.062); letter-spacing: 0.05em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 60%, #f4ecdb); }

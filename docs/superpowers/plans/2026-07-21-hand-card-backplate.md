@@ -27,7 +27,7 @@ This repo has 73 test files, but they cover **pure modules** (`cardText`, `chore
 
 | File | Status | Responsibility |
 |---|---|---|
-| `apps/web/public/frames/cardplate.png` | create | The plate art (copied from `C:\Users\micha\Desktop\Reference Art\cardplate.png`, 1023×1537) |
+| `apps/web/public/frames/cardplate.webp` | create | The plate art — 800×1244, 199 KB, converted from `Reference Art\card plate v3.png` (**already staged**, see Task 2) |
 | `packages/ui/src/cardPlateConfig.ts` | create | Tunable config + the pure `plateTextBucket()` function. Mirrors `glowConfig.ts` exactly. |
 | `packages/ui/src/cardPlateConfig.test.ts` | create | Tests for `plateTextBucket()` |
 | `packages/ui/src/CardPlateTuner.tsx` | create | Dev-only 🂠 tuner panel |
@@ -275,33 +275,51 @@ git commit -m "feat(ui): card-plate config + pure text-size bucketing"
 
 ---
 
-### Task 2: Copy the plate art in
+### Task 2: The plate art (already staged)
 
 **Files:**
-- Create: `apps/web/public/frames/cardplate.png`
+- Create: `apps/web/public/frames/cardplate.webp`
 
-- [ ] **Step 1: Copy the asset**
+**This step has already been run** — the file is on disk in the worktree, uncommitted. The command is
+recorded here so the conversion is reproducible if the source art is revised again.
+
+Source `card plate v3.png` is 1890×2938 RGBA at **6.63 MB**, against a total `apps/web/public/` of 8.0 MB —
+shipping it raw would nearly double the game's asset payload for one card frame, and it renders at ~200px so
+it's ~9× oversampled. Converted to WebP at 800px (still 4× display size, crisp at any DPR).
+
+- [ ] **Step 1: Regenerate only if the source art changes**
 
 ```bash
-cp "/c/Users/micha/Desktop/Reference Art/cardplate.png" apps/web/public/frames/cardplate.png
-```
-
-- [ ] **Step 2: Verify it landed and is the expected image**
-
-```bash
-python -c "
-import struct
-d=open('apps/web/public/frames/cardplate.png','rb').read(33)
-w,h=struct.unpack('>II',d[16:24]); print(w,h)
+node -e "
+const sharp = require('sharp');
+sharp('C:/Users/micha/Desktop/Reference Art/card plate v3.png')
+  .resize({ width: 800 })
+  .webp({ quality: 85, alphaQuality: 100 })
+  .toFile('apps/web/public/frames/cardplate.webp')
+  .then(i => console.log(i.width + 'x' + i.height));
 "
 ```
-Expected: `1023 1537`
+Expected: `800x1244`
+
+> Quality 85 (199 KB) was chosen over 78 (154 KB) for headroom — large flat stone gradients are what WebP
+> bands on. Measured ladder: q70 134 KB / q78 155 KB / q85 199 KB / q90 261 KB.
+
+- [ ] **Step 2: Verify what's on disk**
+
+```bash
+node -e "
+const sharp=require('sharp'),fs=require('fs');
+const f='apps/web/public/frames/cardplate.webp';
+sharp(f).metadata().then(m=>console.log(m.width+'x'+m.height, m.format, 'alpha='+m.hasAlpha, (fs.statSync(f).size/1024).toFixed(1)+' KB'));
+"
+```
+Expected: `800x1244 webp alpha=true 199.0 KB`
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add apps/web/public/frames/cardplate.png
-git commit -m "chore(ui): add cardplate.png (hand-card backplate art)"
+git add apps/web/public/frames/cardplate.webp
+git commit -m "chore(ui): add cardplate.webp (hand-card backplate art, 6.6MB PNG -> 199KB)"
 ```
 
 ---
@@ -321,7 +339,7 @@ After the `SPELL_FRAME_SRC` block (currently `Card.tsx:37-38`), add:
 // HAND CARD BACKPLATE — the ornate stone/gold card body behind a card in hand (and on the dragged copy).
 // Same load pattern as the frames above: BASE_URL-relative (root-absolute 404s on itch's CDN sub-path) with a
 // module-level availability flag flipped on the first 404, so a missing asset degrades to today's look.
-const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.png`;
+const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
 let cardPlateAvailable = true;
 ```
 
@@ -430,8 +448,8 @@ Add a new section near the "AUTHORED FRAMES" block:
   left: 50%;
   top: var(--plate-top, -14px);
   width: calc(var(--ccw) * var(--plate-scale, 1.18));
-  /* Source art is 1023x1537 → height = width x 1.5024. Locked, never stretched. */
-  height: calc(var(--ccw) * var(--plate-scale, 1.18) * 1.5024);
+  /* Shipped art is 800x1244 → height = width x 1.5550. Locked, never stretched. */
+  height: calc(var(--ccw) * var(--plate-scale, 1.18) * 1.5550);
   transform: translateX(-50%);
   border-radius: var(--plate-radius, 10px);
   pointer-events: none;
@@ -466,12 +484,12 @@ const c = document.querySelector('.row.hand .card.plated');
 const p = c && c.querySelector('.cardplate');
 console.log({
   plated: !!c,
-  plateImgLoaded: p ? p.naturalWidth : null,     // expect 1023
+  plateImgLoaded: p ? p.naturalWidth : null,     // expect 800
   bucketClass: c && [...c.classList].find(x => x.startsWith('plate-txt-')),
   plateRect: p && p.getBoundingClientRect(),
 });
 ```
-Expected: `plated: true`, `plateImgLoaded: 1023`, a `plate-txt-*` class present, and a plate rect taller than the card.
+Expected: `plated: true`, `plateImgLoaded: 800`, a `plate-txt-*` class present, and a plate rect taller than the card.
 
 - [ ] **Step 3: Commit**
 

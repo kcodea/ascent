@@ -8,7 +8,7 @@ import { getAuraFxConfig } from './auraFxConfig';
 import { buffPreset, wavePalette } from './buffPresets';
 import { sfx } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
-import { attackerOfImpact, meleePairOfImpact } from './combatBeats';
+import { attackerOfImpact, isCleaveImpact, meleePairOfImpact } from './combatBeats';
 import { holdMs } from './choreo/clock';
 import { compileMoments, type Moment } from './choreo/compile';
 import { deferClashBuffs } from './choreo/clashOrder';
@@ -923,6 +923,7 @@ export function useCombatReplay(
       findEl,
       attackerUid: attackerOfImpact(beats, beatIdx - 1),
       meleePair: meleePairOfImpact(beats, beatIdx - 1),
+      cleaveHit: isCleaveImpact(beats, events, beatIdx - 1, cardIds),
       onFloats: (spawned) => {
         setFloats((arr) => [...arr, ...spawned.filter((s) => !arr.some((x) => x.id === s.id))]);
         const ids = new Set(spawned.map((s) => s.id));
@@ -973,6 +974,24 @@ export function useCombatReplay(
           pixiFx.damageBurst(cx, cy);
           pixiFx.impactPulse(cx, cy);
         }
+      },
+      // A CLEAVE that splashed → ONE claw-slash volley raked across the whole struck group (defender +
+      // neighbours) instead of a burst per victim. Measured from each unit's SLOT (`layoutRectOf`), not a
+      // mid-flight rect, for the same reason the damage burst is — a struck unit can be mid-lunge.
+      onCleaveFx: (uids) => {
+        const pts: { x: number; y: number }[] = [];
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        for (const uid of uids) {
+          const el = findEl(uid);
+          if (!el) continue;
+          const { cx, cy, w, h } = layoutRectOf(el);
+          if (w < 1 || h < 1) continue; // not laid out → skip (never rake an unmeasurable slot)
+          pts.push({ x: cx, y: cy });
+          x0 = Math.min(x0, cx - w / 2); y0 = Math.min(y0, cy - h / 2);
+          x1 = Math.max(x1, cx + w / 2); y1 = Math.max(y1, cy + h / 2);
+        }
+        if (!pts.length) return;
+        pixiFx.cleaveSlash(pts, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
       },
       // A summon arrival → a dust poof under the new unit. Fired late (cue offset) so the summonpop scale-in has
       // grown it to a measurable, full size; skip if the element isn't resolvable (e.g. a summon off-screen).
@@ -1173,6 +1192,36 @@ export function useCombatReplay(
             if (t) ps.push({ id: i, x: src.x, y: src.y, dx: t.x - src.x, dy: t.y - src.y });
           }
         }
+      }
+    }
+    // GROWTH cast in combat (Hoardbreaker's Rally/Slaughter today; any future caster for free) — the caster
+    // logs a narration `sc` naming the spell, so bloom the vines over the minions that cast actually buffed.
+    // Those buffs land in this beat or the next, sourced to the caster; measured from each unit's SLOT.
+    if (cur) {
+      for (let i = cur.start; i < cur.end; i++) {
+        const ev = events[i];
+        if (ev?.type !== 'sc' || ev.spellId !== GROWTH_ID) continue;
+        const pts: { x: number; y: number }[] = [];
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        const seen = new Set<string>();
+        const scan = (from: number, to: number): void => {
+          for (let j = from; j < to; j++) {
+            const b = events[j];
+            if (b?.type !== 'buff' || b.source !== ev.source || seen.has(b.target)) continue;
+            seen.add(b.target);
+            const el = findEl(b.target);
+            if (!el) continue;
+            const { cx, cy, w, h } = layoutRectOf(el); // SLOT, not mid-flight — a buffed unit can be lunging
+            if (w < 1 || h < 1) continue;
+            pts.push({ x: cx, y: cy });
+            x0 = Math.min(x0, cx - w / 2); y0 = Math.min(y0, cy - h / 2);
+            x1 = Math.max(x1, cx + w / 2); y1 = Math.max(y1, cy + h / 2);
+          }
+        };
+        scan(cur.start, cur.end);
+        const nxt = beats[beatIdx];
+        if (nxt) scan(nxt.start, nxt.end);
+        if (pts.length) pixiFx.growthBloom(pts, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
       }
     }
     if (cur) {

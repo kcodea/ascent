@@ -3,6 +3,58 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (FX: cleave rake + growth bloom)
+
+### feat(ui): Cleave claw-slash volley + Growth vine bloom, each with a tuner
+
+Two new combat/shop effects built to the owner's concept renders, each with its own DEV tuner panel.
+
+**Cleave — the claw rake.** A Cleave attacker that actually splashes now throws ONE volley of long, tapered
+claw streaks raked across the whole struck group (the defender plus every splashed neighbour), instead of a
+generic damage burst per victim. It REPLACES those bursts, the same way Flurry's wind-slash replaces the
+standard strike VFX (owner calls 2026-07-21). Streaks draw themselves on, hold, then fade, staggered so the
+rake reads as a sequence; embers fling off each landed streak and each struck unit flashes as the lead
+streak sweeps past.
+
+Gated on the **Cleave keyword only** — Mauron's per-card `splashAdjacent` keeps the ordinary burst, so the
+slashes always mean the keyword. `isCleaveImpact` (new, in `combatBeats.ts`) honours a keyword granted or
+stripped mid-combat, bounded by the ATTACK beat's start rather than the result beat's end: `keyword` is
+itself a `RESULT_TYPE`, so it groups into the very run being judged, and a Cleave granted BY the clash would
+otherwise retro-cleave the swing that granted it. The rule is "did it hold Cleave when it attacked" — caught
+by a test, not by eye.
+
+**Growth — the vine bloom.** Wherever Growth is cast, vines now grow outward from every minion it buffed and
+curl, with leaves, petals and sparkles peeling off over a soft green wash. The vines DRAW ON over `growMs`
+rather than popping in, which is what sells the "growth" read. It replaces the generic sourceless descends
+for those targets — one spell, one effect.
+
+Keyed off the CAST, not the caster (owner call), so it plays in the shop AND in combat, and any future card
+that casts Growth gets it for free. Two small plumbing additions made that possible: `captureBuffFx` takes an
+optional `spellCardId` so a `kind:'spell'` capture (which has no board source) records WHICH spell cast it,
+and the `sc` combat event gained an optional `spellId` that the `onKillCastSpell` / `rallyCastSpell`
+factories now log — so Hoardbreaker Drake's Rally/Slaughter Growth blooms exactly like a hand-cast one.
+
+**Tuners.** `💢 Cleave Slash FX` (22 sliders + 3 colour swatches) and `🌱 Growth Bloom FX` (28 + 5), both in
+the Dev Tuning Menu, both with a **Test** button that fires the effect over three imaginary cards so the look
+can be dialled without hunting for a live Cleave or casting Growth. Saved configs are **DEV-gated** at module
+load (the `dragFeel.ts` pattern from #615), so nothing dialled here can beat the baked defaults in prod.
+
+**Perf.** Both follow the established `auraWave` shape: one `Graphics` redrawn per frame while the effect
+lives, pooled particles for everything else, one-shot and self-retiring. No looping animation touches a paint
+property, and both are reaped on detach and in `clearParticles`.
+
+**Verified.** typecheck + lint (0 errors) + **1332 tests** + `build:web` green. Driven live in the browser:
+both tuner panels mount with the expected control counts and both Test buttons fire cleanly through a full
+lifecycle with zero console errors. That live pass earned its keep — it caught a real crash the type system
+could not: `Array.from`'s mapFn receives only `(element, index)`, and the vine fan was reading a third `array`
+parameter that is always `undefined`. Typecheck, lint and the whole suite were green with that bug in place;
+it only surfaced on the first actual cast. Fixed by closing over the count.
+
+**Not verified:** no screenshot. The capture tool times out against the live Pixi ticker in this environment,
+and a `readPixels` sampling fallback stalled the GPU, so the *visual* result is still unconfirmed — the FX are
+proven to run, not proven to look right. They want an eyes-on pass (and almost certainly a tuning pass) before
+the defaults are considered final.
+
 ## 2026-07-21 (ward: second final pass)
 
 ### tweak(ui): the owner's second tuned pass on the Ward shell

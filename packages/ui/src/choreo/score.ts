@@ -169,6 +169,12 @@ export interface CueContext {
    *  played twice (again on the defender, and once more on the attacker, which takes retaliation damage in
    *  the same collapsed moment). Null for non-melee damage, which bursts at every target. */
   meleePair: { attacker: string; defender: string } | null;
+  /** Whether this moment's melee exchange was a Cleave (`isCleaveImpact`). When it splashed, the victims go
+   *  to `onCleaveFx` as one volley instead of each taking the generic burst. */
+  cleaveHit: boolean;
+  /** The struck group of a splashing Cleave — the defender plus every splashed neighbour. The replay rakes a
+   *  single claw-slash volley across their combined footprint. */
+  onCleaveFx: (uids: string[]) => void;
   /** This moment's summoned unit uids (the `minion.uid` of each `summon` event). The replay poofs dust at each
    *  arrival — a stone-into-dust land under the new unit. Fires late (see the cue offset) so the unit is grown. */
   onSummonFx: (uids: string[]) => void;
@@ -239,7 +245,12 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
       // that pair. Splash targets (Cleave neighbours, AoE) are NOT covered by the impact channel and keep
       // their burst, which is the whole point of this cue.
       if (ctx.meleePair) { uids.delete(ctx.meleePair.attacker); uids.delete(ctx.meleePair.defender); }
-      if (uids.size) ctx.onDamageFx([...uids]);
+      if (!uids.size) return;
+      // A CLEAVE that actually splashed swaps the per-victim bursts for ONE claw-slash volley raked across the
+      // whole struck group — the main defender included, so the rake spans what it hit (owner call 2026-07-21).
+      // Same "a keyword replaces the standard VFX" rule as Flurry's wind-slash.
+      if (ctx.cleaveHit && ctx.meleePair) { ctx.onCleaveFx([ctx.meleePair.defender, ...uids]); return; }
+      ctx.onDamageFx([...uids]);
     });
     else if (cue.ch === 'summonFx') at(cue, () => {
       const uids: string[] = [];

@@ -38,6 +38,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Cleave rakes, Growth blooms.** A Cleave attacker now throws one volley of claw streaks across every unit
+  it hits, replacing the per-victim burst; casting Growth grows vines, leaves and petals over every minion it
+  buffed — in the shop and in combat alike. Both have DEV tuner panels.
 - **New Ward look** — Divine Shield is now a light-blue hexagonal **energy shell** encasing the whole card,
   gold frame included: a white-hot rim with inner/outer glow, a honeycomb that densens toward the edge, and a
   soft cyan halo. Dialled against a concept render on a preview rig, with a 25-dial live **Ward Shell** tuner.

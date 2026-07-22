@@ -4,6 +4,8 @@ import { perfMonitor } from './perfMonitor';
 import { getStrikeFxConfig } from './strikeFxConfig';
 import { getCritFxConfig, type CritFxConfig } from './critFxConfig';
 import { getFlurrySwingConfig } from './flurrySwingConfig';
+import { getCleaveFxConfig, type CleaveFxConfig } from './cleaveFxConfig';
+import { getGrowthFxConfig, type GrowthFxConfig } from './growthFxConfig';
 import { getTrailConfig } from './trailConfig';
 import { sfx } from './sfx';
 
@@ -397,6 +399,27 @@ export interface AuraWaveCfg {
  *  `auraWave` applies the cfg's widthScale/heightScale/offsets to size the wave inside it. */
 export interface WaveRegion { x: number; y: number; w: number; h: number }
 
+/** One live Cleave claw-slash volley (see `cleaveSlash`). */
+interface CleaveFx {
+  g: Graphics;
+  cfg: CleaveFxConfig;
+  age: number;
+  streaks: { ang: number; cx: number; cy: number; len: number; delay: number; embersDone: boolean }[];
+  units: { x: number; y: number; flashed: boolean }[];
+}
+
+/** One live Growth vine bloom (see `growthBloom`). */
+interface GrowthFx {
+  g: Graphics;
+  cfg: GrowthFxConfig;
+  age: number;
+  box: { x: number; y: number; w: number; h: number };
+  nodes: {
+    x: number; y: number; delay: number; sprouted: boolean;
+    vines: { ang: number; len: number; curl: number; phase: number }[];
+  }[];
+}
+
 /** Renderer-facing aim-line config (structural mirror of AimFxConfig's line half — pixiFx stays
  *  import-light). The living hero-power targeting line; see `setAimLine`. */
 export interface AimLineCfg {
@@ -622,6 +645,8 @@ class FxController {
   private readonly weldRings: { g: Graphics; x: number; y: number; cfg: WeldCfg; age: number; ease: Float32Array; landed?: boolean }[] = [];
   private readonly spellArrows: { g: Graphics; x: number; y: number; drift: number; delay: number; tint: number; cfg: SpellPowerCfg; age: number }[] = [];
   private readonly waves: { g: Graphics; region: WaveRegion; cfg: AuraWaveCfg; age: number; lastWake: number; motes: { off: number; spawned: boolean }[] }[] = []; // aura waves — one per rise, a centre→edge board wave redrawn per frame
+  private readonly cleaves: CleaveFx[] = [];   // Cleave claw-slash volleys — one per multi-target Cleave clash
+  private readonly blooms: GrowthFx[] = [];    // Growth vine blooms — one per Growth cast (shop or combat)
   /** The live hero-power targeting line (null = not aiming). `side`/`amp` are rolled once per AIM — each
    *  new arm gets a fresh random arch (owner ask: never the same static curve) — then held stable. */
   private aim: { g: Graphics; from: { x: number; y: number }; to: { x: number; y: number }; onTarget: boolean; cfg: AimLineCfg; side: number; amp: number; seed: number } | null = null;
@@ -774,6 +799,10 @@ class FxController {
     this.spellArrows.length = 0;
     for (const w of this.waves) { w.g.destroy(); }
     this.waves.length = 0; // stale entries would otherwise survive a detach/re-init and tick on an orphaned layer
+    for (const f of this.cleaves) { f.g.destroy(); }
+    this.cleaves.length = 0;
+    for (const f of this.blooms) { f.g.destroy(); }
+    this.blooms.length = 0;
     this.skullTex?.destroy(true);
     this.skullTex = null;
     for (const b of this.shields.values()) { b.shader.destroy(); b.container.destroy({ children: true }); }
@@ -1806,6 +1835,10 @@ class FxController {
     this.spellArrows.length = 0;
     for (const w of this.waves) { this.layer?.removeChild(w.g); w.g.destroy(); }
     this.waves.length = 0;
+    for (const f of this.cleaves) { this.layer?.removeChild(f.g); f.g.destroy(); }
+    this.cleaves.length = 0;
+    for (const f of this.blooms) { this.layer?.removeChild(f.g); f.g.destroy(); }
+    this.blooms.length = 0;
   }
 
   /**
@@ -2423,6 +2456,284 @@ class FxController {
     this.waves.push({ g, region: sized, cfg, age: 0, lastWake: -1, motes });
   }
 
+
+  /**
+   * CLEAVE — the raking claw-slash volley thrown across every unit a Cleave attacker strikes in one clash
+   * (`units` = the struck centres, `box` = their bounding box). ONE package across the whole group rather
+   * than a burst per card (owner call 2026-07-21), so a three-wide Cleave reads as a single rake. Replaces
+   * the generic damage burst on those victims, the way Flurry's wind-slash replaces the standard strike VFX.
+   *
+   * The streaks are a single `Graphics` redrawn per frame (the `auraWave` pattern) — each one draws itself on
+   * over `drawMs`, holds, then fades, staggered by `slashStagger` so the rake reads as a sequence. Embers and
+   * the per-unit flash are pooled particles that finish on their own. Fire-and-forget; never touches the beat
+   * clock. Config-driven (💢 tuner).
+   */
+  cleaveSlash(units: { x: number; y: number }[], box: { x: number; y: number; w: number; h: number }): void {
+    perfMonitor.mark('fx:cleave');
+    if (!this.ready || !this.layer || units.length === 0) return;
+    const cfg = getCleaveFxConfig();
+    if (cfg.slashCount <= 0) return;
+    const g = new Graphics();
+    g.blendMode = 'add';
+    this.layer.addChild(g);
+    const cx = box.x + box.w / 2;
+    const cy = box.y + box.h / 2;
+    // Span the padded bounding box, so a 1-wide "cleave" that splashed nothing still gets a proportionate rake.
+    const span = (box.w + cfg.pad * 2) * cfg.slashLen;
+    const base = (cfg.slashAngle * Math.PI) / 180;
+    const n = Math.max(1, Math.round(cfg.slashCount));
+    const streaks = Array.from({ length: n }, (_, i) => {
+      // Fan the streaks perpendicular to the rake so they lie side by side across the struck group.
+      const off = (i - (n - 1) / 2) * cfg.slashSpread;
+      const ang = base + ((Math.random() - 0.5) * cfg.slashJitter * Math.PI) / 180;
+      return {
+        ang,
+        cx: cx - Math.sin(ang) * off,
+        cy: cy + Math.cos(ang) * off,
+        len: span * (0.86 + Math.random() * 0.28),
+        delay: i * cfg.slashStagger,
+        embersDone: false,
+      };
+    });
+    this.cleaves.push({ g, cfg, age: 0, streaks, units: units.map((u) => ({ ...u, flashed: false })) });
+  }
+
+  /** Advance + redraw one Cleave volley. Returns false once every streak has faded (→ retire). */
+  private drawCleave(f: CleaveFx): boolean {
+    const { g, cfg } = f;
+    const total = (f.streaks.length - 1) * cfg.slashStagger + cfg.drawMs + cfg.holdMs + cfg.fadeMs;
+    if (f.age > total) return false;
+    const core = hexNum(cfg.colorCore);
+    const glow = hexNum(cfg.colorGlow);
+    g.clear();
+    for (const st of f.streaks) {
+      const t = f.age - st.delay;
+      if (t < 0) continue;
+      // draw-on 0..1, then hold at full, then fade the whole stroke out
+      const grow = Math.min(1, t / Math.max(1, cfg.drawMs));
+      const fadeT = t - cfg.drawMs - cfg.holdMs;
+      const alpha = fadeT <= 0 ? 1 : Math.max(0, 1 - fadeT / Math.max(1, cfg.fadeMs));
+      if (alpha <= 0) continue;
+      const ux = Math.cos(st.ang), uy = Math.sin(st.ang);
+      const half = st.len / 2;
+      const x0 = st.cx - ux * half, y0 = st.cy - uy * half;
+      // The stroke is drawn in `segs` tapered pieces: width peaks mid-streak and needles at both ends, which
+      // is what makes it read as a claw rake rather than a plain bar.
+      const segs = 14;
+      const drawn = segs * grow;
+      for (let i = 0; i < segs; i++) {
+        if (i > drawn) break;
+        const a0 = i / segs, a1 = Math.min((i + 1) / segs, grow);
+        if (a1 <= a0) continue;
+        const mid = (a0 + a1) / 2;
+        // taper 1 at the centre → (1 - taper) at the tips
+        const w = cfg.slashWidth * (1 - cfg.taper * Math.abs(mid - 0.5) * 2);
+        if (w <= 0.05) continue;
+        const sx = x0 + ux * st.len * a0, sy = y0 + uy * st.len * a0;
+        const ex = x0 + ux * st.len * a1, ey = y0 + uy * st.len * a1;
+        if (cfg.glowAlpha > 0) {
+          g.moveTo(sx, sy); g.lineTo(ex, ey);
+          g.stroke({ width: w * cfg.glowWidth, color: glow, alpha: cfg.glowAlpha * alpha, cap: 'round' });
+        }
+        g.moveTo(sx, sy); g.lineTo(ex, ey);
+        g.stroke({ width: w, color: core, alpha: cfg.coreAlpha * alpha, cap: 'round' });
+      }
+      // Embers fling off once the streak has fully landed — one burst per streak.
+      if (!st.embersDone && grow >= 1) {
+        st.embersDone = true;
+        this.cleaveEmbers(st, cfg);
+      }
+    }
+    // Each struck unit flashes as the FIRST streak sweeps past it (a hit read anchored on the card).
+    if (cfg.flashSize > 0 && cfg.flashAlpha > 0 && this.glowTex) {
+      const lead = Math.min(1, f.age / Math.max(1, cfg.drawMs));
+      for (const u of f.units) {
+        if (u.flashed || lead < 0.45) continue;
+        u.flashed = true;
+        this.spawn(this.glowTex, {
+          x: u.x, y: u.y, vx: 0, vy: 0, drag: 1, life: cfg.flashMs,
+          fromScale: (cfg.flashSize * 0.4) / 80, toScale: cfg.flashSize / 80, spin: 0,
+          tint: hexNum(cfg.colorGlow), blend: 'add', peakAlpha: cfg.flashAlpha,
+        });
+      }
+    }
+    return true;
+  }
+
+  /** Ember shards flung perpendicular off a landed claw streak. */
+  private cleaveEmbers(st: { cx: number; cy: number; ang: number; len: number }, cfg: CleaveFxConfig): void {
+    if (!this.shardRectTex || cfg.emberCount <= 0) return;
+    const n = Math.round(cfg.emberCount);
+    const tint = hexNum(cfg.colorEmber);
+    for (let i = 0; i < n; i++) {
+      // seed along the streak, then throw mostly sideways off it
+      const along = (Math.random() - 0.5) * st.len;
+      const x = st.cx + Math.cos(st.ang) * along;
+      const y = st.cy + Math.sin(st.ang) * along;
+      const side = Math.random() < 0.5 ? 1 : -1;
+      const a = st.ang + (side * Math.PI) / 2 + (Math.random() - 0.5) * 1.1;
+      const speed = (150 + Math.random() * 320) * cfg.emberSpeed;
+      this.spawn(this.shardRectTex, {
+        x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.1,
+        life: cfg.emberLife * (0.6 + Math.random() * 0.7),
+        fromScale: (cfg.emberSize * (0.5 + Math.random() * 0.5)) / 10, toScale: 0.02,
+        spin: (Math.random() - 0.5) * 5, rotation: a,
+        tint, blend: 'add', stretchX: 1.6, peakAlpha: 0.95, gravity: 120,
+      });
+    }
+  }
+
+  /**
+   * GROWTH — the vine-and-blossom bloom over every unit a Growth cast buffed (`units` = the buffed centres,
+   * `box` = their bounding box). Fires wherever Growth is cast: from the hand in the shop, or in combat by
+   * anything that casts it. Vines GROW outward from each unit over `growMs` (they draw on, they don't pop),
+   * with leaves, petals and sparkles peeling off, over a soft green wash.
+   *
+   * One `Graphics` for the vines + wash (redrawn per frame, the `auraWave` pattern); everything else is
+   * pooled particles. Fire-and-forget; never touches the beat clock. Config-driven (🌱 tuner).
+   */
+  growthBloom(units: { x: number; y: number }[], box: { x: number; y: number; w: number; h: number }): void {
+    perfMonitor.mark('fx:growth');
+    if (!this.ready || !this.layer || units.length === 0) return;
+    const cfg = getGrowthFxConfig();
+    const g = new Graphics();
+    g.blendMode = 'add';
+    this.layer.addChild(g);
+    const spread = (cfg.vineSpread * Math.PI) / 180;
+    const nVines = Math.max(0, Math.round(cfg.vineCount));
+    const nodes = units.map((u, ui) => ({
+      x: u.x,
+      y: u.y,
+      delay: ui * cfg.unitStagger,
+      sprouted: false,
+      // NB: Array.from's mapFn receives (element, index) ONLY — there is no third "array" argument, so the
+      // vine count has to be closed over rather than read off a parameter.
+      vines: Array.from({ length: nVines }, (_, i) => {
+        // Fan the vines around straight UP (−π/2) so the bloom climbs the card rather than pooling under it.
+        const frac = nVines === 1 ? 0.5 : i / (nVines - 1);
+        const ang = -Math.PI / 2 + (frac - 0.5) * spread + (Math.random() - 0.5) * 0.25;
+        return {
+          ang,
+          len: cfg.vineLen * (0.7 + Math.random() * 0.6),
+          curl: (Math.random() < 0.5 ? -1 : 1) * cfg.vineCurve * (0.6 + Math.random() * 0.8),
+          phase: Math.random() * Math.PI * 2,
+        };
+      }),
+    }));
+    this.blooms.push({ g, cfg, age: 0, box, nodes });
+  }
+
+  /** Advance + redraw one Growth bloom. Returns false once the last node has faded (→ retire). */
+  private drawBloom(f: GrowthFx): boolean {
+    const { g, cfg } = f;
+    const last = f.nodes.length ? f.nodes[f.nodes.length - 1]!.delay : 0;
+    const total = last + cfg.growMs + cfg.holdMs + cfg.fadeMs;
+    if (f.age > total) return false;
+    const vine = hexNum(cfg.colorVine);
+    const vineGlow = hexNum(cfg.colorVineGlow);
+    g.clear();
+
+    // Soft wash under the whole buffed region, breathing in with the first node and out with the last.
+    if (cfg.washAlpha > 0) {
+      const inT = Math.min(1, f.age / Math.max(1, cfg.growMs));
+      const outT = Math.max(0, (f.age - last - cfg.growMs - cfg.holdMs) / Math.max(1, cfg.fadeMs));
+      const wa = cfg.washAlpha * inT * Math.max(0, 1 - outT);
+      if (wa > 0.001) {
+        const p = cfg.washPad;
+        g.roundRect(f.box.x - p, f.box.y - p, f.box.w + p * 2, f.box.h + p * 2, 26);
+        g.fill({ color: vine, alpha: wa });
+      }
+    }
+
+    for (const node of f.nodes) {
+      const t = f.age - node.delay;
+      if (t < 0) continue;
+      const grow = Math.min(1, t / Math.max(1, cfg.growMs));
+      const fadeT = t - cfg.growMs - cfg.holdMs;
+      const alpha = fadeT <= 0 ? 1 : Math.max(0, 1 - fadeT / Math.max(1, cfg.fadeMs));
+      if (alpha <= 0) continue;
+      for (const v of node.vines) {
+        // Each vine is a quadratic-ish arc bowed by `curl`, sampled in segments so it can draw on
+        // progressively and taper from base to tip.
+        const segs = 12;
+        const drawn = segs * grow;
+        let px = node.x, py = node.y;
+        for (let i = 1; i <= segs; i++) {
+          if (i > drawn) break;
+          const a = Math.min(i / segs, grow);
+          const along = v.len * a;
+          // bow sideways by curl (grows with distance²) + a small sine wobble for an organic wiggle
+          const side = v.curl * v.len * a * a + Math.sin(v.phase + a * 6) * cfg.vineWobble * a;
+          const ux = Math.cos(v.ang), uy = Math.sin(v.ang);
+          const nx = node.x + ux * along - uy * side;
+          const ny = node.y + uy * along + ux * side;
+          const w = cfg.vineWidth * (1 - 0.75 * a); // tapers to a tendril tip
+          if (cfg.vineGlowAlpha > 0) {
+            g.moveTo(px, py); g.lineTo(nx, ny);
+            g.stroke({ width: w * cfg.vineGlowWidth, color: vineGlow, alpha: cfg.vineGlowAlpha * alpha, cap: 'round' });
+          }
+          g.moveTo(px, py); g.lineTo(nx, ny);
+          g.stroke({ width: Math.max(0.2, w), color: vine, alpha: cfg.vineAlpha * alpha, cap: 'round' });
+          px = nx; py = ny;
+        }
+      }
+      // Leaves / petals / sparkles peel off ONCE, as this node's vines finish growing.
+      if (!node.sprouted && grow >= 0.75) {
+        node.sprouted = true;
+        this.growthMotes(node.x, node.y, cfg);
+      }
+    }
+    return true;
+  }
+
+  /** The drifting leaves, petals and sparkles thrown off one bloomed unit. */
+  private growthMotes(x: number, y: number, cfg: GrowthFxConfig): void {
+    const spread = cfg.vineLen * 0.55;
+    // Leaves — the curved crescent doubles as a leaf blade; they tumble up and out.
+    if (this.crescentTex && cfg.leafCount > 0) {
+      const tint = hexNum(cfg.colorLeaf);
+      for (let i = 0; i < Math.round(cfg.leafCount); i++) {
+        const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.2;
+        this.spawn(this.crescentTex, {
+          x: x + (Math.random() - 0.5) * spread, y: y + (Math.random() - 0.5) * spread * 0.6,
+          vx: Math.cos(a) * cfg.leafDrift * (0.4 + Math.random()), vy: -cfg.leafRise * (0.5 + Math.random()),
+          drag: 0.5, life: cfg.leafLife * (0.7 + Math.random() * 0.6),
+          fromScale: (cfg.leafSize * 22) / 80, toScale: (cfg.leafSize * 30) / 80,
+          spin: (Math.random() - 0.5) * cfg.leafSpin * 2, rotation: Math.random() * Math.PI * 2,
+          tint, blend: 'normal', peakAlpha: 0.95, gravity: 24,
+        });
+      }
+    }
+    // Petals — soft glow puffs in the flower colour, drifting slower than the leaves.
+    if (this.glowTex && cfg.petalCount > 0) {
+      const tint = hexNum(cfg.colorPetal);
+      for (let i = 0; i < Math.round(cfg.petalCount); i++) {
+        const a = Math.random() * Math.PI * 2;
+        this.spawn(this.glowTex, {
+          x: x + (Math.random() - 0.5) * spread, y: y + (Math.random() - 0.5) * spread,
+          vx: Math.cos(a) * 22, vy: -cfg.leafRise * 0.45 * (0.5 + Math.random()),
+          drag: 0.6, life: cfg.petalLife * (0.7 + Math.random() * 0.6),
+          fromScale: (cfg.petalSize * 10) / 80, toScale: (cfg.petalSize * 20) / 80, spin: 0,
+          tint, blend: 'add', peakAlpha: 0.7,
+        });
+      }
+    }
+    // Sparkles — the bright rising motes that sell the "magic" half of the bloom.
+    if (this.sparkTex && cfg.sparkCount > 0) {
+      const tint = hexNum(cfg.colorSpark);
+      for (let i = 0; i < Math.round(cfg.sparkCount); i++) {
+        this.spawn(this.sparkTex, {
+          x: x + (Math.random() - 0.5) * spread * 1.3, y: y + (Math.random() - 0.5) * spread,
+          vx: (Math.random() - 0.5) * 40, vy: -cfg.sparkRise * (0.5 + Math.random()),
+          drag: 0.4, life: cfg.sparkLife * (0.6 + Math.random() * 0.8),
+          fromScale: (cfg.sparkSize * (0.7 + Math.random() * 0.6) * 9) / 16, toScale: 0.03,
+          spin: (Math.random() - 0.5) * 4,
+          tint, blend: 'add', peakAlpha: 0.95,
+        });
+      }
+    }
+  }
+
   /** Mixed mote palette: the tribe's core/mote/glow plus white + warm gold accents (owner ask — varied,
    *  noticeable sparkles). */
   private static readonly WAVE_MOTE_ACCENTS = ['#ffffff', '#ffd77a'];
@@ -2920,6 +3231,26 @@ class FxController {
         this.layer?.removeChild(a.g);
         a.g.destroy();
         this.spellArrows.splice(i, 1);
+      }
+    }
+
+    // Cleave volleys + Growth blooms: advance + redraw, retire when their lifecycle completes.
+    for (let i = this.cleaves.length - 1; i >= 0; i--) {
+      const f = this.cleaves[i]!;
+      f.age += dtMs;
+      if (!this.drawCleave(f)) {
+        this.layer?.removeChild(f.g);
+        f.g.destroy();
+        this.cleaves.splice(i, 1);
+      }
+    }
+    for (let i = this.blooms.length - 1; i >= 0; i--) {
+      const f = this.blooms[i]!;
+      f.age += dtMs;
+      if (!this.drawBloom(f)) {
+        this.layer?.removeChild(f.g);
+        f.g.destroy();
+        this.blooms.splice(i, 1);
       }
     }
 

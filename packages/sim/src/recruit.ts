@@ -118,6 +118,9 @@ export function captureBuffFx(
   source: BoardCard | undefined,
   kind: BuffFxEvent['kind'],
   run: () => void,
+  /** For a `kind: 'spell'` capture (which has no board `source`), the CARD ID of the spell being cast — so the
+   *  UI can give a specific spell its own look (Growth's vine bloom). Ignored when `source` is present. */
+  spellCardId?: string,
 ): void {
   const before = new Map(state.board.map((c) => [c.uid, { a: c.attack, h: c.health }]));
   const fxStart = state.recruitBuffFx.length; // entries pushed DURING run() are nested (deeper) captures
@@ -138,7 +141,7 @@ export function captureBuffFx(
     state.recruitBuffFx.push({
       sourceUid: kind === 'minion' ? source?.uid : undefined,
       targetUid: c.uid, attack: da, health: dh,
-      sourceCardId: source?.cardId ?? '', sourceTribe: source?.tribe ?? 'neutral',
+      sourceCardId: source?.cardId ?? spellCardId ?? '', sourceTribe: source?.tribe ?? 'neutral',
       kind,
     });
   }
@@ -2648,7 +2651,7 @@ function applyCastEffects(ctx: RecruitContext, spellDef: CardDef, target?: Board
     // `_source` labels target buffs in the inspect breakdown; `_maxTier` carries the spell's gild cap
     // (Eyes of Aresmar) down to the factory.
     const params = { ...(effect.params ?? {}), _source: spellDef.name, _maxTier: spellDef.targetMaxTier };
-    if (fn) captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard }));
+    if (fn) captureBuffFx(ctx.state, undefined, 'spell', () => fn(ctx, target as BoardCard, params, { minion: target as BoardCard }), spellDef.id);
   }
 }
 

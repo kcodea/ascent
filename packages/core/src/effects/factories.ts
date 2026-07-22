@@ -319,6 +319,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const a = num(eff.params?.attack, 0) + sp.attack;
     const h = num(eff.params?.health, 0) + sp.health;
     if (a <= 0 && h <= 0) return;
+    // Name the spell in the log so the UI can play that spell's OWN effect (Growth → the vine bloom) rather
+    // than a generic buff wave. Narration-only `sc` (no `cast`), so it adds no damage-cast choreography.
+    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${spell?.name ?? 'a spell'}`, spellId: str(params.spellId) });
     // Golden "casts Growth twice" = TWO genuine casts (mul = 2), not one doubled cast — so it procs in-combat
     // spell reactions (Guel, transforms, spell-count payoffs) twice, matching how a hand-played "twice" resolves.
     for (let i = 0; i < mul(self); i++) {
@@ -341,6 +344,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const a = num(eff.params?.attack, 0) + sp.attack;
     const h = num(eff.params?.health, 0) + sp.health;
     if (a <= 0 && h <= 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} casts ${spell?.name ?? 'a spell'}`, spellId: str(params.spellId) }); // → the spell's own UI FX
     for (let i = 0; i < mul(self); i++) { // golden = two genuine casts (see onKillCastSpell)
       const targets = eff.do === 'spellBuffAll' ? ctx.living(self.side) : ctx.living(self.side).filter((m) => m !== self);
       for (const t of targets) ctx.buff(t, a, h, self.uid);

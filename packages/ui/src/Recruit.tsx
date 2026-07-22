@@ -6,6 +6,7 @@ import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
+import { GROWTH_ID } from './growthFxConfig';
 import { HudBar } from './HudBar';
 import { EndTurnButton } from './EndTurnButton';
 import { RiftButton } from './RiftButton';
@@ -2296,6 +2297,26 @@ export function Recruit() {
   // not one simultaneous burst. Rects are measured at fire time (inside the timeout) so a late strike
   // still lands on the card's current position.
   const replayBuffFxEvents = useCallback((events: RunState['recruitBuffFx'], staggerMs = 0): void => {
+    // GROWTH gets its own look: a vine bloom raked across every minion it buffed, instead of N sourceless
+    // descends. Keyed off the CAST (`sourceCardId` carries the spell's id for a `kind:'spell'` capture), so
+    // it plays wherever Growth is cast. The generic descends are suppressed for those targets — one spell,
+    // one effect. Rects are measured here, at fire time, like every other cue in this file.
+    const growth = events.filter((e) => e.kind === 'spell' && e.sourceCardId === GROWTH_ID);
+    if (growth.length) {
+      const pts: { x: number; y: number }[] = [];
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const ev of growth) {
+        const el = findEl(ev.targetUid);
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        pts.push({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+        x0 = Math.min(x0, r.left); y0 = Math.min(y0, r.top);
+        x1 = Math.max(x1, r.right); y1 = Math.max(y1, r.bottom);
+      }
+      if (pts.length) pixiFx.growthBloom(pts, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+      events = events.filter((e) => !(e.kind === 'spell' && e.sourceCardId === GROWTH_ID));
+      if (!events.length) return;
+    }
     // Itemized per-z rewards tag their events with `fxWave` — every event in a wave fires TOGETHER (so all
     // the Mechs pulse at once) and the stagger applies only BETWEEN waves. Untagged events keep the old
     // per-event behaviour.

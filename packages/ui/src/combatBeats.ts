@@ -1,4 +1,5 @@
 import type { CombatEvent } from '@game/core';
+import { CARD_INDEX } from '@game/content';
 
 /**
  * Group the combat event log into **beats** for the replay clock. A beat is one "moment" shown for a fixed
@@ -59,6 +60,36 @@ export function attackerOfImpact(beats: Beat[], resultIndex: number): string | n
 export function meleePairOfImpact(beats: Beat[], resultIndex: number): { attacker: string; defender: string } | null {
   const prev = beats[resultIndex - 1]?.primary;
   return prev?.type === 'attack' ? { attacker: prev.attacker, defender: prev.defender } : null;
+}
+
+/**
+ * Whether the melee exchange this RESULT moment resolves was a **CLEAVE** — i.e. the attacker carries the
+ * `C` keyword, either printed on its card or granted mid-combat (Ryme replaying a keyword Battlecry) and not
+ * since stripped (Tauntbreaker). Drives the claw-slash volley that REPLACES the generic damage burst on the
+ * splashed victims. Mauron's per-card `splashAdjacent` deliberately does NOT count (owner call 2026-07-21):
+ * the slashes read as the Cleave keyword, and Mauron keeps the ordinary burst.
+ */
+export function isCleaveImpact(
+  beats: Beat[],
+  events: CombatEvent[],
+  resultIndex: number,
+  cardIds: Map<string, string>,
+): boolean {
+  const pair = meleePairOfImpact(beats, resultIndex);
+  if (!pair) return false;
+  if (CARD_INDEX[cardIds.get(pair.attacker) ?? '']?.keywords.includes('C')) return true;
+  // Granted mid-combat: replay the keyword events up to the moment the attacker SWUNG. The bound is the
+  // ATTACK beat's start, not this result beat's end — `keyword` is itself a RESULT_TYPE, so it groups into
+  // the very run we're judging, and a Cleave granted BY this clash would otherwise retro-cleave the swing
+  // that granted it. The rule is "did it hold Cleave when it attacked".
+  const end = beats[resultIndex - 1]?.start ?? 0;
+  let has = false;
+  for (let i = 0; i < end; i++) {
+    const e = events[i];
+    if (e?.type === 'keyword' && e.target === pair.attacker && e.keyword === 'C') has = true;
+    else if (e?.type === 'keywordLost' && e.target === pair.attacker && e.keyword === 'C') has = false;
+  }
+  return has;
 }
 
 export function buildBeats(events: CombatEvent[]): Beat[] {

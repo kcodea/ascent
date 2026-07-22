@@ -44,6 +44,12 @@ now have no content using them (kept deliberately for a future quest — remove 
   → T4 3/5, Kennelmaster Avenge (4), Thundeer text, Hunter (improve every 3 — new `every` param), and
   Korok/Banksly on a new **`cardsBought`** trigger + `buyTick` meter (the buy-count sibling of `goldSpent`).
 
+### Dial in the Cleave + Growth FX (`feat/cleave-growth-fx`)
+Both effects are built, wired and tuner-backed, but the shipped DEFAULTS were never seen on screen — the
+screenshot tool times out against the live Pixi ticker, so they were verified to RUN, not to LOOK right. Open
+`💢 Cleave Slash FX` / `🌱 Growth Bloom FX` in the Dev Tuning Menu, hit **Test**, dial by eye, then "Copy
+values" back into the `DEFAULTS` in `cleaveFxConfig.ts` / `growthFxConfig.ts`.
+
 ### Human-playtest balance
 The counter matrix is balance *truth*; stat numbers are dials. With all six tribes + the quest content in,
 the game wants a real tuning pass driven by human play (not just the bot).

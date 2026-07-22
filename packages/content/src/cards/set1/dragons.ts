@@ -180,9 +180,9 @@ export const DRAGONS: CardDef[] = [
     attack: 5,
     health: 7,
     keywords: [],
-    effects: [{ on: 'onGainAttack', do: 'onGainAttackBuffImproving', params: { attack: 1, every: 3 } }],
-    text: 'When this gains Attack, give your minions **+1/+1**. Improve this by **+1/+1** every **3** times.',
-    goldenText: 'When this gains Attack, give your minions **+2/+2**. Improve this by **+2/+2** every **3** times.',
+    effects: [{ on: 'onGainAttack', do: 'onGainAttackBuffImproving', params: { attack: 1, every: 5 } }],
+    text: 'When this gains Attack, give your minions **+1/+1**. Improve this by **+1/+1** every **5** times.',
+    goldenText: 'When this gains Attack, give your minions **+2/+2**. Improve this by **+2/+2** every **5** times.',
   },
   {
     // Undead/Dragon snowball: every 2 ally attacks, buff your whole board +2/+2 — improving +2/+2 every

@@ -1742,8 +1742,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  combine (checkTriples folds the doubled magnitude into `summonBonus`), so — like buffOnSummon — no `mul`. */
   scBeastAura: (ctx, self, params) => {
     const tribe = (str(params.tribe) || 'beast') as Tribe | 'any';
-    const a = num(params.attack, 1) + self.summonBonus;
-    const h = num(params.health, 1) + self.summonBonus;
+    // The Avenge accrual (`summonBonus`) applies PER STAT: `stepAttack`/`stepHealth` scale how much of it each
+    // stat picks up, defaulting to 1 (the old symmetric behavior). Kennelmaster is Attack-only (step 1 / 0),
+    // so its Avenge improvements never leak into Health.
+    const a = num(params.attack, 1) + self.summonBonus * num(params.stepAttack, 1);
+    const h = num(params.health, 1) + self.summonBonus * num(params.stepHealth, 1);
     if (a <= 0 && h <= 0) return;
     ctx.log({ type: 'sc', source: self.uid, text: str(params.text) || `${self.name} rallies the pack` });
     ctx.addTribeAura(self.side, tribe, a, h, self.uid);

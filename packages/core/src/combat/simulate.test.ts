@@ -89,7 +89,7 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerSummonBonus).toContainEqual({ sourceUid: 'K', bonus: 1 });
   });
 
-  it('Kennelmaster Start of Combat: buffs your Beasts +1/+1, and a Beast summoned later inherits the aura', () => {
+  it('Kennelmaster Start of Combat: buffs your minions +2 Attack, and a minion summoned later inherits the aura', () => {
     // The SoC aura buffs the living Beasts now (Kennelmaster + Mama Pup), then Mama Pup dies and its Pups —
     // summoned AFTER the aura registered — pick it up too ("wherever they are, incl. combat summons").
     const p: BoardMinion[] = [
@@ -101,9 +101,27 @@ describe('simulate (handoff A.3)', () => {
     const summonEvents = r.events.filter((ev) => ev.type === 'summon');
     expect(summonEvents.length).toBeGreaterThanOrEqual(1); // Mama Pup's Pups spawned
     const summonedUids = new Set(summonEvents.flatMap((ev) => (ev.type === 'summon' ? [ev.minion.uid] : [])));
-    // A Beast summoned after Kennelmaster's SoC still receives the +1/+1 aura.
-    const summonAura = r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1 && summonedUids.has(ev.target));
+    // A minion summoned after Kennelmaster's SoC still receives the +2/+0 aura.
+    const summonAura = r.events.some((ev) => ev.type === 'buff' && ev.attack === 2 && ev.health === 0 && summonedUids.has(ev.target));
     expect(summonAura).toBe(true);
+  });
+
+  it('Kennelmaster aura is board-wide Attack — a NON-Beast gets it too, and Health is untouched', () => {
+    // The 2026-07-21 balance pass moved it from a Beast +1/+1 aura to `tribe: 'any'` +2 Attack. The load-bearing
+    // change is the scope: a Mech/Dragon on the board must now receive it, and nothing should gain Health.
+    const p: BoardMinion[] = [
+      { cardId: 'kennel', attack: 1, health: 40 },
+      { cardId: 'cleric', attack: 3, health: 30 }, // a Dragon — would NOT have been buffed before
+    ];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 60 }];
+    const r = run(p, e, 1);
+    const dragonUid = r.initial.player[1]!.uid;
+    const auraOnDragon = r.events.filter((ev) => ev.type === 'buff' && ev.target === dragonUid && ev.attack === 2 && ev.health === 0);
+    expect(auraOnDragon.length).toBeGreaterThanOrEqual(1); // the non-Beast inherits the board-wide aura
+    // No Kennelmaster buff ever grants Health (stepHealth 0 keeps the Avenge accrual off Health too).
+    const kennelUid = r.initial.player[0]!.uid;
+    const anyHealth = r.events.some((ev) => ev.type === 'buff' && ev.source === kennelUid && ev.health !== 0);
+    expect(anyHealth).toBe(false);
   });
 
   it('Kennelmaster aura buffs EVERY Deathrattle summon, not just the first (repro: both Pups)', () => {
@@ -115,8 +133,8 @@ describe('simulate (handoff A.3)', () => {
     const r = run(p, e, 1);
     const pupUids = r.events.flatMap((ev) => (ev.type === 'summon' && ev.minion.cardId === 'pup' ? [ev.minion.uid] : []));
     expect(pupUids.length).toBe(2); // both Pups summoned
-    const buffed = pupUids.filter((uid) => r.events.some((ev) => ev.type === 'buff' && ev.target === uid && ev.attack === 1 && ev.health === 1));
-    expect(buffed.length).toBe(2); // BOTH inherit the +1/+1 aura, not only the first
+    const buffed = pupUids.filter((uid) => r.events.some((ev) => ev.type === 'buff' && ev.target === uid && ev.attack === 2 && ev.health === 0));
+    expect(buffed.length).toBe(2); // BOTH inherit the +2/+0 aura, not only the first
   });
 
   it('Pack Mentality grows the Beast aura LIVE in combat — a per-N summon buffs living Beasts immediately + carries back', () => {
@@ -406,14 +424,14 @@ describe('simulate (handoff A.3)', () => {
     expect(hit.size).toBe(2);
   });
 
-  it('Hoardbreaker Drake Slaughter casts Growth (buffs all friends +3/+4)', () => {
+  it('Hoardbreaker Drake Slaughter casts Growth (buffs all friends +1/+1)', () => {
     const p: BoardMinion[] = [
       { cardId: 'hoardbreaker', attack: 4, health: 20 },
       { cardId: 'sandbag', attack: 0, health: 20 },
     ];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies to Hoardbreaker → Slaughter
     const r = run(p, e, 3);
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 4)).toBe(true);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true);
   });
 
   it('Hoardbreaker Drake Rally casts Growth on its own attack (no kill needed)', () => {
@@ -423,10 +441,10 @@ describe('simulate (handoff A.3)', () => {
     ];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 60 }]; // survives — no Slaughter, only Rally
     const r = run(p, e, 3);
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 3 && ev.health === 4)).toBe(true); // Rally cast Growth
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.attack === 1 && ev.health === 1)).toBe(true); // Rally cast Growth
   });
 
-  it('golden Hoardbreaker casts Growth as genuine 2× instances — base +3/+4 events, never a doubled +6/+8', () => {
+  it('golden Hoardbreaker casts Growth as genuine 2× instances — base +1/+1 events, never a doubled +2/+2', () => {
     const p: BoardMinion[] = [
       { cardId: 'hoardbreaker', attack: 4, health: 20, golden: true },
       { cardId: 'sandbag', attack: 0, health: 1 }, // dies to one enemy swing → combat ends after the first Hoardbreaker swing
@@ -434,8 +452,8 @@ describe('simulate (handoff A.3)', () => {
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies to Hoardbreaker's swing → Rally + Slaughter both fire
     const r = run(p, e, 3);
     const hb = r.initial.player[0]!.uid; // Hoardbreaker buffs all friends including itself
-    const base = r.events.filter((ev) => ev.type === 'buff' && ev.target === hb && ev.attack === 3 && ev.health === 4);
-    const doubled = r.events.filter((ev) => ev.type === 'buff' && ev.target === hb && ev.attack === 6 && ev.health === 8);
+    const base = r.events.filter((ev) => ev.type === 'buff' && ev.target === hb && ev.attack === 1 && ev.health === 1);
+    const doubled = r.events.filter((ev) => ev.type === 'buff' && ev.target === hb && ev.attack === 2 && ev.health === 2);
     expect(doubled.length).toBe(0); // golden is TWO base casts, never one doubled cast
     expect(base.length % 2).toBe(0); // each trigger fires the cast twice (Rally + Slaughter → a multiple of 2)
     expect(base.length).toBeGreaterThanOrEqual(2);
@@ -542,21 +560,6 @@ describe('simulate (handoff A.3)', () => {
     expect(gr.events.some((ev) => ev.type === 'dmg' && ev.amount === 10)).toBe(true);
   });
 
-  it('Solaris Fang Rally builds a Beast Attack aura; Rallying Offensive makes it fire twice', () => {
-    // Solaris + Mama Pup are both Beasts. On Solaris's one killing swing its Rally grants +5 Attack to both
-    // (2 buff events). With Rallying Offensive armed the Rally re-runs → 4.
-    const p: BoardMinion[] = [
-      { cardId: 'solaris', attack: 5, health: 10 },
-      { cardId: 'pack', attack: 1, health: 10 },
-    ];
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }]; // dies to one swing → exactly one Rally
-    const call = (rallyDouble: boolean) =>
-      simulate(p, e, makeRng(1), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES }), combatSide(), { playerRallyDouble: rallyDouble });
-    const rally5 = (r: ReturnType<typeof simulate>) => r.events.filter((ev) => ev.type === 'buff' && ev.attack === 5).length;
-    expect(rally5(call(false))).toBe(2); // Solaris + Mama Pup, once
-    expect(rally5(call(true))).toBe(4);  // …twice with Rallying Offensive
-  });
-
   it('Solaris Fang Avenge (5): gains a Divine Shield (Ward) and attacks immediately', () => {
     // Five 0/1 Taunts are the forced targets — they die first while Solaris chips the wall; the 5th death
     // triggers Avenge (5) → Solaris gains a shield (shieldUp) and takes a bonus out-of-turn attack.
@@ -636,7 +639,7 @@ describe('simulate (handoff A.3)', () => {
     expect(wardenSummon && wardenSummon.type === 'summon' ? wardenSummon.minion.attack : 0).toBeGreaterThan(3);
   });
 
-  it('Kennelmaster aura re-applies to a Reborn Beast (summoned in any way)', () => {
+  it('Kennelmaster aura re-applies to a Reborn minion (summoned in any way)', () => {
     // A Beast that RISES mid-fight must re-inherit Kennelmaster's Start-of-Combat aura, not just fresh summons.
     // The Gryphon (granted Rise + Taunt so it's the forced target) dies, returns at base, and comes back aura'd.
     const p: BoardMinion[] = [
@@ -648,9 +651,9 @@ describe('simulate (handoff A.3)', () => {
     const rebornIdx = r.events.findIndex((ev) => ev.type === 'reborn');
     expect(rebornIdx).toBeGreaterThanOrEqual(0); // the Gryphon Rose
     const gUid = (r.events[rebornIdx] as { target: string }).target;
-    // A +1/+1 aura buff lands on the Gryphon AFTER it Rises (the bug: reborn bodies were skipped).
+    // A +2/+0 aura buff lands on the Gryphon AFTER it Rises (the bug: reborn bodies were skipped).
     const auraAfterRise = r.events.slice(rebornIdx + 1).some(
-      (ev) => ev.type === 'buff' && ev.target === gUid && ev.attack === 1 && ev.health === 1,
+      (ev) => ev.type === 'buff' && ev.target === gUid && ev.attack === 2 && ev.health === 0,
     );
     expect(auraAfterRise).toBe(true);
   });
@@ -2326,7 +2329,7 @@ describe('simulate (handoff A.3)', () => {
     expect(tara?.count).toBeGreaterThan(0); // Tara was granted stats and counted them toward ascension
   });
 
-  it('Hunter buffs your board +M/+M whenever its Attack rises, stepping up every 3 fires (driven by Crypt Drake)', () => {
+  it('Hunter buffs your board +M/+M whenever its Attack rises, stepping up every 5 fires (driven by Crypt Drake)', () => {
     const a = run(
       [
         { cardId: 'hunter', attack: 5, health: 60 },
@@ -2336,15 +2339,15 @@ describe('simulate (handoff A.3)', () => {
       [{ cardId: 'omen', attack: 0, health: 200 }],
       3,
     );
-    // Hunter's own grants, in order: it improves +1/+1 only every 3rd fire, so the first three are +1/+1
-    // and the fourth steps to +2/+2 (it was "+1 every time" before the 2026-07-21 rework).
+    // Hunter's own grants, in order: it improves +1/+1 only every 5th fire (widened from every 3 in the
+    // 2026-07-21 balance pass), so the first five are +1/+1 and the sixth steps to +2/+2.
     // Each fire emits one buff per OTHER living ally (2 here: Crypt Drake + the sandbag, nothing dies to the
-    // 0-Attack omen), so 3 fires = 6 grants of +1/+1 before the rate steps to +2/+2 on the 4th.
+    // 0-Attack omen), so 5 fires = 10 grants of +1/+1 before the rate steps to +2/+2 on the 6th.
     const hunterUid = a.initial.player[0]!.uid;
     const grants = a.events.flatMap((e) => (e.type === 'buff' && e.source === hunterUid ? [e.attack] : []));
-    expect(grants.length).toBeGreaterThanOrEqual(7);
-    expect(grants.slice(0, 6)).toEqual([1, 1, 1, 1, 1, 1]);
-    expect(grants[6]).toBe(2);
+    expect(grants.length).toBeGreaterThanOrEqual(11);
+    expect(grants.slice(0, 10)).toEqual([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+    expect(grants[10]).toBe(2);
   });
 
   it('Burial Imp: its Echo summons an Imp', () => {

@@ -1797,9 +1797,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  (1 + floor(goldSpentThisTurn / gold)). Spell power scales each unit like a stat spell. */
   spellBuffTargetPerGold: (ctx, self, params) => {
     const per = Math.max(1, num(params.gold, 7));
-    const steps = 1 + Math.floor((ctx.state.goldSpentThisTurn ?? 0) / per); // 1 = the baseline grant
-    const a = (num(params.attack, 3) + spellAttackBonus(ctx.state)) * steps;
-    const h = (num(params.health, 3) + spellHealthBonus(ctx.state)) * steps;
+    const ticks = Math.floor((ctx.state.goldSpentThisTurn ?? 0) / per);
+    // Base and per-tick step are SEPARATE grants (`baseAttack`/`baseHealth` default to the step, which is the
+    // pre-2026-07-21 symmetric behavior). Spell power folds into each chunk, so it still pays out per tick.
+    const stepA = num(params.attack, 3) + spellAttackBonus(ctx.state);
+    const stepH = num(params.health, 3) + spellHealthBonus(ctx.state);
+    const a = num(params.baseAttack, num(params.attack, 3)) + spellAttackBonus(ctx.state) + stepA * ticks;
+    const h = num(params.baseHealth, num(params.health, 3)) + spellHealthBonus(ctx.state) + stepH * ticks;
     addBuff(self, str(params._source) || 'Patch Job', a, h);
   },
 
@@ -2592,14 +2596,24 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
   // actually gives. Handled BEFORE the no-spell-power early-return, since the Gold total scales without any.
   const perGold = def.effects.find((e) => e.do === 'spellBuffTargetPerGold');
   if (perGold) {
-    const a = Number((perGold.params as { attack?: number } | undefined)?.attack ?? 3);
-    const h = Number((perGold.params as { health?: number } | undefined)?.health ?? 3);
-    const per = Number((perGold.params as { gold?: number } | undefined)?.gold ?? 7);
-    const stepText = bonusA > 0 || bonusH > 0 ? def.text.replace(`+${a}/+${h}`, `{{+${a + bonusA}/+${h + bonusH}}}`) : def.text;
-    const extra = Math.floor(Math.max(0, goldSpent) / per); // steps beyond the baseline
-    if (extra <= 0) return stepText; // still at the baseline → the printed +A/+B (greened) is the live value
-    const total = 1 + extra; // baseline + steps
-    return `${stepText} {{Now +${total * (a + bonusA)}/+${total * (h + bonusH)}.}}`;
+    const pp = perGold.params as { attack?: number; health?: number; gold?: number; baseAttack?: number; baseHealth?: number } | undefined;
+    const a = Number(pp?.attack ?? 3); // the PER-TICK step
+    const h = Number(pp?.health ?? 3);
+    const baseA = Number(pp?.baseAttack ?? a); // the flat base (defaults to the step = the old symmetric shape)
+    const baseH = Number(pp?.baseHealth ?? h);
+    const per = Number(pp?.gold ?? 7);
+    // Spell power greens BOTH printed magnitudes — the base grant and the per-tick step (they differ now).
+    let stepText = def.text;
+    if (bonusA > 0 || bonusH > 0) {
+      stepText = stepText.replace(`+${baseA}/+${baseH}`, `{{+${baseA + bonusA}/+${baseH + bonusH}}}`);
+      // Replace the step LAST-first so a base==step card doesn't double-substitute the same token.
+      const stepTok = `+${a}/+${h}`;
+      const at = stepText.lastIndexOf(stepTok);
+      if (at >= 0) stepText = stepText.slice(0, at) + `{{+${a + bonusA}/+${h + bonusH}}}` + stepText.slice(at + stepTok.length);
+    }
+    const ticks = Math.floor(Math.max(0, goldSpent) / per);
+    if (ticks <= 0) return stepText; // no ticks yet → the printed base (greened) is the live value
+    return `${stepText} {{Now +${baseA + bonusA + (a + bonusA) * ticks}/+${baseH + bonusH + (h + bonusH) * ticks}.}}`;
   }
   if (bonusA <= 0 && bonusH <= 0) return def.text;
   // Lantern of Souls: base "+N Attack" → "+{N+bonusA}/+{bonusH}" (spell power folds onto both stats).

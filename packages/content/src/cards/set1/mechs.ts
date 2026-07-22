@@ -23,9 +23,10 @@ export const MECHS: CardDef[] = [
     text: '',
   },
   {
-    // T1 economy Mech (2026-07-06): every 2 turns, conjure a Gold Pouch or Safety Deposit Box (random,
-    // seeded). A slow-drip income engine — triples into a golden that grants 2 per proc, and plugs into Mech
-    // synergies. The live "procs in N turns" countdown surfaces via cardText's cadence helper (like Frontdrake).
+    // T1 economy Mech (2026-07-06): every 2 turns, conjure a Gold Pouch. A slow-drip income engine — triples
+    // into a golden that grants 2 per proc, and plugs into Mech synergies. The live "procs in N turns"
+    // countdown surfaces via cardText's cadence helper (like Frontdrake). Narrowed from a random Gold Pouch /
+    // Safety Deposit Box pick to just the Pouch in the 2026-07-21 balance pass (predictable drip).
     id: 'moneymaker',
     name: 'Money Maker',
     tribe: 'mech',
@@ -33,9 +34,9 @@ export const MECHS: CardDef[] = [
     attack: 1,
     health: 1,
     keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnGrantSpellChoice', params: { every: 2, cards: ['emberpouch', 'depositbox'] } }],
-    text: '**Every 2 turns:** get a **Gold Pouch** or **Safety Deposit Box**.',
-    goldenText: '**Every 2 turns:** get **2** — each a **Gold Pouch** or **Safety Deposit Box**.',
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnGrantSpellChoice', params: { every: 2, cards: ['emberpouch'] } }],
+    text: '**Every 2 turns:** get a **Gold Pouch**.',
+    goldenText: '**Every 2 turns:** get **2 Gold Pouches**.',
   },
   {
     id: 'cling',

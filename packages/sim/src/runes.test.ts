@@ -945,18 +945,18 @@ describe('Batch 7a runes (Rebirth / Tempering / Aftershocks / Refrain / Trophy +
   });
 
   it('Rune of Recurrence: End of Turn recasts the first spell — untargeted (Growth) and aimed (random ally)', () => {
-    // Untargeted: Growth (+3/+4 board-wide) recast at EoT.
+    // Untargeted: Growth (+1/+1 board-wide) recast at EoT.
     const s: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
       questRecurringEndOfTurn: ['recastFirstSpell'], firstSpellThisTurnId: 'growth',
       board: [mkAlley('m')] };
     applyEndOfTurn(s);
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([1 + 3, 1 + 4]);
-    // Aimed: Patch Job (+3/+3 baseline at 0 Gold spent) recast onto a (seeded-random) board minion.
+    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([1 + 1, 1 + 1]);
+    // Aimed: Patch Job (+1/+1 baseline at 0 Gold spent) recast onto a (seeded-random) board minion.
     const t: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
       questRecurringEndOfTurn: ['recastFirstSpell'], firstSpellThisTurnId: 'patchjob', goldSpentThisTurn: 0,
       board: [mkAlley('m')] };
     applyEndOfTurn(t);
-    expect(t.board[0]!.attack).toBeGreaterThanOrEqual(1 + 3);
+    expect(t.board[0]!.attack).toBeGreaterThanOrEqual(1 + 1);
     // No spell cast this turn → a clean no-op.
     const u: RunState = { ...createRun(1, 'warden'), wave: 3, phase: 'recruit',
       questRecurringEndOfTurn: ['recastFirstSpell'], board: [mkAlley('m')] };

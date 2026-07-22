@@ -29,9 +29,17 @@ export function summonBuffText(cardId: string, summonBonus: number, golden = fal
   // golden copy's real grant (owner-caught on golden Trophy Stalker: effect gave +10/+10, text read +5/+5).
   const eff = def?.effects.find((e) => e.do === 'buffOnSummon' || e.do === 'scBeastAura' || e.do === 'rallyTribeAuraGrowing');
   if (!def || !eff) return null;
-  const base = Number((eff.params as { attack?: number })?.attack ?? 1);
-  const m = (base + summonBonus) * (golden ? 2 : 1);
-  return def.text.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${m}/+${m}}}`);
+  const p = eff.params as { attack?: number; health?: number; stepAttack?: number; stepHealth?: number };
+  const base = Number(p?.attack ?? 1);
+  // The accrual applies per stat (`scBeastAura`'s stepAttack/stepHealth, default 1 = the symmetric shape).
+  const m = (base + summonBonus * Number(p?.stepAttack ?? 1)) * (golden ? 2 : 1);
+  // Attack-only cards (Kennelmaster since 2026-07-21) print "**+N Attack**", not "**+N/+N**" — inject into
+  // whichever shape the card actually uses, or the live value silently goes stale.
+  if (Number(p?.stepHealth ?? 1) === 0 || Number(p?.health ?? 1) === 0) {
+    return def.text.replace(/\*\*\+\d+ Attack\*\*/, `{{+${m} Attack}}`);
+  }
+  const h = (Number(p?.health ?? base) + summonBonus * Number(p?.stepHealth ?? 1)) * (golden ? 2 : 1);
+  return def.text.replace(/\*\*\+\d+\/\+\d+\*\*/, `{{+${m}/+${h}}}`);
 }
 
 /**

@@ -38,6 +38,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Nine-card balance pass.** Kennelmaster's Start-of-Combat aura is now board-wide **+2 Attack** at Avenge
+  (3); Growth drops to **T2 / +1/+1**; Spirit Fire to **+2/+3**; Patch Job splits into a **+1/+1 base plus
+  +2/+2 per 6 Gold**; Hunter improves every 5; Badgington and Solaris Fang lose their Rally halves; Money
+  Maker always gives a Gold Pouch. **Graverobber can no longer destroy itself.**
 - **Step counters pop when they fill.** Any unit with a step counter — Avenge, Guel, Flowing Monk, Crypt Drake,
   Bloodbinder, the gold/buy meters, cadence cards, Spirit Pup, Tara — now bursts a white spark shower *out of
   the counter pill* the moment it reaches its step and the effect fires, in both the shop and combat. Its own

@@ -408,6 +408,10 @@ export interface CardDef {
   /** Excludes golden (tripled) minions from a `target: 'friendly'` pick (Displacement — you can't trade
    *  away a triple). Absent = goldens are valid targets. Mirrored by Darah's Displace power in `swapWithTavern`. */
   targetNoGolden?: boolean;
+  /** Excludes the SOURCE minion from its own `target: 'friendly'` pick (Graverobber can't destroy itself).
+   *  `targetTribe` already implies this; use this flag for an otherwise-unrestricted pick. Absent = self is a
+   *  legal target. Enforced in the reducer (`battlecryTarget`, authoritative) and mirrored by the aim UI. */
+  targetNotSelf?: boolean;
   /** Demons: stat multiplier when this minion consumes a Fodder (Voracious Imp = 2; golden = +1).
    *  Default (absent) is 1 — a plain Demon gains the fodder's base stats. */
   fodderMult?: number;

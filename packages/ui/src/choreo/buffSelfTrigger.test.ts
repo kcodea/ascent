@@ -34,12 +34,13 @@ describe('buff-pulse trigger path (real combat)', () => {
     expect(buffWaveWithSelf).toBe(true);
   });
 
-  it('an on-attack self-buffer (Solaris Fang) surfaces its self-buff on the attackExchange moment', () => {
-    // Solaris's Rally buffs Beasts INCLUDING itself on its own attack → a self-buff (source === target) emitted
-    // mid-swing, which `absorbIntoWindup` folds into the attackExchange (NOT a standalone buffWave). The wind-up
-    // FX path calls `groupSelfBuffs` on that attack moment to fire the in-place pulse — this guards that data path.
-    const p: BoardMinion[] = [{ cardId: 'solaris', attack: 5, health: 20 }];
-    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 20 }]; // 0-atk Taunt bag: Solaris keeps swinging
+  it('an on-attack self-buffer (Trophy Stalker) surfaces its self-buff on the attackExchange moment', () => {
+    // Trophy Stalker's Rally buffs Beasts INCLUDING itself on its own attack → a self-buff (source === target)
+    // emitted mid-swing, which `absorbIntoWindup` folds into the attackExchange (NOT a standalone buffWave). The
+    // wind-up FX path calls `groupSelfBuffs` on that attack moment to fire the in-place pulse — this guards that
+    // data path. (Was Solaris Fang until its Rally half was cut in the 2026-07-21 balance pass.)
+    const p: BoardMinion[] = [{ cardId: 'trophystalker', attack: 5, health: 20 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 20 }]; // 0-atk bag: Trophy Stalker keeps swinging
     const r = simulate(p, e, makeRng(3), CARD_INDEX, combatSide({ tier: 6, tribes: ['beast'] }));
 
     const selfBuffs = r.events.filter((ev: CombatEvent) => ev.type === 'buff' && ev.source === ev.target);

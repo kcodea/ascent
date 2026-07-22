@@ -44,6 +44,14 @@ now have no content using them (kept deliberately for a future quest — remove 
   → T4 3/5, Kennelmaster Avenge (4), Thundeer text, Hunter (improve every 3 — new `every` param), and
   Korok/Banksly on a new **`cardsBought`** trigger + `buyTick` meter (the buy-count sibling of `goldSpent`).
 
+### Nine-card balance pass 2026-07-21 (owner spec — `balance/nine-card-pass`)
+Shipped to branch, awaiting review + merge. Kennelmaster (board-wide +2 Attack, Avenge 3), Hunter (improve
+every 5), Growth (T2, +1/+1), Spirit Fire (+2/+3), Patch Job (+1/+1 base + +2/+2 per 6 Gold), Badgington and
+Solaris Fang (Rally halves cut), Money Maker (Gold Pouch only), and the **Graverobber self-target fix** (new
+`targetNotSelf` CardDef flag). Detail in the devlog.
+- **Follow-up:** `rallyGrantRandomSpell` + `rallyTribeAura` are now unused by any card. Kept as primitives for
+  set 2 — remove in their own PR if nothing picks them up.
+
 ### Human-playtest balance
 The counter matrix is balance *truth*; stat numbers are dials. With all six tribes + the quest content in,
 the game wants a real tuning pass driven by human play (not just the bot).

@@ -40,7 +40,7 @@ const SPELL_FRAME_SRC = `${import.meta.env.BASE_URL}frames/spell-frame-v2.png`;
 let spellFrameAvailable = true;
 
 const KW_LABEL: Record<Keyword, string> = {
-  T: 'Taunt', DS: 'Ward', V: 'Toxin', W: 'Flurry', R: 'Rise', C: 'Cleave', M: 'Attachment', SC: 'Start', CN: 'Consume',
+  T: 'Taunt', DS: 'Ward', V: 'Execute', W: 'Flurry', R: 'Rise', C: 'Cleave', M: 'Attachment', SC: 'Start', CN: 'Consume',
   FD: 'Fodder', IMM: 'Immune', ST: 'Stealth', RL: 'Rally', SL: 'Slaughter', CR: 'Critical Strike', EG: 'Engraved',
 };
 const KW_ICON: Record<Keyword, string> = {

@@ -296,8 +296,8 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'dmg': return { text: `${n(e.target)} takes ${e.amount} damage (${Math.max(0, e.remainingHp)} HP left).`, kind: 'dmg' };
     case 'shield': return { text: `${n(e.target)}'s Ward absorbs the hit.`, kind: 'shield' };
     case 'shieldUp': return { text: `${n(e.target)} gains a Ward.`, kind: 'shield' };
-    case 'poison': return { text: `Toxin destroys ${n(e.target)}.`, kind: 'poison' };
-    case 'venomLost': return { text: `${n(e.target)}'s Toxin is spent.`, kind: 'poison' };
+    case 'poison': return { text: `Execute destroys ${n(e.target)}.`, kind: 'poison' };
+    case 'venomLost': return { text: `${n(e.target)}'s Execute is spent.`, kind: 'poison' };
     case 'reborn': return { text: `${n(e.target)} rises at ${e.hp} HP.`, kind: 'reborn' };
     case 'reveal': return { text: `${n(e.target)} breaks Stealth.`, kind: 'reveal' };
     case 'death': return { text: `${n(e.target)} is destroyed.`, kind: 'death' };
@@ -320,7 +320,7 @@ function narrate(e: CombatEvent, names: Map<string, string>): string | null {
     case 'attack': return `${n(e.attacker)} strikes ${n(e.defender)}.`;
     case 'shield': return 'A Ward absorbs the blow!';
     case 'shieldUp': return `${n(e.target)} gains a Ward.`;
-    case 'poison': return `Toxin! ${n(e.target)} is destroyed.`;
+    case 'poison': return `Execute! ${n(e.target)} is destroyed.`;
     case 'reborn': return `${n(e.target)} rises at 1 Health.`;
     case 'death': return `${n(e.target)} falls.`;
     case 'summon': return `${e.minion.name} joins the fray.`;
@@ -381,7 +381,7 @@ function procReport(events: CombatEvent[], names: Map<string, string>): { text: 
   const kw: string[] = [];
   if (shieldUp) kw.push(`${shieldUp} Wards gained`);
   if (shieldBreak) kw.push(`${shieldBreak} Wards broken`);
-  if (poison) kw.push(`${poison} Toxin kills`);
+  if (poison) kw.push(`${poison} Execute kills`);
   if (reborn) kw.push(`${reborn} rises`);
   if (kw.length) out.push({ text: kw.join(' · '), kind: 'total' });
   if (startCombat.size) { out.push({ text: 'Start of Combat', kind: 'head' }); for (const [k, c] of startCombat) out.push({ text: c > 1 ? `${k} — ${c}×` : k, kind: 'sc' }); }

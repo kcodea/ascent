@@ -23,7 +23,7 @@ export interface DeathFloat {
 /** Player-facing labels for granted keywords (the renamed terms — Reborn → Rise, etc.). Shared with
  *  `useCombatReplay.ts`'s narration (`narrate`/`narrateLog`), which imports this back. */
 export const KW_FLOAT: Partial<Record<string, string>> = {
-  R: 'Rise', DS: 'Ward', T: 'Taunt', V: 'Toxin', W: 'Flurry', C: 'Cleave', ST: 'Stealth', IMM: 'Immune',
+  R: 'Rise', DS: 'Ward', T: 'Taunt', V: 'Execute', W: 'Flurry', C: 'Cleave', ST: 'Stealth', IMM: 'Immune',
 };
 
 /** A floating number/glyph for the unit the active event acts on. Verbatim extraction of the former

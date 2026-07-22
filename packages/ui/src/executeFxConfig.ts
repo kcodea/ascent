@@ -105,49 +105,51 @@ export interface ExecuteFxConfig {
 }
 
 /**
- * Starting values, aimed at the owner's reference: one dominant crescent with a second lighter cut crossing it,
- * a tight hot flash, a spray of embers along the cut, and heavier blood arcing away. Not owner-dialled yet —
- * these are a considered first pass to tune from via the 🩸 Execute Strike tuner's Test button.
+ * Owner-dialled, 2026-07-22, via the 🩸 Execute Strike tuner's Test button.
+ *
+ * Landed heavier and slower than the first pass: a big long-lived crescent (215px, 740ms) that expands 2.5×
+ * while barely travelling (`arcSpeed` 520 → 70 — the dial is there, but the read is the SWEEP, not flight),
+ * a full-strength white core flash, fatter embers, and a lot more blood (16 → 52 droplets, faster and much
+ * longer-lived, in a tight 45° cone). `power: 0.7` scales the whole thing back down.
+ *
+ * NOTE `arcTilt: -92`. Tilt is relative to the blow, where 0 = the blade cutting SQUARE across the line of
+ * attack; -92 rotates it back roughly parallel to the blow, so the cut runs ALONG the strike. That's a
+ * deliberate owner choice, not a leftover from the absolute-angle days — don't "correct" it back to 0.
  */
 const DEFAULTS: ExecuteFxConfig = {
-  power: 1,
-
+  power: 0.7,
   arcCount: 2,
-  arcSize: 170,
-  arcGrow: 1.55,
-  arcLife: 420,
-  arcSpeed: 520,
+  arcSize: 215,
+  arcGrow: 2.5,
+  arcLife: 740,
+  arcSpeed: 70,
   arcDrag: 0.12,
-  arcBack: 40,
-  arcTilt: 0,
-  arcSpread: 46,
-  arcSpin: 95,
+  arcBack: 0,
+  arcTilt: -92,
+  arcSpread: 0,
+  arcSpin: 55,
   arcAlpha: 1,
-  arcSweep: 140,
-  arcThick: 17,
-
-  flashSize: 120,
-  flashLife: 260,
-  flashAlpha: 0.85,
-
+  arcSweep: 125,
+  arcThick: 12,
+  flashSize: 170,
+  flashLife: 380,
+  flashAlpha: 1,
   emberCount: 22,
-  emberSpeed: 430,
-  emberSize: 6,
-  emberLife: 620,
+  emberSpeed: 500,
+  emberSize: 16,
+  emberLife: 860,
   emberSpread: 120,
   emberGravity: 260,
-
-  bloodCount: 16,
-  bloodSpeed: 300,
-  bloodSize: 7,
-  bloodLife: 780,
-  bloodSpread: 150,
-  bloodGravity: 900,
-
+  bloodCount: 52,
+  bloodSpeed: 900,
+  bloodSize: 11.5,
+  bloodLife: 2000,
+  bloodSpread: 45,
+  bloodGravity: 640,
   tailColor: '#8e0b18',
-  midColor: '#ff5a1e',
-  tipColor: '#fff3e6',
-  flashColor: '#ff8a4c',
+  midColor: '#ff1f1f',
+  tipColor: '#fdfcfc',
+  flashColor: '#ffffff',
   emberColor: '#ff9a3c',
   bloodColor: '#9e0d1c',
 };

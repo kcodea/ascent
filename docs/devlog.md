@@ -355,6 +355,16 @@ With the plate in, the panel's contents got a pass:
 - **Card name +20%** — `0.088` → `0.1056` of `--ccw`, giving it the weight it lost now that it sits alone
   above the rules text.
 
+- **The white hover highlight moved to the plate.** On a plated card the plate IS the outer edge, so ringing
+  the oval frame inside it read as a halo floating in the middle of the card. A `.plateglow` copy of the plate
+  art now sits behind the real one carrying a static drop-shadow halo, with only `opacity` transitioning —
+  same compositor-only philosophy as `.cglow`, and since the art is opaque through its body the halo can only
+  ever show outside its silhouette. The frame's `.cglow` and the info panel's box-shadow rim are both
+  suppressed on plated cards (4-class selector so it wins on specificity, not source order). Colours still
+  come from the `--hg-*` vars, so the 🔆 Hover Glow tuner drives plate and frame as one look.
+- **The inspect overlay is plated too.** It's the other place you read a card as a whole object rather than a
+  board token. Safe for `isolation: isolate` — the overlay never renders during combat.
+
 #### Included cleanup (from final review)
 
 1. **Deleted dead CSS.** `.card.plated .cardplate.dissolving` and `@keyframes platepuff` in `styles.css` were

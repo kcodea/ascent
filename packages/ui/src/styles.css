@@ -2779,7 +2779,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
      GSAP lunge for a new stacking context to fight. */
   isolation: isolate;
 }
-.card.plated .cardplate {
+/* Shared geometry — the plate and its hover-glow copy are the same size and place, stacked by tree order
+   (`.plateglow` renders first, so it sits behind). */
+.card.plated .cardplate,
+.card.plated .plateglow {
   position: absolute;
   z-index: 0;                       /* behind every sibling; tree order already puts it first */
   left: 50%;
@@ -2788,10 +2791,36 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   /* Shipped art is 800x1244 → height = width x 1.5550. Locked, never stretched. */
   height: calc(var(--ccw) * var(--plate-scale, 1.18) * 1.5550);
   transform: translateX(-50%);
-  border-radius: var(--plate-radius, 10px);
   pointer-events: none;             /* MUST stay — see .handpad, which sits after this in the DOM */
   user-select: none;
 }
+.card.plated .cardplate { border-radius: var(--plate-radius, 10px); }
+
+/* HOVER GLOW, plate edition. On a plated card the white highlight rings the PLATE, not the oval frame —
+   the plate is the card's outer edge now, so glowing the frame inside it read as a halo floating in the
+   middle of the card (owner 2026-07-21). Same philosophy as `.cglow`: a copy seated BEHIND the opaque
+   original carrying a STATIC drop-shadow, with only `opacity` transitioning, so nothing paints in a loop.
+   Because the plate art is opaque through its body, the halo is only ever visible outside its silhouette —
+   it can't wash inward over the card. Colours are the same `--hg-*` vars the 🔆 Hover Glow tuner drives, so
+   plate and frame glow stay one look; fallbacks mirror glowConfig.ts DEFAULTS. */
+.card.plated .plateglow {
+  filter: drop-shadow(0 0 2px var(--hg-line-col, #ffffff))
+    var(--hg-bloom-filter,
+      drop-shadow(0 0 3px rgba(255, 255, 255, 0.89)) drop-shadow(0 0 3px rgba(255, 255, 255, 0.89))
+      drop-shadow(0 0 3px rgba(255, 255, 255, 0.89)));
+  opacity: 0;
+  transition: opacity 0.14s ease;
+}
+.card.plated:hover .plateglow { opacity: 1; }
+body.hglow-preview .card.plated .plateglow { opacity: 1; }
+/* …and the frame's own glow steps aside. FOUR classes so this beats the 3-class
+   `.card.compact.stdframe:hover .cglow { opacity: 1 }` on specificity rather than source order. */
+.card.compact.plated.stdframe:hover .cglow,
+.card.compact.plated.spellframe:hover .cglow,
+.card.compact.plated.taunt:hover .cglow { opacity: 0; }
+/* The info panel's white box-shadow rim goes too — it's inside the plate now, so ringing it as well read as
+   a second highlight. Zeroing the legacy `--hglow-*` vars is how `body.dragging` already suppresses this. */
+.card.compact.plated:hover { --hglow-ring: 0px; --hglow-blur: 0px; --hglow-spread: 0px; --hglow-a: 0; }
 
 /* Rules-text size buckets — picked by character count in plateTextBucket(), applied as a class on the card.
    These are MULTIPLIERS of the real base `.desc` font-size set at `.card.compact.showtext .drawer .desc`

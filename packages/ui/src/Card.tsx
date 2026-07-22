@@ -429,14 +429,21 @@ export const Card = memo(function Card({
           child so tree order paints it behind every sibling; `.card.plated` isolates so its z-index can't
           escape into neighbouring cards. `<img>` rather than a CSS background so a 404 is detectable. */}
       {usePlate && (
-        <img
-          className="cardplate"
-          src={CARD_PLATE_SRC}
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-          onError={() => { cardPlateAvailable = false; setPlateOk(false); }}
-        />
+        <>
+          {/* Hover glow, plate edition — a COPY of the plate art seated behind the real one, carrying a
+              static drop-shadow halo. Only its OPACITY animates (compositor-only), exactly how `.cglow`
+              handles the frame; the real plate is opaque, so only the outward halo is ever visible. Same
+              src, so the browser serves it from cache — no second decode. */}
+          <img className="plateglow" src={CARD_PLATE_SRC} alt="" aria-hidden="true" draggable={false} />
+          <img
+            className="cardplate"
+            src={CARD_PLATE_SRC}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            onError={() => { cardPlateAvailable = false; setPlateOk(false); }}
+          />
+        </>
       )}
       {/* Recruit-phase buff: float the +atk/+hp above the card, exactly like a combat buff (`.float.buff`).
           Keyed so a fresh buff remounts it and replays the rise. */}

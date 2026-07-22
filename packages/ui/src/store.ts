@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { CARD_INDEX, activeSet, type SetId } from '@game/content';
-import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, nextOpponent, reconstructRunTelemetry, reduce, resolveRunRating, runRecord, serialize, snapshotBoard, socBoard, type Action, type BoardMinion, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState } from '@game/sim';
+import { CONFIG, HEROES, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, isPlayerAction, missingCardIds, nextOpponent, reconstructRunTelemetry, reduce, resolveRunRating, runRecord, serialize, snapshotBoard, socBoard, type Action, type BoardMinion, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState } from '@game/sim';
 import type { Tribe } from '@game/core';
 import type { CardView } from './Card';
 import type { CombatBuffDelta } from './runBuffs';
@@ -285,10 +285,27 @@ function loadSave(): SavedGame | null {
     const o = JSON.parse(raw) as { run: string; actions?: Action[] };
     const run = deserialize(o.run); // heals older-schema saves
     if (run.phase === 'gameover' || run.phase === 'victory') return null; // finished → not resumable
+    // A save can reference a card this build no longer has — a card deleted or renamed during content work, a
+    // save carried between branches, or a patch that retired a card mid-run. `deserialize` deliberately doesn't
+    // throw, so without this check the run loads and dies on the first `CARD_INDEX[id]` deref, deep in a render
+    // (`shopView` reading `.spell` of undefined) with nothing pointing at the cause. Refusing the save turns an
+    // unrecoverable white screen into "no Continue offered", which is the same contract `registerOpponents`
+    // already applies to stale opponent boards. Found the hard way on 2026-07-22 by deleting a set-2 card while
+    // a Scene Builder run holding it was autosaved.
+    const missing = missingCardIds(run);
+    if (missing.length > 0) {
+      console.warn(`[ascent] discarding a saved run that references ${missing.length} card(s) this build no longer has:`, missing.join(', '));
+      clearSave();
+      return null;
+    }
     return { run, actions: o.actions ?? [] };
   } catch { return null; }
 }
 function writeSave(run: RunState, actions: Action[]): void {
+  // NEVER persist a Scene Builder run. It's a disposable dev rig with 999 Gold and hand-placed boards; letting
+  // it reach the autosave overwrites the player's real in-progress run and offers the sandbox as "Continue"
+  // (owner hit this on 2026-07-22 — a sandbox session clobbered a live save). The run is already flagged for us.
+  if (run.sandbox) return;
   try { localStorage.setItem(SAVE_KEY, JSON.stringify({ run: serialize(run), actions })); } catch { /* ignore */ }
 }
 function clearSave(): void {
@@ -369,6 +386,7 @@ export const useGame = create<GameStore>((set, get) => ({
   flushSave: () => {
     const s = get();
     if (s.showTitle || s.run.phase === 'gameover' || s.run.phase === 'victory') return;
+    if (s.run.sandbox) return; // a Scene Builder run is disposable — it must never become the offered Continue
     writeSave(s.run, s.replayActions);
     set({ savedRun: s.run });
   },
@@ -541,7 +559,9 @@ export const useGame = create<GameStore>((set, get) => ({
       let savedRun = s.savedRun;
       if (changed) {
         if (finished) { clearSave(); savedRun = null; }
-        else if (next.phase !== s.run.phase) {
+        // `next.sandbox` — a Scene Builder run never reaches the autosave OR the Continue slot. Both are
+        // guarded here rather than only inside `writeSave`, because `savedRun` is what the title offers.
+        else if (next.phase !== s.run.phase && !next.sandbox) {
           perfMonitor.measure('autosave', () => writeSave(next, replayActions));
           savedRun = next;
         }

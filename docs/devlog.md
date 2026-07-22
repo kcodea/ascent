@@ -3,6 +3,28 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-22 (desktop: itch upload zip)
+
+### feat(desktop): `npm run package:itch:win` — zip the Windows build for itch
+
+The downloadable counterpart to `package:itch` (which zips the browser build for "play in browser"). Zips the
+whole `ASCENT-win32-x64` folder, not just the exe: the exe is **not portable alone** — it needs the Electron
+runtime DLLs beside it and `resources/dist` (the game) below it. Everything sits under one top-level directory
+so a player extracting to Downloads gets a tidy folder rather than 80 loose files.
+
+**Zipped with Windows' bsdtar, by absolute path, deliberately.** `tar` on PATH here is Git's GNU tar, which
+cannot write zip at all (`-a` unsupported). PowerShell's `Compress-Archive` writes BACKSLASH entry names —
+the same trap `package-itch.ps1` documents, where non-Windows tooling reads them as literal filenames.
+`C:\Windows\System32	ar.exe` writes proper forward-slash entries (verified on a fixture before use),
+streams rather than buffering (the exe alone is 178 MB, so an in-memory archive was never an option), and
+ships with Windows — no dependency added.
+
+**Verified as a player would experience it**, not just by listing the archive: extracted the zip to a clean
+temp directory and ran the extracted exe — CDP confirms it serves `app://ascent/index.html` titled ASCENT. A
+complete file list would not have caught a broken relative path or a missing runtime DLL; running it does.
+
+Output: `ascent-itch-win64.zip`, 140 MB, 608 files (already covered by the gitignored `ascent-itch*.zip`).
+
 ## 2026-07-22 (desktop: the exe wears its own icon)
 
 ### feat(desktop): stamp the icon + version info into ASCENT.exe (via rcedit, no AV exclusion needed)

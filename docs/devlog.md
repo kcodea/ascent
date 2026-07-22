@@ -269,11 +269,80 @@ no-legal-target case, and Kennelmaster's board-wide/Attack-only scope.
 **Follow-up.** `rallyGrantRandomSpell` and `rallyTribeAura` now have no card using them (Badgington and
 Solaris were their only consumers). Left in place deliberately — they're valid primitives for set 2 — but
 worth removing in their own PR if nothing picks them up.
-## 2026-07-21 (hand-card backplate: final-review cleanup)
+## 2026-07-21 (hand-card backplate)
 
-### chore(ui): backplate cleanup — drop dead dissolve CSS + vars, fix comments
+### feat(ui): hand cards gain an ornate backplate that dissolves when played
 
-Five hygiene fixes from the feature's final review, before PR:
+Cards in hand now render a **backplate** — an ornate stone/gold card body framing the existing oval portrait
+frame and glass info panel, turning a hand card into a proper full card. It travels with the card while it's
+dragged out of hand, and dissolves when a minion is played to the board, leaving the bare oval token the board
+already uses. Presentation only: no engine, content or run-state code was touched.
+
+**The plate is STATIC — never stretched.** A nine-sliced stretching plate was prototyped against the real art
+first and rejected. Measured stretch range across the card corpus was 214px → 299px (~40% vertical), and the
+art's greek-key tabs sit at ~51% height — dead centre of the stretch band — so no choice of slice inset
+protects them. Static keeps the art pixel-exact.
+
+**Long rules text shrinks instead, via character-count buckets — deliberately NOT DOM measurement.** The
+obvious implementation (render, read `scrollHeight`, step down until it fits) is a layout read per card per
+render on the hand, which re-renders constantly — the anti-pattern named in [performance.md](performance.md).
+`plateTextBucket()` is a pure O(1) function of the live text string (values already folded in), picking one of
+four size buckets. Thresholds come from the measured corpus: 273 card texts, median 59 chars, p90 96, max 187
+static (~230 once live values fold in). Known tradeoff: character count is a proxy for wrapped height, so the
+buckets run slightly conservative — the thresholds are tuner knobs.
+
+**The static decision meant the existing layout didn't have to move.** An earlier design flipped `.drawer` back
+to `position: static` so the card's height would grow to contain it — only necessary when a *stretching* plate
+has to track dynamic content. With a fixed plate, `.drawer` keeps `position: absolute` and its anchored-top
+behaviour from #570, and the plate is just a fixed-size element behind everything. No DOM restructure, so the
+FLIP and rect-measurement code in `Recruit.tsx` is untouched.
+
+**The dissolve is a PLACEHOLDER.** The authored effect is a deliberate phase 2, to be built on its own preview
+rig. `platePuff()` clones `.dragcard .cardplate` at release (the drag card unmounts the moment `setDrag(null)`
+runs, so the plate can't ride it), pins the clone to `<body>` off its measured rect, and fades/scales it while
+firing the existing `pixiFx.dust()`. Starts on release and runs on its own clock rather than being bounded by
+the ~200ms FLIP flight — a dissolve clamped to the flight reads as a blink. Swap surface for phase 2 is one CSS
+class and one call site.
+
+Scope: hand cards + the `.dragcard` copy when dragging from hand. Shop, board, combat, Discover and the hover
+popup are untouched — verified across all 20 `<Card>` render sites, which matters because `.card.plated` sets
+`isolation: isolate` and the safety argument for that is "plated cards never enter combat."
+
+Untargeted spells get no dissolve: `castingSpell` already unmounts `.dragcard` and replaces it with the aim
+line, so there's nothing on screen to dissolve at cast time. Deferred to phase 2 with the authored effect.
+
+**Art:** `apps/web/public/frames/cardplate.webp`, 800×1244, 199 KB. The source (`card plate v3.png`) is
+1890×2938 at **6.63 MB** against a total `apps/web/public/` of 8.0 MB — shipping it raw would have nearly
+doubled the game's asset payload for one card frame, and it renders at ~200px so it was ~9× oversampled.
+Converted with `sharp` at 800px / q85 (still 4× display size). Quality ladder measured: q70 134 KB, q78 155 KB,
+q85 199 KB, q90 261 KB; q85 chosen for headroom since large flat stone gradients are what WebP bands on.
+
+Also adds a dev-only **🂠 Card Plate** tuner (plate geometry, bucket thresholds, dissolve params),
+`import.meta.env.DEV`-gated per #615, values double-sourced against the CSS fallbacks.
+
+Two bugs were caught in review and are worth recording, both of which would have looked fine in a diff:
+
+- **The text buckets originally used `font-size: 1em / 0.92em / …`.** That *replaces* the base rule at
+  `styles.css:1510` rather than scaling it, and `em` on font-size resolves against the parent (`.drawer`),
+  which sets no font-size — so it landed on the browser default ~16px, decoupling card text from `--ccw`
+  entirely. Fixed to restate the calc: `calc(var(--ccw) * 0.072 * <factor>)`.
+- **Those selectors also tied the base rule's specificity exactly** (5 classes each), so they won only by
+  source order — reorder the stylesheet and the whole feature silently dies. Now 6 classes
+  (`.card.compact.plated.plate-txt-*`), winning on specificity instead.
+
+**Verified:** typecheck + lint + 1334 tests + `build:web` all green. `plateTextBucket()` has unit tests
+including a monotonicity sweep and a tuned-threshold round-trip. Confirmed live in a dev server run from the
+worktree: plate renders at `naturalWidth: 800`, bucket class applied, `.desc` computed font-size 3.70px against
+`--ccw` 51.4 (= 51.4 × 0.072 × 1, i.e. card-scaled, not a flat 16px), `pointer-events: none` holding so the
+`.handpad` hover pad still works, no console errors. The drag path couldn't be exercised live (rAF doesn't fire
+in the preview tab) and was verified by code reading.
+
+**Follow-ups:** hand cards are taller now, so the hand row wants re-tuning by eye (`handY`, `handGap`, probably
+`handPop`) and the exported values baked into BOTH the TS defaults and the CSS fallbacks. Phase 2 authors the
+real dissolve. The tuner's three text-bucket sliders don't apply to already-rendered cards (`Card` is memoized
+by design); the panel says so rather than weakening the memoization.
+
+#### Included cleanup (from final review)
 
 1. **Deleted dead CSS.** `.card.plated .cardplate.dissolving` and `@keyframes platepuff` in `styles.css` were
    never applied — `platePuff()` in `Recruit.tsx` adds `plateghost` (which drives `platepuffghost`) instead,

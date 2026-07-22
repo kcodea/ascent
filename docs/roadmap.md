@@ -116,6 +116,20 @@ The career surface exists; deepen what a finished run *remembers*.
 
 ## Next
 
+- **Hand-card backplate — phase 2: author the dissolve.** The plate itself is shipped; what it does when a
+  minion is played is a deliberate placeholder (a fade+scale one-shot plus the existing `pixiFx.dust()`).
+  Author the real effect on its own preview rig the way the charge glyph was done, then swap it in — the
+  surface is one CSS class (`.cardplate.plateghost` / `@keyframes platepuffghost`) and one call site
+  (`platePuff()` in `Recruit.tsx`). Two things to decide deliberately while there: the dust currently renders
+  *behind* the dissolving plate (ghost z114 vs the Pixi canvas at z110), and **untargeted spells have no
+  dissolve at all** — their plated drag card just vanishes, because targeted spells unmount `.dragcard` at aim
+  time so there was nothing consistent to hook. Both were left for this pass.
+
+- **Re-tune the hand row for the plated card.** The backplate makes hand cards taller than they were, so
+  `handY` / `handGap` (📐 Scale & Layout) and probably `handPop` (🎴 Drag Feel) want dialing by eye. Shipped
+  with reasonable starting values. When baking the export, update **both** the TS defaults and the CSS
+  fallbacks — the double-source rule.
+
 - **Quest-node row can leave the viewport.** The `--qb-*` stage pin uses a large negative Y (−256 ×
   scale); on a tall/zoomed layout the nodes sit above the top edge. 2026-07-21r clamped the TENDRIL so it
   still reads, but the nodes themselves being off-screen is the real bug.

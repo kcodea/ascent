@@ -5,6 +5,38 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-21 (balance: nine-card owner pass)
 
+### feat(ui): the EXECUTION STRIKE — Execute's Pixi proc FX
+
+The moment half of the Execute retheme, completing it alongside the rename (#625) and the rage aura (#627).
+Fires at the VICTIM's slot when an Execute minion procs and destroys what it damaged.
+
+Four beats, all fire-and-forget pooled particles (nothing touches the beat clock): a hot **core flash** under
+the cut, the **crescent(s)** expanding and sweeping as they fade, **embers** flung along the cut, and **blood**
+droplets on heavy gravity so they arc and fall rather than drifting like more sparks (normal blend, not add —
+additive blood washes out to pink).
+
+**The crescent is a baked texture drawn as many short arc segments.** That's what lets one sprite carry both a
+TAPER (fine hairline → swell → drawn-out point) and a GRADIENT along its path (crimson → orange → white-hot
+tip); a single stroke can have one or the other, not both. The bake is cached and only re-made when a
+shape/colour dial changes (`executeCrescentKey`), so a proc costs sprite spawns alone.
+
+**Wiring:** a new `executeFx` choreo channel on the `poisonTick` moment. That kind also covers `venomLost` (the
+keyword being spent, which is not a kill), so the handler scans for `poison` events specifically — tested both
+ways. The cue is deliberately NOT on `death`/`damage`: only an Execute kill slashes.
+
+**The geometry is extracted from the Pixi bake into a pure function** (`executeCrescentSegments`) so the fiddly
+taper/gradient maths is testable without a renderer — a baked texture is invisible until it renders, so a bad
+arc would otherwise silently ship as a smear. That paid for itself immediately: the tests caught the draw
+radius being sized off `arcThick` alone while the widest stroke is actually the 2.6×-wider BLOOM pass, which
+put the glow ~5px outside the texture and clipped it to a hard straight edge. Now checked across the whole
+thickness range.
+
+Dialled via the 🩸 Execute Strike tuner, which has a **Test** button (`pixiFx.testExecute()`) firing at screen
+centre — so the look can be iterated without hunting for a real proc mid-combat. The shipped values are a
+considered first pass aimed at the owner's reference, NOT owner-dialled yet.
+
+Verified: typecheck · lint · 1369 tests (19 new) · build:web.
+
 ### feat(ui): the EXECUTE rage aura + its live tuner
 
 The FX half of the Toxin → Execute retheme. Replaces the old lime "Venomous" treatment with a swirling ring of

@@ -936,6 +936,14 @@ export function useCombatReplay(
       onAuraBurst: (uid) => burstDeathAuras(uid, rectOf(uid)),
       onShieldBreak: (uid) => breakShieldAura(rectOf(uid)),
       onReborn: (uid) => reformReborn(rebornRects.get(uid) ?? rectOf(uid)),
+      // Execute proc → the crescent strike at the VICTIM's slot (the unit being destroyed), read at fire time
+      // so a tuner edit applies to the next proc.
+      onExecuteFx: (uids) => {
+        for (const uid of uids) {
+          const r = rectOf(uid);
+          if (r) pixiFx.executeStrike(r.cx, r.cy);
+        }
+      },
       // buff-OTHER casts (source ≠ target) → tendril/descend + badge flash (shared with the attack-wind-up path).
       onBuffCasts: (casts) => fireBuffCasts(casts, timers),
       onSelfBuffs: (selfBuffs) => fireSelfBuffs(selfBuffs, timers),

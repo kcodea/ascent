@@ -4,6 +4,10 @@ import { perfMonitor } from './perfMonitor';
 import { getStrikeFxConfig } from './strikeFxConfig';
 import { getCritFxConfig, type CritFxConfig } from './critFxConfig';
 import { getFlurrySwingConfig } from './flurrySwingConfig';
+import {
+  EXEC_CRESCENT_TEX_W, executeCrescentKey, executeCrescentRadius, executeCrescentSegments,
+  getExecuteFxConfig, type ExecuteFxConfig,
+} from './executeFxConfig';
 import { getTrailConfig } from './trailConfig';
 import { sfx } from './sfx';
 
@@ -611,6 +615,8 @@ class FxController {
   private veinTex: Texture | null = null;       // thin streak — shield energy vein
   private wispTex: Texture | null = null;
   private crescentTex: Texture | null = null;      // thin curved wind-blade — the Flurry-swing slash
+  private execCrescentTex: Texture | null = null;  // tapered gradient crescent — the Execute strike (baked lazily)
+  private execCrescentKey = '';                    // the shape/colour dials the bake depends on (see executeCrescentKey)
   private skullTex: Texture | null = null;         // the purple glowing ☠, glow baked in (Echo/Deathrattle FX)
   private skullSrcW = 1;
   private skullSrcH = 1;
@@ -801,6 +807,9 @@ class FxController {
     this.veinTex = null;
     this.wispTex = null;
     this.crescentTex = null;
+    this.execCrescentTex?.destroy(true);
+    this.execCrescentTex = null;
+    this.execCrescentKey = '';
     this.ready = false;
     this.initing = null;
   }
@@ -1117,6 +1126,129 @@ class FxController {
         tint: hexNum(c.sparkColor), blend: 'add', stretchX: 1.8, peakAlpha: 0.95,
       });
     }
+  }
+
+  /**
+   * EXECUTION STRIKE — the one-shot flourish when an Execute (`V`) minion procs and destroys its target. Fires
+   * at the VICTIM's slot on the `poison` event (choreo `executeFx` cue on the `poisonTick` moment).
+   *
+   * Four beats, all fire-and-forget pooled particles — nothing touches the beat clock:
+   *   1. a hot core FLASH under the cut, so the crescent reads as cutting THROUGH something lit
+   *   2. the CRESCENT(S) — a baked tapered/gradient arc, expanding and sweeping as it fades
+   *   3. EMBERS flung along the cut
+   *   4. BLOOD droplets, heavier (high gravity) so they arc and fall instead of drifting
+   *
+   * The crescent texture is baked once and cached; only a shape/colour dial invalidates it (see
+   * `executeCrescentKey`), so a proc costs sprite spawns alone.
+   */
+  executeStrike(x: number, y: number, cfg: ExecuteFxConfig = getExecuteFxConfig()): void {
+    perfMonitor.mark('fx:execute');
+    if (!this.ready || !this.glowTex || !this.sparkTex) return;
+    const tex = this.executeCrescentTexture(cfg);
+    if (!tex) return;
+    const p = cfg.power;
+    const GLOW_D = 80, SPARK_D = 16;
+    const CRESCENT_W = EXEC_CRESCENT_TEX_W; // the baked texture's nominal width, so arcSize is honest px
+
+    // 1 · core flash
+    if (cfg.flashSize > 0 && cfg.flashAlpha > 0) {
+      this.spawn(this.glowTex, {
+        x, y, vx: 0, vy: 0, drag: 1, life: cfg.flashLife,
+        fromScale: (cfg.flashSize * 0.5 * p) / GLOW_D, toScale: (cfg.flashSize * 1.25 * p) / GLOW_D, spin: 0,
+        tint: hexNum(cfg.flashColor), blend: 'add', peakAlpha: cfg.flashAlpha,
+      });
+    }
+
+    // 2 · the crescent cut(s). Each is stationary (the read is the SWEEP + expansion, not travel) and rotates
+    // through its life; extra cuts fan off the base tilt so a multi-cut strike crosses itself.
+    const spread = (cfg.arcSpread * Math.PI) / 180;
+    const baseTilt = (cfg.arcTilt * Math.PI) / 180;
+    for (let i = 0; i < Math.round(cfg.arcCount); i++) {
+      const rot = baseTilt + (i === 0 ? 0 : (Math.random() - 0.5) * spread);
+      const dir = i % 2 ? -1 : 1;   // alternate the sweep so cuts cross rather than chase each other
+      this.spawn(tex, {
+        x, y, vx: 0, vy: 0, drag: 1,
+        life: cfg.arcLife * (i === 0 ? 1 : 0.72 + Math.random() * 0.4),
+        fromScale: (cfg.arcSize * p) / CRESCENT_W,
+        toScale: (cfg.arcSize * cfg.arcGrow * p) / CRESCENT_W,
+        spin: ((cfg.arcSpin * Math.PI) / 180) * dir,
+        rotation: rot,
+        // white tint: the gradient is BAKED into the texture, so tinting would multiply it away
+        tint: 0xffffff, blend: 'add', peakAlpha: cfg.arcAlpha * (i === 0 ? 1 : 0.72),
+      });
+    }
+
+    // 3 · embers along the cut — sprayed perpendicular to the blade, i.e. along the direction it travelled
+    const eSpread = (cfg.emberSpread * Math.PI) / 180;
+    for (let i = 0; i < Math.round(cfg.emberCount); i++) {
+      const a = baseTilt + (Math.random() - 0.5) * eSpread;
+      const speed = cfg.emberSpeed * (0.5 + Math.random() * 0.9);
+      this.spawn(this.sparkTex, {
+        x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.1,
+        life: cfg.emberLife * (0.6 + Math.random() * 0.7),
+        fromScale: (cfg.emberSize * p) / SPARK_D * (0.8 + Math.random() * 0.6), toScale: 0.03,
+        spin: (Math.random() - 0.5) * 6, rotation: a, gravity: cfg.emberGravity,
+        tint: hexNum(cfg.emberColor), blend: 'add', stretchX: 1.7, peakAlpha: 0.95,
+      });
+    }
+
+    // 4 · blood — NORMAL blend (add would wash it out to pink) and heavy gravity, so it reads as wet mass
+    // thrown off the cut rather than more sparks.
+    const bSpread = (cfg.bloodSpread * Math.PI) / 180;
+    for (let i = 0; i < Math.round(cfg.bloodCount); i++) {
+      const a = baseTilt + (Math.random() - 0.5) * bSpread;
+      const speed = cfg.bloodSpeed * (0.45 + Math.random() * 1.0);
+      this.spawn(this.sparkTex, {
+        x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.22,
+        life: cfg.bloodLife * (0.6 + Math.random() * 0.7),
+        fromScale: (cfg.bloodSize * p) / SPARK_D * (0.7 + Math.random() * 0.8), toScale: 0.05,
+        spin: (Math.random() - 0.5) * 4, rotation: a, gravity: cfg.bloodGravity,
+        tint: hexNum(cfg.bloodColor), blend: 'normal', stretchX: 1.3, peakAlpha: 0.9,
+      });
+    }
+  }
+
+  /** DEV: fire the Execution Strike at screen centre (🩸 Execute Strike tuner's Test button / console), so the
+   *  look can be dialled without hunting for a real Execute proc. */
+  testExecute(): void {
+    if (!this.ready) { console.warn('[pixiFx.testExecute] not ready — refresh the page.'); return; }
+    this.executeStrike(window.innerWidth / 2, window.innerHeight / 2);
+  }
+
+  /**
+   * Bake (and cache) the Execute crescent.
+   *
+   * Drawn as many SHORT ARC SEGMENTS rather than one stroke, which is what buys both properties the single
+   * stroke can't have at once:
+   *   - a TAPER along the path: each segment sets its own width, so the cut starts as a fine hairline, swells
+   *     through the body, and draws back out to a point at the tip
+   *   - a GRADIENT along the path: each segment sets its own colour, ramping tail → mid → tip (crimson →
+   *     orange → white-hot), plus a rising alpha so the tail fades out rather than ending abruptly
+   * A soft wide underlay is drawn first so the blade carries its own bloom.
+   *
+   * Cached on `executeCrescentKey` — only the shape/colour dials invalidate it, so dialling counts or speeds
+   * in the tuner never pays for a re-bake.
+   */
+  private executeCrescentTexture(cfg: ExecuteFxConfig): Texture | null {
+    const app = this.app;
+    if (!app) return null;
+    const key = executeCrescentKey(cfg);
+    if (this.execCrescentTex && this.execCrescentKey === key) return this.execCrescentTex;
+    this.execCrescentTex?.destroy(true);
+
+    const g = new Graphics();
+    const R = executeCrescentRadius(cfg);
+    // bloom pass first (the wide faint underlay), then the sharp blade over it
+    for (const bloom of [true, false]) {
+      for (const s of executeCrescentSegments(cfg, bloom)) {
+        g.arc(0, 0, R, s.a0, s.a1).stroke({ width: s.width, color: s.color, alpha: s.alpha, cap: 'round' });
+      }
+    }
+    const tex = app.renderer.generateTexture({ target: g, resolution: 2 });
+    g.destroy();
+    this.execCrescentTex = tex;
+    this.execCrescentKey = key;
+    return tex;
   }
 
   /**

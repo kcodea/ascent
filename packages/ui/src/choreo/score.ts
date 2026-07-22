@@ -16,7 +16,7 @@ import { groupSelfBuffs } from './channels/buffSelf';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -65,7 +65,11 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   // split damage) and `death` (Blaster's Deathrattle AoE lands in its death moment). Melee dmg stays in
   // `attackExchange` (already has the full lunge/impact FX), so it never double-bursts; the handler no-ops on a
   // plain death that carries no dmg events.
-  damage: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }], shieldPop: [...BASE], poisonTick: [...BASE],
+  damage: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }], shieldPop: [...BASE],
+  // `executeFx` = the Execution Strike crescent at each destroyed target. `poisonTick` also covers `venomLost`
+  // (the keyword being spent), which carries no `poison` event — the handler scans for `poison` specifically,
+  // so a spend-only moment fires nothing.
+  poisonTick: [...BASE, { ch: 'executeFx', at: 'start', offset: 0 }],
   death: [...BASE, { ch: 'damageFx', at: 'start', offset: 0 }], riseDeath: [...BASE], scCast: [...BASE],
   // `summonFx` = a dust poof at the arriving unit, at +250ms (scaled) to land on the `summonpop` overshoot (the
   // "bounce") — by then the scale-in has grown the unit to a measurable, full size.
@@ -146,6 +150,9 @@ export interface CueContext {
   onShieldBreak: (uid: string) => void;
   /** A unit was reborn this moment (uid) → schedule the re-form glow. */
   onReborn: (uid: string) => void;
+  /** This moment's `poison` targets — minions destroyed by an Execute proc. The replay fires the Execution
+   *  Strike crescent at each victim's slot. */
+  onExecuteFx: (uids: string[]) => void;
   /** This moment's buff-OTHER casts (source !== target), grouped per (source,target). The replay fires a
    *  tendril per cast (Task 4 adds the held-value release / badge flash at the strike). */
   onBuffCasts: (casts: import('./channels/buffCast').BuffCast[]) => void;
@@ -207,6 +214,11 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     });
     else if (cue.ch === 'auraBreak') at(cue, () => {  // DS consumed: delayed gold shatter
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'shield') ctx.onShieldBreak(e.target); }
+    });
+    else if (cue.ch === 'executeFx') at(cue, () => {  // Execute proc: the crescent strike at each victim
+      const uids: string[] = [];
+      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'poison') uids.push(e.target); }
+      if (uids.length) ctx.onExecuteFx(uids);
     });
     else if (cue.ch === 'auraReform') at(cue, () => {  // reborn: re-form glow
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'reborn') ctx.onReborn(e.target); }

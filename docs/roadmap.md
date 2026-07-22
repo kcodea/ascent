@@ -53,11 +53,9 @@ Solaris Fang (Rally halves cut), Money Maker (Gold Pouch only), and the **Graver
   set 2 — remove in their own PR if nothing picks them up.
 
 ### Execute (`V`) — finish the retheme
-The rename (#625) and the persistent CSS rage aura + tuner have shipped. Remaining:
-- **The Pixi proc strike.** An "EXECUTION STRIKE" crescent on the `{ type: 'poison' }` combat event, at the
-  victim's slot: a baked crescent texture drawn as many short arc segments so it gets BOTH a taper and a
-  gradient along the path (crimson tail → orange → white-hot tip), an expanding + rotating sweep, embers, a hot
-  core flash, and dark-red blood droplets. Own config + tuner + Test button, per the owner's reference.
+The rename (#625), the CSS rage aura (#627) and the Pixi strike have all shipped. Remaining:
+- **Owner-dial the strike.** The Execution Strike's shipped values are a considered first pass, not owner-tuned
+  — dial them via the 🩸 Execute Strike tuner's Test button and bake the JSON.
 - **Its own icon glyph.** Execute still shows the `poison` droplet — `sword` and `slaughter` are taken by
   Rally/Slaughter, so it wants an authored bladed glyph rather than a reused one.
 - **Render-profile the aura.** The shipped values build ~101 nodes / ~98 animations per Execute card (26 shards

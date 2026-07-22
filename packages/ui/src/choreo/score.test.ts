@@ -9,7 +9,7 @@ const moment = (kind: Moment['kind'], events: CombatEvent[]): Moment => ({ start
 const baseCtx = (events: CombatEvent[], overrides: Partial<Parameters<typeof runMomentCues>[1]> = {}) => ({
   events, combatSpeed: 1, onShake: vi.fn(), findEl: () => null, attackerUid: null, meleePair: null,
   onFloats: vi.fn(), onDeathFloats: vi.fn(),
-  onAuraBurst: vi.fn(), onShieldBreak: vi.fn(), onReborn: vi.fn(), onBuffCasts: vi.fn(), onSelfBuffs: vi.fn(), onImprove: vi.fn(), onMaxGold: vi.fn(), onDamageFx: vi.fn(), onSummonFx: vi.fn(), onAscend: vi.fn(), ...overrides,
+  onAuraBurst: vi.fn(), onShieldBreak: vi.fn(), onReborn: vi.fn(), onBuffCasts: vi.fn(), onSelfBuffs: vi.fn(), onImprove: vi.fn(), onMaxGold: vi.fn(), onDamageFx: vi.fn(), onSummonFx: vi.fn(), onAscend: vi.fn(), onExecuteFx: vi.fn(), ...overrides,
 });
 const ctx = baseCtx;
 
@@ -53,6 +53,27 @@ describe('score', () => {
       expect(SCORE_DEFAULTS[kind].some((c) => c.ch === 'auraBreak')).toBe(true);
     }
     expect(SCORE_DEFAULTS.reborn.some((c) => c.ch === 'auraReform')).toBe(true);
+  });
+
+  // The Execution Strike crescent. `poisonTick` covers BOTH the proc (`poison`) and the keyword being spent
+  // (`venomLost`) — only the former is a kill worth slashing, so the handler scans for `poison` specifically.
+  it('executeFx fires once per poison target', () => {
+    const c = ctx([{ type: 'poison', target: 'b' }, { type: 'poison', target: 'c' }]);
+    runMomentCues(moment('poisonTick', c.events), c);
+    expect(c.onExecuteFx).toHaveBeenCalledWith(['b', 'c']);
+  });
+
+  it('executeFx does NOT fire on a venomLost-only moment (the keyword being spent is not a kill)', () => {
+    const c = ctx([{ type: 'venomLost', target: 'b' }]);
+    runMomentCues(moment('poisonTick', c.events), c);
+    expect(c.onExecuteFx).not.toHaveBeenCalled();
+  });
+
+  it('executeFx rides only the poisonTick kind — a plain death must not slash', () => {
+    expect(SCORE_DEFAULTS.poisonTick.some((c) => c.ch === 'executeFx')).toBe(true);
+    for (const kind of ['damage', 'death', 'shieldPop', 'attackExchange'] as const) {
+      expect(SCORE_DEFAULTS[kind].some((c) => c.ch === 'executeFx'), kind).toBe(false);
+    }
   });
 
   it('the migrated aura offsets reproduce the old channel delays', () => {

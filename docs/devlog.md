@@ -3,6 +3,252 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (audio: cleave level)
+
+### tweak(ui): Cleave SFX level 0.4 → 0.27 → 0.11
+
+Owner pasted a full Mixing Desk export. Diffed the whole thing against the shipped defaults rather than
+re-pasting it: master gain, the master limiter, all four bus gains/comps, every category's bus assignment and
+every other category gain were already **identical** to what ships. The only value that had moved was
+`cleave` — dropped 0.4 → 0.27, then a second export took it to **0.11**. It layers ON TOP of the smack
+rather than replacing it, so it only needs to colour the hit, not carry it; both passes were the owner
+pulling it further back under that. Each export was diffed the same way, and each time `cleave` was the only
+line that had moved.
+
+So this is a one-number change, not a re-import. Worth doing it that way round: a blind re-paste of a
+40-entry config would have been indistinguishable from a real remix in the diff, and would have buried the
+one line that actually changed.
+
+typecheck + lint + 1338 tests + `build:web` green.
+
+## 2026-07-21 (cleave: second SFX take)
+
+### tweak(ui): swap the Cleave clip to `cleave2`
+
+Owner picked the second take. `packages/ui/src/audio/cleave2.mp3` replaces `cleave.mp3` (the old file is
+deleted rather than left dangling — the sample glob is eager, so an unused clip would still ship).
+
+The SAMPLE name changed; the mixer CATEGORY deliberately did not. `playSample('cleave2', 'cleave')` — the
+second argument is the channel that `audio/config.ts` gives a level (0.4) and a bus (combat), so renaming it
+alongside the take would have silently orphaned that wiring. Noted in the code so the next swap keeps them
+apart.
+
+Verified in the production bundle: `dist/assets/cleave2-*.mp3` present, no `cleave-*.mp3`.
+
+typecheck + lint + 1338 tests + `build:web` green.
+
+## 2026-07-21 (cleave: the rake no longer follows the blow)
+
+### fix(ui): a leftward Cleave mirrored the claws upward — the rake now plays one animation, both ways
+
+Owner report: swinging LEFT flipped the claws' hook and bulge upward.
+
+The rake used to follow the blow — `sign = dx < 0 ? -1 : 1`, which put `x1` left of `x0` and made the span
+NEGATIVE. Every stroke's normal is derived from its tangent, so a negative span flipped the normal, and with
+it the claw's bulge and hook — a vertical mirror. That is fine for a symmetric shape and wrong for an
+asymmetric one, which a hooked talon is. As the owner put it, mirroring can't work here.
+
+So the cut no longer takes a direction at all: it always rakes left→right, the same animation whichever way
+the attacker swung. `cleaveSlash` dropped its `dx`/`dy` parameters (both call sites updated), and the
+now-dead `(span < 0 ? -1 : 1)` correction in the tilt term went with them. `dx`/`dy` stay in
+`playContactImpact` — the wind-slash, crit, impact burst and knockback all still use them.
+
+Worth noting for future FX work: the preview rig **never flipped** (it draws from a positive span), which is
+exactly why the shape always looked right there and wrong in game. A rig that mirrors the shipped maths but
+not its inputs can still miss a bug — this one only showed up on a real leftward swing.
+
+typecheck + typecheck:web + lint + 1338 tests + `build:web` green.
+
+## 2026-07-21 (cleave: claws over the rake, shaped as talons)
+
+### tweak(ui): draw the claws in a second pass, and taper them back into the cut
+
+Two owner notes on the claws, both fixed.
+
+**They were being painted over.** The claw was drawn inside the per-streak loop, so streak 2's rake landed on
+top of streak 1's claw — with three staggered strokes the earlier claws were partly buried. The streaks are
+now collected during the ribbon pass and every claw is drawn afterwards, in a **second pass**, so all of them
+sit over all of the rake.
+
+**They read as arrows, not claws.** The shape was a plain triangle: tip plus two base corners, which gives a
+hard flat base — an arrowhead stuck on the end of a line. It is now a **talon**, sampled along its own axis
+with a width profile that is ZERO at the root, swells to `clawWidth` a third of the way along, then narrows
+back to a point. Zero width at the root is the whole trick: the claw grows out of the cut instead of sitting
+on it as a separate object. `clawHook` bends the axis sideways (quadratically, so the curve gathers toward
+the tip) so it hooks like a talon rather than spearing straight.
+
+Two new dials: `clawBulge` (0..1, where the widest point sits — low keeps the mass at the knuckle) and
+`clawHook` (px of sideways curve, signed).
+
+Verified on the frame ladder, which mirrors both the second pass and the new shape.
+
+typecheck + typecheck:web + lint + 1338 tests + `build:web` green.
+
+## 2026-07-21 (cleave: claw tips)
+
+### feat(ui): claw tips leading the Cleave rake — the point that opens the wound
+
+Each of the rake's strokes now has a **claw** riding its leading edge: a sharp tapered point speared ahead of
+the cut it is opening (owner ask). It roots `clawRoot` px BEHIND the advancing edge so it sits *in* the wound
+rather than floating off the end, spears `clawLen` px past it, and tapers from `clawWidth` to a point. It is
+drawn in its own hotter colour (`colorClaw`, default `#ff6b6b`) so the thing doing the cutting reads brighter
+than the wound it leaves.
+
+Timing matters for the read: the claw is at full strength only while its stroke is still raking, then fades
+over `clawFadeMs` (140ms) once the cut has landed — so it reads as the instrument, not as permanent
+decoration welded onto the gash.
+
+Dialled by eye against the frame ladder, which grew an extra early frame (18ms) to catch the claws mid-bite.
+First pass rendered them as blunt **arrowheads** — 13px wide on a ~14px stroke and rooted only 18px back, so
+the base flared wider than the cut. Narrowed to 8px, lengthened to 32px and rooted 30px deep, which blends
+the base into the stroke and leaves just the point showing.
+
+Five new dials (`clawLen`, `clawWidth`, `clawRoot`, `clawAlpha`, `clawFadeMs`) plus the `colorClaw` swatch,
+all in the 🩸 tuner.
+
+typecheck + typecheck:web + lint + 1338 tests + `build:web` green.
+
+## 2026-07-21 (cleave: retire the old attacker swipe)
+
+### tweak(ui): drop the old Cleave glare swipe — one cue per swing
+
+Cleave already had a visual, predating this work: `.unit.cleaving::before`, a hard white diagonal gradient
+bar wiped across the ATTACKER over 0.45s (`@keyframes cleaveswipe`), tagged by the replay as a second class
+alongside `attacking`. With the new hit-stop + red claw rake landing on the TARGET, the same swing was
+playing two competing cues — the owner spotted the white bar and asked what it was.
+
+Retired (owner call): both CSS rules are gone and the replay tags every attacker with plain `attacking`
+again. The keyword's read is now the freeze plus the rake on what it hit. `atk`, only looked up to test for
+the `C` keyword, went with it.
+
+Nothing else referenced `cleaving` or `cleaveswipe`.
+
+typecheck + lint (0 warnings) + 1338 tests + `build:web` green.
+
+## 2026-07-21 (cleave: the Test panel was lying)
+
+### fix(ui): Cleave rake is a fixed length — the tuner's Test and a real hit now draw the same cut
+
+Owner report: the tuner's Test drew a big wide rake, but a real cleave drew a tiny one. **The panel was
+lying**, and the dial was the reason. `spanScale` was a MULTIPLE of a measured box — but the two callers
+measured different boxes: Test fired over a hardcoded 430px stand-in region, while a real hit passed the
+defender's card (~150px). Same dial, same value, a 600px cut in the panel and a ~210px cut in the game.
+
+The span is now `spanPx`, an **absolute length**, and `cleaveSlash` takes a **centre point** instead of a
+region — there is no longer anything to measure, so there is nothing to disagree about. Test fires the exact
+same call as a real hit, just centred on screen instead of on a card; the comment in the tuner says to keep
+it that way. Default 600px, which is the cut the owner was seeing (and liked) in the panel.
+
+Two related fixes fell out of it:
+- The cut now anchors on the defender's **card centre** rather than the contact point, so it sits on the
+  middle of what it hit (it had been riding high on the card).
+- Span, stroke width, spacing and bow now all ride ONE folded factor (`cfg.scale × the stage scale), so the
+  whole rake shrinks together on a small screen instead of the width scaling while the length didn't.
+
+This is the third sizing rule this effect has had — group-relative, then card-relative, now absolute — and
+absolute is the one that can't drift, because nothing it draws depends on what it happens to be drawn over.
+
+Frame ladder updated (wider canvas, absolute span) and re-checked. typecheck + typecheck:web + lint + 1338
+tests + `build:web` green.
+
+## 2026-07-21 (cleave: target-sized rake + SFX)
+
+### tweak(ui): the Cleave rake is target-sized, not group-sized; wire the cleave SFX
+
+**The rake no longer changes with splash count** (owner call). It was sized and centred on the bounding box
+of every unit the swing struck, so a three-target cleave drew a hugely wider cut than a one-target cleave —
+the same keyword reading as two different effects. It is now sized and placed off the **defender's own card**,
+so the cut lands identically on the target however many neighbours catch the splash. `spanScale` accordingly
+now means "multiple of the STRUCK CARD's width".
+
+That deleted the whole cleaved-area apparatus with it: the `cleaveRegion` resolver in `useCombatReplay`
+(which scanned the beat's damage events, excluded the attacker and measured slots), its `AttackCueCtx` field,
+and the extra `playContactImpact` parameter. The impact channel already has the defender's rect.
+
+**SFX wired.** `cleave.mp3` (from the owner's SFX folder) is in `packages/ui/src/audio/`, registered as
+`sfx.cleave()` on its own `cleave` category on the combat bus at 0.4, and fired from the impact channel
+alongside the gash. It LAYERS over the smack rather than replacing it — the hit is still a hit — matching how
+`flurryHit` behaves. Sourced clip with no synth fallback: it's flavour on top of a sound that already plays,
+so silence until it decodes is fine, and it's dialable in the Mixing Desk like every other category.
+
+Also baked the owner's second tuner export: span 1.4, spacing 33, width 12, taper 0.92, sweep 65ms, hold
+175ms, fade 510ms, a heavier flash (310) and smaller/faster drips (size 0.75, gravity 520, life 810).
+
+Frame ladder updated to match — the outer two cards are now context only, with the rake confined to the
+struck card — and re-checked: the cut sits on the target, and still retracts from its start as it fades.
+
+typecheck + typecheck:web (no new errors) + lint + 1338 tests + `build:web` green.
+
+## 2026-07-21 (cleave: owner's values + continuous retracting gashes)
+
+### tweak(ui): bake the owner's Cleave values; gashes are continuous ribbons that retract, not dots that dissolve
+
+Owner review of the first cut: the slashes read as **a chain of dots** rather than lines, and the fade was a
+uniform **dissolve in place** rather than a gash closing.
+
+Both were the same root cause on the render side. Each streak was drawn as 22 SEPARATE `stroke()` calls with
+`cap: 'round'`, so at the owner's thinner widths every segment rendered as its own round capsule — a beaded
+line. A streak is now **one continuous tapered ribbon**: the centreline is sampled, offset perpendicular by
+the half-width at each point, and filled as a single closed polygon. No caps, no beads, and the taper is
+smooth along the whole cut.
+
+The fade now **retracts from the starting point** — the tail eats forward toward the tip, so the gash reads
+as a tendril withdrawing rather than fading out where it lies. That is the new `retract` dial (1 = pure
+withdraw, 0 = the old uniform dissolve, values between blend), and the retracting tail re-tapers against the
+CURRENT start so the withdrawing end stays pointed instead of ending in a blunt stump.
+
+Also baked the owner's dialled values straight from the tuner's "Copy values": hit-stop 85ms, return delay
+440ms, scale 1.2, span 1.2, 3 claws at 27px spacing, width 11, bow −23 (arcing the other way), sweep 80ms,
+fade 440ms, and a much darker crimson palette (core `#940000`, gash `#c20017`, flash `#ff5c5c`). `retract`
+is the only number not in that export — it arrived with this pass and defaults to a full withdraw.
+
+Verified against the frame ladder (`apps/web/public/fx/cleave-slash-preview.html`), updated to mirror both
+changes: the strokes are continuous, and the gashes visibly shorten from their left-hand start between the
+300ms and 520ms frames while the drips keep falling.
+
+typecheck + typecheck:web (clean in every touched file) + lint + 1338 tests + `build:web` green.
+
+## 2026-07-21 (FX: cleave hit-stop, claw slash, blood drips)
+
+### feat(ui): the Cleave beat — hit-stop, horizontal claw slash across the cleaved area, blood drips
+
+Third pass at this effect (the first two were scrapped for looking wrong). This one follows the owner's
+explicit beat, in order:
+
+1. the strike lands,
+2. the lunge **freezes** at the contact pose for `hitStopMs`,
+3. a **horizontal claw slash** rakes across the whole **cleaved area** — the struck unit plus every splashed
+   neighbour — with **blood drips** running down out of each cut,
+4. the attacker holds `returnDelayMs` so the slash reads, then the beat ends and it settles home.
+
+**How it hooks in.** Steps 2 and 4 are empty GSAP tweens inside the existing lunge timeline — the same
+mechanism the wind-up's `rallyPauseMs` uses — so they stay killable, seekable and speed-scaled with the
+swing, and the impact is scheduled after the hit-stop so the FX plays into a held frame. Step 3 rides the
+ordinary impact channel and REPLACES the standard strike burst, exactly as Flurry's wind-slash does. The
+`cleave` flag comes off the attacker's LIVE keywords at the same site `flurry` already uses, so a mid-combat
+grant or strip is honoured for free.
+
+**The cleaved area** is resolved by the replay at fire time: the bounding box of every unit this swing
+damaged *except the attacker* (it takes retaliation in the same beat and would otherwise stretch the box back
+across the board), measured from each unit's SLOT so a mid-lunge or collapsing row can't skew it. With
+nothing measurable splashed it falls back to the defender's own rect, so a lone Cleave still cuts.
+
+**Verified by eye, iteratively.** `apps/web/public/fx/cleave-slash-preview.html` renders the effect as a
+static canvas-2D frame ladder — the screenshot tool cannot capture the app while the Pixi ticker runs, but a
+static page captures fine. Three passes against it before shipping: the drips were rendering as ~1px specks
+(the shard texture is 10px, so the `dripSize` dial mapped to almost nothing — now on a 6px base), the strokes
+were too wiry to read, and the whole thing vanished by ~500ms. The rig ALSO had a bug worth noting: it stopped
+drawing drips once the stroke faded, which misrepresented the shipped effect (drips are pooled particles with
+their own lifetime) — fixed, so the last frame now honestly shows blood still falling after the slash is gone.
+
+**Defaults are deliberately restrained** rather than a finished look — a sane starting point for dialling,
+given two previous passes were scrapped for over-reaching. `🩸 Cleave Slash FX` has 31 sliders + 4 swatches,
+timing first (hit-stop, return delay), then placement, the claw geometry, the drips and the flash.
+
+**Verified.** typecheck + typecheck:web (clean in every touched file) + lint + **1338 tests** + `build:web`
+green. The hit-stop and return delay cannot be shown in the rig — they live in the lunge timeline — so those
+two dials still want a pass in a live fight.
+
 ## 2026-07-21 (balance: nine-card owner pass)
 
 ### tweak(ui): drop Execute's ☠ float

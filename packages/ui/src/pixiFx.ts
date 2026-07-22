@@ -8,6 +8,7 @@ import {
   EXEC_CRESCENT_TEX_W, executeCrescentKey, executeCrescentRadius, executeCrescentSegments,
   getExecuteFxConfig, type ExecuteFxConfig,
 } from './executeFxConfig';
+import { getCleaveFxConfig, type CleaveFxConfig } from './cleaveFxConfig';
 import { getTrailConfig } from './trailConfig';
 import { sfx } from './sfx';
 
@@ -401,6 +402,20 @@ export interface AuraWaveCfg {
  *  `auraWave` applies the cfg's widthScale/heightScale/offsets to size the wave inside it. */
 export interface WaveRegion { x: number; y: number; w: number; h: number }
 
+/** One live Cleave slash (see `cleaveSlash`) — parallel claw streaks raked across the cleaved area. */
+interface CleaveSlashFx {
+  g: Graphics;
+  cfg: CleaveFxConfig;
+  age: number;
+  /** The cut, already sized/offset at spawn: the streaks span x0..x1 around `cy`. */
+  x0: number;
+  x1: number;
+  cy: number;
+  /** cfg.scale × the stage scale, folded once at spawn so every dimension scales together. */
+  k: number;
+  streaks: { y: number; tilt: number; bow: number; delay: number; dripped: boolean }[];
+}
+
 /** Renderer-facing aim-line config (structural mirror of AimFxConfig's line half — pixiFx stays
  *  import-light). The living hero-power targeting line; see `setAimLine`. */
 export interface AimLineCfg {
@@ -628,6 +643,7 @@ class FxController {
   private readonly weldRings: { g: Graphics; x: number; y: number; cfg: WeldCfg; age: number; ease: Float32Array; landed?: boolean }[] = [];
   private readonly spellArrows: { g: Graphics; x: number; y: number; drift: number; delay: number; tint: number; cfg: SpellPowerCfg; age: number }[] = [];
   private readonly waves: { g: Graphics; region: WaveRegion; cfg: AuraWaveCfg; age: number; lastWake: number; motes: { off: number; spawned: boolean }[] }[] = []; // aura waves — one per rise, a centre→edge board wave redrawn per frame
+  private readonly slashes: CleaveSlashFx[] = []; // Cleave slashes — one per Cleave connection
   /** The live hero-power targeting line (null = not aiming). `side`/`amp` are rolled once per AIM — each
    *  new arm gets a fresh random arch (owner ask: never the same static curve) — then held stable. */
   private aim: { g: Graphics; from: { x: number; y: number }; to: { x: number; y: number }; onTarget: boolean; cfg: AimLineCfg; side: number; amp: number; seed: number } | null = null;
@@ -778,6 +794,8 @@ class FxController {
     this.weldRings.length = 0;
     for (const a of this.spellArrows) { a.g.destroy(); }
     this.spellArrows.length = 0;
+    for (const f of this.slashes) { f.g.destroy(); }
+    this.slashes.length = 0;
     for (const w of this.waves) { w.g.destroy(); }
     this.waves.length = 0; // stale entries would otherwise survive a detach/re-init and tick on an orphaned layer
     this.skullTex?.destroy(true);
@@ -1952,6 +1970,8 @@ class FxController {
     this.weldRings.length = 0;
     for (const a of this.spellArrows) { this.layer?.removeChild(a.g); a.g.destroy(); }
     this.spellArrows.length = 0;
+    for (const f of this.slashes) { this.layer?.removeChild(f.g); f.g.destroy(); }
+    this.slashes.length = 0;
     for (const w of this.waves) { this.layer?.removeChild(w.g); w.g.destroy(); }
     this.waves.length = 0;
   }
@@ -2571,6 +2591,209 @@ class FxController {
     this.waves.push({ g, region: sized, cfg, age: 0, lastWake: -1, motes });
   }
 
+
+  /**
+   * CLEAVE SLASH — the claw rake a Cleave attacker tears across the whole cleaved area when it connects.
+   * `region` is the bounding box of every unit the swing struck (the target plus each splashed neighbour),
+   * measured by the replay; `dx`/`dy` is the blow direction, used only to decide which way the rake travels.
+   *
+   * Horizontal by design (owner spec 2026-07-21): `slashCount` parallel streaks stacked `slashSpacing` apart,
+   * each raking across the span over `sweepMs`, holding, then fading — with blood drips running down out of
+   * each cut as it lands. It REPLACES the standard strike burst, the way Flurry's wind-slash does.
+   *
+   * By the time this fires the lunge has already frozen for `hitStopMs`, and it will hold `returnDelayMs`
+   * more before settling home — so the slash plays into a held frame rather than chasing a departing card.
+   *
+   * One `Graphics` redrawn per frame for the streaks; drips + flash are pooled particles. Fire-and-forget.
+   * Config-driven (🩸 tuner).
+   */
+  cleaveSlash(x: number, y: number): void {
+    perfMonitor.mark('fx:cleave');
+    if (!this.ready || !this.layer) return;
+    const cfg = getCleaveFxConfig();
+    if (cfg.slashCount <= 0) return;
+    const g = new Graphics();
+    g.blendMode = 'add';
+    this.layer.addChild(g);
+    // `k` folds the config scale and the stage scale together ONCE, so span, width, spacing and bow all
+    // shrink together on a small screen instead of drifting apart.
+    const k = cfg.scale * this.fxScale;
+    const cx = x + cfg.offsetX;
+    const cy = y + cfg.offsetY;
+    const half = (cfg.spanPx * k) / 2;
+    // ALWAYS left→right, regardless of which way the attacker swung. The rake used to follow the blow, which
+    // negated the span — and a negative span flips the stroke's normal, mirroring the claws' bulge and hook
+    // vertically (owner report 2026-07-21). Mirroring can't work for an asymmetric shape like a hooked talon,
+    // so the cut simply plays the same animation every time. That also makes it match the tuner and the
+    // preview rig exactly, neither of which ever flipped.
+    const n = Math.max(1, Math.round(cfg.slashCount));
+    const streaks = Array.from({ length: n }, (_, i) => ({
+      y: cy + (i - (n - 1) / 2) * cfg.slashSpacing * k,
+      tilt: ((cfg.slashTilt + (Math.random() - 0.5) * cfg.slashJitter) * Math.PI) / 180,
+      bow: cfg.slashBow * k,
+      delay: i * cfg.slashStagger,
+      dripped: false,
+    }));
+    this.slashes.push({ g, cfg, age: 0, x0: cx - half, x1: cx + half, cy, k, streaks });
+    // The hot flash at the contact point — the "connection" read.
+    if (cfg.flashSize > 0 && cfg.flashAlpha > 0 && this.glowTex) {
+      this.spawn(this.glowTex, {
+        x: cx, y: cy, vx: 0, vy: 0, drag: 1, life: cfg.flashMs,
+        fromScale: (cfg.flashSize * cfg.scale * 0.35) / 80, toScale: (cfg.flashSize * cfg.scale) / 80, spin: 0,
+        tint: hexNum(cfg.colorFlash), blend: 'add', peakAlpha: cfg.flashAlpha,
+      });
+    }
+  }
+
+  /** Advance + redraw one Cleave slash. Returns false once every streak has faded (→ retire). */
+  private drawSlash(f: CleaveSlashFx): boolean {
+    const { g, cfg } = f;
+    const total = (f.streaks.length - 1) * cfg.slashStagger + cfg.sweepMs + cfg.holdMs + cfg.fadeMs;
+    if (f.age > total) return false;
+    const core = hexNum(cfg.colorCore);
+    const glow = hexNum(cfg.colorGlow);
+    const claw = hexNum(cfg.colorClaw);
+    const span = f.x1 - f.x0;
+    g.clear();
+    const claws: { tip: { x: number; y: number }; back: { x: number; y: number }; a: number }[] = [];
+    for (const st of f.streaks) {
+      const t = f.age - st.delay;
+      if (t < 0) continue;
+      const on = Math.min(1, t / Math.max(1, cfg.sweepMs));
+      const fadeT = t - cfg.sweepMs - cfg.holdMs;
+      const fadeProg = fadeT <= 0 ? 0 : Math.min(1, fadeT / Math.max(1, cfg.fadeMs));
+      // Fading RETRACTS the gash from where it started rather than dissolving it in place: the tail eats
+      // forward toward the tip, so it reads as a tendril withdrawing (owner ask 2026-07-21). `retract` splits
+      // the fade between that withdrawal and a plain alpha falloff — 1 = pure withdraw, 0 = the old dissolve.
+      const from = fadeProg * cfg.retract;
+      const alpha = 1 - fadeProg * (1 - cfg.retract);
+      if (from >= on || alpha <= 0) continue;
+
+      // ONE continuous tapered ribbon per streak — a filled polygon along the centreline, NOT a run of
+      // round-capped segments (which beaded into a dotted line, owner report 2026-07-21).
+      const segs = 26;
+      const pts: { x: number; y: number; w: number }[] = [];
+      for (let i = 0; i <= segs; i++) {
+        const a = from + (on - from) * (i / segs);
+        const x = f.x0 + span * a;
+        const y = st.y + Math.sin(a * Math.PI) * st.bow + (a - 0.5) * span * Math.tan(st.tilt);
+        // Taper needles both ends. The retracting tail re-tapers against the CURRENT start so the withdrawing
+        // end stays pointed instead of ending in a blunt stump.
+        const edge = Math.min(1, (a - from) / 0.18);
+        const w = cfg.slashWidth * f.k * (1 - cfg.slashTaper * Math.abs(a - 0.5) * 2) * edge;
+        pts.push({ x, y, w: Math.max(0, w) });
+      }
+      const ribbon = (mult: number, colour: number, a: number): void => {
+        if (a <= 0) return;
+        const left: number[] = [];
+        const right: number[] = [];
+        for (let i = 0; i < pts.length; i++) {
+          const p = pts[i]!;
+          const prev = pts[Math.max(0, i - 1)]!;
+          const next = pts[Math.min(pts.length - 1, i + 1)]!;
+          const dx = next.x - prev.x, dy = next.y - prev.y;
+          const len = Math.hypot(dx, dy) || 1;
+          const nx = -dy / len, ny = dx / len; // unit normal
+          const hw = (p.w * mult) / 2;
+          left.push(p.x + nx * hw, p.y + ny * hw);
+          right.push(p.x - nx * hw, p.y - ny * hw);
+        }
+        // walk out along one edge and back along the other → a closed, continuous ribbon
+        const poly = left.slice();
+        for (let i = right.length - 2; i >= 0; i -= 2) poly.push(right[i]!, right[i + 1]!);
+        g.poly(poly);
+        g.fill({ color: colour, alpha: a });
+      };
+      if (cfg.glowAlpha > 0 && cfg.glowWidth > 1) ribbon(cfg.glowWidth, glow, cfg.glowAlpha * alpha);
+      ribbon(1, core, cfg.coreAlpha * alpha);
+
+      // Collect the claw for a SECOND pass — drawn after every ribbon, so a later stroke's rake can never
+      // paint over an earlier stroke's claw (owner report 2026-07-21).
+      if (cfg.clawLen > 0 && cfg.clawAlpha > 0 && pts.length >= 2) {
+        const sinceCut = t - cfg.sweepMs;
+        const clawA = sinceCut <= 0 ? 1 : Math.max(0, 1 - sinceCut / Math.max(1, cfg.clawFadeMs));
+        if (clawA > 0) claws.push({ tip: pts[pts.length - 1]!, back: pts[pts.length - 2]!, a: clawA * alpha });
+      }
+
+      // Blood runs out of the cut once the streak has fully raked.
+      if (!st.dripped && on >= 1) {
+        st.dripped = true;
+        this.slashDrips(f.x0, span, st.y, cfg);
+      }
+    }
+    // SECOND PASS — every claw over every rake.
+    for (const c of claws) this.drawClaw(g, c.tip, c.back, c.a, f.k, cfg, claw);
+    return true;
+  }
+
+  /**
+   * One claw at a stroke's leading edge. NOT a triangle — a triangle's flat base reads as an arrowhead
+   * (owner report 2026-07-21). This is a talon: sampled along its own axis with a width profile that is ZERO
+   * at the root, swells to `clawWidth` at `clawBulge` of the way along, and narrows back to a point at the
+   * tip. Zero width at the root is what lets it melt back into the rake instead of sitting on top of it as a
+   * separate shape. `clawHook` bends the axis sideways so the talon curves rather than spearing straight.
+   */
+  private drawClaw(
+    g: Graphics,
+    tip: { x: number; y: number },
+    back: { x: number; y: number },
+    alpha: number,
+    k: number,
+    cfg: CleaveFxConfig,
+    colour: number,
+  ): void {
+    const tdx = tip.x - back.x, tdy = tip.y - back.y;
+    const tl = Math.hypot(tdx, tdy) || 1;
+    const ux = tdx / tl, uy = tdy / tl; // unit tangent, the way the cut travels
+    const nx = -uy, ny = ux;            // unit normal
+    // The axis runs from `clawRoot` behind the edge to `clawLen` ahead of it.
+    const rootX = tip.x - ux * cfg.clawRoot * k;
+    const rootY = tip.y - uy * cfg.clawRoot * k;
+    const axis = (cfg.clawRoot + cfg.clawLen) * k;
+    // Width profile: sin() gives 0 at both ends; skewing `u` moves the bulge toward the root.
+    const bulge = Math.min(0.95, Math.max(0.05, cfg.clawBulge));
+    const skew = Math.log(0.5) / Math.log(bulge); // u^skew = 0.5 exactly at u = bulge
+    const segs = 14;
+    const left: number[] = [];
+    const right: number[] = [];
+    for (let i = 0; i <= segs; i++) {
+      const u = i / segs;
+      const along = axis * u;
+      const hook = cfg.clawHook * k * u * u; // curve grows toward the tip
+      const cx = rootX + ux * along + nx * hook;
+      const cy = rootY + uy * along + ny * hook;
+      const hw = (cfg.clawWidth * k * Math.sin(Math.PI * Math.pow(u, skew))) / 2;
+      left.push(cx + nx * hw, cy + ny * hw);
+      right.push(cx - nx * hw, cy - ny * hw);
+    }
+    const poly = left.slice();
+    for (let i = right.length - 2; i >= 0; i -= 2) poly.push(right[i]!, right[i + 1]!);
+    g.poly(poly);
+    g.fill({ color: colour, alpha: cfg.clawAlpha * alpha });
+  }
+
+  /** Blood drips shed along a landed streak — they fall and accelerate, so they read as running down. */
+  private slashDrips(x0: number, span: number, y: number, cfg: CleaveFxConfig): void {
+    if (!this.shardRectTex || cfg.dripCount <= 0) return;
+    const tint = hexNum(cfg.colorDrip);
+    for (let i = 0; i < Math.round(cfg.dripCount); i++) {
+      const a = Math.random();
+      this.spawn(this.shardRectTex, {
+        x: x0 + span * a, y: y + (Math.random() - 0.5) * 6,
+        vx: (Math.random() - 0.5) * cfg.dripDrift,
+        vy: cfg.dripSpeed * (0.6 + Math.random() * 0.8),
+        drag: 1, // no air-drag: gravity should win, so they accelerate downward like running blood
+        life: cfg.dripLife * (0.7 + Math.random() * 0.6),
+        // ×6 px base: the shard texture is 10px, so without it dripSize 1 rendered a ~1px speck.
+        fromScale: (cfg.dripSize * cfg.scale * (0.6 + Math.random() * 0.5) * 6) / 10,
+        toScale: (cfg.dripSize * cfg.scale * 2.5) / 10,
+        spin: 0, rotation: Math.PI / 2, // stand them upright so the stretch elongates DOWN the fall
+        tint, blend: 'normal', stretchX: cfg.dripStretch, peakAlpha: cfg.dripAlpha,
+        gravity: cfg.dripGravity,
+      });
+    }
+  }
+
   /** Mixed mote palette: the tribe's core/mote/glow plus white + warm gold accents (owner ask — varied,
    *  noticeable sparkles). */
   private static readonly WAVE_MOTE_ACCENTS = ['#ffffff', '#ffd77a'];
@@ -3068,6 +3291,17 @@ class FxController {
         this.layer?.removeChild(a.g);
         a.g.destroy();
         this.spellArrows.splice(i, 1);
+      }
+    }
+
+    // Cleave slashes: advance + redraw, retire when the last streak has faded.
+    for (let i = this.slashes.length - 1; i >= 0; i--) {
+      const f = this.slashes[i]!;
+      f.age += dtMs;
+      if (!this.drawSlash(f)) {
+        this.layer?.removeChild(f.g);
+        f.g.destroy();
+        this.slashes.splice(i, 1);
       }
     }
 

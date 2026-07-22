@@ -20,18 +20,36 @@ export const hitPower = (swing: number): number => Math.max(0.9, Math.min(2, 0.8
  * amplified crimson-gold crit flourish (`pixiFx.critImpact` — bold ring, "CRIT!" pop, red card flash), plus a
  * heftier knockback. No-op FX/recoil when there's no defender (still fires the hit/crit sound).
  */
-export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, contact?: { x: number; y: number }, spinDeg = 0, crit = false, flurryHit = false, flurrySlash = false, executeSlash = false): void {
+export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, contact?: { x: number; y: number }, spinDeg = 0, crit = false, flurryHit = false, flurrySlash = false, executeSlash = false, cleave = false): void {
   if (crit) sfx.critHit(); else sfx.hit();
   if (flurryHit) sfx.flurryHit(); // the Flurry hit layers OVER the smack on EVERY swing (owner note 2026-07-17)
   if (!defender) return;
   const r = defender.getBoundingClientRect();
   const fx = contact ?? { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  // PRECEDENCE for "which effect replaces the standard strike burst" — first match wins:
+  //   Execute > Cleave > Flurry > crit.
+  // Execute is a KILL, the biggest beat available, so it outranks everything (a Flurry/crit/Cleave execute
+  // should still read as the execution). Cleave comes next: it is the keyword's whole read, and a Cleave crit
+  // showing the rake is the intended behaviour. In every case the smack/crit SOUND and the crit board-shake
+  // still fire, so a crit is always audibly a crit.
   if (executeSlash) {
     // EXECUTE REPLACES the standard strike VFX with the execution crescent (owner 2026-07-22: the standard
-    // burst was playing INSTEAD of it). Checked FIRST so it outranks both Flurry and crit — an Execute proc is
-    // a kill, the biggest beat available, and a Flurry/crit Execute should still read as the execution.
-    // The smack/crit SOUND and the crit board-shake still fire (see the engine's onCritImpact).
+    // burst was playing INSTEAD of it).
     pixiFx.executeStrike(fx.x, fx.y, dx, dy);
+  } else if (cleave) {
+    // CLEAVE replaces it with the claw rake, and `sfx.cleave` layers over the smack.
+    //
+    // The rake is a FIXED length (`spanPx`) centred on the defender — not derived from the struck group, nor
+    // from the card's width. Both of those made the same dial mean different things in different situations
+    // (a three-target cleave drew a far wider cut than a one-target one; and the tuner's Test, which fires
+    // over a fixed box, drew a far wider cut than any real hit). Now every cleave draws the same cut.
+    sfx.cleave();
+    // The defender's CARD CENTRE, not the contact point: the cut must sit on the middle of what it hit, and
+    // this is the same anchoring the tuner's Test uses (screen centre), so the two draw identically. The rake
+    // takes no direction — it plays the same left→right animation whichever way the attacker swung, because
+    // mirroring it would flip the claws' hook (see cleaveSlash).
+    pixiFx.cleaveSlash(r.left + r.width / 2, r.top + r.height / 2);
+    pixiFx.impactDust(fx.x, fx.y, power);
   } else if (flurrySlash) {
     // Flurry REPLACES the standard strike VFX with the wind-slash gust so a Flurry attacker's hits read as
     // wind — and it WINS even on a CRIT (a Flurry crit shows the wind-slash, not the crimson flourish; owner

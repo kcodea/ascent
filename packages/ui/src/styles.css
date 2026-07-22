@@ -2935,9 +2935,9 @@ body.hglow-preview .card.plated .plateglow { opacity: 1; }
 .unit.goldproc .card { animation: goldpulse 0.62s ease; }
 @keyframes goldpulse { 0%, 100% { box-shadow: 0 3px 0 var(--shadow); transform: none; } 45% { box-shadow: 0 0 0 3px #f0c040, 0 0 24px 4px rgba(240, 192, 64, 0.8); transform: scale(1.05); } }
 
-/* Cleave: a slash sweeping across the attacker */
-.unit.cleaving::before { content: ''; position: absolute; inset: -4px; z-index: 9; pointer-events: none; background: linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, 0.92) 50%, transparent 58%); animation: cleaveswipe 0.45s ease; }
-@keyframes cleaveswipe { 0% { opacity: 0; transform: translateX(-28%); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateX(28%); } }
+/* Cleave's attacker swipe was retired 2026-07-21 — the keyword's read is now the hit-stop + the red
+   claw rake on the TARGET (pixiFx.cleaveSlash), so the white glare bar across the attacker was a second,
+   competing cue on the same swing. */
 
 /* shield break is now the Pixi bubble's crack + explosion (pixiFx.breakShield) — the old CSS shard ring
    was removed. (The `shatter` anim class is still tagged by the replay but no longer has any CSS.) */

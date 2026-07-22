@@ -1160,6 +1160,8 @@ export function useCombatReplay(
           // LIVE keywords (covers Flurry granted mid-combat), then the printed keyword off the card index.
           flurry: !!atkUnit?.keywords.includes('W') || !!CARD_INDEX[cardIds.get(atkUid) ?? '']?.keywords?.includes('W'),
           execute: executeSlash,
+          // Cleave -> hit-stop + claw rake. Live keywords first so a mid-combat grant/strip is honoured.
+          cleave: !!atkUnit?.keywords.includes('C') || !!CARD_INDEX[cardIds.get(atkUid) ?? '']?.keywords?.includes('C'),
         });
         engineAdvancingRef.current = tl !== null; // engine owns the advance; if it couldn't build, the scheduler falls back
         if (tl === null) breakWards?.(); // lunge cue dropped → no contact anchor to ride; shatter now so it isn't lost
@@ -1349,10 +1351,10 @@ export function useCombatReplay(
 
   // The attacker's motion is run by GSAP in the layout effect above; here we just apply its glow class.
   const lungeUid = attackUid;
-  if (lungeUid) {
-    const atk = frame.player.find((u) => u.uid === lungeUid) ?? frame.enemy.find((u) => u.uid === lungeUid);
-    anims[lungeUid] = atk?.keywords.includes('C') ? 'attacking cleaving' : 'attacking';
-  }
+  // Cleave used to add a second `cleaving` class here (a white glare bar swiped across the ATTACKER). Retired
+  // 2026-07-21: the keyword's read is now the hit-stop plus the red claw rake on the TARGET, and the two were
+  // competing cues on the same swing. Every attacker gets the same glow class again.
+  if (lungeUid) anims[lungeUid] = 'attacking';
 
   let log = 'The boards take their positions…';
   for (let i = processedEnd - 1; i >= 0; i--) {

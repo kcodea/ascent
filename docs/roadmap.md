@@ -61,6 +61,13 @@ The rename (#625), the CSS rage aura (#627) and the Pixi strike have all shipped
   of 6. All static paint. Still worth a DevTools pass on a full board at some point, but no longer a concern.
 - **"Toxin Tender"** (content, Kevin's side) now has a name that doesn't match the keyword it grants.
 
+### Taste the Cleave beat (`feat/cleave-slash`)
+Hit-stop → claw rake across the target → blood drips → attacker returns. The rake and drips were reviewed via
+the static frame ladder (`apps/web/public/fx/cleave-slash-preview.html`); the two TIMING dials — `HIT-STOP ms`
+and `RETURN delay ms` — live in the lunge timeline and can only be judged in a live fight. Dial in
+🪓 Cleave Slash FX, then "Copy values" back into `DEFAULTS` in `cleaveFxConfig.ts`.
+- **NB:** the preview rig is a hand-kept mirror of `drawSlash`. Change one, change the other.
+
 ### Human-playtest balance
 The counter matrix is balance *truth*; stat numbers are dials. With all six tribes + the quest content in,
 the game wants a real tuning pass driven by human play (not just the bot).

@@ -556,6 +556,12 @@ export const sfx = {
   // additive flavour, not load-bearing, so silence until decode is fine). Own categories on the combat bus.
   flurryLunge: () => { playSample('flurrylunge', 'flurrylunge'); },
   flurryHit: () => { playSample('flurryhit', 'flurryhit'); },
+  // CLEAVE (C) — the rake landing. Layered OVER the smack (the hit is still a hit), fired from the impact
+  // channel alongside the gash. Sourced clip, no synth fallback: it's flavour on top of a sound that
+  // already plays, so silence until it decodes is fine. Own category on the combat bus.
+  // NB the SAMPLE is `cleave2` while the CATEGORY stays `cleave` — the category is the mixer channel and is
+  // referenced in audio/config.ts, so swapping the take must not rename it or the level/bus wiring is lost.
+  cleave: () => { playSample('cleave2', 'cleave'); },
   // A CRITICAL STRIKE lands (Commander Impala's CR keyword — this swing dealt DOUBLE damage). REPLACES the smack
   // with its own clip so the doubled hit reads distinctly; sourced "crit" clip, synth crack fallback until it
   // decodes / if absent. Fired in place of `hit` from the impact channel when the attack event is a crit.

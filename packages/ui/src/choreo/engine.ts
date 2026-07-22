@@ -2,6 +2,7 @@ import gsap from 'gsap';
 import type { Moment } from './compile';
 import { getScore } from './score';
 import { playLunge, setTransition } from './channels/lunge';
+import { getCleaveFxConfig } from '../cleaveFxConfig';
 import { hitPower, playContactImpact } from './channels/impact';
 import { getLungeConfig, strikeBandFor, strikeEaseFor } from '../lungeConfig';
 import { contactGeometry } from './contactGeometry';
@@ -33,6 +34,10 @@ export interface AttackCueCtx {
    *  hit FX at contact. Set from the event, not the attacker's keyword: `V` is spent after one kill, so a
    *  keyword check would keep slashing on later swings that execute nothing. */
   execute?: boolean;
+  /** True when the attacker has Cleave (C) — the lunge holds a hit-stop at contact and the impact plays the
+   *  claw rake instead of the standard burst. Read from the unit's LIVE keywords, so a mid-combat grant
+   *  counts. Outranked by `execute` (see the precedence note in `playContactImpact`). */
+  cleave?: boolean;
 }
 
 /** ms the lunge holds at the top of the wind-up when a Rally fires, so its bright yellow pulse has time to
@@ -60,6 +65,7 @@ export function runAttackExchangeCues(
   const power = hitPower(moment.primary.swing);
   const crit = moment.primary.crit === true; // Critical Strike this swing → the impact plays the crit sound
   const hasFlurry = ctx.flurry === true;   // attacker has Flurry (W) → the wind sounds + slash on EVERY swing (both hits)
+  const hasCleave = ctx.cleave === true;   // Cleave (C) -> hit-stop at contact, then the red gash
   const flurrySlash = hasFlurry;           // owner note 2026-07-17: the wind-slash visual rides both strikes, not just the extra
   // The advance always fires AT contact (the beat clock stays welded to connection); the smack fires at
   // contact + the impact cue's offset — negative fires it BEFORE contact (the smack-lead), positive after.
@@ -141,8 +147,10 @@ export function runAttackExchangeCues(
     attacker, dx: ldx, dy: ldy, speed: ctx.combatSpeed, flurry: hasFlurry,
     strike: strikeOffset, resolveStrike, strikeDur: geo.strikeDur, travel: geo.travel, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
     onContact: () => ctx.advance(),
-    onImpact: impact ? () => { playContactImpact(defender, ldx, ldy, power, ctx.combatSpeed, liveImpactAt(), spinDeg, crit, hasFlurry, flurrySlash, ctx.execute === true); if (crit) ctx.onCritImpact?.(); } : undefined,
+    onImpact: impact ? () => { playContactImpact(defender, ldx, ldy, power, ctx.combatSpeed, liveImpactAt(), spinDeg, crit, hasFlurry, flurrySlash, ctx.execute === true, hasCleave); if (crit) ctx.onCritImpact?.(); } : undefined,
     impactOffsetMs: impact?.offset ?? 0,
+    hitStopMs: hasCleave ? getCleaveFxConfig().hitStopMs : 0,
+    returnDelayMs: hasCleave ? getCleaveFxConfig().returnDelayMs : 0,
     onRallyPulse: ctx.onRallyPulse,
     onWindupBuffs: ctx.onWindupBuffs,
     onImpactAuras: ctx.onImpactAuras,

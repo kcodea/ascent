@@ -4,6 +4,7 @@ import { LungeTuner } from './LungeTuner';
 import { StrikeFxTuner } from './StrikeFxTuner';
 import { CritFxTuner } from './CritFxTuner';
 import { FlurrySwingTuner } from './FlurrySwingTuner';
+import { CleaveFxTuner } from './CleaveFxTuner';
 import { SwapFxTuner } from './SwapFxTuner';
 import { GustFxTuner } from './GustFxTuner';
 import { SpellPowerFxTuner } from './SpellPowerFxTuner';
@@ -62,6 +63,7 @@ const TUNERS = [
   { key: 'critfx', label: '⚡ Critical Strike FX', C: CritFxTuner },
   { key: 'flurryswing', label: '🌬️ Flurry Swing FX', C: FlurrySwingTuner },
   { key: 'executefx', label: '🩸 Execute Strike', C: ExecuteFxTuner },
+  { key: 'cleavefx', label: '🪓 Cleave Slash FX', C: CleaveFxTuner },
   { key: 'swapfx', label: '🔀 Swap FX (Displacement)', C: SwapFxTuner },
   { key: 'gustfx', label: '💨 Buff Gust FX', C: GustFxTuner },
   { key: 'spellpowerfx', label: '✨ Spell Power FX', C: SpellPowerFxTuner },

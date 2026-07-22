@@ -95,7 +95,7 @@ export interface RefreshConfig {
 const DEFAULTS: RefreshConfig = {
   x: 3,
   y: 294,
-  scale: 0.75,
+  scale: 0.73,
   costX: 87,
   costY: -90,
   costS: 1.42,

@@ -1552,56 +1552,25 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
      frame crept UP and the panel top moved. Absolute = the frame never moves; the panel only grows DOWNWARD
      (owner call 2026-07-19). 1.09 = archbox height + the tuned 0.09 gap — tightened from 0.15 when the keyword
      pill row was removed (owner 2026-07-21), which shortened the panel by a whole line. */
-  /* NO z-index (owner 2026-07-21). It used to be z4, but a z-index on a positioned element creates a
-     stacking context, which is an isolation boundary for `mix-blend-mode` — the multiply backdrop below
-     would then have had only the drawer's own (transparent) background to blend against. With z-index gone
-     the drawer paints by tree order, and the two things that were ordered against its z4 are re-pinned:
-     `.archbox` (z1 — above the panel, still under every badge) and the hover bridge (z-1). */
+  /* NO backing and NO z-index (owner 2026-07-21). The panel is pure text on the plate now — the dark slab,
+     its bronze border and the multiply wash that briefly replaced them are all gone; legibility comes from
+     the text-shadow below instead. The missing z-index is load-bearing, not an oversight: a z-index here
+     would make a stacking context and put the panel back on top of the FRAME, whose oval art overflows the
+     archbox down past the panel's top edge. Painting by tree order instead lets `.archbox` (z1) lap over the
+     panel and the hand hover-bridge (z-1) sit under it. */
   position: absolute; top: calc(var(--ccw) * 1.09); left: 0; right: 0;
   padding: calc(var(--ccw) * 0.065) calc(var(--ccw) * 0.08) calc(var(--ccw) * 0.07);
-  border-radius: calc(14 * var(--u));
 }
-/* The panel's dark backing, split onto its own layer so it can MULTIPLY into the card plate behind it
-   (owner 2026-07-21) — the panel now tints what's under it rather than sitting on it as a solid slab. The
-   bronze border it used to carry is gone with it. Opacity 0.7 = the requested 30% reduction.
-   It lives on `::before` rather than the drawer itself because a blend mode applies to the whole element,
-   text included, which would have crushed the rules copy. */
-.card.compact.showtext .drawer::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: linear-gradient(180deg, #241a13, #17110c);
-  mix-blend-mode: multiply;
-  opacity: 0.35;
-  /* INTENSE FEATHER (owner 2026-07-21) — the panel has no edge any more, it just dissolves into the plate.
-     Two linear gradients INTERSECTED (the charge-glyph mask trick) fade all four sides at once: the 90deg
-     pass handles left/right, the 180deg pass top/bottom, and `intersect` keeps only where both are opaque,
-     so the corners fall off on both axes instead of forming a hard cross. `--panel-feather` is the reach on
-     each side; at 26% the solid core is barely half the panel, which is what "intense" wants.
-     Note this replaces the old border-radius + drop-shadow entirely: a mask clips at the border box, so any
-     outer shadow would be cut off anyway, and a rounded corner is meaningless once the edge is a gradient. */
-  -webkit-mask:
-    linear-gradient(90deg, transparent 0, #fff var(--panel-feather, 26%), #fff calc(100% - var(--panel-feather, 26%)), transparent 100%),
-    linear-gradient(180deg, transparent 0, #fff var(--panel-feather, 26%), #fff calc(100% - var(--panel-feather, 26%)), transparent 100%);
-  -webkit-mask-composite: source-in;
-  mask:
-    linear-gradient(90deg, transparent 0, #fff var(--panel-feather, 26%), #fff calc(100% - var(--panel-feather, 26%)), transparent 100%),
-    linear-gradient(180deg, transparent 0, #fff var(--panel-feather, 26%), #fff calc(100% - var(--panel-feather, 26%)), transparent 100%);
-  mask-composite: intersect;
-  pointer-events: none;
-}
-/* A positioned ::before paints ABOVE non-positioned in-flow siblings, so the panel's own content has to be
-   positioned too or the backing would cover the text. */
-.card.compact.showtext .drawer > * { position: relative; }
-/* Now that the backing is a barely-there wash (0.35 + a 26% feather), the panel's text has to carry its own
-   legibility against the plate's stone rather than leaning on a dark slab behind it (owner 2026-07-21).
-   A tight dark shadow for edge definition + a wider soft one to lift it off the texture. Applied to the
-   whole panel, not just `.desc` — the name and tribe line sit on the same washed-out backing and would
-   otherwise read inconsistently. Static (no animation), so the paint cost is one-off. */
+/* With the backing removed entirely, this shadow is the ONLY thing separating the panel's text from the
+   plate's stone — it's load-bearing for legibility, not decoration (owner 2026-07-21). Tuned dark and TIGHT:
+   a hard 1px edge, then two short halos that stop well before they'd read as a glow or muddy the texture
+   behind them. Applied to the whole panel, not just `.desc` — the name and tribe line sit on the same bare
+   stone. Static (no animation), so the paint cost is one-off. */
 .card.compact.showtext .drawer .cn,
 .card.compact.showtext .drawer .desc,
 .card.compact.showtext .drawer .dtribe {
   text-shadow: var(--panel-text-shadow,
-    0 1px 2px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.75), 0 0 12px rgba(0, 0, 0, 0.5));
+    0 1px 1px rgba(0, 0, 0, 1), 0 0 3px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.85));
 }
 /* The FRAME rides above the panel (owner 2026-07-21). The oval art overflows its archbox down to ~1.37×--ccw
    while the panel starts at 1.09, so they genuinely overlap — the frame now laps over the panel's top edge

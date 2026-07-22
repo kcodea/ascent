@@ -365,18 +365,15 @@ With the plate in, the panel's contents got a pass:
 - **The inspect overlay is plated too.** It's the other place you read a card as a whole object rather than a
   board token. Safe for `isolation: isolate` — the overlay never renders during combat.
 
-- **Description panel restyled.** The bronze border is gone; the dark backing moved onto a `::before` layer
-  that **multiplies** into the plate behind it at **0.35 opacity**, with an **intense feather** on all four
-  edges — two linear-gradient masks intersected (the charge-glyph trick), `--panel-feather` 26% a side, so the
-  corners fall off on both axes instead of forming a hard cross. The panel has no edge any more; it dissolves
-  into the plate. The feather also retires the old drop-shadow and border-radius: a mask clips at the border
-  box so an outer shadow would be cut off regardless, and a rounded corner means nothing once the edge is a
-  gradient. The backing had to be its own layer because a blend mode applies to the
+- **The description panel lost its box entirely.** It went bronze-bordered slab → borderless dark panel →
+  a multiplied, heavily feathered wash → nothing at all. The end state is **pure text sitting directly on the
+  plate**: no background, no border, no radius, no mask. The plate art is the card's surface, so a second
+  surface drawn on top of it was always going to fight it.
+- **A text-shadow carries legibility instead**, and is now load-bearing rather than decorative — a hard 1px
+  dark edge plus two short halos that stop well before they'd read as a glow (`--panel-text-shadow`). Applied
+  to the name and tribe line as well as the rules text, since all three sit on bare stone. Static, so the
+  paint cost is one-off. The backing had to be its own layer because a blend mode applies to the
   whole element — text included — which would have crushed the rules copy.
-- **Panel text carries its own legibility.** With the backing down to a barely-there wash, the name, rules
-  text and tribe line all get a `text-shadow` (tight dark edge + two softer halos, `--panel-text-shadow`)
-  so they read against the plate's stone rather than leaning on a dark slab that is no longer really there.
-  Static, so the paint cost is one-off.
 - **The frame now laps OVER the panel.** Its art overflows the archbox down to ~1.37×`--ccw` while the panel
   starts at 1.09, so they really do overlap; previously the panel cut the frame off.
 

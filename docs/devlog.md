@@ -3,6 +3,32 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-22 (plate dissolve — first-play fix)
+
+### fix(ui): the first plate dissolve of a run played with no dust
+
+Owner report: the dissolve doesn't fire on the very first card played in a run, but works on every card
+after. It was a cold-start race, and the cause was mine.
+
+`ensurePoints()` — which loads `cardplate-wire.webp` + `cardplate.webp` and samples them into mote spawn
+points — was kicked off *inside* `playPlateDissolve`, i.e. at the exact moment its results were already
+needed. So on the first play the mote loop found no points and `break`ed out with zero motes, and the wire
+mask was still uncached so the CSS mask hadn't resolved either. Every later play found both warm.
+
+Two changes:
+
+- **Warm on load, not on use.** The sampling is now kicked off at module load, scheduled on `requestIdleCallback`
+  so it stays off the boot critical path. It costs one 42 KB fetch (the plate art itself is already loaded by
+  every hand card) plus a couple of ms of sampling on a 110px grid.
+- **Degrade instead of vanishing.** If the points somehow still aren't ready — a cold cache on a slow
+  connection could beat the warm — the spawn loop now sprays uniformly over the plate rather than `break`ing
+  and emitting nothing. A slightly different cloud beats no effect.
+
+**Verified empirically, not just by reasoning:** loaded the app and read the network log at the MENU screen,
+before starting a run or playing anything — both `cardplate-wire.webp` and `cardplate.webp` are already
+fetched (200). Prior to this change neither was requested until the first dissolve fired. Plus typecheck +
+lint + 1404 tests + `build:web` green.
+
 ## 2026-07-22 (plate dissolve — phase 2)
 
 ### feat(ui): the backplate leaves as an arcane wireframe of itself

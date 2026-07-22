@@ -100,16 +100,41 @@
     50%     { transform: translate(-50%,-50%) rotate(var(--rot)) translateY(var(--r)) scale(1);   opacity: var(--ga); }
   }
 
-  /* 4. SHARDS — small diamonds scattered around the ring, drifting + fading. */
+  /* 4. SHARDS — small diamonds scattered around the ring, drifting + fading.
+        SPLIT INTO TWO ELEMENTS so the shard can carry a motion tail. The outer `.shard` does ONLY the radial
+        placement + drift, which leaves its local +Y axis pointing outward along the direction of travel — so
+        the tail can be aimed simply by hanging it off local -Y. The diamond's own 45deg spin moved to the inner
+        `.shardBody`; if it stayed on the parent it would drag the tail around with it and the streak would
+        pinwheel instead of trailing. Both children inherit the parent's stagger delay to stay in sync. */
   .shard {
-    position: absolute; left: 50%; top: 50%; background: var(--shard-c);
+    position: absolute; left: 50%; top: 50%; width: 0; height: 0;
     animation: shardDrift var(--shard-s, 9s) linear infinite; will-change: transform, opacity;
   }
   @keyframes shardDrift {
-    0%   { transform: translate(-50%,-50%) rotate(var(--rot)) translateY(var(--r)) rotate(45deg) scale(.6); opacity: 0; }
+    0%   { transform: translate(-50%,-50%) rotate(var(--rot)) translateY(var(--r)); opacity: 0; }
     18%  { opacity: var(--sa); }
     82%  { opacity: var(--sa); }
-    100% { transform: translate(-50%,-50%) rotate(calc(var(--rot) + var(--sweep))) translateY(calc(var(--r) + var(--out))) rotate(225deg) scale(1); opacity: 0; }
+    100% { transform: translate(-50%,-50%) rotate(calc(var(--rot) + var(--sweep))) translateY(calc(var(--r) + var(--out))); opacity: 0; }
+  }
+  .shard > * { position: absolute; left: 50%; top: 50%; }
+  .shardBody {
+    width: var(--ss); height: var(--ss); background: var(--shard-c);
+    animation: shardSpin var(--shard-s, 9s) linear infinite; will-change: transform;
+  }
+  @keyframes shardSpin {
+    0%   { transform: translate(-50%,-50%) rotate(45deg) scale(.6); }
+    100% { transform: translate(-50%,-50%) rotate(225deg) scale(1); }
+  }
+  /* the streak, trailing along -Y (behind the drift). Static gradient = paint once, never per frame. */
+  .shardTail {
+    width: var(--ss); height: var(--stail);
+    transform: translate(-50%, -100%); transform-origin: 50% 100%;   /* grow FROM the shard, so it stays rooted */
+    background: linear-gradient(to top, var(--shard-c), transparent);
+    animation: shardTailGrow var(--shard-s, 9s) linear infinite; will-change: transform;
+  }
+  @keyframes shardTailGrow {
+    0%   { transform: translate(-50%,-100%) scale(.6); }
+    100% { transform: translate(-50%,-100%) scale(1); }
   }
 
   .hint { position: absolute; bottom: 12px; left: 0; right: 0; text-align: center; color: #8a5f6a; font-size: 11px; letter-spacing: .08em; }
@@ -228,6 +253,8 @@ const SHARD = [
   ['count',  'shards',          0, 60, 1],
   ['radius', 'ring radius (%)', 0, 80, 1],
   ['size',   'shard size (px)', 1, 14, 0.5],
+  ['tail',   'tail (px)',       0, 90, 1],
+  ['blur',   'blur (px)',       0, 12, 0.25],
   ['out',    'drift out (px)',  0, 120, 2],
   ['sweep',  'sweep (°)',       0, 180, 2],
   ['alpha',  'opacity',         0, 1, 0.02],
@@ -241,7 +268,8 @@ const DEF = {
   arc:   { count: 3, d: 0.95, sx: 1, sy: 1, gap: 0.06, thick: 4, blades: 3, tail: 70, edge: 26, alpha: 0.95,
            blur: 2, spin: 7, color: '#ff3346' },
   glint: { count: 5, radius: 36, len: 30, thick: 2.5, alpha: 1, spin: 3.2, color: '#ffd9de' },
-  shard: { count: 26, radius: 44, size: 4, out: 26, sweep: 26, alpha: 0.85, spin: 9, color: '#ff4258' },
+  shard: { count: 26, radius: 44, size: 4, tail: 14, blur: 0, out: 26, sweep: 26, alpha: 0.85, spin: 9,
+           color: '#ff4258' },
 };
 let cfg = structuredClone(DEF);
 let solo = null;
@@ -352,15 +380,30 @@ function apply() {
       const s = document.createElement('div');
       s.className = 'shard';
       const j = (i * 53 % 23) / 23;
-      s.style.width = s.style.height = cfg.shard.size + 'px';
+      s.style.setProperty('--ss', cfg.shard.size + 'px');
+      s.style.setProperty('--stail', (cfg.shard.tail ?? 0) + 'px');
       s.style.setProperty('--rot', (i * (360 / Math.max(1, cfg.shard.count))) + 'deg');
       s.style.setProperty('--r', (cfg.shard.radius * (0.75 + j * 0.5)).toFixed(1) + '%');
       s.style.setProperty('--out', cfg.shard.out + 'px');
       s.style.setProperty('--sweep', cfg.shard.sweep + 'deg');
       s.style.setProperty('--sa', cfg.shard.alpha);
       s.style.setProperty('--shard-c', cfg.shard.color);
-      s.style.setProperty('--shard-s', (cfg.shard.spin * (0.7 + j * 0.6)).toFixed(2) + 's');
-      s.style.animationDelay = (-j * cfg.shard.spin).toFixed(2) + 's';
+      const dur = (cfg.shard.spin * (0.7 + j * 0.6)).toFixed(2) + 's';
+      const delay = (-j * cfg.shard.spin).toFixed(2) + 's';
+      s.style.setProperty('--shard-s', dur);
+      s.style.animationDelay = delay;
+      if (cfg.shard.blur > 0) s.style.filter = `blur(${cfg.shard.blur}px)`;
+      // tail first so the diamond paints on top of its own streak
+      if ((cfg.shard.tail ?? 0) > 0) {
+        const t = document.createElement('div');
+        t.className = 'shardTail';
+        t.style.animationDelay = delay;
+        s.append(t);
+      }
+      const body = document.createElement('div');
+      body.className = 'shardBody';
+      body.style.animationDelay = delay;
+      s.append(body);
       host.append(s);
     }
   }

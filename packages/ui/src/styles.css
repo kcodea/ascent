@@ -2880,7 +2880,6 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    transform here would be overwritten by the animation). The `.deathfloat` overlay copy is untouched (it's
    not inside `.unit`) — it's already centred by its container. */
 .unit .float.dmg { top: 50%; left: 50%; right: auto; bottom: auto; animation-name: floatupc; }
-.float.poison { color: var(--poison); }
 .float.shield { color: var(--acc-dk); }
 .float.shieldup { color: #1f93b8; }
 .float.reborn { color: var(--t-demon); }
@@ -2896,7 +2895,6 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    the −N damage number (0.26s delay), so the two never collide and the proc reads as its own dramatic
    moment. Total (delay + 1.15s) stays under FLOAT_MS so it finishes before the float is cleared. */
 .float.sym { top: 38%; left: 50%; bottom: auto; right: auto; font-size: 64px; z-index: 28; opacity: 0; animation: floatsym 1.15s ease 0.26s forwards; }
-.float.poison.sym { color: #ff5a6b; text-shadow: 0 0 20px rgba(255, 60, 76, 0.95), 0 0 42px rgba(255, 60, 76, 0.7), 0 2px 6px rgba(0, 0, 0, 0.6); }
 .float.reborn.sym { color: #a6dcff; text-shadow: 0 0 22px rgba(120, 200, 255, 1), 0 0 52px rgba(120, 200, 255, 0.85), 0 2px 6px rgba(0, 0, 0, 0.6); }
 .float.shield.sym, .float.shieldup.sym { color: #ffe08a; text-shadow: 0 0 20px rgba(255, 210, 110, 0.95), 0 0 42px rgba(255, 200, 90, 0.6), 0 2px 6px rgba(0, 0, 0, 0.6); }
 .float.rally.sym { color: #cba6f0; text-shadow: 0 0 20px rgba(180, 120, 240, 0.95), 0 0 44px rgba(160, 100, 230, 0.7), 0 2px 6px rgba(0, 0, 0, 0.6); }

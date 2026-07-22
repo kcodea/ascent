@@ -5,6 +5,24 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-21 (balance: nine-card owner pass)
 
+### tweak(ui): drop Execute's ☠ float
+
+Owner: "remove the red skull effect entirely, we don't need it."
+
+The `poison` event spawned a big red ☠ blooming in the card centre (a `.sym` float). With the Execution Strike
+shipped that's a THIRD signifier on the same beat — the crescent, the victim's red flash, and a skull — so the
+proc read as cluttered rather than decisive.
+
+Removed at the source (`floatFor` no longer emits for `poison`), which kills both the float and its `.sym`
+bloom in one place. The dead code it left behind went too: `poison` out of `SYM_KINDS`, and the `.float.poison`
+/ `.float.poison.sym` rules out of styles.css. The `--poison` variable STAYS — the combat-log rule still uses
+it — as does the whole float pipeline for the other keywords.
+
+**Rally's ☠ is untouched.** It's a separate purple skull on its own event; a careless removal keyed on the
+glyph rather than the event would have taken it with it, so there's a test pinning it.
+
+Verified: typecheck · lint · 1378 tests · build:web (2 new: no float for a poison proc, rally's skull intact).
+
 ### tweak(ui): the Execution Strike travels, launched along the attacker's blow
 
 Owner ask: give the crescent speed, and have it launch out of the attacker's direction.

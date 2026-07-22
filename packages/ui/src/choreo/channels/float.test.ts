@@ -72,3 +72,26 @@ describe('spawnFloats — buff suppression', () => {
     expect(floats.filter((f) => f.kind === 'buff')).toEqual([]);
   });
 });
+
+const P = (start: number, end: number): Moment =>
+  ({ start, end, primary: { type: 'poison', target: 'b' } as CombatEvent, stepGroups: [[start]], kind: 'poisonTick' });
+
+describe('spawnFloats — Execute', () => {
+  // Removed 2026-07-22 (owner): the red ☠ was a third signifier on a beat that already carries the crescent
+  // strike and the victim's red flash.
+  it('emits NO float for a poison proc', () => {
+    const events = [{ type: 'poison', target: 'b' }] as CombatEvent[];
+    const { floats, deathFloats } = spawnFloats(P(0, 1), events, noEl, null);
+    expect(floats).toEqual([]);
+    expect(deathFloats).toEqual([]);
+  });
+
+  // Rally has its OWN ☠ (purple) — the removal must not have taken it out too.
+  it('still emits the rally skull', () => {
+    const events = [{ type: 'rally', source: 'a', target: 'b' }] as CombatEvent[];
+    const { floats } = spawnFloats(
+      { start: 0, end: 1, primary: events[0]!, stepGroups: [[0]], kind: 'rally' } as Moment, events, noEl, null,
+    );
+    expect(floats).toEqual([{ id: 0, uid: 'b', text: '☠', kind: 'rally' }]);
+  });
+});

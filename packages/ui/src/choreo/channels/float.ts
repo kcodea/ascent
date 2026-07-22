@@ -32,7 +32,9 @@ function floatFor(e: CombatEvent | undefined): { uid: string; text: string; kind
   if (!e) return null;
   switch (e.type) {
     case 'dmg': return { uid: e.target, text: `${e.amount}`, kind: 'dmg' };
-    case 'poison': return { uid: e.target, text: '☠', kind: 'poison' };
+    // NO float for `poison`. It used to bloom a big red ☠ in the card centre; removed 2026-07-22 (owner) now
+    // that the Execution Strike reads the kill on its own — the skull was a third signifier on the same beat,
+    // stacked on top of the crescent and the victim's red flash. (`rally` keeps its own ☠, in purple.)
     case 'shieldUp': return { uid: e.target, text: '◇', kind: 'shieldup' };
     case 'buff': return { uid: e.target, text: `+${e.attack}/+${e.health}`, kind: 'buff' };
     case 'improve': return { uid: e.target, text: '✦', kind: 'buff' };

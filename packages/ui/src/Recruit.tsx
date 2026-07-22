@@ -2191,7 +2191,11 @@ export function Recruit() {
   // writes turnClock directly, so ticking never re-renders Recruit. The reset effect above runs first
   // on a new turn (effect order), so the clock is back at full time before this re-schedules.
   useEffect(() => {
-    if (run.phase !== 'recruit' || run.discover || run.questOffer || run.runeforgeOffer || heroSelecting || overlayOpen) return;
+    // `pendingTarget` (a battlecry aim) and `chooseOne` are forced mid-play decisions that lock the rest of the
+    // board, exactly like a Discover — so the timer must pause for them too. It didn't for `pendingTarget`, and
+    // because the UI also blocks the target pick once `timeUp`, the timer expiring mid-aim left the player
+    // unable to pick AND (before the reducer fix) unable to End Turn: a hard softlock (owner report 2026-07-22).
+    if (run.phase !== 'recruit' || run.discover || run.questOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || heroSelecting || overlayOpen) return;
     let id = 0;
     const tick = (): void => {
       const cur = turnClock.get();
@@ -2203,7 +2207,7 @@ export function Recruit() {
     };
     id = window.setTimeout(tick, 1000);
     return () => window.clearTimeout(id);
-  }, [run.phase, run.discover, run.questOffer, run.runeforgeOffer, heroSelecting, overlayOpen, run.wave]);
+  }, [run.phase, run.discover, run.questOffer, run.runeforgeOffer, run.pendingTarget, run.chooseOne, heroSelecting, overlayOpen, run.wave]);
 
   // Flash a card green AND float its +X/+X when its stats jump in the recruit phase (a buff landed).
   useEffect(() => {
@@ -3258,7 +3262,7 @@ export function Recruit() {
       <ChargeGlyph
         inCombat={inCombat}
         window={Math.min(CHARGE_SECONDS, turnSeconds)}
-        paused={!!(run.discover || run.questOffer || run.runeforgeOffer || heroSelecting || overlayOpen)}
+        paused={!!(run.discover || run.questOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || heroSelecting || overlayOpen)}
         covered={!!(heroSelecting || overlayOpen)}
       />
       <HudBar />

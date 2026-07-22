@@ -473,7 +473,18 @@ function reduceCore(state: RunState, action: Action): RunState {
   // minimized to read the board without any action invalidating the pending pick.
   // (`devGrant` is exempt too: the Scene Builder must stay responsive with an overlay up, and a reward that
   // raises a Discover now queues behind the open modal rather than stacking on it.)
-  if (modalOpen(state) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant') {
+  //
+  // End Turn (`faceOmen`) is exempt SPECIFICALLY when a battlecry aim (`pendingTarget`) is the blocker, and
+  // this is load-bearing. The round timer pauses for the Discover / quest / Runeforge overlays but NOT for a
+  // pendingTarget aim, so the timer can expire mid-aim — and the UI then blocks the target pick too (`timeUp`).
+  // With End Turn also rejected here, the player was permanently softlocked, and since `pendingTarget` is
+  // saved, a reload landed straight back in it (owner report 2026-07-22). `faceOmen` already auto-resolves a
+  // pending target onto the highest-Attack legal carry, so ending the turn is a safe, defined escape.
+  // The exemption is deliberately NARROW — only `pendingTarget`, NOT the other modals: `chooseOne`'s options
+  // stay clickable under `timeUp` (so it can always be resolved and needs no escape), and letting End Turn fire
+  // over an open Discover / Choose One / quest / Runeforge would strand it going into combat.
+  const endTurnEscapesAim = action.type === 'faceOmen' && !!state.pendingTarget;
+  if (modalOpen(state) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant' && !endTurnEscapesAim) {
     return state;
   }
 

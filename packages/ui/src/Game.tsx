@@ -8,7 +8,6 @@ import { Leaderboard } from './Leaderboard';
 import { Rankings } from './Rankings';
 import { Career } from './Career';
 import { AvatarPicker } from './AvatarPicker';
-import { FontLab } from './FontLab';
 import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
 import { MinionBook } from './MinionBook';
@@ -194,7 +193,6 @@ export function Game() {
       <Rankings />
       <Career />
       <AvatarPicker />
-      <FontLab />
     </ErrorBoundary>
   );
 }

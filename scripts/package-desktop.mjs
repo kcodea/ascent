@@ -12,7 +12,7 @@
  *   release/ASCENT-win32-x64/
  *     ASCENT.exe            ← node_modules/electron/dist/electron.exe, renamed
  *     …Electron runtime…    ← the rest of node_modules/electron/dist verbatim
- *     resources/app/        ← main.cjs + preload.cjs + a minimal package.json (the shell)
+ *     resources/app/        ← main.cjs + preload.cjs + icon.png + a minimal package.json (the shell)
  *     resources/dist/       ← apps/web/dist (the game), where main.cjs looks when app.isPackaged
  *
  * What this does NOT do (deliberately — it's a test harness, not a release pipeline): no installer, no code
@@ -48,7 +48,7 @@ await rm(path.join(out, 'resources', 'default_app.asar'), { force: true });
 console.log('• copying the shell');
 const appDir = path.join(out, 'resources', 'app');
 await mkdir(appDir, { recursive: true });
-for (const f of ['main.cjs', 'preload.cjs']) {
+for (const f of ['main.cjs', 'preload.cjs', 'icon.png']) {
   await cp(path.join(root, 'apps', 'desktop', f), path.join(appDir, f));
 }
 const version = JSON.parse(await (await import('node:fs/promises')).readFile(path.join(root, 'package.json'), 'utf8')).version;

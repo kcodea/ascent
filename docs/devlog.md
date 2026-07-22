@@ -3,6 +3,42 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-22 (desktop icon, Font Lab removal, ultrawide board gap)
+
+### fix(ui): fill the board on ultrawide + drop the Font Lab; feat(desktop): window icon
+
+**The grey bands on a 21:9 fullscreen were a coverage bug, not a letterbox.** `.boardbg` sized the art by
+HEIGHT (`background-size: auto <stage height>`), so its width fell out of the art's own aspect. The art is
+3440×1459 → **2.3578**; a 3440×1440 screen is **2.3889**. Fitting the height therefore drew it 3395px wide in
+a 3440px window — a ~22px band of the fallback colour down each edge, exactly what the owner photographed.
+
+Now sized by WIDTH with the height auto, and the width floored at `100vw`:
+`max(100vw, calc(<stage height> * var(--board-aspect)))`. Below 2.3578:1 the floor never binds and the sizing
+is identical to before (verified by the aspect maths: at 16:9 the art's natural width is 2.358·gh against a
+1.778·gh viewport, so the art always wins) — only a wider-than-the-art window takes the floor, and then the
+art overflows *vertically* instead, which is invisible because the frame is centred and the overflow is floor
+texture. The art's aspect is now a documented `--board-aspect` var rather than being implicit in the file.
+
+Measured in the packaged shell at 3440×1440: the board layer computes to `3440px` (was 3395px).
+
+**Font Lab removed from the title screen — and it had been shipping to players.** `<FontLab />` was mounted
+unconditionally in `Game.tsx`, unlike `<DevMenu />` and `<SceneBuilder />` which are both
+`import.meta.env.DEV`-gated. So the "Aa" button was in the production build, on the main menu, for anyone who
+loaded the game. Removing the mount fixes the owner's ask and the leak together. The component was deleted
+with it (nothing else referenced it).
+
+One behavioural consequence worth knowing: the boot-time application of saved font choices lived *inside*
+that component, so a saved `ascent.fonts` entry no longer applies. The app now always renders the shipped CSS
+defaults — i.e. what players have been seeing regardless. Recoverable from git if it should come back, in
+which case it belongs in the Dev Tuning Menu with every other dev tool.
+
+**Desktop window icon** — `ascentlogo.png` (1254×1254) ships as `apps/desktop/icon.png` and is set on the
+BrowserWindow, so the taskbar / alt-tab / window icon is the game's logo. NB this does **not** set the .exe's
+own icon in Explorer: that is embedded into the PE by `rcedit`, which is electron-builder's job and cannot run
+here (Defender eats its binary — see `scripts/package-desktop.mjs`).
+
+typecheck + typecheck:web + lint + 1385 tests + `build:web` green.
+
 ## 2026-07-22 (desktop: Electron shell)
 
 ### feat(desktop): run the shipped web build as a Windows exe

@@ -56,6 +56,10 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 640,
     backgroundColor: '#211d27', // the board's dark surround, so the first paint isn't a white flash
+    // Taskbar / alt-tab / window icon. NB this does NOT set the .exe's own icon in Explorer — that is
+    // embedded in the PE by rcedit, which is electron-builder's job and cannot run here (see
+    // scripts/package-desktop.mjs on the Defender false positive).
+    icon: path.join(__dirname, 'icon.png'),
     show: false, // revealed on ready-to-show to avoid a blank window while the bundle boots
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),

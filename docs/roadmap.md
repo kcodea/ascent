@@ -52,6 +52,19 @@ Solaris Fang (Rally halves cut), Money Maker (Gold Pouch only), and the **Graver
 - **Follow-up:** `rallyGrantRandomSpell` + `rallyTribeAura` are now unused by any card. Kept as primitives for
   set 2 — remove in their own PR if nothing picks them up.
 
+### Execute (`V`) — finish the retheme
+The rename (#625) and the persistent CSS rage aura + tuner have shipped. Remaining:
+- **The Pixi proc strike.** An "EXECUTION STRIKE" crescent on the `{ type: 'poison' }` combat event, at the
+  victim's slot: a baked crescent texture drawn as many short arc segments so it gets BOTH a taper and a
+  gradient along the path (crimson tail → orange → white-hot tip), an expanding + rotating sweep, embers, a hot
+  core flash, and dark-red blood droplets. Own config + tuner + Test button, per the owner's reference.
+- **Its own icon glyph.** Execute still shows the `poison` droplet — `sword` and `slaughter` are taken by
+  Rally/Slaughter, so it wants an authored bladed glyph rather than a reused one.
+- **Render-profile the aura.** The shipped values build ~101 nodes / ~98 animations per Execute card (26 shards
+  × 3 nodes dominates) plus 6 `mix-blend-mode: screen` arcs. All static paint, nothing repaints per frame — but
+  the layer count is high and hasn't had a DevTools pass on a full board. Cheapest levers: shard count, tails.
+- **"Toxin Tender"** (content, Kevin's side) now has a name that doesn't match the keyword it grants.
+
 ### Human-playtest balance
 The counter matrix is balance *truth*; stat numbers are dials. With all six tribes + the quest content in,
 the game wants a real tuning pass driven by human play (not just the bot).

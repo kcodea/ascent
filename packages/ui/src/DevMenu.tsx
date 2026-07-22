@@ -19,6 +19,7 @@ import { DragTuner } from './DragTuner';
 import { FlipTuner } from './FlipTuner';
 import { ShieldTuner } from './ShieldTuner';
 import { WardTuner } from './WardTuner';
+import { ExecuteTuner } from './ExecuteTuner';
 import { TrailTuner } from './TrailTuner';
 import { SmokeTuner } from './SmokeTuner';
 import { FloatTuner } from './FloatTuner';
@@ -72,6 +73,7 @@ const TUNERS = [
   { key: 'flip', label: '🔀 Reposition', C: FlipTuner },
   { key: 'shield', label: '🛡 Shield Place', C: ShieldTuner },
   { key: 'ward', label: '🔵 Ward Dome', C: WardTuner },
+  { key: 'execute', label: '🩸 Execute Aura', C: ExecuteTuner },
   { key: 'trail', label: '💨 Trail', C: TrailTuner },
   { key: 'smoke', label: '🌫️ Smoke & Dust', C: SmokeTuner },
   { key: 'float', label: '🔢 Damage Float', C: FloatTuner },

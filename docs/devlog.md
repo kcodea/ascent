@@ -5,6 +5,47 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-21 (balance: nine-card owner pass)
 
+### feat(ui): the EXECUTE rage aura + its live tuner
+
+The FX half of the Toxin → Execute retheme. Replaces the old lime "Venomous" treatment with a swirling ring of
+rage around the card, owner-dialled on `fx/execute-preview.html` and baked here.
+
+**Four layers**, all pure CSS: *smoke* (blurred red blobs on two counter-spinning rings, each breathing on its
+own clock so the mass roils instead of turning as one rigid wheel), *comet arcs* (the Flurry blade construction
+— a static conic-gradient of N comets masked to a band), *glints* (4-point sparkles, off by default in the
+shipped values) and *shards* (diamonds drifting outward, each trailing a motion streak).
+
+Two constructions worth knowing, both carried over from the rig:
+- **The arc squash lives on a non-spinning wrapper**, not the rings. On the spinning element it would shear each
+  comet through every revolution; on the wrapper each ring stays a true rotating circle and the result is
+  squashed after, so the comets sweep a clean ellipse. Locked by a test.
+- **A shard is two elements.** The outer does only placement + drift, which leaves its local +Y pointing along
+  the direction of travel so the tail just hangs off −Y; the 45° diamond spin sits on an inner body. With the
+  spin on the parent the tail would pinwheel instead of trailing.
+
+**Layering:** z4 — over the art *and* the frame, under the badge chrome. The same slot as `.wardglass` (owner
+ruling: "exactly like the ward effect"), deliberately not Flurry's z2. In the rig the aura had been at z1,
+behind the card, which is why most layers looked missing.
+
+**Live tuner** (`🩸 Execute Aura` in the Dev menu). Unlike Ward's, this one can't ride on CSS vars alone: the
+layer *counts* are dials, so the DOM itself is generated. `setExecuteValue` commits a fresh snapshot and every
+mounted card rebuilds through `useSyncExternalStore`. The consequence is a **contract difference worth
+remembering** — Ward mirrors every shipped value as a CSS fallback, Execute does not: `executeConfig.ts` is the
+single source of truth for the look, so there's no second copy in `styles.css` to drift.
+
+Retired with it: the lime rim glow, the `.venomdrip` globs (CSS + the `VENOM_DRIPS` table), and the lime frame
+drop-shadow on the standard frame — stacked under a red aura it read as two competing keyword glows. The
+keyword medallion and the "Execute spent" proc flash were recoloured lime → red for coherence.
+
+**Perf note, flagged not resolved:** the shipped values build ~101 DOM nodes and ~98 animations per Execute
+card (26 shards × 3 nodes dominates), and the 6 arcs use `mix-blend-mode: screen`. All the gradients, masks and
+blurs are static paint computed once — nothing repaints per frame, per the perf rule — but the layer *count* is
+high and hasn't been render-profiled on a full board yet. Worth a DevTools pass with the owner before it's
+considered settled; the cheapest lever is shard count or dropping the tails.
+
+Verified: typecheck · lint · 1350 tests (12 new, covering group/range coverage, per-count element builds, the
+optional tail, the wrapper-not-ring squash, static-paint precompute, and determinism) · build:web.
+
 ### tweak(ui): rename the Toxin keyword to EXECUTE
 
 Owner direction: retheme the `V` keyword from poison-green to a red/rage "Execute" identity (the FX follow — a

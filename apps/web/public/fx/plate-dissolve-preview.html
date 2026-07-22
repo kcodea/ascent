@@ -63,6 +63,7 @@
   <div class="row"><label title="Plate → wireframe crossfade.">imprint in</label><input type="range" id="inMs" min="0" max="400" step="5"><span class="val" id="v_inMs"></span></div>
   <div class="row"><label title="How long the wireframe holds before burning off.">hold</label><input type="range" id="holdMs" min="0" max="500" step="5"><span class="val" id="v_holdMs"></span></div>
   <div class="row"><label title="How fast the real plate art disappears under it.">plate out</label><input type="range" id="plateOut" min="0" max="400" step="5"><span class="val" id="v_plateOut"></span></div>
+  <div class="row"><label title="How long the wireframe takes to burn off, in ms. INDEPENDENT of total — total only governs how long the dust lives, so you can snap the frame away and let the dust hang.">wireframe fade</label><input type="range" id="fadeMs" min="20" max="1400" step="10"><span class="val" id="v_fadeMs"></span></div>
 
   <h2>Look</h2>
   <div class="row"><label title="How far the wireframe swells as it goes.">puff scale</label><input type="range" id="puff" min="1" max="1.4" step="0.005"><span class="val" id="v_puff"></span></div>
@@ -107,12 +108,14 @@ const REF_W = 240;
 const MW = 440, MH = Math.round(MW * PLATE_AR);   // resolution the wireframe is extracted at
 
 const DEF = {
-  smooth: 4.5, edgeGain: 1.6, edgeCut: 0.45, edgeW: 1, outline: 1, fill: 0,
-  total: 500, inMs: 70, holdMs: 55, plateOut: 60,
-  puff: 1.06, inten: 1.0, g1: 10, g2: 26,
-  cDeep: '#0037ff', cMid: '#009dff', cCore: '#ffffff', grad: 1,
-  count: 620, onLines: 0.8, spd: 120, spdVar: 0.6, lift: -30,
-  size: 2.6, sizeVar: 0.7, life: 0.75, lifeVar: 0.6, stag: 0.25, trail: 0.55,
+  smooth: 4, edgeGain: 0.5, edgeCut: 0.22, edgeW: 1, outline: 1, fill: 0,
+  // fadeMs 180 = exactly what the old total-tied fade produced at total 210 with 30ms of in+hold, so the
+  // owner's dialed look is preserved verbatim; the knob exists to take it faster than total ever allowed.
+  total: 210, inMs: 15, holdMs: 15, plateOut: 0, fadeMs: 180,
+  puff: 1.15, inten: 0.58, g1: 42, g2: 154,
+  cDeep: '#75d6ff', cMid: '#b3e2ff', cCore: '#c7e9ff', grad: 1,
+  count: 320, onLines: 0.8, spd: 25, spdVar: 0.96, lift: -25,
+  size: 1.7, sizeVar: 0.7, life: 1.5, lifeVar: 0.94, stag: 0, trail: 0.37,
   pw: 240,
 };
 let C = { ...DEF };
@@ -307,7 +310,9 @@ function frame(now) {
   plateEl.style.opacity = String(Math.max(0, 1 - ms / Math.max(1, C.plateOut)));
   const inA = Math.min(1, ms / Math.max(1, C.inMs));
   const burnStart = C.inMs + C.holdMs;
-  const burn = Math.max(0, Math.min(1, (ms - burnStart) / Math.max(1, C.total - burnStart)));
+  // The wireframe's fade runs on its OWN clock (`fadeMs`), not the remainder of `total` — otherwise a long
+  // total forced a slow fade, and the frame could never snap away while the dust hung around after it.
+  const burn = Math.max(0, Math.min(1, (ms - burnStart) / Math.max(1, C.fadeMs)));
   imprintEl.style.opacity = String(Math.max(0, inA * (1 - burn) * C.inten));
   imprintEl.style.transform = `scale(${1 + (C.puff - 1) * burn})`;
 

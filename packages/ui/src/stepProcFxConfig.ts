@@ -57,40 +57,41 @@ export interface StepProcFxConfig {
   glowWidth: number;    // px — that underlay's extra width
 }
 
-// Shipping defaults: a SMALLER, tighter read than the spell-power cue. A step proc fires far more often (every
-// Avenge, every 4th spell, every cadence turn), and it fires from a little pill ON a card rather than over the
-// whole tavern — so it's scaled down to punctuate without burying the board. Owner will tune from here.
+// Owner-tuned and baked (2026-07-21). The arrow fan is deliberately OFF (`arrowCount: 0`) — the counter cue
+// reads as a pure WHITE SPARK BURST out of the pill: a dense 60-mote spray, heavy gravity so it arcs and falls
+// rather than floating, full jitter for a scattered pop, and no glow underlay. The arrow dials below are inert
+// at count 0 but kept tunable. Distinct from the pink/purple/gold spell-power cue by design.
 const DEFAULTS: StepProcFxConfig = {
-  arrowCount: 5,
-  arrowRise: 74,
-  arrowSpread: 44,
-  arrowLen: 17,
-  arrowWidth: 2.5,
-  arrowHead: 6.5,
+  arrowCount: 0,
+  arrowRise: 20,
+  arrowSpread: 0,
+  arrowLen: 6,
+  arrowWidth: 1,
+  arrowHead: 0,
   arrowMs: 440,
   arrowStagger: 28,
-  arrowDrift: 9,
-  arrowFadeAt: 0.6,
+  arrowDrift: 0,
+  arrowFadeAt: 0,
 
-  blastCount: 11,
-  blastSpeed: 140,
-  blastSize: 3,
-  blastLife: 430,
-  blastGravity: 190,
+  blastCount: 60,
+  blastSpeed: 275,
+  blastSize: 5,
+  blastLife: 860,
+  blastGravity: 450,
   blastSpread: 360,
   blastAngle: 0,
-  blastDrag: 0.06,
-  blastJitter: 0.5,
-  blastRise: 40,
+  blastDrag: 0.03,
+  blastJitter: 1,
+  blastRise: 25,
   blastSpin: 0,
   blastStagger: 0,
-  blastShrink: 0.12,
+  blastShrink: 0,
 
-  colorA: '#ff5fc8',
-  colorB: '#a45cff',
-  colorC: '#ffcf5a',
-  glowAlpha: 0.5,
-  glowWidth: 4,
+  colorA: '#ffffff',
+  colorB: '#ffffff',
+  colorC: '#ffffff',
+  glowAlpha: 0,
+  glowWidth: 0,
 };
 
 export const STEPPROCFX_KEYS = [

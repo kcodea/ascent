@@ -7,7 +7,7 @@ describe('renameTerms (B3 keyword pass)', () => {
     expect(renameTerms('**Deathrattle:** deal 3.')).toBe('**Echo:** deal 3.');
     expect(renameTerms('Give a friendly minion **Divine Shield**.')).toBe('Give a friendly minion **Ward**.');
     expect(renameTerms('gains **Windfury**')).toBe('gains **Flurry**');
-    expect(renameTerms('grant **Venomous**')).toBe('grant **Toxin**');
+    expect(renameTerms('grant **Venomous**')).toBe('grant **Execute**');
     expect(renameTerms('**Reborn.**')).toBe('**Rise.**');
     expect(renameTerms('Magnetize onto a friendly Mech.')).toBe('Attach onto a friendly Mech.');
     expect(renameTerms('a friendly **Magnetic** minion')).toBe('a friendly **Attachment** minion');

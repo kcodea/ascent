@@ -16,7 +16,7 @@ const TRIBE_SINGULAR: Record<Tribe, string> = { beast: 'Beast', dragon: 'Dragon'
 /** Display name for a `grant.randomFilter` minion class ("a random Echo minion"). */
 const FILTER_NAME: Record<'shout' | 'endOfTurn' | 'echo' | 'rally' | 'attachment', string> = { shout: 'Shout', endOfTurn: 'End of Turn', echo: 'Echo', rally: 'Rally', attachment: 'Attachment' };
 /** Keyword → its Sunward display name (for "a Badgington with Flurry and Ward"). */
-const KEYWORD_NAME: Partial<Record<Keyword, string>> = { W: 'Flurry', DS: 'Ward', V: 'Toxin', T: 'Taunt', RL: 'Rally', SL: 'Slaughter', R: 'Rise', C: 'Cleave', ST: 'Stealth', IMM: 'Immune' };
+const KEYWORD_NAME: Partial<Record<Keyword, string>> = { W: 'Flurry', DS: 'Ward', V: 'Execute', T: 'Taunt', RL: 'Rally', SL: 'Slaughter', R: 'Rise', C: 'Cleave', ST: 'Stealth', IMM: 'Immune' };
 
 /** Objective one-liner: "Play 3 minions" / "Summon 4 Beasts" / "Slaughter 6 enemies with Beasts" /
  *  "Attack 12 times with Beasts" / "Summon 8 minions in combat" / "Trigger 14 Echoes". */

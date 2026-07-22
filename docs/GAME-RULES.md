@@ -162,7 +162,7 @@ data are unchanged) via `packages/ui/src/terms.ts`:
 | Deathrattle | **Echo** |
 | Divine Shield | **Ward** |
 | Windfury | **Flurry** |
-| Venomous | **Toxin** |
+| Venomous | **Execute** |
 | Reborn | **Rise** |
 | Magnetize | **Attach** |
 | Magnetic | **Attachment** |

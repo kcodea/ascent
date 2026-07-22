@@ -126,7 +126,7 @@ const FIXED_GRANT: Record<string, Keyword> = {
 };
 
 /** Does this card's effects *grant* keyword `code` — to a friendly minion (Mumi → Rise, Selfless Sentinel
- *  → Ward, Toxin Tender/Plaguebringer → Toxin) or by summoning a body that carries it (the Taunt-token
+ *  → Ward, Toxin Tender/Plaguebringer → Execute) or by summoning a body that carries it (the Taunt-token
  *  summoners)? Reads the fixed-keyword granter factories + any `params.keyword` / `params.keywords`, across
  *  top-level and Choose-One effects. Card-fetch grants ("add a Magnetic minion to hand" — Junkyard Titan,
  *  Jouster) are NOT keyword grants and correctly fall through. */
@@ -187,7 +187,7 @@ const GLOSSARY: { title: string; items: GlossItem[] }[] = [
     items: [
       { icon: 'taunt', term: 'Taunt', def: 'Enemies must attack this minion first.', match: kwMatch('T') },
       { icon: 'shield', term: 'Ward', def: 'Blocks the first hit it would take, then breaks.', match: kwMatch('DS') },
-      { icon: 'poison', term: 'Toxin', def: 'Destroys any minion it damages — spent after one hit.', match: kwMatch('V') },
+      { icon: 'poison', term: 'Execute', def: 'Destroys any minion it damages — spent after one hit.', match: kwMatch('V') },
       { icon: 'windfury', term: 'Flurry', def: 'Attacks twice each turn.', match: kwMatch('W') },
       { icon: 'target', term: 'Critical Strike', def: 'Each attack has a chance to deal double damage.', match: kwMatch('CR') },
       { icon: 'rise', term: 'Rise', def: 'The first time it dies, it returns once with 1 Health.', match: kwMatch('R') },

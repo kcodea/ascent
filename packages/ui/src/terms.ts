@@ -3,7 +3,7 @@
  * and a few combat-log lines. Internal ids, keyword codes (T/DS/V/…), effect factory names, and the card
  * DATA are all unchanged — this just rewrites the words the player reads, so it's low-risk and reversible.
  *
- *   Battlecry → Shout · Deathrattle → Echo · Divine Shield → Ward · Windfury → Flurry · Venomous → Toxin
+ *   Battlecry → Shout · Deathrattle → Echo · Divine Shield → Ward · Windfury → Flurry · Venomous → Execute
  *   Reborn → Rise · Magnetize → Attach · Magnetic → Attachment · Golden → Gilded
  *
  * Kept as-is (per the design): Taunt, Avenge, Choose One, Start of Combat, End of Turn, Rally, Cleave,
@@ -18,7 +18,7 @@ const TERMS: [RegExp, string][] = [
   [/\bDeathrattle\b/g, 'Echo'],
   [/\bDivine Shield\b/g, 'Ward'],
   [/\bWindfury\b/g, 'Flurry'],
-  [/\bVenomous\b/g, 'Toxin'],
+  [/\bVenomous\b/g, 'Execute'],
   [/\bReborn\b/g, 'Rise'],
   // Magnetic/Magnetize needs its PLURAL, LOWERCASE and PAST-TENSE forms too. Only the two capitalised
   // singulars were handled, so "your Magnetics magnetize twice" rendered untranslated on Attachment

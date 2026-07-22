@@ -5,6 +5,23 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-21 (balance: nine-card owner pass)
 
+### tweak(ui): rename the Toxin keyword to EXECUTE
+
+Owner direction: retheme the `V` keyword from poison-green to a red/rage "Execute" identity (the FX follow — a
+swirling red aura + a slash/blood proc — are separate PRs; this is the wording alone so it lands first).
+
+The mechanic is UNCHANGED ("destroys any minion it damages, spent after one hit") — *Execute* just describes it
+better than *Toxin* did. The rename is **UI-only, with zero sim/content risk**: the engine and every card's text
+use `Venomous` internally, and `terms.ts` renames it for display, so one entry in that map does most of the work.
+Updated alongside it: the `KW_LABEL` pill, the combat float label, the Compendium glossary term, quest objective
+text, the three combat-log lines ("Execute destroys X" / "…Execute is spent" / "N Execute kills"), the rename
+test, and the canonical rename table in `docs/GAME-RULES.md`.
+
+Deliberately NOT changed: the `poison` **icon** — `sword` and `slaughter` are already taken by Rally/Slaughter,
+and duplicating a keyword glyph hurts the at-a-glance read, so Execute wants its own bladed glyph as a follow-up.
+The card NAME "Toxin Tender" also stays (card names live in content, Kevin's side) — worth a look now that the
+keyword it grants is called Execute. typecheck + lint + 1338 tests + build:web green.
+
 ### balance: owner's nine-card pass + Graverobber self-target fix
 
 A hand-authored balance pass from the owner's notes. Seven number/shape changes, one narrowed grant, and one

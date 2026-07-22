@@ -44,7 +44,10 @@ export function Inspect() {
             ))}
           </div>
         )}
-        <Card card={inspect} forceFull />
+        {/* Plated, like a hand card — the inspect overlay is the one other place you read a card as a whole
+            object rather than a board token, so it wears the same body (owner 2026-07-21). Safe for the
+            `isolation: isolate` on `.card.plated`: this overlay never renders during combat. */}
+        <Card card={inspect} forceFull plated />
       </div>
     </div>
   );

@@ -269,6 +269,192 @@ no-legal-target case, and Kennelmaster's board-wide/Attack-only scope.
 **Follow-up.** `rallyGrantRandomSpell` and `rallyTribeAura` now have no card using them (Badgington and
 Solaris were their only consumers). Left in place deliberately — they're valid primitives for set 2 — but
 worth removing in their own PR if nothing picks them up.
+## 2026-07-21 (hand-card backplate)
+
+### feat(ui): hand cards gain an ornate backplate that dissolves when played
+
+Cards in hand now render a **backplate** — an ornate stone/gold card body framing the existing oval portrait
+frame and glass info panel, turning a hand card into a proper full card. It travels with the card while it's
+dragged out of hand, and dissolves when a minion is played to the board, leaving the bare oval token the board
+already uses. Presentation only: no engine, content or run-state code was touched.
+
+**The plate is STATIC — never stretched.** A nine-sliced stretching plate was prototyped against the real art
+first and rejected. Measured stretch range across the card corpus was 214px → 299px (~40% vertical), and the
+art's greek-key tabs sit at ~51% height — dead centre of the stretch band — so no choice of slice inset
+protects them. Static keeps the art pixel-exact.
+
+**Long rules text shrinks instead, via character-count buckets — deliberately NOT DOM measurement.** The
+obvious implementation (render, read `scrollHeight`, step down until it fits) is a layout read per card per
+render on the hand, which re-renders constantly — the anti-pattern named in [performance.md](performance.md).
+`plateTextBucket()` is a pure O(1) function of the live text string (values already folded in), picking one of
+four size buckets. Thresholds come from the measured corpus: 273 card texts, median 59 chars, p90 96, max 187
+static (~230 once live values fold in). Known tradeoff: character count is a proxy for wrapped height, so the
+buckets run slightly conservative — the thresholds are tuner knobs.
+
+**The static decision meant the existing layout didn't have to move.** An earlier design flipped `.drawer` back
+to `position: static` so the card's height would grow to contain it — only necessary when a *stretching* plate
+has to track dynamic content. With a fixed plate, `.drawer` keeps `position: absolute` and its anchored-top
+behaviour from #570, and the plate is just a fixed-size element behind everything. No DOM restructure, so the
+FLIP and rect-measurement code in `Recruit.tsx` is untouched.
+
+**The dissolve is a PLACEHOLDER.** The authored effect is a deliberate phase 2, to be built on its own preview
+rig. `platePuff()` clones `.dragcard .cardplate` at release (the drag card unmounts the moment `setDrag(null)`
+runs, so the plate can't ride it), pins the clone to `<body>` off its measured rect, and fades/scales it while
+firing the existing `pixiFx.dust()`. Starts on release and runs on its own clock rather than being bounded by
+the ~200ms FLIP flight — a dissolve clamped to the flight reads as a blink. Swap surface for phase 2 is one CSS
+class and one call site.
+
+Scope: hand cards + the `.dragcard` copy when dragging from hand. Shop, board, combat, Discover and the hover
+popup are untouched — verified across all 20 `<Card>` render sites, which matters because `.card.plated` sets
+`isolation: isolate` and the safety argument for that is "plated cards never enter combat."
+
+Untargeted spells get no dissolve: `castingSpell` already unmounts `.dragcard` and replaces it with the aim
+line, so there's nothing on screen to dissolve at cast time. Deferred to phase 2 with the authored effect.
+
+**Art:** `apps/web/public/frames/cardplate.webp`, 800×1244, 199 KB. The source (`card plate v3.png`) is
+1890×2938 at **6.63 MB** against a total `apps/web/public/` of 8.0 MB — shipping it raw would have nearly
+doubled the game's asset payload for one card frame, and it renders at ~200px so it was ~9× oversampled.
+Converted with `sharp` at 800px / q85 (still 4× display size). Quality ladder measured: q70 134 KB, q78 155 KB,
+q85 199 KB, q90 261 KB; q85 chosen for headroom since large flat stone gradients are what WebP bands on.
+
+Also adds a dev-only **🂠 Card Plate** tuner (plate geometry, bucket thresholds, dissolve params),
+`import.meta.env.DEV`-gated per #615, values double-sourced against the CSS fallbacks.
+
+Two bugs were caught in review and are worth recording, both of which would have looked fine in a diff:
+
+- **The text buckets originally used `font-size: 1em / 0.92em / …`.** That *replaces* the base rule at
+  `styles.css:1510` rather than scaling it, and `em` on font-size resolves against the parent (`.drawer`),
+  which sets no font-size — so it landed on the browser default ~16px, decoupling card text from `--ccw`
+  entirely. Fixed to restate the calc: `calc(var(--ccw) * 0.072 * <factor>)`.
+- **Those selectors also tied the base rule's specificity exactly** (5 classes each), so they won only by
+  source order — reorder the stylesheet and the whole feature silently dies. Now 6 classes
+  (`.card.compact.plated.plate-txt-*`), winning on specificity instead.
+
+**Verified:** typecheck + lint + 1334 tests + `build:web` all green. `plateTextBucket()` has unit tests
+including a monotonicity sweep and a tuned-threshold round-trip. Confirmed live in a dev server run from the
+worktree: plate renders at `naturalWidth: 800`, bucket class applied, `.desc` computed font-size 3.70px against
+`--ccw` 51.4 (= 51.4 × 0.072 × 1, i.e. card-scaled, not a flat 16px), `pointer-events: none` holding so the
+`.handpad` hover pad still works, no console errors. The drag path couldn't be exercised live (rAF doesn't fire
+in the preview tab) and was verified by code reading.
+
+**Follow-ups:** hand cards are taller now, so the hand row wants re-tuning by eye (`handY`, `handGap`, probably
+`handPop`) and the exported values baked into BOTH the TS defaults and the CSS fallbacks. Phase 2 authors the
+real dissolve. The tuner's three text-bucket sliders don't apply to already-rendered cards (`Card` is memoized
+by design); the panel says so rather than weakening the memoization.
+
+#### Card body pass (owner, same session)
+
+With the plate in, the panel's contents got a pass:
+
+- **Removed the keyword pill row.** The `.kws` / `.kw` row under the card name is gone, along with the
+  `KW_LABEL` map and CSS that fed it. Keywords were being stated three times — the pill, the art-layer cue
+  (Ward dome, Toxin drip, Flurry rings, the Taunt frame), and the bolded rules text — and the row cost a full
+  line of panel height. `triggerPill` survives: the medallion glyph still derives from it. Note this applies
+  to **every** full-card surface, not just hand: inspect, hover reveal, and Discover lose the pills too.
+- **Lifted the panel** from `--ccw * 1.15` to `1.09`, taking back part of the freed line.
+- **Card name +20%** — `0.088` → `0.1056` of `--ccw`, giving it the weight it lost now that it sits alone
+  above the rules text.
+
+- **The white hover highlight moved to the plate.** On a plated card the plate IS the outer edge, so ringing
+  the oval frame inside it read as a halo floating in the middle of the card. A `.plateglow` copy of the plate
+  art now sits behind the real one carrying a static drop-shadow halo, with only `opacity` transitioning —
+  same compositor-only philosophy as `.cglow`, and since the art is opaque through its body the halo can only
+  ever show outside its silhouette. The frame's `.cglow` and the info panel's box-shadow rim are both
+  suppressed on plated cards (4-class selector so it wins on specificity, not source order). Colours still
+  come from the `--hg-*` vars, so the 🔆 Hover Glow tuner drives plate and frame as one look.
+- **The drop-target glow follows the plate too.** Dragging a hand minion over the board lit `.cglow` — the
+  frame silhouette — which on a plated card is a halo sitting inside the plate, mid-card: the same artifact
+  the hover glow was moved off the frame to fix. Plated drag cards now light `.plateglow` instead, keeping
+  the rule's original promise that "playing a card reads identically to hovering it". Unplated drag cards
+  (shop/board) still light `.cglow`, having no plate to ring.
+- **The hover reveal is plated.** Hovering a shop or warband tile pops a portalled full-size card (the
+  card itself in compact mode, plus any cards it references); that popup is the "read the whole card"
+  surface for those zones, so it now wears the plate instead of floating as bare text over the board.
+  Two knock-ons had to be fixed with it, since the plate is 1.5× the tile's width and ~2.3× its height:
+  `showRefTip`'s placement math estimated off the bare tile, which put wide popups off the right edge and
+  let tall ones run off the bottom (now folds in `--plate-scale` and the plate's own aspect); and the plate's
+  overhang is invisible to flex, so a trailing referenced card's plate ate through the gap and overlapped —
+  now reserved as `margin-inline`, which also makes the rendered footprint match what the placement math
+  assumes.
+- **The inspect overlay is plated too.** It's the other place you read a card as a whole object rather than a
+  board token. Safe for `isolation: isolate` — the overlay never renders during combat.
+
+- **The description panel lost its box entirely.** It went bronze-bordered slab → borderless dark panel →
+  a multiplied, heavily feathered wash → nothing at all. The end state is **pure text sitting directly on the
+  plate**: no background, no border, no radius, no mask. The plate art is the card's surface, so a second
+  surface drawn on top of it was always going to fight it.
+- **Baked the owner's tuned frame overlay.** Only the colour-overlay dials moved — every geometry knob
+  (`--sh`, `--fill`, `--dy`, `--frameY`, `--tier`, art placement, ward) already matched what shipped.
+  Minion oval: opacity 0.95 → **0.76**, tint `#636363` → **`#655449`** (blend stays `overlay`). Spell frame:
+  opacity 0 → **0.94**, tint `#ffffff` → **`#66594d`**, blend `normal` → **`color`** — the spell overlay was
+  effectively off before and is now doing real work. Updated in BOTH `styles.css` and `FrameTuner.tsx`'s
+  defaults, so a tuner Reset lands on the shipped look.
+- **Baked the owner's tuned plate values** — scale 1.5, y -37, radius 10, buckets 89/90/150, puff 120ms /
+  1.03 / dust 3.2 — into BOTH the TS `DEFAULTS` and the CSS `var(--plate-*, …)` fallbacks, per the
+  double-source rule. Note the tuned `bucketM: 89` / `bucketL: 90` leave the MEDIUM text size a
+  one-character window (only a 89-char string lands in it), so `m` is effectively unused — flagged to the
+  owner rather than silently widened.
+- **Made the bucket test bake-proof.** It asserted fixed lengths (80/130/200), so the bake broke it — which
+  was the test doing its job, but the failure said nothing useful. It now derives from the live thresholds
+  and asserts each one is the floor of its bucket, so future bakes can't produce a meaningless red.
+- **Lightened the panel text-shadow to two layers.** At rules-text size the stack of three near-opaque halos
+  merged into a continuous dark mass behind the line, reading as a pill — the same visual signature as the
+  (differently-caused) clip on the name. A hard 1px edge plus one short, lighter halo keeps the definition.
+- **Killed a pill behind the card name.** The base `.cn` (the compact tile's name chip) is a pill —
+  background, radius, padding, `overflow: hidden`, ellipsis. The full-card override had always dropped the
+  background/shadow/padding but left the radius and the overflow clip, which was invisible until the name
+  gained a text-shadow: the shadow was then cropped to a hard rounded rectangle that read as a dark pill and
+  nipped the glyph edges. Now unsets the clip, the ellipsis and the radius as well. (`.desc` has no overflow
+  clip and `.dtribe` no base rule, so `.cn` was the only one carrying this.)
+- **A text-shadow carries legibility instead**, and is now load-bearing rather than decorative — a hard 1px
+  dark edge plus two short halos that stop well before they'd read as a glow (`--panel-text-shadow`). Applied
+  to the name and tribe line as well as the rules text, since all three sit on bare stone. Static, so the
+  paint cost is one-off. The backing had to be its own layer because a blend mode applies to the
+  whole element — text included — which would have crushed the rules copy.
+- **The frame now laps OVER the panel.** Its art overflows the archbox down to ~1.37×`--ccw` while the panel
+  starts at 1.09, so they really do overlap; previously the panel cut the frame off.
+
+  Getting both required dropping `z-index: 4` from `.drawer` — a z-index on a positioned element creates a
+  stacking context, which is an isolation boundary for `mix-blend-mode`, so the multiply would have had only
+  the drawer's own transparent background to blend against. With it gone the drawer paints by tree order, and
+  the two things previously ordered against that z4 were re-pinned: `.archbox` to **z1** (the smallest value
+  that beats the panel, chosen so tierbadge/cost/castmult/triparrows all keep their existing relationship to
+  the frame) and the hand hover-bridge to **z-1** (it's the card's last child, so any non-negative value would
+  have put it over the panel — violating its own contract of never intercepting a card click).
+- **Fixed a stale gap.** The hover-bridge strip was still `0.15 × --ccw` tall after the panel gap was
+  tightened to `0.09` earlier in this branch, so it had been overhanging into the drawer.
+
+#### Included cleanup (from final review)
+
+1. **Deleted dead CSS.** `.card.plated .cardplate.dissolving` and `@keyframes platepuff` in `styles.css` were
+   never applied — `platePuff()` in `Recruit.tsx` adds `plateghost` (which drives `platepuffghost`) instead,
+   never `dissolving`. Removed both; left `.cardplate.plateghost`/`platepuffghost` (the live ones) untouched,
+   and rewrote the surrounding comment to describe the ghost mechanism that actually exists.
+2. **Stopped writing dead CSS vars.** `applyCardPlateVars()` in `cardPlateConfig.ts` looped over `PLATE_BUCKETS`
+   writing `--plate-txt-*` vars that no CSS rule reads (the four bucket rules hardcode `1 / 0.92 / 0.84 /
+   0.76`) — exactly the silent-drift trap the module's own doc comment warns about. Deleted the loop;
+   `PLATE_BUCKETS` stays (still used by `plateTextBucket`'s type and by tests).
+3. **Fixed a factually wrong comment (3 copies).** `cardPlateConfig.ts`, `CardPlateTuner.tsx`, and `styles.css`
+   all claimed production doesn't import `cardPlateConfig.ts` — false, `Card.tsx` imports `plateTextBucket`
+   unconditionally, so the module ships, `applyCardPlateVars()` runs, and `:root` gets set from `DEFAULTS` in
+   production too. Rewrote all three to say the double-source rule still matters for the right reason: the CSS
+   fallbacks are what render whenever a var is ever absent, so DEFAULTS and the fallbacks must stay mirrored.
+4. **Restored the ghost's border-radius.** `platePuff()`'s cloned plate lost `.card.plated .cardplate`'s
+   `border-radius: var(--plate-radius, 10px)` once detached onto `<body>` — added it to the inline
+   `cssText` so the swap doesn't visibly re-square the corner for one frame.
+5. **Documented the tuner's non-live text-bucket sliders.** `bucketM`/`bucketL`/`bucketXl` in `CardPlateTuner`
+   mutate config but don't visibly move an already-rendered hand card — `Card` is `React.memo`'d (default
+   shallow-props comparator, deliberately, for combat perf) and the bucket class is computed from the card's
+   own props at render time, so a config-only change doesn't touch any prop `Card` compares. No existing dev
+   tuner had a force-re-render pattern for a JS-computed (non-CSS-var) value that applies here without adding
+   a prop `Card` must compare on every render — so went with the honest, zero-cost option: a visible note row
+   in the panel plus tooltip text on all three sliders explaining they apply next hand change (new card drawn,
+   its live text changing, etc.), rather than weakening `Card`'s memoization or adding a re-render nudge to a
+   hot render path.
+
+None functional; three were misleading artifacts that would've confused the next person to touch this code.
+Verified: typecheck (0 errors) + lint (0 errors) + 1334 tests (incl. `cardPlateConfig.test.ts`) + `build:web`,
+all green.
 
 ## 2026-07-21 (ward: second final pass)
 

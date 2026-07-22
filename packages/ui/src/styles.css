@@ -1397,9 +1397,8 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* Keyword pills — sized relative to the card width (--ccw) so they scale WITH the card. The fractions equal the
    original raw px at the owner's ~140px desktop --ccw (desktop unchanged), so a phone's smaller card no longer wears
    desktop-sized pills (owner: "keyword pills are really large"). */
-.kws { display: flex; gap: calc(var(--ccw) * 0.036); flex-wrap: wrap; justify-content: center; align-items: center; min-height: calc(var(--ccw) * 0.156); margin: calc(var(--ccw) * 0.043) 0 calc(var(--ccw) * 0.036); }
-.kw { font-family: var(--font-ui); font-weight: 700; font-size: calc(var(--ccw) * 0.085); letter-spacing: 0.02em; padding: calc(var(--ccw) * 0.021) calc(var(--ccw) * 0.064); border-radius: calc(var(--ccw) * 0.057); background: var(--c); color: #fff; display: flex; align-items: center; gap: calc(var(--ccw) * 0.028); }
-.kw svg { width: calc(var(--ccw) * 0.085); height: calc(var(--ccw) * 0.085); }
+/* (`.kws` / `.kw` — the keyword pill row under the card name — removed with the markup that fed them,
+   owner 2026-07-21. Keywords still read from the art-layer cues and the bolded rules text.) */
 .desc { font-size: 14px; font-weight: 600; line-height: 1.34; color: var(--ink2); text-align: center; flex: 1; background: var(--card); border-radius: 9px; padding: 6px 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
 .desc b { color: var(--ink); font-weight: 700; }
 /* a modified/buffed value in card text (e.g. Kennelmaster's Avenge-boosted summon buff) */
@@ -1551,17 +1550,47 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   /* OUT of flow, top ANCHORED at a fixed offset below the (square, --ccw-tall) archbox: in flow, a longer text
      grew the card element and centered contexts (inspect, Discover, rows) split that growth both ways — the
      frame crept UP and the panel top moved. Absolute = the frame never moves; the panel only grows DOWNWARD
-     (owner call 2026-07-19). 1.15 = archbox height + the tuned 0.15 gap. */
-  position: absolute; top: calc(var(--ccw) * 1.15); left: 0; right: 0; z-index: 4;
+     (owner call 2026-07-19). 1.09 = archbox height + the tuned 0.09 gap — tightened from 0.15 when the keyword
+     pill row was removed (owner 2026-07-21), which shortened the panel by a whole line. */
+  /* NO backing and NO z-index (owner 2026-07-21). The panel is pure text on the plate now — the dark slab,
+     its bronze border and the multiply wash that briefly replaced them are all gone; legibility comes from
+     the text-shadow below instead. The missing z-index is load-bearing, not an oversight: a z-index here
+     would make a stacking context and put the panel back on top of the FRAME, whose oval art overflows the
+     archbox down past the panel's top edge. Painting by tree order instead lets `.archbox` (z1) lap over the
+     panel and the hand hover-bridge (z-1) sit under it. */
+  position: absolute; top: calc(var(--ccw) * 1.09); left: 0; right: 0;
   padding: calc(var(--ccw) * 0.065) calc(var(--ccw) * 0.08) calc(var(--ccw) * 0.07);
-  background: linear-gradient(180deg, #241a13, #17110c);
-  border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
-  border-radius: calc(14 * var(--u));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 18px -6px rgba(0, 0, 0, 0.45),
-              0 0 0 var(--hglow-ring, 0) #ffffff, 0 0 var(--hglow-blur, 0) var(--hglow-spread, 0) rgba(255, 255, 255, 0.6);
 }
-.card.compact.showtext .drawer .cn { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.088); color: #f4ecdb; background: none; box-shadow: none; padding: 0; margin: 0 0 calc(var(--ccw) * 0.03); white-space: normal; text-align: center; line-height: 1.1; }
-.card.compact.showtext .drawer .kws { min-height: 0; margin: 0 0 calc(var(--ccw) * 0.035); }
+/* With the backing removed entirely, this shadow is the ONLY thing separating the panel's text from the
+   plate's stone — it's load-bearing for legibility, not decoration (owner 2026-07-21). Tuned dark and TIGHT:
+   a hard 1px edge, then two short halos that stop well before they'd read as a glow or muddy the texture
+   behind them. Applied to the whole panel, not just `.desc` — the name and tribe line sit on the same bare
+   stone. Static (no animation), so the paint cost is one-off. */
+.card.compact.showtext .drawer .cn,
+.card.compact.showtext .drawer .desc,
+.card.compact.showtext .drawer .dtribe {
+  /* TWO shadows, not three. At rules-text size the glyphs sit close enough that a stack of near-opaque
+     halos merged into one continuous dark mass behind the line — it read as a pill, the same signature as
+     the (differently-caused) clip on the name (owner 2026-07-21). A hard 1px edge plus ONE short, lighter
+     halo keeps the definition without the blot. */
+  text-shadow: var(--panel-text-shadow,
+    0 1px 1px rgba(0, 0, 0, 0.95), 0 0 2px rgba(0, 0, 0, 0.7));
+}
+/* The FRAME rides above the panel (owner 2026-07-21). The oval art overflows its archbox down to ~1.37×--ccw
+   while the panel starts at 1.09, so they genuinely overlap — the frame now laps over the panel's top edge
+   instead of being cut off by it. z1 is the smallest value that beats the (now z-auto) drawer, deliberately
+   chosen so every badge above it — tierbadge z4, cost z6, castmult/kwward z9, triparrows z26 — keeps its
+   existing relationship to the frame. */
+.card.compact.showtext .archbox { z-index: 1; }
+/* Card NAME. 0.1056 = the old 0.088 +20% (owner 2026-07-21), taking back some of the height freed by the
+   removed pill row and giving the name the weight it lost sitting alone above the rules text. */
+/* The base `.cn` (see the compact-tile rule above) is a PILL — background, radius, padding, and `overflow:
+   hidden` with an ellipsis. This override already dropped the background/shadow/padding, but the radius and
+   the overflow clip survived, which was invisible until the name gained a text-shadow: the shadow was then
+   cropped to a hard rounded rectangle that read as a dark pill and nipped the glyph edges (owner 2026-07-21).
+   Unset the clip and the radius too — on the full card the name wraps instead of ellipsing, so neither the
+   overflow nor the ellipsis has anything left to do. */
+.card.compact.showtext .drawer .cn { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.1056); color: #f4ecdb; background: none; box-shadow: none; padding: 0; margin: 0 0 calc(var(--ccw) * 0.03); white-space: normal; text-align: center; line-height: 1.1; overflow: visible; text-overflow: clip; border-radius: 0; }
 .card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072); line-height: 1.32; color: #d8ccb6; text-align: center; background: none; box-shadow: none; padding: 0; flex: none; display: block; }
 .card.compact.showtext .drawer .desc b { color: #fff; } /* bold numbers/keywords pop white on the dark glass (base .desc b is dark ink) */
 .card.compact.showtext .drawer .dtribe { display: flex; align-items: center; gap: calc(var(--ccw) * 0.02); margin-top: calc(var(--ccw) * 0.05); font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.062); letter-spacing: 0.05em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 60%, #f4ecdb); }
@@ -1804,6 +1833,11 @@ body.modalup .statusbar .questbadges {
    is readable on a small screen (owner request). `zoom` (not transform — that's owned by the float animation);
    showRefTip folds the same factor into its placement so the bigger popup still lands on-screen. */
 .cardref-inner { display: flex; gap: calc(8 * var(--u)); animation: cardreffloat 3.6s ease-in-out infinite; zoom: var(--inspect-zoom, 1); }
+/* The plate overhangs the card box by half its extra width on each side, and that overhang is invisible to
+   flex — so with a referenced card trailing alongside, the two plates ate straight through the gap and
+   overlapped. Reserve the overhang as margin: footprint becomes exactly --ccw × --plate-scale, the flex gap
+   goes back to meaning real separation, and it matches the `cardW` estimate showRefTip places the popup by. */
+.cardref .card.plated { margin-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2); }
 @keyframes cardrefin { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes cardreffloat {
   0%, 100% { transform: translateY(0); }
@@ -1863,6 +1897,13 @@ body.modalup .statusbar .questbadges {
    drawer; `.cglow` instead hugs just the frame silhouette, tight, like hover.) Scoped `.card.compact` so it
    out-specifies the `.card.compact.stdframe .cglow { opacity: 0 }` default. */
 .dragcard.willplay .card.compact .cglow { opacity: 1; }
+/* …and on a PLATED drag card that hover glow is the PLATE's, not the frame's — the same swap hover got
+   (owner 2026-07-21). The plate is the card's outer edge, so a frame halo here sits inside it, mid-card:
+   exactly the artifact the hover glow was moved off the frame to fix. Unplated drag cards (from the shop or
+   board) still light `.cglow`, since they have no plate to ring. FIVE classes so both rules beat the
+   4-class `.dragcard.willplay .card.compact .cglow` above on specificity rather than source order. */
+.dragcard.willplay .card.compact.plated .plateglow { opacity: 1; }
+.dragcard.willplay .card.compact.plated .cglow { opacity: 0; }
 /* Magnetic: an electric crackle while a Magnetic card hovers a friendly Mech (.electric, the floating drag
    card) and on the host Mech as it's welded (.electrify — drop + Combinator's End of Turn). PERF: a STATIC
    cyan halo on a ::before whose OPACITY breathes — compositor-only, zero per-frame paint. This was an animated
@@ -2603,7 +2644,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
      --frameY   shift ONLY the gold frame (+ its banner + tier) DOWN by ×ccw, leaving the art window put. Big
                 shifts expose the art oval's top edge above the frame — raise --artZoom / --fill to compensate.
    `--dy` moves EVERYTHING together; `--frameY` moves just the frame relative to the art. */
-.card.compact.stdframe { --sh: 0.73; --fill: 1.28; --dy: 0; --frameY: 0.03; --tier: 0.83; --artY: 60%; --artZoom: 1.12; --wardsize: 1.2; --wardy: 46%; --fovl-a: 0.95; --fovl: #636363; --fovl-blend: overlay; }
+.card.compact.stdframe { --sh: 0.73; --fill: 1.28; --dy: 0; --frameY: 0.03; --tier: 0.83; --artY: 60%; --artZoom: 1.12; --wardsize: 1.2; --wardy: 46%; --fovl-a: 0.76; --fovl: #655449; --fovl-blend: overlay; }
 .card.compact.stdframe .art {
   clip-path: ellipse(50% 50% at 50% 50%);                          /* the elliptical window */
   width: calc(var(--ccw) * var(--sh) * var(--fill));
@@ -2636,7 +2677,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 /* WINDOW = the frame's real opening (measured), with a small --fill overfill to tuck the art under the gold so
    there's no gap ring. Keep --artAR≈0.963 / --artW≈1.0 (that IS the opening) so it can't poke out; shape the
    ART itself with --artZoom (crop tighter) + --artY (vertical framing), NOT by resizing the window past the hole. */
-.card.compact.spellframe { --sh: 0.78; --fill: 1.22; --dy: -0.02; --frameY: 0.02; --tier: 0.67; --artY: 48%; --artZoom: 1.02; --artRound: 13%; --artAR: 1.06; --artW: 0.97; --fovl-a: 0; --fovl: #ffffff; --fovl-blend: normal; }
+.card.compact.spellframe { --sh: 0.78; --fill: 1.22; --dy: -0.02; --frameY: 0.02; --tier: 0.67; --artY: 48%; --artZoom: 1.02; --artRound: 13%; --artAR: 1.06; --artW: 0.97; --fovl-a: 0.94; --fovl: #66594d; --fovl-blend: color; }
 .card.compact.spellframe .art {
   clip-path: inset(0 round var(--artRound));                       /* the rounded-rectangle window */
   width: calc(var(--ccw) * var(--sh) * var(--fill) * var(--artW));
@@ -2761,6 +2802,90 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   aspect-ratio: 1122 / 1346;
   -webkit-mask: url('/frames/spell-frame.png') center / 100% 100% no-repeat;
           mask: url('/frames/spell-frame.png') center / 100% 100% no-repeat;
+}
+
+/* ============================ HAND CARD BACKPLATE ============================
+   The ornate stone/gold card body behind a card in hand (and on the dragged copy). STATIC size — never
+   stretched (the art's greek-key tabs sit mid-edge and smear under vertical stretch), so long rules text
+   shrinks instead via the `.plate-txt-*` buckets below.
+   Geometry is driven by --plate-* vars; the FALLBACKS here must mirror DEFAULTS in cardPlateConfig.ts. That
+   module DOES ship in production (Card.tsx imports plateTextBucket), so applyCardPlateVars() runs there and
+   sets :root from DEFAULTS — but these fallbacks are still what renders whenever a var is absent or a value
+   is dropped, and keeping them in sync is what makes this stylesheet readable on its own. When a value is
+   baked, update BOTH. */
+.card.plated {
+  /* Contain the plate's z-index so it can't paint behind a NEIGHBOURING card. Safe here specifically because
+     plated cards only ever live in the hand / on the drag layer — never in combat, so there is no per-swing
+     GSAP lunge for a new stacking context to fight. */
+  isolation: isolate;
+}
+/* Shared geometry — the plate and its hover-glow copy are the same size and place, stacked by tree order
+   (`.plateglow` renders first, so it sits behind). */
+.card.plated .cardplate,
+.card.plated .plateglow {
+  position: absolute;
+  z-index: 0;                       /* behind every sibling; tree order already puts it first */
+  left: 50%;
+  top: var(--plate-top, -37px);
+  width: calc(var(--ccw) * var(--plate-scale, 1.5));
+  /* Shipped art is 800x1244 → height = width x 1.5550. Locked, never stretched. */
+  height: calc(var(--ccw) * var(--plate-scale, 1.5) * 1.5550);
+  transform: translateX(-50%);
+  pointer-events: none;             /* MUST stay — see .handpad, which sits after this in the DOM */
+  user-select: none;
+}
+.card.plated .cardplate { border-radius: var(--plate-radius, 10px); }
+
+/* HOVER GLOW, plate edition. On a plated card the white highlight rings the PLATE, not the oval frame —
+   the plate is the card's outer edge now, so glowing the frame inside it read as a halo floating in the
+   middle of the card (owner 2026-07-21). Same philosophy as `.cglow`: a copy seated BEHIND the opaque
+   original carrying a STATIC drop-shadow, with only `opacity` transitioning, so nothing paints in a loop.
+   Because the plate art is opaque through its body, the halo is only ever visible outside its silhouette —
+   it can't wash inward over the card. Colours are the same `--hg-*` vars the 🔆 Hover Glow tuner drives, so
+   plate and frame glow stay one look; fallbacks mirror glowConfig.ts DEFAULTS. */
+.card.plated .plateglow {
+  filter: drop-shadow(0 0 2px var(--hg-line-col, #ffffff))
+    var(--hg-bloom-filter,
+      drop-shadow(0 0 3px rgba(255, 255, 255, 0.89)) drop-shadow(0 0 3px rgba(255, 255, 255, 0.89))
+      drop-shadow(0 0 3px rgba(255, 255, 255, 0.89)));
+  opacity: 0;
+  transition: opacity 0.14s ease;
+}
+.card.plated:hover .plateglow { opacity: 1; }
+body.hglow-preview .card.plated .plateglow { opacity: 1; }
+/* …and the frame's own glow steps aside. FOUR classes so this beats the 3-class
+   `.card.compact.stdframe:hover .cglow { opacity: 1 }` on specificity rather than source order. */
+.card.compact.plated.stdframe:hover .cglow,
+.card.compact.plated.spellframe:hover .cglow,
+.card.compact.plated.taunt:hover .cglow { opacity: 0; }
+/* The info panel's white box-shadow rim goes too — it's inside the plate now, so ringing it as well read as
+   a second highlight. Zeroing the legacy `--hglow-*` vars is how `body.dragging` already suppresses this. */
+.card.compact.plated:hover { --hglow-ring: 0px; --hglow-blur: 0px; --hglow-spread: 0px; --hglow-a: 0; }
+
+/* Rules-text size buckets — picked by character count in plateTextBucket(), applied as a class on the card.
+   These are MULTIPLIERS of the real base `.desc` font-size set at `.card.compact.showtext .drawer .desc`
+   (calc(var(--ccw) * 0.072)) — NOT bare `em` values. `em` on font-size resolves against the parent's
+   (`.drawer`'s) computed font-size, which nothing sets, so a plain `1em`/`0.92em`/etc. would decouple the
+   rules text from `--ccw` (and therefore from `--scale`/`--card-scale`/`--mobile-boost`/per-row multipliers
+   that everything else on the card scales with) and render at a flat ~16px regardless of card size. The
+   multipliers below (1 / 0.92 / 0.84 / 0.76) mirror PLATE_BUCKETS in cardPlateConfig.ts.
+   Selector is 6 classes deep (adds `.compact`, always present per Card.tsx) deliberately: it ties the base
+   rule at `.card.compact.showtext .drawer .desc` on class-count alone, so these rules win on SPECIFICITY,
+   not by appearing later in the file — reordering the stylesheet can no longer silently kill the feature. */
+.card.compact.plated.plate-txt-s  .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1); }
+.card.compact.plated.plate-txt-m  .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 0.92); }
+.card.compact.plated.plate-txt-l  .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 0.84); }
+.card.compact.plated.plate-txt-xl .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 0.76); }
+
+/* Detached dissolving plate — cloned out of the drag card at release so it survives `.dragcard` unmounting.
+   It lives on <body>, so it can't use the `.card.plated` selector above, and it is positioned by inline
+   left/top — hence NO translateX(-50%) in this keyframe (unlike `platepuff`, which centres on the card). */
+.cardplate.plateghost {
+  animation: platepuffghost var(--plate-puff-ms, 120ms) ease-out forwards;
+}
+@keyframes platepuffghost {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(var(--plate-puff-scale, 1.03)); }
 }
 
 .unit.struck .card { animation: struck 0.34s ease; }
@@ -4549,15 +4674,19 @@ body.rfb-glow-preview .rfb-glow {  /* the tuner's "glow always on" — one point
    popping" (owner report). The drawer itself was always fine — it's a CHILD of `.card`, so hovering it
    counts; only the gap was missing.
    This bridges it with a transparent ::after spanning exactly that strip. It's a child of the card, so it
-   extends the HOVER target without changing layout, and it sits BELOW the drawer (z-index) so it can never
-   intercept a click meant for the card. Hand only — the board/shop cards have no detached drawer to span. */
+   extends the HOVER target without changing layout, and it sits BELOW the drawer so it can never intercept
+   a click meant for the card. Hand only — the board/shop cards have no detached drawer to span. */
 .row.hand .card.compact.showtext::after {
   content: '';
   position: absolute;
   left: 0; right: 0;
   top: var(--ccw);                       /* the archbox's bottom edge */
-  height: calc(var(--ccw) * 0.15);       /* … up to the drawer's top (the tuned 0.15 gap) */
-  z-index: 3;                            /* under the drawer (z4), above nothing else */
+  height: calc(var(--ccw) * 0.09);       /* … up to the drawer's top (the tuned 0.09 gap) */
+  /* NEGATIVE, not the old z3. The drawer dropped its z-index (see the .drawer block) so it now paints by
+     tree order — and this ::after is the card's LAST child, so any non-negative z would have put the strip
+     OVER the panel, exactly what its own contract forbids. Nothing else lives in this gap but the plate,
+     which is pointer-events:none, so the strip still wins the hover it exists for. */
+  z-index: -1;
   pointer-events: auto;                  /* the whole point: make the strip part of the card */
 }
 /* ---- HAND hover hysteresis (`.handpad`, rendered by Card.tsx).

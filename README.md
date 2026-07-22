@@ -38,6 +38,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Hand cards have a card body now.** Cards in hand render an ornate stone/gold **backplate** framing the
+  portrait and rules text, which travels with the card as you drag it and dissolves when you play a minion to
+  the board. The plate is a fixed size, so long rules text shrinks to fit rather than the plate growing —
+  picked from the text's length, never by measuring the DOM. Art ships at 199 KB (down from a 6.6 MB source).
 - **Toxin is now EXECUTE, with a new look.** The `V` keyword keeps its rule (destroys any minion it damages,
   spent after one hit) but sheds the poison-green identity: cards now swirl with a ring of **red rage** —
   smoke, comet arcs and drifting shards, painted over the frame like the Ward shell. Its own dev tuner

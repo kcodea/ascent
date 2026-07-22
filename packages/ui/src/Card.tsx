@@ -13,6 +13,7 @@ import { FLURRY_RINGS, flurryBoxStyle, flurryWrapStyle, flurryRingStyle } from '
 import { pixiFx } from './pixiFx';
 import { getStepProcFxConfig, isStepProcTick } from './stepProcFxConfig';
 import { getExecuteSnapshot, subscribeExecute } from './executeConfig';
+import { getCardPlateConfig, plateTextBucket } from './cardPlateConfig';
 
 // TAUNT frame — pipeline layer 2 (the authored shield). Prefer an authored raster PNG (painterly, drops into
 // `apps/web/public/frames/`); until it exists the SVG placeholder renders instead. `tauntFrameAvailable` flips
@@ -39,11 +40,16 @@ let stdFrameAvailable = true;
 // grayscale tone to `.spellframe` if a silver spell frame is wanted (to match the minion oval).
 const SPELL_FRAME_SRC = `${import.meta.env.BASE_URL}frames/spell-frame-v2.png`;
 let spellFrameAvailable = true;
+// HAND CARD BACKPLATE — the ornate stone/gold card body behind a card in hand (and on the dragged copy).
+// Same load pattern as the frames above: BASE_URL-relative (root-absolute 404s on itch's CDN sub-path) with a
+// module-level availability flag flipped on the first 404, so a missing asset degrades to today's look.
+const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
+let cardPlateAvailable = true;
 
-const KW_LABEL: Record<Keyword, string> = {
-  T: 'Taunt', DS: 'Ward', V: 'Execute', W: 'Flurry', R: 'Rise', C: 'Cleave', M: 'Attachment', SC: 'Start', CN: 'Consume',
-  FD: 'Fodder', IMM: 'Immune', ST: 'Stealth', RL: 'Rally', SL: 'Slaughter', CR: 'Critical Strike', EG: 'Engraved',
-};
+// (KW_LABEL — the keyword→display-name map — was removed with the pill row it fed, owner 2026-07-21.
+//  KW_ICON survives: it still drives the medallion glyph. Player-facing keyword NAMES are not this file's
+//  job — `terms.ts` owns the renames, with per-surface copies in MinionBook / questText / float / the
+//  combat log. #625's Toxin→Execute rename touched all of those; this map was a ninth copy with no reader.)
 const KW_ICON: Record<Keyword, string> = {
   T: 'taunt', DS: 'shield', V: 'execute', W: 'windfury', R: 'rise', C: 'cleave', M: 'magnetic', SC: 'fist',
   CN: 'consume', FD: 'fodder', IMM: 'immune', ST: 'eye', RL: 'sword', SL: 'slaughter', CR: 'target', EG: 'anvil',
@@ -193,6 +199,7 @@ export const Card = memo(function Card({
   fanRot,
   locked,
   lockLabel,
+  plated,
 }: {
   card: CardView;
   /** Instance id, exposed as data-uid so layout (FLIP) animations can track the card. */
@@ -263,6 +270,9 @@ export const Card = memo(function Card({
   locked?: boolean;
   /** Short lock caption for the badge (e.g. "Tier 4"). */
   lockLabel?: string;
+  /** Render the ornate card BACKPLATE behind this card — the full card body used in hand and on the card
+   *  dragged out of hand. Board / shop / combat cards are never plated. */
+  plated?: boolean;
 }) {
   const inspectCard = useGame((s) => s.inspectCard);
   // The arched frame is universal now. `showText` = also render the drop-down text drawer (the "full"
@@ -317,14 +327,11 @@ export const Card = memo(function Card({
     if (!r.width && !r.height) return;             // not laid out (hidden/unmounted) — nothing to fire from
     pixiFx.spellPower(r.left + r.width / 2, r.top + r.height / 2, getStepProcFxConfig());
   }, [stepCur, stepTotal]);
-  // Pills row: the trigger (Battlecry / Deathrattle, derived from the text) then any
-  // keyword pills. Always rendered (reserves a row) so the description starts on a
-  // fixed line whether or not the card has pills.
+  // The card's trigger (Battlecry / Deathrattle, derived from the text). The keyword PILL ROW that used to
+  // sit under the name was removed (owner 2026-07-21) — keywords already read from the art-layer cues (Ward
+  // dome, Toxin drip, Flurry rings, the Taunt frame) and from the bolded rules text, so the row was a third
+  // restatement costing a line of panel height. `trigger` survives because the medallion glyph derives from it.
   const trigger = triggerPill(card.text);
-  const pills: { label: string; icon?: string }[] = [
-    ...(trigger ? [trigger] : []),
-    ...card.keywords.map((k) => ({ label: KW_LABEL[k], icon: KW_ICON[k] })),
-  ];
   // The golden-aware rules text — doubled numbers (or explicit goldenText) when shown golden.
   const shownText = card.golden ? (card.goldenText ?? doubleNums(card.text)) : card.text;
   // The card's primary mechanic, shown as a glyph in the compact medallion: its trigger
@@ -351,11 +358,15 @@ export const Card = memo(function Card({
       // The popup is `zoom`ed by --inspect-zoom (1.3 on mobile) for readability, so its rendered footprint is that
       // much bigger than a natural card — fold the same factor into the width/height estimates so it stays on-screen.
       const zoom = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--inspect-zoom')) || 1;
-      const cardW = r.width * zoom;
+      // Popup cards are PLATED, so the plate — not the tile — is the real footprint: `plate.scale` times the
+      // card width, and `× 1.5550` tall (the art's locked aspect). Estimating off the bare tile put wide
+      // popups off the right edge and let tall ones run off the bottom.
+      const plateScale = getCardPlateConfig().scale;
+      const cardW = r.width * zoom * plateScale;
       const tipW = cardW * n + (n - 1) * gap; // full-size cards, laid left→right
       const flip = r.right + gap + tipW > window.innerWidth - 6; // off the right edge → show on the left
       const left = flip ? Math.max(6, r.left - gap - tipW) : r.right + gap;
-      const estH = cardW * 1.34; // a full card is ~1.34× its width tall — clamp so it stays on-screen
+      const estH = cardW * 1.5550; // plate aspect (800×1244) — clamp so it stays on-screen
       const top = Math.max(6, Math.min(r.top, window.innerHeight - estH - 6));
       setRefPos({ left, top, origin: flip ? 'right' : 'left' });
     }, showText ? 250 : 100);
@@ -376,12 +387,16 @@ export const Card = memo(function Card({
   // minion gets the oval. On 404 the flag flips and the card renders its original arch/spell look.
   const [sframeOk, setSframeOk] = useState(stdFrameAvailable);
   const [pframeOk, setPframeOk] = useState(spellFrameAvailable);
+  const [plateOk, setPlateOk] = useState(cardPlateAvailable);
+  const usePlate = !!plated && plateOk;
+  // Size the rules text from the LIVE text string (values already folded in), never by measuring the DOM.
+  const txtBucket = plateTextBucket(shownText);
   const isTaunt = card.keywords.includes('T');
   const useSpellFrame = !!card.spell && card.cardId !== 'discoverspell' && pframeOk;
   const useStdFrame = !card.spell && !isTaunt && sframeOk;
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
@@ -414,6 +429,26 @@ export const Card = memo(function Card({
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
+      {/* Backplate — the ornate card body behind everything, on hand + dragged-from-hand cards only. FIRST
+          child so tree order paints it behind every sibling; `.card.plated` isolates so its z-index can't
+          escape into neighbouring cards. `<img>` rather than a CSS background so a 404 is detectable. */}
+      {usePlate && (
+        <>
+          {/* Hover glow, plate edition — a COPY of the plate art seated behind the real one, carrying a
+              static drop-shadow halo. Only its OPACITY animates (compositor-only), exactly how `.cglow`
+              handles the frame; the real plate is opaque, so only the outward halo is ever visible. Same
+              src, so the browser serves it from cache — no second decode. */}
+          <img className="plateglow" src={CARD_PLATE_SRC} alt="" aria-hidden="true" draggable={false} />
+          <img
+            className="cardplate"
+            src={CARD_PLATE_SRC}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            onError={() => { cardPlateAvailable = false; setPlateOk(false); }}
+          />
+        </>
+      )}
       {/* Recruit-phase buff: float the +atk/+hp above the card, exactly like a combat buff (`.float.buff`).
           Keyed so a fresh buff remounts it and replays the rise. */}
       {buffFloat && (
@@ -432,7 +467,9 @@ export const Card = memo(function Card({
           {card.stepProgress.label ?? `${card.stepProgress.current}/${card.stepProgress.total}`}
         </span>
       )}
-      {/* Hover hit-pad — FIRST child so every real element paints over it. Styled only inside `.row.hand`,
+      {/* Hover hit-pad — sits ahead of every real element so they all paint over it. (The decorative
+          backplate is the only thing before it; that's inert — same z-index 0, but `pointer-events: none`,
+          so it neither paints over this pad nor competes for the hover.) Styled only inside `.row.hand`,
           where it extends the hover area downward once the card pops up (see `.handpad` in styles.css).
           A plain element rather than a pseudo-element: `::before` is already the keyword-glow layer on
           Venomous / Reborn / triple-ready cards, and `::after` is the drawer bridge. */}
@@ -648,20 +685,10 @@ export const Card = memo(function Card({
         )}
       </div>
       {/* Text drawer — drops down from the arched frame on the "full" card (hover reveal, hand, right-
-          click inspect, or the always-on-text setting): name, keyword pills, rules text, tribe. Hidden
+          click inspect, or the always-on-text setting): name, rules text, tribe. Hidden
           (display:none) on a resting compact tile. */}
       <div className="drawer">
         <div className="cn">{card.name}</div>
-        {pills.length > 0 && (
-          <div className="kws">
-            {pills.map((p, i) => (
-              <span className="kw" key={`${p.label}-${i}`}>
-                {p.icon && <Icon name={p.icon} />}
-                {p.label}
-              </span>
-            ))}
-          </div>
-        )}
         {card.text && (
           <div className="desc">
             <span dangerouslySetInnerHTML={{ __html: descUp(mdBold(shownText)) }} />
@@ -724,12 +751,16 @@ export const Card = memo(function Card({
         </span>
       )}
       {/* Hover reveal — portalled to <body> so it floats above neighbouring cards. The full card first
-          (in compact mode), then any referenced cards trailing to its right. All forced full-size. */}
+          (in compact mode), then any referenced cards trailing to its right. All forced full-size, and
+          PLATED (owner 2026-07-21): this popup is the "read the whole card" surface for shop and warband
+          tiles, so it wears the same body as a hand card rather than floating as bare text over the board.
+          Safe for `.card.plated`'s `isolation: isolate` — the popup is portalled to <body>, so it's never
+          the element a combat lunge is transforming. */}
       {refPos && hasPopup && createPortal(
         <div className="cardref" style={{ left: refPos.left, top: refPos.top } as CSSProperties}>
           <div className="cardref-inner" style={{ transformOrigin: `${refPos.origin} center` } as CSSProperties}>
             {popupCards.map((rc, i) => (
-              <Card key={`${rc.cardId ?? i}-${i}`} card={rc} forceFull />
+              <Card key={`${rc.cardId ?? i}-${i}`} card={rc} forceFull plated />
             ))}
           </div>
         </div>,

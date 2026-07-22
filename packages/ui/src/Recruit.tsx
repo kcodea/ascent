@@ -25,6 +25,7 @@ import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
 import { waveGapFor, coalesceWaves, getBuffFxConfig } from './buffFxConfig';
 import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
+import { getCardPlateConfig } from './cardPlateConfig';
 import { fireBuffFx } from './buffFxRender';
 import { buffPreset, wavePalette } from './buffPresets';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
@@ -3059,6 +3060,25 @@ export function Recruit() {
     for (let i = 1; i < n; i++) window.setTimeout(fn, i * 200);
   };
 
+  // PLACEHOLDER dissolve for the hand-card backplate (phase 1). Starts on RELEASE and runs on its own clock,
+  // deliberately NOT bounded by the ~200ms FLIP flight — a dissolve clamped to the flight reads as a blink.
+  // The plate lives on `.dragcard`, which React unmounts as soon as `setDrag(null)` runs, so we clone it out
+  // and let the copy dissolve detached on <body>. (Board cards render WITHOUT `plated`, so there is no plate
+  // on the destination card to tag — hence the ghost.) Phase 2 replaces this body and the `.plateghost` CSS
+  // with the authored effect; nothing else depends on either.
+  const platePuff = (): void => {
+    const cfg = getCardPlateConfig();
+    const src = document.querySelector<HTMLElement>('.dragcard .cardplate');
+    if (!src) return;
+    const r = src.getBoundingClientRect();
+    const ghost = src.cloneNode(true) as HTMLElement;
+    ghost.classList.add('plateghost');
+    ghost.style.cssText += `position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;transform:none;z-index:114;pointer-events:none;border-radius:var(--plate-radius, 10px);`;
+    document.body.appendChild(ghost);
+    pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1, cfg.puffDust);
+    window.setTimeout(() => ghost.remove(), cfg.puffMs + 60);
+  };
+
   // A puff of dry-dirt dust ringing a card that just landed on / moved across the board. We wait for the
   // GSAP Flip (0.18s) to settle, then measure the card's *landed* rect by uid — so the dust follows where
   // the card actually ends up (e.g. snapping back to the middle), not where it was dropped. The card is
@@ -3206,6 +3226,7 @@ export function Recruit() {
       if (run.board.length >= CONFIG.boardMax) return false;
       const to = prevWarbandGapRef.current >= 0 ? prevWarbandGapRef.current : warbandIndexAt(cx);
       playWithSummonDelay({ type: 'play', uid: d.uid, toIndex: to });
+      platePuff(); // plate dissolves from the release point, on its own clock
       puffOnBoard(d.uid); // dust around the minion where it lands
       return true;
     }
@@ -3538,6 +3559,7 @@ export function Recruit() {
                 locked={locked}
                 lockLabel={lockLabel}
                 forceFull
+                plated
               />
             );
           })}
@@ -3642,7 +3664,7 @@ export function Recruit() {
             opacity: magSlide ? 0 : 1,
           }}
         >
-          <Card card={drag.view} forceFull={drag.source === 'hand'} />
+          <Card card={drag.view} forceFull={drag.source === 'hand'} plated={drag.source === 'hand'} />
         </div>
       )}
 

@@ -3,6 +3,44 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-22 (Scene Builder: quests, runes, and keyword search)
+
+### feat(ui/sim): drop completed quests + runes into the sandbox, and search by keyword
+
+Owner ask: add quests, runes and their rewards to the Scene Builder ("it should just add the completed quest
+etc to the build so we can test interactions"), plus keyword searching like *avenge*.
+
+**Quests + runes go through the REAL reward engine.** A new DEV-only action, `{ type: 'devGrant', kind:
+'quest' | 'rune', id, completed? }`, drops either into the run without playing to the turn that offers it.
+Both route through `applyQuestReward` — the same engine a real quest completion or Runeforge buy uses — so a
+reward that conjures cards, opens a Discover or schedules a delayed re-fire behaves exactly as it would in a
+played run. That is the point of the rig: test the interaction, not a mock of it. Grants also run
+`checkTriples` (a granted copy can complete a triple) and `openNextStartOfTurnModal`.
+
+Details that matter:
+- **Clicking a quest COMPLETES it** — bar filled to `objective.count`, `completionCount: 1`, reward paid. The
+  trailing `◷` adds it un-started instead, to watch it fill.
+- **Repeatable quests re-arm rather than freeze done.** Forest Grove and friends never set `completed` on a
+  real completion (or they could never fire again), so the grant mirrors that.
+- **Runes are free here**, unlike the Runeforge, and join `ownedRunes` so the run-buff badge shows.
+- `devGrant` is **exempt from the modal action gate** so the sandbox stays responsive with an overlay up. Safe
+  now that a reward-raised Discover queues behind an open modal instead of stacking on it (see the Discover
+  fix in this same batch).
+
+**Keyword search.** One search box now filters all three libraries (cards / quests / runes). Each row carries
+a precomputed lowercase haystack of name + id + tribe + **rules text + keywords + effect `on`/`do` ids**, which
+is what makes *avenge*, *deathrattle*, *magnetic* work — those live in the text or the keyword list, not the
+title. Space-separated terms are ANDed, so `avenge beast` narrows to 2 cards instead of widening.
+
+Verified live in the dev server against a throwaway Scene Builder run (never a saved run): `avenge` → 11 cards
+/ 5 runes (Kennelmaster, Pit Supplier, …), `deathrattle` → 32 cards / 4 quests, `avenge beast` → 2, junk → 0.
+Completing Blood Trail set `questFlags.bloodTrail`; granting Rune of Warding set `ownedRunes` +
+`questFlags.runeWarding`; `◷` on Forest Grove added it at progress 0. Granting Rune of the Scout opened its
+Tier-5 Discover, and granting Rune of the Champion on top of it **queued** — exactly one `.discover-ov` in the
+DOM, an end-to-end confirmation of the stacking fix. No console errors.
+
+typecheck + lint + **1404 tests** + `build:web` green.
+
 ## 2026-07-22 (Discovers: never open a modal on top of another)
 
 ### fix(sim): two start-of-turn Discovers drew stacked on top of each other

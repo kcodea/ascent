@@ -802,7 +802,11 @@ export type Action =
   | { type: 'battlecryTarget'; targetUid: string }
   | { type: 'faceOmen' }
   | { type: 'settleCombat' }
-  | { type: 'resolveCombat' };
+  | { type: 'resolveCombat' }
+  /** DEV Scene Builder only — drop a quest (optionally already completed) or a rune straight into the run so
+   *  its interactions can be tested without playing to the turn that offers it. Routed through the SAME
+   *  reward engine a real buy/completion uses; see the reducer case. */
+  | { type: 'devGrant'; kind: 'quest' | 'rune'; id: string; completed?: boolean };
 
 /** The automatic combat-flow transitions — they fire ~once per round regardless of how the player
  *  builds, so they're excluded from the "actions per round" stat (which measures player decisions). */

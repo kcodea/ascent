@@ -471,7 +471,9 @@ function reduceCore(state: RunState, action: Action): RunState {
   // Modal recruit states — a pending Discover / Choose One / targeted Battlecry — block every other board
   // action until they resolve. The player can still inspect (a UI-only concern), so a Discover can be
   // minimized to read the board without any action invalidating the pending pick.
-  if (modalOpen(state) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge') {
+  // (`devGrant` is exempt too: the Scene Builder must stay responsive with an overlay up, and a reward that
+  // raises a Discover now queues behind the open modal rather than stacking on it.)
+  if (modalOpen(state) && action.type !== 'discover' && action.type !== 'chooseOne' && action.type !== 'battlecryTarget' && action.type !== 'buyQuest' && action.type !== 'buyRune' && action.type !== 'skipRuneforge' && action.type !== 'rerollRuneforge' && action.type !== 'devGrant') {
     return state;
   }
 
@@ -1004,6 +1006,35 @@ function reduceCore(state: RunState, action: Action): RunState {
       (s.activeQuests ??= []).push({ questId, progress: 0, completed: false });
       s.questOffer = undefined;
       openNextStartOfTurnModal(s); // a quest turn can line up the Epic Runeforge / Discovers behind it — open next
+      return s;
+    }
+
+    case 'devGrant': {
+      // DEV Scene Builder only — drop a quest or rune into the run without playing to the turn that offers it.
+      // Everything routes through the SAME reward engine a real buy/completion uses (`applyQuestReward`), so a
+      // reward that conjures cards, opens a Discover or schedules a delayed re-fire behaves exactly as it would
+      // in a real run. That is the whole point of the rig: test the interaction, not a mock of it.
+      if (action.kind === 'rune') {
+        const rune = RUNE_INDEX[action.id];
+        if (!rune) return state;
+        applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true);
+        (s.ownedRunes ??= []).push(rune.id);
+      } else {
+        const def = QUEST_INDEX[action.id];
+        if (!def) return state;
+        // Completed (the default) fills the bar and pays out once, exactly like a real completion. A REPEATABLE
+        // quest never sets `completed` — it re-arms — so mirror that here rather than freezing it done.
+        const completed = action.completed !== false;
+        (s.activeQuests ??= []).push({
+          questId: def.id,
+          progress: completed ? def.objective.count : 0,
+          completed: completed && !def.repeatable,
+          completionCount: completed ? 1 : undefined,
+        });
+        if (completed) applyQuestReward(s, def, true);
+      }
+      checkTriples(s); // a granted copy can complete a triple (which opens its own Discover)
+      openNextStartOfTurnModal(s); // a reward can raise a Discover — open it, or leave it queued behind an open modal
       return s;
     }
 

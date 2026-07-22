@@ -22,3 +22,7 @@ skills-lock.json
 # Audio import drop folder (see npm run sfx:import)
 audio-inbox/
 vitest.config.ts.timestamp-*
+
+# Electron desktop build output (the Electron runtime + the game, ~300 MB) — regenerate with
+# `npm run package:desktop`. `dist/` above already covers apps/web/dist.
+apps/desktop/release/

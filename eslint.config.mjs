@@ -23,8 +23,16 @@ const banMathRandom = {
 };
 
 export default tseslint.config(
-  { ignores: ['**/node_modules/**', '**/dist/**', '**/*.tsbuildinfo'] },
+  // `apps/desktop/release/**` is packaged build output (a copy of main.cjs plus the whole Electron
+  // runtime) — linting it reports the same findings twice and would fail on vendored code.
+  { ignores: ['**/node_modules/**', '**/dist/**', '**/*.tsbuildinfo', 'apps/desktop/release/**'] },
   ...tseslint.configs.recommended,
+  {
+    // Electron's main process is CommonJS: it is loaded by Electron itself, not bundled, so `require` is the
+    // right (and only) way to reach `electron` and node builtins there.
+    files: ['apps/desktop/**/*.cjs'],
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
   {
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',

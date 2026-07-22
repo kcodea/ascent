@@ -3,6 +3,49 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-22 (desktop: Electron shell)
+
+### feat(desktop): run the shipped web build as a Windows exe
+
+A thin Electron shell (`apps/desktop`) around the SAME `apps/web/dist` that goes to itch — it builds nothing
+of its own, so what runs in the exe is byte-identical to what players get in the browser. Answering the
+owner's question: how hard is it to test this as an exe? Not very, because the groundwork was already there.
+
+**`base: './'` did most of the work.** The web build already uses a relative base (for itch.io's CDN
+sub-path), which is the same thing a desktop shell needs. No build changes were required at all.
+
+**Served over a custom `app://` scheme, not `file://`.** Loading the bundle from `file://` gives the page a
+**null origin**, which breaks Supabase (leaderboard/board sync — a null origin is not a usable CORS origin)
+and makes localStorage partitioning fragile, and localStorage is where the save AND every tuner config live.
+Registering `app://` as a *standard, secure* scheme gives the renderer a real origin (`app://ascent`) with
+none of that. Verified in the running app: `origin: "app://ascent"`, `localStorage` read/write OK, WebGL on,
+`AudioContext` state `running`, all four Pixi canvases mounted at full size, title screen rendered.
+
+**Electron-builder was dropped.** It shells out to `app-builder.exe` (`app-builder-bin`), which **Windows
+Defender quarantines as a false positive on this machine** — the binary disappears from `node_modules` within
+minutes of each install, so the build fails with a spurious `spawn … ENOENT` naming a path that genuinely did
+exist moments earlier. Confirmed by watching `win/x64/` vanish between two `ls` calls. Rather than ask for AV
+exclusions, `scripts/package-desktop.mjs` does the packaging by hand: Electron ships a prebuilt
+`electron.exe` that runs whatever is in `resources/app`, so packaging is a copy and a rename. No installer,
+no signing, no icon, no auto-update — a test harness, not a release pipeline. All four of those are reasons
+electron-builder would have to come back for a real release.
+
+**Perf note (the reason Electron over Tauri).** Electron pins its own Chromium (128 here), so the exe renders
+through the same engine we profile in; Tauri would use whatever WebView2 the player's machine has, which
+varies with Windows updates — bad for a project that treats a frame drop as a defect. The shell also sets
+`backgroundThrottling: false` plus `--disable-renderer-backgrounding` / `--disable-background-timer-throttling`
+so the Pixi ticker and GSAP keep full rate when the window is unfocused, and lifts the autoplay gate.
+
+**Scripts:** `npm run desktop` (build + run, fast iteration) and `npm run package:desktop` (build + exe).
+`apps/desktop/release/` is gitignored — it is ~300 MB (177 MB exe + runtime + the 34 MB game).
+
+Verified end-to-end from a cold rebuild: exe produced, launched, and CDP confirms the live page is
+`app://ascent/index.html` titled ASCENT. typecheck + lint + 1385 tests + `build:web` green.
+
+**Follow-ups if this becomes a real release:** no CSP is set (Electron warns in dev; the warning goes away
+when packaged, but the hardening gap is real), no icon/signing/installer, and the exe carries the dev
+`.env`-baked Supabase keys the same way the web build does.
+
 ## 2026-07-21 (audio: cleave level)
 
 ### tweak(ui): Cleave SFX level 0.4 → 0.27 → 0.11

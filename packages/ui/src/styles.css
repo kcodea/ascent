@@ -34,6 +34,9 @@
      the surrounding floor art just extends into the side margins on wider monitors (cropped to 16:9 at standard
      aspect). No aspect swap — the same wide art serves every screen. */
   --board: url('/ascentboardnostuff.webp');
+  /* The board art's own aspect (3440x1459). `.boardbg` needs it to compute the art's WIDTH from the
+     stage height, so it can guarantee full coverage on a window wider than 16:9. Update if the art does. */
+  --board-aspect: 2.3578;
   /* ONE uniform scale factor for the whole board: the stage height ÷ the 1440px design reference, as a UNITLESS
      number set from JS (`applyStageScale` in Game.tsx) — CSS can't derive a unitless ratio from a length. Everything
      the layout is authored at (card size, chrome, rope, per-region offsets — all in reference px) is multiplied by
@@ -133,12 +136,19 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .app { position: relative; z-index: 1; flex: none; width: var(--gw); height: var(--gh); display: flex; flex-direction: column; padding: calc(12 * var(--u)) calc(18 * var(--u)) calc(var(--ch) * 0.92); gap: calc(8 * var(--u)); background: transparent; border-radius: 2px; touch-action: none; }
 /* Board backdrop layer: full viewport, behind the stage. The wide (--board) art is scaled to the STAGE height and
    centred, so its ornate frame lands at the same size/place as the 16:9 UI expects — a wider window just reveals
-   more of the surrounding floor art in the margins (cropped to 16:9 at standard aspect). Board dimming was removed
+   more of the surrounding floor art in the margins — EXCEPT on a window wider than the art's own aspect, where
+   the width floor below takes over so no background gap can show. Board dimming was removed
    (owner 2026-07-14) — `--scrim` defaults to 0 (no dim); the fallback colour + `--board-zoom` frame-fit remain. */
 .boardbg { position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  /* Sized by WIDTH (height auto) so the art can never be narrower than the window. The width is normally the
+     art's natural width at the stage height — identical to the old `auto <height>` sizing — but `max()` floors
+     it at 100vw. On a 21:9 display that floor is what bites: the art is 2.358:1 and the screen 2.389:1, so
+     height-fitting left a ~22px grey band down each edge (owner report, 3440x1440 fullscreen). Now the art
+     overflows vertically by that much instead, which is invisible — the frame is centred and the overflow is
+     floor. */
   background:
     linear-gradient(rgb(28 22 16 / calc(0.34 * var(--scrim, 0))), rgb(28 22 16 / calc(0.46 * var(--scrim, 0)))),
-    var(--board) center / auto calc(var(--gh) * var(--board-zoom, 1) * var(--board-mobile-zoom, 1)) no-repeat,
+    var(--board) center / max(100vw, calc(var(--gh) * var(--board-zoom, 1) * var(--board-mobile-zoom, 1) * var(--board-aspect))) auto no-repeat,
     var(--bg);
 }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the

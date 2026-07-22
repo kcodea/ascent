@@ -3,6 +3,163 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-22 (desktop: itch upload zip)
+
+### feat(desktop): `npm run package:itch:win` — zip the Windows build for itch
+
+The downloadable counterpart to `package:itch` (which zips the browser build for "play in browser"). Zips the
+whole `ASCENT-win32-x64` folder, not just the exe: the exe is **not portable alone** — it needs the Electron
+runtime DLLs beside it and `resources/dist` (the game) below it. Everything sits under one top-level directory
+so a player extracting to Downloads gets a tidy folder rather than 80 loose files.
+
+**Zipped with Windows' bsdtar, by absolute path, deliberately.** `tar` on PATH here is Git's GNU tar, which
+cannot write zip at all (`-a` unsupported). PowerShell's `Compress-Archive` writes BACKSLASH entry names —
+the same trap `package-itch.ps1` documents, where non-Windows tooling reads them as literal filenames.
+`C:\Windows\System32	ar.exe` writes proper forward-slash entries (verified on a fixture before use),
+streams rather than buffering (the exe alone is 178 MB, so an in-memory archive was never an option), and
+ships with Windows — no dependency added.
+
+**Verified as a player would experience it**, not just by listing the archive: extracted the zip to a clean
+temp directory and ran the extracted exe — CDP confirms it serves `app://ascent/index.html` titled ASCENT. A
+complete file list would not have caught a broken relative path or a missing runtime DLL; running it does.
+
+Output: `ascent-itch-win64.zip`, 140 MB, 608 files (already covered by the gitignored `ascent-itch*.zip`).
+
+## 2026-07-22 (desktop: the exe wears its own icon)
+
+### feat(desktop): stamp the icon + version info into ASCENT.exe (via rcedit, no AV exclusion needed)
+
+The window/taskbar icon shipped earlier, but the icon **Explorer** shows lives in the executable's own PE
+resources — a `.png` beside it can never set that. Stamping it needs `rcedit`, which is the one job
+electron-builder was doing that a copy-and-rename cannot.
+
+**No electron-builder, and no antivirus exclusion required.** electron-builder's blocker was `app-builder.exe`
+being quarantined; `rcedit` is a *different, much smaller* binary and Defender leaves it alone (verified:
+`node_modules/rcedit/bin/rcedit-x64.exe` survives an install). So `scripts/package-desktop.mjs` now calls
+rcedit directly — the same tool electron-builder would have shelled out to — and none of the rest of
+electron-builder comes back.
+
+**`scripts/make-icon.mjs` builds the .ico.** Windows wants a multi-resolution `.ico`, not a PNG. Rather than
+add an image library for one build step, this uses GDI+ via PowerShell to resize (HighQualityBicubic — the
+default scaler turns a detailed 1254px logo to mush at 16px) and assembles the ICO container by hand: since
+Vista an ICO entry may hold a PNG payload verbatim, so there is no BMP/AND-mask encoding to get wrong. Seven
+sizes (16/24/32/48/64/128/256, 130 KB). The .ico is **committed**, so an ordinary build needs neither
+PowerShell nor the script; re-run `npm run desktop:icon` only when the source logo changes.
+
+Version info is stamped in the same pass, so the exe's Details tab reads ASCENT rather than Electron.
+
+**Verified on the built exe** rather than assumed: an icon resource extracts, `ProductName`/`FileDescription`
+are `ASCENT` (they were `Electron`), `FileVersion` 0.1.0, `CompanyName` kcodea — and an average-pixel
+signature of the embedded icon differs from stock `electron.exe`'s, confirming it is the game's logo and not
+merely *an* icon.
+
+Still not done (unchanged): no installer, no code signing, no auto-update. Unsigned means SmartScreen will
+still warn on a machine that has not seen the binary before — an icon does not change that.
+
+typecheck + lint + 1385 tests + `build:web` green.
+
+## 2026-07-22 (desktop icon, Font Lab removal, ultrawide board gap)
+
+### fix(ui): fill the board on ultrawide + drop the Font Lab; feat(desktop): window icon
+
+**The grey bands on a 21:9 fullscreen were a coverage bug, not a letterbox.** `.boardbg` sized the art by
+HEIGHT (`background-size: auto <stage height>`), so its width fell out of the art's own aspect. The art is
+3440×1459 → **2.3578**; a 3440×1440 screen is **2.3889**. Fitting the height therefore drew it 3395px wide in
+a 3440px window — a ~22px band of the fallback colour down each edge, exactly what the owner photographed.
+
+Now sized by WIDTH with the height auto, and the width floored at `100vw`:
+`max(100vw, calc(<stage height> * var(--board-aspect)))`. Below 2.3578:1 the floor never binds and the sizing
+is identical to before (verified by the aspect maths: at 16:9 the art's natural width is 2.358·gh against a
+1.778·gh viewport, so the art always wins) — only a wider-than-the-art window takes the floor, and then the
+art overflows *vertically* instead, which is invisible because the frame is centred and the overflow is floor
+texture. The art's aspect is now a documented `--board-aspect` var rather than being implicit in the file.
+
+Measured in the packaged shell at 3440×1440: the board layer computes to `3440px` (was 3395px).
+
+**Font Lab removed from the title screen — and it had been shipping to players.** `<FontLab />` was mounted
+unconditionally in `Game.tsx`, unlike `<DevMenu />` and `<SceneBuilder />` which are both
+`import.meta.env.DEV`-gated. So the "Aa" button was in the production build, on the main menu, for anyone who
+loaded the game. Removing the mount fixes the owner's ask and the leak together. The component was deleted
+with it (nothing else referenced it).
+
+One behavioural consequence worth knowing: the boot-time application of saved font choices lived *inside*
+that component, so a saved `ascent.fonts` entry no longer applies. The app now always renders the shipped CSS
+defaults — i.e. what players have been seeing regardless. Recoverable from git if it should come back, in
+which case it belongs in the Dev Tuning Menu with every other dev tool.
+
+**Desktop window icon** — `ascentlogo.png` (1254×1254) ships as `apps/desktop/icon.png` and is set on the
+BrowserWindow, so the taskbar / alt-tab / window icon is the game's logo. NB this does **not** set the .exe's
+own icon in Explorer: that is embedded into the PE by `rcedit`, which is electron-builder's job and cannot run
+here (Defender eats its binary — see `scripts/package-desktop.mjs`).
+
+typecheck + typecheck:web + lint + 1385 tests + `build:web` green.
+
+## 2026-07-22 (desktop: Electron shell)
+
+### feat(desktop): run the shipped web build as a Windows exe
+
+A thin Electron shell (`apps/desktop`) around the SAME `apps/web/dist` that goes to itch — it builds nothing
+of its own, so what runs in the exe is byte-identical to what players get in the browser. Answering the
+owner's question: how hard is it to test this as an exe? Not very, because the groundwork was already there.
+
+**`base: './'` did most of the work.** The web build already uses a relative base (for itch.io's CDN
+sub-path), which is the same thing a desktop shell needs. No build changes were required at all.
+
+**Served over a custom `app://` scheme, not `file://`.** Loading the bundle from `file://` gives the page a
+**null origin**, which breaks Supabase (leaderboard/board sync — a null origin is not a usable CORS origin)
+and makes localStorage partitioning fragile, and localStorage is where the save AND every tuner config live.
+Registering `app://` as a *standard, secure* scheme gives the renderer a real origin (`app://ascent`) with
+none of that. Verified in the running app: `origin: "app://ascent"`, `localStorage` read/write OK, WebGL on,
+`AudioContext` state `running`, all four Pixi canvases mounted at full size, title screen rendered.
+
+**Electron-builder was dropped.** It shells out to `app-builder.exe` (`app-builder-bin`), which **Windows
+Defender quarantines as a false positive on this machine** — the binary disappears from `node_modules` within
+minutes of each install, so the build fails with a spurious `spawn … ENOENT` naming a path that genuinely did
+exist moments earlier. Confirmed by watching `win/x64/` vanish between two `ls` calls. Rather than ask for AV
+exclusions, `scripts/package-desktop.mjs` does the packaging by hand: Electron ships a prebuilt
+`electron.exe` that runs whatever is in `resources/app`, so packaging is a copy and a rename. No installer,
+no signing, no icon, no auto-update — a test harness, not a release pipeline. All four of those are reasons
+electron-builder would have to come back for a real release.
+
+**Perf note (the reason Electron over Tauri).** Electron pins its own Chromium (128 here), so the exe renders
+through the same engine we profile in; Tauri would use whatever WebView2 the player's machine has, which
+varies with Windows updates — bad for a project that treats a frame drop as a defect. The shell also sets
+`backgroundThrottling: false` plus `--disable-renderer-backgrounding` / `--disable-background-timer-throttling`
+so the Pixi ticker and GSAP keep full rate when the window is unfocused, and lifts the autoplay gate.
+
+**Borderless fullscreen by default, and a way out of it.** The window opens `fullscreen: true` — on Windows
+that is the borderless kind (no exclusive display mode), which is what a game wants: no chrome, instant
+alt-tab. The width/height in the config are the WINDOWED size, i.e. what you get after toggling, never the
+initial state. **F11** toggles it, because a borderless-fullscreen default with no escape is a trap: there is
+no title bar to click and Esc belongs to the in-game menu. **F12** opens DevTools.
+
+The application menu is removed outright (`Menu.setApplicationMenu(null)`) rather than auto-hidden.
+`autoHideMenuBar` still reserves the strip — a probe measured the viewport at 1414px inside a 1440px window,
+a 26px band of dead space — and pops the bar on Alt, which is hostile mid-alt-tab. It also binds Ctrl+W and
+Ctrl+R, neither of which belongs in a game window. F11/F12 replace the only two entries worth keeping. After
+removal the viewport measures exactly 3440×1440 on a 3440×1440 screen.
+
+**Quit game, desktop only.** `packages/ui/src/desktop.ts` is the UI's only knowledge of the shell: the
+preload exposes a frozen `window.ascentDesktop` (`isDesktop` / `quit` / `toggleFullscreen`) and its PRESENCE
+is the feature flag — nothing sniffs the user agent for "Electron", which lies and would match anything
+embedding Chromium. Settings grows a **Game** section with *Toggle fullscreen* and *Quit game* only when that
+object exists; in the browser the helpers are no-ops and the section never renders. Quit is a two-tap confirm,
+matching the destructive resets above it. The run is saved continuously, so quitting loses nothing — but it
+is the one button that ends the session.
+
+Verified in the packaged shell: bridge present and frozen with exactly the three expected keys, `isDesktop`
+true, window fullscreen at the full screen bounds, and the `ascent:quit` IPC received by the main process.
+
+**Scripts:** `npm run desktop` (build + run, fast iteration) and `npm run package:desktop` (build + exe).
+`apps/desktop/release/` is gitignored — it is ~300 MB (177 MB exe + runtime + the 34 MB game).
+
+Verified end-to-end from a cold rebuild: exe produced, launched, and CDP confirms the live page is
+`app://ascent/index.html` titled ASCENT. typecheck + lint + 1385 tests + `build:web` green.
+
+**Follow-ups if this becomes a real release:** no CSP is set (Electron warns in dev; the warning goes away
+when packaged, but the hardening gap is real), no icon/signing/installer, and the exe carries the dev
+`.env`-baked Supabase keys the same way the web build does.
+
 ## 2026-07-21 (audio: cleave level)
 
 ### tweak(ui): Cleave SFX level 0.4 → 0.27 → 0.11

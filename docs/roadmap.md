@@ -400,5 +400,9 @@ The hardening gate before ASCENT faces a public (non-friend-scale) audience.
 - **Accessibility** — keyboard nav, screen-reader labels, reduced-motion, colorblind-safe threat/tribe cues.
 - **Touch** support + the COMPACT-fan hand redo.
 - **Distribution** — WebP art is done (4.3 MB); decide web (CDN / versioned deploy) vs a desktop **exe**
-  (Tauri/Electron) beyond the itch zip. Seed the hero-choice roll (still uses `Math.random` in the UI) for
+  beyond the itch zip. An **Electron shell now exists** (`apps/desktop`, `npm run package:desktop`) and the
+  build runs unmodified in it — but it is a TEST HARNESS, not a release: no installer, no code signing, no
+  icon, no auto-update, and no CSP. Electron was chosen over Tauri for a pinned Chromium (Tauri's WebView2
+  version varies per machine, which is poor for a frame-time-sensitive game). Note electron-builder cannot
+  run here — Defender quarantines its `app-builder.exe`; `scripts/package-desktop.mjs` packages by hand. Seed the hero-choice roll (still uses `Math.random` in the UI) for
   daily seeds.

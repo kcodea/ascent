@@ -4956,4 +4956,11 @@ body.dragging .herobuffs { pointer-events: none; }
 .sb-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sb-tag { font-size: calc(9 * var(--u)); color: #b98fe0; text-transform: uppercase; letter-spacing: 0.04em; flex: none; }
 .sb-empty { color: #8a7d5e; font-size: calc(12 * var(--u)); padding: calc(8 * var(--u)); text-align: center; }
+/* A quest row is TWO buttons in one card shell: the body completes the quest (pays its reward now), the
+   trailing ◷ adds it un-started so its bar can be watched filling. The shell keeps `.sb-card`'s frame, so
+   the padding/cursor move onto the inner buttons and the row itself just holds them. */
+.sb-qrow { padding: 0; gap: 0; }
+.sb-qmain { flex: 1; display: flex; align-items: center; gap: calc(7 * var(--u)); min-width: 0; background: none; border: 0; color: inherit; font: inherit; text-align: left; padding: calc(3 * var(--u)) calc(7 * var(--u)); cursor: pointer; }
+.sb-qadd { flex: none; background: none; border: 0; border-left: 1px solid #3f3623; color: #8a7d5e; font-size: calc(12 * var(--u)); padding: calc(3 * var(--u)) calc(7 * var(--u)); cursor: pointer; }
+.sb-qadd:hover { color: var(--acc, #f4be35); }
 

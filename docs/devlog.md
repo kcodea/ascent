@@ -5,6 +5,32 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-21 (balance: nine-card owner pass)
 
+### tweak(ui): the Execution Strike travels, launched along the attacker's blow
+
+Owner ask: give the crescent speed, and have it launch out of the attacker's direction.
+
+The strike was stationary and orientated to an ABSOLUTE screen angle (`arcTilt`), so it read as a decal
+stamped on the victim rather than a blow arriving from somewhere. Now the whole flourish is built off the
+blow vector:
+
+- **`arcSpeed`** (px/s) + **`arcDrag`** — the cut flies out along the attack line and slows.
+- **`arcBack`** — spawns the crescent that many px BACK toward the attacker, so it's visibly arriving rather
+  than appearing on top of the victim.
+- **Orientation** is now `dir + 90°`: the baked crescent is centred on "up", so that turns its chord
+  PERPENDICULAR to travel and the blade cuts square across the line of attack instead of trailing edge-on —
+  the same construction as the Flurry blade. **`arcTilt` changed meaning**: it's now an offset relative to the
+  blow, not an absolute screen angle, so its old `-28` became `0`.
+- **Embers and blood** now spray in a cone about the blow direction too; they were also using the absolute
+  tilt, which pointed the debris the same way no matter which side the attacker came from.
+
+`executeStrike` takes `dx, dy`, fed from the impact channel's attack vector. The non-melee path (a
+Start-of-Combat nuke or split damage) has no attacker by definition, so it keeps a default rightward cut —
+documented at the call site.
+
+Verified: typecheck · lint · 1376 tests · build:web. The new test asserts the impact channel passes the attack
+vector through — without it the strike silently fell back to the default direction, which is exactly the bug
+this change exists to fix and would have looked "fine" on a left-to-right attack.
+
 ### tweak(ui): bake the owner's Execute aura values; drop the keyword badge
 
 **Aura defaults re-baked** from the owner's in-game pass (the first set were dialled on the standalone rig;

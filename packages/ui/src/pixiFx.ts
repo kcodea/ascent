@@ -1141,7 +1141,7 @@ class FxController {
    * The crescent texture is baked once and cached; only a shape/colour dial invalidates it (see
    * `executeCrescentKey`), so a proc costs sprite spawns alone.
    */
-  executeStrike(x: number, y: number, cfg: ExecuteFxConfig = getExecuteFxConfig()): void {
+  executeStrike(x: number, y: number, dx = 1, dy = 0, cfg: ExecuteFxConfig = getExecuteFxConfig()): void {
     perfMonitor.mark('fx:execute');
     if (!this.ready || !this.glowTex || !this.sparkTex) return;
     const tex = this.executeCrescentTexture(cfg);
@@ -1149,6 +1149,14 @@ class FxController {
     const p = cfg.power;
     const GLOW_D = 80, SPARK_D = 16;
     const CRESCENT_W = EXEC_CRESCENT_TEX_W; // the baked texture's nominal width, so arcSize is honest px
+
+    // The blow direction (attacker → victim). The whole flourish is oriented off it, so the cut launches out
+    // of the attacker's side and travels INTO the victim. A zero vector (a non-melee proc — a Start-of-Combat
+    // nuke has no attacker to point from) falls back to a rightward blow.
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = (Math.hypot(dx, dy) === 0 ? 1 : dx) / len;
+    const uy = (Math.hypot(dx, dy) === 0 ? 0 : dy) / len;
+    const dir = Math.atan2(uy, ux);
 
     // 1 · core flash
     if (cfg.flashSize > 0 && cfg.flashAlpha > 0) {
@@ -1159,29 +1167,37 @@ class FxController {
       });
     }
 
-    // 2 · the crescent cut(s). Each is stationary (the read is the SWEEP + expansion, not travel) and rotates
-    // through its life; extra cuts fan off the base tilt so a multi-cut strike crosses itself.
+    // 2 · the crescent cut(s) — launched along the blow and travelling through the victim. The baked crescent
+    // is centred on "up", so `dir + 90°` turns its chord PERPENDICULAR to the travel: the blade cuts square
+    // across the line of attack instead of trailing edge-on (the same construction as the Flurry blade).
+    // `arcTilt` is an offset on that. Spawned `arcBack` px back toward the attacker so the cut is visibly
+    // arriving rather than appearing on top of the victim. Extra cuts fan off the tilt and alternate their
+    // sweep direction, so a multi-cut strike crosses itself instead of chasing its own tail.
     const spread = (cfg.arcSpread * Math.PI) / 180;
     const baseTilt = (cfg.arcTilt * Math.PI) / 180;
+    const bladeRot = dir + Math.PI / 2 + baseTilt;
+    const sx = x - ux * cfg.arcBack * p;
+    const sy = y - uy * cfg.arcBack * p;
     for (let i = 0; i < Math.round(cfg.arcCount); i++) {
-      const rot = baseTilt + (i === 0 ? 0 : (Math.random() - 0.5) * spread);
-      const dir = i % 2 ? -1 : 1;   // alternate the sweep so cuts cross rather than chase each other
+      const rot = bladeRot + (i === 0 ? 0 : (Math.random() - 0.5) * spread);
+      const sweepDir = i % 2 ? -1 : 1;
+      const speed = cfg.arcSpeed * p * (i === 0 ? 1 : 0.75 + Math.random() * 0.5);
       this.spawn(tex, {
-        x, y, vx: 0, vy: 0, drag: 1,
+        x: sx, y: sy, vx: ux * speed, vy: uy * speed, drag: cfg.arcDrag,
         life: cfg.arcLife * (i === 0 ? 1 : 0.72 + Math.random() * 0.4),
         fromScale: (cfg.arcSize * p) / CRESCENT_W,
         toScale: (cfg.arcSize * cfg.arcGrow * p) / CRESCENT_W,
-        spin: ((cfg.arcSpin * Math.PI) / 180) * dir,
+        spin: ((cfg.arcSpin * Math.PI) / 180) * sweepDir,
         rotation: rot,
         // white tint: the gradient is BAKED into the texture, so tinting would multiply it away
         tint: 0xffffff, blend: 'add', peakAlpha: cfg.arcAlpha * (i === 0 ? 1 : 0.72),
       });
     }
 
-    // 3 · embers along the cut — sprayed perpendicular to the blade, i.e. along the direction it travelled
+    // 3 · embers, thrown ALONG the blow (a cone about the travel direction) so the debris carries the hit
     const eSpread = (cfg.emberSpread * Math.PI) / 180;
     for (let i = 0; i < Math.round(cfg.emberCount); i++) {
-      const a = baseTilt + (Math.random() - 0.5) * eSpread;
+      const a = dir + (Math.random() - 0.5) * eSpread;
       const speed = cfg.emberSpeed * (0.5 + Math.random() * 0.9);
       this.spawn(this.sparkTex, {
         x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.1,
@@ -1196,7 +1212,7 @@ class FxController {
     // thrown off the cut rather than more sparks.
     const bSpread = (cfg.bloodSpread * Math.PI) / 180;
     for (let i = 0; i < Math.round(cfg.bloodCount); i++) {
-      const a = baseTilt + (Math.random() - 0.5) * bSpread;
+      const a = dir + (Math.random() - 0.5) * bSpread;
       const speed = cfg.bloodSpeed * (0.45 + Math.random() * 1.0);
       this.spawn(this.sparkTex, {
         x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.22,
@@ -1212,7 +1228,7 @@ class FxController {
    *  look can be dialled without hunting for a real Execute proc. */
   testExecute(): void {
     if (!this.ready) { console.warn('[pixiFx.testExecute] not ready — refresh the page.'); return; }
-    this.executeStrike(window.innerWidth / 2, window.innerHeight / 2);
+    this.executeStrike(window.innerWidth / 2, window.innerHeight / 2, 1, 0); // blows rightward, like testFlurry
   }
 
   /**

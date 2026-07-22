@@ -106,3 +106,14 @@ describe('playContactImpact — Execute', () => {
     expect(s.impact).toHaveBeenCalledTimes(1);
   });
 });
+
+// The strike launches ALONG the blow (owner 2026-07-22), so the impact channel must hand it the attack vector
+// — without this it fell back to the default rightward cut regardless of which way the attacker came from.
+describe('playContactImpact — Execute direction', () => {
+  it('passes the attack vector through to the strike', () => {
+    const exec = vi.spyOn(pixiFx, 'executeStrike').mockImplementation(() => {});
+    vi.spyOn(sfx, 'hit').mockImplementation(() => {});
+    playContactImpact(fakeDefender(), 0, -40, 1, 1, { x: 5, y: 7 }, 0, false, false, false, true);
+    expect(exec).toHaveBeenCalledWith(5, 7, 0, -40);
+  });
+});

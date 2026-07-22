@@ -31,7 +31,16 @@ export interface ExecuteFxConfig {
   arcGrow: number;
   /** Lifetime (ms). */
   arcLife: number;
-  /** Base tilt (°) of the cut. */
+  /** Launch speed (px/s) along the blow — how fast the cut flies out from the attacker's direction. 0 = the
+   *  crescent hangs at the contact point (the old behaviour). */
+  arcSpeed: number;
+  /** How fast the crescent slows, 0–1 (exponential drag per second; 1 = no slowdown, 0 = stops instantly). */
+  arcDrag: number;
+  /** Spawn offset (px) BACK toward the attacker, so the cut visibly travels INTO the victim rather than
+   *  appearing on top of it. */
+  arcBack: number;
+  /** Tilt (°) of the cut, RELATIVE to the blow direction. 0 = the blade cuts square across the line of
+   *  attack. (Was an absolute screen angle before the strike was oriented off the attacker.) */
   arcTilt: number;
   /** Random tilt variance (°) between crescents. */
   arcSpread: number;
@@ -107,7 +116,10 @@ const DEFAULTS: ExecuteFxConfig = {
   arcSize: 170,
   arcGrow: 1.55,
   arcLife: 420,
-  arcTilt: -28,
+  arcSpeed: 520,
+  arcDrag: 0.12,
+  arcBack: 40,
+  arcTilt: 0,
   arcSpread: 46,
   arcSpin: 95,
   arcAlpha: 1,
@@ -152,6 +164,9 @@ export const EXECUTEFX_RANGES: Record<ExecuteFxNumKey, [number, number, number]>
   arcSize: [20, 420, 5],
   arcGrow: [0.5, 3, 0.05],
   arcLife: [80, 1600, 20],
+  arcSpeed: [0, 1600, 10],
+  arcDrag: [0.01, 1, 0.01],
+  arcBack: [0, 200, 2],
   arcTilt: [-180, 180, 2],
   arcSpread: [0, 180, 2],
   arcSpin: [-720, 720, 5],
@@ -182,7 +197,7 @@ export const EXECUTEFX_KEYS = Object.keys(DEFAULTS).filter(
 /** Tuner grouping — every numeric key appears in exactly one group (enforced by test). */
 export const EXECUTEFX_GROUPS: { title: string; keys: ExecuteFxNumKey[] }[] = [
   { title: 'Overall', keys: ['power'] },
-  { title: 'Crescent slash', keys: ['arcCount', 'arcSize', 'arcGrow', 'arcLife', 'arcTilt', 'arcSpread', 'arcSpin', 'arcAlpha', 'arcSweep', 'arcThick'] },
+  { title: 'Crescent slash', keys: ['arcCount', 'arcSize', 'arcGrow', 'arcLife', 'arcSpeed', 'arcDrag', 'arcBack', 'arcTilt', 'arcSpread', 'arcSpin', 'arcAlpha', 'arcSweep', 'arcThick'] },
   { title: 'Core flash', keys: ['flashSize', 'flashLife', 'flashAlpha'] },
   { title: 'Embers', keys: ['emberCount', 'emberSpeed', 'emberSize', 'emberLife', 'emberSpread', 'emberGravity'] },
   { title: 'Blood', keys: ['bloodCount', 'bloodSpeed', 'bloodSize', 'bloodLife', 'bloodSpread', 'bloodGravity'] },

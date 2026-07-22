@@ -31,7 +31,7 @@ export function playContactImpact(defender: Element | null, dx: number, dy: numb
     // burst was playing INSTEAD of it). Checked FIRST so it outranks both Flurry and crit — an Execute proc is
     // a kill, the biggest beat available, and a Flurry/crit Execute should still read as the execution.
     // The smack/crit SOUND and the crit board-shake still fire (see the engine's onCritImpact).
-    pixiFx.executeStrike(fx.x, fx.y);
+    pixiFx.executeStrike(fx.x, fx.y, dx, dy);
   } else if (flurrySlash) {
     // Flurry REPLACES the standard strike VFX with the wind-slash gust so a Flurry attacker's hits read as
     // wind — and it WINS even on a CRIT (a Flurry crit shows the wind-slash, not the crimson flourish; owner

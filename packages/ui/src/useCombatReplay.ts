@@ -941,6 +941,9 @@ export function useCombatReplay(
       onExecuteFx: (uids) => {
         for (const uid of uids) {
           const r = rectOf(uid);
+          // No blow direction here by definition: this path is the NON-melee proc (a Start-of-Combat nuke or
+          // split damage), which has no attacker lunging in — so the strike takes its default rightward cut.
+          // The melee case, which does have a direction, is fired from the impact channel instead.
           if (r) pixiFx.executeStrike(r.cx, r.cy);
         }
       },

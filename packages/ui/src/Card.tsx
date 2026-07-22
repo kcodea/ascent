@@ -11,7 +11,7 @@ import { spriteForTribe } from './sprites';
 import { useGame } from './store';
 import { FLURRY_RINGS, flurryBoxStyle, flurryWrapStyle, flurryRingStyle } from './flurryConfig';
 import { pixiFx } from './pixiFx';
-import { getStepProcFxConfig } from './stepProcFxConfig';
+import { getStepProcFxConfig, isStepProcTick } from './stepProcFxConfig';
 
 // TAUNT frame — pipeline layer 2 (the authored shield). Prefer an authored raster PNG (painterly, drops into
 // `apps/web/public/frames/`); until it exists the SVG placeholder renders instead. `tauntFrameAvailable` flips
@@ -285,10 +285,20 @@ export const Card = memo(function Card({
   // Drake, Bloodbinder, the gold/buy meters, cadence cards, Spirit Pup's transform, Tara's ascend — and the
   // counter renders in BOTH phases, so this fires in the shop and in combat off the one signal.
   //
-  // WHEN: the counters are cyclic (1/4 → 4/4 → 1/4) or count up to a threshold, and the effect fires exactly as
-  // the counter REACHES `total` — so trigger on the TRANSITION into `current === total`. Transition-only (never
-  // on mount) so a card entering play already full doesn't burst; the cadence counter counts DOWN and resets to
-  // `total` on the turn it fires, which this same rule catches.
+  // WHEN: the counters are cyclic (1/4 → 4/4 → 1/4) or count up to a threshold, and the effect fires as the
+  // counter REACHES `total`. Two ways to see that, because a tally can advance by MORE THAN ONE in a single
+  // beat and skip the full reading entirely:
+  //   1. it LANDS on `total` (3/4 → 4/4) — the ordinary tick, and
+  //   2. it WRAPPED (current < prev) without having been full last time — e.g. AVENGE, whose tally ticks per
+  //      FRIENDLY DEATH: an AoE / cleave / death cascade kills two at once, so a 4-threshold goes 3/4 → 1/4 and
+  //      never shows 4/4, yet the Avenge really did fire (owner report 2026-07-21). Guel-style spell counters
+  //      tick one at a time so they rarely skip; Avenge skips constantly.
+  // The `prev !== total` guard on (2) is what stops a double-fire: the ordinary 4/4 → 1/4 reset AFTER a proc is
+  // a wrap too, but that proc already fired on the landing. Count-up counters (Spirit Pup, Tara) clamp at
+  // `total` and never wrap, and the cadence counter counts DOWN and resets UP to `total` on its firing turn —
+  // both land on `total`, so rule (1) covers them.
+  //
+  // Transition-only (never on mount) so a card entering play already full doesn't burst.
   //
   // Its own config (`stepProcFxConfig`), NOT the spell-power one — same primitive, independently tunable.
   const stepCounterRef = useRef<HTMLSpanElement>(null);
@@ -299,8 +309,7 @@ export const Card = memo(function Card({
     const prev = prevStepRef.current;
     prevStepRef.current = stepCur ?? null;
     if (stepCur === undefined || stepTotal === undefined) return;
-    if (prev === null || prev === stepCur) return; // first sight of this counter, or no tick
-    if (stepCur !== stepTotal) return;             // ticked, but not the step that procs
+    if (!isStepProcTick(prev, stepCur, stepTotal)) return;      // see the rule (+ its tests) in stepProcFxConfig
     const el = stepCounterRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();

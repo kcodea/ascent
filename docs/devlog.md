@@ -73,6 +73,23 @@ exporting them.
 
 typecheck + lint + 1389 tests + `build:web` green.
 
+## 2026-07-22 (art: Rune of the Summit)
+
+### chore(ui): wire Rune of the Summit's art
+
+`rune_summit` was one of the runes still falling back to the sigil glyph. Wired it the documented way: copied
+the master (`C:\Game Assets\Ascent Art\Runes\RuneOfTheSummit.png`, an exact name match for the rune — no
+guessing from an unattributed file) into `packages/ui/src/art/runes/` under the **rune id**, then ran
+`npm run optimize-art`, which downscaled 1254×1254 → 512×512, converted to WebP q85 and deleted the source
+PNG: **2416 KB → 51 KB (-97.9%)**, matching the other 61 rune arts exactly (512×512 VP8, ~45–58 KB).
+
+No code change needed — `RUNE_ART` is an eager `import.meta.glob` keyed by filename stem, so naming the file
+`rune_summit.webp` is the whole wiring. Verified in the production build: the asset is emitted
+(`rune_summit-CvNxxT9D.webp`, 52.13 kB) and referenced from the bundle.
+
+Note for a dev server that already had this folder loaded: an eager glob doesn't pick up a new file on reload —
+restart the server.
+
 ## 2026-07-22 (desktop: itch upload zip)
 
 ### feat(desktop): `npm run package:itch:win` — zip the Windows build for itch

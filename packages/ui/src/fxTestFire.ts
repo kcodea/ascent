@@ -9,6 +9,7 @@
  */
 import { useGame } from './store';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
+import { getStepProcFxConfig } from './stepProcFxConfig';
 import { tendrilCfgFor } from './questTendrilConfig';
 import { pixiFx } from './pixiFx';
 import { getSwapFxConfig } from './swapFxConfig';
@@ -82,6 +83,25 @@ export function testSpellPowerFx(): void {
   const y = (top + bottom) / 2;
   pixiFx.spellPower(x, y, getSpellPowerFxConfig());
   floatSpellPowerNumber(x, y - (bottom - top) * 0.15, 2, 1);
+}
+
+/** 🔢 Step Proc: the counter-filled flourish (arrows + blast, no number), fired FROM a real `.stepcounter`
+ *  pill when one is on screen — so the look is judged at the true size/anchor it fires at in play. Falls back
+ *  to the shop row's centre when no step card is out, rather than firing nowhere. */
+export function testStepProcFx(): void {
+  const pill = [...document.querySelectorAll<HTMLElement>('.stepcounter')]
+    .map((el) => el.getBoundingClientRect())
+    .find((r) => r.width > 0 && r.top >= 0 && r.bottom <= window.innerHeight);
+  if (pill) {
+    pixiFx.spellPower(pill.left + pill.width / 2, pill.top + pill.height / 2, getStepProcFxConfig());
+    return;
+  }
+  const els = shopEls();
+  if (els.length === 0) return;
+  const rects = els.map((el) => el.getBoundingClientRect());
+  const x = (Math.min(...rects.map((r) => r.left)) + Math.max(...rects.map((r) => r.right))) / 2;
+  const y = (Math.min(...rects.map((r) => r.top)) + Math.max(...rects.map((r) => r.bottom))) / 2;
+  pixiFx.spellPower(x, y, getStepProcFxConfig());
 }
 
 /** 🏆 Quest Tendril: fire one gold ribbon from the first quest node to the first board minion, so the look

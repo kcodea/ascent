@@ -373,6 +373,10 @@ With the plate in, the panel's contents got a pass:
   box so an outer shadow would be cut off regardless, and a rounded corner means nothing once the edge is a
   gradient. The backing had to be its own layer because a blend mode applies to the
   whole element — text included — which would have crushed the rules copy.
+- **Panel text carries its own legibility.** With the backing down to a barely-there wash, the name, rules
+  text and tribe line all get a `text-shadow` (tight dark edge + two softer halos, `--panel-text-shadow`)
+  so they read against the plate's stone rather than leaning on a dark slab that is no longer really there.
+  Static, so the paint cost is one-off.
 - **The frame now laps OVER the panel.** Its art overflows the archbox down to ~1.37×`--ccw` while the panel
   starts at 1.09, so they really do overlap; previously the panel cut the frame off.
 

@@ -1592,6 +1592,17 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* A positioned ::before paints ABOVE non-positioned in-flow siblings, so the panel's own content has to be
    positioned too or the backing would cover the text. */
 .card.compact.showtext .drawer > * { position: relative; }
+/* Now that the backing is a barely-there wash (0.35 + a 26% feather), the panel's text has to carry its own
+   legibility against the plate's stone rather than leaning on a dark slab behind it (owner 2026-07-21).
+   A tight dark shadow for edge definition + a wider soft one to lift it off the texture. Applied to the
+   whole panel, not just `.desc` — the name and tribe line sit on the same washed-out backing and would
+   otherwise read inconsistently. Static (no animation), so the paint cost is one-off. */
+.card.compact.showtext .drawer .cn,
+.card.compact.showtext .drawer .desc,
+.card.compact.showtext .drawer .dtribe {
+  text-shadow: var(--panel-text-shadow,
+    0 1px 2px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.75), 0 0 12px rgba(0, 0, 0, 0.5));
+}
 /* The FRAME rides above the panel (owner 2026-07-21). The oval art overflows its archbox down to ~1.37×--ccw
    while the panel starts at 1.09, so they genuinely overlap — the frame now laps over the panel's top edge
    instead of being cut off by it. z1 is the smallest value that beats the (now z-auto) drawer, deliberately

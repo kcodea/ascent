@@ -4926,6 +4926,8 @@ body.dragging .herobuffs { pointer-events: none; }
 .sb-btn.sb-primary { background: var(--acc, #f4be35); color: #241a08; border-color: var(--acc, #f4be35); }
 .sb-chk { display: inline-flex; align-items: center; gap: calc(3 * var(--u)); font-size: calc(12 * var(--u)); color: #cbb894; cursor: pointer; }
 .sb-mini { font-size: calc(11 * var(--u)); color: #9a8a63; margin-right: calc(2 * var(--u)); }
+/* An empty card set draws an empty shop — say so, so it reads as "no cards yet" rather than a broken rig. */
+.sb-warn { display: block; color: #e0a866; margin-top: calc(3 * var(--u)); }
 
 .sb-tier { width: calc(21 * var(--u)); height: calc(21 * var(--u)); border-radius: calc(5 * var(--u)); border: 1px solid #56492c; background: #2a2415; color: #d8c8a2; font-weight: 800; font-size: calc(12 * var(--u)); cursor: pointer; }
 .sb-tier.on { background: var(--acc, #f4be35); color: #241a08; border-color: var(--acc, #f4be35); }

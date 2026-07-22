@@ -42,6 +42,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Set 2 can be built and playtested without disturbing set 1.** The Scene Builder has a **Card set** dropdown
+  that plays any set — including one still in development — without flipping the global switch that would move
+  real runs onto it. Adding a card to `cards/set2/` makes it appear in the rig immediately, and set 1's seeds
+  are provably untouched.
 - **Djinni's Cadence now triggers your quest and rune End of Turns too.** It read "trigger all friendly End of
   Turn effects" but only ever fired the board half, skipping quest/rune rewards like Echoing Roar, The Hoard
   Wakes and Rune of Spending — and did nothing at all on an empty board.

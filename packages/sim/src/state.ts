@@ -861,7 +861,14 @@ export const metLine = (status: LineStatus): boolean =>
 /** Create a fresh run from a seed. Deterministic: same seed → same opening. `line` is the run's par (the
  *  rating system passes the player's rating-derived Line; defaults to CONFIG.defaultLine so callers that
  *  don't track rating — tests, tools, the boot throwaway — keep the historic mid-tier Line 9). */
-export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: RunMode = 'ascent', line: number = CONFIG.defaultLine): RunState {
+/**
+ * `setId` overrides which card SET the run is pinned to. It defaults to the live registry (`activeSet()`),
+ * which is what every real run uses — the override exists so the DEV Scene Builder can play an unreleased,
+ * `enabled: false` set (set 2 in development) WITHOUT flipping the global switch and moving real players onto
+ * it. Pinned exactly like the default: once set here, everything downstream reads `RunState.setId` through
+ * `poolOf(state)`, so a sandbox set-2 run never touches set 1's pool or seeds.
+ */
+export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: RunMode = 'ascent', line: number = CONFIG.defaultLine, setId: SetId = activeSet().id): RunState {
   const tribes = selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)));
   // The hero's Resolve is the run's starting (and max) HP; Armor is extra effective HP layered on top.
   const hero = getHero(heroId);
@@ -925,7 +932,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     threat: selectThreat(1, makeRng(mixSeed(seed, 1, TAG.THREAT))),
     tribes,
     rngCursor: mixSeed(seed, 0, TAG.SHOP),
-    pool: stockPool(tribes, poolFor(activeSet().id).buyable),
+    pool: stockPool(tribes, poolFor(setId).buyable),
     uidSeq: 0,
     pendingTavern: [],
     cardBuffs: {},
@@ -934,7 +941,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
     recruitFxSeq: 0,
     karwindFlashSeq: 0,
     rift: pinnedRift, // pin the live rift so replays keep it after the switch flips off
-    setId: activeSet().id, // …and the live card set, for the same reason (see RunState.setId)
+    setId, // …and the card set (defaults to the live one) — for the same reason (see RunState.setId)
   };
   rollShop(state);
   // Guardian (Runeguard): schedule the Epic Runeforge for turn 10 — advanceCombat's start-of-turn

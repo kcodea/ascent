@@ -42,6 +42,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Played cards dissolve into arcane dust.** When you play a minion, its card body imprints as a glowing
+  blue **wireframe of itself** — the stone joints, gold rails and gem picked out in light — then burns off
+  into drifting dust. The linework is edge-detected from the plate art and baked to a 42 KB asset, so nothing
+  is computed while you play.
 - **The board frame is pinned to the UI at every window size.** The board art used to size off window *width*
   while the whole UI sized off *height*, so a 21:9 fullscreen rendered the frame 1.32% larger than any other
   window — and the board buttons, dialled in fullscreen, sat ~45px out of the frame everywhere else. The art

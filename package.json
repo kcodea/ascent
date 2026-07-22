@@ -42,7 +42,8 @@
     "package:itch:win": "npm run package:desktop && node scripts/package-itch-desktop.mjs",
     "package:itch": "npm run build:web && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-itch.ps1",
     "typecheck:web": "tsc -p apps/web/tsconfig.json --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "wire:plate": "node scripts/build-plate-wire.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

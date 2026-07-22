@@ -3,6 +3,50 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-22 (plate dissolve — phase 2)
+
+### feat(ui): the backplate leaves as an arcane wireframe of itself
+
+Replaces the placeholder puff that shipped with the backplate (#623). Playing a minion now makes its plate
+imprint as a glowing blue **wireframe of itself** — its own structural lines, the stone joints, gold rails,
+the gem and the greek-key tabs — which then burns off to arcane dust with a slight outward puff, leaving
+nothing. Owner's vision, authored and dialed on a standalone rig
+(`apps/web/public/fx/plate-dissolve-preview.html`) before any of it was wired.
+
+**The wireframe is a baked asset, not a runtime computation.** Extracting it costs a box blur, a Sobel pass
+and a percentile sort over ~300k pixels. It is fully deterministic — fixed art, fixed dials — so
+`scripts/build-plate-wire.mjs` (`npm run wire:plate`) bakes it once to `frames/cardplate-wire.webp` (42 KB)
+and the runtime just uses it as a mask image. Nothing edge-detects during a shop phase.
+
+Two things the rig taught us, both recorded in the script since they are re-run hazards:
+
+- **Sobel alone is useless on this art.** The plate's stone GRAIN is all luminance edges, so the first pass
+  came out 84% lit and read as a filled slab rather than a wireframe. The luminance has to be blurred first;
+  that keeps architecture and throws away texture.
+- **Raw magnitudes have to be normalised before thresholding.** Off a blurred image they are small and
+  bunched, so survivors sat at 30–50% alpha and the mask rendered as an invisible ghost — measured 1.9% of
+  pixels actually solid, the rest fringe averaging 6% alpha, which the glow then smeared into haze. Scaling
+  against the 99th percentile puts the strongest real edge at full strength whatever the source art.
+
+`plateDissolve.ts` owns the effect end to end: it builds the imprint layer and dust canvas detached on
+`<body>` at the drag card's rect, so it survives React unmounting that card underneath it. **No CSS half to
+keep in sync** — unlike the other tuner configs, this module renders what it configures, so its defaults ARE
+what ships, and the double-source rule deliberately does not apply.
+
+Also removed with the placeholder: its `.plateghost` CSS and keyframes, and `puffMs` / `puffScale` /
+`puffDust` from `cardPlateConfig` (the dissolve owns its own timing now). `pixiFx.dust` no longer fires from
+the plate's exit — a tan dirt puff at the same instant muddied the arcane read; `puffOnBoard` still throws
+that dust when the minion seats, which is what it was for.
+
+New dev tuner **🌀 Plate Dissolve** with a "Play here" button, so it can be dialed without dragging a card
+into the board each time. The wireframe itself is deliberately NOT tunable there — that lives in the rig plus
+a re-bake, since it is an asset.
+
+Owner's final in-game pass (2026-07-22) after watching it against the real FLIP flight: the dust got
+faster and bigger with a touch of stagger — `spd` 25 → 50, `spdVar` → 1, `size` 1.7 → 2.3, `life` → 1.66,
+`stag` 0 → 0.14. The wireframe timing was already right and did not move.
+
+**Verified:** typecheck + lint + 1385 tests + `build:web` all green; mask confirmed in `dist` at 42 KB.
 ## 2026-07-22 (Scene Builder: quests, runes, and keyword search)
 
 ### feat(ui/sim): drop completed quests + runes into the sandbox, and search by keyword

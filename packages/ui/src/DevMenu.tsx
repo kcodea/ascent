@@ -35,6 +35,7 @@ import { BuffDrawerTuner } from './BuffDrawerTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { GlowTuner } from './GlowTuner';
 import { CardPlateTuner } from './CardPlateTuner';
+import { PlateDissolveTuner } from './PlateDissolveTuner';
 import { EndTurnTuner } from './EndTurnTuner';
 import { HeroPowerTuner } from './HeroPowerTuner';
 import { TavernUpTuner } from './TavernUpTuner';
@@ -57,6 +58,7 @@ const TUNERS = [
   { key: 'buffdrawer', label: '🧪 Buffs Drawer', C: BuffDrawerTuner },
   { key: 'glow', label: '🔆 Hover Glow', C: GlowTuner },
   { key: 'cardplate', label: '🂠 Card Plate', C: CardPlateTuner },
+  { key: 'platedissolve', label: '🌀 Plate Dissolve', C: PlateDissolveTuner },
   { key: 'sfx', label: '🎛️ Mixing Desk', C: SfxMixer },
   { key: 'lunge', label: '🗡️ Lunge', C: LungeTuner },
   { key: 'strikefx', label: '💥 Lunge Strike Effects', C: StrikeFxTuner },

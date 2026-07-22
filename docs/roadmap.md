@@ -56,9 +56,9 @@ Solaris Fang (Rally halves cut), Money Maker (Gold Pouch only), and the **Graver
 The rename (#625), the CSS rage aura (#627) and the Pixi strike have all shipped. Remaining:
 - **Owner-dial the strike.** The Execution Strike's shipped values are a considered first pass, not owner-tuned
   — dial them via the 🩸 Execute Strike tuner's Test button and bake the JSON.
-- **Render-profile the aura.** The shipped values build ~101 nodes / ~98 animations per Execute card (26 shards
-  × 3 nodes dominates) plus 6 `mix-blend-mode: screen` arcs. All static paint, nothing repaints per frame — but
-  the layer count is high and hasn't had a DevTools pass on a full board. Cheapest levers: shard count, tails.
+- **Render-profile the aura (much less urgent).** The owner's 2026-07-22 tuning cut it from ~101 nodes / ~98
+  animations per card to **42 / 40** (smoke off, shards 26 → 12), with 3 `mix-blend-mode: screen` arcs instead
+  of 6. All static paint. Still worth a DevTools pass on a full board at some point, but no longer a concern.
 - **"Toxin Tender"** (content, Kevin's side) now has a name that doesn't match the keyword it grants.
 
 ### Human-playtest balance

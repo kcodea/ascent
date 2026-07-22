@@ -5,6 +5,31 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-21 (balance: nine-card owner pass)
 
+### tweak(ui): bake the owner's Execute aura values; drop the keyword badge
+
+**Aura defaults re-baked** from the owner's in-game pass (the first set were dialled on the standalone rig;
+these are tuned against a real card with the live tuner). The look landed much leaner: **smoke and glints are
+off entirely**, leaving three fast counter-rotating comet rings (`arcSpin` 4.9 → 12.9) and a sparse set of
+long-tailed shards (26 → 12, tail 56 → 90, alpha 0.85 → 0.4). `sy: -1.02` flips the box; `pulse` 4.7 → 0.8 is a
+quick flicker rather than a slow breath. The inert dials for the disabled layers are kept tunable.
+
+**This also resolves the perf flag** raised when the aura shipped: **~101 nodes / ~98 animations per Execute
+card → 42 / 40**, a ~58% cut, because the 12 smoke blobs are gone and the shards more than halved. Still all
+static paint. The concern was never the technique, it was the layer count — and the owner's own tuning took it
+most of the way down.
+
+**The keyword badge is gone** (owner): the big red medallion top-right. With the rage aura shipped it was a
+second, louder signifier for the same keyword. That makes Execute the last keyword to lose its badge — every
+keyword now signifies through a card-level treatment (Ward's shell, Reborn's aura, Taunt's border, Execute's
+swirl) rather than a corner pip. `.kwward` had no remaining consumer, so the CSS went with it; the `execute`
+glyph stays, still used by the Compendium's keyword list and the card's mechanic gem.
+
+A test was also loosened: `buildExecuteLayers` "one element per configured count" asserted a hardcoded 2 smoke
+rings, so switching smoke off failed it. It now asserts against the config, with a separate explicit test for
+the two-ring counter-spin split (which the shipped values no longer exercise).
+
+Verified: typecheck · lint · 1375 tests · build:web.
+
 ### fix(ui): the Execution Strike never fired on an attack — and now replaces the standard strike
 
 Owner report: "i don't see the execute strike effect happening, i only see the original strike effect."

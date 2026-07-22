@@ -456,11 +456,12 @@ export const Card = memo(function Card({
       {card.castMult !== undefined && card.castMult > 1 && (
         <span className="castmult" aria-hidden="true">×{card.castMult}</span>
       )}
-      {/* Divine Shield signifies via the CSS `.wardglass` energy shell OVER the frame (below); Reborn via its Pixi AURA
-          (driven from `.card.reborncard` in Recruit); Taunt via the static grey `.card.taunt` border — no badge here. */}
-      {card.keywords.includes('V') && (
-        <span className="kwward venom" aria-hidden="true"><Icon name="execute" /></span>
-      )}
+      {/* No keyword BADGES on the card — every keyword signifies through its own card-level treatment instead:
+          Divine Shield via the CSS `.wardglass` energy shell OVER the frame (below), Reborn via its Pixi AURA
+          (driven from `.card.reborncard` in Recruit), Taunt via the static grey `.card.taunt` border, and
+          EXECUTE via the swirling rage aura. Execute's red medallion was the last one standing and came off
+          2026-07-22 (owner) — with the aura shipped it was a second, louder signifier for the same keyword.
+          The `execute` glyph is still used by the Compendium's keyword list. */}
       {/* Triple-ready: this tavern offer completes a triple if bought — gold arrows float up around it. */}
       {tripleReady && (
         <span className="triparrows" aria-hidden="true">

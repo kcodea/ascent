@@ -1353,13 +1353,6 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   45% { opacity: 1; filter: brightness(1.28) saturate(0.85); }
   100% { opacity: 1; filter: none; }
 }
-/* Venomous ward — a bold status badge top-right. */
-.kwward { position: absolute; top: -14px; right: -14px; width: 66px; height: 66px; border-radius: 50%; border: 4px solid var(--card); display: grid; place-items: center; z-index: 9; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4); }
-.kwward svg { width: 40px; height: 40px; color: #fff; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5)); }
-/* Execute's medallion — red to match the rage aura (was lime, retheme 2026-07-21). */
-.kwward.venom { background: radial-gradient(circle at 38% 32%, #ff8a97, #d1273c 72%, #8c0f1e); }
-/* Stack a 2nd ward (e.g. a Venomous + Divine-Shield unit) below the first instead of overlapping it. */
-.kwward ~ .kwward { top: 58px; }
 /* the tribe label sits between the (now absolute, overhanging) atk/hp badges — pad it clear
    of them so the larger text never slips under a badge */
 .cfoot { display: flex; align-items: center; justify-content: center; padding: 5px 52px; background: color-mix(in srgb, var(--c) 30%, var(--card)); border-radius: 0 0 11px 11px; }

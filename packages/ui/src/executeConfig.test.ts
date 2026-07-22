@@ -46,14 +46,25 @@ describe('execute colours', () => {
 describe('buildExecuteLayers', () => {
   const cfg = getExecuteConfig();
 
+  // Asserted against the CONFIG rather than pinned numbers, so re-baking owner-dialled defaults (which can
+  // switch a whole layer off — smoke and glints are at 0 as shipped) doesn't produce a false failure.
   it('builds one element per configured count', () => {
     const l = buildExecuteLayers(cfg);
     // smoke splits across TWO counter-spinning rings, so each holds half the blobs
-    expect(l.smoke).toHaveLength(2);
+    expect(l.smoke).toHaveLength(cfg.smokeCount > 0 ? 2 : 0);
     for (const ring of l.smoke) expect(ring.blobs).toHaveLength(Math.round(cfg.smokeCount / 2));
     expect(l.arcs).toHaveLength(cfg.arcCount);
     expect(l.glints).toHaveLength(cfg.glintCount);
     expect(l.shards).toHaveLength(cfg.shardCount);
+  });
+
+  // ...and cover the two-ring split explicitly, since the shipped config no longer exercises it.
+  it('splits smoke across two counter-spinning rings when it is enabled', () => {
+    const l = buildExecuteLayers({ ...cfg, smokeCount: 12 });
+    expect(l.smoke).toHaveLength(2);
+    for (const ring of l.smoke) expect(ring.blobs).toHaveLength(6);
+    expect(l.smoke[0]!.ring.animationDirection).toBe('normal');
+    expect(l.smoke[1]!.ring.animationDirection).toBe('reverse');
   });
 
   it('emits no smoke rings at all when the count is zero', () => {

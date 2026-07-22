@@ -169,6 +169,24 @@ function ensurePoints(): void {
   grab(PLATE_SRC, (p) => { BODY_PTS = p; });
 }
 
+/**
+ * Warm on load, NOT on first use.
+ *
+ * This sampling used to be kicked off inside `playPlateDissolve` — i.e. at the exact moment its results were
+ * already needed. The first card played in a run therefore got neither: the mote loop found no spawn points,
+ * and `cardplate-wire.webp` was still uncached so the CSS mask hadn't resolved either. Every play after that
+ * found both warm, which is precisely the "only the very first one doesn't play" symptom (owner report
+ * 2026-07-22).
+ *
+ * Scheduled on idle so it stays off the boot critical path: one 42 KB fetch (the plate art itself is already
+ * loaded by every hand card) plus a couple of ms of sampling on a 110px grid.
+ */
+if (typeof window !== 'undefined') {
+  const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback;
+  if (ric) ric(() => ensurePoints());
+  else window.setTimeout(() => ensurePoints(), 400);
+}
+
 /* ------------------------------------------------------------------ sprites */
 let sprites: { core: HTMLCanvasElement; mid: HTMLCanvasElement } | null = null;
 function sprite(color: string, r: number): HTMLCanvasElement {
@@ -230,11 +248,21 @@ export function playPlateDissolve(rect: { left: number; top: number; width: numb
   // --- motes, born on the wireframe (or anywhere on the plate) and pushed outward from centre ---
   const motes: Mote[] = [];
   const cx = cw / 2, cy = ch / 2;
+  // If the sampled points somehow aren't ready (warming below should make this unreachable, but a cold cache
+  // on a slow connection could still beat us to it), spray uniformly over the plate rather than emitting
+  // NOTHING. This used to `break`, which is what made the very first dissolve of a run play with no dust.
+  const havePts = !!((LINE_PTS && LINE_PTS.length) || (BODY_PTS && BODY_PTS.length));
   for (let i = 0; i < c.count; i++) {
-    const src = (LINE_PTS && LINE_PTS.length && Math.random() < c.onLines) ? LINE_PTS : BODY_PTS;
-    if (!src || !src.length) break;
-    const p = src[(Math.random() * src.length) | 0];
-    const x = cx + (p.u - 0.5) * rect.width, y = cy + (p.v - 0.5) * rect.height;
+    let u: number, v: number;
+    if (havePts) {
+      const src = (LINE_PTS && LINE_PTS.length && Math.random() < c.onLines) ? LINE_PTS : BODY_PTS;
+      if (!src || !src.length) continue;
+      const p = src[(Math.random() * src.length) | 0];
+      u = p.u; v = p.v;
+    } else {
+      u = Math.random(); v = Math.random();
+    }
+    const x = cx + (u - 0.5) * rect.width, y = cy + (v - 0.5) * rect.height;
     let dx = x - cx, dy = y - cy;
     const m = Math.hypot(dx, dy) || 1; dx /= m; dy /= m;
     const sp = c.spd * k * (1 + (Math.random() - 0.5) * 2 * c.spdVar);

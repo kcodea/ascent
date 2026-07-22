@@ -1397,9 +1397,8 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* Keyword pills — sized relative to the card width (--ccw) so they scale WITH the card. The fractions equal the
    original raw px at the owner's ~140px desktop --ccw (desktop unchanged), so a phone's smaller card no longer wears
    desktop-sized pills (owner: "keyword pills are really large"). */
-.kws { display: flex; gap: calc(var(--ccw) * 0.036); flex-wrap: wrap; justify-content: center; align-items: center; min-height: calc(var(--ccw) * 0.156); margin: calc(var(--ccw) * 0.043) 0 calc(var(--ccw) * 0.036); }
-.kw { font-family: var(--font-ui); font-weight: 700; font-size: calc(var(--ccw) * 0.085); letter-spacing: 0.02em; padding: calc(var(--ccw) * 0.021) calc(var(--ccw) * 0.064); border-radius: calc(var(--ccw) * 0.057); background: var(--c); color: #fff; display: flex; align-items: center; gap: calc(var(--ccw) * 0.028); }
-.kw svg { width: calc(var(--ccw) * 0.085); height: calc(var(--ccw) * 0.085); }
+/* (`.kws` / `.kw` — the keyword pill row under the card name — removed with the markup that fed them,
+   owner 2026-07-21. Keywords still read from the art-layer cues and the bolded rules text.) */
 .desc { font-size: 14px; font-weight: 600; line-height: 1.34; color: var(--ink2); text-align: center; flex: 1; background: var(--card); border-radius: 9px; padding: 6px 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
 .desc b { color: var(--ink); font-weight: 700; }
 /* a modified/buffed value in card text (e.g. Kennelmaster's Avenge-boosted summon buff) */
@@ -1551,8 +1550,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   /* OUT of flow, top ANCHORED at a fixed offset below the (square, --ccw-tall) archbox: in flow, a longer text
      grew the card element and centered contexts (inspect, Discover, rows) split that growth both ways — the
      frame crept UP and the panel top moved. Absolute = the frame never moves; the panel only grows DOWNWARD
-     (owner call 2026-07-19). 1.15 = archbox height + the tuned 0.15 gap. */
-  position: absolute; top: calc(var(--ccw) * 1.15); left: 0; right: 0; z-index: 4;
+     (owner call 2026-07-19). 1.09 = archbox height + the tuned 0.09 gap — tightened from 0.15 when the keyword
+     pill row was removed (owner 2026-07-21), which shortened the panel by a whole line. */
+  position: absolute; top: calc(var(--ccw) * 1.09); left: 0; right: 0; z-index: 4;
   padding: calc(var(--ccw) * 0.065) calc(var(--ccw) * 0.08) calc(var(--ccw) * 0.07);
   background: linear-gradient(180deg, #241a13, #17110c);
   border: 2px solid color-mix(in srgb, var(--gold) 55%, #000);
@@ -1560,8 +1560,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 18px -6px rgba(0, 0, 0, 0.45),
               0 0 0 var(--hglow-ring, 0) #ffffff, 0 0 var(--hglow-blur, 0) var(--hglow-spread, 0) rgba(255, 255, 255, 0.6);
 }
-.card.compact.showtext .drawer .cn { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.088); color: #f4ecdb; background: none; box-shadow: none; padding: 0; margin: 0 0 calc(var(--ccw) * 0.03); white-space: normal; text-align: center; line-height: 1.1; }
-.card.compact.showtext .drawer .kws { min-height: 0; margin: 0 0 calc(var(--ccw) * 0.035); }
+/* Card NAME. 0.1056 = the old 0.088 +20% (owner 2026-07-21), taking back some of the height freed by the
+   removed pill row and giving the name the weight it lost sitting alone above the rules text. */
+.card.compact.showtext .drawer .cn { font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.1056); color: #f4ecdb; background: none; box-shadow: none; padding: 0; margin: 0 0 calc(var(--ccw) * 0.03); white-space: normal; text-align: center; line-height: 1.1; }
 .card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072); line-height: 1.32; color: #d8ccb6; text-align: center; background: none; box-shadow: none; padding: 0; flex: none; display: block; }
 .card.compact.showtext .drawer .desc b { color: #fff; } /* bold numbers/keywords pop white on the dark glass (base .desc b is dark ink) */
 .card.compact.showtext .drawer .dtribe { display: flex; align-items: center; gap: calc(var(--ccw) * 0.02); margin-top: calc(var(--ccw) * 0.05); font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.062); letter-spacing: 0.05em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 60%, #f4ecdb); }

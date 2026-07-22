@@ -46,10 +46,10 @@ let spellFrameAvailable = true;
 const CARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
 let cardPlateAvailable = true;
 
-const KW_LABEL: Record<Keyword, string> = {
-  T: 'Taunt', DS: 'Ward', V: 'Execute', W: 'Flurry', R: 'Rise', C: 'Cleave', M: 'Attachment', SC: 'Start', CN: 'Consume',
-  FD: 'Fodder', IMM: 'Immune', ST: 'Stealth', RL: 'Rally', SL: 'Slaughter', CR: 'Critical Strike', EG: 'Engraved',
-};
+// (KW_LABEL — the keyword→display-name map — was removed with the pill row it fed, owner 2026-07-21.
+//  KW_ICON survives: it still drives the medallion glyph. Player-facing keyword NAMES are not this file's
+//  job — `terms.ts` owns the renames, with per-surface copies in MinionBook / questText / float / the
+//  combat log. #625's Toxin→Execute rename touched all of those; this map was a ninth copy with no reader.)
 const KW_ICON: Record<Keyword, string> = {
   T: 'taunt', DS: 'shield', V: 'execute', W: 'windfury', R: 'rise', C: 'cleave', M: 'magnetic', SC: 'fist',
   CN: 'consume', FD: 'fodder', IMM: 'immune', ST: 'eye', RL: 'sword', SL: 'slaughter', CR: 'target', EG: 'anvil',
@@ -327,14 +327,11 @@ export const Card = memo(function Card({
     if (!r.width && !r.height) return;             // not laid out (hidden/unmounted) — nothing to fire from
     pixiFx.spellPower(r.left + r.width / 2, r.top + r.height / 2, getStepProcFxConfig());
   }, [stepCur, stepTotal]);
-  // Pills row: the trigger (Battlecry / Deathrattle, derived from the text) then any
-  // keyword pills. Always rendered (reserves a row) so the description starts on a
-  // fixed line whether or not the card has pills.
+  // The card's trigger (Battlecry / Deathrattle, derived from the text). The keyword PILL ROW that used to
+  // sit under the name was removed (owner 2026-07-21) — keywords already read from the art-layer cues (Ward
+  // dome, Toxin drip, Flurry rings, the Taunt frame) and from the bolded rules text, so the row was a third
+  // restatement costing a line of panel height. `trigger` survives because the medallion glyph derives from it.
   const trigger = triggerPill(card.text);
-  const pills: { label: string; icon?: string }[] = [
-    ...(trigger ? [trigger] : []),
-    ...card.keywords.map((k) => ({ label: KW_LABEL[k], icon: KW_ICON[k] })),
-  ];
   // The golden-aware rules text — doubled numbers (or explicit goldenText) when shown golden.
   const shownText = card.golden ? (card.goldenText ?? doubleNums(card.text)) : card.text;
   // The card's primary mechanic, shown as a glyph in the compact medallion: its trigger
@@ -677,20 +674,10 @@ export const Card = memo(function Card({
         )}
       </div>
       {/* Text drawer — drops down from the arched frame on the "full" card (hover reveal, hand, right-
-          click inspect, or the always-on-text setting): name, keyword pills, rules text, tribe. Hidden
+          click inspect, or the always-on-text setting): name, rules text, tribe. Hidden
           (display:none) on a resting compact tile. */}
       <div className="drawer">
         <div className="cn">{card.name}</div>
-        {pills.length > 0 && (
-          <div className="kws">
-            {pills.map((p, i) => (
-              <span className="kw" key={`${p.label}-${i}`}>
-                {p.icon && <Icon name={p.icon} />}
-                {p.label}
-              </span>
-            ))}
-          </div>
-        )}
         {card.text && (
           <div className="desc">
             <span dangerouslySetInnerHTML={{ __html: descUp(mdBold(shownText)) }} />

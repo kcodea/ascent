@@ -342,6 +342,19 @@ in the preview tab) and was verified by code reading.
 real dissolve. The tuner's three text-bucket sliders don't apply to already-rendered cards (`Card` is memoized
 by design); the panel says so rather than weakening the memoization.
 
+#### Card body pass (owner, same session)
+
+With the plate in, the panel's contents got a pass:
+
+- **Removed the keyword pill row.** The `.kws` / `.kw` row under the card name is gone, along with the
+  `KW_LABEL` map and CSS that fed it. Keywords were being stated three times — the pill, the art-layer cue
+  (Ward dome, Toxin drip, Flurry rings, the Taunt frame), and the bolded rules text — and the row cost a full
+  line of panel height. `triggerPill` survives: the medallion glyph still derives from it. Note this applies
+  to **every** full-card surface, not just hand: inspect, hover reveal, and Discover lose the pills too.
+- **Lifted the panel** from `--ccw * 1.15` to `1.09`, taking back part of the freed line.
+- **Card name +20%** — `0.088` → `0.1056` of `--ccw`, giving it the weight it lost now that it sits alone
+  above the rules text.
+
 #### Included cleanup (from final review)
 
 1. **Deleted dead CSS.** `.card.plated .cardplate.dissolving` and `@keyframes platepuff` in `styles.css` were

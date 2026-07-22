@@ -5,6 +5,14 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-21 (ward: second final pass)
 
+### tweak(ui): Ward breath — shallower + quicker (owner's third pass)
+
+Owner sent a fresh Ward Shell export; everything matched the shipped defaults except the **Breath** group, so
+this is a two-dial change: `pulseMin` 0.75 → **0.8** (a shallower dip, so the shell holds nearer full opacity)
+and `pulseSec` 2.6 → **2.3** (a slightly quicker cycle). Baked into `wardConfig` DEFAULTS *and* the mirrored
+`--wg-pulse-min` / `--wg-pulse-s` fallbacks in `styles.css`, so production matches with no JS. Still an
+opacity-only loop (compositor-safe). typecheck + lint + 1336 tests + build:web green.
+
 ### fix(ui): step-proc FX missed AVENGE — a multi-death beat skips the full reading
 
 Owner report: the counter burst wasn't firing for Avenge units. The tick rule only fired on the transition

@@ -5,6 +5,30 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-21 (ward: second final pass)
 
+### feat(ui): step-proc FX — a spark burst from a unit's step counter (`feat/step-proc-fx`)
+
+Owner ask: apply the spell-power flourish to **any** unit with a step counter, fired from the counter itself,
+on its own tuner so it can be sized independently.
+
+- **One hook covers every step card.** `cardText.stepProgress()` already derives the same counter for all of
+  them — Avenge (Solaris / Soulsman / Bone Taxer / Brood Matron…), Guel, Flowing Monk, Crypt Drake, Bloodbinder,
+  the gold-spent + buy-count meters, cadence cards ("2 Turns"), Spirit Pup's transform, Tara's ascend — and it
+  renders as one `.stepcounter` pill in `Card.tsx`, which is used in BOTH phases. So the FX hangs off that one
+  element and fires in the shop and in combat off a single signal, with no sim changes.
+- **Fires on the proc, from the pill.** The counters are cyclic (1/4 → 4/4 → 1/4) or count up to a threshold,
+  and the effect fires exactly as the counter REACHES `total` — so it triggers on the TRANSITION into
+  `current === total`, measuring the pill's live rect for the origin. Transition-only (never on mount) so a card
+  entering play already full doesn't burst; the cadence counter counts DOWN and resets to `total` on the turn it
+  fires, which the same rule catches.
+- **Its own config + tuner** (`stepProcFxConfig` / 🔢 Step Proc FX), feeding the SAME fully config-driven
+  `pixiFx.spellPower` primitive as the ✨ spell-power cue — no duplicated Pixi code, but independently tunable
+  (owner ask). Arrow count can go to 0 (the primitive's loop no-ops), matching `blastCount`'s "0 = off".
+- **Baked look:** arrows OFF — a pure WHITE spark burst (60 motes, heavy gravity so it arcs and falls, full
+  jitter, no glow), deliberately distinct from spell power's pink/purple/gold fan. No floating number (owner
+  call): a step proc has no natural stat gain to print.
+- **Verified:** primitive fires with the step-proc config (16 particles pre-bake), no console errors;
+  typecheck + lint + 1327 tests + build:web green.
+
 ### tweak(ui): the owner's second tuned pass on the Ward shell
 
 A further pass now that the colour dials existed. The shell reads noticeably differently:

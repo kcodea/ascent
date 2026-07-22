@@ -37,6 +37,10 @@
   /* The board art's own aspect (3440x1459). `.boardbg` needs it to compute the art's WIDTH from the
      stage height, so it can guarantee full coverage on a window wider than 16:9. Update if the art does. */
   --board-aspect: 2.3578;
+  /* Constant overscan on the board art so it covers a 21:9 window without the size ever depending on the
+     viewport — see `.boardbg`. 1.0132 = 2.389/2.3578, i.e. exactly the art size a 3440x1440 fullscreen used to
+     produce, which is what the button offsets are tuned against. */
+  --board-fill: 1.0132;
   /* ONE uniform scale factor for the whole board: the stage height ÷ the 1440px design reference, as a UNITLESS
      number set from JS (`applyStageScale` in Game.tsx) — CSS can't derive a unitless ratio from a length. Everything
      the layout is authored at (card size, chrome, rope, per-region offsets — all in reference px) is multiplied by
@@ -140,15 +144,19 @@ canvas.spr { image-rendering: pixelated; display: block; }
    the width floor below takes over so no background gap can show. Board dimming was removed
    (owner 2026-07-14) — `--scrim` defaults to 0 (no dim); the fallback colour + `--board-zoom` frame-fit remain. */
 .boardbg { position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  /* Sized by WIDTH (height auto) so the art can never be narrower than the window. The width is normally the
-     art's natural width at the stage height — identical to the old `auto <height>` sizing — but `max()` floors
-     it at 100vw. On a 21:9 display that floor is what bites: the art is 2.358:1 and the screen 2.389:1, so
-     height-fitting left a ~22px grey band down each edge (owner report, 3440x1440 fullscreen). Now the art
-     overflows vertically by that much instead, which is invisible — the frame is centred and the overflow is
-     floor. */
+  /* Sized by WIDTH (height auto) from the STAGE HEIGHT ALONE — never from the viewport. That is load-bearing:
+     the whole UI sizes off `--gh`, so the art must too, or the frame drifts against the buttons that are pinned
+     to it. This previously floored the width at `max(100vw, …)` to kill a ~22px grey band down each edge on 21:9
+     (the art is 2.358:1, the screen 2.389:1). But that floor made the art's size depend on window WIDTH while the
+     UI depended on HEIGHT — so the art ran 1.32% larger at 3440x1440 fullscreen than at every other window size,
+     and buttons dialled in fullscreen sat ~45px out of the frame everywhere else (owner report 2026-07-22).
+     `--board-fill` replaces it with that same 1.32% as a CONSTANT overscan: identical art at 3440x1440, and now
+     identical everywhere else too, so art and UI scale as one unit at any window size. The overflow is floor, so
+     it is invisible. Caveat: this covers up to 2.389:1; a wider screen (32:9) would show the band again — bump
+     `--board-fill`, and re-check the four button offsets, which are tuned against this exact art size. */
   background:
     linear-gradient(rgb(28 22 16 / calc(0.34 * var(--scrim, 0))), rgb(28 22 16 / calc(0.46 * var(--scrim, 0)))),
-    var(--board) center / max(100vw, calc(var(--gh) * var(--board-zoom, 1) * var(--board-mobile-zoom, 1) * var(--board-aspect))) auto no-repeat,
+    var(--board) center / calc(var(--gh) * var(--board-zoom, 1) * var(--board-mobile-zoom, 1) * var(--board-aspect) * var(--board-fill, 1.0132)) auto no-repeat,
     var(--bg);
 }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the

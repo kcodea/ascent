@@ -38,6 +38,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Step counters pop when they fill.** Any unit with a step counter — Avenge, Guel, Flowing Monk, Crypt Drake,
+  Bloodbinder, the gold/buy meters, cadence cards, Spirit Pup, Tara — now bursts a white spark shower *out of
+  the counter pill* the moment it reaches its step and the effect fires, in both the shop and combat. Its own
+  dev tuner (🔢 Step Proc FX), separate from the spell-power cue.
 - **New Ward look** — Divine Shield is now a light-blue hexagonal **energy shell** encasing the whole card,
   gold frame included: a white-hot rim with inner/outer glow, a honeycomb that densens toward the edge, and a
   soft cyan halo. Dialled against a concept render on a preview rig, with a 25-dial live **Ward Shell** tuner.

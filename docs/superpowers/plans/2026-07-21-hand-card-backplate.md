@@ -457,15 +457,23 @@ Add a new section near the "AUTHORED FRAMES" block:
 }
 
 /* Rules-text size buckets — picked by character count in plateTextBucket(), applied as a class on the card.
-   `em` values mirror PLATE_BUCKETS in cardPlateConfig.ts. */
-.card.plated.plate-txt-s  .drawer .desc { font-size: 1em; }
-.card.plated.plate-txt-m  .drawer .desc { font-size: 0.92em; }
-.card.plated.plate-txt-l  .drawer .desc { font-size: 0.84em; }
-.card.plated.plate-txt-xl .drawer .desc { font-size: 0.76em; }
+   The factors mirror PLATE_BUCKETS in cardPlateConfig.ts, applied as MULTIPLIERS of the base `.desc` size
+   set by `.card.compact.showtext .drawer .desc` (styles.css ~1510).
+   Two things here are deliberate and must not be "simplified":
+   - NOT `font-size: 1em`. `em` on font-size resolves against the PARENT (.drawer), which sets no font-size,
+     so it would land on the browser default ~16px — decoupling the text from --ccw and from every other
+     font-size on the card. It must restate the calc.
+   - SIX classes (`.card.compact.plated.plate-txt-*`), not five. Five ties the base rule's specificity
+     exactly, so the buckets would win only by source order and would silently die if the file is reordered.
+     `.compact` is emitted unconditionally by Card.tsx, so it is always available. */
+.card.compact.plated.plate-txt-s  .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1); }
+.card.compact.plated.plate-txt-m  .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 0.92); }
+.card.compact.plated.plate-txt-l  .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 0.84); }
+.card.compact.plated.plate-txt-xl .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 0.76); }
 
 /* Placeholder dissolve — PHASE 1 ONLY. The authored effect replaces this rule and the platePuff() call site;
    nothing else depends on it. One-shot, transform/opacity only (compositor-only, no paint properties). */
-.card .cardplate.dissolving {
+.card.plated .cardplate.dissolving {
   animation: platepuff var(--plate-puff-ms, 320ms) ease-out forwards;
 }
 @keyframes platepuff {

@@ -17,6 +17,9 @@ import { useDraggablePanel } from './useDraggablePanel';
  * DEV-gated in `cleaveFxConfig`, so nothing dialled here can leak into a prod build.
  */
 const LABELS: Partial<Record<keyof CleaveFxConfig, string>> = {
+  offsetX: 'offset X',
+  offsetY: 'offset Y',
+  scale: 'overall scale',
   slashCount: 'slash count',
   slashLen: 'slash length ×',
   slashWidth: 'slash width',

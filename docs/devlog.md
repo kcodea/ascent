@@ -23,10 +23,14 @@ itself a `RESULT_TYPE`, so it groups into the very run being judged, and a Cleav
 otherwise retro-cleave the swing that granted it. The rule is "did it hold Cleave when it attacked" — caught
 by a test, not by eye.
 
-**Growth — the vine bloom.** Wherever Growth is cast, vines now grow outward from every minion it buffed and
-curl, with leaves, petals and sparkles peeling off over a soft green wash. The vines DRAW ON over `growMs`
-rather than popping in, which is what sells the "growth" read. It replaces the generic sourceless descends
-for those targets — one spell, one effect.
+**Growth — the tendril sweep.** Wherever Growth is cast, tendrils now snake out from the CENTRE of the board
+toward BOTH ends — the `auraWave` centre→edge motion drawn as creeping vines — shedding leaves, petals and
+sparkles along the advancing front, over a soft green wash. It replaces the generic sourceless descends for
+those targets: one spell, one effect.
+
+Deliberately **board-wide, not per-unit** (owner direction): the first cut grew a little plant on top of each
+buffed minion, which read as far too on-the-nose. Nothing is anchored to individual cards now — the FX takes
+a REGION and sweeps it, so the two call sites just hand over the span the buffed minions cover.
 
 Keyed off the CAST, not the caster (owner call), so it plays in the shop AND in combat, and any future card
 that casts Growth gets it for free. Two small plumbing additions made that possible: `captureBuffFx` takes an
@@ -34,16 +38,26 @@ optional `spellCardId` so a `kind:'spell'` capture (which has no board source) r
 and the `sc` combat event gained an optional `spellId` that the `onKillCastSpell` / `rallyCastSpell`
 factories now log — so Hoardbreaker Drake's Rally/Slaughter Growth blooms exactly like a hand-cast one.
 
-**Tuners.** `💢 Cleave Slash FX` (22 sliders + 3 colour swatches) and `🌱 Growth Bloom FX` (28 + 5), both in
-the Dev Tuning Menu, both with a **Test** button that fires the effect over three imaginary cards so the look
-can be dialled without hunting for a live Cleave or casting Growth. Saved configs are **DEV-gated** at module
-load (the `dragFeel.ts` pattern from #615), so nothing dialled here can beat the baked defaults in prod.
+**Tuners.** `💢 Cleave Slash FX` (25 sliders + 3 colour swatches) and `🌱 Growth Bloom FX` (33 + 5), both in
+the Dev Tuning Menu, both with a **Test** button that fires the effect standalone so the look can be dialled
+without hunting for a live Cleave or casting Growth. Both open with a **placement block** — offset X/Y and an
+overall scale, plus width/height multipliers on Growth — so the effect can be sat correctly on the board by
+eye. Saved configs are **DEV-gated** at module load (the `dragFeel.ts` pattern from #615), so nothing dialled
+here can beat the baked defaults in prod.
 
 **Perf.** Both follow the established `auraWave` shape: one `Graphics` redrawn per frame while the effect
 lives, pooled particles for everything else, one-shot and self-retiring. No looping animation touches a paint
 property, and both are reaped on detach and in `clearParticles`.
 
-**Verified.** typecheck + lint (0 errors) + **1332 tests** + `build:web` green. Driven live in the browser:
+**Verified.** typecheck + **typecheck:web** + lint (0 errors) + **1332 tests** + `build:web` green.
+
+> **Process note, the hard way.** The first push of this work claimed "typecheck green" on the strength of
+> `npm run typecheck` — which **excludes `packages/ui`** (see the root `tsconfig.json`), i.e. excludes almost
+> everything this change touched. The UI has its own `npm run typecheck:web`, it is **not** in the CI gate,
+> and it is already red on `main` with ~70 pre-existing errors. A missing `GROWTH_ID` import in
+> `useCombatReplay.ts` therefore sailed past typecheck, lint, 1332 tests AND `build:web` (Vite/esbuild strips
+> types without resolving identifiers) and crashed the Recruit screen on the owner's first run. Both new-FX
+> workstreams are now checked with `typecheck:web` as well. Driven live in the browser:
 both tuner panels mount with the expected control counts and both Test buttons fire cleanly through a full
 lifecycle with zero console errors. That live pass earned its keep — it caught a real crash the type system
 could not: `Array.from`'s mapFn receives only `(element, index)`, and the vine fan was reading a third `array`

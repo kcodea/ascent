@@ -18,6 +18,12 @@
  * self-retiring, so no paint property is animated on a repeating timeline.
  */
 export interface CleaveFxConfig {
+  /** Horizontal nudge of the whole volley, in px. */
+  offsetX: number;
+  /** Vertical nudge of the whole volley, in px. */
+  offsetY: number;
+  /** Overall size multiplier for streak thickness + ember size (the span is set by `slashLen`). */
+  scale: number;
   /** How many claw streaks in the volley. */
   slashCount: number;
   /** Streak length as a multiple of the struck group's width (1 = exactly spans it). */
@@ -72,6 +78,9 @@ export interface CleaveFxConfig {
 
 /** The shipped look: a hot orange-red rake, three long streaks sweeping down-right, embers trailing off. */
 const DEFAULTS: CleaveFxConfig = {
+  offsetX: 0,
+  offsetY: 0,
+  scale: 1,
   slashCount: 3,
   slashLen: 1.35,
   slashWidth: 7,
@@ -101,6 +110,9 @@ const DEFAULTS: CleaveFxConfig = {
 
 /** Slider bounds for the DEV tuner — [min, max, step] per numeric key. */
 export const CLEAVEFX_RANGES: Record<string, [number, number, number]> = {
+  offsetX: [-400, 400, 2],
+  offsetY: [-400, 400, 2],
+  scale: [0.2, 3, 0.05],
   slashCount: [1, 8, 1],
   slashLen: [0.5, 2.5, 0.05],
   slashWidth: [1, 24, 0.5],

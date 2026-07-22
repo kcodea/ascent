@@ -7,29 +7,35 @@ import { pixiFx } from './pixiFx';
 import { useDraggablePanel } from './useDraggablePanel';
 
 /**
- * DEV-only "Growth Bloom FX" tuner — the vine-and-blossom bloom played wherever **Growth** is cast, in the
- * shop or in combat (`growthFxConfig` → `pixiFx.growthBloom`). Drag the sliders to tune by eye; values
- * persist to localStorage and apply to the NEXT cast. "Test" blooms over three imaginary cards so the look
- * can be dialled without casting Growth. "Copy" grabs the JSON to paste back as the shipped defaults;
- * "Reset" restores them.
+ * DEV-only "Growth Bloom FX" tuner — the tendril sweep played wherever **Growth** is cast, in the shop or
+ * in combat (`growthFxConfig` → `pixiFx.growthBloom`). Tendrils run out from the board's CENTRE to both
+ * ends; the placement block up top (offset X/Y, width/height ×, overall scale) sits the sweep on the board.
+ * Drag the sliders to tune by eye; values persist to localStorage and apply to the NEXT cast. "Test" sweeps
+ * a board-sized region so the look can be dialled without casting Growth. "Copy" grabs the JSON to paste
+ * back as the shipped defaults; "Reset" restores them.
  *
  * Panel-only: opened from the Dev Tuning Menu, so it's stripped from production — and the saved config is
  * DEV-gated in `growthFxConfig`, so nothing dialled here can leak into a prod build.
  */
 const LABELS: Partial<Record<keyof GrowthFxConfig, string>> = {
-  vineCount: 'vines / unit',
-  vineLen: 'vine length',
-  vineWidth: 'vine width',
-  vineCurve: 'vine curl',
-  vineWobble: 'vine wobble',
-  vineSpread: 'vine spread°',
-  growMs: 'grow-on ms',
-  unitStagger: 'unit stagger ms',
+  offsetX: 'offset X',
+  offsetY: 'offset Y',
+  widthScale: 'width ×',
+  heightScale: 'height ×',
+  scale: 'overall scale',
+  tendrilCount: 'tendrils / side',
+  reach: 'reach ×',
+  tendrilWidth: 'tendril width',
+  waviness: 'waviness',
+  waveFreq: 'wave cycles',
+  spreadY: 'vertical spread',
+  splayY: 'tip splay',
+  frontMs: 'centre→ends ms',
   holdMs: 'hold ms',
   fadeMs: 'fade ms',
-  vineAlpha: 'vine alpha',
-  vineGlowWidth: 'vine glow ×',
-  vineGlowAlpha: 'vine glow alpha',
+  tendrilAlpha: 'tendril alpha',
+  glowWidth: 'glow width ×',
+  glowAlpha: 'glow alpha',
   leafCount: 'leaf count',
   leafSize: 'leaf size',
   leafLife: 'leaf life ms',
@@ -70,12 +76,10 @@ export function GrowthFxTuner() {
     window.setTimeout(() => setCopied(false), 1400);
   };
   const reset = (): void => { resetGrowthFxConfig(); setCfg({ ...getGrowthFxConfig() }); };
-  // Bloom over three imaginary cards in the middle of the viewport.
+  // Sweep across a board-sized region in the middle of the viewport.
   const test = (): void => {
-    const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
-    const step = 190, w = 150, h = 210;
-    const pts = [-1, 0, 1].map((i) => ({ x: cx + i * step, y: cy }));
-    pixiFx.growthBloom(pts, { x: cx - step - w / 2, y: cy - h / 2, w: step * 2 + w, h });
+    const w = Math.min(1100, window.innerWidth * 0.7), h = 210;
+    pixiFx.growthBloom({ x: (window.innerWidth - w) / 2, y: (window.innerHeight - h) / 2, w, h });
   };
 
   return (

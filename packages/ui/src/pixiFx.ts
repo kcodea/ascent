@@ -408,16 +408,15 @@ interface CleaveFx {
   units: { x: number; y: number; flashed: boolean }[];
 }
 
-/** One live Growth vine bloom (see `growthBloom`). */
+/** One live Growth tendril sweep (see `growthBloom`). Tendrils mirror out from the region's centre to both
+ *  ends; `motes` are pre-rolled spawn offsets that fire as the advancing front reaches them. */
 interface GrowthFx {
   g: Graphics;
   cfg: GrowthFxConfig;
   age: number;
-  box: { x: number; y: number; w: number; h: number };
-  nodes: {
-    x: number; y: number; delay: number; sprouted: boolean;
-    vines: { ang: number; len: number; curl: number; phase: number }[];
-  }[];
+  region: { x: number; y: number; w: number; h: number };
+  tendrils: { dir: 1 | -1; y0: number; phase: number; amp: number; len: number; splay: number }[];
+  motes: { off: number; kind: 0 | 1 | 2; spawned: boolean }[];
 }
 
 /** Renderer-facing aim-line config (structural mirror of AimFxConfig's line half — pixiFx stays
@@ -2476,8 +2475,8 @@ class FxController {
     const g = new Graphics();
     g.blendMode = 'add';
     this.layer.addChild(g);
-    const cx = box.x + box.w / 2;
-    const cy = box.y + box.h / 2;
+    const cx = box.x + box.w / 2 + cfg.offsetX;
+    const cy = box.y + box.h / 2 + cfg.offsetY;
     // Span the padded bounding box, so a 1-wide "cleave" that splashed nothing still gets a proportionate rake.
     const span = (box.w + cfg.pad * 2) * cfg.slashLen;
     const base = (cfg.slashAngle * Math.PI) / 180;
@@ -2527,7 +2526,7 @@ class FxController {
         if (a1 <= a0) continue;
         const mid = (a0 + a1) / 2;
         // taper 1 at the centre → (1 - taper) at the tips
-        const w = cfg.slashWidth * (1 - cfg.taper * Math.abs(mid - 0.5) * 2);
+        const w = cfg.slashWidth * cfg.scale * (1 - cfg.taper * Math.abs(mid - 0.5) * 2);
         if (w <= 0.05) continue;
         const sx = x0 + ux * st.len * a0, sy = y0 + uy * st.len * a0;
         const ex = x0 + ux * st.len * a1, ey = y0 + uy * st.len * a1;
@@ -2552,7 +2551,7 @@ class FxController {
         u.flashed = true;
         this.spawn(this.glowTex, {
           x: u.x, y: u.y, vx: 0, vy: 0, drag: 1, life: cfg.flashMs,
-          fromScale: (cfg.flashSize * 0.4) / 80, toScale: cfg.flashSize / 80, spin: 0,
+          fromScale: (cfg.flashSize * cfg.scale * 0.4) / 80, toScale: (cfg.flashSize * cfg.scale) / 80, spin: 0,
           tint: hexNum(cfg.colorGlow), blend: 'add', peakAlpha: cfg.flashAlpha,
         });
       }
@@ -2576,7 +2575,7 @@ class FxController {
       this.spawn(this.shardRectTex, {
         x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, drag: 0.1,
         life: cfg.emberLife * (0.6 + Math.random() * 0.7),
-        fromScale: (cfg.emberSize * (0.5 + Math.random() * 0.5)) / 10, toScale: 0.02,
+        fromScale: (cfg.emberSize * cfg.scale * (0.5 + Math.random() * 0.5)) / 10, toScale: 0.02,
         spin: (Math.random() - 0.5) * 5, rotation: a,
         tint, blend: 'add', stretchX: 1.6, peakAlpha: 0.95, gravity: 120,
       });
@@ -2584,153 +2583,150 @@ class FxController {
   }
 
   /**
-   * GROWTH — the vine-and-blossom bloom over every unit a Growth cast buffed (`units` = the buffed centres,
-   * `box` = their bounding box). Fires wherever Growth is cast: from the hand in the shop, or in combat by
-   * anything that casts it. Vines GROW outward from each unit over `growMs` (they draw on, they don't pop),
-   * with leaves, petals and sparkles peeling off, over a soft green wash.
+   * GROWTH — the tendril sweep played wherever Growth is cast. Tendrils snake out from the CENTRE of the
+   * measured board `region` toward BOTH ends (the `auraWave` centre→edge motion, drawn as creeping vines),
+   * shedding leaves, petals and sparkles along the advancing front. Board-wide by design: nothing is anchored
+   * to individual cards (owner direction 2026-07-21).
    *
-   * One `Graphics` for the vines + wash (redrawn per frame, the `auraWave` pattern); everything else is
+   * One `Graphics` for the tendrils + wash (redrawn per frame, the `auraWave` pattern); everything else is
    * pooled particles. Fire-and-forget; never touches the beat clock. Config-driven (🌱 tuner).
    */
-  growthBloom(units: { x: number; y: number }[], box: { x: number; y: number; w: number; h: number }): void {
+  growthBloom(region: { x: number; y: number; w: number; h: number }): void {
     perfMonitor.mark('fx:growth');
-    if (!this.ready || !this.layer || units.length === 0) return;
+    if (!this.ready || !this.layer || region.w <= 0) return;
     const cfg = getGrowthFxConfig();
+    // Size + place the sweep inside the measured zone (fit-to-board dials; centred, then offset).
+    const w = region.w * cfg.widthScale;
+    const h = region.h * cfg.heightScale;
+    const sized = {
+      x: region.x + (region.w - w) / 2 + cfg.offsetX,
+      y: region.y + (region.h - h) / 2 + cfg.offsetY,
+      w, h,
+    };
     const g = new Graphics();
     g.blendMode = 'add';
     this.layer.addChild(g);
-    const spread = (cfg.vineSpread * Math.PI) / 180;
-    const nVines = Math.max(0, Math.round(cfg.vineCount));
-    const nodes = units.map((u, ui) => ({
-      x: u.x,
-      y: u.y,
-      delay: ui * cfg.unitStagger,
-      sprouted: false,
-      // NB: Array.from's mapFn receives (element, index) ONLY — there is no third "array" argument, so the
-      // vine count has to be closed over rather than read off a parameter.
-      vines: Array.from({ length: nVines }, (_, i) => {
-        // Fan the vines around straight UP (−π/2) so the bloom climbs the card rather than pooling under it.
-        const frac = nVines === 1 ? 0.5 : i / (nVines - 1);
-        const ang = -Math.PI / 2 + (frac - 0.5) * spread + (Math.random() - 0.5) * 0.25;
-        return {
-          ang,
-          len: cfg.vineLen * (0.7 + Math.random() * 0.6),
-          curl: (Math.random() < 0.5 ? -1 : 1) * cfg.vineCurve * (0.6 + Math.random() * 0.8),
+    const n = Math.max(0, Math.round(cfg.tendrilCount));
+    const half = (sized.w / 2) * cfg.reach;
+    const tendrils: GrowthFx['tendrils'] = [];
+    for (const dir of [1, -1] as const) {
+      for (let i = 0; i < n; i++) {
+        // Fan the tendrils vertically around the region's mid-line, then let them splay as they run out.
+        const frac = n === 1 ? 0 : i / (n - 1) - 0.5;
+        tendrils.push({
+          dir,
+          y0: frac * cfg.spreadY,
           phase: Math.random() * Math.PI * 2,
-        };
-      }),
-    }));
-    this.blooms.push({ g, cfg, age: 0, box, nodes });
+          amp: cfg.waviness * (0.6 + Math.random() * 0.8),
+          len: half * (0.85 + Math.random() * 0.3),
+          splay: cfg.splayY * frac * 2,
+        });
+      }
+    }
+    // Pre-roll each mote's position along the sweep (0..1 out from centre) so it fires when the front
+    // reaches it — the sparkles ride the expansion instead of appearing everywhere at once.
+    const motes: GrowthFx['motes'] = [];
+    const push = (count: number, kind: 0 | 1 | 2): void => {
+      for (let i = 0; i < Math.max(0, Math.round(count)) * 2; i++) motes.push({ off: Math.random(), kind, spawned: false });
+    };
+    push(cfg.leafCount, 0);
+    push(cfg.petalCount, 1);
+    push(cfg.sparkCount, 2);
+    this.blooms.push({ g, cfg, age: 0, region: sized, tendrils, motes });
   }
 
-  /** Advance + redraw one Growth bloom. Returns false once the last node has faded (→ retire). */
+  /** Advance + redraw one Growth tendril sweep. Returns false once it has faded (→ retire). */
   private drawBloom(f: GrowthFx): boolean {
-    const { g, cfg } = f;
-    const last = f.nodes.length ? f.nodes[f.nodes.length - 1]!.delay : 0;
-    const total = last + cfg.growMs + cfg.holdMs + cfg.fadeMs;
+    const { g, cfg, region } = f;
+    const total = cfg.frontMs + cfg.holdMs + cfg.fadeMs;
     if (f.age > total) return false;
+    const cx = region.x + region.w / 2;
+    const cy = region.y + region.h / 2;
+    // Front progress 0..1 (centre→ends), eased out so it leaps from the centre then settles into the rim.
+    const t = Math.min(1, f.age / Math.max(1, cfg.frontMs));
+    const front = 1 - (1 - t) * (1 - t);
+    const fadeT = f.age - cfg.frontMs - cfg.holdMs;
+    const alpha = fadeT <= 0 ? 1 : Math.max(0, 1 - fadeT / Math.max(1, cfg.fadeMs));
     const vine = hexNum(cfg.colorVine);
     const vineGlow = hexNum(cfg.colorVineGlow);
     g.clear();
+    if (alpha <= 0) return true;
 
-    // Soft wash under the whole buffed region, breathing in with the first node and out with the last.
+    // Soft wash under the swept span, breathing in with the front and out with the fade.
     if (cfg.washAlpha > 0) {
-      const inT = Math.min(1, f.age / Math.max(1, cfg.growMs));
-      const outT = Math.max(0, (f.age - last - cfg.growMs - cfg.holdMs) / Math.max(1, cfg.fadeMs));
-      const wa = cfg.washAlpha * inT * Math.max(0, 1 - outT);
-      if (wa > 0.001) {
-        const p = cfg.washPad;
-        g.roundRect(f.box.x - p, f.box.y - p, f.box.w + p * 2, f.box.h + p * 2, 26);
-        g.fill({ color: vine, alpha: wa });
+      const p = cfg.washPad;
+      g.roundRect(region.x - p, region.y - p, region.w + p * 2, region.h + p * 2, 26);
+      g.fill({ color: vine, alpha: cfg.washAlpha * front * alpha });
+    }
+
+    // Each tendril is a snaking horizontal run from the centre out to its side, drawn only as far as the
+    // front has advanced, tapering to a tendril tip.
+    for (const td of f.tendrils) {
+      const segs = 22;
+      const drawn = segs * front;
+      let px = cx, py = cy + td.y0;
+      for (let i = 1; i <= segs; i++) {
+        if (i > drawn) break;
+        const a = Math.min(i / segs, front);
+        const x = cx + td.dir * td.len * a;
+        const y = cy + td.y0 + Math.sin(td.phase + a * cfg.waveFreq * Math.PI * 2) * td.amp * a + td.splay * a * a;
+        const wdt = cfg.tendrilWidth * cfg.scale * (1 - 0.75 * a); // tapers toward the tip
+        if (cfg.glowAlpha > 0) {
+          g.moveTo(px, py); g.lineTo(x, y);
+          g.stroke({ width: wdt * cfg.glowWidth, color: vineGlow, alpha: cfg.glowAlpha * alpha, cap: 'round' });
+        }
+        g.moveTo(px, py); g.lineTo(x, y);
+        g.stroke({ width: Math.max(0.2, wdt), color: vine, alpha: cfg.tendrilAlpha * alpha, cap: 'round' });
+        px = x; py = y;
       }
     }
 
-    for (const node of f.nodes) {
-      const t = f.age - node.delay;
-      if (t < 0) continue;
-      const grow = Math.min(1, t / Math.max(1, cfg.growMs));
-      const fadeT = t - cfg.growMs - cfg.holdMs;
-      const alpha = fadeT <= 0 ? 1 : Math.max(0, 1 - fadeT / Math.max(1, cfg.fadeMs));
-      if (alpha <= 0) continue;
-      for (const v of node.vines) {
-        // Each vine is a quadratic-ish arc bowed by `curl`, sampled in segments so it can draw on
-        // progressively and taper from base to tip.
-        const segs = 12;
-        const drawn = segs * grow;
-        let px = node.x, py = node.y;
-        for (let i = 1; i <= segs; i++) {
-          if (i > drawn) break;
-          const a = Math.min(i / segs, grow);
-          const along = v.len * a;
-          // bow sideways by curl (grows with distance²) + a small sine wobble for an organic wiggle
-          const side = v.curl * v.len * a * a + Math.sin(v.phase + a * 6) * cfg.vineWobble * a;
-          const ux = Math.cos(v.ang), uy = Math.sin(v.ang);
-          const nx = node.x + ux * along - uy * side;
-          const ny = node.y + uy * along + ux * side;
-          const w = cfg.vineWidth * (1 - 0.75 * a); // tapers to a tendril tip
-          if (cfg.vineGlowAlpha > 0) {
-            g.moveTo(px, py); g.lineTo(nx, ny);
-            g.stroke({ width: w * cfg.vineGlowWidth, color: vineGlow, alpha: cfg.vineGlowAlpha * alpha, cap: 'round' });
-          }
-          g.moveTo(px, py); g.lineTo(nx, ny);
-          g.stroke({ width: Math.max(0.2, w), color: vine, alpha: cfg.vineAlpha * alpha, cap: 'round' });
-          px = nx; py = ny;
-        }
-      }
-      // Leaves / petals / sparkles peel off ONCE, as this node's vines finish growing.
-      if (!node.sprouted && grow >= 0.75) {
-        node.sprouted = true;
-        this.growthMotes(node.x, node.y, cfg);
-      }
+    // Spawn the motes the front has now passed — leaves, petals and sparkles trailing the advance.
+    for (const m of f.motes) {
+      if (m.spawned || m.off > front) continue;
+      m.spawned = true;
+      const dir = Math.random() < 0.5 ? 1 : -1;
+      const x = cx + dir * (region.w / 2) * cfg.reach * m.off;
+      const y = cy + (Math.random() - 0.5) * (region.h * 0.8);
+      this.growthMote(x, y, m.kind, cfg);
     }
     return true;
   }
 
-  /** The drifting leaves, petals and sparkles thrown off one bloomed unit. */
-  private growthMotes(x: number, y: number, cfg: GrowthFxConfig): void {
-    const spread = cfg.vineLen * 0.55;
-    // Leaves — the curved crescent doubles as a leaf blade; they tumble up and out.
-    if (this.crescentTex && cfg.leafCount > 0) {
-      const tint = hexNum(cfg.colorLeaf);
-      for (let i = 0; i < Math.round(cfg.leafCount); i++) {
-        const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.2;
-        this.spawn(this.crescentTex, {
-          x: x + (Math.random() - 0.5) * spread, y: y + (Math.random() - 0.5) * spread * 0.6,
-          vx: Math.cos(a) * cfg.leafDrift * (0.4 + Math.random()), vy: -cfg.leafRise * (0.5 + Math.random()),
-          drag: 0.5, life: cfg.leafLife * (0.7 + Math.random() * 0.6),
-          fromScale: (cfg.leafSize * 22) / 80, toScale: (cfg.leafSize * 30) / 80,
-          spin: (Math.random() - 0.5) * cfg.leafSpin * 2, rotation: Math.random() * Math.PI * 2,
-          tint, blend: 'normal', peakAlpha: 0.95, gravity: 24,
-        });
-      }
-    }
-    // Petals — soft glow puffs in the flower colour, drifting slower than the leaves.
-    if (this.glowTex && cfg.petalCount > 0) {
-      const tint = hexNum(cfg.colorPetal);
-      for (let i = 0; i < Math.round(cfg.petalCount); i++) {
-        const a = Math.random() * Math.PI * 2;
-        this.spawn(this.glowTex, {
-          x: x + (Math.random() - 0.5) * spread, y: y + (Math.random() - 0.5) * spread,
-          vx: Math.cos(a) * 22, vy: -cfg.leafRise * 0.45 * (0.5 + Math.random()),
-          drag: 0.6, life: cfg.petalLife * (0.7 + Math.random() * 0.6),
-          fromScale: (cfg.petalSize * 10) / 80, toScale: (cfg.petalSize * 20) / 80, spin: 0,
-          tint, blend: 'add', peakAlpha: 0.7,
-        });
-      }
-    }
-    // Sparkles — the bright rising motes that sell the "magic" half of the bloom.
-    if (this.sparkTex && cfg.sparkCount > 0) {
-      const tint = hexNum(cfg.colorSpark);
-      for (let i = 0; i < Math.round(cfg.sparkCount); i++) {
-        this.spawn(this.sparkTex, {
-          x: x + (Math.random() - 0.5) * spread * 1.3, y: y + (Math.random() - 0.5) * spread,
-          vx: (Math.random() - 0.5) * 40, vy: -cfg.sparkRise * (0.5 + Math.random()),
-          drag: 0.4, life: cfg.sparkLife * (0.6 + Math.random() * 0.8),
-          fromScale: (cfg.sparkSize * (0.7 + Math.random() * 0.6) * 9) / 16, toScale: 0.03,
-          spin: (Math.random() - 0.5) * 4,
-          tint, blend: 'add', peakAlpha: 0.95,
-        });
-      }
+  /** One mote shed by the advancing tendril front: 0 = leaf, 1 = petal, 2 = sparkle. */
+  private growthMote(x: number, y: number, kind: 0 | 1 | 2, cfg: GrowthFxConfig): void {
+    const sc = cfg.scale;
+    if (kind === 0) {
+      if (!this.crescentTex) return; // the curved crescent doubles as a leaf blade
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.2;
+      this.spawn(this.crescentTex, {
+        x, y,
+        vx: Math.cos(a) * cfg.leafDrift * (0.4 + Math.random()), vy: -cfg.leafRise * (0.5 + Math.random()),
+        drag: 0.5, life: cfg.leafLife * (0.7 + Math.random() * 0.6),
+        fromScale: (cfg.leafSize * sc * 22) / 80, toScale: (cfg.leafSize * sc * 30) / 80,
+        spin: (Math.random() - 0.5) * cfg.leafSpin * 2, rotation: Math.random() * Math.PI * 2,
+        tint: hexNum(cfg.colorLeaf), blend: 'normal', peakAlpha: 0.95, gravity: 24,
+      });
+    } else if (kind === 1) {
+      if (!this.glowTex) return;
+      const a = Math.random() * Math.PI * 2;
+      this.spawn(this.glowTex, {
+        x, y,
+        vx: Math.cos(a) * 22, vy: -cfg.leafRise * 0.45 * (0.5 + Math.random()),
+        drag: 0.6, life: cfg.petalLife * (0.7 + Math.random() * 0.6),
+        fromScale: (cfg.petalSize * sc * 10) / 80, toScale: (cfg.petalSize * sc * 20) / 80, spin: 0,
+        tint: hexNum(cfg.colorPetal), blend: 'add', peakAlpha: 0.7,
+      });
+    } else {
+      if (!this.sparkTex) return;
+      this.spawn(this.sparkTex, {
+        x, y,
+        vx: (Math.random() - 0.5) * 40, vy: -cfg.sparkRise * (0.5 + Math.random()),
+        drag: 0.4, life: cfg.sparkLife * (0.6 + Math.random() * 0.8),
+        fromScale: (cfg.sparkSize * sc * (0.7 + Math.random() * 0.6) * 9) / 16, toScale: 0.03,
+        spin: (Math.random() - 0.5) * 4,
+        tint: hexNum(cfg.colorSpark), blend: 'add', peakAlpha: 0.95,
+      });
     }
   }
 

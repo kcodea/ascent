@@ -2303,17 +2303,17 @@ export function Recruit() {
     // one effect. Rects are measured here, at fire time, like every other cue in this file.
     const growth = events.filter((e) => e.kind === 'spell' && e.sourceCardId === GROWTH_ID);
     if (growth.length) {
-      const pts: { x: number; y: number }[] = [];
+      // Board-wide sweep, so all we need is the REGION the buffed minions span — the tendrils run out from
+      // its centre to both ends. Measured here, at fire time, like every other cue in this file.
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
       for (const ev of growth) {
         const el = findEl(ev.targetUid);
         if (!el) continue;
         const r = el.getBoundingClientRect();
-        pts.push({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
         x0 = Math.min(x0, r.left); y0 = Math.min(y0, r.top);
         x1 = Math.max(x1, r.right); y1 = Math.max(y1, r.bottom);
       }
-      if (pts.length) pixiFx.growthBloom(pts, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+      if (x1 > x0) pixiFx.growthBloom({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
       events = events.filter((e) => !(e.kind === 'spell' && e.sourceCardId === GROWTH_ID));
       if (!events.length) return;
     }

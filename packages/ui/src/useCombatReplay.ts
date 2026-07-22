@@ -9,6 +9,7 @@ import { buffPreset, wavePalette } from './buffPresets';
 import { sfx } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
 import { attackerOfImpact, isCleaveImpact, meleePairOfImpact } from './combatBeats';
+import { GROWTH_ID } from './growthFxConfig';
 import { holdMs } from './choreo/clock';
 import { compileMoments, type Moment } from './choreo/compile';
 import { deferClashBuffs } from './choreo/clashOrder';
@@ -1201,7 +1202,8 @@ export function useCombatReplay(
       for (let i = cur.start; i < cur.end; i++) {
         const ev = events[i];
         if (ev?.type !== 'sc' || ev.spellId !== GROWTH_ID) continue;
-        const pts: { x: number; y: number }[] = [];
+        // Board-wide sweep: all we need is the REGION the buffed side spans, so the tendrils can run out
+        // from its centre to both ends.
         let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
         const seen = new Set<string>();
         const scan = (from: number, to: number): void => {
@@ -1213,7 +1215,6 @@ export function useCombatReplay(
             if (!el) continue;
             const { cx, cy, w, h } = layoutRectOf(el); // SLOT, not mid-flight — a buffed unit can be lunging
             if (w < 1 || h < 1) continue;
-            pts.push({ x: cx, y: cy });
             x0 = Math.min(x0, cx - w / 2); y0 = Math.min(y0, cy - h / 2);
             x1 = Math.max(x1, cx + w / 2); y1 = Math.max(y1, cy + h / 2);
           }
@@ -1221,7 +1222,7 @@ export function useCombatReplay(
         scan(cur.start, cur.end);
         const nxt = beats[beatIdx];
         if (nxt) scan(nxt.start, nxt.end);
-        if (pts.length) pixiFx.growthBloom(pts, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+        if (x1 > x0) pixiFx.growthBloom({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
       }
     }
     if (cur) {

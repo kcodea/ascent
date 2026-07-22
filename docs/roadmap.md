@@ -44,11 +44,20 @@ now have no content using them (kept deliberately for a future quest — remove 
   → T4 3/5, Kennelmaster Avenge (4), Thundeer text, Hunter (improve every 3 — new `every` param), and
   Korok/Banksly on a new **`cardsBought`** trigger + `buyTick` meter (the buy-count sibling of `goldSpent`).
 
+### Close the UI typecheck gap (found 2026-07-21)
+`npm run typecheck` excludes `packages/ui`; the UI's own `npm run typecheck:web` is **not in CI** and is
+already red on `main` (~70 errors: stale `@game/sim` exports like `BoardMinion`/`Tribe`, `CombatReplay` fields
+`questDelta`/`triggeredQuests`/`completedQuests`, `ShopViewOpts.impAura`, `target: 'any'` narrowing in
+Recruit/instView, `sfx.ts` duplicate keys, `TrailTuner` label map). Because of that, a plain missing import in
+UI code passes every CI gate and only crashes at runtime — exactly how the `GROWTH_ID` bug shipped. Worth
+burning down the existing errors and then adding `typecheck:web` to `.github/workflows/ci.yml`.
+
 ### Dial in the Cleave + Growth FX (`feat/cleave-growth-fx`)
 Both effects are built, wired and tuner-backed, but the shipped DEFAULTS were never seen on screen — the
 screenshot tool times out against the live Pixi ticker, so they were verified to RUN, not to LOOK right. Open
-`💢 Cleave Slash FX` / `🌱 Growth Bloom FX` in the Dev Tuning Menu, hit **Test**, dial by eye, then "Copy
-values" back into the `DEFAULTS` in `cleaveFxConfig.ts` / `growthFxConfig.ts`.
+`💢 Cleave Slash FX` / `🌱 Growth Bloom FX` in the Dev Tuning Menu, hit **Test**, dial by eye (each panel
+now opens with offset X/Y + scale so the effect can be sat on the board), then "Copy values" back into the
+`DEFAULTS` in `cleaveFxConfig.ts` / `growthFxConfig.ts`.
 
 ### Human-playtest balance
 The counter matrix is balance *truth*; stat numbers are dials. With all six tribes + the quest content in,

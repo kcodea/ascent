@@ -2763,6 +2763,57 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
           mask: url('/frames/spell-frame.png') center / 100% 100% no-repeat;
 }
 
+/* ============================ HAND CARD BACKPLATE ============================
+   The ornate stone/gold card body behind a card in hand (and on the dragged copy). STATIC size — never
+   stretched (the art's greek-key tabs sit mid-edge and smear under vertical stretch), so long rules text
+   shrinks instead via the `.plate-txt-*` buckets below.
+   Geometry is driven by --plate-* vars; the FALLBACKS here must mirror DEFAULTS in cardPlateConfig.ts,
+   because production doesn't import that module. */
+.card.plated {
+  /* Contain the plate's z-index so it can't paint behind a NEIGHBOURING card. Safe here specifically because
+     plated cards only ever live in the hand / on the drag layer — never in combat, so there is no per-swing
+     GSAP lunge for a new stacking context to fight. */
+  isolation: isolate;
+}
+.card.plated .cardplate {
+  position: absolute;
+  z-index: 0;                       /* behind every sibling; tree order already puts it first */
+  left: 50%;
+  top: var(--plate-top, -14px);
+  width: calc(var(--ccw) * var(--plate-scale, 1.18));
+  /* Shipped art is 800x1244 → height = width x 1.5550. Locked, never stretched. */
+  height: calc(var(--ccw) * var(--plate-scale, 1.18) * 1.5550);
+  transform: translateX(-50%);
+  border-radius: var(--plate-radius, 10px);
+  pointer-events: none;             /* MUST stay — see .handpad, which sits after this in the DOM */
+  user-select: none;
+}
+
+/* Rules-text size buckets — picked by character count in plateTextBucket(), applied as a class on the card.
+   These are MULTIPLIERS of the real base `.desc` font-size set at `.card.compact.showtext .drawer .desc`
+   (calc(var(--ccw) * 0.072)) — NOT bare `em` values. `em` on font-size resolves against the parent's
+   (`.drawer`'s) computed font-size, which nothing sets, so a plain `1em`/`0.92em`/etc. would decouple the
+   rules text from `--ccw` (and therefore from `--scale`/`--card-scale`/`--mobile-boost`/per-row multipliers
+   that everything else on the card scales with) and render at a flat ~16px regardless of card size. The
+   multipliers below (1 / 0.92 / 0.84 / 0.76) mirror PLATE_BUCKETS in cardPlateConfig.ts.
+   Selector is 6 classes deep (adds `.compact`, always present per Card.tsx) deliberately: it ties the base
+   rule at `.card.compact.showtext .drawer .desc` on class-count alone, so these rules win on SPECIFICITY,
+   not by appearing later in the file — reordering the stylesheet can no longer silently kill the feature. */
+.card.compact.plated.plate-txt-s  .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1); }
+.card.compact.plated.plate-txt-m  .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 0.92); }
+.card.compact.plated.plate-txt-l  .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 0.84); }
+.card.compact.plated.plate-txt-xl .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 0.76); }
+
+/* Placeholder dissolve — PHASE 1 ONLY. The authored effect replaces this rule and the platePuff() call site;
+   nothing else depends on it. One-shot, transform/opacity only (compositor-only, no paint properties). */
+.card.plated .cardplate.dissolving {
+  animation: platepuff var(--plate-puff-ms, 320ms) ease-out forwards;
+}
+@keyframes platepuff {
+  from { opacity: 1; transform: translateX(-50%) scale(1); }
+  to   { opacity: 0; transform: translateX(-50%) scale(var(--plate-puff-scale, 1.06)); }
+}
+
 .unit.struck .card { animation: struck 0.34s ease; }
 @keyframes struck { 0%, 100% { transform: none; filter: none; } 45% { transform: translateY(5px) scale(0.94); filter: brightness(1.15) drop-shadow(0 0 8px var(--threat)); } }
 /* a white-hot impact spark at the point of contact */

@@ -3073,7 +3073,7 @@ export function Recruit() {
     const r = src.getBoundingClientRect();
     const ghost = src.cloneNode(true) as HTMLElement;
     ghost.classList.add('plateghost');
-    ghost.style.cssText += `position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;transform:none;z-index:114;pointer-events:none;`;
+    ghost.style.cssText += `position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;transform:none;z-index:114;pointer-events:none;border-radius:var(--plate-radius, 10px);`;
     document.body.appendChild(ghost);
     pixiFx.dust(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, 1, cfg.puffDust);
     window.setTimeout(() => ghost.remove(), cfg.puffMs + 60);

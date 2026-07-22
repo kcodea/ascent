@@ -269,6 +269,41 @@ no-legal-target case, and Kennelmaster's board-wide/Attack-only scope.
 **Follow-up.** `rallyGrantRandomSpell` and `rallyTribeAura` now have no card using them (Badgington and
 Solaris were their only consumers). Left in place deliberately — they're valid primitives for set 2 — but
 worth removing in their own PR if nothing picks them up.
+## 2026-07-21 (hand-card backplate: final-review cleanup)
+
+### chore(ui): backplate cleanup — drop dead dissolve CSS + vars, fix comments
+
+Five hygiene fixes from the feature's final review, before PR:
+
+1. **Deleted dead CSS.** `.card.plated .cardplate.dissolving` and `@keyframes platepuff` in `styles.css` were
+   never applied — `platePuff()` in `Recruit.tsx` adds `plateghost` (which drives `platepuffghost`) instead,
+   never `dissolving`. Removed both; left `.cardplate.plateghost`/`platepuffghost` (the live ones) untouched,
+   and rewrote the surrounding comment to describe the ghost mechanism that actually exists.
+2. **Stopped writing dead CSS vars.** `applyCardPlateVars()` in `cardPlateConfig.ts` looped over `PLATE_BUCKETS`
+   writing `--plate-txt-*` vars that no CSS rule reads (the four bucket rules hardcode `1 / 0.92 / 0.84 /
+   0.76`) — exactly the silent-drift trap the module's own doc comment warns about. Deleted the loop;
+   `PLATE_BUCKETS` stays (still used by `plateTextBucket`'s type and by tests).
+3. **Fixed a factually wrong comment (3 copies).** `cardPlateConfig.ts`, `CardPlateTuner.tsx`, and `styles.css`
+   all claimed production doesn't import `cardPlateConfig.ts` — false, `Card.tsx` imports `plateTextBucket`
+   unconditionally, so the module ships, `applyCardPlateVars()` runs, and `:root` gets set from `DEFAULTS` in
+   production too. Rewrote all three to say the double-source rule still matters for the right reason: the CSS
+   fallbacks are what render whenever a var is ever absent, so DEFAULTS and the fallbacks must stay mirrored.
+4. **Restored the ghost's border-radius.** `platePuff()`'s cloned plate lost `.card.plated .cardplate`'s
+   `border-radius: var(--plate-radius, 10px)` once detached onto `<body>` — added it to the inline
+   `cssText` so the swap doesn't visibly re-square the corner for one frame.
+5. **Documented the tuner's non-live text-bucket sliders.** `bucketM`/`bucketL`/`bucketXl` in `CardPlateTuner`
+   mutate config but don't visibly move an already-rendered hand card — `Card` is `React.memo`'d (default
+   shallow-props comparator, deliberately, for combat perf) and the bucket class is computed from the card's
+   own props at render time, so a config-only change doesn't touch any prop `Card` compares. No existing dev
+   tuner had a force-re-render pattern for a JS-computed (non-CSS-var) value that applies here without adding
+   a prop `Card` must compare on every render — so went with the honest, zero-cost option: a visible note row
+   in the panel plus tooltip text on all three sliders explaining they apply next hand change (new card drawn,
+   its live text changing, etc.), rather than weakening `Card`'s memoization or adding a re-render nudge to a
+   hot render path.
+
+None functional; three were misleading artifacts that would've confused the next person to touch this code.
+Verified: typecheck (0 errors) + lint (0 errors) + 1334 tests (incl. `cardPlateConfig.test.ts`) + `build:web`,
+all green.
 
 ## 2026-07-21 (ward: second final pass)
 

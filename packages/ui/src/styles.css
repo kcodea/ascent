@@ -2767,8 +2767,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    The ornate stone/gold card body behind a card in hand (and on the dragged copy). STATIC size — never
    stretched (the art's greek-key tabs sit mid-edge and smear under vertical stretch), so long rules text
    shrinks instead via the `.plate-txt-*` buckets below.
-   Geometry is driven by --plate-* vars; the FALLBACKS here must mirror DEFAULTS in cardPlateConfig.ts,
-   because production doesn't import that module. */
+   Geometry is driven by --plate-* vars; the FALLBACKS here must mirror DEFAULTS in cardPlateConfig.ts. That
+   module DOES ship in production (Card.tsx imports plateTextBucket), so applyCardPlateVars() runs there and
+   sets :root from DEFAULTS — but these fallbacks are still what renders whenever a var is absent or a value
+   is dropped, and keeping them in sync is what makes this stylesheet readable on its own. When a value is
+   baked, update BOTH. */
 .card.plated {
   /* Contain the plate's z-index so it can't paint behind a NEIGHBOURING card. Safe here specifically because
      plated cards only ever live in the hand / on the drag layer — never in combat, so there is no per-swing
@@ -2804,15 +2807,6 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 .card.compact.plated.plate-txt-l  .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 0.84); }
 .card.compact.plated.plate-txt-xl .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 0.76); }
 
-/* Placeholder dissolve — PHASE 1 ONLY. The authored effect replaces this rule and the platePuff() call site;
-   nothing else depends on it. One-shot, transform/opacity only (compositor-only, no paint properties). */
-.card.plated .cardplate.dissolving {
-  animation: platepuff var(--plate-puff-ms, 320ms) ease-out forwards;
-}
-@keyframes platepuff {
-  from { opacity: 1; transform: translateX(-50%) scale(1); }
-  to   { opacity: 0; transform: translateX(-50%) scale(var(--plate-puff-scale, 1.06)); }
-}
 /* Detached dissolving plate — cloned out of the drag card at release so it survives `.dragcard` unmounting.
    It lives on <body>, so it can't use the `.card.plated` selector above, and it is positioned by inline
    left/top — hence NO translateX(-50%) in this keyframe (unlike `platepuff`, which centres on the card). */

@@ -19,10 +19,17 @@ import { useDraggablePanel } from './useDraggablePanel';
  * conservative by default because character count is a proxy for wrapped height — long-word text wraps taller
  * than short-word text at the same length.
  *
+ * Those three sliders are NOT live like the other six: `Card` is `React.memo`'d (deliberately, for combat
+ * perf — do not weaken it for this) and the bucket class is picked at render time from the card's own props,
+ * so dragging bucketM/L/Xl won't visibly move an already-rendered hand card. The new threshold takes effect
+ * the next time that card actually re-renders (a new card drawn, its live text changing, etc.) — drag a
+ * slider, then draw/discard to see the new threshold applied.
+ *
  * "Copy" grabs the JSON to paste back as the shipped defaults in `cardPlateConfig.ts` — and those MUST be
- * mirrored into the CSS `var(--plate-*, …)` fallbacks in styles.css, because production doesn't import this
- * module and renders from the fallback. Panel-only: opened from the Dev Tuning Menu; dev-only, so it's
- * stripped from production.
+ * mirrored into the CSS `var(--plate-*, …)` fallbacks in styles.css. `cardPlateConfig.ts` itself DOES ship in
+ * production (`Card.tsx` imports `plateTextBucket`), so `applyCardPlateVars()` sets `:root` from DEFAULTS there
+ * too — but the CSS fallbacks are still the real rendering path whenever a var is missing, so keeping them in
+ * sync matters. This tuner panel is dev-only and stripped from production.
  */
 const LABELS: Record<keyof CardPlateConfig, string> = {
   scale: 'plate · width',
@@ -65,6 +72,7 @@ export function CardPlateTuner() {
           </div>
         );
       })}
+      <div className="lunge-mod">text · shrink sliders apply on next hand change (Card is memoized) — draw/discard to see it</div>
       <div className="lunge-btns">
         <button className="sfxmix-copy" onClick={copy}>{copied ? 'Copied!' : 'Copy values'}</button>
         <button className="sfxmix-copy" onClick={reset}>Reset</button>

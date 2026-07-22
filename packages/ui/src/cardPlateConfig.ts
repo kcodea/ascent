@@ -8,10 +8,13 @@
  * text SHRINKS to fit instead, via `plateTextBucket()`.
  *
  * Held in one mutable, localStorage-persisted config so it can be dialed by eye via the DEV 🂠 Card Plate tuner
- * (`CardPlateTuner.tsx`). Values reflect to `--plate-*` CSS vars on :root. The SHIPPED defaults live BOTH here
- * and as the CSS fallbacks in styles.css (`var(--plate-scale, …)`), so production renders correctly without
- * importing this module — when a value is dialed in, "Copy values" grabs the JSON and the CSS fallbacks must be
- * updated to match. Keeping the two in sync is mandatory; three silent drifts have been caused by missing it.
+ * (`CardPlateTuner.tsx`). Values reflect to `--plate-*` CSS vars on :root. This module DOES ship in production —
+ * `Card.tsx` imports `plateTextBucket` unconditionally, so `applyCardPlateVars()` runs there too and sets
+ * `:root` from these DEFAULTS. The CSS fallbacks in styles.css (`var(--plate-scale, …)`) still must mirror
+ * DEFAULTS: they're what actually renders whenever a var is absent (e.g. this module fails to load, or a value
+ * gets dropped), and staying in sync is what keeps the stylesheet readable on its own. When a value is dialed
+ * in, "Copy values" grabs the JSON — update BOTH here and in the CSS fallbacks. Three silent drifts have been
+ * caused by missing it.
  */
 export interface CardPlateConfig {
   /** Plate WIDTH as a multiple of the compact card width (--ccw). >1 = the border sits outside the card. */
@@ -73,9 +76,13 @@ export const PLATE_DESC: Record<keyof CardPlateConfig, string> = {
   scale: 'Plate WIDTH as a multiple of the card width. >1 pushes the ornate border outside the card.',
   top: 'Plate vertical offset from the top of the card. Negative lifts it up.',
   radius: 'Corner radius of the plate box. Cosmetic — the art paints its own corners.',
-  bucketM: 'Character count at which rules text steps down to the MEDIUM font size.',
-  bucketL: 'Character count at which rules text steps down to the SMALL font size.',
-  bucketXl: 'Character count at which rules text steps down to the SMALLEST font size.',
+  bucketM: 'Character count at which rules text steps down to the MEDIUM font size. NOT live on cards already ' +
+    'on screen — Card is memoized, so a shown card only picks up the new threshold next time it re-renders ' +
+    '(new card drawn, its text changing, etc.).',
+  bucketL: 'Character count at which rules text steps down to the SMALL font size. NOT live on cards already ' +
+    'on screen — see bucketM.',
+  bucketXl: 'Character count at which rules text steps down to the SMALLEST font size. NOT live on cards ' +
+    'already on screen — see bucketM.',
   puffMs: 'Placeholder dissolve duration (ms).',
   puffScale: 'How much the plate grows as it fades. 1 = fades in place.',
   puffDust: 'Dust density multiplier for the dissolve puff.',
@@ -127,7 +134,6 @@ export function applyCardPlateVars(): void {
   root.setProperty('--plate-radius', `${cfg.radius}px`);
   root.setProperty('--plate-puff-ms', `${cfg.puffMs}ms`);
   root.setProperty('--plate-puff-scale', String(cfg.puffScale));
-  for (const b of PLATE_BUCKETS) root.setProperty(`--plate-txt-${b.id}`, String(b.em));
 }
 
 export function setCardPlateValue(key: keyof CardPlateConfig, value: number): void {

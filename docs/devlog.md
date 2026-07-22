@@ -383,6 +383,12 @@ With the plate in, the panel's contents got a pass:
   a multiplied, heavily feathered wash → nothing at all. The end state is **pure text sitting directly on the
   plate**: no background, no border, no radius, no mask. The plate art is the card's surface, so a second
   surface drawn on top of it was always going to fight it.
+- **Baked the owner's tuned frame overlay.** Only the colour-overlay dials moved — every geometry knob
+  (`--sh`, `--fill`, `--dy`, `--frameY`, `--tier`, art placement, ward) already matched what shipped.
+  Minion oval: opacity 0.95 → **0.76**, tint `#636363` → **`#655449`** (blend stays `overlay`). Spell frame:
+  opacity 0 → **0.94**, tint `#ffffff` → **`#66594d`**, blend `normal` → **`color`** — the spell overlay was
+  effectively off before and is now doing real work. Updated in BOTH `styles.css` and `FrameTuner.tsx`'s
+  defaults, so a tuner Reset lands on the shipped look.
 - **Baked the owner's tuned plate values** — scale 1.5, y -37, radius 10, buckets 89/90/150, puff 120ms /
   1.03 / dust 3.2 — into BOTH the TS `DEFAULTS` and the CSS `var(--plate-*, …)` fallbacks, per the
   double-source rule. Note the tuned `bucketM: 89` / `bucketL: 90` leave the MEDIUM text size a

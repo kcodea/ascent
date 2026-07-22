@@ -21,7 +21,7 @@ const STD_KNOBS: Knob[] = [
   { key: 'artZoom', label: 'art zoom', min: 0.8, max: 1.8, step: 0.01, def: 1.12 },
   { key: 'wardsize', label: 'ward size (DS)', min: 0.4, max: 1.2, step: 0.01, def: 1.2 },
   { key: 'wardy', label: 'ward Y % (DS)', min: 30, max: 80, step: 1, def: 46, pct: true },
-  { key: 'fovl-a', label: 'overlay opacity', min: 0, max: 1, step: 0.01, def: 0.95 },
+  { key: 'fovl-a', label: 'overlay opacity', min: 0, max: 1, step: 0.01, def: 0.76 },
 ];
 const SPELL_KNOBS: Knob[] = [
   { key: 'sh', label: 'frame size', min: 0.5, max: 1.0, step: 0.01, def: 0.78 },
@@ -34,7 +34,7 @@ const SPELL_KNOBS: Knob[] = [
   { key: 'artRound', label: 'corner round %', min: 0, max: 40, step: 1, def: 13, pct: true },
   { key: 'artAR', label: 'window height', min: 0.6, max: 1.4, step: 0.01, def: 1.06 },
   { key: 'artW', label: 'window width', min: 0.6, max: 1.2, step: 0.01, def: 0.97 },
-  { key: 'fovl-a', label: 'overlay opacity', min: 0, max: 1, step: 0.01, def: 0 },
+  { key: 'fovl-a', label: 'overlay opacity', min: 0, max: 1, step: 0.01, def: 0.94 },
 ];
 // Colour-overlay tint (`.cframe-tint`, masked to the frame PNG) — colour per section; opacity is the knob above.
 // Blend of the tint against the frame pixels: multiply darkens (keeps engraving shadows), overlay recolours
@@ -43,10 +43,10 @@ const BLENDS = ['normal', 'multiply', 'overlay', 'screen', 'color'] as const;
 type Blend = (typeof BLENDS)[number];
 // Per-section shipped defaults (owner bake 2026-07-19): the minion oval carries a dark-slate overlay tint
 // (steel look); the spell square is a no-op. Mirror styles.css — keep in sync when new values are baked.
-const DEF_TINT_STD = '#636363';
+const DEF_TINT_STD = '#655449';
 const DEF_BLEND_STD: Blend = 'overlay';
-const DEF_TINT_SPELL = '#ffffff';
-const DEF_BLEND_SPELL: Blend = 'normal';
+const DEF_TINT_SPELL = '#66594d';
+const DEF_BLEND_SPELL: Blend = 'color';
 
 type Vals = Record<string, number>;
 const defaults = (knobs: Knob[]): Vals => Object.fromEntries(knobs.map((k) => [k.key, k.def]));

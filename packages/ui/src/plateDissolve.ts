@@ -78,8 +78,8 @@ const DEFAULTS: PlateDissolveConfig = {
   total: 210, inMs: 15, holdMs: 15, plateOut: 0, fadeMs: 180,
   puff: 1.15, inten: 0.58, g1: 42, g2: 154,
   cDeep: '#75d6ff', cMid: '#b3e2ff', cCore: '#c7e9ff', grad: 1,
-  count: 320, onLines: 0.8, spd: 25, spdVar: 0.96, lift: -25,
-  size: 1.7, sizeVar: 0.7, life: 1.5, lifeVar: 0.94, stag: 0, trail: 0.37,
+  count: 320, onLines: 0.8, spd: 50, spdVar: 1, lift: -25,
+  size: 2.3, sizeVar: 0.7, life: 1.66, lifeVar: 0.94, stag: 0.14, trail: 0.37,
 };
 
 export const PD_RANGES: Record<string, [number, number, number]> = {

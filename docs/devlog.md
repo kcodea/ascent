@@ -42,6 +42,10 @@ New dev tuner **🌀 Plate Dissolve** with a "Play here" button, so it can be di
 into the board each time. The wireframe itself is deliberately NOT tunable there — that lives in the rig plus
 a re-bake, since it is an asset.
 
+Owner's final in-game pass (2026-07-22) after watching it against the real FLIP flight: the dust got
+faster and bigger with a touch of stagger — `spd` 25 → 50, `spdVar` → 1, `size` 1.7 → 2.3, `life` → 1.66,
+`stag` 0 → 0.14. The wireframe timing was already right and did not move.
+
 **Verified:** typecheck + lint + 1385 tests + `build:web` all green; mask confirmed in `dist` at 42 KB.
 ## 2026-07-22 (Scene Builder: quests, runes, and keyword search)
 

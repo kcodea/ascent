@@ -366,8 +366,12 @@ With the plate in, the panel's contents got a pass:
   board token. Safe for `isolation: isolate` — the overlay never renders during combat.
 
 - **Description panel restyled.** The bronze border is gone; the dark backing moved onto a `::before` layer
-  that **multiplies** into the plate behind it at **0.7 opacity**, so the panel now tints the card body rather
-  than sitting on it as a solid slab. The backing had to be its own layer because a blend mode applies to the
+  that **multiplies** into the plate behind it at **0.35 opacity**, with an **intense feather** on all four
+  edges — two linear-gradient masks intersected (the charge-glyph trick), `--panel-feather` 26% a side, so the
+  corners fall off on both axes instead of forming a hard cross. The panel has no edge any more; it dissolves
+  into the plate. The feather also retires the old drop-shadow and border-radius: a mask clips at the border
+  box so an outer shadow would be cut off regardless, and a rounded corner means nothing once the edge is a
+  gradient. The backing had to be its own layer because a blend mode applies to the
   whole element — text included — which would have crushed the rules copy.
 - **The frame now laps OVER the panel.** Its art overflows the archbox down to ~1.37×`--ccw` while the panel
   starts at 1.09, so they really do overlap; previously the panel cut the frame off.

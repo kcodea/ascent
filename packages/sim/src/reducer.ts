@@ -848,7 +848,11 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (playedDef?.target === 'friendly') {
         const hasTarget = playedDef.targetTribe
           ? s.board.some((c) => c.uid !== card.uid && isTribe(c, playedDef.targetTribe!))
-          : true;
+          // `targetNotSelf` (Graverobber): a board holding ONLY this minion has no legal pick, so don't
+          // prompt — the Battlecry simply doesn't fire and it plays as a plain body.
+          : playedDef.targetNotSelf
+            ? s.board.some((c) => c.uid !== card.uid)
+            : true;
         if (hasTarget) {
           s.pendingTarget = { uid: card.uid, cardId: card.cardId };
           return s;
@@ -915,6 +919,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       const card = s.board.find((c) => c.uid === pt.uid);
       const target = s.board.find((c) => c.uid === action.targetUid);
       if (!card || !target) return state; // a friendly target is required
+      // Self-targeting guard (Graverobber: destroying itself deleted the body that was paying for the spell).
+      // Authoritative — the aim UI mirrors it, but the reducer is what actually decides.
+      const ptDef = CARD_INDEX[pt.cardId];
+      if ((ptDef?.targetNotSelf || ptDef?.targetTribe) && target.uid === card.uid) return state;
       // A deferred targeted Choose One (Runic Beetle) resolves the CHOSEN option's effects on the target; a
       // normal targeted Battlecry (Toxin Tender) re-fires the card's own onPlay effects.
       const opt = pt.optionIndex !== undefined ? CARD_INDEX[pt.cardId]?.chooseOne?.[pt.optionIndex] : undefined;

@@ -2108,6 +2108,8 @@ export function Recruit() {
   const isPendingTarget = (uid: string): boolean => {
     if (!pendingTarget) return false;
     const def = CARD_INDEX[pendingTarget.cardId];
+    // `targetNotSelf` (Graverobber) excludes the source from an otherwise-unrestricted pick.
+    if (def?.targetNotSelf && uid === pendingTarget.uid) return false;
     if (!def?.targetTribe) return true;
     if (uid === pendingTarget.uid) return false;
     const c = run.board.find((b) => b.uid === uid);
@@ -2122,6 +2124,7 @@ export function Recruit() {
     // targets; an unrestricted one (no targetTribe) accepts any friendly minion.
     const def = CARD_INDEX[pendingTarget.cardId];
     const valid = (uid: string): boolean => {
+      if (def?.targetNotSelf && uid === pendingTarget.uid) return false; // Graverobber: never itself
       if (!def?.targetTribe) return true;
       if (uid === pendingTarget.uid) return false;
       const c = run.board.find((b) => b.uid === uid);

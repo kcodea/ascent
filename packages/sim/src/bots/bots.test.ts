@@ -40,9 +40,12 @@ describe('balance bots', () => {
 
   it('buys the tavern SPELL-SLOT offer (state.spell), not just state.shop', () => {
     const s = mk({
-      embers: 10,
-      board: [body('b1'), body('b2'), body('b3'), body('b4')],
-      spell: { uid: 'sp1', cardId: 'growth' }, // Growth: +3/+4 to your whole board — strong with 4 bodies out
+      // Gold is deliberately just enough for the 2-cost spell and NOT a tier-up, so the assertion isolates
+      // "the bot can see state.spell" from "the bot values this spell over upgrading" (Growth dropped to
+      // +1/+1 in the 2026-07-21 balance pass, so it no longer out-values a tier-up on its own).
+      embers: 2,
+      board: [body('b1'), body('b2'), body('b3'), body('b4'), body('b5'), body('b6'), body('b7')],
+      spell: { uid: 'sp1', cardId: 'growth' }, // Growth: +1/+1 across a FULL board — 14 stats for 2 Gold
     });
     const midrange = BOT_BY_ID['midrange']!;
     expect(midrange.act(s)).toEqual({ type: 'buy', uid: 'sp1' });

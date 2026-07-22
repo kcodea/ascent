@@ -300,6 +300,7 @@ export const CardDefSchema = z.object({
   targetTribe: TribeSchema.optional(),
   targetMaxTier: z.number().int().positive().optional(),
   targetNoGolden: z.boolean().optional(),
+  targetNotSelf: z.boolean().optional(),
   fodderMult: z.number().int().positive().optional(),
   critChance: z.number().min(0).max(1).optional(), // Critical Strike probability per swing (Commander Impala = 0.5)
   manaPerTurn: z.number().int().positive().optional(),

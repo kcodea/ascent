@@ -24,7 +24,7 @@ describe('recruitBuffFx capture (source → target)', () => {
         { uid: 'b', cardId: 'stray', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false },
       ],
     };
-    castSpell(s, CARD_INDEX['growth']!); // +3/+4 to the whole board
+    castSpell(s, CARD_INDEX['growth']!); // +1/+1 to the whole board
 
     const spellFx = s.recruitBuffFx.filter((e) => e.kind === 'spell');
     expect(spellFx.length).toBe(2); // one per buffed minion
@@ -32,8 +32,8 @@ describe('recruitBuffFx capture (source → target)', () => {
     expect(targets).toEqual(['a', 'b']);
     for (const e of spellFx) {
       expect(e.sourceUid).toBeUndefined();
-      expect(e.attack).toBe(3);
-      expect(e.health).toBe(4);
+      expect(e.attack).toBe(1);
+      expect(e.health).toBe(1);
     }
   });
 

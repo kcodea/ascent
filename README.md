@@ -38,6 +38,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Nine-card balance pass.** Kennelmaster's Start-of-Combat aura is now board-wide **+2 Attack** at Avenge
+  (3); Growth drops to **T2 / +1/+1**; Spirit Fire to **+2/+3**; Patch Job splits into a **+1/+1 base plus
+  +2/+2 per 6 Gold**; Hunter improves every 5; Badgington and Solaris Fang lose their Rally halves; Money
+  Maker always gives a Gold Pouch. **Graverobber can no longer destroy itself.**
 - **New Ward look** — Divine Shield is now a light-blue hexagonal **energy shell** encasing the whole card,
   gold frame included: a white-hot rim with inner/outer glow, a honeycomb that densens toward the edge, and a
   soft cyan halo. Dialled against a concept render on a preview rig, with a 25-dial live **Ward Shell** tuner.

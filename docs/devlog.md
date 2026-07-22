@@ -3,6 +3,61 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-21 (balance: nine-card owner pass)
+
+### balance: owner's nine-card pass + Graverobber self-target fix
+
+A hand-authored balance pass from the owner's notes. Seven number/shape changes, one narrowed grant, and one
+genuine bug.
+
+**Card changes (content data):**
+- **Kennelmaster** — the Start-of-Combat aura went from *Beasts +1/+1* to **board-wide +2 Attack**
+  (`tribe: 'any'`), Avenge tightened 4 → **3**, and the Avenge improvement is now **+1 Attack** rather than
+  +1/+1. Attack-only needed a new per-stat accrual on `scBeastAura` (`stepAttack`/`stepHealth`, defaulting to
+  1/1 so nothing else moves) — otherwise the Avenge growth would have leaked back into Health.
+- **Hunter** — improvement cadence widened, **every 3 → every 5** fires. Data-only (the `every` param already
+  existed).
+- **Growth** — **T4 → T2**, and **+3/+4 → +1/+1**. This is the widest-blast-radius change in the pass: Growth
+  is the board-wide stat spell, so Hoardbreaker Drake (which casts it on Rally + Slaughter), Nimbus, Yazzus,
+  Rune of Recurrence, Taragosa's Heir and the Skybound Pact quest all shifted with it.
+- **Spirit Fire** — **+4/+4 → +2/+3** (a nerf; an earlier read of this card as +0/+1 was wrong and was
+  corrected with the owner before building).
+- **Patch Job** — **+3/+3 per 7 Gold → +1/+1 base plus +2/+2 per 6 Gold**. Base and step are now separate
+  numbers, so `spellBuffTargetPerGold` gained `baseAttack`/`baseHealth` (defaulting to the step = the old
+  symmetric shape) and the live display text was reworked to green BOTH printed magnitudes.
+- **Badgington** — the Rally half was cut; **Slaughter-only** now.
+- **Solaris Fang** — the Rally Beast-aura half was cut; a pure **Avenge (5)** payoff now.
+- **Money Maker** — narrowed from a random *Gold Pouch or Safety Deposit Box* to always a **Gold Pouch**.
+
+**Bug fix — Graverobber could eat itself.** Its Battlecry destroys a targeted friendly, so self-targeting
+deleted the body that was paying for the spell. The `target: 'friendly'` pick only excluded self when a
+`targetTribe` was set; an unrestricted pick accepted any uid including the source. Added a `targetNotSelf`
+flag on `CardDef` (alongside the existing `targetMaxTier` / `targetNoGolden`), enforced authoritatively in the
+reducer's `battlecryTarget` and mirrored in both aim-UI eligibility checks. The play-time viability check also
+honours it, so a Graverobber played onto an otherwise-empty board plays as a plain body instead of opening a
+prompt with no legal pick.
+
+**Live card text.** Kennelmaster's printed shape changed from `+N/+N` to `+N Attack`, which `summonBuffText`
+could not substitute into — it would have shown a stale base value once Avenge improved it, breaking the
+hard "cards always print their current value" rule. The helper now injects into whichever shape the card
+uses and applies the accrual per stat. (It deliberately still reads `def.text`, not `goldenText` — the Card's
+golden `doubleNums` pass doubles the numbers left alone and skips the `{{…}}` inject, so sourcing goldenText
+would double-count.)
+
+**Verification.** typecheck + lint (0 errors) + **1329 tests** + `build:web` all green. 35 tests failed on
+first run and every one was triaged rather than blanket-updated: 34 encoded the old numbers (updated with
+their comments), and one was a real defect — the new `targetNotSelf` key failed content schema validation
+until it was whitelisted. Two tests needed reshaping rather than renumbering: the Solaris *Rally* combat test
+was deleted (the behaviour is gone) and the choreo self-buff test re-vehicled onto Trophy Stalker, which still
+has an on-attack self-buff. The bot spell-slot test was asserting "the bot values Growth over a tier-up",
+which a +1/+1 Growth no longer does; it was re-scoped to a full board + exact spell Gold so it tests the
+plumbing it was written for. Three new tests were added: the Graverobber self-target rejection, the
+no-legal-target case, and Kennelmaster's board-wide/Attack-only scope.
+
+**Follow-up.** `rallyGrantRandomSpell` and `rallyTribeAura` now have no card using them (Badgington and
+Solaris were their only consumers). Left in place deliberately — they're valid primitives for set 2 — but
+worth removing in their own PR if nothing picks them up.
+
 ## 2026-07-21 (ward: second final pass)
 
 ### tweak(ui): the owner's second tuned pass on the Ward shell

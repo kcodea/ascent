@@ -18,8 +18,8 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 2,
     target: 'friendly',
-    effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 4, health: 4 } }],
-    text: 'Give a friendly minion **+4/+4**.',
+    effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 2, health: 3 } }],
+    text: 'Give a friendly minion **+2/+3**.',
   },
   {
     id: 'emberpouch',
@@ -53,14 +53,14 @@ export const SPELLS: CardDef[] = [
     id: 'growth',
     name: 'Growth',
     tribe: 'neutral',
-    tier: 4,
+    tier: 2,
     attack: 0,
     health: 1,
     keywords: [],
     spell: true,
     cost: 2,
-    effects: [{ on: 'cast', do: 'spellBuffAll', params: { attack: 3, health: 4 } }],
-    text: 'Give your minions **+3/+4**.',
+    effects: [{ on: 'cast', do: 'spellBuffAll', params: { attack: 1, health: 1 } }],
+    text: 'Give your minions **+1/+1**.',
   },
   {
     // Targeted sacrifice: the picked minion is devoured (removed) and a RANDOM other friend inherits its
@@ -594,9 +594,10 @@ export const SPELLS: CardDef[] = [
     text: 'Your **Rally** effects trigger **twice** next combat.',
   },
   {
-    // Gold-sink payoff: buffs the target +3/+3 for every 7 Gold spent this recruit turn (buys, rerolls,
-    // tier-ups). Scales with spell power per step, like any stat spell. Fetched by Field Mechanic. Reworked
-    // from "per attachment" (2026-07-07) since welded magnetics leave no clean attachment count.
+    // Gold-sink payoff: a small +1/+1 base plus +2/+2 for every 6 Gold spent this recruit turn (buys, rerolls,
+    // tier-ups). Scales with spell power per chunk, like any stat spell. Fetched by Field Mechanic. Reworked
+    // from "per attachment" (2026-07-07) since welded magnetics leave no clean attachment count; base and step
+    // split apart in the 2026-07-21 balance pass so an unspent turn pays much less.
     id: 'patchjob',
     name: 'Patch Job',
     tribe: 'neutral',
@@ -607,8 +608,8 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 2,
     target: 'friendly',
-    effects: [{ on: 'cast', do: 'spellBuffTargetPerGold', params: { gold: 7, attack: 3, health: 3 } }],
-    text: 'Give a minion **+3/+3**, plus **+3/+3** for every **7 Gold** spent this turn.',
+    effects: [{ on: 'cast', do: 'spellBuffTargetPerGold', params: { gold: 6, attack: 2, health: 2, baseAttack: 1, baseHealth: 1 } }],
+    text: 'Give a minion **+1/+1**, plus **+2/+2** for every **6 Gold** spent this turn.',
   },
   {
     // Spark Capacitor's Avenge payoff (also a T6 Tavern spell): buff your entire board +5/+5, twice — two

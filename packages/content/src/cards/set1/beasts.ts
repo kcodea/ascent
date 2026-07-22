@@ -43,14 +43,15 @@ export const BEASTS: CardDef[] = [
     health: 4,
     keywords: ['SC'],
     effects: [
-      { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'beast', attack: 1, health: 1 } },
-      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 4 } },
+      { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'any', attack: 2, health: 0, stepAttack: 1, stepHealth: 0 } },
+      { on: 'avenge', do: 'avengeImproveSummon', params: { count: 3 } },
     ],
-    // Start of Combat: a Beast aura +N/+N that lasts the fight — current Beasts + any summoned later inherit
-    // it (the "wherever they are" aura). N = 1 + its Avenge-grown summonBonus (carried across combats). The
-    // live value + Avenge countdown surface via cardText's kennelmaster helper on every surface.
-    text: '**Start of Combat:** give your Beasts **+1/+1** wherever they are. **Avenge (4):** Improve this.',
-    goldenText: '**Start of Combat:** give your Beasts **+2/+2** wherever they are. **Avenge (4):** Improve this.',
+    // Start of Combat: a board-wide (`tribe: 'any'`) Attack aura that lasts the fight — current minions + any
+    // summoned later inherit it (the "wherever they are" aura). N = 2 + its Avenge-grown summonBonus (carried
+    // across combats), Attack only: `stepHealth: 0` keeps the accrual off Health. The live value + Avenge
+    // countdown surface via cardText's summonBuffText helper on every surface.
+    text: '**Start of Combat:** give your minions **+2 Attack** wherever they are. **Avenge (3):** Improve this by **+1 Attack**.',
+    goldenText: '**Start of Combat:** give your minions **+4 Attack** wherever they are. **Avenge (3):** Improve this by **+2 Attack**.',
   },
   {
     id: 'gnash',
@@ -66,21 +67,21 @@ export const BEASTS: CardDef[] = [
     text: '**Slaughter:** your spells permanently gain **+1/+1**.',
   },
   {
-    // A tempo Beast that mills spells: throws one to hand whenever it swings (Rally) or scores a kill
-    // (Slaughter). The random spell obeys the current shop tier (via ctx.grantRandomSpell at settle).
+    // A tempo Beast that mills spells: throws one to hand whenever it scores a kill (Slaughter). The random
+    // spell obeys the current shop tier (via ctx.grantRandomSpell at settle). The Rally half was cut in the
+    // 2026-07-21 balance pass — killing is now the only way to mill.
     id: 'badgington',
     name: 'Badgington',
     tribe: 'beast',
     tier: 4,
     attack: 5,
     health: 5,
-    keywords: ['RL', 'SL'],
+    keywords: ['SL'],
     effects: [
-      { on: 'onAttack', do: 'rallyGrantRandomSpell', params: { count: 1 } },
       { on: 'onKill', do: 'onKillGrantRandomSpell', params: { count: 1 } },
     ],
-    text: '**Rally:** get a random spell. **Slaughter:** get a random spell.',
-    goldenText: '**Rally:** get **2** random spells. **Slaughter:** get **2** random spells.',
+    text: '**Slaughter:** get a random spell.',
+    goldenText: '**Slaughter:** get **2** random spells.',
   },
   {
     // Quest reward (Forager's Trail): a sticky value bank — its sell price climbs +1 Gold per Beast you play.
@@ -302,9 +303,9 @@ export const BEASTS: CardDef[] = [
     text: '**Choose One:** give a friendly Beast **Rise**, or **Flurry**.',
   },
   {
-    // Dual-type Beast/Mech finisher. Rally builds a rest-of-combat Beast Attack aura that catches summons
-    // ("wherever they are"); Avenge shields it and sends it in for a bonus swing. Snowballs its own Attack
-    // each time it attacks (it's a Beast). Golden doubles the Rally grant + the immediate strikes.
+    // Dual-type Beast/Mech finisher. Avenge shields it and sends it in for a bonus swing. The Rally Beast
+    // aura was cut in the 2026-07-21 balance pass — it's now a pure Avenge payoff. Golden strikes twice, each
+    // strike preceded by a fresh Ward.
     id: 'solaris',
     name: 'Solaris Fang',
     tribe: 'beast',
@@ -312,13 +313,10 @@ export const BEASTS: CardDef[] = [
     tier: 5,
     attack: 5,
     health: 5,
-    keywords: ['RL'],
-    effects: [
-      { on: 'onAttack', do: 'rallyTribeAura', params: { tribe: 'beast', attack: 5, health: 0 } },
-      { on: 'avenge', do: 'avengeShieldAttack', params: { count: 5 } },
-    ],
-    text: '**Rally:** give your Beasts **+5 Attack** wherever they are. **Avenge (5):** gain **Ward** and attack immediately.',
-    goldenText: '**Rally:** give your Beasts **+10 Attack** wherever they are. **Avenge (5):** gain **Ward** and attack immediately.',
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeShieldAttack', params: { count: 5 } }],
+    text: '**Avenge (5):** gain **Ward** and attack immediately.',
+    goldenText: '**Avenge (5):** gain **Ward** and attack **twice** immediately.',
   },
   {
     // Start of Combat: mirror itself — summon a copy of its current body (stats + granted keywords). Golden

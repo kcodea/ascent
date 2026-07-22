@@ -313,6 +313,7 @@ export const UNDEAD: CardDef[] = [
     health: 4,
     keywords: [],
     target: 'friendly',
+    targetNotSelf: true, // it can't eat itself — that deleted the body paying for the spell
     effects: [{ on: 'onPlay', do: 'battlecryDestroyForSpell' }],
     text: '**Battlecry:** Destroy a friendly minion (procs its **Deathrattle**), then add a random spell of its tier to your hand.',
     goldenText: '**Battlecry:** Destroy a friendly minion (procs its **Deathrattle**), then add **2** random spells of its tier to your hand.',

@@ -16,7 +16,7 @@ import { groupSelfBuffs } from './channels/buffSelf';
  * instead by `engine.ts`'s `runAttackExchangeCues` from a `useLayoutEffect` — this file still owns the score
  * DATA for both.
  */
-export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx';
+export type Channel = 'sfx' | 'float' | 'lunge' | 'impact' | 'auraBurst' | 'auraBreak' | 'auraReform' | 'buffCast' | 'buffSelf' | 'improveSelf' | 'coins' | 'damageFx' | 'summonFx' | 'ascendFx' | 'executeFx';
 /** When a cue fires within its moment. `start`/`contact` are used today; `landed`/`end` are reserved for
  *  phase 3c (aura bursts) and phase 4 (authoring). */
 export type Anchor = 'start' | 'contact' | 'landed' | 'end';
@@ -36,6 +36,12 @@ const BASE: Cue[] = [
   { ch: 'float', at: 'start' },
   { ch: 'auraBurst', at: 'start', offset: 0 },
   { ch: 'auraBreak', at: 'start', offset: 300, scaled: true },
+  // `executeFx` is on EVERY kind for the same reason the aura channels are: `poison` is a RESULT_TYPE, so it
+  // collapses into whatever moment it lands in (an Execute kill on an attack is an `attackExchange` moment,
+  // NOT a `poisonTick` one). Scoring it on `poisonTick` alone meant it never fired for the common case —
+  // owner report 2026-07-22. The runner SKIPS it on `attackExchange`, where the impact channel fires the
+  // strike at the lunge's real contact point instead (and replaces the standard hit FX doing it).
+  { ch: 'executeFx', at: 'start', offset: 0 },
 ];
 const withReform = (): Cue[] => [...BASE, { ch: 'auraReform', at: 'start', offset: 460, scaled: false }];
 /** Every kind runs sfx + float + auraBurst + auraBreak at start (all adapters no-op for moments with nothing
@@ -146,6 +152,9 @@ export interface CueContext {
   onShieldBreak: (uid: string) => void;
   /** A unit was reborn this moment (uid) → schedule the re-form glow. */
   onReborn: (uid: string) => void;
+  /** This moment's `poison` targets — minions destroyed by an Execute proc. The replay fires the Execution
+   *  Strike crescent at each victim's slot. */
+  onExecuteFx: (uids: string[]) => void;
   /** This moment's buff-OTHER casts (source !== target), grouped per (source,target). The replay fires a
    *  tendril per cast (Task 4 adds the held-value release / badge flash at the strike). */
   onBuffCasts: (casts: import('./channels/buffCast').BuffCast[]) => void;
@@ -207,6 +216,16 @@ export function runMomentCues(moment: Moment, ctx: CueContext): () => void {
     });
     else if (cue.ch === 'auraBreak') at(cue, () => {  // DS consumed: delayed gold shatter
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'shield') ctx.onShieldBreak(e.target); }
+    });
+    // Execute proc: the crescent strike at each victim. SKIPPED on `attackExchange` — there the impact channel
+    // fires it at the lunge's real contact point (and replaces the standard hit FX), so running it here too
+    // would double-slash, once at the victim's slot and once at contact. This path covers the non-melee procs
+    // (a Start-of-Combat nuke or split damage from an Execute minion), which have no lunge to anchor to.
+    else if (cue.ch === 'executeFx') at(cue, () => {
+      if (moment.kind === 'attackExchange') return;
+      const uids: string[] = [];
+      for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'poison') uids.push(e.target); }
+      if (uids.length) ctx.onExecuteFx(uids);
     });
     else if (cue.ch === 'auraReform') at(cue, () => {  // reborn: re-form glow
       for (let i = moment.start; i < moment.end; i++) { const e = ctx.events[i]; if (e?.type === 'reborn') ctx.onReborn(e.target); }

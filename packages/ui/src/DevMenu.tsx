@@ -19,6 +19,8 @@ import { DragTuner } from './DragTuner';
 import { FlipTuner } from './FlipTuner';
 import { ShieldTuner } from './ShieldTuner';
 import { WardTuner } from './WardTuner';
+import { ExecuteTuner } from './ExecuteTuner';
+import { ExecuteFxTuner } from './ExecuteFxTuner';
 import { TrailTuner } from './TrailTuner';
 import { SmokeTuner } from './SmokeTuner';
 import { FloatTuner } from './FloatTuner';
@@ -57,6 +59,7 @@ const TUNERS = [
   { key: 'strikefx', label: '💥 Lunge Strike Effects', C: StrikeFxTuner },
   { key: 'critfx', label: '⚡ Critical Strike FX', C: CritFxTuner },
   { key: 'flurryswing', label: '🌬️ Flurry Swing FX', C: FlurrySwingTuner },
+  { key: 'executefx', label: '🩸 Execute Strike', C: ExecuteFxTuner },
   { key: 'swapfx', label: '🔀 Swap FX (Displacement)', C: SwapFxTuner },
   { key: 'gustfx', label: '💨 Buff Gust FX', C: GustFxTuner },
   { key: 'spellpowerfx', label: '✨ Spell Power FX', C: SpellPowerFxTuner },
@@ -72,6 +75,7 @@ const TUNERS = [
   { key: 'flip', label: '🔀 Reposition', C: FlipTuner },
   { key: 'shield', label: '🛡 Shield Place', C: ShieldTuner },
   { key: 'ward', label: '🔵 Ward Dome', C: WardTuner },
+  { key: 'execute', label: '🩸 Execute Aura', C: ExecuteTuner },
   { key: 'trail', label: '💨 Trail', C: TrailTuner },
   { key: 'smoke', label: '🌫️ Smoke & Dust', C: SmokeTuner },
   { key: 'float', label: '🔢 Damage Float', C: FloatTuner },

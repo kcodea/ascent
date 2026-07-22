@@ -20,13 +20,19 @@ export const hitPower = (swing: number): number => Math.max(0.9, Math.min(2, 0.8
  * amplified crimson-gold crit flourish (`pixiFx.critImpact` — bold ring, "CRIT!" pop, red card flash), plus a
  * heftier knockback. No-op FX/recoil when there's no defender (still fires the hit/crit sound).
  */
-export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, contact?: { x: number; y: number }, spinDeg = 0, crit = false, flurryHit = false, flurrySlash = false): void {
+export function playContactImpact(defender: Element | null, dx: number, dy: number, power: number, speed: number, contact?: { x: number; y: number }, spinDeg = 0, crit = false, flurryHit = false, flurrySlash = false, executeSlash = false): void {
   if (crit) sfx.critHit(); else sfx.hit();
   if (flurryHit) sfx.flurryHit(); // the Flurry hit layers OVER the smack on EVERY swing (owner note 2026-07-17)
   if (!defender) return;
   const r = defender.getBoundingClientRect();
   const fx = contact ?? { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-  if (flurrySlash) {
+  if (executeSlash) {
+    // EXECUTE REPLACES the standard strike VFX with the execution crescent (owner 2026-07-22: the standard
+    // burst was playing INSTEAD of it). Checked FIRST so it outranks both Flurry and crit — an Execute proc is
+    // a kill, the biggest beat available, and a Flurry/crit Execute should still read as the execution.
+    // The smack/crit SOUND and the crit board-shake still fire (see the engine's onCritImpact).
+    pixiFx.executeStrike(fx.x, fx.y, dx, dy);
+  } else if (flurrySlash) {
     // Flurry REPLACES the standard strike VFX with the wind-slash gust so a Flurry attacker's hits read as
     // wind — and it WINS even on a CRIT (a Flurry crit shows the wind-slash, not the crimson flourish; owner
     // note 2026-07-17). Non-Flurry crits fall through to the standard crit effect below. The smack/crit SOUND

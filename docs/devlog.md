@@ -5,6 +5,201 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-21 (balance: nine-card owner pass)
 
+### tweak(ui): drop Execute's ☠ float
+
+Owner: "remove the red skull effect entirely, we don't need it."
+
+The `poison` event spawned a big red ☠ blooming in the card centre (a `.sym` float). With the Execution Strike
+shipped that's a THIRD signifier on the same beat — the crescent, the victim's red flash, and a skull — so the
+proc read as cluttered rather than decisive.
+
+Removed at the source (`floatFor` no longer emits for `poison`), which kills both the float and its `.sym`
+bloom in one place. The dead code it left behind went too: `poison` out of `SYM_KINDS`, and the `.float.poison`
+/ `.float.poison.sym` rules out of styles.css. The `--poison` variable STAYS — the combat-log rule still uses
+it — as does the whole float pipeline for the other keywords.
+
+**Rally's ☠ is untouched.** It's a separate purple skull on its own event; a careless removal keyed on the
+glyph rather than the event would have taken it with it, so there's a test pinning it.
+
+Verified: typecheck · lint · 1378 tests · build:web (2 new: no float for a poison proc, rally's skull intact).
+
+### tweak(ui): the Execution Strike travels, launched along the attacker's blow
+
+Owner ask: give the crescent speed, and have it launch out of the attacker's direction.
+
+The strike was stationary and orientated to an ABSOLUTE screen angle (`arcTilt`), so it read as a decal
+stamped on the victim rather than a blow arriving from somewhere. Now the whole flourish is built off the
+blow vector:
+
+- **`arcSpeed`** (px/s) + **`arcDrag`** — the cut flies out along the attack line and slows.
+- **`arcBack`** — spawns the crescent that many px BACK toward the attacker, so it's visibly arriving rather
+  than appearing on top of the victim.
+- **Orientation** is now `dir + 90°`: the baked crescent is centred on "up", so that turns its chord
+  PERPENDICULAR to travel and the blade cuts square across the line of attack instead of trailing edge-on —
+  the same construction as the Flurry blade. **`arcTilt` changed meaning**: it's now an offset relative to the
+  blow, not an absolute screen angle, so its old `-28` became `0`.
+- **Embers and blood** now spray in a cone about the blow direction too; they were also using the absolute
+  tilt, which pointed the debris the same way no matter which side the attacker came from.
+
+`executeStrike` takes `dx, dy`, fed from the impact channel's attack vector. The non-melee path (a
+Start-of-Combat nuke or split damage) has no attacker by definition, so it keeps a default rightward cut —
+documented at the call site.
+
+Verified: typecheck · lint · 1376 tests · build:web. The new test asserts the impact channel passes the attack
+vector through — without it the strike silently fell back to the default direction, which is exactly the bug
+this change exists to fix and would have looked "fine" on a left-to-right attack.
+
+### tweak(ui): bake the owner's Execute aura values; drop the keyword badge
+
+**Aura defaults re-baked** from the owner's in-game pass (the first set were dialled on the standalone rig;
+these are tuned against a real card with the live tuner). The look landed much leaner: **smoke and glints are
+off entirely**, leaving three fast counter-rotating comet rings (`arcSpin` 4.9 → 12.9) and a sparse set of
+long-tailed shards (26 → 12, tail 56 → 90, alpha 0.85 → 0.4). `sy: -1.02` flips the box; `pulse` 4.7 → 0.8 is a
+quick flicker rather than a slow breath. The inert dials for the disabled layers are kept tunable.
+
+**This also resolves the perf flag** raised when the aura shipped: **~101 nodes / ~98 animations per Execute
+card → 42 / 40**, a ~58% cut, because the 12 smoke blobs are gone and the shards more than halved. Still all
+static paint. The concern was never the technique, it was the layer count — and the owner's own tuning took it
+most of the way down.
+
+**The keyword badge is gone** (owner): the big red medallion top-right. With the rage aura shipped it was a
+second, louder signifier for the same keyword. That makes Execute the last keyword to lose its badge — every
+keyword now signifies through a card-level treatment (Ward's shell, Reborn's aura, Taunt's border, Execute's
+swirl) rather than a corner pip. `.kwward` had no remaining consumer, so the CSS went with it; the `execute`
+glyph stays, still used by the Compendium's keyword list and the card's mechanic gem.
+
+A test was also loosened: `buildExecuteLayers` "one element per configured count" asserted a hardcoded 2 smoke
+rings, so switching smoke off failed it. It now asserts against the config, with a separate explicit test for
+the two-ring counter-spin split (which the shipped values no longer exercise).
+
+Verified: typecheck · lint · 1375 tests · build:web.
+
+### fix(ui): the Execution Strike never fired on an attack — and now replaces the standard strike
+
+Owner report: "i don't see the execute strike effect happening, i only see the original strike effect."
+
+**The bug.** `poison` is a **RESULT_TYPE** (`combatBeats.ts`), so it collapses into whatever moment it lands
+in. An Execute kill on an attack compiles to one moment — `attack → dmg → poison → death` — whose PRIMARY event
+is `attack`, so `momentKind` returns `attackExchange`, never `poisonTick`. Scoring the `executeFx` cue on
+`poisonTick` alone meant it fired for essentially nothing: that kind only occurs when a `poison` event *starts*
+a moment, which an attack kill never does. This is the exact trap the comment above `BASE` documents for the
+aura channels ("`death`/`shield` are RESULT_TYPES that collapse into another kind's moment") — I wired the new
+channel without heeding it.
+
+**The fix, which also answers the second half of the ask** (make it *replace* the standard strike): route the
+melee case through the impact channel, exactly like the Flurry slash. `playContactImpact` takes an
+`executeSlash` flag and fires `pixiFx.executeStrike` at the lunge's real contact point INSTEAD of the standard
+burst/dust/pulse. It's checked FIRST, so it outranks both Flurry and crit — an Execute proc is a kill, the
+biggest beat available. The smack/crit sound and the crit board-shake still fire.
+
+The flag is gated on a `poison` EVENT in the exchange, not on the attacker carrying `V` — the keyword is spent
+after one kill, so a keyword check would keep slashing on later swings that execute nothing.
+
+`executeFx` also moved into `BASE` (every kind) so non-melee procs — a Start-of-Combat nuke or split damage
+from an Execute minion, which have no lunge to anchor to — still get their strike. The runner SKIPS it on
+`attackExchange` so the two paths can't double-slash, once at the victim's slot and once at contact.
+
+Verified: typecheck · lint · 1374 tests · build:web. Five new, including a regression test that compiles the
+real `attack → dmg → poison → death` shape and asserts the melee path stands down while the non-melee path
+fires — it fails against the old scoring.
+
+### tweak(ui): purge the last of the poison green from Execute
+
+Owner report: "we need to remove the old green poison effect". The card-level lime went with the aura PR, but
+several *proc-time* greens survived — and the worst of them fired at exactly the point the new crescent lands:
+
+- **`.unit.poisoned`** — the victim's reaction: a `hue-rotate(85deg)` green flash plus a green mist wash surging
+  UPWARD over the card. The Pixi strike was literally cutting through a green cloud. Now a red-hot blanch (no
+  hue-rotate — it was tinting the card art itself) and a dark blood wash that drains DOWN; upward read as gas,
+  which is the poison idea we're retiring. Kept restrained: the crescent is the star.
+- **`--poison`** (`#22be86` → `#e8283f`). Every live consumer is Execute — the ☠ float, the combat-log rule,
+  the enemy-preview pip — so retheming the variable fixed all three at once. Verified there was no non-Execute
+  consumer before changing it; the var NAME still tracks the engine's `poison` event.
+- **`.float.poison.sym`** — the big centre ☠ bloom, hardcoded green past the variable.
+
+Also finally gave Execute **its own icon**. It had been riding the `poison` droplet — the last poison
+signifier, and a shape no amount of recolouring fixes. The new `execute` glyph is a tapered crescent cut
+echoing the strike's blade. Deliberately not a sword: `sword`/`slaughter` are taken by Rally/Slaughter, and a
+duplicate silhouette costs the at-a-glance read that keyword medallions exist for. `poison` stays in the icon
+set — **Bleed** still uses it, and that one really is poison-flavoured.
+
+Verified: typecheck · lint · 1369 tests · build:web. The glyph was additionally rendered offscreen and measured
+for inked coverage (16.4%, well-centred in the viewBox) — a malformed SVG path draws nothing and no test would
+have caught it.
+
+### feat(ui): the EXECUTION STRIKE — Execute's Pixi proc FX
+
+The moment half of the Execute retheme, completing it alongside the rename (#625) and the rage aura (#627).
+Fires at the VICTIM's slot when an Execute minion procs and destroys what it damaged.
+
+Four beats, all fire-and-forget pooled particles (nothing touches the beat clock): a hot **core flash** under
+the cut, the **crescent(s)** expanding and sweeping as they fade, **embers** flung along the cut, and **blood**
+droplets on heavy gravity so they arc and fall rather than drifting like more sparks (normal blend, not add —
+additive blood washes out to pink).
+
+**The crescent is a baked texture drawn as many short arc segments.** That's what lets one sprite carry both a
+TAPER (fine hairline → swell → drawn-out point) and a GRADIENT along its path (crimson → orange → white-hot
+tip); a single stroke can have one or the other, not both. The bake is cached and only re-made when a
+shape/colour dial changes (`executeCrescentKey`), so a proc costs sprite spawns alone.
+
+**Wiring:** a new `executeFx` choreo channel on the `poisonTick` moment. That kind also covers `venomLost` (the
+keyword being spent, which is not a kill), so the handler scans for `poison` events specifically — tested both
+ways. The cue is deliberately NOT on `death`/`damage`: only an Execute kill slashes.
+
+**The geometry is extracted from the Pixi bake into a pure function** (`executeCrescentSegments`) so the fiddly
+taper/gradient maths is testable without a renderer — a baked texture is invisible until it renders, so a bad
+arc would otherwise silently ship as a smear. That paid for itself immediately: the tests caught the draw
+radius being sized off `arcThick` alone while the widest stroke is actually the 2.6×-wider BLOOM pass, which
+put the glow ~5px outside the texture and clipped it to a hard straight edge. Now checked across the whole
+thickness range.
+
+Dialled via the 🩸 Execute Strike tuner, which has a **Test** button (`pixiFx.testExecute()`) firing at screen
+centre — so the look can be iterated without hunting for a real proc mid-combat. The shipped values are a
+considered first pass aimed at the owner's reference, NOT owner-dialled yet.
+
+Verified: typecheck · lint · 1369 tests (19 new) · build:web.
+
+### feat(ui): the EXECUTE rage aura + its live tuner
+
+The FX half of the Toxin → Execute retheme. Replaces the old lime "Venomous" treatment with a swirling ring of
+rage around the card, owner-dialled on `fx/execute-preview.html` and baked here.
+
+**Four layers**, all pure CSS: *smoke* (blurred red blobs on two counter-spinning rings, each breathing on its
+own clock so the mass roils instead of turning as one rigid wheel), *comet arcs* (the Flurry blade construction
+— a static conic-gradient of N comets masked to a band), *glints* (4-point sparkles, off by default in the
+shipped values) and *shards* (diamonds drifting outward, each trailing a motion streak).
+
+Two constructions worth knowing, both carried over from the rig:
+- **The arc squash lives on a non-spinning wrapper**, not the rings. On the spinning element it would shear each
+  comet through every revolution; on the wrapper each ring stays a true rotating circle and the result is
+  squashed after, so the comets sweep a clean ellipse. Locked by a test.
+- **A shard is two elements.** The outer does only placement + drift, which leaves its local +Y pointing along
+  the direction of travel so the tail just hangs off −Y; the 45° diamond spin sits on an inner body. With the
+  spin on the parent the tail would pinwheel instead of trailing.
+
+**Layering:** z4 — over the art *and* the frame, under the badge chrome. The same slot as `.wardglass` (owner
+ruling: "exactly like the ward effect"), deliberately not Flurry's z2. In the rig the aura had been at z1,
+behind the card, which is why most layers looked missing.
+
+**Live tuner** (`🩸 Execute Aura` in the Dev menu). Unlike Ward's, this one can't ride on CSS vars alone: the
+layer *counts* are dials, so the DOM itself is generated. `setExecuteValue` commits a fresh snapshot and every
+mounted card rebuilds through `useSyncExternalStore`. The consequence is a **contract difference worth
+remembering** — Ward mirrors every shipped value as a CSS fallback, Execute does not: `executeConfig.ts` is the
+single source of truth for the look, so there's no second copy in `styles.css` to drift.
+
+Retired with it: the lime rim glow, the `.venomdrip` globs (CSS + the `VENOM_DRIPS` table), and the lime frame
+drop-shadow on the standard frame — stacked under a red aura it read as two competing keyword glows. The
+keyword medallion and the "Execute spent" proc flash were recoloured lime → red for coherence.
+
+**Perf note, flagged not resolved:** the shipped values build ~101 DOM nodes and ~98 animations per Execute
+card (26 shards × 3 nodes dominates), and the 6 arcs use `mix-blend-mode: screen`. All the gradients, masks and
+blurs are static paint computed once — nothing repaints per frame, per the perf rule — but the layer *count* is
+high and hasn't been render-profiled on a full board yet. Worth a DevTools pass with the owner before it's
+considered settled; the cheapest lever is shard count or dropping the tails.
+
+Verified: typecheck · lint · 1350 tests (12 new, covering group/range coverage, per-count element builds, the
+optional tail, the wrapper-not-ring squash, static-paint precompute, and determinism) · build:web.
+
 ### tweak(ui): rename the Toxin keyword to EXECUTE
 
 Owner direction: retheme the `V` keyword from poison-green to a red/rage "Execute" identity (the FX follow — a

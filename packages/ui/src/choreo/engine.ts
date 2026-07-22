@@ -29,6 +29,10 @@ export interface AttackCueCtx {
   /** True when the attacker has Flurry (W) — the engine fires the wind-slash sparkle at contact on the EXTRA
    *  swing (swing ≥ 1), so the bonus hit reads as a gust. The swing gate lives here (the event knows it). */
   flurry?: boolean;
+  /** True when an EXECUTE proc (`poison` event) landed inside this exchange — the strike replaces the standard
+   *  hit FX at contact. Set from the event, not the attacker's keyword: `V` is spent after one kill, so a
+   *  keyword check would keep slashing on later swings that execute nothing. */
+  execute?: boolean;
 }
 
 /** ms the lunge holds at the top of the wind-up when a Rally fires, so its bright yellow pulse has time to
@@ -137,7 +141,7 @@ export function runAttackExchangeCues(
     attacker, dx: ldx, dy: ldy, speed: ctx.combatSpeed, flurry: hasFlurry,
     strike: strikeOffset, resolveStrike, strikeDur: geo.strikeDur, travel: geo.travel, leadTilt: geo.leadTilt, attackerRebound: cfg.attackerRebound,
     onContact: () => ctx.advance(),
-    onImpact: impact ? () => { playContactImpact(defender, ldx, ldy, power, ctx.combatSpeed, liveImpactAt(), spinDeg, crit, hasFlurry, flurrySlash); if (crit) ctx.onCritImpact?.(); } : undefined,
+    onImpact: impact ? () => { playContactImpact(defender, ldx, ldy, power, ctx.combatSpeed, liveImpactAt(), spinDeg, crit, hasFlurry, flurrySlash, ctx.execute === true); if (crit) ctx.onCritImpact?.(); } : undefined,
     impactOffsetMs: impact?.offset ?? 0,
     onRallyPulse: ctx.onRallyPulse,
     onWindupBuffs: ctx.onWindupBuffs,

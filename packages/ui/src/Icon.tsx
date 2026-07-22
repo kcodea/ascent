@@ -1,7 +1,17 @@
 import type { ReactNode } from 'react';
 
 const ICONS: Record<string, ReactNode> = {
+  // Still used by BLEED (a genuine poison-flavoured mechanic). EXECUTE moved off it to `execute` below.
   poison: <path fill="currentColor" d="M12 2s6 7 6 11a6 6 0 11-12 0c0-4 6-11 6-11z" />,
+  // EXECUTE — a tapered crescent cut, echoing the Pixi strike's blade (fine tail, swelling to a heavy edge).
+  // Deliberately not a sword: `sword`/`slaughter` are taken by Rally/Slaughter, and a duplicate silhouette
+  // costs the at-a-glance read that keyword medallions exist for.
+  execute: (
+    <>
+      <path fill="currentColor" d="M3.4 2.6c8 2.4 14.6 8.9 17.4 19-1.3-1.1-2.8-2-4.5-2.7C13.6 11.8 9.2 6.4 3.4 2.6z" />
+      <path fill="currentColor" opacity="0.55" d="M2.6 8.4c5 2.4 9 6.4 11.4 12-1.6-.5-3.2-.8-4.8-.9-1.6-4.2-3.8-7.9-6.6-11.1z" />
+    </>
+  ),
   taunt: <path fill="currentColor" d="M12 2l8 3v6c0 5-3.5 8.5-8 11-4.5-2.5-8-6-8-11V5l8-3z" />,
   shield: <path fill="none" stroke="currentColor" strokeWidth="2.5" d="M12 3l7 2.5v6c0 4.5-3 7.5-7 9.5-4-2-7-5-7-9.5v-6L12 3z" />,
   cleave: <path fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" d="M4 6l16 12M20 6L4 18" />,

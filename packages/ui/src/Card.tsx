@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
@@ -12,6 +12,7 @@ import { useGame } from './store';
 import { FLURRY_RINGS, flurryBoxStyle, flurryWrapStyle, flurryRingStyle } from './flurryConfig';
 import { pixiFx } from './pixiFx';
 import { getStepProcFxConfig, isStepProcTick } from './stepProcFxConfig';
+import { getExecuteSnapshot, subscribeExecute } from './executeConfig';
 
 // TAUNT frame — pipeline layer 2 (the authored shield). Prefer an authored raster PNG (painterly, drops into
 // `apps/web/public/frames/`); until it exists the SVG placeholder renders instead. `tauntFrameAvailable` flips
@@ -44,7 +45,7 @@ const KW_LABEL: Record<Keyword, string> = {
   FD: 'Fodder', IMM: 'Immune', ST: 'Stealth', RL: 'Rally', SL: 'Slaughter', CR: 'Critical Strike', EG: 'Engraved',
 };
 const KW_ICON: Record<Keyword, string> = {
-  T: 'taunt', DS: 'shield', V: 'poison', W: 'windfury', R: 'rise', C: 'cleave', M: 'magnetic', SC: 'fist',
+  T: 'taunt', DS: 'shield', V: 'execute', W: 'windfury', R: 'rise', C: 'cleave', M: 'magnetic', SC: 'fist',
   CN: 'consume', FD: 'fodder', IMM: 'immune', ST: 'eye', RL: 'sword', SL: 'slaughter', CR: 'target', EG: 'anvil',
 };
 const TRIBE_LABEL: Record<Tribe, string> = {
@@ -455,11 +456,12 @@ export const Card = memo(function Card({
       {card.castMult !== undefined && card.castMult > 1 && (
         <span className="castmult" aria-hidden="true">×{card.castMult}</span>
       )}
-      {/* Divine Shield signifies via the CSS `.wardglass` energy shell OVER the frame (below); Reborn via its Pixi AURA
-          (driven from `.card.reborncard` in Recruit); Taunt via the static grey `.card.taunt` border — no badge here. */}
-      {card.keywords.includes('V') && (
-        <span className="kwward venom" aria-hidden="true"><Icon name="poison" /></span>
-      )}
+      {/* No keyword BADGES on the card — every keyword signifies through its own card-level treatment instead:
+          Divine Shield via the CSS `.wardglass` energy shell OVER the frame (below), Reborn via its Pixi AURA
+          (driven from `.card.reborncard` in Recruit), Taunt via the static grey `.card.taunt` border, and
+          EXECUTE via the swirling rage aura. Execute's red medallion was the last one standing and came off
+          2026-07-22 (owner) — with the aura shipped it was a second, louder signifier for the same keyword.
+          The `execute` glyph is still used by the Compendium's keyword list. */}
       {/* Triple-ready: this tavern offer completes a triple if bought — gold arrows float up around it. */}
       {tripleReady && (
         <span className="triparrows" aria-hidden="true">
@@ -526,6 +528,11 @@ export const Card = memo(function Card({
             </div>
           </div>
         )}
+        {/* Execute (V) — a swirling ring of rage: smoke, comet arcs, glints and drifting shards. Sits at z4,
+            over the art AND the frame but under the badges, exactly like the Ward shell (owner ruling) — not
+            Flurry's z2. Every gradient/mask/blur is static paint precomputed in executeConfig; only transform
+            and opacity animate. Replaced the old lime venom rim + drip globs (2026-07-21). */}
+        {card.keywords.includes('V') && <ExecuteAura />}
         {/* TAUNT frame layer (pipeline prototype) — an authored shield laid OVER the portrait, tracing the exact
             `--heater` silhouette so it aligns with the art's clip. Prefers the raster PNG (painterly); falls back
             to the SVG placeholder until that asset exists. The real frame drops into this same layer unchanged. */}
@@ -716,14 +723,6 @@ export const Card = memo(function Card({
           <span className="bc-mote" style={{ '--a': '22deg' } as CSSProperties} />
         </span>
       )}
-      {/* Venomous — green venom globs constantly drip off the card (no rim glow). */}
-      {card.keywords.includes('V') && (
-        <span className="venomdrip" aria-hidden="true">
-          {VENOM_DRIPS.map((t, i) => (
-            <span key={i} className="vd" style={{ left: t.x, top: t.y, animationDelay: t.d } as CSSProperties} />
-          ))}
-        </span>
-      )}
       {/* Hover reveal — portalled to <body> so it floats above neighbouring cards. The full card first
           (in compact mode), then any referenced cards trailing to its right. All forced full-size. */}
       {refPos && hasPopup && createPortal(
@@ -736,6 +735,46 @@ export const Card = memo(function Card({
         </div>,
         document.body,
       )}
+    </div>
+  );
+});
+
+/**
+ * EXECUTE (V) aura — the swirling ring of rage. Layers are GENERATED (the counts are dials), so unlike Ward
+ * this can't ride on CSS vars alone: a tuner change has to rebuild the DOM. `useSyncExternalStore` subscribes
+ * to executeConfig's snapshot, which is a stable frozen reference that only changes when the DEV tuner writes.
+ * In production nothing ever notifies, so every card renders the module-load snapshot once and never again.
+ */
+const ExecuteAura = memo(function ExecuteAura() {
+  const { layers, box } = useSyncExternalStore(subscribeExecute, getExecuteSnapshot, getExecuteSnapshot);
+  return (
+    <div className="execute" aria-hidden="true" style={box}>
+      <div className="ex-breathe">
+        {layers.smoke.map((ring, i) => (
+          <div key={`s${i}`} className="ex-smoke" style={ring.ring}>
+            {ring.blobs.map((b, j) => (
+              <div key={j} className="ex-blob" style={b} />
+            ))}
+          </div>
+        ))}
+        {layers.arcs.length > 0 && (
+          <div className="ex-arcwrap" style={layers.arcWrap}>
+            {layers.arcs.map((a, i) => (
+              <div key={i} className="ex-arc" style={a} />
+            ))}
+          </div>
+        )}
+        {layers.glints.map((g, i) => (
+          <div key={`g${i}`} className="ex-glint" style={g} />
+        ))}
+        {layers.shards.map((s, i) => (
+          <div key={`d${i}`} className="ex-shard" style={s.outer}>
+            {/* tail first so the diamond paints on top of its own streak */}
+            {s.tail && <div className="ex-shardtail" style={s.tail} />}
+            <div className="ex-shardbody" style={s.body} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 });
@@ -753,10 +792,3 @@ const REBORN_WISPS = Array.from({ length: 27 }, () => ({
   wx: ((Math.random() - 0.5) * 44).toFixed(0) + 'px',
 }));
 
-/** Venom glob source points (along the lower art) + staggered delays for a constant drip. */
-const VENOM_DRIPS = [
-  { x: '24%', y: '52%', d: '0s' },
-  { x: '54%', y: '60%', d: '0.7s' },
-  { x: '74%', y: '50%', d: '1.5s' },
-  { x: '40%', y: '46%', d: '2.2s' },
-];

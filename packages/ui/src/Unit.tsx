@@ -7,9 +7,11 @@ import { liveCardText } from './instView';
 import { useGame } from './store';
 import type { UnitFrame } from './useCombatReplay';
 
-/** Keyword-proc floats (poison/shield/reborn) that bloom big in the card centre, staggered after the
- *  damage number so the two never collide. Damage/buff numbers stay in the HP/stat corner. */
-const SYM_KINDS = new Set(['poison', 'shield', 'shieldup', 'reborn', 'rally']);
+/** Keyword-proc floats (shield/reborn/rally) that bloom big in the card centre, staggered after the
+ *  damage number so the two never collide. Damage/buff numbers stay in the HP/stat corner.
+ *  `poison` (Execute) was dropped 2026-07-22 — its red ☠ was a third signifier on a beat that already has
+ *  the crescent strike and the victim's flash. */
+const SYM_KINDS = new Set(['shield', 'shieldup', 'reborn', 'rally']);
 
 type Float = { id: number; text: string; kind: string };
 interface UnitProps {

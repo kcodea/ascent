@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Execute — swirling rage aura tuner (oval frame)</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: #0a0406; color: #f0d6d6; font: 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace; display: flex; overflow: hidden; }
+  #stage { flex: 1; position: relative; display: grid; place-items: center; background: #0a0406; transition: background .2s; }
+  #stage.light { background: #f6ecd9; }
+
+  /* --- SUBJECT: the game's oval frame (mirrors the ward / flurry preview rigs) ------------------------------ */
+  .card { position: relative; width: 210px; height: 210px; }
+  .art {
+    position: absolute; z-index: 3; overflow: hidden;
+    clip-path: ellipse(50% 50% at 50% 50%);
+    width: 199px; height: 256px; left: 5px; top: -23px;
+    background: linear-gradient(165deg, #4a2230, #1c0d14);
+    display: grid; place-items: center;
+  }
+  .art .sprite { font-size: 78px; filter: drop-shadow(0 3px 5px rgba(0,0,0,.5)); transform: translateY(-6px); }
+  .cframe-img { position: absolute; z-index: 4; inset: auto; width: 227px; height: auto; left: -8px; top: -61px;
+    pointer-events: none; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.45)); }
+
+  /* MOCK UI CHROME — the badges the aura must stay UNDER, at the game's z (tier pill + atk/hp = z6, gem = z7).
+     Not tunable; they're here purely so the occlusion reads exactly as it will in-game. */
+  .tierpill { position: absolute; z-index: 6; top: -12px; left: 50%; transform: translateX(-50%);
+    background: #16121a; color: #fff; font-weight: 800; font-size: 12px; letter-spacing: .05em;
+    padding: 3px 13px; border-radius: 999px; border: 2px solid #cbb4d8; white-space: nowrap; }
+  .badge { position: absolute; z-index: 6; bottom: -14px; width: 61px; height: 61px; border-radius: 50%;
+    border: 3px solid #f6e3ad; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 30px;
+    box-shadow: 0 0 0 2px #9c6f24, 0 3px 7px rgba(0,0,0,.4); }
+  .badge.atk { left: -4px; background: #b8451f; }
+  .badge.hp  { right: -4px; background: #2f7d3f; }
+  .cgem { position: absolute; z-index: 7; bottom: -21px; left: 50%; transform: translateX(-50%);
+    width: 44px; height: 44px; border-radius: 50%; border: 3px solid #f6e3ad; display: grid; place-items: center;
+    font-size: 20px; background: radial-gradient(circle at 50% 32%, #4a2b38, #1b1722);
+    box-shadow: 0 3px 7px rgba(0,0,0,.5); }
+
+  /* --- THE EXECUTE AURA ------------------------------------------------------------------------------------
+     Four independent layers, all looping on TRANSFORM/OPACITY only (gradients + blur are static paint), per the
+     repo's perf rule.
+
+     LAYERING (owner ruling 2026-07-21): the aura paints exactly like the Ward shell — OVER the art AND the
+     frame, but UNDER the badge chrome. In-game that's `.wardglass`'s z4 (frame is z3, tier/atk/hp z6, gem z7);
+     here the mock frame is z4, so the aura takes z5. It used to sit at z1 (behind everything), which is why
+     the smoke/glint/shard layers were invisible against the card. ---------------------------------------- */
+  .aura {
+    position: absolute; left: 50%; top: var(--y, 50%);
+    width: calc(210px * var(--size, 1.5)); aspect-ratio: 1;
+    transform: translate(-50%, -50%) scale(var(--sx, 1), var(--sy, 1));
+    pointer-events: none; z-index: 5; overflow: visible;
+  }
+  .breathe { position: absolute; inset: 0; animation: aurabreathe var(--pulse, 5s) ease-in-out infinite; }
+  @keyframes aurabreathe { 0%,100% { opacity: 1; } 50% { opacity: var(--pulse-min, .78); } }
+
+  /* 1. SMOKE — big soft blobs seated on a ring; the ring spins while each blob counter-rotates + breathes,
+        so the mass roils instead of turning as one rigid wheel. */
+  .smokeRing { position: absolute; inset: 0; animation: spin var(--smoke-s, 26s) linear infinite; }
+  .smokeRing.rev { animation-direction: reverse; }
+  .blob {
+    position: absolute; left: 50%; top: 50%; border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, var(--blob-hot) 0%, var(--blob-mid) 42%, transparent 72%);
+    animation: blobpulse var(--blob-s, 7s) ease-in-out infinite;
+    will-change: transform, opacity;
+  }
+  @keyframes blobpulse {
+    0%,100% { transform: translate(-50%,-50%) rotate(var(--rot)) translateY(var(--r)) scale(var(--sc0)); opacity: var(--a0); }
+    50%     { transform: translate(-50%,-50%) rotate(var(--rot)) translateY(var(--r)) scale(var(--sc1)); opacity: var(--a1); }
+  }
+
+  /* 2. ARCS — the bright comet streaks. A static conic-gradient of N comets masked to a thin band; the ring
+        spins (transform only). Same construction as the Flurry blades.
+        The arcs get their OWN width/height scale (separate from the box's --sx/--sy) via this wrapper. Scaling
+        the WRAPPER rather than the .arc itself is load-bearing: the arc still rotates as a true circle inside,
+        and the squash is applied after, so the comets sweep a clean ellipse instead of each blade shearing. */
+  .arcWrap { position: absolute; inset: 0; transform: scale(var(--arc-sx, 1), var(--arc-sy, 1)); }
+  .arc {
+    position: absolute; border-radius: 50%; mix-blend-mode: screen; will-change: transform;
+    animation: spin var(--arc-s, 6s) linear infinite;
+    -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+  }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  /* 3. GLINTS — 4-point star sparkles pinned around the ring, twinkling on opacity/scale (staggered). */
+  .glint {
+    position: absolute; left: 50%; top: 50%; will-change: transform, opacity;
+    animation: twinkle var(--glint-s, 3.2s) ease-in-out infinite;
+  }
+  .glint::before, .glint::after {
+    content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+    background: linear-gradient(var(--dir), transparent 0%, var(--glint-c) 45%, var(--glint-c) 55%, transparent 100%);
+  }
+  .glint::before { --dir: 90deg; width: var(--gw); height: var(--gt); }   /* horizontal spike */
+  .glint::after  { --dir: 0deg;  width: var(--gt); height: var(--gw); }   /* vertical spike */
+  @keyframes twinkle {
+    0%,100% { transform: translate(-50%,-50%) rotate(var(--rot)) translateY(var(--r)) scale(.35); opacity: 0; }
+    50%     { transform: translate(-50%,-50%) rotate(var(--rot)) translateY(var(--r)) scale(1);   opacity: var(--ga); }
+  }
+
+  /* 4. SHARDS — small diamonds scattered around the ring, drifting + fading.
+        SPLIT INTO TWO ELEMENTS so the shard can carry a motion tail. The outer `.shard` does ONLY the radial
+        placement + drift, which leaves its local +Y axis pointing outward along the direction of travel — so
+        the tail can be aimed simply by hanging it off local -Y. The diamond's own 45deg spin moved to the inner
+        `.shardBody`; if it stayed on the parent it would drag the tail around with it and the streak would
+        pinwheel instead of trailing. Both children inherit the parent's stagger delay to stay in sync. */
+  .shard {
+    position: absolute; left: 50%; top: 50%; width: 0; height: 0;
+    animation: shardDrift var(--shard-s, 9s) linear infinite; will-change: transform, opacity;
+  }
+  @keyframes shardDrift {
+    0%   { transform: translate(-50%,-50%) rotate(var(--rot)) translateY(var(--r)); opacity: 0; }
+    18%  { opacity: var(--sa); }
+    82%  { opacity: var(--sa); }
+    100% { transform: translate(-50%,-50%) rotate(calc(var(--rot) + var(--sweep))) translateY(calc(var(--r) + var(--out))); opacity: 0; }
+  }
+  .shard > * { position: absolute; left: 50%; top: 50%; }
+  .shardBody {
+    width: var(--ss); height: var(--ss); background: var(--shard-c);
+    animation: shardSpin var(--shard-s, 9s) linear infinite; will-change: transform;
+  }
+  @keyframes shardSpin {
+    0%   { transform: translate(-50%,-50%) rotate(45deg) scale(.6); }
+    100% { transform: translate(-50%,-50%) rotate(225deg) scale(1); }
+  }
+  /* the streak, trailing along -Y (behind the drift). Static gradient = paint once, never per frame. */
+  .shardTail {
+    width: var(--ss); height: var(--stail);
+    transform: translate(-50%, -100%); transform-origin: 50% 100%;   /* grow FROM the shard, so it stays rooted */
+    background: linear-gradient(to top, var(--shard-c), transparent);
+    animation: shardTailGrow var(--shard-s, 9s) linear infinite; will-change: transform;
+  }
+  @keyframes shardTailGrow {
+    0%   { transform: translate(-50%,-100%) scale(.6); }
+    100% { transform: translate(-50%,-100%) scale(1); }
+  }
+
+  .hint { position: absolute; bottom: 12px; left: 0; right: 0; text-align: center; color: #8a5f6a; font-size: 11px; letter-spacing: .08em; }
+  #floor { position: absolute; top: 12px; right: 12px; width: auto; margin: 0; padding: 6px 12px; background: rgba(40,12,18,.7); color: #f0d6d6; font-size: 11px; }
+
+  /* --- panel --- */
+  #panel { width: 348px; padding: 14px 16px; overflow-y: auto; background: #12070a; border-left: 1px solid #2a1017; }
+  h1 { font-size: 13px; margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; color: #ff5a6e; }
+  .sub { color: #8a5f6a; font-size: 11px; margin-bottom: 12px; }
+  h2 { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #8a5f6a; margin: 16px 0 6px;
+       border-top: 1px solid #2a1017; padding-top: 10px; display: flex; justify-content: space-between; align-items: center; }
+  h2 .mini button { width: auto; margin: 0 0 0 6px; padding: 3px 8px; font-size: 10px; background: #24101a; color: #d8a7b2; }
+  .row { display: grid; grid-template-columns: 1fr 60px; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .row label { grid-column: 1 / -1; color: #d8a7b2; font-size: 11.5px; }
+  input[type=range] { width: 100%; accent-color: #ff3b52; }
+  .colorrow { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+  .colorrow label { flex: 1; color: #d8a7b2; font-size: 11.5px; }
+  input[type=color] { width: 44px; height: 26px; border: 1px solid #46202c; border-radius: 5px; background: #1a0c11; cursor: pointer; }
+  .checkrow { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; color: #d8a7b2; font-size: 11.5px; }
+  .val { text-align: right; color: #ff7a8c; font-size: 11px; }
+  button { width: 100%; padding: 9px; margin-top: 10px; border: 0; border-radius: 6px; background: #b3243a; color: #fff;
+           font: inherit; font-weight: 700; letter-spacing: .05em; cursor: pointer; }
+  button:hover { background: #d62b46; }
+  button.ghost { background: #24101a; color: #d8a7b2; }
+  button.ghost:hover { background: #33161f; }
+  textarea { width: 100%; height: 150px; margin-top: 10px; background: #0a0407; color: #ff7a8c; border: 1px solid #2a1017;
+             border-radius: 6px; padding: 8px; font: 10.5px/1.45 ui-monospace, monospace; resize: vertical; }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <button id="floor">◐ light floor</button>
+    <div class="card" id="card">
+      <div class="aura" id="aura"><div class="breathe" id="layers"></div></div>
+      <div class="art"><div class="sprite">🐺</div></div>
+      <img class="cframe-img" src="/frames/standard-oval-v2.png" alt="" />
+      <div class="tierpill">TIER 3</div>
+      <div class="badge atk">7</div>
+      <div class="badge hp">6</div>
+      <div class="cgem">⚔</div>
+    </div>
+    <div class="hint">EXECUTE — swirling rage (persistent CSS aura). Transform/opacity loops only.</div>
+  </div>
+
+  <div id="panel">
+    <h1>Execute — rage aura</h1>
+    <div class="sub">Four layers: smoke · arcs · glints · shards. Dial it, Copy, and I'll bake it.</div>
+
+    <h2>Aura box</h2><div id="rows-box"></div>
+
+    <h2>1 · Smoke <span class="mini"><button data-t="smoke">solo</button></span></h2><div id="rows-smoke"></div>
+    <div class="colorrow"><label>hot core</label><input type="color" id="smokeHot" /></div>
+    <div class="colorrow"><label>mid body</label><input type="color" id="smokeMid" /></div>
+
+    <h2>2 · Arcs <span class="mini"><button data-t="arc">solo</button></span></h2><div id="rows-arc"></div>
+    <div class="colorrow"><label>arc colour</label><input type="color" id="arcColor" /></div>
+
+    <h2>3 · Glints <span class="mini"><button data-t="glint">solo</button></span></h2><div id="rows-glint"></div>
+    <div class="colorrow"><label>glint colour</label><input type="color" id="glintColor" /></div>
+
+    <h2>4 · Shards <span class="mini"><button data-t="shard">solo</button></span></h2><div id="rows-shard"></div>
+    <div class="colorrow"><label>shard colour</label><input type="color" id="shardColor" /></div>
+
+    <button id="copy">Copy values (JSON)</button>
+    <button id="load" class="ghost">Load JSON from box ↓</button>
+    <button id="reset" class="ghost">Reset</button>
+    <textarea id="out"></textarea>
+  </div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+const BOX = [
+  ['size',     'aura size (× card)',      0.8, 2.6, 0.01],
+  ['y',        'vertical centre (%)',      20, 80, 1],
+  ['sx',       'width (× — ±flips)',     -1.8, 1.8, 0.01],
+  ['sy',       'height (× — ±flips)',    -1.8, 1.8, 0.01],
+  ['pulse',    'breathe cycle (s)',         0, 12, 0.1],
+  ['pulseMin', 'breathe dip',             0.1, 1, 0.01],
+];
+const SMOKE = [
+  ['count',  'blobs',               0, 24, 1],
+  ['radius', 'ring radius (%)',     0, 70, 1],
+  ['size',   'blob size (%)',       5, 90, 1],
+  ['blur',   'blur (px)',           0, 60, 1],
+  ['a0',     'opacity low',         0, 1, 0.02],
+  ['a1',     'opacity high',        0, 1, 0.02],
+  ['sc0',    'scale low',         0.3, 2, 0.02],
+  ['sc1',    'scale high',        0.3, 2, 0.02],
+  ['spin',   'ring spin (s)',       3, 90, 1],
+  ['pulse',  'blob pulse (s)',      1, 20, 0.2],
+];
+const ARC = [
+  ['count',  'arc rings',        0, 6, 1],
+  ['d',      'diameter (× box)', 0.3, 1.2, 0.005],
+  ['sx',     'arc width (× — ±flips)',  -2, 2, 0.01],
+  ['sy',     'arc height (× — ±flips)', -2, 2, 0.01],
+  ['gap',    'ring spacing',     0, 0.3, 0.005],
+  ['thick',  'band thickness %', 1, 30, 0.5],
+  ['blades', 'comets / ring',    1, 8, 1],
+  ['tail',   'tail (°)',         5, 200, 1],
+  ['edge',   'leading edge (°)', 2, 60, 1],
+  ['alpha',  'opacity',          0, 1, 0.02],
+  ['blur',   'blur (px)',        0, 12, 0.25],
+  ['spin',   'spin (s)',       0.5, 20, 0.1],
+];
+const GLINT = [
+  ['count',  'glints',          0, 14, 1],
+  ['radius', 'ring radius (%)', 0, 70, 1],
+  ['len',    'spike length',    4, 80, 1],
+  ['thick',  'spike thickness', 1, 12, 0.5],
+  ['alpha',  'opacity',         0, 1, 0.02],
+  ['spin',   'twinkle (s)',   0.5, 10, 0.1],
+];
+const SHARD = [
+  ['count',  'shards',          0, 60, 1],
+  ['radius', 'ring radius (%)', 0, 80, 1],
+  ['size',   'shard size (px)', 1, 14, 0.5],
+  ['tail',   'tail (px)',       0, 90, 1],
+  ['blur',   'blur (px)',       0, 12, 0.25],
+  ['out',    'drift out (px)',  0, 120, 2],
+  ['sweep',  'sweep (°)',       0, 180, 2],
+  ['alpha',  'opacity',         0, 1, 0.02],
+  ['spin',   'drift time (s)',  2, 30, 0.5],
+];
+
+const DEF = {
+  size: 1.5, y: 50, sx: 1, sy: 1, pulse: 5, pulseMin: 0.78,
+  smoke: { count: 12, radius: 34, size: 46, blur: 26, a0: 0.34, a1: 0.72, sc0: 0.8, sc1: 1.25, spin: 26, pulse: 7,
+           hot: '#ff2b3f', mid: '#7d0d1c' },
+  arc:   { count: 3, d: 0.95, sx: 1, sy: 1, gap: 0.06, thick: 4, blades: 3, tail: 70, edge: 26, alpha: 0.95,
+           blur: 2, spin: 7, color: '#ff3346' },
+  glint: { count: 5, radius: 36, len: 30, thick: 2.5, alpha: 1, spin: 3.2, color: '#ffd9de' },
+  shard: { count: 26, radius: 44, size: 4, tail: 14, blur: 0, out: 26, sweep: 26, alpha: 0.85, spin: 9,
+           color: '#ff4258' },
+};
+let cfg = structuredClone(DEF);
+let solo = null;
+
+const hexToRgb = (h) => { h = h.replace('#',''); return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)]; };
+const rgba = (hex, a) => { const [r,g,b] = hexToRgb(hex); return `rgba(${r}, ${g}, ${b}, ${a})`; };
+
+// N comet arcs: transparent gap → tail ramp → bright leading edge → hard cut (the Flurry blade construction).
+function cometBg(col, blades, tail, edge) {
+  const seg = 360 / blades, stops = ['from -90deg'];
+  for (let i = 0; i < blades; i++) {
+    const a0 = i * seg, tailStart = a0 + Math.max(0, seg - tail - edge), edgeStart = a0 + Math.max(0, seg - edge), end = a0 + seg;
+    stops.push(`${rgba(col,0)} ${a0}deg`, `${rgba(col,0)} ${tailStart}deg`, `${rgba(col,.5)} ${edgeStart}deg`,
+               `${rgba(col,1)} ${end-0.5}deg`, `${rgba(col,0)} ${end}deg`);
+  }
+  return `conic-gradient(${stops.join(', ')})`;
+}
+const bandMask = (thick) => {
+  const outer = 99, inner = Math.max(1, outer - thick);
+  return `radial-gradient(closest-side, transparent ${inner-2}%, #fff ${inner}%, #fff ${outer-1}%, transparent ${outer}%)`;
+};
+
+function apply() {
+  const card = $('card').style;
+  card.setProperty('--size', cfg.size);
+  card.setProperty('--y', cfg.y + '%');
+  card.setProperty('--sx', cfg.sx);
+  card.setProperty('--sy', cfg.sy);
+  card.setProperty('--pulse', (cfg.pulse > 0 ? cfg.pulse : 9999) + 's');
+  card.setProperty('--pulse-min', cfg.pulse > 0 ? cfg.pulseMin : 1);
+
+  const host = $('layers');
+  host.innerHTML = '';
+  const on = (t) => !solo || solo === t;
+
+  // 1 · SMOKE — two counter-spinning rings of blobs so the mass roils.
+  if (on('smoke') && cfg.smoke.count > 0) {
+    for (const rev of [false, true]) {
+      const ring = document.createElement('div');
+      ring.className = 'smokeRing' + (rev ? ' rev' : '');
+      ring.style.setProperty('--smoke-s', cfg.smoke.spin * (rev ? 1.6 : 1) + 's');
+      const n = Math.round(cfg.smoke.count / 2);
+      for (let i = 0; i < n; i++) {
+        const b = document.createElement('div');
+        b.className = 'blob';
+        const jitter = (i * 37 % 17) / 17;            // deterministic scatter (no Math.random churn on re-apply)
+        b.style.width = b.style.height = cfg.smoke.size + '%';
+        b.style.filter = `blur(${cfg.smoke.blur}px)`;
+        b.style.setProperty('--rot', (i * (360 / n) + (rev ? 180 / n : 0)) + 'deg');
+        b.style.setProperty('--r', cfg.smoke.radius + '%');
+        b.style.setProperty('--sc0', cfg.smoke.sc0 * (0.85 + jitter * 0.3));
+        b.style.setProperty('--sc1', cfg.smoke.sc1 * (0.85 + jitter * 0.3));
+        b.style.setProperty('--a0', cfg.smoke.a0);
+        b.style.setProperty('--a1', cfg.smoke.a1);
+        b.style.setProperty('--blob-hot', rgba(cfg.smoke.hot, 0.55));
+        b.style.setProperty('--blob-mid', rgba(cfg.smoke.mid, 0.5));
+        b.style.setProperty('--blob-s', (cfg.smoke.pulse * (0.7 + jitter * 0.6)).toFixed(2) + 's');
+        b.style.animationDelay = (-jitter * cfg.smoke.pulse).toFixed(2) + 's';
+        ring.append(b);
+      }
+      host.append(ring);
+    }
+  }
+
+  // 2 · ARCS — bright comet streaks, each ring a touch smaller + a touch slower.
+  if (on('arc')) {
+    const wrap = document.createElement('div');
+    wrap.className = 'arcWrap';
+    wrap.style.setProperty('--arc-sx', cfg.arc.sx ?? 1);
+    wrap.style.setProperty('--arc-sy', cfg.arc.sy ?? 1);
+    for (let i = 0; i < cfg.arc.count; i++) {
+      const el = document.createElement('div');
+      el.className = 'arc';
+      const d = cfg.arc.d - i * cfg.arc.gap;
+      el.style.inset = `${(1 - d) * 50}%`;
+      el.style.background = cometBg(cfg.arc.color, cfg.arc.blades, cfg.arc.tail, cfg.arc.edge);
+      const m = bandMask(cfg.arc.thick);
+      el.style.webkitMask = m; el.style.mask = m;
+      el.style.filter = cfg.arc.blur > 0 ? `blur(${cfg.arc.blur}px)` : 'none';
+      el.style.opacity = cfg.arc.alpha;
+      el.style.setProperty('--arc-s', (cfg.arc.spin * (1 + i * 0.45)).toFixed(2) + 's');
+      if (i % 2) el.style.animationDirection = 'reverse';
+      wrap.append(el);
+    }
+    host.append(wrap);
+  }
+
+  // 3 · GLINTS — 4-point sparkles pinned round the ring, staggered twinkle.
+  if (on('glint')) {
+    for (let i = 0; i < cfg.glint.count; i++) {
+      const g = document.createElement('div');
+      g.className = 'glint';
+      g.style.setProperty('--rot', (i * (360 / Math.max(1, cfg.glint.count)) + 18) + 'deg');
+      g.style.setProperty('--r', cfg.glint.radius + '%');
+      g.style.setProperty('--gw', cfg.glint.len + 'px');
+      g.style.setProperty('--gt', cfg.glint.thick + 'px');
+      g.style.setProperty('--ga', cfg.glint.alpha);
+      g.style.setProperty('--glint-c', cfg.glint.color);
+      g.style.setProperty('--glint-s', cfg.glint.spin + 's');
+      g.style.animationDelay = (-(i * cfg.glint.spin) / Math.max(1, cfg.glint.count)).toFixed(2) + 's';
+      host.append(g);
+    }
+  }
+
+  // 4 · SHARDS — little diamonds drifting outward round the ring.
+  if (on('shard')) {
+    for (let i = 0; i < cfg.shard.count; i++) {
+      const s = document.createElement('div');
+      s.className = 'shard';
+      const j = (i * 53 % 23) / 23;
+      s.style.setProperty('--ss', cfg.shard.size + 'px');
+      s.style.setProperty('--stail', (cfg.shard.tail ?? 0) + 'px');
+      s.style.setProperty('--rot', (i * (360 / Math.max(1, cfg.shard.count))) + 'deg');
+      s.style.setProperty('--r', (cfg.shard.radius * (0.75 + j * 0.5)).toFixed(1) + '%');
+      s.style.setProperty('--out', cfg.shard.out + 'px');
+      s.style.setProperty('--sweep', cfg.shard.sweep + 'deg');
+      s.style.setProperty('--sa', cfg.shard.alpha);
+      s.style.setProperty('--shard-c', cfg.shard.color);
+      const dur = (cfg.shard.spin * (0.7 + j * 0.6)).toFixed(2) + 's';
+      const delay = (-j * cfg.shard.spin).toFixed(2) + 's';
+      s.style.setProperty('--shard-s', dur);
+      s.style.animationDelay = delay;
+      if (cfg.shard.blur > 0) s.style.filter = `blur(${cfg.shard.blur}px)`;
+      // tail first so the diamond paints on top of its own streak
+      if ((cfg.shard.tail ?? 0) > 0) {
+        const t = document.createElement('div');
+        t.className = 'shardTail';
+        t.style.animationDelay = delay;
+        s.append(t);
+      }
+      const body = document.createElement('div');
+      body.className = 'shardBody';
+      body.style.animationDelay = delay;
+      s.append(body);
+      host.append(s);
+    }
+  }
+
+  $('out').value = JSON.stringify(cfg, null, 1);
+}
+
+function mkRows(host, spec, get, set) {
+  host.innerHTML = '';
+  for (const [key, label, min, max, step] of spec) {
+    const row = document.createElement('div'); row.className = 'row';
+    const lab = document.createElement('label'); lab.textContent = label;
+    const inp = document.createElement('input');
+    inp.type = 'range'; inp.min = min; inp.max = max; inp.step = step; inp.value = get(key);
+    const val = document.createElement('div'); val.className = 'val'; val.textContent = get(key);
+    inp.addEventListener('input', () => { set(key, Number(inp.value)); val.textContent = inp.value; apply(); });
+    row.append(lab, inp, val); host.append(row);
+  }
+}
+function buildRows() {
+  mkRows($('rows-box'),   BOX,   (k) => cfg[k],       (k,v) => { cfg[k] = v; });
+  mkRows($('rows-smoke'), SMOKE, (k) => cfg.smoke[k], (k,v) => { cfg.smoke[k] = v; });
+  mkRows($('rows-arc'),   ARC,   (k) => cfg.arc[k],   (k,v) => { cfg.arc[k] = v; });
+  mkRows($('rows-glint'), GLINT, (k) => cfg.glint[k], (k,v) => { cfg.glint[k] = v; });
+  mkRows($('rows-shard'), SHARD, (k) => cfg.shard[k], (k,v) => { cfg.shard[k] = v; });
+  $('smokeHot').value = cfg.smoke.hot; $('smokeMid').value = cfg.smoke.mid;
+  $('arcColor').value = cfg.arc.color; $('glintColor').value = cfg.glint.color; $('shardColor').value = cfg.shard.color;
+}
+$('smokeHot').addEventListener('input', (e) => { cfg.smoke.hot = e.target.value; apply(); });
+$('smokeMid').addEventListener('input', (e) => { cfg.smoke.mid = e.target.value; apply(); });
+$('arcColor').addEventListener('input', (e) => { cfg.arc.color = e.target.value; apply(); });
+$('glintColor').addEventListener('input', (e) => { cfg.glint.color = e.target.value; apply(); });
+$('shardColor').addEventListener('input', (e) => { cfg.shard.color = e.target.value; apply(); });
+
+// solo buttons — isolate one layer while dialing it
+document.querySelectorAll('h2 .mini button').forEach((b) => {
+  b.addEventListener('click', () => {
+    solo = solo === b.dataset.t ? null : b.dataset.t;
+    document.querySelectorAll('h2 .mini button').forEach((o) => (o.style.background = o.dataset.t === solo ? '#b3243a' : '#24101a'));
+    apply();
+  });
+});
+
+$('copy').addEventListener('click', () => {
+  navigator.clipboard?.writeText($('out').value);
+  $('copy').textContent = 'Copied ✓'; setTimeout(() => ($('copy').textContent = 'Copy values (JSON)'), 1200);
+});
+$('load').addEventListener('click', () => {
+  try {
+    const p = JSON.parse($('out').value);
+    if (!p || !p.smoke || !p.arc) throw new Error('need the full config object');
+    // Merge over the defaults so a JSON saved before a knob existed (e.g. arc.sx/sy) still loads.
+    cfg = { ...structuredClone(DEF), ...p };
+    for (const k of ['smoke', 'arc', 'glint', 'shard']) cfg[k] = { ...DEF[k], ...(p[k] || {}) };
+    buildRows(); apply();
+    $('load').textContent = 'Loaded ✓'; setTimeout(() => ($('load').textContent = 'Load JSON from box ↓'), 1200);
+  } catch (e) { $('load').textContent = 'Bad JSON: ' + e.message; setTimeout(() => ($('load').textContent = 'Load JSON from box ↓'), 2200); }
+});
+$('reset').addEventListener('click', () => { cfg = structuredClone(DEF); buildRows(); apply(); });
+$('floor').addEventListener('click', () => $('stage').classList.toggle('light'));
+
+buildRows(); apply();
+</script>
+</body>
+</html>

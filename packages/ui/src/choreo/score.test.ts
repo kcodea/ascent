@@ -9,7 +9,7 @@ const moment = (kind: Moment['kind'], events: CombatEvent[]): Moment => ({ start
 const baseCtx = (events: CombatEvent[], overrides: Partial<Parameters<typeof runMomentCues>[1]> = {}) => ({
   events, combatSpeed: 1, onShake: vi.fn(), findEl: () => null, attackerUid: null, meleePair: null,
   onFloats: vi.fn(), onDeathFloats: vi.fn(),
-  onAuraBurst: vi.fn(), onShieldBreak: vi.fn(), onReborn: vi.fn(), onBuffCasts: vi.fn(), onSelfBuffs: vi.fn(), onImprove: vi.fn(), onMaxGold: vi.fn(), onDamageFx: vi.fn(), onSummonFx: vi.fn(), onAscend: vi.fn(), ...overrides,
+  onAuraBurst: vi.fn(), onShieldBreak: vi.fn(), onReborn: vi.fn(), onBuffCasts: vi.fn(), onSelfBuffs: vi.fn(), onImprove: vi.fn(), onMaxGold: vi.fn(), onDamageFx: vi.fn(), onSummonFx: vi.fn(), onAscend: vi.fn(), onExecuteFx: vi.fn(), ...overrides,
 });
 const ctx = baseCtx;
 
@@ -53,6 +53,53 @@ describe('score', () => {
       expect(SCORE_DEFAULTS[kind].some((c) => c.ch === 'auraBreak')).toBe(true);
     }
     expect(SCORE_DEFAULTS.reborn.some((c) => c.ch === 'auraReform')).toBe(true);
+  });
+
+  // The Execution Strike crescent. `poisonTick` covers BOTH the proc (`poison`) and the keyword being spent
+  // (`venomLost`) — only the former is a kill worth slashing, so the handler scans for `poison` specifically.
+  it('executeFx fires once per poison target', () => {
+    const c = ctx([{ type: 'poison', target: 'b' }, { type: 'poison', target: 'c' }]);
+    runMomentCues(moment('poisonTick', c.events), c);
+    expect(c.onExecuteFx).toHaveBeenCalledWith(['b', 'c']);
+  });
+
+  it('executeFx does NOT fire on a venomLost-only moment (the keyword being spent is not a kill)', () => {
+    const c = ctx([{ type: 'venomLost', target: 'b' }]);
+    runMomentCues(moment('poisonTick', c.events), c);
+    expect(c.onExecuteFx).not.toHaveBeenCalled();
+  });
+
+  // THE REGRESSION (owner report 2026-07-22: "i only see the original strike effect"). `poison` is a
+  // RESULT_TYPE, so an Execute kill on an attack collapses into an `attackExchange` moment — its primary event
+  // is `attack`, so the kind is NEVER `poisonTick`. Scoring executeFx on poisonTick alone meant it never fired
+  // for the common case. It has to be on every kind, exactly like the aura channels.
+  it('executeFx is scored on every kind EXCEPT attackExchange (where impact owns it)', () => {
+    for (const [kind, cues] of Object.entries(SCORE_DEFAULTS)) {
+      const want = kind !== 'attackExchange'; // attackExchange fires it from the impact channel, at contact
+      expect(cues.some((c) => c.ch === 'executeFx'), kind).toBe(want);
+    }
+    // the kinds a collapsed poison actually lands in must all carry it
+    for (const kind of ['damage', 'death', 'poisonTick', 'shieldPop', 'scCast'] as const) {
+      expect(SCORE_DEFAULTS[kind].some((c) => c.ch === 'executeFx'), kind).toBe(true);
+    }
+  });
+
+  it('fires executeFx for a poison absorbed into an attack-kind moment', () => {
+    // the shape a real Execute kill compiles to: attack → dmg → poison → death, one moment, primary `attack`
+    const c = ctx([
+      { type: 'attack', attacker: 'a', defender: 'b', swing: 3 },
+      { type: 'dmg', target: 'b', amount: 3, remainingHp: 1 },
+      { type: 'poison', target: 'b' },
+      { type: 'death', target: 'b', side: 'enemy' },
+    ] as CombatEvent[]);
+    // ...but on attackExchange the IMPACT channel owns it (fired at the lunge's real contact), so the cue
+    // stands down here rather than double-slashing.
+    runMomentCues(moment('attackExchange', c.events), c);
+    expect(c.onExecuteFx).not.toHaveBeenCalled();
+    // the same events in a NON-attack moment (a Start-of-Combat nuke) DO go through this path
+    const c2 = ctx(c.events);
+    runMomentCues(moment('damage', c2.events), c2);
+    expect(c2.onExecuteFx).toHaveBeenCalledWith(['b']);
   });
 
   it('the migrated aura offsets reproduce the old channel delays', () => {

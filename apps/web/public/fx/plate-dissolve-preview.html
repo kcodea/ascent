@@ -1,33 +1,29 @@
 <!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Plate dissolve — arcane</title>
+<html><head><meta charset="utf-8"><title>Plate dissolve — arcane wireframe</title>
 <style>
   :root { color-scheme: dark; }
-  body { margin:0; background:#141416; color:#e6e6e6; font:13px/1.5 system-ui,sans-serif;
-         display:flex; min-height:100vh; }
-  /* ---------------- stage ---------------- */
+  body { margin:0; background:#141416; color:#e6e6e6; font:13px/1.5 system-ui,sans-serif; display:flex; min-height:100vh; }
   #stage { flex:1; display:flex; align-items:center; justify-content:center; position:relative;
            background:radial-gradient(ellipse at 50% 45%, #4a3f33 0%, #2a2119 55%, #171310 100%); }
   #hint { position:absolute; top:14px; left:0; right:0; text-align:center; color:#7d7d7d; font-size:12px; }
   #rig { position:relative; }
   #rig img, #rig .imprint { position:absolute; left:50%; top:50%; translate:-50% -50%; }
   #plate { display:block; }
-  /* The IMPRINT — the plate's own silhouette filled with the charge-glyph gradient. Masked to the art's
-     alpha, so it is literally a blue arcane copy of the plate rather than a rectangle behind it. */
-  .imprint {
-    -webkit-mask: url('../frames/cardplate.webp') center / 100% 100% no-repeat;
-    mask: url('../frames/cardplate.webp') center / 100% 100% no-repeat;
-    opacity:0; will-change:opacity,transform;
-  }
+  /* The IMPRINT — the arcane gradient shown only through a MASK derived from the plate art. In wireframe
+     mode that mask is an edge map (the card's own structural lines: stone joints, gold rails, the gem,
+     the greek-key tabs), so the gradient reads as glowing blue linework rather than a filled slab. */
+  .imprint { opacity:0; will-change:opacity,transform;
+             -webkit-mask-size:100% 100%; mask-size:100% 100%;
+             -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat; }
   #dust { position:absolute; left:50%; top:50%; translate:-50% -50%; pointer-events:none; }
-  /* ---------------- panel ---------------- */
-  #panel { width:330px; flex:none; background:#1b1b1f; border-left:1px solid #2f2f34;
-           padding:14px 16px 40px; overflow-y:auto; max-height:100vh; }
+  #panel { width:340px; flex:none; background:#1b1b1f; border-left:1px solid #2f2f34; padding:14px 16px 40px;
+           overflow-y:auto; max-height:100vh; }
   h1 { font-size:15px; margin:0 0 2px; }
   .sub { color:#8f8f8f; font-size:11.5px; margin:0 0 14px; }
-  h2 { font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:#8a7a5a;
-       margin:18px 0 7px; border-bottom:1px solid #2f2f34; padding-bottom:4px; }
+  h2 { font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:#8a7a5a; margin:18px 0 7px;
+       border-bottom:1px solid #2f2f34; padding-bottom:4px; }
   .row { display:flex; align-items:center; gap:8px; margin:5px 0; }
-  .row label { flex:0 0 122px; font-size:11.5px; color:#b9b9b9; }
+  .row label { flex:0 0 118px; font-size:11.5px; color:#b9b9b9; }
   .row input[type=range] { flex:1; min-width:0; }
   .row input[type=color] { width:34px; height:20px; padding:0; border:1px solid #3a3a40; background:none; }
   .row .val { flex:0 0 46px; text-align:right; font-variant-numeric:tabular-nums; color:#e8d7ae; font-size:11.5px; }
@@ -35,12 +31,13 @@
   button { flex:1; padding:8px 10px; border-radius:7px; border:1px solid #3a3a40; background:#26262b;
            color:#e6e6e6; font:inherit; cursor:pointer; }
   button:hover { border-color:#6b5730; }
-  #out { width:100%; height:150px; margin-top:10px; background:#101013; color:#9fd0a0;
-         border:1px solid #2f2f34; border-radius:6px; font:11px/1.45 ui-monospace,monospace; padding:8px; }
+  #out { width:100%; height:150px; margin-top:10px; background:#101013; color:#9fd0a0; border:1px solid #2f2f34;
+         border-radius:6px; font:11px/1.45 ui-monospace,monospace; padding:8px; }
+  #maskpeek { display:block; margin-top:8px; width:100%; background:#0a0a0c; border:1px solid #2f2f34; border-radius:6px; }
 </style></head><body>
 
 <div id="stage">
-  <div id="hint">click the stage (or SPACE) to replay · this is the plate leaving, nothing else</div>
+  <div id="hint">click the stage (or SPACE) to replay</div>
   <div id="rig">
     <img id="plate" alt="">
     <div class="imprint" id="imprint"></div>
@@ -49,42 +46,50 @@
 </div>
 
 <div id="panel">
-  <h1>Plate dissolve — arcane</h1>
-  <p class="sub">The plate imprints as a blue arcane copy of itself, then burns off to dust with a slight
-  outward puff. Palette matches the end-of-turn charge glyph.</p>
+  <h1>Plate dissolve — arcane wireframe</h1>
+  <p class="sub">The plate imprints as a glowing blue <b>wireframe of itself</b> — its own structural lines,
+  edge-detected from the art — then burns off to dust with a slight outward puff.</p>
+
+  <h2>Wireframe</h2>
+  <div class="row"><label title="Blurs the art before edge-finding. Low = every speckle of stone grain becomes a line (reads as fill). Higher = only the architecture survives.">smooth</label><input type="range" id="smooth" min="0" max="8" step="0.5"><span class="val" id="v_smooth"></span></div>
+  <div class="row"><label title="Edge sensitivity. Higher finds finer detail — more lines, busier.">line pickup</label><input type="range" id="edgeGain" min="0.2" max="6" step="0.1"><span class="val" id="v_edgeGain"></span></div>
+  <div class="row"><label title="Cutoff. Raise to keep only the strongest lines (the big architecture).">line cutoff</label><input type="range" id="edgeCut" min="0" max="0.6" step="0.01"><span class="val" id="v_edgeCut"></span></div>
+  <div class="row"><label title="Thickens the lines by spreading each one into its neighbours.">line weight</label><input type="range" id="edgeW" min="0" max="3" step="1"><span class="val" id="v_edgeW"></span></div>
+  <div class="row"><label title="Trace the plate's outer silhouette as a line too.">outline</label><input type="range" id="outline" min="0" max="1" step="0.05"><span class="val" id="v_outline"></span></div>
+  <div class="row"><label title="0 = pure wireframe. 1 = the old solid fill. In between = lines over a faint body.">solid fill</label><input type="range" id="fill" min="0" max="1" step="0.02"><span class="val" id="v_fill"></span></div>
 
   <h2>Timing</h2>
-  <div class="row"><label title="Whole effect, start to nothing left.">total</label><input type="range" id="total" min="120" max="1600" step="10"><span class="val" id="v_total"></span></div>
-  <div class="row"><label title="Plate → imprint crossfade. Short = it snaps into its arcane self.">imprint in</label><input type="range" id="inMs" min="0" max="400" step="5"><span class="val" id="v_inMs"></span></div>
-  <div class="row"><label title="How long the arcane copy sits before it starts burning off.">hold</label><input type="range" id="holdMs" min="0" max="500" step="5"><span class="val" id="v_holdMs"></span></div>
-  <div class="row"><label title="How long the real plate art takes to disappear under the imprint.">plate out</label><input type="range" id="plateOut" min="0" max="400" step="5"><span class="val" id="v_plateOut"></span></div>
+  <div class="row"><label>total</label><input type="range" id="total" min="120" max="1600" step="10"><span class="val" id="v_total"></span></div>
+  <div class="row"><label title="Plate → wireframe crossfade.">imprint in</label><input type="range" id="inMs" min="0" max="400" step="5"><span class="val" id="v_inMs"></span></div>
+  <div class="row"><label title="How long the wireframe holds before burning off.">hold</label><input type="range" id="holdMs" min="0" max="500" step="5"><span class="val" id="v_holdMs"></span></div>
+  <div class="row"><label title="How fast the real plate art disappears under it.">plate out</label><input type="range" id="plateOut" min="0" max="400" step="5"><span class="val" id="v_plateOut"></span></div>
 
-  <h2>Imprint</h2>
-  <div class="row"><label title="How far the imprint swells as it goes — the outward puff.">puff scale</label><input type="range" id="puff" min="1" max="1.4" step="0.005"><span class="val" id="v_puff"></span></div>
-  <div class="row"><label title="Brightness of the arcane fill at its peak.">intensity</label><input type="range" id="inten" min="0" max="2" step="0.02"><span class="val" id="v_inten"></span></div>
-  <div class="row"><label title="Tight inner glow radius.">glow near</label><input type="range" id="g1" min="0" max="80" step="1"><span class="val" id="v_g1"></span></div>
-  <div class="row"><label title="Wide outer bloom radius.">glow far</label><input type="range" id="g2" min="0" max="200" step="2"><span class="val" id="v_g2"></span></div>
+  <h2>Look</h2>
+  <div class="row"><label title="How far the wireframe swells as it goes.">puff scale</label><input type="range" id="puff" min="1" max="1.4" step="0.005"><span class="val" id="v_puff"></span></div>
+  <div class="row"><label>intensity</label><input type="range" id="inten" min="0" max="2.5" step="0.02"><span class="val" id="v_inten"></span></div>
+  <div class="row"><label>glow near</label><input type="range" id="g1" min="0" max="80" step="1"><span class="val" id="v_g1"></span></div>
+  <div class="row"><label>glow far</label><input type="range" id="g2" min="0" max="200" step="2"><span class="val" id="v_g2"></span></div>
   <div class="row"><label>deep</label><input type="color" id="cDeep"><span class="val" id="v_cDeep"></span></div>
   <div class="row"><label>mid</label><input type="color" id="cMid"><span class="val" id="v_cMid"></span></div>
   <div class="row"><label>core</label><input type="color" id="cCore"><span class="val" id="v_cCore"></span></div>
-  <div class="row"><label title="0 = flat mid colour. 1 = the glyph's deep→cyan→white-hot ramp across the plate.">gradient</label><input type="range" id="grad" min="0" max="1" step="0.02"><span class="val" id="v_grad"></span></div>
+  <div class="row"><label title="0 = flat mid colour. 1 = the glyph's deep→cyan→white-hot ramp.">gradient</label><input type="range" id="grad" min="0" max="1" step="0.02"><span class="val" id="v_grad"></span></div>
 
   <h2>Arcane dust</h2>
-  <div class="row"><label title="How many motes the plate breaks into.">count</label><input type="range" id="count" min="0" max="1400" step="10"><span class="val" id="v_count"></span></div>
-  <div class="row"><label title="0 = spawn anywhere on the plate. 1 = only along its edges.">edge bias</label><input type="range" id="edge" min="0" max="1" step="0.02"><span class="val" id="v_edge"></span></div>
-  <div class="row"><label title="Outward drift speed, px/s at the reference size.">spread</label><input type="range" id="spd" min="0" max="400" step="5"><span class="val" id="v_spd"></span></div>
-  <div class="row"><label title="Randomness in each mote's speed.">spread var</label><input type="range" id="spdVar" min="0" max="1" step="0.02"><span class="val" id="v_spdVar"></span></div>
+  <div class="row"><label>count</label><input type="range" id="count" min="0" max="1600" step="10"><span class="val" id="v_count"></span></div>
+  <div class="row"><label title="0 = dust off the whole plate. 1 = dust only off the wireframe LINES.">off the lines</label><input type="range" id="onLines" min="0" max="1" step="0.02"><span class="val" id="v_onLines"></span></div>
+  <div class="row"><label>spread</label><input type="range" id="spd" min="0" max="400" step="5"><span class="val" id="v_spd"></span></div>
+  <div class="row"><label>spread var</label><input type="range" id="spdVar" min="0" max="1" step="0.02"><span class="val" id="v_spdVar"></span></div>
   <div class="row"><label title="Upward drift — negative sinks, positive rises.">lift</label><input type="range" id="lift" min="-300" max="300" step="5"><span class="val" id="v_lift"></span></div>
-  <div class="row"><label title="Mote radius in px.">size</label><input type="range" id="size" min="0.5" max="8" step="0.1"><span class="val" id="v_size"></span></div>
+  <div class="row"><label>size</label><input type="range" id="size" min="0.5" max="8" step="0.1"><span class="val" id="v_size"></span></div>
   <div class="row"><label>size var</label><input type="range" id="sizeVar" min="0" max="1" step="0.02"><span class="val" id="v_sizeVar"></span></div>
-  <div class="row"><label title="Mote lifetime as a fraction of the total. 1 = they last the whole effect.">life</label><input type="range" id="life" min="0.1" max="1.5" step="0.02"><span class="val" id="v_life"></span></div>
+  <div class="row"><label>life</label><input type="range" id="life" min="0.1" max="1.5" step="0.02"><span class="val" id="v_life"></span></div>
   <div class="row"><label>life var</label><input type="range" id="lifeVar" min="0" max="1" step="0.02"><span class="val" id="v_lifeVar"></span></div>
-  <div class="row"><label title="Fraction of the effect the motes take to all be born. 0 = all at once.">stagger</label><input type="range" id="stag" min="0" max="1" step="0.02"><span class="val" id="v_stag"></span></div>
-  <div class="row"><label title="Per-frame smear. Higher = comet tails.">trail</label><input type="range" id="trail" min="0" max="0.95" step="0.01"><span class="val" id="v_trail"></span></div>
+  <div class="row"><label title="0 = every mote born at once (one crisp burst). Higher = a rolling burn.">stagger</label><input type="range" id="stag" min="0" max="1" step="0.02"><span class="val" id="v_stag"></span></div>
+  <div class="row"><label>trail</label><input type="range" id="trail" min="0" max="0.95" step="0.01"><span class="val" id="v_trail"></span></div>
 
   <h2>Stage</h2>
-  <div class="row"><label title="Plate width on screen. In game it is --ccw x --plate-scale.">plate width</label><input type="range" id="pw" min="120" max="520" step="4"><span class="val" id="v_pw"></span></div>
-  <div class="row"><label title="Replay on a loop so you can watch it settle.">auto-loop</label><input type="checkbox" id="loop" checked><span class="val"></span></div>
+  <div class="row"><label>plate width</label><input type="range" id="pw" min="120" max="520" step="4"><span class="val" id="v_pw"></span></div>
+  <div class="row"><label>auto-loop</label><input type="checkbox" id="loop" checked><span class="val"></span></div>
 
   <div class="btns">
     <button id="play">Play</button>
@@ -92,47 +97,136 @@
     <button id="reset">Reset</button>
   </div>
   <textarea id="out" readonly></textarea>
+  <canvas id="maskpeek" title="the extracted wireframe mask"></canvas>
 </div>
 
 <script>
 const PLATE_SRC = '../frames/cardplate.webp';
-const PLATE_AR = 1244 / 800;          // shipped art aspect — height = width x 1.555
-const REF_W = 240;                    // px-quantities below were dialed near this plate width
+const PLATE_AR = 1244 / 800;
+const REF_W = 240;
+const MW = 440, MH = Math.round(MW * PLATE_AR);   // resolution the wireframe is extracted at
 
 const DEF = {
+  smooth: 4.5, edgeGain: 1.6, edgeCut: 0.30, edgeW: 1, outline: 1, fill: 0,
   total: 500, inMs: 70, holdMs: 55, plateOut: 60,
   puff: 1.06, inten: 1.0, g1: 26, g2: 70,
   cDeep: '#0037ff', cMid: '#009dff', cCore: '#ffffff', grad: 1,
-  count: 620, edge: 0.55, spd: 120, spdVar: 0.6, lift: -30,
+  count: 620, onLines: 0.8, spd: 120, spdVar: 0.6, lift: -30,
   size: 2.6, sizeVar: 0.7, life: 0.75, lifeVar: 0.6, stag: 0.25, trail: 0.55,
   pw: 240,
 };
 let C = { ...DEF };
-
 const $ = id => document.getElementById(id);
 const KEYS = Object.keys(DEF);
 const plateEl = $('plate'), imprintEl = $('imprint'), cv = $('dust'), ctx = cv.getContext('2d');
 
-/* ---------- shape sampling: where on the plate a mote may be born ----------
-   Same trick the charge-glyph motes use: rasterise the art small, read its alpha, keep the opaque
-   pixels. `edge` points are those with a transparent neighbour, so `edge bias` can favour the rim. */
-let PTS = [], EDGE = [];
-function samplePlate(img) {
-  const w = 150, h = Math.round(w * PLATE_AR);
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  const g = c.getContext('2d'); g.drawImage(img, 0, 0, w, h);
-  const d = g.getImageData(0, 0, w, h).data;
-  const a = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? 0 : d[(y * w + x) * 4 + 3];
-  PTS = []; EDGE = [];
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    if (a(x, y) < 40) continue;
-    const p = { u: x / w, v: y / h };
-    PTS.push(p);
-    if (a(x-1,y) < 40 || a(x+1,y) < 40 || a(x,y-1) < 40 || a(x,y+1) < 40) EDGE.push(p);
+/* ================= wireframe extraction =================
+   Sobel over the art's luminance gives the internal architecture — stone joints, the gold rails, the gem,
+   the greek-key tabs. The alpha boundary is added separately as the outer silhouette, since a Sobel over
+   luminance alone misses the transition into fully transparent pixels. Computed once per settings change,
+   never per frame. */
+let SRC = null;                 // {lum, alpha, w, h}
+let EDGE_STRENGTH = null;       // Float32Array, 0..1 per pixel — drives both the mask and dust spawning
+let LINE_PTS = [], BODY_PTS = [];
+
+function readSource(img) {
+  const c = document.createElement('canvas'); c.width = MW; c.height = MH;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0, MW, MH);
+  const d = g.getImageData(0, 0, MW, MH).data;
+  const lum = new Float32Array(MW * MH), alpha = new Float32Array(MW * MH);
+  for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+    alpha[p] = d[i + 3] / 255;
+    lum[p] = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255 * alpha[p];
   }
+  SRC = { lum, alpha, w: MW, h: MH };
 }
 
-/* ---------- pre-baked glow sprites (blit, never per-particle gradients) ---------- */
+/* Box-blur the luminance before Sobel. Without this the plate's STONE GRAIN dominates: every speckle is a
+   luminance edge, so the "wireframe" comes out 84% lit and reads as a filled slab. Blurring first throws away
+   texture and keeps architecture — the block joints, the gold rails, the gem, the greek-key tabs. */
+function blurLum(src, w, h, r) {
+  const R = Math.round(r);
+  if (R <= 0) return src;
+  const tmp = new Float32Array(w * h), out = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    let s = 0, n = 0;
+    for (let k = -R; k <= R; k++) { const xx = x + k; if (xx < 0 || xx >= w) continue; s += src[y*w+xx]; n++; }
+    tmp[y*w+x] = s / n;
+  }
+  for (let x = 0; x < w; x++) for (let y = 0; y < h; y++) {
+    let s = 0, n = 0;
+    for (let k = -R; k <= R; k++) { const yy = y + k; if (yy < 0 || yy >= h) continue; s += tmp[yy*w+x]; n++; }
+    out[y*w+x] = s / n;
+  }
+  return out;
+}
+
+function buildEdges() {
+  const { alpha, w, h } = SRC;
+  const lum = blurLum(SRC.lum, w, h, C.smooth);
+  const out = new Float32Array(w * h);
+  const at = (a, x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? 0 : a[y * w + x];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    // Sobel on the SMOOTHED luminance → structural linework
+    const gx = -at(lum,x-1,y-1) - 2*at(lum,x-1,y) - at(lum,x-1,y+1)
+             +  at(lum,x+1,y-1) + 2*at(lum,x+1,y) + at(lum,x+1,y+1);
+    const gy = -at(lum,x-1,y-1) - 2*at(lum,x,y-1) - at(lum,x+1,y-1)
+             +  at(lum,x-1,y+1) + 2*at(lum,x,y+1) + at(lum,x+1,y+1);
+    let e = Math.hypot(gx, gy) * C.edgeGain;
+    // the silhouette: any opaque pixel touching a transparent one
+    if (C.outline > 0 && alpha[y*w+x] > 0.4) {
+      if (at(alpha,x-1,y) < 0.4 || at(alpha,x+1,y) < 0.4 || at(alpha,x,y-1) < 0.4 || at(alpha,x,y+1) < 0.4)
+        e = Math.max(e, C.outline);
+    }
+    e = e < C.edgeCut ? 0 : Math.min(1, e);
+    out[y * w + x] = e;
+  }
+  // widen: spread each line into its neighbours so it survives being scaled down on screen
+  let cur = out;
+  for (let pass = 0; pass < C.edgeW; pass++) {
+    const nx = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let m = cur[y*w+x];
+      m = Math.max(m, at(cur,x-1,y), at(cur,x+1,y), at(cur,x,y-1), at(cur,x,y+1));
+      nx[y*w+x] = m;
+    }
+    cur = nx;
+  }
+  EDGE_STRENGTH = cur;
+
+  // spawn sets: LINE_PTS follow the wireframe, BODY_PTS are anywhere on the plate
+  LINE_PTS = []; BODY_PTS = [];
+  for (let y = 0; y < h; y += 2) for (let x = 0; x < w; x += 2) {
+    const i = y * w + x;
+    if (cur[i] > 0.25) LINE_PTS.push({ u: x / w, v: y / h });
+    if (alpha[i] > 0.4) BODY_PTS.push({ u: x / w, v: y / h });
+  }
+  paintMask();
+}
+
+/* mask = wireframe lines, plus `fill` of the solid body underneath */
+let maskURL = '';
+function paintMask() {
+  const { alpha, w, h } = SRC;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  const im = g.createImageData(w, h);
+  for (let i = 0; i < w * h; i++) {
+    const a = Math.max(EDGE_STRENGTH[i], C.fill * alpha[i]);
+    im.data[i*4] = im.data[i*4+1] = im.data[i*4+2] = 255;
+    im.data[i*4+3] = Math.round(a * 255);
+  }
+  g.putImageData(im, 0, 0);
+  maskURL = c.toDataURL();
+  imprintEl.style.webkitMaskImage = `url(${maskURL})`;
+  imprintEl.style.maskImage = `url(${maskURL})`;
+  // little preview of the extracted linework, so it's obvious what the mask actually caught
+  const pk = $('maskpeek'); pk.width = w; pk.height = h;
+  const pg = pk.getContext('2d');
+  pg.fillStyle = '#0a0a0c'; pg.fillRect(0, 0, w, h); pg.drawImage(c, 0, 0);
+}
+
+/* ================= sprites + layout ================= */
 function sprite(color, r) {
   const s = Math.ceil(r * 2), c = document.createElement('canvas');
   c.width = c.height = s;
@@ -143,69 +237,61 @@ function sprite(color, r) {
   return c;
 }
 let SPR_CORE, SPR_MID;
-function bakeSprites() { SPR_CORE = sprite(C.cCore, 32); SPR_MID = sprite(C.cMid, 32); }
-
-/* ---------- the run ---------- */
-let parts = [], t0 = 0, running = false, raf = 0;
+const bakeSprites = () => { SPR_CORE = sprite(C.cCore, 32); SPR_MID = sprite(C.cMid, 32); };
 
 function layout() {
   const w = C.pw, h = Math.round(w * PLATE_AR);
   plateEl.style.width = w + 'px'; plateEl.style.height = h + 'px';
   imprintEl.style.width = w + 'px'; imprintEl.style.height = h + 'px';
-  // canvas is oversized so outward dust + bloom aren't clipped at the plate's edge
   const pad = 1.9;
   cv.width = Math.round(w * pad); cv.height = Math.round(h * pad);
   cv.style.width = cv.width + 'px'; cv.style.height = cv.height + 'px';
   $('rig').style.width = w + 'px'; $('rig').style.height = h + 'px';
-  paintImprintStyle();
-}
-function paintImprintStyle() {
-  const g = C.grad;
-  // grad 0 → flat mid; grad 1 → the charge glyph's deep→cyan→white-hot ramp
-  const mix = (a, b, t) => a; // stops stay literal; `grad` only pulls the ends toward mid
-  const deep = g > 0 ? C.cDeep : C.cMid, core = g > 0 ? C.cCore : C.cMid;
-  const p1 = 50 - 31 * g, p2 = 50, p3 = 50 + 31 * g;
-  imprintEl.style.background =
-    `linear-gradient(90deg, ${deep} 0%, ${C.cMid} ${p1}%, ${core} ${p2}%, ${C.cMid} ${p3}%, ${deep} 100%)`;
-  const k = C.pw / REF_W;
-  imprintEl.style.filter =
-    `drop-shadow(0 0 ${C.g1 * k}px ${rgba(C.cMid, 0.85)}) drop-shadow(0 0 ${C.g2 * k}px ${rgba(C.cDeep, 1)})`;
+  paintLook();
 }
 function rgba(hex, a) {
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${(n>>16)&255}, ${(n>>8)&255}, ${n&255}, ${a})`;
 }
+function paintLook() {
+  const g = C.grad;
+  const deep = g > 0 ? C.cDeep : C.cMid, core = g > 0 ? C.cCore : C.cMid;
+  const p1 = 50 - 31 * g, p3 = 50 + 31 * g;
+  imprintEl.style.background =
+    `linear-gradient(90deg, ${deep} 0%, ${C.cMid} ${p1}%, ${core} 50%, ${C.cMid} ${p3}%, ${deep} 100%)`;
+  const k = C.pw / REF_W;
+  imprintEl.style.filter =
+    `drop-shadow(0 0 ${C.g1*k}px ${rgba(C.cMid,0.85)}) drop-shadow(0 0 ${C.g2*k}px ${rgba(C.cDeep,1)})`;
+}
 
+/* ================= run ================= */
+let parts = [], t0 = 0, running = false, raf = 0;
 function spawn() {
   parts = [];
   const w = C.pw, h = w * PLATE_AR, k = w / REF_W;
   const cx = cv.width / 2, cy = cv.height / 2;
   for (let i = 0; i < C.count; i++) {
-    const useEdge = EDGE.length && Math.random() < C.edge;
-    const src = useEdge ? EDGE : PTS;
+    const src = (LINE_PTS.length && Math.random() < C.onLines) ? LINE_PTS : BODY_PTS;
     if (!src.length) break;
     const p = src[(Math.random() * src.length) | 0];
     const x = cx + (p.u - 0.5) * w, y = cy + (p.v - 0.5) * h;
-    // outward = away from the plate's centre, so the cloud opens like the plate letting go
     let dx = x - cx, dy = y - cy;
     const m = Math.hypot(dx, dy) || 1; dx /= m; dy /= m;
     const sp = C.spd * k * (1 + (Math.random() - 0.5) * 2 * C.spdVar);
-    parts.push({
-      x, y,
-      vx: dx * sp, vy: dy * sp + C.lift * k,
-      born: Math.random() * C.stag,                       // 0..1 of total
+    parts.push({ x, y, vx: dx*sp, vy: dy*sp + C.lift*k,
+      born: Math.random() * C.stag,
       life: C.life * (1 + (Math.random() - 0.5) * 2 * C.lifeVar),
-      r: C.size * k * (1 + (Math.random() - 0.5) * 2 * C.sizeVar),
-    });
+      r: C.size * k * (1 + (Math.random() - 0.5) * 2 * C.sizeVar) });
   }
 }
-
+function blit(spr, x, y, r, a) {
+  if (r <= 0 || a <= 0) return;
+  ctx.globalAlpha = Math.min(1, a);
+  ctx.drawImage(spr, x - r, y - r, r * 2, r * 2);
+}
 function frame(now) {
   if (!running) return;
-  const t = (now - t0) / C.total;                          // 0..1 of the whole effect
-  const ms = now - t0;
-
-  // --- plate art retreats, imprint takes its place ---
+  const ms = now - t0, t = ms / C.total;
   plateEl.style.opacity = String(Math.max(0, 1 - ms / Math.max(1, C.plateOut)));
   const inA = Math.min(1, ms / Math.max(1, C.inMs));
   const burnStart = C.inMs + C.holdMs;
@@ -213,7 +299,6 @@ function frame(now) {
   imprintEl.style.opacity = String(Math.max(0, inA * (1 - burn) * C.inten));
   imprintEl.style.transform = `scale(${1 + (C.puff - 1) * burn})`;
 
-  // --- dust ---
   ctx.globalCompositeOperation = 'destination-out';
   ctx.fillStyle = `rgba(0,0,0,${1 - C.trail})`;
   ctx.fillRect(0, 0, cv.width, cv.height);
@@ -224,31 +309,21 @@ function frame(now) {
     const age = (t - p.born) / Math.max(0.01, p.life);
     if (age >= 1) continue;
     p.x += p.vx * dt; p.y += p.vy * dt;
-    const fade = 1 - age;
-    const rr = p.r * (0.6 + 0.4 * fade);
-    // young = white-hot core, old = cyan tail
+    const fade = 1 - age, rr = p.r * (0.6 + 0.4 * fade);
     blit(SPR_CORE, p.x, p.y, rr, fade * fade * 0.9);
     blit(SPR_MID,  p.x, p.y, rr * 1.7, fade * 0.5);
   }
   ctx.globalAlpha = 1;
-
   if (ms >= C.total + 260) {
-    running = false;
-    ctx.clearRect(0, 0, cv.width, cv.height);
+    running = false; ctx.clearRect(0, 0, cv.width, cv.height);
     if ($('loop').checked) setTimeout(play, 420); else reset0();
     return;
   }
   raf = requestAnimationFrame(frame);
 }
-function blit(spr, x, y, r, alpha) {
-  if (r <= 0 || alpha <= 0) return;
-  ctx.globalAlpha = Math.min(1, alpha);
-  ctx.drawImage(spr, x - r, y - r, r * 2, r * 2);
-}
 function reset0() {
   plateEl.style.opacity = '1'; imprintEl.style.opacity = '0';
-  imprintEl.style.transform = 'scale(1)';
-  ctx.clearRect(0, 0, cv.width, cv.height);
+  imprintEl.style.transform = 'scale(1)'; ctx.clearRect(0, 0, cv.width, cv.height);
 }
 function play() {
   cancelAnimationFrame(raf);
@@ -258,33 +333,32 @@ function play() {
   raf = requestAnimationFrame(frame);
 }
 
-/* ---------- panel wiring ---------- */
+/* ================= panel ================= */
+const EDGE_KEYS = ['smooth','edgeGain','edgeCut','edgeW','outline','fill'];
 function syncUI() {
-  for (const k of KEYS) {
-    const el = $(k); if (!el) continue;
-    if (el.type === 'color') { el.value = C[k]; $('v_' + k).textContent = C[k]; }
-    else { el.value = C[k]; $('v_' + k).textContent = C[k]; }
-  }
+  for (const k of KEYS) { const el = $(k); if (!el) continue; el.value = C[k]; $('v_'+k).textContent = C[k]; }
   $('out').value = JSON.stringify(C, null, 2);
 }
 for (const k of KEYS) {
   const el = $(k); if (!el) continue;
   el.addEventListener('input', () => {
     C[k] = el.type === 'color' ? el.value : parseFloat(el.value);
-    $('v_' + k).textContent = C[k];
+    $('v_'+k).textContent = C[k];
     $('out').value = JSON.stringify(C, null, 2);
-    if (k === 'pw') layout(); else paintImprintStyle();
-    if (['cCore','cMid'].includes(k)) bakeSprites();
+    if (EDGE_KEYS.includes(k)) buildEdges();
+    else if (k === 'pw') layout();
+    else paintLook();
+    if (k === 'cCore' || k === 'cMid') bakeSprites();
   });
 }
 $('play').onclick = play;
-$('reset').onclick = () => { C = { ...DEF }; syncUI(); layout(); bakeSprites(); play(); };
+$('reset').onclick = () => { C = { ...DEF }; syncUI(); buildEdges(); layout(); bakeSprites(); play(); };
 $('copy').onclick = () => { $('out').select(); navigator.clipboard?.writeText($('out').value); };
 $('stage').onclick = play;
 addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); play(); } });
 
 const img = new Image();
-img.onload = () => { samplePlate(img); layout(); bakeSprites(); syncUI(); play(); };
+img.onload = () => { readSource(img); buildEdges(); layout(); bakeSprites(); syncUI(); play(); };
 img.onerror = () => { $('hint').textContent = 'cardplate.webp failed to load — check the path'; };
 img.src = PLATE_SRC;
 plateEl.src = PLATE_SRC;

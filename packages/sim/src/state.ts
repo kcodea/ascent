@@ -293,6 +293,9 @@ export interface RunState {
   /** Extra Gold granted at the start of next turn (Hoarder's Battlecry / Safety Deposit Box / Robin's
    *  Spoils). Consumed when the next recruit turn's Gold is set, then cleared. Absent = 0. */
   bonusEmbersNextTurn?: number;
+  /** Quick Sale: extra Gold added to the NEXT minion sold this turn (added on top of its sell value, then
+   *  cleared). Also cleared at turn end if unused ("this turn"). Stacks if cast twice. Absent = 0. */
+  nextSellBonus?: number;
   /** Pre-emptive Assault: the player's board attacks first in the NEXT combat, overriding the
    *  more-minions initiative rule (ties included). One-shot — cleared in `settleCombat`. */
   attackFirstNext?: boolean;

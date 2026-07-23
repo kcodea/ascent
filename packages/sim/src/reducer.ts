@@ -1023,7 +1023,11 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       // Hoarder sells for a flat 2 Gold (golden 4); everything else for the base sell value. Rune of
       // Bartering (Shout minions sell for 2) is folded into the shared helper, so the UI coin matches.
-      if (sold) s.embers += sellValueOf(sold, s);
+      // Quick Sale: the next minion sold this turn gets a one-shot bonus on top, then the bonus is spent.
+      if (sold) {
+        s.embers += sellValueOf(sold, s) + (s.nextSellBonus ?? 0);
+        if (s.nextSellBonus) s.nextSellBonus = 0;
+      }
       // On-sell effects (Hoard Whelp → get 6 Gold), fired after the card leaves the board/hand.
       if (sold) fireOnSell(s, sold);
       // Robin's Spoils: each minion you sell banks +1 Gold for the START of next turn — stacks all turn, lands
@@ -2115,6 +2119,7 @@ function advanceCombat(s: RunState): void {
   s.playedThisTurn = []; // Pack Leader / Spirit Worgen: minions-played-this-turn resets each turn
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.cardsBoughtThisTurn = 0; // Frenzied Excavator's per-turn cards-bought scaling resets each wave
+  if (s.nextSellBonus) s.nextSellBonus = 0; // Quick Sale is a THIS-TURN bonus — expires unused at turn end
   for (const c of s.board) c.rubyRecvTick = 0; // Ruby Broker's per-turn Gold cap resets each wave
   s.attachmentsThisTurn = 0; // Tempering/Replication's "first Attachment each turn" gate resets each wave
   s.shoutsThisTurn = 0; // Rune of Refrain's Shout counter resets each wave

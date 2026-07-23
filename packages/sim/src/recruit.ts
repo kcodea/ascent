@@ -4,7 +4,7 @@ import { poolOf } from './cardPool';
 import { CONFIG, maxTierFor } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
 import { mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type DiscoverSpec, type RunState, type ShopCard } from './state';
-import { returnToPool, rollSpellShop, takeFromPool } from './shop';
+import { returnToPool, rollSpellShop, takeFromPool, refillShopFiltered, elevatedTier } from './shop';
 
 /**
  * The recruit-phase half of the effect system (handoff C.5), split across the
@@ -2046,6 +2046,26 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Refreshing Texts — cast: bank `count` free rerolls. */
   grantFreeRolls: (ctx, _self, params) => {
     ctx.state.freeRolls += num(params.count, 1);
+  },
+
+  /** Quick Sale — cast: the NEXT minion sold this turn is worth `gold` more (added on the sell, then spent).
+   *  Stacks if cast twice; expires unused at turn end. Untargeted. */
+  spellNextSellBonus: (ctx, _self, params) => {
+    ctx.state.nextSellBonus = (ctx.state.nextSellBonus ?? 0) + num(params.gold, 2);
+  },
+
+  /** Sigil of Kinship — cast on a friendly minion: refresh the tavern's minion offers with random minions of
+   *  THAT minion's type (dual-types count), up to your tavern tier. The spell slot is left as-is. */
+  spellRefreshToTribe: (ctx, self) => {
+    const tribe = self.tribe;
+    refillShopFiltered(ctx.state, (c) => c.tier <= ctx.state.tier && (c.tribe === tribe || c.tribe2 === tribe));
+  },
+
+  /** Elevation Ritual — cast: replace the tavern's minion offers with random minions ONE tier higher (capped at
+   *  Tier 7), drawn from your active tribes + neutral. The spell slot is left as-is. */
+  spellRefreshTierUp: (ctx) => {
+    const tier = elevatedTier(ctx.state);
+    refillShopFiltered(ctx.state, (c) => c.tier === tier && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)));
   },
 
   /** Mana Font — cast: raise MAX Mana by `amount`, UNCAPPED (may push past the normal cap). Current Mana

@@ -3,6 +3,26 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (spell batch — tranche B2: shop / economy)
+
+### feat(content): Quick Sale + Sigil of Kinship + Elevation Ritual
+
+Three set-agnostic shop/economy spells:
+- **Quick Sale** (T1/1) — the next minion sold this turn is worth +2 Gold (new `RunState.nextSellBonus`,
+  added on the sell then spent; expires unused at turn end). New `spellNextSellBonus` factory.
+- **Sigil of Kinship** (T5/2) — choose a friendly minion; refresh the tavern's minions with random minions of
+  its type (`spellRefreshToTribe`).
+- **Elevation Ritual** (T6/2) — replace the tavern's minions with random minions one tier higher, capped at
+  Tier 7 (`spellRefreshTierUp`).
+
+New shared shop helper `refillShopFiltered(state, filter)` — rewrites the minion offers from any pool filter,
+decrementing the shared pool per draw like a normal reroll (spell slot untouched); `elevatedTier` clamps
+`tier + 1` to 7. Layaway + Veinstorm from this tranche are deferred to an offer-targeting slice (they need
+per-offer flags / Ruby live-text plumbing).
+
+Verified: new `spellBatch.test.ts` cases + live Scene-Builder (Elevation Ritual rewrote a tier-3 shop to
+tier-4 minions; Quick Sale paid base + 2 then cleared). Full suite (1517) + lint + build:web green.
+
 ## 2026-07-23 (spell batch — tranche B1: next-combat keyword grants)
 
 ### feat(content): Field Maneuvers + Last Stand + Executioner's Edge — bank a keyword for one fight

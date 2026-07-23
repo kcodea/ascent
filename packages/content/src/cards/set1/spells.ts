@@ -850,4 +850,49 @@ export const SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellGrantKeywordNextCombat', params: { keyword: 'CR', critChance: 0.5 } }],
     text: 'Give a minion **Critical Strike (50%)** for the next combat.',
   },
+
+  // --- New spells (2026-07-23 batch, tranche B2 — shop / economy; set-agnostic). ---
+  {
+    // The next minion sold this turn is worth +2 Gold. Untargeted; one-shot, expires unused at turn end.
+    id: 'quicksale',
+    name: 'Quick Sale',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 1,
+    effects: [{ on: 'cast', do: 'spellNextSellBonus', params: { gold: 2 } }],
+    text: 'The next minion you **sell** this turn sells for **2** additional Gold.',
+  },
+  {
+    // Choose a friendly minion; refresh the tavern's minions with random minions of ITS type (up to your tier).
+    id: 'sigilkinship',
+    name: 'Sigil of Kinship',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellRefreshToTribe' }],
+    text: "Choose a minion. Refresh the Shop with minions of its **type**.",
+  },
+  {
+    // Replace the tavern's minions with random minions ONE tier higher (capped at Tier 7). Untargeted.
+    id: 'elevationritual',
+    name: 'Elevation Ritual',
+    tribe: 'neutral',
+    tier: 6,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [{ on: 'cast', do: 'spellRefreshTierUp' }],
+    text: 'Replace the minions in the Shop with random minions **one tier higher**.',
+  },
 ];

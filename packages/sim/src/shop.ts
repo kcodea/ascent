@@ -1,7 +1,7 @@
 import { makeRng, type CardDef, type Rng, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { poolOf } from './cardPool';
-import { POOL_QUANTITIES } from './config';
+import { POOL_QUANTITIES, maxTierFor } from './config';
 import type { RunState } from './state';
 
 /** Fallback copy count for a tier not listed in POOL_QUANTITIES (defensive — every tier 1–7 is set). */
@@ -133,6 +133,32 @@ export function rollSpellShop(state: RunState): void {
   state.shop = eligible.slice(0, slots).map((id) => ({ uid: `s${state.uidSeq++}`, cardId: id }));
   state.rngCursor = rng.state();
 }
+
+/**
+ * Refresh the MINION offers from a CUSTOM pool filter, decrementing the shared pool per draw exactly like a
+ * normal reroll (duplicates allowed while copies remain). The right-hand spell slot is left untouched. Powers
+ * the shop-rewrite spells — Sigil of Kinship (one tribe), Elevation Ritual (a fixed tier). An empty filtered
+ * pool leaves the shop empty (the next normal roll restocks). Seeded + reproducible via the shop RNG cursor.
+ */
+export function refillShopFiltered(state: RunState, filter: (c: CardDef) => boolean): void {
+  for (const offer of state.shop) returnToPool(state, offer.cardId);
+  const rng = makeRng(state.rngCursor);
+  const slots = tierSlots(state.tier);
+  const pool = poolOf(state).buyable.filter((c) => filter(c) && (state.pool[c.id] ?? 0) > 0);
+  const offers: RunState['shop'] = [];
+  for (let i = 0; i < slots && pool.length > 0; i++) {
+    const idx = rng.int(pool.length);
+    const pick = pool[idx]!;
+    offers.push({ uid: `s${state.uidSeq++}`, cardId: pick.id });
+    state.pool[pick.id] -= 1;
+    if ((state.pool[pick.id] ?? 0) <= 0) pool.splice(idx, 1); // exhausted → can't be drawn again this refresh
+  }
+  state.shop = offers;
+  state.rngCursor = rng.state();
+}
+
+/** The tier Elevation Ritual lifts the shop to: one above the current tavern tier, but never past Tier 7. */
+export const elevatedTier = (state: RunState): number => Math.min(state.tier + 1, maxTierFor('summit'));
 
 /**
  * Top up a *frozen* tavern that carried over with empty slots (you bought some) or a missing spell.

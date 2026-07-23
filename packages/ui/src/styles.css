@@ -1665,7 +1665,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* Discover overlay (triple reward) */
 /* z160: discover / choose-one must sit above ALL effects — the FX overlay (.pixifx z110), a freshly-placed
    card's z111 lift, and the Fodder swirl (z120) — so a unit that triggers Discover can't cover its own menu. */
-.discover-ov { position: fixed; inset: 0; background: rgba(34, 22, 9, 0.62); backdrop-filter: blur(3px); display: grid; place-items: center; z-index: 160; animation: fadein 0.2s ease; }
+/* Dim, NOT blur (perf): `backdrop-filter: blur` is a full-viewport GPU pass sampling the whole framebuffer —
+   a heavy composite on the Discover-open frame, worst at the exe's native fullscreen res (owner report:
+   "discovers are a big one"). A slightly deeper solid scrim backgrounds the board just as well without the
+   per-composite cost. The matching hero/questbadges dim below drops its blur too, so the look stays uniform. */
+.discover-ov { position: fixed; inset: 0; background: rgba(30, 20, 8, 0.74); display: grid; place-items: center; z-index: 160; animation: fadein 0.2s ease; }
 /* While a Discover / quest / Runeforge overlay covers the board, the hero panel + power diamond + quest
    badges sit OUTSIDE its backdrop root (own fixed stacking contexts) — blur + dim them by hand so they match
    the covered board behind the modal. The filter sits ON each element (never an ancestor of the fixed diamond:
@@ -1674,7 +1678,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 body.modalup .statusbar .hero,
 body.modalup .statusbar .heropanel,
 body.modalup .statusbar .questbadges {
-  filter: blur(3px) brightness(0.55) saturate(0.85);
+  filter: brightness(0.5) saturate(0.85); /* dim + desaturate only — blur dropped to match the un-blurred board (perf) */
   pointer-events: none;
 }
 .statusbar .hero, .statusbar .heropanel, .statusbar .questbadges { transition: filter 0.2s ease; }

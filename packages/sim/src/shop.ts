@@ -160,8 +160,31 @@ export function refillShopFiltered(state: RunState, filter: (c: CardDef) => bool
   state.rngCursor = rng.state();
 }
 
-/** The tier Elevation Ritual lifts the shop to: one above the current tavern tier, but never past Tier 7. */
-export const elevatedTier = (state: RunState): number => Math.min(state.tier + 1, maxTierFor('summit'));
+/**
+ * Elevation Ritual: upgrade EACH minion offer to a random minion ONE tier higher than ITSELF (a Tier-1 offer
+ * becomes a random Tier-2, a Tier-3 → Tier-4, …), drawn from your active tribes + neutral. Capped at the rift's
+ * max tier — a Tier-7 result needs the Summit rift; an offer already at the cap (or with no upgrade available in
+ * the pool) is left untouched. Per-offer pool accounting: the replaced copy returns, the new copy is taken.
+ */
+export function elevateShop(state: RunState): void {
+  const cap = maxTierFor(state.rift);
+  const rng = makeRng(state.rngCursor);
+  const next: RunState['shop'] = [];
+  for (const offer of state.shop) {
+    const def = CARD_INDEX[offer.cardId];
+    const target = (def?.tier ?? 0) + 1;
+    const pool = def && target <= cap
+      ? poolOf(state).buyable.filter((c) => c.tier === target && (c.tribe === 'neutral' || state.tribes.includes(c.tribe)) && (state.pool[c.id] ?? 0) > 0)
+      : [];
+    if (pool.length === 0) { next.push(offer); continue; } // can't upgrade (at the cap / dry pool) → keep the offer
+    returnToPool(state, offer.cardId);
+    const pick = pool[rng.int(pool.length)]!;
+    state.pool[pick.id] -= 1;
+    next.push({ uid: `s${state.uidSeq++}`, cardId: pick.id });
+  }
+  state.shop = next;
+  state.rngCursor = rng.state();
+}
 
 /**
  * Top up a *frozen* tavern that carried over with empty slots (you bought some) or a missing spell.

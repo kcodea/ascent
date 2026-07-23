@@ -3,6 +3,35 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (perf: gate the drag re-render on DECISION change, not pixel travel — audit fix #2)
+
+### perf(ui): only re-render a drag when a visible decision changes
+
+Audit + Codex finding #2 (the biggest remaining drag/APM win): during a card drag the pointermove handler
+committed a new `drag.x/y` to React state every `DRAG_STATE_QUANTUM_PX` (8px) of travel, and each commit
+re-renders the whole Recruit tree. But *nothing the drag draws* changes at 8px scale — the dragged card, aim
+line and motion trail all ride `dragPosRef` frame-exact (no render), so a `setDrag` only ever buys the
+DECISION-driven layer: the drop-gap slides, the magnetize/cast highlights, the aim reticle, the sell/buy-zone
+glow. Those change at CARD scale (~100px) or on a zone/aim crossing. So the 8px quantum was firing ~10–20× more
+renders than any visible change needed — the late-game "drag jank / APM drops" the owner reported.
+
+Fix (extract → parity → gate, Codex's endorsed sequence): pulled every pointer-derived drag decision out of the
+render body into a pure, unit-tested `deriveDragDecision` (dragDecision.ts) — the drop-gap indices, `wouldMagnetize`,
+`castTargetUid`, `overWarband`, `collapsedLift`, `handGapIndex`, plus `computeCastingSpell` for the aim boundary.
+The render now calls it (byte-parity with the old inline block), and so does `flushMove`: it evaluates the
+decision at the exact cursor vs. the last committed point and commits ONLY when they differ (plus the always-eager
+zone change + active flip, since `overZone` also drives the sell/buy glow and `canDropHand`). One function backs
+both callers, so the re-render gate and what the render then draws can never disagree. `onUp` still resolves the
+drop from the exact release event, so a flick that outran the throttle still lands correctly.
+
+Verified: new `dragDecision.test.ts` — 22 cases covering every gesture (board reorder, hand play, magnetize,
+spell cast friendly/`any`, shop reorder/buy, hand reorder) and the boundaries that flip a decision (play floor,
+collapse lift, zone, magSlide, spell pin), plus `dragDecisionEqual` (the gate) reusing on same-slot moves and
+flipping on a slot crossing. Live (sandbox): buy→hand and hand→board play land correctly with zero console
+errors. (The render-rate drop itself is rAF-gated and the automated preview pane throttles rAF to ~1fps, so the
+per-frame reduction is proven by construction + the parity tests rather than an in-pane frame count; it shows on
+a real foreground client / the exe.) typecheck (root) + lint + **1465 tests** green.
+
 ## 2026-07-23 (perf: value-stable card views — cards stop re-rendering on every action)
 
 ### perf(ui): reuse unchanged CardView objects so Card's memo bails (audit fix #1)

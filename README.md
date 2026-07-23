@@ -42,6 +42,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Dragging cards is smoother, especially late-game.** A drag now re-renders only when something visible
+  actually changes — a drop-gap opening, a magnetize/cast highlight, a zone crossing — instead of on every few
+  pixels of pointer travel. The dragged card, aim line and trail were already frame-exact; this removes the
+  ~10–20× of wasted re-renders behind them, the source of the mid/late-game "drag jank / APM drops."
 - **Set 2 can be built and playtested without disturbing set 1.** The Scene Builder has a **Card set** dropdown
   that plays any set — including one still in development — without flipping the global switch that would move
   real runs onto it. Adding a card to `cards/set2/` makes it appear in the rig immediately, and set 1's seeds

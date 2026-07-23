@@ -679,8 +679,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
 
       // Rubies (set 2): a Ruby plays from hand onto a friendly minion — it grants that minion the Ruby's
-      // CURRENT Attack/Health (baked at mint) as a permanent shop buff (source 'Ruby', so it's itemized in the
-      // inspect breakdown and other Kobolds can key off it), then is consumed. A Ruby is NOT a Shop Spell: it
+      // current Attack/Health as a PERMANENT buff (source 'Ruby', itemized in the inspect breakdown so other
+      // Kobolds can key off it), then is consumed. The buff is permanent exactly like a spell buff — shop or
+      // combat, it never falls off (owner ruling 2026-07-23). A Ruby is NOT a Shop Spell: it
       // never touches `spellsCast` or any Shop-Spell trigger/quest; it advances its OWN `rubyCasts` counter,
       // and umbrella cards ("both spells and Rubies") read `spellsCast + rubyCasts`. No target → fizzle (kept).
       if (def?.ruby) {
@@ -1567,8 +1568,10 @@ function checkTriples(s: RunState): void {
   for (let guard = 0; guard < 10; guard++) {
     const counts = new Map<string, number>();
     for (const c of [...s.board, ...s.hand]) {
-      // Spells are never minions — they don't triple (they're cast for their effect).
-      if (!c.golden && !CARD_INDEX[c.cardId]?.spell) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
+      // Spells + Rubies are never minions — they don't triple (they're cast for their effect; owner: Rubies
+      // are spells for this purpose). Both play from hand for an effect, never combine into a golden.
+      const cd = CARD_INDEX[c.cardId];
+      if (!c.golden && !cd?.spell && !cd?.ruby) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
     }
     const need = s.runeTwinGilding ? 2 : 3; // Rune of Twin Gilding: Gild at 2 copies
     let tripleId: string | undefined;

@@ -3,6 +3,24 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: Ruby rulings corrected — permanent, retroactive-to-hand, un-tripleable)
+
+### fix(sim): three Ruby design corrections (owner)
+
+Owner corrected three Ruby rules from the earlier design pass:
+1. **Ruby buffs are ALWAYS permanent** — shop or combat, exactly like a spell buff; there is no "temporary in
+   combat unless Engraved." The cast already used a permanent `addBuff`, so this was a comment/design fix (the
+   reducer + `mintRubies` notes and the deferred-Engrave framing were corrected).
+2. **"Your Rubies gain +X" grows Rubies in HAND too**, not future-only. Reversed the earlier "baked at mint,
+   never retroactive" rule: `rubyStatGain` now raises `rubyBonus` AND buffs every Ruby currently in hand, so all
+   HELD Rubies stay equal to base 1/1 + rubyBonus. Only Rubies already CAST onto a minion (buff baked in) don't
+   grow. Verified live: a held Ruby's text ticks "+1/+1" → "+1/+2" the instant Deepvein is played.
+3. **Rubies never triple** — they're spells for this purpose. `checkTriples` excluded only `spell`; now excludes
+   `ruby` too, so 3+ Rubies in hand never combine into a golden.
+
+`rubies.test.ts` updated: the future-only test replaced by a hand-grows-too test; a no-triple test added (a
+golden Chipwick mints 4 Rubies, none combine). typecheck + lint + full suite + build:web green.
+
 ## 2026-07-23 (set 2: Rubies render as spell cards)
 
 ### feat(ui): Rubies wear the spell look + live "Give a minion +X/+Y" text (owner ask)

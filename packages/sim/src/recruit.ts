@@ -706,10 +706,10 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number, ov
 export const RUBY_ID = 'ruby';
 
 /**
- * Mint `count` Rubies into the player's hand (set 2 Kobolds). Each Ruby is a hand card carrying its stats at
- * MINT time — the token's base 1/1 plus the run's `rubyBonus` — so a later "Your Rubies gain +X" never grows a
- * Ruby already in hand or already cast (owner ruling: future Rubies only). Respects the hand cap. Unlike a
- * conjured minion this is deterministic (no RNG) — the same card always mints the same Ruby.
+ * Mint `count` Rubies into the player's hand (set 2 Kobolds). Each Ruby is minted at the token's base 1/1 plus
+ * the run's current `rubyBonus`. A later "Your Rubies gain +X" grows every Ruby still in HAND too (see
+ * `rubyStatGain`), so all held Rubies stay equal to base + rubyBonus; only Rubies already CAST onto a minion
+ * (their buff baked in) don't grow. Respects the hand cap. Deterministic (no RNG) — same card, same Ruby.
  */
 export function mintRubies(state: RunState, count: number): void {
   const def = CARD_INDEX[RUBY_ID];
@@ -849,14 +849,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     mintRubies(ctx.state, num(params.count, 1) * gold(self));
   },
 
-  /** Set 2 — "Your Rubies gain +X/+Y" (Deepvein Tender): raise the run's Ruby strength so every FUTURE Ruby
-   *  is minted bigger. Never retroactive (Rubies in hand / already cast keep their minted stats). */
+  /** Set 2 — "Your Rubies gain +X/+Y" (Deepvein Tender): raise the run's Ruby strength so every future Ruby
+   *  is minted bigger, AND grow every Ruby you already HOLD in hand (they're "your Rubies" too). Rubies already
+   *  CAST onto a minion are spent — their buff is baked in and doesn't grow (owner ruling 2026-07-23). */
   rubyStatGain: (ctx, self, params) => {
+    const a = num(params.attack) * gold(self);
+    const h = num(params.health) * gold(self);
     const b = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
-    ctx.state.rubyBonus = {
-      attack: b.attack + num(params.attack) * gold(self),
-      health: b.health + num(params.health) * gold(self),
-    };
+    ctx.state.rubyBonus = { attack: b.attack + a, health: b.health + h };
+    for (const card of ctx.state.hand) {
+      if (CARD_INDEX[card.cardId]?.ruby) { card.attack += a; card.health += h; }
+    }
   },
 
   /** Legacy single-target buy buff: the minion you bought gets +atk/+hp (not itself). Kept as a primitive —

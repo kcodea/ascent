@@ -33,16 +33,6 @@ describe('Ruby engine (set 2)', () => {
     expect(s.spellsCast).toBe(spellsBefore); // NOT a Shop Spell — the spell-cast counter is untouched
   });
 
-  it('rubyBonus grows only FUTURE Rubies (never retroactive)', () => {
-    const s = createRun(1);
-    s.hand = [];
-    mintRubies(s, 1); // minted at base 1/1
-    s.rubyBonus = { attack: 1, health: 1 };
-    mintRubies(s, 1); // minted AFTER the bonus → 2/2
-    const rubies = s.hand.filter((c) => c.cardId === RUBY_ID);
-    expect(rubies.map((r) => `${r.attack}/${r.health}`).sort()).toEqual(['1/1', '2/2']);
-  });
-
   it('a Ruby with no valid target fizzles and stays in hand', () => {
     let s: RunState = { ...createRun(1), board: [], hand: [] };
     mintRubies(s, 1);
@@ -59,12 +49,24 @@ describe('Ruby engine (set 2)', () => {
     expect(s.board.some((c) => c.cardId === 'k_chipwick')).toBe(true); // Chipwick itself played to board
   });
 
-  it('Deepvein Tender raises rubyBonus so FUTURE Rubies are bigger', () => {
-    let s: RunState = { ...createRun(1), board: [], hand: [{ uid: 'dv', cardId: 'k_deepvein', tribe: 'kobold', attack: 2, health: 3, keywords: [], golden: false }] };
-    s = reduce(s, { type: 'play', uid: 'dv' });
+  it('Deepvein Tender grows Rubies already in HAND and future ones (owner: not future-only)', () => {
+    let s: RunState = { ...createRun(1), board: [], hand: [] };
+    mintRubies(s, 1); // a Ruby already in hand at base 1/1
+    s.hand.push({ uid: 'dv', cardId: 'k_deepvein', tribe: 'kobold', attack: 2, health: 3, keywords: [], golden: false });
+    s = reduce(s, { type: 'play', uid: 'dv' }); // Shout: your Rubies gain +0/+1
     expect(s.rubyBonus).toMatchObject({ attack: 0, health: 1 });
+    const handRuby = s.hand.find((c) => c.cardId === RUBY_ID)!;
+    expect([handRuby.attack, handRuby.health]).toEqual([1, 2]); // the ALREADY-HELD Ruby grew
     mintRubies(s, 1);
-    const ruby = s.hand.find((c) => c.cardId === RUBY_ID)!;
-    expect([ruby.attack, ruby.health]).toEqual([1, 2]); // base 1/1 + 0/1
+    expect(s.hand.filter((c) => c.cardId === RUBY_ID).every((r) => r.attack === 1 && r.health === 2)).toBe(true); // future too
+  });
+
+  it('Rubies never triple, even with 3+ in hand — they are spells (owner ruling)', () => {
+    // A golden Chipwick mints 4 Rubies at once; `play` runs checkTriples on the grown hand.
+    let s: RunState = { ...createRun(1), board: [], hand: [{ uid: 'ch', cardId: 'k_chipwick', tribe: 'kobold', attack: 1, health: 2, keywords: [], golden: true }] };
+    s = reduce(s, { type: 'play', uid: 'ch' });
+    const rubies = s.hand.filter((c) => c.cardId === RUBY_ID);
+    expect(rubies.length).toBe(4); // all four remain — none combined
+    expect(rubies.some((r) => r.golden)).toBe(false); // no golden Ruby formed
   });
 });

@@ -42,6 +42,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Eight new spells (batch tranche A).** Six set-agnostic — Crest of the Climb (Choose One +4 Atk/+4 HP),
+  Turnabout (swap Attack/Health), Insurance Policy (comeback Gold after a loss), Rift-Sunk Codex (Discover a
+  Shop spell), Beyond the Summit (Discover one tier higher, up to Tier 7), Invitation Above (Discover a Tier 6
+  minion) — plus two Set-2 Ruby spells (Ruby Shipment, Facetwright's Choice). More tranches to come.
 - **Set 2 gets Set 1's spellbook.** Set 2's shop now offers Set 1's whole drawable neutral spell toolkit
   (Discover, buffs, economy, tempo) — everything but the four tribe-locked spells that have no home there
   (Lantern of Souls, Undead Army, Consume, Fodder Treatment). Its minions stay Kobold-only, and every Discover

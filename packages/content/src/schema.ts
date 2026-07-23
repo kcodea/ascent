@@ -146,6 +146,8 @@ export const EffectFactoryIdSchema = z.enum([
   'onFriendlyAttackBuffTribe',
   'battlecryDiscoverMinion',
   'spellSetStats',
+  'spellSwapStats',
+  'spellGoldIfLostLast',
   'onAllyAttackBuffAll',
   'onGainAttackBuffAll',
   'onGainAttackBuffImproving',
@@ -350,6 +352,8 @@ export const CardDefSchema = z.object({
       filter: z.enum(['battlecry', 'deathrattle']).optional(),
       tribe: z.union([TribeSchema, z.literal('dominant')]).optional(),
       topTierFirst: z.boolean().optional(),
+      spell: z.boolean().optional(),
+      maxTier: z.number().int().positive().optional(),
     })
     .strict()
     .optional(),

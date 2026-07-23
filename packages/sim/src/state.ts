@@ -218,7 +218,7 @@ export type RunMode = 'ascent' | 'rift' | 'practice';
 
 export type DiscoverSpec =
   | { kind: 'spell' }
-  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean }
+  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean; maxTier?: number }
   // A Discover from an EXPLICIT card-id pool (Rune of the Second Path's Greater-Quest reward minions).
   | { kind: 'pool'; ids: string[] };
 

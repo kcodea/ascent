@@ -3,6 +3,37 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (spell batch — tranche A: 8 straightforward spells)
+
+### feat(content): new spell batch tranche A — 6 set-agnostic + 2 Set-2 Ruby spells
+
+First slice of the owner's 28-spell batch (2026-07-23). The eight built on existing primitives:
+
+**Set-agnostic** (in `set1/spells.ts`, auto-carried to Set 2 via `SET1_SPELLS_IN_SET2`):
+- **Crest of the Climb** (T1/1) — Choose One: +4 Attack or +4 Health. Flat (a new `flat: true` param on
+  `spellBuffTarget` opts out of spell power) so the printed "+4" is always exact — Choose-One option text isn't
+  greened. `target: 'any'` (warband or offer) — this required generalizing the reducer's *targeted* Choose One
+  from `friendly`-only to also handle `any` + tavern offers (both the play-capture and the resolve paths).
+- **Turnabout** (T3/2) — swap a minion's Attack/Health (new `spellSwapStats` factory, delta buff, no scaling).
+- **Insurance Policy** (T4/2) — +5 Gold only if you lost your last combat (new `spellGoldIfLostLast`, reads
+  the pinned `lastCombat.result`; a draw/win pays nothing).
+- **Rift-Sunk Codex** (T3/2) — Discover a Shop spell (new `discoverOnPlay.spell` → queues a `{kind:'spell'}`).
+- **Beyond the Summit** (T4/4) — Discover a minion one tier higher, reaching Tier 7 without Summit (new
+  `discoverOnPlay.maxTier` overrides the rift cap; `topTierFirst` biases to the offer tier).
+- **Invitation Above** (T5/5) — Discover a fixed Tier 6 minion (`exactTier: 6`).
+
+**Set 2 only** (new `cards/set2/spells.ts` → `SET2_SPELLS` in `set2.own`):
+- **Ruby Shipment** (T2/1) — Get 2 Rubies (`getRubies` as a cast effect).
+- **Facetwright's Choice** (T3/1) — Choose One: your Rubies gain +1 Attack or +1 Health (`rubyStatGain`).
+
+**Judgement call flagged:** Crest / Facetwright's grants are FLAT (no spell-power scaling), chosen so the
+printed numbers stay honest without wiring live Choose-One option text (a Tranche-C UI lift). Say if you'd
+rather they scale.
+
+Verified: new `spellBatch.test.ts` (10 cases) + updated `sets.test.ts`; full suite (1509) + lint + build:web
+green; live Scene-Builder rolls in the browser confirmed all 8 surface in the shop (both sets) and the Crest
+Choose-One resolves end-to-end through the real store. Blocked/deferred: the 2 Dwarf spells (no Dwarf tribe).
+
 ## 2026-07-23 (set 2: carry Set 1's spell toolkit into Set 2)
 
 ### feat(set2): Set 2 inherits Set 1's neutral spells (minus the tribe-locked four)

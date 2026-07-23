@@ -1931,8 +1931,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     let health = num(params.health);
     // Stat-granting spells pick up the run's spell power (Spellbinder hero + cards: Cinderwing on
     // Health, Skullblade on Attack). The UI shows the same effective value via spellDisplayText — one
-    // source of truth (spellAttackBonus / spellHealthBonus).
-    if (attack > 0 || health > 0) {
+    // source of truth (spellAttackBonus / spellHealthBonus). `flat: true` opts OUT (Crest of the Climb's
+    // Choose-One single-stat grants stay exactly as printed, since Choose-One option text isn't greened).
+    if (!params.flat && (attack > 0 || health > 0)) {
       attack += spellAttackBonus(ctx.state);
       health += spellHealthBonus(ctx.state);
     }
@@ -2058,6 +2059,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.maxGoldBonus = (ctx.state.maxGoldBonus ?? 0) + amount;
   },
 
+  /** Insurance Policy — cast: if you LOST your last combat, gain `gold` Gold (else nothing). Reads the pinned
+   *  `lastCombat` result; a draw doesn't count (only 'lose'). No last combat yet (turn 1) → no payout. */
+  spellGoldIfLostLast: (ctx, _self, params) => {
+    if (ctx.state.lastCombat?.result === 'lose') ctx.state.embers += num(params.gold, 5);
+  },
+
   /** Mend — cast: heal the hero by `amount`, capped at the run's max Resolve (no overheal). Reads
    *  `state.maxResolve` (not the hero's printed Resolve) so anything that ever changes a run's max
    *  heals to the right ceiling. Untargeted (acts on the run). */
@@ -2164,6 +2171,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const a = num(params.attack, 20);
     const h = num(params.health, 20);
     addBuff(self, str(params._source) || 'Perfect Vision', a - self.attack, h - self.health);
+  },
+
+  /** Turnabout — cast: swap the target's Attack and Health. Applied as a delta buff (like `spellSetStats`) so
+   *  the swap folds through the buff breakdown and back onto a tavern offer via `castSpellOnOffer`. A literal
+   *  swap: a 0-Attack minion becomes 0-Health (the player's call). No spell-power scaling — it moves existing
+   *  stats, it doesn't grant them. */
+  spellSwapStats: (_ctx, self, params) => {
+    addBuff(self, str(params._source) || 'Turnabout', self.health - self.attack, self.attack - self.health);
   },
 
   /** Apples — cast: buff every minion currently in the tavern by +atk/+hp (rides on each offer's `atk`/`hp`,
@@ -2563,7 +2578,7 @@ function discoverFilter(id: 'battlecry' | 'deathrattle'): (c: CardDef) => boolea
 export function offerDiscover(
   state: RunState,
   discoverTier: number,
-  opts?: { tier?: number; filter?: (c: CardDef) => boolean; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean },
+  opts?: { tier?: number; filter?: (c: CardDef) => boolean; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; maxTier?: number },
 ): void {
   const baseFilter = opts?.filter ?? (() => true);
   const tribe = opts?.tribe;
@@ -2589,7 +2604,7 @@ export function offerDiscover(
   } else if (opts?.topTierFirst) {
     // Golden/triple reward only ("peek one tier up"): bias to the highest tier — fill from the top tier
     // down, walking the floor down only if the top tier can't supply 3. The single high-tier exception.
-    const target = Math.min(maxTierFor(state.rift), discoverTier); // Summit: ceiling is 7
+    const target = Math.min(opts?.maxTier ?? maxTierFor(state.rift), discoverTier); // Summit / maxTier: ceiling can be 7
     let floor = target;
     while (pool.length < 3 && floor >= 1) {
       pool = poolOf(state).buyable.filter(
@@ -2605,7 +2620,7 @@ export function offerDiscover(
   } else {
     // Card-driven Discover up to the tavern tier (Sea Urchin, Help Wanted): EVERY eligible card at or below
     // the target tier, weighed EVENLY — no high-tier bias (same rule as the shop + spell Discover).
-    const target = Math.min(maxTierFor(state.rift), discoverTier); // Summit: ceiling is 7
+    const target = Math.min(opts?.maxTier ?? maxTierFor(state.rift), discoverTier); // Summit / maxTier: ceiling can be 7
     pool = poolOf(state).buyable.filter(
       (c) =>
         c.tier <= target &&
@@ -2651,6 +2666,7 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
       exclude: spec.exclude,
       filter: spec.filter ? discoverFilter(spec.filter) : undefined,
       topTierFirst: spec.topTierFirst,
+      maxTier: spec.maxTier,
     });
     // Disco Dan's Setlist: carry the lock tier onto the open offer so the resolved pick becomes a
     // locked hand card (only set if the offer actually opened).

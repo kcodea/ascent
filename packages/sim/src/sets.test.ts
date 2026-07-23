@@ -81,8 +81,9 @@ describe('card sets — set 2 carries set 1 spells', () => {
       if (DROPPED.includes(id)) expect(s2.has(id), `${id} should be dropped from set 2`).toBe(false);
       else expect(s2.has(id), `${id} should carry into set 2`).toBe(true);
     }
-    // ...and set 2 adds no NEW drawable spell set 1 lacks (the carryover is a subset of set 1's spells).
-    for (const id of s2) expect(s1.has(id), `${id} is in set 2 but not set 1`).toBe(true);
+    // ...and every set-2 spell is EITHER carried from set 1 or one of set 2's own Ruby spells (no leaks).
+    const SET2_OWN_SPELLS = ['rubyshipment', 'facetwright'];
+    for (const id of s2) expect(s1.has(id) || SET2_OWN_SPELLS.includes(id), `${id} is in set 2 but neither carried from set 1 nor a known set-2 spell`).toBe(true);
   });
 
   it('a Discover in a set-2 run pulls only Kobolds (+ neutral), never a set-1 minion', () => {

@@ -4,7 +4,7 @@ import { poolOf } from './cardPool';
 import { CONFIG, maxTierFor } from './config';
 import { getHero, spellAmplifyBonus } from './heroes';
 import { mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type DiscoverSpec, type RunState, type ShopCard } from './state';
-import { returnToPool, rollSpellShop, takeFromPool, refillShopFiltered, elevatedTier } from './shop';
+import { returnToPool, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop } from './shop';
 
 /**
  * The recruit-phase half of the effect system (handoff C.5), split across the
@@ -2088,11 +2088,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     refillShopFiltered(ctx.state, (c) => c.tier <= ctx.state.tier && (c.tribe === tribe || c.tribe2 === tribe));
   },
 
-  /** Elevation Ritual — cast: replace the tavern's minion offers with random minions ONE tier higher (capped at
-   *  Tier 7), drawn from your active tribes + neutral. The spell slot is left as-is. */
+  /** Elevation Ritual — cast: upgrade EACH minion offer to a random minion one tier higher than itself (capped
+   *  at the rift's max tier — Tier 7 only with Summit). The spell slot is left as-is. */
   spellRefreshTierUp: (ctx) => {
-    const tier = elevatedTier(ctx.state);
-    refillShopFiltered(ctx.state, (c) => c.tier === tier && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)));
+    elevateShop(ctx.state);
   },
 
   /** Layaway — cast on a TAVERN OFFER (via `castSpellOnOffer`, whose throwaway shares the offer's uid): keep

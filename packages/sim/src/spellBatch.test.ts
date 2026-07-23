@@ -141,20 +141,32 @@ describe('spell batch — tranche B2 (shop / economy)', () => {
     expect(s.embers).toBe(mid + 1); // second sell gets base only
   });
 
-  it('Sigil of Kinship: refreshes the shop with minions of the chosen minion’s type', () => {
+  it('Sigil of Kinship: refreshes the shop with minions of the chosen minion’s type (board OR a shop offer)', () => {
     const base = createRun(3);
     const tribe = base.tribes[0]!; // an ACTIVE tribe (its cards have pool copies)
     let s: RunState = { ...base, board: [{ uid: 'm1', cardId: 'sandbag', tribe, attack: 2, health: 2, keywords: [], golden: false }], hand: [mkSpell('sp', 'sigilkinship')] };
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm1' });
     expect(s.shop.length).toBeGreaterThan(0);
     expect(s.shop.every((o) => { const d = CARD_INDEX[o.cardId]!; return d.tribe === tribe || d.tribe2 === tribe; })).toBe(true);
+
+    // usable on a SHOP offer too (target 'any') — refreshes to that offer's type
+    const base2 = createRun(3);
+    const offer = base2.shop[0]!;
+    const offerTribe = CARD_INDEX[offer.cardId]!.tribe;
+    let s2: RunState = { ...base2, hand: [mkSpell('sp', 'sigilkinship')] };
+    s2 = reduce(s2, { type: 'play', uid: 'sp', targetUid: offer.uid });
+    expect(s2.shop.length).toBeGreaterThan(0);
+    expect(s2.shop.every((o) => { const d = CARD_INDEX[o.cardId]!; return d.tribe === offerTribe || d.tribe2 === offerTribe; })).toBe(true);
   });
 
-  it('Elevation Ritual: replaces the shop with minions one tier higher', () => {
+  it('Elevation Ritual: upgrades EACH offer to a random minion one tier higher than itself', () => {
     let s: RunState = { ...createRun(3), tier: 3, hand: [mkSpell('sp', 'elevationritual')] };
+    const before = s.shop.map((o) => CARD_INDEX[o.cardId]!.tier);
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
-    expect(s.shop.length).toBeGreaterThan(0);
-    expect(s.shop.every((o) => CARD_INDEX[o.cardId]!.tier === 4)).toBe(true); // tier 3 + 1
+    const after = s.shop.map((o) => CARD_INDEX[o.cardId]!.tier);
+    expect(after.length).toBe(before.length);
+    // at tier 3 (offers ≤ 3, cap 6) every offer climbs exactly one tier
+    after.forEach((t, i) => expect(t).toBe(before[i]! + 1));
   });
 });
 

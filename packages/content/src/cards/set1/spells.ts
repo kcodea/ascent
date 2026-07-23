@@ -877,7 +877,7 @@ export const SPELLS: CardDef[] = [
     keywords: [],
     spell: true,
     cost: 2,
-    target: 'friendly',
+    target: 'any',
     effects: [{ on: 'cast', do: 'spellRefreshToTribe' }],
     text: "Choose a minion. Refresh the Shop with minions of its **type**.",
   },
@@ -893,7 +893,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 2,
     effects: [{ on: 'cast', do: 'spellRefreshTierUp' }],
-    text: 'Replace the minions in the Shop with random minions **one tier higher**.',
+    text: 'Upgrade each minion in the Shop to a random minion **one tier higher**.',
   },
 
   // --- New spells (2026-07-23 batch, tranche B3 — offer / minion manipulation; set-agnostic). ---

@@ -2081,6 +2081,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.markEnemyRightmostTaunt = true;
   },
 
+  /** Open the Gates (Set 2) — cast: bank `count` Imps to enter the NEXT combat on your board (as many as fit
+   *  the 7-slot cap). Applied in `faceOmen` before the fight, then spent — they pick up the imp enchant like
+   *  any Imp. Reuses the Set-1 `impscrap` token (owner ruling 2026-07-23). */
+  spellSummonImpsNextCombat: (ctx, _self, params) => {
+    ctx.state.pendingSCImps = (ctx.state.pendingSCImps ?? 0) + num(params.count, 3);
+  },
+
   /** Sigil of Kinship — cast on a friendly minion: refresh the tavern's minion offers with random minions of
    *  THAT minion's type (dual-types count), up to your tavern tier. The spell slot is left as-is. */
   spellRefreshToTribe: (ctx, self) => {
@@ -2352,6 +2359,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellReplayBattlecry: (ctx, self) => {
     if (!self) return;
     replayBattlecry(ctx.state, self);
+  },
+
+  /** Encore — cast on a friendly minion: re-trigger the abilities it can fire out of combat — its Shout
+   *  (Battlecry / onPlay) AND its Echo (Deathrattle / onDeath, without destroying it), a minion with both gets
+   *  both. Rally is a combat-only on-attack trigger, so Encore can't fire it in the shop (owner ruling pending). */
+  spellEncore: (ctx, self) => {
+    if (!self) return;
+    const def = CARD_INDEX[self.cardId];
+    if (!def) return;
+    if (def.effects.some((e) => e.on === 'onPlay')) replayBattlecry(ctx.state, self); // Shout
+    if (def.effects.some((e) => e.on === 'onDeath')) fireRecruitDeathrattles(ctx, self); // Echo
   },
 
   /** Chrono Staff — your End-of-Turn effects fire one additional time this turn (a per-turn flag: stacks with

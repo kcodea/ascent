@@ -234,6 +234,34 @@ describe('spell batch — tranche B4 (transform / combat-pending)', () => {
   });
 });
 
+describe('spell batch — Encore + Open the Gates', () => {
+  it("Encore: re-triggers a friendly minion's Echo (Deathrattle) out of combat", () => {
+    let s: RunState = { ...createRun(1), board: [{ uid: 'p', cardId: 'pack', tribe: 'beast', attack: 3, health: 2, keywords: [], golden: false }], hand: [mkSpell('sp', 'encore')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'p' });
+    // Mama Pup's Deathrattle summons 2 Pups without destroying it → board grows from 1 to 3.
+    expect(s.board.filter((c) => c.cardId === 'pup').length).toBe(2);
+    expect(s.board.some((c) => c.uid === 'p')).toBe(true); // the minion itself survives
+  });
+
+  it('Open the Gates: banks 3 Imps that enter the next combat', () => {
+    let s: RunState = { ...createRun(1), board: [mkMinion('m1', 2, 2)], hand: [mkSpell('sp', 'openthegates')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
+    expect(s.pendingSCImps).toBe(3);
+    s = reduce(s, { type: 'faceOmen' });
+    expect(s.lastCombat!.initial.player.filter((m) => m.cardId === 'impscrap').length).toBe(3);
+    expect(s.pendingSCImps).toBe(0); // spent
+  });
+
+  it('Open the Gates respects the 7-slot cap', () => {
+    // golden so 6 identical sandbags don't triple-combine (which would shrink the board and defeat the test)
+    const board = Array.from({ length: 6 }, (_, i) => ({ ...mkMinion('m' + i, 1, 1), golden: true }));
+    let s: RunState = { ...createRun(1), board, hand: [mkSpell('sp', 'openthegates')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
+    s = reduce(s, { type: 'faceOmen' });
+    expect(s.lastCombat!.initial.player.filter((m) => m.cardId === 'impscrap').length).toBe(1); // only 1 free slot
+  });
+});
+
 describe('spell batch — tranche A (Set 2 Ruby spells)', () => {
   const RUBY = 'ruby';
 

@@ -41,4 +41,19 @@ export const SET2_SPELLS: CardDef[] = [
     ],
     text: '**Choose One:** your Rubies gain **+1 Attack**, or **+1 Health**.',
   },
+  {
+    // Open the Gates — cast: bank 3 Imps to enter the next combat on your board (as many as fit the 7-slot cap).
+    // Reuses the Set-1 `impscrap` Imp token (owner ruling). Untargeted.
+    id: 'openthegates',
+    name: 'Open the Gates',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 3,
+    effects: [{ on: 'cast', do: 'spellSummonImpsNextCombat', params: { count: 3 } }],
+    text: '**Start of combat:** summon an **Imp**, three times (as room allows).',
+  },
 ];

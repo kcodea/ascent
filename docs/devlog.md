@@ -3,6 +3,23 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (spell batch — Encore + Open the Gates)
+
+### feat(content): Encore (Shout/Echo re-trigger) + Open the Gates (Set 2, combat Imps)
+
+- **Encore** (T6/4, set-agnostic) — re-trigger a friendly minion's **Shout** (replay Battlecry) AND **Echo**
+  (fire Deathrattle without destroying); a minion with both gets both. `spellEncore`, `singleCast`. **Rally is
+  combat-only** (on-attack) with no out-of-combat meaning, so Encore can't fire it in the shop — flagged for an
+  owner ruling (the text still lists Rally as printed).
+- **Open the Gates** (T4/3, Set 2) — bank 3 Imps that enter the next combat on your board, up to the 7-slot
+  cap ("as room allows"). New `RunState.pendingSCImps` + `spellSummonImpsNextCombat`; `faceOmen` adds the
+  `impscrap` tokens (Set-1 Imp, owner-approved reuse) before the odds sims, then spends the bank. They pick up
+  the imp enchant like any Imp (`applyAuras`).
+
+Verified: new `spellBatch.test.ts` cases (Encore re-summons Mama Pup's 2 Pups, the minion survives; Open the
+Gates puts 3 Imps in `lastCombat.initial.player`, respects the 7-cap) + live Scene-Builder (3 combat Imps;
+Encore → 2 Pups, Mama Pup survived). Full suite (1526) + lint + build:web green.
+
 ## 2026-07-23 (spell batch — tranche B4: transform + combat-pending)
 
 ### feat(content): Strange Revision + Marked Target

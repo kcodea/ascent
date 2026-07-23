@@ -225,6 +225,9 @@ export type EffectFactoryId =
   | 'spellBuffNextShop' // Apples (Choose One): cast — bank a buff folded onto the NEXT tavern roll's offers
   | 'spellPendingSCBuff' // Fleeting Vigor: cast — bank a one-shot Start-of-Combat buff for the next combat
   | 'spellGrantKeywordNextCombat' // Field Maneuvers / Last Stand / Executioner's Edge: grant a keyword for the next combat only
+  | 'spellNextSellBonus' // Quick Sale: cast — the next minion sold this turn is worth more
+  | 'spellRefreshToTribe' // Sigil of Kinship: cast — refresh the shop with minions of the target's type
+  | 'spellRefreshTierUp' // Elevation Ritual: cast — refresh the shop with minions one tier higher
   | 'spellDemonConsumeFodder' // Consume: cast — a chosen Demon creates and eats N Fodder
   | 'deathrattleGrantRandomSpell' // Sporebat: Deathrattle — grant N random tavern-tier spells to the hand (Beast)
   | 'onDamagedGrantRefresh' // Gryphon: on taking damage, bank a free shop reroll (once per combat) (Beast)

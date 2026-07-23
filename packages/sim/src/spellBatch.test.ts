@@ -127,6 +127,37 @@ describe('spell batch — tranche B1 (next-combat keyword grants)', () => {
   });
 });
 
+describe('spell batch — tranche B2 (shop / economy)', () => {
+  it('Quick Sale: the next minion sold this turn is worth +2 Gold, one-shot', () => {
+    let s: RunState = { ...createRun(1), board: [mkMinion('m1', 2, 2), mkMinion('m2', 2, 2)], hand: [mkSpell('sp', 'quicksale')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
+    expect(s.nextSellBonus).toBe(2);
+    const before = s.embers;
+    s = reduce(s, { type: 'sell', uid: 'm1' });
+    expect(s.embers).toBe(before + 1 + 2); // base sell value (1) + the Quick Sale bonus
+    expect(s.nextSellBonus).toBe(0); // spent
+    const mid = s.embers;
+    s = reduce(s, { type: 'sell', uid: 'm2' });
+    expect(s.embers).toBe(mid + 1); // second sell gets base only
+  });
+
+  it('Sigil of Kinship: refreshes the shop with minions of the chosen minion’s type', () => {
+    const base = createRun(3);
+    const tribe = base.tribes[0]!; // an ACTIVE tribe (its cards have pool copies)
+    let s: RunState = { ...base, board: [{ uid: 'm1', cardId: 'sandbag', tribe, attack: 2, health: 2, keywords: [], golden: false }], hand: [mkSpell('sp', 'sigilkinship')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm1' });
+    expect(s.shop.length).toBeGreaterThan(0);
+    expect(s.shop.every((o) => { const d = CARD_INDEX[o.cardId]!; return d.tribe === tribe || d.tribe2 === tribe; })).toBe(true);
+  });
+
+  it('Elevation Ritual: replaces the shop with minions one tier higher', () => {
+    let s: RunState = { ...createRun(3), tier: 3, hand: [mkSpell('sp', 'elevationritual')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
+    expect(s.shop.length).toBeGreaterThan(0);
+    expect(s.shop.every((o) => CARD_INDEX[o.cardId]!.tier === 4)).toBe(true); // tier 3 + 1
+  });
+});
+
 describe('spell batch — tranche A (Set 2 Ruby spells)', () => {
   const RUBY = 'ruby';
 

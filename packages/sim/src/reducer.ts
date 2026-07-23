@@ -698,6 +698,9 @@ function reduceCore(state: RunState, action: Action): RunState {
             // Set 2 — the target's "when a Ruby is played on this" effects (Ruby Broker → Gold, Resonance → bounce).
             fireOnRubyPlayed(s, boardTarget, card.attack, card.health);
           }
+          // Warding Ruby: grant its keyword (Ward = DS) to the target — permanent in the shop phase (baked here).
+          const kw = def.rubyGrantKeyword;
+          if (kw && !boardTarget.keywords.includes(kw)) boardTarget.keywords.push(kw);
         } else if (offer) { for (let n = 0; n < casts; n++) addOfferBuff(offer, 'Ruby', card.attack, card.health); }
         else return state;
         s.hand.splice(i, 1);

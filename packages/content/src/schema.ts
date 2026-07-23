@@ -251,6 +251,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleBuffImpsImproving',
   // Set 2 — Kobolds / Rubies
   'getRubies',        // Shout/Rally: mint N Rubies into hand (base 1/1 + rubyBonus)
+  'endOfTurnGetRubies', // Wardstone Jeweler: End of Turn, mint Rubies (Warding Ruby)
   'rubyStatGain',     // "Your Rubies gain +X/+Y" — raises rubyBonus + grows held Rubies
   'scPlayRubies',     // Start of Combat: play N Rubies on your [tribe] minions (permanent carry-back)
   'avengePlayRubies', // Avenge (X): play N Rubies on your [tribe] minions
@@ -315,6 +316,7 @@ export const CardDefSchema = z.object({
   attackOnSummon: z.boolean().optional(),
   spell: z.boolean().optional(),
   ruby: z.boolean().optional(),
+  rubyGrantKeyword: KeywordSchema.optional(),
   singleCast: z.boolean().optional(),
   cost: z.number().int().nonnegative().optional(),
   target: z.enum(['friendly', 'any']).optional(),

@@ -334,6 +334,7 @@ export type EffectFactoryId =
   | 'deathrattleGainRandomMinion' // Lab Experiment: Echo conjures a random minion of a tier
   | 'deathrattleBuffImpsImproving' // Amun Rab: Echo buffs Imps, improving each proc;
   | 'getRubies' // Set 2 — Shout/Rally: mint N Rubies into hand
+  | 'endOfTurnGetRubies' // Set 2 — Wardstone Jeweler: End of Turn, mint Rubies (Warding Ruby)
   | 'rubyStatGain' // Set 2 — "Your Rubies gain +X/+Y": raise the run's Ruby strength (hand + future)
   | 'scPlayRubies' // Set 2 — Start of Combat: play N Rubies on your [tribe] minions (permanent carry-back)
   | 'avengePlayRubies' // Set 2 — Avenge (X): play N Rubies on your [tribe] minions
@@ -409,6 +410,9 @@ export interface CardDef {
   attackOnSummon?: boolean;
   /** A spell, not a minion: cast from hand for an effect, never takes a board slot. */
   spell?: boolean;
+  /** Warding Ruby (set 2): a Ruby that ALSO grants this keyword (Ward = `DS`) to the minion it's played on —
+   *  permanent when cast in the shop phase (the reducer's play-Ruby branch bakes it onto the board card). */
+  rubyGrantKeyword?: Keyword;
   /** A **Ruby** (set 2 Kobolds): a spell-like token that is NOT a Shop Spell — it plays from hand like a
    *  targeted spell (drag onto a minion) to grant that minion the Ruby's current Attack/Health as a buff,
    *  but it does NOT count for Shop-Spell triggers (Archmagus Guel, `spellsCast`). Rubies have their own

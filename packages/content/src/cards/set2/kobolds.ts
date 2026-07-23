@@ -107,6 +107,19 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Avenge (3):** Buff your Rubies **+2/+2**.',
   },
   {
+    // End of Turn (recruit) → mint a Warding Ruby (a Ruby that also grants Ward) into hand.
+    id: 'k_wardstone',
+    name: 'Wardstone Jeweler',
+    tribe: 'kobold',
+    tier: 5,
+    attack: 4,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnGetRubies', params: { count: 1, rubyId: 'warding-ruby' } }],
+    text: '**End of Turn:** Get a **Warding Ruby**.',
+    goldenText: '**End of Turn:** Get **2 Warding Rubies**.',
+  },
+  {
     // Two Rally effects (both fire on this minion's attack): buff your Rubies AND play a Ruby on 2 Kobolds.
     id: 'k_crownvein',
     name: 'Crownvein Vanguard',

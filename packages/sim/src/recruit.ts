@@ -711,15 +711,15 @@ export const RUBY_ID = 'ruby';
  * `rubyStatGain`), so all held Rubies stay equal to base + rubyBonus; only Rubies already CAST onto a minion
  * (their buff baked in) don't grow. Respects the hand cap. Deterministic (no RNG) — same card, same Ruby.
  */
-export function mintRubies(state: RunState, count: number): void {
-  const def = CARD_INDEX[RUBY_ID];
+export function mintRubies(state: RunState, count: number, rubyId: string = RUBY_ID): void {
+  const def = CARD_INDEX[rubyId];
   if (!def) return;
   const bonus = state.rubyBonus ?? { attack: 0, health: 0 };
   let minted = 0;
   for (let i = 0; i < count && state.hand.length < CONFIG.handMax; i++) {
     state.hand.push({
       uid: `b${state.uidSeq++}`,
-      cardId: RUBY_ID,
+      cardId: rubyId,
       tribe: def.tribe,
       attack: def.attack + bonus.attack,
       health: def.health + bonus.health,
@@ -907,6 +907,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
       state.rngCursor = rng.state();
       addBuff(target, 'Ruby', ra, rh);
     }
+  },
+
+  /** Set 2 — Wardstone Jeweler: at End of Turn, mint `count` Rubies of `rubyId` (× golden) into hand — used for
+   *  the Warding Ruby (`rubyId: 'warding-ruby'`); defaults to a plain Ruby. */
+  endOfTurnGetRubies: (ctx, self, params) => {
+    mintRubies(ctx.state, num(params.count, 1) * gold(self), str(params.rubyId) || RUBY_ID);
   },
 
   /** Set 2 — Hoardmaster Krik: every `every` cards bought (the `cardsBought` cadence handles the counting),

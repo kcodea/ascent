@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { mintRubies, applyCardsBought, RUBY_ID } from './recruit';
+import { mintRubies, applyCardsBought, applyEndOfTurn, RUBY_ID } from './recruit';
 
 /**
  * The Ruby engine (set 2 Kobolds). Rubies are a spell-LIKE token that is NOT a Shop Spell: minted into hand,
@@ -135,6 +135,22 @@ describe('Ruby engine (set 2)', () => {
     const t = s.board.find((c) => c.uid === 't')!;
     expect([t.attack, t.health]).toEqual([4, 4]); // 2/2 + a 1/1 Ruby applied TWICE
     expect(s.rubyCasts).toBe(2); // both casts count
+  });
+
+  it('a Warding Ruby grants a minion its stats AND Ward (Divine Shield)', () => {
+    let s: RunState = { ...createRun(1), board: [{ uid: 'm', cardId: 'sandbag', tribe: 'kobold', attack: 2, health: 2, keywords: [], golden: false }], hand: [] };
+    mintRubies(s, 1, 'warding-ruby');
+    const wr = s.hand.find((c) => c.cardId === 'warding-ruby')!;
+    s = reduce(s, { type: 'play', uid: wr.uid, targetUid: 'm' });
+    const m = s.board.find((c) => c.uid === 'm')!;
+    expect([m.attack, m.health]).toEqual([3, 3]); // +1/+1
+    expect(m.keywords.includes('DS')).toBe(true); // Ward
+  });
+
+  it('Wardstone Jeweler mints a Warding Ruby at End of Turn', () => {
+    const s: RunState = { ...createRun(1), board: [{ uid: 'w', cardId: 'k_wardstone', tribe: 'kobold', attack: 4, health: 7, keywords: [], golden: false }], hand: [] };
+    applyEndOfTurn(s);
+    expect(s.hand.some((c) => c.cardId === 'warding-ruby')).toBe(true);
   });
 
   it('Rubies never triple, even with 3+ in hand — they are spells (owner ruling)', () => {

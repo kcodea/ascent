@@ -153,7 +153,9 @@ export function instView(
   // A Ruby renders with the spell look (no stat footer), so its GRANT must live in the text — "+A/+H" where
   // A/H are the stats it was minted with (base 1/1 + the run's rubyBonus). Live by construction: the numbers
   // ARE the card's current stats.
-  const shownText = c.ruby ? `Give a minion **+${shownAtk}/+${shownHp}**.` : text;
+  const shownText = c.ruby
+    ? `Give a minion **+${shownAtk}/+${shownHp}**${c.rubyGrantKeyword === 'DS' ? ' and **Ward**' : ''}.`
+    : text;
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,
     universalTribe: !!c.universalTribe || !!(inst as { allTribes?: boolean }).allTribes,

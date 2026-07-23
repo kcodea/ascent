@@ -732,6 +732,12 @@ class FxController {
       this.underParent.appendChild(sc);
       sApp.stage.addChild(shieldLayer);
       this.shieldApp = sApp;
+      // Dormant by default (perf): the persistent Ward/Reborn BUBBLES are CSS now (see the `continue` in
+      // Recruit's aura tracker), so `setShield` is never reached and this second full-viewport WebGL context has
+      // nothing to draw — yet an autoStart ticker would still clear + present an empty stage every frame,
+      // forever, at native fullscreen res on the exe. Stop it; `setShield` restarts it the moment a bubble is
+      // ever set again, so this can never hide a live bubble even if the CSS decision is reverted.
+      sApp.ticker.stop();
     } else {
       // Single-canvas mode: bubbles beneath the particle layer on the same canvas.
       app.stage.addChildAt(shieldLayer, 0);
@@ -1820,6 +1826,7 @@ class FxController {
    */
   setShield(uid: string, cx: number, cy: number, w: number, h: number, mini = false, kind: AuraKind = 'shield', track: ShieldBubble['track'] = null, instant = false): void {
     if (!this.ready || !this.shieldLayer) return;
+    this.shieldApp?.ticker.start(); // resume the (perf-dormant) bubble canvas — no-op if already running or single-canvas
     const key = auraKey(kind, uid);
     let b = this.shields.get(key);
     if (!b) {

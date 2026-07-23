@@ -219,6 +219,8 @@ export type EffectFactoryId =
   | 'spellBuffTargetPerGold' // Patch Job: buff the target +atk/+hp per N Gold spent this turn (recruit)
   | 'spellBuffAll' // cast: buff every friendly minion on the board (Growth) — scales with spell power
   | 'spellSetStats' // Perfect Vision: cast — set the target's stats to a fixed value (absolute, no scaling)
+  | 'spellSwapStats' // Turnabout: cast — swap the target's Attack and Health
+  | 'spellGoldIfLostLast' // Insurance Policy: cast — gain Gold if you lost your last combat
   | 'spellBuffTavern' // Apples (Choose One): cast — buff every current tavern offer (lost on refresh, kept on freeze)
   | 'spellBuffNextShop' // Apples (Choose One): cast — bank a buff folded onto the NEXT tavern roll's offers
   | 'spellPendingSCBuff' // Fleeting Vigor: cast — bank a one-shot Start-of-Combat buff for the next combat
@@ -499,6 +501,12 @@ export interface DiscoverOnPlay {
   tribe?: Tribe | 'dominant';
   /** Bias the offer toward the highest eligible tier when the pool spans tiers (the reward's peek-up bias). */
   topTierFirst?: boolean;
+  /** Discover a SHOP SPELL instead of a minion (Rift-Sunk Codex). When set, every other field is ignored —
+   *  a spell Discover always draws from the tavern spell pool up to the current tier. */
+  spell?: boolean;
+  /** Cap the offer tier at this value instead of the rift's normal maximum, so a Discover can reach a tier the
+   *  player couldn't otherwise (Beyond the Summit: current + 1, "up to Tier 7"). */
+  maxTier?: number;
 }
 
 // ── Quests ───────────────────────────────────────────────────────────────────────────────────────────────

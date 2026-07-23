@@ -697,4 +697,104 @@ export const SPELLS: CardDef[] = [
     text: 'Discover a minion from your tier.',
     token: true,
   },
+
+  // --- New spells (2026-07-23 batch, tranche A — set-agnostic; carried into Set 2 via SET1_SPELLS_IN_SET2). ---
+  {
+    // Choose One flat stat grant. `flat: true` opts the buffs OUT of spell power, so the printed "+4" is always
+    // exact — Choose-One option text isn't greened by spellDisplayText. `any` → a warband minion OR a tavern offer.
+    id: 'crestclimb',
+    name: 'Crest of the Climb',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 1,
+    target: 'any',
+    effects: [],
+    chooseOne: [
+      { text: 'Give **+4 Attack**.', effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 4, health: 0, flat: true } }] },
+      { text: 'Give **+4 Health**.', effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 0, health: 4, flat: true } }] },
+    ],
+    text: '**Choose One:** give a minion **+4 Attack**, or **+4 Health**.',
+  },
+  {
+    // Swap the target's Attack and Health (spellSwapStats). No spell-power scaling — it moves existing stats,
+    // it doesn't grant them. `any` → warband minion or tavern offer.
+    id: 'turnabout',
+    name: 'Turnabout',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'any',
+    effects: [{ on: 'cast', do: 'spellSwapStats' }],
+    text: "Swap a minion's **Attack and Health**.",
+  },
+  {
+    // Comeback economy: +5 Gold, but ONLY if you lost your last combat (a draw doesn't count). Untargeted;
+    // no last combat yet (turn 1) → no payout.
+    id: 'insurancepolicy',
+    name: 'Insurance Policy',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [{ on: 'cast', do: 'spellGoldIfLostLast', params: { gold: 5 } }],
+    text: 'If you **lost** your last combat, gain **5 Gold**.',
+  },
+  {
+    // Discover a SHOP SPELL (discoverOnPlay.spell) — reducer-driven, like Sprout (empty effects).
+    id: 'riftsunkcodex',
+    name: 'Rift-Sunk Codex',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [],
+    discoverOnPlay: { spell: true },
+    text: '**Discover** a Shop spell.',
+  },
+  {
+    // Discover a minion ONE tier higher: `topTierFirst` fills from the offer tier (current + 1) DOWN, so you
+    // get that higher tier when it can supply the offer. `maxTier: 7` lets it reach Tier 7 even without the
+    // Summit rift (which otherwise caps Discover at 6).
+    id: 'beyondsummit',
+    name: 'Beyond the Summit',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 4,
+    effects: [],
+    discoverOnPlay: { tierOffset: 1, maxTier: 7, topTierFirst: true },
+    text: '**Discover** a minion from **one tier higher** (up to Tier 7).',
+  },
+  {
+    // Discover a fixed Tier 6 minion — `exactTier` bypasses the tavern-tier gate (buyable at any tier).
+    id: 'invitationabove',
+    name: 'Invitation Above',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 5,
+    effects: [],
+    discoverOnPlay: { exactTier: 6 },
+    text: '**Discover** a **Tier 6** minion.',
+  },
 ];

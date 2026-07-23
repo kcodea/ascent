@@ -651,6 +651,16 @@ function reduceCore(state: RunState, action: Action): RunState {
         const dop = def.discoverOnPlay;
         s.hand.splice(i, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // counts as a card played (Rune of Action)
+        // Discover a SHOP SPELL (Rift-Sunk Codex) — a spell Discover ignores tier/tribe/filter (it draws the
+        // tavern spell pool up to the current tier). Multi-cast by the full spell multiplier, like the minion
+        // path below.
+        if (dop.spell) {
+          const spellCastsN = def.singleCast ? 1 : spellCasts(s, def);
+          for (let n = 0; n < spellCastsN; n++) queueDiscover(s, { kind: 'spell' });
+          if (!def.singleCast) s.nextSpellMult = undefined;
+          if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true;
+          return s;
+        }
         // `exactCurrentTier` (Key Findings) locks the pool to the live tavern tier; `exactTier` is a fixed tier
         // (Sprout); otherwise the offer tier is current + `tierOffset`.
         const exactTier = dop.exactCurrentTier ? s.tier : dop.exactTier;
@@ -666,6 +676,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           ...(dop.filter ? { filter: dop.filter } : {}),
           ...(tribe ? { tribe } : {}),
           ...(dop.topTierFirst ? { topTierFirst: true } : {}),
+          ...(dop.maxTier !== undefined ? { maxTier: dop.maxTier } : {}),
         };
         // Multi-cast a Discover-spell by the full spell multiplier — open the Discover once per cast, the extras
         // queued behind the first. `spellCasts` folds in Nimbus (nextSpellMult), Ancient Runes (spellDoubleAlways)
@@ -716,12 +727,14 @@ function reduceCore(state: RunState, action: Action): RunState {
         // Spell Choose One (Apples): a SPELL choice — its own thing, NOT a Battlecry. Pause for the pick,
         // keeping the spell in hand; the chosen effect is cast (and the spell consumed) in `chooseOne`.
         if (def.chooseOne?.length) {
-          // A *targeted* Choose One spell (Anomaly Reactor): the drag already aimed at a friendly minion — capture
-          // it now so the chosen type lands on THAT minion. No valid target → fizzle (spell kept in hand).
-          if (def.target === 'friendly') {
+          // A *targeted* Choose One spell (Anomaly Reactor = friendly; Crest of the Climb = any): the drag already
+          // aimed — capture the target uid now so the chosen option lands on it. `any` also accepts a tavern
+          // offer (buff it pre-buy). No valid target → fizzle (spell kept in hand).
+          if (def.target === 'friendly' || def.target === 'any') {
             const boardTarget = s.board.find((c) => c.uid === action.targetUid);
-            if (!boardTarget) return state;
-            s.chooseOne = { uid: card.uid, cardId: def.id, spell: true, targetUid: boardTarget.uid };
+            const offer = def.target === 'any' ? s.shop.find((o) => o.uid === action.targetUid && !CARD_INDEX[o.cardId]?.spell) : undefined;
+            if (!boardTarget && !offer) return state;
+            s.chooseOne = { uid: card.uid, cardId: def.id, spell: true, targetUid: action.targetUid };
             return s;
           }
           s.chooseOne = { uid: card.uid, cardId: def.id, spell: true };
@@ -928,9 +941,15 @@ function reduceCore(state: RunState, action: Action): RunState {
         // A *targeted* spell Choose One (Anomaly Reactor) casts on the target the drag picked; the target may have
         // been removed (sold) since — fizzle the cast but still consume the spell. Untargeted (Apples) → no target.
         const target = co.targetUid ? s.board.find((c) => c.uid === co.targetUid) : undefined;
-        if (co.targetUid && !target) { s.hand.splice(hi, 1); s.chooseOne = undefined; return s; }
+        // `any` Choose One (Crest): the aim may have been a tavern offer, not a board minion — buff it pre-buy.
+        const offer = co.targetUid && !target ? s.shop.find((o) => o.uid === co.targetUid && !CARD_INDEX[o.cardId]?.spell) : undefined;
+        if (co.targetUid && !target && !offer) { s.hand.splice(hi, 1); s.chooseOne = undefined; return s; }
         const casts = spellCasts(s, def);
-        for (let n = 0; n < casts; n++) castSpell(s, { ...def, effects: option.effects }, target);
+        const synthetic = { ...def, effects: option.effects };
+        for (let n = 0; n < casts; n++) {
+          if (offer) castSpellOnOffer(s, synthetic, offer);
+          else castSpell(s, synthetic, target);
+        }
         if (!def.singleCast) s.nextSpellMult = undefined; // Nimbus charge spent (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         s.hand.splice(hi, 1);

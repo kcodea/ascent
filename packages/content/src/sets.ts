@@ -8,6 +8,7 @@ import { DEMONS } from './cards/set1/demons';
 import { SPELLS } from './cards/set1/spells';
 import { TIER7 } from './cards/set1/tier7';
 import { SET2_KOBOLDS } from './cards/set2/kobolds';
+import { SET2_SPELLS } from './cards/set2/spells';
 
 /**
  * Set 2 reuses Set 1's whole neutral spell toolkit — the same drawable spells (Discover, buffs, economy,
@@ -118,8 +119,8 @@ export const SETS: Record<SetId, SetDef> = {
     // Starts EMPTY and opts cards IN (owner call 2026-07-19) — set 2 is being authored externally and
     // dropped in, so an explicit `own` list is the manifest. Add `inherits: 'set1'` (+ `excludes`) instead
     // if you'd rather start from set 1 and trim; both compose, and `own` always appends last.
-    // Kobolds (this set's minions) + Set 1's carried-over neutral spell toolkit (all but the tribe-locked few).
-    own: [...SET2_KOBOLDS, ...SET1_SPELLS_IN_SET2], // → packages/content/src/cards/set2/*.ts (Kobold / Ruby tribe, WIP)
+    // Kobolds (this set's minions) + Set 1's carried-over neutral spell toolkit + Set 2's own Ruby spells.
+    own: [...SET2_KOBOLDS, ...SET1_SPELLS_IN_SET2, ...SET2_SPELLS], // → packages/content/src/cards/set2/*.ts (Kobold / Ruby tribe, WIP)
   },
 };
 

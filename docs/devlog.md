@@ -3,6 +3,31 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (fix: the hero Buffs strip stole the leftmost hand card's hover)
+
+### fix(ui): `.herobuffs` container no longer eats the leftmost hand card's hover-pop
+
+Owner report (exe, wide/ultrawide): the leftmost hand card wouldn't hover-pop, but it was fine in a narrower
+Chrome window — suspected an exe↔main disconnect. Triaged with an in-exe `elementsFromPoint` probe over the
+card: the topmost element wasn't the card, it was **`.herobuffs`**. Ruled out every config theory first — the
+owner's Layout Lab + Drag Feel values are byte-identical to the shipped defaults, prod ignores the tuner
+localStorage (2026-07-21 guard), and the exe's GPU is fine (`ANGLE … RTX 4080 SUPER … D3D11`, not software).
+
+Root cause: `.herobuffs` (the hero buff strip, positioned `left: 100%` of the hero panel) is a flex box whose
+COLLAPSED drawer still occupies its `min-width` in layout, so the container box reaches rightward over the hand.
+The container had `pointer-events: auto`, so at wide resolutions where the box overlaps the leftmost card it
+swallowed that card's hover → the `:hover` pop never fired. (Resolution-dependent, which is why it showed on the
+exe's borderless-fullscreen `2885×1440` but not the narrower Chrome window — nothing to do with the build.)
+
+Fix (the `.handpad` deadzone pattern): the container is now `pointer-events: none`, with `auto` restored on the
+only interactive parts — the tab (always) and the drawer body (when open). The empty container area is now
+transparent to the pointer, so the hover passes through to the card, while the tab stays clickable. Updated the
+mid-drag rule to disable the CHILDREN (`.herobuffs-tab` / `-body`) so a dragged card still drops through.
+
+Verified live: a synthesized `.herobuffs` probe resolves `pointer-events` correctly in every state — normal
+(container none / tab auto / closed-body none), open (body auto), and dragging (all none). typecheck + lint +
+1465 tests + build:web green.
+
 ## 2026-07-23 (perf: gate the drag re-render on DECISION change, not pixel travel — audit fix #2)
 
 ### perf(ui): only re-render a drag when a visible decision changes

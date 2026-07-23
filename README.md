@@ -42,6 +42,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **The leftmost hand card pops on hover again at wide resolutions.** The hero Buffs strip's container box
+  reached over the hand and, being pointer-interactive, swallowed that card's hover so it never lifted — only
+  at wide/fullscreen sizes where the boxes overlap (e.g. the desktop build). The container is now click-through
+  except for its tab/drawer, so the hover reaches the card.
 - **Dragging cards is smoother, especially late-game.** A drag now re-renders only when something visible
   actually changes — a drop-gap opening, a magnetize/cast highlight, a zone crossing — instead of on every few
   pixels of pointer travel. The dragged card, aim line and trail were already frame-exact; this removes the

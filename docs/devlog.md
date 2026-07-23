@@ -3,6 +3,26 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: make Kobolds actually appear — sprite fallback + per-set tribe roster)
+
+### fix(ui/sim): Kobold cards render, and set-2 runs offer Kobolds in the shop
+
+Two blockers surfaced the moment set 2 was played in the Scene Builder:
+- **Crash on render** — `spriteForTribe('kobold')` returned `'kobold'`, but `SPR` has no matrix for it, so
+  `drawSprite` read `undefined[0]` → "Cannot read properties of undefined (reading '0')" whenever a Kobold card
+  mounted. Fixed with a fallback: a tribe without its own pixel-art renders the `neutral` sprite (the real
+  Kobold sprite lands with the art pass). Verified live: both Kobolds + a Ruby render with zero console errors.
+- **Empty shop** — the shop only offers cards of the RUN's active tribes (`state.tribes`) + neutral, and
+  `kobold` wasn't in any run's roster (kept out of `PLAYABLE_TRIBES` so it can't leak into set 1). So a set-2
+  run offered nothing. Did the minimal version of the planned per-set tribe scoping: `SetDef.tribes` (set 1 =
+  its five, set 2 = `['kobold']`), and `createRun` seeds `selectRunTribes` from the PINNED set's roster. A
+  set-2 run's tribes are now `['kobold']`; the shop offers Chipwick (T1) and Deepvein (T3). Set-1 determinism
+  is untouched — its roster order equals `PLAYABLE_TRIBES`, so `selectRunTribes` returns identically.
+
+typecheck + lint + full suite (determinism golden included) + build:web green. Now Scene-Builder-testable: buy
++ play a Kobold, watch Rubies mint into hand. (Casting a Ruby onto a minion still needs the UI targeting
+increment — next.)
+
 ## 2026-07-23 (set 2: the Kobold tribe + first two Kobolds, WIP)
 
 ### feat(content): the `kobold` tribe + Chipwick Prospector / Deepvein Tender

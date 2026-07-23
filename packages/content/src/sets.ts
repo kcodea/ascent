@@ -1,4 +1,4 @@
-import type { CardDef } from '@game/core';
+import type { CardDef, Tribe } from '@game/core';
 import { NEUTRAL } from './cards/set1/neutral';
 import { BEASTS } from './cards/set1/beasts';
 import { DRAGONS } from './cards/set1/dragons';
@@ -72,6 +72,11 @@ export interface SetDef {
   excludes?: readonly string[];
   /** This set's OWN cards, in declaration order, appended after the inherited pool. */
   own: readonly CardDef[];
+  /** The playable tribes a run pinned to this set draws from (`selectRunTribes` picks the run's active tribes
+   *  from this roster; neutral glue is always available on top). This is the per-set tribe scoping: set 1's
+   *  five founding tribes, set 2's Kobolds. Keeping it on the set is what stops a set-2 tribe (`kobold`) from
+   *  ever appearing in a set-1 run — the run's `tribes` are chosen from the PINNED set's roster only. */
+  tribes: readonly Tribe[];
 }
 
 export const SETS: Record<SetId, SetDef> = {
@@ -80,6 +85,7 @@ export const SETS: Record<SetId, SetDef> = {
     name: 'Set 1',
     blurb: 'The founding collection.',
     enabled: true,
+    tribes: ['beast', 'dragon', 'undead', 'mech', 'demon'], // the five founding playable tribes
     // Declaration order is preserved EXACTLY as the pre-sets flat pool was assembled (neutral, beasts,
     // dragons, undead, mechs, demons, spells), so every existing seed replays identically.
     // TIER7 is APPENDED last on purpose: declaration order drives seeded pool picks, and every Tier 7 card
@@ -91,6 +97,7 @@ export const SETS: Record<SetId, SetDef> = {
     name: 'Set 2',
     blurb: 'In development.',
     enabled: false,
+    tribes: ['kobold'], // WIP — the Kobold set; more tribes join as set 2 grows
     // Starts EMPTY and opts cards IN (owner call 2026-07-19) — set 2 is being authored externally and
     // dropped in, so an explicit `own` list is the manifest. Add `inherits: 'set1'` (+ `excludes`) instead
     // if you'd rather start from set 1 and trim; both compose, and `own` always appends last.

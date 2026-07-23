@@ -51,9 +51,11 @@ const SPR: Record<SpriteName, string[]> = {
   ],
 };
 
-/** Tribes map 1:1 to sprite names. Enemy "Omen" filler renders as the undead spore. */
+/** Tribes map 1:1 to sprite names where a matrix exists; a tribe without its own pixel-art (set-2 `kobold`
+ *  until the art pass) falls back to the neutral sprite so a card can always render. Enemy "Omen" filler
+ *  renders as the undead spore. */
 export function spriteForTribe(tribe: Tribe): SpriteName {
-  return tribe;
+  return tribe in SPR ? (tribe as SpriteName) : 'neutral';
 }
 
 export function drawSprite(canvas: HTMLCanvasElement, name: SpriteName, scale: number): void {

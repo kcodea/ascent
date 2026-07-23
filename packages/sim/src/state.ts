@@ -1,6 +1,6 @@
 import { makeRng } from '@game/core';
 import type { CombatOutcome, CombatResult, EffectDef, Keyword, QuestObjectiveEvent, Rng, Tribe } from '@game/core';
-import { CARD_INDEX, activeSet, poolFor, type SetId } from '@game/content';
+import { CARD_INDEX, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { CONFIG, RIFT_BONUS_ARMOR, activeRift, type RiftId } from './config';
 import { DEFAULT_HERO_ID, getHero } from './heroes';
 import { queueDiscover } from './recruit';
@@ -21,12 +21,13 @@ export const PLAYABLE_TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'd
 export const TRIBES_PER_RUN = 5;
 
 /**
- * Pick a run's active tribes (handoff: only 5 tribes appear in a run at once).
- * Neutral glue is always available on top. With exactly 5 playable tribes today
- * this returns all of them (shuffled); it bounds the pool once more are added.
+ * Pick a run's active tribes (handoff: only 5 tribes appear in a run at once) from `roster` — the PINNED
+ * set's tribe list, so a set-2 run draws Kobolds and a set-1 run never can. Neutral glue is always available
+ * on top. With exactly 5 playable tribes in set 1 this returns all of them (shuffled); it bounds the pool once
+ * more are added. A smaller roster (set 2's single `kobold` today) simply returns those.
  */
-export function selectRunTribes(rng: Rng): Tribe[] {
-  const pool = [...PLAYABLE_TRIBES];
+export function selectRunTribes(rng: Rng, roster: readonly Tribe[] = PLAYABLE_TRIBES): Tribe[] {
+  const pool = [...roster];
   const picks: Tribe[] = [];
   while (picks.length < TRIBES_PER_RUN && pool.length > 0) {
     picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
@@ -876,7 +877,9 @@ export const metLine = (status: LineStatus): boolean =>
  * `poolOf(state)`, so a sandbox set-2 run never touches set 1's pool or seeds.
  */
 export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: RunMode = 'ascent', line: number = CONFIG.defaultLine, setId: SetId = activeSet().id): RunState {
-  const tribes = selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)));
+  // Draw the run's active tribes from the PINNED set's roster (set 1's five, set 2's Kobolds) — never the
+  // global list, so a set-2 tribe can't leak into a set-1 run and vice-versa.
+  const tribes = selectRunTribes(makeRng(mixSeed(seed, 0, TAG.TRIBES)), SETS[setId]?.tribes ?? PLAYABLE_TRIBES);
   // The hero's Resolve is the run's starting (and max) HP; Armor is extra effective HP layered on top.
   const hero = getHero(heroId);
   const startResolve = hero.resolve;

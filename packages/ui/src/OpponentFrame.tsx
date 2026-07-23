@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { getHero, nextOpponent, dominantTribe, THREATS } from '@game/sim';
-import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
+import { QUEST_INDEX, RUNE_INDEX, CARD_INDEX } from '@game/content';
 import { heroArt, questArt, runeArt } from './art';
 import { Icon } from './Icon';
 import { mdBold } from './Card';
@@ -129,6 +129,20 @@ export function OpponentFrame() {
               </div>
             );
           })}
+        </div>
+      )}
+      {/* Farseer's Report: scouted minions from this opponent's warband (name + captured stats). Inline-styled
+          for now — a minimal reveal surface; styling can move to styles.css if it earns a permanent home. */}
+      {run.scoutedNextOpponent && run.scoutedNextOpponent.length > 0 && (
+        <div className="opp-scout" style={{ marginTop: 4, padding: '3px 6px', borderTop: '1px solid var(--hairline, rgba(255,255,255,0.12))', fontSize: '0.72em', lineHeight: 1.35 }}>
+          <span style={{ opacity: 0.6, letterSpacing: '0.04em', textTransform: 'uppercase', fontSize: '0.85em' }}>Scouted</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 8px', marginTop: 1 }}>
+            {run.scoutedNextOpponent.map((m, i) => (
+              <span key={i} style={{ whiteSpace: 'nowrap' }}>
+                {CARD_INDEX[m.cardId]?.name ?? m.cardId} <i style={{ opacity: 0.7, fontStyle: 'normal' }}>{m.attack}/{m.health}</i>
+              </span>
+            ))}
+          </div>
         </div>
       )}
     </div>

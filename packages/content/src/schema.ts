@@ -168,6 +168,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellBuffShopByRuby',
   'spellBuffPerDragonPlayed',
   'spellDiscoverFromLastOpponent',
+  'spellScoutNextOpponent',
   'onAllyAttackCastGrowth',
   'spellDemonConsumeFodder',
   'deathrattleGrantRandomSpell',

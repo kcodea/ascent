@@ -2182,6 +2182,7 @@ function advanceCombat(s: RunState): void {
   s.cardsBoughtThisTurn = 0; // Frenzied Excavator's per-turn cards-bought scaling resets each wave
   if (s.nextSellBonus) s.nextSellBonus = 0; // Quick Sale is a THIS-TURN bonus — expires unused at turn end
   if (s.hand.some((c) => c.borrowed)) s.hand = s.hand.filter((c) => !c.borrowed); // Funeral on Loan: unplayed borrowed cards are returned at turn end
+  if (s.scoutedNextOpponent) s.scoutedNextOpponent = undefined; // Farseer's Report: the scout is for one opponent — clear it as a new one is drawn
   for (const c of s.board) c.rubyRecvTick = 0; // Ruby Broker's per-turn Gold cap resets each wave
   s.attachmentsThisTurn = 0; // Tempering/Replication's "first Attachment each turn" gate resets each wave
   s.shoutsThisTurn = 0; // Rune of Refrain's Shout counter resets each wave

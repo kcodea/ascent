@@ -263,6 +263,8 @@ export const EffectFactoryIdSchema = z.enum([
   'rubyPlayedBounce', // Resonance Idol: a Ruby played on this bounces to both adjacent minions
   'rubyPlayedGold',   // Ruby Broker: a Ruby played on this gives Gold (capped per turn)
   'rubyGainedCast',   // Candle Conduit: getting a Ruby casts one on a random friendly Kobold
+  'damagedGainRubyBonus', // Faultline Scrapper: on-damage, buff your Rubies +X/+Y
+  'damagedGetRubies', // Candleback Bulwark: on-damage, get N Rubies (capped per fight)
 ]);
 
 export const EffectDefSchema = z.object({

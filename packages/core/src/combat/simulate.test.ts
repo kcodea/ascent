@@ -2674,6 +2674,24 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerPermaBuffs?.find((b) => b.sourceUid === 'F')).toMatchObject({ attack: 2, health: 2 });
   });
 
+  it('set 2 — Faultline Scrapper: taking damage raises your Ruby strength (carried back)', () => {
+    const fstest: CardDef = { id: 'fstest', name: 'FS', tribe: 'kobold', tier: 3, attack: 1, health: 50, keywords: [],
+      effects: [{ on: 'onDamaged', do: 'damagedGainRubyBonus', params: { attack: 1, health: 0 } }], text: '' };
+    const r = simulate([{ cardId: 'fstest', attack: 1, health: 50, sourceUid: 'FS' }],
+      [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, fstest },
+      combatSide({ tier: 3, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    expect(r.playerRubyBonusGain?.attack).toBeGreaterThanOrEqual(1); // took ≥ 1 hit → +Attack to your Rubies
+  });
+
+  it('set 2 — Candleback Bulwark: on-damage Ruby grant is capped per fight', () => {
+    const cbtest: CardDef = { id: 'cbtest', name: 'CB', tribe: 'kobold', tier: 1, attack: 1, health: 50, keywords: ['T'],
+      effects: [{ on: 'onDamaged', do: 'damagedGetRubies', params: { count: 1, cap: 2 } }], text: '' };
+    const r = simulate([{ cardId: 'cbtest', attack: 1, health: 50, sourceUid: 'CB' }],
+      [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, cbtest },
+      combatSide({ tier: 1, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    expect(r.playerRubyGrants).toBe(2); // takes many hits, but capped at 2 Rubies/fight
+  });
+
   it('set 2 — Rally "Get Rubies" carries N Rubies back to hand (playerRubyGrants)', () => {
     const riktest: CardDef = { id: 'riktest', name: 'Rik', tribe: 'kobold', tier: 3, attack: 5, health: 50, keywords: ['RL'],
       effects: [{ on: 'onAttack', do: 'rallyGetRubies', params: { count: 3 } }], text: '' };

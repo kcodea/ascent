@@ -345,7 +345,9 @@ export type EffectFactoryId =
   | 'avengePlayRubiesLeftmost' // Set 2 — Gemline Martyr: Avenge (X) play N Rubies on your left-most minion
   | 'rubyPlayedBounce' // Set 2 — Resonance Idol: a Ruby played on this bounces to both adjacent minions
   | 'rubyPlayedGold' // Set 2 — Ruby Broker: a Ruby played on this gives Gold (capped per turn)
-  | 'rubyGainedCast'; // Set 2 — Candle Conduit: getting a Ruby casts one on a random friendly Kobold
+  | 'rubyGainedCast' // Set 2 — Candle Conduit: getting a Ruby casts one on a random friendly Kobold
+  | 'damagedGainRubyBonus' // Set 2 — Faultline Scrapper: on-damage, buff your Rubies +X/+Y
+  | 'damagedGetRubies'; // Set 2 — Candleback Bulwark: on-damage, get N Rubies (capped per fight)
 
 export interface EffectDef {
   on: GameEvent;
@@ -1012,6 +1014,9 @@ export interface Minion {
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };
+  /** Set 2 — Candleback Bulwark: times this minion's on-damage Ruby has fired THIS combat (its per-fight cap).
+   *  A fresh Minion per fight, so it resets naturally between combats. */
+  rubyRecvTick?: number;
   /** Multiplier on every combat stat-gain this minion receives (golden Taurus doubles its neighbors'
    *  combat gains). Applied at the top of `ctx.buff`; absent/1 = normal. */
   gainMult?: number;

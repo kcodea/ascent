@@ -3,6 +3,22 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: onDamaged Ruby reactions — Faultline Scrapper + Candleback Bulwark)
+
+### feat(set2): combat onDamaged → Ruby (buff strength / get Rubies, capped)
+
+Two combat Kobolds on the existing `onDamaged` trigger, reusing the Ruby carry-back rails:
+- **Faultline Scrapper** (1/4 T3, `When this takes damage, give your Rubies +1 Attack`; golden +2) —
+  `damagedGainRubyBonus` → `ctx.gainRubyBonus` (carried back to `rubyBonus`).
+- **Candleback Bulwark** (1/3 T1, Taunt, `Get a Ruby when this takes damage, 2×/turn`; golden 2 Rubies) —
+  `damagedGetRubies` → `ctx.grantRubies`, capped per fight via a new `Minion.rubyRecvTick` (fresh each combat).
+
+Art wired. **Note:** the Bulwark art file is `CandlelightBulwark.png` but the card is **Candleback Bulwark**
+(per the design list) — wired it as `k_candleback` since it's clearly the same card; flag if the name should be
+"Candlelight". Verified: new `simulate.test.ts` cases (Faultline → `playerRubyBonusGain.attack ≥ 1`; Candleback
+→ `playerRubyGrants` capped at 2). Full suite + content validation + lint + build:web green. **Fourteen Kobolds
+shipped.**
+
 ## 2026-07-23 (set 2: onGetRuby trigger + Pouchpincher (crossover) & Candle Conduit)
 
 ### feat(set2): "when you get a Ruby" trigger + a set-1 crossover card

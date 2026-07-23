@@ -1584,6 +1584,23 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Set 2 — Faultline Scrapper: when THIS minion takes damage, give your Rubies +atk/+hp (× golden) — raises
+   *  the run's Ruby strength (carried back at settle). */
+  damagedGainRubyBonus: (ctx, self, params, payload) => {
+    if (self.dead || (payload as MinionPayload).minion !== self) return;
+    ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 0) * mul(self), self.side);
+  },
+
+  /** Set 2 — Candleback Bulwark: when THIS minion takes damage, get `count` Rubies (× golden), capped `cap`
+   *  times per fight (a fresh combat Minion each fight, so `rubyRecvTick` resets between combats). */
+  damagedGetRubies: (ctx, self, params, payload) => {
+    if (self.dead || (payload as MinionPayload).minion !== self) return;
+    const cap = Math.max(1, num(params.cap, 2));
+    if ((self.rubyRecvTick ?? 0) >= cap) return;
+    self.rubyRecvTick = (self.rubyRecvTick ?? 0) + 1;
+    ctx.grantRubies(num(params.count, 1) * mul(self), self.side, self.uid);
+  },
+
   /** Commander Impala — when this kills an enemy, give your Fodder + Imps +atk/+hp PERMANENTLY (golden ×2).
    *  Buffs the living Fodder/Imps now and raises BOTH run-wide buffs (carried back), exactly like Bane's
    *  combat half. The onKill payload carries the killer as `attacker`. */

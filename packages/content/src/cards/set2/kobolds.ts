@@ -107,6 +107,32 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Avenge (3):** Buff your Rubies **+2/+2**.',
   },
   {
+    // onDamaged (combat) → raise your Ruby strength (carried back). Each hit it survives buffs your Rubies.
+    id: 'k_faultline',
+    name: 'Faultline Scrapper',
+    tribe: 'kobold',
+    tier: 3,
+    attack: 1,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'onDamaged', do: 'damagedGainRubyBonus', params: { attack: 1, health: 0 } }],
+    text: 'When this minion takes damage, give your Rubies **+1 Attack**.',
+    goldenText: 'When this minion takes damage, give your Rubies **+2 Attack**.',
+  },
+  {
+    // Taunt + onDamaged (combat) → get a Ruby, capped 2×/fight (per-instance rubyRecvTick on the combat minion).
+    id: 'k_candleback',
+    name: 'Candleback Bulwark',
+    tribe: 'kobold',
+    tier: 1,
+    attack: 1,
+    health: 3,
+    keywords: ['T'],
+    effects: [{ on: 'onDamaged', do: 'damagedGetRubies', params: { count: 1, cap: 2 } }],
+    text: 'Taunt. Get a Ruby when this takes damage. (2 times per turn)',
+    goldenText: 'Taunt. Get 2 Rubies when this takes damage. (2 times per turn)',
+  },
+  {
     // Crossover: "Get a Gold Pouch" grants the SET-1 Gold Pouch spell (`emberpouch`) to hand — CARD_INDEX is
     // global, so `battlecryGrantSpell` reuses it directly (owner: there will be crossover cards between sets).
     id: 'k_pouchpincher',

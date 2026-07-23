@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
-import { createRun, reduce, type BoardCard, type CombatResult, type RunState } from './index';
+import type { CombatResult } from '@game/core';
+import { createRun, reduce, type BoardCard, type RunState } from './index';
 
 /**
  * The 2026-07-23 spell batch — tranche A (the straightforward ones). A spell lives in hand as a BoardCard

@@ -166,6 +166,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellSummonImpsNextCombat',
   'spellBuffShopByRuby',
   'spellBuffPerDragonPlayed',
+  'spellDiscoverFromLastOpponent',
   'onAllyAttackCastGrowth',
   'spellDemonConsumeFodder',
   'deathrattleGrantRandomSpell',
@@ -366,6 +367,8 @@ export const CardDefSchema = z.object({
       topTierFirst: z.boolean().optional(),
       spell: z.boolean().optional(),
       maxTier: z.number().int().positive().optional(),
+      lockUntilNextTurn: z.boolean().optional(),
+      borrowed: z.boolean().optional(),
     })
     .strict()
     .optional(),

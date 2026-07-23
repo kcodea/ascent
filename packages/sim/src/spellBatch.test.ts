@@ -235,6 +235,49 @@ describe('spell batch — tranche B4 (transform / combat-pending)', () => {
   });
 });
 
+describe('spell batch — tranche C (Discover-based)', () => {
+  it('Hourglass Reserve: Discovers from your tier, locked until next turn', () => {
+    let s: RunState = { ...createRun(3), tier: 3, hand: [mkSpell('sp', 'hourglassreserve')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
+    expect(s.discover?.length ?? 0).toBeGreaterThan(0);
+    expect(s.discover!.every((id) => CARD_INDEX[id]!.tier === 3)).toBe(true);
+    s = reduce(s, { type: 'discover', index: 0 });
+    const picked = s.hand[s.hand.length - 1]!;
+    expect(picked.lockedUntilWave).toBe(s.wave + 1);
+    const before = s.board.length;
+    s = reduce(s, { type: 'play', uid: picked.uid, targetUid: undefined });
+    expect(s.board.length).toBe(before); // play blocked this turn
+    expect(s.hand.some((c) => c.uid === picked.uid)).toBe(true); // still in hand
+  });
+
+  it('Funeral on Loan: a borrowed Echo minion triggers its Deathrattle and is destroyed on play', () => {
+    const borrowed: BoardCard = { uid: 'b', cardId: 'pack', tribe: 'beast', attack: 3, health: 2, keywords: [], golden: false, borrowed: true };
+    let s: RunState = { ...createRun(1), board: [], hand: [borrowed] };
+    s = reduce(s, { type: 'play', uid: 'b', targetUid: undefined });
+    expect(s.board.some((c) => c.cardId === 'pack')).toBe(false); // never boarded
+    expect(s.board.filter((c) => c.cardId === 'pup').length).toBe(2); // its Echo fired
+    expect(s.hand.some((c) => c.uid === 'b')).toBe(false); // consumed
+  });
+
+  it('Funeral on Loan: the Discover carries the borrowed flag onto an Echo minion', () => {
+    let s: RunState = { ...createRun(4), tier: 4, hand: [mkSpell('sp', 'funeralonloan')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
+    if (s.discover?.length) {
+      s = reduce(s, { type: 'discover', index: 0 });
+      const picked = s.hand[s.hand.length - 1]!;
+      expect(picked.borrowed).toBe(true);
+      expect(CARD_INDEX[picked.cardId]!.effects.some((e) => e.on === 'onDeath')).toBe(true);
+    }
+  });
+
+  it("Rival's Reflection: Discovers a plain copy from the last opponent's board", () => {
+    const last = { v: 1, wave: 1, heroId: 'warden', resolve: 30, tier: 2, triples: 0, tribes: [], threat: 'glass', power: 4, minions: [{ cardId: 'alley', attack: 2, health: 2, keywords: [] }], seed: 1, origin: 'synthetic' } as never;
+    let s: RunState = { ...createRun(2), wave: 2, servedBoards: { 1: last }, hand: [mkSpell('sp', 'rivalsreflection')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
+    expect(s.discover).toEqual(['alley']);
+  });
+});
+
 describe('spell batch — Veinstorm + Hoardflame (live-scaling)', () => {
   it('Veinstorm: buffs every shop offer by your Ruby stats (1/1 + rubyBonus)', () => {
     let s: RunState = { ...createRun(1), setId: 'set2', rubyBonus: { attack: 2, health: 3 }, hand: [mkSpell('sp', 'veinstorm')] };

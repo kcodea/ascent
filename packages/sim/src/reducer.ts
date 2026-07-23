@@ -9,7 +9,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -639,8 +639,19 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (card.lockedUntilTier && s.tier < card.lockedUntilTier) return state;
       // Brackus's Summit pick — locked until the run has spent enough Gold.
       if (card.lockedUntilGoldSpent && (s.goldSpent ?? 0) < card.lockedUntilGoldSpent) return state;
+      // Hourglass Reserve: locked until next turn — unplayable until the wave advances.
+      if (card.lockedUntilWave && s.wave < card.lockedUntilWave) return state;
 
       const def = CARD_INDEX[card.cardId];
+
+      // Funeral on Loan: a BORROWED minion never enters the board — playing it triggers its Echo (Deathrattle)
+      // out of combat, then it's destroyed (consumed from hand). No board slot needed; a non-Echo body just vanishes.
+      if (card.borrowed) {
+        s.hand.splice(i, 1);
+        s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
+        triggerBorrowedEcho(s, card);
+        return s;
+      }
 
       // Discover-on-play (data-driven): playing this card isn't a minion — it opens a Discover (a peek) and
       // is consumed (no board slot). The offer is resolved from the card's `discoverOnPlay` spec against the
@@ -677,6 +688,8 @@ function reduceCore(state: RunState, action: Action): RunState {
           ...(tribe ? { tribe } : {}),
           ...(dop.topTierFirst ? { topTierFirst: true } : {}),
           ...(dop.maxTier !== undefined ? { maxTier: dop.maxTier } : {}),
+          ...(dop.lockUntilNextTurn ? { lockWave: s.wave + 1 } : {}), // Hourglass Reserve: locked until next turn
+          ...(dop.borrowed ? { borrowed: true } : {}), // Funeral on Loan: play → trigger Echo + destroy
         };
         // Multi-cast a Discover-spell by the full spell multiplier — open the Discover once per cast, the extras
         // queued behind the first. `spellCasts` folds in Nimbus (nextSpellMult), Ancient Runes (spellDoubleAlways)
@@ -1349,6 +1362,8 @@ function reduceCore(state: RunState, action: Action): RunState {
           // Disco Dan's Setlist: this pick is locked in hand until you reach its shop tier (T2/T4/T6).
           ...(s.discoverLockTier ? { lockedUntilTier: s.discoverLockTier } : {}),
           ...(s.discoverLockGold ? { lockedUntilGoldSpent: s.discoverLockGold } : {}),
+          ...(s.discoverLockWave ? { lockedUntilWave: s.discoverLockWave } : {}), // Hourglass Reserve
+          ...(s.discoverBorrowed ? { borrowed: true } : {}), // Funeral on Loan
         };
         // A GILDED Discover (a golden Salvatore McKlusky) hands the pick over already gilded — the same
         // transform a triple applies, so the stats/keywords stay consistent with every other golden.
@@ -1358,6 +1373,8 @@ function reduceCore(state: RunState, action: Action): RunState {
       }
       s.discoverLockTier = undefined; // consumed — the next queued Discover sets its own (or none)
       s.discoverLockGold = undefined;
+      s.discoverLockWave = undefined;
+      s.discoverBorrowed = undefined;
       s.discoverGolden = undefined;
       // Open the next queued Discover (golden / Drakko-doubled Brian, Yazzus-multiplied Help Wanted /
       // Sprout); only clear the offer once the queue is empty. A spec whose pool is empty opens nothing
@@ -2140,6 +2157,7 @@ function advanceCombat(s: RunState): void {
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.cardsBoughtThisTurn = 0; // Frenzied Excavator's per-turn cards-bought scaling resets each wave
   if (s.nextSellBonus) s.nextSellBonus = 0; // Quick Sale is a THIS-TURN bonus — expires unused at turn end
+  if (s.hand.some((c) => c.borrowed)) s.hand = s.hand.filter((c) => !c.borrowed); // Funeral on Loan: unplayed borrowed cards are returned at turn end
   for (const c of s.board) c.rubyRecvTick = 0; // Ruby Broker's per-turn Gold cap resets each wave
   s.attachmentsThisTurn = 0; // Tempering/Replication's "first Attachment each turn" gate resets each wave
   s.shoutsThisTurn = 0; // Rune of Refrain's Shout counter resets each wave

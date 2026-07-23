@@ -3,6 +3,28 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (spell batch — tranche C part 1: the Discover-based three)
+
+### feat(content): Hourglass Reserve + Funeral on Loan + Rival's Reflection
+
+The three Tranche-C spells that build on the Discover engine (all set-agnostic):
+- **Hourglass Reserve** (T2/2) — Discover a minion from your current tier, locked in hand until next turn. New
+  `discoverOnPlay.lockUntilNextTurn` → a `lockedUntilWave` hand-card lock (mirrors Disco Dan's
+  `lockedUntilTier`), with a play guard at the wave meter.
+- **Funeral on Loan** (T3/2) — Discover an **Echo** minion, **borrowed**: playing it triggers its Deathrattle
+  out of combat and destroys it (never boards); an unplayed borrowed card is returned at turn end. New
+  `discoverOnPlay.borrowed` → a `BoardCard.borrowed` flag + a borrowed-play branch (`triggerBorrowedEcho`).
+- **Rival's Reflection** (T5/1) — Discover a plain copy from your **last opponent's** warband
+  (`servedBoards[wave-1]`), via a `kind:'pool'` Discover over that board's deduped minion ids (`spellDiscover-
+  FromLastOpponent`). Fizzles on turn 1.
+
+New plumbing threads `lockWave`/`borrowed` through `DiscoverOnPlay` → the spec → `openDiscover`'s
+`discoverLock*`/`discoverBorrowed` state → the taken card (reducer `discover` action), same lifecycle as the
+existing tier/gold locks.
+
+Verified: new `spellBatch.test.ts` cases + live Scene-Builder (borrowed Mama Pup → 2 Pups, no board entry;
+Hourglass pick locked until next wave, play blocked). Full suite (1534) + lint + build:web green.
+
 ## 2026-07-23 (spell batch — Veinstorm + Hoardflame, the live-scaling pair)
 
 ### feat(content): Veinstorm (Set 2) + Hoardflame — spells that print their live value

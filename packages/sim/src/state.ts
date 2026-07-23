@@ -165,6 +165,12 @@ export interface BoardCard {
    *  action no-ops below it and the UI shows it locked — the same contract as `lockedUntilTier`, on a
    *  different meter. Reuses the existing run-cumulative `goldSpent` (no new counter needed). */
   lockedUntilGoldSpent?: number;
+  /** Hourglass Reserve: a hand card that cannot be played until you reach this WAVE (the wave AFTER it was
+   *  discovered) — the "can't play until next turn" lock. Same contract as `lockedUntilTier`, on the wave meter. */
+  lockedUntilWave?: number;
+  /** Funeral on Loan: a BORROWED minion. Playing it triggers its Echo (Deathrattle) out of combat and destroys
+   *  it (never enters the board). Any unplayed borrowed card is discarded at turn end. */
+  borrowed?: boolean;
   /** Ritualist: the accrued +A/+H its escalating End-of-Turn buff currently grants (grows by its `step` each
    *  trigger). Per-instance; drives `buffFodderImpsImproving`. Default/absent = 0. */
   eotBonus?: number;
@@ -221,9 +227,9 @@ export type RunMode = 'ascent' | 'rift' | 'practice';
 
 export type DiscoverSpec =
   | { kind: 'spell' }
-  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean; maxTier?: number }
-  // A Discover from an EXPLICIT card-id pool (Rune of the Second Path's Greater-Quest reward minions).
-  | { kind: 'pool'; ids: string[] };
+  | { kind: 'minion'; tier: number; exactTier?: number; filter?: 'battlecry' | 'deathrattle'; tribe?: Tribe; tribes?: Tribe[]; exclude?: string; topTierFirst?: boolean; lockTier?: number; lockGold?: number; golden?: boolean; maxTier?: number; lockWave?: number; borrowed?: boolean }
+  // A Discover from an EXPLICIT card-id pool (Rune of the Second Path's Greater-Quest reward minions; Rival's Reflection).
+  | { kind: 'pool'; ids: string[]; borrowed?: boolean };
 
 /** A quest the player has bought — its live objective progress + completion flag. Persists for the run
  *  (shown in the quest panel); one is bought per quest turn, so most heroes accumulate up to 2 (waves 5 & 11),
@@ -778,6 +784,11 @@ export interface RunState {
   /** The OPEN Discover hands its pick over locked until this much Gold has been spent this RUN (Brackus).
    *  Mirrors `discoverLockTier`'s lifecycle: set by `openDiscover` from the spec, consumed on take. */
   discoverLockGold?: number;
+  /** Hourglass Reserve: the OPEN Discover hands its pick over locked until this WAVE. Mirrors `discoverLockTier`'s
+   *  lifecycle: set by `openDiscover` from the spec, stamped onto the taken card, consumed on take. */
+  discoverLockWave?: number;
+  /** Funeral on Loan: the OPEN Discover hands its pick over BORROWED (play → trigger Echo + destroy). */
+  discoverBorrowed?: boolean;
   /** Rune of the Summit: armed on purchase; `runeSummitTick` counts shops opened since, and every 2nd one
    *  opens a Tier 7 Discover. A COUNTER rather than a per-turn flag because the cadence is every-other-turn
    *  — `recurringEndOfTurn` fires every turn and could not express it. */

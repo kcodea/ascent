@@ -2088,6 +2088,24 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.pendingSCImps = (ctx.state.pendingSCImps ?? 0) + num(params.count, 3);
   },
 
+  /** Farseer's Report — cast: reveal `count` random minions from your NEXT opponent's warband
+   *  (`servedBoards[wave]`, the preview pinned at turn start) onto the OpponentFrame. Their actual stats are
+   *  captured. No next opponent (procedural threat) → fizzles. Cleared at turn start (the opponent changes). */
+  spellScoutNextOpponent: (ctx, _self, params) => {
+    const state = ctx.state;
+    const next = state.servedBoards?.[state.wave];
+    if (!next || next.minions.length === 0) return;
+    const rng = makeRng(state.rngCursor);
+    const avail = [...next.minions];
+    const picks: { cardId: string; attack: number; health: number }[] = [];
+    for (let i = 0; i < num(params.count, 3) && avail.length > 0; i++) {
+      const m = avail.splice(rng.int(avail.length), 1)[0]!;
+      picks.push({ cardId: m.cardId, attack: m.attack, health: m.health });
+    }
+    state.rngCursor = rng.state();
+    state.scoutedNextOpponent = picks;
+  },
+
   /** Rival's Reflection — cast: Discover a PLAIN copy of a minion from your LAST opponent's warband (the board
    *  you just fought = `servedBoards[wave - 1]`). A `kind: 'pool'` Discover over that board's real minion ids
    *  (deduped, tokens/spells excluded); the pick enters hand at base stats (+ run auras), like any conjure.

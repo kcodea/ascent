@@ -1059,4 +1059,18 @@ export const SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellAverageStats' }],
     text: 'Choose two friendly minions. **Average** their Attack and Health between them.',
   },
+  {
+    // Reveal 3 random minions from your next opponent's warband, shown on the opponent frame until the fight.
+    id: 'farseersreport',
+    name: "Farseer's Report",
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 3,
+    effects: [{ on: 'cast', do: 'spellScoutNextOpponent', params: { count: 3 } }],
+    text: "**Scout** 3 random minions from your next opponent's warband.",
+  },
 ];

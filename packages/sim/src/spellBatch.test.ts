@@ -292,6 +292,14 @@ describe('spell batch — tranche C (Discover-based)', () => {
     }
   });
 
+  it("Farseer's Report: scouts minions from the next opponent's warband", () => {
+    const next = { v: 1, wave: 3, heroId: 'warden', resolve: 30, tier: 2, triples: 0, tribes: [], threat: 'glass', power: 4, minions: [{ cardId: 'alley', attack: 2, health: 2, keywords: [] }, { cardId: 'sandbag', attack: 0, health: 4, keywords: [] }], seed: 1, origin: 'synthetic' } as never;
+    let s: RunState = { ...createRun(3), wave: 3, servedBoards: { 3: next }, hand: [mkSpell('sp', 'farseersreport')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
+    expect(s.scoutedNextOpponent?.length).toBe(2); // board has 2 minions (< the 3 requested)
+    expect(s.scoutedNextOpponent!.map((m) => m.cardId).sort()).toEqual(['alley', 'sandbag']);
+  });
+
   it("Rival's Reflection: Discovers a plain copy from the last opponent's board", () => {
     const last = { v: 1, wave: 1, heroId: 'warden', resolve: 30, tier: 2, triples: 0, tribes: [], threat: 'glass', power: 4, minions: [{ cardId: 'alley', attack: 2, health: 2, keywords: [] }], seed: 1, origin: 'synthetic' } as never;
     let s: RunState = { ...createRun(2), wave: 2, servedBoards: { 1: last }, hand: [mkSpell('sp', 'rivalsreflection')] };

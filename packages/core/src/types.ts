@@ -238,6 +238,7 @@ export type EffectFactoryId =
   | 'spellBuffShopByRuby' // Veinstorm: cast — give every shop offer stats equal to your Rubies
   | 'spellBuffPerDragonPlayed' // Hoardflame: cast — +4/+4 plus +1/+1 per Dragon played this turn
   | 'spellDiscoverFromLastOpponent' // Rival's Reflection: cast — Discover a plain copy from the last opponent's warband
+  | 'spellScoutNextOpponent' // Farseer's Report: cast — reveal 3 minions from the next opponent's warband
   | 'spellDemonConsumeFodder' // Consume: cast — a chosen Demon creates and eats N Fodder
   | 'deathrattleGrantRandomSpell' // Sporebat: Deathrattle — grant N random tavern-tier spells to the hand (Beast)
   | 'onDamagedGrantRefresh' // Gryphon: on taking damage, bank a free shop reroll (once per combat) (Beast)

@@ -311,6 +311,9 @@ export interface RunState {
   /** Open the Gates: Imps banked to enter the NEXT combat on the player's board (added in `faceOmen`, up to the
    *  7-slot cap, then spent). Absent = 0. */
   pendingSCImps?: number;
+  /** Farseer's Report: 3 scouted minions from the NEXT opponent's warband, revealed on the OpponentFrame.
+   *  Set on cast, cleared at turn start (the next opponent differs). Stats are the opponent's actual values. */
+  scoutedNextOpponent?: { cardId: string; attack: number; health: number }[];
   /** Pre-emptive Assault: the player's board attacks first in the NEXT combat, overriding the
    *  more-minions initiative rule (ties included). One-shot — cleared in `settleCombat`. */
   attackFirstNext?: boolean;

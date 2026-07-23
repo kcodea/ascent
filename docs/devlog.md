@@ -3,6 +3,22 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (spell batch — Farseer's Report — the batch's final spell)
+
+### feat(content): Farseer's Report — scout the next opponent's warband
+
+**Farseer's Report** (T5/3) — reveal 3 random minions from your next opponent's warband. `spellScoutNextOpponent`
+picks 3 from `servedBoards[wave]` (the preview pinned at turn start) and stores their cardId + actual stats on
+`RunState.scoutedNextOpponent`; the `OpponentFrame` renders them as a "Scouted" row (name + Attack/Health);
+cleared at turn start when the opponent changes. Fizzles against the procedural threat (no served board).
+
+**This completes the 27-spell buildable batch** (only the 2 Dwarf spells remain, blocked on a Dwarf tribe). The
+OpponentFrame scout row is inline-styled for now — a minimal reveal surface Mike can restyle into styles.css.
+
+Verified: new `spellBatch.test.ts` case (scouts a 2-minion board → both captured) + live Scene-Builder (cast →
+"Scouted — Gnasher 4/3 · Target Dummy 0/4 · Pennycat 2/2" rendered on the frame). Full suite (1537) + lint +
+build:web green.
+
 ## 2026-07-23 (spell batch — Common Ground, the two-target spell)
 
 ### feat(content): Common Ground — average two friendly minions

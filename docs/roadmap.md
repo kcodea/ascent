@@ -158,9 +158,10 @@ The career surface exists; deepen what a finished run *remembers*.
   Elevation Ritual) + ✅ **B3** (Layaway, Second Draft) + ✅ **B4** (Strange Revision, Marked Target) shipped.
   ✅ **Encore** + ✅ **Open the Gates** + ✅ **Veinstorm** + ✅ **Hoardflame** shipped — **all of Tranches A + B
   done.** **Tranche C:** ✅ Hourglass Reserve, Funeral on Loan, Rival's Reflection (Discover-based) shipped.
-  **Left — the 2 UI-heavy ones (need UX design):** Common Ground (choose TWO friendly minions, average their
-  stats — a two-target drag interaction) and Farseer's Report (scout 3 from the NEXT opponent's warband — a
-  reveal/scout display). Plus the open **Encore-Rally** ruling. **The original ~5
+  ✅ Common Ground (two-target via the aim picker) + ✅ Farseer's Report (scout row on the OpponentFrame)
+  shipped — **the entire 27-spell buildable batch is DONE.** Remaining: the 2 Dwarf spells (Deepdelve Writ,
+  Ironclad Requisition) blocked on a Dwarf tribe; the open **Encore-Rally** ruling; and polish — the Farseer
+  scout row is inline-styled (could move to styles.css). **The original ~5
   hard/new-UI: Common Ground two-target, Hourglass Reserve + Funeral on Loan discover-locks, Farseer's Report +
   Rival's Reflection opponent-peek). **Blocked:** Deepdelve Writ + Ironclad Requisition (need a Dwarf tribe).
 - **Set-scope quests / runes / heroes** if a set needs its own. `SetDef` has room; the wiring doesn't exist.

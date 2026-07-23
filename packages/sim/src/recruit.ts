@@ -867,6 +867,23 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     mintRubies(ctx.state, num(params.count, 1) * gold(self));
   },
 
+  /** Set 2 — Gemgorge Fiend (Kobold/Demon): every 3 Rubies cast (the `rubyCast` cadence), Consume a random
+   *  non-spell Shop minion (× golden) — remove it and gain its (buffed) stats, Demon-style. */
+  rubyCastConsumeShop: (ctx, self) => {
+    const state = ctx.state;
+    const rng = makeRng(state.rngCursor);
+    for (let n = 0; n < gold(self); n++) {
+      const idxs = state.shop.map((o, i) => (CARD_INDEX[o.cardId]?.spell ? -1 : i)).filter((i) => i >= 0);
+      if (idxs.length === 0) break;
+      const idx = idxs[rng.int(idxs.length)]!;
+      const offer = state.shop[idx]!;
+      state.shop.splice(idx, 1);
+      const { attack: fa, health: fh } = offerBuyStats(state, offer);
+      addBuff(self, 'Consume', fa, fh);
+    }
+    state.rngCursor = rng.state();
+  },
+
   /** Set 2 — Resonance Idol: when a Ruby is played on THIS minion, bounce the same buff to BOTH adjacent
    *  minions (golden: bounce twice). Uses `addBuff` directly, so a bounce can't re-trigger onRubyPlayed. */
   rubyPlayedBounce: (ctx, self, params, payload) => {
@@ -2876,6 +2893,20 @@ export function fireOnSell(state: RunState, card: BoardCard): void {
   for (const eff of def.effects) {
     if (eff.on !== 'onSell') continue;
     RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+  }
+}
+
+/** Set 2 — Gemgorge Fiend: fire each board minion's `rubyCast` effects once for every `every`-th cumulative Ruby
+ *  cast crossed by this cast (`before` → `after` on `rubyCasts`). */
+export function fireOnRubyCast(state: RunState, before: number, after: number): void {
+  for (const card of state.board) {
+    const eff = CARD_INDEX[card.cardId]?.effects.find((e) => e.on === 'rubyCast');
+    if (!eff) continue;
+    const every = Math.max(1, num(eff.params?.every, 3));
+    const fires = Math.floor(after / every) - Math.floor(before / every);
+    if (fires <= 0) continue;
+    const ctx = makeContext(state);
+    for (let f = 0; f < fires; f++) RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
   }
 }
 

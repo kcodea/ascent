@@ -2674,6 +2674,27 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerPermaBuffs?.find((b) => b.sourceUid === 'F')).toMatchObject({ attack: 2, health: 2 });
   });
 
+  it('set 2 — Gemheart Carver: Echo summons a token (its Rubies) on death', () => {
+    const ghtest: CardDef = { id: 'ghtest', name: 'GH', tribe: 'kobold', tier: 4, attack: 5, health: 1, keywords: [],
+      effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard' } }], text: '' };
+    const r = simulate([{ cardId: 'ghtest', attack: 5, health: 1, sourceUid: 'GH', buffs: [{ source: 'Ruby', attack: 3, health: 3, count: 3 }] }],
+      [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, ghtest },
+      combatSide({ tier: 4, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    expect(r.events.some((e) => e.type === 'summon')).toBe(true); // the Echo summoned the Gem Shard
+  });
+
+  it('set 2 — Deepdelve Paragon: Rubies give 3× stats in combat (adds 2× the Ruby buff)', () => {
+    const dptest: CardDef = { id: 'dptest', name: 'DP', tribe: 'kobold', tier: 6, attack: 4, health: 100, keywords: ['SC'],
+      effects: [{ on: 'startOfCombat', do: 'scTripleRubyStats' }], text: '' };
+    const r = simulate([
+      { cardId: 'dptest', attack: 4, health: 100, sourceUid: 'DP' },
+      { cardId: 'sandbag', attack: 5, health: 100, sourceUid: 'M', buffs: [{ source: 'Ruby', attack: 2, health: 2, count: 2 }] },
+    ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), { ...CARD_INDEX, dptest },
+      combatSide({ tier: 6, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    // Deepdelve adds 2× the +2/+2 Ruby buff → a +4/+4 Start-of-Combat buff.
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true);
+  });
+
   it('set 2 — Geode Guardian: on death, plays a Ruby on each adjacent minion (carry-back)', () => {
     const gdtest: CardDef = { id: 'gdtest', name: 'GD', tribe: 'kobold', tier: 2, attack: 2, health: 1, keywords: [],
       effects: [{ on: 'onDeath', do: 'deathrattlePlayRubiesAdjacent', params: { rubies: 1 } }], text: '' };

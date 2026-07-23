@@ -162,6 +162,19 @@ describe('Ruby engine (set 2)', () => {
     expect(s.board.reduce((sum, c) => sum + c.attack + c.health, 0)).toBe(before + 4);
   });
 
+  it('Gemgorge Fiend consumes a Shop minion every 3 Rubies cast', () => {
+    const mk = (uid: string, cardId: string): BoardCard => ({ uid, cardId, tribe: 'kobold', attack: 6, health: 6, keywords: [], golden: false });
+    let s: RunState = { ...createRun(1), board: [mk('gg', 'k_gemgorge'), mk('t', 'sandbag')], hand: [] };
+    const shopBefore = s.shop.length;
+    const g0 = s.board.find((c) => c.uid === 'gg')!;
+    const ggStatsBefore = g0.attack + g0.health;
+    mintRubies(s, 3);
+    for (const uid of s.hand.filter((c) => c.cardId === RUBY_ID).map((c) => c.uid)) s = reduce(s, { type: 'play', uid, targetUid: 't' });
+    expect(s.shop.length).toBe(shopBefore - 1); // the 3rd Ruby cast consumed one offer
+    const g1 = s.board.find((c) => c.uid === 'gg')!;
+    expect(g1.attack + g1.health).toBeGreaterThan(ggStatsBefore); // Gemgorge gained the consumed offer's stats
+  });
+
   it('Rubies never triple, even with 3+ in hand — they are spells (owner ruling)', () => {
     // A golden Chipwick mints 4 Rubies at once; `play` runs checkTriples on the grown hand.
     let s: RunState = { ...createRun(1), board: [], hand: [{ uid: 'ch', cardId: 'k_chipwick', tribe: 'kobold', attack: 1, health: 2, keywords: [], golden: true }] };

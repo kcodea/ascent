@@ -940,6 +940,27 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (target) playRubyOn(ctx, self, target, num(params.rubies, 1) * mul(self));
   },
 
+  /** Set 2 — Gemheart Carver (Echo): on death, summon `tokenId` with stats equal to the Rubies on THIS minion
+   *  (its `Ruby` buff; golden doubles those stats). No Rubies on it → no summon. */
+  deathrattleSummonRubyStats: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const ruby = self.buffs?.find((b) => b.source === 'Ruby');
+    const a = (ruby?.attack ?? 0) * mul(self);
+    const h = (ruby?.health ?? 0) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    ctx.summon(self.side, ctx.getCard(str(params.tokenId)), self.uid, undefined, false, false, { attack: a, health: h, maxHealth: h });
+  },
+
+  /** Set 2 — Deepdelve Paragon (Start of Combat): your Rubies give 3× stats in combat — for each friendly
+   *  minion, add 2× its `Ruby` buff (the 1× already in its stats + this = 3×). Combat-only (no permaGain). */
+  scTripleRubyStats: (ctx, self) => {
+    for (const m of ctx.living(self.side)) {
+      const ruby = m.buffs?.find((b) => b.source === 'Ruby');
+      if (!ruby || (ruby.attack <= 0 && ruby.health <= 0)) continue;
+      ctx.buff(m, ruby.attack * 2, ruby.health * 2, self.uid);
+    }
+  },
+
   /** Set 2 — Alchemist Brisbane (Echo half): on death, buff your Rubies +atk/+hp (× golden), carried back. */
   deathrattleRubyStatGain: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;

@@ -42,4 +42,18 @@ export const SET2_TOKENS: CardDef[] = [
     target: 'friendly',
     text: 'Give a minion **+1/+1** and **Ward**.',
   },
+  {
+    // Gemheart Carver's Echo summons this with stats copied from the Rubies on Gemheart (via `copyStats`), so
+    // its base is 0/0 (overridden at summon).
+    id: 'gemheart-shard',
+    name: 'Gem Shard',
+    tribe: 'kobold',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [],
+    token: true,
+    text: 'A living shard of gemstone.',
+  },
 ];

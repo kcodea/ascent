@@ -3,6 +3,27 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: the final three Kobolds — Ruby-stat payloads + shop consume)
+
+### feat(set2): Gemheart Carver + Deepdelve Paragon + Gemgorge Fiend — all 22 Kobolds shipped
+
+The last three Kobolds, each reading a minion's **Ruby-contributed stats** live from its combat `buffs`
+breakdown (`self.buffs.find(b => b.source === 'Ruby')`):
+- **Gemheart Carver** (5/3 T4, Echo): on death summons a **Gem Shard** with stats copied from the Rubies on
+  Gemheart (`deathrattleSummonRubyStats` → `ctx.summon(..., copyStats)`; new `gemheart-shard` token, base 1/1
+  overridden at summon). No summon if it carried no Rubies.
+- **Deepdelve Paragon** (4/7 T6, Start-of-Combat): triples every friendly minion's Ruby stats — adds 2× each
+  minion's Ruby buff (`scTripleRubyStats`).
+- **Gemgorge Fiend** (6/6 T6, Kobold **+ Demon**): every **3rd Ruby cast** (Shop Spell *or* Ruby, per the
+  umbrella ruling) Consumes a random non-spell shop offer, baking its buy-stats in — Demon-style
+  `rubyCastConsumeShop` on the new `rubyCast` GameEvent, fired by `fireOnRubyCast` (steps on the run's
+  `rubyCasts` tally).
+
+Art wired (**note:** Gemgorge's art file is `GemforgeFiend.png` — wired as `k_gemgorge`; flag if the card
+should be "Gemforge"). Verified: `rubies.test.ts` (Gemgorge consumes on the 3rd cast, gains the offer's stats)
++ `simulate.test.ts` (Gemheart shard carries its Ruby stats; Deepdelve triples). Full suite + content
+validation + lint + build:web green. **All 22 Kobolds shipped — Set 2's Kobold tribe + Ruby engine complete.**
+
 ## 2026-07-23 (set 2: Prismcaster — Rubies cast an extra time)
 
 ### feat(set2): rubyExtraCast aura (Prismcaster)

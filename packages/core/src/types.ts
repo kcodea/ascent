@@ -100,7 +100,8 @@ export type GameEvent =
   | 'cardsBought' // recruit phase: the player bought a card — fires per threshold (Korok, Banksly)
   | 'onSell' // recruit phase: this minion is sold (Hoard Whelp — get Gold)
   | 'onRubyPlayed' // set 2 recruit phase: a Ruby was played on THIS minion (Ruby Broker → Gold, Resonance Idol → bounce)
-  | 'onGetRuby'; // set 2 recruit phase: you gained a Ruby (Candle Conduit → cast one on a random Kobold)
+  | 'onGetRuby' // set 2 recruit phase: you gained a Ruby (Candle Conduit → cast one on a random Kobold)
+  | 'rubyCast'; // set 2 recruit phase: a Ruby was cast — fires per threshold (Gemgorge Fiend: every 3 → Consume)
 
 /**
  * Identifiers of registered effect primitives. Cards reference these by name
@@ -353,7 +354,10 @@ export type EffectFactoryId =
   | 'rallyPlayRubiesTargets' // Set 2 — Crownvein: Rally play N Rubies each on the first M friends of a tribe
   | 'deathrattleRubyStatGain' // Set 2 — Alchemist Brisbane (Echo): on death, buff your Rubies +X/+Y
   | 'deathrattlePlayRubiesAdjacent' // Set 2 — Geode Guardian (Echo): on death, play N Rubies on each neighbour
-  | 'endOfTurnPlayRuby'; // Set 2 — Alchemist Brisbane (EoT): play N Rubies on a random friendly Kobold
+  | 'endOfTurnPlayRuby' // Set 2 — Alchemist Brisbane (EoT): play N Rubies on a random friendly Kobold
+  | 'deathrattleSummonRubyStats' // Set 2 — Gemheart Carver: Echo summon a token with stats = its Rubies
+  | 'scTripleRubyStats' // Set 2 — Deepdelve Paragon: Start of Combat, Rubies give 3× stats
+  | 'rubyCastConsumeShop'; // Set 2 — Gemgorge Fiend: every N Rubies cast, Consume a Shop minion
 
 export interface EffectDef {
   on: GameEvent;

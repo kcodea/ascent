@@ -177,6 +177,47 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: 'Taunt. Get 2 Rubies when this takes damage. (2 times per turn)',
   },
   {
+    // Echo (combat Deathrattle): summon a Gem Shard whose stats = the Rubies played on THIS minion (its `Ruby`
+    // buff, read in combat; golden doubles).
+    id: 'k_gemheart',
+    name: 'Gemheart Carver',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 5,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard' } }],
+    text: "**Echo:** Summon a **Gem Shard** with stats equal to this minion's Rubies.",
+    goldenText: "**Echo:** Summon a **Gem Shard** with stats equal to double this minion's Rubies.",
+  },
+  {
+    // Start of Combat: your Rubies give 3x stats (adds 2x each minion's `Ruby` buff, combat-only).
+    id: 'k_deepdelve',
+    name: 'Deepdelve Paragon',
+    tribe: 'kobold',
+    tier: 6,
+    attack: 4,
+    health: 7,
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scTripleRubyStats' }],
+    text: 'Your Rubies give **3× stats** in combat.',
+    goldenText: 'Your Rubies give **3× stats** in combat.',
+  },
+  {
+    // Kobold/DEMON — every 3 Rubies cast, Consume a Shop minion (gain its stats, Demon-style).
+    id: 'k_gemgorge',
+    name: 'Gemgorge Fiend',
+    tribe: 'kobold',
+    tribe2: 'demon',
+    tier: 6,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'rubyCast', do: 'rubyCastConsumeShop', params: { every: 3 } }],
+    text: 'When you cast **3 Rubies**, Consume a minion in the Shop.',
+    goldenText: 'When you cast **3 Rubies**, Consume **2 minions** in the Shop.',
+  },
+  {
     // Taunt + Echo (combat Deathrattle): on death, play a Ruby on each adjacent minion (permanent carry-back).
     id: 'k_geode',
     name: 'Geode Guardian',

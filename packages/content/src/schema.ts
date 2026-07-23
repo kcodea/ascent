@@ -32,6 +32,7 @@ export const GameEventSchema = z.enum([
   'onSell',
   'onRubyPlayed',
   'onGetRuby',
+  'rubyCast',
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -271,6 +272,9 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleRubyStatGain', // Alchemist Brisbane (Echo): on death, buff your Rubies +X/+Y
   'deathrattlePlayRubiesAdjacent', // Geode Guardian (Echo): on death, play N Rubies on each neighbour
   'endOfTurnPlayRuby', // Alchemist Brisbane (EoT): play N Rubies on a random friendly Kobold
+  'deathrattleSummonRubyStats', // Gemheart Carver: Echo summon a token with stats = its Rubies
+  'scTripleRubyStats', // Deepdelve Paragon: Start of Combat, Rubies give 3x stats
+  'rubyCastConsumeShop', // Gemgorge Fiend: every N Rubies cast, Consume a Shop minion
 ]);
 
 export const EffectDefSchema = z.object({

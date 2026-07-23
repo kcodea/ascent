@@ -47,4 +47,17 @@ export const SET2_KOBOLDS: CardDef[] = [
     text: '**Avenge (2):** Play **2 Rubies** on your minions.',
     goldenText: '**Avenge (2):** Play **4 Rubies** on your minions.',
   },
+  {
+    // Recruit-phase economy: the `cardsBought` cadence (`every: 3`) mints a Ruby every 3 cards you buy.
+    id: 'k_hoardmaster',
+    name: 'Hoardmaster Krik',
+    tribe: 'kobold',
+    tier: 6,
+    attack: 5,
+    health: 9,
+    keywords: [],
+    effects: [{ on: 'cardsBought', do: 'cardsBoughtGetRubies', params: { every: 3, count: 1 } }],
+    text: 'When you buy **3 cards**, get a Ruby.',
+    goldenText: 'When you buy **3 cards**, get **2 Rubies**.',
+  },
 ];

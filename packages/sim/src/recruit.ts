@@ -849,6 +849,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     mintRubies(ctx.state, num(params.count, 1) * gold(self));
   },
 
+  /** Set 2 — Hoardmaster Krik: every `every` cards bought (the `cardsBought` cadence handles the counting),
+   *  mint `count` Rubies into hand (× golden). */
+  cardsBoughtGetRubies: (ctx, self, params) => {
+    mintRubies(ctx.state, num(params.count, 1) * gold(self));
+  },
+
   /** Set 2 — "Your Rubies gain +X/+Y" (Deepvein Tender): raise the run's Ruby strength so every future Ruby
    *  is minted bigger, AND grow every Ruby you already HOLD in hand (they're "your Rubies" too). Rubies already
    *  CAST onto a minion are spent — their buff is baked in and doesn't grow (owner ruling 2026-07-23). */

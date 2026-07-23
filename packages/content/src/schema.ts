@@ -252,6 +252,7 @@ export const EffectFactoryIdSchema = z.enum([
   'rubyStatGain',     // "Your Rubies gain +X/+Y" — raises rubyBonus + grows held Rubies
   'scPlayRubies',     // Start of Combat: play N Rubies on your [tribe] minions (permanent carry-back)
   'avengePlayRubies', // Avenge (X): play N Rubies on your [tribe] minions
+  'cardsBoughtGetRubies', // Hoardmaster Krik: every N cards bought, mint Rubies to hand
 ]);
 
 export const EffectDefSchema = z.object({

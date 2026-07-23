@@ -334,7 +334,8 @@ export type EffectFactoryId =
   | 'getRubies' // Set 2 — Shout/Rally: mint N Rubies into hand
   | 'rubyStatGain' // Set 2 — "Your Rubies gain +X/+Y": raise the run's Ruby strength (hand + future)
   | 'scPlayRubies' // Set 2 — Start of Combat: play N Rubies on your [tribe] minions (permanent carry-back)
-  | 'avengePlayRubies'; // Set 2 — Avenge (X): play N Rubies on your [tribe] minions
+  | 'avengePlayRubies' // Set 2 — Avenge (X): play N Rubies on your [tribe] minions
+  | 'cardsBoughtGetRubies'; // Set 2 — Hoardmaster Krik: every N cards bought, mint Rubies to hand
 
 export interface EffectDef {
   on: GameEvent;

@@ -2088,6 +2088,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.pendingSCImps = (ctx.state.pendingSCImps ?? 0) + num(params.count, 3);
   },
 
+  /** Rival's Reflection — cast: Discover a PLAIN copy of a minion from your LAST opponent's warband (the board
+   *  you just fought = `servedBoards[wave - 1]`). A `kind: 'pool'` Discover over that board's real minion ids
+   *  (deduped, tokens/spells excluded); the pick enters hand at base stats (+ run auras), like any conjure.
+   *  No prior opponent (turn 1) or an all-token board → fizzles (spell still consumed). */
+  spellDiscoverFromLastOpponent: (ctx) => {
+    const state = ctx.state;
+    const last = state.servedBoards?.[state.wave - 1];
+    if (!last) return;
+    const ids = [...new Set(last.minions.map((m) => m.cardId))].filter((id) => CARD_INDEX[id] && !CARD_INDEX[id]!.spell && !CARD_INDEX[id]!.token);
+    if (ids.length === 0) return;
+    queueDiscover(state, { kind: 'pool', ids });
+  },
+
   /** Veinstorm (Set 2) — cast: give EVERY tavern minion offer stats equal to your Rubies (base 1/1 + the run's
    *  `rubyBonus`), baked onto each offer so a buy keeps it. Untargeted; live value shown via spellDisplayText. */
   spellBuffShopByRuby: (ctx) => {
@@ -2773,6 +2786,8 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
     state.discoverLockTier = undefined;
     state.discoverGolden = undefined;
     state.discoverLockGold = undefined;
+    state.discoverLockWave = undefined;
+    state.discoverBorrowed = spec.borrowed; // Rival's Reflection never borrows; kept generic
   } else {
     offerDiscover(state, spec.tier, {
       tier: spec.exactTier,
@@ -2784,9 +2799,10 @@ export function openDiscover(state: RunState, spec: DiscoverSpec): void {
       maxTier: spec.maxTier,
     });
     // Disco Dan's Setlist: carry the lock tier onto the open offer so the resolved pick becomes a
-    // locked hand card (only set if the offer actually opened).
-    if (state.discover) { state.discoverLockTier = spec.lockTier; state.discoverGolden = spec.golden; state.discoverLockGold = spec.lockGold; }
-    else { state.discoverLockTier = undefined; state.discoverGolden = undefined; state.discoverLockGold = undefined; }
+    // locked hand card (only set if the offer actually opened). Hourglass Reserve (`lockWave`) + Funeral on Loan
+    // (`borrowed`) ride the same lifecycle.
+    if (state.discover) { state.discoverLockTier = spec.lockTier; state.discoverGolden = spec.golden; state.discoverLockGold = spec.lockGold; state.discoverLockWave = spec.lockWave; state.discoverBorrowed = spec.borrowed; }
+    else { state.discoverLockTier = undefined; state.discoverGolden = undefined; state.discoverLockGold = undefined; state.discoverLockWave = undefined; state.discoverBorrowed = undefined; }
   }
 }
 
@@ -3546,6 +3562,12 @@ export function consumeTavernFodder(state: RunState): void {
  * Cast a spell from the hand (handoff: spells). Resolves its `cast` effects on the
  * chosen target, tallies the cast, and notifies spell-tracking minions (`spellCast`).
  */
+/** Funeral on Loan: trigger a BORROWED minion's Echo (Deathrattle) out of combat — same path as Ossuary Rite,
+ *  but the caller (the reducer's borrowed-play branch) has already removed the card from hand and won't board it. */
+export function triggerBorrowedEcho(state: RunState, card: BoardCard): void {
+  fireRecruitDeathrattles(makeContext(state), card);
+}
+
 export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard): void {
   const ctx = makeContext(state);
   applyCastEffects(ctx, spellDef, target); // board-wide spells (Growth) run without a target

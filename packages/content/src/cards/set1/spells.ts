@@ -996,4 +996,51 @@ export const SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellBuffPerDragonPlayed', params: { attack: 4, health: 4, per: 1 } }],
     text: 'Give a minion **+4/+4**, plus **+1/+1** for each **Dragon** you played this turn.',
   },
+
+  // --- New spells (2026-07-23 batch, tranche C — Discover-based; set-agnostic). ---
+  {
+    // Discover a minion from your CURRENT tavern tier, locked in hand until next turn (Hourglass Reserve).
+    id: 'hourglassreserve',
+    name: 'Hourglass Reserve',
+    tribe: 'neutral',
+    tier: 2,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [],
+    discoverOnPlay: { exactCurrentTier: true, lockUntilNextTurn: true },
+    text: '**Discover** a minion from your tier. You **cannot play it until next turn**.',
+  },
+  {
+    // Discover an Echo (Deathrattle) minion, BORROWED — playing it triggers its Echo and destroys it (never
+    // boards). An unplayed borrowed card is returned at turn end.
+    id: 'funeralonloan',
+    name: 'Funeral on Loan',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    effects: [],
+    discoverOnPlay: { filter: 'deathrattle', borrowed: true },
+    text: '**Discover** an **Echo** minion. If you play it this turn, **destroy it and trigger its effect**.',
+  },
+  {
+    // Discover a plain copy of a minion from your LAST opponent's warband.
+    id: 'rivalsreflection',
+    name: "Rival's Reflection",
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 1,
+    effects: [{ on: 'cast', do: 'spellDiscoverFromLastOpponent' }],
+    text: "**Discover** a plain copy of a minion from your **last opponent's** warband.",
+  },
 ];

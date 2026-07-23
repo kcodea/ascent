@@ -1445,6 +1445,19 @@ function reduceCore(state: RunState, action: Action): RunState {
         for (const m of player) { m.attack += fleeting.attack; m.health += fleeting.health; }
         s.fleetingVigor = { attack: 0, health: 0 };
       }
+      // Next-combat keyword grants (Field Maneuvers / Last Stand / Executioner's Edge): stamp each banked
+      // keyword onto its minion's COMBAT instance only (matched by sourceUid), then spend the bank — gone
+      // after this fight, exactly like Fleeting Vigor. A grant whose minion was sold/died simply finds no match.
+      if (s.pendingCombatKeywords?.length) {
+        for (const grant of s.pendingCombatKeywords) {
+          const m = player.find((p) => p.sourceUid === grant.uid);
+          if (!m) continue;
+          m.keywords ??= [];
+          if (!m.keywords.includes(grant.keyword)) m.keywords.push(grant.keyword);
+          if (grant.keyword === 'CR' && grant.critChance !== undefined) m.critChance = grant.critChance;
+        }
+        s.pendingCombatKeywords = [];
+      }
       // The procedural threat board for this wave — the always-fightable fallback (built from current
       // cards, so it can never throw). `enemyTier` (loss-damage scaling) is the served board's tavern tier,
       // or the player's own tier as the foe's stand-in for the procedural board.

@@ -90,6 +90,43 @@ describe('spell batch — tranche A (set-agnostic)', () => {
   });
 });
 
+describe('spell batch — tranche B1 (next-combat keyword grants)', () => {
+  it('Field Maneuvers: Choose One banks Ward (DS) or Flurry (W) on the target for next combat', () => {
+    let s: RunState = { ...createRun(1), board: [mkMinion('m1', 3, 3)], hand: [mkSpell('sp', 'fieldmaneuvers')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm1' });
+    expect(s.chooseOne?.targetUid).toBe('m1');
+    s = reduce(s, { type: 'chooseOne', index: 0 }); // Ward
+    expect(s.pendingCombatKeywords).toEqual([{ uid: 'm1', keyword: 'DS' }]);
+    expect(s.board.find((c) => c.uid === 'm1')!.keywords).not.toContain('DS'); // NOT granted on the run board
+
+    let s2: RunState = { ...createRun(1), board: [mkMinion('m1', 3, 3)], hand: [mkSpell('sp', 'fieldmaneuvers')] };
+    s2 = reduce(s2, { type: 'play', uid: 'sp', targetUid: 'm1' });
+    s2 = reduce(s2, { type: 'chooseOne', index: 1 }); // Flurry
+    expect(s2.pendingCombatKeywords).toEqual([{ uid: 'm1', keyword: 'W' }]);
+  });
+
+  it('Last Stand: banks Rise (Reborn) for next combat', () => {
+    let s: RunState = { ...createRun(1), board: [mkMinion('m1', 3, 3)], hand: [mkSpell('sp', 'laststand')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm1' });
+    expect(s.pendingCombatKeywords).toEqual([{ uid: 'm1', keyword: 'R' }]);
+  });
+
+  it("Executioner's Edge: banks Critical Strike with a 50% crit chance", () => {
+    let s: RunState = { ...createRun(1), board: [mkMinion('m1', 3, 3)], hand: [mkSpell('sp', 'executionersedge')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm1' });
+    expect(s.pendingCombatKeywords).toEqual([{ uid: 'm1', keyword: 'CR', critChance: 0.5 }]);
+  });
+
+  it('the banked grant is spent at faceOmen (consumed by the fight, gone after)', () => {
+    let s: RunState = { ...createRun(1), board: [mkMinion('m1', 3, 3)], hand: [mkSpell('sp', 'laststand')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm1' });
+    expect(s.pendingCombatKeywords?.length).toBe(1);
+    s = reduce(s, { type: 'faceOmen' });
+    expect(s.pendingCombatKeywords ?? []).toEqual([]); // spent
+    expect(s.lastCombat).toBeTruthy();
+  });
+});
+
 describe('spell batch — tranche A (Set 2 Ruby spells)', () => {
   const RUBY = 'ruby';
 

@@ -322,6 +322,17 @@ describe('simulate (handoff A.3)', () => {
     expect(run(p, e, 4).events).toEqual(r.events);
   });
 
+  it("Critical Strike from a BoardMinion critChance (Executioner's Edge): a spell-seeded crit lands even with no CardDef critChance", () => {
+    // sandbag has NO critChance in its CardDef — the 100% chance rides on the BoardMinion (as Executioner's Edge
+    // stamps it onto the combat board), so `instantiate` must prefer board.critChance over the card's.
+    const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 6, health: 6, keywords: ['CR'], critChance: 1 }];
+    const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 200 }];
+    const r = run(p, e, 4);
+    expect(r.events.some((ev) => ev.type === 'attack' && ev.crit === true)).toBe(true); // the seeded chance rolled
+    expect(r.events.some((ev) => ev.type === 'dmg' && ev.amount === 12)).toBe(true); // 6 × 2 — the crit landed double
+    expect(run(p, e, 4).events).toEqual(r.events); // deterministic
+  });
+
   it('Mirrorhide Rhino Start of Combat summons one EXACT copy (current stats + keywords, no chain)', () => {
     const p: BoardMinion[] = [{ cardId: 'mirrorrhino', attack: 10, health: 8, keywords: ['W'] }]; // buffed + Flurry
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 80 }];

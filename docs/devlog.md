@@ -3,6 +3,26 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (spell batch — tranche B1: next-combat keyword grants)
+
+### feat(content): Field Maneuvers + Last Stand + Executioner's Edge — bank a keyword for one fight
+
+Three set-agnostic spells that grant a friendly minion a keyword **for the next combat only**:
+- **Field Maneuvers** (T2/2) — Choose One: **Ward** (DS) or **Flurry** (W).
+- **Last Stand** (T2/2) — **Rise** (Reborn).
+- **Executioner's Edge** (T3/2) — **Critical Strike (50%)** — seeds a `critChance` onto the combat instance.
+
+New primitive `spellGrantKeywordNextCombat` banks `{uid, keyword, critChance?}` on `RunState.pendingCombatKeywords`;
+`faceOmen` stamps each onto its minion's COMBAT board (matched by `sourceUid`), then clears the bank — gone after
+the fight, exactly like Fleeting Vigor. A grant whose minion was sold/died simply no-ops. `minion.ts` now prefers
+`board.critChance ?? card.critChance`, so a spell-seeded crit works on a minion whose CardDef has none
+(`BoardMinion.critChance` added). All target a FRIENDLY minion (a tavern offer never enters combat).
+
+Verified: new `spellBatch.test.ts` cases (each spell banks the right keyword; the bank is spent at `faceOmen`) +
+a `simulate.test.ts` case (a `BoardMinion.critChance` with no CardDef value still crits, deterministically) +
+live Scene-Builder run (Field Maneuvers → Flurry banked → consumed by the fight). Full suite (1514) + lint +
+build:web green.
+
 ## 2026-07-23 (spell batch — tranche A: 8 straightforward spells)
 
 ### feat(content): new spell batch tranche A — 6 set-agnostic + 2 Set-2 Ruby spells

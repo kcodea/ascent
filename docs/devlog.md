@@ -3,6 +3,30 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (perf: idle the Discover burst's second WebGL context when it has nothing to draw)
+
+### perf(ui): `discoverFx` stops its ticker between/after bursts (owner: "discovers cause major slowdowns on exe")
+
+`discoverFx` is a SECOND, full-viewport Pixi Application (its own WebGL context + ticker), created ahead of time
+by `warmDiscoverFx` so opening a Discover doesn't pay the ~108ms context-init stall. But its ticker ran
+continuously from that point on — clearing + presenting a full-screen stage EVERY frame, forever, even though it
+only ever draws the one-shot Discover burst. That is a wasted second full-screen render during ALL play (worst on
+the exe's native `2885×1440`), and it's the very cost `#645` fixed for the `shieldApp` bubble canvas.
+
+Fix (same idle pattern): an `autoIdle` mode on `FxController`, enabled only on `discoverFx`. Its ticker is
+stopped right after `attach` (nothing to draw yet); `spawn` restarts it for a burst; and the moment `update`
+finds no live work left (`hasLiveWork()` — no particles/tendrils/auras/aim/etc.) it stops the ticker again. So
+the context renders ONLY during the ≤3s burst and sits truly dormant otherwise — including the whole time a
+Discover panel is open after the burst has faded (the cards + glows are DOM/CSS, not Pixi). The MAIN controller
+leaves `autoIdle` off (it renders continuously for the aim line, persistent auras and combat FX). The
+`Ticker.update` minFPS clamp caps the first post-idle frame's `dt`, so a long dormant gap can't jump a particle.
+
+Verified live (sandbox, `__discoverFx`): `ticker.started` is **false** after attach with 0 particles; a burst
+wakes it (**true**, 67 particles); draining the particles + one forced tick **re-idles** it (false, 0); a fresh
+burst wakes it again. typecheck + lint + 1465 tests + build:web green. (The burst's own additive fillrate is
+unchanged — if a `?perf=1` capture during a Discover still shows a hitch while particles are alive, that's the
+next lever.)
+
 ## 2026-07-23 (fix: the hero Buffs strip stole the leftmost hand card's hover)
 
 ### fix(ui): `.herobuffs` container no longer eats the leftmost hand card's hover-pop

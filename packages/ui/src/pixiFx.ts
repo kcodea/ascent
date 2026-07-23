@@ -664,10 +664,33 @@ class FxController {
   // the (shrinking) cards. Every px dial was tuned at the owner's ~0.745 desktop scale, so `setScale` divides that
   // reference out → 1.0 on desktop (untouched look), ~0.45 on a phone. Applied in `spawn` to size + velocity.
   private fxScale = 1;
+  /** When true, this controller STOPS its own ticker whenever nothing is live, and restarts it on the next
+   *  spawn. Used for `discoverFx` — a SECOND full-viewport WebGL context that only ever draws the one-shot
+   *  Discover burst, so between bursts (and while a Discover sits OPEN after the burst has died) it must not
+   *  clear + present an empty stage every frame at native fullscreen res (the exe's 2885×1440). Same reasoning
+   *  as the shieldApp idle. The MAIN controller leaves this OFF — it renders continuously (aim line, persistent
+   *  auras, combat FX all need the per-frame tick). */
+  private autoIdle = false;
 
   /** Track the stage scale so combat particle bursts shrink with the cards (see `fxScale`). Idempotent; cheap. */
   setScale(stageScale: number): void {
     this.fxScale = stageScale > 0 ? stageScale : 1;
+  }
+
+  /** Turn on the idle-when-empty ticker (see `autoIdle`). Called once on `discoverFx`; safe before attach. */
+  enableAutoIdle(): void {
+    this.autoIdle = true;
+    this.app?.ticker.stop(); // if already attached with nothing live, idle right away
+  }
+
+  /** True while anything still needs the per-frame tick: live particles or any redrawn effect / aura / aim. */
+  private hasLiveWork(): boolean {
+    return (
+      this.live.length > 0 || this.skullPops.length > 0 || this.tendrils.length > 0 ||
+      this.gusts.length > 0 || this.weldRings.length > 0 || this.spellArrows.length > 0 ||
+      this.waves.length > 0 || this.slashes.length > 0 || this.critFxs.length > 0 ||
+      this.pulses.length > 0 || this.descends.length > 0 || this.shields.size > 0 || this.aim !== null
+    );
   }
 
   /** Mount the overlay canvas into `parent` (a fixed, full-viewport, pointer-events:none div).
@@ -766,6 +789,7 @@ class FxController {
     this.crescentTex = this.makeCrescentTexture(app);
     this.buildSkullTex(); // the Echo skull: ☠ rendered purple with its glow baked into the texture
     app.ticker.add(this.update);
+    if (this.autoIdle) app.ticker.stop(); // idle controller (discoverFx): don't render an empty stage until a burst
     // Expose the live FX counts to the perf HUD. Read once per 1s bucket, never per frame — these are the
     // numbers that explain a spike ("400 particles alive" / "7 rings converging"), so a hitch in the log
     // can be tied to what the renderer was actually carrying.
@@ -3152,6 +3176,7 @@ class FxController {
   ): void {
     const layer = this.layer;
     if (!layer) return;
+    if (this.autoIdle) this.app?.ticker.start(); // wake the idled ticker for this burst (no-op if already running)
     const peakAlpha = cfg.peakAlpha ?? 1;
     // Scale SIZE + MOTION (not position — x/y are absolute screen coords) by the stage scale so a burst on a
     // phone's small card is a small burst. fromScale/toScale/vx/vy/gravity all track it; positions do not.
@@ -3450,6 +3475,10 @@ class FxController {
       u.uTime = b.age / 1000;
       u.uAspect = b.w / Math.max(1, b.h);
     }
+
+    // Idle controller (discoverFx): the instant nothing is left to draw, release the ticker so this second
+    // full-viewport context stops clearing + presenting an empty stage every frame. A spawn restarts it.
+    if (this.autoIdle && !this.hasLiveWork()) this.app?.ticker.stop();
   };
 
   /** A small bright dot with a soft edge — the spark. Generated once, tinted per particle. */
@@ -3592,6 +3621,9 @@ export const pixiFx = new FxController();
  *  backdrop) — so the discover burst reads white-hot over the dim without covering the UI. Its own app +
  *  canvas; attached when Discover opens, its canvas re-appended on each subsequent open. */
 export const discoverFx = new FxController();
+// The Discover burst layer only ever draws the one-shot burst — idle its ticker between/after bursts so a
+// second full-viewport WebGL context isn't rendering an empty stage every frame during all other play.
+discoverFx.enableAutoIdle();
 
 /**
  * Create the Discover overlay's Pixi app AHEAD of time, on idle, so opening a Discover doesn't pay for it.

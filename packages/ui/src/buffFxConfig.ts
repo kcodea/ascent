@@ -142,3 +142,23 @@ export function coalesceWaves<T>(waves: T[][]): T[][] {
   out.push(waves.slice(max - 1).flat()); // everything past the cap pulses as one final wave
   return out;
 }
+
+/**
+ * Collapse buff-FX events to ONE per (wave, target). K Brightwing Brokers each capture a source→target tendril
+ * to every OTHER minion, so a single buy emits K×(M−1) events — each a per-frame-retessellated ribbon that
+ * janks the shop with several Brokers up (owner report). A target's stats jump ONCE (the K buffs are summed in
+ * the sim, and the +X/+Y float shows the total), so one tendril per target is the correct read AND cuts the FX
+ * K-fold. Keyed by `(fxWave, target)`: untagged buffs (Brightwing — `fxWave` undefined, all share the 'u'
+ * bucket) collapse to one tendril per target; tagged itemized-reward events dedupe only within their own wave,
+ * so the between-wave stagger survives. First event per key wins. Pure + presentation-only — the sim's
+ * `recruitBuffFx` is never mutated.
+ */
+export function coalesceBuffFxByTarget<T extends { targetUid: string; fxWave?: number }>(events: readonly T[]): T[] {
+  const seen = new Set<string>();
+  return events.filter((ev) => {
+    const k = `${ev.fxWave ?? 'u'}:${ev.targetUid}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}

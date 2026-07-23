@@ -54,6 +54,34 @@ resolves the sentinel; the combat path never did. Fixed: `grantRandomMinion` now
 the active tribes absent from your board (counting DEAD board minions, since Ryme is dead when its own
 Deathrattle fires), and falls back to any minion when you control every tribe. New `rymeWayfinder.test.ts`.
 
+## 2026-07-23 (perf: coalesce Brightwing tendrils — one per target, not K×(M−1))
+
+### perf(ui): collapse duplicate buff-FX tendrils so many Brightwings don't jank the shop
+
+Owner report + audit finding: with several **Brightwing Brokers** on board, buying a card janks the shop. Root
+cause (audit): each Broker's `buffBoardOnBuy` captures a source→target tendril FX event to every OTHER minion,
+and sibling captures are deliberately NOT deduped in the sim — so K Brokers on an M-minion board emit **K×(M−1)**
+buff-FX events. Each becomes a live tendril in `pixiFx`, and every live tendril re-tessellates two filled
+polygons per frame (unpooled). 3 Brokers on a 7-board = 18 concurrent tendrils; 7 Brokers = 42.
+
+The target's stats jump ONCE (the K buffs are summed in the sim, and the +X/+Y float shows the total), so K
+identical ribbons to the same minion are pure visual redundancy. New pure helper `coalesceBuffFxByTarget`
+(buffFxConfig.ts) collapses the replay's events to **one per (fxWave, target)** before firing: Brightwing
+events are untagged (`fxWave` undefined → all share one bucket) so they reduce to one tendril per target (M−1);
+tagged itemized-reward events (Blueprint Cache's per-step waves) dedupe only within their own wave, so the
+between-wave stagger is untouched. Presentation-only — the sim's `recruitBuffFx` and the actual stat buffs are
+never touched.
+
+NB a first attempt deduped WITHIN each wave and was inert: untagged events each land in their own single-event
+wave, so there was nothing to merge — the coalesce has to run over the whole event list first. New
+`coalesceBuffFx.test.ts` pins the real behaviour: 3 Brokers/6-board 15→6, 7 Brokers/7-board 42→7, first-source-
+per-target wins, and tagged multi-wave events keep their beats. typecheck + lint + **1434 tests** + `build:web`
+green; no console errors live.
+
+This is fix #3 of the mid/late-game performance audit (the safe, presentational, high-leverage one). Remaining
+audit items — value-stable card views (the `structuredClone` → memo-bailout fix), `setDrag` decision-gating,
+granular store selectors, idle-ticker gate, cheaper Discover dim — are tracked for follow-up PRs.
+
 ## 2026-07-23 (perf: instrument the recruit-phase frame so hitches attribute to a culprit)
 
 ### chore(ui): time render/Flip/FX/view phases so a slow frame names its cost

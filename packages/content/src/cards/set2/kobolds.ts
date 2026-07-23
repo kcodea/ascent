@@ -107,6 +107,21 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Avenge (3):** Buff your Rubies **+2/+2**.',
   },
   {
+    // Passive: a Ruby played from hand casts an extra time while this is on board (see the reducer play-Ruby
+    // branch reading `rubyExtraCast`). No `effects` — it's a board aura like Money Bot's mana.
+    id: 'k_prismcaster',
+    name: 'Prismcaster',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 4,
+    health: 4,
+    keywords: [],
+    effects: [],
+    rubyExtraCast: 1,
+    text: 'Rubies played from hand cast an extra time.',
+    goldenText: 'Rubies played from hand cast 2 extra times.',
+  },
+  {
     // onDamaged (combat) → raise your Ruby strength (carried back). Each hit it survives buffs your Rubies.
     id: 'k_faultline',
     name: 'Faultline Scrapper',

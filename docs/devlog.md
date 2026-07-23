@@ -3,6 +3,16 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: Prismcaster — Rubies cast an extra time)
+
+### feat(set2): rubyExtraCast aura (Prismcaster)
+
+Prismcaster (4/4 T4): a passive board aura (`CardDef.rubyExtraCast`, no effects) that makes a Ruby played FROM
+HAND apply `1 + Sigma rubyExtraCast` times (x golden per Prismcaster) in the reducer play-Ruby branch — the buff
+AND any `onRubyPlayed` fire each cast, and each counts toward `rubyCasts`. Golden: 2 extra casts. Art wired.
+Verified: `rubies.test.ts` (with a Prismcaster up, a 1/1 Ruby lands +2/+2 and counts as 2 casts). Full suite +
+content validation + lint + build:web green. Fifteen Kobolds shipped.
+
 ## 2026-07-23 (set 2: onDamaged Ruby reactions — Faultline Scrapper + Candleback Bulwark)
 
 ### feat(set2): combat onDamaged → Ruby (buff strength / get Rubies, capped)

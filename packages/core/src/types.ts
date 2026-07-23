@@ -450,6 +450,9 @@ export interface CardDef {
   /** Harry Botter: passive spell-power aura — while this (or a Mech it magnetized into) is on the board,
    *  stat-granting spells get +this/+this (golden doubles). Recruit-only; read by `spellStatBonus`. */
   spellAura?: number;
+  /** Prismcaster (set 2): while this (× golden) is on the board, a Ruby played FROM HAND casts this many EXTRA
+   *  times — its buff (and any `onRubyPlayed`) applies `1 + Σ rubyExtraCast` times. Recruit-only. */
+  rubyExtraCast?: number;
   /** Heckbinder: passive Fodder aura — while this (or a host it magnetized into) is on the board, every
    *  NEW Fodder (tavern offer, conjure, steal) gets +attack/+health more (golden doubles). Recruit-only;
    *  folded into `cardBuff` via `fodderAuraLiveBonus`. */

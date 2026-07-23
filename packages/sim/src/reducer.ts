@@ -690,15 +690,19 @@ function reduceCore(state: RunState, action: Action): RunState {
         // `any` spell. No valid target → fizzle (kept in hand).
         const boardTarget = s.board.find((c) => c.uid === action.targetUid);
         const offer = s.shop.find((o) => o.uid === action.targetUid && !CARD_INDEX[o.cardId]?.spell);
+        // Prismcaster: a Ruby played from hand casts `1 + Σ rubyExtraCast` times (× golden per Prismcaster).
+        const casts = 1 + s.board.reduce((n, c) => n + (CARD_INDEX[c.cardId]?.rubyExtraCast ?? 0) * (c.golden ? 2 : 1), 0);
         if (boardTarget) {
-          addBuff(boardTarget, 'Ruby', card.attack, card.health);
-          // Set 2 — the target's "when a Ruby is played on this" effects (Ruby Broker → Gold, Resonance → bounce).
-          fireOnRubyPlayed(s, boardTarget, card.attack, card.health);
-        } else if (offer) addOfferBuff(offer, 'Ruby', card.attack, card.health);
+          for (let n = 0; n < casts; n++) {
+            addBuff(boardTarget, 'Ruby', card.attack, card.health);
+            // Set 2 — the target's "when a Ruby is played on this" effects (Ruby Broker → Gold, Resonance → bounce).
+            fireOnRubyPlayed(s, boardTarget, card.attack, card.health);
+          }
+        } else if (offer) { for (let n = 0; n < casts; n++) addOfferBuff(offer, 'Ruby', card.attack, card.health); }
         else return state;
         s.hand.splice(i, 1);
-        s.rubyCasts = (s.rubyCasts ?? 0) + 1;
-        s.rubyCastsThisTurn = (s.rubyCastsThisTurn ?? 0) + 1;
+        s.rubyCasts = (s.rubyCasts ?? 0) + casts;
+        s.rubyCastsThisTurn = (s.rubyCastsThisTurn ?? 0) + casts;
         return s;
       }
 

@@ -126,6 +126,17 @@ describe('Ruby engine (set 2)', () => {
     expect(s.hand.filter((c) => c.cardId === RUBY_ID).length).toBe(1); // the minted Ruby is in hand
   });
 
+  it('Prismcaster makes a hand Ruby cast an extra time', () => {
+    const mk = (uid: string, cardId: string): BoardCard => ({ uid, cardId, tribe: 'kobold', attack: 2, health: 2, keywords: [], golden: false });
+    let s: RunState = { ...createRun(1), board: [mk('pc', 'k_prismcaster'), mk('t', 'sandbag')], hand: [] };
+    mintRubies(s, 1);
+    const ruby = s.hand.find((c) => c.cardId === RUBY_ID)!;
+    s = reduce(s, { type: 'play', uid: ruby.uid, targetUid: 't' });
+    const t = s.board.find((c) => c.uid === 't')!;
+    expect([t.attack, t.health]).toEqual([4, 4]); // 2/2 + a 1/1 Ruby applied TWICE
+    expect(s.rubyCasts).toBe(2); // both casts count
+  });
+
   it('Rubies never triple, even with 3+ in hand — they are spells (owner ruling)', () => {
     // A golden Chipwick mints 4 Rubies at once; `play` runs checkTriples on the grown hand.
     let s: RunState = { ...createRun(1), board: [], hand: [{ uid: 'ch', cardId: 'k_chipwick', tribe: 'kobold', attack: 1, health: 2, keywords: [], golden: true }] };

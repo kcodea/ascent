@@ -325,6 +325,7 @@ export const CardDefSchema = z.object({
   manaPerTurn: z.number().int().positive().optional(),
   rallyMechAtk: z.number().int().positive().optional(),
   spellAura: z.number().int().positive().optional(),
+  rubyExtraCast: z.number().int().positive().optional(),
   fodderAura: z.object({ attack: z.number().int().nonnegative(), health: z.number().int().nonnegative() }).strict().optional(),
   chooseOne: z
     .array(z.object({ text: z.string(), goldenText: z.string().optional(), effects: z.array(EffectDefSchema), target: z.enum(['friendly', 'any']).optional() }).strict())

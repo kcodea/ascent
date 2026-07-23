@@ -31,17 +31,21 @@ const mul = (self: Minion): number => (self.golden ? 2 : 1);
  *  is PERMANENT — recorded as `permaGain` for EVERY recipient (not just Engraved ones; owner: Ruby buffs are
  *  always permanent) so it carries back to the run board via `playerPermaBuffs`. Shared by every "play Rubies"
  *  combat trigger (Start-of-Combat / Avenge / Rally). */
-function playRubies(ctx: CombatContext, self: Minion, per: number, tribe: string): void {
+function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: number): void {
   if (per <= 0) return;
   const rb = ctx.rubyBonusFor(self.side);
   const a = (1 + rb.attack) * per;
   const h = (1 + rb.health) * per;
+  ctx.buff(target, a, h, self.uid);
+  if (!target.keywords.includes('EG')) {
+    target.permaGain = { attack: (target.permaGain?.attack ?? 0) + a, health: (target.permaGain?.health ?? 0) + h };
+  }
+}
+function playRubies(ctx: CombatContext, self: Minion, per: number, tribe: string): void {
+  if (per <= 0) return;
   for (const m of ctx.living(self.side)) {
     if (tribe && m.tribe !== tribe && m.tribe2 !== tribe) continue;
-    ctx.buff(m, a, h, self.uid);
-    if (!m.keywords.includes('EG')) {
-      m.permaGain = { attack: (m.permaGain?.attack ?? 0) + a, health: (m.permaGain?.health ?? 0) + h };
-    }
+    playRubyOn(ctx, self, m, per);
   }
 }
 
@@ -885,6 +889,27 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantRubies(num(params.count, 1) * mul(self), self.side, self.uid);
   },
 
+  /** Set 2 — Crownvein Vanguard (half 1): Rally — when THIS attacks, buff your Rubies +atk/+hp (× golden),
+   *  carried back to `rubyBonus`. */
+  rallyRubyStatGain: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side);
+  },
+
+  /** Set 2 — Crownvein Vanguard (half 2): Rally — when THIS attacks, play `rubies` Rubies each on the first
+   *  `targets` living friends of `tribe` (permanent carry-back). Golden drops the tribe filter (any friend) and
+   *  doubles the target count. */
+  rallyPlayRubiesTargets: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    const tribe = self.golden ? '' : str(params.tribe);
+    const targets = num(params.targets, 2) * mul(self);
+    const per = num(params.rubies, 1);
+    const pool = ctx.living(self.side).filter((m) => !tribe || m.tribe === tribe || m.tribe2 === tribe);
+    for (let i = 0; i < targets && i < pool.length; i++) playRubyOn(ctx, self, pool[i]!, per);
+  },
+
   /** Set 2 — Avenge (X) (Veinbreaker): after every `count` friendly deaths, buff your Rubies +atk/+hp (× golden)
    *  — raises the run's Ruby strength (carried back at settle, grows held + future Rubies). */
   avengeRubyStatGain: (ctx, self, params, payload) => {
@@ -893,6 +918,72 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const x = Math.max(1, num(params.count, 3));
     if (count % x !== 0) return;
     ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side);
+  },
+
+  /** Set 2 — Gemline Martyr (half 1): Avenge (X) — get `rubies` Rubies (carried back to hand). */
+  avengeGetRubies: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 2));
+    if (count % x !== 0) return;
+    ctx.grantRubies(num(params.rubies, 1) * mul(self), self.side, self.uid);
+  },
+
+  /** Set 2 — Gemline Martyr (half 2): Avenge (X) — play `rubies` Rubies on your LEFT-MOST living minion
+   *  (permanent carry-back). */
+  avengePlayRubiesLeftmost: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 2));
+    if (count % x !== 0) return;
+    const target = ctx.living(self.side)[0]; // left-most living friend
+    if (target) playRubyOn(ctx, self, target, num(params.rubies, 1) * mul(self));
+  },
+
+  /** Set 2 — Gemheart Carver (Echo): on death, summon `tokenId` with stats equal to the Rubies on THIS minion
+   *  (its `Ruby` buff; golden doubles those stats). No Rubies on it → no summon. */
+  deathrattleSummonRubyStats: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const ruby = self.buffs?.find((b) => b.source === 'Ruby');
+    const a = (ruby?.attack ?? 0) * mul(self);
+    const h = (ruby?.health ?? 0) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    ctx.summon(self.side, ctx.getCard(str(params.tokenId)), self.uid, undefined, false, false, { attack: a, health: h, maxHealth: h });
+  },
+
+  /** Set 2 — Deepdelve Paragon (Start of Combat): your Rubies give 3× stats in combat — for each friendly
+   *  minion, add 2× its `Ruby` buff (the 1× already in its stats + this = 3×). Combat-only (no permaGain). */
+  scTripleRubyStats: (ctx, self) => {
+    for (const m of ctx.living(self.side)) {
+      const ruby = m.buffs?.find((b) => b.source === 'Ruby');
+      if (!ruby || (ruby.attack <= 0 && ruby.health <= 0)) continue;
+      ctx.buff(m, ruby.attack * 2, ruby.health * 2, self.uid);
+    }
+  },
+
+  /** Set 2 — Alchemist Brisbane (Echo half): on death, buff your Rubies +atk/+hp (× golden), carried back. */
+  deathrattleRubyStatGain: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side);
+  },
+
+  /** Set 2 — Geode Guardian (Echo): on death, play `rubies` Rubies on EACH adjacent minion (permanent carry-back). */
+  deathrattlePlayRubiesAdjacent: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const arr = ctx.boards[self.side];
+    const i = arr.indexOf(self);
+    const per = num(params.rubies, 1) * mul(self);
+    for (const adj of [arr[i - 1], arr[i + 1]]) {
+      if (adj && !adj.dead && adj.health > 0) playRubyOn(ctx, self, adj, per);
+    }
+  },
+
+  /** Set 2 — Frenzied Excavator: Start of Combat, play `rubies` Rubies on your [tribe] minions for every
+   *  `every` cards bought this turn (× golden). Reads the run's per-turn buy count threaded into combat. */
+  scPlayRubiesPerBuy: (ctx, self, params) => {
+    const every = Math.max(1, num(params.every, 4));
+    const steps = Math.floor(ctx.cardsBoughtThisTurnFor(self.side) / every);
+    playRubies(ctx, self, steps * num(params.rubies, 1) * mul(self), str(params.tribe));
   },
 
   /** Herald of the Apocalypse — Rally: each time THIS minion attacks, add a copy of itself to your hand after
@@ -1550,6 +1641,23 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (!self.keywords.includes('EG')) {
       self.permaGain = { attack: (self.permaGain?.attack ?? 0) + a, health: self.permaGain?.health ?? 0 };
     }
+  },
+
+  /** Set 2 — Faultline Scrapper: when THIS minion takes damage, give your Rubies +atk/+hp (× golden) — raises
+   *  the run's Ruby strength (carried back at settle). */
+  damagedGainRubyBonus: (ctx, self, params, payload) => {
+    if (self.dead || (payload as MinionPayload).minion !== self) return;
+    ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 0) * mul(self), self.side);
+  },
+
+  /** Set 2 — Candleback Bulwark: when THIS minion takes damage, get `count` Rubies (× golden), capped `cap`
+   *  times per fight (a fresh combat Minion each fight, so `rubyRecvTick` resets between combats). */
+  damagedGetRubies: (ctx, self, params, payload) => {
+    if (self.dead || (payload as MinionPayload).minion !== self) return;
+    const cap = Math.max(1, num(params.cap, 2));
+    if ((self.rubyRecvTick ?? 0) >= cap) return;
+    self.rubyRecvTick = (self.rubyRecvTick ?? 0) + 1;
+    ctx.grantRubies(num(params.count, 1) * mul(self), self.side, self.uid);
   },
 
   /** Commander Impala — when this kills an enemy, give your Fodder + Imps +atk/+hp PERMANENTLY (golden ×2).

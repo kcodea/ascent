@@ -98,7 +98,10 @@ export type GameEvent =
   | 'summonOverflow' // recruit phase: a summon couldn't fit on the full board (Flowing Monk)
   | 'goldSpent' // recruit phase: the player spent Gold — fires per threshold (Acid, Banksly)
   | 'cardsBought' // recruit phase: the player bought a card — fires per threshold (Korok, Banksly)
-  | 'onSell'; // recruit phase: this minion is sold (Hoard Whelp — get Gold)
+  | 'onSell' // recruit phase: this minion is sold (Hoard Whelp — get Gold)
+  | 'onRubyPlayed' // set 2 recruit phase: a Ruby was played on THIS minion (Ruby Broker → Gold, Resonance Idol → bounce)
+  | 'onGetRuby' // set 2 recruit phase: you gained a Ruby (Candle Conduit → cast one on a random Kobold)
+  | 'rubyCast'; // set 2 recruit phase: a Ruby was cast — fires per threshold (Gemgorge Fiend: every 3 → Consume)
 
 /**
  * Identifiers of registered effect primitives. Cards reference these by name
@@ -332,12 +335,29 @@ export type EffectFactoryId =
   | 'deathrattleGainRandomMinion' // Lab Experiment: Echo conjures a random minion of a tier
   | 'deathrattleBuffImpsImproving' // Amun Rab: Echo buffs Imps, improving each proc;
   | 'getRubies' // Set 2 — Shout/Rally: mint N Rubies into hand
+  | 'endOfTurnGetRubies' // Set 2 — Wardstone Jeweler: End of Turn, mint Rubies (Warding Ruby)
   | 'rubyStatGain' // Set 2 — "Your Rubies gain +X/+Y": raise the run's Ruby strength (hand + future)
   | 'scPlayRubies' // Set 2 — Start of Combat: play N Rubies on your [tribe] minions (permanent carry-back)
   | 'avengePlayRubies' // Set 2 — Avenge (X): play N Rubies on your [tribe] minions
   | 'cardsBoughtGetRubies' // Set 2 — Hoardmaster Krik: every N cards bought, mint Rubies to hand
   | 'rallyGetRubies' // Set 2 — Rally: get N Rubies (carried back to hand after combat)
-  | 'avengeRubyStatGain'; // Set 2 — Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
+  | 'avengeRubyStatGain' // Set 2 — Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
+  | 'scPlayRubiesPerBuy' // Set 2 — Frenzied Excavator: SoC play N Rubies per M cards bought this turn
+  | 'avengeGetRubies' // Set 2 — Gemline Martyr: Avenge (X) get N Rubies
+  | 'avengePlayRubiesLeftmost' // Set 2 — Gemline Martyr: Avenge (X) play N Rubies on your left-most minion
+  | 'rubyPlayedBounce' // Set 2 — Resonance Idol: a Ruby played on this bounces to both adjacent minions
+  | 'rubyPlayedGold' // Set 2 — Ruby Broker: a Ruby played on this gives Gold (capped per turn)
+  | 'rubyGainedCast' // Set 2 — Candle Conduit: getting a Ruby casts one on a random friendly Kobold
+  | 'damagedGainRubyBonus' // Set 2 — Faultline Scrapper: on-damage, buff your Rubies +X/+Y
+  | 'damagedGetRubies' // Set 2 — Candleback Bulwark: on-damage, get N Rubies (capped per fight)
+  | 'rallyRubyStatGain' // Set 2 — Crownvein: Rally buff your Rubies +X/+Y
+  | 'rallyPlayRubiesTargets' // Set 2 — Crownvein: Rally play N Rubies each on the first M friends of a tribe
+  | 'deathrattleRubyStatGain' // Set 2 — Alchemist Brisbane (Echo): on death, buff your Rubies +X/+Y
+  | 'deathrattlePlayRubiesAdjacent' // Set 2 — Geode Guardian (Echo): on death, play N Rubies on each neighbour
+  | 'endOfTurnPlayRuby' // Set 2 — Alchemist Brisbane (EoT): play N Rubies on a random friendly Kobold
+  | 'deathrattleSummonRubyStats' // Set 2 — Gemheart Carver: Echo summon a token with stats = its Rubies
+  | 'scTripleRubyStats' // Set 2 — Deepdelve Paragon: Start of Combat, Rubies give 3× stats
+  | 'rubyCastConsumeShop'; // Set 2 — Gemgorge Fiend: every N Rubies cast, Consume a Shop minion
 
 export interface EffectDef {
   on: GameEvent;
@@ -397,6 +417,9 @@ export interface CardDef {
   attackOnSummon?: boolean;
   /** A spell, not a minion: cast from hand for an effect, never takes a board slot. */
   spell?: boolean;
+  /** Warding Ruby (set 2): a Ruby that ALSO grants this keyword (Ward = `DS`) to the minion it's played on —
+   *  permanent when cast in the shop phase (the reducer's play-Ruby branch bakes it onto the board card). */
+  rubyGrantKeyword?: Keyword;
   /** A **Ruby** (set 2 Kobolds): a spell-like token that is NOT a Shop Spell — it plays from hand like a
    *  targeted spell (drag onto a minion) to grant that minion the Ruby's current Attack/Health as a buff,
    *  but it does NOT count for Shop-Spell triggers (Archmagus Guel, `spellsCast`). Rubies have their own
@@ -440,6 +463,9 @@ export interface CardDef {
   /** Harry Botter: passive spell-power aura — while this (or a Mech it magnetized into) is on the board,
    *  stat-granting spells get +this/+this (golden doubles). Recruit-only; read by `spellStatBonus`. */
   spellAura?: number;
+  /** Prismcaster (set 2): while this (× golden) is on the board, a Ruby played FROM HAND casts this many EXTRA
+   *  times — its buff (and any `onRubyPlayed`) applies `1 + Σ rubyExtraCast` times. Recruit-only. */
+  rubyExtraCast?: number;
   /** Heckbinder: passive Fodder aura — while this (or a host it magnetized into) is on the board, every
    *  NEW Fodder (tavern offer, conjure, steal) gets +attack/+health more (golden doubles). Recruit-only;
    *  folded into `cardBuff` via `fodderAuraLiveBonus`. */
@@ -1004,6 +1030,9 @@ export interface Minion {
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };
+  /** Set 2 — Candleback Bulwark: times this minion's on-damage Ruby has fired THIS combat (its per-fight cap).
+   *  A fresh Minion per fight, so it resets naturally between combats. */
+  rubyRecvTick?: number;
   /** Multiplier on every combat stat-gain this minion receives (golden Taurus doubles its neighbors'
    *  combat gains). Applied at the top of `ctx.buff`; absent/1 = normal. */
   gainMult?: number;
@@ -1134,6 +1163,8 @@ export interface CombatSideState {
   beastBuyAtk: number;
   /** Beasts played this recruit turn (legacy — retained for the ctx accessor + result echo). */
   beastsPlayed: number;
+  /** Set 2 — cards bought this recruit turn (Frenzied Excavator's Start-of-Combat scaler). Player-authoritative. */
+  cardsBoughtThisTurn: number;
   /** Attachment/Magnetic aura (Scrap Herald / Banksly welds) — sizes this side's from-base Magnetics. */
   magneticAtk: number;
   magneticHp: number;
@@ -1362,6 +1393,8 @@ export interface CombatContext {
   improveRepsFor(side: Side): number;
   /** Per-side "Beasts played this turn" — player's, or the opponent's captured value. */
   beastsPlayedFor(side: Side): number;
+  /** Per-side cards bought this recruit turn (Frenzied Excavator's Start-of-Combat Ruby scaler). */
+  cardsBoughtThisTurnFor(side: Side): number;
   /** Deathrattles triggered this game so far, for `side`: for the PLAYER the run-wide base + this combat's
    *  player Deathrattles; for the ENEMY the opponent's captured tally. Grim scales its buff by this. */
   deathrattleTally(side: Side): number;

@@ -9,7 +9,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -372,6 +372,7 @@ export function reduce(state: RunState, action: Action): RunState {
       const isShout = !!bdef && hasBattlecry(bdef);
       advanceQuests(next, (o) => o.event === 'buy' && (!o.tribe || tribes.includes(o.tribe)) && (o.filter !== 'shout' || isShout));
       applyCardsBought(next, 1); // Korok / Banksly: "when you buy N cards" (the buy-count sibling of the Gold meter)
+      next.cardsBoughtThisTurn = (next.cardsBoughtThisTurn ?? 0) + 1; // set 2: Frenzied Excavator's SoC scaler
     }
     // A Shout is a TRIGGER: each Battlecry FIRE (Drakko + shout-repeat rewards + charges) counts toward the Shout
     // objective. `lastShoutFires` was recorded during the play / target resolution (0 if no Shout fired).
@@ -689,12 +690,24 @@ function reduceCore(state: RunState, action: Action): RunState {
         // `any` spell. No valid target → fizzle (kept in hand).
         const boardTarget = s.board.find((c) => c.uid === action.targetUid);
         const offer = s.shop.find((o) => o.uid === action.targetUid && !CARD_INDEX[o.cardId]?.spell);
-        if (boardTarget) addBuff(boardTarget, 'Ruby', card.attack, card.health);
-        else if (offer) addOfferBuff(offer, 'Ruby', card.attack, card.health);
+        // Prismcaster: a Ruby played from hand casts `1 + Σ rubyExtraCast` times (× golden per Prismcaster).
+        const casts = 1 + s.board.reduce((n, c) => n + (CARD_INDEX[c.cardId]?.rubyExtraCast ?? 0) * (c.golden ? 2 : 1), 0);
+        if (boardTarget) {
+          for (let n = 0; n < casts; n++) {
+            addBuff(boardTarget, 'Ruby', card.attack, card.health);
+            // Set 2 — the target's "when a Ruby is played on this" effects (Ruby Broker → Gold, Resonance → bounce).
+            fireOnRubyPlayed(s, boardTarget, card.attack, card.health);
+          }
+          // Warding Ruby: grant its keyword (Ward = DS) to the target — permanent in the shop phase (baked here).
+          const kw = def.rubyGrantKeyword;
+          if (kw && !boardTarget.keywords.includes(kw)) boardTarget.keywords.push(kw);
+        } else if (offer) { for (let n = 0; n < casts; n++) addOfferBuff(offer, 'Ruby', card.attack, card.health); }
         else return state;
         s.hand.splice(i, 1);
-        s.rubyCasts = (s.rubyCasts ?? 0) + 1;
-        s.rubyCastsThisTurn = (s.rubyCastsThisTurn ?? 0) + 1;
+        const rubyCastsBefore = s.rubyCasts ?? 0;
+        s.rubyCasts = rubyCastsBefore + casts;
+        s.rubyCastsThisTurn = (s.rubyCastsThisTurn ?? 0) + casts;
+        fireOnRubyCast(s, rubyCastsBefore, s.rubyCasts); // Gemgorge Fiend: every 3 casts → Consume a Shop minion
         return s;
       }
 
@@ -1446,6 +1459,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         fodderConsumedHp: s.fodderConsumedThisTurn?.health ?? 0,
         beastBuyAtk: s.beastBuyAtk ?? 0,
         beastsPlayed,
+        cardsBoughtThisTurn: s.cardsBoughtThisTurn ?? 0,
         magneticAtk: s.magneticBuyAtk ?? 0,
         magneticHp: s.magneticBuyHp ?? 0,
         rubyBonus: s.rubyBonus ?? { attack: 0, health: 0 },
@@ -2068,6 +2082,8 @@ function advanceCombat(s: RunState): void {
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
   s.playedThisTurn = []; // Pack Leader / Spirit Worgen: minions-played-this-turn resets each turn
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
+  s.cardsBoughtThisTurn = 0; // Frenzied Excavator's per-turn cards-bought scaling resets each wave
+  for (const c of s.board) c.rubyRecvTick = 0; // Ruby Broker's per-turn Gold cap resets each wave
   s.attachmentsThisTurn = 0; // Tempering/Replication's "first Attachment each turn" gate resets each wave
   s.shoutsThisTurn = 0; // Rune of Refrain's Shout counter resets each wave
   s.firstShoutUid = undefined;

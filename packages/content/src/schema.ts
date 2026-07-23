@@ -30,6 +30,9 @@ export const GameEventSchema = z.enum([
   'goldSpent',
   'cardsBought',
   'onSell',
+  'onRubyPlayed',
+  'onGetRuby',
+  'rubyCast',
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -249,12 +252,29 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleBuffImpsImproving',
   // Set 2 — Kobolds / Rubies
   'getRubies',        // Shout/Rally: mint N Rubies into hand (base 1/1 + rubyBonus)
+  'endOfTurnGetRubies', // Wardstone Jeweler: End of Turn, mint Rubies (Warding Ruby)
   'rubyStatGain',     // "Your Rubies gain +X/+Y" — raises rubyBonus + grows held Rubies
   'scPlayRubies',     // Start of Combat: play N Rubies on your [tribe] minions (permanent carry-back)
   'avengePlayRubies', // Avenge (X): play N Rubies on your [tribe] minions
   'cardsBoughtGetRubies', // Hoardmaster Krik: every N cards bought, mint Rubies to hand
   'rallyGetRubies',   // Rally: get N Rubies (carried back to hand after combat)
   'avengeRubyStatGain', // Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
+  'scPlayRubiesPerBuy', // Frenzied Excavator: SoC play N Rubies per M cards bought this turn
+  'avengeGetRubies', // Gemline Martyr: Avenge (X) get N Rubies
+  'avengePlayRubiesLeftmost', // Gemline Martyr: Avenge (X) play N Rubies on your left-most minion
+  'rubyPlayedBounce', // Resonance Idol: a Ruby played on this bounces to both adjacent minions
+  'rubyPlayedGold',   // Ruby Broker: a Ruby played on this gives Gold (capped per turn)
+  'rubyGainedCast',   // Candle Conduit: getting a Ruby casts one on a random friendly Kobold
+  'damagedGainRubyBonus', // Faultline Scrapper: on-damage, buff your Rubies +X/+Y
+  'damagedGetRubies', // Candleback Bulwark: on-damage, get N Rubies (capped per fight)
+  'rallyRubyStatGain', // Crownvein: Rally buff your Rubies +X/+Y
+  'rallyPlayRubiesTargets', // Crownvein: Rally play N Rubies each on the first M friends of a tribe
+  'deathrattleRubyStatGain', // Alchemist Brisbane (Echo): on death, buff your Rubies +X/+Y
+  'deathrattlePlayRubiesAdjacent', // Geode Guardian (Echo): on death, play N Rubies on each neighbour
+  'endOfTurnPlayRuby', // Alchemist Brisbane (EoT): play N Rubies on a random friendly Kobold
+  'deathrattleSummonRubyStats', // Gemheart Carver: Echo summon a token with stats = its Rubies
+  'scTripleRubyStats', // Deepdelve Paragon: Start of Combat, Rubies give 3x stats
+  'rubyCastConsumeShop', // Gemgorge Fiend: every N Rubies cast, Consume a Shop minion
 ]);
 
 export const EffectDefSchema = z.object({
@@ -303,6 +323,7 @@ export const CardDefSchema = z.object({
   attackOnSummon: z.boolean().optional(),
   spell: z.boolean().optional(),
   ruby: z.boolean().optional(),
+  rubyGrantKeyword: KeywordSchema.optional(),
   singleCast: z.boolean().optional(),
   cost: z.number().int().nonnegative().optional(),
   target: z.enum(['friendly', 'any']).optional(),
@@ -315,6 +336,7 @@ export const CardDefSchema = z.object({
   manaPerTurn: z.number().int().positive().optional(),
   rallyMechAtk: z.number().int().positive().optional(),
   spellAura: z.number().int().positive().optional(),
+  rubyExtraCast: z.number().int().positive().optional(),
   fodderAura: z.object({ attack: z.number().int().nonnegative(), health: z.number().int().nonnegative() }).strict().optional(),
   chooseOne: z
     .array(z.object({ text: z.string(), goldenText: z.string().optional(), effects: z.array(EffectDefSchema), target: z.enum(['friendly', 'any']).optional() }).strict())

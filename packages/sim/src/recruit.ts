@@ -33,7 +33,7 @@ type RecruitFn = (
    *  to vary a per-proc random selection (Combinator) so each weld picks fresh Mechs. `target` is the
    *  player-chosen friendly minion for a targeted Battlecry (Toxin Tender); absent = auto-pick. `replay`
    *  marks a Djinn-driven extra End-of-Turn (it must not advance a cadence counter — see Frontdrake). */
-  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean },
+  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number },
 ) => void;
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
@@ -711,20 +711,38 @@ export const RUBY_ID = 'ruby';
  * `rubyStatGain`), so all held Rubies stay equal to base + rubyBonus; only Rubies already CAST onto a minion
  * (their buff baked in) don't grow. Respects the hand cap. Deterministic (no RNG) — same card, same Ruby.
  */
-export function mintRubies(state: RunState, count: number): void {
-  const def = CARD_INDEX[RUBY_ID];
+export function mintRubies(state: RunState, count: number, rubyId: string = RUBY_ID): void {
+  const def = CARD_INDEX[rubyId];
   if (!def) return;
   const bonus = state.rubyBonus ?? { attack: 0, health: 0 };
+  let minted = 0;
   for (let i = 0; i < count && state.hand.length < CONFIG.handMax; i++) {
     state.hand.push({
       uid: `b${state.uidSeq++}`,
-      cardId: RUBY_ID,
+      cardId: rubyId,
       tribe: def.tribe,
       attack: def.attack + bonus.attack,
       health: def.health + bonus.health,
       keywords: [...def.keywords],
       golden: false,
     });
+    minted++;
+  }
+  // Set 2 — Candle Conduit: "when you get a Ruby" fires once per Ruby actually minted. A reaction only PLAYS a
+  // Ruby (never mints), so this can't recurse.
+  for (let r = 0; r < minted; r++) fireOnRubyGained(state);
+}
+
+/** Set 2 — fire every board minion's `onGetRuby` effects (Candle Conduit) when a Ruby is gained. */
+function fireOnRubyGained(state: RunState): void {
+  for (const card of state.board) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def?.effects.some((e) => e.on === 'onGetRuby')) continue;
+    const ctx = makeContext(state);
+    for (const eff of def.effects) {
+      if (eff.on !== 'onGetRuby') continue;
+      RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+    }
   }
 }
 
@@ -847,6 +865,89 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  Tunnelcharger Rikk `Get 3` — the golden text doubles the count, so `count × gold(self)`. */
   getRubies: (ctx, self, params) => {
     mintRubies(ctx.state, num(params.count, 1) * gold(self));
+  },
+
+  /** Set 2 — Gemgorge Fiend (Kobold/Demon): every 3 Rubies cast (the `rubyCast` cadence), Consume a random
+   *  non-spell Shop minion (× golden) — remove it and gain its (buffed) stats, Demon-style. */
+  rubyCastConsumeShop: (ctx, self) => {
+    const state = ctx.state;
+    const rng = makeRng(state.rngCursor);
+    for (let n = 0; n < gold(self); n++) {
+      const idxs = state.shop.map((o, i) => (CARD_INDEX[o.cardId]?.spell ? -1 : i)).filter((i) => i >= 0);
+      if (idxs.length === 0) break;
+      const idx = idxs[rng.int(idxs.length)]!;
+      const offer = state.shop[idx]!;
+      state.shop.splice(idx, 1);
+      const { attack: fa, health: fh } = offerBuyStats(state, offer);
+      addBuff(self, 'Consume', fa, fh);
+    }
+    state.rngCursor = rng.state();
+  },
+
+  /** Set 2 — Resonance Idol: when a Ruby is played on THIS minion, bounce the same buff to BOTH adjacent
+   *  minions (golden: bounce twice). Uses `addBuff` directly, so a bounce can't re-trigger onRubyPlayed. */
+  rubyPlayedBounce: (ctx, self, params, payload) => {
+    const rubyAttack = payload.rubyAttack ?? 0;
+    const rubyHealth = payload.rubyHealth ?? 0;
+    const board = ctx.state.board;
+    const idx = board.indexOf(self);
+    if (idx < 0) return;
+    const reps = self.golden ? num(params.goldenReps, 2) : 1;
+    for (const adj of [board[idx - 1], board[idx + 1]]) {
+      if (adj) for (let r = 0; r < reps; r++) addBuff(adj, 'Ruby', rubyAttack, rubyHealth);
+    }
+  },
+
+  /** Set 2 — Ruby Broker: when a Ruby is played on THIS minion, gain `gold` Gold — capped `cap` times per turn
+   *  (golden raises the cap by 1). `rubyRecvTick` is a per-instance counter reset each wave. */
+  rubyPlayedGold: (ctx, self, params) => {
+    const cap = num(params.cap, 2) + (self.golden ? 1 : 0);
+    if ((self.rubyRecvTick ?? 0) >= cap) return;
+    self.rubyRecvTick = (self.rubyRecvTick ?? 0) + 1;
+    ctx.state.embers += num(params.gold, 3);
+  },
+
+  /** Set 2 — Candle Conduit: when you get a Ruby, cast a Ruby (base 1/1 + rubyBonus) on a random friendly
+   *  `tribe` minion. Golden: any friendly minion (not just the tribe), TWICE. Deterministic (run rngCursor). */
+  rubyGainedCast: (ctx, self, params) => {
+    const state = ctx.state;
+    const bonus = state.rubyBonus ?? { attack: 0, health: 0 };
+    const ra = 1 + bonus.attack;
+    const rh = 1 + bonus.health;
+    const tribe = self.golden ? '' : str(params.tribe); // golden drops the tribe filter (any friendly minion)
+    const casts = self.golden ? 2 : 1;
+    for (let c = 0; c < casts; c++) {
+      const pool = state.board.filter((m) => !tribe || m.tribe === tribe || CARD_INDEX[m.cardId]?.tribe2 === tribe);
+      if (pool.length === 0) return;
+      const rng = makeRng(state.rngCursor);
+      const target = pool[rng.int(pool.length)]!;
+      state.rngCursor = rng.state();
+      addBuff(target, 'Ruby', ra, rh);
+    }
+  },
+
+  /** Set 2 — Alchemist Brisbane (EoT half): at End of Turn, play `count` Rubies (base 1/1 + rubyBonus) on a
+   *  random friendly `tribe` minion (× golden). Deterministic (run rngCursor). */
+  endOfTurnPlayRuby: (ctx, self, params) => {
+    const state = ctx.state;
+    const bonus = state.rubyBonus ?? { attack: 0, health: 0 };
+    const ra = 1 + bonus.attack;
+    const rh = 1 + bonus.health;
+    const tribe = str(params.tribe);
+    for (let c = 0; c < num(params.count, 1) * gold(self); c++) {
+      const pool = state.board.filter((m) => !tribe || m.tribe === tribe || CARD_INDEX[m.cardId]?.tribe2 === tribe);
+      if (pool.length === 0) return;
+      const rng = makeRng(state.rngCursor);
+      const target = pool[rng.int(pool.length)]!;
+      state.rngCursor = rng.state();
+      addBuff(target, 'Ruby', ra, rh);
+    }
+  },
+
+  /** Set 2 — Wardstone Jeweler: at End of Turn, mint `count` Rubies of `rubyId` (× golden) into hand — used for
+   *  the Warding Ruby (`rubyId: 'warding-ruby'`); defaults to a plain Ruby. */
+  endOfTurnGetRubies: (ctx, self, params) => {
+    mintRubies(ctx.state, num(params.count, 1) * gold(self), str(params.rubyId) || RUBY_ID);
   },
 
   /** Set 2 — Hoardmaster Krik: every `every` cards bought (the `cardsBought` cadence handles the counting),
@@ -2792,6 +2893,33 @@ export function fireOnSell(state: RunState, card: BoardCard): void {
   for (const eff of def.effects) {
     if (eff.on !== 'onSell') continue;
     RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+  }
+}
+
+/** Set 2 — Gemgorge Fiend: fire each board minion's `rubyCast` effects once for every `every`-th cumulative Ruby
+ *  cast crossed by this cast (`before` → `after` on `rubyCasts`). */
+export function fireOnRubyCast(state: RunState, before: number, after: number): void {
+  for (const card of state.board) {
+    const eff = CARD_INDEX[card.cardId]?.effects.find((e) => e.on === 'rubyCast');
+    if (!eff) continue;
+    const every = Math.max(1, num(eff.params?.every, 3));
+    const fires = Math.floor(after / every) - Math.floor(before / every);
+    if (fires <= 0) continue;
+    const ctx = makeContext(state);
+    for (let f = 0; f < fires; f++) RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+  }
+}
+
+/** Set 2 — fire a board minion's `onRubyPlayed` effects when a Ruby is cast ONTO it (Ruby Broker → Gold,
+ *  Resonance Idol → bounce). The played Ruby's stats ride in the payload so a bounce can re-apply the same
+ *  buff. The bounce uses `addBuff` directly (not this path) so it can't cascade into an infinite loop. */
+export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: number, rubyHealth: number): void {
+  const def = CARD_INDEX[card.cardId];
+  if (!def || !def.effects.some((e) => e.on === 'onRubyPlayed')) return;
+  const ctx = makeContext(state);
+  for (const eff of def.effects) {
+    if (eff.on !== 'onRubyPlayed') continue;
+    RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, rubyAttack, rubyHealth });
   }
 }
 

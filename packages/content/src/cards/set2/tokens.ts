@@ -25,4 +25,35 @@ export const SET2_TOKENS: CardDef[] = [
     target: 'any',
     text: 'Give a minion **+1/+1**.',
   },
+  {
+    // Warding Ruby (Wardstone Jeweler): a Ruby that also grants Ward (Divine Shield). `target: 'friendly'` — Ward
+    // needs a real board minion (an offer can't carry a keyword). Permanent when cast in the shop (owner ruling).
+    id: 'warding-ruby',
+    name: 'Warding Ruby',
+    tribe: 'neutral',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [],
+    token: true,
+    ruby: true,
+    rubyGrantKeyword: 'DS',
+    target: 'friendly',
+    text: 'Give a minion **+1/+1** and **Ward**.',
+  },
+  {
+    // Gemheart Carver's Echo summons this with stats copied from the Rubies on Gemheart (via `copyStats`), so
+    // its base is 0/0 (overridden at summon).
+    id: 'gemheart-shard',
+    name: 'Gem Shard',
+    tribe: 'kobold',
+    tier: 1,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [],
+    token: true,
+    text: 'A living shard of gemstone.',
+  },
 ];

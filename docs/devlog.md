@@ -3,6 +3,108 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: the final three Kobolds — Ruby-stat payloads + shop consume)
+
+### feat(set2): Gemheart Carver + Deepdelve Paragon + Gemgorge Fiend — all 22 Kobolds shipped
+
+The last three Kobolds, each reading a minion's **Ruby-contributed stats** live from its combat `buffs`
+breakdown (`self.buffs.find(b => b.source === 'Ruby')`):
+- **Gemheart Carver** (5/3 T4, Echo): on death summons a **Gem Shard** with stats copied from the Rubies on
+  Gemheart (`deathrattleSummonRubyStats` → `ctx.summon(..., copyStats)`; new `gemheart-shard` token, base 1/1
+  overridden at summon). No summon if it carried no Rubies.
+- **Deepdelve Paragon** (4/7 T6, Start-of-Combat): triples every friendly minion's Ruby stats — adds 2× each
+  minion's Ruby buff (`scTripleRubyStats`).
+- **Gemgorge Fiend** (6/6 T6, Kobold **+ Demon**): every **3rd Ruby cast** (Shop Spell *or* Ruby, per the
+  umbrella ruling) Consumes a random non-spell shop offer, baking its buy-stats in — Demon-style
+  `rubyCastConsumeShop` on the new `rubyCast` GameEvent, fired by `fireOnRubyCast` (steps on the run's
+  `rubyCasts` tally).
+
+Art wired (**note:** Gemgorge's art file is `GemforgeFiend.png` — wired as `k_gemgorge`; flag if the card
+should be "Gemforge"). Verified: `rubies.test.ts` (Gemgorge consumes on the 3rd cast, gains the offer's stats)
++ `simulate.test.ts` (Gemheart shard carries its Ruby stats; Deepdelve triples). Full suite + content
+validation + lint + build:web green. **All 22 Kobolds shipped — Set 2's Kobold tribe + Ruby engine complete.**
+
+## 2026-07-23 (set 2: Prismcaster — Rubies cast an extra time)
+
+### feat(set2): rubyExtraCast aura (Prismcaster)
+
+Prismcaster (4/4 T4): a passive board aura (`CardDef.rubyExtraCast`, no effects) that makes a Ruby played FROM
+HAND apply `1 + Sigma rubyExtraCast` times (x golden per Prismcaster) in the reducer play-Ruby branch — the buff
+AND any `onRubyPlayed` fire each cast, and each counts toward `rubyCasts`. Golden: 2 extra casts. Art wired.
+Verified: `rubies.test.ts` (with a Prismcaster up, a 1/1 Ruby lands +2/+2 and counts as 2 casts). Full suite +
+content validation + lint + build:web green. Fifteen Kobolds shipped.
+
+## 2026-07-23 (set 2: onDamaged Ruby reactions — Faultline Scrapper + Candleback Bulwark)
+
+### feat(set2): combat onDamaged → Ruby (buff strength / get Rubies, capped)
+
+Two combat Kobolds on the existing `onDamaged` trigger, reusing the Ruby carry-back rails:
+- **Faultline Scrapper** (1/4 T3, `When this takes damage, give your Rubies +1 Attack`; golden +2) —
+  `damagedGainRubyBonus` → `ctx.gainRubyBonus` (carried back to `rubyBonus`).
+- **Candleback Bulwark** (1/3 T1, Taunt, `Get a Ruby when this takes damage, 2×/turn`; golden 2 Rubies) —
+  `damagedGetRubies` → `ctx.grantRubies`, capped per fight via a new `Minion.rubyRecvTick` (fresh each combat).
+
+Art wired. **Note:** the Bulwark art file is `CandlelightBulwark.png` but the card is **Candleback Bulwark**
+(per the design list) — wired it as `k_candleback` since it's clearly the same card; flag if the name should be
+"Candlelight". Verified: new `simulate.test.ts` cases (Faultline → `playerRubyBonusGain.attack ≥ 1`; Candleback
+→ `playerRubyGrants` capped at 2). Full suite + content validation + lint + build:web green. **Fourteen Kobolds
+shipped.**
+
+## 2026-07-23 (set 2: onGetRuby trigger + Pouchpincher (crossover) & Candle Conduit)
+
+### feat(set2): "when you get a Ruby" trigger + a set-1 crossover card
+
+Two more Kobolds and a second Ruby-reaction trigger:
+- **Pouchpincher** (4/2 T2, `Shout: Get a Gold Pouch`) — **crossover**: Gold Pouch is the SET-1 spell
+  `emberpouch` (owner: sets will share cards), granted via the existing `battlecryGrantSpell` — no new factory,
+  `CARD_INDEX` is global.
+- **`onGetRuby`** trigger — fires in `mintRubies` once per Ruby actually minted (a reaction only PLAYS a Ruby,
+  never mints, so no recursion). **Candle Conduit** (5/5 T5, `When you get a Ruby, cast a Ruby on a random
+  friendly Kobold`; golden: any friendly minion, twice) via `rubyGainedCast` (deterministic on the run rngCursor).
+
+Art wired for both. Verified: `rubies.test.ts` — Pouchpincher puts `emberpouch` in hand; Candle Conduit lands
+exactly one +1/+1 on a board Kobold when a Ruby is minted. Full suite + content validation + lint + build:web
+green. **Twelve Kobolds shipped.**
+
+## 2026-07-23 (set 2: the "when a Ruby is played on this" trigger — Resonance Idol + Ruby Broker)
+
+### feat(set2): `onRubyPlayed` primitive + two Kobolds that react to Rubies landing on them
+
+The first bespoke Ruby-interaction primitive: a recruit-phase **`onRubyPlayed`** trigger that fires a board
+minion's effects when a Ruby is cast ONTO it. The reducer's play-Ruby branch calls `fireOnRubyPlayed(target, a,
+h)` after buffing a board target; the played Ruby's stats ride in the (widened) recruit payload so a reaction can
+re-use them. Two Kobolds:
+- **Resonance Idol** (4/6 T4) — `rubyPlayedBounce`: the buff also lands on BOTH adjacent minions (golden: twice).
+  Bounces via `addBuff` directly, so it can't cascade into a loop.
+- **Ruby Broker** (2/6 T5) — `rubyPlayedGold`: +3 Gold per Ruby, capped 2×/turn (golden 3×) via a per-instance
+  `rubyRecvTick` reset each wave.
+
+Art wired for both. Verified: `rubies.test.ts` — Resonance bounces a played Ruby to both neighbours (+1/+1
+each); Ruby Broker gives 3 Gold twice then stops at the cap. Full suite + content validation + lint + build:web
+green. **Ten Kobolds shipped.** (The `onRubyPlayed` hook also sets up Geode Guardian / Gemheart Carver variants
+next.)
+
+## 2026-07-23 (set 2: Frenzied Excavator + Gemline Martyr — the two "moderate" combat Kobolds)
+
+### feat(set2): cards-bought-this-turn scaler + positional Ruby play (Frenzied + Gemline)
+
+The two Kobolds that needed one more mechanism each:
+- **Frenzied Excavator** (6/3 T5, `Start of Combat: play 1 Ruby on your Kobolds for every 4 cards bought this
+  turn`) — added a per-turn buy counter (`RunState.cardsBoughtThisTurn`, bumped on `buy`, reset each wave),
+  threaded into `CombatSideState` + `ctx.cardsBoughtThisTurnFor(side)`, and the `scPlayRubiesPerBuy` factory
+  (steps = floor(bought / every)).
+- **Gemline Martyr** (2/5 T3, `Avenge (2): Get a Ruby and Play 2 on your left-most minion`) — TWO Avenge effects
+  on one card (both fire; `registerEffects` iterates each): `avengeGetRubies` (uses the get-Rubies carry-back)
+  + `avengePlayRubiesLeftmost` (positional — plays on `ctx.living(side)[0]`). Extracted a single-target
+  `playRubyOn` helper that `playRubies` now loops.
+
+Art wired for both (`k_frenzied` / `k_gemline`). Verified: new `simulate.test.ts` cases (Frenzied scales with
+`cardsBoughtThisTurn: 8` → 2 Rubies; Gemline's Avenge grants a Ruby to hand AND +2/+2 on the left-most) + a
+`rubies.test.ts` buy-counter case. Determinism + golden + content validation + lint + build:web green.
+
+**Eight Kobolds shipped.** Remaining are the bespoke "unique Ruby-interaction" cards (on-cast / on-get /
+on-damaged / multi-cast / Consume / 3×-in-combat) + the Gold Pouch & Warding Ruby tokens.
+
 ## 2026-07-23 (set 2: combat→run Ruby carry-backs + Rikk / Veinbreaker / Krik)
 
 ### feat(core): Ruby carry-backs from combat (get-Rubies + buff-Rubies) + three more Kobolds

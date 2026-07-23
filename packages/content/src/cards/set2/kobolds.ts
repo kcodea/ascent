@@ -34,6 +34,20 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Shout:** Your Rubies gain **+2 Health**.',
   },
   {
+    // Start of Combat scaler: plays Rubies on your Kobolds based on the run's per-turn cards-bought count
+    // (threaded into combat). Permanent carry-back.
+    id: 'k_frenzied',
+    name: 'Frenzied Excavator',
+    tribe: 'kobold',
+    tier: 5,
+    attack: 6,
+    health: 3,
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scPlayRubiesPerBuy', params: { every: 4, rubies: 1, tribe: 'kobold' } }],
+    text: '**Start of Combat:** Play **1 Ruby** on your Kobolds for every **4 cards** bought this turn.',
+    goldenText: '**Start of Combat:** Play **2 Rubies** on your Kobolds for every **4 cards** bought this turn.',
+  },
+  {
     // Avenge is a COMBAT trigger — every 2 friendly deaths, each of your minions gets 2 Rubies (permanent,
     // carried back to the run board). `rubies` is per-minion (matching Crownvein's "a Ruby on 2 minions").
     id: 'k_gemstorm',
@@ -46,6 +60,23 @@ export const SET2_KOBOLDS: CardDef[] = [
     effects: [{ on: 'avenge', do: 'avengePlayRubies', params: { count: 2, rubies: 2 } }],
     text: '**Avenge (2):** Play **2 Rubies** on your minions.',
     goldenText: '**Avenge (2):** Play **4 Rubies** on your minions.',
+  },
+  {
+    // Two Avenge effects at one trigger (both fire): get a Ruby (to hand) AND play Rubies on your left-most
+    // minion. `count` = the Avenge threshold on each half.
+    id: 'k_gemline',
+    name: 'Gemline Martyr',
+    tribe: 'kobold',
+    tier: 3,
+    attack: 2,
+    health: 5,
+    keywords: [],
+    effects: [
+      { on: 'avenge', do: 'avengeGetRubies', params: { count: 2, rubies: 1 } },
+      { on: 'avenge', do: 'avengePlayRubiesLeftmost', params: { count: 2, rubies: 2 } },
+    ],
+    text: '**Avenge (2):** Get a Ruby and Play **2** on your left-most minion.',
+    goldenText: '**Avenge (2):** Get **2 Rubies** and Play **4** on your left-most minion.',
   },
   {
     // Rally is a COMBAT trigger (on this minion's attack) — the Rubies are minted into hand for the next shop,
@@ -74,6 +105,201 @@ export const SET2_KOBOLDS: CardDef[] = [
     effects: [{ on: 'avenge', do: 'avengeRubyStatGain', params: { count: 3, attack: 1, health: 1 } }],
     text: '**Avenge (3):** Buff your Rubies **+1/+1**.',
     goldenText: '**Avenge (3):** Buff your Rubies **+2/+2**.',
+  },
+  {
+    // End of Turn (recruit) → mint a Warding Ruby (a Ruby that also grants Ward) into hand.
+    id: 'k_wardstone',
+    name: 'Wardstone Jeweler',
+    tribe: 'kobold',
+    tier: 5,
+    attack: 4,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnGetRubies', params: { count: 1, rubyId: 'warding-ruby' } }],
+    text: '**End of Turn:** Get a **Warding Ruby**.',
+    goldenText: '**End of Turn:** Get **2 Warding Rubies**.',
+  },
+  {
+    // Two Rally effects (both fire on this minion's attack): buff your Rubies AND play a Ruby on 2 Kobolds.
+    id: 'k_crownvein',
+    name: 'Crownvein Vanguard',
+    tribe: 'kobold',
+    tier: 6,
+    attack: 5,
+    health: 8,
+    keywords: ['RL'],
+    effects: [
+      { on: 'onAttack', do: 'rallyRubyStatGain', params: { attack: 1, health: 1 } },
+      { on: 'onAttack', do: 'rallyPlayRubiesTargets', params: { tribe: 'kobold', targets: 2, rubies: 1 } },
+    ],
+    text: '**Rally:** Give your Rubies **+1/+1** and play a Ruby on **2 friendly Kobolds**.',
+    goldenText: '**Rally:** Give your Rubies **+2/+2** and play a Ruby on **4 friendly minions**.',
+  },
+  {
+    // Passive: a Ruby played from hand casts an extra time while this is on board (see the reducer play-Ruby
+    // branch reading `rubyExtraCast`). No `effects` — it's a board aura like Money Bot's mana.
+    id: 'k_prismcaster',
+    name: 'Prismcaster',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 4,
+    health: 4,
+    keywords: [],
+    effects: [],
+    rubyExtraCast: 1,
+    text: 'Rubies played from hand cast an extra time.',
+    goldenText: 'Rubies played from hand cast 2 extra times.',
+  },
+  {
+    // onDamaged (combat) → raise your Ruby strength (carried back). Each hit it survives buffs your Rubies.
+    id: 'k_faultline',
+    name: 'Faultline Scrapper',
+    tribe: 'kobold',
+    tier: 3,
+    attack: 1,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'onDamaged', do: 'damagedGainRubyBonus', params: { attack: 1, health: 0 } }],
+    text: 'When this minion takes damage, give your Rubies **+1 Attack**.',
+    goldenText: 'When this minion takes damage, give your Rubies **+2 Attack**.',
+  },
+  {
+    // Taunt + onDamaged (combat) → get a Ruby, capped 2×/fight (per-instance rubyRecvTick on the combat minion).
+    id: 'k_candleback',
+    name: 'Candleback Bulwark',
+    tribe: 'kobold',
+    tier: 1,
+    attack: 1,
+    health: 3,
+    keywords: ['T'],
+    effects: [{ on: 'onDamaged', do: 'damagedGetRubies', params: { count: 1, cap: 2 } }],
+    text: 'Taunt. Get a Ruby when this takes damage. (2 times per turn)',
+    goldenText: 'Taunt. Get 2 Rubies when this takes damage. (2 times per turn)',
+  },
+  {
+    // Echo (combat Deathrattle): summon a Gem Shard whose stats = the Rubies played on THIS minion (its `Ruby`
+    // buff, read in combat; golden doubles).
+    id: 'k_gemheart',
+    name: 'Gemheart Carver',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 5,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard' } }],
+    text: "**Echo:** Summon a **Gem Shard** with stats equal to this minion's Rubies.",
+    goldenText: "**Echo:** Summon a **Gem Shard** with stats equal to double this minion's Rubies.",
+  },
+  {
+    // Start of Combat: your Rubies give 3x stats (adds 2x each minion's `Ruby` buff, combat-only).
+    id: 'k_deepdelve',
+    name: 'Deepdelve Paragon',
+    tribe: 'kobold',
+    tier: 6,
+    attack: 4,
+    health: 7,
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scTripleRubyStats' }],
+    text: 'Your Rubies give **3× stats** in combat.',
+    goldenText: 'Your Rubies give **3× stats** in combat.',
+  },
+  {
+    // Kobold/DEMON — every 3 Rubies cast, Consume a Shop minion (gain its stats, Demon-style).
+    id: 'k_gemgorge',
+    name: 'Gemgorge Fiend',
+    tribe: 'kobold',
+    tribe2: 'demon',
+    tier: 6,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'rubyCast', do: 'rubyCastConsumeShop', params: { every: 3 } }],
+    text: 'When you cast **3 Rubies**, Consume a minion in the Shop.',
+    goldenText: 'When you cast **3 Rubies**, Consume **2 minions** in the Shop.',
+  },
+  {
+    // Taunt + Echo (combat Deathrattle): on death, play a Ruby on each adjacent minion (permanent carry-back).
+    id: 'k_geode',
+    name: 'Geode Guardian',
+    tribe: 'kobold',
+    tier: 2,
+    attack: 2,
+    health: 4,
+    keywords: ['T'],
+    effects: [{ on: 'onDeath', do: 'deathrattlePlayRubiesAdjacent', params: { rubies: 1 } }],
+    text: 'Taunt. **Echo:** Play a Ruby on adjacent minions.',
+    goldenText: 'Taunt. **Echo:** Play **2 Rubies** on adjacent minions.',
+  },
+  {
+    // Three triggers: Shout (onPlay) + Echo (combat death) both buff your Rubies; End of Turn plays a Ruby on
+    // a random friendly Kobold. The Echo's Ruby-strength gain carries back from combat.
+    id: 'k_alchemist',
+    name: 'Alchemist Brisbane',
+    tribe: 'kobold',
+    tier: 7,
+    attack: 9,
+    health: 6,
+    keywords: [],
+    effects: [
+      { on: 'onPlay', do: 'rubyStatGain', params: { attack: 1, health: 1 } },
+      { on: 'onDeath', do: 'deathrattleRubyStatGain', params: { attack: 1, health: 1 } },
+      { on: 'endOfTurn', do: 'endOfTurnPlayRuby', params: { tribe: 'kobold', count: 1 } },
+    ],
+    text: '**Shout and Echo:** Your Rubies gain **+1/+1**. **End of Turn:** Play a Ruby on your Kobold.',
+    goldenText: '**Shout and Echo:** Your Rubies gain **+2/+2**. **End of Turn:** Play **2 Rubies** on your Kobold.',
+  },
+  {
+    // Crossover: "Get a Gold Pouch" grants the SET-1 Gold Pouch spell (`emberpouch`) to hand — CARD_INDEX is
+    // global, so `battlecryGrantSpell` reuses it directly (owner: there will be crossover cards between sets).
+    id: 'k_pouchpincher',
+    name: 'Pouchpincher',
+    tribe: 'kobold',
+    tier: 2,
+    attack: 4,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'emberpouch', count: 1 } }],
+    text: '**Shout:** Get a **Gold Pouch**.',
+    goldenText: '**Shout:** Get **2 Gold Pouches**.',
+  },
+  {
+    // "When you GET a Ruby" trigger (fires in mintRubies) — casts a Ruby on a random friendly Kobold.
+    id: 'k_candleconduit',
+    name: 'Candle Conduit',
+    tribe: 'kobold',
+    tier: 5,
+    attack: 5,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'onGetRuby', do: 'rubyGainedCast', params: { tribe: 'kobold' } }],
+    text: 'When you get a Ruby, this casts a Ruby on a random friendly Kobold.',
+    goldenText: 'When you get a Ruby, this casts a Ruby on a random friendly minion twice.',
+  },
+  {
+    // "When a Ruby is played on THIS minion" trigger — the buff also lands on both neighbours.
+    id: 'k_resonance',
+    name: 'Resonance Idol',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 4,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'onRubyPlayed', do: 'rubyPlayedBounce', params: { goldenReps: 2 } }],
+    text: 'Rubies cast on this minion bounce to both adjacent minions.',
+    goldenText: 'Rubies cast on this minion bounce to both adjacent minions twice.',
+  },
+  {
+    // "When a Ruby is played on THIS minion" → Gold, capped per turn (per-instance `rubyRecvTick`).
+    id: 'k_rubybroker',
+    name: 'Ruby Broker',
+    tribe: 'kobold',
+    tier: 5,
+    attack: 2,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'onRubyPlayed', do: 'rubyPlayedGold', params: { gold: 3, cap: 2 } }],
+    text: 'Rubies played on this minion give you **3 Gold** (two times per turn).',
+    goldenText: 'Rubies played on this minion give you **3 Gold** (three times per turn).',
   },
   {
     // Recruit-phase economy: the `cardsBought` cadence (`every: 3`) mints a Ruby every 3 cards you buy.

@@ -2645,6 +2645,103 @@ describe('simulate (handoff A.3)', () => {
     expect(gPerma!.attack % 2).toBe(0);
   });
 
+  it('set 2 — Gemline Martyr: Avenge gets a Ruby AND plays Rubies on the LEFT-MOST minion', () => {
+    const gmtest: CardDef = { id: 'gmtest', name: 'GM', tribe: 'kobold', tier: 3, attack: 2, health: 100, keywords: [],
+      effects: [
+        { on: 'avenge', do: 'avengeGetRubies', params: { count: 1, rubies: 1 } },
+        { on: 'avenge', do: 'avengePlayRubiesLeftmost', params: { count: 1, rubies: 2 } },
+      ], text: '' };
+    const sac: CardDef = { id: 'gmsac', name: 'S', tribe: 'kobold', tier: 1, attack: 1, health: 1, keywords: [], effects: [], text: '' };
+    const cards = { ...CARD_INDEX, gmtest, gmsac: sac };
+    const r = simulate([
+      { cardId: 'gmtest', attack: 2, health: 100, sourceUid: 'GM' }, // left-most (index 0)
+      { cardId: 'gmsac', attack: 1, health: 1, sourceUid: 'S' }, // dies → Avenge(1)
+    ], [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), cards,
+      combatSide({ tier: 3, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    expect(r.playerRubyGrants).toBeGreaterThanOrEqual(1); // got a Ruby (to hand)
+    // 2 Rubies (1/1 each, no bonus) played on the left-most survivor (GM) → +2/+2 carried back.
+    expect(r.playerPermaBuffs?.find((b) => b.sourceUid === 'GM')).toMatchObject({ attack: 2, health: 2 });
+  });
+
+  it('set 2 — Frenzied Excavator scales its Start-of-Combat Ruby play with cards bought this turn', () => {
+    const frtest: CardDef = { id: 'frtest', name: 'Fr', tribe: 'kobold', tier: 5, attack: 6, health: 50, keywords: ['SC'],
+      effects: [{ on: 'startOfCombat', do: 'scPlayRubiesPerBuy', params: { every: 4, rubies: 1, tribe: 'kobold' } }], text: '' };
+    const cards = { ...CARD_INDEX, frtest };
+    const r = simulate([{ cardId: 'frtest', attack: 6, health: 50, sourceUid: 'F' }],
+      [{ cardId: 'sandbag', attack: 0, health: 300 }], makeRng(3), cards,
+      combatSide({ tier: 5, tribes: ['kobold'], cardsBoughtThisTurn: 8 }), combatSide({ tier: 1 }));
+    // 8 cards / 4 = 2 steps × 1 Ruby = 2 Rubies (2/2 total, no rubyBonus) → carried back.
+    expect(r.playerPermaBuffs?.find((b) => b.sourceUid === 'F')).toMatchObject({ attack: 2, health: 2 });
+  });
+
+  it('set 2 — Gemheart Carver: Echo summons a token (its Rubies) on death', () => {
+    const ghtest: CardDef = { id: 'ghtest', name: 'GH', tribe: 'kobold', tier: 4, attack: 5, health: 1, keywords: [],
+      effects: [{ on: 'onDeath', do: 'deathrattleSummonRubyStats', params: { tokenId: 'gemheart-shard' } }], text: '' };
+    const r = simulate([{ cardId: 'ghtest', attack: 5, health: 1, sourceUid: 'GH', buffs: [{ source: 'Ruby', attack: 3, health: 3, count: 3 }] }],
+      [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, ghtest },
+      combatSide({ tier: 4, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    expect(r.events.some((e) => e.type === 'summon')).toBe(true); // the Echo summoned the Gem Shard
+  });
+
+  it('set 2 — Deepdelve Paragon: Rubies give 3× stats in combat (adds 2× the Ruby buff)', () => {
+    const dptest: CardDef = { id: 'dptest', name: 'DP', tribe: 'kobold', tier: 6, attack: 4, health: 100, keywords: ['SC'],
+      effects: [{ on: 'startOfCombat', do: 'scTripleRubyStats' }], text: '' };
+    const r = simulate([
+      { cardId: 'dptest', attack: 4, health: 100, sourceUid: 'DP' },
+      { cardId: 'sandbag', attack: 5, health: 100, sourceUid: 'M', buffs: [{ source: 'Ruby', attack: 2, health: 2, count: 2 }] },
+    ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), { ...CARD_INDEX, dptest },
+      combatSide({ tier: 6, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    // Deepdelve adds 2× the +2/+2 Ruby buff → a +4/+4 Start-of-Combat buff.
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 4 && e.health === 4)).toBe(true);
+  });
+
+  it('set 2 — Geode Guardian: on death, plays a Ruby on each adjacent minion (carry-back)', () => {
+    const gdtest: CardDef = { id: 'gdtest', name: 'GD', tribe: 'kobold', tier: 2, attack: 2, health: 1, keywords: [],
+      effects: [{ on: 'onDeath', do: 'deathrattlePlayRubiesAdjacent', params: { rubies: 1 } }], text: '' };
+    const gdnb: CardDef = { id: 'gdnb', name: 'NB', tribe: 'kobold', tier: 1, attack: 1, health: 100, keywords: [], effects: [], text: '' };
+    const r = simulate([
+      { cardId: 'gdtest', attack: 2, health: 1, sourceUid: 'GD' }, // dies (1 HP)
+      { cardId: 'gdnb', attack: 1, health: 100, sourceUid: 'NB' }, // right neighbour, survives
+    ], [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, gdtest, gdnb },
+      combatSide({ tier: 2, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'NB')).toBe(true); // neighbour got a Ruby, carried back
+  });
+
+  it('set 2 — Crownvein Vanguard: Rally buffs your Rubies AND plays Rubies on Kobolds', () => {
+    const cvtest: CardDef = { id: 'cvtest', name: 'CV', tribe: 'kobold', tier: 6, attack: 5, health: 100, keywords: ['RL'],
+      effects: [
+        { on: 'onAttack', do: 'rallyRubyStatGain', params: { attack: 1, health: 1 } },
+        { on: 'onAttack', do: 'rallyPlayRubiesTargets', params: { tribe: 'kobold', targets: 2, rubies: 1 } },
+      ], text: '' };
+    const cvk2: CardDef = { id: 'cvk2', name: 'K2', tribe: 'kobold', tier: 1, attack: 1, health: 100, keywords: [], effects: [], text: '' };
+    const r = simulate([
+      { cardId: 'cvtest', attack: 5, health: 100, sourceUid: 'CV' },
+      { cardId: 'cvk2', attack: 1, health: 100, sourceUid: 'K2' },
+    ], [{ cardId: 'sandbag', attack: 1, health: 400 }], makeRng(3), { ...CARD_INDEX, cvtest, cvk2 },
+      combatSide({ tier: 6, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    expect(r.playerRubyBonusGain?.attack).toBeGreaterThanOrEqual(1); // Rally buffed your Rubies
+    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'CV')).toBe(true); // played a Ruby on the first 2 Kobolds
+    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'K2')).toBe(true);
+  });
+
+  it('set 2 — Faultline Scrapper: taking damage raises your Ruby strength (carried back)', () => {
+    const fstest: CardDef = { id: 'fstest', name: 'FS', tribe: 'kobold', tier: 3, attack: 1, health: 50, keywords: [],
+      effects: [{ on: 'onDamaged', do: 'damagedGainRubyBonus', params: { attack: 1, health: 0 } }], text: '' };
+    const r = simulate([{ cardId: 'fstest', attack: 1, health: 50, sourceUid: 'FS' }],
+      [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, fstest },
+      combatSide({ tier: 3, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    expect(r.playerRubyBonusGain?.attack).toBeGreaterThanOrEqual(1); // took ≥ 1 hit → +Attack to your Rubies
+  });
+
+  it('set 2 — Candleback Bulwark: on-damage Ruby grant is capped per fight', () => {
+    const cbtest: CardDef = { id: 'cbtest', name: 'CB', tribe: 'kobold', tier: 1, attack: 1, health: 50, keywords: ['T'],
+      effects: [{ on: 'onDamaged', do: 'damagedGetRubies', params: { count: 1, cap: 2 } }], text: '' };
+    const r = simulate([{ cardId: 'cbtest', attack: 1, health: 50, sourceUid: 'CB' }],
+      [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, cbtest },
+      combatSide({ tier: 1, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    expect(r.playerRubyGrants).toBe(2); // takes many hits, but capped at 2 Rubies/fight
+  });
+
   it('set 2 — Rally "Get Rubies" carries N Rubies back to hand (playerRubyGrants)', () => {
     const riktest: CardDef = { id: 'riktest', name: 'Rik', tribe: 'kobold', tier: 3, attack: 5, health: 50, keywords: ['RL'],
       effects: [{ on: 'onAttack', do: 'rallyGetRubies', params: { count: 3 } }], text: '' };

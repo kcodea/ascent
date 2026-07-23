@@ -22,7 +22,7 @@ import { getQuestTendrilConfig, tendrilCfgFor } from './questTendrilConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
 import { applyWeldWiggle, weldCfgFor, weldLandMs } from './weldFxConfig';
-import { waveGapFor, coalesceWaves, getBuffFxConfig } from './buffFxConfig';
+import { waveGapFor, coalesceWaves, coalesceBuffFxByTarget, getBuffFxConfig } from './buffFxConfig';
 import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { playPlateDissolve } from './plateDissolve';
@@ -2338,8 +2338,11 @@ export function Recruit() {
         sourceless: ev.kind !== 'minion' || !sEl,
       });
     };
+    // Collapse K Brightwing tendrils to one per target before grouping — see `coalesceBuffFxByTarget`. This is
+    // the fix for the "many Brightwings slow it down" jank: K×(M−1) ribbons → M−1, presentation-only.
+    const coalesced = coalesceBuffFxByTarget(events);
     const waves = new Map<number, RunState['recruitBuffFx']>();
-    events.forEach((ev, i) => {
+    coalesced.forEach((ev, i) => {
       const key = ev.fxWave ?? -1 - i; // untagged → its own wave, preserving per-event stagger
       const list = waves.get(key) ?? [];
       list.push(ev);

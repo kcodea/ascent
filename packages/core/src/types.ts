@@ -234,6 +234,8 @@ export type EffectFactoryId =
   | 'spellMarkEnemyTaunt' // Marked Target: cast — the enemy's right-most minion gets Taunt next combat
   | 'spellEncore' // Encore: cast — re-trigger a friendly minion's Shout and Echo
   | 'spellSummonImpsNextCombat' // Open the Gates: cast — bank Imps to enter the next combat
+  | 'spellBuffShopByRuby' // Veinstorm: cast — give every shop offer stats equal to your Rubies
+  | 'spellBuffPerDragonPlayed' // Hoardflame: cast — +4/+4 plus +1/+1 per Dragon played this turn
   | 'spellDemonConsumeFodder' // Consume: cast — a chosen Demon creates and eats N Fodder
   | 'deathrattleGrantRandomSpell' // Sporebat: Deathrattle — grant N random tavern-tier spells to the hand (Beast)
   | 'onDamagedGrantRefresh' // Gryphon: on taking damage, bank a free shop reroll (once per combat) (Beast)

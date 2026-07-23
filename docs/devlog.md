@@ -3,6 +3,25 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (spell batch — Veinstorm + Hoardflame, the live-scaling pair)
+
+### feat(content): Veinstorm (Set 2) + Hoardflame — spells that print their live value
+
+Both scale off run state, so they get the full live-text treatment (`spellDisplayText` greens the printed
+number, threaded through `instView` / `offerLiveTextParams` for the shop offer + hand + Discover):
+- **Veinstorm** (T4/1, Set 2) — give every tavern minion offer stats equal to your Rubies (base 1/1 + the
+  run's `rubyBonus`), baked onto each offer (`spellBuffShopByRuby`). Text greens `+1/+1` → the live Ruby value.
+- **Hoardflame** (T4/2, Dragon) — +4/+4 plus +1/+1 per Dragon you PLAYED this turn (from `playedThisTurn`),
+  flat so the printed value stays exact (`spellBuffPerDragonPlayed`). Text greens `+4/+4` → its live total.
+
+UI plumbing: added `rubyBonus` to `LiveTextParams` / `ShopViewOpts` / `instView`'s `live` bag and threaded
+`run.rubyBonus` + `run.playedThisTurn` into the shop spell-offer view (`spellDisplayText`'s new `extra` arg).
+
+Verified: new `spellBatch.test.ts` cases (Veinstorm buffs every offer by 1+rubyBonus; its text greens to
+`{{+3/+4}}`; Hoardflame → +6/+6 with 2 Dragons played, text greens to `{{+6/+6}}`) + live Scene-Builder
+(Veinstorm → +3/+4 on every offer at rubyBonus 2/3; Hoardflame → 7/7 with 2 Dragons played). Full suite (1530)
++ lint + build:web green.
+
 ## 2026-07-23 (spell batch — Encore + Open the Gates)
 
 ### feat(content): Encore (Shout/Echo re-trigger) + Open the Gates (Set 2, combat Imps)

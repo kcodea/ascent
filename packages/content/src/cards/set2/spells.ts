@@ -56,4 +56,19 @@ export const SET2_SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellSummonImpsNextCombat', params: { count: 3 } }],
     text: '**Start of combat:** summon an **Imp**, three times (as room allows).',
   },
+  {
+    // Give every tavern minion offer stats equal to your Rubies (base 1/1 + rubyBonus). Untargeted; the printed
+    // +1/+1 greens to the live Ruby value via spellDisplayText.
+    id: 'veinstorm',
+    name: 'Veinstorm',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 1,
+    effects: [{ on: 'cast', do: 'spellBuffShopByRuby' }],
+    text: 'Give each minion in the Shop stats equal to your Rubies (**+1/+1**).',
+  },
 ];

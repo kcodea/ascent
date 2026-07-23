@@ -156,9 +156,8 @@ The career surface exists; deepen what a finished run *remembers*.
   Set-2 Ruby Shipment & Facetwright's Choice). **Tranche B in progress** (~14 medium), building as sub-slices:
   ✅ **B1** (Field Maneuvers, Last Stand, Executioner's Edge) + ✅ **B2** (Quick Sale, Sigil of Kinship,
   Elevation Ritual) + ✅ **B3** (Layaway, Second Draft) + ✅ **B4** (Strange Revision, Marked Target) shipped.
-  ✅ **Encore** (Shout/Echo re-trigger — Rally is combat-only, flagged) + ✅ **Open the Gates** (Set 2 combat
-  Imps) shipped. **Left in B:** the live-scaling pair **Veinstorm** + **Hoardflame** (one `spellDisplayText`
-  pass for Ruby-stat / dragons-played live text). **Tranche C** (~5
+  ✅ **Encore** + ✅ **Open the Gates** + ✅ **Veinstorm** + ✅ **Hoardflame** shipped — **all of Tranches A + B
+  done.** **Tranche C** (~5
   hard/new-UI: Common Ground two-target, Hourglass Reserve + Funeral on Loan discover-locks, Farseer's Report +
   Rival's Reflection opponent-peek). **Blocked:** Deepdelve Writ + Ironclad Requisition (need a Dwarf tribe).
 - **Set-scope quests / runes / heroes** if a set needs its own. `SetDef` has room; the wiring doesn't exist.

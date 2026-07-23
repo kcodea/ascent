@@ -46,6 +46,8 @@ export interface LiveTextParams {
   /** The run's tier ceiling (`maxTierFor(run.rift)`) — Summit raises it to 7, so the Discover spell's printed
    *  "Tier N" must clamp to the RUN's ceiling, not the global one. Falls back to CONFIG.maxTier. */
   maxTier?: number;
+  /** The run's Ruby bonus (Set 2) — Veinstorm shows the live Ruby stat line (1/1 + this) it grants the shop. */
+  rubyBonus?: { attack: number; health: number };
 }
 
 /**
@@ -59,7 +61,7 @@ export function liveCardText(cardId: string, p: LiveTextParams): { text: string;
     c.id === 'discoverspell'
       ? `**Discover** a **Tier ${Math.min(p.maxTier ?? CONFIG.maxTier, (p.grantedTier ?? p.tier) + 1)}** minion.` // frozen at grant tier
       : c.spell
-        ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0)
+        ? spellDisplayText(c.id, p.spellBonus, p.frontToBackBonus, p.spellBonusH, p.goldSpent ?? 0, p.frontToBackBonusH ?? p.frontToBackBonus, p.goldPouchValue ?? 0, { rubyBonus: p.rubyBonus, playedThisTurn: Array.isArray(p.playedThisTurn) ? p.playedThisTurn : undefined })
         : transformProgressText(c.id, p.spellProgress ?? 0) ??
             ascendProgressText(c.id, p.ascendProgress ?? 0) ??
             cryptDrakeText(c.id, p.golden, p.attackSeen ?? 0, p.summonBonus ?? 0) ?? // live grant + combat countdown
@@ -121,7 +123,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number },
+  live?: { undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; lastSpellName?: string; frontToBackBonusH?: number; onBoard?: boolean; eotTickOverride?: number; improveReps?: number; rubyBonus?: { attack: number; health: number } },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = c.spell === true || c.id === 'discoverspell';
@@ -140,6 +142,7 @@ export function instView(
     hpGrantBonus: inst.hpGrantBonus, eotTick: eotTickShown, eotBonus: inst.eotBonus, sellBonus: inst.sellBonus,
     playedThisTurn: live?.playedThisTurn, squirlScoutBuff: live?.squirlScoutBuff,
     lastSpellName: live?.lastSpellName, grantedTier: inst.grantedTier, improveReps: live?.improveReps,
+    rubyBonus: live?.rubyBonus,
   });
   // `override` shows transient stats during the End-of-Turn animation (the per-proc value the minion
   // is at on this beat), so its numbers visibly tick up as each effect procs. Otherwise the real stats.

@@ -235,6 +235,28 @@ describe('spell batch — tranche B4 (transform / combat-pending)', () => {
   });
 });
 
+describe('spell batch — Common Ground (two-target)', () => {
+  it("averages two friendly minions' Attack and Health", () => {
+    let s: RunState = { ...createRun(1), board: [mkMinion('A', 6, 2), mkMinion('B', 2, 8)], hand: [mkSpell('sp', 'commonground')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'A' });
+    expect(s.pendingTarget?.spellFirstUid).toBe('A'); // deferred for the second pick
+    expect(s.hand.some((c) => c.uid === 'sp')).toBe(true); // still in hand
+    s = reduce(s, { type: 'battlecryTarget', targetUid: 'B' });
+    const A = s.board.find((c) => c.uid === 'A')!, B = s.board.find((c) => c.uid === 'B')!;
+    expect([A.attack, A.health]).toEqual([4, 5]); // avg(6,2)=4 / avg(2,8)=5
+    expect([B.attack, B.health]).toEqual([4, 5]);
+    expect(s.hand.some((c) => c.uid === 'sp')).toBe(false); // consumed
+    expect(s.pendingTarget).toBeUndefined();
+  });
+
+  it('fizzles with no second minion (kept in hand)', () => {
+    let s: RunState = { ...createRun(1), board: [mkMinion('A', 6, 2)], hand: [mkSpell('sp', 'commonground')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'A' });
+    expect(s.hand.some((c) => c.uid === 'sp')).toBe(true);
+    expect(s.pendingTarget).toBeUndefined();
+  });
+});
+
 describe('spell batch — tranche C (Discover-based)', () => {
   it('Hourglass Reserve: Discovers from your tier, locked until next turn', () => {
     let s: RunState = { ...createRun(3), tier: 3, hand: [mkSpell('sp', 'hourglassreserve')] };

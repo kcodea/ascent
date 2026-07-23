@@ -146,6 +146,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onFriendlyAttackBuffTribe',
   'battlecryDiscoverMinion',
   'spellSetStats',
+  'spellAverageStats',
   'spellSwapStats',
   'spellGoldIfLostLast',
   'onAllyAttackBuffAll',

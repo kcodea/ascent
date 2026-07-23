@@ -1043,4 +1043,20 @@ export const SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellDiscoverFromLastOpponent' }],
     text: "**Discover** a plain copy of a minion from your **last opponent's** warband.",
   },
+  {
+    // Choose two friendly minions (drag picks the first, the aim picker the second); set both to the rounded
+    // average of their combined Attack and Health. No spell-power scaling.
+    id: 'commonground',
+    name: 'Common Ground',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellAverageStats' }],
+    text: 'Choose two friendly minions. **Average** their Attack and Health between them.',
+  },
 ];

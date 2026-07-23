@@ -2166,6 +2166,8 @@ export function Recruit() {
   const isPendingTarget = (uid: string): boolean => {
     if (!pendingTarget) return false;
     const def = CARD_INDEX[pendingTarget.cardId];
+    // Common Ground: the SECOND pick can't be the first minion (averaging with itself is a no-op).
+    if (pendingTarget.spell && uid === pendingTarget.spellFirstUid) return false;
     // `targetNotSelf` (Graverobber) excludes the source from an otherwise-unrestricted pick.
     if (def?.targetNotSelf && uid === pendingTarget.uid) return false;
     if (!def?.targetTribe) return true;
@@ -2182,6 +2184,7 @@ export function Recruit() {
     // targets; an unrestricted one (no targetTribe) accepts any friendly minion.
     const def = CARD_INDEX[pendingTarget.cardId];
     const valid = (uid: string): boolean => {
+      if (pendingTarget.spell && uid === pendingTarget.spellFirstUid) return false; // Common Ground: not the first pick
       if (def?.targetNotSelf && uid === pendingTarget.uid) return false; // Graverobber: never itself
       if (!def?.targetTribe) return true;
       if (uid === pendingTarget.uid) return false;
@@ -2195,7 +2198,10 @@ export function Recruit() {
     };
     // Same treatment as the hero-power aim: anchor measured once (the source card can't move while you
     // aim), coordinates driven straight into Pixi, and React state touched only when the target changes.
-    const originEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${pendingTarget.uid}"]`);
+    // Common Ground's source is a SPELL in HAND (not a board minion), so fall back to the hand card as the
+    // aim origin — otherwise the picker never activates and the second target can't be chosen.
+    const originEl = document.querySelector(`[data-zone="warband"] .row .card[data-uid="${pendingTarget.uid}"]`)
+      ?? document.querySelector(`[data-zone="hand"] .card[data-uid="${pendingTarget.uid}"]`);
     if (!originEl) return;
     const orr = originEl.getBoundingClientRect();
     const ox = orr.left + orr.width / 2;

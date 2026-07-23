@@ -810,7 +810,11 @@ export interface RunState {
    *  on the board and waiting for the player to pick the friendly minion its Battlecry hits. Resolved
    *  by `battlecryTarget`; auto-resolves on the carry if the turn ends first. `optionIndex` marks a deferred
    *  *targeted Choose One* (Runic Beetle) — the chosen option's effects resolve on the picked target. */
-  pendingTarget?: { uid: string; cardId: string; optionIndex?: number };
+  pendingTarget?: { uid: string; cardId: string; optionIndex?: number;
+    /** Common Ground: this pending aim belongs to a SPELL in HAND (not a board battlecry) whose FIRST target
+     *  is already picked (`spellFirstUid`); the aim picker chooses the SECOND friendly minion, then the two are
+     *  averaged and the spell (`uid` = its hand uid) is consumed. */
+    spell?: boolean; spellFirstUid?: string };
   /** The most recent combat's result, for the UI to replay. Transient. */
   lastCombat?: CombatResult;
   /** OPPONENT PINNING: the exact board fought each wave, keyed by wave number — the full served

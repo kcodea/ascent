@@ -3,6 +3,22 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (spell batch — Common Ground, the two-target spell)
+
+### feat(content): Common Ground — average two friendly minions
+
+**Common Ground** (T3/2) — choose two friendly minions, set both to the rounded average of their combined
+Attack and Health. Built on the existing `pendingTarget` aim picker (owner-approved), no bespoke UI:
+- Play drags onto the FIRST minion; the reducer defers to `pendingTarget { spell, spellFirstUid }` (keeping the
+  spell in hand) instead of casting.
+- The aim picker chooses the SECOND minion → `battlecryTarget` casts `spellAverageStats` on it (the factory
+  reads the first from `pendingTarget.spellFirstUid`), then consumes the spell.
+- Recruit.tsx: the aim origin falls back to the HAND card (the spell isn't on the board), and the first pick is
+  excluded from valid second targets.
+
+Verified: new `spellBatch.test.ts` cases (6/2 + 2/8 → both 4/5; fizzles with no second minion) + live
+Scene-Builder (both minions → 4/5 through the real two-step flow). Full suite (1536) + lint + build:web green.
+
 ## 2026-07-23 (spell batch — tranche C part 1: the Discover-based three)
 
 ### feat(content): Hourglass Reserve + Funeral on Loan + Rival's Reflection

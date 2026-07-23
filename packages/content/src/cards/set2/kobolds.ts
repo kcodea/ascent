@@ -107,6 +107,33 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Avenge (3):** Buff your Rubies **+2/+2**.',
   },
   {
+    // Crossover: "Get a Gold Pouch" grants the SET-1 Gold Pouch spell (`emberpouch`) to hand — CARD_INDEX is
+    // global, so `battlecryGrantSpell` reuses it directly (owner: there will be crossover cards between sets).
+    id: 'k_pouchpincher',
+    name: 'Pouchpincher',
+    tribe: 'kobold',
+    tier: 2,
+    attack: 4,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryGrantSpell', params: { spellId: 'emberpouch', count: 1 } }],
+    text: '**Shout:** Get a **Gold Pouch**.',
+    goldenText: '**Shout:** Get **2 Gold Pouches**.',
+  },
+  {
+    // "When you GET a Ruby" trigger (fires in mintRubies) — casts a Ruby on a random friendly Kobold.
+    id: 'k_candleconduit',
+    name: 'Candle Conduit',
+    tribe: 'kobold',
+    tier: 5,
+    attack: 5,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'onGetRuby', do: 'rubyGainedCast', params: { tribe: 'kobold' } }],
+    text: 'When you get a Ruby, this casts a Ruby on a random friendly Kobold.',
+    goldenText: 'When you get a Ruby, this casts a Ruby on a random friendly minion twice.',
+  },
+  {
     // "When a Ruby is played on THIS minion" trigger — the buff also lands on both neighbours.
     id: 'k_resonance',
     name: 'Resonance Idol',

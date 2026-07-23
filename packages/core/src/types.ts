@@ -99,7 +99,8 @@ export type GameEvent =
   | 'goldSpent' // recruit phase: the player spent Gold — fires per threshold (Acid, Banksly)
   | 'cardsBought' // recruit phase: the player bought a card — fires per threshold (Korok, Banksly)
   | 'onSell' // recruit phase: this minion is sold (Hoard Whelp — get Gold)
-  | 'onRubyPlayed'; // set 2 recruit phase: a Ruby was played on THIS minion (Ruby Broker → Gold, Resonance Idol → bounce)
+  | 'onRubyPlayed' // set 2 recruit phase: a Ruby was played on THIS minion (Ruby Broker → Gold, Resonance Idol → bounce)
+  | 'onGetRuby'; // set 2 recruit phase: you gained a Ruby (Candle Conduit → cast one on a random Kobold)
 
 /**
  * Identifiers of registered effect primitives. Cards reference these by name
@@ -343,7 +344,8 @@ export type EffectFactoryId =
   | 'avengeGetRubies' // Set 2 — Gemline Martyr: Avenge (X) get N Rubies
   | 'avengePlayRubiesLeftmost' // Set 2 — Gemline Martyr: Avenge (X) play N Rubies on your left-most minion
   | 'rubyPlayedBounce' // Set 2 — Resonance Idol: a Ruby played on this bounces to both adjacent minions
-  | 'rubyPlayedGold'; // Set 2 — Ruby Broker: a Ruby played on this gives Gold (capped per turn)
+  | 'rubyPlayedGold' // Set 2 — Ruby Broker: a Ruby played on this gives Gold (capped per turn)
+  | 'rubyGainedCast'; // Set 2 — Candle Conduit: getting a Ruby casts one on a random friendly Kobold
 
 export interface EffectDef {
   on: GameEvent;

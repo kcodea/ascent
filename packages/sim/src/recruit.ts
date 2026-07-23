@@ -715,6 +715,7 @@ export function mintRubies(state: RunState, count: number): void {
   const def = CARD_INDEX[RUBY_ID];
   if (!def) return;
   const bonus = state.rubyBonus ?? { attack: 0, health: 0 };
+  let minted = 0;
   for (let i = 0; i < count && state.hand.length < CONFIG.handMax; i++) {
     state.hand.push({
       uid: `b${state.uidSeq++}`,
@@ -725,6 +726,23 @@ export function mintRubies(state: RunState, count: number): void {
       keywords: [...def.keywords],
       golden: false,
     });
+    minted++;
+  }
+  // Set 2 — Candle Conduit: "when you get a Ruby" fires once per Ruby actually minted. A reaction only PLAYS a
+  // Ruby (never mints), so this can't recurse.
+  for (let r = 0; r < minted; r++) fireOnRubyGained(state);
+}
+
+/** Set 2 — fire every board minion's `onGetRuby` effects (Candle Conduit) when a Ruby is gained. */
+function fireOnRubyGained(state: RunState): void {
+  for (const card of state.board) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def?.effects.some((e) => e.on === 'onGetRuby')) continue;
+    const ctx = makeContext(state);
+    for (const eff of def.effects) {
+      if (eff.on !== 'onGetRuby') continue;
+      RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+    }
   }
 }
 
@@ -870,6 +888,25 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if ((self.rubyRecvTick ?? 0) >= cap) return;
     self.rubyRecvTick = (self.rubyRecvTick ?? 0) + 1;
     ctx.state.embers += num(params.gold, 3);
+  },
+
+  /** Set 2 — Candle Conduit: when you get a Ruby, cast a Ruby (base 1/1 + rubyBonus) on a random friendly
+   *  `tribe` minion. Golden: any friendly minion (not just the tribe), TWICE. Deterministic (run rngCursor). */
+  rubyGainedCast: (ctx, self, params) => {
+    const state = ctx.state;
+    const bonus = state.rubyBonus ?? { attack: 0, health: 0 };
+    const ra = 1 + bonus.attack;
+    const rh = 1 + bonus.health;
+    const tribe = self.golden ? '' : str(params.tribe); // golden drops the tribe filter (any friendly minion)
+    const casts = self.golden ? 2 : 1;
+    for (let c = 0; c < casts; c++) {
+      const pool = state.board.filter((m) => !tribe || m.tribe === tribe || CARD_INDEX[m.cardId]?.tribe2 === tribe);
+      if (pool.length === 0) return;
+      const rng = makeRng(state.rngCursor);
+      const target = pool[rng.int(pool.length)]!;
+      state.rngCursor = rng.state();
+      addBuff(target, 'Ruby', ra, rh);
+    }
   },
 
   /** Set 2 — Hoardmaster Krik: every `every` cards bought (the `cardsBought` cadence handles the counting),

@@ -3,6 +3,22 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: onGetRuby trigger + Pouchpincher (crossover) & Candle Conduit)
+
+### feat(set2): "when you get a Ruby" trigger + a set-1 crossover card
+
+Two more Kobolds and a second Ruby-reaction trigger:
+- **Pouchpincher** (4/2 T2, `Shout: Get a Gold Pouch`) — **crossover**: Gold Pouch is the SET-1 spell
+  `emberpouch` (owner: sets will share cards), granted via the existing `battlecryGrantSpell` — no new factory,
+  `CARD_INDEX` is global.
+- **`onGetRuby`** trigger — fires in `mintRubies` once per Ruby actually minted (a reaction only PLAYS a Ruby,
+  never mints, so no recursion). **Candle Conduit** (5/5 T5, `When you get a Ruby, cast a Ruby on a random
+  friendly Kobold`; golden: any friendly minion, twice) via `rubyGainedCast` (deterministic on the run rngCursor).
+
+Art wired for both. Verified: `rubies.test.ts` — Pouchpincher puts `emberpouch` in hand; Candle Conduit lands
+exactly one +1/+1 on a board Kobold when a Ruby is minted. Full suite + content validation + lint + build:web
+green. **Twelve Kobolds shipped.**
+
 ## 2026-07-23 (set 2: the "when a Ruby is played on this" trigger — Resonance Idol + Ruby Broker)
 
 ### feat(set2): `onRubyPlayed` primitive + two Kobolds that react to Rubies landing on them

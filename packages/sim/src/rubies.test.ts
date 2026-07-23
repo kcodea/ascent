@@ -110,6 +110,22 @@ describe('Ruby engine (set 2)', () => {
     expect(s.embers).toBe(6); // 2 procs × 3 Gold; the 3rd Ruby is over the per-turn cap
   });
 
+  it('Pouchpincher grants the set-1 Gold Pouch spell to hand (crossover card)', () => {
+    let s: RunState = { ...createRun(1), board: [], hand: [{ uid: 'p', cardId: 'k_pouchpincher', tribe: 'kobold', attack: 4, health: 2, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'p' });
+    expect(s.hand.some((c) => c.cardId === 'emberpouch')).toBe(true); // the set-1 Gold Pouch
+  });
+
+  it('Candle Conduit casts a Ruby on a random Kobold when you get a Ruby', () => {
+    const mk = (uid: string, cardId: string): BoardCard => ({ uid, cardId, tribe: 'kobold', attack: 2, health: 2, keywords: [], golden: false });
+    const s: RunState = { ...createRun(1), board: [mk('cc', 'k_candleconduit'), mk('k2', 'sandbag')], hand: [] };
+    const before = s.board.reduce((sum, c) => sum + c.attack + c.health, 0);
+    mintRubies(s, 1); // getting a Ruby → Candle Conduit casts a Ruby (+1/+1) on a random board Kobold
+    const after = s.board.reduce((sum, c) => sum + c.attack + c.health, 0);
+    expect(after).toBe(before + 2); // exactly one +1/+1 landed
+    expect(s.hand.filter((c) => c.cardId === RUBY_ID).length).toBe(1); // the minted Ruby is in hand
+  });
+
   it('Rubies never triple, even with 3+ in hand — they are spells (owner ruling)', () => {
     // A golden Chipwick mints 4 Rubies at once; `play` runs checkTriples on the grown hand.
     let s: RunState = { ...createRun(1), board: [], hand: [{ uid: 'ch', cardId: 'k_chipwick', tribe: 'kobold', attack: 1, health: 2, keywords: [], golden: true }] };

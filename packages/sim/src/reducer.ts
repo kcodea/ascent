@@ -678,6 +678,21 @@ function reduceCore(state: RunState, action: Action): RunState {
         return s;
       }
 
+      // Rubies (set 2): a Ruby plays from hand onto a friendly minion — it grants that minion the Ruby's
+      // CURRENT Attack/Health (baked at mint) as a permanent shop buff (source 'Ruby', so it's itemized in the
+      // inspect breakdown and other Kobolds can key off it), then is consumed. A Ruby is NOT a Shop Spell: it
+      // never touches `spellsCast` or any Shop-Spell trigger/quest; it advances its OWN `rubyCasts` counter,
+      // and umbrella cards ("both spells and Rubies") read `spellsCast + rubyCasts`. No target → fizzle (kept).
+      if (def?.ruby) {
+        const target = s.board.find((c) => c.uid === action.targetUid);
+        if (!target) return state;
+        addBuff(target, 'Ruby', card.attack, card.health);
+        s.hand.splice(i, 1);
+        s.rubyCasts = (s.rubyCasts ?? 0) + 1;
+        s.rubyCastsThisTurn = (s.rubyCastsThisTurn ?? 0) + 1;
+        return s;
+      }
+
       // Other spells: cast on the chosen target, then consume — no board slot.
       if (def?.spell) {
         // Spell Choose One (Apples): a SPELL choice — its own thing, NOT a Battlecry. Pause for the pick,

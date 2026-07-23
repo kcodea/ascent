@@ -702,6 +702,32 @@ export function conjureToHand(state: RunState, pool: CardDef[], reps: number, ov
   state.rngCursor = rng.state();
 }
 
+/** The Ruby token id (set 2). A Ruby minted into hand carries the run's live strength baked in. */
+export const RUBY_ID = 'ruby';
+
+/**
+ * Mint `count` Rubies into the player's hand (set 2 Kobolds). Each Ruby is a hand card carrying its stats at
+ * MINT time — the token's base 1/1 plus the run's `rubyBonus` — so a later "Your Rubies gain +X" never grows a
+ * Ruby already in hand or already cast (owner ruling: future Rubies only). Respects the hand cap. Unlike a
+ * conjured minion this is deterministic (no RNG) — the same card always mints the same Ruby.
+ */
+export function mintRubies(state: RunState, count: number): void {
+  const def = CARD_INDEX[RUBY_ID];
+  if (!def) return;
+  const bonus = state.rubyBonus ?? { attack: 0, health: 0 };
+  for (let i = 0; i < count && state.hand.length < CONFIG.handMax; i++) {
+    state.hand.push({
+      uid: `b${state.uidSeq++}`,
+      cardId: RUBY_ID,
+      tribe: def.tribe,
+      attack: def.attack + bonus.attack,
+      health: def.health + bonus.health,
+      keywords: [...def.keywords],
+      golden: false,
+    });
+  }
+}
+
 /**
  * Fire a minion's Deathrattle(s) OUT OF COMBAT — Graverobber's destroy (and any future destroy/consume-a-minion
  * path). Runs each `onDeath` recruit factory once, then once more per **Sylus the Reaper** on the board (golden
@@ -817,6 +843,22 @@ export function grantTopTypeMinion(state: RunState): boolean {
 const recruitHuntGuard = new WeakSet<object>();
 
 const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
+  /** Set 2 — Shout/Rally: mint N Rubies into hand (base count × golden). Chipwick `Get 2 Rubies`,
+   *  Tunnelcharger Rikk `Get 3` — the golden text doubles the count, so `count × gold(self)`. */
+  getRubies: (ctx, self, params) => {
+    mintRubies(ctx.state, num(params.count, 1) * gold(self));
+  },
+
+  /** Set 2 — "Your Rubies gain +X/+Y" (Deepvein Tender): raise the run's Ruby strength so every FUTURE Ruby
+   *  is minted bigger. Never retroactive (Rubies in hand / already cast keep their minted stats). */
+  rubyStatGain: (ctx, self, params) => {
+    const b = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
+    ctx.state.rubyBonus = {
+      attack: b.attack + num(params.attack) * gold(self),
+      health: b.health + num(params.health) * gold(self),
+    };
+  },
+
   /** Legacy single-target buy buff: the minion you bought gets +atk/+hp (not itself). Kept as a primitive —
    *  Brightwing Broker moved to `buffBoardOnBuy`, but the factory stays available to content. */
   buffOnBuy: (_ctx, self, params, { minion }) => {

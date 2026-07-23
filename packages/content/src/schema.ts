@@ -247,6 +247,9 @@ export const EffectFactoryIdSchema = z.enum([
   'onSellDiscover',
   'deathrattleGainRandomMinion',
   'deathrattleBuffImpsImproving',
+  // Set 2 — Kobolds / Rubies
+  'getRubies',        // Shout/Rally: mint N Rubies into hand (base 1/1 + rubyBonus)
+  'rubyStatGain',     // "Your Rubies gain +X/+Y" — raises the run's rubyBonus (future Rubies only)
 ]);
 
 export const EffectDefSchema = z.object({
@@ -294,6 +297,7 @@ export const CardDefSchema = z.object({
   ascendInto: z.string().optional(),
   attackOnSummon: z.boolean().optional(),
   spell: z.boolean().optional(),
+  ruby: z.boolean().optional(),
   singleCast: z.boolean().optional(),
   cost: z.number().int().nonnegative().optional(),
   target: z.enum(['friendly', 'any']).optional(),

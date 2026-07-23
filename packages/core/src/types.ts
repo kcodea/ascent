@@ -390,6 +390,12 @@ export interface CardDef {
   attackOnSummon?: boolean;
   /** A spell, not a minion: cast from hand for an effect, never takes a board slot. */
   spell?: boolean;
+  /** A **Ruby** (set 2 Kobolds): a spell-like token that is NOT a Shop Spell — it plays from hand like a
+   *  targeted spell (drag onto a minion) to grant that minion the Ruby's current Attack/Health as a buff,
+   *  but it does NOT count for Shop-Spell triggers (Archmagus Guel, `spellsCast`). Rubies have their own
+   *  cast counter; some cards trigger on the umbrella of BOTH (see the cast taxonomy in the reducer). A Ruby
+   *  carries stats (base 1/1 + the run's `rubyBonus`, baked when minted) and is consumed on cast. */
+  ruby?: boolean;
   /** This spell resolves exactly once — spell-quantity multipliers can't make it fire twice
    *  (Channeling the Devourer: devouring two minions would be absurd). */
   singleCast?: boolean;

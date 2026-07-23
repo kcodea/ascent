@@ -324,6 +324,13 @@ export interface RunState {
   spellsCast: number;
   /** Spells cast this turn (reset each wave) — scales Spirit Worgen's per-summon buff. */
   spellsThisTurn: number;
+  /** Set 2 — the run's Ruby STRENGTH: the extra Attack/Health every NEW Ruby is minted with, on top of the
+   *  base 1/1 (raised by "Your Rubies gain +X"; future Rubies only, never retroactive). Absent = base 1/1. */
+  rubyBonus?: { attack: number; health: number };
+  /** Rubies cast this run / this turn — the Ruby-only cast counter (NOT `spellsCast`, which is Shop Spells).
+   *  Cards that trigger on the umbrella of BOTH read `spellsCast + rubyCasts`. Absent = 0. */
+  rubyCasts?: number;
+  rubyCastsThisTurn?: number;
   /** Chrono Staff: this turn's End-of-Turn effects fire one extra time (a per-turn flag — stacks with
    *  Chronos, not with itself). Set on cast, reset at the next turn start. Absent = false. */
   extraEotThisTurn?: boolean;

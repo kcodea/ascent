@@ -3,6 +3,33 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: the Ruby engine — recruit-phase spine, WIP)
+
+### feat(sim): Rubies — a spell-like token that is NOT a Shop Spell (set 2 Kobolds, foundation)
+
+First slice of set 2's Kobold tribe, which is built entirely around **Rubies**. A Ruby is a spell-LIKE token
+that plays from hand like a targeted spell (drag onto a friendly minion → grant it the Ruby's Attack/Health as
+a permanent shop buff, then consumed), but it is deliberately **NOT a Shop Spell**: owner ruling — the "spells"
+in the game today are **Shop Spells**, Rubies are their own class, so Rubies must not trigger Shop-Spell effects
+(Archmagus Guel, `spellsCast`, spell quests). Some cards will trigger on the **umbrella** of both.
+
+This commit lands the recruit-phase ENGINE spine only (no Kobold cards, no UI yet — proven headlessly):
+- `CardDef.ruby?: boolean` (core) + schema `ruby` field + two factory ids (`getRubies`, `rubyStatGain`).
+- `RunState.rubyBonus {attack,health}` (the run's Ruby STRENGTH, added to a Ruby's base 1/1 at MINT — so "Your
+  Rubies gain +X" grows only FUTURE Rubies, never retroactively) + `rubyCasts`/`rubyCastsThisTurn` (the Ruby-only
+  cast counter, separate from `spellsCast`).
+- `mintRubies(state, n)` + the `getRubies`/`rubyStatGain` factories (recruit.ts).
+- The `ruby` token (`cards/set2/tokens.ts`, `token`+`ruby`+`target:'friendly'`), registered globally in
+  `ALL_CARDS` (tokens stay out of every set's drawable pool).
+- Reducer `case 'play'` Ruby branch: buff the target (source `Ruby`, itemized), consume, bump `rubyCasts`, leave
+  `spellsCast` untouched; no target → fizzle (kept in hand).
+
+Verified: new `rubies.test.ts` (4 cases — mint at 1/1; play → +stats "Ruby" buff, consumed, rubyCasts up but
+spellsCast untouched; bonus grows future Rubies only; fizzle keeps it in hand). typecheck + lint + full suite
+green. NEXT increments: the `kobold` tribe plumbing + the actual Kobold cards; the hand/targeting UI (reuse the
+targeted-spell drag); then the combat-phase cast path (Avenge/Rally/Start-of-Combat "Play a Ruby", temporary
+unless Engraved) + the umbrella cast triggers.
+
 ## 2026-07-23 (perf: idle the Discover burst's second WebGL context when it has nothing to draw)
 
 ### perf(ui): `discoverFx` stops its ticker between/after bursts (owner: "discovers cause major slowdowns on exe")

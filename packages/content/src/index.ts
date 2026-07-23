@@ -1,6 +1,7 @@
 import type { CardDef } from '@game/core';
 import { CardDefSchema } from './schema';
 import { TOKENS } from './cards/set1/tokens';
+import { SET2_TOKENS } from './cards/set2/tokens';
 import { ENEMY } from './cards/set1/enemy';
 import { SETS, poolFor } from './sets';
 
@@ -20,6 +21,7 @@ export * from './sets';
 export const ALL_CARDS: CardDef[] = [
   ...Object.values(SETS).flatMap((s) => s.own),
   ...TOKENS,
+  ...SET2_TOKENS,
   ...ENEMY,
 ].filter((card, i, arr) => arr.findIndex((c) => c.id === card.id) === i); // a shared card appears once
 

@@ -3,6 +3,23 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (spell batch — tranche B3: offer / minion manipulation)
+
+### feat(content): Layaway + Second Draft
+
+Two set-agnostic spells:
+- **Layaway** (T3/2) — cast on a shop offer: keep it through rerolls (new `ShopCard.kept` — `rollShop` now
+  preserves kept offers in place, no kept offers → identical seeds) and cut its cost by 1 (`spellLayaway`
+  reaches the real `ShopCard` because `castSpellOnOffer`'s throwaway shares the offer uid). Fizzles on a board
+  minion (needs an offer).
+- **Second Draft** (T4/3) — return a friendly **non-Gilded** minion to hand INTACT (`spellReturnToHand`;
+  `targetNoGolden` fizzles a golden). The spell is consumed after, so the hand swap nets to fit.
+
+Verified: new `spellBatch.test.ts` cases + live Scene-Builder (Layaway kept an offer at cost 2 across a reroll;
+Second Draft bounced a 5/5 with its buffs to hand). Full suite (1521) + lint + build:web green. Veinstorm (the
+other offer spell) regrouped with Hoardflame into a later live-scaling slice (both need `spellDisplayText`
+Ruby/tally live-text).
+
 ## 2026-07-23 (spell batch — tranche B2: shop / economy)
 
 ### feat(content): Quick Sale + Sigil of Kinship + Elevation Ritual

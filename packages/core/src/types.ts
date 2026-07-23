@@ -228,6 +228,8 @@ export type EffectFactoryId =
   | 'spellNextSellBonus' // Quick Sale: cast — the next minion sold this turn is worth more
   | 'spellRefreshToTribe' // Sigil of Kinship: cast — refresh the shop with minions of the target's type
   | 'spellRefreshTierUp' // Elevation Ritual: cast — refresh the shop with minions one tier higher
+  | 'spellLayaway' // Layaway: cast on an offer — keep it through rerolls and cut its cost
+  | 'spellReturnToHand' // Second Draft: cast — return a friendly non-Gilded minion to hand
   | 'spellDemonConsumeFodder' // Consume: cast — a chosen Demon creates and eats N Fodder
   | 'deathrattleGrantRandomSpell' // Sporebat: Deathrattle — grant N random tavern-tier spells to the hand (Beast)
   | 'onDamagedGrantRefresh' // Gryphon: on taking damage, bank a free shop reroll (once per combat) (Beast)

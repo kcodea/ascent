@@ -154,10 +154,10 @@ The career surface exists; deepen what a finished run *remembers*.
 - **New spell batch (owner spec 2026-07-23, 28 spells) — building in tranches.** ✅ Tranche A shipped (8:
   Crest of the Climb, Turnabout, Insurance Policy, Rift-Sunk Codex, Beyond the Summit, Invitation Above +
   Set-2 Ruby Shipment & Facetwright's Choice). **Tranche B in progress** (~14 medium), building as sub-slices:
-  ✅ **B1** (next-combat keyword grants: Field Maneuvers, Last Stand, Executioner's Edge) + ✅ **B2** (shop/
-  economy: Quick Sale, Sigil of Kinship, Elevation Ritual) shipped. **Next:** the offer-targeting pair (Layaway,
-  Veinstorm — need per-offer flags / Ruby live-text); then Second Draft, Encore, Strange Revision; then Marked
-  Target, Open the Gates, Hoardflame. **Tranche C** (~4
+  ✅ **B1** (Field Maneuvers, Last Stand, Executioner's Edge) + ✅ **B2** (Quick Sale, Sigil of Kinship,
+  Elevation Ritual) + ✅ **B3** (Layaway, Second Draft) shipped. **Next:** Encore + Strange Revision (minion
+  transform/trigger); then Marked Target + Open the Gates (combat-pending); then the live-scaling pair Veinstorm
+  + Hoardflame (one `spellDisplayText` pass). **Tranche C** (~4
   hard/new-UI: Common Ground two-target, Hourglass Reserve + Funeral on Loan discover-locks, Farseer's Report +
   Rival's Reflection opponent-peek). **Blocked:** Deepdelve Writ + Ironclad Requisition (need a Dwarf tribe).
 - **Set-scope quests / runes / heroes** if a set needs its own. `SetDef` has room; the wiring doesn't exist.

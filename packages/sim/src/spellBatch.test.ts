@@ -158,6 +158,45 @@ describe('spell batch — tranche B2 (shop / economy)', () => {
   });
 });
 
+describe('spell batch — tranche B3 (offer / minion manipulation)', () => {
+  it('Layaway: keeps a shop offer through rerolls and cuts its cost by 1', () => {
+    const base = createRun(1);
+    const offer = base.shop[0]!;
+    let s: RunState = { ...base, embers: 100, hand: [mkSpell('sp', 'layaway')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: offer.uid });
+    const kept = s.shop.find((o) => o.uid === offer.uid)!;
+    expect(kept.kept).toBe(true);
+    expect(kept.cost).toBe(2); // minionCost 3 − 1
+    s = reduce(s, { type: 'roll' });
+    expect(s.shop.some((o) => o.uid === offer.uid && o.kept && o.cost === 2)).toBe(true); // survived the reroll
+  });
+
+  it('Layaway fizzles on a board minion (it needs a shop offer), kept in hand', () => {
+    let s: RunState = { ...createRun(1), board: [mkMinion('m1', 2, 2)], hand: [mkSpell('sp', 'layaway')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm1' });
+    expect(s.hand.some((c) => c.uid === 'sp')).toBe(true);
+  });
+
+  it('Second Draft: returns a friendly minion to hand INTACT (buffs kept), consuming the spell', () => {
+    const m: BoardCard = { ...mkMinion('m1', 5, 5), buffs: [{ source: 'Test', attack: 3, health: 3, count: 1 }] };
+    let s: RunState = { ...createRun(1), board: [m], hand: [mkSpell('sp', 'seconddraft')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm1' });
+    expect(s.board.find((c) => c.uid === 'm1')).toBeUndefined(); // left the board
+    const inHand = s.hand.find((c) => c.uid === 'm1');
+    expect(inHand && [inHand.attack, inHand.health]).toEqual([5, 5]);
+    expect(inHand!.buffs).toHaveLength(1); // buffs preserved
+    expect(s.hand.some((c) => c.uid === 'sp')).toBe(false); // spell consumed
+  });
+
+  it('Second Draft fizzles on a Gilded (golden) minion', () => {
+    const m: BoardCard = { ...mkMinion('m1', 5, 5), golden: true };
+    let s: RunState = { ...createRun(1), board: [m], hand: [mkSpell('sp', 'seconddraft')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm1' });
+    expect(s.board.find((c) => c.uid === 'm1')).toBeTruthy(); // stayed on the board
+    expect(s.hand.some((c) => c.uid === 'sp')).toBe(true); // spell kept
+  });
+});
+
 describe('spell batch — tranche A (Set 2 Ruby spells)', () => {
   const RUBY = 'ruby';
 

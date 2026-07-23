@@ -68,6 +68,9 @@ export interface ShopCard {
   /** Displacement: a board minion stashed here when swapped to the tavern — restored INTACT (all buffs /
    *  stats / progression) when re-bought or swapped back, rather than re-instantiated from base. */
   held?: BoardCard;
+  /** Layaway: this offer survives rerolls (it's kept out of the pool return and re-added in place on a roll),
+   *  persisting until bought. Any `cost` reduction rides along. */
+  kept?: boolean;
 }
 
 /** One source's contribution to a minion's recruit-phase buffs, accumulated for the inspect panel

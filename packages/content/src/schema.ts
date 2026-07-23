@@ -255,6 +255,9 @@ export const EffectFactoryIdSchema = z.enum([
   'cardsBoughtGetRubies', // Hoardmaster Krik: every N cards bought, mint Rubies to hand
   'rallyGetRubies',   // Rally: get N Rubies (carried back to hand after combat)
   'avengeRubyStatGain', // Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
+  'scPlayRubiesPerBuy', // Frenzied Excavator: SoC play N Rubies per M cards bought this turn
+  'avengeGetRubies', // Gemline Martyr: Avenge (X) get N Rubies
+  'avengePlayRubiesLeftmost', // Gemline Martyr: Avenge (X) play N Rubies on your left-most minion
 ]);
 
 export const EffectDefSchema = z.object({

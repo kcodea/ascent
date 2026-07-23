@@ -433,6 +433,7 @@ export function simulate(
     spellsThisTurnFor: (side) => (side === 'player' ? playerState.spellsThisTurn : enemySpellsThisTurn),
     improveRepsFor: (side) => (modsFor(side).runeMastery ? 2 : 1),
     beastsPlayedFor: (side) => (side === 'player' ? playerState.beastsPlayed : enemyBeastsPlayed),
+    cardsBoughtThisTurnFor: (side) => (side === 'player' ? playerState.cardsBoughtThisTurn : enemyState.cardsBoughtThisTurn),
     fodderConsumedFor: (side) => (side === 'player'
       ? { attack: playerState.fodderConsumedAtk, health: playerState.fodderConsumedHp }
       : { attack: enemyState.fodderConsumedAtk, health: enemyState.fodderConsumedHp }),

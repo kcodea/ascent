@@ -34,6 +34,20 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Shout:** Your Rubies gain **+2 Health**.',
   },
   {
+    // Start of Combat scaler: plays Rubies on your Kobolds based on the run's per-turn cards-bought count
+    // (threaded into combat). Permanent carry-back.
+    id: 'k_frenzied',
+    name: 'Frenzied Excavator',
+    tribe: 'kobold',
+    tier: 5,
+    attack: 6,
+    health: 3,
+    keywords: ['SC'],
+    effects: [{ on: 'startOfCombat', do: 'scPlayRubiesPerBuy', params: { every: 4, rubies: 1, tribe: 'kobold' } }],
+    text: '**Start of Combat:** Play **1 Ruby** on your Kobolds for every **4 cards** bought this turn.',
+    goldenText: '**Start of Combat:** Play **2 Rubies** on your Kobolds for every **4 cards** bought this turn.',
+  },
+  {
     // Avenge is a COMBAT trigger — every 2 friendly deaths, each of your minions gets 2 Rubies (permanent,
     // carried back to the run board). `rubies` is per-minion (matching Crownvein's "a Ruby on 2 minions").
     id: 'k_gemstorm',
@@ -46,6 +60,23 @@ export const SET2_KOBOLDS: CardDef[] = [
     effects: [{ on: 'avenge', do: 'avengePlayRubies', params: { count: 2, rubies: 2 } }],
     text: '**Avenge (2):** Play **2 Rubies** on your minions.',
     goldenText: '**Avenge (2):** Play **4 Rubies** on your minions.',
+  },
+  {
+    // Two Avenge effects at one trigger (both fire): get a Ruby (to hand) AND play Rubies on your left-most
+    // minion. `count` = the Avenge threshold on each half.
+    id: 'k_gemline',
+    name: 'Gemline Martyr',
+    tribe: 'kobold',
+    tier: 3,
+    attack: 2,
+    health: 5,
+    keywords: [],
+    effects: [
+      { on: 'avenge', do: 'avengeGetRubies', params: { count: 2, rubies: 1 } },
+      { on: 'avenge', do: 'avengePlayRubiesLeftmost', params: { count: 2, rubies: 2 } },
+    ],
+    text: '**Avenge (2):** Get a Ruby and Play **2** on your left-most minion.',
+    goldenText: '**Avenge (2):** Get **2 Rubies** and Play **4** on your left-most minion.',
   },
   {
     // Rally is a COMBAT trigger (on this minion's attack) — the Rubies are minted into hand for the next shop,

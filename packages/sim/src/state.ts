@@ -305,6 +305,9 @@ export interface RunState {
    *  it (+3/+3 per 7 Gold). Accrued in `spendGold`, reset to 0 each turn in the wave-advance. Distinct from
    *  the lifetime `goldSpent` career stat. */
   goldSpentThisTurn?: number;
+  /** Set 2 — cards bought THIS turn (reset each wave). Threaded into combat for Frenzied Excavator's
+   *  Start-of-Combat "play 1 Ruby per 4 cards bought this turn" scaler. Absent = 0. */
+  cardsBoughtThisTurn?: number;
   /** Minion cardIds PLAYED this recruit turn (normal plays) — Pack Leader (SoC, via a simulate param) and
    *  Spirit Worgen (End of Turn) scale off "Beasts/Dragons you played this turn". Reset each turn. */
   playedThisTurn?: string[];

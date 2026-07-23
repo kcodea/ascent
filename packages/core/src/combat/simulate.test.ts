@@ -2645,6 +2645,35 @@ describe('simulate (handoff A.3)', () => {
     expect(gPerma!.attack % 2).toBe(0);
   });
 
+  it('set 2 — Gemline Martyr: Avenge gets a Ruby AND plays Rubies on the LEFT-MOST minion', () => {
+    const gmtest: CardDef = { id: 'gmtest', name: 'GM', tribe: 'kobold', tier: 3, attack: 2, health: 100, keywords: [],
+      effects: [
+        { on: 'avenge', do: 'avengeGetRubies', params: { count: 1, rubies: 1 } },
+        { on: 'avenge', do: 'avengePlayRubiesLeftmost', params: { count: 1, rubies: 2 } },
+      ], text: '' };
+    const sac: CardDef = { id: 'gmsac', name: 'S', tribe: 'kobold', tier: 1, attack: 1, health: 1, keywords: [], effects: [], text: '' };
+    const cards = { ...CARD_INDEX, gmtest, gmsac: sac };
+    const r = simulate([
+      { cardId: 'gmtest', attack: 2, health: 100, sourceUid: 'GM' }, // left-most (index 0)
+      { cardId: 'gmsac', attack: 1, health: 1, sourceUid: 'S' }, // dies → Avenge(1)
+    ], [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), cards,
+      combatSide({ tier: 3, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    expect(r.playerRubyGrants).toBeGreaterThanOrEqual(1); // got a Ruby (to hand)
+    // 2 Rubies (1/1 each, no bonus) played on the left-most survivor (GM) → +2/+2 carried back.
+    expect(r.playerPermaBuffs?.find((b) => b.sourceUid === 'GM')).toMatchObject({ attack: 2, health: 2 });
+  });
+
+  it('set 2 — Frenzied Excavator scales its Start-of-Combat Ruby play with cards bought this turn', () => {
+    const frtest: CardDef = { id: 'frtest', name: 'Fr', tribe: 'kobold', tier: 5, attack: 6, health: 50, keywords: ['SC'],
+      effects: [{ on: 'startOfCombat', do: 'scPlayRubiesPerBuy', params: { every: 4, rubies: 1, tribe: 'kobold' } }], text: '' };
+    const cards = { ...CARD_INDEX, frtest };
+    const r = simulate([{ cardId: 'frtest', attack: 6, health: 50, sourceUid: 'F' }],
+      [{ cardId: 'sandbag', attack: 0, health: 300 }], makeRng(3), cards,
+      combatSide({ tier: 5, tribes: ['kobold'], cardsBoughtThisTurn: 8 }), combatSide({ tier: 1 }));
+    // 8 cards / 4 = 2 steps × 1 Ruby = 2 Rubies (2/2 total, no rubyBonus) → carried back.
+    expect(r.playerPermaBuffs?.find((b) => b.sourceUid === 'F')).toMatchObject({ attack: 2, health: 2 });
+  });
+
   it('set 2 — Rally "Get Rubies" carries N Rubies back to hand (playerRubyGrants)', () => {
     const riktest: CardDef = { id: 'riktest', name: 'Rik', tribe: 'kobold', tier: 3, attack: 5, health: 50, keywords: ['RL'],
       effects: [{ on: 'onAttack', do: 'rallyGetRubies', params: { count: 3 } }], text: '' };

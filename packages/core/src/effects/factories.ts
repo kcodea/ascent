@@ -31,17 +31,21 @@ const mul = (self: Minion): number => (self.golden ? 2 : 1);
  *  is PERMANENT — recorded as `permaGain` for EVERY recipient (not just Engraved ones; owner: Ruby buffs are
  *  always permanent) so it carries back to the run board via `playerPermaBuffs`. Shared by every "play Rubies"
  *  combat trigger (Start-of-Combat / Avenge / Rally). */
-function playRubies(ctx: CombatContext, self: Minion, per: number, tribe: string): void {
+function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per: number): void {
   if (per <= 0) return;
   const rb = ctx.rubyBonusFor(self.side);
   const a = (1 + rb.attack) * per;
   const h = (1 + rb.health) * per;
+  ctx.buff(target, a, h, self.uid);
+  if (!target.keywords.includes('EG')) {
+    target.permaGain = { attack: (target.permaGain?.attack ?? 0) + a, health: (target.permaGain?.health ?? 0) + h };
+  }
+}
+function playRubies(ctx: CombatContext, self: Minion, per: number, tribe: string): void {
+  if (per <= 0) return;
   for (const m of ctx.living(self.side)) {
     if (tribe && m.tribe !== tribe && m.tribe2 !== tribe) continue;
-    ctx.buff(m, a, h, self.uid);
-    if (!m.keywords.includes('EG')) {
-      m.permaGain = { attack: (m.permaGain?.attack ?? 0) + a, health: (m.permaGain?.health ?? 0) + h };
-    }
+    playRubyOn(ctx, self, m, per);
   }
 }
 
@@ -893,6 +897,34 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const x = Math.max(1, num(params.count, 3));
     if (count % x !== 0) return;
     ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side);
+  },
+
+  /** Set 2 — Gemline Martyr (half 1): Avenge (X) — get `rubies` Rubies (carried back to hand). */
+  avengeGetRubies: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 2));
+    if (count % x !== 0) return;
+    ctx.grantRubies(num(params.rubies, 1) * mul(self), self.side, self.uid);
+  },
+
+  /** Set 2 — Gemline Martyr (half 2): Avenge (X) — play `rubies` Rubies on your LEFT-MOST living minion
+   *  (permanent carry-back). */
+  avengePlayRubiesLeftmost: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 2));
+    if (count % x !== 0) return;
+    const target = ctx.living(self.side)[0]; // left-most living friend
+    if (target) playRubyOn(ctx, self, target, num(params.rubies, 1) * mul(self));
+  },
+
+  /** Set 2 — Frenzied Excavator: Start of Combat, play `rubies` Rubies on your [tribe] minions for every
+   *  `every` cards bought this turn (× golden). Reads the run's per-turn buy count threaded into combat. */
+  scPlayRubiesPerBuy: (ctx, self, params) => {
+    const every = Math.max(1, num(params.every, 4));
+    const steps = Math.floor(ctx.cardsBoughtThisTurnFor(self.side) / every);
+    playRubies(ctx, self, steps * num(params.rubies, 1) * mul(self), str(params.tribe));
   },
 
   /** Herald of the Apocalypse — Rally: each time THIS minion attacks, add a copy of itself to your hand after

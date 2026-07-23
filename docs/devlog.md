@@ -3,6 +3,27 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: Frenzied Excavator + Gemline Martyr — the two "moderate" combat Kobolds)
+
+### feat(set2): cards-bought-this-turn scaler + positional Ruby play (Frenzied + Gemline)
+
+The two Kobolds that needed one more mechanism each:
+- **Frenzied Excavator** (6/3 T5, `Start of Combat: play 1 Ruby on your Kobolds for every 4 cards bought this
+  turn`) — added a per-turn buy counter (`RunState.cardsBoughtThisTurn`, bumped on `buy`, reset each wave),
+  threaded into `CombatSideState` + `ctx.cardsBoughtThisTurnFor(side)`, and the `scPlayRubiesPerBuy` factory
+  (steps = floor(bought / every)).
+- **Gemline Martyr** (2/5 T3, `Avenge (2): Get a Ruby and Play 2 on your left-most minion`) — TWO Avenge effects
+  on one card (both fire; `registerEffects` iterates each): `avengeGetRubies` (uses the get-Rubies carry-back)
+  + `avengePlayRubiesLeftmost` (positional — plays on `ctx.living(side)[0]`). Extracted a single-target
+  `playRubyOn` helper that `playRubies` now loops.
+
+Art wired for both (`k_frenzied` / `k_gemline`). Verified: new `simulate.test.ts` cases (Frenzied scales with
+`cardsBoughtThisTurn: 8` → 2 Rubies; Gemline's Avenge grants a Ruby to hand AND +2/+2 on the left-most) + a
+`rubies.test.ts` buy-counter case. Determinism + golden + content validation + lint + build:web green.
+
+**Eight Kobolds shipped.** Remaining are the bespoke "unique Ruby-interaction" cards (on-cast / on-get /
+on-damaged / multi-cast / Consume / 3×-in-combat) + the Gold Pouch & Warding Ruby tokens.
+
 ## 2026-07-23 (set 2: combat→run Ruby carry-backs + Rikk / Veinbreaker / Krik)
 
 ### feat(core): Ruby carry-backs from combat (get-Rubies + buff-Rubies) + three more Kobolds

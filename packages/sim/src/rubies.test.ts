@@ -74,6 +74,13 @@ describe('Ruby engine (set 2)', () => {
     expect(s.hand.filter((c) => c.cardId === RUBY_ID).every((r) => r.attack === 1 && r.health === 2)).toBe(true); // future too
   });
 
+  it('cardsBoughtThisTurn increments on buy (Frenzied Excavator scaler plumbing)', () => {
+    let s = createRun(1);
+    expect(s.cardsBoughtThisTurn ?? 0).toBe(0);
+    s = reduce(s, { type: 'buy', uid: s.shop[0]!.uid });
+    expect(s.cardsBoughtThisTurn).toBe(1);
+  });
+
   it('Hoardmaster Krik mints a Ruby every 3 cards bought', () => {
     const s: RunState = { ...createRun(1), board: [{ uid: 'k', cardId: 'k_hoardmaster', tribe: 'kobold', attack: 5, health: 9, keywords: [], golden: false }], hand: [] };
     applyCardsBought(s, 2); // 2 buys → not yet

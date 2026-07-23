@@ -372,6 +372,7 @@ export function reduce(state: RunState, action: Action): RunState {
       const isShout = !!bdef && hasBattlecry(bdef);
       advanceQuests(next, (o) => o.event === 'buy' && (!o.tribe || tribes.includes(o.tribe)) && (o.filter !== 'shout' || isShout));
       applyCardsBought(next, 1); // Korok / Banksly: "when you buy N cards" (the buy-count sibling of the Gold meter)
+      next.cardsBoughtThisTurn = (next.cardsBoughtThisTurn ?? 0) + 1; // set 2: Frenzied Excavator's SoC scaler
     }
     // A Shout is a TRIGGER: each Battlecry FIRE (Drakko + shout-repeat rewards + charges) counts toward the Shout
     // objective. `lastShoutFires` was recorded during the play / target resolution (0 if no Shout fired).
@@ -1446,6 +1447,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         fodderConsumedHp: s.fodderConsumedThisTurn?.health ?? 0,
         beastBuyAtk: s.beastBuyAtk ?? 0,
         beastsPlayed,
+        cardsBoughtThisTurn: s.cardsBoughtThisTurn ?? 0,
         magneticAtk: s.magneticBuyAtk ?? 0,
         magneticHp: s.magneticBuyHp ?? 0,
         rubyBonus: s.rubyBonus ?? { attack: 0, health: 0 },
@@ -2068,6 +2070,7 @@ function advanceCombat(s: RunState): void {
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
   s.playedThisTurn = []; // Pack Leader / Spirit Worgen: minions-played-this-turn resets each turn
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
+  s.cardsBoughtThisTurn = 0; // Frenzied Excavator's per-turn cards-bought scaling resets each wave
   s.attachmentsThisTurn = 0; // Tempering/Replication's "first Attachment each turn" gate resets each wave
   s.shoutsThisTurn = 0; // Rune of Refrain's Shout counter resets each wave
   s.firstShoutUid = undefined;

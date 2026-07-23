@@ -337,7 +337,10 @@ export type EffectFactoryId =
   | 'avengePlayRubies' // Set 2 — Avenge (X): play N Rubies on your [tribe] minions
   | 'cardsBoughtGetRubies' // Set 2 — Hoardmaster Krik: every N cards bought, mint Rubies to hand
   | 'rallyGetRubies' // Set 2 — Rally: get N Rubies (carried back to hand after combat)
-  | 'avengeRubyStatGain'; // Set 2 — Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
+  | 'avengeRubyStatGain' // Set 2 — Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
+  | 'scPlayRubiesPerBuy' // Set 2 — Frenzied Excavator: SoC play N Rubies per M cards bought this turn
+  | 'avengeGetRubies' // Set 2 — Gemline Martyr: Avenge (X) get N Rubies
+  | 'avengePlayRubiesLeftmost'; // Set 2 — Gemline Martyr: Avenge (X) play N Rubies on your left-most minion
 
 export interface EffectDef {
   on: GameEvent;
@@ -1134,6 +1137,8 @@ export interface CombatSideState {
   beastBuyAtk: number;
   /** Beasts played this recruit turn (legacy — retained for the ctx accessor + result echo). */
   beastsPlayed: number;
+  /** Set 2 — cards bought this recruit turn (Frenzied Excavator's Start-of-Combat scaler). Player-authoritative. */
+  cardsBoughtThisTurn: number;
   /** Attachment/Magnetic aura (Scrap Herald / Banksly welds) — sizes this side's from-base Magnetics. */
   magneticAtk: number;
   magneticHp: number;
@@ -1362,6 +1367,8 @@ export interface CombatContext {
   improveRepsFor(side: Side): number;
   /** Per-side "Beasts played this turn" — player's, or the opponent's captured value. */
   beastsPlayedFor(side: Side): number;
+  /** Per-side cards bought this recruit turn (Frenzied Excavator's Start-of-Combat Ruby scaler). */
+  cardsBoughtThisTurnFor(side: Side): number;
   /** Deathrattles triggered this game so far, for `side`: for the PLAYER the run-wide base + this combat's
    *  player Deathrattles; for the ENEMY the opponent's captured tally. Grim scales its buff by this. */
   deathrattleTally(side: Side): number;

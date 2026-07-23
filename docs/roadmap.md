@@ -293,10 +293,12 @@ trigger"; avoid true undo until the rules are sturdier).
   Harness: `fx/` — rebuild from the devlog entry if needed.
 - `ChargeMotes` runs a second continuous per-frame canvas loop for the whole charge session. Untested; but
   given the glyph result, measure before assuming it costs anything.
-- Drag re-renders all of `Recruit` (3,582 lines) once per rAF via `setDrag`/`setOverZone`. Correctly
-  throttled and rect-cached, but `Card` uses **default shallow memo** (unlike `Unit`'s value comparator), so
-  it depends on the parent keeping every prop referentially stable — silent to regress. Consider a value
-  comparator if a profile shows cards reconciling mid-drag.
+- ~~Drag re-renders all of `Recruit` once per rAF via `setDrag`/`setOverZone`.~~ Shipped (2026-07-23, audit
+  fix #2): the re-render is now gated on DECISION change (the drop-gap / magnetize / cast / zone signals) via
+  the pure `deriveDragDecision`, not on the old 8px position quantum — so a drag re-renders only when something
+  visible actually changes (~10–20× fewer than the quantum). `Card` still uses default shallow memo, but fix
+  #1's value-stable views keep its props referentially stable across dispatches, so it bails; add a value
+  comparator only if a profile ever shows cards reconciling mid-drag.
 - ~~Autosave is O(n²) (serializes the whole action log every dispatch) — debounce.~~ Shipped: it now writes
   at turn boundaries only, with a `flushSave` on quit-to-title + tab hide/close. NOT debounced — a timer
   would only have guessed at the commitment point the phase flip already marks exactly.

@@ -3,6 +3,7 @@ import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/co
 import { CONFIG, RIFTS, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { stabilizeViewMap, stabilizeRefMap, stabilizeView } from './cardViewEqual';
+import { deriveDragDecision, dragDecisionEqual, computeCastingSpell, type DragGeo, type DragDecision } from './dragDecision';
 import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
 import { combatGains } from './combatGains';
@@ -74,16 +75,6 @@ const unkey = (k: string): { kind: AuraK; uid: string } => {
 };
 
 type DragSource = 'shop' | 'hand' | 'board';
-/**
- * How far (px) the pointer must travel before a drag commits a new position to React state.
- *
- * Every commit re-renders Recruit. rAF-coalescing caps that at the REFRESH rate, which means a 240Hz
- * monitor does 4x the React work of a 60Hz one for the same drag — measured at up to 388 renders/sec.
- * Layout decisions (insertion slot, magnet target, cast target, lift threshold) change at card-scale
- * distances, so 8px is far below anything visible (~3ms of travel) and cuts the render count several-fold.
- * The card, aim line and trail are NOT throttled by this — they read `dragPosRef` and stay frame-exact.
- */
-const DRAG_STATE_QUANTUM_PX = 8;
 
 type Zone = 'tavern' | 'warband' | 'hand';
 
@@ -1359,8 +1350,8 @@ export function Recruit() {
   /**
    * The EXACT live pointer position during a drag, updated on every pointermove.
    *
-   * `drag.x/y` in React state is deliberately COARSE (see `DRAG_STATE_QUANTUM_PX` in the move handler): it
-   * only advances far enough to move a layout decision, because every update re-renders this component.
+   * `drag.x/y` in React state is deliberately COARSE (see the decision gate in `flushMove`): it only
+   * advances when a layout DECISION changes, because every update re-renders this component.
    * Anything that must track the cursor smoothly — the floating card's transform, the spell aim line, the
    * motion trail — reads this ref instead, so it stays frame-exact without costing a render.
    */
@@ -1380,13 +1371,17 @@ export function Recruit() {
   const reactDrivesDrag = snapping || magSlide; // these use a CSS transition, not the rAF lean
   const reactDrivesDragRef = useRef(reactDrivesDrag);
   reactDrivesDragRef.current = reactDrivesDrag;
+  // `magSlide` mirrored into a ref so `flushMove`'s decision gate (whose effect captures values at drag-start)
+  // reads the LIVE value — a magnet slide can begin mid-drag, and it suppresses the magnetize/insertion preview.
+  const magSlideRef = useRef(magSlide);
+  magSlideRef.current = magSlide;
 
   // A targeted spell only enters "aiming" once it's dragged UP past the play line — down in the hand it's a
   // reorder (see the drop handler), so the targeting reticle stays hidden there. Defined up here (before the
   // drag-motion rAF) so that effect can depend on it: when a spell drops back below the line mid-drag the
   // floating .dragcard REMOUNTS, and the rAF must re-run to position it — otherwise it strands at 0,0 (the
   // top-left "ghost card" bug).
-  const castingSpell = !!drag?.active && drag.source === 'hand' && !!drag.view.spell && (drag.view.target === 'friendly' || drag.view.target === 'any') && drag.y < playFloorRef.current;
+  const castingSpell = computeCastingSpell(drag, drag ? drag.y : 0, playFloorRef.current);
 
   // The weighted-drag rAF: while a card is actively dragged (and not snapping/magnet-sliding), smooth the
   // card's render position toward the cursor and tilt it toward its motion, writing the transform straight
@@ -1862,6 +1857,9 @@ export function Recruit() {
     // The position/zone last pushed into React state — the baseline the quantum is measured against.
     let committed: { x: number; y: number } | null = null;
     let lastZone: Zone | null = null;
+    // The geometry hit-tests the decision needs — same in-component closures the render passes, so `flushMove`'s
+    // gate and the render can't diverge. They read the per-drag rect cache populated just above.
+    const gateGeo: DragGeo = { warbandIndexAt, shopIndexAt, handIndexAt, boardUidAt, shopUidAt };
     const flushMove = (): void => { perfMonitor.measure('drag:flushMove', () => {
       moveRaf = 0;
       const e = lastMove;
@@ -1869,19 +1867,30 @@ export function Recruit() {
       lastMove = null;
       const d0 = dragRef.current;
       const willBeActive = !!d0 && (d0.active || Math.hypot(e.clientX - d0.startX, e.clientY - d0.startY) > getDragFeel().threshold);
-      // Commit to React only when the position has moved a layout-relevant distance, or when a DISCRETE
-      // signal flips (going active, or crossing into another drop zone) — those must never be delayed.
-      const movedEnough =
-        !committed ||
-        Math.abs(e.clientX - committed.x) >= DRAG_STATE_QUANTUM_PX ||
-        Math.abs(e.clientY - committed.y) >= DRAG_STATE_QUANTUM_PX;
       // The spell aim line follows the cursor EXACTLY (every frame), even though the state behind it only
-      // advances on the quantum — otherwise the line would visibly step in 8px jumps.
+      // advances on the decision gate — otherwise the line would visibly step.
       if (castAimRef.current.casting && d0) {
         pixiFx.setAimLine({ x: d0.startX, y: d0.startY }, { x: e.clientX, y: e.clientY }, castAimRef.current.onTarget, getAimFxConfig());
       }
       const zone = inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAtCached(e.clientX, e.clientY);
-      if (movedEnough || willBeActive !== (d0?.active ?? false) || zone !== lastZone) {
+      // Re-render only when a VISIBLE decision changes — not on every quantum of travel. The dragged card, aim
+      // line and trail all ride `dragPosRef` frame-exact, so a `setDrag` only ever buys the DECISION-driven
+      // layer: the drop-gap slides, the magnetize/cast highlights, and the aim reticle. Those change at CARD
+      // scale (~100px) or on an aim/zone crossing — comparing the decision at the exact cursor to the one still
+      // shown (from the last committed point) drops the ~10-20× no-op renders the old 8px position-quantum made
+      // (the late-game drag/APM hitch). Zone + active are kept as explicit terms: `overZone` also drives the
+      // sell/buy-zone glow + `canDropHand`, and the active flip must never be delayed.
+      const decOf = (x: number, y: number, z: Zone | null): DragDecision =>
+        deriveDragDecision({
+          drag: d0, x, y, overZone: z, magSlide: magSlideRef.current, playFloor: playFloorRef.current,
+          collapseY: getDragFeel().collapseY, boardMax: CONFIG.boardMax, board: run.board, spellUid: run.spell?.uid, geo: gateGeo,
+        });
+      const shownDec = committed ? decOf(committed.x, committed.y, lastZone) : null;
+      const decisionChanged =
+        !shownDec ||
+        !dragDecisionEqual(decOf(e.clientX, e.clientY, zone), shownDec) ||
+        computeCastingSpell(d0, e.clientY, playFloorRef.current) !== computeCastingSpell(d0, committed!.y, playFloorRef.current);
+      if (decisionChanged || willBeActive !== (d0?.active ?? false) || zone !== lastZone) {
         committed = { x: e.clientX, y: e.clientY };
         lastZone = zone;
         setDrag((d) => (d ? { ...d, x: e.clientX, y: e.clientY, active: willBeActive } : d));
@@ -2653,57 +2662,34 @@ export function Recruit() {
   // and an empty drop-slot opens at the live insertion point while over the warband.
   // Dropping lands the card straight into that slot — no post-drop "swap". A played
   // hand card opens the same slot. ---
-  // Insertion / hover tracks the dragged card's *centre* (not the raw pointer, which is offset by
-  // wherever you grabbed the card) — so the drop slot lands where the card visually sits.
-  const dragCx = drag ? drag.x - drag.ox + drag.w / 2 : 0;
-  const magHoverTarget = drag?.active && drag.source === 'hand' && drag.view.keywords.includes('M') && overZone === 'warband'
-    ? run.board[warbandIndexAt(dragCx)]
-    : undefined;
-  const wouldMagnetize =
-    !!drag?.active &&
-    !magSlide && // once the slide starts, the warband settles (no more shove preview)
-    !!magHoverTarget &&
-    magnetizesTo(drag.view.cardId, magHoverTarget.cardId, magHoverTarget.addedTribes, magHoverTarget.allTribes);
-  // Casting a targeted spell from the hand: highlight the friendly minion under the cursor (it's the target),
-  // and don't treat it as a board-insertion drag. `castingSpell` itself is defined above (near the drag rAF).
-  // The target under the cursor — a board minion, or (for `any` spells) a tavern offer.
-  const castTargetUid = castingSpell
-    ? boardUidAt(drag!.x, drag!.y) ?? (drag!.view.target === 'any' ? shopUidAt(drag!.x, drag!.y) : null)
-    : null;
+  // Everything the drag draws as the pointer moves — the drop-gap indices, the magnetize/cast highlights, the
+  // lift state — is derived by the pure `deriveDragDecision` (see dragDecision.ts for the full rationale of
+  // each rule: centre-tracking, the play floor, magnetize suppression, the collapse lift). The SAME function
+  // backs `flushMove`'s re-render gate, so the state we render here and the decision that decides whether to
+  // re-render can never disagree. The dragged card's own transform/aim/trail bypass this (ref-driven, frame-exact).
+  const dragGeo: DragGeo = { warbandIndexAt, shopIndexAt, handIndexAt, boardUidAt, shopUidAt };
+  const dragDecision = deriveDragDecision({
+    drag,
+    x: drag ? drag.x : 0,
+    y: drag ? drag.y : 0,
+    overZone,
+    magSlide,
+    playFloor: playFloorRef.current,
+    collapseY: getDragFeel().collapseY,
+    boardMax: CONFIG.boardMax,
+    board: run.board,
+    spellUid: run.spell?.uid,
+    geo: dragGeo,
+  });
+  const { wouldMagnetize, castTargetUid, overWarband, collapsedLift, shopGapIndex, gapIndex, handGapIndex } = dragDecision;
   castAimRef.current = { casting: castingSpell, onTarget: !!castTargetUid };
   const draggingBoard = !!drag?.active && drag.source === 'board';
-  const overWarband =
-    !!drag?.active &&
-    !magSlide &&
-    !wouldMagnetize &&
-    !drag.view.spell &&
-    // A board minion reorders only while actually over the warband row (dragging it up = sell). A HAND minion
-    // plays anywhere ABOVE the play floor (see playFloorRef) — it needn't hit the row exactly; the preview
-    // tracks the drag there (slot keyed off x). Once the cursor drops below the floor (nearer the hand) the
-    // preview clears, signalling a release there cancels the play back to hand.
-    ((drag.source === 'board' && overZone === 'warband') ||
-      (drag.source === 'hand' && drag.y < playFloorRef.current && run.board.length < CONFIG.boardMax));
   // The dragged card STAYS in the row (rendered invisible via `dimmed`) so its slot holds the row width —
   // that's what stops the neighbours re-centring inward the instant you lift it (the "snap in then back out").
   // The gap moves via per-card slide transforms (see `boardSlide`/`shopSlide`), not by removing the card.
   const displayBoard = run.board;
   const draggingShop = !!drag?.active && drag.source === 'shop';
   const displayShop = run.shop;
-  // Vertical lift of the dragged card from its press point — once it clears `collapseY`, it's a pull-OUT
-  // (buy / sell / play), not an in-row reorder: the source row closes the hole behind it (cards after the
-  // lifted one slide in one slot). This is what makes a card pulled *up* or *down* read as "the gap fills in".
-  const dragLiftY = drag?.active ? Math.abs(drag.y - drag.startY) : 0;
-  const collapsedLift = dragLiftY > getDragFeel().collapseY;
-  // A dragged offer (not the pinned spell) reorders the shop while it stays near the row — but once it's
-  // lifted clear (a buy), stop reordering so the collapse takes over (mirrors the warband's sell gesture).
-  const overShop = draggingShop && overZone === 'tavern' && !collapsedLift && drag!.uid !== run.spell?.uid;
-  const shopGapIndex = overShop ? shopIndexAt(dragCx, drag!.uid) : -1;
-  // Where the empty drop-slot opens (insertion index among the displayed cards), or -1.
-  // A magnetizing Cling Drone also shoves cards aside (a slot opens beside the target Mech).
-  const gapIndex =
-    overWarband || wouldMagnetize
-      ? warbandIndexAt(dragCx, drag!.source === 'board' ? drag!.uid : undefined)
-      : -1;
   // The spell stays rendered (dimmed) while being bought — like a minion offer — so the row keeps its width and
   // the offers slide to fill its slot. So it's always "shown" for FLIP-key purposes until the buy commits.
   const spellShown = run.spell?.uid ?? '';
@@ -2757,9 +2743,8 @@ export function Recruit() {
   // index and every OTHER hand card shifts one slot when the gap crosses it. `handSlidePx` (in the JSX)
   // multiplies this by the measured overlap spacing so the fan parts by exactly one slot.
   const draggingHand = !!drag?.active && drag.source === 'hand';
-  const overHandReorder = draggingHand && drag!.y >= playFloorRef.current;
   const draggedHandIdx = draggingHand ? run.hand.findIndex((c) => c.uid === drag!.uid) : -1;
-  const handGapIndex = overHandReorder ? handIndexAt(dragCx, drag!.uid) : -1;
+  // `handGapIndex` (the drop slot for a hand reorder) comes from `deriveDragDecision` above.
   const handSlide = (i: number): number => {
     if (!draggingHand || handGapIndex < 0 || i === draggedHandIdx) return 0;
     const p = i < draggedHandIdx ? i : i - 1;

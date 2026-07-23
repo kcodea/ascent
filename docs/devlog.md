@@ -3,6 +3,26 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: combat→run Ruby carry-backs + Rikk / Veinbreaker / Krik)
+
+### feat(core): Ruby carry-backs from combat (get-Rubies + buff-Rubies) + three more Kobolds
+
+Combat effects can't touch run state directly, so combat Ruby economy needs carry-backs (like spell power /
+hand grants already do). Added two, plus the Kobolds that use them:
+- **`playerRubyGrants`** (+ `ctx.grantRubies`) — Rubies gained IN combat, minted into hand at settle via
+  `mintRubies` (so they bake the run's live `rubyBonus`, identical to a shop Ruby). Emits a `toHand` per Ruby
+  for the replay. → **Tunnelcharger Rikk** (3/4 T3, `Rally: Get 3 Rubies`; golden 6).
+- **`playerRubyBonusGain`** (+ `ctx.gainRubyBonus`) — Ruby STRENGTH gained in combat, applied to the run's
+  `rubyBonus` at settle AND grown onto every held Ruby (the recruit `rubyStatGain` logic). → **Veinbreaker**
+  (5/3 T4, `Avenge (3): Buff your Rubies +1/+1`; golden +2/+2).
+- Recruit-phase: **Hoardmaster Krik** (5/9 T6, `When you buy 3 cards, get a Ruby`) via the `cardsBought` cadence
+  (`cardsBoughtGetRubies`).
+
+Factories `rallyGetRubies` / `avengeRubyStatGain` mirror the existing rally/avenge guard patterns. Verified: new
+`simulate.test.ts` cases (Rally → `playerRubyGrants` a multiple of 3; Avenge → `playerRubyBonusGain` +1/+1) and a
+`rubies.test.ts` Krik case (mints every 3rd buy). Full suite (determinism + golden) + content validation + lint
++ build:web green. **Six Kobolds shipped** (Chipwick, Deepvein, Gemstorm, Krik, Rikk, Veinbreaker).
+
 ## 2026-07-23 (set 2: Avenge Ruby cast + Gemstorm Instigator — first combat Kobold)
 
 ### feat(content): `avengePlayRubies` + Gemstorm Instigator (the first combat-casting Kobold)

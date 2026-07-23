@@ -9,7 +9,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -1830,6 +1830,17 @@ function settleCombat(s: RunState, result: CombatResult): void {
       const mult = card.cardId === 'taragosaheir' ? (card.golden ? 3 : 2) : 1;
       addBuff(card, engraved ? 'Engraved' : 'Flowing Monk', attack * mult, health * mult);
     }
+  }
+  // Set 2 — Rubies gained IN COMBAT (Rikk's Rally, Gemline's Avenge): mint them into hand now, baked with the
+  // run's live rubyBonus (identical to a shop-minted Ruby).
+  if (result.playerRubyGrants) mintRubies(s, result.playerRubyGrants);
+  // Set 2 — Ruby STRENGTH gained in combat (Veinbreaker's Avenge "buff your Rubies"): raise the run's rubyBonus
+  // AND grow every held Ruby — the same effect as the recruit-phase `rubyStatGain`.
+  if (result.playerRubyBonusGain && (result.playerRubyBonusGain.attack > 0 || result.playerRubyBonusGain.health > 0)) {
+    const g = result.playerRubyBonusGain;
+    const b = s.rubyBonus ?? { attack: 0, health: 0 };
+    s.rubyBonus = { attack: b.attack + g.attack, health: b.health + g.health };
+    for (const card of s.hand) if (CARD_INDEX[card.cardId]?.ruby) { card.attack += g.attack; card.health += g.health; }
   }
   // Cards a combat effect added to the hand land in the hand for the next recruit, win or lose — capped by
   // the hand limit. This is the single channel for ALL in-combat card grants: a SPECIFIC card (Arcane Weaver →

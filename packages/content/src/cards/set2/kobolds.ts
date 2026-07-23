@@ -48,6 +48,34 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Avenge (2):** Play **4 Rubies** on your minions.',
   },
   {
+    // Rally is a COMBAT trigger (on this minion's attack) — the Rubies are minted into hand for the next shop,
+    // baked with the run's live rubyBonus.
+    id: 'k_tunnelcharger',
+    name: 'Tunnelcharger Rikk',
+    tribe: 'kobold',
+    tier: 3,
+    attack: 3,
+    health: 4,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyGetRubies', params: { count: 3 } }],
+    text: '**Rally:** Get **3 Rubies**.',
+    goldenText: '**Rally:** Get **6 Rubies**.',
+  },
+  {
+    // Avenge (combat): every 3 friendly deaths, raise your Ruby strength — grows held + future Rubies (carried
+    // back from combat).
+    id: 'k_veinbreaker',
+    name: 'Veinbreaker',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 5,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'avenge', do: 'avengeRubyStatGain', params: { count: 3, attack: 1, health: 1 } }],
+    text: '**Avenge (3):** Buff your Rubies **+1/+1**.',
+    goldenText: '**Avenge (3):** Buff your Rubies **+2/+2**.',
+  },
+  {
     // Recruit-phase economy: the `cardsBought` cadence (`every: 3`) mints a Ruby every 3 cards you buy.
     id: 'k_hoardmaster',
     name: 'Hoardmaster Krik',

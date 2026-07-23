@@ -2645,6 +2645,30 @@ describe('simulate (handoff A.3)', () => {
     expect(gPerma!.attack % 2).toBe(0);
   });
 
+  it('set 2 — Rally "Get Rubies" carries N Rubies back to hand (playerRubyGrants)', () => {
+    const riktest: CardDef = { id: 'riktest', name: 'Rik', tribe: 'kobold', tier: 3, attack: 5, health: 50, keywords: ['RL'],
+      effects: [{ on: 'onAttack', do: 'rallyGetRubies', params: { count: 3 } }], text: '' };
+    const cards = { ...CARD_INDEX, riktest };
+    const r = simulate([{ cardId: 'riktest', attack: 5, health: 50, sourceUid: 'R' }],
+      [{ cardId: 'sandbag', attack: 1, health: 400 }], makeRng(3), cards,
+      combatSide({ tier: 3, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    expect(r.playerRubyGrants).toBeGreaterThanOrEqual(3); // ≥ one Rally (it attacks at least once)
+    expect(r.playerRubyGrants! % 3).toBe(0);
+  });
+
+  it('set 2 — Avenge "buff your Rubies" carries the rubyBonus gain back (playerRubyBonusGain)', () => {
+    const vbtest: CardDef = { id: 'vbtest', name: 'VB', tribe: 'kobold', tier: 4, attack: 2, health: 100, keywords: [],
+      effects: [{ on: 'avenge', do: 'avengeRubyStatGain', params: { count: 1, attack: 1, health: 1 } }], text: '' };
+    const sac: CardDef = { id: 'vsac', name: 'S', tribe: 'kobold', tier: 1, attack: 1, health: 1, keywords: [], effects: [], text: '' };
+    const cards = { ...CARD_INDEX, vbtest, vsac: sac };
+    const r = simulate([
+      { cardId: 'vbtest', attack: 2, health: 100, sourceUid: 'V' },
+      { cardId: 'vsac', attack: 1, health: 1, sourceUid: 'S' },
+    ], [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), cards,
+      combatSide({ tier: 4, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    expect(r.playerRubyBonusGain).toMatchObject({ attack: 1, health: 1 }); // Avenge(1) fired once (only the sac died)
+  });
+
   it('Taurus engraves an adjacent minion — that minion keeps its combat gains (carry-back)', () => {
     // A Sporeling dies and buffs every friend +1 of one stat (combat-only). The target wall has its keywords
     // stripped, so its +1 would NOT normally carry back; Taurus sits to its right and engraves it at Start of

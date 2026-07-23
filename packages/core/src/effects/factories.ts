@@ -877,6 +877,24 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     playRubies(ctx, self, num(params.rubies, 1) * mul(self), str(params.tribe));
   },
 
+  /** Set 2 — Rally (Tunnelcharger Rikk): when THIS minion attacks, get `count` Rubies (× golden). Minted into
+   *  hand after combat with the run's live rubyBonus. Fires on its own attack (Flurry → per hit). */
+  rallyGetRubies: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    ctx.grantRubies(num(params.count, 1) * mul(self), self.side, self.uid);
+  },
+
+  /** Set 2 — Avenge (X) (Veinbreaker): after every `count` friendly deaths, buff your Rubies +atk/+hp (× golden)
+   *  — raises the run's Ruby strength (carried back at settle, grows held + future Rubies). */
+  avengeRubyStatGain: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 3));
+    if (count % x !== 0) return;
+    ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side);
+  },
+
   /** Herald of the Apocalypse — Rally: each time THIS minion attacks, add a copy of itself to your hand after
    *  combat (golden 2 per attack). Player-only (grantToHand no-ops for a served enemy); fires per hit (Flurry ×2). */
   rallyGrantSelfCopy: (ctx, self, _params, payload) => {

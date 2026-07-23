@@ -17,9 +17,9 @@ export const SPELLS: CardDef[] = [
     keywords: [],
     spell: true,
     cost: 2,
-    target: 'friendly',
+    target: 'any',
     effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 2, health: 3 } }],
-    text: 'Give a friendly minion **+2/+3**.',
+    text: 'Give a minion **+2/+3**.',
   },
   {
     id: 'emberpouch',
@@ -44,9 +44,9 @@ export const SPELLS: CardDef[] = [
     keywords: [],
     spell: true,
     cost: 1,
-    target: 'friendly',
+    target: 'any',
     effects: [{ on: 'cast', do: 'spellBuffTarget', params: { attack: 0, health: 1, keyword: 'T' } }],
-    text: 'Give a friendly minion **+0/+1** and **Taunt**.',
+    text: 'Give a minion **+0/+1** and **Taunt**.',
   },
   {
     // Untargeted board-wide buff. Scales with spell power like every stat spell (spellStatBonus).
@@ -331,9 +331,9 @@ export const SPELLS: CardDef[] = [
     keywords: [],
     spell: true,
     cost: 2,
-    target: 'friendly',
+    target: 'any',
     effects: [{ on: 'cast', do: 'spellSetStats', params: { attack: 20, health: 20 } }],
-    text: "Set a friendly minion's stats to **20/20**.",
+    text: "Set a minion's stats to **20/20**.",
   },
   {
     // Bank a one-shot Start-of-Combat buff: your minions enter the NEXT combat at +2/+1 (+ spell power on
@@ -381,9 +381,9 @@ export const SPELLS: CardDef[] = [
     keywords: [],
     spell: true,
     cost: 1,
-    target: 'friendly',
+    target: 'any',
     effects: [{ on: 'cast', do: 'spellBuffByTier' }],
-    text: 'Give a friendly minion **+1/+1** for each **Tavern Tier**.',
+    text: 'Give a minion **+1/+1** for each **Tavern Tier**.',
   },
   {
     // Sell the target + spit its (current) stats onto your left-most Demon, firing that Demon's on-consume
@@ -607,7 +607,7 @@ export const SPELLS: CardDef[] = [
     keywords: [],
     spell: true,
     cost: 2,
-    target: 'friendly',
+    target: 'any',
     effects: [{ on: 'cast', do: 'spellBuffTargetPerGold', params: { gold: 6, attack: 2, health: 2, baseAttack: 1, baseHealth: 1 } }],
     text: 'Give a minion **+1/+1**, plus **+2/+2** for every **6 Gold** spent this turn.',
   },

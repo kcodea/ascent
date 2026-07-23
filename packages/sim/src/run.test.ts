@@ -4206,10 +4206,10 @@ describe('spell stat bonus + display (@game/sim)', () => {
 
   it('spellDisplayText substitutes the effective value (green via {{…}}); base text otherwise', () => {
     // No bonus → unchanged base text.
-    expect(spellDisplayText('spiritfire', 0)).toBe('Give a friendly minion **+2/+3**.');
+    expect(spellDisplayText('spiritfire', 0)).toBe('Give a minion **+2/+3**.');
     // +1 bonus → the value updates and is highlighted.
-    expect(spellDisplayText('spiritfire', 1)).toBe('Give a friendly minion **{{+3/+4}}**.');
-    expect(spellDisplayText('bulwark', 1)).toBe('Give a friendly minion **{{+1/+2}}** and **Taunt**.');
+    expect(spellDisplayText('spiritfire', 1)).toBe('Give a minion **{{+3/+4}}**.');
+    expect(spellDisplayText('bulwark', 1)).toBe('Give a minion **{{+1/+2}}** and **Taunt**.');
     // A non-stat spell (Gold Pouch) is untouched even with a bonus.
     expect(spellDisplayText('emberpouch', 2)).toBe('Gain **1 Gold**.');
   });
@@ -5008,7 +5008,7 @@ describe('content batch: new minions (@game/sim)', () => {
     const target = s.board.find((c) => c.uid === 't')!;
     expect([target.attack, target.health]).toEqual([4, 6]); // 2/2 + 2/4
     // And the card text shows the effective Health bump (Attack unchanged).
-    expect(spellDisplayText('spiritfire', spellAttackBonus(s), 0, spellHealthBonus(s))).toBe('Give a friendly minion **{{+2/+4}}**.');
+    expect(spellDisplayText('spiritfire', spellAttackBonus(s), 0, spellHealthBonus(s))).toBe('Give a minion **{{+2/+4}}**.');
   });
 
   it('a golden Cinderwing Matron grants +2 spell Health', () => {

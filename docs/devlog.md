@@ -3,6 +3,22 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 1: five targeted spells now castable on shop offers)
+
+### fix(content): apply the "friendly minion = warband-only" target rule to set-1 spells (owner-picked)
+
+Following the owner's rule (a targeted spell hits shop offers too UNLESS its text says "friendly minion"), the
+owner picked which over-restricted spells to open up. Flipped `target: 'friendly'` → `'any'` (and dropped
+"friendly" from the text where present) for: **Spirit Fire** (+2/+3), **Bulwark** (+0/+1 & Taunt), **Lantern
+Light** (+1/+1 per Tier), **Patch Job** (already "a minion"), and **Perfect Vision** (set stats 20/20). The
+owner kept **aresmar / resonance / ossuaryrite / consume / bloodlust** friendly-only (board-only mechanics).
+
+Safe because these all cast through `castSpellOnOffer`, which runs the spell on a temp BoardCard built from the
+offer and diffs the stat/keyword changes back — the same path `shatter` (+stats & Taunt) and `fronttoback`
+already use, so buffs AND the Taunt/set-stats effects transfer to the bought offer. Data-only (no reducer/UI
+change). Two `run.test.ts` display assertions updated to the reworded text. typecheck + lint + full suite +
+build:web green.
+
 ## 2026-07-23 (set 2: Rubies castable on shop offers + buff-FX/isolation rulings)
 
 ### feat(sim/ui): Rubies target `any` (warband OR tavern offer); no generic buff FX; spell↔Ruby buffs isolated

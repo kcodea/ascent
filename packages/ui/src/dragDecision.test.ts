@@ -179,6 +179,22 @@ describe('spell cast', () => {
   });
 });
 
+describe('rubies (set 2) aim like a targeted friendly spell', () => {
+  const rubyView = view({ cardId: 'ruby', ruby: true, target: 'friendly', keywords: [] });
+  it('a Ruby above the play floor targets the friendly minion under the cursor and opens NO insertion gap', () => {
+    const d = deriveDragDecision(
+      input({ drag: drag({ source: 'hand', view: rubyView }), x: 150, y: 200, playFloor: 400, geo: gridGeo({ warband: ['t0', 't1', 't2'] }) }),
+    );
+    expect(d.castTargetUid).toBe('t1'); // x=150 → board slot 1
+    expect(d.overWarband).toBe(false); // a Ruby casts; it never opens a play gap
+    expect(d.gapIndex).toBe(-1);
+  });
+  it('computeCastingSpell is true for a Ruby aimed above the floor (and false below)', () => {
+    expect(computeCastingSpell(drag({ source: 'hand', view: rubyView }), 399, 400)).toBe(true);
+    expect(computeCastingSpell(drag({ source: 'hand', view: rubyView }), 400, 400)).toBe(false);
+  });
+});
+
 describe('shop reorder / buy', () => {
   it('a dragged offer over the tavern (not lifted) opens the shop gap, excluding itself', () => {
     const d = deriveDragDecision(

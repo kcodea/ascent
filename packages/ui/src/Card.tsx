@@ -116,6 +116,9 @@ export interface CardView {
   tier?: number;
   /** A non-minion spell card (e.g. the triple Discover) — hides the stat footer. */
   spell?: boolean;
+  /** A **Ruby** (set 2): a spell-LIKE token — plays from hand by dragging onto a minion (same targeted-aim as
+   *  a spell) to buff it, but it is NOT a Shop Spell. Renders with a stat footer (it carries Attack/Health). */
+  ruby?: boolean;
   /** Requires a friendly target when cast (drives the cast-by-drag targeting). */
   target?: 'friendly';
   /** Base (printed) stats — stats above base render green, below base render red. */

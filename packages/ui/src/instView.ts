@@ -155,7 +155,7 @@ export function instView(
     keywords: inst.keywords, text,
     goldenText,
     golden: inst.golden,
-    tier: c.tier, spell, target: c.target, castMult: spell ? live?.castMult : undefined,
+    tier: c.tier, spell, ruby: c.ruby, target: c.target, castMult: spell ? live?.castMult : undefined,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
     baseHealth: inst.golden ? c.health * 2 : c.health,
     buffs: inst.buffs,

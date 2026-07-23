@@ -3,6 +3,31 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: Rubies are playable — drag-cast UI + art)
+
+### feat(ui): mint → cast → buff, the full Ruby loop in the hand
+
+The UI increment that makes Rubies actually playable. A Ruby now aims and casts exactly like a targeted
+friendly spell, but as its own card class:
+- `CardView.ruby` flag (+ `instView` sets it, + `cardViewEqual` covers it via the exhaustive guard). A Ruby
+  renders as a normal stat-bearing card with its art (NOT a spell scroll — it has Attack/Health).
+- `computeCastingSpell` / `deriveDragDecision` treat a `ruby` card like a `target:'friendly'` spell: dragged
+  UP past the play floor it enters targeted-aim (reticle on the friendly minion under the cursor) and opens NO
+  insertion gap; below the floor it reorders in hand like any card.
+- The drop path (`applyDrop`) routes a Ruby through the spell-CAST branch (release on a friendly minion →
+  `play` with `targetUid`), NOT the minion-play branch — and the target-rect cache, miss-just-ends, and
+  right-click-cancel all include Rubies. The reducer branch (already there) applies the `Ruby` buff.
+- **Art:** `Ruby.png` (from `Set 2 Art/Spells`) wired as `art/minions/ruby.png` (matches the `ruby` card id).
+
+Verified live (Scene Builder, set 2): a Ruby renders with `ruby.png`, and a synthetic drag from hand released
+on a 2/2 minion makes it **3/3** with a `{source:'Ruby'}` buff, the Ruby consumed, `rubyCasts` = 1 — zero
+console errors. New `dragDecision.test.ts` cases pin the Ruby aim (targets the minion, opens no gap; casting
+boundary). typecheck + lint + full suite + build:web green.
+
+Remaining for the tribe: the combat-phase cast path (Avenge / Rally / Start-of-Combat "Play a Ruby", temporary
+unless Engraved), the umbrella cast-triggers (Gemgorge fires on Shop Spells AND Rubies), Warding Ruby / Gold
+Pouch / Paragon's 3×, then the other Kobolds — and a distinct gem FRAME if the plain card look isn't enough.
+
 ## 2026-07-23 (set 2: make Kobolds actually appear — sprite fallback + per-set tribe roster)
 
 ### fix(ui/sim): Kobold cards render, and set-2 runs offer Kobolds in the shop

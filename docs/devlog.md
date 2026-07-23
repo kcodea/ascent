@@ -3,6 +3,33 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (perf: value-stable card views — cards stop re-rendering on every action)
+
+### perf(ui): reuse unchanged CardView objects so Card's memo bails (audit fix #1)
+
+Audit + Codex finding: every accepted reducer action `structuredClone`s the run (reducer.ts), replacing the
+identities of `board`/`hand`/`shop` and every card. The view-map memos in Recruit are keyed on those
+identities, so they rebuild fresh `CardView` objects for EVERY card each dispatch — and since `Card` is
+`React.memo`'d with a shallow prop compare, a new `card` object defeats the bailout, so **all ~14 cards
+re-render on every buy/play/sell/roll**, scaling with board size late-game. (This is a DISPATCH cost — during a
+drag there's no dispatch, so the memos already stay stable and cards bail; confirmed by the instrumented trace,
+where `render:recruit` averages 0.9ms because drag renders skip the cards.)
+
+Fix (pure UI-side, never touches the sim or the clone): a post-derivation value cache. `cardViewEqual` compares
+a freshly-built view to the previous one for that uid across EVERY displayed field; `stabilizeViewMap` reuses
+the previous object when they're equal, so an unchanged card keeps the SAME reference and `Card`'s memo skips
+it. Applied to all five view sources — `shopViews`, `spellView`, `boardViews`, `handViews`, and the
+`refViewsByUid` popup arrays. The returned map IS the next cache (current uids only → no leak).
+
+The comparison is COMPILE-TIME EXHAUSTIVE (Codex's ask): a `_MissingKey` type guard fails to build if a new
+`CardView` field isn't covered — so a future display field can't silently slip past and cause a stale card.
+
+Verified live: stats/text update correctly through a Brightwing buff (2/2→3/3) and an attachment weld
+(6/6→10/10) — no staleness; and a roll (shop-only change) leaves the board cards' DOM node IDENTICAL, proving
+the bailout now fires (before, every card re-rendered on every action). New `cardViewEqual.test.ts` (9 cases:
+detects every field-kind change, reuses references when equal, no cache leak). typecheck (root) + lint + **1443
+tests** + `build:web` green; no new `typecheck:web` errors (52→52).
+
 ## 2026-07-23 (perf: Discover dim drops the full-viewport backdrop blur)
 
 ### perf(ui): dim the board behind a Discover instead of blurring the whole framebuffer

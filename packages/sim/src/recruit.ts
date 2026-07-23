@@ -2068,6 +2068,24 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     refillShopFiltered(ctx.state, (c) => c.tier === tier && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)));
   },
 
+  /** Layaway — cast on a TAVERN OFFER (via `castSpellOnOffer`, whose throwaway shares the offer's uid): keep
+   *  that offer through rerolls (`kept`) and cut its cost by `reduce` (floored at 0). */
+  spellLayaway: (ctx, self, params) => {
+    const offer = ctx.state.shop.find((o) => o.uid === self.uid);
+    if (!offer) return;
+    offer.kept = true;
+    offer.cost = Math.max(0, (offer.cost ?? CONFIG.minionCost) - num(params.reduce, 1));
+  },
+
+  /** Second Draft — cast on a friendly (non-Gilded, enforced by `targetNoGolden`) minion: return it to your
+   *  hand INTACT (all buffs kept) to be replayed. The spell is consumed after, so the swap nets to fit the hand. */
+  spellReturnToHand: (ctx, self) => {
+    const bi = ctx.state.board.findIndex((c) => c.uid === self.uid);
+    if (bi < 0) return;
+    const [minion] = ctx.state.board.splice(bi, 1);
+    if (minion) ctx.state.hand.push(minion);
+  },
+
   /** Mana Font — cast: raise MAX Mana by `amount`, UNCAPPED (may push past the normal cap). Current Mana
    *  is NOT topped up — you don't gain the new Mana this turn, just a bigger pool from next turn on. */
   gainMaxMana: (ctx, _self, params) => {

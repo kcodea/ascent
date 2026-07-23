@@ -72,11 +72,14 @@ export function takeFromPool(state: RunState, cardId: string): void {
  * cursor so rerolls are reproducible.
  */
 export function rollShop(state: RunState): void {
-  for (const offer of state.shop) returnToPool(state, offer.cardId);
+  // Layaway: kept offers survive the reroll — they stay in place (never returned to the pool) and fill the
+  // leftmost slots; the rest are returned and redrawn. No kept offers → identical to before (seeds unchanged).
+  const kept = state.shop.filter((o) => o.kept);
+  for (const offer of state.shop) if (!offer.kept) returnToPool(state, offer.cardId);
   const rng = makeRng(state.rngCursor);
   const slots = tierSlots(state.tier);
-  const offers: RunState['shop'] = [];
-  for (let i = 0; i < slots; i++) {
+  const offers: RunState['shop'] = [...kept];
+  for (let i = kept.length; i < slots; i++) {
     const id = drawOfferId(rng, availableOffers(state), state.tier);
     if (!id) break; // pool exhausted — fewer offers
     state.pool[id] -= 1;

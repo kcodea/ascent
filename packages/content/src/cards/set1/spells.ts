@@ -895,4 +895,39 @@ export const SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellRefreshTierUp' }],
     text: 'Replace the minions in the Shop with random minions **one tier higher**.',
   },
+
+  // --- New spells (2026-07-23 batch, tranche B3 — offer / minion manipulation; set-agnostic). ---
+  {
+    // Cast on a SHOP offer: it survives rerolls (kept) and costs 1 less. `target: 'any'` for the drag, but it
+    // fizzles on a board minion (the reducer guards it) since only an offer can be kept.
+    id: 'layaway',
+    name: 'Layaway',
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'any',
+    effects: [{ on: 'cast', do: 'spellLayaway', params: { reduce: 1 } }],
+    text: 'Choose a minion in the Shop. **Keep it** through refreshes and reduce its cost by **1**.',
+  },
+  {
+    // Return a friendly non-Gilded minion to hand INTACT (keeps its buffs) — replay it for its Battlecry, or
+    // just reposition. `targetNoGolden` makes a golden (triple) target fizzle.
+    id: 'seconddraft',
+    name: 'Second Draft',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 3,
+    target: 'friendly',
+    targetNoGolden: true,
+    effects: [{ on: 'cast', do: 'spellReturnToHand' }],
+    text: 'Return a friendly **non-Gilded** minion to your hand.',
+  },
 ];

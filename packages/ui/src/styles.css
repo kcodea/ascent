@@ -4758,10 +4758,16 @@ button.frzwrap.frzwrap:focus-visible {
    and the fallbacks here MIRROR the DEFAULTS in buffDrawerConfig.ts — update both when baking.
    Anchored to `.statusbar .hero` (already positioned), so it rides the portrait wherever the layout tuner
    puts it rather than needing its own stage pin. */
-.herobuffs { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); z-index: 12; display: flex; align-items: center; pointer-events: auto; }
+/* The CONTAINER is a hit-test DEADZONE: it's a flex box positioned `left: 100%` of the hero panel and the
+   collapsed drawer still occupies its `min-width` in layout, so the box reaches rightward OVER the leftmost
+   hand card. With `pointer-events: auto` the empty container swallowed that card's hover, so it never popped
+   (owner report 2026-07-22, only at wide/exe resolutions where the boxes overlap). `none` here + `auto` on the
+   interactive children (tab always, body when open) lets the hover pass through to the card while the tab stays
+   clickable — the same pattern as `.handpad`. */
+.herobuffs { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); z-index: 12; display: flex; align-items: center; pointer-events: none; }
 /* The VERTICAL tab — a narrow dark-glass sliver straddling the portrait's edge. */
 .herobuffs-tab {
-  position: relative; z-index: 2;
+  position: relative; z-index: 2; pointer-events: auto; /* the only always-interactive part (container is none) */
   margin-left: calc(var(--bfd-tab-x, -6) * var(--u));
   transform: translateY(calc(var(--bfd-tab-y, 0) * var(--u))) scale(var(--bfd-tab-s, 0.71));
   width: calc(var(--bfd-tab-w, 18) * var(--u));
@@ -4826,8 +4832,9 @@ button.frzwrap.frzwrap:focus-visible {
 .herobuffs-body .buff-row { display: flex; align-items: baseline; justify-content: space-between; gap: calc(10 * var(--u)); font-size: calc(var(--bfd-text-s, 11) * var(--u)); }
 .herobuffs-body .buff-label { color: #d8ccb6; font-weight: 600; }
 .herobuffs-body .buff-val { color: #f4ecdb; font-weight: 900; }
-/* Mid-drag the drawer must not eat a drop aimed at the corner (mirrors the hero/Embers rule above). */
-body.dragging .herobuffs { pointer-events: none; }
+/* Mid-drag nothing in the strip may eat a drop aimed at the corner (mirrors the hero/Embers rule above). The
+   container is already `none`; disable the interactive children too so a dragged card drops straight through. */
+body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: none; }
 
 /* ---- SPELL POWER floating number (`floatSpellPowerNumber`, spellPowerFxConfig.ts).
    One-shot element appended to <body> for a single cast, animated by WAAPI (transform + opacity only) and

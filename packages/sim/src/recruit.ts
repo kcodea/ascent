@@ -2277,6 +2277,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, str(params._source) || 'Perfect Vision', a - self.attack, h - self.health);
   },
 
+  /** Common Ground — cast with TWO friendly targets (the second is `self`; the first is stashed on
+   *  `pendingTarget.spellFirstUid`): set BOTH minions to the rounded average of their combined Attack and
+   *  Health. Applied as delta buffs so it folds through the inspect breakdown. No spell-power scaling. */
+  spellAverageStats: (ctx, self) => {
+    const first = ctx.state.board.find((c) => c.uid === ctx.state.pendingTarget?.spellFirstUid);
+    if (!first || first.uid === self.uid) return;
+    const avgA = Math.round((first.attack + self.attack) / 2);
+    const avgH = Math.round((first.health + self.health) / 2);
+    addBuff(first, 'Common Ground', avgA - first.attack, avgH - first.health);
+    addBuff(self, 'Common Ground', avgA - self.attack, avgH - self.health);
+  },
+
   /** Turnabout — cast: swap the target's Attack and Health. Applied as a delta buff (like `spellSetStats`) so
    *  the swap folds through the buff breakdown and back onto a tavern offer via `castSpellOnOffer`. A literal
    *  swap: a 0-Attack minion becomes 0-Health (the player's call). No spell-power scaling — it moves existing

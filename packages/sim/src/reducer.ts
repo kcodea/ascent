@@ -767,6 +767,13 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (boardTarget && def.targetNoGolden && boardTarget.golden) return state;
           // Layaway needs a SHOP offer (keep + cost cut) — aimed at a board minion it fizzles, kept in hand.
           if (boardTarget && def.effects.some((e) => e.do === 'spellLayaway')) return state;
+          // Common Ground: the drag picked the FIRST friendly minion — defer to the aim picker for the SECOND,
+          // then average the pair on `battlecryTarget`. Needs another friendly minion to exist, else it fizzles.
+          if (boardTarget && def.effects.some((e) => e.do === 'spellAverageStats')) {
+            if (!s.board.some((c) => c.uid !== boardTarget.uid)) return state; // no second minion → keep in hand
+            s.pendingTarget = { uid: card.uid, cardId: def.id, spell: true, spellFirstUid: boardTarget.uid };
+            return s;
+          }
           // Displacement needs a tavern MINION to swap with (spells can't be displaced) — with none in the
           // tavern the swap can't happen, so the spell fizzles and stays in hand.
           if (boardTarget && def.effects.some((e) => e.do === 'spellDisplace') &&
@@ -1002,6 +1009,23 @@ function reduceCore(state: RunState, action: Action): RunState {
     case 'battlecryTarget': {
       if (!s.pendingTarget) return state;
       const pt = s.pendingTarget;
+      // Common Ground (spell two-target): `pt.uid` is a HAND spell, not a board minion. The picker chose the
+      // SECOND friendly minion — cast the average onto it (the factory reads the FIRST from `pt.spellFirstUid`),
+      // then consume the spell. A missing/duplicate target fizzles but still consumes the spell.
+      if (pt.spell) {
+        const hi = s.hand.findIndex((c) => c.uid === pt.uid);
+        const first = s.board.find((c) => c.uid === pt.spellFirstUid);
+        const second = s.board.find((c) => c.uid === action.targetUid);
+        const spellDef = CARD_INDEX[pt.cardId];
+        if (hi >= 0 && spellDef && first && second && first.uid !== second.uid) {
+          castSpell(s, spellDef, second); // factory averages `second` with `pt.spellFirstUid` BEFORE we clear pt
+          s.hand.splice(hi, 1);
+          s.playedThisTurn = [...(s.playedThisTurn ?? []), pt.cardId]; // counts as a card played (Rune of Action)
+        }
+        s.pendingTarget = undefined;
+        checkTriples(s);
+        return s;
+      }
       const card = s.board.find((c) => c.uid === pt.uid);
       const target = s.board.find((c) => c.uid === action.targetUid);
       if (!card || !target) return state; // a friendly target is required

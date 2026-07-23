@@ -8,11 +8,11 @@ import { questRewardText } from './questText';
 import { useGame } from './store';
 
 /** Tribe → emblem glyph fallback when a quest has no art yet (mirrors QuestBadges). */
-const TRIBE_ICON: Record<string, string> = { beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star' };
+const TRIBE_ICON: Record<string, string> = { beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star', kobold: 'crown' };
 
 /** Tribe → display label; pluralized by count (Undead is already plural). "3 Dragons", "1 Mech", "5 Undead". */
 const TRIBE_LABEL: Record<string, string> = {
-  beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral',
+  beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral', kobold: 'Kobold',
 };
 const tribeLabel = (tribe: string, count: number): string =>
   `${TRIBE_LABEL[tribe] ?? tribe}${count === 1 || tribe === 'undead' ? '' : 's'}`;

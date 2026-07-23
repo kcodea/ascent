@@ -1800,7 +1800,7 @@ export function Recruit() {
         .map((el) => ({ uid: el.getAttribute('data-uid') ?? '', r: el.getBoundingClientRect() }))
         .filter((c) => c.uid);
     targetRectsRef.current =
-      drag.view.spell && (drag.view.target === 'friendly' || drag.view.target === 'any')
+      (drag.view.spell || drag.view.ruby) && (drag.view.target === 'friendly' || drag.view.target === 'any')
         ? {
             board: measureCards('[data-zone="warband"] .row .card[data-uid]'),
             shop: drag.view.target === 'any' ? measureCards('[data-zone="tavern"] .card[data-uid]:not(.spellcard)') : [],
@@ -1941,7 +1941,7 @@ export function Recruit() {
       // transforms) so a hand-play / board-reorder / shop-reorder commit can FLIP each neighbour from where it
       // actually sits to its final slot — no jump when a fast "land it far over" release outran the throttled
       // preview, and no replay of the dragged card's whole move.
-      const handMinionDrop = d.source === 'hand' && !d.view.spell && zone === 'warband';
+      const handMinionDrop = d.source === 'hand' && !d.view.spell && !d.view.ruby && zone === 'warband';
       const boardReorderDrop = d.source === 'board' && zone === 'warband';
       const shopReorderDrop = d.source === 'shop' && zone === 'tavern' && d.uid !== run.spell?.uid;
       // A SELL (board→tavern) re-centres the WARBAND; a BUY (shop→hand) re-centres the TAVERN. During the
@@ -2009,8 +2009,8 @@ export function Recruit() {
       // row's live spots above and glides only the cards that actually shifted (the dragged card is excluded,
       // so it never re-slides; on a sell/buy the survivors already sat re-centred, so they barely move).
       if (acted && (handMinionDrop || boardReorderDrop || shopReorderDrop || sellDrop || buyDrop)) handPlaySnapRef.current = true;
-      if (acted || d.view.spell) {
-        // a spell that misses just ends — it was never lifted from the hand
+      if (acted || d.view.spell || d.view.ruby) {
+        // a spell / Ruby that misses just ends — it was never lifted from the hand
         setDrag(null);
         setOverZone(null);
       } else {
@@ -2027,7 +2027,7 @@ export function Recruit() {
     };
     // Right-click while aiming a spell cancels it (snaps back to the hand).
     const onCtx = (e: MouseEvent): void => {
-      if (dragRef.current?.view.spell) {
+      if (dragRef.current?.view.spell || dragRef.current?.view.ruby) {
         e.preventDefault();
         setDrag(null);
         setOverZone(null);
@@ -3216,7 +3216,7 @@ export function Recruit() {
     // Cast a spell — playable anywhere from the warband up (incl. the tavern), since spells can't
     // be sold. A targeted spell hits the minion under the cursor, or auto-targets the carry when
     // flung up with no minion under it; an untargeted spell just resolves.
-    if (d.source === 'hand' && d.view.spell) {
+    if (d.source === 'hand' && (d.view.spell || d.view.ruby)) {
       const up = zone === 'warband' || zone === 'tavern';
       if (d.view.target === 'friendly' || d.view.target === 'any') {
         // Explicit drop only: release squarely over a friendly minion (or, for `any` spells like Shatter,
@@ -3258,7 +3258,7 @@ export function Recruit() {
       }
       return false;
     }
-    if (d.source === 'hand' && !d.view.spell) {
+    if (d.source === 'hand' && !d.view.spell && !d.view.ruby) {
       // Released UP in the play area (the reorder case, y ≥ play floor, is handled above) → PLAY it if there's
       // room. You needn't hit the warband row exactly; land where the preview's gap was last rendered
       // (WYSIWYG) so neighbours don't rebound. Board full → snap back.
@@ -3589,8 +3589,8 @@ export function Recruit() {
                 refCards={refViewsByUid.get(m.uid)}
                 dragging={!!drag?.active}
                 dimmed={isDragging(m.uid)}
-                buffed={buffedUids.has(m.uid)}
-                buffFloat={statFloats[m.uid] ?? null}
+                buffed={!handViews.get(m.uid)?.ruby && buffedUids.has(m.uid)}
+                buffFloat={handViews.get(m.uid)?.ruby ? null : (statFloats[m.uid] ?? null)}
                 arrived={arrivedUids.has(m.uid)}
                 handSlidePx={handSlide(i) * handSlotWRef.current}
                 fanRot={fanRot}

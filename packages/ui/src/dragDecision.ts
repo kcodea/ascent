@@ -28,7 +28,7 @@ export type DragSource = 'hand' | 'board' | 'shop';
 export interface DragLike {
   uid: string;
   source: DragSource;
-  view: Pick<CardView, 'cardId' | 'keywords' | 'spell' | 'target'>;
+  view: Pick<CardView, 'cardId' | 'keywords' | 'spell' | 'ruby' | 'target'>;
   ox: number;
   w: number;
   startY: number;
@@ -96,7 +96,8 @@ export function computeCastingSpell(drag: DragLike | null, y: number, playFloor:
   return (
     !!drag?.active &&
     drag.source === 'hand' &&
-    !!drag.view.spell &&
+    // A Ruby (set 2) aims like a targeted spell — same drag-to-cast, different card class.
+    (!!drag.view.spell || !!drag.view.ruby) &&
     (drag.view.target === 'friendly' || drag.view.target === 'any') &&
     y < playFloor
   );
@@ -132,6 +133,7 @@ export function deriveDragDecision(inp: DragDecisionInput): DragDecision {
     !magSlide &&
     !wouldMagnetize &&
     !drag.view.spell &&
+    !drag.view.ruby && // a Ruby aims like a spell — it casts on a minion, it doesn't open an insertion gap
     // A board minion reorders only while over the warband row (dragging it up = sell). A HAND minion plays
     // anywhere ABOVE the play floor; below it the preview clears (a release there cancels back to hand).
     ((drag.source === 'board' && overZone === 'warband') ||

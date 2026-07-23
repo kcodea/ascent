@@ -5,7 +5,7 @@ import { z } from 'zod';
  * type in `@game/core` is the canonical compile-time shape; this schema guards
  * the *data* at load and is kept in lockstep with it.
  */
-export const TribeSchema = z.enum(['beast', 'undead', 'mech', 'dragon', 'demon', 'neutral']);
+export const TribeSchema = z.enum(['beast', 'undead', 'mech', 'dragon', 'demon', 'neutral', 'kobold']);
 
 export const KeywordSchema = z.enum(['T', 'DS', 'V', 'W', 'R', 'C', 'M', 'SC', 'CN', 'FD', 'IMM', 'ST', 'RL', 'SL', 'CR', 'EG']);
 
@@ -247,6 +247,10 @@ export const EffectFactoryIdSchema = z.enum([
   'onSellDiscover',
   'deathrattleGainRandomMinion',
   'deathrattleBuffImpsImproving',
+  // Set 2 — Kobolds / Rubies
+  'getRubies',        // Shout/Rally: mint N Rubies into hand (base 1/1 + rubyBonus)
+  'rubyStatGain',     // "Your Rubies gain +X/+Y" — raises rubyBonus + grows held Rubies
+  'scPlayRubies',     // Start of Combat: play N Rubies on your [tribe] minions (permanent carry-back)
 ]);
 
 export const EffectDefSchema = z.object({
@@ -294,6 +298,7 @@ export const CardDefSchema = z.object({
   ascendInto: z.string().optional(),
   attackOnSummon: z.boolean().optional(),
   spell: z.boolean().optional(),
+  ruby: z.boolean().optional(),
   singleCast: z.boolean().optional(),
   cost: z.number().int().nonnegative().optional(),
   target: z.enum(['friendly', 'any']).optional(),

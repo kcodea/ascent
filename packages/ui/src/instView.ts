@@ -148,14 +148,20 @@ export function instView(
   const undead = !spell && (inst.tribe === 'undead' || c.tribe2 === 'undead' || !!c.universalTribe);
   const auraAtk = undead ? undeadAtkBonus : 0;
   const auraHp = undead ? undeadHpBonus : 0;
+  const shownAtk = (override?.attack ?? inst.attack) + auraAtk;
+  const shownHp = (override?.health ?? inst.health) + auraHp;
+  // A Ruby renders with the spell look (no stat footer), so its GRANT must live in the text — "+A/+H" where
+  // A/H are the stats it was minted with (base 1/1 + the run's rubyBonus). Live by construction: the numbers
+  // ARE the card's current stats.
+  const shownText = c.ruby ? `Give a minion **+${shownAtk}/+${shownHp}**.` : text;
   return {
     name: c.name, cardId: c.id, tribe: inst.tribe, tribe2: c.tribe2,
     universalTribe: !!c.universalTribe || !!(inst as { allTribes?: boolean }).allTribes,
-    attack: (override?.attack ?? inst.attack) + auraAtk, health: (override?.health ?? inst.health) + auraHp,
-    keywords: inst.keywords, text,
+    attack: shownAtk, health: shownHp,
+    keywords: inst.keywords, text: shownText,
     goldenText,
     golden: inst.golden,
-    tier: c.tier, spell, target: c.target, castMult: spell ? live?.castMult : undefined,
+    tier: c.tier, spell, ruby: c.ruby, target: c.target, castMult: spell ? live?.castMult : undefined,
     baseAttack: inst.golden ? c.attack * 2 : c.attack,
     baseHealth: inst.golden ? c.health * 2 : c.health,
     buffs: inst.buffs,

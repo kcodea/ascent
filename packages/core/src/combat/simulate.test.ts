@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { combatSide, simulate, makeRng, type BoardMinion, type CombatEvent, type CombatSideState, type Keyword } from '../index';
+import { combatSide, simulate, makeRng, type BoardMinion, type CardDef, type CombatEvent, type CombatSideState, type Keyword } from '../index';
 import { CARD_INDEX, badgeIdForCombatFlag } from '@game/content';
 
 /** The health deltas of every `buff` event in a combat (for asserting Deathrattle HP grants). */
@@ -2603,6 +2603,27 @@ describe('simulate (handoff A.3)', () => {
       expect(b.attack % 2).toBe(0); // each gift is +2/+2 (or a multiple if a minion was picked twice)
       expect(b.health % 2).toBe(0);
     }
+  });
+
+  it('set 2 — a Start-of-Combat Ruby cast buffs friends by base 1/1 + rubyBonus and carries back PERMANENTLY', () => {
+    // A synthetic Kobold plays 1 Ruby on your Kobolds at Start of Combat. With rubyBonus +1/+1 a Ruby is 2/2,
+    // so each Kobold gets +2/+2 — permanent (owner: Ruby buffs are always permanent), so it appears in
+    // playerPermaBuffs even though neither minion is Engraved. The neutral dummy is NOT a Kobold → untouched.
+    const kobtest: CardDef = { id: 'kobtest', name: 'Ruby Caster', tribe: 'kobold', tier: 3, attack: 2, health: 8, keywords: [],
+      effects: [{ on: 'startOfCombat', do: 'scPlayRubies', params: { count: 1, tribe: 'kobold' } }], text: '' };
+    const dummy: CardDef = { id: 'kdummy', name: 'Dummy', tribe: 'neutral', tier: 1, attack: 1, health: 10, keywords: [], effects: [], text: '' };
+    const cards = { ...CARD_INDEX, kobtest, kdummy: dummy };
+    const p: BoardMinion[] = [
+      { cardId: 'kobtest', attack: 2, health: 8, sourceUid: 'K' },
+      { cardId: 'kdummy', attack: 1, health: 10, sourceUid: 'D' },
+    ];
+    const r = simulate(p, [{ cardId: 'sandbag', attack: 0, health: 300 }], makeRng(3), cards,
+      combatSide({ tier: 6, tribes: ['kobold'], rubyBonus: { attack: 1, health: 1 } }), combatSide({ tier: 1 }));
+    // The Kobold caster got its own +2/+2 (a Ruby = 1/1 + rubyBonus 1/1), carried back, NOT Engraved.
+    const kPerma = r.playerPermaBuffs?.find((b) => b.sourceUid === 'K');
+    expect(kPerma).toMatchObject({ attack: 2, health: 2, engraved: false });
+    // The neutral dummy is not a Kobold → no Ruby, no carry-back.
+    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'D')).toBe(false);
   });
 
   it('Taurus engraves an adjacent minion — that minion keeps its combat gains (carry-back)', () => {

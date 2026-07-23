@@ -55,11 +55,11 @@ const KW_ICON: Record<Keyword, string> = {
   CN: 'consume', FD: 'fodder', IMM: 'immune', ST: 'eye', RL: 'sword', SL: 'slaughter', CR: 'target', EG: 'anvil',
 };
 const TRIBE_LABEL: Record<Tribe, string> = {
-  beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral',
+  beast: 'Beast', dragon: 'Dragon', mech: 'Mech', undead: 'Undead', demon: 'Demon', neutral: 'Neutral', kobold: 'Kobold',
 };
 /** Each tribe's own footer glyph (handoff: the symbol matches the type — paw = Beast, etc.). */
 const TRIBE_ICON: Record<Tribe, string> = {
-  beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star',
+  beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star', kobold: 'crown',
 };
 
 /** Render rules text to HTML: fold the player-facing keyword rename (Battlecry→Shout, …) in FIRST, then bold
@@ -116,6 +116,9 @@ export interface CardView {
   tier?: number;
   /** A non-minion spell card (e.g. the triple Discover) — hides the stat footer. */
   spell?: boolean;
+  /** A **Ruby** (set 2): a spell-LIKE token — plays from hand by dragging onto a minion (same targeted-aim as
+   *  a spell) to buff it, but it is NOT a Shop Spell. Renders with a stat footer (it carries Attack/Health). */
+  ruby?: boolean;
   /** Requires a friendly target when cast (drives the cast-by-drag targeting). */
   target?: 'friendly';
   /** Base (printed) stats — stats above base render green, below base render red. */
@@ -392,11 +395,14 @@ export const Card = memo(function Card({
   // Size the rules text from the LIVE text string (values already folded in), never by measuring the DOM.
   const txtBucket = plateTextBucket(shownText);
   const isTaunt = card.keywords.includes('T');
-  const useSpellFrame = !!card.spell && card.cardId !== 'discoverspell' && pframeOk;
-  const useStdFrame = !card.spell && !isTaunt && sframeOk;
+  // A Ruby (set 2) is a spell-LIKE card: it wears the SPELL treatment (purple square frame, spell pill, no
+  // stat footer / tribe line) even though it's its own class mechanically. `spellLike` gates the visual only.
+  const spellLike = !!card.spell || !!card.ruby;
+  const useSpellFrame = spellLike && card.cardId !== 'discoverspell' && pframeOk;
+  const useStdFrame = !spellLike && !isTaunt && sframeOk;
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
@@ -673,8 +679,8 @@ export const Card = memo(function Card({
         {/* Golden (tripled) marker — a gold crown emblem; pairs with the gold arch frame so a tripled
             minion is instantly findable in a row. */}
         {card.golden && <span className="goldcrown" aria-hidden="true"><Icon name="crown" /></span>}
-        {card.spell ? (
-          <span className="ctype spell">✦ Spell</span>
+        {spellLike ? (
+          <span className="ctype spell">{card.ruby ? '◆ Ruby' : '✦ Spell'}</span>
         ) : (
           <>
             <span className={`atk${statCls(card.attack, card.baseAttack, card.floorAttack)}${card.flashAtk ? ' statflash' : ''}`}>{card.attack}</span>
@@ -694,7 +700,7 @@ export const Card = memo(function Card({
             <span dangerouslySetInnerHTML={{ __html: descUp(mdBold(shownText)) }} />
           </div>
         )}
-        {!card.spell && (
+        {!spellLike && (
           <div className="dtribe">
             {/* An "All" type prints ALL rather than its printed tribe — Lab Experiment reads `neutral` in data
                 but counts as every tribe, and showing NEUTRAL made it look like it took no tribal buffs. */}

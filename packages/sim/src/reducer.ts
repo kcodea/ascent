@@ -678,6 +678,26 @@ function reduceCore(state: RunState, action: Action): RunState {
         return s;
       }
 
+      // Rubies (set 2): a Ruby plays from hand onto a friendly minion — it grants that minion the Ruby's
+      // current Attack/Health as a PERMANENT buff (source 'Ruby', itemized in the inspect breakdown so other
+      // Kobolds can key off it), then is consumed. The buff is permanent exactly like a spell buff — shop or
+      // combat, it never falls off (owner ruling 2026-07-23). A Ruby is NOT a Shop Spell: it
+      // never touches `spellsCast` or any Shop-Spell trigger/quest; it advances its OWN `rubyCasts` counter,
+      // and umbrella cards ("both spells and Rubies") read `spellsCast + rubyCasts`. No target → fizzle (kept).
+      if (def?.ruby) {
+        // A Ruby (target 'any') can land on a warband minion OR a tavern offer (buff it pre-buy) — same as an
+        // `any` spell. No valid target → fizzle (kept in hand).
+        const boardTarget = s.board.find((c) => c.uid === action.targetUid);
+        const offer = s.shop.find((o) => o.uid === action.targetUid && !CARD_INDEX[o.cardId]?.spell);
+        if (boardTarget) addBuff(boardTarget, 'Ruby', card.attack, card.health);
+        else if (offer) addOfferBuff(offer, 'Ruby', card.attack, card.health);
+        else return state;
+        s.hand.splice(i, 1);
+        s.rubyCasts = (s.rubyCasts ?? 0) + 1;
+        s.rubyCastsThisTurn = (s.rubyCastsThisTurn ?? 0) + 1;
+        return s;
+      }
+
       // Other spells: cast on the chosen target, then consume — no board slot.
       if (def?.spell) {
         // Spell Choose One (Apples): a SPELL choice — its own thing, NOT a Battlecry. Pause for the pick,
@@ -1428,6 +1448,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         beastsPlayed,
         magneticAtk: s.magneticBuyAtk ?? 0,
         magneticHp: s.magneticBuyHp ?? 0,
+        rubyBonus: s.rubyBonus ?? { attack: 0, health: 0 },
         tier: s.tier,
         tribes: s.tribes,
         cardBuffs: s.cardBuffs ?? {},
@@ -1552,8 +1573,10 @@ function checkTriples(s: RunState): void {
   for (let guard = 0; guard < 10; guard++) {
     const counts = new Map<string, number>();
     for (const c of [...s.board, ...s.hand]) {
-      // Spells are never minions — they don't triple (they're cast for their effect).
-      if (!c.golden && !CARD_INDEX[c.cardId]?.spell) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
+      // Spells + Rubies are never minions — they don't triple (they're cast for their effect; owner: Rubies
+      // are spells for this purpose). Both play from hand for an effect, never combine into a golden.
+      const cd = CARD_INDEX[c.cardId];
+      if (!c.golden && !cd?.spell && !cd?.ruby) counts.set(c.cardId, (counts.get(c.cardId) ?? 0) + 1);
     }
     const need = s.runeTwinGilding ? 2 : 3; // Rune of Twin Gilding: Gild at 2 copies
     let tripleId: string | undefined;

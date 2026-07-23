@@ -1,7 +1,7 @@
 import type { Rng } from './rng';
 import type { CombatBus } from './events';
 
-export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral';
+export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral' | 'kobold';
 
 /** Keyword codes (handoff A.4). */
 export type Keyword =
@@ -330,7 +330,10 @@ export type EffectFactoryId =
   | 'deathrattleCastTribeAttack' // Anubis: Echo casts Lantern of Souls
   | 'onSellDiscover' // Salvatore McKlusky: selling this opens Discovers
   | 'deathrattleGainRandomMinion' // Lab Experiment: Echo conjures a random minion of a tier
-  | 'deathrattleBuffImpsImproving' // Amun Rab: Echo buffs Imps, improving each proc; // Tauntbreaker: on-attack — strip listed keywords (Taunt / Rise) off the enemy it hits (combat)
+  | 'deathrattleBuffImpsImproving' // Amun Rab: Echo buffs Imps, improving each proc;
+  | 'getRubies' // Set 2 — Shout/Rally: mint N Rubies into hand
+  | 'rubyStatGain' // Set 2 — "Your Rubies gain +X/+Y": raise the run's Ruby strength (hand + future)
+  | 'scPlayRubies'; // Set 2 — Start of Combat: play N Rubies on your [tribe] minions (permanent carry-back)
 
 export interface EffectDef {
   on: GameEvent;
@@ -390,6 +393,12 @@ export interface CardDef {
   attackOnSummon?: boolean;
   /** A spell, not a minion: cast from hand for an effect, never takes a board slot. */
   spell?: boolean;
+  /** A **Ruby** (set 2 Kobolds): a spell-like token that is NOT a Shop Spell — it plays from hand like a
+   *  targeted spell (drag onto a minion) to grant that minion the Ruby's current Attack/Health as a buff,
+   *  but it does NOT count for Shop-Spell triggers (Archmagus Guel, `spellsCast`). Rubies have their own
+   *  cast counter; some cards trigger on the umbrella of BOTH (see the cast taxonomy in the reducer). A Ruby
+   *  carries stats (base 1/1 + the run's `rubyBonus`, baked when minted) and is consumed on cast. */
+  ruby?: boolean;
   /** This spell resolves exactly once — spell-quantity multipliers can't make it fire twice
    *  (Channeling the Devourer: devouring two minions would be absurd). */
   singleCast?: boolean;
@@ -1124,6 +1133,10 @@ export interface CombatSideState {
   /** Attachment/Magnetic aura (Scrap Herald / Banksly welds) — sizes this side's from-base Magnetics. */
   magneticAtk: number;
   magneticHp: number;
+  /** Set 2 — this side's Ruby STRENGTH (the run's `rubyBonus`): the extra Attack/Health on top of a Ruby's
+   *  base 1/1, so a combat-cast Ruby (Avenge / Rally / Start-of-Combat "Play a Ruby") applies the same amount
+   *  the shop does. Default zero (a Ruby is 1/1). Player-authoritative today. */
+  rubyBonus: { attack: number; health: number };
   /** This side's tavern tier. The player's drives token/spell generation; the enemy's drives loss-damage. */
   tier: number;
   /** This side's active tribes — the generation pool filter. */
@@ -1329,6 +1342,9 @@ export interface CombatContext {
   /** Per-side spell power: the player's live value, or the enemy's captured value. Use this in any combat
    *  effect that casts a spell / folds spell power, keyed on the acting minion's `side`. */
   spellPowerFor(side: Side): { attack: number; health: number };
+  /** Per-side Ruby strength (set 2): the extra Attack/Health a combat-cast Ruby carries on top of its base
+   *  1/1 (the run's `rubyBonus`). Player-authoritative today; the enemy side is zero. */
+  rubyBonusFor(side: Side): { attack: number; health: number };
   /** Per-side "spells cast this turn" — player's, or the opponent's captured value. */
   spellsThisTurnFor(side: Side): number;
   /** How many times an "Improve" step applies for `side` — 2 under Rune of Mastery, else 1. Every combat

@@ -839,6 +839,28 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Set 2 — Start of Combat: "Play N Rubies on your [tribe] minions." Each eligible living friend gets `count`
+   *  Ruby buffs; a Ruby = base 1/1 + this side's `rubyBonus`. PERMANENT via `permaGain` so the gift carries back
+   *  to the run board (owner: Ruby buffs are always permanent, in shop or combat). `count` = Rubies per minion
+   *  (× golden); optional `tribe` filters recipients (e.g. `'kobold'`; omit = all your minions). */
+  scPlayRubies: (ctx, self, params) => {
+    const per = num(params.count, 1) * mul(self);
+    if (per <= 0) return;
+    const tribe = str(params.tribe);
+    const rb = ctx.rubyBonusFor(self.side);
+    const a = (1 + rb.attack) * per;
+    const h = (1 + rb.health) * per;
+    for (const m of ctx.living(self.side)) {
+      if (tribe && m.tribe !== tribe && m.tribe2 !== tribe) continue;
+      ctx.buff(m, a, h, self.uid);
+      // ctx.buff already carries an Engraved recipient's gain back; record it for everyone else — a Ruby buff
+      // is permanent regardless of keywords.
+      if (!m.keywords.includes('EG')) {
+        m.permaGain = { attack: (m.permaGain?.attack ?? 0) + a, health: (m.permaGain?.health ?? 0) + h };
+      }
+    }
+  },
+
   /** Herald of the Apocalypse — Rally: each time THIS minion attacks, add a copy of itself to your hand after
    *  combat (golden 2 per attack). Player-only (grantToHand no-ops for a served enemy); fires per hit (Flurry ×2). */
   rallyGrantSelfCopy: (ctx, self, _params, payload) => {

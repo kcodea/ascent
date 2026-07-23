@@ -21,6 +21,7 @@ export const EMPTY_SIDE: Readonly<CombatSideState> = Object.freeze({
   beastsPlayed: 0,
   magneticAtk: 0,
   magneticHp: 0,
+  rubyBonus: { attack: 0, health: 0 },
   tier: 1,
   tribes: [] as string[],
   cardBuffs: {} as Record<string, { attack: number; health: number }>,

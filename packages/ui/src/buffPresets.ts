@@ -66,7 +66,7 @@ export const BUFF_PRESETS: Record<string, BuffPresetCfg> = {
  *  tendril look (owner ruling 2026-07-10); `imp-tribe` = Demon. Neutral has no entry → falls to `default`. */
 const BUFF_ASSIGN: { byCard: Record<string, string>; byTribe: Partial<Record<Tribe, string>> } = {
   byCard: {},
-  byTribe: { beast: 'beast-tribe', mech: 'mech-tribe', dragon: 'dragon-tribe', demon: 'imp-tribe', undead: 'undead-tribe' },
+  byTribe: { beast: 'beast-tribe', mech: 'mech-tribe', dragon: 'dragon-tribe', demon: 'imp-tribe', undead: 'undead-tribe', kobold: 'dragon-tribe' },
 };
 
 /** Resolve the preset name for a buff source: per-card → per-tribe → 'default'. A name is only returned if it

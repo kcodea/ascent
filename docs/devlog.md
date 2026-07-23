@@ -3,6 +3,196 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: combat-phase Ruby casting — the engine foundation)
+
+### feat(core): thread rubyBonus into `simulate()` + `scPlayRubies` (Start-of-Combat Ruby cast, permanent carry-back)
+
+The first piece of the combat-phase Ruby path (Avenge / Rally / Start-of-Combat "Play a Ruby"). Rather than
+rush the whole thing into the deterministic sim, this lands the FOUNDATION + one trigger, fully verified:
+- **Ruby stats reach combat:** added `rubyBonus` to `CombatSideState` (+ `EMPTY_SIDE`, + the reducer's
+  player-side builder from `RunState`), and a `ctx.rubyBonusFor(side)` accessor. Default zero, so every existing
+  `simulate` call is byte-identical (determinism + goldens unchanged).
+- **`scPlayRubies` factory** — "Start of Combat: play N Rubies on your [tribe] minions." Each eligible living
+  friend gets `count` Ruby buffs (a Ruby = base 1/1 + that side's `rubyBonus`), applied via `ctx.buff` and — per
+  the owner's "always permanent" ruling — recorded as `permaGain` for EVERY recipient (not just Engraved ones),
+  so it carries back to the run board via `playerPermaBuffs`. Mirrors Flowing Monk's permanent-gift pattern.
+
+Verified: new `simulate.test.ts` case — a synthetic Kobold with rubyBonus +1/+1 plays a Ruby at SoC → each
+Kobold gains **+2/+2**, carried back (`playerPermaBuffs`, `engraved: false`); a non-Kobold friend is untouched
+(tribe filter). Full suite (determinism + golden) + lint + build:web green.
+
+NEXT on this rail (same mechanism, different triggers): `avengePlayRubies` / `rallyPlayRubies` / `rallyGetRubies`,
+the "cards bought this turn" scaler for Frenzied Excavator, then wiring the actual combat Kobolds.
+
+## 2026-07-23 (set 1: five targeted spells now castable on shop offers)
+
+### fix(content): apply the "friendly minion = warband-only" target rule to set-1 spells (owner-picked)
+
+Following the owner's rule (a targeted spell hits shop offers too UNLESS its text says "friendly minion"), the
+owner picked which over-restricted spells to open up. Flipped `target: 'friendly'` → `'any'` (and dropped
+"friendly" from the text where present) for: **Spirit Fire** (+2/+3), **Bulwark** (+0/+1 & Taunt), **Lantern
+Light** (+1/+1 per Tier), **Patch Job** (already "a minion"), and **Perfect Vision** (set stats 20/20). The
+owner kept **aresmar / resonance / ossuaryrite / consume / bloodlust** friendly-only (board-only mechanics).
+
+Safe because these all cast through `castSpellOnOffer`, which runs the spell on a temp BoardCard built from the
+offer and diffs the stat/keyword changes back — the same path `shatter` (+stats & Taunt) and `fronttoback`
+already use, so buffs AND the Taunt/set-stats effects transfer to the bought offer. Data-only (no reducer/UI
+change). Two `run.test.ts` display assertions updated to the reworded text. typecheck + lint + full suite +
+build:web green.
+
+## 2026-07-23 (set 2: Rubies castable on shop offers + buff-FX/isolation rulings)
+
+### feat(sim/ui): Rubies target `any` (warband OR tavern offer); no generic buff FX; spell↔Ruby buffs isolated
+
+More owner rulings while building Kobolds:
+- **Target `any`** — a Ruby's text says "a minion", not "a FRIENDLY minion", so it can be played on a **tavern
+  offer** (buff it pre-buy) as well as a warband minion. Changed the token to `target: 'any'`; the reducer
+  Ruby branch now buffs an offer via `addOfferBuff` when the target is a shop card. The UI's `any` targeting
+  path already handles offers, so the drag-cast onto the shop works with no UI change. (Owner also flagged that
+  many set-1 spells over-restricted to `friendly` should follow the same text rule — a separate audit, since
+  it's a balance-sensitive set-1 change; not done here.)
+- **No generic buff FX on Rubies** — when "Your Rubies gain +X" grows a held Ruby, it no longer floats the
+  `+x/+y` number or the burst ring (suppressed on `ruby` cards in the hand render); the card's text just
+  updates. A unique Ruby buff/play effect comes after the tribe is built out.
+- **Spell buffs ≠ Ruby buffs (both ways)** — structural, now documented: a Ruby is `ruby`, not `spell`, so any
+  spell-power / "buff your spells" mechanic can't see it; and `rubyStatGain` explicitly filters to `ruby` cards,
+  so it never touches Shop Spells. Each must be buffed explicitly by name.
+
+Verified live (set 2 Scene Builder): a Ruby drag-cast onto a tavern offer buffs it +1/+1 (consumed); playing
+Deepvein grows a held Ruby 1/1 → 1/2 (text "+1/+1" → "+1/+2") with NO float/burst. New `rubies.test.ts`
+offer-cast case. typecheck + lint + full suite + build:web green. (NB: a stray JSX comment between attributes
+broke the dev build — `npm run typecheck` doesn't strictly cover `.tsx`, so `build:web` is the JSX gate.)
+
+## 2026-07-23 (set 2: Ruby rulings corrected — permanent, retroactive-to-hand, un-tripleable)
+
+### fix(sim): three Ruby design corrections (owner)
+
+Owner corrected three Ruby rules from the earlier design pass:
+1. **Ruby buffs are ALWAYS permanent** — shop or combat, exactly like a spell buff; there is no "temporary in
+   combat unless Engraved." The cast already used a permanent `addBuff`, so this was a comment/design fix (the
+   reducer + `mintRubies` notes and the deferred-Engrave framing were corrected).
+2. **"Your Rubies gain +X" grows Rubies in HAND too**, not future-only. Reversed the earlier "baked at mint,
+   never retroactive" rule: `rubyStatGain` now raises `rubyBonus` AND buffs every Ruby currently in hand, so all
+   HELD Rubies stay equal to base 1/1 + rubyBonus. Only Rubies already CAST onto a minion (buff baked in) don't
+   grow. Verified live: a held Ruby's text ticks "+1/+1" → "+1/+2" the instant Deepvein is played.
+3. **Rubies never triple** — they're spells for this purpose. `checkTriples` excluded only `spell`; now excludes
+   `ruby` too, so 3+ Rubies in hand never combine into a golden.
+
+`rubies.test.ts` updated: the future-only test replaced by a hand-grows-too test; a no-triple test added (a
+golden Chipwick mints 4 Rubies, none combine). typecheck + lint + full suite + build:web green.
+
+## 2026-07-23 (set 2: Rubies render as spell cards)
+
+### feat(ui): Rubies wear the spell look + live "Give a minion +X/+Y" text (owner ask)
+
+Owner: a Ruby should look like a spell, not a stat-bearing minion card. Added a `spellLike = spell || ruby`
+visual gate in `Card` so a Ruby wears the SPELL treatment — the purple spell-square frame, the spell pill, and
+NO stat footer / tribe line — while staying its own class mechanically (the drag/cast path is unchanged). The
+pill reads **"◆ Ruby"** (spell-pill style, Ruby label — flag: the reference showed "SPELL"; one-line switch).
+A `rubycard` class is also added for any future gem-specific styling.
+
+Because the stat footer is hidden, the Ruby's GRANT now lives in its TEXT: `instView` prints
+**"Give a minion +A/+H"** where A/H are the Ruby's live stats (base 1/1 + the run's `rubyBonus`, baked at mint).
+Verified live: a base Ruby reads "+1/+1", a Ruby minted after Deepvein reads "+1/+2"; both render with
+`spell-frame-v2.png`, the ◆ Ruby pill, and no atk/hp badges; a drag-cast still buffs (2/2 → 3/3, consumed).
+typecheck + lint + full suite + build:web green.
+
+## 2026-07-23 (set 2: Rubies are playable — drag-cast UI + art)
+
+### feat(ui): mint → cast → buff, the full Ruby loop in the hand
+
+The UI increment that makes Rubies actually playable. A Ruby now aims and casts exactly like a targeted
+friendly spell, but as its own card class:
+- `CardView.ruby` flag (+ `instView` sets it, + `cardViewEqual` covers it via the exhaustive guard). A Ruby
+  renders as a normal stat-bearing card with its art (NOT a spell scroll — it has Attack/Health).
+- `computeCastingSpell` / `deriveDragDecision` treat a `ruby` card like a `target:'friendly'` spell: dragged
+  UP past the play floor it enters targeted-aim (reticle on the friendly minion under the cursor) and opens NO
+  insertion gap; below the floor it reorders in hand like any card.
+- The drop path (`applyDrop`) routes a Ruby through the spell-CAST branch (release on a friendly minion →
+  `play` with `targetUid`), NOT the minion-play branch — and the target-rect cache, miss-just-ends, and
+  right-click-cancel all include Rubies. The reducer branch (already there) applies the `Ruby` buff.
+- **Art:** `Ruby.png` (from `Set 2 Art/Spells`) wired as `art/minions/ruby.png` (matches the `ruby` card id).
+
+Verified live (Scene Builder, set 2): a Ruby renders with `ruby.png`, and a synthetic drag from hand released
+on a 2/2 minion makes it **3/3** with a `{source:'Ruby'}` buff, the Ruby consumed, `rubyCasts` = 1 — zero
+console errors. New `dragDecision.test.ts` cases pin the Ruby aim (targets the minion, opens no gap; casting
+boundary). typecheck + lint + full suite + build:web green.
+
+Remaining for the tribe: the combat-phase cast path (Avenge / Rally / Start-of-Combat "Play a Ruby", temporary
+unless Engraved), the umbrella cast-triggers (Gemgorge fires on Shop Spells AND Rubies), Warding Ruby / Gold
+Pouch / Paragon's 3×, then the other Kobolds — and a distinct gem FRAME if the plain card look isn't enough.
+
+## 2026-07-23 (set 2: make Kobolds actually appear — sprite fallback + per-set tribe roster)
+
+### fix(ui/sim): Kobold cards render, and set-2 runs offer Kobolds in the shop
+
+Two blockers surfaced the moment set 2 was played in the Scene Builder:
+- **Crash on render** — `spriteForTribe('kobold')` returned `'kobold'`, but `SPR` has no matrix for it, so
+  `drawSprite` read `undefined[0]` → "Cannot read properties of undefined (reading '0')" whenever a Kobold card
+  mounted. Fixed with a fallback: a tribe without its own pixel-art renders the `neutral` sprite (the real
+  Kobold sprite lands with the art pass). Verified live: both Kobolds + a Ruby render with zero console errors.
+- **Empty shop** — the shop only offers cards of the RUN's active tribes (`state.tribes`) + neutral, and
+  `kobold` wasn't in any run's roster (kept out of `PLAYABLE_TRIBES` so it can't leak into set 1). So a set-2
+  run offered nothing. Did the minimal version of the planned per-set tribe scoping: `SetDef.tribes` (set 1 =
+  its five, set 2 = `['kobold']`), and `createRun` seeds `selectRunTribes` from the PINNED set's roster. A
+  set-2 run's tribes are now `['kobold']`; the shop offers Chipwick (T1) and Deepvein (T3). Set-1 determinism
+  is untouched — its roster order equals `PLAYABLE_TRIBES`, so `selectRunTribes` returns identically.
+
+typecheck + lint + full suite (determinism golden included) + build:web green. Now Scene-Builder-testable: buy
++ play a Kobold, watch Rubies mint into hand. (Casting a Ruby onto a minion still needs the UI targeting
+increment — next.)
+
+## 2026-07-23 (set 2: the Kobold tribe + first two Kobolds, WIP)
+
+### feat(content): the `kobold` tribe + Chipwick Prospector / Deepvein Tender
+
+Second set-2 increment, on top of the Ruby engine. Adds the **`kobold` tribe** (core `Tribe` union + content
+`TribeSchema` + the UI tribe label/icon maps — `crown` as the placeholder icon, art pass later) and the first
+two Kobolds the engine already supports, wired into `SETS.set2.own` (still `enabled: false` → set 1 untouched):
+- **Chipwick Prospector** (1/2, T1) — `Shout: Get 2 Rubies` (golden: 4).
+- **Deepvein Tender** (2/3, T3) — `Shout: Your Rubies gain +1 Health` (golden: +2).
+
+Tribe scoping is the MINIMAL path (owner call): `kobold` is a valid Tribe but is deliberately NOT added to the
+run-tribe roster (`PLAYABLE_TRIBES`/`selectRunTribes`), so it can't appear in a set-1 run; set-2 tribe scoping
+(the planned `SetDef.tribes` → `RunState.tribes` pin) stays deferred. Known follow-up: tribe-bond / tribe-quest
+recognition of Kobolds as an "active" tribe rides that scoping.
+
+`npm run pool` regenerated only the provenance version-stamp (the 160 set-1 boards are byte-identical — set 1
+is genuinely untouched). `sets.test.ts`'s empty-set guard test was repointed: set 2 is no longer empty, so it
+now asserts the bake still FAILS on a set too sparse to cover the enemy curve (baking a half-built set stays
+protected). New `rubies.test.ts` cases prove Chipwick's Shout mints 2 Rubies and Deepvein raises the run's Ruby
+strength (the card → factory → engine path). typecheck + lint + full suite (1471) + build:web green.
+
+NEXT: the UI so Rubies render in hand and drag-cast onto a minion (Scene-Builder-testable), then the combat-cast
+path + the rest of the tribe.
+
+## 2026-07-23 (set 2: the Ruby engine — recruit-phase spine, WIP)
+
+### feat(sim): Rubies — a spell-like token that is NOT a Shop Spell (set 2 Kobolds, foundation)
+
+First slice of set 2's Kobold tribe, which is built entirely around **Rubies**. A Ruby is a spell-LIKE token
+that plays from hand like a targeted spell (drag onto a friendly minion → grant it the Ruby's Attack/Health as
+a permanent shop buff, then consumed), but it is deliberately **NOT a Shop Spell**: owner ruling — the "spells"
+in the game today are **Shop Spells**, Rubies are their own class, so Rubies must not trigger Shop-Spell effects
+(Archmagus Guel, `spellsCast`, spell quests). Some cards will trigger on the **umbrella** of both.
+
+This commit lands the recruit-phase ENGINE spine only (no Kobold cards, no UI yet — proven headlessly):
+- `CardDef.ruby?: boolean` (core) + schema `ruby` field + two factory ids (`getRubies`, `rubyStatGain`).
+- `RunState.rubyBonus {attack,health}` (the run's Ruby STRENGTH, added to a Ruby's base 1/1 at MINT — so "Your
+  Rubies gain +X" grows only FUTURE Rubies, never retroactively) + `rubyCasts`/`rubyCastsThisTurn` (the Ruby-only
+  cast counter, separate from `spellsCast`).
+- `mintRubies(state, n)` + the `getRubies`/`rubyStatGain` factories (recruit.ts).
+- The `ruby` token (`cards/set2/tokens.ts`, `token`+`ruby`+`target:'friendly'`), registered globally in
+  `ALL_CARDS` (tokens stay out of every set's drawable pool).
+- Reducer `case 'play'` Ruby branch: buff the target (source `Ruby`, itemized), consume, bump `rubyCasts`, leave
+  `spellsCast` untouched; no target → fizzle (kept in hand).
+
+Verified: new `rubies.test.ts` (4 cases — mint at 1/1; play → +stats "Ruby" buff, consumed, rubyCasts up but
+spellsCast untouched; bonus grows future Rubies only; fizzle keeps it in hand). typecheck + lint + full suite
+green. NEXT increments: the `kobold` tribe plumbing + the actual Kobold cards; the hand/targeting UI (reuse the
+targeted-spell drag); then the combat-phase cast path (Avenge/Rally/Start-of-Combat "Play a Ruby", temporary
+unless Engraved) + the umbrella cast triggers.
+
 ## 2026-07-23 (perf: idle the Discover burst's second WebGL context when it has nothing to draw)
 
 ### perf(ui): `discoverFx` stops its ticker between/after bursts (owner: "discovers cause major slowdowns on exe")

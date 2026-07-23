@@ -909,6 +909,24 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
+  /** Set 2 — Alchemist Brisbane (EoT half): at End of Turn, play `count` Rubies (base 1/1 + rubyBonus) on a
+   *  random friendly `tribe` minion (× golden). Deterministic (run rngCursor). */
+  endOfTurnPlayRuby: (ctx, self, params) => {
+    const state = ctx.state;
+    const bonus = state.rubyBonus ?? { attack: 0, health: 0 };
+    const ra = 1 + bonus.attack;
+    const rh = 1 + bonus.health;
+    const tribe = str(params.tribe);
+    for (let c = 0; c < num(params.count, 1) * gold(self); c++) {
+      const pool = state.board.filter((m) => !tribe || m.tribe === tribe || CARD_INDEX[m.cardId]?.tribe2 === tribe);
+      if (pool.length === 0) return;
+      const rng = makeRng(state.rngCursor);
+      const target = pool[rng.int(pool.length)]!;
+      state.rngCursor = rng.state();
+      addBuff(target, 'Ruby', ra, rh);
+    }
+  },
+
   /** Set 2 — Wardstone Jeweler: at End of Turn, mint `count` Rubies of `rubyId` (× golden) into hand — used for
    *  the Warding Ruby (`rubyId: 'warding-ruby'`); defaults to a plain Ruby. */
   endOfTurnGetRubies: (ctx, self, params) => {

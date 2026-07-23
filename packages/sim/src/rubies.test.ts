@@ -153,6 +153,15 @@ describe('Ruby engine (set 2)', () => {
     expect(s.hand.some((c) => c.cardId === 'warding-ruby')).toBe(true);
   });
 
+  it('Alchemist Brisbane: Shout buffs your Rubies, End of Turn plays a Ruby on a Kobold', () => {
+    let s: RunState = { ...createRun(1), board: [], hand: [{ uid: 'ab', cardId: 'k_alchemist', tribe: 'kobold', attack: 9, health: 6, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'ab' }); // Shout: your Rubies +1/+1
+    expect(s.rubyBonus).toMatchObject({ attack: 1, health: 1 });
+    const before = s.board.reduce((sum, c) => sum + c.attack + c.health, 0);
+    applyEndOfTurn(s); // EoT: play a Ruby (2/2 with the bonus) on a Kobold (Brisbane itself)
+    expect(s.board.reduce((sum, c) => sum + c.attack + c.health, 0)).toBe(before + 4);
+  });
+
   it('Rubies never triple, even with 3+ in hand — they are spells (owner ruling)', () => {
     // A golden Chipwick mints 4 Rubies at once; `play` runs checkTriples on the grown hand.
     let s: RunState = { ...createRun(1), board: [], hand: [{ uid: 'ch', cardId: 'k_chipwick', tribe: 'kobold', attack: 1, health: 2, keywords: [], golden: true }] };

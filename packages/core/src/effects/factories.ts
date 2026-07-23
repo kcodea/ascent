@@ -940,6 +940,23 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (target) playRubyOn(ctx, self, target, num(params.rubies, 1) * mul(self));
   },
 
+  /** Set 2 — Alchemist Brisbane (Echo half): on death, buff your Rubies +atk/+hp (× golden), carried back. */
+  deathrattleRubyStatGain: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side);
+  },
+
+  /** Set 2 — Geode Guardian (Echo): on death, play `rubies` Rubies on EACH adjacent minion (permanent carry-back). */
+  deathrattlePlayRubiesAdjacent: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const arr = ctx.boards[self.side];
+    const i = arr.indexOf(self);
+    const per = num(params.rubies, 1) * mul(self);
+    for (const adj of [arr[i - 1], arr[i + 1]]) {
+      if (adj && !adj.dead && adj.health > 0) playRubyOn(ctx, self, adj, per);
+    }
+  },
+
   /** Set 2 — Frenzied Excavator: Start of Combat, play `rubies` Rubies on your [tribe] minions for every
    *  `every` cards bought this turn (× golden). Reads the run's per-turn buy count threaded into combat. */
   scPlayRubiesPerBuy: (ctx, self, params) => {

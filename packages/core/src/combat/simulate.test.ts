@@ -2674,6 +2674,18 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerPermaBuffs?.find((b) => b.sourceUid === 'F')).toMatchObject({ attack: 2, health: 2 });
   });
 
+  it('set 2 — Geode Guardian: on death, plays a Ruby on each adjacent minion (carry-back)', () => {
+    const gdtest: CardDef = { id: 'gdtest', name: 'GD', tribe: 'kobold', tier: 2, attack: 2, health: 1, keywords: [],
+      effects: [{ on: 'onDeath', do: 'deathrattlePlayRubiesAdjacent', params: { rubies: 1 } }], text: '' };
+    const gdnb: CardDef = { id: 'gdnb', name: 'NB', tribe: 'kobold', tier: 1, attack: 1, health: 100, keywords: [], effects: [], text: '' };
+    const r = simulate([
+      { cardId: 'gdtest', attack: 2, health: 1, sourceUid: 'GD' }, // dies (1 HP)
+      { cardId: 'gdnb', attack: 1, health: 100, sourceUid: 'NB' }, // right neighbour, survives
+    ], [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, gdtest, gdnb },
+      combatSide({ tier: 2, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'NB')).toBe(true); // neighbour got a Ruby, carried back
+  });
+
   it('set 2 — Crownvein Vanguard: Rally buffs your Rubies AND plays Rubies on Kobolds', () => {
     const cvtest: CardDef = { id: 'cvtest', name: 'CV', tribe: 'kobold', tier: 6, attack: 5, health: 100, keywords: ['RL'],
       effects: [

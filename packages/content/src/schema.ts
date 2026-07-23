@@ -268,6 +268,9 @@ export const EffectFactoryIdSchema = z.enum([
   'damagedGetRubies', // Candleback Bulwark: on-damage, get N Rubies (capped per fight)
   'rallyRubyStatGain', // Crownvein: Rally buff your Rubies +X/+Y
   'rallyPlayRubiesTargets', // Crownvein: Rally play N Rubies each on the first M friends of a tribe
+  'deathrattleRubyStatGain', // Alchemist Brisbane (Echo): on death, buff your Rubies +X/+Y
+  'deathrattlePlayRubiesAdjacent', // Geode Guardian (Echo): on death, play N Rubies on each neighbour
+  'endOfTurnPlayRuby', // Alchemist Brisbane (EoT): play N Rubies on a random friendly Kobold
 ]);
 
 export const EffectDefSchema = z.object({

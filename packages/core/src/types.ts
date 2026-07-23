@@ -350,7 +350,10 @@ export type EffectFactoryId =
   | 'damagedGainRubyBonus' // Set 2 — Faultline Scrapper: on-damage, buff your Rubies +X/+Y
   | 'damagedGetRubies' // Set 2 — Candleback Bulwark: on-damage, get N Rubies (capped per fight)
   | 'rallyRubyStatGain' // Set 2 — Crownvein: Rally buff your Rubies +X/+Y
-  | 'rallyPlayRubiesTargets'; // Set 2 — Crownvein: Rally play N Rubies each on the first M friends of a tribe
+  | 'rallyPlayRubiesTargets' // Set 2 — Crownvein: Rally play N Rubies each on the first M friends of a tribe
+  | 'deathrattleRubyStatGain' // Set 2 — Alchemist Brisbane (Echo): on death, buff your Rubies +X/+Y
+  | 'deathrattlePlayRubiesAdjacent' // Set 2 — Geode Guardian (Echo): on death, play N Rubies on each neighbour
+  | 'endOfTurnPlayRuby'; // Set 2 — Alchemist Brisbane (EoT): play N Rubies on a random friendly Kobold
 
 export interface EffectDef {
   on: GameEvent;

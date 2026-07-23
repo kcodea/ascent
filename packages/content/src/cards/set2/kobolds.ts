@@ -177,6 +177,37 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: 'Taunt. Get 2 Rubies when this takes damage. (2 times per turn)',
   },
   {
+    // Taunt + Echo (combat Deathrattle): on death, play a Ruby on each adjacent minion (permanent carry-back).
+    id: 'k_geode',
+    name: 'Geode Guardian',
+    tribe: 'kobold',
+    tier: 2,
+    attack: 2,
+    health: 4,
+    keywords: ['T'],
+    effects: [{ on: 'onDeath', do: 'deathrattlePlayRubiesAdjacent', params: { rubies: 1 } }],
+    text: 'Taunt. **Echo:** Play a Ruby on adjacent minions.',
+    goldenText: 'Taunt. **Echo:** Play **2 Rubies** on adjacent minions.',
+  },
+  {
+    // Three triggers: Shout (onPlay) + Echo (combat death) both buff your Rubies; End of Turn plays a Ruby on
+    // a random friendly Kobold. The Echo's Ruby-strength gain carries back from combat.
+    id: 'k_alchemist',
+    name: 'Alchemist Brisbane',
+    tribe: 'kobold',
+    tier: 7,
+    attack: 9,
+    health: 6,
+    keywords: [],
+    effects: [
+      { on: 'onPlay', do: 'rubyStatGain', params: { attack: 1, health: 1 } },
+      { on: 'onDeath', do: 'deathrattleRubyStatGain', params: { attack: 1, health: 1 } },
+      { on: 'endOfTurn', do: 'endOfTurnPlayRuby', params: { tribe: 'kobold', count: 1 } },
+    ],
+    text: '**Shout and Echo:** Your Rubies gain **+1/+1**. **End of Turn:** Play a Ruby on your Kobold.',
+    goldenText: '**Shout and Echo:** Your Rubies gain **+2/+2**. **End of Turn:** Play **2 Rubies** on your Kobold.',
+  },
+  {
     // Crossover: "Get a Gold Pouch" grants the SET-1 Gold Pouch spell (`emberpouch`) to hand — CARD_INDEX is
     // global, so `battlecryGrantSpell` reuses it directly (owner: there will be crossover cards between sets).
     id: 'k_pouchpincher',

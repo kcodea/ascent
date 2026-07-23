@@ -54,6 +54,24 @@ resolves the sentinel; the combat path never did. Fixed: `grantRandomMinion` now
 the active tribes absent from your board (counting DEAD board minions, since Ryme is dead when its own
 Deathrattle fires), and falls back to any minion when you control every tribe. New `rymeWayfinder.test.ts`.
 
+## 2026-07-23 (perf: stop the dead second WebGL canvas from presenting every frame)
+
+### perf(ui): idle the persistent-bubble canvas — its shields are CSS now, so it draws nothing
+
+Audit finding: `pixiFx` mounts a SECOND full-viewport WebGL `Application` (`shieldApp`, `.pixifx-under`) for the
+persistent Ward/Reborn bubbles. But those bubbles are CSS now — Recruit's aura tracker `continue`s for both
+`shield` and `reborn` (the only two aura kinds), so `setShield` is never reached and the `shields` map stays
+empty. The canvas therefore has nothing to draw, yet its autoStart ticker still cleared + presented an empty
+stage every frame for the whole session — a steady-state GPU floor, worst at the exe's native fullscreen res.
+
+Fix: `sApp.ticker.stop()` right after creating it (dormant), and `this.shieldApp?.ticker.start()` at the top of
+`setShield` so it resumes the instant a bubble is ever set again. So this can't hide a live bubble even if the
+CSS decision is reverted — it just removes the empty per-frame present while the path is disabled. The main FX
+canvas is untouched.
+
+Verified: typecheck + lint + **1434 tests** + `build:web` green; live — both canvases still in the DOM, a weld
+FX fires on the main canvas, no console errors. Fix #6 (partial — the dead-canvas half) of the perf audit.
+
 ## 2026-07-23 (perf: coalesce Brightwing tendrils — one per target, not K×(M−1))
 
 ### perf(ui): collapse duplicate buff-FX tendrils so many Brightwings don't jank the shop

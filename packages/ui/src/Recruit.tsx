@@ -3589,8 +3589,8 @@ export function Recruit() {
                 refCards={refViewsByUid.get(m.uid)}
                 dragging={!!drag?.active}
                 dimmed={isDragging(m.uid)}
-                buffed={buffedUids.has(m.uid)}
-                buffFloat={statFloats[m.uid] ?? null}
+                buffed={!handViews.get(m.uid)?.ruby && buffedUids.has(m.uid)}
+                buffFloat={handViews.get(m.uid)?.ruby ? null : (statFloats[m.uid] ?? null)}
                 arrived={arrivedUids.has(m.uid)}
                 handSlidePx={handSlide(i) * handSlotWRef.current}
                 fanRot={fanRot}

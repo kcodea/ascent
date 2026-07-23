@@ -42,6 +42,19 @@ describe('Ruby engine (set 2)', () => {
     expect(s.rubyCasts ?? 0).toBe(0);
   });
 
+  it('a Ruby (target any) can be cast on a tavern OFFER — buffs it pre-buy', () => {
+    const base = createRun(1);
+    const offer = base.shop[0]!; // the shop holds minion offers; the tavern spell is separate (run.spell)
+    let s: RunState = { ...base, hand: [] };
+    mintRubies(s, 1);
+    const ruby = s.hand.find((c) => c.cardId === RUBY_ID)!;
+    s = reduce(s, { type: 'play', uid: ruby.uid, targetUid: offer.uid });
+    const o = s.shop.find((x) => x.uid === offer.uid)!;
+    expect([o.atk ?? 0, o.hp ?? 0]).toEqual([1, 1]);
+    expect(o.buffs?.find((b) => b.source === 'Ruby')).toMatchObject({ attack: 1, health: 1 });
+    expect(s.hand.some((c) => c.cardId === RUBY_ID)).toBe(false); // consumed
+  });
+
   it("Chipwick Prospector's Shout mints 2 Rubies into hand (card → getRubies factory → engine)", () => {
     let s: RunState = { ...createRun(1), board: [], hand: [{ uid: 'ch', cardId: 'k_chipwick', tribe: 'kobold', attack: 1, health: 2, keywords: [], golden: false }] };
     s = reduce(s, { type: 'play', uid: 'ch' });

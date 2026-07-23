@@ -685,9 +685,13 @@ function reduceCore(state: RunState, action: Action): RunState {
       // never touches `spellsCast` or any Shop-Spell trigger/quest; it advances its OWN `rubyCasts` counter,
       // and umbrella cards ("both spells and Rubies") read `spellsCast + rubyCasts`. No target → fizzle (kept).
       if (def?.ruby) {
-        const target = s.board.find((c) => c.uid === action.targetUid);
-        if (!target) return state;
-        addBuff(target, 'Ruby', card.attack, card.health);
+        // A Ruby (target 'any') can land on a warband minion OR a tavern offer (buff it pre-buy) — same as an
+        // `any` spell. No valid target → fizzle (kept in hand).
+        const boardTarget = s.board.find((c) => c.uid === action.targetUid);
+        const offer = s.shop.find((o) => o.uid === action.targetUid && !CARD_INDEX[o.cardId]?.spell);
+        if (boardTarget) addBuff(boardTarget, 'Ruby', card.attack, card.health);
+        else if (offer) addOfferBuff(offer, 'Ruby', card.attack, card.health);
+        else return state;
         s.hand.splice(i, 1);
         s.rubyCasts = (s.rubyCasts ?? 0) + 1;
         s.rubyCastsThisTurn = (s.rubyCastsThisTurn ?? 0) + 1;

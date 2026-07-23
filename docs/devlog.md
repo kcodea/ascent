@@ -3,6 +3,29 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: Rubies castable on shop offers + buff-FX/isolation rulings)
+
+### feat(sim/ui): Rubies target `any` (warband OR tavern offer); no generic buff FX; spell↔Ruby buffs isolated
+
+More owner rulings while building Kobolds:
+- **Target `any`** — a Ruby's text says "a minion", not "a FRIENDLY minion", so it can be played on a **tavern
+  offer** (buff it pre-buy) as well as a warband minion. Changed the token to `target: 'any'`; the reducer
+  Ruby branch now buffs an offer via `addOfferBuff` when the target is a shop card. The UI's `any` targeting
+  path already handles offers, so the drag-cast onto the shop works with no UI change. (Owner also flagged that
+  many set-1 spells over-restricted to `friendly` should follow the same text rule — a separate audit, since
+  it's a balance-sensitive set-1 change; not done here.)
+- **No generic buff FX on Rubies** — when "Your Rubies gain +X" grows a held Ruby, it no longer floats the
+  `+x/+y` number or the burst ring (suppressed on `ruby` cards in the hand render); the card's text just
+  updates. A unique Ruby buff/play effect comes after the tribe is built out.
+- **Spell buffs ≠ Ruby buffs (both ways)** — structural, now documented: a Ruby is `ruby`, not `spell`, so any
+  spell-power / "buff your spells" mechanic can't see it; and `rubyStatGain` explicitly filters to `ruby` cards,
+  so it never touches Shop Spells. Each must be buffed explicitly by name.
+
+Verified live (set 2 Scene Builder): a Ruby drag-cast onto a tavern offer buffs it +1/+1 (consumed); playing
+Deepvein grows a held Ruby 1/1 → 1/2 (text "+1/+1" → "+1/+2") with NO float/burst. New `rubies.test.ts`
+offer-cast case. typecheck + lint + full suite + build:web green. (NB: a stray JSX comment between attributes
+broke the dev build — `npm run typecheck` doesn't strictly cover `.tsx`, so `build:web` is the JSX gate.)
+
 ## 2026-07-23 (set 2: Ruby rulings corrected — permanent, retroactive-to-hand, un-tripleable)
 
 ### fix(sim): three Ruby design corrections (owner)

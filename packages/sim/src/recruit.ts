@@ -857,6 +857,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const h = num(params.health) * gold(self);
     const b = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
     ctx.state.rubyBonus = { attack: b.attack + a, health: b.health + h };
+    // ONLY Rubies — a "Your Rubies gain +X" never touches Shop Spells, and (conversely) a spell buff never
+    // touches Rubies, since a Ruby is `ruby` not `spell` (owner ruling 2026-07-23: the two are separate, and
+    // each must be buffed explicitly by name).
     for (const card of ctx.state.hand) {
       if (CARD_INDEX[card.cardId]?.ruby) { card.attack += a; card.health += h; }
     }

@@ -20,7 +20,9 @@ export const SET2_TOKENS: CardDef[] = [
     effects: [],
     token: true,
     ruby: true,
-    target: 'friendly',
+    // `any` — a Ruby's text says "a minion", not "a FRIENDLY minion", so it can be played on a tavern offer
+    // (buff it pre-buy) as well as a warband minion (owner ruling 2026-07-23).
+    target: 'any',
     text: 'Give a minion **+1/+1**.',
   },
 ];

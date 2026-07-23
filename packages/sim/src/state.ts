@@ -372,6 +372,11 @@ export interface RunState {
   /** Fleeting Vigor — a one-shot Start-of-Combat buff banked for the NEXT combat only (your minions enter
    *  that fight at +this; spent in `faceOmen`, win or lose). Absent = none. */
   fleetingVigor?: { attack: number; health: number };
+  /** Banked "for the next combat only" keyword grants (Field Maneuvers → Ward/Flurry, Last Stand → Rise,
+   *  Executioner's Edge → Critical Strike). Each names a board minion by uid; `faceOmen` stamps the keyword
+   *  (and `critChance` for CR) onto that minion's COMBAT instance, then clears the list — so it's gone after
+   *  the fight, exactly like `fleetingVigor`. A grant whose minion is gone by combat simply no-ops. */
+  pendingCombatKeywords?: { uid: string; keyword: Keyword; critChance?: number }[];
   /** Run-wide Undead attack bonus (Lantern of Souls): your Undead get this much Attack everywhere —
    *  on the board in the shop and in every combat (incl. summoned/Reborn ones). */
   undeadAttackBonus: number;

@@ -2206,6 +2206,19 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.fleetingVigor.health += num(params.health, 1) + spellHealthBonus(ctx.state);
   },
 
+  /** Field Maneuvers / Last Stand / Executioner's Edge — cast on a friendly minion: bank a keyword grant for
+   *  the NEXT combat only (`faceOmen` stamps it onto that minion's combat instance, then clears the bank). For
+   *  Critical Strike (`CR`), `critChance` seeds the per-swing double-damage probability the combat sim rolls. */
+  spellGrantKeywordNextCombat: (ctx, self, params) => {
+    const keyword = str(params.keyword) as Keyword;
+    if (!keyword) return;
+    (ctx.state.pendingCombatKeywords ??= []).push({
+      uid: self.uid,
+      keyword,
+      ...(typeof params.critChance === 'number' ? { critChance: params.critChance } : {}),
+    });
+  },
+
   /** Channeling the Devourer — cast: devour the targeted friendly minion (`self`, removed from the
    *  board) and spit its stats onto a RANDOM other friend. It transfers existing stats, so it does NOT
    *  scale with spell power; the `singleCast` flag on its card keeps spell-quantity multipliers from

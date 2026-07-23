@@ -224,6 +224,7 @@ export type EffectFactoryId =
   | 'spellBuffTavern' // Apples (Choose One): cast — buff every current tavern offer (lost on refresh, kept on freeze)
   | 'spellBuffNextShop' // Apples (Choose One): cast — bank a buff folded onto the NEXT tavern roll's offers
   | 'spellPendingSCBuff' // Fleeting Vigor: cast — bank a one-shot Start-of-Combat buff for the next combat
+  | 'spellGrantKeywordNextCombat' // Field Maneuvers / Last Stand / Executioner's Edge: grant a keyword for the next combat only
   | 'spellDemonConsumeFodder' // Consume: cast — a chosen Demon creates and eats N Fodder
   | 'deathrattleGrantRandomSpell' // Sporebat: Deathrattle — grant N random tavern-tier spells to the hand (Beast)
   | 'onDamagedGrantRefresh' // Gryphon: on taking damage, bank a free shop reroll (once per combat) (Beast)
@@ -913,6 +914,9 @@ export interface BoardMinion {
   /** Overrides the card's keywords if present (e.g. a granted Poison). */
   keywords?: Keyword[];
   golden?: boolean;
+  /** Executioner's Edge: a spell-seeded per-swing Critical Strike chance (0–1) for THIS combat, overriding the
+   *  CardDef's `critChance` at `instantiate`. Absent for everyone else (they fall back to the CardDef value). */
+  critChance?: number;
   /** Anomaly Reactor: extra instance tribes (a spell-added Mech type), folded into the combat minion's `tribe2`
    *  at `instantiate` when its `tribe2` slot is free. */
   addedTribes?: Tribe[];

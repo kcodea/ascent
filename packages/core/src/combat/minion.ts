@@ -48,7 +48,8 @@ export function instantiate(
     rebornAvailable: keywords.includes('R'),
     golden: board.golden ?? false,
     reAttackOnKill: cardReAttacksOnKill(card),
-    critChance: card.critChance, // Commander Impala: per-swing double-damage chance (constant per CardDef)
+    critChance: board.critChance ?? card.critChance, // Commander Impala: per-swing double-damage chance (constant per CardDef); a spell (Executioner's Edge) can seed one onto the combat board for one fight
+
     summonBonus: board.summonBonus ?? 0,
     eotBonus: board.eotBonus, // Ritualist: seed the End-of-Turn grant accrual so the live combat text shows its per-tick value
     sellBonus: board.sellBonus, // Trail Forager: seed the accrued sell value for the live combat text (no combat effect)

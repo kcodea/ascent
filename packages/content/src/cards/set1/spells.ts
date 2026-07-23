@@ -797,4 +797,57 @@ export const SPELLS: CardDef[] = [
     discoverOnPlay: { exactTier: 6 },
     text: '**Discover** a **Tier 6** minion.',
   },
+
+  // --- New spells (2026-07-23 batch, tranche B1 — "next-combat keyword" grants; set-agnostic). All target a
+  //     FRIENDLY minion: the grant only lands on the board it fights with (a tavern offer never enters combat). ---
+  {
+    // Choose One: bank Ward (Divine Shield) or Flurry (Windfury) onto the target for the next combat only.
+    id: 'fieldmaneuvers',
+    name: 'Field Maneuvers',
+    tribe: 'neutral',
+    tier: 2,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'friendly',
+    effects: [],
+    chooseOne: [
+      { text: 'Give **Ward**.', effects: [{ on: 'cast', do: 'spellGrantKeywordNextCombat', params: { keyword: 'DS' } }] },
+      { text: 'Give **Flurry**.', effects: [{ on: 'cast', do: 'spellGrantKeywordNextCombat', params: { keyword: 'W' } }] },
+    ],
+    text: '**Choose One:** give a minion **Ward** or **Flurry** for the next combat.',
+  },
+  {
+    // Rise (Reborn) for one fight — the minion resummons once when it dies this combat.
+    id: 'laststand',
+    name: 'Last Stand',
+    tribe: 'neutral',
+    tier: 2,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellGrantKeywordNextCombat', params: { keyword: 'R' } }],
+    text: 'Give a minion **Rise** for the next combat.',
+  },
+  {
+    // Critical Strike (50%, matching Commander Impala's convention) for one fight — `critChance` seeds the
+    // per-swing double-damage roll onto the combat instance.
+    id: 'executionersedge',
+    name: "Executioner's Edge",
+    tribe: 'neutral',
+    tier: 3,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellGrantKeywordNextCombat', params: { keyword: 'CR', critChance: 0.5 } }],
+    text: 'Give a minion **Critical Strike (50%)** for the next combat.',
+  },
 ];

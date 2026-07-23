@@ -474,6 +474,12 @@ export function Recruit() {
   // capture showed a long task with no hotspot, because nothing measured React. A number here makes that
   // class of bug self-evident instead of requiring a code read.
   perfMonitor.count('recruit renders');
+  // Render+commit COST (not just rate): captured at render-body start, recorded in the earliest post-commit
+  // layout effect below as `render:recruit`. This is the piece `measure()` structurally can't reach — React
+  // reconciliation happens after setState — and the leading hypothesis for the late-game weld-fanout hitch
+  // (the tree grows with the board, so each of the ~90 renders/sec during a drag costs more). Placed before the
+  // Flip layout effect so it excludes Flip (timed separately). No-op cost when the monitor is off.
+  const renderStart = performance.now();
   const run = useGame((s) => s.run);
   const dispatch = useGame((s) => s.dispatch);
   const heroArmed = useGame((s) => s.heroArmed);
@@ -780,18 +786,22 @@ export function Recruit() {
   // rebuilds a 30-field object and is identical for every host in the batch.
   const fireWeldFxBatch = useCallback((uids: readonly string[], kind: 'play' | 'auto'): void => {
     if (uids.length === 0) return;
-    const hosts: { el: Element; x: number; y: number }[] = [];
-    for (const uid of uids) {
-      const el = document.querySelector(`[data-zone="warband"] [data-uid="${uid}"]`);
-      if (!el) continue;
-      const r = (el.querySelector('.archbox') ?? el).getBoundingClientRect(); // READ pass — no writes yet
-      hosts.push({ el, x: r.left + r.width / 2, y: r.top + r.height / 2 });
-    }
-    if (hosts.length === 0) return;
-    const cfg = weldCfgFor(kind);
-    const land = weldLandMs();
-    for (const h of hosts) pixiFx.weldPulse(h.x, h.y, cfg); // WRITE pass
-    applyWeldWiggle(hosts.map((h) => h.el), land); // the card reacts to the IMPACT, not the ring appearing
+    // Timed as `fx:weldBatch` — the prime suspect for the Banksly/Beatbot weld-fanout hitch: N getBoundingClientRect
+    // reads + N Pixi rings + N WAAPI wiggles in one frame. Cheap here → the fanout cost is React/Flip, not FX.
+    perfMonitor.measure('fx:weldBatch', () => {
+      const hosts: { el: Element; x: number; y: number }[] = [];
+      for (const uid of uids) {
+        const el = document.querySelector(`[data-zone="warband"] [data-uid="${uid}"]`);
+        if (!el) continue;
+        const r = (el.querySelector('.archbox') ?? el).getBoundingClientRect(); // READ pass — no writes yet
+        hosts.push({ el, x: r.left + r.width / 2, y: r.top + r.height / 2 });
+      }
+      if (hosts.length === 0) return;
+      const cfg = weldCfgFor(kind);
+      const land = weldLandMs();
+      for (const h of hosts) pixiFx.weldPulse(h.x, h.y, cfg); // WRITE pass
+      applyWeldWiggle(hosts.map((h) => h.el), land); // the card reacts to the IMPACT, not the ring appearing
+    });
   }, []);
   const prevWeldFxSeq = useRef(run.weldFxSeq);
   useEffect(() => {
@@ -1621,14 +1631,21 @@ export function Recruit() {
     () => ({ undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, cardBuffs: cardBuffsLive, impAura: run.impBuff, goldSpent: run.goldSpentThisTurn ?? 0, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: run.squirlScoutBuff, lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, frontToBackBonusH: run.frontToBackBonusH, improveReps: run.runeMastery ? 2 : 1 }),
     [run.undeadBuyAtk, run.soulsmanGold, run.cardBuffs, run.goldSpentThisTurn, run.goldPouchValue, run.playedThisTurn, run.squirlScoutBuff, run.lastSpellCastId, run.frontToBackBonusH, run.runeMastery],
   );
+  // `view:board` / `view:hand` (perf export): building the per-card view + live text for every board/hand card.
+  // Memoized, but rebuilds whenever `run.board`/`run.hand` identity changes — i.e. every dispatch (buy/play/weld).
+  // If a heavily-attached late-game board makes these dominate a fanout frame, this is where it shows.
   const boardViews = useMemo(
-    () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, { ...live, onBoard: true, eotTickOverride: eotAnimTick?.[m.uid] })] as const)),
+    () => perfMonitor.measure('view:board', () => new Map(run.board.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, { ...live, onBoard: true, eotTickOverride: eotAnimTick?.[m.uid] })] as const))),
     [run.board, run.tier, eotAnimStats, eotAnimTick, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live],
   );
   const handViews = useMemo(
-    () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, CARD_INDEX[m.cardId]?.spell ? { ...live, castMult: spellCastCount(run, CARD_INDEX[m.cardId]!) } : live)] as const)),
+    () => perfMonitor.measure('view:hand', () => new Map(run.hand.map((m) => [m.uid, instView(m, run.tier, eotAnimStats?.[m.uid], spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs?.cling, run.fodderConsumedThisTurn, CARD_INDEX[m.cardId]?.spell ? { ...live, castMult: spellCastCount(run, CARD_INDEX[m.cardId]!) } : live)] as const))),
     [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellMult],
   );
+  // `render:recruit` (perf export): render body + React reconciliation + DOM commit for THIS render — the delta
+  // from `renderStart` (top of the component) to this earliest post-commit layout effect. No deps → every commit.
+  // Defined ahead of the Flip effect so it excludes Flip's cost. This is the number that goes up late-game.
+  useLayoutEffect(() => { perfMonitor.record('render:recruit', performance.now() - renderStart); });
   // Tavern offers that would complete a triple if bought (you already hold 2 non-golden copies across
   // board + hand) — flagged with a gold glow + floating arrows. Mirrors `checkTriples`' counting.
   const tripleReadyUids = useMemo(() => {
@@ -1816,7 +1833,7 @@ export function Recruit() {
     // The position/zone last pushed into React state — the baseline the quantum is measured against.
     let committed: { x: number; y: number } | null = null;
     let lastZone: Zone | null = null;
-    const flushMove = (): void => {
+    const flushMove = (): void => { perfMonitor.measure('drag:flushMove', () => {
       moveRaf = 0;
       const e = lastMove;
       if (!e) return;
@@ -1858,7 +1875,7 @@ export function Recruit() {
       } else {
         trailLast = null;
       }
-    };
+    }); };
     const onMove = (e: PointerEvent): void => {
       dragPosRef.current = { x: e.clientX, y: e.clientY }; // exact, every event — the visual layers read this
       lastMove = e;
@@ -2741,6 +2758,10 @@ export function Recruit() {
   // in (cardpop) instead of sliding from nowhere; removed cards (sold) just leave. GSAP clears its own
   // transforms on complete and manages interruptions, so a fast drag blends rather than flinging cards.
   useLayoutEffect(() => {
+   // Timed as `layout:flip` (perf export): GSAP Flip animation + the two forced reflows + the per-commit
+   // Flip.getState / commitRects rebuild (O(cards) offsetLeft reads). Runs every commit — a heavy branch here
+   // is the fanout-frame cost that's neither the sim nor the weld FX.
+   perfMonitor.measure('layout:flip', () => {
     if (flipStateRef.current) {
       const flipCfg = getFlipConfig();
       const dragging = dragRef.current?.active ?? false;
@@ -2813,6 +2834,7 @@ export function Recruit() {
     commitRectsRef.current = new Map(
       gsap.utils.toArray<HTMLElement>(FLIP_SELECTOR).map((el) => [el.dataset.uid ?? '', el.offsetLeft]),
     );
+   });
   }, [flipKey]);
 
   // Hand reorder glide: a drag-reorder (applyDrop) captured the fan's pre-move layout into handReorderFlipRef;

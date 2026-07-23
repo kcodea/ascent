@@ -395,11 +395,14 @@ export const Card = memo(function Card({
   // Size the rules text from the LIVE text string (values already folded in), never by measuring the DOM.
   const txtBucket = plateTextBucket(shownText);
   const isTaunt = card.keywords.includes('T');
-  const useSpellFrame = !!card.spell && card.cardId !== 'discoverspell' && pframeOk;
-  const useStdFrame = !card.spell && !isTaunt && sframeOk;
+  // A Ruby (set 2) is a spell-LIKE card: it wears the SPELL treatment (purple square frame, spell pill, no
+  // stat footer / tribe line) even though it's its own class mechanically. `spellLike` gates the visual only.
+  const spellLike = !!card.spell || !!card.ruby;
+  const useSpellFrame = spellLike && card.cardId !== 'discoverspell' && pframeOk;
+  const useStdFrame = !spellLike && !isTaunt && sframeOk;
   return (
     <div
-      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${card.spell ? ' spellcard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
+      className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${buffed ? ' cardbuff' : ''}${battlecry ? ' bcasting' : ''}${arrived ? ' arrived' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ' reborncard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${card.cardId === 'discoverspell' ? ' triplecard' : ''}${useStdFrame ? ' stdframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}`}
       data-uid={uid}
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
@@ -676,8 +679,8 @@ export const Card = memo(function Card({
         {/* Golden (tripled) marker — a gold crown emblem; pairs with the gold arch frame so a tripled
             minion is instantly findable in a row. */}
         {card.golden && <span className="goldcrown" aria-hidden="true"><Icon name="crown" /></span>}
-        {card.spell ? (
-          <span className="ctype spell">✦ Spell</span>
+        {spellLike ? (
+          <span className="ctype spell">{card.ruby ? '◆ Ruby' : '✦ Spell'}</span>
         ) : (
           <>
             <span className={`atk${statCls(card.attack, card.baseAttack, card.floorAttack)}${card.flashAtk ? ' statflash' : ''}`}>{card.attack}</span>
@@ -697,7 +700,7 @@ export const Card = memo(function Card({
             <span dangerouslySetInnerHTML={{ __html: descUp(mdBold(shownText)) }} />
           </div>
         )}
-        {!card.spell && (
+        {!spellLike && (
           <div className="dtribe">
             {/* An "All" type prints ALL rather than its printed tribe — Lab Experiment reads `neutral` in data
                 but counts as every tribe, and showing NEUTRAL made it look like it took no tribal buffs. */}

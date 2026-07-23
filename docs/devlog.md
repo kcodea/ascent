@@ -3,6 +3,22 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: Rubies render as spell cards)
+
+### feat(ui): Rubies wear the spell look + live "Give a minion +X/+Y" text (owner ask)
+
+Owner: a Ruby should look like a spell, not a stat-bearing minion card. Added a `spellLike = spell || ruby`
+visual gate in `Card` so a Ruby wears the SPELL treatment — the purple spell-square frame, the spell pill, and
+NO stat footer / tribe line — while staying its own class mechanically (the drag/cast path is unchanged). The
+pill reads **"◆ Ruby"** (spell-pill style, Ruby label — flag: the reference showed "SPELL"; one-line switch).
+A `rubycard` class is also added for any future gem-specific styling.
+
+Because the stat footer is hidden, the Ruby's GRANT now lives in its TEXT: `instView` prints
+**"Give a minion +A/+H"** where A/H are the Ruby's live stats (base 1/1 + the run's `rubyBonus`, baked at mint).
+Verified live: a base Ruby reads "+1/+1", a Ruby minted after Deepvein reads "+1/+2"; both render with
+`spell-frame-v2.png`, the ◆ Ruby pill, and no atk/hp badges; a drag-cast still buffs (2/2 → 3/3, consumed).
+typecheck + lint + full suite + build:web green.
+
 ## 2026-07-23 (set 2: Rubies are playable — drag-cast UI + art)
 
 ### feat(ui): mint → cast → buff, the full Ruby loop in the hand

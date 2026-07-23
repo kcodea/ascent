@@ -21,6 +21,6 @@ export const SET2_TOKENS: CardDef[] = [
     token: true,
     ruby: true,
     target: 'friendly',
-    text: 'Play on a friendly minion to give it its Attack and Health.',
+    text: 'Give a minion **+1/+1**.',
   },
 ];

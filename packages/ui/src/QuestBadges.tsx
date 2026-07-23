@@ -8,7 +8,7 @@ import { questObjectiveLines, questObjectiveText, questProgressText, questReward
 import { useGame, type CombatQuestDelta } from './store';
 
 /** Each tribe's emblem glyph — the fallback when a quest has no art yet (mirrors QuestCard). */
-const TRIBE_ICON: Record<Tribe, string> = { beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star' };
+const TRIBE_ICON: Record<Tribe, string> = { beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star', kobold: 'crown' };
 
 
 /** Live combat progress for a quest objective during the replay, mirroring the reducer's `combatEventCount`.

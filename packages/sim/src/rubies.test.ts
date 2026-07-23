@@ -51,4 +51,20 @@ describe('Ruby engine (set 2)', () => {
     expect(s.hand.some((c) => c.uid === ruby.uid)).toBe(true); // kept
     expect(s.rubyCasts ?? 0).toBe(0);
   });
+
+  it("Chipwick Prospector's Shout mints 2 Rubies into hand (card → getRubies factory → engine)", () => {
+    let s: RunState = { ...createRun(1), board: [], hand: [{ uid: 'ch', cardId: 'k_chipwick', tribe: 'kobold', attack: 1, health: 2, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'ch' });
+    expect(s.hand.filter((c) => c.cardId === RUBY_ID).length).toBe(2);
+    expect(s.board.some((c) => c.cardId === 'k_chipwick')).toBe(true); // Chipwick itself played to board
+  });
+
+  it('Deepvein Tender raises rubyBonus so FUTURE Rubies are bigger', () => {
+    let s: RunState = { ...createRun(1), board: [], hand: [{ uid: 'dv', cardId: 'k_deepvein', tribe: 'kobold', attack: 2, health: 3, keywords: [], golden: false }] };
+    s = reduce(s, { type: 'play', uid: 'dv' });
+    expect(s.rubyBonus).toMatchObject({ attack: 0, health: 1 });
+    mintRubies(s, 1);
+    const ruby = s.hand.find((c) => c.cardId === RUBY_ID)!;
+    expect([ruby.attack, ruby.health]).toEqual([1, 2]); // base 1/1 + 0/1
+  });
 });

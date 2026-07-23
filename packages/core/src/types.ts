@@ -1,7 +1,7 @@
 import type { Rng } from './rng';
 import type { CombatBus } from './events';
 
-export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral';
+export type Tribe = 'beast' | 'undead' | 'mech' | 'dragon' | 'demon' | 'neutral' | 'kobold';
 
 /** Keyword codes (handoff A.4). */
 export type Keyword =
@@ -330,7 +330,9 @@ export type EffectFactoryId =
   | 'deathrattleCastTribeAttack' // Anubis: Echo casts Lantern of Souls
   | 'onSellDiscover' // Salvatore McKlusky: selling this opens Discovers
   | 'deathrattleGainRandomMinion' // Lab Experiment: Echo conjures a random minion of a tier
-  | 'deathrattleBuffImpsImproving' // Amun Rab: Echo buffs Imps, improving each proc; // Tauntbreaker: on-attack — strip listed keywords (Taunt / Rise) off the enemy it hits (combat)
+  | 'deathrattleBuffImpsImproving' // Amun Rab: Echo buffs Imps, improving each proc;
+  | 'getRubies' // Set 2 — Shout/Rally: mint N Rubies into hand
+  | 'rubyStatGain'; // Set 2 — "Your Rubies gain +X/+Y": raise the run's Ruby strength (future Rubies only)
 
 export interface EffectDef {
   on: GameEvent;

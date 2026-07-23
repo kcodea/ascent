@@ -7,6 +7,7 @@ import { MECHS } from './cards/set1/mechs';
 import { DEMONS } from './cards/set1/demons';
 import { SPELLS } from './cards/set1/spells';
 import { TIER7 } from './cards/set1/tier7';
+import { SET2_KOBOLDS } from './cards/set2/kobolds';
 
 /**
  * ── Card sets ──────────────────────────────────────────────────────────────────────────────────────────
@@ -93,7 +94,7 @@ export const SETS: Record<SetId, SetDef> = {
     // Starts EMPTY and opts cards IN (owner call 2026-07-19) — set 2 is being authored externally and
     // dropped in, so an explicit `own` list is the manifest. Add `inherits: 'set1'` (+ `excludes`) instead
     // if you'd rather start from set 1 and trim; both compose, and `own` always appends last.
-    own: [], // → packages/content/src/cards/set2/*.ts
+    own: [...SET2_KOBOLDS], // → packages/content/src/cards/set2/*.ts (Kobold / Ruby tribe, WIP)
   },
 };
 

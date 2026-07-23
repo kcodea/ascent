@@ -3,6 +3,30 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: the Kobold tribe + first two Kobolds, WIP)
+
+### feat(content): the `kobold` tribe + Chipwick Prospector / Deepvein Tender
+
+Second set-2 increment, on top of the Ruby engine. Adds the **`kobold` tribe** (core `Tribe` union + content
+`TribeSchema` + the UI tribe label/icon maps — `crown` as the placeholder icon, art pass later) and the first
+two Kobolds the engine already supports, wired into `SETS.set2.own` (still `enabled: false` → set 1 untouched):
+- **Chipwick Prospector** (1/2, T1) — `Shout: Get 2 Rubies` (golden: 4).
+- **Deepvein Tender** (2/3, T3) — `Shout: Your Rubies gain +1 Health` (golden: +2).
+
+Tribe scoping is the MINIMAL path (owner call): `kobold` is a valid Tribe but is deliberately NOT added to the
+run-tribe roster (`PLAYABLE_TRIBES`/`selectRunTribes`), so it can't appear in a set-1 run; set-2 tribe scoping
+(the planned `SetDef.tribes` → `RunState.tribes` pin) stays deferred. Known follow-up: tribe-bond / tribe-quest
+recognition of Kobolds as an "active" tribe rides that scoping.
+
+`npm run pool` regenerated only the provenance version-stamp (the 160 set-1 boards are byte-identical — set 1
+is genuinely untouched). `sets.test.ts`'s empty-set guard test was repointed: set 2 is no longer empty, so it
+now asserts the bake still FAILS on a set too sparse to cover the enemy curve (baking a half-built set stays
+protected). New `rubies.test.ts` cases prove Chipwick's Shout mints 2 Rubies and Deepvein raises the run's Ruby
+strength (the card → factory → engine path). typecheck + lint + full suite (1471) + build:web green.
+
+NEXT: the UI so Rubies render in hand and drag-cast onto a minion (Scene-Builder-testable), then the combat-cast
+path + the rest of the tribe.
+
 ## 2026-07-23 (set 2: the Ruby engine — recruit-phase spine, WIP)
 
 ### feat(sim): Rubies — a spell-like token that is NOT a Shop Spell (set 2 Kobolds, foundation)

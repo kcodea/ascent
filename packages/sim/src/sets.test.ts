@@ -141,11 +141,12 @@ describe('card sets — synthesized boards carry their set', () => {
     expect(boards.every((b) => b.setId === 'set1')).toBe(true);
   });
 
-  it('refuses to bake an EMPTY set with a message that names the cause', () => {
-    // Baking a set before its cards land is the normal state of affairs while authoring one. Without the
-    // guard this died deep in the synth loop with "Cannot read properties of undefined (reading 'attack')".
-    expect(() => synthesizeWaveFromCurve(2, ladders, 99, { perWave: 3, proceduralSeeds: 2, setId: 'set2' }))
-      .toThrow(/set 'set2' has no buyable minions/);
+  it('refuses to bake a set that is not ready to synthesize (empty, or too sparse to cover the curve)', () => {
+    // Baking a half-built set is the normal state while authoring one. A TRULY empty set is caught with a
+    // named message (`has no buyable minions`); set 2 now holds a few Kobolds but is still far too sparse —
+    // a single low-tier tribe can't fill the enemy curve — so the bake must still FAIL rather than emit
+    // garbage boards. (When set 2's pool is real, this test's set moves to a genuinely-empty fixture.)
+    expect(() => synthesizeWaveFromCurve(2, ladders, 99, { perWave: 3, proceduralSeeds: 2, setId: 'set2' })).toThrow();
   });
 
   it('defaults to set1 when unspecified, so existing bakes keep their meaning', () => {

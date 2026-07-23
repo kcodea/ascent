@@ -347,7 +347,9 @@ export type EffectFactoryId =
   | 'rubyPlayedGold' // Set 2 — Ruby Broker: a Ruby played on this gives Gold (capped per turn)
   | 'rubyGainedCast' // Set 2 — Candle Conduit: getting a Ruby casts one on a random friendly Kobold
   | 'damagedGainRubyBonus' // Set 2 — Faultline Scrapper: on-damage, buff your Rubies +X/+Y
-  | 'damagedGetRubies'; // Set 2 — Candleback Bulwark: on-damage, get N Rubies (capped per fight)
+  | 'damagedGetRubies' // Set 2 — Candleback Bulwark: on-damage, get N Rubies (capped per fight)
+  | 'rallyRubyStatGain' // Set 2 — Crownvein: Rally buff your Rubies +X/+Y
+  | 'rallyPlayRubiesTargets'; // Set 2 — Crownvein: Rally play N Rubies each on the first M friends of a tribe
 
 export interface EffectDef {
   on: GameEvent;

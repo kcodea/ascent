@@ -107,6 +107,22 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Avenge (3):** Buff your Rubies **+2/+2**.',
   },
   {
+    // Two Rally effects (both fire on this minion's attack): buff your Rubies AND play a Ruby on 2 Kobolds.
+    id: 'k_crownvein',
+    name: 'Crownvein Vanguard',
+    tribe: 'kobold',
+    tier: 6,
+    attack: 5,
+    health: 8,
+    keywords: ['RL'],
+    effects: [
+      { on: 'onAttack', do: 'rallyRubyStatGain', params: { attack: 1, health: 1 } },
+      { on: 'onAttack', do: 'rallyPlayRubiesTargets', params: { tribe: 'kobold', targets: 2, rubies: 1 } },
+    ],
+    text: '**Rally:** Give your Rubies **+1/+1** and play a Ruby on **2 friendly Kobolds**.',
+    goldenText: '**Rally:** Give your Rubies **+2/+2** and play a Ruby on **4 friendly minions**.',
+  },
+  {
     // Passive: a Ruby played from hand casts an extra time while this is on board (see the reducer play-Ruby
     // branch reading `rubyExtraCast`). No `effects` — it's a board aura like Money Bot's mana.
     id: 'k_prismcaster',

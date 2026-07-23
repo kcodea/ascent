@@ -889,6 +889,27 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.grantRubies(num(params.count, 1) * mul(self), self.side, self.uid);
   },
 
+  /** Set 2 — Crownvein Vanguard (half 1): Rally — when THIS attacks, buff your Rubies +atk/+hp (× golden),
+   *  carried back to `rubyBonus`. */
+  rallyRubyStatGain: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side);
+  },
+
+  /** Set 2 — Crownvein Vanguard (half 2): Rally — when THIS attacks, play `rubies` Rubies each on the first
+   *  `targets` living friends of `tribe` (permanent carry-back). Golden drops the tribe filter (any friend) and
+   *  doubles the target count. */
+  rallyPlayRubiesTargets: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    const tribe = self.golden ? '' : str(params.tribe);
+    const targets = num(params.targets, 2) * mul(self);
+    const per = num(params.rubies, 1);
+    const pool = ctx.living(self.side).filter((m) => !tribe || m.tribe === tribe || m.tribe2 === tribe);
+    for (let i = 0; i < targets && i < pool.length; i++) playRubyOn(ctx, self, pool[i]!, per);
+  },
+
   /** Set 2 — Avenge (X) (Veinbreaker): after every `count` friendly deaths, buff your Rubies +atk/+hp (× golden)
    *  — raises the run's Ruby strength (carried back at settle, grows held + future Rubies). */
   avengeRubyStatGain: (ctx, self, params, payload) => {

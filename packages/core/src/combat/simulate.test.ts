@@ -2674,6 +2674,23 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerPermaBuffs?.find((b) => b.sourceUid === 'F')).toMatchObject({ attack: 2, health: 2 });
   });
 
+  it('set 2 — Crownvein Vanguard: Rally buffs your Rubies AND plays Rubies on Kobolds', () => {
+    const cvtest: CardDef = { id: 'cvtest', name: 'CV', tribe: 'kobold', tier: 6, attack: 5, health: 100, keywords: ['RL'],
+      effects: [
+        { on: 'onAttack', do: 'rallyRubyStatGain', params: { attack: 1, health: 1 } },
+        { on: 'onAttack', do: 'rallyPlayRubiesTargets', params: { tribe: 'kobold', targets: 2, rubies: 1 } },
+      ], text: '' };
+    const cvk2: CardDef = { id: 'cvk2', name: 'K2', tribe: 'kobold', tier: 1, attack: 1, health: 100, keywords: [], effects: [], text: '' };
+    const r = simulate([
+      { cardId: 'cvtest', attack: 5, health: 100, sourceUid: 'CV' },
+      { cardId: 'cvk2', attack: 1, health: 100, sourceUid: 'K2' },
+    ], [{ cardId: 'sandbag', attack: 1, health: 400 }], makeRng(3), { ...CARD_INDEX, cvtest, cvk2 },
+      combatSide({ tier: 6, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    expect(r.playerRubyBonusGain?.attack).toBeGreaterThanOrEqual(1); // Rally buffed your Rubies
+    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'CV')).toBe(true); // played a Ruby on the first 2 Kobolds
+    expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'K2')).toBe(true);
+  });
+
   it('set 2 — Faultline Scrapper: taking damage raises your Ruby strength (carried back)', () => {
     const fstest: CardDef = { id: 'fstest', name: 'FS', tribe: 'kobold', tier: 3, attack: 1, health: 50, keywords: [],
       effects: [{ on: 'onDamaged', do: 'damagedGainRubyBonus', params: { attack: 1, health: 0 } }], text: '' };

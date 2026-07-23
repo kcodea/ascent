@@ -265,6 +265,8 @@ export const EffectFactoryIdSchema = z.enum([
   'rubyGainedCast',   // Candle Conduit: getting a Ruby casts one on a random friendly Kobold
   'damagedGainRubyBonus', // Faultline Scrapper: on-damage, buff your Rubies +X/+Y
   'damagedGetRubies', // Candleback Bulwark: on-damage, get N Rubies (capped per fight)
+  'rallyRubyStatGain', // Crownvein: Rally buff your Rubies +X/+Y
+  'rallyPlayRubiesTargets', // Crownvein: Rally play N Rubies each on the first M friends of a tribe
 ]);
 
 export const EffectDefSchema = z.object({

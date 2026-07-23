@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { mintRubies, RUBY_ID } from './recruit';
+import { mintRubies, applyCardsBought, RUBY_ID } from './recruit';
 
 /**
  * The Ruby engine (set 2 Kobolds). Rubies are a spell-LIKE token that is NOT a Shop Spell: minted into hand,
@@ -72,6 +72,16 @@ describe('Ruby engine (set 2)', () => {
     expect([handRuby.attack, handRuby.health]).toEqual([1, 2]); // the ALREADY-HELD Ruby grew
     mintRubies(s, 1);
     expect(s.hand.filter((c) => c.cardId === RUBY_ID).every((r) => r.attack === 1 && r.health === 2)).toBe(true); // future too
+  });
+
+  it('Hoardmaster Krik mints a Ruby every 3 cards bought', () => {
+    const s: RunState = { ...createRun(1), board: [{ uid: 'k', cardId: 'k_hoardmaster', tribe: 'kobold', attack: 5, health: 9, keywords: [], golden: false }], hand: [] };
+    applyCardsBought(s, 2); // 2 buys → not yet
+    expect(s.hand.filter((c) => c.cardId === RUBY_ID).length).toBe(0);
+    applyCardsBought(s, 1); // the 3rd buy → mint a Ruby
+    expect(s.hand.filter((c) => c.cardId === RUBY_ID).length).toBe(1);
+    applyCardsBought(s, 3); // 3 more → another
+    expect(s.hand.filter((c) => c.cardId === RUBY_ID).length).toBe(2);
   });
 
   it('Rubies never triple, even with 3+ in hand — they are spells (owner ruling)', () => {

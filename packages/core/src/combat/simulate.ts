@@ -94,6 +94,8 @@ export function simulate(
   const handGrants: string[] = []; // cards the player's deathrattles add to hand after combat
   let slaughterCopyId: string | undefined; // Rune of the Trophy: the first friendly slaughterer's card id
   const spellPowerGain = { attack: 0, health: 0 }; // run-wide spell-power gained this combat (Skullblade)
+  const rubyGrants = { n: 0 }; // Set 2 — Rubies to mint into hand after combat (Rikk / Gemline), carried back
+  const rubyBonusGain = { attack: 0, health: 0 }; // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
   let undeadBuyAtkGain = 0; // permanent Undead buy-time attack from this combat (Karthus)
   const undeadAuraGain = { attack: 0, health: 0 }; // permanent Undead aura (attack+health) from this combat (Watcher's Lantern)
   const impBuffGain = { attack: 0, health: 0 }; // permanent Imp buff from this combat (Imp King / Brood Avenge)
@@ -551,6 +553,20 @@ export function simulate(
       spellPower.health += health;
       // Telegraph it mid-combat (it otherwise applies silently at settle) so the player sees the gain.
       if (sourceUid && (attack !== 0 || health !== 0)) emit({ type: 'sc', source: sourceUid, text: `+${attack}/+${health} Spell Power` });
+    },
+    grantRubies: (count, side, sourceUid) => {
+      // Set 2 (Rikk / Gemline) — player-only: mint `count` Rubies into hand after combat (carried back via
+      // `playerRubyGrants`, minted with the run's live rubyBonus). Emit a `toHand` per Ruby for the replay.
+      if (side !== 'player' || count <= 0) return;
+      rubyGrants.n += count;
+      for (let i = 0; i < count; i++) emit({ type: 'toHand', cardId: 'ruby', side, source: sourceUid });
+    },
+    gainRubyBonus: (attack, health, side) => {
+      // Set 2 (Veinbreaker) — player-only: raise the run's Ruby strength after combat (carried back via
+      // `playerRubyBonusGain`; grows held + future Rubies at settle).
+      if (side !== 'player') return;
+      rubyBonusGain.attack += attack;
+      rubyBonusGain.health += health;
     },
     grantCardBuff: (cardId, attack, health, side) => {
       // Player-only — accumulate per cardId and carry back via playerCardBuffs.
@@ -2046,6 +2062,8 @@ export function simulate(
     playerAscendCount: playerAscendCount.length > 0 ? playerAscendCount : undefined,
     playerPermaBuffs: playerPermaBuffs.length > 0 ? playerPermaBuffs : undefined,
     playerHandGrants: handGrants.length > 0 ? handGrants : undefined,
+    playerRubyGrants: rubyGrants.n > 0 ? rubyGrants.n : undefined,
+    playerRubyBonusGain: (rubyBonusGain.attack > 0 || rubyBonusGain.health > 0) ? { ...rubyBonusGain } : undefined,
     playerSpellPower: spellPowerGain.attack !== 0 || spellPowerGain.health !== 0 ? spellPowerGain : undefined,
     playerCardBuffs: cardBuffGains.length > 0 ? cardBuffGains : undefined,
     playerFodderGrants: fodderGrants > 0 ? fodderGrants : undefined,

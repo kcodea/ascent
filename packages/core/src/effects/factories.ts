@@ -26,6 +26,25 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 /** Tripled minions fire their buff/damage effects at doubled magnitude. */
 const mul = (self: Minion): number => (self.golden ? 2 : 1);
 
+/** Set 2 — "Play `per` Rubies on your [tribe] minions" in COMBAT: every living friend of `tribe` (or all
+ *  friends if `tribe` is empty) gets `per` Ruby buffs, a Ruby being base 1/1 + this side's `rubyBonus`. The gift
+ *  is PERMANENT — recorded as `permaGain` for EVERY recipient (not just Engraved ones; owner: Ruby buffs are
+ *  always permanent) so it carries back to the run board via `playerPermaBuffs`. Shared by every "play Rubies"
+ *  combat trigger (Start-of-Combat / Avenge / Rally). */
+function playRubies(ctx: CombatContext, self: Minion, per: number, tribe: string): void {
+  if (per <= 0) return;
+  const rb = ctx.rubyBonusFor(self.side);
+  const a = (1 + rb.attack) * per;
+  const h = (1 + rb.health) * per;
+  for (const m of ctx.living(self.side)) {
+    if (tribe && m.tribe !== tribe && m.tribe2 !== tribe) continue;
+    ctx.buff(m, a, h, self.uid);
+    if (!m.keywords.includes('EG')) {
+      m.permaGain = { attack: (m.permaGain?.attack ?? 0) + a, health: (m.permaGain?.health ?? 0) + h };
+    }
+  }
+}
+
 interface MinionPayload {
   minion: Minion;
   side?: Side;
@@ -844,21 +863,36 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  to the run board (owner: Ruby buffs are always permanent, in shop or combat). `count` = Rubies per minion
    *  (× golden); optional `tribe` filters recipients (e.g. `'kobold'`; omit = all your minions). */
   scPlayRubies: (ctx, self, params) => {
-    const per = num(params.count, 1) * mul(self);
-    if (per <= 0) return;
-    const tribe = str(params.tribe);
-    const rb = ctx.rubyBonusFor(self.side);
-    const a = (1 + rb.attack) * per;
-    const h = (1 + rb.health) * per;
-    for (const m of ctx.living(self.side)) {
-      if (tribe && m.tribe !== tribe && m.tribe2 !== tribe) continue;
-      ctx.buff(m, a, h, self.uid);
-      // ctx.buff already carries an Engraved recipient's gain back; record it for everyone else — a Ruby buff
-      // is permanent regardless of keywords.
-      if (!m.keywords.includes('EG')) {
-        m.permaGain = { attack: (m.permaGain?.attack ?? 0) + a, health: (m.permaGain?.health ?? 0) + h };
-      }
-    }
+    playRubies(ctx, self, num(params.count, 1) * mul(self), str(params.tribe));
+  },
+
+  /** Set 2 — Avenge (X): after every `count` friendly deaths in combat, play `rubies` Rubies on your [tribe]
+   *  minions (Gemstorm Instigator, Gemline Martyr). `count` = the Avenge threshold; `rubies` = Rubies per minion
+   *  (× golden). Permanent carry-back via `playRubies`. */
+  avengePlayRubies: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 2));
+    if (count % x !== 0) return;
+    playRubies(ctx, self, num(params.rubies, 1) * mul(self), str(params.tribe));
+  },
+
+  /** Set 2 — Rally (Tunnelcharger Rikk): when THIS minion attacks, get `count` Rubies (× golden). Minted into
+   *  hand after combat with the run's live rubyBonus. Fires on its own attack (Flurry → per hit). */
+  rallyGetRubies: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    ctx.grantRubies(num(params.count, 1) * mul(self), self.side, self.uid);
+  },
+
+  /** Set 2 — Avenge (X) (Veinbreaker): after every `count` friendly deaths, buff your Rubies +atk/+hp (× golden)
+   *  — raises the run's Ruby strength (carried back at settle, grows held + future Rubies). */
+  avengeRubyStatGain: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const x = Math.max(1, num(params.count, 3));
+    if (count % x !== 0) return;
+    ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side);
   },
 
   /** Herald of the Apocalypse — Rally: each time THIS minion attacks, add a copy of itself to your hand after

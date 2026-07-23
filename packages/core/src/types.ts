@@ -333,7 +333,11 @@ export type EffectFactoryId =
   | 'deathrattleBuffImpsImproving' // Amun Rab: Echo buffs Imps, improving each proc;
   | 'getRubies' // Set 2 — Shout/Rally: mint N Rubies into hand
   | 'rubyStatGain' // Set 2 — "Your Rubies gain +X/+Y": raise the run's Ruby strength (hand + future)
-  | 'scPlayRubies'; // Set 2 — Start of Combat: play N Rubies on your [tribe] minions (permanent carry-back)
+  | 'scPlayRubies' // Set 2 — Start of Combat: play N Rubies on your [tribe] minions (permanent carry-back)
+  | 'avengePlayRubies' // Set 2 — Avenge (X): play N Rubies on your [tribe] minions
+  | 'cardsBoughtGetRubies' // Set 2 — Hoardmaster Krik: every N cards bought, mint Rubies to hand
+  | 'rallyGetRubies' // Set 2 — Rally: get N Rubies (carried back to hand after combat)
+  | 'avengeRubyStatGain'; // Set 2 — Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
 
 export interface EffectDef {
   on: GameEvent;
@@ -1264,6 +1268,12 @@ export interface CombatResult {
   playerPermaBuffs?: { sourceUid: string; attack: number; health: number; engraved: boolean }[];
   /** Card ids the player's combat deathrattles grant to the hand after combat (Arcane Weaver). */
   playerHandGrants?: string[];
+  /** Set 2 — Rubies to mint into the hand after combat (Rikk / Gemline "Get N Rubies" in combat). Minted with
+   *  the run's live `rubyBonus` at settle, so they match a shop-minted Ruby. */
+  playerRubyGrants?: number;
+  /** Set 2 — Ruby STRENGTH gained this combat (Veinbreaker "Avenge: buff your Rubies +X/+Y"). Applied to the
+   *  run's `rubyBonus` at settle (grows held + future Rubies). */
+  playerRubyBonusGain?: { attack: number; health: number };
   /** Rune of the Trophy: the card id of the first friendly minion to Slaughter this combat — a plain copy is
    *  conjured to hand in settleCombat ("get a copy of it next Shop"). Absent when no Slaughter fired. */
   playerSlaughterCopy?: string;
@@ -1393,6 +1403,10 @@ export interface CombatContext {
   /** Permanently buff a card type run-wide by +atk/+hp (Grave Knit's combat death). Player-only;
    *  accumulated and carried back via `CombatResult.playerCardBuffs`, applied in the run loop. */
   grantCardBuff(cardId: string, attack: number, health: number, side: Side): void;
+  /** Set 2 — mint `count` Rubies into hand after combat (Rikk / Gemline). Player-only; carried back. */
+  grantRubies(count: number, side: Side, sourceUid?: string): void;
+  /** Set 2 — raise the run's Ruby strength after combat (Veinbreaker). Player-only; carried back. */
+  gainRubyBonus(attack: number, health: number, side: Side): void;
   /** Queue `count` Fodder into the player's next tavern (Burial Imp's Deathrattle). Player-only;
    *  carried back via `CombatResult.playerFodderGrants`, pushed onto pendingTavern in settleCombat. */
   grantTavernFodder(count: number, side: Side): void;

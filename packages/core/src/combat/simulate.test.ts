@@ -2626,6 +2626,49 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'D')).toBe(false);
   });
 
+  it('set 2 — an Avenge Ruby cast fires on a friendly death and carries back permanently', () => {
+    const gemtest: CardDef = { id: 'gemtest', name: 'Gem Avenger', tribe: 'kobold', tier: 6, attack: 2, health: 100, keywords: [],
+      effects: [{ on: 'avenge', do: 'avengePlayRubies', params: { count: 1, rubies: 1 } }], text: '' };
+    const sac: CardDef = { id: 'gsac', name: 'Sac', tribe: 'kobold', tier: 1, attack: 1, health: 1, keywords: [], effects: [], text: '' };
+    const cards = { ...CARD_INDEX, gemtest, gsac: sac };
+    const p: BoardMinion[] = [
+      { cardId: 'gemtest', attack: 2, health: 100, sourceUid: 'G' },
+      { cardId: 'gsac', attack: 1, health: 1, sourceUid: 'S' }, // dies → Avenge(1) fires
+    ];
+    const r = simulate(p, [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), cards,
+      combatSide({ tier: 6, tribes: ['kobold'], rubyBonus: { attack: 1, health: 1 } }), combatSide({ tier: 1 }));
+    // The sac dies → Avenge(1) plays 1 Ruby (2/2 with the +1/+1 bonus) on every living Kobold → the tanky
+    // caster carries it back permanently (carry-back survives even if it later dies — see the Taurus case).
+    const gPerma = r.playerPermaBuffs?.find((b) => b.sourceUid === 'G');
+    expect(gPerma).toBeDefined();
+    expect(gPerma!.attack).toBeGreaterThanOrEqual(2); // ≥ one Ruby (2/2)
+    expect(gPerma!.attack % 2).toBe(0);
+  });
+
+  it('set 2 — Rally "Get Rubies" carries N Rubies back to hand (playerRubyGrants)', () => {
+    const riktest: CardDef = { id: 'riktest', name: 'Rik', tribe: 'kobold', tier: 3, attack: 5, health: 50, keywords: ['RL'],
+      effects: [{ on: 'onAttack', do: 'rallyGetRubies', params: { count: 3 } }], text: '' };
+    const cards = { ...CARD_INDEX, riktest };
+    const r = simulate([{ cardId: 'riktest', attack: 5, health: 50, sourceUid: 'R' }],
+      [{ cardId: 'sandbag', attack: 1, health: 400 }], makeRng(3), cards,
+      combatSide({ tier: 3, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    expect(r.playerRubyGrants).toBeGreaterThanOrEqual(3); // ≥ one Rally (it attacks at least once)
+    expect(r.playerRubyGrants! % 3).toBe(0);
+  });
+
+  it('set 2 — Avenge "buff your Rubies" carries the rubyBonus gain back (playerRubyBonusGain)', () => {
+    const vbtest: CardDef = { id: 'vbtest', name: 'VB', tribe: 'kobold', tier: 4, attack: 2, health: 100, keywords: [],
+      effects: [{ on: 'avenge', do: 'avengeRubyStatGain', params: { count: 1, attack: 1, health: 1 } }], text: '' };
+    const sac: CardDef = { id: 'vsac', name: 'S', tribe: 'kobold', tier: 1, attack: 1, health: 1, keywords: [], effects: [], text: '' };
+    const cards = { ...CARD_INDEX, vbtest, vsac: sac };
+    const r = simulate([
+      { cardId: 'vbtest', attack: 2, health: 100, sourceUid: 'V' },
+      { cardId: 'vsac', attack: 1, health: 1, sourceUid: 'S' },
+    ], [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), cards,
+      combatSide({ tier: 4, tribes: ['kobold'] }), combatSide({ tier: 1 }));
+    expect(r.playerRubyBonusGain).toMatchObject({ attack: 1, health: 1 }); // Avenge(1) fired once (only the sac died)
+  });
+
   it('Taurus engraves an adjacent minion — that minion keeps its combat gains (carry-back)', () => {
     // A Sporeling dies and buffs every friend +1 of one stat (combat-only). The target wall has its keywords
     // stripped, so its +1 would NOT normally carry back; Taurus sits to its right and engraves it at Start of

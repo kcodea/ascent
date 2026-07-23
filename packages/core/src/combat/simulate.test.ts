@@ -2626,6 +2626,25 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerPermaBuffs?.some((b) => b.sourceUid === 'D')).toBe(false);
   });
 
+  it('set 2 — an Avenge Ruby cast fires on a friendly death and carries back permanently', () => {
+    const gemtest: CardDef = { id: 'gemtest', name: 'Gem Avenger', tribe: 'kobold', tier: 6, attack: 2, health: 100, keywords: [],
+      effects: [{ on: 'avenge', do: 'avengePlayRubies', params: { count: 1, rubies: 1 } }], text: '' };
+    const sac: CardDef = { id: 'gsac', name: 'Sac', tribe: 'kobold', tier: 1, attack: 1, health: 1, keywords: [], effects: [], text: '' };
+    const cards = { ...CARD_INDEX, gemtest, gsac: sac };
+    const p: BoardMinion[] = [
+      { cardId: 'gemtest', attack: 2, health: 100, sourceUid: 'G' },
+      { cardId: 'gsac', attack: 1, health: 1, sourceUid: 'S' }, // dies → Avenge(1) fires
+    ];
+    const r = simulate(p, [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), cards,
+      combatSide({ tier: 6, tribes: ['kobold'], rubyBonus: { attack: 1, health: 1 } }), combatSide({ tier: 1 }));
+    // The sac dies → Avenge(1) plays 1 Ruby (2/2 with the +1/+1 bonus) on every living Kobold → the tanky
+    // caster carries it back permanently (carry-back survives even if it later dies — see the Taurus case).
+    const gPerma = r.playerPermaBuffs?.find((b) => b.sourceUid === 'G');
+    expect(gPerma).toBeDefined();
+    expect(gPerma!.attack).toBeGreaterThanOrEqual(2); // ≥ one Ruby (2/2)
+    expect(gPerma!.attack % 2).toBe(0);
+  });
+
   it('Taurus engraves an adjacent minion — that minion keeps its combat gains (carry-back)', () => {
     // A Sporeling dies and buffs every friend +1 of one stat (combat-only). The target wall has its keywords
     // stripped, so its +1 would NOT normally carry back; Taurus sits to its right and engraves it at Start of

@@ -33,4 +33,18 @@ export const SET2_KOBOLDS: CardDef[] = [
     text: '**Shout:** Your Rubies gain **+1 Health**.',
     goldenText: '**Shout:** Your Rubies gain **+2 Health**.',
   },
+  {
+    // Avenge is a COMBAT trigger — every 2 friendly deaths, each of your minions gets 2 Rubies (permanent,
+    // carried back to the run board). `rubies` is per-minion (matching Crownvein's "a Ruby on 2 minions").
+    id: 'k_gemstorm',
+    name: 'Gemstorm Instigator',
+    tribe: 'kobold',
+    tier: 6,
+    attack: 6,
+    health: 6,
+    keywords: [], // Avenge has no keyword pill (matches set-1 Avenge cards); the text conveys it
+    effects: [{ on: 'avenge', do: 'avengePlayRubies', params: { count: 2, rubies: 2 } }],
+    text: '**Avenge (2):** Play **2 Rubies** on your minions.',
+    goldenText: '**Avenge (2):** Play **4 Rubies** on your minions.',
+  },
 ];

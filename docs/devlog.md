@@ -3,6 +3,26 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: Avenge Ruby cast + Gemstorm Instigator — first combat Kobold)
+
+### feat(content): `avengePlayRubies` + Gemstorm Instigator (the first combat-casting Kobold)
+
+Building on the combat-cast foundation. Extracted a shared `playRubies(ctx, self, per, tribe)` helper (each
+living friend of `tribe` gets `per` Ruby buffs = base 1/1 + rubyBonus, permanent carry-back), refactored
+`scPlayRubies` onto it, and added `avengePlayRubies` — "Avenge (X): play N Rubies on your [tribe] minions",
+mirroring `avengeBuff`'s threshold guard (fires every `count` friendly deaths).
+
+Wired the first combat Kobold: **Gemstorm Instigator** (6/6, T6) — `Avenge (2): Play 2 Rubies on your minions`
+(golden: 4). **Judgment call (flag):** `rubies` is PER-MINION — each of your minions gets 2 Rubies — reading
+"2 Rubies on your minions" in parallel with Crownvein's "a Ruby on 2 Kobolds" (one Ruby each). Easy to switch
+to "N total, distributed" if that's the intent.
+
+Verified: new `simulate.test.ts` Avenge case (a sac dies → Avenge(1) plays a Ruby on the living Kobold → +2/+2
+carried back). Full suite (determinism + golden) + content validation (Gemstorm) + lint + build:web green.
+
+NEXT: `rallyPlayRubies` / `rallyGetRubies` (Rikk, Crownvein), the "cards bought this turn" scaler for Frenzied
+Excavator, then the remaining combat Kobolds.
+
 ## 2026-07-23 (set 2: combat-phase Ruby casting — the engine foundation)
 
 ### feat(core): thread rubyBonus into `simulate()` + `scPlayRubies` (Start-of-Combat Ruby cast, permanent carry-back)

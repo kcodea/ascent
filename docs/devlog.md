@@ -3,6 +3,23 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (perf: Discover dim drops the full-viewport backdrop blur)
+
+### perf(ui): dim the board behind a Discover instead of blurring the whole framebuffer
+
+Audit finding: `.discover-ov` used `backdrop-filter: blur(3px)` over the whole viewport — a full-framebuffer GPU
+pass composited on the Discover-open frame (owner: "discovers are a big one"), worst at the exe's native
+fullscreen resolution; the `body.modalup` dim also blurred the hero panel / quest badges. Dropped both blurs:
+`.discover-ov` now uses a slightly deeper solid scrim (`rgba(30,20,8,0.74)`) and the element dim keeps only
+`brightness`/`saturate`, so the board reads sharp+darkened rather than blurred and the look stays uniform.
+Purely a look change; the scrim opacity is a one-line tunable. lint + `build:web` green, no console errors,
+`backdrop-filter` computes to `none` with a Discover open.
+
+Fix #5 of the perf audit. #4 (granular store selectors) turned out coupled to the pending `structuredClone`
+fix (#1): every fan-out target (OpponentFrame → `nextOpponent(run)`, BuffsFrame → `gatherRunBuffs(run)`,
+QuestBadges) recomputes over the WHOLE run, which the clone reassigns each dispatch, so a selector can't skip
+anything until referential stability lands — #4 rides with #1 rather than shipping as a token HudBar change.
+
 ## 2026-07-22 (End Turn softlock: a battlecry aim could trap the player)
 
 ### fix(sim/ui): the round timer expiring mid-aim permanently softlocked the run

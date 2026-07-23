@@ -98,7 +98,8 @@ export type GameEvent =
   | 'summonOverflow' // recruit phase: a summon couldn't fit on the full board (Flowing Monk)
   | 'goldSpent' // recruit phase: the player spent Gold — fires per threshold (Acid, Banksly)
   | 'cardsBought' // recruit phase: the player bought a card — fires per threshold (Korok, Banksly)
-  | 'onSell'; // recruit phase: this minion is sold (Hoard Whelp — get Gold)
+  | 'onSell' // recruit phase: this minion is sold (Hoard Whelp — get Gold)
+  | 'onRubyPlayed'; // set 2 recruit phase: a Ruby was played on THIS minion (Ruby Broker → Gold, Resonance Idol → bounce)
 
 /**
  * Identifiers of registered effect primitives. Cards reference these by name
@@ -340,7 +341,9 @@ export type EffectFactoryId =
   | 'avengeRubyStatGain' // Set 2 — Avenge (X): buff your Rubies +X/+Y (carried back to rubyBonus)
   | 'scPlayRubiesPerBuy' // Set 2 — Frenzied Excavator: SoC play N Rubies per M cards bought this turn
   | 'avengeGetRubies' // Set 2 — Gemline Martyr: Avenge (X) get N Rubies
-  | 'avengePlayRubiesLeftmost'; // Set 2 — Gemline Martyr: Avenge (X) play N Rubies on your left-most minion
+  | 'avengePlayRubiesLeftmost' // Set 2 — Gemline Martyr: Avenge (X) play N Rubies on your left-most minion
+  | 'rubyPlayedBounce' // Set 2 — Resonance Idol: a Ruby played on this bounces to both adjacent minions
+  | 'rubyPlayedGold'; // Set 2 — Ruby Broker: a Ruby played on this gives Gold (capped per turn)
 
 export interface EffectDef {
   on: GameEvent;

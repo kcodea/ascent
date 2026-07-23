@@ -33,7 +33,7 @@ type RecruitFn = (
    *  to vary a per-proc random selection (Combinator) so each weld picks fresh Mechs. `target` is the
    *  player-chosen friendly minion for a targeted Battlecry (Toxin Tender); absent = auto-pick. `replay`
    *  marks a Djinn-driven extra End-of-Turn (it must not advance a cadence counter — see Frontdrake). */
-  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean },
+  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number },
 ) => void;
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
@@ -847,6 +847,29 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  Tunnelcharger Rikk `Get 3` — the golden text doubles the count, so `count × gold(self)`. */
   getRubies: (ctx, self, params) => {
     mintRubies(ctx.state, num(params.count, 1) * gold(self));
+  },
+
+  /** Set 2 — Resonance Idol: when a Ruby is played on THIS minion, bounce the same buff to BOTH adjacent
+   *  minions (golden: bounce twice). Uses `addBuff` directly, so a bounce can't re-trigger onRubyPlayed. */
+  rubyPlayedBounce: (ctx, self, params, payload) => {
+    const rubyAttack = payload.rubyAttack ?? 0;
+    const rubyHealth = payload.rubyHealth ?? 0;
+    const board = ctx.state.board;
+    const idx = board.indexOf(self);
+    if (idx < 0) return;
+    const reps = self.golden ? num(params.goldenReps, 2) : 1;
+    for (const adj of [board[idx - 1], board[idx + 1]]) {
+      if (adj) for (let r = 0; r < reps; r++) addBuff(adj, 'Ruby', rubyAttack, rubyHealth);
+    }
+  },
+
+  /** Set 2 — Ruby Broker: when a Ruby is played on THIS minion, gain `gold` Gold — capped `cap` times per turn
+   *  (golden raises the cap by 1). `rubyRecvTick` is a per-instance counter reset each wave. */
+  rubyPlayedGold: (ctx, self, params) => {
+    const cap = num(params.cap, 2) + (self.golden ? 1 : 0);
+    if ((self.rubyRecvTick ?? 0) >= cap) return;
+    self.rubyRecvTick = (self.rubyRecvTick ?? 0) + 1;
+    ctx.state.embers += num(params.gold, 3);
   },
 
   /** Set 2 — Hoardmaster Krik: every `every` cards bought (the `cardsBought` cadence handles the counting),
@@ -2792,6 +2815,19 @@ export function fireOnSell(state: RunState, card: BoardCard): void {
   for (const eff of def.effects) {
     if (eff.on !== 'onSell') continue;
     RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card });
+  }
+}
+
+/** Set 2 — fire a board minion's `onRubyPlayed` effects when a Ruby is cast ONTO it (Ruby Broker → Gold,
+ *  Resonance Idol → bounce). The played Ruby's stats ride in the payload so a bounce can re-apply the same
+ *  buff. The bounce uses `addBuff` directly (not this path) so it can't cascade into an infinite loop. */
+export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: number, rubyHealth: number): void {
+  const def = CARD_INDEX[card.cardId];
+  if (!def || !def.effects.some((e) => e.on === 'onRubyPlayed')) return;
+  const ctx = makeContext(state);
+  for (const eff of def.effects) {
+    if (eff.on !== 'onRubyPlayed') continue;
+    RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, rubyAttack, rubyHealth });
   }
 }
 

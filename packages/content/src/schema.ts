@@ -30,6 +30,7 @@ export const GameEventSchema = z.enum([
   'goldSpent',
   'cardsBought',
   'onSell',
+  'onRubyPlayed',
 ]);
 
 export const EffectFactoryIdSchema = z.enum([
@@ -258,6 +259,8 @@ export const EffectFactoryIdSchema = z.enum([
   'scPlayRubiesPerBuy', // Frenzied Excavator: SoC play N Rubies per M cards bought this turn
   'avengeGetRubies', // Gemline Martyr: Avenge (X) get N Rubies
   'avengePlayRubiesLeftmost', // Gemline Martyr: Avenge (X) play N Rubies on your left-most minion
+  'rubyPlayedBounce', // Resonance Idol: a Ruby played on this bounces to both adjacent minions
+  'rubyPlayedGold',   // Ruby Broker: a Ruby played on this gives Gold (capped per turn)
 ]);
 
 export const EffectDefSchema = z.object({

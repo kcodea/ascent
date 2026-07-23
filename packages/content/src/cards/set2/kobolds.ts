@@ -107,6 +107,32 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Avenge (3):** Buff your Rubies **+2/+2**.',
   },
   {
+    // "When a Ruby is played on THIS minion" trigger — the buff also lands on both neighbours.
+    id: 'k_resonance',
+    name: 'Resonance Idol',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 4,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'onRubyPlayed', do: 'rubyPlayedBounce', params: { goldenReps: 2 } }],
+    text: 'Rubies cast on this minion bounce to both adjacent minions.',
+    goldenText: 'Rubies cast on this minion bounce to both adjacent minions twice.',
+  },
+  {
+    // "When a Ruby is played on THIS minion" → Gold, capped per turn (per-instance `rubyRecvTick`).
+    id: 'k_rubybroker',
+    name: 'Ruby Broker',
+    tribe: 'kobold',
+    tier: 5,
+    attack: 2,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'onRubyPlayed', do: 'rubyPlayedGold', params: { gold: 3, cap: 2 } }],
+    text: 'Rubies played on this minion give you **3 Gold** (two times per turn).',
+    goldenText: 'Rubies played on this minion give you **3 Gold** (three times per turn).',
+  },
+  {
     // Recruit-phase economy: the `cardsBought` cadence (`every: 3`) mints a Ruby every 3 cards you buy.
     id: 'k_hoardmaster',
     name: 'Hoardmaster Krik',

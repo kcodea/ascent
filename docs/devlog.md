@@ -3,6 +3,24 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: the "when a Ruby is played on this" trigger — Resonance Idol + Ruby Broker)
+
+### feat(set2): `onRubyPlayed` primitive + two Kobolds that react to Rubies landing on them
+
+The first bespoke Ruby-interaction primitive: a recruit-phase **`onRubyPlayed`** trigger that fires a board
+minion's effects when a Ruby is cast ONTO it. The reducer's play-Ruby branch calls `fireOnRubyPlayed(target, a,
+h)` after buffing a board target; the played Ruby's stats ride in the (widened) recruit payload so a reaction can
+re-use them. Two Kobolds:
+- **Resonance Idol** (4/6 T4) — `rubyPlayedBounce`: the buff also lands on BOTH adjacent minions (golden: twice).
+  Bounces via `addBuff` directly, so it can't cascade into a loop.
+- **Ruby Broker** (2/6 T5) — `rubyPlayedGold`: +3 Gold per Ruby, capped 2×/turn (golden 3×) via a per-instance
+  `rubyRecvTick` reset each wave.
+
+Art wired for both. Verified: `rubies.test.ts` — Resonance bounces a played Ruby to both neighbours (+1/+1
+each); Ruby Broker gives 3 Gold twice then stops at the cap. Full suite + content validation + lint + build:web
+green. **Ten Kobolds shipped.** (The `onRubyPlayed` hook also sets up Geode Guardian / Gemheart Carver variants
+next.)
+
 ## 2026-07-23 (set 2: Frenzied Excavator + Gemline Martyr — the two "moderate" combat Kobolds)
 
 ### feat(set2): cards-bought-this-turn scaler + positional Ruby play (Frenzied + Gemline)

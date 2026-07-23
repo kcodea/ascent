@@ -91,6 +91,25 @@ describe('Ruby engine (set 2)', () => {
     expect(s.hand.filter((c) => c.cardId === RUBY_ID).length).toBe(2);
   });
 
+  it('Resonance Idol bounces a played Ruby to both adjacent minions', () => {
+    const mk = (uid: string, cardId: string): BoardCard => ({ uid, cardId, tribe: 'kobold', attack: 2, health: 2, keywords: [], golden: false });
+    let s: RunState = { ...createRun(1), board: [mk('a', 'sandbag'), mk('idol', 'k_resonance'), mk('b', 'sandbag')], hand: [] };
+    mintRubies(s, 1);
+    const ruby = s.hand.find((c) => c.cardId === RUBY_ID)!;
+    s = reduce(s, { type: 'play', uid: ruby.uid, targetUid: 'idol' });
+    expect([s.board.find((c) => c.uid === 'idol')!.attack, s.board.find((c) => c.uid === 'idol')!.health]).toEqual([3, 3]); // 2/2 + Ruby
+    expect([s.board.find((c) => c.uid === 'a')!.attack, s.board.find((c) => c.uid === 'a')!.health]).toEqual([3, 3]); // bounced
+    expect([s.board.find((c) => c.uid === 'b')!.attack, s.board.find((c) => c.uid === 'b')!.health]).toEqual([3, 3]); // bounced
+  });
+
+  it('Ruby Broker gives 3 Gold per Ruby, capped twice per turn', () => {
+    let s: RunState = { ...createRun(1), board: [{ uid: 'bk', cardId: 'k_rubybroker', tribe: 'kobold', attack: 2, health: 6, keywords: [], golden: false }], hand: [], embers: 0 };
+    mintRubies(s, 3);
+    const rubies = s.hand.filter((c) => c.cardId === RUBY_ID).map((c) => c.uid);
+    for (const uid of rubies) s = reduce(s, { type: 'play', uid, targetUid: 'bk' });
+    expect(s.embers).toBe(6); // 2 procs × 3 Gold; the 3rd Ruby is over the per-turn cap
+  });
+
   it('Rubies never triple, even with 3+ in hand — they are spells (owner ruling)', () => {
     // A golden Chipwick mints 4 Rubies at once; `play` runs checkTriples on the grown hand.
     let s: RunState = { ...createRun(1), board: [], hand: [{ uid: 'ch', cardId: 'k_chipwick', tribe: 'kobold', attack: 1, health: 2, keywords: [], golden: true }] };

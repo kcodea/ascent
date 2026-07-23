@@ -183,6 +183,8 @@ export interface BoardCard {
    *  on the board, firing its payoff each time it crosses the threshold. Continuous across turns (carries the
    *  remainder), per-instance; absent = 0. The buy-count sibling of `goldTick`. */
   buyTick?: number;
+  /** Set 2 — Ruby Broker: Rubies played on THIS minion this turn (its per-turn Gold cap). Reset each wave. */
+  rubyRecvTick?: number;
   /** End-of-Turn tick counter for cadence effects (Frontdrake: every 3 turns, get a Dragon). Advances
    *  once per turn this card is on the board (not per Chronos repeat). Per-instance; absent = 0. */
   eotTick?: number;

@@ -42,6 +42,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Discovers are lighter on the GPU.** The Discover burst runs on its own full-screen WebGL canvas, which used
+  to keep rendering an empty frame every tick for the entire session. It now goes dormant the instant its burst
+  finishes and wakes only for the next one — so nothing is being drawn behind a Discover (or during normal play)
+  when there's nothing to show.
 - **The leftmost hand card pops on hover again at wide resolutions.** The hero Buffs strip's container box
   reached over the hand and, being pointer-interactive, swallowed that card's hover so it never lifted — only
   at wide/fullscreen sizes where the boxes overlap (e.g. the desktop build). The container is now click-through

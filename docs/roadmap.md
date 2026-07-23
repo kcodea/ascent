@@ -148,6 +148,9 @@ The career surface exists; deepen what a finished run *remembers*.
 - **Set 2 content.** Foundation is in (`docs/card-sets.md`): author cards in `packages/content/src/cards/set2/`,
   list them in `SETS.set2.own`, trim the inherited set-1 pool with `excludes`. Before flipping it live, run
   `SET=set2 npm run pool` — an unbaked set has no captured opponents and falls back to procedural boards.
+  Shipped so far: the 22-Kobold tribe + Ruby engine, and Set 1's neutral spell toolkit carried over (minus the
+  four tribe-locked ones). Still needed before flipping live: more tribes/minions to cover the enemy curve,
+  set-scoped quests/runes, and a baked opponent pool.
 - **Set-scope quests / runes / heroes** if a set needs its own. `SetDef` has room; the wiring doesn't exist.
 - **Profile the PHASE TRANSITIONS, not the FX.** The first perf capture (2026-07-19) puts every bad frame at
   a phase boundary: the worst of the run was 175ms with a 181ms single task, **no FX marks**, sprite pool

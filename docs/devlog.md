@@ -3,6 +3,29 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: carry Set 1's spell toolkit into Set 2)
+
+### feat(set2): Set 2 inherits Set 1's neutral spells (minus the tribe-locked four)
+
+Set 2 now offers Set 1's whole drawable neutral **spell** toolkit — Discover, buffs, economy, tempo — so its
+shop plays with the same depth Set 1 had, while its **minions** stay Kobold-only. Implemented in `sets.ts`:
+`SET1_SPELLS_IN_SET2 = SPELLS.filter(!token && !dropped)` appended to `set2.own` after the Kobolds. The four
+dropped (`SET2_DROPPED_SPELLS`) are the ones whose payoff needs a tribe Set 2 doesn't field: **Lantern of
+Souls** + **Undead Army** (no Undead), **Consume** + **Fodder Treatment** (no Demon line). Reward-only spells
+(`token: true`, e.g. Ossuary Rite) are intentionally NOT listed — they arrive through their quests, are never
+drawable, and already resolve globally via `CARD_INDEX`.
+
+**No new wiring for "Discovers pull only Set 2 cards":** every Discover / get-a-minion path already resolves
+candidates through `poolOf(state).buyable` filtered by the run's pinned `tribes` (Kobold-only in a Set 2 run),
+so Sprout / Help Wanted / Corpse Board / Tribe Portal / Tribes Choice / Summon Stone automatically offer only
+Kobolds (+ neutral). Confirmed the Kobolds supply valid Discover targets (4 Battlecry, 3 Deathrattle minions),
+so Help Wanted / Corpse Board don't whiff.
+
+Verified: new `sets.test.ts` cases (Set 2's spells = Set 1's minus the four; a Set-2 Discover pool is
+Kobold-only) + live Scene-Builder Set-2 run in the browser — 400 shop rolls surfaced all **33** carried spells,
+**zero** of the four dropped, and no minion leaked into the spell slot; 200 minion-slot rolls showed only
+Kobolds. Full gate green (typecheck + test + lint + build:web).
+
 ## 2026-07-23 (set 2: the final three Kobolds — Ruby-stat payloads + shop consume)
 
 ### feat(set2): Gemheart Carver + Deepdelve Paragon + Gemgorge Fiend — all 22 Kobolds shipped

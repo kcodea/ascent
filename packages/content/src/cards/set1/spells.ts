@@ -980,4 +980,20 @@ export const SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellEncore' }],
     text: 'Choose a friendly minion. Trigger its **Shout**, **Rally** or **Echo**.',
   },
+  {
+    // +4/+4, plus +1/+1 for each Dragon you PLAYED this turn (flat — no spell power, so the printed value stays
+    // exact; spellDisplayText greens the +4/+4 to its live total). `any` → warband minion or tavern offer.
+    id: 'hoardflame',
+    name: 'Hoardflame',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 2,
+    target: 'any',
+    effects: [{ on: 'cast', do: 'spellBuffPerDragonPlayed', params: { attack: 4, health: 4, per: 1 } }],
+    text: 'Give a minion **+4/+4**, plus **+1/+1** for each **Dragon** you played this turn.',
+  },
 ];

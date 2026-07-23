@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import type { CombatResult } from '@game/core';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
+import { spellDisplayText } from './recruit';
 
 /**
  * The 2026-07-23 spell batch — tranche A (the straightforward ones). A spell lives in hand as a BoardCard
@@ -231,6 +232,33 @@ describe('spell batch — tranche B4 (transform / combat-pending)', () => {
     expect(enemy.length).toBeGreaterThan(0);
     expect(enemy[enemy.length - 1]!.keywords).toContain('T'); // right-most got Taunt
     expect(s.markEnemyRightmostTaunt).toBe(false); // spent by the fight
+  });
+});
+
+describe('spell batch — Veinstorm + Hoardflame (live-scaling)', () => {
+  it('Veinstorm: buffs every shop offer by your Ruby stats (1/1 + rubyBonus)', () => {
+    let s: RunState = { ...createRun(1), setId: 'set2', rubyBonus: { attack: 2, health: 3 }, hand: [mkSpell('sp', 'veinstorm')] };
+    const n = s.shop.length;
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
+    expect(s.shop.length).toBe(n);
+    expect(s.shop.every((o) => (o.atk ?? 0) === 3 && (o.hp ?? 0) === 4)).toBe(true); // 1+2 / 1+3
+  });
+
+  it('Veinstorm live text greens to the current Ruby value (base when no bonus)', () => {
+    expect(spellDisplayText('veinstorm', 0, 0, 0, 0, 0, 0, { rubyBonus: { attack: 2, health: 3 } })).toContain('{{+3/+4}}');
+    expect(spellDisplayText('veinstorm', 0)).toBe(CARD_INDEX['veinstorm']!.text);
+  });
+
+  it('Hoardflame: +4/+4 plus +1/+1 per Dragon played this turn', () => {
+    let s: RunState = { ...createRun(1), board: [mkMinion('m1', 1, 1)], hand: [mkSpell('sp', 'hoardflame')], playedThisTurn: ['emissary', 'cinder'] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'm1' });
+    const m = s.board.find((c) => c.uid === 'm1')!;
+    expect([m.attack, m.health]).toEqual([1 + 6, 1 + 6]); // +4/+4 base + 2 dragons × +1/+1
+  });
+
+  it('Hoardflame live text folds in dragons played this turn', () => {
+    expect(spellDisplayText('hoardflame', 0, 0, 0, 0, 0, 0, { playedThisTurn: ['emissary', 'cinder'] })).toContain('{{+6/+6}}');
+    expect(spellDisplayText('hoardflame', 0)).toBe(CARD_INDEX['hoardflame']!.text); // no dragons → base
   });
 });
 

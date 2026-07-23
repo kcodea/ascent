@@ -2088,6 +2088,26 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.pendingSCImps = (ctx.state.pendingSCImps ?? 0) + num(params.count, 3);
   },
 
+  /** Veinstorm (Set 2) — cast: give EVERY tavern minion offer stats equal to your Rubies (base 1/1 + the run's
+   *  `rubyBonus`), baked onto each offer so a buy keeps it. Untargeted; live value shown via spellDisplayText. */
+  spellBuffShopByRuby: (ctx) => {
+    const rb = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
+    const a = 1 + rb.attack, h = 1 + rb.health;
+    for (const offer of ctx.state.shop) addOfferBuff(offer, 'Veinstorm', a, h);
+  },
+
+  /** Hoardflame (Dragon) — cast on a minion: +`attack`/`health` base, plus +`per`/+`per` for each Dragon you
+   *  PLAYED this turn (read from `playedThisTurn`). Flat (no spell power) so the printed value stays exact; the
+   *  live total is folded into the card text via spellDisplayText. */
+  spellBuffPerDragonPlayed: (ctx, self, params) => {
+    const per = num(params.per, 1);
+    const dragons = (ctx.state.playedThisTurn ?? []).filter((id) => {
+      const d = CARD_INDEX[id];
+      return !!d && (d.tribe === 'dragon' || d.tribe2 === 'dragon');
+    }).length;
+    addBuff(self, str(params._source) || 'Hoardflame', num(params.attack, 4) + per * dragons, num(params.health, 4) + per * dragons);
+  },
+
   /** Sigil of Kinship — cast on a friendly minion: refresh the tavern's minion offers with random minions of
    *  THAT minion's type (dual-types count), up to your tavern tier. The spell slot is left as-is. */
   spellRefreshToTribe: (ctx, self) => {
@@ -2851,9 +2871,22 @@ export function spellHealthBonus(state: RunState): number {
  * base text for non-stat spells or a zero bonus. Convention: a stat spell's text shows "+A/+B" matching
  * its `spellBuffTarget` params, so it can be substituted.
  */
-export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0): string {
+export function spellDisplayText(cardId: string, bonusA: number, escalation = 0, bonusH = bonusA, goldSpent = 0, escalationH = escalation, goldPouchValue = 0, extra?: { rubyBonus?: { attack: number; health: number }; playedThisTurn?: string[] }): string {
   const def = CARD_INDEX[cardId];
   if (!def) return '';
+  // Veinstorm: "equal to your Rubies" = base 1/1 + the run's rubyBonus — green the printed +1/+1 once it grows.
+  if (def.id === 'veinstorm') {
+    const rb = extra?.rubyBonus ?? { attack: 0, health: 0 };
+    return rb.attack > 0 || rb.health > 0 ? def.text.replace('+1/+1', `{{+${1 + rb.attack}/+${1 + rb.health}}}`) : def.text;
+  }
+  // Hoardflame: +4/+4 base + 1/+1 per Dragon PLAYED this turn — green the base to its live total once any played.
+  if (def.id === 'hoardflame') {
+    const dragons = (extra?.playedThisTurn ?? []).filter((id) => {
+      const d = CARD_INDEX[id];
+      return !!d && (d.tribe === 'dragon' || d.tribe2 === 'dragon');
+    }).length;
+    return dragons > 0 ? def.text.replace('+4/+4', `{{+${4 + dragons}/+${4 + dragons}}}`) : def.text;
+  }
   // Rune of Pillaging: Gold Pouch reads its LIVE payout once the rune raises it ("Gain {{2 Gold}}.") —
   // the same value the cast actually grants (see the gainEmbers override above). Handled before the
   // spell-power early-return since the pouch scales without any spell power.

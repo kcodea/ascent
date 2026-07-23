@@ -54,6 +54,32 @@ resolves the sentinel; the combat path never did. Fixed: `grantRandomMinion` now
 the active tribes absent from your board (counting DEAD board minions, since Ryme is dead when its own
 Deathrattle fires), and falls back to any minion when you control every tribe. New `rymeWayfinder.test.ts`.
 
+## 2026-07-23 (perf: instrument the recruit-phase frame so hitches attribute to a culprit)
+
+### chore(ui): time render/Flip/FX/view phases so a slow frame names its cost
+
+Owner report + two perf captures: attachment stacking (Banksly + Beatbot + Attachment Conductor weld fan-out)
+janks late-game. The captures ruled out the sim (max 0.5ms) and memory (flat) and correlated the hitches with
+weld-triggered buys — but the perf monitor only times `reduce:*`, so a 50ms frame showed a 0.2ms reducer and
+50ms of *unmeasured* work. We couldn't see whether it was React reconciliation, GSAP Flip, or the weld FX.
+
+Added `perfMonitor.record(label, ms)` (attribute a pre-measured duration — for spans `measure()` can't wrap
+because they run after `setState`) and instrumented the six synchronous phases a weld-fanout frame touches:
+`render:recruit` (render body + reconcile + commit, via renderStart → an early post-commit layout effect),
+`layout:flip` (GSAP Flip + its reflows + the per-commit state capture), `fx:weldBatch` (the N rings + wiggles),
+`view:board` / `view:hand` (the per-card view+text builds), and `drag:flushMove` (the rAF drag handler). All
+route through `perfMonitor.measure`/`record`, which are no-ops when the monitor is off — **zero production
+overhead** (the monitor only runs under `?perf=1`).
+
+**It immediately paid off.** Live on a Banksly/Beatbot weld build (dev, so absolutes are inflated, but the
+breakdown is what matters): `render:recruit` max **57.2ms**, `layout:flip` max **17.5ms**, while `view:board`
+1.1ms total, `view:hand` 0.5ms, `reduce:play` 1.9ms — all negligible. So the fanout hitch is **React
+reconciliation + GSAP Flip**, not the FX or the sim, exactly where the next optimization (ref-driven drag to
+stop re-rendering the tree per move) should aim. A real late-game capture will confirm the magnitude.
+
+Verified: the six labels emit into the export's timings; typecheck (root) + lint + **1430 tests** + `build:web`
+green; no new type errors in `typecheck:web` (52 → 52).
+
 ## 2026-07-22 (plate dissolve — first-play fix)
 
 ### fix(ui): the first plate dissolve of a run played with no dust

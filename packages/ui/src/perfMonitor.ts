@@ -245,15 +245,26 @@ class PerfMonitor {
     try {
       return fn();
     } finally {
-      const dt = performance.now() - t0;
-      const prev = this.pendingTimings.get(label);
-      if (prev) {
-        prev.n++;
-        prev.total += dt;
-        if (dt > prev.max) prev.max = dt;
-      } else {
-        this.pendingTimings.set(label, { n: 1, total: dt, max: dt });
-      }
+      this.record(label, performance.now() - t0);
+    }
+  }
+
+  /**
+   * Attribute a pre-measured duration to `label` — the same accumulator `measure()` feeds, for spans you can't
+   * wrap in a single synchronous callback. The motivating case: React reconciliation + commit happens
+   * asynchronously after `setState`, so it can't be timed with `measure()`; instead a component captures
+   * `performance.now()` at the top of its render and records the delta in a post-commit `useLayoutEffect`.
+   * No-op when the monitor is off.
+   */
+  record(label: string, ms: number): void {
+    if (!this.running) return;
+    const prev = this.pendingTimings.get(label);
+    if (prev) {
+      prev.n++;
+      prev.total += ms;
+      if (ms > prev.max) prev.max = ms;
+    } else {
+      this.pendingTimings.set(label, { n: 1, total: ms, max: ms });
     }
   }
 

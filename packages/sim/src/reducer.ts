@@ -1513,6 +1513,12 @@ function reduceCore(state: RunState, action: Action): RunState {
         playerRallyDouble: s.rallyDoubleNext ?? false,
       };
       const resolveCombatVs = (enemy: BoardMinion[], enemyState: CombatSideState): CombatResult => {
+        // Marked Target: the enemy's right-most minion enters with Taunt (applied to the enemy board that's
+        // actually fought — served or procedural — before the real fight and the odds sims all read it).
+        if (s.markEnemyRightmostTaunt && enemy.length > 0) {
+          const last = enemy[enemy.length - 1]!;
+          if (!(last.keywords ?? []).includes('T')) last.keywords = [...(last.keywords ?? []), 'T'];
+        }
         const combat = simulate(player, enemy, makeRng(mixSeed(s.seed, s.wave, TAG.COMBAT)), CARD_INDEX, playerState, enemyState, config);
         combat.playerDamage = Math.min(combat.playerDamage, lossDamageCap(s.wave)); // round cap
         let win = 0, draw = 0, lose = 0, lossDamageTotal = 0;
@@ -1563,6 +1569,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const e = proceduralEnemy();
         s.lastCombat = resolveCombatVs(e.enemy, combatSide({ tier: e.tier }));
       }
+      s.markEnemyRightmostTaunt = false; // Marked Target is a one-fight debuff — spent by the combat just resolved
       // Telegraph the Fleeting Vigor surge as a Start-of-Combat narration so the pre-baked buff reads as a
       // real effect (a banner + glow on your line as combat opens) instead of silently bigger minions.
       if (fleeting) {

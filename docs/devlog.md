@@ -3,6 +3,22 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (spell batch — tranche B4: transform + combat-pending)
+
+### feat(content): Strange Revision + Marked Target
+
+Two set-agnostic spells:
+- **Strange Revision** (T5/3) — transform a friendly minion into a random OTHER minion of the same tier
+  (active tribes + neutral), keeping its **bonus** stats — its gains above base re-based onto the new form
+  (`spellTransformSameTier`; `singleCast` so a Yazzus can't re-roll it).
+- **Marked Target** (T5/3) — the enemy's **right-most** minion enters the next combat with Taunt (new
+  `RunState.markEnemyRightmostTaunt`; applied to the enemy board inside `resolveCombatVs` so the real fight +
+  odds sims all read it, then cleared after the fight).
+
+Verified: new `spellBatch.test.ts` cases (Strange Revision → same-tier form with the +3/+3 bonus carried;
+Marked Target → the enemy's last minion has Taunt in `lastCombat.initial.enemy`, mark cleared) + live
+Scene-Builder (sandbag 3/7 → burialimp 5/4, base 2/1 + the +3/+3). Full suite (1523) + lint + build:web green.
+
 ## 2026-07-23 (spell batch — tranche B3: offer / minion manipulation)
 
 ### feat(content): Layaway + Second Draft

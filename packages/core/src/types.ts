@@ -230,6 +230,8 @@ export type EffectFactoryId =
   | 'spellRefreshTierUp' // Elevation Ritual: cast — refresh the shop with minions one tier higher
   | 'spellLayaway' // Layaway: cast on an offer — keep it through rerolls and cut its cost
   | 'spellReturnToHand' // Second Draft: cast — return a friendly non-Gilded minion to hand
+  | 'spellTransformSameTier' // Strange Revision: cast — transform a friendly minion into a random same-tier one, keeping its bonus stats
+  | 'spellMarkEnemyTaunt' // Marked Target: cast — the enemy's right-most minion gets Taunt next combat
   | 'spellDemonConsumeFodder' // Consume: cast — a chosen Demon creates and eats N Fodder
   | 'deathrattleGrantRandomSpell' // Sporebat: Deathrattle — grant N random tavern-tier spells to the hand (Beast)
   | 'onDamagedGrantRefresh' // Gryphon: on taking damage, bank a free shop reroll (once per combat) (Beast)

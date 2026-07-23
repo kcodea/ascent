@@ -299,6 +299,9 @@ export interface RunState {
   /** Quick Sale: extra Gold added to the NEXT minion sold this turn (added on top of its sell value, then
    *  cleared). Also cleared at turn end if unused ("this turn"). Stacks if cast twice. Absent = 0. */
   nextSellBonus?: number;
+  /** Marked Target: the enemy's RIGHT-MOST minion enters the next combat with Taunt (applied to the enemy
+   *  board in `faceOmen`, then cleared). One fight only. Absent = off. */
+  markEnemyRightmostTaunt?: boolean;
   /** Pre-emptive Assault: the player's board attacks first in the NEXT combat, overriding the
    *  more-minions initiative rule (ties included). One-shot — cleared in `settleCombat`. */
   attackFirstNext?: boolean;

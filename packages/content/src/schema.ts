@@ -160,6 +160,8 @@ export const EffectFactoryIdSchema = z.enum([
   'spellRefreshTierUp',
   'spellLayaway',
   'spellReturnToHand',
+  'spellTransformSameTier',
+  'spellMarkEnemyTaunt',
   'onAllyAttackCastGrowth',
   'spellDemonConsumeFodder',
   'deathrattleGrantRandomSpell',

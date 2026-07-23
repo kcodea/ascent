@@ -930,4 +930,37 @@ export const SPELLS: CardDef[] = [
     effects: [{ on: 'cast', do: 'spellReturnToHand' }],
     text: 'Return a friendly **non-Gilded** minion to your hand.',
   },
+
+  // --- New spells (2026-07-23 batch, tranche B4 — transform / combat-pending; set-agnostic). ---
+  {
+    // Transform a friendly minion into a random OTHER minion of the same tier, keeping its bonus stats
+    // (its gains above base re-based onto the new form). singleCast so a Yazzus can't re-roll the new form.
+    id: 'strangerevision',
+    name: 'Strange Revision',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    singleCast: true,
+    cost: 3,
+    target: 'friendly',
+    effects: [{ on: 'cast', do: 'spellTransformSameTier' }],
+    text: 'Transform a friendly minion into a random minion of the **same tier**. It keeps its **bonus stats**.',
+  },
+  {
+    // At the start of next combat, the enemy's right-most minion gains Taunt (funnels your attacks into it).
+    id: 'markedtarget',
+    name: 'Marked Target',
+    tribe: 'neutral',
+    tier: 5,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 3,
+    effects: [{ on: 'cast', do: 'spellMarkEnemyTaunt' }],
+    text: "At the start of next combat, give the enemy's **right-most** minion **Taunt**.",
+  },
 ];

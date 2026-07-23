@@ -155,9 +155,10 @@ The career surface exists; deepen what a finished run *remembers*.
   Crest of the Climb, Turnabout, Insurance Policy, Rift-Sunk Codex, Beyond the Summit, Invitation Above +
   Set-2 Ruby Shipment & Facetwright's Choice). **Tranche B in progress** (~14 medium), building as sub-slices:
   ✅ **B1** (Field Maneuvers, Last Stand, Executioner's Edge) + ✅ **B2** (Quick Sale, Sigil of Kinship,
-  Elevation Ritual) + ✅ **B3** (Layaway, Second Draft) shipped. **Next:** Encore + Strange Revision (minion
-  transform/trigger); then Marked Target + Open the Gates (combat-pending); then the live-scaling pair Veinstorm
-  + Hoardflame (one `spellDisplayText` pass). **Tranche C** (~4
+  Elevation Ritual) + ✅ **B3** (Layaway, Second Draft) + ✅ **B4** (Strange Revision, Marked Target) shipped.
+  **Left in B:** **Open the Gates** (Set 2 — needs a proper start-of-combat summon in the sim), the live-scaling
+  pair **Veinstorm** + **Hoardflame** (one `spellDisplayText` pass for Ruby-stat / dragons-played), and
+  **Encore** (DEFERRED — "trigger its Rally" out of combat is undefined; needs an owner ruling). **Tranche C** (~4
   hard/new-UI: Common Ground two-target, Hourglass Reserve + Funeral on Loan discover-locks, Farseer's Report +
   Rival's Reflection opponent-peek). **Blocked:** Deepdelve Writ + Ironclad Requisition (need a Dwarf tribe).
 - **Set-scope quests / runes / heroes** if a set needs its own. `SetDef` has room; the wiring doesn't exist.

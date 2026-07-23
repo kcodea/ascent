@@ -1347,6 +1347,27 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     addBuff(self, nameOf(self), ctx.state.spellsCast * per, ctx.state.spellsCast * per);
   },
 
+  /** Strange Revision — cast on a friendly minion: transform it into a random OTHER minion of the SAME tier
+   *  (from your active tribes + neutral), keeping its BONUS stats — the new form is its new base plus whatever
+   *  the old minion had gained above its base. Keeps the buff breakdown + added keywords + golden flag. */
+  spellTransformSameTier: (ctx, self) => {
+    const oldDef = CARD_INDEX[self.cardId];
+    if (!oldDef) return;
+    const pool = poolOf(ctx.state).buyable.filter(
+      (c) => c.tier === oldDef.tier && c.id !== self.cardId && (c.tribe === 'neutral' || ctx.state.tribes.includes(c.tribe)),
+    );
+    if (pool.length === 0) return; // nothing to become → no-op (spell still consumed)
+    const rng = makeRng(ctx.state.rngCursor);
+    const newDef = pool[rng.int(pool.length)]!;
+    ctx.state.rngCursor = rng.state();
+    const bonusA = self.attack - oldDef.attack; // the stats it had gained above its old base
+    const bonusH = self.health - oldDef.health;
+    self.cardId = newDef.id;
+    self.tribe = newDef.tribe;
+    self.attack = newDef.attack + bonusA;
+    self.health = newDef.health + bonusH;
+  },
+
   /** Available primitive: +atk/+hp on each spell cast (buff self). No card uses it currently. */
   spellCastBuffSelf: (_ctx, self, params) => {
     addBuff(self, nameOf(self), num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self));
@@ -2052,6 +2073,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  Stacks if cast twice; expires unused at turn end. Untargeted. */
   spellNextSellBonus: (ctx, _self, params) => {
     ctx.state.nextSellBonus = (ctx.state.nextSellBonus ?? 0) + num(params.gold, 2);
+  },
+
+  /** Marked Target — cast: bank a one-fight debuff so the enemy's RIGHT-MOST minion enters the next combat
+   *  with Taunt (funnels your attacks into it). Applied to the enemy board in `faceOmen`, then cleared. */
+  spellMarkEnemyTaunt: (ctx) => {
+    ctx.state.markEnemyRightmostTaunt = true;
   },
 
   /** Sigil of Kinship — cast on a friendly minion: refresh the tavern's minion offers with random minions of

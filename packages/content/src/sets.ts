@@ -10,6 +10,23 @@ import { TIER7 } from './cards/set1/tier7';
 import { SET2_KOBOLDS } from './cards/set2/kobolds';
 
 /**
+ * Set 2 reuses Set 1's whole neutral spell toolkit — the same drawable spells (Discover, buffs, economy,
+ * tempo) that made Set 1's shop interesting — MINUS the handful whose payoff is tied to a tribe Set 2 doesn't
+ * field. Every Discover / get-a-minion spell resolves its candidates through `poolOf(state)` filtered by the
+ * run's pinned tribes, so in a Set 2 run they automatically pull ONLY Set 2's Kobolds (+ neutral) — no extra
+ * wiring. Reward-only spells (`token: true`, e.g. Ossuary Rite) are omitted here: they arrive through their
+ * quests, are never drawable, and already resolve globally via `CARD_INDEX`.
+ */
+const SET2_DROPPED_SPELLS = new Set<string>([
+  'lanternofsouls', // "Your Undead get +3 Attack" — no Undead in Set 2
+  'undeadarmy', //     "Get 2 copies of a random Undead" — no Undead in Set 2
+  'consume', //        "A Demon consumes a Fodder" — no Demon payoff line in Set 2
+  'foddertreatment', //"Give a minion's stats to your left-most Demon" — no Demons in Set 2
+]);
+/** Set 1's drawable neutral spells that carry over into Set 2 (drops the tribe-locked ones + reward tokens). */
+const SET1_SPELLS_IN_SET2: readonly CardDef[] = SPELLS.filter((s) => !s.token && !SET2_DROPPED_SPELLS.has(s.id));
+
+/**
  * ── Card sets ──────────────────────────────────────────────────────────────────────────────────────────
  *
  * A **set** is the pool of cards a run can draw from. Sets are built in parallel and switched live, exactly
@@ -101,7 +118,8 @@ export const SETS: Record<SetId, SetDef> = {
     // Starts EMPTY and opts cards IN (owner call 2026-07-19) — set 2 is being authored externally and
     // dropped in, so an explicit `own` list is the manifest. Add `inherits: 'set1'` (+ `excludes`) instead
     // if you'd rather start from set 1 and trim; both compose, and `own` always appends last.
-    own: [...SET2_KOBOLDS], // → packages/content/src/cards/set2/*.ts (Kobold / Ruby tribe, WIP)
+    // Kobolds (this set's minions) + Set 1's carried-over neutral spell toolkit (all but the tribe-locked few).
+    own: [...SET2_KOBOLDS, ...SET1_SPELLS_IN_SET2], // → packages/content/src/cards/set2/*.ts (Kobold / Ruby tribe, WIP)
   },
 };
 

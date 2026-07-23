@@ -42,6 +42,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Set 2 gets Set 1's spellbook.** Set 2's shop now offers Set 1's whole drawable neutral spell toolkit
+  (Discover, buffs, economy, tempo) — everything but the four tribe-locked spells that have no home there
+  (Lantern of Souls, Undead Army, Consume, Fodder Treatment). Its minions stay Kobold-only, and every Discover
+  or get-a-minion spell automatically pulls from Set 2's Kobolds — the pool is already scoped to the run's set.
 - **Discovers are lighter on the GPU.** The Discover burst runs on its own full-screen WebGL canvas, which used
   to keep rendering an empty frame every tick for the entire session. It now goes dormant the instant its burst
   finishes and wakes only for the next one — so nothing is being drawn behind a Discover (or during normal play)

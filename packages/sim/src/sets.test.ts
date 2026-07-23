@@ -70,6 +70,31 @@ describe('card sets — registry', () => {
   });
 });
 
+describe('card sets — set 2 carries set 1 spells', () => {
+  const DROPPED = ['lanternofsouls', 'undeadarmy', 'consume', 'foddertreatment'];
+
+  it('set 2 offers the whole set-1 neutral spell toolkit except the tribe-locked few', () => {
+    const s1 = new Set(poolFor('set1').spells.map((c) => c.id));
+    const s2 = new Set(poolFor('set2').spells.map((c) => c.id));
+    // Everything set 1 draws, minus the four that have no home in set 2, is present in set 2.
+    for (const id of s1) {
+      if (DROPPED.includes(id)) expect(s2.has(id), `${id} should be dropped from set 2`).toBe(false);
+      else expect(s2.has(id), `${id} should carry into set 2`).toBe(true);
+    }
+    // ...and set 2 adds no NEW drawable spell set 1 lacks (the carryover is a subset of set 1's spells).
+    for (const id of s2) expect(s1.has(id), `${id} is in set 2 but not set 1`).toBe(true);
+  });
+
+  it('a Discover in a set-2 run pulls only Kobolds (+ neutral), never a set-1 minion', () => {
+    // The pool a Discover draws from is poolOf(run).buyable ∩ the run's tribes. A set-2 run's tribes are
+    // Kobold-only, and set 2's buyable pool is Kobolds only — so no set-1 minion can ever surface.
+    const run: RunState = { ...createRun(6, 'warden'), setId: 'set2', tribes: ['kobold'] };
+    const buyable = poolOf(run).buyable.filter((c) => c.tribe === 'neutral' || run.tribes.includes(c.tribe));
+    expect(buyable.length).toBeGreaterThan(0);
+    expect(buyable.every((c) => c.tribe === 'kobold' || c.tribe2 === 'kobold')).toBe(true);
+  });
+});
+
 describe('card sets — run pinning', () => {
   it('a new run pins the ACTIVE set', () => {
     expect(createRun(1, 'warden').setId).toBe(activeSet().id);

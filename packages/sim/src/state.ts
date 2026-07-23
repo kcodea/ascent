@@ -302,6 +302,9 @@ export interface RunState {
   /** Marked Target: the enemy's RIGHT-MOST minion enters the next combat with Taunt (applied to the enemy
    *  board in `faceOmen`, then cleared). One fight only. Absent = off. */
   markEnemyRightmostTaunt?: boolean;
+  /** Open the Gates: Imps banked to enter the NEXT combat on the player's board (added in `faceOmen`, up to the
+   *  7-slot cap, then spent). Absent = 0. */
+  pendingSCImps?: number;
   /** Pre-emptive Assault: the player's board attacks first in the NEXT combat, overriding the
    *  more-minions initiative rule (ties included). One-shot — cleared in `settleCombat`. */
   attackFirstNext?: boolean;

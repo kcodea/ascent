@@ -1464,6 +1464,17 @@ function reduceCore(state: RunState, action: Action): RunState {
         }
         s.pendingCombatKeywords = [];
       }
+      // Open the Gates (Set 2): banked Imps enter this fight on the player board, as many as fit the 7-slot cap
+      // (the "whenever you have room" clause). Added before the odds sims so every sim sees them, then spent.
+      if (s.pendingSCImps) {
+        const impDef = CARD_INDEX['impscrap'];
+        const room = Math.max(0, CONFIG.boardMax - player.length);
+        const n = Math.min(s.pendingSCImps, room);
+        for (let k = 0; k < n && impDef; k++) {
+          player.push({ cardId: 'impscrap', attack: impDef.attack, health: impDef.health, keywords: [...impDef.keywords], golden: false });
+        }
+        s.pendingSCImps = 0;
+      }
       // The procedural threat board for this wave — the always-fightable fallback (built from current
       // cards, so it can never throw). `enemyTier` (loss-damage scaling) is the served board's tavern tier,
       // or the player's own tier as the foe's stand-in for the procedural board.

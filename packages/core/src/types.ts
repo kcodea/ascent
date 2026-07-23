@@ -232,6 +232,8 @@ export type EffectFactoryId =
   | 'spellReturnToHand' // Second Draft: cast — return a friendly non-Gilded minion to hand
   | 'spellTransformSameTier' // Strange Revision: cast — transform a friendly minion into a random same-tier one, keeping its bonus stats
   | 'spellMarkEnemyTaunt' // Marked Target: cast — the enemy's right-most minion gets Taunt next combat
+  | 'spellEncore' // Encore: cast — re-trigger a friendly minion's Shout and Echo
+  | 'spellSummonImpsNextCombat' // Open the Gates: cast — bank Imps to enter the next combat
   | 'spellDemonConsumeFodder' // Consume: cast — a chosen Demon creates and eats N Fodder
   | 'deathrattleGrantRandomSpell' // Sporebat: Deathrattle — grant N random tavern-tier spells to the hand (Beast)
   | 'onDamagedGrantRefresh' // Gryphon: on taking damage, bank a free shop reroll (once per combat) (Beast)

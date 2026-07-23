@@ -3,6 +3,27 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (set 2: combat-phase Ruby casting — the engine foundation)
+
+### feat(core): thread rubyBonus into `simulate()` + `scPlayRubies` (Start-of-Combat Ruby cast, permanent carry-back)
+
+The first piece of the combat-phase Ruby path (Avenge / Rally / Start-of-Combat "Play a Ruby"). Rather than
+rush the whole thing into the deterministic sim, this lands the FOUNDATION + one trigger, fully verified:
+- **Ruby stats reach combat:** added `rubyBonus` to `CombatSideState` (+ `EMPTY_SIDE`, + the reducer's
+  player-side builder from `RunState`), and a `ctx.rubyBonusFor(side)` accessor. Default zero, so every existing
+  `simulate` call is byte-identical (determinism + goldens unchanged).
+- **`scPlayRubies` factory** — "Start of Combat: play N Rubies on your [tribe] minions." Each eligible living
+  friend gets `count` Ruby buffs (a Ruby = base 1/1 + that side's `rubyBonus`), applied via `ctx.buff` and — per
+  the owner's "always permanent" ruling — recorded as `permaGain` for EVERY recipient (not just Engraved ones),
+  so it carries back to the run board via `playerPermaBuffs`. Mirrors Flowing Monk's permanent-gift pattern.
+
+Verified: new `simulate.test.ts` case — a synthetic Kobold with rubyBonus +1/+1 plays a Ruby at SoC → each
+Kobold gains **+2/+2**, carried back (`playerPermaBuffs`, `engraved: false`); a non-Kobold friend is untouched
+(tribe filter). Full suite (determinism + golden) + lint + build:web green.
+
+NEXT on this rail (same mechanism, different triggers): `avengePlayRubies` / `rallyPlayRubies` / `rallyGetRubies`,
+the "cards bought this turn" scaler for Frenzied Excavator, then wiring the actual combat Kobolds.
+
 ## 2026-07-23 (set 1: five targeted spells now castable on shop offers)
 
 ### fix(content): apply the "friendly minion = warband-only" target rule to set-1 spells (owner-picked)

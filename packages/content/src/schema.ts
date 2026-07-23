@@ -249,7 +249,8 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleBuffImpsImproving',
   // Set 2 — Kobolds / Rubies
   'getRubies',        // Shout/Rally: mint N Rubies into hand (base 1/1 + rubyBonus)
-  'rubyStatGain',     // "Your Rubies gain +X/+Y" — raises the run's rubyBonus (future Rubies only)
+  'rubyStatGain',     // "Your Rubies gain +X/+Y" — raises rubyBonus + grows held Rubies
+  'scPlayRubies',     // Start of Combat: play N Rubies on your [tribe] minions (permanent carry-back)
 ]);
 
 export const EffectDefSchema = z.object({

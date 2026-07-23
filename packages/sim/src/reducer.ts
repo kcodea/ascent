@@ -1448,6 +1448,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         beastsPlayed,
         magneticAtk: s.magneticBuyAtk ?? 0,
         magneticHp: s.magneticBuyHp ?? 0,
+        rubyBonus: s.rubyBonus ?? { attack: 0, health: 0 },
         tier: s.tier,
         tribes: s.tribes,
         cardBuffs: s.cardBuffs ?? {},

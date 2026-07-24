@@ -12,7 +12,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "npm run typecheck:pkgs && npm run typecheck:web",
+    "typecheck:pkgs": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "harness": "tsx packages/tools/src/combat-harness.ts",

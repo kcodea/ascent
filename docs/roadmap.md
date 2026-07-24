@@ -372,8 +372,7 @@ Split `Recruit.tsx` (~2.7k — proposed seams: `recruitViews` / `useCardDrag` / 
 effect-factory ids (`factories.ts` + `types.ts` union + `schema.ts` enum, 3-place sweep each) +
 `battlecryGrantKeyword` chain + `reAttackOnKill`/`REATTACK_GUARD`/`reAttackCache`; Card renders removed
 Reborn-tears DOM; a confirmed dead-CSS list (OMEN block, `.chip`, `.toast`, `.legend`, `.tavernbox`, `.zt/.zh/
-.hint`, `.disc-gem`). **UI type cleanup → `typecheck:web` CI gate:** ~50 pre-existing UI type errors block
-the gate (the step is commented in CI).
+.hint`, `.disc-gem`).
 
 ---
 

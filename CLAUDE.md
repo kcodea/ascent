@@ -92,7 +92,9 @@ boundary leaked.
 ## Commands
 
 - `npm install` — install workspace deps
-- `npm run typecheck` — `tsc --noEmit` across all packages
+- `npm run typecheck` — `tsc --noEmit` across all packages: `typecheck:pkgs` (engine: core/content/sim/tools)
+  then `typecheck:web` (presentation: `@game/ui` + `apps/web`, which need the DOM/JSX lib). Both are gated in
+  CI as separate steps. `build:web` is a Vite/esbuild transpile and does **not** typecheck — this is the gate.
 - `npm test` — Vitest (determinism + golden + effect tests)
 - `npm run harness` — headless combat: prints a narrated event log + proves determinism
 - `npm run lint` — ESLint (incl. the `Math.random` ban)

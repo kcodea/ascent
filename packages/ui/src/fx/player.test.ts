@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createPlayer } from './player';
+import { createPlayer, FIRE_TIMEOUT_MS } from './player';
 import { clearPrimitives, registerPrimitive } from './registry';
 import type { FxContext, FxInstance } from './primitive';
 import type { FxDef } from './def';
@@ -34,6 +34,14 @@ const FULLSPAN_DEF: FxDef = {
   id: 'fullspan',
   duration: 500,
   layers: [{ primitive: 'a', anchor: 'target', at: 0, life: 500, params: {} }],
+};
+
+// A single-layer def used by the fire-once completion tests below, where DEF's two-layer stagger would
+// only add noise.
+const SINGLE_DEF: FxDef = {
+  id: 'single',
+  duration: 200,
+  layers: [{ primitive: 'c', anchor: 'target', at: 0, life: 200, params: {} }],
 };
 
 describe('createPlayer', () => {
@@ -218,29 +226,36 @@ describe('createPlayer', () => {
   });
 
   // fireOnce(): the workbench's "Fire" trigger for a discrete, single preview pass -- distinct from the
-  // continuous play/stop loop. These target a player built with `{ loop: true }` specifically, since that's
-  // the case where fireOnce's non-looping override actually has to fight the player's own settings.
+  // continuous play/stop loop. As of the fire-once rework, a fire is decoupled from the def's nominal
+  // duration/schedule entirely: every layer spawns immediately and stays alive until it reports genuine
+  // completion (see the "completion" describe block below for that contract). These target a player built
+  // with `{ loop: true }` specifically, since that's the case where fireOnce's behavior actually has to
+  // fight the player's own settings.
 
-  it('fireOnce starts a single pass at t=0 and plays, even on a looping player', () => {
+  it('fireOnce starts a single pass at t=0 and spawns every layer immediately, even on a looping player', () => {
     const p = createPlayer(DEF, CTX, { loop: true });
     p.fireOnce();
     expect(p.timeMs()).toBe(0);
     expect(p.isPlaying()).toBe(true);
-    expect(spawned.map((s) => s.id)).toEqual(['a']);
+    // Fire-once is no longer gated on each layer's `at` -- both layers (one nominally starting at 200ms)
+    // spawn together so the whole effect plays out as one discrete event.
+    expect(spawned.map((s) => s.id)).toEqual(['a', 'b']);
   });
 
-  it('fireOnce runs non-looping: it stops at duration instead of wrapping, even on a looping player', () => {
+  it('fireOnce (fallback, no isComplete) stops once the clock passes the def duration -- it does not wrap even on a looping player', () => {
     const p = createPlayer(DEF, CTX, { loop: true });
     p.fireOnce();
-    p.update(520); // past duration (500) -- a looping player would normally wrap to 20
-    expect(p.timeMs()).toBe(500);
+    p.update(520); // past duration (500); a looping player would normally wrap to 20
+    // Fire-once does NOT clamp the clock to the def's duration -- it tracks genuine elapsed time until
+    // completion, which for a primitive with no isComplete() is "the clock passed the duration".
+    expect(p.timeMs()).toBe(520);
     expect(p.isPlaying()).toBe(false);
   });
 
   it('fireOnce is repeatable: calling it again restarts the pass from t=0', () => {
     const p = createPlayer(DEF, CTX, { loop: true });
     p.fireOnce();
-    p.update(520); // let the first pass finish
+    p.update(520); // let the first pass finish (fallback completion once clock passes duration)
     expect(p.isPlaying()).toBe(false);
     const spawnCountAtFinish = spawned.length;
 
@@ -262,13 +277,168 @@ describe('createPlayer', () => {
   it('a normal play() after fireOnce naturally finishes also resumes looping', () => {
     const p = createPlayer(DEF, CTX, { loop: true });
     p.fireOnce();
-    p.update(520); // the one-shot pass runs to completion and stops
+    p.update(520); // the one-shot pass runs to completion (fallback) and stops; clock is NOT clamped to 500
     expect(p.isPlaying()).toBe(false);
+    expect(p.timeMs()).toBe(520);
 
     p.play();
     expect(p.isPlaying()).toBe(true);
     p.update(10);
-    // Still fully past duration when play() resumed, so the very next update wraps it.
-    expect(p.timeMs()).toBe(10);
+    // The fire's overshoot (520 vs. the def's 500ms duration) is genuine elapsed time, not discarded --
+    // it carries into the wrap arithmetic exactly like real elapsed time would: 520 + 10 = 530, wraps once
+    // past 500 -> 30.
+    expect(p.timeMs()).toBe(30);
+  });
+
+  it('threads ctx.oneShot=true into layers spawned by fireOnce, and false/absent for a normal play()', () => {
+    clearPrimitives();
+    const ctxSeen: (boolean | undefined)[] = [];
+    registerPrimitive({
+      id: 'c',
+      params: {},
+      spawn: (spawnCtx: FxContext) => {
+        ctxSeen.push(spawnCtx.oneShot);
+        const inst: FxInstance = { update: vi.fn(), setParams: vi.fn(), destroy: vi.fn() };
+        return inst;
+      },
+    });
+    const p = createPlayer(SINGLE_DEF, CTX);
+
+    p.play();
+    expect(ctxSeen).toHaveLength(1);
+    expect(ctxSeen[0]).toBeFalsy();
+
+    p.fireOnce();
+    expect(ctxSeen).toHaveLength(2);
+    expect(ctxSeen[1]).toBe(true);
+  });
+
+  // Fire-once completion: the load-bearing contract. A fire must keep a layer alive past the def's nominal
+  // duration and only tear it down once it's genuinely finished, per-instance `isComplete()` when the
+  // primitive implements it, falling back to "clock passed the duration" when it doesn't, and always
+  // bounded by the FIRE_TIMEOUT_MS safety cap.
+
+  describe('fireOnce completion', () => {
+    it('keeps a layer alive past the def duration and stops only once isComplete() reports true', () => {
+      clearPrimitives();
+      let ticks = 0;
+      registerPrimitive({
+        id: 'c',
+        params: {},
+        spawn: () => {
+          const inst: FxInstance = {
+            update: vi.fn(() => {
+              ticks += 1;
+            }),
+            setParams: vi.fn(),
+            destroy: vi.fn(),
+            isComplete: () => ticks >= 3,
+          };
+          spawned.push({ id: 'c', inst });
+          return inst;
+        },
+      });
+      const p = createPlayer(SINGLE_DEF, CTX); // duration 200
+      p.fireOnce();
+      const inst = spawned[spawned.length - 1].inst;
+
+      p.update(250); // tick 1 -- past the def's 200ms duration, but isComplete() is still false
+      expect(p.isPlaying()).toBe(true);
+      expect(inst.destroy).not.toHaveBeenCalled();
+
+      p.update(10); // tick 2 -- still not complete
+      expect(p.isPlaying()).toBe(true);
+      expect(inst.destroy).not.toHaveBeenCalled();
+
+      p.update(10); // tick 3 -- isComplete() now true
+      expect(p.isPlaying()).toBe(false);
+      expect(inst.destroy).toHaveBeenCalledTimes(1);
+    });
+
+    it('falls back to the def duration when the primitive has no isComplete()', () => {
+      clearPrimitives();
+      registerPrimitive({
+        id: 'c',
+        params: {},
+        spawn: () => {
+          const inst: FxInstance = { update: vi.fn(), setParams: vi.fn(), destroy: vi.fn() };
+          spawned.push({ id: 'c', inst });
+          return inst;
+        },
+      });
+      const p = createPlayer(SINGLE_DEF, CTX); // duration 200
+      p.fireOnce();
+      p.update(199);
+      expect(p.isPlaying()).toBe(true);
+      p.update(1); // clock now 200 -- clock >= duration triggers the fallback
+      expect(p.isPlaying()).toBe(false);
+    });
+
+    it('force-stops at the safety cap and warns if isComplete() never reports true', () => {
+      clearPrimitives();
+      registerPrimitive({
+        id: 'c',
+        params: {},
+        spawn: () => {
+          const inst: FxInstance = {
+            update: vi.fn(),
+            setParams: vi.fn(),
+            destroy: vi.fn(),
+            isComplete: () => false, // never completes
+          };
+          spawned.push({ id: 'c', inst });
+          return inst;
+        },
+      });
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const p = createPlayer(SINGLE_DEF, CTX);
+      p.fireOnce();
+      p.update(FIRE_TIMEOUT_MS + 100);
+      expect(p.isPlaying()).toBe(false);
+      expect(warn).toHaveBeenCalledTimes(1);
+      warn.mockRestore();
+    });
+  });
+
+  // loopGapMs: continuous-loop tuning aid, unrelated to fireOnce -- a pause between cycles so the effect
+  // visibly clears before restarting.
+
+  describe('loopGapMs', () => {
+    it('holds the clock at duration with layers despawned, then respawns after the gap elapses', () => {
+      const p = createPlayer(DEF, CTX, { loop: true, loopGapMs: 50 });
+      p.play();
+      const a0 = spawned.find((s) => s.id === 'a')!.inst;
+
+      p.update(500); // reaches duration exactly -- should enter the gap, not wrap
+      expect(p.timeMs()).toBe(500);
+      expect(a0.destroy).toHaveBeenCalledTimes(1);
+      const spawnCountAtGapStart = spawned.length;
+
+      p.update(30); // still inside the 50ms gap
+      expect(p.timeMs()).toBe(500);
+      expect(spawned.length).toBe(spawnCountAtGapStart); // nothing respawned yet
+
+      p.update(20); // gap elapses (30 + 20 = 50) -- wraps to a fresh cycle at clock 0
+      expect(p.timeMs()).toBe(0);
+      expect(spawned.length).toBeGreaterThan(spawnCountAtGapStart); // layer 'a' respawned for the new cycle
+    });
+
+    it('keeps the old immediate-wrap behaviour when loopGapMs is 0 (the default)', () => {
+      const p = createPlayer(DEF, CTX, { loop: true });
+      p.play();
+      p.update(500);
+      // No gap configured -- wraps straight to 0, no held frame at duration.
+      expect(p.timeMs()).toBe(0);
+    });
+
+    it('setLoopGap changes the gap live', () => {
+      const p = createPlayer(DEF, CTX, { loop: true });
+      p.setLoopGap(50);
+      p.play();
+      p.update(500);
+      expect(p.timeMs()).toBe(500); // now enters a gap instead of wrapping immediately
+      p.update(50);
+      expect(p.timeMs()).toBe(0);
+    });
   });
 });

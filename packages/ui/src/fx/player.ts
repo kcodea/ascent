@@ -7,6 +7,10 @@ import type { FxContext, FxInstance } from './primitive';
 
 export interface FxPlayerOptions {
   loop?: boolean;
+  /** Continuous-loop only: hold at the def's duration (layers despawned, effect visibly cleared) for this
+   *  many ms before restarting the cycle at 0. 0 (default) preserves the old immediate-wrap behaviour. Live
+   *  tunable via `setLoopGap`. */
+  loopGapMs?: number;
 }
 
 export interface FxPlayer {
@@ -17,6 +21,7 @@ export interface FxPlayer {
   update(dtMs: number): void;
   scrub(ms: number): void;
   setSpeed(n: number): void;
+  setLoopGap(ms: number): void;
   setLayerParams(index: number, next: Record<string, unknown>): void;
   setHead(index: number, x: number, y: number): void;
   timeMs(): number;
@@ -31,6 +36,11 @@ interface Live {
   inst: FxInstance<ParamsOf<FxParamSpecs>>;
   container: Container;
 }
+
+/** Fire-once safety valve: if a primitive's `isComplete()` never reports true (a bug, or an effect that
+ *  legitimately never terminates), force-stop the pass after this much simulated time rather than let a
+ *  "Fire" hang the workbench forever. Exported so tests can drive exactly to the boundary. */
+export const FIRE_TIMEOUT_MS = 10_000;
 
 /**
  * Drives an `FxDef`. Owns layer lifetimes, the clock, and scrubbing. Deliberately has no idea how any
@@ -48,13 +58,22 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
   let clock = 0;
   let speed = 1;
   let playing = false;
-  // Set only while a fireOnce() pass is in flight -- forces update()'s wrap logic to treat THIS pass as
-  // non-looping even when the player was constructed with `{ loop: true }`. Cleared the moment the pass
-  // naturally stops (reaches duration) or the next play()/fireOnce() call, so it never leaks into ordinary
-  // playback once the one-shot preview is done.
-  let oneShot = false;
+  let loopGapMs = Math.max(0, opts.loopGapMs ?? 0);
 
-  const spawn = (index: number): void => {
+  // Set only while a fireOnce() pass is in flight. A fire is a fundamentally different lifecycle from
+  // ordinary play: every layer spawns immediately (not gated on the def's per-layer `at`/`life` schedule)
+  // and stays alive until it reports genuine completion, wholly decoupled from `def.duration`. Cleared the
+  // moment the pass stops (naturally, via the safety cap, or because play()/stop() was called), so it never
+  // leaks into ordinary playback once the one-shot preview is done.
+  let firing = false;
+
+  // Set while a looping player is holding at `def.duration` between cycles (see `loopGapMs`). The clock
+  // stays pinned at `def.duration` for the duration of the gap; `gapElapsed` is a separate counter tracking
+  // how far into the gap we are, so `timeMs()` reads as "held at the end" rather than ticking past it.
+  let inGap = false;
+  let gapElapsed = 0;
+
+  const spawn = (index: number, oneShot = false): void => {
     if (live.has(index)) return;
     const layer = def.layers[index];
     const prim = getPrimitive(layer.primitive);
@@ -65,7 +84,8 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
     const container = new Container();
     ctx.container.addChild(container);
     const merged = { ...layer.params, ...overrides.get(index) };
-    const inst = prim.spawn({ container, renderer: ctx.renderer }, coerceParams(prim.params, merged));
+    const primCtx: FxContext = { container, renderer: ctx.renderer, oneShot };
+    const inst = prim.spawn(primCtx, coerceParams(prim.params, merged));
     live.set(index, { inst, container });
   };
 
@@ -81,7 +101,9 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
     for (const i of [...live.keys()]) kill(i);
   };
 
-  /** Bring live layers in line with the clock, then tick the survivors. */
+  /** Bring live layers in line with the clock, then tick the survivors. Only used for ordinary (non-firing)
+   *  playback — a fireOnce() pass bypasses this entirely (see `update`'s `firing` branch), since fire-once
+   *  layers must NOT be despawned by the def's nominal schedule. */
   const reconcile = (dtMs: number): void => {
     const states = layerStateAt(def, clock);
     states.forEach((s, i) => {
@@ -91,13 +113,33 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
     if (dtMs > 0) for (const l of live.values()) l.inst.update(dtMs);
   };
 
+  /** Whether every currently-live layer is done, for fire-once completion. A layer whose instance doesn't
+   *  implement `isComplete` falls back to "the clock has passed the def's nominal duration" so a primitive
+   *  that never implements the contract still terminates instead of hanging forever (short of the safety
+   *  cap). */
+  const allFiringLayersDone = (): boolean => {
+    for (const l of live.values()) {
+      const done = l.inst.isComplete ? l.inst.isComplete() : clock >= def.duration;
+      if (!done) return false;
+    }
+    return true;
+  };
+
   return {
     play(): void {
+      // A fire in flight is a different lifecycle (immediate spawn of every layer, oneShot ctx) than
+      // ordinary playback -- switching to play() must tear those layers down so reconcile() below respawns
+      // them fresh under the normal schedule, without the oneShot flag.
+      if (firing) {
+        firing = false;
+        killAllLive();
+      }
+      inGap = false;
+      gapElapsed = 0;
       // Replaying after natural completion (non-looping) should restart from the top, like a video
       // player's play button — otherwise the clock is already >= duration and the very next update()
       // would immediately re-stop it with nothing ever spawning. Mid-playback pause() never moves the
       // clock, so this only triggers exactly for "finished, click play again".
-      oneShot = false;
       if (!opts.loop && clock >= def.duration) {
         clock = 0;
         killAllLive();
@@ -109,14 +151,18 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       playing = false;
     },
     fireOnce(): void {
-      // Always restarts from t=0 for a single non-looping pass, regardless of the player's current state
+      // Always restarts from t=0 for a single pass, regardless of the player's current state
       // (playing/paused/stopped) or how it was constructed -- the workbench's "Fire" trigger for a
       // discrete, one-off preview (e.g. one combat proc) distinct from the continuous play/stop loop.
-      oneShot = true;
+      // Every layer spawns immediately (not gated on its `at`/`life` window) and stays alive until it
+      // genuinely finishes -- see `update`'s `firing` branch and `allFiringLayersDone`.
       clock = 0;
+      inGap = false;
+      gapElapsed = 0;
       killAllLive();
+      firing = true;
       playing = true;
-      reconcile(0);
+      for (let i = 0; i < def.layers.length; i++) spawn(i, true);
     },
     stop(): void {
       // Distinct from destroy(): stop() is a playback control that resets the clock and leaves the
@@ -124,17 +170,64 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       // lifecycle teardown (e.g. the editor unmounting) and makes no promise the player can be reused.
       playing = false;
       clock = 0;
-      oneShot = false;
+      firing = false;
+      inGap = false;
+      gapElapsed = 0;
       killAllLive();
     },
     update(dtMs: number): void {
       if (!playing) return;
-      clock += dtMs * speed;
-      // A fireOnce() pass forces non-looping behavior for this pass even if the player was built with
-      // `{ loop: true }` -- see the `oneShot` declaration above.
-      const looping = !oneShot && opts.loop;
+      const dt = dtMs * speed;
+
+      if (firing) {
+        clock += dt;
+        if (dt > 0) for (const l of live.values()) l.inst.update(dt);
+        if (clock >= FIRE_TIMEOUT_MS) {
+          console.warn(
+            `[fx] fireOnce for def '${def.id}' exceeded the ${FIRE_TIMEOUT_MS}ms safety cap without ` +
+              `isComplete() reporting true on every layer -- force-stopping.`,
+          );
+          killAllLive();
+          playing = false;
+          firing = false;
+          return;
+        }
+        if (allFiringLayersDone()) {
+          killAllLive();
+          playing = false;
+          firing = false;
+        }
+        return;
+      }
+
+      if (inGap) {
+        gapElapsed += dt;
+        if (gapElapsed < loopGapMs) return;
+        // Gap elapsed -- start a fresh cycle. Any time beyond the gap's own length carries into the new
+        // cycle's clock, the same "don't discard real elapsed time" treatment the no-gap wrap below gives
+        // overshoot past `def.duration`.
+        const overflow = gapElapsed - loopGapMs;
+        inGap = false;
+        gapElapsed = 0;
+        clock = overflow > 0 ? Math.min(overflow, def.duration) : 0;
+        reconcile(overflow > 0 ? overflow : 0);
+        return;
+      }
+
+      clock += dt;
+      const looping = opts.loop;
       if (clock >= def.duration) {
         if (looping) {
+          if (loopGapMs > 0) {
+            // Hold at the duration with everything despawned instead of wrapping immediately -- the
+            // effect visibly clears before the next cycle starts. `update`'s `inGap` branch above takes
+            // over from here once playing resumes.
+            clock = def.duration;
+            killAllLive();
+            inGap = true;
+            gapElapsed = 0;
+            return;
+          }
           // Wrapping starts a NEW cycle: every layer must die and respawn fresh, even one whose life
           // spans the entire duration and would otherwise never pass through a 'done' state to trigger
           // a natural kill (layerStateAt only sees the post-wrap clock, not the crossing). Without this,
@@ -145,10 +238,9 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
         } else {
           clock = def.duration;
           playing = false;
-          oneShot = false;
         }
       }
-      reconcile(dtMs * speed);
+      reconcile(dt);
     },
     scrub(ms: number): void {
       clock = Math.min(def.duration, Math.max(0, ms));
@@ -156,6 +248,9 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
     },
     setSpeed(n: number): void {
       speed = n;
+    },
+    setLoopGap(ms: number): void {
+      loopGapMs = Math.max(0, ms);
     },
     setLayerParams(index: number, next: Record<string, unknown>): void {
       const merged = { ...overrides.get(index), ...next };

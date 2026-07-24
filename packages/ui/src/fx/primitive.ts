@@ -5,6 +5,10 @@ import type { FxParamSpecs, ParamsOf } from './params';
 export interface FxContext {
   container: Container;
   renderer: Renderer;
+  /** True when this instance was spawned for a one-shot "Fire" (play once and finish), false/undefined for
+   *  the continuous preview loop. A primitive uses it to do a single discrete play — one burst wave, one
+   *  shockwave ring cycle, a bounded emitter window — instead of its continuous/re-firing behaviour. */
+  oneShot?: boolean;
 }
 
 /**
@@ -27,6 +31,10 @@ export interface FxInstance<P = Record<string, unknown>> {
   setParams(next: P): void;
   /** Optional: primitives that follow a path (ribbons, trails) receive their head position each frame. */
   setHead?(x: number, y: number): void;
+  /** Optional: for one-shot effects, returns true once the instance has nothing left to render (all
+   *  particles dead, all rings finished). The player uses it to know when a Fire has fully played out.
+   *  Continuous effects (or any instance not spawned oneShot) may omit it or always return false. */
+  isComplete?(): boolean;
   destroy(): void;
 }
 

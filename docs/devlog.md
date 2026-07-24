@@ -1,5 +1,32 @@
 # ASCENT — development log
 
+## 2026-07-24 (spell art was being shadowed by misfiled minion copies)
+
+### fix(ui): delete 38 spell arts misfiled under minions/, which shadowed the new masters
+
+Owner report: "waking rift's artwork isn't wired." It was wired — and then silently overridden.
+
+`artFor` resolves `MINION_ART[cardId] ?? SPELL_ART[cardId]`. Ids are globally unique, so a card should only ever
+live in ONE directory and the order shouldn't matter. But **38 of the 66 newly-wired spells already had an older
+master misfiled under `art/minions/`**, so the minions copy won every time and the new spells/ file never
+rendered. Waking Rift was showing the old Spark Plug art from `minions/sparkplug.webp`.
+
+This was a partial fix compounding into a bigger miss: the same shadowing was caught for `ruby` and
+`warding-ruby` during the original wiring and fixed BY HAND for those two, instead of sweeping for the whole
+class. All 38 misfiled copies are now deleted (each confirmed to be a spell/Ruby card first — `discoverspell`
+/ "Triple Reward" is a spell-like token and was included deliberately; no real minion art was touched).
+
+Added a DEV-only console warning in `artFor` when a card id has art in both directories, so the next misfile is
+a visible message instead of an invisible override. The fix is always to delete the misfiled copy, never to
+reorder the lookup.
+
+**Verification lesson worth recording:** the original check logged `src.split('/').pop()` — just the FILENAME —
+which is identical for `minions/sparkplug.webp` and `spells/sparkplug.webp`. It reported a pass while the wrong
+file was loading. Re-verified by full PATH across a sample of seven previously-shadowed spells: all now resolve
+under `/art/spells/`, all decode at 512x512, and the new duplicate warning stays silent. Suite 1542 + typecheck
++ lint + build:web green.
+
+
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 

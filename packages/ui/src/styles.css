@@ -4997,6 +4997,21 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 .fxwb-close:hover { background: #3d3752; border-color: #c936ef; color: #f0a0ff; }
 
+/* Preview backdrop control (see fx/ui/backdrop.ts) — a row of flat-color swatches + a custom picker that fill
+   the transparent FX overlay behind the previewed effect, so multiply/overlay/screen blend modes have
+   something real to composite against (multiply against nothing/black is always black). */
+.fxwb-backdrop-label { flex: none; font-size: 11px; font-weight: 700; color: #8a7fa8; text-transform: uppercase; letter-spacing: 0.05em; padding: 0 2px 0 4px; }
+.fxwb-backdrop-swatch {
+  width: 20px; height: 20px; border-radius: 5px; border: 1px solid #3d3752; background: #211d2c; padding: 0; cursor: pointer;
+}
+.fxwb-backdrop-swatch.none { background: repeating-conic-gradient(#3d3752 0% 25%, #211d2c 0% 50%) 0 0 / 8px 8px; }
+.fxwb-backdrop-swatch:hover { border-color: #c936ef; }
+.fxwb-backdrop-swatch.on { border-color: #c936ef; box-shadow: 0 0 0 2px color-mix(in srgb, #c936ef 55%, transparent); }
+.fxwb-backdrop-custom { width: 22px; height: 20px; border: 1px solid #3d3752; border-radius: 5px; background: none; padding: 0; cursor: pointer; }
+.fxwb-backdrop-custom::-webkit-color-swatch { border: none; border-radius: 4px; }
+.fxwb-backdrop-custom::-moz-color-swatch { border: none; border-radius: 4px; }
+.fxwb-backdrop-custom.on { border-color: #c936ef; box-shadow: 0 0 0 2px color-mix(in srgb, #c936ef 55%, transparent); }
+
 .fxwb-side {
   position: absolute; top: 52px; right: 0; bottom: 60px; width: 288px; overflow-y: auto; box-sizing: border-box;
   background: #211d2c; border-left: 2px solid #3d3752; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px;

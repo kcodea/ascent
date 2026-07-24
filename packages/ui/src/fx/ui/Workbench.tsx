@@ -8,6 +8,18 @@ import { resolveAnchor } from '../anchors';
 import { SCENARIOS } from '../scenarios';
 import { pixiFx } from '../../pixiFx';
 import { Inspector } from './Inspector';
+import { createBackdrop, type FxBackdrop } from './backdrop';
+
+/** Swatches for the preview backdrop control (see `createBackdrop`). `hex: null` is "None" — transparent,
+ *  matching the in-game overlay. Multiply against black is always black, so Mid/Light are what actually let
+ *  you SEE multiply/overlay/screen doing their thing; that's the whole point of this control. Module-scope
+ *  so the array identity is stable across renders. */
+const BACKDROP_SWATCHES: readonly { label: string; hex: number | null }[] = [
+  { label: 'None', hex: null },
+  { label: 'Board', hex: 0x211d2c },
+  { label: 'Mid', hex: 0x808080 },
+  { label: 'Light', hex: 0xc8c8c8 },
+];
 
 // Registers every built-in primitive (see registry.ts's `registerPrimitive`). A DYNAMIC import,
 // deliberately — the primitives self-register via a top-level function CALL (a real side effect Rollup
@@ -38,8 +50,10 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const [timeMs, setTimeMs] = useState(0);
   const [fps, setFps] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [backdropColor, setBackdropColor] = useState<number | null>(null);
 
   const playerRef = useRef<FxPlayer | null>(null);
+  const backdropRef = useRef<FxBackdrop | null>(null);
   // Mirrors of the latest state, read by the per-frame updater / build closures so those never go stale
   // without forcing a player rebuild on every keystroke (a rebuild happens ONLY on primitive/scenario change).
   const paramsRef = useRef(params);
@@ -63,6 +77,33 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       window.removeEventListener('pointerdown', onDown);
     };
   }, []);
+
+  // Mount the preview backdrop BEHIND the effect, once for the workbench's whole lifetime — deliberately its
+  // own effect, declared ABOVE the build() effect below, so it always mounts (and thus lands at a lower child
+  // index on the overlay's `layer`) before build() mounts the per-effect container. `pixiFx.mountLayer` just
+  // appends, and a later append renders on top, so as long as this stays mounted for the workbench's whole
+  // lifetime, every rebuild in build() (which tears down and re-mounts a fresh container per primitive/scenario
+  // change) always lands above it — no z-index/sortableChildren needed, plain append order is sufficient.
+  useEffect(() => {
+    const backdrop = createBackdrop();
+    backdropRef.current = backdrop;
+    const unmountLayer = pixiFx.mountLayer(backdrop.container);
+    const resize = (): void => backdrop.resize(window.innerWidth, window.innerHeight);
+    resize();
+    window.addEventListener('resize', resize);
+    return () => {
+      window.removeEventListener('resize', resize);
+      unmountLayer();
+      backdrop.destroy();
+      backdropRef.current = null;
+    };
+  }, []);
+
+  // Push the selected color to the (persistent) backdrop whenever it changes. Split from the mount effect
+  // above so picking a new color never tears down / remounts the backdrop container.
+  useEffect(() => {
+    backdropRef.current?.setColor(backdropColor);
+  }, [backdropColor]);
 
   // (Re)build the player whenever the selected primitive or scenario changes. Param tweaks do NOT land
   // here — they go through player.setLayerParams (see `change` below) so a slider drag never respawns
@@ -267,6 +308,25 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
               {s.label}
             </button>
           ))}
+        </div>
+        <div className="fxwb-group fxwb-backdrop-group">
+          <span className="fxwb-backdrop-label">Backdrop</span>
+          {BACKDROP_SWATCHES.map((sw) => (
+            <button
+              key={sw.label}
+              className={`fxwb-backdrop-swatch${sw.hex === null ? ' none' : ''}${backdropColor === sw.hex ? ' on' : ''}`}
+              style={sw.hex !== null ? { background: `#${sw.hex.toString(16).padStart(6, '0')}` } : undefined}
+              title={sw.label}
+              onClick={() => setBackdropColor(sw.hex)}
+            />
+          ))}
+          <input
+            className={`fxwb-backdrop-custom${backdropColor !== null && !BACKDROP_SWATCHES.some((sw) => sw.hex === backdropColor) ? ' on' : ''}`}
+            type="color"
+            title="Custom backdrop color"
+            value={`#${(backdropColor ?? 0x808080).toString(16).padStart(6, '0')}`}
+            onChange={(e) => setBackdropColor(parseInt(e.target.value.slice(1), 16))}
+          />
         </div>
         <div className="fxwb-fps">{fps} fps</div>
         <button className="fxwb-close" onClick={onClose} title="Close FX Workbench">✕</button>

@@ -69,10 +69,10 @@ export interface SpellBuffFxConfig {
   /** Sparks — largest random launch delay, so motes don't fire in lockstep (ms). */
   sparkStagger: number;
   /** Sparks — the three cycled hues, applied to motes round-robin.
-   *  NB: the KEY names are historical. The cue launched pink/gold/purple, but the owner's 2026-07-24 pass moved
-   *  the palette to cyan / amber / violet. The keys are deliberately NOT renamed — they're the localStorage
-   *  schema, and renaming them would silently orphan every saved tuner config. Treat them as hue slots 1-3 and
-   *  read the actual colours from DEFAULTS, never from the key name. */
+   *  NB: the KEY names are historical and no longer describe the colours. The cue launched pink/gold/purple and
+   *  the palette has since been re-dialed more than once. The keys are deliberately NOT renamed — they're the
+   *  localStorage schema, and renaming them would silently orphan every saved tuner config. Treat them as hue
+   *  slots 1-3 and read the actual colours from DEFAULTS, never from the key name. */
   pinkColor: string;
   goldColor: string;
   purpleColor: string;
@@ -80,32 +80,31 @@ export interface SpellBuffFxConfig {
 
 /** Shipped starting point (dial in the ✨ tuner, then bake here). */
 const DEFAULTS: SpellBuffFxConfig = {
-  // Owner's tuned pass, 2026-07-24 (straight from the tuner's Copy values). A gentle, slow swell on the card
-  // — the motion is carried by the sparks, not the pop — under a wide, long-lived blast thrown from high on
-  // the card and biased upward.
-  growScale: 1.04,
+  // Owner's tuned pass, 2026-07-24 (straight from the tuner's Copy values). A soft swell on the card under a
+  // long-lived, tail-light blast thrown from high on the card (origin Y 69) and biased upward across a 270° arc.
+  growScale: 1.18,
   growMs: 210,
   growEase: 0.25,
-  shrinkMs: 460,
+  shrinkMs: 630,
   shrinkEase: 0.41,
 
-  sparkCount: 44,
+  sparkCount: 25,
   sparkSizeMin: 3,
   sparkSizeMax: 13.5,
-  blastDistMin: 65,
-  blastDistMax: 335,
+  blastDistMin: 30,
+  blastDistMax: 240,
   blastSpread: 270,
-  blastOriginY: 76,
-  sparkSpeed: 0.76,
+  blastOriginY: 69,
+  sparkSpeed: 0.51,
   sparkGravity: 0,
   sparkAlpha: 1,
-  sparkGlow: 15,
-  sparkTail: 2.1,
-  sparkMs: 1920,
+  sparkGlow: 0,
+  sparkTail: 1.1,
+  sparkMs: 1780,
   sparkStagger: 100,
-  pinkColor: '#00ccff',
-  goldColor: '#ffaa00',
-  purpleColor: '#7300ff',
+  pinkColor: '#fec158',
+  goldColor: '#009dff',
+  purpleColor: '#00ffd5',
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */

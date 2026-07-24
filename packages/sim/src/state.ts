@@ -68,8 +68,9 @@ export interface ShopCard {
   /** Displacement: a board minion stashed here when swapped to the tavern — restored INTACT (all buffs /
    *  stats / progression) when re-bought or swapped back, rather than re-instantiated from base. */
   held?: BoardCard;
-  /** Layaway: this offer survives rerolls (it's kept out of the pool return and re-added in place on a roll),
-   *  persisting until bought. Any `cost` reduction rides along. */
+  /** Layaway: this offer survives rerolls (it's kept out of the pool return and re-added in place on a roll)
+   *  for the CURRENT shop phase — cleared at `faceOmen`, so the first refresh after combat sweeps it (recast
+   *  Layaway to keep it again). Any `cost` reduction rides the offer while it lasts. */
   kept?: boolean;
 }
 

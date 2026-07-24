@@ -181,7 +181,18 @@ describe('spell batch — tranche B3 (offer / minion manipulation)', () => {
     expect(kept.kept).toBe(true);
     expect(kept.cost).toBe(2); // minionCost 3 − 1
     s = reduce(s, { type: 'roll' });
-    expect(s.shop.some((o) => o.uid === offer.uid && o.kept && o.cost === 2)).toBe(true); // survived the reroll
+    expect(s.shop.some((o) => o.uid === offer.uid && o.kept && o.cost === 2)).toBe(true); // survived the reroll THIS phase
+  });
+
+  it('Layaway: the keep does NOT persist through combat (cleared at faceOmen)', () => {
+    const base = createRun(1);
+    const offer = base.shop[0]!;
+    let s: RunState = { ...base, embers: 100, hand: [mkSpell('sp', 'layaway')] };
+    s = reduce(s, { type: 'play', uid: 'sp', targetUid: offer.uid });
+    expect(s.shop.find((o) => o.uid === offer.uid)!.kept).toBe(true);
+    s = reduce(s, { type: 'faceOmen' }); // go to combat
+    // the offer's keep is cleared, so the next post-combat refresh would sweep it (it's no longer kept)
+    expect(s.shop.find((o) => o.uid === offer.uid)?.kept ?? false).toBe(false);
   });
 
   it('Layaway fizzles on a board minion (it needs a shop offer), kept in hand', () => {

@@ -5,6 +5,10 @@ import type { Keyword, Tribe } from '@game/core';
 import type { StepProgress } from './cardText';
 import { getSpellBuffFxConfig, makeSpellBuffSparks, sparkEaseCss, growEaseCss, shrinkEaseCss } from './spellBuffFxConfig';
 import { subscribeSpellBuff, getSpellBuffSeq } from './spellBuffFx';
+// Side-effect import: `cardPillsConfig` applies the pill layout vars (`--cpl-*-t`) to :root at module
+// load. Imported HERE rather than only from the dev tuner because the tuner is stripped from production —
+// without this, any non-identity default baked into that file would silently never apply to players.
+import './cardPillsConfig';
 import { artFor } from './art';
 import { renameTerms } from './terms';
 import { Icon } from './Icon';

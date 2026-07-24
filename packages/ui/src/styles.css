@@ -1338,13 +1338,20 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* cost badge — a teal Mana circle overhanging the top-left corner */
 /* --u-scaled (was fixed 60px etc.) so the coin tracks the card at ANY stage size — raw px read fine on desktop
    (--u ≈ 1px there) but rendered ~3× oversized at phone scale (owner's mobile itch test). */
-.cost { position: absolute; top: calc(-20 * var(--u)); left: calc(-16 * var(--u)); width: calc(60 * var(--u)); height: calc(60 * var(--u)); z-index: 6; border-radius: 50%; background: var(--mana); border: calc(3 * var(--u)) solid var(--card); display: grid; place-items: center; box-shadow: 0 calc(3 * var(--u)) calc(7 * var(--u)) rgba(0, 0, 0, 0.3); }
-.cost .costn { font-family: var(--font-ui); font-weight: 800; font-size: calc(29 * var(--u)); color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
+/* Cost coin — the SAME minted-coin treatment as the hero-power cost (`.hpcost`, owner ask 2026-07-24): a gold
+   radial gradient with a dark rim and inset highlight/shade, rather than the old flat `--mana` disc. Kept as
+   its own rule instead of sharing a class with `.hpcost` because the two sit on different anchors and sizes;
+   only the SKIN is shared. Position/scale are tunable via `--cpl-cost-t` (🏷️ Card Pills tuner). */
+.cost { position: absolute; top: calc(-20 * var(--u)); left: calc(-16 * var(--u)); width: calc(60 * var(--u)); height: calc(60 * var(--u)); z-index: 6; border-radius: 50%; background: radial-gradient(circle at 38% 30%, #ffe293, #eab63f 58%, #b9821f); border: calc(3 * var(--u)) solid #1b1d22; display: grid; place-items: center; box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.55), inset 0 -3px 4px rgba(120, 80, 10, 0.4); transform: var(--cpl-cost-t, none); transform-origin: center; }
+.cost .costn { font-family: var(--font-ui); font-weight: 900; font-size: calc(29 * var(--u)); color: #4a3208; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); line-height: 1; }
 /* Changed price (Moe's discounted Attachment) — a green coin so the cheaper cost reads as a deal at a glance. */
-.cost.discount { background: #1aa86f; }
+/* Discounted price (a shop minion cheaper than the flat rate, or Moe's Attachment) — the GREEN variant of the
+   same minted coin, so "this is cheaper" reads at a glance without changing the badge's language. */
+.cost.discount { background: radial-gradient(circle at 38% 30%, #c8f7d5, #35b06a 58%, #17703f); box-shadow: 0 3px 7px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.5), inset 0 -3px 4px rgba(10, 80, 40, 0.45); }
+.cost.discount .costn { color: #0d3a20; }
 /* Spell cast multiplier (Nimbus / Yazzus): a bold "×N" pill top-right of the spell card. */
 .castmult { position: absolute; top: -14px; right: -14px; min-width: 46px; height: 46px; padding: 0 8px; border-radius: 23px; background: var(--acc); border: 3px solid var(--card); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 24px; display: grid; place-items: center; z-index: 9; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
-.tierbadge { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 13px; border-radius: 9px; z-index: 4; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22); }
+.tierbadge { position: absolute; top: -11px; left: 50%; transform: var(--cpl-tier-t, translateX(-50%)); background: var(--ink); color: #fff; font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 13px; border-radius: 9px; z-index: 4; white-space: nowrap; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.22); }
 /* per-tier colour ramp (cool → warm as the tier climbs) so 1–6 read at a glance */
 .tierbadge[data-tier="1"] { background: var(--tier-1); }
 .tierbadge[data-tier="2"] { background: var(--tier-2); }
@@ -1554,7 +1561,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   100% { opacity: 0; transform: scale(3.4); }
 }
 /* spell label — a readable white banner over the arch base (spells have no stat badges) */
-.card.compact.spellcard .ctype.spell { position: absolute; bottom: calc(var(--ccw) * -0.05); left: 50%; transform: translateX(-50%); z-index: 6; background: color-mix(in srgb, var(--t-demon) 88%, #000); color: #fff; padding: calc(var(--ccw) * 0.02) calc(var(--ccw) * 0.08); border-radius: 999px; border: 2px solid #f6e3ad; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45); font-size: calc(var(--ccw) * 0.075); white-space: nowrap; }
+/* The type pill's seat is owned by the 🏷️ Card Pills tuner, not by this `bottom` — `--cpl-spell-t` composes a
+   nudge onto the centring translate, so there's ONE control for it (the `spellY` default carries the owner's
+   2026-07-24 "put it at the bottom of the art" ask). NB `bottom` grows UPWARD, so raising it here would move
+   the pill up; use the tuner's +y (down) instead. */
+.card.compact.spellcard .ctype.spell { position: absolute; bottom: calc(var(--ccw) * -0.05); left: 50%; transform: var(--cpl-spell-t, translateX(-50%)); z-index: 6; background: color-mix(in srgb, var(--t-demon) 88%, #000); color: #fff; padding: calc(var(--ccw) * 0.02) calc(var(--ccw) * 0.08); border-radius: 999px; border: 2px solid #f6e3ad; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45); font-size: calc(var(--ccw) * 0.075); white-space: nowrap; }
 
 /* --- Text drawer: a DETACHED dark-glass info panel floating beneath the card — rounded on all four corners,
    the hero/quest-panel dark pill/glass recipe (owner call 2026-07-19). No longer welded to the frame (the old

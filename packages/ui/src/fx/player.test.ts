@@ -127,6 +127,26 @@ describe('createPlayer', () => {
     expect(spawned).toHaveLength(1);
   });
 
+  // Regression: the `{ size: 9 }` case above is in-range, so it passes through identically whether or not
+  // `setLayerParams` routes through `coerceParams` first -- it can't catch a future "simplification" that
+  // drops the coerce call. These two only pass BECAUSE of the coercion.
+
+  it('regression: setLayerParams clamps an out-of-range live edit before it reaches the primitive', () => {
+    const p = createPlayer(DEF, CTX);
+    p.play();
+    const a = spawned[0].inst;
+    p.setLayerParams(0, { size: 999 }); // spec is min:0, max:10
+    expect(a.setParams).toHaveBeenCalledWith({ size: 10 });
+  });
+
+  it('regression: setLayerParams falls back to the spec default for a wrong-typed live edit', () => {
+    const p = createPlayer(DEF, CTX);
+    p.play();
+    const a = spawned[0].inst;
+    p.setLayerParams(0, { size: 'huge' });
+    expect(a.setParams).toHaveBeenCalledWith({ size: 5 }); // spec default; the string is dropped, not coerced
+  });
+
   it('forwards setHead to the live layer and ignores primitives that do not implement it', () => {
     const p = createPlayer(DEF, CTX);
     p.play();

@@ -95,6 +95,63 @@ describe('set 2 — Dragon effects', () => {
   });
 });
 
+describe('set 2 — Dragon spell hooks (first / second spell each turn)', () => {
+  it('Ashscribe Whelp: grows on the FIRST spell each turn only — not the second', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 40,
+      board: [minion('aw', 'd2_ashscribe', 'dragon', 1, 3)],
+      hand: [spellInHand('s1', 'growth'), spellInHand('s2', 'growth')],
+    };
+    s = reduce(s, { type: 'play', uid: 's1' });
+    let aw = s.board.find((c) => c.uid === 'aw')!;
+    const afterFirst = [aw.attack, aw.health];
+    s = reduce(s, { type: 'play', uid: 's2' }); // second cast must NOT grant it again
+    aw = s.board.find((c) => c.uid === 'aw')!;
+    // Growth buffs the whole board too, so compare the DELTA between the two casts: the second adds only
+    // Growth's +1/+1, while the first added Growth's +1/+1 plus Ashscribe's own +2/+2.
+    expect([aw.attack - afterFirst[0]!, aw.health - afterFirst[1]!]).toEqual([1, 1]);
+    expect(afterFirst).toEqual([1 + 1 + 2, 3 + 1 + 2]);
+  });
+
+  it('Spellkeeper Drake: the SECOND spell each turn copies the FIRST (not the second)', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 40,
+      board: [minion('sk', 'd2_spellkeeper', 'dragon', 3, 4)],
+      hand: [spellInHand('s1', 'growth'), spellInHand('s2', 'emberpouch')],
+    };
+    s = reduce(s, { type: 'play', uid: 's1' });
+    expect(s.hand.filter((c) => c.cardId === 'growth').length).toBe(0); // one cast → nothing yet
+    s = reduce(s, { type: 'play', uid: 's2' });
+    expect(s.hand.filter((c) => c.cardId === 'growth').length).toBe(1); // the FIRST spell, copied
+    expect(s.hand.filter((c) => c.cardId === 'emberpouch').length).toBe(0);
+  });
+
+  it('Runic Archivist: End of Turn re-CASTS the first spell (a real cast, not a copy to hand)', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 40,
+      board: [minion('ra', 'd2_archivist', 'dragon', 6, 10), minion('t1', 'd2_ashscribe', 'dragon', 1, 3)],
+      hand: [spellInHand('s1', 'growth')],
+    };
+    s = reduce(s, { type: 'play', uid: 's1' });
+    const castsAfterPlay = s.spellsCast;
+    const handSize = s.hand.length;
+    s = reduce(s, { type: 'faceOmen' });
+    expect(s.spellsCast).toBeGreaterThan(castsAfterPlay); // it CAST again…
+    expect(s.hand.length).toBe(handSize); // …rather than adding a card to hand
+  });
+
+  it('Runic Archivist: no spell cast this turn → a clean no-op', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 40,
+      board: [minion('ra', 'd2_archivist', 'dragon', 6, 10)],
+      hand: [],
+    };
+    const before = s.spellsCast;
+    s = reduce(s, { type: 'faceOmen' });
+    expect(s.spellsCast).toBe(before);
+  });
+});
+
 describe('set 2 — the cast meter is the umbrella of Rubies + Shop Spells', () => {
   it('Gemgorge Fiend counts SHOP SPELLS toward its every-3 trigger, not just Rubies', () => {
     // Owner 2026-07-24: the `rubyCast` trigger is the umbrella of both, matching the `spellsCast + rubyCasts`

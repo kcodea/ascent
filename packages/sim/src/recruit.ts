@@ -1946,6 +1946,43 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     conjureToHand(ctx.state, poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier), num(params.count, 1) * gold(self));
   },
 
+  /** Set 2 — Ashscribe Whelp: the FIRST spell you cast each turn permanently grows this minion.
+   *  Hooked on `spellCast`, which fires once per cast AFTER the tally — so `spellsThisTurn === 1` is exactly
+   *  "this was the first". Permanent (owner ruling 2026-07-24): a plain `addBuff`, so it accumulates every turn
+   *  and shows in the inspect breakdown like any other growth. */
+  onSpellCastFirstBuffSelf: (ctx, self, params) => {
+    if (ctx.state.spellsThisTurn !== 1) return;
+    addBuff(self, nameOf(self), num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self));
+  },
+
+  /** Set 2 — Spellkeeper Drake: casting your SECOND spell each turn hands you a copy of the FIRST.
+   *  Same `spellCast` hook, reading the count instead of the id — `firstSpellThisTurnId` is already recorded
+   *  by `castSpell` before the tally, so the "first" is known by the time the second lands. */
+  onSpellCastSecondCopyFirst: (ctx, self, params) => {
+    if (ctx.state.spellsThisTurn !== 2) return;
+    const def = ctx.state.firstSpellThisTurnId ? CARD_INDEX[ctx.state.firstSpellThisTurnId] : undefined;
+    if (!def) return;
+    conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
+  },
+
+  /** Set 2 — Runic Archivist (End of Turn): re-cast the first spell you cast this turn, free.
+   *  Mirrors Rune of Recurrence's `recastFirstSpell` exactly, including its owner ruling that an AIMED spell
+   *  re-targets a seeded-random friendly minion (an untargeted one just resolves) — two cards doing the same
+   *  thing differently would be a rules inconsistency, not a feature. No spell cast this turn, or an aimed
+   *  spell with an empty board → a clean no-op. */
+  endOfTurnRecastFirstSpell: (ctx, self, params) => {
+    const def = ctx.state.firstSpellThisTurnId ? CARD_INDEX[ctx.state.firstSpellThisTurnId] : undefined;
+    if (!def?.spell) return;
+    for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
+      if (!def.target) { castSpell(ctx.state, def); continue; }
+      if (ctx.state.board.length === 0) return;
+      const rng = makeRng(ctx.state.rngCursor);
+      const target = ctx.state.board[rng.int(ctx.state.board.length)]!;
+      ctx.state.rngCursor = rng.state();
+      castSpell(ctx.state, def, target);
+    }
+  },
+
   /** Set 2 — Traveling Skald (Shout): get a random Tier-`tier` minion of `tribe` AND a random Tavern spell
    *  (golden: two of each). Two grants in one Shout, so it seeds both halves of the Dragon spell line at once.
    *  Each half is independent — a dry pool on one side still delivers the other. */

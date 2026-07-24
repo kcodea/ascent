@@ -2,6 +2,31 @@
 
 ## 2026-07-24 (Set 2's Dragon tribe — foundation + first tranche)
 
+### feat(content/sim): Dragon tranche 2 — the first/second-spell-this-turn hooks (3 cards)
+
+Ashscribe Whelp, Spellkeeper Drake and Runic Archivist — 9 of 21 Dragons now built.
+
+All three hang off ONE observation: `castSpell` increments `spellsThisTurn` BEFORE it notifies `spellCast`
+watchers, so a factory reading `spellsThisTurn === 1` is exactly "this was the first spell this turn", and
+`=== 2` is the second. No new bookkeeping, no per-minion state — the count the engine already keeps IS the
+trigger. `firstSpellThisTurnId` is likewise recorded before the tally, so the "first" is known by the time the
+second lands.
+
+* **Ashscribe Whelp** (T1 1/3) — the first spell each turn permanently grows it +2/+2 (owner ruling: permanent,
+  so a plain `addBuff` that accumulates and itemises in the inspect breakdown).
+* **Spellkeeper Drake** (T3 3/4) — your SECOND spell each turn hands you a copy of the FIRST.
+* **Runic Archivist** (T6 6/10) — End of Turn, re-CASTS this turn's first spell for free.
+
+Runic Archivist deliberately mirrors Rune of Recurrence's `recastFirstSpell` rather than inventing its own
+rule, including the owner's 2026-07-17 call that an AIMED re-cast picks a seeded-random friendly minion (an
+untargeted one just resolves). Two cards doing "cast your first spell again" differently would read as a bug,
+not a feature.
+
+Four tests. The Ashscribe one is written against the DELTA between the two casts rather than absolute stats,
+because Growth buffs the whole board too — asserting absolutes would have passed for the wrong reason. The
+Archivist pair pins that it re-casts rather than copying to hand (`spellsCast` rises, hand size doesn't) and
+that no spell cast this turn is a clean no-op. Suite 1562 + typecheck + lint + build:web green.
+
 ### fix(sim/content): Veinstorm is permanent, the cast meter is the Ruby+Spell umbrella, Skald re-spec
 
 Three owner items on the Set-2 branch. Both "bugs" turned out to describe the INTENDED behaviour rather than

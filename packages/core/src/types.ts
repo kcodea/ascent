@@ -140,6 +140,9 @@ export type EffectFactoryId =
   | 'rallyGrantMagnetic' // Mechanical Jouster — Rally: when this attacks, add a random Magnetic Mech to hand
   | 'rallyProcDeathrattle' // Rally: when this attacks, fire your leftmost minion's Deathrattle first (Deathsayer)
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
+  | 'onSpellCastFirstBuffSelf' // Ashscribe Whelp: the first spell each turn permanently grows this
+  | 'onSpellCastSecondCopyFirst' // Spellkeeper Drake: your 2nd spell each turn copies the 1st
+  | 'endOfTurnRecastFirstSpell' // Runic Archivist: End of Turn — re-cast this turn's first spell
   | 'battlecryGrantTribeAndSpell' // Traveling Skald: Shout — a random tribe minion AND a random spell
   | 'battlecryGrantRandomSpell' // Hoard Chronicler: Shout — add random Tavern spells to hand
   | 'battlecryCopyCastSpell' // Recaller: Shout — copy the first/last spell you cast this turn

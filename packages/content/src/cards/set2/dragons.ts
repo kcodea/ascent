@@ -38,6 +38,46 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: '**Shout:** give another friendly Dragon **+4/+2**.',
   },
   {
+    // The tribe's Tier-1 spell payoff: a body that grows every turn you cast, so casting early has a floor
+    // even when you have no other Dragon out. Permanent growth (owner ruling 2026-07-24).
+    id: 'd2_ashscribe',
+    name: 'Ashscribe Whelp',
+    tribe: 'dragon',
+    tier: 1,
+    attack: 1,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'spellCast', do: 'onSpellCastFirstBuffSelf', params: { attack: 2, health: 2 } }],
+    text: 'The first time you cast a spell each turn, gain **+2/+2**.',
+    goldenText: 'The first time you cast a spell each turn, gain **+4/+4**.',
+  },
+  {
+    // Rewards casting TWICE in a turn rather than once — the recursion line's "keep going" piece.
+    id: 'd2_spellkeeper',
+    name: 'Spellkeeper Drake',
+    tribe: 'dragon',
+    tier: 3,
+    attack: 3,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'spellCast', do: 'onSpellCastSecondCopyFirst', params: { count: 1 } }],
+    text: 'After you cast your **second** spell each turn, get a copy of the first.',
+    goldenText: 'After you cast your **second** spell each turn, get **2** copies of the first.',
+  },
+  {
+    // The top-end recursion payoff: not a COPY to hand but an actual free re-cast, at End of Turn.
+    id: 'd2_archivist',
+    name: 'Runic Archivist',
+    tribe: 'dragon',
+    tier: 6,
+    attack: 6,
+    health: 10,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnRecastFirstSpell', params: { count: 1 } }],
+    text: '**End of Turn:** cast the first spell you cast this turn again.',
+    goldenText: '**End of Turn:** cast the first spell you cast this turn **2 additional** times.',
+  },
+  {
     // The tribe's spell-supply piece: a Shout that just hands you a spell to fuel the recursion line.
     id: 'd2_chronicler',
     name: 'Hoard Chronicler',

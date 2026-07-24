@@ -683,9 +683,32 @@ class FxController {
     this.app?.ticker.stop(); // if already attached with nothing live, idle right away
   }
 
+  /** Externally-mounted per-frame updaters (the FX workbench player). Kept deliberately small: this is the
+   *  only seam through which code outside this file draws on the overlay canvas. */
+  private extraUpdaters: ((dtMs: number) => void)[] = [];
+
+  /** Mount a container on the overlay stage. Returns a disposer. */
+  mountLayer(c: Container): () => void {
+    this.layer?.addChild(c);
+    return () => {
+      this.layer?.removeChild(c);
+    };
+  }
+
+  /** Register a per-frame callback driven by the overlay ticker. Returns a disposer. */
+  addUpdater(fn: (dtMs: number) => void): () => void {
+    this.extraUpdaters.push(fn);
+    this.app?.ticker.start(); // an idled controller must wake while an external updater is live
+    return () => {
+      const i = this.extraUpdaters.indexOf(fn);
+      if (i >= 0) this.extraUpdaters.splice(i, 1);
+    };
+  }
+
   /** True while anything still needs the per-frame tick: live particles or any redrawn effect / aura / aim. */
   private hasLiveWork(): boolean {
     return (
+      this.extraUpdaters.length > 0 ||
       this.live.length > 0 || this.skullPops.length > 0 || this.tendrils.length > 0 ||
       this.gusts.length > 0 || this.weldRings.length > 0 || this.spellArrows.length > 0 ||
       this.waves.length > 0 || this.slashes.length > 0 || this.critFxs.length > 0 ||
@@ -3205,6 +3228,10 @@ class FxController {
 
   /** Per-frame: advance every live particle, recycle the dead. Bound method for ticker.add/remove. */
   private update = (ticker: Ticker): void => {
+    if (this.extraUpdaters.length > 0) {
+      const dtMs = ticker.deltaMS;
+      for (const fn of [...this.extraUpdaters]) fn(dtMs);
+    }
     const dtMs = ticker.deltaMS;
     const dt = dtMs / 1000;
     for (let i = this.live.length - 1; i >= 0; i--) {

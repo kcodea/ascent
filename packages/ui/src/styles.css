@@ -5056,6 +5056,49 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 .fxwb-copy:hover { background: color-mix(in srgb, #c936ef 28%, #2b2739); }
 
+/* Layers panel: the composition's layer list + an "Add layer" control, above the Inspector. */
+.fxwb-layers { display: flex; flex-direction: column; gap: 4px; }
+.fxwb-layer-row {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 8px; row-gap: 1px;
+  padding: 5px 7px; border-radius: 7px; background: #2b2739; border: 1px solid #3d3752; cursor: pointer;
+}
+.fxwb-layer-row:hover { border-color: color-mix(in srgb, #c936ef 45%, #3d3752); }
+.fxwb-layer-row.on { background: color-mix(in srgb, #c936ef 18%, #2b2739); border-color: #c936ef; }
+.fxwb-layer-name { font-size: 12px; font-weight: 800; color: #d9d3ea; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fxwb-layer-row.on .fxwb-layer-name { color: #f0a0ff; }
+.fxwb-layer-meta { grid-column: 1; font-size: 10px; font-weight: 700; color: #8a7fa8; font-variant-numeric: tabular-nums; }
+.fxwb-layer-btns { grid-column: 2; grid-row: 1 / span 2; display: flex; align-items: center; gap: 3px; }
+.fxwb-layer-btns button {
+  width: 20px; height: 20px; padding: 0; border-radius: 5px; border: 1px solid #3d3752; background: #211d2c;
+  color: #b9b1cf; font-size: 11px; line-height: 1; cursor: pointer;
+}
+.fxwb-layer-btns button:hover:not(:disabled) { border-color: #c936ef; color: #f0a0ff; }
+.fxwb-layer-btns button:disabled { opacity: 0.35; cursor: default; }
+.fxwb-layer-add { display: flex; align-items: center; gap: 5px; margin-top: 2px; }
+.fxwb-layer-add select {
+  flex: 1; min-width: 0; background: #2b2739; border: 1px solid #3d3752; color: #d9d3ea; border-radius: 6px;
+  padding: 4px 6px; font-family: var(--font-ui); font-size: 12px; cursor: pointer;
+}
+.fxwb-layer-add button {
+  flex: none; width: 28px; height: 26px; padding: 0; border-radius: 6px; border: 1px solid #c936ef;
+  background: color-mix(in srgb, #c936ef 16%, #2b2739); color: #f0a0ff; font-size: 14px; font-weight: 800; cursor: pointer;
+}
+.fxwb-layer-add button:hover { background: color-mix(in srgb, #c936ef 30%, #2b2739); }
+
+/* Per-selected-layer timing controls (at / life). */
+.fxwb-timing {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 5px 8px;
+  padding: 8px; border-radius: 8px; background: #2b2739; border: 1px solid #3d3752;
+}
+.fxwb-timing > label { font-size: 11px; font-weight: 700; color: #8a7fa8; text-transform: uppercase; letter-spacing: 0.05em; }
+.fxwb-timing input[type='range'] { width: 100%; height: 5px; -webkit-appearance: none; appearance: none; background: #3d3752; border-radius: 99px; outline: none; cursor: pointer; }
+.fxwb-timing input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #c936ef; cursor: pointer; }
+.fxwb-timing input[type='range']::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: #c936ef; cursor: pointer; }
+.fxwb-timing-full {
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #d9d3ea; cursor: pointer;
+}
+.fxwb-timing-full input[type='checkbox'] { accent-color: #c936ef; width: 14px; height: 14px; cursor: pointer; }
+
 .fxwb-transport {
   position: absolute; left: 0; right: 288px; bottom: 0; display: flex; align-items: center; gap: 10px;
   padding: 9px 14px; background: #211d2c; border-top: 2px solid #3d3752; box-shadow: 0 -6px 18px -8px rgba(0, 0, 0, 0.5);

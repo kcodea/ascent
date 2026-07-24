@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Container } from 'pixi.js';
 import { defaultsOf } from '../params';
-import type { FxDef } from '../def';
 import { createPlayer, type FxPlayer } from '../player';
 import { getPrimitive, listPrimitives } from '../registry';
 import { resolveAnchor } from '../anchors';
@@ -9,6 +8,18 @@ import { SCENARIOS } from '../scenarios';
 import { pixiFx } from '../../pixiFx';
 import { Inspector } from './Inspector';
 import { createBackdrop, type FxBackdrop } from './backdrop';
+import {
+  addLayer,
+  createEditorLayer,
+  moveLayer,
+  removeLayer,
+  setLayerParam,
+  setLayerPrimitive,
+  setLayerTiming,
+  structureKey,
+  toDef,
+  type EditorLayer,
+} from './layerModel';
 
 /** Swatches for the preview backdrop control (see `createBackdrop`). `hex: null` is "None" — transparent,
  *  matching the in-game overlay. Multiply against black is always black, so Mid/Light are what actually let
@@ -50,11 +61,17 @@ const LOOP_GAP_STEP_MS = 50;
  * production bundle (see the DEV-gated import above for the one subtlety that requires).
  */
 export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactElement {
-  const [primitiveId, setPrimitiveId] = useState<string>(() => listPrimitives()[0]?.id ?? 'ribbon');
+  // The workbench now stages a LIST of layers (a composition), not a single primitive. `layers[selected]` is
+  // the one the top primitive row / Inspector / timing controls edit; every layer is played together.
+  const [layers, setLayers] = useState<EditorLayer[]>(() => {
+    const first = listPrimitives()[0]?.id ?? 'ribbon';
+    return [createEditorLayer(first, defaultsOf(getPrimitive(first)?.params ?? {}))];
+  });
+  const [selected, setSelected] = useState(0);
+  // The "Add layer" picker's own selection (defaults to the first registered primitive). Independent of the
+  // selected layer — it only feeds `addNewLayer`.
+  const [addPrimitiveId, setAddPrimitiveId] = useState<string>(() => listPrimitives()[0]?.id ?? 'ribbon');
   const [scenarioId, setScenarioId] = useState<string>(() => SCENARIOS[0]?.id ?? '');
-  const [params, setParams] = useState<Record<string, unknown>>(() =>
-    defaultsOf(getPrimitive(primitiveId)?.params ?? {}),
-  );
   // "Playing" now reflects the player's REAL state (polled each frame in the updater below), not just
   // "the user pressed play" — an auto-fire-once is playing until it completes, then goes idle on its own.
   const [uiPlaying, setUiPlaying] = useState(true);
@@ -75,7 +92,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   // without forcing a player rebuild on every keystroke (a rebuild happens ONLY on primitive/scenario/duration
   // change). `loopGapRef` mirrors `loopGapMs` the same way `speedRef` mirrors `speed` -- a dial that should
   // survive a rebuild without itself triggering one.
-  const paramsRef = useRef(params);
+  const layersRef = useRef(layers);
   const speedRef = useRef(speed);
   const loopGapRef = useRef(loopGapMs);
   const cursorRef = useRef({ x: 0, y: 0 });
@@ -125,11 +142,16 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     backdropRef.current?.setColor(backdropColor);
   }, [backdropColor]);
 
-  // (Re)build the player whenever the selected primitive, scenario, OR duration changes. Param tweaks do
-  // NOT land here — they go through player.setLayerParams (see `change` below) so a slider drag never
-  // respawns the effect mid-gesture. Loop-on/off and the loop-gap dial ALSO don't land here (see
-  // `toggleLoop` / `changeLoopGap`) -- they're live `setLoop`/`setLoopGap` calls on the existing player, not
-  // a rebuild, per the same "don't respawn mid-gesture" reasoning.
+  // A signature of the layers' STRUCTURE only (primitive/anchor/at/life/order), NOT their params. This is
+  // THE key that keeps a param drag from respawning the effect while still rebuilding on any structural
+  // change — see the build effect's dependency array below.
+  const structKey = useMemo(() => structureKey(layers), [layers]);
+
+  // (Re)build the player whenever the layer STRUCTURE, scenario, OR duration changes. Param tweaks do NOT
+  // land here — they go through player.setLayerParams (see `change` below) so a slider drag never respawns
+  // the effect mid-gesture. Loop-on/off and the loop-gap dial ALSO don't land here (see `toggleLoop` /
+  // `changeLoopGap`) -- they're live `setLoop`/`setLoopGap` calls on the existing player, not a rebuild, per
+  // the same "don't respawn mid-gesture" reasoning.
   useEffect(() => {
     let disposed = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -155,30 +177,37 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         retryTimer = setTimeout(build, 50);
         return;
       }
-      const prim = getPrimitive(primitiveId);
-      if (!prim) {
-        // The primitive's self-registration import is a DEV-gated dynamic import (see the top of this
-        // file — needed so prod's dead-code elimination can drop it entirely, see the file-level comment)
-        // so on a very early mount it may not have resolved yet. Poll rather than silently building nothing.
+      if (layersRef.current.some((l) => !getPrimitive(l.primitive))) {
+        // Every layer's primitive must be registered before we can build. The self-registration import is a
+        // DEV-gated dynamic import (see the top of this file — needed so prod's dead-code elimination can
+        // drop it entirely) so on a very early mount it may not have resolved yet. Poll rather than silently
+        // building nothing.
         retryTimer = setTimeout(build, 50);
         return;
       }
-      if (Object.keys(paramsRef.current).length === 0) {
-        // Cold-boot recovery: the initial `useState` ran before the primitive above was registered, so
-        // the params state constructed then is empty. Fill in real defaults now that the spec exists.
-        const cold = defaultsOf(prim.params);
-        paramsRef.current = cold;
-        setParams(cold);
+      // Cold-boot recovery: the initial `useState` may have run before the primitives registered, leaving a
+      // layer's params empty. Fill in real defaults now that every spec exists. Params-only edit → structKey
+      // unchanged → this setLayers does NOT respawn the effect (same as the old setParams recovery).
+      let recovered: EditorLayer[] | null = null;
+      layersRef.current.forEach((l, i) => {
+        if (Object.keys(l.params).length === 0) {
+          const prim = getPrimitive(l.primitive);
+          if (prim) {
+            recovered = recovered ?? layersRef.current.slice();
+            recovered[i] = { ...l, params: defaultsOf(prim.params) };
+          }
+        }
+      });
+      if (recovered) {
+        layersRef.current = recovered;
+        setLayers(recovered);
       }
+      const layersForDef = layersRef.current;
 
       container = new Container();
       unmountLayer = pixiFx.mountLayer(container);
 
-      const def: FxDef = {
-        id: `workbench-${primitiveId}`,
-        duration: durationMs,
-        layers: [{ primitive: primitiveId, anchor: 'travel', at: 0, params: paramsRef.current }],
-      };
+      const def = toDef(`workbench-${layersForDef[0]?.primitive ?? 'fx'}`, durationMs, layersForDef);
       // NO auto-loop: every build (open, primitive/scenario switch, duration change) always constructs a
       // non-looping player and fires it exactly once, so the effect is visible immediately and then sits
       // idle -- never a continuous loop the user didn't ask for. `loopGapMs` is a dial value that DOES
@@ -218,9 +247,8 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           // canvas origin with no transform, and the overlay canvas itself is a full-viewport element at
           // (0,0) — so these page/screen coordinates map directly onto the container's local space with
           // no conversion needed, matching what a primitive's `setHead` assumes.
-          // Layer 0 is the def's only layer (P1 stages a single-layer effect); revisit when the
-          // workbench can stage multiple layers at once.
-          p.setHead(0, pt.x, pt.y);
+          // Every layer shares the SAME scenario head for now — per-layer anchors are a later refinement.
+          for (let i = 0; i < layersRef.current.length; i++) p.setHead(i, pt.x, pt.y);
         }
 
         fpsAccMs += dtMs;
@@ -250,28 +278,59 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       container?.destroy({ children: true });
       playerRef.current = null;
     };
-  }, [primitiveId, scenarioId, durationMs]);
+  }, [structKey, scenarioId, durationMs]);
 
   // `number[]` covers the editable palette param (a 4-tuple of colour stops); `number[][]` covers the curve
   // param (a list of [t, v] control points). Every value flows unchanged through setLayerParams'
   // `Record<string, unknown>`, then coerceParams validates it per the primitive's spec.
   const change = (key: string, value: number | boolean | string | number[] | number[][]): void => {
-    setParams((prev) => {
-      const next = { ...prev, [key]: value };
-      paramsRef.current = next;
+    setLayers((prev) => {
+      const next = setLayerParam(prev, selected, key, value);
+      layersRef.current = next;
       return next;
     });
-    playerRef.current?.setLayerParams(0, { [key]: value });
+    // Params-only edit: live-push to the selected layer's instance, no rebuild (structKey unchanged).
+    playerRef.current?.setLayerParams(selected, { [key]: value });
   };
 
-  const selectPrimitive = (id: string): void => {
-    if (id === primitiveId) return;
+  // Commit a new layers array to both the state and the ref mirror the build/updater closures read.
+  const commitLayers = (next: EditorLayer[]): void => {
+    layersRef.current = next;
+    setLayers(next);
+  };
+
+  const selectLayer = (i: number): void => setSelected(i);
+
+  const addNewLayer = (id: string): void => {
     const prim = getPrimitive(id);
-    if (!prim) return;
-    const next = defaultsOf(prim.params);
-    paramsRef.current = next;
-    setParams(next);
-    setPrimitiveId(id);
+    const next = addLayer(layers, createEditorLayer(id, prim ? defaultsOf(prim.params) : {}));
+    commitLayers(next);
+    setSelected(next.length - 1);
+  };
+
+  const deleteLayer = (i: number): void => {
+    const next = removeLayer(layers, i);
+    commitLayers(next);
+    setSelected((s) => Math.min(s, next.length - 1));
+  };
+
+  const reorderLayer = (i: number, dir: -1 | 1): void => {
+    const next = moveLayer(layers, i, dir);
+    commitLayers(next);
+    const target = i + dir;
+    if (target >= 0 && target < next.length) setSelected(target); // keep selection on the moved layer
+  };
+
+  // The TOP primitive-button row edits the SELECTED layer's primitive (resetting its params to the new
+  // primitive's defaults). Structural change → structKey changes → the build effect respawns the player.
+  const changeLayerPrimitive = (id: string): void => {
+    if (layers[selected]?.primitive === id) return;
+    const prim = getPrimitive(id);
+    commitLayers(setLayerPrimitive(layers, selected, id, prim ? defaultsOf(prim.params) : {}));
+  };
+
+  const changeLayerTiming = (at: number, life: number | null): void => {
+    commitLayers(setLayerTiming(layers, selected, at, life));
   };
 
   // Pause/resume. There's no standing continuous loop to "resume" unless Loop is on -- so when Loop is off,
@@ -355,14 +414,19 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     setDurationMs(ms);
   };
 
-  const copyParams = (): void => {
-    void navigator.clipboard.writeText(JSON.stringify(params, null, 2)).then(() => {
+  // Copy the whole composed DEF as JSON — with multiple layers, the def is the useful artifact, not one
+  // layer's params.
+  const copyDef = (): void => {
+    void navigator.clipboard.writeText(JSON.stringify(toDef('workbench', durationMs, layers), null, 2)).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
     });
   };
 
-  const activePrimitive = getPrimitive(primitiveId);
+  // The selected layer drives the top primitive row, the Inspector, and the timing controls. Fallback to the
+  // last layer guards the brief window after a delete before `selected` re-clamps.
+  const selLayer = layers[selected] ?? layers[layers.length - 1];
+  const activePrimitive = getPrimitive(selLayer.primitive);
   const activeScenario = SCENARIOS.find((s) => s.id === scenarioId) ?? SCENARIOS[0];
 
   return (
@@ -373,8 +437,8 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           {listPrimitives().map((prim) => (
             <button
               key={prim.id}
-              className={`fxwb-btn${prim.id === primitiveId ? ' on' : ''}`}
-              onClick={() => selectPrimitive(prim.id)}
+              className={`fxwb-btn${prim.id === selLayer.primitive ? ' on' : ''}`}
+              onClick={() => changeLayerPrimitive(prim.id)}
             >
               {prim.id}
             </button>
@@ -415,8 +479,85 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       </div>
 
       <div className="fxwb-side">
-        {activePrimitive && <Inspector specs={activePrimitive.params} values={params} onChange={change} />}
-        <button className="fxwb-copy" onClick={copyParams}>{copied ? 'Copied!' : 'Copy params'}</button>
+        <div className="fxwb-layers">
+          {layers.map((l, i) => (
+            <div
+              key={i}
+              className={`fxwb-layer-row${i === selected ? ' on' : ''}`}
+              onClick={() => selectLayer(i)}
+            >
+              <span className="fxwb-layer-name">{l.primitive}</span>
+              <span className="fxwb-layer-meta">@{l.at}ms · {l.life === null ? 'full' : `${l.life}ms`}</span>
+              <span className="fxwb-layer-btns">
+                <button
+                  onClick={(e) => { e.stopPropagation(); reorderLayer(i, -1); }}
+                  disabled={i === 0}
+                  title="Move up"
+                >↑</button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); reorderLayer(i, 1); }}
+                  disabled={i === layers.length - 1}
+                  title="Move down"
+                >↓</button>
+                {layers.length > 1 && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteLayer(i); }}
+                    title="Remove layer"
+                  >✕</button>
+                )}
+              </span>
+            </div>
+          ))}
+          <div className="fxwb-layer-add">
+            <select value={addPrimitiveId} onChange={(e) => setAddPrimitiveId(e.target.value)}>
+              {listPrimitives().map((prim) => <option key={prim.id} value={prim.id}>{prim.id}</option>)}
+            </select>
+            <button onClick={() => addNewLayer(addPrimitiveId)} title="Add layer">＋</button>
+          </div>
+        </div>
+
+        <div className="fxwb-timing">
+          <label htmlFor="fxwb-layer-at">At</label>
+          <input
+            id="fxwb-layer-at"
+            type="range"
+            min={0}
+            max={durationMs}
+            step={10}
+            value={selLayer.at}
+            onChange={(e) => changeLayerTiming(Number(e.target.value), selLayer.life)}
+          />
+          <span className="fxwb-val">{selLayer.at} ms</span>
+          <label className="fxwb-timing-full">
+            <input
+              type="checkbox"
+              checked={selLayer.life === null}
+              onChange={(e) =>
+                changeLayerTiming(
+                  selLayer.at,
+                  e.target.checked ? null : Math.min(durationMs, Math.max(10, selLayer.life ?? durationMs)),
+                )
+              }
+            />
+            Full
+          </label>
+          {selLayer.life !== null && (
+            <>
+              <input
+                type="range"
+                min={10}
+                max={durationMs}
+                step={10}
+                value={selLayer.life}
+                onChange={(e) => changeLayerTiming(selLayer.at, Number(e.target.value))}
+              />
+              <span className="fxwb-val">{selLayer.life} ms</span>
+            </>
+          )}
+        </div>
+
+        {activePrimitive && <Inspector specs={activePrimitive.params} values={selLayer.params} onChange={change} />}
+        <button className="fxwb-copy" onClick={copyDef}>{copied ? 'Copied!' : 'Copy def'}</button>
       </div>
 
       <div className="fxwb-transport">

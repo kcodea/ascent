@@ -3,6 +3,38 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (FX workbench — multi-layer composition)
+
+### feat(fx): the workbench stages a LIST of layers, not one primitive
+
+The def format, the `layerStateAt` scheduler, and the player already supported N layers; only the shell was
+single-layer. This wave makes the workbench a real composition tool — several primitives (ribbon + burst +
+shockwave + …) played together as one effect, each with its own primitive, timing, and params.
+
+- **Pure layer model (`layerModel.ts`, unit-tested).** All the list arithmetic lives in a React/Pixi-free
+  module: `EditorLayer` (adds an editable `life: number | null`), immutable `addLayer`/`removeLayer` (never
+  empties)/`moveLayer` (clamped)/`setLayerPrimitive` (resets params to the new primitive's defaults, injected
+  so the module stays registry-free)/`setLayerParam`/`setLayerTiming`, `structureKey`, and `toDef`. 16 tests.
+- **`structureKey` is the load-bearing idea.** It signs only the structure (primitive/anchor/at/life/order),
+  **not** params. The shell keys its player-rebuild effect off it, so a param drag (which flows live via
+  `setLayerParams`) never respawns the effect, while any structural change (add/remove/reorder/primitive-swap/
+  timing) does — preserving the "don't respawn mid-gesture" rule the single-layer shell had.
+- **Layers panel + per-layer timing** in the side rail above the Inspector: a selectable layer list (primitive
+  id + `@{at}ms · full/{life}ms`, ↑/↓ reorder, ✕ remove — hidden at one layer), an "Add layer" primitive
+  picker + ＋, and `At` / `Full`+`Life` sliders for the selected layer. The top primitive row now sets the
+  *selected* layer's primitive; the Inspector edits the selected layer; "Copy def" exports the whole
+  composition JSON. Every layer shares the scenario head for now (per-layer anchors are a later refinement).
+- **Default single layer is unchanged:** one layer at `at:0`, `life:full` → `toDef` produces exactly the old
+  single-layer def; still fires once, no auto-loop.
+
+**Verified:** `typecheck` clean, `lint` 0 errors (no new warnings), `test` **1776 passing** (109 files; the
+new `layerModel.test.ts` pins immutability + the "params-only edit keeps `structureKey` stable, structural
+change flips it" invariant). `build:web` green; the whole workbench still tree-shakes out of the prod bundle.
+
+**Deferred (polish):** a draggable timeline-*track* visualization (clips on a time axis) on top of this
+functional layers panel; per-layer anchors (each layer following a different combat moment); save-to-file for
+defs via a dev-only Vite middleware (Copy-def clipboard is the stand-in).
+
 ## 2026-07-24 (FX workbench — colour-over-life via a bias curve)
 
 ### feat(fx): particles animate rim↔core across their life (the "gradient" wave)

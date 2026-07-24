@@ -136,12 +136,13 @@ The career surface exists; deepen what a finished run *remembers*.
   **value-over-life curves** (the `curve` param kind, first wired as particle size-over-life) have since
   landed. Remaining richer-param work: a `gradient` (colour-over-life) kind reusing the curve editor with
   a **smoke** primitive; optional alpha-over-life curves. (Motion physics — turbulence, emission shapes,
-  velocity inheritance — and colour-over-life via a bias curve both shipped 2026-07-24; colour-over-life was
-  delivered as a rim↔core bias curve reusing the `curve` kind, not a standalone RGB ramp, to stay inside the
-  posterized-palette model.) Composition proper: a timeline UI (multi-layer defs — the def format +
-  `layerStateAt` scheduler already support them, the shell just edits one layer today); anchors staged from
-  real combat moments, not just scenarios; and save-to-file for defs via a dev-only Vite middleware
-  (clipboard-copy is the P1 stand-in). P3 = A/B compare, preset/palette library,
+  velocity inheritance — colour-over-life via a bias curve, and **multi-layer composition** all shipped
+  2026-07-24; colour-over-life was delivered as a rim↔core bias curve reusing the `curve` kind, not a
+  standalone RGB ramp, to stay inside the posterized-palette model.) Composition landed as a functional
+  **Layers panel** (add/remove/reorder/select-to-edit + per-layer `at`/`life`); still to do on top of it: a
+  draggable timeline-*track* visualization; per-layer anchors staged from real combat moments (not just the
+  shared scenario head); and save-to-file for defs via a dev-only Vite middleware (Copy-def clipboard is the
+  stand-in). P3 = A/B compare, preset/palette library,
   perf HUD. P4 = opportunistically migrate the 34 existing `*Tuner.tsx` panels onto the schema (an adapter
   regenerates each panel while leaving its effect code + `DEFAULTS` untouched, so no shipped value moves).
   A separate, small follow-up: wire `typecheck:web` into CI — without it the workbench's type-level tests

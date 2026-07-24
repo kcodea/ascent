@@ -9,7 +9,7 @@ import { getHero } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
-import { addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
+import { addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyChooseOne, applyChooseOneTarget, applyEndOfTurn, applyOnBuy, applyGoldSpent, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, dominantBoardTribe, dragonTamerCostOf, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, fireOnMinionSold, fireOnSell, fireSummonBuffs, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, replayEndOfTurn, replayRecurringEndOfTurn, sellValueOf, sellValueWithBonus, grimoireMultActive, consumeGrimoireCharge, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, triggerBorrowedEcho, buyHealthAura, undeadBuyBonus, weldMagnetic } from './recruit';
 import { mixSeed, TAG, type Action, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type RunState } from './state';
 import { MATCHMAKING } from './matchmaking';
 
@@ -730,7 +730,11 @@ function reduceCore(state: RunState, action: Action): RunState {
         const boardTarget = s.board.find((c) => c.uid === action.targetUid);
         const offer = s.shop.find((o) => o.uid === action.targetUid && !CARD_INDEX[o.cardId]?.spell);
         // Prismcaster: a Ruby played from hand casts `1 + Σ rubyExtraCast` times (× golden per Prismcaster).
-        const casts = 1 + s.board.reduce((n, c) => n + (CARD_INDEX[c.cardId]?.rubyExtraCast ?? 0) * (c.golden ? 2 : 1), 0);
+        // Living Grimoire multiplies a RUBY too — it charges "the first spell", and a Ruby is a spell (owner
+        // 2026-07-24: the card doesn't say "shop spell"). `grimoireMultActive` reads the charge; it's spent
+        // below so the next cast of either kind is single.
+        const gm = grimoireMultActive(s);
+        const casts = (1 + s.board.reduce((n, c) => n + (CARD_INDEX[c.cardId]?.rubyExtraCast ?? 0) * (c.golden ? 2 : 1), 0)) * gm;
         if (boardTarget) {
           for (let n = 0; n < casts; n++) {
             addBuff(boardTarget, 'Ruby', card.attack, card.health);
@@ -750,6 +754,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const umbrellaBefore = s.spellsCast + rubyCastsBefore;
         s.rubyCasts = rubyCastsBefore + casts;
         s.rubyCastsThisTurn = (s.rubyCastsThisTurn ?? 0) + casts;
+        consumeGrimoireCharge(s); // a Ruby spends the Grimoire charge, same as a Shop Spell
         fireOnRubyCast(s, umbrellaBefore, s.spellsCast + s.rubyCasts); // Gemgorge Fiend: every 3 → Consume a Shop minion
         return s;
       }
@@ -2234,7 +2239,12 @@ function advanceCombat(s: RunState): void {
   // Set 2 — the per-minion "spells cast on this" counter is per TURN too (Mirrorwing / Runefire read "first
   // spell each turn"), so it clears with the rest. Cleared on hand cards as well: a minion can be bounced back
   // to hand and replayed, and a stale count would eat its first proc next turn.
-  for (const c of [...s.board, ...s.hand]) if (c.spellsOnThisTurn) c.spellsOnThisTurn = 0;
+  for (const c of [...s.board, ...s.hand]) {
+    if (c.spellsOnThisTurn) c.spellsOnThisTurn = 0;
+    // Spellkeeper's per-instance "spells since placed" counter is per-turn too — clear both halves.
+    if (c.boardSpellCount) c.boardSpellCount = 0;
+    if (c.boardFirstSpellId) c.boardFirstSpellId = undefined;
+  }
   s.playedThisTurn = []; // Pack Leader / Spirit Worgen: minions-played-this-turn resets each turn
   s.soldThisTurn = []; // Voicekeeper: minions-sold-this-turn resets each turn (symmetric with the above)
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave

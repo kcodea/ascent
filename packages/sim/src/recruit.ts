@@ -488,6 +488,23 @@ function spellCastMult(state: RunState): number {
  * always resolve once. `singleCast` spells (Channeling the Devourer) never multiply. Read by the
  * reducer's cast path and the UI's cast-spark replay.
  */
+/** Living Grimoire's live multiplier for the NEXT spell cast, or 1 if it isn't charged / has no live source.
+ *  Read-only — the charge is CONSUMED separately at the cast site (`consumeGrimoireCharge`), so this stays safe
+ *  for the UI's side-effect-free cast preview. Requires a Grimoire actually on board so selling it can't leave
+ *  a permanent multiplier behind. No "first spell of the turn" gate: the charge is armed when the Grimoire is
+ *  PLAYED, so it naturally applies to the first spell cast WHILE IT'S ON BOARD — even one played mid-turn after
+ *  an earlier cast (owner 2026-07-24). */
+export function grimoireMultActive(state: RunState): number {
+  if (!state.grimoireMult || state.grimoireMult <= 1) return 1;
+  const live = state.board.some((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'battlecryArmGrimoire'));
+  return live ? state.grimoireMult : 1;
+}
+/** Spend the Grimoire charge (called by every real cast path — shop spells AND Rubies — so whichever comes
+ *  first after arming consumes it). No-op unless a live Grimoire made it active. */
+export function consumeGrimoireCharge(state: RunState): void {
+  if (grimoireMultActive(state) > 1) state.grimoireMult = 0;
+}
+
 export function spellCasts(state: RunState, def: CardDef): number {
   if (def.singleCast) return 1; // Channeling the Devourer never multiplies
   let mult = def.target ? spellCastMult(state) : 1; // Yazzus multiplies aimed spells; untargeted = 1
@@ -500,13 +517,8 @@ export function spellCasts(state: RunState, def: CardDef): number {
   if (state.spellFirstMultEachTurn && state.spellFirstMultEachTurn > 1 && state.spellsThisTurn === 0) {
     mult *= state.spellFirstMultEachTurn;
   }
-  // Living Grimoire: while CHARGED, the first spell of the turn multiplies. Gated on a live Grimoire being on
-  // board — the charge is run-level so the UI can preview the count, and without this check selling the
-  // Grimoire would leave the multiplier running forever. The board is ≤7 cards, so the scan is free.
-  if (state.grimoireMult && state.spellsThisTurn === 0
-      && state.board.some((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'battlecryArmGrimoire'))) {
-    mult *= state.grimoireMult;
-  }
+  // Living Grimoire: the first spell cast while it's on board multiplies (see `grimoireMultActive`).
+  mult *= grimoireMultActive(state);
   // Nimbus is ADDED LAST, and added rather than multiplied, because it reads "casts an ADDITIONAL time"
   // (owner 2026-07-24). It also applies to untargeted spells, unlike Yazzus — the charge is a flat bonus on
   // whatever the spell would otherwise do.
@@ -2086,9 +2098,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 2 — Spellkeeper Drake: casting your SECOND spell each turn hands you a copy of the FIRST.
    *  Same `spellCast` hook, reading the count instead of the id — `firstSpellThisTurnId` is already recorded
    *  by `castSpell` before the tally, so the "first" is known by the time the second lands. */
-  onSpellCastSecondCopyFirst: (ctx, self, params) => {
-    if (ctx.state.spellsThisTurn !== 2) return;
-    const def = ctx.state.firstSpellThisTurnId ? CARD_INDEX[ctx.state.firstSpellThisTurnId] : undefined;
+  onSpellCastSecondCopyFirst: (ctx, self, params, payload) => {
+    // Counts from when THIS Spellkeeper was placed, not from turn start (owner 2026-07-24): a Spellkeeper
+    // found and played mid-turn should treat the next shop spell as "the first", the one after as "the second".
+    // Per-instance `boardSpellCount`, reset each turn, undefined-on-fresh — so placement is the natural floor.
+    const spellDef = (payload as { spellDef?: import('@game/core').CardDef }).spellDef;
+    const n = (self.boardSpellCount ?? 0) + 1;
+    self.boardSpellCount = n;
+    if (n === 1) { self.boardFirstSpellId = spellDef?.id; return; } // remember the first spell since placed
+    if (n !== 2) return; // only the SECOND grants
+    const def = self.boardFirstSpellId ? CARD_INDEX[self.boardFirstSpellId] : undefined;
     if (!def) return;
     conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
   },
@@ -3925,12 +3944,12 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // `spellsCast + rubyCasts` contract documented on `RunState.rubyCasts` — so Gemgorge Fiend's "every 3"
   // counts a Shop Spell exactly like a Ruby. Fired here so EVERY cast path routes through it once per cast.
   const castUmbrellaBefore = state.spellsCast + (state.rubyCasts ?? 0);
-  const wasFirstThisTurn = state.spellsThisTurn === 0;
   state.spellsCast += 1;
   state.spellsThisTurn += 1;
-  // Living Grimoire's charge is spent by the turn's FIRST cast. Consumed here, at the real cast, rather than in
-  // `spellCasts` — that function is also called by the UI to preview a count and must stay side-effect free.
-  if (wasFirstThisTurn && state.grimoireMult) state.grimoireMult = 0;
+  // Living Grimoire's charge is spent by this cast (consumed here at the real cast, not in the read-only
+  // `spellCasts` the UI previews with). `casts` was already computed with the charge, so the full multiplied
+  // count still resolves; clearing after keeps the NEXT spell single.
+  consumeGrimoireCharge(state);
   fireOnRubyCast(state, castUmbrellaBefore, castUmbrellaBefore + 1);
   state.lastSpellCastId = spellDef.id; // Steward of Spells copies the most recent spell cast
   // Rune of Summoning: each spell cast permanently improves your Imps +1/+1 (run-wide, via the Imp enchant —
@@ -3957,7 +3976,9 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
     for (const effect of def.effects) {
       if (effect.on !== 'spellCast') continue;
       const fn = RECRUIT_FACTORIES[effect.do];
-      if (fn) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card }));
+      // `spellDef` lets a watcher record WHICH spell was cast (Spellkeeper's "the first one"), not just that
+      // one was. Fires only for SHOP SPELLS — Rubies don't route through `castSpell`, so they never count here.
+      if (fn) captureBuffFx(ctx.state, card, 'minion', () => fn(ctx, card, effect.params ?? {}, { minion: card, spellDef }));
     }
   }
 }

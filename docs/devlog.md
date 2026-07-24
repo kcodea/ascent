@@ -1,5 +1,41 @@
 # ASCENT — development log
 
+## 2026-07-24 (Dragon fixes — Grimoire/Spellkeeper count from placement, Grimoire hits Rubies)
+
+### fix(sim/content): Living Grimoire + Spellkeeper count from when they hit the board, not turn start
+
+Three owner corrections, all the same root idea: these "first/second spell each turn" Dragons should count from
+when the card is ON YOUR BOARD, so one found and played mid-turn still works.
+
+**Living Grimoire — fires on the first spell after it's played.** It was gated on `spellsThisTurn === 0` (the
+turn's literal first spell), so playing it after an earlier cast pushed the payout to next turn. Dropped the
+gate: the charge is armed on the Grimoire's Shout, so `grimoireMultActive` naturally applies to the first spell
+cast WHILE IT'S ON BOARD. The consume moved to a shared `consumeGrimoireCharge` so every real cast path spends
+it; the read stays side-effect-free for the UI's cast preview, and still requires a live Grimoire on board so
+selling it can't strand a permanent multiplier.
+
+**Living Grimoire multiplies a Ruby too.** The Ruby cast path computes its own count (Prismcaster) and never
+went through `spellCasts`, so the charge missed it — but the card doesn't say "shop spell", and a Ruby is a
+spell here (owner). The Ruby path now folds in `grimoireMultActive` and consumes the charge, so whichever comes
+first after arming — a Shop Spell or a Ruby — gets the extra casts.
+
+**Spellkeeper Drake — counts shop spells since PLACEMENT, and its text now says so.** It read the run-wide
+`spellsThisTurn === 2`, so a mid-turn play never fired. Now a per-instance `boardSpellCount` (+ the first spell's
+id), reset each turn and undefined-on-fresh — so placement is the natural floor. The `spellCast` notify now
+carries the cast `spellDef`, letting it remember which spell was "the first" since it landed. It only counts SHOP
+SPELLS (Rubies don't route through `castSpell`, so they never fire this watcher), and the text was updated to
+"second **shop spell**" to match.
+
+Existing tests still pass (they placed both cards from turn start, where old and new agree). Three new tests pin
+the fixes; the mid-turn Grimoire one was verified to FAIL against the old `spellsThisTurn === 0` gate
+(`[2,3]` single vs `[4,6]` doubled). One test trap re-hit and noted: a targeted spell (Spirit Fire) with no
+target fizzles and stays in hand, so the "spell before" must be UNTARGETED to actually cast. Suite 1586 +
+typecheck + lint + build:web green.
+
+Flagged, NOT changed (out of scope — owner listed only these two): Ashscribe Whelp has the same "first spell each
+turn" gate (`spellsThisTurn === 1`) and so also won't fire if played mid-turn after a cast. Same one-line fix if
+wanted.
+
 ### feat(ui): wire the Set-2 Dragon art (21 minions incl. Karwind)
 
 All 21 Dragon masters wired — 20 `d2_*` cards plus Karwind, whose art slot was empty before (it's a set-1 card

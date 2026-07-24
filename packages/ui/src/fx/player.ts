@@ -1,5 +1,6 @@
 import { Container } from 'pixi.js';
 import { coerceParams } from './params';
+import type { FxParamSpecs, ParamsOf } from './params';
 import { layerStateAt, type FxDef } from './def';
 import { getPrimitive } from './registry';
 import type { FxContext, FxInstance } from './primitive';
@@ -22,8 +23,11 @@ export interface FxPlayer {
   destroy(): void;
 }
 
+// At the registry boundary a primitive's specific `S` is erased to the default `FxParamSpecs`, so every
+// live instance's params type is `ParamsOf<FxParamSpecs>` (= `Record<string, string | number | boolean>`,
+// see primitive.ts) rather than `unknown` — real typing survives erasure.
 interface Live {
-  inst: FxInstance;
+  inst: FxInstance<ParamsOf<FxParamSpecs>>;
   container: Container;
 }
 
@@ -132,8 +136,16 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       speed = n;
     },
     setLayerParams(index: number, next: Record<string, unknown>): void {
-      overrides.set(index, { ...overrides.get(index), ...next });
-      live.get(index)?.inst.setParams(next);
+      const merged = { ...overrides.get(index), ...next };
+      overrides.set(index, merged);
+      const l = live.get(index);
+      if (!l) return;
+      const layer = def.layers[index];
+      const prim = getPrimitive(layer.primitive);
+      if (!prim) return;
+      // Route the edit through the same coerce step spawn() uses, so `setParams` receives a real
+      // `ParamsOf<S>` (defaults filled, out-of-range values clamped/dropped) instead of an untyped patch.
+      l.inst.setParams(coerceParams(prim.params, { ...layer.params, ...merged }));
     },
     setHead(index: number, x: number, y: number): void {
       live.get(index)?.inst.setHead?.(x, y);

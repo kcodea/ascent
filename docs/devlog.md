@@ -5,6 +5,25 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-24 (the shop→hand slide + the top-left ghost card)
 
+### feat(ui): the gild hands off to the buy slide
+
+The gilded card no longer flies home on the gild's own clock. At the end of the crown the survivor clone is
+dropped and the REAL card takes over with `playBuySlide` — the same motion a card bought from the tavern
+makes on its way into a slot (owner call 2026-07-23). One vocabulary for "a card is entering your hand"
+however it got there, and the slide lands on the real element, so there is no clone-to-card swap to get
+wrong. `DEST`, the fly-home interpolation and the reveal-on-landing all went with it.
+
+### fix(ui): the buy slide was eating the gild's ending
+
+Completing a triple by BUYING the third copy ran both effects over the same card. `checkTriples` runs inside
+the `buy` action, so the copy you bought is consumed on the spot and the only new hand card is the gilded
+one — which the buy handler then took for a normal purchase. The slide's `opacity: 1 !important` cancelled
+the gild's hide, so the gilded card sat in its hand slot from the first frame and the flight home had
+nothing left to deliver: the owner saw the converge, then the card was simply there.
+
+The buy handler now compares `triplesMade` across the dispatch and stands down when the buy completed a
+triple — that moment belongs to the gild, which hands off to the slide itself.
+
 ### fix(ui): the gild converged only two cards when you bought the third copy
 
 The flyer count came from diffing the uids that vanished this commit, which undercounts by exactly one

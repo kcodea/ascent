@@ -3312,11 +3312,19 @@ export function Recruit() {
       // The hand copy is a NEW uid, so read it back off the store rather than assuming the shop one carries
       // over. Synchronous, like `playWithSummonDelay` above — the dispatch has already reduced by here, and
       // the card's own layout effect (which plays the slide) runs after this commit.
-      const before = new Set(useGame.getState().run.hand.map((c) => c.uid));
+      const s0 = useGame.getState().run;
+      const before = new Set(s0.hand.map((c) => c.uid));
+      const triples0 = s0.triplesMade ?? 0;
       dispatch({ type: 'buy', uid: d.uid });
-      const added = useGame.getState().run.hand.find((c) => !before.has(c.uid));
-      // Nothing added = the buy was refused (Gold, hand full); leave it alone.
-      if (added) {
+      const s1 = useGame.getState().run;
+      const added = s1.hand.find((c) => !before.has(c.uid));
+      /* Nothing added = the buy was refused (Gold, hand full).
+         Triples ticked = this buy COMPLETED A TRIPLE, and `checkTriples` runs inside the same `buy` action:
+         the copy you bought was consumed on the spot and the only new hand card is the GILDED one. Sliding
+         that card would hand the gild's own card two owners — and worse, the slide's `opacity: 1 !important`
+         would cancel the gild's hide, so the gilded card sat in hand from the first frame and its flight home
+         had nothing left to deliver (owner report 2026-07-23). The gild owns that moment; no slide. */
+      if (added && (s1.triplesMade ?? 0) === triples0) {
         buyPendingRef.current = { uid: added.uid, from: { x: x - d.ox, y: y - d.oy, w: d.w, h: d.h } };
       }
       return true;

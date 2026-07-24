@@ -3,7 +3,9 @@
  *
  * The third of the plate effects, and the loudest: this is a run highlight, not a state change. The copies
  * are ALREADY gathered centre screen when it opens; they converge into one, the survivor erupts gold — the
- * plate wireframe in gold plus a flourish only gilding gets — and the gilded card flies home to its slot.
+ * plate wireframe in gold plus a flourish only gilding gets — and then it HANDS OFF to `buySlide`, which
+ * slides the real card into its hand slot. That is the same motion a card bought from the tavern makes, so
+ * "a card is entering your hand" reads the same however it got there (owner call 2026-07-23).
  *
  * Owner's shape (2026-07-22): fuse then crown, wireframe family plus a signature.
  * Authored on `fx/plate-gild-preview.html`.
@@ -31,6 +33,7 @@
  * silently lengthen the effect. `crownLead` overlaps the crown into the fuse and genuinely SHORTENS it.
  */
 import { WIRE_SRC, REF_W, sprite, rgba, arcaneGradient } from './plateFx';
+import { playBuySlide } from './buySlide';
 
 export type Rect = { left: number; top: number; width: number; height: number };
 
@@ -41,7 +44,7 @@ export interface PlateGildConfig {
   fuseMs: number;
   /** Beat 3 — the gold erupts, ms. */
   crownMs: number;
-  /** Beat 4 — savour, then fly home, ms. */
+  /** Beat 4 — savour at centre, then hand off to the slide, ms. Also the tail the dust fades over. */
   outMs: number;
   flyInEase: number;
   /** Share of beat 1 spent staggering the three arrivals. */
@@ -114,7 +117,7 @@ export const PG_DESC: Record<string, string> = {
   inMs: 'Beat 1 TOTAL — the three fade in at centre, already gathered.',
   fuseMs: 'Beat 2 TOTAL — hold as a trio, then merge.',
   crownMs: 'Beat 3 TOTAL — the gold erupts.',
-  outMs: 'Beat 4 TOTAL — savour, then fly home.',
+  outMs: 'Beat 4 TOTAL — savour at centre, then hand the card to the slide.',
   flyInEase: 'Appear easing.',
   flyStag: 'Share of beat 1 staggering the three appearances.',
   centreScale: 'How big the cards get at centre — the hero zoom.',
@@ -134,7 +137,7 @@ export const PG_DESC: Record<string, string> = {
   burst: 'Motes thrown outward on the crown.', burstSpd: 'Burst speed.',
   flFrac: 'Flourish length as a share of beat 3. Over 1 extends the effect.',
   flSize: 'Flourish size.', flInten: 'Flourish brightness.', flSpin: 'Flourish spin, deg/s.',
-  savourFrac: 'Share of beat 4 the gilded card holds before leaving.',
+  savourFrac: 'Share of beat 4 the gilded card holds before the slide takes it.',
   flyOutEase: 'Departure easing.',
   cDeep: 'Gold — outer.', cMid: 'Gold — middle.', cCore: 'Gold — core.',
   grad: '0 = flat mid colour. 1 = the full ramp.',
@@ -167,7 +170,6 @@ export function resetPlateGildConfig(): void {
 
 let sprites: { core: HTMLCanvasElement; mid: HTMLCanvasElement } | null = null;
 const easeOut = (t: number, e: number): number => 1 - Math.pow(1 - t, e);
-const centreOf = (r: Rect): { x: number; y: number } => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
 
 /** `cloneNode` yields blank canvases; repaint each from its original so sprite-art cards aren't empty. */
 const SIZE_VARS = ['--cw', '--ch', '--ccw', '--scale', '--u', '--c', '--c2', '--fan-rot',
@@ -243,12 +245,10 @@ export function playPlateGild(dest: Rect, card: HTMLElement, copies = 3): void {
 
   const vw = window.innerWidth, vh = window.innerHeight;
   const CENTRE = { x: vw / 2, y: vh * 0.46 };
-  const DEST = centreOf(dest);
   const n = Math.max(2, Math.min(4, Math.round(copies)));   // last one is the survivor
 
   // hide the real card — `!important` because a fresh card carries `.popin`, whose keyframes animate
   // opacity and would otherwise outrank a plain inline style (the bug fixed for the coalesce in #671)
-  const hide = (v: string): void => card.style.setProperty('opacity', v, 'important');
   card.style.setProperty('opacity', '0', 'important');
 
   const scrim = document.createElement('div');
@@ -382,7 +382,22 @@ export function playPlateGild(dest: Rect, card: HTMLElement, copies = 3): void {
     cancelAnimationFrame(raf);
     for (const el of flyers) el.remove();
     scrim.remove(); fxCv.remove(); flCv.remove();
-    card.style.removeProperty('opacity');
+    // NOT `removeProperty('opacity')`: by here the hand-off below has already given the real card its own
+    // `opacity: 1 !important`, which the buy slide clears when IT finishes. Clearing it here would drop the
+    // card back to whatever `.popin` is mid-way through — a flicker right as it settles.
+  };
+
+  /* THE HAND-OFF. The gilded card doesn't fly home on its own clock any more: at the end of the crown the
+     survivor clone is dropped and the REAL card takes over with `playBuySlide`, the same motion a card
+     bought from the tavern uses to reach its slot (owner call 2026-07-23). One "a card is entering your
+     hand" vocabulary for both, and the slide lands on the real element, so there is no clone-to-card swap to
+     get wrong. It unhides the card itself, so the gild's hide simply stays on until it takes over. */
+  let handedOff = false;
+  const handOff = (x: number, y: number, sc: number): void => {
+    if (handedOff) return;
+    handedOff = true;
+    for (const el of flyers) el.style.setProperty('opacity', '0', 'important');
+    playBuySlide({ x: x - (W * sc) / 2, y: y - (H * sc) / 2, w: W * sc, h: H * sc }, card);
   };
 
   const frame = (now: number): void => {
@@ -417,14 +432,16 @@ export function playPlateGild(dest: Rect, card: HTMLElement, copies = 3): void {
     const outT = Math.max(0, Math.min(1, (ms - T.leave) / T.flyOutMs));
     const oa = easeOut(outT, c.flyOutEase);
     const hero = pos[n - 1];
-    hero.x += (DEST.x - hero.x) * oa;
-    hero.y += (DEST.y - hero.y) * oa;
-    hero.sc = hero.sc * (1 + (c.punch - 1) * Math.sin(crownP * Math.PI)) * (1 - oa) + oa;
-    hero.al = Math.max(hero.al, oa);          // fully solid by the time it lands
+    // The survivor holds its centre pose through the crown; the flight into the slot belongs to the slide
+    // (see `handOff`), so nothing here interpolates toward DEST any more.
+    hero.sc = hero.sc * (1 + (c.punch - 1) * Math.sin(crownP * Math.PI));
+    if (ms >= T.leave) handOff(hero.x, hero.y, hero.sc);
     flyers.forEach((el, i) => {
       const p = pos[i];
       el.style.transform = `translate(${p.x - W / 2}px, ${p.y - H / 2}px) scale(${p.sc}) rotate(${p.rot}deg)`;
-      el.style.setProperty('opacity', String(p.al), 'important');
+      // Once handed off, the clones stay gone — the real card is doing the moving. Without this the loop
+      // would write the survivor's alpha back over the hide on the very next frame.
+      el.style.setProperty('opacity', handedOff ? '0' : String(p.al), 'important');
     });
 
     // the transformation itself — the survivor turns gold on the crown beat
@@ -481,8 +498,6 @@ export function playPlateGild(dest: Rect, card: HTMLElement, copies = 3): void {
     drawFlourish((ms - T.crown) / Math.max(1, T.flMs), hero.x, hero.y);
 
     if (ms >= T.end + 160) { done(); return; }
-    // hand the real card back exactly as the clone lands on it
-    if (outT >= 1) hide('1');
     raf = requestAnimationFrame(frame);
   };
   raf = requestAnimationFrame(frame);

@@ -270,11 +270,13 @@ export function playPlateGild(dest: Rect, card: HTMLElement, copies = 3): void {
     const el = cloneCard(card);
     el.classList.remove('golden');
     // NO width/height: the clone sizes itself from the vars copied in `cloneCard`, exactly as it did in its
-    // row. And the opening transform is set BEFORE append, so there is never a frame painted at (0,0).
+    // row. It is pinned at left/top 0, so it MUST be both transformed to centre and left transparent before
+    // it is appended — otherwise the browser paints one frame of a solid card in the top-left corner before
+    // the first rAF moves it (the "blip" the owner saw). Beat 1 fades it in from `al`.
     el.style.cssText += `position:fixed;left:0;top:0;margin:0;pointer-events:none;`
-      + `z-index:${i === n - 1 ? 304 : 303};transform-origin:50% 50%;`;
-    el.style.setProperty('opacity', '0', 'important');   // faded in by beat 1
-    el.style.setProperty('opacity', '1', 'important');
+      + `z-index:${i === n - 1 ? 304 : 303};transform-origin:50% 50%;`
+      + `transform:translate(${CENTRE.x - W / 2}px, ${CENTRE.y - H / 2}px) scale(${c.centreScale * 0.88});`;
+    el.style.setProperty('opacity', '0', 'important');
     document.body.appendChild(el);
     flyers.push(el);
   }

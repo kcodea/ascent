@@ -43,6 +43,25 @@ Divine Shield aura gold (a persistent keyword state).
 
 New dev tuner **👑 Plate Gild** with a "Play here" button and the live total in its header.
 
+**Two bugs on the owner's first play-test, both one root cause.** The flyers came in from the top-left
+corner rather than their slots, and the frame sat off-centre inside the plate — before AND after they
+converged.
+
+Card sizing is driven by CSS vars set **per zone** (`.zone[data-zone='hand'] { --ccw: … }`), not by the
+element's own width. A clone appended to `<body>` loses them, so it laid out at some unrelated size; and the
+plate, positioned `left: 50%` of the card box, slid out of register with the frame inside it. On top of
+that the clone was being forced to *plate* dimensions while being a *card*, which widened the box further.
+
+Fixed by copying the resolved sizing vars onto the clone, dropping the forced width/height so it sizes
+itself exactly as it did in its row, measuring CARD rects (not plate rects) for both the cache and the
+destination, and giving the gold wireframe `class="cardplate"` so it inherits the plate's own geometry
+inside the clone instead of stretching over the whole card box. The effect's px quantities still scale off
+plate width, measured from the clone, since that's what the rig was dialed against.
+
+Also set the opening transform BEFORE the clone is appended, so there is no frame painted at (0,0), and
+added a DEV warning when a consumed copy has no cached rect — that path degrades to flying fewer cards, and
+it should be loud rather than silent.
+
 **Verified:** typecheck + lint + 1538 tests + `build:web` green. Timeline verified numerically against the
 rig. **Not verified in-game by me** — rAF doesn't fire in this environment's preview pane, so the motion is
 owner-eyeballed.

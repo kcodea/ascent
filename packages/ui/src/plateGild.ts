@@ -165,8 +165,21 @@ const easeOut = (t: number, e: number): number => 1 - Math.pow(1 - t, e);
 const centreOf = (r: Rect): { x: number; y: number } => ({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
 
 /** `cloneNode` yields blank canvases; repaint each from its original so sprite-art cards aren't empty. */
+const SIZE_VARS = ['--cw', '--ch', '--ccw', '--scale', '--u', '--c', '--c2', '--fan-rot',
+  '--card-scale', '--ui-scale', '--plate-scale', '--plate-top', '--arch-radius', '--sh', '--fill',
+  '--dy', '--frameY', '--tier', '--artY', '--artZoom', '--frame-tone', '--fovl', '--fovl-a', '--fovl-blend'];
+
 function cloneCard(src: HTMLElement): HTMLElement {
   const el = src.cloneNode(true) as HTMLElement;
+  // Card sizing is driven by CSS vars set PER ZONE (`.zone[data-zone='hand'] { --ccw: ... }`), not by the
+  // element's own width — so a clone appended to <body> loses them, lays out at some unrelated size, and the
+  // plate (positioned `left:50%` of the card box) slides out of register with the frame inside it. Copy the
+  // resolved values across so the clone renders identically wherever it lives.
+  const cs = getComputedStyle(src);
+  for (const v of SIZE_VARS) {
+    const val = cs.getPropertyValue(v);
+    if (val) el.style.setProperty(v, val);
+  }
   const from = src.querySelectorAll('canvas');
   const to = el.querySelectorAll('canvas');
   for (let i = 0; i < to.length && i < from.length; i++) {
@@ -217,8 +230,10 @@ export function playPlateGild(sources: Rect[], dest: Rect, card: HTMLElement): v
   if (typeof document === 'undefined') return;
   const c = cfg;
   const T = beats(c);
+  // `dest`/`sources` are CARD rects. The clone is a card, so forcing it to PLATE size (as this first did)
+  // left the frame off-centre inside an oversized box. `plateW` below is measured off the clone's own plate
+  // and drives the effect's scale, since the rig's px quantities were dialed against plate width.
   const W = dest.width, H = dest.height;
-  const k = W / REF_W;
   if (!sprites) sprites = { core: sprite(c.cCore, 32), mid: sprite(c.cMid, 32) };
 
   const vw = window.innerWidth, vh = window.innerHeight;
@@ -250,19 +265,28 @@ export function playPlateGild(sources: Rect[], dest: Rect, card: HTMLElement): v
   for (let i = 0; i < starts.length; i++) {
     const el = cloneCard(card);
     el.classList.remove('golden');
-    el.style.cssText += `position:fixed;left:0;top:0;width:${W}px;height:${H}px;margin:0;`
-      + `pointer-events:none;z-index:${i === starts.length - 1 ? 304 : 303};transform-origin:50% 50%;`;
+    // NO width/height: the clone sizes itself from the vars copied in `cloneCard`, exactly as it did in its
+    // row. And the opening transform is set BEFORE append, so there is never a frame painted at (0,0).
+    el.style.cssText += `position:fixed;left:0;top:0;margin:0;pointer-events:none;`
+      + `z-index:${i === starts.length - 1 ? 304 : 303};transform-origin:50% 50%;`;
+    el.style.transform = `translate(${starts[i].x - W / 2}px, ${starts[i].y - H / 2}px) scale(1)`;
     el.style.setProperty('opacity', '1', 'important');
     document.body.appendChild(el);
     flyers.push(el);
   }
+  // the plate is what the rig's px quantities were dialed against; fall back to the card box if unplated
+  const plateW = flyers[0].querySelector<HTMLElement>('.cardplate')?.getBoundingClientRect().width || W;
+  const k = plateW / REF_W;
   document.body.appendChild(fxCv);   // streams + burst in FRONT of the cards
   const heroEl = flyers[flyers.length - 1];
 
   // gold wireframe over the survivor
+  // Class `cardplate` so it inherits the plate's exact geometry inside the clone (`.card.plated .cardplate`)
+  // rather than stretching over the whole card box — which is what put the gold out of register.
   const imp = document.createElement('div');
+  imp.className = 'cardplate';
   imp.style.cssText = [
-    'position:absolute', 'inset:0', 'opacity:0', 'pointer-events:none',
+    'opacity:0', 'pointer-events:none', 'z-index:6',
     `background:${arcaneGradient(c.cDeep, c.cMid, c.cCore, c.grad)}`,
     `-webkit-mask:url(${WIRE_SRC}) center / 100% 100% no-repeat`,
     `mask:url(${WIRE_SRC}) center / 100% 100% no-repeat`,
@@ -276,7 +300,7 @@ export function playPlateGild(sources: Rect[], dest: Rect, card: HTMLElement): v
   for (let ci = 0; ci < nCopies; ci++) {
     for (let i = 0; i < Math.round(c.streamCount / nCopies); i++) {
       streams.push({ ci, su: Math.random(), sv: Math.random(), tu: Math.random(), tv: Math.random(),
-        bow: (Math.random() * 0.6 + 0.7) * c.arc * W * 0.5 * (Math.random() < 0.5 ? -1 : 1),
+        bow: (Math.random() * 0.6 + 0.7) * c.arc * plateW * 0.5 * (Math.random() < 0.5 ? -1 : 1),
         born: Math.random() * 0.5, r: c.fuseSize * k * (1 + (Math.random() - 0.5) * 1.4) });
     }
   }
@@ -298,7 +322,7 @@ export function playPlateGild(sources: Rect[], dest: Rect, card: HTMLElement): v
     if (c.flourishType === 'none' || p <= 0 || p >= 1) return;
     const grow = 1 - Math.pow(1 - p, 2.2);
     const fade = p < 0.25 ? p / 0.25 : 1 - (p - 0.25) / 0.75;
-    const R = W * c.flSize * grow;
+    const R = plateW * c.flSize * grow;
     flx.save();
     flx.translate(cx, cy);
     flx.rotate((p * T.flMs / 1000) * c.flSpin * Math.PI / 180);
@@ -366,7 +390,7 @@ export function playPlateGild(sources: Rect[], dest: Rect, card: HTMLElement): v
       const a = easeOut(inT, c.flyInEase);
       const isHero = i === n - 1;
       const side = isHero ? 0 : (i === 0 ? -1 : 1);
-      const cx = CENTRE.x + side * c.cluster * W * a;
+      const cx = CENTRE.x + side * c.cluster * plateW * a;
       return { x: s.x + (cx - s.x) * a, y: s.y + (CENTRE.y - s.y) * a,
         sc: 1 + (c.centreScale - 1) * a, rot: side * c.fanTilt * a, al: 1 };
     });

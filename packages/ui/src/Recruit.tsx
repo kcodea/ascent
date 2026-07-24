@@ -1393,8 +1393,15 @@ export function Recruit() {
         ? document.querySelector<HTMLElement>(`.row .card[data-uid="${goldUid}"]`)
         : null;
       if (el) {
-        const dest = (el.querySelector<HTMLElement>('.cardplate') ?? el).getBoundingClientRect();
+        // CARD rects, not plate rects — the flyers are cards, and sizing them to the plate put the frame
+        // off-centre inside an oversized box.
+        const dest = el.getBoundingClientRect();
         const sources = gone.map((u) => cardRectsRef.current.get(u)).filter(Boolean) as GildRect[];
+        if (import.meta.env.DEV && sources.length < gone.length) {
+          // eslint-disable-next-line no-console
+          console.warn('[gild] no cached rect for', gone.length - sources.length, 'of', gone.length,
+            'consumed copies — they will not fly in from their slots');
+        }
         if (dest.width > 0) playPlateGild(sources, dest, el);
       }
     }
@@ -1428,7 +1435,7 @@ export function Recruit() {
     for (const el of document.querySelectorAll<HTMLElement>('.row .card[data-uid]')) {
       const uid = el.dataset.uid;
       if (!uid) continue;
-      const r = (el.querySelector<HTMLElement>('.cardplate') ?? el).getBoundingClientRect();
+      const r = el.getBoundingClientRect();
       if (r.width > 0) next.set(uid, { left: r.left, top: r.top, width: r.width, height: r.height });
     }
     cardRectsRef.current = next;

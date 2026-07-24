@@ -1086,7 +1086,7 @@ export function Recruit() {
   // float in front of the overlay. (Inspect / hero-select / end-of-run sit above the FX canvas already.)
   useEffect(() => {
     // A minimized Discover / Quest overlay leaves the board visible, so keep the behind-card shields showing then.
-    const modalCovering = (run.discover && !discoverMin) || (run.questOffer && !questMin) || (run.runeforgeOffer && !forgeMin) || run.chooseOne;
+    const modalCovering = (run.discover && !discoverMin) || (run.questOffer && !questMin) || (run.runeforgeOffer && !forgeMin) || run.chooseOne || (run.scoutedNextOpponent?.length ?? 0) > 0;
     pixiFx.setShieldsVisible(!modalCovering);
     // The hero portrait / pills / power diamond live OUTSIDE the overlay's backdrop root (their own fixed
     // stacking contexts), so the overlay's backdrop-filter can't blur them — mark the body and let CSS blur
@@ -2258,7 +2258,7 @@ export function Recruit() {
     // board, exactly like a Discover — so the timer must pause for them too. It didn't for `pendingTarget`, and
     // because the UI also blocks the target pick once `timeUp`, the timer expiring mid-aim left the player
     // unable to pick AND (before the reducer fix) unable to End Turn: a hard softlock (owner report 2026-07-22).
-    if (run.phase !== 'recruit' || run.discover || run.questOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || heroSelecting || overlayOpen) return;
+    if (run.phase !== 'recruit' || run.discover || run.questOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || heroSelecting || overlayOpen) return;
     let id = 0;
     const tick = (): void => {
       const cur = turnClock.get();
@@ -3309,7 +3309,7 @@ export function Recruit() {
       <ChargeGlyph
         inCombat={inCombat}
         window={Math.min(CHARGE_SECONDS, turnSeconds)}
-        paused={!!(run.discover || run.questOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || heroSelecting || overlayOpen)}
+        paused={!!(run.discover || run.questOffer || run.runeforgeOffer || run.pendingTarget || run.chooseOne || run.scoutedNextOpponent?.length || heroSelecting || overlayOpen)}
         covered={!!(heroSelecting || overlayOpen)}
       />
       <HudBar />
@@ -3904,6 +3904,33 @@ export function Recruit() {
                 );
               })}
             </div>
+            <span className="disc-gem disc-gem-bot" aria-hidden="true" />
+          </div>
+        </div>
+      )}
+
+      {/* Farseer's Report — a read-only Discover-style reveal of the next opponent's scouted minions (shown at
+          their captured stats). No pick; a Close button dismisses it. Reuses the `.discover-ov` chrome. */}
+      {run.scoutedNextOpponent && run.scoutedNextOpponent.length > 0 && (
+        <div className="discover-ov" role="dialog" aria-label="Scouted minions">
+          <div className="disc-panel">
+            <span className="disc-gem disc-gem-top" aria-hidden="true" />
+            <div className="disc-banner"><span className="disp">Scouted</span></div>
+            <div className="disc-cards">
+              {run.scoutedNextOpponent.map((m, i) => {
+                const c = CARD_INDEX[m.cardId];
+                if (!c) return null;
+                return (
+                  <div className="disc-slot" key={`${m.cardId}-${i}`} style={{ '--c': `var(--t-${c.tribe})` } as CSSProperties}>
+                    <Card card={{ name: c.name, cardId: c.id, tribe: c.tribe, tribe2: c.tribe2, universalTribe: !!c.universalTribe, attack: m.attack, health: m.health, keywords: c.keywords, text: c.text, goldenText: c.goldenText, tier: c.tier }} />
+                  </div>
+                );
+              })}
+            </div>
+            <button className="scout-close" onClick={() => dispatch({ type: 'closeScout' })}
+              style={{ margin: '10px auto 0', padding: '7px 22px', fontWeight: 600, fontSize: '0.95em', color: 'var(--ink, #fff)', background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.28)', borderRadius: 8, cursor: 'pointer' }}>
+              Close
+            </button>
             <span className="disc-gem disc-gem-bot" aria-hidden="true" />
           </div>
         </div>

@@ -3,6 +3,20 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (Farseer's Report — Discover-style scout modal)
+
+### feat(ui): Farseer's Report shows a read-only Discover-style reveal with a Close button
+
+Reworked Farseer's reveal from the near-invisible inline row on the OpponentFrame (owner: "showing nothing")
+to a proper **Discover-style modal** — the scouted minions render as full cards (at their captured stats) under
+a "Scouted" banner, with a **Close** button (new `closeScout` action). Reuses the `.discover-ov` chrome. The
+scout is now a blocking modal (`modalOpen` includes `scoutedNextOpponent`; the reducer gate + UI bubble/timer
+checks updated), dismissed by Close (or cleared at turn start as a fallback). Removed the OpponentFrame row.
+
+Verified: `spellBatch.test.ts` (scout populates, `closeScout` clears it) + live Scene-Builder (cast → "Scouted"
+panel with the two cat minions + a Close button → click Close → dismissed). Full suite (1537) + lint + build
+green. The close button is inline-styled for now (Mike can theme `.scout-close` in styles.css).
+
 ## 2026-07-23 (Encore — drop "Rally" from the text)
 
 ### fix(content): Encore triggers Shout or Echo (not Rally)

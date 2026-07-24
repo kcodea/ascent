@@ -173,7 +173,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     };
   }, [primitiveId, scenarioId]);
 
-  const change = (key: string, value: number | boolean | string): void => {
+  // `number[]` covers the editable palette param (a 4-tuple of colour stops); every value flows unchanged
+  // through setLayerParams' `Record<string, unknown>`, then coerceParams validates it per the primitive's spec.
+  const change = (key: string, value: number | boolean | string | number[]): void => {
     setParams((prev) => {
       const next = { ...prev, [key]: value };
       paramsRef.current = next;

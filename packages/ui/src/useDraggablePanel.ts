@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
 
 /**
  * Drag-by-header + resize for the floating DEV panels (SFX mixer, Lunge tuner). Position (left/top) is
@@ -14,6 +14,9 @@ interface Saved { left?: number; top?: number; width?: number; height?: number; 
 
 export function useDraggablePanel(key: string): {
   panelRef: (el: HTMLDivElement | null) => void;
+  /** The attached panel element. `panelRef` is a CALLBACK ref (it has no `.current`), so a caller that needs
+   *  to measure its own panel — e.g. a tuner's "demo" button placing the FX beside the panel — reads it here. */
+  panelElRef: RefObject<HTMLDivElement | null>;
   headerPointerDown: (e: ReactPointerEvent) => void;
   panelStyle: CSSProperties;
 } {
@@ -76,5 +79,5 @@ export function useDraggablePanel(key: string): {
   }, [write]);
 
   const panelStyle: CSSProperties = pos ? { left: pos.left, top: pos.top, right: 'auto', bottom: 'auto' } : {};
-  return { panelRef, headerPointerDown, panelStyle };
+  return { panelRef, panelElRef: elRef, headerPointerDown, panelStyle };
 }

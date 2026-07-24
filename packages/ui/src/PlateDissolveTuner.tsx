@@ -38,7 +38,7 @@ const LABELS: Record<string, string> = {
 export function PlateDissolveTuner() {
   const [cfg, setCfg] = useState<PlateDissolveConfig>(getPlateDissolveConfig());
   const [copied, setCopied] = useState(false);
-  const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('platedissolve');
+  const { panelRef, panelElRef, headerPointerDown, panelStyle } = useDraggablePanel('platedissolve');
 
   const set = (k: keyof PlateDissolveConfig, v: number | string): void => {
     setPlateDissolveValue(k, v);
@@ -52,7 +52,7 @@ export function PlateDissolveTuner() {
   const reset = (): void => { resetPlateDissolveConfig(); setCfg({ ...getPlateDissolveConfig() }); };
   // Fire it over the panel so the effect can be judged without playing a card each time.
   const demo = (): void => {
-    const el = panelRef.current;
+    const el = panelElRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
     const w = 240, h = w * 1.555;

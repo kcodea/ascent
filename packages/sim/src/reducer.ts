@@ -744,9 +744,13 @@ function reduceCore(state: RunState, action: Action): RunState {
         else return state;
         s.hand.splice(i, 1);
         const rubyCastsBefore = s.rubyCasts ?? 0;
+        // The trigger meter is the UMBRELLA of Rubies + Shop Spells (see `fireOnRubyCast`), so both paths must
+        // measure the SAME number — counting rubies on their own meter here would let the two drift and a
+        // 3-cast threshold fire early or late depending on the mix.
+        const umbrellaBefore = s.spellsCast + rubyCastsBefore;
         s.rubyCasts = rubyCastsBefore + casts;
         s.rubyCastsThisTurn = (s.rubyCastsThisTurn ?? 0) + casts;
-        fireOnRubyCast(s, rubyCastsBefore, s.rubyCasts); // Gemgorge Fiend: every 3 casts → Consume a Shop minion
+        fireOnRubyCast(s, umbrellaBefore, s.spellsCast + s.rubyCasts); // Gemgorge Fiend: every 3 → Consume a Shop minion
         return s;
       }
 

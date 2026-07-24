@@ -94,3 +94,21 @@ describe('set 2 — Dragon effects', () => {
     expect(poolOf(next)).toBeTruthy();
   });
 });
+
+describe('set 2 — the cast meter is the umbrella of Rubies + Shop Spells', () => {
+  it('Gemgorge Fiend counts SHOP SPELLS toward its every-3 trigger, not just Rubies', () => {
+    // Owner 2026-07-24: the `rubyCast` trigger is the umbrella of both, matching the `spellsCast + rubyCasts`
+    // contract documented on RunState. It used to read the Ruby counter alone, so shop spells never advanced it.
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', embers: 99,
+      board: [minion('gg', 'k_gemgorge', 'kobold', 6, 6)],
+      hand: [spellInHand('s1', 'growth'), spellInHand('s2', 'growth'), spellInHand('s3', 'growth')],
+    };
+    const shopBefore = s.shop.length;
+    s = reduce(s, { type: 'play', uid: 's1' });
+    s = reduce(s, { type: 'play', uid: 's2' });
+    expect(s.shop.length).toBe(shopBefore); // 2 casts — not there yet
+    s = reduce(s, { type: 'play', uid: 's3' }); // the 3rd cast crosses the step
+    expect(s.shop.length).toBe(shopBefore - 1); // it Consumed a Shop minion
+  });
+});

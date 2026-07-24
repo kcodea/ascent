@@ -51,6 +51,20 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: '**Shout:** get **2** random spells.',
   },
   {
+    // Seeds BOTH halves of the tribe at once — a body to buff and a spell to recur (owner re-spec 2026-07-24:
+    // was a Tier-2 Slaughter, now a Tier-4 Shout that grants a minion AND a spell).
+    id: 'd2_skald',
+    name: 'Traveling Skald',
+    tribe: 'dragon',
+    tier: 4,
+    attack: 4,
+    health: 5,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryGrantTribeAndSpell', params: { tribe: 'dragon', tier: 1, count: 1 } }],
+    text: '**Shout:** get a random **Tier 1 Dragon** and a random **spell**.',
+    goldenText: '**Shout:** get **2** random **Tier 1 Dragons** and **2** random **spells**.',
+  },
+  {
     // Recursion, on tempo: replay whatever you just cast. Reads `lastSpellCastId` (already tracked for the
     // Steward of Spells rune), so casting BEFORE playing this is the whole skill.
     id: 'd2_recaller',

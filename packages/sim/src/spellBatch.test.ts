@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import type { CombatResult } from '@game/core';
 import { createRun, maxTierFor, poolOf, reduce, type BoardCard, type RunState } from './index';
-import { spellDisplayText } from './recruit';
+import { offerBuyStats, spellDisplayText } from './recruit';
 
 /**
  * The 2026-07-23 spell batch — tranche A (the straightforward ones). A spell lives in hand as a BoardCard
@@ -361,12 +361,29 @@ describe('spell batch — tranche C (Discover-based)', () => {
 });
 
 describe('spell batch — Veinstorm + Hoardflame (live-scaling)', () => {
-  it('Veinstorm: buffs every shop offer by your Ruby stats (1/1 + rubyBonus)', () => {
-    let s: RunState = { ...createRun(1), setId: 'set2', rubyBonus: { attack: 2, health: 3 }, hand: [mkSpell('sp', 'veinstorm')] };
+  it('Veinstorm: PERMANENTLY buffs the Shop by your Ruby stats — current offers and future ones', () => {
+    // Owner 2026-07-24: it's a permanent tavern buff, not a one-shot on the offers standing at cast time.
+    // It routes through `tavernBuyBonus`, so a reroll no longer wipes it — the failure mode before this.
+    let s: RunState = { ...createRun(1), setId: 'set2', embers: 99, rubyBonus: { attack: 2, health: 3 }, hand: [mkSpell('sp', 'veinstorm')] };
     const n = s.shop.length;
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });
     expect(s.shop.length).toBe(n);
-    expect(s.shop.every((o) => (o.atk ?? 0) === 3 && (o.hp ?? 0) === 4)).toBe(true); // 1+2 / 1+3
+    expect(s.tavernBuyBonus).toEqual({ atk: 3, hp: 4 }); // 1+2 / 1+3
+
+    // Every CURRENT offer already reads the buff through `offerBuyStats`…
+    for (const o of s.shop) {
+      const def = CARD_INDEX[o.cardId]!;
+      const st = offerBuyStats(s, o);
+      expect([st.attack - def.attack, st.health - def.health]).toEqual([3, 4]);
+    }
+    // …and so does a shop drawn AFTER a reroll, which used to lose it entirely.
+    s = reduce(s, { type: 'roll' });
+    expect(s.tavernBuyBonus).toEqual({ atk: 3, hp: 4 });
+    for (const o of s.shop) {
+      const def = CARD_INDEX[o.cardId]!;
+      const st = offerBuyStats(s, o);
+      expect([st.attack - def.attack, st.health - def.health]).toEqual([3, 4]);
+    }
   });
 
   it('Veinstorm live text greens to the current Ruby value (base when no bonus)', () => {

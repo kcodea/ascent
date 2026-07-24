@@ -2,6 +2,34 @@
 
 ## 2026-07-24 (Set 2's Dragon tribe — foundation + first tranche)
 
+### fix(sim/content): Veinstorm is permanent, the cast meter is the Ruby+Spell umbrella, Skald re-spec
+
+Three owner items on the Set-2 branch. Both "bugs" turned out to describe the INTENDED behaviour rather than
+the current one — probes confirmed the code did neither, so both are real gaps rather than misreports.
+
+**Veinstorm is a permanent Shop buff.** It was calling `addOfferBuff` on the offers standing at cast time, so a
+single reroll wiped it (probed: after a roll every offer was back to `atk: 0` with no buff entries). It now
+adds to `tavernBuyBonus` — the run-level tavern buff Staff of Guel already uses — which `offerBuyStats` folds
+into EVERY offer. The current shop updates immediately and every future shop inherits it. Text updated to say
+"permanently", since the old wording implied a one-shot.
+
+**The `rubyCast` trigger is the umbrella of Rubies + Shop Spells.** Gemgorge Fiend's "every 3 casts" read the
+Ruby counter alone, so shop spells never advanced it (probed: `rubyCasts=undefined` after three Growths). It now
+fires off `spellsCast + rubyCasts` — the umbrella already documented on `RunState.rubyCasts`, which existed as a
+contract with nothing honouring it. Both cast paths pass the SAME meter: measuring rubies on their own counter
+in one path would let the two drift and make a 3-cast threshold fire early or late depending on the mix. The
+event name stays `rubyCast` (it's the content-schema key) with the real meaning documented at the emitter.
+
+**Traveling Skald re-spec** (owner): Tier 2 3/2 Slaughter → **Tier 4 4/5 Shout: get a random Tier 1 Dragon AND
+a random spell** (gilded: two of each). New `battlecryGrantTribeAndSpell` factory — the two halves are
+independent, so a dry pool on one side still delivers the other. This also resolves the roster's only missing
+Gilded text.
+
+The existing Veinstorm test asserted the OLD per-offer behaviour and correctly failed; it now pins the new
+contract on both halves — current offers AND a shop drawn after a reroll, asserted through `offerBuyStats`
+rather than the raw offer fields, since that's what the player actually sees. A new test pins the umbrella:
+two shop spells don't trigger Gemgorge, the third does. Suite 1558 + typecheck + lint + build:web green.
+
 ### feat(content/sim): open the Set-2 Dragon tribe (spell recursion), 5 cards + Karwind re-spec
 
 Owner handed over a 21-card Dragon roster. Set 2's Dragons are the SPELL-RECURSION tribe — where Set 1's

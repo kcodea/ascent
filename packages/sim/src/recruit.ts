@@ -1946,6 +1946,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     conjureToHand(ctx.state, poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier), num(params.count, 1) * gold(self));
   },
 
+  /** Set 2 — Traveling Skald (Shout): get a random Tier-`tier` minion of `tribe` AND a random Tavern spell
+   *  (golden: two of each). Two grants in one Shout, so it seeds both halves of the Dragon spell line at once.
+   *  Each half is independent — a dry pool on one side still delivers the other. */
+  battlecryGrantTribeAndSpell: (ctx, self, params) => {
+    const n = num(params.count, 1) * gold(self);
+    const tribe = str(params.tribe);
+    const tier = num(params.tier, 1);
+    const pool = poolOf(ctx.state);
+    conjureToHand(ctx.state, pool.buyable.filter((c) => c.tier === tier && (c.tribe === tribe || c.tribe2 === tribe)), n);
+    conjureToHand(ctx.state, pool.spells.filter((c) => c.tier <= ctx.state.tier), n);
+  },
+
   /** Set 2 — the Dragon "spell recursion" line: add COPIES of a spell you already cast this turn to hand.
    *  `which` picks which one — 'first' (`firstSpellThisTurnId`, Spellvault Drake) or 'last'
    *  (`lastSpellCastId`, Recaller). Both ids are already tracked by `castSpell` for the Runes, so this reads
@@ -2178,7 +2190,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellBuffShopByRuby: (ctx) => {
     const rb = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
     const a = 1 + rb.attack, h = 1 + rb.health;
-    for (const offer of ctx.state.shop) addOfferBuff(offer, 'Veinstorm', a, h);
+    // PERMANENT (owner 2026-07-24): routed through `tavernBuyBonus` — the run-level tavern buff Staff of Guel
+    // uses — rather than `addOfferBuff` on the current offers. `offerBuyStats` folds it into EVERY offer, so
+    // the current shop updates immediately AND every future shop inherits it. Buffing the offers directly made
+    // it a one-shot that a single reroll wiped.
+    ctx.state.tavernBuyBonus.atk += a;
+    ctx.state.tavernBuyBonus.hp += h;
   },
 
   /** Hoardflame (Dragon) — cast on a minion: +`attack`/`health` base, plus +`per`/+`per` for each Dragon you
@@ -3131,6 +3148,10 @@ export function fireOnSell(state: RunState, card: BoardCard): void {
 
 /** Set 2 — Gemgorge Fiend: fire each board minion's `rubyCast` effects once for every `every`-th cumulative Ruby
  *  cast crossed by this cast (`before` → `after` on `rubyCasts`). */
+/** Fire board minions' `rubyCast` effects as a cast METER crosses each `every` step. Despite the event name
+ *  (kept for the content schema), the meter is the UMBRELLA of Rubies + Shop Spells — the `spellsCast +
+ *  rubyCasts` contract on `RunState.rubyCasts` — per the owner 2026-07-24. Callers pass the umbrella's
+ *  before/after so both cast paths measure the same number. */
 export function fireOnRubyCast(state: RunState, before: number, after: number): void {
   for (const card of state.board) {
     const eff = CARD_INDEX[card.cardId]?.effects.find((e) => e.on === 'rubyCast');
@@ -3687,8 +3708,13 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // tally below so the turn's opening cast — and only it — lands here; the EoT recast itself can never
   // re-record (spellsThisTurn is nonzero by then).
   if (state.spellsThisTurn === 0) state.firstSpellThisTurnId = spellDef.id;
+  // The `rubyCast` trigger is the UMBRELLA of Rubies + Shop Spells (owner 2026-07-24), matching the
+  // `spellsCast + rubyCasts` contract documented on `RunState.rubyCasts` — so Gemgorge Fiend's "every 3"
+  // counts a Shop Spell exactly like a Ruby. Fired here so EVERY cast path routes through it once per cast.
+  const castUmbrellaBefore = state.spellsCast + (state.rubyCasts ?? 0);
   state.spellsCast += 1;
   state.spellsThisTurn += 1;
+  fireOnRubyCast(state, castUmbrellaBefore, castUmbrellaBefore + 1);
   state.lastSpellCastId = spellDef.id; // Steward of Spells copies the most recent spell cast
   // Rune of Summoning: each spell cast permanently improves your Imps +1/+1 (run-wide, via the Imp enchant —
   // "improve your Imps" applies twice under Rune of Mastery).

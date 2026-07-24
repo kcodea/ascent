@@ -1060,6 +1060,12 @@ export interface Minion {
   /** Permanent stats this minion gained mid-combat (Flowing Monk's overflow gift) — carried back to
    *  the run board afterwards, unlike ordinary combat-only buffs. */
   permaGain?: { attack: number; health: number };
+  /** Set 2 — stats from RUBIES played onto this minion during COMBAT (`playRubyOn`). Tracked separately from
+   *  the recruit-phase `Ruby` entry in `buffs` because `buffs` is SHARED BY REFERENCE with the run's board card
+   *  (see `combat/minion.ts`) — appending to it from inside the simulation would mutate run state and break the
+   *  pure-function contract. Read alongside that entry by anything that scales off "the Rubies on this minion"
+   *  (Gemheart Carver), so a Ruby counts the same whether it was played in the shop or mid-fight. */
+  rubyGain?: { attack: number; health: number };
   /** Set 2 — Candleback Bulwark: times this minion's on-damage Ruby has fired THIS combat (its per-fight cap).
    *  A fresh Minion per fight, so it resets naturally between combats. */
   rubyRecvTick?: number;

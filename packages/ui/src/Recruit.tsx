@@ -708,8 +708,9 @@ export function Recruit() {
   // RUBY POWER FX (owner ask 2026-07-24) — the Ruby-side twin of the effect above, on the same one-shot seq
   // contract. `rubyPowerFxSeq` is stamped from the reducer's `rubyBonus` before/after delta, so this one effect
   // covers the shop, End of Turn AND the combat carry-back (Veinbreaker's Avenge settles onto `rubyBonus`).
-  // Unlike spell power there's no phase guard: a Ruby gain landing at settle is exactly the case the owner
-  // wants to see, so it fires whichever phase it arrives in.
+  // Guarded like the spell-power twin: a SOURCELESS bump outside the shop is the combat CARRY-BACK, which the
+  // mid-combat narration beat has already shown — firing it again is the end-of-combat double-play the owner
+  // reported. A sourced bump (a card you played) still fires in any phase.
   const prevRubyPowerSeq = useRef(run.rubyPowerFxSeq);
   useEffect(() => {
     const seq = run.rubyPowerFxSeq;
@@ -718,6 +719,7 @@ export function Recruit() {
     const gainA = run.rubyPowerFxAtk ?? 0;
     const gainH = run.rubyPowerFxHp ?? 0;
     const uid = run.rubyPowerFxUid;
+    if (uid === undefined && run.phase !== 'recruit') return;
     const raf = requestAnimationFrame(() => {
       // Over the card that caused it when there is one; otherwise over the player's HAND, because that's where
       // the Rubies that just got stronger actually are (the spell-power twin falls back to the tavern instead,
@@ -1875,18 +1877,23 @@ export function Recruit() {
       if (prev !== undefined && prev !== sig) changed.push(uid);
     }
     prevSpellSigRef.current = next;
-    // Deliberately NOT gated on `inCombat` any more (owner 2026-07-24). Hand cards stay mounted through the
-    // fight, and a spell/Ruby that gets stronger mid-combat — an Echo, an Avenge, a start-of-combat trigger —
-    // has to show the same cue it would in the shop.
+    // This watcher owns SHOP-PHASE buffs only. End of Turn and mid-combat are driven from their BEATS instead
+    // (the EoT beat runner below, and the `sc` narration handler in `useCombatReplay`), because run state
+    // doesn't move at the moment those buffs happen — it moves at the commit, which is too late to read as
+    // "this card just got stronger".
     //
-    // The one thing that gate WAS buying us: a card's printed text can legitimately differ between phases
-    // (anything the live text folds in that combat changes), so the render where the phase FLIPS would diff
-    // against a shop-phase signature and flash the whole hand at once for no buff. So instead of suppressing
-    // all of combat, suppress exactly that one render — the signatures above are still recorded, so a real buff
-    // on the very next render fires normally.
+    // That split is what fixes the double-play (owner report 2026-07-24: "cards play an additional buffed
+    // animation at the end of combat if they were buffed mid-combat"). A mid-combat gain is announced once, on
+    // its beat; then `settleCombat` applies the carry-back — while the phase is STILL `combat` — and the
+    // printed text finally changes, which this diff would otherwise fire on a second time.
+    //
+    // So: fire only in steady-state recruit. Skipping the phase-FLIP renders matters too, in both directions —
+    // a card's printed text can legitimately differ between phases, so diffing across a flip would flash the
+    // whole hand for no buff at all. Signatures above are recorded on every render regardless, so the baseline
+    // stays current and a real shop buff on the very next render fires normally.
     const phaseFlipped = spellBuffPhaseRef.current !== run.phase;
     spellBuffPhaseRef.current = run.phase;
-    if (phaseFlipped || changed.length === 0) return;
+    if (phaseFlipped || run.phase !== 'recruit' || changed.length === 0) return;
     fireSpellBuff(changed);
   }, [handViews, run.phase]);
   // DEV: the ✨ Spell Buff tuner's Test button fires the cue on every spell / Ruby currently in hand, so the

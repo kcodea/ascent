@@ -45,14 +45,23 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const paramsRef = useRef(params);
   const speedRef = useRef(speed);
   const cursorRef = useRef({ x: 0, y: 0 });
+  const clickRef = useRef<{ x: number; y: number } | null>(null);
 
-  // Live pointer position for the `cursor` scenario's anchors — independent of build/rebuild, tracked once.
+  // Live pointer position (for cursor-driven scenarios) and last click point (for `clickPlace`) —
+  // independent of build/rebuild, tracked once.
   useEffect(() => {
     const onMove = (e: PointerEvent): void => {
       cursorRef.current = { x: e.clientX, y: e.clientY };
     };
+    const onDown = (e: PointerEvent): void => {
+      clickRef.current = { x: e.clientX, y: e.clientY };
+    };
     window.addEventListener('pointermove', onMove);
-    return () => window.removeEventListener('pointermove', onMove);
+    window.addEventListener('pointerdown', onDown);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerdown', onDown);
+    };
   }, []);
 
   // (Re)build the player whenever the selected primitive or scenario changes. Param tweaks do NOT land
@@ -120,10 +129,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
         if (scenario) {
           const vp = { w: window.innerWidth, h: window.innerHeight };
           const progress = (p.timeMs() % DURATION_MS) / DURATION_MS;
-          // A scenario may drive the head along a custom multi-leg path (e.g. `bounce` chaining between
-          // units); otherwise the head follows the default source→target travel arc.
+          // A scenario may drive the head along a custom path (e.g. `bounce` ping-ponging between units,
+          // `pinnedCursor` tracking the live pointer, `clickPlace` anchoring to the last click); otherwise
+          // the head follows the default source→target travel arc.
           const pt = scenario.headAt
-            ? scenario.headAt(vp, cursorRef.current, progress)
+            ? scenario.headAt({ viewport: vp, cursor: cursorRef.current, click: clickRef.current, progress })
             : resolveAnchor(scenario.anchorsAt(vp, cursorRef.current), 'travel', progress);
           // `pixiFx.mountLayer` parents `container` straight onto the overlay stage, which sits at the
           // canvas origin with no transform, and the overlay canvas itself is a full-viewport element at

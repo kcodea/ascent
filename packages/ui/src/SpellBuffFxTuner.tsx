@@ -8,8 +8,7 @@ import { useDraggablePanel } from './useDraggablePanel';
 /**
  * DEV-only "Spell Buff FX" tuner — the cue a hand SPELL or Ruby plays when its printed value goes UP
  * (`spellBuffFxConfig` → `Card`'s `.spellbuff` grow/shrink + `.sbspark` motes): the card grows then shrinks
- * back in place (each phase with its own speed + easing) while pink/gold/purple sparks blast outward off it in
- * every direction. Slider dials + colour pickers persist to
+ * back in place (each phase with its own speed + easing) while a burst of coloured sparks blasts outward off it. Slider dials + colour pickers persist to
  * localStorage and apply to the NEXT burst. **Test** fires it on every spell/Ruby currently in hand so it can
  * be dialed without waiting for a real buff. "Copy" grabs the JSON to bake as the shipped defaults; "Reset"
  * clears. Dev-only — stripped from production.
@@ -34,9 +33,12 @@ const LABELS: Record<keyof SpellBuffFxConfig, string> = {
   sparkTail: 'tail ×size',
   sparkMs: 'spark ms',
   sparkStagger: 'stagger ms',
-  pinkColor: 'pink',
-  goldColor: 'gold',
-  purpleColor: 'purple',
+  // Slot labels, not colour names — the owner's palette has already moved off pink/gold/purple once, and a
+  // hard-coded colour name in the UI goes stale the moment the picker changes. The keys stay as-is (they're
+  // the localStorage schema); only the display label is generic.
+  pinkColor: 'spark hue 1',
+  goldColor: 'spark hue 2',
+  purpleColor: 'spark hue 3',
 };
 
 export function SpellBuffFxTuner() {

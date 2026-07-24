@@ -216,7 +216,7 @@ export const Card = memo(function Card({
   dimmed?: boolean;
   /** Play a one-shot green buff flash (a recruit-phase stat buff just landed). */
   buffed?: boolean;
-  /** Play the one-shot SPELL-buff cue — an in-place grow/shrink plus a pink/gold/purple spark blast. Fired
+  /** Play the one-shot SPELL-buff cue — an in-place grow/shrink plus an outward spark blast. Fired
    *  when a hand spell's (or Ruby's) printed value just went UP, so the player sees which cards were affected. */
   /** Burst id for the SPELL-buff cue — `undefined` when not bursting, otherwise a number that INCREASES on
    *  every retrigger. It's a counter rather than a boolean so a fresh buff landing mid-burst restarts the cue
@@ -756,8 +756,8 @@ export const Card = memo(function Card({
           <span className="bb-spark" style={{ '--a': '320deg' } as CSSProperties} />
         </span>
       )}
-      {/* Spell buff — this hand spell / Ruby just got stronger: pink, gold and purple sparks blast outward off
-          it. Pairs with the `.spellbuff` grow/shrink on the card itself. */}
+      {/* Spell buff — this hand spell / Ruby just got stronger: coloured sparks blast outward off it (the three
+          hues are tuner dials). Pairs with the `.spellbuff` grow/shrink on the card itself. */}
       {spellBuffed && (
         /* Keyed on the burst id so a retrigger REMOUNTS the motes: new jitter, and every animation restarts
            from zero rather than continuing the previous burst's flight. */

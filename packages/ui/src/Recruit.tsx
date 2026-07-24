@@ -1840,7 +1840,7 @@ export function Recruit() {
     [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellMult],
   );
   // SPELL BUFF cue (owner 2026-07-23): when a hand SPELL or Ruby gets stronger, grow/shrink it and blast
-  // pink/gold/purple sparks, so the player sees exactly which cards a spell buff touched. A spell's stats never
+  // sparks outward, so the player sees exactly which cards a spell buff touched. A spell's stats never
   // change (it's a 0/1 card) — its printed VALUE is the thing that moves — so we diff the rendered live text
   // (plus stats, which is what moves on a Ruby) per uid. That catches every scaling source at once (spell power,
   // Front to Back's escalation, the Ruby stat line, Rune of Pillaging's pouch, …) without enumerating them, and

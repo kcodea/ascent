@@ -1967,7 +1967,7 @@ body.modalup .statusbar .questbadges {
   100% { box-shadow: 0 3px 0 var(--shadow); transform: none; filter: none; }
 }
 /* SPELL BUFF (owner 2026-07-23) — a hand spell (or Ruby) whose printed value just went UP: the card GROWS then
-   SHRINKS back in place while pink/gold/purple sparks blast outward off it. One-shot (~1s) and scale/transform/
+   SHRINKS back in place while coloured sparks blast outward off it (the hues are tuner dials). One-shot (~1s) and scale/transform/
    opacity only (no looping paint), so the whole cue composites.
 
    TWO structural rules here, both load-bearing — don't undo them casually:

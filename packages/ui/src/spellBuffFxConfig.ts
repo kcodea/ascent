@@ -1,7 +1,7 @@
 /**
  * Tunable parameters for the SPELL BUFF FX — the "this card in your hand just got stronger" cue (owner ask
- * 2026-07-23): a hand SPELL or Ruby whose printed value goes UP GROWS then SHRINKS back in place while pink /
- * gold / purple sparks blast outward off it.
+ * 2026-07-23): a hand SPELL or Ruby whose printed value goes UP GROWS then SHRINKS back in place while a burst
+ * of coloured sparks blasts outward off it.
  *
  * Two structural choices, both learned the hard way and load-bearing — don't undo them casually:
  *
@@ -68,7 +68,11 @@ export interface SpellBuffFxConfig {
   sparkMs: number;
   /** Sparks — largest random launch delay, so motes don't fire in lockstep (ms). */
   sparkStagger: number;
-  /** Sparks — the three cycled hues. */
+  /** Sparks — the three cycled hues, applied to motes round-robin.
+   *  NB: the KEY names are historical. The cue launched pink/gold/purple, but the owner's 2026-07-24 pass moved
+   *  the palette to cyan / amber / violet. The keys are deliberately NOT renamed — they're the localStorage
+   *  schema, and renaming them would silently orphan every saved tuner config. Treat them as hue slots 1-3 and
+   *  read the actual colours from DEFAULTS, never from the key name. */
   pinkColor: string;
   goldColor: string;
   purpleColor: string;
@@ -76,29 +80,32 @@ export interface SpellBuffFxConfig {
 
 /** Shipped starting point (dial in the ✨ tuner, then bake here). */
 const DEFAULTS: SpellBuffFxConfig = {
-  growScale: 1.12,
-  growMs: 160,
-  growEase: 0.5,
-  shrinkMs: 380,
-  shrinkEase: 0.8,
+  // Owner's tuned pass, 2026-07-24 (straight from the tuner's Copy values). A gentle, slow swell on the card
+  // — the motion is carried by the sparks, not the pop — under a wide, long-lived blast thrown from high on
+  // the card and biased upward.
+  growScale: 1.04,
+  growMs: 210,
+  growEase: 0.25,
+  shrinkMs: 460,
+  shrinkEase: 0.41,
 
-  sparkCount: 18,
-  sparkSizeMin: 5,
-  sparkSizeMax: 11,
-  blastDistMin: 70,
-  blastDistMax: 165,
-  blastSpread: 360,
-  blastOriginY: 50,
-  sparkSpeed: 0.7,
+  sparkCount: 44,
+  sparkSizeMin: 3,
+  sparkSizeMax: 13.5,
+  blastDistMin: 65,
+  blastDistMax: 335,
+  blastSpread: 270,
+  blastOriginY: 76,
+  sparkSpeed: 0.76,
   sparkGravity: 0,
   sparkAlpha: 1,
-  sparkGlow: 7,
-  sparkTail: 2.4,
-  sparkMs: 760,
-  sparkStagger: 90,
-  pinkColor: '#ff8ad8',
-  goldColor: '#ffce6e',
-  purpleColor: '#ba82ff',
+  sparkGlow: 15,
+  sparkTail: 2.1,
+  sparkMs: 1920,
+  sparkStagger: 100,
+  pinkColor: '#00ccff',
+  goldColor: '#ffaa00',
+  purpleColor: '#7300ff',
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */
@@ -146,9 +153,9 @@ export const SBF_DESC: Record<keyof SpellBuffFxConfig, string> = {
   sparkTail: 'Sparks — tail length as a multiple of the mote size (0 = no tail).',
   sparkMs: 'Sparks — a mote’s flight + fade duration (ms). Independent of the card animation.',
   sparkStagger: 'Sparks — largest random launch delay, so motes don’t fire in lockstep (ms).',
-  pinkColor: 'Sparks — the pink hue.',
-  goldColor: 'Sparks — the gold hue.',
-  purpleColor: 'Sparks — the purple hue.',
+  pinkColor: 'Sparks — hue slot 1 of 3, cycled across the motes.',
+  goldColor: 'Sparks — hue slot 2 of 3, cycled across the motes.',
+  purpleColor: 'Sparks — hue slot 3 of 3, cycled across the motes.',
 };
 
 /** Keys grouped by control type for the tuner UI. */

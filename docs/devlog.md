@@ -5,6 +5,28 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-24 (spell-buff FX — grow/shrink in place + an outward spark blast)
 
+### chore(ui): bake the owner's tuned spell-buff values as the shipped defaults
+
+Owner's tuner pass, taken verbatim from Copy values. The read: a gentle, slow swell on the card (grow 1.04 over
+210ms, shrink 460ms) so the motion is carried by the SPARKS rather than the pop — 44 motes, sizes 3–13.5, thrown
+65–335px across a 270° arc from high on the card (origin Y 76%), with a hard 0.76 launch punch, 15px glow and a
+long 1920ms life.
+
+The palette moved off pink/gold/purple to cyan `#00ccff` / amber `#ffaa00` / violet `#7300ff`. The config KEYS
+(`pinkColor`/`goldColor`/`purpleColor`) are deliberately NOT renamed — they are the localStorage schema, and
+renaming would silently orphan every saved tuner config. Instead the tuner labels became slot names ("spark hue
+1–3") and every comment claiming a specific palette was corrected, so nothing in the code asserts a colour that
+the dials can change out from under it.
+
+Note the cue's hold is now driven by the sparks: `max(210 + 460, 100 + 1920) + 160` = **2180ms**. That's a long
+tail, which is why the retrigger/restart work landing alongside it matters — a second buff inside that window
+restarts cleanly instead of being swallowed.
+
+Verified with localStorage cleared (what a real player gets — production ignores saved config entirely): 44
+sparks in the three new hues, angles spanning -130.7° to +132.4° (inside the 270° arc), origin resolving to 76.4%
+up a 115px card, grow 210ms @ 1.04, shrink 460ms, spark life 1920ms, glow 15px. Full suite (1538) + typecheck +
+lint + build:web green.
+
 ### fix(ui): spell-buff — restart on every trigger, add a blast origin Y, unbreak the Test button
 
 Three things on top of the grow/shrink + blast rework, all from the same session.

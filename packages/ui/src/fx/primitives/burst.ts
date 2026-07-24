@@ -1,8 +1,17 @@
-import { Graphics, Particle, ParticleContainer, Rectangle, Shader, type Renderer, type Texture } from 'pixi.js';
+import { Particle, ParticleContainer, Rectangle, Shader, type Texture } from 'pixi.js';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple } from '../palettes';
-import { createParticleMaterial, updateParticleMaterial, biasTint } from '../particleMaterial';
+import {
+  createParticleMaterial,
+  updateParticleMaterial,
+  updateParticleMaterialShaping,
+  setParticleTime,
+  biasTint,
+  type ParticleShaping,
+} from '../particleMaterial';
+import { FX_BLEND_MODES } from '../blendModes';
+import { SHAPE_NAMES, getShapeTexture, resolveParticleScale } from '../shapeTextures';
 import { registerPrimitive } from '../registry';
 
 /**
@@ -16,11 +25,10 @@ import { registerPrimitive } from '../registry';
  * dots — see that module's header comment for how the shader plumbs into `ParticleContainer`. Each shard's
  * `tint` no longer carries a pre-resolved palette colour (that was `tupleBiased`); it now carries a
  * greyscale "core bias" (`biasTint`) that the shader un-premultiplies and posterizes against the live
- * `uPal`/`uBands` uniforms, so a palette or band edit repaints every live shard instantly.
+ * `uPal`/`uBands` uniforms, so a palette or band edit repaints every live shard instantly. The shader also
+ * now carries the ribbon's own domain-warped-fbm shaping (noise/warp/scroll/erode/gain, see the `Texture`
+ * param group) and a soft additive `glow` — see `particleMaterial.ts`'s `PARTICLE_FRAG` for the shared math.
  */
-
-/** The shard's long axis in local px at scale 1 — `size` maps onto this via `size / SHARD_LONG_AXIS`. */
-const SHARD_LONG_AXIS = 24;
 
 /** Hard cap on simultaneously-live particles so a fast interval + high count can't grow unbounded. */
 const MAX_LIVE = 800;
@@ -28,30 +36,6 @@ const MAX_LIVE = 800;
 /** ms/frame at 60fps — `drag` is specified as "per-16.7ms retention", so `drag^(dtMs / DRAG_REF_MS)`
  *  normalises it to whatever the actual frame delta is. */
 const DRAG_REF_MS = 1000 / 60;
-
-/**
- * One small white shard texture, generated once per `Renderer` and shared across every burst instance
- * (tinted per-particle at draw time via `Particle.tint`). Cached in a `WeakMap` keyed by renderer so a
- * second renderer (a second workbench preview, a test) gets its own texture, and so the cache doesn't
- * outlive the renderer it belongs to. Never destroyed by an instance's `destroy()` — only the renderer
- * going away would invalidate it, and nothing here owns the renderer.
- */
-const shardTextureCache = new WeakMap<Renderer, Texture>();
-
-function getShardTexture(renderer: Renderer): Texture {
-  const cached = shardTextureCache.get(renderer);
-  if (cached) return cached;
-  const half = SHARD_LONG_AXIS / 2;
-  const g = new Graphics()
-    // A shallow elongated diamond / chevron, long axis along +x, centered on the origin (so a particle
-    // with anchor 0.5/0.5 spins and scales about its own middle, and `rotation` aims it along travel).
-    .poly([-half, 0, -half * 0.35, -half * 0.58, half, 0, -half * 0.35, half * 0.58])
-    .fill(0xffffff);
-  const texture = renderer.generateTexture({ target: g, resolution: 2 });
-  g.destroy();
-  shardTextureCache.set(renderer, texture);
-  return texture;
-}
 
 /**
  * Sample one particle's emission angle (radians). `spread` 1 = full circle, independent of `travelAngle`;
@@ -94,8 +78,21 @@ const SPECS = {
   },
   life: { kind: 'slider', label: 'Life', group: 'Motion', min: 120, max: 1500, step: 10, default: 450, help: 'Particle lifetime ms.' },
 
-  size: { kind: 'slider', label: 'Size', group: 'Style', min: 2, max: 40, step: 1, default: 9 },
-  sizeVar: { kind: 'slider', label: 'Size var', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.5 },
+  shape: {
+    kind: 'enum', label: 'Shape', group: 'Shape', options: SHAPE_NAMES, default: 'shard',
+    help: 'Every live particle in the burst shares one base texture, so this swaps all of them at once.',
+  },
+  size: { kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 40, step: 1, default: 9 },
+  sizeVar: { kind: 'slider', label: 'Size var', group: 'Shape', min: 0, max: 1, step: 0.01, default: 0.5 },
+  stretchX: {
+    kind: 'slider', label: 'Stretch X', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
+    help: 'Per-particle width multiplier on top of Size — 1 = the shape\'s own baked proportions.',
+  },
+  stretchY: {
+    kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
+    help: 'Per-particle height multiplier on top of Size.',
+  },
+
   coreBias: {
     kind: 'slider', label: 'Core bias', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.5,
     help: '0 = rim colour, 1 = white core.',
@@ -108,10 +105,33 @@ const SPECS = {
     kind: 'palette', label: 'Palette', group: 'Style',
     default: paletteTuple('violet'), presets: PALETTE_PRESETS,
   },
-  additive: { kind: 'toggle', label: 'Additive', group: 'Style', default: true },
+  blendMode: { kind: 'enum', label: 'Blend mode', group: 'Style', options: FX_BLEND_MODES, default: 'add' },
+  glow: {
+    kind: 'slider', label: 'Glow', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.25,
+    help: 'Soft additive halo behind each particle.',
+  },
+
+  noiseScale: {
+    kind: 'slider', label: 'Noise scale', group: 'Texture', min: 0.5, max: 20, step: 0.1, default: 6,
+    help: 'Domain-warped fbm frequency across each particle — the ribbon\'s uNoise, isotropic here.',
+  },
+  warp: { kind: 'slider', label: 'Warp', group: 'Texture', min: 0, max: 1.5, step: 0.01, default: 0.35 },
+  scroll: { kind: 'slider', label: 'Scroll', group: 'Texture', min: 0, max: 6, step: 0.05, default: 1.4 },
+  erode: {
+    kind: 'slider', label: 'Erode', group: 'Texture', min: 0, max: 1.2, step: 0.01, default: 0.35,
+    help: 'How much the noise eats into each particle\'s shape — higher gives a more tattered edge.',
+  },
+  gain: { kind: 'slider', label: 'Gain', group: 'Texture', min: 0.3, max: 2, step: 0.01, default: 1.4 },
 } satisfies FxParamSpecs;
 
 type BurstParams = ParamsOf<typeof SPECS>;
+
+/** Pull the ribbon-derived shaping uniforms out of a `BurstParams` into the shape `particleMaterial.ts`
+ *  wants. Kept as one small helper (rather than inlined at each of the constructor/setParams call sites)
+ *  so the two call sites can't drift on which fields map to `noise.x` vs `noise.y`. */
+function shapingOf(p: BurstParams): ParticleShaping {
+  return { noise: [p.noiseScale, p.noiseScale], warp: p.warp, scroll: p.scroll, erode: p.erode, gain: p.gain };
+}
 
 /** Per-particle bookkeeping the `Particle` struct itself doesn't carry (velocity, spin, age/life). Kept as
  *  a flat array of plain objects, mutated in place every frame — no per-frame allocation. */
@@ -122,12 +142,14 @@ interface LiveParticle {
   spin: number; // rad/sec
   age: number; // ms
   maxLife: number; // ms
-  baseScale: number;
+  scaleX0: number;
+  scaleY0: number;
 }
 
 class BurstInstance implements FxInstance<BurstParams> {
   private readonly pc: ParticleContainer;
-  private readonly texture: Texture;
+  private readonly renderer: FxContext['renderer'];
+  private texture: Texture;
   private readonly shader: Shader;
   private params: BurstParams;
   private readonly live: LiveParticle[] = [];
@@ -139,18 +161,20 @@ class BurstInstance implements FxInstance<BurstParams> {
   private firstEmitDone = false;
   private travelAngle = 0; // radians; last known non-zero travel direction, aims the cone when spread < 1
   private timer = 0; // ms since last emit
+  private clockSec = 0; // drives the shader's uTime — see setParticleTime's own comment
 
   constructor(ctx: FxContext, params: BurstParams) {
     this.params = params;
-    this.texture = getShardTexture(ctx.renderer);
-    this.shader = createParticleMaterial(ctx.renderer, params.palette, params.bands);
+    this.renderer = ctx.renderer;
+    this.texture = getShapeTexture(ctx.renderer, params.shape);
+    this.shader = createParticleMaterial(ctx.renderer, params.palette, params.bands, shapingOf(params), params.glow);
     this.pc = new ParticleContainer({
       texture: this.texture,
       shader: this.shader,
       boundsArea: new Rectangle(-2000, -2000, 4000, 4000),
       dynamicProperties: { position: true, rotation: true, color: true, vertex: true },
     });
-    this.pc.blendMode = params.additive ? 'add' : 'normal';
+    this.pc.blendMode = params.blendMode;
     ctx.container.addChild(this.pc);
     // Deliberately no emit here. `headX/headY` default to (0, 0) until the first real `setHead()` call,
     // and the real caller (`FxPlayer.update` → this instance's `update()`, THEN `FxPlayer.setHead` →
@@ -182,7 +206,7 @@ class BurstInstance implements FxInstance<BurstParams> {
       const angle = sampleBurstAngle(this.travelAngle, p.spread, Math.random);
       const speed = p.speed * (1 + (Math.random() * 2 - 1) * p.speedVar);
       const size = Math.max(0.5, p.size * (1 + (Math.random() * 2 - 1) * p.sizeVar));
-      const baseScale = size / SHARD_LONG_AXIS;
+      const { scaleX: scaleX0, scaleY: scaleY0 } = resolveParticleScale(size, p.stretchX, p.stretchY);
       // Greyscale core-bias tint (NOT a resolved palette colour — the shader posterizes into the live
       // uPal/uBands uniforms per-pixel, see particleMaterial.ts). Same distribution as before: uniform in
       // [0, coreBias], so `coreBias` still reads as "how deep toward the white core this burst reaches".
@@ -194,8 +218,8 @@ class BurstInstance implements FxInstance<BurstParams> {
         anchorX: 0.5,
         anchorY: 0.5,
         rotation: angle,
-        scaleX: baseScale,
-        scaleY: baseScale,
+        scaleX: scaleX0,
+        scaleY: scaleY0,
         tint,
         alpha: 1,
       });
@@ -206,13 +230,19 @@ class BurstInstance implements FxInstance<BurstParams> {
         spin: (Math.random() * 2 - 1) * 6,
         age: 0,
         maxLife: Math.max(1, p.life),
-        baseScale,
+        scaleX0,
+        scaleY0,
       });
       children.push(particle);
     }
   }
 
   update(dtMs: number): void {
+    this.clockSec += dtMs / 1000;
+    // One uniform write per frame regardless of live particle count (not per-particle) — see
+    // `setParticleTime`'s own comment for why this is cheap.
+    setParticleTime(this.shader, this.clockSec);
+
     const dtSec = dtMs / 1000;
     const dragF = Math.pow(this.params.drag, dtMs / DRAG_REF_MS);
     const gravity = this.params.gravity;
@@ -238,9 +268,8 @@ class BurstInstance implements FxInstance<BurstParams> {
 
       const frac = 1 - lp.age / lp.maxLife; // 1 -> 0 over life
       particle.alpha = frac * frac;
-      const scale = lp.baseScale * frac;
-      particle.scaleX = scale;
-      particle.scaleY = scale;
+      particle.scaleX = lp.scaleX0 * frac;
+      particle.scaleY = lp.scaleY0 * frac;
 
       if (write !== i) live[write] = lp;
       children[write] = particle;
@@ -271,15 +300,26 @@ class BurstInstance implements FxInstance<BurstParams> {
   }
 
   setParams(next: BurstParams): void {
+    const shapeChanged = next.shape !== this.params.shape;
     this.params = next;
-    this.pc.blendMode = next.additive ? 'add' : 'normal';
-    updateParticleMaterial(this.shader, next.palette, next.bands);
+    this.pc.blendMode = next.blendMode;
+    updateParticleMaterial(this.shader, next.palette, next.bands, next.glow);
+    updateParticleMaterialShaping(this.shader, shapingOf(next));
+    if (shapeChanged) {
+      // A ParticleContainer shares exactly ONE base texture across every live particle (see
+      // `shapeTextures.ts`'s `getShapeTexture` header comment), so every shard/mote already in flight
+      // changes shape on the same frame as new ones — there's no way to have some particles keep the old
+      // shape without a second container, and nothing in this workbench needs that.
+      this.texture = getShapeTexture(this.renderer, next.shape);
+      this.pc.texture = this.texture;
+    }
   }
 
   destroy(): void {
-    // The ParticleContainer and our own shader are ours to free. The shard texture is shared across every
-    // burst instance (cached per-renderer above) and must outlive any single instance's destroy() — and it
-    // does: `ParticleContainer.destroy({ children: true })` only destroys the container/particle structs
+    // The ParticleContainer and our own shader are ours to free. Shape textures are shared across every
+    // burst/emitter instance (cached per-renderer in `shapeTextures.ts`) and must outlive any single
+    // instance's destroy() — and it does: `ParticleContainer.destroy({ children: true })` only destroys
+    // the container/particle structs
     // (`children: true` here means "also destroy the Particle instances", not the shared texture — see
     // ParticleContainer.destroy()'s `destroyTexture` branch, which we never opt into), and `Shader.destroy`
     // never touches its texture resources (only `resources`/`groups` refs and, with `true`, the compiled GL

@@ -10,6 +10,16 @@ describe('emitter param specs', () => {
   it('registers under the id "emitter"', () => {
     expect(emitterPrimitive.id).toBe('emitter');
   });
+
+  // Guards against the "I don't see any of the ribbon's options applied to burst/emitter" gap regressing —
+  // see burst.test.ts's identical check for the sibling primitive.
+  it('exposes the ribbon-derived shaping params, shape+stretch, and blendMode+glow (not the old additive toggle)', () => {
+    const keys = Object.keys(emitterPrimitive.params);
+    for (const k of ['noiseScale', 'warp', 'scroll', 'erode', 'gain', 'shape', 'stretchX', 'stretchY', 'blendMode', 'glow']) {
+      expect(keys).toContain(k);
+    }
+    expect(keys).not.toContain('additive');
+  });
 });
 
 describe('advanceEmitBudget', () => {

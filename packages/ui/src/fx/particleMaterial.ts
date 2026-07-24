@@ -1,5 +1,5 @@
 import { Shader, Texture, TextureStyle, type Renderer } from 'pixi.js';
-import { POSTERIZE_PAL_GLSL } from './shaderChunks';
+import { NOISE_GLSL, POSTERIZE_PAL_GLSL } from './shaderChunks';
 import { tupleFloats } from './palettes';
 
 /**
@@ -97,6 +97,12 @@ void main(void) {
  * (palette swap, band count) repaints every live particle instantly without touching per-particle data.
  * `vColor.a` carries the particle's own life-alpha (its fade in/out), applied as a final multiply so a
  * fading particle dims through the same posterized bands rather than just going transparent uniformly.
+ *
+ * The `uNoise`/`uWarp`/`uScroll`/`uErode`/`uGain`/`uTime` block below is the ribbon's own domain-warped fbm
+ * shaping (see `ribbon.ts`'s `RIBBON_FRAG` header comment), ported onto each particle so shards/motes get
+ * the same animated tattered-energy erosion instead of a flat cel silhouette — this is the "I don't see any
+ * of the ribbon's options applied to burst/emitter" gap this module exists to close. `uGlow` adds a soft
+ * additive halo (see the comment on the `glow` term below for exactly what it does and doesn't do).
  */
 const PARTICLE_FRAG = /* glsl */ `#version 300 es
 precision highp float;
@@ -107,7 +113,15 @@ out vec4 finalColor;
 uniform sampler2D uTexture;
 uniform float uBands;
 uniform vec4 uPal[4];
+uniform vec2 uNoise;
+uniform float uWarp;
+uniform float uScroll;
+uniform float uErode;
+uniform float uGain;
+uniform float uTime;
+uniform float uGlow;
 
+${NOISE_GLSL}
 ${POSTERIZE_PAL_GLSL}
 
 void main(void) {
@@ -126,32 +140,88 @@ void main(void) {
 
   // Bias reshapes how deep into the palette this particle's shape falloff reaches: a low-bias particle caps
   // out in the rim bands even at full shape strength, a high-bias one can reach the white-hot core stop.
-  float intensity = shape * mix(0.32, 1.05, bias);
-  vec4 c = posterizePal(intensity, uBands, uPal);
+  float baseShape = shape * mix(0.32, 1.05, bias);
 
-  finalColor = vec4(c.rgb, 1.0) * (c.a * lifeAlpha);
+  // Domain-warped scrolling fbm, exactly RIBBON_FRAG's recipe (uNoise/uScroll/uWarp/uErode over fbm(p)),
+  // just reading vUV (the particle's own local 0..1 quad UV) in place of the ribbon's spine-length UV.
+  // bias doubles as a free per-particle phase (see the header comment) so a container's live particles
+  // don't all shimmer in lockstep off one shared uTime -- two particles only share a phase if they also
+  // happen to share the same core-bias tint.
+  vec2 p = vUV * uNoise - uTime * uScroll + vec2(bias * 41.7, bias * 17.3);
+  p += (vec2(fbm(p * 1.7), fbm(p * 1.7 + 19.3)) - 0.5) * uWarp;
+  float n = fbm(p);
+
+  // Same erode/gain math as RIBBON_FRAG's "d = shape - n * uErode" / "q = clamp(d / gain, 0, 1)": the noise
+  // eats into the shape before it's posterized, giving the tattered edge instead of a clean silhouette.
+  // Unlike the ribbon, a fully-eroded pixel here does NOT discard — it falls through to the glow term below
+  // instead of cutting to nothing, so an eroded particle fades through its own halo rather than vanishing.
+  float d = baseShape * uGain - n * uErode;
+  float coreQ = clamp(d / max(uGain, 0.001), 0.0, 1.0);
+  vec4 c = d > 0.0 ? posterizePal(coreQ, uBands, uPal) : vec4(0.0);
+
+  // Soft additive halo: the RAW (pre-erosion) shape alpha, tinted toward the palette's hottest stop and
+  // added under the hard posterized core -- "a soft additive halo behind each particle" (the glow param's
+  // own help text). Deliberately computed from shape, not d, so it survives exactly where erosion just
+  // discarded the hard core above, and deliberately confined to the particle's own texture footprint (no
+  // second, larger draw pass) -- see burst.ts/emitter.ts's glow param spec for why that tradeoff was made.
+  vec3 glow = uPal[3].rgb * shape * uGlow;
+  float glowAlpha = clamp(shape * uGlow, 0.0, 1.0);
+
+  float alpha = clamp((d > 0.0 ? c.a : 0.0) + glowAlpha, 0.0, 1.0);
+  if (alpha < 0.003) discard;
+
+  finalColor = vec4(c.rgb + glow, 1.0) * (alpha * lifeAlpha);
 }
 `;
 
-/** The resource key holding this shader's own `uBands`/`uPal` uniforms — deliberately NOT named `uniforms`,
- *  which is the key the particle pipe overwrites every frame (see the header comment above). */
+/** The resource key holding this shader's own `uBands`/`uPal`/shaping uniforms — deliberately NOT named
+ *  `uniforms`, which is the key the particle pipe overwrites every frame (see the header comment above). */
 const FX_UNIFORMS_KEY = 'fxUniforms';
 
 interface FxUniformsResource {
-  uniforms: { uBands: number; uPal: Float32Array };
+  uniforms: {
+    uBands: number;
+    uPal: Float32Array;
+    uGlow: number;
+    uNoise: Float32Array;
+    uWarp: number;
+    uScroll: number;
+    uErode: number;
+    uGain: number;
+    uTime: number;
+  };
+}
+
+/** The ribbon-derived shaping uniforms (see `ribbon.ts`'s `uNoise`/`uWarp`/`uScroll`/`uErode`/`uGain`),
+ *  minus `uTime` — time is driven every frame via `setParticleTime` instead, since it's a per-frame value
+ *  rather than a per-edit one (see that function's own comment). `noise` is the vec2 `uNoise` uniform as a
+ *  plain `[x, y]` tuple. */
+export interface ParticleShaping {
+  noise: readonly [number, number];
+  warp: number;
+  scroll: number;
+  erode: number;
+  gain: number;
 }
 
 /**
  * Build the posterized-cel particle shader. `renderer` is threaded through for API symmetry with this
- * module's sibling FX factories (e.g. `getShardTexture(ctx.renderer)` in burst.ts) and as the hook point
- * for a future WebGPU/WGSL variant; this shader is GL-only today (no `gpu` program supplied), matching
- * `ribbon.ts`'s own `Shader.from({ gl: {...} })` convention — the FX workbench doesn't target WebGPU.
+ * module's sibling FX factories (e.g. `getShapeTexture(ctx.renderer, ...)` in `shapeTextures.ts`) and as the
+ * hook point for a future WebGPU/WGSL variant; this shader is GL-only today (no `gpu` program supplied),
+ * matching `ribbon.ts`'s own `Shader.from({ gl: {...} })` convention — the FX workbench doesn't target
+ * WebGPU.
  *
- * `initialPal` is a 4-stop rim→core tuple (see `palettes.ts`'s `paletteTuple`/`tupleFloats`); `initialBands`
- * is the posterization step count. Both are re-set on every live param edit via `updateParticleMaterial`,
- * so what's passed here only matters for the first frame before any edit.
+ * `initialPal`/`initialBands`/`initialGlow` and `initialShaping` are all re-set on every live param edit via
+ * `updateParticleMaterial`/`updateParticleMaterialShaping`, so what's passed here only matters for the first
+ * frame before any edit.
  */
-export function createParticleMaterial(_renderer: Renderer, initialPal: readonly number[], initialBands: number): Shader {
+export function createParticleMaterial(
+  _renderer: Renderer,
+  initialPal: readonly number[],
+  initialBands: number,
+  initialShaping: ParticleShaping,
+  initialGlow: number,
+): Shader {
   // Placeholder texture/sampler: `uTexture` is unconditionally replaced with the ParticleContainer's real
   // shared texture before every draw (see header comment), and `uSampler` is never read by the WebGL sync
   // path at all — Texture.WHITE is simply a cheap always-available texture to satisfy Shader.from's
@@ -173,17 +243,46 @@ export function createParticleMaterial(_renderer: Renderer, initialPal: readonly
       [FX_UNIFORMS_KEY]: {
         uBands: { value: initialBands, type: 'f32' },
         uPal: { value: tupleFloats(initialPal), type: 'vec4<f32>', size: 4 },
+        uGlow: { value: initialGlow, type: 'f32' },
+        uNoise: { value: new Float32Array(initialShaping.noise), type: 'vec2<f32>' },
+        uWarp: { value: initialShaping.warp, type: 'f32' },
+        uScroll: { value: initialShaping.scroll, type: 'f32' },
+        uErode: { value: initialShaping.erode, type: 'f32' },
+        uGain: { value: initialShaping.gain, type: 'f32' },
+        uTime: { value: 0, type: 'f32' },
       },
     },
   });
 }
 
-/** Push a live param edit (palette swap, band-count change) onto an already-built particle material. Cheap
- *  and instant, same role as `ribbon.ts`'s `setParams` → `u.uPal = tupleFloats(next.palette)`. */
-export function updateParticleMaterial(shader: Shader, pal: readonly number[], bands: number): void {
+/** Push a live param edit (palette swap, band-count change, glow) onto an already-built particle material.
+ *  Cheap and instant, same role as `ribbon.ts`'s `setParams` → `u.uPal = tupleFloats(next.palette)`. */
+export function updateParticleMaterial(shader: Shader, pal: readonly number[], bands: number, glow: number): void {
   const res = shader.resources[FX_UNIFORMS_KEY] as FxUniformsResource;
   res.uniforms.uBands = bands;
   res.uniforms.uPal = tupleFloats(pal);
+  res.uniforms.uGlow = glow;
+}
+
+/** Push a live edit of the ribbon-derived shaping uniforms (noise/warp/scroll/erode/gain) — kept as its own
+ *  function, separate from `updateParticleMaterial`, purely to mirror how the params are grouped in the
+ *  inspector (a dedicated "Texture" group) rather than any technical necessity. */
+export function updateParticleMaterialShaping(shader: Shader, shaping: ParticleShaping): void {
+  const res = shader.resources[FX_UNIFORMS_KEY] as FxUniformsResource;
+  res.uniforms.uNoise = new Float32Array(shaping.noise);
+  res.uniforms.uWarp = shaping.warp;
+  res.uniforms.uScroll = shaping.scroll;
+  res.uniforms.uErode = shaping.erode;
+  res.uniforms.uGain = shaping.gain;
+}
+
+/** Advance the shared shader's clock. Unlike `updateParticleMaterial`/`updateParticleMaterialShaping` (which
+ *  only fire on an inspector edit), this is on the per-frame hot path — called once per primitive instance
+ *  per `update(dtMs)`, NOT once per particle, so it's a single uniform write regardless of how many
+ *  particles are live. Mirrors `ribbon.ts`'s own `this.uniforms.uTime = this.clockSec` in its `update()`. */
+export function setParticleTime(shader: Shader, seconds: number): void {
+  const res = shader.resources[FX_UNIFORMS_KEY] as FxUniformsResource;
+  res.uniforms.uTime = seconds;
 }
 
 /**

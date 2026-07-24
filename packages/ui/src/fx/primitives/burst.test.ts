@@ -10,11 +10,22 @@ describe('burst param specs', () => {
   it('registers under the id "burst"', () => {
     expect(burstPrimitive.id).toBe('burst');
   });
+
+  // Guards against the "I don't see any of the ribbon's options applied to burst/emitter" gap regressing:
+  // the ribbon-derived shaping (Texture group), shape/stretch, and blendMode/glow params must actually be
+  // present, not just self-consistent (which the invariant test above already covers generically).
+  it('exposes the ribbon-derived shaping params, shape+stretch, and blendMode+glow (not the old additive toggle)', () => {
+    const keys = Object.keys(burstPrimitive.params);
+    for (const k of ['noiseScale', 'warp', 'scroll', 'erode', 'gain', 'shape', 'stretchX', 'stretchY', 'blendMode', 'glow']) {
+      expect(keys).toContain(k);
+    }
+    expect(keys).not.toContain('additive');
+  });
 });
 
 // Note: the "first wave waits for a real setHead() before emitting" fix (see BurstInstance.update /
 // setHead in burst.ts) isn't unit-tested here — that state machine (headSet / firstEmitDone) lives
-// entirely inside BurstInstance, which requires a real Renderer to construct (getShardTexture calls
+// entirely inside BurstInstance, which requires a real Renderer to construct (getShapeTexture calls
 // renderer.generateTexture in the constructor), so it can't be exercised without a WebGL context. It's
 // covered by the coordinator's manual/visual verification instead.
 

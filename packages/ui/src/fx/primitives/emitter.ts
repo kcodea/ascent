@@ -1,8 +1,17 @@
-import { Graphics, Particle, ParticleContainer, Rectangle, Shader, type Renderer, type Texture } from 'pixi.js';
+import { Particle, ParticleContainer, Rectangle, Shader, type Texture } from 'pixi.js';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple } from '../palettes';
-import { createParticleMaterial, updateParticleMaterial, biasTint } from '../particleMaterial';
+import {
+  createParticleMaterial,
+  updateParticleMaterial,
+  updateParticleMaterialShaping,
+  setParticleTime,
+  biasTint,
+  type ParticleShaping,
+} from '../particleMaterial';
+import { FX_BLEND_MODES } from '../blendModes';
+import { SHAPE_NAMES, getShapeTexture, resolveParticleScale } from '../shapeTextures';
 import { registerPrimitive } from '../registry';
 
 /**
@@ -15,31 +24,10 @@ import { registerPrimitive } from '../registry';
  * Rendered with the shared posterized-cel particle shader (`particleMaterial.ts`) instead of the default
  * particle shader — see `burst.ts`'s header comment (which explains the same wiring) and
  * `particleMaterial.ts` itself for how the shader plumbs into `ParticleContainer`. Motes' `tint` carries a
- * greyscale core-bias (`biasTint`), not a resolved palette colour.
+ * greyscale core-bias (`biasTint`), not a resolved palette colour. The shader also now carries the ribbon's
+ * own domain-warped-fbm shaping (noise/warp/scroll/erode/gain, see the `Texture` param group) and a soft
+ * additive `glow` — see `particleMaterial.ts`'s `PARTICLE_FRAG` for the shared math.
  */
-
-/**
- * The shared soft-round-dot texture every emitter instance tints per-particle. Generated once per renderer
- * (a Graphics circle baked via `generateTexture`, not re-inlined per instance) and cached at module scope —
- * instances never destroy it, only their own `ParticleContainer`. Keyed in a `WeakMap` by renderer identity
- * (matching `burst.ts`'s `shardTextureCache`), so a second renderer (a second workbench preview, a test)
- * gets its own texture instead of silently reusing — and leaking — the first one's, and the entry falls out
- * on its own once the renderer it belongs to is gone.
- */
-const moteTextureCache = new WeakMap<Renderer, Texture>();
-
-function getMoteTexture(renderer: Renderer): Texture {
-  const cached = moteTextureCache.get(renderer);
-  if (cached) return cached;
-  const g = new Graphics();
-  // Soft edge: a faint wide underlay + a bright core, both plain fills (no per-frame cost — baked once).
-  g.circle(0, 0, 16).fill({ color: 0xffffff, alpha: 0.35 });
-  g.circle(0, 0, 9).fill({ color: 0xffffff, alpha: 1 });
-  const texture = renderer.generateTexture({ target: g, resolution: 2 });
-  g.destroy();
-  moteTextureCache.set(renderer, texture);
-  return texture;
-}
 
 const SPECS = {
   rate: {
@@ -62,8 +50,21 @@ const SPECS = {
     help: 'px/sec² (negative = rise, like embers).',
   },
 
-  size: { kind: 'slider', label: 'Size', group: 'Style', min: 2, max: 30, step: 1, default: 7 },
-  sizeVar: { kind: 'slider', label: 'Size var', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.4 },
+  shape: {
+    kind: 'enum', label: 'Shape', group: 'Shape', options: SHAPE_NAMES, default: 'circle',
+    help: 'Every live particle in the stream shares one base texture, so this swaps all of them at once.',
+  },
+  size: { kind: 'slider', label: 'Size', group: 'Shape', min: 2, max: 30, step: 1, default: 7 },
+  sizeVar: { kind: 'slider', label: 'Size var', group: 'Shape', min: 0, max: 1, step: 0.01, default: 0.4 },
+  stretchX: {
+    kind: 'slider', label: 'Stretch X', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
+    help: 'Per-particle width multiplier on top of Size — 1 = the shape\'s own baked proportions.',
+  },
+  stretchY: {
+    kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
+    help: 'Per-particle height multiplier on top of Size.',
+  },
+
   coreBias: {
     kind: 'slider', label: 'Core bias', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.5,
     help: '0 = rim colour, 1 = white core.',
@@ -80,16 +81,36 @@ const SPECS = {
     kind: 'palette', label: 'Palette', group: 'Style',
     default: paletteTuple('violet'), presets: PALETTE_PRESETS,
   },
-  additive: { kind: 'toggle', label: 'Additive', group: 'Style', default: true },
+  blendMode: { kind: 'enum', label: 'Blend mode', group: 'Style', options: FX_BLEND_MODES, default: 'add' },
+  glow: {
+    kind: 'slider', label: 'Glow', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.25,
+    help: 'Soft additive halo behind each particle.',
+  },
+
+  noiseScale: {
+    kind: 'slider', label: 'Noise scale', group: 'Texture', min: 0.5, max: 20, step: 0.1, default: 6,
+    help: 'Domain-warped fbm frequency across each particle — the ribbon\'s uNoise, isotropic here.',
+  },
+  warp: { kind: 'slider', label: 'Warp', group: 'Texture', min: 0, max: 1.5, step: 0.01, default: 0.35 },
+  scroll: { kind: 'slider', label: 'Scroll', group: 'Texture', min: 0, max: 6, step: 0.05, default: 1.4 },
+  erode: {
+    kind: 'slider', label: 'Erode', group: 'Texture', min: 0, max: 1.2, step: 0.01, default: 0.35,
+    help: 'How much the noise eats into each particle\'s shape — higher gives a more tattered edge.',
+  },
+  gain: { kind: 'slider', label: 'Gain', group: 'Texture', min: 0.3, max: 2, step: 0.01, default: 1.4 },
 } satisfies FxParamSpecs;
 
 type EmitterParams = ParamsOf<typeof SPECS>;
 
+/** Pull the ribbon-derived shaping uniforms out of an `EmitterParams` into the shape `particleMaterial.ts`
+ *  wants. Kept as one small helper (mirrors `burst.ts`'s own `shapingOf`) so the two call sites can't drift
+ *  on which fields map to `noise.x` vs `noise.y`. */
+function shapingOf(p: EmitterParams): ParticleShaping {
+  return { noise: [p.noiseScale, p.noiseScale], warp: p.warp, scroll: p.scroll, erode: p.erode, gain: p.gain };
+}
+
 /** Hard cap on live motes regardless of rate/life, so a pathological param combo can't grow unbounded. */
 const MAX_MOTES = 1200;
-
-/** The texture's baked radius (see `getMoteTexture`) — a particle's `size` param maps to scale via this. */
-const MOTE_TEXTURE_RADIUS = 16;
 
 /**
  * Advance the fractional emit budget by `rate * dtSec` and pull out the whole number of motes to spawn
@@ -125,18 +146,21 @@ interface Mote {
   age: number;
   maxLife: number;
   fadeIn: number;
-  baseScale: number;
+  scaleX0: number;
+  scaleY0: number;
 }
 
 class EmitterInstance implements FxInstance<EmitterParams> {
   private readonly particles: ParticleContainer;
-  private readonly texture: Texture;
+  private readonly renderer: FxContext['renderer'];
+  private texture: Texture;
   private readonly shader: Shader;
   private params: EmitterParams;
   private readonly motes: Mote[] = [];
   private originX = 0;
   private originY = 0;
   private headSet = false;
+  private clockSec = 0; // drives the shader's uTime — see setParticleTime's own comment
   // Reused scratch object for the emit-budget accumulation — `advanceEmitBudget` (kept pure below for the
   // test suite) would otherwise allocate a fresh `{ budget, spawnCount }` literal every single frame. This
   // mirrors `ribbon.ts`'s cached `shape` scratch object: same values, written in place instead of returned.
@@ -144,8 +168,9 @@ class EmitterInstance implements FxInstance<EmitterParams> {
 
   constructor(ctx: FxContext, params: EmitterParams) {
     this.params = params;
-    this.texture = getMoteTexture(ctx.renderer);
-    this.shader = createParticleMaterial(ctx.renderer, params.palette, params.bands);
+    this.renderer = ctx.renderer;
+    this.texture = getShapeTexture(ctx.renderer, params.shape);
+    this.shader = createParticleMaterial(ctx.renderer, params.palette, params.bands, shapingOf(params), params.glow);
     this.particles = new ParticleContainer({
       texture: this.texture,
       shader: this.shader,
@@ -154,7 +179,7 @@ class EmitterInstance implements FxInstance<EmitterParams> {
       boundsArea: new Rectangle(-2000, -2000, 4000, 4000),
       dynamicProperties: { position: true, rotation: false, color: true, vertex: true },
     });
-    this.particles.blendMode = params.additive ? 'add' : 'normal';
+    this.particles.blendMode = params.blendMode;
     ctx.container.addChild(this.particles);
   }
 
@@ -165,6 +190,11 @@ class EmitterInstance implements FxInstance<EmitterParams> {
   }
 
   update(dtMs: number): void {
+    this.clockSec += dtMs / 1000;
+    // One uniform write per frame regardless of live mote count (not per-mote) — see `setParticleTime`'s
+    // own comment for why this is cheap.
+    setParticleTime(this.shader, this.clockSec);
+
     const dtSec = dtMs / 1000;
     const p = this.params;
     const motes = this.motes;
@@ -182,9 +212,9 @@ class EmitterInstance implements FxInstance<EmitterParams> {
       m.p.y += m.vy * dtSec;
       const t = m.age / m.maxLife;
       m.p.alpha = moteAlpha(t, m.fadeIn);
-      const scale = m.baseScale * (1 - 0.25 * t); // gentle shrink over life
-      m.p.scaleX = scale;
-      m.p.scaleY = scale;
+      const shrink = 1 - 0.25 * t; // gentle shrink over life
+      m.p.scaleX = m.scaleX0 * shrink;
+      m.p.scaleY = m.scaleY0 * shrink;
       if (write !== i) motes[write] = m;
       children[write] = m.p;
       write++;
@@ -215,15 +245,25 @@ class EmitterInstance implements FxInstance<EmitterParams> {
   }
 
   setParams(next: EmitterParams): void {
+    const shapeChanged = next.shape !== this.params.shape;
     this.params = next;
-    this.particles.blendMode = next.additive ? 'add' : 'normal';
-    updateParticleMaterial(this.shader, next.palette, next.bands);
+    this.particles.blendMode = next.blendMode;
+    updateParticleMaterial(this.shader, next.palette, next.bands, next.glow);
+    updateParticleMaterialShaping(this.shader, shapingOf(next));
+    if (shapeChanged) {
+      // A ParticleContainer shares exactly ONE base texture across every live particle (see
+      // `shapeTextures.ts`'s `getShapeTexture` header comment), so every mote already in flight changes
+      // shape on the same frame as new ones — there's no way to have some particles keep the old shape
+      // without a second container, and nothing in this workbench needs that.
+      this.texture = getShapeTexture(this.renderer, next.shape);
+      this.particles.texture = this.texture;
+    }
   }
 
   destroy(): void {
-    // The dot texture is shared across every emitter instance (see `getMoteTexture`) — destroying it here
-    // would break every other live/future emitter. Only the container (and the Particle structs it alone
-    // owns) and our own shader belong to this instance.
+    // The shape texture is shared across every burst/emitter instance (see `shapeTextures.ts`'s
+    // `getShapeTexture`) — destroying it here would break every other live/future primitive. Only the
+    // container (and the Particle structs it alone owns) and our own shader belong to this instance.
     //
     // Order matters — see burst.ts's `destroy()` for the full explanation: `ParticleContainer.destroy()`
     // also calls `this.shader?.destroy()` internally (destroyPrograms=false) since we handed it our shader
@@ -260,9 +300,9 @@ class EmitterInstance implements FxInstance<EmitterParams> {
       tint: biasTint(bias),
       alpha: 0,
     });
-    const baseScale = size / MOTE_TEXTURE_RADIUS;
-    particle.scaleX = baseScale;
-    particle.scaleY = baseScale;
+    const { scaleX: scaleX0, scaleY: scaleY0 } = resolveParticleScale(size, p.stretchX, p.stretchY);
+    particle.scaleX = scaleX0;
+    particle.scaleY = scaleY0;
 
     return {
       p: particle,
@@ -271,7 +311,8 @@ class EmitterInstance implements FxInstance<EmitterParams> {
       age: 0,
       maxLife: p.life,
       fadeIn: p.fadeIn,
-      baseScale,
+      scaleX0,
+      scaleY0,
     };
   }
 }

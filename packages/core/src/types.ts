@@ -140,6 +140,10 @@ export type EffectFactoryId =
   | 'rallyGrantMagnetic' // Mechanical Jouster — Rally: when this attacks, add a random Magnetic Mech to hand
   | 'rallyProcDeathrattle' // Rally: when this attacks, fire your leftmost minion's Deathrattle first (Deathsayer)
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
+  | 'battlecryGrantRandomSpell' // Hoard Chronicler: Shout — add random Tavern spells to hand
+  | 'battlecryCopyCastSpell' // Recaller: Shout — copy the first/last spell you cast this turn
+  | 'endOfTurnCopyCastSpell' // Spellvault Drake: End of Turn — the same copy, on the EoT beat
+  | 'battlecryBuffOtherTribe' // Embermouth Whelp: Shout — buff one OTHER friendly of a tribe
   | 'deathrattleGrantMagnetic' // Deathrattle: add a random Magnetic minion to your hand after combat (Junkyard Titan)
   | 'deathrattleBuffSpellPower' // Deathrattle: permanently raise the run-wide spell power (+atk/+hp to spells), carried back (Skullblade)
   | 'deathrattleBuffCardTypeRunWide' // Deathrattle: permanently buff a card type run-wide (board/hand/future), carried back (Grave Knit)

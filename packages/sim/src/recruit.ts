@@ -1940,6 +1940,42 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     conjureToHand(ctx.state, poolOf(ctx.state).spells.filter(ok), num(params.count, 1) * gold(self));
   },
 
+  /** Set 2 — Hoard Chronicler (Shout): add `count` random Tavern spells to hand (golden doubles). The Shout
+   *  twin of `deathrattleGrantRandomSpell`; same pool + hand-cap handling via `conjureToHand`. */
+  battlecryGrantRandomSpell: (ctx, self, params) => {
+    conjureToHand(ctx.state, poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier), num(params.count, 1) * gold(self));
+  },
+
+  /** Set 2 — the Dragon "spell recursion" line: add COPIES of a spell you already cast this turn to hand.
+   *  `which` picks which one — 'first' (`firstSpellThisTurnId`, Spellvault Drake) or 'last'
+   *  (`lastSpellCastId`, Recaller). Both ids are already tracked by `castSpell` for the Runes, so this reads
+   *  them rather than adding new bookkeeping. No spell cast yet this turn → a clean no-op.
+   *  The copy is a fresh card from the index, so it carries no state from the original cast. */
+  battlecryCopyCastSpell: (ctx, self, params) => {
+    const id = str(params.which) === 'first' ? ctx.state.firstSpellThisTurnId : ctx.state.lastSpellCastId;
+    const def = id ? CARD_INDEX[id] : undefined;
+    if (!def) return;
+    conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
+  },
+
+  /** Set 2 — Spellvault Drake (End of Turn): the same copy, on the EoT beat instead of a Shout. */
+  endOfTurnCopyCastSpell: (ctx, self, params) => {
+    const id = str(params.which) === 'first' ? ctx.state.firstSpellThisTurnId : ctx.state.lastSpellCastId;
+    const def = id ? CARD_INDEX[id] : undefined;
+    if (!def) return;
+    conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
+  },
+
+  /** Set 2 — Embermouth Whelp (Shout): buff ONE other friendly minion of `tribe` (never itself). Picks the
+   *  left-most eligible one so it's deterministic without consuming RNG — a Shout that spent the shop cursor
+   *  would desync replays for every later draw this turn. */
+  battlecryBuffOtherTribe: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const target = ctx.state.board.find((c) => c !== self && isTribe(c, tribe as never));
+    if (!target) return;
+    addBuff(target, nameOf(self), num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self));
+  },
+
   /** (recruit half) — add a random Magnetic minion to hand; golden adds two. */
   deathrattleGrantMagnetic: (ctx, self) => {
     conjureToHand(ctx.state, poolOf(ctx.state).buyable.filter((c) => c.keywords.includes('M')), gold(self));

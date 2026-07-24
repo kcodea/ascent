@@ -1,5 +1,53 @@
 # ASCENT — development log
 
+## 2026-07-24 (Set 2's Dragon tribe — foundation + first tranche)
+
+### feat(content/sim): open the Set-2 Dragon tribe (spell recursion), 5 cards + Karwind re-spec
+
+Owner handed over a 21-card Dragon roster. Set 2's Dragons are the SPELL-RECURSION tribe — where Set 1's
+Dragons scaled off Battlecries, these copy, re-cast and pay off the spells you cast.
+
+**Wired the tribe in.** `dragon` joins set 2's `tribes` roster, `SET2_DRAGONS` joins its `own` manifest, and
+Karwind carries over via `SET1_DRAGONS_IN_SET2` — the same filter-by-id pattern the neutral spells already use,
+since set 2 opts cards IN rather than inheriting. No `Tribe` union change was needed: `dragon` already exists.
+
+**Karwind was re-spec'd in place** (Tier 5 5/10 → Tier 6 4/12, golden text "+2/+2 twice" → "+4/+4") on the
+owner's call, so it changes in SET 1 too. Worth noting the golden wording: `onBattlecryBuffTribe` applies the
+buff `gold(self)` TIMES at base magnitude, so golden really is a net +4/+4 — both the old and new wording are
+true, the new one is just clearer.
+
+**Five cards this tranche**, chosen because they build on state the engine already maintains rather than needing
+new bookkeeping: Embermouth Whelp, Hoard Chronicler, Recaller, Spellvault Drake, Roaring Matriarch. Four small
+recruit factories back them (`battlecryGrantRandomSpell`, `battlecryCopyCastSpell`, `endOfTurnCopyCastSpell`,
+`battlecryBuffOtherTribe`), whitelisted in both the `EffectFactoryId` union and the content schema.
+
+The recursion line reads `firstSpellThisTurnId` / `lastSpellCastId`, which `castSpell` already records for the
+Runes — so Recaller and Spellvault Drake are pure reads. `battlecryBuffOtherTribe` picks the LEFT-MOST eligible
+friend rather than a random one on purpose: a Shout that spent the shop RNG cursor would desync every later
+draw that turn.
+
+Three data conflicts in the table were resolved by the owner rather than guessed: Traveling Skald / Vault
+Curator have a Keyword column reading "Shout" against "Slaughter:" / "Avenge (4):" text (→ trust the TEXT),
+Karwind's stat clash (→ re-spec the shared card), and Ashscribe Whelp's buff being permanent (→ permanent).
+
+Seven new tests cover both halves of the risk: that the tribe is REACHABLE in a set-2 run (a card can typecheck
+and still never appear if the manifest or tribe roster misses it — the failure `poolOf` scoping exists to
+prevent), and each effect, including the no-op paths (Recaller before any spell is cast) and the negative case
+(Embermouth never buffing itself; Matriarch granting Attack but no Health). Suite 1557 (+7) + typecheck + lint +
+build:web green.
+
+Also wired the **Gem Shard** token's art (`gemheart-shard.webp`), which Gemheart Carver's Echo summons.
+
+**Remaining 15 cards, each needing a genuinely new primitive** — grouped by what they need, so they can land as
+focused tranches:
+* per-minion "first spell cast ON THIS each turn" tracking — Mirrorwing Hatchling, Runefire
+* Shout re-triggering inside COMBAT (`replayBattlecry` is recruit-only) — Thunderous Sovereign, Chorus Drake
+* first/second-spell-this-turn hooks on a minion — Ashscribe Whelp, Spellkeeper Drake
+* cross-turn pending effects — Scalefeather Drake; a spend-and-reset counter — Living Grimoire
+* an on-sell per-turn flag — Voicekeeper; improve-per-N-Shouts — Scalechanter
+* persistent Choose-One global modes — Orivax; plus Traveling Skald (Slaughter) and Vault Curator (Avenge)
+* Ashen Broodlord needs an Avenge spell-power grant (the combat twin of `battlecryBuffSpellPower`)
+
 ## 2026-07-24 (Gemheart Carver's Shard: no base, and blind to combat Rubies)
 
 ### fix(core/content): the Gem Shard is 1/1 + the Carver's Rubies, counting ones played mid-combat

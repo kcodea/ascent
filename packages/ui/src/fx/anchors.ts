@@ -6,7 +6,7 @@ export interface FxPoint {
 }
 
 /** Screen-space points a scenario (or a real game moment) stages for a def to attach to. */
-export type FxAnchors = Partial<Record<'source' | 'target' | 'cursor' | 'slot' | 'camera', FxPoint>>;
+export type FxAnchors = Partial<Record<Exclude<FxAnchorId, 'travel'>, FxPoint>>;
 
 const ORIGIN: FxPoint = { x: 0, y: 0 };
 
@@ -31,6 +31,5 @@ export function resolveAnchor(anchors: FxAnchors, id: FxAnchorId, progress: numb
       y: start.y + (end.y - start.y) * progress,
     };
   }
-  if (id === 'camera') return anchors.camera ?? ORIGIN;
   return anchors[id] ?? ORIGIN;
 }

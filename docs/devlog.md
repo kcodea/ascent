@@ -3,6 +3,25 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (gilded cards materialise in gold)
+
+### feat(ui): a triple reward coalesces in gold + its plate reads gold
+
+Two changes so a gilded card looks gold however it arrives:
+
+- **Gold coalesce.** When the card being generated is `.golden`, `plateCoalesce` swaps the arcane-blue palette
+  (and its mote sprites) for the gild's gold — `#a9700f / #f1cb5e / #fff6d5` — so the dust → wireframe →
+  reveal reads as "gold from nothing". Detected off the target card's `.golden` class; geometry, motes and
+  timing are identical, only the colours differ. Non-golden generations still coalesce blue. Verified live: a
+  golden card's imprint gradient came back gold (`rgb(169,112,15)…`), a normal one blue (`rgb(117,214,255)…`).
+- **Gold plate.** A gilded card's stone backplate now reads gold, mirroring the frame's silver→gold. The frame
+  un-grays a gold PNG via `--frame-tone`; the plate art is stone, so `.card.plated.golden .cardplate` pushes it
+  gold with a colour filter (`--plate-gold-tone`, keeps the relief, just recolours). Covers hand, the drag copy
+  and the inspect overlay. Verified live: golden plate computed `sepia(.78) saturate(2.3)…`, normal `none`.
+
+Both tint values are dialable (`GOLD` palette in `plateCoalesce`, `--plate-gold-tone` var) if the gold wants
+warming/cooling. Engine typecheck + lint + 1538 tests + `build:web` green.
+
 ## 2026-07-24 (the gild's top-left flash — a THIRD cause)
 
 ### tweak(ui): the gild sigil sits lower and smaller

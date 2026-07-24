@@ -42,6 +42,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Gilded cards materialise in gold.** A triple reward now coalesces in gold (not the arcane blue) and its
+  backplate reads gold to match the golden frame.
 - **Gild no longer flashes a card in the top-left.** Completing a triple by buying the third copy made the
   gild's clones inherit the fresh card's mount-pop, which pinned them to the corner for a moment; the clones
   now suppress it.

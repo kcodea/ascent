@@ -1,7 +1,7 @@
 import { Graphics, Particle, ParticleContainer, Rectangle, type Renderer, type Texture } from 'pixi.js';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
-import { palColorBiased, PALETTE_NAMES } from '../palettes';
+import { PALETTE_PRESETS, paletteTuple, tupleBiased } from '../palettes';
 import { registerPrimitive } from '../registry';
 
 /**
@@ -92,7 +92,10 @@ const SPECS = {
     kind: 'slider', label: 'Core bias', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.5,
     help: '0 = rim colour, 1 = white core.',
   },
-  palette: { kind: 'enum', label: 'Palette', group: 'Style', options: PALETTE_NAMES, default: 'violet' },
+  palette: {
+    kind: 'palette', label: 'Palette', group: 'Style',
+    default: paletteTuple('violet'), presets: PALETTE_PRESETS,
+  },
   additive: { kind: 'toggle', label: 'Additive', group: 'Style', default: true },
 } satisfies FxParamSpecs;
 
@@ -165,7 +168,7 @@ class BurstInstance implements FxInstance<BurstParams> {
       const speed = p.speed * (1 + (Math.random() * 2 - 1) * p.speedVar);
       const size = Math.max(0.5, p.size * (1 + (Math.random() * 2 - 1) * p.sizeVar));
       const baseScale = size / SHARD_LONG_AXIS;
-      const tint = palColorBiased(p.palette, p.coreBias * Math.random());
+      const tint = tupleBiased(p.palette, p.coreBias * Math.random());
       const particle = new Particle({
         texture: this.texture,
         x: this.headX,

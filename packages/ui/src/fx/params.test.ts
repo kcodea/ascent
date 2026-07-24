@@ -15,6 +15,17 @@ describe('defaultsOf', () => {
   it('returns a fresh object each call so callers cannot share state', () => {
     expect(defaultsOf(SPECS)).not.toBe(defaultsOf(SPECS));
   });
+
+  it('returns a copy of a palette default, not the shared spec reference', () => {
+    const paletteSpecs = {
+      pal: { kind: 'palette' as const, label: 'Palette', default: [1, 2, 3, 4] as const },
+    } satisfies FxParamSpecs;
+    const a = defaultsOf(paletteSpecs);
+    const b = defaultsOf(paletteSpecs);
+    expect(a.pal).toEqual([1, 2, 3, 4]);
+    expect(a.pal).not.toBe(b.pal);
+    expect(a.pal).not.toBe(paletteSpecs.pal.default);
+  });
 });
 
 describe('coerceParams', () => {
@@ -56,6 +67,48 @@ describe('coerceParams', () => {
   it('rejects an array as the raw params object', () => {
     expect(coerceParams(SPECS, [1, 2, 3])).toEqual({ width: 40, loop: true, palette: 'violet' });
   });
+
+  describe('palette kind', () => {
+    const paletteSpecs = {
+      pal: {
+        kind: 'palette' as const,
+        label: 'Palette',
+        default: [0x111111, 0x222222, 0x333333, 0x444444] as const,
+      },
+    } satisfies FxParamSpecs;
+
+    it('accepts a valid 4-number array', () => {
+      expect(coerceParams(paletteSpecs, { pal: [1, 2, 3, 0xffffff] })).toEqual({ pal: [1, 2, 3, 0xffffff] });
+    });
+
+    it('rejects a 3-element array, falling back to the default', () => {
+      expect(coerceParams(paletteSpecs, { pal: [1, 2, 3] })).toEqual({
+        pal: [0x111111, 0x222222, 0x333333, 0x444444],
+      });
+    });
+
+    it('rejects an array containing a non-number, falling back to the default', () => {
+      expect(coerceParams(paletteSpecs, { pal: [1, 2, 'x', 4] })).toEqual({
+        pal: [0x111111, 0x222222, 0x333333, 0x444444],
+      });
+    });
+
+    it('rejects an array with an out-of-range stop, falling back to the default', () => {
+      expect(coerceParams(paletteSpecs, { pal: [1, 2, 3, 0x1000000] })).toEqual({
+        pal: [0x111111, 0x222222, 0x333333, 0x444444],
+      });
+      expect(coerceParams(paletteSpecs, { pal: [-1, 2, 3, 4] })).toEqual({
+        pal: [0x111111, 0x222222, 0x333333, 0x444444],
+      });
+    });
+
+    it('returns a fresh array rather than aliasing the input', () => {
+      const input = [1, 2, 3, 4];
+      const result = coerceParams(paletteSpecs, { pal: input });
+      expect(result.pal).toEqual(input);
+      expect(result.pal).not.toBe(input);
+    });
+  });
 });
 
 describe('ParamsOf type derivation', () => {
@@ -68,6 +121,15 @@ describe('ParamsOf type derivation', () => {
     // Bidirectional assertion: the type must be exactly 'violet' | 'ember', not just a subtype of it.
     // This catches the old broken ParamsOf that resolved to literal 'violet'.
     expectTypeOf<Params['color']>().toEqualTypeOf<'violet' | 'ember'>();
+  });
+
+  it('derives a concrete 4-number tuple for palette params (not a readonly-widened array)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const specsWithPalette = {
+      pal: { kind: 'palette' as const, label: 'Palette', default: [1, 2, 3, 4] as const },
+    } satisfies FxParamSpecs;
+    type Params = ParamsOf<typeof specsWithPalette>;
+    expectTypeOf<Params['pal']>().toEqualTypeOf<[number, number, number, number]>();
   });
 });
 
@@ -109,5 +171,34 @@ describe('validateSpecs', () => {
     const problems = validateSpecs(badEnum);
     expect(problems).toHaveLength(1);
     expect(problems[0]).toContain("default 'green' is not one of its options");
+  });
+
+  it('catches a palette default with the wrong number of stops', () => {
+    const badPalette = {
+      pal: {
+        kind: 'palette' as const,
+        label: 'Palette',
+        default: [1, 2, 3] as unknown as readonly [number, number, number, number],
+      },
+    } satisfies FxParamSpecs;
+    const problems = validateSpecs(badPalette);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('must have exactly 4 stops');
+  });
+
+  it('catches a palette default with an out-of-range stop', () => {
+    const badPalette = {
+      pal: { kind: 'palette' as const, label: 'Palette', default: [1, 2, 3, 0x1000000] as const },
+    } satisfies FxParamSpecs;
+    const problems = validateSpecs(badPalette);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('outside [0, 0xFFFFFF]');
+  });
+
+  it('accepts a well-formed palette spec', () => {
+    const okPalette = {
+      pal: { kind: 'palette' as const, label: 'Palette', default: [1, 2, 3, 4] as const },
+    } satisfies FxParamSpecs;
+    expect(validateSpecs(okPalette)).toEqual([]);
   });
 });

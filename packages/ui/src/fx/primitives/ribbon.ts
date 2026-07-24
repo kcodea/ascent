@@ -1,6 +1,7 @@
-import { Color, Mesh, MeshGeometry, Shader } from 'pixi.js';
+import { Mesh, MeshGeometry, Shader } from 'pixi.js';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
+import { PALETTE_PRESETS, paletteTuple, tupleFloats } from '../palettes';
 import { registerPrimitive } from '../registry';
 import {
   RIBBON_SEGMENTS,
@@ -116,33 +117,6 @@ void main() {
 }
 `;
 
-/** Rim → core, four stops each, read off the reference art. */
-const PALETTES: Record<string, readonly [string, string, string, string]> = {
-  violet: ['#7a17bd', '#c936ef', '#f0a0ff', '#ffffff'],
-  ember: ['#e04a12', '#ff9c1e', '#ffe08a', '#ffffff'],
-  mint: ['#0d8f7d', '#2ee0ac', '#b6ffe8', '#ffffff'],
-  magenta: ['#a81290', '#ff33a8', '#ffc4ea', '#ffffff'],
-  gold: ['#ff5f0a', '#ffb81f', '#fff0a8', '#ffffff'],
-  acid: ['#2c9612', '#7ade22', '#ecffa8', '#ffffff'],
-};
-
-const PALETTE_NAMES = Object.keys(PALETTES) as readonly string[];
-
-/** Flatten a named palette's 4 hex stops into the `Float32Array(16)` the `uPal[4]` (vec4<f32>, size 4)
- *  uniform expects — rgba floats, one vec4 per stop, in `pal()`'s rim→core order. */
-function buildPalette(name: string): Float32Array {
-  const stops = PALETTES[name] ?? PALETTES.violet;
-  const out = new Float32Array(16);
-  for (let i = 0; i < 4; i++) {
-    const rgba = new Color(stops[i]).toArray();
-    out[i * 4] = rgba[0];
-    out[i * 4 + 1] = rgba[1];
-    out[i * 4 + 2] = rgba[2];
-    out[i * 4 + 3] = rgba[3];
-  }
-  return out;
-}
-
 /**
  * The param specs, declared once so the params type and the generated inspector are both derived from
  * this record (see `params.ts`). Grouped for the inspector: Style / Noise / Shape. Defaults were
@@ -158,8 +132,8 @@ const SPECS = {
     help: 'Width of the flat hot core; at 0 the top colour band never fires.',
   },
   palette: {
-    kind: 'enum', label: 'Palette', group: 'Style',
-    options: PALETTE_NAMES, default: 'violet',
+    kind: 'palette', label: 'Palette', group: 'Style',
+    default: paletteTuple('violet'), presets: PALETTE_PRESETS,
   },
   additive: { kind: 'toggle', label: 'Additive', group: 'Style', default: false },
 
@@ -279,7 +253,7 @@ class RibbonInstance implements FxInstance<RibbonParams> {
           // determinism ban (see eslint.config.mjs) — this is a cosmetic per-instance phase offset only,
           // same role as pixiFx.ts's shield-bubble `uSeed`.
           uSeed: { value: Math.random() * 1000, type: 'f32' },
-          uPal: { value: buildPalette(params.palette), type: 'vec4<f32>', size: 4 },
+          uPal: { value: tupleFloats(params.palette), type: 'vec4<f32>', size: 4 },
         },
       },
     });
@@ -309,7 +283,6 @@ class RibbonInstance implements FxInstance<RibbonParams> {
   }
 
   setParams(next: RibbonParams): void {
-    const paletteChanged = next.palette !== this.params.palette;
     this.params = next;
     const u = this.uniforms;
     u.uBands = next.bands;
@@ -323,7 +296,10 @@ class RibbonInstance implements FxInstance<RibbonParams> {
     u.uTail = next.tail;
     u.uSoft = next.soft;
     u.uAlpha = next.alpha;
-    if (paletteChanged) u.uPal = buildPalette(next.palette);
+    // setParams is not on the per-frame hot path (only fires on an inspector edit), so rebuilding uPal
+    // unconditionally is cheap and sidesteps any reference-equality bugs from how the caller assembles
+    // `next` — no risk of the palette silently going stale because the array happened to be re-used.
+    u.uPal = tupleFloats(next.palette);
     this.mesh.blendMode = next.additive ? 'add' : 'normal';
     this.shape.headPinch = next.headPinch;
     this.shape.tailFeather = next.tailFeather;

@@ -1,7 +1,7 @@
 import { Mesh, MeshGeometry, Shader } from 'pixi.js';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
-import { PALETTE_NAMES, palFloats } from '../palettes';
+import { PALETTE_PRESETS, paletteTuple, tupleFloats } from '../palettes';
 import { registerPrimitive } from '../registry';
 
 /**
@@ -115,8 +115,8 @@ const SPECS = {
     help: 'Posterization levels (the cel look).',
   },
   palette: {
-    kind: 'enum', label: 'Palette', group: 'Style',
-    options: PALETTE_NAMES, default: 'violet',
+    kind: 'palette', label: 'Palette', group: 'Style',
+    default: paletteTuple('violet'), presets: PALETTE_PRESETS,
   },
   alpha: { kind: 'slider', label: 'Alpha', group: 'Style', min: 0, max: 1, step: 0.01, default: 1 },
   additive: { kind: 'toggle', label: 'Additive', group: 'Style', default: true },
@@ -159,7 +159,7 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
           uFade: { value: params.fade, type: 'f32' },
           uBands: { value: params.bands, type: 'f32' },
           uAlpha: { value: params.alpha, type: 'f32' },
-          uPal: { value: palFloats(params.palette), type: 'vec4<f32>', size: 4 },
+          uPal: { value: tupleFloats(params.palette), type: 'vec4<f32>', size: 4 },
         },
       },
     });
@@ -190,7 +190,6 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
   }
 
   setParams(next: ShockwaveParams): void {
-    const paletteChanged = next.palette !== this.params.palette;
     const radiusChanged = next.radius !== this.params.radius;
     this.params = next;
     const u = this.uniforms;
@@ -200,7 +199,10 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
     u.uFade = next.fade;
     u.uBands = next.bands;
     u.uAlpha = next.alpha;
-    if (paletteChanged) u.uPal = palFloats(next.palette);
+    // setParams is not on the per-frame hot path (only fires on an inspector edit), so rebuilding uPal
+    // unconditionally is cheap and sidesteps any reference-equality bugs from how the caller assembles
+    // `next`.
+    u.uPal = tupleFloats(next.palette);
     this.mesh.blendMode = next.additive ? 'add' : 'normal';
     if (radiusChanged) {
       this.writeQuad(next.radius);

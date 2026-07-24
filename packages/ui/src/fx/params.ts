@@ -7,20 +7,41 @@ export type FxParamSpec =
   | { kind: 'slider'; label: string; group?: string; help?: string; min: number; max: number; step: number; default: number }
   | { kind: 'toggle'; label: string; group?: string; help?: string; default: boolean }
   | { kind: 'color'; label: string; group?: string; help?: string; default: number }
-  | { kind: 'enum'; label: string; group?: string; help?: string; options: readonly string[]; default: string };
+  | { kind: 'enum'; label: string; group?: string; help?: string; options: readonly string[]; default: string }
+  | {
+      kind: 'palette';
+      label: string;
+      group?: string;
+      help?: string;
+      /** Four 0xRRGGBB stops, rim → core. */
+      default: readonly [number, number, number, number];
+      /** Named presets a picker can seed the whole tuple from (id → tuple). */
+      presets?: Record<string, readonly [number, number, number, number]>;
+    };
 
 export type FxParamSpecs = Record<string, FxParamSpec>;
 
 /** The params object a spec record describes. Derived — never hand-written alongside the specs.
  *  Enum params resolve to a union of their own `options` (not just the default), so a value that is
- *  valid at runtime is valid at compile time and nothing else is. */
+ *  valid at runtime is valid at compile time and nothing else is. Palette params resolve to a concrete
+ *  mutable 4-number tuple (not `S[K]['default']`'s `readonly [...]`), so callers can index/spread it
+ *  freely without fighting readonly-ness that the spec itself doesn't need at the value level. */
 export type ParamsOf<S extends FxParamSpecs> = {
-  [K in keyof S]: S[K] extends { kind: 'enum'; options: readonly (infer O)[] } ? O : S[K]['default'];
+  [K in keyof S]: S[K] extends { kind: 'enum'; options: readonly (infer O)[] }
+    ? O
+    : S[K] extends { kind: 'palette' }
+      ? [number, number, number, number]
+      : S[K]['default'];
 };
 
 export function defaultsOf<S extends FxParamSpecs>(specs: S): ParamsOf<S> {
   const out: Record<string, unknown> = {};
-  for (const key of Object.keys(specs)) out[key] = specs[key].default;
+  for (const key of Object.keys(specs)) {
+    const spec = specs[key];
+    // Palette defaults are arrays — copy so two instances (or two calls) never alias the same tuple and
+    // mutate each other's colours through it.
+    out[key] = spec.kind === 'palette' ? [...spec.default] : spec.default;
+  }
   return out as ParamsOf<S>;
 }
 
@@ -48,6 +69,15 @@ export function coerceParams<S extends FxParamSpecs>(specs: S, raw: unknown): Pa
       case 'enum':
         if (typeof v === 'string' && spec.options.includes(v)) out[key] = v;
         break;
+      case 'palette':
+        if (
+          Array.isArray(v) &&
+          v.length === 4 &&
+          v.every((n) => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 0xffffff)
+        ) {
+          out[key] = [...v]; // fresh array — never alias the caller's
+        }
+        break;
     }
   }
   return out as ParamsOf<S>;
@@ -68,6 +98,13 @@ export function validateSpecs(specs: FxParamSpecs): string[] {
     }
     if (spec.kind === 'enum' && !spec.options.includes(spec.default)) {
       problems.push(`'${key}': default '${spec.default}' is not one of its options`);
+    }
+    if (spec.kind === 'palette') {
+      if (spec.default.length !== 4) {
+        problems.push(`'${key}': palette default must have exactly 4 stops (got ${spec.default.length})`);
+      } else if (spec.default.some((n) => !Number.isFinite(n) || n < 0 || n > 0xffffff)) {
+        problems.push(`'${key}': palette default has a stop outside [0, 0xFFFFFF]`);
+      }
     }
   }
   return problems;

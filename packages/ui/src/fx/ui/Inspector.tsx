@@ -5,6 +5,13 @@ import type { FxParamSpecs } from '../params';
  * labels map, ranges table, or keys array to keep in sync. That triplication (and its silent drift) is the
  * exact thing the workbench exists to kill.
  */
+const STOP_LABELS = ['Rim', 'Mid', 'Bright', 'Core'] as const;
+
+/** `#rrggbb` -> 0xRRGGBB, matching the existing `color` kind's own inline parse below. */
+const hexToColor = (hex: string): number => parseInt(hex.slice(1), 16);
+/** 0xRRGGBB -> `#rrggbb`, matching the existing `color` kind's own inline format below. */
+const colorToHex = (n: number): string => `#${(n >>> 0).toString(16).padStart(6, '0')}`;
+
 export function Inspector({
   specs,
   values,
@@ -12,7 +19,7 @@ export function Inspector({
 }: {
   specs: FxParamSpecs;
   values: Record<string, unknown>;
-  onChange: (key: string, value: number | boolean | string) => void;
+  onChange: (key: string, value: number | boolean | string | number[]) => void;
 }): React.ReactElement {
   const groups = new Map<string, string[]>();
   for (const key of Object.keys(specs)) {
@@ -54,6 +61,44 @@ export function Inspector({
                     value={`#${((values[key] as number) >>> 0).toString(16).padStart(6, '0')}`}
                     onChange={(e) => onChange(key, parseInt(e.target.value.slice(1), 16))} />
                 )}
+                {spec.kind === 'palette' && (() => {
+                  const stops = (values[key] as number[] | undefined) ?? spec.default;
+                  const presetEntries = Object.entries(spec.presets ?? {});
+                  return (
+                    <div className="fxwb-palette">
+                      {presetEntries.length > 0 && (
+                        <select
+                          id={`fxwb-${key}`}
+                          aria-label={`${spec.label} preset`}
+                          value=""
+                          onChange={(e) => {
+                            const preset = spec.presets?.[e.target.value];
+                            if (preset) onChange(key, [...preset]);
+                          }}
+                        >
+                          <option value="" disabled>Preset…</option>
+                          {presetEntries.map(([name]) => <option key={name} value={name}>{name}</option>)}
+                        </select>
+                      )}
+                      <div className="fxwb-palette-stops">
+                        {STOP_LABELS.map((stopLabel, i) => (
+                          <input
+                            key={stopLabel}
+                            type="color"
+                            title={stopLabel}
+                            aria-label={`${spec.label} ${stopLabel}`}
+                            value={colorToHex(stops[i] ?? 0)}
+                            onChange={(e) => {
+                              const next = [...stops];
+                              next[i] = hexToColor(e.target.value);
+                              onChange(key, next);
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}

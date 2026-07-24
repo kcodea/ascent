@@ -24,33 +24,52 @@ const hexToNum = (hex: string): number => parseInt(hex.slice(1), 16);
 /** Clamp a stop index into the 0..3 range so callers can't read off the end. */
 const clampStop = (i: number): number => (i < 0 ? 0 : i > 3 ? 3 : i | 0);
 
-/** A palette stop as a 0xRRGGBB number, for a particle `tint`. Falls back to violet for an unknown name. */
-export function palColorNum(name: string, stop: number): number {
-  const p = PALETTES[name] ?? PALETTES.violet;
-  return hexToNum(p[clampStop(stop)]);
-}
-
 /**
- * A palette stop biased toward the hot core: `bias` 0 = the rim stop, 1 = the white core. Lets a primitive
- * expose a single "core bias" slider instead of a raw stop index. Returns a 0xRRGGBB number.
+ * The six named palettes as 0xRRGGBB tuples (rim→core) — the seed data for an editable `palette` param's
+ * `presets`. Derived from `PALETTES`' hex strings so there is ONE source; the hex and numeric forms can
+ * never drift apart.
  */
-export function palColorBiased(name: string, bias: number): number {
-  const b = bias < 0 ? 0 : bias > 1 ? 1 : bias;
-  // 0..1 across the four stops; round to the nearest stop (particles tint per-stop, no gradient).
-  return palColorNum(name, Math.round(b * 3));
+export const PALETTE_PRESETS: Record<string, readonly [number, number, number, number]> = Object.fromEntries(
+  Object.entries(PALETTES).map(([name, stops]) => {
+    const tuple: [number, number, number, number] = [
+      hexToNum(stops[0]),
+      hexToNum(stops[1]),
+      hexToNum(stops[2]),
+      hexToNum(stops[3]),
+    ];
+    return [name, tuple];
+  }),
+);
+
+/** A named preset as a fresh 4-tuple — the default seed for an editable palette param. Falls back to
+ *  violet for an unknown name. Always a new array, so two callers never share (and mutate) one tuple. */
+export function paletteTuple(name: string): [number, number, number, number] {
+  const p = PALETTE_PRESETS[name] ?? PALETTE_PRESETS.violet;
+  return [p[0], p[1], p[2], p[3]];
 }
 
-/** The whole palette flattened to a `Float32Array(16)` of premultiplied-ready RGBA floats, for a `uPal`
- *  `vec4<f32>` array uniform (rim→core, alpha 1). Matches the ribbon's `uPal` layout. */
-export function palFloats(name: string): Float32Array {
-  const p = PALETTES[name] ?? PALETTES.violet;
+/** Flatten 4 raw 0xRRGGBB stops into the `Float32Array(16)` a `uPal[4]` (vec4<f32>, size 4) uniform
+ *  expects — rgba floats, one vec4 per stop, rim→core, alpha 1. The editable-tuple counterpart to the
+ *  old name-keyed `palFloats`. A short/missing stop reads as 0 (black) rather than throwing. */
+export function tupleFloats(stops: readonly number[]): Float32Array {
   const out = new Float32Array(16);
   for (let i = 0; i < 4; i++) {
-    const n = hexToNum(p[i]);
+    const n = stops[i] ?? 0;
     out[i * 4] = ((n >> 16) & 255) / 255;
     out[i * 4 + 1] = ((n >> 8) & 255) / 255;
     out[i * 4 + 2] = (n & 255) / 255;
     out[i * 4 + 3] = 1;
   }
   return out;
+}
+
+/**
+ * A stop from a raw tuple biased toward the hot core: `bias` 0 = the rim stop (index 0), 1 = the white
+ * core (index 3). Lets a primitive expose a single "core bias" slider instead of a raw stop index. The
+ * editable-tuple counterpart to the old name-keyed `palColorBiased`. Returns a 0xRRGGBB number.
+ */
+export function tupleBiased(stops: readonly number[], bias: number): number {
+  const b = bias < 0 ? 0 : bias > 1 ? 1 : bias;
+  // 0..1 across the four stops; round to the nearest stop (particles tint per-stop, no gradient).
+  return stops[clampStop(Math.round(b * 3))] ?? stops[0] ?? 0;
 }

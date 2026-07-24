@@ -1,7 +1,7 @@
 import { Graphics, Particle, ParticleContainer, Rectangle, type Renderer, type Texture } from 'pixi.js';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
-import { palColorBiased, PALETTE_NAMES } from '../palettes';
+import { PALETTE_PRESETS, paletteTuple, tupleBiased } from '../palettes';
 import { registerPrimitive } from '../registry';
 
 /**
@@ -66,7 +66,10 @@ const SPECS = {
     kind: 'slider', label: 'Fade in', group: 'Style', min: 0, max: 0.5, step: 0.01, default: 0.1,
     help: 'Fraction of life spent fading in (and, symmetrically, fading out at the end).',
   },
-  palette: { kind: 'enum', label: 'Palette', group: 'Style', options: PALETTE_NAMES, default: 'violet' },
+  palette: {
+    kind: 'palette', label: 'Palette', group: 'Style',
+    default: paletteTuple('violet'), presets: PALETTE_PRESETS,
+  },
   additive: { kind: 'toggle', label: 'Additive', group: 'Style', default: true },
 } satisfies FxParamSpecs;
 
@@ -231,7 +234,7 @@ class EmitterInstance implements FxInstance<EmitterParams> {
       y: this.originY,
       anchorX: 0.5,
       anchorY: 0.5,
-      tint: palColorBiased(p.palette, bias),
+      tint: tupleBiased(p.palette, bias),
       alpha: 0,
     });
     const baseScale = size / MOTE_TEXTURE_RADIUS;

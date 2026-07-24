@@ -3,6 +3,97 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (spell-buff FX — grow/shrink in place + an outward spark blast)
+
+### chore(ui): bake the owner's tuned spell-buff values as the shipped defaults
+
+Owner's tuner pass, taken verbatim from Copy values. The read: a gentle, slow swell on the card (grow 1.04 over
+210ms, shrink 460ms) so the motion is carried by the SPARKS rather than the pop — 44 motes, sizes 3–13.5, thrown
+65–335px across a 270° arc from high on the card (origin Y 76%), with a hard 0.76 launch punch, 15px glow and a
+long 1920ms life.
+
+The palette moved off pink/gold/purple to cyan `#00ccff` / amber `#ffaa00` / violet `#7300ff`. The config KEYS
+(`pinkColor`/`goldColor`/`purpleColor`) are deliberately NOT renamed — they are the localStorage schema, and
+renaming would silently orphan every saved tuner config. Instead the tuner labels became slot names ("spark hue
+1–3") and every comment claiming a specific palette was corrected, so nothing in the code asserts a colour that
+the dials can change out from under it.
+
+Note the cue's hold is now driven by the sparks: `max(210 + 460, 100 + 1920) + 160` = **2180ms**. That's a long
+tail, which is why the retrigger/restart work landing alongside it matters — a second buff inside that window
+restarts cleanly instead of being swallowed.
+
+Verified with localStorage cleared (what a real player gets — production ignores saved config entirely): 44
+sparks in the three new hues, angles spanning -130.7° to +132.4° (inside the 270° arc), origin resolving to 76.4%
+up a 115px card, grow 210ms @ 1.04, shrink 460ms, spark life 1920ms, glow 15px. Full suite (1538) + typecheck +
+lint + build:web green.
+
+### fix(ui): spell-buff — restart on every trigger, add a blast origin Y, unbreak the Test button
+
+Three things on top of the grow/shrink + blast rework, all from the same session.
+
+**The Test button was dead.** The rework renamed the card dials, but the hold expression existed in TWO places
+and only one was updated — the dev Test hook still read `c.wiggleMs`, which no longer exists. `Math.max(undefined,
+…)` is NaN, and `setTimeout(fn, NaN)` fires at 0ms, so the clear raced the `requestAnimationFrame` that adds the
+class and the cue either never showed or stuck on permanently. The hold now lives in ONE exported helper,
+`spellBuffHoldMs()`, used by both callers so they can't drift again.
+
+**Retriggering now restarts the cue** (owner ask): re-applying a class that's already on does not replay a CSS
+animation, so a second buff landing mid-burst used to be swallowed entirely. `spellBuffedUids: Set<string>` became
+`spellBuffSeq: Map<string, number>` — a per-uid burst id that increments on each trigger. `Card` keys the spark
+layer on it (remount = fresh jitter + every mote animating from zero) and restarts the card's `sbgrow`/`sbshrink`
+via `cancel()` + `play()` in a layout effect. Cutting the previous burst short is intended: each trigger has to
+read as its own hit.
+
+That also fixed a related timer bug this exposed. Clears were fire-and-forget, so an EARLIER burst's timeout would
+land mid-way through a LATER burst and end it early — measured directly: a 1010ms hold clearing after 404ms. Each
+uid's pending clear is now tracked and cancelled on retrigger.
+
+**New dial — `blast origin Y%`**: where on the card the blast starts, measured up from the bottom so it reads the
+way a card does (0 = bottom edge, 50 = centre, 100 = top; the slider allows -20–120 to throw it off the card).
+
+Verified live: three Test clicks in a row produced three different spark-angle sets (-167.6°, -178.7°, -179.7° —
+proving remount + fresh jitter) with `sbgrow.startTime` reset each time, and the class cleared and STAYED cleared
+afterwards. The Y dial on a 113px card resolved to `top: 113px` at 0, `56.5px` at 50 and `0px` at 100. Full suite
+(1538) + typecheck + lint + build:web green.
+
+### feat(ui): spell-buff cue reworked — wiggle out, grow/shrink in, sparks explode outward
+
+Owner ask: drop the pop/wiggle, replace it with a grow/shrink that has its own speed AND ease for *each* phase,
+and turn the rising sparks into a blast that explodes outward off the affected card.
+
+**The card — grow, then shrink.** The rotation / wobble / spring / settle dials are gone, replaced by five that
+map directly onto what was asked: `grow scale`, `grow ms`, `grow ease`, `shrink ms`, `shrink ease`. Two
+structural choices carry it, both worth keeping:
+
+* It animates the standalone **`scale` property, not `transform`.** A hand card carries its own inline
+  `transform` (the fan's slide/tuck), so animating `transform` clobbers the fan for the animation's life — and
+  with a forwards fill, for as long as the class is on. `scale` composes with `transform` instead, so the fan is
+  never disturbed and nothing needs restoring. This retires the entire "the pop is tied to spark ms / the card
+  jumps out of the fan" bug family at the root rather than working around it a third time.
+* Grow and shrink are **two animations**, the shrink delayed by the grow's duration, because each needs its own
+  duration *and* easing. One keyframe animation can't express that: keyframe offsets can't be `var()`, and
+  `animation-timing-function` inside `@keyframes` silently ignores `var()`. Both use `forwards`; the shrink is
+  later in the list so it wins once it starts, and its final `scale: 1` is the card's natural scale, so the held
+  fill is a no-op that can't strand the card mid-grow however long the class lingers for the sparks.
+
+**The sparks — a blast, not a rise.** Each mote now gets an ANGLE and a DISTANCE instead of a climb: motes are
+distributed evenly around `blast arc` degrees (360 = every direction, smaller focuses a cone upward), jittered
+within their slice so the ring never looks banded, and fly out from the card's centre. The transform order does
+the work — centre, then world-space gravity sag *outside* the rotation, then rotate to the flight angle, then
+translate outward *inside* it, so travel is radial while gravity stays truly "down". The tail hangs below the
+mote in its own rotated frame, so it trails behind whatever direction the mote took with no per-mote maths.
+Replaced dials: `rise min/max` to `blast dist min/max`; `spawn spread/low/high` + `drift` to `blast arc`.
+
+Verified by scrubbing the animation timelines directly (the preview tab throttles `setInterval` to ~1Hz when
+backgrounded, so wall-clock sampling is useless here): the card's scale runs 1 to a peak of 1.12 at **exactly
+160ms** (`growMs`), then back to 1 at **540ms** (`growMs + shrinkMs`), while its `transform` holds constant at
+the fan's `matrix(1, 0, 0, 1, 0, 33.3856)` for the whole burst. The animations resolve as `sbgrow@160+0` /
+`sbshrink@380+160`. The 18 motes finish at angles spanning -172 to +172 degrees (all the way around) at radii
+77-165px, each traveling outward monotonically. Full suite (1538) + typecheck + lint + build:web green.
+
+Follow-up: defaults are a starting point — bake the owner's tuned values once they land.
+
+## 2026-07-23 (spell-buff — an UNCONTROLLED entry pop was riding along)
 ## 2026-07-24 (placing / rearranging a card slides it home)
 
 ### feat(ui): placing or rearranging a minion slides it into the slot

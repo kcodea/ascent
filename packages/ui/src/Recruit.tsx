@@ -8,7 +8,7 @@ import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
-import { getSpellBuffFxConfig } from './spellBuffFxConfig';
+import { getSpellBuffFxConfig, spellBuffHoldMs } from './spellBuffFxConfig';
 import { HudBar } from './HudBar';
 import { EndTurnButton } from './EndTurnButton';
 import { RiftButton } from './RiftButton';
@@ -557,10 +557,41 @@ export function Recruit() {
   // the rAF-coalesced move handlers, so pointer movement no longer re-renders this component.
   const [aimTargetUid, setAimTargetUid] = useState<string | null>(null);
   const [buffedUids, setBuffedUids] = useState<Set<string>>(new Set());
-  // Hand spells / Rubies whose printed value just went up — they play the wiggle + spark burst (see the
+  // Hand spells / Rubies whose printed value just went up — they play the grow/shrink + spark blast (see the
   // spell-buff watcher below). `prevSpellSigRef` is the last rendered value signature per hand-card uid.
-  const [spellBuffedUids, setSpellBuffedUids] = useState<Set<string>>(new Set());
+  // uid → BURST ID, not a boolean set: the id increments on every retrigger so `Card` can restart the cue
+  // rather than swallow a second buff that lands mid-burst (owner 2026-07-24 — each trigger must read as its
+  // own hit, and cutting the previous one off is fine).
+  const [spellBuffSeq, setSpellBuffSeq] = useState<Map<string, number>>(new Map());
+  const spellBuffSeqRef = useRef(0);
+  // Each uid's pending clear, so a retrigger can CANCEL the old one. Without this an earlier burst's timer
+  // fires mid-way through a newer burst and cuts it short (measured: a 1010ms hold clearing after 404ms).
+  const spellBuffTimersRef = useRef<Map<string, number>>(new Map());
   const prevSpellSigRef = useRef<Map<string, string>>(new Map());
+  // Start (or RESTART) the cue on a set of hand uids. Shared by the real buff watcher and the dev Test button —
+  // one code path so the two can never drift apart again.
+  const fireSpellBuff = useCallback((uids: string[]): void => {
+    if (uids.length === 0) return;
+    setSpellBuffSeq((prev) => {
+      const next = new Map(prev);
+      for (const uid of uids) next.set(uid, ++spellBuffSeqRef.current);
+      return next;
+    });
+    const hold = spellBuffHoldMs();
+    for (const uid of uids) {
+      const pending = spellBuffTimersRef.current.get(uid);
+      if (pending !== undefined) window.clearTimeout(pending);
+      spellBuffTimersRef.current.set(uid, window.setTimeout(() => {
+        spellBuffTimersRef.current.delete(uid);
+        setSpellBuffSeq((s) => {
+          if (!s.has(uid)) return s;
+          const n = new Map(s);
+          n.delete(uid);
+          return n;
+        });
+      }, hold));
+    }
+  }, []);
   // Last weld seq the stat-diff watcher has seen — lets it suppress the generic buff cues for the minions a
   // FRESH weld just landed on (the weld has its own ring + wiggle), without touching any other buff.
   const weldStatSeqRef = useRef<number | undefined>(undefined);
@@ -1816,8 +1847,8 @@ export function Recruit() {
     }),
     [run.hand, run.tier, eotAnimStats, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, run.frontToBackBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellMult],
   );
-  // SPELL BUFF cue (owner 2026-07-23): when a hand SPELL or Ruby gets stronger, wiggle + pop it and burst
-  // pink/gold/purple sparks, so the player sees exactly which cards a spell buff touched. A spell's stats never
+  // SPELL BUFF cue (owner 2026-07-23): when a hand SPELL or Ruby gets stronger, grow/shrink it and blast
+  // sparks outward, so the player sees exactly which cards a spell buff touched. A spell's stats never
   // change (it's a 0/1 card) — its printed VALUE is the thing that moves — so we diff the rendered live text
   // (plus stats, which is what moves on a Ruby) per uid. That catches every scaling source at once (spell power,
   // Front to Back's escalation, the Ruby stat line, Rune of Pillaging's pouch, …) without enumerating them, and
@@ -1834,39 +1865,19 @@ export function Recruit() {
     }
     prevSpellSigRef.current = next;
     if (inCombat || changed.length === 0) return;
-    setSpellBuffedUids((s) => new Set([...s, ...changed]));
-    // Hold the class for the LONGER of the two independent timings — the card's wiggle and the sparks' full
-    // life (their stagger + rise). A fixed hold used to clip the sparks whenever they outlasted the pop, which
-    // is exactly the case the tuner wants to allow: a snappy wiggle with a long, slow rise.
-    const c = getSpellBuffFxConfig();
-    const hold = Math.max(c.wiggleMs, c.sparkMs + c.sparkStagger) + 120;
-    // Self-clearing (never cancelled in cleanup — same reasoning as the green buff flash): each timer must be
-    // allowed to fire or a quick follow-up change could leave a card stuck mid-wiggle.
-    window.setTimeout(() => {
-      setSpellBuffedUids((s) => {
-        if (changed.every((u) => !s.has(u))) return s;
-        const n = new Set(s);
-        for (const u of changed) n.delete(u);
-        return n;
-      });
-    }, hold);
-  }, [handViews, inCombat]);
+    fireSpellBuff(changed);
+  }, [handViews, inCombat, fireSpellBuff]);
   // DEV: the ✨ Spell Buff tuner's Test button fires the cue on every spell / Ruby currently in hand, so the
-  // effect can be dialed without waiting for a real buff. Clear-then-set so the class remounts and the
-  // animation restarts even if a burst is already running.
+  // effect can be dialed without waiting for a real buff. It goes through the SAME `fireSpellBuff` the real
+  // watcher uses, so mashing Test exercises the retrigger/restart path exactly as a rapid buff chain would.
   useEffect(() => {
     if (!import.meta.env.DEV) return undefined;
     const w = window as { __spellBuffTest?: () => void };
     w.__spellBuffTest = (): void => {
-      const uids = [...handViews].filter(([, v]) => v.spell || v.ruby).map(([uid]) => uid);
-      if (uids.length === 0) return;
-      const c = getSpellBuffFxConfig();
-      setSpellBuffedUids(new Set());
-      requestAnimationFrame(() => setSpellBuffedUids(new Set(uids)));
-      window.setTimeout(() => setSpellBuffedUids(new Set()), Math.max(c.wiggleMs, c.sparkMs + c.sparkStagger) + 200);
+      fireSpellBuff([...handViews].filter(([, v]) => v.spell || v.ruby).map(([uid]) => uid));
     };
     return () => { delete w.__spellBuffTest; };
-  }, [handViews]);
+  }, [handViews, fireSpellBuff]);
   // `render:recruit` (perf export): render body + React reconciliation + DOM commit for THIS render — the delta
   // from `renderStart` (top of the component) to this earliest post-commit layout effect. No deps → every commit.
   // Defined ahead of the Flip effect so it excludes Flip's cost. This is the number that goes up late-game.
@@ -3837,7 +3848,7 @@ export function Recruit() {
                 dragging={!!drag?.active}
                 dimmed={isDragging(m.uid)}
                 buffed={!handViews.get(m.uid)?.ruby && buffedUids.has(m.uid)}
-                spellBuffed={spellBuffedUids.has(m.uid)}
+                spellBuffSeq={spellBuffSeq.get(m.uid)}
                 buffFloat={handViews.get(m.uid)?.ruby ? null : (statFloats[m.uid] ?? null)}
                 handSlidePx={handSlide(i) * handSlotWRef.current}
                 fanRot={fanRot}

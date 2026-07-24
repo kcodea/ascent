@@ -2,6 +2,23 @@
 
 ## 2026-07-24 (Set 2's Dragon tribe — foundation + first tranche)
 
+### feat(sim/content): Dragon tranche 7 — Voicekeeper (board-wide on-sell watcher)
+
+Voicekeeper (T5 5/9) — **17 of 21 Dragons built**.
+
+Needed a hook that didn't exist: `fireOnSell` fires the SOLD card's own `onSell` effects, but nothing let a
+minion react to ANOTHER minion leaving. Added `minionSold`, notified across the board with the sold card as
+`target`, plus `soldThisTurn` — the symmetric twin of the existing `playedThisTurn`, reset alongside it.
+
+"The FIRST Dragon you sell each turn" is read off that list rather than a boolean, which keeps it composable:
+the reducer appends the sale BEFORE notifying, so a watcher counting Dragons in `soldThisTurn` sees the sale
+it's reacting to already included — exactly 1 means it was the first. Two Voicekeepers both react to the same
+first sale, which is right, and no per-instance "already used" flag is needed.
+
+The copy is PLAIN — a fresh card from the index — so buffs and golden on the sold minion are deliberately not
+carried. Tested with a 30/40 buffed Dragon: the copy comes back at its base 3/5, and a non-Dragon sale is
+ignored entirely. Suite 1572 + typecheck + lint + build:web green.
+
 ### feat(sim/content): Dragon tranche 6 — spells cast ON a minion (Mirrorwing + Runefire)
 
 Mirrorwing Hatchling (T2 2/4) and Runefire (T5 5/8) — **16 of 21 Dragons built**.

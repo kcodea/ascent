@@ -90,6 +90,7 @@ export type GameEvent =
   | 'onKill'
   | 'startOfCombat'
   | 'avenge' // after X friendly minions have died in combat
+  | 'minionSold' // Set 2: another minion was sold (Voicekeeper watches)
   | 'spellCastOnThis' // Set 2: a targeted spell resolved ON this minion (Mirrorwing / Runefire)
   | 'onBuy'
   | 'endOfTurn' // recruit phase: the turn ends (End Turn / timer hits 0)
@@ -143,6 +144,7 @@ export type EffectFactoryId =
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
   | 'battlecryBuffTribeImproving' // Scalechanter: Shout — buff a tribe by base + its improvements
   | 'onBattlecryImproveSelf' // Scalechanter: every N Shouts triggered, improve its own magnitude
+  | 'onMinionSoldCopyFirstOfTribe' // Voicekeeper: copy the first tribe minion sold each turn
   | 'onSpellCastOnThisRecast' // Mirrorwing Hatchling: the first spell on this each turn casts again
   | 'onSpellCastOnThisSpreadAdjacent' // Runefire: it also casts on adjacent Dragons
   | 'scTriggerTribeShouts' // Thunderous Sovereign: Start of Combat — trigger your tribe's Shouts

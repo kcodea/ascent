@@ -1946,6 +1946,24 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     conjureToHand(ctx.state, poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier), num(params.count, 1) * gold(self));
   },
 
+  /** Set 2 — Voicekeeper: the FIRST `tribe` minion you sell each turn hands you a PLAIN copy of it.
+   *  "First each turn" is read off `soldThisTurn`, which the reducer appends to before notifying — so the
+   *  sale being reacted to is already in the list and this counts it: exactly 1 means it was the first.
+   *  "Plain" = a fresh card from the index, so buffs/golden on the sold minion are deliberately NOT copied. */
+  onMinionSoldCopyFirstOfTribe: (ctx, self, params, payload) => {
+    const sold = (payload as { target?: BoardCard }).target;
+    if (!sold) return;
+    const tribe = str(params.tribe);
+    const soldDef = CARD_INDEX[sold.cardId];
+    if (!soldDef || (tribe && soldDef.tribe !== tribe && soldDef.tribe2 !== tribe)) return;
+    const matching = (ctx.state.soldThisTurn ?? []).filter((id) => {
+      const d = CARD_INDEX[id];
+      return !!d && (!tribe || d.tribe === tribe || d.tribe2 === tribe);
+    }).length;
+    if (matching !== 1) return; // not the first of its tribe this turn
+    conjureToHand(ctx.state, [soldDef], num(params.count, 1) * gold(self));
+  },
+
   /** Set 2 — Mirrorwing Hatchling: the FIRST spell cast on this each turn casts again, on this.
    *  Guarded on `spellsOnThisTurn === 1` — the counter is bumped before this runs, so the re-cast below sees 2
    *  and stops. Without that guard the card recurses forever, since its own effect is another cast on itself. */
@@ -3265,6 +3283,22 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
   for (const eff of def.effects) {
     if (eff.on !== 'onRubyPlayed') continue;
     RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, rubyAttack, rubyHealth });
+  }
+}
+
+/**
+ * Set 2 — tell every BOARD minion that a minion was sold (Voicekeeper). Distinct from `fireOnSell`, which
+ * fires the SOLD card's own `onSell` effects: this is the watcher side, for cards that react to OTHER minions
+ * leaving. The sold card is passed as `target` so a watcher can inspect what it was.
+ */
+export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
+  for (const card of [...state.board]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def) continue;
+    for (const eff of def.effects) {
+      if (eff.on !== 'minionSold') continue;
+      RECRUIT_FACTORIES[eff.do]?.(makeContext(state), card, eff.params ?? {}, { minion: card, target: sold });
+    }
   }
 }
 

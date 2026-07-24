@@ -110,6 +110,20 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: '**Rise. Avenge (4):** improve your spells by **+2/+2**.',
   },
   {
+    // Turns selling into value: the first Dragon you cash out each turn comes back as a fresh copy, so the
+    // tribe can cycle bodies without losing them. PLAIN copy — buffs and golden are deliberately not carried.
+    id: 'd2_voicekeeper',
+    name: 'Voicekeeper',
+    tribe: 'dragon',
+    tier: 5,
+    attack: 5,
+    health: 9,
+    keywords: [],
+    effects: [{ on: 'minionSold', do: 'onMinionSoldCopyFirstOfTribe', params: { tribe: 'dragon', count: 1 } }],
+    text: 'Get a **plain copy** of the first Dragon you sell each turn.',
+    goldenText: 'Get **2 plain copies** of the first Dragon you sell each turn.',
+  },
+  {
     // The top-end recursion payoff: not a COPY to hand but an actual free re-cast, at End of Turn.
     id: 'd2_archivist',
     name: 'Runic Archivist',

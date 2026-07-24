@@ -152,6 +152,37 @@ describe('set 2 — Dragon spell hooks (first / second spell each turn)', () => 
   });
 });
 
+describe('set 2 — Voicekeeper copies the first Dragon sold each turn', () => {
+  it('copies the FIRST Dragon sold, and not the second', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 20,
+      board: [
+        minion('vk', 'd2_voicekeeper', 'dragon', 5, 9),
+        minion('d1', 'd2_chronicler', 'dragon', 3, 5),
+        minion('d2', 'd2_embermouth', 'dragon', 2, 2),
+      ],
+    };
+    s = reduce(s, { type: 'sell', uid: 'd1' });
+    expect(s.hand.filter((c) => c.cardId === 'd2_chronicler').length).toBe(1); // the first sale copied
+    s = reduce(s, { type: 'sell', uid: 'd2' });
+    expect(s.hand.filter((c) => c.cardId === 'd2_embermouth').length).toBe(0); // the second did not
+  });
+
+  it('ignores a non-Dragon sale, and the copy is PLAIN (buffs not carried)', () => {
+    const buffed = { ...minion('d1', 'd2_chronicler', 'dragon', 3, 5), attack: 30, health: 40 };
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 20,
+      board: [minion('vk', 'd2_voicekeeper', 'dragon', 5, 9), minion('nb', 'k_chipwick', 'kobold', 1, 2), buffed],
+    };
+    s = reduce(s, { type: 'sell', uid: 'nb' }); // a Kobold — not this tribe
+    expect(s.hand.length).toBe(0);
+    s = reduce(s, { type: 'sell', uid: 'd1' }); // the big buffed Dragon
+    const copy = s.hand.find((c) => c.cardId === 'd2_chronicler')!;
+    expect(copy).toBeDefined();
+    expect([copy.attack, copy.health]).toEqual([3, 5]); // base stats — the 30/40 buffs did NOT come along
+  });
+});
+
 describe('set 2 — spells cast ON a minion (Mirrorwing / Runefire)', () => {
   it('Mirrorwing Hatchling: the first spell on it casts AGAIN — and does not recurse', () => {
     // Spirit Fire is +2/+3 to one minion. Cast once on Mirrorwing → it should land TWICE (the cast + the

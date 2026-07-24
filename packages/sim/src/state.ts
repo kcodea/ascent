@@ -348,6 +348,10 @@ export interface RunState {
   /** Minion cardIds PLAYED this recruit turn (normal plays) — Pack Leader (SoC, via a simulate param) and
    *  Spirit Worgen (End of Turn) scale off "Beasts/Dragons you played this turn". Reset each turn. */
   playedThisTurn?: string[];
+  /** Set 2 — card ids SOLD this turn, in sell order (the symmetric twin of `playedThisTurn`). Voicekeeper
+   *  reads it to tell "the FIRST Dragon you sell each turn" from later ones. Appended BEFORE the `minionSold`
+   *  notify, so a watcher sees the sale it's reacting to already recorded. Reset each turn. */
+  soldThisTurn?: string[];
   resolve: number;
   maxResolve: number;
   /** Armor — extra effective HP on top of Resolve. Loss damage chips Armor first, then Resolve; it doesn't

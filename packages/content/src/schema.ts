@@ -80,6 +80,8 @@ export const EffectFactoryIdSchema = z.enum([
   'onSpellCastFirstBuffSelf',
   'onSpellCastSecondCopyFirst',
   'endOfTurnRecastFirstSpell',
+  'battlecryGrantShoutExtra',
+  'battlecryGrantFirstSpellMult',
   'battlecryGrantTribeAndSpell',
   'battlecryGrantRandomSpell',
   'battlecryCopyCastSpell',
@@ -379,6 +381,7 @@ export const CardDefSchema = z.object({
     .array(z.object({ text: z.string(), goldenText: z.string().optional(), effects: z.array(EffectDefSchema), target: z.enum(['friendly', 'any']).optional() }).strict())
     .min(2)
     .optional(),
+  chooseBothWhenGolden: z.boolean().optional(),
   discoverOnPlay: z
     .object({
       exactTier: z.number().int().positive().optional(),

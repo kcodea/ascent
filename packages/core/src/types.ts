@@ -156,6 +156,8 @@ export type EffectFactoryId =
   | 'onSpellCastFirstBuffSelf' // Ashscribe Whelp: the first spell each turn permanently grows this
   | 'onSpellCastSecondCopyFirst' // Spellkeeper Drake: your 2nd spell each turn copies the 1st
   | 'endOfTurnRecastFirstSpell' // Runic Archivist: End of Turn — re-cast this turn's first spell
+  | 'battlecryGrantShoutExtra' // Orivax (Chorus): your Shouts trigger an additional time
+  | 'battlecryGrantFirstSpellMult' // Orivax (Spellweave): first spell each turn casts N times
   | 'battlecryGrantTribeAndSpell' // Traveling Skald: Shout — a random tribe minion AND a random spell
   | 'battlecryGrantRandomSpell' // Hoard Chronicler: Shout — add random Tavern spells to hand
   | 'battlecryCopyCastSpell' // Recaller: Shout — copy the first/last spell you cast this turn
@@ -510,6 +512,9 @@ export interface CardDef {
   /** Choose One: when played, the player picks one of these options; its `effects` then resolve
    *  as the card's Battlecry (in place of `onPlay`). Each option carries its own display text. */
   chooseOne?: { text: string; goldenText?: string; effects: EffectDef[]; target?: 'friendly' | 'any' }[];
+  /** Set 2 — Orivax: when GOLDEN, a Choose-One applies ALL its options instead of the one picked ("Gilded:
+   *  Gain both"). General flag, not Orivax-specific. Only meaningful with `chooseOne`. */
+  chooseBothWhenGolden?: boolean;
   /** Discover-on-play: playing this card opens a Discover (a peek) and consumes the card — no board slot,
    *  no `cast` effect, and never multiplied by spell-quantity (Yazzus). Used by the tavern Discover spells
    *  (Sprout, Help Wanted, Tribe Portal, Corpse Board) and the golden Triple Reward token. The tier/tribe

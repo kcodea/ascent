@@ -361,6 +361,53 @@ describe('set 2 — Scalechanter improves on a Shout cadence', () => {
   });
 });
 
+describe('set 2 — Orivax installs a permanent global mode', () => {
+  it('Chorus: adds a permanent extra Shout trigger, and it compounds a played Shout', () => {
+    let s: RunState = {
+      ...createRun(7), tier: 7, phase: 'recruit', embers: 60,
+      board: [minion('mm', 'd2_matriarch', 'dragon', 4, 7)], // pays +2 Attack per Shout FIRE
+      hand: [minion('ox', 'd2_orivax', 'dragon', 10, 14), minion('sh', 'd2_chronicler', 'dragon', 3, 5)],
+    };
+    s = reduce(s, { type: 'play', uid: 'ox' });
+    s = reduce(s, { type: 'chooseOne', index: 0 }); // Chorus
+    expect(s.shoutExtraAlways).toBe(1);
+    // now a played Shout fires TWICE, so Matriarch pays +2 Attack twice = +4
+    const before = s.board.find((c) => c.uid === 'mm')!.attack;
+    s = reduce(s, { type: 'play', uid: 'sh' });
+    const mm = s.board.find((c) => c.uid === 'mm')!;
+    expect(mm.attack - before).toBe(4);
+  });
+
+  it('Spellweave: the first spell each turn casts 3 times (later spells single)', () => {
+    let s: RunState = {
+      ...createRun(7), tier: 7, phase: 'recruit', embers: 60,
+      board: [minion('t', 'd2_chronicler', 'dragon', 3, 5)],
+      hand: [minion('ox', 'd2_orivax', 'dragon', 10, 14), spellInHand('s1', 'spiritfire'), spellInHand('s2', 'spiritfire')],
+    };
+    s = reduce(s, { type: 'play', uid: 'ox' });
+    s = reduce(s, { type: 'chooseOne', index: 1 }); // Spellweave
+    expect(s.spellFirstMultEachTurn).toBe(3);
+    const t0 = s.board.find((c) => c.uid === 't')!;
+    const [a0, h0] = [t0.attack, t0.health];
+    s = reduce(s, { type: 'play', uid: 's1', targetUid: 't' });
+    const t1 = s.board.find((c) => c.uid === 't')!;
+    expect([t1.attack - a0, t1.health - h0]).toEqual([6, 9]); // Spirit Fire +2/+3 x3
+    s = reduce(s, { type: 'play', uid: 's2', targetUid: 't' });
+    const t2 = s.board.find((c) => c.uid === 't')!;
+    expect([t2.attack - t1.attack, t2.health - t1.health]).toEqual([2, 3]); // second spell single
+  });
+
+  it('GILDED Orivax gains BOTH modes from one play', () => {
+    const gox = { ...minion('ox', 'd2_orivax', 'dragon', 20, 28), golden: true };
+    let s: RunState = { ...createRun(7), tier: 7, phase: 'recruit', embers: 60, board: [], hand: [gox] };
+    s = reduce(s, { type: 'play', uid: 'ox' });
+    // a golden minion still opens the choose prompt; pick either — both apply
+    if (s.chooseOne) s = reduce(s, { type: 'chooseOne', index: 0 });
+    expect(s.shoutExtraAlways).toBe(1); // Chorus applied
+    expect(s.spellFirstMultEachTurn).toBe(3); // AND Spellweave applied
+  });
+});
+
 describe('set 2 — the cast meter is the umbrella of Rubies + Shop Spells', () => {
   it('Gemgorge Fiend counts SHOP SPELLS toward its every-3 trigger, not just Rubies', () => {
     // Owner 2026-07-24: the `rubyCast` trigger is the umbrella of both, matching the `spellsCast + rubyCasts`

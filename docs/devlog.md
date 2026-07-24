@@ -2,6 +2,33 @@
 
 ## 2026-07-24 (Set 2's Dragon tribe — foundation + first tranche)
 
+### feat(sim/content): Dragon tranche 10 — Orivax, the Spellchoir (the capstone)
+
+Orivax (T7 10/14, Choose One) — **20 of 21 Dragons built**; the whole shop-buildable roster is done, only Vault
+Curator remains (own PR, shared combat seam).
+
+Orivax installs a PERMANENT global mode and Gilds into both:
+* **Chorus** — your Shouts trigger an additional time. Reuses `shoutExtraAlways`, the counter Hoardwake already
+  feeds, so it reads through `playedShoutRepeats` for free.
+* **Spellweave** — your first spell each turn casts 3 times. Needed a new `spellFirstMultEachTurn` (there was
+  only Spell Thesis's fixed ×2); it's a separate field so the two STACK rather than clobber, gated on
+  `spellsThisTurn === 0` so it stays side-effect-free in the UI's cast preview (the same discipline the Grimoire
+  established).
+
+"Gilded: Gain both" is a GENERAL new flag, `chooseBothWhenGolden`, not an Orivax special-case: a golden
+Choose-One applies every option instead of the one picked. The prompt still opens and you still click a side —
+both resolve, in option order for determinism.
+
+One design call worth recording: golden Orivax's factories use BASE magnitude, NOT the usual golden doubling.
+Its Gilded benefit is literally "gain both modes" — the goldenText replaces the doubled-numbers convention
+rather than stacking on it, so golden Chorus is +1 trigger (not +2) plus Spellweave, which is what "gain both"
+reads as. A test asserts exactly that (`shoutExtraAlways === 1`, `spellFirstMultEachTurn === 3` from one golden
+play).
+
+Three tests: Chorus compounds a played Shout through Roaring Matriarch (+2 Attack fires twice = +4); Spellweave
+triples the turn's first spell and leaves the second single; golden gains both from one play. The tier spread
+now reads clean — 2/1/4/4/4/3/1 across T1–T7, plus Karwind at T6. Suite 1581 + typecheck + lint + build:web green.
+
 ### feat(core/sim/content): Dragon tranche 9 — Scalefeather Drake (cross-turn spell copy)
 
 Scalefeather Drake (T4 4/6, Dragon/Beast) — **19 of 21 Dragons built**. The most plumbing of the tribe, because

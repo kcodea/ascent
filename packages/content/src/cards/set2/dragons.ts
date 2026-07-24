@@ -14,7 +14,6 @@ import type { CardDef } from '@game/core';
  *   • per-minion "the first spell cast ON THIS each turn" tracking — Mirrorwing Hatchling, Runefire
  *   • Shout re-triggering inside COMBAT (`replayBattlecry` is recruit-only) — Thunderous Sovereign, Chorus Drake
  *   • a spend-and-reset counter — Living Grimoire
- *   • persistent Choose-One global modes — Orivax
  *   • first/second-spell-this-turn hooks on a minion — Ashscribe Whelp, Spellkeeper Drake
  *   • an on-sell per-turn flag — Voicekeeper; improve-per-N-Shouts — Scalechanter
  *   • the run HAND exposed to combat (`CombatSideState` carries no hand today) — Vault Curator
@@ -280,5 +279,25 @@ export const SET2_DRAGONS: CardDef[] = [
     effects: [{ on: 'battlecryTriggered', do: 'onBattlecryBuffTribe', params: { tribe: 'dragon', attack: 2, health: 0 } }],
     text: 'After you play a **Shout** minion, give your Dragons **+2 Attack**.',
     goldenText: 'After you play a **Shout** minion, give your Dragons **+4 Attack**.',
+  },
+  {
+    // The tribe capstone: a Choose-One that installs a permanent global mode, and Gilds into BOTH. Chorus
+    // pumps the Shout half of the tribe; Spellweave pumps the spell half. Every other Dragon feeds one or the
+    // other, so Orivax is the payoff either build was climbing toward.
+    id: 'd2_orivax',
+    name: 'Orivax, the Spellchoir',
+    tribe: 'dragon',
+    tier: 7,
+    attack: 10,
+    health: 14,
+    keywords: [],
+    effects: [],
+    chooseOne: [
+      { text: 'Your **Shouts** trigger an additional time.', effects: [{ on: 'onPlay', do: 'battlecryGrantShoutExtra', params: { extra: 1 } }] },
+      { text: 'Your first spell each turn casts **3 times**.', effects: [{ on: 'onPlay', do: 'battlecryGrantFirstSpellMult', params: { mult: 3 } }] },
+    ],
+    chooseBothWhenGolden: true,
+    text: '**Choose One — Chorus:** your Shouts trigger an additional time. **Spellweave:** your first spell each turn casts **3 times**.',
+    goldenText: '**Choose One — Chorus / Spellweave:** gain **both**.',
   },
 ];

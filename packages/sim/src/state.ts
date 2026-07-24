@@ -785,6 +785,10 @@ export interface RunState {
   freeBuyUsedThisTurn?: boolean;
   spellDoubleAlways?: boolean;
   spellFirstDoubleEachTurn?: boolean;
+  /** Set 2 — Orivax (Spellweave): a MULTIPLIER on the turn's first spell (3 = casts 3 times). Permanent,
+   *  run-wide. Separate from `spellFirstDoubleEachTurn` (Spell Thesis's ×2) so the two stack rather than
+   *  clobber, and read gated on `spellsThisTurn === 0` so it stays side-effect-free in the UI's cast preview. */
+  spellFirstMultEachTurn?: number;
   spellFirstUsedThisTurn?: boolean;
   /** Set 2 — Living Grimoire: the multiplier its charge applies to the FIRST spell of a turn (2 base, 3 golden).
    *  Absent/0 = discharged. Run-level rather than per-instance because `spellCasts` — which the UI also calls to

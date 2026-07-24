@@ -1017,7 +1017,11 @@ function reduceCore(state: RunState, action: Action): RunState {
           return s;
         }
       }
-      applyChooseOne(s, card, option.effects); // the chosen Battlecry resolves now
+      // Orivax when GOLDEN gains BOTH options (`chooseBothWhenGolden`), not just the one picked. The prompt
+      // still opens and you still click a side — both apply on resolve, which is the honest reading of
+      // "Gilded: Gain both". Applied in option order so the log/FX are deterministic.
+      const chosen = card.golden && def.chooseBothWhenGolden ? def.chooseOne! : [option];
+      for (const opt of chosen) applyChooseOne(s, card, opt.effects); // the chosen Battlecry (or all, if golden) resolves now
       s.chooseOne = undefined;
       checkTriples(s);
       if (card.golden) grantGoldenDiscover(s);

@@ -495,6 +495,11 @@ export function spellCasts(state: RunState, def: CardDef): number {
   // Spell Thesis: the FIRST spell each turn casts twice. READ-ONLY here (so the UI can preview the count without
   // side effects) — the reducer's cast sites consume the freebie by setting `spellFirstUsedThisTurn` after casting.
   if (state.spellFirstDoubleEachTurn && !state.spellFirstUsedThisTurn) mult *= 2;
+  // Orivax (Spellweave): the turn's first spell casts N times. Gated on `spellsThisTurn === 0` — the same
+  // read-only "is this the first" check the Grimoire uses — so the UI can preview a count without consuming it.
+  if (state.spellFirstMultEachTurn && state.spellFirstMultEachTurn > 1 && state.spellsThisTurn === 0) {
+    mult *= state.spellFirstMultEachTurn;
+  }
   // Living Grimoire: while CHARGED, the first spell of the turn multiplies. Gated on a live Grimoire being on
   // board — the charge is run-level so the UI can preview the count, and without this check selling the
   // Grimoire would leave the multiplier running forever. The board is ≤7 cards, so the scan is free.
@@ -2027,6 +2032,20 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const n of neighbours) {
       for (let r = 0; r < num(params.count, 1) * gold(self); r++) castSpell(ctx.state, spellDef, n);
     }
+  },
+
+  /** Set 2 — Orivax "Chorus": your Shouts permanently trigger `extra` more times. Stacks into the same
+   *  `shoutExtraAlways` counter Hoardwake feeds, so it reads through `playedShoutRepeats` for free.
+   *  NOT scaled by golden: Orivax's Gilded benefit is "gain BOTH modes" (`chooseBothWhenGolden`), a wording that
+   *  replaces the doubled-numbers convention rather than stacking on it. */
+  battlecryGrantShoutExtra: (ctx, self, params) => {
+    ctx.state.shoutExtraAlways = (ctx.state.shoutExtraAlways ?? 0) + num(params.extra, 1);
+  },
+
+  /** Set 2 — Orivax "Spellweave": your first spell each turn casts `mult` times. Sets the run multiplier
+   *  (max with any existing, so two Orivaxes don't multiply into absurdity — the higher wins). */
+  battlecryGrantFirstSpellMult: (ctx, self, params) => {
+    ctx.state.spellFirstMultEachTurn = Math.max(ctx.state.spellFirstMultEachTurn ?? 1, num(params.mult, 3));
   },
 
   /** Set 2 — Scalechanter (Shout): buff your `tribe` by the CURRENT magnitude — base + everything this

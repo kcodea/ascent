@@ -842,8 +842,10 @@ export function Recruit() {
   const [endTurnFlash, setEndTurnFlash] = useState(false);
   // Cards a combat Deathrattle just added to the hand (Arcane Weaver → Spirit Fire) — pop them
   // in when they arrive. Snapshot the hand on entering combat; the new uids afterwards are grants.
-  const [arrivedUids, setArrivedUids] = useState<Set<string>>(new Set());
   const handBeforeCombatRef = useRef<Set<string>>(new Set());
+  // Cards the COMBAT granted, which already materialised mid-fight (see the handGrant watcher) and so must
+  // not coalesce a second time as they settle into hand. Populated at the combat→recruit flip.
+  const coalesceSkipRef = useRef<Set<string>>(new Set());
   // A one-shot flourish under a freshly-played minion whose Battlecry just fired.
   const [battlecryUids, setBattlecryUids] = useState<Set<string>>(new Set());
   const prevBoardUidsRef = useRef<Set<string>>(new Set(run.board.map((c) => c.uid)));
@@ -1317,18 +1319,24 @@ export function Recruit() {
       const snap = new Map<string, { a: number; h: number }>();
       for (const c of [...run.board, ...run.hand]) snap.set(c.uid, { a: c.attack, h: c.health });
       prevStatsRef.current = snap;
+      // The gold `cardarrive` flash used to fire here for everything that appeared across the combat.
+      // Retired 2026-07-22: the coalesce is the arrival announcement now, and a combat-granted card was
+      // getting BOTH — materialising mid-fight, then flashing gold again on the way back to the shop.
+      //
+      // What survives is the discrimination that flash was doing for free. Cards granted BY THE COMBAT
+      // already had their moment on the flying "To your hand" card, so they must not coalesce again as they
+      // settle. Everything ELSE that lands in this same window — start-of-turn conjures, the Chaos token,
+      // delayed quest repeats — never had one, so it still coalesces. `lastCombat.playerHandGrants` is a
+      // cardId list, so match is consumed one-per-card to stay correct when the same card is granted twice.
       const before = handBeforeCombatRef.current;
-      const granted = run.hand.filter((c) => !before.has(c.uid)).map((c) => c.uid);
-      if (granted.length > 0) {
-        setArrivedUids((s) => new Set([...s, ...granted]));
-        window.setTimeout(() => {
-          setArrivedUids((s) => {
-            const n = new Set(s);
-            for (const u of granted) n.delete(u);
-            return n;
-          });
-        }, 1100);
+      const pending = [...(run.lastCombat?.playerHandGrants ?? [])];
+      const skip = new Set<string>();
+      for (const c of run.hand) {
+        if (before.has(c.uid)) continue;
+        const i = pending.indexOf(c.cardId);
+        if (i >= 0) { pending.splice(i, 1); skip.add(c.uid); }
       }
+      coalesceSkipRef.current = skip;
     }
     prevPhaseRef.current = run.phase;
   }, [run.phase]);
@@ -1356,7 +1364,10 @@ export function Recruit() {
     const bought = buyPendingRef.current;
     prevTriplesRef.current = run.triplesMade ?? 0;
     buyPendingRef.current = false;
-    const fresh = run.hand.filter((c) => !prevHand.has(c.uid) && !prevBoard.has(c.uid));
+    const skip = coalesceSkipRef.current;
+    const fresh = run.hand.filter((c) => !prevHand.has(c.uid) && !prevBoard.has(c.uid) && !skip.has(c.uid));
+    // consumed exactly once — the flip effect is declared above this one, so it always populates first
+    if (skip.size) coalesceSkipRef.current = new Set();
     prevHandUidsRef.current = new Set(run.hand.map((c) => c.uid));
     // Nothing new, or the new card came from a route that isn't a generation.
     if (!fresh.length || tripled || bought) return;
@@ -3663,7 +3674,6 @@ export function Recruit() {
                 dimmed={isDragging(m.uid)}
                 buffed={!handViews.get(m.uid)?.ruby && buffedUids.has(m.uid)}
                 buffFloat={handViews.get(m.uid)?.ruby ? null : (statFloats[m.uid] ?? null)}
-                arrived={arrivedUids.has(m.uid)}
                 handSlidePx={handSlide(i) * handSlotWRef.current}
                 fanRot={fanRot}
                 onPointerDown={onCardPointerDown}

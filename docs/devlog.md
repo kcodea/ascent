@@ -46,6 +46,17 @@ first-play bug (#635), and duplicating it into a second module would have duplic
 
 New dev tuner **✨ Plate Coalesce** with a "Play here" button.
 
+**Retired the gold arrival flash, and fixed a double-materialise it was masking.** `arrivedUids` fired the
+`cardarrive` flash for everything that appeared across a combat. With the coalesce in, a combat-granted card
+got BOTH — materialising mid-fight, then flashing gold again on the way back to the shop. The flash is gone
+(`arrived` prop + `.card.arrived` + the `cardarrive` keyframes all removed, since nothing else used them).
+
+Checking that turned up a real bug: the hand-uid diff ALSO fires at the combat→recruit flip, so combat grants
+were coalescing a second time as they settled into hand. The flip effect now builds a skip set instead of a
+flash set, using `lastCombat.playerHandGrants` — matched one-per-cardId so it stays correct when the same
+card is granted twice. Crucially it only skips cards the COMBAT granted: start-of-turn conjures, the Chaos
+token and delayed quest repeats land in that same window, never had a mid-fight moment, and still coalesce.
+
 **Fixed on first play-test:** the card flashed into view before the effect started, then vanished to reform.
 A freshly mounted card carries `.popin`, whose `cardpop` / `handpop` keyframes animate `opacity: 0 → 1`, and
 a RUNNING CSS ANIMATION outranks a plain inline style — so the hide lost for the pop's ~150ms and only
@@ -57,7 +68,8 @@ React renders, so a re-render mid-effect can't clobber it.
 `SceneBuilder.tsx` from #634, untouched here.)
 
 **Not verified in-game by me** — rAF doesn't fire in this environment's preview pane, so the motion is
-owner-eyeballed. Values are the owner's rig export applied verbatim.
+owner-eyeballed. Values are the owner's rig export applied verbatim (re-dialed tighter after the
+first play-test: total 1020 → 460, more and larger dust, much more swirl, and the outer bloom off).
 
 ## 2026-07-23 (Layaway — the keep is shop-phase only)
 

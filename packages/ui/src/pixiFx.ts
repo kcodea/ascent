@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Mesh, MeshGeometry, Shader, Sprite, Texture, type BLEND_MODES, type Ticker } from 'pixi.js';
+import { Application, Container, Graphics, Mesh, MeshGeometry, Shader, Sprite, Texture, type BLEND_MODES, type Renderer, type Ticker } from 'pixi.js';
 import { getSmokeConfig } from './smokeConfig';
 import { perfMonitor } from './perfMonitor';
 import { getStrikeFxConfig } from './strikeFxConfig';
@@ -718,6 +718,12 @@ class FxController {
       const i = this.extraUpdaters.indexOf(fn);
       if (i >= 0) this.extraUpdaters.splice(i, 1);
     };
+  }
+
+  /** The live renderer, for external effect layers (the FX workbench) that build GPU resources.
+   *  Null until `attach()`/`init()` has resolved. */
+  get renderer(): Renderer | null {
+    return this.app?.renderer ?? null;
   }
 
   /** True while anything still needs the per-frame tick: live particles or any redrawn effect / aura / aim. */

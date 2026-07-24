@@ -42,6 +42,8 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **The buff breakdown sits in front of the card again.** Inspecting a unit drew its buffs panel behind the
+  card plate — the plate is wider than the card and reached back over the panel's edge.
 - **Eight new spells (batch tranche A).** Six set-agnostic — Crest of the Climb (Choose One +4 Atk/+4 HP),
   Turnabout (swap Attack/Health), Insurance Policy (comeback Gold after a loss), Rift-Sunk Codex (Discover a
   Shop spell), Beyond the Summit (Discover one tier higher, up to Tier 7), Invitation Above (Discover a Tier 6

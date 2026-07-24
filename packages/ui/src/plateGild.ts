@@ -78,6 +78,8 @@ export interface PlateGildConfig {
   /** Flourish length as a share of beat 3. Over 1 outlasts the crown and extends the effect. */
   flFrac: number;
   flSize: number;
+  /** Vertical offset of the flourish, × plate width. Positive = lower (down the screen). */
+  flY: number;
   flInten: number;
   flSpin: number;
   /** Share of beat 4 the gilded card holds at centre before leaving. */
@@ -96,7 +98,7 @@ const DEFAULTS: PlateGildConfig = {
   holdFrac: 0, streamCount: 90, arc: -1.22, fuseSize: 0.5, trail: 0.37,
   crownLead: 0.26, wireInFrac: 0.15, wireHoldFrac: 0.34, wireInten: 1.1, punch: 1.16,
   g1v: 88, g2v: 134, cardFlash: 1.6, burst: 0, burstSpd: 0,
-  flourishType: 'seal', flFrac: 0.66, flSize: 1.66, flInten: 1.16, flSpin: 150,
+  flourishType: 'seal', flFrac: 0.66, flSize: 1.35, flY: 0.12, flInten: 1.16, flSpin: 150,
   savourFrac: 0, flyOutEase: 0.6,
   cDeep: '#a9700f', cMid: '#f1cb5e', cCore: '#fff6d5', grad: 0.24,
 };
@@ -110,7 +112,7 @@ export const PG_RANGES: Record<string, [number, number, number]> = {
   crownLead: [0, 0.9, 0.02], wireInFrac: [0.05, 0.8, 0.02], wireHoldFrac: [0, 0.8, 0.02],
   wireInten: [0, 2.5, 0.02], punch: [1, 1.6, 0.005], g1v: [0, 120, 1], g2v: [0, 260, 2],
   cardFlash: [0, 3, 0.05], burst: [0, 900, 10], burstSpd: [0, 900, 10],
-  flFrac: [0.2, 2, 0.02], flSize: [0.4, 3, 0.02], flInten: [0, 2, 0.02], flSpin: [-360, 360, 5],
+  flFrac: [0.2, 2, 0.02], flSize: [0.4, 3, 0.02], flY: [-0.5, 0.5, 0.02], flInten: [0, 2, 0.02], flSpin: [-360, 360, 5],
   savourFrac: [0, 0.8, 0.02], flyOutEase: [0.6, 4, 0.05], grad: [0, 1, 0.02],
 };
 export const PG_DESC: Record<string, string> = {
@@ -136,7 +138,8 @@ export const PG_DESC: Record<string, string> = {
   cardFlash: 'Gold flash pushed through the card art itself.',
   burst: 'Motes thrown outward on the crown.', burstSpd: 'Burst speed.',
   flFrac: 'Flourish length as a share of beat 3. Over 1 extends the effect.',
-  flSize: 'Flourish size.', flInten: 'Flourish brightness.', flSpin: 'Flourish spin, deg/s.',
+  flSize: 'Flourish size.', flY: 'Flourish vertical offset (× plate width; + = lower).',
+  flInten: 'Flourish brightness.', flSpin: 'Flourish spin, deg/s.',
   savourFrac: 'Share of beat 4 the gilded card holds before the slide takes it.',
   flyOutEase: 'Departure easing.',
   cDeep: 'Gold — outer.', cMid: 'Gold — middle.', cCore: 'Gold — core.',
@@ -353,7 +356,7 @@ export function playPlateGild(dest: Rect, card: HTMLElement, copies = 3): void {
     const fade = p < 0.25 ? p / 0.25 : 1 - (p - 0.25) / 0.75;
     const R = plateW * c.flSize * grow;
     flx.save();
-    flx.translate(cx, cy);
+    flx.translate(cx, cy + plateW * c.flY);   // flY nudges the sigil down off the card centre
     flx.rotate((p * T.flMs / 1000) * c.flSpin * Math.PI / 180);
     flx.globalAlpha = Math.max(0, fade) * c.flInten;
     flx.strokeStyle = c.cCore; flx.fillStyle = c.cMid;

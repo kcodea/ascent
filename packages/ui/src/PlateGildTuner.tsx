@@ -27,8 +27,8 @@ const LABELS: Record<string, string> = {
   crownLead: 'crown · overlap', wireInFrac: 'crown · wire in', wireHoldFrac: 'crown · wire hold',
   wireInten: 'crown · intensity', punch: 'crown · punch', g1v: 'crown · glow near', g2v: 'crown · glow far',
   cardFlash: 'crown · card flash', burst: 'crown · burst', burstSpd: 'crown · burst speed',
-  flFrac: 'flourish · length', flSize: 'flourish · size', flInten: 'flourish · intensity',
-  flSpin: 'flourish · spin',
+  flFrac: 'flourish · length', flSize: 'flourish · size', flY: 'flourish · lower',
+  flInten: 'flourish · intensity', flSpin: 'flourish · spin',
   savourFrac: 'home · savour share', flyOutEase: 'home · ease',
   grad: 'gold · gradient', cDeep: 'gold · deep', cMid: 'gold · mid', cCore: 'gold · core',
 };

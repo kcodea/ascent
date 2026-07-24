@@ -5,6 +5,12 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-24 (the gild's top-left flash — a THIRD cause)
 
+### tweak(ui): the gild sigil sits lower and smaller
+
+Owner: the seal flourish behind the card read a touch too high and too large. Dropped the default `flSize`
+1.66 → 1.35 and added a `flY` knob (vertical offset, × plate width, + = lower; default 0.12) wired into
+`drawFlourish`, the tuner, and the config schema so it can be dialed further.
+
 ### fix(ui): a freshly-popped golden made the gild clones inherit `cardpop`
 
 Owner still saw a card flash in the screen's top-left at the *start* of the gild, specifically when completing

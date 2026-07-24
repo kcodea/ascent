@@ -2,6 +2,7 @@ import { Mesh, MeshGeometry, Shader } from 'pixi.js';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple, tupleFloats } from '../palettes';
+import { FX_BLEND_MODES } from '../blendModes';
 import { registerPrimitive } from '../registry';
 
 /**
@@ -47,6 +48,7 @@ uniform float uThickness;
 uniform float uFade;
 uniform float uBands;
 uniform float uAlpha;
+uniform float uGlow;
 uniform vec4  uPal[4];
 
 vec4 pal(float t) {
@@ -66,6 +68,13 @@ void main() {
 
   int n = int(uRings);
   float e = 0.0;
+  // Soft halo accumulator, one per ring like e above — a smoothstep-widened, low-exponent band around the
+  // SAME bandDist field, several times wider than the crisp ring's uThickness. Left un-posterized (no
+  // band quantisation, unlike e below) so it stays smooth. This does not soften the crisp cel ring
+  // itself (see the header comment: the ring stays hard-banded) — it's a separate additive glow drawn
+  // around it, tinted by the palette's brightest ("core") stop and scaled by uGlow. When uGlow is 0 this
+  // term always contributes 0, so the discard/body math is byte-for-byte the original look.
+  float halo = 0.0;
   for (int k = 0; k < MAX_RINGS; k++) {
     if (k >= n) break;
     float phase = fract(uTime * uSpeed + float(k) / uRings);
@@ -74,14 +83,25 @@ void main() {
     float ring = 1.0 - smoothstep(uThickness - aa, uThickness + aa, bandDist);
     float fadeAmt = pow(1.0 - phase, uFade);
     e = max(e, ring * fadeAmt);
-  }
 
-  if (e <= 0.0) discard;
+    float haloRing = pow(1.0 - smoothstep(0.0, uThickness * 3.0, bandDist), 0.5);
+    halo = max(halo, haloRing * fadeAmt);
+  }
+  halo *= uGlow;
+
+  if (e <= 0.0 && halo <= 0.001) discard;
 
   float b = floor(clamp(e, 0.0, 1.0) * uBands) / max(uBands - 1.0, 1.0);
   vec4 col = pal(b);
+  float bodyA = col.a * e * uAlpha;
 
-  finalColor = vec4(col.rgb, 1.0) * (col.a * e * uAlpha);
+  vec4 glowCol = uPal[3];
+  float glowA = glowCol.a * halo * uAlpha;
+
+  vec3 rgb = col.rgb * bodyA + glowCol.rgb * glowA;
+  float a = bodyA + glowA;
+
+  finalColor = vec4(rgb, a);
 }
 `;
 
@@ -119,7 +139,13 @@ const SPECS = {
     default: paletteTuple('violet'), presets: PALETTE_PRESETS,
   },
   alpha: { kind: 'slider', label: 'Alpha', group: 'Style', min: 0, max: 1, step: 0.01, default: 1 },
-  additive: { kind: 'toggle', label: 'Additive', group: 'Style', default: true },
+  blendMode: {
+    kind: 'enum', label: 'Blend mode', group: 'Style', options: FX_BLEND_MODES, default: 'add',
+  },
+  glow: {
+    kind: 'slider', label: 'Glow', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.3,
+    help: 'soft outer halo',
+  },
 } satisfies FxParamSpecs;
 
 type ShockwaveParams = ParamsOf<typeof SPECS>;
@@ -159,12 +185,13 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
           uFade: { value: params.fade, type: 'f32' },
           uBands: { value: params.bands, type: 'f32' },
           uAlpha: { value: params.alpha, type: 'f32' },
+          uGlow: { value: params.glow, type: 'f32' },
           uPal: { value: tupleFloats(params.palette), type: 'vec4<f32>', size: 4 },
         },
       },
     });
     this.mesh = new Mesh({ geometry: this.geometry, shader: this.shader });
-    this.mesh.blendMode = params.additive ? 'add' : 'normal';
+    this.mesh.blendMode = params.blendMode;
     ctx.container.addChild(this.mesh);
   }
 
@@ -199,11 +226,12 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
     u.uFade = next.fade;
     u.uBands = next.bands;
     u.uAlpha = next.alpha;
+    u.uGlow = next.glow;
     // setParams is not on the per-frame hot path (only fires on an inspector edit), so rebuilding uPal
     // unconditionally is cheap and sidesteps any reference-equality bugs from how the caller assembles
     // `next`.
     u.uPal = tupleFloats(next.palette);
-    this.mesh.blendMode = next.additive ? 'add' : 'normal';
+    this.mesh.blendMode = next.blendMode;
     if (radiusChanged) {
       this.writeQuad(next.radius);
       this.geometry.getBuffer('aPosition').update();

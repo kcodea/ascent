@@ -2,6 +2,7 @@ import { Mesh, MeshGeometry, Shader } from 'pixi.js';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple, tupleFloats } from '../palettes';
+import { FX_BLEND_MODES } from '../blendModes';
 import { registerPrimitive } from '../registry';
 import {
   RIBBON_SEGMENTS,
@@ -68,6 +69,7 @@ uniform float uPlateau;
 uniform float uSoft;
 uniform float uAlpha;
 uniform float uSeed;
+uniform float uGlow;
 uniform vec4  uPal[4];
 
 float hash(vec2 p) {
@@ -106,14 +108,36 @@ void main() {
   float n = fbm(p);
 
   float d = shape - n * uErode;
-  if (d <= 0.0) discard;
 
-  float q = clamp(d / max(uGain, 0.001), 0.0, 1.0);
-  float b = floor(q * uBands) / max(uBands - 1.0, 1.0);
-  vec4 c = pal(b);
+  // Soft halo: a smoothstep-widened, low-exponent version of the PRE-erosion shape (not the
+  // noise-eroded d the crisp body below is clipped to), so the glow bleeds past the cel body's ragged
+  // noise-eaten edge as a soft bloom instead of being cut by the same hard silhouette/discard. Left
+  // un-posterized (no band quantisation) so it stays smooth under the crisp cel core, and tinted by the
+  // palette's brightest ("core") stop, uPal[3]. When uGlow is 0 this term is always 0, so the glow branch
+  // contributes nothing and the discard/body math below is byte-for-byte the original look.
+  float haloShape = clamp(shape / max(uGain, 0.001), 0.0, 1.0);
+  float halo = pow(smoothstep(0.0, 1.0, haloShape), 0.5) * uGlow;
 
-  float aa = smoothstep(0.0, fwidth(d) * uSoft, d);
-  finalColor = vec4(c.rgb, 1.0) * (c.a * aa * uAlpha);
+  if (d <= 0.0 && halo <= 0.001) discard;
+
+  vec3 rgb = vec3(0.0);
+  float a = 0.0;
+  if (d > 0.0) {
+    float q = clamp(d / max(uGain, 0.001), 0.0, 1.0);
+    float b = floor(q * uBands) / max(uBands - 1.0, 1.0);
+    vec4 c = pal(b);
+    float aa = smoothstep(0.0, fwidth(d) * uSoft, d);
+    float bodyA = c.a * aa * uAlpha;
+    rgb += c.rgb * bodyA;
+    a += bodyA;
+  }
+
+  vec4 glowCol = uPal[3];
+  float glowA = glowCol.a * halo * uAlpha;
+  rgb += glowCol.rgb * glowA;
+  a += glowA;
+
+  finalColor = vec4(rgb, a);
 }
 `;
 
@@ -135,7 +159,13 @@ const SPECS = {
     kind: 'palette', label: 'Palette', group: 'Style',
     default: paletteTuple('violet'), presets: PALETTE_PRESETS,
   },
-  additive: { kind: 'toggle', label: 'Additive', group: 'Style', default: false },
+  blendMode: {
+    kind: 'enum', label: 'Blend mode', group: 'Style', options: FX_BLEND_MODES, default: 'add',
+  },
+  glow: {
+    kind: 'slider', label: 'Glow', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.3,
+    help: 'soft outer halo',
+  },
 
   noiseAlong: {
     kind: 'slider', label: 'Noise (along)', group: 'Noise', min: 0.5, max: 12, step: 0.1, default: 3,
@@ -253,12 +283,13 @@ class RibbonInstance implements FxInstance<RibbonParams> {
           // determinism ban (see eslint.config.mjs) — this is a cosmetic per-instance phase offset only,
           // same role as pixiFx.ts's shield-bubble `uSeed`.
           uSeed: { value: Math.random() * 1000, type: 'f32' },
+          uGlow: { value: params.glow, type: 'f32' },
           uPal: { value: tupleFloats(params.palette), type: 'vec4<f32>', size: 4 },
         },
       },
     });
     this.mesh = new Mesh({ geometry: this.geometry, shader: this.shader });
-    this.mesh.blendMode = params.additive ? 'add' : 'normal';
+    this.mesh.blendMode = params.blendMode;
     this.mesh.visible = false;
     ctx.container.addChild(this.mesh);
   }
@@ -296,11 +327,12 @@ class RibbonInstance implements FxInstance<RibbonParams> {
     u.uTail = next.tail;
     u.uSoft = next.soft;
     u.uAlpha = next.alpha;
+    u.uGlow = next.glow;
     // setParams is not on the per-frame hot path (only fires on an inspector edit), so rebuilding uPal
     // unconditionally is cheap and sidesteps any reference-equality bugs from how the caller assembles
     // `next` — no risk of the palette silently going stale because the array happened to be re-used.
     u.uPal = tupleFloats(next.palette);
-    this.mesh.blendMode = next.additive ? 'add' : 'normal';
+    this.mesh.blendMode = next.blendMode;
     this.shape.headPinch = next.headPinch;
     this.shape.tailFeather = next.tailFeather;
   }

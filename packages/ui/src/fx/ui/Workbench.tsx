@@ -9,15 +9,15 @@ import { SCENARIOS } from '../scenarios';
 import { pixiFx } from '../../pixiFx';
 import { Inspector } from './Inspector';
 
-// Registers the ribbon primitive (see registry.ts's `registerPrimitive`). A DYNAMIC import, deliberately —
-// `primitives/ribbon.ts` self-registers via a top-level function CALL (a real side effect Rollup can't
-// prove away), so a plain `import '../primitives/ribbon'` here would force the whole module — GLSL shader
+// Registers every built-in primitive (see registry.ts's `registerPrimitive`). A DYNAMIC import,
+// deliberately — the primitives self-register via a top-level function CALL (a real side effect Rollup
+// can't prove away), so a plain `import '../primitives'` here would force the whole set — GLSL shader
 // source strings included — into the production bundle even though nothing ever renders this component
 // there (DevMenu, and everything under it, is only ever mounted behind `import.meta.env.DEV` in Game.tsx).
-// Gating this specific import the same way lets prod's dead-code elimination drop the primitive entirely,
+// Gating this import the same way lets prod's dead-code elimination drop the primitives entirely,
 // matching how every other dev tuner already vanishes from the shipped bundle. `build()` below polls for
-// the primitive to appear before using it, since this resolves asynchronously.
-if (import.meta.env.DEV) void import('../primitives/ribbon');
+// a primitive to appear before using it, since this resolves asynchronously.
+if (import.meta.env.DEV) void import('../primitives');
 
 const DURATION_MS = 1200;
 
@@ -118,13 +118,17 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
 
         const scenario = SCENARIOS.find((s) => s.id === scenarioId) ?? SCENARIOS[0];
         if (scenario) {
-          const anchors = scenario.anchorsAt({ w: window.innerWidth, h: window.innerHeight }, cursorRef.current);
+          const vp = { w: window.innerWidth, h: window.innerHeight };
           const progress = (p.timeMs() % DURATION_MS) / DURATION_MS;
-          const pt = resolveAnchor(anchors, 'travel', progress);
+          // A scenario may drive the head along a custom multi-leg path (e.g. `bounce` chaining between
+          // units); otherwise the head follows the default source→target travel arc.
+          const pt = scenario.headAt
+            ? scenario.headAt(vp, cursorRef.current, progress)
+            : resolveAnchor(scenario.anchorsAt(vp, cursorRef.current), 'travel', progress);
           // `pixiFx.mountLayer` parents `container` straight onto the overlay stage, which sits at the
           // canvas origin with no transform, and the overlay canvas itself is a full-viewport element at
           // (0,0) — so these page/screen coordinates map directly onto the container's local space with
-          // no conversion needed, matching what the ribbon primitive's `setHead` assumes.
+          // no conversion needed, matching what a primitive's `setHead` assumes.
           // Layer 0 is the def's only layer (P1 stages a single-layer effect); revisit when the
           // workbench can stage multiple layers at once.
           p.setHead(0, pt.x, pt.y);

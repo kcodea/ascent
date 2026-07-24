@@ -1,5 +1,25 @@
 # ASCENT — development log
 
+## 2026-07-24 (Discover minimize button sat on the cards at short viewports)
+
+### fix(ui): move the Discover minimize button down (61% → 67%)
+
+Owner report: the Minimize button crowds the Discover cards.
+
+It didn't reproduce at first — on a tall window the button already cleared the cards by 57px. The cause is that
+`.disc-toggle` is `position: fixed` at a VIEWPORT percentage while the cards' bottom edge isn't, so the gap
+shrinks as the window gets shorter. Measured at 1400x760 the button OVERLAPPED the cards by 4px, which is the
+reported state; 67% leaves a 42–52px gap there while still keeping ~220px of room beneath it.
+
+It stays viewport-relative rather than being anchored under the panel, and that's deliberate: the same button
+serves the MINIMIZED state, where the panel is unmounted and there is nothing to hang it off. Keeping one fixed
+spot is what lets the player flip between the two states without moving the mouse — verified that the button's
+top is byte-identical (509px) open vs minimized, with the panel confirmed gone in the second case.
+
+Checked at both extremes: 1400x760 → 52px gap, no overlap; 1531x1316 → 147px gap, still on screen with 404px
+beneath. The Farseer scout panel's Close button reuses this spot, so it moves with it. Suite 1545 + typecheck +
+lint + build:web green.
+
 ### fix(ui/sim): discovered spells drop their stats, Hourglass picks show locked, Quick Sale floats its real value
 
 Three follow-ups in the same PR.

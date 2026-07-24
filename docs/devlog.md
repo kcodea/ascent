@@ -1,5 +1,19 @@
 # ASCENT — development log
 
+## 2026-07-24 (bake the owner's tuned Refresh button)
+
+### chore(ui): commit the tuned Refresh FX defaults
+
+Owner's values from the 🔄 Refresh tuner, baked into `refreshConfig.ts` DEFAULTS and mirrored into the
+styles.css `--rfb-*` fallbacks (double-source discipline). Changed vs the prior defaults: a bigger cost coin
+(`costS 1.42 → 1.6`), the label pill higher and larger (`labelY -46 → -64`, `labelS 1 → 1.42`), a fuller,
+faster, blue-tinted hover glow (`glowAlpha 0.57 → 1`, `glowStrength 6 → 7`, `glowPulse 4 → 1.5`,
+`glowPulseDepth 0.43 → 0.25`, `glowColor #ffffff → #52bdff`), a snappier tighter click shine (`shineMs 1050 →
+280`, `shineAlpha 0.7 → 1`, `shineSize 1.9 → 3`, `shineBlur 24 → 7`), no click dust (`dustCount 0.1 → 0`), and
+longer, smaller blast shards (`blastLife 660 → 880`, `blastSize 0.7 → 0.45`). Position/scale unchanged.
+typecheck + lint + 1586 tests + build:web green.
+
+
 ## 2026-07-24 (triple-reward cards coalesce in gold + a plate mask A/B)
 
 ### feat(ui): the Triple Reward token materialises in gold

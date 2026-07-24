@@ -167,7 +167,7 @@ const doubleNums = (s: string): string =>
 export interface CardView {
   name: string;
   /** Card id — used to look up illustrated art (falls back to the tribe sprite). */
-  cardId?: string;
+  cardId: string;
   /** Choose One: the branch this instance picked. Drives ART only here — the per-branch TEXT is already
    *  resolved upstream (`instView` / `Unit`). Option N renders `<cardId><N+1>` when that art exists. */
   chosenOption?: number;

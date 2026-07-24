@@ -1,5 +1,17 @@
 # ASCENT — development log
 
+## 2026-07-24 (bake the owner's tuned Card Pills layout)
+
+### chore(ui): commit the tuned Card Pills defaults (cost coin + type pill)
+
+Owner's values from the 🏷️ Card Pills tuner, baked into `cardPillsConfig.ts` DEFAULTS: the cost coin nudged up
+and in toward the corner and shrunk (`costX -9`, `costY -13`, `costScale 0.81`); the type pill dropped to the
+bottom of the art icon and slightly smaller (`spellY 34`, `spellScale 0.91`). Tier badge stays identity.
+
+Verified from a CLEARED saved config (what production renders): all three `--cpl-*-t` vars resolve from DEFAULTS
+alone, with the type pill's centring `translateX(-50%)` preserved under the offset. typecheck + lint + build:web
+green.
+
 ## 2026-07-24 (Dragon fixes — Grimoire/Spellkeeper count from placement, Grimoire hits Rubies)
 
 ### fix(sim/content): Living Grimoire + Spellkeeper count from when they hit the board, not turn start

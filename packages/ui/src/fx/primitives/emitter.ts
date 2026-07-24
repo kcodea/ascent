@@ -2,6 +2,7 @@ import { Particle, ParticleContainer, Rectangle, Shader, type Texture } from 'pi
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple } from '../palettes';
+import { sampleCurve, CURVE_PRESETS } from '../curve';
 import {
   createParticleMaterial,
   updateParticleMaterial,
@@ -63,6 +64,11 @@ const SPECS = {
   stretchY: {
     kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
     help: 'Per-particle height multiplier on top of Size.',
+  },
+  sizeCurve: {
+    kind: 'curve', label: 'Size / life', group: 'Shape',
+    default: [[0, 1], [1, 0.75]], presets: CURVE_PRESETS,
+    help: 'Size multiplier over each mote\'s life (0 = birth, 1 = death).',
   },
 
   coreBias: {
@@ -243,7 +249,7 @@ class EmitterInstance implements FxInstance<EmitterParams> {
       m.p.y += m.vy * dtSec;
       const t = m.age / m.maxLife;
       m.p.alpha = moteAlpha(t, m.fadeIn);
-      const shrink = 1 - 0.25 * t; // gentle shrink over life
+      const shrink = sampleCurve(p.sizeCurve, t); // size-over-life multiplier
       m.p.scaleX = m.scaleX0 * shrink;
       m.p.scaleY = m.scaleY0 * shrink;
       if (write !== i) motes[write] = m;

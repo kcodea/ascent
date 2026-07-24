@@ -2,6 +2,7 @@ import { Particle, ParticleContainer, Rectangle, Shader, type Texture } from 'pi
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
 import { PALETTE_PRESETS, paletteTuple } from '../palettes';
+import { sampleCurve, CURVE_PRESETS } from '../curve';
 import {
   createParticleMaterial,
   updateParticleMaterial,
@@ -102,6 +103,11 @@ const SPECS = {
   stretchY: {
     kind: 'slider', label: 'Stretch Y', group: 'Shape', min: 0.2, max: 4, step: 0.05, default: 1,
     help: 'Per-particle height multiplier on top of Size.',
+  },
+  sizeCurve: {
+    kind: 'curve', label: 'Size / life', group: 'Shape',
+    default: [[0, 1], [1, 0]], presets: CURVE_PRESETS,
+    help: 'Size multiplier over each particle\'s life (0 = birth, 1 = death).',
   },
 
   coreBias: {
@@ -260,8 +266,9 @@ class BurstInstance implements FxInstance<BurstParams> {
     setParticleTime(this.shader, this.clockSec);
 
     const dtSec = dtMs / 1000;
-    const dragF = Math.pow(this.params.drag, dtMs / DRAG_REF_MS);
-    const gravity = this.params.gravity;
+    const p = this.params;
+    const dragF = Math.pow(p.drag, dtMs / DRAG_REF_MS);
+    const gravity = p.gravity;
     const live = this.live;
     const children = this.pc.particleChildren;
 
@@ -283,9 +290,11 @@ class BurstInstance implements FxInstance<BurstParams> {
       particle.rotation += lp.spin * dtSec;
 
       const frac = 1 - lp.age / lp.maxLife; // 1 -> 0 over life
+      const lifeT = lp.age / lp.maxLife; // 0 -> 1 over life
       particle.alpha = frac * frac;
-      particle.scaleX = lp.scaleX0 * frac;
-      particle.scaleY = lp.scaleY0 * frac;
+      const s = sampleCurve(p.sizeCurve, lifeT);
+      particle.scaleX = lp.scaleX0 * s;
+      particle.scaleY = lp.scaleY0 * s;
 
       if (write !== i) live[write] = lp;
       children[write] = particle;

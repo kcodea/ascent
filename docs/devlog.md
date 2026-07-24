@@ -3,6 +3,43 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (FX workbench — `curve` param kind: value-over-life)
+
+### feat(fx): a value-over-life curve kind + a draggable curve editor, wired as particle size-over-life
+
+First of the owner-requested "richer params" waves (richer knobs before composition). Adds a new `curve`
+param kind — a control-point curve sampled at normalized life (0 = birth, 1 = death) to yield a multiplier —
+so an effect's magnitude can *animate across its own lifetime* instead of being a single scalar.
+
+- **The `curve` kind, end to end** — mirrors the `palette` kind through every seam: a `curve` variant in the
+  `FxParamSpec` union; a `ParamsOf` branch mapping it to a mutable `[number, number][]`; deep-copy in
+  `defaultsOf`; a `coerceParams` case that validates an array of ≥2 `[t,v]` pairs and stores a fresh copy
+  with t/v clamped to [0,1] and **sorted ascending by t** (the sampler relies on that); and a `validateSpecs`
+  check. A stored value is never aliased to the spec's arrays.
+- **`sampleCurve` (`curve.ts`)** — pure, total, allocation-free piecewise-linear sampler (clamps t, returns
+  endpoint values outside the range, guards a zero-width segment, returns 1 for an empty curve) so it can run
+  per-particle per-frame. Plus a shared `CURVE_PRESETS` (fade out / grow / pop / hold-then-drop / ease out).
+- **A curve editor in the Inspector** — a self-contained `CurveEditor` component (its own component, not an
+  inline branch, so its hooks stay legal): a compact SVG polyline with draggable control-point handles
+  (pointer-capture on the `<svg>`; first point pinned to t=0, last to t=1, interior points clamped strictly
+  between their neighbours so they can't cross) and a preset dropdown. Fully controlled off the workbench's
+  param state, like the palette swatches.
+- **Wired as particle size-over-life** — burst and emitter gain a `Size / life` curve. The wiring replaces
+  each primitive's hand-rolled shrink term, and the **defaults reproduce the old behaviour exactly**: burst's
+  `[[0,1],[1,0]]` sampled at life-fraction `t` is `1 − t` (its old `frac`), emitter's `[[0,1],[1,0.75]]` is
+  `1 − 0.25·t` (its old `shrink`). Both particle containers already upload `vertex` dynamically, so there's no
+  new per-frame GPU cost beyond the (cheap) curve sample. Alpha-over-life is untouched this wave.
+
+**Verified:** `typecheck` clean, `lint` 0 errors, `test` **1748 passing** (107 files) — including
+`sampleCurve` unit tests (endpoints, midpoint lerp, out-of-range clamp, empty/single-point, multi-segment,
+zero-width segment) and the two behaviour-preservation identities pinned numerically; new `params.test.ts`
+curve cases (defaults deep-copy, coerce clamps/sorts/drops-malformed, a `toEqualTypeOf` `ParamsOf` check,
+validate flags). `build:web` green; the curve editor is confirmed absent from the prod JS bundle.
+
+**Follow-ups:** the remaining `gradient` (colour-over-life) kind — reuses this control-point editor with colour
+stops instead of a scalar; motion physics (turbulence, velocity inheritance, emission shapes); a **smoke**
+primitive; optional alpha-over-life curves. Owner's eye still wanted on the editor feel + shockwave look.
+
 ## 2026-07-24 (FX workbench — Fire truly decoupled, transport dials, preview backdrop)
 
 ### feat(fx): Fire is a clean one-shot, Loop is opt-in, + Duration/gap dials + a compositing backdrop

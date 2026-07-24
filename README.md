@@ -46,11 +46,13 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
   on ~7,700 lines of four-parallel-list boilerplate that had already drifted). Effects are now **data played
   by a runtime player**; a primitive declares its parameters once and a dev-only workbench generates the whole
   editing UI from that declaration — with live scrub, an **editable colour palette** (four stops + presets),
-  and staged **scenarios** (two units, pinned-to-cursor, click-to-place, ping-pong bounce, stationary) so an
-  effect can be tuned without playing to the moment it fires. Four primitives so far — a posterized cel-band
-  **trail**, a radial **burst**, an expanding **shockwave**, and a continuous **emitter** — with more depth
-  and effect-stacking queued. The whole workbench tree-shakes out of the production build. See the
-  [devlog](docs/devlog.md).
+  draggable **value-over-life curves** (an effect's magnitude can animate across its own lifetime — first
+  wired as particle size-over-life), a **Fire** button that plays an effect once to true completion decoupled
+  from the loop, and staged **scenarios** (two units, pinned-to-cursor, click-to-place, ping-pong bounce,
+  stationary) so an effect can be tuned without playing to the moment it fires. Four primitives so far — a
+  posterized cel-band **trail**, a radial **burst**, an expanding **shockwave**, and a continuous **emitter**
+  — with more depth and effect-stacking queued. The whole workbench tree-shakes out of the production build.
+  See the [devlog](docs/devlog.md).
 - **The buff breakdown sits in front of the card again.** Inspecting a unit drew its buffs panel behind the
   card plate — the plate is wider than the card and reached back over the panel's edge.
 - **Eight new spells (batch tranche A).** Six set-agnostic — Crest of the Climb (Choose One +4 Atk/+4 HP),

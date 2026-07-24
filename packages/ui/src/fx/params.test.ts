@@ -26,6 +26,20 @@ describe('defaultsOf', () => {
     expect(a.pal).not.toBe(b.pal);
     expect(a.pal).not.toBe(paletteSpecs.pal.default);
   });
+
+  it('returns a deep copy of a curve default (mutating the result never touches the spec)', () => {
+    const curveSpecs = {
+      c: { kind: 'curve' as const, label: 'Curve', default: [[0, 1], [1, 0]] as const },
+    } satisfies FxParamSpecs;
+    const a = defaultsOf(curveSpecs);
+    const b = defaultsOf(curveSpecs);
+    expect(a.c).toEqual([[0, 1], [1, 0]]);
+    expect(a.c).not.toBe(b.c);
+    // The inner point arrays are copies too — a shallow spread would leave these aliased to the spec.
+    expect(a.c[0]).not.toBe(curveSpecs.c.default[0]);
+    a.c[0][1] = 0.123;
+    expect(curveSpecs.c.default[0][1]).toBe(1);
+  });
 });
 
 describe('coerceParams', () => {
@@ -109,6 +123,54 @@ describe('coerceParams', () => {
       expect(result.pal).not.toBe(input);
     });
   });
+
+  describe('curve kind', () => {
+    const curveSpecs = {
+      c: { kind: 'curve' as const, label: 'Curve', default: [[0, 1], [1, 0]] as const },
+    } satisfies FxParamSpecs;
+
+    it('accepts a valid curve', () => {
+      expect(coerceParams(curveSpecs, { c: [[0, 0.2], [0.5, 1], [1, 0]] }).c).toEqual([
+        [0, 0.2],
+        [0.5, 1],
+        [1, 0],
+      ]);
+    });
+
+    it('clamps out-of-range t and v into [0,1]', () => {
+      expect(coerceParams(curveSpecs, { c: [[-1, 2], [2, -3]] }).c).toEqual([[0, 1], [1, 0]]);
+    });
+
+    it('sorts unsorted input ascending by t', () => {
+      expect(coerceParams(curveSpecs, { c: [[1, 0], [0.5, 0.4], [0, 1]] }).c).toEqual([
+        [0, 1],
+        [0.5, 0.4],
+        [1, 0],
+      ]);
+    });
+
+    it('drops a curve with fewer than 2 points back to the default', () => {
+      expect(coerceParams(curveSpecs, { c: [[0.5, 0.5]] }).c).toEqual([[0, 1], [1, 0]]);
+    });
+
+    it('drops a malformed point (wrong tuple shape) back to the default', () => {
+      expect(coerceParams(curveSpecs, { c: [[0, 1], [1]] }).c).toEqual([[0, 1], [1, 0]]);
+      expect(coerceParams(curveSpecs, { c: [[0, 1], [1, 'x']] }).c).toEqual([[0, 1], [1, 0]]);
+    });
+
+    it('drops a non-array value back to the default', () => {
+      expect(coerceParams(curveSpecs, { c: 'nope' }).c).toEqual([[0, 1], [1, 0]]);
+      expect(coerceParams(curveSpecs, { c: 5 }).c).toEqual([[0, 1], [1, 0]]);
+    });
+
+    it('returns fresh nested arrays rather than aliasing the input', () => {
+      const input = [[0, 1], [1, 0]];
+      const result = coerceParams(curveSpecs, { c: input });
+      expect(result.c).toEqual(input);
+      expect(result.c).not.toBe(input);
+      expect(result.c[0]).not.toBe(input[0]);
+    });
+  });
 });
 
 describe('ParamsOf type derivation', () => {
@@ -130,6 +192,15 @@ describe('ParamsOf type derivation', () => {
     } satisfies FxParamSpecs;
     type Params = ParamsOf<typeof specsWithPalette>;
     expectTypeOf<Params['pal']>().toEqualTypeOf<[number, number, number, number]>();
+  });
+
+  it('derives a mutable [number, number][] for curve params (not the readonly spec default)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const specsWithCurve = {
+      c: { kind: 'curve' as const, label: 'Curve', default: [[0, 1], [1, 0]] as const },
+    } satisfies FxParamSpecs;
+    type Params = ParamsOf<typeof specsWithCurve>;
+    expectTypeOf<Params['c']>().toEqualTypeOf<[number, number][]>();
   });
 });
 
@@ -200,5 +271,41 @@ describe('validateSpecs', () => {
       pal: { kind: 'palette' as const, label: 'Palette', default: [1, 2, 3, 4] as const },
     } satisfies FxParamSpecs;
     expect(validateSpecs(okPalette)).toEqual([]);
+  });
+
+  it('catches a curve default with fewer than 2 points', () => {
+    const badCurve = {
+      c: {
+        kind: 'curve' as const,
+        label: 'Curve',
+        default: [[0, 1]] as unknown as readonly (readonly [number, number])[],
+      },
+    } satisfies FxParamSpecs;
+    const problems = validateSpecs(badCurve);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('at least 2 points');
+  });
+
+  it('catches a curve default with an out-of-range point', () => {
+    const badCurve = {
+      c: { kind: 'curve' as const, label: 'Curve', default: [[0, 1], [1, 2]] as const },
+    } satisfies FxParamSpecs;
+    const problems = validateSpecs(badCurve);
+    expect(problems.some((p) => p.includes('outside [0, 1]'))).toBe(true);
+  });
+
+  it('catches a curve default that is not sorted by t', () => {
+    const badCurve = {
+      c: { kind: 'curve' as const, label: 'Curve', default: [[1, 0], [0, 1]] as const },
+    } satisfies FxParamSpecs;
+    const problems = validateSpecs(badCurve);
+    expect(problems.some((p) => p.includes('sorted ascending by t'))).toBe(true);
+  });
+
+  it('accepts a well-formed curve spec', () => {
+    const okCurve = {
+      c: { kind: 'curve' as const, label: 'Curve', default: [[0, 1], [0.5, 0.5], [1, 0]] as const },
+    } satisfies FxParamSpecs;
+    expect(validateSpecs(okCurve)).toEqual([]);
   });
 });

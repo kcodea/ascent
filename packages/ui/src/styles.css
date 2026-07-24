@@ -5033,6 +5033,16 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 .fxwb-palette-stops input[type='color'] { width: 100%; height: 22px; padding: 0; border: 1px solid #3d3752; border-radius: 4px; background: none; cursor: pointer; }
 .fxwb-palette-stops input[type='color']::-webkit-color-swatch { border: none; border-radius: 3px; }
 .fxwb-palette-stops input[type='color']::-moz-color-swatch { border: none; border-radius: 3px; }
+/* Editable value-over-life curve control: a preset dropdown above a compact SVG polyline editor with
+   draggable control-point handles. */
+.fxwb-curve { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+.fxwb-curve > select { width: 100%; }
+.fxwb-curve-svg { width: 100%; height: auto; touch-action: none; border: 1px solid #3d3752; border-radius: 4px; }
+.fxwb-curve-bg { fill: #211d2c; }
+.fxwb-curve-grid { stroke: #3d3752; stroke-width: 1; }
+.fxwb-curve-line { stroke: #c936ef; stroke-width: 2; }
+.fxwb-curve-handle { fill: #f0a0ff; stroke: #7a17bd; stroke-width: 1.5; cursor: grab; }
+.fxwb-curve-handle:active { cursor: grabbing; }
 .fxwb-row input[type='checkbox'] { justify-self: start; accent-color: #c936ef; width: 15px; height: 15px; cursor: pointer; }
 .fxwb-row select {
   grid-column: 2 / span 2; background: #2b2739; border: 1px solid #3d3752; color: #d9d3ea; border-radius: 6px;

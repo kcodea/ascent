@@ -276,13 +276,38 @@ describe('run loop (@game/sim)', () => {
       embers: 10,
     };
     s = reduce(s, { type: 'play', uid: 'n1' }); // Nimbus battlecry arms the charge
-    expect(s.nextSpellMult).toBe(2);
+    expect(s.nextSpellExtraCasts).toBe(1); // +1 extra cast (was a x2 multiplier)
     s = reduce(s, { type: 'play', uid: 'g1' }); // cast Growth (+1/+1) — doubled to +2/+2
     const m = s.board.find((c) => c.uid === 'm1')!;
     expect([m.attack, m.health]).toEqual([2 + 2, 3 + 2]); // two casts of +1/+1
-    expect(s.nextSpellMult).toBeUndefined(); // charge spent
+    expect(s.nextSpellExtraCasts).toBeUndefined(); // charge spent
   });
 
+  it('Nimbus + Drakko: each Battlecry FIRE banks its own extra cast (owner 2026-07-24)', () => {
+    // The point of making the charge additive. Drakko fires Battlecries one extra time; Nimbus used to SET a
+    // multiplier, so the second fire re-set the same value and Drakko did nothing for it.
+    let s: RunState = {
+      ...createRun(1), tier: 6, embers: 20,
+      board: [
+        { uid: 'd1', cardId: 'drummer', tribe: 'neutral', attack: 2, health: 4, keywords: [], golden: false },
+        { uid: 'm1', cardId: 'stray', tribe: 'beast', attack: 2, health: 3, keywords: [], golden: false },
+      ],
+      hand: [
+        { uid: 'n1', cardId: 'nimbus', tribe: 'neutral', attack: 4, health: 3, keywords: [], golden: false },
+        { uid: 'g1', cardId: 'growth', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false },
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'n1' });
+    expect(s.nextSpellExtraCasts).toBe(2); // Drakko → the Battlecry fires twice → +1 each
+
+    const before = s.board.find((c) => c.uid === 'm1')!;
+    const [a0, h0] = [before.attack, before.health];
+    s = reduce(s, { type: 'play', uid: 'g1' }); // Growth: +1/+1 per cast
+    const after = s.board.find((c) => c.uid === 'm1')!;
+    // 1 base cast + 2 banked = 3 resolutions of +1/+1.
+    expect([after.attack - a0, after.health - h0]).toEqual([3, 3]);
+    expect(s.nextSpellExtraCasts).toBeUndefined(); // the whole charge is spent by one spell
+  });
 
   it('Wayfinder: Battlecry discovers from an active tribe you do not control', () => {
     let s: RunState = {
@@ -1577,29 +1602,29 @@ describe('run loop (@game/sim)', () => {
   it('Nimbus doubles a Discover-spell: Tribe Portal under a Nimbus charge opens two Discovers', () => {
     let s: RunState = {
       ...createRun(1), tier: 4, embers: 0, shop: [],
-      nextSpellMult: 2, // a Nimbus charge is active
+      nextSpellExtraCasts: 1, // a Nimbus charge is active (+1 cast)
       board: [{ uid: 'b', cardId: 'alley', tribe: 'beast', attack: 1, health: 1, keywords: [], golden: false }], // gives Tribe Portal a dominant type
       hand: [{ uid: 'tp', cardId: 'tribeportal', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'play', uid: 'tp' });
     expect(s.discover).toBeDefined(); // first Discover opens
     expect(s.discoverQueue?.length ?? 0).toBe(1); // the 2nd is queued (Nimbus doubled the cast)
-    expect(s.nextSpellMult).toBeUndefined(); // charge spent
+    expect(s.nextSpellExtraCasts).toBeUndefined(); // charge spent
   });
 
   it('Nimbus charge PERSISTS through combat — survives faceOmen + resolveCombat, spent only on the next hand spell', () => {
     let s: RunState = {
       ...createRun(1), resolve: 100, maxResolve: 100,
-      nextSpellMult: 2, // armed by Nimbus this turn; NO spell cast yet
+      nextSpellExtraCasts: 1, // armed by Nimbus this turn; NO spell cast yet
       board: [{ uid: 'w', cardId: 'sandbag', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
       hand: [{ uid: 'g', cardId: 'growth', tribe: 'neutral', attack: 0, health: 0, keywords: [], golden: false }],
     };
     s = reduce(s, { type: 'faceOmen' });
     s = reduce(s, { type: 'resolveCombat' });
-    expect(s.nextSpellMult).toBe(2); // still armed after a full combat — the per-turn resets never touch it
+    expect(s.nextSpellExtraCasts).toBe(1); // +1 extra cast (was a x2 multiplier) // still armed after a full combat — the per-turn resets never touch it
     const before = s.board.find((c) => c.uid === 'w')!.attack;
     s = reduce(s, { type: 'play', uid: 'g' }); // cast Growth from hand next turn
-    expect(s.nextSpellMult).toBeUndefined(); // NOW the charge is spent
+    expect(s.nextSpellExtraCasts).toBeUndefined(); // NOW the charge is spent
     expect(s.board.find((c) => c.uid === 'w')!.attack).toBe(before + 2); // doubled: Growth +1 Attack × 2 casts
   });
 
@@ -5965,11 +5990,11 @@ describe('Rulebreaker quests — dupes, spell doubling, compound objective, cost
       ...createRun(1), tier: 6, phase: 'recruit', embers: 20,
       board: [mk('d1', 'feed', 'demon'), mk('d2', 'feed', 'demon')],
       hand: [mk('imp', 'implosion', 'neutral')],
-      nextSpellMult: 2,
+      nextSpellExtraCasts: 1,
     };
     s = reduce(s, { type: 'play', uid: 'imp' });
     expect(s.impBuff).toEqual({ attack: 12, health: 12 }); // 6 casts × +2/+2
-    expect(s.nextSpellMult).toBeUndefined(); // Nimbus charge spent
+    expect(s.nextSpellExtraCasts).toBeUndefined(); // Nimbus charge spent
 
     // Spell Thesis: the reducer consumes the freebie once (the read-only spellCasts no longer does).
     let t: RunState = { ...createRun(1), tier: 6, phase: 'recruit', embers: 20, spellFirstDoubleEachTurn: true, board: [mk('d1', 'feed', 'demon')], hand: [mk('g', 'emberpouch', 'neutral')] };

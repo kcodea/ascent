@@ -683,7 +683,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (dop.spell) {
           const spellCastsN = def.singleCast ? 1 : spellCasts(s, def);
           for (let n = 0; n < spellCastsN; n++) queueDiscover(s, { kind: 'spell' });
-          if (!def.singleCast) s.nextSpellMult = undefined;
+          if (!def.singleCast) s.nextSpellExtraCasts = undefined;
           if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true;
           return s;
         }
@@ -707,13 +707,13 @@ function reduceCore(state: RunState, action: Action): RunState {
           ...(dop.borrowed ? { borrowed: true } : {}), // Funeral on Loan: play → trigger Echo + destroy
         };
         // Multi-cast a Discover-spell by the full spell multiplier — open the Discover once per cast, the extras
-        // queued behind the first. `spellCasts` folds in Nimbus (nextSpellMult), Ancient Runes (spellDoubleAlways)
+        // queued behind the first. `spellCasts` folds in Nimbus (nextSpellExtraCasts), Ancient Runes (spellDoubleAlways)
         // and Spell Thesis (first-spell-each-turn); Yazzus is aimed-only so it's auto-excluded (a Discover spell is
         // untargeted). `singleCast` never multiplies. Bug fix (owner 2026-07-09): the old code read only
-        // `nextSpellMult`, so Ancient Runes' "spells cast twice" silently did nothing for Discover spells.
+        // `nextSpellExtraCasts`, so Ancient Runes' "spells cast twice" silently did nothing for Discover spells.
         const casts = def.singleCast ? 1 : spellCasts(s, def);
         for (let n = 0; n < casts; n++) queueDiscover(s, { ...spec });
-        if (!def.singleCast) s.nextSpellMult = undefined; // Nimbus charge spent (already folded into `casts`)
+        if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         return s;
       }
@@ -801,7 +801,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         } else {
           for (let n = 0; n < casts; n++) castSpell(s, def, undefined); // untargeted run spell (Growth, Ember Pouch)
         }
-        if (!def.singleCast) s.nextSpellMult = undefined; // Nimbus charge spent on this cast (already folded into `casts`)
+        if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent on this cast (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         s.hand.splice(i, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // one card played, even if it multi-cast (Rune of Action)
@@ -987,7 +987,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (offer) castSpellOnOffer(s, synthetic, offer);
           else castSpell(s, synthetic, target);
         }
-        if (!def.singleCast) s.nextSpellMult = undefined; // Nimbus charge spent (already folded into `casts`)
+        if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         s.hand.splice(hi, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), co.cardId]; // Choose One spell counts as a card played (Rune of Action)

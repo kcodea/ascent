@@ -1,5 +1,36 @@
 # ASCENT — development log
 
+## 2026-07-24 (Nimbus banks ADDITIONAL casts, and now stacks with Drakko)
+
+### feat(content/sim): Nimbus grants +1 extra cast per Battlecry fire (golden +2)
+
+Owner change: "Shout: Your next spell casts an additional time (Gilded: 2 additional times) — this now works
+with Drakko."
+
+Both halves come from the same root. `battlecryDoubleNextSpell` did `state.nextSpellMult = 1 + gold(self)` — it
+SET a multiplier. Drakko already fires Nimbus's Battlecry an extra time (Nimbus has an `onPlay`, so
+`playedShoutRepeats` repeats it), but a second fire just re-set the same value, so Drakko did nothing for it.
+Making the charge ADDITIVE fixes the wording and the Drakko interaction in one move: each FIRE banks its own
+extra cast, so two fires bank +2.
+
+Renamed `nextSpellMult` → `nextSpellExtraCasts`, because it now counts extra casts rather than multiplying. The
+name mattered more than usual here: three `useMemo` dependency arrays in `Recruit.tsx` still listed the old
+field, and a stale dep would have silently stopped the live cast-count preview from invalidating.
+
+`spellCasts` now ADDS the charge, last, after the multiplicative sources. **This is a real balance change worth
+knowing about:** Nimbus no longer multiplies with Yazzus / Ancient Runes / Spell Thesis. An aimed spell under
+Yazzus used to be ×2 × ×2 = 4 casts; it is now 2 + 1 = 3. That follows directly from the new wording ("an
+ADDITIONAL time"), but it is a nerf in those combinations — flagged for the owner rather than assumed.
+
+Note for anyone with a run in flight at update time: the renamed field means a pending Nimbus charge is dropped
+on restore (`deserialize` heals older-schema saves by ignoring unknown fields). One spell's bonus in one run,
+self-correcting; not worth a migration.
+
+The new test was verified to FAIL against the old set-semantics (`expected 1 to be 2`) before passing. Confirmed
+live too: Nimbus prints "your next spell casts an additional time", playing it with Drakko on board banks
+`nextSpellExtraCasts: 2`, and Spirit Fire's cast badge reads ×3 (1 base + 2 banked). Suite 1547 (+1) +
+typecheck + lint + build:web green.
+
 ## 2026-07-24 (Elevation Ritual did nothing at the tier cap)
 
 ### fix(sim): Elevation Ritual re-rolls a capped offer in place instead of skipping it

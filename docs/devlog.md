@@ -3,6 +3,40 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (FX workbench — depth: material, shapes, blend, glow, fire)
+
+### feat(fx): the ribbon's tuning depth on every effect + shapes, blend modes, glow, a Fire trigger
+
+Owner feedback drove a depth pass: "I don't see the ribbon's options on burst/emitter," plus shapes,
+mask/blend modes, a click-to-fire trigger, and glow.
+
+- **Posterized-energy particle material** — burst/emitter now render through a **custom `ParticleContainer`
+  shader** that applies the ribbon's exact recipe (domain-warped scrolling fbm → hard band-quantise →
+  palette), so each shard/mote is a chunk of the same cel-shaded energy as the ribbon, not a soft sprite.
+  The ribbon's `noise/warp/scroll/erode/gain` are now live params on the particles (a **Texture** group).
+- **Shapes** — a `shape` picker (circle/square/triangle/star/diamond/shard) with `stretchX`/`stretchY`, via
+  a cached shape-texture generator (`shapeTextures.ts`). circle/shard reproduce the old textures exactly so
+  defaults don't shift.
+- **Blend modes** — a `blendMode` enum (normal/add/screen/multiply/overlay, one shared `blendModes.ts` that
+  side-effect-imports `pixi.js/advanced-blend-modes`) on **all four** primitives, replacing the additive
+  toggle.
+- **Glow** — a `glow` control on all four. On the shader primitives (ribbon/shockwave) it's a real soft outer
+  halo (glow=0 reproduces the prior look by construction — every glow term × `uGlow`); on particles it's an
+  in-shader soft brightening under the core (a particle can't draw outside its own quad, so a true expanding
+  halo there would need a separate glow layer — deferred).
+- **Fire trigger** — `FxPlayer.fireOnce()` + a 🔥 Fire button in the transport plays the effect once from
+  t=0 and stops (non-looping for that pass, even on a looping player), repeatable, without rebuilding — so
+  previewing a discrete proc isn't bound to the play/stop loop.
+
+**Verified:** `typecheck` + `lint` + `test` (**1697 passing**, 104 files) + `build:web` green; workbench
+absent from the prod JS bundle. Live browser (framebuffer + control probes): all four effects compile and
+render in real WebGL2 with 0 GL errors and no console shader errors after both shader changes; shapes swap
+cleanly; the blend dropdown carries all five modes incl. overlay/multiply; glow and the Fire button work.
+
+**Follow-ups (owner-requested):** a **smoke** effect (new primitive); the remaining `curve` (value-over-life)
+and `gradient` (colour-over-life) param kinds; motion physics (turbulence, velocity inheritance, emission
+shapes). Owner's eye still pending on the shockwave look and whether the particle glow wants a true halo.
+
 ## 2026-07-24 (FX workbench — primitives, scenarios, editable palette)
 
 ### feat(fx): three more primitives, richer scenarios, and a fully editable palette

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
-import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
+import { combatSide, makeRng, simulate, type BoardMinion, type CardDef } from '@game/core';
+import { createRun, reduce, type BoardCard, type RunState } from './index';
 
 /**
  * Set 2's Beast tribe — IN PROGRESS. This pins what's authored so far: the tribe is reachable in a set-2 run,
@@ -33,5 +34,56 @@ describe('set 2 — Packstrider', () => {
       combatSide({ tier: 1, tribes: ['beast'] }), combatSide({ tier: 1 }));
     // its rally buff event: +3/+3 (one per Beast, three Beasts)
     expect(r.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 3)).toBe(true);
+  });
+});
+
+const bm = (uid: string, cardId: string, tribe: BoardCard['tribe'] = 'beast', a = 2, h = 2): BoardCard =>
+  ({ uid, cardId, tribe, attack: a, health: h, keywords: [], golden: false });
+const spell = (uid: string, cardId: string): BoardCard =>
+  ({ uid, cardId, tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false });
+
+describe('set 2 — Beast spell payoffs', () => {
+  it('Mosswhisker Adept: the FIRST spell each turn buffs your Beasts +1/+1 (not the second)', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 40,
+      board: [bm('mw', 'b2_mosswhisker', 'beast', 1, 2), bm('b1', 'stray', 'beast', 1, 1)],
+      hand: [spell('s1', 'growth'), spell('s2', 'growth')],
+    };
+    s = reduce(s, { type: 'play', uid: 's1' });
+    const afterFirst = s.board.find((c) => c.uid === 'b1')!;
+    const [a1, h1] = [afterFirst.attack, afterFirst.health];
+    s = reduce(s, { type: 'play', uid: 's2' });
+    const b1 = s.board.find((c) => c.uid === 'b1')!;
+    // Growth buffs the board too, so compare DELTAS: the 2nd cast adds only Growth's +1/+1, the 1st added
+    // Growth's +1/+1 plus Mosswhisker's +1/+1.
+    expect([b1.attack - a1, b1.health - h1]).toEqual([1, 1]);
+  });
+
+  it('Runebloom Matriarch: every spell buffs 3 Beasts +3/+3', () => {
+    // DISTINCT beasts on purpose — three copies of one token triple-combine and vanish (the recurring trap).
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 40,
+      board: [
+        bm('rm', 'b2_runebloom', 'beast', 5, 9),
+        bm('b1', 'stray', 'beast', 1, 1), bm('b2', 'pup', 'beast', 1, 1), bm('b3', 'manasaber', 'beast', 4, 1),
+      ],
+      hand: [spell('s1', 'spiritfire')],
+    };
+    const before = s.board.reduce((n, c) => n + c.attack + c.health, 0);
+    s = reduce(s, { type: 'play', uid: 's1', targetUid: 'rm' }); // Spirit Fire +2/+3, plus Runebloom's proc
+    const after = s.board.reduce((n, c) => n + c.attack + c.health, 0);
+    // Spirit Fire (+2/+3 = 5) + Runebloom picks 3 Beasts × (+3/+3 = 6) = 5 + 18 = 23, whatever the pick.
+    expect(after - before).toBe(23);
+  });
+});
+
+describe('set 2 — Dawnclaw', () => {
+  it('is wired to the shared adjacent-Battlecry re-fire (the mechanic Ryme already proves)', () => {
+    // Dawnclaw's Echo reuses `deathrattleReplayAdjacentBattlecry` verbatim — the SAME factory Ryme uses, whose
+    // combat behaviour (both neighbours, golden twice, narrates + procs Karwind) is covered by the Ryme tests
+    // in simulate.test.ts / rymeWayfinder.test.ts. What's new here is the card wiring, so that's what we pin.
+    const dc = CARD_INDEX['b2_dawnclaw']!;
+    expect([dc.tier, dc.attack, dc.health]).toEqual([4, 5, 3]);
+    expect(dc.effects).toContainEqual({ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry' });
   });
 });

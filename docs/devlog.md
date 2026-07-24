@@ -1,5 +1,30 @@
 # ASCENT — development log
 
+### feat(content/sim): Beast tranche 2 — Mosswhisker, Runebloom, Dawnclaw (spell + combat payoffs)
+
+Three more Set-2 Beasts, now that the owner supplied the full stat table.
+
+* **Mosswhisker Adept** (T2 1/2) — the first spell each turn washes your Beasts +1/+1 board-wide. New
+  `onSpellCastFirstBuffTribe`, gated on `spellsThisTurn === 1` like Ashscribe Whelp.
+* **Runebloom Matriarch** (T6 5/9) — every spell buffs 3 random Beasts +3/+3. New `onSpellCastBuffRandomTribe`
+  (seeded pick via the shop cursor so replays stay faithful).
+* **Dawnclaw** (T4 5/3) — Echo re-fires adjacent Battlecries, reusing Ryme's `deathrattleReplayAdjacentBattlecry`
+  VERBATIM. No new primitive; its combat behaviour is already covered by the Ryme tests, so the Dawnclaw test
+  pins the card WIRING rather than re-simulating a proven factory.
+
+Test traps re-hit and recorded: three identical Strays TRIPLE-COMBINE and vanish (so the Runebloom test uses
+distinct Beasts), `growth`/`emberpouch` aren't the simple buffs I reached for (growth reshuffles the board;
+emberpouch doesn't fire the `spellCast` watcher) — so the isolating spell is a targeted Spirit Fire, and the
+board-sum delta (23 = Spirit Fire 5 + Runebloom 18) is pick-independent. The Ashscribe-style delta trick
+(compare between two casts) is used for Mosswhisker since spells buff the board too. Suite 1591 + typecheck +
+lint + build:web + harness green.
+
+Roster: 8 of 21 in (Packstrider, Mosswhisker, Runebloom, Dawnclaw + carried Badgington/Sea Urchin/Sporebat/Void
+Panther + the two re-specs). Still ahead: the token-summon cards (T-Rex, Menagerie Mammoth), the combat-trigger
+cards (Echohorn Stag, Solaris, Lancel), summon auras (Denkeeper Oona, Groveweaver), Sunmane Herald's
+self-replicating Rally, Moonhowl Mentor's Mage-Pup (ruled: Mage-Pup gains "Shout: cast X spell"), and Elderhorn
+(Choose-One, Gilded = 2 additional triggers per mode — NOT gain-both).
+
 ## 2026-07-24 (Set 2's Beast tribe — foundation + Packstrider)
 
 ### feat(content/sim): open the Set-2 Beast tribe (carry-over + Packstrider)

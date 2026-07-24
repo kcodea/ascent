@@ -12,6 +12,46 @@ import type { CardDef } from '@game/core';
  */
 export const SET2_BEASTS: CardDef[] = [
   {
+    // A low-tier spell payoff: your first cast each turn washes the board of Beasts with +1/+1.
+    id: 'b2_mosswhisker',
+    name: 'Mosswhisker Adept',
+    tribe: 'beast',
+    tier: 2,
+    attack: 1,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'spellCast', do: 'onSpellCastFirstBuffTribe', params: { tribe: 'beast', attack: 1, health: 1 } }],
+    text: 'The first time you cast a spell each turn, give your Beasts **+1/+1** wherever they are.',
+    goldenText: 'The first time you cast a spell each turn, give your Beasts **+2/+2** wherever they are.',
+  },
+  {
+    // The top-end spell payoff: every cast rains +3/+3 onto three Beasts. Rewards a spell-heavy Beast board.
+    id: 'b2_runebloom',
+    name: 'Runebloom Matriarch',
+    tribe: 'beast',
+    tier: 6,
+    attack: 5,
+    health: 9,
+    keywords: [],
+    effects: [{ on: 'spellCast', do: 'onSpellCastBuffRandomTribe', params: { tribe: 'beast', count: 3, attack: 3, health: 3 } }],
+    text: 'Whenever you cast a spell, give 3 Beasts **+3/+3**.',
+    goldenText: 'Whenever you cast a spell, give 3 Beasts **+6/+6**.',
+  },
+  {
+    // Reuses Ryme's adjacent-Battlecry re-fire (`deathrattleReplayAdjacentBattlecry`): on death in combat, both
+    // neighbours' Shouts fire again (golden fires each twice) — exactly the shared primitive.
+    id: 'b2_dawnclaw',
+    name: 'Dawnclaw',
+    tribe: 'beast',
+    tier: 4,
+    attack: 5,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleReplayAdjacentBattlecry' }],
+    text: "**Echo:** trigger adjacent minions' **Shouts**.",
+    goldenText: "**Echo:** trigger adjacent minions' **Shouts** twice.",
+  },
+  {
     // A go-wide Rally payoff: the more Beasts you field, the harder it hits. Buffs ITSELF (not the board) so
     // it's a finisher you build around rather than an aura.
     id: 'b2_packstrider',

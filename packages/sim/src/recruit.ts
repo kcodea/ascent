@@ -2060,6 +2060,36 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.spellFirstMultEachTurn = Math.max(ctx.state.spellFirstMultEachTurn ?? 1, num(params.mult, 3));
   },
 
+  /** Set 2 — Mosswhisker Adept: the FIRST spell you cast each turn buffs your `tribe` board-wide (+atk/+hp
+   *  wherever they are). Fires once per turn via the `spellsThisTurn === 1` gate (the tally is bumped before
+   *  this `spellCast` watcher runs), like Ashscribe Whelp. Golden doubles the grant. */
+  onSpellCastFirstBuffTribe: (ctx, self, params) => {
+    if (ctx.state.spellsThisTurn !== 1) return;
+    const tribe = str(params.tribe);
+    const a = num(params.attack, 1) * gold(self), h = num(params.health, 1) * gold(self);
+    if (a <= 0 && h <= 0) return;
+    for (const c of [...ctx.state.board, ...ctx.state.hand]) {
+      if (!tribe || isTribe(c, tribe as never)) addBuff(c, nameOf(self), a, h);
+    }
+  },
+
+  /** Set 2 — Runebloom Matriarch: EVERY spell you cast buffs `count` random friendly `tribe` minions on board
+   *  by +atk/+hp. Golden doubles the STAT grant (the count stays), matching "trigger this twice"'s net effect
+   *  of a bigger payout. Seeded pick via the shop RNG cursor so replays stay faithful. */
+  onSpellCastBuffRandomTribe: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const pool = ctx.state.board.filter((c) => !tribe || isTribe(c, tribe as never));
+    if (pool.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    const targets = [...pool];
+    const picks: BoardCard[] = [];
+    const want = Math.min(num(params.count, 3), targets.length);
+    for (let i = 0; i < want; i++) picks.push(targets.splice(rng.int(targets.length), 1)[0]!);
+    ctx.state.rngCursor = rng.state();
+    const a = num(params.attack, 3) * gold(self), h = num(params.health, 3) * gold(self);
+    for (const c of picks) addBuff(c, nameOf(self), a, h);
+  },
+
   /** Set 2 — Scalechanter (Shout): buff your `tribe` by the CURRENT magnitude — base + everything this
    *  instance has improved by (`summonBonus`, the established per-instance improve accumulator).
    *  Golden doubles the whole magnitude at buff time rather than at storage time, so base and step both double

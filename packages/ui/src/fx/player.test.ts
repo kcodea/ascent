@@ -216,4 +216,59 @@ describe('createPlayer', () => {
     expect(DEF.layers[0].params).toBe(originalParamsRef);
     expect(DEF.layers[0].params).toEqual({});
   });
+
+  // fireOnce(): the workbench's "Fire" trigger for a discrete, single preview pass -- distinct from the
+  // continuous play/stop loop. These target a player built with `{ loop: true }` specifically, since that's
+  // the case where fireOnce's non-looping override actually has to fight the player's own settings.
+
+  it('fireOnce starts a single pass at t=0 and plays, even on a looping player', () => {
+    const p = createPlayer(DEF, CTX, { loop: true });
+    p.fireOnce();
+    expect(p.timeMs()).toBe(0);
+    expect(p.isPlaying()).toBe(true);
+    expect(spawned.map((s) => s.id)).toEqual(['a']);
+  });
+
+  it('fireOnce runs non-looping: it stops at duration instead of wrapping, even on a looping player', () => {
+    const p = createPlayer(DEF, CTX, { loop: true });
+    p.fireOnce();
+    p.update(520); // past duration (500) -- a looping player would normally wrap to 20
+    expect(p.timeMs()).toBe(500);
+    expect(p.isPlaying()).toBe(false);
+  });
+
+  it('fireOnce is repeatable: calling it again restarts the pass from t=0', () => {
+    const p = createPlayer(DEF, CTX, { loop: true });
+    p.fireOnce();
+    p.update(520); // let the first pass finish
+    expect(p.isPlaying()).toBe(false);
+    const spawnCountAtFinish = spawned.length;
+
+    p.fireOnce();
+    expect(p.timeMs()).toBe(0);
+    expect(p.isPlaying()).toBe(true);
+    expect(spawned.length).toBeGreaterThan(spawnCountAtFinish);
+  });
+
+  it('a normal play() after fireOnce clears the override -- looping resumes on the next update', () => {
+    const p = createPlayer(DEF, CTX, { loop: true });
+    p.fireOnce();
+    p.play(); // switches back to the player's own (looping) behavior before the one-shot pass finishes
+    p.update(520);
+    expect(p.timeMs()).toBe(20); // wrapped, exactly like the plain "loops back to zero" case
+    expect(p.isPlaying()).toBe(true);
+  });
+
+  it('a normal play() after fireOnce naturally finishes also resumes looping', () => {
+    const p = createPlayer(DEF, CTX, { loop: true });
+    p.fireOnce();
+    p.update(520); // the one-shot pass runs to completion and stops
+    expect(p.isPlaying()).toBe(false);
+
+    p.play();
+    expect(p.isPlaying()).toBe(true);
+    p.update(10);
+    // Still fully past duration when play() resumed, so the very next update wraps it.
+    expect(p.timeMs()).toBe(10);
+  });
 });

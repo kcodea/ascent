@@ -5041,6 +5041,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   color: #d9d3ea; font-size: 13px; cursor: pointer;
 }
 .fxwb-play:hover { border-color: #c936ef; color: #f0a0ff; }
+.fxwb-fire {
+  flex: none; height: 32px; border-radius: 8px; border: 1px solid #c936ef; background: color-mix(in srgb, #c936ef 22%, #2b2739);
+  color: #f0a0ff; font-family: var(--font-ui); font-weight: 800; font-size: 12px; padding: 0 10px; cursor: pointer;
+}
+.fxwb-fire:hover { background: color-mix(in srgb, #c936ef 38%, #2b2739); border-color: #f0a0ff; }
 .fxwb-scrub { flex: 1 1 220px; min-width: 120px; height: 5px; -webkit-appearance: none; appearance: none; background: #3d3752; border-radius: 99px; outline: none; cursor: pointer; }
 .fxwb-scrub::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #c936ef; cursor: pointer; }
 .fxwb-scrub::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: #c936ef; cursor: pointer; }

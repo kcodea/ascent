@@ -13,6 +13,7 @@ export interface FxPlayer {
   play(): void;
   pause(): void;
   stop(): void;
+  fireOnce(): void;
   update(dtMs: number): void;
   scrub(ms: number): void;
   setSpeed(n: number): void;
@@ -47,6 +48,11 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
   let clock = 0;
   let speed = 1;
   let playing = false;
+  // Set only while a fireOnce() pass is in flight -- forces update()'s wrap logic to treat THIS pass as
+  // non-looping even when the player was constructed with `{ loop: true }`. Cleared the moment the pass
+  // naturally stops (reaches duration) or the next play()/fireOnce() call, so it never leaks into ordinary
+  // playback once the one-shot preview is done.
+  let oneShot = false;
 
   const spawn = (index: number): void => {
     if (live.has(index)) return;
@@ -91,6 +97,7 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       // player's play button — otherwise the clock is already >= duration and the very next update()
       // would immediately re-stop it with nothing ever spawning. Mid-playback pause() never moves the
       // clock, so this only triggers exactly for "finished, click play again".
+      oneShot = false;
       if (!opts.loop && clock >= def.duration) {
         clock = 0;
         killAllLive();
@@ -101,19 +108,33 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
     pause(): void {
       playing = false;
     },
+    fireOnce(): void {
+      // Always restarts from t=0 for a single non-looping pass, regardless of the player's current state
+      // (playing/paused/stopped) or how it was constructed -- the workbench's "Fire" trigger for a
+      // discrete, one-off preview (e.g. one combat proc) distinct from the continuous play/stop loop.
+      oneShot = true;
+      clock = 0;
+      killAllLive();
+      playing = true;
+      reconcile(0);
+    },
     stop(): void {
       // Distinct from destroy(): stop() is a playback control that resets the clock and leaves the
       // player usable — play() can be called again and starts a fresh run from zero. destroy() is
       // lifecycle teardown (e.g. the editor unmounting) and makes no promise the player can be reused.
       playing = false;
       clock = 0;
+      oneShot = false;
       killAllLive();
     },
     update(dtMs: number): void {
       if (!playing) return;
       clock += dtMs * speed;
+      // A fireOnce() pass forces non-looping behavior for this pass even if the player was built with
+      // `{ loop: true }` -- see the `oneShot` declaration above.
+      const looping = !oneShot && opts.loop;
       if (clock >= def.duration) {
-        if (opts.loop) {
+        if (looping) {
           // Wrapping starts a NEW cycle: every layer must die and respawn fresh, even one whose life
           // spans the entire duration and would otherwise never pass through a 'done' state to trigger
           // a natural kill (layerStateAt only sees the post-wrap clock, not the crossing). Without this,
@@ -124,6 +145,7 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
         } else {
           clock = def.duration;
           playing = false;
+          oneShot = false;
         }
       }
       reconcile(dtMs * speed);

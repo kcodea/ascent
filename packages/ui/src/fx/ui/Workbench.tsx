@@ -206,6 +206,17 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     }
   };
 
+  // "Fire" is a discrete one-shot preview -- restart the effect from t=0 and let it run through once,
+  // regardless of whether it's currently looping, paused, or already stopped. Deliberately does NOT touch
+  // playerRef's identity or rebuild anything; it only retriggers the existing player (see FxPlayer.fireOnce).
+  const fire = (): void => {
+    const p = playerRef.current;
+    if (!p) return;
+    p.fireOnce();
+    setUiPlaying(true);
+    setTimeMs(0);
+  };
+
   const scrub = (ms: number): void => {
     const p = playerRef.current;
     if (!p) return;
@@ -269,6 +280,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       <div className="fxwb-transport">
         <button className="fxwb-play" onClick={togglePlay} title={uiPlaying ? 'Pause' : 'Play'}>
           {uiPlaying ? '⏸' : '▶'}
+        </button>
+        <button className="fxwb-fire" onClick={fire} title="Fire a single one-shot preview (no loop)">
+          🔥 Fire
         </button>
         <input
           className="fxwb-scrub"

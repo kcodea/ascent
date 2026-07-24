@@ -978,7 +978,7 @@ export const SPELLS: CardDef[] = [
     cost: 4,
     target: 'friendly',
     effects: [{ on: 'cast', do: 'spellEncore' }],
-    text: 'Choose a friendly minion. Trigger its **Shout**, **Rally** or **Echo**.',
+    text: 'Choose a friendly minion. Trigger its **Shout** or **Echo**.',
   },
   {
     // +4/+4, plus +1/+1 for each Dragon you PLAYED this turn (flat — no spell power, so the printed value stays

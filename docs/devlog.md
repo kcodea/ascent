@@ -3,6 +3,15 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (Encore — drop "Rally" from the text)
+
+### fix(content): Encore triggers Shout or Echo (not Rally)
+
+Encore's Rally clause is retired: Rally is a combat-only on-attack trigger with no shop meaning, and **Rallying
+Offensive** (`spellRallyDoubleNext`) already exists to double Rally triggers — so an Encore-Rally would be
+redundant (owner ruling 2026-07-23). Text is now "Choose a friendly minion. Trigger its **Shout** or **Echo**."
+Behavior unchanged (Encore already only fired Shout + Echo); this is a text + comment correction. Full gate green.
+
 ## 2026-07-23 (spell batch — Farseer's Report — the batch's final spell)
 
 ### feat(content): Farseer's Report — scout the next opponent's warband

@@ -108,6 +108,23 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: '**Shout:** get **2** random spells.',
   },
   {
+    // Two effects, one card: the Shout that pays out, and the cadence that grows it. Rides
+    // `battlecryTriggered`, so every Shout FIRE counts (Drakko repeats included) — "Shouts you trigger".
+    id: 'd2_scalechanter',
+    name: 'Scalechanter',
+    tribe: 'dragon',
+    tier: 3,
+    attack: 4,
+    health: 3,
+    keywords: [],
+    effects: [
+      { on: 'onPlay', do: 'battlecryBuffTribeImproving', params: { tribe: 'dragon', attack: 1 } },
+      { on: 'battlecryTriggered', do: 'onBattlecryImproveSelf', params: { every: 3, step: 1 } },
+    ],
+    text: '**Shout:** give your Dragons **+1/+1**. Improve this by **+1/+1** after every **3 Shouts** you trigger.',
+    goldenText: '**Shout:** give your Dragons **+2/+2**. Improve this by **+2/+2** after every **3 Shouts** you trigger.',
+  },
+  {
     // Seeds BOTH halves of the tribe at once — a body to buff and a spell to recur (owner re-spec 2026-07-24:
     // was a Tier-2 Slaughter, now a Tier-4 Shout that grants a minion AND a spell).
     id: 'd2_skald',

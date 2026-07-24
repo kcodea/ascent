@@ -1946,6 +1946,32 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     conjureToHand(ctx.state, poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier), num(params.count, 1) * gold(self));
   },
 
+  /** Set 2 — Scalechanter (Shout): buff your `tribe` by the CURRENT magnitude — base + everything this
+   *  instance has improved by (`summonBonus`, the established per-instance improve accumulator).
+   *  Golden doubles the whole magnitude at buff time rather than at storage time, so base and step both double
+   *  exactly once ("starts at +2/+2 and improves by +2/+2") instead of compounding. */
+  battlecryBuffTribeImproving: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const mag = (num(params.attack, 1) + (self.summonBonus ?? 0)) * gold(self);
+    if (mag <= 0) return;
+    for (const c of ctx.state.board) {
+      if (tribe && !isTribe(c, tribe as never)) continue;
+      addBuff(c, nameOf(self), mag, mag);
+    }
+  },
+
+  /** Set 2 — Scalechanter's other half: every `every` Shouts you trigger, improve its magnitude by `step`.
+   *  Rides `battlecryTriggered`, so it counts every FIRE (Drakko repeats included) rather than every played
+   *  Shout minion — "Shouts you trigger" as printed. The step is stored at BASE magnitude (golden is applied
+   *  when the buff lands) and scaled by `improveReps` for Rune of Mastery, matching every other "improve this". */
+  onBattlecryImproveSelf: (ctx, self, params) => {
+    const every = Math.max(1, num(params.every, 3));
+    const tick = (self.shoutTick ?? 0) + 1;
+    if (tick < every) { self.shoutTick = tick; return; }
+    self.shoutTick = 0;
+    self.summonBonus = (self.summonBonus ?? 0) + num(params.step, 1) * improveReps(ctx.state);
+  },
+
   /** Set 2 — Ashscribe Whelp: the FIRST spell you cast each turn permanently grows this minion.
    *  Hooked on `spellCast`, which fires once per cast AFTER the tally — so `spellsThisTurn === 1` is exactly
    *  "this was the first". Permanent (owner ruling 2026-07-24): a plain `addBuff`, so it accumulates every turn

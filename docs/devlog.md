@@ -2,6 +2,30 @@
 
 ## 2026-07-24 (Set 2's Dragon tribe — foundation + first tranche)
 
+### feat(content/sim): Dragon tranche 4 — Scalechanter (improves on a Shout cadence)
+
+Scalechanter (T3 4/3) — **12 of 21 Dragons built** (Karwind included).
+
+Two effects, one card: an `onPlay` Shout that buffs your Dragons by its CURRENT magnitude, and a
+`battlecryTriggered` hook that improves that magnitude every 3 Shout FIRES. Riding `battlecryTriggered` rather
+than "played a Shout minion" is what makes the printed "Shouts you trigger" literally true — Drakko repeats and
+re-fires count.
+
+It reuses the established improve machinery rather than inventing any: `summonBonus` is the same per-instance
+accumulator Kennelmaster and Amun Rab use, and the step is scaled by `improveReps` so Rune of Mastery doubles it
+like every other "improve this". New per-instance `shoutTick` (the Shout twin of `eotTick`) holds the cadence
+and rolls back to 0 on each improvement, so it's every-3 rather than a running total.
+
+Golden is applied at BUFF time, not at storage time — `(base + summonBonus) * gold(self)` — so base and step
+each double exactly once ("starts at +2/+2 and improves by +2/+2") instead of compounding as the improvements
+accrue.
+
+**A test trap worth recording:** the first version played three copies of ONE Shout minion to reach the 3-fire
+cadence. Three identical minions TRIPLE-COMBINE — they're consumed, a Triple Reward lands in hand, and the board
+looks untouched, so the test failed for a reason that had nothing to do with the card. (Same trap as the
+sandbags in the Open the Gates cap test.) The test now uses three DISTINCT Shout Dragons, with the reason in a
+comment so the next person doesn't "simplify" it back. Suite 1565 + typecheck + lint + build:web green.
+
 ### feat(content/sim): Dragon tranche 3 — Ashen Broodlord (Avenge spell power)
 
 Ashen Broodlord (T5 6/8, Dragon/Demon, Rise) — **10 of 21 Dragons built** (Karwind included).

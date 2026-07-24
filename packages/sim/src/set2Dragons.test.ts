@@ -152,6 +152,45 @@ describe('set 2 — Dragon spell hooks (first / second spell each turn)', () => 
   });
 });
 
+describe('set 2 — Scalechanter improves on a Shout cadence', () => {
+  it('buffs Dragons by its CURRENT magnitude, and improves every 3 Shouts triggered', () => {
+    // Its own Shout counts as one of the three, so the cadence is observable from a single board.
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 60,
+      board: [minion('sc', 'd2_scalechanter', 'dragon', 4, 3)],
+      // Three DISTINCT Shout minions on purpose: three copies of one card would TRIPLE-combine, which
+      // consumes them, grants a Triple Reward and leaves the board looking untouched — a false failure.
+      hand: [
+        minion('a1', 'd2_chronicler', 'dragon', 3, 5),
+        minion('a2', 'd2_embermouth', 'dragon', 2, 2),
+        minion('a3', 'd2_skald', 'dragon', 4, 5),
+      ],
+    };
+    const sc0 = s.board.find((c) => c.uid === 'sc')!;
+    expect(sc0.summonBonus ?? 0).toBe(0);
+
+    // three Shout minions played → three Battlecry fires → one improvement
+    s = reduce(s, { type: 'play', uid: 'a1' });
+    s = reduce(s, { type: 'play', uid: 'a2' });
+    const mid = s.board.find((c) => c.uid === 'sc')!;
+    expect(mid.summonBonus ?? 0).toBe(0); // 2 fires — not yet
+    s = reduce(s, { type: 'play', uid: 'a3' });
+    const after = s.board.find((c) => c.uid === 'sc')!;
+    expect(after.summonBonus).toBe(1); // 3rd fire → improved by the base step
+    expect(after.shoutTick).toBe(0); // the cadence rolled over, so it's every-3 and not a running total
+  });
+
+  it("the Shout's magnitude includes the improvement", () => {
+    // Pre-improved instance: base 1 + summonBonus 2 → +3/+3 to each Dragon.
+    const sc = { ...minion('sc', 'd2_scalechanter', 'dragon', 4, 3), summonBonus: 2 };
+    const target = minion('t1', 'd2_chronicler', 'dragon', 3, 5);
+    const s: RunState = { ...createRun(1), phase: 'recruit', embers: 60, board: [target], hand: [sc] };
+    const next = reduce(s, { type: 'play', uid: 'sc' });
+    const t = next.board.find((c) => c.uid === 't1')!;
+    expect([t.attack - 3, t.health - 5]).toEqual([3, 3]);
+  });
+});
+
 describe('set 2 — the cast meter is the umbrella of Rubies + Shop Spells', () => {
   it('Gemgorge Fiend counts SHOP SPELLS toward its every-3 trigger, not just Rubies', () => {
     // Owner 2026-07-24: the `rubyCast` trigger is the umbrella of both, matching the `spellsCast + rubyCasts`

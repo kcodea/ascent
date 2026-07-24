@@ -64,6 +64,8 @@ export const EffectFactoryIdSchema = z.enum([
   'rallyBuff',
   'rallyProcDeathrattle',
   'deathrattleGrantSpell',
+  'battlecryBuffTribeImproving',
+  'onBattlecryImproveSelf',
   'avengeBuffSpellPower',
   'onSpellCastFirstBuffSelf',
   'onSpellCastSecondCopyFirst',

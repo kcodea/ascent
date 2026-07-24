@@ -198,6 +198,10 @@ export interface BoardCard {
   /** End-of-Turn tick counter for cadence effects (Frontdrake: every 3 turns, get a Dragon). Advances
    *  once per turn this card is on the board (not per Chronos repeat). Per-instance; absent = 0. */
   eotTick?: number;
+  /** Set 2 — Scalechanter: Shouts triggered since its LAST improvement (a per-instance cadence counter, the
+   *  Shout twin of `eotTick`). Rolls back to 0 each time it improves, so the "every 3" is a cadence rather
+   *  than a running total. Absent = 0. */
+  shoutTick?: number;
   /** Tara: accumulated stat-grants across combats (from `CombatResult.playerAscendCount`). At the card's
    *  `ascendAt` threshold it ascends to `ascendInto` in settleCombat, keeping its stats. */
   ascendProgress?: number;

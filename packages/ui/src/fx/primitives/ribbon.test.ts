@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { validateSpecs } from '../params';
-import { pushSpineHead, ribbonPrimitive } from './ribbon';
+import { RIBBON_FIRE_GRACE_MS, pushSpineHead, ribbonOneShotComplete, ribbonPrimitive } from './ribbon';
 import type { RibbonPoint } from '../ribbonGeometry';
 
 describe('ribbon param specs', () => {
@@ -49,5 +49,30 @@ describe('pushSpineHead', () => {
     const spine: RibbonPoint[] = [];
     for (let i = 0; i < 50; i++) pushSpineHead(spine, { x: 0, y: 0 }, 1000, 10);
     expect(spine.length).toBeLessThanOrEqual(10);
+  });
+});
+
+describe('ribbonOneShotComplete', () => {
+  it('is never complete in continuous mode, however long the head has been idle', () => {
+    expect(ribbonOneShotComplete(false, true, 10_000)).toBe(false);
+  });
+
+  it('is not complete until the head has been fed at least once (guards a large first-frame dt)', () => {
+    // headEverSet false: even a huge msSinceHead must not complete before the effect ever started.
+    expect(ribbonOneShotComplete(true, false, 10_000)).toBe(false);
+  });
+
+  it('stays incomplete while the head is still being fed (msSinceHead below the grace)', () => {
+    expect(ribbonOneShotComplete(true, true, RIBBON_FIRE_GRACE_MS - 1)).toBe(false);
+  });
+
+  it('completes once one-shot, the head was fed, and it has been idle for the grace period', () => {
+    expect(ribbonOneShotComplete(true, true, RIBBON_FIRE_GRACE_MS)).toBe(true);
+    expect(ribbonOneShotComplete(true, true, RIBBON_FIRE_GRACE_MS + 500)).toBe(true);
+  });
+
+  it('honours a custom grace period', () => {
+    expect(ribbonOneShotComplete(true, true, 40, 50)).toBe(false);
+    expect(ribbonOneShotComplete(true, true, 50, 50)).toBe(true);
   });
 });

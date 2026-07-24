@@ -49,6 +49,7 @@ uniform float uFade;
 uniform float uBands;
 uniform float uAlpha;
 uniform float uGlow;
+uniform float uOneShot; // 0 = continuous repeating rings, 1 = a single expansion cycle (one-shot Fire)
 uniform vec4  uPal[4];
 
 vec4 pal(float t) {
@@ -77,7 +78,19 @@ void main() {
   float halo = 0.0;
   for (int k = 0; k < MAX_RINGS; k++) {
     if (k >= n) break;
-    float phase = fract(uTime * uSpeed + float(k) / uRings);
+    float phase;
+    if (uOneShot > 0.5) {
+      // One-shot: ring k expands ONCE from the centre (phase 0 -> 1) then is done — no fract wrap. Rings
+      // are staggered so ring k starts at t = (k / uRings) / uSpeed, giving a single sweep that reads as
+      // "from centre to full radius, then gone". Skip a ring before it has started or after it has passed
+      // phase 1 (fully faded). The branch is on uniforms only (uOneShot/uTime/uSpeed/uRings/k), so every
+      // fragment in the draw takes the same path — the fwidth() below stays in uniform control flow.
+      phase = uTime * uSpeed - float(k) / uRings;
+      if (phase < 0.0 || phase > 1.0) continue;
+    } else {
+      // Continuous: the original repeating expansion, unchanged.
+      phase = fract(uTime * uSpeed + float(k) / uRings);
+    }
     float bandDist = abs(d - phase);
     float aa = fwidth(bandDist);
     float ring = 1.0 - smoothstep(uThickness - aa, uThickness + aa, bandDist);
@@ -157,6 +170,21 @@ const UNIT_QUAD = [-1, -1, 1, -1, 1, 1, -1, 1] as const;
 const QUAD_UVS = new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]);
 const QUAD_INDICES = new Uint32Array([0, 1, 2, 0, 2, 3]);
 
+/**
+ * Wall-clock length (seconds) of a single one-shot expansion, matching the shader's staggered one-shot
+ * phase: ring k runs `phase = uTime * uSpeed - k / rings` over [0, 1], so the last ring (k = rings - 1)
+ * reaches phase 1 — fully faded, contributing nothing — at `uTime = (2*rings - 1) / (rings * uSpeed)`.
+ * That instant is when the whole effect is done. Pulled out as a pure function (no Pixi dependency) so
+ * the completion timing is unit-testable without a WebGL context — this is the one piece of the
+ * one-shot logic that isn't rendering. `speed` is in expansions/sec (the `speed` param); `rings` is
+ * rounded to a whole ring count to mirror the shader's `int(uRings)`.
+ */
+export function shockwaveOneShotDurationSec(rings: number, speed: number): number {
+  const n = Math.max(1, Math.round(rings));
+  const s = Math.max(1e-4, speed);
+  return (2 * n - 1) / (n * s);
+}
+
 class ShockwaveInstance implements FxInstance<ShockwaveParams> {
   private readonly mesh: Mesh<MeshGeometry, Shader>;
   private readonly geometry: MeshGeometry;
@@ -164,9 +192,12 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
   private readonly positions: Float32Array;
   private params: ShockwaveParams;
   private clockSec = 0;
+  // Fixed at spawn: a given instance is either a one-shot Fire or a continuous-loop preview, never both.
+  private readonly oneShot: boolean;
 
   constructor(ctx: FxContext, params: ShockwaveParams) {
     this.params = params;
+    this.oneShot = ctx.oneShot ?? false;
     this.positions = new Float32Array(8);
     this.writeQuad(params.radius);
     this.geometry = new MeshGeometry({
@@ -186,6 +217,7 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
           uBands: { value: params.bands, type: 'f32' },
           uAlpha: { value: params.alpha, type: 'f32' },
           uGlow: { value: params.glow, type: 'f32' },
+          uOneShot: { value: this.oneShot ? 1 : 0, type: 'f32' },
           uPal: { value: tupleFloats(params.palette), type: 'vec4<f32>', size: 4 },
         },
       },
@@ -214,6 +246,13 @@ class ShockwaveInstance implements FxInstance<ShockwaveParams> {
   update(dtMs: number): void {
     this.clockSec += dtMs / 1000;
     this.uniforms.uTime = this.clockSec;
+  }
+
+  /** One-shot completion: true once the single expansion's last ring has finished fading (elapsed past
+   *  the single-cycle duration). Continuous instances always return false — their rings never stop. */
+  isComplete(): boolean {
+    if (!this.oneShot) return false;
+    return this.clockSec >= shockwaveOneShotDurationSec(this.params.rings, this.params.speed);
   }
 
   setParams(next: ShockwaveParams): void {

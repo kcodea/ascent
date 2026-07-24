@@ -1972,7 +1972,12 @@ body.modalup .statusbar .questbadges {
    same reason as `.cardbuff`: toggling the class must not replay the card's entry pop.
    Shape/timing come from the ✨ Spell Buff tuner as CSS vars (`--sb-deg` peak rotation, `--sb-scale` peak pop,
    `--sb-wiggle-ms`, `--sb-ms` spark life); the fallbacks below are the shipped defaults. */
-.card.spellbuff { animation: cardpop 0.26s ease, spellwiggle var(--sb-wiggle-ms, 660ms) ease both; z-index: 21; }
+/* NB: NO fill-mode on `spellwiggle`. The card carries its own inline transform (the hand fan's rotation/tuck),
+   and a `both`/`forwards` fill would keep holding the animation's final `transform: none` — clobbering that fan
+   transform for as long as the class is on, i.e. for the WHOLE burst (which is held for the spark life). That
+   made the pop look tied to `spark ms`. Without a fill the override ends exactly at `--sb-wiggle-ms`, so the
+   card snaps back into the fan while the sparks keep rising. */
+.card.spellbuff { animation: cardpop 0.26s ease, spellwiggle var(--sb-wiggle-ms, 660ms) ease; z-index: 21; }
 @keyframes spellwiggle {
   0%   { transform: none; }
   14%  { transform: rotate(calc(var(--sb-deg, 3.4deg) * -1)) scale(calc(1 + (var(--sb-scale, 1.09) - 1) * 0.78)); }
@@ -1990,7 +1995,9 @@ body.modalup .statusbar .questbadges {
      The glow halo (`--sb-glow`) is what actually sells it against the card, so it's a tuner dial. */
   background: radial-gradient(circle at 50% 50%, #fff 0%, var(--sb-hue) 30%, transparent 76%);
   filter: drop-shadow(0 0 var(--sb-glow, 7px) var(--sb-hue));
-  animation: sbspark var(--sb-ms, 900ms) ease-out both; will-change: transform, opacity;
+  /* Near-linear with only a light settle: a plain `ease-out` dumps most of the travel in the first ~20% and
+     then crawls, which read as "the sparks aren't moving." This keeps them climbing for the whole life. */
+  animation: sbspark var(--sb-ms, 900ms) cubic-bezier(0.22, 0.72, 0.36, 1) both; will-change: transform, opacity;
 }
 /* The TAIL — a tapering streak trailing BELOW the mote as it climbs. Length rides `--sb-tail` (baked per mote
    as size × the tuner's tail multiple), so bigger motes streak proportionally longer. */

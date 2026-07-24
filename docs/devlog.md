@@ -3,6 +3,24 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (spell-buff FX — decouple the pop, speed up the rise)
+
+### fix(ui): the card pop was pinned to the spark life via the wiggle's fill-mode
+
+Owner report: "the pop is still tied to spark ms" — and it was, through a non-obvious path. The card carries its
+OWN inline `transform` (the hand fan's rotation/tuck), and `spellwiggle` ran with `both` fill. A forwards fill
+keeps applying the animation's final `transform: none` for as long as the class is on — and the class is held
+for `max(wiggleMs, sparkMs + stagger)`. So after the wiggle finished, the card stayed yanked out of its fan
+position for the rest of the burst, i.e. for the SPARK life. Dropping the fill ends the override exactly at
+`--sb-wiggle-ms`. Measured: the card's transform now restores at ~700ms (wiggle 660) instead of the 1180ms hold.
+
+Also: **the sparks climb properly now.** They ran on `ease-out`, which dumps most of the travel in the first
+~20% and then crawls — reading as "not moving." Swapped to a near-linear curve with only a light settle, and
+raised the default rise from 55–130% to 140–280% (dial headroom now 0–400 / 0–600). Same 900ms life, roughly
+double the distance.
+
+Full suite (1538) + lint + build:web green.
+
 ## 2026-07-23 (Spell Buff FX tuner + Ruby green value)
 
 ### feat(ui): a ✨ Spell Buff tuner, spark tails, and green Ruby values

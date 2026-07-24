@@ -26,8 +26,10 @@ describe('SCENARIOS', () => {
       it('returns finite anchor coordinates', () => {
         const anchors = scenario.anchorsAt(SAMPLE_VIEWPORT, SAMPLE_CURSOR);
         Object.entries(anchors).forEach(([name, point]) => {
-          expect(Number.isFinite(point.x)).toBe(true, `${scenario.id}.${name}.x is not finite`);
-          expect(Number.isFinite(point.y)).toBe(true, `${scenario.id}.${name}.y is not finite`);
+          // The label carried into the message via the matcher's context, so a failure names the offender.
+          expect(point.x, `${scenario.id}.${name}.x`).toBeTypeOf('number');
+          expect(Number.isFinite(point.x), `${scenario.id}.${name}.x is not finite`).toBe(true);
+          expect(Number.isFinite(point.y), `${scenario.id}.${name}.y is not finite`).toBe(true);
         });
       });
     });

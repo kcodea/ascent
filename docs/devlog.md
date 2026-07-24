@@ -4,6 +4,15 @@ Newest first. Each entry records **what changed and why**, plus how it was verif
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
 ## 2026-07-24 (gilded cards materialise in gold)
+### feat(ui): the golden plate tint is on the Card Plate tuner
+
+Rather than trade "more/less orange" over chat, the golden plate's filter is now five live sliders on the
+existing 🂠 Card Plate tuner (`gold · sepia / saturate / brightness / contrast / hue`). They compose into
+`--plate-gold-tone` on :root via `applyCardPlateVars`, so a gilded card recolours in real time as you drag;
+"Copy values" grabs the JSON to bake as defaults. Hue is signed and labelled (+ = yellow-gold, − = orange).
+Config in `cardPlateConfig.ts` (ships in prod, so DEFAULTS drive the var there too); the CSS fallback mirrors
+the composed default. Verified live: the five keys render, and dragging hue 12→30 updated the root var.
+
 
 ### feat(ui): a triple reward coalesces in gold + its plate reads gold
 

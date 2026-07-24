@@ -2931,7 +2931,8 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 /* GOLDEN PLATE — a gilded card's stone body reads GOLD, mirroring the frame's silver→gold. The frame does it
    by un-graying a gold PNG (`--frame-tone`); the plate art is stone, so we push it gold with a colour filter
    instead (keeps the relief/engraving, just recolours it). Tunable via `--plate-gold-tone`. Covers hand, the
-   drag copy and the inspect overlay — all `.plated`. */
+   drag copy and the inspect overlay — all `.plated`. Dial live via the 🂠 Card Plate tuner (gold · … rows);
+   the fallback here MUST mirror the composed default in cardPlateConfig.ts (goldSepia/Sat/Bright/Contrast/Hue). */
 .card.plated.golden .cardplate {
   filter: var(--plate-gold-tone, sepia(0.9) saturate(3.1) brightness(1.08) contrast(1.05) hue-rotate(12deg));
 }

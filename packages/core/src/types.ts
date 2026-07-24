@@ -90,6 +90,7 @@ export type GameEvent =
   | 'onKill'
   | 'startOfCombat'
   | 'avenge' // after X friendly minions have died in combat
+  | 'spellCastOnThis' // Set 2: a targeted spell resolved ON this minion (Mirrorwing / Runefire)
   | 'onBuy'
   | 'endOfTurn' // recruit phase: the turn ends (End Turn / timer hits 0)
   | 'battlecryTriggered' // recruit phase: a Battlecry just resolved (fires per Drakko repeat) — Karwind
@@ -142,6 +143,8 @@ export type EffectFactoryId =
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
   | 'battlecryBuffTribeImproving' // Scalechanter: Shout — buff a tribe by base + its improvements
   | 'onBattlecryImproveSelf' // Scalechanter: every N Shouts triggered, improve its own magnitude
+  | 'onSpellCastOnThisRecast' // Mirrorwing Hatchling: the first spell on this each turn casts again
+  | 'onSpellCastOnThisSpreadAdjacent' // Runefire: it also casts on adjacent Dragons
   | 'scTriggerTribeShouts' // Thunderous Sovereign: Start of Combat — trigger your tribe's Shouts
   | 'rallyTriggerLeftmostTribeShout' // Chorus Drake: Rally — trigger your left-most other Dragon's Shout
   | 'avengeBuffSpellPower' // Ashen Broodlord: Avenge — improve your spells (spell power)

@@ -33,7 +33,7 @@ type RecruitFn = (
    *  to vary a per-proc random selection (Combinator) so each weld picks fresh Mechs. `target` is the
    *  player-chosen friendly minion for a targeted Battlecry (Toxin Tender); absent = auto-pick. `replay`
    *  marks a Djinn-driven extra End-of-Turn (it must not advance a cadence counter — see Frontdrake). */
-  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number },
+  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number; spellDef?: CardDef },
 ) => void;
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
@@ -1946,6 +1946,34 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     conjureToHand(ctx.state, poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier), num(params.count, 1) * gold(self));
   },
 
+  /** Set 2 — Mirrorwing Hatchling: the FIRST spell cast on this each turn casts again, on this.
+   *  Guarded on `spellsOnThisTurn === 1` — the counter is bumped before this runs, so the re-cast below sees 2
+   *  and stops. Without that guard the card recurses forever, since its own effect is another cast on itself. */
+  onSpellCastOnThisRecast: (ctx, self, params, payload) => {
+    if (self.spellsOnThisTurn !== 1) return;
+    const spellDef = (payload as { spellDef?: CardDef }).spellDef;
+    if (!spellDef) return;
+    for (let i = 0; i < num(params.count, 1) * gold(self); i++) castSpell(ctx.state, spellDef, self);
+  },
+
+  /** Set 2 — Runefire: the FIRST spell cast on this each turn ALSO casts on its adjacent `tribe` neighbours.
+   *  Same first-per-turn guard. Neighbours are board-adjacent (left/right), so it rewards seating it between
+   *  two Dragons — and it never re-casts on ITSELF, which would double-dip the original cast. */
+  onSpellCastOnThisSpreadAdjacent: (ctx, self, params, payload) => {
+    if (self.spellsOnThisTurn !== 1) return;
+    const spellDef = (payload as { spellDef?: CardDef }).spellDef;
+    if (!spellDef) return;
+    const tribe = str(params.tribe);
+    const i = ctx.state.board.indexOf(self);
+    if (i < 0) return;
+    const neighbours = [ctx.state.board[i - 1], ctx.state.board[i + 1]].filter(
+      (c): c is BoardCard => !!c && (!tribe || isTribe(c, tribe as never)),
+    );
+    for (const n of neighbours) {
+      for (let r = 0; r < num(params.count, 1) * gold(self); r++) castSpell(ctx.state, spellDef, n);
+    }
+  },
+
   /** Set 2 — Scalechanter (Shout): buff your `tribe` by the CURRENT magnitude — base + everything this
    *  instance has improved by (`summonBonus`, the established per-instance improve accumulator).
    *  Golden doubles the whole magnitude at buff time rather than at storage time, so base and step both double
@@ -3240,6 +3268,26 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
   }
 }
 
+/**
+ * Set 2 — fire a board minion's `spellCastOnThis` effects when a TARGETED spell resolves on it (Mirrorwing
+ * Hatchling re-casts it, Runefire spreads it to neighbours).
+ *
+ * The counter is incremented BEFORE the effects run, and that ordering is load-bearing: Mirrorwing's whole job
+ * is to cast the same spell on itself again, which re-enters this function. With the bump first, the re-cast
+ * sees a count of 2 and the "first spell each turn" guard stops it — without it, the card would recurse until
+ * the stack blew. Anything hooking this event must key off `spellsOnThisTurn === 1` for the same reason.
+ */
+export function fireOnSpellCastOnThis(state: RunState, card: BoardCard, spellDef: CardDef): void {
+  card.spellsOnThisTurn = (card.spellsOnThisTurn ?? 0) + 1;
+  const def = CARD_INDEX[card.cardId];
+  if (!def || !def.effects.some((e) => e.on === 'spellCastOnThis')) return;
+  const ctx = makeContext(state);
+  for (const eff of def.effects) {
+    if (eff.on !== 'spellCastOnThis') continue;
+    RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, spellDef });
+  }
+}
+
 function makeContext(state: RunState): RecruitContext {
   const ctx: RecruitContext = {
     state,
@@ -3758,6 +3806,10 @@ export function triggerBorrowedEcho(state: RunState, card: BoardCard): void {
 export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard): void {
   const ctx = makeContext(state);
   applyCastEffects(ctx, spellDef, target); // board-wide spells (Growth) run without a target
+  // Set 2 — tell the TARGET a spell landed on it (Mirrorwing re-casts, Runefire spreads). Fired after the
+  // spell's own effects so the minion reacts to a resolved cast, and only for a real board target: an
+  // untargeted spell has no "this" to be cast on. The re-entrancy guard lives in `fireOnSpellCastOnThis`.
+  if (target && state.board.includes(target)) fireOnSpellCastOnThis(state, target, spellDef);
   // Untargeted "run" cast effects (e.g. Ember Pouch) act on the run, not a minion.
   // Embers are uncapped within a turn (like selling), so no max-embers clamp here.
   for (const effect of spellDef.effects) {

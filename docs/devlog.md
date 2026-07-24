@@ -2,6 +2,31 @@
 
 ## 2026-07-24 (Set 2's Dragon tribe — foundation + first tranche)
 
+### feat(sim/content): Dragon tranche 6 — spells cast ON a minion (Mirrorwing + Runefire)
+
+Mirrorwing Hatchling (T2 2/4) and Runefire (T5 5/8) — **16 of 21 Dragons built**.
+
+New mechanism, modelled on the Ruby one that already existed (`fireOnRubyPlayed`): a `spellCastOnThis` event
+fired from `castSpell` when a TARGETED spell resolves on a board minion, plus a per-instance
+`spellsOnThisTurn` counter that resets with the other per-turn state.
+
+**The counter is incremented BEFORE the effects run, and that ordering is the whole safety story.** Mirrorwing's
+effect is to cast the same spell on itself again, which re-enters the hook — with the bump first, the re-cast
+sees a count of 2 and the "first spell each turn" guard stops it. Verified by deleting the guard: the test dies
+with `RangeError: Maximum call stack`, so it's genuinely load-bearing rather than incidentally fine. Anything
+hooking this event must key off `spellsOnThisTurn === 1` for the same reason, which is noted at the emitter.
+
+The counter is cleared on HAND cards as well as board ones at turn start — a minion can be bounced to hand and
+replayed, and a stale count would silently eat its first proc the following turn.
+
+Runefire deliberately does NOT re-cast on itself, only on its board-adjacent Dragon neighbours: the original
+cast already landed on it, so including itself would double-dip. Tested explicitly (both neighbours +2/+3,
+Runefire itself exactly +2/+3 once).
+
+Two schema notes for the next new event: the content schema validates the `on:` name as well as the `do:` id, so
+a new event needs adding in BOTH places, and the recruit payload type needed a `spellDef` field to carry the
+cast through. Suite 1570 + typecheck + lint + build:web green.
+
 ### feat(core/content): Dragon tranche 5 — combat Shout re-triggering (Sovereign + Chorus Drake)
 
 Thunderous Sovereign (T6 8/8, Start of Combat) and Chorus Drake (T3 3/4, Rally) — **14 of 21 Dragons built**.

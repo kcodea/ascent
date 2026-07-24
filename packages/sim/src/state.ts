@@ -198,6 +198,10 @@ export interface BoardCard {
   /** End-of-Turn tick counter for cadence effects (Frontdrake: every 3 turns, get a Dragon). Advances
    *  once per turn this card is on the board (not per Chronos repeat). Per-instance; absent = 0. */
   eotTick?: number;
+  /** Set 2 — spells cast ON this minion THIS TURN (Mirrorwing Hatchling / Runefire). Reset each turn with the
+   *  other per-turn counters. Incremented BEFORE a card's `spellCastOnThis` effects run, which is what stops a
+   *  re-cast from re-triggering the same effect forever. Absent = 0. */
+  spellsOnThisTurn?: number;
   /** Set 2 — Scalechanter: Shouts triggered since its LAST improvement (a per-instance cadence counter, the
    *  Shout twin of `eotTick`). Rolls back to 0 each time it improves, so the "every 3" is a cadence rather
    *  than a running total. Absent = 0. */

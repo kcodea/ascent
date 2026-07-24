@@ -2208,6 +2208,10 @@ function advanceCombat(s: RunState): void {
   // Pin the opponent match to the board you START the turn with, so it won't shift as you shop today.
   s.turnStartPower = s.board.reduce((sum, b) => sum + b.attack + b.health, 0);
   s.spellsThisTurn = 0; // Spirit Worgen's per-turn spell scaling resets each wave
+  // Set 2 — the per-minion "spells cast on this" counter is per TURN too (Mirrorwing / Runefire read "first
+  // spell each turn"), so it clears with the rest. Cleared on hand cards as well: a minion can be bounced back
+  // to hand and replayed, and a stale count would eat its first proc next turn.
+  for (const c of [...s.board, ...s.hand]) if (c.spellsOnThisTurn) c.spellsOnThisTurn = 0;
   s.playedThisTurn = []; // Pack Leader / Spirit Worgen: minions-played-this-turn resets each turn
   s.goldSpentThisTurn = 0; // Patch Job's per-turn Gold-spent scaling resets each wave
   s.cardsBoughtThisTurn = 0; // Frenzied Excavator's per-turn cards-bought scaling resets each wave

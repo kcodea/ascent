@@ -152,6 +152,56 @@ describe('set 2 — Dragon spell hooks (first / second spell each turn)', () => 
   });
 });
 
+describe('set 2 — spells cast ON a minion (Mirrorwing / Runefire)', () => {
+  it('Mirrorwing Hatchling: the first spell on it casts AGAIN — and does not recurse', () => {
+    // Spirit Fire is +2/+3 to one minion. Cast once on Mirrorwing → it should land TWICE (the cast + the
+    // re-cast), not once and not forever. The recursion guard is the whole reason this card is safe: its
+    // effect is another cast on itself, so without the count check it would re-enter until the stack blew.
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 40,
+      board: [minion('mw', 'd2_mirrorwing', 'dragon', 2, 4)],
+      hand: [spellInHand('sf', 'spiritfire')],
+    };
+    s = reduce(s, { type: 'play', uid: 'sf', targetUid: 'mw' });
+    const mw = s.board.find((c) => c.uid === 'mw')!;
+    expect([mw.attack - 2, mw.health - 4]).toEqual([4, 6]); // exactly 2x (+2/+3), so no runaway
+    expect(mw.spellsOnThisTurn).toBe(2); // the original + the single re-cast
+  });
+
+  it('Mirrorwing Hatchling: only the FIRST spell each turn is doubled', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 40,
+      board: [minion('mw', 'd2_mirrorwing', 'dragon', 2, 4)],
+      hand: [spellInHand('s1', 'spiritfire'), spellInHand('s2', 'spiritfire')],
+    };
+    s = reduce(s, { type: 'play', uid: 's1', targetUid: 'mw' });
+    const afterFirst = s.board.find((c) => c.uid === 'mw')!;
+    const a1 = afterFirst.attack, h1 = afterFirst.health;
+    s = reduce(s, { type: 'play', uid: 's2', targetUid: 'mw' });
+    const mw = s.board.find((c) => c.uid === 'mw')!;
+    expect([mw.attack - a1, mw.health - h1]).toEqual([2, 3]); // the second lands ONCE
+  });
+
+  it('Runefire: the first spell also casts on its adjacent Dragons, but not on itself again', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 40,
+      board: [
+        minion('L', 'd2_chronicler', 'dragon', 3, 5),
+        minion('rf', 'd2_runefire', 'dragon', 5, 8),
+        minion('R', 'd2_embermouth', 'dragon', 2, 2),
+      ],
+      hand: [spellInHand('sf', 'spiritfire')],
+    };
+    s = reduce(s, { type: 'play', uid: 'sf', targetUid: 'rf' });
+    const L = s.board.find((c) => c.uid === 'L')!;
+    const rf = s.board.find((c) => c.uid === 'rf')!;
+    const R = s.board.find((c) => c.uid === 'R')!;
+    expect([L.attack - 3, L.health - 5]).toEqual([2, 3]); // neighbour got it
+    expect([R.attack - 2, R.health - 2]).toEqual([2, 3]); // and the other neighbour
+    expect([rf.attack - 5, rf.health - 8]).toEqual([2, 3]); // Runefire itself only ONCE (no self re-cast)
+  });
+});
+
 describe('set 2 — Scalechanter improves on a Shout cadence', () => {
   it('buffs Dragons by its CURRENT magnitude, and improves every 3 Shouts triggered', () => {
     // Its own Shout counts as one of the three, so the cadence is observable from a single board.

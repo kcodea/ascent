@@ -136,6 +136,34 @@ export const SET2_DRAGONS: CardDef[] = [
     goldenText: '**Shout:** get **2** random spells.',
   },
   {
+    // A spell magnet: aim your best spell at it and it resolves twice. Only the FIRST spell each turn, so it
+    // rewards picking the right one rather than chaining cheap ones.
+    id: 'd2_mirrorwing',
+    name: 'Mirrorwing Hatchling',
+    tribe: 'dragon',
+    tier: 2,
+    attack: 2,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'spellCastOnThis', do: 'onSpellCastOnThisRecast', params: { count: 1 } }],
+    text: 'The first spell you cast on this each turn **casts again**.',
+    goldenText: 'The first spell you cast on this each turn casts **2 additional** times.',
+  },
+  {
+    // The wide version of Mirrorwing: instead of doubling on itself, it copies the spell onto its Dragon
+    // neighbours — so seating matters, and it scales with a built board rather than with one big spell.
+    id: 'd2_runefire',
+    name: 'Runefire',
+    tribe: 'dragon',
+    tier: 5,
+    attack: 5,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'spellCastOnThis', do: 'onSpellCastOnThisSpreadAdjacent', params: { tribe: 'dragon', count: 1 } }],
+    text: 'The first spell you cast on this each turn **also casts on adjacent Dragons**.',
+    goldenText: 'The first spell you cast on this each turn casts **twice** on adjacent Dragons.',
+  },
+  {
     // Two effects, one card: the Shout that pays out, and the cadence that grows it. Rides
     // `battlecryTriggered`, so every Shout FIRE counts (Drakko repeats included) — "Shouts you trigger".
     id: 'd2_scalechanter',

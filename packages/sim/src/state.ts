@@ -198,6 +198,14 @@ export interface BoardCard {
   /** End-of-Turn tick counter for cadence effects (Frontdrake: every 3 turns, get a Dragon). Advances
    *  once per turn this card is on the board (not per Chronos repeat). Per-instance; absent = 0. */
   eotTick?: number;
+  /** Set 2 — spells cast ON this minion THIS TURN (Mirrorwing Hatchling / Runefire). Reset each turn with the
+   *  other per-turn counters. Incremented BEFORE a card's `spellCastOnThis` effects run, which is what stops a
+   *  re-cast from re-triggering the same effect forever. Absent = 0. */
+  spellsOnThisTurn?: number;
+  /** Set 2 — Scalechanter: Shouts triggered since its LAST improvement (a per-instance cadence counter, the
+   *  Shout twin of `eotTick`). Rolls back to 0 each time it improves, so the "every 3" is a cadence rather
+   *  than a running total. Absent = 0. */
+  shoutTick?: number;
   /** Tara: accumulated stat-grants across combats (from `CombatResult.playerAscendCount`). At the card's
    *  `ascendAt` threshold it ascends to `ascendInto` in settleCombat, keeping its stats. */
   ascendProgress?: number;
@@ -303,6 +311,10 @@ export interface RunState {
   /** Extra Gold granted at the start of next turn (Hoarder's Battlecry / Safety Deposit Box / Robin's
    *  Spoils). Consumed when the next recruit turn's Gold is set, then cleared. Absent = 0. */
   bonusEmbersNextTurn?: number;
+  /** Set 2 — Scalefeather Drake: a charge to copy the FIRST spell you cast on/after `activateWave` (= the wave
+   *  AFTER the Echo fired, so "next turn" is exact whether it died in combat or was re-fired in recruit).
+   *  `count` copies (golden 2, multiple Scalefeathers sum). Spent + cleared by that first cast. */
+  nextTurnSpellCopies?: { activateWave: number; count: number };
   /** Quick Sale: extra Gold added to the NEXT minion sold this turn (added on top of its sell value, then
    *  cleared). Also cleared at turn end if unused ("this turn"). Stacks if cast twice. Absent = 0. */
   nextSellBonus?: number;
@@ -340,6 +352,10 @@ export interface RunState {
   /** Minion cardIds PLAYED this recruit turn (normal plays) — Pack Leader (SoC, via a simulate param) and
    *  Spirit Worgen (End of Turn) scale off "Beasts/Dragons you played this turn". Reset each turn. */
   playedThisTurn?: string[];
+  /** Set 2 — card ids SOLD this turn, in sell order (the symmetric twin of `playedThisTurn`). Voicekeeper
+   *  reads it to tell "the FIRST Dragon you sell each turn" from later ones. Appended BEFORE the `minionSold`
+   *  notify, so a watcher sees the sale it's reacting to already recorded. Reset each turn. */
+  soldThisTurn?: string[];
   resolve: number;
   maxResolve: number;
   /** Armor — extra effective HP on top of Resolve. Loss damage chips Armor first, then Resolve; it doesn't
@@ -769,7 +785,17 @@ export interface RunState {
   freeBuyUsedThisTurn?: boolean;
   spellDoubleAlways?: boolean;
   spellFirstDoubleEachTurn?: boolean;
+  /** Set 2 — Orivax (Spellweave): a MULTIPLIER on the turn's first spell (3 = casts 3 times). Permanent,
+   *  run-wide. Separate from `spellFirstDoubleEachTurn` (Spell Thesis's ×2) so the two stack rather than
+   *  clobber, and read gated on `spellsThisTurn === 0` so it stays side-effect-free in the UI's cast preview. */
+  spellFirstMultEachTurn?: number;
   spellFirstUsedThisTurn?: boolean;
+  /** Set 2 — Living Grimoire: the multiplier its charge applies to the FIRST spell of a turn (2 base, 3 golden).
+   *  Absent/0 = discharged. Run-level rather than per-instance because `spellCasts` — which the UI also calls to
+   *  PREVIEW a cast count — reads run state only. Spending it and re-arming it (3 Shouts) both live on the
+   *  Grimoire's own hooks; `spellCasts` additionally requires a live Grimoire on board, so selling the source
+   *  can't leave a free permanent charge behind. */
+  grimoireMult?: number;
   minionCostOverride?: number;
   slaughterFirstEachCombat?: number;
   /** Attachment Issues (Mech capstone): every shop is guaranteed a Magnetic offer (`alwaysAttachmentShop`) and

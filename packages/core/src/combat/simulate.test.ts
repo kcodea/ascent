@@ -2685,6 +2685,84 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerPermaBuffs?.find((b) => b.sourceUid === 'F')).toMatchObject({ attack: 2, health: 2 });
   });
 
+  it('set 2 — Thunderous Sovereign: Start of Combat triggers your Dragons’ Shouts', () => {
+    // A combat-meaningful Shout (battlecryBuffTribe) so the re-fire is observable as a buff event.
+    const shouter: CardDef = { id: 'tsshout', name: 'SH', tribe: 'dragon', tier: 3, attack: 2, health: 20, keywords: [],
+      effects: [{ on: 'onPlay', do: 'battlecryBuffTribe', params: { tribe: 'dragon', attack: 3, health: 3, includeSelf: false } }], text: '' };
+    const sov: CardDef = { id: 'tssov', name: 'SOV', tribe: 'dragon', tier: 6, attack: 8, health: 20, keywords: ['SC'],
+      effects: [{ on: 'startOfCombat', do: 'scTriggerTribeShouts', params: { tribe: 'dragon' } }], text: '' };
+    const r = simulate([
+      { cardId: 'tssov', attack: 8, health: 20, sourceUid: 'SOV' },
+      { cardId: 'tsshout', attack: 2, health: 20, sourceUid: 'SH' },
+    ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), { ...CARD_INDEX, tsshout: shouter, tssov: sov },
+      combatSide({ tier: 6, tribes: ['dragon'] }), combatSide({ tier: 1 }));
+    // the Shout re-fired: a +3/+3 buff landed, and it was narrated so the replay can show it
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 3 && e.health === 3)).toBe(true);
+    expect(r.events.some((e) => e.type === 'sc' && /triggers .*Battlecry/.test(e.text ?? ''))).toBe(true);
+  });
+
+  it('set 2 — a triggered Shout procs KARWIND (the tribe’s own combo)', () => {
+    // The bus emit is easy to forget and invisible without a watcher — Karwind is the watcher, and it's a
+    // Dragon in this same tribe, so a missing emit would silently break the tribe's headline pairing.
+    const shouter: CardDef = { id: 'tsshout2', name: 'SH', tribe: 'dragon', tier: 3, attack: 2, health: 20, keywords: [],
+      effects: [{ on: 'onPlay', do: 'battlecrySummon', params: { tokenId: 'whelpling', count: 1 } }], text: '' };
+    const sov: CardDef = { id: 'tssov2', name: 'SOV', tribe: 'dragon', tier: 6, attack: 8, health: 20, keywords: ['SC'],
+      effects: [{ on: 'startOfCombat', do: 'scTriggerTribeShouts', params: { tribe: 'dragon' } }], text: '' };
+    const r = simulate([
+      { cardId: 'tssov2', attack: 8, health: 20, sourceUid: 'SOV' },
+      { cardId: 'tsshout2', attack: 2, health: 20, sourceUid: 'SH' },
+      { cardId: 'karwind', attack: 4, health: 60, sourceUid: 'KW' },
+    ], [{ cardId: 'sandbag', attack: 0, health: 400 }], makeRng(3), { ...CARD_INDEX, tsshout2: shouter, tssov2: sov },
+      combatSide({ tier: 6, tribes: ['dragon'] }), combatSide({ tier: 1 }));
+    // Karwind answers a triggered Battlecry with +2/+2 to your Dragons.
+    expect(r.events.some((e) => e.type === 'buff' && e.attack === 2 && e.health === 2)).toBe(true);
+  });
+
+  it('set 2 — Scalefeather Drake: its Echo carries back a next-turn spell-copy count', () => {
+    const sftest: CardDef = { id: 'sftest', name: 'SF', tribe: 'dragon', tier: 4, attack: 4, health: 1, keywords: [],
+      effects: [{ on: 'onDeath', do: 'deathrattleQueueNextSpellCopy', params: { count: 1 } }], text: '' };
+    const r = simulate([{ cardId: 'sftest', attack: 4, health: 1, sourceUid: 'SF' }], // 1 HP → dies, Echo fires
+      [{ cardId: 'sandbag', attack: 5, health: 400 }], makeRng(3), { ...CARD_INDEX, sftest },
+      combatSide({ tier: 4, tribes: ['dragon'] }), combatSide({ tier: 1 }));
+    expect(r.playerNextTurnSpellCopies).toBe(1);
+  });
+
+  it('set 2 — Vault Curator: Avenge (4) copies the left-most hand spell (from the combat snapshot)', () => {
+    const vctest: CardDef = { id: 'vctest', name: 'VC', tribe: 'dragon', tier: 4, attack: 4, health: 200, keywords: [],
+      effects: [{ on: 'avenge', do: 'avengeCopyLeftmostHandSpell', params: { count: 4 } }], text: '' };
+    const fodder = Array.from({ length: 4 }, (_, i) => ({ cardId: 'sandbag', attack: 0, health: 1, sourceUid: 'f' + i }));
+    // handSpellIds is the snapshot the reducer builds from the run hand — left-most spell is 'growth'.
+    const r = simulate([...fodder, { cardId: 'vctest', attack: 4, health: 200, sourceUid: 'VC' }],
+      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(3), { ...CARD_INDEX, vctest },
+      combatSide({ tier: 4, tribes: ['dragon'], handSpellIds: ['growth', 'spiritfire'] }), combatSide({ tier: 1 }));
+    // the Avenge fired and granted a copy of the LEFT-MOST ('growth'), carried back to hand.
+    expect(r.playerHandGrants).toContain('growth');
+    expect(r.playerHandGrants).not.toContain('spiritfire');
+  });
+
+  it('set 2 — Vault Curator: an empty hand is a clean no-op (no random grant)', () => {
+    const vctest: CardDef = { id: 'vctest2', name: 'VC', tribe: 'dragon', tier: 4, attack: 4, health: 200, keywords: [],
+      effects: [{ on: 'avenge', do: 'avengeCopyLeftmostHandSpell', params: { count: 4 } }], text: '' };
+    const fodder = Array.from({ length: 4 }, (_, i) => ({ cardId: 'sandbag', attack: 0, health: 1, sourceUid: 'g' + i }));
+    const r = simulate([...fodder, { cardId: 'vctest2', attack: 4, health: 200, sourceUid: 'VC' }],
+      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(3), { ...CARD_INDEX, vctest2: vctest },
+      combatSide({ tier: 4, tribes: ['dragon'] }), combatSide({ tier: 1 })); // no handSpellIds
+    expect(r.playerHandGrants ?? []).toHaveLength(0);
+  });
+
+  it('set 2 — Ashen Broodlord: Avenge (4) improves your spells and narrates the gain', () => {
+    // Four friendly deaths with the Broodlord alive → a +1/+1 spell-power grant, carried back to the run.
+    // It must also NARRATE, since the combat replay drives both the flourish and the hand-spell cue off that.
+    const abtest: CardDef = { id: 'abtest', name: 'AB', tribe: 'dragon', tier: 5, attack: 6, health: 200, keywords: [],
+      effects: [{ on: 'avenge', do: 'avengeBuffSpellPower', params: { count: 4, attack: 1, health: 1 } }], text: '' };
+    const fodder = Array.from({ length: 4 }, (_, i) => ({ cardId: 'sandbag', attack: 0, health: 1, sourceUid: 'f' + i }));
+    const r = simulate([...fodder, { cardId: 'abtest', attack: 6, health: 200, sourceUid: 'AB' }],
+      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(3), { ...CARD_INDEX, abtest },
+      combatSide({ tier: 5, tribes: ['dragon'] }), combatSide({ tier: 1 }));
+    expect(r.playerSpellPower).toMatchObject({ attack: 1, health: 1 }); // carried back to the run
+    expect(r.events.some((e) => e.type === 'sc' && /Spell Power$/.test(e.text ?? ''))).toBe(true);
+  });
+
   // Gemheart Carver's Shard is a 1/1 PLUS the Rubies on the Carver — from the shop AND from mid-combat
   // (owner 2026-07-24). It used to summon nothing at all with no Rubies, and to copy only the shop Rubies.
   const ghtest: CardDef = { id: 'ghtest', name: 'GH', tribe: 'kobold', tier: 4, attack: 5, health: 1, keywords: [],

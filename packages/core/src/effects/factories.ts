@@ -607,6 +607,39 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(str(params.cardId), self.side, self.uid);
   },
 
+  /** Set 2 — Scalefeather Drake (Echo): queue `count` copies of the FIRST spell you cast next turn (golden 2).
+   *  Payload-guarded like every Deathrattle. The copy itself is granted in the RECRUIT phase (a spell id isn't
+   *  known until you cast it), so this only banks the count — carried back via `playerNextTurnSpellCopies`. */
+  deathrattleQueueNextSpellCopy: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    ctx.queueNextTurnSpellCopy(num(params.count, 1) * mul(self), self.side);
+  },
+
+  /** Set 2 — Vault Curator: Avenge (X) copies the LEFT-MOST spell in your hand into your hand again (golden 2).
+   *  Reads the hand snapshot taken at combat start (`ctx.leftmostHandSpellFor`), so it copies what you actually
+   *  held going in; an empty or spell-less hand is a clean no-op — no random grant. */
+  avengeCopyLeftmostHandSpell: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const every = Math.max(1, num(params.count, 4));
+    if (count % every !== 0) return;
+    const id = ctx.leftmostHandSpellFor(self.side);
+    if (!id) return;
+    for (let i = 0; i < mul(self); i++) ctx.grantToHand(id, self.side, self.uid);
+  },
+
+  /** Set 2 — Ashen Broodlord: Avenge (X) improves your SPELLS by +atk/+hp (spell power), carried back to the
+   *  run. Routes through `grantSpellPower` with `self.uid`, so it emits the `+A/+H Spell Power` narration the
+   *  combat replay already rides — the flourish and the hand-spell cue both fire on the proc rather than at
+   *  settle. Player-side only, enforced inside `grantSpellPower`. */
+  avengeBuffSpellPower: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const every = Math.max(1, num(params.count, 4));
+    if (count % every !== 0) return;
+    ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side, self.uid);
+  },
+
   /** Avenge (X) — Professor Greg: after every `count` friendly deaths, get a random tavern-tier spell (golden
    *  grants two). Like Arcane Weaver's grant but the spell is RANDOM (via ctx.grantRandomSpell, resolved at
    *  settle where the tavern tier is known) rather than a fixed id. */
@@ -1871,6 +1904,47 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
         replayCombatBattlecry(ctx, n); // the Battlecry's own combat effect (no-op for economy battlecries)
         ctx.bus.emit('battlecryTriggered', { side: self.side, minion: n }); // procs Karwind / Bane per trigger
       }
+    }
+  },
+
+  /** Set 2 — Thunderous Sovereign (Start of Combat): trigger your `tribe` minions' Shouts.
+   *
+   *  Mirrors Ryme's trigger convention exactly, and all three parts matter: `drakkoRepeats` so Drakko doubles
+   *  each trigger in combat as it does in the shop, an `sc` narration so the replay can show it, and the
+   *  `battlecryTriggered` bus emit per fire so KARWIND and Bane proc — Karwind is a Dragon in this very tribe,
+   *  so a missing emit would silently break the tribe's own headline combo.
+   *  Economy battlecries are a no-op here by design: `replayCombatBattlecry` defers those to settle. */
+  scTriggerTribeShouts: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const repeats = drakkoRepeats(ctx, self.side) * mul(self);
+    for (const m of ctx.living(self.side)) {
+      if (!hasBattlecry(m)) continue;
+      if (tribe && !(m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe)) continue;
+      for (let r = 0; r < repeats; r++) {
+        ctx.log({ type: 'sc', source: self.uid, text: `${self.name} triggers ${m.name}'s Battlecry` });
+        replayCombatBattlecry(ctx, m);
+        ctx.bus.emit('battlecryTriggered', { side: self.side, minion: m });
+      }
+    }
+  },
+
+  /** Set 2 — Chorus Drake (Rally): trigger your LEFT-MOST OTHER `tribe` minion's Shout when this attacks.
+   *  "Other" is explicit in the text, so the Drake never re-fires itself. Left-most = board order, which is
+   *  deterministic and consumes no RNG. Same trigger convention as `scTriggerTribeShouts` above. */
+  rallyTriggerLeftmostTribeShout: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    const tribe = str(params.tribe);
+    const target = ctx.living(self.side).find(
+      (m) => m !== self && hasBattlecry(m)
+        && (!tribe || m.tribe === tribe || m.tribe2 === tribe || !!ctx.getCard(m.cardId)?.universalTribe),
+    );
+    if (!target) return;
+    const repeats = drakkoRepeats(ctx, self.side) * mul(self);
+    for (let r = 0; r < repeats; r++) {
+      ctx.log({ type: 'sc', source: self.uid, text: `${self.name} triggers ${target.name}'s Battlecry` });
+      replayCombatBattlecry(ctx, target);
+      ctx.bus.emit('battlecryTriggered', { side: self.side, minion: target });
     }
   },
 

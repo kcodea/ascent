@@ -1,5 +1,335 @@
 # ASCENT — development log
 
+### feat(ui): wire the Set-2 Dragon art (21 minions incl. Karwind)
+
+All 21 Dragon masters wired — 20 `d2_*` cards plus Karwind, whose art slot was empty before (it's a set-1 card
+carried into set 2, so it never had a portrait).
+
+Matched by normalised card name, same as the spell-art pass: 21/23 files matched, the two extras reported and
+deliberately skipped — `ScalefeatherDrake2.png` (a superseded variant) and `Vaeloryx.png` (no card of that
+name). `Orivax.png` needed an explicit hand-confirmed alias, since the card is "Orivax, the Spellchoir" and the
+filename is just the short name.
+
+Optimized only these 21 files (~2.3MB each PNG → WebP), leaving the rest of the art tree untouched to keep the
+diff scoped. Verified after a dev-server restart (an eager glob needs it): a sample across the tier range
+resolves from `/art/minions/`, decodes at full size, and — checked by FULL path, not just filename — none is
+shadowed by a stray PNG, the trap that hid the spell art earlier. build:web green.
+
+## 2026-07-24 (Set 2's Dragon tribe — foundation + first tranche)
+
+### feat(core/sim/content): Dragon tranche 11 — Vault Curator; the Dragon tribe is COMPLETE (21/21)
+
+Vault Curator (T4 4/6) — the last card. **All 21 Set-2 Dragons are in** (20 authored + Karwind carried from
+set 1).
+
+It needed the one seam I'd deferred: the run's HAND inside combat. `CombatSideState` carried spell/tribe/rune
+aggregates but no hand, so the reducer now snapshots the hand's SPELL ids (in hand order) into a new
+`handSpellIds`, and `ctx.leftmostHandSpellFor(side)` reads it. The Avenge copies that left-most spell via the
+existing `grantToHand` carry-back — a spell-less or empty hand is a clean no-op, never a random grant.
+
+This is the change I'd earlier flagged as "own PR, shared types.ts seam". It landed on the Dragon branch after
+all, because the branch had already been extending that same file throughout the tribe (every factory whitelist,
+the Scalefeather carry-back) — a separate PR would have conflicted on `types.ts` for no isolation benefit. The
+addition is read-only in combat (the sim never touches the run hand), so it can't affect determinism, which the
+harness confirms.
+
+Two tests at the sim boundary where the behaviour actually lives: the Avenge copies the left-most held spell and
+skips the second; an empty hand grants nothing. A reducer-level test was written and then REMOVED rather than
+kept vacuous — `handSpellIds` isn't observable off `CombatResult` (which carries only board snapshots), so the
+only honest reducer assertion was "a fight happened", which implies coverage that isn't there. The plumbing is a
+one-line filter and the behaviour is fully pinned at the simulate boundary.
+
+Roster: 2/1/4/4/4/3/1 across T1–T7 + Karwind. Suite 1583 + typecheck + lint + build:web + harness green.
+
+### feat(sim/content): Dragon tranche 10 — Orivax, the Spellchoir (the capstone)
+
+Orivax (T7 10/14, Choose One) — **20 of 21 Dragons built**; the whole shop-buildable roster is done, only Vault
+Curator remains (own PR, shared combat seam).
+
+Orivax installs a PERMANENT global mode and Gilds into both:
+* **Chorus** — your Shouts trigger an additional time. Reuses `shoutExtraAlways`, the counter Hoardwake already
+  feeds, so it reads through `playedShoutRepeats` for free.
+* **Spellweave** — your first spell each turn casts 3 times. Needed a new `spellFirstMultEachTurn` (there was
+  only Spell Thesis's fixed ×2); it's a separate field so the two STACK rather than clobber, gated on
+  `spellsThisTurn === 0` so it stays side-effect-free in the UI's cast preview (the same discipline the Grimoire
+  established).
+
+"Gilded: Gain both" is a GENERAL new flag, `chooseBothWhenGolden`, not an Orivax special-case: a golden
+Choose-One applies every option instead of the one picked. The prompt still opens and you still click a side —
+both resolve, in option order for determinism.
+
+One design call worth recording: golden Orivax's factories use BASE magnitude, NOT the usual golden doubling.
+Its Gilded benefit is literally "gain both modes" — the goldenText replaces the doubled-numbers convention
+rather than stacking on it, so golden Chorus is +1 trigger (not +2) plus Spellweave, which is what "gain both"
+reads as. A test asserts exactly that (`shoutExtraAlways === 1`, `spellFirstMultEachTurn === 3` from one golden
+play).
+
+Three tests: Chorus compounds a played Shout through Roaring Matriarch (+2 Attack fires twice = +4); Spellweave
+triples the turn's first spell and leaves the second single; golden gains both from one play. The tier spread
+now reads clean — 2/1/4/4/4/3/1 across T1–T7, plus Karwind at T6. Suite 1581 + typecheck + lint + build:web green.
+
+### feat(core/sim/content): Dragon tranche 9 — Scalefeather Drake (cross-turn spell copy)
+
+Scalefeather Drake (T4 4/6, Dragon/Beast) — **19 of 21 Dragons built**. The most plumbing of the tribe, because
+its Echo fires in one turn's COMBAT but pays out on the NEXT turn's first spell.
+
+Full carry-back chain: a new combat ctx method `queueNextTurnSpellCopy` accumulates per combat, surfaces as
+`CombatResult.playerNextTurnSpellCopies`, and settle arms `RunState.nextTurnSpellCopies`. `castSpell` then copies
+the turn's first spell to hand while a charge is active, and clears it.
+
+"Next turn" is made EXACT with an activation wave rather than a bare flag: the charge stores `wave + 1` (the
+same marker Hourglass Reserve uses), and the watcher gates on `state.wave >= activateWave`. So a charge armed in
+this turn's combat can't pay out until the following turn — verified by deleting the gate, which makes the copy
+fire a turn early (`expected 1 to be 0`). Multiple Scalefeathers sum, keeping the earliest activation wave so no
+copy is dropped.
+
+Registered in BOTH factory tables under one `do` id — the combat half (carry-back) and a recruit half that arms
+the run charge directly — so Ryme re-firing the Echo in the shop works too, and still means the FOLLOWING turn,
+never the current one.
+
+Three tests: the copy fires on/after the activation wave and is spent; a charge armed for next turn does NOT
+fire this turn; and the Echo carries `playerNextTurnSpellCopies` back from a real `simulate()`. Suite 1578 +
+typecheck + lint + build:web + harness (determinism — new combat factory + CombatResult field) green.
+
+Remaining: Orivax (two persistent Choose-One global modes), and Vault Curator (needs the run hand exposed to
+combat — its own PR on the shared `CombatSideState` seam).
+
+### feat(sim/content): Dragon tranche 8 — Living Grimoire (charge, spend, re-arm)
+
+Living Grimoire (T6 7/9) — **18 of 21 Dragons built**.
+
+A rechargeable spell amplifier: it multiplies the turn's FIRST spell, discharges, and needs 3 Shouts to come
+back. Three details decided the shape:
+
+**The charge is run-level, not per-instance.** `spellCasts` is what applies a multiplier, and the UI also calls
+it to PREVIEW a cast count — so it can only read run state. Hence `grimoireMult` (2 base, 3 golden, via
+`1 + gold(self)`), rather than a flag on the card.
+
+**It's spent in `castSpell`, not in `spellCasts`.** `spellCasts` must stay side-effect free precisely BECAUSE
+the UI previews with it — discharging there would consume the charge every time a tooltip rendered. The spend
+happens at the real cast, keyed on the turn's first.
+
+**`spellCasts` additionally requires a live Grimoire on board.** Without that, selling the Grimoire while
+charged leaves a permanent free multiplier on every future first-spell — a run-level flag with no owner. The
+board is ≤7 cards so the scan is free, and there's a test that sells it mid-charge and asserts the next spell
+casts once.
+
+Re-arm counting is skipped while already charged, so Shouts aren't banked toward a charge you haven't spent —
+"once USED, trigger 3 Shouts to reset this". Tested both ways: 3 Shouts while charged leaves `shoutTick` at 0.
+
+(The re-arm test again uses three DISTINCT Shout Dragons — three copies of one card would triple-combine and
+fail for an unrelated reason, the trap recorded in tranche 4.) Suite 1575 + typecheck + lint + build:web green.
+
+### feat(sim/content): Dragon tranche 7 — Voicekeeper (board-wide on-sell watcher)
+
+Voicekeeper (T5 5/9) — **17 of 21 Dragons built**.
+
+Needed a hook that didn't exist: `fireOnSell` fires the SOLD card's own `onSell` effects, but nothing let a
+minion react to ANOTHER minion leaving. Added `minionSold`, notified across the board with the sold card as
+`target`, plus `soldThisTurn` — the symmetric twin of the existing `playedThisTurn`, reset alongside it.
+
+"The FIRST Dragon you sell each turn" is read off that list rather than a boolean, which keeps it composable:
+the reducer appends the sale BEFORE notifying, so a watcher counting Dragons in `soldThisTurn` sees the sale
+it's reacting to already included — exactly 1 means it was the first. Two Voicekeepers both react to the same
+first sale, which is right, and no per-instance "already used" flag is needed.
+
+The copy is PLAIN — a fresh card from the index — so buffs and golden on the sold minion are deliberately not
+carried. Tested with a 30/40 buffed Dragon: the copy comes back at its base 3/5, and a non-Dragon sale is
+ignored entirely. Suite 1572 + typecheck + lint + build:web green.
+
+### feat(sim/content): Dragon tranche 6 — spells cast ON a minion (Mirrorwing + Runefire)
+
+Mirrorwing Hatchling (T2 2/4) and Runefire (T5 5/8) — **16 of 21 Dragons built**.
+
+New mechanism, modelled on the Ruby one that already existed (`fireOnRubyPlayed`): a `spellCastOnThis` event
+fired from `castSpell` when a TARGETED spell resolves on a board minion, plus a per-instance
+`spellsOnThisTurn` counter that resets with the other per-turn state.
+
+**The counter is incremented BEFORE the effects run, and that ordering is the whole safety story.** Mirrorwing's
+effect is to cast the same spell on itself again, which re-enters the hook — with the bump first, the re-cast
+sees a count of 2 and the "first spell each turn" guard stops it. Verified by deleting the guard: the test dies
+with `RangeError: Maximum call stack`, so it's genuinely load-bearing rather than incidentally fine. Anything
+hooking this event must key off `spellsOnThisTurn === 1` for the same reason, which is noted at the emitter.
+
+The counter is cleared on HAND cards as well as board ones at turn start — a minion can be bounced to hand and
+replayed, and a stale count would silently eat its first proc the following turn.
+
+Runefire deliberately does NOT re-cast on itself, only on its board-adjacent Dragon neighbours: the original
+cast already landed on it, so including itself would double-dip. Tested explicitly (both neighbours +2/+3,
+Runefire itself exactly +2/+3 once).
+
+Two schema notes for the next new event: the content schema validates the `on:` name as well as the `do:` id, so
+a new event needs adding in BOTH places, and the recruit payload type needed a `spellDef` field to carry the
+cast through. Suite 1570 + typecheck + lint + build:web green.
+
+### feat(core/content): Dragon tranche 5 — combat Shout re-triggering (Sovereign + Chorus Drake)
+
+Thunderous Sovereign (T6 8/8, Start of Combat) and Chorus Drake (T3 3/4, Rally) — **14 of 21 Dragons built**.
+
+One primitive unlocked both. `replayCombatBattlecry` already existed for Ryme's Deathrattle but was
+module-private; the two new factories (`scTriggerTribeShouts`, `rallyTriggerLeftmostTribeShout`) drive it for a
+tribe instead of a neighbour. Economy battlecries stay a no-op in combat by design — `replayCombatBattlecry`
+defers those to settle, so nothing double-fires.
+
+Ryme's trigger convention was copied in full rather than just the re-fire call, and each part earns its place:
+`drakkoRepeats` so Drakko doubles a trigger in combat exactly as it does in the shop; an `sc` narration so the
+replay can show it; and the `battlecryTriggered` bus emit per fire so KARWIND and Bane proc. That last one is
+the easy omission — it's invisible without a watcher — and Karwind is a **Dragon in this very tribe**, so
+dropping it would have silently broken the tribe's own headline pairing. There's a test specifically for that
+combo rather than only for the re-fire.
+
+Chorus Drake targets the LEFT-MOST other Dragon: "other" is in the printed text, and left-most is board order,
+so it's deterministic and consumes no RNG.
+
+Two content gotchas: Rally is authored as `on: 'onAttack'` (there is no `'rally'` GameEvent), and the test's
+summon token had to be a real id (`whelpling`) — the schema doesn't validate token ids inside test-only defs, so
+a wrong one only surfaces at runtime as "Unknown card". Suite 1567 + typecheck + lint + build:web + harness
+(determinism, two new combat factories) green.
+
+### feat(content/sim): Dragon tranche 4 — Scalechanter (improves on a Shout cadence)
+
+Scalechanter (T3 4/3) — **12 of 21 Dragons built** (Karwind included).
+
+Two effects, one card: an `onPlay` Shout that buffs your Dragons by its CURRENT magnitude, and a
+`battlecryTriggered` hook that improves that magnitude every 3 Shout FIRES. Riding `battlecryTriggered` rather
+than "played a Shout minion" is what makes the printed "Shouts you trigger" literally true — Drakko repeats and
+re-fires count.
+
+It reuses the established improve machinery rather than inventing any: `summonBonus` is the same per-instance
+accumulator Kennelmaster and Amun Rab use, and the step is scaled by `improveReps` so Rune of Mastery doubles it
+like every other "improve this". New per-instance `shoutTick` (the Shout twin of `eotTick`) holds the cadence
+and rolls back to 0 on each improvement, so it's every-3 rather than a running total.
+
+Golden is applied at BUFF time, not at storage time — `(base + summonBonus) * gold(self)` — so base and step
+each double exactly once ("starts at +2/+2 and improves by +2/+2") instead of compounding as the improvements
+accrue.
+
+**A test trap worth recording:** the first version played three copies of ONE Shout minion to reach the 3-fire
+cadence. Three identical minions TRIPLE-COMBINE — they're consumed, a Triple Reward lands in hand, and the board
+looks untouched, so the test failed for a reason that had nothing to do with the card. (Same trap as the
+sandbags in the Open the Gates cap test.) The test now uses three DISTINCT Shout Dragons, with the reason in a
+comment so the next person doesn't "simplify" it back. Suite 1565 + typecheck + lint + build:web green.
+
+### feat(content/sim): Dragon tranche 3 — Ashen Broodlord (Avenge spell power)
+
+Ashen Broodlord (T5 6/8, Dragon/Demon, Rise) — **10 of 21 Dragons built** (Karwind included).
+
+`avengeBuffSpellPower` is the combat twin of `battlecryBuffSpellPower`: every 4 friendly deaths it grants
+spell power via `ctx.grantSpellPower` WITH `self.uid`, so it emits the `+A/+H Spell Power` narration the combat
+replay already rides. That matters beyond tidiness — the replay drives both the spell-power flourish AND the
+hand-spell buff cue off that event, so a silent grant would have paid out correctly while showing nothing until
+settle (the exact bug fixed on 2026-07-24 for the mid-combat path).
+
+**Vault Curator was started and deliberately backed out.** Its "copy the left-most spell in your hand" needs the
+run's HAND inside combat, and `CombatSideState` carries no hand — only spell/tribe/rune aggregates. The
+version I'd written reached for an optional `ctx.leftmostHandSpellFor?.()` that nothing implements, which
+would have shipped a card whose Avenge silently never did anything. Threading the hand through the combat
+contract is a real change to the shared `types.ts` seam, so it belongs in its own PR rather than smuggled into
+a content tranche. Noted in the file's "still to come" list with the reason.
+
+Test asserts both halves: the +1/+1 is carried back via `playerSpellPower`, AND an `sc` narration is emitted —
+because the carry-back alone would pass while the on-proc cue stayed broken. Suite 1563 + typecheck + lint +
+build:web + harness (determinism, since this adds a combat factory) green.
+
+### feat(content/sim): Dragon tranche 2 — the first/second-spell-this-turn hooks (3 cards)
+
+Ashscribe Whelp, Spellkeeper Drake and Runic Archivist — 9 of 21 Dragons now built.
+
+All three hang off ONE observation: `castSpell` increments `spellsThisTurn` BEFORE it notifies `spellCast`
+watchers, so a factory reading `spellsThisTurn === 1` is exactly "this was the first spell this turn", and
+`=== 2` is the second. No new bookkeeping, no per-minion state — the count the engine already keeps IS the
+trigger. `firstSpellThisTurnId` is likewise recorded before the tally, so the "first" is known by the time the
+second lands.
+
+* **Ashscribe Whelp** (T1 1/3) — the first spell each turn permanently grows it +2/+2 (owner ruling: permanent,
+  so a plain `addBuff` that accumulates and itemises in the inspect breakdown).
+* **Spellkeeper Drake** (T3 3/4) — your SECOND spell each turn hands you a copy of the FIRST.
+* **Runic Archivist** (T6 6/10) — End of Turn, re-CASTS this turn's first spell for free.
+
+Runic Archivist deliberately mirrors Rune of Recurrence's `recastFirstSpell` rather than inventing its own
+rule, including the owner's 2026-07-17 call that an AIMED re-cast picks a seeded-random friendly minion (an
+untargeted one just resolves). Two cards doing "cast your first spell again" differently would read as a bug,
+not a feature.
+
+Four tests. The Ashscribe one is written against the DELTA between the two casts rather than absolute stats,
+because Growth buffs the whole board too — asserting absolutes would have passed for the wrong reason. The
+Archivist pair pins that it re-casts rather than copying to hand (`spellsCast` rises, hand size doesn't) and
+that no spell cast this turn is a clean no-op. Suite 1562 + typecheck + lint + build:web green.
+
+### fix(sim/content): Veinstorm is permanent, the cast meter is the Ruby+Spell umbrella, Skald re-spec
+
+Three owner items on the Set-2 branch. Both "bugs" turned out to describe the INTENDED behaviour rather than
+the current one — probes confirmed the code did neither, so both are real gaps rather than misreports.
+
+**Veinstorm is a permanent Shop buff.** It was calling `addOfferBuff` on the offers standing at cast time, so a
+single reroll wiped it (probed: after a roll every offer was back to `atk: 0` with no buff entries). It now
+adds to `tavernBuyBonus` — the run-level tavern buff Staff of Guel already uses — which `offerBuyStats` folds
+into EVERY offer. The current shop updates immediately and every future shop inherits it. Text updated to say
+"permanently", since the old wording implied a one-shot.
+
+**The `rubyCast` trigger is the umbrella of Rubies + Shop Spells.** Gemgorge Fiend's "every 3 casts" read the
+Ruby counter alone, so shop spells never advanced it (probed: `rubyCasts=undefined` after three Growths). It now
+fires off `spellsCast + rubyCasts` — the umbrella already documented on `RunState.rubyCasts`, which existed as a
+contract with nothing honouring it. Both cast paths pass the SAME meter: measuring rubies on their own counter
+in one path would let the two drift and make a 3-cast threshold fire early or late depending on the mix. The
+event name stays `rubyCast` (it's the content-schema key) with the real meaning documented at the emitter.
+
+**Traveling Skald re-spec** (owner): Tier 2 3/2 Slaughter → **Tier 4 4/5 Shout: get a random Tier 1 Dragon AND
+a random spell** (gilded: two of each). New `battlecryGrantTribeAndSpell` factory — the two halves are
+independent, so a dry pool on one side still delivers the other. This also resolves the roster's only missing
+Gilded text.
+
+The existing Veinstorm test asserted the OLD per-offer behaviour and correctly failed; it now pins the new
+contract on both halves — current offers AND a shop drawn after a reroll, asserted through `offerBuyStats`
+rather than the raw offer fields, since that's what the player actually sees. A new test pins the umbrella:
+two shop spells don't trigger Gemgorge, the third does. Suite 1558 + typecheck + lint + build:web green.
+
+### feat(content/sim): open the Set-2 Dragon tribe (spell recursion), 5 cards + Karwind re-spec
+
+Owner handed over a 21-card Dragon roster. Set 2's Dragons are the SPELL-RECURSION tribe — where Set 1's
+Dragons scaled off Battlecries, these copy, re-cast and pay off the spells you cast.
+
+**Wired the tribe in.** `dragon` joins set 2's `tribes` roster, `SET2_DRAGONS` joins its `own` manifest, and
+Karwind carries over via `SET1_DRAGONS_IN_SET2` — the same filter-by-id pattern the neutral spells already use,
+since set 2 opts cards IN rather than inheriting. No `Tribe` union change was needed: `dragon` already exists.
+
+**Karwind was re-spec'd in place** (Tier 5 5/10 → Tier 6 4/12, golden text "+2/+2 twice" → "+4/+4") on the
+owner's call, so it changes in SET 1 too. Worth noting the golden wording: `onBattlecryBuffTribe` applies the
+buff `gold(self)` TIMES at base magnitude, so golden really is a net +4/+4 — both the old and new wording are
+true, the new one is just clearer.
+
+**Five cards this tranche**, chosen because they build on state the engine already maintains rather than needing
+new bookkeeping: Embermouth Whelp, Hoard Chronicler, Recaller, Spellvault Drake, Roaring Matriarch. Four small
+recruit factories back them (`battlecryGrantRandomSpell`, `battlecryCopyCastSpell`, `endOfTurnCopyCastSpell`,
+`battlecryBuffOtherTribe`), whitelisted in both the `EffectFactoryId` union and the content schema.
+
+The recursion line reads `firstSpellThisTurnId` / `lastSpellCastId`, which `castSpell` already records for the
+Runes — so Recaller and Spellvault Drake are pure reads. `battlecryBuffOtherTribe` picks the LEFT-MOST eligible
+friend rather than a random one on purpose: a Shout that spent the shop RNG cursor would desync every later
+draw that turn.
+
+Three data conflicts in the table were resolved by the owner rather than guessed: Traveling Skald / Vault
+Curator have a Keyword column reading "Shout" against "Slaughter:" / "Avenge (4):" text (→ trust the TEXT),
+Karwind's stat clash (→ re-spec the shared card), and Ashscribe Whelp's buff being permanent (→ permanent).
+
+Seven new tests cover both halves of the risk: that the tribe is REACHABLE in a set-2 run (a card can typecheck
+and still never appear if the manifest or tribe roster misses it — the failure `poolOf` scoping exists to
+prevent), and each effect, including the no-op paths (Recaller before any spell is cast) and the negative case
+(Embermouth never buffing itself; Matriarch granting Attack but no Health). Suite 1557 (+7) + typecheck + lint +
+build:web green.
+
+Also wired the **Gem Shard** token's art (`gemheart-shard.webp`), which Gemheart Carver's Echo summons.
+
+**Remaining 15 cards, each needing a genuinely new primitive** — grouped by what they need, so they can land as
+focused tranches:
+* per-minion "first spell cast ON THIS each turn" tracking — Mirrorwing Hatchling, Runefire
+* Shout re-triggering inside COMBAT (`replayBattlecry` is recruit-only) — Thunderous Sovereign, Chorus Drake
+* first/second-spell-this-turn hooks on a minion — Ashscribe Whelp, Spellkeeper Drake
+* cross-turn pending effects — Scalefeather Drake; a spend-and-reset counter — Living Grimoire
+* an on-sell per-turn flag — Voicekeeper; improve-per-N-Shouts — Scalechanter
+* persistent Choose-One global modes — Orivax; plus Traveling Skald (Slaughter) and Vault Curator (Avenge)
+* Ashen Broodlord needs an Avenge spell-power grant (the combat twin of `battlecryBuffSpellPower`)
+
 ## 2026-07-24 (Gemheart Carver's Shard: no base, and blind to combat Rubies)
 
 ### fix(core/content): the Gem Shard is 1/1 + the Carver's Rubies, counting ones played mid-combat

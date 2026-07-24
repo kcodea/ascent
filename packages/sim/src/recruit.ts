@@ -33,7 +33,7 @@ type RecruitFn = (
    *  to vary a per-proc random selection (Combinator) so each weld picks fresh Mechs. `target` is the
    *  player-chosen friendly minion for a targeted Battlecry (Toxin Tender); absent = auto-pick. `replay`
    *  marks a Djinn-driven extra End-of-Turn (it must not advance a cadence counter — see Frontdrake). */
-  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number },
+  payload: { minion: BoardCard; proc?: number; target?: BoardCard; replay?: boolean; rubyAttack?: number; rubyHealth?: number; spellDef?: CardDef },
 ) => void;
 
 const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : fallback);
@@ -495,6 +495,18 @@ export function spellCasts(state: RunState, def: CardDef): number {
   // Spell Thesis: the FIRST spell each turn casts twice. READ-ONLY here (so the UI can preview the count without
   // side effects) — the reducer's cast sites consume the freebie by setting `spellFirstUsedThisTurn` after casting.
   if (state.spellFirstDoubleEachTurn && !state.spellFirstUsedThisTurn) mult *= 2;
+  // Orivax (Spellweave): the turn's first spell casts N times. Gated on `spellsThisTurn === 0` — the same
+  // read-only "is this the first" check the Grimoire uses — so the UI can preview a count without consuming it.
+  if (state.spellFirstMultEachTurn && state.spellFirstMultEachTurn > 1 && state.spellsThisTurn === 0) {
+    mult *= state.spellFirstMultEachTurn;
+  }
+  // Living Grimoire: while CHARGED, the first spell of the turn multiplies. Gated on a live Grimoire being on
+  // board — the charge is run-level so the UI can preview the count, and without this check selling the
+  // Grimoire would leave the multiplier running forever. The board is ≤7 cards, so the scan is free.
+  if (state.grimoireMult && state.spellsThisTurn === 0
+      && state.board.some((c) => CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'battlecryArmGrimoire'))) {
+    mult *= state.grimoireMult;
+  }
   // Nimbus is ADDED LAST, and added rather than multiplied, because it reads "casts an ADDITIONAL time"
   // (owner 2026-07-24). It also applies to untargeted spells, unlike Yazzus — the charge is a flat bonus on
   // whatever the spell would otherwise do.
@@ -1940,6 +1952,207 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     conjureToHand(ctx.state, poolOf(ctx.state).spells.filter(ok), num(params.count, 1) * gold(self));
   },
 
+  /** Set 2 — Hoard Chronicler (Shout): add `count` random Tavern spells to hand (golden doubles). The Shout
+   *  twin of `deathrattleGrantRandomSpell`; same pool + hand-cap handling via `conjureToHand`. */
+  battlecryGrantRandomSpell: (ctx, self, params) => {
+    conjureToHand(ctx.state, poolOf(ctx.state).spells.filter((c) => c.tier <= ctx.state.tier), num(params.count, 1) * gold(self));
+  },
+
+  /** Set 2 — Scalefeather Drake (Echo), recruit half: Ryme (or another re-trigger) can fire this in the shop.
+   *  Arms the same run charge the combat factory carries back — activating NEXT turn (`wave + 1`), never the
+   *  current one, which is what "next turn" means even when it died mid-recruit. */
+  deathrattleQueueNextSpellCopy: (ctx, self, params) => {
+    const add = num(params.count, 1) * gold(self);
+    const prev = ctx.state.nextTurnSpellCopies;
+    ctx.state.nextTurnSpellCopies = {
+      activateWave: prev ? Math.min(prev.activateWave, ctx.state.wave + 1) : ctx.state.wave + 1,
+      count: (prev?.count ?? 0) + add,
+    };
+  },
+
+  /** Set 2 — Living Grimoire (Shout): charge it. Magnitude rides golden — base doubles the turn's first
+   *  spell, golden triples it (`1 + gold(self)`). */
+  battlecryArmGrimoire: (ctx, self) => {
+    ctx.state.grimoireMult = 1 + gold(self);
+  },
+
+  /** Set 2 — Living Grimoire's re-arm: every `every` Shouts you trigger, recharge it. Counting is skipped
+   *  while it's already charged, so Shouts aren't banked toward a charge you haven't spent — "once USED,
+   *  trigger 3 Shouts to reset this". */
+  onBattlecryRearmGrimoire: (ctx, self, params) => {
+    if (ctx.state.grimoireMult) return;
+    const every = Math.max(1, num(params.every, 3));
+    const tick = (self.shoutTick ?? 0) + 1;
+    if (tick < every) { self.shoutTick = tick; return; }
+    self.shoutTick = 0;
+    ctx.state.grimoireMult = 1 + gold(self);
+  },
+
+  /** Set 2 — Voicekeeper: the FIRST `tribe` minion you sell each turn hands you a PLAIN copy of it.
+   *  "First each turn" is read off `soldThisTurn`, which the reducer appends to before notifying — so the
+   *  sale being reacted to is already in the list and this counts it: exactly 1 means it was the first.
+   *  "Plain" = a fresh card from the index, so buffs/golden on the sold minion are deliberately NOT copied. */
+  onMinionSoldCopyFirstOfTribe: (ctx, self, params, payload) => {
+    const sold = (payload as { target?: BoardCard }).target;
+    if (!sold) return;
+    const tribe = str(params.tribe);
+    const soldDef = CARD_INDEX[sold.cardId];
+    if (!soldDef || (tribe && soldDef.tribe !== tribe && soldDef.tribe2 !== tribe)) return;
+    const matching = (ctx.state.soldThisTurn ?? []).filter((id) => {
+      const d = CARD_INDEX[id];
+      return !!d && (!tribe || d.tribe === tribe || d.tribe2 === tribe);
+    }).length;
+    if (matching !== 1) return; // not the first of its tribe this turn
+    conjureToHand(ctx.state, [soldDef], num(params.count, 1) * gold(self));
+  },
+
+  /** Set 2 — Mirrorwing Hatchling: the FIRST spell cast on this each turn casts again, on this.
+   *  Guarded on `spellsOnThisTurn === 1` — the counter is bumped before this runs, so the re-cast below sees 2
+   *  and stops. Without that guard the card recurses forever, since its own effect is another cast on itself. */
+  onSpellCastOnThisRecast: (ctx, self, params, payload) => {
+    if (self.spellsOnThisTurn !== 1) return;
+    const spellDef = (payload as { spellDef?: CardDef }).spellDef;
+    if (!spellDef) return;
+    for (let i = 0; i < num(params.count, 1) * gold(self); i++) castSpell(ctx.state, spellDef, self);
+  },
+
+  /** Set 2 — Runefire: the FIRST spell cast on this each turn ALSO casts on its adjacent `tribe` neighbours.
+   *  Same first-per-turn guard. Neighbours are board-adjacent (left/right), so it rewards seating it between
+   *  two Dragons — and it never re-casts on ITSELF, which would double-dip the original cast. */
+  onSpellCastOnThisSpreadAdjacent: (ctx, self, params, payload) => {
+    if (self.spellsOnThisTurn !== 1) return;
+    const spellDef = (payload as { spellDef?: CardDef }).spellDef;
+    if (!spellDef) return;
+    const tribe = str(params.tribe);
+    const i = ctx.state.board.indexOf(self);
+    if (i < 0) return;
+    const neighbours = [ctx.state.board[i - 1], ctx.state.board[i + 1]].filter(
+      (c): c is BoardCard => !!c && (!tribe || isTribe(c, tribe as never)),
+    );
+    for (const n of neighbours) {
+      for (let r = 0; r < num(params.count, 1) * gold(self); r++) castSpell(ctx.state, spellDef, n);
+    }
+  },
+
+  /** Set 2 — Orivax "Chorus": your Shouts permanently trigger `extra` more times. Stacks into the same
+   *  `shoutExtraAlways` counter Hoardwake feeds, so it reads through `playedShoutRepeats` for free.
+   *  NOT scaled by golden: Orivax's Gilded benefit is "gain BOTH modes" (`chooseBothWhenGolden`), a wording that
+   *  replaces the doubled-numbers convention rather than stacking on it. */
+  battlecryGrantShoutExtra: (ctx, self, params) => {
+    ctx.state.shoutExtraAlways = (ctx.state.shoutExtraAlways ?? 0) + num(params.extra, 1);
+  },
+
+  /** Set 2 — Orivax "Spellweave": your first spell each turn casts `mult` times. Sets the run multiplier
+   *  (max with any existing, so two Orivaxes don't multiply into absurdity — the higher wins). */
+  battlecryGrantFirstSpellMult: (ctx, self, params) => {
+    ctx.state.spellFirstMultEachTurn = Math.max(ctx.state.spellFirstMultEachTurn ?? 1, num(params.mult, 3));
+  },
+
+  /** Set 2 — Scalechanter (Shout): buff your `tribe` by the CURRENT magnitude — base + everything this
+   *  instance has improved by (`summonBonus`, the established per-instance improve accumulator).
+   *  Golden doubles the whole magnitude at buff time rather than at storage time, so base and step both double
+   *  exactly once ("starts at +2/+2 and improves by +2/+2") instead of compounding. */
+  battlecryBuffTribeImproving: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const mag = (num(params.attack, 1) + (self.summonBonus ?? 0)) * gold(self);
+    if (mag <= 0) return;
+    for (const c of ctx.state.board) {
+      if (tribe && !isTribe(c, tribe as never)) continue;
+      addBuff(c, nameOf(self), mag, mag);
+    }
+  },
+
+  /** Set 2 — Scalechanter's other half: every `every` Shouts you trigger, improve its magnitude by `step`.
+   *  Rides `battlecryTriggered`, so it counts every FIRE (Drakko repeats included) rather than every played
+   *  Shout minion — "Shouts you trigger" as printed. The step is stored at BASE magnitude (golden is applied
+   *  when the buff lands) and scaled by `improveReps` for Rune of Mastery, matching every other "improve this". */
+  onBattlecryImproveSelf: (ctx, self, params) => {
+    const every = Math.max(1, num(params.every, 3));
+    const tick = (self.shoutTick ?? 0) + 1;
+    if (tick < every) { self.shoutTick = tick; return; }
+    self.shoutTick = 0;
+    self.summonBonus = (self.summonBonus ?? 0) + num(params.step, 1) * improveReps(ctx.state);
+  },
+
+  /** Set 2 — Ashscribe Whelp: the FIRST spell you cast each turn permanently grows this minion.
+   *  Hooked on `spellCast`, which fires once per cast AFTER the tally — so `spellsThisTurn === 1` is exactly
+   *  "this was the first". Permanent (owner ruling 2026-07-24): a plain `addBuff`, so it accumulates every turn
+   *  and shows in the inspect breakdown like any other growth. */
+  onSpellCastFirstBuffSelf: (ctx, self, params) => {
+    if (ctx.state.spellsThisTurn !== 1) return;
+    addBuff(self, nameOf(self), num(params.attack, 2) * gold(self), num(params.health, 2) * gold(self));
+  },
+
+  /** Set 2 — Spellkeeper Drake: casting your SECOND spell each turn hands you a copy of the FIRST.
+   *  Same `spellCast` hook, reading the count instead of the id — `firstSpellThisTurnId` is already recorded
+   *  by `castSpell` before the tally, so the "first" is known by the time the second lands. */
+  onSpellCastSecondCopyFirst: (ctx, self, params) => {
+    if (ctx.state.spellsThisTurn !== 2) return;
+    const def = ctx.state.firstSpellThisTurnId ? CARD_INDEX[ctx.state.firstSpellThisTurnId] : undefined;
+    if (!def) return;
+    conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
+  },
+
+  /** Set 2 — Runic Archivist (End of Turn): re-cast the first spell you cast this turn, free.
+   *  Mirrors Rune of Recurrence's `recastFirstSpell` exactly, including its owner ruling that an AIMED spell
+   *  re-targets a seeded-random friendly minion (an untargeted one just resolves) — two cards doing the same
+   *  thing differently would be a rules inconsistency, not a feature. No spell cast this turn, or an aimed
+   *  spell with an empty board → a clean no-op. */
+  endOfTurnRecastFirstSpell: (ctx, self, params) => {
+    const def = ctx.state.firstSpellThisTurnId ? CARD_INDEX[ctx.state.firstSpellThisTurnId] : undefined;
+    if (!def?.spell) return;
+    for (let i = 0; i < num(params.count, 1) * gold(self); i++) {
+      if (!def.target) { castSpell(ctx.state, def); continue; }
+      if (ctx.state.board.length === 0) return;
+      const rng = makeRng(ctx.state.rngCursor);
+      const target = ctx.state.board[rng.int(ctx.state.board.length)]!;
+      ctx.state.rngCursor = rng.state();
+      castSpell(ctx.state, def, target);
+    }
+  },
+
+  /** Set 2 — Traveling Skald (Shout): get a random Tier-`tier` minion of `tribe` AND a random Tavern spell
+   *  (golden: two of each). Two grants in one Shout, so it seeds both halves of the Dragon spell line at once.
+   *  Each half is independent — a dry pool on one side still delivers the other. */
+  battlecryGrantTribeAndSpell: (ctx, self, params) => {
+    const n = num(params.count, 1) * gold(self);
+    const tribe = str(params.tribe);
+    const tier = num(params.tier, 1);
+    const pool = poolOf(ctx.state);
+    conjureToHand(ctx.state, pool.buyable.filter((c) => c.tier === tier && (c.tribe === tribe || c.tribe2 === tribe)), n);
+    conjureToHand(ctx.state, pool.spells.filter((c) => c.tier <= ctx.state.tier), n);
+  },
+
+  /** Set 2 — the Dragon "spell recursion" line: add COPIES of a spell you already cast this turn to hand.
+   *  `which` picks which one — 'first' (`firstSpellThisTurnId`, Spellvault Drake) or 'last'
+   *  (`lastSpellCastId`, Recaller). Both ids are already tracked by `castSpell` for the Runes, so this reads
+   *  them rather than adding new bookkeeping. No spell cast yet this turn → a clean no-op.
+   *  The copy is a fresh card from the index, so it carries no state from the original cast. */
+  battlecryCopyCastSpell: (ctx, self, params) => {
+    const id = str(params.which) === 'first' ? ctx.state.firstSpellThisTurnId : ctx.state.lastSpellCastId;
+    const def = id ? CARD_INDEX[id] : undefined;
+    if (!def) return;
+    conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
+  },
+
+  /** Set 2 — Spellvault Drake (End of Turn): the same copy, on the EoT beat instead of a Shout. */
+  endOfTurnCopyCastSpell: (ctx, self, params) => {
+    const id = str(params.which) === 'first' ? ctx.state.firstSpellThisTurnId : ctx.state.lastSpellCastId;
+    const def = id ? CARD_INDEX[id] : undefined;
+    if (!def) return;
+    conjureToHand(ctx.state, [def], num(params.count, 1) * gold(self));
+  },
+
+  /** Set 2 — Embermouth Whelp (Shout): buff ONE other friendly minion of `tribe` (never itself). Picks the
+   *  left-most eligible one so it's deterministic without consuming RNG — a Shout that spent the shop cursor
+   *  would desync replays for every later draw this turn. */
+  battlecryBuffOtherTribe: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const target = ctx.state.board.find((c) => c !== self && isTribe(c, tribe as never));
+    if (!target) return;
+    addBuff(target, nameOf(self), num(params.attack, 1) * gold(self), num(params.health, 1) * gold(self));
+  },
+
   /** (recruit half) — add a random Magnetic minion to hand; golden adds two. */
   deathrattleGrantMagnetic: (ctx, self) => {
     conjureToHand(ctx.state, poolOf(ctx.state).buyable.filter((c) => c.keywords.includes('M')), gold(self));
@@ -2142,7 +2355,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   spellBuffShopByRuby: (ctx) => {
     const rb = ctx.state.rubyBonus ?? { attack: 0, health: 0 };
     const a = 1 + rb.attack, h = 1 + rb.health;
-    for (const offer of ctx.state.shop) addOfferBuff(offer, 'Veinstorm', a, h);
+    // PERMANENT (owner 2026-07-24): routed through `tavernBuyBonus` — the run-level tavern buff Staff of Guel
+    // uses — rather than `addOfferBuff` on the current offers. `offerBuyStats` folds it into EVERY offer, so
+    // the current shop updates immediately AND every future shop inherits it. Buffing the offers directly made
+    // it a one-shot that a single reroll wiped.
+    ctx.state.tavernBuyBonus.atk += a;
+    ctx.state.tavernBuyBonus.hp += h;
   },
 
   /** Hoardflame (Dragon) — cast on a minion: +`attack`/`health` base, plus +`per`/+`per` for each Dragon you
@@ -3095,6 +3313,10 @@ export function fireOnSell(state: RunState, card: BoardCard): void {
 
 /** Set 2 — Gemgorge Fiend: fire each board minion's `rubyCast` effects once for every `every`-th cumulative Ruby
  *  cast crossed by this cast (`before` → `after` on `rubyCasts`). */
+/** Fire board minions' `rubyCast` effects as a cast METER crosses each `every` step. Despite the event name
+ *  (kept for the content schema), the meter is the UMBRELLA of Rubies + Shop Spells — the `spellsCast +
+ *  rubyCasts` contract on `RunState.rubyCasts` — per the owner 2026-07-24. Callers pass the umbrella's
+ *  before/after so both cast paths measure the same number. */
 export function fireOnRubyCast(state: RunState, before: number, after: number): void {
   for (const card of state.board) {
     const eff = CARD_INDEX[card.cardId]?.effects.find((e) => e.on === 'rubyCast');
@@ -3117,6 +3339,42 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
   for (const eff of def.effects) {
     if (eff.on !== 'onRubyPlayed') continue;
     RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, rubyAttack, rubyHealth });
+  }
+}
+
+/**
+ * Set 2 — tell every BOARD minion that a minion was sold (Voicekeeper). Distinct from `fireOnSell`, which
+ * fires the SOLD card's own `onSell` effects: this is the watcher side, for cards that react to OTHER minions
+ * leaving. The sold card is passed as `target` so a watcher can inspect what it was.
+ */
+export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
+  for (const card of [...state.board]) {
+    const def = CARD_INDEX[card.cardId];
+    if (!def) continue;
+    for (const eff of def.effects) {
+      if (eff.on !== 'minionSold') continue;
+      RECRUIT_FACTORIES[eff.do]?.(makeContext(state), card, eff.params ?? {}, { minion: card, target: sold });
+    }
+  }
+}
+
+/**
+ * Set 2 — fire a board minion's `spellCastOnThis` effects when a TARGETED spell resolves on it (Mirrorwing
+ * Hatchling re-casts it, Runefire spreads it to neighbours).
+ *
+ * The counter is incremented BEFORE the effects run, and that ordering is load-bearing: Mirrorwing's whole job
+ * is to cast the same spell on itself again, which re-enters this function. With the bump first, the re-cast
+ * sees a count of 2 and the "first spell each turn" guard stops it — without it, the card would recurse until
+ * the stack blew. Anything hooking this event must key off `spellsOnThisTurn === 1` for the same reason.
+ */
+export function fireOnSpellCastOnThis(state: RunState, card: BoardCard, spellDef: CardDef): void {
+  card.spellsOnThisTurn = (card.spellsOnThisTurn ?? 0) + 1;
+  const def = CARD_INDEX[card.cardId];
+  if (!def || !def.effects.some((e) => e.on === 'spellCastOnThis')) return;
+  const ctx = makeContext(state);
+  for (const eff of def.effects) {
+    if (eff.on !== 'spellCastOnThis') continue;
+    RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, spellDef });
   }
 }
 
@@ -3638,6 +3896,10 @@ export function triggerBorrowedEcho(state: RunState, card: BoardCard): void {
 export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard): void {
   const ctx = makeContext(state);
   applyCastEffects(ctx, spellDef, target); // board-wide spells (Growth) run without a target
+  // Set 2 — tell the TARGET a spell landed on it (Mirrorwing re-casts, Runefire spreads). Fired after the
+  // spell's own effects so the minion reacts to a resolved cast, and only for a real board target: an
+  // untargeted spell has no "this" to be cast on. The re-entrancy guard lives in `fireOnSpellCastOnThis`.
+  if (target && state.board.includes(target)) fireOnSpellCastOnThis(state, target, spellDef);
   // Untargeted "run" cast effects (e.g. Ember Pouch) act on the run, not a minion.
   // Embers are uncapped within a turn (like selling), so no max-embers clamp here.
   for (const effect of spellDef.effects) {
@@ -3651,8 +3913,25 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // tally below so the turn's opening cast — and only it — lands here; the EoT recast itself can never
   // re-record (spellsThisTurn is nonzero by then).
   if (state.spellsThisTurn === 0) state.firstSpellThisTurnId = spellDef.id;
+  // Scalefeather Drake: the FIRST spell cast on/after the armed wave copies itself to hand. Fired here so it
+  // catches every cast path once; the wave gate makes "next turn" exact — a charge armed in this turn's combat
+  // has `activateWave = wave + 1`, so it can't pay out until the following turn.
+  const sfCharge = state.nextTurnSpellCopies;
+  if (state.spellsThisTurn === 0 && sfCharge && state.wave >= sfCharge.activateWave && sfCharge.count > 0) {
+    conjureToHand(state, [spellDef], sfCharge.count);
+    state.nextTurnSpellCopies = undefined;
+  }
+  // The `rubyCast` trigger is the UMBRELLA of Rubies + Shop Spells (owner 2026-07-24), matching the
+  // `spellsCast + rubyCasts` contract documented on `RunState.rubyCasts` — so Gemgorge Fiend's "every 3"
+  // counts a Shop Spell exactly like a Ruby. Fired here so EVERY cast path routes through it once per cast.
+  const castUmbrellaBefore = state.spellsCast + (state.rubyCasts ?? 0);
+  const wasFirstThisTurn = state.spellsThisTurn === 0;
   state.spellsCast += 1;
   state.spellsThisTurn += 1;
+  // Living Grimoire's charge is spent by the turn's FIRST cast. Consumed here, at the real cast, rather than in
+  // `spellCasts` — that function is also called by the UI to preview a count and must stay side-effect free.
+  if (wasFirstThisTurn && state.grimoireMult) state.grimoireMult = 0;
+  fireOnRubyCast(state, castUmbrellaBefore, castUmbrellaBefore + 1);
   state.lastSpellCastId = spellDef.id; // Steward of Spells copies the most recent spell cast
   // Rune of Summoning: each spell cast permanently improves your Imps +1/+1 (run-wide, via the Imp enchant —
   // "improve your Imps" applies twice under Rune of Mastery).

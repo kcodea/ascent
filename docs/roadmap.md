@@ -148,8 +148,9 @@ The career surface exists; deepen what a finished run *remembers*.
 - **Set 2 content.** Foundation is in (`docs/card-sets.md`): author cards in `packages/content/src/cards/set2/`,
   list them in `SETS.set2.own`, trim the inherited set-1 pool with `excludes`. Before flipping it live, run
   `SET=set2 npm run pool` — an unbaked set has no captured opponents and falls back to procedural boards.
-  Shipped so far: the 22-Kobold tribe + Ruby engine, and Set 1's neutral spell toolkit carried over (minus the
-  four tribe-locked ones). Still needed before flipping live: more tribes/minions to cover the enemy curve,
+  Shipped so far: the 22-Kobold tribe + Ruby engine, the 21-card Dragon tribe (spell recursion — PR #699),
+  and Set 1's neutral spell toolkit carried over (minus the four tribe-locked ones). Still needed before flipping
+  live: more tribes/minions to cover the enemy curve,
   set-scoped quests/runes, and a baked opponent pool.
 - **New spell batch (owner spec 2026-07-23, 28 spells) — building in tranches.** ✅ Tranche A shipped (8:
   Crest of the Climb, Turnabout, Insurance Policy, Rift-Sunk Codex, Beyond the Summit, Invitation Above +

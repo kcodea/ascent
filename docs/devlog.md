@@ -1,5 +1,34 @@
 # ASCENT — development log
 
+## 2026-07-24 (Elevation Ritual did nothing at the tier cap)
+
+### fix(sim): Elevation Ritual re-rolls a capped offer in place instead of skipping it
+
+Owner report: a Tier-6 minion should become another random Tier-6 when Tier 7 isn't available.
+
+`elevateShop` computed `target = tier + 1` and, when that exceeded the cap, fell through a "can't upgrade"
+branch that pushed the offer back UNCHANGED. So at the top of the curve — exactly where the spell is most
+likely to be cast — it silently did nothing to those offers.
+
+`Math.min(def.tier + 1, cap)` now expresses both cases in one line: below the cap it steps up, AT the cap it
+re-rolls within its own tier. The cap is `maxTierFor(state.rift)` (Tier 7 only with the Summit rift), and no
+HERO raises it — Brackus's `summitLock` grants a single turn-1 Tier-7 Discover, not a higher shop tier, so
+there's no extra condition to thread through.
+
+Per the owner's ruling a cap re-roll MAY land on the same minion and still counts as a refresh. Two details
+make that work: the outgoing copy is counted as an available candidate (it isn't in `state.pool` while the offer
+holds it, so it would otherwise be excluded from its own re-roll), and every slot gets a FRESH uid even when the
+card id repeats, so the UI re-renders it as a new offer. Pool accounting nets to zero when the pick is the
+outgoing card, which is exactly right.
+
+The new test pins the behaviour and was verified to FAIL against the old code (`expected false to be true` on
+the fresh-uid assertion) before passing with the fix — uid is the honest signal here, since cardId can legally
+repeat. Suite 1546 (+1) + typecheck + lint + build:web green.
+
+Follow-up for the owner: the card text still reads "Upgrade each minion in the Shop to a random minion **one
+tier higher**", which is now only true below the cap. Left as-is — rewording printed card text is a content
+call, not a bug fix.
+
 ## 2026-07-24 (Discover minimize button sat on the cards at short viewports)
 
 ### fix(ui): move the Discover minimize button down (61% → 67%)

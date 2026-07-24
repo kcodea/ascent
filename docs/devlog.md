@@ -5,6 +5,35 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-24 (spell-buff FX — grow/shrink in place + an outward spark blast)
 
+### fix(ui): spell-buff — restart on every trigger, add a blast origin Y, unbreak the Test button
+
+Three things on top of the grow/shrink + blast rework, all from the same session.
+
+**The Test button was dead.** The rework renamed the card dials, but the hold expression existed in TWO places
+and only one was updated — the dev Test hook still read `c.wiggleMs`, which no longer exists. `Math.max(undefined,
+…)` is NaN, and `setTimeout(fn, NaN)` fires at 0ms, so the clear raced the `requestAnimationFrame` that adds the
+class and the cue either never showed or stuck on permanently. The hold now lives in ONE exported helper,
+`spellBuffHoldMs()`, used by both callers so they can't drift again.
+
+**Retriggering now restarts the cue** (owner ask): re-applying a class that's already on does not replay a CSS
+animation, so a second buff landing mid-burst used to be swallowed entirely. `spellBuffedUids: Set<string>` became
+`spellBuffSeq: Map<string, number>` — a per-uid burst id that increments on each trigger. `Card` keys the spark
+layer on it (remount = fresh jitter + every mote animating from zero) and restarts the card's `sbgrow`/`sbshrink`
+via `cancel()` + `play()` in a layout effect. Cutting the previous burst short is intended: each trigger has to
+read as its own hit.
+
+That also fixed a related timer bug this exposed. Clears were fire-and-forget, so an EARLIER burst's timeout would
+land mid-way through a LATER burst and end it early — measured directly: a 1010ms hold clearing after 404ms. Each
+uid's pending clear is now tracked and cancelled on retrigger.
+
+**New dial — `blast origin Y%`**: where on the card the blast starts, measured up from the bottom so it reads the
+way a card does (0 = bottom edge, 50 = centre, 100 = top; the slider allows -20–120 to throw it off the card).
+
+Verified live: three Test clicks in a row produced three different spark-angle sets (-167.6°, -178.7°, -179.7° —
+proving remount + fresh jitter) with `sbgrow.startTime` reset each time, and the class cleared and STAYED cleared
+afterwards. The Y dial on a 113px card resolved to `top: 113px` at 0, `56.5px` at 50 and `0px` at 100. Full suite
+(1538) + typecheck + lint + build:web green.
+
 ### feat(ui): spell-buff cue reworked — wiggle out, grow/shrink in, sparks explode outward
 
 Owner ask: drop the pop/wiggle, replace it with a grow/shrink that has its own speed AND ease for *each* phase,

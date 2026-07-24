@@ -2003,7 +2003,10 @@ body.modalup .statusbar .questbadges {
 /* The spark layer is anchored to the card and allowed to overflow, so motes fly out past every edge. */
 .sbsparks { position: absolute; inset: 0; pointer-events: none; overflow: visible; z-index: 22; }
 .sbspark {
-  position: absolute; left: 50%; top: 50%;
+  /* `--sb-oy` is the blast's origin height measured UP from the card's bottom (owner ask 2026-07-24), so the
+     dial reads the way a card does: 0 = bottom edge, 50 = centre, 100 = top. `top` measures DOWN from the top,
+     hence the flip. Values outside 0–100 are allowed and throw the origin off the card entirely. */
+  position: absolute; left: 50%; top: calc(100% - var(--sb-oy, 50%));
   width: var(--sb-size, 7px); aspect-ratio: 1; border-radius: 50%;
   /* A solid hot core out to 30% before the falloff — a pure-falloff dot reads washed out over bright art.
      The glow halo (`--sb-glow`) is what actually sells it against the card, so it's a tuner dial. */

@@ -26,6 +26,7 @@ const LABELS: Record<keyof SpellBuffFxConfig, string> = {
   blastDistMin: 'blast dist min',
   blastDistMax: 'blast dist max',
   blastSpread: 'blast arc°',
+  blastOriginY: 'blast origin Y%',
   sparkSpeed: 'launch punch',
   sparkGravity: 'gravity px',
   sparkAlpha: 'spark α',

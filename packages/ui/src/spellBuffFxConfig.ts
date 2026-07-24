@@ -49,6 +49,9 @@ export interface SpellBuffFxConfig {
   /** Sparks — the arc the blast covers, in degrees. 360 = explodes evenly in every direction; smaller values
    *  focus it into a cone aimed straight up. */
   blastSpread: number;
+  /** Sparks — WHERE on the card the blast originates, as a height measured UP from the card's bottom (%).
+   *  0 = the bottom edge, 50 = dead centre, 100 = the top edge. Values past 100 throw it above the card. */
+  blastOriginY: number;
   /** Sparks — launch punch (0–1). 0 = drifts out evenly; 1 = fires out hard then coasts. */
   sparkSpeed: number;
   /** Sparks — how far a mote is dragged back DOWN over its flight (px), so the blast arcs instead of flying
@@ -85,6 +88,7 @@ const DEFAULTS: SpellBuffFxConfig = {
   blastDistMin: 70,
   blastDistMax: 165,
   blastSpread: 360,
+  blastOriginY: 50,
   sparkSpeed: 0.7,
   sparkGravity: 0,
   sparkAlpha: 1,
@@ -111,6 +115,7 @@ export const SBF_RANGES: Record<Exclude<keyof SpellBuffFxConfig, 'pinkColor' | '
   blastDistMin: [0, 600, 5],
   blastDistMax: [0, 900, 5],
   blastSpread: [0, 360, 5],
+  blastOriginY: [-20, 120, 1],
   sparkSpeed: [0, 1, 0.01],
   sparkGravity: [0, 600, 5],
   sparkAlpha: [0, 1, 0.01],
@@ -133,6 +138,7 @@ export const SBF_DESC: Record<keyof SpellBuffFxConfig, string> = {
   blastDistMin: 'Sparks — shortest flight out from the card centre (px).',
   blastDistMax: 'Sparks — longest flight out (px).',
   blastSpread: 'Sparks — arc the blast covers (deg). 360 = every direction; smaller focuses it upward.',
+  blastOriginY: 'Sparks — where the blast starts, as height up from the card bottom (%). 0 = bottom, 50 = centre, 100 = top.',
   sparkSpeed: 'Sparks — launch punch. 0 = drifts out evenly; 1 = fires out hard then coasts.',
   sparkGravity: 'Sparks — how far motes are dragged back down over the flight (px). 0 = pure radial.',
   sparkAlpha: 'Sparks — peak opacity.',
@@ -149,7 +155,7 @@ export const SBF_DESC: Record<keyof SpellBuffFxConfig, string> = {
 export const SBF_NUM_KEYS = [
   'growScale', 'growMs', 'growEase', 'shrinkMs', 'shrinkEase',
   'sparkCount', 'sparkSizeMin', 'sparkSizeMax',
-  'blastDistMin', 'blastDistMax', 'blastSpread',
+  'blastDistMin', 'blastDistMax', 'blastSpread', 'blastOriginY',
   'sparkSpeed', 'sparkGravity', 'sparkAlpha', 'sparkGlow', 'sparkTail', 'sparkMs', 'sparkStagger',
 ] as const;
 export const SBF_COLOR_KEYS = ['pinkColor', 'goldColor', 'purpleColor'] as const;
@@ -206,6 +212,15 @@ export function sparkEaseCss(c: SpellBuffFxConfig = cfg): string {
 export const cardBurstMs = (c: SpellBuffFxConfig = cfg): number => c.growMs + c.shrinkMs;
 /** How long the spark burst runs (the last mote's launch delay plus its flight). */
 export const sparkBurstMs = (c: SpellBuffFxConfig = cfg): number => c.sparkStagger + c.sparkMs;
+/** How long `.spellbuff` must stay on: the LONGER of the two independent timings, plus a little slack. The card
+ *  and the sparks are deliberately decoupled (a snappy grow/shrink under a long, slow blast is a supported
+ *  setting), so a hold based on either one alone would clip the other.
+ *  This lives here as ONE function because the expression is needed in two places — the real buff watcher and
+ *  the dev Test button. When it was inlined twice, a dial rename updated one copy and left the other reading a
+ *  key that no longer existed: `Math.max(undefined, …)` → NaN → `setTimeout(…, NaN)` → fires at 0ms, which
+ *  cleared the class instantly and made the Test button look dead. Don't inline it again. */
+export const spellBuffHoldMs = (c: SpellBuffFxConfig = cfg): number =>
+  Math.max(cardBurstMs(c), sparkBurstMs(c)) + 160;
 
 /** One mote's baked jitter — built at FIRE TIME from the live config (so a tuner edit shows on the next burst). */
 export interface SpellBuffSpark {

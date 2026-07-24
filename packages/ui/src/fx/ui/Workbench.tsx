@@ -31,7 +31,17 @@ const BACKDROP_SWATCHES: readonly { label: string; hex: number | null }[] = [
 // a primitive to appear before using it, since this resolves asynchronously.
 if (import.meta.env.DEV) void import('../primitives');
 
-const DURATION_MS = 1200;
+/** Duration dial bounds (ms) — replaces the old hardcoded `DURATION_MS` constant. Default matches the old
+ *  constant's rough neighbourhood; the dial lets a tuner widen/narrow the def's duration (and thus the
+ *  scenario's progress denominator) live. */
+const DEFAULT_DURATION_MS = 1000;
+const MIN_DURATION_MS = 200;
+const MAX_DURATION_MS = 4000;
+const DURATION_STEP_MS = 50;
+
+/** Loop-gap dial bounds (ms) — only meaningful while Loop is on; see `FxPlayer.setLoopGap`. */
+const MAX_LOOP_GAP_MS = 2000;
+const LOOP_GAP_STEP_MS = 50;
 
 /**
  * Full-screen dev overlay for live-tuning FX primitives. Deliberately NOT a `.sfxmix` draggable panel —
@@ -45,19 +55,29 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
   const [params, setParams] = useState<Record<string, unknown>>(() =>
     defaultsOf(getPrimitive(primitiveId)?.params ?? {}),
   );
+  // "Playing" now reflects the player's REAL state (polled each frame in the updater below), not just
+  // "the user pressed play" — an auto-fire-once is playing until it completes, then goes idle on its own.
   const [uiPlaying, setUiPlaying] = useState(true);
   const [speed, setSpeed] = useState(1);
   const [timeMs, setTimeMs] = useState(0);
   const [fps, setFps] = useState(0);
   const [copied, setCopied] = useState(false);
   const [backdropColor, setBackdropColor] = useState<number | null>(null);
+  const [durationMs, setDurationMs] = useState(DEFAULT_DURATION_MS);
+  // Loop is opt-in and OFF by default (see file-level rework note above `build()`): the workbench must
+  // never auto-start a continuous loop just because an effect opened. Only `toggleLoop` turns this on.
+  const [loopOn, setLoopOn] = useState(false);
+  const [loopGapMs, setLoopGapMs] = useState(0);
 
   const playerRef = useRef<FxPlayer | null>(null);
   const backdropRef = useRef<FxBackdrop | null>(null);
   // Mirrors of the latest state, read by the per-frame updater / build closures so those never go stale
-  // without forcing a player rebuild on every keystroke (a rebuild happens ONLY on primitive/scenario change).
+  // without forcing a player rebuild on every keystroke (a rebuild happens ONLY on primitive/scenario/duration
+  // change). `loopGapRef` mirrors `loopGapMs` the same way `speedRef` mirrors `speed` -- a dial that should
+  // survive a rebuild without itself triggering one.
   const paramsRef = useRef(params);
   const speedRef = useRef(speed);
+  const loopGapRef = useRef(loopGapMs);
   const cursorRef = useRef({ x: 0, y: 0 });
   const clickRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -105,9 +125,11 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     backdropRef.current?.setColor(backdropColor);
   }, [backdropColor]);
 
-  // (Re)build the player whenever the selected primitive or scenario changes. Param tweaks do NOT land
-  // here — they go through player.setLayerParams (see `change` below) so a slider drag never respawns
-  // the effect mid-gesture.
+  // (Re)build the player whenever the selected primitive, scenario, OR duration changes. Param tweaks do
+  // NOT land here — they go through player.setLayerParams (see `change` below) so a slider drag never
+  // respawns the effect mid-gesture. Loop-on/off and the loop-gap dial ALSO don't land here (see
+  // `toggleLoop` / `changeLoopGap`) -- they're live `setLoop`/`setLoopGap` calls on the existing player, not
+  // a rebuild, per the same "don't respawn mid-gesture" reasoning.
   useEffect(() => {
     let disposed = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -119,6 +141,9 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     let fpsAccMs = 0;
     let fpsFrames = 0;
     let timeAccMs = 0;
+    // Edge-detects `player.isPlaying()` transitions in the per-frame updater below so `uiPlaying` tracks the
+    // player's REAL state without a `setState` call on every single frame.
+    let lastPlaying = true;
 
     const build = (): void => {
       if (disposed) return;
@@ -151,25 +176,38 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
 
       const def: FxDef = {
         id: `workbench-${primitiveId}`,
-        duration: DURATION_MS,
+        duration: durationMs,
         layers: [{ primitive: primitiveId, anchor: 'travel', at: 0, params: paramsRef.current }],
       };
-      player = createPlayer(def, { container, renderer }, { loop: true });
+      // NO auto-loop: every build (open, primitive/scenario switch, duration change) always constructs a
+      // non-looping player and fires it exactly once, so the effect is visible immediately and then sits
+      // idle -- never a continuous loop the user didn't ask for. `loopGapMs` is a dial value that DOES
+      // survive the rebuild (see `loopGapRef`); the "is looping" flag deliberately does not (see `setLoopOn`
+      // below) -- Loop is opt-in per build, matching the "no auto-loop on open" rule for every rebuild.
+      player = createPlayer(def, { container, renderer }, { loop: false, loopGapMs: loopGapRef.current });
       player.setSpeed(speedRef.current);
-      player.play();
+      player.fireOnce();
       playerRef.current = player;
       setUiPlaying(true);
       setTimeMs(0);
+      setLoopOn(false);
+      lastPlaying = true;
 
       removeUpdater = pixiFx.addUpdater((dtMs) => {
         const p = player;
         if (!p) return;
         p.update(dtMs);
 
+        const nowPlaying = p.isPlaying();
+        if (nowPlaying !== lastPlaying) {
+          lastPlaying = nowPlaying;
+          setUiPlaying(nowPlaying);
+        }
+
         const scenario = SCENARIOS.find((s) => s.id === scenarioId) ?? SCENARIOS[0];
         if (scenario) {
           const vp = { w: window.innerWidth, h: window.innerHeight };
-          const progress = (p.timeMs() % DURATION_MS) / DURATION_MS;
+          const progress = (p.timeMs() % durationMs) / durationMs;
           // A scenario may drive the head along a custom path (e.g. `bounce` ping-ponging between units,
           // `pinnedCursor` tracking the live pointer, `clickPlace` anchoring to the last click); otherwise
           // the head follows the default source→target travel arc.
@@ -212,7 +250,7 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
       container?.destroy({ children: true });
       playerRef.current = null;
     };
-  }, [primitiveId, scenarioId]);
+  }, [primitiveId, scenarioId, durationMs]);
 
   // `number[]` covers the editable palette param (a 4-tuple of colour stops); every value flows unchanged
   // through setLayerParams' `Record<string, unknown>`, then coerceParams validates it per the primitive's spec.
@@ -235,15 +273,43 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     setPrimitiveId(id);
   };
 
+  // Pause/resume. There's no standing continuous loop to "resume" unless Loop is on -- so when Loop is off,
+  // resuming just re-fires a fresh one-shot pass (consistent with Fire, and with "no auto-loop" generally);
+  // when Loop is on, resuming restarts continuous playback.
   const togglePlay = (): void => {
     const p = playerRef.current;
     if (!p) return;
     if (p.isPlaying()) {
       p.pause();
       setUiPlaying(false);
-    } else {
+    } else if (loopOn) {
       p.play();
       setUiPlaying(true);
+    } else {
+      p.fireOnce();
+      setUiPlaying(true);
+      setTimeMs(0);
+    }
+  };
+
+  // Loop toggle -- the ONLY thing that starts continuous looping. OFF -> ON starts a fresh continuous cycle
+  // from t=0; ON -> OFF stops and resets, matching "Loop off" meaning "nothing is looping", not "paused
+  // mid-loop". Live setLoop()/play()/stop() calls on the existing player -- never a rebuild (see the build
+  // effect's comment).
+  const toggleLoop = (): void => {
+    const p = playerRef.current;
+    const next = !loopOn;
+    setLoopOn(next);
+    if (!p) return;
+    if (next) {
+      p.setLoop(true);
+      p.play();
+      setUiPlaying(true);
+    } else {
+      p.setLoop(false);
+      p.stop();
+      setUiPlaying(false);
+      setTimeMs(0);
     }
   };
 
@@ -271,6 +337,21 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
     speedRef.current = n;
     setSpeed(n);
     playerRef.current?.setSpeed(n);
+  };
+
+  // Loop-gap dial: live `setLoopGap`, no rebuild -- only meaningful once Loop is on, but it's harmless to
+  // set while not looping. `loopGapRef` mirrors this into the next `build()` call the same way `speedRef`
+  // mirrors `speed`, so the dial's value survives a primitive/scenario/duration rebuild.
+  const changeLoopGap = (ms: number): void => {
+    loopGapRef.current = ms;
+    setLoopGapMs(ms);
+    playerRef.current?.setLoopGap(ms);
+  };
+
+  // Duration dial: deliberately just a `setState` -- the actual rebuild is driven by `durationMs` sitting
+  // in the build effect's dependency array (see above), same as primitive/scenario changes.
+  const changeDuration = (ms: number): void => {
+    setDurationMs(ms);
   };
 
   const copyParams = (): void => {
@@ -348,11 +429,46 @@ export function FxWorkbench({ onClose }: { onClose: () => void }): React.ReactEl
           className="fxwb-scrub"
           type="range"
           min={0}
-          max={DURATION_MS}
+          max={durationMs}
           value={timeMs}
           onChange={(e) => scrub(Number(e.target.value))}
         />
-        <span className="fxwb-time">{Math.round(timeMs)} / {DURATION_MS} ms</span>
+        <span className="fxwb-time">{Math.round(timeMs)} / {durationMs} ms</span>
+
+        <div className="fxwb-loopgroup" title="Loop is opt-in -- Fire above always stays a single one-shot pass regardless of this toggle">
+          <button
+            className={`fxwb-loop-toggle${loopOn ? ' on' : ''}`}
+            onClick={toggleLoop}
+            title={loopOn ? 'Loop is ON -- click to stop' : 'Loop is OFF -- click to loop continuously'}
+          >
+            {loopOn ? '🔁 Loop: On' : '🔁 Loop: Off'}
+          </button>
+          <label className="fxwb-speedlabel" htmlFor="fxwb-duration">Duration</label>
+          <input
+            id="fxwb-duration"
+            className="fxwb-speed"
+            type="range"
+            min={MIN_DURATION_MS}
+            max={MAX_DURATION_MS}
+            step={DURATION_STEP_MS}
+            value={durationMs}
+            onChange={(e) => changeDuration(Number(e.target.value))}
+          />
+          <span className="fxwb-speedval">{durationMs} ms</span>
+          <label className="fxwb-speedlabel" htmlFor="fxwb-loopgap">Loop gap</label>
+          <input
+            id="fxwb-loopgap"
+            className="fxwb-speed"
+            type="range"
+            min={0}
+            max={MAX_LOOP_GAP_MS}
+            step={LOOP_GAP_STEP_MS}
+            value={loopGapMs}
+            onChange={(e) => changeLoopGap(Number(e.target.value))}
+          />
+          <span className="fxwb-speedval">{loopGapMs} ms</span>
+        </div>
+
         <label className="fxwb-speedlabel" htmlFor="fxwb-speed">Speed</label>
         <input
           id="fxwb-speed"

@@ -6,6 +6,20 @@ import type { CardDef } from '@game/core';
  */
 export const SET2_TOKENS: CardDef[] = [
   {
+    // T-Rex's Echo summon. Taunt is granted by the summoning effect (`keyword: 'T'`), not baked here, so the
+    // token's own line stays a plain body — matching how Void Cub / Whelp tokens are authored.
+    id: 'b2_trexbaby',
+    name: 'T-Rex Baby',
+    tribe: 'beast',
+    tier: 1,
+    attack: 2,
+    health: 2,
+    keywords: [],
+    effects: [],
+    text: 'A 2/2 Beast token.',
+    token: true,
+  },
+  {
     // The Ruby: a spell-like token (NOT a Shop Spell) that Kobolds mint into your hand. It plays like a
     // targeted spell — drag it onto a friendly minion to grant that minion the Ruby's current Attack/Health
     // as a permanent shop buff, then it's consumed. Its stats are baked at mint time (base 1/1 + the run's

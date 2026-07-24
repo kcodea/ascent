@@ -154,6 +154,10 @@ export type EffectFactoryId =
   | 'rallyTriggerLeftmostTribeShout' // Chorus Drake: Rally — trigger your left-most other Dragon's Shout
   | 'onSpellCastFirstBuffTribe' // Mosswhisker Adept: first spell each turn buffs your tribe board-wide
   | 'onSpellCastBuffRandomTribe' // Runebloom Matriarch: each spell buffs N random tribe minions
+  | 'scSummonOnlyTribeAura' // Denkeeper Oona: minions you summon in combat enter buffed
+  | 'avengeBuffTribeLasting' // Moonlit Scavenger: Avenge — buff your tribe for the rest of the fight
+  | 'rallyProcLeftmostEcho' // Echohorn Stag: Rally — trigger your left-most friendly Echo
+  | 'deathrattleSummonRandomTribe' // Menagerie Mammoth: Echo — summon N random minions of a tribe
   | 'rallyBuffSelfPerTribe' // Packstrider: Rally — buff self per friendly tribe minion
   | 'avengeCopyLeftmostHandSpell' // Vault Curator: Avenge — copy the left-most spell in your hand
   | 'avengeBuffSpellPower' // Ashen Broodlord: Avenge — improve your spells (spell power)

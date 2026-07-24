@@ -2092,6 +2092,76 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     }
   },
 
+  /** Set 2 — Denkeeper Oona (Start of Combat, passive-reading): register a SUMMON-ONLY `tribe` aura — minions
+   *  you summon later in the fight enter with +atk/+hp. Unlike `scBeastAura` it deliberately does NOT buff the
+   *  minions already on board: the card reads "Beasts you SUMMON in combat have +5/+5", i.e. it pays the token
+   *  flood, not the existing line. Golden doubles the grant. */
+  scSummonOnlyTribeAura: (ctx, self, params) => {
+    const tribe = (str(params.tribe) || 'beast') as Tribe | 'any';
+    const a = num(params.attack, 1) * mul(self);
+    const h = num(params.health, 1) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    ctx.log({ type: 'sc', source: self.uid, text: `${self.name} watches the den` });
+    ctx.addTribeAura(self.side, tribe, a, h, self.uid); // future summons only — no pass over `ctx.living`
+  },
+
+  /** Set 2 — Moonlit Scavenger (Avenge half): every X friendly deaths, buff your `tribe` for the rest of the
+   *  fight AND carry it back to the run ("wherever they are"). Registers the rest-of-combat aura so later
+   *  summons inherit it, buffs the living ones now, and grants the permanent buy-time slice. */
+  avengeBuffTribeLasting: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const every = Math.max(1, num(params.count, 3));
+    if (count % every !== 0) return;
+    const tribe = (str(params.tribe) || 'beast') as Tribe | 'any';
+    const a = num(params.attack, 2) * mul(self);
+    const h = num(params.health, 0) * mul(self);
+    if (a <= 0 && h <= 0) return;
+    ctx.addTribeAura(self.side, tribe, a, h, self.uid);
+    for (const m of ctx.living(self.side)) {
+      if (tribe === 'any' || m.tribe === tribe || m.tribe2 === tribe || ctx.getCard(m.cardId)?.universalTribe) ctx.buff(m, a, h, self.uid);
+    }
+    // NOTE: combat-scoped. "Wherever they are" is satisfied within the fight — the `addTribeAura` above means
+    // minions summoned later inherit it, not just the ones standing now. A run-wide carry-back would need a new
+    // ctx accessor over `beastBuyAtkGain` (a simulate.ts local today); deliberately not invented here.
+  },
+
+  /** Set 2 — Echohorn Stag (Rally): on its own attack, trigger your LEFT-MOST friendly Echo (Deathrattle) —
+   *  it stays alive, exactly like Deathsayer's `rallyProcDeathrattle`. Differs only in the pick: strictly
+   *  board-order left-most (deterministic, no RNG) rather than "the first that has one" including itself.
+   *  Golden triggers it twice. */
+  rallyProcLeftmostEcho: (ctx, self, _params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self) return;
+    const target = ctx.living(self.side).find(
+      (m) => m !== self && m.effects.some((e) => e.on === 'onDeath' && e.do.startsWith('deathrattle')),
+    );
+    if (!target) return;
+    for (let r = 0; r < mul(self); r++) {
+      ctx.log({ type: 'rally', source: self.uid, target: target.uid });
+      ctx.countDeathrattle?.(target.side);
+      for (const effect of target.effects) {
+        if (effect.on !== 'onDeath' || !effect.do.startsWith('deathrattle')) continue;
+        FACTORIES[effect.do]?.(ctx, target, effect.params ?? {}, { minion: target, side: target.side });
+      }
+    }
+  },
+
+  /** Set 2 — Menagerie Mammoth (Echo): summon `count` RANDOM minions of `tribe`, drawn from the run's set pool
+   *  (golden doubles the count). Seeded via the combat RNG so replays stay faithful. Tokens are excluded — a
+   *  random summon should give you real bodies, not another card's summon-fodder. */
+  deathrattleSummonRandomTribe: (ctx, self, params, payload) => {
+    if ((payload as MinionPayload).minion !== self) return;
+    const tribe = str(params.tribe);
+    const pool = ctx.allCards().filter(
+      (c) => !c.token && !c.spell && (!tribe || c.tribe === tribe || c.tribe2 === tribe),
+    );
+    if (pool.length === 0) return;
+    for (let i = 0; i < num(params.count, 2) * mul(self); i++) {
+      ctx.summon(self.side, ctx.rng.pick(pool), self.uid);
+    }
+  },
+
   /** Solaris Fang — Avenge (X): every X friendly deaths, gain a Divine Shield (Ward) and attack immediately,
    *  out of turn order (`ctx.attackNow` → the immediate-attack queue). Golden gains the shield + a second
    *  immediate strike. */

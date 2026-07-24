@@ -1,5 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { sampleBurstAngle } from './burst';
+import { validateSpecs } from '../params';
+import { burstPrimitive, sampleBurstAngle } from './burst';
+
+describe('burst param specs', () => {
+  it('has no self-contradictory defaults (registration-time invariant)', () => {
+    expect(validateSpecs(burstPrimitive.params)).toEqual([]);
+  });
+
+  it('registers under the id "burst"', () => {
+    expect(burstPrimitive.id).toBe('burst');
+  });
+});
+
+// Note: the "first wave waits for a real setHead() before emitting" fix (see BurstInstance.update /
+// setHead in burst.ts) isn't unit-tested here — that state machine (headSet / firstEmitDone) lives
+// entirely inside BurstInstance, which requires a real Renderer to construct (getShardTexture calls
+// renderer.generateTexture in the constructor), so it can't be exercised without a WebGL context. It's
+// covered by the coordinator's manual/visual verification instead.
 
 describe('sampleBurstAngle', () => {
   it('spread 1 covers the full circle, ignoring travelAngle', () => {

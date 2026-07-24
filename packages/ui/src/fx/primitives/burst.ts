@@ -117,6 +117,10 @@ class BurstInstance implements FxInstance<BurstParams> {
   private readonly live: LiveParticle[] = [];
   private headX = 0;
   private headY = 0;
+  // `setHead` has landed at least once with a real anchor position. Gates the very first wave — see the
+  // constructor comment below for why we can't just emit on construction.
+  private headSet = false;
+  private firstEmitDone = false;
   private travelAngle = 0; // radians; last known non-zero travel direction, aims the cone when spread < 1
   private timer = 0; // ms since last emit
 
@@ -130,21 +134,32 @@ class BurstInstance implements FxInstance<BurstParams> {
     });
     this.pc.blendMode = params.additive ? 'add' : 'normal';
     ctx.container.addChild(this.pc);
-    this.emit(); // fire immediately so the workbench preview isn't blank until the first interval elapses
+    // Deliberately no emit here. `headX/headY` default to (0, 0) until the first real `setHead()` call,
+    // and the real caller (`FxPlayer.update` → this instance's `update()`, THEN `FxPlayer.setHead` →
+    // this instance's `setHead()` — see Workbench.tsx's ticker, which calls `p.update(dtMs)` before
+    // `p.setHead(0, pt.x, pt.y)` every frame) has no calling order where `setHead` runs before the first
+    // `update`. Emitting here fired the whole first wave at the container's local origin instead of the
+    // intended anchor. The first wave now fires from `update()` once `headSet` flips true instead.
   }
 
   setHead(x: number, y: number): void {
     const dx = x - this.headX;
     const dy = y - this.headY;
-    if (dx * dx + dy * dy > 0.01) this.travelAngle = Math.atan2(dy, dx);
+    // Only derive a travel angle once we have a real prior head to diff against — otherwise the very
+    // first call would diff against the (0, 0) default and bake in a bogus direction.
+    if (this.headSet && dx * dx + dy * dy > 0.01) this.travelAngle = Math.atan2(dy, dx);
     this.headX = x;
     this.headY = y;
+    this.headSet = true;
   }
 
+  /** Push `count` fresh particles into both `live` and the container's `particleChildren` at the current
+   *  head position. Called only from `update()` (never the constructor — see there). */
   private emit(): void {
     const p = this.params;
     const room = MAX_LIVE - this.live.length;
     const n = Math.min(p.count, room);
+    const children = this.pc.particleChildren;
     for (let i = 0; i < n; i++) {
       const angle = sampleBurstAngle(this.travelAngle, p.spread, Math.random);
       const speed = p.speed * (1 + (Math.random() * 2 - 1) * p.speedVar);
@@ -163,7 +178,6 @@ class BurstInstance implements FxInstance<BurstParams> {
         tint,
         alpha: 1,
       });
-      this.pc.addParticle(particle);
       this.live.push({
         particle,
         vx: Math.cos(angle) * speed,
@@ -173,6 +187,7 @@ class BurstInstance implements FxInstance<BurstParams> {
         maxLife: Math.max(1, p.life),
         baseScale,
       });
+      children.push(particle);
     }
   }
 
@@ -180,19 +195,18 @@ class BurstInstance implements FxInstance<BurstParams> {
     const dtSec = dtMs / 1000;
     const dragF = Math.pow(this.params.drag, dtMs / DRAG_REF_MS);
     const gravity = this.params.gravity;
+    const live = this.live;
+    const children = this.pc.particleChildren;
 
-    // Swap-remove dead particles while updating the rest in place — no array allocation per frame.
-    let i = this.live.length;
-    while (i-- > 0) {
-      const lp = this.live[i];
+    // Advance + cull dead particles, compacting `live` and `particleChildren` together in a single
+    // forward pass (write index trails read index — mirrors emitter.ts's pattern). A whole wave shares
+    // `maxLife` and so tends to die on the same frame; per-particle `ParticleContainer.removeParticle`
+    // (an `indexOf` + `splice` each call) would make that O(n*m). This pass is O(n) regardless.
+    let write = 0;
+    for (let i = 0; i < live.length; i++) {
+      const lp = live[i];
       lp.age += dtMs;
-      if (lp.age >= lp.maxLife) {
-        this.pc.removeParticle(lp.particle);
-        const last = this.live.length - 1;
-        if (i !== last) this.live[i] = this.live[last];
-        this.live.length = last;
-        continue;
-      }
+      if (lp.age >= lp.maxLife) continue;
       const particle = lp.particle;
       particle.x += lp.vx * dtSec;
       particle.y += lp.vy * dtSec;
@@ -206,15 +220,33 @@ class BurstInstance implements FxInstance<BurstParams> {
       const scale = lp.baseScale * frac;
       particle.scaleX = scale;
       particle.scaleY = scale;
+
+      if (write !== i) live[write] = lp;
+      children[write] = particle;
+      write++;
+    }
+    live.length = write;
+    children.length = write;
+
+    // Fire: the very first wave waits for a real anchor position (see `setHead` / the constructor
+    // comment above); every wave after that follows the fixed interval timer.
+    if (!this.firstEmitDone) {
+      if (this.headSet) {
+        this.emit();
+        this.firstEmitDone = true;
+        this.timer = 0;
+      }
+    } else {
+      this.timer += dtMs;
+      if (this.timer >= this.params.interval) {
+        // Guard against a runaway re-fire loop if a huge dt (tab was backgrounded) blows past several
+        // intervals at once — fire once and resync rather than emitting a burst per missed interval.
+        this.timer = this.timer % this.params.interval;
+        this.emit();
+      }
     }
 
-    this.timer += dtMs;
-    if (this.timer >= this.params.interval) {
-      // Guard against a runaway re-fire loop if a huge dt (tab was backgrounded) blows past several
-      // intervals at once — fire once and resync rather than emitting a burst per missed interval.
-      this.timer = this.timer % this.params.interval;
-      this.emit();
-    }
+    this.pc.update();
   }
 
   setParams(next: BurstParams): void {
@@ -225,7 +257,7 @@ class BurstInstance implements FxInstance<BurstParams> {
   destroy(): void {
     // Only the ParticleContainer is ours to free — the shard texture is shared across every burst
     // instance (cached per-renderer above) and must outlive any single instance's destroy().
-    this.pc.destroy();
+    this.pc.destroy({ children: true });
   }
 }
 

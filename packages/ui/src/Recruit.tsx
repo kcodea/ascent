@@ -22,6 +22,7 @@ import { pixiFx, discoverFx } from './pixiFx';
 import { perfMonitor } from './perfMonitor';
 import { getSwapFxConfig } from './swapFxConfig';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
+import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
 import { getQuestTendrilConfig, tendrilCfgFor } from './questTendrilConfig';
 import { applyGustLift, getGustFxConfig } from './gustFxConfig';
 import { getAuraFxConfig } from './auraFxConfig';
@@ -704,6 +705,40 @@ export function Recruit() {
     });
     return () => cancelAnimationFrame(raf);
   }, [run.spellPowerFxSeq, run.spellPowerFxAtk, run.spellPowerFxHp, run.spellPowerFxUid]);
+  // RUBY POWER FX (owner ask 2026-07-24) — the Ruby-side twin of the effect above, on the same one-shot seq
+  // contract. `rubyPowerFxSeq` is stamped from the reducer's `rubyBonus` before/after delta, so this one effect
+  // covers the shop, End of Turn AND the combat carry-back (Veinbreaker's Avenge settles onto `rubyBonus`).
+  // Unlike spell power there's no phase guard: a Ruby gain landing at settle is exactly the case the owner
+  // wants to see, so it fires whichever phase it arrives in.
+  const prevRubyPowerSeq = useRef(run.rubyPowerFxSeq);
+  useEffect(() => {
+    const seq = run.rubyPowerFxSeq;
+    if (seq === undefined || seq === prevRubyPowerSeq.current) return;
+    prevRubyPowerSeq.current = seq;
+    const gainA = run.rubyPowerFxAtk ?? 0;
+    const gainH = run.rubyPowerFxHp ?? 0;
+    const uid = run.rubyPowerFxUid;
+    const raf = requestAnimationFrame(() => {
+      // Over the card that caused it when there is one; otherwise over the player's HAND, because that's where
+      // the Rubies that just got stronger actually are (the spell-power twin falls back to the tavern instead,
+      // which is the right anchor for ITS "your spells got stronger" read but the wrong one here).
+      const el = (uid && document.querySelector(`[data-uid="${uid}"]`))
+        ?? document.querySelector('.row.hand .card.rubycard')
+        ?? document.querySelector('.row.hand')
+        ?? document.querySelector('[data-zone="tavern"]');
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+      pixiFx.rubyPower(x, y, getRubyPowerFxConfig());
+      floatRubyPowerNumber(x, y - r.height * 0.3, gainA, gainH);
+      // The held Rubies themselves also play the spell-buff cue, so the "these cards got stronger" read is on
+      // the cards and not only in the flourish. Fires through the shared bus, hence any phase.
+      const rubyUids = useGame.getState().run.hand.filter((c) => c.cardId === 'ruby').map((c) => c.uid);
+      fireSpellBuff(rubyUids);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [run.rubyPowerFxSeq, run.rubyPowerFxAtk, run.rubyPowerFxHp, run.rubyPowerFxUid]);
   // Buff Gust — the TAVERN flourish for any shop-time Fodder/Imp buff (owner ask 2026-07-16 ×2:
   // Godfodder's buff pick, Imp Overseer, Maw's End of Turn, Ritualist, Staff of Guel, Rune of Consumption,
   // Bane, …): the violet rush sweeps in from the shop row's flanks, pushed toward the board ends by the

@@ -9,6 +9,7 @@
  */
 import { useGame } from './store';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
+import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
 import { getStepProcFxConfig } from './stepProcFxConfig';
 import { tendrilCfgFor } from './questTendrilConfig';
 import { pixiFx } from './pixiFx';
@@ -83,6 +84,22 @@ export function testSpellPowerFx(): void {
   const y = (top + bottom) / 2;
   pixiFx.spellPower(x, y, getSpellPowerFxConfig());
   floatSpellPowerNumber(x, y - (bottom - top) * 0.15, 2, 1);
+}
+
+/** 💎 Ruby Power: the Ruby-strength flourish, fired over the shop row so it can be dialed without waiting for a
+ *  Ruby-buff source to proc. Same geometry as the spell-power test above; only the config differs. */
+export function testRubyPowerFx(): void {
+  const els = shopEls();
+  if (els.length === 0) return;
+  const rects = els.map((el) => el.getBoundingClientRect());
+  const left = Math.min(...rects.map((r) => r.left));
+  const right = Math.max(...rects.map((r) => r.right));
+  const top = Math.min(...rects.map((r) => r.top));
+  const bottom = Math.max(...rects.map((r) => r.bottom));
+  const x = (left + right) / 2;
+  const y = (top + bottom) / 2;
+  pixiFx.rubyPower(x, y, getRubyPowerFxConfig());
+  floatRubyPowerNumber(x, y - (bottom - top) * 0.15, 2, 1);
 }
 
 /** 🔢 Step Proc: the counter-filled flourish (arrows + blast, no number), fired FROM a real `.stepcounter`

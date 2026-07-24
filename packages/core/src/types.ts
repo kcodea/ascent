@@ -1470,7 +1470,10 @@ export interface CombatContext {
   /** Set 2 — mint `count` Rubies into hand after combat (Rikk / Gemline). Player-only; carried back. */
   grantRubies(count: number, side: Side, sourceUid?: string): void;
   /** Set 2 — raise the run's Ruby strength after combat (Veinbreaker). Player-only; carried back. */
-  gainRubyBonus(attack: number, health: number, side: Side): void;
+  /** Set 2 — raise the run's RUBY strength (player-only; carried back at settle). `sourceUid` is optional and
+   *  presentation-only: with it the sim emits an `sc` narration so the UI can telegraph the gain mid-combat,
+   *  exactly as `grantSpellPower` does. Without it the gain still applies, just silently. */
+  gainRubyBonus(attack: number, health: number, side: Side, sourceUid?: string): void;
   /** Queue `count` Fodder into the player's next tavern (Burial Imp's Deathrattle). Player-only;
    *  carried back via `CombatResult.playerFodderGrants`, pushed onto pendingTavern in settleCombat. */
   grantTavernFodder(count: number, side: Side): void;

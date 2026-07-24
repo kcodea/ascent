@@ -1,5 +1,33 @@
 # ASCENT — development log
 
+## 2026-07-24 (PROD CRASH — `useGame is not defined` in the packaged exe)
+
+### fix(ui): import useGame in useCombatReplay; make store.ts test-safe
+
+Owner's friend hit `ReferenceError: useGame is not defined` (`app://ascent/…` — the packaged exe) the moment a
+combat resolved a spell-power / Ruby-power gain. The mid-combat spell-buff cue I added earlier called
+`useGame.getState()` in `useCombatReplay.ts` WITHOUT importing it.
+
+Why it only crashed in prod: `store.ts` exposes `window.useGame` as a DEV-only debug handle (stripped from
+production). In dev + localhost the bare `useGame` resolved to that global; in the prod build the global doesn't
+exist → crash. `typecheck:web` DOES catch it (`TS2304: Cannot find name 'useGame'` on both lines, verified), but
+that gate isn't in CI yet — it's blocked on the pre-existing UI type backlog (unmerged #676). Added the import.
+
+Adding it surfaced two LATENT test-infra gaps, because two suites (`useCombatReplay.test.ts`,
+`avengeOrder.fold.test.ts`) now pull `store.ts` into their import graph:
+* `store.ts` uses the build-time defines `__APP_VERSION__` / `__BUILD_SHA__`, which `vitest.config.ts` never
+  provided → `ReferenceError: __APP_VERSION__ is not defined`. Mirrored the build's `define` block into the
+  vitest config (placeholder values; nothing asserts on them).
+* `store.ts`'s DEV-only `window.useGame = …` assumed a browser `window`, but vitest runs with `DEV` true in a
+  Node environment → `window is not defined`. Guarded with `typeof window !== 'undefined'`.
+
+Both were dormant only because no test previously reached `store.ts`; they'd have bitten the next such import
+regardless. With all three fixes the full suite is back to 1586 (the missing import had silently dropped the 11
+tests in those two suites). typecheck + lint + build:web green.
+
+Process note to self: my gate check grepped `× ` for failures, which misses FAILED SUITES (collection errors) —
+those need an exit-code check. That's how a 1586→1575 drop nearly slipped by.
+
 ## 2026-07-24 (Dragon fixes — Grimoire/Spellkeeper count from placement, Grimoire hits Rubies)
 
 ### fix(sim/content): Living Grimoire + Spellkeeper count from when they hit the board, not turn start

@@ -55,10 +55,22 @@ export function playBuySlide(from: BuyFrom, card: HTMLElement, durationScale = 1
   // a compositor layer for 170ms.
   if (Math.abs(dx) < 1 && Math.abs(dy) < 1 && Math.abs(sc - 1) < 0.02) return;
 
+  // The card may still be running its mount-pop (`handpop` on a hand card, `cardpop` elsewhere). FINISH it up
+  // front rather than suppressing it. Two reasons:
+  //   1. Reading `base` (below) while the pop animates captures a MID-pop transform (scale 0.9, part-way tuck),
+  //      so the slide would settle to the wrong pose. Finished → `base` is the true resting transform.
+  //   2. THE BUG THIS FIXES: the old code set `animation: none !important` and removed it in `done()`. Because
+  //      `.popin` persists on the card, clearing that override re-applied `animation: handpop` from zero — a
+  //      fresh fade that blinked the card OUT then back IN as the slide ended (owner report 2026-07-24).
+  // Finishing leaves the pop done for good (we never touch the `animation` property), and the slide is the
+  // card's entrance — no fade needed.
+  for (const a of card.getAnimations()) {
+    const name = (a as { animationName?: string }).animationName;
+    if (name === 'handpop' || name === 'cardpop') a.finish();
+  }
   const cs = getComputedStyle(card);
   const base = cs.transform && cs.transform !== 'none' ? cs.transform : '';
-  card.style.setProperty('animation', 'none', 'important');   // take `handpop` out of the running
-  card.style.setProperty('opacity', '1', 'important');        // …including its 0 → 1 fade
+  card.style.setProperty('opacity', '1', 'important');   // solid through the slide (belt-and-suspenders)
 
   const anim = card.animate(
     [
@@ -68,7 +80,6 @@ export function playBuySlide(from: BuyFrom, card: HTMLElement, durationScale = 1
     { duration: Math.max(1, MS * durationScale), easing: EASE },
   );
   const done = (): void => {
-    card.style.removeProperty('animation');
     card.style.removeProperty('opacity');
   };
   anim.addEventListener('finish', done);

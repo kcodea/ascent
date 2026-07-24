@@ -46,6 +46,7 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
   was never gated, so the whole presentation layer had no type gate (the production build transpiles without
   checking). Cleared all 59 errors and turned the gate on. Several were real: the mixer's gain-reduction meter
   read NaN, kobold-tribe quests printed `undefined` in their text, and the two plate tuners' "demo" buttons did
+<<<<<<< HEAD
   nothing.
 - **Commit animation.** Pick a card and a moment in the workbench, tune the effect while watching it on the
   real card, then commit — writing the effect and its binding together, for that card only (forking it) or
@@ -146,6 +147,10 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
   version, on the board and in combat. Drop `<id>2.png` next to `<id>.png` and it's wired.
 - **Three Set-2 card reworks** — Ashen Broodlord pays off Consume with a Shop spell, Aeon Acolyte (was
   Gravelight Acolyte) wills its stats to a friend, Lastlight Marshal hands out Ward on death.
+=======
+  nothing. Also deleted a dead per-frame aura-tracking loop it exposed — and, while there, restored the reborn
+  unit's spirit-release burst on death (it had quietly stopped firing when Reborn became a CSS effect).
+>>>>>>> d136ff4e (fix(ui): restore the reborn death spirit-release burst (CSS-marker path))
 - **Fixed a crash on the combat hand-grant** — a card passing the wrong effect param granted an unknown card id;
   the render now degrades instead of white-screening, and a test sweep blocks the whole class of typo.
 - **Practice mode gets a timer dial** — pick 1–4x beside the clock (1x matches a scored run).

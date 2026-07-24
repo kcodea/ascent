@@ -469,14 +469,6 @@ effects (the `.dr` collapse hold can trail them) — tune live against the skull
   `apps/web/src` + `packages/ui/src`, so the Vite/node files (`vite.config.ts`, `fxDefsPlugin.ts`) are still in
   no TS program. Wire a node-side tsconfig into the gated `typecheck` script to close the last gap.
 
-### Reborn deaths no longer burst (found 2026-07-24 — owner call needed)
-`burstDeathAuras` gates the reborn spirit-release burst + `rebornShatter` sfx on `pixiFx.hasAura(uid,
-'reborn')`, but nothing has written to that bubble registry since Reborn became a CSS stack — so it never
-fires. (Long-standing; surfaced while deleting the dead Pixi aura tracker, not caused by it.) The Ward branch
-right above it already does the right thing: read the `.dscard` DOM marker and `shatterAt`. Either mirror that
-for `.reborncard` or drop the branch.
->>>>>>> 296baeb6 (refactor(ui): delete the dead Pixi aura tracker (supersedes the cssOwned flag))
-
 ### Tech-debt watch (fold into whichever PR touches it)
 Split `Recruit.tsx` (~2.5k — proposed seams: `recruitViews` / `useCardDrag` / `useLossSequence` / overlays)
 and `run.test.ts` (~3.9k → per-area suites); extract `RECRUIT_FACTORIES` from
@@ -484,8 +476,9 @@ and `run.test.ts` (~3.9k → per-area suites); extract `RECRUIT_FACTORIES` from
 effect-factory ids (`factories.ts` + `types.ts` union + `schema.ts` enum, 3-place sweep each) +
 `battlecryGrantKeyword` chain + `reAttackOnKill`/`REATTACK_GUARD`/`reAttackCache`; Card renders removed
 Reborn-tears DOM; **the orphaned Pixi aura-bubble system** (`shieldConfig.ts` + `ShieldTuner.tsx` tune a
-`recruitDy` nothing reads; `pixiFx.setShield`/`clearShield`/`setShieldsVisible`/`shieldLayer` have no callers
-now the tracker is gone — settle the reborn-burst question above first); a confirmed dead-CSS list (OMEN
+`recruitDy` nothing reads; `pixiFx.setShield`/`clearShield`/`setShieldsVisible`/`shieldLayer`/`hasAura` have no
+callers now the tracker is gone, and `breakShield` is down to its own shape-editor demo — but keep
+`shatterAt`/`rebornSummon`, still fired by the death-burst/reborn path); a confirmed dead-CSS list (OMEN
 block, `.chip`, `.toast`, `.legend`, `.tavernbox`, `.zt/.zh/.hint`, `.disc-gem`).
 
 ---

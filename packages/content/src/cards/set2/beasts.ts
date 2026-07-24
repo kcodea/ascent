@@ -5,12 +5,25 @@ import type { CardDef } from '@game/core';
  * 2026-07-24). Several set-1 Beasts carry over unchanged (see `SET1_BEASTS_IN_SET2` in `sets.ts`); the cards
  * authored HERE are the set-2 additions.
  *
- * IN PROGRESS — this tranche holds only the fully-specified new cards. The rest of the owner's 21-card roster
- * is blocked on missing Attack/Health (14 cards list none) and a few genuinely new mechanics (Moonhowl Mentor's
- * "teach a bought spell to a Mage-Pup", the self-replicating Rally on Sunmane Herald / Solaris); those land once
- * the owner supplies stats + rulings.
+ * The full 21-card roster is in: 15 authored here plus 6 carried from set 1 (Badgington, Sea Urchin, Sporebat,
+ * Void Panther, and the re-spec'd Kennelmaster + Runic Beetle — see `SET1_BEASTS_IN_SET2` in `sets.ts`).
  */
 export const SET2_BEASTS: CardDef[] = [
+  {
+    // Turns spell purchases into bodies: a bought Shop spell is taught to a Mage-Pup, and at End of Turn that
+    // Pup joins your hand — a 2/2 Beast whose Shout casts the spell it learned (owner ruling 2026-07-24). So
+    // the spell is effectively duplicated onto a body you can also buff. Golden teaches twice each turn.
+    id: 'b2_moonhowl',
+    name: 'Moonhowl Mentor',
+    tribe: 'beast',
+    tier: 6,
+    attack: 4,
+    health: 9,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnGrantMagePups' }],
+    text: 'Once per turn, when you buy a Shop spell, teach it to a **Mage-Pup**. **End of Turn:** get that Mage-Pup.',
+    goldenText: 'Twice per turn, when you buy a Shop spell, teach it to a **Mage-Pup**. **End of Turn:** get those Mage-Pups.',
+  },
   {
     // The tribe capstone: a Choose-One that permanently multiplies one HALF of the Beast trigger suite. Hunt
     // pumps the aggressive line (Rally + Slaughter), Ritual the Echo line — so it rewards whichever build you

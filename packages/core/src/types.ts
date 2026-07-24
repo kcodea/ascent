@@ -156,6 +156,8 @@ export type EffectFactoryId =
   | 'onSpellCastBuffRandomTribe' // Runebloom Matriarch: each spell buffs N random tribe minions
   | 'summonBuffTribeAsym' // Groveweaver: a summoned tribe minion gets +atk/+hp at the current magnitude
   | 'onSpellCastImproveSummon' // Groveweaver: each spell cast improves that grant
+  | 'battlecryCastTaughtSpell' // Mage-Pup: Shout — cast the spell this token was taught
+  | 'endOfTurnGrantMagePups' // Moonhowl Mentor: End of Turn — mint the taught Mage-Pups into hand
   | 'battlecryGrantBeastHunt' // Elderhorn (Hunt): your Beast Rallies + Slaughters fire an extra time
   | 'battlecryGrantBeastRitual' // Elderhorn (Ritual): your Beast Echoes fire an extra time
   | 'rallySpreadTribeBuff' // Sunmane Herald: Rally — buff your tribe AND graft this rally onto them

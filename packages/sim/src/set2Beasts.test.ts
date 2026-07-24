@@ -183,3 +183,44 @@ describe('set 2 — Elderhorn multiplies BEAST triggers only', () => {
     expect(s2.beastHuntExtra ?? 0).toBe(0);
   });
 });
+
+describe('set 2 — Moonhowl Mentor teaches a Mage-Pup', () => {
+  it('buy a Shop spell → End of Turn mints a Mage-Pup that remembers it → its Shout casts that spell', () => {
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', embers: 60,
+      board: [bm('mh', 'b2_moonhowl', 'beast', 4, 9), bm('t1', 'stray', 'beast', 1, 1)],
+      hand: [],
+      spell: { uid: 'sp', cardId: 'spiritfire' }, // the shop's spell slot
+    };
+    s = reduce(s, { type: 'buy', uid: 'sp' });
+    expect(s.taughtSpellsThisTurn).toEqual(['spiritfire']); // taught on the BUY
+    expect(s.hand.some((c) => c.cardId === 'spiritfire')).toBe(true); // the spell itself still bought
+
+    s = reduce(s, { type: 'faceOmen' }); // End of Turn mints the Pup
+    const pup = s.hand.find((c) => c.cardId === 'b2_magepup');
+    expect(pup).toBeDefined();
+    expect(pup!.taughtSpellId).toBe('spiritfire'); // it remembers what it learned
+    expect(s.taughtSpellsThisTurn).toEqual([]); // queue cleared
+  });
+
+  it('respects the once-per-turn cap, and does nothing with no Mentor on board', () => {
+    // No Mentor → buying a spell teaches nothing.
+    let none: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', embers: 60, board: [], hand: [],
+      spell: { uid: 'sp', cardId: 'spiritfire' },
+    };
+    none = reduce(none, { type: 'buy', uid: 'sp' });
+    expect(none.taughtSpellsThisTurn ?? []).toEqual([]);
+
+    // With a Mentor: the first buy teaches, a second in the same turn does not (cap 1 for a non-golden).
+    let s: RunState = {
+      ...createRun(6), tier: 6, phase: 'recruit', embers: 60,
+      board: [bm('mh', 'b2_moonhowl', 'beast', 4, 9)], hand: [],
+      spell: { uid: 'sp1', cardId: 'spiritfire' },
+    };
+    s = reduce(s, { type: 'buy', uid: 'sp1' });
+    s = { ...s, spell: { uid: 'sp2', cardId: 'growth' } }; // a second spell appears in the slot
+    s = reduce(s, { type: 'buy', uid: 'sp2' });
+    expect(s.taughtSpellsThisTurn).toEqual(['spiritfire']); // still just the first — cap respected
+  });
+});

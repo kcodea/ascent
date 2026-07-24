@@ -80,6 +80,8 @@ export const EffectFactoryIdSchema = z.enum([
   'onSpellCastBuffRandomTribe',
   'summonBuffTribeAsym',
   'onSpellCastImproveSummon',
+  'battlecryCastTaughtSpell',
+  'endOfTurnGrantMagePups',
   'battlecryGrantBeastHunt',
   'battlecryGrantBeastRitual',
   'rallySpreadTribeBuff',

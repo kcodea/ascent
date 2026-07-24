@@ -1,5 +1,28 @@
 # ASCENT — development log
 
+### feat(content/sim/core): Beast tranche 6 — Moonhowl Mentor; the Beast tribe is COMPLETE (21/21)
+
+Moonhowl Mentor (T6 4/9) — the last card. **All 21 Set-2 Beasts are in**: 15 authored + 6 carried from set 1
+(Badgington, Sea Urchin, Sporebat, Void Panther, and the re-spec'd Kennelmaster + Runic Beetle).
+
+Moonhowl is the tribe's most novel mechanic, built to the owner's ruling ("Mage-Pup gains Shout: cast X spell"):
+buying a Shop spell teaches it to a Mage-Pup; End of Turn mints that Pup into your hand; playing it casts the
+spell it learned. Four pieces:
+* a **Mage-Pup token** whose Shout is per-INSTANCE — the spell id rides on `taughtSpellId` (a new BoardCard
+  field), so one token type covers every spell it can learn rather than needing a token per spell.
+* `teachSpellToMagePup`, called from the reducer's SPELL-buy branch. That path deliberately doesn't fire the
+  normal `onBuy` trigger ("a spell isn't a minion"), so this is a narrow dedicated hook rather than widening
+  that contract for one card.
+* a per-turn cap read off the board (1 base, 2 golden), reset with the other per-turn counters.
+* `battlecryCastTaughtSpell` — a real `castSpell`, so it tallies and fires spell-cast watchers like any cast.
+  An AIMED spell re-targets a seeded-random friendly, the same rule Rune of Recurrence and Runic Archivist use,
+  so "cast a spell without choosing a target" behaves consistently across every card that does it.
+
+Tests walk the whole chain (buy → taught → EoT mint → the Pup remembers its spell) plus the two negative cases:
+no Mentor on board teaches nothing, and a second buy in the same turn is capped out.
+
+Final roster spread: 1/2/2/1/4/4/1 across T1–T7. Suite 1599 + typecheck + lint + build:web + harness green.
+
 ### feat(content/sim): Beast tranche 2 — Mosswhisker, Runebloom, Dawnclaw (spell + combat payoffs)
 
 Three more Set-2 Beasts, now that the owner supplied the full stat table.

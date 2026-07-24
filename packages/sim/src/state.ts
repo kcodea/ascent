@@ -207,6 +207,9 @@ export interface BoardCard {
    *  start — owner 2026-07-24). Reset each turn; a fresh card starts at 0/undefined, so placement is the floor. */
   boardSpellCount?: number;
   boardFirstSpellId?: string;
+  /** Set 2 — Moonhowl Mentor's Mage-Pup: the SHOP SPELL this token was taught. Its Shout casts that spell, so
+   *  the token's effect is per-instance rather than baked into the CardDef. */
+  taughtSpellId?: string;
   /** Set 2 — Scalechanter: Shouts triggered since its LAST improvement (a per-instance cadence counter, the
    *  Shout twin of `eotTick`). Rolls back to 0 each time it improves, so the "every 3" is a cadence rather
    *  than a running total. Absent = 0. */
@@ -740,6 +743,12 @@ export interface RunState {
    *  `CombatSideState` (the same route `handSpellIds` takes). Absent = 0. */
   beastHuntExtra?: number;
   beastRitualExtra?: number;
+  /** Set 2 — Moonhowl Mentor: shop spells taught to a Mage-Pup THIS TURN (one per Mentor proc, capped by its
+   *  per-turn limit). End of Turn mints one Mage-Pup per entry into hand, then this clears. */
+  taughtSpellsThisTurn?: string[];
+  /** Set 2 — Moonhowl Mentor: how many spell-buys it has taught this turn, against its once/twice-per-turn
+   *  cap. Reset each turn alongside the other per-turn counters. */
+  moonhowlTeachesThisTurn?: number;
   shoutFirstDoubleEachRound?: boolean;
   shoutFirstUsedThisTurn?: boolean;
   /** Transient: how many times the LAST played Battlecry fired (Drakko + shout-repeat rewards + charges) — set

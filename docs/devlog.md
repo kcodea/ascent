@@ -3,6 +3,29 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (Aqua Bolt — unit → unit projectile FX, preview stage)
+
+### feat(ui): the aqua projectile asset + a standalone tuning rig for the bolt-and-detonate FX
+
+Added the owner-supplied 12-frame aqua projectile sheet (`apps/web/public/fx/aqua-projectile/`: the 4×3 body
+atlas, the matching pre-baked additive glow atlas, and the trail particle) plus `fx/aqua-bolt-preview.html`, a
+standalone tuning rig for the effect it is meant to drive: a caster unit hurls the bolt at an enemy unit, where
+it detonates. Preview-first on purpose — the look gets agreed before any of it is wired into `pixiFx.ts`.
+
+The rig follows the established preview pattern (`crit-preview.html`): a plain 2D canvas on the real cream board
+colour, two draggable cards, live sliders over every dial, and a JSON `AquaBoltCfg` export to paste back. The
+sprite maths is exactly what the Pixi `AnimatedSprite` port will use — 400×128 frames off a 4×3 sheet,
+the atlas anchor (0.04, 0.5) as the pivot, and `rotation = atan2(dy, dx) + PI` because the source art faces left.
+Phases: muzzle flash → arced travel (heading taken from the path tangent, so an arced shot banks) with a shed
+mote trail → detonation (normal-blend saturated aqua splash under an additive core, since additive cyan washes
+out on cream — same trick as `pixiFx.impact`), shock ring, gravity-fed droplet spray, target-card flash, shake.
+The glow is pre-baked into its own sheet, so multiple simultaneous bolts never need a live `BlurFilter`.
+
+Verified in-browser: all three assets 200 + decode (1600px sheets), the sprite rasterises at two sampled points
+along the flight path, and the detonation paints at the contact point. Follow-ups: tune, then bake into
+`pixiFx.ts` as a pooled `aquaBolt(from, to, cfg)` driven by the existing ticker (like `weldRings`/`spellArrows`,
+not GSAP), and decide which card/trigger fires it.
+
 ## 2026-07-23 (Layaway — the keep is shop-phase only)
 
 ### fix(sim): Layaway's "keep through refreshes" no longer persists through combat

@@ -1,0 +1,40 @@
+{
+  "frames": {
+    "glow-01.png": { "frame": { "x": 0, "y": 0, "w": 400, "h": 128 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 }, "sourceSize": { "w": 400, "h": 128 }, "anchor": { "x": 0.04, "y": 0.5 } },
+    "glow-02.png": { "frame": { "x": 400, "y": 0, "w": 400, "h": 128 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 }, "sourceSize": { "w": 400, "h": 128 }, "anchor": { "x": 0.04, "y": 0.5 } },
+    "glow-03.png": { "frame": { "x": 800, "y": 0, "w": 400, "h": 128 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 }, "sourceSize": { "w": 400, "h": 128 }, "anchor": { "x": 0.04, "y": 0.5 } },
+    "glow-04.png": { "frame": { "x": 1200, "y": 0, "w": 400, "h": 128 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 }, "sourceSize": { "w": 400, "h": 128 }, "anchor": { "x": 0.04, "y": 0.5 } },
+    "glow-05.png": { "frame": { "x": 0, "y": 128, "w": 400, "h": 128 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 }, "sourceSize": { "w": 400, "h": 128 }, "anchor": { "x": 0.04, "y": 0.5 } },
+    "glow-06.png": { "frame": { "x": 400, "y": 128, "w": 400, "h": 128 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 }, "sourceSize": { "w": 400, "h": 128 }, "anchor": { "x": 0.04, "y": 0.5 } },
+    "glow-07.png": { "frame": { "x": 800, "y": 128, "w": 400, "h": 128 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 }, "sourceSize": { "w": 400, "h": 128 }, "anchor": { "x": 0.04, "y": 0.5 } },
+    "glow-08.png": { "frame": { "x": 1200, "y": 128, "w": 400, "h": 128 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 }, "sourceSize": { "w": 400, "h": 128 }, "anchor": { "x": 0.04, "y": 0.5 } },
+    "glow-09.png": { "frame": { "x": 0, "y": 256, "w": 400, "h": 128 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 }, "sourceSize": { "w": 400, "h": 128 }, "anchor": { "x": 0.04, "y": 0.5 } },
+    "glow-10.png": { "frame": { "x": 400, "y": 256, "w": 400, "h": 128 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 }, "sourceSize": { "w": 400, "h": 128 }, "anchor": { "x": 0.04, "y": 0.5 } },
+    "glow-11.png": { "frame": { "x": 800, "y": 256, "w": 400, "h": 128 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 }, "sourceSize": { "w": 400, "h": 128 }, "anchor": { "x": 0.04, "y": 0.5 } },
+    "glow-12.png": { "frame": { "x": 1200, "y": 256, "w": 400, "h": 128 }, "rotated": false, "trimmed": false, "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 }, "sourceSize": { "w": 400, "h": 128 }, "anchor": { "x": 0.04, "y": 0.5 } }
+  },
+  "animations": {
+    "travel": [
+      "glow-01.png",
+      "glow-02.png",
+      "glow-03.png",
+      "glow-04.png",
+      "glow-05.png",
+      "glow-06.png",
+      "glow-07.png",
+      "glow-08.png",
+      "glow-09.png",
+      "glow-10.png",
+      "glow-11.png",
+      "glow-12.png"
+    ]
+  },
+  "meta": {
+    "app": "ChatGPT",
+    "version": "1.0",
+    "image": "aqua-projectile-glow-sheet.png",
+    "format": "RGBA8888",
+    "size": { "w": 1600, "h": 384 },
+    "scale": "1"
+  }
+}

@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Aqua Bolt — unit → unit projectile + detonation preview</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  /* The STAGE matches the REAL combat board (light warm cream #e4dccf) so an ADDITIVE aqua glow is
+     judged honestly — additive cyan washes out badly on cream, which is why the detonation splash
+     below is a normal-blend saturated pass layered under the additive core (same trick as pixiFx.impact). */
+  body { margin: 0; background: #e4dccf; color: #e6ecdc; font: 13px/1.4 ui-monospace, "SF Mono", Menlo, monospace; display: flex; height: 100vh; overflow: hidden; }
+  #stage { flex: 1; position: relative; display: grid; place-items: center; background: #e4dccf; overflow: hidden; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #panel { width: 330px; padding: 14px 16px; overflow-y: auto; background: #08110f; border-left: 1px solid #163029; }
+  h1 { font-size: 13px; margin: 0 0 4px; letter-spacing: .08em; text-transform: uppercase; color: #4fd8e8; }
+  .sub { color: #5f9a95; font-size: 11px; margin-bottom: 12px; }
+  h2 { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: #5f9a95; margin: 16px 0 6px; border-top: 1px solid #163029; padding-top: 10px; }
+  .row { display: grid; grid-template-columns: 1fr 54px; gap: 8px; align-items: center; margin-bottom: 7px; }
+  label { color: #9fc7c0; font-size: 11.5px; }
+  input[type=range] { width: 100%; accent-color: #4fd8e8; }
+  input[type=color] { width: 100%; height: 24px; border: 1px solid #2c4f48; background: none; border-radius: 4px; padding: 0; cursor: pointer; }
+  .val { text-align: right; color: #4fd8e8; font-size: 11px; }
+  .btnrow { display: flex; gap: 8px; margin-top: 12px; }
+  button { flex: 1; padding: 9px; border: 0; border-radius: 6px; color: #fff; font: inherit; font-weight: 700; letter-spacing: .06em; cursor: pointer; }
+  #fire { background: #1b7f92; } #fire:hover { background: #2699ae; }
+  button.ghost { background: #14201d; color: #9fc7c0; }
+  button.ghost:hover { background: #1d2d29; }
+  .checkrow { display: flex; align-items: center; gap: 8px; margin-top: 10px; color: #9fc7c0; font-size: 12px; }
+  .checkrow input { accent-color: #4fd8e8; width: 15px; height: 15px; }
+  textarea { width: 100%; height: 168px; margin-top: 10px; background: #050b0a; color: #4fd8e8; border: 1px solid #163029; border-radius: 6px; padding: 8px; font: 10.5px/1.45 ui-monospace, monospace; resize: vertical; }
+  .hint { color: #4b6f6a; font-size: 10.5px; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div id="stage"><canvas id="cv"></canvas></div>
+  <div id="panel">
+    <h1>Aqua Bolt</h1>
+    <div class="sub">A caster unit hurls the 12-frame aqua projectile at an enemy unit, where it detonates.<br />Space = fire · drag either card to change the line · the sheet + glow sheet are the real assets from <code>/fx/aqua-projectile/</code>.</div>
+
+    <div class="btnrow"><button id="fire">FIRE ⚡ (space)</button></div>
+    <label class="checkrow"><input type="checkbox" id="loop" /> Auto-repeat (~1.8s)</label>
+    <label class="checkrow"><input type="checkbox" id="slow" /> Slow motion (0.25×)</label>
+
+    <div id="controls"></div>
+
+    <h2>AquaBoltCfg (live export)</h2>
+    <textarea id="out" readonly></textarea>
+    <div class="hint">Tune, then paste this back to Claude to bake into the real pixiFx renderer.</div>
+    <button id="reset" class="ghost" style="width:100%;margin-top:8px">Reset to defaults</button>
+    <div class="hint" id="diag">booting…</div>
+  </div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Standalone preview of the AQUA BOLT: a projectile fired from one unit at an
+// enemy unit that detonates on arrival.
+//
+//   LAUNCH    a muzzle flash at the caster's near edge
+//   TRAVEL    the real 12-frame sheet (body + pre-baked additive glow) flown
+//             along an arced path, rotated to velocity, shedding a mote trail
+//   DETONATE  additive core flash + normal-blend aqua splash (reads on cream)
+//             + shock ring + a droplet spray that falls under gravity
+//             + a target-card flash and a short screen shake
+//
+// Plain 2D canvas so it runs with zero build — but every dial maps 1:1 onto the
+// AquaBoltCfg that pixiFx.aquaBolt() will take, and the sprite math (4x3 sheet,
+// 400x128 frames, anchor 0.04/0.5, art faces LEFT so rot = atan2 + PI) is
+// exactly what the Pixi AnimatedSprite version will use.
+// ---------------------------------------------------------------------------
+
+const ASSETS = '/fx/aqua-projectile/';
+const FRAME_W = 400, FRAME_H = 128, COLS = 4, FRAMES = 12;
+const ANCHOR_X = 0.04, ANCHOR_Y = 0.5;   // from the atlas — the pivot sits at the projectile's nose
+
+const DEFAULTS = {
+  // Travel
+  travelMs:     380,   // ms — muzzle to contact
+  arcPx:        38,    // px — perpendicular bow of the flight path (0 = dead straight)
+  spriteScale:  0.30,  // sheet is 400x128, so 0.30 -> a 120px-long bolt
+  fps:          16,    // sheet playback (the asset's suggested rate)
+  glowAlpha:    0.62,  // pre-baked additive glow sheet opacity
+  spawnPop:     1.35,  // scale overshoot at launch, springs to 1 over the first 90ms
+  // Muzzle flash
+  muzzleSize:   62,    // px
+  muzzleMs:     220,   // ms
+  // Mote trail
+  trailRate:    70,    // motes/sec shed from the tail
+  trailSize:    16,    // px
+  trailLife:    380,   // ms
+  trailSpread:  26,    // px — perpendicular scatter
+  trailAlpha:   0.75,
+  // Detonation — core + splash
+  flashSize:    150,   // px — additive white-cyan core
+  flashMs:      240,
+  splashSize:   190,   // px — normal-blend saturated aqua (this is what reads on cream)
+  splashMs:     320,
+  // Shock ring
+  ringSize:     190,   // px — max radius
+  ringWidth:    9,     // px stroke
+  ringMs:       420,
+  // Droplets
+  dropCount:    30,
+  dropSpeed:    620,   // px/s
+  dropLife:     620,   // ms
+  dropSize:     18,    // px
+  dropSpread:   300,   // deg — cone around the travel direction (300 = near-radial)
+  dropGravity:  900,   // px/s^2 — water falls, sparks don't
+  // Target reaction
+  cardFlashAlpha: 0.42,
+  cardFlashMs:  300,
+  shakePx:      9,
+  shakeMs:      260,
+  // Colours
+  colorMuzzle: '#9ef4ff',
+  colorTrail:  '#7fe6ff',
+  colorCore:   '#ffffff',
+  colorSplash: '#1aa6c8',
+  colorRing:   '#8ff0ff',
+  colorDrop1:  '#2fc9e8',
+  colorDrop2:  '#bff6ff',
+  colorCardFlash: '#2ec8e8',
+};
+
+const RANGES = {
+  travelMs:      [120, 900, 10],
+  arcPx:         [-160, 160, 2],
+  spriteScale:   [0.08, 0.9, 0.01],
+  fps:           [4, 32, 1],
+  glowAlpha:     [0, 1, 0.02],
+  spawnPop:      [1, 2.5, 0.05],
+  muzzleSize:    [0, 200, 2],
+  muzzleMs:      [60, 600, 10],
+  trailRate:     [0, 200, 2],
+  trailSize:     [2, 60, 1],
+  trailLife:     [80, 1000, 10],
+  trailSpread:   [0, 90, 1],
+  trailAlpha:    [0, 1, 0.02],
+  flashSize:     [0, 400, 5],
+  flashMs:       [80, 700, 10],
+  splashSize:    [0, 400, 5],
+  splashMs:      [80, 800, 10],
+  ringSize:      [0, 480, 5],
+  ringWidth:     [0, 30, 1],
+  ringMs:        [120, 900, 10],
+  dropCount:     [0, 90, 1],
+  dropSpeed:     [80, 1500, 20],
+  dropLife:      [150, 1600, 10],
+  dropSize:      [2, 50, 1],
+  dropSpread:    [20, 360, 5],
+  dropGravity:   [0, 2400, 20],
+  cardFlashAlpha:[0, 1, 0.02],
+  cardFlashMs:   [80, 800, 10],
+  shakePx:       [0, 40, 1],
+  shakeMs:       [0, 700, 10],
+};
+
+const GROUPS = [
+  ['Travel',        ['travelMs', 'arcPx', 'spriteScale', 'fps', 'glowAlpha', 'spawnPop']],
+  ['Muzzle flash',  ['muzzleSize', 'muzzleMs']],
+  ['Mote trail',    ['trailRate', 'trailSize', 'trailLife', 'trailSpread', 'trailAlpha']],
+  ['Detonation',    ['flashSize', 'flashMs', 'splashSize', 'splashMs']],
+  ['Shock ring',    ['ringSize', 'ringWidth', 'ringMs']],
+  ['Droplets',      ['dropCount', 'dropSpeed', 'dropLife', 'dropSize', 'dropSpread', 'dropGravity']],
+  ['Target hit',    ['cardFlashAlpha', 'cardFlashMs', 'shakePx', 'shakeMs']],
+  ['Colours',       ['colorMuzzle', 'colorTrail', 'colorCore', 'colorSplash', 'colorRing', 'colorDrop1', 'colorDrop2', 'colorCardFlash']],
+];
+
+const EXPORT_ORDER = [
+  'travelMs', 'arcPx', 'spriteScale', 'fps', 'glowAlpha', 'spawnPop',
+  'muzzleSize', 'muzzleMs',
+  'trailRate', 'trailSize', 'trailLife', 'trailSpread', 'trailAlpha',
+  'flashSize', 'flashMs', 'splashSize', 'splashMs',
+  'ringSize', 'ringWidth', 'ringMs',
+  'dropCount', 'dropSpeed', 'dropLife', 'dropSize', 'dropSpread', 'dropGravity',
+  'cardFlashAlpha', 'cardFlashMs', 'shakePx', 'shakeMs',
+  'colorMuzzle', 'colorTrail', 'colorCore', 'colorSplash', 'colorRing', 'colorDrop1', 'colorDrop2', 'colorCardFlash',
+];
+
+// Surface any uncaught error loudly (a silent blank page is the worst preview).
+addEventListener('error', (e) => {
+  const b = document.createElement('div');
+  b.style.cssText = 'position:fixed;inset:0 auto auto 0;z-index:99;background:#b0203a;color:#fff;padding:10px 14px;font:12px ui-monospace,monospace;white-space:pre-wrap;max-width:100%';
+  b.textContent = 'SCRIPT ERROR: ' + (e.message || e.error) + '\n' + (e.filename || '') + ':' + (e.lineno || '?');
+  document.body.appendChild(b);
+});
+
+let C = { ...DEFAULTS };
+const diag = document.getElementById('diag');
+
+// --- real assets ------------------------------------------------------------
+const sheet = new Image(), glowSheet = new Image(), particle = new Image();
+let assetsReady = 0, assetsFailed = '';
+function loadImg(img, url) {
+  img.onload = () => { assetsReady++; };
+  img.onerror = () => { assetsFailed += (assetsFailed ? ', ' : '') + url; };
+  img.src = url;
+}
+loadImg(sheet, ASSETS + 'aqua-projectile-sheet.png');
+loadImg(glowSheet, ASSETS + 'aqua-projectile-glow-sheet.png');
+loadImg(particle, ASSETS + 'aqua-particle.png');
+
+// --- a soft radial glow (stands in for pixiFx's glowTex) --------------------
+const glowTex = (() => {
+  const s = 128, c = document.createElement('canvas'); c.width = c.height = s;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
+  grd.addColorStop(0, 'rgba(255,255,255,1)');
+  grd.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+  grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, s, s);
+  return c;
+})();
+// a teardrop-ish droplet (an ellipse) for the detonation spray
+const dropTex = (() => {
+  const w = 40, h = 24, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.beginPath(); g.ellipse(w/2, h/2, w/2, h/2, 0, 0, Math.PI*2); g.fill();
+  return c;
+})();
+
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+function resize() {
+  const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  cv.width = r.width * dpr; cv.height = r.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener('resize', resize);
+
+// --- the two combat cards (draggable) ---------------------------------------
+const CARD_W = 118, CARD_H = 164;
+const caster = { x: 250, y: 300 };
+const target = { x: 640, y: 300 };
+let drag = null;
+
+// --- tint cache -------------------------------------------------------------
+const tintCache = new Map();
+function tinted(tex, color) {
+  const key = (tex === glowTex ? 'g' : tex === dropTex ? 'd' : 'p') + color;
+  let t = tintCache.get(key);
+  if (!t) {
+    t = document.createElement('canvas'); t.width = tex.width || 32; t.height = tex.height || 32;
+    const g = t.getContext('2d');
+    g.drawImage(tex, 0, 0);
+    g.globalCompositeOperation = 'source-in';
+    g.fillStyle = color; g.fillRect(0, 0, t.width, t.height);
+    tintCache.set(key, t);
+  }
+  return t;
+}
+function drawTex(tex, x, y, w, h, color, rot) {
+  const t = tinted(tex, color);
+  if (rot) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+    ctx.drawImage(t, -w/2, -h/2, w, h); ctx.restore();
+  } else {
+    ctx.drawImage(t, x - w/2, y - h/2, w, h);
+  }
+}
+
+/** Draw one sheet frame with the atlas anchor (0.04, 0.5) as the pivot, rotated to `rot`. */
+function drawFrame(img, frame, x, y, rot, scale, alpha, additive) {
+  if (!img.naturalWidth) return;
+  const sx = (frame % COLS) * FRAME_W, sy = Math.floor(frame / COLS) * FRAME_H;
+  const w = FRAME_W * scale, h = FRAME_H * scale;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.globalCompositeOperation = additive ? 'lighter' : 'source-over';
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.drawImage(img, sx, sy, FRAME_W, FRAME_H, -ANCHOR_X * w, -ANCHOR_Y * h, w, h);
+  ctx.restore();
+}
+
+// --- the FX system ----------------------------------------------------------
+// Each shot snapshots the dials so mid-flight edits never corrupt a live bolt.
+const bolts = [];   // in-flight projectiles
+const blasts = [];  // detonations
+let shake = { amp: 0, age: 0, ms: 1, seedx: 0, seedy: 0 };
+
+function fire() {
+  const dx = target.x - caster.x, dy = target.y - caster.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len, uy = dy / len;
+  // muzzle = the caster's near edge toward the target; contact = the target's near edge
+  const from = { x: caster.x + ux * CARD_W * 0.42, y: caster.y + uy * CARD_H * 0.42 };
+  const to   = { x: target.x - ux * CARD_W * 0.42, y: target.y - uy * CARD_H * 0.42 };
+  bolts.push({
+    from, to, age: 0, cfg: { ...C }, ux, uy,
+    trailDue: 0, motes: [],
+    tgt: { x: target.x, y: target.y },
+  });
+}
+
+/** Position along the (optionally arced) flight path at 0..1. */
+function pathAt(b, t) {
+  const x = b.from.x + (b.to.x - b.from.x) * t;
+  const y = b.from.y + (b.to.y - b.from.y) * t;
+  const bow = Math.sin(t * Math.PI) * b.cfg.arcPx;   // 0 at both ends, peak mid-flight
+  return { x: x + -b.uy * bow, y: y + b.ux * bow };
+}
+
+function drawBolt(b, dt) {
+  const cfg = b.cfg;
+  const t = Math.min(1, b.age / cfg.travelMs);
+
+  // muzzle flash at the launch point
+  if (b.age < cfg.muzzleMs && cfg.muzzleSize > 0) {
+    const k = 1 - b.age / cfg.muzzleMs;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = k;
+    drawTex(glowTex, b.from.x, b.from.y, cfg.muzzleSize * (0.5 + 0.5 * k), cfg.muzzleSize * (0.5 + 0.5 * k), cfg.colorMuzzle);
+  }
+
+  const p = pathAt(b, t);
+  // heading = the tangent of the path (so an arced shot banks correctly), not the straight line
+  const ahead = pathAt(b, Math.min(1, t + 0.02));
+  const behind = pathAt(b, Math.max(0, t - 0.02));
+  const hx = ahead.x - behind.x, hy = ahead.y - behind.y;
+  const rot = Math.atan2(hy, hx) + Math.PI;   // the art faces LEFT, so add PI
+
+  // mote trail shed from the tail
+  if (cfg.trailRate > 0 && t < 1) {
+    b.trailDue -= dt;
+    const every = 1000 / cfg.trailRate;
+    while (b.trailDue <= 0) {
+      b.trailDue += every;
+      const off = (Math.random() - 0.5) * cfg.trailSpread;
+      b.motes.push({
+        x: p.x + -b.uy * off - b.ux * 10, y: p.y + b.ux * off - b.uy * 10,
+        vx: (Math.random() - 0.5) * 40, vy: (Math.random() - 0.5) * 40,
+        age: 0, life: cfg.trailLife * (0.6 + Math.random() * 0.8),
+      });
+    }
+  }
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = b.motes.length - 1; i >= 0; i--) {
+    const m = b.motes[i];
+    m.age += dt;
+    const k = m.age / m.life;
+    if (k >= 1) { b.motes.splice(i, 1); continue; }
+    m.x += m.vx * dt / 1000; m.y += m.vy * dt / 1000;
+    const sz = cfg.trailSize * (1 - k * 0.7);
+    ctx.globalAlpha = (1 - k) * cfg.trailAlpha;
+    if (particle.naturalWidth) {
+      drawTex(particle, m.x, m.y, sz, sz, cfg.colorTrail);
+    } else {
+      drawTex(glowTex, m.x, m.y, sz, sz, cfg.colorTrail);
+    }
+  }
+
+  // the projectile itself: pre-baked additive glow under the body, both on the same frame
+  if (t < 1) {
+    const frame = Math.floor(b.age / (1000 / cfg.fps)) % FRAMES;
+    const pop = 1 + (cfg.spawnPop - 1) * Math.max(0, 1 - b.age / 90);
+    const s = cfg.spriteScale * pop;
+    drawFrame(glowSheet, frame, p.x, p.y, rot, s, cfg.glowAlpha, true);
+    drawFrame(sheet, frame, p.x, p.y, rot, s, 1, false);
+  }
+
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+
+  // arrival -> detonate, then live on only until the trail has burned out
+  if (t >= 1 && !b.detonated) { b.detonated = true; detonate(b); }
+  return b.age < cfg.travelMs || b.motes.length > 0;
+}
+
+function detonate(b) {
+  const cfg = b.cfg;
+  const drops = [];
+  const cone = (cfg.dropSpread * Math.PI) / 180;
+  const base = Math.atan2(b.uy, b.ux);
+  for (let i = 0; i < Math.round(cfg.dropCount); i++) {
+    const a = base + (Math.random() - 0.5) * cone;
+    const sp = cfg.dropSpeed * (0.5 + Math.random() * 0.8);
+    drops.push({
+      x: 0, y: 0, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      life: cfg.dropLife * (0.6 + Math.random() * 0.7), rot: a,
+      tint: Math.random() < 0.6 ? cfg.colorDrop1 : cfg.colorDrop2,
+    });
+  }
+  blasts.push({ x: b.to.x, y: b.to.y, age: 0, cfg, drops, tgt: b.tgt });
+  if (cfg.shakePx > 0) shake = { amp: cfg.shakePx, age: 0, ms: cfg.shakeMs, seedx: Math.random()*99, seedy: Math.random()*99 };
+}
+
+function drawBlast(h, dt) {
+  const cfg = h.cfg, t = h.age;
+  let alive = false;
+
+  // normal-blend saturated aqua splash FIRST (it paints over the cream board), additive core over it
+  if (cfg.splashSize > 0 && t < cfg.splashMs) {
+    alive = true;
+    const k = 1 - t / cfg.splashMs;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = k * 0.9;
+    const sz = cfg.splashSize * (0.4 + 0.6 * (1 - k));
+    drawTex(glowTex, h.x, h.y, sz, sz, cfg.colorSplash);
+  }
+  if (cfg.flashSize > 0 && t < cfg.flashMs) {
+    alive = true;
+    const k = 1 - t / cfg.flashMs;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = k;
+    const sz = cfg.flashSize * (0.5 + 0.5 * (1 - k));
+    drawTex(glowTex, h.x, h.y, sz, sz, cfg.colorCore);
+  }
+  // shock ring
+  if (cfg.ringWidth > 0 && cfg.ringSize > 0 && t < cfg.ringMs) {
+    alive = true;
+    const tt = t / cfg.ringMs;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = Math.max(0, 1 - tt) * 0.9;
+    ctx.strokeStyle = cfg.colorRing;
+    ctx.lineWidth = cfg.ringWidth * (1 - tt * 0.5);
+    ctx.beginPath(); ctx.arc(h.x, h.y, tt * cfg.ringSize, 0, Math.PI * 2); ctx.stroke();
+  }
+  // droplets — fly out, drag, fall under gravity, stretch along their velocity
+  ctx.globalCompositeOperation = 'source-over';
+  const dtS = dt / 1000;
+  for (const d of h.drops) {
+    const tt = h.age / d.life;
+    if (tt >= 1) continue;
+    alive = true;
+    const dk = Math.pow(0.93, dt / (1000 / 60));
+    d.vx *= dk; d.vy *= dk;
+    d.vy += cfg.dropGravity * dtS;
+    d.x += d.vx * dtS; d.y += d.vy * dtS;
+    const sz = cfg.dropSize * (1 - tt * 0.7);
+    const speed = Math.hypot(d.vx, d.vy);
+    const stretch = 1 + Math.min(1.6, speed / 700);   // fast droplets elongate like water
+    ctx.globalAlpha = Math.max(0, 1 - tt * tt);
+    drawTex(dropTex, h.x + d.x, h.y + d.y, sz * stretch, sz, d.tint, Math.atan2(d.vy, d.vx));
+  }
+  // target card flash
+  if (cfg.cardFlashAlpha > 0 && t < cfg.cardFlashMs) {
+    alive = true;
+    const k = 1 - t / cfg.cardFlashMs;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = k * cfg.cardFlashAlpha;
+    ctx.fillStyle = cfg.colorCardFlash;
+    roundRect(h.tgt.x - CARD_W/2, h.tgt.y - CARD_H/2, CARD_W, CARD_H, 10); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  return alive;
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function drawCard(u, label, accent) {
+  ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+  const x = u.x - CARD_W/2, y = u.y - CARD_H/2;
+  roundRect(x, y, CARD_W, CARD_H, 10);
+  ctx.fillStyle = '#fffdf8'; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = accent; ctx.stroke();
+  // a dark art window so the bolt + burst are judged over both cream AND dark
+  roundRect(x + 10, y + 12, CARD_W - 20, CARD_H - 54, 6);
+  ctx.fillStyle = '#2a2418'; ctx.fill();
+  ctx.fillStyle = '#b3a687'; ctx.font = '10px ui-monospace, monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText(label, u.x, y + CARD_H - 8);
+}
+
+let last = performance.now();
+let slowMo = false;
+function tick(now) {
+  const raw = Math.min(50, now - last); last = now;
+  const dtMs = raw * (slowMo ? 0.25 : 1);
+  ctx.setTransform((devicePixelRatio||1), 0, 0, (devicePixelRatio||1), 0, 0);
+  ctx.clearRect(0, 0, cv.width, cv.height);
+
+  // screen shake — offset the whole scene by a decaying jitter
+  let ox = 0, oy = 0;
+  if (shake.amp > 0 && shake.age < shake.ms) {
+    shake.age += dtMs;
+    const k = 1 - shake.age / shake.ms;
+    ox = Math.sin(shake.age * 0.08 + shake.seedx) * shake.amp * k;
+    oy = Math.cos(shake.age * 0.11 + shake.seedy) * shake.amp * k;
+  }
+  ctx.save();
+  ctx.translate(ox, oy);
+
+  drawCard(caster, 'caster', '#3f8f8a');
+  drawCard(target, 'target', '#b0842f');
+
+  for (let i = bolts.length - 1; i >= 0; i--) {
+    const b = bolts[i]; b.age += dtMs;
+    if (!drawBolt(b, dtMs)) bolts.splice(i, 1);
+  }
+  for (let i = blasts.length - 1; i >= 0; i--) {
+    const h = blasts[i]; h.age += dtMs;
+    if (!drawBlast(h, dtMs)) blasts.splice(i, 1);
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+
+  diag.textContent = assetsFailed
+    ? 'ASSET 404: ' + assetsFailed
+    : `assets ${assetsReady}/3 · bolts ${bolts.length} · blasts ${blasts.length}`;
+  requestAnimationFrame(tick);
+}
+
+// --- UI ---------------------------------------------------------------------
+const controls = document.getElementById('controls'), out = document.getElementById('out');
+function label(k) { return k.replace(/([A-Z0-9])/g, ' $1').toLowerCase().replace('color ', ''); }
+function build() {
+  controls.innerHTML = '';
+  for (const [title, keys] of GROUPS) {
+    const h = document.createElement('h2'); h.textContent = title; controls.appendChild(h);
+    for (const k of keys) {
+      const row = document.createElement('div'); row.className = 'row';
+      const l = document.createElement('label'); l.textContent = label(k); row.appendChild(l);
+      if (k.startsWith('color')) {
+        const inp = document.createElement('input'); inp.type = 'color'; inp.value = C[k];
+        inp.style.gridColumn = '1 / -1';
+        inp.oninput = () => { C[k] = inp.value; tintCache.clear(); save(); };
+        l.style.gridColumn = '1 / -1'; row.appendChild(inp);
+      } else {
+        const [mn, mx, st] = RANGES[k];
+        const inp = document.createElement('input'); inp.type = 'range';
+        inp.min = mn; inp.max = mx; inp.step = st; inp.value = C[k];
+        const v = document.createElement('span'); v.className = 'val'; v.textContent = C[k];
+        inp.oninput = () => { C[k] = parseFloat(inp.value); v.textContent = C[k]; save(); };
+        row.appendChild(inp); row.appendChild(v);
+      }
+      controls.appendChild(row);
+    }
+  }
+}
+function save() {
+  const ordered = {};
+  for (const k of EXPORT_ORDER) ordered[k] = C[k];
+  out.value = JSON.stringify(ordered, null, 2);
+}
+
+document.getElementById('fire').onclick = () => fire();
+addEventListener('keydown', (e) => {
+  if (e.code === 'Space') { e.preventDefault(); fire(); }
+});
+let loopId = null;
+document.getElementById('loop').onchange = (e) => {
+  if (e.target.checked) { loopId = setInterval(fire, 1800); fire(); }
+  else if (loopId) { clearInterval(loopId); loopId = null; }
+};
+document.getElementById('slow').onchange = (e) => { slowMo = e.target.checked; };
+document.getElementById('reset').onclick = () => { C = { ...DEFAULTS }; tintCache.clear(); build(); save(); };
+
+// drag the cards
+function pos(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+function hitCard(p, u) { return Math.abs(p.x - u.x) <= CARD_W/2 && Math.abs(p.y - u.y) <= CARD_H/2; }
+cv.addEventListener('pointerdown', (e) => {
+  const p = pos(e);
+  if (hitCard(p, caster)) drag = caster; else if (hitCard(p, target)) drag = target; else { fire(); return; }
+  cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener('pointermove', (e) => { if (!drag) return; const p = pos(e); drag.x = p.x; drag.y = p.y; });
+cv.addEventListener('pointerup', (e) => { drag = null; try { cv.releasePointerCapture(e.pointerId); } catch {} });
+
+// boot
+build(); save(); resize();
+requestAnimationFrame((t) => { last = t; tick(t); });
+setTimeout(fire, 400);
+</script>
+</body>
+</html>

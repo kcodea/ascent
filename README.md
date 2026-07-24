@@ -42,6 +42,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 
 ## Recent changes
 
+- **Aqua Bolt FX (preview stage).** The 12-frame aqua projectile asset landed, along with a standalone tuning
+  rig (`public/fx/aqua-bolt-preview.html`) for a bolt that a unit hurls at an enemy unit and detonates. The look
+  gets agreed on the rig before any of it is wired into the game.
 - **Eight new spells (batch tranche A).** Six set-agnostic — Crest of the Climb (Choose One +4 Atk/+4 HP),
   Turnabout (swap Attack/Health), Insurance Policy (comeback Gold after a loss), Rift-Sunk Codex (Discover a
   Shop spell), Beyond the Summit (Discover one tier higher, up to Tier 7), Invitation Above (Discover a Tier 6

@@ -1,0 +1,124 @@
+{
+  "frames": {
+    "aqua-projectile-01.png": {
+      "frame": { "x": 0, "y": 0, "w": 400, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 },
+      "sourceSize": { "w": 400, "h": 128 },
+      "anchor": { "x": 0.04, "y": 0.5 }
+    },
+    "aqua-projectile-02.png": {
+      "frame": { "x": 400, "y": 0, "w": 400, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 },
+      "sourceSize": { "w": 400, "h": 128 },
+      "anchor": { "x": 0.04, "y": 0.5 }
+    },
+    "aqua-projectile-03.png": {
+      "frame": { "x": 800, "y": 0, "w": 400, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 },
+      "sourceSize": { "w": 400, "h": 128 },
+      "anchor": { "x": 0.04, "y": 0.5 }
+    },
+    "aqua-projectile-04.png": {
+      "frame": { "x": 1200, "y": 0, "w": 400, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 },
+      "sourceSize": { "w": 400, "h": 128 },
+      "anchor": { "x": 0.04, "y": 0.5 }
+    },
+    "aqua-projectile-05.png": {
+      "frame": { "x": 0, "y": 128, "w": 400, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 },
+      "sourceSize": { "w": 400, "h": 128 },
+      "anchor": { "x": 0.04, "y": 0.5 }
+    },
+    "aqua-projectile-06.png": {
+      "frame": { "x": 400, "y": 128, "w": 400, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 },
+      "sourceSize": { "w": 400, "h": 128 },
+      "anchor": { "x": 0.04, "y": 0.5 }
+    },
+    "aqua-projectile-07.png": {
+      "frame": { "x": 800, "y": 128, "w": 400, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 },
+      "sourceSize": { "w": 400, "h": 128 },
+      "anchor": { "x": 0.04, "y": 0.5 }
+    },
+    "aqua-projectile-08.png": {
+      "frame": { "x": 1200, "y": 128, "w": 400, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 },
+      "sourceSize": { "w": 400, "h": 128 },
+      "anchor": { "x": 0.04, "y": 0.5 }
+    },
+    "aqua-projectile-09.png": {
+      "frame": { "x": 0, "y": 256, "w": 400, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 },
+      "sourceSize": { "w": 400, "h": 128 },
+      "anchor": { "x": 0.04, "y": 0.5 }
+    },
+    "aqua-projectile-10.png": {
+      "frame": { "x": 400, "y": 256, "w": 400, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 },
+      "sourceSize": { "w": 400, "h": 128 },
+      "anchor": { "x": 0.04, "y": 0.5 }
+    },
+    "aqua-projectile-11.png": {
+      "frame": { "x": 800, "y": 256, "w": 400, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 },
+      "sourceSize": { "w": 400, "h": 128 },
+      "anchor": { "x": 0.04, "y": 0.5 }
+    },
+    "aqua-projectile-12.png": {
+      "frame": { "x": 1200, "y": 256, "w": 400, "h": 128 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 400, "h": 128 },
+      "sourceSize": { "w": 400, "h": 128 },
+      "anchor": { "x": 0.04, "y": 0.5 }
+    }
+  },
+  "animations": {
+    "travel": [
+      "aqua-projectile-01.png",
+      "aqua-projectile-02.png",
+      "aqua-projectile-03.png",
+      "aqua-projectile-04.png",
+      "aqua-projectile-05.png",
+      "aqua-projectile-06.png",
+      "aqua-projectile-07.png",
+      "aqua-projectile-08.png",
+      "aqua-projectile-09.png",
+      "aqua-projectile-10.png",
+      "aqua-projectile-11.png",
+      "aqua-projectile-12.png"
+    ]
+  },
+  "meta": {
+    "app": "ChatGPT",
+    "version": "1.0",
+    "image": "aqua-projectile-sheet.png",
+    "format": "RGBA8888",
+    "size": { "w": 1600, "h": 384 },
+    "scale": "1"
+  }
+}

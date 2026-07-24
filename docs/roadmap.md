@@ -21,6 +21,13 @@ The five buckets below are ordered by when we intend to act, not by size:
 
 ## Now
 
+### Aqua Bolt FX — pick the trigger, then bake it into pixiFx
+The 12-frame aqua projectile asset is in (`public/fx/aqua-projectile/`) and `fx/aqua-bolt-preview.html` is the
+tuning rig for a fire-at-an-enemy-unit-and-detonate effect. Open, tune, paste the `AquaBoltCfg` back. Then:
+(a) decide what fires it — a specific card's spell, a ranged minion's attack, or a generic API any card can
+call — and (b) port it to a pooled `pixiFx.aquaBolt(from, to, cfg)` on the existing ticker, with endpoints
+measured from **slot** rects (never a mid-flight card rect — see #616).
+
 ### Drag feel is not scale-invariant (owner report 2026-07-22 — decision needed)
 The drag maths works on raw pixel deltas (`tiltPerPx * hLean * gx`) without dividing by `--scale`, so the same
 hand movement produces the same tilt in degrees over a card that may be 50% larger. A fullscreen exe (`--scale`

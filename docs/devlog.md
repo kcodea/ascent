@@ -1,5 +1,79 @@
 # ASCENT — development log
 
+### feat(content/sim/core): Beast tranche 6 — Moonhowl Mentor; the Beast tribe is COMPLETE (21/21)
+
+Moonhowl Mentor (T6 4/9) — the last card. **All 21 Set-2 Beasts are in**: 15 authored + 6 carried from set 1
+(Badgington, Sea Urchin, Sporebat, Void Panther, and the re-spec'd Kennelmaster + Runic Beetle).
+
+Moonhowl is the tribe's most novel mechanic, built to the owner's ruling ("Mage-Pup gains Shout: cast X spell"):
+buying a Shop spell teaches it to a Mage-Pup; End of Turn mints that Pup into your hand; playing it casts the
+spell it learned. Four pieces:
+* a **Mage-Pup token** whose Shout is per-INSTANCE — the spell id rides on `taughtSpellId` (a new BoardCard
+  field), so one token type covers every spell it can learn rather than needing a token per spell.
+* `teachSpellToMagePup`, called from the reducer's SPELL-buy branch. That path deliberately doesn't fire the
+  normal `onBuy` trigger ("a spell isn't a minion"), so this is a narrow dedicated hook rather than widening
+  that contract for one card.
+* a per-turn cap read off the board (1 base, 2 golden), reset with the other per-turn counters.
+* `battlecryCastTaughtSpell` — a real `castSpell`, so it tallies and fires spell-cast watchers like any cast.
+  An AIMED spell re-targets a seeded-random friendly, the same rule Rune of Recurrence and Runic Archivist use,
+  so "cast a spell without choosing a target" behaves consistently across every card that does it.
+
+Tests walk the whole chain (buy → taught → EoT mint → the Pup remembers its spell) plus the two negative cases:
+no Mentor on board teaches nothing, and a second buy in the same turn is capped out.
+
+Final roster spread: 1/2/2/1/4/4/1 across T1–T7. Suite 1599 + typecheck + lint + build:web + harness green.
+
+### feat(content/sim): Beast tranche 2 — Mosswhisker, Runebloom, Dawnclaw (spell + combat payoffs)
+
+Three more Set-2 Beasts, now that the owner supplied the full stat table.
+
+* **Mosswhisker Adept** (T2 1/2) — the first spell each turn washes your Beasts +1/+1 board-wide. New
+  `onSpellCastFirstBuffTribe`, gated on `spellsThisTurn === 1` like Ashscribe Whelp.
+* **Runebloom Matriarch** (T6 5/9) — every spell buffs 3 random Beasts +3/+3. New `onSpellCastBuffRandomTribe`
+  (seeded pick via the shop cursor so replays stay faithful).
+* **Dawnclaw** (T4 5/3) — Echo re-fires adjacent Battlecries, reusing Ryme's `deathrattleReplayAdjacentBattlecry`
+  VERBATIM. No new primitive; its combat behaviour is already covered by the Ryme tests, so the Dawnclaw test
+  pins the card WIRING rather than re-simulating a proven factory.
+
+Test traps re-hit and recorded: three identical Strays TRIPLE-COMBINE and vanish (so the Runebloom test uses
+distinct Beasts), `growth`/`emberpouch` aren't the simple buffs I reached for (growth reshuffles the board;
+emberpouch doesn't fire the `spellCast` watcher) — so the isolating spell is a targeted Spirit Fire, and the
+board-sum delta (23 = Spirit Fire 5 + Runebloom 18) is pick-independent. The Ashscribe-style delta trick
+(compare between two casts) is used for Mosswhisker since spells buff the board too. Suite 1591 + typecheck +
+lint + build:web + harness green.
+
+Roster: 8 of 21 in (Packstrider, Mosswhisker, Runebloom, Dawnclaw + carried Badgington/Sea Urchin/Sporebat/Void
+Panther + the two re-specs). Still ahead: the token-summon cards (T-Rex, Menagerie Mammoth), the combat-trigger
+cards (Echohorn Stag, Solaris, Lancel), summon auras (Denkeeper Oona, Groveweaver), Sunmane Herald's
+self-replicating Rally, Moonhowl Mentor's Mage-Pup (ruled: Mage-Pup gains "Shout: cast X spell"), and Elderhorn
+(Choose-One, Gilded = 2 additional triggers per mode — NOT gain-both).
+
+## 2026-07-24 (Set 2's Beast tribe — foundation + Packstrider)
+
+### feat(content/sim): open the Set-2 Beast tribe (carry-over + Packstrider)
+
+Owner handed over a 21-card Beast roster. Unlike the Dragons (a new identity), these are the SET-1 Beasts
+brought into set 2 with a spell/summon tilt: 6 of the 21 already exist in set 1, the rest are new or re-spec'd.
+
+Wired the tribe in — `beast` joins set 2's `tribes`, `SET2_BEASTS` joins its `own` manifest, and the set-1
+Beasts whose table spec matches their existing card carry over via `SET1_BEASTS_IN_SET2` (Badgington, Sea
+Urchin, Sporebat, Void Panther) — the same opt-in-by-id pattern Karwind uses.
+
+Built Packstrider (T1 2/2, the one fully-specified NEW card): a go-wide Rally finisher that buffs ITSELF by
++1/+1 (golden +2/+2) per Beast you control, via a new `rallyBuffSelfPerTribe` combat factory. Tested against a
+3-Beast board (+3/+3), with a note that a BoardMinion tribe override doesn't reach the combat minion (it reads
+the CardDef tribe) — so the test uses real Strays, not tribe-cast sandbags. Suite 1588 + typecheck + lint +
+build:web + harness green.
+
+**Blocked on owner input — the bulk of the roster:**
+* 14 of 21 cards list NO Attack/Health in the table (T-Rex, Mosswhisker Adept, Lancel, Echohorn Stag, Dawnclaw,
+  Sunmane Herald, Denkeeper Oona, Groveweaver, Moonlit Scavenger, Solaris, Runebloom Matriarch, Menagerie
+  Mammoth, Moonhowl Mentor, Elderhorn) — can't be authored without stats.
+* Two existing cards are RE-SPEC'd vs their set-1 versions and need the same "re-spec the shared card vs a set-2
+  variant" call Karwind got: Kennelmaster (base +2→+1 Attack, adds Avenge 3) and Runic Beetle (its Choose-One
+  now also grants +1/+1 or +3 Attack). Left at their set-1 spec for now.
+* New tokens (T-Rex Baby, Mage-Pup) and a genuinely novel mechanic — Moonhowl Mentor's "when you buy a Shop
+  spell, teach it to a Mage-Pup; End of Turn, get that Mage-Pup" — need rulings before they're built.
 ## 2026-07-24 (PROD CRASH — `useGame is not defined` in the packaged exe)
 
 ### fix(ui): import useGame in useCombatReplay; make store.ts test-safe

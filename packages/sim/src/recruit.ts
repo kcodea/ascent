@@ -1058,6 +1058,82 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     self.summonBonus = (self.summonBonus ?? 0) + base * improveReps(ctx.state); // "improve this" — ×2 under Mastery
   },
 
+  /** Set 2 — Mage-Pup (Shout): cast the spell this token was TAUGHT (`taughtSpellId`, stamped when Moonhowl
+   *  Mentor minted it). A real `castSpell`, so it tallies and fires spell-cast watchers exactly like casting
+   *  the card from hand. An AIMED spell re-targets a seeded-random friendly minion — the same rule Rune of
+   *  Recurrence and Runic Archivist use, so "cast a spell without choosing a target" behaves consistently.
+   *  Untaught (or an unknown id) is a clean no-op. */
+  battlecryCastTaughtSpell: (ctx, self) => {
+    const def = self.taughtSpellId ? CARD_INDEX[self.taughtSpellId] : undefined;
+    if (!def?.spell) return;
+    for (let i = 0; i < gold(self); i++) {
+      if (!def.target) { castSpell(ctx.state, def); continue; }
+      if (ctx.state.board.length === 0) return;
+      const rng = makeRng(ctx.state.rngCursor);
+      const target = ctx.state.board[rng.int(ctx.state.board.length)]!;
+      ctx.state.rngCursor = rng.state();
+      castSpell(ctx.state, def, target);
+    }
+  },
+
+  /** Set 2 — Moonhowl Mentor (End of Turn): mint one Mage-Pup into hand per spell taught this turn, each
+   *  stamped with the spell it learned. Clears the queue so next turn starts fresh. Respects the hand cap. */
+  endOfTurnGrantMagePups: (ctx) => {
+    const taught = ctx.state.taughtSpellsThisTurn ?? [];
+    if (taught.length === 0) return;
+    const def = CARD_INDEX['b2_magepup'];
+    if (!def) return;
+    for (const spellId of taught) {
+      if (ctx.state.hand.length >= CONFIG.handMax) break;
+      ctx.state.hand.push({
+        uid: `t${ctx.state.uidSeq++}`,
+        cardId: def.id,
+        tribe: def.tribe,
+        attack: def.attack,
+        health: def.health,
+        keywords: [...def.keywords],
+        golden: false,
+        taughtSpellId: spellId,
+      });
+    }
+    ctx.state.taughtSpellsThisTurn = [];
+  },
+
+  /** Set 2 — Elderhorn "Hunt": your BEAST Rallies and Slaughters trigger `extra` more times, permanently.
+   *  Run-level (survives combats) and passed into the fight via `CombatSideState.beastHuntExtra`. Golden
+   *  grants 2 instead of 1, per the owner's Gilded text ("trigger 2 additional times"). */
+  battlecryGrantBeastHunt: (ctx, self, params) => {
+    ctx.state.beastHuntExtra = (ctx.state.beastHuntExtra ?? 0) + num(params.extra, 1) * gold(self);
+  },
+
+  /** Set 2 — Elderhorn "Ritual": your BEAST Echoes trigger `extra` more times, permanently. */
+  battlecryGrantBeastRitual: (ctx, self, params) => {
+    ctx.state.beastRitualExtra = (ctx.state.beastRitualExtra ?? 0) + num(params.extra, 1) * gold(self);
+  },
+
+  /** Set 2 — Groveweaver (summon half): a Beast you summon gets +atk/+hp, at the CURRENT magnitude (base +
+   *  this instance's accrued `summonBonus`). Asymmetric on purpose (+2/+4), unlike `summonBuffTribeImprove`'s
+   *  symmetric grant, and it does NOT self-improve here — the improvement rides spell casts instead
+   *  (`onSpellCastImproveSummon`), which is what the card says. Golden doubles the whole magnitude at grant
+   *  time so base and step each double exactly once. */
+  summonBuffTribeAsym: (ctx, self, params, { minion }) => {
+    if (minion === self) return;
+    const tribe = str(params.tribe);
+    if (tribe && !isTribe(minion, tribe as Tribe)) return;
+    const bonus = self.summonBonus ?? 0;
+    const a = (num(params.attack, 2) + bonus) * gold(self);
+    const h = (num(params.health, 4) + bonus) * gold(self);
+    if (a <= 0 && h <= 0) return;
+    addBuff(minion, nameOf(self), a, h);
+  },
+
+  /** Set 2 — Groveweaver (improve half): each spell you cast improves this instance's summon grant by `step`.
+   *  Stored at BASE magnitude (golden is applied when the buff lands) and scaled by `improveReps` for Rune of
+   *  Mastery, matching every other "improve this". */
+  onSpellCastImproveSummon: (ctx, self, params) => {
+    self.summonBonus = (self.summonBonus ?? 0) + num(params.step, 1) * improveReps(ctx.state);
+  },
+
   /** Pack Leader (recruit half) — every time a Beast is summoned WHILE Pack Leader is on the board, accrue
    *  `step` into its `summonBonus`. This is a pure counter (no buff here); the Start-of-Combat half
    *  (`scTribeBuffImproving`, step 0) spends the accrual as a +summonBonus/+summonBonus Beast buff (×golden).
@@ -2058,6 +2134,36 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  (max with any existing, so two Orivaxes don't multiply into absurdity — the higher wins). */
   battlecryGrantFirstSpellMult: (ctx, self, params) => {
     ctx.state.spellFirstMultEachTurn = Math.max(ctx.state.spellFirstMultEachTurn ?? 1, num(params.mult, 3));
+  },
+
+  /** Set 2 — Mosswhisker Adept: the FIRST spell you cast each turn buffs your `tribe` board-wide (+atk/+hp
+   *  wherever they are). Fires once per turn via the `spellsThisTurn === 1` gate (the tally is bumped before
+   *  this `spellCast` watcher runs), like Ashscribe Whelp. Golden doubles the grant. */
+  onSpellCastFirstBuffTribe: (ctx, self, params) => {
+    if (ctx.state.spellsThisTurn !== 1) return;
+    const tribe = str(params.tribe);
+    const a = num(params.attack, 1) * gold(self), h = num(params.health, 1) * gold(self);
+    if (a <= 0 && h <= 0) return;
+    for (const c of [...ctx.state.board, ...ctx.state.hand]) {
+      if (!tribe || isTribe(c, tribe as never)) addBuff(c, nameOf(self), a, h);
+    }
+  },
+
+  /** Set 2 — Runebloom Matriarch: EVERY spell you cast buffs `count` random friendly `tribe` minions on board
+   *  by +atk/+hp. Golden doubles the STAT grant (the count stays), matching "trigger this twice"'s net effect
+   *  of a bigger payout. Seeded pick via the shop RNG cursor so replays stay faithful. */
+  onSpellCastBuffRandomTribe: (ctx, self, params) => {
+    const tribe = str(params.tribe);
+    const pool = ctx.state.board.filter((c) => !tribe || isTribe(c, tribe as never));
+    if (pool.length === 0) return;
+    const rng = makeRng(ctx.state.rngCursor);
+    const targets = [...pool];
+    const picks: BoardCard[] = [];
+    const want = Math.min(num(params.count, 3), targets.length);
+    for (let i = 0; i < want; i++) picks.push(targets.splice(rng.int(targets.length), 1)[0]!);
+    ctx.state.rngCursor = rng.state();
+    const a = num(params.attack, 3) * gold(self), h = num(params.health, 3) * gold(self);
+    for (const c of picks) addBuff(c, nameOf(self), a, h);
   },
 
   /** Set 2 — Scalechanter (Shout): buff your `tribe` by the CURRENT magnitude — base + everything this
@@ -3733,6 +3839,24 @@ export function replayRecurringEndOfTurn(state: RunState): boolean {
   }
   state.lastEotFires = (state.lastEotFires ?? 0) + fires;
   return true;
+}
+
+/**
+ * Set 2 — Moonhowl Mentor: buying a SHOP SPELL teaches it to a Mage-Pup, up to the Mentor's per-turn cap
+ * (once base, twice golden). Queued into `taughtSpellsThisTurn`; the Mentor's End of Turn mints one Mage-Pup
+ * per entry. Called from the reducer's spell-buy path — spells deliberately don't fire the normal `onBuy`
+ * trigger ("a spell isn't a minion"), so this is its own narrow hook rather than a widening of that contract.
+ */
+export function teachSpellToMagePup(state: RunState, spellId: string): void {
+  const cap = state.board.reduce(
+    (n, c) => n + (CARD_INDEX[c.cardId]?.effects.some((e) => e.do === 'endOfTurnGrantMagePups') ? (c.golden ? 2 : 1) : 0),
+    0,
+  );
+  if (cap <= 0) return; // no Mentor on board
+  const used = state.moonhowlTeachesThisTurn ?? 0;
+  if (used >= cap) return; // "once per turn" (twice for a golden Mentor)
+  state.moonhowlTeachesThisTurn = used + 1;
+  state.taughtSpellsThisTurn = [...(state.taughtSpellsThisTurn ?? []), spellId];
 }
 
 /** Buy-triggers (Brightwing Broker) — fire when a card is purchased into the hand. */

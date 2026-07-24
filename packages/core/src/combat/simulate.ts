@@ -33,6 +33,12 @@ const IMMEDIATE_ATTACK_GUARD = 64; // bounds a chain of attack-on-summon Whelps 
  * UI can replay. Pure: depends only on its inputs and the seeded `rng`. Clones
  * every minion — shared CardDefs are never mutated.
  */
+/** Set 2 — does this combat minion count as `tribe`? Reads its snapshot tribes plus the CardDef's
+ *  `universalTribe` (Lab Experiment counts as every tribe), matching the tribe checks in the effect factories. */
+function isTribeOf(m: Minion, tribe: string, cards: Record<string, CardDef>): boolean {
+  return m.tribe === tribe || m.tribe2 === tribe || !!cards[m.cardId]?.universalTribe;
+}
+
 export function simulate(
   player: BoardMinion[],
   enemy: BoardMinion[],
@@ -934,6 +940,10 @@ export function simulate(
     // Sylus (stacking) + Uron (best-copy) both live here now — resolved from card DATA rather than a
     // hardcoded id, so a new multiplier is a card field and not another branch in this function.
     bonus += extraTriggerFires('deathrattle', boards[minion.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]);
+    // Elderhorn (Ritual): BEAST Echoes fire an extra time (tribe-scoped, so it never touches other tribes).
+    if (isTribeOf(minion, 'beast', cards)) {
+      bonus += minion.side === 'player' ? playerState.beastRitualExtra ?? 0 : enemyState.beastRitualExtra ?? 0;
+    }
     const mods = modsFor(minion.side); // per-side: a served enemy's Funeral Engine / Grave Contract doublers apply too
     bonus += mods.echoExtraAlways ?? 0;
     const first = mods.echoFirstEachCombat ?? 0;
@@ -1245,8 +1255,13 @@ export function simulate(
       // watchers (Crypt Drake counts every ally swing). Only the former are "Rallies" — repeating the
       // latter would inflate a counter Uron has no business touching. Caught by a test that asserts
       // Crypt Drake's payout count is unchanged with Uron on board.
+      // Elderhorn (Hunt) adds extra fires for BEAST rallies only — tribe-scoped, unlike the board-wide
+      // card multipliers (Drakko/Uron) that `extraTriggerFires` reads.
+      const huntExtra = isTribeOf(attacker, 'beast', cards)
+        ? (attacker.side === 'player' ? playerState.beastHuntExtra ?? 0 : enemyState.beastHuntExtra ?? 0)
+        : 0;
       const rallyExtra = attacker.keywords.includes('RL')
-        ? extraTriggerFires('rally', boards[attacker.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id])
+        ? extraTriggerFires('rally', boards[attacker.side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]) + huntExtra
         : 0;
       for (let i = 0; i < rallyExtra; i++) {
         for (const effect of attacker.effects) {
@@ -1407,7 +1422,10 @@ export function simulate(
           bus.emit('onKill', { attacker: killer, victim: m });
           // Uron: your SLAUGHTERS trigger extra times — the killer's own on-kill effects only. The KILL
           // count (`slaughter`) still counts one, but each re-trigger bumps the "Trigger N Slaughters" tally.
-          const killExtra = extraTriggerFires('slaughter', boards[killer.side].filter((x) => !x.dead && x.health > 0), (id) => cards[id]);
+          const huntKill = isTribeOf(killer, 'beast', cards)
+            ? (killer.side === 'player' ? playerState.beastHuntExtra ?? 0 : enemyState.beastHuntExtra ?? 0)
+            : 0; // Elderhorn (Hunt): Beast Slaughters fire extra
+          const killExtra = extraTriggerFires('slaughter', boards[killer.side].filter((x) => !x.dead && x.health > 0), (id) => cards[id]) + huntKill;
           const killerHasSlaughter = killer.effects.some((e) => e.on === 'onKill');
           for (let i = 0; i < killExtra; i++) {
             for (const effect of killer.effects) {

@@ -152,6 +152,21 @@ export type EffectFactoryId =
   | 'onSpellCastOnThisSpreadAdjacent' // Runefire: it also casts on adjacent Dragons
   | 'scTriggerTribeShouts' // Thunderous Sovereign: Start of Combat — trigger your tribe's Shouts
   | 'rallyTriggerLeftmostTribeShout' // Chorus Drake: Rally — trigger your left-most other Dragon's Shout
+  | 'onSpellCastFirstBuffTribe' // Mosswhisker Adept: first spell each turn buffs your tribe board-wide
+  | 'onSpellCastBuffRandomTribe' // Runebloom Matriarch: each spell buffs N random tribe minions
+  | 'summonBuffTribeAsym' // Groveweaver: a summoned tribe minion gets +atk/+hp at the current magnitude
+  | 'onSpellCastImproveSummon' // Groveweaver: each spell cast improves that grant
+  | 'battlecryCastTaughtSpell' // Mage-Pup: Shout — cast the spell this token was taught
+  | 'endOfTurnGrantMagePups' // Moonhowl Mentor: End of Turn — mint the taught Mage-Pups into hand
+  | 'battlecryGrantBeastHunt' // Elderhorn (Hunt): your Beast Rallies + Slaughters fire an extra time
+  | 'battlecryGrantBeastRitual' // Elderhorn (Ritual): your Beast Echoes fire an extra time
+  | 'rallySpreadTribeBuff' // Sunmane Herald: Rally — buff your tribe AND graft this rally onto them
+  | 'scShieldAttackLeftmostTribe' // Lancel: SC — left-most Beasts gain Ward and attack immediately
+  | 'scSummonOnlyTribeAura' // Denkeeper Oona: minions you summon in combat enter buffed
+  | 'avengeBuffTribeLasting' // Moonlit Scavenger: Avenge — buff your tribe for the rest of the fight
+  | 'rallyProcLeftmostEcho' // Echohorn Stag: Rally — trigger your left-most friendly Echo
+  | 'deathrattleSummonRandomTribe' // Menagerie Mammoth: Echo — summon N random minions of a tribe
+  | 'rallyBuffSelfPerTribe' // Packstrider: Rally — buff self per friendly tribe minion
   | 'avengeCopyLeftmostHandSpell' // Vault Curator: Avenge — copy the left-most spell in your hand
   | 'avengeBuffSpellPower' // Ashen Broodlord: Avenge — improve your spells (spell power)
   | 'onSpellCastFirstBuffSelf' // Ashscribe Whelp: the first spell each turn permanently grows this
@@ -1239,6 +1254,11 @@ export interface CombatSideState {
    *  copies the left-most). Player-only in practice; the enemy side leaves it empty. Read-only in combat —
    *  the sim never mutates the run hand. */
   handSpellIds?: readonly string[];
+  /** Set 2 — Elderhorn's chosen mode(s): extra fires for this side's BEAST triggers. `beastHuntExtra` applies
+   *  to Rally + Slaughter, `beastRitualExtra` to Echo (Deathrattle). Tribe-scoped by design — unlike the
+   *  card-level `triggerMultiplier` (Drakko/Uron), which is board-wide. */
+  beastHuntExtra?: number;
+  beastRitualExtra?: number;
   /** This side's tavern tier. The player's drives token/spell generation; the enemy's drives loss-damage. */
   tier: number;
   /** This side's active tribes — the generation pool filter. */

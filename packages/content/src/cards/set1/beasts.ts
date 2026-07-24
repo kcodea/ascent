@@ -43,15 +43,15 @@ export const BEASTS: CardDef[] = [
     health: 4,
     keywords: ['SC'],
     effects: [
-      { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'any', attack: 2, health: 0, stepAttack: 1, stepHealth: 0 } },
+      { on: 'startOfCombat', do: 'scBeastAura', params: { tribe: 'beast', attack: 1, health: 0, stepAttack: 1, stepHealth: 0 } },
       { on: 'avenge', do: 'avengeImproveSummon', params: { count: 3 } },
     ],
     // Start of Combat: a board-wide (`tribe: 'any'`) Attack aura that lasts the fight — current minions + any
     // summoned later inherit it (the "wherever they are" aura). N = 2 + its Avenge-grown summonBonus (carried
     // across combats), Attack only: `stepHealth: 0` keeps the accrual off Health. The live value + Avenge
     // countdown surface via cardText's summonBuffText helper on every surface.
-    text: '**Start of Combat:** give your minions **+2 Attack** wherever they are. **Avenge (3):** Improve this by **+1 Attack**.',
-    goldenText: '**Start of Combat:** give your minions **+4 Attack** wherever they are. **Avenge (3):** Improve this by **+2 Attack**.',
+    text: '**Start of Combat:** give your Beasts **+1 Attack** wherever they are. **Avenge (3):** Improve this.',
+    goldenText: '**Start of Combat:** give your Beasts **+2 Attack** wherever they are. **Avenge (3):** Improve this (twice as much).',
   },
   {
     id: 'gnash',
@@ -297,10 +297,18 @@ export const BEASTS: CardDef[] = [
     targetTribe: 'beast',
     effects: [],
     chooseOne: [
-      { text: 'Give a friendly Beast **Rise**.', effects: [{ on: 'onPlay', do: 'battlecryGrantKeyword', params: { keywords: ['R'] } }] },
-      { text: 'Give a friendly Beast **Flurry**.', effects: [{ on: 'onPlay', do: 'battlecryGrantKeyword', params: { keywords: ['W'] } }] },
+      { text: 'Give a friendly Beast **Rise** and **+1/+1**.', goldenText: 'Give a friendly Beast **Rise** and **+2/+2**.',
+        effects: [
+          { on: 'onPlay', do: 'battlecryGrantKeyword', params: { keywords: ['R'] } },
+          { on: 'onPlay', do: 'battlecryBuffTarget', params: { attack: 1, health: 1 } },
+        ] },
+      { text: 'Give a friendly Beast **Flurry** and **+3 Attack**.', goldenText: 'Give a friendly Beast **Flurry** and **+6 Attack**.',
+        effects: [
+          { on: 'onPlay', do: 'battlecryGrantKeyword', params: { keywords: ['W'] } },
+          { on: 'onPlay', do: 'battlecryBuffTarget', params: { attack: 3, health: 0 } },
+        ] },
     ],
-    text: '**Choose One:** give a friendly Beast **Rise**, or **Flurry**.',
+    text: '**Choose One:** give a friendly Beast **Rise** and **+1/+1**, or **Flurry** and **+3 Attack**.',
   },
   {
     // Dual-type Beast/Mech finisher. Avenge shields it and sends it in for a bonus swing. The Rally Beast

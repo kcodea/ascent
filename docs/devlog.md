@@ -5,6 +5,11 @@ queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md]
 
 ## 2026-07-24 (gilded cards materialise in gold)
 ### feat(ui): the golden plate tint is on the Card Plate tuner
+### tweak(ui): lock in the owner's golden plate tone
+
+Baked the dialed values as defaults: `sepia 0, saturate 2.6, brightness 1.13, contrast 0.95, hue 3` — in
+`cardPlateConfig.ts` DEFAULTS and mirrored into the styles.css `--plate-gold-tone` fallback.
+
 
 Rather than trade "more/less orange" over chat, the golden plate's filter is now five live sliders on the
 existing 🂠 Card Plate tuner (`gold · sepia / saturate / brightness / contrast / hue`). They compose into

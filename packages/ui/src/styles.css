@@ -2934,7 +2934,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    drag copy and the inspect overlay — all `.plated`. Dial live via the 🂠 Card Plate tuner (gold · … rows);
    the fallback here MUST mirror the composed default in cardPlateConfig.ts (goldSepia/Sat/Bright/Contrast/Hue). */
 .card.plated.golden .cardplate {
-  filter: var(--plate-gold-tone, sepia(0.9) saturate(3.1) brightness(1.08) contrast(1.05) hue-rotate(12deg));
+  filter: var(--plate-gold-tone, sepia(0) saturate(2.6) brightness(1.13) contrast(0.95) hue-rotate(3deg));
 }
 
 /* HOVER GLOW, plate edition. On a plated card the white highlight rings the PLATE, not the oval frame —

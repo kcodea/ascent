@@ -48,11 +48,11 @@ const DEFAULTS: CardPlateConfig = {
   bucketM: 89,
   bucketL: 90,
   bucketXl: 150,
-  goldSepia: 0.9,
-  goldSat: 3.1,
-  goldBright: 1.08,
-  goldContrast: 1.05,
-  goldHue: 12,
+  goldSepia: 0,
+  goldSat: 2.6,
+  goldBright: 1.13,
+  goldContrast: 0.95,
+  goldHue: 3,
 };
 
 /** Font-size buckets, LARGEST first. `id` is appended to a `.plate-txt-` class on the card. */

@@ -3,6 +3,44 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (Waking Rift rename + all spell art wired)
+
+### feat(content/ui): rename Spark Plug -> Waking Rift, and wire spell art
+
+**Rename.** Display name only — the ID stays `sparkplug`. It's referenced by Spark Capacitor's
+`avengeGrantSpell` params, by saved runs and by pinned replays, so changing it would break restores for what is
+a cosmetic change (same call as the 2026-07-17 vocab pass). Updated the two Spark Capacitor text lines that name
+the card, plus four test descriptions.
+
+**Spell art — the first time spells have had any.** There was no `SPELL_ART` glob and no `art/spells/`
+directory at all; `artFor` only ever looked at minions. Added the glob alongside the existing ones and made
+`artFor` fall through minions → spells. Card ids are globally unique, so that's a fallback rather than a
+precedence, and no caller changes.
+
+Masters were matched to cards by NORMALISED NAME, not by eyeballing: 64 of 71 wired, each an exact name match.
+The 7 skipped are listed rather than guessed —
+* `Cupcakes`, `PreemptiveAttack`, `RoadToTheSummit`, `Timepiece` — no card of that name exists (art ahead of content)
+* `DeepdelveWrit`, `IroncladRequisition` — the two Dwarf spells deferred pending a Dwarf tribe
+* `SparkPlug` — correctly superseded by `WakingRift.png`, which matched the renamed card. A nice self-check on
+  the rename: the old master stopped matching and the new one took over.
+
+One master needed an explicit, hand-confirmed fix rather than fuzzy matching: `RivalsReflections.png` is plural
+while the card is "Rival's Reflection". It's wired through a documented one-entry map so an unknown file still
+reports as unmatched instead of being silently guessed onto the wrong card. **Worth renaming the master.**
+
+Two stale copies removed: `art/minions/ruby.png` and `art/minions/warding-ruby.png` were shadowing the new
+masters (minions are checked first), so the freshly supplied Ruby art would never have rendered. Rubies aren't
+minions, so those were misfiled to begin with. `k_rubybroker.png` is a genuine Kobold minion and was left alone.
+
+The optimizer now covers `spells/` — 134MB of PNG masters became **3.6MB of WebP**, which is the difference
+between this being committable and not. It also offered to convert 24 unrelated Kobold minion PNGs still sitting
+unoptimized; those were reverted to keep this change scoped, and remain a one-command follow-up
+(`npm run optimize-art`) worth its own PR.
+
+Verified after a dev-server RESTART (a reload doesn't re-run an eager glob): the card renders as "Waking Rift"
+with `sparkplug.webp`, and Ruby / Warding Ruby now resolve to the new `ruby.webp` / `warding-ruby.webp` rather
+than the shadowed copies. Suite 1543 + typecheck + lint + build:web green.
+
 ## 2026-07-24 (Ruby Power FX — the Ruby-side twin of the Spell Power flourish)
 
 ### fix(ui): no second buff cue at end of combat for a mid-combat buff

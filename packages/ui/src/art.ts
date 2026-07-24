@@ -41,6 +41,14 @@ const hashStr = (s: string): number => {
  *  were retired and their stale files deleted; the mechanism stays for future one-off art swaps. */
 const ART_ALIAS: Record<string, string> = {};
 
+/** SPELL + Ruby art — same contract as minions, in its own directory so the two sets stay easy to manage:
+ *  drop a PNG named by the CARD ID into `packages/ui/src/art/spells/<id>.png`. Wired 2026-07-24 (owner).
+ *  Card ids are globally unique, so `artFor` can simply fall through from minions to here — no caller changes,
+ *  and a spell picks up art exactly the way a minion already does. */
+const SPELL_ART = indexArt(
+  import.meta.glob('./art/spells/*.{png,webp}', { eager: true, query: '?url', import: 'default' }) as ArtModules,
+);
+
 /** The illustrated art URL for a card id, or undefined if none has been added. `uid` lets cards
  *  with multiple art variants pick one per instance (stable across re-renders, ~50/50 split). */
 export const artFor = (cardId?: string, uid?: string): string | undefined => {
@@ -51,7 +59,8 @@ export const artFor = (cardId?: string, uid?: string): string | undefined => {
   }
   const alias = ART_ALIAS[cardId];
   if (alias && MINION_ART[alias]) return MINION_ART[alias];
-  return MINION_ART[cardId];
+  // Minions first, then spells/Rubies. Ids are globally unique so the order is arbitrary, not a precedence.
+  return MINION_ART[cardId] ?? SPELL_ART[cardId];
 };
 
 /** Hero portraits — drop a PNG into `packages/ui/src/art/heroes/<id>.png` (e.g. `warden.png`). */

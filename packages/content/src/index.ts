@@ -69,7 +69,7 @@ const CARD_REF_EFFECTS: Record<string, string> = {
 /** Every card id a card names in its effects — the tokens it summons (`tokenId`), the cards it grants /
  *  transforms into (`spellCastTransform`, `avengeGrantSpell`, `deathrattleGrantCardToHand`, …), and its
  *  `ascendInto` target. Powers the UI's hover-preview of referenced cards so any card that mentions another card
- *  in its text ("add a Spark Plug", "summon 2 Whelps") surfaces it — reusing the exact ref-param map the
+ *  in its text ("add a Waking Rift", "summon 2 Whelps") surfaces it — reusing the exact ref-param map the
  *  validator checks, so the two never drift. Excludes the card itself. */
 export function referencedCardIds(card: CardDef): string[] {
   const ids = new Set<string>();

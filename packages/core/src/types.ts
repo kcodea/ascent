@@ -140,6 +140,7 @@ export type EffectFactoryId =
   | 'rallyGrantMagnetic' // Mechanical Jouster — Rally: when this attacks, add a random Magnetic Mech to hand
   | 'rallyProcDeathrattle' // Rally: when this attacks, fire your leftmost minion's Deathrattle first (Deathsayer)
   | 'deathrattleGrantSpell' // Deathrattle: add a spell to your hand after combat (Arcane Weaver)
+  | 'avengeBuffSpellPower' // Ashen Broodlord: Avenge — improve your spells (spell power)
   | 'onSpellCastFirstBuffSelf' // Ashscribe Whelp: the first spell each turn permanently grows this
   | 'onSpellCastSecondCopyFirst' // Spellkeeper Drake: your 2nd spell each turn copies the 1st
   | 'endOfTurnRecastFirstSpell' // Runic Archivist: End of Turn — re-cast this turn's first spell

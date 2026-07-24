@@ -2,6 +2,27 @@
 
 ## 2026-07-24 (Set 2's Dragon tribe — foundation + first tranche)
 
+### feat(content/sim): Dragon tranche 3 — Ashen Broodlord (Avenge spell power)
+
+Ashen Broodlord (T5 6/8, Dragon/Demon, Rise) — **10 of 21 Dragons built** (Karwind included).
+
+`avengeBuffSpellPower` is the combat twin of `battlecryBuffSpellPower`: every 4 friendly deaths it grants
+spell power via `ctx.grantSpellPower` WITH `self.uid`, so it emits the `+A/+H Spell Power` narration the combat
+replay already rides. That matters beyond tidiness — the replay drives both the spell-power flourish AND the
+hand-spell buff cue off that event, so a silent grant would have paid out correctly while showing nothing until
+settle (the exact bug fixed on 2026-07-24 for the mid-combat path).
+
+**Vault Curator was started and deliberately backed out.** Its "copy the left-most spell in your hand" needs the
+run's HAND inside combat, and `CombatSideState` carries no hand — only spell/tribe/rune aggregates. The
+version I'd written reached for an optional `ctx.leftmostHandSpellFor?.()` that nothing implements, which
+would have shipped a card whose Avenge silently never did anything. Threading the hand through the combat
+contract is a real change to the shared `types.ts` seam, so it belongs in its own PR rather than smuggled into
+a content tranche. Noted in the file's "still to come" list with the reason.
+
+Test asserts both halves: the +1/+1 is carried back via `playerSpellPower`, AND an `sc` narration is emitted —
+because the carry-back alone would pass while the on-proc cue stayed broken. Suite 1563 + typecheck + lint +
+build:web + harness (determinism, since this adds a combat factory) green.
+
 ### feat(content/sim): Dragon tranche 2 — the first/second-spell-this-turn hooks (3 cards)
 
 Ashscribe Whelp, Spellkeeper Drake and Runic Archivist — 9 of 21 Dragons now built.

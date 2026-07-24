@@ -18,6 +18,7 @@ import type { CardDef } from '@game/core';
  *   • persistent Choose-One global modes — Orivax
  *   • first/second-spell-this-turn hooks on a minion — Ashscribe Whelp, Spellkeeper Drake
  *   • an on-sell per-turn flag — Voicekeeper; improve-per-N-Shouts — Scalechanter
+ *   • the run HAND exposed to combat (`CombatSideState` carries no hand today) — Vault Curator
  *
  * (Karwind is a set-1 Dragon carried into this set — see `SET1_DRAGONS_IN_SET2` in `sets.ts`. It was re-spec'd
  * to Tier 6 4/12 for this tribe on the owner's call, which changes it in set 1 too.)
@@ -63,6 +64,22 @@ export const SET2_DRAGONS: CardDef[] = [
     effects: [{ on: 'spellCast', do: 'onSpellCastSecondCopyFirst', params: { count: 1 } }],
     text: 'After you cast your **second** spell each turn, get a copy of the first.',
     goldenText: 'After you cast your **second** spell each turn, get **2** copies of the first.',
+  },
+  {
+    // Dragon/DEMON, Rise: the tribe's combat payoff — deaths make your SPELLS better for the rest of the run.
+    // Routed through `grantSpellPower`, so it emits the `+A/+H Spell Power` narration the replay already rides
+    // and the gain reads on the proc rather than at settle.
+    id: 'd2_broodlord',
+    name: 'Ashen Broodlord',
+    tribe: 'dragon',
+    tribe2: 'demon',
+    tier: 5,
+    attack: 6,
+    health: 8,
+    keywords: ['R'],
+    effects: [{ on: 'avenge', do: 'avengeBuffSpellPower', params: { count: 4, attack: 1, health: 1 } }],
+    text: '**Rise. Avenge (4):** improve your spells by **+1/+1**.',
+    goldenText: '**Rise. Avenge (4):** improve your spells by **+2/+2**.',
   },
   {
     // The top-end recursion payoff: not a COPY to hand but an actual free re-cast, at End of Turn.

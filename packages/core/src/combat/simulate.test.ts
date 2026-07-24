@@ -2685,6 +2685,19 @@ describe('simulate (handoff A.3)', () => {
     expect(r.playerPermaBuffs?.find((b) => b.sourceUid === 'F')).toMatchObject({ attack: 2, health: 2 });
   });
 
+  it('set 2 — Ashen Broodlord: Avenge (4) improves your spells and narrates the gain', () => {
+    // Four friendly deaths with the Broodlord alive → a +1/+1 spell-power grant, carried back to the run.
+    // It must also NARRATE, since the combat replay drives both the flourish and the hand-spell cue off that.
+    const abtest: CardDef = { id: 'abtest', name: 'AB', tribe: 'dragon', tier: 5, attack: 6, health: 200, keywords: [],
+      effects: [{ on: 'avenge', do: 'avengeBuffSpellPower', params: { count: 4, attack: 1, health: 1 } }], text: '' };
+    const fodder = Array.from({ length: 4 }, (_, i) => ({ cardId: 'sandbag', attack: 0, health: 1, sourceUid: 'f' + i }));
+    const r = simulate([...fodder, { cardId: 'abtest', attack: 6, health: 200, sourceUid: 'AB' }],
+      [{ cardId: 'sandbag', attack: 10, health: 400 }], makeRng(3), { ...CARD_INDEX, abtest },
+      combatSide({ tier: 5, tribes: ['dragon'] }), combatSide({ tier: 1 }));
+    expect(r.playerSpellPower).toMatchObject({ attack: 1, health: 1 }); // carried back to the run
+    expect(r.events.some((e) => e.type === 'sc' && /Spell Power$/.test(e.text ?? ''))).toBe(true);
+  });
+
   // Gemheart Carver's Shard is a 1/1 PLUS the Rubies on the Carver — from the shop AND from mid-combat
   // (owner 2026-07-24). It used to summon nothing at all with no Rubies, and to copy only the shop Rubies.
   const ghtest: CardDef = { id: 'ghtest', name: 'GH', tribe: 'kobold', tier: 4, attack: 5, health: 1, keywords: [],

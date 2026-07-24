@@ -607,6 +607,18 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(str(params.cardId), self.side, self.uid);
   },
 
+  /** Set 2 — Ashen Broodlord: Avenge (X) improves your SPELLS by +atk/+hp (spell power), carried back to the
+   *  run. Routes through `grantSpellPower` with `self.uid`, so it emits the `+A/+H Spell Power` narration the
+   *  combat replay already rides — the flourish and the hand-spell cue both fire on the proc rather than at
+   *  settle. Player-side only, enforced inside `grantSpellPower`. */
+  avengeBuffSpellPower: (ctx, self, params, payload) => {
+    const { side, count } = payload as { side: Side; count: number };
+    if (self.dead || side !== self.side) return;
+    const every = Math.max(1, num(params.count, 4));
+    if (count % every !== 0) return;
+    ctx.grantSpellPower(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side, self.uid);
+  },
+
   /** Avenge (X) — Professor Greg: after every `count` friendly deaths, get a random tavern-tier spell (golden
    *  grants two). Like Arcane Weaver's grant but the spell is RANDOM (via ctx.grantRandomSpell, resolved at
    *  settle where the tavern tier is known) rather than a fixed id. */

@@ -1,5 +1,78 @@
 # ASCENT — development log
 
+### fix(ui/sim): discovered spells drop their stats, Hourglass picks show locked, Quick Sale floats its real value
+
+Three follow-ups in the same PR.
+
+**Discovered spells no longer show Attack/Health.** The Discover panel builds its card view BY HAND rather than
+through `instView`, and never passed `spell`/`ruby` — so a discovered spell fell through to the minion treatment
+and printed a meaningless 0/1. Passing the flags routes it down the existing `spellLike` path, which swaps the
+stat badges for the type pill and applies the spell frame, exactly as every other surface already does.
+
+**An Hourglass Reserve pick now looks locked.** `lockedUntilWave` was fully wired in the sim — the reducer
+refuses to play the card (`reducer.ts:658`) and Hourglass stamps it on the pick — but the UI's lock computation
+only tested `lockedUntilTier` and `lockedUntilGoldSpent`. The card was therefore functionally locked while
+LOOKING playable. It now wears the same greyed padlock treatment as Disco Dan's tier lock and Brackus's gold
+lock, captioned "Next turn".
+
+**Quick Sale's sell float shows the real number.** `sellValueOf` is documented as the shared helper "so the two
+never drift" — but Quick Sale's `nextSellBonus` was added INLINE in the reducer, outside it, so they drifted:
+selling under Quick Sale paid 3 Gold while floating a plain-gold "+1". Since the float already styles itself off
+the amount (`> 1` renders green), the wrong number also meant the wrong colour. Added `sellValueWithBonus`, the
+one helper the reducer's payout and the UI's float both read.
+
+That helper is deliberately SEPARATE from `sellValueOf` rather than folded into it: two Consume-style
+self-sacrifice paths ("counts as a sell") also call `sellValueOf` and neither apply nor CLEAR the one-shot bonus,
+so folding it in would silently make them consume Quick Sale — a rules change, not the display fix this is.
+
+Verified live: a Discover holding two spells + one minion renders the spells with no stat badges and a "✦ Spell"
+pill while the minion keeps its 1/1; an Hourglass pick lands in hand with `lockedUntilWave: 2` at wave 1, the
+`locked` class, a "🔒 Next turn" caption and `grayscale(0.72) brightness(0.82)`. Three new sim tests pin the
+Quick Sale value: the display equals the Gold banked (3), it crosses the >1 green threshold, and it's unchanged
+without the bonus. Suite 1545 (+3) + typecheck + lint + build:web green.
+
+Noted in passing, NOT fixed (pre-existing, out of scope): an unknown card id in `run.discover` hard-crashes the
+Discover map on `CARD_INDEX[id].id` and the ErrorBoundary then keeps Recruit dead. Only reachable from bad
+dev/test data today, but a `.filter(Boolean)` there would be cheap insurance.
+
+## 2026-07-24 (spell card UI — minted cost coin, seated type pill, a pills tuner)
+
+### feat(ui): cost coin adopts the hero-power coin skin, type pill seats at the art's bottom, + 🏷️ Card Pills tuner
+
+Owner ask, four parts.
+
+**1. The cost circle now wears the hero-power coin skin.** `.cost` was a flat `--mana` disc with a card-coloured
+rim and white text; it now uses the same minted treatment as `.hpcost` — a gold radial gradient, a dark rim, and
+inset highlight/shade — with the dark-gold numeral. Kept as its own rule rather than sharing a class, because
+the two sit on different anchors at different sizes; only the SKIN is shared.
+
+**2. Discounted shop minions get the GREEN variant of that same coin.** `.cost.discount` was already wired
+(`costChanged` is set for any offer below the flat rate, and for Moe's Attachment), so this is purely the new
+green gradient + dark-green numeral — "this is cheaper" still reads at a glance, in the same visual language.
+
+**3. The Spell/Ruby type pill moved to the bottom of the art icon.** Two traps here, both worth recording. The
+compact spell card's `bottom` is NOT the rule you'd find first: `.card.compact.spellframe .ctype.spell` (line
+~2813) derives the seat from the authored frame's window geometry and overrides the base rule entirely — editing
+the base did nothing. And `bottom` grows UPWARD, so raising it moves the pill up, not down. The offset is
+therefore expressed as the tuner's `spellY` default instead, which is the one control that works on the right
+axis and doesn't fight the frame geometry.
+
+**4. A 🏷️ Card Pills tuner** — x/y/scale for each of the cost coin, Tier badge and type pill, all nine dials
+independent. Same architecture as the hero-panel/diamond configs: dev-only localStorage, values reflected as
+COMPOSED transform strings on `:root` (`--cpl-*-t`) that the CSS reads with its own transform as the fallback.
+Composed in JS because two of the three carry a `translateX(-50%)` centring transform an offset must stack ONTO
+— writing raw offsets would silently drop the centring and throw the pill to the card's left edge.
+
+`cardPillsConfig` is side-effect imported from `Card.tsx`, not just from the tuner: the tuner is stripped from
+production, so without that any baked non-identity default (like `spellY`) would silently never reach players.
+
+Verified live from a CLEARED config (what a player gets): the type pill's bottom edge sits at **95.7%** of the
+card against the art's 98.4% — seated at the bottom with a hair of margin, up from 82.8% — and it stays
+horizontally centred. The spell coin renders gold (`#ffe293→#eab63f`, numeral `#4a3208`, rim `#1b1d22`, matching
+`.hpcost` exactly) while the discounted minion renders green. Each of the nine dials was moved in isolation and
+confirmed to affect ONLY its own pill, with the centring preserved in every case. Suite 1542 + typecheck + lint
++ build:web green.
+
 ## 2026-07-24 (spell art was being shadowed by misfiled minion copies)
 
 ### fix(ui): delete 38 spell arts misfiled under minions/, which shadowed the new masters

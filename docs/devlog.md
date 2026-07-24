@@ -3,189 +3,33 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
-## 2026-07-23 (spell-buff — an UNCONTROLLED entry pop was riding along)
+## 2026-07-24 (placing / rearranging a card slides it home)
 
-### fix(ui): drop `cardpop` from `.spellbuff` — that was the pop no dial could turn off
+### feat(ui): placing or rearranging a minion slides it into the slot
 
-Owner: "the values are all at 0 but it is still popping." They were right, and no tuner dial could have fixed
-it — the movement wasn't coming from the wiggle at all.
+Extends the `buySlide` motion to two more cases: PLACING a minion on the board (hand → warband) and
+REARRANGING one (board / hand / shop reorder). The dragged card was already excluded from the settle FLIP
+(`handFlipRef` skips `uid === d.uid`) so it just teleported to its committed slot while its neighbours glided;
+now it glides the last stretch too, from where you released it, using the same compositor-only transform tween
+a buy uses — **30% faster** (`durationScale` 0.7 → ~119ms), since placement has no "reveal" to read, you
+already know where it's going.
 
-`.card.spellbuff` led its animation list with `cardpop 0.26s`, copied from `.cardbuff`, whose comment claims
-cardpop is "kept first in the list (matching the base .card) so toggling the class does NOT re-add it." That
-premise is false: the base `.card` has **no** animation — only `.card.popin` / `.row.hand .card.popin` do. So on
-a card that has been sitting in hand, naming cardpop STARTS it: a fresh `opacity 0→1` + `translateY(8px)` +
-`scale(0.96)` entry pop on every single spell buff, driven by nothing in the config.
+Mechanics:
+- `playBuySlide` takes an optional `durationScale` (default 1; place/rearrange pass 0.7). Buy is unchanged.
+- At the drop, for `handMinionDrop` / `boardReorderDrop` / `shopReorderDrop` only (NOT buy — it has its own
+  slide — and NOT sell — the card leaves), `placePendingRef` records the dragged card's uid, its destination
+  row selector, and the **live `.dragcard` rect** (its true visual release point, drag-lag included, captured
+  before `setDrag(null)` unmounts it). The played card keeps its uid across the `play` reducer (line 875
+  splices the same object onto the board), so the post-commit lookup finds it.
+- Consumed inside the same `handPlaySnapRef` settle branch, right after the neighbour glide, so it is
+  guaranteed to run once the card is at its final slot. WAAPI transform, so it never fights the neighbours'
+  GSAP x-tween; the played card's `.popin` is suppressed by the slide's `animation: none !important`.
 
-Removed it; the wiggle now stands alone. Verified with every card dial at its off value (wiggle° 0, pop scale 1,
-wobble 0, spring 0, softness 0): the transform is byte-identical across the whole burst
-(`matrix(1, 0, 0, 1, 0, 33.3856)` — just the hand tuck) and opacity holds at 1. A burst now reports exactly one
-animation, `spellwiggle`, at the tuned duration.
-
-**Known adjacent issue (untouched, pre-existing):** `.card.cardbuff` — the green MINION buff flash — has the
-same construction, so it also fires that entry pop. Left alone deliberately (its look is long-established and
-out of this change's scope); worth its own PR if the pop there is unwanted too.
-
-Full suite (1538) + lint + build:web green.
-
-## 2026-07-23 (spell-buff tuner — authority pass on every dial)
-
-### fix(ui): widen the ranges AND the 0-to-1 mappings so the dials actually bite
-
-Owner: "it's really not giving a strong enough control." Two separate ceilings were capping every dial long
-before the effect got interesting, so this widens both:
-
-**Slider ranges** — pop scale 1.4 → **2.0**, wiggle° 15 → **30**, pop spring 0.8 → **2.0**, wiggle ms → 80–2500,
-spark count 40 → **80**, spark size max 30 → **48**, rise max 500 → **900px**, gravity 200 → **600**, drift 120 →
-**300**, glow 30 → **60**, tail 8 → **20**, stagger 600 → **1200**, spread 140 → **240**, spark ms → 80–3000.
-
-**Normalized mappings** — the 0–1 dials now swing their curve control points across the FULL range instead of a
-narrow slice:
-- pop softness: `y1` 0.92 → 0.01 (instant leap ↔ flat crawl), `x1` 0.01 → 0.89
-- settle softness: `x2` 0.98 → 0.05 (slams into the target ↔ arrives early and glides)
-- launch punch: `y1` 0.04 → 0.98 (crawls off the card ↔ nearly all travel in the first instant)
-
-**Wobble geometry** — the counter-swing legs topped out at 42% of the peak, so wobble 1 was still mild; now 90%
-/ 40%, a genuine oscillation. Default trimmed 0.3 → 0.18 to keep the shipped feel roughly where it was.
-
-Verified at the extremes: `cubic-bezier(0.01, 0.92, 0.98, 1)` (snap) vs `cubic-bezier(0.89, 0.01, 0.05, 3)`
-(slow crawl + big spring). Full suite (1538) + lint + build:web green.
-
-## 2026-07-23 (spell-buff pop — the softness dial had no authority)
-
-### fix(ui): widen the pop-softness curve mapping (triage)
-
-Owner: "the softness doesn't seem to do anything." Triaged by sampling the card's actual transform trajectory
-(scale magnitude from the computed matrix) at softness 0 vs 1, with the amplitude cranked so any difference
-would be measurable.
-
-It WAS working, but barely: the mapping only moved the curve's head control point between `y1` 0.02 and 0.12,
-so every setting left rest slowly — the dial only shifted timing slightly. Measured gap at 60ms: **0.098**. At
-the shipped amplitude (1.06 scale) that is invisible.
-
-Fixed by swinging the head control point across its full range — at 0 the curve leaves rest almost vertically
-(an instant leap), at 1 it crawls out flat (a long gentle ramp): `y1` now spans 0.70 → 0.01 and `x1` 0.02 →
-0.80. Re-measured gap at 60ms: **0.206** (2.1× stronger), and the trajectories now diverge obviously — softness
-0 is at 1.211 by 60ms and already falling by 300ms, softness 1 is still at 1.005 at 60ms and doesn't peak until
-~300ms. Default pop scale also raised 1.06 → 1.10 so the easing is legible at shipped values.
-
-Full suite (1538) + lint + build:web green.
-
-## 2026-07-23 (spell-buff pop — smoothing dials + the keyframe-var limitation)
-
-### fix(ui): the pop sprang on EVERY leg; split shake from smoothness
-
-Owner: still jarring. The cause was that ONE overshoot cubic-bezier was applied across the whole animation, so
-every leg of the wiggle sprang past its target — a shake, not a pop.
-
-Tried per-segment curves first (`animation-timing-function` inside each keyframe, driven by a var). **That does
-not work:** a keyframe's `animation-timing-function` does NOT accept `var()` — the browser drops the declaration
-(verified live: every keyframe reported `ease`). Documented in the CSS so nobody re-attempts it.
-
-So the smoothing is split two ways instead:
-- **One element-level curve, shaped by three dials** (`wiggleEaseCss`): `wiggleEase` owns the head (x1/y1, how
-  gently it leaves rest), `wiggleSettle` owns the tail (x2, how long it glides home), `wiggleOvershoot` owns
-  y2 past 1 (the spring). Element-level `var()` DOES resolve — verified `cubic-bezier(0.45, 0.1, 0.304, 1.12)`.
-- **Oscillation moved into keyframe GEOMETRY** via a new `--sb-wobble`, so shake and smoothness are independent.
-  At **wobble 0** the return stops collapse onto rest — verified: the transform mid-return is exactly
-  `matrix(1,0,0,1,0,0)`, i.e. one clean pop that glides home with no oscillation at all.
-
-Defaults softened too (deg 3.4 → 2.2, scale 1.09 → 1.06, ms 660 → 720, overshoot 0.28 → 0.12, wobble 0.3).
-Tuner is now 26 controls. Full suite (1538) + lint + build:web green.
-
-## 2026-07-23 (spell-buff FX — rise in PIXELS, launch/gravity + pop easing dials)
-
-### fix(ui): the spark rise was a % of the MOTE, not the card — plus speed/gravity/ease controls
-
-The real reason the sparks "weren't moving up fast enough": `--sb-rise` was a percentage fed to `translate`,
-and a percentage there resolves against the **element's own box** — a ~7px mote. So the previous 140–280% dial
-was buying ~10–20px of actual travel. Rise is now in **PIXELS** (default 80–170px), which is what the dial
-implied all along.
-
-New dials for the vertical movement the owner asked for:
-- **launch punch** (`sparkSpeed`, 0–1) — builds the climb's cubic-bezier (`sparkEaseCss`): 0 eases up evenly,
-  1 fires off hard and coasts.
-- **gravity px** (`sparkGravity`) — the mote climbs to its full rise by 72%, then SAGS back by this much, so the
-  burst can arc instead of hanging.
-
-And the pop is properly eased instead of snapping:
-- The 6-stop shake (14/30/48/66/84%) read as a jitter — replaced with a swing-out → softer swing-back → settle
-  (32/64/84%).
-- **pop softness** (`wiggleEase`, 0–1) and **pop spring** (`wiggleOvershoot`) build the wiggle's curve
-  (`wiggleEaseCss`), the overshoot riding the second control point past 1 so each leg sails slightly beyond its
-  target and settles — what turns an instant snap into a pop. Default `cubic-bezier(0.374, 0.104, 0.452, 1.28)`.
-
-Tuner is now 24 controls. Verified live: rise resolves to 159px, the wiggle runs the tuned bezier with
-`fill: none` (still decoupled from spark life), and all six new dials render with their defaults. Full suite
-(1538) + lint + build:web green.
-
-## 2026-07-23 (spell-buff FX — decouple the pop, speed up the rise)
-
-### fix(ui): the card pop was pinned to the spark life via the wiggle's fill-mode
-
-Owner report: "the pop is still tied to spark ms" — and it was, through a non-obvious path. The card carries its
-OWN inline `transform` (the hand fan's rotation/tuck), and `spellwiggle` ran with `both` fill. A forwards fill
-keeps applying the animation's final `transform: none` for as long as the class is on — and the class is held
-for `max(wiggleMs, sparkMs + stagger)`. So after the wiggle finished, the card stayed yanked out of its fan
-position for the rest of the burst, i.e. for the SPARK life. Dropping the fill ends the override exactly at
-`--sb-wiggle-ms`. Measured: the card's transform now restores at ~700ms (wiggle 660) instead of the 1180ms hold.
-
-Also: **the sparks climb properly now.** They ran on `ease-out`, which dumps most of the travel in the first
-~20% and then crawls — reading as "not moving." Swapped to a near-linear curve with only a light settle, and
-raised the default rise from 55–130% to 140–280% (dial headroom now 0–400 / 0–600). Same 900ms life, roughly
-double the distance.
-
-Full suite (1538) + lint + build:web green.
-
-## 2026-07-23 (Spell Buff FX tuner + Ruby green value)
-
-### feat(ui): a ✨ Spell Buff tuner, spark tails, and green Ruby values
-
-**Tuner.** The spell-buff cue now follows the house FX contract instead of hardcoded numbers: `spellBuffFxConfig.ts`
-(localStorage-backed, dev-only persistence, production renders the shipped DEFAULTS) + `SpellBuffFxTuner.tsx`
-registered in `DevMenu` as **✨ Spell Buff FX**. 17 controls — spark count / size range / spawn spread + band /
-rise range / drift / alpha / glow / tail / life / stagger, the three hues, and the card's wiggle°, pop scale and
-duration — with **Test** (fires the cue on every spell + Ruby in hand), **Copy values** and **Reset**. Because
-this cue is CSS rather than Pixi, `Card.tsx` reads the config at FIRE TIME to bake the per-mote jitter and
-pushes the timing/shape dials down as `--sb-*` custom properties, so an edit applies to the NEXT burst.
-
-**Visibility + tails (owner: "too hard to see").** Dropped `mix-blend-mode: screen` — the main culprit, it
-washed the motes out over bright card art — and gave each mote a white-hot core, a tunable glow halo, a tunable
-peak alpha, and a **tapering tail** that trails below it as it climbs (length = mote size × the tail dial, so
-bigger motes streak longer).
-
-**Independent timing.** The card pop and the spark life were already separate dials, but the class was held for
-a hardcoded 850ms, which silently CLIPPED any spark life longer than that. The hold now derives from
-`max(wiggleMs, sparkMs + stagger)`, so a snappy wiggle with a long slow rise works as intended.
-
-**Ruby green value.** A Ruby minted or grown above its printed 1/1 now shows its grant in green via the standard
-`{{…}}` modified-value marker — the same cue every other scaled number uses.
-
-Verified live: buffed Ruby renders a green `+4/+4` while a base Ruby stays plain; the tuner renders 17 controls
-and a slider change (count 5, wiggle 12°) applied to the very next burst; tails measured 23.6px with the hue
-gradient; the flash now holds 1282ms against a 900ms spark life (no clipping). Full suite (1538) + lint +
-build:web green.
-
-## 2026-07-23 (spell-buff cue — hand spells + Rubies react when they get stronger)
-
-### feat(ui): a wiggle + spark burst on hand spells whose value just went up
-
-When a spell buff lands, the affected cards in HAND now say so: a quick **wiggle + grow/shrink pop**, plus
-**pink / gold / purple sparks** that burst off the card and rise. Covers Rubies too (previously excluded from
-the green minion flash entirely, so a Ruby growing had no cue at all).
-
-**Detection** — a spell's stats never move (it's a 0/1 card); its printed VALUE is what changes. So the watcher
-diffs each hand card's rendered live text + stats per uid and fires on a change for `spell || ruby` cards. That
-catches every scaling source at once — spell power, Front to Back's escalation, the Ruby stat line, Rune of
-Pillaging's pouch — without enumerating them, and picks up future ones for free. Only cards already in hand can
-fire it, so drawing never flashes; minions keep the existing green buff flash.
-
-**Render** — `Card.spellBuffed` adds a `.spellbuff` class (`cardpop` + a new `spellwiggle`) and spawns 15
-`.sbspark` motes with fixed per-mote jitter (position / delay / size / rise / drift / hue), mirroring the
-`REBORN_WISPS` idiom. One-shot (~0.8s), transform/opacity only, so the burst composites rather than repainting.
-
-Verified live: buffing spell power with a Spirit Fire + Ruby + minion in hand flagged exactly the spell and the
-Ruby (`cardpop, spellwiggle`, 15 sparks each, hues pink/gold/purple) and left the minion untouched. Full suite
-(1538) + lint + build:web green.
+**Verified:** engine typecheck + lint (0 errors) + 1538 tests + `build:web` green; zero new `typecheck:web`
+errors (57 baseline unchanged). Motion itself is owner-eyeballed — rAF/WAAPI don't advance in this
+environment's hidden preview pane. **Judgement call to confirm:** applied to board place + board/hand/shop
+reorder; hand-internal reorder also gets it (it reads the card's fanned/tucked base transform, so the tuck is
+preserved). Say if any of those should stay on the old instant-settle.
 
 ## 2026-07-24 (the shop→hand slide + the top-left ghost card)
 ### fix(ui): the REAL top-left blip — GSAP Flip was grabbing the gild's clones
@@ -409,6 +253,190 @@ it should be loud rather than silent.
 **Verified:** typecheck + lint + 1538 tests + `build:web` green. Timeline verified numerically against the
 rig. **Not verified in-game by me** — rAF doesn't fire in this environment's preview pane, so the motion is
 owner-eyeballed.
+
+## 2026-07-23 (spell-buff — an UNCONTROLLED entry pop was riding along)
+
+### fix(ui): drop `cardpop` from `.spellbuff` — that was the pop no dial could turn off
+
+Owner: "the values are all at 0 but it is still popping." They were right, and no tuner dial could have fixed
+it — the movement wasn't coming from the wiggle at all.
+
+`.card.spellbuff` led its animation list with `cardpop 0.26s`, copied from `.cardbuff`, whose comment claims
+cardpop is "kept first in the list (matching the base .card) so toggling the class does NOT re-add it." That
+premise is false: the base `.card` has **no** animation — only `.card.popin` / `.row.hand .card.popin` do. So on
+a card that has been sitting in hand, naming cardpop STARTS it: a fresh `opacity 0→1` + `translateY(8px)` +
+`scale(0.96)` entry pop on every single spell buff, driven by nothing in the config.
+
+Removed it; the wiggle now stands alone. Verified with every card dial at its off value (wiggle° 0, pop scale 1,
+wobble 0, spring 0, softness 0): the transform is byte-identical across the whole burst
+(`matrix(1, 0, 0, 1, 0, 33.3856)` — just the hand tuck) and opacity holds at 1. A burst now reports exactly one
+animation, `spellwiggle`, at the tuned duration.
+
+**Known adjacent issue (untouched, pre-existing):** `.card.cardbuff` — the green MINION buff flash — has the
+same construction, so it also fires that entry pop. Left alone deliberately (its look is long-established and
+out of this change's scope); worth its own PR if the pop there is unwanted too.
+
+Full suite (1538) + lint + build:web green.
+
+## 2026-07-23 (spell-buff tuner — authority pass on every dial)
+
+### fix(ui): widen the ranges AND the 0-to-1 mappings so the dials actually bite
+
+Owner: "it's really not giving a strong enough control." Two separate ceilings were capping every dial long
+before the effect got interesting, so this widens both:
+
+**Slider ranges** — pop scale 1.4 → **2.0**, wiggle° 15 → **30**, pop spring 0.8 → **2.0**, wiggle ms → 80–2500,
+spark count 40 → **80**, spark size max 30 → **48**, rise max 500 → **900px**, gravity 200 → **600**, drift 120 →
+**300**, glow 30 → **60**, tail 8 → **20**, stagger 600 → **1200**, spread 140 → **240**, spark ms → 80–3000.
+
+**Normalized mappings** — the 0–1 dials now swing their curve control points across the FULL range instead of a
+narrow slice:
+- pop softness: `y1` 0.92 → 0.01 (instant leap ↔ flat crawl), `x1` 0.01 → 0.89
+- settle softness: `x2` 0.98 → 0.05 (slams into the target ↔ arrives early and glides)
+- launch punch: `y1` 0.04 → 0.98 (crawls off the card ↔ nearly all travel in the first instant)
+
+**Wobble geometry** — the counter-swing legs topped out at 42% of the peak, so wobble 1 was still mild; now 90%
+/ 40%, a genuine oscillation. Default trimmed 0.3 → 0.18 to keep the shipped feel roughly where it was.
+
+Verified at the extremes: `cubic-bezier(0.01, 0.92, 0.98, 1)` (snap) vs `cubic-bezier(0.89, 0.01, 0.05, 3)`
+(slow crawl + big spring). Full suite (1538) + lint + build:web green.
+
+## 2026-07-23 (spell-buff pop — the softness dial had no authority)
+
+### fix(ui): widen the pop-softness curve mapping (triage)
+
+Owner: "the softness doesn't seem to do anything." Triaged by sampling the card's actual transform trajectory
+(scale magnitude from the computed matrix) at softness 0 vs 1, with the amplitude cranked so any difference
+would be measurable.
+
+It WAS working, but barely: the mapping only moved the curve's head control point between `y1` 0.02 and 0.12,
+so every setting left rest slowly — the dial only shifted timing slightly. Measured gap at 60ms: **0.098**. At
+the shipped amplitude (1.06 scale) that is invisible.
+
+Fixed by swinging the head control point across its full range — at 0 the curve leaves rest almost vertically
+(an instant leap), at 1 it crawls out flat (a long gentle ramp): `y1` now spans 0.70 → 0.01 and `x1` 0.02 →
+0.80. Re-measured gap at 60ms: **0.206** (2.1× stronger), and the trajectories now diverge obviously — softness
+0 is at 1.211 by 60ms and already falling by 300ms, softness 1 is still at 1.005 at 60ms and doesn't peak until
+~300ms. Default pop scale also raised 1.06 → 1.10 so the easing is legible at shipped values.
+
+Full suite (1538) + lint + build:web green.
+
+## 2026-07-23 (spell-buff pop — smoothing dials + the keyframe-var limitation)
+
+### fix(ui): the pop sprang on EVERY leg; split shake from smoothness
+
+Owner: still jarring. The cause was that ONE overshoot cubic-bezier was applied across the whole animation, so
+every leg of the wiggle sprang past its target — a shake, not a pop.
+
+Tried per-segment curves first (`animation-timing-function` inside each keyframe, driven by a var). **That does
+not work:** a keyframe's `animation-timing-function` does NOT accept `var()` — the browser drops the declaration
+(verified live: every keyframe reported `ease`). Documented in the CSS so nobody re-attempts it.
+
+So the smoothing is split two ways instead:
+- **One element-level curve, shaped by three dials** (`wiggleEaseCss`): `wiggleEase` owns the head (x1/y1, how
+  gently it leaves rest), `wiggleSettle` owns the tail (x2, how long it glides home), `wiggleOvershoot` owns
+  y2 past 1 (the spring). Element-level `var()` DOES resolve — verified `cubic-bezier(0.45, 0.1, 0.304, 1.12)`.
+- **Oscillation moved into keyframe GEOMETRY** via a new `--sb-wobble`, so shake and smoothness are independent.
+  At **wobble 0** the return stops collapse onto rest — verified: the transform mid-return is exactly
+  `matrix(1,0,0,1,0,0)`, i.e. one clean pop that glides home with no oscillation at all.
+
+Defaults softened too (deg 3.4 → 2.2, scale 1.09 → 1.06, ms 660 → 720, overshoot 0.28 → 0.12, wobble 0.3).
+Tuner is now 26 controls. Full suite (1538) + lint + build:web green.
+
+## 2026-07-23 (spell-buff FX — rise in PIXELS, launch/gravity + pop easing dials)
+
+### fix(ui): the spark rise was a % of the MOTE, not the card — plus speed/gravity/ease controls
+
+The real reason the sparks "weren't moving up fast enough": `--sb-rise` was a percentage fed to `translate`,
+and a percentage there resolves against the **element's own box** — a ~7px mote. So the previous 140–280% dial
+was buying ~10–20px of actual travel. Rise is now in **PIXELS** (default 80–170px), which is what the dial
+implied all along.
+
+New dials for the vertical movement the owner asked for:
+- **launch punch** (`sparkSpeed`, 0–1) — builds the climb's cubic-bezier (`sparkEaseCss`): 0 eases up evenly,
+  1 fires off hard and coasts.
+- **gravity px** (`sparkGravity`) — the mote climbs to its full rise by 72%, then SAGS back by this much, so the
+  burst can arc instead of hanging.
+
+And the pop is properly eased instead of snapping:
+- The 6-stop shake (14/30/48/66/84%) read as a jitter — replaced with a swing-out → softer swing-back → settle
+  (32/64/84%).
+- **pop softness** (`wiggleEase`, 0–1) and **pop spring** (`wiggleOvershoot`) build the wiggle's curve
+  (`wiggleEaseCss`), the overshoot riding the second control point past 1 so each leg sails slightly beyond its
+  target and settles — what turns an instant snap into a pop. Default `cubic-bezier(0.374, 0.104, 0.452, 1.28)`.
+
+Tuner is now 24 controls. Verified live: rise resolves to 159px, the wiggle runs the tuned bezier with
+`fill: none` (still decoupled from spark life), and all six new dials render with their defaults. Full suite
+(1538) + lint + build:web green.
+
+## 2026-07-23 (spell-buff FX — decouple the pop, speed up the rise)
+
+### fix(ui): the card pop was pinned to the spark life via the wiggle's fill-mode
+
+Owner report: "the pop is still tied to spark ms" — and it was, through a non-obvious path. The card carries its
+OWN inline `transform` (the hand fan's rotation/tuck), and `spellwiggle` ran with `both` fill. A forwards fill
+keeps applying the animation's final `transform: none` for as long as the class is on — and the class is held
+for `max(wiggleMs, sparkMs + stagger)`. So after the wiggle finished, the card stayed yanked out of its fan
+position for the rest of the burst, i.e. for the SPARK life. Dropping the fill ends the override exactly at
+`--sb-wiggle-ms`. Measured: the card's transform now restores at ~700ms (wiggle 660) instead of the 1180ms hold.
+
+Also: **the sparks climb properly now.** They ran on `ease-out`, which dumps most of the travel in the first
+~20% and then crawls — reading as "not moving." Swapped to a near-linear curve with only a light settle, and
+raised the default rise from 55–130% to 140–280% (dial headroom now 0–400 / 0–600). Same 900ms life, roughly
+double the distance.
+
+Full suite (1538) + lint + build:web green.
+
+## 2026-07-23 (Spell Buff FX tuner + Ruby green value)
+
+### feat(ui): a ✨ Spell Buff tuner, spark tails, and green Ruby values
+
+**Tuner.** The spell-buff cue now follows the house FX contract instead of hardcoded numbers: `spellBuffFxConfig.ts`
+(localStorage-backed, dev-only persistence, production renders the shipped DEFAULTS) + `SpellBuffFxTuner.tsx`
+registered in `DevMenu` as **✨ Spell Buff FX**. 17 controls — spark count / size range / spawn spread + band /
+rise range / drift / alpha / glow / tail / life / stagger, the three hues, and the card's wiggle°, pop scale and
+duration — with **Test** (fires the cue on every spell + Ruby in hand), **Copy values** and **Reset**. Because
+this cue is CSS rather than Pixi, `Card.tsx` reads the config at FIRE TIME to bake the per-mote jitter and
+pushes the timing/shape dials down as `--sb-*` custom properties, so an edit applies to the NEXT burst.
+
+**Visibility + tails (owner: "too hard to see").** Dropped `mix-blend-mode: screen` — the main culprit, it
+washed the motes out over bright card art — and gave each mote a white-hot core, a tunable glow halo, a tunable
+peak alpha, and a **tapering tail** that trails below it as it climbs (length = mote size × the tail dial, so
+bigger motes streak longer).
+
+**Independent timing.** The card pop and the spark life were already separate dials, but the class was held for
+a hardcoded 850ms, which silently CLIPPED any spark life longer than that. The hold now derives from
+`max(wiggleMs, sparkMs + stagger)`, so a snappy wiggle with a long slow rise works as intended.
+
+**Ruby green value.** A Ruby minted or grown above its printed 1/1 now shows its grant in green via the standard
+`{{…}}` modified-value marker — the same cue every other scaled number uses.
+
+Verified live: buffed Ruby renders a green `+4/+4` while a base Ruby stays plain; the tuner renders 17 controls
+and a slider change (count 5, wiggle 12°) applied to the very next burst; tails measured 23.6px with the hue
+gradient; the flash now holds 1282ms against a 900ms spark life (no clipping). Full suite (1538) + lint +
+build:web green.
+
+## 2026-07-23 (spell-buff cue — hand spells + Rubies react when they get stronger)
+
+### feat(ui): a wiggle + spark burst on hand spells whose value just went up
+
+When a spell buff lands, the affected cards in HAND now say so: a quick **wiggle + grow/shrink pop**, plus
+**pink / gold / purple sparks** that burst off the card and rise. Covers Rubies too (previously excluded from
+the green minion flash entirely, so a Ruby growing had no cue at all).
+
+**Detection** — a spell's stats never move (it's a 0/1 card); its printed VALUE is what changes. So the watcher
+diffs each hand card's rendered live text + stats per uid and fires on a change for `spell || ruby` cards. That
+catches every scaling source at once — spell power, Front to Back's escalation, the Ruby stat line, Rune of
+Pillaging's pouch — without enumerating them, and picks up future ones for free. Only cards already in hand can
+fire it, so drawing never flashes; minions keep the existing green buff flash.
+
+**Render** — `Card.spellBuffed` adds a `.spellbuff` class (`cardpop` + a new `spellwiggle`) and spawns 15
+`.sbspark` motes with fixed per-mote jitter (position / delay / size / rise / drift / hue), mirroring the
+`REBORN_WISPS` idiom. One-shot (~0.8s), transform/opacity only, so the burst composites rather than repainting.
+
+Verified live: buffing spell power with a Spirit Fire + Ruby + minion in hand flagged exactly the spell and the
+Ruby (`cardpop, spellwiggle`, 15 sparks each, hues pink/gold/purple) and left the minion untouched. Full suite
+(1538) + lint + build:web green.
 
 ## 2026-07-23 (Front to Back — improve each cast)
 

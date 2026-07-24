@@ -903,6 +903,14 @@ export function Recruit() {
      a buy ALSO conjures in the same tick lost its coalesce — Dupes, Gorr's Four Peat, the Drakko and
      Chronos quest rewards, the Spellslinging gold drip. */
   const buyPendingRef = useRef<{ uid: string; from: BuyFrom } | null>(null);
+  /* Set at a drag-drop that PLACES a minion on the board or REARRANGES one (board / hand / shop reorder).
+     The dragged card is excluded from the settle FLIP (it appears at its committed slot with no glide — see
+     `handFlipRef`'s `uid !== d.uid`), so it's ours to slide the last stretch home from where you released
+     it, using the same `buySlide` motion a buy uses but 30% faster (owner call 2026-07-24). Carries the
+     card's uid (kept across a play/reorder, unlike a buy which mints a new one), the row selector to find it
+     in, and the release box. Buy + sell are deliberately NOT set here: buy has its own slide, sell removes
+     the card. */
+  const placePendingRef = useRef<{ uid: string; sel: string; from: BuyFrom } | null>(null);
   // cardIds whose in-combat coalesce actually played, so the settle-side skip only suppresses a genuine
   // double-fire. On a SKIPPED replay nothing plays mid-fight, and a blanket skip left those grants with no
   // effect at all.
@@ -2213,6 +2221,17 @@ export function Recruit() {
       // row's live spots above and glides only the cards that actually shifted (the dragged card is excluded,
       // so it never re-slides; on a sell/buy the survivors already sat re-centred, so they barely move).
       if (acted && (handMinionDrop || boardReorderDrop || shopReorderDrop || sellDrop || buyDrop)) handPlaySnapRef.current = true;
+      // Slide the DRAGGED card the last stretch into its committed slot (the settle FLIP excludes it, so it
+      // would otherwise teleport). Same motion as a buy, 30% faster. Only place/reorder — a buy runs its own
+      // slide, a sell removes the card. The release box is the live `.dragcard` rect (its true visual spot,
+      // lag included), captured before `setDrag(null)` unmounts it below.
+      if (acted && (handMinionDrop || boardReorderDrop || shopReorderDrop) && flipZoneSel) {
+        const dc = document.querySelector<HTMLElement>('.dragcard');
+        const b = dc?.getBoundingClientRect();
+        if (b && b.width > 0) {
+          placePendingRef.current = { uid: d.uid, sel: flipZoneSel, from: { x: b.left, y: b.top, w: b.width, h: b.height } };
+        }
+      }
       if (acted || d.view.spell || d.view.ruby) {
         // a spell / Ruby that misses just ends — it was never lifted from the hand
         setDrag(null);
@@ -3027,6 +3046,18 @@ export function Recruit() {
             { x: delta },
             { x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition' },
           );
+        }
+        // The dragged card itself now sits at its committed slot (excluded from the FLIP above). Slide IT the
+        // last stretch from where you released it — same motion as a buy, 30% faster. WAAPI transform, so it
+        // doesn't fight the neighbours' GSAP x-tween. Runs here (not a separate effect) to guarantee it fires
+        // AFTER the card is at its final slot in this same commit.
+        const place = placePendingRef.current;
+        placePendingRef.current = null;
+        if (place) {
+          const card = document.querySelector<HTMLElement>(
+            place.sel.replace('[data-uid]', `[data-uid="${place.uid}"]`),
+          );
+          if (card) playBuySlide(place.from, card, 0.7);
         }
       } else if (flipCfg.commitMs > 0) {
         // A COMMITTED move with NO drag (a SELL / buy-back, a summoned token, an effect repositioning) — opt-in

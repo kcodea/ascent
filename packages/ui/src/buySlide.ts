@@ -1,10 +1,12 @@
 /**
- * BUY SLIDE — the shop → hand transition.
+ * CARD SLIDE — the "into the slot from where you released it" transition.
  *
- * The fourth and quietest of the card transitions. A bought card was already sitting in the tavern in front
- * of you, so it is ACQUIRED, not conjured: it gets no arcane dust (that is `plateCoalesce`, for cards that
- * appear from nowhere — owner ruling 2026-07-22). It simply slides into its hand slot from the point you
- * released it, very quickly.
+ * The quietest of the card transitions, and the most reused. Its first home was the shop → hand BUY (a
+ * bought card was already in front of you in the tavern — ACQUIRED, not conjured, so no arcane dust; that is
+ * `plateCoalesce`, for cards that appear from nowhere). The gild hands off to it, and it also drives PLACING
+ * a minion on the board and REARRANGING one — every case where a real card you were dragging lands in a slot
+ * and should glide the last stretch home rather than teleport (owner call 2026-07-24). Placement/rearrange
+ * run it 30% faster than a buy (see `durationScale`), since you already know exactly where it's going.
  *
  * Deliberately NOT tunable and not a canvas effect: it is a single compositor-only transform tween on the
  * real card element. No clone, no dust, no layout reads per frame.
@@ -33,12 +35,14 @@ const MS = 170;
 const EASE = 'cubic-bezier(.22,.9,.28,1)';
 
 /**
- * Slide a just-bought card from its release point into the hand slot it now occupies.
+ * Slide a real card from its release point into the slot it now occupies.
  *
- * @param from The floating drag card's box at the moment of release.
- * @param card The real card element, already laid out in its hand slot.
+ * @param from          The floating drag card's box at the moment of release.
+ * @param card          The real card element, already laid out in its committed slot.
+ * @param durationScale Multiplies the base length. 1 for a buy; placement/rearrange pass 0.7 (30% faster)
+ *                      because there's no "reveal" to read — you already saw the card, it's just seating.
  */
-export function playBuySlide(from: BuyFrom, card: HTMLElement): void {
+export function playBuySlide(from: BuyFrom, card: HTMLElement, durationScale = 1): void {
   const dest = card.getBoundingClientRect();
   if (dest.width <= 0 || from.w <= 0) return;
 
@@ -61,7 +65,7 @@ export function playBuySlide(from: BuyFrom, card: HTMLElement): void {
       { transform: `translate(${dx}px, ${dy}px) scale(${sc}) ${base}`.trim() },
       { transform: base || 'none' },
     ],
-    { duration: MS, easing: EASE },
+    { duration: Math.max(1, MS * durationScale), easing: EASE },
   );
   const done = (): void => {
     card.style.removeProperty('animation');

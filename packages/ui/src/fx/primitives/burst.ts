@@ -1,7 +1,8 @@
-import { Graphics, Particle, ParticleContainer, Rectangle, type Renderer, type Texture } from 'pixi.js';
+import { Graphics, Particle, ParticleContainer, Rectangle, Shader, type Renderer, type Texture } from 'pixi.js';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
-import { PALETTE_PRESETS, paletteTuple, tupleBiased } from '../palettes';
+import { PALETTE_PRESETS, paletteTuple } from '../palettes';
+import { createParticleMaterial, updateParticleMaterial, biasTint } from '../particleMaterial';
 import { registerPrimitive } from '../registry';
 
 /**
@@ -9,6 +10,13 @@ import { registerPrimitive } from '../registry';
  * fixed interval for the looping workbench preview. Built on `ParticleContainer`/`Particle` (NOT Sprites —
  * see the pixijs-scene-particle-container skill) since we may have hundreds of short-lived particles live
  * at once and a per-particle Sprite/Container would be far too heavy for that.
+ *
+ * Rendered with the shared posterized-cel particle shader (`particleMaterial.ts`) instead of the default
+ * particle shader, so shards read as hard-edged chunks of the ribbon's energy style rather than soft tinted
+ * dots — see that module's header comment for how the shader plumbs into `ParticleContainer`. Each shard's
+ * `tint` no longer carries a pre-resolved palette colour (that was `tupleBiased`); it now carries a
+ * greyscale "core bias" (`biasTint`) that the shader un-premultiplies and posterizes against the live
+ * `uPal`/`uBands` uniforms, so a palette or band edit repaints every live shard instantly.
  */
 
 /** The shard's long axis in local px at scale 1 — `size` maps onto this via `size / SHARD_LONG_AXIS`. */
@@ -92,6 +100,10 @@ const SPECS = {
     kind: 'slider', label: 'Core bias', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.5,
     help: '0 = rim colour, 1 = white core.',
   },
+  bands: {
+    kind: 'slider', label: 'Bands', group: 'Style', min: 1, max: 6, step: 1, default: 3,
+    help: 'posterization levels — 3-4 is the cel look, higher washes out',
+  },
   palette: {
     kind: 'palette', label: 'Palette', group: 'Style',
     default: paletteTuple('violet'), presets: PALETTE_PRESETS,
@@ -116,6 +128,7 @@ interface LiveParticle {
 class BurstInstance implements FxInstance<BurstParams> {
   private readonly pc: ParticleContainer;
   private readonly texture: Texture;
+  private readonly shader: Shader;
   private params: BurstParams;
   private readonly live: LiveParticle[] = [];
   private headX = 0;
@@ -130,8 +143,10 @@ class BurstInstance implements FxInstance<BurstParams> {
   constructor(ctx: FxContext, params: BurstParams) {
     this.params = params;
     this.texture = getShardTexture(ctx.renderer);
+    this.shader = createParticleMaterial(ctx.renderer, params.palette, params.bands);
     this.pc = new ParticleContainer({
       texture: this.texture,
+      shader: this.shader,
       boundsArea: new Rectangle(-2000, -2000, 4000, 4000),
       dynamicProperties: { position: true, rotation: true, color: true, vertex: true },
     });
@@ -168,7 +183,10 @@ class BurstInstance implements FxInstance<BurstParams> {
       const speed = p.speed * (1 + (Math.random() * 2 - 1) * p.speedVar);
       const size = Math.max(0.5, p.size * (1 + (Math.random() * 2 - 1) * p.sizeVar));
       const baseScale = size / SHARD_LONG_AXIS;
-      const tint = tupleBiased(p.palette, p.coreBias * Math.random());
+      // Greyscale core-bias tint (NOT a resolved palette colour — the shader posterizes into the live
+      // uPal/uBands uniforms per-pixel, see particleMaterial.ts). Same distribution as before: uniform in
+      // [0, coreBias], so `coreBias` still reads as "how deep toward the white core this burst reaches".
+      const tint = biasTint(p.coreBias * Math.random());
       const particle = new Particle({
         texture: this.texture,
         x: this.headX,
@@ -255,11 +273,25 @@ class BurstInstance implements FxInstance<BurstParams> {
   setParams(next: BurstParams): void {
     this.params = next;
     this.pc.blendMode = next.additive ? 'add' : 'normal';
+    updateParticleMaterial(this.shader, next.palette, next.bands);
   }
 
   destroy(): void {
-    // Only the ParticleContainer is ours to free — the shard texture is shared across every burst
-    // instance (cached per-renderer above) and must outlive any single instance's destroy().
+    // The ParticleContainer and our own shader are ours to free. The shard texture is shared across every
+    // burst instance (cached per-renderer above) and must outlive any single instance's destroy() — and it
+    // does: `ParticleContainer.destroy({ children: true })` only destroys the container/particle structs
+    // (`children: true` here means "also destroy the Particle instances", not the shared texture — see
+    // ParticleContainer.destroy()'s `destroyTexture` branch, which we never opt into), and `Shader.destroy`
+    // never touches its texture resources (only `resources`/`groups` refs and, with `true`, the compiled GL
+    // program) — verified by reading both destroy() implementations.
+    //
+    // Order matters: `ParticleContainer.destroy()` ALSO calls `this.shader?.destroy()` internally (with no
+    // args, i.e. destroyPrograms=false) since we handed it `shader: this.shader` in the constructor. Shader
+    // guards its own destroy with a `_destroyed` flag, so whichever destroy() call lands first "wins" — if
+    // `pc.destroy()` ran first, its no-arg call would set `_destroyed` and our own `destroy(true)` after it
+    // would silently no-op, leaking the compiled GL program. Destroying the shader ourselves FIRST (with
+    // `true`) makes the container's later internal call the no-op instead, which is the harmless direction.
+    this.shader.destroy(true);
     this.pc.destroy({ children: true });
   }
 }

@@ -1,7 +1,8 @@
-import { Graphics, Particle, ParticleContainer, Rectangle, type Renderer, type Texture } from 'pixi.js';
+import { Graphics, Particle, ParticleContainer, Rectangle, Shader, type Renderer, type Texture } from 'pixi.js';
 import type { FxParamSpecs, ParamsOf } from '../params';
 import type { FxContext, FxInstance, FxPrimitive } from '../primitive';
-import { PALETTE_PRESETS, paletteTuple, tupleBiased } from '../palettes';
+import { PALETTE_PRESETS, paletteTuple } from '../palettes';
+import { createParticleMaterial, updateParticleMaterial, biasTint } from '../particleMaterial';
 import { registerPrimitive } from '../registry';
 
 /**
@@ -10,6 +11,11 @@ import { registerPrimitive } from '../registry';
  * and fades them in-then-out over their lifetime. Used for ambient effects that need to keep running while
  * attached to a moving anchor (embers off a burning unit, sparks trailing a channel) rather than a single
  * one-shot pop.
+ *
+ * Rendered with the shared posterized-cel particle shader (`particleMaterial.ts`) instead of the default
+ * particle shader — see `burst.ts`'s header comment (which explains the same wiring) and
+ * `particleMaterial.ts` itself for how the shader plumbs into `ParticleContainer`. Motes' `tint` carries a
+ * greyscale core-bias (`biasTint`), not a resolved palette colour.
  */
 
 /**
@@ -61,6 +67,10 @@ const SPECS = {
   coreBias: {
     kind: 'slider', label: 'Core bias', group: 'Style', min: 0, max: 1, step: 0.01, default: 0.5,
     help: '0 = rim colour, 1 = white core.',
+  },
+  bands: {
+    kind: 'slider', label: 'Bands', group: 'Style', min: 1, max: 6, step: 1, default: 3,
+    help: 'posterization levels — 3-4 is the cel look, higher washes out',
   },
   fadeIn: {
     kind: 'slider', label: 'Fade in', group: 'Style', min: 0, max: 0.5, step: 0.01, default: 0.1,
@@ -121,6 +131,7 @@ interface Mote {
 class EmitterInstance implements FxInstance<EmitterParams> {
   private readonly particles: ParticleContainer;
   private readonly texture: Texture;
+  private readonly shader: Shader;
   private params: EmitterParams;
   private readonly motes: Mote[] = [];
   private originX = 0;
@@ -134,8 +145,10 @@ class EmitterInstance implements FxInstance<EmitterParams> {
   constructor(ctx: FxContext, params: EmitterParams) {
     this.params = params;
     this.texture = getMoteTexture(ctx.renderer);
+    this.shader = createParticleMaterial(ctx.renderer, params.palette, params.bands);
     this.particles = new ParticleContainer({
       texture: this.texture,
+      shader: this.shader,
       // Generous fixed bounds: motes drift, so a tight box would get them culled as they leave it. Matches
       // the ribbon/burst house convention of a large static boundsArea rather than per-frame recomputation.
       boundsArea: new Rectangle(-2000, -2000, 4000, 4000),
@@ -204,12 +217,20 @@ class EmitterInstance implements FxInstance<EmitterParams> {
   setParams(next: EmitterParams): void {
     this.params = next;
     this.particles.blendMode = next.additive ? 'add' : 'normal';
+    updateParticleMaterial(this.shader, next.palette, next.bands);
   }
 
   destroy(): void {
     // The dot texture is shared across every emitter instance (see `getMoteTexture`) — destroying it here
     // would break every other live/future emitter. Only the container (and the Particle structs it alone
-    // owns) belong to this instance.
+    // owns) and our own shader belong to this instance.
+    //
+    // Order matters — see burst.ts's `destroy()` for the full explanation: `ParticleContainer.destroy()`
+    // also calls `this.shader?.destroy()` internally (destroyPrograms=false) since we handed it our shader
+    // in the constructor, and Shader's destroy is a one-shot (`_destroyed` guard). Destroying the shader
+    // ourselves first (with `true`, so the compiled GL program is actually freed) makes the container's
+    // later internal call a harmless no-op instead of the reverse, which would leak the GL program.
+    this.shader.destroy(true);
     this.particles.destroy({ children: true });
   }
 
@@ -226,6 +247,8 @@ class EmitterInstance implements FxInstance<EmitterParams> {
     const sizeJitter = 1 + (Math.random() * 2 - 1) * p.sizeVar;
     const size = Math.max(0.5, p.size * sizeJitter);
     // Small per-mote core-bias jitter for organic variety in the tint, not just a flat colour per palette.
+    // As with burst.ts, this is now a greyscale bias signal for the shader to posterize — NOT a resolved
+    // palette colour (that was `tupleBiased`) — so a live palette/band edit repaints every live mote.
     const bias = Math.min(1, Math.max(0, p.coreBias + (rand - 0.5) * 0.12));
 
     const particle = new Particle({
@@ -234,7 +257,7 @@ class EmitterInstance implements FxInstance<EmitterParams> {
       y: this.originY,
       anchorX: 0.5,
       anchorY: 0.5,
-      tint: tupleBiased(p.palette, bias),
+      tint: biasTint(bias),
       alpha: 0,
     });
     const baseScale = size / MOTE_TEXTURE_RADIUS;

@@ -25,7 +25,8 @@ export type FxLayerState = 'pending' | 'active' | 'done';
 export interface FxLayerAt {
   layer: FxLayer;
   state: FxLayerState;
-  /** Milliseconds since this layer's own start. 0 while pending. */
+  /** Milliseconds since this layer's own start. 0 while pending; clamped to the layer's full life once done.
+   *  For done layers, this stays continuous with the active→done transition and answers "how far did this layer get". */
   localMs: number;
 }
 
@@ -34,7 +35,7 @@ export interface FxLayerAt {
 export function layerStateAt(def: FxDef, ms: number): FxLayerAt[] {
   const clock = Math.max(0, ms);
   return def.layers.map((layer) => {
-    const end = layer.at + (layer.life ?? def.duration - layer.at);
+    const end = Math.max(layer.at, layer.life !== undefined ? layer.at + layer.life : def.duration);
     if (clock < layer.at) return { layer, state: 'pending', localMs: 0 };
     if (clock >= end) return { layer, state: 'done', localMs: end - layer.at };
     return { layer, state: 'active', localMs: clock - layer.at };

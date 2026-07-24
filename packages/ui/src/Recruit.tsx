@@ -29,6 +29,7 @@ import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { playPlateDissolve } from './plateDissolve';
 import { playPlateCoalesce } from './plateCoalesce';
+import { playPlateGild, type Rect as GildRect } from './plateGild';
 import { fireBuffFx } from './buffFxRender';
 import { buffPreset, wavePalette } from './buffPresets';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
@@ -853,6 +854,14 @@ export function Recruit() {
   // effect below for what's deliberately excluded (buys, gilds, Refrain bounces).
   const prevHandUidsRef = useRef<Set<string>>(new Set(run.hand.map((c) => c.uid)));
   const prevTriplesRef = useRef<number>(run.triplesMade ?? 0);
+  /* Last-known screen rect of every hand / board / shop card, keyed by uid.
+     A gild consumes three cards and creates one, all in a single commit — by the time the UI can see it
+     happened, React has already unmounted the copies and their positions are gone for good. So the cache
+     always holds the PREVIOUS render's rects, and the gild watcher reads it before refreshing it.
+     Refresh is guarded: only when the visible uid set changes, or every 250ms, so this can't become a
+     layout read on every hover render. ~20 rects, recruit phase only. */
+  const cardRectsRef = useRef<Map<string, GildRect>>(new Map());
+  const rectStampRef = useRef<{ key: string; at: number }>({ key: '', at: 0 });
   // Set immediately before a `buy` dispatch: a bought card was already visible in the tavern, so it is
   // acquired rather than conjured and gets its own shop→hand transition instead (owner ruling 2026-07-22).
   const buyPendingRef = useRef(false);
@@ -1369,6 +1378,27 @@ export function Recruit() {
     // consumed exactly once — the flip effect is declared above this one, so it always populates first
     if (skip.size) coalesceSkipRef.current = new Set();
     prevHandUidsRef.current = new Set(run.hand.map((c) => c.uid));
+    /* ---- GILD: three become one ----------------------------------------------------------------
+       Fires on the same `triplesMade` tick the coalesce uses to EXCLUDE gilds, so the two can never both
+       claim a card. The consumed copies are already unmounted, hence `cardRectsRef` — it still holds last
+       render's rects, which is exactly the frame before they vanished. The new gilded card is normally in
+       hand, but lands on the BOARD when the hand is full, so both are searched. */
+    if (tripled && run.phase === 'recruit') {
+      const goldUid = [...run.hand, ...run.board]
+        .find((c) => c.golden && !prevHand.has(c.uid) && !prevBoard.has(c.uid))?.uid;
+      const gone = [...prevHand, ...prevBoard].filter(
+        (u) => !run.hand.some((c) => c.uid === u) && !run.board.some((c) => c.uid === u),
+      );
+      const el = goldUid
+        ? document.querySelector<HTMLElement>(`.row .card[data-uid="${goldUid}"]`)
+        : null;
+      if (el) {
+        const dest = (el.querySelector<HTMLElement>('.cardplate') ?? el).getBoundingClientRect();
+        const sources = gone.map((u) => cardRectsRef.current.get(u)).filter(Boolean) as GildRect[];
+        if (dest.width > 0) playPlateGild(sources, dest, el);
+      }
+    }
+
     // Nothing new, or the new card came from a route that isn't a generation.
     if (!fresh.length || tripled || bought) return;
     // Not during combat — the in-flight grant has its own beat (see below), and the hand row is showing
@@ -1381,6 +1411,27 @@ export function Recruit() {
       const r = (plate ?? card).getBoundingClientRect();
       if (r.width > 0) playPlateCoalesce(r, card);
     }
+  });
+
+  /* Refresh the gild rect cache. Declared AFTER the watcher above so that watcher always reads the previous
+     render's positions — the frame before the consumed copies vanished. Guarded on the uid set plus a 250ms
+     floor, so hover-driven re-renders don't turn this into a per-render layout read. */
+  useLayoutEffect(() => {
+    if (run.phase !== 'recruit') return;
+    const uids = [...run.hand, ...run.board, ...run.shop].map((c) => c.uid);
+    const key = uids.join('|');
+    const now = performance.now();
+    const stamp = rectStampRef.current;
+    if (key === stamp.key && now - stamp.at < 250) return;
+    rectStampRef.current = { key, at: now };
+    const next = new Map<string, GildRect>();
+    for (const el of document.querySelectorAll<HTMLElement>('.row .card[data-uid]')) {
+      const uid = el.dataset.uid;
+      if (!uid) continue;
+      const r = (el.querySelector<HTMLElement>('.cardplate') ?? el).getBoundingClientRect();
+      if (r.width > 0) next.set(uid, { left: r.left, top: r.top, width: r.width, height: r.height });
+    }
+    cardRectsRef.current = next;
   });
 
   /* In-combat grants (Deathrattle / Rally / Avenge / quest). The replay already flies a "To your hand" card

@@ -37,6 +37,7 @@ import { GlowTuner } from './GlowTuner';
 import { CardPlateTuner } from './CardPlateTuner';
 import { PlateDissolveTuner } from './PlateDissolveTuner';
 import { PlateCoalesceTuner } from './PlateCoalesceTuner';
+import { PlateGildTuner } from './PlateGildTuner';
 import { EndTurnTuner } from './EndTurnTuner';
 import { HeroPowerTuner } from './HeroPowerTuner';
 import { TavernUpTuner } from './TavernUpTuner';
@@ -61,6 +62,7 @@ const TUNERS = [
   { key: 'cardplate', label: '🂠 Card Plate', C: CardPlateTuner },
   { key: 'platedissolve', label: '🌀 Plate Dissolve', C: PlateDissolveTuner },
   { key: 'platecoalesce', label: '✨ Plate Coalesce', C: PlateCoalesceTuner },
+  { key: 'plategild', label: '👑 Plate Gild', C: PlateGildTuner },
   { key: 'sfx', label: '🎛️ Mixing Desk', C: SfxMixer },
   { key: 'lunge', label: '🗡️ Lunge', C: LungeTuner },
   { key: 'strikefx', label: '💥 Lunge Strike Effects', C: StrikeFxTuner },

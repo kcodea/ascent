@@ -144,16 +144,15 @@ const REF_W = 200;
 const DEF = {
   // Beat TOTALS (ms). The whole effect is their sum, less the crown's overlap. Everything inside a beat is a
   // SHARE of its total, so tightening one beat can never silently push another - or the effect - longer.
-  // Owner-dialed 2026-07-22; translated from the pre-restructure export (absolute sub-step ms), which
-  // reproduces that timeline to within a few ms end-to-end.
-  inMs: 220, fuseMs: 180, crownMs: 295, outMs: 640,
-  flyInEase: 1, flyStag: 0.08, centreScale: 1.5, cluster: 0.88, fanTilt: 15, scrim: 0.55,
-  holdFrac: 0.28, streamCount: 90, arc: -1.22, fuseSize: 0.5, trail: 0.37,
-  crownLead: 0.28, wireInFrac: 0.15, wireHoldFrac: 0.34, wireInten: 1.1, punch: 1.16,
+  // Owner-dialed 2026-07-22.
+  inMs: 260, fuseMs: 170, crownMs: 400, outMs: 210,
+  flyInEase: 0.65, flyStag: 0.08, centreScale: 1.5, cluster: 1.28, fanTilt: 5, scrim: 0.55,
+  holdFrac: 0, streamCount: 90, arc: -1.22, fuseSize: 0.5, trail: 0.37,
+  crownLead: 0.26, wireInFrac: 0.15, wireHoldFrac: 0.34, wireInten: 1.1, punch: 1.16,
   g1v: 88, g2v: 134, cardFlash: 1.6, burst: 0, burstSpd: 0,
-  flourishType: 'seal', flFrac: 0.58, flSize: 1.66, flInten: 1.16, flSpin: 150,
-  savourFrac: 0.4, flyOutEase: 2.2,
-  cDeep: '#a9700f', cMid: '#f1cb5e', cCore: '#fff6d5', grad: 0.8,
+  flourishType: 'seal', flFrac: 0.66, flSize: 1.66, flInten: 1.16, flSpin: 150,
+  savourFrac: 0, flyOutEase: 0.6,
+  cDeep: '#a9700f', cMid: '#f1cb5e', cCore: '#fff6d5', grad: 0.24,
   pw: 150,
 };
 let C = { ...DEF };

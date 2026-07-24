@@ -3,6 +3,50 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-22 (plate gild)
+
+### feat(ui): three become one — the gild is a run highlight now
+
+A triple had **no visual feedback at all**: three cards blinked out, one gold card popped in. It now plays
+the loudest of the three plate effects. The copies leave their slots, meet centre screen, merge into one,
+the survivor erupts gold — the plate wireframe in gold plus a flourish only gilding gets — and the gilded
+card flies home to its slot. ~936ms. Owner's shape: *fuse then crown*, wireframe family plus a signature,
+and the three **meet in the middle** rather than fusing in place. Authored on
+`fx/plate-gild-preview.html`.
+
+**The three cards you see are clones.** By the time the UI can detect a triple, the sim has spliced the
+consumed copies out and React has unmounted them — their DOM is gone and their positions are unrecoverable.
+So the flyers are clones of the surviving gilded card with `.golden` stripped, so they render as the plain
+minion they were; the survivor regains it at the crown, which makes the transformation something you watch
+rather than infer. `cloneNode` yields a BLANK canvas and sprite-art cards draw into one, so every canvas in
+a clone is repainted from its original — without that, those cards fly as empty frames.
+
+**Where the copies WERE needed a cache.** `cardRectsRef` holds the last-known rect of every hand / board /
+shop card by uid; the gild watcher reads it *before* refreshing it, so it always sees the frame before the
+copies vanished. The refresh is guarded on the visible uid set plus a 250ms floor and is recruit-phase only,
+so hover-driven re-renders can't turn it into a per-render layout read (~20 rects).
+
+**Timing is expressed as beats, not sub-steps.** Each of the four beats has ONE total and its internals are
+shares of it, so tightening a beat can never silently lengthen the effect — the rig's earlier eight
+independent ms sliders made hitting a duration target guesswork. `crownLead` overlaps the crown into the
+fuse and genuinely SHORTENS the run; a flourish longer than its beat extends it. Both are reflected in the
+derived total shown in the tuner header.
+
+Fires off the same `run.triplesMade` tick the coalesce uses to EXCLUDE gilds, so the two can never both
+claim a card. The gilded card is normally in hand but lands on the BOARD when the hand is full, so both are
+searched.
+
+The owner's dial: the **seal** flourish spinning at 150°/s, the crown burst switched off entirely, and the
+fuse reduced to 90 tiny motes on a strong reverse arc — a thin bright thread rather than a cloud. Palette
+deliberately avoids two neighbours the codebase map turned up: the sell **coins** (reads as money) and the
+Divine Shield aura gold (a persistent keyword state).
+
+New dev tuner **👑 Plate Gild** with a "Play here" button and the live total in its header.
+
+**Verified:** typecheck + lint + 1538 tests + `build:web` green. Timeline verified numerically against the
+rig. **Not verified in-game by me** — rAF doesn't fire in this environment's preview pane, so the motion is
+owner-eyeballed.
+
 ## 2026-07-22 (plate coalesce — cards being generated)
 
 ### feat(ui): a generated card materialises out of arcane dust

@@ -69,6 +69,9 @@ New contributor? See **[ONBOARDING.md](ONBOARDING.md)** (clone → install → v
 - **Djinni's Cadence now triggers your quest and rune End of Turns too.** It read "trigger all friendly End of
   Turn effects" but only ever fired the board half, skipping quest/rune rewards like Echoing Roar, The Hoard
   Wakes and Rune of Spending — and did nothing at all on an empty board.
+- **Gilding is a moment now.** Combining three copies used to be silent — they blinked out and a gold card
+  appeared. The three now fly to centre screen, merge into one, erupt gold with a spinning rune seal, and
+  the gilded card returns to your hand.
 - **Generated cards materialise out of arcane dust.** When a card comes from nowhere — a Deathrattle grant
   mid-combat, a Discover pick, a spell conjure, a quest reward — dust rushes in, forms the card plate's
   glowing wireframe, and resolves into the card. The mirror of the dissolve, sharing its palette.

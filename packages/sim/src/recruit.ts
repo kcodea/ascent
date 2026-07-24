@@ -2425,8 +2425,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Encore — cast on a friendly minion: re-trigger the abilities it can fire out of combat — its Shout
-   *  (Battlecry / onPlay) AND its Echo (Deathrattle / onDeath, without destroying it), a minion with both gets
-   *  both. Rally is a combat-only on-attack trigger, so Encore can't fire it in the shop (owner ruling pending). */
+   *  (Battlecry / onPlay) AND its Echo (Deathrattle / onDeath, without destroying it); a minion with both gets
+   *  both. Rally is deliberately NOT covered — it's a combat-only on-attack trigger, and Rallying Offensive
+   *  already exists to double Rally triggers, so an Encore-Rally would be redundant (owner ruling 2026-07-23). */
   spellEncore: (ctx, self) => {
     if (!self) return;
     const def = CARD_INDEX[self.cardId];

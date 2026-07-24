@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Plate coalesce — card generated</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#141416; color:#e6e6e6; font:13px/1.5 system-ui,sans-serif; display:flex; min-height:100vh; }
+  #stage { flex:1; display:flex; align-items:center; justify-content:center; position:relative;
+           background:radial-gradient(ellipse at 50% 45%, #4a3f33 0%, #2a2119 55%, #171310 100%); }
+  #hint { position:absolute; top:14px; left:0; right:0; text-align:center; color:#7d7d7d; font-size:12px; }
+  #rig { position:relative; }
+  #rig > * { position:absolute; left:50%; top:50%; translate:-50% -50%; }
+  /* the acquired card — plate art standing in for the finished card */
+  #card { display:block; opacity:0; will-change:opacity,transform; }
+  .imprint { opacity:0; will-change:opacity,transform;
+             -webkit-mask-size:100% 100%; mask-size:100% 100%;
+             -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat; }
+  #dust { pointer-events:none; }
+  #panel { width:340px; flex:none; background:#1b1b1f; border-left:1px solid #2f2f34; padding:14px 16px 40px;
+           overflow-y:auto; max-height:100vh; }
+  h1 { font-size:15px; margin:0 0 2px; }
+  .sub { color:#8f8f8f; font-size:11.5px; margin:0 0 14px; }
+  h2 { font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:#8a7a5a; margin:18px 0 7px;
+       border-bottom:1px solid #2f2f34; padding-bottom:4px; }
+  .row { display:flex; align-items:center; gap:8px; margin:5px 0; }
+  .row label { flex:0 0 120px; font-size:11.5px; color:#b9b9b9; }
+  .row input[type=range] { flex:1; min-width:0; }
+  .row input[type=color] { width:34px; height:20px; padding:0; border:1px solid #3a3a40; background:none; }
+  .row .val { flex:0 0 46px; text-align:right; font-variant-numeric:tabular-nums; color:#e8d7ae; font-size:11.5px; }
+  .btns { display:flex; gap:8px; margin-top:16px; }
+  button { flex:1; padding:8px 10px; border-radius:7px; border:1px solid #3a3a40; background:#26262b;
+           color:#e6e6e6; font:inherit; cursor:pointer; }
+  button:hover { border-color:#6b5730; }
+  #out { width:100%; height:150px; margin-top:10px; background:#101013; color:#9fd0a0; border:1px solid #2f2f34;
+         border-radius:6px; font:11px/1.45 ui-monospace,monospace; padding:8px; }
+  .note { margin-top:10px; padding:8px 10px; border-left:3px solid #6b5730; background:#202024;
+          color:#a5a5a5; font-size:11px; }
+</style></head><body>
+
+<div id="stage">
+  <div id="hint">click the stage (or SPACE) to replay · a card being GENERATED</div>
+  <div id="rig">
+    <canvas id="dust"></canvas>
+    <div class="imprint" id="imprint"></div>
+    <img id="card" alt="">
+  </div>
+</div>
+
+<div id="panel">
+  <h1>Plate coalesce</h1>
+  <p class="sub">The reverse of the dissolve: arcane dust rushes in, forms the plate <b>wireframe</b>, then
+  resolves into the acquired card.</p>
+
+  <h2>Timing</h2>
+  <div class="row"><label title="Whole effect, ms.">total</label><input type="range" id="total" min="120" max="2000" step="10"><span class="val" id="v_total"></span></div>
+  <div class="row"><label title="How long the dust takes to rush in and land on the shape.">gather</label><input type="range" id="gatherMs" min="40" max="1200" step="10"><span class="val" id="v_gatherMs"></span></div>
+  <div class="row"><label title="Wireframe fade-IN (ms). It builds as the dust arrives.">wire in</label><input type="range" id="wireIn" min="0" max="600" step="5"><span class="val" id="v_wireIn"></span></div>
+  <div class="row"><label title="How long the finished wireframe holds before resolving into the card.">hold</label><input type="range" id="holdMs" min="0" max="800" step="5"><span class="val" id="v_holdMs"></span></div>
+  <div class="row"><label title="Crossfade from wireframe to the real card (ms).">card in</label><input type="range" id="cardIn" min="20" max="900" step="5"><span class="val" id="v_cardIn"></span></div>
+
+  <h2>The rush in</h2>
+  <div class="row"><label title="How far out the motes start, as a fraction of the plate size.">start dist</label><input type="range" id="dist" min="0.1" max="3" step="0.02"><span class="val" id="v_dist"></span></div>
+  <div class="row"><label title="Randomness in start distance.">dist var</label><input type="range" id="distVar" min="0" max="1" step="0.02"><span class="val" id="v_distVar"></span></div>
+  <div class="row"><label title="Sideways curl on the way in — 0 = straight lines, higher = they spiral home.">swirl</label><input type="range" id="swirl" min="0" max="2" step="0.02"><span class="val" id="v_swirl"></span></div>
+  <div class="row"><label title="Easing on the approach. 1 = linear. Higher = they slam in late (fast, then settle).">ease</label><input type="range" id="ease" min="0.4" max="4" step="0.05"><span class="val" id="v_ease"></span></div>
+  <div class="row"><label title="Spread in arrival times — 0 = all land together, higher = a rolling arrival.">arrive spread</label><input type="range" id="stag" min="0" max="0.9" step="0.02"><span class="val" id="v_stag"></span></div>
+  <div class="row"><label title="How long a mote lingers after landing before it winks out, as a fraction of gather.">linger</label><input type="range" id="linger" min="0" max="1.5" step="0.02"><span class="val" id="v_linger"></span></div>
+
+  <h2>Dust</h2>
+  <div class="row"><label>count</label><input type="range" id="count" min="0" max="1600" step="10"><span class="val" id="v_count"></span></div>
+  <div class="row"><label title="0 = land anywhere on the plate. 1 = land only on the wireframe LINES.">onto lines</label><input type="range" id="onLines" min="0" max="1" step="0.02"><span class="val" id="v_onLines"></span></div>
+  <div class="row"><label>size</label><input type="range" id="size" min="0.5" max="8" step="0.1"><span class="val" id="v_size"></span></div>
+  <div class="row"><label>size var</label><input type="range" id="sizeVar" min="0" max="1" step="0.02"><span class="val" id="v_sizeVar"></span></div>
+  <div class="row"><label>trail</label><input type="range" id="trail" min="0" max="0.95" step="0.01"><span class="val" id="v_trail"></span></div>
+
+  <h2>Look</h2>
+  <div class="row"><label title="How much the wireframe shrinks IN as it forms (>1 = it contracts from bigger).">gather scale</label><input type="range" id="puff" min="1" max="1.4" step="0.005"><span class="val" id="v_puff"></span></div>
+  <div class="row"><label>intensity</label><input type="range" id="inten" min="0" max="2.5" step="0.02"><span class="val" id="v_inten"></span></div>
+  <div class="row"><label>glow near</label><input type="range" id="g1" min="0" max="120" step="1"><span class="val" id="v_g1"></span></div>
+  <div class="row"><label>glow far</label><input type="range" id="g2" min="0" max="260" step="2"><span class="val" id="v_g2"></span></div>
+  <div class="row"><label>deep</label><input type="color" id="cDeep"><span class="val" id="v_cDeep"></span></div>
+  <div class="row"><label>mid</label><input type="color" id="cMid"><span class="val" id="v_cMid"></span></div>
+  <div class="row"><label>core</label><input type="color" id="cCore"><span class="val" id="v_cCore"></span></div>
+  <div class="row"><label>gradient</label><input type="range" id="grad" min="0" max="1" step="0.02"><span class="val" id="v_grad"></span></div>
+
+  <h2>Stage</h2>
+  <div class="row"><label>plate width</label><input type="range" id="pw" min="120" max="520" step="4"><span class="val" id="v_pw"></span></div>
+  <div class="row"><label>auto-loop</label><input type="checkbox" id="loop" checked><span class="val"></span></div>
+
+  <div class="btns">
+    <button id="play">Play</button>
+    <button id="copy">Copy values</button>
+    <button id="reset">Reset</button>
+  </div>
+  <textarea id="out" readonly></textarea>
+  <div class="note">Palette + wireframe are shared with the dissolve, so a card arriving and a card leaving
+  read as the same magic. The linework itself isn't tunable here — it's baked
+  (<code>npm run wire:plate</code>).</div>
+</div>
+
+<script>
+const WIRE_SRC = '../frames/cardplate-wire.webp';
+const PLATE_SRC = '../frames/cardplate.webp';
+const PLATE_AR = 1244 / 800;
+const REF_W = 240;
+
+/* Defaults start from the DISSOLVE's shipped palette/feel, reversed — so the two read as one system. */
+const DEF = {
+  total: 460, gatherMs: 410, wireIn: 90, holdMs: 45, cardIn: 185,
+  dist: 0.82, distVar: 0.88, swirl: 1.24, ease: 0.4, stag: 0.14, linger: 0.18,
+  count: 390, onLines: 1, size: 3.1, sizeVar: 0.7, trail: 0.14,
+  puff: 1.28, inten: 1.04, g1: 94, g2: 0,
+  cDeep: '#75d6ff', cMid: '#b3e2ff', cCore: '#c7e9ff', grad: 0.64,
+  pw: 240,
+};
+let C = { ...DEF };
+const $ = id => document.getElementById(id);
+const KEYS = Object.keys(DEF);
+const cardEl = $('card'), imprintEl = $('imprint'), cv = $('dust'), ctx = cv.getContext('2d');
+
+/* ---------- spawn targets: where motes LAND ---------- */
+let LINE_PTS = [], BODY_PTS = [];
+function samplePts(src, into) {
+  const img = new Image();
+  img.onload = () => {
+    const w = 120, h = Math.round(w * PLATE_AR);
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0, w, h);
+    const d = g.getImageData(0, 0, w, h).data;
+    const pts = [];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++)
+      if (d[(y*w+x)*4+3] > 60) pts.push({ u: x/w, v: y/h });
+    into(pts);
+  };
+  img.src = src;
+}
+samplePts(WIRE_SRC, p => { LINE_PTS = p; });
+samplePts(PLATE_SRC, p => { BODY_PTS = p; });
+
+/* ---------- sprites ---------- */
+function sprite(color, r) {
+  const s = Math.ceil(r*2), c = document.createElement('canvas');
+  c.width = c.height = s;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(r, r, 0, r, r, r);
+  grd.addColorStop(0, color); grd.addColorStop(0.4, color); grd.addColorStop(1, 'transparent');
+  g.fillStyle = grd; g.beginPath(); g.arc(r, r, r, 0, Math.PI*2); g.fill();
+  return c;
+}
+let SPR_CORE, SPR_MID;
+const bake = () => { SPR_CORE = sprite(C.cCore, 32); SPR_MID = sprite(C.cMid, 32); };
+const rgba = (hex, a) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n>>16)&255}, ${(n>>8)&255}, ${n&255}, ${a})`;
+};
+
+function layout() {
+  const w = C.pw, h = Math.round(w * PLATE_AR);
+  for (const el of [cardEl, imprintEl]) { el.style.width = w+'px'; el.style.height = h+'px'; }
+  const pad = 2.6;                      // roomier than the dissolve: motes START outside the plate
+  cv.width = Math.round(w*pad); cv.height = Math.round(h*pad);
+  cv.style.width = cv.width+'px'; cv.style.height = cv.height+'px';
+  $('rig').style.width = w+'px'; $('rig').style.height = h+'px';
+  paintLook();
+}
+function paintLook() {
+  const g = C.grad;
+  const deep = g > 0 ? C.cDeep : C.cMid, core = g > 0 ? C.cCore : C.cMid;
+  const p1 = 50 - 31*g, p3 = 50 + 31*g;
+  imprintEl.style.background =
+    `linear-gradient(90deg, ${deep} 0%, ${C.cMid} ${p1}%, ${core} 50%, ${C.cMid} ${p3}%, ${deep} 100%)`;
+  imprintEl.style.webkitMaskImage = `url(${WIRE_SRC})`;
+  imprintEl.style.maskImage = `url(${WIRE_SRC})`;
+  const k = C.pw / REF_W;
+  imprintEl.style.filter =
+    `drop-shadow(0 0 ${C.g1*k}px ${rgba(C.cMid,0.85)}) drop-shadow(0 0 ${C.g2*k}px ${rgba(C.cDeep,1)})`;
+}
+
+/* ---------- the run ---------- */
+let parts = [], t0 = 0, running = false, raf = 0;
+function spawn() {
+  parts = [];
+  const w = C.pw, h = w*PLATE_AR, k = w/REF_W;
+  const cx = cv.width/2, cy = cv.height/2;
+  for (let i = 0; i < C.count; i++) {
+    const src = (LINE_PTS.length && Math.random() < C.onLines) ? LINE_PTS : BODY_PTS;
+    if (!src.length) break;
+    const p = src[(Math.random()*src.length)|0];
+    // WHERE IT LANDS — a point on the wireframe (or plate body)
+    const tx = cx + (p.u - 0.5)*w, ty = cy + (p.v - 0.5)*h;
+    // WHERE IT STARTS — pushed outward from centre along its own angle, so the cloud implodes inward
+    let dx = tx - cx, dy = ty - cy;
+    const m = Math.hypot(dx, dy) || 1; dx /= m; dy /= m;
+    const d = w * C.dist * (1 + (Math.random()-0.5)*2*C.distVar);
+    parts.push({
+      tx, ty,
+      sx: tx + dx*d, sy: ty + dy*d,
+      // a tangential offset at the start = a curl on the way in
+      swirl: (Math.random()-0.5) * C.swirl * w * 0.5,
+      nx: -dy, ny: dx,                                   // unit normal, for the curl
+      born: Math.random() * C.stag,
+      r: C.size * k * (1 + (Math.random()-0.5)*2*C.sizeVar),
+    });
+  }
+}
+function frame(now) {
+  if (!running) return;
+  const ms = now - t0;
+
+  // --- dust rushes in ---
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = `rgba(0,0,0,${1 - C.trail})`;
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.globalCompositeOperation = 'lighter';
+  for (const p of parts) {
+    const span = Math.max(1, C.gatherMs * (1 - C.stag));
+    const t = (ms - p.born * C.gatherMs) / span;         // 0 → 1 as it flies home
+    if (t < 0) continue;
+    if (t > 1 + C.linger) continue;
+    const e = Math.min(1, t);
+    const a = 1 - Math.pow(1 - e, C.ease);               // ease-out: fast, then settle onto the shape
+    const curl = Math.sin(e * Math.PI) * p.swirl;        // peaks mid-flight, zero on arrival
+    const x = p.sx + (p.tx - p.sx)*a + p.nx*curl;
+    const y = p.sy + (p.ty - p.sy)*a + p.ny*curl;
+    // fade in as it approaches; after landing, wink out over `linger`
+    const alpha = t <= 1 ? Math.min(1, e*2.2) : Math.max(0, 1 - (t-1)/Math.max(0.01, C.linger));
+    const rr = p.r * (0.7 + 0.3*e);
+    if (rr > 0 && alpha > 0) {
+      ctx.globalAlpha = Math.min(1, alpha*0.9);
+      ctx.drawImage(SPR_CORE, x-rr, y-rr, rr*2, rr*2);
+      const r2 = rr*1.7;
+      ctx.globalAlpha = Math.min(1, alpha*0.5);
+      ctx.drawImage(SPR_MID, x-r2, y-r2, r2*2, r2*2);
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // --- wireframe builds as the dust lands, holds, then resolves into the card ---
+  const wireA = Math.min(1, Math.max(0, (ms - (C.gatherMs - C.wireIn)) / Math.max(1, C.wireIn)));
+  const cardStart = C.gatherMs + C.holdMs;
+  const cardA = Math.min(1, Math.max(0, (ms - cardStart) / Math.max(1, C.cardIn)));
+  imprintEl.style.opacity = String(wireA * (1 - cardA) * C.inten);
+  // contracts INWARD as it forms — the mirror of the dissolve's outward puff
+  imprintEl.style.transform = `scale(${1 + (C.puff - 1) * (1 - wireA)})`;
+  cardEl.style.opacity = String(cardA);
+  cardEl.style.transform = `scale(${0.97 + 0.03*cardA})`;
+
+  if (ms >= C.total + 200) {
+    running = false;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    if ($('loop').checked) setTimeout(play, 520); else reset0();
+    return;
+  }
+  raf = requestAnimationFrame(frame);
+}
+function reset0() {
+  imprintEl.style.opacity = '0'; cardEl.style.opacity = '0';
+  ctx.clearRect(0,0,cv.width,cv.height);
+}
+function play() {
+  cancelAnimationFrame(raf);
+  ctx.clearRect(0,0,cv.width,cv.height);
+  bake(); spawn();
+  t0 = performance.now(); running = true;
+  raf = requestAnimationFrame(frame);
+}
+
+/* ---------- panel ---------- */
+function syncUI() {
+  for (const k of KEYS) { const el = $(k); if (!el) continue; el.value = C[k]; $('v_'+k).textContent = C[k]; }
+  $('out').value = JSON.stringify(C, null, 2);
+}
+for (const k of KEYS) {
+  const el = $(k); if (!el) continue;
+  el.addEventListener('input', () => {
+    C[k] = el.type === 'color' ? el.value : parseFloat(el.value);
+    $('v_'+k).textContent = C[k];
+    $('out').value = JSON.stringify(C, null, 2);
+    if (k === 'pw') layout(); else paintLook();
+    if (k === 'cCore' || k === 'cMid') bake();
+  });
+}
+$('play').onclick = play;
+$('reset').onclick = () => { C = {...DEF}; syncUI(); layout(); bake(); play(); };
+$('copy').onclick = () => { $('out').select(); navigator.clipboard?.writeText($('out').value); };
+$('stage').onclick = play;
+addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); play(); } });
+
+cardEl.src = PLATE_SRC;
+cardEl.onload = () => { layout(); bake(); syncUI(); play(); };
+</script>
+</body></html>

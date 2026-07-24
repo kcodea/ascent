@@ -2100,12 +2100,6 @@ body.modalup .statusbar .questbadges {
 
 /* A card a combat Deathrattle just handed you (Arcane Weaver → Spirit Fire) — a one-shot accent
    glow as it lands in the hand. No transform (the hand fan owns the card's transform). */
-.card.arrived { animation: cardarrive 1s ease both; z-index: 46; }
-@keyframes cardarrive {
-  0% { box-shadow: 0 0 0 5px var(--acc), 0 0 42px 13px color-mix(in srgb, var(--acc) 85%, transparent); filter: brightness(1.4) saturate(1.1); }
-  35% { box-shadow: 0 0 0 4px var(--acc), 0 0 32px 9px color-mix(in srgb, var(--acc) 72%, transparent); }
-  100% { box-shadow: 0 0 0 0 transparent; filter: none; }
-}
 
 /* spell spark — a one-shot accent-coloured burst where a cast spell resolves */
 .spellspark { position: fixed; width: 0; height: 0; z-index: 120; pointer-events: none; }

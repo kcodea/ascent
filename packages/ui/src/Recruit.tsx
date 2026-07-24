@@ -28,6 +28,7 @@ import { waveGapFor, coalesceWaves, coalesceBuffFxByTarget, getBuffFxConfig } fr
 import { getAimFxConfig } from './aimFxConfig';
 import { getInfuseFxConfig } from './infuseFxConfig';
 import { playPlateDissolve } from './plateDissolve';
+import { playPlateCoalesce } from './plateCoalesce';
 import { fireBuffFx } from './buffFxRender';
 import { buffPreset, wavePalette } from './buffPresets';
 import { PULSE_PRESETS, pulsePreset } from './pulsePresets';
@@ -841,11 +842,20 @@ export function Recruit() {
   const [endTurnFlash, setEndTurnFlash] = useState(false);
   // Cards a combat Deathrattle just added to the hand (Arcane Weaver → Spirit Fire) — pop them
   // in when they arrive. Snapshot the hand on entering combat; the new uids afterwards are grants.
-  const [arrivedUids, setArrivedUids] = useState<Set<string>>(new Set());
   const handBeforeCombatRef = useRef<Set<string>>(new Set());
+  // Cards the COMBAT granted, which already materialised mid-fight (see the handGrant watcher) and so must
+  // not coalesce a second time as they settle into hand. Populated at the combat→recruit flip.
+  const coalesceSkipRef = useRef<Set<string>>(new Set());
   // A one-shot flourish under a freshly-played minion whose Battlecry just fired.
   const [battlecryUids, setBattlecryUids] = useState<Set<string>>(new Set());
   const prevBoardUidsRef = useRef<Set<string>>(new Set(run.board.map((c) => c.uid)));
+  // COALESCE watcher state. A card that appears in hand from nowhere gets the arcane materialise; see the
+  // effect below for what's deliberately excluded (buys, gilds, Refrain bounces).
+  const prevHandUidsRef = useRef<Set<string>>(new Set(run.hand.map((c) => c.uid)));
+  const prevTriplesRef = useRef<number>(run.triplesMade ?? 0);
+  // Set immediately before a `buy` dispatch: a bought card was already visible in the tavern, so it is
+  // acquired rather than conjured and gets its own shop→hand transition instead (owner ruling 2026-07-22).
+  const buyPendingRef = useRef(false);
   // The same flourish under minions whose End-of-Turn effect just procced (as the turn ends).
   const [eotProcUids, setEotProcUids] = useState<Set<string>>(new Set());
   // Subset of eotProcUids whose effect OFFICIALLY fired this beat (cadence paid off / non-cadence EOT) —
@@ -1309,21 +1319,85 @@ export function Recruit() {
       const snap = new Map<string, { a: number; h: number }>();
       for (const c of [...run.board, ...run.hand]) snap.set(c.uid, { a: c.attack, h: c.health });
       prevStatsRef.current = snap;
+      // The gold `cardarrive` flash used to fire here for everything that appeared across the combat.
+      // Retired 2026-07-22: the coalesce is the arrival announcement now, and a combat-granted card was
+      // getting BOTH — materialising mid-fight, then flashing gold again on the way back to the shop.
+      //
+      // What survives is the discrimination that flash was doing for free. Cards granted BY THE COMBAT
+      // already had their moment on the flying "To your hand" card, so they must not coalesce again as they
+      // settle. Everything ELSE that lands in this same window — start-of-turn conjures, the Chaos token,
+      // delayed quest repeats — never had one, so it still coalesces. `lastCombat.playerHandGrants` is a
+      // cardId list, so match is consumed one-per-card to stay correct when the same card is granted twice.
       const before = handBeforeCombatRef.current;
-      const granted = run.hand.filter((c) => !before.has(c.uid)).map((c) => c.uid);
-      if (granted.length > 0) {
-        setArrivedUids((s) => new Set([...s, ...granted]));
-        window.setTimeout(() => {
-          setArrivedUids((s) => {
-            const n = new Set(s);
-            for (const u of granted) n.delete(u);
-            return n;
-          });
-        }, 1100);
+      const pending = [...(run.lastCombat?.playerHandGrants ?? [])];
+      const skip = new Set<string>();
+      for (const c of run.hand) {
+        if (before.has(c.uid)) continue;
+        const i = pending.indexOf(c.cardId);
+        if (i >= 0) { pending.splice(i, 1); skip.add(c.uid); }
       }
+      coalesceSkipRef.current = skip;
     }
     prevPhaseRef.current = run.phase;
   }, [run.phase]);
+
+  /* ---------------------------------------------------------------- ARCANE COALESCE (card generated)
+     A card that appears in hand FROM NOWHERE materialises out of arcane dust. Watching the hand's uid set
+     per render is what makes this universal: there are 25 `hand.push` sites across the sim, and hooking each
+     would guarantee we miss some. One diff catches them all, then we subtract the things that aren't
+     generations:
+
+       - BUYS. Flagged at the dispatch (`buyPendingRef`). A bought card was already visible in the tavern —
+         acquired, not conjured — and gets its own shop→hand transition instead (owner ruling 2026-07-22).
+       - GILDS / triples. Detected by `run.triplesMade` ticking in the same commit. NB `card.golden` is NOT
+         a valid test: a gilded Discover pick and quest `grantGolden` rewards both arrive golden and ARE
+         generations, so filtering on it would wrongly suppress them.
+       - REFRAIN BOUNCES, where a played minion returns to hand. The uid was on the BOARD last render, so
+         it's a return rather than something new.
+
+     Combat grants are handled by the separate watcher below — they materialise at the moment the effect
+     procs, mid-fight, not when they settle into hand afterwards (owner ruling 2026-07-22). */
+  useLayoutEffect(() => {
+    const prevHand = prevHandUidsRef.current;
+    const prevBoard = prevBoardUidsRef.current;
+    const tripled = (run.triplesMade ?? 0) > prevTriplesRef.current;
+    const bought = buyPendingRef.current;
+    prevTriplesRef.current = run.triplesMade ?? 0;
+    buyPendingRef.current = false;
+    const skip = coalesceSkipRef.current;
+    const fresh = run.hand.filter((c) => !prevHand.has(c.uid) && !prevBoard.has(c.uid) && !skip.has(c.uid));
+    // consumed exactly once — the flip effect is declared above this one, so it always populates first
+    if (skip.size) coalesceSkipRef.current = new Set();
+    prevHandUidsRef.current = new Set(run.hand.map((c) => c.uid));
+    // Nothing new, or the new card came from a route that isn't a generation.
+    if (!fresh.length || tripled || bought) return;
+    // Not during combat — the in-flight grant has its own beat (see below), and the hand row is showing
+    // view-only placeholders at that point anyway.
+    if (run.phase !== 'recruit') return;
+    for (const c of fresh) {
+      const card = document.querySelector<HTMLElement>(`[data-zone="hand"] .card[data-uid="${c.uid}"]`);
+      if (!card) continue;
+      const plate = card.querySelector<HTMLElement>('.cardplate');
+      const r = (plate ?? card).getBoundingClientRect();
+      if (r.width > 0) playPlateCoalesce(r, card);
+    }
+  });
+
+  /* In-combat grants (Deathrattle / Rally / Avenge / quest). The replay already flies a "To your hand" card
+     at the beat the effect procs; we materialise THAT card out of dust rather than announcing it a second
+     time when it settles into hand after the fight. Keyed on `handGrant.key`, which the replay bumps per
+     grant, so repeat grants of the same card still each get their moment. */
+  const grantFxKeyRef = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const g = replay.handGrant;
+    if (!g || grantFxKeyRef.current === g.key) return;
+    grantFxKeyRef.current = g.key;
+    const el = document.querySelector<HTMLElement>('.handgrant .card');
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (r.width > 0) playPlateCoalesce(r, el);
+  }, [replay.handGrant]);
+
   const flipStateRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
   // Hand reorder (drag a hand card sideways): the GSAP Flip state captured at drop, glided by a dedicated
   // layout effect. Separate from the warband/shop FLIP above — the hand's translateY tuck breaks the manual
@@ -3174,6 +3248,7 @@ export function Recruit() {
     // Insertion uses the dragged card's centre (not the raw drop pointer), matching the live preview.
     const cx = x - d.ox + d.w / 2;
     if (d.source === 'shop' && zone === 'hand') {
+      buyPendingRef.current = true; // not a generation — see the coalesce watcher
       dispatch({ type: 'buy', uid: d.uid });
       return true;
     }
@@ -3599,7 +3674,6 @@ export function Recruit() {
                 dimmed={isDragging(m.uid)}
                 buffed={!handViews.get(m.uid)?.ruby && buffedUids.has(m.uid)}
                 buffFloat={handViews.get(m.uid)?.ruby ? null : (statFloats[m.uid] ?? null)}
-                arrived={arrivedUids.has(m.uid)}
                 handSlidePx={handSlide(i) * handSlotWRef.current}
                 fanRot={fanRot}
                 onPointerDown={onCardPointerDown}

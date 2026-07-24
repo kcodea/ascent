@@ -21,11 +21,7 @@
  * phase must not hitch the first time a card is played.
  */
 
-const WIRE_SRC = `${import.meta.env.BASE_URL}frames/cardplate-wire.webp`;
-const PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate.webp`;
-/** Plate width the px-quantities below were dialed against (the rig's stage). Speeds/sizes scale by
- *  (actual / REF_W) so the effect holds its proportions at any board scale. */
-const REF_W = 240;
+import { WIRE_SRC, REF_W, linePoints, bodyPoints, sprite, rgba, arcaneGradient } from './plateFx';
 
 export interface PlateDissolveConfig {
   /** Whole effect, ms — start to nothing left. Governs how long the DUST lives. */
@@ -136,74 +132,8 @@ export function resetPlateDissolveConfig(): void {
   try { localStorage.removeItem(KEY); } catch { /* ignore */ }
 }
 
-/* ------------------------------------------------------------------ spawn points */
-type Pt = { u: number; v: number };
-let LINE_PTS: Pt[] | null = null;
-let BODY_PTS: Pt[] | null = null;
-let sampling = false;
-
-/** Sample both masks ONCE per session into normalised spawn points. Small grid (110px wide), so this is a
- *  couple of ms and never repeats; the effect runs without it (dust simply skipped) until it resolves. */
-function ensurePoints(): void {
-  if (LINE_PTS || sampling || typeof document === 'undefined') return;
-  sampling = true;
-  const grab = (src: string, cb: (pts: Pt[]) => void): void => {
-    const img = new Image();
-    img.onload = () => {
-      const w = 110, h = Math.round(w * (img.naturalHeight / img.naturalWidth));
-      const c = document.createElement('canvas'); c.width = w; c.height = h;
-      const g = c.getContext('2d');
-      if (!g) { cb([]); return; }
-      g.drawImage(img, 0, 0, w, h);
-      const d = g.getImageData(0, 0, w, h).data;
-      const pts: Pt[] = [];
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-        if (d[(y * w + x) * 4 + 3] > 60) pts.push({ u: x / w, v: y / h });
-      }
-      cb(pts);
-    };
-    img.onerror = () => cb([]);
-    img.src = src;
-  };
-  grab(WIRE_SRC, (p) => { LINE_PTS = p; });
-  grab(PLATE_SRC, (p) => { BODY_PTS = p; });
-}
-
-/**
- * Warm on load, NOT on first use.
- *
- * This sampling used to be kicked off inside `playPlateDissolve` — i.e. at the exact moment its results were
- * already needed. The first card played in a run therefore got neither: the mote loop found no spawn points,
- * and `cardplate-wire.webp` was still uncached so the CSS mask hadn't resolved either. Every play after that
- * found both warm, which is precisely the "only the very first one doesn't play" symptom (owner report
- * 2026-07-22).
- *
- * Scheduled on idle so it stays off the boot critical path: one 42 KB fetch (the plate art itself is already
- * loaded by every hand card) plus a couple of ms of sampling on a 110px grid.
- */
-if (typeof window !== 'undefined') {
-  const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback;
-  if (ric) ric(() => ensurePoints());
-  else window.setTimeout(() => ensurePoints(), 400);
-}
-
-/* ------------------------------------------------------------------ sprites */
-let sprites: { core: HTMLCanvasElement; mid: HTMLCanvasElement } | null = null;
-function sprite(color: string, r: number): HTMLCanvasElement {
-  const c = document.createElement('canvas');
-  c.width = c.height = Math.ceil(r * 2);
-  const g = c.getContext('2d')!;
-  const grd = g.createRadialGradient(r, r, 0, r, r, r);
-  grd.addColorStop(0, color); grd.addColorStop(0.4, color); grd.addColorStop(1, 'transparent');
-  g.fillStyle = grd; g.beginPath(); g.arc(r, r, r, 0, Math.PI * 2); g.fill();
-  return c;
-}
-const rgba = (hex: string, a: number): string => {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
-};
-
 /* ------------------------------------------------------------------ the effect */
+let sprites: { core: HTMLCanvasElement; mid: HTMLCanvasElement } | null = null;
 interface Mote { x: number; y: number; vx: number; vy: number; born: number; life: number; r: number }
 
 /**
@@ -213,20 +143,17 @@ interface Mote { x: number; y: number; vx: number; vy: number; born: number; lif
  */
 export function playPlateDissolve(rect: { left: number; top: number; width: number; height: number }): void {
   if (typeof document === 'undefined') return;
-  ensurePoints();
   const c = cfg;
   const k = rect.width / REF_W;
   if (!sprites) sprites = { core: sprite(c.cCore, 32), mid: sprite(c.cMid, 32) };
 
   // --- the wireframe imprint: the gradient shown through the baked line mask ---
   const imp = document.createElement('div');
-  const p1 = 50 - 31 * c.grad, p3 = 50 + 31 * c.grad;
-  const deep = c.grad > 0 ? c.cDeep : c.cMid, core = c.grad > 0 ? c.cCore : c.cMid;
   imp.style.cssText = [
     'position:fixed', `left:${rect.left}px`, `top:${rect.top}px`,
     `width:${rect.width}px`, `height:${rect.height}px`,
     'pointer-events:none', 'z-index:114', 'opacity:0',
-    `background:linear-gradient(90deg, ${deep} 0%, ${c.cMid} ${p1}%, ${core} 50%, ${c.cMid} ${p3}%, ${deep} 100%)`,
+    `background:${arcaneGradient(c.cDeep, c.cMid, c.cCore, c.grad)}`,
     `-webkit-mask:url(${WIRE_SRC}) center / 100% 100% no-repeat`,
     `mask:url(${WIRE_SRC}) center / 100% 100% no-repeat`,
     `filter:drop-shadow(0 0 ${c.g1 * k}px ${rgba(c.cMid, 0.85)}) drop-shadow(0 0 ${c.g2 * k}px ${rgba(c.cDeep, 1)})`,
@@ -251,11 +178,12 @@ export function playPlateDissolve(rect: { left: number; top: number; width: numb
   // If the sampled points somehow aren't ready (warming below should make this unreachable, but a cold cache
   // on a slow connection could still beat us to it), spray uniformly over the plate rather than emitting
   // NOTHING. This used to `break`, which is what made the very first dissolve of a run play with no dust.
-  const havePts = !!((LINE_PTS && LINE_PTS.length) || (BODY_PTS && BODY_PTS.length));
+  const havePts = !!((linePoints() && linePoints()!.length) || (bodyPoints() && bodyPoints()!.length));
   for (let i = 0; i < c.count; i++) {
     let u: number, v: number;
     if (havePts) {
-      const src = (LINE_PTS && LINE_PTS.length && Math.random() < c.onLines) ? LINE_PTS : BODY_PTS;
+      const lp = linePoints();
+      const src = (lp && lp.length && Math.random() < c.onLines) ? lp : bodyPoints();
       if (!src || !src.length) continue;
       const p = src[(Math.random() * src.length) | 0];
       u = p.u; v = p.v;

@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import type { Keyword } from '@game/core';
 import { CARD_INDEX, QUEST_INDEX, RUNE_INDEX, referencedCardIds } from '@game/content';
 import { CONFIG, RIFTS, maxTierFor, conjuredStats, cardBuff, isCalibrationRound, getHero, isTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueOf, spellDisplayText, spellAttackBonus, spellHealthBonus, spellCasts, spellCostReduction, implosionCasts, nextOpponent, lossDamageCap, boardManaBonus, upgradeCostOf, refreshCostOf, type RunState, type ShopCard } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
@@ -67,10 +68,14 @@ const SHIELD_CLEAR_GRACE = 420;
 // leaves. Divine Shield (gold), Reborn (blue wisp). (Taunt is signified by a static grey card border, not a
 // Pixi aura — see `.card.taunt` in styles.css — so it's not tracked here.)
 type AuraK = 'shield' | 'reborn';
-const AURA_CFGS = [
-  { kind: 'shield', marker: 'dscard', dragKw: 'DS' },
-  { kind: 'reborn', marker: 'reborncard', dragKw: 'R' },
-] as const;
+// `cssOwned`: the aura's persistent bubble is drawn by CSS (Card.tsx `.ward` / `.reborn` stacks), so
+// syncShields must NOT register a Pixi bubble for it — Pixi only fires its combat break/re-form FX + drag
+// sparkles. Both current kinds are CSS-owned; the flag (rather than a `kind === …` test) keeps syncShields'
+// registration pass generic so a future Pixi-drawn aura kind works by adding a row here.
+const AURA_CFGS: readonly { kind: AuraK; marker: string; dragKw: Keyword; cssOwned: boolean }[] = [
+  { kind: 'shield', marker: 'dscard', dragKw: 'DS', cssOwned: true },
+  { kind: 'reborn', marker: 'reborncard', dragKw: 'R', cssOwned: true },
+];
 const ckey = (kind: string, uid: string): string => `${kind}|${uid}`;
 const unkey = (k: string): { kind: AuraK; uid: string } => {
   const i = k.indexOf('|');
@@ -1014,7 +1019,7 @@ export function Recruit() {
     // state (works from ANY source — its CardView keywords say if it has the aura). DURING COMBAT only combat
     // UNITS (`.unit`) get auras, so a frozen shop/hand card can't float its aura over the arena.
     for (const cfg of AURA_CFGS) {
-      if (cfg.kind === 'shield' || cfg.kind === 'reborn') continue; // Ward + Reborn are CSS now (Card.tsx `.ward` / `.reborn` stacks); Pixi only fires their combat break/re-form FX + drag sparkles
+      if (cfg.cssOwned) continue; // Ward + Reborn are CSS now (Card.tsx `.ward` / `.reborn` stacks); Pixi only fires their combat break/re-form FX + drag sparkles
       const els = document.querySelectorAll<HTMLElement>(
         inCombatRef.current
           ? `.unit .card.${cfg.marker}`

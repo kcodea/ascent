@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { Keyword, Tribe } from '@game/core';
 import type { StepProgress } from './cardText';
-import { getSpellBuffFxConfig, makeSpellBuffSparks, sparkEaseCss, wiggleEaseCss } from './spellBuffFxConfig';
+import { getSpellBuffFxConfig, makeSpellBuffSparks, sparkEaseCss, growEaseCss, shrinkEaseCss } from './spellBuffFxConfig';
 import { artFor } from './art';
 import { renameTerms } from './terms';
 import { Icon } from './Icon';
@@ -414,7 +414,7 @@ export const Card = memo(function Card({
       style={{ '--c': `var(--t-${card.tribe})`, '--c2': `var(--t-${card.tribe2 ?? card.tribe})`,
         '--fan-rot': `${fanRot ?? 0}deg`,
         // Spell-buff cue dials (✨ Spell Buff tuner) — only while the burst is on, so nothing else pays for them.
-        ...(sbCfg ? { '--sb-deg': `${sbCfg.wiggleDeg}deg`, '--sb-scale': sbCfg.wiggleScale, '--sb-wiggle-ms': `${sbCfg.wiggleMs}ms`, '--sb-ms': `${sbCfg.sparkMs}ms`, '--sb-alpha': sbCfg.sparkAlpha, '--sb-glow': `${sbCfg.sparkGlow}px`, '--sb-grav': `${sbCfg.sparkGravity}px`, '--sb-ease': sparkEaseCss(sbCfg), '--sb-wiggle-ease': wiggleEaseCss(sbCfg), '--sb-wobble': sbCfg.wiggleWobble } : {}),
+        ...(sbCfg ? { '--sb-grow': sbCfg.growScale, '--sb-grow-ms': `${sbCfg.growMs}ms`, '--sb-grow-ease': growEaseCss(sbCfg), '--sb-shrink-ms': `${sbCfg.shrinkMs}ms`, '--sb-shrink-ease': shrinkEaseCss(sbCfg), '--sb-ms': `${sbCfg.sparkMs}ms`, '--sb-alpha': sbCfg.sparkAlpha, '--sb-glow': `${sbCfg.sparkGlow}px`, '--sb-grav': `${sbCfg.sparkGravity}px`, '--sb-ease': sparkEaseCss(sbCfg) } : {}),
         transform: handSlidePx
           ? `translateX(${handSlidePx}px) translateY(var(--hand-tuck, 0px)) rotate(var(--fan-rot, 0deg))` /* hand reorder: keep the tuck + fan tilt while parting */
           : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
@@ -746,7 +746,7 @@ export const Card = memo(function Card({
             <span
               key={i}
               className="sbspark"
-              style={{ left: s.left, bottom: s.bottom, animationDelay: s.delay, '--sb-size': s.size, '--sb-rise': s.rise, '--sb-wx': s.wx, '--sb-hue': s.hue, '--sb-tail': s.tail } as CSSProperties}
+              style={{ animationDelay: s.delay, '--sb-size': s.size, '--sb-ang': s.angle, '--sb-dist': s.dist, '--sb-hue': s.hue, '--sb-tail': s.tail } as CSSProperties}
             />
           ))}
         </span>

@@ -1966,54 +1966,55 @@ body.modalup .statusbar .questbadges {
   32% { box-shadow: 0 0 0 4px #2bd897, 0 0 30px 8px rgba(43, 216, 151, 0.85); transform: translateY(-7px) scale(1.06); filter: brightness(1.2); animation-timing-function: ease-out; }
   100% { box-shadow: 0 3px 0 var(--shadow); transform: none; filter: none; }
 }
-/* SPELL BUFF (owner 2026-07-23) — a hand spell (or Ruby) whose printed value just went UP: a quick wiggle +
-   grow/shrink pop on the card, plus pink/gold/purple sparks bursting off it and rising. One-shot (~0.8s), and
-   transform/opacity only (no looping paint), so the whole cue composites. `cardpop` stays first in the list —
-   same reason as `.cardbuff`: toggling the class must not replay the card's entry pop.
-   Shape/timing come from the ✨ Spell Buff tuner as CSS vars (`--sb-deg` peak rotation, `--sb-scale` peak pop,
-   `--sb-wiggle-ms`, `--sb-ms` spark life); the fallbacks below are the shipped defaults. */
-/* NB: NO fill-mode on `spellwiggle`. The card carries its own inline transform (the hand fan's rotation/tuck),
-   and a `both`/`forwards` fill would keep holding the animation's final `transform: none` — clobbering that fan
-   transform for as long as the class is on, i.e. for the WHOLE burst (which is held for the spark life). That
-   made the pop look tied to `spark ms`. Without a fill the override ends exactly at `--sb-wiggle-ms`, so the
-   card snaps back into the fan while the sparks keep rising. */
-/* NO `cardpop` here. `.cardbuff` leads with it on the claim that it "matches the base .card" so re-adding the
-   class can't restart it — but the base `.card` has NO animation at all (only `.card.popin` / `.row.hand
-   .card.popin` do). On a card that's been sitting in hand, listing cardpop therefore STARTS it: a 0.26s
-   opacity 0→1 + translateY(8px) + scale(0.96) entry pop, fired on every spell buff and controlled by none of
-   the tuner dials. That was the "it still pops with everything at 0" report. The wiggle stands alone now, so
-   zeroing wiggle°/pop scale/wobble really does mean no movement. */
-.card.spellbuff { animation: spellwiggle var(--sb-wiggle-ms, 720ms) var(--sb-wiggle-ease, cubic-bezier(0.45, 0.1, 0.3, 1.12)); z-index: 21; }
-/* NB: `animation-timing-function` inside a @keyframes block does NOT accept `var()` — the browser drops the
-   declaration (verified: every keyframe fell back to `ease`). So per-segment curves aren't available, and the
-   smoothing is split two ways instead: the tuner's three pop dials shape ONE element-level curve (attack /
-   settle / spring — see `wiggleEaseCss`), while the oscillation lives in the keyframe GEOMETRY via
-   `--sb-wobble`. At wobble 0 the return stops collapse onto rest, so the card makes ONE clean pop and glides
-   home with no shake at all; raising it reintroduces the counter-swing. Shake and smoothness stay independent. */
-@keyframes spellwiggle {
-  0%   { transform: none; }
-  34%  { transform: rotate(calc(var(--sb-deg, 2.2deg) * -1)) scale(var(--sb-scale, 1.06)); }
-  67%  { transform: rotate(calc(var(--sb-deg, 2.2deg) * 0.9 * var(--sb-wobble, 0.18)))
-                    scale(calc(1 + (var(--sb-scale, 1.1) - 1) * 0.75 * var(--sb-wobble, 0.18))); }
-  86%  { transform: rotate(calc(var(--sb-deg, 2.2deg) * -0.4 * var(--sb-wobble, 0.18)))
-                    scale(calc(1 + (var(--sb-scale, 1.1) - 1) * 0.32 * var(--sb-wobble, 0.18))); }
-  100% { transform: none; }
+/* SPELL BUFF (owner 2026-07-23) — a hand spell (or Ruby) whose printed value just went UP: the card GROWS then
+   SHRINKS back in place while pink/gold/purple sparks blast outward off it. One-shot (~1s) and scale/transform/
+   opacity only (no looping paint), so the whole cue composites.
+
+   TWO structural rules here, both load-bearing — don't undo them casually:
+
+   1. The card animates the standalone `scale` PROPERTY, never `transform`. A hand card carries its own inline
+      `transform` (the fan's slide/tuck); animating `transform` clobbers that for the animation's life — and with
+      a forwards fill, for as long as the class is on. `scale` composes with `transform` instead, so the fan is
+      never disturbed and nothing needs restoring afterwards. This permanently retires the whole "the pop is tied
+      to spark ms / the card jumps out of the fan" class of bug.
+   2. Grow and shrink are TWO animations — the shrink merely delayed by the grow's duration — because each needs
+      its OWN duration and easing (owner ask). A single keyframe animation cannot do that: keyframe offsets can't
+      be `var()`, and `animation-timing-function` inside a `@keyframes` block silently ignores `var()` (verified
+      live — every keyframe fell back to `ease`).
+
+   Both phases use `forwards`. During the grow the shrink is still in its delay, so it contributes nothing (only
+   a `backwards`/`both` fill would apply early). Once the shrink starts it wins, being later in the list. Its
+   final state is `scale: 1` — the card's NATURAL scale — so the held fill is a no-op and can never strand the
+   card mid-grow, however long the class lingers for the sparks.
+
+   And NO `cardpop` in this list. `.cardbuff` leads with it claiming it "matches the base .card" so re-adding the
+   class can't replay it — but the base `.card` has no animation at all (only `.card.popin` does), so naming it
+   here STARTS a 0.26s opacity 0->1 + scale(0.96) entry pop on every buff, governed by no dial. That was the
+   "every value is at 0 and it still pops" bug. Shape/timing come from the Spell Buff tuner as `--sb-*` vars;
+   the fallbacks below are the shipped defaults. */
+.card.spellbuff {
+  animation:
+    sbgrow var(--sb-grow-ms, 160ms) var(--sb-grow-ease, ease-out) forwards,
+    sbshrink var(--sb-shrink-ms, 380ms) var(--sb-shrink-ease, ease-in-out) var(--sb-grow-ms, 160ms) forwards;
+  z-index: 21;
 }
-/* The spark layer sits over the whole card and is allowed to overflow, so motes can rise past the top edge. */
+@keyframes sbgrow { from { scale: 1; } to { scale: var(--sb-grow, 1.12); } }
+@keyframes sbshrink { from { scale: var(--sb-grow, 1.12); } to { scale: 1; } }
+/* The spark layer is anchored to the card and allowed to overflow, so motes fly out past every edge. */
 .sbsparks { position: absolute; inset: 0; pointer-events: none; overflow: visible; z-index: 22; }
 .sbspark {
-  position: absolute; width: var(--sb-size, 7px); aspect-ratio: 1; border-radius: 50%;
-  /* A solid hot core out to 30% before the falloff — the old pure-falloff dot read washed out over bright art.
+  position: absolute; left: 50%; top: 50%;
+  width: var(--sb-size, 7px); aspect-ratio: 1; border-radius: 50%;
+  /* A solid hot core out to 30% before the falloff — a pure-falloff dot reads washed out over bright art.
      The glow halo (`--sb-glow`) is what actually sells it against the card, so it's a tuner dial. */
   background: radial-gradient(circle at 50% 50%, #fff 0%, var(--sb-hue) 30%, transparent 76%);
   filter: drop-shadow(0 0 var(--sb-glow, 7px) var(--sb-hue));
-  /* The climb curve comes from the tuner's `spark speed` dial (see `sparkEaseCss`) — 0 eases up evenly, 1 fires
-     off hard and coasts. `--sb-rise` is in PIXELS: a % here would resolve against the MOTE's own ~7px box, which
-     is why the travel used to read as barely moving. */
-  animation: sbspark var(--sb-ms, 900ms) var(--sb-ease, cubic-bezier(0.19, 0.57, 0.36, 1)) both; will-change: transform, opacity;
+  animation: sbblast var(--sb-ms, 760ms) var(--sb-ease, cubic-bezier(0.19, 0.57, 0.36, 1)) both;
+  will-change: transform, opacity;
 }
-/* The TAIL — a tapering streak trailing BELOW the mote as it climbs. Length rides `--sb-tail` (baked per mote
-   as size × the tuner's tail multiple), so bigger motes streak proportionally longer. */
+/* The TAIL streams back toward the card. It hangs below the mote in the MOTE's own frame, and the blast
+   transform rotates that frame to the flight angle — so the tail trails behind whatever direction the mote flew,
+   with no per-mote maths. Length rides `--sb-tail` (baked per mote as size x the tuner's multiple). */
 .sbspark::after {
   content: ''; position: absolute; left: 50%; top: 45%;
   width: calc(var(--sb-size, 7px) * 0.5); height: var(--sb-tail, 15px);
@@ -2021,13 +2022,18 @@ body.modalup .statusbar .questbadges {
   background: linear-gradient(to bottom, var(--sb-hue), transparent 92%);
   border-radius: 50% 50% 46% 46% / 30% 30% 70% 70%;
 }
-/* Climb to the full rise by 72%, then SAG back by `--sb-grav` over the last stretch — the gravity dial. At 0 a
-   mote just hangs at its peak while it fades; crank it and the burst arcs. */
-@keyframes sbspark {
-  0%   { transform: translate(-50%, 0) scale(0.45); opacity: 0; }
+/* The BLAST — an explosion outward rather than a rise (owner 2026-07-23). Transform order is load-bearing:
+     translate(-50%, -50%)   centre the mote on the card
+     translateY(--sb-grav)   gravity sag, OUTSIDE the rotation so it is always truly world-space "down"
+     rotate(--sb-ang)        turn to this mote's flight angle
+     translateY(-dist)       fly outward along it — inside the rotation, so the travel is radial
+   `--sb-dist` is in PIXELS: a % here would resolve against the mote's own ~7px box, which is exactly what made
+   the travel read as barely moving back when this was a rise. */
+@keyframes sbblast {
+  0%   { transform: translate(-50%, -50%) rotate(var(--sb-ang, 0deg)) translateY(0) scale(0.4); opacity: 0; }
   16%  { opacity: var(--sb-alpha, 1); }
-  72%  { transform: translate(calc(-50% + var(--sb-wx, 0px) * 0.72), calc(-1 * var(--sb-rise, 120px))) scale(1.06); }
-  100% { transform: translate(calc(-50% + var(--sb-wx, 0px)), calc(-1 * var(--sb-rise, 120px) + var(--sb-grav, 0px))) scale(1); opacity: 0; }
+  100% { transform: translate(-50%, -50%) translateY(var(--sb-grav, 0px)) rotate(var(--sb-ang, 0deg))
+                    translateY(calc(-1 * var(--sb-dist, 120px))) scale(1); opacity: 0; }
 }
 /* Karwind flame flash — a quick, minimal burn along the BOTTOM edge of a Dragon that Karwind's
    battlecry trigger just buffed (a small "Karwind is working" indicator, on top of the green buff

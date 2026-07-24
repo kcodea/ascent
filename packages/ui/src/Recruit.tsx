@@ -8,7 +8,7 @@ import { QuestCard } from './QuestCard';
 import { RuneCard } from './RuneCard';
 import { combatGains } from './combatGains';
 import { instView, liveCardText, type LiveTextParams } from './instView';
-import { getSpellBuffFxConfig } from './spellBuffFxConfig';
+import { getSpellBuffFxConfig, cardBurstMs, sparkBurstMs } from './spellBuffFxConfig';
 import { HudBar } from './HudBar';
 import { EndTurnButton } from './EndTurnButton';
 import { RiftButton } from './RiftButton';
@@ -1827,11 +1827,11 @@ export function Recruit() {
     prevSpellSigRef.current = next;
     if (inCombat || changed.length === 0) return;
     setSpellBuffedUids((s) => new Set([...s, ...changed]));
-    // Hold the class for the LONGER of the two independent timings — the card's wiggle and the sparks' full
-    // life (their stagger + rise). A fixed hold used to clip the sparks whenever they outlasted the pop, which
-    // is exactly the case the tuner wants to allow: a snappy wiggle with a long, slow rise.
+    // Hold the class for the LONGER of the two independent timings — the card's grow+shrink and the sparks' full
+    // life (their stagger + flight). A fixed hold used to clip the sparks whenever they outlasted the card, which
+    // is exactly the case the tuner wants to allow: a snappy grow/shrink under a long, slow blast.
     const c = getSpellBuffFxConfig();
-    const hold = Math.max(c.wiggleMs, c.sparkMs + c.sparkStagger) + 120;
+    const hold = Math.max(cardBurstMs(c), sparkBurstMs(c)) + 120;
     // Self-clearing (never cancelled in cleanup — same reasoning as the green buff flash): each timer must be
     // allowed to fire or a quick follow-up change could leave a card stuck mid-wiggle.
     window.setTimeout(() => {

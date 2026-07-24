@@ -7,24 +7,27 @@ import { useDraggablePanel } from './useDraggablePanel';
 
 /**
  * DEV-only "Spell Buff FX" tuner — the cue a hand SPELL or Ruby plays when its printed value goes UP
- * (`spellBuffFxConfig` → `Card`'s `.spellbuff` wiggle + `.sbspark` motes): a wiggle + grow/shrink pop and a
- * burst of pink/gold/purple sparks that rise off the card. Slider dials + colour pickers persist to
+ * (`spellBuffFxConfig` → `Card`'s `.spellbuff` grow/shrink + `.sbspark` motes): the card grows then shrinks
+ * back in place (each phase with its own speed + easing) while pink/gold/purple sparks blast outward off it in
+ * every direction. Slider dials + colour pickers persist to
  * localStorage and apply to the NEXT burst. **Test** fires it on every spell/Ruby currently in hand so it can
  * be dialed without waiting for a real buff. "Copy" grabs the JSON to bake as the shipped defaults; "Reset"
  * clears. Dev-only — stripped from production.
  */
 const LABELS: Record<keyof SpellBuffFxConfig, string> = {
+  growScale: 'grow scale',
+  growMs: 'grow ms',
+  growEase: 'grow ease',
+  shrinkMs: 'shrink ms',
+  shrinkEase: 'shrink ease',
   sparkCount: 'spark count',
   sparkSizeMin: 'spark size min',
   sparkSizeMax: 'spark size max',
-  sparkSpread: 'spawn spread %',
-  sparkOriginLo: 'spawn low %',
-  sparkOriginHi: 'spawn high %',
-  sparkRiseMin: 'rise min px',
-  sparkRiseMax: 'rise max px',
+  blastDistMin: 'blast dist min',
+  blastDistMax: 'blast dist max',
+  blastSpread: 'blast arc°',
   sparkSpeed: 'launch punch',
   sparkGravity: 'gravity px',
-  sparkDrift: 'drift px',
   sparkAlpha: 'spark α',
   sparkGlow: 'spark glow',
   sparkTail: 'tail ×size',
@@ -33,13 +36,6 @@ const LABELS: Record<keyof SpellBuffFxConfig, string> = {
   pinkColor: 'pink',
   goldColor: 'gold',
   purpleColor: 'purple',
-  wiggleDeg: 'wiggle°',
-  wiggleScale: 'pop scale',
-  wiggleMs: 'wiggle ms',
-  wiggleEase: 'pop softness',
-  wiggleOvershoot: 'pop spring',
-  wiggleWobble: 'wobble (0=smooth)',
-  wiggleSettle: 'settle softness',
 };
 
 export function SpellBuffFxTuner() {

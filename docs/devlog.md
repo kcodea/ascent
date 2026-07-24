@@ -3,6 +3,45 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-24 (spell-buff FX — grow/shrink in place + an outward spark blast)
+
+### feat(ui): spell-buff cue reworked — wiggle out, grow/shrink in, sparks explode outward
+
+Owner ask: drop the pop/wiggle, replace it with a grow/shrink that has its own speed AND ease for *each* phase,
+and turn the rising sparks into a blast that explodes outward off the affected card.
+
+**The card — grow, then shrink.** The rotation / wobble / spring / settle dials are gone, replaced by five that
+map directly onto what was asked: `grow scale`, `grow ms`, `grow ease`, `shrink ms`, `shrink ease`. Two
+structural choices carry it, both worth keeping:
+
+* It animates the standalone **`scale` property, not `transform`.** A hand card carries its own inline
+  `transform` (the fan's slide/tuck), so animating `transform` clobbers the fan for the animation's life — and
+  with a forwards fill, for as long as the class is on. `scale` composes with `transform` instead, so the fan is
+  never disturbed and nothing needs restoring. This retires the entire "the pop is tied to spark ms / the card
+  jumps out of the fan" bug family at the root rather than working around it a third time.
+* Grow and shrink are **two animations**, the shrink delayed by the grow's duration, because each needs its own
+  duration *and* easing. One keyframe animation can't express that: keyframe offsets can't be `var()`, and
+  `animation-timing-function` inside `@keyframes` silently ignores `var()`. Both use `forwards`; the shrink is
+  later in the list so it wins once it starts, and its final `scale: 1` is the card's natural scale, so the held
+  fill is a no-op that can't strand the card mid-grow however long the class lingers for the sparks.
+
+**The sparks — a blast, not a rise.** Each mote now gets an ANGLE and a DISTANCE instead of a climb: motes are
+distributed evenly around `blast arc` degrees (360 = every direction, smaller focuses a cone upward), jittered
+within their slice so the ring never looks banded, and fly out from the card's centre. The transform order does
+the work — centre, then world-space gravity sag *outside* the rotation, then rotate to the flight angle, then
+translate outward *inside* it, so travel is radial while gravity stays truly "down". The tail hangs below the
+mote in its own rotated frame, so it trails behind whatever direction the mote took with no per-mote maths.
+Replaced dials: `rise min/max` to `blast dist min/max`; `spawn spread/low/high` + `drift` to `blast arc`.
+
+Verified by scrubbing the animation timelines directly (the preview tab throttles `setInterval` to ~1Hz when
+backgrounded, so wall-clock sampling is useless here): the card's scale runs 1 to a peak of 1.12 at **exactly
+160ms** (`growMs`), then back to 1 at **540ms** (`growMs + shrinkMs`), while its `transform` holds constant at
+the fan's `matrix(1, 0, 0, 1, 0, 33.3856)` for the whole burst. The animations resolve as `sbgrow@160+0` /
+`sbshrink@380+160`. The 18 motes finish at angles spanning -172 to +172 degrees (all the way around) at radii
+77-165px, each traveling outward monotonically. Full suite (1538) + typecheck + lint + build:web green.
+
+Follow-up: defaults are a starting point — bake the owner's tuned values once they land.
+
 ## 2026-07-23 (spell-buff — an UNCONTROLLED entry pop was riding along)
 
 ### fix(ui): drop `cardpop` from `.spellbuff` — that was the pop no dial could turn off

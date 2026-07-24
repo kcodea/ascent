@@ -21,6 +21,9 @@ export interface FxPlayer {
   update(dtMs: number): void;
   scrub(ms: number): void;
   setSpeed(n: number): void;
+  /** Turn continuous looping on/off live (the workbench's Loop toggle). Independent of `fireOnce`, which
+   *  is always a single non-looping pass regardless of this. */
+  setLoop(on: boolean): void;
   setLoopGap(ms: number): void;
   setLayerParams(index: number, next: Record<string, unknown>): void;
   setHead(index: number, x: number, y: number): void;
@@ -59,6 +62,8 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
   let speed = 1;
   let playing = false;
   let loopGapMs = Math.max(0, opts.loopGapMs ?? 0);
+  // Mutable so the workbench's Loop toggle can flip it live (via setLoop) without rebuilding the player.
+  let loopEnabled = opts.loop ?? false;
 
   // Set only while a fireOnce() pass is in flight. A fire is a fundamentally different lifecycle from
   // ordinary play: every layer spawns immediately (not gated on the def's per-layer `at`/`life` schedule)
@@ -140,7 +145,7 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       // player's play button — otherwise the clock is already >= duration and the very next update()
       // would immediately re-stop it with nothing ever spawning. Mid-playback pause() never moves the
       // clock, so this only triggers exactly for "finished, click play again".
-      if (!opts.loop && clock >= def.duration) {
+      if (!loopEnabled && clock >= def.duration) {
         clock = 0;
         killAllLive();
       }
@@ -215,7 +220,7 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
       }
 
       clock += dt;
-      const looping = opts.loop;
+      const looping = loopEnabled;
       if (clock >= def.duration) {
         if (looping) {
           if (loopGapMs > 0) {
@@ -248,6 +253,9 @@ export function createPlayer(def: FxDef, ctx: FxContext, opts: FxPlayerOptions =
     },
     setSpeed(n: number): void {
       speed = n;
+    },
+    setLoop(on: boolean): void {
+      loopEnabled = on;
     },
     setLoopGap(ms: number): void {
       loopGapMs = Math.max(0, ms);

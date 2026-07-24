@@ -233,7 +233,6 @@ export type EffectFactoryId =
   | 'spellReturnToHand' // Second Draft: cast — return a friendly non-Gilded minion to hand
   | 'spellTransformSameTier' // Strange Revision: cast — transform a friendly minion into a random same-tier one, keeping its bonus stats
   | 'spellMarkEnemyTaunt' // Marked Target: cast — the enemy's right-most minion gets Taunt next combat
-  | 'spellEncore' // Encore: cast — re-trigger a friendly minion's Shout and Echo
   | 'spellSummonImpsNextCombat' // Open the Gates: cast — bank Imps to enter the next combat
   | 'spellBuffShopByRuby' // Veinstorm: cast — give every shop offer stats equal to your Rubies
   | 'spellBuffPerDragonPlayed' // Hoardflame: cast — +4/+4 plus +1/+1 per Dragon played this turn

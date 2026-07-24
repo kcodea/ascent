@@ -2422,18 +2422,6 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     replayBattlecry(ctx.state, self);
   },
 
-  /** Encore — cast on a friendly minion: re-trigger the abilities it can fire out of combat — its Shout
-   *  (Battlecry / onPlay) AND its Echo (Deathrattle / onDeath, without destroying it); a minion with both gets
-   *  both. Rally is deliberately NOT covered — it's a combat-only on-attack trigger, and Rallying Offensive
-   *  already exists to double Rally triggers, so an Encore-Rally would be redundant (owner ruling 2026-07-23). */
-  spellEncore: (ctx, self) => {
-    if (!self) return;
-    const def = CARD_INDEX[self.cardId];
-    if (!def) return;
-    if (def.effects.some((e) => e.on === 'onPlay')) replayBattlecry(ctx.state, self); // Shout
-    if (def.effects.some((e) => e.on === 'onDeath')) fireRecruitDeathrattles(ctx, self); // Echo
-  },
-
   /** Chrono Staff — your End-of-Turn effects fire one additional time this turn (a per-turn flag: stacks with
    *  Chronos, not with itself). Read by `endOfTurnRepeats`; reset at the next turn start. */
   spellExtraEndOfTurn: (ctx) => {

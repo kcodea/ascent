@@ -894,7 +894,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   rallyRubyStatGain: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return;
-    ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side);
+    ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side, self.uid);
   },
 
   /** Set 2 — Crownvein Vanguard (half 2): Rally — when THIS attacks, play `rubies` Rubies each on the first
@@ -917,7 +917,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (self.dead || side !== self.side) return;
     const x = Math.max(1, num(params.count, 3));
     if (count % x !== 0) return;
-    ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side);
+    ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side, self.uid);
   },
 
   /** Set 2 — Gemline Martyr (half 1): Avenge (X) — get `rubies` Rubies (carried back to hand). */
@@ -964,7 +964,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   /** Set 2 — Alchemist Brisbane (Echo half): on death, buff your Rubies +atk/+hp (× golden), carried back. */
   deathrattleRubyStatGain: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
-    ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side);
+    ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 1) * mul(self), self.side, self.uid);
   },
 
   /** Set 2 — Geode Guardian (Echo): on death, play `rubies` Rubies on EACH adjacent minion (permanent carry-back). */
@@ -1647,7 +1647,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  the run's Ruby strength (carried back at settle). */
   damagedGainRubyBonus: (ctx, self, params, payload) => {
     if (self.dead || (payload as MinionPayload).minion !== self) return;
-    ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 0) * mul(self), self.side);
+    ctx.gainRubyBonus(num(params.attack, 1) * mul(self), num(params.health, 0) * mul(self), self.side, self.uid);
   },
 
   /** Set 2 — Candleback Bulwark: when THIS minion takes damage, get `count` Rubies (× golden), capped `cap`

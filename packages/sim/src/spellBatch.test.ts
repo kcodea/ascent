@@ -349,15 +349,7 @@ describe('spell batch — Veinstorm + Hoardflame (live-scaling)', () => {
   });
 });
 
-describe('spell batch — Encore + Open the Gates', () => {
-  it("Encore: re-triggers a friendly minion's Echo (Deathrattle) out of combat", () => {
-    let s: RunState = { ...createRun(1), board: [{ uid: 'p', cardId: 'pack', tribe: 'beast', attack: 3, health: 2, keywords: [], golden: false }], hand: [mkSpell('sp', 'encore')] };
-    s = reduce(s, { type: 'play', uid: 'sp', targetUid: 'p' });
-    // Mama Pup's Deathrattle summons 2 Pups without destroying it → board grows from 1 to 3.
-    expect(s.board.filter((c) => c.cardId === 'pup').length).toBe(2);
-    expect(s.board.some((c) => c.uid === 'p')).toBe(true); // the minion itself survives
-  });
-
+describe('spell batch — Open the Gates', () => {
   it('Open the Gates: banks 3 Imps that enter the next combat', () => {
     let s: RunState = { ...createRun(1), board: [mkMinion('m1', 2, 2)], hand: [mkSpell('sp', 'openthegates')] };
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: undefined });

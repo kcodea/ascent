@@ -233,7 +233,6 @@ export type EffectFactoryId =
   | 'spellReturnToHand' // Second Draft: cast — return a friendly non-Gilded minion to hand
   | 'spellTransformSameTier' // Strange Revision: cast — transform a friendly minion into a random same-tier one, keeping its bonus stats
   | 'spellMarkEnemyTaunt' // Marked Target: cast — the enemy's right-most minion gets Taunt next combat
-  | 'spellEncore' // Encore: cast — re-trigger a friendly minion's Shout and Echo
   | 'spellSummonImpsNextCombat' // Open the Gates: cast — bank Imps to enter the next combat
   | 'spellBuffShopByRuby' // Veinstorm: cast — give every shop offer stats equal to your Rubies
   | 'spellBuffPerDragonPlayed' // Hoardflame: cast — +4/+4 plus +1/+1 per Dragon played this turn
@@ -1470,7 +1469,10 @@ export interface CombatContext {
   /** Set 2 — mint `count` Rubies into hand after combat (Rikk / Gemline). Player-only; carried back. */
   grantRubies(count: number, side: Side, sourceUid?: string): void;
   /** Set 2 — raise the run's Ruby strength after combat (Veinbreaker). Player-only; carried back. */
-  gainRubyBonus(attack: number, health: number, side: Side): void;
+  /** Set 2 — raise the run's RUBY strength (player-only; carried back at settle). `sourceUid` is optional and
+   *  presentation-only: with it the sim emits an `sc` narration so the UI can telegraph the gain mid-combat,
+   *  exactly as `grantSpellPower` does. Without it the gain still applies, just silently. */
+  gainRubyBonus(attack: number, health: number, side: Side, sourceUid?: string): void;
   /** Queue `count` Fodder into the player's next tavern (Burial Imp's Deathrattle). Player-only;
    *  carried back via `CombatResult.playerFodderGrants`, pushed onto pendingTavern in settleCombat. */
   grantTavernFodder(count: number, side: Side): void;

@@ -614,8 +614,11 @@ export const SPELLS: CardDef[] = [
   {
     // Spark Capacitor's Avenge payoff (also a T6 Tavern spell): buff your entire board +5/+5, twice — two
     // spellBuffAll casts, so each picks up spell power. A board-wide finisher.
+    // Renamed Spark Plug -> Waking Rift (owner 2026-07-24). The ID stays `sparkplug` deliberately: it's
+    // referenced by Spark Capacitor's `avengeGrantSpell` params, by saved runs and by pinned replays, so
+    // changing it would break restores for a display-only rename (same call as the 2026-07-17 vocab pass).
     id: 'sparkplug',
-    name: 'Spark Plug',
+    name: 'Waking Rift',
     tribe: 'neutral',
     tier: 6,
     attack: 0,
@@ -962,23 +965,6 @@ export const SPELLS: CardDef[] = [
     cost: 3,
     effects: [{ on: 'cast', do: 'spellMarkEnemyTaunt' }],
     text: "At the start of next combat, give the enemy's **right-most** minion **Taunt**.",
-  },
-  {
-    // Re-trigger a friendly minion's Shout (Battlecry) and Echo (Deathrattle, without destroying it). Rally is
-    // combat-only, so it's a no-op out of combat. singleCast — a Yazzus can't multiply the re-trigger.
-    id: 'encore',
-    name: 'Encore',
-    tribe: 'neutral',
-    tier: 6,
-    attack: 0,
-    health: 1,
-    keywords: [],
-    spell: true,
-    singleCast: true,
-    cost: 4,
-    target: 'friendly',
-    effects: [{ on: 'cast', do: 'spellEncore' }],
-    text: 'Choose a friendly minion. Trigger its **Shout** or **Echo**.',
   },
   {
     // +4/+4, plus +1/+1 for each Dragon you PLAYED this turn (flat — no spell power, so the printed value stays

@@ -7,7 +7,7 @@ describe('content', () => {
   });
 
   describe('referencedCardIds — cards named in effects (hover-preview source)', () => {
-    it("derives Spark Capacitor's Spark Plug (avengeGrantSpell)", () => {
+    it("derives Spark Capacitor's Waking Rift (avengeGrantSpell)", () => {
       expect(referencedCardIds(CARD_INDEX['sparkcapacitor']!)).toContain('sparkplug');
     });
     it('derives the spell a minion CASTS so the hover-preview shows it (Hoardbreaker/Taragosa → Growth, Watcher → Lantern)', () => {

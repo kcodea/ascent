@@ -4,6 +4,7 @@ import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from
 import type { Keyword, Tribe } from '@game/core';
 import type { StepProgress } from './cardText';
 import { getSpellBuffFxConfig, makeSpellBuffSparks, sparkEaseCss, growEaseCss, shrinkEaseCss } from './spellBuffFxConfig';
+import { subscribeSpellBuff, getSpellBuffSeq } from './spellBuffFx';
 import { artFor } from './art';
 import { renameTerms } from './terms';
 import { Icon } from './Icon';
@@ -179,7 +180,6 @@ export const Card = memo(function Card({
   targeted,
   dimmed,
   buffed,
-  spellBuffSeq,
   buffFloat,
   battlecry,
   electrify,
@@ -218,12 +218,6 @@ export const Card = memo(function Card({
   buffed?: boolean;
   /** Play the one-shot SPELL-buff cue — an in-place grow/shrink plus an outward spark blast. Fired
    *  when a hand spell's (or Ruby's) printed value just went UP, so the player sees which cards were affected. */
-  /** Burst id for the SPELL-buff cue — `undefined` when not bursting, otherwise a number that INCREASES on
-   *  every retrigger. It's a counter rather than a boolean so a fresh buff landing mid-burst restarts the cue
-   *  instead of being swallowed: the sparks are keyed on it (remount = fresh jitter + animations from zero) and
-   *  the card's grow/shrink is restarted explicitly below. Owner ask 2026-07-24: every trigger must read as a
-   *  separate hit, and cutting the previous one off is fine. */
-  spellBuffSeq?: number;
   /** A recruit-phase stat buff just landed — float its `+atk/+hp` above the card (like combat). `key`
    *  changes per buff so the float remounts and re-runs its rise animation. */
   buffFloat?: { attack: number; health: number; key: number } | null;
@@ -288,6 +282,12 @@ export const Card = memo(function Card({
   // Spell-buff cue: build this burst's motes (and read its timing/shape dials) at FIRE TIME, so a ✨ Spell Buff
   // tuner edit shows on the NEXT burst without a reload. Re-keyed on `spellBuffed` so each burst gets fresh
   // jitter and the same burst never re-randomises mid-animation.
+  // The SPELL-buff burst id comes from a module-level store rather than a prop, so ANY surface or phase can
+  // start the cue (end of turn, start of combat, a mid-combat Echo/Avenge) without this card's renderer having
+  // to thread state down — see `spellBuffFx.ts`. `undefined` = not bursting; the number INCREASES on every
+  // retrigger so a buff landing mid-burst restarts the cue instead of being swallowed (owner 2026-07-24: each
+  // trigger must read as its own hit, and cutting the previous one off is fine).
+  const spellBuffSeq = useSyncExternalStore(subscribeSpellBuff, () => getSpellBuffSeq(uid), () => undefined);
   const spellSparks = useMemo(() => (spellBuffSeq !== undefined ? makeSpellBuffSparks() : []), [spellBuffSeq]);
   const spellBuffed = spellBuffSeq !== undefined;
   const sbCfg = spellBuffed ? getSpellBuffFxConfig() : null;

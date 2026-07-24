@@ -582,7 +582,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.hand.some((c) => c.cardId === 'alley')).toBe(true);
   });
 
-  it('Spark Plug: casting gives your entire board +5/+5 twice (+10/+10)', () => {
+  it('Waking Rift: casting gives your entire board +5/+5 twice (+10/+10)', () => {
     let s: RunState = {
       ...createRun(1),
       board: [{ uid: 'm', cardId: 'drone', tribe: 'mech', attack: 2, health: 3, keywords: [], golden: false }],

@@ -669,6 +669,19 @@ export interface RunState {
    *  (owner ask 2026-07-21). Absent when the source isn't a card the player acted on — a quest reward or a
    *  rune tick — and the UI falls back to the shop row for those. */
   spellPowerFxUid?: string;
+  /** Bumped whenever RUBY POWER (`rubyBonus`) GOES UP this action, by any source and any amount — the Ruby-side
+   *  sibling of `spellPowerFxSeq`, and stamped the same way: from the before/after state delta, so a batch of
+   *  dispatches can't drop it. Covers the shop, End of Turn, and the combat carry-back (Veinbreaker's Avenge
+   *  raises Ruby strength mid-fight and it settles here). One-shot; the UI dedupes against the last-seen seq. */
+  rubyPowerFxSeq?: number;
+  /** The ruby-power INCREASE to print alongside that FX (Attack / Health), captured at stamp time. A pair for
+   *  the same reason spell power is — a source can grant Health only. */
+  rubyPowerFxAtk?: number;
+  rubyPowerFxHp?: number;
+  /** The uid of the card that drove the gain, so the flourish plays OVER it. Absent for sourceless gains (a
+   *  quest/rune tick, or the combat carry-back, whose source unit is gone by settle) — the UI falls back to the
+   *  hand's Rubies for those, which is what actually got stronger. */
+  rubyPowerFxUid?: string;
   /** Quest/rune End-of-Turn rewards that TRIGGERED a specific unit this action — one entry per proc, in fire
    *  order. The UI draws a gold tendril from that quest's node to the unit it hit (owner ask 2026-07-21).
    *  Source is the effect id (the node is looked up from it), not the quest id, because runes grant these too

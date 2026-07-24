@@ -327,6 +327,21 @@ export function reduce(state: RunState, action: Action): RunState {
       // flourish to the minion that caused it. Left undefined for sourceless gains (quest/rune ticks).
       next.spellPowerFxUid = 'uid' in action && typeof action.uid === 'string' ? action.uid : undefined;
     }
+    // RUBY POWER FX: the exact same contract for Ruby strength (owner ask 2026-07-24) — one bump per action in
+    // which `rubyBonus` WENT UP, by any source and any amount. Derived from the before/after delta rather than a
+    // scratch field for the same reason spell power is: React batching can otherwise swallow it. This one delta
+    // covers the shop, End of Turn AND the combat carry-back, because Veinbreaker's mid-fight Avenge lands on
+    // `rubyBonus` when the fight settles and so shows up here like any other source.
+    const rbBefore = state.rubyBonus ?? { attack: 0, health: 0 };
+    const rbAfter = next.rubyBonus ?? { attack: 0, health: 0 };
+    const rpDeltaA = rbAfter.attack - rbBefore.attack;
+    const rpDeltaH = rbAfter.health - rbBefore.health;
+    if (rpDeltaA > 0 || rpDeltaH > 0) {
+      next.rubyPowerFxSeq = (next.rubyPowerFxSeq ?? 0) + 1;
+      next.rubyPowerFxAtk = Math.max(0, rpDeltaA);
+      next.rubyPowerFxHp = Math.max(0, rpDeltaH);
+      next.rubyPowerFxUid = 'uid' in action && typeof action.uid === 'string' ? action.uid : undefined;
+    }
     // Forsaken Will: each spell cast permanently buffs your Undead's Attack — exactly like the Forsaken Weaver
     // (bakes +N into every current Undead + `undeadBuyAtk` so future buys inherit it), so the quest reward feels
     // identical to the minion instead of a separate Lantern-style aura.

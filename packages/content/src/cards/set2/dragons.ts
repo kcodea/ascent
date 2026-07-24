@@ -54,8 +54,8 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 4,
     keywords: [],
     effects: [{ on: 'spellCast', do: 'onSpellCastSecondCopyFirst', params: { count: 1 } }],
-    text: 'After you cast your **second** spell each turn, get a copy of the first.',
-    goldenText: 'After you cast your **second** spell each turn, get **2** copies of the first.',
+    text: 'After you cast your **second shop spell** each turn, get a copy of the first.',
+    goldenText: 'After you cast your **second shop spell** each turn, get **2** copies of the first.',
   },
   {
     // Rally: every time it attacks, it re-fires a friend's Shout. Left-most OTHER Dragon — "other" is in the

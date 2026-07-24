@@ -113,6 +113,32 @@ describe('set 2 — Dragon spell hooks (first / second spell each turn)', () => 
     expect(afterFirst).toEqual([1 + 1 + 2, 3 + 1 + 2]);
   });
 
+  it('Spellkeeper Drake: counts from PLACEMENT — a mid-turn play treats the next spell as its first', () => {
+    // Owner 2026-07-24. Cast a spell, THEN play the Spellkeeper; the spell before it must not count, so the
+    // copy only lands after two MORE spells (the first + second since it hit the board).
+    // All UNTARGETED spells (emberpouch / growth) so each really casts — a targeted spell with no target would
+    // fizzle and stay in hand, never counting.
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 80,
+      board: [],
+      hand: [
+        spellInHand('pre', 'emberpouch'),
+        minion('sk', 'd2_spellkeeper', 'dragon', 3, 4),
+        spellInHand('a', 'growth'),
+        spellInHand('b', 'emberpouch'),
+      ],
+    };
+    s = reduce(s, { type: 'play', uid: 'pre' }); // a spell before the Spellkeeper — must be ignored
+    s = reduce(s, { type: 'play', uid: 'sk' });
+    s = reduce(s, { type: 'play', uid: 'a' }); // FIRST since placed
+    expect(s.hand.filter((c) => c.cardId === 'growth').length).toBe(0); // nothing yet
+    s = reduce(s, { type: 'play', uid: 'b' }); // SECOND since placed → copies the first ('growth')
+    expect(s.hand.filter((c) => c.cardId === 'growth').length).toBe(1);
+    // If the pre-placement emberpouch had counted, the "first" would be emberpouch and the copy would be one —
+    // the growth copy (not emberpouch) proves counting started at PLACEMENT.
+    expect(s.hand.filter((c) => c.cardId === 'emberpouch').length).toBe(0);
+  });
+
   it('Spellkeeper Drake: the SECOND spell each turn copies the FIRST (not the second)', () => {
     let s: RunState = {
       ...createRun(1), phase: 'recruit', embers: 40,
@@ -223,6 +249,39 @@ describe('set 2 — Living Grimoire charges, spends and re-arms', () => {
     const lg = s.board.find((c) => c.uid === 'lg')!;
     expect(lg.shoutTick ?? 0).toBe(0); // charged the whole time → nothing was counted
     expect(s.grimoireMult).toBe(2);
+  });
+
+  it('fires on the first spell AFTER it is played, even mid-turn (not the turn’s first)', () => {
+    // Owner 2026-07-24: "first spell cast WHILE on board". Cast a spell first, THEN play the Grimoire; the
+    // very next spell should be the one that doubles.
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 80,
+      board: [minion('tgt', 'd2_chronicler', 'dragon', 3, 5)],
+      hand: [spellInHand('pre', 'spiritfire'), minion('lg', 'd2_grimoire', 'dragon', 7, 9), spellInHand('post', 'spiritfire')],
+    };
+    s = reduce(s, { type: 'play', uid: 'pre', targetUid: 'tgt' }); // a spell BEFORE the Grimoire (single)
+    const t0 = s.board.find((c) => c.uid === 'tgt')!;
+    const [a0, h0] = [t0.attack, t0.health];
+    s = reduce(s, { type: 'play', uid: 'lg' }); // NOW play + arm the Grimoire (it's the 2nd card action)
+    expect(s.grimoireMult).toBe(2);
+    s = reduce(s, { type: 'play', uid: 'post', targetUid: 'tgt' }); // the next spell doubles
+    const t1 = s.board.find((c) => c.uid === 'tgt')!;
+    expect([t1.attack - a0, t1.health - h0]).toEqual([4, 6]); // +2/+3 x2, despite being the turn’s 2nd spell
+  });
+
+  it('the charge also multiplies a RUBY (a Ruby is a spell — no "shop spell" wording)', () => {
+    let s: RunState = {
+      ...createRun(1), phase: 'recruit', embers: 80,
+      board: [minion('lg', 'd2_grimoire', 'dragon', 7, 9), minion('tgt', 'k_chipwick', 'kobold', 1, 2)],
+      hand: [{ uid: 'rb', cardId: 'ruby', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }],
+      grimoireMult: 2, // charged
+    };
+    const t0 = s.board.find((c) => c.uid === 'tgt')!;
+    const [a0, h0] = [t0.attack, t0.health];
+    s = reduce(s, { type: 'play', uid: 'rb', targetUid: 'tgt' });
+    const t1 = s.board.find((c) => c.uid === 'tgt')!;
+    expect([t1.attack - a0, t1.health - h0]).toEqual([2, 2]); // a 1/1 Ruby, cast TWICE by the Grimoire
+    expect(s.grimoireMult).toBe(0); // the Ruby spent the charge
   });
 
   it('selling the Grimoire cannot leave a free permanent multiplier behind', () => {

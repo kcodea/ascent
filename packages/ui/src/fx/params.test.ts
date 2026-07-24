@@ -60,14 +60,14 @@ describe('coerceParams', () => {
 
 describe('ParamsOf type derivation', () => {
   it('derives the correct type for enum params (union of options, not just default)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const specsWithEnum = {
       color: { kind: 'enum' as const, label: 'Color', options: ['violet', 'ember'] as const, default: 'violet' as const },
     } satisfies FxParamSpecs;
     type Params = ParamsOf<typeof specsWithEnum>;
-    // These should type-check:
-    expectTypeOf<Params['color']>().toMatchTypeOf<'violet' | 'ember'>();
-    // This should NOT type-check (but we can't directly test that in a value context):
-    // const invalid: Params = { color: 'chartreuse' }; // error: Type '"chartreuse"' is not assignable
+    // Bidirectional assertion: the type must be exactly 'violet' | 'ember', not just a subtype of it.
+    // This catches the old broken ParamsOf that resolved to literal 'violet'.
+    expectTypeOf<Params['color']>().toEqualTypeOf<'violet' | 'ember'>();
   });
 });
 

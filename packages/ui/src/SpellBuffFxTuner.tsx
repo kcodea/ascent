@@ -38,6 +38,8 @@ const LABELS: Record<keyof SpellBuffFxConfig, string> = {
   wiggleMs: 'wiggle ms',
   wiggleEase: 'pop softness',
   wiggleOvershoot: 'pop spring',
+  wiggleWobble: 'wobble (0=smooth)',
+  wiggleSettle: 'settle softness',
 };
 
 export function SpellBuffFxTuner() {

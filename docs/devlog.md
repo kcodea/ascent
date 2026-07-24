@@ -3,6 +3,26 @@
 Newest first. Each entry records **what changed and why**, plus how it was verified. The forward
 queue lives in [roadmap.md](roadmap.md); high-level milestones in [../CLAUDE.md](../CLAUDE.md).
 
+## 2026-07-23 (spell-buff pop — the softness dial had no authority)
+
+### fix(ui): widen the pop-softness curve mapping (triage)
+
+Owner: "the softness doesn't seem to do anything." Triaged by sampling the card's actual transform trajectory
+(scale magnitude from the computed matrix) at softness 0 vs 1, with the amplitude cranked so any difference
+would be measurable.
+
+It WAS working, but barely: the mapping only moved the curve's head control point between `y1` 0.02 and 0.12,
+so every setting left rest slowly — the dial only shifted timing slightly. Measured gap at 60ms: **0.098**. At
+the shipped amplitude (1.06 scale) that is invisible.
+
+Fixed by swinging the head control point across its full range — at 0 the curve leaves rest almost vertically
+(an instant leap), at 1 it crawls out flat (a long gentle ramp): `y1` now spans 0.70 → 0.01 and `x1` 0.02 →
+0.80. Re-measured gap at 60ms: **0.206** (2.1× stronger), and the trajectories now diverge obviously — softness
+0 is at 1.211 by 60ms and already falling by 300ms, softness 1 is still at 1.005 at 60ms and doesn't peak until
+~300ms. Default pop scale also raised 1.06 → 1.10 so the easing is legible at shipped values.
+
+Full suite (1538) + lint + build:web green.
+
 ## 2026-07-23 (spell-buff pop — smoothing dials + the keyframe-var limitation)
 
 ### fix(ui): the pop sprang on EVERY leg; split shake from smoothness

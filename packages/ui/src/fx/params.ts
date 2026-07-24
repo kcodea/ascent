@@ -11,8 +11,12 @@ export type FxParamSpec =
 
 export type FxParamSpecs = Record<string, FxParamSpec>;
 
-/** The params object a spec record describes. Derived — never hand-written alongside the specs. */
-export type ParamsOf<S extends FxParamSpecs> = { [K in keyof S]: S[K]['default'] };
+/** The params object a spec record describes. Derived — never hand-written alongside the specs.
+ *  Enum params resolve to a union of their own `options` (not just the default), so a value that is
+ *  valid at runtime is valid at compile time and nothing else is. */
+export type ParamsOf<S extends FxParamSpecs> = {
+  [K in keyof S]: S[K] extends { kind: 'enum'; options: readonly (infer O)[] } ? O : S[K]['default'];
+};
 
 export function defaultsOf<S extends FxParamSpecs>(specs: S): ParamsOf<S> {
   const out: Record<string, unknown> = {};
@@ -20,11 +24,12 @@ export function defaultsOf<S extends FxParamSpecs>(specs: S): ParamsOf<S> {
   return out as ParamsOf<S>;
 }
 
-/** Merge caller-supplied values over the defaults, dropping anything invalid. Never throws: a bad value in
- *  a saved def must degrade to the default rather than break the effect. */
+/** Merge caller-supplied values over the defaults. Values that fail their spec's type check are dropped
+ *  in favour of the default, never parsed or converted. Never throws: a bad value in a saved def must
+ *  degrade to the default rather than break the effect. */
 export function coerceParams<S extends FxParamSpecs>(specs: S, raw: unknown): ParamsOf<S> {
   const out = defaultsOf(specs) as Record<string, unknown>;
-  if (raw === null || typeof raw !== 'object') return out as ParamsOf<S>;
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return out as ParamsOf<S>;
   const src = raw as Record<string, unknown>;
   for (const key of Object.keys(specs)) {
     if (!(key in src)) continue;
@@ -46,4 +51,24 @@ export function coerceParams<S extends FxParamSpecs>(specs: S, raw: unknown): Pa
     }
   }
   return out as ParamsOf<S>;
+}
+
+/** Dev-time invariant: catch a spec that contradicts itself (a default outside its own range, an enum
+ *  default not in its own options) at registration rather than as a silently wrong slider months later.
+ *  Returns the problems rather than throwing, so the caller decides how loud to be. */
+export function validateSpecs(specs: FxParamSpecs): string[] {
+  const problems: string[] = [];
+  for (const key of Object.keys(specs)) {
+    const spec = specs[key];
+    if (spec.kind === 'slider') {
+      if (spec.min > spec.max) problems.push(`'${key}': min ${spec.min} exceeds max ${spec.max}`);
+      if (spec.default < spec.min || spec.default > spec.max) {
+        problems.push(`'${key}': default ${spec.default} is outside [${spec.min}, ${spec.max}]`);
+      }
+    }
+    if (spec.kind === 'enum' && !spec.options.includes(spec.default)) {
+      problems.push(`'${key}': default '${spec.default}' is not one of its options`);
+    }
+  }
+  return problems;
 }

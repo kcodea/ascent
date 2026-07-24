@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { coerceParams, defaultsOf, type FxParamSpecs } from './params';
+import { describe, expect, it, expectTypeOf } from 'vitest';
+import { coerceParams, defaultsOf, validateSpecs, type FxParamSpecs, type ParamsOf } from './params';
 
 const SPECS = {
   width: { kind: 'slider', label: 'Width', min: 1, max: 100, step: 1, default: 40 },
@@ -38,5 +38,76 @@ describe('coerceParams', () => {
 
   it('ignores unknown keys rather than passing them through', () => {
     expect(coerceParams(SPECS, { nope: 1 })).toEqual({ width: 40, loop: true, palette: 'violet' });
+  });
+
+  it('falls back to the default for NaN and Infinity', () => {
+    expect(coerceParams(SPECS, { width: NaN }).width).toBe(40);
+    expect(coerceParams(SPECS, { width: Infinity }).width).toBe(40);
+  });
+
+  it('handles a color param (number passed through unclamped)', () => {
+    const colorSpecs = {
+      glow: { kind: 'color' as const, label: 'Glow', default: 0xff00ff },
+    } satisfies FxParamSpecs;
+    expect(coerceParams(colorSpecs, { glow: 0x00ff00 }).glow).toBe(0x00ff00);
+    expect(coerceParams(colorSpecs, { glow: 999999 }).glow).toBe(999999); // no clamping
+  });
+
+  it('rejects an array as the raw params object', () => {
+    expect(coerceParams(SPECS, [1, 2, 3])).toEqual({ width: 40, loop: true, palette: 'violet' });
+  });
+});
+
+describe('ParamsOf type derivation', () => {
+  it('derives the correct type for enum params (union of options, not just default)', () => {
+    const specsWithEnum = {
+      color: { kind: 'enum' as const, label: 'Color', options: ['violet', 'ember'] as const, default: 'violet' as const },
+    } satisfies FxParamSpecs;
+    type Params = ParamsOf<typeof specsWithEnum>;
+    // These should type-check:
+    expectTypeOf<Params['color']>().toMatchTypeOf<'violet' | 'ember'>();
+    // This should NOT type-check (but we can't directly test that in a value context):
+    // const invalid: Params = { color: 'chartreuse' }; // error: Type '"chartreuse"' is not assignable
+  });
+});
+
+describe('validateSpecs', () => {
+  it('returns empty array for a well-formed spec record', () => {
+    expect(validateSpecs(SPECS)).toEqual([]);
+  });
+
+  it('catches a slider default above its max', () => {
+    const badSlider = {
+      value: { kind: 'slider' as const, label: 'Value', min: 0, max: 10, step: 1, default: 15 },
+    } satisfies FxParamSpecs;
+    const problems = validateSpecs(badSlider);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('default 15 is outside [0, 10]');
+  });
+
+  it('catches a slider default below its min', () => {
+    const badSlider = {
+      value: { kind: 'slider' as const, label: 'Value', min: 5, max: 10, step: 1, default: 2 },
+    } satisfies FxParamSpecs;
+    const problems = validateSpecs(badSlider);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain('default 2 is outside [5, 10]');
+  });
+
+  it('catches a slider min > max', () => {
+    const badSlider = {
+      value: { kind: 'slider' as const, label: 'Value', min: 100, max: 10, step: 1, default: 50 },
+    } satisfies FxParamSpecs;
+    const problems = validateSpecs(badSlider);
+    expect(problems.some(p => p.includes('min 100 exceeds max 10'))).toBe(true);
+  });
+
+  it('catches an enum default not in options', () => {
+    const badEnum = {
+      color: { kind: 'enum' as const, label: 'Color', options: ['red', 'blue'], default: 'green' },
+    } satisfies FxParamSpecs;
+    const problems = validateSpecs(badEnum);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("default 'green' is not one of its options");
   });
 });

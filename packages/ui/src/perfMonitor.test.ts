@@ -123,7 +123,8 @@ describe('perf monitor — measured hotspots', () => {
   });
 
   it('tolerates buckets with no timings at all (logs from before measure() existed)', () => {
-    const legacy = { ...bucket({ t: 1000 }) } as PerfBucket & { timings?: unknown };
+    // `Omit` first: intersecting `PerfBucket` with `{ timings?: … }` keeps `timings` REQUIRED, so `delete` is illegal.
+    const legacy = { ...bucket({ t: 1000 }) } as Omit<PerfBucket, 'timings'> & { timings?: unknown };
     delete legacy.timings;
     const s = summarize([legacy as PerfBucket]);
     expect(s.hotspots).toEqual([]);

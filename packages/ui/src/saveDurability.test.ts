@@ -20,7 +20,7 @@ describe('a save referencing deleted cards is detectable', () => {
   it('reports every unknown card id across shop, hand and board', () => {
     const s = run();
     s.shop = [{ uid: 'a', cardId: 'ghost_card' }, ...s.shop.slice(1)] as RunState['shop'];
-    s.hand = [{ uid: 'b', cardId: 'another_ghost', tribe: 'neutral', attack: 1, health: 1, keywords: [] }] as RunState['hand'];
+    s.hand = [{ uid: 'b', cardId: 'another_ghost', tribe: 'neutral', attack: 1, health: 1, keywords: [], golden: false }] as RunState['hand'];
     const missing = missingCardIds(s);
     expect(missing).toContain('ghost_card');
     expect(missing).toContain('another_ghost');
